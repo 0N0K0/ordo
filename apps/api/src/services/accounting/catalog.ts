@@ -2,9 +2,9 @@ import { catalogItemSchema, type CatalogItemInput } from '@ordo/shared';
 import { prisma } from '../../db';
 import { type CatalogItem } from '../../generated/prisma/client';
 import { parseInput } from '../../graphql/errors';
-import { requirePro } from '../workspace/workspaces';
-import { assertNotArchived } from '../core/archive';
-import { assertExists, deleteOrNotFound } from '../core/lookup';
+import { requirePro } from '../workspaces/workspaces';
+import { assertActive } from '../core/archive';
+import { deleteOrNotFound } from '../core/lookup';
 import { toDecimal } from '../core/decimal';
 
 /**
@@ -39,8 +39,7 @@ export function createCatalogItem(input: CatalogItemInput): Promise<CatalogItem>
  * @returns {Promise<CatalogItem>} Item.
  */
 export async function updateCatalogItem(id: string, input: CatalogItemInput): Promise<CatalogItem> {
-  await assertExists(prisma.catalogItem, id, 'Article');
-  await assertNotArchived('CATALOG_ITEM', id);
+  await assertActive(prisma.catalogItem, id, 'Article');
   return prisma.catalogItem.update({ where: { id }, data: itemData(input) });
 }
 

@@ -2,6 +2,7 @@ import { Group, Stack, Text } from '@mantine/core';
 import { notifications } from '@mantine/notifications';
 import { ArrowCounterClockwiseIcon, ArrowRightIcon } from '@phosphor-icons/react';
 import type { ReactNode } from 'react';
+import { GraphQLRequestError } from './graphql-client';
 import { FEEDBACK_COLORS } from '../components/feedback/feedback-colors';
 import { ErrorFeedbackIcon, InfoFeedbackIcon, SuccessFeedbackIcon, WarningFeedbackIcon } from '../components/feedback/feedback-icons';
 import { ActionButton } from '../components/actions/ActionButton';
@@ -146,12 +147,15 @@ const UNEXPECTED_ERROR = 'Une erreur inattendue est survenue.';
 
 /**
  * Failure of an action caught in a `catch` (whatever was thrown), told in an error toast: its message, or a fallback
- * when it has none (never an empty toast). The one rule of every error toast (onMutationError, useAsyncAction…).
+ * when it has none (never an empty toast). The one rule of every error toast (onMutationError, useAsyncAction, forms…).
+ * An expired session is silent: the app goes back to the sign-in page.
  * @param {unknown} error What was thrown.
  * @param {string} [fallback] Message when it has none. Optional. Default = « Une erreur inattendue est survenue. ».
  * @returns {void}
  */
 export function notifyFailure(error: unknown, fallback: string = UNEXPECTED_ERROR): void {
+  // eslint-disable-next-line no-restricted-syntax -- notifyFailure itself.
+  if (error instanceof GraphQLRequestError && error.code === 'UNAUTHENTICATED') return;
   notifyError(error instanceof Error && error.message ? error.message : fallback);
 }
 

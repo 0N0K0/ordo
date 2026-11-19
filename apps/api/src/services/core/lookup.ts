@@ -1,5 +1,4 @@
-import type { GraphQLError } from 'graphql';
-import { notFound } from '../../graphql/errors';
+import { notFound, orNotFound } from '../../graphql/errors';
 
 /** Model delegate able to find one record by id (`prisma.project`, `tx.client`…). */
 interface FindByIdDelegate {
@@ -17,14 +16,22 @@ export interface LookupOptions {
   field?: string;
 }
 
+/** Model delegate able to find one whole record by id (`prisma.task`, `tx.sheet`…). */
+export interface FindRecordDelegate<T> {
+  findUnique(args: { where: { id: string } }): PromiseLike<T | null>;
+}
+
 /**
- * Error for a missing record: « X introuvable. », attached to a field when one is given.
- * @param {string} what Human-readable name of the record ("Client", "Projet"…).
- * @param {LookupOptions} options Report options.
- * @returns {GraphQLError} NOT_FOUND error, or BAD_USER_INPUT error of the field.
+ * Whole record found by id, or NOT_FOUND « X introuvable. » when there is none. A query with `include` / `select`
+ * goes through `orNotFound(model.findUnique(…), what)` (graphql/errors).
+ * @param {FindRecordDelegate<T>} model Model delegate (`prisma.task`…).
+ * @param {string} id Record id.
+ * @param {string} what Human-readable name of the record ("Tâche", "Projet"…).
+ * @returns {Promise<T>} Record.
  */
-function missing(what: string, { field }: LookupOptions): GraphQLError {
-  return notFound(what, field);
+export function findOrNotFound<T>(model: FindRecordDelegate<T>, id: string, what: string): Promise<T> {
+  // eslint-disable-next-line no-restricted-syntax -- findOrNotFound itself.
+  return orNotFound(model.findUnique({ where: { id } }), what);
 }
 
 /**
@@ -36,7 +43,7 @@ function missing(what: string, { field }: LookupOptions): GraphQLError {
  * @returns {Promise<void>}
  */
 export async function assertExists(model: FindByIdDelegate, id: string | null | undefined, what: string, options: LookupOptions = {}): Promise<void> {
-  if (id && !(await model.findUnique({ where: { id }, select: { id: true } }))) throw missing(what, options);
+  if (id && !(await model.findUnique({ where: { id }, select: { id: true } }))) throw notFound(what, options.field);
 }
 
 /**
@@ -50,7 +57,7 @@ export async function assertExists(model: FindByIdDelegate, id: string | null | 
 export async function assertAllExist(model: CountByIdsDelegate, ids: readonly string[] | null | undefined, what: string, options: LookupOptions = {}): Promise<void> {
   if (!ids?.length) return;
   const unique = [...new Set(ids)];
-  if ((await model.count({ where: { id: { in: unique } } })) !== unique.length) throw missing(what, options);
+  if ((await model.count({ where: { id: { in: unique } } })) !== unique.length) throw notFound(what, options.field);
 }
 
 /** Model delegate able to delete records by id (`prisma.project`, `tx.client`…). */

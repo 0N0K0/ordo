@@ -1,4 +1,5 @@
 import { tasksQueryKey } from '../../tasks/api';
+import { joinedKey } from '@ordo/shared';
 import { useQuery } from '@tanstack/react-query';
 import { moveToIndex, useInvalidatingMutation } from '../../../lib/mutation';
 import { graphql } from '../../../graphql';
@@ -11,7 +12,7 @@ import { execute } from '../../../lib/graphql-client';
  * @param {string} taskId Task.
  * @returns {string} Key.
  */
-export const sprintTaskKey = (sprintId: string, taskId: string): string => `${sprintId}|${taskId}`;
+export const sprintTaskKey = (sprintId: string, taskId: string): string => joinedKey(sprintId, taskId);
 
 export type Dashboard = DashboardsQuery['dashboards'][number];
 export type DashboardChart = Dashboard['charts'][number];

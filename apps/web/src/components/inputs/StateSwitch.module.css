@@ -1,0 +1,7 @@
+@layer app {
+  /* An optional state: its track dashed. */
+  .track {
+    /* Bordures */
+    border-style: dashed;
+  }
+}

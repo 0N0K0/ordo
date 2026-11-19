@@ -1,6 +1,5 @@
 import { prisma } from '../../db';
-import { fieldError } from '../../graphql/errors';
-import { ARCHIVED_MESSAGE, assertNotArchived } from '../core/archive';
+import { archivedError, assertNotArchived } from '../core/archive';
 
 /** Settings items and reference a product, an item of a list or of a sheet, or a stock item points to. */
 export interface ShoppingRefs {
@@ -29,5 +28,5 @@ export async function assertActiveRefs(next: ShoppingRefs, current?: ShoppingRef
   ] as const)
     await assertNotArchived(kind, next[key], { keep: current?.[key], field: key });
   const unit = next.unit && next.unit !== current?.unit ? next.unit : null;
-  if (unit && (await prisma.shoppingUnit.count({ where: { label: unit, archivedAt: { not: null } } }))) throw fieldError('unit', ARCHIVED_MESSAGE);
+  if (unit && (await prisma.shoppingUnit.count({ where: { label: unit, archivedAt: { not: null } } }))) throw archivedError('unit');
 }

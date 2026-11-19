@@ -2,11 +2,12 @@ import { BY_POSITION } from '../src/services/core/ordering';
 import { fakerFR as faker } from '@faker-js/faker';
 import { confirm } from '@inquirer/prompts';
 import { prisma, unscopedPrisma } from '../src/db';
-import { createWorkspace, ensureMeContributor, meContributorId, setTaskColumnDefaults, setWorkspaceNotifications } from '../src/services/workspace/workspaces';
+import { createWorkspace, ensureMeContributor, meContributorId, setTaskColumnDefaults, setWorkspaceNotifications } from '../src/services/workspaces/workspaces';
 import { enterWorkspace } from '../src/workspace-context';
 import type { Project, TaskStatusCategory } from '../src/generated/prisma/client';
 import {
   calendarEventFactory,
+  calendarCategory,
   clientFactory,
   COLORS,
   commentFactory,
@@ -354,24 +355,15 @@ for (const project of projects) {
 }
 
 // --- Calendar -----------------------------------------------------------------------------------------
-/**
- * Creates a calendar category.
- * @param {string} label Label.
- * @param {string} color Color.
- * @param {string | null} parentId Parent.
- * @param {number} position Position among its siblings.
- * @returns {Promise<string>} Category id.
- */
-const category = async (label: string, color: string, parentId: string | null, position: number) => (await prisma.calendarCategory.create({ data: { label, color, parentId, position } })).id;
-const pro = await category('Pro', '#228be6', null, 0);
-const meetings = await category('Réunions', '#4c6ef5', pro, 0);
-const clientsCategory = await category('Clients', '#15aabf', pro, 1);
-const appointments = await category('Rendez-vous', '#12b886', clientsCategory, 0);
-const training = await category('Formation', '#82c91e', pro, 2);
-const personal = await category('Perso', '#e64980', null, 1);
-const sport = await category('Sport', '#fd7e14', personal, 0);
-const health = await category('Santé', '#fa5252', personal, 1);
-const admin = await category('Administratif', '#fab005', null, 2);
+const pro = await calendarCategory('Pro', '#228be6', null, 0);
+const meetings = await calendarCategory('Réunions', '#4c6ef5', pro, 0);
+const clientsCategory = await calendarCategory('Clients', '#15aabf', pro, 1);
+const appointments = await calendarCategory('Rendez-vous', '#12b886', clientsCategory, 0);
+const training = await calendarCategory('Formation', '#82c91e', pro, 2);
+const personal = await calendarCategory('Perso', '#e64980', null, 1);
+const sport = await calendarCategory('Sport', '#fd7e14', personal, 0);
+const health = await calendarCategory('Santé', '#fa5252', personal, 1);
+const admin = await calendarCategory('Administratif', '#fab005', null, 2);
 
 // Two calendars: work, and personal life (the personal categories).
 const workCalendar = (await prisma.calendar.create({ data: { label: 'Travail', color: '#228be6', position: 0 } })).id;

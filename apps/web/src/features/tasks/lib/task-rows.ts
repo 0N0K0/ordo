@@ -59,7 +59,7 @@ export function sortValue(task: Task, column: TaskSortKey, context: TaskContext)
     case 'effort':
       return task.effort;
     case 'trackedTime':
-      return task.trackedSeconds || null;
+      return task.trackedSeconds;
     case 'startDate':
       return task.startDate;
     case 'endDate':
@@ -88,8 +88,8 @@ export function sortValue(task: Task, column: TaskSortKey, context: TaskContext)
     case 'related':
       return task.relatedIds.length || null;
     case 'comments':
-      // A description counts as a comment.
-      return commentTotal(task.commentCount, task.description) || null;
+      // A description counts as a comment; 0 is a count, not empty (decision CO).
+      return commentTotal(task.commentCount, task.description);
     case 'createdAt':
       return task.createdAt;
     case 'updatedAt':
@@ -98,14 +98,19 @@ export function sortValue(task: Task, column: TaskSortKey, context: TaskContext)
 }
 
 /**
- * Value an event is sorted by: its title, project, people and dates; null for what only tasks have.
+ * Value an event is sorted by: its title, project, people, time, comments and dates; null for what only tasks have.
  * @param {EventOccurrence} event Occurrence.
  * @param {TaskSortKey} column Sort key.
  * @param {TaskContext} context Task context.
+ * @param {number} [comments] Its comments (its description counting as one). Optional. Default = 0.
  * @returns {SortValue} Comparable value.
  */
-export function eventSortValue(event: EventOccurrence, column: TaskSortKey, context: TaskContext): SortValue {
+export function eventSortValue(event: EventOccurrence, column: TaskSortKey, context: TaskContext, comments = 0): SortValue {
   switch (column) {
+    case 'trackedTime':
+      return event.trackedSeconds;
+    case 'comments':
+      return comments;
     case 'label':
       return event.label;
     case 'project':

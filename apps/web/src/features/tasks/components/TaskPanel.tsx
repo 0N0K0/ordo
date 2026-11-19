@@ -10,7 +10,7 @@ import { ArchivedBadge } from '../../../components/feedback/ArchivedBadge';
 import { EmptyState } from '../../../components/feedback/EmptyState';
 import { DetailSkeleton } from '../../../components/feedback/Skeletons';
 import { SidePanel } from '../../../components/panels/SidePanel';
-import { Anchor, Badge, Divider, Fieldset, Grid, Group, Select, Stack, Text, TextInput } from '@mantine/core';
+import { Anchor, Badge, Divider, Fieldset, Grid, Group, Select, Stack, Text } from '@mantine/core';
 import { DatePickerInput } from '@mantine/dates';
 import { readSlotRule, taskLabelSchema, subtreeOf } from '@ordo/shared';
 import { ArrowCounterClockwiseIcon, CheckCircleIcon, GithubLogoIcon, PencilSimpleIcon, ArrowsLeftRightIcon } from '@phosphor-icons/react';
@@ -46,6 +46,9 @@ import { DetailNotFound } from '../../../components/feedback/DetailNotFound';
 import { ActionButton } from '../../../components/actions/ActionButton';
 import { RemoveButton } from '../../../components/actions/RemoveButton';
 import { EXTERNAL_LINK } from '../../../components/actions/link-props';
+import { openLabelForm } from '../../../components/dialogs/open-label-form';
+import { LATE_COLOR } from '../../../components/feedback/feedback-colors';
+import { isTaskOverdue } from '../lib/task-overdue';
 
 interface LinkListProps {
   label: string;
@@ -117,8 +120,6 @@ function TaskDetail({ task, context }: TaskDetailProps) {
   const taskBlock = useTaskBlock();
   const taskRelation = useTaskRelation();
   const actions = useTaskActions(context);
-  const [titleDraft, setTitleDraft] = useState<string | null>(null);
-  const [titleError, setTitleError] = useState<string | null>(null);
   const [description, setDescription] = useState<string | null>(null);
   const locked = task.archived;
 
@@ -130,22 +131,20 @@ function TaskDetail({ task, context }: TaskDetailProps) {
    */
   const save = (input: Omit<TaskInputValues, 'projectId'>, onSuccess?: () => void) => updateTask.mutate({ id: task.id, input }, { onSuccess, onError: onMutationError });
   const dates = dateRangeProps({ value: [task.startDate, task.endDate], onChange: ([startDate, endDate]) => save({ startDate, endDate }) });
-  const overdue = task.deadline && task.deadline < localToday() && !task.closed ? 'En retard' : undefined;
-  const doable = dateRangeProps({ value: [task.minDate, task.deadline], onChange: ([minDate, deadline]) => save({ minDate, deadline }), errors: [undefined, overdue] });
+  const overdue = isTaskOverdue(task, localToday());
+  const doable = dateRangeProps({ value: [task.minDate, task.deadline], onChange: ([minDate, deadline]) => save({ minDate, deadline }) });
 
   /**
-   * Validates and saves the edited title.
+   * Renames the task in the side panel, as everywhere (decision CK).
    * @returns {void}
    */
-  const saveTitle = () => {
-    const result = taskLabelSchema.safeParse(titleDraft ?? '');
-    if (!result.success) {
-      setTitleError(result.error.issues[0]?.message ?? 'Libellé invalide.');
-      return;
-    }
-    if (result.data === task.label) setTitleDraft(null);
-    else save({ label: result.data }, () => setTitleDraft(null));
-  };
+  const rename = () =>
+    openLabelForm('Renommer la tâche', {
+      initial: task.label,
+      schema: taskLabelSchema,
+      submitLabel: 'Renommer',
+      onSubmit: (label) => (label === task.label ? undefined : updateTask.mutateAsync({ id: task.id, input: { label } })),
+    });
 
   const parent = task.parentId ? context.taskById.get(task.parentId) : undefined;
   const subtasks = context.childrenOf(task.id);
@@ -190,70 +189,46 @@ function TaskDetail({ task, context }: TaskDetailProps) {
   return (
     <Stack gap="lg">
       <Stack gap="xs">
-        {titleDraft === null ? (
-          <DetailHeader
-            compact
-            title={
+        <DetailHeader
+          compact
+          title={
+            <>
+              {task.label}{' '}
+              <Text span c="dimmed" inherit fw={400}>
+                {taskNumber(task)}
+              </Text>
+            </>
+          }
+          badges={
+            <>
+              {task.githubLinked && (
+                <Badge variant="light" color="dark" leftSection={<GithubLogoIcon aria-hidden />} {...(task.githubUrl ? { component: 'a' as const, href: task.githubUrl, ...EXTERNAL_LINK } : {})}>
+                  {task.githubNumber ? `GitHub #${task.githubNumber}` : 'Brouillon GitHub'}
+                </Badge>
+              )}
+              {task.archived && <ArchivedBadge feminine />}
+            </>
+          }
+          actions={
+            !locked && (
               <>
-                {task.label}{' '}
-                <Text span c="dimmed" inherit fw={400}>
-                  {taskNumber(task)}
-                </Text>
+                <ActionButton
+                  priority="secondary"
+                  size="xs"
+                  icon={task.closed ? <ArrowCounterClockwiseIcon aria-hidden /> : <CheckCircleIcon aria-hidden />}
+                  loading={setClosed.isPending}
+                  onClick={() => setClosed.mutate({ ids: [task.id], closed: !task.closed }, ON_ERROR)}
+                >
+                  {task.closed ? 'Rouvrir' : 'Fermer la tâche'}
+                </ActionButton>
+                <ActionButton priority="secondary" size="xs" icon={<PencilSimpleIcon aria-hidden />} onClick={rename}>
+                  Renommer
+                </ActionButton>
               </>
-            }
-            badges={
-              <>
-                {task.githubLinked && (
-                  <Badge variant="light" color="dark" leftSection={<GithubLogoIcon aria-hidden />} {...(task.githubUrl ? { component: 'a' as const, href: task.githubUrl, ...EXTERNAL_LINK } : {})}>
-                    {task.githubNumber ? `GitHub #${task.githubNumber}` : 'Brouillon GitHub'}
-                  </Badge>
-                )}
-                {task.archived && <ArchivedBadge feminine />}
-              </>
-            }
-            actions={
-              !locked && (
-                <>
-                  <ActionButton
-                    priority="secondary"
-                    size="xs"
-                    icon={task.closed ? <ArrowCounterClockwiseIcon aria-hidden /> : <CheckCircleIcon aria-hidden />}
-                    loading={setClosed.isPending}
-                    onClick={() => setClosed.mutate({ ids: [task.id], closed: !task.closed }, ON_ERROR)}
-                  >
-                    {task.closed ? 'Rouvrir' : 'Fermer la tâche'}
-                  </ActionButton>
-                  <ActionButton priority="secondary" size="xs" icon={<PencilSimpleIcon aria-hidden />} onClick={() => setTitleDraft(task.label)}>
-                    Modifier
-                  </ActionButton>
-                </>
-              )
-            }
-            menu={{ about: 'la tâche', items: actions.menu(task) }}
-          />
-        ) : (
-          <Group gap="xs" align="flex-start" wrap="nowrap">
-            <TextInput
-              value={titleDraft}
-              error={titleError}
-              onChange={(event) => {
-                setTitleDraft(event.currentTarget.value);
-                setTitleError(null);
-              }}
-              onKeyDown={(event) => {
-                if (event.key === 'Enter') saveTitle();
-                if (event.key === 'Escape') {
-                  event.stopPropagation();
-                  setTitleDraft(null);
-                }
-              }}
-              aria-label="Libellé"
-              autoFocus
-              style={{ flex: 1 }}
-            />
-            <FormActions onCancel={() => setTitleDraft(null)} onSubmit={saveTitle} loading={updateTask.isPending} />
-          </Group>
-        )}
+            )
+          }
+          menu={{ about: 'la tâche', items: actions.menu(task) }}
+        />
         <Group gap="xs">
           <TaskStateIcon closed={task.closed} blocked={context.isBlocked(task)} />
           <Anchor component={Link} to={task.projectId ? projectPath(task.projectId) : PAGES.tasks.path} size="sm">
@@ -355,7 +330,23 @@ function TaskDetail({ task, context }: TaskDetailProps) {
                 <DatePickerInput label="Fin" clearable placeholder="—" {...dates.end} />
               </Group>
               <DatePickerInput label="Date min" description="Avant, la tâche n’est pas à faire." clearable placeholder="—" {...doable.start} />
-              <DatePickerInput label="Date max" description="Au-delà, la tâche ouverte est en retard." clearable placeholder="—" {...doable.end} />
+              <DatePickerInput
+                label="Date max"
+                description={
+                  <>
+                    Au-delà, la tâche ouverte est en retard.
+                    {overdue && (
+                      <Text span inherit c={LATE_COLOR} fw={600}>
+                        {' '}
+                        En retard.
+                      </Text>
+                    )}
+                  </>
+                }
+                clearable
+                placeholder="—"
+                {...doable.end}
+              />
               <TaskSelect
                 context={context}
                 labelOf={(candidate) => context.taskLabel(candidate, task.projectId)}
@@ -416,7 +407,7 @@ function TaskDetail({ task, context }: TaskDetailProps) {
               <Divider />
               <TaskShopping task={task} />
               <Divider />
-              <SheetsSection owner={{ taskId: task.id }} name={task.label} />
+              <SheetsSection owner={{ taskId: task.id }} label={task.label} />
             </Stack>
           </Fieldset>
         </Grid.Col>

@@ -74,8 +74,8 @@ interface ActionsMenuProps extends ActionsSubject {
   nested?: boolean;
   /** Size of the default button. Optional. */
   size?: ActionIconProps['size'];
-  /** Look of the default button: « subtle » in a row or a list, « default » (bordered) next to buttons (a header). Optional. Default = « subtle ». */
-  variant?: 'subtle' | 'default';
+  /** Look of the default button: « subtle » in a row or a list, « light » next to buttons (a header: decision CN). Optional. Default = « subtle ». */
+  variant?: 'subtle' | 'light';
   /** Something runs (an export): the default button spins. Optional. */
   loading?: boolean;
   /** Where the menu opens. Optional. Default = « bottom-end ». */

@@ -16,6 +16,7 @@ import { MailAccountForm } from './MailAccountForm';
 import { SignatureForm } from './SignatureForm';
 import { SettingsSection } from '../../../components/settings/SettingsSection';
 import { ActionButton } from '../../../components/actions/ActionButton';
+import { accountLabel } from '../lib/mail-format';
 
 /**
  * Settings of the mail accounts: add, edit, signature, archive (not read nor synchronised anymore, hidden until
@@ -90,7 +91,7 @@ export function MailAccountsManager() {
                   {account.archived && <ArchivedBadge feminine size="xs" />}
                 </Group>
                 <Text size="xs" c="dimmed" truncate>
-                  {account.displayName ? `${account.displayName} <${account.email}>` : account.email}
+                  {accountLabel(account)}
                   {account.signature ? ' · signature' : ''}
                 </Text>
               </Stack>

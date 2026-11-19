@@ -7,6 +7,7 @@ import { describeDuration, describeRecurrence } from '../../../components/recurr
 import { RuleEditor } from '../../../components/recurrence/RepetitionEditor';
 import { RepetitionField } from '../../../components/recurrence/RepetitionField';
 import { dateRangeProps } from '../../../components/inputs/date-range';
+import { eventMomentText } from '../lib/event-moment';
 
 /** When an event takes place, and how it repeats. */
 interface EventTiming {
@@ -16,18 +17,6 @@ interface EventTiming {
   endDate: string;
   endTime: string | null;
   recurrence: Recurrence | null;
-}
-
-/**
- * Days and hours of an event as text: "Lundi 3 novembre 2026, 9:00 – 10:00", "Du 3 au 5 novembre 2026".
- * @param {EventTiming} timing Timing.
- * @returns {string} Text.
- */
-function describeEventTiming(timing: EventTiming): string {
-  const day = (date: string) => fmt.capitalize(fmt.day(date));
-  if (timing.allDay) return timing.startDate === timing.endDate ? `${day(timing.startDate)}, toute la journée` : `Du ${fmt.day(timing.startDate)} au ${fmt.day(timing.endDate)}`;
-  if (timing.startDate === timing.endDate) return `${day(timing.startDate)}, ${timing.startTime ?? ''} – ${timing.endTime ?? ''}`;
-  return `${day(timing.startDate)} ${timing.startTime ?? ''} – ${fmt.day(timing.endDate)} ${timing.endTime ?? ''}`;
 }
 
 /**
@@ -46,7 +35,7 @@ export function EventRepetition({ value, onChange, ruleStart, error }: { value: 
       onChange={onChange}
       valid={(draft) => draft.allDay || Boolean(draft.startTime && draft.endTime && (draft.endDate > draft.startDate || (draft.endTime ?? '') > (draft.startTime ?? '')))}
       describe={(timing) => [
-        describeEventTiming(timing),
+        eventMomentText(timing),
         ...(timing.recurrence
           ? [[fmt.capitalize(describeRecurrence(timing.recurrence, ruleStart)), timing.recurrence.duration ? describeDuration(timing.recurrence.duration) : ''].filter(Boolean).join(' · ')]
           : []),

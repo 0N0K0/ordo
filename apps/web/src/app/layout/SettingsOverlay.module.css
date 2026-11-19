@@ -9,6 +9,9 @@
     left: var(--app-shell-navbar-offset, 0rem);
     z-index: calc(var(--mantine-z-index-app) - 1);
 
+    /* Arrière-Plan */
+    --overlay-bg: var(--onoko-overlay-color);
+
     /* Interaction */
     cursor: pointer;
   }

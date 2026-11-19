@@ -8,6 +8,7 @@ import { GraphQLRequestError } from './graphql-client';
  * @returns {void}
  */
 function handleUnauthenticated(error: unknown): void {
+  // eslint-disable-next-line no-restricted-syntax -- the sign-out of an expired session.
   if (error instanceof GraphQLRequestError && error.code === 'UNAUTHENTICATED') {
     queryClient.setQueryData(meQueryKey, null);
   }

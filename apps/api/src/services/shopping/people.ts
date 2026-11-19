@@ -1,5 +1,4 @@
-import { prisma } from '../../db';
-import { assertAllExist } from '../core/lookup';
+import { assertBeneficiaries } from '../core/beneficiaries';
 import { connectIds } from '../core/relations';
 
 /** Include of the people (members, relations) of a product, an item or a sheet item. */
@@ -35,6 +34,5 @@ export const peopleIds = (record: WithPeople): { memberIds: string[]; relationId
  * @returns {Promise<void>}
  */
 export async function assertPeople(input: { memberIds?: readonly string[] | null; relationIds?: readonly string[] | null }): Promise<void> {
-  await assertAllExist(prisma.contributor, input.memberIds, 'Membre');
-  await assertAllExist(prisma.treasuryRelation, input.relationIds, 'Relation');
+  await assertBeneficiaries({ contributorIds: input.memberIds, relationIds: input.relationIds }, { field: 'memberIds', keep: 'all' });
 }

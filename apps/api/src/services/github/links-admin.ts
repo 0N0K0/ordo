@@ -6,8 +6,8 @@ import { encryptSecret } from '../mail/secret';
 import { repositoryByName, resolveBoard, viewerLogin, type Board } from './board';
 import { githubToken } from './client';
 import { currentWorkspaceId } from '../../workspace-context';
-import { assertNotArchived } from '../core/archive';
-import { assertExists } from '../core/lookup';
+import { assertActive } from '../core/archive';
+import { toJson } from '../core/json';
 
 /**
  * Saves the personal access token after checking it on GitHub.
@@ -59,7 +59,7 @@ async function relatives(projectId: string): Promise<{ ancestors: string[]; desc
  * @returns {Promise<GithubProjectLink>} Link.
  */
 export async function saveGithubLink(projectId: string, input: GithubLinkInput): Promise<GithubProjectLink> {
-  await assertExists(prisma.project, projectId, 'Projet');
+  await assertActive(prisma.project, projectId, 'Projet');
   const { ancestors, descendants } = await relatives(projectId);
   const clash = await prisma.githubProjectLink.findFirst({ where: { projectId: { in: [...ancestors, ...descendants] } }, include: { project: { select: { label: true } } } });
   if (clash) throw clientError('BAD_USER_INPUT', `« ${clash.project.label} » est déjà lié à un tableau GitHub : un projet et ses sous-projets partagent un seul tableau.`);
@@ -106,9 +106,9 @@ export async function saveGithubLink(projectId: string, input: GithubLinkInput):
     timeSpentFieldId: input.timeSpentFieldId,
     typeSource: input.typeSource,
     typeFieldId: input.typeSource === 'FIELD' ? input.typeFieldId : null,
-    statusOptions: options(input.statusOptions, status) as Prisma.InputJsonValue,
-    priorityOptions: options(input.priorityOptions, priority) as Prisma.InputJsonValue,
-    typeOptions: options(input.typeOptions, typeChoices) as Prisma.InputJsonValue,
+    statusOptions: toJson(options(input.statusOptions, status)),
+    priorityOptions: toJson(options(input.priorityOptions, priority)),
+    typeOptions: toJson(options(input.typeOptions, typeChoices)),
     syncAssignees: input.syncAssignees,
     syncLabels: input.syncLabels,
     repositoryId: repository?.id ?? null,
@@ -157,8 +157,7 @@ export async function unlinkGithubProject(projectId: string): Promise<void> {
 export async function setContributorGithubLogin(id: string, login: string | null): Promise<void> {
   const value = login?.trim().replace(/^@/, '') || null;
   if (value && !/^[A-Za-z0-9](?:[A-Za-z0-9-]{0,38})$/.test(value)) throw clientError('BAD_USER_INPUT', 'Login GitHub invalide.');
-  await assertExists(prisma.contributor, id, 'Contributeur');
-  await assertNotArchived('contributor', id);
+  await assertActive(prisma.contributor, id, 'Contributeur');
   const taken = value ? await prisma.contributor.findFirst({ where: { githubLogin: { equals: value, mode: 'insensitive' }, id: { not: id } }, select: { name: true } }) : null;
   if (taken) throw clientError('CONFLICT', `Ce login GitHub est déjà celui de ${taken.name}.`);
   await prisma.contributor.update({ where: { id }, data: { githubLogin: value } });

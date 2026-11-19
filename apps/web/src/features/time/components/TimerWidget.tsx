@@ -7,6 +7,7 @@ import { RunningTimer } from './TimerCard';
 import classes from './TimerWidget.module.css';
 import { useNow } from '../../../lib/use-now';
 import { TimerControls } from './TimerControls';
+import { entrySubject } from '../lib/entry-subject';
 
 /**
  * Header controls of the running timer: project and clock (opening the details), pause / resume, stop.
@@ -18,7 +19,6 @@ function RunningControls({ entry }: { entry: TimeEntry }) {
   const [opened, { toggle, close }] = useDisclosure(false);
   const paused = entry.pausedAt !== null;
   const now = useNow(!paused);
-  const project = entry.projectId ? context?.projectById.get(entry.projectId) : undefined;
 
   return (
     <Group gap={4} wrap="nowrap" className={classes.running} data-paused={paused || undefined}>
@@ -27,7 +27,7 @@ function RunningControls({ entry }: { entry: TimeEntry }) {
           <UnstyledButton className={classes.summary} onClick={toggle} aria-label="Détails du chrono">
             <span className={classes.dot} aria-hidden />
             <Text size="sm" truncate maw={160} visibleFrom="sm">
-              {project?.label ?? entry.routineLabel ?? 'Chrono'}
+              {entrySubject(entry, context)}
             </Text>
             <Text size="sm" ff="monospace" fw={600}>
               {formatClock(entrySeconds(entry, now))}

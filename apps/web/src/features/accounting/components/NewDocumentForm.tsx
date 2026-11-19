@@ -1,13 +1,13 @@
 import { Select, Stack, Text } from '@mantine/core';
 import { ClientSelect } from '../../projects/components/ClientSelect';
-import type { AccountingDocumentType } from '@ordo/shared';
+import { agreed, type AccountingDocumentType } from '@ordo/shared';
 import { useState } from 'react';
 import { useNavigate } from 'react-router';
 import { localToday } from '../../../lib/dates';
 import { useAsyncAction } from '../../../lib/use-async-action';
-import { useWorkspace } from '../../projects/api';
+import { useProjectTree } from '../../projects/api';
 import { fetchNewDocumentDefaults, useDocumentMutations } from '../api/documents';
-import { DOCUMENT_TYPE_LABELS } from '../lib/labels';
+import { isFeminineDocumentType, THE_DOCUMENT_TYPE } from '../lib/labels';
 import { clientProjectOptions } from '../../projects/lib/tree';
 import { treeSelectProps } from '../../../components/tree/tree-select';
 import { FormActions } from '../../../components/dialogs/FormActions';
@@ -29,7 +29,7 @@ export function NewDocumentForm({
   projectId?: string | null;
   onDone: () => void;
 }) {
-  const { data: workspace } = useWorkspace();
+  const { data: workspace } = useProjectTree();
   const { create } = useDocumentMutations();
   const navigate = useNavigate();
   const [clientId, setClientId] = useState<string | null>(initialClient);
@@ -72,7 +72,7 @@ export function NewDocumentForm({
         onChange={setProjectId}
       />
       <Text size="xs" c="dimmed">
-        Le {DOCUMENT_TYPE_LABELS[type].toLowerCase()} est créé en brouillon, sans numéro, avec vos conditions par défaut.
+        {THE_DOCUMENT_TYPE[type]} est {agreed('créé', isFeminineDocumentType(type))} en brouillon, sans numéro, avec vos conditions par défaut.
       </Text>
       <FormActions onCancel={onDone} submitLabel="Créer" onSubmit={() => void submit()} disabled={!clientId} loading={loading} />
     </Stack>

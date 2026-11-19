@@ -82,3 +82,10 @@ export function movedTo<T>(others: readonly T[], moved: T, index: number): T[] {
   // eslint-disable-next-line no-restricted-syntax -- movedTo itself.
   return [...others.slice(0, target), moved, ...others.slice(target)];
 }
+
+/**
+ * Key of a map or a set made of several parts (« a|b »), the same everywhere: an empty part for none.
+ * @param {readonly (string | number | null | undefined)[]} parts Parts of the key.
+ * @returns {string} Key.
+ */
+export const joinedKey = (...parts: readonly (string | number | null | undefined)[]): string => parts.join('|');

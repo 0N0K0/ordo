@@ -47,7 +47,7 @@ import { RoutinesPanel } from '../../routines/pages/RoutinesPage';
 import { ListsPanel } from '../../shopping/pages/ShoppingPage';
 import { TaskBoard } from '../../tasks/components/TaskBoard';
 import { useActiveWorkspace } from '../../workspaces/api';
-import { useWorkspace, type Project } from '../api';
+import { useProjectTree, type Project } from '../api';
 import { ProjectForm } from '../components/ProjectForm';
 import { canHaveChildren } from '../lib/tree';
 import { useEntityActions } from '../hooks/use-entity-actions';
@@ -128,7 +128,7 @@ function ProjectSettings({ project, section, onSection }: { project: Project; se
 export function ProjectPage() {
   const { context: taskContext } = useTaskContext();
   const { id } = useParams();
-  const { data, isPending } = useWorkspace();
+  const { data, isPending } = useProjectTree();
   const actions = useEntityActions();
   // No invoicing nor clients in a personal workspace.
   const { perso } = useActiveWorkspace();

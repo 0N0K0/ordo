@@ -36,12 +36,13 @@ import { BY_POSITION, BY_POSITION_ONLY, nextPositionIn } from '../core/ordering'
 import { copyOf, findOpenList } from './shopping';
 import { assertPeople, peopleData, peopleIds, withPeople } from './people';
 import { syncChecklistStock } from './stock';
-import { assertAllExist, assertExists, deleteOrNotFound } from '../core/lookup';
-import { assertNoneArchived, assertNotArchived } from '../core/archive';
+import { assertAllExist, assertExists, deleteOrNotFound, findOrNotFound } from '../core/lookup';
+import { assertNoneArchived, assertNotArchived, assertActive, refuseArchived, activeIds, findActive } from '../core/archive';
 import { assertActiveRefs, type ShoppingRefs } from './refs';
 import { createLabelService } from '../core/labels';
 import { connectIds } from '../core/relations';
 import { fromDecimal, toDecimal } from '../core/decimal';
+import { toJson } from '../core/json';
 
 /** What a checklist belongs to: a routine or an event (one occurrence), or a task. */
 export type SheetOwner = { routineId: string; occurrenceDate: string } | { eventId: string; occurrenceDate: string } | { taskId: string };
@@ -88,10 +89,8 @@ async function assertProducts(items: SheetItemInput[], current?: ShoppingRefs | 
  * @param {string} id Sheet.
  * @returns {Promise<Sheet>} Sheet.
  */
-async function findOpenSheet(id: string): Promise<Sheet> {
-  const sheet = await findSheet(id);
-  await assertNotArchived('SHEET', id);
-  return sheet;
+function findOpenSheet(id: string): Promise<Sheet> {
+  return findActive(prisma.sheet, id, 'Fiche');
 }
 
 /**
@@ -100,16 +99,6 @@ async function findOpenSheet(id: string): Promise<Sheet> {
  * @returns {Promise<void>}
  */
 const assertSheetsUsable = (ids: string[]): Promise<void> => assertNoneArchived('SHEET', ids);
-
-/**
- * Loads a sheet or throws NOT_FOUND.
- * @param {string} id Sheet.
- * @returns {Promise<Sheet>} Sheet.
- */
-async function findSheet(id: string): Promise<Sheet> {
-  const sheet = await orNotFound(prisma.sheet.findUnique({ where: { id } }), 'Fiche');
-  return sheet;
-}
 
 /**
  * Fields of an item of a sheet or of a checklist.
@@ -150,10 +139,7 @@ const sheetItemFields = (item: SheetItemInput, mode: 'connect' | 'set') => ({
  * @returns {Promise<string[]>} Categories, without duplicates.
  */
 async function assertCategories(ids: string[], current: string[] = []): Promise<string[]> {
-  const unique = [...new Set(ids)];
-  await assertAllExist(prisma.sheetCategory, unique, 'Catégorie');
-  await assertNoneArchived('SHEET_CATEGORY', unique, { keep: current, field: 'categoryIds' });
-  return unique;
+  return activeIds(prisma.sheetCategory, ids, 'Catégorie', { keep: current, field: 'categoryIds' });
 }
 
 /**
@@ -163,8 +149,7 @@ async function assertCategories(ids: string[], current: string[] = []): Promise<
  */
 export async function createSheet(input: SheetInput): Promise<Sheet> {
   const data = parseInput(sheetSchema, input);
-  await assertExists(prisma.project, data.projectId, 'Projet');
-  await assertNotArchived('project', data.projectId, { field: 'projectId' });
+  await assertActive(prisma.project, data.projectId, 'Projet', { field: 'projectId' });
   const categories = await assertCategories(data.categoryIds);
   const position = await nextPositionIn('sheet');
   return prisma.sheet.create({
@@ -180,10 +165,9 @@ export async function createSheet(input: SheetInput): Promise<Sheet> {
  */
 export async function updateSheet(id: string, input: SheetInput): Promise<Sheet> {
   const sheet = await orNotFound(prisma.sheet.findUnique({ where: { id }, include: { categories: { select: { id: true } } } }), 'Fiche');
-  await assertNotArchived('SHEET', id);
+  refuseArchived(sheet);
   const data = parseInput(sheetSchema, input);
-  await assertExists(prisma.project, data.projectId, 'Projet');
-  await assertNotArchived('project', data.projectId, { keep: sheet.projectId, field: 'projectId' });
+  await assertActive(prisma.project, data.projectId, 'Projet', { keep: sheet.projectId, field: 'projectId' });
   const categories = await assertCategories(
     data.categoryIds,
     sheet.categories.map((category) => category.id),
@@ -198,7 +182,7 @@ export async function updateSheet(id: string, input: SheetInput): Promise<Sheet>
  */
 export async function duplicateSheet(id: string): Promise<Sheet> {
   const sheet = await orNotFound(prisma.sheet.findUnique({ where: { id }, include: { items: { orderBy: BY_POSITION, include: withPeople }, categories: { select: { id: true } } } }), 'Fiche');
-  await assertNotArchived('SHEET', id);
+  refuseArchived(sheet);
   const copy = await createSheet({ label: copyName(sheet.label, SHEET_LABEL_MAX), note: sheet.note, projectId: sheet.projectId, categoryIds: sheet.categories.map((category) => category.id) });
   await prisma.$transaction(
     sheet.items.map((item) =>
@@ -296,7 +280,7 @@ export async function addSheetProducts(sheetId: string, productIds: string[]): P
  * @returns {Promise<SheetItem>} Item.
  */
 export async function updateSheetItem(id: string, input: SheetItemInput): Promise<SheetItem> {
-  const current = await orNotFound(prisma.sheetItem.findUnique({ where: { id } }), 'Élément');
+  const current = await findOrNotFound(prisma.sheetItem, id, 'Élément');
   await assertNotArchived('SHEET', current.sheetId);
   const data = parseInput(sheetItemSchema, input);
   await assertProducts([data], current);
@@ -316,7 +300,7 @@ export async function deleteSheetItems(ids: string[]): Promise<void> {
 }
 
 /** Categories of the sheets; the sheets of a deleted one stay, without it. */
-export const sheetCategories = createLabelService<SheetCategory>('sheetCategory', { notFound: 'Catégorie', conflict: 'Cette catégorie existe déjà.' }, { schema: sheetCategorySchema });
+export const sheetCategories = createLabelService<SheetCategory>('sheetCategory', { notFound: 'Catégorie', conflict: 'Une catégorie porte déjà ce libellé.' }, { schema: sheetCategorySchema });
 
 /**
  * Items of sheets times their multipliers, as they are summed into a list (in the order of the sheets).
@@ -418,7 +402,7 @@ export async function addSheetToShoppingList(listId: string, sheetId: string, mu
           where: { id: item.id },
           data: {
             quantity: toDecimal(addQuantities(fromDecimal(item.quantity), part.quantity)),
-            sheetSources: withSource(readSheetSources(item.sheetSources), part) as unknown as Prisma.InputJsonValue,
+            sheetSources: toJson(withSource(readSheetSources(item.sheetSources), part)),
             // Optional only while every sheet it comes from says so.
             optional: item.optional && part.optional,
           },
@@ -427,7 +411,7 @@ export async function addSheetToShoppingList(listId: string, sheetId: string, mu
         continue;
       }
       const product = part.productId ? productById.get(part.productId) : undefined;
-      const sources = withSource([], part) as unknown as Prisma.InputJsonValue;
+      const sources = toJson(withSource([], part));
       const created = product
         ? await tx.shoppingItem.create({
             data: {
@@ -492,7 +476,7 @@ export async function removeSheetFromShoppingList(listId: string, sheetId: strin
       const quantity = fromDecimal(item.quantity);
       const left = quantity === null || own.quantity === null ? quantity : roundQuantity(quantity - own.quantity);
       if (!rest.length && !item.purchasedAt && (left === null || left <= 0)) await tx.shoppingItem.delete({ where: { id: item.id } });
-      else await tx.shoppingItem.update({ where: { id: item.id }, data: { quantity: toDecimal(left !== null && left < 0 ? 0 : left), sheetSources: rest as unknown as Prisma.InputJsonValue } });
+      else await tx.shoppingItem.update({ where: { id: item.id }, data: { quantity: toDecimal(left !== null && left < 0 ? 0 : left), sheetSources: toJson(rest) } });
     }
   });
 }
@@ -607,7 +591,7 @@ function summedRows(parts: SheetPart[]) {
     unit: row.unit,
     note: row.note,
     consumable: row.consumable,
-    sources: row.sources as unknown as Prisma.InputJsonValue,
+    sources: toJson(row.sources),
     position,
   }));
 }
@@ -642,7 +626,7 @@ export async function checklist(owner: SheetOwner): Promise<Checklist | null> {
  * @returns {Promise<Checklist>} Checklist.
  */
 export async function resetChecklist(id: string): Promise<Checklist> {
-  const list = await orNotFound(prisma.checklist.findUnique({ where: { id } }), 'Liste');
+  const list = await findOrNotFound(prisma.checklist, id, 'Liste');
   const parts = (await sheetPartsOf(ownerScope(list))) ?? [];
   return prisma.$transaction(async (tx) => {
     await tx.checklistItem.deleteMany({ where: { listId: id } });
@@ -673,7 +657,7 @@ export async function addSheetToChecklist(id: string, sheetId: string, multiplie
           key,
           await tx.checklistItem.update({
             where: { id: item.id },
-            data: { quantity: toDecimal(addQuantities(fromDecimal(item.quantity), part.quantity)), sources: withSource(readSheetSources(item.sources), part) as unknown as Prisma.InputJsonValue },
+            data: { quantity: toDecimal(addQuantities(fromDecimal(item.quantity), part.quantity)), sources: toJson(withSource(readSheetSources(item.sources), part)) },
           }),
         );
       } else {
@@ -689,7 +673,7 @@ export async function addSheetToChecklist(id: string, sheetId: string, multiplie
               unit: part.unit,
               note: part.note,
               consumable: part.consumable,
-              sources: withSource([], part) as unknown as Prisma.InputJsonValue,
+              sources: toJson(withSource([], part)),
               position,
             },
           }),
@@ -705,9 +689,8 @@ export async function addSheetToChecklist(id: string, sheetId: string, multiplie
  * @param {string} id Item.
  * @returns {Promise<ChecklistItem>} Item.
  */
-async function findListItem(id: string): Promise<ChecklistItem> {
-  const item = await orNotFound(prisma.checklistItem.findUnique({ where: { id } }), 'Élément');
-  return item;
+function findListItem(id: string): Promise<ChecklistItem> {
+  return findOrNotFound(prisma.checklistItem, id, 'Élément');
 }
 
 /**

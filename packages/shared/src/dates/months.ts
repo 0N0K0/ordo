@@ -1,4 +1,5 @@
 import { monthOfYear, yearOfDay } from './days';
+import { twoDigits } from '../core/numbers';
 
 /** Names of the months, January first: « janvier », « février »… */
 export const MONTH_LABELS = ['janvier', 'février', 'mars', 'avril', 'mai', 'juin', 'juillet', 'août', 'septembre', 'octobre', 'novembre', 'décembre'] as const;
@@ -34,6 +35,16 @@ export function dayOfMonthText(day: number): string {
   return day === 1 ? ordinal(1) : String(day);
 }
 
+/**
+ * Day of the month of a day.
+ * @param {string} day Day (YYYY-MM-DD).
+ * @returns {number} Day of the month (1 to 31).
+ */
+export function dayOfMonthOf(day: string): number {
+  // eslint-disable-next-line no-restricted-syntax -- dayOfMonthOf itself.
+  return Number(day.slice(8, 10));
+}
+
 /** Names of the positions of a weekday in its month (decision V): « 1er » to « 4e », and « dernier » (-1). */
 export const POSITION_LABELS: Record<number, string> = { 1: ordinal(1), 2: ordinal(2), 3: ordinal(3), 4: ordinal(4), [-1]: 'dernier' };
 
@@ -57,7 +68,7 @@ export function daysInMonth(year: number, month: number): number {
  * @returns {string} YYYY-MM-DD.
  */
 export function dayInMonth(year: number, month: number, day: number): string {
-  return `${year}-${String(month).padStart(2, '0')}-${String(Math.min(Math.max(day, 1), daysInMonth(year, month))).padStart(2, '0')}`;
+  return `${year}-${twoDigits(month)}-${twoDigits(Math.min(Math.max(day, 1), daysInMonth(year, month)))}`;
 }
 
 /**
@@ -86,7 +97,7 @@ export function monthIndex(date: string): number {
  * @returns {string} YYYY-MM.
  */
 export function monthFromIndex(index: number): string {
-  return `${String(Math.floor(index / 12)).padStart(4, '0')}-${String((index % 12) + 1).padStart(2, '0')}`;
+  return `${String(Math.floor(index / 12)).padStart(4, '0')}-${twoDigits((index % 12) + 1)}`;
 }
 
 /**

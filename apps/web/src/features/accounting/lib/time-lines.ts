@@ -1,6 +1,7 @@
 import { round2 } from '@ordo/shared';
 import type { AccountingLineInput } from '@ordo/shared';
 import * as fmt from '../../../lib/format';
+import { taggedKey } from '../../../lib/tagged-key';
 
 /** How tracked time becomes lines. */
 export type TimeGrouping = 'TOTAL' | 'DAY' | 'TASK' | 'ENTRY';
@@ -71,7 +72,7 @@ export function timeLines(entries: BillableTime[], options: TimeLineOptions): Ac
     else if (options.grouping === 'DAY') add(entry.day, `${options.label} — ${fmt.day(entry.day)}`, entry.seconds, entry.description);
     else if (options.grouping === 'ENTRY') add(entry.id, `${options.label} — ${fmt.day(entry.day)}`, entry.seconds, entry.description);
     else if (entry.tasks.length === 0) add('', options.label, entry.seconds, entry.description);
-    else for (const task of entry.tasks) add(`task:${task}`, task, entry.seconds / entry.tasks.length, entry.description);
+    else for (const task of entry.tasks) add(taggedKey('task', task), task, entry.seconds / entry.tasks.length, entry.description);
   }
   return [...groups.values()]
     .filter((group) => group.seconds > 0)

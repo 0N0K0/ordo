@@ -57,7 +57,7 @@ export function SheetPicker({ onAdd, present = [], onRemove, onDone }: SheetPick
               <Text size="sm">{sheet.label}</Text>
               <RemoveButton
                 label="Retirer"
-                aria-label={`Retirer ${sheet.label} de la liste`}
+                aria-label={`Retirer « ${sheet.label} » de la liste`}
                 onClick={() =>
                   confirmDestructive({
                     title: 'Retirer la fiche',

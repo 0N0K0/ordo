@@ -3,9 +3,9 @@ import { ActionButton } from '../../../components/actions/ActionButton';
 import { EmptyState } from '../../../components/feedback/EmptyState';
 import { TableSkeleton } from '../../../components/feedback/Skeletons';
 import { confirmDestructive } from '../../../components/dialogs/confirm-destructive';
-import { Anchor, Group, Stack, Text } from '@mantine/core';
+import { Group, Stack, Text } from '@mantine/core';
 
-import { ArrowsLeftRightIcon, BasketIcon, ListPlusIcon, PencilSimpleIcon, PlusIcon, ShoppingCartSimpleIcon, TrashIcon } from '@phosphor-icons/react';
+import { ArrowsLeftRightIcon, BasketIcon, ListPlusIcon, PencilSimpleIcon, PlusIcon, ShoppingCartSimpleIcon, TrashIcon, SquareIcon } from '@phosphor-icons/react';
 
 import { archiveEntry, unarchived, unarchivedOffered, useSetArchived, useArchivedToggle } from '../../../lib/archive';
 import { ShowArchivedSwitch } from '../../../components/filters/ShowArchivedSwitch';
@@ -270,7 +270,7 @@ export function BaseList({ baseList }: { baseList: ShoppingBaseList }) {
           add={{
             label: 'Ajouter un produit',
             // A product added is usually missing.
-            onCreate: (name, place) => mutations.createProduct.mutateAsync({ ...blankInput(name, place), baseListId: baseList.id, missing: true }),
+            onCreate: (label, place) => mutations.createProduct.mutateAsync({ ...blankInput(label, place), baseListId: baseList.id, missing: true }),
           }}
           label={`Produits de ${baseList.label}`}
           onSave={(product, input) => !product.archived && mutations.updateProduct.mutate({ id: product.id, input: { ...input, baseListId: product.baseListId, missing: product.missing } }, ON_ERROR)}
@@ -353,12 +353,14 @@ export function BaseList({ baseList }: { baseList: ShoppingBaseList }) {
         />
       )}
       {missing.length > 0 && !locked && (
-        <Text size="xs" c="dimmed">
-          Cocher un produit comme acheté sur une liste le retire des manquants.{' '}
-          <Anchor component="button" type="button" size="xs" onClick={() => mutations.setMissing.mutate({ ids: missing.map((product) => product.id), missing: false }, ON_ERROR)}>
+        <Group gap="xs">
+          <Text size="xs" c="dimmed">
+            Cocher un produit comme acheté sur une liste le retire des manquants.
+          </Text>
+          <ActionButton priority="tertiary" icon={<SquareIcon aria-hidden />} onClick={() => mutations.setMissing.mutate({ ids: missing.map((product) => product.id), missing: false }, ON_ERROR)}>
             Tout décocher
-          </Anchor>
-        </Text>
+          </ActionButton>
+        </Group>
       )}
     </Stack>
   );

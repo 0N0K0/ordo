@@ -153,23 +153,17 @@ export function useSavedViews<C>({ projectId, kind, tableKey = null, parse, blan
     duplicate: (view: SavedView<C>) => mutations.duplicate.mutate({ id: view.id, label: copyName(view.label, VIEW_LABEL_MAX) }, { onSuccess: (copy) => select(copy.id), onError: onMutationError }),
 
     /**
-     * Deletes a view.
+     * Deletes a view (its failure left to the caller: `confirmDestructive` tells it).
      * @param {SavedView<C>} view View.
-     * @returns {void}
+     * @returns {Promise<void>} Done once deleted.
      */
     remove: (view: SavedView<C>) =>
-      mutations.remove.mutate(
-        { id: view.id },
-        {
-          onSuccess: () => {
-            discard(view.id);
-            if (view.id === current?.id) {
-              setParams({ [param]: null });
-            }
-          },
-          onError: onMutationError,
-        },
-      ),
+      mutations.remove.mutateAsync({ id: view.id }).then(() => {
+        discard(view.id);
+        if (view.id === current?.id) {
+          setParams({ [param]: null });
+        }
+      }),
 
     /**
      * Makes a view the one opened by default.

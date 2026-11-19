@@ -3,11 +3,11 @@ import { SortableTabs } from '../../tabs/SortableTabs';
 import { confirmDestructive } from '../../dialogs/confirm-destructive';
 import { openLabelForm } from '../../dialogs/open-label-form';
 
-import { Indicator } from '@mantine/core';
-import { taskViewLabelSchema, VIEW_LABEL_MAX } from '@ordo/shared';
+import { viewLabelSchema, VIEW_LABEL_MAX } from '@ordo/shared';
 import { ArrowCounterClockwiseIcon, CopyIcon, FloppyDiskIcon, PencilSimpleIcon, StarIcon } from '@phosphor-icons/react';
 import type { SavedView, SavedViewsState } from './use-saved-views';
 import { usePublishedHeight } from './published-height';
+import { UnsavedIndicator, UNSAVED_CHANGES } from './UnsavedIndicator';
 
 /**
  * Asks for a view name in the side panel.
@@ -17,8 +17,8 @@ import { usePublishedHeight } from './published-height';
  * @param {(name: string) => void} onSubmit Called with the name.
  * @returns {void}
  */
-function promptName(title: string, initial: string, submitLabel: string, onSubmit: (name: string) => void): void {
-  openLabelForm(title, { initial, fieldLabel: 'Libellé de la vue', schema: taskViewLabelSchema, submitLabel, onSubmit });
+function promptLabel(title: string, initial: string, submitLabel: string, onSubmit: (name: string) => void): void {
+  openLabelForm(title, { initial, fieldLabel: 'Libellé de la vue', schema: viewLabelSchema, submitLabel, onSubmit });
 }
 
 /**
@@ -39,10 +39,9 @@ export function ViewTabs<C>({ state }: { state: SavedViewsState<C> }) {
   const confirmDelete = (view: SavedView<C>) => {
     confirmDestructive({
       title: 'Supprimer la vue',
-      risks: <>La vue « {view.label} » et sa configuration (filtres, tris, colonnes) seront supprimées. Les tâches ne sont pas modifiées.</>,
-      onConfirm: () => {
-        state.remove(view);
-      },
+      risks: <>La vue « {view.label} » et sa configuration (filtres, tris, colonnes) seront supprimées. Les lignes du tableau ne sont pas modifiées.</>,
+      run: () => state.remove(view),
+      done: 'Vue supprimée.',
     });
   };
 
@@ -53,19 +52,19 @@ export function ViewTabs<C>({ state }: { state: SavedViewsState<C> }) {
       value={current?.id ?? null}
       onChange={state.select}
       onMove={state.move}
-      name={(view) => `la vue ${view.label}`}
+      name={(view) => view.label}
       leftSection={(view) => (view.isDefault ? <StarIcon weight="fill" aria-label="Vue par défaut" /> : undefined)}
       label={(view) => (
-        <Indicator disabled={!(view.id === current?.id && dirty)} size={7} offset={-4} position="top-end" color="orange">
+        <UnsavedIndicator dirty={view.id === current?.id && dirty} offset={-4}>
           {view.label}
-        </Indicator>
+        </UnsavedIndicator>
       )}
       actions={(view) => [
         // The unsaved changes of the view first.
-        dirty && { label: 'Enregistrer les modifications', icon: <FloppyDiskIcon aria-hidden />, hint: 'Modifications non enregistrées', onClick: state.save },
-        dirty && { label: 'Annuler les modifications', icon: <ArrowCounterClockwiseIcon aria-hidden />, hint: 'Modifications non enregistrées', onClick: state.revert },
+        dirty && { label: 'Enregistrer les modifications', icon: <FloppyDiskIcon aria-hidden />, hint: UNSAVED_CHANGES, onClick: state.save },
+        dirty && { label: 'Annuler les modifications', icon: <ArrowCounterClockwiseIcon aria-hidden />, hint: UNSAVED_CHANGES, onClick: state.revert },
         dirty && 'divider',
-        { label: 'Renommer', icon: <PencilSimpleIcon aria-hidden />, onClick: () => promptName('Renommer la vue', view.label, 'Renommer', (name) => state.rename(view.id, name)) },
+        { label: 'Renommer', icon: <PencilSimpleIcon aria-hidden />, onClick: () => promptLabel('Renommer la vue', view.label, 'Renommer', (name) => state.rename(view.id, name)) },
         { label: 'Dupliquer', icon: <CopyIcon aria-hidden />, onClick: () => state.duplicate(view) },
         !view.isDefault && { label: 'Définir par défaut', icon: <StarIcon aria-hidden />, onClick: () => state.setDefault(view) },
       ]}
@@ -74,8 +73,8 @@ export function ViewTabs<C>({ state }: { state: SavedViewsState<C> }) {
       add={{
         label: 'Nouvelle vue',
         menu: [
-          { label: 'Vue vierge', onClick: () => promptName('Nouvelle vue', 'Nouvelle vue', 'Créer', (name) => state.createView(name, false)) },
-          { label: 'À partir de l’affichage actuel', onClick: () => promptName('Nouvelle vue', copyName(current?.label ?? 'Vue', VIEW_LABEL_MAX), 'Créer', (name) => state.createView(name, true)) },
+          { label: 'Vue vierge', onClick: () => promptLabel('Nouvelle vue', 'Nouvelle vue', 'Créer', (name) => state.createView(name, false)) },
+          { label: 'À partir de l’affichage actuel', onClick: () => promptLabel('Nouvelle vue', copyName(current?.label ?? 'Vue', VIEW_LABEL_MAX), 'Créer', (name) => state.createView(name, true)) },
         ],
       }}
     />

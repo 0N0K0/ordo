@@ -1,12 +1,11 @@
 import { IconAction } from '../../../components/actions/IconAction';
 import { openModal } from '../../../components/panels/open-modal';
-import { addDays, WEEKDAY_LABELS, weekdayOfDate } from '@ordo/shared';
+import { addDays, WEEKDAY_LABELS, weekdayOfDate, twoDigits } from '@ordo/shared';
 import { localInstant, localToday } from '../../../lib/dates';
-import { DestructiveButton } from '../../../components/dialogs/DestructiveActions';
 import { FileBadge } from '../../../components/items/FileBadge';
-import { Anchor, Button, Checkbox, Collapse, FileButton, Group, Paper, Popover, Select, Stack, TagsInput, Text, TextInput } from '@mantine/core';
+import { Checkbox, Collapse, FileButton, Group, Paper, Popover, Select, Stack, TagsInput, Text, TextInput } from '@mantine/core';
 import { DateTimePicker } from '@mantine/dates';
-import { ClockCountdownIcon, ClockIcon, FloppyDiskIcon, PaperPlaneTiltIcon, PaperclipIcon, TrashIcon, XIcon, PencilSimpleLineIcon } from '@phosphor-icons/react';
+import { ClockCountdownIcon, ClockIcon, FloppyDiskIcon, PaperPlaneTiltIcon, PaperclipIcon, TrashIcon, XIcon, PencilSimpleLineIcon, PlusIcon } from '@phosphor-icons/react';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { RichEditor } from './RichEditor';
 import { notifySuccess, onMutationError } from '../../../lib/notify';
@@ -18,6 +17,8 @@ import { currentWeek } from '../../../lib/week';
 import { unarchived } from '../../../lib/archive';
 import { FormActions } from '../../../components/dialogs/FormActions';
 import { ActionButton } from '../../../components/actions/ActionButton';
+import { accountLabel } from '../lib/mail-format';
+import { FoldHeading } from '../../../components/actions/FoldHeading';
 
 const EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 /** Delay after the last change before the draft is saved. */
@@ -35,7 +36,7 @@ function schedulePresets(): { label: string; at: Date }[] {
    * @param {number} hour Hour.
    * @returns {Date} Instant.
    */
-  const at = (days: number, hour: number) => localInstant(addDays(today, days), `${String(hour).padStart(2, '0')}:00`);
+  const at = (days: number, hour: number) => localInstant(addDays(today, days), `${twoDigits(hour)}:00`);
   // First day of the next week of the workspace.
   const week = currentWeek();
   const nextStart = (week.start - weekdayOfDate(today) + 7) % 7 || 7;
@@ -257,8 +258,9 @@ export function MailComposer({ options, onDone }: { options: ComposeOptions; onD
         <Stack gap="md">
           <Text size="sm">Enregistrez le brouillon pour reprendre ce mail plus tard (dossier Brouillons de la boîte), ou supprimez-le : il sera alors perdu définitivement.</Text>
           <Group justify="flex-end" gap="sm">
-            <DestructiveButton
-              leftSection={<TrashIcon aria-hidden />}
+            <ActionButton
+              danger
+              icon={<TrashIcon aria-hidden />}
               onClick={() => {
                 close();
                 void discard()
@@ -273,7 +275,7 @@ export function MailComposer({ options, onDone }: { options: ComposeOptions; onD
               }}
             >
               Supprimer le brouillon
-            </DestructiveButton>
+            </ActionButton>
             <ActionButton
               icon={<FloppyDiskIcon aria-hidden />}
               onClick={() => {
@@ -347,21 +349,15 @@ export function MailComposer({ options, onDone }: { options: ComposeOptions; onD
           <XIcon aria-hidden />
         </IconAction>
       </Group>
-      <Select
-        label="De"
-        data={(accounts ?? []).map((item) => ({ value: item.id, label: item.displayName ? `${item.displayName} <${item.email}>` : item.email }))}
-        value={account?.id ?? null}
-        onChange={setAccountId}
-        allowDeselect={false}
-      />
+      <Select label="De" data={(accounts ?? []).map((item) => ({ value: item.id, label: accountLabel(item) }))} value={account?.id ?? null} onChange={setAccountId} allowDeselect={false} />
       <Group gap="xs" align="flex-end" wrap="nowrap">
         <div style={{ flex: 1 }}>
           <RecipientsInput label="À" value={to} onChange={setTo} autoFocus={to.length === 0} />
         </div>
         {!showCopies && (
-          <Anchor component="button" type="button" size="sm" mb={8} onClick={() => setShowCopies(true)}>
+          <ActionButton priority="tertiary" icon={<PlusIcon aria-hidden />} mb={8} onClick={() => setShowCopies(true)}>
             Cc / Cci
-          </Anchor>
+          </ActionButton>
         )}
       </Group>
       {showCopies && (
@@ -384,9 +380,9 @@ export function MailComposer({ options, onDone }: { options: ComposeOptions; onD
       )}
       {options.quote && (
         <Stack gap={4}>
-          <Anchor component="button" type="button" size="sm" onClick={() => setShowQuote((value) => !value)}>
-            {showQuote ? 'Masquer' : 'Afficher'} le message {options.forwarding ? 'transféré' : 'cité'}
-          </Anchor>
+          <FoldHeading inline expanded={showQuote} onToggle={() => setShowQuote((value) => !value)}>
+            Message {options.forwarding ? 'transféré' : 'cité'}
+          </FoldHeading>
           <Collapse expanded={showQuote}>
             <Paper withBorder p="xs" radius="sm">
               <MailBody html={options.quote} text={null} />
@@ -439,20 +435,21 @@ export function MailComposer({ options, onDone }: { options: ComposeOptions; onD
                   Envoyer plus tard
                 </Text>
                 {schedulePresets().map((preset) => (
-                  <Button
+                  <ActionButton
                     key={preset.label}
+                    priority="secondary"
                     size="xs"
-                    variant="default"
                     justify="space-between"
+                    icon={<ClockIcon aria-hidden />}
                     onClick={() => void scheduleAt(preset.at)}
-                    rightSection={
+                    after={
                       <Text size="xs" c="dimmed">
                         {fmt.dateTimeShort(preset.at)}
                       </Text>
                     }
                   >
                     {preset.label}
-                  </Button>
+                  </ActionButton>
                 ))}
                 <DateTimePicker label="Date et heure" placeholder="Choisir…" minDate={new Date()} value={sendAt} onChange={setSendAt} popoverProps={{ withinPortal: false }} />
                 <ActionButton size="xs" icon={<ClockIcon aria-hidden />} disabled={!sendAt} onClick={() => sendAt && void scheduleAt(new Date(sendAt.replace(' ', 'T')))}>

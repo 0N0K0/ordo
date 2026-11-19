@@ -7,8 +7,8 @@ import { TravelField } from '../../geo/components/TravelField';
 import { confirmDestructive } from '../../../components/dialogs/confirm-destructive';
 import { openFormPanel } from '../../../components/panels/panels';
 import { PICKER_FORMATS } from '../../../lib/format';
-import { ItemAvatar } from '../../../components/items/ItemAvatar';
-import { listSelectProps } from '../../../components/items/item-look';
+
+import { itemSelectProps } from '../../../components/items/item-look';
 
 import { Alert, Anchor, Fieldset, Group, Select, SimpleGrid, Stack, Text, TextInput } from '@mantine/core';
 import { DatePickerInput, TimePicker } from '@mantine/dates';
@@ -25,8 +25,8 @@ import { DeleteButton } from '../../../components/dialogs/DestructiveActions';
 import { calendarQueryKey, useCalendarCategories, useCalendarEventMutations, useCalendars, type EventOccurrence, type CalendarEventScope } from '../api';
 import { archivedIds, archiveEntry, unarchived, unarchivedOffered, useSetArchived } from '../../../lib/archive';
 import { ArchivedBadge } from '../../../components/feedback/ArchivedBadge';
-import { TIMER_REPLACED_HINT, useStartTimer } from '../../time/hooks/use-start-timer';
-import { timeTasks } from '../../time/lib/time-tasks';
+import { useStartTimer } from '../../time/hooks/use-start-timer';
+import { timeTaskOptions, timeTasks } from '../../time/lib/time-tasks';
 import { EventLocation } from '../../geo/components/EventLocation';
 import { TravelCalculator } from '../../geo/components/TravelCalculator';
 import { useTreasurySettings } from '../../treasury/api';
@@ -144,7 +144,7 @@ interface EventFormProps {
 export function EventForm({ context, occurrence, defaults, onDone, onDuplicate }: EventFormProps) {
   const categoryItems = useCalendarCategoryItems();
   const { create, update, remove, setCalledOff } = useCalendarEventMutations();
-  const { startTimer, isPending: timerStarting, replacing } = useStartTimer();
+  const { startTimer, isPending: timerStarting, hint: timerHint } = useStartTimer();
 
   /**
    * Opens the postponement of this occurrence; once postponed, the event form closes too.
@@ -402,15 +402,11 @@ export function EventForm({ context, occurrence, defaults, onDone, onDuplicate }
               <Select
                 label="Calendrier"
                 description={recurring ? 'Pour toute la série.' : undefined}
-                {...listSelectProps(calendars, undefined, values.calendarId ?? occurrence?.calendarId)}
                 // Without a choice, the event goes into the first calendar not archived.
+                {...itemSelectProps(calendars, values.calendarId ?? defaultCalendarId, undefined, values.calendarId ?? occurrence?.calendarId)}
                 value={values.calendarId ?? defaultCalendarId}
                 onChange={(calendarId) => form.setFieldValue('calendarId', calendarId)}
                 allowDeselect={false}
-                leftSection={(() => {
-                  const current = calendars.find((calendar) => calendar.id === (values.calendarId ?? defaultCalendarId));
-                  return current ? <ItemAvatar name={current.label} iconUrl={current.iconUrl} color={current.color} /> : undefined;
-                })()}
               />
               <ProjectSelect
                 context={context}
@@ -471,9 +467,14 @@ export function EventForm({ context, occurrence, defaults, onDone, onDuplicate }
                 }
                 // Those a time on its project can take (the project, its sub-projects, tasks without project: as its timer), with
                 // someone in common with the event (or nobody on either side); those chosen stay.
-                data={(values.projectId ? timeTasks(context, values.projectId, values.taskIds ?? []) : unarchived(context.tasks, values.taskIds))
-                  .filter((task) => values.taskIds?.includes(task.id) || sharePeople(task.assigneeIds, values.contributorIds))
-                  .map((task) => ({ value: task.id, label: `${context.taskLabel(task, values.projectId)}${task.closed ? ' (fermée)' : ''}` }))}
+                {...treeSelectProps(
+                  timeTaskOptions(
+                    context,
+                    (values.projectId ? timeTasks(context, values.projectId, values.taskIds ?? []) : unarchived(context.tasks, values.taskIds)).filter(
+                      (task) => values.taskIds?.includes(task.id) || sharePeople(task.assigneeIds, values.contributorIds),
+                    ),
+                  ),
+                )}
                 searchable
                 clearable
                 limit={100}
@@ -507,7 +508,7 @@ export function EventForm({ context, occurrence, defaults, onDone, onDuplicate }
                   priority="secondary"
                   size="xs"
                   icon={<PlayIcon aria-hidden />}
-                  hint={values.projectId ? `Démarre un chrono rattaché à cet évènement. ${replacing ? TIMER_REPLACED_HINT : ''}`.trim() : 'Choisissez d’abord un projet'}
+                  hint={values.projectId ? (timerHint(false, 'Démarre un chrono rattaché à cet évènement.') ?? 'Démarre un chrono rattaché à cet évènement.') : 'Choisissez d’abord un projet'}
                   disabled={!values.projectId}
                   loading={timerStarting}
                   onClick={handleTimer}
@@ -531,7 +532,7 @@ export function EventForm({ context, occurrence, defaults, onDone, onDuplicate }
             />
           </Stack>
         </Fieldset>
-        {occurrence && !readOnly && <SheetsSection owner={{ eventId: occurrence.eventId }} occurrenceDate={occurrence.occurrenceDate ?? occurrence.startDate} name={values.label || 'l’évènement'} />}
+        {occurrence && !readOnly && <SheetsSection owner={{ eventId: occurrence.eventId }} occurrenceDate={occurrence.occurrenceDate ?? occurrence.startDate} label={values.label || 'l’évènement'} />}
         {occurrence && (
           <Comments target="EVENT" id={occurrence.eventId} projectId={values.projectId ?? null} title={occurrence.occurrenceDate ? 'Commentaires (toute la série)' : undefined} readOnly={readOnly} />
         )}

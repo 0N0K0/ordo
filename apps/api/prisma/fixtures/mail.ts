@@ -1,6 +1,6 @@
-import { localAt, relativeDay } from './factories';
+import { clientRootProject, localAt, relativeDay } from './factories';
 import { fakerFR as faker } from '@faker-js/faker';
-import { EMPTY_MAIL_SEARCH } from '@ordo/shared';
+import { EMPTY_MAIL_SEARCH, twoDigits } from '@ordo/shared';
 import { ImapFlow } from 'imapflow';
 import MailComposer from 'nodemailer/lib/mail-composer';
 import { prisma } from '../../src/db';
@@ -133,12 +133,11 @@ export async function seedMailbox({ projects, today }: { projects: Project[]; to
 
   // --- Correspondents: client contacts and their projects ------------------------------------------------
   const contacts = await prisma.clientContact.findMany({ where: { email: { not: null }, client: { archivedAt: null } }, include: { client: true }, orderBy: { createdAt: 'asc' } });
-  const projectOf = (clientId: string) => projects.find((project) => project.clientId === clientId && project.parentId === null && !project.archivedAt) ?? null;
   const people = contacts.slice(0, 5).map((contact) => ({
     person: { name: `${contact.firstName} ${contact.lastName}`, address: contact.email! },
     firstName: contact.firstName,
     company: contact.client.name,
-    project: projectOf(contact.clientId),
+    project: clientRootProject(projects, contact.clientId, true),
   }));
   if (people.length === 0) {
     console.warn('Boîte mail de démo vide : aucun contact client avec une adresse.');
@@ -337,7 +336,7 @@ export async function seedMailbox({ projects, today }: { projects: Project[]; to
   const ids = new Map<string, string>();
   const linked: { folder: string; uid: number; projectId: string; sent: boolean }[] = [];
   const inbox = new Map<string, number>();
-  const ordered = [...mails].sort((x, y) => `${x.date}${String(x.hour).padStart(2, '0')}`.localeCompare(`${y.date}${String(y.hour).padStart(2, '0')}`));
+  const ordered = [...mails].sort((x, y) => `${x.date}${twoDigits(x.hour)}`.localeCompare(`${y.date}${twoDigits(y.hour)}`));
   for (const mail of ordered) {
     const date = localAt(mail.date, mail.hour, faker.number.int({ min: 0, max: 59 }));
     const messageId = `<${faker.string.alphanumeric(16)}@${mail.from.address.split('@')[1]}>`;

@@ -53,6 +53,7 @@ export const NoClientRow = forwardRef<HTMLDivElement, NoClientRowProps>(function
       }}
     >
       <UnstyledButton className={classes.groupToggle} onClick={onToggle} disabled={!hasChildren}>
+        {/* eslint-disable-next-line no-restricted-syntax -- a row of the projects tree: its chevron in the column of the tree's chevrons, none when empty. */}
         <span className={rowClasses.spacer}>{hasChildren && <FoldChevron expanded={expanded} />}</span>
         <Caption>{perso ? 'Tous les projets' : 'Sans client'}</Caption>
       </UnstyledButton>

@@ -1,4 +1,4 @@
-import { sumOf } from '@ordo/shared';
+import { sumOf, agreed } from '@ordo/shared';
 import { openFormPanel } from '../../../components/panels/panels';
 import { EmptyState } from '../../../components/feedback/EmptyState';
 
@@ -56,6 +56,7 @@ const loanColumns = (words: RelationWords): DataColumn<LoanRow>[] => [
     label: `${words.noun} / ligne`,
     size: 260,
     locked: true,
+    required: true,
     sortValue: (row) => (row.kind === 'relation' ? row.name : row.label),
     text: (row) => (row.kind === 'relation' ? row.name : row.label),
   },
@@ -124,7 +125,7 @@ export function LoansPanel() {
   const rows = useMemo((): LoanRow[] => {
     const nameOf = new Map((settings?.treasuryRelations ?? []).map((relation) => [relation.id, relation.name]));
     return (loans ?? []).flatMap((item) => {
-      const name = nameOf.get(item.relationId) ?? `${words.noun} supprimé${words.feminine ? 'e' : ''}`;
+      const name = nameOf.get(item.relationId) ?? `${words.noun} ${agreed('supprimé', words.feminine)}`;
       return [
         { kind: 'relation' as const, key: item.relationId, relationId: item.relationId, name, balance: item.balance, out: item.out, in: item.in },
         ...item.items.map((line) => ({

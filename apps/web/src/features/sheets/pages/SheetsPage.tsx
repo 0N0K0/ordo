@@ -11,7 +11,7 @@ import { SheetsTable } from '../components/SheetsTable';
 export function SheetsPage() {
   return (
     <Stack gap="lg">
-      <PageHeader title={PAGES.sheets.title} />
+      <PageHeader title={PAGES.sheets.label} />
       <SheetsTable />
       <SheetsSettings />
     </Stack>

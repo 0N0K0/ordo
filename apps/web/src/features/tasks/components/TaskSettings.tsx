@@ -26,7 +26,7 @@ export function TaskSettings() {
         title="Statuts de tâche"
         description="La catégorie donne son sens au statut quel que soit son libellé (filtres, tâches « en cours » de l’accueil). C’est l’état ouvert / fermé de la tâche, et non son statut, qui dit si elle est terminée."
         noun="le statut"
-        usageNoun="tâches"
+        usageNoun={{ one: 'de la tâche', many: 'tâches' }}
         items={data?.taskStatuses ?? []}
         usage={countBy(tasks, (task) => (task.statusId ? [task.statusId] : []))}
         renderBadges={(status) => TASK_STATUS_CATEGORY_LABELS.status[status.category]}
@@ -36,7 +36,8 @@ export function TaskSettings() {
         title="Priorités"
         description="L’ordre est celui des listes de sélection et du tri par priorité."
         noun="la priorité"
-        usageNoun="tâches"
+        feminine
+        usageNoun={{ one: 'de la tâche', many: 'tâches' }}
         items={data?.taskPriorities ?? []}
         usage={countBy(tasks, (task) => (task.priorityId ? [task.priorityId] : []))}
       />
@@ -45,7 +46,7 @@ export function TaskSettings() {
         title="Types de tâche"
         description="Bug, fonctionnalité, amélioration…"
         noun="le type"
-        usageNoun="tâches"
+        usageNoun={{ one: 'de la tâche', many: 'tâches' }}
         items={data?.taskTypes ?? []}
         usage={countBy(tasks, (task) => (task.typeId ? [task.typeId] : []))}
       />
@@ -54,7 +55,8 @@ export function TaskSettings() {
         title="Étiquettes"
         description="Une tâche peut en avoir plusieurs. Synchronisées avec les labels GitHub."
         noun="l’étiquette"
-        usageNoun="tâches"
+        feminine
+        usageNoun={{ one: 'de la tâche', many: 'tâches' }}
         items={data?.taskTags ?? []}
         usage={countBy(tasks, (task) => task.tagIds)}
       />

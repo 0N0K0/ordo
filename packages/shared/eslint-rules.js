@@ -12,6 +12,14 @@ export const SHARED_SYNTAX_RULES = [
     selector: 'CallExpression[callee.property.name=/^toLocale(Date|Time)?String$/]',
     message: 'Utiliser les formats partagés (@ordo/shared : formatMoney, formatNumber, dateStyle) : un format par rôle.',
   },
+  {
+    selector: "ConditionalExpression[test.type='BinaryExpression'][test.operator=/^[<>]=?$/][test.right.value=0]:matches([consequent.value='IN'][alternate.value='OUT'], [consequent.value='OUT'][alternate.value='IN'])",
+    message: 'Utiliser directionOf(amount) (@ordo/shared) : entrée au-dessus de 0, sortie sinon (0 compris).',
+  },
+  {
+    selector: "CallExpression[callee.name='Number'] > CallExpression.arguments[callee.property.name='slice'][arguments.0.value=8]",
+    message: 'Utiliser dayOfMonthOf(day) (@ordo/shared).',
+  },
   // Same name: case and accents aside, as the search.
   {
     selector: 'BinaryExpression[operator=/^[!=]==$/][left.callee.property.name=/^(toLocaleLowerCase|toLowerCase)$/][right.callee.property.name=/^(toLocaleLowerCase|toLowerCase)$/]',
@@ -29,8 +37,30 @@ export const SHARED_SYNTAX_RULES = [
     message: 'Utiliser sameName(a, b) (@ordo/shared) : pas de repli de noms recopié.',
   },
   {
+    // normalize(name.trim()): the key of a name (inner spaces too, decision CB).
+    selector: "CallExpression[callee.name='normalize'] > CallExpression.arguments[callee.property.name='trim']",
+    message: 'Utiliser nameKey(name) / sameName(a, b) (@ordo/shared) : espaces, casse et accents ignorés, une seule règle.',
+  },
+  {
     selector: "CallExpression[callee.property.name='trim'][callee.object.callee.name='normalize']",
     message: 'Utiliser sameName(a, b) (@ordo/shared) : pas de repli de noms recopié.',
+  },
+  {
+    selector: "CallExpression[callee.property.name='padStart'][arguments.0.value=2][arguments.1.value='0']",
+    message: 'Utiliser twoDigits(value) (@ordo/shared).',
+  },
+  // Documents and keys (round 8).
+  {
+    selector: "Literal[value=/^\\(?[Bb]rouillon\\)?$/], TemplateElement[value.raw=/\\(brouillon\\)/]",
+    message: 'Utiliser DRAFT_NAME, documentName(number) ou documentTitle(document) (@ordo/shared) : « Brouillon » (décision CD).',
+  },
+  {
+    selector: "TemplateLiteral:has(> MemberExpression[object.name='DOCUMENT_TYPE_LABELS']):has(> MemberExpression[property.name='number'])",
+    message: 'Utiliser documentTitle(document) (@ordo/shared).',
+  },
+  {
+    selector: "TemplateLiteral[quasis.length=3][quasis.0.value.raw=''][quasis.1.value.raw=/^[|:]$/][expressions.1.property.name=/([dD]ate|typeId)$/], TemplateLiteral[quasis.length=3][quasis.0.value.raw=''][quasis.1.value.raw=/^[|:]$/][expressions.1.left.property.name='typeId']",
+    message: 'Utiliser occurrenceKey(id, date) ou foreignSlotKind(workspaceId, typeId) (@ordo/shared) : un seul format de clé.',
   },
   // Shared constants: one value.
   {
@@ -69,6 +99,15 @@ export const SHARED_SYNTAX_RULES = [
     selector:
       "LogicalExpression:has(> BinaryExpression[right.value='INVOICE']):has(> BinaryExpression[right.value='DEPOSIT_INVOICE']), ArrayExpression[elements.length=2][elements.0.value='INVOICE'][elements.1.value='DEPOSIT_INVOICE'], ArrayExpression[elements.length=4][elements.0.value='QUOTE'][elements.1.value='INVOICE']",
     message: 'Utiliser isInvoice(type), INVOICE_TYPES ou ACCOUNTING_DOCUMENT_TYPES (@ordo/shared).',
+  },
+  {
+    // « Not a quote nor a credit note »: an invoice.
+    selector: "LogicalExpression:has(> BinaryExpression[right.value='QUOTE']):has(> BinaryExpression[right.value='CREDIT_NOTE'])",
+    message: 'Utiliser isInvoice(type) (@ordo/shared) : une facture ou une facture d’acompte.',
+  },
+  {
+    selector: "TemplateLiteral:has(> TemplateElement[value.raw='|'])",
+    message: 'Utiliser joinedKey(a, b, …) ou occurrenceKey(id, date) (@ordo/shared) : un seul format de clé.',
   },
   {
     selector: "TSUnionType:has(TSLiteralType > Literal[value='correspondent'])",
@@ -157,6 +196,15 @@ export const SHARED_SYNTAX_RULES = [
     message: 'Utiliser movedTo(others, moved, index) (@ordo/shared).',
   },
   // Schemas: one source.
+  {
+    // for (let current = …; current; current = current.parentId ? byId.get(current.parentId) : undefined)
+    selector: "ForStatement > AssignmentExpression.update:has(MemberExpression[property.name='parentId']), WhileStatement AssignmentExpression:has(> MemberExpression.right[property.name='parentId'])",
+    message: 'Utiliser lineageOf(byId, id) / ancestorsOf(byId, id) / pathOf (@ordo/shared) : les parents, cycles arrêtés.',
+  },
+  {
+    selector: "CallExpression[callee.property.name='join'][arguments.0.value=' › ']",
+    message: 'Utiliser pathOf(byId, id, label) ou LEVEL (@ordo/shared) : un seul chemin « Maison › Cuisine ».',
+  },
   {
     selector: "ObjectExpression[properties.length=2]:has(> Property[key.name='label'][value.name='labelTextSchema']):has(> Property[key.name='color'][value.name='colorSchema'])",
     message: 'Utiliser labelFormSchema (@ordo/shared) : un libellé et une couleur.',

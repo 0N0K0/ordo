@@ -1,0 +1,53 @@
+@layer app {
+  /* Heading of something that folds: the whole row is the button (decision CH). */
+  .heading {
+    /* Agencement */
+    display: flex;
+    align-items: center;
+
+    /* Dimension */
+    width: 100%;
+    min-width: 0;
+    border-radius: var(--fold-heading-radius, var(--mantine-radius-sm));
+
+    /* Espacement */
+    gap: var(--mantine-spacing-xs);
+
+    /* Animation */
+    transition: background-color var(--onoko-transition);
+
+    /* Interaction */
+    cursor: pointer;
+
+    &:hover {
+      /* Arrière-Plan */
+      background-color: var(--mantine-color-default-hover);
+    }
+
+    /* A small toggle inside a cell (« détails », « lots »): as wide as its text. */
+    &[data-inline] {
+      /* Dimension */
+      width: auto;
+
+      /* Espacement */
+      gap: 4px;
+      padding-inline: 4px;
+
+      /* Typographie */
+      font-size: var(--mantine-font-size-xs);
+      color: var(--mantine-color-dimmed);
+    }
+  }
+
+  .title {
+    /* Agencement */
+    flex: 1;
+
+    /* Dimension */
+    min-width: 0;
+
+    [data-inline] > & {
+      flex: none;
+    }
+  }
+}

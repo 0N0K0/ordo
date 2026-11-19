@@ -19,7 +19,7 @@ interface LookToggleProps {
  */
 export function LookToggle({ label, ariaLabel, opened, onToggle }: LookToggleProps) {
   return (
-    <IconAction label={label} variant={opened ? 'light' : 'subtle'} aria-label={ariaLabel} aria-expanded={opened} onClick={onToggle}>
+    <IconAction label={label} expanded={opened} aria-label={ariaLabel} onClick={onToggle}>
       <SlidersHorizontalIcon aria-hidden />
     </IconAction>
   );

@@ -1,4 +1,5 @@
 import { NumberInput, type NumberInputProps } from '@mantine/core';
+import { FRENCH_NUMBER_FORMAT } from '../../../components/inputs/number-format';
 
 /**
  * « Effort » field of a task, the same everywhere: a positive number, two decimals, a decimal comma.
@@ -6,5 +7,5 @@ import { NumberInput, type NumberInputProps } from '@mantine/core';
  * @returns {JSX.Element} Field.
  */
 export function EffortInput(props: NumberInputProps) {
-  return <NumberInput label="Effort" min={0} decimalScale={2} decimalSeparator="," {...props} />;
+  return <NumberInput label="Effort" min={0} decimalScale={2} {...FRENCH_NUMBER_FORMAT} {...props} />;
 }

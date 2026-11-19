@@ -14,6 +14,7 @@ import {
   type TableSort,
   weekdayOf,
   quarterOf,
+  twoDigits,
 } from '@ordo/shared';
 import { hasAvatar, itemRenderOption } from '../../items/item-look';
 import type { FilterFields } from '../../filters/FilterBuilder';
@@ -24,6 +25,10 @@ import * as fmt from '../../../lib/format';
 import { periodName, quarterName } from '../../../lib/periods';
 import { treeSelectProps } from '../../tree/tree-select';
 import { collator, normalize } from '../../../lib/text';
+
+/** Rank of what has none (a value out of the options, a row out of the order): after the others. */
+// eslint-disable-next-line no-restricted-syntax -- LAST_RANK itself.
+export const LAST_RANK = Number.MAX_SAFE_INTEGER;
 
 /** Kind of filter field of each kind of column filter. */
 const FIELD_KINDS: Record<ColumnFilter<unknown>['kind'], FilterFieldKind> = {
@@ -97,6 +102,7 @@ export function tableFilterFields<R>(columns: readonly DataColumn<R>[]): FilterF
     labels: Object.fromEntries(fields.map(({ column }) => [column.id, column.label])),
     groups: [{ group: 'Colonnes', fields: fields.map(({ column }) => column.id) }],
     first: fields[0]?.column.id ?? '',
+    required: new Set(fields.flatMap(({ column }) => (column.required ? [column.id] : []))),
     options: (field, values) => {
       const filter = fields.find(({ column }) => column.id === field)?.filter;
       const options = offeredChoices(filter && (filter.kind === 'choice' || filter.kind === 'choices') ? filter.options : [], values);
@@ -141,8 +147,10 @@ function meets<R>(
   const operator = condition.operator as FilterOperator;
   const wanted = condition.value;
   const value = filter.kind === 'text' ? (filter.value ? filter.value(row) : (column.text?.(row) ?? null)) : filter.value(row);
-  if (operator === 'isEmpty') return isEmptyValue(value);
-  if (operator === 'isNotEmpty') return !isEmptyValue(value);
+  // A choice of the « Aucun » option is empty.
+  const empty = isEmptyValue(value) || (filter.kind === 'choice' && filter.none !== undefined && value === filter.none);
+  if (operator === 'isEmpty') return empty;
+  if (operator === 'isNotEmpty') return !empty;
   if (operator === 'isTrue') return value === true;
   if (operator === 'isFalse') return value !== true;
   switch (filter.kind) {
@@ -239,7 +247,7 @@ function periodGroup(date: string, period: GroupPeriod): { key: string; label: s
       return { key: date, label: fmt.capitalize(fmt.dayLong(date)) };
     case 'WEEK': {
       const week = weekOf(date);
-      return { key: `${week.year}-W${String(week.week).padStart(2, '0')}`, label: `Semaine ${week.week} · ${week.year} (du ${fmt.dayShort(week.monday)})` };
+      return { key: `${week.year}-W${twoDigits(week.week)}`, label: `Semaine ${week.week} · ${week.year} (du ${fmt.dayShort(week.monday)})` };
     }
     case 'MONTH':
       return { key: monthOfDay(date), label: periodName('month', `${monthOfDay(date)}-01`) };
@@ -279,7 +287,7 @@ function groupsOf<R>(row: R, column: DataColumn<R>, period: GroupPeriod): { key:
     const options = filter && (filter.kind === 'choice' || filter.kind === 'choices') ? filter.options : [];
     return values.map((value) => {
       const index = options.findIndex((option) => option.value === value);
-      return { key: value, label: options[index]?.label ?? value, order: index < 0 ? Number.MAX_SAFE_INTEGER : index };
+      return { key: value, label: options[index]?.label ?? value, order: index < 0 ? LAST_RANK : index };
     });
   }
   if (filter?.kind === 'date') {
@@ -293,14 +301,14 @@ function groupsOf<R>(row: R, column: DataColumn<R>, period: GroupPeriod): { key:
     if (!values.length) return none;
     return values.map((value) => {
       const index = filter.options.findIndex((option) => option.value === value);
-      return { key: value, label: filter.options[index]?.label ?? value, order: index < 0 ? Number.MAX_SAFE_INTEGER : index };
+      return { key: value, label: filter.options[index]?.label ?? value, order: index < 0 ? LAST_RANK : index };
     });
   }
   if (filter?.kind === 'choice') {
     const value = filter.value(row);
     if (value === null || value === '') return none;
     const index = filter.options.findIndex((option) => option.value === value);
-    return [{ key: value, label: filter.options[index]?.label ?? value, order: index < 0 ? Number.MAX_SAFE_INTEGER : index }];
+    return [{ key: value, label: filter.options[index]?.label ?? value, order: index < 0 ? LAST_RANK : index }];
   }
   if (filter?.kind === 'boolean') {
     const value = filter.value(row);

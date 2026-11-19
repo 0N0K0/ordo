@@ -111,15 +111,15 @@ export function useCalendarEdits() {
   /**
    * Opens the form of a slot of a schedule.
    * @param {WorkScheduleRule} schedule Schedule.
-   * @param {string} name Name shown (its kind).
+   * @param {string} label Label shown (its kind).
    * @param {ScheduleSlotTime} slot Slot.
    * @returns {void}
    */
-  const openSlot = (schedule: WorkScheduleRule, name: string, slot: ScheduleSlotTime) => {
+  const openSlot = (schedule: WorkScheduleRule, label: string, slot: ScheduleSlotTime) => {
     // The scope question is a modal: this panel closes first.
     openFormPanel(`Plage du ${fmt.dayLong(slot.date)}`, (close) => (
       <SlotEditForm
-        name={name}
+        label={label}
         slot={slot}
         onClose={close}
         onSave={(change) => {

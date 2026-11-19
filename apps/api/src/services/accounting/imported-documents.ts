@@ -1,13 +1,13 @@
 import { type ImportedDocumentInput, importedDocumentSchema as importSchema, parseDay, parseOptionalDay } from '@ordo/shared';
 import { prisma } from '../../db';
 import { type ImportedDocument } from '../../generated/prisma/client';
-import { orNotFound, parseInput, rethrowUnique } from '../../graphql/errors';
-import { storeAttachment } from '../core/attachments';
+import { parseInput, rethrowUnique } from '../../graphql/errors';
+import { deleteAttachment, storeAttachment } from '../core/attachments';
 import { scopedStatus } from './document-statuses';
 import { sendingData, sentStatus } from './document-tracking';
-import { requirePro } from '../workspace/workspaces';
-import { assertExists } from '../core/lookup';
-import { assertNotArchived } from '../core/archive';
+import { requirePro } from '../workspaces/workspaces';
+import { findOrNotFound } from '../core/lookup';
+import { assertNotArchived, assertActive, findActive } from '../core/archive';
 import { toDecimal } from '../core/decimal';
 
 export type { ImportedDocumentInput } from '@ordo/shared';
@@ -28,14 +28,18 @@ function importData(input: ReturnType<typeof importSchema.parse>) {
   };
 }
 
+/** Client and project of an imported document. */
+type DocumentRefs = { clientId: string | null; projectId: string | null };
+
 /**
- * Checks the client and project of an imported document.
- * @param {{ clientId: string | null, projectId: string | null }} refs References.
+ * Checks the client and project of an imported document (an archived one is refused, unless the document already has it).
+ * @param {DocumentRefs} refs References.
+ * @param {DocumentRefs | null} [kept] Client and project already there. Optional. Default = none.
  * @returns {Promise<void>}
  */
-async function assertRefs({ clientId, projectId }: { clientId: string | null; projectId: string | null }): Promise<void> {
-  await assertExists(prisma.client, clientId, 'Client');
-  await assertExists(prisma.project, projectId, 'Projet');
+async function assertRefs({ clientId, projectId }: DocumentRefs, kept: DocumentRefs | null = null): Promise<void> {
+  await assertActive(prisma.client, clientId, 'Client', { keep: kept?.clientId, field: 'clientId' });
+  await assertActive(prisma.project, projectId, 'Projet', { keep: kept?.projectId, field: 'projectId' });
 }
 
 /**
@@ -61,7 +65,7 @@ export async function importDocument(input: ImportedDocumentInput, file: File | 
   try {
     return await prisma.importedDocument.create({ data: { ...importData(data), attachmentId } });
   } catch (error) {
-    if (attachmentId) await prisma.attachment.delete({ where: { id: attachmentId } });
+    await deleteAttachment(attachmentId, true);
     return rethrowUnique(error, 'Un document importé de ce type porte déjà ce numéro.', 'number');
   }
 }
@@ -74,19 +78,20 @@ export async function importDocument(input: ImportedDocumentInput, file: File | 
  * @returns {Promise<ImportedDocument>} Imported document.
  */
 export async function updateImportedDocument(id: string, input: ImportedDocumentInput, file: File | null): Promise<ImportedDocument> {
-  const current = await orNotFound(prisma.importedDocument.findUnique({ where: { id } }), 'Document importé');
-  await assertNotArchived('IMPORTED_DOCUMENT', id);
+  const current = await findActive(prisma.importedDocument, id, 'Document importé');
   const data = parseInput(importSchema, input);
-  await assertRefs(data);
+  await assertRefs(data, current);
   const attachmentId = file ? await storeFile(file) : current.attachmentId;
+  let updated: ImportedDocument;
   try {
-    const updated = await prisma.importedDocument.update({ where: { id }, data: { ...importData(data), attachmentId } });
-    if (file && current.attachmentId) await prisma.attachment.delete({ where: { id: current.attachmentId } });
-    return updated;
+    updated = await prisma.importedDocument.update({ where: { id }, data: { ...importData(data), attachmentId } });
   } catch (error) {
-    if (file && attachmentId) await prisma.attachment.delete({ where: { id: attachmentId } });
+    if (file) await deleteAttachment(attachmentId, true);
     return rethrowUnique(error, 'Un document importé de ce type porte déjà ce numéro.', 'number');
   }
+  // The new file is in place: the old one left over, its failure never takes the new one with it.
+  if (file) await deleteAttachment(current.attachmentId, true);
+  return updated;
 }
 
 /**
@@ -96,9 +101,8 @@ export async function updateImportedDocument(id: string, input: ImportedDocument
  * @returns {Promise<ImportedDocument>} Document.
  */
 export async function setImportedProject(id: string, projectId: string | null): Promise<ImportedDocument> {
-  await assertExists(prisma.importedDocument, id, 'Document importé');
-  await assertNotArchived('IMPORTED_DOCUMENT', id);
-  await assertExists(prisma.project, projectId, 'Projet');
+  const current = await findActive(prisma.importedDocument, id, 'Document importé');
+  await assertActive(prisma.project, projectId, 'Projet', { keep: current.projectId });
   return prisma.importedDocument.update({ where: { id }, data: { projectId } });
 }
 
@@ -108,9 +112,9 @@ export async function setImportedProject(id: string, projectId: string | null): 
  * @returns {Promise<void>}
  */
 export async function deleteImportedDocument(id: string): Promise<void> {
-  const document = await orNotFound(prisma.importedDocument.findUnique({ where: { id } }), 'Document importé');
+  const document = await findOrNotFound(prisma.importedDocument, id, 'Document importé');
   await prisma.importedDocument.delete({ where: { id } });
-  if (document.attachmentId) await prisma.attachment.delete({ where: { id: document.attachmentId } }).catch(() => undefined);
+  await deleteAttachment(document.attachmentId, true);
 }
 
 /**
@@ -121,8 +125,7 @@ export async function deleteImportedDocument(id: string): Promise<void> {
  */
 export async function setImportedTrackingStatus(id: string, statusId: string | null): Promise<ImportedDocument> {
   requirePro('facturation');
-  const document = await orNotFound(prisma.importedDocument.findUnique({ where: { id } }), 'Document importé');
-  await assertNotArchived('IMPORTED_DOCUMENT', id);
+  const document = await findActive(prisma.importedDocument, id, 'Document importé');
   if (statusId) {
     await scopedStatus(statusId, document.type);
     // An archived status stays the one of its documents, but is not given any more.
@@ -140,8 +143,7 @@ export async function setImportedTrackingStatus(id: string, statusId: string | n
  */
 export async function markImportedSent(id: string, options: { date?: string | null; via?: string | null; statusId: string }): Promise<ImportedDocument> {
   requirePro('facturation');
-  const document = await orNotFound(prisma.importedDocument.findUnique({ where: { id } }), 'Document importé');
-  await assertNotArchived('IMPORTED_DOCUMENT', id);
+  const document = await findActive(prisma.importedDocument, id, 'Document importé');
   const status = await sentStatus(options.statusId, document.type);
   await assertNotArchived('DOCUMENT_STATUS', status.id, { keep: document.trackingStatusId, field: 'statusId' });
   return prisma.importedDocument.update({ where: { id }, data: { ...sendingData(options), trackingStatusId: status.id } });

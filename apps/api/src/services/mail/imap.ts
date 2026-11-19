@@ -1,8 +1,9 @@
 import { ImapFlow, type ListResponse } from 'imapflow';
 import { prisma } from '../../db';
 import type { MailAccount } from '../../generated/prisma/client';
-import { clientError, errorMessage, orNotFound } from '../../graphql/errors';
+import { clientError, errorMessage } from '../../graphql/errors';
 import { decryptSecret } from './secret';
+import { findOrNotFound } from '../core/lookup';
 
 /** Path of the inbox (IMAP names it so on every server, any case). */
 export const INBOX = 'INBOX';
@@ -105,7 +106,7 @@ export async function withImap<T>(accountId: string, operation: (client: ImapFlo
   let pooled = pool.get(accountId);
   if (!pooled || !pooled.client.usable) {
     if (pooled) closeImap(accountId);
-    const account = await orNotFound(prisma.mailAccount.findUnique({ where: { id: accountId } }), 'Boîte mail');
+    const account = await findOrNotFound(prisma.mailAccount, accountId, 'Boîte mail');
     const client = createImapClient(account, decryptSecret(account.imapPassword));
     client.on('error', () => closeImap(accountId));
     client.on('close', () => pool.get(accountId)?.client === client && pool.delete(accountId));

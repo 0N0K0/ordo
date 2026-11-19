@@ -76,6 +76,16 @@ export function sniffImage(buffer: Buffer): string | null {
 }
 
 /**
+ * Type of a file by its first bytes (the declared type is not trusted): recognized images and PDFs keep theirs, the rest is a plain download.
+ * @param {Buffer} buffer File content.
+ * @returns {string} Image type, `application/pdf` or `application/octet-stream`.
+ */
+export function sniffedType(buffer: Buffer): string {
+  // eslint-disable-next-line no-restricted-syntax -- sniffedType itself.
+  return sniffImage(buffer) ?? (isPdf(buffer) ? 'application/pdf' : 'application/octet-stream');
+}
+
+/**
  * Stored form of a file: recognized images and PDFs keep their type, the rest is served as a plain download.
  * @param {string} name File name.
  * @param {Buffer} buffer Content.
@@ -84,7 +94,7 @@ export function sniffImage(buffer: Buffer): string | null {
 export function attachmentData(name: string, buffer: Buffer) {
   return {
     filename: safeFilename(clipText(name, 200)),
-    mimeType: sniffImage(buffer) ?? (isPdf(buffer) ? 'application/pdf' : 'application/octet-stream'),
+    mimeType: sniffedType(buffer),
     size: buffer.length,
     data: new Uint8Array(buffer),
   };
@@ -102,4 +112,23 @@ export async function storeAttachment(file: File, owner: { accountingDocumentId?
   if (file.size > MAX_ATTACHMENT_BYTES) throw clientError('BAD_USER_INPUT', fileTooLarge(file.name));
   // eslint-disable-next-line no-restricted-syntax -- storeAttachment itself.
   return prisma.attachment.create({ data: { ...attachmentData(file.name, Buffer.from(await file.arrayBuffer())), ...owner } });
+}
+
+/**
+ * Deletes a stored file, the same everywhere: a file already gone is no error. A leftover (the old file of a
+ * replacement, the file of an element deleted, the new file of a change refused) never fails the change it follows:
+ * its failure is only logged.
+ * @param {string | null | undefined} id File, none: nothing to do.
+ * @param {boolean} [leftover] Cleanup after the change itself. Optional. Default = false (a failure is thrown).
+ * @returns {Promise<void>}
+ */
+export async function deleteAttachment(id: string | null | undefined, leftover = false): Promise<void> {
+  if (!id) return;
+  // eslint-disable-next-line no-restricted-syntax -- deleteAttachment itself.
+  const removal = prisma.attachment.deleteMany({ where: { id } });
+  if (!leftover) {
+    await removal;
+    return;
+  }
+  await removal.catch((error: unknown) => console.warn('Fichier non supprimé.', error));
 }

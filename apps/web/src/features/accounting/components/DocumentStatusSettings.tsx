@@ -24,7 +24,7 @@ function ScopeStatuses({ scope, statuses }: { scope: DocumentStatusScope; status
       title={scope === 'QUOTE' ? 'Statuts des devis' : 'Statuts des factures'}
       description={DESCRIPTIONS[scope]}
       noun="le statut"
-      usageNoun="documents"
+      usageNoun={{ one: 'du document', many: 'documents' }}
       items={statuses}
       usage={new Map(statuses.map((status) => [status.id, status.documentCount]))}
       schema={labelFormSchema}

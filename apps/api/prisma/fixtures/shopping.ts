@@ -14,7 +14,7 @@ import {
   setListClosed,
 } from '../../src/services/shopping/shopping';
 import { createEntry } from '../../src/services/treasury/treasury';
-import { EMPTY_ARTICLE, EMPTY_ENTRY } from './factories';
+import { EMPTY_ARTICLE, EMPTY_ENTRY, treasuryCategoryIds } from './factories';
 import type { SeededTeam } from './team';
 import { BY_POSITION } from '../../src/services/core/ordering';
 
@@ -116,7 +116,7 @@ export async function seedShopping({ team, today }: { team: SeededTeam; today: s
   for (const item of await prisma.shoppingItem.findMany({ where: { listId: done.id } })) await setItemPurchased(item.id, true);
   await setListClosed(done.id, true);
   const account = await prisma.treasuryAccount.findFirst({ where: { label: 'Compte courant pro' } });
-  const categoryId = (await prisma.treasuryCategory.findFirst({ where: { label: 'Matériel', direction: 'OUT' } }))?.id ?? null;
+  const categoryId = (await treasuryCategoryIds())('Matériel');
   if (account) {
     const entry = await createEntry({
       accountId: account.id,

@@ -31,7 +31,7 @@ export function MailSearchBar({ value, onChange, label, advancedOpen, onToggleAd
         value={value}
         onChange={(event) => onChange(event.currentTarget.value)}
       />
-      <IconAction label="Recherche avancée" variant={advancedOpen ? 'light' : 'subtle'} aria-expanded={advancedOpen} onClick={onToggleAdvanced}>
+      <IconAction label="Recherche avancée" expanded={advancedOpen} onClick={onToggleAdvanced}>
         <SlidersHorizontalIcon aria-hidden />
       </IconAction>
     </Group>

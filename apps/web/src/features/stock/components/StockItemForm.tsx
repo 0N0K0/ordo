@@ -2,8 +2,7 @@ import { CreatableSelect } from '../../../components/inputs/CreatableSelect';
 import { useLocationSelect } from '../hooks/use-location-select';
 
 import { Autocomplete, Checkbox, SimpleGrid, Stack, Textarea } from '@mantine/core';
-import { PeopleSelect } from '../../../components/people/PeopleSelect';
-import { rowPeopleKeys, rowPeopleOf, usePeople } from '../../shopping/lib/shopping-format';
+import { PeopleField } from '../../shopping/components/PeopleField';
 import { DatePickerInput } from '@mantine/dates';
 import { newStockItemSchema, type NewStockItemInput } from '@ordo/shared';
 
@@ -15,6 +14,7 @@ import { FormActions } from '../../../components/dialogs/FormActions';
 import { QuantityInput } from '../../../components/inputs/QuantityInput';
 import { ShoppingCategoryField, UnitField } from '../../shopping/components/ProductFields';
 import { unarchived } from '../../../lib/archive';
+import { optionalNumberProps } from '../../../components/inputs/number-format';
 
 type Values = NewStockItemInput & Record<string, unknown>;
 
@@ -28,7 +28,6 @@ export function StockItemForm({ locationId = null, onDone }: { locationId?: stri
   const { data } = useShoppingData();
   const locationSelect = useLocationSelect();
   const { createItem } = useStockMutations();
-  const people = usePeople();
   // The archived references, places and categories are not offered.
   const products = unarchived(data?.shoppingProducts ?? []);
   const byName = new Map(products.map((product) => [product.label, product]));
@@ -69,18 +68,12 @@ export function StockItemForm({ locationId = null, onDone }: { locationId?: stri
           <ShoppingCategoryField {...form.getInputProps('categoryId')} value={values.categoryId ?? null} onChange={(categoryId) => form.setFieldValue('categoryId', categoryId)} />
         </SimpleGrid>
         <SimpleGrid cols={{ base: 1, xs: 3 }} spacing="sm">
-          <QuantityInput
-            label="Quantité"
-            min={0}
-            allowNegative={false}
-            {...form.getInputProps('quantity')}
-            onChange={(value) => form.setFieldValue('quantity', typeof value === 'number' ? value : null)}
-          />
-          <UnitField current={values.unit} {...form.getInputProps('unit')} value={values.unit ?? null} onChange={(unit) => form.setFieldValue('unit', unit)} />
+          <QuantityInput label="Quantité" min={0} allowNegative={false} {...optionalNumberProps(form, 'quantity')} />
+          <UnitField current={values.unit} {...form.getInputProps('unit')} value={values.unit} />
           <Checkbox mt="xl" label="Périssable" description="Par lots datés" {...form.getInputProps('perishable', { type: 'checkbox' })} />
         </SimpleGrid>
         {values.perishable && <DatePickerInput label="Date de péremption" placeholder="Aucune" clearable {...form.getInputProps('expiresAt')} />}
-        <PeopleSelect label="Bénéficiaires" placeholder="Personne en particulier" data={people.options} value={rowPeopleKeys(values)} onChange={(keys) => form.setValues(rowPeopleOf(keys))} />
+        <PeopleField form={form} label="Bénéficiaires" />
         <Textarea label="Description" autosize minRows={2} maxRows={6} value={values.note ?? ''} onChange={(event) => form.setFieldValue('note', event.currentTarget.value || null)} />
         <FormActions onCancel={onDone} submitLabel="Ajouter" loading={createItem.isPending} />
       </Stack>

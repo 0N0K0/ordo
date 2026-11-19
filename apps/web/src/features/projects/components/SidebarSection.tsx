@@ -1,5 +1,5 @@
-import { FoldChevron } from '../../../components/actions/FoldChevron';
-import { Badge, Collapse, Group, UnstyledButton } from '@mantine/core';
+import { FoldHeading } from '../../../components/actions/FoldHeading';
+import { Collapse } from '@mantine/core';
 import { Caption } from '../../../components/page/Caption';
 import type { ReactNode } from 'react';
 import { ActionsMenu, type RowMenuEntry } from '../../../components/actions/ActionsMenu';
@@ -34,17 +34,9 @@ export function SidebarSection({ title, count, opened, onToggle, onSetAllExpande
   return (
     <section className={classes.section}>
       <div className={classes.header}>
-        <UnstyledButton className={classes.toggle} onClick={onToggle} aria-expanded={opened}>
-          <Group gap={6} wrap="nowrap">
-            <FoldChevron expanded={opened} />
-            <Caption>{title}</Caption>
-          </Group>
-          {count > 0 && (
-            <Badge size="xs" variant="light" color="gray">
-              {count}
-            </Badge>
-          )}
-        </UnstyledButton>
+        <FoldHeading className={classes.toggle} expanded={opened} onToggle={onToggle} count={count}>
+          <Caption>{title}</Caption>
+        </FoldHeading>
         <ActionsMenu about={`la section « ${title} »`} size="sm" items={[...(actions ?? []), 'divider', ...(onSetAllExpanded ? foldEntries(onSetAllExpanded) : [])]} />
       </div>
       <Collapse expanded={opened} transitionDuration={150}>

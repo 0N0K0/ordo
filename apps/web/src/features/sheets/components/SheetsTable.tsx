@@ -48,7 +48,7 @@ function sheetColumns(context: TaskContext | null, categories: SheetCategory[], 
       .join(', ');
   const itemText = (item: Sheet['items'][number]) => `${item.label}${fmt.quantity(item) ? ` · ${fmt.quantity(item)}` : ''}`;
   return [
-    { id: 'label', label: 'Libellé', size: 240, locked: true, sortValue: (sheet) => sheet.label, text: (sheet) => sheet.label },
+    { id: 'label', required: true, label: 'Libellé', size: 240, locked: true, sortValue: (sheet) => sheet.label, text: (sheet) => sheet.label },
     {
       id: 'categories',
       label: 'Catégories',
@@ -74,23 +74,25 @@ function sheetColumns(context: TaskContext | null, categories: SheetCategory[], 
       filter: {
         kind: 'choice',
         value: (sheet) => sheet.projectId ?? null,
-        options: (context?.projects ?? []).map((project) => ({ value: project.id, label: context?.projectLabel(project.id) ?? project.label })),
+        options: context?.projectOptions(context.projects) ?? [],
       },
       groupable: true,
     },
     { id: 'items', label: 'Éléments', size: 320, text: (sheet) => sheet.items.map(itemText).join(', ') },
     {
       id: 'usedBy',
+      required: true,
       label: 'Rattachée à',
       size: 130,
       numeric: true,
       hiddenByDefault: true,
       sortValue: (sheet) => sheet.usedBy,
-      text: (sheet) => (sheet.usedBy ? String(sheet.usedBy) : ''),
+      text: (sheet) => fmt.count(sheet.usedBy),
       filter: { kind: 'number', value: (sheet) => sheet.usedBy },
     },
     {
       id: 'updatedAt',
+      required: true,
       label: 'Modifiée le',
       size: 130,
       hiddenByDefault: true,

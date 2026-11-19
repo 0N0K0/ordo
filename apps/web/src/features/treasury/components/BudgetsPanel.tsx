@@ -1,16 +1,16 @@
 import { useCategoryCreators } from '../hooks/use-settings-items';
 import { useActiveWorkspace } from '../../workspaces/api';
 import { openFormPanel } from '../../../components/panels/panels';
-import { memberOrRelation, memberOrRelationKey, memberRelationOptions, personKey } from '../../../components/people/people-keys';
+import { memberOrRelation, memberOrRelationKey, memberRelationOptions, personKey, ME_KEY } from '../../../components/people/people-keys';
 import { ActionButton } from '../../../components/actions/ActionButton';
-import { itemChoices, listSelectProps } from '../../../components/items/item-look';
+import { itemChoices, itemSelectProps } from '../../../components/items/item-look';
 import { EmptyState } from '../../../components/feedback/EmptyState';
 import { TableSkeleton } from '../../../components/feedback/Skeletons';
 
 import { Badge, Group, Progress, SegmentedControl, Select, SimpleGrid, Stack, Text, Tooltip, NumberInput } from '@mantine/core';
 import { SettingsSection } from '../../../components/settings/SettingsSection';
 import { MonthPickerInput } from '@mantine/dates';
-import { EVERYDAY_CONTEXT, treasuryBudgetSchema } from '@ordo/shared';
+import { EVERYDAY_CONTEXT, joinedKey, treasuryBudgetSchema } from '@ordo/shared';
 import { ChartPieSliceIcon, CopyIcon, PencilSimpleIcon, PlusIcon, WarningIcon } from '@phosphor-icons/react';
 import { ArchivedBadge } from '../../../components/feedback/ArchivedBadge';
 import { archiveEntry, unarchived, useSetArchived } from '../../../lib/archive';
@@ -40,6 +40,7 @@ import { FormActions } from '../../../components/dialogs/FormActions';
 import { meName, personName, relationNoun } from '../../../components/people/people-options';
 import { dateRangeProps, followBounds, formRange } from '../../../components/inputs/date-range';
 import { DIRECTION_PLURALS } from '../lib/direction';
+import { signedText } from '../../../components/money/signed-text';
 
 /** Repetitions of a budget: that month only, every X months, or every year (12 months). */
 const REPEAT_MODES = [
@@ -116,6 +117,14 @@ interface BudgetValues extends Record<string, unknown> {
   repeatEvery: number | null;
   repeatUntil: string | null;
 }
+
+/**
+ * Key of a row of the reports: for whom, context, category.
+ * @param {{ memberId?: string | null, relationId?: string | null, contextId?: string | null, categoryId?: string | null }} row Row.
+ * @returns {string} Key.
+ */
+const budgetKeyOf = (row: { memberId?: string | null; relationId?: string | null; contextId?: string | null; categoryId?: string | null }): string =>
+  joinedKey(row.memberId, row.relationId, row.contextId, row.categoryId);
 
 /**
  * Values of a budget saved, for its form or a change of one field.
@@ -213,7 +222,7 @@ function BudgetForm({ budget, defaults, onDone }: { budget?: TreasuryBudget; def
             searchable
             onCreate={createCategory[direction]}
             {...treeSelectProps(categoryOptions(categories, direction, undefined, budget?.categoryId))}
-            nothingFoundMessage={direction === 'OUT' ? 'Aucune catégorie de sorties' : 'Aucune catégorie d’entrées'}
+            nothingFoundMessage={direction === 'OUT' ? 'Aucune catégorie de sortie' : 'Aucune catégorie d’entrée'}
             description="Le budget couvre aussi ses sous-catégories qui n’ont pas le leur."
             {...form.getInputProps('categoryId')}
           />
@@ -232,7 +241,7 @@ function BudgetForm({ budget, defaults, onDone }: { budget?: TreasuryBudget; def
               label="Contexte"
               placeholder={EVERYDAY_CONTEXT}
               clearable
-              {...listSelectProps(settings?.treasuryContexts ?? [], undefined, budget?.contextId)}
+              {...itemSelectProps(settings?.treasuryContexts ?? [], form.values.contextId, undefined, budget?.contextId)}
               {...form.getInputProps('contextId')}
             />
           </SimpleGrid>
@@ -351,8 +360,7 @@ export function BudgetsPanel() {
    * @returns {number} Amount (positive: used).
    */
   const used = (row: BudgetReportRow, kind: 'actual' | 'forecast') => (row.categoryId && directionOf.get(row.categoryId) === 'IN' ? row[kind] : -row[kind]);
-  // "Me" (no member nor relation), and the everyday context, in the filters.
-  const ME_KEY = 'none';
+  // "Me" (no member nor relation), and the everyday context, in the filters: ME_KEY.
   const whoKey = (row: { memberId?: string | null; relationId?: string | null }) => memberOrRelationKey({ relationId: row.relationId, memberId: row.memberId !== me?.id ? row.memberId : null });
   const whoChoices = [
     { value: ME_KEY, label: meName(me) },
@@ -375,8 +383,7 @@ export function BudgetsPanel() {
    * @param {'actual' | 'forecast'} kind Actual or forecast.
    * @returns {string} Text.
    */
-  const outsideText = (row: BudgetReportRow, kind: 'actual' | 'forecast') =>
-    row.categoryId && directionOf.has(row.categoryId) ? fmt.money(used(row, kind)) : `${row[kind] > 0 ? '+' : ''}${fmt.money(row[kind])}`;
+  const outsideText = (row: BudgetReportRow, kind: 'actual' | 'forecast') => (row.categoryId && directionOf.has(row.categoryId) ? fmt.money(used(row, kind)) : signedText(row[kind]));
   type KeyRow = { memberId?: string | null; relationId?: string | null; contextId?: string | null; categoryId?: string | null };
   /**
    * Cells of the key of a budget (or of a report row): for whom, context, category.
@@ -416,6 +423,18 @@ export function BudgetsPanel() {
     ),
   });
   /**
+   * Who a budget is for, as shown and sorted: a relation, a member, else « Moi ».
+   * @param {KeyRow} row Row.
+   * @returns {string} Name.
+   */
+  const whoText = (row: KeyRow) => (row.relationId ? (relationName.get(row.relationId) ?? '') : row.memberId ? (memberName.get(row.memberId) ?? 'Ancien membre') : meName(me));
+  /**
+   * Context of a budget, as shown and sorted: its own, else the everyday one.
+   * @param {KeyRow} row Row.
+   * @returns {string} Name.
+   */
+  const contextText = (row: KeyRow) => (row.contextId ? (contextName.get(row.contextId) ?? '') : EVERYDAY_CONTEXT);
+  /**
    * Columns of the key of a budget, sorted by their names.
    * @returns {DataColumn<R>[]} Columns.
    */
@@ -423,20 +442,23 @@ export function BudgetsPanel() {
     {
       id: 'who',
       bulk: true,
+      // « Moi » without member nor relation, the everyday context without context: never empty.
+      required: true,
       label: 'Bénéficiaire',
       size: 180,
-      sortValue: (row) => (row.relationId ? (relationName.get(row.relationId) ?? '') : row.memberId ? (memberName.get(row.memberId) ?? '') : ''),
-      text: (row) => (row.relationId ? (relationName.get(row.relationId) ?? '') : row.memberId ? (memberName.get(row.memberId) ?? 'Ancien membre') : meName(me)),
+      sortValue: whoText,
+      text: whoText,
       filter: { kind: 'choice', value: (row) => whoKey(row) ?? ME_KEY, options: whoChoices },
       groupable: true,
     },
     {
       id: 'context',
       bulk: true,
+      required: true,
       label: 'Contexte',
       size: 160,
-      sortValue: (row) => (row.contextId ? (contextName.get(row.contextId) ?? '') : ''),
-      text: (row) => (row.contextId ? (contextName.get(row.contextId) ?? '') : EVERYDAY_CONTEXT),
+      sortValue: contextText,
+      text: contextText,
       filter: { kind: 'choice', value: (row) => row.contextId ?? ME_KEY, options: [{ value: ME_KEY, label: EVERYDAY_CONTEXT }, ...itemChoices(settings?.treasuryContexts ?? [])] },
       groupable: true,
     },
@@ -461,6 +483,7 @@ export function BudgetsPanel() {
       {
         id: 'budget',
         label: 'Montant du budget',
+        required: true,
         size: 140,
         numeric: true,
         sortValue: (row) => row.budget,
@@ -470,6 +493,7 @@ export function BudgetsPanel() {
       {
         id: 'actual',
         label: 'Montant réel',
+        required: true,
         size: 130,
         numeric: true,
         sortValue: (row) => used(row, 'actual'),
@@ -479,6 +503,7 @@ export function BudgetsPanel() {
       {
         id: 'forecast',
         label: 'Montant prévu',
+        required: true,
         size: 130,
         numeric: true,
         sortValue: (row) => used(row, 'forecast'),
@@ -488,6 +513,7 @@ export function BudgetsPanel() {
       {
         id: 'left',
         label: 'Montant restant',
+        required: true,
         size: 140,
         numeric: true,
         sortValue: (row) => row.budget - used(row, 'actual') - used(row, 'forecast'),
@@ -513,6 +539,7 @@ export function BudgetsPanel() {
       {
         id: 'actual',
         label: 'Montant réel',
+        required: true,
         size: 130,
         numeric: true,
         sortValue: (row) => outsideUsed(row, 'actual'),
@@ -522,6 +549,7 @@ export function BudgetsPanel() {
       {
         id: 'forecast',
         label: 'Montant prévu',
+        required: true,
         size: 130,
         numeric: true,
         sortValue: (row) => outsideUsed(row, 'forecast'),
@@ -544,6 +572,7 @@ export function BudgetsPanel() {
       {
         id: 'month',
         bulk: true,
+        required: true,
         label: 'À partir de',
         size: 150,
         sortValue: (budget: TreasuryBudget) => budget.month,
@@ -553,6 +582,7 @@ export function BudgetsPanel() {
       {
         id: 'amount',
         bulk: true,
+        required: true,
         label: 'Montant',
         size: 130,
         numeric: true,
@@ -561,7 +591,16 @@ export function BudgetsPanel() {
         filter: { kind: 'number', value: (budget) => (directionOf.get(budget.categoryId) === 'IN' ? budget.amount : -budget.amount) },
       },
       ...keyColumns<TreasuryBudget>(),
-      { id: 'repeat', bulk: true, label: 'Répétition', size: 170, sortValue: (budget) => budget.repeatEvery ?? 0, text: (budget) => repeatLabel(budget.repeatEvery ?? null), groupable: true },
+      {
+        id: 'repeat',
+        bulk: true,
+        required: true,
+        label: 'Répétition',
+        size: 170,
+        sortValue: (budget) => budget.repeatEvery ?? 0,
+        text: (budget) => repeatLabel(budget.repeatEvery ?? null),
+        groupable: true,
+      },
       {
         id: 'until',
         bulk: true,
@@ -597,7 +636,7 @@ export function BudgetsPanel() {
           <DataTable
             view={reportView}
             verticalSpacing={6}
-            getKey={(row) => `${row.memberId}|${row.relationId}|${row.contextId}|${row.categoryId}`}
+            getKey={budgetKeyOf}
             cells={(row) => {
               const actual = used(row, 'actual');
               const forecast = used(row, 'forecast');
@@ -652,7 +691,7 @@ export function BudgetsPanel() {
           <DataTable
             view={outsideView}
             verticalSpacing={6}
-            getKey={(row) => `${row.memberId}|${row.relationId}|${row.contextId}|${row.categoryId}`}
+            getKey={budgetKeyOf}
             cells={(row) => ({
               ...keyContent(row),
               actual: outsideText(row, 'actual'),

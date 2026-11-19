@@ -1,4 +1,5 @@
 import { IconAction } from '../../../components/actions/IconAction';
+import { DocumentBalanceBadge } from '../components/DocumentBalanceBadge';
 import { NO_TARGETS } from '../../../components/markdown/remark-references';
 
 import { DetailSkeleton } from '../../../components/feedback/Skeletons';
@@ -16,7 +17,7 @@ import { DetailNotFound } from '../../../components/feedback/DetailNotFound';
 import { useImportedDocument, useImportedDocumentMutations } from '../api/documents';
 import { SettingsSection } from '../../../components/settings/SettingsSection';
 import { openImportForm } from '../lib/imported-form';
-import { DOCUMENT_TYPE_LABELS, isFeminineDocumentType } from '../lib/labels';
+import { DOCUMENT_TYPE_LABELS, documentTitle, isFeminineDocumentType } from '../lib/labels';
 import { StatusMenu } from '../components/TrackingBadge';
 import { chooseTrackingStatus } from '../lib/sent-dialog';
 import * as fmt from '../../../lib/format';
@@ -41,7 +42,7 @@ export function ImportedDocumentPage() {
   if (isLoading) {
     return <DetailSkeleton fields={6} />;
   }
-  if (!document) return <DetailNotFound what="Ce document" backTo={PAGES.accounting.path} backLabel={PAGES.accounting.title} />;
+  if (!document) return <DetailNotFound what="Ce document" backTo={PAGES.accounting.path} backLabel={PAGES.accounting.label} />;
 
   const kind = document.fileUrl ? viewableKind({ url: document.fileUrl, filename: document.filename, mimeType: document.fileMimeType }) : null;
   const money = (amount: number) => fmt.money(amount, document.currency);
@@ -57,9 +58,9 @@ export function ImportedDocumentPage() {
   return (
     <Stack gap="md">
       <DetailHeader
-        back={{ to: PAGES.accounting.path, label: PAGES.accounting.title }}
+        back={{ to: PAGES.accounting.path, label: PAGES.accounting.label }}
         order={1}
-        title={`${DOCUMENT_TYPE_LABELS[document.type]} ${document.number}`}
+        title={documentTitle(document)}
         badges={
           <>
             <Badge variant="light" color="cyan">
@@ -72,7 +73,7 @@ export function ImportedDocumentPage() {
         actions={
           <>
             {document.fileUrl && (
-              <IconAction label="Télécharger le fichier" component="a" href={downloadUrl(document.fileUrl)} variant="default" size="lg">
+              <IconAction label="Télécharger le fichier" component="a" href={downloadUrl(document.fileUrl)} variant="light" size="lg">
                 <DownloadSimpleIcon aria-hidden />
               </IconAction>
             )}
@@ -131,11 +132,7 @@ export function ImportedDocumentPage() {
                   readOnly={document.archived}
                   onSelect={(status) => chooseTrackingStatus(document, status, { setStatus, markSent })}
                 />
-                {document.type !== 'QUOTE' && (
-                  <Badge variant="light" color={document.balance ? 'orange' : 'green'}>
-                    {document.balance ? `Reste ${money(document.balance)}` : 'Réglé'}
-                  </Badge>
-                )}
+                {document.type !== 'QUOTE' && <DocumentBalanceBadge balance={document.balance} currency={document.currency} />}
               </Group>
             </SettingsSection>
             <SettingsSection title="Informations">

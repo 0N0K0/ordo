@@ -7,7 +7,7 @@ import { DEFAULT_RECURRENCE, ONE_DAY, type Duration, type Recurrence } from '../
 import { caseSpanOn, caseSpans, repetitionCaseSchema, type RepetitionCase } from '../dates/repetition';
 import { colorSchema } from '../core/workspace';
 import { timeOfDaySchema, daySchema } from '../dates/times';
-import { daysInMonth, monthIndex, shiftMonth } from '../dates/months';
+import { dayOfMonthOf, daysInMonth, monthIndex, shiftMonth } from '../dates/months';
 
 /** Hours of a day of a case, in local time. */
 const timeRangeSchema = z.object({ start: timeOfDaySchema, end: timeOfDaySchema }).refine(...endAfter('start', 'end', true));
@@ -17,6 +17,21 @@ type TimeRange = z.infer<typeof timeRangeSchema>;
  * (every n months) or of a month of the year (every n years). */
 const SCHEDULE_PATTERNS = ['DAILY', 'WEEKLY', 'EVERY_N_DAYS', 'MONTHLY', 'YEARLY'] as const;
 export type SchedulePattern = (typeof SCHEDULE_PATTERNS)[number];
+
+/**
+ * Checks the hours of a schedule case: some time ranges unless the whole day, none overlapping another.
+ * @param {{ allDay: boolean, ranges: { start: string, end: string }[] }} times Hours of the case.
+ * @param {z.RefinementCtx} context Refinement context.
+ * @param {string[]} path Path of the hours in the case.
+ * @returns {void}
+ */
+function refineScheduleTimes(times: { allDay: boolean; ranges: { start: string; end: string }[] }, context: z.RefinementCtx, path: string[]): void {
+  if (!times.allDay && !times.ranges.length) context.addIssue({ code: 'custom', path: [...path, 'ranges'], message: 'Ajoutez des horaires, ou « Journée entière ».' });
+  const sorted = [...times.ranges].sort((a, b) => a.start.localeCompare(b.start));
+  sorted.forEach((range, index) => {
+    if (index && sorted[index - 1].end > range.start) context.addIssue({ code: 'custom', path: [...path, 'ranges'], message: 'Des horaires se chevauchent.' });
+  });
+}
 
 /**
  * A case of a schedule: on which days (every day, weekdays every n weeks, every n days) and with which hours (time
@@ -62,12 +77,7 @@ const scheduleCaseSchema = z
     if (item.pattern !== 'YEARLY' && (item.monthlyMode === 'WEEK' || item.monthlyMode === 'MONTH'))
       context.addIssue({ code: 'custom', path: ['monthlyMode'], message: 'Semaine ou mois : chaque année seulement.' });
     if (item.pattern === 'WEEKLY' && !item.weekdays.length) context.addIssue({ code: 'custom', path: ['weekdays'], message: 'Choisissez au moins un jour.' });
-    if (!item.allDay && !item.ranges.length) context.addIssue({ code: 'custom', path: ['ranges'], message: 'Ajoutez des horaires, ou « toute la journée ».' });
-    // Ranges of a case must not overlap.
-    const sorted = [...item.ranges].sort((a, b) => a.start.localeCompare(b.start));
-    sorted.forEach((range, index) => {
-      if (index && sorted[index - 1].end > range.start) context.addIssue({ code: 'custom', path: ['ranges'], message: 'Des horaires se chevauchent.' });
-    });
+    refineScheduleTimes(item, context, []);
   });
 /** Case of a schedule in its former form (pattern, every…), read and converted (see `scheduleCaseRepetition`). */
 type LegacyScheduleCase = z.infer<typeof scheduleCaseSchema>;
@@ -82,12 +92,7 @@ export type ScheduleTimes = z.infer<typeof scheduleTimesSchema>;
 /** A case of a schedule: its period, its rule (with how long each occurrence lasts) and its hours. */
 const scheduleRepetitionCaseSchema = repetitionCaseSchema(scheduleTimesSchema).superRefine((item, context) => {
   if (item.rule?.frequency === 'WEEKLY' && !item.rule.weekdays.length) context.addIssue({ code: 'custom', path: ['rule', 'weekdays'], message: 'Choisissez au moins un jour.' });
-  if (!item.times.allDay && !item.times.ranges.length) context.addIssue({ code: 'custom', path: ['times', 'ranges'], message: 'Ajoutez des horaires, ou « toute la journée ».' });
-  // Ranges of a case must not overlap.
-  const sorted = [...item.times.ranges].sort((a, b) => a.start.localeCompare(b.start));
-  sorted.forEach((range, index) => {
-    if (index && sorted[index - 1].end > range.start) context.addIssue({ code: 'custom', path: ['times', 'ranges'], message: 'Des horaires se chevauchent.' });
-  });
+  refineScheduleTimes(item.times, context, ['times']);
 });
 export type ScheduleCase = RepetitionCase<ScheduleTimes>;
 
@@ -571,7 +576,7 @@ function movedCase(item: ScheduleCase, periodStart: string, date: string, change
   const base = item.anchor ?? item.since ?? periodStart;
   const monthly = rule.frequency === 'MONTHLY' || rule.frequency === 'YEARLY';
   const anchor = monthly ? shiftMonth(base, monthIndex(to) - monthIndex(date)) : addDays(base, daysBetween(date, to));
-  const day = Number(to.slice(8, 10));
+  const day = dayOfMonthOf(to);
   const lastDay = daysInMonth(yearOfDay(to), monthOfYear(to));
   const position = day + 7 > lastDay && (rule.position === -1 || day > 28) ? -1 : (Math.ceil(day / 7) as 1 | 2 | 3 | 4);
   const values = { monthDay: day, weekday: weekdayOf(to), position, month: monthOfYear(to), week: isoWeek(to) };

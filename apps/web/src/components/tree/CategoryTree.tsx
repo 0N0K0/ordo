@@ -1,15 +1,16 @@
 import { DndContext, DragOverlay, useDraggable, useDroppable } from '@dnd-kit/core';
-import { Group, Paper, Table, Text } from '@mantine/core';
+import { DragLabel } from '../dnd/DragLabel';
+import { Group, Table, Text } from '@mantine/core';
 import { ItemAvatar } from '../items/ItemAvatar';
-import { DotsSixVerticalIcon } from '@phosphor-icons/react';
+
 import { type ReactNode } from 'react';
 import { categoryTree, treeDestination, type PlacedCategory, type TreeCategory, type TreePlace } from './category-tree';
-import classes from './CategoryTree.module.css';
 import { useFolded, useTreeDrop } from './tree-dnd';
 
 import treeRow from './tree-drop.module.css';
 import { DragHandle } from '../dnd/DragHandle';
 import { FoldButton } from '../actions/FoldButton';
+import { agreed } from '@ordo/shared';
 
 interface CategoryRowProps<C extends TreeCategory> {
   placed: PlacedCategory<C>;
@@ -88,6 +89,10 @@ interface CategoryTreeProps<C extends TreeCategory> {
   canMove?: (id: string, parentId: string | null) => boolean;
   /** Whether a row is read only (an archived item): not moved, no drag handle. Optional. */
   locked?: (category: C) => boolean;
+  /** What a row is, in the announcements of a move (« Catégorie », « Statut »). */
+  noun: string;
+  /** The noun is feminine: « Catégorie déplacée », « Statut déplacé ». Optional. Default = false. */
+  feminine?: boolean;
 }
 
 /**
@@ -97,7 +102,19 @@ interface CategoryTreeProps<C extends TreeCategory> {
  * @param {CategoryTreeProps<C>} props Component props.
  * @returns {JSX.Element} Tree.
  */
-export function CategoryTree<C extends TreeCategory>({ categories, storageKey, renderMeta, renderBadges, renderActions, onMove, nested = true, canMove, locked }: CategoryTreeProps<C>) {
+export function CategoryTree<C extends TreeCategory>({
+  categories,
+  storageKey,
+  renderMeta,
+  renderBadges,
+  renderActions,
+  onMove,
+  nested = true,
+  canMove,
+  locked,
+  noun,
+  feminine = false,
+}: CategoryTreeProps<C>) {
   const tree = categoryTree(categories);
   const [folded, toggle] = useFolded(storageKey);
 
@@ -126,8 +143,8 @@ export function CategoryTree<C extends TreeCategory>({ categories, storageKey, r
     fallback: nested ? 'INSIDE' : 'AFTER',
     destination: allowed,
     onDrop: (id, destination) => onMove(id, destination.parentId, destination.index),
-    taken: (id) => `${tree.find((item) => item.category.id === id)?.category.label ?? 'Catégorie'} saisie.`,
-    moved: 'Catégorie déplacée.',
+    taken: (id) => `${tree.find((item) => item.category.id === id)?.category.label ?? noun} ${agreed('saisi', feminine)}.`,
+    moved: `${noun} ${agreed('déplacé', feminine)}.`,
   });
 
   const active = dragged ? tree.find((item) => item.category.id === dragged) : undefined;
@@ -155,18 +172,7 @@ export function CategoryTree<C extends TreeCategory>({ categories, storageKey, r
           })}
         </Table.Tbody>
       </Table>
-      <DragOverlay dropAnimation={null}>
-        {active && (
-          <Paper shadow="md" radius="sm" px="sm" py={4} withBorder className={classes.overlay}>
-            <Group gap="xs" wrap="nowrap">
-              <DotsSixVerticalIcon weight="bold" aria-hidden />
-              <Text size="sm" fw={500}>
-                {active.category.label}
-              </Text>
-            </Group>
-          </Paper>
-        )}
-      </DragOverlay>
+      <DragOverlay dropAnimation={null}>{active && <DragLabel label={active.category.label} />}</DragOverlay>
     </DndContext>
   );
 }

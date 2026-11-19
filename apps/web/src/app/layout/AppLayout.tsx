@@ -1,5 +1,6 @@
 import { SidePanelHost } from '../../components/panels/SidePanel';
-import { AppShell, Burger, Button, Group, Stack } from '@mantine/core';
+import { AppShell, Burger, Group, Stack } from '@mantine/core';
+import { ActionButton } from '../../components/actions/ActionButton';
 import { ActionsMenu } from '../../components/actions/ActionsMenu';
 import { useDisclosure, useLocalStorage } from '@mantine/hooks';
 import { ModalsProvider } from '@mantine/modals';
@@ -29,7 +30,6 @@ import { SETTINGS_PANEL, SIDEBAR_PANEL } from './panel-widths';
 import { ResizeHandle } from './ResizeHandle';
 import { useIsPhone } from '../../lib/use-is-phone';
 import { PAGES } from '../pages';
-import { MenuCaret } from '../../components/actions/MenuCaret';
 
 /**
  * Layout of the logged-in area, once its workspace is known: header (with the workspace switcher), resizable
@@ -70,7 +70,7 @@ export function AppLayout() {
   const pageSettings = useMemo(() => ({ title: settingsTitle, setTitle: setSettingsTitle, container: settingsContainer }), [settingsTitle, settingsContainer]);
 
   return (
-    <ModalsProvider modalProps={{ centered: true }}>
+    <ModalsProvider modalProps={{ centered: true, closeButtonProps: { 'aria-label': 'Fermer' } }}>
       <PageSettingsContext.Provider value={pageSettings}>
         <WorkspaceGate>
           <AppShell
@@ -122,9 +122,9 @@ export function AppLayout() {
                       { label: 'Me déconnecter', icon: <SignOutIcon aria-hidden />, onClick: handleLogout },
                     ]}
                     target={
-                      <Button variant="subtle" size="xs" leftSection={<UserIcon aria-hidden />} rightSection={<MenuCaret />} loading={logout.isPending} maw={200}>
+                      <ActionButton priority="tertiary" icon={<UserIcon aria-hidden />} loading={logout.isPending} maw={200}>
                         {user?.username ?? 'Mon compte'}
-                      </Button>
+                      </ActionButton>
                     }
                   />
                 </Group>

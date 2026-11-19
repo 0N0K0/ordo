@@ -10,7 +10,7 @@ export interface StackedItem {
   /** Name shown. */
   label: string;
   /** Full name (a category path…), on hover. */
-  title?: string;
+  hint?: string;
   /** Swatch, avatar… */
   icon?: ReactNode;
 }
@@ -53,7 +53,7 @@ export function StackedMultiCell({ label, readOnly = false, items, renderSelect 
         className={classes.root}
         onClick={() => setEditing(true)}
         disabled={readOnly}
-        aria-label={`${label} : ${items.map((item) => item.title ?? item.label).join(', ') || 'aucun'}`}
+        aria-label={`${label} : ${items.map((item) => item.hint ?? item.label).join(', ') || 'aucun'}`}
         style={{ width: '100%' }}
       >
         <Stack gap={2}>
@@ -63,7 +63,7 @@ export function StackedMultiCell({ label, readOnly = false, items, renderSelect 
             </Text>
           )}
           {shown.map((item) => (
-            <Group key={item.id} gap={6} wrap="nowrap" title={item.title}>
+            <Group key={item.id} gap={6} wrap="nowrap" title={item.hint}>
               {item.icon}
               <Text size="xs" truncate>
                 {item.label}

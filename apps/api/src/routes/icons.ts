@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import { prisma } from '../db';
-import { orNotFound } from '../graphql/errors';
 import { downloadRoute, IMMUTABLE_CACHE } from './http';
+import { findOrNotFound } from '../services/core/lookup';
 
 export const iconsRouter: Router = Router();
 
@@ -9,7 +9,7 @@ export const iconsRouter: Router = Router();
 iconsRouter.get(
   '/:id',
   downloadRoute(async (req) => {
-    const icon = await orNotFound(prisma.icon.findUnique({ where: { id: String(req.params.id) } }), 'Icône');
+    const icon = await findOrNotFound(prisma.icon, String(req.params.id), 'Icône');
     return {
       content: Buffer.from(icon.data),
       type: icon.mimeType,

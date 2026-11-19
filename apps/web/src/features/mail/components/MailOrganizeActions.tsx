@@ -1,12 +1,13 @@
 import { sumOf } from '@ordo/shared';
 import { IconAction } from '../../../components/actions/IconAction';
+import { StateSwitch } from '../../../components/inputs/StateSwitch';
 import { RemoveButton } from '../../../components/actions/RemoveButton';
 import { countOf, plural } from '../../../lib/text';
 import { confirmDestructive } from '../../../components/dialogs/confirm-destructive';
 import { ItemAvatar } from '../../../components/items/ItemAvatar';
 import { Group, Text } from '@mantine/core';
 import { ActionsMenu } from '../../../components/actions/ActionsMenu';
-import { CheckCircleIcon, CircleIcon, EnvelopeOpenIcon, EnvelopeSimpleIcon, FlagIcon, FolderSimpleIcon, GearIcon, ProhibitIcon, TrayIcon, XIcon } from '@phosphor-icons/react';
+import { CheckIcon, EnvelopeOpenIcon, EnvelopeSimpleIcon, FlagIcon, FolderSimpleIcon, GearIcon, ProhibitIcon, TrayIcon, XIcon } from '@phosphor-icons/react';
 import { notifySuccess, onMutationError } from '../../../lib/notify';
 import { useMailActions, useMailFolders, useMailLabels } from '../api';
 import type { MailGroup } from '../lib/mail-groups';
@@ -57,17 +58,15 @@ export function MailOrganizeActions({ groups, done, labelIds, onMoved, onManageL
 
   return (
     <Group gap={4} wrap="nowrap">
-      <IconAction
-        label={done ? 'Marquer à traiter' : 'Marquer comme traité'}
-        color={done ? 'green' : 'gray'}
-        aria-pressed={done}
-        loading={mark.isPending}
-        onClick={() => void each((group) => mark.mutateAsync({ ...group, done: !done })).catch(onMutationError)}
-      >
-        {done ? <CheckCircleIcon weight="fill" aria-hidden /> : <CircleIcon aria-hidden />}
-      </IconAction>
+      <StateSwitch
+        label="Traité"
+        hint={done ? 'Marquer comme à traiter' : 'Marquer comme traité'}
+        checked={done}
+        color="green"
+        icon={<CheckIcon weight="bold" aria-hidden />}
+        onChange={(checked) => void each((group) => mark.mutateAsync({ ...group, done: checked })).catch(onMutationError)}
+      />
       <ActionsMenu
-        about="des drapeaux"
         keepOpen
         target={
           <IconAction label="Drapeaux">
@@ -106,7 +105,6 @@ export function MailOrganizeActions({ groups, done, labelIds, onMoved, onManageL
       </IconAction>
       {oneAccount && !noMove && (
         <ActionsMenu
-          about="du déplacement"
           maxHeight={360}
           target={
             <IconAction label="Déplacer vers…" aria-label="Déplacer vers un dossier">
@@ -176,7 +174,7 @@ export function MailSelectionBar({ groups, done, labelIds, onGone, onClear, onMa
   return (
     <Group gap={4} wrap="nowrap" style={{ flex: 1 }} justify="flex-end">
       <Text size="xs" c="dimmed" mr="auto">
-        {count} {plural(count, 'sélectionné')}
+        {countOf(count, 'sélectionné')}
       </Text>
       <MailOrganizeActions groups={groups} done={done} labelIds={labelIds} onMoved={onGone} onManageLabels={onManageLabels} noMove={noMove} />
       <IconAction label="Marquer comme lu" onClick={() => void Promise.all(groups.map((group) => setSeen.mutateAsync({ ...group, seen: true }))).catch(onMutationError)}>

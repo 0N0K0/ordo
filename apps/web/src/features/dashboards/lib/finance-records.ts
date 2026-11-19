@@ -11,6 +11,7 @@ import {
   round2,
   splitAmounts,
   fromCents,
+  DRAFT_NAME,
 } from '@ordo/shared';
 import { localDay, localToday } from '../../../lib/dates';
 import { unarchived } from '../../../lib/archive';
@@ -31,6 +32,7 @@ import type {
 import { categoryLineage, categoryPathLineage } from '../../treasury/lib/categories';
 import { aggregate, bucketLabel, bucketOf, nextBucket, none, periodRange, type ChartData, type ChartRecord, type Key } from './aggregate';
 import { DIRECTION_PLURALS } from '../../treasury/lib/direction';
+import { parseTaggedKey, taggedKey } from '../../../lib/tagged-key';
 
 const TYPE_ORDER = ['QUOTE', 'DEPOSIT_INVOICE', 'INVOICE', 'CREDIT_NOTE'];
 const TYPE_COLORS: Record<string, string> = {
@@ -198,7 +200,7 @@ export function documentChartData(
               return [
                 {
                   key: 'draft',
-                  label: 'Brouillon',
+                  label: DRAFT_NAME,
                   order: -1,
                   color: 'gray.4',
                 },
@@ -216,7 +218,7 @@ export function documentChartData(
           case 'client':
             return [
               {
-                key: document.clientId ?? `name:${document.clientName}`,
+                key: document.clientId ?? taggedKey('name', document.clientName),
                 label: document.clientName || 'Sans client',
                 order: document.clientName,
               },
@@ -247,7 +249,7 @@ export function documentChartData(
                 ? [
                     {
                       key: 'draft',
-                      label: 'Brouillon',
+                      label: DRAFT_NAME,
                       order: 0,
                       color: 'gray.5',
                     },
@@ -400,7 +402,7 @@ export function treasuryChartData({
     };
     const { amounts, remainder } = splitAmounts(entry.amount, entry.lines);
     const own: Part[] = entry.lines.map((line, index) => ({
-      id: `line:${line.id}`,
+      id: taggedKey('line', line.id),
       // A line of its own day (deferred debit card) counts that day.
       movement: {
         ...base,
@@ -412,13 +414,13 @@ export function treasuryChartData({
         relationId: line.relationId ?? null,
         contextId: line.contextId ?? null,
       },
-      linkedIds: [...line.linkedLines.map((linked) => `line:${linked.id}`), ...line.linkedEntries.map((linked) => `entry:${linked.id}`)],
+      linkedIds: [...line.linkedLines.map((linked) => taggedKey('line', linked.id)), ...line.linkedEntries.map((linked) => taggedKey('entry', linked.id))],
     }));
     if (remainder !== 0 || !entry.lines.length) {
       own.push({
-        id: `entry:${entry.id}`,
+        id: taggedKey('entry', entry.id),
         movement: { ...base, ...category(entry.categoryId ?? null), amount: fromCents(remainder), projectId: entry.projectId ?? null, memberId: null, contextId: plannedContext(plannedDays, date) },
-        linkedIds: [...entry.linkedEntries.map((linked) => `entry:${linked.id}`), ...entry.linkedByLines.map((linked) => `line:${linked.id}`)],
+        linkedIds: [...entry.linkedEntries.map((linked) => taggedKey('entry', linked.id)), ...entry.linkedByLines.map((linked) => taggedKey('line', linked.id))],
       });
     }
     partIds.set(
@@ -432,7 +434,10 @@ export function treasuryChartData({
    * @param {string} id "line:<id>" or "entry:<id>".
    * @returns {string[]} Part ids.
    */
-  const targets = (id: string) => (id.startsWith('entry:') ? (partIds.get(id.slice(6)) ?? [id]) : [id]);
+  const targets = (id: string) => {
+    const parsed = parseTaggedKey(id);
+    return parsed?.tag === 'entry' ? (partIds.get(parsed.id) ?? [id]) : [id];
+  };
   // Linked money in and out of a same bucket (the whole period for a donut) offset each other, part by part.
   const remaining =
     config.measure === 'count'
@@ -494,7 +499,7 @@ export function treasuryChartData({
             : none('Sans projet');
         case 'member': {
           const relation = movement.relationId ? relationById.get(movement.relationId) : undefined;
-          if (relation) return [{ key: `relation:${relation.id}`, label: relation.name, order: `~${relation.name}` }];
+          if (relation) return [{ key: taggedKey('relation', relation.id), label: relation.name, order: `~${relation.name}` }];
           const member = movement.memberId ? memberById.get(movement.memberId) : undefined;
           return member ? [{ key: member.id, label: member.name, order: member.isMe ? '' : member.name }] : none('Non réparti');
         }

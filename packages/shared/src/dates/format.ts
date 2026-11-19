@@ -1,5 +1,6 @@
 import { LOCALE } from '../core/numbers';
 import { CALENDAR_DAY } from './days';
+import { dayOfMonthText } from './months';
 
 /**
  * Day and month formats shared by the app and the API's PDFs: a calendar day (YYYY-MM-DD, or a month YYYY-MM) is shown as
@@ -32,5 +33,12 @@ export const weekdayText = dateStyle({ weekday: 'short', day: 'numeric', month: 
 /** « novembre 2026 » (a month YYYY-MM is accepted). */
 export const monthText = dateStyle({ month: 'long', year: 'numeric' });
 
-/** « 13 novembre 2026 »: a day in a sentence of a PDF (a period of a statement). */
-export const longDayText = dateStyle({ day: 'numeric', month: 'long', year: 'numeric' });
+const longDay = dateStyle({ day: 'numeric', month: 'long', year: 'numeric' });
+
+/**
+ * « 13 novembre 2026 », « 1er juin 2026 » (decision V): a day in a sentence (the period of a PDF statement, the end of a
+ * repetition…), its weekday left out.
+ * @param {DateValue} value Day or instant.
+ * @returns {string} Text.
+ */
+export const longDayText = (value: DateValue): string => longDay(value).replace(/^1 /, `${dayOfMonthText(1)} `);

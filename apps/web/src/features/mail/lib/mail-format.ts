@@ -15,6 +15,15 @@ export function addressLabel(address: Address): string {
 }
 
 /**
+ * A mail account as shown everywhere (decision CE): « Name <address> », or the address alone.
+ * @param {{ displayName?: string | null, email: string }} account Account.
+ * @returns {string} Label.
+ */
+export function accountLabel(account: { displayName?: string | null; email: string }): string {
+  return addressLabel({ name: account.displayName, address: account.email });
+}
+
+/**
  * Short name of a sender: its name, or its address.
  * @param {Address[]} addresses Addresses.
  * @returns {string} Label.

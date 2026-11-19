@@ -4,6 +4,9 @@ import { TABLE_AGGREGATES } from './aggregates';
 import { columnLayoutSchema, tableSortSchema } from './table-layout';
 import { filterDepth, filterGroupSchemaFor, MAX_FILTER_DEPTH, type FilterConditionOf, type FilterGroupOf } from './filters';
 
+/** What a saved view lists (TABLE: any other table, named by its key). */
+export const VIEW_KINDS = ['TASKS', 'ROUTINES', 'SHOPPING_LISTS', 'TABLE'] as const;
+
 /** Name of a table with saved views of its own (« time-log », « treasury-entries »…). */
 export const tableKeySchema = z.string().regex(/^[a-z0-9-]{1,64}$/, 'Tableau invalide.');
 
@@ -78,4 +81,5 @@ export function tableViewConfig(config: Partial<TableViewConfig> = {}): TableVie
 /** Longest label of a saved view. */
 export const VIEW_LABEL_MAX = 60;
 
-export const taskViewLabelSchema = requiredText(VIEW_LABEL_MAX);
+/** Label of a saved view, of any table. */
+export const viewLabelSchema = requiredText(VIEW_LABEL_MAX);

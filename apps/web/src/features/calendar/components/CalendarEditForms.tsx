@@ -1,7 +1,7 @@
 import { PICKER_FORMATS } from '../../../lib/format';
 import { ArrowSquareOutIcon } from '@phosphor-icons/react';
 import { DeleteButton } from '../../../components/dialogs/DestructiveActions';
-import { Checkbox, Group, Stack, Text } from '@mantine/core';
+import { Group, Stack, Text, Switch } from '@mantine/core';
 import { DatePickerInput, TimePicker } from '@mantine/dates';
 import type { ScheduleSlotTime } from '@ordo/shared';
 import { useState } from 'react';
@@ -13,17 +13,17 @@ import { ActionButton } from '../../../components/actions/ActionButton';
 
 /**
  * Form changing a slot of a schedule from the calendar: its day and hours (or the whole day); or deleting it.
- * @param {{ name: string, slot: ScheduleSlotTime, onSave: (change: ScheduleSlotTime) => void, onDelete: () => void, onClose: () => void }} props Component props.
+ * @param {{ label: string, slot: ScheduleSlotTime, onSave: (change: ScheduleSlotTime) => void, onDelete: () => void, onClose: () => void }} props Component props.
  * @returns {JSX.Element} Form.
  */
 export function SlotEditForm({
-  name,
+  label,
   slot,
   onSave,
   onDelete,
   onClose,
 }: {
-  name: string;
+  label: string;
   slot: ScheduleSlotTime;
   onSave: (change: ScheduleSlotTime) => void;
   onDelete: () => void;
@@ -42,11 +42,11 @@ export function SlotEditForm({
     >
       <Stack gap="md">
         <Text size="sm" c="dimmed">
-          {name}
+          {label}
         </Text>
         <DatePickerInput label="Jour" required valueFormat={PICKER_FORMATS.weekday} value={value.date} onChange={(date) => date && setValue({ ...value, date: date })} data-autofocus />
-        <Checkbox
-          label="Toute la journée"
+        <Switch
+          label="Journée entière"
           checked={value.allDay}
           onChange={(event) => setValue(event.currentTarget.checked ? { ...value, allDay: true, start: '00:00', end: '24:00' } : { ...value, allDay: false, start: '09:00', end: '17:00' })}
         />

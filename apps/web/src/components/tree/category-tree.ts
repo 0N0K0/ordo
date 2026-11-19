@@ -1,4 +1,4 @@
-import { childrenByParent, LEVEL, mapById } from '@ordo/shared';
+import { childrenByParent, LEVEL, lineageOf, mapById } from '@ordo/shared';
 import { treeOptions, type TreeOption } from './tree-select';
 import { collator } from '../../lib/text';
 
@@ -102,9 +102,8 @@ export function treeDestination(categories: readonly TreeCategory[], id: string,
   const moved = byId.get(id);
   const target = byId.get(targetId);
   if (!moved || !target) return null;
-  for (let current: TreeCategory | undefined = target; current; current = current.parentId ? byId.get(current.parentId) : undefined) {
-    if (current.id === id) return null;
-  }
+  // Dropped on itself or under itself.
+  if (lineageOf(byId, targetId).some((category) => category.id === id)) return null;
   const parentOf = (category: TreeCategory) => (category.parentId && byId.has(category.parentId) ? category.parentId : null);
   const parentId = place === 'INSIDE' ? target.id : parentOf(target);
   const siblings = categories.filter((category) => parentOf(category) === parentId).sort(bySiblingOrder);

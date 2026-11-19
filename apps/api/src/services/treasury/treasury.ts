@@ -18,10 +18,12 @@ import { Prisma, type TreasuryAccount, type TreasuryEntry } from '../../generate
 import { clientError, fieldError, notFound, orNotFound, parseInput } from '../../graphql/errors';
 import { storedRecurrence } from '../calendar/calendar-events';
 import { documentBalances, importedBalances, syncPaymentStatus } from '../accounting/document-tracking';
+import { assertMethodFor } from './treasury-settings';
 import { assertAllExist, assertExists, deleteOrNotFound } from '../core/lookup';
-import { assertNotArchived } from '../core/archive';
+import { assertNotArchived, assertActive, refuseArchived } from '../core/archive';
 import { connectIds } from '../core/relations';
 import { decimalCents, fromDecimal, toDecimal } from '../core/decimal';
+import { toJson } from '../core/json';
 
 /**
  * Balance of an account at the end of a day: opening balance plus its actual entries since the opening date.
@@ -59,8 +61,7 @@ export async function createAccount(input: TreasuryAccountInput): Promise<Treasu
  */
 export async function updateAccount(id: string, input: TreasuryAccountInput): Promise<TreasuryAccount> {
   const data = parseInput(treasuryAccountSchema, input);
-  await assertExists(prisma.treasuryAccount, id, 'Compte');
-  await assertNotArchived('TREASURY_ACCOUNT', id);
+  await assertActive(prisma.treasuryAccount, id, 'Compte');
   return prisma.treasuryAccount.update({
     where: { id },
     data: { label: data.label, openingBalance: toDecimal(data.openingBalance), openingDate: parseDay(data.openingDate) },
@@ -126,12 +127,14 @@ interface EntryRefs {
   categoryId: string | null;
   methodId: string | null;
   counterpartyId: string | null;
-  lines: { categoryId: string | null; contextId: string | null; relationId: string | null }[];
+  projectId: string | null;
+  clientId: string | null;
+  lines: { categoryId: string | null; contextId: string | null; relationId: string | null; projectId: string | null }[];
   allocations: { documentId: string | null; importedDocumentId: string | null }[];
 }
 
 /**
- * Refuses an archived account, category, payment method, counterparty, context, relation or settled document newly given
+ * Refuses an archived account, category, payment method, counterparty, project, client, context, relation or settled document newly given
  * to an entry; those it had already stay valid.
  * @param {ReturnType<typeof treasuryEntrySchema.parse>} entry Validated entry.
  * @param {EntryRefs | null} previous What it pointed to before the change, null for a new entry.
@@ -145,7 +148,11 @@ async function assertNoNewArchived(entry: ReturnType<typeof treasuryEntrySchema.
   await assertNotArchived('TREASURY_CATEGORY', entry.categoryId, { keep: categories, field: 'categoryId' });
   await assertNotArchived('TREASURY_PAYMENT_METHOD', entry.methodId, { keep: previous?.methodId, field: 'methodId' });
   await assertNotArchived('TREASURY_COUNTERPARTY', entry.counterpartyId, { keep: previous?.counterpartyId, field: 'counterpartyId' });
+  const projects = [previous?.projectId, ...lines.map((item) => item.projectId)];
+  await assertNotArchived('project', entry.projectId, { keep: projects, field: 'projectId' });
+  await assertNotArchived('client', entry.clientId, { keep: previous?.clientId, field: 'clientId' });
   for (const [index, line] of entry.lines.entries()) {
+    await assertNotArchived('project', line.projectId, { keep: projects, field: `lines.${index}.projectId` });
     await assertNotArchived('TREASURY_CATEGORY', line.categoryId, { keep: categories, field: `lines.${index}.categoryId` });
     await assertNotArchived('TREASURY_CONTEXT', line.contextId, { keep: lines.map((item) => item.contextId), field: `lines.${index}.contextId` });
     await assertNotArchived('TREASURY_RELATION', line.relationId, { keep: lines.map((item) => item.relationId), field: `lines.${index}.relationId` });
@@ -163,7 +170,9 @@ const ENTRY_REFS = {
   categoryId: true,
   methodId: true,
   counterpartyId: true,
-  lines: { select: { categoryId: true, contextId: true, relationId: true } },
+  projectId: true,
+  clientId: true,
+  lines: { select: { categoryId: true, contextId: true, relationId: true, projectId: true } },
   allocations: { select: { documentId: true, importedDocumentId: true } },
 } as const;
 
@@ -255,13 +264,7 @@ async function parseEntry(input: TreasuryEntryInput, id: string | null = null, p
       throw fieldError('categoryId', message);
     }
   }
-  if (entry.methodId) {
-    const method = await orNotFound(prisma.treasuryPaymentMethod.findUnique({ where: { id: entry.methodId }, select: { incoming: true, outgoing: true } }), 'Moyen de paiement');
-    if (!(incoming ? method.incoming : method.outgoing)) {
-      const message = incoming ? 'Ce moyen de paiement ne sert pas aux entrées.' : 'Ce moyen de paiement ne sert pas aux sorties.';
-      throw fieldError('methodId', message);
-    }
-  }
+  await assertMethodFor(entry.methodId, incoming);
   const libraryIds = [...new Set(entry.libraryDocumentIds)];
   await assertAllExist(prisma.libraryDocument, libraryIds, 'Document');
   const resourceIds = [...new Set(entry.projectResourceIds)];
@@ -307,7 +310,7 @@ function entryData(entry: Awaited<ReturnType<typeof parseEntry>>) {
     projectId: entry.projectId,
     note: entry.note,
     url: entry.url ?? null,
-    recurrence: entry.recurrence ? (entry.recurrence as Prisma.InputJsonValue) : Prisma.DbNull,
+    recurrence: entry.recurrence ? toJson(entry.recurrence) : Prisma.DbNull,
   };
 }
 
@@ -364,8 +367,8 @@ export async function createEntry(input: TreasuryEntryInput): Promise<TreasuryEn
  * @returns {Promise<TreasuryEntry>} Entry.
  */
 export async function updateEntry(id: string, input: TreasuryEntryInput): Promise<TreasuryEntry> {
-  const previous = await orNotFound(prisma.treasuryEntry.findUnique({ where: { id }, select: ENTRY_REFS }), 'Mouvement');
-  await assertNotArchived('TREASURY_ENTRY', id);
+  const previous = await orNotFound(prisma.treasuryEntry.findUnique({ where: { id }, select: { ...ENTRY_REFS, archivedAt: true } }), 'Mouvement');
+  refuseArchived(previous);
   const entry = await parseEntry(input, id, previous);
   if (entry.linkedEntryIds.includes(id)) throw fieldError('linkedEntryIds', 'Un mouvement ne peut pas être lié à lui-même.', 'Retirez ce mouvement de ses liens.');
   const updated = await prisma.$transaction(async (tx) => {
@@ -416,7 +419,7 @@ export async function realizeForecast(id: string, occurrence: string, actual: { 
     include: { lines: { orderBy: BY_POSITION, include: { libraryDocuments: { select: { id: true } }, projectResources: { select: { id: true } } } } },
   });
   if (!forecast || forecast.status !== 'FORECAST') throw notFound('Prévision');
-  await assertNotArchived('TREASURY_ENTRY', id);
+  refuseArchived(forecast);
   const rule = storedRecurrence(forecast.recurrence);
   const entry = await parseEntry(
     {

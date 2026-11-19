@@ -1,7 +1,8 @@
 import { subtreeOf } from '@ordo/shared';
 
 import type { Task } from '../../tasks/api';
-import type { TaskContext } from '../../tasks/hooks/use-task-context';
+import { closedMark, type TaskContext } from '../../tasks/hooks/use-task-context';
+import type { TreeOption } from '../../../components/tree/tree-select';
 import { unarchived } from '../../../lib/archive';
 
 /**
@@ -18,4 +19,18 @@ export function timeTasks(context: TaskContext, projectId: string | null, keep: 
   return unarchived(context.tasks, keep)
     .filter((task) => keep.includes(task.id) || task.projectId === null || subtree.has(task.projectId))
     .sort((a, b) => Number(a.closed) - Number(b.closed));
+}
+
+/**
+ * Options of the tasks of a time, the same in its form, its cell, its timer and an event: as their tree (sub-tasks
+ * under their parent, under their project), the closed ones told.
+ * @param {TaskContext} context Task context.
+ * @param {Task[]} tasks Tasks offered (`timeTasks`).
+ * @returns {TreeOption[]} Options (for `treeSelectProps`).
+ */
+export function timeTaskOptions(context: TaskContext, tasks: Task[]): TreeOption[] {
+  return context.taskOptions(tasks).map((option) => {
+    const task = context.taskById.get(option.value);
+    return task?.closed ? { ...option, label: `${option.label}${closedMark(task)}` } : option;
+  });
 }

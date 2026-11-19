@@ -1,7 +1,8 @@
-import { Alert, Anchor, Text } from '@mantine/core';
-import { ImageIcon } from '@phosphor-icons/react';
+import { Alert, Text, Group } from '@mantine/core';
+import { ImageIcon, EyeIcon } from '@phosphor-icons/react';
 import { useState } from 'react';
 import classes from './MailBody.module.css';
+import { ActionButton } from '../../../components/actions/ActionButton';
 
 /**
  * Document shown in the frame: the sanitized mail, with a policy blocking scripts and, unless allowed,
@@ -40,12 +41,12 @@ export function MailBody({ html, text }: { html: string | null; text: string | n
     <>
       {hasRemoteImages && !remoteImages && (
         <Alert color="gray" icon={<ImageIcon aria-hidden />} py={6}>
-          <Text size="xs">
-            Images distantes bloquées (elles peuvent signaler l’ouverture du mail).{' '}
-            <Anchor component="button" type="button" size="xs" onClick={() => setRemoteImages(true)}>
+          <Group gap="xs">
+            <Text size="xs">Images distantes bloquées (elles peuvent signaler l’ouverture du mail).</Text>
+            <ActionButton priority="tertiary" icon={<EyeIcon aria-hidden />} onClick={() => setRemoteImages(true)}>
               Afficher les images
-            </Anchor>
-          </Text>
+            </ActionButton>
+          </Group>
         </Alert>
       )}
       <iframe

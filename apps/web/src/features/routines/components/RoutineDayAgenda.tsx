@@ -14,12 +14,13 @@ import { localDay, localInstant } from '../../../lib/dates';
 import { notifyWithUndo, ON_ERROR } from '../../../lib/notify';
 import { useCalendarEvents, useCalendars, useScheduleSources, useSubscribedCalendarEvents } from '../../calendar/api';
 import { useNow } from '../../../lib/use-now';
-import { isArchivedOccurrence, occurrenceSpan, scheduleSources, slotBarLook } from '../../calendar/lib/calendar-events';
+import { occurrenceSpan, scheduleSources, slotBarLook } from '../../calendar/lib/calendar-events';
 import calendarClasses from '../../calendar/pages/CalendarPage.module.css';
 import { useRoutineMutations, type Routine, type RoutineCheck } from '../api';
 import { windowText } from '../lib/routine-format';
 import * as fmt from '../../../lib/format';
 import { ActionButton } from '../../../components/actions/ActionButton';
+import { taggedKey } from '../../../lib/tagged-key';
 
 /** One time of the day of the history: planned (done or not), or ticked without being planned that day. */
 export interface HistoryItem {
@@ -178,12 +179,12 @@ export function RoutineDayAgenda({ day, today, items, byId, layers }: RoutineDay
   // Slots of the chosen schedules: their hours in the background, their name in the all-day row.
   const shownSchedules = new Set(layers.scheduleIds);
   const slotSources = scheduleSources(schedules ?? [], foreign ?? [], types ?? [], defaultKind).filter(({ schedule }) => shownSchedules.has(schedule.id));
-  for (const { schedule, rule, color, label: name, foreign } of slotSources) {
+  for (const { schedule, rule, color, label, foreign } of slotSources) {
     const slots = plannedSlots([rule], day, day);
     if (slots.length === 0) continue;
     events.push({
-      id: `slot-bar:${schedule.id}`,
-      title: name,
+      id: taggedKey('slot-bar', schedule.id),
+      title: label,
       allDay: true,
       start: day,
       end: addDays(day, 1),
@@ -204,10 +205,11 @@ export function RoutineDayAgenda({ day, today, items, byId, layers }: RoutineDay
   const calendarColor = new Map((calendars?.calendars ?? []).map((calendar) => [calendar.id, calendar.color]));
   const subscriptionColor = new Map(subscriptions.map((subscription) => [subscription.calendarId, subscription.color]));
   for (const occurrence of [...(ownEvents.data ?? []), ...(subscribedEvents.data ?? [])]) {
-    if (!shownCalendars.has(occurrence.calendarId) || isArchivedOccurrence(occurrence, archivedCalendars)) continue;
+    // Archived events and calendars are already left out (by the queries and calendarIds).
+    if (!shownCalendars.has(occurrence.calendarId)) continue;
     const color = calendarColor.get(occurrence.calendarId) ?? subscriptionColor.get(occurrence.calendarId) ?? 'var(--mantine-primary-color-filled)';
     events.push({
-      id: `event:${occurrence.key}`,
+      id: taggedKey('event', occurrence.key),
       title: occurrence.label,
       ...occurrenceSpan(occurrence),
       backgroundColor: color,
@@ -236,7 +238,7 @@ export function RoutineDayAgenda({ day, today, items, byId, layers }: RoutineDay
     const timed = start !== null && end !== null && start < end;
     const status = doneAt ? `faite à ${localDay(doneAt) === item.date ? fmt.time(doneAt) : `${fmt.time(doneAt)} le ${fmt.dayShort(doneAt)}`}` : text;
     events.push({
-      id: `routine:${item.key}`,
+      id: taggedKey('routine', item.key),
       title: `${routine?.label ?? 'Routine supprimée'}${item.optional ? ' (facultatif)' : ''} · ${status}${item.planned ? '' : ' (non prévue ce jour)'}`,
       allDay: !timed,
       start: timed ? `${day}T${start}:00` : day,

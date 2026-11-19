@@ -10,6 +10,7 @@ import { AddRowField } from '../../../components/data-table/cells/AddRowField';
 import { useRoutineMutations, type Routine } from '../api';
 import { DAILY, moveTo, scheduleOf, currentRoutineState, windowOf, windowText } from '../lib/routine-format';
 import classes from './Routines.module.css';
+import { LATE_COLOR } from '../../../components/feedback/feedback-colors';
 
 /**
  * Badge of a routine due today: past its latest time (late), time to leave (its way there has started), or its time window
@@ -18,12 +19,13 @@ import classes from './Routines.module.css';
  * @returns {JSX.Element} Badge.
  */
 function DueBadge({ routine }: { routine: Routine }) {
-  const now = new Date().toTimeString().slice(0, 5);
+  // Refreshed every minute: it turns late, or time to leave, without a reload.
+  const now = new Date(useNow(true, 60_000)).toTimeString().slice(0, 5);
   const { fromTime, dueTime } = windowOf(routine);
   const { leaveAt } = scheduleOf(routine);
   if (dueTime && now > dueTime) {
     return (
-      <Badge variant="light" color="red">
+      <Badge variant="light" color={LATE_COLOR}>
         Après {dueTime}
       </Badge>
     );

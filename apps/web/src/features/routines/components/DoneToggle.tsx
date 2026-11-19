@@ -1,15 +1,14 @@
-import { IconAction } from '../../../components/actions/IconAction';
+import { StateSwitch } from '../../../components/inputs/StateSwitch';
 import { Group } from '@mantine/core';
-import { CheckCircleIcon, CircleDashedIcon, CircleIcon } from '@phosphor-icons/react';
+import { CheckIcon } from '@phosphor-icons/react';
 import { ON_ERROR } from '../../../lib/notify';
 import { useRoutineMutations, type Routine } from '../api';
 import { windowText } from '../lib/routine-format';
-import classes from './Routines.module.css';
 
 interface DoneToggleProps {
   /** Accessible name ("Se brosser les dents faite", "… midi faite"). */
   label: string;
-  /** Tooltip of the toggle while to do. */
+  /** Tooltip of the switch while to do. */
   hint: string;
   done: boolean;
   /** Not needed for the day to be done (shown dashed). */
@@ -20,28 +19,24 @@ interface DoneToggleProps {
 }
 
 /**
- * Round toggle marking a routine (or one of its times of the day) as done: a circle (dashed when optional), then a
- * filled green check; distinct from the square checkboxes selecting rows.
+ * Switch marking a routine (or one of its times of the day) as done: green with a check once done, its track dashed
+ * when optional; distinct from the square checkboxes selecting rows.
  * @param {DoneToggleProps} props Component props.
- * @returns {JSX.Element} Toggle.
+ * @returns {JSX.Element} Switch.
  */
 function DoneToggle({ label, hint, done, optional = false, disabled = false, size = 'sm', onChange }: DoneToggleProps) {
   return (
-    <IconAction
+    <StateSwitch
       label={label}
       hint={done ? 'Marquer comme à faire' : hint}
-      variant={done ? 'light' : 'subtle'}
-      color={done ? 'green' : 'gray'}
-      radius="xl"
+      checked={done}
+      color="green"
+      icon={<CheckIcon weight="bold" aria-hidden />}
+      dashed={optional}
       size={size}
-      className={classes.doneToggle}
-      data-done={done || undefined}
-      aria-pressed={done}
       disabled={disabled}
-      onClick={() => onChange(!done)}
-    >
-      {done ? <CheckCircleIcon weight="fill" aria-hidden /> : optional ? <CircleDashedIcon aria-hidden /> : <CircleIcon aria-hidden />}
-    </IconAction>
+      onChange={onChange}
+    />
   );
 }
 
@@ -53,7 +48,7 @@ interface RoutineDoneTogglesProps {
 }
 
 /**
- * Done toggles of the current occurrence of a routine: one, or one per time of the day (brushing teeth morning, noon and
+ * Done switches of the current occurrence of a routine: one, or one per time of the day (brushing teeth morning, noon and
  * evening; the optional ones dashed), each ticked apart. Disabled before the routine starts.
  * @param {RoutineDoneTogglesProps} props Component props.
  * @returns {JSX.Element} Toggles.
@@ -74,7 +69,7 @@ export function RoutineDoneToggles({ routine, dateLabel, disabled = false }: Rou
     );
   }
   return (
-    <Group gap={0} wrap="nowrap" style={{ flexShrink: 0 }}>
+    <Group gap={4} wrap="nowrap" style={{ flexShrink: 0 }}>
       {routine.slots.map((slot) => {
         const when = windowText(slot) || `fois ${slot.index + 1}`;
         return (

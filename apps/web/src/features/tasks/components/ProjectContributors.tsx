@@ -128,7 +128,7 @@ export function ProjectContributors({ projectId }: { projectId: string }) {
                   {directIds.includes(contributor.id) && (
                     <RemoveButton
                       label="Retirer du projet (ses tâches restent assignées)"
-                      aria-label={`Retirer ${contributor.name} du projet`}
+                      aria-label={`Retirer « ${contributor.name} » du projet`}
                       disabled={project?.archived}
                       onClick={() =>
                         save(

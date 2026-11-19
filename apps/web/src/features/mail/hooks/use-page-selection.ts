@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { toggledInList } from '../../../lib/sets';
 
 /**
  * Mails ticked on the page of a list shown: forgotten when the page changes (another folder, page, filter or search).
@@ -20,7 +21,7 @@ export function usePageSelection<K>(pageKey: string) {
    * @param {boolean} checked Ticked.
    * @returns {void}
    */
-  const tick = (item: K, checked: boolean) => setSelected(checked ? [...selected, item] : selected.filter((other) => other !== item));
+  const tick = (item: K, checked: boolean) => setSelected(toggledInList(selected, item, checked));
   return { selected, setSelected, tick };
 }
 

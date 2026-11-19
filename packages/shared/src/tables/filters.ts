@@ -19,7 +19,7 @@ export const FILTER_OPERATORS = {
   // chosen sprints; the relative operators follow the calendar (previous / next: per project tree).
   sprint: ['in', 'notIn', 'allOf', 'current', 'previous', 'next', 'past', 'future', 'isEmpty', 'isNotEmpty'],
   boolean: ['isTrue', 'isFalse'],
-  category: ['in', 'notIn'],
+  category: ['in', 'notIn', 'isEmpty', 'isNotEmpty'],
 } as const satisfies Record<FilterFieldKind, readonly string[]>;
 export type FilterOperator = (typeof FILTER_OPERATORS)[FilterFieldKind][number];
 

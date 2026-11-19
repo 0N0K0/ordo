@@ -1,4 +1,4 @@
-import { plural } from '../../../lib/text';
+import { countOf, plural } from '../../../lib/text';
 import { Badge, CloseButton, Group, Text } from '@mantine/core';
 import { SelectionAllIcon } from '@phosphor-icons/react';
 import { ALL_COLUMNS, type BulkSelection } from './bulk-selection';
@@ -22,7 +22,7 @@ export function BulkHint({ selection, labelOf, onClear }: BulkHintProps) {
     return (
       <Group gap="xs" role="status" aria-live="polite">
         <Badge variant="light" size="lg" leftSection={<SelectionAllIcon aria-hidden />}>
-          {count} {plural(count, 'ligne')} {plural(count, 'cochée')}
+          {countOf(count, 'ligne')} {plural(count, 'cochée')}
         </Badge>
         <Text size="xs" c="dimmed">
           Modifiez un champ de l’une d’elles : le changement s’applique à toutes (autant de champs que voulu).
@@ -33,7 +33,7 @@ export function BulkHint({ selection, labelOf, onClear }: BulkHintProps) {
   return (
     <Group gap="xs" role="status" aria-live="polite">
       <Badge variant="light" size="lg" leftSection={<SelectionAllIcon aria-hidden />}>
-        {count} {plural(count, 'cellule')} « {labelOf(selection.column)} » {plural(count, 'sélectionnée')}
+        {countOf(count, 'cellule')} « {labelOf(selection.column)} » {plural(count, 'sélectionnée')}
       </Badge>
       <Text size="xs" c="dimmed">
         Modifiez-en une : le changement s’applique à toutes. Ctrl / ⌘ + clic ou Maj + clic pour en ajouter, Échap pour quitter.

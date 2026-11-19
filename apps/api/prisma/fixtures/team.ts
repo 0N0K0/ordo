@@ -1,4 +1,4 @@
-import { createEntry, EMPTY_ENTRY, relativeDay, TIME_ZONE } from './factories';
+import { createEntry, EMPTY_ENTRY, relativeDay, TIME_ZONE, treasuryCategoryIds } from './factories';
 import { addDays, monthOfDay, shiftMonth } from '@ordo/shared';
 import { prisma } from '../../src/db';
 import type { Contributor } from '../../src/generated/prisma/client';
@@ -52,8 +52,7 @@ export async function seedTeam({ contributors, today, monday }: { contributors: 
 
   // --- Budgets ---------------------------------------------------------------------------------------
   const account = await prisma.treasuryAccount.findFirst({ where: { label: 'Compte courant pro' } });
-  const categories = await prisma.treasuryCategory.findMany({ select: { id: true, label: true, direction: true } });
-  const category = (label: string, direction: 'IN' | 'OUT' = 'OUT') => categories.find((item) => item.label === label && item.direction === direction)?.id ?? null;
+  const category = await treasuryCategoryIds();
   const budget = (
     categoryLabel: string,
     amount: number,

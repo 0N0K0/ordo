@@ -20,7 +20,7 @@ type FormValues = CompanyProfileInput & Record<string, unknown>;
  * @param {CompanyProfile} profile Profile.
  * @returns {FormValues} Values.
  */
-function toValues(profile: CompanyProfile): FormValues {
+function companyValues(profile: CompanyProfile): FormValues {
   return {
     name: profile.name,
     contact: profile.contact,
@@ -59,7 +59,7 @@ function toValues(profile: CompanyProfile): FormValues {
 function CompanyForm({ profile }: { profile: CompanyProfile }) {
   const { update, setLogo } = useCompanyMutations();
   const form = useAppForm<FormValues>({
-    initialValues: toValues(profile),
+    initialValues: companyValues(profile),
     schema: companyProfileSchema,
   });
   const addressErrors = Object.fromEntries(

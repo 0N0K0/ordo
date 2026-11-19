@@ -14,14 +14,24 @@ export function normalize(text: string): string {
 }
 
 /**
- * Whether two names are the same, as a search sees them: spaces around, case and accents aside (« eleve » is « Élève »).
+ * Key of a name, as a search sees it (decision CB): spaces around left out, inner runs of spaces as one, case and
+ * accents aside (« eleve » is « Élève »). Two names of the same key are the same name.
+ * @param {string | null | undefined} name Name. Optional.
+ * @returns {string} Key (empty for no name).
+ */
+export function nameKey(name: string | null | undefined): string {
+  // eslint-disable-next-line no-restricted-syntax -- nameKey itself.
+  return normalize((name ?? '').trim()).replace(/\s+/g, ' ');
+}
+
+/**
+ * Whether two names are the same (same `nameKey`).
  * @param {string} a Name.
  * @param {string} b Other name.
  * @returns {boolean} Same name.
  */
 export function sameName(a: string, b: string): boolean {
-  // eslint-disable-next-line no-restricted-syntax -- sameName itself.
-  return normalize(a.trim()) === normalize(b.trim());
+  return nameKey(a) === nameKey(b);
 }
 
 /** Name of a file that has none, or whose name is empty once cleaned (attachments, links, exports). */
@@ -38,13 +48,13 @@ export function safeFilename(name: string): string {
 }
 
 /**
- * File name of an export or a download: its title cleaned (see `safeFilename`), then its extension.
- * @param {string} title Title.
+ * File name of an export or a download: its label cleaned (see `safeFilename`), then its extension.
+ * @param {string} label Label.
  * @param {string} extension Extension, without its dot (« pdf »).
  * @returns {string} File name.
  */
-export function fileName(title: string, extension: string): string {
-  return `${safeFilename(title)}.${extension}`;
+export function fileName(label: string, extension: string): string {
+  return `${safeFilename(label)}.${extension}`;
 }
 
 /**
@@ -82,6 +92,17 @@ export function copyName(name: string, max?: number): string {
  */
 export function plural(count: number, word: string, many = `${word}s`): string {
   return count > 1 ? many : word;
+}
+
+/**
+ * A participle or an adjective agreed with its noun: feminine, plural (« supprimé », « archivées »).
+ * @param {string} word Word, in the masculine singular (« supprimé »).
+ * @param {boolean} [feminine] Feminine noun. Optional. Default = false.
+ * @param {number} [count] How many: plural above 1. Optional. Default = 1.
+ * @returns {string} Word agreed.
+ */
+export function agreed(word: string, feminine = false, count = 1): string {
+  return plural(count, feminine ? `${word}e` : word);
 }
 
 /**

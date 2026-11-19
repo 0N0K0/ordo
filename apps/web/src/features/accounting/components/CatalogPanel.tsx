@@ -32,9 +32,10 @@ import { vatRateOptions } from '../lib/labels';
 
 /** Columns of the catalog. */
 const CATALOG_COLUMNS: DataColumn<CatalogItem>[] = [
-  { id: 'label', label: 'Article', size: 320, locked: true, bulk: true, sortValue: (item) => item.label, text: (item) => item.label },
+  { id: 'label', required: true, label: 'Article', size: 320, locked: true, bulk: true, sortValue: (item) => item.label, text: (item) => item.label },
   {
     id: 'kind',
+    required: true,
     bulk: true,
     label: 'Nature',
     size: 120,
@@ -51,8 +52,8 @@ const CATALOG_COLUMNS: DataColumn<CatalogItem>[] = [
     },
     groupable: true,
   },
-  { id: 'unit', label: 'Unité', size: 120, bulk: true, sortValue: (item) => UNIT_LABELS[item.unit].label, text: (item) => UNIT_LABELS[item.unit].label, groupable: true },
-  { id: 'price', label: 'Prix HT', size: 120, bulk: true, numeric: true, sortValue: (item) => item.unitPrice, text: (item) => fmt.money(item.unitPrice) },
+  { id: 'unit', required: true, label: 'Unité', size: 120, bulk: true, sortValue: (item) => UNIT_LABELS[item.unit].label, text: (item) => UNIT_LABELS[item.unit].label, groupable: true },
+  { id: 'price', required: true, label: 'Prix HT', size: 120, bulk: true, numeric: true, sortValue: (item) => item.unitPrice, text: (item) => fmt.money(item.unitPrice) },
   {
     id: 'vat',
     bulk: true,
@@ -196,7 +197,7 @@ export function CatalogPanel() {
     deleteItemsAction(rows, {
       noun: 'article',
       the: 'l’article',
-      name: rowLabel,
+      label: rowLabel,
       risks: (subject, one) =>
         `${subject} ${one ? 'sera supprimé' : 'seront supprimés'} du catalogue. Les documents qui ${one ? 'l’utilisent' : 'les utilisent'} gardent leurs lignes. Pour seulement ne plus ${one ? 'le' : 'les'} proposer, ${one ? 'archivez-le' : 'archivez-les'}.`,
       remove: (item) => remove.mutateAsync(item.id),

@@ -1,6 +1,6 @@
-import { Button, Group, Radio, Stack, Text, type ButtonProps } from '@mantine/core';
+import { Group, Radio, Stack, Text } from '@mantine/core';
 import { TrashIcon, XIcon } from '@phosphor-icons/react';
-import type { ComponentPropsWithoutRef, ReactNode } from 'react';
+import type { ReactNode } from 'react';
 import { ActionButton } from '../actions/ActionButton';
 
 interface DestructiveActionsProps {
@@ -15,17 +15,16 @@ interface DestructiveActionsProps {
 }
 
 /**
- * Buttons of every destructive dialog, bottom-right: the confirmation first (in red), then Cancel.
+ * Buttons of every destructive dialog, bottom-right: the confirmation first (filled red), then Cancel (light).
  * @param {DestructiveActionsProps} props Component props.
  * @returns {JSX.Element} Buttons.
  */
 export function DestructiveActions({ onConfirm, onCancel, loading = false, confirmLabel = 'Supprimer', confirmIcon = <TrashIcon aria-hidden /> }: DestructiveActionsProps) {
   return (
     <Group justify="flex-end" gap="sm">
-      {/* eslint-disable-next-line no-restricted-syntax -- the red confirmation of a destructive dialog (ActionButton has no color). */}
-      <Button color="red" leftSection={confirmIcon} onClick={onConfirm} loading={loading} data-autofocus>
+      <ActionButton danger icon={confirmIcon} onClick={onConfirm} loading={loading} data-autofocus>
         {confirmLabel}
-      </Button>
+      </ActionButton>
       <ActionButton priority="secondary" icon={<XIcon aria-hidden />} onClick={onCancel}>
         Annuler
       </ActionButton>
@@ -34,25 +33,15 @@ export function DestructiveActions({ onConfirm, onCancel, loading = false, confi
 }
 
 /**
- * Button starting a destructive action (deletion, removal…), the same everywhere: red, light; the action asks for a
- * confirmation (confirmDestructive).
- * @param {Omit<ButtonProps, 'variant' | 'color'> & Omit<ComponentPropsWithoutRef<'button'>, 'color'>} props Button props (its variant and color are fixed).
- * @returns {JSX.Element} Button.
- */
-export function DestructiveButton(props: Omit<ButtonProps, 'variant' | 'color'> & Omit<ComponentPropsWithoutRef<'button'>, 'color'>) {
-  return <Button {...props} variant="light" color="red" />;
-}
-
-/**
- * « Supprimer » button of a form (its trash icon, in red); the deletion asks for a confirmation (confirmDestructive).
+ * « Supprimer » button of a form (its trash icon, filled red: decision CN); the deletion asks for a confirmation (confirmDestructive).
  * @param {{ onClick: () => void, loading?: boolean, children?: ReactNode }} props Component props: the label defaults to « Supprimer ».
  * @returns {JSX.Element} Button.
  */
 export function DeleteButton({ onClick, loading = false, children = 'Supprimer' }: { onClick: () => void; loading?: boolean; children?: ReactNode }) {
   return (
-    <DestructiveButton leftSection={<TrashIcon aria-hidden />} onClick={onClick} loading={loading}>
+    <ActionButton danger icon={<TrashIcon aria-hidden />} onClick={onClick} loading={loading}>
       {children}
-    </DestructiveButton>
+    </ActionButton>
   );
 }
 

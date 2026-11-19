@@ -1,12 +1,12 @@
-import { subtreeOf } from '@ordo/shared';
+import { subtreeOf, personNameSchema, projectLabelSchema } from '@ordo/shared';
 import { clientPath, PAGES, projectPath } from '../../../app/pages';
 import { openFormPanel } from '../../../components/panels/panels';
 import { openModal } from '../../../components/panels/open-modal';
 
 import { useQueryClient } from '@tanstack/react-query';
 import { useLocation, useNavigate } from 'react-router';
-import { notifyWithUndo, ON_ERROR, onMutationError } from '../../../lib/notify';
-import type { ArchiveMutation } from '../../../lib/archive';
+import { notifyWithUndo, onMutationError } from '../../../lib/notify';
+import { archiveEntry, type ArchiveMutation } from '../../../lib/archive';
 import {
   useSetClientArchived,
   useSetClientFavorite,
@@ -14,14 +14,17 @@ import {
   useSetProjectFavorite,
   useUpdateClient,
   useUpdateProject,
-  workspaceQueryKey,
+  projectTreeQueryKey,
   type Client,
   type Project,
-  type Workspace,
+  type ProjectTree,
 } from '../api';
 import { ClientForm } from '../components/ClientForm';
 import { DeleteClientDialog, DeleteProjectDialog } from '../components/DeleteDialogs';
 import { ProjectForm } from '../components/ProjectForm';
+import { openLabelForm } from '../../../components/dialogs/open-label-form';
+import { type RowMenuEntry } from '../../../components/actions/ActionsMenu';
+import { TrashIcon } from '@phosphor-icons/react';
 
 export type EntityRef = { type: 'client'; item: Client } | { type: 'project'; item: Project };
 
@@ -90,15 +93,57 @@ export function useEntityActions() {
   });
 
   /**
-   * Renames a client or retitles a project.
+   * Opens the form renaming a client or relabelling a project, in the side panel as elsewhere (decision DF).
    * @param {EntityRef} entity Client or project.
-   * @param {string} label New name or title (already trimmed and non-empty).
    * @returns {void}
    */
-  const rename = (entity: EntityRef, label: string): void => {
-    if (label === entityLabel(entity)) return;
-    if (entity.type === 'client') updateClient.mutate({ id: entity.item.id, input: { name: label } }, ON_ERROR);
-    else updateProject.mutate({ id: entity.item.id, input: { label } }, ON_ERROR);
+  const rename = (entity: EntityRef): void => {
+    const client = entity.type === 'client';
+    openLabelForm(client ? 'Renommer le client' : 'Renommer le projet', {
+      initial: entityLabel(entity),
+      schema: client ? personNameSchema : projectLabelSchema,
+      fieldLabel: client ? 'Nom' : 'Libellé',
+      submitLabel: 'Renommer',
+      onSubmit: (label) => {
+        if (label === entityLabel(entity)) return;
+        return client ? updateClient.mutateAsync({ id: entity.item.id, input: { name: label } }) : updateProject.mutateAsync({ id: entity.item.id, input: { label } });
+      },
+    });
+  };
+
+  /**
+   * Asks for confirmation, then deletes.
+   * @param {EntityRef} entity Client or project.
+   * @returns {void}
+   */
+  const confirmDelete = (entity: EntityRef): void => {
+    if (entity.type === 'client') {
+      const workspace = queryClient.getQueryData<ProjectTree>(projectTreeQueryKey);
+      const projectCount = workspace?.projects.filter((project) => project.clientId === entity.item.id).length ?? 0;
+      openModal('Supprimer le client', (close) => (
+        <DeleteClientDialog
+          client={entity.item}
+          projectCount={projectCount}
+          onDone={(deleted) => {
+            close();
+            if (deleted) leaveIfOn(clientPath(entity.item.id));
+          }}
+        />
+      ));
+    } else {
+      const workspace = queryClient.getQueryData<ProjectTree>(projectTreeQueryKey);
+      const subProjectCount = workspace ? subtreeOf(workspace.projects, entity.item.id, false).size : 0;
+      openModal('Supprimer le projet', (close) => (
+        <DeleteProjectDialog
+          project={entity.item}
+          subProjectCount={subProjectCount}
+          onDone={(deleted) => {
+            close();
+            if (deleted) leaveIfOn(projectPath(entity.item.id));
+          }}
+        />
+      ));
+    }
   };
 
   return {
@@ -126,39 +171,20 @@ export function useEntityActions() {
         'lg',
       ),
 
+    confirmDelete,
+
     /**
-     * Asks for confirmation, then deletes.
+     * Entries of the « … » menu of a client or a project archiving or restoring it, and deleting it (its tree row, its page).
      * @param {EntityRef} entity Client or project.
-     * @returns {void}
+     * @returns {RowMenuEntry[]} Entries.
      */
-    confirmDelete: (entity: EntityRef) => {
-      if (entity.type === 'client') {
-        const workspace = queryClient.getQueryData<Workspace>(workspaceQueryKey);
-        const projectCount = workspace?.projects.filter((project) => project.clientId === entity.item.id).length ?? 0;
-        openModal('Supprimer le client', (close) => (
-          <DeleteClientDialog
-            client={entity.item}
-            projectCount={projectCount}
-            onDone={(deleted) => {
-              close();
-              if (deleted) leaveIfOn(clientPath(entity.item.id));
-            }}
-          />
-        ));
-      } else {
-        const workspace = queryClient.getQueryData<Workspace>(workspaceQueryKey);
-        const subProjectCount = workspace ? subtreeOf(workspace.projects, entity.item.id, false).size : 0;
-        openModal('Supprimer le projet', (close) => (
-          <DeleteProjectDialog
-            project={entity.item}
-            subProjectCount={subProjectCount}
-            onDone={(deleted) => {
-              close();
-              if (deleted) leaveIfOn(projectPath(entity.item.id));
-            }}
-          />
-        ));
-      }
-    },
+    lifecycleEntries: (entity: EntityRef): RowMenuEntry[] => [
+      archiveEntry(
+        { archived: entity.item.archived, type: entity.type === 'client' ? 'Client' : 'Projet', label: entityLabel(entity), cascade: entity.type === 'client' ? 'avec ses projets' : undefined },
+        archiver(entity),
+        entity.item.id,
+      ),
+      { label: 'Supprimer', icon: <TrashIcon aria-hidden />, onClick: () => confirmDelete(entity), danger: true },
+    ],
   };
 }

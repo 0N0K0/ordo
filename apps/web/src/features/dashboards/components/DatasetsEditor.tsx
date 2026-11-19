@@ -10,6 +10,7 @@ import {
   MAIN_DATASET,
   SOURCE_GROUP_DIMENSIONS,
   SOURCE_MEASURES,
+  SERIES_TYPES,
   SOURCE_TIME_DIMENSIONS,
   type ChartComparison,
   type ChartConfig,
@@ -18,7 +19,7 @@ import {
 } from '@ordo/shared';
 import { CopyIcon, PlusIcon } from '@phosphor-icons/react';
 import type { TaskContext } from '../../tasks/hooks/use-task-context';
-import { DIMENSION_LABELS, MEASURE_LABELS, measureLabel } from '../lib/aggregate';
+import { DIMENSION_LABELS, MEASURE_LABELS, measureLabel, SERIES_TYPE_LABELS } from '../lib/aggregate';
 import { SOURCE_LABELS } from '../lib/chart-data';
 import { SourceFilters } from './source-filters';
 import { useActiveWorkspace } from '../../workspaces/api';
@@ -201,12 +202,7 @@ export function DatasetsEditor({ config, change, context }: DatasetsEditorProps)
                     <LabeledField label="Type de diagramme">
                       <SegmentedControl
                         size="xs"
-                        data={[
-                          { value: 'chart', label: 'Comme le graphique' },
-                          { value: 'bar', label: 'Barres' },
-                          { value: 'line', label: 'Courbe' },
-                          { value: 'area', label: 'Aire' },
-                        ]}
+                        data={[{ value: 'chart', label: 'Comme le graphique' }, ...SERIES_TYPES.map((value) => ({ value, label: SERIES_TYPE_LABELS[value] }))]}
                         value={dataset.type ?? 'chart'}
                         onChange={(type) => setDataset(index, { type: type === 'chart' ? null : (type as ChartDataset['type']) })}
                       />
@@ -256,11 +252,7 @@ export function DatasetsEditor({ config, change, context }: DatasetsEditorProps)
               <SegmentedControl
                 size="xs"
                 aria-label="Type de diagramme de la comparaison"
-                data={[
-                  { value: 'line', label: 'Courbe' },
-                  { value: 'bar', label: 'Barres' },
-                  { value: 'area', label: 'Aire' },
-                ]}
+                data={SERIES_TYPES.map((value) => ({ value, label: SERIES_TYPE_LABELS[value] }))}
                 value={comparison.type}
                 onChange={(type) => setComparison(index, { type: type as ChartComparison['type'] })}
               />

@@ -134,7 +134,7 @@ export function useCounterpartyItems(): SettingsItemKind<TreasuryCounterpartyIte
     schema: COUNTERPARTY_FORM_SCHEMA,
     extra: {
       initial: (counterparty) => ({ note: counterparty?.note ?? '' }),
-      render: (form) => <Textarea label="Note" autosize minRows={2} {...form.getInputProps('note')} />,
+      render: (form) => <Textarea label="Description" autosize minRows={2} {...form.getInputProps('note')} />,
     },
     ...itemMutations({ create: createCounterparty, update: updateCounterparty }, input),
   };

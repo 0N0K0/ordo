@@ -4,13 +4,14 @@ import type { BulkChange } from '../../../components/data-table/selection/bulk-e
 import { useMemo } from 'react';
 import { describeRecurrence } from '../../../components/recurrence/describe-recurrence';
 import type { TreeOption } from '../../../components/tree/tree-select';
-import { useWorkspace } from '../../projects/api';
+import { useProjectTree } from '../../projects/api';
 import { projectFullPath, projectOptions } from '../../projects/lib/tree';
 import { useTreasuryDocumentOptions, useTreasurySettings, type ForecastEntry, type TreasuryAccount, type TreasuryEntry, type TreasurySettings } from '../api';
 import { categoryPaths } from './categories';
 import type { EntryValues } from './entry-values';
 import type { LineLink } from './lines';
 import { personName } from '../../../components/people/people-options';
+import { taggedKey, parseTaggedKey, taggedIds } from '../../../lib/tagged-key';
 
 /** Entry of a treasury table: actual or forecast. */
 export type AnyEntry = TreasuryEntry | ForecastEntry;
@@ -59,7 +60,7 @@ export interface EntryEnv {
  */
 export function useEntryEnv(accounts: TreasuryAccount[]): EntryEnv {
   const { data: settings } = useTreasurySettings();
-  const { data: workspace } = useWorkspace();
+  const { data: workspace } = useProjectTree();
   const { data: documentOptions } = useTreasuryDocumentOptions();
   return useMemo(() => {
     const payers = payerGroups(workspace?.clients ?? [], settings?.treasuryCounterparties ?? []);
@@ -75,7 +76,7 @@ export function useEntryEnv(accounts: TreasuryAccount[]): EntryEnv {
       names: new Map([
         ...(settings?.treasuryMembers ?? []).map((member) => [personKey('member', member.id), personName(member)] as const),
         ...(settings?.treasuryRelations ?? []).map((relation) => [personKey('relation', relation.id), relation.name] as const),
-        ...(settings?.treasuryContexts ?? []).map((context) => [`context:${context.id}`, context.label] as const),
+        ...(settings?.treasuryContexts ?? []).map((context) => [taggedKey('context', context.id), context.label] as const),
       ]),
     };
   }, [settings, workspace, documentOptions, accounts]);
@@ -96,8 +97,8 @@ interface PayerSource {
  */
 export function payerGroups(clients: readonly PayerSource[], counterparties: readonly PayerSource[]): { group: string; items: Choice[] }[] {
   return [
-    { group: 'Clients', items: clients.map((client) => ({ value: `client:${client.id}`, label: client.name, archived: client.archived })) },
-    { group: 'Tiers', items: counterparties.map((counterparty) => ({ value: `tiers:${counterparty.id}`, label: counterparty.name, archived: counterparty.archived })) },
+    { group: 'Clients', items: clients.map((client) => ({ value: taggedKey('client', client.id), label: client.name, archived: client.archived })) },
+    { group: 'Tiers', items: counterparties.map((counterparty) => ({ value: taggedKey('tiers', counterparty.id), label: counterparty.name, archived: counterparty.archived })) },
   ].filter((group) => group.items.length);
 }
 
@@ -136,7 +137,7 @@ export function documentGroups(documents: readonly DocumentSource[], projectId?:
  * @param {{ source: string, id: string }} document Document.
  * @returns {string} "lib:<id>" or "res:<id>".
  */
-export const documentKey = (document: { source: string; id: string }) => `${document.source === 'LIBRARY' ? 'lib' : 'res'}:${document.id}`;
+export const documentKey = (document: { source: string; id: string }) => taggedKey(document.source === 'LIBRARY' ? 'lib' : 'res', document.id);
 
 /** Supporting documents of an entry or a line: of the library, and files of a project. */
 export interface SupportingDocuments {
@@ -160,8 +161,8 @@ export const supportingKeys = ({ libraryDocumentIds, projectResourceIds }: Suppo
  * @returns {SupportingDocuments} Documents.
  */
 export const supportingOfKeys = (keys: readonly string[]): SupportingDocuments => ({
-  libraryDocumentIds: keys.filter((key) => key.startsWith('lib:')).map((key) => key.slice(4)),
-  projectResourceIds: keys.filter((key) => key.startsWith('res:')).map((key) => key.slice(4)),
+  libraryDocumentIds: taggedIds(keys, 'lib'),
+  projectResourceIds: taggedIds(keys, 'res'),
 });
 
 /**
@@ -170,17 +171,17 @@ export const supportingOfKeys = (keys: readonly string[]): SupportingDocuments =
  * @returns {string | null} "client:<id>", "tiers:<id>" or null.
  */
 export const payerKey = (entry: { clientId?: string | null; counterpartyId?: string | null }) =>
-  entry.clientId ? `client:${entry.clientId}` : entry.counterpartyId ? `tiers:${entry.counterpartyId}` : null;
+  entry.clientId ? taggedKey('client', entry.clientId) : entry.counterpartyId ? taggedKey('tiers', entry.counterpartyId) : null;
 
 /**
  * Payer or payee chosen in a select, from its key.
  * @param {string | null} key "client:<id>", "tiers:<id>" or null.
  * @returns {{ clientId: string | null, counterpartyId: string | null }} Client or counterparty.
  */
-export const payerOfKey = (key: string | null): { clientId: string | null; counterpartyId: string | null } => ({
-  clientId: key?.startsWith('client:') ? key.slice(7) : null,
-  counterpartyId: key?.startsWith('tiers:') ? key.slice(6) : null,
-});
+export const payerOfKey = (key: string | null): { clientId: string | null; counterpartyId: string | null } => {
+  const parsed = parseTaggedKey(key);
+  return { clientId: parsed?.tag === 'client' ? parsed.id : null, counterpartyId: parsed?.tag === 'tiers' ? parsed.id : null };
+};
 
 /**
  * Links of an entry, as the links cell shows them.
@@ -189,6 +190,16 @@ export const payerOfKey = (key: string | null): { clientId: string | null; count
  */
 export const entryLinks = (entry: AnyEntry): LineLink[] =>
   entry.linkedEntries.map((linked) => ({ kind: 'entry', id: linked.id, entryLabel: linked.label, date: linked.date, label: null, amount: linked.amount }));
+
+/**
+ * Labels of the movements an entry is linked to: its own links (whole entries) and those of its lines.
+ * @param {AnyEntry} entry Entry.
+ * @returns {string[]} Labels.
+ */
+export const linkedLabels = (entry: AnyEntry): string[] => [
+  ...entry.linkedEntries.map((linked) => linked.label),
+  ...entry.lines.flatMap((line) => [...line.linkedEntries.map((linked) => linked.label), ...line.linkedLines.map((linked) => linked.entryLabel)]),
+];
 
 /**
  * Rule of a repeating forecast, told in words.

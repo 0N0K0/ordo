@@ -1,4 +1,4 @@
-import { DEFAULT_LABEL_COLOR } from '@ordo/shared';
+import { DEFAULT_LABEL_COLOR, twoDigits } from '@ordo/shared';
 import { dayOf, localParts } from '../../../lib/dates';
 import type { EventInput } from '@fullcalendar/core';
 import { addDays } from '@ordo/shared';
@@ -35,7 +35,7 @@ function hexColor(color: string | undefined, fallback: string): string {
   return match
     ? `#${match
         .slice(1, 4)
-        .map((value) => Number(value).toString(16).padStart(2, '0'))
+        .map((value) => twoDigits(Number(value).toString(16)))
         .join('')}`
     : fallback;
 }

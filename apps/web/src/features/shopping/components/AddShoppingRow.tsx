@@ -8,10 +8,10 @@ import { AddRowButton, AddRowField } from '../../../components/data-table/cells/
 type ShoppingPlace = Partial<Omit<ShoppingItemInput, 'label'>>;
 
 export interface ShoppingAdd {
-  /** Placeholder of the name field ("Ajouter un produit"). */
+  /** Placeholder of the label field ("Ajouter un produit"). */
   label: string;
   /** Creates a row from its label, in a category (or store); resolves once created. */
-  onCreate: (name: string, place: ShoppingPlace) => Promise<unknown>;
+  onCreate: (label: string, place: ShoppingPlace) => Promise<unknown>;
   /** Picks products of the base lists instead (offered in a menu with the typed row). Optional. */
   onPick?: () => void;
 }
@@ -37,7 +37,7 @@ export function AddShoppingRow({ label, onCreate, onPick, place, groupName }: Ad
         where={`dans ${groupName}`}
         schema={shoppingItemSchema.shape.label}
         autoFocus={Boolean(onPick)}
-        onCreate={(name) => onCreate(name, place)}
+        onCreate={(text) => onCreate(text, place)}
         onCancel={onPick ? () => setTyping(false) : undefined}
       />
     );

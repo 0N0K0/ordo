@@ -1,6 +1,6 @@
-import { addDays, fileName, formatDay, occurrenceDates, type Recurrence, ruleValues, weekdayOfDate, zonedInstant } from '@ordo/shared';
+import { addDays, dayOfMonthOf, fileName, formatDay, occurrenceDates, type Recurrence, ruleValues, weekdayOfDate, zonedInstant } from '@ordo/shared';
 import { prisma } from '../../db';
-import { notFound } from '../../graphql/errors';
+import { orNotFound } from '../../graphql/errors';
 import { occurrenceInclude, readEventLinks, storedRecurrence, toOccurrence, type CalendarLink, type EventWithRelations } from './calendar-events';
 
 /** Repeated events without end are written with their exclusions up to this many years ahead. */
@@ -83,7 +83,7 @@ function clampedDates(rule: Recurrence, start: string, until: string | null): st
   if (day <= 28 || rule.monthlyMode !== 'DAY' || (rule.frequency !== 'YEARLY' && rule.frequency !== 'MONTHLY')) return [];
   const horizon = addDays(start, 366 * HORIZON_YEARS);
   const pattern = { ...rule, count: null, until: null, exceptions: [], pauses: [] };
-  return occurrenceDates(pattern, start, start, until && until < horizon ? until : horizon).filter((date) => Number(date.slice(8, 10)) !== day);
+  return occurrenceDates(pattern, start, start, until && until < horizon ? until : horizon).filter((date) => dayOfMonthOf(date) !== day);
 }
 
 /**
@@ -257,8 +257,7 @@ function eventLines(event: ExportedEvent, stamp: Date): string[] {
  * @returns {Promise<{ filename: string, content: string }>} File name and content (as the other exports).
  */
 export async function calendarIcs(calendarId: string | null): Promise<{ filename: string; content: string }> {
-  const calendar = calendarId ? await prisma.calendar.findUnique({ where: { id: calendarId }, select: { label: true } }) : null;
-  if (calendarId && !calendar) throw notFound('Calendrier');
+  const calendar = calendarId ? await orNotFound(prisma.calendar.findUnique({ where: { id: calendarId }, select: { label: true } }), 'Calendrier') : null;
   const events = await prisma.calendarEvent.findMany({
     // Archived events left out, and the archived calendars from the file of all of them.
     where: calendarId ? { calendarId, archivedAt: null } : { archivedAt: null, calendar: { archivedAt: null } },

@@ -1,12 +1,13 @@
 import { ArchiveIcon, ArrowCounterClockwiseIcon, CopyIcon, TrashIcon } from '@phosphor-icons/react';
 import type { ReactNode } from 'react';
 import { countOf, plural } from '../../../lib/text';
-import type { ArchiveMutation } from '../../../lib/archive';
+import { type ArchiveMutation, archivedMessage } from '../../../lib/archive';
 import { notifySuccess, notifyWithUndo, onMutationError, notifyFailure } from '../../../lib/notify';
 import { confirmDestructive } from '../../dialogs/confirm-destructive';
 import type { RowMenuEntry } from '../../actions/ActionsMenu';
 import type { SelectionAction } from './SelectionBar';
 import { capitalize } from '../../../lib/format';
+import { agreed } from '@ordo/shared';
 
 /**
  * Runs an action on rows one after the other (their order kept), then tells how it went: the success, or the first
@@ -99,7 +100,7 @@ export const rowLabel = (row: { label: string }): string => row.label;
  * @param {string} [options.many] Noun of several, when not the noun with an « s ». Optional.
  * @param {boolean} [options.feminine] Named in the feminine (« supprimée »). Optional. Default = false.
  * @param {string} options.the The noun with its article, for the title of one (« l’article »).
- * @param {(row: R) => string} [options.name] Name of a row (inside the quotes); without it, one row is « Ce budget ». Optional.
+ * @param {(row: R) => string} [options.label] Label of a row (inside the quotes); without it, one row is « Ce budget ». Optional.
  * @param {(subject: string, one: boolean, rows: readonly R[]) => ReactNode} options.risks Risks, given what is deleted (« « Riz » » or « 3 articles ») and whether it is one row.
  * @param {(row: R) => Promise<unknown>} [options.remove] Deletes a row. Optional (or removeAll).
  * @param {(rows: readonly R[]) => Promise<unknown>} [options.removeAll] Deletes every row at once. Optional (or remove).
@@ -114,7 +115,7 @@ export function deleteItemsAction<R>(
     many,
     feminine = false,
     the,
-    name,
+    label: labelOf,
     risks,
     remove,
     removeAll,
@@ -125,7 +126,7 @@ export function deleteItemsAction<R>(
     many?: string;
     feminine?: boolean;
     the: string;
-    name?: (row: R) => string;
+    label?: (row: R) => string;
     risks: (subject: string, one: boolean, rows: readonly R[]) => ReactNode;
     remove?: (row: R) => Promise<unknown>;
     removeAll?: (rows: readonly R[]) => Promise<unknown>;
@@ -134,11 +135,11 @@ export function deleteItemsAction<R>(
   },
 ): SelectionAction {
   const one = rows.length === 1;
-  const removed = feminine ? 'supprimée' : 'supprimé';
+  const removed = agreed('supprimé', feminine);
   const counted = countOf(rows.length, noun, many);
   return deleteRowsAction(rows, {
     title: one ? `Supprimer ${the}` : `Supprimer les ${many ?? `${noun}s`}`,
-    risks: risks(one ? (name ? `« ${name(rows[0])} »` : `${feminine ? 'Cette' : 'Ce'} ${noun}`) : counted, one, rows),
+    risks: risks(one ? (labelOf ? `« ${labelOf(rows[0])} »` : `${feminine ? 'Cette' : 'Ce'} ${noun}`) : counted, one, rows),
     remove,
     removeAll,
     done: one ? `${capitalize(noun)} ${removed}.` : `${counted} ${plural(rows.length, removed)}.`,
@@ -225,14 +226,13 @@ export function archiveRowsAction({
   clear?: () => void;
   loading?: boolean;
 }): SelectionAction {
-  const ending = feminine ? 'e' : '';
   return switchRowsAction({
     on: archived,
     labels: ['Archiver', 'Restaurer'],
     icons: [<ArchiveIcon key="on" aria-hidden />, <ArrowCounterClockwiseIcon key="off" aria-hidden />],
     loading,
     apply,
-    done: (on) => `${label} ${plural(count, `${on ? 'archivé' : 'restauré'}${ending}`)}.`,
+    done: (on) => archivedMessage(label, on, { feminine, count }),
     undo,
     clear,
   });

@@ -1,6 +1,7 @@
 import { changedList } from '@ordo/shared';
 import { createContext, useContext } from 'react';
 import { notifySuccess } from '../../../lib/notify';
+import { countOf } from '../../../lib/text';
 import { itemCellLabel } from '../cells/cell-field';
 import { ALL_COLUMNS, type BulkSelection } from './bulk-selection';
 
@@ -89,7 +90,7 @@ export function bulkSaver<R, C>(
   view: BulkTable<R>,
   save: (row: R, change: C) => void,
   saveMany?: (rows: R[], change: (row: R) => C) => void,
-  { label = (count: number) => `${count} lignes`, notify = true }: { label?: (count: number) => string; notify?: boolean } = {},
+  { label = (count: number) => countOf(count, 'ligne'), notify = true }: { label?: (count: number) => string; notify?: boolean } = {},
 ) {
   return (column: Columns) =>
     (row: R, change: BulkChange<R, C>): void => {

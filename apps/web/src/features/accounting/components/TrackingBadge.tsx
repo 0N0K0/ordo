@@ -9,6 +9,8 @@ import type { AccountingDocumentSummary } from '../api/documents';
 import { chooseTrackingStatus } from '../lib/sent-dialog';
 import { useDocumentStatuses, useTrackingMutations } from '../api/tracking';
 import { MenuCaret } from '../../../components/actions/MenuCaret';
+import { DRAFT_NAME } from '../lib/labels';
+import { LATE_COLOR } from '../../../components/feedback/feedback-colors';
 
 type TrackedDocument = Pick<AccountingDocumentSummary, 'id' | 'archived' | 'status' | 'type' | 'number' | 'trackingStatus' | 'overdue' | 'sentAt' | 'sentVia'>;
 
@@ -39,7 +41,6 @@ export function StatusMenu({ type, current, onSelect, pending, readOnly = false 
   if (readOnly || scoped.length === 0) return <ItemBadge item={current ?? { label: 'Sans statut' }} size="sm" />;
   return (
     <ActionsMenu
-      about="du statut"
       inRow
       position="bottom-start"
       target={
@@ -79,6 +80,18 @@ function DocumentStatusMenu({ document, onSelect }: { document: TrackedDocument;
 }
 
 /**
+ * Badge of a document not validated yet: « Brouillon ».
+ * @returns {JSX.Element} Badge.
+ */
+export function DraftBadge() {
+  return (
+    <Badge size="sm" variant="light" color="gray">
+      {DRAFT_NAME}
+    </Badge>
+  );
+}
+
+/**
  * Tracking of a document: its status (draft, or configurable status of a final document, changed from its menu
  * when `editable` and not archived), and "overdue" for an invoice still due after its due date or a quote waiting
  * after its validity.
@@ -86,26 +99,12 @@ function DocumentStatusMenu({ document, onSelect }: { document: TrackedDocument;
  * @returns {JSX.Element} Badges.
  */
 export function TrackingBadge({ document, editable = false, onSelect }: { document: TrackedDocument; editable?: boolean; onSelect?: (status: { id: string; category: string }) => void }) {
-  if (document.status !== 'FINAL') {
-    return (
-      <Badge size="sm" variant="light" color="gray">
-        Brouillon
-      </Badge>
-    );
-  }
+  if (document.status !== 'FINAL') return <DraftBadge />;
   return (
     <Group gap={4} wrap="nowrap">
-      {editable && !document.archived ? (
-        <DocumentStatusMenu document={document} onSelect={onSelect} />
-      ) : (
-        document.trackingStatus && (
-          <Badge size="sm" variant="light" color={document.trackingStatus.color}>
-            {document.trackingStatus.label}
-          </Badge>
-        )
-      )}
+      {editable && !document.archived ? <DocumentStatusMenu document={document} onSelect={onSelect} /> : <ItemBadge size="sm" item={document.trackingStatus} />}
       {document.overdue && (
-        <Badge size="sm" variant="filled" color="red">
+        <Badge size="sm" variant="light" color={LATE_COLOR}>
           {document.type === 'QUOTE' ? 'Expiré' : 'En retard'}
         </Badge>
       )}

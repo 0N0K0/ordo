@@ -2,6 +2,7 @@ import { Stack } from '@mantine/core';
 import { MagnifyingGlassIcon } from '@phosphor-icons/react';
 import { BackLink } from '../page/BackLink';
 import { PageMessage } from './PageMessage';
+import { agreed } from '@ordo/shared';
 
 interface DetailNotFoundProps {
   /** What is missing, as the subject of the sentence (« Cette fiche », « Ce projet »). */
@@ -24,7 +25,7 @@ export function DetailNotFound({ what, feminine = false, backTo, backLabel }: De
   return (
     <Stack gap="lg">
       {backTo && <BackLink to={backTo}>{backLabel}</BackLink>}
-      <PageMessage icon={<MagnifyingGlassIcon size="55%" aria-hidden />} title="Introuvable" message={`${what} n’existe pas ou a été supprimé${feminine ? 'e' : ''}.`} />
+      <PageMessage icon={<MagnifyingGlassIcon size="55%" aria-hidden />} title="Introuvable" message={`${what} n’existe pas ou a été ${agreed('supprimé', feminine)}.`} />
     </Stack>
   );
 }

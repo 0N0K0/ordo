@@ -5,6 +5,8 @@ import type { ShoppingCategory, ShoppingStore } from '../api';
 import { rowPeopleKeys, type ShoppingFields, type ShoppingGrouping } from './shopping-format';
 import * as fmt from '../../../lib/format';
 import { conservationKey, NOT_PERISHABLE, PERISHABLE } from './conservation';
+import { withArchived } from '../../../components/data-table/table/data-table';
+import { itemChoices } from '../../../components/items/item-look';
 
 /** Names the columns of the products or items show. */
 interface ItemNames {
@@ -33,7 +35,7 @@ export function itemColumns<T extends ShoppingFields>(grouping: ShoppingGrouping
   const storageOf = (item: T) => (item.storageId ? (storageName.get(item.storageId) ?? '') : '');
   const people = (item: T) => [...item.memberIds.map((id) => names.members.get(id) ?? ''), ...item.relationIds.map((id) => names.relations.get(id) ?? '')].filter(Boolean);
   return [
-    { id: 'label', label: 'Libellé', size: 260, locked: true, bulk: true, sortValue: (item) => item.label, text: (item) => item.label },
+    { id: 'label', required: true, label: 'Libellé', size: 260, locked: true, bulk: true, sortValue: (item) => item.label, text: (item) => item.label },
     categoryColumn<T>(names.categories, { size: 150, hiddenByDefault: grouping === 'category', groupable: false }),
     {
       id: 'store',
@@ -43,7 +45,7 @@ export function itemColumns<T extends ShoppingFields>(grouping: ShoppingGrouping
       hiddenByDefault: grouping === 'store',
       sortValue: (item) => storeOf(item) || null,
       text: storeOf,
-      filter: { kind: 'choice', value: (item) => item.storeId ?? null, options: names.stores.map((store) => ({ value: store.id, label: store.label, archived: store.archived })) },
+      filter: { kind: 'choice', value: (item) => item.storeId ?? null, options: itemChoices(names.stores) },
     },
     quantityColumn<T>({ size: 88 }),
     unitColumn<T>({ size: 100 }),
@@ -60,6 +62,7 @@ export function itemColumns<T extends ShoppingFields>(grouping: ShoppingGrouping
     },
     {
       id: 'conservation',
+      required: true,
       bulk: true,
       label: 'Conservation',
       size: 150,
@@ -70,11 +73,7 @@ export function itemColumns<T extends ShoppingFields>(grouping: ShoppingGrouping
       filter: {
         kind: 'choice',
         value: conservationKey,
-        options: [
-          { value: NOT_PERISHABLE, label: 'Non périssable' },
-          { value: PERISHABLE, label: 'Périssable, sans mode' },
-          ...(names.storages ?? []).map((storage) => ({ value: storage.id, label: storage.label, archived: storage.archived })),
-        ],
+        options: [{ value: NOT_PERISHABLE, label: 'Non périssable' }, { value: PERISHABLE, label: 'Périssable, sans mode' }, ...itemChoices(names.storages ?? [])],
       },
     },
     {
@@ -89,7 +88,7 @@ export function itemColumns<T extends ShoppingFields>(grouping: ShoppingGrouping
     {
       id: 'people',
       bulk: true,
-      label: 'Bénéficiaire',
+      label: 'Bénéficiaires',
       size: 170,
       hiddenByDefault: grouping === 'people',
       sortValue: (item) => people(item).join(', ') || null,
@@ -97,9 +96,7 @@ export function itemColumns<T extends ShoppingFields>(grouping: ShoppingGrouping
       filter: {
         kind: 'choices',
         value: rowPeopleKeys,
-        options: [...personKeyOptions('member', names.members), ...personKeyOptions('relation', names.relations)].map((option) =>
-          names.archivedPeople?.has(option.value) ? { ...option, archived: true } : option,
-        ),
+        options: withArchived([...personKeyOptions('member', names.members), ...personKeyOptions('relation', names.relations)], names.archivedPeople ?? new Set()),
       },
     },
     { id: 'url', bulk: true, label: 'Lien vers le produit', size: 160, sortValue: (item) => item.url ?? null, text: (item) => item.url ?? '' },

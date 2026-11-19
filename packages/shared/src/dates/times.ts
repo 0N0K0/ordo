@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { twoDigits } from '../core/numbers';
 
 /** A time of the day, HH:MM (00:00 to 23:59). */
 export const TIME_OF_DAY_PATTERN = /^([01]\d|2[0-3]):[0-5]\d$/;
@@ -51,5 +52,5 @@ export function timeToMinutes(time: string): number {
  * @returns {string} HH:MM.
  */
 export function minutesToTime(minutes: number): string {
-  return `${String(Math.floor(minutes / 60)).padStart(2, '0')}:${String(minutes % 60).padStart(2, '0')}`;
+  return `${twoDigits(Math.floor(minutes / 60))}:${twoDigits(minutes % 60)}`;
 }

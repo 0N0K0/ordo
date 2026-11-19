@@ -10,7 +10,7 @@ import { PackageIcon, ArchiveIcon, FolderOpenIcon, MagnifyingGlassIcon, PlusIcon
 import { useEffect, useMemo, useState, type ReactNode } from 'react';
 import { Link, useLocation } from 'react-router';
 
-import { useWorkspace } from '../api';
+import { useProjectTree } from '../api';
 import { buildActiveSection, buildArchiveSection, buildFavoriteSection, countSectionItems, sectionKeys, noClientKeys, subtreeKeys, type SortMode, type TreeSection } from '../lib/tree';
 import { useEntityActions, type EntityRef } from '../hooks/use-entity-actions';
 import { MailNavBadge } from '../../mail/components/MailNavBadge';
@@ -24,6 +24,7 @@ import { StaticTree } from './StaticTrees';
 import { TreeExpansionContext, type TreeExpansion } from '../lib/tree-expansion';
 import { PHONE_QUERY } from '../../../lib/use-is-phone';
 import { EmptyState } from '../../../components/feedback/EmptyState';
+import { useFoldedIds } from '../../../components/tree/use-folded-ids';
 
 type SectionKey = 'favorites' | 'active' | 'archives';
 
@@ -59,8 +60,8 @@ interface MenuGroup {
  * @returns {MenuLink} Link.
  */
 function pageLink(key: PageKey, badge?: ReactNode): MenuLink {
-  const { path, title, icon: PageIcon } = PAGES[key];
-  return { to: path, label: title, icon: <PageIcon aria-hidden />, badge };
+  const { path, label, icon: PageIcon } = PAGES[key];
+  return { to: path, label, icon: <PageIcon aria-hidden />, badge };
 }
 
 /** Menu below « Accueil »: groups folding and unfolding their pages. */
@@ -107,36 +108,22 @@ const isActive = (to: string, pathname: string) => pathname === to || pathname.s
  * @returns {JSX.Element} Groups.
  */
 function MenuGroups({ groups, pathname }: { groups: MenuGroup[]; pathname: string }) {
-  const [unfolded, setUnfolded] = useLocalStorage<string[]>({
-    key: 'ordo.sidebar.openGroups',
-    // Each window keeps its own (the last change is what a new window starts with).
-    sync: false,
-    defaultValue: [],
-    // A value of another shape (an older version, edited by hand) is dropped.
-    deserialize: (value) => {
-      try {
-        const parsed: unknown = value === undefined ? [] : JSON.parse(value);
-        return Array.isArray(parsed) ? parsed.filter((label): label is string => typeof label === 'string') : [];
-      } catch {
-        return [];
-      }
-    },
-  });
+  const { ids: unfolded, set: setUnfolded } = useFoldedIds('ordo.sidebar.openGroups');
   const current = groups.find((group) => group.links.some((item) => isActive(item.to, pathname)))?.label;
   // Going to a page of a folded group unfolds it.
   useEffect(() => {
-    if (current) setUnfolded((labels) => (labels.includes(current) ? labels : [...labels, current]));
+    if (current) setUnfolded([current], true);
   }, [current, setUnfolded]);
 
   return groups.map((group) => {
-    const opened = unfolded.includes(group.label);
+    const opened = unfolded.has(group.label);
     return (
       <NavLink
         key={group.label}
         label={group.label}
         leftSection={group.icon}
         opened={opened}
-        onChange={(next) => setUnfolded((labels) => (next ? [...labels, group.label] : labels.filter((label) => label !== group.label)))}
+        onChange={(next) => setUnfolded([group.label], next)}
         active={!opened && group.label === current}
         childrenOffset="md"
       >
@@ -153,7 +140,7 @@ function MenuGroups({ groups, pathname }: { groups: MenuGroup[]; pathname: strin
  * @returns {JSX.Element} Sidebar content.
  */
 export function Sidebar() {
-  const workspace = useWorkspace();
+  const workspace = useProjectTree();
   // A personal workspace has no clients nor invoicing.
   const { perso } = useActiveWorkspace();
   const groups = MENU_GROUPS.map((group) => ({ ...group, links: perso ? group.links.filter((item) => !PRO_ONLY.has(item.to)) : group.links })).filter((group) => group.links.length > 0);
@@ -173,12 +160,7 @@ export function Sidebar() {
     sync: false,
     defaultValue: { favorites: true, active: true, archives: false },
   });
-  const [collapsed, setCollapsed] = useLocalStorage<string[]>({
-    key: 'ordo.sidebar.collapsed',
-    // Each window keeps its own (the last change is what a new window starts with).
-    sync: false,
-    defaultValue: [],
-  });
+  const collapsed = useFoldedIds('ordo.sidebar.collapsed');
 
   const searching = search.trim().length > 0;
   const data = workspace.data;
@@ -187,8 +169,8 @@ export function Sidebar() {
   const archives = useMemo(() => (data ? buildArchiveSection(data, sort, search) : null), [data, sort, search]);
 
   // While searching, every branch is open so matches are visible.
-  const isExpanded = (key: string) => searching || !collapsed.includes(key);
-  const toggleNode = (key: string) => setCollapsed((current) => (current.includes(key) ? current.filter((id) => id !== key) : [...current, key]));
+  const isExpanded = (key: string) => searching || !collapsed.ids.has(key);
+  const toggleNode = collapsed.toggle;
   const toggleSection = (key: SectionKey) => setSections((current) => ({ ...current, [key]: !current[key] }));
 
   /**
@@ -197,7 +179,7 @@ export function Sidebar() {
    * @param {boolean} expanded Target state.
    * @returns {void}
    */
-  const setKeysExpanded = (keys: string[], expanded: boolean) => setCollapsed((current) => (expanded ? current.filter((key) => !keys.includes(key)) : [...new Set([...current, ...keys])]));
+  const setKeysExpanded = (keys: string[], expanded: boolean) => collapsed.set(keys, !expanded);
 
   /**
    * Fold / unfold actions of one tree, for the menus of its rows.
@@ -234,7 +216,7 @@ export function Sidebar() {
 
   return (
     <Stack h="100%" gap={0}>
-      <NavLink component={Link} to={PAGES.home.path} label={PAGES.home.title} leftSection={<PAGES.home.icon aria-hidden />} active={pathname === '/'} />
+      <NavLink component={Link} to={PAGES.home.path} label={PAGES.home.label} leftSection={<PAGES.home.icon aria-hidden />} active={pathname === '/'} />
       <Box pb="xs" style={{ borderBottom: '1px solid var(--app-shell-border-color)' }}>
         <MenuGroups groups={groups} pathname={pathname} />
       </Box>
@@ -252,7 +234,7 @@ export function Sidebar() {
         <ActionsMenu
           about="la barre latérale"
           target={
-            <IconAction label="Trier" variant="default" size="input-xs">
+            <IconAction label="Trier" variant="light" size="input-xs">
               <SortAscendingIcon aria-hidden />
             </IconAction>
           }
@@ -338,7 +320,7 @@ export function Sidebar() {
       <NavLink
         component={Link}
         to={PAGES.settings.path}
-        label={PAGES.settings.title}
+        label={PAGES.settings.label}
         leftSection={<PAGES.settings.icon aria-hidden />}
         active={pathname === PAGES.settings.path}
         style={{ borderTop: '1px solid var(--app-shell-border-color)' }}

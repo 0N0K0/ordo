@@ -1,8 +1,8 @@
 import { NO_SUGGESTIONS } from '../../../components/markdown/remark-references';
 import { DatePickerInput } from '@mantine/dates';
-import { PeopleSelect } from '../../../components/people/PeopleSelect';
-import { rowPeopleKeys, rowPeopleOf, sheetSourceText, usePeople } from '../lib/shopping-format';
-import { listSelectProps } from '../../../components/items/item-look';
+import { PeopleField } from './PeopleField';
+import { sheetSourceText } from '../lib/shopping-format';
+import { itemSelectProps } from '../../../components/items/item-look';
 import { Anchor, Checkbox, Select, SimpleGrid, Stack, Text, TextInput } from '@mantine/core';
 import { Link } from 'react-router';
 import { shoppingItemSchema, shoppingProductSchema, type ShoppingProductInput } from '@ordo/shared';
@@ -22,6 +22,9 @@ import { QuantityInput } from '../../../components/inputs/QuantityInput';
 import { ShoppingCategoryField, UnitField } from './ProductFields';
 import { plural } from '../../../lib/text';
 import { PAGES } from '../../../app/pages';
+import { useActiveWorkspace } from '../../workspaces/api';
+import { relationNoun } from '../../../components/people/people-options';
+import { optionalNumberProps } from '../../../components/inputs/number-format';
 
 type FormValues = Omit<ShoppingProductInput, 'quantity' | 'unitPrice' | 'url' | 'note' | 'unit' | 'perishable' | 'storageId' | 'expiresAt'> & {
   perishable: boolean;
@@ -31,7 +34,7 @@ type FormValues = Omit<ShoppingProductInput, 'quantity' | 'unitPrice' | 'url' | 
   unitPrice: number | null;
   url: string;
   note: string;
-  unit: string;
+  unit: string | null;
   memberIds: string[];
   relationIds: string[];
 };
@@ -55,7 +58,7 @@ export function ShoppingForm({ target, onDone }: ShoppingFormProps) {
   const storages = useStorageItems();
   const { context } = useTaskContext();
   const current = target.kind === 'product' ? target.product : target.item;
-  const people = usePeople();
+  const { perso } = useActiveWorkspace();
   const form = useAppForm<FormValues>({
     initialValues: {
       label: current?.label ?? '',
@@ -64,7 +67,7 @@ export function ShoppingForm({ target, onDone }: ShoppingFormProps) {
       url: current?.url ?? '',
       note: current?.note ?? '',
       quantity: current?.quantity ?? null,
-      unit: current?.unit ?? '',
+      unit: current?.unit ?? null,
       unitPrice: current?.unitPrice ?? null,
       memberIds: current?.memberIds ?? [],
       relationIds: current?.relationIds ?? [],
@@ -112,7 +115,7 @@ export function ShoppingForm({ target, onDone }: ShoppingFormProps) {
               label="Référence"
               required
               allowDeselect={false}
-              {...listSelectProps(data?.shoppingBaseLists ?? [], undefined, target.kind === 'product' ? target.product?.baseListId : null)}
+              {...itemSelectProps(data?.shoppingBaseLists ?? [], values.baseListId, undefined, target.kind === 'product' ? target.product?.baseListId : null)}
               {...form.getInputProps('baseListId')}
             />
           )}
@@ -130,26 +133,14 @@ export function ShoppingForm({ target, onDone }: ShoppingFormProps) {
               clearable
               searchable
               onCreate={itemCreator('Nouveau magasin', stores)}
-              {...listSelectProps(data?.shoppingStores ?? [], undefined, current?.storeId)}
+              {...itemSelectProps(data?.shoppingStores ?? [], values.storeId, undefined, current?.storeId)}
               {...form.getInputProps('storeId')}
             />
           </SimpleGrid>
           <SimpleGrid cols={{ base: 1, xs: 3 }}>
-            <QuantityInput
-              label="Quantité"
-              min={0}
-              allowNegative={false}
-              {...form.getInputProps('quantity')}
-              onChange={(value) => form.setFieldValue('quantity', typeof value === 'number' ? value : null)}
-            />
-            <UnitField current={current?.unit} {...form.getInputProps('unit')} value={values.unit} onChange={(unit) => form.setFieldValue('unit', unit ?? '')} />
-            <AmountInput
-              label="Prix unitaire estimé"
-              min={0}
-              allowNegative={false}
-              {...form.getInputProps('unitPrice')}
-              onChange={(value) => form.setFieldValue('unitPrice', typeof value === 'number' ? value : null)}
-            />
+            <QuantityInput label="Quantité" min={0} allowNegative={false} {...optionalNumberProps(form, 'quantity')} />
+            <UnitField current={current?.unit} {...form.getInputProps('unit')} value={values.unit} />
+            <AmountInput label="Prix unitaire estimé" min={0} allowNegative={false} {...optionalNumberProps(form, 'unitPrice')} />
           </SimpleGrid>
           <Checkbox label="Périssable" description="À conserver d’une certaine façon, jusqu’à une date de péremption." {...form.getInputProps('perishable', { type: 'checkbox' })} />
           {values.perishable && (
@@ -160,19 +151,16 @@ export function ShoppingForm({ target, onDone }: ShoppingFormProps) {
                 clearable
                 searchable
                 onCreate={itemCreator('Nouveau mode de conservation', storages)}
-                {...listSelectProps(data?.shoppingStorages ?? [], undefined, current?.storageId)}
+                {...itemSelectProps(data?.shoppingStorages ?? [], values.storageId, undefined, current?.storageId)}
                 {...form.getInputProps('storageId')}
               />
               <DatePickerInput label="Date de péremption" placeholder="Aucune" clearable {...form.getInputProps('expiresAt')} />
             </SimpleGrid>
           )}
-          <PeopleSelect
-            label="Bénéficiaire"
-            description="Membres et relations concernés : la répartition d’un mouvement de trésorerie qui paie la liste."
-            placeholder="Personne en particulier"
-            data={people.options}
-            value={rowPeopleKeys(values)}
-            onChange={(keys) => form.setValues(rowPeopleOf(keys))}
+          <PeopleField
+            form={form}
+            label="Bénéficiaires"
+            description={`Contributeurs et ${relationNoun(perso, true).toLowerCase()} concernés : la répartition d’un mouvement de trésorerie qui paie la liste.`}
           />
           <TextInput label="Lien vers le produit" placeholder="https://…" type="url" {...form.getInputProps('url')} />
           <MarkdownEditor

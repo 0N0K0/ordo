@@ -2,7 +2,8 @@ import { formCallbacks } from '../../../lib/form';
 import { NoticeAlert } from '../../../components/feedback/NoticeAlert';
 import { plural } from '../../../lib/text';
 import { byPosition } from '@ordo/shared';
-import { Anchor, Badge, Button, Checkbox, CloseButton, Group, Modal, Stack, Text, Title, UnstyledButton } from '@mantine/core';
+import { Anchor, Badge, Checkbox, CloseButton, Group, Modal, Stack, Text, Title } from '@mantine/core';
+import { ActionButton } from '../../../components/actions/ActionButton';
 import { ItemAvatar } from '../../../components/items/ItemAvatar';
 import { ArrowSquareOutIcon, PackageIcon } from '@phosphor-icons/react';
 import { useState, type ReactNode } from 'react';
@@ -14,12 +15,13 @@ import { useShoppingData, useShoppingMutations, type ShoppingItem, type Shopping
 import { NO_GROUP, shoppingRows, visibleRows } from '../lib/shopping-format';
 import * as fmt from '../../../lib/format';
 import classes from './Shopping.module.css';
-import { FoldChevron } from '../../../components/actions/FoldChevron';
+import { FoldHeading } from '../../../components/actions/FoldHeading';
 import { Caption } from '../../../components/page/Caption';
 import { EXTERNAL_LINK } from '../../../components/actions/link-props';
+import { taggedKey } from '../../../lib/tagged-key';
 
 interface HeadingProps {
-  name: string;
+  label: string;
   color: string | null;
   /** Image of the store or of the category. Optional. */
   iconUrl?: string | null;
@@ -36,32 +38,33 @@ interface HeadingProps {
  * @param {HeadingProps} props Component props.
  * @returns {JSX.Element} Heading.
  */
-function Heading({ name, color, iconUrl, count, depth, collapsed, onToggle }: HeadingProps) {
+function Heading({ label, color, iconUrl, count, depth, collapsed, onToggle }: HeadingProps) {
   return (
-    <UnstyledButton
+    <FoldHeading
       className={classes.storeHeading}
+      radius="md"
       data-depth={depth}
-      onClick={onToggle}
-      aria-expanded={!collapsed}
+      expanded={!collapsed}
+      onToggle={onToggle}
       style={{ paddingLeft: `calc(${Math.max(0, depth - 1)} * var(--mantine-spacing-md))` }}
-    >
-      <Group gap="xs" wrap="nowrap">
-        <FoldChevron expanded={!collapsed} />
-        {(color || iconUrl) && <ItemAvatar name={name} iconUrl={iconUrl} color={color} size={depth === 0 ? 20 : 16} />}
-        {depth === 0 ? (
-          <Text fw={700} size="lg" style={{ flex: 1 }}>
-            {name}
-          </Text>
-        ) : (
-          <Caption fw={depth <= 1 ? 700 : 600} size="sm" style={{ flex: 1 }}>
-            {name}
-          </Caption>
-        )}
+      icon={(color || iconUrl) && <ItemAvatar name={label} iconUrl={iconUrl} color={color} size={depth === 0 ? 20 : 16} />}
+      aside={
         <Badge size={depth === 0 ? 'lg' : 'md'} variant={count ? 'filled' : 'light'} color={count ? undefined : 'green'} aria-label={`${count} à acheter`}>
+          {/* eslint-disable-next-line no-restricted-syntax -- 0 shown too, in green: all bought (CountBadge hides it). */}
           {count}
         </Badge>
-      </Group>
-    </UnstyledButton>
+      }
+    >
+      {depth === 0 ? (
+        <Text fw={700} size="lg">
+          {label}
+        </Text>
+      ) : (
+        <Caption fw={depth <= 1 ? 700 : 600} size="sm">
+          {label}
+        </Caption>
+      )}
+    </FoldHeading>
   );
 }
 
@@ -150,7 +153,7 @@ export function StoreMode({ list, onClose }: { list: ShoppingList; onClose: () =
       entry.kind === 'group' ? (
         <Heading
           key={`${prefix}${entry.id ?? NO_GROUP}`}
-          name={entry.label}
+          label={entry.label}
           color={entry.color}
           iconUrl={data?.shoppingCategories.find((category) => category.id === entry.id)?.iconUrl}
           count={entry.items.length}
@@ -180,14 +183,14 @@ export function StoreMode({ list, onClose }: { list: ShoppingList; onClose: () =
         </Group>
         {toBuy.length === 0 && <NoticeAlert kind="success">Tout est acheté.</NoticeAlert>}
         {deliverySections.map(({ delivery, items: deliveryItems }) => (
-          <Stack key={`delivery:${delivery.id}`} gap="xs">
+          <Stack key={taggedKey('delivery', delivery.id)} gap="xs">
             <Heading
-              name={delivery.label || (delivery.pickup ? 'Retrait' : 'Livraison')}
+              label={delivery.label || (delivery.pickup ? 'Retrait' : 'Livraison')}
               color={null}
               count={deliveryItems.length}
               depth={0}
-              collapsed={collapsed.has(`delivery:${delivery.id}`)}
-              onToggle={() => toggle(`delivery:${delivery.id}`)}
+              collapsed={collapsed.has(taggedKey('delivery', delivery.id))}
+              onToggle={() => toggle(taggedKey('delivery', delivery.id))}
             />
             <Group gap="sm" justify="space-between" wrap="wrap">
               <Text size="sm" c="dimmed">
@@ -201,10 +204,10 @@ export function StoreMode({ list, onClose }: { list: ShoppingList; onClose: () =
                   </>
                 )}
               </Text>
-              <Button
+              <ActionButton
+                priority="secondary"
                 size="sm"
-                variant="light"
-                leftSection={<PackageIcon aria-hidden />}
+                icon={<PackageIcon aria-hidden />}
                 onClick={() =>
                   setDeliveryReceived.mutate(
                     { id: delivery.id, received: true },
@@ -213,15 +216,15 @@ export function StoreMode({ list, onClose }: { list: ShoppingList; onClose: () =
                 }
               >
                 Réceptionnée
-              </Button>
+              </ActionButton>
             </Group>
-            {!collapsed.has(`delivery:${delivery.id}`) && deliveryItems.map((item) => row(item))}
+            {!collapsed.has(taggedKey('delivery', delivery.id)) && deliveryItems.map((item) => row(item))}
           </Stack>
         ))}
         {sections.map((section) => (
           <Stack key={section.key} gap="xs">
             <Heading
-              name={section.label}
+              label={section.label}
               color={section.color}
               iconUrl={'iconUrl' in section ? section.iconUrl : null}
               count={section.items.length}
@@ -234,17 +237,11 @@ export function StoreMode({ list, onClose }: { list: ShoppingList; onClose: () =
         ))}
         {bought.length > 0 && (
           <Stack gap="xs">
-            <UnstyledButton className={classes.storeHeading} data-depth={0} onClick={() => toggle('bought')} aria-expanded={!collapsed.has('bought')}>
-              <Group gap="xs" wrap="nowrap">
-                <FoldChevron expanded={!collapsed.has('bought')} />
-                <Text fw={700} size="lg" c="dimmed" style={{ flex: 1 }}>
-                  Acheté
-                </Text>
-                <Badge size="lg" variant="light" color="gray">
-                  {bought.length}
-                </Badge>
-              </Group>
-            </UnstyledButton>
+            <FoldHeading className={classes.storeHeading} radius="md" data-depth={0} expanded={!collapsed.has('bought')} onToggle={() => toggle('bought')} count={bought.length}>
+              <Text fw={700} size="lg" c="dimmed">
+                Acheté
+              </Text>
+            </FoldHeading>
             {!collapsed.has('bought') && bought.map((item) => row(item))}
           </Stack>
         )}

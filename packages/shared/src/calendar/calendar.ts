@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { joinedKey } from '../core/collections';
 import { END_AFTER_START, endsAfter, requiredText } from '../core/rules';
 import { locatedFields } from '../core/geo';
 import { recurrenceSchema } from '../dates/recurrence';
@@ -97,3 +98,22 @@ export const calendarFormSchema = z.object({
   color: colorSchema,
 });
 export type CalendarFormValues = z.infer<typeof calendarFormSchema>;
+
+/**
+ * Key of an occurrence of something repeated (an event, a routine) on a day: « id|date », the date empty for none. The
+ * same in the API and the web.
+ * @param {string} id Event or routine.
+ * @param {string | null | undefined} date Day of the occurrence (YYYY-MM-DD). Optional.
+ * @returns {string} Key.
+ */
+export const occurrenceKey = (id: string, date?: string | null): string => joinedKey(id, date);
+
+/**
+ * Occurrence of a key made by `occurrenceKey`.
+ * @param {string} key Key.
+ * @returns {{ id: string, date: string | null }} Event or routine, and its day (none: a single one).
+ */
+export function readOccurrenceKey(key: string): { id: string; date: string | null } {
+  const [id, date] = key.split('|');
+  return { id, date: date || null };
+}

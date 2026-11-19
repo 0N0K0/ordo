@@ -8,15 +8,15 @@ import { useActiveWorkspace } from '../../workspaces/api';
 import { memberOrRelation, memberOrRelationKey, memberRelationOptions, parsePersonKey } from '../../../components/people/people-keys';
 import { unarchived, archivedIds } from '../../../lib/archive';
 import { SidePanel } from '../../../components/panels/SidePanel';
-import { listSelectProps } from '../../../components/items/item-look';
+import { itemSelectProps } from '../../../components/items/item-look';
 import { Group, ScrollArea, SegmentedControl, Stack, Table, Text, TextInput, Tooltip } from '@mantine/core';
-import { EVERYDAY_CONTEXT, plannedContext, round2, splitAmounts, type TreasuryLineMode, fromCents } from '@ordo/shared';
+import { EVERYDAY_CONTEXT, plannedContext, round2, splitAmounts, type TreasuryLineMode, fromCents, directionOf, type TreasuryDirection } from '@ordo/shared';
 import { PaperclipIcon, UsersThreeIcon } from '@phosphor-icons/react';
 import { useState } from 'react';
 import type { TreasurySettings } from '../api';
 import { categoryOptions } from '../lib/categories';
 import { LineAttachments } from './LineAttachments';
-import { attachmentCount, categoryForDirection, newLine, valueInMode, type LineValues } from '../lib/lines';
+import { attachmentCount, categoryForDirection, newSplitLine, valueInMode, type LineValues } from '../lib/lines';
 import { treeSelectProps, type TreeOption } from '../../../components/tree/tree-select';
 import * as fmt from '../../../lib/format';
 import { AmountInput } from '../../../components/inputs/AmountInput';
@@ -27,7 +27,7 @@ import { IconAction } from '../../../components/actions/IconAction';
 import { ActionButton } from '../../../components/actions/ActionButton';
 import { itemCellLabel } from '../../../components/data-table/cells/cell-field';
 
-interface LinesEditorProps {
+interface SplitLinesEditorProps {
   lines: LineValues[];
   onChange: (lines: LineValues[]) => void;
   /** Amount of the entry, positive, and its direction. */
@@ -50,10 +50,10 @@ interface LinesEditorProps {
  * Each line has its project, supporting documents and links (lines of other entries, whole entries without lines).
  * What the lines leave is "not split" (no category). A table, one line per row; splits equally between the members
  * in one click; a context can be created from a line.
- * @param {LinesEditorProps} props Component props.
+ * @param {SplitLinesEditorProps} props Component props.
  * @returns {JSX.Element} Editor.
  */
-export function LinesEditor({ lines, onChange, amount, direction, date, settings, errors, entryId, projects, documentGroups }: LinesEditorProps) {
+export function SplitLinesEditor({ lines, onChange, amount, direction, date, settings, errors, entryId, projects, documentGroups }: SplitLinesEditorProps) {
   // Line whose attachments are edited.
   const [attaching, setAttaching] = useState<number | null>(null);
   const sign = direction === 'IN' ? 1 : -1;
@@ -87,18 +87,25 @@ export function LinesEditor({ lines, onChange, amount, direction, date, settings
   const change = (index: number, changes: Partial<LineValues>) => onChange(lines.map((line, position) => (position === index ? { ...line, ...changes } : line)));
 
   /**
+   * Direction of a line, as the API tells it (`directionOf`).
+   * @param {number} relative Relative amount of the line.
+   * @returns {TreasuryDirection} Direction.
+   */
+  const lineDirection = (relative: number): TreasuryDirection => directionOf(relative * sign);
+
+  /**
    * Category of a line, kept only when it is of the direction the line now goes.
    * @param {string | null} id Category.
    * @param {number} relative Relative amount of the line.
    * @returns {string | null} Category.
    */
-  const keepCategory = (id: string | null, relative: number) => categoryForDirection(categories, id, relative * sign > 0 ? 'IN' : 'OUT');
+  const keepCategory = (id: string | null, relative: number) => categoryForDirection(categories, id, lineDirection(relative));
 
   /**
    * New line: what is not split yet, for me, in the category of the entry and the planned context.
    * @returns {void}
    */
-  const add = () => onChange([...lines, newLine({ value: fromCents(Math.max(remainder, 0)) || 0, memberId: me?.id ?? null, contextId: planned })]);
+  const add = () => onChange([...lines, newSplitLine({ value: fromCents(Math.max(remainder, 0)) || 0, memberId: me?.id ?? null, contextId: planned })]);
 
   /**
    * Replaces the lines by an equal share for every member.
@@ -108,7 +115,7 @@ export function LinesEditor({ lines, onChange, amount, direction, date, settings
     const share = round2(100 / members.length);
     onChange(
       members.map((member, index) =>
-        newLine({
+        newSplitLine({
           mode: 'PERCENT',
           // The last one takes what rounding leaves.
           value: index === members.length - 1 ? round2(100 - share * (members.length - 1)) : share,
@@ -120,11 +127,7 @@ export function LinesEditor({ lines, onChange, amount, direction, date, settings
   };
 
   // Archived contexts and relations are offered only where a line has them already.
-  const contextSelect = listSelectProps(
-    contexts,
-    undefined,
-    lines.map((line) => line.contextId),
-  );
+  const keptContexts = lines.map((line) => line.contextId);
   // For whom: a member (none: me), or a relation (loan, gift…).
   const whomOptions = memberRelationOptions(
     members,
@@ -202,11 +205,11 @@ export function LinesEditor({ lines, onChange, amount, direction, date, settings
                       <CreatableSelect
                         size="xs"
                         aria-label={`Catégorie de la ligne ${index + 1}`}
-                        onCreate={createCategory[relative * sign >= 0 ? 'IN' : 'OUT']}
+                        onCreate={createCategory[lineDirection(relative)]}
                         placeholder="Sans catégorie"
                         clearable
                         searchable
-                        {...treeSelectProps(categoryOptions(categories, relative * sign >= 0 ? 'IN' : 'OUT', undefined, line.categoryId))}
+                        {...treeSelectProps(categoryOptions(categories, lineDirection(relative), undefined, line.categoryId))}
                         value={line.categoryId}
                         onChange={(id) => change(index, { categoryId: id })}
                         error={error('categoryId')}
@@ -220,7 +223,7 @@ export function LinesEditor({ lines, onChange, amount, direction, date, settings
                         placeholder={EVERYDAY_CONTEXT}
                         clearable
                         searchable
-                        {...contextSelect}
+                        {...itemSelectProps(contexts, line.contextId, undefined, keptContexts)}
                         value={line.contextId}
                         onChange={(contextId) => change(index, { contextId })}
                         error={error('contextId')}

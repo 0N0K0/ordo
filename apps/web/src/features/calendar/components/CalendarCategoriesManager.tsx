@@ -20,6 +20,7 @@ export function CalendarCategoriesManager() {
       title="Catégories d’agenda"
       description="Classent les évènements, en arborescence. Filtrer l’agenda sur une catégorie inclut ses sous-catégories."
       noun="la catégorie"
+      feminine
       items={items}
       loading={isPending}
       storageKey="calendar-categories"

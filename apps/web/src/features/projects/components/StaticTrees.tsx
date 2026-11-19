@@ -1,6 +1,7 @@
 import { NO_CLIENT, type ProjectNode, type TreeSection } from '../lib/tree';
 import { NoClientRow } from './NoClientRow';
 import { TreeRow } from './TreeRow';
+import { taggedKey } from '../../../lib/tagged-key';
 
 interface BranchProps {
   node: ProjectNode;
@@ -26,7 +27,7 @@ function ProjectBranch({ node, depth, section, keyPrefix, isExpanded, onToggle }
       <TreeRow
         entity={{ type: 'project', item: node.project }}
         depth={depth}
-        muted={section.context?.has(`p:${node.project.id}`) ?? false}
+        muted={section.context?.has(taggedKey('p', node.project.id)) ?? false}
         expansion={hasChildren ? { expanded, onToggle: () => onToggle(key) } : undefined}
         role="treeitem"
         aria-level={depth + 1}
@@ -64,7 +65,7 @@ export function StaticTree({ section, label, keyPrefix, isExpanded, onToggle }: 
           <div key={client.id} role="none">
             <TreeRow
               entity={{ type: 'client', item: client }}
-              muted={section.context?.has(`c:${client.id}`) ?? false}
+              muted={section.context?.has(taggedKey('c', client.id)) ?? false}
               expansion={projects.length > 0 ? { expanded, onToggle: () => onToggle(key) } : undefined}
               role="treeitem"
               aria-level={1}

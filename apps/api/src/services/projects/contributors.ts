@@ -4,8 +4,7 @@ import { prisma } from '../../db';
 import { type Contributor } from '../../generated/prisma/client';
 import { clientError, fieldError, orNotFound, parseInput, rethrowUnique } from '../../graphql/errors';
 import { deleteOrphanIcons, resolveIconUpdate, storeIcon } from '../core/icons';
-import { assertAllExist } from '../core/lookup';
-import { assertNoneArchived, assertNotArchived } from '../core/archive';
+import { activeIds, assertActive, assertNoneArchived, findActive } from '../core/archive';
 import { lineageIds } from '../core/trees';
 import { connectIds } from '../core/relations';
 
@@ -78,10 +77,9 @@ export async function updateContributor(
     projectIds?: string[] | null;
   },
 ): Promise<Contributor> {
-  const contributor = await orNotFound(prisma.contributor.findUnique({ where: { id } }), 'Contributeur');
   // Read only when archived.
-  await assertNotArchived('contributor', id);
-  if (input.projectIds) await assertProjects(input.projectIds);
+  const contributor = await findActive(prisma.contributor, id, 'Contributeur');
+  if (input.projectIds) await assertProjects(input.projectIds, id);
   const data = parseInput(z.object({ name: personNameSchema.optional(), handle: handleSchema.optional() }), {
     name: input.name ?? undefined,
     handle: input.handle ?? undefined,
@@ -113,12 +111,14 @@ export async function deleteContributor(id: string): Promise<void> {
 }
 
 /**
- * Checks that every project exists.
+ * Checks that every project exists and is not archived (those the contributor is already attached to stay valid).
  * @param {string[]} projectIds Project ids.
+ * @param {string | null} [contributorId] Contributor updated: its current projects are kept. Optional.
  * @returns {Promise<void>}
  */
-async function assertProjects(projectIds: string[]): Promise<void> {
-  await assertAllExist(prisma.project, projectIds, 'Projet');
+async function assertProjects(projectIds: string[], contributorId: string | null = null): Promise<void> {
+  const keep = contributorId ? (await prisma.project.findMany({ where: { contributors: { some: { id: contributorId } } }, select: { id: true } })).map((project) => project.id) : [];
+  await activeIds(prisma.project, projectIds, 'Projet', { keep, field: 'projectIds' });
 }
 
 /**
@@ -129,11 +129,9 @@ async function assertProjects(projectIds: string[]): Promise<void> {
  * @returns {Promise<void>}
  */
 export async function setProjectContributors(projectId: string, contributorIds: string[]): Promise<void> {
-  await assertProjects([projectId]);
-  await assertNotArchived('project', projectId);
-  await assertAllExist(prisma.contributor, contributorIds, 'Contributeur');
+  await assertActive(prisma.project, projectId, 'Projet');
   const current = await prisma.contributor.findMany({ where: { projects: { some: { id: projectId } } }, select: { id: true } });
-  await assertNoneArchived('contributor', contributorIds, { keep: current.map((contributor) => contributor.id), field: 'contributorIds' });
+  await activeIds(prisma.contributor, contributorIds, 'Contributeur', { keep: current.map((contributor) => contributor.id), field: 'contributorIds' });
   await prisma.project.update({
     where: { id: projectId },
     data: { contributors: { set: connectIds(contributorIds) } },

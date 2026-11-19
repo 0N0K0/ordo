@@ -1,5 +1,4 @@
 import { AddItemButton } from '../actions/AddItemButton';
-import { DestructiveButton } from '../dialogs/DestructiveActions';
 import { Group, NumberInput, Paper, SegmentedControl, Select, Stack, Text, TextInput } from '@mantine/core';
 import { DatePickerInput } from '@mantine/dates';
 import { DATE_PERIOD_LABELS, MAX_FILTER_DEPTH, VALUELESS_OPERATORS, type FilterConditionOf, type FilterFieldKind, type FilterGroupOf, type FilterOperator } from '@ordo/shared';
@@ -10,6 +9,8 @@ import { localToday } from '../../lib/dates';
 import { defaultValueFor, newConditionFor, nodeId, OPERATOR_LABELS, operatorsFor } from './filter-meta';
 import { BatchMultiSelect } from '../inputs/BatchMultiSelect';
 import { RemoveButton } from '../actions/RemoveButton';
+import { ActionButton } from '../actions/ActionButton';
+import { optionalNumber, FRENCH_NUMBER_FORMAT } from '../inputs/number-format';
 
 // Dropdowns render inside the filter popover: in a portal, picking an option would count as a click
 // outside the popover and close it.
@@ -109,6 +110,8 @@ export interface FilterFields<F extends string> {
   operatorLabel?: (field: F, operator: FilterOperator) => string | undefined;
   /** Operators of a field, instead of all those of its kind. Optional. */
   operators?: (field: F) => readonly FilterOperator[];
+  /** Fields whose value is never empty: « est vide » / « n’est pas vide » are not offered on them. Optional. */
+  required?: ReadonlySet<F>;
   /** What an empty filter shows. */
   emptyText: string;
 }
@@ -140,9 +143,9 @@ function ConditionEditor<F extends string>({ condition, fields, onChange, onRemo
         <NumberInput
           size="xs"
           aria-label="Valeur"
-          decimalSeparator=","
+          {...FRENCH_NUMBER_FORMAT}
           value={typeof condition.value === 'number' ? condition.value : ''}
-          onChange={(next) => set(typeof next === 'number' ? next : null)}
+          onChange={(next) => set(optionalNumber(next))}
           w={110}
         />
       );
@@ -185,9 +188,7 @@ function ConditionEditor<F extends string>({ condition, fields, onChange, onRemo
         onChange={(field) => {
           if (!field) return;
           // The first operator the field offers (its own ones when it has some).
-          const next = newConditionFor(fields.kinds, field as F);
-          const own = fields.operators?.(field as F)[0];
-          onChange({ ...next, ...(own && own !== next.operator && { operator: own, value: defaultValueFor(fields.kinds[field as F], own) }), id: condition.id });
+          onChange({ ...newConditionFor(fields, field as F), id: condition.id });
         }}
         w={170}
       />
@@ -195,7 +196,7 @@ function ConditionEditor<F extends string>({ condition, fields, onChange, onRemo
         comboboxProps={INLINE}
         size="xs"
         aria-label="Opérateur"
-        data={(fields.operators?.(condition.field) ?? operatorsFor(fields.kinds, condition.field)).map((item) => ({
+        data={operatorsFor(fields, condition.field, operator).map((item) => ({
           value: item,
           label: fields.operatorLabel?.(condition.field, item) ?? OPERATOR_LABELS[kind][item] ?? item,
         }))}
@@ -290,14 +291,14 @@ function GroupEditor<F extends string>({ group, depth, fields, onChange, onRemov
           </div>
         ))}
         <Group gap="xs">
-          <AddItemButton onClick={() => onChange({ ...group, children: [...group.children, newConditionFor(fields.kinds, fields.first)] })}>Ajouter une condition</AddItemButton>
+          <AddItemButton onClick={() => onChange({ ...group, children: [...group.children, newConditionFor(fields, fields.first)] })}>Ajouter une condition</AddItemButton>
           {depth < MAX_FILTER_DEPTH && (
             <AddItemButton
               icon={<FolderSimplePlusIcon aria-hidden />}
               onClick={() =>
                 onChange({
                   ...group,
-                  children: [...group.children, { type: 'group', id: nodeId(), combinator: group.combinator === 'and' ? 'or' : 'and', children: [newConditionFor(fields.kinds, fields.first)] }],
+                  children: [...group.children, { type: 'group', id: nodeId(), combinator: group.combinator === 'and' ? 'or' : 'and', children: [newConditionFor(fields, fields.first)] }],
                 })
               }
             >
@@ -305,9 +306,9 @@ function GroupEditor<F extends string>({ group, depth, fields, onChange, onRemov
             </AddItemButton>
           )}
           {onRemove && (
-            <DestructiveButton size="compact-sm" leftSection={<TrashIcon aria-hidden />} onClick={onRemove}>
+            <ActionButton danger size="compact-sm" icon={<TrashIcon aria-hidden />} onClick={onRemove}>
               Retirer le groupe
-            </DestructiveButton>
+            </ActionButton>
           )}
         </Group>
       </Stack>
