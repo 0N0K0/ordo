@@ -1,0 +1,75 @@
+# Code web : accueil
+
+Tous les fichiers de `apps/web/src/features/home/` : la page d’accueil, ses cartes, la grille réordonnable et les calculs partagés (tâches du jour, temps de la semaine, facturation, trésorerie). Fonctionnalités : [Accueil](../../../features/cross-cutting/home.md).
+
+## `pages/`
+
+### `pages/HomePage.tsx`
+
+`HomePage()` : route `/` (index de `AppLayout`). En-tête « Bonjour … » avec « Nouveau client » (PRO) et « Nouveau projet » (`useEntityActions`), tuiles `StatTile`, puis `SortableGrid` des cartes. Ordre gardé par `useLocalStorage` `ordo.home.cards` ; bouton « Disposition par défaut ».
+
+Internes : `CardId`, `DEFAULT_ORDER` (`tasks`, `routines`, `agenda`, `chrono`, `shopping`, `billing`, `quotes`, `treasury`, `mail`, `time`), `PRO_CARDS` (`billing`, `quotes`). Données : `useMyTodayTasks`, `useWeekTime`, `useAccountingDocuments`, `useImportedDocuments` + `billingSummary`, `useTreasuryProjection` sur 90 jours + `balanceIn30Days`, `useMailAccounts`, `useUnreadMailCount`.
+
+## `components/`
+
+### `components/HomeCard.tsx`
+
+- `HomeCard({ title, icon, to?, linkLabel = 'Tout voir', loading?, children })` : carte (titre, icône, lien, squelette `ListSkeleton`) ; dans la grille, affiche la poignée lue dans `DragHandleContext`. Utilisé par toutes les cartes.
+- `CardFigure({ label, value, color? })` : petit chiffre d’une carte. Utilisé par `TasksCard`… (`WorkCards`, `LifeCards`, `FinanceCards`).
+
+### `components/HomeList.tsx` (+ `Home.module.css`)
+
+- `HOME_ROWS = 10` : lignes au plus dans une liste. Utilisé aussi par `TreasuryCard`.
+- `HomeList({ items, render, group? })` : premières lignes, éventuellement groupées (`groupBy`, titres `SubSection`), puis « + N autres ».
+- `HomeRow({ to, label, subtitle?, value?, emphasis? })` : ligne-lien d’une carte (style de `StatTile.module.css`).
+
+Utilisés par `WorkCards`, `LifeCards`, `FinanceCards`, `MailCard`. `Home.module.css` porte le style des lignes (`row`).
+
+### `components/SortableGrid.tsx`
+
+`SortableGrid({ items, onReorder })` : grille `SimpleGrid` (1 / 2 / 3 colonnes) dans `SortableArea` (`components/dnd/sortable`), réordonnée par `arrayMove`. Interne : `SortableItem({ id, children })` (`useSortableItem`, fournit `DragHandleContext`). Utilisé par `HomePage`.
+
+### `components/WorkCards.tsx`
+
+- `TasksCard({ context, tasks, today })` : « Mes tâches du jour » ; lien de tâche `useTaskLink` (panneau), sous-titre projet et `taskNumber`, `LateBadge` ou statut.
+- `AgendaCard({ today })` : « Agenda » des 7 jours : `useHeldEvents` + `nextRings(useAlarms)`, groupés par jour (`dayLabel`). Interne : `AgendaItem`.
+- `TimeCard({ context, time })` : « Temps passé » ; 4 premiers projets avec `Progress`. Interne : `ProjectName({ context, projectId })` (libellé et parent en gris).
+
+### `components/LifeCards.tsx`
+
+- `RoutinesCard({ today })` : « Routines du jour » : routines `due` ou `late` (`currentRoutineState`, `useSlotRules`, `routineDoable`), triées ; `RoutineDoneToggles`, `WaitingIcon` (`waitingFor`), `LateBadge`, horaires (`scheduleOf`, `windowText`, `windowOf`), « Reporter au lendemain » (`usePostponeRoutine`).
+- `ShoppingCard()` : « Achats » : produits manquants (`useShoppingData`), listes ouvertes (`useShoppingLists`, `leftToBuy`).
+
+### `components/FinanceCards.tsx`
+
+- `BillingCard({ summary, today })` : « Facturation » : chiffres de `BillingSummary` et factures en retard (`useOverdueInvoices`).
+- `QuotesCard({ summary, today })` : « Devis en attente » (`summary.pendingQuotes`, `fmt.daysAgo`).
+- `TreasuryCard({ projection, today })` : « Trésorerie » : aujourd’hui, à 30 jours (`balanceIn30Days`), point bas sur 3 mois, `Sparkline`, mouvements prévus dans les 30 jours (non `ACTUAL`, non archivés) avec `SignedAmount`.
+
+### `components/ChronoCard.tsx`
+
+`ChronoCard({ context })` : « Chrono et alarmes » : `RunningTimer` ou `TimerStartForm` (`features/time/components/TimerCard`), prochaine alarme (`nextRings`), « Programmer une alarme » (`useAlarmForm`).
+
+### `components/MailCard.tsx`
+
+`MailCard({ today })` : « Mails non lus » des boîtes actives (`useMailAccounts`, `useUnreadMails`), lien `mailPath(account, 'INBOX', uid)`, objet ou `NO_SUBJECT`, heure (aujourd’hui) ou `dayLabel`.
+
+## `lib/`
+
+### `lib/drag-handle.ts`
+
+`DragHandleContext` : contexte de la poignée (`SortableHandle`) de la carte en cours de tri, `null` hors grille. Fourni par `SortableGrid`, lu par `HomeCard`.
+
+### `lib/home-data.ts`
+
+| Export                                        | Rôle                                                                                                                                                                                                                                    | Utilisé par                             |
+| --------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------- |
+| `dayLabel(date, today)`                       | « Aujourd’hui », « Demain », « Hier » ou `fmt.weekday`.                                                                                                                                                                                 | `WorkCards`, `FinanceCards`, `MailCard` |
+| `useHeldEvents(from, to)`                     | Évènements de la période sans les annulés (`calledOff`).                                                                                                                                                                                | `AgendaCard`, `AgendaNavBadge`          |
+| `IN_30_DAYS`                                  | Libellé « Dans 30 jours ».                                                                                                                                                                                                              | `HomePage`, `TreasuryCard`              |
+| `balanceIn30Days(series, today)`              | Dernier point de la projection à J+30 au plus tard.                                                                                                                                                                                     | `HomePage`, `TreasuryCard`              |
+| `BillingSummary`                              | Reste dû, en retard (montant et nombre), CA HT du mois et de l’année, devis en attente (et total HT), brouillons.                                                                                                                       | `HomePage`, `FinanceCards`              |
+| `billingSummary(documents, today, imported?)` | Calcul du résumé : archivés exclus ; brouillons comptés à part ; devis en attente = catégorie de suivi `SENT` ; avoirs en négatif ; documents importés (hors devis) comptés dans le CA ; devis triés du plus ancien envoi.              | `HomePage`                              |
+| `useMyTodayTasks(context, today)`             | `{ tasks, overdue }` : mes tâches du jour par le filtre `myTasksFilter('today')` et les colonnes du tableau des tâches (`useTaskColumns`, `matchTasks`), en retard d’abord (`isTaskOverdue`), puis par date max ou de fin, puis numéro. | `HomePage`, `TasksNavBadge`             |
+| `WeekTime`                                    | Secondes du jour, de la semaine, et par projet (décroissant).                                                                                                                                                                           | `HomePage`, `TimeCard`                  |
+| `useWeekTime(today)`                          | Temps depuis le début de la semaine de l’espace (`filterPeriod('thisWeek', …, currentWeek())`, `useTimeEntriesSince`), chrono en cours compté jusqu’à maintenant (`useNow`).                                                            | `HomePage`, `TimeNavBadge`              |

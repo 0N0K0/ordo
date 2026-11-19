@@ -1,4 +1,4 @@
-import { collator, type MailSortBy, NO_SUBJECT, sameName, sumOf, UNNAMED_FILE } from '@ordo/shared';
+import { collator, escapeText, type MailSortBy, NO_SUBJECT, sameName, sumOf, UNNAMED_FILE } from '@ordo/shared';
 import type { FetchMessageObject, ImapFlow, ListResponse, MessageAddressObject, MessageStructureObject } from 'imapflow';
 import { simpleParser, type AddressObject, type ParsedMail } from 'mailparser';
 import { prisma } from '../../db';
@@ -398,12 +398,13 @@ export function attachmentInfos(parsed: ParsedMail): MailAttachmentInfo[] {
  */
 export function messageHtml(parsed: ParsedMail, urlOf: (index: number) => string): string | null {
   if (!parsed.html) return null;
-  let html = parsed.html;
+  // Sanitized first: the only addresses of the app in a mail received are the ones given here to its own images.
+  let html = sanitizeMailHtml(parsed.html);
   parsed.attachments.forEach((attachment, index) => {
     const cid = attachment.contentId?.replace(/^<|>$/g, '');
-    if (cid) html = html.split(`cid:${cid}`).join(urlOf(index));
+    if (cid) html = html.split(`cid:${escapeText(cid)}`).join(escapeText(urlOf(index)));
   });
-  return sanitizeMailHtml(html);
+  return html;
 }
 
 /**

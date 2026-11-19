@@ -15,6 +15,18 @@ export async function requireSession(req: Request, res: Response): Promise<boole
 }
 
 /**
+ * Middleware letting only signed-in users through (401 otherwise): placed before what reads the body of a request, so
+ * that an anonymous body is never read.
+ * @param {Request} req Request.
+ * @param {Response} res Response.
+ * @param {() => void} next Next handler.
+ * @returns {Promise<void>}
+ */
+export const sessionRequired: RequestHandler = async (req, res, next) => {
+  if (await requireSession(req, res)) next();
+};
+
+/**
  * Text of a query parameter: empty when it is missing or repeated.
  * @param {unknown} value Value of `req.query.<name>`.
  * @returns {string} The text.

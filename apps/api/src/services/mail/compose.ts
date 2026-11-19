@@ -120,7 +120,7 @@ export async function buildMessage(account: MailAccount, input: MailFields, opti
     throw clientError('BAD_USER_INPUT', 'Pièces jointes trop lourdes (20 Mo au total maximum).');
   }
 
-  const { html, images } = await embedLocalImages(sanitizeMailHtml(input.html));
+  const { html, images } = await embedLocalImages(sanitizeMailHtml(input.html, true));
   const references = [...new Set([...(input.references ?? []), ...(input.inReplyTo ? [input.inReplyTo] : [])])];
   const domain = account.email.split('@')[1] ?? 'ordo.local';
   const composer = new MailComposer({

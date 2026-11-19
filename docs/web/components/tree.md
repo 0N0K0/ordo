@@ -1,0 +1,72 @@
+# Arbres (composants web)
+
+Arbres d’éléments (catégories, statuts, projets…) : mise en ordre, chemins « Parent › Enfant », options de select en arbre, glisser-déposer avant / après / sous un autre élément, plis mémorisés dans le navigateur. Source : `apps/web/src/components/tree/`.
+
+## Principes
+
+- Ordre des frères : position manuelle (`position`), puis libellé (comparaison `collator`, `lib/text`).
+- Chemin d’un élément : les libellés de ses parents séparés par `LEVEL` (« › », `@ordo/shared`).
+- Couleur héritée : un élément sans couleur prend celle de son plus proche parent qui en a une.
+- Un élément ne peut pas être déposé sur lui-même ni sous un de ses descendants.
+- Glisser sur une ligne : tiers haut → avant, tiers bas → après, milieu → dedans (en dernier). Au clavier : dedans. Liste plate : moitié haute → avant, moitié basse → après.
+- Les plis (éléments repliés) sont gardés dans `localStorage`, propres à chaque navigateur ; une règle eslint impose `useFoldedIds`.
+
+Voir aussi : [Réglages](settings.md) (listes de réglages en arbre), [Glisser-déposer](dnd.md), [Ordre](../../business-rules/cross-cutting/ordering.md).
+
+## `category-tree.ts`
+
+| Export                                             | Rôle                                                                                                                                                                                                                                                                                                                                                                             |
+| -------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `TreeCategory` (interface)                         | Élément d’arbre : `id`, `label`, `color?`, `iconUrl?` (image d’avatar), `parentId?`, `position?`.                                                                                                                                                                                                                                                                                |
+| `PlacedCategory<C>` (interface)                    | Élément placé : `category`, `depth` (0 au premier niveau), `path` (« Parent › Enfant »), `color` (la sienne ou celle héritée).                                                                                                                                                                                                                                                   |
+| `categoryTree(categories)`                         | Éléments dans l’ordre de l’arbre : chacun suivi de ses sous-éléments (ordre des frères), avec profondeur, chemin et couleur héritée. Utilisé par `SettingsList`, `SettingsItemForm`, `dashboards`, `routines`, `shopping`, `treasury`.                                                                                                                                           |
+| `categoryOptions(categories, exclude?, offered?)`  | Options de select en arbre (via `treeOptions`) : `exclude` retire un élément et ses descendants (celui qu’on modifie, pour qu’il ne soit pas son propre parent) ; `offered(id)` dit ce qui est choisissable (les parents non choisissables restent, grisés). Utilisé par `SettingsItemForm` et de nombreuses features (`treasury`, `shopping`, `routines`, `stock`, `calendar`). |
+| `categoryPaths(categories)`                        | `Map` id → chemin complet. Utilisé par `dashboards`, `routines`, `shopping`, `stock`, `treasury`.                                                                                                                                                                                                                                                                                |
+| `TreePlace` (type)                                 | `'BEFORE'`, `'AFTER'` ou `'INSIDE'`.                                                                                                                                                                                                                                                                                                                                             |
+| `treeDestination(categories, id, targetId, place)` | Nouveau parent et index parmi les nouveaux frères d’un élément déposé sur un autre ; `null` si refusé (sur lui-même ou un descendant) ou sans effet (même place).                                                                                                                                                                                                                |
+| `moveInTree(categories, id, parentId, index?)`     | Éléments après un déplacement (mise à jour optimiste d’un cache) : l’élément sous son nouveau parent, ses nouveaux frères renumérotés (`position` = index). `index` absent : en dernier. Utilisé par `routines`, `shopping`.                                                                                                                                                     |
+
+`bySiblingOrder` (interne) : comparaison position puis libellé.
+
+## `tree-select.tsx`
+
+| Export                                    | Rôle                                                                                                                                                                                                                                                                                                                                                                                                                                        |
+| ----------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `TreeNode` (interface)                    | Nœud offert dans un select : `id`, `parentId` (null ou inconnu : premier niveau), `label`, `color?`, `iconUrl?`, `pathless?` (un regroupement de la liste, « Sans client », « Sans projet », exclu des chemins des nœuds dessous).                                                                                                                                                                                                          |
+| `TreeOption` (interface)                  | Option d’un select d’arbre (`ComboboxItem`) : `label` = chemin complet (affiché une fois choisi, dans les pastilles, cellules…), `nodeLabel` (son nom seul), `depth`, `parent`, `color?`, `iconUrl?`.                                                                                                                                                                                                                                       |
+| `treeOptions(nodes, offered?, excluded?)` | Options dans l’ordre de l’arbre (l’ordre des frères donné est conservé) : les nœuds offerts et leurs parents non offerts, affichés grisés (`disabled`) ; un parent sans rien de choisissable dessous est retiré. `excluded` retire des nœuds et leurs descendants.                                                                                                                                                                          |
+| `treeSelectProps(options)`                | Props d’un `Select` / `MultiSelect` d’arbre : `data`, `renderOption` (nom indenté selon la profondeur, avatar `ItemAvatar` s’il y a couleur ou image, parent grisé en gras) et `filter` (recherche sans casse ni accents sur les noms ; garde ce qui est sous un nœud trouvé et les parents des nœuds trouvés). Très utilisé : `SettingsItemForm`, `table-engine` (filtres de colonnes en arbre), `inputs`, et presque toutes les features. |
+
+## `tree-dnd.ts`
+
+| Export                                                     | Rôle                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      |
+| ---------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `useFolded(storageKey?)`                                   | Plis d’un arbre (`[ids repliés, toggle(id)]`), mémorisés sous la clé `ordo:folded:<storageKey>` ; non mémorisés sans clé. Utilisé par `CategoryTree`, `projects`.                                                                                                                                                                                                                                                                                                                                                                                                                         |
+| `withoutDescendants(items, id)`                            | Lignes à plat sans les descendants d’une ligne glissée (ils bougent avec elle). Utilisé par `DataTable`, `projects`.                                                                                                                                                                                                                                                                                                                                                                                                                                                                      |
+| `dropProjection(items, activeId, overId, offsetX, bounds)` | Où atterrit une ligne glissée dans un arbre à plat : la place selon la ligne survolée, le niveau selon le décalage horizontal (20 px par niveau, `DRAG_INDENT`), borné par `bounds(active, précédente, suivante)` ; renvoie `{ depth, parentId }` ou `null`. Utilisé par `DataTable`, `projects`.                                                                                                                                                                                                                                                                                         |
+| `useTreeDrop(options)`                                     | Glisser-déposer des lignes d’un arbre, le même dans tous les arbres. Options : `nested?` (défaut `true`), `fallback` (place quand le pointeur n’en donne pas), `destination(id, targetId, place)` (null : refusé), `onDrop(id, destination)`, `taken(id)` (annonce « X saisi(e). »), `moved` (annonce « Catégorie déplacée. »). Renvoie `dragged`, `dropOn(id)` (place à afficher sur une ligne, si le dépôt est permis) et `dndProps` (capteurs pointeur + clavier `'plain'`, collision, annonces d’accessibilité dont « Déplacement annulé. »). Utilisé par `CategoryTree`, `projects`. |
+
+Internes : `treeCollision` (ligne sous le pointeur, sinon la plus proche), `pointerPlace` (tiers haut / milieu / tiers bas), `FlatRow`, `TreeDestination`, `TreeDropOptions`.
+
+## `use-folded-ids.ts`
+
+- `FoldedIds` (interface) — `ids`, `toggle(id)`, `set(ids, on)`.
+- `useFoldedIds(key)` — ids repliés (ou dépliés, pour ce qui commence replié) d’un arbre, d’une liste ou d’un menu, mémorisés dans `localStorage` sous `key` (ex. « ordo.mail.collapsed.<compte> ») ; `null` : non mémorisés. Chaque fenêtre garde les siens ; le dernier changement est ce que démarre une nouvelle fenêtre. Une valeur stockée invalide (autre forme, éditée à la main) est ignorée ; une erreur d’écriture laisse l’état en mémoire. Utilisé par `useFolded`, `mail`, `projects`.
+
+`storedIds` (interne) : lecture tolérante du stockage.
+
+## `CategoryTree.tsx`
+
+`CategoryTree` — éléments d’une liste de réglages sous forme de tableau, chacun avec son avatar (`ItemAvatar` : son image, ou ses initiales sur sa couleur).
+
+- En arbre (`nested`, défaut `true`) : chaque élément replie ses sous-éléments (`FoldButton`, plis mémorisés par `storageKey`) et se déplace avant, après ou sous un autre ; le premier niveau est en gras.
+- En liste plate : avant ou après seulement, sans pli.
+- Props : `categories`, `storageKey?`, `renderMeta?(placed)` (cellule après le libellé : nombre d’usages…), `renderBadges?(category)`, `renderActions(placed)`, `onMove(id, parentId, index)`, `nested?`, `canMove?(id, parentId)` (les dépôts refusés ne sont pas montrés), `locked?(category)` (lecture seule : pas de poignée), `noun` (« Catégorie », « Statut ») et `feminine?` pour les annonces (« Catégorie déplacée », « Statut déplacé »).
+- Un élément replié cache tous ses descendants. Pendant le glisser, un `DragOverlay` montre `DragLabel` avec le libellé.
+- `CategoryRow` (interne) : ligne à la fois draggable (par sa poignée) et cible de dépôt ; `data-drop` / `data-dragging` pour le style.
+
+Utilisé par `SettingsList`.
+
+## `tree-drop.module.css`
+
+Classe `.row` : survol teinté ; trait de 2 px en haut (`data-drop='BEFORE'`) ou en bas (`'AFTER'`) ; le futur parent (`'INSIDE'`) est stylé par `styles/drop.css` ; atténuée pendant le glisser. Classe `.caretSpace` : la place du bouton de pli sur les lignes sans enfant.

@@ -49,7 +49,7 @@ function DeliveryForm({ list, delivery, onDone }: { list: ShoppingList; delivery
     schema: shoppingDeliverySchema,
   });
   const values = form.getValues();
-  const expected = dateRangeProps(formRange(form, 'expectedFrom', 'expectedTo'));
+  const expected = dateRangeProps(formRange(form, 'windowFrom', 'windowTo'));
   const address: AddressValue = { text: values.address ?? '', point: values.lat !== null && values.lon !== null ? { lat: values.lat, lon: values.lon } : null };
   const handleSubmit = form.onSubmit((input) => {
     const callbacks = formCallbacks(form, delivery ? 'Livraison modifiée.' : 'Livraison ajoutée.', onDone);
