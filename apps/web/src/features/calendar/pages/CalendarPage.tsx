@@ -9,6 +9,7 @@ import { useSetParams } from '../../../lib/search-params';
 import { PageHeader } from '../../../components/page/PageHeader';
 import { SettingsSection } from '../../../components/settings/SettingsSection';
 import { ActionButton } from '../../../components/actions/ActionButton';
+import { StateSwitch } from '../../../components/inputs/StateSwitch';
 
 import type { DateSelectArg, DatesSetArg, EventClickArg, EventDropArg, EventInput } from '@fullcalendar/core';
 import frLocale from '@fullcalendar/core/locales/fr';
@@ -16,10 +17,10 @@ import dayGridPlugin from '@fullcalendar/daygrid';
 import interactionPlugin, { type EventResizeDoneArg } from '@fullcalendar/interaction';
 import FullCalendar from '@fullcalendar/react';
 import timeGridPlugin from '@fullcalendar/timegrid';
-import { Button, Group, Paper, SegmentedControl, Stack, Switch, Text, Tooltip } from '@mantine/core';
+import { Group, Paper, SegmentedControl, Stack, Switch, Text } from '@mantine/core';
 import { useLocalStorage } from '@mantine/hooks';
 import { addDays, entrySeconds, formatDuration, mapById, occurrenceKey, plannedSlots, type ScheduleSlotTime, shiftTime, timeToMinutes, weekLength } from '@ordo/shared';
-import { CheckIcon, ClockIcon, FilePdfIcon, PencilSimpleIcon, PlusIcon } from '@phosphor-icons/react';
+import { ClockIcon, FilePdfIcon, PlusIcon } from '@phosphor-icons/react';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router';
 
@@ -775,16 +776,14 @@ export function CalendarPage() {
           <ActionButton priority="secondary" icon={<ClockIcon aria-hidden />} onClick={() => openFormPanel(schedulesTitle(perso), () => <WorkSchedulesManager />, 'lg')}>
             {schedulesTitle(perso)}
           </ActionButton>
-          <Tooltip label={editingSlots ? 'Revenir à l’affichage des plages' : 'Déplacer, étirer, changer ou supprimer les plages dans l’agenda'}>
-            <Button
-              variant={editingSlots ? 'filled' : 'default'}
-              aria-pressed={editingSlots}
-              leftSection={editingSlots ? <CheckIcon aria-hidden /> : <PencilSimpleIcon aria-hidden />}
-              onClick={() => setEditingSlots(!editingSlots)}
-            >
-              {editingSlots ? 'Terminer' : 'Modifier les plages'}
-            </Button>
-          </Tooltip>
+          {/* A mode, not a button (decision CN). */}
+          <StateSwitch
+            label="Modifier les plages"
+            showLabel
+            hint={editingSlots ? 'Revenir à l’affichage des plages' : 'Déplacer, étirer, changer ou supprimer les plages dans l’agenda'}
+            checked={editingSlots}
+            onChange={setEditingSlots}
+          />
           <ActionButton icon={<PlusIcon aria-hidden />} onClick={() => openEvent()} disabled={!context}>
             Nouvel évènement
           </ActionButton>

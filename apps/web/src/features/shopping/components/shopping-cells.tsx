@@ -1,4 +1,4 @@
-import { IconAction } from '../../../components/actions/IconAction';
+import { StateSwitch } from '../../../components/inputs/StateSwitch';
 import { categoryOptions, categoryTree } from '../../../components/tree/category-tree';
 import { Select } from '@mantine/core';
 import { localToday } from '../../../lib/dates';
@@ -249,15 +249,11 @@ interface ToggleCellProps {
 }
 
 /**
- * State of a row that a click switches (missing, bought): an icon button, coloured when on, grey when off, unlike the
- * check boxes selecting rows; part of the bulk selection of its column like any cell.
+ * State of a row that a click switches (missing, bought): a switch, coloured with its icon when on, unlike the check
+ * boxes selecting rows; part of the bulk selection of its column like any cell.
  * @param {ToggleCellProps} props Component props.
- * @returns {JSX.Element} Toggle.
+ * @returns {JSX.Element} Switch.
  */
 export function ToggleCell({ on, label, hint, icon, color, readOnly = false, onSave }: ToggleCellProps) {
-  return (
-    <IconAction label={label} hint={hint} variant={on ? 'filled' : 'subtle'} color={on ? color : 'gray'} radius="xl" aria-pressed={on} disabled={readOnly} onClick={() => onSave(!on)}>
-      {icon}
-    </IconAction>
-  );
+  return <StateSwitch label={label} hint={hint} checked={on} color={color} icon={icon} disabled={readOnly} onChange={onSave} />;
 }

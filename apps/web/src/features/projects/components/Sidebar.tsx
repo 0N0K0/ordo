@@ -252,7 +252,7 @@ export function Sidebar() {
         <ActionsMenu
           about="la barre latérale"
           target={
-            <IconAction label="Trier" variant="default" size="input-xs">
+            <IconAction label="Trier" variant="light" size="input-xs">
               <SortAscendingIcon aria-hidden />
             </IconAction>
           }

@@ -50,7 +50,7 @@ const RESTRICTED_PATHS = [
   {
     name: '@phosphor-icons/react',
     importNames: ['DotsThreeIcon', 'DotsThreeVerticalIcon', 'DotsThreeOutlineIcon', 'DotsThreeOutlineVerticalIcon', 'DotsThreeCircleIcon', 'DotsThreeCircleVerticalIcon'],
-    message: 'Un menu « … » : ActionsMenu sans target (trois points verticaux, décision T ; variant="default" à côté de boutons).',
+    message: 'Un menu « … » : ActionsMenu sans target (trois points verticaux, décision T ; variant="light" à côté de boutons, décision CN).',
   },
   {
     name: '@ordo/shared',
@@ -672,7 +672,7 @@ export default defineConfig([
         },
         {
           selector: "JSXOpeningElement[name.name='Button'] > JSXAttribute[name.name='color'][value.value='red']",
-          message: 'Utiliser ActionButton danger (components/actions) : rouge plein, contour rouge en secondaire, texte rouge en tertiaire (décision CG).',
+          message: 'Utiliser ActionButton danger (components/actions) : rouge plein, texte rouge en tertiaire (décision CN).',
         },
         {
           selector: "JSXOpeningElement[name.name=/^(UnstyledButton|Button)$/]:has(> JSXAttribute[name.name='aria-expanded']):not(:has(> JSXAttribute[name.name='aria-haspopup']))",
@@ -766,10 +766,15 @@ export default defineConfig([
           message: 'Utiliser countOf(count, mot) (lib/text) au lieu de « ${count} ${plural(count, mot)} ».',
         },
         {
-          // Decision AB: the light and the switching variants too; a toggle (aria-pressed) and the target of a popover or a menu (its state shown) aside.
-          selector:
-            "JSXOpeningElement[name.name='Button']:has(> JSXAttribute[name.name='leftSection']):has(> JSXAttribute[name.name='variant']:matches([value.value='light'], [value.expression.type='ConditionalExpression'])):not(:has(> JSXAttribute[name.name='aria-pressed'])):not(JSXElement[openingElement.name.property.name='Target'] > JSXElement > JSXOpeningElement):not(JSXAttribute[name.name='target'] JSXOpeningElement)",
-          message: 'Utiliser ActionButton (components/actions/ActionButton), priority primary / secondary / tertiary : icône et libellé (décision AB).',
+          // Decisions AB, CN: the look of a button comes from its priority, the target of a menu or a popover included (`after`).
+          selector: "JSXOpeningElement[name.name='Button'] > JSXAttribute[name.name='variant']",
+          message:
+            'Utiliser ActionButton (components/actions/ActionButton) : primary (plein) pour ajouter, valider ou envoyer, secondary (clair) pour le reste, tertiary (discret, xs) ; after pour un compte ou un caret (décision CN).',
+        },
+        {
+          // Decision CN: a toggle is not a button.
+          selector: "JSXAttribute[name.name='aria-pressed'], JSXOpeningElement[name.name='Switch']:has(> JSXAttribute[name.name='aria-label']):not(:has(> JSXAttribute[name.name='label']))",
+          message: 'Utiliser StateSwitch (components/inputs/StateSwitch) : une bascule est un interrupteur (Switch), un choix de mode un SegmentedControl (décision CN).',
         },
         {
           // Decision AE.

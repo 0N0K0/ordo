@@ -1,5 +1,5 @@
 import { CountBadge } from '../../feedback/CountBadge';
-import { Button, CloseButton, Collapse, Divider, Group, Indicator, Popover, Stack, Text, TextInput, Switch } from '@mantine/core';
+import { CloseButton, Collapse, Divider, Group, Indicator, Popover, Stack, Text, TextInput, Switch } from '@mantine/core';
 import { ArrowCounterClockwiseIcon, ColumnsIcon, FloppyDiskIcon, FunnelIcon, MagnifyingGlassIcon, SlidersHorizontalIcon, SortAscendingIcon } from '@phosphor-icons/react';
 import { FoldHeading } from '../../actions/FoldHeading';
 import { useState, type ReactNode } from 'react';
@@ -76,9 +76,9 @@ export function ToolbarFilter({ count, opened, onOpenedChange, children }: Toolb
   return (
     <Popover opened={isOpened} onChange={setOpened} position="bottom-start" shadow="md" withinPortal trapFocus={false} closeOnClickOutside>
       <Popover.Target>
-        <Button onClick={() => setOpened(!isOpened)} variant={count ? 'light' : 'default'} leftSection={<FunnelIcon aria-hidden />} rightSection={count ? <CountBadge count={count} /> : undefined}>
+        <ActionButton priority="secondary" onClick={() => setOpened(!isOpened)} icon={<FunnelIcon aria-hidden />} after={count ? <CountBadge count={count} /> : undefined}>
           Filtrer
-        </Button>
+        </ActionButton>
       </Popover.Target>
       {/* No scroll container: it would clip the dropdowns rendered inside the popover. */}
       <Popover.Dropdown maw="min(56rem, calc(100vw - 2rem))">{children}</Popover.Dropdown>
@@ -95,9 +95,9 @@ export function ToolbarSort({ count, children }: { count: number; children: Reac
   return (
     <Popover position="bottom-start" shadow="md" withinPortal>
       <Popover.Target>
-        <Button variant={count ? 'light' : 'default'} leftSection={<SortAscendingIcon aria-hidden />} rightSection={count ? <CountBadge count={count} /> : undefined}>
+        <ActionButton priority="secondary" icon={<SortAscendingIcon aria-hidden />} after={count ? <CountBadge count={count} /> : undefined}>
           Trier
-        </Button>
+        </ActionButton>
       </Popover.Target>
       <Popover.Dropdown>{children}</Popover.Dropdown>
     </Popover>
@@ -164,10 +164,9 @@ export function TableOptions({ dirty = false, onSave, onRevert, display, columns
       {/* Never taller than the room left in the window: its content scrolls (the columns unfolded). */}
       <Popover position="bottom-end" shadow="md" withinPortal width={width} middlewares={{ flip: true, shift: true, size: { padding: 8 } }}>
         <Popover.Target>
-          {/* eslint-disable-next-line no-restricted-syntax -- target of the options panel, with its caret. */}
-          <Button variant="default" leftSection={<SlidersHorizontalIcon aria-hidden />} rightSection={<MenuCaret />} aria-label={dirty ? 'Options (modifications non enregistrées)' : 'Options'}>
+          <ActionButton priority="secondary" icon={<SlidersHorizontalIcon aria-hidden />} after={<MenuCaret />} aria-label={dirty ? 'Options (modifications non enregistrées)' : 'Options'}>
             Options
-          </Button>
+          </ActionButton>
         </Popover.Target>
         <Popover.Dropdown style={{ overflowY: 'auto' }}>
           <Stack gap="sm">

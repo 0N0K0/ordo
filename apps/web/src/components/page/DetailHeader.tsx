@@ -49,7 +49,7 @@ export function DetailHeader({ back, page, title, order = 2, badges, subtitle, a
         {(actions || menu) && (
           <Group gap="xs" ml="auto" wrap="wrap">
             {actions}
-            {menu && <ActionsMenu name={menu.name} about={menu.about} items={menu.items} variant="default" size={compact ? 'input-xs' : 'input-sm'} />}
+            {menu && <ActionsMenu name={menu.name} about={menu.about} items={menu.items} variant="light" size={compact ? 'input-xs' : 'input-sm'} />}
           </Group>
         )}
       </Group>

@@ -176,7 +176,6 @@ export function RoutineMoveForm({ routineId, onDone }: { routineId: string; onDo
           </ActionButton>
           {date && (
             <ActionButton
-              priority="secondary"
               danger
               icon={<CalendarXIcon aria-hidden />}
               loading={deleteOccurrence.isPending}

@@ -3,7 +3,7 @@ import { openModal } from '../../../components/panels/open-modal';
 import { addDays, WEEKDAY_LABELS, weekdayOfDate, twoDigits } from '@ordo/shared';
 import { localInstant, localToday } from '../../../lib/dates';
 import { FileBadge } from '../../../components/items/FileBadge';
-import { Anchor, Button, Checkbox, Collapse, FileButton, Group, Paper, Popover, Select, Stack, TagsInput, Text, TextInput } from '@mantine/core';
+import { Anchor, Checkbox, Collapse, FileButton, Group, Paper, Popover, Select, Stack, TagsInput, Text, TextInput } from '@mantine/core';
 import { DateTimePicker } from '@mantine/dates';
 import { ClockCountdownIcon, ClockIcon, FloppyDiskIcon, PaperPlaneTiltIcon, PaperclipIcon, TrashIcon, XIcon, PencilSimpleLineIcon } from '@phosphor-icons/react';
 import { useCallback, useEffect, useRef, useState } from 'react';
@@ -258,7 +258,6 @@ export function MailComposer({ options, onDone }: { options: ComposeOptions; onD
           <Text size="sm">Enregistrez le brouillon pour reprendre ce mail plus tard (dossier Brouillons de la boîte), ou supprimez-le : il sera alors perdu définitivement.</Text>
           <Group justify="flex-end" gap="sm">
             <ActionButton
-              priority="secondary"
               danger
               icon={<TrashIcon aria-hidden />}
               onClick={() => {
@@ -435,20 +434,21 @@ export function MailComposer({ options, onDone }: { options: ComposeOptions; onD
                   Envoyer plus tard
                 </Text>
                 {schedulePresets().map((preset) => (
-                  <Button
+                  <ActionButton
                     key={preset.label}
+                    priority="secondary"
                     size="xs"
-                    variant="default"
                     justify="space-between"
+                    icon={<ClockIcon aria-hidden />}
                     onClick={() => void scheduleAt(preset.at)}
-                    rightSection={
+                    after={
                       <Text size="xs" c="dimmed">
                         {fmt.dateTimeShort(preset.at)}
                       </Text>
                     }
                   >
                     {preset.label}
-                  </Button>
+                  </ActionButton>
                 ))}
                 <DateTimePicker label="Date et heure" placeholder="Choisir…" minDate={new Date()} value={sendAt} onChange={setSendAt} popoverProps={{ withinPortal: false }} />
                 <ActionButton size="xs" icon={<ClockIcon aria-hidden />} disabled={!sendAt} onClick={() => sendAt && void scheduleAt(new Date(sendAt.replace(' ', 'T')))}>

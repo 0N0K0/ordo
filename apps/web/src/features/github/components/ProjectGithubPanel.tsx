@@ -431,7 +431,7 @@ export function ProjectGithubPanel({ projectId }: { projectId: string }) {
               <ActionButton priority="secondary" icon={<PencilSimpleIcon aria-hidden />} onClick={() => setEditing((value) => !value)}>
                 Réglages
               </ActionButton>
-              <ActionButton priority="secondary" danger icon={<LinkBreakIcon aria-hidden />} onClick={confirmUnlink}>
+              <ActionButton danger icon={<LinkBreakIcon aria-hidden />} onClick={confirmUnlink}>
                 Délier
               </ActionButton>
             </Group>

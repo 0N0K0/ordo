@@ -290,7 +290,7 @@ export function ShoppingTable<T extends ShoppingFields>({
       rowProps={(item) => ({ className: classes.itemRow, 'data-done': done?.(item) || undefined })}
       leading={{
         id: toggle.id,
-        width: 36,
+        width: 52,
         header: null,
         cell: (item) => (
           <ToggleCell

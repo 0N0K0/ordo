@@ -217,5 +217,5 @@ interface ListActionsMenuProps {
  * @returns {JSX.Element | null} Menu.
  */
 export function ListActionsMenu({ list, grouping, header = false, onDeleted }: ListActionsMenuProps) {
-  return <ActionsMenu about={`la liste « ${list.label} »`} items={useListActions(list, grouping, onDeleted)} {...(header ? { variant: 'default' as const, size: 'input-sm' } : {})} />;
+  return <ActionsMenu about={`la liste « ${list.label} »`} items={useListActions(list, grouping, onDeleted)} {...(header ? { variant: 'light' as const, size: 'input-sm' } : {})} />;
 }

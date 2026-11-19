@@ -117,7 +117,7 @@ export function GithubSettings() {
               {login ? 'Remplacer' : 'Connecter'}
             </ActionButton>
             {login && (
-              <ActionButton priority="secondary" danger mt={25} icon={<PlugsIcon aria-hidden />} onClick={confirmRemove}>
+              <ActionButton danger mt={25} icon={<PlugsIcon aria-hidden />} onClick={confirmRemove}>
                 Déconnecter
               </ActionButton>
             )}

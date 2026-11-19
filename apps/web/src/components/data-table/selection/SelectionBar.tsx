@@ -40,7 +40,6 @@ export function SelectionBar({ label, actions, onClear }: SelectionBarProps) {
         {actions.map((action) =>
           action.destructive || action.danger ? (
             <ActionButton
-              priority="secondary"
               danger
               key={action.label}
               size="xs"

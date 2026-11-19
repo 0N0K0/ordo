@@ -34,15 +34,15 @@ interface IconActionOwnProps {
 
 /**
  * Button made of an icon alone, the same everywhere: its action in a tooltip, and the action with the element it acts on
- * as its hidden label (« Modifier « Urgent » »); subtle and gray unless told otherwise. The tooltip shows on a disabled
+ * as its hidden label (« Modifier « Urgent » »); subtle and gray unless told otherwise (light, in the primary color, next to buttons: decision CN). The tooltip shows on a disabled
  * button too.
  * @param {IconActionProps} props Component props (and those of the action icon).
  * @returns {JSX.Element} Button.
  */
-export function IconAction({ label, item, hint, 'aria-label': ariaLabel, indicator, children, variant = 'subtle', color = 'gray', ...props }: IconActionProps) {
+export function IconAction({ label, item, hint, 'aria-label': ariaLabel, indicator, children, variant = 'subtle', color, ...props }: IconActionProps) {
   const button = (
     // eslint-disable-next-line no-restricted-syntax -- the one icon button with its tooltip.
-    <ActionIcon variant={variant} color={color} aria-label={ariaLabel ?? (item ? `${label} « ${item} »` : label)} {...(props as object)}>
+    <ActionIcon variant={variant} color={color ?? (variant === 'subtle' ? 'gray' : undefined)} aria-label={ariaLabel ?? (item ? `${label} « ${item} »` : label)} {...(props as object)}>
       {children}
     </ActionIcon>
   );

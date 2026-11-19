@@ -1,0 +1,14 @@
+@layer app {
+  /* The tooltip's anchor, around the switch. */
+  .root {
+    /* Agencement */
+    display: inline-flex;
+    flex-shrink: 0;
+  }
+
+  /* An optional state: its track dashed. */
+  .track {
+    /* Bordures */
+    border-style: dashed;
+  }
+}

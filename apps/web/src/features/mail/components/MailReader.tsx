@@ -218,10 +218,10 @@ export function MailReader({ accountId, folder, uid, isDraft, onDeleted, onManag
       />
       {isDraft ? (
         <Group gap="xs">
-          <ActionButton size="xs" icon={<PencilSimpleLineIcon aria-hidden />} loading={resuming} onClick={() => void resume()}>
+          <ActionButton priority="secondary" size="xs" icon={<PencilSimpleLineIcon aria-hidden />} loading={resuming} onClick={() => void resume()}>
             Reprendre le brouillon
           </ActionButton>
-          <ActionButton priority="secondary" danger size="xs" icon={<TrashIcon aria-hidden />} onClick={confirmDeleteDraft}>
+          <ActionButton danger size="xs" icon={<TrashIcon aria-hidden />} onClick={confirmDeleteDraft}>
             Supprimer le brouillon
           </ActionButton>
         </Group>
@@ -238,7 +238,7 @@ export function MailReader({ accountId, folder, uid, isDraft, onDeleted, onManag
           </ActionButton>
           {projectId ? (
             copy && (
-              <ActionButton priority="secondary" danger size="xs" icon={<LinkBreakIcon aria-hidden />} onClick={() => confirmUnlink(copy.id)}>
+              <ActionButton danger size="xs" icon={<LinkBreakIcon aria-hidden />} onClick={() => confirmUnlink(copy.id)}>
                 Détacher du projet
               </ActionButton>
             )

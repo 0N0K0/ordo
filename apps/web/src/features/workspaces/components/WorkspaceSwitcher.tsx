@@ -1,5 +1,6 @@
 import { openFormPanel } from '../../../components/panels/panels';
-import { Button, UnstyledButton } from '@mantine/core';
+import { UnstyledButton } from '@mantine/core';
+import { ActionButton } from '../../../components/actions/ActionButton';
 import { GearSixIcon } from '@phosphor-icons/react';
 import { ActionsMenu } from '../../../components/actions/ActionsMenu';
 import { useActiveWorkspace, useWorkspaces } from '../api';
@@ -51,9 +52,9 @@ export function WorkspaceSwitcher({ variant = 'button' }: { variant?: 'button' |
             {workspace?.label ?? 'Espace'}
           </UnstyledButton>
         ) : (
-          <Button variant="subtle" size="xs" leftSection={workspace && <WorkspaceKindIcon kind={workspace.kind} />} rightSection={<MenuCaret />} aria-label={label} maw={220}>
+          <ActionButton priority="tertiary" icon={workspace && <WorkspaceKindIcon kind={workspace.kind} />} after={<MenuCaret />} aria-label={label} maw={220}>
             {workspace?.label ?? 'Espace'}
-          </Button>
+          </ActionButton>
         )
       }
     />

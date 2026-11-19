@@ -3,7 +3,7 @@ import { ActionsMenu } from '../../../components/actions/ActionsMenu';
 import { ListSkeleton } from '../../../components/feedback/Skeletons';
 import { confirmDestructive } from '../../../components/dialogs/confirm-destructive';
 import { openFormPanel } from '../../../components/panels/panels';
-import { Box, Button, Group, NavLink, Stack, Text } from '@mantine/core';
+import { Box, Group, NavLink, Stack, Text } from '@mantine/core';
 import { requiredText } from '@ordo/shared';
 import { useLocalStorage } from '@mantine/hooks';
 import {
@@ -114,11 +114,11 @@ export function AccountFolders({ account, selected, onSelect, dragged, onDropped
           Premier niveau
         </ActionButton>
         {choices.map((item) => (
-          <Button
+          <ActionButton
             key={item.path}
-            variant="subtle"
+            priority="secondary"
             justify="flex-start"
-            leftSection={<FolderIcon aria-hidden />}
+            icon={<FolderIcon aria-hidden />}
             style={{ paddingLeft: `calc(var(--mantine-spacing-sm) + ${item.depth} * var(--mantine-spacing-md))` }}
             onClick={() => {
               close();
@@ -126,7 +126,7 @@ export function AccountFolders({ account, selected, onSelect, dragged, onDropped
             }}
           >
             {item.name}
-          </Button>
+          </ActionButton>
         ))}
       </Stack>
     ));

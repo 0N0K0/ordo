@@ -1,4 +1,4 @@
-import { IconAction } from '../../../components/actions/IconAction';
+import { StateSwitch } from '../../../components/inputs/StateSwitch';
 import { ArchivedBadge } from '../../../components/feedback/ArchivedBadge';
 import { Group, Stack, Title } from '@mantine/core';
 import { StarIcon } from '@phosphor-icons/react';
@@ -36,16 +36,15 @@ export function EntityHeader({ entity, subtitle, extraActions }: { entity: Entit
       </Group>
       <Group gap="xs">
         {!item.archived && (
-          <IconAction
-            label={item.favorite ? 'Retirer des favoris' : 'Ajouter aux favoris'}
-            variant={item.favorite ? 'light' : 'default'}
-            color={item.favorite ? 'yellow' : undefined}
-            size="input-sm"
-            aria-pressed={item.favorite}
-            onClick={() => actions.setFavorite(entity, !item.favorite)}
-          >
-            <StarIcon weight={item.favorite ? 'fill' : 'regular'} aria-hidden />
-          </IconAction>
+          <StateSwitch
+            label="Favori"
+            showLabel
+            hint={item.favorite ? 'Retirer des favoris' : 'Ajouter aux favoris'}
+            checked={item.favorite}
+            color="yellow"
+            icon={<StarIcon weight="fill" aria-hidden />}
+            onChange={(favorite) => actions.setFavorite(entity, favorite)}
+          />
         )}
         {extraActions}
       </Group>

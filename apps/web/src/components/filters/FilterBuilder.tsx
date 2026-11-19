@@ -299,7 +299,7 @@ function GroupEditor<F extends string>({ group, depth, fields, onChange, onRemov
             </AddItemButton>
           )}
           {onRemove && (
-            <ActionButton priority="secondary" danger size="compact-sm" icon={<TrashIcon aria-hidden />} onClick={onRemove}>
+            <ActionButton danger size="compact-sm" icon={<TrashIcon aria-hidden />} onClick={onRemove}>
               Retirer le groupe
             </ActionButton>
           )}

@@ -296,7 +296,7 @@ export function ShoppingListPage() {
             <ActionButton priority="secondary" icon={<TruckIcon aria-hidden />} disabled={list.archived} onClick={() => openFormPanel('Commande à distance', () => <OrderPanel listId={list.id} />)}>
               {list.remote ? `Commande · ${countOf(list.deliveries.filter((delivery) => !delivery.receivedAt).length, 'livraison')} en cours` : 'Commande à distance'}
             </ActionButton>
-            <ActionButton icon={<ShoppingCartIcon aria-hidden />} disabled={list.items.length === 0 || list.archived} onClick={() => setStoreMode(true)}>
+            <ActionButton priority="secondary" icon={<ShoppingCartIcon aria-hidden />} disabled={list.items.length === 0 || list.archived} onClick={() => setStoreMode(true)}>
               Mode collecte
             </ActionButton>
             <ListActionsMenu list={list} grouping={grouping} onDeleted={() => navigate(SHOPPING_LISTS_PATH)} header />

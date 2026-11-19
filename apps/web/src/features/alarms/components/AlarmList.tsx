@@ -1,6 +1,7 @@
 import { InlineActions } from '../../../components/actions/ActionsMenu';
 import { confirmDestructive } from '../../../components/dialogs/confirm-destructive';
-import { Anchor, Badge, Group, Paper, Stack, Switch, Text } from '@mantine/core';
+import { StateSwitch } from '../../../components/inputs/StateSwitch';
+import { Anchor, Badge, Group, Paper, Stack, Text } from '@mantine/core';
 import { CopyIcon, PencilSimpleIcon, TrashIcon } from '@phosphor-icons/react';
 import { Link } from 'react-router';
 import { ON_ERROR } from '../../../lib/notify';
@@ -97,10 +98,10 @@ export function AlarmList({ alarms, context, openForm, showTarget = true }: Alar
                 )}
               </Stack>
               <Group gap="xs" wrap="nowrap">
-                <Switch
-                  aria-label={alarm.enabled ? `Désactiver ${alarm.label}` : `Activer ${alarm.label}`}
+                <StateSwitch
+                  label={alarm.enabled ? `Désactiver ${alarm.label}` : `Activer ${alarm.label}`}
                   checked={alarm.enabled}
-                  onChange={(event) => update.mutate({ id: alarm.id, input: toAlarmInput(alarm, { enabled: event.currentTarget.checked }) }, ON_ERROR)}
+                  onChange={(enabled) => update.mutate({ id: alarm.id, input: toAlarmInput(alarm, { enabled }) }, ON_ERROR)}
                 />
                 <InlineActions
                   name={alarm.label}

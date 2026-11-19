@@ -406,7 +406,7 @@ function Editor({ document }: { document: AccountingDocument }) {
               component="a"
               href={pdfUrl(document.id, true)}
               download
-              variant="default"
+              variant="light"
               size="lg"
             >
               <DownloadSimpleIcon aria-hidden />
@@ -433,7 +433,7 @@ function Editor({ document }: { document: AccountingDocument }) {
                     Valider
                   </ActionButton>
                 )}
-                <ActionButton priority="secondary" danger icon={<TrashIcon aria-hidden />} onClick={confirmDelete}>
+                <ActionButton danger icon={<TrashIcon aria-hidden />} onClick={confirmDelete}>
                   Supprimer le brouillon
                 </ActionButton>
               </>

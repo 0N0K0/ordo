@@ -15,7 +15,7 @@ interface DestructiveActionsProps {
 }
 
 /**
- * Buttons of every destructive dialog, bottom-right: the confirmation first (in red), then Cancel.
+ * Buttons of every destructive dialog, bottom-right: the confirmation first (filled red), then Cancel (light).
  * @param {DestructiveActionsProps} props Component props.
  * @returns {JSX.Element} Buttons.
  */
@@ -33,13 +33,13 @@ export function DestructiveActions({ onConfirm, onCancel, loading = false, confi
 }
 
 /**
- * « Supprimer » button of a form (its trash icon, in red); the deletion asks for a confirmation (confirmDestructive).
+ * « Supprimer » button of a form (its trash icon, filled red: decision CN); the deletion asks for a confirmation (confirmDestructive).
  * @param {{ onClick: () => void, loading?: boolean, children?: ReactNode }} props Component props: the label defaults to « Supprimer ».
  * @returns {JSX.Element} Button.
  */
 export function DeleteButton({ onClick, loading = false, children = 'Supprimer' }: { onClick: () => void; loading?: boolean; children?: ReactNode }) {
   return (
-    <ActionButton priority="secondary" danger icon={<TrashIcon aria-hidden />} onClick={onClick} loading={loading}>
+    <ActionButton danger icon={<TrashIcon aria-hidden />} onClick={onClick} loading={loading}>
       {children}
     </ActionButton>
   );

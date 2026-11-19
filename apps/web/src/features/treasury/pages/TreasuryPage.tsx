@@ -376,6 +376,7 @@ export function TreasuryPage() {
             >
               <Popover opened={picking} onChange={setPicking} position="bottom" shadow="md" withArrow>
                 <Popover.Target>
+                  {/* eslint-disable-next-line no-restricted-syntax -- a period picker showing its value (no icon), small and discreet like a field. */}
                   <Button size="xs" variant="subtle" color="gray" miw={150} onClick={() => setPicking((open) => !open)} aria-label={`Choisir la période (${periodName(scale, periodFirst)})`}>
                     {periodName(scale, periodFirst)}
                   </Button>

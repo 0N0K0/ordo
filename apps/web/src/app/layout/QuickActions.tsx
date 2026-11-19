@@ -1,4 +1,4 @@
-import { Button } from '@mantine/core';
+import { ActionButton } from '../../components/actions/ActionButton';
 import { ActionsMenu } from '../../components/actions/ActionsMenu';
 import { AlarmIcon, CalendarPlusIcon, CheckSquareOffsetIcon, EnvelopeSimpleIcon, FileTextIcon, PlayIcon, PlusIcon } from '@phosphor-icons/react';
 import type { ReactNode } from 'react';
@@ -69,9 +69,9 @@ export function QuickActions() {
       items={actions.map((action) => ({ label: action.title, icon: action.icon, onClick: action.onClick, disabled: action.disabled, hint: action.hint }))}
       target={
         // On a very small screen, only the plus (the name stays for screen readers).
-        <Button className={classes.add} size="xs" variant="light" leftSection={<PlusIcon aria-hidden />} rightSection={<MenuCaret />} disabled={!context} aria-label="Ajouter">
+        <ActionButton priority="secondary" className={classes.add} size="xs" icon={<PlusIcon aria-hidden />} after={<MenuCaret />} disabled={!context} aria-label="Ajouter">
           <span className={classes.label}>Ajouter</span>
-        </Button>
+        </ActionButton>
       }
     />
   );

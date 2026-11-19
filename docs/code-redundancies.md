@@ -2,11 +2,9 @@
 
 État au 19 novembre 2026, matin, après neuf séries d'unifications (voir [Déjà unifié](#déjà-unifié)). Copier-coller (`npm run dup`) : 4 copies. Les décisions déjà prises sont en [annexe](#décisions-déjà-prises).
 
-La série du 19 novembre (lots 1 à 4 ci-dessous) est faite : les points 1 à 6 de cette page sont traités. Restent à trancher :
+La série du 19 novembre (lots 1 à 4 ci-dessous) est faite : les points 1 à 6 de cette page sont traités. Décisions de suivi :
 
-- **CN. Boutons d'aspect « actif »** (interrupteurs `aria-pressed`, cibles de menu : Filtrer, Trier, « Ajouter » de l'en-tête, « Modifier les plages ») : garder leur `variant="light"` / variante en ternaire, ou les aligner sur `ActionButton` ? La règle eslint les ignore en attendant.
-- **CO. Filtres « est vide » sur les colonnes de comptage** (commentaires, lots, utilisée par…) : 0 n'est pas vide, elles sont marquées obligatoires (pas de « est vide »). À confirmer.
-- **CP. Colonnes laissées facultatives faute de certitude :** emplacement d'un inventaire, répétition d'une facture récurrente, objet d'un document, « travail » de la facturation du temps, horaires d'une plage.
+- **CN, CO, CP :** tranchées et appliquées (lot 5 : `ActionButton` primary plein, secondary clair, danger plein rouge ; bascules en `StateSwitch`). Voir l'annexe.
 
 La bibliothèque de documents n'est pas traitée : elle sera refaite entièrement.
 
@@ -179,13 +177,16 @@ Toutes les décisions de ce round sont prises (CA à CM, voir plus bas).
 - **CD. Brouillon de document :** « Brouillon », sans parenthèses ni espace en fin de titre et de nom de fichier.
 - **CE. Compte mail :** « Nom <adresse> » partout (`accountLabel`).
 - **CF. Retard dans la facturation et la trésorerie :** orange, comme l'accueil.
-- **CG. Bouton destructif secondaire :** contour rouge.
+- **CG. Bouton destructif secondaire :** ~~contour rouge~~ remplacé par CN : `primary` rouge.
 - **CH. En-têtes repliables :** toute la ligne est cliquable, partout (`FoldHeading`), groupes de tableau compris.
 - **CI. Compteurs de groupe :** taille `xs`.
 - **CJ. Colonne commentaires :** avec l'icône, comme les tâches.
 - **CK. Renommage en ligne :** supprimé ; le titre du panneau de tâche et celui d'un graphique se renomment comme ailleurs, par `LabelForm` dans le panneau latéral.
 - **CL. En-tête des panneaux :** celui du panneau latéral partout, réglages compris ; le voile des réglages est tiré des tokens de couleur (plus de `#000` ni d'opacité en dur).
 - **CM. Arbre des projets :** `Workspace` / `useWorkspace` renommés `ProjectTree` / `useProjectTree`, et les doublons de noms (`LinesEditor`…) renommés.
+- **CN. Aspect des boutons :** variante `primary` (plein) seulement pour ajouter un élément, valider une action ou soumettre un formulaire ; tous les autres boutons en `light` ; les petits boutons discrets (`xs`, « + Ajouter une ligne ») restent sans fond. Un bouton destructif (Supprimer…) est `primary` rouge, ni clair ni contour (remplace CG). Les bascules (`aria-pressed`) ne sont pas des boutons : ce sont des interrupteurs (`Switch`, ou choix segmenté pour un mode).
+- **CO. Colonnes de comptage :** 0 n'est pas vide ; elles n'ont pas « est vide ».
+- **CP. Colonnes incertaines :** restent facultatives. La colonne « Temps » de la facturation du temps montre les tâches et la description d'un temps : un temps peut n'avoir ni l'un ni l'autre, donc elle peut être vide.
 
 ## Restent à part
 

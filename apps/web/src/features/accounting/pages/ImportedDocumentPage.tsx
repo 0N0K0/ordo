@@ -72,7 +72,7 @@ export function ImportedDocumentPage() {
         actions={
           <>
             {document.fileUrl && (
-              <IconAction label="Télécharger le fichier" component="a" href={downloadUrl(document.fileUrl)} variant="default" size="lg">
+              <IconAction label="Télécharger le fichier" component="a" href={downloadUrl(document.fileUrl)} variant="light" size="lg">
                 <DownloadSimpleIcon aria-hidden />
               </IconAction>
             )}

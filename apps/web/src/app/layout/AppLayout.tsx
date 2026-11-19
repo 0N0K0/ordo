@@ -1,5 +1,6 @@
 import { SidePanelHost } from '../../components/panels/SidePanel';
-import { AppShell, Burger, Button, Group, Stack } from '@mantine/core';
+import { AppShell, Burger, Group, Stack } from '@mantine/core';
+import { ActionButton } from '../../components/actions/ActionButton';
 import { ActionsMenu } from '../../components/actions/ActionsMenu';
 import { useDisclosure, useLocalStorage } from '@mantine/hooks';
 import { ModalsProvider } from '@mantine/modals';
@@ -122,9 +123,9 @@ export function AppLayout() {
                       { label: 'Me déconnecter', icon: <SignOutIcon aria-hidden />, onClick: handleLogout },
                     ]}
                     target={
-                      <Button variant="subtle" size="xs" leftSection={<UserIcon aria-hidden />} rightSection={<MenuCaret />} loading={logout.isPending} maw={200}>
+                      <ActionButton priority="tertiary" icon={<UserIcon aria-hidden />} after={<MenuCaret />} loading={logout.isPending} maw={200}>
                         {user?.username ?? 'Mon compte'}
-                      </Button>
+                      </ActionButton>
                     }
                   />
                 </Group>
