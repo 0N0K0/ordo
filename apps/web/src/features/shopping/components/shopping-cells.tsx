@@ -13,6 +13,7 @@ import { rowPeopleKeys, rowPeopleOf, unitOptions, usePeople } from '../lib/shopp
 import { treeSelectProps } from '../../../components/tree/tree-select';
 import { cellCombobox, cellField } from '../../../components/data-table/cells/cell-field';
 import { unarchived, unarchivedOffered } from '../../../lib/archive';
+import { conservationKey, conservationOf, NOT_PERISHABLE, PERISHABLE, type Conservation } from '../lib/conservation';
 
 interface UnitCellProps {
   value: string | null;
@@ -100,18 +101,13 @@ export function PeopleCell({ memberIds, relationIds, label, readOnly = false, on
   );
 }
 
-/** Value of the conservation cell for a perishable row without storage mode. */
-const PERISHABLE = 'perishable';
-/** Value of the conservation cell for a row that is not perishable. */
-const LASTING = 'lasting';
-
 interface ConservationCellProps {
   perishable: boolean;
   storageId: string | null;
   storages: ShoppingStorage[];
   label: string;
   readOnly?: boolean;
-  onSave: (conservation: { perishable: boolean; storageId: string | null }) => void;
+  onSave: (conservation: Conservation) => void;
 }
 
 /**
@@ -120,7 +116,7 @@ interface ConservationCellProps {
  * @returns {JSX.Element} Cell.
  */
 export function ConservationCell({ perishable, storageId, storages, label, readOnly = false, onSave }: ConservationCellProps) {
-  const value = !perishable ? LASTING : (storageId ?? PERISHABLE);
+  const value = conservationKey({ perishable, storageId });
   const current = perishable ? storages.find((storage) => storage.id === storageId) : undefined;
   const storageLook = listSelectProps(storages, undefined, storageId);
   return (
@@ -130,7 +126,7 @@ export function ConservationCell({ perishable, storageId, storages, label, readO
       readOnly={readOnly}
       allowDeselect={false}
       data={[
-        { value: LASTING, label: 'Non périssable' },
+        { value: NOT_PERISHABLE, label: 'Non périssable' },
         { value: PERISHABLE, label: 'Périssable' },
         ...(storageLook.data.length ? [{ group: 'Périssable, à conserver', items: storageLook.data }] : []),
       ]}
@@ -139,7 +135,7 @@ export function ConservationCell({ perishable, storageId, storages, label, readO
       value={value}
       onChange={(next) => {
         if (!next || next === value) return;
-        onSave(next === LASTING ? { perishable: false, storageId: null } : { perishable: true, storageId: next === PERISHABLE ? null : next });
+        onSave(conservationOf(next));
       }}
       c={perishable ? undefined : 'dimmed'}
     />
@@ -263,7 +259,7 @@ interface ToggleCellProps {
  */
 export function ToggleCell({ on, label, hint, icon, color, readOnly = false, onSave }: ToggleCellProps) {
   return (
-    <IconAction label={hint} variant={on ? 'filled' : 'subtle'} color={on ? color : 'gray'} radius="xl" aria-label={label} aria-pressed={on} disabled={readOnly} onClick={() => onSave(!on)}>
+    <IconAction label={label} hint={hint} variant={on ? 'filled' : 'subtle'} color={on ? color : 'gray'} radius="xl" aria-pressed={on} disabled={readOnly} onClick={() => onSave(!on)}>
       {icon}
     </IconAction>
   );

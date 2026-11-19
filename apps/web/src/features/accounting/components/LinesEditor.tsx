@@ -5,7 +5,7 @@ import { AddItemButton } from '../../../components/actions/AddItemButton';
 import { InlineActions } from '../../../components/actions/ActionsMenu';
 import { EmptyState } from '../../../components/feedback/EmptyState';
 import { Badge, Collapse, Group, Paper, Select, Stack, Text, TextInput } from '@mantine/core';
-import { ACCOUNTING_UNITS, UNIT_LABELS, VAT_RATES, type AccountingLineInput, type LineKind, type LineTotal } from '@ordo/shared';
+import { ACCOUNTING_UNITS, UNIT_LABELS, type AccountingLineInput, type LineKind, type LineTotal } from '@ordo/shared';
 import { NotePencilIcon, PackageIcon, TrashIcon } from '@phosphor-icons/react';
 import { useState, type ReactNode } from 'react';
 import { MarkdownEditor } from '../../../components/markdown/MarkdownEditor';
@@ -17,6 +17,8 @@ import * as fmt from '../../../lib/format';
 import { AmountInput } from '../../../components/inputs/AmountInput';
 import { DiscountInput } from './DiscountInput';
 import { QuantityInput } from '../../../components/inputs/QuantityInput';
+import { vatRateOptions } from '../lib/labels';
+import { itemCellLabel } from '../../../components/data-table/cells/cell-field';
 
 const KIND_LABELS: Record<LineKind, string> = { ITEM: 'Article', DISBURSEMENT: 'Débours', TEXT: 'Texte', DEDUCTION: 'Déjà facturé' };
 
@@ -78,7 +80,7 @@ function LineRow({ line, total, index, count, readOnly, vatApplicable, currency,
             {line.deductedDocumentId ? 'Acompte' : KIND_LABELS[line.kind]}
           </Badge>
           <TextInput
-            aria-label={`Libellé de la ligne ${index + 1}`}
+            aria-label={itemCellLabel('Libellé', `la ligne ${index + 1}`, 1)}
             placeholder={line.kind === 'TEXT' ? 'Titre de section, note…' : 'Libellé'}
             value={line.label}
             readOnly={readOnly}
@@ -126,7 +128,7 @@ function LineRow({ line, total, index, count, readOnly, vatApplicable, currency,
                 label="TVA"
                 size="xs"
                 w={95}
-                data={[...new Set([...VAT_RATES, line.vatRate])].map((rate) => ({ value: String(rate), label: `${fmt.percent(rate)}` }))}
+                data={vatRateOptions(line.vatRate)}
                 value={String(line.vatRate)}
                 readOnly={readOnly}
                 allowDeselect={false}

@@ -13,7 +13,7 @@ import { Badge, Group, Stack, Text } from '@mantine/core';
 import { recurrenceSchema } from '@ordo/shared';
 import { ArrowsClockwiseIcon, BellRingingIcon, BuildingsIcon, FileTextIcon, FileZipIcon, PackageIcon, PaperPlaneTiltIcon, PencilSimpleIcon, PlusIcon } from '@phosphor-icons/react';
 import { DataTable } from '../../../components/data-table/table/DataTable';
-import { bulkSaver } from '../../../components/data-table/selection/bulk-edit';
+import { bulkCellLabels, bulkSaver } from '../../../components/data-table/selection/bulk-edit';
 import { EditableSelect, EditableText } from '../../../components/data-table/cells/EditableCells';
 import { useDataView } from '../../../components/data-table/views/use-data-view';
 import { RowActions } from '../../../components/data-table/cells/RowActions';
@@ -73,16 +73,16 @@ function repetitionText(item: RecurringInvoice): string {
 
 /** Columns of the recurring invoices. */
 const RECURRING_COLUMNS: DataColumn<RecurringInvoice>[] = [
-  { id: 'name', label: 'Libellé', size: 280, locked: true, bulk: true, sortValue: (item) => item.label, text: (item) => item.label },
+  { id: 'label', label: 'Libellé', size: 280, locked: true, bulk: true, sortValue: (item) => item.label, text: (item) => item.label },
   { id: 'client', label: 'Client', size: 200, sortValue: (item) => item.template.clientName ?? null, text: (item) => item.template.clientName ?? '', groupable: true },
   { id: 'repetition', label: 'Répétition', size: 240, text: repetitionText, groupable: true },
   {
     id: 'next',
     label: 'Prochaine',
     size: 130,
-    sortValue: (item) => (item.nextDate ? item.nextDate : null),
+    sortValue: (item) => item.nextDate || null,
     text: (item) => (item.nextDate ? fmt.day(item.nextDate) : 'Terminée'),
-    filter: { kind: 'date', value: (item) => (item.nextDate ? item.nextDate : null) },
+    filter: { kind: 'date', value: (item) => item.nextDate || null },
   },
   {
     id: 'state',
@@ -139,6 +139,7 @@ function RecurringList() {
     archived: (item) => item.archived,
   });
   // An archived one is read only: left out of the changes of several rows.
+  const cellLabelOf = bulkCellLabels(view, (item: RecurringInvoice) => item.label);
   const bulk = bulkSaver(view, (item: RecurringInvoice, change: Partial<RecurringSettings>) => !item.archived && saveRecurring(item, change));
   if (isPending) return <TableSkeleton rows={3} />;
 
@@ -172,10 +173,10 @@ function RecurringList() {
       getKey={(item) => item.id}
       cells={(item) => {
         return {
-          name: (
+          label: (
             <>
               <Group gap={6} wrap="nowrap">
-                <EditableText value={item.label} label={`Libellé de ${item.label}`} strong readOnly={item.archived} onSave={(name) => name && bulk('name')(item, { label: name })} />
+                <EditableText value={item.label} label={cellLabelOf('label', item, 'Libellé')} strong readOnly={item.archived} onSave={(label) => label && bulk('label')(item, { label })} />
                 {item.archived && <ArchivedBadge feminine size="xs" />}
                 {!item.active && (
                   <Badge size="xs" color="gray" variant="light">
@@ -199,7 +200,7 @@ function RecurringList() {
           state: (
             <EditableSelect
               value={item.active ? 'active' : 'paused'}
-              label={`État de ${item.label}`}
+              label={cellLabelOf('state', item, 'État')}
               readOnly={item.archived}
               data={[
                 { value: 'active', label: 'Active' },
@@ -256,7 +257,7 @@ export function AccountingPage() {
     .sort()
     .reverse();
   // Archived ones are not to do any more.
-  const toSend = (documents ?? []).filter((document) => !document.archived && document.status === 'FINAL' && document.trackingStatus?.category === 'TO_SEND');
+  const toSend = unarchived(documents ?? []).filter((document) => document.status === 'FINAL' && document.trackingStatus?.category === 'TO_SEND');
   const importedToSend = unarchived(imported.data ?? []).filter((document) => document.trackingStatus?.category === 'TO_SEND');
   const toSendCount = toSend.length + importedToSend.length;
 

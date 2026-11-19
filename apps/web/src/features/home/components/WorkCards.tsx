@@ -18,10 +18,10 @@ import classes from './Home.module.css';
 import tile from '../../../components/page/StatTile.module.css';
 import { CardFigure, HomeCard } from './HomeCard';
 import { HomeList, HomeRow } from './HomeList';
-import { dayLabel, type WeekTime } from '../lib/home-data';
+import { dayLabel, isTaskLate, type WeekTime } from '../lib/home-data';
 import * as fmt from '../../../lib/format';
 import { LateBadge } from './LateBadge';
-import { taskRef } from '../../tasks/hooks/use-task-context';
+import { taskNumber } from '../../tasks/hooks/use-task-context';
 
 interface TasksCardProps {
   context: TaskContext | null;
@@ -45,13 +45,13 @@ export function TasksCard({ context, tasks, today }: TasksCardProps) {
           items={tasks}
           render={(task) => {
             const status = task.statusId ? context.statusById.get(task.statusId) : undefined;
-            const late = task.deadline !== null && task.deadline < today;
+            const late = isTaskLate(task, today);
             return (
               <HomeRow
                 key={task.id}
                 to={link.to(task.id)}
                 label={task.label}
-                subtitle={[context.projectLabel(task.projectId), taskRef(task).trim()].filter(Boolean).join(' · ')}
+                subtitle={[context.projectLabel(task.projectId), taskNumber(task)].filter(Boolean).join(' · ')}
                 value={late && task.deadline ? <LateBadge due={task.deadline} today={today} /> : <ItemBadge item={status} />}
               />
             );

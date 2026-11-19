@@ -67,7 +67,7 @@ export function MailOrganizeActions({ groups, done, labelIds, onMoved, onManageL
         {done ? <CheckCircleIcon weight="fill" aria-hidden /> : <CircleIcon aria-hidden />}
       </IconAction>
       <ActionsMenu
-        name="drapeaux"
+        about="des drapeaux"
         keepOpen
         target={
           <IconAction label="Drapeaux">
@@ -89,9 +89,9 @@ export function MailOrganizeActions({ groups, done, labelIds, onMoved, onManageL
         ]}
       />
       <IconAction
-        label={junk ? 'Pas un spam (retour en réception)' : 'Signaler comme spam'}
+        label={junk ? 'Pas un spam' : 'Signaler comme spam'}
+        hint={junk ? 'Pas un spam (retour en réception)' : undefined}
         color={junk ? 'gray' : 'orange'}
-        aria-label={junk ? 'Pas un spam' : 'Signaler comme spam'}
         loading={spam.isPending}
         onClick={() =>
           void each((group) => spam.mutateAsync({ ...group, spam: !junk }))
@@ -106,7 +106,7 @@ export function MailOrganizeActions({ groups, done, labelIds, onMoved, onManageL
       </IconAction>
       {oneAccount && !noMove && (
         <ActionsMenu
-          name="déplacement"
+          about="du déplacement"
           maxHeight={360}
           target={
             <IconAction label="Déplacer vers…" aria-label="Déplacer vers un dossier">
@@ -168,14 +168,8 @@ export function MailSelectionBar({ groups, done, labelIds, onGone, onClear, onMa
           rattachées à des projets sont conservées.
         </>
       ),
-      onConfirm: () => {
-        void Promise.all(targets.map((group) => remove.mutateAsync(group)))
-          .then(() => {
-            notifySuccess(plural(count, 'Mail supprimé.', 'Mails supprimés.'));
-            onGone();
-          })
-          .catch(onMutationError);
-      },
+      run: () => Promise.all(targets.map((group) => remove.mutateAsync(group))).then(onGone),
+      done: plural(count, 'Mail supprimé.', 'Mails supprimés.'),
     });
   };
 

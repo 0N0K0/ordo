@@ -278,7 +278,7 @@ export function AccountFolders({ account, selected, onSelect, dragged, onDropped
               <Group gap={2} wrap="nowrap">
                 <MailCountBadges todo={folder.todo ?? 0} unread={folder.unseen} compact />
                 <ActionsMenu
-                  name={`le dossier ${folder.name}`}
+                  about={`le dossier « ${folder.name} »`}
                   size="xs"
                   inRow
                   items={[

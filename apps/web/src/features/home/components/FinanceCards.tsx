@@ -1,3 +1,4 @@
+import { LateBadge } from './LateBadge';
 import { EmptyState } from '../../../components/feedback/EmptyState';
 import { SubSection } from '../../../components/page/SubSection';
 import { localDay } from '../../../lib/dates';
@@ -11,10 +12,11 @@ import { useOverdueInvoices } from '../../accounting/api/tracking';
 import type { TreasuryProjection } from '../../treasury/api';
 import { CardFigure, HomeCard } from './HomeCard';
 import { HOME_ROWS, HomeList, HomeRow } from './HomeList';
-import { dayLabel, type BillingSummary } from '../lib/home-data';
+import { balanceIn30Days, dayLabel, type BillingSummary } from '../lib/home-data';
 import * as fmt from '../../../lib/format';
 import { countOf } from '../../../lib/text';
-import { documentPath, PAGES } from '../../../app/pages';
+import { documentPath, OVERDUE_INVOICES_PATH, PAGES } from '../../../app/pages';
+import { unarchived } from '../../../lib/archive';
 
 /**
  * Revenue of the month and of the year, drafts to finish, and the overdue invoices to follow up.
@@ -24,7 +26,7 @@ import { documentPath, PAGES } from '../../../app/pages';
 export function BillingCard({ summary, today }: { summary: BillingSummary | null; today: string }) {
   const overdue = useOverdueInvoices(today);
   return (
-    <HomeCard title="Facturation" icon={<ReceiptIcon aria-hidden />} to="/accounting?tab=overdue" linkLabel="Relancer" loading={!summary || !overdue.data}>
+    <HomeCard title="Facturation" icon={<ReceiptIcon aria-hidden />} to={OVERDUE_INVOICES_PATH} linkLabel="Relancer" loading={!summary || !overdue.data}>
       {summary && overdue.data && (
         <Stack gap="sm">
           <SimpleGrid cols={3}>
@@ -43,11 +45,14 @@ export function BillingCard({ summary, today }: { summary: BillingSummary | null
                     key={invoice.id}
                     to={documentPath(invoice.id)}
                     label={invoice.clientName ?? 'Client inconnu'}
-                    subtitle={`${invoice.number} · ${fmt.daysLate(invoice.dueDate ?? today, today)}${invoice.reminderCount > 0 ? ` · ${countOf(invoice.reminderCount, 'relance')}` : ''}`}
+                    subtitle={`${invoice.number}${invoice.reminderCount > 0 ? ` · ${countOf(invoice.reminderCount, 'relance')}` : ''}`}
                     value={
-                      <Text size="sm" fw={600} c="red">
-                        {fmt.money(invoice.balance ?? 0)}
-                      </Text>
+                      <Group gap="xs" wrap="nowrap">
+                        {invoice.dueDate && <LateBadge due={invoice.dueDate} today={today} />}
+                        <Text size="sm" fw={600} c="red">
+                          {fmt.money(invoice.balance ?? 0)}
+                        </Text>
+                      </Group>
                     }
                   />
                 )}
@@ -104,11 +109,11 @@ export function TreasuryCard({ projection, today }: { projection: TreasuryProjec
     if (!projection) return null;
     const forecast = projection.series.filter((point) => point.date >= today);
     const in30 = addDays(today, 30);
-    const at30 = [...forecast].reverse().find((point) => point.date <= in30);
+    const at30 = balanceIn30Days(forecast, today);
     const lowest = forecast.reduce<(typeof forecast)[number] | null>((low, point) => (!low || point.balance < low.balance ? point : low), null);
-    const coming = projection.items
+    const coming = unarchived(projection.items)
       // Archived ones still count in the balances, their rows are hidden.
-      .filter((item) => item.kind !== 'ACTUAL' && !item.archived && item.date <= in30)
+      .filter((item) => item.kind !== 'ACTUAL' && item.date <= in30)
       .sort((a, b) => a.date.localeCompare(b.date))
       .slice(0, HOME_ROWS);
     return { forecast, at30, lowest, coming };
@@ -140,7 +145,7 @@ export function TreasuryCard({ projection, today }: { projection: TreasuryProjec
               {data.coming.map((item, index) => (
                 <Group key={`${item.date}-${item.label}-${index}`} justify="space-between" wrap="nowrap" gap="xs">
                   <Group gap="xs" wrap="nowrap" miw={0}>
-                    <Text size="sm" c={item.overdue ? 'red' : 'dimmed'} w={88} style={{ flexShrink: 0 }}>
+                    <Text size="sm" c={item.overdue ? 'orange' : 'dimmed'} w={88} style={{ flexShrink: 0 }}>
                       {item.overdue ? 'En retard' : dayLabel(item.date, today)}
                     </Text>
                     <Text size="sm" truncate>

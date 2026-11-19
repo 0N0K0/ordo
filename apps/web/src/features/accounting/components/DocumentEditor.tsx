@@ -1,3 +1,5 @@
+import { openFile } from '../../files/lib/open-file';
+import { FileBadge } from '../../../components/items/FileBadge';
 import { IconAction } from '../../../components/actions/IconAction';
 import { DetailNotFound } from '../../../components/feedback/DetailNotFound';
 import { DestructiveButton } from '../../../components/dialogs/DestructiveActions';
@@ -6,32 +8,12 @@ import { NoticeAlert } from '../../../components/feedback/NoticeAlert';
 
 import { EmptyState } from '../../../components/feedback/EmptyState';
 import { ErrorAlert } from '../../../components/feedback/ErrorAlert';
-import { ClientSelect } from '../../workspace/components/ClientSelect';
+import { ClientSelect } from '../../projects/components/ClientSelect';
 import { openModal } from '../../../components/panels/open-modal';
 import { DetailSkeleton } from '../../../components/feedback/Skeletons';
 import { confirmDestructive } from '../../../components/dialogs/confirm-destructive';
 import { openFormPanel } from '../../../components/panels/panels';
-import {
-  Anchor,
-  Autocomplete,
-  Badge,
-  Button,
-  Divider,
-  FileButton,
-  Grid,
-  Group,
-  Paper,
-  SegmentedControl,
-  Select,
-  SimpleGrid,
-  Stack,
-  Switch,
-  Table,
-  Text,
-  Textarea,
-  TextInput,
-  Tooltip,
-} from '@mantine/core';
+import { Anchor, Autocomplete, Badge, Divider, FileButton, Grid, Group, Paper, SegmentedControl, Select, SimpleGrid, Stack, Switch, Table, Text, Textarea, TextInput } from '@mantine/core';
 import { FormActions } from '../../../components/dialogs/FormActions';
 import { DatePickerInput } from '@mantine/dates';
 
@@ -50,6 +32,7 @@ import {
   PAYMENT_TERMS_PRESETS,
   toCents,
   sumOf,
+  isInvoice,
 } from '@ordo/shared';
 
 import {
@@ -63,7 +46,6 @@ import {
   HandCoinsIcon,
   LinkBreakIcon,
   PaperPlaneTiltIcon,
-  PaperclipIcon,
   ReceiptIcon,
   ReceiptXIcon,
   SealCheckIcon,
@@ -78,7 +60,7 @@ import { notifySuccess, onMutationError, toastCallbacks, ON_ERROR } from '../../
 import { confirmRemoveAttachment } from '../lib/remove-attachment';
 import { useMailComposer } from '../../mail/hooks/use-mail-composer';
 
-import { useWorkspace } from '../../workspace/api';
+import { useWorkspace } from '../../projects/api';
 import { useClientBilling, useCompanyProfile } from '../api';
 import { documentMailOptions, openPdfPreview, pdfUrl } from '../lib/document-pdf';
 import { useAccountingDocument, useDocumentMutations, useLatestDocumentDate, useRecurringInvoices, type AccountingDocument } from '../api/documents';
@@ -94,15 +76,13 @@ import { useTrackingMutations } from '../api/tracking';
 import { TimeBillingForm } from './TimeBillingForm';
 import { TrackingPanel } from './TrackingPanel';
 import { openRecurringForm } from '../lib/recurring-form';
-import { FileLink } from '../../files/components/FileLink';
 import { FilePreview, PAGE_PREVIEW_HEIGHT } from '../../files/components/FilePreview';
-import { clientProjectOptions } from '../../workspace/lib/tree';
+import { clientProjectOptions } from '../../projects/lib/tree';
 import { treeSelectProps } from '../../../components/tree/tree-select';
 import * as fmt from '../../../lib/format';
 import { Comments } from '../../comments/components/Comments';
 import { countOf, plural } from '../../../lib/text';
 import { DiscountInput } from './DiscountInput';
-import { RemoveButton } from '../../../components/actions/RemoveButton';
 import { dateRangeProps, formRange } from '../../../components/inputs/date-range';
 import { DetailHeader } from '../../../components/page/DetailHeader';
 import { ActionButton } from '../../../components/actions/ActionButton';
@@ -122,9 +102,9 @@ function toValues(document: AccountingDocument): FormValues {
     contactId: document.contactId ?? null,
     projectId: document.projectId ?? null,
     issueDate: document.issueDate,
-    dueDate: document.dueDate ? document.dueDate : null,
-    serviceStart: document.serviceStart ? document.serviceStart : null,
-    serviceEnd: document.serviceEnd ? document.serviceEnd : null,
+    dueDate: document.dueDate || null,
+    serviceStart: document.serviceStart || null,
+    serviceEnd: document.serviceEnd || null,
     label: document.label ?? '',
     introduction: document.introduction ?? '',
     referenceLabel: document.referenceLabel ?? '',
@@ -188,8 +168,8 @@ function Editor({ document }: { document: AccountingDocument }) {
   const setArchived = useSetArchived('ACCOUNTING_DOCUMENT', [accountingQueryKey]);
   const isQuote = document.type === 'QUOTE';
   // Fully paid final invoice: it can be printed receipted.
-  const receiptable = readOnly && (document.type === 'INVOICE' || document.type === 'DEPOSIT_INVOICE') && (document.paid ?? 0) > 0 && (document.balance ?? 1) <= 0;
-  const isInvoice = document.type === 'INVOICE' || document.type === 'DEPOSIT_INVOICE';
+  const invoice = isInvoice(document.type);
+  const receiptable = readOnly && invoice && (document.paid ?? 0) > 0 && (document.balance ?? 1) <= 0;
   const totals = computeTotals({
     lines: values.lines,
     globalDiscountType: values.globalDiscountType ?? null,
@@ -422,27 +402,25 @@ function Editor({ document }: { document: AccountingDocument }) {
               </ActionButton>
             )}
             <IconAction
-              label={dirty && !readOnly ? 'Télécharger le PDF (dernière version enregistrée)' : 'Télécharger le PDF'}
+              label="Télécharger le PDF"
+              hint={dirty && !readOnly ? 'Télécharger le PDF (dernière version enregistrée)' : undefined}
               component="a"
               href={pdfUrl(document.id, true)}
               download
               variant="default"
               size="lg"
-              aria-label="Télécharger le PDF"
             >
               <DownloadSimpleIcon aria-hidden />
             </IconAction>
             {receiptable && (
-              <Tooltip label="Facture portant la mention « acquittée » et ses règlements">
-                <ActionButton priority="secondary" href={pdfUrl(document.id, true, true)} download icon={<ReceiptIcon aria-hidden />}>
-                  Facture acquittée
-                </ActionButton>
-              </Tooltip>
+              <ActionButton priority="secondary" href={pdfUrl(document.id, true, true)} download icon={<ReceiptIcon aria-hidden />} hint="Facture portant la mention « acquittée » et ses règlements">
+                Facture acquittée
+              </ActionButton>
             )}
             {readOnly && !archived && (
-              <Button leftSection={<PaperPlaneTiltIcon aria-hidden />} onClick={() => openDocumentMail()} loading={preparingMail}>
+              <ActionButton icon={<PaperPlaneTiltIcon aria-hidden />} onClick={() => openDocumentMail()} loading={preparingMail}>
                 Envoyer
-              </Button>
+              </ActionButton>
             )}
             {!locked && (
               <ActionButton priority="secondary" icon={<FloppyDiskIcon aria-hidden />} onClick={() => save()} loading={mutations.update.isPending} disabled={!dirty}>
@@ -452,9 +430,9 @@ function Editor({ document }: { document: AccountingDocument }) {
             {document.status === 'DRAFT' && (
               <>
                 {!archived && (
-                  <Button leftSection={<SealCheckIcon aria-hidden />} onClick={confirmFinalize} loading={mutations.finalize.isPending}>
+                  <ActionButton icon={<SealCheckIcon aria-hidden />} onClick={confirmFinalize} loading={mutations.finalize.isPending}>
                     Valider
-                  </Button>
+                  </ActionButton>
                 )}
                 <DestructiveButton leftSection={<TrashIcon aria-hidden />} onClick={confirmDelete}>
                   Supprimer le brouillon
@@ -471,7 +449,7 @@ function Editor({ document }: { document: AccountingDocument }) {
                 </ActionButton>
               </>
             )}
-            {readOnly && !archived && isInvoice && (
+            {readOnly && !archived && invoice && (
               <ActionButton priority="secondary" icon={<ReceiptXIcon aria-hidden />} onClick={() => createFrom('CREDIT_NOTE')}>
                 Créer un avoir
               </ActionButton>
@@ -483,9 +461,9 @@ function Editor({ document }: { document: AccountingDocument }) {
             )}
             {!isTemplate && !archived && (
               <IconAction
-                label="Dupliquer en brouillon"
+                label="Dupliquer"
+                hint="Dupliquer en brouillon"
                 size="lg"
-                aria-label="Dupliquer"
                 onClick={() => mutations.duplicate.mutate({ id: document.id, issueDate: localToday() }, { onSuccess: (id) => void navigate(documentPath(id)), onError: onMutationError })}
               >
                 <CopyIcon aria-hidden />
@@ -624,9 +602,9 @@ function Editor({ document }: { document: AccountingDocument }) {
                       facturés {readOnly ? 'par ce document' : 'à l’enregistrement'}.
                     </Text>
                     {canBillTime && (
-                      <Button size="compact-xs" variant="subtle" color="gray" leftSection={<LinkBreakIcon aria-hidden />} onClick={() => form.setFieldValue('timeEntryIds', [])}>
+                      <ActionButton priority="tertiary" icon={<LinkBreakIcon aria-hidden />} onClick={() => form.setFieldValue('timeEntryIds', [])}>
                         Détacher le temps
-                      </Button>
+                      </ActionButton>
                     )}
                   </Group>
                 )}
@@ -804,23 +782,17 @@ function AttachmentsSection({ document, readOnly = false }: { document: Accounti
       {document.attachments.length === 0 ? (
         <EmptyState compact message="Aucune pièce jointe." />
       ) : (
-        document.attachments.map((attachment) => (
-          <Group key={attachment.id} justify="space-between" wrap="nowrap">
-            <FileLink url={attachment.url} filename={attachment.filename} size="sm" truncate>
-              <Group gap={4} wrap="nowrap">
-                <PaperclipIcon aria-hidden /> {attachment.filename}
-              </Group>
-            </FileLink>
-            {!readOnly && (
-              <RemoveButton
-                variant="field"
-                label="Retirer"
-                aria-label={`Retirer ${attachment.filename}`}
-                onClick={() => confirmRemoveAttachment(attachment, document.number ?? 'ce brouillon', () => removeAttachment.mutateAsync(attachment.id))}
-              />
-            )}
-          </Group>
-        ))
+        <Group gap={4}>
+          {document.attachments.map((attachment) => (
+            <FileBadge
+              key={attachment.id}
+              filename={attachment.filename}
+              max={48}
+              onClick={() => openFile({ url: attachment.url, filename: attachment.filename })}
+              onRemove={readOnly ? undefined : () => confirmRemoveAttachment(attachment, document.number ?? 'ce brouillon', () => removeAttachment.mutateAsync(attachment.id))}
+            />
+          ))}
+        </Group>
       )}
       <Text size="xs" c="dimmed">
         <FileArrowDownIcon aria-hidden /> Joints aux mails d’envoi du document.

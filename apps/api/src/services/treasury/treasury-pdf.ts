@@ -41,7 +41,6 @@ const statementSchema = z
 type StatementInput = z.input<typeof statementSchema>;
 
 const COLORS = { ...PDF_TEXT, ...PDF_TABLE, month: PDF_TABLE.group, in: '#2b8a3e', out: '#c92a2a' };
-const MARGIN = REPORT_MARGIN;
 const PAD = 4;
 const FONT_SIZE = 7.5;
 
@@ -90,7 +89,7 @@ export async function treasuryStatementPdf(input: StatementInput): Promise<{ fil
       libraryDocuments: { select: { title: true } },
       projectResources: { select: { label: true } },
       lines: {
-        orderBy: { position: 'asc' },
+        orderBy: BY_POSITION,
         select: {
           label: true,
           mode: true,
@@ -144,7 +143,7 @@ export async function treasuryStatementPdf(input: StatementInput): Promise<{ fil
 
   const { doc, top, finish } = await startReport({ title: `Relevé du ${printedDay(from)} au ${printedDay(to)}` });
 
-  const pageWidth = doc.page.width - 2 * MARGIN;
+  const pageWidth = doc.page.width - 2 * REPORT_MARGIN;
   const several = accounts.length > 1;
   const fixed: Column[] = [
     { label: 'Exécution', width: 52, align: 'left' },
@@ -160,15 +159,18 @@ export async function treasuryStatementPdf(input: StatementInput): Promise<{ fil
   ];
   const labelIndex = 2;
   fixed[labelIndex].width = pageWidth - sumOf(fixed, (column) => column.width);
-  const xs = fixed.map((_, index) => MARGIN + sumOf(fixed.slice(0, index), (column) => column.width));
+  const xs = fixed.map((_, index) => REPORT_MARGIN + sumOf(fixed.slice(0, index), (column) => column.width));
   const bottom = () => doc.page.height - doc.page.margins.bottom;
   let y = top;
 
   // Title and summary.
   const scope = several ? 'Tous les comptes' : accounts[0].label;
   y =
-    writeHeading(doc, { title: 'Relevé des mouvements', subtitle: [owner, scope, `Du ${longDayText(from)} au ${longDayText(to)}`].filter(Boolean).join(' · ') }, { x: MARGIN, y, width: pageWidth }) +
-    8;
+    writeHeading(
+      doc,
+      { title: 'Relevé des mouvements', subtitle: [owner, scope, `Du ${longDayText(from)} au ${longDayText(to)}`].filter(Boolean).join(' · ') },
+      { x: REPORT_MARGIN, y, width: pageWidth },
+    ) + 8;
   const figures = [
     { label: `Solde au ${printedDay(addDays(from, -1))}`, value: opening, color: COLORS.text },
     { label: 'Entrées', value: incoming, color: COLORS.in },
@@ -177,7 +179,7 @@ export async function treasuryStatementPdf(input: StatementInput): Promise<{ fil
   ];
   const boxWidth = (pageWidth - 3 * 8) / 4;
   figures.forEach((figure, index) => {
-    const x = MARGIN + index * (boxWidth + 8);
+    const x = REPORT_MARGIN + index * (boxWidth + 8);
     doc.roundedRect(x, y, boxWidth, 36, 3).fill(COLORS.fill);
     doc
       .font('regular')
@@ -195,7 +197,7 @@ export async function treasuryStatementPdf(input: StatementInput): Promise<{ fil
     `${countOf(entries.length, 'mouvement')} ${plural(entries.length, 'réel')}, par date d’exécution ; les prévisions ne sont pas incluses.`,
     offset > 0 ? `Dont ${money(offset)} d’entrées et de sorties liées qui se compensent (entrées nettes ${money(incoming - offset)}, sorties nettes ${money(outgoing - offset)}).` : '',
   ].filter(Boolean);
-  doc.font('regular').fontSize(7.5).fillColor(COLORS.muted).text(notes.join(' '), MARGIN, y, { width: pageWidth });
+  doc.font('regular').fontSize(7.5).fillColor(COLORS.muted).text(notes.join(' '), REPORT_MARGIN, y, { width: pageWidth });
   y = doc.y + 8;
 
   /**
@@ -205,7 +207,7 @@ export async function treasuryStatementPdf(input: StatementInput): Promise<{ fil
   const header = () => {
     doc.font('bold').fontSize(FONT_SIZE);
     const height = FONT_SIZE + 2 * PAD + 2;
-    doc.rect(MARGIN, y, pageWidth, height).fill(COLORS.fill);
+    doc.rect(REPORT_MARGIN, y, pageWidth, height).fill(COLORS.fill);
     doc.fillColor(COLORS.text);
     fixed.forEach((column, index) => doc.text(column.label, xs[index] + PAD, y + PAD, { width: column.width - 2 * PAD, align: column.align, lineBreak: false }));
     y += height;
@@ -234,9 +236,9 @@ export async function treasuryStatementPdf(input: StatementInput): Promise<{ fil
     doc.font('bold').fontSize(FONT_SIZE);
     const height = FONT_SIZE + 2 * PAD + 2;
     ensure(height + 12);
-    doc.rect(MARGIN, y, pageWidth, height).fill(fill);
-    doc.fillColor(COLORS.text).text(label, MARGIN + PAD, y + PAD, { width: pageWidth / 2, lineBreak: false });
-    doc.text(right, MARGIN + pageWidth / 2, y + PAD, { width: pageWidth / 2 - PAD, align: 'right', lineBreak: false });
+    doc.rect(REPORT_MARGIN, y, pageWidth, height).fill(fill);
+    doc.fillColor(COLORS.text).text(label, REPORT_MARGIN + PAD, y + PAD, { width: pageWidth / 2, lineBreak: false });
+    doc.text(right, REPORT_MARGIN + pageWidth / 2, y + PAD, { width: pageWidth / 2 - PAD, align: 'right', lineBreak: false });
     y += height;
   };
 
@@ -250,7 +252,7 @@ export async function treasuryStatementPdf(input: StatementInput): Promise<{ fil
       .font('regular')
       .fontSize(FONT_SIZE + 0.5)
       .fillColor(COLORS.muted)
-      .text('Aucun mouvement sur la période.', MARGIN + PAD, y + 8, { width: pageWidth });
+      .text('Aucun mouvement sur la période.', REPORT_MARGIN + PAD, y + 8, { width: pageWidth });
   }
   entries.forEach((entry, index) => {
     const day = formatDay(entry.date);
@@ -380,8 +382,8 @@ export async function treasuryStatementPdf(input: StatementInput): Promise<{ fil
       }
     }
     doc
-      .moveTo(MARGIN, y)
-      .lineTo(MARGIN + pageWidth, y)
+      .moveTo(REPORT_MARGIN, y)
+      .lineTo(REPORT_MARGIN + pageWidth, y)
       .lineWidth(0.4)
       .strokeColor(COLORS.border)
       .stroke();

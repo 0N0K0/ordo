@@ -1,7 +1,7 @@
 import { Anchor, Text } from '@mantine/core';
 import { Fragment, type ReactNode } from 'react';
 import { Link, useLocation, useMatch } from 'react-router';
-import { useWorkspace } from '../../features/workspace/api';
+import { useWorkspace } from '../../features/projects/api';
 import { WorkspaceSwitcher } from '../../features/workspaces/components/WorkspaceSwitcher';
 import classes from './HeaderTitle.module.css';
 import { clientPath, pageOfPath, projectPath } from '../pages';

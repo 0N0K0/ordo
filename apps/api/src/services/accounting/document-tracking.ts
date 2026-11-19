@@ -241,7 +241,9 @@ export async function removeSignedQuote(id: string): Promise<AccountingDocument>
 export async function addReminder(id: string, note: string | null): Promise<void> {
   const document = await finalDocument(id);
   if (document.type === 'QUOTE' || document.type === 'CREDIT_NOTE') throw clientError('BAD_USER_INPUT', 'Seule une facture peut être relancée.');
-  await prisma.documentReminder.create({ data: { documentId: id, note: note?.trim().slice(0, 500) || null } });
+  // Too long: refused (no silent cut).
+  const text = parseInput(z.string().trim().max(500, '500 caractères maximum.').nullable(), note);
+  await prisma.documentReminder.create({ data: { documentId: id, note: text || null } });
 }
 
 /**

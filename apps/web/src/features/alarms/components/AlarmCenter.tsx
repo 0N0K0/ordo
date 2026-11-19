@@ -6,7 +6,7 @@ import { fetchCalendarEvents, type EventOccurrence } from '../../calendar/api';
 import { useTasksData } from '../../tasks/api';
 import { useRoutineMutations, useRoutinesData } from '../../routines/api';
 import { useRunningTimer } from '../../time/api';
-import { useWorkspace } from '../../workspace/api';
+import { useWorkspace } from '../../projects/api';
 import { useAlarmMutations, useAlarms, type Alarm } from '../api';
 import { unlockAudioOnGesture } from '../lib/alarm-sound';
 import { dueAlarms, ringAlarm, ringReminders, type RingLink } from './ring';
@@ -14,7 +14,7 @@ import { ringRoutineReminders } from '../lib/ring-routines';
 import { ON_ERROR } from '../../../lib/notify';
 import { useSlotRules, routineDoable } from '../../calendar/hooks/use-slot-rules';
 import { projectPath, taskPath, PAGES } from '../../../app/pages';
-import { taskRef } from '../../tasks/hooks/use-task-context';
+import { alarmTaskLabel } from '../lib/alarm-labels';
 
 const TICK_MS = 15_000;
 
@@ -83,7 +83,7 @@ export function AlarmCenter() {
       const task = alarm.taskId ? data?.tasks.find((item) => item.id === alarm.taskId) : undefined;
       // Its number is only unique in its project: the project comes with it.
       const place = task?.projectId ? space?.projects.find((item) => item.id === task.projectId)?.label : undefined;
-      if (task) return [link(`${place ? `${place} ` : ''}${taskRef(task)}${task.label}`, taskPath(task))];
+      if (task) return [link(alarmTaskLabel(task, place), taskPath(task))];
       const project = alarm.projectId ? space?.projects.find((item) => item.id === alarm.projectId) : undefined;
       return project ? [link(project.label, projectPath(project.id))] : [];
     };

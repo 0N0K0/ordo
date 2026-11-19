@@ -47,7 +47,7 @@ function CategoryRow<C extends TreeCategory>({ placed, meta, badges, actions, dr
       data-dragging={isDragging || undefined}
     >
       <Table.Td w={32} px={4}>
-        {!locked && <DragHandle label={`Déplacer ${path}`} size="sm" activator={setActivatorNodeRef} attributes={attributes} listeners={listeners} dragging={isDragging} />}
+        {!locked && <DragHandle item={path} size="sm" activator={setActivatorNodeRef} attributes={attributes} listeners={listeners} dragging={isDragging} />}
       </Table.Td>
       <Table.Td style={{ paddingLeft: `calc(var(--mantine-spacing-xs) + ${depth} * var(--mantine-spacing-lg))` }}>
         <Group gap="xs" wrap="nowrap">

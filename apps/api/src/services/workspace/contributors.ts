@@ -1,4 +1,4 @@
-import { contributorNameSchema, handleSchema, lineageOf, suggestHandle } from '@ordo/shared';
+import { HANDLE_MAX, handleSchema, lineageOf, personNameSchema, suggestHandle } from '@ordo/shared';
 import { z } from 'zod';
 import { prisma } from '../../db';
 import { type Contributor } from '../../generated/prisma/client';
@@ -8,9 +8,6 @@ import { assertAllExist } from '../core/lookup';
 import { assertNoneArchived, assertNotArchived } from '../core/archive';
 import { lineageIds } from '../core/trees';
 import { connectIds } from '../core/relations';
-
-/** Longest handle (handleSchema). */
-const HANDLE_MAX = 39;
 
 /**
  * Handle free in the workspace for a new contributor, made from a name (suggestHandle: letters, digits and « - »,
@@ -47,7 +44,7 @@ export async function freeHandle(name: string, { fallback = 'membre', suffix }: 
  * @returns {Promise<Contributor>} Created contributor.
  */
 export async function createContributor(input: { name: string; handle: string; avatar?: File | null; projectIds?: string[] | null }): Promise<Contributor> {
-  const data = parseInput(z.object({ name: contributorNameSchema, handle: handleSchema }), input);
+  const data = parseInput(z.object({ name: personNameSchema, handle: handleSchema }), input);
   if (input.projectIds?.length) await assertProjects(input.projectIds);
   const iconId = input.avatar ? await storeIcon(input.avatar) : null;
   try {
@@ -85,7 +82,7 @@ export async function updateContributor(
   // Read only when archived.
   await assertNotArchived('contributor', id);
   if (input.projectIds) await assertProjects(input.projectIds);
-  const data = parseInput(z.object({ name: contributorNameSchema.optional(), handle: handleSchema.optional() }), {
+  const data = parseInput(z.object({ name: personNameSchema.optional(), handle: handleSchema.optional() }), {
     name: input.name ?? undefined,
     handle: input.handle ?? undefined,
   });

@@ -1,13 +1,14 @@
 import { DEFAULT_LABEL_COLOR } from '@ordo/shared';
-import { idsOfKind, peopleKeys, personKey } from '../../../components/people/people-keys';
+import { idsOfKind, peopleKeys, personKey, personKeyOptions } from '../../../components/people/people-keys';
 import { personName, usePeopleOptions } from '../../../components/people/people-options';
-import { mapById, byPosition, lineageOf } from '@ordo/shared';
+import { mapById, lineageOf } from '@ordo/shared';
 import { categoryTree } from '../../../components/tree/category-tree';
 import { useTreasurySettings } from '../../treasury/api';
-import { taskRef, useTaskContext, type TaskContext } from '../../tasks/hooks/use-task-context';
+import { type TaskContext, taskNumbered, useTaskContext } from '../../tasks/hooks/use-task-context';
 import type { ShoppingItemInput } from '@ordo/shared';
 import type { ShoppingCategory, ShoppingStore } from '../api';
 import * as fmt from '../../../lib/format';
+import { unarchived } from '../../../lib/archive';
 
 /** Units offered (any other can be typed). */
 /**
@@ -273,7 +274,7 @@ export function shoppingRows<T extends Pick<ShoppingFields, 'categoryId' | 'stor
     grouping === 'category'
       ? categoryTree(labels.categories).map(({ category, depth, color }) => ({ id: category.id, label: category.label, color, depth, parentId: category.parentId ?? null }))
       : grouping === 'store'
-        ? [...labels.stores].sort(byPosition).map((store) => ({ id: store.id, label: store.label, color: store.color, depth: 0, parentId: null }))
+        ? labels.stores.map((store) => ({ id: store.id, label: store.label, color: store.color, depth: 0, parentId: null }))
         : grouping === 'storage'
           ? [...(labels.storages ?? [])]
               .sort((a, b) => (a.position ?? 0) - (b.position ?? 0))
@@ -333,11 +334,10 @@ export function usePeople() {
   const buildOptions = usePeopleOptions();
   const members = new Map((context?.contributors ?? []).map((contributor) => [contributor.id, personName(contributor)]));
   const relations = new Map((data?.treasuryRelations ?? []).map((relation) => [relation.id, relation.name]));
-  const options = buildOptions(
-    [...members].map(([id, name]) => ({ value: personKey('member', id), label: name })),
-    [...relations].map(([id, name]) => ({ value: personKey('relation', id), label: name })),
-  );
-  const byKey = new Map([...[...members].map(([id, name]) => [personKey('member', id), name] as const), ...[...relations].map(([id, name]) => [personKey('relation', id), name] as const)]);
+  const memberOptions = personKeyOptions('member', members);
+  const relationOptions = personKeyOptions('relation', relations);
+  const options = buildOptions(memberOptions, relationOptions);
+  const byKey = new Map([...memberOptions, ...relationOptions].map((option) => [option.value, option.label]));
   const archived = new Set([
     ...(context?.contributors ?? []).filter((contributor) => contributor.archived).map((contributor) => personKey('member', contributor.id)),
     ...(data?.treasuryRelations ?? []).filter((relation) => relation.archived).map((relation) => personKey('relation', relation.id)),
@@ -351,8 +351,8 @@ export function usePeople() {
  * @returns {object} Tasks and their label.
  */
 export function taskChoices(context: TaskContext | null) {
-  const tasks = (context?.tasks ?? []).filter((task) => !task.closed && !task.archived);
-  const labelOf = (task: (typeof tasks)[number]) => context?.taskLabel(task) ?? `${taskRef(task)}${task.label}`;
+  const tasks = unarchived(context?.tasks ?? []).filter((task) => !task.closed);
+  const labelOf = (task: (typeof tasks)[number]) => context?.taskLabel(task) ?? taskNumbered(task);
   return { tasks, labelOf };
 }
 

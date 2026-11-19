@@ -1,6 +1,6 @@
 import { IconAction } from '../actions/IconAction';
 import { Group, Loader, Paper, Tabs, Text, Textarea, UnstyledButton } from '@mantine/core';
-import { mapById, MAX_ATTACHMENT_BYTES } from '@ordo/shared';
+import { fileTooLarge, mapById, MAX_ATTACHMENT_BYTES } from '@ordo/shared';
 import {
   AtIcon,
   CheckSquareIcon,
@@ -273,7 +273,7 @@ export function MarkdownEditor({ value, onChange, suggestions, label, placeholde
   const attach = async (files: File[]) => {
     const accepted = files.filter((file) => {
       if (file.size <= MAX_ATTACHMENT_BYTES) return true;
-      notifyError(`« ${file.name} » est trop lourd (10 Mo maximum).`);
+      notifyError(fileTooLarge(file.name));
       return false;
     });
     if (accepted.length === 0) return;
@@ -366,9 +366,9 @@ export function MarkdownEditor({ value, onChange, suggestions, label, placeholde
                   <Group key={command.label} gap={2} wrap="nowrap">
                     {command.divider && <span className={classes.divider} />}
                     <IconAction
-                      label={command.key ? `${command.label} (Ctrl+${command.key.toUpperCase()})` : command.label}
+                      label={command.label}
+                      hint={command.key ? `${command.label} (Ctrl+${command.key.toUpperCase()})` : undefined}
                       size="sm"
-                      aria-label={command.label}
                       onMouseDown={(event) => event.preventDefault()}
                       onClick={() => run(command.edit)}
                     >
@@ -378,9 +378,9 @@ export function MarkdownEditor({ value, onChange, suggestions, label, placeholde
                 ))}
                 <span className={classes.divider} />
                 <IconAction
-                  label="Joindre des fichiers (images affichées, autres fichiers en lien)"
+                  label="Joindre des fichiers"
+                  hint="Joindre des fichiers (images affichées, autres fichiers en lien)"
                   size="sm"
-                  aria-label="Joindre des fichiers"
                   loading={uploading > 0}
                   onMouseDown={(event) => event.preventDefault()}
                   onClick={() => fileInputRef.current?.click()}

@@ -1,10 +1,9 @@
 import { PAGES } from '../../../app/pages';
 import { SectionHeader } from '../../../components/page/SectionHeader';
-import { useSetParams } from '../../../lib/search-params';
+import { useSetParams, useSearchParam } from '../../../lib/search-params';
 import { PageHeader } from '../../../components/page/PageHeader';
 import { Badge, CloseButton, Group, Stack } from '@mantine/core';
-import { useSearchParams } from 'react-router';
-import { taskRef, useTaskContext } from '../../tasks/hooks/use-task-context';
+import { taskNumbered, useTaskContext } from '../../tasks/hooks/use-task-context';
 import { useTimeEntriesSince } from '../api';
 import { TimeLogActions } from '../components/TimeLogActions';
 import { PlannedTime } from '../components/PlannedTime';
@@ -24,9 +23,8 @@ export function TimePage() {
   const entries = useTimeEntriesSince(null);
   const { openForm, duplicate, confirmDelete } = useTimeEntryDialogs(context);
   // From the « Temps passé » of a task: its times only, until dismissed.
-  const [params] = useSearchParams();
+  const [taskId] = useSearchParam('task');
   const setParams = useSetParams();
-  const taskId = params.get('task');
   const task = taskId ? context?.taskById.get(taskId) : undefined;
   const shown = taskId ? entries.data?.filter((entry) => entry.taskIds.includes(taskId)) : entries.data;
 
@@ -39,7 +37,7 @@ export function TimePage() {
       {taskId && (
         <Group gap="xs">
           <Badge size="lg" variant="light" rightSection={<CloseButton size="xs" aria-label="Voir tous les temps" onClick={() => setParams({ task: null })} />}>
-            Tâche : {task ? `${taskRef(task)}${task.label}` : 'introuvable'}
+            Tâche : {task ? taskNumbered(task) : 'introuvable'}
           </Badge>
         </Group>
       )}

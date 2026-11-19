@@ -22,7 +22,7 @@ export function sortValue(task: Task, column: TaskSortKey, context: TaskContext)
   switch (column) {
     case 'number':
       return task.number;
-    case 'title':
+    case 'label':
       return task.label;
     case 'project':
       return context.projectLabel(task.projectId);
@@ -35,7 +35,7 @@ export function sortValue(task: Task, column: TaskSortKey, context: TaskContext)
     case 'beneficiaries':
       return beneficiaryNames(task, context).sort(collator.compare)[0] ?? null;
     case 'minDate':
-      return task.minDate ? task.minDate : null;
+      return task.minDate || null;
     case 'subtasks':
       return context.childrenOf(task.id).length || null;
     case 'progress': {
@@ -106,7 +106,7 @@ export function sortValue(task: Task, column: TaskSortKey, context: TaskContext)
  */
 export function eventSortValue(event: EventOccurrence, column: TaskSortKey, context: TaskContext): SortValue {
   switch (column) {
-    case 'title':
+    case 'label':
       return event.label;
     case 'project':
       return event.projectId ? context.projectLabel(event.projectId) : null;

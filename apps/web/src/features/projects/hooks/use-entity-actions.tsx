@@ -1,4 +1,5 @@
-import { clientPath, projectPath } from '../../../app/pages';
+import { subtreeOf } from '@ordo/shared';
+import { clientPath, PAGES, projectPath } from '../../../app/pages';
 import { openFormPanel } from '../../../components/panels/panels';
 import { openModal } from '../../../components/panels/open-modal';
 
@@ -7,7 +8,6 @@ import { useLocation, useNavigate } from 'react-router';
 import { notifyWithUndo, ON_ERROR, onMutationError } from '../../../lib/notify';
 import type { ArchiveMutation } from '../../../lib/archive';
 import {
-  descendantIds,
   useSetClientArchived,
   useSetClientFavorite,
   useSetProjectArchived,
@@ -55,7 +55,7 @@ export function useEntityActions() {
    * @returns {void}
    */
   const leaveIfOn = (path: string) => {
-    if (pathname === path) navigate('/', { replace: true });
+    if (pathname === path) navigate(PAGES.home.path, { replace: true });
   };
 
   /**
@@ -147,7 +147,7 @@ export function useEntityActions() {
         ));
       } else {
         const workspace = queryClient.getQueryData<Workspace>(workspaceQueryKey);
-        const subProjectCount = workspace ? descendantIds(workspace.projects, entity.item.id).size : 0;
+        const subProjectCount = workspace ? subtreeOf(workspace.projects, entity.item.id, false).size : 0;
         openModal('Supprimer le projet', (close) => (
           <DeleteProjectDialog
             project={entity.item}

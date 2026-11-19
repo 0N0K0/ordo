@@ -7,7 +7,7 @@ import { DetailSkeleton } from '../../../components/feedback/Skeletons';
 import { ItemBadge } from '../../../components/items/ItemBadge';
 import { DestructiveButton } from '../../../components/dialogs/DestructiveActions';
 import { confirmDestructive } from '../../../components/dialogs/confirm-destructive';
-import { Badge, Button, Group, Stack } from '@mantine/core';
+import { Badge, Group, Stack } from '@mantine/core';
 import {
   ArrowBendDoubleUpLeftIcon,
   ArrowBendUpLeftIcon,
@@ -21,11 +21,12 @@ import {
 } from '@phosphor-icons/react';
 import { useQueryClient } from '@tanstack/react-query';
 import { useEffect } from 'react';
+import { useOwnAddresses } from '../hooks/use-own-addresses';
 import { Link } from 'react-router';
 
 import { ON_ERROR } from '../../../lib/notify';
-import { useWorkspace } from '../../workspace/api';
-import { fetchMailDraft, mailQueryKey, useMailAccounts, useMailActions, useMailLabels, useMailMessage, useProjectMails, type MailView } from '../api';
+import { useWorkspace } from '../../projects/api';
+import { fetchMailDraft, mailQueryKey, useMailActions, useMailLabels, useMailMessage, useProjectMails, type MailView } from '../api';
 import { MailOrganizeActions } from './MailOrganizeActions';
 import { forwardOptions, replyOptions, splitDraftHtml, type SourceMail } from '../lib/compose-options';
 import { escapeHtml } from '../lib/mail-format';
@@ -71,14 +72,13 @@ interface MailReaderProps {
  */
 export function MailReader({ accountId, folder, uid, isDraft, onDeleted, onManageLabels, projectId }: MailReaderProps) {
   const { data: mail, isPending, error } = useMailMessage({ accountId, folder, uid });
-  const { data: accounts } = useMailAccounts();
   const { data: workspace } = useWorkspace();
   const { data: labels } = useMailLabels();
   const { setSeen, remove, deleteDraft, unlink } = useMailActions();
   // From a project, its copy of the mail (to unlink it).
   const { data: projectMails } = useProjectMails(projectId ?? '', Boolean(projectId));
   const compose = useMailComposer();
-  const own = (accounts ?? []).map((account) => account.email);
+  const own = useOwnAddresses();
   const queryClient = useQueryClient();
 
   // Opening marks the mail as read: lists and counts are refreshed.
@@ -219,9 +219,9 @@ export function MailReader({ accountId, folder, uid, isDraft, onDeleted, onManag
       />
       {isDraft ? (
         <Group gap="xs">
-          <Button size="xs" leftSection={<PencilSimpleLineIcon aria-hidden />} loading={resuming} onClick={() => void resume()}>
+          <ActionButton size="xs" icon={<PencilSimpleLineIcon aria-hidden />} loading={resuming} onClick={() => void resume()}>
             Reprendre le brouillon
-          </Button>
+          </ActionButton>
           <DestructiveButton size="xs" leftSection={<TrashIcon aria-hidden />} onClick={confirmDeleteDraft}>
             Supprimer le brouillon
           </DestructiveButton>

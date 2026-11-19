@@ -33,7 +33,7 @@ export function StockPurchaseForm({ items, onDone }: { items: ShoppingItem[]; on
     items.map((item) => ({
       item,
       quantity: item.quantity ?? 1,
-      expiresAt: item.expiresAt ? item.expiresAt : null,
+      expiresAt: item.expiresAt || null,
     })),
   );
   /**
@@ -87,7 +87,7 @@ export function StockPurchaseForm({ items, onDone }: { items: ShoppingItem[]; on
                 value={locationOf(line)}
                 onChange={(locationId) => change(index, { locationId })}
               />
-              <DatePickerInput size="xs" label="Péremption" placeholder="Aucune" clearable value={line.expiresAt} onChange={(value) => change(index, { expiresAt: value || null })} />
+              <DatePickerInput size="xs" label="Date de péremption" placeholder="Aucune" clearable value={line.expiresAt} onChange={(value) => change(index, { expiresAt: value || null })} />
             </SimpleGrid>
           </Stack>
         </Paper>

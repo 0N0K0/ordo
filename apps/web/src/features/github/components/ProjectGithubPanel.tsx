@@ -7,7 +7,7 @@ import { SettingsSection } from '../../../components/settings/SettingsSection';
 import { FormSkeleton } from '../../../components/feedback/Skeletons';
 import { DestructiveButton } from '../../../components/dialogs/DestructiveActions';
 import { confirmDestructive } from '../../../components/dialogs/confirm-destructive';
-import { Anchor, Badge, Button, Divider, Group, Paper, Select, SimpleGrid, Stack, Switch, Table, Text, TextInput, ThemeIcon } from '@mantine/core';
+import { Anchor, Badge, Divider, Group, Paper, Select, SimpleGrid, Stack, Switch, Table, Text, TextInput, ThemeIcon } from '@mantine/core';
 import { ArrowsClockwiseIcon, GithubLogoIcon, LinkBreakIcon, PencilSimpleIcon, MagnifyingGlassIcon } from '@phosphor-icons/react';
 import { useState } from 'react';
 import { Link } from 'react-router';
@@ -18,6 +18,8 @@ import { useGithubBoard, useGithubLink, useGithubLogin, useGithubMutations, type
 import * as fmt from '../../../lib/format';
 import { FormActions } from '../../../components/dialogs/FormActions';
 import { ActionButton } from '../../../components/actions/ActionButton';
+import { EXTERNAL_LINK } from '../../../components/actions/link-props';
+import { GITHUB_SETTINGS_PATH } from '../../../app/pages';
 
 /** Usual English names of the GitHub board options, for the first guess. */
 const SYNONYMS: Record<string, string[]> = {
@@ -167,7 +169,7 @@ function LinkForm({ projectId, board, initial, context, onDone }: LinkFormProps)
     <Stack gap="md">
       <Text size="sm">
         Tableau{' '}
-        <Anchor href={board.url} target="_blank" rel="noopener" size="sm" fw={600}>
+        <Anchor href={board.url} {...EXTERNAL_LINK} size="sm" fw={600}>
           {board.title}
         </Anchor>
         . Toujours synchronisés : titre, description et commentaires ; pour les issues, l’ouverture / fermeture, le jalon, le parent (sous-issues), les dépendances (« bloquée par »), les relations («
@@ -330,7 +332,7 @@ export function ProjectGithubPanel({ projectId }: { projectId: string }) {
     return (
       <NoticeAlert kind="info">
         GitHub n’est pas connecté : ajoutez un jeton dans{' '}
-        <Anchor component={Link} to="/settings?tab=github" size="sm">
+        <Anchor component={Link} to={GITHUB_SETTINGS_PATH} size="sm">
           Paramètres › GitHub
         </Anchor>
         .
@@ -379,9 +381,9 @@ export function ProjectGithubPanel({ projectId }: { projectId: string }) {
                 style={{ flex: 1 }}
                 error={board.error?.message}
               />
-              <Button type="submit" leftSection={<MagnifyingGlassIcon aria-hidden />} loading={board.isFetching} disabled={!url.trim()}>
+              <ActionButton type="submit" icon={<MagnifyingGlassIcon aria-hidden />} loading={board.isFetching} disabled={!url.trim()}>
                 Charger
-              </Button>
+              </ActionButton>
             </Group>
           </form>
         </SettingsSection>
@@ -405,7 +407,7 @@ export function ProjectGithubPanel({ projectId }: { projectId: string }) {
                 <ThemeIcon variant="light" color="dark" size="md" radius="xl">
                   <GithubLogoIcon aria-hidden />
                 </ThemeIcon>
-                <Anchor href={link.url} target="_blank" rel="noopener" fw={600}>
+                <Anchor href={link.url} {...EXTERNAL_LINK} fw={600}>
                   {link.label}
                 </Anchor>
                 <Badge variant="light" color={link.enabled ? 'green' : 'gray'}>
@@ -419,8 +421,8 @@ export function ProjectGithubPanel({ projectId }: { projectId: string }) {
               </Text>
             </Stack>
             <Group gap="xs">
-              <Button
-                leftSection={<ArrowsClockwiseIcon aria-hidden />}
+              <ActionButton
+                icon={<ArrowsClockwiseIcon aria-hidden />}
                 loading={sync.isPending}
                 onClick={() =>
                   sync.mutate(
@@ -433,7 +435,7 @@ export function ProjectGithubPanel({ projectId }: { projectId: string }) {
                 }
               >
                 Synchroniser
-              </Button>
+              </ActionButton>
               <ActionButton priority="secondary" icon={<PencilSimpleIcon aria-hidden />} onClick={() => setEditing((value) => !value)}>
                 Réglages
               </ActionButton>

@@ -71,7 +71,7 @@ export function MailFiles({ files }: { files: { key: string; name: string; size:
             filename={file.name}
             size={file.size}
             href={viewable ? file.url : downloadUrl(file.url)}
-            target={viewable ? '_blank' : undefined}
+            external={viewable}
             onClick={(event) => handleFileClick(event, { url: file.url, filename: file.name })}
           />
         );

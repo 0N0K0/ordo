@@ -28,14 +28,14 @@ interface DoneToggleProps {
 function DoneToggle({ label, hint, done, optional = false, disabled = false, size = 'sm', onChange }: DoneToggleProps) {
   return (
     <IconAction
-      label={done ? 'Marquer comme à faire' : hint}
+      label={label}
+      hint={done ? 'Marquer comme à faire' : hint}
       variant={done ? 'light' : 'subtle'}
       color={done ? 'green' : 'gray'}
       radius="xl"
       size={size}
       className={classes.doneToggle}
       data-done={done || undefined}
-      aria-label={label}
       aria-pressed={done}
       disabled={disabled}
       onClick={() => onChange(!done)}

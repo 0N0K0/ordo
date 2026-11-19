@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import { clientError } from '../graphql/errors';
-import { fileSecurityPolicy, INLINE_TYPES, isPdf } from '../services/core/attachments';
+import { fileSecurityPolicy, isPdf, sniffImage } from '../services/core/attachments';
 import { messageAttachment } from '../services/mail/reader';
 import { downloadRoute, queryText, shownInPlace } from './http';
 
@@ -16,12 +16,13 @@ mailRouter.get(
     const index = Number(req.query.index);
     if (!folder || !Number.isInteger(uid) || !Number.isInteger(index)) throw clientError('BAD_USER_INPUT', 'Pièce jointe mal désignée.');
     const file = await messageAttachment(String(req.params.accountId), folder, uid, index);
-    const image = INLINE_TYPES.includes(file.contentType);
+    // By its content, as the files stored (the type a mail declares is not trusted).
+    const image = sniffImage(file.content);
     const pdf = isPdf(file.content);
-    const inline = shownInPlace(req, image || pdf);
+    const inline = shownInPlace(req, Boolean(image) || pdf);
     return {
       content: file.content,
-      type: image ? file.contentType : pdf ? 'application/pdf' : 'application/octet-stream',
+      type: image ?? (pdf ? 'application/pdf' : 'application/octet-stream'),
       filename: file.filename,
       inline,
       cache: 'private, max-age=3600',

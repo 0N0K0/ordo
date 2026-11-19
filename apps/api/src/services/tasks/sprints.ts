@@ -1,7 +1,7 @@
 import { addDays, formatDay, groupBy, markdownSchema, parseDay, sprintSchema } from '@ordo/shared';
 import { prisma } from '../../db';
 import type { Sprint } from '../../generated/prisma/client';
-import { clientError, orNotFound, parseInput } from '../../graphql/errors';
+import { orNotFound, parseInput } from '../../graphql/errors';
 import { assertNotArchived } from '../core/archive';
 
 /**
@@ -45,8 +45,8 @@ function sprintData(input: SprintInput) {
  * @returns {Promise<Sprint>} Created sprint.
  */
 export async function createSprint(projectId: string, input: SprintInput): Promise<Sprint> {
-  const project = await orNotFound(prisma.project.findUnique({ where: { id: projectId }, select: { archivedAt: true } }), 'Projet');
-  if (project.archivedAt) throw clientError('BAD_USER_INPUT', 'Ce projet est archivé.');
+  await orNotFound(prisma.project.findUnique({ where: { id: projectId }, select: { id: true } }), 'Projet');
+  await assertNotArchived('project', projectId, { field: 'projectId' });
   return prisma.sprint.create({ data: { projectId, ...sprintData(input) } });
 }
 

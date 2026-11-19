@@ -274,8 +274,8 @@ export function MailComposer({ options, onDone }: { options: ComposeOptions; onD
             >
               Supprimer le brouillon
             </DestructiveButton>
-            <Button
-              leftSection={<FloppyDiskIcon aria-hidden />}
+            <ActionButton
+              icon={<FloppyDiskIcon aria-hidden />}
               onClick={() => {
                 close();
                 void save()
@@ -290,7 +290,7 @@ export function MailComposer({ options, onDone }: { options: ComposeOptions; onD
               }}
             >
               Enregistrer le brouillon
-            </Button>
+            </ActionButton>
             <ActionButton
               priority="secondary"
               icon={<PencilSimpleLineIcon aria-hidden />}
@@ -455,15 +455,15 @@ export function MailComposer({ options, onDone }: { options: ComposeOptions; onD
                   </Button>
                 ))}
                 <DateTimePicker label="Date et heure" placeholder="Choisir…" minDate={new Date()} value={sendAt} onChange={setSendAt} popoverProps={{ withinPortal: false }} />
-                <Button size="xs" leftSection={<ClockIcon aria-hidden />} disabled={!sendAt} onClick={() => sendAt && void scheduleAt(new Date(sendAt.replace(' ', 'T')))}>
+                <ActionButton size="xs" icon={<ClockIcon aria-hidden />} disabled={!sendAt} onClick={() => sendAt && void scheduleAt(new Date(sendAt.replace(' ', 'T')))}>
                   Programmer l’envoi
-                </Button>
+                </ActionButton>
               </Stack>
             </Popover.Dropdown>
           </Popover>
-          <Button leftSection={<PaperPlaneTiltIcon aria-hidden />} loading={send.isPending} disabled={!account || recipients.length === 0 || invalid} onClick={() => void submit()}>
+          <ActionButton icon={<PaperPlaneTiltIcon aria-hidden />} loading={send.isPending} disabled={!account || recipients.length === 0 || invalid} onClick={() => void submit()}>
             Envoyer
-          </Button>
+          </ActionButton>
         </Group>
       </Group>
     </Stack>

@@ -2,8 +2,8 @@ import { dateSchema, descriptionSchema, mapById, MAX_PROJECT_DEPTH, optionalColo
 import { z } from 'zod';
 import { prisma } from '../../db';
 import type { Prisma, Project } from '../../generated/prisma/client';
-import { clientError, fieldError, notFound, orNotFound, parseInput } from '../../graphql/errors';
-import { ARCHIVED_MESSAGE } from '../core/archive';
+import { clientError, fieldError, notFound, orNotFound, parseField, parseInput } from '../../graphql/errors';
+import { ARCHIVED_MESSAGE, assertNotArchived } from '../core/archive';
 import { deleteOrphanIcons, resolveIconUpdate, storeIcon } from '../core/icons';
 import { BY_POSITION, moveInOrder, nextPositionIn } from '../core/ordering';
 import { assertAllExist, assertExists } from '../core/lookup';
@@ -119,11 +119,8 @@ async function findProject(id: string): Promise<Project> {
  */
 async function assertAttachableClient(clientId: string | null): Promise<void> {
   if (!clientId) return;
-  const client = await orNotFound(prisma.client.findUnique({ where: { id: clientId }, select: { archivedAt: true } }), 'Client');
-  if (client.archivedAt) {
-    const message = 'Ce client est archivé.';
-    throw fieldError('clientId', message);
-  }
+  await orNotFound(prisma.client.findUnique({ where: { id: clientId }, select: { id: true } }), 'Client');
+  await assertNotArchived('client', clientId, { field: 'clientId' });
 }
 
 /**
@@ -136,7 +133,7 @@ async function assertAttachableClient(clientId: string | null): Promise<void> {
 function assertParent(tree: ProjectTree, parentId: string, movedId: string | null): string | null {
   const parent = tree.byId.get(parentId);
   if (!parent) throw notFound('Projet parent');
-  if (parent.archivedAt) throw fieldError('parentId', 'Ce projet est archivé.');
+  if (parent.archivedAt) throw fieldError('parentId', ARCHIVED_MESSAGE);
   if (movedId && (parentId === movedId || tree.ancestors(parentId).some((ancestor) => ancestor.id === movedId))) {
     throw fieldError('parentId', 'Un projet ne peut pas être placé dans l’un de ses sous-projets.');
   }
@@ -311,7 +308,7 @@ export async function updateProject(
 ): Promise<Project> {
   const project = await findProject(id);
   if (project.archivedAt) throw clientError('BAD_USER_INPUT', ARCHIVED_MESSAGE);
-  const { label } = parseInput(z.object({ label: projectLabelSchema.optional() }), { label: input.label ?? undefined });
+  const label = parseField('label', projectLabelSchema.optional(), input.label ?? undefined);
 
   const parentId = input.parentId === undefined ? project.parentId : input.parentId;
   const clientId = parentId ? project.clientId : input.clientId === undefined ? project.clientId : input.clientId;

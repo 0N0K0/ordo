@@ -6,7 +6,7 @@ import { CheckCircleIcon, InfoIcon, WarningCircleIcon, WarningIcon } from '@phos
  * Success feedback icon.
  * @returns {JSX.Element} Icon.
  */
-export function SuccessIcon() {
+export function SuccessFeedbackIcon() {
   return <CheckCircleIcon aria-hidden />;
 }
 
@@ -14,7 +14,7 @@ export function SuccessIcon() {
  * Error feedback icon.
  * @returns {JSX.Element} Icon.
  */
-export function ErrorIcon() {
+export function ErrorFeedbackIcon() {
   return <WarningCircleIcon aria-hidden />;
 }
 

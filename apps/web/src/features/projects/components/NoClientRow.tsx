@@ -60,7 +60,7 @@ export const NoClientRow = forwardRef<HTMLDivElement, NoClientRowProps>(function
       {hasMenu && (
         <span className={rowClasses.actions} data-reveal>
           <ActionsMenu
-            name="les projets sans client"
+            about="les projets sans client"
             opened={menuOpened}
             onChange={setMenuOpened}
             position="bottom-start"

@@ -6,7 +6,7 @@ import { ClipboardTextIcon, CopyIcon, CookingPotIcon, EyeIcon, PencilSimpleIcon,
 import { Link, useNavigate } from 'react-router';
 import { ActionButton } from '../../../components/actions/ActionButton';
 import { DataTable } from '../../../components/data-table/table/DataTable';
-import { applyDiff, bulkSaver } from '../../../components/data-table/selection/bulk-edit';
+import { applyDiff, bulkCellLabels, bulkSaver } from '../../../components/data-table/selection/bulk-edit';
 import type { DataColumn } from '../../../components/data-table/table/data-table';
 import { EditableMultiSelect, EditableSelect } from '../../../components/data-table/cells/EditableCells';
 import { RowActions } from '../../../components/data-table/cells/RowActions';
@@ -48,7 +48,7 @@ function sheetColumns(context: TaskContext | null, categories: SheetCategory[], 
       .join(', ');
   const itemText = (item: Sheet['items'][number]) => `${item.label}${fmt.quantity(item) ? ` · ${fmt.quantity(item)}` : ''}`;
   return [
-    { id: 'name', label: 'Libellé', size: 240, locked: true, sortValue: (sheet) => sheet.label, text: (sheet) => sheet.label },
+    { id: 'label', label: 'Libellé', size: 240, locked: true, sortValue: (sheet) => sheet.label, text: (sheet) => sheet.label },
     {
       id: 'categories',
       label: 'Catégories',
@@ -125,6 +125,7 @@ export function SheetsTable({ projectId = null }: { projectId?: string | null })
     title: 'Fiches',
   });
   // The archived sheets are left as they are.
+  const cellLabelOf = bulkCellLabels(view, (sheet) => sheet.label);
   const bulk = bulkSaver<Sheet, { projectId?: string | null; categoryIds?: string[] }>(
     view,
     (sheet, change) => !sheet.archived && update.mutate({ id: sheet.id, input: sheetInput(sheet, change) }, ON_ERROR),
@@ -173,7 +174,7 @@ export function SheetsTable({ projectId = null }: { projectId?: string | null })
       getKey={(sheet) => sheet.id}
       rowProps={(sheet) => ({ style: { cursor: 'pointer' }, onClick: () => navigate(sheetPath(sheet.id)) })}
       cells={(sheet) => ({
-        name: (
+        label: (
           <Group gap="xs" wrap="nowrap">
             <Anchor component={Link} to={sheetPath(sheet.id)} fw={600} size="sm" onClick={(event: React.MouseEvent) => event.stopPropagation()}>
               {sheet.label}
@@ -185,7 +186,7 @@ export function SheetsTable({ projectId = null }: { projectId?: string | null })
           <div onClick={(event) => event.stopPropagation()}>
             <EditableMultiSelect
               value={sheet.categoryIds}
-              label={`Catégories de ${sheet.label}`}
+              label={cellLabelOf('categories', sheet, 'Catégories')}
               readOnly={sheet.archived}
               {...listSelectProps(categories ?? [], undefined, sheet.categoryIds)}
               onSave={(next) => bulk('categories')(sheet, (target) => ({ categoryIds: applyDiff(target.categoryIds, sheet.categoryIds, next) }))}
@@ -196,7 +197,7 @@ export function SheetsTable({ projectId = null }: { projectId?: string | null })
           <div onClick={(event) => event.stopPropagation()}>
             <EditableSelect
               value={sheet.projectId ?? null}
-              label={`Projet de ${sheet.label}`}
+              label={cellLabelOf('project', sheet, 'Projet')}
               nullable
               readOnly={sheet.archived}
               {...treeSelectProps(context.projectOptions(unarchived(context.projects, sheet.projectId)))}

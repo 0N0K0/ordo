@@ -1,7 +1,7 @@
 import { Checkbox, Group, Select, SimpleGrid, Stack, Switch, Text } from '@mantine/core';
 import { FileZipIcon } from '@phosphor-icons/react';
-import { fetchDownload } from '../../../lib/download';
-import type { AccountingDocumentType } from '@ordo/shared';
+import { fetchDownload, fileName } from '../../../lib/download';
+import { ACCOUNTING_DOCUMENT_TYPES, type AccountingDocumentType } from '@ordo/shared';
 import { useState } from 'react';
 import { localToday, yearOfDay } from '../../../lib/dates';
 import { PERIOD_PRESETS, type PeriodPreset } from '../../../lib/periods';
@@ -11,7 +11,7 @@ import { usePeriodRange } from '../../../components/inputs/use-period-range';
 import { DOCUMENT_TYPE_LABELS } from '../lib/labels';
 import { FormActions } from '../../../components/dialogs/FormActions';
 
-const TYPES: AccountingDocumentType[] = ['QUOTE', 'INVOICE', 'DEPOSIT_INVOICE', 'CREDIT_NOTE'];
+const TYPES: AccountingDocumentType[] = [...ACCOUNTING_DOCUMENT_TYPES];
 
 /** Periods offered: the presets, and a calendar year to choose (before the custom dates). */
 type ZipPeriod = PeriodPreset | 'calendarYear';
@@ -42,7 +42,7 @@ export function DocumentsZipForm({ onDone, year: initialYear = null, years = [] 
       const params = new URLSearchParams({ from, to, types: types.join(','), imported: imported ? '1' : '0' });
       await fetchDownload(
         `/api/accounting/documents/zip?${params}`,
-        preset === 'calendarYear' ? `Documents comptables ${year}.zip` : `Documents comptables du ${from} au ${to}.zip`,
+        fileName(preset === 'calendarYear' ? `Documents comptables ${year}` : `Documents comptables du ${from} au ${to}`, 'zip'),
         'Archive impossible.',
       );
     },

@@ -3,8 +3,27 @@ import { modelDelegate } from './delegate';
 import { prisma, unscopedPrisma } from '../../db';
 import type { Prisma } from '../../generated/prisma/client';
 
-/** Manual order of a list: by position, then by creation (two items at the same position). */
-export const BY_POSITION: { position?: 'asc'; createdAt?: 'asc' }[] = [{ position: 'asc' }, { createdAt: 'asc' }];
+/** Manual order of a list: by position, then by label (two items at the same position). */
+// eslint-disable-next-line no-restricted-syntax -- the orders themselves
+export const BY_POSITION: { position?: 'asc'; label?: 'asc' }[] = [{ position: 'asc' }, { label: 'asc' }];
+
+/** Manual order of a list of people (clients, counterparties): by position, then by name. */
+// eslint-disable-next-line no-restricted-syntax -- the orders themselves
+export const BY_POSITION_NAME: { position?: 'asc'; name?: 'asc' }[] = [{ position: 'asc' }, { name: 'asc' }];
+
+/** Manual order of a list whose items have no label (sheet links, calendar subscriptions): by position only. */
+// eslint-disable-next-line no-restricted-syntax -- the orders themselves
+export const BY_POSITION_ONLY: { position: 'asc' } = { position: 'asc' };
+
+/** Ordered models named by `name` (people) or by nothing, ordered by `BY_POSITION_NAME` or `BY_POSITION_ONLY`. */
+const UNLABELLED_ORDERS: Partial<Record<string, typeof BY_POSITION_NAME | typeof BY_POSITION_ONLY>> = {
+  client: BY_POSITION_NAME,
+  treasuryCounterparty: BY_POSITION_NAME,
+  documentFolder: BY_POSITION_NAME,
+  sheetLink: BY_POSITION_ONLY,
+  calendarSubscription: BY_POSITION_ONLY,
+  libraryDocument: BY_POSITION_ONLY,
+};
 
 /**
  * Moves an id inside an ordered list.
@@ -35,7 +54,7 @@ export async function saveSiblingOrder(orderedIds: string[], id: string, index: 
 
 /** What the ordered models have in common (each delegate of Prisma has these). */
 interface OrderedDelegate {
-  findMany(args: { where?: object; orderBy: typeof BY_POSITION; select: { id: true } }): Promise<{ id: string }[]>;
+  findMany(args: { where?: object; orderBy: object; select: { id: true } }): Promise<{ id: string }[]>;
   update(args: { where: { id: string }; data: { position: number } }): Prisma.PrismaPromise<unknown>;
   aggregate(args: { where?: object; _max: { position: true } }): Promise<{ _max: { position: number | null } }>;
 }
@@ -55,6 +74,13 @@ export type OrderingClient = typeof prisma | typeof unscopedPrisma | Prisma.Tran
 const delegate = (model: OrderedModel, client: OrderingClient = prisma) => modelDelegate<OrderedDelegate>(model, client);
 
 /**
+ * Manual order of a model: `BY_POSITION`, or the order of its kind when it has no label.
+ * @param {OrderedModel} model Model.
+ * @returns {object} Prisma `orderBy`.
+ */
+const positionOrder = (model: OrderedModel): object => UNLABELLED_ORDERS[model] ?? BY_POSITION;
+
+/**
  * Moves an item to an index among its siblings (the items matching `where`), all their positions saved at once.
  * @param {OrderedModel} model Model.
  * @param {string} id Item moved (one of the siblings).
@@ -64,7 +90,7 @@ const delegate = (model: OrderedModel, client: OrderingClient = prisma) => model
  * @returns {Promise<void>}
  */
 export async function moveInList(model: OrderedModel, id: string, index: number, where: object = {}, tx?: Prisma.TransactionClient): Promise<void> {
-  const siblings = await delegate(model, tx).findMany({ where, orderBy: BY_POSITION, select: { id: true } });
+  const siblings = await delegate(model, tx).findMany({ where, orderBy: positionOrder(model), select: { id: true } });
   const ids = siblings.map((item) => item.id);
   const save = (siblingId: string, position: number) => delegate(model, tx).update({ where: { id: siblingId }, data: { position } });
   if (!tx) return saveSiblingOrder(ids, id, index, save);

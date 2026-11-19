@@ -1,3 +1,4 @@
+import { useSearchParam } from '../../../lib/search-params';
 import { AddItemButton } from '../../../components/actions/AddItemButton';
 import { IconAction } from '../../../components/actions/IconAction';
 import { PAGES, projectPath } from '../../../app/pages';
@@ -14,7 +15,7 @@ import { DatePickerInput } from '@mantine/dates';
 import { readSlotRule, taskLabelSchema, subtreeOf } from '@ordo/shared';
 import { ArrowCounterClockwiseIcon, CheckCircleIcon, GithubLogoIcon, PencilSimpleIcon, ArrowsLeftRightIcon } from '@phosphor-icons/react';
 import { useState } from 'react';
-import { Link, useSearchParams } from 'react-router';
+import { Link } from 'react-router';
 
 import { MarkdownEditor } from '../../../components/markdown/MarkdownEditor';
 import { MarkdownView } from '../../../components/markdown/MarkdownView';
@@ -32,7 +33,7 @@ import { linkableTasks } from '../lib/task-links';
 import { AssigneesSelect, LabelSelect, ProjectSelect, TagsSelect, TaskRef, TaskSelect, TaskStateIcon } from './task-ui';
 import { useTaskActions } from '../hooks/use-task-actions';
 
-import { useTaskContext, type TaskContext, taskName, taskRef } from '../hooks/use-task-context';
+import { type TaskContext, taskName, taskNumber, useTaskContext } from '../hooks/use-task-context';
 import { TASK_PARAM, useTaskLink } from '../hooks/use-task-link';
 import { BatchMultiSelect } from '../../../components/inputs/BatchMultiSelect';
 import { SlotRuleInput } from '../../calendar/components/SlotRuleInput';
@@ -44,6 +45,7 @@ import { EffortInput } from './EffortInput';
 import { DetailNotFound } from '../../../components/feedback/DetailNotFound';
 import { ActionButton } from '../../../components/actions/ActionButton';
 import { RemoveButton } from '../../../components/actions/RemoveButton';
+import { EXTERNAL_LINK } from '../../../components/actions/link-props';
 
 interface LinkListProps {
   label: string;
@@ -195,19 +197,14 @@ function TaskDetail({ task, context }: TaskDetailProps) {
               <>
                 {task.label}{' '}
                 <Text span c="dimmed" inherit fw={400}>
-                  {taskRef(task).trim()}
+                  {taskNumber(task)}
                 </Text>
               </>
             }
             badges={
               <>
                 {task.githubLinked && (
-                  <Badge
-                    variant="light"
-                    color="dark"
-                    leftSection={<GithubLogoIcon aria-hidden />}
-                    {...(task.githubUrl ? { component: 'a' as const, href: task.githubUrl, target: '_blank', rel: 'noopener' } : {})}
-                  >
+                  <Badge variant="light" color="dark" leftSection={<GithubLogoIcon aria-hidden />} {...(task.githubUrl ? { component: 'a' as const, href: task.githubUrl, ...EXTERNAL_LINK } : {})}>
                     {task.githubNumber ? `GitHub #${task.githubNumber}` : 'Brouillon GitHub'}
                   </Badge>
                 )}
@@ -232,7 +229,7 @@ function TaskDetail({ task, context }: TaskDetailProps) {
                 </>
               )
             }
-            menu={{ name: 'la tâche', items: actions.menu(task) }}
+            menu={{ about: 'la tâche', items: actions.menu(task) }}
           />
         ) : (
           <Group gap="xs" align="flex-start" wrap="nowrap">
@@ -303,7 +300,7 @@ function TaskDetail({ task, context }: TaskDetailProps) {
                 <>
                   Sous-tâches
                   {subtasks.length > 0 && (
-                    <Text span inherit fw={400} tt="none" ml="xs">
+                    <Text span inherit fw={400} ml="xs">
                       {doneSubtasks}/{subtasks.length}
                     </Text>
                   )}
@@ -433,9 +430,8 @@ function TaskDetail({ task, context }: TaskDetailProps) {
  * @returns {JSX.Element | null} Drawer, when a task is requested.
  */
 export function TaskPanel() {
-  const [params] = useSearchParams();
+  const [taskId] = useSearchParam(TASK_PARAM);
   const link = useTaskLink();
-  const taskId = params.get(TASK_PARAM);
   const { context, isPending } = useTaskContext();
   if (!taskId) return null;
   const task = taskId ? context?.taskById.get(taskId) : undefined;

@@ -217,11 +217,11 @@ export function useClientBilling(id: string) {
 }
 
 /**
- * Mutation refreshing the accounting data once done.
+ * Mutation refreshing the accounting data (documents, statuses, treasury) once done.
  * @param {(variables: TVariables) => Promise<TResult>} mutationFn Request.
  * @returns {UseMutationResult} Mutation state.
  */
-function useAccountingMutation<TVariables, TResult>(mutationFn: (variables: TVariables) => Promise<TResult>) {
+export function useAccountingMutation<TVariables, TResult>(mutationFn: (variables: TVariables) => Promise<TResult>) {
   return useInvalidatingMutation(mutationFn, { invalidate: [accountingQueryKey] });
 }
 

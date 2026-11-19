@@ -10,7 +10,7 @@ import { archiveEntry, useSetArchived, useArchivedToggle } from '../../../lib/ar
 import { ShowArchivedSwitch } from '../../../components/filters/ShowArchivedSwitch';
 import { ArchivedBadge } from '../../../components/feedback/ArchivedBadge';
 
-import { useWorkspace } from '../../workspace/api';
+import { useWorkspace } from '../../projects/api';
 import { useContributorMutations, type Contributor } from '../api';
 import { useContributorForm } from '../hooks/use-contributor-form';
 import { useTreasurySettings } from '../../treasury/api';

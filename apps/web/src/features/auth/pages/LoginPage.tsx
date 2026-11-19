@@ -1,10 +1,12 @@
-import { Anchor, Button, PasswordInput, Stack, TextInput } from '@mantine/core';
+import { Anchor, PasswordInput, Stack, TextInput } from '@mantine/core';
 import { SignInIcon } from '@phosphor-icons/react';
 import { loginFormSchema, type LoginFormValues } from '@ordo/shared';
 import { Link } from 'react-router';
 import { showFormError, useAppForm } from '../../../lib/form';
 import { useLogin } from '../api';
 import { AuthHeader } from './AuthLayout';
+import { AUTH_PATHS } from '../../../app/pages';
+import { ActionButton } from '../../../components/actions/ActionButton';
 
 /**
  * Login with a username or an email address.
@@ -28,12 +30,12 @@ export function LoginPage() {
         <Stack gap="md">
           <TextInput label="Identifiant ou adresse email" autoComplete="username" autoFocus required {...form.getInputProps('identifier')} />
           <PasswordInput label="Mot de passe" autoComplete="current-password" required {...form.getInputProps('password')} />
-          <Anchor component={Link} to="/forgot-password" size="sm">
+          <Anchor component={Link} to={AUTH_PATHS.forgotPassword} size="sm">
             Mot de passe oublié ?
           </Anchor>
-          <Button type="submit" leftSection={<SignInIcon aria-hidden />} loading={login.isPending} fullWidth>
+          <ActionButton type="submit" icon={<SignInIcon aria-hidden />} loading={login.isPending} fullWidth>
             Se connecter
-          </Button>
+          </ActionButton>
         </Stack>
       </form>
     </>

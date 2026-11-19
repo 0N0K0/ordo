@@ -2,13 +2,15 @@ import { EmptyState } from '../../../components/feedback/EmptyState';
 import { FormSkeleton } from '../../../components/feedback/Skeletons';
 import { DestructiveButton } from '../../../components/dialogs/DestructiveActions';
 import { confirmDestructive } from '../../../components/dialogs/confirm-destructive';
-import { Anchor, Badge, Button, Group, PasswordInput, Table, Text, TextInput } from '@mantine/core';
+import { Anchor, Badge, Group, PasswordInput, Table, Text, TextInput } from '@mantine/core';
 import { GithubLogoIcon, PlugsIcon, KeyIcon } from '@phosphor-icons/react';
 import { useState } from 'react';
 import { notifySuccess } from '../../../lib/notify';
 import { useGithubContributors, useGithubLogin, useGithubMutations } from '../api';
 import { SettingsGrid } from '../../../components/settings/SettingsGrid';
 import { SettingsSection } from '../../../components/settings/SettingsSection';
+import { EXTERNAL_LINK } from '../../../components/actions/link-props';
+import { ActionButton } from '../../../components/actions/ActionButton';
 
 /**
  * GitHub login of a contributor, saved when the field is left.
@@ -81,7 +83,7 @@ export function GithubSettings() {
         description={
           <>
             Ordo se connecte avec un{' '}
-            <Anchor href="https://github.com/settings/tokens" target="_blank" rel="noopener" size="sm">
+            <Anchor href="https://github.com/settings/tokens" {...EXTERNAL_LINK} size="sm">
               jeton d’accès personnel
             </Anchor>{' '}
             : jeton « classic » avec les droits <code>project</code> et <code>repo</code>, ou jeton « fine-grained » avec l’accès aux projets et aux issues des dépôts concernés. Il est chiffré en
@@ -112,9 +114,9 @@ export function GithubSettings() {
               style={{ flex: 1, maxWidth: 480 }}
               autoComplete="off"
             />
-            <Button type="submit" mt={25} leftSection={<KeyIcon aria-hidden />} loading={setToken.isPending} disabled={!token.trim()}>
+            <ActionButton type="submit" mt={25} icon={<KeyIcon aria-hidden />} loading={setToken.isPending} disabled={!token.trim()}>
               {login ? 'Remplacer' : 'Connecter'}
-            </Button>
+            </ActionButton>
             {login && (
               <DestructiveButton mt={25} leftSection={<PlugsIcon aria-hidden />} onClick={confirmRemove}>
                 Déconnecter

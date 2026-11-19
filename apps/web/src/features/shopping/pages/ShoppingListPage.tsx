@@ -29,7 +29,7 @@ import {
 import { useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router';
 import { DataViewBar } from '../../../components/data-table/toolbar/DataViewBar';
-import { useDataView, type FirstTableView } from '../../../components/data-table/views/use-data-view';
+import { useDataView, type FirstTableView, conditionFilter } from '../../../components/data-table/views/use-data-view';
 import { RowActions } from '../../../components/data-table/cells/RowActions';
 import { ON_ERROR, onMutationError, toastCallbacks } from '../../../lib/notify';
 import { TaskRef } from '../../tasks/components/task-ui';
@@ -55,7 +55,7 @@ import { deliveryInput, deliveryWindow } from '../lib/delivery-format';
 import { StockPurchaseForm } from '../../stock/components/StockPurchaseForm';
 import { useStockProposal } from '../../stock/hooks/use-stock-proposal';
 import { useProductStock, useStockMutations } from '../../stock/api';
-import { bulkSaver } from '../../../components/data-table/selection/bulk-edit';
+import { bulkCellLabels, bulkSaver } from '../../../components/data-table/selection/bulk-edit';
 import { EditableSelect } from '../../../components/data-table/cells/EditableCells';
 import * as fmt from '../../../lib/format';
 import { deleteRowsAction } from '../../../components/data-table/selection/selection-actions';
@@ -76,10 +76,7 @@ const listSheets = (items: ShoppingItem[]) => [
 ];
 
 /** Views made the first time a list is shown: every item (opened first), what is left to buy. */
-const LIST_VIEWS: FirstTableView[] = [
-  { label: 'Tout' },
-  { label: 'À acheter', config: { filter: { type: 'group', id: 'root', combinator: 'and', children: [{ type: 'condition', id: 'bought', field: 'bought', operator: 'isFalse', value: null }] } } },
-];
+const LIST_VIEWS: FirstTableView[] = [{ label: 'Tout' }, { label: 'À acheter', config: { filter: conditionFilter('bought', 'isFalse') } }];
 
 /**
  * Page of a shopping list: its items by category or by store, ticked as bought (their products of the base list
@@ -197,6 +194,7 @@ export function ShoppingListPage() {
       if (next.length !== own.length || next.some((id) => !own.includes(id))) stockMutations.updateDelivery.mutate({ id: delivery.id, input: deliveryInput(delivery, next) }, ON_ERROR);
     }
   };
+  const cellLabelOf = bulkCellLabels(view, (item: ShoppingItem) => item.label);
   const bulkDelivery = bulkSaver<ShoppingItem, string | null>(
     view,
     (item, deliveryId) => assignDelivery([item], deliveryId),
@@ -350,7 +348,7 @@ export function ShoppingListPage() {
             delivery: list.remote && (
               <EditableSelect
                 value={item.deliveryId ?? null}
-                label={`Livraison de ${item.label}`}
+                label={cellLabelOf('delivery', item, 'Livraison')}
                 nullable
                 data={deliveries.map((delivery) => ({ value: delivery.id, label: deliveryName(delivery.id) }))}
                 onSave={(deliveryId) => bulkDelivery(item, deliveryId)}

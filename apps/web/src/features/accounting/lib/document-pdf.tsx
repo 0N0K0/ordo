@@ -1,6 +1,7 @@
 import { openFile } from '../../files/lib/open-file';
 
 import { paidOnReceipt, reminderMail, type AccountingDocumentType } from '@ordo/shared';
+import { fileName } from '../../../lib/download';
 import type { ComposeOptions } from '../../mail/lib/compose-options';
 import { escapeHtml } from '../../mail/lib/mail-format';
 import * as fmt from '../../../lib/format';
@@ -103,13 +104,13 @@ export async function documentMailOptions(document: DocumentMail): Promise<Compo
       to: document.recipient.email ? [document.recipient.email] : [],
       subject: mail.subject,
       body: mail.html,
-      files: [await fetchFile(pdfUrl(document.id, true), `${phrase.label} ${document.number}.pdf`)],
+      files: [await fetchFile(pdfUrl(document.id, true), fileName(`${phrase.label} ${document.number}`, 'pdf'))],
       projectId: document.projectId,
       onSent: document.onSent,
     };
   }
   const files = await Promise.all([
-    fetchFile(pdfUrl(document.id, true), `${phrase.label} ${document.number}.pdf`),
+    fetchFile(pdfUrl(document.id, true), fileName(`${phrase.label} ${document.number}`, 'pdf')),
     ...document.attachments.map((attachment) => fetchFile(attachment.url, attachment.filename)),
   ]);
   return {

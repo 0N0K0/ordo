@@ -2,7 +2,7 @@ import { DataTable } from '../../../components/data-table/table/DataTable';
 import type { DataColumn } from '../../../components/data-table/table/data-table';
 import { EditableDate, EditableNumber } from '../../../components/data-table/cells/EditableCells';
 import { useDataView } from '../../../components/data-table/views/use-data-view';
-import { bulkSaver } from '../../../components/data-table/selection/bulk-edit';
+import { bulkCellLabels, bulkSaver } from '../../../components/data-table/selection/bulk-edit';
 import * as fmt from '../../../lib/format';
 import { ON_ERROR } from '../../../lib/notify';
 import { useStockMutations, type StockItem, type StockLot } from '../api';
@@ -30,12 +30,12 @@ export function LotsTable({ item, readOnly = false }: { item: StockItem; readOnl
     },
     {
       id: 'expiresAt',
-      label: 'Péremption',
+      label: 'Date de péremption',
       size: 150,
       bulk: true,
-      sortValue: (lot) => (lot.expiresAt ? lot.expiresAt : null),
+      sortValue: (lot) => lot.expiresAt || null,
       text: (lot) => (lot.expiresAt ? fmt.day(lot.expiresAt) : ''),
-      filter: { kind: 'date', value: (lot) => (lot.expiresAt ? lot.expiresAt : null) },
+      filter: { kind: 'date', value: (lot) => lot.expiresAt || null },
     },
     {
       id: 'createdAt',
@@ -48,6 +48,7 @@ export function LotsTable({ item, readOnly = false }: { item: StockItem; readOnl
   ];
   const view = useDataView({ tableKey: 'stock-lots', getKey: (lot) => lot.id, columns, rows: item.lots, title: `Lots de ${item.label}` });
   // A change saves its lot, or every lot of the bulk selection of its column.
+  const cellLabelOf = bulkCellLabels(view, (lot: StockLot) => `lot du ${fmt.day(lot.expiresAt ?? lot.createdAt)}`);
   const bulk = bulkSaver<StockLot, { quantity?: number; expiresAt?: string | null }>(view, (lot, change) => {
     // A quantity changed by hand is a correction.
     if (change.quantity !== undefined && change.quantity !== lot.quantity)
@@ -63,14 +64,20 @@ export function LotsTable({ item, readOnly = false }: { item: StockItem; readOnl
         quantity: (
           <EditableNumber
             value={lot.quantity}
-            label={`Quantité du lot du ${lot.expiresAt ? fmt.day(lot.expiresAt) : fmt.day(lot.createdAt)}`}
+            label={cellLabelOf('quantity', lot, 'Quantité')}
             decimals={3}
             readOnly={readOnly}
             onSave={(quantity) => quantity !== null && bulk('quantity')(lot, { quantity })}
           />
         ),
         expiresAt: (
-          <EditableDate value={lot.expiresAt ? lot.expiresAt : null} label="Date de péremption du lot" nullable readOnly={readOnly} onSave={(expiresAt) => bulk('expiresAt')(lot, { expiresAt })} />
+          <EditableDate
+            value={lot.expiresAt || null}
+            label={cellLabelOf('expiresAt', lot, 'Date de péremption')}
+            nullable
+            readOnly={readOnly}
+            onSave={(expiresAt) => bulk('expiresAt')(lot, { expiresAt })}
+          />
         ),
       })}
     />

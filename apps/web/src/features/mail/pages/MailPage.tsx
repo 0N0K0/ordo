@@ -16,6 +16,7 @@ import { ClockCountdownIcon, EnvelopeSimpleIcon } from '@phosphor-icons/react';
 import { useEffect, useMemo, useState } from 'react';
 import { useSearchParams } from 'react-router';
 
+import { useOwnAddresses } from '../hooks/use-own-addresses';
 import { useMailAccounts, useMailFolders, useMailLabels, useMailMessages, useScheduledMails } from '../api';
 import { AccountFolders, type DraggedMails } from '../components/MailFolders';
 import { MailListItem } from '../components/MailListItem';
@@ -76,8 +77,7 @@ export function MailPage() {
   const { data: scheduled } = useScheduledMails();
   const isDrafts = folders?.find((item) => item.path === folder)?.specialUse === '\\Drafts';
   const labelById = useMemo(() => mapById(labels ?? []), [labels]);
-  // Mails sent from one of these show their recipients.
-  const ownAddresses = useMemo(() => new Set((accounts ?? []).map((account) => account.email.toLowerCase())), [accounts]);
+  const ownAddresses = useOwnAddresses();
   // Mails ticked in the list (of the folder shown), and mails being dragged to a folder.
   const { selected, setSelected, tick } = usePageSelection<number>(`${accountId}|${folder}|${page}|${doneFilter}|${debouncedSearch}`);
   const [dragged, setDragged] = useState<DraggedMails | null>(null);

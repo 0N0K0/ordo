@@ -6,14 +6,33 @@
  * a time, timestamp), shown in the user's time zone.
  */
 
-// eslint-disable-next-line no-restricted-imports -- fmt.moneyCents is the shared formatMoney.
-import { capitalize as capitalizeText, countOf, dateStyle, daysBetween, formatMoney, formatNumber, formatPercent, LOCALE, moneyFormat, monthText, weekdayText, type DateValue } from '@ordo/shared';
+import {
+  capitalize as capitalizeText,
+  countOf,
+  dateStyle,
+  dayOfMonthText,
+  daysBetween,
+  // eslint-disable-next-line no-restricted-imports -- fmt.moneyCents is the shared formatMoney.
+  formatMoney,
+  formatNumber,
+  formatPercent,
+  LOCALE,
+  longDayText,
+  moneyFormat,
+  monthText,
+  weekdayText,
+  type DateValue,
+} from '@ordo/shared';
 
 /** « 13 nov. 2026 »: a date in a table, a list, a text. */
 export const day = dateStyle({ day: 'numeric', month: 'short', year: 'numeric' });
 
-/** « 13 novembre 2026 »: a date in a sentence, its weekday left out (the end of a repetition…). */
-export const dayInWords = dateStyle({ day: 'numeric', month: 'long', year: 'numeric' });
+/**
+ * « 13 novembre 2026 », « 1er juin 2026 »: a date in a sentence, its weekday left out (the end of a repetition…).
+ * @param {DateValue} value Day or instant.
+ * @returns {string} Text.
+ */
+export const dayInWords = (value: DateValue): string => longDayText(value).replace(/^1 /, `${dayOfMonthText(1)} `);
 
 /** « 13 nov. »: a date of the year around, a chart axis. */
 export const dayShort = dateStyle({ day: 'numeric', month: 'short' });

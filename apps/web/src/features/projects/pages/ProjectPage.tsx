@@ -6,7 +6,7 @@ import { SectionHeader } from '../../../components/page/SectionHeader';
 import { NO_TARGETS } from '../../../components/markdown/remark-references';
 import { useTaskContext } from '../../tasks/hooks/use-task-context';
 import { MarkdownView } from '../../../components/markdown/MarkdownView';
-import { useSetParams } from '../../../lib/search-params';
+import { useSetParams, useSearchParam } from '../../../lib/search-params';
 import { ancestorsOf, mapById, subtreeOf } from '@ordo/shared';
 import { ItemBadge } from '../../../components/items/ItemBadge';
 import { TaskSettings } from '../../tasks/components/TaskSettings';
@@ -33,7 +33,7 @@ import {
   ListChecksIcon,
 } from '@phosphor-icons/react';
 import { useEffect } from 'react';
-import { Link, useParams, useSearchParams } from 'react-router';
+import { Link, useParams } from 'react-router';
 import { DashboardBoard } from '../../dashboards/components/DashboardBoard';
 import { ProjectGithubPanel } from '../../github/components/ProjectGithubPanel';
 import { MilestonesPanel } from '../../tasks/components/MilestonesPanel';
@@ -47,7 +47,7 @@ import { RoutinesPanel } from '../../routines/pages/RoutinesPage';
 import { ListsPanel } from '../../shopping/pages/ShoppingPage';
 import { TaskBoard } from '../../tasks/components/TaskBoard';
 import { useActiveWorkspace } from '../../workspaces/api';
-import { descendantIds, useWorkspace, type Project } from '../api';
+import { useWorkspace, type Project } from '../api';
 import { ProjectForm } from '../components/ProjectForm';
 import { canHaveChildren } from '../lib/tree';
 import { useEntityActions } from '../hooks/use-entity-actions';
@@ -132,7 +132,7 @@ export function ProjectPage() {
   const actions = useEntityActions();
   // No invoicing nor clients in a personal workspace.
   const { perso } = useActiveWorkspace();
-  const [params] = useSearchParams();
+  const [settings] = useSearchParam(SETTINGS_PARAM);
   const setParams = useSetParams();
   // The former tabs of the settings (links, bookmarks) open their section.
   // The dashboards are in the overview; no billing in a personal workspace.
@@ -156,7 +156,7 @@ export function ProjectPage() {
   const status = data.projectStatuses.find((item) => item.id === project.statusId);
   // From the root project down to its parent.
   const ancestors = ancestorsOf(mapById(data.projects), project.id).reverse();
-  const subtree = descendantIds(data.projects, project.id);
+  const subtree = subtreeOf(data.projects, project.id, false);
   const subProjects = data.projects.filter((item) => subtree.has(item.id));
   // Routines and shopping lists: those of the project and of its sub-projects.
   const tree = subtreeOf(data.projects, project.id);
@@ -199,7 +199,6 @@ export function ProjectPage() {
         value={tab}
         onChange={(value) => {
           // Changing tab drops the view and the open task of the previous tab; the settings sidebar stays as it is.
-          const settings = params.get(SETTINGS_PARAM);
           setTab(value, { [SETTINGS_PARAM]: settings, [SETTINGS_TAB_PARAM]: settings ? section : null }, { only: true });
         }}
         keepMounted={false}

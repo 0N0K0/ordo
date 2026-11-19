@@ -48,7 +48,7 @@ interface ColumnHeaderMenuProps extends ColumnMenuExtras {
 export function ColumnHeaderMenu({ label, sort, onSortBy, onSelect, onFilter, group, onHide, index, count, onMove }: ColumnHeaderMenuProps) {
   return (
     <ActionsMenu
-      name={`la colonne ${label}`}
+      about={`la colonne « ${label} »`}
       position="bottom-start"
       width={240}
       inRow

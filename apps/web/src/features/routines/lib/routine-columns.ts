@@ -42,15 +42,15 @@ export function routineColumns(env: RoutineEnv): DataColumn<Routine>[] {
   const state = (routine: Routine) => currentRoutineState(routine, env.today, env.doable(routine));
   const minutes = (value: number | null) => (value ? formatDuration(value * 60) : '');
   return [
-    { id: 'title', label: 'Libellé', size: 320, locked: true, bulk: true, sortValue: (routine) => routine.label, text: (routine) => routine.label },
+    { id: 'label', label: 'Libellé', size: 320, locked: true, bulk: true, sortValue: (routine) => routine.label, text: (routine) => routine.label },
     {
       id: 'currentDate',
       label: 'Échéance',
       size: 200,
       bulk: true,
-      sortValue: (routine) => (routine.currentDate ? routine.currentDate : null),
-      text: (routine) => dayText(routine.currentDate ? routine.currentDate : null),
-      filter: { kind: 'date', value: (routine) => (routine.currentDate ? routine.currentDate : null) },
+      sortValue: (routine) => routine.currentDate || null,
+      text: (routine) => dayText(routine.currentDate || null),
+      filter: { kind: 'date', value: (routine) => routine.currentDate || null },
     },
     {
       id: 'state',
@@ -65,18 +65,18 @@ export function routineColumns(env: RoutineEnv): DataColumn<Routine>[] {
       id: 'firstDate',
       label: 'Première échéance',
       size: 150,
-      sortValue: (routine) => (routine.firstDate ? routine.firstDate : null),
-      text: (routine) => dayText(routine.firstDate ? routine.firstDate : null),
-      filter: { kind: 'date', value: (routine) => (routine.firstDate ? routine.firstDate : null) },
+      sortValue: (routine) => routine.firstDate || null,
+      text: (routine) => dayText(routine.firstDate || null),
+      filter: { kind: 'date', value: (routine) => routine.firstDate || null },
     },
     {
       id: 'nextDate',
       label: 'Échéance suivante',
       size: 150,
       hiddenByDefault: true,
-      sortValue: (routine) => (routine.nextDate ? routine.nextDate : null),
-      text: (routine) => dayText(routine.nextDate ? routine.nextDate : null),
-      filter: { kind: 'date', value: (routine) => (routine.nextDate ? routine.nextDate : null) },
+      sortValue: (routine) => routine.nextDate || null,
+      text: (routine) => dayText(routine.nextDate || null),
+      filter: { kind: 'date', value: (routine) => routine.nextDate || null },
     },
     {
       id: 'startDate',
@@ -170,7 +170,7 @@ export function routineColumns(env: RoutineEnv): DataColumn<Routine>[] {
       label: 'Faite pour la dernière fois',
       size: 170,
       hiddenByDefault: true,
-      sortValue: (routine) => (routine.lastDoneAt ? routine.lastDoneAt : null),
+      sortValue: (routine) => routine.lastDoneAt || null,
       text: (routine) => (routine.lastDoneAt ? fmt.dateTime(routine.lastDoneAt) : ''),
       filter: { kind: 'date', value: (routine) => (routine.lastDoneAt ? localDay(routine.lastDoneAt) : null) },
     },

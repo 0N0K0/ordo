@@ -15,7 +15,7 @@ import { confirmDestructive } from '../../../components/dialogs/confirm-destruct
 import { TaskSelect } from './task-ui';
 
 import { linkableTasks } from '../lib/task-links';
-import { taskName, taskRef, type TaskContext } from '../hooks/use-task-context';
+import { type TaskContext, taskName, taskNumber } from '../hooks/use-task-context';
 import { useTaskLink } from '../hooks/use-task-link';
 import { useCellEdit } from '../lib/cell-edit';
 import { applyDiff, listDiff } from '../../../components/data-table/selection/bulk-edit';
@@ -48,19 +48,19 @@ function fieldLabel(name: string, task: Task, count: number): string {
  */
 export function TitleCell({ task, context, prefix }: { task: Task; context: TaskContext; prefix?: ReactNode }) {
   const link = useTaskLink();
-  const { apply } = useCellEdit(task, 'title');
+  const { apply } = useCellEdit(task, 'label');
   const children = context.childrenOf(task.id);
   return (
     <EditableTitle
       value={task.label}
-      label={`Libellé de la tâche ${taskName(task)}`}
+      label={fieldLabel('Libellé', task, 1)}
       schema={taskLabelSchema}
       to={link.to(task.id)}
       before={
         <>
           {prefix}
           <Text component={Link} to={link.to(task.id)} size="sm" c="dimmed" onClick={stopClick} style={{ flex: 'none' }}>
-            {taskRef(task).trim()}
+            {taskNumber(task)}
           </Text>
         </>
       }

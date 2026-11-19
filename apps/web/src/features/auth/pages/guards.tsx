@@ -1,6 +1,7 @@
 import { Navigate, Outlet, useLocation } from 'react-router';
 import { useMe } from '../api';
 import { FullPageLoader } from '../../../components/feedback/FullPageLoader';
+import { AUTH_PATHS, PAGES } from '../../../app/pages';
 
 interface FromState {
   from?: { pathname: string; search: string };
@@ -15,7 +16,7 @@ export function RequireAuth() {
   const location = useLocation();
 
   if (me.isPending) return <FullPageLoader label="Chargement" />;
-  if (!me.data) return <Navigate to="/login" replace state={{ from: location } satisfies FromState} />;
+  if (!me.data) return <Navigate to={AUTH_PATHS.login} replace state={{ from: location } satisfies FromState} />;
   return <Outlet />;
 }
 
@@ -28,6 +29,6 @@ export function RequireGuest() {
   const from = (useLocation().state as FromState | null)?.from;
 
   if (me.isPending) return <FullPageLoader label="Chargement" />;
-  if (me.data) return <Navigate to={from ? `${from.pathname}${from.search}` : '/'} replace />;
+  if (me.data) return <Navigate to={from ? `${from.pathname}${from.search}` : PAGES.home.path} replace />;
   return <Outlet />;
 }

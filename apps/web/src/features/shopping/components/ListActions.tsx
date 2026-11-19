@@ -151,7 +151,7 @@ function useListActions(list: ShoppingList, grouping: ShoppingGrouping, onDelete
     onClick: () =>
       confirmDestructive({
         title: 'Supprimer la liste',
-        risks: `« ${list.label} » et ${countWith(list.items.length, 'élément', ['son', 'ses'])} seront supprimés définitivement. Les références et la répartition d’un mouvement rattaché ne changent pas.`,
+        risks: `${list.items.length ? `« ${list.label} » et ${countWith(list.items.length, 'élément', ['son', 'ses'])} seront supprimés` : `La liste « ${list.label} » sera supprimée`} définitivement. Les références et la répartition d’un mouvement rattaché ne changent pas.`,
         onConfirm: () =>
           mutations.deleteList.mutate(
             { id: list.id },
@@ -217,5 +217,5 @@ interface ListActionsMenuProps {
  * @returns {JSX.Element | null} Menu.
  */
 export function ListActionsMenu({ list, grouping, header = false, onDeleted }: ListActionsMenuProps) {
-  return <ActionsMenu name={`la liste ${list.label}`} items={useListActions(list, grouping, onDeleted)} {...(header ? { variant: 'default' as const, size: 'input-sm' } : {})} />;
+  return <ActionsMenu about={`la liste « ${list.label} »`} items={useListActions(list, grouping, onDeleted)} {...(header ? { variant: 'default' as const, size: 'input-sm' } : {})} />;
 }

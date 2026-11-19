@@ -1,12 +1,13 @@
 import { openFormPanel } from '../../../components/panels/panels';
 import { Button, UnstyledButton } from '@mantine/core';
-import { CaretDownIcon, GearSixIcon } from '@phosphor-icons/react';
+import { GearSixIcon } from '@phosphor-icons/react';
 import { ActionsMenu } from '../../../components/actions/ActionsMenu';
 import { useActiveWorkspace, useWorkspaces } from '../api';
 import { switchWorkspace } from '../lib/switch';
 import { WorkspaceKindIcon } from './WorkspaceKindIcon';
 import { WorkspacesManager } from './WorkspacesManager';
 import classes from './WorkspaceSwitcher.module.css';
+import { MenuCaret } from '../../../components/actions/MenuCaret';
 
 /**
  * Opens the management of the workspaces.
@@ -30,7 +31,7 @@ export function WorkspaceSwitcher({ variant = 'button' }: { variant?: 'button' |
   const label = `Espace : ${workspace?.label ?? ''}. Changer d’espace`;
   return (
     <ActionsMenu
-      name="l’espace"
+      about="l’espace"
       hover
       position="bottom-start"
       items={[
@@ -46,19 +47,11 @@ export function WorkspaceSwitcher({ variant = 'button' }: { variant?: 'button' |
       ]}
       target={
         variant === 'text' ? (
-          <UnstyledButton className={classes.text} aria-label={label} aria-haspopup="menu">
+          <UnstyledButton className={classes.text} aria-label={label}>
             {workspace?.label ?? 'Espace'}
           </UnstyledButton>
         ) : (
-          <Button
-            variant="subtle"
-            size="xs"
-            leftSection={workspace && <WorkspaceKindIcon kind={workspace.kind} />}
-            rightSection={<CaretDownIcon aria-hidden size={12} />}
-            aria-label={label}
-            aria-haspopup="menu"
-            maw={220}
-          >
+          <Button variant="subtle" size="xs" leftSection={workspace && <WorkspaceKindIcon kind={workspace.kind} />} rightSection={<MenuCaret />} aria-label={label} maw={220}>
             {workspace?.label ?? 'Espace'}
           </Button>
         )

@@ -6,6 +6,7 @@ import { type Place } from '../../generated/prisma/client';
 import { clientError, fieldError, orNotFound, parseInput, rethrowUnique } from '../../graphql/errors';
 import { deleteOrNotFound } from './lookup';
 import { assertNotArchived } from './archive';
+import { BY_POSITION } from './ordering';
 
 /** Address found by a search: the address in words, the label of the place and its point (as a `Place`). */
 export interface AddressSuggestion {
@@ -159,7 +160,7 @@ export interface PlaceView {
  * @returns {Promise<PlaceView[]>} Places.
  */
 export async function places(): Promise<PlaceView[]> {
-  const rows = await prisma.place.findMany({ orderBy: [{ position: 'asc' }, { label: 'asc' }] });
+  const rows = await prisma.place.findMany({ orderBy: BY_POSITION });
   const byId = mapById(rows);
   return rows.flatMap((row) => {
     // From the place at the top down to this one.

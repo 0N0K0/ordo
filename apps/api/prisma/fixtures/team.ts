@@ -1,18 +1,10 @@
-import { relativeDay, TIME_ZONE } from './factories';
+import { createEntry, EMPTY_ENTRY, relativeDay, TIME_ZONE } from './factories';
 import { addDays, monthOfDay, shiftMonth } from '@ordo/shared';
 import { prisma } from '../../src/db';
 import type { Contributor } from '../../src/generated/prisma/client';
 import { createCalendarEvent } from '../../src/services/calendar/calendar-events';
-import { createEntry as saveEntry } from '../../src/services/treasury/treasury';
 import { saveBudget } from '../../src/services/treasury/treasury-budgets';
 import { addMember, saveContext, saveContextPeriod, saveRelation } from '../../src/services/treasury/treasury-team';
-
-/**
- * Creates a movement; a split one has its categories on its lines only.
- * @param {Parameters<typeof saveEntry>[0]} input Movement.
- * @returns {ReturnType<typeof saveEntry>} Movement.
- */
-const createEntry = (input: Parameters<typeof saveEntry>[0]) => saveEntry(input.lines?.length ? { ...input, categoryId: null } : input);
 
 /** What the team fixtures made, for the shopping ones. */
 export interface SeededTeam {
@@ -47,12 +39,12 @@ export async function seedTeam({ contributors, today, monday }: { contributors: 
 
   // --- Contexts and their periods (the fair and the holidays of the calendar) -----------------------------
   const contextIds = new Map<string, string>();
-  for (const [name, color] of [
+  for (const [label, color] of [
     ['Déplacement', '#15aabf'],
     ['Salon', '#be4bdb'],
     ['Séminaire', '#fd7e14'],
   ] as const) {
-    contextIds.set(name, (await saveContext(null, { label: name, color })).id);
+    contextIds.set(label, (await saveContext(null, { label, color })).id);
   }
   await saveContextPeriod(null, { contextId: contextIds.get('Salon')!, startDate: addDays(monday, 10), endDate: addDays(monday, 12), note: 'Salon professionnel' });
   await saveContextPeriod(null, { contextId: contextIds.get('Séminaire')!, startDate: addDays(monday, -9), endDate: addDays(monday, -8), note: 'Séminaire d’équipe' });
@@ -61,7 +53,7 @@ export async function seedTeam({ contributors, today, monday }: { contributors: 
   // --- Budgets ---------------------------------------------------------------------------------------
   const account = await prisma.treasuryAccount.findFirst({ where: { label: 'Compte courant pro' } });
   const categories = await prisma.treasuryCategory.findMany({ select: { id: true, label: true, direction: true } });
-  const category = (name: string, direction: 'IN' | 'OUT' = 'OUT') => categories.find((item) => item.label === name && item.direction === direction)?.id ?? null;
+  const category = (label: string, direction: 'IN' | 'OUT' = 'OUT') => categories.find((item) => item.label === label && item.direction === direction)?.id ?? null;
   const budget = (
     categoryLabel: string,
     amount: number,
@@ -111,16 +103,7 @@ export async function seedTeam({ contributors, today, monday }: { contributors: 
   if (account) {
     const base = {
       accountId: account.id,
-      valueDate: null,
-      clientId: null,
-      counterpartyId: null,
-      projectId: null,
-      note: null,
-      recurrence: null,
-      allocations: [],
-      linkedEntryIds: [],
-      libraryDocumentIds: [],
-      projectResourceIds: [],
+      ...EMPTY_ENTRY,
       methodId: (await prisma.treasuryPaymentMethod.findFirst({ where: { label: 'Carte' } }))?.id ?? null,
     };
     const line = (

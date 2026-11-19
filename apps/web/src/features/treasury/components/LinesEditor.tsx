@@ -1,3 +1,4 @@
+import { relationWords } from '../../../components/people/people-options';
 import { CreatableSelect } from '../../../components/inputs/CreatableSelect';
 import { createInPanel } from '../../../components/settings/create-settings-item';
 import { useCategoryCreators } from '../hooks/use-settings-items';
@@ -8,8 +9,8 @@ import { memberOrRelation, memberOrRelationKey, memberRelationOptions, parsePers
 import { unarchived, archivedIds } from '../../../lib/archive';
 import { SidePanel } from '../../../components/panels/SidePanel';
 import { listSelectProps } from '../../../components/items/item-look';
-import { Button, Group, ScrollArea, SegmentedControl, Stack, Table, Text, TextInput, Tooltip } from '@mantine/core';
-import { EVERYDAY_CONTEXT, plannedContext, round2, splitAmounts, type TreasuryLineMode } from '@ordo/shared';
+import { Group, ScrollArea, SegmentedControl, Stack, Table, Text, TextInput, Tooltip } from '@mantine/core';
+import { EVERYDAY_CONTEXT, plannedContext, round2, splitAmounts, type TreasuryLineMode, fromCents } from '@ordo/shared';
 import { PaperclipIcon, UsersThreeIcon } from '@phosphor-icons/react';
 import { useState } from 'react';
 import type { TreasurySettings } from '../api';
@@ -23,6 +24,8 @@ import { SignedAmount } from '../../../components/money/SignedAmount';
 import { RemoveButton } from '../../../components/actions/RemoveButton';
 import { meName } from '../../../components/people/people-options';
 import { IconAction } from '../../../components/actions/IconAction';
+import { ActionButton } from '../../../components/actions/ActionButton';
+import { itemCellLabel } from '../../../components/data-table/cells/cell-field';
 
 interface LinesEditorProps {
   lines: LineValues[];
@@ -60,7 +63,7 @@ export function LinesEditor({ lines, onChange, amount, direction, date, settings
   const categories = settings?.treasuryCategories ?? [];
   // A relation or a context created from a line, with its own form (the name typed filled in).
   const createRelation = async (name: string) => {
-    const id = await createInPanel('Nouvelle relation', (done) => <RelationForm name={name} onDone={done} />);
+    const id = await createInPanel(relationWords(perso).new, (done) => <RelationForm name={name} onDone={done} />);
     return id && memberOrRelationKey({ relationId: id });
   };
   const createCategory = useCategoryCreators(categories);
@@ -95,14 +98,14 @@ export function LinesEditor({ lines, onChange, amount, direction, date, settings
    * New line: what is not split yet, for me, in the category of the entry and the planned context.
    * @returns {void}
    */
-  const add = () => onChange([...lines, newLine({ value: Math.max(remainder, 0) / 100 || 0, memberId: me?.id ?? null, contextId: planned })]);
+  const add = () => onChange([...lines, newLine({ value: fromCents(Math.max(remainder, 0)) || 0, memberId: me?.id ?? null, contextId: planned })]);
 
   /**
    * Replaces the lines by an equal share for every member.
    * @returns {void}
    */
   const splitEqually = () => {
-    const share = Math.round(10_000 / members.length) / 100;
+    const share = round2(100 / members.length);
     onChange(
       members.map((member, index) =>
         newLine({
@@ -162,14 +165,14 @@ export function LinesEditor({ lines, onChange, amount, direction, date, settings
             </Table.Thead>
             <Table.Tbody>
               {lines.map((line, index) => {
-                const relative = amounts[index] / 100;
+                const relative = fromCents(amounts[index]);
                 const error = (field: string) => errors[`lines.${index}.${field}`] as string | undefined;
                 return (
                   <Table.Tr key={index}>
                     <Table.Td>
                       <TextInput
                         size="xs"
-                        aria-label={`Libellé de la ligne ${index + 1}`}
+                        aria-label={itemCellLabel('Libellé', `la ligne ${index + 1}`, 1)}
                         placeholder="Facultatif"
                         value={line.label ?? ''}
                         onChange={(event) => change(index, { label: event.currentTarget.value || null })}
@@ -254,7 +257,7 @@ export function LinesEditor({ lines, onChange, amount, direction, date, settings
                       <IconAction
                         label="Rattacher"
                         hint="Projet, pièces justificatives, liens"
-                        aria-label={`Rattachements de la ligne ${index + 1}`}
+                        item={`Ligne ${index + 1}`}
                         variant={attachmentCount(line) ? 'light' : 'subtle'}
                         indicator={attachmentCount(line)}
                         onClick={() => setAttaching(index)}
@@ -293,9 +296,9 @@ export function LinesEditor({ lines, onChange, amount, direction, date, settings
       <Group gap="xs">
         <AddItemButton onClick={add}>Ajouter une ligne</AddItemButton>
         {members.length > 1 && (
-          <Button size="xs" variant="subtle" leftSection={<UsersThreeIcon aria-hidden />} onClick={splitEqually}>
+          <ActionButton priority="tertiary" icon={<UsersThreeIcon aria-hidden />} onClick={splitEqually}>
             Parts égales entre les membres
-          </Button>
+          </ActionButton>
         )}
       </Group>
       {typeof errors.lines === 'string' && (

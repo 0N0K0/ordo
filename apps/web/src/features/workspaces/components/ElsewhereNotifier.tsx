@@ -9,8 +9,8 @@ import { fetchCalendarEvents, type EventOccurrence } from '../../calendar/api';
 import { MailWatcher } from '../../mail/components/MailWatcher';
 import { useWorkspaces, type Workspace } from '../api';
 import { switchWorkspace } from '../lib/switch';
-import { projectPath, taskPath, PAGES } from '../../../app/pages';
-import { taskRef } from '../../tasks/hooks/use-task-context';
+import { PAGES, projectPath, taskPath } from '../../../app/pages';
+import { alarmTaskLabel } from '../../alarms/lib/alarm-labels';
 
 const ElsewhereAlarmsDocument = graphql(`
   query ElsewhereAlarms {
@@ -26,6 +26,10 @@ const ElsewhereAlarmsDocument = graphql(`
         id
         label
       }
+    }
+    projects {
+      id
+      label
     }
     runningTimeEntry {
       id
@@ -64,6 +68,8 @@ function ElsewhereWorkspace({ workspace }: { workspace: Workspace }) {
     const wanted = new Set(sources.split(','));
     let alarms: ElsewhereAlarm[] = [];
     let running: ElsewhereAlarmsQuery['runningTimeEntry'] = null;
+    // Labels of the projects: a task number is only unique in its project.
+    let projectLabels = new Map<string, string>();
     let upcoming: EventOccurrence[] = [];
     const trackingSteps = new Map<string, number>();
     const timers: number[] = [];
@@ -93,9 +99,11 @@ function ElsewhereWorkspace({ workspace }: { workspace: Workspace }) {
      * @returns {RingLink[]} Links.
      */
     const alarmLinks = (alarm: ElsewhereAlarm): RingLink[] => {
-      if (alarm.task) return [link(`${taskRef(alarm.task)}${alarm.task.label}`, taskPath(alarm.task))];
+      // Its number is only unique in its project: the project comes with it (as in the open workspace).
+      const place = alarm.task?.projectId ? projectLabels.get(alarm.task.projectId) : undefined;
+      if (alarm.task) return [link(alarmTaskLabel(alarm.task, place), taskPath(alarm.task))];
       if (alarm.project) return [link(alarm.project.label, projectPath(alarm.project.id))];
-      return [link(`Ouvrir « ${label} »`, '/')];
+      return [link(`Ouvrir « ${label} »`, PAGES.home.path)];
     };
 
     /**
@@ -114,6 +122,7 @@ function ElsewhereWorkspace({ workspace }: { workspace: Workspace }) {
         executeIn(id, ElsewhereAlarmsDocument)
           .then((data) => {
             alarms = data.alarms;
+            projectLabels = new Map(data.projects.map((project) => [project.id, project.label]));
             running = data.runningTimeEntry;
           })
           .catch(() => undefined);

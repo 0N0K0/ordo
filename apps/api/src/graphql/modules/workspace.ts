@@ -5,7 +5,7 @@ import * as clients from '../../services/workspace/clients';
 import { iconUrl } from '../../services/core/icons';
 import * as projects from '../../services/workspace/projects';
 import { projectStatuses } from '../../services/tasks/statuses';
-import { BY_POSITION } from '../../services/core/ordering';
+import { BY_POSITION, BY_POSITION_NAME } from '../../services/core/ordering';
 import { builder, type InputFields } from '../builder';
 import { LabelColorInput, LabelColorPatch, labelMutations, labelObject } from '../label-inputs';
 import { reloaded } from '../reload';
@@ -105,7 +105,7 @@ builder.queryFields((t) => ({
   clients: t.prismaField({
     type: ['Client'],
     description: 'Every client, archived ones included, in manual order.',
-    resolve: (query) => prisma.client.findMany({ ...query, orderBy: BY_POSITION }),
+    resolve: (query) => prisma.client.findMany({ ...query, orderBy: BY_POSITION_NAME }),
   }),
   projects: t.prismaField({
     type: ['Project'],
@@ -114,7 +114,7 @@ builder.queryFields((t) => ({
   }),
   projectCategories: t.prismaField({
     type: ['ProjectCategory'],
-    resolve: (query) => prisma.projectCategory.findMany({ ...query, orderBy: [{ position: 'asc' }, { label: 'asc' }] }),
+    resolve: (query) => prisma.projectCategory.findMany({ ...query, orderBy: BY_POSITION }),
   }),
   projectStatuses: t.prismaField({
     type: ['ProjectStatus'],

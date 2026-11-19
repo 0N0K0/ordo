@@ -24,8 +24,9 @@ export function sameName(a: string, b: string): boolean {
   return normalize(a.trim()) === normalize(b.trim());
 }
 
-/** Name of a file whose name is empty once cleaned. */
-const UNNAMED_FILE = 'sans-nom';
+/** Name of a file that has none, or whose name is empty once cleaned (attachments, links, exports). */
+// eslint-disable-next-line no-restricted-syntax -- the name itself.
+export const UNNAMED_FILE = 'sans-nom';
 
 /**
  * File name without the characters file systems refuse (each replaced by a dash), trimmed; « sans-nom » when nothing is left.
@@ -53,6 +54,7 @@ export function fileName(title: string, extension: string): string {
  * @returns {string} Cut text.
  */
 export function clipText(text: string, max: number): string {
+  // eslint-disable-next-line no-restricted-syntax -- clipText itself.
   return text.trim().slice(0, max).trimEnd();
 }
 
@@ -67,6 +69,7 @@ const COPY_SUFFIX = ' (copie)';
  */
 export function copyName(name: string, max?: number): string {
   if (max === undefined || name.length + COPY_SUFFIX.length <= max) return `${name}${COPY_SUFFIX}`;
+  // eslint-disable-next-line no-restricted-syntax -- the name of a copy, cut so that its suffix stays.
   return `${name.slice(0, Math.max(0, max - COPY_SUFFIX.length)).trimEnd()}${COPY_SUFFIX}`;
 }
 
@@ -114,3 +117,10 @@ export function countWith(count: number, word: string, [one, several]: [string, 
 export function ellipsis(text: string, max: number): string {
   return text.length > max ? `${text.slice(0, max - 1)}…` : text;
 }
+
+/**
+ * Text with its first letter in capital (« Novembre 2026 » as a heading).
+ * @param {string} text Text.
+ * @returns {string} Text.
+ */
+export const capitalize = (text: string) => text.replace(/^./, (letter) => letter.toUpperCase());

@@ -7,7 +7,7 @@ import { itemCellLabel } from '../../../components/data-table/cells/cell-field';
 
 /** Columns of the routine table edited together on a cell selection. */
 type RoutineColumn =
-  | 'title'
+  | 'label'
   | 'categories'
   | 'repetition'
   | 'time'

@@ -37,7 +37,7 @@ import { useTableHeight } from './table-height';
 import { BulkTableContext } from '../selection/bulk-edit';
 import type { RowGroup } from './table-engine';
 import type { DataView } from '../views/use-data-view';
-import { suppressClickAfterDrop, useDragSensors } from '../../../lib/drag';
+import { suppressClickAfterDrop, useDragSensors } from '../../dnd/drag';
 import { DragHandle } from '../../dnd/DragHandle';
 import { FoldButton } from '../../actions/FoldButton';
 
@@ -939,7 +939,7 @@ function DataRow({ id, attrs, draggable, dropTarget, active, archived, done, che
   const { className, style, ...props } = rowProps;
   const handle = draggable ? (
     <DragHandle
-      label="Déplacer la ligne (horizontalement : son niveau)"
+      hint="Déplacer (horizontalement : son niveau)"
       size="sm"
       className={classes.handle}
       reveal

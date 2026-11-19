@@ -1,4 +1,4 @@
-import { tableViewConfig, tableViewConfigSchema, type ColumnLayout, type TableFilterGroup, type TableSort, type TableViewConfig } from '@ordo/shared';
+import { legacyLabelColumn, tableViewConfig, tableViewConfigSchema, withLabelColumn, type ColumnLayout, type TableFilterGroup, type TableSort, type TableViewConfig } from '@ordo/shared';
 import { useCallback, useState } from 'react';
 import { useBulkSelection, type BulkCellProps, type BulkSelection } from '../selection/bulk-selection';
 import { newConditionFor } from '../../filters/filter-meta';
@@ -21,11 +21,22 @@ export interface FirstTableView {
  * @param {string} period Period token.
  * @returns {TableFilterGroup} Filter.
  */
-export const withinFilter = (field: string, period: string): TableFilterGroup => ({
+export const withinFilter = (field: string, period: string): TableFilterGroup => conditionFilter(field, 'within', period);
+
+/**
+ * Filter of a first view made of one condition (« closed is false », « state in OPEN »…).
+ * @param {string} field Field (its condition has the same id unless `id` is given).
+ * @param {string} operator Operator (`isFalse`, `in`, `within`…).
+ * @param {string | number | string[] | null} [value] Value. Optional. Default = none (operators without a value).
+ * @param {string} [id] Id of the condition. Optional. Default = the field.
+ * @returns {TableFilterGroup} Filter.
+ */
+export const conditionFilter = (field: string, operator: string, value: string | number | string[] | null = null, id = field): TableFilterGroup => ({
   type: 'group',
   id: 'root',
   combinator: 'and',
-  children: [{ type: 'condition', id: field, field, operator: 'within', value: period }],
+  // eslint-disable-next-line no-restricted-syntax -- conditionFilter itself.
+  children: [{ type: 'condition', id, field, operator, value }],
 });
 
 /** Rows checked of a table (their check boxes): every field of each edited at once. */
@@ -108,12 +119,14 @@ export interface DataView<R> {
 }
 
 /**
- * Configuration of a stored view (the defaults when it is invalid).
+ * Configuration of a stored view of a table (the defaults when it is invalid), the old id of its label column read as
+ * `label` (decision BI).
  * @param {unknown} config Stored configuration.
+ * @param {string} tableKey Table of the view.
  * @returns {TableViewConfig} Configuration.
  */
-function parseConfig(config: unknown): TableViewConfig {
-  const result = tableViewConfigSchema.safeParse(config);
+function parseConfig(config: unknown, tableKey: string): TableViewConfig {
+  const result = tableViewConfigSchema.safeParse(withLabelColumn(config, legacyLabelColumn(tableKey)));
   return result.success ? result.data : tableViewConfig();
 }
 
@@ -149,7 +162,8 @@ export function useTableViews({
       })),
     [firstKey, defaultsKey],
   );
-  return useSavedViews<TableViewConfig>({ projectId, kind: 'TABLE', tableKey, parse: parseConfig, blank, first: firstViews, ready, param: `${tableKey}-view` });
+  const parse = useCallback((config: unknown) => parseConfig(config, tableKey), [tableKey]);
+  return useSavedViews<TableViewConfig>({ projectId, kind: 'TABLE', tableKey, parse, blank, first: firstViews, ready, param: `${tableKey}-view` });
 }
 
 /**

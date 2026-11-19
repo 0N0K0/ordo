@@ -11,7 +11,7 @@ import { confirmDestructive } from '../../../components/dialogs/confirm-destruct
 export function confirmRemoveAttachment(attachment: { filename: string }, documentName: string, remove: () => Promise<unknown>): void {
   confirmDestructive({
     title: 'Retirer la pièce jointe',
-    risks: `« ${attachment.filename} » sera supprimée définitivement de ${documentName}.`,
+    risks: `La pièce jointe « ${attachment.filename} » sera supprimée définitivement de ${documentName}.`,
     run: remove,
     done: 'Pièce jointe retirée.',
   });

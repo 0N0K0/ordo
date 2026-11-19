@@ -16,7 +16,7 @@ import classes from './TaskTable.module.css';
 import type { TaskContext } from '../hooks/use-task-context';
 import { EVENT_STATES, eventState } from '../lib/event-format';
 
-import { stoppedCellField } from '../../../components/data-table/cells/cell-field';
+import { itemCellLabel, stoppedCellField } from '../../../components/data-table/cells/cell-field';
 import * as fmt from '../../../lib/format';
 import { AssigneesCell } from './context-cells';
 import { BeneficiariesCell } from '../../beneficiaries/components/BeneficiariesSelect';
@@ -62,6 +62,31 @@ export function EventTitleCell({ event, context }: { event: EventOccurrence; con
 }
 
 /**
+ * Events an edit of an event cell applies to: those of the selection of the table (on this column), else this one.
+ * @param {EventOccurrence} event Occurrence edited.
+ * @param {TaskColumn} column Column edited.
+ * @returns {() => EventOccurrence[]} Events, read when called.
+ */
+function useEventTargets(event: EventOccurrence, column: TaskColumn) {
+  const table = useBulkTable<TaskTableRow>();
+  return () => {
+    const events = (table?.rows ?? []).flatMap((row) => (row.kind === 'event' ? [row.event] : []));
+    return bulkTargets({ selection: table?.selection ?? null, keyOf: eventRowKey, rows: events }, column, event);
+  };
+}
+
+/**
+ * Accessible label of an event cell (itemCellLabel): « Début de l’évènement « X » », or the bulk edit of a selection.
+ * @param {EventOccurrence} event Occurrence.
+ * @param {TaskColumn} column Column.
+ * @param {string} field Field name.
+ * @returns {string} Label.
+ */
+function useEventCellLabel(event: EventOccurrence, column: TaskColumn, field: string): string {
+  return itemCellLabel(field, `l’évènement « ${event.label} »`, useEventTargets(event, column)().length);
+}
+
+/**
  * Saving of an event cell: the event (its series for a recurring one, the occurrences asked once), or every event
  * of the bulk selection of its column, each with its own change (its people kept, its own length…).
  * @param {EventOccurrence} event Occurrence edited.
@@ -70,11 +95,9 @@ export function EventTitleCell({ event, context }: { event: EventOccurrence; con
  */
 function useEventSave(event: EventOccurrence, column: TaskColumn) {
   const { update } = useCalendarEventMutations();
-  const table = useBulkTable<TaskTableRow>();
+  const targetsOf = useEventTargets(event, column);
   return async (changes: Partial<CalendarEventInput> | ((target: EventOccurrence) => Partial<CalendarEventInput>)) => {
-    // The events of the selection of the table (on this column), else this one.
-    const events = (table?.rows ?? []).flatMap((row) => (row.kind === 'event' ? [row.event] : []));
-    const targets = bulkTargets({ selection: table?.selection ?? null, keyOf: eventRowKey, rows: events }, column, event);
+    const targets = targetsOf();
     let scope: CalendarEventScope = 'ALL';
     if (targets.some((target) => target.occurrenceDate)) {
       const chosen = await askScope({ action: 'update' });
@@ -97,12 +120,13 @@ function useEventSave(event: EventOccurrence, column: TaskColumn) {
  */
 export function EventPeopleCell({ event, context }: { event: EventOccurrence; context: TaskContext }) {
   const save = useEventSave(event, 'assignees');
+  const label = useEventCellLabel(event, 'assignees', 'Personnes');
   return (
     <AssigneesCell
       value={event.contributorIds}
       projectId={event.projectId}
       context={context}
-      label={`Personnes de l’évènement ${event.label}`}
+      label={label}
       onSave={(contributorIds) => void save((target) => ({ contributorIds: applyDiff(target.contributorIds, event.contributorIds, contributorIds) }))}
     />
   );
@@ -180,8 +204,9 @@ const spanOf = (event: EventOccurrence) => daysBetween(event.startDate, event.en
  * @returns {JSX.Element} Cell.
  */
 export function EventWhenCell({ event, side }: { event: EventOccurrence; side: 'start' | 'end' }) {
-  const save = useEventSave(event, side === 'start' ? 'startDate' : 'endDate');
-  const label = `${side === 'start' ? 'Début' : 'Fin'} de l’évènement ${event.label}`;
+  const column = side === 'start' ? 'startDate' : 'endDate';
+  const save = useEventSave(event, column);
+  const label = useEventCellLabel(event, column, side === 'start' ? 'Début' : 'Fin');
   const startDate = event.startDate;
   const endDate = event.endDate;
 
@@ -239,9 +264,10 @@ export function EventWhenCell({ event, side }: { event: EventOccurrence; side: '
  */
 export function EventBeneficiariesCell({ event }: { event: EventOccurrence }) {
   const save = useEventSave(event, 'beneficiaries');
+  const label = useEventCellLabel(event, 'beneficiaries', 'Bénéficiaires');
   return (
     <BeneficiariesCell
-      label={`Bénéficiaires de ${event.label}`}
+      label={label}
       value={event}
       onSave={(beneficiaries) =>
         void save((target) => ({

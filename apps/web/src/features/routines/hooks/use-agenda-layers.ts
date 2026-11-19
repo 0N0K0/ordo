@@ -1,6 +1,8 @@
 import { itemOptions } from '../../../components/items/item-look';
 import { unarchived } from '../../../lib/archive';
 import { useCalendars, useScheduleTypes, useSubscribedSchedules, useWorkSchedules } from '../../calendar/api';
+import { scheduleLayerLabel } from '../../calendar/lib/calendar-events';
+import { inWorkspace } from '../../calendar/lib/layer-label';
 
 /**
  * Options of the layers: the schedules (of this workspace, and of others subscribed to) and the calendars, the archived
@@ -17,13 +19,13 @@ export function useAgendaLayerOptions() {
     schedules: [
       ...unarchived(schedules ?? []).map((schedule) => ({
         value: schedule.id,
-        label: schedule.typeId && typeName.get(schedule.typeId) ? `${schedule.label} (${typeName.get(schedule.typeId)})` : schedule.label,
+        label: scheduleLayerLabel(schedule.label, schedule.typeId ? typeName.get(schedule.typeId) : null),
       })),
-      ...(foreign ?? []).map((schedule) => ({ value: schedule.id, label: `${schedule.typeLabel ?? schedule.label} · ${schedule.workspaceLabel}` })),
+      ...(foreign ?? []).map((schedule) => ({ value: schedule.id, label: scheduleLayerLabel(schedule.label, schedule.typeLabel, schedule.workspaceLabel) })),
     ],
     calendars: [
       ...itemOptions(calendars?.calendars ?? []),
-      ...(calendars?.calendarSubscriptions ?? []).map((subscription) => ({ value: subscription.calendarId, label: `${subscription.label} · ${subscription.workspace.label}` })),
+      ...(calendars?.calendarSubscriptions ?? []).map((subscription) => ({ value: subscription.calendarId, label: inWorkspace(subscription.label, subscription.workspace.label) })),
     ],
   };
 }

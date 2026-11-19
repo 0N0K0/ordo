@@ -161,7 +161,7 @@ export function RoutineForm({ routine, copy = false, parent, categoryId = null, 
               <SubSection title="Quand" gap="md">
                 <RoutineSchedule values={form.values} errors={form.errors} onChange={(changes) => form.setValues(changes)} />
               </SubSection>
-              {routine && !copy && <SheetsSection owner={{ routineId: routine.id }} occurrenceDate={routine.currentDate ? routine.currentDate : null} name={routine.label} />}
+              {routine && !copy && <SheetsSection owner={{ routineId: routine.id }} occurrenceDate={routine.currentDate || null} name={routine.label} />}
               {routine && !copy && <Comments target="ROUTINE" id={routine.id} projectId={routine.projectId ?? null} readOnly={routine.archived} />}
             </Stack>
           </Grid.Col>

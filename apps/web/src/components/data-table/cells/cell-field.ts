@@ -35,12 +35,11 @@ export const stoppedCellCombobox = { ...cellCombobox, onClick: stopClick } as co
  */
 export const cellPicker = (readOnly: boolean) =>
   ({
-    variant: 'unstyled',
-    size: 'xs',
+    // The border of the other cells on hover and focus; its click kept from the row.
+    ...stoppedCellField,
     placeholder: readOnly ? undefined : '—',
     readOnly,
     clearable: !readOnly,
-    onClick: stopClick,
     comboboxProps: { withinPortal: true },
   }) as const;
 

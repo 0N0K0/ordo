@@ -5,7 +5,7 @@ import { ArchiveIcon, MinusIcon, PlusIcon, WarningIcon, ClockCounterClockwiseIco
 import { useState } from 'react';
 import { ActionButton } from '../../../components/actions/ActionButton';
 import { DataTable } from '../../../components/data-table/table/DataTable';
-import { applyDiff, bulkSaver } from '../../../components/data-table/selection/bulk-edit';
+import { applyDiff, bulkCellLabels, bulkSaver } from '../../../components/data-table/selection/bulk-edit';
 import { withArchived, type DataColumn } from '../../../components/data-table/table/data-table';
 import { EditableCheck, EditableMultiSelect, EditableSelect, EditableText } from '../../../components/data-table/cells/EditableCells';
 import { RowActions } from '../../../components/data-table/cells/RowActions';
@@ -89,7 +89,7 @@ export function StockTable() {
     unitColumn<StockItem>({ groupable: true }),
     {
       id: 'expiry',
-      label: 'Péremption',
+      label: 'Date de péremption',
       size: 150,
       sortValue: nextExpiry,
       text: (item) => (nextExpiry(item) ? fmt.day(nextExpiry(item)!) : ''),
@@ -169,6 +169,7 @@ export function StockTable() {
   ];
   const view = useDataView({ tableKey: 'stock', getKey: (item) => item.id, columns, rows: [...rows], title: 'Inventaire' });
   // The archived items are left as they are.
+  const cellLabelOf = bulkCellLabels(view, (item) => item.label);
   const bulk = bulkSaver<StockItem, Change>(
     view,
     (item, change) => !item.archived && Object.keys(change).length > 0 && mutations.updateItem.mutate({ id: item.id, input: stockItemInput(item, change) }, ON_ERROR),
@@ -238,7 +239,7 @@ export function StockTable() {
         return {
           label: (
             <Group gap={4} wrap="nowrap">
-              <EditableText value={item.label} label={`Libellé de ${item.label}`} strong readOnly={readOnly} onSave={(label) => label && bulk('label')(item, { label })} />
+              <EditableText value={item.label} label={cellLabelOf('label', item, 'Libellé')} strong readOnly={readOnly} onSave={(label) => label && bulk('label')(item, { label })} />
               {item.archived && <ArchivedBadge size="xs" />}
               {item.lots.length > 1 && (
                 <Button variant="subtle" color="gray" size="compact-xs" aria-expanded={unfolded.has(item.id)} onClick={() => toggle(item.id)}>
@@ -250,7 +251,7 @@ export function StockTable() {
           location: (
             <EditableSelect
               value={item.locationId ?? null}
-              label={`Emplacement de ${item.label}`}
+              label={cellLabelOf('location', item, 'Emplacement')}
               nullable
               readOnly={readOnly}
               {...locationSelectProps(locations ?? [], item.locationId)}
@@ -261,7 +262,7 @@ export function StockTable() {
             <CategoryCell
               value={item.categoryId ?? null}
               categories={categories}
-              label={`Catégorie de ${item.label}`}
+              label={cellLabelOf('category', item, 'Catégorie')}
               readOnly={readOnly}
               onSave={(categoryId) => bulk('category')(item, { categoryId })}
             />
@@ -271,7 +272,7 @@ export function StockTable() {
               {fmt.quantity({ quantity: item.quantity })}
             </Text>
           ),
-          unit: <UnitCell value={item.unit ?? null} label={`Unité de ${item.label}`} readOnly={readOnly} onSave={(unit) => bulk('unit')(item, { unit })} />,
+          unit: <UnitCell value={item.unit ?? null} label={cellLabelOf('unit', item, 'Unité')} readOnly={readOnly} onSave={(unit) => bulk('unit')(item, { unit })} />,
           expiry: first && (
             <Badge size="sm" variant="light" color={first < today ? 'red' : first <= soon ? 'orange' : 'gray'} leftSection={first <= soon ? <WarningIcon aria-hidden /> : undefined}>
               {fmt.day(first)}
@@ -295,7 +296,7 @@ export function StockTable() {
           people: (
             <EditableMultiSelect
               value={rowPeopleKeys(item)}
-              label={`Bénéficiaires de ${item.label}`}
+              label={cellLabelOf('people', item, 'Bénéficiaires')}
               data={people.options}
               readOnly={readOnly}
               onSave={(keys) =>
@@ -308,8 +309,10 @@ export function StockTable() {
               }
             />
           ),
-          perishable: <EditableCheck value={item.perishable} label={`${item.label} périssable`} readOnly={readOnly} onSave={(perishable) => bulk('perishable')(item, { perishable })} />,
-          note: <EditableText value={item.note ?? null} label={`Description de ${item.label}`} nullable readOnly={readOnly} onSave={(note) => bulk('note')(item, { note })} />,
+          perishable: (
+            <EditableCheck value={item.perishable} label={cellLabelOf('perishable', item, 'Périssable')} readOnly={readOnly} onSave={(perishable) => bulk('perishable')(item, { perishable })} />
+          ),
+          note: <EditableText value={item.note ?? null} label={cellLabelOf('note', item, 'Description')} nullable readOnly={readOnly} onSave={(note) => bulk('note')(item, { note })} />,
         };
       }}
       actions={(item) => (

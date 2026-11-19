@@ -34,6 +34,14 @@ export interface CalendarLink {
   label: string;
 }
 
+/**
+ * Links of an event, as stored in its JSON column (none: an empty list).
+ * @param {Prisma.JsonValue | null | undefined} links Stored value.
+ * @returns {CalendarLink[]} Links.
+ */
+// eslint-disable-next-line no-restricted-syntax -- readEventLinks itself.
+export const readEventLinks = (links: Prisma.JsonValue | null | undefined): CalendarLink[] => (links as unknown as CalendarLink[] | null) ?? [];
+
 /** One occurrence of an event in a period, with the fields of its series (or of its own changes). */
 export interface EventOccurrence {
   /** Unique key: the event id, followed by the occurrence date for a recurring event. */
@@ -529,7 +537,7 @@ export function toOccurrence(event: EventWithRelations, date: string | null, cha
     location: change ? change.location : event.location,
     locationLat: change ? change.locationLat : event.locationLat,
     locationLon: change ? change.locationLon : event.locationLon,
-    links: ((change?.links ?? event.links) as unknown as CalendarLink[]) ?? [],
+    links: readEventLinks(change?.links ?? event.links),
     allDay,
     startDate,
     startTime,
@@ -636,7 +644,7 @@ function seriesInput(event: EventWithRelations, date: string): CalendarEventInpu
     location: event.location,
     locationLat: event.locationLat,
     locationLon: event.locationLon,
-    links: (event.links as unknown as CalendarLink[]) ?? [],
+    links: readEventLinks(event.links),
     allDay: event.allDay,
     startDate: date,
     startTime: event.startTime,

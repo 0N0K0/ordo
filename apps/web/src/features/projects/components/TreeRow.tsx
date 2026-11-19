@@ -1,6 +1,6 @@
 import { clientPath, projectPath } from '../../../app/pages';
 import { TextInput } from '@mantine/core';
-import { entityNameSchema, projectLabelSchema } from '@ordo/shared';
+import { personNameSchema, projectLabelSchema } from '@ordo/shared';
 
 import { forwardRef, useState, type CSSProperties, type HTMLAttributes, type KeyboardEvent } from 'react';
 import { Link, useLocation } from 'react-router';
@@ -59,7 +59,7 @@ export const TreeRow = forwardRef<HTMLDivElement, TreeRowProps>(function TreeRow
    * @returns {void}
    */
   const commit = (fromBlur: boolean) => {
-    const result = (isProject ? projectLabelSchema : entityNameSchema).safeParse(draft);
+    const result = (isProject ? projectLabelSchema : personNameSchema).safeParse(draft);
     if (!result.success) {
       const message = result.error.issues[0]?.message ?? 'Valeur invalide.';
       if (fromBlur) {

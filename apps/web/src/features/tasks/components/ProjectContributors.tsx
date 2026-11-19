@@ -8,7 +8,7 @@ import { Anchor, Badge, Group, Paper, Select, Stack, Text } from '@mantine/core'
 import { PlusIcon, UsersIcon } from '@phosphor-icons/react';
 import { Link } from 'react-router';
 import { toastCallbacks } from '../../../lib/notify';
-import { type Project } from '../../workspace/api';
+import { type Project } from '../../projects/api';
 import { useContributorMutations, type Contributor } from '../api';
 import { useContributorForm } from '../hooks/use-contributor-form';
 import { useTaskContext } from '../hooks/use-task-context';
@@ -44,7 +44,7 @@ export function ProjectContributors({ projectId }: { projectId: string }) {
    * @returns {number} Count.
    */
   const taskCount = (contributor: Contributor) =>
-    context.tasks.filter((task) => !task.archived && task.projectId !== null && subtree.has(task.projectId) && task.assigneeIds.includes(contributor.id)).length;
+    unarchived(context.tasks).filter((task) => task.projectId !== null && subtree.has(task.projectId) && task.assigneeIds.includes(contributor.id)).length;
 
   /**
    * Saves the contributors directly attached to the project.

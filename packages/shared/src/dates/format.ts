@@ -26,13 +26,6 @@ export function dateStyle(options: Intl.DateTimeFormatOptions): (value: DateValu
   };
 }
 
-/**
- * Text with its first letter in capital (« Novembre 2026 » as a heading).
- * @param {string} text Text.
- * @returns {string} Text.
- */
-export const capitalize = (text: string) => text.replace(/^./, (letter) => letter.toUpperCase());
-
 /** « ven. 13 nov. »: a day to plan, when its weekday matters (agenda, routines, home, the calendar PDF). */
 export const weekdayText = dateStyle({ weekday: 'short', day: 'numeric', month: 'short' });
 

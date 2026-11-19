@@ -4,7 +4,7 @@ import { NoticeAlert } from '../../../components/feedback/NoticeAlert';
 import { EmptyState } from '../../../components/feedback/EmptyState';
 import { openModal } from '../../../components/panels/open-modal';
 import { TableSkeleton } from '../../../components/feedback/Skeletons';
-import { Anchor, Badge, Button, Checkbox, Group, Select, Stack, Text } from '@mantine/core';
+import { Anchor, Badge, Checkbox, Group, Select, Stack, Text } from '@mantine/core';
 
 import { daysBetween, REMINDER_DELAY_DAYS, SENDING_CHANNEL_LABELS, type SendingChannel, toCents, sumOf } from '@ordo/shared';
 import { CheckCircleIcon, FileTextIcon, PaperPlaneTiltIcon, ListChecksIcon } from '@phosphor-icons/react';
@@ -23,6 +23,7 @@ import * as fmt from '../../../lib/format';
 import { countOf, plural } from '../../../lib/text';
 import { FormActions } from '../../../components/dialogs/FormActions';
 import { unarchived } from '../../../lib/archive';
+import { ActionButton } from '../../../components/actions/ActionButton';
 
 /** Invoices not reminded for that many days are offered for a new reminder. */
 const REMIND_AFTER_DAYS = 7;
@@ -175,9 +176,9 @@ export function OverdueInvoicesPanel() {
                 {view.rows.length} {plural(view.rows.length, 'facture')} en retard, <b>{fmt.moneyCents(total)}</b> à encaisser.
               </Text>
               <Group gap="sm" ml="auto" wrap="wrap">
-                <Button variant="subtle" size="sm" leftSection={<ListChecksIcon aria-hidden />} disabled={stale.length === 0} onClick={() => setSelected(new Set(stale.map((invoice) => invoice.id)))}>
+                <ActionButton priority="tertiary" icon={<ListChecksIcon aria-hidden />} disabled={stale.length === 0} onClick={() => setSelected(new Set(stale.map((invoice) => invoice.id)))}>
                   Non relancées depuis {REMIND_AFTER_DAYS} jours ({stale.length})
-                </Button>
+                </ActionButton>
                 {accounts && accounts.length > 1 && (
                   <Select
                     aria-label="Boîte d’envoi"
@@ -188,9 +189,9 @@ export function OverdueInvoicesPanel() {
                     onChange={setAccountId}
                   />
                 )}
-                <Button leftSection={<PaperPlaneTiltIcon aria-hidden />} disabled={!account || chosen.length === 0} loading={sendReminders.isPending} onClick={confirmSend}>
+                <ActionButton icon={<PaperPlaneTiltIcon aria-hidden />} disabled={!account || chosen.length === 0} loading={sendReminders.isPending} onClick={confirmSend}>
                   Relancer{chosen.length ? ` (${chosen.length})` : ''}
-                </Button>
+                </ActionButton>
               </Group>
             </>
           ),
@@ -199,7 +200,7 @@ export function OverdueInvoicesPanel() {
         highlightOnHover
         getKey={(invoice) => invoice.id}
         actions={(invoice) => (
-          <RowActions name={invoice.number ?? 'la facture'} primary={{ label: 'Ouvrir la facture', icon: <FileTextIcon aria-hidden />, to: documentPath(invoice.id) }} items={[]} />
+          <RowActions name={invoice.number} about="la facture" primary={{ label: 'Ouvrir la facture', icon: <FileTextIcon aria-hidden />, to: documentPath(invoice.id) }} items={[]} />
         )}
         leading={{
           width: 44,

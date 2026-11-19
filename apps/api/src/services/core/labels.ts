@@ -5,6 +5,7 @@ import type { Prisma } from '../../generated/prisma/client';
 import { parseInput, rethrowUnique } from '../../graphql/errors';
 import { assertNotArchived } from './archive';
 import { assertExists, deleteOrNotFound } from './lookup';
+import { modelDelegate } from './delegate';
 import { nextPositionIn } from './ordering';
 import type { SETTINGS_LISTS } from './settings-lists';
 
@@ -60,7 +61,7 @@ export function createLabelService<T extends { id: string } = Label>(model: Labe
    * @param {object} [client] Client or transaction. Optional. Default = the scoped client.
    * @returns {LabelDelegate} Delegate.
    */
-  const delegate = (client: object = prisma) => (client as Record<LabelModel, LabelDelegate<T>>)[model];
+  const delegate = (client: object = prisma) => modelDelegate<LabelDelegate<T>>(model, client);
   const { afterUpdate } = options;
 
   return {

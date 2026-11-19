@@ -6,7 +6,7 @@ import type { TaskContext } from '../hooks/use-task-context';
 import { EVENT_STATES, eventState, eventWhen } from './event-format';
 import * as fmt from '../../../lib/format';
 import { beneficiaryNames } from '../../beneficiaries/hooks/use-beneficiaries';
-import { taskRef } from '../hooks/use-task-context';
+import { taskNumbered } from '../hooks/use-task-context';
 import { taskShortRef } from '../../../components/markdown/remark-references';
 
 /**
@@ -25,8 +25,8 @@ export function taskCell(task: Task, column: TaskColumn, context: TaskContext): 
       .map((other) => taskShortRef(other, task.projectId, context.projectLabel(other.projectId)))
       .join(', ');
   switch (column) {
-    case 'title':
-      return `${taskRef(task)}${task.label}`;
+    case 'label':
+      return taskNumbered(task);
     case 'project':
       return context.projectLabel(task.projectId);
     case 'status':
@@ -67,7 +67,7 @@ export function taskCell(task: Task, column: TaskColumn, context: TaskContext): 
     case 'subtasks':
       return context
         .childrenOf(task.id)
-        .map((child) => `${taskRef(child)}${child.label}`)
+        .map((child) => taskNumbered(child))
         .join(', ');
     case 'progress': {
       const children = context.childrenOf(task.id);
@@ -119,7 +119,7 @@ export function taskCell(task: Task, column: TaskColumn, context: TaskContext): 
  */
 export function eventCell(event: EventOccurrence, column: TaskColumn, context: TaskContext): string {
   switch (column) {
-    case 'title':
+    case 'label':
       return event.location ? `${event.label} (${event.location})` : event.label;
     case 'project':
       return event.projectId ? context.projectLabel(event.projectId) : '';

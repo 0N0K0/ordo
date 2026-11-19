@@ -1,7 +1,8 @@
-import { Button, Stack, Text, ThemeIcon, Title } from '@mantine/core';
+import { Stack, Text, ThemeIcon, Title } from '@mantine/core';
 import type { ReactNode } from 'react';
-import { Link } from 'react-router';
 import { HouseIcon } from '@phosphor-icons/react';
+import { PAGES } from '../../app/pages';
+import { ActionButton } from '../actions/ActionButton';
 
 interface PageMessageProps {
   /** Icon of what happened. */
@@ -36,9 +37,9 @@ export function PageMessage({ icon, title, message, code }: PageMessageProps) {
       <Text c="dimmed" ta="center">
         {message}
       </Text>
-      <Button component={Link} to="/" leftSection={<HouseIcon aria-hidden />}>
+      <ActionButton to={PAGES.home.path} icon={<HouseIcon aria-hidden />}>
         Retour à l’accueil
-      </Button>
+      </ActionButton>
     </Stack>
   );
 }

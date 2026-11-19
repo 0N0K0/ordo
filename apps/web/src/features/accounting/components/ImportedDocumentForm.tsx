@@ -7,14 +7,15 @@ import { useState } from 'react';
 import { localToday } from '../../../lib/dates';
 import { useAppForm, formCallbacks } from '../../../lib/form';
 
-import { useWorkspace } from '../../workspace/api';
+import { useWorkspace } from '../../projects/api';
 import { useImportedDocumentMutations, type ImportedDocument } from '../api/documents';
 import { DOCUMENT_TYPE_LABELS } from '../lib/labels';
-import { clientProjectOptions } from '../../workspace/lib/tree';
+import { clientProjectOptions } from '../../projects/lib/tree';
 import { treeSelectProps } from '../../../components/tree/tree-select';
 import { AmountInput } from '../../../components/inputs/AmountInput';
 import { MarkdownEditor } from '../../../components/markdown/MarkdownEditor';
 import { FormActions } from '../../../components/dialogs/FormActions';
+import { ClientSelect } from '../../projects/components/ClientSelect';
 
 interface FormValues extends Record<string, unknown> {
   type: AccountingDocumentType;
@@ -98,18 +99,7 @@ export function ImportedDocumentForm({ document, onDone }: { document?: Imported
           <Select label="Devise" data={['EUR', 'CHF', 'USD', 'GBP', 'CAD']} allowDeselect={false} {...form.getInputProps('currency')} />
         </SimpleGrid>
         <SimpleGrid cols={{ base: 1, sm: 2 }} spacing="sm">
-          <Select
-            label="Client"
-            clearable
-            searchable
-            placeholder="Client d’Ordo"
-            data={(workspace?.clients ?? []).map((client) => ({
-              value: client.id,
-              label: client.name,
-            }))}
-            {...form.getInputProps('clientId')}
-            onChange={(clientId) => form.setValues({ clientId, projectId: null })}
-          />
+          <ClientSelect clearable placeholder="Client d’Ordo" {...form.getInputProps('clientId')} onChange={(clientId) => form.setValues({ clientId, projectId: null })} />
           {values.clientId ? (
             <Select
               label="Projet"

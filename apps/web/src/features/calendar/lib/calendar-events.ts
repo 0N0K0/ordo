@@ -1,8 +1,8 @@
 import type { EventInput } from '@fullcalendar/core';
 import { addDays, mapById, readScheduleDisplay, type ScheduleDisplay, type WorkScheduleRule } from '@ordo/shared';
 import { scheduleRules, type ScheduleType, type useDefaultScheduleKind, type useSubscribedSchedules, type WorkSchedule } from '../api';
-import { archivedIds } from '../../../lib/archive';
 import classes from '../pages/CalendarPage.module.css';
+import { inWorkspace } from './layer-label';
 
 /** Schedule of another workspace subscribed to. */
 type ForeignSchedule = NonNullable<ReturnType<typeof useSubscribedSchedules>['data']>[number];
@@ -34,15 +34,6 @@ export function isArchivedOccurrence(occurrence: { archived: boolean; calendarId
   return occurrence.archived || archivedCalendarIds.has(occurrence.calendarId);
 }
 
-/**
- * Ids of the archived calendars.
- * @param {readonly { id: string, archived: boolean }[] | undefined} calendars Calendars of the workspace.
- * @returns {Set<string>} Ids.
- */
-export function archivedCalendarIds(calendars: readonly { id: string; archived: boolean }[] | undefined): Set<string> {
-  return archivedIds(calendars);
-}
-
 /** Schedule shown as slots: its rule, the color of its kind, its label, whether of another workspace, and its display. */
 interface ScheduleSource {
   schedule: WorkSchedule | ForeignSchedule;
@@ -61,8 +52,8 @@ interface ScheduleSource {
  * @param {string} [workspace] Workspace of a schedule subscribed to. Optional.
  * @returns {string} Label.
  */
-function scheduleLayerLabel(label: string, type: string | null | undefined, workspace?: string): string {
-  return `${label}${type && type !== label ? ` (${type})` : ''}${workspace ? ` · ${workspace}` : ''}`;
+export function scheduleLayerLabel(label: string, type: string | null | undefined, workspace?: string): string {
+  return inWorkspace(`${label}${type && type !== label ? ` (${type})` : ''}`, workspace);
 }
 
 /**

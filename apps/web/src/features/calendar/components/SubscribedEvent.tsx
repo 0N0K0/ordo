@@ -7,6 +7,8 @@ import { MarkdownView } from '../../../components/markdown/MarkdownView';
 import { NO_TARGETS } from '../../../components/markdown/remark-references';
 import { FormActions } from '../../../components/dialogs/FormActions';
 import { calendarPath } from '../../../app/pages';
+import { inWorkspace } from '../lib/layer-label';
+import { EXTERNAL_LINK } from '../../../components/actions/link-props';
 
 /**
  * When an occurrence takes place, in words.
@@ -49,9 +51,7 @@ export function SubscribedEvent({ occurrence, subscription, onClose }: Subscribe
     <Stack gap="sm">
       <Group gap="xs">
         <ColorSwatch color={subscription.color} size={12} />
-        <Text size="sm">
-          {subscription.label} · espace « {subscription.workspace.label} »
-        </Text>
+        <Text size="sm">{inWorkspace(subscription.label, subscription.workspace.label)}</Text>
         <Badge size="xs" variant="light" color="gray">
           Lecture seule
         </Badge>
@@ -66,7 +66,7 @@ export function SubscribedEvent({ occurrence, subscription, onClose }: Subscribe
       {/* Of another workspace: its references to tasks or projects are not followed. */}
       {occurrence.description && <MarkdownView targets={NO_TARGETS}>{occurrence.description}</MarkdownView>}
       {occurrence.links.map((link) => (
-        <Anchor key={link.url} href={link.url} target="_blank" rel="noreferrer" size="sm">
+        <Anchor key={link.url} href={link.url} {...EXTERNAL_LINK} size="sm">
           {link.label || link.url}
         </Anchor>
       ))}

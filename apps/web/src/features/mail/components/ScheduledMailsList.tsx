@@ -50,7 +50,7 @@ export function ScheduledMailsList() {
               <Group gap={2} wrap="nowrap">
                 <IconAction
                   label="Envoyer maintenant"
-                  aria-label={`Envoyer maintenant « ${mail.subject} »`}
+                  item={mail.subject}
                   loading={sendScheduled.isPending && sendScheduled.variables === mail.id}
                   onClick={() => sendScheduled.mutate(mail.id, toastCallbacks('Mail envoyé.'))}
                 >
@@ -58,7 +58,7 @@ export function ScheduledMailsList() {
                 </IconAction>
                 <IconAction
                   label="Annuler l’envoi (retour aux brouillons)"
-                  aria-label={`Annuler l’envoi de « ${mail.subject} »`}
+                  item={mail.subject}
                   loading={cancelScheduled.isPending && cancelScheduled.variables === mail.id}
                   onClick={() => cancelScheduled.mutate(mail.id, toastCallbacks('Envoi annulé : le mail est dans les brouillons.'))}
                 >

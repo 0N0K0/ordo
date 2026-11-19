@@ -1,14 +1,14 @@
 import { Select, Stack, Text } from '@mantine/core';
-import { ClientSelect } from '../../workspace/components/ClientSelect';
+import { ClientSelect } from '../../projects/components/ClientSelect';
 import type { AccountingDocumentType } from '@ordo/shared';
 import { useState } from 'react';
 import { useNavigate } from 'react-router';
 import { localToday } from '../../../lib/dates';
 import { useAsyncAction } from '../../../lib/use-async-action';
-import { useWorkspace } from '../../workspace/api';
+import { useWorkspace } from '../../projects/api';
 import { fetchNewDocumentDefaults, useDocumentMutations } from '../api/documents';
 import { DOCUMENT_TYPE_LABELS } from '../lib/labels';
-import { clientProjectOptions } from '../../workspace/lib/tree';
+import { clientProjectOptions } from '../../projects/lib/tree';
 import { treeSelectProps } from '../../../components/tree/tree-select';
 import { FormActions } from '../../../components/dialogs/FormActions';
 import { documentPath } from '../../../app/pages';

@@ -1,5 +1,5 @@
 import { Select, Stack, Text } from '@mantine/core';
-import { fetchDownload } from '../../../lib/download';
+import { fetchDownload, fileName } from '../../../lib/download';
 import { useState } from 'react';
 import { useAsyncAction } from '../../../lib/use-async-action';
 import { PERIOD_PRESETS, type PeriodPreset } from '../../../lib/periods';
@@ -30,7 +30,7 @@ export function StatementForm({ accounts, accountId: initialAccount, onDone }: S
     async () => {
       if (!from || !to) return;
       const params = new URLSearchParams({ from, to, ...(accountId ? { accountId } : {}) });
-      await fetchDownload(`/api/treasury/statement.pdf?${params}`, `Relevé du ${from} au ${to}.pdf`, 'Relevé impossible.');
+      await fetchDownload(`/api/treasury/statement.pdf?${params}`, fileName(`Relevé du ${from} au ${to}`, 'pdf'), 'Relevé impossible.');
     },
     { success: 'Relevé téléchargé.', fallback: 'Relevé impossible.', onDone },
   );

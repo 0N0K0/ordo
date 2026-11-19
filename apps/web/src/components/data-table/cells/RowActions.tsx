@@ -1,14 +1,12 @@
 import { IconAction } from '../../actions/IconAction';
 import { Group } from '@mantine/core';
 import { ActionsMenu, type RowAction, type RowMenuEntry } from '../../actions/ActionsMenu';
-import { linkProps } from '../../actions/link-props';
+import { actionIconProps, type ActionsSubject } from '../../actions/actions-subject';
 
 /** Width of the actions cell of a row: its main action and its menu. */
 export const ROW_ACTIONS_WIDTH = 72;
 
-interface RowActionsProps {
-  /** What the row is (« Actions de … »). */
-  name: string;
+interface RowActionsProps extends ActionsSubject {
   /** Most used action, as an icon of its own (never one kept to the menu, `inMenu`). Optional. */
   primary?: RowAction | null | false | '';
   /** Every other action, in the menu (destructive ones gathered at the end). */
@@ -21,17 +19,13 @@ interface RowActionsProps {
  * @param {RowActionsProps} props Component props.
  * @returns {JSX.Element} Actions.
  */
-export function RowActions({ name, primary, items }: RowActionsProps) {
+export function RowActions({ name, about, primary, items }: RowActionsProps) {
   // « Archiver » is never a button (decision R).
   if (primary && primary.inMenu) [primary, items] = [null, [primary, ...items]];
   return (
     <Group gap={2} wrap="nowrap" justify="flex-end">
-      {primary && (
-        <IconAction label={primary.label} item={name} hint={primary.hint} color={primary.danger ? 'red' : 'gray'} disabled={primary.disabled} onClick={primary.onClick} {...linkProps(primary)}>
-          {primary.icon}
-        </IconAction>
-      )}
-      <ActionsMenu name={name} items={items} />
+      {primary && <IconAction {...actionIconProps(primary, { name, about })}>{primary.icon}</IconAction>}
+      <ActionsMenu name={name} about={about} items={items} />
     </Group>
   );
 }

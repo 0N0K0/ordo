@@ -3,7 +3,7 @@ import { localDay } from '../../../lib/dates';
 import type { Task } from '../../tasks/api';
 import type { TaskContext } from '../../tasks/hooks/use-task-context';
 import { leafEffort } from '../../tasks/lib/task-effort';
-import type { SprintTaskStatus } from '../api';
+import { sprintTaskKey, type SprintTaskStatus } from '../api';
 import { aggregate, none, type ChartData, type Key } from './aggregate';
 import * as fmt from '../../../lib/format';
 
@@ -23,9 +23,9 @@ function taskDay(task: Task, dimension: ChartDimension): string | null {
     case 'closedAt':
       return task.closedAt ? localDay(task.closedAt) : null;
     case 'startDate':
-      return task.startDate ? task.startDate : null;
+      return task.startDate || null;
     case 'endDate':
-      return task.endDate ? task.endDate : null;
+      return task.endDate || null;
     default:
       return null;
   }
@@ -243,7 +243,7 @@ export function taskChartData(tasks: Task[], config: ChartConfig, context: TaskC
         return task.sprintIds
           .filter((sprintId) => (bySprint.matches.has(sprintId) ? bySprint.matches.get(sprintId)!.has(task.id) : bySprint.current.has(task.id)))
           .map((sprintId) => {
-            const status = bySprint.statuses.get(`${sprintId}|${task.id}`);
+            const status = bySprint.statuses.get(sprintTaskKey(sprintId, task.id));
             return { ...task, sprintIds: [sprintId], ...(status && { statusId: status.statusId ?? null, closed: status.closed }) };
           });
       });

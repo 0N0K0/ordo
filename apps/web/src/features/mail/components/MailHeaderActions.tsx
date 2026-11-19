@@ -1,4 +1,3 @@
-import { Tooltip } from '@mantine/core';
 import { ArrowsClockwiseIcon, PencilSimpleLineIcon } from '@phosphor-icons/react';
 import { ActionButton } from '../../../components/actions/ActionButton';
 import { useMailRefresh } from '../api';
@@ -14,11 +13,9 @@ export function MailHeaderActions({ onCompose, composeDisabled = false }: { onCo
   const { refresh, fetching } = useMailRefresh();
   return (
     <>
-      <Tooltip label="Relever les mails maintenant (sinon toutes les 10 minutes)">
-        <ActionButton priority="secondary" icon={<ArrowsClockwiseIcon aria-hidden />} loading={fetching} onClick={refresh}>
-          Relever
-        </ActionButton>
-      </Tooltip>
+      <ActionButton priority="secondary" icon={<ArrowsClockwiseIcon aria-hidden />} hint="Relever les mails maintenant (sinon toutes les 10 minutes)" loading={fetching} onClick={refresh}>
+        Relever
+      </ActionButton>
       <ActionButton icon={<PencilSimpleLineIcon aria-hidden />} disabled={composeDisabled} onClick={onCompose}>
         Nouveau mail
       </ActionButton>

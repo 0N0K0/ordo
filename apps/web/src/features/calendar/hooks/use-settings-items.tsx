@@ -1,5 +1,5 @@
 import { calendarCategoryFormSchema, DEFAULT_SCHEDULE_DISPLAY, labelFormSchema, readScheduleDisplay, type ScheduleDisplay } from '@ordo/shared';
-import { itemMutations } from '../../../components/settings/settings-api';
+import { itemMutations, treeItemInput, type TreeItemValues } from '../../../components/settings/settings-api';
 import type { SettingsItemKind } from '../../../components/settings/SettingsItemForm';
 import { useCalendarCategoryMutations, useWorkScheduleMutations, type CalendarCategory, type ScheduleType } from '../api';
 import { ScheduleLookEditor } from '../components/ScheduleLookEditor';
@@ -11,13 +11,12 @@ import { ScheduleLookEditor } from '../components/ScheduleLookEditor';
  */
 export function useCalendarCategoryItems(): SettingsItemKind<CalendarCategory> {
   const { create, update } = useCalendarCategoryMutations();
-  /**
-   * Input of a category from the form values.
-   * @param {{ label: string, color: string, parentId: string | null }} values Values.
-   * @returns {{ label: string, color: string, parentId: string | null }} Input.
-   */
-  const input = (values: { label: string; color: string; parentId: string | null }) => ({ label: values.label, color: values.color, parentId: values.parentId });
-  return { kind: 'CALENDAR_CATEGORY', colorRequired: true, schema: calendarCategoryFormSchema, ...itemMutations({ create, update }, input) };
+  return {
+    kind: 'CALENDAR_CATEGORY',
+    colorRequired: true,
+    schema: calendarCategoryFormSchema,
+    ...itemMutations({ create, update }, (values: TreeItemValues) => ({ ...treeItemInput(values), color: values.color })),
+  };
 }
 
 /**

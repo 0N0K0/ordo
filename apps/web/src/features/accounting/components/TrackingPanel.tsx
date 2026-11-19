@@ -1,3 +1,5 @@
+import { openFile } from '../../files/lib/open-file';
+import { FileBadge } from '../../../components/items/FileBadge';
 import { SubSection } from '../../../components/page/SubSection';
 import { formCallbacks } from '../../../lib/form';
 import { openFormPanel } from '../../../components/panels/panels';
@@ -5,10 +7,10 @@ import { EmptyState } from '../../../components/feedback/EmptyState';
 import { ItemAvatar } from '../../../components/items/ItemAvatar';
 import { listSelectProps } from '../../../components/items/item-look';
 
-import { Button, FileInput, Group, Select, Stack, Table, Text, TextInput } from '@mantine/core';
+import { FileInput, Group, Select, Stack, Table, Text, TextInput } from '@mantine/core';
 import { DatePickerInput } from '@mantine/dates';
 import { SENT_VIA_LABELS, type SendingChannel } from '@ordo/shared';
-import { BellRingingIcon, CheckIcon, CoinsIcon, FileArrowUpIcon, NotePencilIcon, PaperPlaneTiltIcon, PaperclipIcon, PencilSimpleIcon } from '@phosphor-icons/react';
+import { BellRingingIcon, CheckIcon, CoinsIcon, FileArrowUpIcon, NotePencilIcon, PaperPlaneTiltIcon, PencilSimpleIcon } from '@phosphor-icons/react';
 import { useState } from 'react';
 import { localToday } from '../../../lib/dates';
 import { ON_ERROR } from '../../../lib/notify';
@@ -17,7 +19,6 @@ import { SettingsSection } from '../../../components/settings/SettingsSection';
 import { PaymentForm } from './PaymentForm';
 import { SentForm } from './SentForm';
 import { useDocumentStatuses, useTrackingMutations } from '../api/tracking';
-import { FileLink } from '../../files/components/FileLink';
 import * as fmt from '../../../lib/format';
 import { FormActions } from '../../../components/dialogs/FormActions';
 import { RemoveButton } from '../../../components/actions/RemoveButton';
@@ -147,9 +148,9 @@ export function TrackingPanel({ document, onRemind, remindPending }: { document:
           {document.sentAt ? `${SENT_VIA_LABELS[document.sentVia as SendingChannel] ?? 'Envoyé'} le ${fmt.day(document.sentAt)}` : 'Pas encore envoyé.'}
         </Text>
         {!locked && (
-          <Button size="compact-xs" variant="subtle" leftSection={document.sentAt ? <PencilSimpleIcon aria-hidden /> : <PaperPlaneTiltIcon aria-hidden />} onClick={() => openDialog('sent')}>
+          <ActionButton priority="tertiary" icon={document.sentAt ? <PencilSimpleIcon aria-hidden /> : <PaperPlaneTiltIcon aria-hidden />} onClick={() => openDialog('sent')}>
             {document.sentAt ? 'Modifier' : 'Marquer envoyé'}
-          </Button>
+          </ActionButton>
         )}
       </Group>
 
@@ -157,14 +158,14 @@ export function TrackingPanel({ document, onRemind, remindPending }: { document:
         <Stack gap={6}>
           {document.acceptedAt && <Text size="sm">Accepté le {fmt.day(document.acceptedAt)}</Text>}
           {document.signedFileUrl && (
-            <Group justify="space-between" wrap="nowrap">
-              <FileLink url={document.signedFileUrl} filename={document.signedFilename ?? 'Devis signé'} size="sm" truncate>
-                <Group gap={4} wrap="nowrap">
-                  <PaperclipIcon aria-hidden /> {document.signedFilename}
-                </Group>
-              </FileLink>
-              {!locked && <RemoveButton variant="field" label="Retirer" aria-label="Retirer le devis signé" onClick={() => mutations.removeSigned.mutate(document.id, ON_ERROR)} />}
-            </Group>
+            <div>
+              <FileBadge
+                filename={document.signedFilename ?? 'Devis signé'}
+                max={48}
+                onClick={() => openFile({ url: document.signedFileUrl!, filename: document.signedFilename ?? 'Devis signé' })}
+                onRemove={locked ? undefined : () => mutations.removeSigned.mutate(document.id, ON_ERROR)}
+              />
+            </div>
           )}
           {!locked && (
             <ActionButton priority="secondary" icon={<CheckIcon aria-hidden />} onClick={() => openDialog('accept')}>
@@ -230,9 +231,9 @@ export function TrackingPanel({ document, onRemind, remindPending }: { document:
                 <ActionButton priority="secondary" size="compact-xs" icon={<BellRingingIcon aria-hidden />} loading={remindPending} onClick={onRemind}>
                   Relancer par mail
                 </ActionButton>
-                <Button size="compact-xs" variant="subtle" color="gray" leftSection={<NotePencilIcon aria-hidden />} onClick={() => openDialog('reminder')}>
+                <ActionButton priority="tertiary" icon={<NotePencilIcon aria-hidden />} onClick={() => openDialog('reminder')}>
                   Noter
-                </Button>
+                </ActionButton>
               </Group>
             )
           }

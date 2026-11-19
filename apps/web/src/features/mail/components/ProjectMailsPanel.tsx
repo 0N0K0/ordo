@@ -6,7 +6,7 @@ import { MAIL_SORTS_ACROSS, type DoneFilter } from '../lib/mail-list';
 
 import { Box, Grid, Paper, Stack, Text } from '@mantine/core';
 
-import { EMPTY_MAIL_SEARCH, type MailSearchCriteria } from '@ordo/shared';
+import { EMPTY_MAIL_SEARCH, type MailSearchCriteria, type MailSearchSortBy } from '@ordo/shared';
 import { useState, type CSSProperties } from 'react';
 import { useNavigate } from 'react-router';
 import { notifySuccess } from '../../../lib/notify';
@@ -22,8 +22,6 @@ import { useMailComposer } from '../hooks/use-mail-composer';
 import { useMailSearch } from '../hooks/use-mail-search';
 import { unarchived } from '../../../lib/archive';
 import { MailSearchBar } from './MailSearchBar';
-
-type SortBy = 'date' | 'correspondent' | 'subject';
 
 /**
  * Mails of a project read live in the boxes (every folder, the sent ones too: those whose copy is in the
@@ -43,7 +41,7 @@ function ProjectLiveMails({ projectId }: { projectId: string }) {
   const [page, setPage] = useState(1);
   const [open, setOpen] = useState<{ accountId: string; folder: string; uid: number } | null>(null);
   const [fillRef, fillHeight] = useFillHeight(400);
-  const [sortBy, direction] = sortParam.split('-') as [SortBy, string];
+  const [sortBy, direction] = sortParam.split('-') as [MailSearchSortBy, string];
   // The mails of the project, in every folder (the sent ones too); the advanced criteria narrow them.
   const criteria: MailSearchCriteria = advanced ? { ...advanced, projectId } : { ...EMPTY_MAIL_SEARCH, scope: 'all', state: doneFilter, text: debouncedSearch, projectId };
   const firstAccount = unarchived(accounts ?? [])[0]?.id;

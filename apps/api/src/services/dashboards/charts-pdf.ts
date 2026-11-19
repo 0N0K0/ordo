@@ -19,9 +19,6 @@ const chartsPdfSchema = reportHeadingSchema.extend({
 });
 type ChartsPdfInput = z.input<typeof chartsPdfSchema>;
 
-const COLORS = PDF_TEXT;
-const MARGIN = REPORT_MARGIN;
-
 /**
  * PDF (A4 landscape) of charts: one per page (the image shows its title) with its description, the first page
  * also with the title of the export; in the template shared by every export (logo, date, page numbers).
@@ -34,19 +31,19 @@ export async function chartsPdf(input: ChartsPdfInput): Promise<Buffer> {
 
   data.charts.forEach((chart, index) => {
     doc.addPage();
-    const width = doc.page.width - 2 * MARGIN;
+    const width = doc.page.width - 2 * REPORT_MARGIN;
     let y = top;
     if (index === 0) {
-      y = writeHeading(doc, data, { x: MARGIN, y, width }) + 12;
+      y = writeHeading(doc, data, { x: REPORT_MARGIN, y, width }) + 12;
     }
     // The image already shows the chart title.
     if (chart.description) {
-      doc.font('regular').fontSize(8.5).fillColor(COLORS.muted).text(chart.description, MARGIN, y, { width });
+      doc.font('regular').fontSize(8.5).fillColor(PDF_TEXT.muted).text(chart.description, REPORT_MARGIN, y, { width });
       y = doc.y;
     }
     y += 8;
     const image = Buffer.from(PNG_DATA_URL.exec(chart.image)![1], 'base64');
-    doc.image(image, MARGIN, y, { fit: [width, doc.page.height - doc.page.margins.bottom - y], align: 'center' });
+    doc.image(image, REPORT_MARGIN, y, { fit: [width, doc.page.height - doc.page.margins.bottom - y], align: 'center' });
   });
 
   return finish();

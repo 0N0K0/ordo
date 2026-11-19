@@ -2,6 +2,32 @@ import { z } from 'zod';
 import { END_AFTER_START, endsAfter, requiredText } from '../core/rules';
 import { daySchema } from '../dates/times';
 
+/** Orders of the mails of a folder; a search sorts on all but the size. */
+export const MAIL_SORTS = ['date', 'correspondent', 'subject', 'size'] as const;
+/** Field the mails of a folder are sorted on. */
+export type MailSortBy = (typeof MAIL_SORTS)[number];
+/** Field the mails found by a search are sorted on. */
+export type MailSearchSortBy = Exclude<MailSortBy, 'size'>;
+
+/**
+ * Field to sort the mails of a folder on, from a value sent by the client: the date when unknown.
+ * @param {string | null | undefined} sort Value sent.
+ * @returns {MailSortBy} Field.
+ */
+export function mailSortBy(sort: string | null | undefined): MailSortBy {
+  return MAIL_SORTS.find((by) => by === sort) ?? 'date';
+}
+
+/**
+ * Field to sort the mails found by a search on, from a value sent by the client: the date when unknown (or the size).
+ * @param {string | null | undefined} sort Value sent.
+ * @returns {MailSearchSortBy} Field.
+ */
+export function mailSearchSortBy(sort: string | null | undefined): MailSearchSortBy {
+  const by = mailSortBy(sort);
+  return by === 'size' ? 'date' : by;
+}
+
 /** Subject shown for a mail without one. */
 export const NO_SUBJECT = '(sans objet)';
 

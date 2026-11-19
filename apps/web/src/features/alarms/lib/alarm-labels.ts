@@ -2,6 +2,7 @@ import { alarmRule, nextOccurrence, type AlarmFrequency, type Recurrence } from 
 import type { Alarm } from '../api';
 import { describeRecurrence } from '../../../components/recurrence/describe-recurrence';
 import * as fmt from '../../../lib/format';
+import { taskNumbered } from '../../tasks/hooks/use-task-context';
 
 /**
  * Former fields of an alarm sent with its repetition (read by older clients): its frequency and interval, and the
@@ -53,4 +54,15 @@ export function describeAlarm(alarm: Alarm): string {
   if (alarm.type === 'TRACKING_DURATION') return alarm.minutes === 1 ? 'Chaque minute de chrono' : `Toutes les ${alarm.minutes} min de chrono`;
   const text = describeAlarmTiming({ startDate: alarm.startDate, time: alarm.time, recurrence: alarmRule(alarm) });
   return alarm.type === 'NOT_TRACKING' ? `${text}, si aucun chrono ne tourne` : text;
+}
+
+/**
+ * Label of the link to the task of an alarm: its project first (a task number is only unique in its project), then its
+ * number and label (« Site #12 Maquette »).
+ * @param {{ number: number | null, label: string }} task Task.
+ * @param {string} [projectLabel] Label of its project. Optional.
+ * @returns {string} Label.
+ */
+export function alarmTaskLabel(task: { number: number | null; label: string }, projectLabel?: string): string {
+  return `${projectLabel ? `${projectLabel} ` : ''}${taskNumbered(task)}`;
 }

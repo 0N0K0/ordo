@@ -6,7 +6,9 @@ import { currentWorkspaceId } from '../../workspace-context';
 import { LOCALE } from '@ordo/shared';
 import { PARIS } from '../../today';
 
-type Doc = InstanceType<typeof PDFDocument>;
+/** A PDF document being written (pdfkit). */
+// eslint-disable-next-line no-restricted-syntax -- PdfDoc itself.
+export type PdfDoc = InstanceType<typeof PDFDocument>;
 
 const require = createRequire(import.meta.url);
 // Embedded fonts: PDF/A does not allow the standard (non-embedded) ones.
@@ -21,10 +23,10 @@ type PdfOptions = Omit<PDFKit.PDFDocumentOptions, 'info'> & { title: string; aut
 /**
  * Creates a PDF in Inter (« regular » and « bold » fonts), in French, its pages buffered, showing its title.
  * @param {PdfOptions} options Page size, margins… with the title (and author) of its properties.
- * @returns {{ doc: Doc, end: () => Promise<Buffer> }} Document, and its ending returning the PDF.
+ * @returns {{ doc: PdfDoc, end: () => Promise<Buffer> }} Document, and its ending returning the PDF.
  */
-export function createPdf({ title, author, ...options }: PdfOptions): { doc: Doc; end: () => Promise<Buffer> } {
-  const doc: Doc = new PDFDocument({
+export function createPdf({ title, author, ...options }: PdfOptions): { doc: PdfDoc; end: () => Promise<Buffer> } {
+  const doc: PdfDoc = new PDFDocument({
     bufferPages: true,
     font: FONTS.regular,
     lang: LOCALE,
@@ -61,12 +63,12 @@ export const reportHeadingSchema = z.object({
 
 /**
  * Writes the title of an export (16 pt) and its subtitle (10 pt, muted) at the top of its content.
- * @param {Doc} doc Document.
+ * @param {PdfDoc} doc Document.
  * @param {{ title: string, subtitle?: string }} heading Title and subtitle (none: left out).
  * @param {{ x: number, y: number, width: number }} box Left, top and width of the heading.
  * @returns {number} Bottom of the heading.
  */
-export function writeHeading(doc: Doc, heading: { title: string; subtitle?: string }, box: { x: number; y: number; width: number }): number {
+export function writeHeading(doc: PdfDoc, heading: { title: string; subtitle?: string }, box: { x: number; y: number; width: number }): number {
   doc.font('bold').fontSize(16).fillColor(PDF_TEXT.text).text(heading.title, box.x, box.y, { width: box.width });
   let y = doc.y + 2;
   if (heading.subtitle) {
@@ -92,7 +94,7 @@ const COLORS = { ...PDF_TEXT, border: PDF_TABLE.border };
 const exportFormat = new Intl.DateTimeFormat(LOCALE, { dateStyle: 'long', timeStyle: 'short', timeZone: PARIS });
 
 export interface Report {
-  doc: Doc;
+  doc: PdfDoc;
   /** Top of the content of a page (below the header). */
   top: number;
   /** Bottom of the content of a page (above the footer). */

@@ -225,7 +225,7 @@ function ChartCard({ chart, index, count, scope, context, dashboardLabel, captur
     >
       <Stack gap="sm">
         <Group justify="space-between" wrap="nowrap" align="flex-start">
-          {!readOnly && <DragHandle label={`Déplacer ${chart.label}`} {...handle} />}
+          {!readOnly && <DragHandle item={chart.label} {...handle} />}
           <Stack gap={0} style={{ minWidth: 0, flex: 1 }}>
             <Text fw={600} truncate>
               {chart.label}

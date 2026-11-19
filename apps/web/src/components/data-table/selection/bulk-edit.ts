@@ -1,6 +1,7 @@
 import { changedList } from '@ordo/shared';
 import { createContext, useContext } from 'react';
 import { notifySuccess } from '../../../lib/notify';
+import { itemCellLabel } from '../cells/cell-field';
 import { ALL_COLUMNS, type BulkSelection } from './bulk-selection';
 
 /** What saving in bulk needs of a table: its selection, the key and the order of its rows. */
@@ -48,6 +49,18 @@ export function bulkTargets<R>(view: BulkTable<R>, column: Columns, row: R): R[]
   if (!keyOf || !selection || !onColumn(selection, column) || key === undefined || !selection.keys.includes(key) || selection.keys.length < 2) return [row];
   return view.rows.filter((item) => selection.keys.includes(keyOf(item)));
 }
+
+/**
+ * Accessible labels of the cells of a table, the same in every table (itemCellLabel): « Unité de « Farine » », or, on a
+ * selection, « Unité (appliqué aux 3 cellules sélectionnées) » (decision BD).
+ * @param {BulkTable<R>} view Table (its selection).
+ * @param {(row: R) => string} nameOf Name of a row (its label).
+ * @returns {(column: Columns, row: R, field: string) => string} Label of the cell of a column, for a field name.
+ */
+export const bulkCellLabels =
+  <R>(view: BulkTable<R>, nameOf: (row: R) => string) =>
+  (column: Columns, row: R, field: string): string =>
+    itemCellLabel(field, `« ${nameOf(row)} »`, bulkTargets(view, column, row).length);
 
 /** Change made in a cell: the same for every row, or made for each row (its own date kept…). */
 export type BulkChange<R, C> = C | ((row: R) => C);

@@ -1,8 +1,8 @@
 import { type ImportedDocumentInput, importedDocumentSchema as importSchema, parseDay, parseOptionalDay } from '@ordo/shared';
 import { prisma } from '../../db';
 import { type ImportedDocument } from '../../generated/prisma/client';
-import { clientError, orNotFound, parseInput, rethrowUnique } from '../../graphql/errors';
-import { attachmentData } from '../core/attachments';
+import { orNotFound, parseInput, rethrowUnique } from '../../graphql/errors';
+import { storeAttachment } from '../core/attachments';
 import { scopedStatus } from './document-statuses';
 import { sendingData, sentStatus } from './document-tracking';
 import { requirePro } from '../workspace/workspaces';
@@ -44,8 +44,7 @@ async function assertRefs({ clientId, projectId }: { clientId: string | null; pr
  * @returns {Promise<string>} Attachment id.
  */
 async function storeFile(file: File): Promise<string> {
-  if (file.size > 10 * 1024 * 1024) throw clientError('BAD_USER_INPUT', `« ${file.name} » est trop lourd (10 Mo maximum).`);
-  return (await prisma.attachment.create({ data: attachmentData(file.name, Buffer.from(await file.arrayBuffer())), select: { id: true } })).id;
+  return (await storeAttachment(file)).id;
 }
 
 /**

@@ -26,6 +26,25 @@ export function dayLabel(date: string, today: string): string {
 }
 
 /** Invoicing at a glance. */
+/**
+ * Whether a task of the home page is overdue: past its « Date max ».
+ * @param {{ deadline: string | null }} task Task.
+ * @param {string} today Today.
+ * @returns {boolean} Overdue.
+ */
+export const isTaskLate = (task: { deadline: string | null }, today: string): boolean => task.deadline !== null && task.deadline < today;
+
+/**
+ * Point of the treasury projection 30 days from today (the last one by then), shown on the home page.
+ * @param {readonly T[]} series Projected balances, by day, from today.
+ * @param {string} today Today.
+ * @returns {T | undefined} Point, none without a projection by then.
+ */
+export function balanceIn30Days<T extends { date: string }>(series: readonly T[], today: string): T | undefined {
+  const in30 = addDays(today, 30);
+  return [...series].reverse().find((point) => point.date <= in30);
+}
+
 export interface BillingSummary {
   /** Still due on the final invoices. */
   receivable: number;
@@ -101,8 +120,7 @@ export function useMyTodayTasks(context: TaskContext | null, today: string) {
   return useMemo(() => {
     if (!context) return { tasks: null, overdue: 0 };
     const tasks = matchTasks(context.tasks, columns, { filter: myTasksFilter('today') }, today);
-    // Overdue: past its "Date max".
-    const late = (task: Task) => task.deadline !== null && task.deadline < today;
+    const late = (task: Task) => isTaskLate(task, today);
     tasks.sort((a, b) => Number(late(b)) - Number(late(a)) || (a.deadline ?? a.endDate ?? '9999').localeCompare(b.deadline ?? b.endDate ?? '9999') || (a.number ?? 0) - (b.number ?? 0));
     return { tasks, overdue: tasks.filter(late).length };
   }, [context, columns, today]);

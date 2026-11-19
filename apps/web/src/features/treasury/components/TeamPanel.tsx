@@ -34,6 +34,7 @@ import { SettingsSection } from '../../../components/settings/SettingsSection';
 import { InlineActions } from '../../../components/actions/ActionsMenu';
 import { dateRangeProps, formRange } from '../../../components/inputs/date-range';
 import { personOptionRenderer } from '../../../components/people/person-option';
+import { relationWords } from '../../../components/people/people-options';
 
 /**
  * Members of the team (professional workspace) or household (personal one): "Moi" always is one; a member is a
@@ -137,7 +138,8 @@ export function TeamMembers() {
           <Group gap={4} wrap="nowrap">
             <TextInput size="xs" style={{ flex: 1 }} aria-label="Nom d’un nouveau membre" placeholder="Ou un nouveau membre…" value={name} onChange={(event) => setName(event.currentTarget.value)} />
             <IconAction
-              label="Ajouter (crée le contributeur)"
+              label="Ajouter"
+              hint="Ajouter (crée le contributeur)"
               type="submit"
               variant="light"
               size="input-xs"
@@ -353,6 +355,8 @@ export function RelationForm({ relation, name = '', onDone }: { relation?: Treas
   const { saveRelation } = useTreasuryTeamMutations();
   const { data: settings } = useTreasurySettings();
   const { context } = useTaskContext();
+  const words = relationWords(useActiveWorkspace().perso);
+  const e = words.feminine ? 'e' : '';
   const form = useAppForm<{ name: string; note: string | null; contributorId: string | null }>({
     initialValues: { name: relation?.name ?? name, note: relation?.note ?? null, contributorId: relation?.contributorId ?? null },
     schema: treasuryRelationSchema,
@@ -368,7 +372,7 @@ export function RelationForm({ relation, name = '', onDone }: { relation?: Treas
       onSubmit={form.onSubmit((input) =>
         saveRelation.mutate(
           { id: relation?.id ?? null, input: { name: input.name, note: input.note || null, contributorId: input.contributorId ?? null } },
-          formCallbacks(form, relation ? 'Relation modifiée.' : 'Relation ajoutée.', (id: string) => onDone(relation ? undefined : id)),
+          formCallbacks(form, `${words.noun} ${relation ? 'modifié' : 'ajouté'}${e}.`, (id: string) => onDone(relation ? undefined : id)),
         ),
       )}
     >
@@ -405,12 +409,14 @@ export function TeamRelations() {
   const { data: settings } = useTreasurySettings();
   const { deleteRelation } = useTreasuryTeamMutations();
   const setArchived = useSetArchived('TREASURY_RELATION', [treasuryKey]);
+  const words = relationWords(useActiveWorkspace().perso);
+  const e = words.feminine ? 'e' : '';
   /**
    * Opens the form of a new or changed relation.
    * @param {TreasuryRelation} [relation] Relation changed. Optional.
    * @returns {void}
    */
-  const openRelation = (relation?: TreasuryRelation) => openFormPanel(relation ? 'Modifier la relation' : 'Nouvelle relation', (close) => <RelationForm relation={relation} onDone={close} />);
+  const openRelation = (relation?: TreasuryRelation) => openFormPanel(relation ? `Modifier ${words.the}` : words.new, (close) => <RelationForm relation={relation} onDone={close} />);
   const { context } = useTaskContext();
   const contributorName = new Map((context?.contributors ?? []).map((contributor) => [contributor.id, contributor.name]));
   const { shown: relations, toggle: relationsToggle } = useArchivedToggle(settings?.treasuryRelations ?? []);
@@ -419,19 +425,19 @@ export function TeamRelations() {
 
   return (
     <SettingsSection
-      title="Relations"
+      title={words.many}
       actions={
         <>
-          <ShowArchivedSwitch {...relationsToggle} label="Afficher les archivées" />
+          <ShowArchivedSwitch {...relationsToggle} label={`Afficher les archivé${e}s`} />
           <ActionButton priority="secondary" size="xs" icon={<PlusIcon aria-hidden />} onClick={() => openRelation()}>
-            Nouvelle relation
+            {words.new}
           </ActionButton>
         </>
       }
       description="Personnes hors de l’équipe ou du foyer (amis, famille, partenaires…) pour qui une ligne ou un budget peut être : prêt, cadeau… Les organismes restent des tiers."
     >
       {relations.length === 0 ? (
-        <EmptyState compact message="Aucune relation." />
+        <EmptyState compact message={words.none} />
       ) : (
         <Table verticalSpacing={4}>
           <Table.Tbody>
@@ -440,7 +446,7 @@ export function TeamRelations() {
                 <Table.Td>
                   <Group gap={6}>
                     <Text size="sm">{relation.name}</Text>
-                    {relation.archived && <ArchivedBadge feminine size="xs" />}
+                    {relation.archived && <ArchivedBadge feminine={words.feminine} size="xs" />}
                     {relation.contributorId && (
                       <Badge size="xs" variant="light" color="gray">
                         Contributeur
@@ -460,17 +466,17 @@ export function TeamRelations() {
                     name={relation.name}
                     items={[
                       !relation.archived && { label: 'Modifier', icon: <PencilSimpleIcon aria-hidden />, onClick: () => openRelation(relation) },
-                      archiveEntry({ archived: relation.archived, type: 'Relation', label: relation.name, feminine: true }, setArchived, relation.id),
+                      archiveEntry({ archived: relation.archived, type: words.noun, label: relation.name, feminine: words.feminine }, setArchived, relation.id),
                       {
                         label: 'Supprimer',
                         icon: <TrashIcon aria-hidden />,
                         danger: true,
                         onClick: () =>
                           confirmDestructive({
-                            title: 'Supprimer la relation',
-                            risks: `« ${relation.name} » sera supprimée définitivement.${relation.budgetCount ? ` Ses budgets aussi.` : ''}${relation.lineCount ? ` Ses lignes vous seront attribuées.` : ''}`,
+                            title: `Supprimer ${words.the}`,
+                            risks: `${fmt.capitalize(words.the)} « ${relation.name} » sera supprimé${e} définitivement.${relation.budgetCount ? ` Ses budgets aussi.` : ''}${relation.lineCount ? ` Ses lignes vous seront attribuées.` : ''}`,
                             run: () => deleteRelation.mutateAsync(relation.id),
-                            done: 'Relation supprimée.',
+                            done: `${words.noun} supprimé${e}.`,
                           }),
                       },
                     ]}

@@ -75,7 +75,7 @@ function ProjectRow({ project, depth, status, first, folded, onToggle, drop }: P
       {project.archived ? (
         <span className={classes.space} />
       ) : (
-        <DragHandle label={`Déplacer ${project.label}`} size="sm" activator={setActivatorNodeRef} attributes={attributes} listeners={listeners} dragging={isDragging} />
+        <DragHandle item={project.label} size="sm" activator={setActivatorNodeRef} attributes={attributes} listeners={listeners} dragging={isDragging} />
       )}
       {folded !== undefined ? <FoldButton expanded={!folded} item={project.label} onToggle={onToggle} /> : <span className={treeRow.caretSpace} />}
       <UnstyledButton component={Link} to={projectPath(project.id)} py="sm" px={4} style={{ flex: 1, minWidth: 0 }}>

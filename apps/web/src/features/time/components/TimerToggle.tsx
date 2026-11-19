@@ -30,11 +30,12 @@ export function TimerToggle({ name, mine, input, disabled = false, size }: Timer
   if (mine) return <StopTimerButton entry={mine} name={name} size={size} />;
   return (
     <IconAction
-      label={replacing ? `Démarrer le chrono. ${TIMER_REPLACED_HINT}` : 'Démarrer le chrono'}
+      label="Démarrer le chrono"
+      hint={replacing ? `Démarrer le chrono. ${TIMER_REPLACED_HINT}` : undefined}
       size={size}
       loading={starting}
       disabled={disabled}
-      aria-label={`Démarrer le chrono de ${name}`}
+      item={name}
       onClick={(event) => {
         stopClick(event);
         startTimer(input);

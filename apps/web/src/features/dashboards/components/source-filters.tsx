@@ -1,16 +1,18 @@
 import { LabeledField } from '../../../components/inputs/LabeledField';
 import { SegmentedControl, Stack, Switch, TextInput } from '@mantine/core';
-import type { ChartConfig } from '@ordo/shared';
+import { ACCOUNTING_DOCUMENT_TYPES, type ChartConfig } from '@ordo/shared';
 import { DOCUMENT_TYPE_LABELS } from '../../accounting/lib/labels';
 import { useDocumentStatuses } from '../../accounting/api/tracking';
 import { useTreasuryAccounts, useTreasurySettings } from '../../treasury/api';
-import { useWorkspace } from '../../workspace/api';
+import { useWorkspace } from '../../projects/api';
 import { BatchMultiSelect } from '../../../components/inputs/BatchMultiSelect';
 import { treeOptions, treeSelectProps } from '../../../components/tree/tree-select';
 import { categoryPaths, categoryTree } from '../../treasury/lib/categories';
 import { TaskFilterBuilder } from '../../tasks/components/TaskFilterBuilder';
 import { unarchived } from '../../../lib/archive';
+import { itemOptions } from '../../../components/items/item-look';
 import type { TaskContext } from '../../tasks/hooks/use-task-context';
+import { DIRECTION_PLURALS } from '../../treasury/lib/direction';
 
 /** Filters of the records of a chart (or of one of its data sets), whatever its source. */
 type SourceFilterFields = Pick<ChartConfig, 'search' | 'filter' | 'includeArchived' | 'documents' | 'treasury'>;
@@ -33,7 +35,7 @@ function DocumentFilters({ config, change }: { config: Pick<ChartConfig, 'docume
       <BatchMultiSelect
         label="Types de documents"
         placeholder="Tous"
-        data={(['QUOTE', 'INVOICE', 'DEPOSIT_INVOICE', 'CREDIT_NOTE'] as const).map((value) => ({ value, label: DOCUMENT_TYPE_LABELS[value] }))}
+        data={ACCOUNTING_DOCUMENT_TYPES.map((value) => ({ value, label: DOCUMENT_TYPE_LABELS[value] }))}
         value={filter.types}
         onChange={(types) => set({ types: types as ChartConfig['documents']['types'] })}
       />
@@ -74,7 +76,7 @@ function DocumentFilters({ config, change }: { config: Pick<ChartConfig, 'docume
 function TreasuryFilters({ config, change }: { config: Pick<ChartConfig, 'documents' | 'treasury'>; change: SourceFilterChange }) {
   const { data: accounts } = useTreasuryAccounts();
   const { data: settings } = useTreasurySettings();
-  // By full path (a category also keeps the movements of its sub-categories), in tree order under Recettes and Dépenses.
+  // By full path (a category also keeps the movements of its sub-categories), in tree order under Entrées and Sorties.
   const all = settings?.treasuryCategories ?? [];
   const paths = categoryPaths(all);
   const filter = config.treasury;
@@ -82,8 +84,8 @@ function TreasuryFilters({ config, change }: { config: Pick<ChartConfig, 'docume
   const archivedPaths = new Set(all.filter((category) => category.archived).map((category) => paths.get(category.id)));
   const categories = treeOptions(
     [
-      { id: 'direction:IN', parentId: null, label: 'Recettes', pathless: true },
-      { id: 'direction:OUT', parentId: null, label: 'Dépenses', pathless: true },
+      { id: 'direction:IN', parentId: null, label: DIRECTION_PLURALS.IN, pathless: true },
+      { id: 'direction:OUT', parentId: null, label: DIRECTION_PLURALS.OUT, pathless: true },
       ...categoryTree(all).map(({ category, path }) => ({
         id: path,
         parentId: category.parentId ? (paths.get(category.parentId) ?? null) : `direction:${category.direction}`,
@@ -96,23 +98,14 @@ function TreasuryFilters({ config, change }: { config: Pick<ChartConfig, 'docume
   const set = (changes: Partial<ChartConfig['treasury']>) => change({ treasury: { ...filter, ...changes } });
   return (
     <Stack gap="sm">
-      <BatchMultiSelect
-        label="Comptes"
-        placeholder="Tous"
-        data={unarchived(accounts ?? [], filter.accountIds).map((account) => ({
-          value: account.id,
-          label: account.label,
-        }))}
-        value={filter.accountIds}
-        onChange={(accountIds) => set({ accountIds })}
-      />
+      <BatchMultiSelect label="Comptes" placeholder="Tous" data={itemOptions(accounts ?? [], undefined, filter.accountIds)} value={filter.accountIds} onChange={(accountIds) => set({ accountIds })} />
       <BatchMultiSelect label="Catégories" placeholder="Toutes" searchable {...treeSelectProps(categories)} value={filter.categories} onChange={(selected) => set({ categories: selected })} />
       <LabeledField label="Mouvements">
         <SegmentedControl
           data={[
             { value: 'all', label: 'Tous' },
-            { value: 'in', label: 'Entrées' },
-            { value: 'out', label: 'Sorties' },
+            { value: 'in', label: DIRECTION_PLURALS.IN },
+            { value: 'out', label: DIRECTION_PLURALS.OUT },
           ]}
           value={filter.direction}
           onChange={(direction) =>

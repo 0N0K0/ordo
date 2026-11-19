@@ -10,7 +10,7 @@ import { PICKER_FORMATS } from '../../../lib/format';
 import { ItemAvatar } from '../../../components/items/ItemAvatar';
 import { listSelectProps } from '../../../components/items/item-look';
 
-import { Alert, Anchor, Button, Fieldset, Group, Select, SimpleGrid, Stack, Text, TextInput, Tooltip } from '@mantine/core';
+import { Alert, Anchor, Fieldset, Group, Select, SimpleGrid, Stack, Text, TextInput } from '@mantine/core';
 import { DatePickerInput, TimePicker } from '@mantine/dates';
 import { addDays, mapById, type CalendarEventInput, calendarEventInputSchema, daysBetween, formatDuration, type Recurrence, sharePeople, EVENT_LABEL_MAX } from '@ordo/shared';
 import { ArrowArcRightIcon, ArrowCounterClockwiseIcon, CalendarXIcon, CopyIcon, LinkIcon, PlayIcon, XIcon } from '@phosphor-icons/react';
@@ -23,8 +23,7 @@ import { AssigneesSelect, ProjectSelect } from '../../tasks/components/task-ui';
 import type { TaskContext } from '../../tasks/hooks/use-task-context';
 import { DeleteButton } from '../../../components/dialogs/DestructiveActions';
 import { calendarQueryKey, useCalendarCategories, useCalendarEventMutations, useCalendars, type EventOccurrence, type CalendarEventScope } from '../api';
-import { archivedCalendarIds } from '../lib/calendar-events';
-import { archiveEntry, unarchived, unarchivedOffered, useSetArchived } from '../../../lib/archive';
+import { archivedIds, archiveEntry, unarchived, unarchivedOffered, useSetArchived } from '../../../lib/archive';
 import { ArchivedBadge } from '../../../components/feedback/ArchivedBadge';
 import { TIMER_REPLACED_HINT, useStartTimer } from '../../time/hooks/use-start-timer';
 import { timeTasks } from '../../time/lib/time-tasks';
@@ -35,7 +34,7 @@ import { useActiveWorkspace } from '../../workspaces/api';
 import { askScope, chooseScope } from '../lib/ask-scope';
 import { AvailabilityHint } from './AvailabilityHint';
 import { categoryOptions } from '../../../components/tree/category-tree';
-import { LOCAL_TIME_ZONE, occurrenceInput } from '../lib/event-input';
+import { LOCAL_TIME_ZONE, occurrenceInput, routineLinkKey, routineLinkOf } from '../lib/event-input';
 import { EVENT_REMINDERS } from '../../../components/inputs/reminder-presets';
 import { BatchMultiSelect } from '../../../components/inputs/BatchMultiSelect';
 import { treeSelectProps } from '../../../components/tree/tree-select';
@@ -176,7 +175,7 @@ export function EventForm({ context, occurrence, defaults, onDone, onDuplicate }
   const calendars = calendarsData?.calendars ?? [];
   const setArchived = useSetArchived('CALENDAR_EVENT', [calendarQueryKey]);
   // Archived (its series), or in an archived calendar (its container): read only.
-  const calendarArchived = occurrence ? archivedCalendarIds(calendars).has(occurrence.calendarId) : false;
+  const calendarArchived = occurrence ? archivedIds(calendars).has(occurrence.calendarId) : false;
   const readOnly = Boolean(occurrence?.archived) || calendarArchived;
   // Without a choice, the event goes into the first calendar not archived.
   const defaultCalendarId = unarchived(calendars)[0]?.id ?? null;
@@ -216,22 +215,20 @@ export function EventForm({ context, occurrence, defaults, onDone, onDuplicate }
   const values = form.values;
   const { perso } = useActiveWorkspace();
   // Relations with a contributor take part as that contributor, archived ones are not offered; one already chosen stays.
-  const relationOptions = (treasury?.treasuryRelations ?? [])
-    .filter((relation) => (!relation.contributorId && !relation.archived) || (values.relationIds ?? []).includes(relation.id))
+  const relationOptions = unarchived(treasury?.treasuryRelations ?? [], values.relationIds)
+    .filter((relation) => !relation.contributorId || (values.relationIds ?? []).includes(relation.id))
     .map((relation) => ({ value: relation.id, label: relation.name }));
   // Routines due on the days of the event (an occurrence each), with someone in common with it; those chosen stay.
   const { data: routinesData } = useRoutinesData();
   const { data: routineDays } = useRoutineOccurrences(values.startDate && values.endDate ? { from: values.startDate, to: values.endDate } : null);
   const routineById = mapById(routinesData?.routines ?? []);
   const multiDay = values.startDate !== values.endDate;
-  const chosenLinks = new Set((values.routineLinks ?? []).map((link) => `${link.routineId}|${link.date}`));
+  const chosenLinks = new Set((values.routineLinks ?? []).map(routineLinkKey));
   const routineOptions = [
-    ...new Map(
-      [...(routineDays ?? []).map((item) => ({ routineId: item.routineId, date: item.date })), ...(values.routineLinks ?? [])].map((link) => [`${link.routineId}|${link.date}`, link]),
-    ).values(),
+    ...new Map([...(routineDays ?? []).map((item) => ({ routineId: item.routineId, date: item.date })), ...(values.routineLinks ?? [])].map((link) => [routineLinkKey(link), link])).values(),
   ].flatMap((link) => {
     const routine = routineById.get(link.routineId);
-    const key = `${link.routineId}|${link.date}`;
+    const key = routineLinkKey(link);
     if (!routine || (!chosenLinks.has(key) && (routine.archived || !sharePeople(routine.assigneeIds, values.contributorIds)))) return [];
     return [{ value: key, label: multiDay ? `${routine.label} (${fmt.weekday(link.date)})` : routine.label }];
   });
@@ -239,7 +236,7 @@ export function EventForm({ context, occurrence, defaults, onDone, onDuplicate }
 
   // Archives the event (its whole series) or restores it, with an undo, then closes the form; in its « … » menu.
   const archiveMenu = occurrence && (
-    <ActionsMenu name="l’évènement" items={[archiveEntry({ archived: occurrence.archived, type: 'Évènement', label: occurrence.label }, setArchived, occurrence.eventId, onDone)]} />
+    <ActionsMenu about="l’évènement" items={[archiveEntry({ archived: occurrence.archived, type: 'Évènement', label: occurrence.label }, setArchived, occurrence.eventId, onDone)]} />
   );
   // A rule is edited from the start of its series (for the whole series or the following occurrences).
   const ruleStart = recurring && occurrence ? occurrence.seriesStartDate : values.startDate;
@@ -468,17 +465,14 @@ export function EventForm({ context, occurrence, defaults, onDone, onDuplicate }
                 label="Tâches"
                 placeholder={values.taskIds?.length ? undefined : 'Aucune'}
                 description={
-                  [values.projectId ? 'Tâches du projet et de ses sous-projets' : null, values.contributorIds.length ? 'avec un contributeur de l’évènement (ou sans assigné)' : null]
+                  [values.projectId ? 'Tâches du projet, de ses sous-projets ou sans projet' : null, values.contributorIds.length ? 'avec un contributeur de l’évènement (ou sans assigné)' : null]
                     .filter(Boolean)
                     .join(', ') || undefined
                 }
-                // Of the project, and with someone in common with the event (or nobody on either side); those chosen stay.
-                data={context.tasks
-                  .filter(
-                    (task) =>
-                      values.taskIds?.includes(task.id) ||
-                      (!task.archived && (!values.projectId || context.rootOf(task.projectId) === context.rootOf(values.projectId)) && sharePeople(task.assigneeIds, values.contributorIds)),
-                  )
+                // Those a time on its project can take (the project, its sub-projects, tasks without project: as its timer), with
+                // someone in common with the event (or nobody on either side); those chosen stay.
+                data={(values.projectId ? timeTasks(context, values.projectId, values.taskIds ?? []) : unarchived(context.tasks, values.taskIds))
+                  .filter((task) => values.taskIds?.includes(task.id) || sharePeople(task.assigneeIds, values.contributorIds))
                   .map((task) => ({ value: task.id, label: `${context.taskLabel(task, values.projectId)}${task.closed ? ' (fermée)' : ''}` }))}
                 searchable
                 clearable
@@ -496,13 +490,8 @@ export function EventForm({ context, occurrence, defaults, onDone, onDuplicate }
                 searchable
                 clearable
                 nothingFoundMessage="Aucune routine ces jours-là"
-                value={(values.routineLinks ?? []).map((link) => `${link.routineId}|${link.date}`)}
-                onChange={(keys) =>
-                  form.setFieldValue(
-                    'routineLinks',
-                    keys.map((key) => ({ routineId: key.split('|')[0], date: key.split('|')[1] })),
-                  )
-                }
+                value={(values.routineLinks ?? []).map(routineLinkKey)}
+                onChange={(keys) => form.setFieldValue('routineLinks', keys.map(routineLinkOf))}
                 error={form.errors.routineLinks as string | undefined}
               />
               <RemindersSelect label="Rappels" emptyLabel="Aucun" presets={EVENT_REMINDERS} value={values.reminders} onChange={(reminders) => form.setFieldValue('reminders', reminders)} clearable />
@@ -514,11 +503,17 @@ export function EventForm({ context, occurrence, defaults, onDone, onDuplicate }
             )}
             {occurrence && (
               <Group gap="sm">
-                <Tooltip label={values.projectId ? `Démarre un chrono rattaché à cet évènement. ${replacing ? TIMER_REPLACED_HINT : ''}`.trim() : 'Choisissez d’abord un projet'}>
-                  <ActionButton priority="secondary" size="xs" icon={<PlayIcon aria-hidden />} disabled={!values.projectId} loading={timerStarting} onClick={handleTimer}>
-                    Démarrer le chrono
-                  </ActionButton>
-                </Tooltip>
+                <ActionButton
+                  priority="secondary"
+                  size="xs"
+                  icon={<PlayIcon aria-hidden />}
+                  hint={values.projectId ? `Démarre un chrono rattaché à cet évènement. ${replacing ? TIMER_REPLACED_HINT : ''}`.trim() : 'Choisissez d’abord un projet'}
+                  disabled={!values.projectId}
+                  loading={timerStarting}
+                  onClick={handleTimer}
+                >
+                  Démarrer le chrono
+                </ActionButton>
                 {occurrence.trackedSeconds > 0 && (
                   <Text size="sm" c="dimmed">
                     {formatDuration(occurrence.trackedSeconds)} chronométrées sur cet évènement.
@@ -565,32 +560,30 @@ export function EventForm({ context, occurrence, defaults, onDone, onDuplicate }
                 <>
                   <DeleteButton onClick={() => void handleDelete()} loading={remove.isPending} />
                   {onDuplicate && (
-                    <Tooltip label={recurring ? 'Copie de cette occurrence, en évènement unique, à enregistrer' : 'Copie de l’évènement, à enregistrer'}>
-                      <Button
-                        variant="subtle"
-                        color="gray"
-                        leftSection={<CopyIcon aria-hidden />}
-                        onClick={() =>
-                          // Its fields as they are in the form; an occurrence of a series becomes a one-off event.
-                          onDuplicate({ ...values, label: copyName(values.label, EVENT_LABEL_MAX), recurrence: recurring ? null : (values.recurrence ?? null) })
-                        }
-                      >
-                        Dupliquer
-                      </Button>
-                    </Tooltip>
+                    <ActionButton
+                      priority="secondary"
+                      hint={recurring ? 'Copie de cette occurrence, en évènement unique, à enregistrer' : 'Copie de l’évènement, à enregistrer'}
+                      icon={<CopyIcon aria-hidden />}
+                      onClick={() =>
+                        // Its fields as they are in the form; an occurrence of a series becomes a one-off event.
+                        onDuplicate({ ...values, label: copyName(values.label, EVENT_LABEL_MAX), recurrence: recurring ? null : (values.recurrence ?? null) })
+                      }
+                    >
+                      Dupliquer
+                    </ActionButton>
                   )}
                   {occurrence.calledOff ? (
-                    <Button variant="subtle" color="gray" leftSection={<ArrowCounterClockwiseIcon aria-hidden />} onClick={() => void handleCalledOff(false)} loading={setCalledOff.isPending}>
+                    <ActionButton priority="secondary" icon={<ArrowCounterClockwiseIcon aria-hidden />} onClick={() => void handleCalledOff(false)} loading={setCalledOff.isPending}>
                       Rétablir
-                    </Button>
+                    </ActionButton>
                   ) : (
                     <>
-                      <Button variant="subtle" color="gray" leftSection={<CalendarXIcon aria-hidden />} onClick={() => void handleCalledOff(true)} loading={setCalledOff.isPending}>
+                      <ActionButton priority="secondary" icon={<CalendarXIcon aria-hidden />} onClick={() => void handleCalledOff(true)} loading={setCalledOff.isPending}>
                         Annuler l’évènement
-                      </Button>
-                      <Button variant="subtle" color="gray" leftSection={<ArrowArcRightIcon aria-hidden />} onClick={openPostpone}>
+                      </ActionButton>
+                      <ActionButton priority="secondary" icon={<ArrowArcRightIcon aria-hidden />} onClick={openPostpone}>
                         Reporter
-                      </Button>
+                      </ActionButton>
                     </>
                   )}
                   {archiveMenu}

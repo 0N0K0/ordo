@@ -10,6 +10,7 @@ import { LabelColorInput, LabelColorPatch, labelMutations, labelObject } from '.
 import { fromDecimal } from '../../services/core/decimal';
 import { productInput, productInputFields, purchaseInput, purchaseInputFields } from '../product-inputs';
 import { reloaded } from '../reload';
+import { BY_POSITION, BY_POSITION_ONLY } from '../../services/core/ordering';
 
 /** Share of a sheet in an item of a list. */
 export const SheetSourceRef = builder.objectRef<SheetSource>('SheetSource').implement({
@@ -75,7 +76,7 @@ builder.prismaObject('Sheet', {
     position: t.exposeInt('position'),
     createdAt: t.expose('createdAt', { type: 'DateTime' }),
     updatedAt: t.expose('updatedAt', { type: 'DateTime' }),
-    items: t.relation('items', { query: { orderBy: { position: 'asc' } } }),
+    items: t.relation('items', { query: { orderBy: BY_POSITION } }),
     usedBy: t.int({ description: 'Routines, events and tasks it is attached to.', select: { _count: { select: { links: true } } }, resolve: (sheet) => sheet._count.links }),
   }),
 });
@@ -114,7 +115,7 @@ builder.prismaObject('Checklist', {
     taskId: t.exposeID('taskId', { nullable: true }),
     occurrenceDate: t.expose('occurrenceDate', { type: 'Date', nullable: true }),
     createdAt: t.expose('createdAt', { type: 'DateTime' }),
-    items: t.relation('items', { query: { orderBy: [{ position: 'asc' }, { label: 'asc' }] } }),
+    items: t.relation('items', { query: { orderBy: BY_POSITION } }),
   }),
 });
 
@@ -193,7 +194,7 @@ builder.queryFields((t) => ({
   sheetCategories: t.prismaField({
     type: ['SheetCategory'],
     description: 'Categories of the sheets, in their order.',
-    resolve: (query) => prisma.sheetCategory.findMany({ ...query, orderBy: [{ position: 'asc' }, { label: 'asc' }] }),
+    resolve: (query) => prisma.sheetCategory.findMany({ ...query, orderBy: BY_POSITION }),
   }),
   sheet: t.prismaField({
     type: 'Sheet',
@@ -205,13 +206,13 @@ builder.queryFields((t) => ({
     type: ['Sheet'],
     description: 'Sheets, in their order: all, or those of a project.',
     args: { projectId: t.arg.id() },
-    resolve: (query, _root, { projectId }) => prisma.sheet.findMany({ ...query, where: projectId ? { projectId: projectId } : {}, orderBy: [{ position: 'asc' }, { label: 'asc' }] }),
+    resolve: (query, _root, { projectId }) => prisma.sheet.findMany({ ...query, where: projectId ? { projectId: projectId } : {}, orderBy: BY_POSITION }),
   }),
   sheetLinks: t.prismaField({
     type: ['SheetLink'],
     description: 'Sheets of a routine, an event or a task, in their order.',
     args: { routineId: t.arg.id(), eventId: t.arg.id(), taskId: t.arg.id() },
-    resolve: (query, _root, args) => prisma.sheetLink.findMany({ ...query, where: sheets.ownerScope(args), orderBy: { position: 'asc' } }),
+    resolve: (query, _root, args) => prisma.sheetLink.findMany({ ...query, where: sheets.ownerScope(args), orderBy: BY_POSITION_ONLY }),
   }),
   checklist: t.prismaField({
     type: 'Checklist',

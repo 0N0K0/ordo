@@ -2,13 +2,14 @@ import { unarchived } from '../../../lib/archive';
 import { ColorField } from '../../../components/inputs/ColorField';
 import { Select, SimpleGrid, Stack, Textarea, TextInput } from '@mantine/core';
 import { DatePickerInput } from '@mantine/dates';
-import { byPosition, projectFormSchema, type ProjectFormValues, subtreeOf } from '@ordo/shared';
+import { projectFormSchema, type ProjectFormValues, subtreeOf } from '@ordo/shared';
 import { useState } from 'react';
 import { useAppForm, formCallbacks } from '../../../lib/form';
 import { MAX_PROJECT_DEPTH } from '@ordo/shared';
 import { useCreateProject, useUpdateProject, useWorkspace, type Project } from '../api';
 import { IconField, type IconValue } from '../../../components/inputs/IconField';
 import { CategoriesInput, StatusInput } from './labels';
+import { ClientSelect } from './ClientSelect';
 import { treeSelectProps } from '../../../components/tree/tree-select';
 import { projectDepth, projectHeight, projectOptions } from '../lib/tree';
 
@@ -67,11 +68,6 @@ export function ProjectForm({ project, defaults, onDone }: ProjectFormProps) {
     unarchived(projects, project?.parentId).filter((item) => !excluded.has(item.id) && projectDepth(projects, item.id) + height <= MAX_PROJECT_DEPTH),
   );
 
-  // Archived clients cannot receive projects, except the one the project already belongs to.
-  const clientOptions = unarchived(workspace?.clients ?? [], project?.clientId)
-    .sort(byPosition)
-    .map((client) => ({ value: client.id, label: client.name }));
-
   const handleSubmit = form.onSubmit((values) => {
     const input = {
       label: values.label,
@@ -102,12 +98,9 @@ export function ProjectForm({ project, defaults, onDone }: ProjectFormProps) {
         <SimpleGrid cols={{ base: 1, xs: perso ? 1 : 2 }} spacing="md">
           <Select label="Projet parent" placeholder="Aucun (projet racine)" {...treeSelectProps(parentOptions)} searchable clearable {...form.getInputProps('parentId')} />
           {!perso && (
-            <Select
-              label="Client"
+            <ClientSelect
               placeholder="Sans client"
               description={parent ? 'Hérité du projet parent.' : undefined}
-              data={clientOptions}
-              searchable
               clearable
               disabled={Boolean(parent)}
               {...form.getInputProps('clientId')}

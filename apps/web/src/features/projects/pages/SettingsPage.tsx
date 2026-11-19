@@ -5,8 +5,6 @@ import { PageHeader } from '../../../components/page/PageHeader';
 import { Stack } from '@mantine/core';
 import { FoldersIcon, GithubLogoIcon, MapPinIcon, SquaresFourIcon, UsersIcon } from '@phosphor-icons/react';
 import { Navigate } from 'react-router';
-import { labelFormSchema } from '@ordo/shared';
-import { listMutations } from '../../../components/settings/settings-api';
 import { SettingsList } from '../../../components/settings/SettingsList';
 import { GithubSettings } from '../../github/components/GithubSettings';
 import { PlacesManager } from '../../geo/components/PlacesManager';
@@ -15,7 +13,8 @@ import { ContributorsManager } from '../../tasks/components/ContributorsManager'
 import { TeamMembers, TeamRelations } from '../../treasury/components/TeamPanel';
 import { useActiveWorkspace } from '../../workspaces/api';
 import { WorkspacesManager } from '../../workspaces/components/WorkspacesManager';
-import { useCreateProjectCategory, useCreateProjectStatus, useDeleteProjectCategory, useDeleteProjectStatus, useUpdateProjectCategory, useUpdateProjectStatus, useWorkspace } from '../api';
+import { useWorkspace } from '../api';
+import { useProjectCategoryItems, useProjectStatusItems } from '../hooks/use-label-items';
 import { SettingsGrid } from '../../../components/settings/SettingsGrid';
 import { PageTabs } from '../../../components/tabs/PageTabs';
 
@@ -31,12 +30,8 @@ const SETTINGS_PAGE_TABS = ['projects', 'contributors', 'places', 'github', 'wor
  */
 export function SettingsPage() {
   const { data } = useWorkspace();
-  const createCategory = useCreateProjectCategory();
-  const updateCategory = useUpdateProjectCategory();
-  const deleteCategory = useDeleteProjectCategory();
-  const createStatus = useCreateProjectStatus();
-  const updateStatus = useUpdateProjectStatus();
-  const deleteStatus = useDeleteProjectStatus();
+  const statusItems = useProjectStatusItems();
+  const categoryItems = useProjectCategoryItems();
 
   const { data: taskData } = useTasksData();
   const { perso } = useActiveWorkspace();
@@ -49,8 +44,8 @@ export function SettingsPage() {
 
   // Settings moved to their views.
   const moved: Record<string, string> = {
-    tracking: perso ? '/' : settingsPath(PAGES.accounting.path),
-    company: perso ? '/' : settingsPath(PAGES.accounting.path, 'company'),
+    tracking: perso ? PAGES.home.path : settingsPath(PAGES.accounting.path),
+    company: perso ? PAGES.home.path : settingsPath(PAGES.accounting.path, 'company'),
     calendar: settingsPath(PAGES.calendar.path),
     mail: settingsPath(PAGES.mail.path),
     // In every view of tasks.
@@ -82,26 +77,22 @@ export function SettingsPage() {
         <PageTabs.Panel value="projects">
           <SettingsGrid>
             <SettingsList
-              kind="PROJECT_STATUS"
               title="Statuts de projet"
               description="Un projet a au plus un statut. L’ordre est celui des listes de sélection."
               noun="le statut"
               usageNoun="projets"
               items={data?.projectStatuses ?? []}
               usage={statusUsage}
-              schema={labelFormSchema}
-              {...listMutations({ create: createStatus, update: updateStatus, remove: deleteStatus })}
+              {...statusItems}
             />
             <SettingsList
-              kind="PROJECT_CATEGORY"
               title="Catégories de projet"
               description="Un projet peut avoir plusieurs catégories."
               noun="la catégorie"
               usageNoun="projets"
               items={data?.projectCategories ?? []}
               usage={categoryUsage}
-              schema={labelFormSchema}
-              {...listMutations({ create: createCategory, update: updateCategory, remove: deleteCategory })}
+              {...categoryItems}
             />
           </SettingsGrid>
         </PageTabs.Panel>

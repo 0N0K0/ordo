@@ -5,12 +5,12 @@ import { prisma } from '../../db';
 import type { MailMessage } from '../../generated/prisma/client';
 import { errorMessage } from '../../graphql/errors';
 import { attachmentData, attachmentUrl } from '../core/attachments';
-import { withImap, withMailbox } from './imap';
+import { isInbox, withImap, withMailbox } from './imap';
 import { findSpecialFolder } from './organize';
 import { bareMessageId, fetchParsed, messageHtml, parsedAddresses } from './reader';
 import { schedulePerWorkspace } from '../workspace/workspaces';
 import { assertExists, deleteOrNotFound } from '../core/lookup';
-import { NO_SUBJECT } from '@ordo/shared';
+import { NO_SUBJECT, UNNAMED_FILE } from '@ordo/shared';
 
 /**
  * Message-IDs a message refers to (In-Reply-To and References).
@@ -58,9 +58,10 @@ export async function copyToProject(parsed: ParsedMail, { projectId, accountId, 
     });
     const urls: string[] = [];
     for (const attachment of parsed.attachments) {
+      // eslint-disable-next-line no-restricted-syntax -- the attachments of a mail copied from the server, not an upload (storeAttachment takes an uploaded file).
       const stored = await tx.attachment.create({
         data: {
-          ...attachmentData(attachment.filename || 'piece-jointe', attachment.content),
+          ...attachmentData(attachment.filename || UNNAMED_FILE, attachment.content),
           mailMessageId: message.id,
           contentId: attachment.contentId?.replace(/^<|>$/g, '') ?? null,
         },
@@ -149,7 +150,7 @@ async function followConversations(): Promise<void> {
         await withImap(account.id, async (client) => {
           // The sent folder is found by its flag or else by its usual name.
           const sent = await findSpecialFolder(client, '\\Sent');
-          const folders = (await client.list()).filter((item) => item.path.toUpperCase() === 'INBOX' || item.path === sent);
+          const folders = (await client.list()).filter((item) => isInbox(item.path) || item.path === sent);
           for (const folder of folders) {
             await withMailbox(client, folder.path, async () => {
               const mailbox = client.mailbox;
@@ -189,7 +190,7 @@ async function followConversations(): Promise<void> {
         for (const item of found) {
           const parsed = await fetchParsed(account.id, item.folder, item.uid);
           for (const projectId of item.projects) {
-            const copy = await copyToProject(parsed, { projectId, accountId: account.id, sent: item.folder.toUpperCase() !== 'INBOX' });
+            const copy = await copyToProject(parsed, { projectId, accountId: account.id, sent: !isInbox(item.folder) });
             projectsOf.set(copy.messageId, (projectsOf.get(copy.messageId) ?? new Set()).add(projectId));
           }
         }

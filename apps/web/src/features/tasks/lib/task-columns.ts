@@ -19,11 +19,12 @@ import type { ColumnChoice, ColumnFilter, DataColumn } from '../../../components
 import { filterRows } from '../../../components/data-table/table/table-engine';
 import type { EventOccurrence } from '../../calendar/api';
 import type { Task } from '../api';
-import { taskRef, type TaskContext } from '../hooks/use-task-context';
+import { type TaskContext, taskNumber } from '../hooks/use-task-context';
 import { BULK_EDITABLE_COLUMNS, COLUMN_LABELS, COLUMN_SIZES, LOCKED_COLUMNS } from './columns-meta';
 import { eventCell, taskCell } from './export';
 import { eventSortValue, sortValue } from './task-rows';
 import { localDay } from '../../../lib/dates';
+import { unarchived } from '../../../lib/archive';
 
 /** Row of the task table: a task, or a calendar event listed with them (read only). */
 export type TaskTableRow = { kind: 'task'; key: string; task: Task } | { kind: 'event'; key: string; event: EventOccurrence };
@@ -59,7 +60,7 @@ export function matchTasks(
   { filter, search = '', includeArchived = false }: { filter: FilterGroupOf<string>; search?: string; includeArchived?: boolean },
   today: string,
 ): Task[] {
-  const rows = tasks.filter((task) => includeArchived || !task.archived).map((task): TaskTableRow => ({ kind: 'task', key: task.id, task }));
+  const rows = (includeArchived ? tasks : unarchived(tasks)).map((task): TaskTableRow => ({ kind: 'task', key: task.id, task }));
   return filterRows(rows, columns, { search, filter }, today).flatMap((row) => (row.kind === 'task' ? [row.task] : []));
 }
 
@@ -298,7 +299,7 @@ export function taskColumns(context: TaskContext, today: string, extras: TaskCol
       hiddenByDefault: true,
       groupable: false,
       sortValue: (row) => (row.kind === 'task' ? row.task.number : null),
-      text: (row) => (row.kind === 'task' ? taskRef(row.task).trim() : ''),
+      text: (row) => (row.kind === 'task' ? taskNumber(row.task) : ''),
       filter: { kind: 'number', value: (row) => (row.kind === 'task' ? row.task.number : null) },
     },
     {

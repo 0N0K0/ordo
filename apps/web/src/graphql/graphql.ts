@@ -2862,6 +2862,158 @@ export type WatchedUnreadMailsQueryVariables = Exact<{
 
 export type WatchedUnreadMailsQuery = { mailMessages: { messages: Array<{ uid: number, subject: string, from: Array<{ name: string | null, address: string }> }> } };
 
+export type ClientFieldsFragment = { id: string, name: string, iconUrl: string | null, color: string | null, position: number, favorite: boolean, archived: boolean };
+
+export type LabelFieldsFragment = { id: string, archived: boolean, label: string, color: string, position: number, iconUrl: string | null };
+
+export type ProjectStatusFieldsFragment = { id: string, archived: boolean, label: string, color: string, iconUrl: string | null, position: number };
+
+export type ProjectFieldsFragment = { id: string, label: string, clientId: string | null, parentId: string | null, iconUrl: string | null, description: string | null, statusId: string | null, startDate: string | null, endDate: string | null, color: string | null, position: number, favorite: boolean, archived: boolean, categories: Array<{ id: string, archived: boolean, label: string, color: string, position: number, iconUrl: string | null }> };
+
+export type WorkspaceQueryVariables = Exact<{ [key: string]: never; }>;
+
+
+export type WorkspaceQuery = { clients: Array<{ id: string, name: string, iconUrl: string | null, color: string | null, position: number, favorite: boolean, archived: boolean }>, projects: Array<{ id: string, label: string, clientId: string | null, parentId: string | null, iconUrl: string | null, description: string | null, statusId: string | null, startDate: string | null, endDate: string | null, color: string | null, position: number, favorite: boolean, archived: boolean, categories: Array<{ id: string, archived: boolean, label: string, color: string, position: number, iconUrl: string | null }> }>, projectCategories: Array<{ id: string, archived: boolean, label: string, color: string, position: number, iconUrl: string | null }>, projectStatuses: Array<{ id: string, archived: boolean, label: string, color: string, iconUrl: string | null, position: number }> };
+
+export type CreateClientMutationVariables = Exact<{
+  input: ClientInput;
+}>;
+
+
+export type CreateClientMutation = { createClient: { id: string, name: string, iconUrl: string | null, color: string | null, position: number, favorite: boolean, archived: boolean } };
+
+export type UpdateClientMutationVariables = Exact<{
+  id: string | number;
+  input: ClientUpdateInput;
+}>;
+
+
+export type UpdateClientMutation = { updateClient: { id: string, name: string, iconUrl: string | null, color: string | null, position: number, favorite: boolean, archived: boolean } };
+
+export type SetClientFavoriteMutationVariables = Exact<{
+  id: string | number;
+  favorite: boolean;
+}>;
+
+
+export type SetClientFavoriteMutation = { setClientFavorite: { id: string, name: string, iconUrl: string | null, color: string | null, position: number, favorite: boolean, archived: boolean } };
+
+export type SetClientArchivedMutationVariables = Exact<{
+  id: string | number;
+  archived: boolean;
+}>;
+
+
+export type SetClientArchivedMutation = { setClientArchived: { id: string, name: string, iconUrl: string | null, color: string | null, position: number, favorite: boolean, archived: boolean } };
+
+export type DeleteClientMutationVariables = Exact<{
+  id: string | number;
+  deleteProjects: boolean;
+}>;
+
+
+export type DeleteClientMutation = { deleteClient: boolean };
+
+export type MoveClientMutationVariables = Exact<{
+  id: string | number;
+  index: number;
+}>;
+
+
+export type MoveClientMutation = { moveClient: boolean };
+
+export type CreateProjectMutationVariables = Exact<{
+  input: ProjectInput;
+}>;
+
+
+export type CreateProjectMutation = { createProject: { id: string, label: string, clientId: string | null, parentId: string | null, iconUrl: string | null, description: string | null, statusId: string | null, startDate: string | null, endDate: string | null, color: string | null, position: number, favorite: boolean, archived: boolean, categories: Array<{ id: string, archived: boolean, label: string, color: string, position: number, iconUrl: string | null }> } };
+
+export type UpdateProjectMutationVariables = Exact<{
+  id: string | number;
+  input: ProjectUpdateInput;
+}>;
+
+
+export type UpdateProjectMutation = { updateProject: { id: string, label: string, clientId: string | null, parentId: string | null, iconUrl: string | null, description: string | null, statusId: string | null, startDate: string | null, endDate: string | null, color: string | null, position: number, favorite: boolean, archived: boolean, categories: Array<{ id: string, archived: boolean, label: string, color: string, position: number, iconUrl: string | null }> } };
+
+export type SetProjectFavoriteMutationVariables = Exact<{
+  id: string | number;
+  favorite: boolean;
+}>;
+
+
+export type SetProjectFavoriteMutation = { setProjectFavorite: { id: string, label: string, clientId: string | null, parentId: string | null, iconUrl: string | null, description: string | null, statusId: string | null, startDate: string | null, endDate: string | null, color: string | null, position: number, favorite: boolean, archived: boolean, categories: Array<{ id: string, archived: boolean, label: string, color: string, position: number, iconUrl: string | null }> } };
+
+export type SetProjectArchivedMutationVariables = Exact<{
+  id: string | number;
+  archived: boolean;
+}>;
+
+
+export type SetProjectArchivedMutation = { setProjectArchived: { id: string, label: string, clientId: string | null, parentId: string | null, iconUrl: string | null, description: string | null, statusId: string | null, startDate: string | null, endDate: string | null, color: string | null, position: number, favorite: boolean, archived: boolean, categories: Array<{ id: string, archived: boolean, label: string, color: string, position: number, iconUrl: string | null }> } };
+
+export type DeleteProjectMutationVariables = Exact<{
+  id: string | number;
+}>;
+
+
+export type DeleteProjectMutation = { deleteProject: boolean };
+
+export type MoveProjectMutationVariables = Exact<{
+  id: string | number;
+  parentId?: string | number | null | undefined;
+  clientId?: string | number | null | undefined;
+  index: number;
+}>;
+
+
+export type MoveProjectMutation = { moveProject: boolean };
+
+export type CreateProjectCategoryMutationVariables = Exact<{
+  input: LabelColorInput;
+}>;
+
+
+export type CreateProjectCategoryMutation = { createProjectCategory: { id: string, archived: boolean, label: string, color: string, position: number, iconUrl: string | null } };
+
+export type UpdateProjectCategoryMutationVariables = Exact<{
+  id: string | number;
+  input: LabelColorPatch;
+}>;
+
+
+export type UpdateProjectCategoryMutation = { updateProjectCategory: { id: string, archived: boolean, label: string, color: string, position: number, iconUrl: string | null } };
+
+export type DeleteProjectCategoryMutationVariables = Exact<{
+  id: string | number;
+}>;
+
+
+export type DeleteProjectCategoryMutation = { deleteProjectCategory: boolean };
+
+export type CreateProjectStatusMutationVariables = Exact<{
+  input: LabelColorInput;
+}>;
+
+
+export type CreateProjectStatusMutation = { createProjectStatus: { id: string, archived: boolean, label: string, color: string, iconUrl: string | null, position: number } };
+
+export type UpdateProjectStatusMutationVariables = Exact<{
+  id: string | number;
+  input: LabelColorPatch;
+}>;
+
+
+export type UpdateProjectStatusMutation = { updateProjectStatus: { id: string, archived: boolean, label: string, color: string, iconUrl: string | null, position: number } };
+
+export type DeleteProjectStatusMutationVariables = Exact<{
+  id: string | number;
+}>;
+
+
+export type DeleteProjectStatusMutation = { deleteProjectStatus: boolean };
+
 export type RoutinesDataQueryVariables = Exact<{ [key: string]: never; }>;
 
 
@@ -4362,158 +4514,6 @@ export type ImportTreasuryStatementMutationVariables = Exact<{
 
 export type ImportTreasuryStatementMutation = { importTreasuryStatement: unknown };
 
-export type ClientFieldsFragment = { id: string, name: string, iconUrl: string | null, color: string | null, position: number, favorite: boolean, archived: boolean };
-
-export type LabelFieldsFragment = { id: string, archived: boolean, label: string, color: string, position: number, iconUrl: string | null };
-
-export type ProjectStatusFieldsFragment = { id: string, archived: boolean, label: string, color: string, iconUrl: string | null, position: number };
-
-export type ProjectFieldsFragment = { id: string, label: string, clientId: string | null, parentId: string | null, iconUrl: string | null, description: string | null, statusId: string | null, startDate: string | null, endDate: string | null, color: string | null, position: number, favorite: boolean, archived: boolean, categories: Array<{ id: string, archived: boolean, label: string, color: string, position: number, iconUrl: string | null }> };
-
-export type WorkspaceQueryVariables = Exact<{ [key: string]: never; }>;
-
-
-export type WorkspaceQuery = { clients: Array<{ id: string, name: string, iconUrl: string | null, color: string | null, position: number, favorite: boolean, archived: boolean }>, projects: Array<{ id: string, label: string, clientId: string | null, parentId: string | null, iconUrl: string | null, description: string | null, statusId: string | null, startDate: string | null, endDate: string | null, color: string | null, position: number, favorite: boolean, archived: boolean, categories: Array<{ id: string, archived: boolean, label: string, color: string, position: number, iconUrl: string | null }> }>, projectCategories: Array<{ id: string, archived: boolean, label: string, color: string, position: number, iconUrl: string | null }>, projectStatuses: Array<{ id: string, archived: boolean, label: string, color: string, iconUrl: string | null, position: number }> };
-
-export type CreateClientMutationVariables = Exact<{
-  input: ClientInput;
-}>;
-
-
-export type CreateClientMutation = { createClient: { id: string, name: string, iconUrl: string | null, color: string | null, position: number, favorite: boolean, archived: boolean } };
-
-export type UpdateClientMutationVariables = Exact<{
-  id: string | number;
-  input: ClientUpdateInput;
-}>;
-
-
-export type UpdateClientMutation = { updateClient: { id: string, name: string, iconUrl: string | null, color: string | null, position: number, favorite: boolean, archived: boolean } };
-
-export type SetClientFavoriteMutationVariables = Exact<{
-  id: string | number;
-  favorite: boolean;
-}>;
-
-
-export type SetClientFavoriteMutation = { setClientFavorite: { id: string, name: string, iconUrl: string | null, color: string | null, position: number, favorite: boolean, archived: boolean } };
-
-export type SetClientArchivedMutationVariables = Exact<{
-  id: string | number;
-  archived: boolean;
-}>;
-
-
-export type SetClientArchivedMutation = { setClientArchived: { id: string, name: string, iconUrl: string | null, color: string | null, position: number, favorite: boolean, archived: boolean } };
-
-export type DeleteClientMutationVariables = Exact<{
-  id: string | number;
-  deleteProjects: boolean;
-}>;
-
-
-export type DeleteClientMutation = { deleteClient: boolean };
-
-export type MoveClientMutationVariables = Exact<{
-  id: string | number;
-  index: number;
-}>;
-
-
-export type MoveClientMutation = { moveClient: boolean };
-
-export type CreateProjectMutationVariables = Exact<{
-  input: ProjectInput;
-}>;
-
-
-export type CreateProjectMutation = { createProject: { id: string, label: string, clientId: string | null, parentId: string | null, iconUrl: string | null, description: string | null, statusId: string | null, startDate: string | null, endDate: string | null, color: string | null, position: number, favorite: boolean, archived: boolean, categories: Array<{ id: string, archived: boolean, label: string, color: string, position: number, iconUrl: string | null }> } };
-
-export type UpdateProjectMutationVariables = Exact<{
-  id: string | number;
-  input: ProjectUpdateInput;
-}>;
-
-
-export type UpdateProjectMutation = { updateProject: { id: string, label: string, clientId: string | null, parentId: string | null, iconUrl: string | null, description: string | null, statusId: string | null, startDate: string | null, endDate: string | null, color: string | null, position: number, favorite: boolean, archived: boolean, categories: Array<{ id: string, archived: boolean, label: string, color: string, position: number, iconUrl: string | null }> } };
-
-export type SetProjectFavoriteMutationVariables = Exact<{
-  id: string | number;
-  favorite: boolean;
-}>;
-
-
-export type SetProjectFavoriteMutation = { setProjectFavorite: { id: string, label: string, clientId: string | null, parentId: string | null, iconUrl: string | null, description: string | null, statusId: string | null, startDate: string | null, endDate: string | null, color: string | null, position: number, favorite: boolean, archived: boolean, categories: Array<{ id: string, archived: boolean, label: string, color: string, position: number, iconUrl: string | null }> } };
-
-export type SetProjectArchivedMutationVariables = Exact<{
-  id: string | number;
-  archived: boolean;
-}>;
-
-
-export type SetProjectArchivedMutation = { setProjectArchived: { id: string, label: string, clientId: string | null, parentId: string | null, iconUrl: string | null, description: string | null, statusId: string | null, startDate: string | null, endDate: string | null, color: string | null, position: number, favorite: boolean, archived: boolean, categories: Array<{ id: string, archived: boolean, label: string, color: string, position: number, iconUrl: string | null }> } };
-
-export type DeleteProjectMutationVariables = Exact<{
-  id: string | number;
-}>;
-
-
-export type DeleteProjectMutation = { deleteProject: boolean };
-
-export type MoveProjectMutationVariables = Exact<{
-  id: string | number;
-  parentId?: string | number | null | undefined;
-  clientId?: string | number | null | undefined;
-  index: number;
-}>;
-
-
-export type MoveProjectMutation = { moveProject: boolean };
-
-export type CreateProjectCategoryMutationVariables = Exact<{
-  input: LabelColorInput;
-}>;
-
-
-export type CreateProjectCategoryMutation = { createProjectCategory: { id: string, archived: boolean, label: string, color: string, position: number, iconUrl: string | null } };
-
-export type UpdateProjectCategoryMutationVariables = Exact<{
-  id: string | number;
-  input: LabelColorPatch;
-}>;
-
-
-export type UpdateProjectCategoryMutation = { updateProjectCategory: { id: string, archived: boolean, label: string, color: string, position: number, iconUrl: string | null } };
-
-export type DeleteProjectCategoryMutationVariables = Exact<{
-  id: string | number;
-}>;
-
-
-export type DeleteProjectCategoryMutation = { deleteProjectCategory: boolean };
-
-export type CreateProjectStatusMutationVariables = Exact<{
-  input: LabelColorInput;
-}>;
-
-
-export type CreateProjectStatusMutation = { createProjectStatus: { id: string, archived: boolean, label: string, color: string, iconUrl: string | null, position: number } };
-
-export type UpdateProjectStatusMutationVariables = Exact<{
-  id: string | number;
-  input: LabelColorPatch;
-}>;
-
-
-export type UpdateProjectStatusMutation = { updateProjectStatus: { id: string, archived: boolean, label: string, color: string, iconUrl: string | null, position: number } };
-
-export type DeleteProjectStatusMutationVariables = Exact<{
-  id: string | number;
-}>;
-
-
-export type DeleteProjectStatusMutation = { deleteProjectStatus: boolean };
-
 export type WorkspacesQueryVariables = Exact<{ [key: string]: never; }>;
 
 
@@ -4569,7 +4569,7 @@ export type DeleteWorkspaceMutation = { deleteWorkspace: boolean };
 export type ElsewhereAlarmsQueryVariables = Exact<{ [key: string]: never; }>;
 
 
-export type ElsewhereAlarmsQuery = { alarms: Array<{ id: string, label: string, note: string | null, type: AlarmType, startDate: string | null, time: string | null, frequency: AlarmFrequency, interval: number, weekdays: Array<number>, endDate: string | null, recurrence: unknown, minutes: number | null, projectId: string | null, taskId: string | null, enabled: boolean, lastFiredAt: string | null, createdAt: string, task: { id: string, number: number | null, label: string, projectId: string | null } | null, project: { id: string, label: string } | null }>, runningTimeEntry: { id: string, startedAt: string, endedAt: string | null, pausedAt: string | null, pausedSeconds: number, duration: number | null } | null };
+export type ElsewhereAlarmsQuery = { alarms: Array<{ id: string, label: string, note: string | null, type: AlarmType, startDate: string | null, time: string | null, frequency: AlarmFrequency, interval: number, weekdays: Array<number>, endDate: string | null, recurrence: unknown, minutes: number | null, projectId: string | null, taskId: string | null, enabled: boolean, lastFiredAt: string | null, createdAt: string, task: { id: string, number: number | null, label: string, projectId: string | null } | null, project: { id: string, label: string } | null }>, projects: Array<{ id: string, label: string }>, runningTimeEntry: { id: string, startedAt: string, endedAt: string | null, pausedAt: string | null, pausedSeconds: number, duration: number | null } | null };
 
 export type ElsewhereMarkAlarmFiredMutationVariables = Exact<{
   id: string | number;
@@ -5017,6 +5017,64 @@ export const LinkedMailFieldsFragmentDoc = new TypedDocumentString(`
   }
 }
     `, {"fragmentName":"LinkedMailFields"}) as unknown as TypedDocumentString<LinkedMailFieldsFragment, unknown>;
+export const ClientFieldsFragmentDoc = new TypedDocumentString(`
+    fragment ClientFields on Client {
+  id
+  name
+  iconUrl
+  color
+  position
+  favorite
+  archived
+}
+    `, {"fragmentName":"ClientFields"}) as unknown as TypedDocumentString<ClientFieldsFragment, unknown>;
+export const ProjectStatusFieldsFragmentDoc = new TypedDocumentString(`
+    fragment ProjectStatusFields on ProjectStatus {
+  id
+  archived
+  label
+  color
+  iconUrl
+  position
+}
+    `, {"fragmentName":"ProjectStatusFields"}) as unknown as TypedDocumentString<ProjectStatusFieldsFragment, unknown>;
+export const LabelFieldsFragmentDoc = new TypedDocumentString(`
+    fragment LabelFields on ProjectCategory {
+  id
+  archived
+  label
+  color
+  position
+  iconUrl
+}
+    `, {"fragmentName":"LabelFields"}) as unknown as TypedDocumentString<LabelFieldsFragment, unknown>;
+export const ProjectFieldsFragmentDoc = new TypedDocumentString(`
+    fragment ProjectFields on Project {
+  id
+  label
+  clientId
+  parentId
+  iconUrl
+  description
+  statusId
+  startDate
+  endDate
+  color
+  position
+  favorite
+  archived
+  categories {
+    ...LabelFields
+  }
+}
+    fragment LabelFields on ProjectCategory {
+  id
+  archived
+  label
+  color
+  position
+  iconUrl
+}`, {"fragmentName":"ProjectFields"}) as unknown as TypedDocumentString<ProjectFieldsFragment, unknown>;
 export const ContributorFieldsFragmentDoc = new TypedDocumentString(`
     fragment ContributorFields on Contributor {
   id
@@ -5230,64 +5288,6 @@ export const TreasuryEntryFieldsFragmentDoc = new TypedDocumentString(`
   projectId
   place
 }`, {"fragmentName":"TreasuryEntryFields"}) as unknown as TypedDocumentString<TreasuryEntryFieldsFragment, unknown>;
-export const ClientFieldsFragmentDoc = new TypedDocumentString(`
-    fragment ClientFields on Client {
-  id
-  name
-  iconUrl
-  color
-  position
-  favorite
-  archived
-}
-    `, {"fragmentName":"ClientFields"}) as unknown as TypedDocumentString<ClientFieldsFragment, unknown>;
-export const ProjectStatusFieldsFragmentDoc = new TypedDocumentString(`
-    fragment ProjectStatusFields on ProjectStatus {
-  id
-  archived
-  label
-  color
-  iconUrl
-  position
-}
-    `, {"fragmentName":"ProjectStatusFields"}) as unknown as TypedDocumentString<ProjectStatusFieldsFragment, unknown>;
-export const LabelFieldsFragmentDoc = new TypedDocumentString(`
-    fragment LabelFields on ProjectCategory {
-  id
-  archived
-  label
-  color
-  position
-  iconUrl
-}
-    `, {"fragmentName":"LabelFields"}) as unknown as TypedDocumentString<LabelFieldsFragment, unknown>;
-export const ProjectFieldsFragmentDoc = new TypedDocumentString(`
-    fragment ProjectFields on Project {
-  id
-  label
-  clientId
-  parentId
-  iconUrl
-  description
-  statusId
-  startDate
-  endDate
-  color
-  position
-  favorite
-  archived
-  categories {
-    ...LabelFields
-  }
-}
-    fragment LabelFields on ProjectCategory {
-  id
-  archived
-  label
-  color
-  position
-  iconUrl
-}`, {"fragmentName":"ProjectFields"}) as unknown as TypedDocumentString<ProjectFieldsFragment, unknown>;
 export const TaskViewsDocument = new TypedDocumentString(`
     query TaskViews($projectId: ID, $kind: ViewKind, $tableKey: String) {
   taskViews(projectId: $projectId, kind: $kind, tableKey: $tableKey) {
@@ -7470,6 +7470,338 @@ export const WatchedUnreadMailsDocument = new TypedDocumentString(`
   }
 }
     `) as unknown as TypedDocumentString<WatchedUnreadMailsQuery, WatchedUnreadMailsQueryVariables>;
+export const WorkspaceDocument = new TypedDocumentString(`
+    query Workspace {
+  clients {
+    ...ClientFields
+  }
+  projects {
+    ...ProjectFields
+  }
+  projectCategories {
+    ...LabelFields
+  }
+  projectStatuses {
+    ...ProjectStatusFields
+  }
+}
+    fragment ClientFields on Client {
+  id
+  name
+  iconUrl
+  color
+  position
+  favorite
+  archived
+}
+fragment LabelFields on ProjectCategory {
+  id
+  archived
+  label
+  color
+  position
+  iconUrl
+}
+fragment ProjectStatusFields on ProjectStatus {
+  id
+  archived
+  label
+  color
+  iconUrl
+  position
+}
+fragment ProjectFields on Project {
+  id
+  label
+  clientId
+  parentId
+  iconUrl
+  description
+  statusId
+  startDate
+  endDate
+  color
+  position
+  favorite
+  archived
+  categories {
+    ...LabelFields
+  }
+}`) as unknown as TypedDocumentString<WorkspaceQuery, WorkspaceQueryVariables>;
+export const CreateClientDocument = new TypedDocumentString(`
+    mutation CreateClient($input: ClientInput!) {
+  createClient(input: $input) {
+    ...ClientFields
+  }
+}
+    fragment ClientFields on Client {
+  id
+  name
+  iconUrl
+  color
+  position
+  favorite
+  archived
+}`) as unknown as TypedDocumentString<CreateClientMutation, CreateClientMutationVariables>;
+export const UpdateClientDocument = new TypedDocumentString(`
+    mutation UpdateClient($id: ID!, $input: ClientUpdateInput!) {
+  updateClient(id: $id, input: $input) {
+    ...ClientFields
+  }
+}
+    fragment ClientFields on Client {
+  id
+  name
+  iconUrl
+  color
+  position
+  favorite
+  archived
+}`) as unknown as TypedDocumentString<UpdateClientMutation, UpdateClientMutationVariables>;
+export const SetClientFavoriteDocument = new TypedDocumentString(`
+    mutation SetClientFavorite($id: ID!, $favorite: Boolean!) {
+  setClientFavorite(id: $id, favorite: $favorite) {
+    ...ClientFields
+  }
+}
+    fragment ClientFields on Client {
+  id
+  name
+  iconUrl
+  color
+  position
+  favorite
+  archived
+}`) as unknown as TypedDocumentString<SetClientFavoriteMutation, SetClientFavoriteMutationVariables>;
+export const SetClientArchivedDocument = new TypedDocumentString(`
+    mutation SetClientArchived($id: ID!, $archived: Boolean!) {
+  setClientArchived(id: $id, archived: $archived) {
+    ...ClientFields
+  }
+}
+    fragment ClientFields on Client {
+  id
+  name
+  iconUrl
+  color
+  position
+  favorite
+  archived
+}`) as unknown as TypedDocumentString<SetClientArchivedMutation, SetClientArchivedMutationVariables>;
+export const DeleteClientDocument = new TypedDocumentString(`
+    mutation DeleteClient($id: ID!, $deleteProjects: Boolean!) {
+  deleteClient(id: $id, deleteProjects: $deleteProjects)
+}
+    `) as unknown as TypedDocumentString<DeleteClientMutation, DeleteClientMutationVariables>;
+export const MoveClientDocument = new TypedDocumentString(`
+    mutation MoveClient($id: ID!, $index: Int!) {
+  moveClient(id: $id, index: $index)
+}
+    `) as unknown as TypedDocumentString<MoveClientMutation, MoveClientMutationVariables>;
+export const CreateProjectDocument = new TypedDocumentString(`
+    mutation CreateProject($input: ProjectInput!) {
+  createProject(input: $input) {
+    ...ProjectFields
+  }
+}
+    fragment LabelFields on ProjectCategory {
+  id
+  archived
+  label
+  color
+  position
+  iconUrl
+}
+fragment ProjectFields on Project {
+  id
+  label
+  clientId
+  parentId
+  iconUrl
+  description
+  statusId
+  startDate
+  endDate
+  color
+  position
+  favorite
+  archived
+  categories {
+    ...LabelFields
+  }
+}`) as unknown as TypedDocumentString<CreateProjectMutation, CreateProjectMutationVariables>;
+export const UpdateProjectDocument = new TypedDocumentString(`
+    mutation UpdateProject($id: ID!, $input: ProjectUpdateInput!) {
+  updateProject(id: $id, input: $input) {
+    ...ProjectFields
+  }
+}
+    fragment LabelFields on ProjectCategory {
+  id
+  archived
+  label
+  color
+  position
+  iconUrl
+}
+fragment ProjectFields on Project {
+  id
+  label
+  clientId
+  parentId
+  iconUrl
+  description
+  statusId
+  startDate
+  endDate
+  color
+  position
+  favorite
+  archived
+  categories {
+    ...LabelFields
+  }
+}`) as unknown as TypedDocumentString<UpdateProjectMutation, UpdateProjectMutationVariables>;
+export const SetProjectFavoriteDocument = new TypedDocumentString(`
+    mutation SetProjectFavorite($id: ID!, $favorite: Boolean!) {
+  setProjectFavorite(id: $id, favorite: $favorite) {
+    ...ProjectFields
+  }
+}
+    fragment LabelFields on ProjectCategory {
+  id
+  archived
+  label
+  color
+  position
+  iconUrl
+}
+fragment ProjectFields on Project {
+  id
+  label
+  clientId
+  parentId
+  iconUrl
+  description
+  statusId
+  startDate
+  endDate
+  color
+  position
+  favorite
+  archived
+  categories {
+    ...LabelFields
+  }
+}`) as unknown as TypedDocumentString<SetProjectFavoriteMutation, SetProjectFavoriteMutationVariables>;
+export const SetProjectArchivedDocument = new TypedDocumentString(`
+    mutation SetProjectArchived($id: ID!, $archived: Boolean!) {
+  setProjectArchived(id: $id, archived: $archived) {
+    ...ProjectFields
+  }
+}
+    fragment LabelFields on ProjectCategory {
+  id
+  archived
+  label
+  color
+  position
+  iconUrl
+}
+fragment ProjectFields on Project {
+  id
+  label
+  clientId
+  parentId
+  iconUrl
+  description
+  statusId
+  startDate
+  endDate
+  color
+  position
+  favorite
+  archived
+  categories {
+    ...LabelFields
+  }
+}`) as unknown as TypedDocumentString<SetProjectArchivedMutation, SetProjectArchivedMutationVariables>;
+export const DeleteProjectDocument = new TypedDocumentString(`
+    mutation DeleteProject($id: ID!) {
+  deleteProject(id: $id)
+}
+    `) as unknown as TypedDocumentString<DeleteProjectMutation, DeleteProjectMutationVariables>;
+export const MoveProjectDocument = new TypedDocumentString(`
+    mutation MoveProject($id: ID!, $parentId: ID, $clientId: ID, $index: Int!) {
+  moveProject(id: $id, parentId: $parentId, clientId: $clientId, index: $index)
+}
+    `) as unknown as TypedDocumentString<MoveProjectMutation, MoveProjectMutationVariables>;
+export const CreateProjectCategoryDocument = new TypedDocumentString(`
+    mutation CreateProjectCategory($input: LabelColorInput!) {
+  createProjectCategory(input: $input) {
+    ...LabelFields
+  }
+}
+    fragment LabelFields on ProjectCategory {
+  id
+  archived
+  label
+  color
+  position
+  iconUrl
+}`) as unknown as TypedDocumentString<CreateProjectCategoryMutation, CreateProjectCategoryMutationVariables>;
+export const UpdateProjectCategoryDocument = new TypedDocumentString(`
+    mutation UpdateProjectCategory($id: ID!, $input: LabelColorPatch!) {
+  updateProjectCategory(id: $id, input: $input) {
+    ...LabelFields
+  }
+}
+    fragment LabelFields on ProjectCategory {
+  id
+  archived
+  label
+  color
+  position
+  iconUrl
+}`) as unknown as TypedDocumentString<UpdateProjectCategoryMutation, UpdateProjectCategoryMutationVariables>;
+export const DeleteProjectCategoryDocument = new TypedDocumentString(`
+    mutation DeleteProjectCategory($id: ID!) {
+  deleteProjectCategory(id: $id)
+}
+    `) as unknown as TypedDocumentString<DeleteProjectCategoryMutation, DeleteProjectCategoryMutationVariables>;
+export const CreateProjectStatusDocument = new TypedDocumentString(`
+    mutation CreateProjectStatus($input: LabelColorInput!) {
+  createProjectStatus(input: $input) {
+    ...ProjectStatusFields
+  }
+}
+    fragment ProjectStatusFields on ProjectStatus {
+  id
+  archived
+  label
+  color
+  iconUrl
+  position
+}`) as unknown as TypedDocumentString<CreateProjectStatusMutation, CreateProjectStatusMutationVariables>;
+export const UpdateProjectStatusDocument = new TypedDocumentString(`
+    mutation UpdateProjectStatus($id: ID!, $input: LabelColorPatch!) {
+  updateProjectStatus(id: $id, input: $input) {
+    ...ProjectStatusFields
+  }
+}
+    fragment ProjectStatusFields on ProjectStatus {
+  id
+  archived
+  label
+  color
+  iconUrl
+  position
+}`) as unknown as TypedDocumentString<UpdateProjectStatusMutation, UpdateProjectStatusMutationVariables>;
+export const DeleteProjectStatusDocument = new TypedDocumentString(`
+    mutation DeleteProjectStatus($id: ID!) {
+  deleteProjectStatus(id: $id)
+}
+    `) as unknown as TypedDocumentString<DeleteProjectStatusMutation, DeleteProjectStatusMutationVariables>;
 export const RoutinesDataDocument = new TypedDocumentString(`
     query RoutinesData {
   routineCategories {
@@ -9506,338 +9838,6 @@ export const ImportTreasuryStatementDocument = new TypedDocumentString(`
   importTreasuryStatement(accountId: $accountId, mapping: $mapping, rows: $rows)
 }
     `) as unknown as TypedDocumentString<ImportTreasuryStatementMutation, ImportTreasuryStatementMutationVariables>;
-export const WorkspaceDocument = new TypedDocumentString(`
-    query Workspace {
-  clients {
-    ...ClientFields
-  }
-  projects {
-    ...ProjectFields
-  }
-  projectCategories {
-    ...LabelFields
-  }
-  projectStatuses {
-    ...ProjectStatusFields
-  }
-}
-    fragment ClientFields on Client {
-  id
-  name
-  iconUrl
-  color
-  position
-  favorite
-  archived
-}
-fragment LabelFields on ProjectCategory {
-  id
-  archived
-  label
-  color
-  position
-  iconUrl
-}
-fragment ProjectStatusFields on ProjectStatus {
-  id
-  archived
-  label
-  color
-  iconUrl
-  position
-}
-fragment ProjectFields on Project {
-  id
-  label
-  clientId
-  parentId
-  iconUrl
-  description
-  statusId
-  startDate
-  endDate
-  color
-  position
-  favorite
-  archived
-  categories {
-    ...LabelFields
-  }
-}`) as unknown as TypedDocumentString<WorkspaceQuery, WorkspaceQueryVariables>;
-export const CreateClientDocument = new TypedDocumentString(`
-    mutation CreateClient($input: ClientInput!) {
-  createClient(input: $input) {
-    ...ClientFields
-  }
-}
-    fragment ClientFields on Client {
-  id
-  name
-  iconUrl
-  color
-  position
-  favorite
-  archived
-}`) as unknown as TypedDocumentString<CreateClientMutation, CreateClientMutationVariables>;
-export const UpdateClientDocument = new TypedDocumentString(`
-    mutation UpdateClient($id: ID!, $input: ClientUpdateInput!) {
-  updateClient(id: $id, input: $input) {
-    ...ClientFields
-  }
-}
-    fragment ClientFields on Client {
-  id
-  name
-  iconUrl
-  color
-  position
-  favorite
-  archived
-}`) as unknown as TypedDocumentString<UpdateClientMutation, UpdateClientMutationVariables>;
-export const SetClientFavoriteDocument = new TypedDocumentString(`
-    mutation SetClientFavorite($id: ID!, $favorite: Boolean!) {
-  setClientFavorite(id: $id, favorite: $favorite) {
-    ...ClientFields
-  }
-}
-    fragment ClientFields on Client {
-  id
-  name
-  iconUrl
-  color
-  position
-  favorite
-  archived
-}`) as unknown as TypedDocumentString<SetClientFavoriteMutation, SetClientFavoriteMutationVariables>;
-export const SetClientArchivedDocument = new TypedDocumentString(`
-    mutation SetClientArchived($id: ID!, $archived: Boolean!) {
-  setClientArchived(id: $id, archived: $archived) {
-    ...ClientFields
-  }
-}
-    fragment ClientFields on Client {
-  id
-  name
-  iconUrl
-  color
-  position
-  favorite
-  archived
-}`) as unknown as TypedDocumentString<SetClientArchivedMutation, SetClientArchivedMutationVariables>;
-export const DeleteClientDocument = new TypedDocumentString(`
-    mutation DeleteClient($id: ID!, $deleteProjects: Boolean!) {
-  deleteClient(id: $id, deleteProjects: $deleteProjects)
-}
-    `) as unknown as TypedDocumentString<DeleteClientMutation, DeleteClientMutationVariables>;
-export const MoveClientDocument = new TypedDocumentString(`
-    mutation MoveClient($id: ID!, $index: Int!) {
-  moveClient(id: $id, index: $index)
-}
-    `) as unknown as TypedDocumentString<MoveClientMutation, MoveClientMutationVariables>;
-export const CreateProjectDocument = new TypedDocumentString(`
-    mutation CreateProject($input: ProjectInput!) {
-  createProject(input: $input) {
-    ...ProjectFields
-  }
-}
-    fragment LabelFields on ProjectCategory {
-  id
-  archived
-  label
-  color
-  position
-  iconUrl
-}
-fragment ProjectFields on Project {
-  id
-  label
-  clientId
-  parentId
-  iconUrl
-  description
-  statusId
-  startDate
-  endDate
-  color
-  position
-  favorite
-  archived
-  categories {
-    ...LabelFields
-  }
-}`) as unknown as TypedDocumentString<CreateProjectMutation, CreateProjectMutationVariables>;
-export const UpdateProjectDocument = new TypedDocumentString(`
-    mutation UpdateProject($id: ID!, $input: ProjectUpdateInput!) {
-  updateProject(id: $id, input: $input) {
-    ...ProjectFields
-  }
-}
-    fragment LabelFields on ProjectCategory {
-  id
-  archived
-  label
-  color
-  position
-  iconUrl
-}
-fragment ProjectFields on Project {
-  id
-  label
-  clientId
-  parentId
-  iconUrl
-  description
-  statusId
-  startDate
-  endDate
-  color
-  position
-  favorite
-  archived
-  categories {
-    ...LabelFields
-  }
-}`) as unknown as TypedDocumentString<UpdateProjectMutation, UpdateProjectMutationVariables>;
-export const SetProjectFavoriteDocument = new TypedDocumentString(`
-    mutation SetProjectFavorite($id: ID!, $favorite: Boolean!) {
-  setProjectFavorite(id: $id, favorite: $favorite) {
-    ...ProjectFields
-  }
-}
-    fragment LabelFields on ProjectCategory {
-  id
-  archived
-  label
-  color
-  position
-  iconUrl
-}
-fragment ProjectFields on Project {
-  id
-  label
-  clientId
-  parentId
-  iconUrl
-  description
-  statusId
-  startDate
-  endDate
-  color
-  position
-  favorite
-  archived
-  categories {
-    ...LabelFields
-  }
-}`) as unknown as TypedDocumentString<SetProjectFavoriteMutation, SetProjectFavoriteMutationVariables>;
-export const SetProjectArchivedDocument = new TypedDocumentString(`
-    mutation SetProjectArchived($id: ID!, $archived: Boolean!) {
-  setProjectArchived(id: $id, archived: $archived) {
-    ...ProjectFields
-  }
-}
-    fragment LabelFields on ProjectCategory {
-  id
-  archived
-  label
-  color
-  position
-  iconUrl
-}
-fragment ProjectFields on Project {
-  id
-  label
-  clientId
-  parentId
-  iconUrl
-  description
-  statusId
-  startDate
-  endDate
-  color
-  position
-  favorite
-  archived
-  categories {
-    ...LabelFields
-  }
-}`) as unknown as TypedDocumentString<SetProjectArchivedMutation, SetProjectArchivedMutationVariables>;
-export const DeleteProjectDocument = new TypedDocumentString(`
-    mutation DeleteProject($id: ID!) {
-  deleteProject(id: $id)
-}
-    `) as unknown as TypedDocumentString<DeleteProjectMutation, DeleteProjectMutationVariables>;
-export const MoveProjectDocument = new TypedDocumentString(`
-    mutation MoveProject($id: ID!, $parentId: ID, $clientId: ID, $index: Int!) {
-  moveProject(id: $id, parentId: $parentId, clientId: $clientId, index: $index)
-}
-    `) as unknown as TypedDocumentString<MoveProjectMutation, MoveProjectMutationVariables>;
-export const CreateProjectCategoryDocument = new TypedDocumentString(`
-    mutation CreateProjectCategory($input: LabelColorInput!) {
-  createProjectCategory(input: $input) {
-    ...LabelFields
-  }
-}
-    fragment LabelFields on ProjectCategory {
-  id
-  archived
-  label
-  color
-  position
-  iconUrl
-}`) as unknown as TypedDocumentString<CreateProjectCategoryMutation, CreateProjectCategoryMutationVariables>;
-export const UpdateProjectCategoryDocument = new TypedDocumentString(`
-    mutation UpdateProjectCategory($id: ID!, $input: LabelColorPatch!) {
-  updateProjectCategory(id: $id, input: $input) {
-    ...LabelFields
-  }
-}
-    fragment LabelFields on ProjectCategory {
-  id
-  archived
-  label
-  color
-  position
-  iconUrl
-}`) as unknown as TypedDocumentString<UpdateProjectCategoryMutation, UpdateProjectCategoryMutationVariables>;
-export const DeleteProjectCategoryDocument = new TypedDocumentString(`
-    mutation DeleteProjectCategory($id: ID!) {
-  deleteProjectCategory(id: $id)
-}
-    `) as unknown as TypedDocumentString<DeleteProjectCategoryMutation, DeleteProjectCategoryMutationVariables>;
-export const CreateProjectStatusDocument = new TypedDocumentString(`
-    mutation CreateProjectStatus($input: LabelColorInput!) {
-  createProjectStatus(input: $input) {
-    ...ProjectStatusFields
-  }
-}
-    fragment ProjectStatusFields on ProjectStatus {
-  id
-  archived
-  label
-  color
-  iconUrl
-  position
-}`) as unknown as TypedDocumentString<CreateProjectStatusMutation, CreateProjectStatusMutationVariables>;
-export const UpdateProjectStatusDocument = new TypedDocumentString(`
-    mutation UpdateProjectStatus($id: ID!, $input: LabelColorPatch!) {
-  updateProjectStatus(id: $id, input: $input) {
-    ...ProjectStatusFields
-  }
-}
-    fragment ProjectStatusFields on ProjectStatus {
-  id
-  archived
-  label
-  color
-  iconUrl
-  position
-}`) as unknown as TypedDocumentString<UpdateProjectStatusMutation, UpdateProjectStatusMutationVariables>;
-export const DeleteProjectStatusDocument = new TypedDocumentString(`
-    mutation DeleteProjectStatus($id: ID!) {
-  deleteProjectStatus(id: $id)
-}
-    `) as unknown as TypedDocumentString<DeleteProjectStatusMutation, DeleteProjectStatusMutationVariables>;
 export const WorkspacesDocument = new TypedDocumentString(`
     query Workspaces {
   workspaces {
@@ -9904,6 +9904,10 @@ export const ElsewhereAlarmsDocument = new TypedDocumentString(`
       id
       label
     }
+  }
+  projects {
+    id
+    label
   }
   runningTimeEntry {
     id

@@ -13,7 +13,7 @@ import type {
   RecurringInvoicesQuery,
 } from '../../../graphql/graphql';
 import { execute } from '../../../lib/graphql-client';
-import { accountingQueryKey } from './index';
+import { accountingQueryKey, useAccountingMutation } from './index';
 
 export type AccountingDocument = AccountingDocumentFieldsFragment;
 export type AccountingDocumentSummary = AccountingDocumentListFieldsFragment;
@@ -407,15 +407,6 @@ export function useProjectResources(projectId: string) {
     queryKey: [...accountingQueryKey, 'resources', projectId],
     queryFn: async () => (await execute(ProjectResourcesDocument, { projectId })).projectResources,
   });
-}
-
-/**
- * Mutation refreshing the accounting data once done.
- * @param {(variables: TVariables) => Promise<TResult>} mutationFn Request.
- * @returns {UseMutationResult} Mutation state.
- */
-function useAccountingMutation<TVariables, TResult>(mutationFn: (variables: TVariables) => Promise<TResult>) {
-  return useInvalidatingMutation(mutationFn, { invalidate: [accountingQueryKey] });
 }
 
 /**

@@ -1,4 +1,5 @@
-import type { AccountingDocumentType } from '@ordo/shared';
+import { type AccountingDocumentType, isInvoice, VAT_RATES } from '@ordo/shared';
+import * as fmt from '../../../lib/format';
 
 export const DOCUMENT_TYPE_LABELS: Record<AccountingDocumentType, string> = {
   QUOTE: 'Devis',
@@ -13,7 +14,7 @@ export const DOCUMENT_TYPE_LABELS: Record<AccountingDocumentType, string> = {
  * @returns {boolean} Feminine.
  */
 export function isFeminineDocumentType(type: AccountingDocumentType): boolean {
-  return type === 'INVOICE' || type === 'DEPOSIT_INVOICE';
+  return isInvoice(type);
 }
 
 export const NEW_DOCUMENT_TITLES: Record<AccountingDocumentType, string> = {
@@ -29,3 +30,12 @@ export const EMPTY_DOCUMENTS: Record<AccountingDocumentType, string> = {
   DEPOSIT_INVOICE: 'Aucune facture d’acompte.',
   CREDIT_NOTE: 'Aucun avoir.',
 };
+
+/**
+ * Options of a VAT rate select: the usual rates, plus the current one when it is not among them.
+ * @param {number} current Rate chosen.
+ * @returns {{ value: string, label: string }[]} Options (« 20 % »).
+ */
+export const vatRateOptions = (current: number): { value: string; label: string }[] =>
+  // eslint-disable-next-line no-restricted-syntax -- vatRateOptions itself.
+  [...new Set([...VAT_RATES, current])].map((rate) => ({ value: String(rate), label: fmt.percent(rate) }));

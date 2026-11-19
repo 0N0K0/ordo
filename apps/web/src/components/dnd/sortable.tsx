@@ -1,13 +1,18 @@
 import { closestCenter, DndContext, type DragEndEvent } from '@dnd-kit/core';
-import { rectSortingStrategy, SortableContext, verticalListSortingStrategy } from '@dnd-kit/sortable';
+import { horizontalListSortingStrategy, rectSortingStrategy, SortableContext, verticalListSortingStrategy } from '@dnd-kit/sortable';
 import type { ReactNode } from 'react';
-import { useDragSensors } from '../../lib/drag';
+import { useDragSensors } from './drag';
+
+/** Sorting strategy of each layout. */
+const STRATEGIES = { grid: rectSortingStrategy, list: verticalListSortingStrategy, row: horizontalListSortingStrategy };
 
 interface SortableAreaProps {
   /** Ids of the items, in their order. */
   ids: string[];
-  /** Layout of the items: a grid of cards or a vertical list. */
-  layout: 'grid' | 'list';
+  /** Layout of the items: a grid of cards, a vertical list, or a row (tabs). */
+  layout: 'grid' | 'list' | 'row';
+  /** Moved with the pointer only (the items keep their own keyboard navigation: tabs). Optional. Default = false. */
+  pointerOnly?: boolean;
   /** Moves a dropped item from its index to the index of the item it was dropped on. */
   onMove: (id: string, from: number, to: number) => void;
   children: ReactNode;
@@ -19,8 +24,8 @@ interface SortableAreaProps {
  * @param {SortableAreaProps} props Component props.
  * @returns {JSX.Element} Area.
  */
-export function SortableArea({ ids, layout, onMove, children }: SortableAreaProps) {
-  const sensors = useDragSensors('sortable');
+export function SortableArea({ ids, layout, pointerOnly = false, onMove, children }: SortableAreaProps) {
+  const sensors = useDragSensors(pointerOnly ? false : 'sortable');
 
   /**
    * Moves the dropped item to the place of the one it was dropped on.
@@ -36,7 +41,7 @@ export function SortableArea({ ids, layout, onMove, children }: SortableAreaProp
 
   return (
     <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
-      <SortableContext items={ids} strategy={layout === 'grid' ? rectSortingStrategy : verticalListSortingStrategy}>
+      <SortableContext items={ids} strategy={STRATEGIES[layout]}>
         {children}
       </SortableContext>
     </DndContext>

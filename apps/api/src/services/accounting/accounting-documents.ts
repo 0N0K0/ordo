@@ -19,12 +19,14 @@ import {
   printedDay,
   sumOf,
   toCents,
+  INVOICE_TYPES,
+  isInvoice,
 } from '@ordo/shared';
 import { prisma } from '../../db';
 import { currentWorkspaceId } from '../../workspace-context';
 import { Prisma, type AccountingDocument, type AccountingLine, type CompanyProfile } from '../../generated/prisma/client';
 import { clientError, fieldError, notFound, orNotFound, parseInput } from '../../graphql/errors';
-import { attachmentData } from '../core/attachments';
+import { storeAttachment } from '../core/attachments';
 import { getCompanyProfile, usedCounter } from './company';
 import { scopeOf, statusOf } from './document-statuses';
 import { syncPaymentStatus } from './document-tracking';
@@ -32,6 +34,7 @@ import { requirePro } from '../workspace/workspaces';
 import { assertExists } from '../core/lookup';
 import { assertNotArchived } from '../core/archive';
 import { decimalCents, fromDecimal, toDecimal } from '../core/decimal';
+import { BY_POSITION } from '../core/ordering';
 
 export type DocumentWithLines = AccountingDocument & { lines: AccountingLine[] };
 
@@ -75,7 +78,7 @@ export function documentTotals(document: DocumentWithLines) {
  * @returns {Promise<DocumentWithLines>} Document.
  */
 export async function findDocument(id: string): Promise<DocumentWithLines> {
-  const document = await orNotFound(prisma.accountingDocument.findUnique({ where: { id }, include: { lines: { orderBy: { position: 'asc' } } } }), 'Document');
+  const document = await orNotFound(prisma.accountingDocument.findUnique({ where: { id }, include: { lines: { orderBy: BY_POSITION } } }), 'Document');
   return document;
 }
 
@@ -449,7 +452,7 @@ export async function finalizeDocument(id: string): Promise<AccountingDocument> 
  */
 async function invoicedOnQuote(quoteId: string) {
   const invoices = await prisma.accountingDocument.findMany({
-    where: { sourceId: quoteId, status: 'FINAL', type: { in: ['INVOICE', 'DEPOSIT_INVOICE'] } },
+    where: { sourceId: quoteId, status: 'FINAL', type: { in: [...INVOICE_TYPES] } },
     include: { lines: true, derived: { where: { status: 'FINAL', type: 'CREDIT_NOTE' }, include: { lines: true } } },
     orderBy: { issueDate: 'asc' },
   });
@@ -487,7 +490,7 @@ export async function createFromDocument(sourceId: string, type: AccountingDocum
   const source = await findDocument(sourceId);
   if (source.status !== 'FINAL') throw clientError('BAD_USER_INPUT', 'Validez d’abord le document d’origine.');
   await assertNotArchived('ACCOUNTING_DOCUMENT', sourceId);
-  const allowed = (source.type === 'QUOTE' && (type === 'INVOICE' || type === 'DEPOSIT_INVOICE')) || ((source.type === 'INVOICE' || source.type === 'DEPOSIT_INVOICE') && type === 'CREDIT_NOTE');
+  const allowed = (source.type === 'QUOTE' && isInvoice(type)) || (isInvoice(source.type) && type === 'CREDIT_NOTE');
   if (!allowed) throw clientError('BAD_USER_INPUT', 'Ce document ne peut pas être créé à partir de celui-ci.');
   if (type === 'DEPOSIT_INVOICE') return createDepositInvoice({ quoteId: source.id, percent: options.depositPercent ?? 30, issueDate: options.issueDate });
 
@@ -714,8 +717,7 @@ export async function addDocumentAttachments(id: string, files: File[]): Promise
   await findDocument(id);
   await assertNotArchived('ACCOUNTING_DOCUMENT', id);
   for (const file of files) {
-    if (file.size > 10 * 1024 * 1024) throw clientError('BAD_USER_INPUT', `« ${file.name} » est trop lourd (10 Mo maximum).`);
-    await prisma.attachment.create({ data: { ...attachmentData(file.name, Buffer.from(await file.arrayBuffer())), accountingDocumentId: id } });
+    await storeAttachment(file, { accountingDocumentId: id });
   }
 }
 

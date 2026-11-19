@@ -1,16 +1,29 @@
 import { z } from 'zod';
-import { endAfter, optionalText, PERSON_NAME_REQUIRED, requiredText } from './rules';
+import { endAfter, optionalText, personNameSchema, requiredText } from './rules';
 import { daySchema } from '../dates/times';
 
 export const MAX_ICON_BYTES = 1024 * 1024;
 /** Maximum size of a file attached to a markdown text. */
+// eslint-disable-next-line no-restricted-syntax -- MAX_ATTACHMENT_BYTES itself.
 export const MAX_ATTACHMENT_BYTES = 10 * 1024 * 1024;
+
+/** Messages of a refused icon, the same in the web and the API. */
+export const ICON_ERRORS = {
+  // eslint-disable-next-line no-restricted-syntax -- the messages themselves.
+  tooLarge: 'Image trop lourde (1 Mo maximum).',
+  format: 'Format non pris en charge (JPG, PNG, WebP ou SVG).',
+} as const;
+
+/**
+ * Message of a file over `MAX_ATTACHMENT_BYTES`, the same in the web and the API.
+ * @param {string} name File name.
+ * @returns {string} « « x.pdf » est trop lourd (10 Mo maximum). »
+ */
+// eslint-disable-next-line no-restricted-syntax -- the messages themselves.
+export const fileTooLarge = (name: string): string => `« ${name} » est trop lourd (10 Mo maximum).`;
 /** Maximum nesting of projects: a root project is level 1. */
 export const MAX_PROJECT_DEPTH = 5;
 export const ICON_MIME_TYPES = ['image/png', 'image/jpeg', 'image/webp', 'image/svg+xml'] as const;
-
-/** Name of a client (not unique). */
-export const entityNameSchema = requiredText(120, PERSON_NAME_REQUIRED);
 
 /** Label of a project (not unique). */
 export const projectLabelSchema = requiredText(120);
@@ -58,7 +71,7 @@ export const descriptionSchema = z
 export const dateSchema = daySchema().nullable();
 
 export const clientFormSchema = z.object({
-  name: entityNameSchema,
+  name: personNameSchema,
   color: optionalColorSchema,
 });
 export type ClientFormValues = z.input<typeof clientFormSchema>;

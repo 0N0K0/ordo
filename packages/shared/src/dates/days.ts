@@ -16,6 +16,33 @@ export function parseDay(date: string): Date {
 }
 
 /**
+ * Day of an instant in a time zone, YYYY-MM-DD: the zone given (Paris for the API), or the local one of the
+ * machine (the user's in the web).
+ * @param {Date} instant Instant.
+ * @param {string} [timeZone] IANA time zone. Optional. Default = the local time zone.
+ * @returns {string} Day.
+ */
+export function dayIn(instant: Date, timeZone?: string): string {
+  // eslint-disable-next-line no-restricted-syntax -- the day in a time zone, as YYYY-MM-DD.
+  if (timeZone) return instant.toLocaleDateString('sv-SE', { timeZone });
+  const two = (value: number) => String(value).padStart(2, '0');
+  return `${instant.getFullYear()}-${two(instant.getMonth() + 1)}-${two(instant.getDate())}`;
+}
+
+/**
+ * Instant of a day and a time in the local time zone (the user's in the web): an alarm ringing, a time entry
+ * starting… The inverse of `dayIn` without a zone.
+ * @param {string} day YYYY-MM-DD.
+ * @param {string} [time] HH:MM. Optional. Default = 00:00 (the start of the day).
+ * @returns {Date} Instant.
+ */
+export function localInstant(day: string, time = '00:00'): Date {
+  const [year, month, date] = day.split('-').map(Number);
+  const [hours, minutes] = time.split(':').map(Number);
+  return new Date(year, month - 1, date, hours, minutes);
+}
+
+/**
  * Date at midnight UTC of a YYYY-MM-DD day that may be missing: null and undefined are kept (a field cleared, or left
  * unchanged).
  * @param {string | null | undefined} date Day.

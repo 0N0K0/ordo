@@ -1,6 +1,30 @@
 import type { CalendarEventInput } from '@ordo/shared';
 import type { EventOccurrence } from '../api';
 
+/** A routine done during an event, on one of its days. */
+interface RoutineLink {
+  routineId: string;
+  date: string;
+}
+
+/**
+ * Key of a routine link, the value of its option (« routineId|date »).
+ * @param {RoutineLink} link Routine and day.
+ * @returns {string} Key.
+ */
+// eslint-disable-next-line no-restricted-syntax -- routineLinkKey itself.
+export const routineLinkKey = (link: RoutineLink): string => `${link.routineId}|${link.date}`;
+
+/**
+ * Routine link of a key made by `routineLinkKey`.
+ * @param {string} key Key.
+ * @returns {RoutineLink} Routine and day.
+ */
+export function routineLinkOf(key: string): RoutineLink {
+  const [routineId, date] = key.split('|');
+  return { routineId, date };
+}
+
 /** Time zone of the user's device: times of new events are local to it. */
 export const LOCAL_TIME_ZONE = Intl.DateTimeFormat().resolvedOptions().timeZone;
 

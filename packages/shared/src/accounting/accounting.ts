@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { optionalText, PERSON_NAME_REQUIRED, requiredText } from '../core/rules';
+import { optionalText, PERSON_NAME_MAX, personNameSchema, requiredText } from '../core/rules';
 
 /** Postal address, in the order of international postal conventions (ISO 19160 / UPU). */
 const addressSchema = z.object({
@@ -107,8 +107,8 @@ function isValidIban(iban: string): boolean {
 /** Client details used on accounting documents. */
 export const clientDetailsSchema = z.object({
   kind: z.enum(['COMPANY', 'INDIVIDUAL']),
-  firstName: optionalText(100),
-  lastName: optionalText(100),
+  firstName: optionalText(PERSON_NAME_MAX),
+  lastName: optionalText(PERSON_NAME_MAX),
   address: addressSchema.nullable(),
   email: emailSchema,
   phones: phonesSchema,
@@ -130,8 +130,8 @@ export type ClientServiceInput = z.input<typeof clientServiceSchema>;
 
 export const clientContactSchema = z.object({
   serviceId: z.string().nullable(),
-  firstName: requiredText(100, 'Le prénom est requis.'),
-  lastName: requiredText(100, PERSON_NAME_REQUIRED),
+  firstName: requiredText(PERSON_NAME_MAX, 'Le prénom est requis.'),
+  lastName: personNameSchema,
   email: emailSchema,
   jobTitle: optionalText(120),
   phones: phonesSchema,
@@ -149,7 +149,7 @@ export function contactName(contact: { firstName: string; lastName: string }): s
 
 /** The user's business. */
 export const companyProfileSchema = z.object({
-  name: requiredText(200, 'Le nom de la société est requis.'),
+  name: requiredText(PERSON_NAME_MAX, 'Le nom de la société est requis.'),
   contact: optionalText(120),
   legalForm: optionalText(80),
   capital: optionalText(40),
@@ -188,8 +188,20 @@ export const companyProfileSchema = z.object({
 });
 export type CompanyProfileInput = z.input<typeof companyProfileSchema>;
 
+// eslint-disable-next-line no-restricted-syntax -- the types themselves.
 export const ACCOUNTING_DOCUMENT_TYPES = ['QUOTE', 'INVOICE', 'DEPOSIT_INVOICE', 'CREDIT_NOTE'] as const;
 export type AccountingDocumentType = (typeof ACCOUNTING_DOCUMENT_TYPES)[number];
+
+/** Types of the documents that are invoices (paid, reminded, receipted). */
+// eslint-disable-next-line no-restricted-syntax -- the types themselves.
+export const INVOICE_TYPES = ['INVOICE', 'DEPOSIT_INVOICE'] as const satisfies readonly AccountingDocumentType[];
+
+/**
+ * Whether a document type is an invoice (an invoice or a deposit invoice).
+ * @param {string} type Document type.
+ * @returns {boolean} An invoice.
+ */
+export const isInvoice = (type: string): boolean => (INVOICE_TYPES as readonly string[]).includes(type);
 
 /** Number prefix of each document type. */
 export const DOCUMENT_PREFIXES: Record<AccountingDocumentType, string> = {
