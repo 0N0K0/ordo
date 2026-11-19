@@ -29,8 +29,8 @@ export function contentSecurityPolicy(): string {
 }
 
 /**
- * Content of `apps/web/.htaccess`, the folder above the built web app (cPanel rewrites the .htaccess of the built app
- * itself, and Apache applies those of every folder on the way to a file): Apache serves its files itself (the API never sees them), so it gives
+ * Block of the .htaccess of the app root (beside the rules of Passenger written by cPanel; Apache applies it to the
+ * built web app below): Apache serves its files itself (the API never sees them), so it gives
  * them the headers the API gives its own answers, and sends plain HTTP to HTTPS (for the API too). Written by `scripts/deploy.sh` (`npm run htaccess:print`).
  * @returns {string} Apache directives, between their markers.
  */
