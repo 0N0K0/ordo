@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { endAfter, optionalPlainText, optionalText, requiredText } from '../core/rules';
+import { endAfter, markdownSchema, optionalPlainText, optionalText, requiredText } from '../core/rules';
 import { daySchema } from '../dates/times';
 import { optionalColorSchema } from '../core/workspace';
 import { itemNoteSchema, quantitySchema as quantity, unitSchema } from './shopping';
@@ -60,7 +60,8 @@ export const stockMoveSchema = z
     lotId: z.string().nullable(),
     /** Date of a new lot. */
     expiresAt: daySchema().nullable(),
-    note: optionalPlainText(),
+    /** Markdown. */
+    note: markdownSchema,
   })
   .refine((move) => move.kind === 'CORRECTION' || move.quantity > 0, { path: ['quantity'], message: 'Quantité positive attendue.' });
 export type StockMoveInput = z.infer<typeof stockMoveSchema>;

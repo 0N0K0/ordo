@@ -2,7 +2,10 @@ import { IconAction } from '../../actions/IconAction';
 import { Anchor, Checkbox, Popover, Group, NumberInput, Text, TextInput, type ComboboxItem, type ComboboxLikeRenderOptionInput, type OptionsFilter } from '@mantine/core';
 import { DatePickerInput, TimePicker } from '@mantine/dates';
 import { ArrowSquareOutIcon } from '@phosphor-icons/react';
-import type { ReactNode } from 'react';
+import { useState, type ReactNode } from 'react';
+import { markdownSchema } from '@ordo/shared';
+import { MarkdownEditor, type MarkdownSuggestions } from '../../markdown/MarkdownEditor';
+import { NO_SUGGESTIONS } from '../../markdown/remark-references';
 import { BatchMultiSelect } from '../../inputs/BatchMultiSelect';
 import { StackedMultiCell, type StackedItem } from './StackedMultiCell';
 import { AmountInput } from '../../inputs/AmountInput';
@@ -391,5 +394,43 @@ export function EditablePopoverCell({ target, empty = false, label, width, trunc
       </Popover.Target>
       <Popover.Dropdown onClick={stopClick}>{children}</Popover.Dropdown>
     </Popover>
+  );
+}
+
+interface EditableMarkdownProps {
+  value: string | null;
+  /** Accessible name of the cell. */
+  label: string;
+  /** Items offered when typing "#" and "@". Optional. Default = none. */
+  suggestions?: MarkdownSuggestions;
+  readOnly?: boolean;
+  onSave: (value: string | null) => void;
+}
+
+/**
+ * Markdown cell (a note, a description): its text cut on one line, written in the shared markdown editor opened in a
+ * popover, saved when it closes if changed (blank: none).
+ * @param {EditableMarkdownProps} props Component props.
+ * @returns {JSX.Element} Cell.
+ */
+export function EditableMarkdown({ value, label, suggestions = NO_SUGGESTIONS, readOnly = false, onSave }: EditableMarkdownProps) {
+  const [opened, setOpened] = useState(false);
+  const [draft, setDraft] = useState<string | null>(null);
+
+  /**
+   * Saves the draft when valid and changed, then clears it.
+   * @returns {void}
+   */
+  const save = () => {
+    if (draft === null) return;
+    setDraft(null);
+    const result = checked(markdownSchema, draft, 'Valeur invalide.');
+    if (result && result.value !== (value ?? null)) onSave(result.value);
+  };
+
+  return (
+    <EditablePopoverCell width={420} empty={!value} label={label} truncate readOnly={readOnly} opened={opened} onOpenedChange={setOpened} onClose={save} target={value || '—'}>
+      <MarkdownEditor value={draft ?? value ?? ''} onChange={setDraft} suggestions={suggestions} minRows={3} autoFocus />
+    </EditablePopoverCell>
   );
 }

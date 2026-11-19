@@ -1070,7 +1070,8 @@ model Attachment {
 /// Tracked time on a project, optionally spent on tasks (shared equally between them).
 model TimeEntry {
   id                     String              @id @default(cuid())
-  /// Project the time is spent on; null for the time of a routine without project.
+  /// Project the time is spent on; null for the time of a routine without project. A deleted project still deletes the
+  /// time without routine (it needs a project); the API first takes the time of a routine out of it (decision DP).
   projectId              String?
   project                Project?            @relation(fields: [projectId], references: [id], onDelete: Cascade)
   /// Routine the time is spent on (an entry has a project, a routine, or both).
@@ -1151,8 +1152,9 @@ model Alarm {
   recurrence  Json?
   /// Tracking time between two rings (TRACKING_DURATION).
   minutes     Int?
+  /// A deleted project leaves its alarms without project (decision DP).
   projectId   String?
-  project     Project?       @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  project     Project?       @relation(fields: [projectId], references: [id], onDelete: SetNull)
   taskId      String?
   task        Task?          @relation(fields: [taskId], references: [id], onDelete: Cascade)
   enabled     Boolean        @default(true)

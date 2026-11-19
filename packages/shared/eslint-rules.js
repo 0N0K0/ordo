@@ -8,20 +8,24 @@ export const TEXT_SIZE_RULES = [
     selector:
       "CallExpression[callee.property.name='max'][arguments.0.type='Literal']:matches([callee.object.callee.object.name='z'][callee.object.callee.property.name='string'], [callee.object.callee.object.callee.object.name='z'][callee.object.callee.object.callee.property.name='string'], [callee.object.callee.object.callee.object.callee.object.name='z'][callee.object.callee.object.callee.object.callee.property.name='string'], [callee.object.callee.object.callee.object.callee.object.callee.object.name='z'][callee.object.callee.object.callee.object.callee.object.callee.property.name='string'])",
     message:
-      'Utiliser requiredText / optionalText / shortTextSchema (250), plainTextSchema / optionalPlainText (4 000) ou markdownSchema / markdownTextSchema (65 536) (@ordo/shared, décision DO) ; un champ à format nomme sa constante.',
+      'Utiliser requiredText / optionalText / shortTextSchema (250), legalTextSchema / optionalLegalText (mentions légales, 500), plainTextSchema / optionalPlainText (4 000) ou markdownSchema / markdownTextSchema (65 536) (@ordo/shared, décision DO) ; un champ à format nomme sa constante.',
   },
   {
     selector: "CallExpression[callee.name='optionalText'][arguments.0.type='Literal']",
     message: 'Utiliser optionalText() (250, décision DO) ; seul un champ à format passe sa constante nommée.',
   },
   {
+    selector: "CallExpression[callee.name='optionalText'][arguments.0.name='LEGAL_TEXT_MAX']",
+    message: 'Utiliser optionalLegalText() / legalTextSchema (@ordo/shared, décision DO) : une mention légale, 500 caractères.',
+  },
+  {
     selector: "Literal[value=/^[0-9][0-9 ]* caractères maximum\\.$/], Literal[value='Texte trop long.']",
-    message: 'Utiliser TEXT_TOO_LONG / PLAIN_TEXT_TOO_LONG / MARKDOWN_TOO_LONG ou les schémas de texte (@ordo/shared, décision DO) : un message par taille.',
+    message: 'Utiliser TEXT_TOO_LONG / LEGAL_TEXT_TOO_LONG / PLAIN_TEXT_TOO_LONG / MARKDOWN_TOO_LONG ou les schémas de texte (@ordo/shared, décision DO) : un message par taille.',
   },
   {
     // <TextInput maxLength={250} />
     selector: "JSXAttribute[name.name='maxLength']:matches([value.type='Literal'], [value.expression.type='Literal'])",
-    message: 'Utiliser TEXT_MAX, PLAIN_TEXT_MAX ou MARKDOWN_MAX (@ordo/shared, décision DO) pour maxLength.',
+    message: 'Utiliser TEXT_MAX, LEGAL_TEXT_MAX, PLAIN_TEXT_MAX ou MARKDOWN_MAX (@ordo/shared, décision DO) pour maxLength.',
   },
 ];
 

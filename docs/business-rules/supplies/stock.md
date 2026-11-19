@@ -71,7 +71,7 @@ Une quantité sort du lot donné (« Lot introuvable. » s'il n'est pas à l'art
 
 ### Mouvement à la main (`moveStock`)
 
-- `stockMoveSchema` : type parmi « Achat », « Consommation », « Perte », « Correction » (pas « Inventaire ») ; quantité non nulle (« Quantité non nulle attendue. »), entre −999 999 et 999 999, positive sauf pour une correction (« Quantité positive attendue. ») ; note multiligne de 4 000 caractères (« 4 000 caractères maximum. »), vide → null.
+- `stockMoveSchema` : type parmi « Achat », « Consommation », « Perte », « Correction » (pas « Inventaire ») ; quantité non nulle (« Quantité non nulle attendue. »), entre −999 999 et 999 999, positive sauf pour une correction (« Quantité positive attendue. ») ; note markdown de 65 536 caractères (`markdownSchema`, « Texte trop long. »), blanche → null, enregistrée telle qu'écrite.
 - Article archivé refusé.
 - Achat ou correction positive : entrée (lot donné, ou date `expiresAt`). Consommation, perte ou correction négative : sortie.
 - Rien n'a pu sortir : « Il n'y en a plus en stock. ».

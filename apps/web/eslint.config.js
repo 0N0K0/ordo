@@ -99,6 +99,11 @@ export default defineConfig([
         'error',
         // Sizes of the texts: one maximum per kind (decision DO).
         ...TEXT_SIZE_RULES,
+        // A markdown note or description typed in a cell: the shared markdown editor (decision DO).
+        {
+          selector: "JSXOpeningElement[name.name='EditableText']:has(JSXAttribute[name.name='value'] MemberExpression[property.name=/^(note|description)$/])",
+          message: 'Utiliser EditableMarkdown (components/data-table/cells/EditableCells) : une note ou une description markdown s’écrit dans l’éditeur markdown.',
+        },
         // Heavy libraries stay out of the start of the app: their components are loaded when first shown.
         {
           selector: "ImportDeclaration[importKind!='type'][source.value=/\\/(RichEditor|PlaceMap)$/]",

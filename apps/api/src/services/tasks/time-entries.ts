@@ -259,3 +259,13 @@ export async function deleteTimeEntry(id: string): Promise<void> {
   assertNotInvoiced(await findEntry(id));
   await prisma.timeEntry.delete({ where: { id } });
 }
+
+/**
+ * Keeps the time of a routine spent in projects about to be deleted: it leaves them, as the time of a routine without
+ * project (its routine, tasks and event kept). The time without routine still goes with its project: it needs one.
+ * @param {string[]} projectIds Projects deleted (a project and its sub-projects).
+ * @returns {Promise<void>}
+ */
+export async function releaseRoutineTime(projectIds: string[]): Promise<void> {
+  await prisma.timeEntry.updateMany({ where: { projectId: { in: projectIds }, routineId: { not: null } }, data: { projectId: null } });
+}

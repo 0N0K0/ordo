@@ -23,7 +23,7 @@ Règles appliquées par l’API et les schémas partagés pour les documents com
 États (`ACCOUNTING_DOCUMENT_STATUSES`) :
 
 - `DRAFT` : brouillon modifiable, sans numéro ;
-- `FINAL` : numéroté et définitif, plus modifiable (corrigé par un avoir) ;
+- `FINAL` : numéroté et définitif, plus modifiable (corrigé par un avoir) ; seule exception : la migration `20261119150000_text_sizes` (décision DO) a raccourci ses textes trop longs à la taille de leur sorte (libellé, lignes, mode de règlement 250 ; conditions de règlement, intérêts de retard, mention de TVA 500), société figée comme vendeur comprise ;
 - `TEMPLATE` : modèle d’une facture récurrente, jamais numéroté, exclu des listes (`accountingDocuments` et `derived` l’excluent).
 
 Nom d’un document (`documentName`) : son numéro, sinon son libellé (modèle), sinon « Brouillon » (`DRAFT_NAME`). Titre (`documentTitle`) : « Facture F2600042 », « Facture Brouillon ».
@@ -32,22 +32,22 @@ Nom d’un document (`documentName`) : son numéro, sinon son libellé (modèle)
 
 Schéma `accountingDocumentInputSchema` (`packages/shared/src/accounting/accounting-documents.ts`) :
 
-| Champ                                                                                | Règle                                                                                                                |
-| ------------------------------------------------------------------------------------ | -------------------------------------------------------------------------------------------------------------------- |
-| `clientId`                                                                           | Obligatoire (« Le client est requis. »).                                                                             |
-| `serviceId`, `contactId`, `projectId`                                                | Facultatifs.                                                                                                         |
-| `issueDate`                                                                          | Jour obligatoire (« La date est requise. »).                                                                         |
-| `dueDate`                                                                            | Facultatif ; pas avant la date (« L’échéance doit suivre la date du document. »).                                    |
-| `serviceStart`, `serviceEnd`                                                         | Facultatifs ; la fin suit le début (message commun `END_AFTER_START`).                                               |
-| `label`                                                                              | 250 caractères (décision DO).                                                                                        |
-| `introduction`, `conclusion`                                                         | Markdown, 65 536 caractères (« Texte trop long. ») ; blanc → null.                                                   |
-| `referenceLabel` / `referenceValue`                                                  | 250 caractères chacun.                                                                                               |
-| `paymentTerms`, `paymentMethods`, `lateInterest`, `billingSchedule`, `otherMentions` | 250 caractères chacun, sauf `otherMentions` : texte multiligne, 4 000 caractères.                                    |
-| `depositType` / `depositValue`                                                       | `PERCENT` ou `AMOUNT` ; valeur ≥ 0 (« L’acompte ne peut pas être négatif. »), au plus 100 en % (« 100 % maximum. »). |
-| `globalDiscountType` / `globalDiscountValue`                                         | Idem, au plus 100 en %.                                                                                              |
-| `showBankDetails`, `vatApplicable`                                                   | Booléens.                                                                                                            |
-| `lines`                                                                              | 500 lignes au plus (« 500 lignes maximum. »).                                                                        |
-| `timeEntryIds`                                                                       | 5 000 au plus ; omis : le temps facturé ne change pas.                                                               |
+| Champ                                                                                | Règle                                                                                                                                                                                                      |
+| ------------------------------------------------------------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `clientId`                                                                           | Obligatoire (« Le client est requis. »).                                                                                                                                                                   |
+| `serviceId`, `contactId`, `projectId`                                                | Facultatifs.                                                                                                                                                                                               |
+| `issueDate`                                                                          | Jour obligatoire (« La date est requise. »).                                                                                                                                                               |
+| `dueDate`                                                                            | Facultatif ; pas avant la date (« L’échéance doit suivre la date du document. »).                                                                                                                          |
+| `serviceStart`, `serviceEnd`                                                         | Facultatifs ; la fin suit le début (message commun `END_AFTER_START`).                                                                                                                                     |
+| `label`                                                                              | 250 caractères (décision DO).                                                                                                                                                                              |
+| `introduction`, `conclusion`                                                         | Markdown, 65 536 caractères (« Texte trop long. ») ; blanc → null.                                                                                                                                         |
+| `referenceLabel` / `referenceValue`                                                  | 250 caractères chacun.                                                                                                                                                                                     |
+| `paymentTerms`, `paymentMethods`, `lateInterest`, `billingSchedule`, `otherMentions` | Conditions de règlement et intérêts de retard : mentions légales, 500 caractères (`LEGAL_TEXT_MAX`) ; mode de règlement et mode de facturation 250 ; `otherMentions` : texte multiligne, 4 000 caractères. |
+| `depositType` / `depositValue`                                                       | `PERCENT` ou `AMOUNT` ; valeur ≥ 0 (« L’acompte ne peut pas être négatif. »), au plus 100 en % (« 100 % maximum. »).                                                                                       |
+| `globalDiscountType` / `globalDiscountValue`                                         | Idem, au plus 100 en %.                                                                                                                                                                                    |
+| `showBankDetails`, `vatApplicable`                                                   | Booléens.                                                                                                                                                                                                  |
+| `lines`                                                                              | 500 lignes au plus (« 500 lignes maximum. »).                                                                                                                                                              |
+| `timeEntryIds`                                                                       | 5 000 au plus ; omis : le temps facturé ne change pas.                                                                                                                                                     |
 
 Une ligne (`accountingLineSchema`) :
 
@@ -303,9 +303,10 @@ Paiement (`recordPayment`, schéma `documentPaymentSchema`) :
 `apps/api/src/services/accounting/company.ts`, schéma `companyProfileSchema` :
 
 - une ligne par espace, créée vide au premier accès ;
-- `name` obligatoire (« Le nom de la société est requis. ») ; `contact` 250, forme juridique 250, capital 250, immatriculation 250, SIREN, SIRET, code d’activité 20, TVA 20 ;
-- `vatApplicable` ; `vatExemptionText` obligatoire (« La mention est requise. », 250), par défaut « TVA non applicable, art. 293 B du CGI » ;
+- `name` obligatoire (« Le nom de la société est requis. ») ; `contact` 250, forme juridique 250, capital 250, immatriculation 500 (mention légale, `LEGAL_TEXT_MAX`), SIREN, SIRET, code d’activité 20, TVA 20 ;
+- `vatApplicable` ; `vatExemptionText` obligatoire (« La mention est requise. », 500 : mention légale), par défaut « TVA non applicable, art. 293 B du CGI » ;
 - IBAN contrôlé (ISO 13616, modulo 97 : « IBAN invalide. »), BIC 8 ou 11 caractères (« BIC invalide (8 ou 11 caractères). ») ; espaces retirés, majuscules ;
+- conditions de règlement et intérêts de retard : 500 caractères chacun (mentions légales), mode de règlement 250 ;
 - défauts : conditions « À 30 jours », `paymentDays` 30 (0 à 365), mode « Virement bancaire », intérêts « Trois fois le taux d’intérêt légal », autres mentions « Pas d’escompte pour paiement anticipé. », libellé de référence « Référence dossier » (obligatoire, 250), validité des devis 30 jours (1 à 365) ;
 - logo : PNG ou JPEG seulement (« Logo en PNG ou JPEG uniquement. ») ; l’ancien logo est supprimé ;
 - catégories de trésorerie des paiements de factures et des remboursements d’avoirs : réglées depuis la trésorerie, absentes des documents imprimés.

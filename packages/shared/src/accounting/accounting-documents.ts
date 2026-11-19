@@ -3,7 +3,7 @@ import { normalize } from '../core/text';
 import { ACCOUNTING_DOCUMENT_TYPES } from './accounting';
 import { lastDayOfMonth } from '../dates/months';
 import { z } from 'zod';
-import { END_AFTER_START, endsAfter, markdownSchema, optionalPlainText, optionalText, requiredText, shortTextSchema } from '../core/rules';
+import { END_AFTER_START, endsAfter, markdownSchema, optionalLegalText, optionalPlainText, optionalText, requiredText, shortTextSchema } from '../core/rules';
 import { addDays } from '../dates/days';
 import { LOCALE } from '../core/numbers';
 import { daySchema, startDaySchema } from '../dates/times';
@@ -54,11 +54,11 @@ export const accountingDocumentInputSchema = z
     referenceLabel: optionalText(),
     referenceValue: optionalText(),
     conclusion: markdownSchema,
-    paymentTerms: optionalText(),
+    paymentTerms: optionalLegalText(),
     paymentMethods: optionalText(),
     depositType: z.enum(DISCOUNT_TYPES).nullable(),
     depositValue: z.number().min(0, 'L’acompte ne peut pas être négatif.').max(99_999_999).nullable(),
-    lateInterest: optionalText(),
+    lateInterest: optionalLegalText(),
     billingSchedule: optionalText(),
     otherMentions: optionalPlainText(),
     showBankDetails: z.boolean(),

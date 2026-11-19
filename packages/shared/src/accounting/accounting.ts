@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { optionalText, personNameSchema, plainTextSchema, requiredText, shortTextSchema } from '../core/rules';
+import { legalTextSchema, optionalLegalText, optionalText, personNameSchema, plainTextSchema, requiredText, shortTextSchema } from '../core/rules';
 import { twoDigits } from '../core/numbers';
 
 /** Most characters of a postal code (a format, not a free text). */
@@ -166,13 +166,13 @@ export const companyProfileSchema = z.object({
   contact: optionalText(),
   legalForm: optionalText(),
   capital: optionalText(),
-  registration: optionalText(),
+  registration: optionalLegalText(),
   siren: sirenSchema,
   siret: siretSchema,
   activityCode: optionalText(ACTIVITY_CODE_MAX),
   vatNumber: optionalText(VAT_NUMBER_MAX),
   vatApplicable: z.boolean(),
-  vatExemptionText: requiredText('La mention est requise.'),
+  vatExemptionText: legalTextSchema.min(1, 'La mention est requise.'),
   address: addressSchema.nullable(),
   email: emailSchema,
   phone: optionalText(PHONE_MAX),
@@ -191,10 +191,10 @@ export const companyProfileSchema = z.object({
     .refine((value) => value === '' || /^[A-Z]{6}[A-Z0-9]{2}([A-Z0-9]{3})?$/.test(value), 'BIC invalide (8 ou 11 caractères).')
     .transform((value) => value || null)
     .nullable(),
-  paymentTerms: shortTextSchema,
+  paymentTerms: legalTextSchema,
   paymentDays: z.number().int().min(0, 'Au moins 0.').max(365, '365 maximum.'),
   paymentMethods: shortTextSchema,
-  lateInterest: shortTextSchema,
+  lateInterest: legalTextSchema,
   otherMentions: plainTextSchema,
   referenceLabel: requiredText(),
   quoteValidityDays: z.number().int().min(1, 'Au moins 1 jour.').max(365, '365 maximum.'),

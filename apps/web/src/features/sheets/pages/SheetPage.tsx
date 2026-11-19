@@ -14,7 +14,7 @@ import { DataTable } from '../../../components/data-table/table/DataTable';
 import { applyDiff, bulkCellLabels, bulkSaver } from '../../../components/data-table/selection/bulk-edit';
 import type { DataColumn } from '../../../components/data-table/table/data-table';
 import { categoryColumn, consumableColumn, noteColumn, quantityColumn, unitColumn } from '../../shopping/lib/product-columns';
-import { EditableCheck, EditableNumber, EditableSelect, EditableText } from '../../../components/data-table/cells/EditableCells';
+import { EditableCheck, EditableNumber, EditableSelect, EditableText, EditableMarkdown } from '../../../components/data-table/cells/EditableCells';
 import { RowActions } from '../../../components/data-table/cells/RowActions';
 import { useDataView } from '../../../components/data-table/views/use-data-view';
 import { confirmDestructive } from '../../../components/dialogs/confirm-destructive';
@@ -422,7 +422,7 @@ export function SheetPage() {
             />
           ),
           optional: <EditableCheck value={item.optional} readOnly={locked} label={cellLabelOf('optional', item, 'Facultatif')} onSave={(optional) => bulk('optional')(item, { optional })} />,
-          note: <EditableText value={item.note ?? null} readOnly={locked} label={cellLabelOf('note', item, 'Description')} nullable onSave={(note) => bulk('note')(item, { note })} />,
+          note: <EditableMarkdown value={item.note ?? null} readOnly={locked} label={cellLabelOf('note', item, 'Description')} onSave={(note) => bulk('note')(item, { note })} />,
         })}
         actions={(item) => (
           <RowActions

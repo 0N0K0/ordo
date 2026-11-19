@@ -41,6 +41,7 @@ Règle unique (2026-11-18) pour les assignés des tâches et des routines et les
 - Modifications groupées de tâches : la règle s'applique à chaque tâche de la sélection.
 - Déplacer une tâche vers un autre projet : ses assignés (et ceux de ses sous-tâches) **suivent** et sont rattachés au projet cible s'ils ne l'étaient pas déjà, directement ou par un parent (`attachAssignees`) ; « Moi » et les archivés ne sont jamais rattachés.
 - Même règle pour une routine ou un évènement qui change de projet (décision DP) : ses assignés ou contributeurs restent, même s'ils ne sont pas du nouveau projet, et y sont rattachés (`followProject`). Les sous-routines ne suivent pas : elles gardent leur projet.
+- Seules les personnes déjà enregistrées suivent : une personne ajoutée dans le même enregistrement que le changement de projet doit être du nouveau projet, sinon « Seuls les contributeurs du projet peuvent être choisis. » (accepté tel quel, décision DP).
 - Une tâche peut être rattachée à un événement si ses assignés et les participants ont quelqu'un en commun, ou si l'un des deux côtés est vide (`sharePeople`).
 
 ## Bénéficiaires

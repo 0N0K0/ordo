@@ -32,7 +32,7 @@ Table des articles (`StockTable`), comme toutes les tables (vues, filtres, tris,
   - « Unité » (modifiable, unités des achats) ;
   - « Date de péremption » : la première date des lots, en badge rouge si dépassée, orange avec un signe d'alerte à 3 jours ou moins, gris sinon ;
   - « Bénéficiaires » (modifiables) ;
-  - masquées par défaut : « Lots » (quantité · date de chaque lot), « Périssable » (case modifiable), « Consommable » (celui de la référence ; un article à lui est consommable), « Référence » (nom de la référence ; filtre oui / non), « Valeur » (dernier prix de la référence × quantité, total en pied), « Description » (modifiable), « Modifié le » ;
+  - masquées par défaut : « Lots » (quantité · date de chaque lot), « Périssable » (case modifiable), « Consommable » (celui de la référence ; un article à lui est consommable), « Référence » (nom de la référence ; filtre oui / non), « Valeur » (dernier prix de la référence × quantité, total en pied), « Description » (markdown, modifiable dans l'éditeur markdown ouvert dans un popover), « Modifié le » ;
   - commentaires.
 - Toutes les cellules modifiables le sont aussi en lot (sélection de cellules).
 - Boutons : « Afficher les archivés », « Faire l'inventaire » (désactivé sans article non archivé), « Nouvel article ».
@@ -61,7 +61,7 @@ Panneau « Nouvel article » (`StockItemForm`) :
 | « Unité »         | Unité des achats, créable.                                                                                                                                                  |
 | « Périssable »    | « Par lots datés » ; cochée, affiche « Date de péremption » (date du premier lot).                                                                                          |
 | « Bénéficiaires » | Contributeurs et relations.                                                                                                                                                 |
-| « Description »   | Texte, 65 536 caractères (règle markdown des notes de produit).                                                                                                             |
+| « Description »   | Markdown, dans l'éditeur markdown partagé, 65 536 caractères (règle des notes de produit).                                                                                  |
 
 Toast « Article ajouté au stock. ».
 
@@ -74,7 +74,7 @@ Panneau au nom de l'article (`StockMoveForm`) :
 - « Quantité » (> 0, 1 par défaut, avec l'unité).
 - « Lot » (s'il y a plusieurs lots, ou à l'ajout s'il y en a un) : sans choix, la sortie se fait sur « Ceux qui périment le plus tôt », l'ajout sur « Un nouveau lot » (périssable) ou « Le lot de l'article ».
 - « Date de péremption » à l'ajout d'un article périssable sans lot choisi.
-- « Note ».
+- « Note » : markdown, dans l'éditeur markdown partagé (65 536 caractères).
 - Toasts « Ajouté au stock. » / « Retiré du stock. ».
 
 ### Faire l'inventaire

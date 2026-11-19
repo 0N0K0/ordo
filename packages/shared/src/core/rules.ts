@@ -10,8 +10,16 @@ export const MARKDOWN_MAX = 65_536;
 /** Most characters of a plain multi-line text (a textarea without markdown, decision DO). */
 export const PLAIN_TEXT_MAX = 4000;
 
+/**
+ * Most characters of a legal mention of the company or of a document: VAT mention, payment terms, late interest,
+ * registration (decision DO, amended).
+ */
+export const LEGAL_TEXT_MAX = 500;
+
 /** Message of a short text over `TEXT_MAX`. */
 export const TEXT_TOO_LONG = `${TEXT_MAX} caractères maximum.`;
+/** Message of a legal mention over `LEGAL_TEXT_MAX`. */
+export const LEGAL_TEXT_TOO_LONG = `${LEGAL_TEXT_MAX} caractères maximum.`;
 /** Message of a markdown text over `MARKDOWN_MAX`. */
 // eslint-disable-next-line no-restricted-syntax -- the message itself.
 export const MARKDOWN_TOO_LONG = 'Texte trop long.';
@@ -46,6 +54,15 @@ export const optionalText = (max: number = TEXT_MAX) =>
     .max(max, `${max} caractères maximum.`)
     .transform((value) => value || null)
     .nullable();
+
+/** Legal mention (VAT mention, payment terms, late interest, registration): trimmed, at most `LEGAL_TEXT_MAX`, may be empty. */
+export const legalTextSchema = z.string().trim().max(LEGAL_TEXT_MAX, LEGAL_TEXT_TOO_LONG);
+
+/**
+ * Legal mention that may be left empty (saved as null): trimmed, at most `LEGAL_TEXT_MAX`.
+ * @returns {z.ZodType<string | null>} Rule.
+ */
+export const optionalLegalText = () => legalTextSchema.transform((value) => value || null).nullable();
 
 /** Plain multi-line text (a textarea without markdown, decision DO): trimmed, at most `PLAIN_TEXT_MAX`, may be empty. */
 export const plainTextSchema = z.string().trim().max(PLAIN_TEXT_MAX, PLAIN_TEXT_TOO_LONG);

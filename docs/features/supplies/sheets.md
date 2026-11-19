@@ -57,7 +57,7 @@ Vue `sheet-items`. Chaque cellule se modifie sur place, et sur une sélection de
 | `people`       | « Bénéficiaires »        | Membres et relations.                                                                                                        |
 | `url`          | « Lien vers le produit » | Lien `http` ou `https`.                                                                                                      |
 | `optional`     | « Facultatif »           | Acheté si possible.                                                                                                          |
-| `note`         | « Description »          | Texte.                                                                                                                       |
+| `note`         | « Description »          | Markdown, modifiable dans l'éditeur markdown ouvert dans un popover.                                                         |
 | commentaires   | (colonne commune)        | Nombre de commentaires de l'élément.                                                                                         |
 
 - Recherche : « Rechercher (élément, description) ».
@@ -102,7 +102,7 @@ Une liste par occurrence de routine ou d'évènement, une par tâche. Faite à l
 - En-tête : « 2 / 5 faits · lundi 10 novembre 2026 ».
 - « Ajouter une fiche » : même panneau que pour les listes d'achats (sans retrait), éléments additionnés à ceux de la liste.
 - « Refaire depuis les fiches » (confirmation : « La liste sera refaite à partir des fiches : ce qui est coché, ajouté ou modifié dans cette liste sera perdu. », toast « Liste refaite. »).
-- Tableau (vue `checklist`) : « Fait » (case), « Élément », « Quantité », « Unité », « Catégorie », « Consommable » (masquée ; coché, un élément de référence est retiré du stock quand il est coché et rendu quand il est décoché), « Description » (masquée), « Fiches » (d'où vient l'élément ; filtre, regroupement). Les lignes faites sont marquées comme telles.
+- Tableau (vue `checklist`) : « Fait » (case), « Élément », « Quantité », « Unité », « Catégorie », « Consommable » (masquée ; coché, un élément de référence est retiré du stock quand il est coché et rendu quand il est décoché), « Description » (masquée ; markdown, modifiable dans l'éditeur markdown ouvert dans un popover), « Fiches » (d'où vient l'élément ; filtre, regroupement). Les lignes faites sont marquées comme telles.
 - Ligne d'ajout « Ajouter un élément dans … » (élément non consommable par défaut, valeur du groupe reprise).
 - « Retirer » un élément (menu, sans confirmation) ou une sélection (avec confirmation).
 - Sans fiche attachée : « Aucune fiche : ajoutez-en pour faire la liste à cocher. » et le champ des fiches.

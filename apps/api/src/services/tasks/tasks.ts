@@ -361,15 +361,18 @@ export async function deleteTask(id: string, deleteSubtasks: boolean): Promise<v
 /**
  * Moves tasks with their sub-tasks to a project, where they take the next numbers (given by the database), or out of
  * any project (they lose their numbers, milestones, sprints and GitHub items). Links leaving the new tree are removed:
- * blocks and relations with the tasks left behind, the parent left behind, milestones and sprints of another tree. The
- * assignees follow into the target project. No archive check: the callers make theirs.
- * @param {string[]} rootIds Tasks moved (none under another one), each with its whole sub-tree.
+ * blocks and relations with the tasks left behind, the parent left behind (and, without the sub-tasks, the sub-tasks
+ * left behind lose their moved parent), milestones and sprints of another tree. The assignees follow into the target
+ * project. No archive check: the callers make theirs.
+ * @param {string[]} rootIds Tasks moved (with the sub-tasks: none under another one).
  * @param {string | null} projectId Target project; null: none.
+ * @param {boolean} [withSubtasks=true] Each task moves with its whole sub-tree; false: only the tasks given. Optional. Default = true.
  * @returns {Promise<number>} Number of removed links.
  */
-async function moveTaskTrees(rootIds: string[], projectId: string | null): Promise<number> {
+async function moveTaskTrees(rootIds: string[], projectId: string | null, withSubtasks = true): Promise<number> {
   if (rootIds.length === 0) return 0;
-  const moved = [...new Set([...rootIds, ...(await Promise.all(rootIds.map((id) => subtreeIds('task', id, false)))).flat()])];
+  const subtrees = withSubtasks ? (await Promise.all(rootIds.map((id) => subtreeIds('task', id, false)))).flat() : [];
+  const moved = [...new Set([...rootIds, ...subtrees])];
   const rootOf = await loadRootOf();
   const targetRoot = rootOf(projectId);
 
@@ -379,8 +382,13 @@ async function moveTaskTrees(rootIds: string[], projectId: string | null): Promi
     select: { id: true, projectId: true },
   });
   const outside = new Set(others.filter((other) => rootOf(other.projectId) !== targetRoot).map((other) => other.id));
-  const roots = await prisma.task.findMany({ where: { id: { in: rootIds } }, select: { id: true, parentId: true } });
-  const parentOutside = roots.filter((root) => root.parentId !== null && outside.has(root.parentId)).map((root) => root.id);
+  // A parent and its sub-task on both sides of two trees: the sub-task loses its parent (moved task whose parent stays,
+  // or, without the sub-tasks, sub-task left behind by its moved parent).
+  const parented = await prisma.task.findMany({ where: { OR: [{ id: { in: moved } }, { parentId: { in: moved } }], parentId: { not: null } }, select: { id: true, parentId: true } });
+  const movedSet = new Set(moved);
+  const parentOutside = parented
+    .filter(({ id, parentId }) => parentId !== null && (movedSet.has(id) ? outside.has(parentId) : outside.has(id) && movedSet.has(parentId)))
+    .map((task) => task.id);
   const outsideIds = [...outside];
   // Milestones of another tree cannot follow the moved tasks.
   const movedTasks = await prisma.task.findMany({
@@ -416,7 +424,7 @@ async function moveTaskTrees(rootIds: string[], projectId: string | null): Promi
         ],
       },
     }),
-    // Sub-tasks of the moved tasks whose parent is outside the moved set cannot exist: they all move.
+    // With the sub-tasks, a sub-task of a moved task is moved too; without them, those of another tree lose their parent.
     prisma.task.updateMany({ where: { id: { in: moved } }, data: projectId ? { projectId } : { projectId: null, githubItemId: null } }),
     prisma.task.updateMany({ where: { id: { in: parentOutside } }, data: { parentId: null } }),
     prisma.task.updateMany({ where: { id: { in: losingMilestone } }, data: { milestoneId: null } }),
@@ -430,13 +438,14 @@ async function moveTaskTrees(rootIds: string[], projectId: string | null): Promi
 
 /**
  * Takes the tasks of projects about to be deleted out of any project, as a transfer out of any project does
- * (`moveTaskTrees`), archived ones included: each leaves with its sub-tasks.
+ * (`moveTaskTrees`), archived ones included. Only their tasks leave: a sub-task stored in a project that stays keeps
+ * it (number, milestone, sprints) and only loses its parent, now out of its tree.
  * @param {string[]} projectIds Projects deleted (a project and its sub-projects).
  * @returns {Promise<void>}
  */
 export async function releaseProjectTasks(projectIds: string[]): Promise<void> {
   const tasks = await prisma.task.findMany({ where: { projectId: { in: projectIds } }, select: { id: true } });
-  await moveTaskTrees(await topmost(tasks.map((task) => task.id)), null);
+  await moveTaskTrees(tasks.map((task) => task.id), null, false);
 }
 
 /** People, tags and sprints a cloned task (and each cloned sub-task) keeps. */

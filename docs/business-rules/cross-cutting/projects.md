@@ -103,13 +103,13 @@ Source : `apps/api/src/services/projects/projects.ts`.
 
 ### Suppression
 
-`deleteProject(id)` supprime le projet et tout son sous-arbre (cascade `ON DELETE` de la relation parent). Les icônes orphelines sont supprimées. Avant, ses tâches sortent du projet (`releaseProjectTasks`, décision DP, voir [Tâches](../activities/tasks.md#projet-supprimé)). Le reste suit les relations du schéma Prisma :
+`deleteProject(id)` supprime le projet et tout son sous-arbre (cascade `ON DELETE` de la relation parent). Les icônes orphelines sont supprimées. Avant, ce qui lui survit en sort (`releaseProjects`, décision DP) : ses tâches (`releaseProjectTasks`, voir [Tâches](../activities/tasks.md#projet-supprimé)) et les temps de ses routines (`releaseRoutineTime`). Le reste suit les relations du schéma Prisma :
 
-| Avec le projet                                                                                                                                 | Sans projet (`SetNull`)                                                                                                                                           |
-| ---------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Supprimés : jalons, sprints, lien GitHub, vues de tâches, tableaux de bord, temps passés, alarmes, copies de mails (`MailMessage`), ressources | Gardés sans projet : tâches (sorties avant par l'API), routines, évènements, documents comptables, documents importés, mouvements et lignes de trésorerie, fiches |
+| Avec le projet                                                                                                                                                                         | Sans projet (`SetNull`)                                                                                                                                                                                                                                                             |
+| -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Supprimés : jalons, sprints, lien GitHub, vues de tâches, tableaux de bord, temps passés sans routine (un tel temps doit avoir un projet), copies de mails (`MailMessage`), ressources | Gardés sans projet : tâches (sorties avant par l'API), temps d'une routine (sortis avant par l'API, avec leurs tâches, routine et évènement), alarmes (avec leur tâche), routines, évènements, documents comptables, documents importés, mouvements et lignes de trésorerie, fiches |
 
-L'interface explique, dans la confirmation, que les tâches ne sont pas supprimées mais sortent du projet. Supprimer un client avec ses projets (`deleteClient(id, true)`) fait de même pour leurs tâches.
+L'interface explique, dans la confirmation, que les tâches ne sont pas supprimées mais sortent du projet. Supprimer un client avec ses projets (`deleteClient(id, true)`) fait de même (`releaseProjects`).
 
 ## Statuts et catégories de projet
 
