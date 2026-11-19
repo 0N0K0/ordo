@@ -163,9 +163,10 @@ eslint interdit `.slice(0, 10)`, `.slice(0, 7)`, `.split('T')[0]` et `new Date('
 - `PdfTableRow` (interface) et `postTablePdf(table)` : PDF d'un tableau (`/api/exports/table.pdf`) : titre, sous-titre, colonnes, lignes (groupes et lignes indentés), alignements.
 - `downloadCsv(lines, title)` : CSV pour tableurs français : points-virgules, virgules décimales, UTF-8 avec BOM, textes entre guillemets.
 
-## Texte, ensembles, clés
+## Texte, liens, ensembles, clés
 
 - `text.ts` : réexports de `@ordo/shared` (seul chemin pour `collator` et `normalize`) : `collator`, `copyName`, `countOf`, `countWith`, `ellipsis`, `fitName`, `nameKey`, `normalize`, `plural`, `sameName` ; et `removedLinksNote(count)` : fin du message d’un changement de projet qui a retiré des liens, « 2 liens retirés. » (rien sans lien), pour les tâches transférées et les routines déplacées (venu de `features/tasks/lib/bulk-label.ts`). Voir [Partagé : core](../shared/cross-cutting/core.md) et [Noms](../business-rules/cross-cutting/naming.md).
+- `links.ts` : `linkInputs(links)` : liens d'un élément (évènement, tâche, routine) reçus de l'API, renvoyés en entrée (adresse et libellé seuls). Imposé par eslint. Utilisé par `occurrenceInput` (agenda), `routineInputOf`, `RoutineForm`, `TaskLinks`.
 - `sets.ts` : `toggledIn(set, value)` (ensemble avec une valeur basculée), `toggledInList(list, value, on?)` (liste avec une valeur ajoutée en fin ou retirée, ou mise selon `on`). Imposés par eslint.
 - `tagged-key.ts` : `taggedKey(tag, id)` (`<sorte>:<id>`, valeur d'une liste mêlant des sortes : clients et tiers, ids de glisser-déposer), `parseTaggedKey(key)` (l'id peut contenir « : »), `taggedIds(keys, tag)`. Imposés par eslint.
 

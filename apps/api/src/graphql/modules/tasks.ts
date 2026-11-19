@@ -19,6 +19,9 @@ import { relationIds } from '../relation-fields';
 import { isMember } from '../../services/treasury/treasury-team';
 import { reloaded } from '../reload';
 import { unchecked } from '../unchecked';
+import { locationInputFields } from '../located-fields';
+import { ItemLinkInput, ItemLinkRef } from '../link-fields';
+import { readLinks } from '../../services/core/links';
 
 builder.prismaObject('Contributor', {
   fields: (t) => ({
@@ -179,6 +182,10 @@ builder.prismaObject('Task', {
       description: 'On or out of calendar schedules, or on the free time, in groups combined with and / or (as a routine); null: any time.',
       resolve: (task) => readSlotCondition(task.slotCondition),
     }),
+    location: t.exposeString('location', { nullable: true, description: 'Where it is done (free text); no travel time: a task has no hours.' }),
+    locationLat: t.exposeFloat('locationLat', { nullable: true, description: 'Point of the location; none: unknown.' }),
+    locationLon: t.exposeFloat('locationLon', { nullable: true }),
+    links: t.field({ type: [ItemLinkRef], description: 'Links, as those of the events.', resolve: (task) => readLinks(task.links) }),
     parentId: t.exposeID('parentId', { nullable: true }),
     milestoneId: t.exposeID('milestoneId', { nullable: true }),
     sprintIds: t.idList(relationIds('sprints', 'Sprints the task is planned in.')),
@@ -250,6 +257,8 @@ const taskFields = (t: InputFields) => ({
   milestoneId: t.id(),
   sprintIds: t.idList(),
   slotCondition: t.field({ type: 'JSON', description: 'On or out of calendar schedules, or on the free time, in groups (and / or); null: any time.' }),
+  ...locationInputFields(t, 'Null: none (its point too).'),
+  links: t.field({ type: [ItemLinkInput], description: '20 at most, http or https; null: none.' }),
 });
 
 const TaskInput = builder.inputType('TaskInput', {

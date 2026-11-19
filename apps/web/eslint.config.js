@@ -293,6 +293,20 @@ export default defineConfig([
           selector: "CallExpression[callee.name='reverseAddress']",
           message: 'Utiliser pickedAddress(point) (features/geo/api) : l’adresse, sinon les coordonnées, une erreur en notification.',
         },
+        // Location of an item (event, routine, task): one reading of its point, one cell.
+        {
+          selector: "Property[key.name='lat'] > MemberExpression.value[property.name='locationLat']",
+          message: 'Utiliser addressOf(item) / locationOf(value) (features/geo/lib/location), et LocationCell (features/geo/components) dans un tableau.',
+        },
+        // Links of an item (event, task, routine): one editor, one display, one input.
+        {
+          selector: "JSXElement[openingElement.name.name='AddItemButton'] > JSXText[value=/^\\s*Ajouter un lien\\s*$/], JSXAttribute[name.name='placeholder'][value.value='Libellé (facultatif)']",
+          message: 'Utiliser LinksField (components/inputs/LinksField) : les liens d’un évènement, d’une tâche ou d’une routine.',
+        },
+        {
+          selector: "CallExpression[callee.property.name='map'][callee.object.property.name='links']:has(JSXIdentifier[name='Anchor']), CallExpression[callee.property.name='map'] > ArrowFunctionExpression > ObjectExpression.body:has(> Property[key.name='url']):has(> Property[key.name='label'])",
+          message: 'Utiliser ItemLinks (components/items/ItemLinks) pour les afficher, linkInputs(links) (lib/links) pour les renvoyer.',
+        },
         // Tab of a page: unknown tabs fall back (usePageTab).
         {
           selector: "CallExpression[callee.property.name='get'][arguments.0.value='tab']",

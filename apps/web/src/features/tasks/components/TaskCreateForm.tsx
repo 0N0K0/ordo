@@ -15,6 +15,9 @@ import { FormActions } from '../../../components/dialogs/FormActions';
 import { defaultStatusId } from '../lib/new-task-defaults';
 import { dateRangeProps, formRange } from '../../../components/inputs/date-range';
 import { EffortInput } from './EffortInput';
+import { EventLocation } from '../../geo/components/EventLocation';
+import { addressOf, locationOf } from '../../geo/lib/location';
+import { LinksField } from '../../../components/inputs/LinksField';
 
 interface TaskCreateFormProps {
   context: TaskContext;
@@ -57,6 +60,10 @@ export function TaskCreateForm({ context, defaults, onDone }: TaskCreateFormProp
       beneficiaryIds: [],
       beneficiaryRelationIds: [],
       slotCondition: null,
+      location: '',
+      locationLat: null,
+      locationLon: null,
+      links: [],
     },
     schema: taskFormSchema,
   });
@@ -151,6 +158,8 @@ export function TaskCreateForm({ context, defaults, onDone }: TaskCreateFormProp
           error={form.errors.description as string | undefined}
           onSubmitShortcut={() => handleSubmit()}
         />
+        <EventLocation value={addressOf(form.values)} error={form.errors.location} onChange={(value) => form.setValues(locationOf(value))} />
+        <LinksField form={form} />
         <SimpleGrid cols={{ base: 1, sm: 3 }} spacing="md">
           <LabelSelect kind="status" labels={context.statuses} label="Statut" {...form.getInputProps('statusId')} />
           <LabelSelect kind="priority" labels={context.priorities} label="Priorité" {...form.getInputProps('priorityId')} />

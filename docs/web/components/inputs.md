@@ -52,11 +52,12 @@ Rappels (ou alertes) avant un moment, choisis parmi des préréglages (`BatchMul
 - `ROUTINE_REMINDERS` : alertes d'une routine : « À l'heure », puis 5 min à 2 h avant.
 - Constante interne `SHORT_REMINDERS` (5 min à 2 h).
 
-## Couleur, icône, groupe de contrôles
+## Couleur, icône, liens, groupe de contrôles
 
 - `ColorField` : champ couleur d'un formulaire, le même partout : hexadécimal, palette du thème (`useColorSwatches`) en rangées de 9, libellé « Couleur » par défaut. Remplace `ColorInput` (interdit par eslint).
 - `IconField` : choix d'une icône avec aperçu (`ItemAvatar` grand, initiales sinon) : bouton « Choisir une image », bouton « Retirer » (tertiaire rouge), aide « JPG, PNG, WebP ou SVG — 1 Mo maximum. ». Le fichier est vérifié avant d'être gardé (`ICON_MIME_TYPES`, `MAX_ICON_BYTES`, messages `ICON_ERRORS` de `@ordo/shared`). Props : `value` (`IconValue`), `onChange`, `currentUrl`, `name`, `color`, `error`, `contain` (image entière, logos clients). L'URL d'aperçu est libérée au démontage.
 - `IconValue` (interface) : `{ file: File | null; remove: boolean }` (nouveau fichier, ou retrait de l'icône actuelle).
+- `LinksField` : champ « Liens » d'un évènement, d'une tâche ou d'une routine, le même partout (décision D5) : une ligne par lien (adresse `https://…` avec icône de lien, « Libellé (facultatif) », « Retirer »), « Ajouter un lien » (désactivé à 20, `ITEM_LINKS_MAX`). Prop : `form` (le formulaire `useAppForm` de l'élément, son champ `links` validé par `itemLinksSchema`). Utilisé par `EventForm`, `RoutineForm`, `TaskCreateForm`, `TaskLinks`. Imposé par eslint (« Ajouter un lien » dans un `AddItemButton`, placeholder « Libellé (facultatif) »).
 - `LabeledField` : libellé au-dessus de contrôles qui ne sont pas un seul champ (liste de champs, groupe de boutons), comme le libellé d'un champ ; les contrôles forment un groupe (`role="group"`) nommé par le libellé. Props : `label`, `description`, `error`, `required` (astérisque), `gap` (4), `children`.
 
 ## Interrupteur

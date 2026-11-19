@@ -30,6 +30,7 @@ import { DependencyIcon } from '../../../components/data-table/cells/DependencyI
 import { dateRangeProps } from '../../../components/inputs/date-range';
 import { beneficiariesDiff } from '../../beneficiaries/lib/beneficiaries-diff';
 import { LATE_COLOR } from '../../../components/feedback/feedback-colors';
+import { LocationCell } from '../../geo/components/LocationCell';
 
 /**
  * Accessible label of a cell field, mentioning the bulk edit.
@@ -472,4 +473,14 @@ export function TaskProjectCell({ task, context }: { task: Task; context: TaskCo
     });
   };
   return <SharedProjectCell value={task.projectId} context={context} label={fieldLabel('Projet', task, count)} placeholder="Sans projet" readOnly={task.archived} onSave={move} />;
+}
+
+/**
+ * Location cell of a task (`LocationCell`), on the selection of its table: an address chosen in place, or none.
+ * @param {{ task: Task }} props Component props.
+ * @returns {JSX.Element} Cell.
+ */
+export function TaskLocationCell({ task }: { task: Task }) {
+  const { apply, count } = useCellEdit(task, 'location');
+  return <LocationCell item={task} label={fieldLabel('Lieu', task, count)} readOnly={task.archived} onSave={(change) => apply(change)} />;
 }

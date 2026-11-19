@@ -1,6 +1,8 @@
 import { normalize } from '../core/text';
 import { z } from 'zod';
-import { endAfter, markdownTextSchema, personNameSchema, requiredText } from '../core/rules';
+import { endAfter, markdownTextSchema, optionalText, personNameSchema, requiredText } from '../core/rules';
+import { locationPointFields } from '../core/geo';
+import { itemLinksSchema, type ItemLink } from '../core/links';
 import { dateSchema } from '../core/workspace';
 import { slotConditionSchema, type SlotCondition } from '../calendar/slot-conditions';
 import { endDaySchema, startDaySchema } from '../dates/times';
@@ -73,6 +75,11 @@ export const taskFormSchema = z
     beneficiaryRelationIds: z.array(z.string()).default([]),
     /** On or out of calendar schedules, or on the free time, in groups (and / or); null: any time. */
     slotCondition: slotConditionSchema.nullable().default(null),
+    /** Where it is done: free text, and its point when chosen from the map or a search (decision D6, no travel time). */
+    location: optionalText().default(null),
+    ...locationPointFields,
+    /** Links, as those of the events (decision D5). */
+    links: itemLinksSchema.default([]),
   })
   .refine(...endAfter('startDate', 'endDate'))
   .refine(...endAfter('minDate', 'deadline'));
@@ -125,4 +132,10 @@ export interface TaskInput {
   beneficiaryRelationIds?: string[] | null;
   /** On or out of calendar schedules, or on the free time, in groups (and / or); null: any time. */
   slotCondition?: SlotCondition | null;
+  /** Where it is done (null: nowhere, its point too), and its point when chosen from the map or a search. */
+  location?: string | null;
+  locationLat?: number | null;
+  locationLon?: number | null;
+  /** Links (null: none). */
+  links?: ItemLink[] | null;
 }

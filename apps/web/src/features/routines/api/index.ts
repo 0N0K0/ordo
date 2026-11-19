@@ -1,3 +1,4 @@
+import { linkInputs } from '../../../lib/links';
 import { ancestorsOf, byPosition, changedList, mapById, movedTo, subtreeOf } from '@ordo/shared';
 import type { RoutineBulkChanges } from '@ordo/shared';
 import { patchQuery, useInvalidatingMutation } from '../../../lib/mutation';
@@ -65,6 +66,10 @@ const RoutinesDataDocument = graphql(`
       location
       locationLat
       locationLon
+      links {
+        url
+        label
+      }
       travelBefore
       travelAfter
       projectId
@@ -336,6 +341,7 @@ function draftRoutine(input: RoutineInput, routines: readonly Routine[]): Routin
     location: input.location ?? null,
     locationLat: input.locationLat ?? null,
     locationLon: input.locationLon ?? null,
+    links: input.links ?? [],
     travelBefore: input.travelBefore ?? 0,
     travelAfter: input.travelAfter ?? 0,
     projectId: input.projectId ?? null,
@@ -487,6 +493,7 @@ export function routineInputOf(routine: Routine): RoutineInput {
     location: routine.location,
     locationLat: routine.locationLat,
     locationLon: routine.locationLon,
+    links: linkInputs(routine.links),
     travelBefore: routine.travelBefore,
     travelAfter: routine.travelAfter,
     projectId: routine.projectId,

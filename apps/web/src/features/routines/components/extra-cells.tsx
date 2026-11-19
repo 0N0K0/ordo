@@ -3,11 +3,10 @@ import { ROUTINE_REMINDERS } from '../../../components/inputs/reminder-presets';
 import { cellPicker } from '../../../components/data-table/cells/cell-field';
 import { Badge, Select, Stack, Text } from '@mantine/core';
 import { BellIcon } from '@phosphor-icons/react';
-import { useState } from 'react';
 
 import { treeSelectProps } from '../../../components/tree/tree-select';
 import { ON_ERROR } from '../../../lib/notify';
-import { AddressInput, type AddressValue } from '../../geo/components/AddressInput';
+import { LocationCell } from '../../geo/components/LocationCell';
 import { useRoutineMutations, type Routine } from '../api';
 import { routineCellLabel, useRoutineCellEdit } from '../lib/routine-cell-edit';
 import { applyDiff, listDiff } from '../../../components/data-table/selection/bulk-edit';
@@ -100,29 +99,13 @@ export function TimeOfDayCell({ routine, field, readOnly = false }: { routine: R
 }
 
 /**
- * Place cell: an address chosen in place (with its point on the map), or none.
+ * Location cell of a routine (`LocationCell`), on the selection of its table.
  * @param {{ routine: Routine, readOnly?: boolean }} props Component props (read only: archived or being created).
  * @returns {JSX.Element} Cell.
  */
-export function LocationCell({ routine, readOnly = false }: { routine: Routine; readOnly?: boolean }) {
+export function RoutineLocationCell({ routine, readOnly = false }: { routine: Routine; readOnly?: boolean }) {
   const { apply, count } = useRoutineCellEdit(routine, 'location');
-  const [draft, setDraft] = useState<AddressValue | null>(null);
-  const current: AddressValue = { text: routine.location ?? '', point: routine.locationLat != null && routine.locationLon != null ? { lat: routine.locationLat, lon: routine.locationLon } : null };
-  return (
-    <EditablePopoverCell width={360} empty={!routine.location} truncate readOnly={readOnly} onClose={() => setDraft(null)} target={routine.location || '—'}>
-      <AddressInput
-        aria-label={routineCellLabel('Lieu', routine, count)}
-        placeholder="Adresse ou lieu enregistré"
-        withinPortal={false}
-        value={draft ?? current}
-        onChange={(value) => {
-          setDraft(value);
-          // Saved once a proposed address is chosen, or when the text is cleared.
-          if (value.point || !value.text.trim()) apply({ location: value.text.trim() || null, locationLat: value.point?.lat ?? null, locationLon: value.point?.lon ?? null });
-        }}
-      />
-    </EditablePopoverCell>
-  );
+  return <LocationCell item={routine} label={routineCellLabel('Lieu', routine, count)} readOnly={readOnly} onSave={(change) => apply(change)} />;
 }
 
 /**

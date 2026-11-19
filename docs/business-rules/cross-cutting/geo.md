@@ -44,7 +44,7 @@ Un **lieu** (« Maison », « Bureau »…) a une adresse et un point (latitude,
 
 ### Suppression
 
-`deletePlace(id)` supprime le lieu et ses zones (« Lieu introuvable. » sinon). Les évènements et routines qui l’utilisaient gardent leur lieu **en texte** (avec son point).
+`deletePlace(id)` supprime le lieu et ses zones (« Lieu introuvable. » sinon). Les évènements, routines et tâches qui l’utilisaient gardent leur lieu **en texte** (avec son point).
 
 ### Lecture
 
@@ -79,7 +79,8 @@ Un élément sans aucun ancêtre localisé n’est pas rendu.
 
 ### Durées saisies sur un élément
 
-- Les champs d’un élément localisé (évènement, routine) : `locationLat`, `locationLon` (facultatifs) et `travelBefore`, `travelAfter` (`locatedFields`).
+- Les champs d’un élément localisé (évènement, routine) : `locationLat`, `locationLon` (facultatifs) et `travelBefore`, `travelAfter` (`locatedFields`). Une tâche a un lieu et son point, sans trajet (`locationPointFields`, décision D6) : elle n’a pas d’heures.
+- Enregistré, un point va avec un lieu, ses deux coordonnées ou aucune (`storedLocation`, `services/core/geo.ts`, commun aux évènements, routines et tâches).
 - Trajet aller ou retour : entier de 0 à 1440 minutes (24 h), 0 par défaut : « Durée positive attendue. », « 24 h maximum. ».
 - `travelMinutes(seconds)` arrondit une durée calculée aux **5 minutes supérieures**.
 - À la création, sans valeur : pas de lieu, trajets à 0 (`locatedInput`). En modification, un lieu changé remplace aussi son point (`null` : aucun) ; un trajet omis ou `null` reste inchangé (`locatedChanges`).

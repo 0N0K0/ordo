@@ -591,6 +591,12 @@ model Task {
   slotCondition        Json?
   /// Markdown.
   description          String?
+  /// Where it is done: free text, and its point when chosen from the map or a search (no travel time: no hours).
+  location             String?
+  locationLat          Float?
+  locationLon          Float?
+  /// [{ url, label }], as those of the events.
+  links                Json               @default("[]")
   /// None: a task of no project (no number, no sprint, milestone nor GitHub item). A deleted project leaves its tasks
   /// without project (the API takes them out first, as in a transfer).
   projectId            String?
@@ -3117,6 +3123,8 @@ model Routine {
   location             String?
   locationLat          Float?
   locationLon          Float?
+  /// [{ url, label }], as those of the events.
+  links                Json                   @default("[]")
   /// Travel time to the place and back from it, in minutes.
   travelBefore         Int                    @default(0)
   travelAfter          Int                    @default(0)

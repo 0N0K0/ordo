@@ -1,4 +1,4 @@
-import { Anchor, Badge, ColorSwatch, Group, Stack, Text } from '@mantine/core';
+import { Badge, ColorSwatch, Group, Stack, Text } from '@mantine/core';
 import { ArrowSquareOutIcon } from '@phosphor-icons/react';
 import { switchWorkspace } from '../../workspaces/lib/switch';
 import type { CalendarSubscription, EventOccurrence } from '../api';
@@ -8,7 +8,7 @@ import { NO_TARGETS } from '../../../components/markdown/remark-references';
 import { FormActions } from '../../../components/dialogs/FormActions';
 import { calendarPath } from '../../../app/pages';
 import { inWorkspace } from '../lib/layer-label';
-import { EXTERNAL_LINK } from '../../../components/actions/link-props';
+import { ItemLinks } from '../../../components/items/ItemLinks';
 import { eventMomentText } from '../lib/event-moment';
 
 /**
@@ -52,11 +52,7 @@ export function SubscribedEvent({ occurrence, subscription, onClose }: Subscribe
       {occurrence.location && <Text size="sm">{occurrence.location}</Text>}
       {/* Of another workspace: its references to tasks or projects are not followed. */}
       {occurrence.description && <MarkdownView targets={NO_TARGETS}>{occurrence.description}</MarkdownView>}
-      {occurrence.links.map((link) => (
-        <Anchor key={link.url} href={link.url} {...EXTERNAL_LINK} size="sm">
-          {link.label || link.url}
-        </Anchor>
-      ))}
+      <ItemLinks links={occurrence.links} />
       <FormActions
         onCancel={onClose}
         cancelLabel="Fermer"

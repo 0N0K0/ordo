@@ -35,6 +35,8 @@ interface AddressInputProps extends Omit<InputBaseProps, 'value' | 'onChange'> {
   withPlaces?: boolean;
   /** Proposals in a portal (off inside a popover, which a click outside closes). */
   withinPortal?: boolean;
+  /** Leaving the text field. Optional. */
+  onBlur?: () => void;
 }
 
 /**
@@ -45,7 +47,7 @@ interface AddressInputProps extends Omit<InputBaseProps, 'value' | 'onChange'> {
  * @param {AddressInputProps} props Component props.
  * @returns {JSX.Element} Field.
  */
-export function AddressInput({ value, onChange, placeholder, withPlaces = true, withinPortal = true, ...props }: AddressInputProps) {
+export function AddressInput({ value, onChange, placeholder, withPlaces = true, withinPortal = true, onBlur, ...props }: AddressInputProps) {
   const combobox = useCombobox({ onDropdownClose: () => combobox.resetSelectedOption() });
   const { data: places } = usePlaces();
   const first = unarchived(places ?? [])[0];
@@ -181,7 +183,10 @@ export function AddressInput({ value, onChange, placeholder, withPlaces = true, 
               combobox.updateSelectedOptionIndex();
             }}
             onFocus={() => combobox.openDropdown()}
-            onBlur={() => combobox.closeDropdown()}
+            onBlur={() => {
+              combobox.closeDropdown();
+              onBlur?.();
+            }}
           />
         </Combobox.Target>
         <Combobox.Dropdown hidden={empty}>

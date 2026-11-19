@@ -111,6 +111,13 @@ graphql(`
     githubUrl
     githubNumber
     slotCondition
+    location
+    locationLat
+    locationLon
+    links {
+      url
+      label
+    }
   }
 `);
 

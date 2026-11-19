@@ -392,7 +392,7 @@ input CalendarEventInput {
   endDate: Date!
   endTime: String
   label: String!
-  links: [CalendarLinkInput!]!
+  links: [ItemLinkInput!]!
   location: String
 
   """Point of the location; none: unknown."""
@@ -450,7 +450,7 @@ type CalendarEventOccurrence {
   eventId: ID!
   key: String!
   label: String!
-  links: [CalendarLink!]!
+  links: [ItemLink!]!
   location: String
   locationLat: Float
   locationLon: Float
@@ -489,16 +489,6 @@ enum CalendarEventScope {
   ALL
   FOLLOWING
   THIS
-}
-
-type CalendarLink {
-  label: String!
-  url: String!
-}
-
-input CalendarLinkInput {
-  label: String!
-  url: String!
 }
 
 """Event (and occurrence) a postponement replaces."""
@@ -1212,6 +1202,18 @@ type InvoiceTreasuryCategories {
 
   """Money in: payments of invoices."""
   invoiceCategoryId: ID
+}
+
+"""Link of an event, a task or a routine."""
+type ItemLink {
+  """Empty: none (the address is shown)."""
+  label: String!
+  url: String!
+}
+
+input ItemLinkInput {
+  label: String!
+  url: String!
 }
 
 """Arbitrary JSON value, validated by the resolver that receives it."""
@@ -2876,6 +2878,9 @@ type Routine {
   id: ID!
   label: String!
   lastDoneAt: DateTime
+
+  """Links, as those of the events."""
+  links: [ItemLink!]!
   location: String
   locationLat: Float
   locationLon: Float
@@ -3050,6 +3055,9 @@ input RoutineInput {
   """HH:MM."""
   fromTime: String
   label: String!
+
+  """20 at most, http or https; none: none."""
+  links: [ItemLinkInput!]
   location: String
 
   """Point of the location; none: unknown."""
@@ -3902,6 +3910,16 @@ type Task {
   githubUrl: String
   id: ID!
   label: String!
+
+  """Links, as those of the events."""
+  links: [ItemLink!]!
+
+  """Where it is done (free text); no travel time: a task has no hours."""
+  location: String
+
+  """Point of the location; none: unknown."""
+  locationLat: Float
+  locationLon: Float
   milestoneId: ID
 
   """Earliest acceptable date ("Date min"): not to be done before."""
@@ -3962,6 +3980,16 @@ input TaskInput {
   effort: Float
   endDate: Date
   label: String!
+
+  """20 at most, http or https; null: none."""
+  links: [ItemLinkInput!]
+
+  """Null: none (its point too)."""
+  location: String
+
+  """Point of the location; none: unknown."""
+  locationLat: Float
+  locationLon: Float
   milestoneId: ID
   minDate: Date
   parentId: ID
@@ -4068,6 +4096,16 @@ input TaskUpdateInput {
   effort: Float
   endDate: Date
   label: String
+
+  """20 at most, http or https; null: none."""
+  links: [ItemLinkInput!]
+
+  """Null: none (its point too)."""
+  location: String
+
+  """Point of the location; none: unknown."""
+  locationLat: Float
+  locationLon: Float
   milestoneId: ID
   minDate: Date
   parentId: ID

@@ -43,6 +43,7 @@ import {
   TagsCell,
   TaskBeneficiariesCell,
   TaskLinksCell,
+  TaskLocationCell,
   TaskProjectCell,
   TaskLabelCell,
 } from './inline-cells';
@@ -263,6 +264,7 @@ export function TaskBoard({ projectId, projectIds, createProjectId, header, empt
       trackedTime: <TrackedCell task={task} />,
       minDate: <DateCell task={task} column="minDate" />,
       slots: <SlotsCell task={task} />,
+      location: <TaskLocationCell task={task} />,
       timer: <TimerCell task={task} />,
       subtasks: <SubtasksCell task={task} context={context} onAdd={() => taskActions.create({ parentId: task.id, projectId: task.projectId ?? undefined })} />,
       progress: <ProgressCell task={task} context={context} />,

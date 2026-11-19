@@ -12,11 +12,11 @@ Route `/settings?tab=places`. Composant `PlacesManager`. La zone prend la hauteu
   - Ajout de lieux et de zones, modification, archivage, suppression.
   - Glisser-déposer : les lieux se réordonnent entre eux ; une zone passe sous un autre lieu ou une autre zone. Un lieu ne devient jamais une zone, ni une zone un lieu.
 - **Formulaire** : « Libellé » (250 caractères, unique parmi les lieux ou parmi les zones d’un même lieu) ; pour un lieu seulement, « Adresse » (requise, « Adresse, ou un clic sur la carte ») qu’il faut choisir parmi les propositions : « Choisissez une adresse proposée. ».
-- **Suppression** : « Le lieu « X » sera supprimé définitivement avec ses zones ; les évènements et routines gardent leur lieu en texte ; il ne sera plus proposé. » (« La zone… supprimée » pour une zone).
+- **Suppression** : « Le lieu « X » sera supprimé définitivement avec ses zones ; les évènements, routines et tâches gardent leur lieu en texte ; il ne sera plus proposé. » (« La zone… supprimée » pour une zone).
 
 ## Champ d’adresse
 
-Composant `AddressInput` : lieu d’un évènement ou d’une routine (formulaire et cellule « Lieu » du tableau des routines), lieu de livraison ou de retrait d’une commande d’achats ([Achats](../supplies/shopping.md)), adresse d’un lieu enregistré.
+Composant `AddressInput` : lieu d’un évènement, d’une routine ou d’une tâche (formulaires, panneau d’une tâche, cellules « Lieu » des tableaux des routines et des tâches), lieu de livraison ou de retrait d’une commande d’achats ([Achats](../supplies/shopping.md)), adresse d’un lieu enregistré.
 
 - Texte libre accepté (une salle, une visio…) : il n’a alors pas de point sur la carte (icône d’épingle vide).
 - En tapant, la liste propose :

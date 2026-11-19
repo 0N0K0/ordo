@@ -26,6 +26,7 @@ import { describeCase } from '../../../components/recurrence/describe-recurrence
 import * as fmt from '../../../lib/format';
 import { localToday } from '../../../lib/dates';
 import { EventLocation } from '../../geo/components/EventLocation';
+import { addressOf, locationOf } from '../../geo/lib/location';
 import { TravelCalculator } from '../../geo/components/TravelCalculator';
 import { OpensOnInput } from './OpensOnInput';
 import { opensText } from '../lib/opens-format';
@@ -332,7 +333,7 @@ export function RoutineSchedule({ values, errors, onChange }: RoutineSchedulePro
   const mode: RepetitionModeValue = values.cases.length ? 'CASES' : 'RULE';
   const single = mode === 'RULE' && values.moments.length <= 1 ? (values.moments[0] ?? ANY_TIME) : null;
   const { leaveAt, backAt } = routineSchedule({ ...values, fromTime: single?.fromTime ?? null, dueTime: single?.dueTime ?? null });
-  const point = values.locationLat !== null && values.locationLon !== null ? { lat: values.locationLat, lon: values.locationLon } : null;
+  const address = addressOf(values);
   const timed = mode !== 'RULE' || Boolean(values.slotCondition) || values.moments.some((moment) => moment.fromTime || moment.dueTime);
   return (
     <Stack gap="sm">
@@ -355,17 +356,13 @@ export function RoutineSchedule({ values, errors, onChange }: RoutineSchedulePro
         describe={(value) => describeRepetition(value, names)}
         editor={(draft, setDraft) => <RoutineRepetitionEditor draft={draft} setDraft={setDraft} names={names} />}
       />
-      <EventLocation
-        value={{ text: values.location, point }}
-        error={errors.location}
-        onChange={(value) => onChange({ location: value.text, locationLat: value.point?.lat ?? null, locationLon: value.point?.lon ?? null })}
-      />
+      <EventLocation value={address} error={errors.location} onChange={(value) => onChange(locationOf(value))} />
       <SimpleGrid cols={{ base: 1, xs: 3 }} spacing="sm">
         <TravelField way="before" description="Pour y aller" value={values.travelBefore} onChange={(value) => onChange({ travelBefore: Number(value) || 0 })} error={errors.travelBefore} />
         <TravelField way="after" description="Pour en revenir" value={values.travelAfter} onChange={(value) => onChange({ travelAfter: Number(value) || 0 })} error={errors.travelAfter} />
         <Stack justify="flex-end">
           <TravelCalculator
-            eventPoint={point}
+            eventPoint={address.point}
             onResult={({ before, after }) => onChange({ ...(before !== undefined && { travelBefore: before }), ...(after !== undefined && { travelAfter: after }) })}
           />
         </Stack>

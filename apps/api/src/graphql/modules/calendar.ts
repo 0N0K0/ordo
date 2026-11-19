@@ -8,6 +8,7 @@ import * as schedules from '../../services/calendar/work-schedules';
 import { BY_POSITION } from '../../services/core/ordering';
 import { builder } from '../builder';
 import { locatedInput, locationInputFields, TRAVEL_DESCRIPTIONS, travelInputFields } from '../located-fields';
+import { ItemLinkInput, ItemLinkRef } from '../link-fields';
 import { LabelColorInput, labelMutations, labelObject } from '../label-inputs';
 import { reloaded } from '../reload';
 import { unchecked } from '../unchecked';
@@ -56,10 +57,6 @@ export const EventScope = builder.enumType('CalendarEventScope', {
   values: EVENT_SCOPES,
 });
 
-const CalendarLink = builder.objectRef<events.CalendarLink>('CalendarLink').implement({
-  fields: (t) => ({ url: t.exposeString('url'), label: t.exposeString('label') }),
-});
-
 const PostponedFrom = builder.objectRef<NonNullable<events.EventOccurrence['postponedFrom']>>('CalendarPostponedFrom').implement({
   description: 'Event (and occurrence) a postponement replaces.',
   fields: (t) => ({
@@ -92,7 +89,7 @@ const EventOccurrence = builder.objectRef<events.EventOccurrence>('CalendarEvent
     location: t.exposeString('location', { nullable: true }),
     locationLat: t.exposeFloat('locationLat', { nullable: true }),
     locationLon: t.exposeFloat('locationLon', { nullable: true }),
-    links: t.field({ type: [CalendarLink], resolve: (occurrence) => occurrence.links }),
+    links: t.field({ type: [ItemLinkRef], resolve: (occurrence) => occurrence.links }),
     allDay: t.exposeBoolean('allDay'),
     startDate: t.exposeString('startDate'),
     startTime: t.exposeString('startTime', { nullable: true }),
@@ -258,17 +255,13 @@ const scheduleInput = (input: typeof WorkScheduleInput.$inferInput) => ({
   exceptions: unchecked(input.exceptions),
 });
 
-const CalendarLinkInput = builder.inputType('CalendarLinkInput', {
-  fields: (t) => ({ url: t.string({ required: true }), label: t.string({ required: true }) }),
-});
-
 const CalendarEventInput = builder.inputType('CalendarEventInput', {
   description: 'Times are local to timeZone; all-day events have none.',
   fields: (t) => ({
     label: t.string({ required: true }),
     description: t.string(),
     ...locationInputFields(t),
-    links: t.field({ type: [CalendarLinkInput], required: true }),
+    links: t.field({ type: [ItemLinkInput], required: true }),
     allDay: t.boolean({ required: true }),
     startDate: t.field({ type: 'Date', required: true }),
     startTime: t.string(),

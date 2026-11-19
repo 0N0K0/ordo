@@ -33,7 +33,7 @@ import { routinesLabel } from '../lib/routine-cell-edit';
 import { AddRoutineRow, ChronoCell, StateCell } from '../components/routine-table-cells';
 import { RoutineDoneToggles } from '../components/DoneToggle';
 import { AssigneesCell, CategoriesCell, EstimateCell, ProjectCell, RepetitionCell, RepetitionText, RoutineBeneficiariesCell, RoutineLabelCell, RoutineLinksCell } from '../components/routine-cells';
-import { BlocksCell, LocationCell, OpensOnCell, ParentRoutineCell, RemindersCell, SubRoutinesCell, TimeOfDayCell, TravelCell } from '../components/extra-cells';
+import { BlocksCell, RoutineLocationCell, OpensOnCell, ParentRoutineCell, RemindersCell, SubRoutinesCell, TimeOfDayCell, TravelCell } from '../components/extra-cells';
 import { isDone, movableOccurrence, waitingFor } from '../lib/routine-format';
 import { usePostponeRoutine } from '../hooks/use-routine-move';
 import { useRoutineRowsActions, useRoutineSelectionActions } from '../components/RoutineBulkBar';
@@ -177,7 +177,7 @@ export function RoutinesPanel({ projectId, projectIds }: { projectId?: string; p
       fromTime: <TimeOfDayCell routine={routine} field="fromTime" readOnly={readOnly} />,
       dueTime: <TimeOfDayCell routine={routine} field="dueTime" readOnly={readOnly} />,
       opensOn: <OpensOnCell routine={routine} readOnly={readOnly} />,
-      location: <LocationCell routine={routine} readOnly={readOnly} />,
+      location: <RoutineLocationCell routine={routine} readOnly={readOnly} />,
       travelBefore: <TravelCell routine={routine} field="travelBefore" readOnly={readOnly} />,
       travelAfter: <TravelCell routine={routine} field="travelAfter" readOnly={readOnly} />,
       alarms: <RemindersCell routine={routine} readOnly={readOnly} />,

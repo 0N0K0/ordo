@@ -41,6 +41,8 @@ import { removedLinksNote } from '../../../lib/text';
 import { dateRangeProps } from '../../../components/inputs/date-range';
 import { DetailHeader } from '../../../components/page/DetailHeader';
 import { EffortInput } from './EffortInput';
+import { TaskLinks } from './TaskLinks';
+import { TaskLocation } from './TaskLocation';
 import { DetailNotFound } from '../../../components/feedback/DetailNotFound';
 import { ActionButton } from '../../../components/actions/ActionButton';
 import { RemoveButton } from '../../../components/actions/RemoveButton';
@@ -107,7 +109,8 @@ interface TaskDetailProps {
 }
 
 /**
- * Detail of a task: title, description, sub-tasks and comments, with properties and links on the side. An archived
+ * Detail of a task: title, description, links, sub-tasks and comments, with properties (location included) and links
+ * to other tasks on the side. An archived
  * task is read only (its fields disabled; « Restaurer » in its menu).
  * @param {TaskDetailProps} props Component props.
  * @returns {JSX.Element} Detail.
@@ -269,6 +272,8 @@ function TaskDetail({ task, context }: TaskDetailProps) {
               )}
             </SubSection>
 
+            <TaskLinks task={task} locked={locked} />
+
             <SubSection
               title={
                 <>
@@ -375,6 +380,7 @@ function TaskDetail({ task, context }: TaskDetailProps) {
                 nothingFoundMessage="Aucun sprint dans ce projet"
               />
               <SlotConditionBuilder item="task" value={readSlotCondition(task.slotCondition)} onChange={(slotCondition) => save({ slotCondition })} />
+              <TaskLocation task={task} save={save} />
               <Divider />
               <LinkList
                 label="Bloque"

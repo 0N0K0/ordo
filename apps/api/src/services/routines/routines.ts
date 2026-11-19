@@ -61,6 +61,8 @@ import { archiveTree, assertActive, assertNoneArchived, assertNotArchived, refus
 import { connectIds, orderedPair } from '../core/relations';
 import { loadProjectRootOf, outsideMovedTree } from '../projects/project-tree';
 import { toJson } from '../core/json';
+import { readLinks } from '../core/links';
+import { storedLocation } from '../core/geo';
 
 /** Routine with what its occurrences are computed from. */
 export type RoutineTiming = Pick<Routine, 'startDate' | 'recurrence' | 'cases' | 'moves' | 'fromTime' | 'dueTime' | 'scheduleIds' | 'excludedScheduleIds' | 'moments' | 'slotCondition'> &
@@ -633,9 +635,8 @@ const scalars = (data: ReturnType<typeof routineSchema.parse>) => ({
   reminders: [...new Set(data.reminders)].sort((a, b) => a - b),
   opensOn: data.opensOn ?? Prisma.DbNull,
   cases: toJson(data.cases),
-  location: data.location,
-  locationLat: data.location ? data.locationLat : null,
-  locationLon: data.location ? data.locationLon : null,
+  ...storedLocation(data),
+  links: toJson(data.links),
   travelBefore: data.travelBefore,
   travelAfter: data.travelAfter,
   projectId: data.projectId,
@@ -803,6 +804,7 @@ async function inputOf(id: string): Promise<RoutineInput> {
     location: routine.location,
     locationLat: routine.locationLat,
     locationLon: routine.locationLon,
+    links: readLinks(routine.links),
     travelBefore: routine.travelBefore,
     travelAfter: routine.travelAfter,
     projectId: routine.projectId,

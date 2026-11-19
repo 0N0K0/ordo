@@ -31,6 +31,7 @@ export const TASK_COLUMNS = [
   'deadline',
   'minDate',
   'slots',
+  'location',
   'timer',
   'parent',
   'subtasks',
@@ -77,7 +78,7 @@ export const TASK_GROUP_BY = [
 export type TaskGroupBy = (typeof TASK_GROUP_BY)[number];
 
 /** Columns of the views made by the app, unless the workspace chose its own. */
-export const DEFAULT_HIDDEN_COLUMNS: TaskColumn[] = ['blocking', 'related', 'milestone', 'createdAt', 'updatedAt'];
+export const DEFAULT_HIDDEN_COLUMNS: TaskColumn[] = ['location', 'blocking', 'related', 'milestone', 'createdAt', 'updatedAt'];
 
 /** Ids of columns of a table layout: any column of the table (the unknown ones are ignored by the table). */
 const columnIdsSchema = z.array(z.string().max(TABLE_KEY_MAX)).max(200);

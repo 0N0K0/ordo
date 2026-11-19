@@ -5,6 +5,7 @@ import {
   opensFits,
   readOpens,
   readSlotCondition,
+  type ItemLink,
   type Recurrence,
   type RoutineCase,
   type RoutineOpens,
@@ -35,6 +36,8 @@ import { itemCreator } from '../../../components/settings/create-settings-item';
 import { FormActions } from '../../../components/dialogs/FormActions';
 import { SubSection } from '../../../components/page/SubSection';
 import { optionalNumberProps } from '../../../components/inputs/number-format';
+import { LinksField } from '../../../components/inputs/LinksField';
+import { linkInputs } from '../../../lib/links';
 
 interface RoutineFormValues extends Record<string, unknown> {
   label: string;
@@ -53,6 +56,7 @@ interface RoutineFormValues extends Record<string, unknown> {
   location: string;
   locationLat: number | null;
   locationLon: number | null;
+  links: ItemLink[];
   travelBefore: number;
   travelAfter: number;
   projectId: string | null;
@@ -110,6 +114,8 @@ export function RoutineForm({ routine, copy = false, parent, categoryId = null, 
       location: routine?.location ?? '',
       locationLat: routine?.locationLat ?? null,
       locationLon: routine?.locationLon ?? null,
+      // A new sub-routine takes no link of its parent (nor its place).
+      links: routine ? linkInputs(routine.links) : [],
       travelBefore: routine?.travelBefore ?? 0,
       travelAfter: routine?.travelAfter ?? 0,
       projectId: routine ? routine.projectId : (parent?.projectId ?? projectId),
@@ -171,6 +177,7 @@ export function RoutineForm({ routine, copy = false, parent, categoryId = null, 
                 suggestions={context?.suggestionsFor(form.values.projectId) ?? NO_SUGGESTIONS}
                 minRows={3}
               />
+              <LinksField form={form} />
               <SubSection title="Quand" gap="md">
                 <RoutineSchedule values={form.values} errors={form.errors} onChange={(changes) => form.setValues(changes)} />
               </SubSection>

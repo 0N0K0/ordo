@@ -115,7 +115,7 @@ export function PlacesManager() {
             }
             deleteMessage={(place, path) => (
               <>
-                {place.parentId ? 'La zone' : 'Le lieu'} « {path} » sera {agreed('supprimé', Boolean(place.parentId))} définitivement avec ses zones ; les évènements et routines gardent leur lieu en
+                {place.parentId ? 'La zone' : 'Le lieu'} « {path} » sera {agreed('supprimé', Boolean(place.parentId))} définitivement avec ses zones ; les évènements, routines et tâches gardent leur lieu en
                 texte ; il ne sera plus proposé.
               </>
             )}

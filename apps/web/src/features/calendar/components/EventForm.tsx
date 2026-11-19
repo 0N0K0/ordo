@@ -1,8 +1,7 @@
 import { relationNoun } from '../../../components/people/people-options';
 import { ArchivedNotice } from '../../../components/feedback/ArchivedNotice';
-import { LabeledField } from '../../../components/inputs/LabeledField';
+import { LinksField } from '../../../components/inputs/LinksField';
 import { copyName, fitName } from '../../../lib/text';
-import { AddItemButton } from '../../../components/actions/AddItemButton';
 import { TravelField } from '../../geo/components/TravelField';
 import { confirmDestructive } from '../../../components/dialogs/confirm-destructive';
 import { openFormPanel } from '../../../components/panels/panels';
@@ -13,7 +12,7 @@ import { itemSelectProps } from '../../../components/items/item-look';
 import { Alert, Anchor, Fieldset, Group, Select, SimpleGrid, Stack, Text, TextInput } from '@mantine/core';
 import { DatePickerInput, TimePicker } from '@mantine/dates';
 import { addDays, mapById, type CalendarEventInput, calendarEventInputSchema, daysBetween, formatDuration, type Recurrence, sharePeople, TEXT_MAX } from '@ordo/shared';
-import { ArrowArcRightIcon, ArrowCounterClockwiseIcon, CalendarXIcon, CopyIcon, LinkIcon, PlayIcon, XIcon } from '@phosphor-icons/react';
+import { ArrowArcRightIcon, ArrowCounterClockwiseIcon, CalendarXIcon, CopyIcon, PlayIcon, XIcon } from '@phosphor-icons/react';
 import { Link } from 'react-router';
 import { useState } from 'react';
 import { MarkdownEditor } from '../../../components/markdown/MarkdownEditor';
@@ -28,6 +27,7 @@ import { ArchivedBadge } from '../../../components/feedback/ArchivedBadge';
 import { useStartTimer } from '../../time/hooks/use-start-timer';
 import { timeTaskOptions, timeTasks } from '../../time/lib/time-tasks';
 import { EventLocation } from '../../geo/components/EventLocation';
+import { addressOf, locationOf } from '../../geo/lib/location';
 import { TravelCalculator } from '../../geo/components/TravelCalculator';
 import { useTreasurySettings } from '../../treasury/api';
 import { useActiveWorkspace } from '../../workspaces/api';
@@ -48,7 +48,6 @@ import { useCalendarCategoryItems } from '../hooks/use-settings-items';
 import { itemCreator } from '../../../components/settings/create-settings-item';
 import { FormActions } from '../../../components/dialogs/FormActions';
 import { RemindersSelect } from '../../../components/inputs/RemindersSelect';
-import { RemoveButton } from '../../../components/actions/RemoveButton';
 import { ActionsMenu } from '../../../components/actions/ActionsMenu';
 import { calendarPath } from '../../../app/pages';
 import { ActionButton } from '../../../components/actions/ActionButton';
@@ -357,7 +356,7 @@ export function EventForm({ context, occurrence, defaults, onDone, onDuplicate }
                 <TravelField way="after" description="Après la fin" {...form.getInputProps('travelAfter')} />
                 <div>
                   <TravelCalculator
-                    eventPoint={values.locationLat != null && values.locationLon != null ? { lat: values.locationLat, lon: values.locationLon } : null}
+                    eventPoint={addressOf(values).point}
                     onResult={({ before, after }) => form.setValues({ ...(before !== undefined && { travelBefore: before }), ...(after !== undefined && { travelAfter: after }) })}
                   />
                 </div>
@@ -365,38 +364,9 @@ export function EventForm({ context, occurrence, defaults, onDone, onDuplicate }
             )}
             <AvailabilityHint allDay={values.allDay} startDate={values.startDate} startTime={values.startTime ?? null} endDate={values.endDate} endTime={values.endTime ?? null} />
 
-            <EventLocation
-              value={{ text: values.location ?? '', point: values.locationLat != null && values.locationLon != null ? { lat: values.locationLat, lon: values.locationLon } : null }}
-              error={form.errors.location}
-              onChange={(value) => form.setValues({ location: value.text, locationLat: value.point?.lat ?? null, locationLon: value.point?.lon ?? null })}
-            />
+            <EventLocation value={addressOf(values)} error={form.errors.location} onChange={(value) => form.setValues(locationOf(value))} />
 
-            <LabeledField label="Liens">
-              {values.links.map((_, index) => (
-                <Group key={index} gap="xs" wrap="nowrap" align="flex-start">
-                  <TextInput
-                    aria-label={`Adresse du lien ${index + 1}`}
-                    placeholder="https://…"
-                    leftSection={<LinkIcon aria-hidden />}
-                    style={{ flex: 2 }}
-                    {...form.getInputProps(`links.${index}.url`)}
-                  />
-                  <TextInput aria-label={`Libellé du lien ${index + 1}`} placeholder="Libellé (facultatif)" style={{ flex: 1 }} {...form.getInputProps(`links.${index}.label`)} />
-                  <RemoveButton
-                    label="Retirer"
-                    mt={4}
-                    aria-label={`Retirer le lien ${index + 1}`}
-                    onClick={() =>
-                      form.setFieldValue(
-                        'links',
-                        values.links.filter((__, position) => position !== index),
-                      )
-                    }
-                  />
-                </Group>
-              ))}
-              <AddItemButton onClick={() => form.setFieldValue('links', [...values.links, { url: '', label: '' }])}>Ajouter un lien</AddItemButton>
-            </LabeledField>
+            <LinksField form={form} />
 
             <SimpleGrid cols={{ base: 1, sm: 2 }} spacing="sm">
               <Select

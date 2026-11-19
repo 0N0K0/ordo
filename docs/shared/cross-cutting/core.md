@@ -1,6 +1,6 @@
 # Paquet partagé : `core`
 
-Briques transverses de `@ordo/shared` : règles de saisie (textes, noms, couleurs), authentification, mots de passe, espace de travail et projets, géographie, nombres, textes, arbres et collections. Source : `packages/shared/src/core/`. Tout est réexporté par `packages/shared/src/index.ts`, sauf `password-strength.ts`, exposé à part sous `@ordo/shared/password-strength` (voir plus bas).
+Briques transverses de `@ordo/shared` : règles de saisie (textes, noms, couleurs), authentification, mots de passe, espace de travail et projets, géographie, liens, nombres, textes, arbres et collections. Source : `packages/shared/src/core/`. Tout est réexporté par `packages/shared/src/index.ts`, sauf `password-strength.ts`, exposé à part sous `@ordo/shared/password-strength` (voir plus bas).
 
 Voir aussi : [Nommage](../../business-rules/cross-cutting/naming.md), [Erreurs](../../business-rules/cross-cutting/errors.md), [Espaces et accès](../../business-rules/cross-cutting/workspaces-and-access.md), [Fichiers et pièces jointes](../../business-rules/cross-cutting/files-and-attachments.md).
 
@@ -96,11 +96,21 @@ zxcvbn et ses dictionnaires pèsent environ 1,3 Mo : ce fichier n'est pas dans `
 | Export                        | Rôle                                                                                                                                                                                                                                                           |
 | ----------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `GeoPoint`                    | Type `{ lat, lon }` (WGS 84, lat −90…90, lon −180…180).                                                                                                                                                                                                        |
-| `locatedFields`               | Champs d'un élément localisé (événement, routine) : `locationLat`, `locationLon` (facultatifs), `travelBefore`, `travelAfter` (minutes entières, 0 à 1440, par défaut 0 ; « Durée positive attendue. », « 24 h maximum. »).                                    |
+| `locationPointFields`         | Point du lieu d'un élément (événement, routine, tâche) : `locationLat`, `locationLon`, facultatifs (`null` par défaut). Seul, pour une tâche (pas d'heures, pas de trajet, décision D6).                                                                       |
+| `locatedFields`               | Champs d'un élément localisé avec des heures (événement, routine) : `locationPointFields`, `travelBefore`, `travelAfter` (minutes entières, 0 à 1440, par défaut 0 ; « Durée positive attendue. », « 24 h maximum. »).                                    |
 | `TRAVEL_MODES` / `TravelMode` | `CAR`, `BIKE`, `FOOT`.                                                                                                                                                                                                                                         |
 | `TRAVEL_MODE_LABELS`          | « Voiture », « Vélo », « À pied ».                                                                                                                                                                                                                             |
 | `placeSchema` / `PlaceInput`  | Lieu enregistré (« Maison », « Bureau »…) : `label` (requis, 60), `address` (300 max), `lat` / `lon`, `parentId` (zone dans un autre lieu, ex. une pièce). Un lieu sans parent doit avoir un point : sinon « Choisissez une adresse proposée. » sur `address`. |
 | `travelMinutes(seconds)`      | Durée d'un trajet arrondie aux 5 minutes supérieures.                                                                                                                                                                                                          |
+
+## `links.ts` — liens d’un élément
+
+| Export                                   | Rôle                                                                                                                                                                         |
+| ---------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `itemLinkSchema` / `ItemLink`            | Lien d'un événement, d'une tâche ou d'une routine : `url` http(s) (« Lien invalide (http ou https). ») et `label` (250 max, peut être vide).                                |
+| `ITEM_LINKS_MAX`                         | 20 liens au plus.                                                                                                                                                            |
+| `itemLinksSchema`                        | Liste des liens d'un élément : 20 au plus (« 20 liens maximum. ») (décision D5, la même pour les trois).                                                                     |
+| `linksFormSchema` / `LinksFormValues`    | `{ links }` : les liens édités seuls (panneau d'une tâche).                                                                                                                  |
 
 ## `numbers.ts` — nombres
 

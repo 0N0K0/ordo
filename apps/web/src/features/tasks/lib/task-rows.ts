@@ -36,6 +36,8 @@ export function sortValue(task: Task, column: TaskSortKey, context: TaskContext)
       return beneficiaryNames(task, context).sort(collator.compare)[0] ?? null;
     case 'minDate':
       return task.minDate || null;
+    case 'location':
+      return task.location || null;
     case 'subtasks':
       return context.childrenOf(task.id).length || null;
     case 'progress': {
@@ -123,6 +125,8 @@ export function eventSortValue(event: EventOccurrence, column: TaskSortKey, cont
       return `${event.startDate} ${event.startTime ?? ''}`.trim();
     case 'endDate':
       return `${event.endDate} ${event.endTime ?? ''}`.trim();
+    case 'location':
+      return event.location || null;
     default:
       return null;
   }

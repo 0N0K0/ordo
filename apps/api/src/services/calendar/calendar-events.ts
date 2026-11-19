@@ -7,6 +7,7 @@ import {
   type EventScope,
   formatDay,
   formatOptionalDay,
+  type ItemLink,
   maxSpanDays,
   occurrenceDates,
   occurrencesBefore,
@@ -31,19 +32,8 @@ import { assertAllExist, findOrNotFound } from '../core/lookup';
 import { assertActive, assertNotArchived, activeIds, refuseArchived } from '../core/archive';
 import { connectIds } from '../core/relations';
 import { toJson } from '../core/json';
-
-export interface CalendarLink {
-  url: string;
-  label: string;
-}
-
-/**
- * Links of an event, as stored in its JSON column (none: an empty list).
- * @param {Prisma.JsonValue | null | undefined} links Stored value.
- * @returns {CalendarLink[]} Links.
- */
-// eslint-disable-next-line no-restricted-syntax -- readEventLinks itself.
-export const readEventLinks = (links: Prisma.JsonValue | null | undefined): CalendarLink[] => (links as unknown as CalendarLink[] | null) ?? [];
+import { readLinks } from '../core/links';
+import { storedLocation } from '../core/geo';
 
 /** One occurrence of an event in a period, with the fields of its series (or of its own changes). */
 export interface EventOccurrence {
@@ -60,7 +50,7 @@ export interface EventOccurrence {
   /** Point of the location, when known. */
   locationLat: number | null;
   locationLon: number | null;
-  links: CalendarLink[];
+  links: ItemLink[];
   allDay: boolean;
   startDate: string;
   startTime: string | null;
@@ -260,11 +250,7 @@ async function parseEvent(input: CalendarEventInput, keep: string[] = [], keepCa
     const message = `Sans contributeur en commun avec l’évènement : ${apart.map((task) => `« ${task.label} »`).join(', ')}.`;
     throw fieldError(routines.some((routine) => apart.includes(routine)) && !tasks.some((task) => apart.includes(task)) ? 'routineLinks' : 'taskIds', message);
   }
-  // A point goes with a location, both coordinates or none.
-  if (!event.location || event.locationLat === null || event.locationLon === null) {
-    event.locationLat = null;
-    event.locationLon = null;
-  }
+  Object.assign(event, storedLocation(event));
   if (event.allDay) {
     event.startTime = null;
     event.endTime = null;
@@ -549,7 +535,7 @@ export function toOccurrence(event: EventWithRelations, date: string | null, cha
     location: change ? change.location : event.location,
     locationLat: change ? change.locationLat : event.locationLat,
     locationLon: change ? change.locationLon : event.locationLon,
-    links: readEventLinks(change?.links ?? event.links),
+    links: readLinks(change?.links ?? event.links),
     allDay,
     startDate,
     startTime,
@@ -656,7 +642,7 @@ function seriesInput(event: EventWithRelations, date: string): CalendarEventInpu
     location: event.location,
     locationLat: event.locationLat,
     locationLon: event.locationLon,
-    links: readEventLinks(event.links),
+    links: readLinks(event.links),
     allDay: event.allDay,
     startDate: date,
     startTime: event.startTime,

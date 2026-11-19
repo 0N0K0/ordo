@@ -186,8 +186,8 @@ const API_SYNTAX_RULES = [
     message: 'Utiliser parseField(champ, schéma, valeur) (graphql/errors).',
   },
   {
-    selector: "TSAsExpression TSTypeReference[typeName.name='CalendarLink']",
-    message: 'Utiliser readEventLinks(links) (services/calendar/calendar-events).',
+    selector: "TSAsExpression TSTypeReference[typeName.name=/^(CalendarLink|ItemLink)$/]",
+    message: 'Utiliser readLinks(links) (services/core/links).',
   },
   {
     selector: "TSAsExpression[expression.type='TSAsExpression'][expression.expression.type='ArrayExpression']",

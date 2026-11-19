@@ -1,4 +1,4 @@
-import { dateSchema, effortSchema, groupBy, markdownSchema, parseOptionalDay, reaches, readSlotCondition, slotConditionSchema, type TaskInput as SharedTaskInput, taskLabelSchema } from '@ordo/shared';
+import { dateSchema, effortSchema, groupBy, itemLinksSchema, locationPointFields, markdownSchema, optionalText, parseOptionalDay, reaches, readSlotCondition, slotConditionSchema, type TaskInput as SharedTaskInput, taskLabelSchema } from '@ordo/shared';
 import { z } from 'zod';
 import { prisma } from '../../db';
 import { assertBeneficiaries } from '../core/beneficiaries';
@@ -15,6 +15,8 @@ import { connectIds, orderedPair } from '../core/relations';
 import { inProjectTree, loadProjectRootOf as loadRootOf, outsideMovedTree } from '../projects/project-tree';
 import { commentBody } from '../core/comments';
 import { toJson } from '../core/json';
+import { readLinks } from '../core/links';
+import { storedLocation } from '../core/geo';
 import { assertConditionSchedules } from '../calendar/slot-conditions';
 
 /**
@@ -173,6 +175,9 @@ const detailsSchema = z.object({
   deadline: dateSchema.optional(),
   minDate: dateSchema.optional(),
   slotCondition: slotConditionSchema.nullable().optional(),
+  location: optionalText().optional(),
+  ...locationPointFields,
+  links: itemLinksSchema.nullable().optional(),
 });
 
 /**
@@ -191,6 +196,10 @@ function parseDetails(input: TaskInput, current?: { startDate: Date | null; endD
     deadline: input.deadline,
     minDate: input.minDate,
     slotCondition: input.slotCondition as z.input<typeof slotConditionSchema> | null | undefined,
+    location: input.location,
+    locationLat: input.locationLat ?? null,
+    locationLon: input.locationLon ?? null,
+    links: input.links,
   });
   assertDateRange(details, current);
   return {
@@ -203,6 +212,9 @@ function parseDetails(input: TaskInput, current?: { startDate: Date | null; endD
     minDate: parseOptionalDay(details.minDate),
     // An empty group is no condition (any time).
     slotCondition: details.slotCondition === undefined ? undefined : details.slotCondition?.children.length ? toJson(details.slotCondition) : Prisma.DbNull,
+    // A location changed replaces its point too (none: unknown).
+    ...(details.location !== undefined && storedLocation({ location: details.location, locationLat: details.locationLat, locationLon: details.locationLon })),
+    links: details.links === undefined ? undefined : toJson(details.links ?? []),
   };
 }
 
@@ -458,6 +470,10 @@ export async function cloneTask(id: string, includeSubtasks: boolean): Promise<T
           endDate: task.endDate,
           deadline: task.deadline,
           minDate: task.minDate,
+          location: task.location,
+          locationLat: task.locationLat,
+          locationLon: task.locationLon,
+          links: toJson(readLinks(task.links)),
           parentId,
           milestoneId: task.milestoneId,
           sprints: { connect: task.sprints },

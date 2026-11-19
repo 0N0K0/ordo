@@ -55,6 +55,7 @@ Le même tableau (`TaskBoard`) sert à la page et à l’onglet d’un projet. C
 | « Temps passé »                                | Lien vers les temps de la tâche (`/time?task=<id>`). Total en pied.                                                                                                                                                                                                                                                                                                                                |
 | « Début », « Fin », « Date min », « Date max » | Sélecteurs de date ; la « Date max » s’affiche en couleur de retard quand la tâche est en retard.                                                                                                                                                                                                                                                                                                  |
 | « Créneaux »                                     | Condition de créneaux en mots (« N’importe quand » sans condition), modifiée dans une bulle (même éditeur que les routines).                                                                                                                                                                                                                                                                                                 |
+| « Lieu »                                         | Adresse ou lieu enregistré choisi dans une bulle (comme les routines : enregistré au choix d’une adresse proposée, ou quand le texte est vidé) ; lieu des évènements affiché en lecture.                                                                                                                                                                                                                                     |
 | « Chrono »                                     | Démarre le chrono sur la tâche, ou l’arrête s’il tourne sur elle.                                                                                                                                                                                                                                                                                                                                  |
 | « Tâche parente »                              | Choix parmi les tâches de l’arborescence (pas elle-même ni ses sous-tâches).                                                                                                                                                                                                                                                                                                                       |
 | « Sous-tâches »                                | Liste des sous-tâches et bouton « Ajouter une sous-tâche ».                                                                                                                                                                                                                                                                                                                                        |
@@ -69,7 +70,7 @@ Le même tableau (`TaskBoard`) sert à la page et à l’onglet d’un projet. C
 | « Achats »                                     | Listes d’achats de la tâche, menu « Nouvelle liste » / « Rattacher une liste ».                                                                                                                                                                                                                                                                                                                    |
 | « Créée le », « Modifiée le »                  | Dates.                                                                                                                                                                                                                                                                                                                                                                                             |
 
-Colonnes masquées par défaut (sauf choix de l’espace) : « Bloque », « Relative à », « Jalon », « Créée le », « Modifiée le ». Colonnes supplémentaires masquées, surtout utiles aux filtres : « Numéro », « Description », « Fermée », « En retard », « Bloquée », « A des sous-tâches », « Archivée », « Faisable maintenant », « A des achats », « A des alarmes », « A des commentaires », « Catégorie de statut ».
+Colonnes masquées par défaut (sauf choix de l’espace) : « Lieu », « Bloque », « Relative à », « Jalon », « Créée le », « Modifiée le ». Colonnes supplémentaires masquées, surtout utiles aux filtres : « Numéro », « Description », « Fermée », « En retard », « Bloquée », « A des sous-tâches », « Archivée », « Faisable maintenant », « A des achats », « A des alarmes », « A des commentaires », « Catégorie de statut ».
 
 ### Filtres
 
@@ -118,7 +119,7 @@ Barre de sélection (« 3 tâches sélectionnées ») : « Fermer » / « Rouvri
 
 ### Évènements dans le tableau
 
-Avec « Afficher les évènements », les évènements de la période (du projet et de ses sous-projets sur un projet) s’ajoutent comme lignes : titre (et lieu), projet, personnes, bénéficiaires, état (« À venir », « En cours », « Passée », « Annulé », « Reporté »), temps passé, début et fin, commentaires. Ils ne se glissent pas et ne sont pas sélectionnables comme des tâches ; leurs personnes, bénéficiaires et dates se modifient dans leurs cellules (sur la série pour un évènement récurrent). Voir [Agenda](calendar.md).
+Avec « Afficher les évènements », les évènements de la période (du projet et de ses sous-projets sur un projet) s’ajoutent comme lignes : titre (et lieu, repris dans la colonne « Lieu »), projet, personnes, bénéficiaires, état (« À venir », « En cours », « Passée », « Annulé », « Reporté »), temps passé, début et fin, commentaires. Ils ne se glissent pas et ne sont pas sélectionnables comme des tâches ; leurs personnes, bénéficiaires et dates se modifient dans leurs cellules (sur la série pour un évènement récurrent). Voir [Agenda](calendar.md).
 
 ## Formulaire « Nouvelle tâche »
 
@@ -132,6 +133,8 @@ Ouvert dans le panneau latéral (titre « Nouvelle tâche » ou « Nouvelle sous
 | « Jalon »                                                  | Désactivé sans projet.                                                                                                                                                         |
 | « Sprints »                                                | Désactivé sans projet.                                                                                                                                                         |
 | « Description »                                            | Markdown, `#` et `@` proposent tâches et contributeurs ; Ctrl/Cmd + Entrée envoie.                                                                                             |
+| « Lieu »                                                   | Facultatif, le champ des évènements et des routines : texte libre (salle, visio…), lieu enregistré ou adresse proposée, montrée sur une carte où un clic la déplace. Ni trajet ni heure.|
+| « Liens »                                                  | Comme ceux des évènements : adresse (http/https) + libellé facultatif, « Ajouter un lien », « Retirer » ; 20 au plus.                                                          |
 | « Statut »                                                 | Premier statut « À faire » non archivé par défaut ; un statut, une priorité ou un type tapé et inexistant peut être créé.                                                      |
 | « Priorité », « Type »                                     | Facultatifs.                                                                                                                                                                   |
 | « Assignés »                                               | Contributeurs du projet.                                                                                                                                                       |
@@ -156,6 +159,7 @@ En-tête :
 Colonne principale :
 
 - « Description » : affichée en markdown (cases à cocher cochables en place), crayon « Modifier la description » pour l’éditer.
+- « Liens » : ouverts dans un nouvel onglet (« Aucun lien. » sinon) ; crayon « Modifier les liens » : le champ des liens des évènements, « Enregistrer » / « Annuler ».
 - « Sous-tâches » : « 2/5 », barre d’avancement, liste, « Ajouter une sous-tâche ».
 - « Commentaires » : le fil de commentaires (voir [Commentaires](../cross-cutting/comments.md)).
 
@@ -166,6 +170,7 @@ Colonne de propriétés (chaque champ enregistré dès qu’il change) :
 - « Temps passé » et bouton « Démarrer le chrono » (ou commandes du chrono s’il tourne sur la tâche) ;
 - « Début », « Fin », « Date min » (« Avant, la tâche n’est pas à faire. »), « Date max » (« Au-delà, la tâche ouverte est en retard. », suivi de « En retard. » en rouge si c’est le cas) ;
 - « Tâche parente », « Jalon », « Sprints », créneaux ;
+- « Lieu » : enregistré au choix d’une adresse proposée ou d’un clic sur la carte, quand le texte est vidé, ou à la sortie du champ pour un texte libre ;
 - « Bloque », « Dépend de », « Relative à » : listes avec « Retirer » et « Ajouter une tâche » ;
 - alarmes de la tâche ([Alarmes](alarms.md)), listes d’achats ([Achats](../supplies/shopping.md)), fiches ([Fiches](../supplies/sheets.md)).
 
@@ -174,7 +179,7 @@ Une tâche archivée : tous les champs désactivés, pas de bouton, commentaires
 ## Fermer, cloner, transférer, archiver, supprimer
 
 - **Fermer / Rouvrir** : toast « 2 tâches fermées. » / « rouvertes. », annulable. Une tâche fermée est barrée de violet, ne bloque plus, n’est plus en retard.
-- **Cloner** (fenêtre « Cloner la tâche » / « Cloner les tâches ») : « tous les champs, les assignés et les liens sont copiés ; les commentaires ne le sont pas » (un ancien lien hors de l’arborescence de projets de la tâche n’est pas copié) ; les sous-tâches sont clonées sous le clone. Toast « Tâche #12 clonée en #13. » ; un clone unique s’ouvre.
+- **Cloner** (fenêtre « Cloner la tâche » / « Cloner les tâches ») : « tous les champs, les assignés et les liens sont copiés ; les commentaires ne le sont pas » (le lieu et les liens (URL) compris) (un ancien lien hors de l’arborescence de projets de la tâche n’est pas copié) ; les sous-tâches sont clonées sous le clone. Toast « Tâche #12 clonée en #13. » ; un clone unique s’ouvre.
 - **Transférer** (panneau « Transférer la tâche » / « Transférer les tâches ») : « Projet de destination » ou case « Sans projet » (perte du numéro, du jalon, des sprints et du lien GitHub). Avertissement si le projet est dans une autre arborescence. Toast « Tâche #12 transférée. » ; annulable s’il n’a retiré aucun lien, sinon il indique « 2 liens retirés. ».
 - **Archiver / Restaurer** : en cascade sur les sous-tâches ; annulable.
 - **Supprimer** (fenêtre de confirmation destructive) : « La tâche « #12 Libellé » et ses commentaires seront supprimés définitivement. Pour la retirer des listes sans perdre ses données, archivez-la plutôt. ». Avec des sous-tâches : choix « Les conserver (elles remontent d’un niveau) » ou les supprimer. Le panneau de la tâche supprimée se ferme.

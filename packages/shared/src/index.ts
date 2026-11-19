@@ -18,6 +18,7 @@ export * from './dashboards/dashboards';
 export * from './dashboards/task-filter-translation';
 export * from './calendar/work-schedules';
 export * from './core/geo';
+export * from './core/links';
 export * from './shopping/shopping';
 export * from './shopping/sheets';
 export * from './shopping/stock';

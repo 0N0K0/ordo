@@ -1,15 +1,11 @@
 import { z } from 'zod';
 import { joinedKey } from '../core/collections';
-import { END_AFTER_START, endsAfter, markdownSchema, optionalText, requiredText, shortTextSchema } from '../core/rules';
+import { END_AFTER_START, endsAfter, markdownSchema, optionalText, requiredText } from '../core/rules';
 import { locatedFields } from '../core/geo';
+import { itemLinksSchema } from '../core/links';
 import { recurrenceSchema } from '../dates/recurrence';
 import { daySchema, timeOfDaySchema, endDaySchema, startDaySchema } from '../dates/times';
 import { colorSchema } from '../core/workspace';
-
-const calendarLinkSchema = z.object({
-  url: z.url({ protocol: /^https?$/, error: 'Lien invalide (http ou https).' }),
-  label: shortTextSchema,
-});
 
 /** Most characters of a time zone name (IANA, « Europe/Paris »): a format, not a free text. */
 const TIME_ZONE_MAX = 64;
@@ -20,7 +16,7 @@ export const calendarEventInputSchema = z
     label: requiredText(),
     description: markdownSchema,
     location: optionalText(),
-    links: z.array(calendarLinkSchema).max(20, '20 liens maximum.'),
+    links: itemLinksSchema,
     allDay: z.boolean(),
     startDate: startDaySchema,
     startTime: timeOfDaySchema.nullable(),

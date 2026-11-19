@@ -62,6 +62,8 @@ export function taskCell(task: Task, column: TaskColumn, context: TaskContext): 
       return task.minDate ? fmt.exportDay(task.minDate) : '';
     case 'slots':
       return '';
+    case 'location':
+      return task.location ?? '';
     case 'timer':
       return '';
     case 'subtasks':
@@ -142,6 +144,8 @@ export function eventCell(event: EventOccurrence, column: TaskColumn, context: T
       return eventWhen(event, 'start', true);
     case 'endDate':
       return eventWhen(event, 'end', true);
+    case 'location':
+      return event.location ?? '';
     default:
       return '';
   }

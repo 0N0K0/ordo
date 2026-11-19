@@ -22,7 +22,7 @@ Champs de `calendarEventInputSchema` :
 | `label`                                                     | Requis, 250 max.                                                                                                                                                |
 | `description`                                               | Markdown, 65 536 max (« Texte trop long. »), blanc devient `null`.                                                                                              |
 | `location`                                                  | Texte, 250 max, vide devient `null`.                                                                                                                            |
-| `links`                                                     | 20 au plus (« 20 liens maximum. ») ; chacun `url` http(s) (« Lien invalide (http ou https). ») et `label` (250 max).                                            |
+| `links`                                                     | `itemLinksSchema` (voir [core](../cross-cutting/core.md)) : 20 au plus (« 20 liens maximum. ») ; chacun `url` http(s) (« Lien invalide (http ou https). ») et `label` (250 max).                                            |
 | `allDay`                                                    | Journée entière.                                                                                                                                                |
 | `startDate`, `endDate`                                      | Requis (« La date de début est requise. », « La date de fin est requise. »).                                                                                    |
 | `startTime`, `endTime`                                      | `HH:MM` ; requis si l'événement n'est pas « journée entière » (« L’heure de début est requise. », « L’heure de fin est requise. »).                             |
@@ -41,7 +41,6 @@ Champs de `calendarEventInputSchema` :
 
 La fin (jour + heure, ou jour seul en journée entière) doit suivre le début : « La fin doit suivre le début. » sur `endDate`.
 
-Interne : `calendarLinkSchema`.
 
 ## `event-busy.ts` — occupation par les événements
 

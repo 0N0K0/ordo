@@ -1,7 +1,8 @@
-import { addDays, dayOfMonthOf, fileName, formatDay, occurrenceDates, type Recurrence, ruleValues, weekdayOfDate, zonedInstant } from '@ordo/shared';
+import { addDays, dayOfMonthOf, fileName, formatDay, occurrenceDates, type ItemLink, type Recurrence, ruleValues, weekdayOfDate, zonedInstant } from '@ordo/shared';
 import { prisma } from '../../db';
 import { orNotFound } from '../../graphql/errors';
-import { occurrenceInclude, readEventLinks, storedRecurrence, toOccurrence, type CalendarLink, type EventWithRelations } from './calendar-events';
+import { occurrenceInclude, storedRecurrence, toOccurrence, type EventWithRelations } from './calendar-events';
+import { readLinks } from '../core/links';
 
 /** Repeated events without end are written with their exclusions up to this many years ahead. */
 const HORIZON_YEARS = 10;
@@ -175,7 +176,7 @@ function eventLines(event: ExportedEvent, stamp: Date): string[] {
    */
   const body = (fields: {
     label: string;
-    links: CalendarLink[];
+    links: ItemLink[];
     description: string | null;
     location: string | null;
     allDay: boolean;
@@ -204,7 +205,7 @@ function eventLines(event: ExportedEvent, stamp: Date): string[] {
     `LAST-MODIFIED:${icsStamp(event.updatedAt)}`,
     ...body({
       label: event.label,
-      links: readEventLinks(event.links),
+      links: readLinks(event.links),
       description: event.description,
       location: event.location,
       allDay: event.allDay,

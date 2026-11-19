@@ -16,10 +16,15 @@ const travelTimeSchema = z
   .max(24 * 60, '24 h maximum.')
   .default(0);
 
-/** Fields of a located item (event, routine): the point of its place, when chosen from the map or a search, and the travel times to it and back. */
-export const locatedFields = {
+/** Point of the place of an item (event, routine, task), when chosen from the map or a search; none: unknown. */
+export const locationPointFields = {
   locationLat: geoPointSchema.shape.lat.nullable().default(null),
   locationLon: geoPointSchema.shape.lon.nullable().default(null),
+};
+
+/** Fields of a located item with hours (event, routine): the point of its place, and the travel times to it and back. */
+export const locatedFields = {
+  ...locationPointFields,
   travelBefore: travelTimeSchema,
   travelAfter: travelTimeSchema,
 };

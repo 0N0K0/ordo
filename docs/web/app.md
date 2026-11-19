@@ -198,7 +198,7 @@ Les messages des règles nomment la brique à utiliser. Catégories :
 - **Archivage** : filtre des archivés (`unarchived`, `archivedIds`, `archivedLabel`, `itemChoices`), interrupteur (`useArchivedToggle`), entrée de menu (`archiveEntry`).
 - **Adresses** : pages et routes (`PAGES`, `AUTH_PATHS`, `projectPath`, `settingsPath`, `PROJECT_ROUTE`…), paramètres d'URL (`useSearchParam`, `usePageTab`), liens externes (`EXTERNAL_LINK`).
 - **Données et clés** : mutations (`useInvalidatingMutation`), ordre (`movedTo`, `moveToIndex`), ensembles (`toggledIn`, `toggledInList`), clés composées (`taggedKey`, `personKey`, `occurrenceKey`, `joinedKey`, `taskNumberKey`…), arbres (`subtreeOf`), sommes (`sumOf`).
-- **Briques de features** : règles propres à un domaine (dates de période via `dateRangeProps`, cellules de `data-table`, mails, facturation, trésorerie, agenda, tâches, achats, glisser-déposer sur `components/dnd`…).
+- **Briques de features** : règles propres à un domaine (dates de période via `dateRangeProps`, cellules de `data-table`, mails, facturation, trésorerie, agenda, tâches, achats, lieu d'un élément `addressOf` / `LocationCell`, liens d'un élément `LinksField` / `ItemLinks` / `linkInputs`, glisser-déposer sur `components/dnd`…).
 
 Exceptions déclarées en fin de fichier : `ActionsMenu.tsx` (enveloppe `Menu` et dessine les trois points), `filter-meta.ts` (lit `FILTER_OPERATORS`), `AddressInput.tsx` et `features/library/**` (menus propres), et les fichiers autorisés à lire une feature (ci-dessus). Une exception ponctuelle s'écrit `// eslint-disable-next-line no-restricted-syntax -- <la brique elle-même>`.
 

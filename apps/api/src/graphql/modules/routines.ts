@@ -8,6 +8,8 @@ import { BY_POSITION } from '../../services/core/ordering';
 import { RemovedLinksResult, removedLinks } from '../removed-links';
 import { builder, type InputFields } from '../builder';
 import { locatedChanges, locatedInput, locationInputFields, TRAVEL_DESCRIPTIONS, travelInputFields } from '../located-fields';
+import { ItemLinkInput, ItemLinkRef } from '../link-fields';
+import { readLinks } from '../../services/core/links';
 import { relationIds } from '../relation-fields';
 import { EventScope } from './calendar';
 import { parisToday } from '../../today';
@@ -142,6 +144,7 @@ builder.prismaObject('Routine', {
     location: t.exposeString('location', { nullable: true }),
     locationLat: t.exposeFloat('locationLat', { nullable: true }),
     locationLon: t.exposeFloat('locationLon', { nullable: true }),
+    links: t.field({ type: [ItemLinkRef], description: 'Links, as those of the events.', resolve: (routine) => readLinks(routine.links) }),
     travelBefore: t.exposeInt('travelBefore', { description: TRAVEL_DESCRIPTIONS.before }),
     travelAfter: t.exposeInt('travelAfter', { description: TRAVEL_DESCRIPTIONS.after }),
     position: t.exposeInt('position', { description: 'Global manual order of every routine (not among siblings).' }),
@@ -244,6 +247,7 @@ const RoutineInputType = builder.inputType('RoutineInput', {
     opensOn: t.field({ type: 'JSON', description: '« À partir du » of the occurrences of its rule: { mode: DAY | WEEKDAY | WEEK | BEFORE, … }; null: none.' }),
     dueTime: t.string({ description: 'HH:MM.' }),
     ...locationInputFields(t),
+    links: t.field({ type: [ItemLinkInput], description: '20 at most, http or https; none: none.' }),
     ...travelInputFields(t, 'none: 0'),
     projectId: t.id(),
     assigneeIds: t.idList({ required: true }),
@@ -338,6 +342,7 @@ const routineInput = (input: typeof RoutineInputType.$inferInput): RoutineInput 
   cases: (input.cases ?? []) as RoutineInput['cases'],
   dueTime: input.dueTime ?? null,
   ...locatedInput(input),
+  links: input.links ?? [],
   projectId: idOrNull(input.projectId),
   assigneeIds: input.assigneeIds,
   beneficiaryIds: input.beneficiaryIds ?? [],

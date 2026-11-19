@@ -1,3 +1,4 @@
+import { linkInputs } from '../../../lib/links';
 import { type CalendarEventInput, occurrenceKey, readOccurrenceKey } from '@ordo/shared';
 import type { EventOccurrence } from '../api';
 
@@ -37,7 +38,7 @@ export function occurrenceInput(occurrence: EventOccurrence): CalendarEventInput
     label: occurrence.label,
     description: occurrence.description ?? '',
     location: occurrence.location ?? '',
-    links: occurrence.links.map(({ url, label }) => ({ url, label })),
+    links: linkInputs(occurrence.links),
     allDay: occurrence.allDay,
     startDate: occurrence.startDate,
     startTime: occurrence.startTime,
