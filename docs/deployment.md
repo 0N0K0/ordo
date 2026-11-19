@@ -21,7 +21,7 @@ Flux : PR vers `main` → CI → merge → déploiement staging. PR `main` → `
 
 ## 1. Préparer cPanel (par environnement)
 
-1. **Sous-domaine** et son **certificat SSL** (Let's Encrypt / AutoSSL). La **racine du document** du sous-domaine doit pointer vers `<dossier>/apps/web/dist` (le build du front) : Apache y sert directement les fichiers statiques, le reste passe à l'app Node. cPanel écrit le `.htaccess` qui active Passenger à la racine de l'app (`<dossier>/.htaccess`), ou dans `dist` selon l'installation ; dans ce second cas, le build de Vite vidant `dist`, `scripts/deploy.sh` le sauvegarde et le remet après chaque build. Il écrit aussi `apps/web/.htaccess` (dossier parent, non suivi par git) : les en-têtes de sécurité des fichiers qu'Apache sert lui-même et la redirection de HTTP vers HTTPS. Ces règles ne sont pas dans le `.htaccess` de `dist` parce que cPanel le réécrit (redémarrage, « Save ») ; Apache applique les `.htaccess` de tous les dossiers sur le chemin d'un fichier (voir [Espaces et accès](business-rules/cross-cutting/workspaces-and-access.md)).
+1. **Sous-domaine** et son **certificat SSL** (Let's Encrypt / AutoSSL). La **racine du document** du sous-domaine doit pointer vers `<dossier>/apps/web/dist` (le build du front) : Apache y sert directement les fichiers statiques, le reste passe à l'app Node. cPanel écrit le `.htaccess` qui active Passenger à la racine de l'app (`<dossier>/.htaccess`), ou dans `dist` selon l'installation ; dans ce second cas, le build de Vite vidant `dist`, `scripts/deploy.sh` le sauvegarde et le remet après chaque build. Il écrit aussi, dans le `.htaccess` de la racine de l'app, le bloc `ordo-security` (remplacé à chaque déploiement) : les en-têtes de sécurité des fichiers qu'Apache sert lui-même et la redirection de HTTP vers HTTPS ; Apache applique ce fichier au build situé en dessous. Si cPanel réécrit ce `.htaccess` sans le bloc, relancer `bash scripts/deploy.sh` (voir [Espaces et accès](business-rules/cross-cutting/workspaces-and-access.md)).
 2. **Base PostgreSQL** + utilisateur associé avec tous les privilèges (« Bases de données PostgreSQL »).
 3. **Adresse mail** dédiée aux envois (« Comptes de messagerie »), par ex. `no-reply@example.com`.
 4. **Accès SSH** : ajouter ta clé et autoriser ton IP (pare-feu SSH o2switch).
@@ -123,7 +123,7 @@ touch tmp/restart.txt
 
 - La page de connexion s'affiche ; recharger une URL profonde (`/accounting`) fonctionne.
 - Connexion au compte, cartes (tuiles OpenStreetMap), aperçus PDF, envoi d'un mail de test.
-- Mode production et en-têtes : `curl -sI https://<sous-domaine>/` doit montrer `content-security-policy` et `strict-transport-security` ; `curl -s -H 'Accept: text/html' https://<sous-domaine>/api/graphql` ne doit pas renvoyer GraphiQL ; `curl -sI http://<sous-domaine>/` doit répondre 301 vers `https://` (règle de `apps/web/.htaccess`), sans boucle : `curl -sIL http://<sous-domaine>/` doit finir sur un 200.
+- Mode production et en-têtes : `curl -sI https://<sous-domaine>/` doit montrer `content-security-policy` et `strict-transport-security` ; `curl -s -H 'Accept: text/html' https://<sous-domaine>/api/graphql` ne doit pas renvoyer GraphiQL ; `curl -sI http://<sous-domaine>/` doit répondre 301 vers `https://` (bloc `ordo-security` du `.htaccess` de la racine), sans boucle : `curl -sIL http://<sous-domaine>/` doit finir sur un 200.
 - Production : `which pg_dump` doit répondre (sauvegarde avant migration).
 
 ## 3. Configuration GitHub
@@ -192,7 +192,7 @@ Un seul déploiement à la fois par environnement.
 
 ### Script serveur — `scripts/deploy.sh`
 
-Ordre : vérification du lien `.env` (et de ses droits) → `npm ci` → `prisma generate` → build → règles de sécurité de `apps/web/.htaccess` → sauvegarde (si `BACKUP=1`) → `migrate deploy` → redémarrage → fixtures (si `FIXTURES=1`). Le build passe avant les migrations : un build cassé ne touche pas la base.
+Ordre : vérification du lien `.env` (et de ses droits) → `npm ci` → `prisma generate` → build → bloc `ordo-security` du `.htaccess` de la racine → sauvegarde (si `BACKUP=1`) → `migrate deploy` → redémarrage → fixtures (si `FIXTURES=1`). Le build passe avant les migrations : un build cassé ne touche pas la base.
 
 **Fixtures (staging uniquement).** Avec `FIXTURES=1`, le script recharge les données de démo (`prisma db seed -- --force`) : le premier espace pro et le premier espace perso sont vidés puis remplis. Il refuse si la branche n'est pas `main` ou si `BACKUP=1` (production). Le `.env` de staging ayant `NODE_ENV=production`, le seed n'accepte de tourner que si `ALLOW_FIXTURES=staging`, que seul ce script pose. Sans GreenMail sur le serveur, la boîte mail de démo est sautée (avertissement). Un déploiement manuel (Run workflow) ne charge jamais les fixtures ; pour les recharger à la main : `FIXTURES=1 bash scripts/deploy.sh` sur le serveur de staging.
 
