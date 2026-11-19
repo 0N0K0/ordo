@@ -28,7 +28,7 @@ Requête unique `ProjectTree` (clients, projets, catégories, statuts) mise en c
 | `useCreateProjectCategory()`, `useUpdateProjectCategory()`, `useDeleteProjectCategory()` | CRUD des catégories (`LabelColorInput` / `LabelColorPatch`).                                                                                                        |
 | `useCreateProjectStatus()`, `useUpdateProjectStatus()`, `useDeleteProjectStatus()`       | CRUD des statuts.                                                                                                                                                   |
 
-Internes : `useProjectTreeMutation` (mutation invalidant l’arbre, avec un patch optimiste annulé en cas d’erreur, via `useInvalidatingMutation` et `patchQuery` de `lib/mutation`), `patch` (change un élément d’une liste), `reposition` (place un élément à un index parmi des frères et renumérote), `ProjectInputValues`.
+Internes : `useProjectTreeMutation` (mutation invalidant l’arbre, et les requêtes `also` données — `tasksQueryKey` pour `useDeleteProject` et `useDeleteClient`, dont les tâches sortent des projets —, avec un patch optimiste annulé en cas d’erreur, via `useInvalidatingMutation` et `patchQuery` de `lib/mutation`), `patch` (change un élément d’une liste), `reposition` (place un élément à un index parmi des frères et renumérote), `ProjectInputValues`.
 
 ## `components/`
 
@@ -47,8 +47,8 @@ Internes : `useProjectTreeMutation` (mutation invalidant l’arbre, avec un patc
 
 ### `components/DeleteDialogs.tsx`
 
-- `DeleteClientDialog({ client, projectCount, onDone })` : confirmation de suppression d’un client, avec `CascadeChoice` « Que faire de ses N projets ? » (détacher par défaut, ou supprimer) ; `DestructiveRisks` / `DestructiveActions`.
-- `DeleteProjectDialog({ project, subProjectCount, onDone })` : confirmation de suppression d’un projet et de ses sous-projets.
+- `DeleteClientDialog({ client, projectCount, onDone })` : confirmation de suppression d’un client, avec `CascadeChoice` « Que faire de ses N projets ? » (détacher par défaut, ou supprimer : un second `DestructiveRisks` dit que leurs tâches sortent des projets) ; `DestructiveRisks` / `DestructiveActions`.
+- `DeleteProjectDialog({ project, subProjectCount, onDone })` : confirmation de suppression d’un projet et de ses sous-projets, qui dit que leurs tâches ne sont pas supprimées mais sortent du projet.
 
 Ouverts par `useEntityActions.confirmDelete` dans `openModal`.
 

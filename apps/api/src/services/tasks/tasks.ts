@@ -359,17 +359,17 @@ export async function deleteTask(id: string, deleteSubtasks: boolean): Promise<v
 }
 
 /**
- * Transfers a task (not an archived one) and its sub-tasks to another project, where they take the next numbers (given by the database), or
- * out of any project (they lose their numbers, milestones, sprints and GitHub items). Links leaving the new tree are
- * removed.
- * @param {string} id Task id.
+ * Moves tasks with their sub-tasks to a project, where they take the next numbers (given by the database), or out of
+ * any project (they lose their numbers, milestones, sprints and GitHub items). Links leaving the new tree are removed:
+ * blocks and relations with the tasks left behind, the parent left behind, milestones and sprints of another tree. The
+ * assignees follow into the target project. No archive check: the callers make theirs.
+ * @param {string[]} rootIds Tasks moved (none under another one), each with its whole sub-tree.
  * @param {string | null} projectId Target project; null: none.
- * @returns {Promise<{ task: Task, removedLinks: number }>} Moved task and number of removed links.
+ * @returns {Promise<number>} Number of removed links.
  */
-export async function transferTask(id: string, projectId: string | null): Promise<{ task: Task; removedLinks: number }> {
-  const task = await findActive(prisma.task, id, 'Tâche');
-  if (projectId) await assertProject(projectId);
-  const moved = [id, ...(await subtreeIds('task', id, false))];
+async function moveTaskTrees(rootIds: string[], projectId: string | null): Promise<number> {
+  if (rootIds.length === 0) return 0;
+  const moved = [...new Set([...rootIds, ...(await Promise.all(rootIds.map((id) => subtreeIds('task', id, false)))).flat()])];
   const rootOf = await loadRootOf();
   const targetRoot = rootOf(projectId);
 
@@ -378,8 +378,10 @@ export async function transferTask(id: string, projectId: string | null): Promis
     where: { id: { notIn: moved } },
     select: { id: true, projectId: true },
   });
-  const outside = others.filter((other) => rootOf(other.projectId) !== targetRoot).map((other) => other.id);
-  const parentOutside = task.parentId !== null && outside.includes(task.parentId);
+  const outside = new Set(others.filter((other) => rootOf(other.projectId) !== targetRoot).map((other) => other.id));
+  const roots = await prisma.task.findMany({ where: { id: { in: rootIds } }, select: { id: true, parentId: true } });
+  const parentOutside = roots.filter((root) => root.parentId !== null && outside.has(root.parentId)).map((root) => root.id);
+  const outsideIds = [...outside];
   // Milestones of another tree cannot follow the moved tasks.
   const movedTasks = await prisma.task.findMany({
     where: { id: { in: moved }, milestoneId: { not: null } },
@@ -397,34 +399,44 @@ export async function transferTask(id: string, projectId: string | null): Promis
 
   // Out of any project: their GitHub items go (the link is through the project).
   if (!projectId) await forgetGithubItems(moved);
-  const results = await prisma.$transaction([
+  const [blocks, relations] = await prisma.$transaction([
     prisma.taskBlock.deleteMany({
       where: {
         OR: [
-          { blockerId: { in: moved }, blockedId: { in: outside } },
-          { blockedId: { in: moved }, blockerId: { in: outside } },
+          { blockerId: { in: moved }, blockedId: { in: outsideIds } },
+          { blockedId: { in: moved }, blockerId: { in: outsideIds } },
         ],
       },
     }),
     prisma.taskRelation.deleteMany({
       where: {
         OR: [
-          { taskAId: { in: moved }, taskBId: { in: outside } },
-          { taskBId: { in: moved }, taskAId: { in: outside } },
+          { taskAId: { in: moved }, taskBId: { in: outsideIds } },
+          { taskBId: { in: moved }, taskAId: { in: outsideIds } },
         ],
       },
     }),
-    // Sub-tasks of the moved task whose parent is outside the moved set cannot exist: they all move.
+    // Sub-tasks of the moved tasks whose parent is outside the moved set cannot exist: they all move.
     prisma.task.updateMany({ where: { id: { in: moved } }, data: projectId ? { projectId } : { projectId: null, githubItemId: null } }),
-    prisma.task.update({ where: { id }, data: parentOutside ? { parentId: null } : {} }),
+    prisma.task.updateMany({ where: { id: { in: parentOutside } }, data: { parentId: null } }),
     prisma.task.updateMany({ where: { id: { in: losingMilestone } }, data: { milestoneId: null } }),
     ...losingSprints.map((item) => prisma.task.update({ where: { id: item.id }, data: { sprints: { disconnect: item.sprints } } })),
   ]);
-  const removedLinks = results[0].count + results[1].count + (parentOutside ? 1 : 0) + losingMilestone.length + losingSprints.length;
   // The assignees follow their tasks into the target project.
   const assignees = await prisma.contributor.findMany({ where: { tasks: { some: { id: { in: moved } } } }, select: { id: true } });
   if (projectId) await attachAssignees([{ projectId, contributorIds: assignees.map((assignee) => assignee.id) }]);
-  return { task: results[3], removedLinks };
+  return blocks.count + relations.count + parentOutside.length + losingMilestone.length + losingSprints.length;
+}
+
+/**
+ * Takes the tasks of projects about to be deleted out of any project, as a transfer out of any project does
+ * (`moveTaskTrees`), archived ones included: each leaves with its sub-tasks.
+ * @param {string[]} projectIds Projects deleted (a project and its sub-projects).
+ * @returns {Promise<void>}
+ */
+export async function releaseProjectTasks(projectIds: string[]): Promise<void> {
+  const tasks = await prisma.task.findMany({ where: { projectId: { in: projectIds } }, select: { id: true } });
+  await moveTaskTrees(await topmost(tasks.map((task) => task.id)), null);
 }
 
 /** People, tags and sprints a cloned task (and each cloned sub-task) keeps. */
@@ -859,9 +871,9 @@ export async function bulkTransferTasks(ids: string[], projectId: string | null)
   await assertTasks(ids);
   // Refused before any is moved.
   await assertNoneArchived('task', ids);
-  let removedLinks = 0;
-  for (const id of await topmost(ids)) removedLinks += (await transferTask(id, projectId)).removedLinks;
-  return removedLinks;
+  if (projectId) await assertProject(projectId);
+  // All at once: links between the moved tasks stay.
+  return moveTaskTrees(await topmost(ids), projectId);
 }
 
 /**

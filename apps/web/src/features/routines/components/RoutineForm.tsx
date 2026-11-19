@@ -174,16 +174,8 @@ export function RoutineForm({ routine, copy = false, parent, categoryId = null, 
                   description="Facultatif : le temps chronométré sur la routine y est compté."
                   placeholder="Aucun"
                   clearable
+                  // The assignees stay: on saving, they are attached to the new project.
                   {...form.getInputProps('projectId')}
-                  onChange={(projectId) => {
-                    form.setFieldValue('projectId', projectId);
-                    // Assignees out of the new project are dropped.
-                    const allowed = new Set(context.assignableFor([projectId], routine?.assigneeIds ?? []).map((contributor) => contributor.id));
-                    form.setFieldValue(
-                      'assigneeIds',
-                      form.values.assigneeIds.filter((id) => allowed.has(id)),
-                    );
-                  }}
                 />
               )}
               <BatchMultiSelect
@@ -199,8 +191,8 @@ export function RoutineForm({ routine, copy = false, parent, categoryId = null, 
               />
               {context && (
                 <AssigneesSelect
-                  // Of a project: its contributors only (the current assignees stay).
-                  contributors={context.assignableFor([form.values.projectId], routine?.assigneeIds ?? [])}
+                  // Of a project: its contributors only (the chosen assignees stay, even when the project changes).
+                  contributors={context.assignableFor([form.values.projectId], form.values.assigneeIds)}
                   value={form.values.assigneeIds}
                   onChange={(ids) => form.setFieldValue('assigneeIds', ids)}
                   error={form.errors.assigneeIds as string | undefined}

@@ -413,21 +413,13 @@ export function EventForm({ context, occurrence, defaults, onDone, onDuplicate }
                 label="Projet"
                 clearable
                 placeholder="Aucun"
+                // The contributors stay: on saving, they are attached to the new project.
                 {...form.getInputProps('projectId')}
-                onChange={(projectId) => {
-                  form.setFieldValue('projectId', projectId);
-                  // Contributors out of the new project are dropped.
-                  const allowed = new Set(context.assignableFor([projectId], initial.contributorIds ?? []).map((contributor) => contributor.id));
-                  form.setFieldValue(
-                    'contributorIds',
-                    values.contributorIds.filter((id) => allowed.has(id)),
-                  );
-                }}
               />
               <AssigneesSelect
                 label="Contributeurs"
                 description={values.projectId ? 'Contributeurs du projet.' : undefined}
-                contributors={context.assignableFor([values.projectId ?? null], initial.contributorIds ?? [])}
+                contributors={context.assignableFor([values.projectId ?? null], values.contributorIds)}
                 value={values.contributorIds}
                 onChange={(contributorIds) => form.setFieldValue('contributorIds', contributorIds)}
               />

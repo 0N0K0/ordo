@@ -58,7 +58,7 @@ import { Prisma, type Routine, type RoutineCategory } from '../../generated/pris
 import { clientError, fieldError, notFound, orNotFound, parseInput } from '../../graphql/errors';
 import { storedRecurrence } from '../calendar/calendar-events';
 import { scheduleRule } from '../calendar/work-schedules';
-import { assertProjectContributors } from '../projects/contributors';
+import { assertProjectContributors, followProject } from '../projects/contributors';
 import { parisToday } from '../../today';
 import { assertAllExist, findOrNotFound } from '../core/lookup';
 import { assertActive, assertNoneArchived, assertNotArchived, refuseArchived, findActive } from '../core/archive';
@@ -654,9 +654,10 @@ function findRoutine(id: string): Promise<Routine> {
  * @returns {Promise<Routine>} Routine.
  */
 export async function updateRoutine(id: string, input: RoutineInput, restoring = false): Promise<Routine> {
-  refuseArchived(await findRoutine(id));
+  const current = await findRoutine(id);
+  refuseArchived(current);
   const data = await parseRoutine(input, id, restoring);
-  return prisma.$transaction(async (tx) => {
+  const updated = await prisma.$transaction(async (tx) => {
     await tx.routineDependency.deleteMany({ where: { routineId: id } });
     if (data.requiredIds.length) await tx.routineDependency.createMany({ data: data.requiredIds.map((requiredId) => ({ routineId: id, requiredId })) });
     return tx.routine.update({
@@ -670,6 +671,9 @@ export async function updateRoutine(id: string, input: RoutineInput, restoring =
       },
     });
   });
+  // A new project: the assignees follow the routine into it (its sub-routines keep theirs).
+  await followProject(current.projectId, data.projectId ?? null, data.assigneeIds);
+  return updated;
 }
 
 /**

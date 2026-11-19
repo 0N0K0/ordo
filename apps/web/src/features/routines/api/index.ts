@@ -12,7 +12,8 @@ import {
   type RoutineSlot,
   type SlotCondition,
 } from '@ordo/shared';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, type QueryKey } from '@tanstack/react-query';
+import { tasksQueryKey } from '../../tasks/api';
 import { moveInTree } from '../../../components/tree/category-tree';
 import { graphql } from '../../../graphql';
 import type { CalendarEventScope, RoutineChecksQuery, RoutineOccurrencesQuery, RoutinesDataQuery } from '../../../graphql/graphql';
@@ -275,11 +276,12 @@ export function useRoutinesData() {
  * Mutation refreshing the routines afterwards, with an optional optimistic change rolled back on error.
  * @param {(variables: V) => Promise<R>} fn Request.
  * @param {(data: RoutinesDataQuery, variables: V) => RoutinesDataQuery} [patch] Immediate cache change. Optional.
+ * @param {readonly QueryKey[]} [also] Other queries refreshed too. Optional. Default = none.
  * @returns {UseMutationResult} Mutation state.
  */
-function useRoutineMutation<V, R>(fn: (variables: V) => Promise<R>, patch?: (data: RoutinesDataQuery, variables: V) => RoutinesDataQuery) {
+function useRoutineMutation<V, R>(fn: (variables: V) => Promise<R>, patch?: (data: RoutinesDataQuery, variables: V) => RoutinesDataQuery, also: readonly QueryKey[] = []) {
   return useInvalidatingMutation(fn, {
-    invalidate: [routinesKey],
+    invalidate: [routinesKey, ...also],
     optimistic: patch && ((queryClient, variables) => patchQuery<RoutinesDataQuery>(queryClient, routinesKey, (data) => patch(data, variables))),
     // Refreshed in the background: the change (shown at once) is not held up by the reload of every routine.
     background: true,
@@ -509,12 +511,14 @@ export function useRoutineMutations() {
       async (input: RoutineInput) => (await execute(CreateRoutineDocument, { input })).createRoutine,
       (data, input) => ({ ...data, routines: [...data.routines, draftRoutine(input, data.routines)] }),
     ),
-    update: useRoutineMutation(async (variables: { id: string; input: RoutineInput }) => (await execute(UpdateRoutineDocument, variables)).updateRoutine),
+    // A change of project attaches the assignees to it: the contributors (task data) are refreshed too.
+    update: useRoutineMutation(async (variables: { id: string; input: RoutineInput }) => (await execute(UpdateRoutineDocument, variables)).updateRoutine, undefined, [tasksQueryKey]),
     /** Copies the sub-routines of a routine under its copy (theirs too). */
     copySubRoutines: useRoutineMutation(async (variables: { fromId: string; toId: string }) => (await execute(CopySubRoutinesDocument, variables)).copySubRoutines),
     patch: useRoutineMutation(
       async (variables: { id: string; input: RoutinePatchValues }) => (await execute(PatchRoutineDocument, variables)).patchRoutine,
       (data, { id, input }) => patchRoutine(data, id, (routine) => ({ ...routine, ...input })),
+      [tasksQueryKey],
     ),
     move: useRoutineMutation(async (variables: RoutineMove) => (await execute(MoveRoutineDocument, variables)).moveRoutine, moveInCache),
     setDone: useRoutineMutation(
@@ -535,6 +539,7 @@ export function useRoutineMutations() {
     bulkUpdate: useRoutineMutation(
       async (variables: { ids: string[]; changes: RoutineBulkChanges }) => (await execute(BulkUpdateRoutinesDocument, variables)).bulkUpdateRoutines,
       (data, { ids, changes }) => ({ ...data, routines: data.routines.map((routine) => (ids.includes(routine.id) ? withBulkChanges(routine, changes) : routine)) }),
+      [tasksQueryKey],
     ),
     bulkArchive: useRoutineMutation(
       async (variables: { ids: string[]; archived: boolean }) => (await execute(BulkSetRoutinesArchivedDocument, variables)).bulkSetRoutinesArchived,

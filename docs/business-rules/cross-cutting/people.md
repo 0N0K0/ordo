@@ -40,6 +40,7 @@ Règle unique (2026-11-18) pour les assignés des tâches et des routines et les
 - Un contributeur archivé n'est pas nouvellement choisi (sauf annulation d'une action, `restoring`).
 - Modifications groupées de tâches : la règle s'applique à chaque tâche de la sélection.
 - Déplacer une tâche vers un autre projet : ses assignés (et ceux de ses sous-tâches) **suivent** et sont rattachés au projet cible s'ils ne l'étaient pas déjà, directement ou par un parent (`attachAssignees`) ; « Moi » et les archivés ne sont jamais rattachés.
+- Même règle pour une routine ou un évènement qui change de projet (décision DP) : ses assignés ou contributeurs restent, même s'ils ne sont pas du nouveau projet, et y sont rattachés (`followProject`). Les sous-routines ne suivent pas : elles gardent leur projet.
 - Une tâche peut être rattachée à un événement si ses assignés et les participants ont quelqu'un en commun, ou si l'un des deux côtés est vide (`sharePeople`).
 
 ## Bénéficiaires

@@ -225,7 +225,7 @@ Source : `deleteTask`, `bulkDeleteTasks`.
 
 ## Transfert vers un autre projet
 
-Source : `transferTask`, `bulkTransferTasks`.
+Source : `bulkTransferTasks`, `moveTaskTrees` (interne, partagé avec la suppression d'un projet).
 
 - Pas de tâche archivée (refusé avant tout déplacement en masse) ; projet cible actif ou `null` (hors de tout projet).
 - La tâche part **avec toutes ses sous-tâches** ; elles prennent les numéros suivants du projet cible (base de données) ou perdent leur numéro.
@@ -235,7 +235,16 @@ Source : `transferTask`, `bulkTransferTasks`.
   - le jalon et les sprints d’une autre arborescence.
 - Hors de tout projet : les items GitHub sont retirés (le lien passe par le projet).
 - Les assignés suivent : ils sont rattachés au projet cible (`attachAssignees`).
-- Le résultat compte les liens retirés (`removedLinks`). En masse, seules les tâches du haut de la sélection sont transférées.
+- Le résultat compte les liens retirés (`removedLinks`). En masse, seules les tâches du haut de la sélection sont transférées, toutes ensemble : les liens entre tâches transférées restent.
+
+## Projet supprimé
+
+Source : `releaseProjectTasks`, appelé par `deleteProject` et `deleteClient(deleteProjects: true)` (décision DP).
+
+- Les tâches d'un projet supprimé (et de ses sous-projets) **ne sont pas supprimées** : elles sortent du projet, exactement comme un transfert hors de tout projet (`moveTaskTrees`), archivées comprises. Elles perdent leur numéro, leur jalon, leurs sprints et leur lien GitHub (items retirés du tableau) ; leurs blocages et relations avec les tâches restées dans un projet sont retirés, ainsi que leur parent s'il reste dans un projet.
+- Comme pour un transfert, chaque tâche part avec toutes ses sous-tâches, même celles d'un sous-projet ou d'un projet parent qui n'est pas supprimé.
+- En base, `Task.projectId` est `onDelete: SetNull` (filet : le numéro est alors vidé par le déclencheur).
+- Ce qui reste supprimé avec le projet : ses temps passés (`TimeEntry`, ceux des tâches compris), ses alarmes (celles d'une tâche qui portent aussi le projet comprises), ses jalons et sprints.
 
 ## Clonage
 

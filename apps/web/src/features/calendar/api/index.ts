@@ -1,4 +1,5 @@
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, type QueryKey } from '@tanstack/react-query';
+import { tasksQueryKey } from '../../tasks/api';
 import { useInvalidatingMutation } from '../../../lib/mutation';
 import { graphql } from '../../../graphql';
 import { readScheduleCases, readScheduleExceptions, type ScheduleDisplay, type ScheduleSubscriptionLook, type WorkScheduleInput, type WorkScheduleRule } from '@ordo/shared';
@@ -480,10 +481,11 @@ export function useSubscribedCalendarEvents(range: { from: string; to: string } 
 /**
  * Mutation refreshing the calendar once done.
  * @param {(variables: TVariables) => Promise<TResult>} mutationFn Request.
+ * @param {readonly QueryKey[]} [also] Other queries refreshed too. Optional. Default = none.
  * @returns {UseMutationResult} Mutation state.
  */
-function useCalendarMutation<TVariables, TResult>(mutationFn: (variables: TVariables) => Promise<TResult>) {
-  return useInvalidatingMutation(mutationFn, { invalidate: [calendarQueryKey] });
+function useCalendarMutation<TVariables, TResult>(mutationFn: (variables: TVariables) => Promise<TResult>, also: readonly QueryKey[] = []) {
+  return useInvalidatingMutation(mutationFn, { invalidate: [calendarQueryKey, ...also] });
 }
 
 /**
@@ -525,6 +527,8 @@ export function useCalendarEventMutations() {
     update: useCalendarMutation(
       async (variables: { id: string; input: CalendarEventInput; scope: CalendarEventScope; occurrenceDate: string | null }) =>
         (await execute(UpdateCalendarEventDocument, variables)).updateCalendarEvent,
+      // A change of project attaches the contributors to it: the contributors (task data) are refreshed too.
+      [tasksQueryKey],
     ),
     remove: useCalendarMutation(
       async (variables: { id: string; scope: CalendarEventScope; occurrenceDate: string | null }) => (await execute(DeleteCalendarEventDocument, variables)).deleteCalendarEvent,
@@ -532,7 +536,9 @@ export function useCalendarEventMutations() {
     setCalledOff: useCalendarMutation(
       async (variables: { id: string; scope: CalendarEventScope; occurrenceDate: string | null; calledOff: boolean }) => (await execute(SetCalledOffDocument, variables)).setCalendarEventCalledOff,
     ),
-    postpone: useCalendarMutation(async (variables: { id: string; occurrenceDate: string | null; input: CalendarEventInput }) => (await execute(PostponeDocument, variables)).postponeCalendarEvent),
+    postpone: useCalendarMutation(async (variables: { id: string; occurrenceDate: string | null; input: CalendarEventInput }) => (await execute(PostponeDocument, variables)).postponeCalendarEvent,
+      [tasksQueryKey],
+    ),
   };
 }
 

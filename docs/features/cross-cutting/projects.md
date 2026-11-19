@@ -138,8 +138,8 @@ Défauts à la création : le client ou le parent d’où l’action est lancée
 
 - **Favori** : toast « « X » ajouté aux favoris. » / « retiré des favoris. » avec « Annuler ».
 - **Archiver / restaurer** : avec toast d’annulation (règle commune, voir [Archivage](../../business-rules/cross-cutting/archiving.md)). Un élément archivé est en lecture seule : ni « Modifier », ni favori, ni ajout de projet.
-- **Supprimer un client** (fenêtre « Supprimer le client ») : risque « Le client « X » sera supprimé définitivement. Pour le retirer de la liste sans perdre ses données, archivez-le plutôt. » ; s’il a des projets, choix « Que faire de ses N projets ? » : les supprimer ou « Les conserver, sans client » (par défaut). Toast « Client « X » supprimé. ».
-- **Supprimer un projet** (« Supprimer le projet ») : « Le projet « X » [et ses N sous-projets] sera supprimé / seront supprimés définitivement… archivez-le plutôt. ». Toast « Projet « X » supprimé. ».
+- **Supprimer un client** (fenêtre « Supprimer le client ») : risque « Le client « X » sera supprimé définitivement. Pour le retirer de la liste sans perdre ses données, archivez-le plutôt. » ; s’il a des projets, choix « Que faire de ses N projets ? » : les supprimer (alors « Leurs tâches ne sont pas supprimées : elles sortent des projets, sans numéro, jalon, sprints ni lien GitHub. ») ou « Les conserver, sans client » (par défaut). Toast « Client « X » supprimé. ».
+- **Supprimer un projet** (« Supprimer le projet ») : « Le projet « X » [et ses N sous-projets] sera supprimé / seront supprimés définitivement. Ses tâches ne sont pas supprimées : elles sortent du projet et perdent leur numéro, leur jalon, leurs sprints, leur lien GitHub et leurs liens avec les tâches restées dans un projet. Pour le retirer… archivez-le plutôt. ». Toast « Projet « X » supprimé. ».
 - Après la suppression de l’élément affiché, retour à l’accueil.
 
 ## Page « Paramètres »

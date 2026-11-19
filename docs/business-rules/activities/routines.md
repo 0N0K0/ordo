@@ -47,6 +47,7 @@ Références vérifiées par `parseRoutine` :
 
 - Projet actif (« Projet ») ; un projet archivé déjà en place est accepté.
 - Assignés existants (« Assigné ») et, si la routine a un projet, contributeurs de ce projet (ceux déjà assignés restent) : voir [Personnes](../cross-cutting/people.md).
+- Changement de projet (formulaire, modification en masse, annulation) : les assignés restent et **suivent** la routine ; ceux qui ne sont pas rattachés au nouveau projet (ni à un de ses parents) y sont rattachés (`followProject`, décision DP). Les sous-routines gardent leur projet et leurs assignés. Retirer le projet ne rattache personne.
 - Bénéficiaires existants et non archivés (ceux déjà en place restent).
 - Catégories et plages non archivées, sauf celles déjà présentes sur la routine.
 - Parente : doit exister (« Routine parente »), non archivée (sauf si inchangée), ni la routine elle-même ni une de ses sous-routines (« Une routine ne peut pas être rangée sous elle-même. »).

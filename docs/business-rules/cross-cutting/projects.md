@@ -103,7 +103,13 @@ Source : `apps/api/src/services/projects/projects.ts`.
 
 ### Suppression
 
-`deleteProject(id)` supprime le projet et tout son sous-arbre (cascade `ON DELETE` de la relation parent). Les icônes orphelines sont supprimées. Les éléments rattachés (tâches, temps, documents…) suivent les relations du schéma Prisma (voir les pages des domaines concernés).
+`deleteProject(id)` supprime le projet et tout son sous-arbre (cascade `ON DELETE` de la relation parent). Les icônes orphelines sont supprimées. Avant, ses tâches sortent du projet (`releaseProjectTasks`, décision DP, voir [Tâches](../activities/tasks.md#projet-supprimé)). Le reste suit les relations du schéma Prisma :
+
+| Avec le projet                                                                                                                                 | Sans projet (`SetNull`)                                                                                                                                           |
+| ---------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Supprimés : jalons, sprints, lien GitHub, vues de tâches, tableaux de bord, temps passés, alarmes, copies de mails (`MailMessage`), ressources | Gardés sans projet : tâches (sorties avant par l'API), routines, évènements, documents comptables, documents importés, mouvements et lignes de trésorerie, fiches |
+
+L'interface explique, dans la confirmation, que les tâches ne sont pas supprimées mais sortent du projet. Supprimer un client avec ses projets (`deleteClient(id, true)`) fait de même pour leurs tâches.
 
 ## Statuts et catégories de projet
 
@@ -168,6 +174,7 @@ Source : `services/projects/contributors.ts`. Vue d’ensemble des personnes dan
 
 - `setProjectContributors(projectId, ids)` : remplace les contributeurs rattachés directement à un projet non archivé. Un contributeur archivé n’est pas rattaché à nouveau (ceux déjà rattachés restent). Les tâches gardent leurs assignés.
 - `attachAssignees` : quand une tâche d’un projet reçoit un assigné qui n’est rattaché ni au projet ni à l’un de ses parents, il est rattaché automatiquement au projet. Exclus : « Moi » (utilisateur), les contributeurs archivés.
+- `followProject(before, after, contributorIds)` : une routine ou un évènement qui change de projet y fait rattacher ses assignés ou contributeurs (`attachAssignees`) ; rien si le projet ne change pas ou est retiré (décision DP).
 - `assertProjectContributors` : sur un élément d’un projet (routine, évènement…), seuls peuvent être **ajoutés** « Moi », les contributeurs rattachés au projet ou à l’un de ses ancêtres ; ceux déjà choisis restent. Sans projet, aucune restriction. Message : « Seuls les contributeurs du projet peuvent être choisis. ». Un contributeur archivé n’est pas ajouté, sauf lors d’une annulation qui restaure les anciens (`restoring`).
 
 ## Requêtes exposées

@@ -9,6 +9,7 @@ import { BY_POSITION, moveInOrder, nextPositionIn } from '../core/ordering';
 import { findOrNotFound } from '../core/lookup';
 import { assertDateRange } from '../core/date-range';
 import { connectIds } from '../core/relations';
+import { releaseProjectTasks } from '../tasks/tasks';
 
 /** Minimal project shape used to reason about the tree. */
 interface TreeProject {
@@ -359,14 +360,17 @@ export async function setProjectArchived(id: string, archived: boolean): Promise
 }
 
 /**
- * Deletes a project and its whole sub-tree.
+ * Deletes a project and its whole sub-tree. Their tasks are not deleted: they leave the project, as in a transfer out
+ * of any project (`releaseProjectTasks`).
  * @param {string} id Project id.
  * @returns {Promise<void>}
  */
 export async function deleteProject(id: string): Promise<void> {
   const project = await findProject(id);
   const tree = await ProjectTree.load();
-  const iconIds = [project.iconId, ...tree.descendants(id).map((descendant) => descendant.iconId)];
+  const descendants = tree.descendants(id);
+  const iconIds = [project.iconId, ...descendants.map((descendant) => descendant.iconId)];
+  await releaseProjectTasks([id, ...descendants.map((descendant) => descendant.id)]);
   // Sub-projects are removed by the ON DELETE CASCADE of the parent relation.
   await prisma.project.delete({ where: { id } });
   await deleteOrphanIcons(iconIds);

@@ -26,7 +26,7 @@ Requêtes et mutations GraphQL des routines (TanStack Query).
 | `routineInputOf(routine)`                | Routine en `RoutineInput` complet (annulation, duplication).                                                                                                                              |
 | `useRoutineMutations()`                  | Toutes les mutations (voir ci-dessous).                                                                                                                                                   |
 
-Mutations de `useRoutineMutations()` (toutes invalident `routinesKey` en arrière-plan) :
+Mutations de `useRoutineMutations()` (toutes invalident `routinesKey` en arrière-plan ; `update`, `patch` et `bulkUpdate` aussi `tasksQueryKey`, car un changement de projet y rattache les assignés) :
 
 | Clé                                                                    | Mutation                                                    | Mise à jour immédiate du cache                  |
 | ---------------------------------------------------------------------- | ----------------------------------------------------------- | ----------------------------------------------- |
@@ -45,7 +45,7 @@ Mutations de `useRoutineMutations()` (toutes invalident `routinesKey` en arrièr
 | `bulkRemove`                                                           | `bulkDeleteRoutines`                                        | —                                               |
 | `restore`                                                              | `updateRoutine` avec `restoring: true`, routine par routine | —                                               |
 
-Fonctions internes : `useRoutineMutation` (mutation invalidante avec cache optimiste), `draftRoutine` (brouillon dernier de ses sœurs), `withSlotsDone` (moments, `done`, `doneDates` recalculés), `patchRoutine` (cache), `moveInCache`, `withBulkChanges`, `fetchChecks`.
+Fonctions internes : `useRoutineMutation` (mutation invalidante avec cache optimiste, et d'autres requêtes `also`), `draftRoutine` (brouillon dernier de ses sœurs), `withSlotsDone` (moments, `done`, `doneDates` recalculés), `patchRoutine` (cache), `moveInCache`, `withBulkChanges`, `fetchChecks`.
 
 ## `pages/`
 

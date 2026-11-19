@@ -48,7 +48,7 @@ L’API accepte ce que l’interface empêche.
 
 - **Relances d’impayés :** [Déploiement](deployment.md) les cite parmi les tâches de fond, mais le code ne les envoie qu’à la main (`sendRemindersSchema`). Voir [Tâches de fond](business-rules/cross-cutting/background-jobs.md).
 - **Suppression d’un client qui a des documents :** refusée par la relation `Restrict` du schéma ; le message affiché n’a pas été relevé. Voir [Règles de la facturation](business-rules/finances/accounting.md).
-- **Suppression d’un projet ou d’un client :** les cascades vers les tâches, temps et documents ne sont pas détaillées. Voir [Règles des projets](business-rules/cross-cutting/projects.md).
+- **Temps et alarmes d’un projet supprimé (décision DP) :** les tâches sortent du projet sans être supprimées, mais ses temps passés (ceux de ces tâches compris) et ses alarmes (celles d’une tâche qui portent aussi le projet comprises) restent supprimés en cascade. Voir [Règles des projets](business-rules/cross-cutting/projects.md).
 - **Unicité des libellés dans les arbres :** aucune contrainte dans le schéma pour les projets, tâches, évènements, routines, fiches, listes, comptes, catégories, emplacements et agendas ; à confirmer arbre par arbre. Voir [Noms et libellés](business-rules/cross-cutting/naming.md).
 - **Erreurs des fonctions partagées :** certaines lèvent une `Error` simple au message destiné à l’utilisateur ; sa conversion en erreur client par chaque service appelant n’a pas été vérifiée. Voir [Erreurs](business-rules/cross-cutting/errors.md).
 - **Partage multi-utilisateur :** aucun rôle ni permission par espace dans le code actuel ; prévu sur la branche `multi-user-sharing`. Voir [Espaces et accès](business-rules/cross-cutting/workspaces-and-access.md).

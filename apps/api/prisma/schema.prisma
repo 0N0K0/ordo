@@ -591,9 +591,10 @@ model Task {
   slotRule             Json?
   /// Markdown.
   description          String?
-  /// None: a task of no project (no number, no sprint, milestone nor GitHub item).
+  /// None: a task of no project (no number, no sprint, milestone nor GitHub item). A deleted project leaves its tasks
+  /// without project (the API takes them out first, as in a transfer).
   projectId            String?
-  project              Project?           @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  project              Project?           @relation(fields: [projectId], references: [id], onDelete: SetNull)
   statusId             String?
   status               TaskStatus?        @relation(fields: [statusId], references: [id], onDelete: SetNull)
   priorityId           String?

@@ -134,7 +134,7 @@ Pour chaque champ, comparé à la valeur de la dernière synchronisation (instan
 
 ### Suppressions côté Ordo
 
-`forgetGithubItems` (appelé par la suppression de tâches et le déplacement de tâches hors projet, `services/tasks/tasks.ts`) retire en arrière-plan les items correspondants du tableau du projet (ou du plus proche ancêtre lié) : un brouillon est supprimé, une issue reste dans son dépôt. Un échec GitHub ne bloque pas la suppression (avertissement journalisé « Items GitHub non retirés. »).
+`forgetGithubItems` (appelé par la suppression de tâches et le déplacement de tâches hors projet, `services/tasks/tasks.ts`, y compris quand leur projet est supprimé) trouve aussitôt le tableau de chaque item, puis retire en arrière-plan les items correspondants du tableau du projet (ou du plus proche ancêtre lié) : un brouillon est supprimé, une issue reste dans son dépôt. Un échec GitHub ne bloque pas la suppression (avertissement journalisé « Items GitHub non retirés. »).
 
 ### Résumé rendu
 

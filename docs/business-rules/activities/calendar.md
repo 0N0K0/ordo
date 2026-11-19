@@ -63,6 +63,7 @@ Source : `apps/api/src/services/calendar/calendar-events.ts`, schéma `calendarE
 
 - Projet : doit exister et ne pas être archivé, sauf s’il est déjà celui de l’évènement.
 - Contributeurs : doivent exister ; avec un projet, uniquement les contributeurs du projet (et de sa lignée) : « Seuls les contributeurs du projet peuvent être choisis. » ; ceux déjà présents restent. Voir [Personnes](../cross-cutting/people.md).
+- Changement de projet (portée `ALL`, `FOLLOWING`, évènement unique, report) : les contributeurs restent et **suivent** l'évènement ; ceux qui ne sont pas rattachés au nouveau projet (ni à un de ses parents) y sont rattachés (`followProject`, décision DP). Avec `FOLLOWING`, la série d'avant garde son projet. `THIS` ne change pas le projet (celui de la série reste). Les relations (participants hors équipe ou foyer) ne sont pas des contributeurs : rien n'est rattaché pour elles.
 - Bénéficiaires (contributeurs ou relations) : vérifiés par `assertBeneficiaries` (existence, non archivés, sauf ceux déjà présents).
 - Relations : doivent exister, non archivées (sauf déjà présentes).
 - Catégories : doivent exister, non archivées (sauf déjà présentes).

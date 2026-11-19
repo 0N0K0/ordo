@@ -26,7 +26,7 @@ import { Prisma, type CalendarEvent, type CalendarEventException } from '../../g
 import { clientError, fieldError, notFound, orNotFound, parseInput } from '../../graphql/errors';
 import { runInWorkspace } from '../../workspace-context';
 import { listSubscriptions, resolveCalendarId } from './calendars';
-import { assertProjectContributors } from '../projects/contributors';
+import { assertProjectContributors, followProject } from '../projects/contributors';
 import { assertAllExist, findOrNotFound } from '../core/lookup';
 import { assertActive, assertNotArchived, activeIds, refuseArchived } from '../core/archive';
 import { connectIds } from '../core/relations';
@@ -404,9 +404,13 @@ async function endSeriesBefore(event: CalendarEvent, rule: Recurrence, date: str
  * @returns {Promise<CalendarEvent>} Updated (or new, after a split) event.
  */
 export async function updateCalendarEvent(id: string, input: CalendarEventInput, scope: EventScope, occurrenceDate?: string | null): Promise<CalendarEvent> {
+  const before = (await findEvent(id)).projectId;
   const updated = await updateEventFields(id, input, scope, occurrenceDate);
+  const fields = parseInput(calendarEventInputSchema, input);
+  // A new project (not for one occurrence: it keeps the one of its series): the contributors follow the event into it.
+  await followProject(before, updated.projectId, fields.contributorIds);
   // The routines of the days of the occurrence edited, on the event it now belongs to.
-  await saveRoutineLinks(id, updated.id, parseInput(calendarEventInputSchema, input));
+  await saveRoutineLinks(id, updated.id, fields);
   return updated;
 }
 
@@ -759,5 +763,7 @@ export async function postponeCalendarEvent(id: string, occurrenceDate: string |
     },
   });
   await setEventCalledOff(id, 'THIS', occurrence?.date ?? null, true);
+  // Postponed into another project: its contributors follow.
+  await followProject(event.projectId, created.projectId, fields.contributorIds);
   return created;
 }

@@ -1730,7 +1730,9 @@ type Mutation {
   """Deletes a saved place (events keep their address)."""
   deletePlace(id: ID!): Boolean!
 
-  """Deletes the project and all its sub-projects."""
+  """
+  Deletes the project and all its sub-projects; their tasks leave them (out of any project).
+  """
   deleteProject(id: ID!): Boolean!
   deleteProjectCategory(id: ID!): Boolean!
   deleteProjectResource(id: ID!): Boolean!
