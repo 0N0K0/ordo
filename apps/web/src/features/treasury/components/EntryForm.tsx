@@ -15,7 +15,6 @@ import { useProjectTree } from '../../projects/api';
 import { useTreasuryAccounts, useTreasuryDocumentOptions, useTreasuryMutations, useTreasurySettings, type ForecastEntry, type TreasuryEntry } from '../api';
 import { categoryOptions } from '../lib/categories';
 import { DIRECTION_OPTIONS } from '../lib/direction';
-import { SplitLinesEditor } from './SplitLinesEditor';
 import type { LineLink } from '../lib/lines';
 import { documentGroups, payerGroups, payerKey, payerOfKey } from '../lib/entry-env';
 import { SupportingDocumentsSelect } from './SupportingDocumentsSelect';
@@ -33,6 +32,7 @@ import { RuleField } from '../../../components/recurrence/RuleField';
 import { MarkdownEditor } from '../../../components/markdown/MarkdownEditor';
 import { Comments } from '../../comments/components/Comments';
 import { FormActions } from '../../../components/dialogs/FormActions';
+import { ErrorAlert } from '../../../components/feedback/ErrorAlert';
 import { RemoveButton } from '../../../components/actions/RemoveButton';
 import { taggedKey } from '../../../lib/tagged-key';
 
@@ -120,6 +120,7 @@ export function EntryForm({ entry, status = 'ACTUAL', copy = false, onDone }: En
   const values = form.values;
   // Split: the category, project, documents and links are on the lines.
   const split = values.lines.length > 0;
+  const linesError = Object.entries(form.errors).find(([field]) => field === 'lines' || field.startsWith('lines.'))?.[1];
   const incoming = values.direction === 'IN';
   const forecast = values.status === 'FORECAST';
   // Key of the payer select: "client:<id>" or "tiers:<id>".
@@ -263,44 +264,9 @@ export function EntryForm({ entry, status = 'ACTUAL', copy = false, onDone }: En
           <MarkdownEditor label="Description" value={form.values.note ?? ''} onChange={(note) => form.setFieldValue('note', note)} suggestions={NO_SUGGESTIONS} minRows={2} />
           <TextInput label="Lien" placeholder="https://… (une commande en ligne, par exemple)" type="url" {...form.getInputProps('url')} />
 
-          <Divider label="Répartition" labelPosition="left" />
-          <SplitLinesEditor
-            lines={values.lines}
-            onChange={(lines) => {
-              if (split || !lines.length) {
-                form.setFieldValue('lines', lines);
-                return;
-              }
-              // Split now: the category and project of the entry go to its lines, its documents and links to the first.
-              const seeded = lines.map((line, index) => ({
-                ...line,
-                categoryId: line.categoryId ?? values.categoryId,
-                projectId: line.projectId ?? values.projectId,
-                ...(index === 0
-                  ? {
-                      libraryDocumentIds: values.libraryDocumentIds,
-                      projectResourceIds: values.projectResourceIds,
-                      linkedEntryIds: values.linkedEntryIds,
-                      links: linked.map((item) => ({ kind: 'entry' as const, id: item.id, entryLabel: item.label, date: item.date, label: null, amount: item.amount })),
-                    }
-                  : {}),
-              }));
-              form.setValues({ lines: seeded, categoryId: null, projectId: null, libraryDocumentIds: [], projectResourceIds: [], linkedEntryIds: [] });
-              setLinked([]);
-            }}
-            amount={values.amount}
-            direction={values.direction}
-            date={values.date}
-            settings={settings}
-            errors={form.errors}
-            entryId={entry?.id ?? null}
-            projects={projectChoices}
-            documentGroups={documentData}
-          />
-
           {split ? (
             <Text size="xs" c="dimmed">
-              Décomposé : catégorie, projet, pièces justificatives et liens se précisent sur chaque ligne.
+              Décomposé : catégorie, projet, pièces justificatives et liens se précisent sur chaque ligne de sa répartition, dépliée sous le mouvement dans le tableau (« détails »).
             </Text>
           ) : (
             <>
@@ -414,6 +380,13 @@ export function EntryForm({ entry, status = 'ACTUAL', copy = false, onDone }: En
             </>
           )}
 
+          {!split && (
+            <Text size="xs" c="dimmed">
+              La répartition par membre, catégorie et contexte se fait dans le tableau, une fois le mouvement enregistré : action « Répartir » de sa ligne.
+            </Text>
+          )}
+          {/* The split is not edited here: what the save refuses of it is told. */}
+          {linesError && <ErrorAlert>{`Répartition : ${linesError}`}</ErrorAlert>}
           <FormActions onCancel={onDone} loading={createEntry.isPending || updateEntry.isPending} />
         </Stack>
       </form>

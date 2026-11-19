@@ -2,7 +2,7 @@ import { localToday } from '../../../lib/dates';
 import { ON_ERROR } from '../../../lib/notify';
 import type { Recurrence, TreasuryAllocationInput } from '@ordo/shared';
 import { useTreasuryMutations, type ForecastEntry, type TreasuryEntry } from '../api';
-import { newSplitLine, type LineValues } from './lines';
+import { newSplitLine, type LineLink, type LineValues } from './lines';
 import { directionOf } from '@ordo/shared';
 
 /** Values of the entry form (and of an entry changed in a cell of a table). */
@@ -99,6 +99,31 @@ export function entryValues(entry: TreasuryEntry | ForecastEntry | undefined, de
         ],
       }),
     ),
+  };
+}
+
+/**
+ * Change of an entry whose lines are replaced. Getting its first lines, it is split: its category and project go to
+ * them, its supporting documents and links to the first (a split entry holds them on its lines, not on itself).
+ * @param {EntryValues} values Values of the entry.
+ * @param {LineValues[]} lines New lines.
+ * @param {LineLink[]} linked Entries linked to the entry, as links of a line.
+ * @returns {Partial<EntryValues>} Change.
+ */
+export function linesChange(values: EntryValues, lines: LineValues[], linked: LineLink[]): Partial<EntryValues> {
+  if (values.lines.length > 0 || lines.length === 0) return { lines };
+  return {
+    lines: lines.map((line, index) => ({
+      ...line,
+      categoryId: line.categoryId ?? values.categoryId,
+      projectId: line.projectId ?? values.projectId,
+      ...(index === 0 ? { libraryDocumentIds: values.libraryDocumentIds, projectResourceIds: values.projectResourceIds, linkedEntryIds: values.linkedEntryIds, links: linked } : {}),
+    })),
+    categoryId: null,
+    projectId: null,
+    libraryDocumentIds: [],
+    projectResourceIds: [],
+    linkedEntryIds: [],
   };
 }
 

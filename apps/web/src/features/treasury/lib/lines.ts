@@ -1,4 +1,6 @@
-import { type TreasuryLineMode, LEVEL, round2 } from '@ordo/shared';
+import { type TreasuryLineMode, LEVEL, plannedContext, round2 } from '@ordo/shared';
+import { archivedIds } from '../../../lib/archive';
+import type { TreasurySettings } from '../api';
 import * as fmt from '../../../lib/format';
 import { taggedKey } from '../../../lib/tagged-key';
 
@@ -40,14 +42,6 @@ export interface LineLink {
   /** Signed amount. */
   amount: number;
 }
-
-/**
- * Number of things a line is attached to: its project, documents and links.
- * @param {LineValues} line Line.
- * @returns {number} Count.
- */
-export const attachmentCount = (line: LineValues) =>
-  (line.projectId ? 1 : 0) + (line.loan ? 1 : 0) + (line.date ? 1 : 0) + line.libraryDocumentIds.length + line.projectResourceIds.length + line.links.length;
 
 /**
  * New line.
@@ -113,3 +107,35 @@ export type LinkCandidate = LineLink & { accountLabel: string };
  * @returns {string} "line:<id>" or "entry:<id>".
  */
 export const linkKey = (link: Pick<LineLink, 'kind' | 'id'>) => taggedKey(link.kind, link.id);
+
+/**
+ * Context planned on a day, proposed to a new line (an archived context is not proposed any more).
+ * @param {TreasurySettings | undefined} settings Settings of the treasury (contexts and their periods).
+ * @param {string} date Day of the entry.
+ * @returns {string | null} Context, none for everyday spending.
+ */
+export function plannedLineContext(settings: TreasurySettings | undefined, date: string): string | null {
+  const archived = archivedIds(settings?.treasuryContexts ?? []);
+  const periods = (settings?.treasuryContextPeriods ?? [])
+    .filter((period) => !archived.has(period.contextId))
+    .map((period) => ({ contextId: period.contextId, startDate: period.startDate, endDate: period.endDate }));
+  return plannedContext(periods, date);
+}
+
+/**
+ * Lines splitting an entry equally between the members: one line in % each, the last one taking what rounding leaves.
+ * @param {readonly { id: string }[]} members Members.
+ * @param {string | null} contextId Context of the lines.
+ * @returns {LineValues[]} Lines.
+ */
+export function equalShares(members: readonly { id: string }[], contextId: string | null): LineValues[] {
+  const share = round2(100 / members.length);
+  return members.map((member, index) =>
+    newSplitLine({
+      mode: 'PERCENT',
+      value: index === members.length - 1 ? round2(100 - share * (members.length - 1)) : share,
+      memberId: member.id,
+      contextId,
+    }),
+  );
+}

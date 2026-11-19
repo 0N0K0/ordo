@@ -173,7 +173,7 @@ export function LoansPanel() {
         empty={
           <EmptyState
             icon={<HandCoinsIcon aria-hidden />}
-            message="Aucun prêt. Dans la répartition d’un mouvement, une ligne pour une relation peut être marquée « Prêt » (bouton trombone) : une sortie lui prête ou lui rembourse, une entrée vous fait prêter par elle ou vous rembourse."
+            message="Aucun prêt. Dans la répartition d’un mouvement, une ligne pour une relation peut être marquée « Prêt » (colonne « Prêt ») : une sortie lui prête ou lui rembourse, une entrée vous fait prêter par elle ou vous rembourse."
           />
         }
         cells={(row) =>

@@ -26,7 +26,6 @@ La bibliothèque de documents n'est pas traitée : elle sera refaite entièremen
 - **Colonnes de comptage (CO) :** les commentaires des tâches ne sont pas obligatoires et 0 trie comme vide (`task-columns.ts:270`, `task-rows.ts:91`) ; « Chrono » des routines filtré en texte, 0 vide (`routine-columns.ts:163-171`) ; « Chrono » veut dire temps passé dans les routines, chrono dans les tâches.
 - **Colonnes mal filtrées :** « Envoi » des impayés jamais vide mais facultatif (`OverdueInvoicesPanel.tsx:56`) ; « Emplacement » du stock jamais vide (« Tout le stock »), tri et texte différents (`StockPage.tsx:41-47`) ; comptes filtrés en texte (`ShoppingPage.tsx:132, 141`, `AccountingPage.tsx:106`) ; « Moi » et le contexte quotidien trient comme vides (`BudgetsPanel.tsx:431, 444`).
 - **Retard :** quatre règles (tableau et panneau, accueil sans test de clôture, agenda qui exige aussi l'absence de fin : `task-calendar.ts:49`). Proposition : `isTaskOverdue` (voir décision DD). Encore en rouge malgré CF : prévision en retard (`TreasuryPage.tsx:532`), impayés après 45 jours (`OverdueInvoicesPanel.tsx:257`), onglet des impayés (`AccountingPage.tsx:286`), et côté tâches, routines et accueil (voir décisions DB, DC).
-- **Montant nul :** une ligne à 0 est « Sortie » pour sa catégorie mais se voit proposer des catégories d'entrée (`SplitLinesEditor.tsx:95, 205, 209`).
 - **« Mouvements liés » :** le texte ignore les liens portés par les lignes, alors que la cellule et le filtre les comptent (`entry-columns.tsx:177`).
 - **Même personne proposée deux fois** dans les courses et le stock : une relation liée à un contributeur (`shopping-format.ts:331-345`), contrairement à `useBeneficiaries`.
 - **Réglages :** genre deviné par `startsWith('la ')`, donc « l'étiquette » au masculin (`SettingsList.tsx:96`) ; « sera supprimé » toujours au masculin, « retiré des 1 tâches » (`:187-192`) ; le glisser annonce « Catégorie déplacée » pour toutes les listes (`CategoryTree.tsx:129-130`).
@@ -135,6 +134,7 @@ Toutes les décisions de ce round sont prises (DA à DM, voir plus bas).
 26. **Chargement à la demande :** `lazyNamed` pour les pages, la carte (`LazyPlaceMap`) et l'éditeur de mail (`LazyRichEditor`) ; l'application démarre sans eux.
 27. **Fraîcheur des données :** 15 s à l'ouverture d'une page ; rechargement à chaque retour sur l'application, après toute mutation, et dans les autres onglets.
 28. **Champs calculés des listes :** `batchedBy` (solde d'un compte, montant facturé d'un devis, destinataire d'un document) : une requête pour la liste, pas une par ligne.
+29. **Répartition d'un mouvement :** un seul endroit, la table dépliée sous le mouvement (`EntryLinesTable`, un `DataTable`) ; plus d'éditeur dans le formulaire ; règle eslint : pas de `Table` Mantine dans la trésorerie hors `TeamPanel`.
 
 - **A. Limites des produits** (fiches, stock, achats) : unité 50 caractères, note 500, quantité ≥ 0, dans des schémas communs.
 - **B. Archivage par booléen :** comptes, tiers et catalogue passent à `archivedAt` (migration qui reprend les archivés), archivage par `setArchived` seulement, plus de case « Archivé » dans les formulaires.
