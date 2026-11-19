@@ -21,7 +21,7 @@ Flux : PR vers `main` → CI → merge → déploiement staging. PR `main` → `
 
 ## 1. Préparer cPanel (par environnement)
 
-1. **Sous-domaine** et son **certificat SSL** (Let's Encrypt / AutoSSL). La **racine du document** du sous-domaine doit pointer vers `<dossier>/apps/web/dist` (le build du front) : Apache y sert directement les fichiers statiques, le reste passe à l'app Node. cPanel écrit dans ce dossier le `.htaccess` qui active Passenger ; le build de Vite vidant `dist`, `scripts/deploy.sh` le sauvegarde et le remet après chaque build, puis y écrit le bloc `ordo-security` : les en-têtes de sécurité des fichiers qu'Apache sert lui-même (voir [Espaces et accès](business-rules/cross-cutting/workspaces-and-access.md)).
+1. **Sous-domaine** et son **certificat SSL** (Let's Encrypt / AutoSSL). La **racine du document** du sous-domaine doit pointer vers `<dossier>/apps/web/dist` (le build du front) : Apache y sert directement les fichiers statiques, le reste passe à l'app Node. cPanel écrit dans ce dossier le `.htaccess` qui active Passenger ; le build de Vite vidant `dist`, `scripts/deploy.sh` le sauvegarde et le remet après chaque build, puis y écrit le bloc `ordo-security` : les en-têtes de sécurité des fichiers qu'Apache sert lui-même et la redirection de HTTP vers HTTPS (voir [Espaces et accès](business-rules/cross-cutting/workspaces-and-access.md)).
 2. **Base PostgreSQL** + utilisateur associé avec tous les privilèges (« Bases de données PostgreSQL »).
 3. **Adresse mail** dédiée aux envois (« Comptes de messagerie »), par ex. `no-reply@example.com`.
 4. **Accès SSH** : ajouter ta clé et autoriser ton IP (pare-feu SSH o2switch).
@@ -123,7 +123,7 @@ touch tmp/restart.txt
 
 - La page de connexion s'affiche ; recharger une URL profonde (`/accounting`) fonctionne.
 - Connexion au compte, cartes (tuiles OpenStreetMap), aperçus PDF, envoi d'un mail de test.
-- Mode production et en-têtes : `curl -sI https://<sous-domaine>/` doit montrer `content-security-policy` et `strict-transport-security` ; `curl -s -H 'Accept: text/html' https://<sous-domaine>/api/graphql` ne doit pas renvoyer GraphiQL ; `curl -sI http://<sous-domaine>/` doit rediriger vers HTTPS (cPanel → « Domaines » → « Forcer la redirection HTTPS »).
+- Mode production et en-têtes : `curl -sI https://<sous-domaine>/` doit montrer `content-security-policy` et `strict-transport-security` ; `curl -s -H 'Accept: text/html' https://<sous-domaine>/api/graphql` ne doit pas renvoyer GraphiQL ; `curl -sI http://<sous-domaine>/` doit répondre 301 vers `https://` (règle du bloc `ordo-security` du `.htaccess`), sans boucle : `curl -sIL http://<sous-domaine>/` doit finir sur un 200.
 - Production : `which pg_dump` doit répondre (sauvegarde avant migration).
 
 ## 3. Configuration GitHub

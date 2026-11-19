@@ -30,7 +30,7 @@ export function contentSecurityPolicy(): string {
 
 /**
  * Block of the .htaccess of the built web app: Apache serves its files itself (the API never sees them), so it gives
- * them the headers the API gives its own answers. Written by `scripts/deploy.sh` (`npm run htaccess:print`).
+ * them the headers the API gives its own answers, and sends plain HTTP to HTTPS (for the API too). Written by `scripts/deploy.sh` (`npm run htaccess:print`).
  * @returns {string} Apache directives, between their markers.
  */
 export function htaccessSecurityBlock(): string {
@@ -42,6 +42,13 @@ export function htaccessSecurityBlock(): string {
     '  <FilesMatch "\\.html$">',
     `    Header always set Content-Security-Policy "${contentSecurityPolicy()}"`,
     '  </FilesMatch>',
+    '</IfModule>',
+    // Plain HTTP goes to HTTPS; both tests, so that a proxy ending TLS before Apache does not loop.
+    '<IfModule mod_rewrite.c>',
+    '  RewriteEngine On',
+    '  RewriteCond %{HTTPS} !=on',
+    '  RewriteCond %{HTTP:X-Forwarded-Proto} !=https',
+    '  RewriteRule ^ https://%{HTTP_HOST}%{REQUEST_URI} [R=301,L]',
     '</IfModule>',
     '# END ordo-security',
     '',
