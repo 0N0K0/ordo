@@ -67,7 +67,7 @@ export function scheduleRule(schedule: WorkSchedule): WorkScheduleRule {
  */
 async function scheduleData(input: WorkScheduleInput, currentTypeId: string | null = null) {
   const schedule = parseInput(workScheduleSchema, input);
-  await assertActive(prisma.scheduleType, schedule.typeId, 'Type de plage', { keep: currentTypeId, field: 'typeId' });
+  await assertActive(prisma.scheduleType, schedule.typeId, 'Type de créneau', { keep: currentTypeId, field: 'typeId' });
   return {
     typeId: schedule.typeId ?? null,
     label: schedule.label,
@@ -97,7 +97,7 @@ export async function createWorkSchedule(input: WorkScheduleInput): Promise<Work
  * @returns {Promise<WorkSchedule>} Schedule.
  */
 export async function updateWorkSchedule(id: string, input: WorkScheduleInput): Promise<WorkSchedule> {
-  const current = await orNotFound(prisma.workSchedule.findUnique({ where: { id }, select: { id: true, typeId: true, archivedAt: true } }), 'Plage de travail');
+  const current = await orNotFound(prisma.workSchedule.findUnique({ where: { id }, select: { id: true, typeId: true, archivedAt: true } }), 'Créneau de travail');
   refuseArchived(current);
   const data = await scheduleData(input, current.typeId);
   return prisma.workSchedule.update({ where: { id }, data });
@@ -109,11 +109,11 @@ export async function updateWorkSchedule(id: string, input: WorkScheduleInput): 
  * @returns {Promise<void>}
  */
 export async function deleteWorkSchedule(id: string): Promise<void> {
-  await deleteOrNotFound(prisma.workSchedule, id, 'Plage de travail');
+  await deleteOrNotFound(prisma.workSchedule, id, 'Créneau de travail');
 }
 
 /** Kinds of time slots (label, color and display, checked here); the schedules of a deleted one stay, without kind. */
-export const scheduleTypes = createLabelService<ScheduleType>('scheduleType', { notFound: 'Type de plage', conflict: 'Un type porte déjà ce libellé.' }, { schema: scheduleTypeSchema });
+export const scheduleTypes = createLabelService<ScheduleType>('scheduleType', { notFound: 'Type de créneau', conflict: 'Un type porte déjà ce libellé.' }, { schema: scheduleTypeSchema });
 
 /**
  * Saves a kind of time slots.
@@ -426,7 +426,7 @@ export async function setScheduleSubscriptionLook(sourceWorkspaceId: string, typ
  * @returns {Promise<void>}
  */
 export async function subscribeScheduleKind(sourceWorkspaceId: string, typeId: string | null): Promise<void> {
-  if (sourceWorkspaceId === currentWorkspaceId()) throw clientError('BAD_USER_INPUT', 'Ces plages appartiennent déjà à cet espace.');
+  if (sourceWorkspaceId === currentWorkspaceId()) throw clientError('BAD_USER_INPUT', 'Ces créneaux appartiennent déjà à cet espace.');
   await assertExists(unscopedPrisma.workspace, sourceWorkspaceId, 'Espace');
   if (
     typeId &&
@@ -435,7 +435,7 @@ export async function subscribeScheduleKind(sourceWorkspaceId: string, typeId: s
       select: { id: true },
     }))
   )
-    throw notFound('Type de plage');
+    throw notFound('Type de créneau');
   // A null kind is not unique for the database: checked here.
   if (
     await prisma.workScheduleSubscription.findFirst({

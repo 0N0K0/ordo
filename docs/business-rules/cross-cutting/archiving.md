@@ -35,7 +35,7 @@ Toute modification d'un élément archivé, ou d'un sous-élément d'un élémen
 Décisions AA et DA : une valeur archivée ne peut plus être **nouvellement** choisie, mais les valeurs déjà présentes restent valides.
 
 - `assertNotArchived(target, id, { keep, field })`, `assertNoneArchived(target, ids, { keep, field })`, `activeIds(model, ids, what, { keep, field, missingField })` : les ids de `keep` (valeurs actuelles du champ) sont acceptés même archivés ; l'erreur s'affiche sous `field`.
-- S'applique partout : catégories, statuts, priorités, types, étiquettes, agendas, plages, contributeurs (assignés, bénéficiaires), relations, projets et clients archivés, routines préalables, parents d'arbre, etc.
+- S'applique partout : catégories, statuts, priorités, types, étiquettes, agendas, créneaux, contributeurs (assignés, bénéficiaires), relations, projets et clients archivés, routines préalables, parents d'arbre, etc.
 - Annuler une action (« undo ») qui rend des valeurs anciennes accepte les valeurs archivées (paramètre `restoring` de certains services, ex. routines).
 
 ## Cascades

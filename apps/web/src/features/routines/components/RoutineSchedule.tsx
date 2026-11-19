@@ -95,7 +95,7 @@ function MomentsEditor({ moments, onChange, index, allowEmpty = false }: { momen
       ))}
       {allowEmpty && !moments.length && (
         <Text size="xs" c="dimmed">
-          Aucun : chaque horaire des plages choisies est un moment.
+          Aucun : chaque horaire des créneaux choisis est un moment.
         </Text>
       )}
       <AddItemButton onClick={() => onChange([...moments, ANY_TIME])}>Ajouter un moment</AddItemButton>
@@ -375,7 +375,7 @@ export function RoutineSchedule({ values, errors, onChange }: RoutineSchedulePro
         description={
           timed
             ? 'Avant l’heure de départ (sinon le début, sinon l’heure maximale), les jours où elle est à faire, tant qu’elle n’est pas cochée.'
-            : 'Donnez-lui un horaire ou une plage pour recevoir des rappels.'
+            : 'Donnez-lui un horaire ou un créneau pour recevoir des rappels.'
         }
         leftSection={<BellIcon aria-hidden />}
         emptyLabel="Aucun"

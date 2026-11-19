@@ -20,7 +20,7 @@ Voir aussi : [Temps passé](time.md), [Commentaires](../cross-cutting/comments.m
 | `startDate`, `endDate`                     | Jours (YYYY-MM-DD) ; la fin ne précède pas le début.                                                                                                                                               |
 | `minDate`                                  | « Date min » : la tâche n’est pas à faire avant.                                                                                                                                                   |
 | `deadline`                                 | « Date max » : au-delà, une tâche ouverte est en retard.                                                                                                                                           |
-| `slotCondition`                            | Condition de plages, la même que celle des routines (décision D9) : groupes ET / OU sur des plages nommées, des types de plages (de cet espace ou d’un autre espace de l’utilisateur) et le temps libre ; `null` = n’importe quand (décision D10). Validée par `slotConditionSchema` (voir [Agenda](calendar.md)). |
+| `slotCondition`                            | Condition de créneaux, la même que celle des routines (décision D9) : groupes ET / OU sur des créneaux nommés, des types de créneaux (de cet espace ou d’un autre espace de l’utilisateur) et le temps libre ; `null` = n’importe quand (décision D10). Validée par `slotConditionSchema` (voir [Agenda](calendar.md)). |
 | `parentId`                                 | Tâche parente (sous-tâches).                                                                                                                                                                       |
 | `milestoneId`                              | Un jalon.                                                                                                                                                                                          |
 | `sprintIds`                                | Plusieurs sprints (une tâche peut s’étaler sur plusieurs).                                                                                                                                         |
@@ -37,8 +37,9 @@ Champs calculés exposés par GraphQL (`apps/api/src/graphql/modules/tasks.ts`) 
 - `commentCount` : nombre de commentaires de la tâche.
 - `trackedSeconds` : temps passé, en secondes (voir [Temps passé d’une tâche](time.md#temps-passé-dune-tâche)).
 - `slotCondition` lue par `readSlotCondition` (une valeur illisible devient `null`) ; un groupe vide est enregistré comme `null`.
-- Plages et types de la condition : existants (« Plage », « Type de plage », « Espace » introuvable) ; une plage ou un type archivé n’est plus accepté, sauf s’il était déjà dans la condition de la tâche (`assertConditionSchedules`, voir [Agenda](calendar.md#condition-de-plages-des-tâches-et-routines)).
-- Les tâches dont la règle de plages datait d’avant la condition l’ont gardée telle quelle en conditions sur les types (migration `20261119190000_task_slot_condition`, décision DX).
+- Créneaux et types de la condition : existants (« Créneau », « Type de créneau », « Espace » introuvable) ; un créneau ou un type archivé n’est plus accepté, sauf s’il était déjà dans la condition de la tâche (`assertConditionSchedules`, voir [Agenda](calendar.md#condition-de-créneaux-des-tâches-et-routines)).
+- Un type sans aucun créneau ne permet aucun moment : une tâche limitée à ce type (« sur l’un des types ») n’est jamais faisable tant qu’aucun créneau de ce type n’existe (comportement voulu).
+- Les tâches dont la règle de créneaux datait d’avant la condition l’ont gardée telle quelle en conditions sur les types (migration `20261119190000_task_slot_condition`, décision DX).
 
 ## Création
 
@@ -60,7 +61,7 @@ Source : `updateTask`.
 - Une tâche archivée n’est pas modifiable (« Élément archivé : restaurez-le pour le modifier. ») : la restaurer d’abord.
 - Champ omis = inchangé, `null` = vidé.
 - Les valeurs archivées que la tâche a **déjà** restent valides ; seules les valeurs archivées **nouvellement** données sont refusées.
-- La plage de dates reste valide en tenant compte des dates actuelles (`assertDateRange`) : « La fin doit suivre le début. » sous `endDate`.
+- La période de dates reste valide en tenant compte des dates actuelles (`assertDateRange`) : « La fin doit suivre le début. » sous `endDate`.
 - Le schéma partagé du formulaire (`taskFormSchema`) refuse aussi une « Date max » avant la « Date min » (même message, sous `deadline`). Côté API, seule la paire début / fin est vérifiée par `assertDateRange` ; la paire « Date min » / « Date max » n’est vérifiée que par le formulaire.
 
 ## Numérotation
@@ -190,8 +191,8 @@ Source : `assertProjectContributors` (`services/projects/contributors.ts`), `ass
 
 ## Dates et retard
 
-- Début / fin : plage valide (« La fin doit suivre le début. »).
-- « Date min » / « Date max » : plage valide dans le formulaire partagé.
+- Début / fin : créneau valide (« La fin doit suivre le début. »).
+- « Date min » / « Date max » : créneau valide dans le formulaire partagé.
 - **En retard** (décision DD, `isTaskOverdue` côté web) : « Date max » passée (strictement avant aujourd’hui) et tâche non fermée. La même règle partout (tableau, panneau, accueil, agenda).
 - Un jalon est « en retard » quand son échéance est passée et qu’il reste des tâches non fermées ; un sprint quand sa fin est passée avec des tâches non fermées (calculs web, voir [Fonctionnalités](../../features/activities/tasks.md)).
 
@@ -199,7 +200,7 @@ Source : `assertProjectContributors` (`services/projects/contributors.ts`), `ass
 
 Source : requête `doableTaskIds(utcOffset)` (`services/calendar/slot-conditions.ts`).
 
-Tâches ouvertes de l’espace dont la condition de plages (aucune : n’importe quand, dans les deux types d’espace) autorise le moment présent de l’utilisateur, et dont aucun évènement n’occupe les assignés (aucun : « Moi »), sauf un évènement lié à la tâche. Détail dans [Agenda](calendar.md).
+Tâches ouvertes de l’espace dont la condition de créneaux (aucune : n’importe quand, dans les deux types d’espace) autorise le moment présent de l’utilisateur, et dont aucun évènement n’occupe les assignés (aucun : « Moi »), sauf un évènement lié à la tâche. Détail dans [Agenda](calendar.md).
 
 ## Pas de récurrence
 
@@ -253,7 +254,7 @@ Source : `releaseProjectTasks` (par `releaseProjects`), appelé par `deleteProje
 
 Source : `cloneTask`.
 
-- Copie tous les champs (libellé, description, projet, statut, priorité, type, effort, dates, « Date min »/« Date max », parent, jalon, sprints), les assignés, bénéficiaires, étiquettes et les liens de blocage et de relation de sa propre arborescence de projets (un ancien lien hors d’elle, gardé tant que la tâche ne change pas d’arborescence, n’est pas copié). **Pas** les commentaires, ni l’état fermé, ni la condition de plages, ni le lien GitHub.
+- Copie tous les champs (libellé, description, projet, statut, priorité, type, effort, dates, « Date min »/« Date max », parent, jalon, sprints), les assignés, bénéficiaires, étiquettes et les liens de blocage et de relation de sa propre arborescence de projets (un ancien lien hors d’elle, gardé tant que la tâche ne change pas d’arborescence, n’est pas copié). **Pas** les commentaires, ni l’état fermé, ni la condition de créneaux, ni le lien GitHub.
 - Le clone est placé sous le même parent, à la fin de l’ordre manuel ; il reçoit un nouveau numéro (base).
 - Avec `includeSubtasks`, le sous-arbre est copié niveau par niveau sous le clone (les sous-tâches copiées gardent assignés, bénéficiaires, étiquettes et sprints, pas leurs liens de blocage ou de relation).
 - La tâche source peut être archivée (aucune vérification d’archivage) ; l’interface ne propose le clonage que sur les tâches non archivées.
@@ -265,7 +266,7 @@ Source : `bulkUpdateTasks`.
 - Champs : statut, priorité, type, jalon, effort, dates (début, fin, « Date min », « Date max »), ajout / retrait d’assignés, d’étiquettes, de sprints. Omis = inchangé, `null` = vidé.
 - Au moins une tâche, toutes existantes, aucune archivée (sauf annulation).
 - Valeurs archivées : refusées si nouvelles ; celles que l’une des tâches a déjà restent valides pour toutes.
-- Pour chaque tâche : assignés ajoutés parmi les contributeurs de son projet, jalon et sprints de son arborescence, plage de dates valide.
+- Pour chaque tâche : assignés ajoutés parmi les contributeurs de son projet, jalon et sprints de son arborescence, créneau de dates valide.
 - `restoring: true` (annulation d’une action) : accepte les valeurs archivées redonnées et les tâches archivées depuis ; seules ces vérifications sont sautées.
 
 ## Vues enregistrées
@@ -298,4 +299,4 @@ Les contributeurs (`Contributor`) sont gérés dans le module tâches mais leurs
 
 ## Espace PRO / PERSO
 
-Les règles sont les mêmes dans les deux types d’espace, condition de plages comprise (sans condition : n’importe quand, décision D10 ; voir [Agenda](calendar.md)). Toutes les données sont limitées à l’espace courant (`workspaceId`).
+Les règles sont les mêmes dans les deux types d’espace, condition de créneaux comprise (sans condition : n’importe quand, décision D10 ; voir [Agenda](calendar.md)). Toutes les données sont limitées à l’espace courant (`workspaceId`).

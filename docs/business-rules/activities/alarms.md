@@ -76,7 +76,7 @@ Source : `apps/web/src/features/alarms/lib/ring-routines.tsx`.
 
 - Seulement les routines non archivées, dont l’occurrence courante est aujourd’hui, pas encore faites, avec des rappels.
 - Chaque heure du jour non cochée (ou l’unique de la routine) a son moment (`routineAlertTime` : heure de départ, sinon début de la fenêtre, sinon heure limite) ; chaque rappel sonne à « moment − minutes », au plus 6 heures en retard.
-- Pendant un évènement occupant ses assignés, l’alerte est reportée au prochain moment libre (`nextAllowedAt`, 14 jours d’horizon) ; aucun : pas d’alerte. Sa condition de plages garde déjà ses moments aux heures permises ; le défaut de l’espace ne joue plus (décision D10).
+- Pendant un évènement occupant ses assignés, l’alerte est reportée au prochain moment libre (`nextAllowedAt`, 14 jours d’horizon) ; aucun : pas d’alerte. Sa condition de créneaux garde déjà ses moments aux heures permises ; le défaut de l’espace ne joue plus (décision D10).
 - Action « Marquer comme faite » : coche cette heure du jour de la routine. Voir [Règles des routines](routines.md).
 
 ## Sonnerie

@@ -30,7 +30,7 @@ export interface SlotChoices {
   kinds: Choice[];
   /** Schedules kept out of the free time: those of the workspace. */
   freeTime: Choice[];
-  /** Schedules and kinds together (the « Plages » column of the tables). */
+  /** Schedules and kinds together (the « Créneaux » column of the tables). */
   all: Choice[];
   /** Name of every schedule and kind, archived ones too, by id or kind reference. */
   names: Map<string, string>;

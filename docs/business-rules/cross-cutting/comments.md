@@ -32,7 +32,7 @@ Chaque `Comment` a exactement une cible. Types de cible (enum GraphQL `CommentTa
 | ------------------- | -------------------- | ------------------------------------- |
 | `ROUTINE`           | `routineId`          | la routine                            |
 | `EVENT`             | `eventId`            | l’évènement                           |
-| `SCHEDULE`          | `scheduleId`         | l’horaire (plages de travail)         |
+| `SCHEDULE`          | `scheduleId`         | l’horaire (créneaux de travail)         |
 | `TIME_ENTRY`        | `timeEntryId`        | aucun                                 |
 | `SHOPPING_LIST`     | `shoppingListId`     | la liste                              |
 | `SHOPPING_PRODUCT`  | `shoppingProductId`  | le produit                            |

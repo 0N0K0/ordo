@@ -21,7 +21,7 @@ Voir aussi : [dates](../../shared/cross-cutting/dates.md), [calendar](../../shar
 ## Début et fin
 
 - Règle unique (décision Q) : la fin suit le début (égale permise), sinon « La fin doit suivre le début. » sous le champ de fin. Une borne absente est toujours acceptée (`endsAfter`, `endAfter`).
-- Strictement après pour les heures d'une tranche (plages horaires, moments de routine).
+- Strictement après pour les heures d'une tranche (créneaux, moments de routine).
 - Modification partielle : `assertDateRange` fusionne les jours envoyés avec ceux enregistrés (un jour omis est inchangé) avant de vérifier.
 - Variantes de message : « L’échéance doit suivre la date du document. », « La fin de la répétition doit suivre le début. ».
 
@@ -44,7 +44,7 @@ Filtres, formulaires d'export et graphiques (`filterDay`, `filterPeriod`, `calen
 
 ## Répétitions
 
-Une seule forme de répétition (`recurrenceSchema`) pour les événements, les alarmes, les mouvements prévus de trésorerie, les factures récurrentes, les plages horaires et les routines.
+Une seule forme de répétition (`recurrenceSchema`) pour les événements, les alarmes, les mouvements prévus de trésorerie, les factures récurrentes, les créneaux et les routines.
 
 - Fréquences : quotidienne, hebdomadaire, mensuelle, annuelle, tous les N (1 à 999).
 - Hebdomadaire : jours choisis (vide : le jour de la première date), ou semaines ISO paires / impaires.
@@ -57,11 +57,11 @@ Une seule forme de répétition (`recurrenceSchema`) pour les événements, les 
 
 ### Portée d'une modification
 
-Événements répétés et plages horaires : `THIS` (cette occurrence : une exception), `FOLLOWING` (celle-ci et les suivantes : la série est coupée la veille et une nouvelle suit), `ALL` (toute la série). Voir [Calendrier](../activities/calendar.md).
+Événements répétés et créneaux : `THIS` (cette occurrence : une exception), `FOLLOWING` (celle-ci et les suivantes : la série est coupée la veille et une nouvelle suit), `ALL` (toute la série). Voir [Calendrier](../activities/calendar.md).
 
 ### Répétition par cas
 
-Tâches répétées, plages horaires et routines peuvent combiner plusieurs **cas** (1 à 20), chacun avec sa période (`since`, `until`), sa règle et ses horaires (voir [dates](../../shared/cross-cutting/dates.md), `repetition.ts`). Les jours d'occurrence sont l'union des débuts d'occurrence des cas, moins les jours supprimés (qui ne sont plus recréés).
+Tâches répétées, créneaux et routines peuvent combiner plusieurs **cas** (1 à 20), chacun avec sa période (`since`, `until`), sa règle et ses horaires (voir [dates](../../shared/cross-cutting/dates.md), `repetition.ts`). Les jours d'occurrence sont l'union des débuts d'occurrence des cas, moins les jours supprimés (qui ne sont plus recréés).
 
 ### Fuseaux
 

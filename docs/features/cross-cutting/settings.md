@@ -92,10 +92,10 @@ Page `/calendar`. Voir [Agenda](../activities/calendar.md).
 
 | Onglet                  | Ce qu’il gère                                                                                                                                                                                                                                                                                                                           |
 | ----------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| « Affichage et export » | « Affichage » : calendriers et plages affichés ou masqués, « Aussi dans l’agenda » (Tâches, Routines, plages, Chronos, archivés), « Heures (semaine, jour) » « Par 5 minutes » (sinon par 30). « Exporter » : « Vue en PDF » et l’export ICS des calendriers.                                                                           |
-| « Paramètres »          | « Calendriers » et « Calendriers des autres espaces » (abonnements en lecture seule), « Catégories d’agenda » (arborescence ; filtrer sur une catégorie inclut ses sous-catégories), « Plages sans type », « Types de plages » (couleur et affichage), « Plages des autres espaces » (abonnement à un type de plage d’un autre espace). |
+| « Affichage et export » | « Affichage » : calendriers et créneaux affichés ou masqués, « Aussi dans l’agenda » (Tâches, Routines, créneaux, Chronos, archivés), « Heures (semaine, jour) » « Par 5 minutes » (sinon par 30). « Exporter » : « Vue en PDF » et l’export ICS des calendriers.                                                                           |
+| « Paramètres »          | « Calendriers » et « Calendriers des autres espaces » (abonnements en lecture seule), « Catégories d’agenda » (arborescence ; filtrer sur une catégorie inclut ses sous-catégories), « Créneaux sans type », « Types de créneaux » (couleur et affichage), « Créneaux des autres espaces » (abonnement à un type de créneau d’un autre espace). |
 
-Les plages elles-mêmes se gèrent par un bouton de la page, pas dans le panneau.
+Les créneaux eux-mêmes se gèrent par un bouton de la page, pas dans le panneau.
 
 ### Mails — « Paramètres des mails »
 

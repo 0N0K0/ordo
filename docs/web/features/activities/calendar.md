@@ -6,12 +6,12 @@ Référence de chaque fichier de `apps/web/src/features/calendar/` (api, pages, 
 
 ### `api/index.ts`
 
-Documents GraphQL (fragment `CalendarEventOccurrenceFields`, requêtes `WorkSchedules`, `ForeignScheduleKinds`, `SubscribedWorkSchedules`, `CalendarCategories`, `CalendarEvents`, `Calendars`, `SubscribableCalendars`, `SubscribedCalendarEvents`, mutations des calendriers, catégories, évènements, plages, types de plages, abonnements) et hooks TanStack Query. Toutes les mutations passent par `useCalendarMutation` (interne) : `useInvalidatingMutation` qui invalide `calendarQueryKey`, et les requêtes `also` données (`tasksQueryKey` pour `update` et `postpone` des évènements : un changement de projet y rattache les contributeurs).
+Documents GraphQL (fragment `CalendarEventOccurrenceFields`, requêtes `WorkSchedules`, `ForeignScheduleKinds`, `SubscribedWorkSchedules`, `CalendarCategories`, `CalendarEvents`, `Calendars`, `SubscribableCalendars`, `SubscribedCalendarEvents`, mutations des calendriers, catégories, évènements, créneaux, types de créneaux, abonnements) et hooks TanStack Query. Toutes les mutations passent par `useCalendarMutation` (interne) : `useInvalidatingMutation` qui invalide `calendarQueryKey`, et les requêtes `also` données (`tasksQueryKey` pour `update` et `postpone` des évènements : un changement de projet y rattache les contributeurs).
 
 | Export                                                             | Rôle                                                                                                                                                                       | Utilisé par                                                                       |
 | ------------------------------------------------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------- |
 | `EventOccurrence` (type)                                           | Occurrence d’évènement (fragment)                                                                                                                                          | partout : agenda, tâches, temps, accueil, alarmes                                 |
-| `WorkSchedule`, `ScheduleType` (types)                             | Plage et type de plage (requête `WorkSchedules`)                                                                                                                           | gestionnaires, `calendar-events.ts`                                               |
+| `WorkSchedule`, `ScheduleType` (types)                             | Créneau et type de créneau (requête `WorkSchedules`)                                                                                                                           | gestionnaires, `calendar-events.ts`                                               |
 | `CalendarEventInput`, `CalendarEventScope` (types réexportés)      | Entrée d’évènement, portée                                                                                                                                                 | formulaires, cellules d’évènements des tâches                                     |
 | `calendarQueryKey`                                                 | Clé racine `['calendar']` de toutes les requêtes de l’agenda                                                                                                               | invalidations, `useSetArchived`                                                   |
 | `CalendarCategory` (type)                                          | Catégorie d’agenda                                                                                                                                                         | `use-settings-items`, formulaires                                                 |
@@ -25,15 +25,15 @@ Documents GraphQL (fragment `CalendarEventOccurrenceFields`, requêtes `WorkSche
 | `useCalendarMutations()`                                           | `create`, `update`, `remove`, `subscribe`, `unsubscribe` des calendriers                                                                                                   | `CalendarsManager`                                                                |
 | `useCalendarCategoryMutations()`                                   | `create`, `update`, `remove`, `move` des catégories                                                                                                                        | `CalendarCategoriesManager`, `use-settings-items`                                 |
 | `useCalendarEventMutations()`                                      | `create`, `update` (id, input, scope, occurrenceDate), `remove`, `setCalledOff`, `postpone`                                                                                | `CalendarPage`, `EventForm`, cellules d’évènements des tâches                     |
-| `useWorkSchedules()`                                               | Plages (sélection de `WorkSchedules`)                                                                                                                                      | gestionnaires, `AvailabilityHint`, routines, tâches, temps                        |
-| `useScheduleTypes()`                                               | Types de plages (même requête)                                                                                                                                             | gestionnaires, `useScheduleSources`                                               |
-| `useDefaultScheduleKind()`                                         | Type par défaut (plages sans type)                                                                                                                                         | `ScheduleSettings`, `WorkSchedulesManager`                                        |
+| `useWorkSchedules()`                                               | Créneaux (sélection de `WorkSchedules`)                                                                                                                                      | gestionnaires, `AvailabilityHint`, routines, tâches, temps                        |
+| `useScheduleTypes()`                                               | Types de créneaux (même requête)                                                                                                                                             | gestionnaires, `useScheduleSources`                                               |
+| `useDefaultScheduleKind()`                                         | Type par défaut (créneaux sans type)                                                                                                                                         | `ScheduleSettings`, `WorkSchedulesManager`                                        |
 | `useForeignScheduleKinds()`                                        | Types des autres espaces avec abonnement et `archived`                                                                                                                      | `ScheduleSettings`, `useSlotSources`                                              |
-| `useOtherWorkspaceSchedules()`                                     | Toutes les plages des autres espaces de l’utilisateur, archivées comprises (`otherWorkspaceSchedules`), abonné ou non                                                      | `useSlotSources`                                                                  |
-| `useSubscribedSchedules()`                                         | Plages des types abonnés                                                                                                                                                   | `useScheduleSources`, routines                                                    |
+| `useOtherWorkspaceSchedules()`                                     | Tous les créneaux des autres espaces de l’utilisateur, archivés compris (`otherWorkspaceSchedules`), abonné ou non                                                      | `useSlotSources`                                                                  |
+| `useSubscribedSchedules()`                                         | Créneaux des types abonnés                                                                                                                                                   | `useScheduleSources`, routines                                                    |
 | `useScheduleSources()`                                             | `{ schedules, foreign, types, defaultKind }` (undefined pendant le chargement)                                                                                             | `CalendarPage`, `RoutineDayAgenda`                                                |
-| `useWorkScheduleMutations()`                                       | `create`, `update`, `remove` des plages ; `createType`, `updateType`, `removeType` ; `subscribe`, `unsubscribe`, `setLook` des abonnements ; `saveDefaultKind`             | gestionnaires, `calendar-edits`, `use-settings-items`                             |
-| `scheduleRules(schedules)`                                         | Plages (de l’espace ou abonnées) en `WorkScheduleRule` (cas et exceptions validés, invalides ignorés)                                                                      | `AvailabilityHint`, `useSlotRules`, `calendar-events.ts`, `PlannedTime` (temps)   |
+| `useWorkScheduleMutations()`                                       | `create`, `update`, `remove` des créneaux ; `createType`, `updateType`, `removeType` ; `subscribe`, `unsubscribe`, `setLook` des abonnements ; `saveDefaultKind`             | gestionnaires, `calendar-edits`, `use-settings-items`                             |
+| `scheduleRules(schedules)`                                         | Créneaux (de l’espace ou abonnés) en `WorkScheduleRule` (cas et exceptions validés, invalides ignorés)                                                                      | `AvailabilityHint`, `useSlotRules`, `calendar-events.ts`, `PlannedTime` (temps)   |
 | `calendarIcsUrl(calendarId)`                                       | Adresse `/api/exports/calendar.ics[?calendar=…]`                                                                                                                           | `CalendarsManager`, `CalendarsIcsButton`                                          |
 
 Interne : `fetchCategories`, `occurrencesOf(data, includeArchived)` (filtre des archivées via `archivedIds`/`unarchived`), `useCalendarMutation`.
@@ -47,11 +47,11 @@ Interne : `fetchCategories`, `occurrencesOf(data, includeArchived)` (filtre des 
 - État : vue (`useLocalStorage` `ordo.calendar.view`, défaut `timeGridWeek`), filtres (`ordo.calendar.filters`, type interne `Filters` : `tasks`, `routines`, `workHours`, `timers`, `hiddenCalendarIds`, `hiddenScheduleIds`, `fineSlots`, `archived`), dépliage de la ligne journée entière (`ordo.calendar.allDayExpanded`), période (`range`), titre, mode `editingSlots`.
 - Paramètre `?date=` : `gotoDate` puis retiré (`useSetParams`).
 - Effets : `materialize.mutate(range)` à chaque période ; `changeView` à chaque vue.
-- `items` (mémo) : construit les `EventInput` FullCalendar, chacun avec `extendedProps.kind` : `event`, `travel`, `subscribed`, `time`, `editSlot`, `slot` (bandeau), fonds de plages (sans kind, `display: 'background'`, `slotLane`, `slotColumn`/`slotColumns`), `task` (`part` : `dates`, `open`, `deadline`), `routine`, `routineTravel`. Utilise `occurrenceSpan`, `isArchivedOccurrence`, `scheduleSources`, `slotBarLook`, `slotColumns`, `taskPlacement`, `placeRoutineBlocks`, `manualOrder` (routines), `entryEventKey`/`entrySubject` (temps), `taggedKey`.
-- `handleChange(info)` (interne) : glisser/étirer selon le kind (plage → `edits.changeSlot`, routine → `edits.changeRoutine`, tâche → `useUpdateTask`, évènement → `askScope` puis `update`) ; `revert()` en cas d’annulation ou d’erreur.
-- `select` : ouvre `useEventForm` pré-rempli ; `eventClick` : selon le kind (tâche → `useTaskLink`, temps → `useTimeEntryDialogs`, abonné → `SubscribedEvent` dans `openFormPanel`, plage → `edits.openSlot`, routine → `edits.openRoutine`, sinon `EventForm`).
+- `items` (mémo) : construit les `EventInput` FullCalendar, chacun avec `extendedProps.kind` : `event`, `travel`, `subscribed`, `time`, `editSlot`, `slot` (bandeau), fonds de créneaux (sans kind, `display: 'background'`, `slotLane`, `slotColumn`/`slotColumns`), `task` (`part` : `dates`, `open`, `deadline`), `routine`, `routineTravel`. Utilise `occurrenceSpan`, `isArchivedOccurrence`, `scheduleSources`, `slotBarLook`, `slotColumns`, `taskPlacement`, `placeRoutineBlocks`, `manualOrder` (routines), `entryEventKey`/`entrySubject` (temps), `taggedKey`.
+- `handleChange(info)` (interne) : glisser/étirer selon le kind (créneau → `edits.changeSlot`, routine → `edits.changeRoutine`, tâche → `useUpdateTask`, évènement → `askScope` puis `update`) ; `revert()` en cas d’annulation ou d’erreur.
+- `select` : ouvre `useEventForm` pré-rempli ; `eventClick` : selon le kind (tâche → `useTaskLink`, temps → `useTimeEntryDialogs`, abonné → `SubscribedEvent` dans `openFormPanel`, créneau → `edits.openSlot`, routine → `edits.openRoutine`, sinon `EventForm`).
 - `eventDidMount` : variables CSS `--slot-lane`, `--slot-column`, `--slot-columns`.
-- Paramètres : `PageSettings` « Paramètres de l’agenda » avec `SettingsTabs` (`SETTINGS_TABS` = `display`, `settings`, `useSettingsTab`) : `HiddenChecklist` (calendriers, plages), interrupteurs, `ShowArchivedSwitch`, export PDF (`useAsyncAction` + `downloadCalendarPdf(pdfItems(items, classes.closed))`), `CalendarsIcsButton` ; `CalendarsManager`, `CalendarCategoriesManager`, `ScheduleSettings`.
+- Paramètres : `PageSettings` « Paramètres de l’agenda » avec `SettingsTabs` (`SETTINGS_TABS` = `display`, `settings`, `useSettingsTab`) : `HiddenChecklist` (calendriers, créneaux), interrupteurs, `ShowArchivedSwitch`, export PDF (`useAsyncAction` + `downloadCalendarPdf(pdfItems(items, classes.closed))`), `CalendarsIcsButton` ; `CalendarsManager`, `CalendarCategoriesManager`, `ScheduleSettings`.
 - Constantes internes : `VIEWS`, `DEFAULT_COLOR`, `LATE_BORDER` (couleur de retard `LATE_COLOR`, décision DC), `ALL_DAY_ROWS` = 2 ; semaine `timeGridWeek` de `weekLength(currentWeek())` jours, `firstDay` = `pickerFirstDay(week)`.
 
 ### `pages/CalendarPage.module.css`
@@ -73,7 +73,7 @@ Classes de la page et de FullCalendar : `fill` (semaine/jour pleine hauteur), `c
 
 ### `components/AvailabilityHint.tsx`
 
-`AvailabilityHint({ allDay, startDate, startTime, endDate, endTime })` : avertissement (`NoticeAlert`) quand un évènement à heures d’un jour sort des plages de l’espace (PRO seulement) ; utilise `plannedSlots`, `withinSlots`, `plannedPauses`. Utilisé par `EventForm`, `PostponeForm`.
+`AvailabilityHint({ allDay, startDate, startTime, endDate, endTime })` : avertissement (`NoticeAlert`) quand un évènement à heures d’un jour sort des créneaux de l’espace (PRO seulement) ; utilise `plannedSlots`, `withinSlots`, `plannedPauses`. Utilisé par `EventForm`, `PostponeForm`.
 
 ### `components/ScopeChoices.tsx`
 
@@ -82,7 +82,7 @@ Classes de la page et de FullCalendar : `fill` (semaine/jour pleine hauteur), `c
 
 ### `components/CalendarEditForms.tsx`
 
-- `SlotEditForm({ label, slot, onSave, onDelete, onClose })` : jour, journée entière, heures (`rangeProps`) d’un créneau de plage ; supprimer.
+- `SlotEditForm({ label, slot, onSave, onDelete, onClose })` : jour, journée entière, heures (`rangeProps`) des horaires d’un créneau un jour donné ; supprimer.
 - `RoutineOccurrenceForm({ occurrence, onSave, onDelete, onClose })` : jour (pas avant le début de la routine), « À partir de », « Avant » (`rangeProps`, `rangeError`) d’une occurrence de routine ; supprimer ; « Ouvrir la routine » (`openRoutineForm`).
 
 Utilisés par `useCalendarEdits`.
@@ -103,7 +103,7 @@ Utilisés par `useCalendarEdits`.
 
 ### `components/SubscriptionRow.tsx`
 
-`SubscriptionRow({ label, color, workspaceLabel, hint?, subscribed, onChange, actions?, pl? })` : ligne avatar + libellé + interrupteur « Abonné » d’un élément d’un autre espace (calendrier, type de plage). Utilisé par `CalendarsManager`, `ScheduleSettings`.
+`SubscriptionRow({ label, color, workspaceLabel, hint?, subscribed, onChange, actions?, pl? })` : ligne avatar + libellé + interrupteur « Abonné » d’un élément d’un autre espace (calendrier, type de créneau). Utilisé par `CalendarsManager`, `ScheduleSettings`.
 
 ### `components/ByWorkspace.tsx`
 
@@ -131,13 +131,13 @@ Utilisés par `ScheduleSettings`.
 ### `components/ScheduleSettings.tsx`
 
 - `ScheduleSettings()` : `DefaultScheduleKind` + `ScheduleTypes` + `ForeignSchedules`. Utilisé par `CalendarPage`.
-- Interne `DefaultScheduleKind()` : couleur (`ColorField`), libellé (badge « Par défaut »), affichage des plages sans type (`saveDefaultKind`).
+- Interne `DefaultScheduleKind()` : couleur (`ColorField`), libellé (badge « Par défaut »), affichage des créneaux sans type (`saveDefaultKind`).
 - Interne `ScheduleTypes()` : `SettingsList` des types (`useScheduleTypeItems`, `removeType`).
-- Interne `ForeignSchedules()` : abonnements aux types des autres espaces (`ByWorkspace`, `SubscriptionRow`, `LookToggle`/`LookPanel`, `setLook`, « Reprendre ceux du type ») ; rien sans autre espace ayant des plages.
+- Interne `ForeignSchedules()` : abonnements aux types des autres espaces (`ByWorkspace`, `SubscriptionRow`, `LookToggle`/`LookPanel`, `setLook`, « Reprendre ceux du type ») ; rien sans autre espace ayant des créneaux.
 
 ### `components/ScheduleRepetition.tsx`
 
-- `ScheduleRepetition({ value, onChange, error? })` : champ « Période et horaires » d’une plage (`RepetitionField`), résumé (`describeScheduleCase`, `exceptionPeriod`). Utilisé par `ScheduleForm` (`WorkSchedulesManager`).
+- `ScheduleRepetition({ value, onChange, error? })` : champ « Période et horaires » d’un créneau (`RepetitionField`), résumé (`describeScheduleCase`, `exceptionPeriod`). Utilisé par `ScheduleForm` (`WorkSchedulesManager`).
 - Interne `ScheduleRepetitionEditor({ draft, setDraft })` : période (`dateRangeProps`), cas, exceptions (dates, motif, pause, cas propres).
 - Interne `ScheduleCases({ cases, onChange, start })` : `RepetitionEditor` commun (modes `RULE`/`CASES`, `multiple`, `DURATION_UNITS`, `SCHEDULE_TIMES`).
 - Interne `ScheduleTimesFields({ value, onChange, index })` : journée entière ou tranches horaires (`rangeProps`), « Ajouter des horaires » (propose 14:00–18:00 après une matinée).
@@ -145,7 +145,7 @@ Utilisés par `ScheduleSettings`.
 
 ### `components/WorkSchedulesManager.tsx`
 
-- `WorkSchedulesManager()` : gestionnaire des plages (panneau ouvert par `CalendarPage`) : `SectionHeader` (description PRO/PERSO), « Nouvelles plages », `DataTable` (`useDataView` clé `work-schedules`, colonnes `label`, `type`, `start`, `end`, `hours`, `state`, `commentColumn`), cellules éditables (`EditableText`, `EditableSelect`, `EditableDate`, `followBounds` décision Q), édition groupée (`bulkSaver`, `bulkCellLabels`), sélection (`archiveRowsAction`, `deleteItemsAction`), `RowActions` (modifier, dupliquer, archiver `archiveEntry`, supprimer). Lignes archivées en lecture seule (`readOnlyCells`).
+- `WorkSchedulesManager()` : gestionnaire des créneaux (panneau ouvert par `CalendarPage`) : `SectionHeader` (description PRO/PERSO), « Nouveaux créneaux », `DataTable` (`useDataView` clé `work-schedules`, colonnes `label`, `type`, `start`, `end`, `hours`, `state`, `commentColumn`), cellules éditables (`EditableText`, `EditableSelect`, `EditableDate`, `followBounds` décision Q), édition groupée (`bulkSaver`, `bulkCellLabels`), sélection (`archiveRowsAction`, `deleteItemsAction`), `RowActions` (modifier, dupliquer, archiver `archiveEntry`, supprimer). Lignes archivées en lecture seule (`readOnlyCells`).
 - Interne `ScheduleForm({ schedule?, copyOf?, onDone })` : formulaire (`workScheduleSchema`) : libellé, type (`CreatableSelect` + `itemCreator`), `ScheduleRepetition`, `Comments` (`SCHEDULE`).
 - Interne `scheduleState(schedule, today)` : `CURRENT`/`UPCOMING`/`PAST` (`periodState`).
 - Interne `ScheduleHours({ schedule })` : une ligne par cas.
@@ -154,7 +154,7 @@ Utilisés par `ScheduleSettings`.
 
 ### `components/SlotConditionBuilder.tsx`
 
-`SlotConditionBuilder({ value, onChange, item })` : le champ « Plages de l’agenda » des tâches et des routines (une seule brique, décision D9), construit avec `FieldsFilterBuilder` : champs « Créneau » (`schedules` : « sur l’un des créneaux », « hors des créneaux »), « Type de créneau » (`kinds` : « sur l’un des types », « hors des types ») et « Temps libre » (`freeTime` : « hors de tous les créneaux », « hors de tous les créneaux sauf ») ; un groupe vide renvoie `null` (« Aucune condition : à n’importe quelle heure. »). Les plages et types des autres espaces de l’utilisateur sont proposés avec leur espace (« Sport · Perso ») ; les exceptions du temps libre sont des plages de l’espace. Plages et types archivés non proposés sauf ceux déjà dans la condition (`useSlotChoices`). `item` (`routine` ou `task`) choisit la phrase qui dit l’effet de la condition (constante interne `EFFECTS`, avec `OPERATOR_LABELS`). Utilisé par `RoutineSchedule` (routines, et chacun de leurs cas), `TaskPanel`, `TaskCreateForm`, `SlotsCell` (tâches). Déplacé de `features/routines/components`. `SlotRuleInput` (règle par types de plages) est supprimé.
+`SlotConditionBuilder({ value, onChange, item })` : le champ « Créneaux de l’agenda » des tâches et des routines (une seule brique, décision D9), construit avec `FieldsFilterBuilder` : champs « Créneau » (`schedules` : « sur l’un des créneaux », « hors des créneaux »), « Type de créneau » (`kinds` : « sur l’un des types », « hors des types ») et « Temps libre » (`freeTime` : « hors de tous les créneaux », « hors de tous les créneaux sauf ») ; un groupe vide renvoie `null` (« Aucune condition : à n’importe quelle heure. »). Les créneaux et types des autres espaces de l’utilisateur sont proposés avec leur espace (« Sport · Perso ») ; les exceptions du temps libre sont des créneaux de l’espace. Créneaux et types archivés non proposés sauf ceux déjà dans la condition (`useSlotChoices`). `item` (`routine` ou `task`) choisit la phrase qui dit l’effet de la condition (constante interne `EFFECTS`, avec `OPERATOR_LABELS`). Utilisé par `RoutineSchedule` (routines, et chacun de leurs cas), `TaskPanel`, `TaskCreateForm`, `SlotsCell` (tâches). Déplacé de `features/routines/components`. `SlotRuleInput` (règle par types de créneaux) est supprimé.
 
 ## hooks
 
@@ -183,12 +183,12 @@ Utilisés par `ScheduleSettings`.
 - `Doable` (interface) : `slotCondition?`, `assigneeIds`, `taskId`, `routineId`.
 - `routineDoable(routine)` : une routine en `Doable`, sans condition (sa condition garde déjà ses moments) : seuls les évènements qui occupent ses assignés comptent. Utilisé par `AlarmCenter`, `RoutinesPage`, `LifeCards` (accueil), temps.
 - `SlotRules` (interface) : `allowed`, `inSlots`, `blocking`, `nextAllowedAt`, `describe` (condition en mots, `describeSlotCondition` ; `null` sans condition).
-- `useSlotRules()` : conditions de plages de l’espace, les mêmes pour tâches et routines, recalculées chaque minute (`useNow`) : plages et types de l’espace et des autres espaces de l’utilisateur, archivés compris, comme l’API (`useSlotSources`, `scheduleSlotsOn`, `conditionAllowsAt`, `nextConditionMoment`), occupation par les évènements (`blockingEvent`, `meId`), prochain moment permis (20 tours max, `busyUntil`). Sans condition : n’importe quand, en PRO comme en PERSO (décision D10). Utilisé par `AlarmCenter`, temps (`features/time/api`), routines, accueil, cellules des tâches.
+- `useSlotRules()` : conditions de créneaux de l’espace, les mêmes pour tâches et routines, recalculées chaque minute (`useNow`) : créneaux et types de l’espace et des autres espaces de l’utilisateur, archivés compris, comme l’API (`useSlotSources`, `scheduleSlotsOn`, `conditionAllowsAt`, `nextConditionMoment`), occupation par les évènements (`blockingEvent`, `meId`), prochain moment permis (20 tours max, `busyUntil`). Sans condition : n’importe quand, en PRO comme en PERSO (décision D10). Utilisé par `AlarmCenter`, temps (`features/time/api`), routines, accueil, cellules des tâches.
 - Constante interne `LOOKAHEAD_DAYS` = 14.
 
 ### `hooks/use-slot-sources.ts`
 
-- `useSlotSources()` : ce qu’une condition de plages cite et sur quoi elle s’évalue : plages, types et type par défaut de l’espace (`useWorkSchedules`, `useScheduleTypes`, `useDefaultScheduleKind`), plages et types des autres espaces (`useOtherWorkspaceSchedules`, `useForeignScheduleKinds`). Utilisé par `useSlotRules`.
+- `useSlotSources()` : ce qu’une condition de créneaux cite et sur quoi elle s’évalue : créneaux, types et type par défaut de l’espace (`useWorkSchedules`, `useScheduleTypes`, `useDefaultScheduleKind`), créneaux et types des autres espaces (`useOtherWorkspaceSchedules`, `useForeignScheduleKinds`). Utilisé par `useSlotRules`.
 - `useSlotChoices(keep?)` : `slotChoices` sur ces sources. Utilisé par `SlotConditionBuilder`, les routines (`routine-cells`, `RoutinesPage`, `RoutineSchedule`) et `use-task-columns` (tâches).
 
 ## lib
@@ -207,13 +207,13 @@ Utilisés par `ScheduleSettings`.
 - `occurrenceSpan(occurrence)` : début/fin FullCalendar (fin exclusive en journée entière). Utilisé par `CalendarPage`, `RoutineDayAgenda`.
 - `isArchivedOccurrence(occurrence, archivedCalendarIds)` : archivée par son évènement ou son calendrier.
 - `scheduleLayerLabel(label, type, workspace?)` : « Libellé (Type) · Espace ». Utilisé ici et par `use-agenda-layers` (routines).
-- `scheduleSources(own, foreign, types, defaultKind)` : plages de l’espace puis abonnées, avec règle, couleur, libellé, `foreign`, affichage. Utilisé par `CalendarPage`, `RoutineDayAgenda`.
-- `slotBarLook({ color, foreign })` : apparence du bandeau d’une plage. Utilisé par `CalendarPage`, `RoutineDayAgenda`.
+- `scheduleSources(own, foreign, types, defaultKind)` : créneaux de l’espace puis abonnés, avec règle, couleur, libellé, `foreign`, affichage. Utilisé par `CalendarPage`, `RoutineDayAgenda`.
+- `slotBarLook({ color, foreign })` : apparence du bandeau d’un créneau. Utilisé par `CalendarPage`, `RoutineDayAgenda`.
 - Types internes `ForeignSchedule`, `DefaultKind`, `ScheduleSource`.
 
 ### `lib/calendar-pdf.ts`
 
-- `pdfItems(items, closedClass)` : éléments FullCalendar en éléments du PDF (dates locales, fins journée entière incluses, couleurs résolues ; bandeaux et trajets exclus ; fonds et plages éditées en `work`).
+- `pdfItems(items, closedClass)` : éléments FullCalendar en éléments du PDF (dates locales, fins journée entière incluses, couleurs résolues ; bandeaux et trajets exclus ; fonds et créneaux édités en `work`).
 - `downloadCalendarPdf(view)` : `postExport('/api/exports/calendar.pdf', …)`, fichier « Agenda — <titre>.pdf ».
 - Internes : types `PdfKind`, `PdfItem`, `hexColor(color, fallback)` (couleur CSS calculée en `#rrggbb`), `localDateTime(value)`.
 
@@ -241,11 +241,11 @@ Utilisés par `ScheduleSettings`.
 
 ### `lib/slot-columns.ts`
 
-`slotColumns(slots)` : découpe les créneaux en fond d’un jour là où les créneaux simultanés changent, chaque morceau avec sa colonne et le nombre de colonnes. Types internes `DaySlot`, `SlotPart`. Utilisé par `CalendarPage`.
+`slotColumns(slots)` : découpe les horaires en fond d’un jour là où les horaires simultanés changent, chaque morceau avec sa colonne et le nombre de colonnes. Types internes `DaySlot`, `SlotPart`. Utilisé par `CalendarPage`.
 
 ### `lib/schedule-text.ts`
 
-- `schedulesTitle(perso)` : « Plages » / « Plages de travail » (brique imposée par une règle eslint). Utilisé par `CalendarPage`, `WorkSchedulesManager`, `PlannedTime` (temps).
+- `schedulesTitle(perso)` : « Créneaux » / « Créneaux de travail » (brique imposée par une règle eslint). Utilisé par `CalendarPage`, `WorkSchedulesManager`, `PlannedTime` (temps).
 - `describeScheduleTimes(times)` : « journée entière », « 09:00–12:30, 14:00–18:00 ».
 - `defaultScheduleTimes()` : 09:00–17:00.
 - `newScheduleCase(start)` : lundi–vendredi 09:00–17:00.
@@ -254,9 +254,9 @@ Utilisés par `ScheduleSettings`.
 
 ### `lib/slot-choices.ts`
 
-- `SlotSources` (interface) : plages, types et type par défaut de l’espace, plages et types des autres espaces.
-- `SlotChoices` (interface) : options par champ (`schedules`, `kinds`, `freeTime`), `all` (plages et types, colonne « Plages » des tableaux) et `names` (nom de chaque plage et type, archivés compris).
-- `slotChoices(sources, keep?)` : ce qu’une condition propose (archivés exclus sauf gardés) ; plages et types des autres espaces nommés avec leur espace (`inWorkspace`) ; le type par défaut de l’espace d’abord. Remplace `scheduleChoices`.
+- `SlotSources` (interface) : créneaux, types et type par défaut de l’espace, créneaux et types des autres espaces.
+- `SlotChoices` (interface) : options par champ (`schedules`, `kinds`, `freeTime`), `all` (créneaux et types, colonne « Créneaux » des tableaux) et `names` (nom de chaque créneau et type, archivés compris).
+- `slotChoices(sources, keep?)` : ce qu’une condition propose (archivés exclus sauf gardés) ; créneaux et types des autres espaces nommés avec leur espace (`inWorkspace`) ; le type par défaut de l’espace d’abord. Remplace `scheduleChoices`.
 
 ### `lib/slot-condition-text.ts`
 

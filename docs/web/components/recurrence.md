@@ -1,12 +1,12 @@
 # Répétitions : règles, cas, durées
 
-L'éditeur commun des répétitions (évènements, plages, routines, alarmes, trésorerie, facturation) : une règle, ou plusieurs cas avec leur période ; durée de chaque occurrence ; pauses et dates supprimées ; résumé en mots. Source : `apps/web/src/components/recurrence/`. Le modèle (`Recurrence`, `RepetitionCase`, `Duration`, `ruleValues`, libellés des jours et mois) vient de `@ordo/shared` : voir [Partagé : dates](../../shared/cross-cutting/dates.md) et [Règles : dates](../../business-rules/cross-cutting/dates.md).
+L'éditeur commun des répétitions (évènements, créneaux, routines, alarmes, trésorerie, facturation) : une règle, ou plusieurs cas avec leur période ; durée de chaque occurrence ; pauses et dates supprimées ; résumé en mots. Source : `apps/web/src/components/recurrence/`. Le modèle (`Recurrence`, `RepetitionCase`, `Duration`, `ruleValues`, libellés des jours et mois) vient de `@ordo/shared` : voir [Partagé : dates](../../shared/cross-cutting/dates.md) et [Règles : dates](../../business-rules/cross-cutting/dates.md).
 
 ## Champ et modale
 
 ### `RepetitionField`
 
-Répétition de ce qu'affiche un panneau : son résumé (une ligne par élément décrit ; rien : « Ne se répète pas ») et un bouton « Modifier » (`secondary`, `xs`) qui ouvre tous les réglages dans une modale, sur un brouillon appliqué par « Appliquer » et abandonné par « Annuler ». Le même champ pour les évènements, plages, routines, alarmes, trésorerie et facturation. Props : `value`, `onChange`, `describe(value)` (lignes), `editor(draft, setDraft)`, `valid(draft)`, `label` (défaut « Répétition »), `description`, `error`, `required`, `editable` (défaut vrai).
+Répétition de ce qu'affiche un panneau : son résumé (une ligne par élément décrit ; rien : « Ne se répète pas ») et un bouton « Modifier » (`secondary`, `xs`) qui ouvre tous les réglages dans une modale, sur un brouillon appliqué par « Appliquer » et abandonné par « Annuler ». Le même champ pour les évènements, créneaux, routines, alarmes, trésorerie et facturation. Props : `value`, `onChange`, `describe(value)` (lignes), `editor(draft, setDraft)`, `valid(draft)`, `label` (défaut « Répétition »), `description`, `error`, `required`, `editable` (défaut vrai).
 
 ### `RepetitionModal`
 
@@ -25,12 +25,12 @@ Tous les réglages d'une répétition, selon ce que l'élément permet. Généri
 - `mode` / `onModeChange` : `'RULE'` (une règle), `'CASES'` (plusieurs cas) ou un mode propre (`RepetitionModeValue`) ;
 - `cases` / `onChange` : les cas (`RepetitionCase<T>` : `since`, `until`, `anchor`, `rule`, `times`) ; un seul en mode règle ;
 - `start` : premier jour de ce qui se répète (les rythmes comptent de lui) ;
-- `multiple` : cas proposés (routines, plages) ;
+- `multiple` : cas proposés (routines, créneaux) ;
 - `weekly` : jours de semaine et semaines paires / impaires proposés (défaut vrai) ;
 - `allowNone` : « Ne se répète pas » proposé (règle seule, défaut vrai) ;
 - `durations` : façons de durer plus d'un jour (`DurationUnit[]`) ;
 - `times` (`RepetitionTimes<T>`) : éditeur et résumé des horaires d'un cas ;
-- `modes` : autres modes (ex. une routine qui suit les plages de l'agenda), chacun avec `value`, `label`, `render` ;
+- `modes` : autres modes (ex. une routine qui suit les créneaux de l'agenda), chacun avec `value`, `label`, `render` ;
 - `footer` : réglages sous tous les modes.
 
 Comportement : choix du mode en `SegmentedControl` (« Une règle », « Plusieurs cas », modes propres) quand il y en a plusieurs ; passer en cas garde la règle comme premier cas ; revenir à une règle garde le premier cas (sans période). En mode cas : cartes `CaseCard` réordonnables par glisser-déposer (`SortableArea`), pliables et retirables quand il y en a plusieurs ; texte « Chaque cas a sa période, ses jours et ses horaires ; un jour pris par plusieurs cas suit le premier (glissez-les pour les réordonner). » ; « Ajouter un cas » (nouveau cas : toutes les semaines depuis le premier jour, déplié). Composant interne `CaseFields` : période « Du » / « Au » (cas seulement, « Dès le début » / « Jusqu'à la fin », changer le début remet l'ancre à zéro), règle, durée, horaires.

@@ -36,7 +36,7 @@ Champs de `taskFormSchema` :
 | `startDate`, `endDate`, `deadline`, `minDate` | Jours facultatifs ; « Date min » : pas avant ce jour.                                                         |
 | `parentId`, `milestoneId`                     | Facultatifs.                                                                                                  |
 | `beneficiaryIds`, `beneficiaryRelationIds`    | « Bénéficiaires » : contributeurs et relations pour qui est la tâche.                                         |
-| `slotCondition`                               | Condition de plages, celle des routines (voir [calendar](calendar.md)) ; `null` : n'importe quand.            |
+| `slotCondition`                               | Condition de créneaux, celle des routines (voir [calendar](calendar.md)) ; `null` : n'importe quand.            |
 
 ## `task-columns.ts` — colonnes, statuts, regroupements
 

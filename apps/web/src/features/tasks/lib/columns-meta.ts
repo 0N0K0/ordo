@@ -15,7 +15,7 @@ export const COLUMN_LABELS: Record<TaskColumn, string> = {
   endDate: 'Fin',
   deadline: 'Date max',
   minDate: 'Date min',
-  slots: 'Plages',
+  slots: 'Créneaux',
   timer: 'Chrono',
   parent: 'Tâche parente',
   subtasks: 'Sous-tâches',

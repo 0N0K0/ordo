@@ -599,7 +599,7 @@ export function changedScheduleSlot(
   scope: ScheduleSlotScope,
 ): { cases: ScheduleCase[]; exceptions: ScheduleException[] } {
   if (change && !change.allDay && change.end <= change.start) throw new Error(END_AFTER_START);
-  if (change && (change.date < schedule.startDate || (schedule.endDate && change.date > schedule.endDate))) throw new Error('Ce jour est en dehors de la période de la plage.');
+  if (change && (change.date < schedule.startDate || (schedule.endDate && change.date > schedule.endDate))) throw new Error('Ce jour est en dehors de la période du créneau.');
   if (scope === 'THIS') {
     const others = daySlots(schedule, slot.date);
     const index = others.findIndex((other) => sameHours(other, slot));
@@ -640,6 +640,6 @@ export function changedScheduleSlot(
   if (exception) {
     return { cases: [...schedule.cases], exceptions: schedule.exceptions.map((other) => (other === exception ? { ...other, cases: nextCases } : other)) };
   }
-  if (!nextCases.length) throw new Error('Ce sont les derniers horaires de la plage : supprimez la plage elle-même.');
+  if (!nextCases.length) throw new Error('Ce sont les derniers horaires du créneau : supprimez le créneau lui-même.');
   return { cases: nextCases, exceptions: [...schedule.exceptions] };
 }

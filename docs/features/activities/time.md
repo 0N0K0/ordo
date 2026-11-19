@@ -29,7 +29,7 @@ Un seul chrono tourne à la fois.
 - Depuis une tâche (colonne « Chrono », panneau de la tâche) : démarre directement sur la tâche et son projet.
 - Depuis une routine ou un évènement : voir [Routines](routines.md) et [Agenda](calendar.md).
 - Si un chrono tourne déjà, il s’arrête et son temps est enregistré (décision Y). Les boutons le disent en info-bulle : « Le chrono en cours s’arrête (son temps est enregistré). ». Toast : « Chrono démarré. » ou « Chrono démarré. Le chrono en cours s’est arrêté. Temps enregistré : 1 h 05. ».
-- Avertissement (toast) « Hors des moments prévus » si la routine ou une tâche est hors de ses plages, ou si ses assignés sont pris par un évènement (autre que celui du chrono) : « Le chrono tourne quand même. Libellé : pendant « Réunion » · … ».
+- Avertissement (toast) « Hors des moments prévus » si la routine ou une tâche est hors de ses créneaux, ou si ses assignés sont pris par un évènement (autre que celui du chrono) : « Le chrono tourne quand même. Libellé : pendant « Réunion » · … ».
 - Bouton désactivé sur un élément archivé ou dans un projet archivé.
 
 ### Pendant qu’il tourne
@@ -93,11 +93,11 @@ Suppression d’un temps : confirmation « Supprimer le temps » : « Ce temps (
 
 ## Prévu et réalisé
 
-En haut de la page « Chronos », **en espace PRO seulement** (en PERSO, les plages ne sont pas des heures de travail), et seulement s’il existe des plages de travail :
+En haut de la page « Chronos », **en espace PRO seulement** (en PERSO, les créneaux ne sont pas des heures de travail), et seulement s’il existe des créneaux de travail :
 
 - jauges « Aujourd’hui » et « Cette semaine » : temps chronométré / temps prévu (orange au-delà de 100 %) ;
 - une barre par jour de la semaine de l’espace (qui peut commencer un autre jour que lundi), info-bulle « 6 h 30 chronométrées sur 7 h 00 prévues » ;
-- note : « Temps prévu par vos plages de travail (Agenda › Plages de travail), hors pauses. » (`schedulesTitle`, voir [Agenda](calendar.md)).
+- note : « Temps prévu par vos créneaux de travail (Agenda › Créneaux de travail), hors pauses. » (`schedulesTitle`, voir [Agenda](calendar.md)).
 - Le chrono en cours compte en direct.
 
 ## Temps passé d’une tâche

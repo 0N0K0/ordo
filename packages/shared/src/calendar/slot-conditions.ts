@@ -25,7 +25,7 @@ export type SlotCondition = FilterGroupOf<SlotConditionField>;
 
 const slotConditionItemSchema = filterConditionSchemaFor(SLOT_CONDITION_FIELDS, {}).refine((condition) => (SLOT_CONDITION_FIELD_OPERATORS[condition.field] ?? []).includes(condition.operator), {
   path: ['operator'],
-  message: 'Sur ou hors des plages.',
+  message: 'Sur ou hors des créneaux.',
 });
 /** Schema of a condition on calendar schedules. */
 export const slotConditionSchema = filterGroupSchemaFor(slotConditionItemSchema);

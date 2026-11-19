@@ -12,6 +12,11 @@ Voir aussi : [core](../../shared/cross-cutting/core.md), [Erreurs](errors.md), [
 - Tout libellé est « trimé » ; un texte facultatif vide est enregistré `null` (`optionalText`).
 - Message de longueur : « 250 caractères maximum. » (texte court), « 500 caractères maximum. » (mention légale), « 4 000 caractères maximum. » (zone de texte), « Texte trop long. » (markdown).
 
+## Mots employés
+
+- Décision DZ : un horaire prévu de l'agenda (`WorkSchedule`) s'appelle partout « créneau » (« un créneau », « Créneaux de travail » en PRO, « Créneaux » en PERSO, « Type de créneau ») ; l'ancien mot (voir décision DZ) n'est plus employé, ni dans l'interface, ni dans les messages de l'API, ni dans la documentation.
+- Les heures d'un créneau un jour donné sont ses « horaires » (« Créneau du 12 novembre » dans le formulaire du jour, « Horaires retirés du créneau. ») ; un intervalle de dates qui n'est pas un créneau est une « période ».
+
 ## Longueurs maximales
 
 Décision DO : une seule taille par sorte de texte, partout dans l'application (`packages/shared/src/core/rules.ts`).
@@ -38,7 +43,7 @@ L'unicité est garantie par la base (contraintes `@@unique` de `schema.prisma`) 
 | Statut de projet, statut de tâche        | l'espace                                                                                                            | « Un statut porte déjà ce libellé. »                                                |
 | Catégorie de projet, catégorie de fiche  | l'espace                                                                                                            | « Une catégorie porte déjà ce libellé. »                                            |
 | Priorité de tâche                        | l'espace                                                                                                            | « Une priorité porte déjà ce libellé. »                                             |
-| Type de tâche, type de plage             | l'espace                                                                                                            | « Un type porte déjà ce libellé. »                                                  |
+| Type de tâche, type de créneau             | l'espace                                                                                                            | « Un type porte déjà ce libellé. »                                                  |
 | Étiquette de tâche                       | l'espace                                                                                                            | « Une étiquette porte déjà ce libellé. »                                            |
 | Statut de suivi de document              | l'espace et sa portée (devis / factures)                                                                            | « Un statut porte déjà ce libellé. »                                                |
 | Drapeau mail                             | l'espace                                                                                                            | « Un drapeau porte déjà ce libellé. »                                               |
@@ -71,7 +76,7 @@ Décision CB : deux noms sont le même nom s'ils ont la même clé `nameKey` : e
 
 ## Copies
 
-`copyName(name)` : « Nom (copie) », le nom coupé si nécessaire pour garder le suffixe dans les 250 caractères. Utilisé pour dupliquer un graphique, une liste de courses, une fiche, une routine, une alarme, un évènement, une vue, une plage.
+`copyName(name)` : « Nom (copie) », le nom coupé si nécessaire pour garder le suffixe dans les 250 caractères. Utilisé pour dupliquer un graphique, une liste de courses, une fiche, une routine, une alarme, un évènement, une vue, un créneau.
 
 ## Textes venus d'ailleurs
 

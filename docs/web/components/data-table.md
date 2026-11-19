@@ -73,7 +73,7 @@ Avec `parentKey`, les lignes s’affichent sous leur parent (un parent non affic
 
 Deux sélections, exclusives :
 
-- **Cellules d’une colonne** (colonnes `bulk`) : Ctrl / ⌘ + clic ajoute ou retire une cellule, Maj + clic sélectionne une plage depuis la dernière, « Sélectionner la colonne » prend toutes les cellules affichées ; un clic simple hors de la sélection ou Échap la quitte.
+- **Cellules d’une colonne** (colonnes `bulk`) : Ctrl / ⌘ + clic ajoute ou retire une cellule, Maj + clic sélectionne les cellules depuis la dernière, « Sélectionner la colonne » prend toutes les cellules affichées ; un clic simple hors de la sélection ou Échap la quitte.
 - **Lignes cochées** (cases à cocher en tête de ligne, présentes dès qu’une colonne est `bulk` ou qu’il y a des `bulkColumns`) : tous les champs `bulk` de ces lignes se modifient ensemble ; elles restent cochées jusqu’à être décochées.
 
 Une modification faite dans une cellule de la sélection s’applique à toutes les lignes sélectionnées (`bulkSaver`, `useEntityCellEdit`), avec le toast « Modification appliquée à N lignes. » (ou le message de la feature, avec annulation). Les listes (étiquettes…) appliquent la différence (`applyDiff`) : ce qui est ajouté est ajouté, ce qui est retiré est retiré, le reste de chaque ligne est gardé. `BulkHint` explique la sélection en cours ; seules les lignes affichées restent sélectionnées.

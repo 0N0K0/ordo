@@ -64,20 +64,20 @@ export async function assertConditionSchedules(conditions: readonly (SlotConditi
   const here = currentWorkspaceId();
   // Schedules: of this workspace or of another one of the user.
   const schedules = ids.length ? await unscopedPrisma.workSchedule.findMany({ where: { id: { in: ids } }, select: { id: true, archivedAt: true } }) : [];
-  if (schedules.length !== ids.length) throw notFound('Plage', FIELD);
+  if (schedules.length !== ids.length) throw notFound('Créneau', FIELD);
   // Kinds: those of this workspace by id (its schedules without kind: always there), those of another one by reference.
   const types = kinds.flatMap((kind) => {
     const workspaceId = foreignSlotKindWorkspace(kind) ?? here;
     const typeId = workspaceId === here ? kind : kind.slice(foreignSlotKind(workspaceId, '').length);
     return typeId === DEFAULT_SLOT_KIND ? [] : [{ kind, workspaceId, typeId }];
   });
-  if (kinds.some((kind) => foreignSlotKindWorkspace(kind) === here)) throw notFound('Type de plage', FIELD);
+  if (kinds.some((kind) => foreignSlotKindWorkspace(kind) === here)) throw notFound('Type de créneau', FIELD);
   const foreignWorkspaces = [...new Set(kinds.map(foreignSlotKindWorkspace).filter((id): id is string => id !== null))];
   if (foreignWorkspaces.length && (await unscopedPrisma.workspace.count({ where: { id: { in: foreignWorkspaces } } })) !== foreignWorkspaces.length) throw notFound('Espace', FIELD);
   const found = types.length
     ? await unscopedPrisma.scheduleType.findMany({ where: { OR: types.map(({ workspaceId, typeId }) => ({ id: typeId, workspaceId })) }, select: { id: true, workspaceId: true, archivedAt: true } })
     : [];
-  if (found.length !== new Set(types.map(({ typeId }) => typeId)).size) throw notFound('Type de plage', FIELD);
+  if (found.length !== new Set(types.map(({ typeId }) => typeId)).size) throw notFound('Type de créneau', FIELD);
   // Archived ones are no longer chosen; those already there stay.
   const archivedKinds = new Set(found.filter((type) => type.archivedAt).map((type) => type.id));
   const archived = [...schedules.filter((schedule) => schedule.archivedAt).map((schedule) => schedule.id), ...types.filter(({ typeId }) => archivedKinds.has(typeId)).map(({ kind }) => kind)];

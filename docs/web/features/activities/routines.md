@@ -103,7 +103,7 @@ Internes : `shortText`, `PAST_DAYS`, `NEXT_DAYS`, `Times`, `timesOf(occurrence)`
 
 | Export                                     | Rôle                                                                                                                                                                                  |
 | ------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `RoutineHistory({ routineId, onRoutine })` | Onglet « Historique » : navigation par jour (`PeriodNav`), filtre de routine, calques plages / calendriers (localStorage `ordo.routines.history.layers`), résumé, `RoutineDayAgenda`. |
+| `RoutineHistory({ routineId, onRoutine })` | Onglet « Historique » : navigation par jour (`PeriodNav`), filtre de routine, calques créneaux / calendriers (localStorage `ordo.routines.history.layers`), résumé, `RoutineDayAgenda`. |
 
 Interne : `historyItems(occurrences, checks, byId)` (moments prévus du jour, triés par heure puis libellé).
 
@@ -113,7 +113,7 @@ Interne : `historyItems(occurrences, checks, byId)` (moments prévus du jour, tr
 | ------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `HistoryItem`                                           | Moment de l'historique : routine, jour, index, horaires, `planned`, `optional`, `movedFrom`, `check`.                                                                     |
 | `AgendaLayers`                                          | `{ scheduleIds, calendarIds }` affichés avec les routines.                                                                                                                |
-| `RoutineDayAgenda({ day, today, items, byId, layers })` | Agenda FullCalendar d'un jour : créneaux des plages en fond, évènements des calendriers (non archivés), moments des routines colorés par état ; un clic ouvre `TickForm`. |
+| `RoutineDayAgenda({ day, today, items, byId, layers })` | Agenda FullCalendar d'un jour : horaires des créneaux en fond, évènements des calendriers (non archivés), moments des routines colorés par état ; un clic ouvre `TickForm`. |
 
 Internes : `ItemState`, `STATES` (couleur et texte), `historyItemState`, `proposedTime`, `TickForm` (cocher après coup à une heure, changer l'heure, décocher, avec annulation).
 
@@ -214,7 +214,7 @@ Interne : `MovedTimes`.
 
 | Export                    | Rôle                                                                                                                                      |
 | ------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------- |
-| `useAgendaLayerOptions()` | Options des calques de l'historique : plages (de l'espace, non archivées, et des espaces suivis) et calendriers (propres et abonnements). |
+| `useAgendaLayerOptions()` | Options des calques de l'historique : créneaux (de l'espace, non archivés, et des espaces suivis) et calendriers (propres et abonnements). |
 
 ### `hooks/use-category-items.tsx`
 
@@ -231,7 +231,7 @@ Interne : `MovedTimes`.
 | `DAILY`                                                | Règle « tous les jours » d'une nouvelle routine.                                                                                                                                          |
 | `ruleOf(routine)`                                      | Règle enregistrée, `null` si invalide.                                                                                                                                                    |
 | `isDone(routine)`                                      | Occurrence en cours faite.                                                                                                                                                                |
-| `currentRoutineState(routine, today, doable?)`         | État du jour ; `due` devient `upcoming` si les plages ne le permettent pas. Utilisé aussi par `LifeCards`.                                                                                |
+| `currentRoutineState(routine, today, doable?)`         | État du jour ; `due` devient `upcoming` si les créneaux ne le permettent pas. Utilisé aussi par `LifeCards`.                                                                                |
 | `routineTreeOptions(routines, offered?, label?)`       | Options d'un select en arbre (non proposées grisées). Utilisé aussi par `features/time`.                                                                                                  |
 | `routinePath(routine, byId)`                           | « Linge › Étendre ».                                                                                                                                                                      |
 | `waitingFor(routine, byId)`                            | Routines requises encore à faire.                                                                                                                                                         |

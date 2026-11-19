@@ -256,16 +256,16 @@ Source : `apps/api/src/services/treasury/treasury-budgets.ts`, schéma `treasury
 - Une catégorie, relation ou un contexte archivé est refusé, sauf si c’est déjà celui du budget. Le membre doit exister.
 - `saveTreasuryBudget` : crée (sans id) ou modifie un budget **et toutes ses répétitions** (une seule ligne en base) ; modification refusée s’il est archivé.
 - Suppression : le budget et ses répétitions.
-- Mois couverts dans une plage (`budgetMonths`) : sans répétition, son mois s’il est dans la plage ; sinon chaque n mois à partir du premier, jusqu’à `repeatUntil` ou la fin de la plage.
+- Mois couverts dans une période (`budgetMonths`) : sans répétition, son mois s’il est dans la période ; sinon chaque n mois à partir du premier, jusqu’à `repeatUntil` ou la fin de la période.
 
 ### Rapport (`treasuryBudgetReport(from, to)`)
 
 - Budgets pris : non archivés, de premier mois au plus `to`. Plusieurs budgets de même clé (mois, bénéficiaire, contexte, catégorie) s’additionnent.
-- Mouvements pris : réels datés dans la plage ; réels hors plage ayant des lignes datées dans la plage (carte à débit différé) ; prévisions datées au plus la fin de la plage (répétées : leurs occurrences dans la plage ; simples : seulement si elles sont dans la plage). Les mouvements archivés comptent.
+- Mouvements pris : réels datés dans la période ; réels hors période ayant des lignes datées dans la période (carte à débit différé) ; prévisions datées au plus la fin de la période (répétées : leurs occurrences dans la période ; simples : seulement si elles sont dans la période). Les mouvements archivés comptent.
 - Chaque ligne d’un mouvement compte pour sa relation, sinon son membre, sinon l’utilisateur, dans son contexte et sa catégorie, au mois de sa date propre (mouvement réel seulement) ou du mouvement. **Les lignes de prêt ne comptent pas** (ce n’est pas une dépense).
 - Le non réparti, ou le mouvement entier sans lignes, compte pour l’utilisateur, dans le contexte planifié ce jour-là, et dans la catégorie du mouvement (aucune pour le non réparti d’un mouvement décomposé).
 - Une part va au budget de son mois, bénéficiaire et contexte pour sa catégorie, ou pour la catégorie parente la plus proche qui en a un. Sans budget, elle est « hors budget » (`budgeted: false`), sous sa propre clé.
-- Ce qui est attendu des factures et avoirs (lignes du prévisionnel hors `FORECAST` / `ACTUAL`, à partir d’aujourd’hui) compte en prévu pour l’utilisateur, dans le contexte planifié ce jour-là, dans la catégorie des factures (montant positif) ou des avoirs (négatif) réglée dans les paramètres. Seulement si aujourd’hui est au plus la fin de la plage.
+- Ce qui est attendu des factures et avoirs (lignes du prévisionnel hors `FORECAST` / `ACTUAL`, à partir d’aujourd’hui) compte en prévu pour l’utilisateur, dans le contexte planifié ce jour-là, dans la catégorie des factures (montant positif) ou des avoirs (négatif) réglée dans les paramètres. Seulement si aujourd’hui est au plus la fin de la période.
 - Lignes renvoyées : `budget` (positif), `actual` et `forecast` (sommes signées), triées par mois puis budgets avant hors budget. Les budgets archivés ne comptent pas : leurs mouvements sont hors budget.
 - Côté web, ce qui est « utilisé » se lit dans le sens de la catégorie (sorties en positif pour une catégorie de sortie).
 

@@ -114,7 +114,7 @@ Cellules modifiables en place des tâches (toutes en lecture seule sur une tâch
 | `AssigneesCell({ task, context })`          | Assignés ; sur une sélection, les contributeurs communs à tous les projets. Enveloppe `context-cells.AssigneesCell`.                    |
 | `BlockedByCell({ task, context })`          | « Dépend de » : ajoute / retire des blocages sur chaque tâche visée ; icône `DependencyIcon`.                                           |
 | `EffortCell({ task })`                      | Effort (`EditableNumber`).                                                                                                              |
-| `DateCell({ task, column, alert? })`        | « Début », « Fin », « Date min », « Date max » ; garde la plage valide pour une seule tâche ; `alert` : couleur de retard.              |
+| `DateCell({ task, column, alert? })`        | « Début », « Fin », « Date min », « Date max » ; garde la période valide pour une seule tâche ; `alert` : couleur de retard.              |
 | `TaskBeneficiariesCell({ task })`           | Bénéficiaires (`BeneficiariesCell`, `beneficiariesDiff`).                                                                               |
 | `TaskLinksCell({ task, context, kind })`    | « Bloque » ou « Relative à ».                                                                                                           |
 | `ParentCell({ task, context })`             | Tâche parente (pas elle-même ni ses sous-tâches).                                                                                       |
@@ -137,7 +137,7 @@ Cellules non textuelles du tableau des tâches :
 
 | Nom                                      | Rôle                                                                                    |
 | ---------------------------------------- | --------------------------------------------------------------------------------------- |
-| `SlotsCell({ task })`                    | « Plages » : condition en mots (`useSlotRules().describe`, « N’importe quand » sans condition), modifiée dans une bulle (`SlotConditionBuilder`). |
+| `SlotsCell({ task })`                    | « Créneaux » : condition en mots (`useSlotRules().describe`, « N’importe quand » sans condition), modifiée dans une bulle (`SlotConditionBuilder`). |
 | `TimerCell({ task })`                    | « Chrono » : `TimerToggle` sur la tâche.                                                |
 | `TrackedCell({ task })`                  | « Temps passé » : lien `timePath(task.id)`.                                             |
 | `SubtasksCell({ task, context, onAdd })` | « Sous-tâches » (`ChildrenCell`) avec « Ajouter une sous-tâche ».                       |
@@ -273,7 +273,7 @@ Internes : `NO_PROJECT_LABEL` (« Sans projet »), `NO_PROJECT_NODE`.
 
 ### `hooks/use-task-columns.ts`
 
-- `useTaskColumns(context, today, { doable?, eventComments? })` : colonnes du tableau des tâches (`taskColumns`) avec ce qui leur manque : tâches faisables (`useDoableTaskIds`, seulement si `doable`), alarmes (`useTaskAlarmCounts`), listes d’achats, plages et types que la condition peut citer (`useSlotChoices().all`, `slotSchedules` : le filtre « Plages » porte sur les plages et types cités par la condition, `conditionReferences`), commentaires des évènements. Utilisé par `TaskBoard`, `ColumnDefaults`, `TaskFilterBuilder`, et les tableaux de bord / l’accueil via `matchTasks`.
+- `useTaskColumns(context, today, { doable?, eventComments? })` : colonnes du tableau des tâches (`taskColumns`) avec ce qui leur manque : tâches faisables (`useDoableTaskIds`, seulement si `doable`), alarmes (`useTaskAlarmCounts`), listes d’achats, créneaux et types que la condition peut citer (`useSlotChoices().all`, `slotSchedules` : le filtre « Créneaux » porte sur les créneaux et types cités par la condition, `conditionReferences`), commentaires des évènements. Utilisé par `TaskBoard`, `ColumnDefaults`, `TaskFilterBuilder`, et les tableaux de bord / l’accueil via `matchTasks`.
 
 ### `hooks/use-label-items.tsx`
 

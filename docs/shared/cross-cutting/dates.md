@@ -143,7 +143,7 @@ Internes : `endOfIsoWeek`, `weekOfYear`, `weekdayPosition` (position 1 à 4 ou -
 
 ## `repetition.ts` — répétition par cas
 
-Une répétition peut être faite de plusieurs « cas », chacun avec sa période, sa règle et ses horaires (événement, créneaux d'un horaire de travail, moments d'une routine, heure d'une alarme).
+Une répétition peut être faite de plusieurs « cas », chacun avec sa période, sa règle et ses horaires (événement, horaires d'un créneau, moments d'une routine, heure d'une alarme).
 
 | Export                                             | Rôle                                                                                                                                                                                                                                                                       |
 | -------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |

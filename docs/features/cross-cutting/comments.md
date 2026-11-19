@@ -11,7 +11,7 @@ Règles appliquées par l’API : [Règles métier — Commentaires](../../busin
 | Tâche                                                           | Panneau de la tâche, section « Commentaires » ([Tâches](../activities/tasks.md)).                                                                                        |
 | Routine                                                         | Formulaire de la routine ([Routines](../activities/routines.md)).                                                                                                        |
 | Évènement                                                       | Formulaire de l’évènement ([Agenda](../activities/calendar.md)).                                                                                                         |
-| Plages de travail (horaire)                                     | Gestion des plages ([Agenda](../activities/calendar.md)).                                                                                                                |
+| Créneaux de travail (horaire)                                     | Gestion des créneaux ([Agenda](../activities/calendar.md)).                                                                                                                |
 | Temps passé                                                     | Formulaire « Modifier le temps » ([Temps passé](../activities/time.md)).                                                                                                 |
 | Liste d’achats, produit, article d’une liste                    | Pages et formulaires des achats ([Achats](../supplies/shopping.md)).                                                                                                     |
 | Élément d’une fiche                                             | Page d’une fiche ([Fiches](../supplies/sheets.md)).                                                                                                                      |
@@ -37,7 +37,7 @@ Un commentaire vide est refusé : « Le commentaire est vide. ».
 
 ## Colonne « Commentaires »
 
-Dans les tableaux (tâches, temps, routines, achats, stock, documents, trésorerie, bibliothèque, fiches, plages de travail, catalogue) :
+Dans les tableaux (tâches, temps, routines, achats, stock, documents, trésorerie, bibliothèque, fiches, créneaux de travail, catalogue) :
 
 - nombre de commentaires de la ligne, **la description remplie comptant pour un** (décision CJ), avec une icône de bulle ; rien quand il n’y en a aucun ;
 - triable et filtrable comme un nombre ; masquée par défaut dans les tableaux qui utilisent `commentColumn` (la colonne des tâches suit les colonnes par défaut des tâches) ;

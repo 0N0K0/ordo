@@ -19,9 +19,9 @@ Documents GraphQL du temps (fragment `TimeEntryFields`, requêtes `TimeEntries`,
 | `useRunningTimer()`                    | Le chrono en cours ou `null` ; relu au retour du focus.                                                                                                                                                   |
 | `TimeEntryValues` (interface)          | Champs d’un temps envoyés : `projectId`, `routineId?`, `taskIds`, `description`, `startedAt`, `duration` (secondes), `event?`.                                                                            |
 | `TimerStartValues` (interface)         | Démarrage d’un chrono : `projectId?`, `routineId?`, `taskIds`, `description?`, `event?`.                                                                                                                  |
-| `useTimeMutations()`                   | `{ start, setPaused, stop, create, update, remove }` ; toutes invalident `['time']` et `['tasks']` (temps passé des tâches). `start` avertit ensuite si le chrono est hors des plages (`warnOutOfSlots`). |
+| `useTimeMutations()`                   | `{ start, setPaused, stop, create, update, remove }` ; toutes invalident `['time']` et `['tasks']` (temps passé des tâches). `start` avertit ensuite si le chrono est hors des créneaux (`warnOutOfSlots`). |
 
-Internes : `useTimeMutation` (mutation invalidante), `warnOutOfSlots(queryClient, slotRules, input)` (toast « Hors des moments prévus » : tâches hors des heures que leur condition de plages permet, ou assignés d’une tâche ou de la routine pris par un autre évènement ; lit les routines et tâches déjà en cache).
+Internes : `useTimeMutation` (mutation invalidante), `warnOutOfSlots(queryClient, slotRules, input)` (toast « Hors des moments prévus » : tâches hors des heures que leur condition de créneaux permet, ou assignés d’une tâche ou de la routine pris par un autre évènement ; lit les routines et tâches déjà en cache).
 
 ## pages/
 
@@ -66,7 +66,7 @@ Type interne `Save`.
 
 ### `components/PlannedTime.tsx`
 
-- `PlannedTime()` : section « Prévu et réalisé » : temps prévu par les plages de travail (`plannedSlots`, `slotMinutes`) contre temps chronométré, aujourd’hui, la semaine (de l’espace, `weekRange`) et par jour ; en direct pendant un chrono (`useNow`). Rien sans plages. Utilisé par `TimePage`.
+- `PlannedTime()` : section « Prévu et réalisé » : temps prévu par les créneaux de travail (`plannedSlots`, `slotMinutes`) contre temps chronométré, aujourd’hui, la semaine (de l’espace, `weekRange`) et par jour ; en direct pendant un chrono (`useNow`). Rien sans créneaux. Utilisé par `TimePage`.
 - Interne : `Gauge({ label, tracked, planned })` (jauge, orange au-delà de 100 %).
 
 ### `components/TaskTime.tsx`

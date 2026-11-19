@@ -25,7 +25,7 @@ import { ChildrenCell } from '../../../components/data-table/cells/ChildrenCell'
 import { shoppingListPath, timePath } from '../../../app/pages';
 
 /**
- * « Plages » cell: the slot condition of the task told in words (none: « N’importe quand »), changed in a popover.
+ * « Créneaux » cell: the slot condition of the task told in words (none: « N’importe quand »), changed in a popover.
  * @param {{ task: Task }} props Component props.
  * @returns {JSX.Element} Cell.
  */

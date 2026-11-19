@@ -225,7 +225,7 @@ export function RepetitionCell({ routine, readOnly = false, children }: CellProp
           header={
             count > 1 && (
               <Text size="sm" c="dimmed">
-                S’applique à {routinesLabel(count)} : chacune prend cette répétition entière (première fois, règle ou cas, moments, plages, « à partir du »).
+                S’applique à {routinesLabel(count)} : chacune prend cette répétition entière (première fois, règle ou cas, moments, créneaux, « à partir du »).
               </Text>
             )
           }

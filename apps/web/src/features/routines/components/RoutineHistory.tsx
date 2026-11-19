@@ -108,14 +108,14 @@ export function RoutineHistory({ routineId, onRoutine }: { routineId: string | n
       </Group>
       <Group gap="sm" grow preventGrowOverflow={false}>
         <BatchMultiSelect
-          label="Plages"
+          label="Créneaux"
           placeholder={layers.scheduleIds.length ? undefined : 'Aucune'}
           data={layerOptions.schedules}
           value={layers.scheduleIds}
           onChange={(scheduleIds) => setLayers((current) => ({ ...current, scheduleIds }))}
           searchable
           clearable
-          nothingFoundMessage="Aucune plage (voir Agenda › Paramètres)"
+          nothingFoundMessage="Aucun créneau (voir Agenda › Paramètres)"
         />
         <BatchMultiSelect
           label="Calendriers"

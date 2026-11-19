@@ -1,6 +1,6 @@
 # Règles de l’agenda
 
-Règles appliquées par l’API et les schémas partagés pour les calendriers, abonnements, catégories, évènements et occurrences (portées, annulation, report), plages (horaires prévus), types de plages, règles de plages des tâches et routines, et exports PDF / iCalendar. Sources : `apps/api/src/services/calendar/**`, `apps/api/src/graphql/modules/calendar.ts`, `apps/api/src/routes/exports.ts`, `packages/shared/src/calendar/**`. Fonctionnalités : [Agenda](../../features/activities/calendar.md).
+Règles appliquées par l’API et les schémas partagés pour les calendriers, abonnements, catégories, évènements et occurrences (portées, annulation, report), créneaux (horaires prévus), types de créneaux, règles de créneaux des tâches et routines, et exports PDF / iCalendar. Sources : `apps/api/src/services/calendar/**`, `apps/api/src/graphql/modules/calendar.ts`, `apps/api/src/routes/exports.ts`, `packages/shared/src/calendar/**`. Fonctionnalités : [Agenda](../../features/activities/calendar.md).
 
 Toutes les données sont propres à l’espace courant (colonne `workspaceId`, voir [Espaces et accès](../cross-cutting/workspaces-and-access.md)), sauf les lectures explicites d’autres espaces (abonnements).
 
@@ -136,7 +136,7 @@ Source : `packages/shared/src/calendar/event-busy.ts`.
 - `busyUntil` : fin de l’occupation, la fin de l’évènement, ou minuit local après le dernier jour pour une journée entière.
 - `sharePeople` : règle de personne commune (voir plus haut).
 
-## Plages (horaires prévus)
+## Créneaux (horaires prévus)
 
 Source : `apps/api/src/services/calendar/work-schedules.ts`, schémas dans `packages/shared/src/calendar/work-schedules.ts`.
 
@@ -148,67 +148,67 @@ Source : `apps/api/src/services/calendar/work-schedules.ts`, schémas dans `pack
   - Règle hebdomadaire : au moins un jour (« Choisissez au moins un jour. »).
   - Horaires : journée entière, ou au moins une tranche (« Ajoutez des horaires, ou « Journée entière ». ») ; 12 tranches max (« 12 tranches au plus. ») ; la fin d’une tranche suit son début ; tranches sans chevauchement (« Des horaires se chevauchent. »).
 - `exceptions` : 200 max (« 200 exceptions au plus. ») ; chacune `from` ≤ `to`, motif 250 caractères, 20 cas max ; sans cas : une pause. Triées par date de début à l’enregistrement.
-- `typeId` : type de plage existant, non archivé sauf s’il est déjà celui de la plage (« Type de plage »).
+- `typeId` : type de créneau existant, non archivé sauf s’il est déjà celui du créneau (« Type de créneau »).
 
 ### Enregistrement
 
 - L’ancien format (`intervalWeeks`, `slots`, `pauses`) est vidé à chaque enregistrement ; il n’est plus que lu et converti (`fromLegacySchedule` : jours ayant les mêmes horaires → un cas toutes les n semaines ; pauses → exceptions sans cas). L’ancienne forme des cas (`pattern`, `every`…) est aussi convertie à la lecture (`readScheduleCases`). Les éléments stockés invalides sont ignorés à la lecture.
-- Modification refusée si la plage est archivée.
-- Suppression : définitive (« Plage de travail » introuvable sinon). Les évènements ne sont pas touchés.
-- Archivage générique (`WORK_SCHEDULE`) : lecture seule ; les routines qui la suivent continuent à la lire.
+- Modification refusée si le créneau est archivé.
+- Suppression : définitive (« Créneau de travail » introuvable sinon). Les évènements ne sont pas touchés.
+- Archivage générique (`WORK_SCHEDULE`) : lecture seule ; les routines qui le suivent continuent à le lire.
 
-### Calcul des créneaux (`plannedSlots`)
+### Calcul des horaires du jour (`plannedSlots`)
 
-- Pour chaque jour de la période de la plage (dates incluses, sans fin possible), les cas en vigueur sont ceux de l’exception qui couvre le jour (la plus récemment commencée ; à égalité, la plus courte), sinon les cas généraux.
+- Pour chaque jour de la période du créneau (dates incluses, sans fin possible), les cas en vigueur sont ceux de l’exception qui couvre le jour (la plus récemment commencée ; à égalité, la plus courte), sinon les cas généraux.
 - Un cas produit les tranches de ses horaires sur les jours de sa règle (ou toute la journée : `00:00`–`24:00`).
 - `plannedPauses` : exceptions sans cas chevauchant une période.
-- `slotMinutes` : minutes des créneaux, les journées entières exclues (pas du temps de travail prévu). Utilisé par le temps prévu, voir [Temps](time.md).
-- `withinSlots` : une tranche horaire tient dans un créneau du jour.
+- `slotMinutes` : minutes des horaires, les journées entières exclues (pas du temps de travail prévu). Utilisé par le temps prévu, voir [Temps](time.md).
+- `withinSlots` : une tranche horaire tient dans un horaire du jour.
 
-### Changement d’un créneau depuis l’agenda (`changedScheduleSlot`)
+### Changement des horaires d’un jour depuis l’agenda (`changedScheduleSlot`)
 
-- `THIS` : une exception d’un jour donne à ce jour ses propres créneaux (et au jour d’arrivée s’il change).
+- `THIS` : une exception d’un jour donne à ce jour ses propres horaires (et au jour d’arrivée s’il change).
 - `FOLLOWING` : le cas s’arrête la veille (seulement s’il avait des jours avant), un nouveau suit avec le changement.
 - `ALL` : tous les jours du cas.
-- Les autres horaires du cas, et ce créneau ses autres jours de la semaine, restent.
-- Refus : fin avant début (« La fin doit suivre le début. »), jour hors de la période (« Ce jour est en dehors de la période de la plage. »), créneau introuvable (« Horaires introuvables ce jour-là. »), suppression des derniers horaires (« Ce sont les derniers horaires de la plage : supprimez la plage elle-même. »).
+- Les autres horaires du cas, et cet horaire ses autres jours de la semaine, restent.
+- Refus : fin avant début (« La fin doit suivre le début. »), jour hors de la période (« Ce jour est en dehors de la période du créneau. »), horaire introuvable (« Horaires introuvables ce jour-là. »), suppression des derniers horaires (« Ce sont les derniers horaires du créneau : supprimez le créneau lui-même. »).
 - Le résultat est enregistré par `updateWorkSchedule` (mêmes validations).
 
-## Types de plages
+## Types de créneaux
 
 - Service de libellés commun (`createLabelService`, voir [Nommage](../cross-cutting/naming.md)) : libellé requis 250 caractères, unique dans l’espace (« Un type porte déjà ce libellé. »), couleur `#rrggbb`, image, position, affichage.
 - Affichage (`ScheduleDisplay`) : `dayDisplay` ∈ `SLOT_BACKGROUND` (défaut), `DAY_BACKGROUND`, `SLOT_BORDER`, `NONE` ; `dayBar` (défaut vrai) ; `monthDisplay` ∈ `BACKGROUND` (défaut), `BORDER`, `NONE`. Une valeur stockée inconnue retombe sur le défaut (`readScheduleDisplay`).
-- Suppression : les plages restent, sans type (`onDelete: SetNull`).
+- Suppression : les créneaux restent, sans type (`onDelete: SetNull`).
 - Archivage générique (`SCHEDULE_TYPE`) : plus proposé, mais gardé là où il est choisi.
 
-### Type par défaut (plages sans type)
+### Type par défaut (créneaux sans type)
 
 - Stocké sur l’espace (`scheduleLabel`, `scheduleColor`, `scheduleDayDisplay`, `scheduleDayBar`, `scheduleMonthDisplay`).
 - Libellé 250 caractères max ; vide → « Travail » (`DEFAULT_SCHEDULE_KIND_LABEL`) ; couleur facultative (aucune : le vert des heures de travail).
 
-### Abonnements aux types de plages d’autres espaces
+### Abonnements aux types de créneaux d’autres espaces
 
-- `foreignScheduleKinds` : pour chaque autre espace, son type par défaut (s’il a des plages sans type) et chacun de ses types, avec nombre de plages, couleur et affichage effectifs ici (ceux de l’abonnement, sinon du type), `customized`, `subscribed`.
-- `subscribeScheduleKind` : refus pour l’espace courant (« Ces plages appartiennent déjà à cet espace. ») ; espace source existant (« Espace ») ; type appartenant à cet espace (« Type de plage ») ; sans effet si déjà abonné (vérifié en code, car un type nul n’est pas unique en base).
-- Abonné à un type, l’espace voit toutes les plages de ce type, même ajoutées ensuite (`subscribedSchedules`), en lecture seule.
-- `otherWorkspaceSchedules` : toutes les plages des autres espaces (archivées comprises, avec `archived`), abonné ou non : ce qu’une condition de plages peut en citer. `foreignScheduleKinds` donne aussi `archived` pour chaque type.
+- `foreignScheduleKinds` : pour chaque autre espace, son type par défaut (s’il a des créneaux sans type) et chacun de ses types, avec nombre de créneaux, couleur et affichage effectifs ici (ceux de l’abonnement, sinon du type), `customized`, `subscribed`.
+- `subscribeScheduleKind` : refus pour l’espace courant (« Ces créneaux appartiennent déjà à cet espace. ») ; espace source existant (« Espace ») ; type appartenant à cet espace (« Type de créneau ») ; sans effet si déjà abonné (vérifié en code, car un type nul n’est pas unique en base).
+- Abonné à un type, l’espace voit tous les créneaux de ce type, même ajoutés ensuite (`subscribedSchedules`), en lecture seule.
+- `otherWorkspaceSchedules` : tous les créneaux des autres espaces (archivés compris, avec `archived`), abonné ou non : ce qu’une condition de créneaux peut en citer. `foreignScheduleKinds` donne aussi `archived` pour chaque type.
 - `setScheduleSubscriptionLook` : couleur et affichage propres (chaque champ nul : celui du type) ; « Abonnement » introuvable si non abonné.
 - Suppression du type source ou de l’espace source : l’abonnement disparaît (cascade).
 
-## Condition de plages des tâches et routines
+## Condition de créneaux des tâches et routines
 
 Source : `packages/shared/src/calendar/slot-conditions.ts`, `packages/shared/src/calendar/slot-kinds.ts`, `apps/api/src/services/calendar/slot-conditions.ts`. Les tâches et les routines ont la même condition (décisions D9, DU, DX).
 
-- Une condition (`slotConditionSchema`) : groupes ET / OU, comme les filtres des tableaux, de conditions sur des plages ou des types de plages : champ `schedules` (« Créneau » : des plages nommées) ou `kinds` (« Type de créneau » : toutes les plages de ces types, celles créées ensuite comprises), avec `in` (« sur l’un des créneaux », « sur l’un des types ») ou `notIn` (« hors des créneaux », « hors des types »), au moins une valeur ; champ `freeTime` (« temps libre ») avec `isEmpty` (hors de toutes les plages de l’espace, celles créées ensuite comprises) ou `notIn` (hors de toutes les plages de l’espace sauf celles citées, des plages de l’espace seulement). Autre opérateur : « Sur ou hors des plages. ».
-- Un type se note comme les abonnements : l’id du type, `default` pour les plages sans type de l’espace (`ownSlotKind`), `ws:<espace>:<type | default>` pour un type d’un autre espace (`foreignSlotKind`).
-- Plages et types d’un **autre espace de l’utilisateur** (PRO ↔ PERSO) : une condition peut les citer, abonné ou non à ce type (tous les espaces sont accessibles à l’utilisateur connecté, voir [Espaces et accès](../cross-cutting/workspaces-and-access.md)). Le web les propose avec leur espace (« Sport · Perso »).
-- Valeurs citées (`assertConditionSchedules`, erreurs sous `slotCondition`) : une plage doit exister, dans cet espace ou un autre (« Plage » introuvable) ; un type de cet espace doit exister (« Type de plage » introuvable ; `default` existe toujours) ; un type d’un autre espace doit appartenir à cet espace (« Espace » introuvable s’il n’existe plus, « Type de plage » sinon ; `ws:` sur l’espace courant : « Type de plage » introuvable). Une plage ou un type archivé (dans son espace) n’est plus choisi, celui déjà dans la condition reste (« Élément archivé », sous la règle commune, voir [Archivage](../cross-cutting/archiving.md)).
-- Heures permises un jour (`conditionWindows`) : `in` = les créneaux des plages citées (ou des plages des types cités), fusionnés ; `notIn` = hors d’eux ; temps libre = hors de tous les créneaux de l’espace (sauf ceux des plages citées) ; « et » = intersection, « ou » = union. Les plages évaluées sont celles de l’espace, archivées comprises, et celles des autres espaces de l’utilisateur, archivées comprises, chargées quand une condition en cite une ou cite un de leurs types (`loadSlotsOn(conditions?)` sur `otherWorkspaceSchedules` ; toujours chargées pour les routines, dont les conditions ne sont pas connues d’avance) ; `scheduleSlotsOn(rules, foreign)`. Un type sans aucune plage n’a aucun créneau : `in` ne permet aucune heure, `notIn` les permet toutes.
+- Une condition (`slotConditionSchema`) : groupes ET / OU, comme les filtres des tableaux, de conditions sur des créneaux ou des types de créneaux : champ `schedules` (« Créneau » : des créneaux nommés) ou `kinds` (« Type de créneau » : tous les créneaux de ces types, ceux créés ensuite compris), avec `in` (« sur l’un des créneaux », « sur l’un des types ») ou `notIn` (« hors des créneaux », « hors des types »), au moins une valeur ; champ `freeTime` (« temps libre ») avec `isEmpty` (hors de tous les créneaux de l’espace, ceux créés ensuite compris) ou `notIn` (hors de tous les créneaux de l’espace sauf ceux cités, des créneaux de l’espace seulement). Autre opérateur : « Sur ou hors des créneaux. ».
+- Un type se note comme les abonnements : l’id du type, `default` pour les créneaux sans type de l’espace (`ownSlotKind`), `ws:<espace>:<type | default>` pour un type d’un autre espace (`foreignSlotKind`).
+- Créneaux et types d’un **autre espace de l’utilisateur** (PRO ↔ PERSO) : une condition peut les citer, abonné ou non à ce type (tous les espaces sont accessibles à l’utilisateur connecté, voir [Espaces et accès](../cross-cutting/workspaces-and-access.md)). Le web les propose avec leur espace (« Sport · Perso »).
+- Valeurs citées (`assertConditionSchedules`, erreurs sous `slotCondition`) : un créneau doit exister, dans cet espace ou un autre (« Créneau » introuvable) ; un type de cet espace doit exister (« Type de créneau » introuvable ; `default` existe toujours) ; un type d’un autre espace doit appartenir à cet espace (« Espace » introuvable s’il n’existe plus, « Type de créneau » sinon ; `ws:` sur l’espace courant : « Type de créneau » introuvable). Un créneau ou un type archivé (dans son espace) n’est plus choisi, celui déjà dans la condition reste (« Élément archivé », sous la règle commune, voir [Archivage](../cross-cutting/archiving.md)).
+- Heures permises un jour (`conditionWindows`) : `in` = les horaires des créneaux cités (ou des créneaux des types cités), fusionnés ; `notIn` = hors d’eux ; temps libre = hors de tous les horaires de l’espace (sauf ceux des créneaux cités) ; « et » = intersection, « ou » = union. Les créneaux évalués sont ceux de l’espace, archivées comprises, et celles des autres espaces de l’utilisateur, archivées comprises, chargées quand une condition en cite une ou cite un de leurs types (`loadSlotsOn(conditions?)` sur `otherWorkspaceSchedules` ; toujours chargées pour les routines, dont les conditions ne sont pas connues d’avance) ; `scheduleSlotsOn(rules, foreign)`. Un type sans aucun créneau n’a aucun horaire : `in` ne permet aucune heure, `notIn` les permet toutes. Ainsi, **un type sans aucun créneau ne permet aucun moment** : une tâche ou une routine limitée à ce type (« sur l’un des types ») n’est jamais faisable tant qu’aucun créneau de ce type n’existe (comportement voulu, confirmé le 2026-11-19).
 - **Sans condition** (ou un groupe vide) : à n’importe quelle heure. Le type d’espace ne joue plus : plus de défaut « heures de travail » en PRO (décision D10).
 - Routine : la condition garde ses moments aux heures permises (voir [Routines](routines.md)). Tâche : elle est faisable à un moment que la condition permet (`conditionAllowsAt`).
 - `nextConditionMoment` : premier moment permis à partir d’un moment, sur quelques jours (le moment même sans condition).
 - `doableTaskIds(utcOffset, meId)` (requête `doableTaskIds` des tâches) : tâches ouvertes et non archivées dont la condition permet le moment actuel de l’utilisateur et qu’aucun évènement actif n’occupe (voir [Tâches](tasks.md)).
-- L’avertissement d’un évènement hors des plages de travail (espace PRO, formulaire d’évènement, `AvailabilityHint`) n’est pas une condition : il porte toujours sur toutes les plages de l’espace.
+- L’avertissement d’un évènement hors des créneaux de travail (espace PRO, formulaire d’évènement, `AvailabilityHint`) n’est pas une condition : il porte toujours sur tous les créneaux de l’espace.
 
 ## Export iCalendar
 

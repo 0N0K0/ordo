@@ -40,7 +40,7 @@ export function useCalendarEdits() {
    * @returns {Promise<void>}
    */
   const changeSlot = async (schedule: WorkScheduleRule, slot: ScheduleSlotTime, change: ScheduleSlotTime | null, revert?: () => void) => {
-    const scope = await askScope({ action: change ? 'update' : 'delete', title: change ? 'Modifier une plage récurrente' : 'Supprimer une plage récurrente' });
+    const scope = await askScope({ action: change ? 'update' : 'delete', title: change ? 'Modifier un créneau récurrent' : 'Supprimer un créneau récurrent' });
     if (!scope) return revert?.();
     let next: ReturnType<typeof changedScheduleSlot>;
     try {
@@ -52,7 +52,7 @@ export function useCalendarEdits() {
     update.mutate(
       { id: schedule.id, input: { label: schedule.label, startDate: schedule.startDate, endDate: schedule.endDate, typeId: schedule.typeId ?? null, ...next } },
       {
-        ...toastCallbacks(scope === 'THIS' ? 'Exception ajoutée à la plage pour ce jour.' : change ? 'Plage modifiée.' : 'Horaires retirés de la plage.'),
+        ...toastCallbacks(scope === 'THIS' ? 'Exception ajoutée au créneau pour ce jour.' : change ? 'Créneau modifié.' : 'Horaires retirés du créneau.'),
         onError: (error) => {
           onMutationError(error);
           revert?.();
@@ -117,7 +117,7 @@ export function useCalendarEdits() {
    */
   const openSlot = (schedule: WorkScheduleRule, label: string, slot: ScheduleSlotTime) => {
     // The scope question is a modal: this panel closes first.
-    openFormPanel(`Plage du ${fmt.dayLong(slot.date)}`, (close) => (
+    openFormPanel(`Créneau du ${fmt.dayLong(slot.date)}`, (close) => (
       <SlotEditForm
         label={label}
         slot={slot}

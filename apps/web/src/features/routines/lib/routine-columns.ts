@@ -150,7 +150,7 @@ export function routineColumns(env: RoutineEnv): DataColumn<Routine>[] {
     },
     {
       id: 'slots',
-      label: 'Plages',
+      label: 'Créneaux',
       size: 180,
       hiddenByDefault: true,
       text: (routine) =>

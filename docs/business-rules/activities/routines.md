@@ -1,6 +1,6 @@
 # Règles des routines
 
-Règles appliquées par l'API et le code partagé aux routines : validation, calcul des occurrences (règle, cas, « à partir du », plages), états, coches, exceptions (déplacements), historique, ordre, archivage et suppression. Sources : `apps/api/src/services/routines/routines.ts`, `apps/api/src/graphql/modules/routines.ts`, `packages/shared/src/routines/` (`routines.ts`, `routine-views.ts`), `packages/shared/src/calendar/slot-conditions.ts`. L'usage côté écran est dans [Routines](../../features/activities/routines.md).
+Règles appliquées par l'API et le code partagé aux routines : validation, calcul des occurrences (règle, cas, « à partir du », créneaux), états, coches, exceptions (déplacements), historique, ordre, archivage et suppression. Sources : `apps/api/src/services/routines/routines.ts`, `apps/api/src/graphql/modules/routines.ts`, `packages/shared/src/routines/` (`routines.ts`, `routine-views.ts`), `packages/shared/src/calendar/slot-conditions.ts`. L'usage côté écran est dans [Routines](../../features/activities/routines.md).
 
 ## Modèle
 
@@ -11,15 +11,15 @@ Champs d'une routine qui comptent pour les occurrences :
 | Champ           | Rôle                                                                                                                                          |
 | --------------- | --------------------------------------------------------------------------------------------------------------------------------------------- |
 | `startDate`     | « Première fois » : la règle compte à partir de ce jour.                                                                                      |
-| `recurrence`    | Règle de répétition commune aux évènements, alarmes et plages (voir [Dates](../cross-cutting/dates.md)).                                      |
+| `recurrence`    | Règle de répétition commune aux évènements, alarmes et créneaux (voir [Dates](../cross-cutting/dates.md)).                                      |
 | `moments`       | Moments de la journée de la règle : `[{ fromTime, dueTime, optional }]`.                                                                      |
-| `slotCondition` | Condition sur les plages de l'agenda (groupe ET / OU), suivant la règle.                                                                      |
+| `slotCondition` | Condition sur les créneaux de l'agenda (groupe ET / OU), suivant la règle.                                                                      |
 | `opensOn`       | « À partir du » des occurrences de la règle.                                                                                                  |
 | `cases`         | Cas (chacun : `from`, `until`, `recurrence`, `slots`, `condition`, `opens`) ; non vide, ils remplacent la règle, ses moments et sa condition. |
 | `moves`         | Exceptions : `[{ from, to, times }]` (jours `YYYY-MM-DD`).                                                                                    |
 | `archivedAt`    | Archivée : plus aucune occurrence. `archivedByCascade` : archivée avec sa routine parente.                                                    |
 
-Anciennes formes encore lues mais plus écrites : `fromTime` / `dueTime` seuls (un seul moment), `scheduleIds` / `excludedScheduleIds` (plages suivies / exclues, converties en condition), `scheduleId` / `scheduleAnchor` (plage suivie, plus utilisée), `opensOn` en texte `"DD"` (mensuel) ou `"MM-DD"` (annuel).
+Anciennes formes encore lues mais plus écrites : `fromTime` / `dueTime` seuls (un seul moment), `scheduleIds` / `excludedScheduleIds` (créneaux suivis / exclus, convertis en condition), `scheduleId` / `scheduleAnchor` (créneau suivi, plus utilisé), `opensOn` en texte `"DD"` (mensuel) ou `"MM-DD"` (annuel).
 
 ## Validation (`routineSchema`, `parseRoutine`)
 
@@ -36,7 +36,7 @@ Source : `packages/shared/src/routines/routines.ts`, `apps/api/src/services/rout
 | `fromTime`, `dueTime`                                                                  | `HH:MM` (« Heure attendue (HH:MM). ») ou `null` ; la fin doit suivre strictement le début (« La fin doit suivre le début. »).                                                                                                                                        |
 | `moments`                                                                              | 10 au plus (« 10 moments au plus. ») ; chacun : fin après début ; s'il y en a, au moins un obligatoire (« Au moins un moment doit être obligatoire. »).                                                                                                              |
 | `cases`                                                                                | 20 au plus (« 20 cas au plus. ») ; chaque cas : 1 à 10 moments (« Ajoutez au moins un moment. », « 10 moments au plus. »), au moins un obligatoire, « à partir du » compatible.                                                                                      |
-| `slotCondition`                                                                        | Groupe de conditions ; champs `schedules` (plages) et `kinds` (types de plages) avec `in` / `notIn`, champ `freeTime` avec `isEmpty` / `notIn` (sinon « Sur ou hors des plages. ») ; plages et types de cet espace ou d'un autre espace de l'utilisateur ; chacun doit exister (« Plage », « Type de plage », « Espace ») et ne pas être archivé, sauf s'il était déjà dans une condition de la routine (`assertConditionSchedules`, commun avec les tâches, voir [Agenda](calendar.md#condition-de-plages-des-tâches-et-routines)).                                                                          |
+| `slotCondition`                                                                        | Groupe de conditions ; champs `schedules` (créneaux) et `kinds` (types de créneaux) avec `in` / `notIn`, champ `freeTime` avec `isEmpty` / `notIn` (sinon « Sur ou hors des créneaux. ») ; créneaux et types de cet espace ou d'un autre espace de l'utilisateur ; chacun doit exister (« Créneau », « Type de créneau », « Espace ») et ne pas être archivé, sauf s'il était déjà dans une condition de la routine (`assertConditionSchedules`, commun avec les tâches, voir [Agenda](calendar.md#condition-de-créneaux-des-tâches-et-routines)).                                                                          |
 | `reminders`                                                                            | 10 au plus (« 10 rappels maximum. »), entiers de 0 à 1 440 ; doublons retirés, triés.                                                                                                                                                                                |
 | `location`                                                                             | 250 caractères au plus (« 250 caractères maximum. ») ; sans lieu, le point est effacé.                                                                                                                                                                               |
 | `travelBefore`, `travelAfter`                                                          | Minutes de trajet (schéma géo commun), 0 par défaut.                                                                                                                                                                                                                 |
@@ -49,7 +49,7 @@ Références vérifiées par `parseRoutine` :
 - Assignés existants (« Assigné ») et, si la routine a un projet, contributeurs de ce projet (ceux déjà assignés restent) : voir [Personnes](../cross-cutting/people.md).
 - Changement de projet (formulaire, modification en masse, annulation) : les assignés restent et **suivent** la routine ; ceux qui ne sont pas rattachés au nouveau projet (ni à un de ses parents) y sont rattachés (`followProject`, décision DP). Les sous-routines gardent leur projet et leurs assignés. Retirer le projet ne rattache personne.
 - Bénéficiaires existants et non archivés (ceux déjà en place restent).
-- Catégories et plages non archivées, sauf celles déjà présentes sur la routine.
+- Catégories et créneaux non archivés, sauf ceux déjà présents sur la routine.
 - Parente : doit exister (« Routine parente »), non archivée (sauf si inchangée), ni la routine elle-même ni une de ses sous-routines (« Une routine ne peut pas être rangée sous elle-même. »).
 - Dépendances : chaque routine requise doit exister (« Routine »), non archivée (sauf si déjà présente) ; pas elle-même (« Une routine ne peut pas dépendre d'elle-même. ») ; pas de cycle, même indirect (« Ces dépendances forment une boucle. »).
 - « Relative à » (`relatedIds`) : chaque routine doit exister (« Routine »), non archivée (sauf si déjà liée) ; pas elle-même (« Une routine ne peut pas être liée à elle-même. »).
@@ -81,7 +81,7 @@ Source : `apps/api/src/services/routines/routines.ts` (`ruleSpans`, `occurrences
 
 Une occurrence va de son premier jour (son « à partir du ») à son jour d'échéance (son dernier jour). Elle est identifiée par son jour d'échéance.
 
-- Source : les cas s'il y en a, sinon la règle (`storedRule`). Une routine enregistrée avec des plages suivies avant les conditions (`scheduleIds` sans `slotCondition`) se répète chaque jour.
+- Source : les cas s'il y en a, sinon la règle (`storedRule`). Une routine enregistrée avec des créneaux suivis avant les conditions (`scheduleIds` sans `slotCondition`) se répète chaque jour.
 - Un cas compte à partir de son `from` (jamais avant la première fois de la routine) jusqu'à son `until`. Un jour dû par plusieurs cas suit le premier cas (`routineCaseOn`).
 - Rien avant `startDate`. Une routine archivée n'a aucune occurrence.
 
@@ -92,14 +92,14 @@ Une occurrence va de son premier jour (son « à partir du ») à son jour d'éc
 - Le jour est pris dans la période de l'échéance ; s'il tombe après l'échéance, celui de la période précédente.
 - Sans « à partir du » (ou s'il ne convient pas), l'occurrence s'ouvre le jour de son échéance.
 
-### Plages de l'agenda (`conditionWindows`, `windowsAllowed`)
+### Créneaux de l'agenda (`conditionWindows`, `windowsAllowed`)
 
-- `schedules in [ids]` : sur les créneaux d'une de ces plages ; `notIn` : hors de toutes.
-- `kinds in [types]` : sur les créneaux d'une plage de l'un de ces types (celles créées plus tard comprises) ; `notIn` : hors de toutes. Plages et types d'un autre espace de l'utilisateur comptent comme ceux de l'espace (voir [Agenda](calendar.md#condition-de-plages-des-tâches-et-routines)).
-- `freeTime isEmpty` : hors de toutes les plages de l'espace (y compris celles créées plus tard) ; `freeTime notIn [ids]` : hors de toutes sauf celles nommées (des plages de l'espace). Les plages des autres espaces n'y comptent pas.
+- `schedules in [ids]` : sur les horaires d'un de ces créneaux ; `notIn` : hors de tous.
+- `kinds in [types]` : sur les horaires d'un créneau de l'un de ces types (ceux créés plus tard compris) ; `notIn` : hors de tous. Un type sans aucun créneau ne permet aucun moment : la routine n'a alors aucune occurrence faisable tant qu'aucun créneau de ce type n'existe (comportement voulu). Créneaux et types d'un autre espace de l'utilisateur comptent comme ceux de l'espace (voir [Agenda](calendar.md#condition-de-créneaux-des-tâches-et-routines)).
+- `freeTime isEmpty` : hors de tous les créneaux de l'espace (y compris ceux créés plus tard) ; `freeTime notIn [ids]` : hors de tous sauf ceux nommés (des créneaux de l'espace). Les créneaux des autres espaces n'y comptent pas.
 - Groupes : ET = intersection, OU = union. Un groupe vide ne contraint rien.
-- Créneaux fusionnés quand ils se touchent ; un créneau « toute la journée » couvre la journée ; un créneau finissant à 23:59 va jusqu'à la fin du jour.
-- Chaque moment est réduit aux heures permises (plusieurs fenêtres si des créneaux le coupent) ; un moment sans heure permise disparaît ce jour-là. Une occurrence dont aucun jour n'a de moment permis n'existe pas (`doable`).
+- Horaires fusionnés quand ils se touchent ; un horaire « toute la journée » couvre la journée ; un horaire finissant à 23:59 va jusqu'à la fin du jour.
+- Chaque moment est réduit aux heures permises (plusieurs fenêtres si des horaires le coupent) ; un moment sans heure permise disparaît ce jour-là. Une occurrence dont aucun jour n'a de moment permis n'existe pas (`doable`).
 
 ### Occurrence en cours et suivante (`occurrencesOf`)
 
@@ -211,4 +211,4 @@ Source : `moveRoutine`, `createRoutine`, `copySubRoutines`, `bulkDeleteRoutines`
 
 ## Requête `routines`
 
-Toutes les routines, archivées comprises, dans l'ordre manuel global ; `routineCategories` dans leur ordre. Les plages de l'espace et des autres espaces de l'utilisateur sont chargées une fois par requête (`loadScheduleContext`, sur `loadSlotsOn` commun avec les tâches) et les calculs mémorisés par routine.
+Toutes les routines, archivées comprises, dans l'ordre manuel global ; `routineCategories` dans leur ordre. Les créneaux de l'espace et des autres espaces de l'utilisateur sont chargés une fois par requête (`loadScheduleContext`, sur `loadSlotsOn` commun avec les tâches) et les calculs mémorisés par routine.

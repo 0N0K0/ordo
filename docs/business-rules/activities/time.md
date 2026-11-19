@@ -46,7 +46,7 @@ Source : `startTimer`.
 - Mêmes vérifications que ci-dessus (projet / routine, tâches, éléments archivés, évènement), description validée.
 - **Le chrono en cours, s’il y en a un, est arrêté d’abord** (son temps est enregistré) : décision Y.
 - Le nouveau temps commence maintenant.
-- Côté web, un avertissement « Hors des moments prévus » signale une routine ou des tâches hors de leurs plages, ou des assignés occupés par un évènement (autre que celui du chrono) ; le chrono tourne quand même (voir [Fonctionnalités](../../features/activities/time.md)).
+- Côté web, un avertissement « Hors des moments prévus » signale une routine ou des tâches hors de leurs créneaux, ou des assignés occupés par un évènement (autre que celui du chrono) ; le chrono tourne quand même (voir [Fonctionnalités](../../features/activities/time.md)).
 
 ### Pause et reprise
 
@@ -133,4 +133,4 @@ Les alarmes « pas de chrono » et « durée de chrono » (`NOT_TRACKING`, `TRAC
 
 ## Espace PRO / PERSO
 
-Les règles sont les mêmes. Côté web, la comparaison « Prévu et réalisé » avec les heures de travail n’est montrée qu’en espace PRO (en PERSO, les plages ne sont pas des heures de travail).
+Les règles sont les mêmes. Côté web, la comparaison « Prévu et réalisé » avec les heures de travail n’est montrée qu’en espace PRO (en PERSO, les créneaux ne sont pas des heures de travail).

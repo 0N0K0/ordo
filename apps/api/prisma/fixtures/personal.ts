@@ -492,7 +492,7 @@ export async function seedPersonal({
     projets: await prisma.project.count(),
     tâches: await prisma.task.count(),
     évènements: await prisma.calendarEvent.count(),
-    plages: await prisma.workSchedule.count(),
+    créneaux: await prisma.workSchedule.count(),
     'mouvements de trésorerie': await prisma.treasuryEntry.count(),
     'produits de courses': await prisma.shoppingProduct.count(),
     routines: await prisma.routine.count(),

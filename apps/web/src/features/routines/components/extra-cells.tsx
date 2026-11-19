@@ -84,7 +84,7 @@ export function TimeOfDayCell({ routine, field, readOnly = false }: { routine: R
   if (!ownTimes) {
     return (
       <Text size="xs" c="dimmed">
-        {routine.slotCondition ? 'Selon les plages' : (routine.cases as unknown[] | null)?.length ? 'Selon les cas' : 'Plusieurs moments'}
+        {routine.slotCondition ? 'Selon les créneaux' : (routine.cases as unknown[] | null)?.length ? 'Selon les cas' : 'Plusieurs moments'}
       </Text>
     );
   }

@@ -68,7 +68,7 @@ const force = process.argv.includes('--force');
 if (!force && process.stdin.isTTY) {
   const ok = await confirm({
     message:
-      'Le premier espace professionnel et le premier espace personnel (créés s’ils manquent) vont être vidés de toutes leurs données (clients, projets, tâches, temps, alarmes, agenda, plages, documents comptables, trésorerie, bibliothèque, courses, routines…) puis remplis de données de démonstration ; la boîte mail de démo est recréée. Le compte, les boîtes mail et les autres espaces sont conservés. Continuer ?',
+      'Le premier espace professionnel et le premier espace personnel (créés s’ils manquent) vont être vidés de toutes leurs données (clients, projets, tâches, temps, alarmes, agenda, créneaux, documents comptables, trésorerie, bibliothèque, courses, routines…) puis remplis de données de démonstration ; la boîte mail de démo est recréée. Le compte, les boîtes mail et les autres espaces sont conservés. Continuer ?',
     default: false,
   });
   if (!ok) process.exit(0);
@@ -796,7 +796,7 @@ const counts = {
   calendriers: await prisma.calendar.count(),
   'catégories d’agenda': await prisma.calendarCategory.count(),
   évènements: await prisma.calendarEvent.count(),
-  'plages de travail': await prisma.workSchedule.count(),
+  'créneaux de travail': await prisma.workSchedule.count(),
   'vues de tâches': await prisma.taskView.count(),
   'documents comptables': await prisma.accountingDocument.count({ where: { status: { not: 'TEMPLATE' } } }),
   'documents importés': await prisma.importedDocument.count(),

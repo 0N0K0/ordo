@@ -86,7 +86,7 @@ function ScheduleForm({ schedule, copyOf, onDone }: { schedule?: WorkSchedule; c
         noValidate
         onSubmit={form.onSubmit(
           (input) => {
-            const callbacks = formCallbacks(form, schedule ? 'Plages modifiées.' : 'Plages créées.', onDone);
+            const callbacks = formCallbacks(form, schedule ? 'Créneaux modifiés.' : 'Créneaux créés.', onDone);
             if (schedule) update.mutate({ id: schedule.id, input }, callbacks);
             else create.mutate(input, callbacks);
           },
@@ -110,7 +110,7 @@ function ScheduleForm({ schedule, copyOf, onDone }: { schedule?: WorkSchedule; c
               placeholder={defaultKind?.label ?? DEFAULT_SCHEDULE_KIND_LABEL}
               clearable
               searchable
-              onCreate={itemCreator('Nouveau type de plage', typeItems)}
+              onCreate={itemCreator('Nouveau type de créneau', typeItems)}
               {...itemSelectProps(types ?? [], form.values.typeId, undefined, schedule?.typeId)}
               {...form.getInputProps('typeId')}
             />
@@ -214,7 +214,7 @@ export function WorkSchedulesManager() {
    */
   const openForm = ({ schedule, copyOf }: { schedule?: WorkSchedule; copyOf?: WorkSchedule } = {}) => {
     openFormPanel(
-      schedule ? `Modifier « ${schedule.label} »` : copyOf ? `Dupliquer « ${copyOf.label} »` : 'Nouvelles plages',
+      schedule ? `Modifier « ${schedule.label} »` : copyOf ? `Dupliquer « ${copyOf.label} »` : 'Nouveaux créneaux',
       (close) => <ScheduleForm schedule={schedule} copyOf={copyOf} onDone={close} />,
       'lg',
     );
@@ -227,12 +227,12 @@ export function WorkSchedulesManager() {
    */
   const deleteSchedules = (rows: ScheduleRow[], clear?: () => void) =>
     deleteItemsAction(rows, {
-      noun: 'plage',
-      feminine: true,
-      the: 'la plage',
+      noun: 'créneau',
+      many: 'créneaux',
+      the: 'le créneau',
       label: ({ schedule }) => schedule.label,
       risks: (subject, one) =>
-        `${subject} et ${one ? 'ses' : 'leurs'} exceptions seront supprimées définitivement${perso ? '' : ` : ${one ? 'elle ne comptera' : 'elles ne compteront'} plus dans le temps prévu`}. Les autres espaces abonnés ne ${one ? 'la' : 'les'} verront plus. Les évènements ne sont pas touchés.`,
+        `${subject} et ${one ? 'ses' : 'leurs'} exceptions seront supprimés définitivement${perso ? '' : ` : ${one ? 'il ne comptera' : 'ils ne compteront'} plus dans le temps prévu`}. Les autres espaces abonnés ne ${one ? 'le' : 'les'} verront plus. Les évènements ne sont pas touchés.`,
       remove: ({ schedule }) => remove.mutateAsync(schedule.id),
       clear,
     });
@@ -319,30 +319,29 @@ export function WorkSchedulesManager() {
       <SectionHeader
         description={
           perso
-            ? 'Vos plages prévues, affichées dans l’agenda. Leurs types et leur affichage sont dans les paramètres de l’agenda.'
-            : 'Vos plages de travail prévues : affichées dans l’agenda, comparées au temps chronométré, et signalées quand un évènement tombe en dehors.'
+            ? 'Vos créneaux prévus, affichées dans l’agenda. Leurs types et leur affichage sont dans les paramètres de l’agenda.'
+            : 'Vos créneaux de travail prévus : affichées dans l’agenda, comparées au temps chronométré, et signalées quand un évènement tombe en dehors.'
         }
         actions={
           <ActionButton icon={<PlusIcon aria-hidden />} onClick={() => openForm()}>
-            Nouvelles plages
+            Nouveaux créneaux
           </ActionButton>
         }
       />
       {!schedules?.length ? (
-        <EmptyState icon={<ClockIcon aria-hidden />} message="Aucune plage." />
+        <EmptyState icon={<ClockIcon aria-hidden />} message="Aucun créneau." />
       ) : (
         <DataTable
           view={view}
           bar={{ searchLabel: 'Rechercher (libellé, type, exception)…' }}
-          selectionLabel={(count) => selectedLabel(count, ['plage', 'plages'])}
+          selectionLabel={(count) => selectedLabel(count, ['créneau', 'créneaux'], false)}
           isArchived={({ schedule }) => schedule.archived}
           selectionActions={(rows, clear) => [
             archiveRowsAction({
               archived: rows.every(({ schedule }) => schedule.archived),
               apply: (archived) => setArchived.mutateAsync({ ids: rows.map(({ schedule }) => schedule.id), archived }),
-              label: countOf(rows.length, 'plage'),
+              label: countOf(rows.length, 'créneau', 'créneaux'),
               count: rows.length,
-              feminine: true,
               loading: setArchived.isPending,
               clear,
             }),
@@ -454,7 +453,7 @@ export function WorkSchedulesManager() {
                 primary={!schedule.archived && { label: 'Modifier', icon: <PencilSimpleIcon aria-hidden />, onClick: () => openForm({ schedule }) }}
                 items={[
                   !schedule.archived && { label: 'Dupliquer (sans dates ni exceptions)', icon: <CopyIcon aria-hidden />, onClick: () => openForm({ copyOf: schedule }) },
-                  archiveEntry({ archived: schedule.archived, type: 'Plage', label: schedule.label, feminine: true }, setArchived, schedule.id),
+                  archiveEntry({ archived: schedule.archived, type: 'Créneau', label: schedule.label }, setArchived, schedule.id),
                   rowMenuEntry(deleteSchedules([row])),
                 ]}
               />

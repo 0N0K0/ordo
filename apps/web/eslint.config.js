@@ -61,7 +61,7 @@ const RESTRICTED_PATHS = [
   {
     name: '@ordo/shared',
     importNames: ['SLOT_CONDITION_FIELDS', 'SLOT_CONDITION_FIELD_OPERATORS'],
-    message: 'Condition de plages d’une tâche ou d’une routine : SlotConditionBuilder (features/calendar/components), un seul éditeur (décision DU).',
+    message: 'Condition de créneaux d’une tâche ou d’une routine : SlotConditionBuilder (features/calendar/components), un seul éditeur (décision DU).',
   },
 ];
 
@@ -330,7 +330,7 @@ export default defineConfig([
           message: 'Utiliser relationNoun(perso, many) (components/people/people-options) : « Relations » en pro, « Proches » en perso.',
         },
         {
-          selector: "ConditionalExpression[consequent.value='Plages'][alternate.value=/^(Plages|Horaires) de travail$/]",
+          selector: "ConditionalExpression[consequent.value='Créneaux'][alternate.value=/^(Créneaux|Plages|Horaires) de travail$/]",
           message: 'Utiliser schedulesTitle(perso) (features/calendar/lib/schedule-text).',
         },
         // Shared buttons and messages.
@@ -425,8 +425,8 @@ export default defineConfig([
           message: 'Utiliser FoldButton (components/actions/FoldButton) : un chevron qui tourne, « Développer / Réduire » (décision AE).',
         },
         {
-          selector: 'Literal[value=/^(Plages|Horaires) de travail$/], JSXText[value=/^\\s*(Plages|Horaires) de travail\\s*$/]',
-          message: 'Utiliser schedulesTitle(perso) (features/calendar/lib/schedule-text) : « Plages » en perso.',
+          selector: 'Literal[value=/^(Créneaux|Plages|Horaires) de travail$/], JSXText[value=/^\\s*(Créneaux|Plages|Horaires) de travail\\s*$/]',
+          message: 'Utiliser schedulesTitle(perso) (features/calendar/lib/schedule-text) : « Créneaux » en perso.',
         },
         {
           selector:

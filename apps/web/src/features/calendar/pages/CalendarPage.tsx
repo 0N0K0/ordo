@@ -638,7 +638,7 @@ export function CalendarPage() {
       const end = endParts.date === addDays(startParts.date, 1) && endParts.time === '00:00' ? '23:59' : endParts.time;
       if (!allDay && endParts.date !== startParts.date && end !== '23:59') {
         revert();
-        notifyError('Une plage s’arrête le jour où elle commence.');
+        notifyError('Un créneau s’arrête le jour où il commence.');
         return;
       }
       const change: ScheduleSlotTime = allDay ? { date: startParts.date, start: '00:00', end: '24:00', allDay: true } : { date: startParts.date, start: startParts.time, end, allDay: false };
@@ -773,9 +773,9 @@ export function CalendarPage() {
           </ActionButton>
           {/* A mode, not a button (decision CN). */}
           <StateSwitch
-            label="Modifier les plages"
+            label="Modifier les créneaux"
             showLabel
-            hint={editingSlots ? 'Revenir à l’affichage des plages' : 'Déplacer, étirer, changer ou supprimer les plages dans l’agenda'}
+            hint={editingSlots ? 'Revenir à l’affichage des créneaux' : 'Déplacer, étirer, changer ou supprimer les créneaux dans l’agenda'}
             checked={editingSlots}
             onChange={setEditingSlots}
           />
@@ -811,7 +811,7 @@ export function CalendarPage() {
                 />
                 <HiddenChecklist
                   label={schedulesTitle(perso)}
-                  empty="Aucune plage."
+                  empty="Aucun créneau."
                   choices={scheduleChoices}
                   hidden={hiddenSchedules}
                   disabled={filters.workHours === false}

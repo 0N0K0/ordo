@@ -143,7 +143,7 @@ eslint interdit `.slice(0, 10)`, `.slice(0, 7)`, `.split('T')[0]` et `new Date('
 - `quarterName(day)` : « T4 2026 ».
 - `periodName(scale, start)` : « Novembre 2026 », « T4 2026 », « 2026 ».
 - `relativePeriodName(scale, previous)` : « Ce mois-ci », « Le trimestre dernier »…
-- `PeriodState`, `PERIOD_STATES` et `periodState(start, end, now, { endExclusive })` : où en est une période (sprint, évènement, plage) : « À venir » (bleu), « En cours » (vert), « Passée » (gris), décision F.
+- `PeriodState`, `PERIOD_STATES` et `periodState(start, end, now, { endExclusive })` : où en est une période (sprint, évènement, créneau) : « À venir » (bleu), « En cours » (vert), « Passée » (gris), décision F.
 
 ### `week.ts`
 

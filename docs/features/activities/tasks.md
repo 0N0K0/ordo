@@ -54,7 +54,7 @@ Le même tableau (`TaskBoard`) sert à la page et à l’onglet d’un projet. C
 | « Effort »                                     | Nombre (validé à la sortie du champ ou Entrée).                                                                                                                                                                                                                                                                                                                                                    |
 | « Temps passé »                                | Lien vers les temps de la tâche (`/time?task=<id>`). Total en pied.                                                                                                                                                                                                                                                                                                                                |
 | « Début », « Fin », « Date min », « Date max » | Sélecteurs de date ; la « Date max » s’affiche en couleur de retard quand la tâche est en retard.                                                                                                                                                                                                                                                                                                  |
-| « Plages »                                     | Condition de plages en mots (« N’importe quand » sans condition), modifiée dans une bulle (même éditeur que les routines).                                                                                                                                                                                                                                                                                                 |
+| « Créneaux »                                     | Condition de créneaux en mots (« N’importe quand » sans condition), modifiée dans une bulle (même éditeur que les routines).                                                                                                                                                                                                                                                                                                 |
 | « Chrono »                                     | Démarre le chrono sur la tâche, ou l’arrête s’il tourne sur elle.                                                                                                                                                                                                                                                                                                                                  |
 | « Tâche parente »                              | Choix parmi les tâches de l’arborescence (pas elle-même ni ses sous-tâches).                                                                                                                                                                                                                                                                                                                       |
 | « Sous-tâches »                                | Liste des sous-tâches et bouton « Ajouter une sous-tâche ».                                                                                                                                                                                                                                                                                                                                        |
@@ -79,19 +79,19 @@ Chaque colonne filtrable a son filtre (voir [Filtres](../../web/components/filte
 - « Assignés » : « Moi » en plus des contributeurs.
 - « Sprint » : sprints relatifs « Sprint en cours », « Sprint précédent », « Sprint suivant », « Sprints passés », « Sprints à venir » (par arborescence de projets).
 - « Tâche parente » : une tâche garde ses sous-tâches à tous les niveaux.
-- « Faisable maintenant » : tâches ouvertes que leur condition de plages autorise maintenant (sans condition : toujours, dans les deux types d’espace) et dont les assignés ne sont pas pris par un évènement (rafraîchi chaque minute, chargé seulement si le filtre l’utilise).
+- « Faisable maintenant » : tâches ouvertes que leur condition de créneaux autorise maintenant (sans condition : toujours, dans les deux types d’espace) et dont les assignés ne sont pas pris par un évènement (rafraîchi chaque minute, chargé seulement si le filtre l’utilise).
 - « Catégorie de statut » : « À faire », « En cours », « Terminé », « Annulé ».
 - Les valeurs archivées gardent leur libellé et ne sont proposées que si elles sont déjà dans le filtre.
 
 ### Groupes
 
-Grouper par : état, projet (en arbre), statut, priorité, type, assignés, bénéficiaires, étiquettes, tâche parente, jalon, sprint, « Dépend de », « Bloque », « Relative à », et par mois de « Début », « Fin », « Date min », « Date max ». Non groupables : plages, chrono, sous-tâches, avancement, alarmes, achats, commentaires.
+Grouper par : état, projet (en arbre), statut, priorité, type, assignés, bénéficiaires, étiquettes, tâche parente, jalon, sprint, « Dépend de », « Bloque », « Relative à », et par mois de « Début », « Fin », « Date min », « Date max ». Non groupables : créneaux, chrono, sous-tâches, avancement, alarmes, achats, commentaires.
 
 ### Modifier
 
 - Chaque cellule se modifie en place (pas sur une tâche archivée : lecture seule).
 - **Sélection de cellules** ou **tâches cochées** : un changement dans une cellule s’applique à toutes ; toast « Modification appliquée à 3 tâches. » avec « Annuler ».
-- Colonnes modifiables en masse : libellé, projet, bénéficiaires, plages, parent, « Dépend de », « Bloque », « Relative à », achats, statut, priorité, type, assignés, étiquettes, effort, dates, jalon, sprint.
+- Colonnes modifiables en masse : libellé, projet, bénéficiaires, créneaux, parent, « Dépend de », « Bloque », « Relative à », achats, statut, priorité, type, assignés, étiquettes, effort, dates, jalon, sprint.
 - En masse, assignés, étiquettes et sprints ajoutés sont ajoutés à chaque tâche, ceux retirés sont retirés.
 
 ### Glisser-déposer
@@ -138,7 +138,7 @@ Ouvert dans le panneau latéral (titre « Nouvelle tâche » ou « Nouvelle sous
 | « Étiquettes »                                             | Une étiquette tapée peut être créée.                                                                                                                                           |
 | « Bénéficiaires »                                          | Contributeurs et relations.                                                                                                                                                    |
 | « Effort », « Début », « Fin », « Date min », « Date max » | Facultatifs ; la fin ne précède pas le début, la « Date max » ne précède pas la « Date min ».                                                                                  |
-| « Plages de l’agenda »                                     | Condition facultative, comme une routine : « Créneau » (« sur l’un des créneaux », « hors des créneaux »), « Type de créneau » (« sur l’un des types », « hors des types » : toutes les plages de ces types, même ajoutées ensuite) et « Temps libre » (« hors de tous les créneaux », « hors de tous les créneaux sauf » certains de l’espace), plages et types de cet espace ou de vos autres espaces, en groupes ET / OU ; « Aucune condition : à n’importe quelle heure. » ; texte « La tâche n’est faisable que sur les heures que la condition permet. ».                                                                                                                                          |
+| « Créneaux de l’agenda »                                     | Condition facultative, comme une routine : « Créneau » (« sur l’un des créneaux », « hors des créneaux »), « Type de créneau » (« sur l’un des types », « hors des types » : tous les créneaux de ces types, même ajoutés ensuite ; un type qui n’a encore aucun créneau ne permet aucun moment : la tâche ou la routine n’est jamais faisable tant qu’un créneau de ce type n’existe pas) et « Temps libre » (« hors de tous les créneaux », « hors de tous les créneaux sauf » certains de l’espace), créneaux et types de cet espace ou de vos autres espaces, en groupes ET / OU ; « Aucune condition : à n’importe quelle heure. » ; texte « La tâche n’est faisable que sur les heures que la condition permet. ».                                                                                                                                          |
 
 Bouton « Créer la tâche ». Toast « Tâche #12 créée. » (« Tâche « Libellé » créée. » sans projet). La tâche créée s’ouvre dans le panneau.
 
@@ -165,7 +165,7 @@ Colonne de propriétés (chaque champ enregistré dès qu’il change) :
 - « Statut », « Priorité », « Type », « Assignés », « Étiquettes », « Bénéficiaires », « Effort » ;
 - « Temps passé » et bouton « Démarrer le chrono » (ou commandes du chrono s’il tourne sur la tâche) ;
 - « Début », « Fin », « Date min » (« Avant, la tâche n’est pas à faire. »), « Date max » (« Au-delà, la tâche ouverte est en retard. », suivi de « En retard. » en rouge si c’est le cas) ;
-- « Tâche parente », « Jalon », « Sprints », plages ;
+- « Tâche parente », « Jalon », « Sprints », créneaux ;
 - « Bloque », « Dépend de », « Relative à » : listes avec « Retirer » et « Ajouter une tâche » ;
 - alarmes de la tâche ([Alarmes](alarms.md)), listes d’achats ([Achats](../supplies/shopping.md)), fiches ([Fiches](../supplies/sheets.md)).
 
@@ -228,4 +228,4 @@ Règles : [Personnes](../../business-rules/cross-cutting/people.md).
 
 ## Espace PRO / PERSO
 
-Même fonctionnement. Le défaut des plages d’une tâche suit l’espace (heures de travail en PRO). Les badges des contributeurs (membre de l’équipe ou du foyer, relation) suivent le vocabulaire de l’espace.
+Même fonctionnement. Le défaut des créneaux d’une tâche suit l’espace (heures de travail en PRO). Les badges des contributeurs (membre de l’équipe ou du foyer, relation) suivent le vocabulaire de l’espace.

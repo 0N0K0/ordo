@@ -40,7 +40,7 @@ export function SlotConditionBuilder({ value, onChange, item }: { value: SlotCon
     emptyText: 'Aucune condition : à n’importe quelle heure.',
   };
   return (
-    <LabeledField label="Plages de l’agenda">
+    <LabeledField label="Créneaux de l’agenda">
       <Text size="xs" c="dimmed">
         Facultatif : sur ou hors de certains créneaux, ou de tous les créneaux de certains types (même ceux ajoutés ensuite), de cet espace ou de vos autres
         espaces, ou sur le temps libre (hors de tous les créneaux de cet espace, sauf certains), combinés en groupes (ET, OU). {EFFECTS[item]}
