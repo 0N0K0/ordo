@@ -5,12 +5,13 @@
   "version": "1.0.0",
   "description": "",
   "scripts": {
-    "dev": "tsx watch src/index.ts",
+    "dev": "NODE_ENV=development tsx watch src/index.ts",
     "build": "tsup",
     "start": "node dist/index.js",
     "typecheck": "tsc",
     "schema:print": "tsx src/cli/print-schema.ts",
     "user:create": "tsx src/cli/create-user.ts",
+    "htaccess:print": "tsx src/cli/print-htaccess.ts",
     "db:seed": "prisma db seed --",
     "lint": "eslint src prisma"
   },

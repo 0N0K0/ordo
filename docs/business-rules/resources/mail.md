@@ -339,9 +339,9 @@ S’applique aux mails lus, aux copies des projets, aux mails envoyés et aux si
 
 - Retirés : scripts, gestionnaires d’événements, `form`, `input`, `button`, `textarea`, `select`, `iframe`, `frame`, `object`, `embed`, `base`, `meta`, `link`.
 - Gardés : styles et images.
-- Adresses permises : `http(s):`, `mailto:`, `tel:`, `cid:`, `data:image/`, `/api/`.
+- Adresses permises : `http(s):`, `mailto:`, `tel:`, `cid:`, `data:image/` ; `/api/` seulement dans ce que l’utilisateur écrit (mail envoyé, signature). Un mail reçu ne peut pas faire appeler l’API par le navigateur : seules ses images intégrées (`cid:`) reçoivent, après nettoyage, leur adresse `/api/mail/…/attachment` (ou `/api/attachments/…` pour une copie de projet).
 - Les liens reçoivent `target="_blank"` et `rel="noopener noreferrer"`.
-- Côté web, le mail est en plus affiché dans un cadre isolé sans script, images distantes bloquées par défaut.
+- Côté web, le mail est en plus affiché dans un cadre isolé sans script, images et polices distantes bloquées (les images peuvent être affichées à la demande).
 
 ## Erreurs de connexion
 

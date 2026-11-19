@@ -21,7 +21,7 @@ Flux : PR vers `main` → CI → merge → déploiement staging. PR `main` → `
 
 ## 1. Préparer cPanel (par environnement)
 
-1. **Sous-domaine** et son **certificat SSL** (Let's Encrypt / AutoSSL). La **racine du document** du sous-domaine doit pointer vers `<dossier>/apps/web/dist` (le build du front) : Apache y sert directement les fichiers statiques, le reste passe à l'app Node. cPanel écrit dans ce dossier le `.htaccess` qui active Passenger ; le build de Vite vidant `dist`, `scripts/deploy.sh` le sauvegarde et le remet après chaque build.
+1. **Sous-domaine** et son **certificat SSL** (Let's Encrypt / AutoSSL). La **racine du document** du sous-domaine doit pointer vers `<dossier>/apps/web/dist` (le build du front) : Apache y sert directement les fichiers statiques, le reste passe à l'app Node. cPanel écrit dans ce dossier le `.htaccess` qui active Passenger ; le build de Vite vidant `dist`, `scripts/deploy.sh` le sauvegarde et le remet après chaque build, puis y écrit le bloc `ordo-security` : les en-têtes de sécurité des fichiers qu'Apache sert lui-même (voir [Espaces et accès](business-rules/cross-cutting/workspaces-and-access.md)).
 2. **Base PostgreSQL** + utilisateur associé avec tous les privilèges (« Bases de données PostgreSQL »).
 3. **Adresse mail** dédiée aux envois (« Comptes de messagerie »), par ex. `ordo@onoko.dev`.
 4. **Accès SSH** : ajouter ta clé et autoriser ton IP (pare-feu SSH o2switch).
@@ -96,6 +96,9 @@ MAIL_FROM="Ordo <ordo@onoko.dev>"
 MAIL_ENCRYPTION_KEY="…"
 ```
 
+- `NODE_ENV` : le `.env` l'emporte sur la valeur que pose l'hébergeur (le « Application mode » de cPanel) ; sans valeur, l'API tourne en production. Le journal de démarrage affiche le mode : « API ready (production)… ».
+- Le `.env` n'est lisible que par son propriétaire : `scripts/deploy.sh` fait `chmod 600 apps/api/.env` à chaque déploiement.
+- `BACKUP_GPG_RECIPIENT` (optionnelle, production) : identifiant d'une clé publique GPG importée sur le serveur ; les sauvegardes sont alors chiffrées pour elle (voir [Sauvegardes](#5-sauvegardes)).
 - `MAIL_ENCRYPTION_KEY` : générer avec `openssl rand -base64 32`, **une clé différente par environnement**, à conserver en lieu sûr (sans elle, les mots de passe des boîtes mail enregistrées dans Ordo sont perdus).
 - Encoder le mot de passe de la base pour une URL s'il contient `@`, `:` ou `/`.
 - Variables optionnelles : `GITHUB_GRAPHQL_URL`, `PHOTON_URL`, `ROUTING_URL` (voir `apps/api/src/env.ts`).
@@ -120,6 +123,7 @@ touch tmp/restart.txt
 
 - La page de connexion s'affiche ; recharger une URL profonde (`/accounting`) fonctionne.
 - Connexion au compte, cartes (tuiles OpenStreetMap), aperçus PDF, envoi d'un mail de test.
+- Mode production et en-têtes : `curl -sI https://<sous-domaine>/` doit montrer `content-security-policy` et `strict-transport-security` ; `curl -s -H 'Accept: text/html' https://<sous-domaine>/api/graphql` ne doit pas renvoyer GraphiQL ; `curl -sI http://<sous-domaine>/` doit rediriger vers HTTPS (cPanel → « Domaines » → « Forcer la redirection HTTPS »).
 - Production : `which pg_dump` doit répondre (sauvegarde avant migration).
 
 ## 3. Configuration GitHub
@@ -135,7 +139,7 @@ ssh-keygen -t ed25519 -C "github-actions-ordo" -f ~/.ssh/ordo_deploy -N ""
 - `~/.ssh/ordo_deploy.pub` (clé publique) → cPanel « Accès SSH » → « Gérer les clés SSH » → « Importer une clé » (champ clé publique seulement), puis **« Autoriser »**.
 - `~/.ssh/ordo_deploy` (clé privée) → secret `SSH_PRIVATE_KEY`, contenu complet du fichier, lignes `-----BEGIN OPENSSH PRIVATE KEY-----` et `-----END OPENSSH PRIVATE KEY-----` comprises.
 
-Si cPanel refuse ed25519 : `ssh-keygen -t rsa -b 4096 …`. Test : `ssh -i ~/.ssh/ordo_deploy kono7602@<serveur>.o2switch.net 'echo ok'`.
+Si cPanel refuse ed25519 : `ssh-keygen -t rsa -b 4096 …`. Test : `ssh -i ~/.ssh/ordo_deploy <utilisateur-cpanel>@<serveur>.o2switch.net 'echo ok'`.
 
 ### 3.2 Jeton API cPanel
 
@@ -148,7 +152,7 @@ Settings → Secrets and variables → Actions → **Repository secrets** (commu
 | Secret             | Valeur                   |
 | ------------------ | ------------------------ |
 | `CPANEL_HOST`      | `<serveur>.o2switch.net` |
-| `CPANEL_USERNAME`  | `kono7602`               |
+| `CPANEL_USERNAME`  | l'identifiant cPanel     |
 | `CPANEL_API_TOKEN` | le jeton du 3.2          |
 | `SSH_PRIVATE_KEY`  | la clé privée du 3.1     |
 
@@ -188,7 +192,7 @@ Un seul déploiement à la fois par environnement.
 
 ### Script serveur — `scripts/deploy.sh`
 
-Ordre : vérification du lien `.env` → `npm ci` → `prisma generate` → build → sauvegarde (si `BACKUP=1`) → `migrate deploy` → redémarrage → fixtures (si `FIXTURES=1`). Le build passe avant les migrations : un build cassé ne touche pas la base.
+Ordre : vérification du lien `.env` (et de ses droits) → `npm ci` → `prisma generate` → build → en-têtes de sécurité du `.htaccess` → sauvegarde (si `BACKUP=1`) → `migrate deploy` → redémarrage → fixtures (si `FIXTURES=1`). Le build passe avant les migrations : un build cassé ne touche pas la base.
 
 **Fixtures (staging uniquement).** Avec `FIXTURES=1`, le script recharge les données de démo (`prisma db seed -- --force`) : le premier espace pro et le premier espace perso sont vidés puis remplis. Il refuse si la branche n'est pas `main` ou si `BACKUP=1` (production). Le `.env` de staging ayant `NODE_ENV=production`, le seed n'accepte de tourner que si `ALLOW_FIXTURES=staging`, que seul ce script pose. Sans GreenMail sur le serveur, la boîte mail de démo est sautée (avertissement). Un déploiement manuel (Run workflow) ne charge jamais les fixtures ; pour les recharger à la main : `FIXTURES=1 bash scripts/deploy.sh` sur le serveur de staging.
 
@@ -202,7 +206,17 @@ bash scripts/deploy.sh            # BACKUP=1 bash scripts/deploy.sh en productio
 
 ## 5. Sauvegardes
 
-En production, chaque déploiement sauvegarde la base dans `~/backups/<dossier>/AAAAMMJJ-HHMMSS.dump` (format `pg_dump -Fc`) ; les 10 dernières sont gardées. Programmer en plus une sauvegarde régulière dans cPanel.
+En production, chaque déploiement sauvegarde la base dans `~/backups/<dossier>/AAAAMMJJ-HHMMSS.dump` (format `pg_dump -Fc`) ; les 10 dernières sont gardées. Le dossier et les fichiers ne sont lisibles que par leur propriétaire. Programmer en plus une sauvegarde régulière dans cPanel, et en garder des copies hors du serveur.
+
+**Chiffrement.** Une sauvegarde contient toutes les données en clair. Avec `BACKUP_GPG_RECIPIENT` dans le `.env`, elle est chiffrée pour cette clé publique (`….dump.gpg`) ; la clé privée reste hors du serveur, qui ne peut donc pas relire ses propres sauvegardes. Mise en place, une fois :
+
+```bash
+gpg --full-generate-key                                  # sur ta machine
+gpg --export --armor <identifiant> > ordo-backup.pub     # sur ta machine, puis copier le fichier sur le serveur
+gpg --import ordo-backup.pub                             # sur le serveur
+```
+
+Déchiffrer (sur ta machine) : `gpg --decrypt <fichier>.dump.gpg > <fichier>.dump`.
 
 Restaurer (**écrase la base** ; arrêter l'app avant) :
 

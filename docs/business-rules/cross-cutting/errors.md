@@ -60,6 +60,7 @@ L'extension `fields` porte un message par chemin de champ (`« label »`, `« li
 `apps/api/src/routes/http.ts` :
 
 - `requireSession` : 401 sans session.
+- `sessionRequired` : le même contrôle en middleware, placé avant la lecture du corps d'une requête (exports, envoi de fichiers) : un corps anonyme n'est jamais lu.
 - `sendServiceError(res, error, context)` : une `GraphQLError` est renvoyée avec le statut de son code (tableau ci-dessus), en JSON `{ error }` ou en texte si une page est demandée (lien, cadre d'aperçu) ; toute autre erreur est journalisée et renvoyée en 500 sans détail.
 - `downloadRoute(produce, context)` : route de téléchargement avec ces deux règles ; messages de journal : « PDF impossible. », « Archive impossible. », « Export PDF impossible. », « Export ICS impossible. », « Relevé impossible. », « Pièce jointe impossible. », « Icône impossible. », « Pièce jointe de mail impossible. ».
 - Pièce jointe de mail mal désignée : « Pièce jointe mal désignée. » (`apps/api/src/routes/mail.ts`).

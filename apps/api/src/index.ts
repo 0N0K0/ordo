@@ -13,7 +13,9 @@ import { exportsRouter } from './routes/exports';
 import { libraryRouter } from './routes/library';
 import { iconsRouter } from './routes/icons';
 import { mailRouter } from './routes/mail';
+import { sessionRequired } from './routes/http';
 import { treasuryRouter } from './routes/treasury';
+import { CSP_DIRECTIVES } from './security-headers';
 import { scheduleConversationFollowUp } from './services/mail/linked';
 import { scheduleMailSending } from './services/mail/scheduled';
 import { scheduleGithubSync } from './services/github/sync';
@@ -56,21 +58,24 @@ const yoga = createYoga<ServerContext>({
   schema,
   graphqlEndpoint: '/api/graphql',
   graphiql: !isProd,
+  landingPage: !isProd,
+  // The web app and the API share one origin: no other site may read the answers.
+  cors: false,
+  // Whatever the host says of NODE_ENV: the detail of an unexpected error only goes to the client in development.
+  maskedErrors: { isDev: !isProd },
   context: createContext,
   plugins: isProd ? [disableIntrospection] : [],
 });
 
 const app = express();
+// Express reads NODE_ENV itself (stack traces in its error pages): the mode of the app decides instead.
+app.set('env', env.NODE_ENV);
 
 // Behind the Vite proxy in dev, and a reverse proxy in production: needed for req.ip.
 app.set('trust proxy', 'loopback');
 
-// GraphiQL loads its assets from a CDN: CSP only in production, where maps load their tiles from OpenStreetMap.
-app.use(
-  helmet({
-    contentSecurityPolicy: isProd ? { directives: { 'img-src': ["'self'", 'data:', 'blob:', 'https://tile.openstreetmap.org'] } } : false,
-  }),
-);
+// GraphiQL loads its assets from a CDN: CSP only in production.
+app.use(helmet({ contentSecurityPolicy: isProd ? { directives: CSP_DIRECTIVES } : false }));
 // Every request works in one workspace: its data only.
 app.use(workspaceMiddleware);
 app.use('/api/icons', iconsRouter);
@@ -80,6 +85,11 @@ app.use('/api/mail', mailRouter);
 app.use('/api/exports', exportsRouter);
 app.use('/api/library', libraryRouter);
 app.use('/api/treasury', treasuryRouter);
+// Files are sent by signed-in users only: an anonymous upload is refused before its body is read.
+app.use(yoga.graphqlEndpoint, (req, res, next) => {
+  if (req.is('multipart/form-data')) void sessionRequired(req, res, next);
+  else next();
+});
 app.use(yoga.graphqlEndpoint, async (req, res) => {
   await yoga(req, res);
 });
@@ -95,5 +105,5 @@ scheduleRecurringInvoices();
 scheduleGithubSync();
 
 app.listen(env.PORT, () => {
-  console.log(`API ready on http://localhost:${env.PORT}${yoga.graphqlEndpoint}`);
+  console.log(`API ready (${env.NODE_ENV}) on http://localhost:${env.PORT}${yoga.graphqlEndpoint}`);
 });

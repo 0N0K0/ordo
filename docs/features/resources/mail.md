@@ -147,7 +147,7 @@ Boutons sous l’en-tête :
 Contenu :
 
 - Pièces jointes (hors images intégrées) sous forme de badges : un PDF ou une image s’ouvre dans la visionneuse de l’app, un autre fichier se télécharge.
-- Corps HTML dans un cadre isolé (aucun script ne s’exécute, les liens s’ouvrent dans un nouvel onglet), à la hauteur de son contenu. Les images distantes sont bloquées : bandeau « Images distantes bloquées (elles peuvent signaler l’ouverture du mail). » et bouton « Afficher les images ». Un mail texte s’affiche en texte ; un mail vide affiche « Ce mail est vide. ».
+- Corps HTML dans un cadre isolé (aucun script ne s’exécute, les liens s’ouvrent dans un nouvel onglet), à la hauteur de son contenu. Les polices distantes sont toujours bloquées, les images distantes aussi par défaut : bandeau « Images distantes bloquées (elles peuvent signaler l’ouverture du mail). » et bouton « Afficher les images ». Un mail texte s’affiche en texte ; un mail vide affiche « Ce mail est vide. ».
 - Commentaires du mail (fil de commentaires de l’app, attaché au Message-ID du mail), voir [Commentaires](../cross-cutting/comments.md).
 
 États : squelette pendant le chargement ; « Mail introuvable. » ou le message d’erreur de l’API.

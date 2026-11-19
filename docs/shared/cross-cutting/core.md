@@ -120,6 +120,7 @@ zxcvbn et ses dictionnaires pèsent environ 1,3 Mo : ce fichier n'est pas dans `
 | `countOf(count, word, many?)`                   | « 1 tâche », « 3 tâches ».                                                                                                                                    |
 | `countWith(count, word, [one, several], many?)` | « sa tâche » / « ses 3 tâches », « de la tâche » / « des 2 tâches ».                                                                                          |
 | `ellipsis(text, max)`                           | Coupe avec « … » (ellipse comprise dans `max`).                                                                                                               |
+| `escapeText(text)`                              | Texte échappé pour du HTML (`&`, `<`, `>`, `"`) : contenu d'un élément ou valeur d'un attribut entre guillemets.                                              |
 | `capitalize(text)`                              | Première lettre en capitale.                                                                                                                                  |
 
 ## `tree.ts` — arbres (projets, lieux, catégories…)
