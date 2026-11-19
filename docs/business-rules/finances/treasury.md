@@ -28,7 +28,7 @@ Sources : `apps/api/src/services/treasury/treasury.ts`, schéma `treasuryAccount
 - Création : en dernière position (`nextPositionIn`).
 - Modification : refusée sur un compte archivé (« Élément archivé… »).
 - Suppression : refusée s’il a des mouvements : « Ce compte a des mouvements : archivez-le plutôt. » (la base refuse aussi : `onDelete: Restrict`).
-- Solde d’un compte à un jour (`accountBalance`) : 0 avant sa date d’ouverture ; sinon solde d’ouverture + somme des mouvements **réels** datés de la date d’ouverture à ce jour inclus. Les mouvements archivés comptent (argent réel), les prévisions non. Le champ GraphQL `balance` donne le solde d’aujourd’hui (heure de Paris).
+- Solde d’un compte à un jour (`accountBalance` ; `accountBalances` pour plusieurs comptes en une requête) : 0 avant sa date d’ouverture ; sinon solde d’ouverture + somme des mouvements **réels** datés de la date d’ouverture à ce jour inclus. Les mouvements archivés comptent (argent réel), les prévisions non. Le champ GraphQL `balance` donne le solde d’aujourd’hui (heure de Paris).
 - Liste `treasuryAccounts` : non archivés d’abord, puis par position.
 - Un compte archivé n’est plus compté dans le solde global ni dans le prévisionnel ; il ne peut pas être donné à un nouveau mouvement (voir [Éléments archivés](#éléments-archivés-donnés-à-un-mouvement)) ni recevoir un import.
 

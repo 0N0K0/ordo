@@ -994,7 +994,7 @@ export default defineConfig([
   },
   {
     // App-wide features the bricks read (the user, the active workspace and its week, a file link): known exceptions.
-    files: ['src/lib/query-client.ts', 'src/lib/week.ts', 'src/components/people/people-options.ts', 'src/components/markdown/MarkdownView.tsx'],
+    files: ['src/lib/query-client.ts', 'src/lib/week.ts', 'src/components/people/people-options.ts', 'src/components/markdown/MarkdownRenderer.tsx'],
     rules: { 'no-restricted-imports': ['error', { paths: RESTRICTED_PATHS }] },
   },
   {

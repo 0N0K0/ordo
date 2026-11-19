@@ -23,7 +23,7 @@ import { z } from 'zod';
 import { prisma } from '../../db';
 import { BY_POSITION } from '../core/ordering';
 import { clientError, notFound, parseInput } from '../../graphql/errors';
-import { accountBalance } from './treasury';
+import { accountBalances } from './treasury';
 import { issuerName, PDF_TABLE, PDF_TEXT, REPORT_MARGIN, startReport, writeHeading } from '../core/pdf-report';
 import { decimalCents, fromDecimal } from '../core/decimal';
 
@@ -118,8 +118,8 @@ export async function treasuryStatementPdf(input: StatementInput): Promise<{ fil
 
   const openingDates = new Map(accounts.map((account) => [account.id, formatDay(account.openingDate)]));
   const counted = (entry: (typeof entries)[number]) => formatDay(entry.date) >= (openingDates.get(entry.accountId) ?? '');
-  const opening = sumOf(await Promise.all(accounts.map((account) => accountBalance(account, addDays(from, -1)))), (value) => value);
-  const closing = sumOf(await Promise.all(accounts.map((account) => accountBalance(account, to))), (value) => value);
+  const opening = sumOf(await accountBalances(accounts, addDays(from, -1)), (value) => value);
+  const closing = sumOf(await accountBalances(accounts, to), (value) => value);
   // Accounts opened during the period: their opening balance, that day.
   const openings = accounts
     .filter((account) => formatDay(account.openingDate) >= from && formatDay(account.openingDate) <= to)

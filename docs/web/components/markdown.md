@@ -29,7 +29,13 @@ Fonctions internes : `triggerCommand`, `codeCommand`. Constantes : `MAX_SUGGESTI
 
 ### `MarkdownView`
 
+Enveloppe légère : sans texte, affiche `emptyText` ; avec un texte, charge `MarkdownRenderer` (et les bibliothèques markdown) à la demande (`lazyNamed`), `TextSkeleton` en attendant. Exporte `MarkdownViewProps`.
+
 Rendu GitHub Flavored Markdown (tableaux, listes de tâches, barré, liens automatiques), assaini (`rehype-sanitize`, l'attribut `dataTaskOffset` autorisé sur `li`), avec les références « #12 » en liens. Props : `children` (source), `targets` (`ReferenceTargets`), `emptyText` (défaut « Aucune description. », en italique atténué), `onChange` (avec lui, les cases des listes de tâches se cochent et la source est mise à jour, affichée tout de suite en attendant l'enregistrement ; sans lui, cases en lecture seule).
+
+## `MarkdownRenderer.tsx`
+
+`MarkdownRenderer(props)` : le rendu lui-même (`react-markdown`, `remark-gfm`, `rehype-sanitize`), chargé par `MarkdownView` ; jamais importé directement.
 
 Composants internes :
 

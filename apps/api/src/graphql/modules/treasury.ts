@@ -30,6 +30,8 @@ import * as team from '../../services/treasury/treasury-team';
 import { meContributorId } from '../../services/workspaces/workspaces';
 import { currentWorkspace } from '../../workspace-context';
 import { BY_POSITION, BY_POSITION_NAME } from '../../services/core/ordering';
+import type { TreasuryAccount } from '../../generated/prisma/client';
+import { batchedBy } from '../batch';
 import { builder } from '../builder';
 import { LabelColorInput, labelObject } from '../label-inputs';
 import { parisToday } from '../../today';
@@ -459,6 +461,12 @@ builder.prismaObjectFields('TreasuryEntryLine', (t) => ({
   }),
 }));
 
+/** Recipient of each document of a list, loaded together. */
+const billingRecipientOf = batchedBy(reminders.billingRecipients);
+
+/** Balance of each account of a list today, loaded together. */
+const balanceToday = batchedBy((accounts: TreasuryAccount[]) => treasury.accountBalances(accounts, parisToday()));
+
 builder.prismaObject('TreasuryAccount', {
   fields: (t) => ({
     id: t.exposeID('id'),
@@ -467,7 +475,7 @@ builder.prismaObject('TreasuryAccount', {
     openingDate: t.expose('openingDate', { type: 'Date' }),
     csvMapping: t.field({ type: 'JSON', nullable: true, description: 'Columns of its bank statements (CSV), as last mapped.', resolve: (account) => account.csvMapping }),
     entryCount: t.relationCount('entries'),
-    balance: t.float({ description: 'Balance today.', resolve: async (account) => fromCents(await treasury.accountBalance(account, parisToday())) }),
+    balance: t.float({ description: 'Balance today.', resolve: async (account, _args, ctx) => fromCents(await balanceToday(ctx, account)) }),
   }),
 });
 
@@ -529,7 +537,7 @@ builder.prismaObjectFields('AccountingDocument', (t) => ({
     nullable: true,
     description: 'Address the document is mailed to: its contact, else its service, else its client.',
     select: { contactId: true, serviceId: true, clientId: true },
-    resolve: async (document) => (await reminders.billingRecipient(document)).email,
+    resolve: async (document, _args, ctx) => (await billingRecipientOf(ctx, document)).email,
   }),
   payments: t.relation('allocations', { query: { orderBy: { entry: { date: 'asc' } } } }),
 }));

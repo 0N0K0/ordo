@@ -1,5 +1,6 @@
 import express from 'express';
 import { createFetch } from '@whatwg-node/fetch';
+import compression from 'compression';
 import { NoSchemaIntrospectionCustomRule } from 'graphql';
 import { createYoga, type Plugin } from 'graphql-yoga';
 import helmet from 'helmet';
@@ -85,6 +86,9 @@ app.set('trust proxy', 'loopback');
 
 // GraphiQL loads its assets from a CDN: CSP only in production.
 app.use(helmet({ contentSecurityPolicy: isProd ? { directives: CSP_DIRECTIVES } : false }));
+// The host compresses the files it serves, not the answers of the API: lists shrink several times (PDFs, ZIPs and images
+// are left as they are).
+app.use(compression());
 // Every request works in one workspace: its data only.
 app.use(workspaceMiddleware);
 app.use('/api/icons', iconsRouter);
