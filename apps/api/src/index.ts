@@ -1,4 +1,5 @@
 import express from 'express';
+import { createFetch } from '@whatwg-node/fetch';
 import { NoSchemaIntrospectionCustomRule } from 'graphql';
 import { createYoga, type Plugin } from 'graphql-yoga';
 import helmet from 'helmet';
@@ -54,7 +55,14 @@ function serveWeb(): void {
   });
 }
 
+/** Heaviest file an upload may carry (the documents of the library: 25 MB); each service then applies its own limit. */
+const MAX_UPLOAD_BYTES = 25 * 1024 * 1024;
+/** Most files one upload may carry. */
+const MAX_UPLOAD_FILES = 50;
+
 const yoga = createYoga<ServerContext>({
+  // An upload over the limits is refused while it is read, not once in memory.
+  fetchAPI: createFetch({ formDataLimits: { fileSize: MAX_UPLOAD_BYTES, files: MAX_UPLOAD_FILES } }),
   schema,
   graphqlEndpoint: '/api/graphql',
   graphiql: !isProd,

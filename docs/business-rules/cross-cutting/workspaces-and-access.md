@@ -25,7 +25,7 @@ Voir aussi : [Personnes](people.md), [Erreurs](errors.md), [Tâches de fond](bac
 ### Isolation des données
 
 - Chaque requête HTTP travaille dans **un** espace : celui de l'en-tête `x-ordo-workspace`, sinon du cookie `ordo_workspace`, sinon le premier espace (`workspaceMiddleware`). Le middleware passe avant l'authentification.
-- Toutes les lignes, sauf `Workspace`, `User`, `Session` et `AuthToken`, appartiennent à un espace. Le client Prisma étendu (`apps/api/src/db.ts`) ajoute `workspaceId` à toutes les lectures, mises à jour et suppressions, et donne l'espace à toutes les créations (y compris imbriquées) ; l'espace d'une ligne ne change jamais. Une requête hors espace échoue (« No workspace… », erreur interne).
+- Toutes les lignes, sauf `Workspace`, `User`, `Session`, `AuthToken` et `RateLimit`, appartiennent à un espace. Le client Prisma étendu (`apps/api/src/db.ts`) ajoute `workspaceId` à toutes les lectures, mises à jour et suppressions, et donne l'espace à toutes les créations (y compris imbriquées) ; l'espace d'une ligne ne change jamais. Une requête hors espace échoue (« No workspace… », erreur interne).
 - `unscopedPrisma` (sans limite) ne sert qu'aux espaces eux-mêmes, aux abonnements entre espaces et à la suppression d'un espace. Le SQL brut filtre lui-même par `currentWorkspaceId()`.
 - Les tâches de fond tournent espace par espace (`forEachWorkspace`), une erreur dans un espace n'arrêtant pas les autres.
 
@@ -51,7 +51,7 @@ Voir aussi : [Personnes](people.md), [Erreurs](errors.md), [Tâches de fond](bac
 - En production, l'introspection GraphQL est désactivée, GraphiQL et la page d'accueil de Yoga absents ; CSP stricte (`helmet`, `apps/api/src/security-headers.ts`) : valeurs par défaut de `helmet`, images permises depuis `data:`, `blob:` et toute adresse `https:` (tuiles des cartes, images liées dans un texte, images distantes d'un mail une fois autorisées).
 - Les fichiers du front servis par Apache (dont `index.html`) reçoivent les mêmes en-têtes par le `.htaccess` (`htaccessSecurityBlock`, écrit par `scripts/deploy.sh`) : HSTS, `nosniff`, `X-Frame-Options: SAMEORIGIN`, `Referrer-Policy: no-referrer`, `Cross-Origin-Opener-Policy: same-origin`, et la CSP sur les pages HTML.
 - **CORS** désactivé : le front et l'API partagent la même origine, aucun autre site ne peut lire les réponses.
-- Un corps de requête n'est lu que pour un utilisateur connecté quand il peut être lourd : envoi de fichiers en GraphQL (multipart) et exports (`sessionRequired`), 401 sinon.
+- Un corps de requête n'est lu que pour un utilisateur connecté quand il peut être lourd : envoi de fichiers en GraphQL (multipart) et exports (`sessionRequired`), 401 sinon. Un envoi de fichiers est refusé pendant sa lecture au-delà de 25 Mo par fichier ou de 50 fichiers ; chaque service applique ensuite sa propre limite.
 
 ## Connexion et sessions
 
@@ -62,13 +62,17 @@ Voir aussi : [Personnes](people.md), [Erreurs](errors.md), [Tâches de fond](bac
 
 ## Limites de tentatives
 
-En mémoire (`rate-limiter-flexible`), donc remises à zéro au redémarrage :
+Comptées en base (`rate-limiter-flexible`, table `RateLimit`) : un redémarrage ne les remet pas à zéro et tous les processus de l'app les partagent. Si la base échoue, le compte se fait en mémoire. Les compteurs expirés sont supprimés une heure après leur fin.
 
-| Limite                               | Clés              | Seuil                                     |
-| ------------------------------------ | ----------------- | ----------------------------------------- |
-| Connexions échouées                  | IP et identifiant | 5 par 15 min (remise à zéro après succès) |
-| Demandes de réinitialisation         | IP                | 3 par heure                               |
-| Vérifications du mot de passe actuel | utilisateur       | 5 par 15 min (remise à zéro après succès) |
+| Limite                               | Clé         | Seuil                                       |
+| ------------------------------------ | ----------- | ------------------------------------------- |
+| Connexions échouées                  | IP          | 5 par 15 min (remise à zéro après succès)   |
+| Connexions échouées                  | identifiant | 100 par 15 min (remise à zéro après succès) |
+| Demandes de réinitialisation         | IP          | 3 par heure                                 |
+| Vérifications du mot de passe actuel | utilisateur | 5 par 15 min (remise à zéro après succès)   |
+
+- La limite par identifiant est volontairement très au-dessus de celle par IP : quelques échecs d'un tiers ne verrouillent pas le compte, une attaque répartie sur beaucoup d'adresses reste arrêtée.
+- Chaque connexion échouée est journalisée avec son adresse (« Failed login from … »). Une adresse « unknown » signifie que l'hébergeur la masque : toutes les visites partagent alors le même compteur par IP.
 
 Dépassement : « Trop de tentatives. Réessayez dans N min. ».
 

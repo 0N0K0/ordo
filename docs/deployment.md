@@ -23,7 +23,7 @@ Flux : PR vers `main` → CI → merge → déploiement staging. PR `main` → `
 
 1. **Sous-domaine** et son **certificat SSL** (Let's Encrypt / AutoSSL). La **racine du document** du sous-domaine doit pointer vers `<dossier>/apps/web/dist` (le build du front) : Apache y sert directement les fichiers statiques, le reste passe à l'app Node. cPanel écrit dans ce dossier le `.htaccess` qui active Passenger ; le build de Vite vidant `dist`, `scripts/deploy.sh` le sauvegarde et le remet après chaque build, puis y écrit le bloc `ordo-security` : les en-têtes de sécurité des fichiers qu'Apache sert lui-même (voir [Espaces et accès](business-rules/cross-cutting/workspaces-and-access.md)).
 2. **Base PostgreSQL** + utilisateur associé avec tous les privilèges (« Bases de données PostgreSQL »).
-3. **Adresse mail** dédiée aux envois (« Comptes de messagerie »), par ex. `ordo@onoko.dev`.
+3. **Adresse mail** dédiée aux envois (« Comptes de messagerie »), par ex. `no-reply@example.com`.
 4. **Accès SSH** : ajouter ta clé et autoriser ton IP (pare-feu SSH o2switch).
 
 ## 2. Installation initiale sur le serveur (par environnement)
@@ -90,9 +90,9 @@ APP_URL="https://<sous-domaine>"
 SMTP_HOST="<serveur>.o2switch.net"
 SMTP_PORT="465"
 SMTP_SECURE="true"
-SMTP_USER="ordo@onoko.dev"
+SMTP_USER="admin@example.com"
 SMTP_PASS="…"
-MAIL_FROM="Ordo <ordo@onoko.dev>"
+MAIL_FROM="Ordo <no-reply@example.com>"
 MAIL_ENCRYPTION_KEY="…"
 ```
 
@@ -231,7 +231,7 @@ Pour vérifier une sauvegarde sans risque, la restaurer dans une base vide cré�
 cPanel → « Tâches Cron », pour la production :
 
 ```text
-*/5 * * * * curl -fsS https://ordo.onoko.dev/ > /dev/null
+*/5 * * * * curl -fsS https://<nom-de-domaine>/ > /dev/null
 ```
 
 ## Dépannage

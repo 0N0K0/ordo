@@ -21,7 +21,7 @@ Les pages de connexion sont une carte centrée titrée « Ordo ».
 | « Identifiant ou adresse email » | requis (« Champ requis. ») ; mis en minuscules |
 | « Mot de passe »                 | requis                                         |
 
-Lien « Mot de passe oublié ? », bouton « Se connecter ». Erreur : « Identifiant ou mot de passe incorrect. ». Essais limités à 5 par 15 minutes (par adresse IP et par identifiant) : au-delà, « Trop de tentatives. Réessayez dans N min. ».
+Lien « Mot de passe oublié ? », bouton « Se connecter ». Erreur : « Identifiant ou mot de passe incorrect. ». Essais limités à 5 par 15 minutes par adresse IP (et à 100 par 15 minutes pour un même identifiant, toutes adresses confondues) : au-delà, « Trop de tentatives. Réessayez dans N min. ».
 
 ## « Mot de passe oublié » (`/forgot-password`)
 
