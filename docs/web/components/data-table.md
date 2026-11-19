@@ -90,7 +90,7 @@ L’option « Pied de tableau » affiche sous chaque colonne un total choisi en 
 
 ### Hauteur et performance
 
-Le tableau défile dans sa propre zone, l’en-tête collé en haut : seul sur la page, il prend toute la hauteur jusqu’au bas de la fenêtre (240 px au moins) ; avec d’autres contenus, la zone de contenu moins les onglets de vues, la barre d’outils et une marge (hauteurs publiées en variables CSS). Au-delà de 400 lignes, seules les lignes visibles (et 40 autour) sont rendues (`@tanstack/react-virtual`).
+Le tableau défile dans sa propre zone, l’en-tête collé en haut : seul sur la page, il prend toute la hauteur jusqu’au bas de la fenêtre (240 px au moins) ; avec d’autres contenus, la zone de contenu moins les onglets de vues, la barre d’outils et une marge (hauteurs publiées en variables CSS). Au-delà de 150 lignes, seules les lignes visibles (et 40 de chaque côté, soit 110 environ) sont rendues (`@tanstack/react-virtual`).
 
 ## `table/`
 
