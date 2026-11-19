@@ -117,6 +117,7 @@ model Workspace {
   routineCategories         RoutineCategory[]
   routines                  Routine[]
   routineDependencies       RoutineDependency[]
+  routineRelations          RoutineRelation[]
   routineChecks             RoutineCheck[]
   sheets                    Sheet[]
   sheetItems                SheetItem[]
@@ -3074,7 +3075,8 @@ model Routine {
   description          String?
   /// Categories it is shown in (a sub-routine is shown under its parent).
   categories           RoutineCategory[]      @relation("RoutineCategories")
-  /// Parent routine (null for a top-level one). Deleting a routine puts its sub-routines one level up.
+  /// Parent routine (null for a top-level one). Deleting a routine deletes its sub-routines or puts them one level up
+  /// (chosen by the API).
   parentId             String?
   parent               Routine?               @relation("RoutineTree", fields: [parentId], references: [id], onDelete: SetNull)
   children             Routine[]              @relation("RoutineTree")
@@ -3125,9 +3127,11 @@ model Routine {
   /// Project its tracked time goes to, if any.
   projectId            String?
   project              Project?               @relation(fields: [projectId], references: [id], onDelete: SetNull)
-  /// Manual order among siblings.
+  /// Global manual order of every routine (as the tasks: not among siblings).
   position             Int                    @default(0)
   archivedAt           DateTime?
+  /// Archived along with its parent routine: restoring the parent restores it.
+  archivedByCascade    Boolean                @default(false)
   createdAt            DateTime               @default(now())
   updatedAt            DateTime               @updatedAt
   assignees            Contributor[]          @relation("RoutineAssignees")
@@ -3140,6 +3144,9 @@ model Routine {
   requires             RoutineDependency[]    @relation("RoutineDependent")
   /// Routines requiring this one.
   requiredBy           RoutineDependency[]    @relation("RoutineRequired")
+  /// Symmetric relations (« Relative à »), stored once with routineAId < routineBId.
+  relationsA           RoutineRelation[]      @relation("RoutineRelationA")
+  relationsB           RoutineRelation[]      @relation("RoutineRelationB")
   /// Occurrences ticked as done.
   checks               RoutineCheck[]
   timeEntries          TimeEntry[]
@@ -3170,6 +3177,21 @@ model RoutineDependency {
 
   @@id([routineId, requiredId])
   @@index([requiredId])
+  @@index([workspaceId])
+}
+
+/// "related to", symmetric (« Relative à »).
+model RoutineRelation {
+  routineAId  String
+  routineA    Routine   @relation("RoutineRelationA", fields: [routineAId], references: [id], onDelete: Cascade)
+  routineBId  String
+  routineB    Routine   @relation("RoutineRelationB", fields: [routineBId], references: [id], onDelete: Cascade)
+  /// Workspace the row belongs to (always given by the app; the default fails outside one).
+  workspaceId String    @default(dbgenerated("current_setting('ordo.workspace'::text)"))
+  workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+
+  @@id([routineAId, routineBId])
+  @@index([routineBId])
   @@index([workspaceId])
 }
 

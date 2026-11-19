@@ -652,6 +652,8 @@ export type RoutineInput = {
   parentId?: string | number | null | undefined;
   projectId?: string | number | null | undefined;
   recurrence: unknown;
+  /** « Relative à »: routines related to it (same project tree). */
+  relatedIds: Array<string | number>;
   reminders?: Array<number> | null | undefined;
   requiredIds: Array<string | number>;
   /** Following its rule: on or out of calendar schedules, in groups (and / or); null: any time. */
@@ -691,6 +693,7 @@ export type RoutinePatch = {
   /** Null: none. */
   projectId?: string | number | null | undefined;
   recurrence?: unknown;
+  relatedIds?: Array<string | number> | null | undefined;
   /** Minutes before its moment. */
   reminders?: Array<number> | null | undefined;
   requiredIds?: Array<string | number> | null | undefined;
@@ -702,12 +705,6 @@ export type RoutinePatch = {
   /** Travel time there, in minutes; omitted: unchanged. */
   travelBefore?: number | null | undefined;
 };
-
-/** Where a routine is dropped, relative to another one. */
-export type RoutinePlace =
-  | 'AFTER'
-  | 'BEFORE'
-  | 'INSIDE';
 
 export type SaveMailDraftInput = {
   accountId: string | number;
@@ -3009,7 +3006,7 @@ export type DeleteProjectStatusMutation = { deleteProjectStatus: boolean };
 export type RoutinesDataQueryVariables = Exact<{ [key: string]: never; }>;
 
 
-export type RoutinesDataQuery = { routineCategories: Array<{ id: string, archived: boolean, label: string, color: string | null, iconUrl: string | null, parentId: string | null, position: number }>, routines: Array<{ id: string, label: string, description: string | null, categoryIds: Array<string>, parentId: string | null, startDate: string, recurrence: unknown, estimate: number | null, fromTime: string | null, dueTime: string | null, slotCondition: unknown, moments: unknown, reminders: Array<number>, cases: unknown, moves: unknown, done: boolean, windowFrom: string | null, windowTo: string | null, location: string | null, locationLat: number | null, locationLon: number | null, travelBefore: number, travelAfter: number, projectId: string | null, position: number, archived: boolean, assigneeIds: Array<string>, beneficiaryIds: Array<string>, beneficiaryRelationIds: Array<string>, requiredIds: Array<string>, currentDate: string | null, firstDate: string | null, nextDate: string | null, doneDates: Array<string>, lastDoneAt: string | null, trackedSeconds: number, opensOn: unknown, slots: Array<{ index: number, fromTime: string | null, dueTime: string | null, optional: boolean, done: boolean, windows: unknown }> }> };
+export type RoutinesDataQuery = { routineCategories: Array<{ id: string, archived: boolean, label: string, color: string | null, iconUrl: string | null, parentId: string | null, position: number }>, routines: Array<{ id: string, label: string, description: string | null, categoryIds: Array<string>, parentId: string | null, startDate: string, recurrence: unknown, estimate: number | null, fromTime: string | null, dueTime: string | null, slotCondition: unknown, moments: unknown, reminders: Array<number>, cases: unknown, moves: unknown, done: boolean, windowFrom: string | null, windowTo: string | null, location: string | null, locationLat: number | null, locationLon: number | null, travelBefore: number, travelAfter: number, projectId: string | null, position: number, archived: boolean, assigneeIds: Array<string>, beneficiaryIds: Array<string>, beneficiaryRelationIds: Array<string>, requiredIds: Array<string>, relatedIds: Array<string>, currentDate: string | null, firstDate: string | null, nextDate: string | null, doneDates: Array<string>, lastDoneAt: string | null, trackedSeconds: number, opensOn: unknown, slots: Array<{ index: number, fromTime: string | null, dueTime: string | null, optional: boolean, done: boolean, windows: unknown }> }> };
 
 export type CreateRoutineCategoryMutationVariables = Exact<{
   input: RoutineCategoryInput;
@@ -3076,8 +3073,8 @@ export type PatchRoutineMutation = { patchRoutine: boolean };
 
 export type MoveRoutineMutationVariables = Exact<{
   id: string | number;
-  targetId: string | number;
-  place: RoutinePlace;
+  beforeId?: string | number | null | undefined;
+  parentId?: string | number | null | undefined;
   categoryIds?: Array<string | number> | string | number | null | undefined;
 }>;
 
@@ -3110,6 +3107,7 @@ export type BulkSetRoutinesDoneMutation = { bulkSetRoutinesDone: number };
 
 export type BulkDeleteRoutinesMutationVariables = Exact<{
   ids: Array<string | number> | string | number;
+  deleteSubRoutines: boolean;
 }>;
 
 
@@ -7828,6 +7826,7 @@ export const RoutinesDataDocument = new TypedDocumentString(`
     beneficiaryIds
     beneficiaryRelationIds
     requiredIds
+    relatedIds
     currentDate
     firstDate
     nextDate
@@ -7879,11 +7878,11 @@ export const PatchRoutineDocument = new TypedDocumentString(`
 }
     `) as unknown as TypedDocumentString<PatchRoutineMutation, PatchRoutineMutationVariables>;
 export const MoveRoutineDocument = new TypedDocumentString(`
-    mutation MoveRoutine($id: ID!, $targetId: ID!, $place: RoutinePlace!, $categoryIds: [ID!]) {
+    mutation MoveRoutine($id: ID!, $beforeId: ID, $parentId: ID, $categoryIds: [ID!]) {
   moveRoutine(
     id: $id
-    targetId: $targetId
-    place: $place
+    beforeId: $beforeId
+    parentId: $parentId
     categoryIds: $categoryIds
   )
 }
@@ -7904,8 +7903,8 @@ export const BulkSetRoutinesDoneDocument = new TypedDocumentString(`
 }
     `) as unknown as TypedDocumentString<BulkSetRoutinesDoneMutation, BulkSetRoutinesDoneMutationVariables>;
 export const BulkDeleteRoutinesDocument = new TypedDocumentString(`
-    mutation BulkDeleteRoutines($ids: [ID!]!) {
-  bulkDeleteRoutines(ids: $ids)
+    mutation BulkDeleteRoutines($ids: [ID!]!, $deleteSubRoutines: Boolean!) {
+  bulkDeleteRoutines(ids: $ids, deleteSubRoutines: $deleteSubRoutines)
 }
     `) as unknown as TypedDocumentString<BulkDeleteRoutinesMutation, BulkDeleteRoutinesMutationVariables>;
 export const SetRoutineDoneDocument = new TypedDocumentString(`

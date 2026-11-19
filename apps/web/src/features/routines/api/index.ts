@@ -1,4 +1,4 @@
-import { changedList } from '@ordo/shared';
+import { ancestorsOf, byPosition, changedList, mapById, movedTo, subtreeOf } from '@ordo/shared';
 import type { RoutineBulkChanges } from '@ordo/shared';
 import { patchQuery, useInvalidatingMutation } from '../../../lib/mutation';
 import {
@@ -74,6 +74,7 @@ const RoutinesDataDocument = graphql(`
       beneficiaryIds
       beneficiaryRelationIds
       requiredIds
+      relatedIds
       currentDate
       firstDate
       nextDate
@@ -134,8 +135,8 @@ const PatchRoutineDocument = graphql(`
 `);
 
 const MoveRoutineDocument = graphql(`
-  mutation MoveRoutine($id: ID!, $targetId: ID!, $place: RoutinePlace!, $categoryIds: [ID!]) {
-    moveRoutine(id: $id, targetId: $targetId, place: $place, categoryIds: $categoryIds)
+  mutation MoveRoutine($id: ID!, $beforeId: ID, $parentId: ID, $categoryIds: [ID!]) {
+    moveRoutine(id: $id, beforeId: $beforeId, parentId: $parentId, categoryIds: $categoryIds)
   }
 `);
 
@@ -158,8 +159,8 @@ const BulkSetRoutinesDoneDocument = graphql(`
 `);
 
 const BulkDeleteRoutinesDocument = graphql(`
-  mutation BulkDeleteRoutines($ids: [ID!]!) {
-    bulkDeleteRoutines(ids: $ids)
+  mutation BulkDeleteRoutines($ids: [ID!]!, $deleteSubRoutines: Boolean!) {
+    bulkDeleteRoutines(ids: $ids, deleteSubRoutines: $deleteSubRoutines)
   }
 `);
 
@@ -301,13 +302,12 @@ const DRAFT = 'draft-';
 export const isDraftRoutine = (routine: { id: string }) => routine.id.startsWith(DRAFT);
 
 /**
- * Routine being created, as typed (shown until the saved one replaces it): last of its siblings, nothing computed yet.
+ * Routine being created, as typed (shown until the saved one replaces it): last of the manual order, nothing computed yet.
  * @param {RoutineInput} input Routine.
  * @param {readonly Routine[]} routines Routines in the cache.
  * @returns {Routine} Draft.
  */
 function draftRoutine(input: RoutineInput, routines: readonly Routine[]): Routine {
-  const siblings = routines.filter((routine) => (routine.parentId ?? null) === (input.parentId ?? null));
   return {
     id: `${DRAFT}${(draftCount += 1)}`,
     label: input.label,
@@ -333,12 +333,13 @@ function draftRoutine(input: RoutineInput, routines: readonly Routine[]): Routin
     travelBefore: input.travelBefore ?? 0,
     travelAfter: input.travelAfter ?? 0,
     projectId: input.projectId ?? null,
-    position: Math.max(-1, ...siblings.map((routine) => routine.position)) + 1,
+    position: Math.max(-1, ...routines.map((routine) => routine.position)) + 1,
     archived: false,
     assigneeIds: input.assigneeIds ?? [],
     beneficiaryIds: input.beneficiaryIds ?? [],
     beneficiaryRelationIds: input.beneficiaryRelationIds ?? [],
     requiredIds: input.requiredIds ?? [],
+    relatedIds: input.relatedIds ?? [],
     currentDate: null,
     firstDate: null,
     nextDate: null,
@@ -383,32 +384,47 @@ const patchRoutine = (data: RoutinesDataQuery, id: string, change: (routine: Rou
   routines: data.routines.map((routine) => (routine.id === id ? change(routine) : routine)),
 });
 
-/** Where a routine is dropped, relative to another one. */
-export type RoutinePlace = 'BEFORE' | 'AFTER' | 'INSIDE';
-
-/** Move of a routine next to or under another one; its new categories, if they change. */
+/** Move of a routine in the global manual order (before another one, or at the end), under a new parent and in new categories when they change. */
 export interface RoutineMove {
   id: string;
-  targetId: string;
-  place: RoutinePlace;
+  /** Routine it goes before; null: at the end. */
+  beforeId: string | null;
+  /** New parent (null: top level); omitted: unchanged. */
+  parentId?: string | null;
   categoryIds?: string[] | null;
 }
 
 /**
- * Moves a routine in the cached data: next to the target (its parent and category), or last under it.
+ * Moves a routine in the cached data, as a task: before another one in the global order (at the end without one), under
+ * its new parent and in its new categories.
  * @param {RoutinesDataQuery} data Cached data.
  * @param {RoutineMove} move Move.
  * @returns {RoutinesDataQuery} New data.
  */
-function moveInCache(data: RoutinesDataQuery, { id, targetId, place, categoryIds }: RoutineMove): RoutinesDataQuery {
-  const moved = data.routines.find((routine) => routine.id === id);
-  const target = data.routines.find((routine) => routine.id === targetId);
-  if (!moved || !target) return data;
-  const placed = { ...moved, parentId: place === 'INSIDE' ? target.id : target.parentId, categoryIds: categoryIds ?? moved.categoryIds };
-  const rest = data.routines.filter((routine) => routine.id !== id);
-  const index = rest.indexOf(target);
-  rest.splice(place === 'INSIDE' ? rest.length : place === 'BEFORE' ? index : index + 1, 0, placed);
-  return { ...data, routines: rest };
+function moveInCache(data: RoutinesDataQuery, { id, beforeId, parentId, categoryIds }: RoutineMove): RoutinesDataQuery {
+  const ordered = [...data.routines].sort(byPosition);
+  const moved = ordered.find((routine) => routine.id === id);
+  const others = ordered.filter((routine) => routine.id !== id);
+  const index = beforeId ? others.findIndex((routine) => routine.id === beforeId) : others.length;
+  if (!moved || index < 0) return data;
+  const placed = { ...moved, ...(parentId !== undefined && { parentId }), categoryIds: categoryIds ?? moved.categoryIds };
+  return { ...data, routines: movedTo(others, placed, index).map((routine, position) => ({ ...routine, position })) };
+}
+
+/**
+ * Routines archived or restored in the cached data, as the API does: archiving takes their sub-routines along,
+ * restoring brings back their archived parents (the sub-routines archived along come back with the refresh).
+ * @param {RoutinesDataQuery} data Cached data.
+ * @param {readonly string[]} ids Routines.
+ * @param {boolean} archived Archived (else restored).
+ * @returns {RoutinesDataQuery} New data.
+ */
+function archiveInCache(data: RoutinesDataQuery, ids: readonly string[], archived: boolean): RoutinesDataQuery {
+  const byId = mapById(data.routines);
+  const touched = new Set(
+    ids.flatMap((id) => (archived ? [...subtreeOf(data.routines, id)] : [id, ...ancestorsOf(byId, id).map((ancestor) => ancestor.id)])),
+  );
+  return { ...data, routines: data.routines.map((routine) => (touched.has(routine.id) ? { ...routine, archived } : routine)) };
 }
 
 /** Inline changes of a routine. */
@@ -421,6 +437,7 @@ export interface RoutinePatchValues {
   beneficiaryIds?: string[];
   beneficiaryRelationIds?: string[];
   requiredIds?: string[];
+  relatedIds?: string[];
   projectId?: string | null;
   location?: string | null;
   locationLat?: number | null;
@@ -469,6 +486,7 @@ export function routineInputOf(routine: Routine): RoutineInput {
     projectId: routine.projectId,
     assigneeIds: routine.assigneeIds,
     requiredIds: routine.requiredIds,
+    relatedIds: routine.relatedIds,
   };
 }
 
@@ -543,7 +561,7 @@ export function useRoutineMutations() {
     ),
     bulkArchive: useRoutineMutation(
       async (variables: { ids: string[]; archived: boolean }) => (await execute(BulkSetRoutinesArchivedDocument, variables)).bulkSetRoutinesArchived,
-      (data, { ids, archived }) => ({ ...data, routines: data.routines.map((routine) => (ids.includes(routine.id) ? { ...routine, archived } : routine)) }),
+      (data, { ids, archived }) => archiveInCache(data, ids, archived),
     ),
     bulkDone: useRoutineMutation(
       async (variables: { ids: string[]; done: boolean }) => (await execute(BulkSetRoutinesDoneDocument, variables)).bulkSetRoutinesDone,
@@ -560,7 +578,9 @@ export function useRoutineMutations() {
         ),
       }),
     ),
-    bulkRemove: useRoutineMutation(async (ids: string[]) => (await execute(BulkDeleteRoutinesDocument, { ids })).bulkDeleteRoutines),
+    bulkRemove: useRoutineMutation(
+      async (variables: { ids: string[]; deleteSubRoutines: boolean }) => (await execute(BulkDeleteRoutinesDocument, variables)).bulkDeleteRoutines,
+    ),
     /** Puts routines back as they were (undo of a bulk change: the archived values given back accepted). */
     restore: useRoutineMutation(async (routines: Routine[]) => {
       for (const routine of routines) await execute(UpdateRoutineDocument, { id: routine.id, input: routineInputOf(routine), restoring: true });

@@ -164,6 +164,8 @@ export const routineSchema = z
     beneficiaryRelationIds: z.array(z.string()).max(100).default([]),
     /** Routines to do before this one. */
     requiredIds: z.array(z.string()).max(100),
+    /** « Relative à »: routines related to this one (both ways), in its project tree. */
+    relatedIds: z.array(z.string()).max(100),
     /** « À partir du » of the occurrences of its rule (its cases have theirs); null: from their first day. */
     opensOn: routineOpensSchema.nullable().default(null),
     /** Slots (by kind) it is done on or out of; null: the default of the workspace. */

@@ -13,7 +13,7 @@ import { notifySuccess, notifyWithUndo, onMutationError } from '../../../lib/not
 import { formCallbacks } from '../../../lib/form';
 import { plural, countWith } from '../../../lib/text';
 import { useBulkTaskMutations, useCloneTask } from '../api';
-import { countSubtasks } from '../lib/task-links';
+import { countSubtasks, inProjectTree } from '../lib/task-links';
 import { ProjectSelect } from './task-ui';
 import { taskName, taskNumber, taskNumbered } from '../hooks/use-task-context';
 import { TASK_PARAM, useTaskLink } from '../hooks/use-task-link';
@@ -88,7 +88,7 @@ export function TransferTasksDialog({ tasks, context, onDone }: TasksDialogProps
   const chosen = none || projectId !== null;
   const single = tasks.length === 1 ? tasks[0] : null;
   const subtasks = single ? countSubtasks(context, single.id) : 0;
-  const leavesTree = chosen && tasks.some((task) => context.rootOf(target) !== context.rootOf(task.projectId));
+  const leavesTree = chosen && tasks.some((task) => !inProjectTree(context, target)(task.projectId));
 
   /**
    * Moved tasks (those no other one moved holds), then their sub-tasks level by level, as they are now.

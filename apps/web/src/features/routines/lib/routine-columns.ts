@@ -228,6 +228,15 @@ export function routineColumns(env: RoutineEnv): DataColumn<Routine>[] {
       filter: { kind: 'choices', value: (routine) => routine.requiredIds, options: routineOptions },
     },
     {
+      id: 'related',
+      label: 'Relative à',
+      size: 180,
+      hiddenByDefault: true,
+      bulk: true,
+      text: (routine) => titles(routine.relatedIds).join(', '),
+      filter: { kind: 'choices', value: (routine) => routine.relatedIds, options: routineOptions },
+    },
+    {
       id: 'blocks',
       label: 'Bloque',
       size: 180,

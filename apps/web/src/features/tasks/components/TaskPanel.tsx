@@ -28,7 +28,7 @@ import { TaskShopping } from '../../shopping/components/TaskShopping';
 import { SheetsSection } from '../../sheets/components/SheetsSection';
 import { TaskTime } from '../../time/components/TaskTime';
 import { TaskComments } from './TaskComments';
-import { linkableTasks } from '../lib/task-links';
+import { inProjectTree, linkableTasks } from '../lib/task-links';
 import { AssigneesSelect, LabelSelect, ProjectSelect, TagsSelect, TaskRef, TaskSelect, TaskStateIcon } from './task-ui';
 import { useTaskActions } from '../hooks/use-task-actions';
 
@@ -169,7 +169,7 @@ function TaskDetail({ task, context }: TaskDetailProps) {
       );
     const linked =
       task.parentId !== null || task.blockingIds.length + task.blockedByIds.length + task.relatedIds.length > 0 || task.milestoneId !== null || task.sprintIds.length > 0 || subtasks.length > 0;
-    if (context.rootOf(projectId) === context.rootOf(task.projectId) || !linked) return transfer();
+    if (inProjectTree(context, projectId)(task.projectId) || !linked) return transfer();
     confirmDestructive({
       title: 'Changer de projet',
       risks: (

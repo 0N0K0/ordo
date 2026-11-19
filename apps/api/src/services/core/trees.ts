@@ -1,5 +1,5 @@
 import { modelDelegate } from './delegate';
-import { isUnderOrSelf, lineageOf, subtreeOf } from '@ordo/shared';
+import { ancestorsOf, isUnderOrSelf, lineageOf, mapById, subtreeOf } from '@ordo/shared';
 import { prisma } from '../../db';
 import type { Prisma } from '../../generated/prisma/client';
 import { fieldError, notFound, orNotFound } from '../../graphql/errors';
@@ -11,6 +11,8 @@ interface TreeDelegate {
   findMany(args: { select: { id: true; parentId: true } }): Promise<{ id: string; parentId: string | null }[]>;
   updateMany(args: { where: { parentId: string }; data: { parentId: string | null } }): Prisma.PrismaPromise<unknown>;
   delete(args: { where: { id: string } }): Prisma.PrismaPromise<unknown>;
+  deleteMany(args: { where: { id: { in: string[] } } }): Prisma.PrismaPromise<unknown>;
+  findUnique(args: { where: { id: string }; select: { id: true; parentId: true } }): Promise<{ id: string; parentId: string | null } | null>;
 }
 
 /**
@@ -71,6 +73,45 @@ export async function lineageIds(model: OrderedModel, id: string | null | undefi
  */
 export async function deleteTreeNode(model: OrderedModel, item: { id: string; parentId: string | null }): Promise<void> {
   await prisma.$transaction([delegate(model).updateMany({ where: { parentId: item.id }, data: { parentId: item.parentId } }), delegate(model).delete({ where: { id: item.id } })]);
+}
+
+/**
+ * Topmost items of a selection: a selected item under another selected one moves or goes with it.
+ * @param {OrderedModel} model Model.
+ * @param {readonly string[]} ids Selected items.
+ * @returns {Promise<string[]>} Those without a selected ancestor, in the order given.
+ */
+export async function topmostIds(model: OrderedModel, ids: readonly string[]): Promise<string[]> {
+  const selected = new Set(ids);
+  const byId = mapById(await delegate(model).findMany({ select: { id: true, parentId: true } }));
+  // eslint-disable-next-line no-restricted-syntax -- topmostIds itself.
+  return ids.filter((id) => !ancestorsOf(byId, id).some((parent) => selected.has(parent.id)));
+}
+
+/**
+ * Deletes items of a tree (tasks, routines): with their whole sub-tree, or alone, their children going up a level.
+ * Ids missing are skipped; selected items moved up by the deletion of their parent are deleted too.
+ * @param {OrderedModel} model Model.
+ * @param {readonly string[]} ids Items.
+ * @param {boolean} withSubtree Their sub-trees are deleted too (else moved up a level).
+ * @param {(ids: string[]) => Promise<void>} [before] Run before each deletion, with the ids about to go (links to forget…). Optional.
+ * @returns {Promise<void>}
+ */
+export async function deleteTreeItems(model: OrderedModel, ids: readonly string[], withSubtree: boolean, before?: (ids: string[]) => Promise<void>): Promise<void> {
+  const unique = [...new Set(ids)];
+  for (const id of await topmostIds(model, unique)) {
+    const item = await delegate(model).findUnique({ where: { id }, select: { id: true, parentId: true } });
+    if (!item) continue;
+    const gone = withSubtree ? await subtreeIds(model, id) : [id];
+    await before?.(gone);
+    if (withSubtree) await delegate(model).deleteMany({ where: { id: { in: gone } } });
+    else await deleteTreeNode(model, item);
+  }
+  // Selected items moved up by the deletion of their parent are still selected: deleted as well.
+  if (!withSubtree && unique.length) {
+    await before?.(unique);
+    await delegate(model).deleteMany({ where: { id: { in: unique } } });
+  }
 }
 
 /** Item of a tree as its service reads it. */

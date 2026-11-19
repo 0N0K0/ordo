@@ -47,13 +47,12 @@ import {
   withMove,
   withMovedTimes,
   joinedKey,
-  type TreePlace,
 } from '@ordo/shared';
 import { z } from 'zod';
-import { deleteTreeNode, treeListService } from '../core/trees';
+import { deleteTreeItems, topmostIds, treeListService } from '../core/trees';
 import { prisma } from '../../db';
 import { assertBeneficiaries } from '../core/beneficiaries';
-import { BY_POSITION, nextPositionIn, saveSiblingOrder } from '../core/ordering';
+import { BY_POSITION, moveBefore, nextPositionIn } from '../core/ordering';
 import { Prisma, type Routine, type RoutineCategory } from '../../generated/prisma/client';
 import { clientError, fieldError, notFound, orNotFound, parseInput } from '../../graphql/errors';
 import { storedRecurrence } from '../calendar/calendar-events';
@@ -61,16 +60,10 @@ import { scheduleRule } from '../calendar/work-schedules';
 import { assertProjectContributors, followProject } from '../projects/contributors';
 import { parisToday } from '../../today';
 import { assertAllExist, findOrNotFound } from '../core/lookup';
-import { assertActive, assertNoneArchived, assertNotArchived, refuseArchived, findActive } from '../core/archive';
-import { connectIds } from '../core/relations';
+import { archiveTree, assertActive, assertNoneArchived, assertNotArchived, refuseArchived, findActive } from '../core/archive';
+import { connectIds, orderedPair } from '../core/relations';
+import { loadProjectRootOf } from '../projects/project-tree';
 import { toJson } from '../core/json';
-
-/**
- * Error attached to a form field.
- * @param {string} field Field name.
- * @param {string} message Human-readable reason.
- * @returns {GraphQLError} BAD_USER_INPUT error.
- */
 
 /** Routine with what its occurrences are computed from. */
 export type RoutineTiming = Pick<Routine, 'startDate' | 'recurrence' | 'cases' | 'moves' | 'fromTime' | 'dueTime' | 'scheduleIds' | 'excludedScheduleIds' | 'moments' | 'slotCondition'> &
@@ -458,8 +451,40 @@ export const { create: createCategory, update: updateCategory, move: moveCategor
 // Routines --------------------------------------------------------------------------------------------------------
 
 /**
+ * Routines related to a routine (« Relative à », both ways).
+ * @param {{ relationsA: { routineBId: string }[], relationsB: { routineAId: string }[] }} routine Routine with its relations.
+ * @returns {string[]} Ids.
+ */
+const relatedOf = (routine: { relationsA: { routineBId: string }[]; relationsB: { routineAId: string }[] }) => [
+  ...routine.relationsA.map((relation) => relation.routineBId),
+  ...routine.relationsB.map((relation) => relation.routineAId),
+];
+
+/** Relations of a routine, as loaded for `relatedOf`. */
+const RELATIONS = { relationsA: { select: { routineBId: true } }, relationsB: { select: { routineAId: true } } } as const;
+
+/**
+ * Keeps the links of a routine (required or related routines) inside its project tree, as those of a task: a link newly
+ * given to a routine of another tree is refused; one it had already stays while its tree does not change, and is
+ * dropped when it moves to another tree (as a task transferred).
+ * @param {string[]} ids Routines linked.
+ * @param {readonly string[]} previous Those it had (an undo: all those given).
+ * @param {boolean} moved Its project tree changes.
+ * @param {(id: string) => boolean} outside Whether a routine is out of its new tree.
+ * @param {string} field Field of the error.
+ * @param {boolean} withProject It has a project (for the message).
+ * @returns {string[]} Links kept.
+ */
+function keptInTree(ids: string[], previous: readonly string[], moved: boolean, outside: (id: string) => boolean, field: string, withProject: boolean): string[] {
+  if (ids.some((other) => outside(other) && !previous.includes(other))) {
+    throw fieldError(field, withProject ? 'Les routines liées doivent appartenir au même projet ou à l’un de ses sous-projets.' : 'Une routine sans projet ne se lie qu’à des routines sans projet.');
+  }
+  return moved ? ids.filter((other) => !outside(other)) : ids;
+}
+
+/**
  * Validates a routine and what it points to: category, parent (not itself nor one of its sub-routines), project,
- * assignees and required routines (no cycle).
+ * assignees, required routines (no cycle) and related ones (both in its project tree).
  * @param {RoutineInput} input Routine.
  * @param {string} [id] Routine edited. Optional.
  * @param {boolean} [restoring] Undo giving back former values: archived ones accepted (only that check is skipped). Optional. Default = false.
@@ -472,6 +497,7 @@ async function parseRoutine(input: RoutineInput, id?: string, restoring = false)
   data.beneficiaryRelationIds = [...new Set(data.beneficiaryRelationIds)];
   data.categoryIds = [...new Set(data.categoryIds)];
   data.requiredIds = [...new Set(data.requiredIds)];
+  data.relatedIds = [...new Set(data.relatedIds)];
   if (data.recurrence.until && data.recurrence.until < data.startDate) throw fieldError('recurrence', 'La fin de la répétition doit suivre la date de début.');
   await assertAllExist(prisma.routineCategory, data.categoryIds, 'Catégorie', { field: 'categoryIds' });
   // The former schedules (sent by former clients) become its condition; its cases have theirs.
@@ -494,6 +520,7 @@ async function parseRoutine(input: RoutineInput, id?: string, restoring = false)
           beneficiaries: { select: { id: true } },
           beneficiaryRelations: { select: { id: true } },
           requires: { select: { requiredId: true } },
+          ...RELATIONS,
         },
       })
     : null;
@@ -529,11 +556,13 @@ async function parseRoutine(input: RoutineInput, id?: string, restoring = false)
   if (!restoring) await assertNotArchived('routine', data.parentId, { keep: current?.parentId, field: 'parentId' });
   const keptRequiredIds = restoring ? data.requiredIds : (current?.requires.map((dependency) => dependency.requiredId) ?? []);
   await assertNoneArchived('routine', data.requiredIds, { keep: keptRequiredIds, field: 'requiredIds' });
+  const keptRelatedIds = restoring ? data.relatedIds : current ? relatedOf(current) : [];
+  await assertNoneArchived('routine', data.relatedIds, { keep: keptRelatedIds, field: 'relatedIds' });
   // Of a project: its contributors only (those already assigned stay).
   const assigned = current?.assignees.map((assignee) => assignee.id) ?? [];
   await assertProjectContributors(data.projectId ?? null, data.assigneeIds, assigned, 'assigneeIds', restoring);
 
-  const all = await prisma.routine.findMany({ select: { id: true, parentId: true, requires: { select: { requiredId: true } } } });
+  const all = await prisma.routine.findMany({ select: { id: true, parentId: true, projectId: true, requires: { select: { requiredId: true } } } });
   const known = new Set(all.map((routine) => routine.id));
   if (data.parentId) {
     if (!known.has(data.parentId)) throw notFound('Routine parente', 'parentId');
@@ -548,7 +577,36 @@ async function parseRoutine(input: RoutineInput, id?: string, restoring = false)
     const requires = new Map(all.map((routine) => [routine.id, routine.requires.map((dependency) => dependency.requiredId)]));
     if (reaches((current) => requires.get(current) ?? [], data.requiredIds, id)) throw fieldError('requiredIds', 'Ces dépendances forment une boucle.');
   }
+  if (data.relatedIds.some((relatedId) => !known.has(relatedId))) throw notFound('Routine', 'relatedIds');
+  if (id && data.relatedIds.includes(id)) throw fieldError('relatedIds', 'Une routine ne peut pas être liée à elle-même.');
+  // Links inside its project tree (none: with the routines of no project).
+  const rootOf = await loadProjectRootOf();
+  const projectOf = new Map(all.map((routine) => [routine.id, routine.projectId]));
+  const root = rootOf(data.projectId ?? null);
+  const moved = current !== null && rootOf(current.projectId) !== root;
+  const outside = (other: string) => rootOf(projectOf.get(other) ?? null) !== root;
+  data.requiredIds = keptInTree(data.requiredIds, keptRequiredIds, moved, outside, 'requiredIds', Boolean(data.projectId));
+  data.relatedIds = keptInTree(data.relatedIds, keptRelatedIds, moved, outside, 'relatedIds', Boolean(data.projectId));
   return data;
+}
+
+/**
+ * Saves the related routines of a routine (« Relative à »): its relations become those given.
+ * @param {Prisma.TransactionClient} tx Transaction.
+ * @param {string} id Routine.
+ * @param {readonly string[]} relatedIds Routines related to it.
+ * @returns {Promise<void>}
+ */
+async function saveRelations(tx: Prisma.TransactionClient, id: string, relatedIds: readonly string[]): Promise<void> {
+  await tx.routineRelation.deleteMany({ where: { OR: [{ routineAId: id }, { routineBId: id }] } });
+  if (!relatedIds.length) return;
+  await tx.routineRelation.createMany({
+    data: relatedIds.map((other) => {
+      const [routineAId, routineBId] = orderedPair(id, other);
+      return { routineAId, routineBId };
+    }),
+    skipDuplicates: true,
+  });
 }
 
 /**
@@ -584,13 +642,13 @@ const scalars = (data: ReturnType<typeof routineSchema.parse>) => ({
 });
 
 /**
- * Creates a routine, last of its siblings.
+ * Creates a routine, last of the global manual order.
  * @param {RoutineInput} input Routine.
  * @returns {Promise<Routine>} Routine.
  */
 export async function createRoutine(input: RoutineInput): Promise<Routine> {
   const data = await parseRoutine(input);
-  const position = await nextPositionIn('routine', { parentId: data.parentId });
+  const position = await nextPositionIn('routine');
   return prisma.$transaction(async (tx) => {
     const routine = await tx.routine.create({
       data: {
@@ -603,6 +661,7 @@ export async function createRoutine(input: RoutineInput): Promise<Routine> {
       },
     });
     if (data.requiredIds.length) await tx.routineDependency.createMany({ data: data.requiredIds.map((requiredId) => ({ routineId: routine.id, requiredId })) });
+    await saveRelations(tx, routine.id, data.relatedIds);
     return routine;
   });
 }
@@ -628,11 +687,13 @@ export async function copySubRoutines(fromId: string, toId: string): Promise<num
       queue.push(child.id);
     }
   }
-  // Dependencies within the copied routines: on their copies.
+  // Dependencies and relations within the copied routines: on their copies.
   for (const [sourceId, copyId] of copies) {
     if (sourceId === fromId) continue;
-    const { requiredIds } = await inputOf(copyId);
-    if (requiredIds.some((id) => copies.has(id))) await patchRoutine(copyId, { requiredIds: requiredIds.map((id) => copies.get(id) ?? id) });
+    const { requiredIds, relatedIds } = await inputOf(copyId);
+    if ([...requiredIds, ...relatedIds].some((id) => copies.has(id))) {
+      await patchRoutine(copyId, { requiredIds: requiredIds.map((id) => copies.get(id) ?? id), relatedIds: relatedIds.map((id) => copies.get(id) ?? id) });
+    }
   }
   return copies.size - 1;
 }
@@ -647,7 +708,8 @@ function findRoutine(id: string): Promise<Routine> {
 }
 
 /**
- * Updates a routine (its ticked occurrences stay).
+ * Updates a routine (its ticked occurrences stay). Moved to another project tree, it loses its links with the routines
+ * left out of it (dependencies both ways, relations), as a task transferred.
  * @param {string} id Routine id.
  * @param {RoutineInput} input Routine.
  * @param {boolean} [restoring] Undo putting it back as it was: archived values given back are accepted. Optional. Default = false.
@@ -657,9 +719,13 @@ export async function updateRoutine(id: string, input: RoutineInput, restoring =
   const current = await findRoutine(id);
   refuseArchived(current);
   const data = await parseRoutine(input, id, restoring);
+  const outside = await outsideTree(id, current.projectId, data.projectId ?? null);
   const updated = await prisma.$transaction(async (tx) => {
     await tx.routineDependency.deleteMany({ where: { routineId: id } });
     if (data.requiredIds.length) await tx.routineDependency.createMany({ data: data.requiredIds.map((requiredId) => ({ routineId: id, requiredId })) });
+    // Those waiting for it out of its new tree no longer do.
+    if (outside.length) await tx.routineDependency.deleteMany({ where: { requiredId: id, routineId: { in: outside } } });
+    await saveRelations(tx, id, data.relatedIds);
     return tx.routine.update({
       where: { id },
       data: {
@@ -677,6 +743,20 @@ export async function updateRoutine(id: string, input: RoutineInput, restoring =
 }
 
 /**
+ * Routines out of the project tree a routine moves to (none when its tree does not change).
+ * @param {string} id Routine.
+ * @param {string | null} from Its project now.
+ * @param {string | null} to Its new project.
+ * @returns {Promise<string[]>} Ids.
+ */
+async function outsideTree(id: string, from: string | null, to: string | null): Promise<string[]> {
+  const rootOf = await loadProjectRootOf();
+  if (rootOf(from) === rootOf(to)) return [];
+  const others = await prisma.routine.findMany({ where: { id: { not: id } }, select: { id: true, projectId: true } });
+  return others.filter((other) => rootOf(other.projectId) !== rootOf(to)).map((other) => other.id);
+}
+
+/**
  * Current form of a routine as an input.
  * @param {string} id Routine id.
  * @returns {Promise<RoutineInput>} Input.
@@ -691,6 +771,7 @@ async function inputOf(id: string): Promise<RoutineInput> {
         beneficiaryRelations: { select: { id: true } },
         categories: { select: { id: true } },
         requires: { select: { requiredId: true } },
+        ...RELATIONS,
       },
     }),
     'Routine',
@@ -725,6 +806,7 @@ async function inputOf(id: string): Promise<RoutineInput> {
     beneficiaryIds: routine.beneficiaries.map((beneficiary) => beneficiary.id),
     beneficiaryRelationIds: routine.beneficiaryRelations.map((relation) => relation.id),
     requiredIds: routine.requires.map((dependency) => dependency.requiredId),
+    relatedIds: relatedOf(routine),
   };
 }
 
@@ -802,70 +884,54 @@ export async function bulkUpdateRoutines(ids: string[], changes: RoutineBulkChan
 }
 
 /**
- * Archives or restores routines (an archived one is no longer due), all at once: each must exist (an id given twice
- * counts once); archiving keeps the date of those archived already.
+ * Archives or restores routines (an archived one is no longer due), each with its sub-routines, as the tasks: archiving
+ * archives its active sub-routines along; restoring restores those archived along and its archived parents (alone).
+ * Each must exist (an id given twice counts once); archiving keeps the date of those archived already.
  * @param {string[]} ids Routine ids.
  * @param {boolean} archived Target state.
- * @returns {Promise<number>} Number of routines changed.
+ * @returns {Promise<number>} Number of routines given that changed state (their sub-routines aside).
  */
 export async function bulkSetRoutinesArchived(ids: string[], archived: boolean): Promise<number> {
   const unique = [...new Set(ids)];
   await assertAllExist(prisma.routine, unique, 'Routine');
   if (!unique.length) return 0;
-  return (await prisma.routine.updateMany({ where: { id: { in: unique }, archivedAt: archived ? null : { not: null } }, data: { archivedAt: archived ? new Date() : null } })).count;
+  const changed = await prisma.routine.count({ where: { id: { in: unique }, archivedAt: archived ? null : { not: null } } });
+  // One under another one of the selection goes with it.
+  for (const id of await topmostIds('routine', unique)) await archiveTree<Routine>('routine', id, archived, 'Routine');
+  return changed;
 }
 
 /**
- * Deletes several routines (see deleteRoutine).
+ * Deletes routines: each with its sub-routines, or alone (its sub-routines then go one level up). Their ticks,
+ * dependencies, relations, sheets and checklists go with them; their tracked time stays (without routine). Ids missing
+ * are skipped.
  * @param {string[]} ids Routine ids.
- * @returns {Promise<number>} Number of routines deleted.
+ * @param {boolean} deleteSubRoutines Their sub-routines are deleted too (else moved up a level).
+ * @returns {Promise<number>} Number of routines given that were deleted.
  */
-export async function bulkDeleteRoutines(ids: string[]): Promise<number> {
-  let count = 0;
-  for (const id of new Set(ids)) {
-    if (!(await prisma.routine.findUnique({ where: { id }, select: { id: true } }))) continue;
-    await deleteRoutine(id);
-    count += 1;
-  }
+export async function bulkDeleteRoutines(ids: string[], deleteSubRoutines: boolean): Promise<number> {
+  const count = await prisma.routine.count({ where: { id: { in: [...new Set(ids)] } } });
+  await deleteTreeItems('routine', ids, deleteSubRoutines);
   return count;
 }
 
 /**
- * Deletes a routine: its sub-routines go one level up, its tracked time stays (without it).
- * @param {string} id Routine id.
- * @returns {Promise<void>}
- */
-export async function deleteRoutine(id: string): Promise<void> {
-  const routine = await findRoutine(id);
-  await deleteTreeNode('routine', routine);
-}
-
-/** Where a routine is dropped, relative to another one. */
-export type RoutinePlace = TreePlace;
-
-/**
- * Moves a routine next to another one (before or after it: same parent), or last under it (a sub-routine), then
- * numbers the siblings in their new order; its categories may change with it (moved from a category to another).
+ * Moves a routine (not an archived one) in the global manual order, just before another routine (or at the end), and
+ * optionally under another parent (not an archived one); its categories may change with it (moved from a category to
+ * another). Placing relative to a neighbour works the same in a filtered view, its parent hidden.
  * @param {string} id Routine moved.
- * @param {string} targetId Routine it is dropped on.
- * @param {RoutinePlace} place Before, after or inside the target.
+ * @param {string | null} beforeId Routine to place it before, or null for the end.
+ * @param {string | null} [parentId] New parent, null for a top-level routine; undefined keeps the parent. Optional.
  * @param {string[] | null} [categoryIds] New categories. Optional. Default = unchanged.
  * @returns {Promise<void>}
  */
-export async function moveRoutine(id: string, targetId: string, place: RoutinePlace, categoryIds: string[] | null = null): Promise<void> {
-  if (id === targetId) throw clientError('BAD_USER_INPUT', 'Une routine ne peut pas être déplacée sur elle-même.');
+export async function moveRoutine(id: string, beforeId: string | null, parentId?: string | null, categoryIds: string[] | null = null): Promise<void> {
   const routine = await findRoutine(id);
-  const target = await findRoutine(targetId);
   refuseArchived(routine);
-  // Nothing added under an archived routine.
-  if (place === 'INSIDE') refuseArchived(target);
-  const parentId = place === 'INSIDE' ? target.id : target.parentId;
-  // The parent is checked (no loop) by the regular update.
-  if (parentId !== routine.parentId || categoryIds) await patchRoutine(id, { parentId, ...(categoryIds && { categoryIds }) });
-  const siblings = (await prisma.routine.findMany({ where: { parentId, id: { not: id } }, orderBy: BY_POSITION, select: { id: true } })).map((sibling) => sibling.id);
-  const at = siblings.indexOf(target.id);
-  const index = place === 'INSIDE' || at === -1 ? siblings.length : place === 'BEFORE' ? at : at + 1;
-  await saveSiblingOrder(siblings, id, index, (siblingId, position) => prisma.routine.update({ where: { id: siblingId }, data: { position } }));
+  // The parent is checked (exists, not archived, no loop) by the regular update.
+  const reparent = parentId !== undefined && parentId !== routine.parentId;
+  if (reparent || categoryIds) await patchRoutine(id, { ...(reparent && { parentId }), ...(categoryIds && { categoryIds }) });
+  await moveBefore('routine', id, beforeId, 'Routine');
 }
 
 /**

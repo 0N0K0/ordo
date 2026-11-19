@@ -6,7 +6,7 @@ import { useTaskLink } from '../hooks/use-task-link';
 import { MarkdownEditor } from '../../../components/markdown/MarkdownEditor';
 import { useAppForm, formCallbacks } from '../../../lib/form';
 import { useCreateTask } from '../api';
-import { linkableTasks } from '../lib/task-links';
+import { inProjectTree, linkableTasks } from '../lib/task-links';
 import { AssigneesSelect, LabelSelect, ProjectSelect, TagsSelect, TaskSelect } from './task-ui';
 import { taskName, type TaskContext } from '../hooks/use-task-context';
 import { BatchMultiSelect } from '../../../components/inputs/BatchMultiSelect';
@@ -90,12 +90,12 @@ export function TaskCreateForm({ context, defaults, onDone }: TaskCreateFormProp
             onChange={(projectId) => {
               form.setFieldValue('projectId', projectId ?? '');
               const currentParent = form.values.parentId ? context.taskById.get(form.values.parentId) : undefined;
-              if (currentParent && context.rootOf(currentParent.projectId) !== context.rootOf(projectId)) {
+              if (currentParent && !inProjectTree(context, projectId)(currentParent.projectId)) {
                 form.setFieldValue('parentId', null);
               }
               // The milestone must belong to the tree of the chosen project too.
               const milestone = form.values.milestoneId ? context.milestoneById.get(form.values.milestoneId) : undefined;
-              if (milestone && projectId && context.rootOf(milestone.projectId) !== context.rootOf(projectId)) {
+              if (milestone && projectId && !inProjectTree(context, projectId)(milestone.projectId)) {
                 form.setFieldValue('milestoneId', null);
               }
               // So must the sprints.
@@ -104,7 +104,7 @@ export function TaskCreateForm({ context, defaults, onDone }: TaskCreateFormProp
                   'sprintIds',
                   form.values.sprintIds.filter((id) => {
                     const sprint = context.sprintById.get(id);
-                    return sprint && context.rootOf(sprint.projectId) === context.rootOf(projectId);
+                    return sprint && inProjectTree(context, projectId)(sprint.projectId);
                   }),
                 );
               }

@@ -40,7 +40,7 @@ Décisions AA et DA : une valeur archivée ne peut plus être **nouvellement** c
 
 ## Cascades
 
-Les clients, projets et tâches utilisent un indicateur `archivedByCascade` pour distinguer un élément archivé avec son parent d'un élément archivé seul.
+Les clients, projets, tâches et routines utilisent un indicateur `archivedByCascade` pour distinguer un élément archivé avec son parent d'un élément archivé seul.
 
 ### Client
 
@@ -55,11 +55,12 @@ Les clients, projets et tâches utilisent un indicateur `archivedByCascade` pour
 
 ### Tâche
 
-- Même mécanique que les projets (`cascadeArchive`) : sous-tâches actives archivées avec la tâche, restauration des sous-tâches archivées avec elle et des ancêtres archivés seuls.
+- Même mécanique que les projets (`archiveTree`, sur `cascadeArchive`) : sous-tâches actives archivées avec la tâche, restauration des sous-tâches archivées avec elle et des ancêtres archivés seuls.
 
 ### Routine
 
 - Archivage groupé `bulkSetRoutinesArchived(ids, archived)` : chaque id doit exister, un id répété compte une fois, la date des déjà archivées est gardée.
+- Même mécanique que les tâches (`archiveTree`, décision DQ) : archiver une routine archive ses sous-routines actives, la restaurer restaure celles archivées avec elle et ses parentes archivées seules. Une routine sélectionnée sous une autre sélectionnée suit celle-ci (`topmostIds`).
 - Une routine archivée n'a plus d'occurrence due (rien n'est calculé).
 - Les modifications groupées sont refusées si la sélection contient une routine archivée.
 

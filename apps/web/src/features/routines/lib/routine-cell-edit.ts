@@ -23,6 +23,7 @@ type RoutineColumn =
   | 'beneficiaries'
   | 'estimate'
   | 'requires'
+  | 'related'
   | 'blocks'
   | 'parent'
   | 'project';

@@ -16,6 +16,8 @@ import { describeRecurrence } from '../../../components/recurrence/describe-recu
 
 import { treeOptions, type TreeOption } from '../../../components/tree/tree-select';
 import type { Routine } from '../api';
+import type { TaskContext } from '../../tasks/hooks/use-task-context';
+import { inProjectTree } from '../../tasks/lib/task-links';
 import * as fmt from '../../../lib/format';
 
 /** Rule of a new routine: every day. */
@@ -67,6 +69,20 @@ export function routineTreeOptions(routines: readonly Routine[], offered: (routi
       return routine !== undefined && offered(routine);
     },
   );
+}
+
+/**
+ * Routines a routine can be linked to (« Dépend de », « Bloque », « Relative à »), as the tasks: not itself, not
+ * archived, in its project tree (those without project with those without project); those already linked stay offered.
+ * @param {Pick<TaskContext, 'rootOf'>} context Task context (its project trees).
+ * @param {string | null} projectId Project of the routine.
+ * @param {string | null} selfId The routine (none: a new one).
+ * @param {readonly string[]} [linked] Routines linked already. Optional. Default = none.
+ * @returns {(other: Routine) => boolean} Whether a routine is offered.
+ */
+export function linkableRoutine(context: Pick<TaskContext, 'rootOf'>, projectId: string | null, selfId: string | null, linked: readonly string[] = []): (other: Routine) => boolean {
+  const inTree = inProjectTree(context, projectId);
+  return (other) => linked.includes(other.id) || (other.id !== selfId && !other.archived && inTree(other.projectId ?? null));
 }
 
 /**

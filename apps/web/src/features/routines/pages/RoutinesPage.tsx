@@ -3,7 +3,7 @@ import { readOnlyCells } from '../../../components/data-table/table/data-table';
 import { usePageTab } from '../../../components/tabs/use-page-tab';
 import { scheduleChoices } from '../../calendar/lib/schedule-choices';
 import { useSetParams, useSearchParam } from '../../../lib/search-params';
-import { mapById, byPosition } from '@ordo/shared';
+import { mapById } from '@ordo/shared';
 import { PageHeader } from '../../../components/page/PageHeader';
 import { ActionButton } from '../../../components/actions/ActionButton';
 import { EmptyState } from '../../../components/feedback/EmptyState';
@@ -33,7 +33,7 @@ import { routineColumns } from '../lib/routine-columns';
 import { routinesLabel } from '../lib/routine-cell-edit';
 import { AddRoutineRow, ChronoCell, StateCell } from '../components/routine-table-cells';
 import { RoutineDoneToggles } from '../components/DoneToggle';
-import { AssigneesCell, CategoriesCell, EstimateCell, ProjectCell, RepetitionCell, RepetitionText, RequiresCell, RoutineBeneficiariesCell, RoutineLabelCell } from '../components/routine-cells';
+import { AssigneesCell, CategoriesCell, EstimateCell, ProjectCell, RepetitionCell, RepetitionText, RoutineBeneficiariesCell, RoutineLabelCell, RoutineLinksCell } from '../components/routine-cells';
 import { BlocksCell, LocationCell, OpensOnCell, ParentRoutineCell, RemindersCell, SubRoutinesCell, TimeOfDayCell, TravelCell } from '../components/extra-cells';
 import { isDone, movableOccurrence, waitingFor } from '../lib/routine-format';
 import { usePostponeRoutine } from '../hooks/use-routine-move';
@@ -85,7 +85,7 @@ export function RoutinesPanel({ projectId, projectIds }: { projectId?: string; p
   const slotRules = useSlotRules();
   const { data: schedules } = useWorkSchedules();
   const { data: running } = useRunningTimer();
-  const { move, patch } = useRoutineMutations();
+  const { move } = useRoutineMutations();
   const postpone = usePostponeRoutine();
   const selectionActions = useRoutineSelectionActions();
   const rowActionsOf = useRoutineRowsActions();
@@ -131,31 +131,18 @@ export function RoutinesPanel({ projectId, projectIds }: { projectId?: string; p
   const groupedByCategory = view.groupColumn?.id === 'categories';
 
   /**
-   * Saves a routine dragged to another place or level (before the routine that now follows it, under its new parent,
-   * or last at the top), or into another category.
+   * Saves a routine dragged to another place or level (before the routine that now follows it in the global manual
+   * order, under its new parent, as a task: a move works in a filtered view, its parent hidden), or into another
+   * category.
    * @param {RowMove} drop Drop.
    * @returns {void}
    */
   const handleMove = ({ key, beforeKey, parentKey, groupKey, fromGroupKey }: RowMove) => {
     const moved = byId.get(key);
-    if (!moved || isDraftRoutine(moved)) return;
+    if (!moved || isDraftRoutine(moved) || moved.archived) return;
     const categoryIds = groupedByCategory && groupKey !== undefined ? movedCategories(moved.categoryIds, fromGroupKey || null, groupKey || null) : null;
-    const parent = parentKey !== undefined ? parentKey : (moved.parentId ?? null);
     const before = beforeKey ? byId.get(beforeKey) : undefined;
-    if (before && before.id !== key && (before.parentId ?? null) === parent) {
-      move.mutate({ id: key, targetId: before.id, place: 'BEFORE', categoryIds }, ON_ERROR);
-      return;
-    }
-    if (parent) {
-      move.mutate({ id: key, targetId: parent, place: 'INSIDE', categoryIds }, ON_ERROR);
-      return;
-    }
-    const last = routines
-      .filter((routine) => routine.parentId === null && routine.id !== key)
-      .sort(byPosition)
-      .at(-1);
-    if (last) move.mutate({ id: key, targetId: last.id, place: 'AFTER', categoryIds }, ON_ERROR);
-    else if (categoryIds) patch.mutate({ id: key, input: { categoryIds } }, ON_ERROR);
+    move.mutate({ id: key, beforeId: before?.id ?? null, ...(parentKey !== undefined && { parentId: parentKey }), categoryIds }, ON_ERROR);
   };
 
   /**
@@ -195,14 +182,15 @@ export function RoutinesPanel({ projectId, projectIds }: { projectId?: string; p
       travelBefore: <TravelCell routine={routine} field="travelBefore" readOnly={readOnly} />,
       travelAfter: <TravelCell routine={routine} field="travelAfter" readOnly={readOnly} />,
       alarms: <RemindersCell routine={routine} readOnly={readOnly} />,
-      blocks: <BlocksCell routine={routine} routines={routines} readOnly={readOnly} />,
+      blocks: <BlocksCell routine={routine} routines={routines} context={context} readOnly={readOnly} />,
       parent: <ParentRoutineCell routine={routine} routines={routines} readOnly={readOnly} />,
       subRoutines: <SubRoutinesCell routine={routine} routines={routines} readOnly={readOnly} />,
       trackedTime: <ChronoCell routine={routine} running={running} />,
       assignees: <AssigneesCell routine={routine} readOnly={readOnly} context={context} />,
       beneficiaries: <RoutineBeneficiariesCell routine={routine} readOnly={readOnly} />,
       categories: <CategoriesCell routine={routine} readOnly={readOnly} categories={categories} />,
-      requires: <RequiresCell routine={routine} readOnly={readOnly} routines={routines} />,
+      requires: <RoutineLinksCell kind="requires" routine={routine} readOnly={readOnly} routines={routines} context={context} />,
+      related: <RoutineLinksCell kind="related" routine={routine} readOnly={readOnly} routines={routines} context={context} />,
       project: <ProjectCell routine={routine} readOnly={readOnly} context={context} />,
       lastDoneAt: routine.lastDoneAt ? (
         <Text size="sm" className={classes.nowrap}>

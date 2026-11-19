@@ -115,7 +115,7 @@ Source : migration `20261107120000_workspaces` (fonction de déclencheur), modè
 
 ## Sous-tâches
 
-Source : `assertParent`, `moveTask`, `setTaskArchived`, `deleteTask`.
+Source : `assertParent`, `moveTask`, `setTaskArchived`, `bulkDeleteTasks`.
 
 - Le parent doit exister (« Tâche parente introuvable. ») et ne pas être archivé.
 - Le parent appartient à la **même arborescence de projets** (même projet racine) : « La tâche parente doit appartenir au même projet ou à l’un de ses sous-projets. ». Une tâche sans projet n’a qu’un parent sans projet : « La tâche parente doit aussi être sans projet. ». Une sous-tâche peut donc être dans un autre projet de la même arborescence.
@@ -124,7 +124,7 @@ Source : `assertParent`, `moveTask`, `setTaskArchived`, `deleteTask`.
 
 ## Ordre manuel et déplacement
 
-Source : `moveTask`.
+Source : `moveTask`, `moveBefore` (`services/core/ordering.ts`, partagé avec les routines).
 
 - Un seul ordre manuel global pour toutes les tâches (`position`) ; placer « avant telle tâche » fonctionne aussi dans une vue filtrée.
 - `beforeId` : la tâche à précéder ; `null` : à la fin. Tâche voisine inconnue : « Tâche introuvable. ».
@@ -205,7 +205,7 @@ Une tâche ne se répète pas : ce qui revient est une [routine](routines.md). L
 
 ## Archivage
 
-Source : `setTaskArchived`, `bulkSetTasksArchived`, `cascadeArchive` (`services/core/archive.ts`).
+Source : `setTaskArchived`, `bulkSetTasksArchived`, `archiveTree` et `cascadeArchive` (`services/core/archive.ts`), `topmostIds` (`services/core/trees.ts`).
 
 - Archiver une tâche archive aussi ses sous-tâches actives (marquées `archivedByCascade`).
 - Restaurer une tâche restaure les sous-tâches archivées avec elle, et ses ancêtres archivés (seuls : leurs autres sous-tâches archivées avec eux restent archivées, désormais pour leur propre compte).
@@ -215,7 +215,7 @@ Source : `setTaskArchived`, `bulkSetTasksArchived`, `cascadeArchive` (`services/
 
 ## Suppression
 
-Source : `deleteTask`, `bulkDeleteTasks`.
+Source : `bulkDeleteTasks`, `deleteTreeItems` (`services/core/trees.ts`, partagé avec les routines).
 
 - Suppression définitive, avec les commentaires de la tâche (`onDelete: Cascade`).
 - Les sous-tâches sont, au choix (`deleteSubtasks`) : supprimées avec elle (tout le sous-arbre), ou remontées d’un niveau sous le parent de la tâche supprimée.

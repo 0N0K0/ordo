@@ -1,53 +1,19 @@
-import {
-  ancestorsOf,
-  dateSchema,
-  effortSchema,
-  groupBy,
-  lineageOf,
-  mapById,
-  markdownSchema,
-  movedTo,
-  parseOptionalDay,
-  reaches,
-  slotRuleSchema,
-  type TaskInput as SharedTaskInput,
-  subtreeOf,
-  taskLabelSchema,
-} from '@ordo/shared';
+import { dateSchema, effortSchema, groupBy, markdownSchema, parseOptionalDay, reaches, slotRuleSchema, type TaskInput as SharedTaskInput, taskLabelSchema } from '@ordo/shared';
 import { z } from 'zod';
-import { deleteTreeNode } from '../core/trees';
 import { prisma } from '../../db';
 import { assertBeneficiaries } from '../core/beneficiaries';
-import { BY_POSITION, nextPositionIn } from '../core/ordering';
+import { BY_POSITION, moveBefore, nextPositionIn } from '../core/ordering';
 import { Prisma, type Task, type TaskComment } from '../../generated/prisma/client';
 import { clientError, fieldError, notFound, orNotFound, parseInput } from '../../graphql/errors';
 import { assertProjectContributors, attachAssignees } from '../projects/contributors';
 import { forgetGithubComment, forgetGithubItems } from '../github/links';
-import { assertAllExist, assertExists, deleteOrNotFound, findOrNotFound } from '../core/lookup';
-import { assertNoneArchived, type ArchivableModel, assertActive, refuseArchived, isArchivedAs, cascadeArchive, findActive } from '../core/archive';
-import { subtreeIds } from '../core/trees';
+import { assertAllExist, assertExists, deleteOrNotFound } from '../core/lookup';
+import { assertNoneArchived, type ArchivableModel, assertActive, refuseArchived, archiveTree, findActive } from '../core/archive';
+import { deleteTreeItems, subtreeIds, topmostIds } from '../core/trees';
 import { assertDateRange } from '../core/date-range';
-import { connectIds } from '../core/relations';
+import { connectIds, orderedPair } from '../core/relations';
+import { loadProjectRootOf as loadRootOf } from '../projects/project-tree';
 import { commentBody } from '../core/comments';
-
-/**
- * Root project of each project: tasks can only be linked inside the same tree.
- * @returns {Promise<(projectId: string) => string>} Root lookup.
- */
-async function loadRootOf(): Promise<(projectId: string | null) => string | null> {
-  const byId = mapById(await prisma.project.findMany({ select: { id: true, parentId: true } }));
-  // The tasks without project make a tree of their own (null).
-  return (projectId) => (projectId === null ? null : (lineageOf(byId, projectId).at(-1)?.id ?? projectId));
-}
-
-/**
- * Loads a task or throws NOT_FOUND.
- * @param {string} id Task id.
- * @returns {Promise<Task>} Task.
- */
-function findTask(id: string): Promise<Task> {
-  return findOrNotFound(prisma.task, id, 'Tâche');
-}
 
 /**
  * Checks that a project exists and is active.
@@ -330,32 +296,7 @@ export async function updateTask(id: string, input: TaskInput): Promise<Task> {
  * @returns {Promise<Task>} Updated task.
  */
 export async function setTaskArchived(id: string, archived: boolean): Promise<Task> {
-  const task = await findTask(id);
-  if (isArchivedAs(task, archived)) return task;
-  const tasks = await prisma.task.findMany({ select: { id: true, parentId: true, archivedAt: true } });
-  const descendantIds = [...subtreeOf(tasks, id, false)];
-  const ancestorIds = ancestorsOf(mapById(tasks), id)
-    .filter((ancestor) => ancestor.archivedAt)
-    .map((ancestor) => ancestor.id);
-  return cascadeArchive<Task>('task', id, archived, { descendantIds, ancestorIds });
-}
-
-/**
- * Deletes a task; its sub-tasks are deleted too, or moved up to its parent.
- * @param {string} id Task id.
- * @param {boolean} deleteSubtasks Whether to delete the whole sub-tree.
- * @returns {Promise<void>}
- */
-export async function deleteTask(id: string, deleteSubtasks: boolean): Promise<void> {
-  const task = await findTask(id);
-  if (deleteSubtasks) {
-    const descendants = await subtreeIds('task', id, false);
-    await forgetGithubItems([id, ...descendants]);
-    await prisma.task.deleteMany({ where: { id: { in: [id, ...descendants] } } });
-    return;
-  }
-  await forgetGithubItems([id]);
-  await deleteTreeNode('task', task);
+  return archiveTree<Task>('task', id, archived, 'Tâche');
 }
 
 /**
@@ -524,7 +465,7 @@ export async function cloneTask(id: string, includeSubtasks: boolean): Promise<T
     });
     const related = [...source.relationsA.map((link) => link.taskBId), ...source.relationsB.map((link) => link.taskAId)];
     await tx.taskRelation.createMany({
-      data: related.map((other) => (clone.id < other ? { taskAId: clone.id, taskBId: other } : { taskAId: other, taskBId: clone.id })),
+      data: related.map((other) => relationPair(clone.id, other)),
     });
 
     if (includeSubtasks) {
@@ -593,7 +534,8 @@ export async function removeTaskBlock(blockerId: string, blockedId: string): Pro
  * @returns {{ taskAId: string, taskBId: string }} Stored pair.
  */
 function relationPair(a: string, b: string) {
-  return a < b ? { taskAId: a, taskBId: b } : { taskAId: b, taskBId: a };
+  const [taskAId, taskBId] = orderedPair(a, b);
+  return { taskAId, taskBId };
 }
 
 /**
@@ -674,27 +616,7 @@ export async function moveTask(id: string, beforeId: string | null, parentId?: s
   const task = await findActive(prisma.task, id, 'Tâche');
   if (parentId) await assertParent(parentId, task.projectId, id);
   const reparent = parentId !== undefined && parentId !== task.parentId ? [prisma.task.update({ where: { id }, data: { parentId } })] : [];
-  if (beforeId === id) {
-    await prisma.$transaction(reparent);
-    return;
-  }
-  const ordered = await prisma.task.findMany({
-    orderBy: BY_POSITION,
-    select: { id: true, position: true },
-  });
-  const others = ordered.filter((task) => task.id !== id).map((task) => task.id);
-  const index = beforeId === null ? others.length : others.indexOf(beforeId);
-  if (index < 0) throw notFound('Tâche');
-  const order = movedTo(others, id, index);
-  const current = new Map(ordered.map((task) => [task.id, task.position]));
-  // Only rows whose position changes are written.
-  await prisma.$transaction([
-    ...reparent,
-    ...order
-      .map((taskId, position) => ({ taskId, position }))
-      .filter(({ taskId, position }) => current.get(taskId) !== position)
-      .map(({ taskId, position }) => prisma.task.update({ where: { id: taskId }, data: { position } })),
-  ]);
+  await moveBefore('task', id, beforeId, 'Tâche', reparent);
 }
 
 /**
@@ -860,17 +782,6 @@ export async function bulkUpdateTasks(ids: string[], changes: BulkTaskChanges, r
 }
 
 /**
- * Keeps only the topmost tasks of a selection: a selected sub-task moves or goes with its selected ancestor.
- * @param {string[]} ids Selected task ids.
- * @returns {Promise<string[]>} Ids without selected descendants.
- */
-async function topmost(ids: string[]): Promise<string[]> {
-  const selected = new Set(ids);
-  const byId = mapById(await prisma.task.findMany({ select: { id: true, parentId: true } }));
-  return ids.filter((id) => !ancestorsOf(byId, id).some((parent) => selected.has(parent.id)));
-}
-
-/**
  * Transfers several tasks (with their sub-tasks; none archived) to another project, or out of any.
  * @param {string[]} ids Task ids.
  * @param {string | null} projectId Target project; null: none.
@@ -882,7 +793,7 @@ export async function bulkTransferTasks(ids: string[], projectId: string | null)
   await assertNoneArchived('task', ids);
   if (projectId) await assertProject(projectId);
   // All at once: links between the moved tasks stay.
-  return moveTaskTrees(await topmost(ids), projectId);
+  return moveTaskTrees(await topmostIds('task', ids), projectId);
 }
 
 /**
@@ -893,7 +804,7 @@ export async function bulkTransferTasks(ids: string[], projectId: string | null)
  */
 export async function bulkSetTasksArchived(ids: string[], archived: boolean): Promise<void> {
   await assertTasks(ids);
-  for (const id of await topmost(ids)) await setTaskArchived(id, archived);
+  for (const id of await topmostIds('task', ids)) await setTaskArchived(id, archived);
 }
 
 /**
@@ -904,12 +815,6 @@ export async function bulkSetTasksArchived(ids: string[], archived: boolean): Pr
  */
 export async function bulkDeleteTasks(ids: string[], deleteSubtasks: boolean): Promise<void> {
   await assertTasks(ids);
-  for (const id of await topmost(ids)) {
-    if (await prisma.task.findUnique({ where: { id }, select: { id: true } })) await deleteTask(id, deleteSubtasks);
-  }
-  // Selected sub-tasks moved up by a deletion are still selected: delete them as well.
-  if (!deleteSubtasks) {
-    await forgetGithubItems(ids);
-    await prisma.task.deleteMany({ where: { id: { in: ids } } });
-  }
+  // Their GitHub items are taken off the board first.
+  await deleteTreeItems('task', ids, deleteSubtasks, forgetGithubItems);
 }

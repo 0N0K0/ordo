@@ -1,3 +1,4 @@
+import { ancestorsOf, mapById, subtreeOf } from '@ordo/shared';
 import type { GraphQLError } from 'graphql';
 import { prisma } from '../../db';
 import type { Prisma } from '../../generated/prisma/client';
@@ -244,7 +245,10 @@ export function isArchivedAs(record: { archivedAt: Date | null }, archived: bool
   return (record.archivedAt !== null) === archived;
 }
 
-/** What the models archived in cascade (tasks, projects) have in common. */
+/** Models archived in cascade, with `archivedByCascade`. */
+type CascadeModel = 'task' | 'project' | 'routine';
+
+/** What the models archived in cascade (tasks, projects, routines) have in common. */
 interface CascadeDelegate<T> {
   updateMany(args: { where: Record<string, unknown>; data: Record<string, unknown> }): Prisma.PrismaPromise<unknown>;
   update(args: { where: { id: string }; data: Record<string, unknown> }): Prisma.PrismaPromise<T>;
@@ -265,13 +269,13 @@ export interface Cascade {
 /**
  * Archives an element with its active sub-elements, or restores it with the sub-elements archived along and its
  * archived ancestors (alone: their other sub-elements archived along then stay archived on their own), in one transaction.
- * @param {'task' | 'project'} model Prisma model (with `archivedByCascade`).
+ * @param {CascadeModel} model Prisma model (with `archivedByCascade`).
  * @param {string} id Element.
  * @param {boolean} archived Archives (else restores).
  * @param {Cascade} cascade Elements touched.
  * @returns {Promise<T>} Updated element.
  */
-export async function cascadeArchive<T>(model: 'task' | 'project', id: string, archived: boolean, cascade: Cascade): Promise<T> {
+export async function cascadeArchive<T>(model: CascadeModel, id: string, archived: boolean, cascade: Cascade): Promise<T> {
   const items = modelDelegate<CascadeDelegate<T>>(model);
   const descendantIds = [...cascade.descendantIds];
   const ancestorIds = [...(cascade.ancestorIds ?? [])];
@@ -294,4 +298,32 @@ export async function cascadeArchive<T>(model: 'task' | 'project', id: string, a
     ...(cascade.restoreAlso ?? []),
   ]);
   return updated as T;
+}
+
+/** What the trees archived in cascade (tasks, routines) have in common. */
+interface ArchiveTreeDelegate<T> {
+  findUnique(args: { where: { id: string } }): PromiseLike<T | null>;
+  findMany(args: { select: { id: true; parentId: true; archivedAt: true } }): PromiseLike<{ id: string; parentId: string | null; archivedAt: Date | null }[]>;
+}
+
+/**
+ * Archives an item of a tree (task, routine) with its active sub-items, or restores it with the sub-items archived
+ * along and its archived ancestors (alone: their other sub-items archived along then stay archived on their own).
+ * Already in that state: nothing changes.
+ * @param {'task' | 'routine'} model Prisma model (with `parentId` and `archivedByCascade`).
+ * @param {string} id Item.
+ * @param {boolean} archived Archives (else restores).
+ * @param {string} what Human-readable name of the item (« Tâche », « Routine »), for « X introuvable. ».
+ * @returns {Promise<T>} Item.
+ */
+export async function archiveTree<T extends { archivedAt: Date | null }>(model: 'task' | 'routine', id: string, archived: boolean, what: string): Promise<T> {
+  const items = modelDelegate<ArchiveTreeDelegate<T>>(model);
+  const item = await findOrNotFound(items, id, what);
+  if (isArchivedAs(item, archived)) return item;
+  const all = await items.findMany({ select: { id: true, parentId: true, archivedAt: true } });
+  const descendantIds = [...subtreeOf(all, id, false)];
+  const ancestorIds = ancestorsOf(mapById(all), id)
+    .filter((ancestor) => ancestor.archivedAt)
+    .map((ancestor) => ancestor.id);
+  return cascadeArchive<T>(model, id, archived, { descendantIds, ancestorIds });
 }

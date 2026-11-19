@@ -84,7 +84,7 @@ Panneau large « Faire l'inventaire » (`StockCountForm`) :
 - « Emplacement » (« Tout le stock » par défaut) : les articles de l'emplacement et de ses sous-emplacements ; les archivés ne sont pas comptés.
 - Tableau : « Article », « Emplacement », « Attendu », « Compté » (saisie, l'attendu en indication).
 - « Saisissez ce que vous comptez : seuls les articles comptés sont enregistrés, l'écart avec l'attendu est noté dans l'historique. »
-- « Description ».
+- « Description » : markdown, dans l'éditeur markdown partagé (65 536 caractères).
 - « Enregistrer l'inventaire » (désactivé sans compte) : toast « Inventaire enregistré (N articles). ».
 
 ## Onglet « Mouvements »

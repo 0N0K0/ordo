@@ -1,10 +1,6 @@
 /** Separator of the levels of a path (« Maison › Cuisine »). */
 export const LEVEL = ' › ';
 
-/** Where an item is dropped, relative to another one: before it, after it or inside it (as its child). */
-export const TREE_PLACES = ['BEFORE', 'AFTER', 'INSIDE'] as const;
-export type TreePlace = (typeof TREE_PLACES)[number];
-
 /** Item of a tree: its id and its parent (none, or unknown: the top level). */
 export interface TreeItem {
   id: string;

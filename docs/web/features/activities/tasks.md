@@ -344,6 +344,7 @@ Internes : `TaskColumnExtras`, `STATUS_CATEGORY_ORDER`, `STATUS_CATEGORY_LABELS`
 
 ### `lib/task-links.ts`
 
+- `inProjectTree(context, projectId)` : dit si un élément (tâche, routine) d'un projet est dans l'arborescence de projets d'un autre (sans projet : avec ceux sans projet). Utilisé aussi par `linkableRoutine` (routines).
 - `linkableTasks(context, projectId, taskId, extra?)` : tâches liables (même arborescence, non archivées, pas elle-même).
 - `countSubtasks(context, taskId)` : nombre de sous-tâches à toute profondeur.
 

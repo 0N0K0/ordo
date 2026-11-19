@@ -208,6 +208,11 @@ export default defineConfig([
             'JSXText[value=/^\\s*(Archiver|Restaurer)\\s*$/], JSXOpeningElement[name.name=/^(IconAction|Tooltip|Button|ActionButton|ActionIcon)$/] JSXAttribute Literal[value=/^(Archiver|Restaurer)$/]',
           message: 'Utiliser archiveEntry(élément, mutation, id) (lib/archive) dans le menu « … » (ActionsMenu, RowActions, DetailHeader menu) : « Archiver » n’est jamais un bouton.',
         },
+        // Links of tasks and routines inside one project tree (decision DS).
+        {
+          selector: "BinaryExpression[operator=/^[!=]==$/][left.callee.property.name='rootOf'][right.callee.property.name='rootOf']",
+          message: 'Utiliser inProjectTree(context, projectId)(autreProjectId) (features/tasks/lib/task-links), ou linkableTasks / linkableRoutine.',
+        },
         // Destructive confirmations: confirmDestructive adds the sentence.
         {
           selector: 'Literal[value=/irréversible/], TemplateElement[value.raw=/irréversible/], JSXText[value=/irréversible/]',

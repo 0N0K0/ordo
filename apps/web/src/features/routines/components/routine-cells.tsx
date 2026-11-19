@@ -14,8 +14,8 @@ import type { TaskContext } from '../../tasks/hooks/use-task-context';
 
 import { useRoutinesData, type Routine, type RoutineCategory } from '../api';
 import { routineCellLabel, routinesLabel, useRoutineCellEdit } from '../lib/routine-cell-edit';
-import { listDiff } from '../../../components/data-table/selection/bulk-edit';
-import { describeRoutineCase, routinePath, ruleOf, waitingFor } from '../lib/routine-format';
+import { applyDiff, listDiff } from '../../../components/data-table/selection/bulk-edit';
+import { describeRoutineCase, linkableRoutine, routinePath, ruleOf, waitingFor } from '../lib/routine-format';
 import { openRoutineForm } from '../lib/open-routine-form';
 import { RoutineRepetitionModal } from './RoutineSchedule';
 import { treeSelectProps } from '../../../components/tree/tree-select';
@@ -129,38 +129,35 @@ export function AssigneesCell({ routine, readOnly = false, context }: CellProps 
 }
 
 /**
- * "Dépend de" cell: the routines to do before this one, one under the other (those still to do for their current
- * occurrence marked with an hourglass); a click opens the multi-select of the other routines. On a column selection,
- * the change applies to every selected routine (never to itself).
- * @param {CellProps & { routines: Routine[] }} props Component props.
+ * Cell of the links of a routine with others, chosen in place among the routines of its project tree (as the tasks):
+ * « Dépend de », the routines to do before this one (those still to do for their current occurrence marked with an
+ * hourglass), or « Relative à », the routines related to it. On a column selection, the change applies to every
+ * selected routine (never to itself).
+ * @param {CellProps & { routines: Routine[], context: TaskContext, kind: 'requires' | 'related' }} props Component props.
  * @returns {JSX.Element} Cell.
  */
-export function RequiresCell({ routine, readOnly = false, routines }: CellProps & { routines: Routine[] }) {
-  const { apply, count } = useRoutineCellEdit(routine, 'requires');
+export function RoutineLinksCell({ routine, readOnly = false, routines, context, kind }: CellProps & { routines: Routine[]; context: TaskContext; kind: 'requires' | 'related' }) {
+  const { apply, count } = useRoutineCellEdit(routine, kind);
   const byId = mapById(routines);
-  const waiting = new Set(waitingFor(routine, byId).map((other) => other.id));
+  const waiting = new Set(kind === 'requires' ? waitingFor(routine, byId).map((other) => other.id) : []);
+  const ids = kind === 'requires' ? routine.requiredIds : routine.relatedIds;
   return (
     <EditableMultiSelect
-      label={routineCellLabel('Dépendances', routine, count)}
+      label={routineCellLabel(kind === 'requires' ? 'Dépendances' : 'Routines relatives', routine, count)}
       readOnly={readOnly}
-      items={routine.requiredIds.flatMap((id) => {
-        const required = byId.get(id);
-        return required
-          ? [
-              {
-                id,
-                label: routinePath(required, byId),
-                hint: waiting.has(id) ? `${routinePath(required, byId)} (pas encore faite)` : routinePath(required, byId),
-                icon: <DependencyIcon done={!waiting.has(id)} />,
-              },
-            ]
-          : [];
+      items={ids.flatMap((id) => {
+        const other = byId.get(id);
+        if (!other) return [];
+        const path = routinePath(other, byId);
+        return [kind === 'requires' ? { id, label: path, hint: waiting.has(id) ? `${path} (pas encore faite)` : path, icon: <DependencyIcon done={!waiting.has(id)} /> } : { id, label: path, hint: path }];
       })}
-      {...treeSelectProps(routineTreeOptions(routines, (other) => other.id !== routine.id && (!other.archived || routine.requiredIds.includes(other.id))))}
-      value={routine.requiredIds}
-      onSave={(requiredIds) => {
-        const { added, removed } = listDiff(routine.requiredIds, requiredIds);
-        apply({ requiredIds }, { addRequiredIds: added, removeRequiredIds: removed });
+      {...treeSelectProps(routineTreeOptions(routines, linkableRoutine(context, routine.projectId ?? null, routine.id, ids)))}
+      value={ids}
+      onSave={(next) => {
+        const { added, removed } = listDiff(ids, next);
+        if (kind === 'requires') apply({ requiredIds: next }, { addRequiredIds: added, removeRequiredIds: removed });
+        // Each routine of the selection gets (or loses) the same relations, never to itself.
+        else apply((target) => ({ relatedIds: applyDiff(target.relatedIds, ids, next).filter((id) => id !== target.id) }));
       }}
     />
   );

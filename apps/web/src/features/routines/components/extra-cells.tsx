@@ -18,7 +18,8 @@ import { OpensOnInput } from './OpensOnInput';
 import { opensText } from '../lib/opens-format';
 import { opensFits, readOpens, subtreeOf } from '@ordo/shared';
 import * as fmt from '../../../lib/format';
-import { routineTreeOptions, ruleOf } from '../lib/routine-format';
+import { linkableRoutine, routineTreeOptions, ruleOf } from '../lib/routine-format';
+import type { TaskContext } from '../../tasks/hooks/use-task-context';
 import { RemindersSelect } from '../../../components/inputs/RemindersSelect';
 import { ChildrenCell } from '../../../components/data-table/cells/ChildrenCell';
 import { unarchived } from '../../../lib/archive';
@@ -226,18 +227,18 @@ export function OpensOnCell({ routine, readOnly = false }: { routine: Routine; r
 }
 
 /**
- * « Bloque » cell: the routines waiting for this one, chosen in place (they then depend on it).
- * @param {{ routine: Routine, routines: Routine[], readOnly?: boolean }} props Component props (read only: archived or being created).
+ * « Bloque » cell: the routines waiting for this one, chosen in place among those of its project tree (they then depend on it).
+ * @param {{ routine: Routine, routines: Routine[], context: TaskContext, readOnly?: boolean }} props Component props (read only: archived or being created).
  * @returns {JSX.Element} Cell.
  */
-export function BlocksCell({ routine, routines, readOnly = false }: { routine: Routine; routines: Routine[]; readOnly?: boolean }) {
+export function BlocksCell({ routine, routines, context, readOnly = false }: { routine: Routine; routines: Routine[]; context: TaskContext; readOnly?: boolean }) {
   const { patch } = useRoutineMutations();
   const { targets, count } = useRoutineCellEdit(routine, 'blocks');
   const waiting = routines.filter((other) => other.requiredIds.includes(routine.id)).map((other) => other.id);
   return (
     <EditableMultiSelect
       label={routineCellLabel('Routines en attente', routine, count)}
-      {...treeSelectProps(routineTreeOptions(routines, (other) => other.id !== routine.id && (!other.archived || waiting.includes(other.id))))}
+      {...treeSelectProps(routineTreeOptions(routines, linkableRoutine(context, routine.projectId ?? null, routine.id, waiting)))}
       value={waiting}
       readOnly={readOnly}
       onSave={(next) => {

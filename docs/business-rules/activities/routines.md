@@ -4,7 +4,7 @@ Règles appliquées par l'API et le code partagé aux routines : validation, cal
 
 ## Modèle
 
-Tables Prisma : `Routine`, `RoutineCategory` (arbre), `RoutineDependency` (« A dépend de B »), `RoutineCheck` (un moment d'une occurrence coché). Les fiches et listes à cocher d'une routine sont décrites dans [Règles des fiches](../supplies/sheets.md).
+Tables Prisma : `Routine`, `RoutineCategory` (arbre), `RoutineDependency` (« A dépend de B »), `RoutineRelation` (« relative à », symétrique, stockée une seule fois avec `routineAId < routineBId`), `RoutineCheck` (un moment d'une occurrence coché). Les fiches et listes à cocher d'une routine sont décrites dans [Règles des fiches](../supplies/sheets.md).
 
 Champs d'une routine qui comptent pour les occurrences :
 
@@ -17,7 +17,7 @@ Champs d'une routine qui comptent pour les occurrences :
 | `opensOn`       | « À partir du » des occurrences de la règle.                                                                                                  |
 | `cases`         | Cas (chacun : `from`, `until`, `recurrence`, `slots`, `condition`, `opens`) ; non vide, ils remplacent la règle, ses moments et sa condition. |
 | `moves`         | Exceptions : `[{ from, to, times }]` (jours `YYYY-MM-DD`).                                                                                    |
-| `archivedAt`    | Archivée : plus aucune occurrence.                                                                                                            |
+| `archivedAt`    | Archivée : plus aucune occurrence. `archivedByCascade` : archivée avec sa routine parente.                                                    |
 
 Anciennes formes encore lues mais plus écrites : `fromTime` / `dueTime` seuls (un seul moment), `scheduleIds` / `excludedScheduleIds` (plages suivies / exclues, converties en condition), `scheduleId` / `scheduleAnchor` (plage suivie, plus utilisée), `slotRule` (toujours remis à `null` à l'enregistrement), `opensOn` en texte `"DD"` (mensuel) ou `"MM-DD"` (annuel).
 
@@ -25,23 +25,23 @@ Anciennes formes encore lues mais plus écrites : `fromTime` / `dueTime` seuls (
 
 Source : `packages/shared/src/routines/routines.ts`, `apps/api/src/services/routines/routines.ts`.
 
-| Champ                                                                    | Règle et message                                                                                                                                                                                                                                                     |
-| ------------------------------------------------------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `label`                                                                  | Requis (« Le libellé est requis. »), 250 caractères au plus (`TEXT_MAX`, « 250 caractères maximum. », décision DO), espaces retirés.                                                                                                                                 |
-| `description`                                                            | Markdown, 65 536 caractères au plus (« Texte trop long. ») ; blanche enregistrée `null`.                                                                                                                                                                             |
-| `categoryIds`                                                            | 100 au plus ; doublons retirés ; chacune doit exister (« Catégorie »).                                                                                                                                                                                               |
-| `startDate`                                                              | Jour valide requis (« La date de début est requise. »).                                                                                                                                                                                                              |
-| `recurrence`                                                             | Règle valide ; si elle a une date de fin, elle doit suivre la date de début (« La fin de la répétition doit suivre la date de début. »).                                                                                                                             |
-| `estimate`                                                               | Entier, 1 minute (« Au moins 1 minute. ») à 24 heures (« 24 heures maximum. »), ou `null`.                                                                                                                                                                           |
-| `fromTime`, `dueTime`                                                    | `HH:MM` (« Heure attendue (HH:MM). ») ou `null` ; la fin doit suivre strictement le début (« La fin doit suivre le début. »).                                                                                                                                        |
-| `moments`                                                                | 10 au plus (« 10 moments au plus. ») ; chacun : fin après début ; s'il y en a, au moins un obligatoire (« Au moins un moment doit être obligatoire. »).                                                                                                              |
-| `cases`                                                                  | 20 au plus (« 20 cas au plus. ») ; chaque cas : 1 à 10 moments (« Ajoutez au moins un moment. », « 10 moments au plus. »), au moins un obligatoire, « à partir du » compatible.                                                                                      |
-| `slotCondition`                                                          | Groupe de conditions ; champ `schedules` avec `in` / `notIn`, champ `freeTime` avec `isEmpty` / `notIn` (sinon « Sur ou hors des plages. ») ; chaque plage nommée doit exister (« Plage »).                                                                          |
-| `reminders`                                                              | 10 au plus (« 10 rappels maximum. »), entiers de 0 à 1 440 ; doublons retirés, triés.                                                                                                                                                                                |
-| `location`                                                               | 250 caractères au plus (« 250 caractères maximum. ») ; sans lieu, le point est effacé.                                                                                                                                                                               |
-| `travelBefore`, `travelAfter`                                            | Minutes de trajet (schéma géo commun), 0 par défaut.                                                                                                                                                                                                                 |
-| `opensOn`                                                                | Refusé avec des cas, ou s'il ne convient pas à la fréquence : « Ce « à partir du » ne vaut pas pour cette répétition : un jour du mois (mensuelle), de l'année (annuelle), ou des jours avant. » Mode `BEFORE` : 1 (« Au moins 1. ») à 366 (« 366 maximum. ») jours. |
-| `assigneeIds`, `beneficiaryIds`, `beneficiaryRelationIds`, `requiredIds` | 100 au plus chacun, doublons retirés.                                                                                                                                                                                                                                |
+| Champ                                                                                  | Règle et message                                                                                                                                                                                                                                                     |
+| -------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `label`                                                                                | Requis (« Le libellé est requis. »), 250 caractères au plus (`TEXT_MAX`, « 250 caractères maximum. », décision DO), espaces retirés.                                                                                                                                 |
+| `description`                                                                          | Markdown, 65 536 caractères au plus (« Texte trop long. ») ; blanche enregistrée `null`.                                                                                                                                                                             |
+| `categoryIds`                                                                          | 100 au plus ; doublons retirés ; chacune doit exister (« Catégorie »).                                                                                                                                                                                               |
+| `startDate`                                                                            | Jour valide requis (« La date de début est requise. »).                                                                                                                                                                                                              |
+| `recurrence`                                                                           | Règle valide ; si elle a une date de fin, elle doit suivre la date de début (« La fin de la répétition doit suivre la date de début. »).                                                                                                                             |
+| `estimate`                                                                             | Entier, 1 minute (« Au moins 1 minute. ») à 24 heures (« 24 heures maximum. »), ou `null`.                                                                                                                                                                           |
+| `fromTime`, `dueTime`                                                                  | `HH:MM` (« Heure attendue (HH:MM). ») ou `null` ; la fin doit suivre strictement le début (« La fin doit suivre le début. »).                                                                                                                                        |
+| `moments`                                                                              | 10 au plus (« 10 moments au plus. ») ; chacun : fin après début ; s'il y en a, au moins un obligatoire (« Au moins un moment doit être obligatoire. »).                                                                                                              |
+| `cases`                                                                                | 20 au plus (« 20 cas au plus. ») ; chaque cas : 1 à 10 moments (« Ajoutez au moins un moment. », « 10 moments au plus. »), au moins un obligatoire, « à partir du » compatible.                                                                                      |
+| `slotCondition`                                                                        | Groupe de conditions ; champ `schedules` avec `in` / `notIn`, champ `freeTime` avec `isEmpty` / `notIn` (sinon « Sur ou hors des plages. ») ; chaque plage nommée doit exister (« Plage »).                                                                          |
+| `reminders`                                                                            | 10 au plus (« 10 rappels maximum. »), entiers de 0 à 1 440 ; doublons retirés, triés.                                                                                                                                                                                |
+| `location`                                                                             | 250 caractères au plus (« 250 caractères maximum. ») ; sans lieu, le point est effacé.                                                                                                                                                                               |
+| `travelBefore`, `travelAfter`                                                          | Minutes de trajet (schéma géo commun), 0 par défaut.                                                                                                                                                                                                                 |
+| `opensOn`                                                                              | Refusé avec des cas, ou s'il ne convient pas à la fréquence : « Ce « à partir du » ne vaut pas pour cette répétition : un jour du mois (mensuelle), de l'année (annuelle), ou des jours avant. » Mode `BEFORE` : 1 (« Au moins 1. ») à 366 (« 366 maximum. ») jours. |
+| `assigneeIds`, `beneficiaryIds`, `beneficiaryRelationIds`, `requiredIds`, `relatedIds` | 100 au plus chacun, doublons retirés.                                                                                                                                                                                                                                |
 
 Références vérifiées par `parseRoutine` :
 
@@ -52,6 +52,9 @@ Références vérifiées par `parseRoutine` :
 - Catégories et plages non archivées, sauf celles déjà présentes sur la routine.
 - Parente : doit exister (« Routine parente »), non archivée (sauf si inchangée), ni la routine elle-même ni une de ses sous-routines (« Une routine ne peut pas être rangée sous elle-même. »).
 - Dépendances : chaque routine requise doit exister (« Routine »), non archivée (sauf si déjà présente) ; pas elle-même (« Une routine ne peut pas dépendre d'elle-même. ») ; pas de cycle, même indirect (« Ces dépendances forment une boucle. »).
+- « Relative à » (`relatedIds`) : chaque routine doit exister (« Routine »), non archivée (sauf si déjà liée) ; pas elle-même (« Une routine ne peut pas être liée à elle-même. »).
+- Dépendances et relations dans la **même arborescence de projets** que la routine, comme les tâches (décision DS) : une routine nouvellement liée d'une autre arborescence est refusée, « Les routines liées doivent appartenir au même projet ou à l’un de ses sous-projets. » ; sans projet : « Une routine sans projet ne se lie qu’à des routines sans projet. » (sous `requiredIds` ou `relatedIds`). Un lien déjà en place hors de l'arborescence reste tant qu'elle n'en change pas.
+- Changement d'arborescence de projets (formulaire, modification en masse, édition sur place) : ses liens avec les routines restées hors de la nouvelle arborescence sont retirés sans erreur, dans les deux sens (celles dont elle dépend, celles qui dépendent d'elle, ses relations), comme lors d'un transfert de tâche.
 - `restoring` (annulation d'une modification en masse) : les valeurs archivées remises sont acceptées, seul ce contrôle est sauté.
 
 Normalisation à l'enregistrement :
@@ -126,7 +129,7 @@ Source : `packages/shared/src/routines/routines.ts`, `ROUTINE_STATES`.
 
 `done` (champ GraphQL) : il y a une occurrence en cours, elle a au moins un moment, et chaque moment est coché ou facultatif.
 
-« En attente » (web, `waitingFor`) : une routine requise, non archivée, a une occurrence en cours non faite.
+« En attente » (web, `waitingFor`) : une routine requise, non archivée, a une occurrence en cours non faite (calcul gardé tel quel par la décision DS).
 
 ### Départ, retour, alertes (`routineSchedule`, `routineAlertTime`)
 
@@ -182,25 +185,26 @@ Annulation depuis l'agenda (`deleteRoutineOccurrence`) :
 Source : `bulkUpdateRoutines`, `patchRoutine` (GraphQL).
 
 - Une sélection contenant une routine archivée est refusée entièrement.
-- Listes (catégories, assignés, dépendances) : ajouts et retraits ; une routine ne dépend jamais d'elle-même, même si elle est dans la sélection.
+- Listes (catégories, assignés, dépendances) : ajouts et retraits ; « Relative à » se change routine par routine (`patchRoutine`) ; une routine ne dépend jamais d'elle-même, même si elle est dans la sélection.
 - Une nouvelle `recurrence` vide les cas ; des horaires (`fromTime` / `dueTime`) donnent un seul moment.
 - Toutes les routines sont validées avant que la première soit enregistrée.
 - `patchRoutine` (édition sur place) suit les mêmes règles en repartant de la routine entière (`inputOf`).
 
 ## Ordre, arbre, copie
 
-Source : `moveRoutine`, `createRoutine`, `copySubRoutines`, `deleteRoutine` ; [Ordre](../cross-cutting/ordering.md).
+Source : `moveRoutine`, `createRoutine`, `copySubRoutines`, `bulkDeleteRoutines` ; [Ordre](../cross-cutting/ordering.md).
 
-- Créée en dernier parmi ses sœurs (même parente).
-- `moveRoutine(id, targetId, place)` : `BEFORE` / `AFTER` (même parente que la cible) ou `INSIDE` (dernière sous-routine) ; puis les sœurs sont renumérotées. Pas sur elle-même (« Une routine ne peut pas être déplacée sur elle-même. »). Une routine archivée ne se déplace pas, et rien ne s'ajoute sous une routine archivée. Les catégories peuvent changer avec le déplacement.
-- `copySubRoutines(fromId, toId)` : copie récursive des sous-routines sous la copie, dans leur ordre ; une dépendance vers une routine copiée pointe vers sa copie. La cible ne doit pas être archivée.
-- Suppression : ses sous-routines remontent d'un niveau, ses coches, dépendances, fiches et listes à cocher partent avec elle, le temps chronométré reste sans routine. Suppression en masse : les identifiants inexistants sont ignorés.
+- Un seul ordre manuel global pour toutes les routines (`position`), comme les tâches (décision DT) : créée, une routine va à la fin de cet ordre. L'ordre affiché reste l'arbre (chaque routine sous sa parente), les sœurs dans l'ordre global.
+- `moveRoutine(id, beforeId, parentId?, categoryIds?)` : place la routine juste avant `beforeId` dans l'ordre global (`null` : à la fin ; voisine inconnue : « Routine introuvable. ») ; `parentId` donné change aussi de parente (vérifiée comme à l'enregistrement : existante, non archivée, pas sous elle-même), `null` : premier niveau, omis : inchangée. Placer « avant telle routine » fonctionne aussi dans une vue filtrée où la parente est masquée. Une routine archivée ne se déplace pas. Les catégories peuvent changer avec le déplacement. Seules les lignes dont la position change sont écrites.
+- `copySubRoutines(fromId, toId)` : copie récursive des sous-routines sous la copie, dans leur ordre ; une dépendance ou une relation vers une routine copiée pointe vers sa copie. La cible ne doit pas être archivée.
+- Suppression (`bulkDeleteRoutines(ids, deleteSubRoutines)`), comme les tâches (décision DR) : ses sous-routines sont, au choix, supprimées avec elle (tout le sous-arbre) ou remontées d'un niveau sous sa parente ; les sous-routines sélectionnées remontées par la suppression de leur parente sont supprimées aussi. Ses coches, dépendances, relations, fiches et listes à cocher partent avec elle, le temps chronométré reste sans routine. Les identifiants inexistants sont ignorés ; le résultat compte les routines données supprimées.
 
 ## Archivage
 
-- `bulkSetRoutinesArchived(ids, archived)` : chaque routine doit exister ; archiver garde la date de celles déjà archivées.
+- `bulkSetRoutinesArchived(ids, archived)` : chaque routine doit exister ; archiver garde la date de celles déjà archivées. Comme les tâches (décision DQ, `archiveTree`) : archiver une routine archive aussi ses sous-routines actives (`archivedByCascade`) ; la restaurer restaure celles archivées avec elle, et ses parentes archivées (seules : leurs autres sous-routines archivées avec elles restent archivées, pour leur propre compte). Une routine sélectionnée sous une autre sélectionnée suit celle-ci. Le résultat compte les routines données qui ont changé d'état.
+- Une routine archivée parce qu'une suppression d'occurrences depuis l'agenda ne lui laisse plus rien (`deleteRoutineOccurrence`, `FOLLOWING`) est archivée seule.
 - Archivée : lecture seule (modification, coche, déplacement, ajout de sous-routine refusés), aucune occurrence, plus proposée comme parente ou dépendance (celles déjà en place restent). Voir [Archivage](../cross-cutting/archiving.md).
 
 ## Requête `routines`
 
-Toutes les routines, archivées comprises, dans l'ordre manuel ; `routineCategories` dans leur ordre. Les plages de l'espace sont chargées une fois par requête (`loadScheduleContext`) et les calculs mémorisés par routine.
+Toutes les routines, archivées comprises, dans l'ordre manuel global ; `routineCategories` dans leur ordre. Les plages de l'espace sont chargées une fois par requête (`loadScheduleContext`) et les calculs mémorisés par routine.

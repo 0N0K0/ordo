@@ -19,8 +19,7 @@ Requêtes et mutations GraphQL des routines (TanStack Query).
 | `useRoutineOccurrences(range, enabled?)` | Occurrences des routines non archivées d'une période (100 jours au plus) ; `range` `null` : rien chargé. Utilisée par l'historique, le formulaire de report, `CalendarPage`, `EventForm`. |
 | `useRoutinesData()`                      | Routines et catégories ; rechargées au retour du focus (les occurrences changent avec le jour). Utilisée partout (accueil, agenda, alarmes, temps).                                       |
 | `isDraftRoutine(routine)`                | Vrai pour une routine en cours de création (id `draft-…`, affichée avant d'être enregistrée).                                                                                             |
-| `RoutinePlace`                           | `'BEFORE' \| 'AFTER' \| 'INSIDE'`.                                                                                                                                                        |
-| `RoutineMove`                            | Variables de `move` : `id`, `targetId`, `place`, `categoryIds?`.                                                                                                                          |
+| `RoutineMove`                            | Variables de `move` : `id`, `beforeId` (routine à précéder dans l'ordre global ; `null` : à la fin), `parentId?` (omis : inchangé), `categoryIds?`.                                       |
 | `RoutinePatchValues`                     | Champs d'une édition sur place (`patchRoutine`).                                                                                                                                          |
 | `RoutineBulkChanges`                     | Réexport du type partagé des changements en masse.                                                                                                                                        |
 | `routineInputOf(routine)`                | Routine en `RoutineInput` complet (annulation, duplication).                                                                                                                              |
@@ -40,21 +39,21 @@ Mutations de `useRoutineMutations()` (toutes invalident `routinesKey` en arrièr
 | `setDone`                                                              | `setRoutineDone`                                            | `withSlotsDone` (occurrence en cours seulement) |
 | `moveOccurrence`, `changeOccurrence`, `deleteOccurrence`, `removeMove` | exceptions                                                  | —                                               |
 | `bulkUpdate`                                                           | `bulkUpdateRoutines`                                        | `withBulkChanges`                               |
-| `bulkArchive`                                                          | `bulkSetRoutinesArchived`                                   | `archived`                                      |
+| `bulkArchive`                                                          | `bulkSetRoutinesArchived`                                   | `archiveInCache` (sous-routines, parentes)      |
 | `bulkDone`                                                             | `bulkSetRoutinesDone`                                       | tous les moments                                |
-| `bulkRemove`                                                           | `bulkDeleteRoutines`                                        | —                                               |
+| `bulkRemove`                                                           | `bulkDeleteRoutines` (`ids`, `deleteSubRoutines`)           | —                                               |
 | `restore`                                                              | `updateRoutine` avec `restoring: true`, routine par routine | —                                               |
 
-Fonctions internes : `useRoutineMutation` (mutation invalidante avec cache optimiste, et d'autres requêtes `also`), `draftRoutine` (brouillon dernier de ses sœurs), `withSlotsDone` (moments, `done`, `doneDates` recalculés), `patchRoutine` (cache), `moveInCache`, `withBulkChanges`, `fetchChecks`.
+Fonctions internes : `useRoutineMutation` (mutation invalidante avec cache optimiste, et d'autres requêtes `also`), `draftRoutine` (brouillon dernier de l'ordre global), `withSlotsDone` (moments, `done`, `doneDates` recalculés), `patchRoutine` (cache), `moveInCache` (ordre global, comme `useMoveTask`), `archiveInCache` (archiver prend les sous-routines, restaurer les parentes), `withBulkChanges`, `fetchChecks`.
 
 ## `pages/`
 
 ### `pages/RoutinesPage.tsx`
 
-| Export                                       | Rôle                                                                                                                                                                                                                                                                                                                                                                                                                         |
-| -------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `RoutinesPanel({ projectId?, projectIds? })` | Tableau des routines (`DataTable`, vue `routines`) : vues « À faire » et « Toutes » (`ROUTINE_VIEWS`), groupes par catégories, sous-routines sous leur parente, cellules éditables, glisser-déposer (`handleMove`), menu par ligne, ligne d'ajout, barre de sélection. Sur un projet, filtre les routines de `projectIds` et passe `projectId` aux créations. Utilisé ici et dans `features/projects/pages/ProjectPage.tsx`. |
-| `RoutinesPage()`                             | Page `/routines` : en-tête, `RoutineSettings`, onglets `routines` / `history` (`ROUTINE_TABS`, `usePageTab`), `RoutineHistory` lié au paramètre `routine`. Route dans `app/router.tsx`.                                                                                                                                                                                                                                      |
+| Export                                       | Rôle                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 |
+| -------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `RoutinesPanel({ projectId?, projectIds? })` | Tableau des routines (`DataTable`, vue `routines`) : vues « À faire » et « Toutes » (`ROUTINE_VIEWS`), groupes par catégories, sous-routines sous leur parente, cellules éditables, glisser-déposer (`handleMove` : avant la routine qui suit dans l'ordre global, sous le nouveau parent), menu par ligne, ligne d'ajout, barre de sélection. Sur un projet, filtre les routines de `projectIds` et passe `projectId` aux créations. Utilisé ici et dans `features/projects/pages/ProjectPage.tsx`. |
+| `RoutinesPage()`                             | Page `/routines` : en-tête, `RoutineSettings`, onglets `routines` / `history` (`ROUTINE_TABS`, `usePageTab`), `RoutineHistory` lié au paramètre `routine`. Route dans `app/router.tsx`.                                                                                                                                                                                                                                                                                                              |
 
 Internes : `ROUTINE_VIEWS`, `movedCategories(categoryIds, from, to)` (catégories après un dépôt dans un autre groupe), `cells(routine)`, `actions(routine)`.
 
@@ -62,10 +61,10 @@ Internes : `ROUTINE_VIEWS`, `movedCategories(categoryIds, from, to)` (catégorie
 
 ### `components/RoutineForm.tsx`
 
-| Export               | Rôle                                                                                                                                                                                                                                                                                                                                                                 |
-| -------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `RoutineFormProps`   | `routine?`, `copy?`, `parent?`, `categoryId?`, `projectId?`, `onDone`.                                                                                                                                                                                                                                                                                               |
-| `RoutineForm(props)` | Formulaire complet (panneau latéral) : libellé, description markdown, « Quand » (`RoutineSchedule`), fiches (`SheetsSection`), commentaires, projet, catégories (création en ligne), assignés, bénéficiaires, temps, parente, dépendances. Valeurs par défaut reprises de la parente ; copie avec ses sous-routines (`copySubRoutines`). Validé par `routineSchema`. |
+| Export               | Rôle                                                                                                                                                                                                                                                                                                                                                                                                                                        |
+| -------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `RoutineFormProps`   | `routine?`, `copy?`, `parent?`, `categoryId?`, `projectId?`, `onDone`.                                                                                                                                                                                                                                                                                                                                                                      |
+| `RoutineForm(props)` | Formulaire complet (panneau latéral) : libellé, description markdown, « Quand » (`RoutineSchedule`), fiches (`SheetsSection`), commentaires, projet, catégories (création en ligne), assignés, bénéficiaires, temps, parente, « Dépend de » et « Relative à » (`linkableRoutine` : même arborescence de projets). Valeurs par défaut reprises de la parente ; copie avec ses sous-routines (`copySubRoutines`). Validé par `routineSchema`. |
 
 Interne : `RoutineFormValues`.
 
@@ -136,43 +135,49 @@ Interne : `DoneToggle` (`StateSwitch` vert avec coche).
 
 ### `components/RoutineBulkBar.tsx`
 
-| Export                         | Rôle                                                                                                                                                                                                                                  |
-| ------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `useRoutineRowsActions()`      | Actions d'une ou plusieurs routines : `done` (cocher / décocher), `postpone`, `duplicate` (avec sous-routines, `outermost`), `archive`, `remove` (confirmation et textes). Les archivées sont exclues sauf pour archiver / supprimer. |
-| `useRoutineSelectionActions()` | Liste de ces actions pour la barre de sélection.                                                                                                                                                                                      |
+| Export                         | Rôle                                                                                                                                                                                                                                                         |
+| ------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `useRoutineRowsActions()`      | Actions d'une ou plusieurs routines : `done` (cocher / décocher), `postpone`, `duplicate` (avec sous-routines, `outermost`), `archive`, `remove` (ouvre `DeleteRoutinesDialog` dans une fenêtre). Les archivées sont exclues sauf pour archiver / supprimer. |
+| `useRoutineSelectionActions()` | Liste de ces actions pour la barre de sélection.                                                                                                                                                                                                             |
 
 Interne : `RoutineRowsActions`.
+
+### `components/DeleteRoutinesDialog.tsx`
+
+| Export                                            | Rôle                                                                                                                                                                                                                           |
+| ------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `DeleteRoutinesDialog({ routines, all, onDone })` | Confirmation de la suppression de routines, comme celle des tâches (`DestructiveRisks`, `CascadeChoice`, `DestructiveActions`) : avec des sous-routines non supprimées avec elles, les conserver (remontées) ou les supprimer. |
 
 ### `components/routine-cells.tsx`
 
 Cellules éditables du tableau (toutes passent par `useRoutineCellEdit`, donc par la sélection).
 
-| Export                     | Rôle                                                                                                 |
-| -------------------------- | ---------------------------------------------------------------------------------------------------- |
-| `RoutineLabelCell`         | Libellé : clic ouvre le formulaire, double-clic renomme.                                             |
-| `EstimateCell`             | Temps estimé (minutes).                                                                              |
-| `CategoriesCell`           | Catégories (chemins, avatars), ajouts / retraits en masse.                                           |
-| `AssigneesCell`            | Assignés (contributeurs du ou des projets).                                                          |
-| `RequiresCell`             | Dépendances, icône faite / non faite.                                                                |
-| `ProjectCell`              | Projet.                                                                                              |
-| `RepetitionText`           | Répétition en clair (cas, ou règle et condition), sous le libellé et dans la colonne « Répétition ». |
-| `RepetitionCell`           | Bouton ouvrant `RoutineRepetitionModal` (contenu : `StateCell`).                                     |
-| `RoutineBeneficiariesCell` | Bénéficiaires (`beneficiariesDiff`).                                                                 |
+| Export                     | Rôle                                                                                                                                         |
+| -------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------- |
+| `RoutineLabelCell`         | Libellé : clic ouvre le formulaire, double-clic renomme.                                                                                     |
+| `EstimateCell`             | Temps estimé (minutes).                                                                                                                      |
+| `CategoriesCell`           | Catégories (chemins, avatars), ajouts / retraits en masse.                                                                                   |
+| `AssigneesCell`            | Assignés (contributeurs du ou des projets).                                                                                                  |
+| `RoutineLinksCell`         | `kind` `requires` (« Dépend de », icône faite / non faite) ou `related` (« Relative à ») : routines de son arborescence (`linkableRoutine`). |
+| `ProjectCell`              | Projet.                                                                                                                                      |
+| `RepetitionText`           | Répétition en clair (cas, ou règle et condition), sous le libellé et dans la colonne « Répétition ».                                         |
+| `RepetitionCell`           | Bouton ouvrant `RoutineRepetitionModal` (contenu : `StateCell`).                                                                             |
+| `RoutineBeneficiariesCell` | Bénéficiaires (`beneficiariesDiff`).                                                                                                         |
 
 Interne : `CellProps`.
 
 ### `components/extra-cells.tsx`
 
-| Export              | Rôle                                                                                                        |
-| ------------------- | ----------------------------------------------------------------------------------------------------------- |
-| `ParentRoutineCell` | Parente choisie sur place.                                                                                  |
-| `SubRoutinesCell`   | Sous-routines actives et « Ajouter une sous-routine ».                                                      |
-| `TimeOfDayCell`     | « À partir de » / « Avant », seulement pour une routine à un seul moment propre.                            |
-| `LocationCell`      | Adresse (`AddressInput`), enregistrée au choix d'une proposition ou à l'effacement.                         |
-| `TravelCell`        | Trajet aller / retour.                                                                                      |
-| `RemindersCell`     | Rappels (badge cloche, `RemindersSelect`), différence appliquée à chaque routine sélectionnée.              |
-| `OpensOnCell`       | « À partir du » (pas pour une routine à cas) ; en masse, seulement aux routines dont la fréquence convient. |
-| `BlocksCell`        | Routines qui attendent celle-ci ; patch des dépendances des autres routines.                                |
+| Export              | Rôle                                                                                                                  |
+| ------------------- | --------------------------------------------------------------------------------------------------------------------- |
+| `ParentRoutineCell` | Parente choisie sur place.                                                                                            |
+| `SubRoutinesCell`   | Sous-routines actives et « Ajouter une sous-routine ».                                                                |
+| `TimeOfDayCell`     | « À partir de » / « Avant », seulement pour une routine à un seul moment propre.                                      |
+| `LocationCell`      | Adresse (`AddressInput`), enregistrée au choix d'une proposition ou à l'effacement.                                   |
+| `TravelCell`        | Trajet aller / retour.                                                                                                |
+| `RemindersCell`     | Rappels (badge cloche, `RemindersSelect`), différence appliquée à chaque routine sélectionnée.                        |
+| `OpensOnCell`       | « À partir du » (pas pour une routine à cas) ; en masse, seulement aux routines dont la fréquence convient.           |
+| `BlocksCell`        | Routines qui attendent celle-ci (de son arborescence, `linkableRoutine`) ; patch des dépendances des autres routines. |
 
 Interne : `hasOwnTimes(routine)`.
 
@@ -229,23 +234,24 @@ Interne : `MovedTimes`.
 
 ### `lib/routine-format.ts`
 
-| Export                                           | Rôle                                                                                                                      |
-| ------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------- |
-| `DAILY`                                          | Règle « tous les jours » d'une nouvelle routine.                                                                          |
-| `ruleOf(routine)`                                | Règle enregistrée, `null` si invalide.                                                                                    |
-| `isDone(routine)`                                | Occurrence en cours faite.                                                                                                |
-| `currentRoutineState(routine, today, doable?)`   | État du jour ; `due` devient `upcoming` si les plages ne le permettent pas. Utilisé aussi par `LifeCards`.                |
-| `routineTreeOptions(routines, offered?, label?)` | Options d'un select en arbre (non proposées grisées). Utilisé aussi par `features/time`.                                  |
-| `routinePath(routine, byId)`                     | « Linge › Étendre ».                                                                                                      |
-| `waitingFor(routine, byId)`                      | Routines requises encore à faire.                                                                                         |
-| `windowOf(routine)`                              | `{ fromTime: windowFrom, dueTime: windowTo }`.                                                                            |
-| `scheduleOf(routine)`                            | Départ / retour (`routineSchedule`).                                                                                      |
-| `windowText(window)`                             | « 8:20–8:30 », « avant 8:30 », « dès 16:30 », fenêtres jointes par « ou ». Utilisé aussi par les alarmes et l'accueil.    |
-| `describeRoutineCase(item, start)`               | Cas en clair.                                                                                                             |
-| `movesOf(routine)`                               | Exceptions.                                                                                                               |
-| `movableOccurrence(routine)`                     | Occurrence déplaçable : en cours si rien n'est coché, sinon la suivante.                                                  |
-| `moveTo(routine, date)`                          | Exception qui a amené une occurrence à ce jour.                                                                           |
-| `manualOrder(routines)`                          | Rang de chaque routine dans l'ordre manuel (parent puis enfants). Utilisé par `features/calendar/pages/CalendarPage.tsx`. |
+| Export                                                 | Rôle                                                                                                                                                                                      |
+| ------------------------------------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `DAILY`                                                | Règle « tous les jours » d'une nouvelle routine.                                                                                                                                          |
+| `ruleOf(routine)`                                      | Règle enregistrée, `null` si invalide.                                                                                                                                                    |
+| `isDone(routine)`                                      | Occurrence en cours faite.                                                                                                                                                                |
+| `currentRoutineState(routine, today, doable?)`         | État du jour ; `due` devient `upcoming` si les plages ne le permettent pas. Utilisé aussi par `LifeCards`.                                                                                |
+| `routineTreeOptions(routines, offered?, label?)`       | Options d'un select en arbre (non proposées grisées). Utilisé aussi par `features/time`.                                                                                                  |
+| `routinePath(routine, byId)`                           | « Linge › Étendre ».                                                                                                                                                                      |
+| `waitingFor(routine, byId)`                            | Routines requises encore à faire.                                                                                                                                                         |
+| `linkableRoutine(context, projectId, selfId, linked?)` | Routines proposées pour un lien (« Dépend de », « Bloque », « Relative à ») : pas elle-même, non archivées, de son arborescence de projets (`inProjectTree`) ; celles déjà liées restent. |
+| `windowOf(routine)`                                    | `{ fromTime: windowFrom, dueTime: windowTo }`.                                                                                                                                            |
+| `scheduleOf(routine)`                                  | Départ / retour (`routineSchedule`).                                                                                                                                                      |
+| `windowText(window)`                                   | « 8:20–8:30 », « avant 8:30 », « dès 16:30 », fenêtres jointes par « ou ». Utilisé aussi par les alarmes et l'accueil.                                                                    |
+| `describeRoutineCase(item, start)`                     | Cas en clair.                                                                                                                                                                             |
+| `movesOf(routine)`                                     | Exceptions.                                                                                                                                                                               |
+| `movableOccurrence(routine)`                           | Occurrence déplaçable : en cours si rien n'est coché, sinon la suivante.                                                                                                                  |
+| `moveTo(routine, date)`                                | Exception qui a amené une occurrence à ce jour.                                                                                                                                           |
+| `manualOrder(routines)`                                | Rang de chaque routine dans l'ordre manuel (parent puis enfants, chacun par sa position globale). Utilisé par `features/calendar/pages/CalendarPage.tsx`.                                 |
 
 ### `lib/routine-view.ts`
 

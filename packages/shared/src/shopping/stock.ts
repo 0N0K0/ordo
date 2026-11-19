@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { endAfter, markdownSchema, optionalPlainText, optionalText, requiredText } from '../core/rules';
+import { endAfter, markdownSchema, optionalText, requiredText } from '../core/rules';
 import { daySchema } from '../dates/times';
 import { optionalColorSchema } from '../core/workspace';
 import { itemNoteSchema, quantitySchema as quantity, unitSchema } from './shopping';
@@ -69,7 +69,8 @@ export type StockMoveInput = z.infer<typeof stockMoveSchema>;
 /** Inventory: the quantities counted (of a place, or of everything). */
 export const stockCountSchema = z.object({
   locationId: z.string().nullable(),
-  note: optionalPlainText(),
+  /** Markdown. */
+  note: markdownSchema,
   lines: z
     .array(z.object({ itemId: z.string().min(1), counted: quantity }))
     .min(1, 'Comptez au moins un article.')

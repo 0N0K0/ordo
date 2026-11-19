@@ -138,7 +138,6 @@ zxcvbn et ses dictionnaires pèsent environ 1,3 Mo : ce fichier n'est pas dans `
 | Export                                  | Rôle                                                                                                                    |
 | --------------------------------------- | ----------------------------------------------------------------------------------------------------------------------- |
 | `LEVEL`                                 | `' › '` : séparateur de chemin (« Maison › Cuisine »).                                                                  |
-| `TREE_PLACES` / `TreePlace`             | `BEFORE`, `AFTER`, `INSIDE` : position d'un dépôt par glisser-déposer relativement à un autre élément.                  |
 | `TreeItem`                              | `{ id, parentId? }`.                                                                                                    |
 | `subtreeOf(items, id, withSelf = true)` | L'élément et tous ses descendants (cycles stoppés).                                                                     |
 | `lineageOf(byId, id)`                   | L'élément puis ses ancêtres, le plus proche d'abord.                                                                    |

@@ -85,7 +85,7 @@ Une quantité sort du lot donné (« Lot introuvable. » s'il n'est pas à l'art
 
 `recordStockCount` (`stockCountSchema`) :
 
-- Au moins une ligne (« Comptez au moins un article. »), 2000 au plus ; quantité comptée 0 à 999 999 ; note multiligne de 4 000 caractères, vide → null.
+- Au moins une ligne (« Comptez au moins un article. »), 2000 au plus ; quantité comptée 0 à 999 999 ; note markdown de 65 536 caractères (`markdownSchema`, « Texte trop long. »), blanche → null, enregistrée telle qu'écrite.
 - Emplacement facultatif (aucun : tout le stock), existant et non archivé. L'API ne vérifie pas que les articles comptés sont dans cet emplacement (c'est l'interface qui les filtre).
 - Tous les articles doivent exister (« Article introuvable. ») et aucun n'être archivé.
 - Pour chaque ligne, l'écart compté − attendu :

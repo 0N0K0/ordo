@@ -1,6 +1,7 @@
 import { movedTo } from '@ordo/shared';
 import { modelDelegate } from './delegate';
 import { prisma, unscopedPrisma } from '../../db';
+import { notFound } from '../../graphql/errors';
 import type { Prisma } from '../../generated/prisma/client';
 
 /** Manual order of a list: by position, then by label (two items at the same position). */
@@ -33,6 +34,7 @@ const UNLABELLED_ORDERS: Partial<Record<string, typeof BY_POSITION_NAME | typeof
  * @returns {string[]} New order.
  */
 export function moveInOrder(orderedIds: string[], id: string, index: number): string[] {
+  // eslint-disable-next-line no-restricted-syntax -- moveInOrder itself.
   return movedTo(
     orderedIds.filter((other) => other !== id),
     id,
@@ -102,6 +104,44 @@ export async function moveInList(model: OrderedModel, id: string, index: number,
   const save = (siblingId: string, position: number) => delegate(model, tx).update({ where: { id: siblingId }, data: { position } });
   if (!tx) return saveSiblingOrder(ids, id, index, save);
   for (const [position, siblingId] of moveInOrder(ids, id, index).entries()) await save(siblingId, position);
+}
+
+/** Delegate of a model with one global manual order (tasks, routines). */
+interface GlobalOrderDelegate {
+  findMany(args: { orderBy: object; select: { id: true; position: true } }): Promise<{ id: string; position: number }[]>;
+  update(args: { where: { id: string }; data: { position: number } }): Prisma.PrismaPromise<unknown>;
+}
+
+/**
+ * Moves an item in the one global manual order of its model (tasks, routines), just before another item (or at the
+ * end): placing relative to a neighbour works the same in a filtered view. Only the rows whose position changes are
+ * written, in one transaction with the other writes given (a change of parent…).
+ * @param {OrderedModel} model Model.
+ * @param {string} id Item moved.
+ * @param {string | null} beforeId Item to place it before, or null for the end.
+ * @param {string} what Human-readable name of an item (« Tâche »), for a neighbour not found.
+ * @param {Prisma.PrismaPromise<unknown>[]} [also] Other writes of the same transaction, first. Optional. Default = none.
+ * @returns {Promise<void>}
+ */
+export async function moveBefore(model: OrderedModel, id: string, beforeId: string | null, what: string, also: Prisma.PrismaPromise<unknown>[] = []): Promise<void> {
+  if (beforeId === id) {
+    await prisma.$transaction(also);
+    return;
+  }
+  const items = modelDelegate<GlobalOrderDelegate>(model);
+  const ordered = await items.findMany({ orderBy: positionOrder(model), select: { id: true, position: true } });
+  const others = ordered.filter((item) => item.id !== id).map((item) => item.id);
+  const index = beforeId === null ? others.length : others.indexOf(beforeId);
+  if (index < 0) throw notFound(what);
+  const current = new Map(ordered.map((item) => [item.id, item.position]));
+  await prisma.$transaction([
+    ...also,
+    // eslint-disable-next-line no-restricted-syntax -- moveBefore itself.
+    ...movedTo(others, id, index)
+      .map((itemId, position) => ({ itemId, position }))
+      .filter(({ itemId, position }) => current.get(itemId) !== position)
+      .map(({ itemId, position }) => items.update({ where: { id: itemId }, data: { position } })),
+  ]);
 }
 
 /**

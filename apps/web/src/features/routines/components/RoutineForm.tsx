@@ -22,7 +22,7 @@ import { ON_ERROR } from '../../../lib/notify';
 import { AssigneesSelect, ProjectSelect } from '../../tasks/components/task-ui';
 import { useTaskContext } from '../../tasks/hooks/use-task-context';
 import { useRoutineMutations, useRoutinesData, type Routine } from '../api';
-import { DAILY, routineTreeOptions, ruleOf } from '../lib/routine-format';
+import { DAILY, linkableRoutine, routineTreeOptions, ruleOf } from '../lib/routine-format';
 import { RoutineSchedule } from './RoutineSchedule';
 import { treeSelectProps } from '../../../components/tree/tree-select';
 import { BeneficiariesSelect } from '../../beneficiaries/components/BeneficiariesSelect';
@@ -57,6 +57,7 @@ interface RoutineFormValues extends Record<string, unknown> {
   projectId: string | null;
   assigneeIds: string[];
   requiredIds: string[];
+  relatedIds: string[];
   opensOn: RoutineOpens | null;
   beneficiaryIds: string[];
   beneficiaryRelationIds: string[];
@@ -78,8 +79,8 @@ export interface RoutineFormProps {
 
 /**
  * Routine, laid out as the task panel: title; description and when it comes (first date, repetition, « à partir du »)
- * on the left; project, categories, assignees, beneficiaries, time to spend, slots, parent routine and the routines it
- * depends on on the right.
+ * on the left; project, categories, assignees, beneficiaries, time to spend, slots, parent routine, the routines it
+ * depends on and those it is related to (of its project tree, as the tasks) on the right.
  * @param {RoutineFormProps} props Component props.
  * @returns {JSX.Element} Form.
  */
@@ -113,6 +114,7 @@ export function RoutineForm({ routine, copy = false, parent, categoryId = null, 
       projectId: routine ? routine.projectId : (parent?.projectId ?? projectId),
       assigneeIds: routine?.assigneeIds ?? parent?.assigneeIds ?? [],
       requiredIds: routine?.requiredIds ?? [],
+      relatedIds: routine?.relatedIds ?? [],
       beneficiaryIds: routine?.beneficiaryIds ?? parent?.beneficiaryIds ?? [],
       beneficiaryRelationIds: routine?.beneficiaryRelationIds ?? parent?.beneficiaryRelationIds ?? [],
       opensOn: readOpens(routine?.opensOn),
@@ -127,6 +129,14 @@ export function RoutineForm({ routine, copy = false, parent, categoryId = null, 
    * @returns {TreeOption[]} Options.
    */
   const routineOptions = (filter: (item: Routine) => boolean) => routineTreeOptions(routines, (item) => !item.archived && filter(item));
+  /**
+   * Options of a link with other routines (« Dépend de », « Relative à »): those of its project tree, not itself (a
+   * copy may link to it); those linked already stay.
+   * @param {string[]} linked Routines linked already.
+   * @returns {TreeOption[]} Options.
+   */
+  const linkOptions = (linked: string[]) =>
+    routineTreeOptions(routines, context ? linkableRoutine(context, form.values.projectId, copy ? null : (routine?.id ?? null), linked) : () => false);
 
   const handleSubmit = form.onSubmit((values) => {
     // « À partir du » of its rule (its cases have theirs): dropped when it no longer fits the repetition.
@@ -209,10 +219,19 @@ export function RoutineForm({ routine, copy = false, parent, categoryId = null, 
                 label="Dépend de"
                 description="Routines à faire avant : tant qu’elles ne sont pas cochées, celle-ci est en attente."
                 placeholder={form.values.requiredIds.length ? undefined : 'Aucune'}
-                {...treeSelectProps(routineOptions((item) => copy || item.id !== routine?.id))}
+                {...treeSelectProps(linkOptions(form.values.requiredIds))}
                 searchable
                 clearable
                 {...form.getInputProps('requiredIds')}
+              />
+              <BatchMultiSelect
+                label="Relative à"
+                description="Routines liées, sans ordre entre elles."
+                placeholder={form.values.relatedIds.length ? undefined : 'Aucune'}
+                {...treeSelectProps(linkOptions(form.values.relatedIds))}
+                searchable
+                clearable
+                {...form.getInputProps('relatedIds')}
               />
             </Stack>
           </Grid.Col>

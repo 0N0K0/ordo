@@ -1,4 +1,4 @@
-import { parseOptionalDay, readSlotRule, sumOf, TREE_PLACES } from '@ordo/shared';
+import { parseOptionalDay, readSlotRule, sumOf } from '@ordo/shared';
 import { daysBetween, formatDay, parseDay, readOpens, type RoutineInput, type RoutineMoveTimes } from '@ordo/shared';
 import { prisma } from '../../db';
 import { clientError, done } from '../errors';
@@ -149,7 +149,7 @@ builder.prismaObject('Routine', {
     locationLon: t.exposeFloat('locationLon', { nullable: true }),
     travelBefore: t.exposeInt('travelBefore', { description: TRAVEL_DESCRIPTIONS.before }),
     travelAfter: t.exposeInt('travelAfter', { description: TRAVEL_DESCRIPTIONS.after }),
-    position: t.exposeInt('position'),
+    position: t.exposeInt('position', { description: 'Global manual order of every routine (not among siblings).' }),
     assigneeIds: t.idList(relationIds('assignees')),
     beneficiaryIds: t.idList(relationIds('beneficiaries', '« Bénéficiaires »: contributors it is for.')),
     beneficiaryRelationIds: t.idList(relationIds('beneficiaryRelations', '« Bénéficiaires »: relations it is for.')),
@@ -157,6 +157,11 @@ builder.prismaObject('Routine', {
       description: 'Routines to do before this one.',
       select: { requires: { select: { requiredId: true } } },
       resolve: (routine) => routine.requires.map((dependency) => dependency.requiredId),
+    }),
+    relatedIds: t.idList({
+      description: '« Relative à »: routines related to this one (both ways).',
+      select: { relationsA: { select: { routineBId: true } }, relationsB: { select: { routineAId: true } } },
+      resolve: (routine) => [...routine.relationsA.map((link) => link.routineBId), ...routine.relationsB.map((link) => link.routineAId)],
     }),
     currentDate: t.field({
       type: 'Date',
@@ -222,7 +227,6 @@ builder.prismaObject('Routine', {
   }),
 });
 
-const RoutinePlaceEnum = builder.enumType('RoutinePlace', { values: TREE_PLACES, description: 'Where a routine is dropped, relative to another one.' });
 
 const CategoryInput = builder.inputType('RoutineCategoryInput', {
   fields: (t) => ({ label: t.string({ required: true }), color: t.string(), parentId: t.id() }),
@@ -251,6 +255,7 @@ const RoutineInputType = builder.inputType('RoutineInput', {
     beneficiaryIds: t.idList({ description: 'Contributors it is for; none: none.' }),
     beneficiaryRelationIds: t.idList({ description: 'Relations it is for; none: none.' }),
     requiredIds: t.idList({ required: true }),
+    relatedIds: t.idList({ required: true, description: '« Relative à »: routines related to it (same project tree).' }),
   }),
 });
 
@@ -280,6 +285,7 @@ const RoutinePatch = builder.inputType('RoutinePatch', {
     beneficiaryIds: t.idList(),
     beneficiaryRelationIds: t.idList(),
     requiredIds: t.idList(),
+    relatedIds: t.idList(),
     projectId: t.id({ description: 'Null: none.' }),
     ...locationInputFields(t, 'Null: none (its point too).'),
     ...travelInputFields(t, 'omitted: unchanged'),
@@ -343,6 +349,7 @@ const routineInput = (input: typeof RoutineInputType.$inferInput): RoutineInput 
   beneficiaryIds: input.beneficiaryIds ?? [],
   beneficiaryRelationIds: input.beneficiaryRelationIds ?? [],
   requiredIds: input.requiredIds,
+  relatedIds: input.relatedIds,
 });
 
 /** Occurrence of a routine on a day, with its times of the day. */
@@ -492,6 +499,7 @@ builder.mutationFields((t) => ({
       if (input.beneficiaryIds) changes.beneficiaryIds = input.beneficiaryIds;
       if (input.beneficiaryRelationIds) changes.beneficiaryRelationIds = input.beneficiaryRelationIds;
       if (input.requiredIds) changes.requiredIds = input.requiredIds;
+      if (input.relatedIds) changes.relatedIds = input.relatedIds;
       if (input.projectId !== undefined) changes.projectId = idOrNull(input.projectId);
       Object.assign(changes, locatedChanges(input));
       if (input.reminders) changes.reminders = input.reminders;
@@ -515,14 +523,10 @@ builder.mutationFields((t) => ({
     },
   }),
   moveRoutine: t.boolean({
-    description: 'Moves a routine before or after another one (same parent), or last under it; categoryIds, when given, become its categories.',
-    args: {
-      id: t.arg.id({ required: true }),
-      targetId: t.arg.id({ required: true }),
-      place: t.arg({ type: RoutinePlaceEnum, required: true }),
-      categoryIds: t.arg.idList(),
-    },
-    resolve: (_root, { id, targetId, place, categoryIds }) => done(routines.moveRoutine(id, targetId, place, categoryIds || null)),
+    description:
+      'Places a routine before another one in the global manual order (at the end when beforeId is null), and under parentId when given (null: top level; omitted: parent unchanged); categoryIds, when given, become its categories.',
+    args: { id: t.arg.id({ required: true }), beforeId: t.arg.id(), parentId: t.arg.id(), categoryIds: t.arg.idList() },
+    resolve: (_root, { id, beforeId, parentId, categoryIds }) => done(routines.moveRoutine(id, beforeId ?? null, parentId, categoryIds || null)),
   }),
   bulkUpdateRoutines: t.int({
     description: 'Applies the same changes to several routines; returns how many changed.',
@@ -550,6 +554,7 @@ builder.mutationFields((t) => ({
     },
   }),
   bulkSetRoutinesArchived: t.int({
+    description: 'Archiving cascades to sub-routines; restoring restores those archived along and the archived parents. Returns how many of those given changed.',
     args: { ids: t.arg.idList({ required: true }), archived: t.arg.boolean({ required: true }) },
     resolve: (_root, { ids, archived }) => routines.bulkSetRoutinesArchived(ids, archived),
   }),
@@ -559,8 +564,12 @@ builder.mutationFields((t) => ({
     resolve: (_root, { ids, done }) => routines.bulkSetRoutinesDone(ids, done),
   }),
   bulkDeleteRoutines: t.int({
-    args: { ids: t.arg.idList({ required: true }) },
-    resolve: (_root, { ids }) => routines.bulkDeleteRoutines(ids),
+    description: 'Deletes routines with their sub-routines, or alone (their sub-routines move up a level); returns how many of those given were deleted.',
+    args: {
+      ids: t.arg.idList({ required: true }),
+      deleteSubRoutines: t.arg.boolean({ required: true, description: 'false moves unselected sub-routines up.' }),
+    },
+    resolve: (_root, { ids, deleteSubRoutines }) => routines.bulkDeleteRoutines(ids, deleteSubRoutines),
   }),
   moveRoutineOccurrence: t.boolean({
     description:

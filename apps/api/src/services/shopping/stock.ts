@@ -287,7 +287,7 @@ export async function recordCount(input: StockCountInput): Promise<StockCount> {
   );
   const byId = mapById(items);
   return prisma.$transaction(async (tx) => {
-    const count = await tx.stockCount.create({ data: { locationId: data.locationId, note: data.note?.trim() || null } });
+    const count = await tx.stockCount.create({ data: { locationId: data.locationId, note: data.note } });
     for (const line of data.lines) {
       const item = byId.get(line.itemId)!;
       const current = lotsQuantity(item.lots);

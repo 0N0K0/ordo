@@ -1,9 +1,11 @@
 import { unarchived } from '../../../lib/archive';
 import { mapById } from '@ordo/shared';
-import { ArrowBendUpRightIcon, ArrowCounterClockwiseIcon, CheckCircleIcon } from '@phosphor-icons/react';
+import { ArrowBendUpRightIcon, ArrowCounterClockwiseIcon, CheckCircleIcon, TrashIcon } from '@phosphor-icons/react';
 
 import type { SelectionAction } from '../../../components/data-table/selection/SelectionBar';
-import { deleteRowsAction, duplicateRowsAction, archiveRowsAction, outermost, switchRowsAction } from '../../../components/data-table/selection/selection-actions';
+import { duplicateRowsAction, archiveRowsAction, outermost, switchRowsAction } from '../../../components/data-table/selection/selection-actions';
+import { openModal } from '../../../components/panels/open-modal';
+import { DeleteRoutinesDialog } from './DeleteRoutinesDialog';
 import { routineInputOf, useRoutineMutations, useRoutinesData, type Routine } from '../api';
 import { routinesLabel } from '../lib/routine-cell-edit';
 import { isDone, movableOccurrence } from '../lib/routine-format';
@@ -21,12 +23,13 @@ interface RoutineRowsActions {
 
 /**
  * Actions on routines, the same on the routines checked (bar of the table) and on one routine (its menu): ticked or
- * unticked, postponed to the next day, duplicated with their sub-routines, archived or restored (undone from the toast),
- * deleted. Archived routines are read only: left out of all but archive/restore and delete.
+ * unticked, postponed to the next day, duplicated with their sub-routines, archived or restored with their sub-routines
+ * (undone from the toast), deleted (their sub-routines kept or deleted along, as chosen). Archived routines are read
+ * only: left out of all but archive/restore and delete.
  * @returns {(routines: Routine[], onClear?: () => void) => RoutineRowsActions} Actions of routines, given how to clear the selection.
  */
 export function useRoutineRowsActions() {
-  const { bulkArchive, bulkDone, bulkRemove, create, copySubRoutines } = useRoutineMutations();
+  const { bulkArchive, bulkDone, create, copySubRoutines } = useRoutineMutations();
   const { data } = useRoutinesData();
   const postpone = usePostponeRoutine();
   return (routines: Routine[], onClear: () => void = () => undefined): RoutineRowsActions => {
@@ -89,16 +92,23 @@ export function useRoutineRowsActions() {
         feminine: true,
         clear: onClear,
       }),
-      remove: deleteRowsAction(routines, {
-        title: single ? 'Supprimer la routine' : 'Supprimer les routines',
-        risks: single
-          ? `« ${single.label} » sera supprimée définitivement avec l’historique de ses coches. Ses sous-routines remonteront d’un niveau ; le temps chronométré reste, sans routine. Pour la retirer sans perdre ses données, archivez-la plutôt.`
-          : `${label} seront supprimées définitivement avec l’historique de leurs coches. Leurs sous-routines remonteront d’un niveau ; le temps chronométré reste, sans routine. Pour les retirer sans perdre leurs données, archivez-les plutôt.`,
-        removeAll: () => bulkRemove.mutateAsync(ids),
-        done: `${label} ${plural(ids.length, 'supprimée')}.`,
-        clear: onClear,
-        loading: bulkRemove.isPending,
-      }),
+      // Its own dialog: what to do with the sub-routines.
+      remove: {
+        label: 'Supprimer',
+        icon: <TrashIcon aria-hidden />,
+        danger: true,
+        onClick: () =>
+          openModal(single ? 'Supprimer la routine' : 'Supprimer les routines', (close) => (
+            <DeleteRoutinesDialog
+              routines={routines}
+              all={data?.routines ?? []}
+              onDone={(success) => {
+                close();
+                if (success) onClear();
+              }}
+            />
+          )),
+      },
     };
   };
 }

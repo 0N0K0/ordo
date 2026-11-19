@@ -1561,12 +1561,24 @@ type Mutation {
   Attaches a list to the treasury entry paying it (adding its split by person), or detaches it (entryId null).
   """
   attachShoppingListEntry(entryId: ID, id: ID!): Boolean!
-  bulkDeleteRoutines(ids: [ID!]!): Int!
+
+  """
+  Deletes routines with their sub-routines, or alone (their sub-routines move up a level); returns how many of those given were deleted.
+  """
+  bulkDeleteRoutines(
+    """false moves unselected sub-routines up."""
+    deleteSubRoutines: Boolean!
+    ids: [ID!]!
+  ): Int!
   bulkDeleteTasks(
     """false moves unselected sub-tasks up."""
     deleteSubtasks: Boolean!
     ids: [ID!]!
   ): Boolean!
+
+  """
+  Archiving cascades to sub-routines; restoring restores those archived along and the archived parents. Returns how many of those given changed.
+  """
   bulkSetRoutinesArchived(archived: Boolean!, ids: [ID!]!): Int!
 
   """
@@ -1882,9 +1894,9 @@ type Mutation {
   moveProjectResource(id: ID!, index: Int!): Boolean!
 
   """
-  Moves a routine before or after another one (same parent), or last under it; categoryIds, when given, become its categories.
+  Places a routine before another one in the global manual order (at the end when beforeId is null), and under parentId when given (null: top level; omitted: parent unchanged); categoryIds, when given, become its categories.
   """
-  moveRoutine(categoryIds: [ID!], id: ID!, place: RoutinePlace!, targetId: ID!): Boolean!
+  moveRoutine(beforeId: ID, categoryIds: [ID!], id: ID!, parentId: ID): Boolean!
 
   """
   Moves a category under another one (parentId), or to the top level (parentId null), at an index among its siblings (last without).
@@ -2855,6 +2867,8 @@ type Routine {
   """
   opensOn: JSON
   parentId: ID
+
+  """Global manual order of every routine (not among siblings)."""
   position: Int!
   projectId: ID
 
@@ -2862,6 +2876,9 @@ type Routine {
   Rule of its repetition (every day for one saved following calendar schedules).
   """
   recurrence: JSON!
+
+  """« Relative à »: routines related to this one (both ways)."""
+  relatedIds: [ID!]!
 
   """
   Alerts, in minutes before its moment (when to leave, else its start, else its latest time).
@@ -3023,6 +3040,9 @@ input RoutineInput {
   parentId: ID
   projectId: ID
   recurrence: JSON!
+
+  """« Relative à »: routines related to it (same project tree)."""
+  relatedIds: [ID!]!
   reminders: [Int!]
   requiredIds: [ID!]!
 
@@ -3097,6 +3117,7 @@ input RoutinePatch {
   """Null: none."""
   projectId: ID
   recurrence: JSON
+  relatedIds: [ID!]
 
   """Minutes before its moment."""
   reminders: [Int!]
@@ -3111,13 +3132,6 @@ input RoutinePatch {
 
   """Travel time there, in minutes; omitted: unchanged."""
   travelBefore: Int
-}
-
-"""Where a routine is dropped, relative to another one."""
-enum RoutinePlace {
-  AFTER
-  BEFORE
-  INSIDE
 }
 
 """Time of the day of an occurrence of a routine."""
