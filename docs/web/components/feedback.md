@@ -1,0 +1,67 @@
+# Retours : alertes, états vides, chargements, badges d'état
+
+Briques qui disent l'état de ce qui est affiché : alertes, états vides, pages d'erreur, squelettes de chargement, badges « Archivé », retard et compteurs. Source : `apps/web/src/components/feedback/`. Les toasts sont dans `lib/notify` (voir [lib](../lib.md#notifytsx)), qui reprend les couleurs et icônes de ce dossier.
+
+## Couleurs et icônes
+
+### `feedback-colors.ts`
+
+- `FEEDBACK_COLORS` : couleur de chaque type de retour, commune aux alertes et aux toasts (décision 12) : `success` vert, `info` bleu, `warning` orange, `error` rouge.
+- `LATE_COLOR` : couleur d'un retard (accueil, facturation, trésorerie, tâches, routines, badge de navigation…), orange (`FEEDBACK_COLORS.warning`), décisions AI, CF, DC. Imposée par eslint (pas de `red` / `orange` choisi à la main sur un test `late` / `overdue`).
+
+### `feedback-icons.tsx`
+
+Une icône par type de retour, commune aux alertes et aux toasts : `SuccessFeedbackIcon` (cercle coché), `ErrorFeedbackIcon` (cercle d'avertissement), `InfoFeedbackIcon` (info), `WarningFeedbackIcon` (triangle).
+
+## Alertes
+
+- `ErrorAlert` (`ErrorAlert.tsx`) : erreur affichée dans une page ou un panneau (chargement échoué, lien cassé), alerte rouge avec son icône. Props d'`Alert` sauf `color` et `icon`. Imposée par eslint (`Alert color="red"` interdit). Utilisée par les mails, les tableaux de bord, l'authentification, la facturation…
+- `NoticeAlert` (`NoticeAlert.tsx`) : avis dans une page, un panneau ou un formulaire ; `kind` = `'success'` (vert), `'info'` (bleu, aussi « à configurer d'abord ») ou `'warning'` (orange), chacun avec son icône (table interne `KINDS`). Imposée par eslint pour les autres couleurs d'`Alert`.
+- `ArchivedNotice` (`ArchivedNotice.tsx`) : bandeau gris (icône archive) d'un élément archivé affiché en lecture seule (formulaire, éditeur, tableau de bord), qui dit comment le restaurer. Props : `title` (facultatif), `children`. Utilisé par les tableaux de bord, l'agenda, la facturation.
+
+## États vides et pages d'erreur
+
+### `EmptyState`
+
+Ce qu'affiche une liste, un tableau ou une section sans contenu (~60 fichiers). Props :
+
+- `message` : ce qui est vide et quoi faire ;
+- `icon`, `iconColor` (défaut `gray` ; vert : plus rien à faire) ;
+- `action` : seulement une action donnée nulle part ailleurs (« Retour… », « Effacer les filtres ») ; un « Nouveau… » est dans l'en-tête, à droite ;
+- `compact` : dans une section ou un panneau, sur une ligne sans cadre (action à droite) ;
+- `plain` : centré sans cadre (dans un graphique, une section de la barre latérale).
+
+Par défaut : bloc encadré centré (`Paper`), icône dans un `ThemeIcon` rond.
+
+### `PageMessage`
+
+Page qui ne peut pas s'afficher (introuvable, indisponible dans cet espace) : icône, code HTTP facultatif au-dessus (« 404 »), titre (`h1` taille `h3`), message, et bouton « Retour à l'accueil » (`secondary`, vers `PAGES.home.path`). Utilisé par `NotFoundPage`, `DetailNotFound` et `features/workspaces` (`ProOnly`).
+
+### `DetailNotFound`
+
+Page de détail dont l'élément n'existe pas (supprimé, mauvaise adresse) : `BackLink` vers sa liste au-dessus (si `backTo`), puis `PageMessage` « Introuvable », « `what` n’existe pas ou a été supprimé. » (« supprimée » au féminin). Props : `what` (« Cette fiche »), `feminine` (accord via `agreed`), `backTo`, `backLabel`. Utilisé par les projets, la facturation, les tâches, les achats, les fiches.
+
+### `FullPageLoader`
+
+Chargement plein écran (`Center` de hauteur `100dvh` + `Loader`) pendant le chargement de ce dont toute page a besoin (session, espace). Prop `label` (libellé accessible). Utilisé par `features/auth` (gardes) et `features/workspaces` (`WorkspaceGate`). Imposé par eslint.
+
+## Squelettes (`Skeletons.tsx`)
+
+Squelettes de chargement alignés sur le rythme vertical (`--onoko-vertical-step`, 24 px) : la fonction interne `steps(n)` donne `calc(n * var(--onoko-vertical-step))`. Chaque squelette porte `aria-label="Chargement"`. Styles : `Skeletons.module.css`.
+
+| Composant        | Rôle                                                                               | Props                                                                         |
+| ---------------- | ---------------------------------------------------------------------------------- | ----------------------------------------------------------------------------- |
+| `TextSkeleton`   | Lignes de texte (titre, paragraphe, carte), un pas chacune ; dernière ligne à 60 % | `lines` (3), `title` (ligne de titre plus épaisse, 2 pas)                     |
+| `TableSkeleton`  | Tableau : en-tête puis lignes de deux pas, largeurs variées en première colonne    | `rows` (5), `columns` (4)                                                     |
+| `ListSkeleton`   | Liste (cartes, réglages, dossiers) : éléments d'un pas de plus que leurs lignes    | `items` (3), `lines` (1), `avatar`, `dense` (éléments d'un pas : menu, arbre) |
+| `FormSkeleton`   | Formulaire : chaque champ = ligne de libellé + champ (3 pas)                       | `fields` (4)                                                                  |
+| `DetailSkeleton` | Détail (panneau, page) : titre, deux lignes, puis champs                           | `fields` (3)                                                                  |
+| `BlockSkeleton`  | Bloc de hauteur connue (graphique, agenda, éditeur)                                | `height` (en pas)                                                             |
+
+Composant interne `Line` (barre d'une ligne de texte, un demi-pas d'épaisseur centrée sur un pas). Constante interne `WIDTHS` (largeurs variées des lignes).
+
+## Badges
+
+- `ArchivedBadge` : badge gris « Archivé » / « Archivée » (icône archive) d'un élément archivé (tâche, projet, liste, compte), le même partout (~27 fichiers). Props : `feminine`, `size`.
+- `LateBadge` : retard d'une ligne de l'accueil, « 3 j de retard » (`fmt.daysLate`) en orange (`LATE_COLOR`), décision AI. Props : `due`, `today` (YYYY-MM-DD). Utilisé par `features/home`.
+- `CountBadge` : petit compte d'un onglet, d'un bouton ou d'une entrée de navigation (filtres, documents à envoyer, mails non lus) ; rond tant qu'il tient sur un chiffre (taille `xs`), rien pour 0 ou moins. Props : `count`, `color` (défaut couleur primaire), `variant` (`filled` par défaut, `light`), `size` (`xs`), `label` (pour les lecteurs d'écran, « 3 non lus ») ; les autres props vont au badge. Imposé par eslint (décision CI).

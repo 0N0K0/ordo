@@ -1,0 +1,165 @@
+# Bibliothèque web (`lib`)
+
+Fonctions et hooks transverses de l'application web : client GraphQL, mutations, formulaires, toasts, archivage, formats, dates, téléchargements, paramètres d'URL. Source : `apps/web/src/lib/`. Ces briques ne dépendent d'aucune feature (règle eslint), sauf exceptions connues : `query-client.ts` (lit la session de `features/auth`) et `week.ts` (lit les espaces de `features/workspaces`).
+
+## Données
+
+### `graphql-client.ts`
+
+- `pinWorkspace(id)` : épingle les requêtes de cet onglet à un espace (en-tête `x-ordo-workspace`) ; `null` : suivre le cookie. Le cookie est partagé entre onglets, l'épinglage garde chaque onglet dans son espace. Appelé par `features/workspaces`.
+- `GraphQLRequestError` (classe) : erreur de l'API, avec `code` (défaut `INTERNAL_SERVER_ERROR`) et `fields` (messages par champ, lus par `showFormError`).
+- `execute(document, variables?)` : lance une opération GraphQL typée (générée par codegen) sur `/api/graphql`, cookie de session compris, dans l'espace de l'onglet. Des `File` dans les variables envoient une requête multipart (spécification GraphQL multipart, fonctions internes `extractFiles`, `buildBody`).
+- `executeIn(workspace, document, variables?)` : la même dans un autre espace (notifications d'un autre espace : mails, agenda).
+- Erreurs : serveur injoignable → « Le serveur est injoignable. » (code `NETWORK_ERROR`) ; première erreur GraphQL relancée ; réponse vide ou en erreur → « Une erreur inattendue est survenue. ». Fonction interne `request`.
+
+Voir [Erreurs](../business-rules/cross-cutting/errors.md).
+
+### `query-client.ts`
+
+`queryClient` : client TanStack Query de l'application. Toute erreur `UNAUTHENTICATED` d'une requête ou d'une mutation vide la session (`meQueryKey` à `null`) : les gardes renvoient alors vers la connexion. Fonction interne `handleUnauthenticated`.
+
+### `mutation.ts`
+
+- `useInvalidatingMutation(mutationFn, { invalidate, optimistic, background })` : mutation de l'application : la requête, puis les requêtes dont la clé commence par `invalidate` rafraîchies ; `optimistic(queryClient, variables)` change les données affichées tout de suite (requêtes annulées puis remises comme avant en cas d'erreur) ; `background` : la mutation n'attend pas le rechargement. Sous toutes les mutations de l'application ; imposée par eslint (`invalidateQueries` dans `onSuccess` interdit).
+- `patchQuery(queryClient, queryKey, patch)` : change en place les données d'une requête chargée (changement optimiste).
+- `moveToIndex(list, id, index)` : liste avec un élément déplacé à un indice (ordre optimiste d'un glisser-déposer), borné comme le serveur (`movedTo` partagé) ; `null` si l'élément n'y est pas. Voir [Ordre](../business-rules/cross-cutting/ordering.md).
+
+### `search-params.ts`
+
+- `useSetParams()` : change des paramètres d'URL en gardant les autres (`only` : retire les autres), en remplaçant l'entrée d'historique (`push` : en ajoute une) ; valeur `null`, `undefined` ou vide = paramètre retiré.
+- `useSearchParam(key)` : `[valeur, setter]` d'un paramètre (null le retire). Imposé par eslint (`useSearchParams()[0].get('…')` interdit).
+
+## Formulaires et actions
+
+### `form.ts`
+
+- `useAppForm({ initialValues, schema })` : formulaire Mantine aux règles de l'application : validation par schéma (zod, `schemaResolver` synchrone) au blur, puis à chaque changement d'un champ qui a une erreur ; pas de validation au montage.
+- `showFormError(form, error)` : erreur de l'API : messages par champ sur le formulaire si l'un des champs y est (`GraphQLRequestError.fields`, préfixe avant le premier « . »), sinon un toast.
+- `formCallbacks(form, message, onDone?, { then })` : `onSuccess` / `onError` de la mutation d'un formulaire : toast de succès (`message`, ou fonction du résultat ; `null` : pas de toast), fermeture (`onDone(result)`), suite (`then`) ; erreur sur les champs (ou en toast, et toujours en toast sans formulaire). ~53 fichiers ; imposé par eslint.
+
+### `use-async-action.ts`
+
+`useAsyncAction(action, { success, fallback, onDone, onError })` : action d'un formulaire envoyée au serveur (mutation, téléchargement) : `loading` pendant l'exécution, toast de succès (`success`) puis `onDone(result)`, ou échec en toast (`fallback` défaut « Action impossible. ») ou par `onError`. Rend `{ run, loading }`. Imposé par eslint (un `setLoading(false)` dans `finally` est interdit).
+
+### `notify.tsx`
+
+Toasts (en haut à droite, `Notifications` de `main.tsx`) : une erreur reste jusqu'à fermeture ; les autres se ferment seules (4 s, 8 s avec un titre, du texte à lire ou des actions ; en pause au survol).
+
+- `NotifyAction` (interface) : bouton d'un toast (`label`, `icon` défaut flèche, `onClick`), qui ferme le toast puis agit.
+- `notifyInfo({ id, title, lines, actions, icon })` : toast d'information (alarme, rappel, nouveau mail, nouvelle version) ; un même `id` remplace le toast affiché.
+- `notifySuccess(message)` : succès (4 s).
+- `notifyWarning(title, message)` : avertissement (8 s).
+- `notifyError(message)` : erreur, titre « Erreur », persistante.
+- `onMutationError(error)` : le gestionnaire de tout `onError` (→ `notifyFailure`).
+- `ON_ERROR` : `{ onError: onMutationError }`, options d'une mutation sans toast de succès.
+- `toastCallbacks(message)` : `onSuccess` (toast) et `onError` d'une mutation sans formulaire.
+- `notifyFailure(error, fallback?)` : échec d'une action quelconque en toast d'erreur : son message, ou « Une erreur inattendue est survenue. » ; une session expirée (`UNAUTHENTICATED`) reste silencieuse (retour à la connexion).
+- `notifyWithUndo(message, onUndo)` : succès avec bouton « Annuler » (8 s).
+- Interne : `toastBody` (lignes de texte et boutons `tertiary`).
+
+eslint interdit `notifications.show` / `update` hors de ce fichier, `notifySuccess` seul dans un `onSuccess`, `{ onError: onMutationError }` écrit à la main, et `notifyError(error.message)`.
+
+## Archivage (`archive.tsx`)
+
+Voir [Règles : archivage](../business-rules/cross-cutting/archiving.md).
+
+- `ArchivableKind` (type, réexporté du schéma GraphQL) : sortes d'éléments archivables.
+- `ARCHIVED_MESSAGE` : « Élément archivé : restaurez-le pour le modifier. » (le même que l'API, décision BC).
+- `setArchived(kind, ids, archived)` : archive (masqué par défaut, lecture seule) ou restaure des éléments d'une sorte, tous d'un coup (mutation `setArchived`).
+- `useSetArchived(kind, invalidate = [[]])` : la mutation, puis les requêtes rafraîchies (par défaut toutes : l'élément peut apparaître dans beaucoup de listes, sélections, filtres).
+- `unarchived(items, keep?, idOf?)` : éléments non archivés, comme une sélection ou un filtre les propose, en gardant les valeurs en cours `keep`. ~90 fichiers ; imposé par eslint (`filter(x => !x.archived)` interdit).
+- `ArchivedToggle` (interface) et `useArchivedToggle(items, isArchived?)` : « Afficher les archivés » d'une liste, d'un tableau, d'un tableau de bord : éléments affichés (`shown`), état (`showArchived`) et props de l'interrupteur (`toggle` : `checked`, `onChange`, `count` ; sans archivé, l'interrupteur ne s'affiche pas).
+- `archivedMessage(label, archived, { feminine, count, cascade })` : « « Courses » archivée. », « 3 listes restaurées. », avec ce qui est archivé avec (« avec ses projets »).
+- `ArchiveMutation` (interface) : `{ mutateAsync }`.
+- `archiveWithUndo(mutation, { ids, archived, label, feminine, cascade })` : archive ou restaure, puis toast avec « Annuler » ; échec en toast d'erreur.
+- `archiveEntry(element, mutation, id, onDone?)` : entrée « Archiver » / « Restaurer » du menu « … » d'un élément (icône archive ou flèche de retour, `inMenu: true` : jamais un bouton, décision R), message « Liste « Courses » archivée. » (type puis libellé) avec annulation. Imposé par eslint (« Archiver » écrit à la main interdit). ~23 fichiers.
+- `unarchivedOffered(items, keep?)` : quels nœuds d'un arbre peuvent être choisis (non archivés, plus les valeurs en cours ; un parent archivé reste grisé au-dessus).
+- `archivedIds(items)` : ids des éléments archivés.
+- `archivedLabel(item, feminine?)` : libellé suivi de « (archivé) » / « (archivée) ».
+
+## Formats (`format.ts`)
+
+Un format par rôle (importé en `fmt`) ; à l'écran la forme lisible, la forme numérique seulement dans les exports. Les dates acceptent un jour calendaire (YYYY-MM-DD, affiché tel quel) ou un instant (affiché dans le fuseau de l'utilisateur). eslint interdit `Intl.*Format` avec options et `toLocale*String` ailleurs.
+
+| Fonction                       | Exemple                                 | Rôle                                                              |
+| ------------------------------ | --------------------------------------- | ----------------------------------------------------------------- |
+| `day`                          | « 13 nov. 2026 »                        | Date dans un tableau, une liste, un texte                         |
+| `dayInWords`                   | « 13 novembre 2026 », « 1er juin 2026 » | Date dans une phrase, sans jour de semaine                        |
+| `dayShort`                     | « 13 nov. »                             | Date de l'année en cours, axe de graphique                        |
+| `weekday`                      | « ven. 13 nov. »                        | Jour à planifier (agenda, routines, accueil)                      |
+| `dayLong`                      | « vendredi 13 novembre 2026 »           | Titre de jour                                                     |
+| `dateTime`                     | « 13 nov. 2026, 14:05 »                 | Instant (créé, envoyé, synchronisé)                               |
+| `dateTimeShort`                | « ven. 13 nov., 14:05 »                 | Instant à venir (alarme, envoi)                                   |
+| `time`                         | « 14:05 »                               | Heure (24 h)                                                      |
+| `month`                        | « novembre 2026 »                       | Mois (YYYY-MM accepté)                                            |
+| `monthShort`                   | « nov. 2026 »                           | Mois sur un axe                                                   |
+| `exportDay`                    | « 13/11/2026 »                          | Export seulement                                                  |
+| `exportDateTime`               | « 13/11/2026 14:05 »                    | Export seulement                                                  |
+| `capitalize`                   | « Novembre 2026 »                       | Première lettre en capitale                                       |
+| `money(amount, currency)`      | « 1 234,50 € »                          | Montant en unités                                                 |
+| `moneyCents(cents, currency)`  | « 1 234,50 € »                          | Montant en centimes (documents comptables), `formatMoney` partagé |
+| `currencySymbol(currency)`     | « € »                                   | Symbole après un montant saisi (code ISO pour les autres devises) |
+| `moneyCompact`                 | « 1,2 k€ »                              | Montant où la place manque                                        |
+| `moneyRound`                   | « 1 235 € »                             | Montant sans centimes (graphique)                                 |
+| `count(value)`                 | « 3 », « »                              | Compte dans une colonne ou un export, vide pour 0 (décision DH)   |
+| `number(value, decimals = 2)`  | « 1 234,5 »                             | Nombre                                                            |
+| `quantity({ quantity, unit })` | « 250 g », « 1,5 kg »                   | Quantité (3 décimales) et unité                                   |
+| `percent(value, decimals = 2)` | « 12,5 % »                              | Taux donné en pour cent                                           |
+| `fileSize(bytes)`              | « 12 Ko », « 1,5 Mo »                   | Taille de fichier (1 Ko au moins)                                 |
+| `daysAgo(days)`                | « aujourd'hui », « il y a 3 jours »     | Ancienneté en jours                                               |
+| `daysLate(due, today)`         | « 3 j de retard »                       | Retard (décision AI)                                              |
+| `fromNow(date)`                | « il y a 3 heures », « hier »           | Temps relatif (commentaire)                                       |
+
+`PICKER_FORMATS` : formats d'affichage des sélecteurs de dates Mantine (`D MMM YYYY`, `ddd D MMM YYYY`, `D MMM YYYY HH:mm`, `MMMM YYYY`, `YYYY`), appliqués par défaut dans `app/theme.ts`.
+
+## Dates et périodes
+
+### `dates.ts`
+
+- `localDay(instant)` : jour (YYYY-MM-DD) d'un instant dans le fuseau de l'utilisateur.
+- `dayOf(value)` : jour d'un jour (ou mois) tel quel, ou d'un instant dans le fuseau de l'utilisateur.
+- `localToday()` : jour courant de l'utilisateur (~50 fichiers).
+- `localParts(instant)` : `{ date: 'YYYY-MM-DD', time: 'HH:MM' }` locaux.
+- `localMidnight(day)` : minuit local d'un jour, en date-heure ISO.
+- Réexports de `@ordo/shared` (seul chemin autorisé par eslint) : `monthOfDay`, `yearOfDay`, `localInstant` (instant d'un jour et d'une heure de l'utilisateur, partagé avec les alarmes).
+
+eslint interdit `.slice(0, 10)`, `.slice(0, 7)`, `.split('T')[0]` et `new Date('…T00:00')` : utiliser ces aides. Voir [Dates](../business-rules/cross-cutting/dates.md).
+
+### `periods.ts`
+
+- `PeriodPreset` (type) et `PERIOD_PRESETS` : périodes des formulaires d'export : « Ce mois-ci », « Le mois dernier », « Ce trimestre », « Le trimestre dernier », « Cette année », « L’année dernière » (libellés `DATE_PERIOD_LABELS` de `@ordo/shared`) et « Dates choisies ».
+- `presetRange(preset, today)` : premier et dernier jours (inclus) d'une période prédéfinie.
+- `quarterName(day)` : « T4 2026 ».
+- `periodName(scale, start)` : « Novembre 2026 », « T4 2026 », « 2026 ».
+- `relativePeriodName(scale, previous)` : « Ce mois-ci », « Le trimestre dernier »…
+- `PeriodState`, `PERIOD_STATES` et `periodState(start, end, now, { endExclusive })` : où en est une période (sprint, évènement, plage) : « À venir » (bleu), « En cours » (vert), « Passée » (gris), décision F.
+
+### `week.ts`
+
+- `currentWeek()` : semaine de l'espace affiché (premier et dernier jours), lue dans les espaces chargés ; lundi-dimanche (`DEFAULT_WEEK`) avant.
+- `pickerFirstDay(week)` : premier jour de la semaine pour les sélecteurs (0 = dimanche à 6).
+
+### `use-now.ts`
+
+`useNow(active, everyMs = 1000)` : heure courante, rafraîchie à intervalle tant que `active` (juste après chaque changement de seconde, de minute… : une heure affichée à la minute n'est jamais en retard), figée sinon. Utilisé par l'horloge de l'en-tête, les chronos, les routines, l'agenda.
+
+## Téléchargements (`download.ts`)
+
+- `download(content, filename)` : enregistre un fichier dans le navigateur (blob, ou data URL convertie en blob).
+- `fileName` : réexport de `@ordo/shared`, nom de fichier nettoyé (eslint impose `fileName(titre, extension)`).
+- `fetchDownload(url, filename, fallback)` : télécharge un fichier servi par l'API (archive, relevé) ; erreur de l'API (JSON `error` ou texte) relancée.
+- `postExport(path, body, filename, fallback?)` : télécharge un export construit par l'API à partir de ce qui est envoyé (PDF d'un tableau, de graphiques, de l'agenda) ; défaut « Le PDF n'a pas pu être créé. ».
+- `PdfTableRow` (interface) et `postTablePdf(table)` : PDF d'un tableau (`/api/exports/table.pdf`) : titre, sous-titre, colonnes, lignes (groupes et lignes indentés), alignements.
+- `downloadCsv(lines, title)` : CSV pour tableurs français : points-virgules, virgules décimales, UTF-8 avec BOM, textes entre guillemets.
+
+## Texte, ensembles, clés
+
+- `text.ts` : réexports de `@ordo/shared` (seul chemin pour `collator` et `normalize`) : `collator`, `copyName`, `countOf`, `countWith`, `ellipsis`, `nameKey`, `normalize`, `plural`, `sameName`. Voir [Partagé : core](../shared/cross-cutting/core.md) et [Noms](../business-rules/cross-cutting/naming.md).
+- `sets.ts` : `toggledIn(set, value)` (ensemble avec une valeur basculée), `toggledInList(list, value, on?)` (liste avec une valeur ajoutée en fin ou retirée, ou mise selon `on`). Imposés par eslint.
+- `tagged-key.ts` : `taggedKey(tag, id)` (`<sorte>:<id>`, valeur d'une liste mêlant des sortes : clients et tiers, ids de glisser-déposer), `parseTaggedKey(key)` (l'id peut contenir « : »), `taggedIds(keys, tag)`. Imposés par eslint.
+
+## Mise en page
+
+- `fill-height.ts` : `useRoomBelow(ref, onMeasure)` (place restante sous un élément pour que la page tienne dans la fenêtre, remesurée au redimensionnement et quand le contenu de la page change ; utilisé par `data-table`) et `useFillHeight(minimum = 320)` (ref + hauteur disponible, au moins le minimum ; mails, carte).
+- `use-is-phone.ts` : `PHONE_QUERY` (sous le point de rupture tablette, `styles/breakpoints.json`, 48em) et `useIsPhone()`.
+- `use-color-swatches.ts` : `useColorSwatches()`, la palette des sélecteurs de couleur : nuance 6 de chaque couleur Mantine sauf `dark` et `gray`.
