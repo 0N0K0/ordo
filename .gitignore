@@ -17,8 +17,6 @@ logs
 
 # Generated
 apps/api/src/generated
-# Security rules of Apache, written by scripts/deploy.sh
-apps/web/.htaccess
 
 # Editor / OS
 .vscode/*
