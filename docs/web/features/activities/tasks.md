@@ -2,7 +2,7 @@
 
 Tous les fichiers de `apps/web/src/features/tasks/` et ce qu’ils exportent : requêtes et mutations (`api`), page, composants (tableau, panneau, cellules, formulaires, jalons, sprints, contributeurs), hooks et fonctions (`lib`). Ce module porte aussi le **contexte des tâches** (`useTaskContext`) utilisé par presque toutes les autres fonctionnalités.
 
-Fonctionnalités : [Tâches](../../../features/activities/tasks.md). Règles : [Règles métier — Tâches](../../../business-rules/activities/tasks.md). Briques partagées utilisées : [Tableaux](../../components/data-table.md), [Actions](../../components/actions.md), [Dialogues](../../components/dialogs.md), [Panneaux](../../components/panels.md), [Personnes](../../components/people.md), [Markdown](../../components/markdown.md), [Répétition](../../components/recurrence.md), [Commentaires](../../components/comments.md), [Paramètres](../../components/settings.md), [Arbres](../../components/tree.md), [Glisser-déposer](../../components/dnd.md), [Bibliothèque web](../../lib.md). Partagé : [shared/tasks](../../../shared/activities/tasks.md).
+Fonctionnalités : [Tâches](../../../features/activities/tasks.md). Règles : [Règles métier — Tâches](../../../business-rules/activities/tasks.md). Briques partagées utilisées : [Tableaux](../../components/data-table.md), [Actions](../../components/actions.md), [Dialogues](../../components/dialogs.md), [Panneaux](../../components/panels.md), [Personnes](../../components/people.md), [Markdown](../../components/markdown.md), [Commentaires](../../components/comments.md), [Paramètres](../../components/settings.md), [Arbres](../../components/tree.md), [Glisser-déposer](../../components/dnd.md), [Bibliothèque web](../../lib.md). Partagé : [shared/tasks](../../../shared/activities/tasks.md).
 
 ## api/
 
@@ -39,7 +39,6 @@ Hooks et constantes exportés :
 | `useSetTasksClosed()`         | Mutation `setTasksClosed` ; met à jour `closed` dans le cache tout de suite (optimiste).                                                        |
 | `useCloneTask()`              | Mutation `cloneTask` ; renvoie `id` et `number` du clone.                                                                                       |
 | `useMoveTask()`               | Mutation `moveTask` (`id`, `beforeId`, `parentId?`) ; réordonne le cache tout de suite.                                                         |
-| `useSetTaskRecurrence()`      | Mutation `setTaskRecurrence`.                                                                                                                   |
 | `useTaskBlock()`              | Ajoute (`add: true`) ou retire un lien « bloque ».                                                                                              |
 | `useTaskRelation()`           | Ajoute ou retire un lien « relative à ».                                                                                                        |
 | `useTaskCommentMutations()`   | `{ add, update, remove }` des commentaires de tâche.                                                                                            |
@@ -77,7 +76,7 @@ Interne : `LabelDocuments` (documents CRUD par type de libellé), `useTasksMutat
 
 - `TaskPanel()` : panneau latéral (`SidePanel`) de la tâche de l’URL (`?task=`), par-dessus toute page ; squelette pendant le chargement, `DetailNotFound` si introuvable. Monté par `app/layout/AppLayout.tsx`.
 - Internes :
-  - `TaskDetail({ task, context })` : en-tête (badges GitHub / archivée, « Fermer la tâche » / « Rouvrir », « Renommer » via `openLabelForm`, menu `useTaskActions`), description (`MarkdownView` / `MarkdownEditor`), sous-tâches, commentaires (`TaskComments`), colonne de propriétés (projet → transfert avec confirmation, libellés, assignés, étiquettes, bénéficiaires, effort, `TaskTime`, `TaskRecurrence`, dates, parent, jalon, sprints, `SlotRuleInput`, liens, `TaskAlarms`, `TaskShopping`, `SheetsSection`). `Fieldset` désactivé sur une tâche archivée.
+  - `TaskDetail({ task, context })` : en-tête (badges GitHub / archivée, « Fermer la tâche » / « Rouvrir », « Renommer » via `openLabelForm`, menu `useTaskActions`), description (`MarkdownView` / `MarkdownEditor`), sous-tâches, commentaires (`TaskComments`), colonne de propriétés (projet → transfert avec confirmation, libellés, assignés, étiquettes, bénéficiaires, effort, `TaskTime`, dates, parent, jalon, sprints, `SlotRuleInput`, liens, `TaskAlarms`, `TaskShopping`, `SheetsSection`). `Fieldset` désactivé sur une tâche archivée.
   - `LinkList({ label, tasks, candidates, context, onAdd, onRemove })` : liste « Bloque » / « Dépend de » / « Relative à » avec « Retirer » et « Ajouter une tâche » (`TaskSelect`).
 
 ### `components/TaskCreateForm.tsx`
@@ -185,11 +184,6 @@ Internes : `NEW_LABEL_TITLES`, `useLabelCreator(kind)` (ouvre le formulaire du l
 
 - `TaskComments({ task, context })` : fil `CommentThread` sur les commentaires de la tâche (`useTaskComments`, `useTaskCommentMutations`, `threadActions`), lecture seule si archivée. Utilisé par `TaskPanel`.
 
-### `components/TaskRecurrence.tsx`
-
-- `TaskRecurrence({ task, context })` : section de répétition du panneau (`RepetitionField`, `RepetitionEditor`, `DeletedDates`) ; édite la série (la première tâche) ; lien vers la série sur une occurrence.
-- Internes : type `TaskDraft`, `draftOf(task)` (répétition enregistrée → brouillon), `draftRepetition(draft)` (brouillon → répétition ou `null`).
-
 ### `components/TaskSettings.tsx`
 
 - `TaskSettings()` : paramètres des tâches : `ColumnDefaults`, puis `SettingsList` des statuts (avec catégorie), priorités, types, étiquettes, chacune avec son nombre d’utilisations. Utilisé par `TasksPage` et les paramètres d’un projet.
@@ -238,7 +232,7 @@ Internes : `NEW_LABEL_TITLES`, `useLabelCreator(kind)` (ouvre le formulaire du l
 
 ### `components/TaskTable.module.css`
 
-Classe `recurring` (dans la couche `app`) : les petites icônes devant le libellé (GitHub, récurrence, alarmes) ne rétrécissent pas et sont en couleur atténuée.
+Classe `recurring` (dans la couche `app`) : les petites icônes devant le libellé (GitHub, alarmes) ne rétrécissent pas et sont en couleur atténuée.
 
 ## hooks/
 

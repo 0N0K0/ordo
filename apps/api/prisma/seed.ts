@@ -26,7 +26,6 @@ import {
 import { addDays, DEFAULT_LABEL_COLOR, emptyTableFilter, formatDay, minutesToTime, parseDay, type Recurrence, weekdayOfDate } from '@ordo/shared';
 import { createAlarm } from '../src/services/tasks/alarms';
 import { createCalendarEvent, postponeCalendarEvent } from '../src/services/calendar/calendar-events';
-import { materializeTaskOccurrences, setTaskRecurrence } from '../src/services/tasks/task-recurrence';
 import { createView } from '../src/services/tasks/task-views';
 import { createTimeEntry } from '../src/services/tasks/time-entries';
 import { saveScheduleType, subscribeScheduleKind } from '../src/services/calendar/work-schedules';
@@ -605,24 +604,6 @@ await prisma.workSchedule.create({
     exceptions: [],
   },
 });
-
-// --- Recurring tasks: weekly, every other week, monthly (limited), their occurrences around today ---------------
-const repeatable = await prisma.task.findMany({
-  where: { closedAt: null, archivedAt: null, parentId: null, startDate: { not: null }, project: { archivedAt: null } },
-  orderBy: { number: 'asc' },
-  take: 3,
-});
-for (const [index, task] of repeatable.entries()) {
-  const anchor = formatDay(task.startDate!);
-  const weekday = weekdayOfDate(anchor);
-  await setTaskRecurrence(task.id, [rule({ weekdays: [weekday] }), rule({ interval: 2, weekdays: [weekday] }), rule({ frequency: 'MONTHLY', monthlyMode: 'DAY', count: 6 })][index]);
-}
-await materializeTaskOccurrences(addDays(today, -28), addDays(today, 31));
-// Past occurrences are mostly done.
-const doneStatus = statuses.find((status) => status.category === 'DONE')!;
-for (const occurrence of await prisma.task.findMany({ where: { seriesId: { not: null }, occurrenceDate: { lt: parseDay(today) } } })) {
-  if (faker.datatype.boolean(0.8)) await prisma.task.update({ where: { id: occurrence.id }, data: { statusId: doneStatus.id, closedAt: localAt(formatDay(occurrence.occurrenceDate!), 17) } });
-}
 
 // --- Events with an address and travel times, with tasks; time spent on events; a postponed occurrence ------
 const eventBase = {

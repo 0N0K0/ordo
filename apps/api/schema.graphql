@@ -1843,11 +1843,6 @@ type Mutation {
   markMails(accountId: ID!, done: Boolean, folder: String!, labelId: ID, on: Boolean, uids: [Int!]!): Boolean!
 
   """
-  Creates the occurrences of recurring tasks falling in a displayed period; returns how many were created.
-  """
-  materializeTaskOccurrences(from: Date!, to: Date!): Int!
-
-  """
   Moves a category at an index among its siblings; with parentId, under another category first (null: top level).
   """
   moveCalendarCategory(id: ID!, index: Int!, parentId: ID): Boolean!
@@ -2130,11 +2125,6 @@ type Mutation {
   Chooses the columns new task views start with; without columns, gives back the app’s.
   """
   setTaskColumnDefaults(columnOrder: [String!], hiddenColumns: [String!]): TaskColumnDefaults!
-
-  """
-  Makes a task recurring, changes its repetition, or stops it (null). On an occurrence, its series is changed.
-  """
-  setTaskRecurrence(id: ID!, recurrence: JSON): Task!
 
   """
   Closes (done) or reopens tasks; a closed task no longer blocks other tasks.
@@ -3879,20 +3869,13 @@ type Task {
   Number within its project (#12); none without project. Links use the id.
   """
   number: Int
-  occurrenceDate: Date
   parentId: ID
   position: Int!
   priorityId: ID
 
   """None: a task of no project."""
   projectId: ID
-
-  """Repetition, on the first task of a recurring series."""
-  recurrence: JSON
   relatedIds: [ID!]!
-
-  """First task of the series this task is an occurrence of."""
-  seriesId: ID
 
   """
   Slots the task is done on or out of; null: the default of the workspace.

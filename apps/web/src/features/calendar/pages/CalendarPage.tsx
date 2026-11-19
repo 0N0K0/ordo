@@ -41,7 +41,6 @@ import {
   useCalendarEventMutations,
   useCalendarEvents,
   useCalendars,
-  useMaterializeTaskOccurrences,
   useSubscribedCalendarEvents,
   useScheduleSources,
   type EventOccurrence,
@@ -117,8 +116,7 @@ const ALL_DAY_ROWS = 2;
  * planned working hours in the background (none on paused days); tracked times (timers) on demand;
  * cancelled events struck through.
  * Events and tasks move and stretch by drag and drop; selecting a period creates an event. In week and
- * day views, the all-day row is collapsed by default and expands across every day. The
- * occurrences of recurring tasks are created for the displayed period only.
+ * day views, the all-day row is collapsed by default and expands across every day.
  * @returns {JSX.Element} Page.
  */
 export function CalendarPage() {
@@ -153,7 +151,6 @@ export function CalendarPage() {
   const shownSubscriptions = subscriptions.filter((subscription) => !hidden.has(subscription.calendarId));
   // Calendars of other workspaces: read in their workspaces, only when one is shown.
   const subscribedEvents = useSubscribedCalendarEvents(shownSubscriptions.length > 0 ? range : null);
-  const materialize = useMaterializeTaskOccurrences();
   const { update } = useCalendarEventMutations();
   const updateTask = useUpdateTask();
   const openEvent = useEventForm(context);
@@ -186,13 +183,6 @@ export function CalendarPage() {
     calendarRef.current?.getApi().gotoDate(requestedDate);
     setParams({ date: null });
   }, [requestedDate, setParams]);
-
-  // Occurrences of recurring tasks exist once their period is displayed.
-  const materializeMutate = materialize.mutate;
-  useEffect(() => {
-    // A failure is shown above the calendar.
-    if (range) materializeMutate(range);
-  }, [range, materializeMutate]);
 
   useEffect(() => {
     calendarRef.current?.getApi().changeView(view);
@@ -795,7 +785,7 @@ export function CalendarPage() {
         </Group>
       </Group>
 
-      {(events.error ?? materialize.error ?? subscribedEvents.error) && <ErrorAlert title="Agenda incomplet">{(events.error ?? materialize.error ?? subscribedEvents.error)?.message}</ErrorAlert>}
+      {(events.error ?? subscribedEvents.error) && <ErrorAlert title="Agenda incomplet">{(events.error ?? subscribedEvents.error)?.message}</ErrorAlert>}
       {/*
        * In the settings sidebar (?settings=1): first what the agenda shows and its export; then
        * the calendars, subscriptions, categories, kinds of slots and places.

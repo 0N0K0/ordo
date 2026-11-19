@@ -45,7 +45,7 @@ Le même tableau (`TaskBoard`) sert à la page et à l’onglet d’un projet. C
 
 | Colonne                                        | Contenu, édition en place                                                                                                                                                                                                                                                                                                                                                                          |
 | ---------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| « Libellé » (toujours visible)                 | Icône d’état (ouverte vert, fermée violet, bloquée cadenas rouge), icône GitHub (« Synchronisée avec l’issue GitHub #n » ou « Synchronisée avec un brouillon GitHub »), icône de récurrence (« Tâche récurrente » / « Occurrence d’une tâche récurrente »), icône d’alarmes actives, numéro `#12` (lien vers le panneau), libellé (double-clic pour renommer), avancement des sous-tâches « 2/5 ». |
+| « Libellé » (toujours visible)                 | Icône d’état (ouverte vert, fermée violet, bloquée cadenas rouge), icône GitHub (« Synchronisée avec l’issue GitHub #n » ou « Synchronisée avec un brouillon GitHub »), icône d’alarmes actives, numéro `#12` (lien vers le panneau), libellé (double-clic pour renommer), avancement des sous-tâches « 2/5 ». |
 | « Projet »                                     | Change de projet en place (transfert ; confirmation si la tâche quitte son arborescence).                                                                                                                                                                                                                                                                                                          |
 | « Statut », « Priorité », « Type »             | Pastille de couleur ; clic : liste des pastilles ; re-choisir la valeur actuelle la vide.                                                                                                                                                                                                                                                                                                          |
 | « Assignés »                                   | Contributeurs du projet (avec avatar).                                                                                                                                                                                                                                                                                                                                                             |
@@ -164,21 +164,12 @@ Colonne de propriétés (chaque champ enregistré dès qu’il change) :
 - « Projet » (changement = transfert ; confirmation « Changer de projet » si la tâche quitte son arborescence et a des liens : elle prend le numéro suivant du projet, ou perd son numéro et son lien GitHub hors projet) ;
 - « Statut », « Priorité », « Type », « Assignés », « Étiquettes », « Bénéficiaires », « Effort » ;
 - « Temps passé » et bouton « Démarrer le chrono » (ou commandes du chrono s’il tourne sur la tâche) ;
-- « Répétition » (voir plus bas) ;
 - « Début », « Fin », « Date min » (« Avant, la tâche n’est pas à faire. »), « Date max » (« Au-delà, la tâche ouverte est en retard. », suivi de « En retard. » en rouge si c’est le cas) ;
 - « Tâche parente », « Jalon », « Sprints », plages ;
 - « Bloque », « Dépend de », « Relative à » : listes avec « Retirer » et « Ajouter une tâche » ;
 - alarmes de la tâche ([Alarmes](alarms.md)), listes d’achats ([Achats](../supplies/shopping.md)), fiches ([Fiches](../supplies/sheets.md)).
 
 Une tâche archivée : tous les champs désactivés, pas de bouton, commentaires en lecture seule ; « Restaurer » dans le menu.
-
-## Récurrence
-
-- Dans le panneau, section de répétition : une règle, ou des cas (plusieurs périodes avec chacune sa règle) avec les occurrences supprimées.
-- Il faut une date à la tâche : « Donnez une date à la tâche pour la répéter. ».
-- Texte d’aide : la tâche se répète à partir de sa date ; ses occurrences sont créées quand l’agenda affiche leur semaine ou leur mois, et copient la tâche (titre, description, assignés, effort…) avec des dates décalées.
-- Toasts : « Répétition enregistrée. » / « La tâche ne se répète plus. ».
-- Sur une occurrence : « Occurrence du … de #12 » (lien vers la série) ; modifier la répétition modifie la série.
 
 ## Fermer, cloner, transférer, archiver, supprimer
 

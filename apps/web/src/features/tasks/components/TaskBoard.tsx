@@ -6,7 +6,7 @@ import { ActionButton } from '../../../components/actions/ActionButton';
 import { EmptyState } from '../../../components/feedback/EmptyState';
 import { Group, Select, Switch, Text, Tooltip } from '@mantine/core';
 import { addDays, DATE_PERIOD_LABELS, EVENT_PERIODS, type EventPeriod, filterPeriod, TASK_GROUP_BY, type TaskGroupBy } from '@ordo/shared';
-import { AlarmIcon, ArrowsClockwiseIcon, CheckSquareOffsetIcon, GithubLogoIcon, PlusIcon, SidebarSimpleIcon, TreeViewIcon } from '@phosphor-icons/react';
+import { AlarmIcon, CheckSquareOffsetIcon, GithubLogoIcon, PlusIcon, SidebarSimpleIcon, TreeViewIcon } from '@phosphor-icons/react';
 import { useMemo, type ReactNode } from 'react';
 
 import { DataTable, type RowMove } from '../../../components/data-table/table/DataTable';
@@ -241,11 +241,6 @@ export function TaskBoard({ projectId, projectIds, createProjectId, header, empt
               {task.githubLinked && (
                 <Tooltip label={task.githubNumber ? `Synchronisée avec l’issue GitHub #${task.githubNumber}` : 'Synchronisée avec un brouillon GitHub'}>
                   <GithubLogoIcon aria-label="GitHub" className={classes.recurring} />
-                </Tooltip>
-              )}
-              {(task.recurrence || task.seriesId) && (
-                <Tooltip label={task.seriesId ? 'Occurrence d’une tâche récurrente' : 'Tâche récurrente'}>
-                  <ArrowsClockwiseIcon aria-label="Récurrente" className={classes.recurring} />
                 </Tooltip>
               )}
               {alarmCounts.has(task.id) && (

@@ -2,7 +2,7 @@
 
 État au 19 novembre 2026, fin de matinée, après neuf séries d'unifications (voir [Déjà unifié](#déjà-unifié)). Copier-coller (`npm run dup`) : 4 copies. Les décisions déjà prises sont en [annexe](#décisions-déjà-prises).
 
-Aucun doublon lourd. La série du 19 novembre (après-midi) a traité les points 1 à 7 ci-dessous, sauf : `slotEvents` (agenda de l'historique d'une routine, à essayer à l'écran), les réponses d'API qui renvoient un id (changeraient le schéma GraphQL), `findTask` dans `task-recurrence` (import circulaire), et quelques détails (`reveal.css` des cellules, `optionalNumber` du panneau de tâche, « Oui » d'une colonne oui/non, durée filtrée en texte).
+Aucun doublon lourd. La série du 19 novembre (après-midi) a traité les points 1 à 7 ci-dessous, sauf : `slotEvents` (agenda de l'historique d'une routine, à essayer à l'écran), les réponses d'API qui renvoient un id (changeraient le schéma GraphQL), et quelques détails (`reveal.css` des cellules, `optionalNumber` du panneau de tâche, « Oui » d'une colonne oui/non, durée filtrée en texte).
 
 La bibliothèque de documents n'est pas traitée : elle sera refaite entièrement.
 
@@ -10,7 +10,7 @@ La bibliothèque de documents n'est pas traitée : elle sera refaite entièremen
 
 ### 1. API : archivage et erreurs
 
-- **Tâche archivée modifiable :** répétition (`task-recurrence.ts:48-62`), blocages et relations (`tasks.ts:548, 586` ; `assertSameTree` ignore `archivedAt`).
+- **Tâche archivée modifiable :** blocages et relations (`tasks.ts:548, 586` ; `assertSameTree` ignore `archivedAt`).
 - **Projet archivé :** ses ressources s'ajoutent, se renomment, se déplacent et se suppriment (`project-resources.ts:16, 52, 66, 79`).
 - **Client archivé :** ses coordonnées, prestations et contacts restent modifiables (`client-parties.ts:15, 48, 63, 84`), alors que `updateClient` refuse.
 - **Choisir une valeur archivée :** statut et catégories de projet seulement vérifiés (`projects.ts:136, 180`) ; un projet archivé reste choisissable pour routines, évènements, documents, trésorerie, mail, tableaux de bord, vues ; un client archivé n'est refusé que pour un projet (voir décision DA).
@@ -213,6 +213,7 @@ Toutes les décisions de ce round sont prises (DA à DM, voir plus bas).
 - **DK. Mention `@nom` :** plus de lien.
 - **DL. Noms dans l'API :** `graphql/modules/workspace.ts` et `services/workspace/` renommés `projects`.
 - **DM. Glisser-déposer du mail :** sur `components/dnd`, comme le reste.
+- **DN. Tâche récurrente :** supprimée, elle faisait double emploi avec la routine. Plus de répétition sur une tâche (`setTaskRecurrence`, `materializeTaskOccurrences`, `task-recurrence.ts`, `TaskRecurrence`, `taskRepetitionSchema` et ses fonctions retirés) ; les occurrences déjà créées restent, comme tâches ordinaires ; les colonnes `recurrence`, `seriesId` et `occurrenceDate` de `Task` sont retirées, sans conversion en routine. L'agenda ne crée plus rien.
 
 ## Restent à part
 

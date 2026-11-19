@@ -11,7 +11,7 @@ Champs d'une routine qui comptent pour les occurrences :
 | Champ           | Rôle                                                                                                                                          |
 | --------------- | --------------------------------------------------------------------------------------------------------------------------------------------- |
 | `startDate`     | « Première fois » : la règle compte à partir de ce jour.                                                                                      |
-| `recurrence`    | Règle de répétition commune aux évènements et tâches (voir [Dates](../cross-cutting/dates.md)).                                               |
+| `recurrence`    | Règle de répétition commune aux évènements, alarmes et plages (voir [Dates](../cross-cutting/dates.md)).                                               |
 | `moments`       | Moments de la journée de la règle : `[{ fromTime, dueTime, optional }]`.                                                                      |
 | `slotCondition` | Condition sur les plages de l'agenda (groupe ET / OU), suivant la règle.                                                                      |
 | `opensOn`       | « À partir du » des occurrences de la règle.                                                                                                  |

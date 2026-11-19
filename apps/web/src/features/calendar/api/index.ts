@@ -1,4 +1,4 @@
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useQuery } from '@tanstack/react-query';
 import { useInvalidatingMutation } from '../../../lib/mutation';
 import { graphql } from '../../../graphql';
 import { readScheduleCases, readScheduleExceptions, type ScheduleDisplay, type ScheduleSubscriptionLook, type WorkScheduleInput, type WorkScheduleRule } from '@ordo/shared';
@@ -12,7 +12,6 @@ import type {
   WorkSchedulesQuery,
 } from '../../../graphql/graphql';
 import { execute, executeIn } from '../../../lib/graphql-client';
-import { tasksQueryKey } from '../../tasks/api';
 import { archivedIds, unarchived } from '../../../lib/archive';
 
 export type EventOccurrence = CalendarEventOccurrenceFieldsFragment;
@@ -380,12 +379,6 @@ const DeleteCalendarEventDocument = graphql(`
   }
 `);
 
-const MaterializeTaskOccurrencesDocument = graphql(`
-  mutation MaterializeTaskOccurrences($from: Date!, $to: Date!) {
-    materializeTaskOccurrences(from: $from, to: $to)
-  }
-`);
-
 /** Root key of the calendar queries (events, calendars, categories, schedules). */
 export const calendarQueryKey = ['calendar'] as const;
 
@@ -639,21 +632,6 @@ export function scheduleRules(
     exceptions: readScheduleExceptions(schedule.exceptions),
     typeId: schedule.typeId ?? null,
   }));
-}
-
-/**
- * Creates the occurrences of recurring tasks in the displayed period, then refreshes the tasks when some
- * were created.
- * @returns {UseMutationResult} Mutation state.
- */
-export function useMaterializeTaskOccurrences() {
-  const queryClient = useQueryClient();
-  return useMutation({
-    mutationFn: async (range: { from: string; to: string }) => (await execute(MaterializeTaskOccurrencesDocument, range)).materializeTaskOccurrences,
-    onSuccess: (created) => {
-      if (created > 0) void queryClient.invalidateQueries({ queryKey: tasksQueryKey });
-    },
-  });
 }
 
 /**

@@ -28,7 +28,6 @@ import { TaskShopping } from '../../shopping/components/TaskShopping';
 import { SheetsSection } from '../../sheets/components/SheetsSection';
 import { TaskTime } from '../../time/components/TaskTime';
 import { TaskComments } from './TaskComments';
-import { TaskRecurrence } from './TaskRecurrence';
 import { linkableTasks } from '../lib/task-links';
 import { AssigneesSelect, LabelSelect, ProjectSelect, TagsSelect, TaskRef, TaskSelect, TaskStateIcon } from './task-ui';
 import { useTaskActions } from '../hooks/use-task-actions';
@@ -324,7 +323,6 @@ function TaskDetail({ task, context }: TaskDetailProps) {
                 }}
               />
               <TaskTime task={task} />
-              <TaskRecurrence task={task} context={context} />
               <Group grow gap="xs">
                 <DatePickerInput label="Début" clearable placeholder="—" {...dates.start} />
                 <DatePickerInput label="Fin" clearable placeholder="—" {...dates.end} />

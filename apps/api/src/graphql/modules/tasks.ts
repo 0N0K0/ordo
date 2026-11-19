@@ -8,7 +8,6 @@ import * as sprints from '../../services/tasks/sprints';
 import { iconUrl } from '../../services/core/icons';
 import { taskPriorities, taskStatuses, taskTags, taskTypes } from '../../services/tasks/task-labels';
 import * as taskViews from '../../services/tasks/task-views';
-import * as taskRecurrence from '../../services/tasks/task-recurrence';
 import * as tasks from '../../services/tasks/tasks';
 import { readSlotRule, sumOf, TASK_STATUS_CATEGORIES, VIEW_KINDS } from '@ordo/shared';
 import * as workspaces from '../../services/workspaces/workspaces';
@@ -204,14 +203,6 @@ builder.prismaObject('Task', {
       resolve: (task) => [...task.relationsA.map((link) => link.taskBId), ...task.relationsB.map((link) => link.taskAId)],
     }),
     commentCount: t.relationCount('comments'),
-    recurrence: t.field({
-      type: 'JSON',
-      nullable: true,
-      description: 'Repetition, on the first task of a recurring series.',
-      resolve: (task) => task.recurrence ?? null,
-    }),
-    seriesId: t.exposeID('seriesId', { nullable: true, description: 'First task of the series this task is an occurrence of.' }),
-    occurrenceDate: t.expose('occurrenceDate', { type: 'Date', nullable: true }),
     trackedSeconds: t.int({
       description: 'Tracked time in seconds: each finished time entry is shared equally between its tasks.',
       select: { timeEntries: { where: { duration: { not: null } }, select: { duration: true, _count: { select: { tasks: true } } } } },
@@ -450,17 +441,6 @@ builder.mutationFields((t) => ({
     description: 'Places a task before another one in the manual order (at the end when beforeId is null), and under ' + 'parentId when given (null: top-level task; omitted: parent unchanged).',
     args: { id: t.arg.id({ required: true }), beforeId: t.arg.id(), parentId: t.arg.id() },
     resolve: (_root, { id, beforeId, parentId }) => done(tasks.moveTask(id, beforeId ?? null, parentId)),
-  }),
-  setTaskRecurrence: t.prismaField({
-    type: 'Task',
-    description: 'Makes a task recurring, changes its repetition, or stops it (null). On an occurrence, its series is changed.',
-    args: { id: t.arg.id({ required: true }), recurrence: t.arg({ type: 'JSON' }) },
-    resolve: async (query, _root, { id, recurrence }) => reloaded(prisma.task, query, taskRecurrence.setTaskRecurrence(id, recurrence ?? null)),
-  }),
-  materializeTaskOccurrences: t.int({
-    description: 'Creates the occurrences of recurring tasks falling in a displayed period; returns how many were created.',
-    args: { from: t.arg({ type: 'Date', required: true }), to: t.arg({ type: 'Date', required: true }) },
-    resolve: (_root, { from, to }) => taskRecurrence.materializeTaskOccurrences(from, to),
   }),
   setTasksClosed: t.boolean({
     description: 'Closes (done) or reopens tasks; a closed task no longer blocks other tasks.',

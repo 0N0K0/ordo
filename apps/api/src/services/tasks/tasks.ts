@@ -23,7 +23,6 @@ import { Prisma, type Task, type TaskComment } from '../../generated/prisma/clie
 import { clientError, fieldError, notFound, orNotFound, parseInput } from '../../graphql/errors';
 import { assertProjectContributors, attachAssignees } from '../projects/contributors';
 import { forgetGithubComment, forgetGithubItems } from '../github/links';
-import { forgetDeletedOccurrences } from './task-recurrence';
 import { assertAllExist, assertExists, deleteOrNotFound, findOrNotFound } from '../core/lookup';
 import { assertNoneArchived, type ArchivableModel, assertActive, refuseArchived, isArchivedAs, cascadeArchive, findActive } from '../core/archive';
 import { subtreeIds } from '../core/trees';
@@ -352,12 +351,10 @@ export async function deleteTask(id: string, deleteSubtasks: boolean): Promise<v
   if (deleteSubtasks) {
     const descendants = await subtreeIds('task', id, false);
     await forgetGithubItems([id, ...descendants]);
-    await forgetDeletedOccurrences([id, ...descendants]);
     await prisma.task.deleteMany({ where: { id: { in: [id, ...descendants] } } });
     return;
   }
   await forgetGithubItems([id]);
-  await forgetDeletedOccurrences([id]);
   await deleteTreeNode('task', task);
 }
 
@@ -892,7 +889,6 @@ export async function bulkDeleteTasks(ids: string[], deleteSubtasks: boolean): P
   // Selected sub-tasks moved up by a deletion are still selected: delete them as well.
   if (!deleteSubtasks) {
     await forgetGithubItems(ids);
-    await forgetDeletedOccurrences(ids);
     await prisma.task.deleteMany({ where: { id: { in: ids } } });
   }
 }

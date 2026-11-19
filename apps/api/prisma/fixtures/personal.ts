@@ -1,5 +1,5 @@
 import { fakerFR as faker } from '@faker-js/faker';
-import { addDays, DEFAULT_LABEL_COLOR, emptyTableFilter, formatDay, monthOfDay, occurrenceDates, parseDay, type Recurrence } from '@ordo/shared';
+import { addDays, DEFAULT_LABEL_COLOR, emptyTableFilter, monthOfDay, occurrenceDates, parseDay, type Recurrence } from '@ordo/shared';
 import { prisma } from '../../src/db';
 import type { Prisma } from '../../src/generated/prisma/client';
 import { createAlarm } from '../../src/services/tasks/alarms';
@@ -20,7 +20,6 @@ import {
   setItemPurchased,
   setListClosed,
 } from '../../src/services/shopping/shopping';
-import { materializeTaskOccurrences, setTaskRecurrence } from '../../src/services/tasks/task-recurrence';
 import { createView } from '../../src/services/tasks/task-views';
 import { createTimeEntry } from '../../src/services/tasks/time-entries';
 import { createAccount, realizeForecast } from '../../src/services/treasury/treasury';
@@ -141,15 +140,8 @@ export async function seedPersonal({
   await task(holidays.id, 'Renouveler les passeports', dropped);
   await task(garden.id, 'Tailler la haie', todo, { startDate: date(day(3)) });
   const birthday = await task(papers.id, 'Préparer l’anniversaire de Tom', doing, { deadline: date(day(9)), priorityId: urgent.id });
-  // Recurring: the bins every week, the canteen every month.
   const bins = await task(garden.id, 'Sortir les poubelles', todo, { startDate: date(addDays(monday, 1)), endDate: null, deadline: null });
-  const canteen = await task(papers.id, 'Payer la cantine', todo, { startDate: date(addDays(monday, 3)), endDate: null, deadline: null });
-  await setTaskRecurrence(bins.id, rule({ weekdays: [2] }));
-  await setTaskRecurrence(canteen.id, rule({ frequency: 'MONTHLY', monthlyMode: 'DAY' }));
-  await materializeTaskOccurrences(day(-21), day(30));
-  for (const occurrence of await prisma.task.findMany({ where: { seriesId: { not: null }, occurrenceDate: { lt: date(today) } } })) {
-    await prisma.task.update({ where: { id: occurrence.id }, data: { statusId: done.id, closedAt: localAt(formatDay(occurrence.occurrenceDate!), 19) } });
-  }
+  await task(papers.id, 'Payer la cantine', todo, { startDate: date(addDays(monday, 3)), endDate: null, deadline: null });
   await rebuildStatusHistory(todo.id, doing.id);
   if (meId)
     await createView({

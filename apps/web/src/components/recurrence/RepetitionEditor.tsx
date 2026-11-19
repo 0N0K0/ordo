@@ -43,7 +43,7 @@ interface RepetitionEditorProps<T> {
   onChange: (cases: RepetitionCase<T>[]) => void;
   /** First day of what repeats (rhythms count from it). */
   start: string;
-  /** Cases offered (tasks, routines, schedules). Optional. Default = false. */
+  /** Cases offered (routines, schedules). Optional. Default = false. */
   multiple?: boolean;
   /** Weekdays and even / odd weeks offered. Optional. Default = true. */
   weekly?: boolean;
@@ -55,8 +55,6 @@ interface RepetitionEditorProps<T> {
   times?: RepetitionTimes<T>;
   /** Other modes. Optional. */
   modes?: readonly RepetitionMode[];
-  /** Exceptions of what repeats (occurrences moved or changed), listed under the rule. Optional. */
-  exceptions?: ReactNode;
   /** Settings shown under every mode (slots excluded…). Optional. */
   footer?: ReactNode;
 }
@@ -98,7 +96,6 @@ function CaseFields<T>({
         start={ruleStart}
         weekly={props.weekly}
         allowNone={!withPeriod && props.allowNone !== false}
-        exceptions={withPeriod ? undefined : props.exceptions}
       />
       {props.durations && props.durations.length > 0 && item.rule && (
         <DurationFields value={item.rule.duration ?? ONE_DAY} onChange={(duration) => item.rule && onChange({ rule: { ...item.rule, duration } })} units={props.durations} />
@@ -204,7 +201,6 @@ export function RepetitionEditor<T>(props: RepetitionEditorProps<T>) {
           >
             Ajouter un cas
           </AddItemButton>
-          {props.exceptions}
         </Stack>
       )}
       {footer}

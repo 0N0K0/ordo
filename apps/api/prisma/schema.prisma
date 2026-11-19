@@ -658,14 +658,6 @@ model Task {
   alarms               Alarm[]
   /// Shopping lists of the task (closed along with it).
   shoppingLists        ShoppingList[]     @relation("ShoppingListTasks")
-  /// Repetition of a recurring task (set on the first task of the series).
-  recurrence           Json?
-  /// First task of the series this task is an occurrence of.
-  seriesId             String?
-  series               Task?              @relation("TaskSeries", fields: [seriesId], references: [id], onDelete: SetNull)
-  occurrences          Task[]             @relation("TaskSeries")
-  /// Date of the occurrence in its series (the first task: its own date).
-  occurrenceDate       DateTime?          @db.Date
   /// Workspace the row belongs to (always given by the app; the default fails outside one).
   workspaceId          String             @default(dbgenerated("current_setting('ordo.workspace'::text)"))
   workspace            Workspace          @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
@@ -676,7 +668,6 @@ model Task {
   @@index([milestoneId])
   @@index([deadline])
   @@index([closedAt])
-  @@index([seriesId])
   @@index([workspaceId])
 }
 

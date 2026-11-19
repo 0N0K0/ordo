@@ -1,6 +1,6 @@
 # Règles métier — Tâches
 
-Règles appliquées par l’API aux tâches et à ce qui les organise : statuts, priorités, types et étiquettes, sous-tâches, jalons, sprints, blocages et relations, récurrence, effort, dates et retard, vues enregistrées. Sources : `apps/api/src/services/tasks/**` (`tasks.ts`, `task-labels.ts`, `milestones.ts`, `sprints.ts`, `task-recurrence.ts`, `task-views.ts`), `apps/api/src/graphql/modules/tasks.ts`, `packages/shared/src/tasks/**`, `packages/shared/src/dates/repetition.ts`, `apps/api/prisma/schema.prisma` et les migrations (déclencheurs).
+Règles appliquées par l’API aux tâches et à ce qui les organise : statuts, priorités, types et étiquettes, sous-tâches, jalons, sprints, blocages et relations, effort, dates et retard, vues enregistrées. Sources : `apps/api/src/services/tasks/**` (`tasks.ts`, `task-labels.ts`, `milestones.ts`, `sprints.ts`, `task-views.ts`), `apps/api/src/graphql/modules/tasks.ts`, `packages/shared/src/tasks/**`, `apps/api/prisma/schema.prisma` et les migrations (déclencheurs).
 
 Voir aussi : [Temps passé](time.md), [Commentaires](../cross-cutting/comments.md), [Archivage](../cross-cutting/archiving.md), [Personnes](../cross-cutting/people.md), [Dates](../cross-cutting/dates.md), [Ordre manuel](../cross-cutting/ordering.md), [Libellés et limites](../cross-cutting/naming.md), [Erreurs](../cross-cutting/errors.md), [GitHub](../cross-cutting/github.md).
 
@@ -27,7 +27,6 @@ Voir aussi : [Temps passé](time.md), [Commentaires](../cross-cutting/comments.m
 | `position`                                 | Ordre manuel global (voir [Ordre manuel](#ordre-manuel-et-déplacement)).                                                                                                                           |
 | `closedAt`                                 | Tâche fermée (faite), **indépendamment du statut**.                                                                                                                                                |
 | `archivedAt`, `archivedByCascade`          | Archivage, avec la trace d’un archivage en cascade.                                                                                                                                                |
-| `recurrence`, `seriesId`, `occurrenceDate` | Récurrence (voir [Récurrence](#récurrence)).                                                                                                                                                       |
 | `github*`                                  | Synchronisation avec un item de tableau GitHub (voir [GitHub](../cross-cutting/github.md)).                                                                                                        |
 
 Champs calculés exposés par GraphQL (`apps/api/src/graphql/modules/tasks.ts`) :
@@ -97,7 +96,6 @@ Un statut a une catégorie fixe (`TASK_STATUS_CATEGORIES`), `TODO` par défaut �
 
 - La catégorie donne le sens du statut quel que soit son libellé (filtres, tâches « en cours » de l’accueil, filtre « Catégorie de statut »).
 - **C’est l’état ouvert / fermé (`closedAt`) qui dit si une tâche est faite**, pas le statut : changer de statut ne ferme ni ne rouvre la tâche, et inversement.
-- Les nouvelles occurrences d’une tâche récurrente prennent le premier statut de catégorie `TODO` (par position).
 
 ## Fermer et rouvrir
 
@@ -201,26 +199,9 @@ Source : requête `doableTaskIds(utcOffset)` (`services/calendar/slot-rules.ts`)
 
 Tâches ouvertes de l’espace dont la règle de plages (sinon le défaut de l’espace) autorise le moment présent de l’utilisateur, et dont aucun évènement n’occupe les assignés (aucun : « Moi »), sauf un évènement lié à la tâche. Détail dans [Agenda](calendar.md).
 
-## Récurrence
+## Pas de récurrence
 
-Source : `services/tasks/task-recurrence.ts`, `packages/shared/src/dates/repetition.ts`.
-
-- La répétition est posée sur la **première tâche de la série** (`recurrence`) ; les occurrences portent `seriesId` (la première tâche) et `occurrenceDate`.
-- Forme : une règle (`recurrenceSchema`, voir [Dates](../cross-cutting/dates.md)) ou des cas (`{ cases, exceptions }`) : 1 à 20 cas (« Ajoutez au moins un cas. », « 20 cas au plus. »), chacun avec sa période et sa règle, sans heures ; `exceptions` = dates d’occurrences supprimées (5 000 au plus).
-- `setTaskRecurrence(id, recurrence)` :
-  - sur une occurrence, c’est sa série qui est modifiée ;
-  - la tâche (et sa série) ne doivent pas être archivées ;
-  - la tâche doit avoir une date de début ou, à défaut, de fin : « Donnez d’abord une date de début ou de fin à la tâche : elle se répète à partir de cette date. » ;
-  - une règle avec une fin (`until`) antérieure à cette date est refusée : « La fin de la répétition doit suivre la date de la tâche. » ;
-  - la tâche devient la première occurrence (`occurrenceDate` = sa date d’ancrage, `seriesId` vidé) ;
-  - `null` arrête la répétition : les occurrences déjà créées restent, comme tâches ordinaires (leur `seriesId` est vidé).
-- `materializeTaskOccurrences(from, to)` crée les occurrences d’une période affichée par l’agenda, et seulement elles :
-  - période de 62 jours au plus : « Période trop longue (62 jours maximum). » ;
-  - séries actives (non archivées) avec répétition ;
-  - aucune date déjà présente (ancrage ou occurrence existante) n’est recréée ;
-  - une occurrence copie la première tâche : libellé, description, projet, priorité, type, effort, parent, assignés, étiquettes ; elle prend le premier statut « À faire » ; ses dates de début et de fin sont décalées du même nombre de jours que son occurrence ; elle est ajoutée à la fin de l’ordre manuel ;
-  - l’unicité (série, date) n’est pas imposée par le schéma : elle repose sur la vérification ci-dessus.
-- Supprimer une occurrence ajoute sa date aux `exceptions` de la série (`forgetDeletedOccurrences`, `withDeletedDates`), que la répétition soit une règle (ses exceptions et pauses sont sautées) ou des cas : elle n’est pas recréée.
+Une tâche ne se répète pas : ce qui revient est une [routine](routines.md). La notion de tâche récurrente a été supprimée le 19 novembre 2026 : les occurrences déjà créées restent, comme tâches ordinaires ; les répétitions enregistrées ne sont plus lues (colonnes `recurrence`, `seriesId` et `occurrenceDate` retirées de `Task`) ; aucune conversion en routine.
 
 ## Archivage
 
@@ -228,7 +209,7 @@ Source : `setTaskArchived`, `bulkSetTasksArchived`, `cascadeArchive` (`services/
 
 - Archiver une tâche archive aussi ses sous-tâches actives (marquées `archivedByCascade`).
 - Restaurer une tâche restaure les sous-tâches archivées avec elle, et ses ancêtres archivés (seuls : leurs autres sous-tâches archivées avec eux restent archivées, désormais pour leur propre compte).
-- Une tâche archivée est en lecture seule : ni modification, ni déplacement, ni lien, ni commentaire, ni récurrence, ni fermeture, ni transfert.
+- Une tâche archivée est en lecture seule : ni modification, ni déplacement, ni lien, ni commentaire, ni fermeture, ni transfert.
 - En masse, seules les tâches du haut de la sélection sont traitées (une sous-tâche sélectionnée suit son ancêtre sélectionné).
 - La requête `tasks` renvoie toutes les tâches, archivées comprises.
 
@@ -239,7 +220,7 @@ Source : `deleteTask`, `bulkDeleteTasks`.
 - Suppression définitive, avec les commentaires de la tâche (`onDelete: Cascade`).
 - Les sous-tâches sont, au choix (`deleteSubtasks`) : supprimées avec elle (tout le sous-arbre), ou remontées d’un niveau sous le parent de la tâche supprimée.
 - En masse : les sous-tâches sélectionnées remontées par la suppression de leur parent sont supprimées aussi.
-- Avant suppression : les items GitHub liés sont retirés du tableau GitHub (en tâche de fond, sans bloquer) et les dates d’occurrence sont mémorisées dans leur série.
+- Avant suppression : les items GitHub liés sont retirés du tableau GitHub (en tâche de fond, sans bloquer).
 - Les temps passés restent (le lien entre le temps et la tâche disparaît) ; voir [Temps passé](time.md).
 
 ## Transfert vers un autre projet
@@ -260,7 +241,7 @@ Source : `transferTask`, `bulkTransferTasks`.
 
 Source : `cloneTask`.
 
-- Copie tous les champs (libellé, description, projet, statut, priorité, type, effort, dates, « Date min »/« Date max », parent, jalon, sprints), les assignés, bénéficiaires, étiquettes et les liens de blocage et de relation. **Pas** les commentaires, ni la récurrence, ni l’état fermé, ni la règle de plages, ni le lien GitHub.
+- Copie tous les champs (libellé, description, projet, statut, priorité, type, effort, dates, « Date min »/« Date max », parent, jalon, sprints), les assignés, bénéficiaires, étiquettes et les liens de blocage et de relation. **Pas** les commentaires, ni l’état fermé, ni la règle de plages, ni le lien GitHub.
 - Le clone est placé sous le même parent, à la fin de l’ordre manuel ; il reçoit un nouveau numéro (base).
 - Avec `includeSubtasks`, le sous-arbre est copié niveau par niveau sous le clone (les sous-tâches copiées gardent assignés, bénéficiaires, étiquettes et sprints, pas leurs liens de blocage ou de relation).
 - La tâche source peut être archivée (aucune vérification d’archivage) ; l’interface ne propose le clonage que sur les tâches non archivées.

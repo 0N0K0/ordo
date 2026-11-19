@@ -44,7 +44,7 @@ Filtres, formulaires d'export et graphiques (`filterDay`, `filterPeriod`, `calen
 
 ## Répétitions
 
-Une seule forme de répétition (`recurrenceSchema`) pour les événements, les tâches répétées, les alarmes, les mouvements prévus de trésorerie, les factures récurrentes, les plages horaires et les routines.
+Une seule forme de répétition (`recurrenceSchema`) pour les événements, les alarmes, les mouvements prévus de trésorerie, les factures récurrentes, les plages horaires et les routines.
 
 - Fréquences : quotidienne, hebdomadaire, mensuelle, annuelle, tous les N (1 à 999).
 - Hebdomadaire : jours choisis (vide : le jour de la première date), ou semaines ISO paires / impaires.

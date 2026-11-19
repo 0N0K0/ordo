@@ -13,7 +13,7 @@ Route `PAGES.calendar.path` = `/calendar`, composant `CalendarPage`. L’adresse
   - « Plages de travail » (espace PRO) ou « Plages » (espace PERSO) : ouvre le gestionnaire des plages dans le panneau latéral (taille large) ;
   - l’interrupteur « Modifier les plages » (un mode, pas un bouton) : les plages de l’espace deviennent des éléments déplaçables ;
   - « Nouvel évènement » : ouvre le formulaire d’évènement (désactivé tant que le contexte des tâches n’est pas chargé).
-- En cas d’échec du chargement des évènements, de la création des occurrences des tâches récurrentes ou des calendriers abonnés : alerte « Agenda incomplet » au-dessus de l’agenda.
+- En cas d’échec du chargement des évènements ou des calendriers abonnés : alerte « Agenda incomplet » au-dessus de l’agenda.
 
 ### Vues
 
@@ -62,10 +62,6 @@ Affichage des plages, selon le type (ou l’abonnement) :
 - **Mode « Modifier les plages »** : chaque plage de l’espace (non archivée) devient un élément à déplacer, étirer (sauf journée entière) ou ouvrir ; les plages des autres espaces restent en fond. Une plage à heures doit finir le jour où elle commence (« Une plage s’arrête le jour où elle commence. »). La portée est demandée (« Modifier une plage récurrente » / « Supprimer une plage récurrente »).
 
 Toasts : « Exception ajoutée à la plage pour ce jour. », « Plage modifiée. », « Horaires retirés de la plage. », « Exception ajoutée : « X » le …, la règle ne change pas. », « « X » modifiée. », « Occurrence du … supprimée. » (avec annulation), « Plus aucune occurrence : « X » est archivée. », « « X » s’arrête avant le …. ».
-
-### Occurrences des tâches récurrentes
-
-À chaque changement de période affichée, l’agenda demande à l’API de créer les occurrences des tâches récurrentes de cette période (`materializeTaskOccurrences`) ; la liste des tâches est rafraîchie si des occurrences ont été créées. Voir [Tâches](tasks.md).
 
 ## Paramètres de l’agenda (panneau « Paramètres de l’agenda »)
 
