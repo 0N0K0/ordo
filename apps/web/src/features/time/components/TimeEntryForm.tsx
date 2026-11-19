@@ -1,7 +1,6 @@
 import { Select, SimpleGrid, Stack, TextInput } from '@mantine/core';
 import { DatePickerInput, TimePicker } from '@mantine/dates';
 import { parseDuration, timeEntryFormSchema, type TimeEntryFormValues, twoDigits } from '@ordo/shared';
-import { useState } from 'react';
 import { localInstant, localParts, localToday } from '../../../lib/dates';
 import { useAppForm, formCallbacks } from '../../../lib/form';
 
@@ -30,8 +29,8 @@ interface TimeEntryFormProps {
 }
 
 /**
- * Time added by hand, or edited: project, tasks, day, start time, duration, the calendar event it was spent
- * on and description.
+ * Time added by hand, or edited: project, routine, tasks, day, start time, duration, the calendar event it was spent
+ * on and description; at least a project, a task, a routine or an event (decision D17).
  * @param {TimeEntryFormProps} props Component props.
  * @returns {JSX.Element} Form.
  */
@@ -46,6 +45,7 @@ export function TimeEntryForm({ context, entry, defaultProjectId, copy = false, 
       projectId: entry?.projectId ?? defaultProjectId ?? '',
       routineId: entry?.routineId ?? null,
       taskIds: entry?.taskIds ?? [],
+      eventKey: entry ? entryEventKey(entry) : null,
       description: entry?.description ?? '',
       date: initial.date,
       start: initial.start,
@@ -55,7 +55,7 @@ export function TimeEntryForm({ context, entry, defaultProjectId, copy = false, 
   });
 
   // The event the time was spent on: one of the events of its day.
-  const [eventKey, setEventKey] = useState<string | null>(entry ? entryEventKey(entry) : null);
+  const eventKey = form.values.eventKey;
   const { data: dayEvents } = useCalendarEvents(form.values.date ? { from: form.values.date, to: form.values.date } : null);
   const eventOptions = dayEventOptions(dayEvents ?? [], form.values.date);
   // The event of the entry stays listed while its day is shown, even when it moved.
@@ -70,7 +70,7 @@ export function TimeEntryForm({ context, entry, defaultProjectId, copy = false, 
       // Local day and time.
       startedAt: localInstant(values.date, values.start).toISOString(),
       duration: parseDuration(values.duration)!,
-      event: parseEventKey(eventKey),
+      event: parseEventKey(values.eventKey),
     };
     const callbacks = formCallbacks(form, copy ? 'Temps dupliqué.' : entry ? 'Temps modifié.' : 'Temps ajouté.', onDone);
     if (entry && !copy) update.mutate({ id: entry.id, input }, callbacks);
@@ -84,9 +84,8 @@ export function TimeEntryForm({ context, entry, defaultProjectId, copy = false, 
           <ProjectSelect
             context={context}
             label="Projet"
-            required={!form.values.routineId}
-            description={form.values.routineId ? 'Temps d’une routine : le projet est facultatif.' : undefined}
-            clearable={Boolean(form.values.routineId)}
+            description="Facultatif avec une tâche, une routine ou un évènement."
+            clearable
             data-autofocus
             {...form.getInputProps('projectId')}
             onChange={(projectId) => {
@@ -122,7 +121,7 @@ export function TimeEntryForm({ context, entry, defaultProjectId, copy = false, 
             searchable
             data={eventOptions}
             value={eventKey}
-            onChange={setEventKey}
+            onChange={(key) => form.setFieldValue('eventKey', key)}
             error={form.errors.calendarEventId}
           />
           <MarkdownEditor

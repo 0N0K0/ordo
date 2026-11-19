@@ -51,7 +51,6 @@ Source : `apps/api/src/services/calendar/calendar-events.ts`, schéma `calendarE
 | `startTime`, `endTime`                                                      | `HH:MM`, requis si non journée entière                                                   | « L’heure de début est requise. », « L’heure de fin est requise. », « Heure attendue (HH:MM). » |
 | Fin / début                                                                 | La fin (date + heure) doit suivre le début                                               | « La fin doit suivre le début. »                                                                |
 | `recurrence`                                                                | Règle commune (voir [Dates](../cross-cutting/dates.md)) ; sa fin ne précède pas le début | « La fin de la répétition doit suivre le début. »                                               |
-| `timeZone`                                                                  | 1 à 64 caractères (fuseau IANA du navigateur à la création)                              | —                                                                                               |
 | `reminders`                                                                 | 10 max, entiers 0 à 43 200 min (30 jours) ; dédoublonnés et triés à l’enregistrement     | —                                                                                               |
 | `travelBefore`, `travelAfter`                                               | Entiers 0 à 1 440                                                                        | « Durée positive attendue. », « 24 h maximum. »                                                 |
 | `contributorIds`, `relationIds`, `beneficiaryIds`, `beneficiaryRelationIds` | 200 max chacun                                                                           | —                                                                                               |
@@ -114,7 +113,7 @@ Report (`postponeCalendarEvent`) :
 - Occurrences supprimées (`cancelled`) omises.
 - Clé : l’identifiant de l’évènement, suivi de `|date` pour un récurrent (`occurrenceKey`).
 - Durée d’une occurrence : celle de la règle (`duration` en semaines, mois, jusqu’au jour/semaine/mois…), sinon celle de l’évènement ; une exception donne ses propres dates.
-- Instants : heures locales au fuseau de l’évènement (`zonedInstant`) ; journée entière : minuit UTC des dates, fin = lendemain du dernier jour.
+- Instants : heures de Paris (`zonedInstant` avec `Europe/Paris`) : un évènement n’a plus de fuseau propre (décision D7) ; les évènements créés dans un autre fuseau gardent leurs heures telles qu’écrites, lues en heure de Paris ; journée entière : minuit UTC des dates, fin = lendemain du dernier jour.
 - `calledOff` : celui de l’évènement ou de l’exception.
 - `trackedSeconds` : somme des temps suivis sur cette occurrence (chronos en cours jusqu’à maintenant).
 - `postponedTo` : reports de cette occurrence ; `postponedFrom` : origine du report.
@@ -216,8 +215,8 @@ Source : `apps/api/src/services/calendar/calendar-ics.ts`, route `GET /api/expor
 
 - Un calendrier (doit exister : « Calendrier ») ou tous ceux de l’espace ; évènements archivés exclus, et calendriers archivés exclus du fichier global. Nom : le calendrier, ou « Agenda » ; fichier `<nom>.ics`.
 - `VCALENDAR` 2.0, `PRODID:-//Ordo//Agenda//FR`, `METHOD:PUBLISH`, `X-WR-CALNAME`.
-- Chaque évènement : `UID` `<id>@ordo`, `SUMMARY`, `DESCRIPTION` (description + liens « libellé: url »), `LOCATION`, `URL` (premier lien), `DTSTART`/`DTEND` (date pour une journée entière, fin exclusive ; sinon heure locale avec `TZID`), `STATUS` `CANCELLED` ou `CONFIRMED`, `CATEGORIES`, `X-APPLE-TRAVEL-DURATION` (trajet aller seulement), un `VALARM` par rappel (`TRIGGER:-PT<n>M`).
-- Répétition : `RRULE` (FREQ, INTERVAL, BYDAY/WKST, BYMONTHDAY, BYMONTH, BYWEEKNO selon le mode) ; un nombre d’occurrences est converti en `UNTIL` à la dernière occurrence (Ordo ne compte pas les dates exclues ni en pause) ; `UNTIL` en UTC (fin du dernier jour) quand il y a une heure. Les mois sans le jour (31 → 30 avril) sont ajoutés en `RDATE`. `EXDATE` : dates exclues, dates des pauses et occurrences supprimées, jusqu’à 10 ans pour une série sans fin.
+- Chaque évènement : `UID` `<id>@ordo`, `SUMMARY`, `DESCRIPTION` (description + liens « libellé: url »), `LOCATION`, `URL` (premier lien), `DTSTART`/`DTEND` (date pour une journée entière, fin exclusive ; sinon heure de Paris avec `TZID=Europe/Paris`, toujours, décision D7), `STATUS` `CANCELLED` ou `CONFIRMED`, `CATEGORIES`, `X-APPLE-TRAVEL-DURATION` (trajet aller seulement), un `VALARM` par rappel (`TRIGGER:-PT<n>M`).
+- Répétition : `RRULE` (FREQ, INTERVAL, BYDAY/WKST, BYMONTHDAY, BYMONTH, BYWEEKNO selon le mode) ; un nombre d’occurrences est converti en `UNTIL` à la dernière occurrence (Ordo ne compte pas les dates exclues ni en pause) ; `UNTIL` en UTC (fin du dernier jour à Paris) quand il y a une heure. Les mois sans le jour (31 → 30 avril) sont ajoutés en `RDATE`. `EXDATE` : dates exclues, dates des pauses et occurrences supprimées, jusqu’à 10 ans pour une série sans fin.
 - Occurrences modifiées : un `VEVENT` de même `UID` avec `RECURRENCE-ID`.
 - Texte échappé (`\`, `;`, `,`, sauts de ligne), lignes pliées à 75 octets sans couper un caractère UTF-8, fins de ligne CRLF.
 

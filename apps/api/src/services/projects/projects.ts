@@ -10,7 +10,7 @@ import { findOrNotFound } from '../core/lookup';
 import { assertDateRange } from '../core/date-range';
 import { connectIds } from '../core/relations';
 import { releaseProjectTasks } from '../tasks/tasks';
-import { releaseRoutineTime } from '../tasks/time-entries';
+import { releaseProjectTime } from '../tasks/time-entries';
 
 /** Minimal project shape used to reason about the tree. */
 interface TreeProject {
@@ -362,13 +362,14 @@ export async function setProjectArchived(id: string, archived: boolean): Promise
 
 /**
  * Takes out of projects about to be deleted what outlives them (decision DP): their tasks (`releaseProjectTasks`) and
- * the time of their routines (`releaseRoutineTime`); their alarms are kept by the database (`onDelete: SetNull`).
+ * their time, without project (`releaseProjectTime`: only the time left with nothing attached is deleted, decision
+ * D17); their alarms are kept by the database (`onDelete: SetNull`).
  * @param {string[]} projectIds Projects deleted (a project and its sub-projects, or the projects of a client).
  * @returns {Promise<void>}
  */
 export async function releaseProjects(projectIds: string[]): Promise<void> {
   await releaseProjectTasks(projectIds);
-  await releaseRoutineTime(projectIds);
+  await releaseProjectTime(projectIds);
 }
 
 /**

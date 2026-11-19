@@ -7,10 +7,7 @@ import { recurrenceSchema } from '../dates/recurrence';
 import { daySchema, timeOfDaySchema, endDaySchema, startDaySchema } from '../dates/times';
 import { colorSchema } from '../core/workspace';
 
-/** Most characters of a time zone name (IANA, « Europe/Paris »): a format, not a free text. */
-const TIME_ZONE_MAX = 64;
-
-/** Calendar event fields. Times are local to `timeZone`; all-day events have none. */
+/** Calendar event fields. Times are Paris times (every event is in Paris time); all-day events have none. */
 export const calendarEventInputSchema = z
   .object({
     label: requiredText(),
@@ -22,7 +19,6 @@ export const calendarEventInputSchema = z
     startTime: timeOfDaySchema.nullable(),
     endDate: endDaySchema,
     endTime: timeOfDaySchema.nullable(),
-    timeZone: z.string().min(1).max(TIME_ZONE_MAX),
     recurrence: recurrenceSchema.nullable(),
     /** Minutes before the start. */
     reminders: z

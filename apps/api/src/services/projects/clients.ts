@@ -101,7 +101,7 @@ export async function setClientArchived(id: string, archived: boolean): Promise<
 }
 
 /**
- * Deletes a client; its projects are either deleted (their tasks, the time of their routines and their alarms outlive them, `releaseProjects`) or moved to "no
+ * Deletes a client; its projects are either deleted (their tasks, their time and their alarms outlive them, `releaseProjects`) or moved to "no
  * client".
  * @param {string} id Client id.
  * @param {boolean} deleteProjects Whether to delete the projects too.

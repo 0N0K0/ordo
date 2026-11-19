@@ -29,7 +29,7 @@ import { addMember, saveContext, saveContextPeriod, saveRelation } from '../../s
 import { saveDefaultScheduleKind, saveScheduleType, subscribeScheduleKind } from '../../src/services/calendar/work-schedules';
 import { ensureMeContributor, meContributorId, setWorkspaceNotifications } from '../../src/services/workspaces/workspaces';
 import { enterWorkspace, type WorkspaceScope } from '../../src/workspace-context';
-import { calendarCategory, chart, createEntry, EMPTY_ARTICLE, EMPTY_ENTRY, localAt, projectFactory, relativeDay, rule, taskFactory, TIME_ZONE, treasuryCategoryMaker } from './factories';
+import { calendarCategory, chart, createEntry, EMPTY_ARTICLE, EMPTY_ENTRY, localAt, projectFactory, relativeDay, rule, taskFactory, treasuryCategoryMaker } from './factories';
 import { initialsIcon } from './images';
 import { pdfFile } from './mail';
 import { rebuildStatusHistory } from './history';
@@ -167,7 +167,6 @@ export async function seedPersonal({
     location: null,
     links: [],
     allDay: false,
-    timeZone: TIME_ZONE,
     recurrence: null,
     reminders: [30],
     projectId: null,
@@ -394,7 +393,7 @@ export async function seedPersonal({
   const kidsCategory = (await createRoutineCategory({ label: 'Enfants', color: '#7950f2', parentId: null })).id;
   const healthCategory = (await createRoutineCategory({ label: 'Santé', color: '#fa5252', parentId: null })).id;
   const routine = (label: string, recurrence: Recurrence, changes: Partial<Parameters<typeof createRoutine>[0]>) =>
-    createRoutine({ label, description: null, categoryIds: [], parentId: null, startDate: day(-35), recurrence, estimate: null, projectId: null, assigneeIds: [], requiredIds: [], relatedIds: [], ...changes });
+    createRoutine({ label, description: null, categoryIds: [], parentId: null, startDate: day(-35), recurrence, estimate: null, projectId: null, assigneeIds: [], requiredIds: [], relatedIds: [], links: [], ...changes });
   await routine('Se brosser les dents', rule({}), {
     categoryIds: [healthCategory],
     estimate: 3,

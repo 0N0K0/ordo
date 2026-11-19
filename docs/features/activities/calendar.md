@@ -121,7 +121,7 @@ Pour un récurrent : « Projet, contributeurs, catégories, tâches et rappels s
 
 ### Sections et actions d’un évènement existant
 
-- « Démarrer le chrono » (nécessite un projet) : chrono rattaché à l’occurrence ; affiche « X chronométrées sur cet évènement. ».
+- « Démarrer le chrono » (avec ou sans projet, décision D17) : chrono rattaché à l’occurrence, sur son projet s’il en a un ; affiche « X chronométrées sur cet évènement. ».
 - Fiches (checklists par occurrence, voir [Fiches](../supplies/sheets.md)) et commentaires (« Commentaires (toute la série) » pour un récurrent, voir [Commentaires](../cross-cutting/comments.md)).
 - « Enregistrer » (récurrent : choix de la portée ; si la répétition a changé, « Cette occurrence » n’est pas proposée).
 - « Supprimer » : confirmation « Supprimer l’évènement » (« … sera supprimé définitivement. ») ou, pour un récurrent, choix de la portée (« La suppression est définitive. »).

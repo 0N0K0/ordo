@@ -43,7 +43,13 @@ Utilisé par `EventLocation`, `LocationCell`, `PlacesManager`, `TravelCalculator
 
 ### `components/LocationCell.tsx`
 
-`LocationCell({ item, label, readOnly?, onSave })` : cellule « Lieu » d'un tableau (routines, tâches) : le lieu (« — » sans lieu), une bulle avec `AddressInput` sans portail ; enregistré (`onSave({ location, locationLat, locationLon })`, texte nettoyé, vide → `null`) au choix d'une adresse proposée ou quand le texte est vidé. Utilisé par `RoutineLocationCell` (routines) et `TaskLocationCell` (tâches).
+`LocationCell({ item, label, readOnly?, onSave })` : cellule « Lieu » d'un tableau (routines, tâches) : le lieu (« — » sans lieu), une bulle avec `AddressInput` sans portail ; enregistré par `useLocationDraft` (`onSave({ location, locationLat, locationLon })`, texte nettoyé, vide → `null`) au choix d'une adresse proposée, quand le texte est vidé, ou pour un texte libre à la fermeture de la bulle (en quittant la cellule), comme le panneau d'une tâche. Utilisé par `RoutineLocationCell` (routines) et `TaskLocationCell` (tâches).
+
+## `hooks/`
+
+### `hooks/use-location-draft.ts`
+
+`useLocationDraft(item, save)` → `{ value, onChange, leave }` : lieu d'un élément existant tapé en place, la même règle partout : enregistré (`save({ location, locationLat, locationLon })`) au choix d'une adresse proposée ou d'un clic sur la carte (avec son point), quand le texte est vidé, ou à `leave()` (sortie du champ) pour un texte libre ; rien quand le lieu ne change pas. Imposé par eslint (`x.point || !x.text.trim()` écrit à la main). Utilisé par `LocationCell` et `tasks/components/TaskLocation.tsx`.
 
 ## `lib/`
 
@@ -51,7 +57,7 @@ Utilisé par `EventLocation`, `LocationCell`, `PlacesManager`, `TravelCalculator
 
 | Export                  | Rôle                                                                                                                               | Utilisé par                                                                  |
 | ----------------------- | ---------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------- |
-| `ItemLocation`          | Type `{ location, locationLat, locationLon }` d'un évènement, d'une routine ou d'une tâche.                                        | `LocationCell`                                                               |
+| `ItemLocation`          | Type `{ location, locationLat, locationLon }` d'un évènement, d'une routine ou d'une tâche.                                        | `LocationCell`, `useLocationDraft`                                           |
 | `addressOf(item)`       | `AddressValue` du lieu d'un élément (ou des valeurs de son formulaire) : son texte, son point s'il a ses deux coordonnées. Imposé par eslint. | `EventForm`, `RoutineSchedule`, `TaskCreateForm`, `TaskLocation`, `LocationCell` |
 | `locationOf(value)`     | Champs `location`, `locationLat`, `locationLon` d'une adresse, texte tel que tapé (le schéma le nettoie).                         | les mêmes                                                                    |
 

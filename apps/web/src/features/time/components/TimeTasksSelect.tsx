@@ -12,8 +12,8 @@ interface TimeTasksSelectProps extends Omit<MultiSelectProps, 'data' | 'value' |
 }
 
 /**
- * Tasks a time is spent on: tasks of the project and its sub-projects ("#12 Title"); the time is shared
- * equally between them.
+ * Tasks a time is spent on: tasks of the project, its sub-projects and of no project ("#12 Title"), only those of no
+ * project without project; the time is shared equally between them.
  * @param {TimeTasksSelectProps} props Component props.
  * @returns {JSX.Element} Multi-select.
  */
@@ -22,9 +22,8 @@ export function TimeTasksSelect({ context, projectId, value, onChange, ...props 
   return (
     <BatchMultiSelect
       label="Tâches"
-      description={value.length > 1 ? `Le temps est réparti à parts égales entre les ${value.length} tâches.` : undefined}
-      placeholder={value.length ? undefined : projectId ? 'Aucune' : 'Choisissez d’abord un projet'}
-      disabled={!projectId}
+      placeholder={value.length ? undefined : 'Aucune'}
+      description={value.length > 1 ? `Le temps est réparti à parts égales entre les ${value.length} tâches.` : projectId ? undefined : 'Sans projet : tâches sans projet.'}
       // As their tree (sub-tasks under their parent), the closed ones told.
       {...treeSelectProps(timeTaskOptions(context, tasks))}
       value={value}

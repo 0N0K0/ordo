@@ -1,4 +1,4 @@
-import { durationSchema, parseOptionalDay, subtreeOf, timeDescriptionSchema } from '@ordo/shared';
+import { durationSchema, parseOptionalDay, subtreeOf, TIME_SUBJECT_REQUIRED, timeDescriptionSchema } from '@ordo/shared';
 import { z } from 'zod';
 import { prisma } from '../../db';
 import type { TimeEntry } from '../../generated/prisma/client';
@@ -28,15 +28,21 @@ async function eventLinkData(link: TimeEventLink | null | undefined): Promise<{ 
 }
 
 /**
- * Project and routine of a time entry: the routine's project by default; at least one of them.
+ * Project and routine of a time entry: the routine's project by default. A time has at least a project, a task, a
+ * routine or an event (decision D17).
  * @param {string | null | undefined} projectId Project given.
  * @param {string | null | undefined} routineId Routine given.
+ * @param {{ taskIds: readonly string[], eventId: string | null }} others Tasks and event of the time (after the change).
  * @returns {Promise<{ projectId: string | null, routineId: string | null }>} Both.
  */
-async function placeOf(projectId: string | null | undefined, routineId: string | null | undefined): Promise<{ projectId: string | null; routineId: string | null }> {
+async function placeOf(
+  projectId: string | null | undefined,
+  routineId: string | null | undefined,
+  others: { taskIds: readonly string[]; eventId: string | null },
+): Promise<{ projectId: string | null; routineId: string | null }> {
   if (!routineId) {
-    if (!projectId) throw fieldError('projectId', 'Le projet est requis.');
-    return { projectId, routineId: null };
+    if (!projectId && others.taskIds.length === 0 && !others.eventId) throw fieldError('projectId', TIME_SUBJECT_REQUIRED);
+    return { projectId: projectId ?? null, routineId: null };
   }
   const routine = await orNotFound(prisma.routine.findUnique({ where: { id: routineId }, select: { projectId: true } }), 'Routine', 'routineId');
   return { projectId: projectId ?? routine.projectId, routineId };
@@ -137,7 +143,7 @@ export async function stopTimer(): Promise<TimeEntry | null> {
  */
 export async function startTimer(input: { projectId?: string | null; routineId?: string | null; taskIds: string[]; description?: string | null; event?: TimeEventLink | null }): Promise<TimeEntry> {
   const description = parseInput(timeDescriptionSchema, input.description ?? null);
-  const place = await placeOf(input.projectId, input.routineId);
+  const place = await placeOf(input.projectId, input.routineId, { taskIds: input.taskIds, eventId: input.event?.eventId ?? null });
   await assertProjectAndTasks(place.projectId, input.taskIds);
   await assertActiveLinks({ ...place, taskIds: input.taskIds, eventId: input.event?.eventId });
   const link = await eventLinkData(input.event ?? null);
@@ -185,7 +191,7 @@ export interface TimeEntryInput {
 
 /**
  * Adds a time entry by hand.
- * @param {TimeEntryInput & { startedAt: Date, duration: number }} input Entry (a project, a routine or both).
+ * @param {TimeEntryInput & { startedAt: Date, duration: number }} input Entry (at least a project, a task, a routine or an event).
  * @returns {Promise<TimeEntry>} Created entry.
  */
 export async function createTimeEntry(input: TimeEntryInput & { startedAt: Date; duration: number }): Promise<TimeEntry> {
@@ -194,7 +200,7 @@ export async function createTimeEntry(input: TimeEntryInput & { startedAt: Date;
     duration: input.duration,
   });
   const taskIds = input.taskIds ?? [];
-  const place = await placeOf(input.projectId, input.routineId);
+  const place = await placeOf(input.projectId, input.routineId, { taskIds, eventId: input.event?.eventId ?? null });
   await assertProjectAndTasks(place.projectId, taskIds);
   await assertActiveLinks({ ...place, taskIds, eventId: input.event?.eventId });
   const link = await eventLinkData(input.event ?? null);
@@ -229,8 +235,9 @@ export async function updateTimeEntry(id: string, input: TimeEntryInput): Promis
   if (running && input.startedAt && input.startedAt.getTime() > Date.now()) {
     throw fieldError('startedAt', 'Le début ne peut pas être dans le futur.');
   }
-  const place = await placeOf(input.projectId === undefined ? entry.projectId : input.projectId, input.routineId === undefined ? entry.routineId : input.routineId);
   const taskIds = input.taskIds ?? entry.tasks.map((task) => task.id);
+  const eventId = input.event === undefined ? entry.calendarEventId : (input.event?.eventId ?? null);
+  const place = await placeOf(input.projectId === undefined ? entry.projectId : input.projectId, input.routineId === undefined ? entry.routineId : input.routineId, { taskIds, eventId });
   await assertProjectAndTasks(place.projectId, taskIds, entry.projectId);
   await assertActiveLinks({ ...place, taskIds, eventId: input.event?.eventId }, { routineId: entry.routineId, taskIds: entry.tasks.map((task) => task.id), eventId: entry.calendarEventId });
 
@@ -261,11 +268,14 @@ export async function deleteTimeEntry(id: string): Promise<void> {
 }
 
 /**
- * Keeps the time of a routine spent in projects about to be deleted: it leaves them, as the time of a routine without
- * project (its routine, tasks and event kept). The time without routine still goes with its project: it needs one.
+ * Keeps the time spent in projects about to be deleted (decision D17): it leaves them, without project, with its
+ * routine, tasks and event. Only the time left with nothing at all (no routine, no task, no event) is deleted: a time
+ * has at least a project, a task, a routine or an event.
  * @param {string[]} projectIds Projects deleted (a project and its sub-projects).
  * @returns {Promise<void>}
  */
-export async function releaseRoutineTime(projectIds: string[]): Promise<void> {
-  await prisma.timeEntry.updateMany({ where: { projectId: { in: projectIds }, routineId: { not: null } }, data: { projectId: null } });
+export async function releaseProjectTime(projectIds: string[]): Promise<void> {
+  const inProjects = { projectId: { in: projectIds } };
+  await prisma.timeEntry.deleteMany({ where: { ...inProjects, routineId: null, calendarEventId: null, tasks: { none: {} } } });
+  await prisma.timeEntry.updateMany({ where: inProjects, data: { projectId: null } });
 }

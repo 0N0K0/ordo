@@ -341,7 +341,7 @@ function draftRoutine(input: RoutineInput, routines: readonly Routine[]): Routin
     location: input.location ?? null,
     locationLat: input.locationLat ?? null,
     locationLon: input.locationLon ?? null,
-    links: input.links ?? [],
+    links: input.links,
     travelBefore: input.travelBefore ?? 0,
     travelAfter: input.travelAfter ?? 0,
     projectId: input.projectId ?? null,

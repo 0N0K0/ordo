@@ -301,7 +301,8 @@ export function TimeLog({ entries, context, projectId, emptyMessage, onEdit, onD
                   value={entry.projectId ?? null}
                   label={cellLabelOf('project', entry, 'Projet')}
                   {...treeSelectProps(context.projectOptions(unarchived(context.projects, entry.projectId)))}
-                  onSave={(next) => (next || entry.routineId) && bulk('project')(entry, { projectId: next || null })}
+                  // A time keeps at least a project, a task, a routine or an event (decision D17).
+                  onSave={(next) => (next || entry.routineId || entry.taskIds.length || entry.calendarEventId) && bulk('project')(entry, { projectId: next || null })}
                 />
               ) : entry.projectId && entry.projectId !== projectId ? (
                 context?.projectById.get(entry.projectId)?.label

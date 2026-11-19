@@ -54,7 +54,7 @@ Type interne `Save`.
 
 ### `components/TimeEntryForm.tsx`
 
-- `TimeEntryForm({ context, entry?, defaultProjectId?, copy?, onDone })` : formulaire d’un temps (ajout, modification, duplication avec `copy`) : projet (facultatif avec une routine), routine, tâches (`TimeTasksSelect`), jour, début, durée, évènement du jour, description ; schéma `timeEntryFormSchema` ; en modification, commentaires du temps (`Comments` cible `TIME_ENTRY`). Ouvert par `useTimeEntryDialogs`.
+- `TimeEntryForm({ context, entry?, defaultProjectId?, copy?, onDone })` : formulaire d’un temps (ajout, modification, duplication avec `copy`) : projet (facultatif avec une tâche, une routine ou un évènement, décision D17), routine, tâches (`TimeTasksSelect`), jour, début, durée, évènement du jour (valeur `eventKey` du formulaire), description ; schéma `timeEntryFormSchema` ; en modification, commentaires du temps (`Comments` cible `TIME_ENTRY`). Ouvert par `useTimeEntryDialogs`.
 
 ### `components/TimeLogActions.tsx`
 
@@ -77,8 +77,8 @@ Type interne `Save`.
 
 | Nom                                                                                     | Rôle                                                                                                                                                            | Utilisé par                             |
 | --------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------- |
-| `TimerStartForm({ context, defaultProjectId?, defaultTaskIds?, popover?, onStarted? })` | Démarre un chrono : projet (requis), tâches, description.                                                                                                       | `openTimerForm`, accueil (`ChronoCard`) |
-| `RunningTimer({ entry, context, popover? })`                                            | Chrono en cours : horloge, état, lien vers le projet / les routines, `TimerControls`, « Abandonner » (confirmation), projet / tâches / description modifiables. | `TimerWidget`, accueil                  |
+| `TimerStartForm({ context, defaultProjectId?, defaultTaskIds?, popover?, onStarted? })` | Démarre un chrono : projet, tâches (au moins l’un des deux, décision D17), description.                                                                         | `openTimerForm`, accueil (`ChronoCard`) |
+| `RunningTimer({ entry, context, popover? })`                                            | Chrono en cours : horloge, état, lien vers le projet / les routines (sinon le sujet sans lien), `TimerControls`, « Abandonner » (confirmation), projet / tâches / description modifiables. | `TimerWidget`, accueil                  |
 
 Interne : `inPopover` (listes déroulantes gardées dans la bulle).
 
@@ -111,7 +111,7 @@ Classes `running` (bloc du chrono dans l’en-tête), `summary` (bouton sujet + 
 
 ### `components/TimeTasksSelect.tsx`
 
-- `TimeTasksSelect({ context, projectId, value, onChange, ...MultiSelectProps })` : multi-sélection des tâches d’un temps (arbre, fermées marquées) ; désactivée sans projet ; « Le temps est réparti à parts égales entre les n tâches. ». Utilisé par `TimeEntryForm`, `TimerStartForm`, `RunningTimer`.
+- `TimeTasksSelect({ context, projectId, value, onChange, ...MultiSelectProps })` : multi-sélection des tâches d’un temps (arbre, fermées marquées) ; sans projet, les tâches sans projet (« Sans projet : tâches sans projet. ») ; « Le temps est réparti à parts égales entre les n tâches. ». Utilisé par `TimeEntryForm`, `TimerStartForm`, `RunningTimer`.
 
 ## hooks/
 
@@ -138,7 +138,7 @@ Classes `running` (bloc du chrono dans l’en-tête), `summary` (bouton sujet + 
 
 ### `lib/entry-subject.ts`
 
-- `entrySubject(entry, context)` : sujet d’un temps : le libellé de son projet, sinon de sa routine (« Projet » / « Routine » inconnus). Utilisé par l’agenda, le widget, la carte du chrono.
+- `entrySubject(entry, context)` : sujet d’un temps : le libellé de son projet, sinon de sa routine, de son évènement ou de sa première tâche (« Projet » / « Temps » inconnus, décision D17). Utilisé par l’agenda, le widget, la carte du chrono.
 
 ### `lib/time-events.ts`
 
@@ -149,5 +149,5 @@ Classes `running` (bloc du chrono dans l’en-tête), `summary` (bouton sujet + 
 
 ### `lib/time-tasks.ts`
 
-- `timeTasks(context, projectId, keep?)` : tâches sur lesquelles passer du temps dans un projet (projet et sous-projets, et sans projet ; non archivées sauf `keep` ; ouvertes d’abord) ; aucune sans projet.
+- `timeTasks(context, projectId, keep?)` : tâches sur lesquelles passer du temps dans un projet (projet et sous-projets, et sans projet ; non archivées sauf `keep` ; ouvertes d’abord) ; sans projet, les tâches sans projet (la règle de l’API, décision D17).
 - `timeTaskOptions(context, tasks)` : options d’arbre, les fermées marquées « (fermée) ».

@@ -127,6 +127,7 @@ export function AddRoutineRow({ categoryId, projectId, groupName }: { categoryId
           assigneeIds: [],
           requiredIds: [],
           relatedIds: [],
+          links: [],
         })
       }
     />

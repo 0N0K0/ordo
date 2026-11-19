@@ -95,7 +95,6 @@ const EventOccurrence = builder.objectRef<events.EventOccurrence>('CalendarEvent
     startTime: t.exposeString('startTime', { nullable: true }),
     endDate: t.exposeString('endDate'),
     endTime: t.exposeString('endTime', { nullable: true }),
-    timeZone: t.exposeString('timeZone'),
     start: t.expose('start', { type: 'DateTime' }),
     end: t.expose('end', { type: 'DateTime' }),
     recurrence: t.field({ type: 'JSON', nullable: true, resolve: (occurrence) => occurrence.recurrence }),
@@ -256,7 +255,7 @@ const scheduleInput = (input: typeof WorkScheduleInput.$inferInput) => ({
 });
 
 const CalendarEventInput = builder.inputType('CalendarEventInput', {
-  description: 'Times are local to timeZone; all-day events have none.',
+  description: 'Times are Paris times; all-day events have none.',
   fields: (t) => ({
     label: t.string({ required: true }),
     description: t.string(),
@@ -267,7 +266,6 @@ const CalendarEventInput = builder.inputType('CalendarEventInput', {
     startTime: t.string(),
     endDate: t.field({ type: 'Date', required: true }),
     endTime: t.string(),
-    timeZone: t.string({ required: true }),
     recurrence: t.field({ type: 'JSON' }),
     reminders: t.intList({ required: true, description: 'Minutes before the start.' }),
     ...travelInputFields(t, 'none: 0'),

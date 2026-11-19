@@ -89,12 +89,12 @@ const spentOnFields = (t: InputFields) => ({
 });
 
 const TimerInput = builder.inputType('TimerInput', {
-  description: 'A project, a routine (its project by default) or both.',
+  description: 'At least a project, a task, a routine (its project by default) or an event.',
   fields: (t) => spentOnFields(t),
 });
 
 const TimeEntryInput = builder.inputType('TimeEntryInput', {
-  description: 'A project, a routine (its project by default) or both.',
+  description: 'At least a project, a task, a routine (its project by default) or an event.',
   fields: (t) => ({
     ...spentOnFields(t),
     startedAt: t.field({ type: 'DateTime', required: true }),

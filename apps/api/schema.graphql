@@ -374,7 +374,7 @@ input CalendarCategoryInput {
   parentId: ID
 }
 
-"""Times are local to timeZone; all-day events have none."""
+"""Times are Paris times; all-day events have none."""
 input CalendarEventInput {
   allDay: Boolean!
 
@@ -416,7 +416,6 @@ input CalendarEventInput {
 
   """Tasks the event is about (none when omitted)."""
   taskIds: [ID!]
-  timeZone: String!
 
   """Travel time back, in minutes; none: 0."""
   travelAfter: Int
@@ -472,7 +471,6 @@ type CalendarEventOccurrence {
   startDate: String!
   startTime: String
   taskIds: [ID!]!
-  timeZone: String!
 
   """Time tracked on the occurrence."""
   trackedSeconds: Int!
@@ -3056,8 +3054,10 @@ input RoutineInput {
   fromTime: String
   label: String!
 
-  """20 at most, http or https; none: none."""
-  links: [ItemLinkInput!]
+  """
+  20 at most, http or https; required, as relatedIds: an omitted field never wipes them.
+  """
+  links: [ItemLinkInput!]!
   location: String
 
   """Point of the location; none: unknown."""
@@ -4184,7 +4184,9 @@ type TimeEntry {
   taskIds: [ID!]!
 }
 
-"""A project, a routine (its project by default) or both."""
+"""
+At least a project, a task, a routine (its project by default) or an event.
+"""
 input TimeEntryInput {
   description: String
 
@@ -4224,7 +4226,9 @@ input TimeEventInput {
   occurrenceDate: Date
 }
 
-"""A project, a routine (its project by default) or both."""
+"""
+At least a project, a task, a routine (its project by default) or an event.
+"""
 input TimerInput {
   description: String
   event: TimeEventInput

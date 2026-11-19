@@ -16,21 +16,29 @@ export const durationSchema = z
   .min(60, 'Au moins 1 minute.')
   .max(24 * 3600, '24 heures maximum.');
 
+/** A time has at least a project, a task, a routine or an event (decision D17). */
+export const TIME_SUBJECT_REQUIRED = 'Choisissez un projet, une tâche, une routine ou un évènement.';
+
 /**
  * Manual time entry form: day, start time, duration ("1:30", "1h30", "90" minutes or "1,5" hours). The project may be
- * left empty for the time of a routine.
+ * left empty when the time has a task, a routine or an event (decision D17).
  */
 export const timeEntryFormSchema = z
   .object({
     projectId: z.string(),
     routineId: z.string().nullable(),
     taskIds: z.array(z.string()),
+    /** Event (occurrence key) the time was spent on, if any. */
+    eventKey: z.string().nullable(),
     description: markdownTextSchema,
     date: daySchema('La date est requise.'),
     start: timeOfDaySchema,
     duration: z.string().refine((value) => parseDuration(value) !== null, 'Durée attendue : 1:30, 1h30, 90 (minutes) ou 1,5 h.'),
   })
-  .refine((values) => values.projectId !== '' || values.routineId !== null, { path: ['projectId'], message: 'Le projet est requis.' });
+  .refine((values) => values.projectId !== '' || values.routineId !== null || values.taskIds.length > 0 || values.eventKey !== null, {
+    path: ['projectId'],
+    message: TIME_SUBJECT_REQUIRED,
+  });
 export type TimeEntryFormValues = z.infer<typeof timeEntryFormSchema>;
 
 /**

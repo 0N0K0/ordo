@@ -3,6 +3,7 @@ import { prisma } from '../../db';
 import { orNotFound } from '../../graphql/errors';
 import { occurrenceInclude, storedRecurrence, toOccurrence, type EventWithRelations } from './calendar-events';
 import { readLinks } from '../core/links';
+import { PARIS } from '../../today';
 
 /** Repeated events without end are written with their exclusions up to this many years ahead. */
 const HORIZON_YEARS = 10;
@@ -60,15 +61,14 @@ const icsDateTime = (day: string, time: string) => `${icsDate(day)}T${time.repla
 const icsStamp = (date: Date) => `${date.toISOString().replace(/[-:]/g, '').slice(0, 15)}Z`;
 
 /**
- * Property of a moment: a date for an all-day event, a local time in the event's time zone otherwise.
+ * Property of a moment: a date for an all-day event, a Paris time otherwise (every event is in Paris time).
  * @param {string} name Property (DTSTART…).
  * @param {string} day YYYY-MM-DD.
  * @param {string | null} time HH:MM, null for an all-day event.
- * @param {string} timeZone IANA time zone.
  * @returns {string} Content line.
  */
-function moment(name: string, day: string, time: string | null, timeZone: string): string {
-  return time ? `${name};TZID=${timeZone}:${icsDateTime(day, time)}` : `${name};VALUE=DATE:${icsDate(day)}`;
+function moment(name: string, day: string, time: string | null): string {
+  return time ? `${name};TZID=${PARIS}:${icsDateTime(day, time)}` : `${name};VALUE=DATE:${icsDate(day)}`;
 }
 
 /**
@@ -92,11 +92,10 @@ function clampedDates(rule: Recurrence, start: string, until: string | null): st
  * iCalendar count does not: the end date keeps the same occurrences).
  * @param {Recurrence} rule Rule.
  * @param {string} start First date.
- * @param {string | null} time Time of the occurrences (none: all day).
- * @param {string} timeZone Time zone of the times.
+ * @param {string | null} time Time of the occurrences (none: all day), in Paris time.
  * @returns {string[]} RRULE content line, and RDATE ones for the months lacking the day.
  */
-function rrule(rule: Recurrence, start: string, time: string | null, timeZone: string): string[] {
+function rrule(rule: Recurrence, start: string, time: string | null): string[] {
   // Values of the monthly and yearly modes: chosen, else those of the first date.
   const values = ruleValues(rule, start);
   const parts = [`FREQ=${rule.frequency}`, `INTERVAL=${rule.interval}`];
@@ -118,8 +117,8 @@ function rrule(rule: Recurrence, start: string, time: string | null, timeZone: s
     until = dates.at(-1) ?? start;
   }
   // With a time zone, the end is in UTC (RFC 5545): the end of its last day.
-  if (until) parts.push(`UNTIL=${time ? icsStamp(zonedInstant(until, '23:59', timeZone)) : icsDate(until)}`);
-  return [`RRULE:${parts.join(';')}`, ...clampedDates(rule, start, until).map((date) => moment('RDATE', date, time, timeZone))];
+  if (until) parts.push(`UNTIL=${time ? icsStamp(zonedInstant(until, '23:59', PARIS)) : icsDate(until)}`);
+  return [`RRULE:${parts.join(';')}`, ...clampedDates(rule, start, until).map((date) => moment('RDATE', date, time))];
 }
 
 /**
@@ -192,9 +191,9 @@ function eventLines(event: ExportedEvent, stamp: Date): string[] {
       : []),
     ...(fields.location ? [`LOCATION:${text(fields.location)}`] : []),
     ...(fields.links[0] ? [`URL:${fields.links[0].url}`] : []),
-    moment('DTSTART', fields.startDate, fields.allDay ? null : fields.startTime, event.timeZone),
+    moment('DTSTART', fields.startDate, fields.allDay ? null : fields.startTime),
     // All-day: the end date is exclusive.
-    fields.allDay ? moment('DTEND', addDays(fields.endDate, 1), null, event.timeZone) : moment('DTEND', fields.endDate, fields.endTime, event.timeZone),
+    fields.allDay ? moment('DTEND', addDays(fields.endDate, 1), null) : moment('DTEND', fields.endDate, fields.endTime),
     ...(fields.calledOff ? ['STATUS:CANCELLED'] : ['STATUS:CONFIRMED']),
   ];
 
@@ -219,13 +218,13 @@ function eventLines(event: ExportedEvent, stamp: Date): string[] {
   ];
   if (rule) {
     const time = event.allDay ? null : event.startTime;
-    series.push(...rrule(rule, start, time, event.timeZone));
+    series.push(...rrule(rule, start, time));
     const excluded = excludedDates(
       rule,
       start,
       event.exceptions.filter((change) => change.cancelled).map((change) => formatDay(change.date)),
     );
-    for (const date of excluded) series.push(moment('EXDATE', date, time, event.timeZone));
+    for (const date of excluded) series.push(moment('EXDATE', date, time));
   }
   series.push(...travel(event.allDay ? 0 : event.travelBefore), ...alarms(event.reminders, event.label), 'END:VEVENT');
 
@@ -240,7 +239,7 @@ function eventLines(event: ExportedEvent, stamp: Date): string[] {
             'BEGIN:VEVENT',
             `UID:${uid}`,
             `DTSTAMP:${icsStamp(stamp)}`,
-            moment('RECURRENCE-ID', date, event.allDay ? null : event.startTime, event.timeZone),
+            moment('RECURRENCE-ID', date, event.allDay ? null : event.startTime),
             ...body(occurrence),
             ...travel(occurrence.allDay ? 0 : occurrence.travelBefore),
             ...alarms(event.reminders, occurrence.label),

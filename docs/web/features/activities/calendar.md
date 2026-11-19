@@ -220,7 +220,6 @@ Utilisés par `ScheduleSettings`.
 ### `lib/event-input.ts`
 
 - `routineLinkKey(link)` / `routineLinkOf(key)` : clé `routineId|date` d’un lien de routine (option de liste) et inverse.
-- `LOCAL_TIME_ZONE` : fuseau du navigateur, celui des nouveaux évènements.
 - `occurrenceInput(occurrence)` : champs d’une occurrence en `CalendarEventInput` (liens par `linkInputs`). Utilisé par `CalendarPage`, `EventForm`, `event-cells` (tâches).
 - Type interne `RoutineLink`.
 

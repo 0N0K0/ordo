@@ -38,7 +38,6 @@ graphql(`
     startTime
     endDate
     endTime
-    timeZone
     start
     end
     recurrence

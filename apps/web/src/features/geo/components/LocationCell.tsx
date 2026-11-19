@@ -1,7 +1,7 @@
-import { useState } from 'react';
 import { EditablePopoverCell } from '../../../components/data-table/cells/EditableCells';
-import { AddressInput, type AddressValue } from './AddressInput';
-import { addressOf, locationOf, type ItemLocation } from '../lib/location';
+import { AddressInput } from './AddressInput';
+import { useLocationDraft } from '../hooks/use-location-draft';
+import type { ItemLocation } from '../lib/location';
 
 interface LocationCellProps {
   /** Routine or task. */
@@ -15,25 +15,16 @@ interface LocationCellProps {
 }
 
 /**
- * Location cell of a table (routines, tasks): an address chosen in place (with its point on the map), or none.
+ * Location cell of a table (routines, tasks): an address chosen in place (with its point on the map), a free text
+ * (saved on leaving the cell), or none; as the task panel (`useLocationDraft`).
  * @param {LocationCellProps} props Component props.
  * @returns {JSX.Element} Cell.
  */
 export function LocationCell({ item, label, readOnly = false, onSave }: LocationCellProps) {
-  const [draft, setDraft] = useState<AddressValue | null>(null);
+  const location = useLocationDraft(item, onSave);
   return (
-    <EditablePopoverCell width={360} empty={!item.location} truncate readOnly={readOnly} onClose={() => setDraft(null)} target={item.location || '—'}>
-      <AddressInput
-        aria-label={label}
-        placeholder="Adresse ou lieu enregistré"
-        withinPortal={false}
-        value={draft ?? addressOf(item)}
-        onChange={(value) => {
-          setDraft(value);
-          // Saved once a proposed address is chosen, or when the text is cleared.
-          if (value.point || !value.text.trim()) onSave({ ...locationOf(value), location: value.text.trim() || null });
-        }}
-      />
+    <EditablePopoverCell width={360} empty={!item.location} truncate readOnly={readOnly} onClose={location.leave} target={item.location || '—'}>
+      <AddressInput aria-label={label} placeholder="Adresse ou lieu enregistré" withinPortal={false} value={location.value} onChange={location.onChange} />
     </EditablePopoverCell>
   );
 }

@@ -8,7 +8,7 @@ Voir aussi : [Règles : calendrier](../../business-rules/activities/calendar.md)
 
 | Export                                                      | Rôle                                                                                                                                          |
 | ----------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------- |
-| `calendarEventInputSchema` / `CalendarEventInput`           | Champs d'un événement (tableau ci-dessous). Les heures sont locales au fuseau `timeZone` ; un événement « journée entière » n'en a pas.       |
+| `calendarEventInputSchema` / `CalendarEventInput`           | Champs d'un événement (tableau ci-dessous). Les heures sont des heures de Paris (décision D7) ; un événement « journée entière » n'en a pas. |
 | `EVENT_SCOPES` / `EventScope`                               | Portée d'une modification d'un événement répété : `THIS` (cette occurrence), `FOLLOWING` (celle-ci et les suivantes), `ALL` (toute la série). |
 | `calendarCategoryFormSchema` / `CalendarCategoryFormValues` | Catégorie d'agenda : `label` (requis, 250), `color` (requise), `parentId` (catégories en arbre).                                              |
 | `calendarFormSchema` / `CalendarFormValues`                 | Agenda de l'espace (chaque événement appartient à un agenda) : `label` (requis, 250), `color`.                                                |
@@ -26,7 +26,6 @@ Champs de `calendarEventInputSchema` :
 | `allDay`                                                    | Journée entière.                                                                                                                                                |
 | `startDate`, `endDate`                                      | Requis (« La date de début est requise. », « La date de fin est requise. »).                                                                                    |
 | `startTime`, `endTime`                                      | `HH:MM` ; requis si l'événement n'est pas « journée entière » (« L’heure de début est requise. », « L’heure de fin est requise. »).                             |
-| `timeZone`                                                  | Fuseau IANA, 1 à 64 caractères.                                                                                                                                 |
 | `recurrence`                                                | Règle de répétition (voir [dates](../cross-cutting/dates.md)) ; sa fin doit suivre le début de l'événement (« La fin de la répétition doit suivre le début. »). |
 | `reminders`                                                 | Minutes avant le début, 0 à 43 200 (30 jours), 10 au plus.                                                                                                      |
 | `locationLat`, `locationLon`, `travelBefore`, `travelAfter` | `locatedFields` (voir [core](../cross-cutting/core.md)) : point du lieu et temps de trajet aller / retour.                                                      |

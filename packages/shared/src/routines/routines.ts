@@ -157,8 +157,8 @@ export const routineSchema = z
     location: optionalText().default(null),
     /** Point of the place, and travel time to it and back from it, in minutes. */
     ...locatedFields,
-    /** Links, as those of the events (decision D5). */
-    links: itemLinksSchema.default([]),
+    /** Links, as those of the events (decision D5); required, as `relatedIds`: an omitted field never wipes them. */
+    links: itemLinksSchema,
     projectId: z.string().nullable(),
     assigneeIds: z.array(z.string()).max(100),
     /** « Bénéficiaires »: whom the routine is for (contributors, relations). */

@@ -25,9 +25,6 @@ export function routineLinkOf(key: string): RoutineLink {
   return { routineId: id, date: date ?? '' };
 }
 
-/** Time zone of the user's device: times of new events are local to it. */
-export const LOCAL_TIME_ZONE = Intl.DateTimeFormat().resolvedOptions().timeZone;
-
 /**
  * Fields of an occurrence, as the input of a change.
  * @param {EventOccurrence} occurrence Occurrence.
@@ -44,7 +41,6 @@ export function occurrenceInput(occurrence: EventOccurrence): CalendarEventInput
     startTime: occurrence.startTime,
     endDate: occurrence.endDate,
     endTime: occurrence.endTime,
-    timeZone: occurrence.timeZone,
     recurrence: (occurrence.recurrence as CalendarEventInput['recurrence']) ?? null,
     reminders: occurrence.reminders,
     travelBefore: occurrence.travelBefore,

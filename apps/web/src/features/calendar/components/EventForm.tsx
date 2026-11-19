@@ -34,7 +34,7 @@ import { useActiveWorkspace } from '../../workspaces/api';
 import { askScope, chooseScope } from '../lib/ask-scope';
 import { AvailabilityHint } from './AvailabilityHint';
 import { categoryOptions } from '../../../components/tree/category-tree';
-import { LOCAL_TIME_ZONE, occurrenceInput, routineLinkKey, routineLinkOf } from '../lib/event-input';
+import { occurrenceInput, routineLinkKey, routineLinkOf } from '../lib/event-input';
 import { EVENT_REMINDERS } from '../../../components/inputs/reminder-presets';
 import { BatchMultiSelect } from '../../../components/inputs/BatchMultiSelect';
 import { treeSelectProps } from '../../../components/tree/tree-select';
@@ -153,16 +153,17 @@ export function EventForm({ context, occurrence, defaults, onDone, onDuplicate }
     occurrence && openFormPanel('Reporter l’évènement', (close) => <PostponePanel fields={values} occurrence={occurrence} onCancel={close} onDone={() => (close(), onDone())} />);
 
   /**
-   * Starts a timer on this occurrence (its project, tasks and label).
+   * Starts a timer on this occurrence (its project if any, tasks and label): no project needed (decision D17).
    * @returns {void}
    */
   const handleTimer = () => {
-    if (!occurrence || !values.projectId) return;
+    if (!occurrence) return;
     const allowed = new Set(timeTasks(context, values.projectId).map((task) => task.id));
     const timeTaskIds = (values.taskIds ?? []).filter((id) => allowed.has(id));
     startTimer({
       projectId: values.projectId,
-      // Tasks of the event a timer on its project takes (the API's rule: the project, its sub-projects, tasks without project).
+      // Tasks of the event a timer on its project takes (the API's rule: the project, its sub-projects, tasks without
+      // project; without project, only those).
       taskIds: timeTaskIds,
       description: values.label,
       event: { eventId: occurrence.eventId, occurrenceDate: occurrence.occurrenceDate },
@@ -194,7 +195,6 @@ export function EventForm({ context, occurrence, defaults, onDone, onDuplicate }
         startTime: '09:00',
         endDate: today,
         endTime: '10:00',
-        timeZone: LOCAL_TIME_ZONE,
         recurrence: null,
         reminders: [15],
         travelBefore: 0,
@@ -470,8 +470,7 @@ export function EventForm({ context, occurrence, defaults, onDone, onDuplicate }
                   priority="secondary"
                   size="xs"
                   icon={<PlayIcon aria-hidden />}
-                  hint={values.projectId ? (timerHint(false, 'Démarre un chrono rattaché à cet évènement.') ?? 'Démarre un chrono rattaché à cet évènement.') : 'Choisissez d’abord un projet'}
-                  disabled={!values.projectId}
+                  hint={timerHint(false, 'Démarre un chrono rattaché à cet évènement.') ?? 'Démarre un chrono rattaché à cet évènement.'}
                   loading={timerStarting}
                   onClick={handleTimer}
                 >

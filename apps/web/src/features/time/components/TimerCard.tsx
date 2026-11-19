@@ -36,7 +36,7 @@ interface TimerStartFormProps {
 }
 
 /**
- * Starts a timer on a project, optionally on some of its tasks, with a description of the work.
+ * Starts a timer on a project, on some tasks, or both (decision D17), with a description of the work.
  * @param {TimerStartFormProps} props Component props.
  * @returns {JSX.Element} Form.
  */
@@ -51,7 +51,7 @@ export function TimerStartForm({ context, defaultProjectId, defaultTaskIds = [],
     <form
       onSubmit={(event) => {
         event.preventDefault();
-        if (!projectId) return;
+        if (!projectId && !taskIds.length) return;
         startTimer({ projectId, taskIds, description }, () => {
           setTaskIds([]);
           setDescription('');
@@ -64,7 +64,8 @@ export function TimerStartForm({ context, defaultProjectId, defaultTaskIds = [],
           <ProjectSelect
             context={context}
             label="Projet"
-            required
+            description="Facultatif avec une tâche."
+            clearable
             value={projectId}
             onChange={(value) => {
               setProjectId(value);
@@ -75,7 +76,7 @@ export function TimerStartForm({ context, defaultProjectId, defaultTaskIds = [],
           <TimeTasksSelect context={context} projectId={projectId} value={taskIds} onChange={setTaskIds} {...extra} />
         </div>
         <MarkdownEditor label="Description" placeholder="Ce que vous faites…" minRows={2} value={description} onChange={setDescription} suggestions={context.suggestionsFor(projectId)} />
-        <FormActions submitLabel="Démarrer le chrono" submitIcon={<PlayIcon aria-hidden />} disabled={!projectId} loading={starting} />
+        <FormActions submitLabel="Démarrer le chrono" submitIcon={<PlayIcon aria-hidden />} disabled={!projectId && !taskIds.length} loading={starting} />
       </Stack>
     </form>
   );
@@ -133,10 +134,12 @@ export function RunningTimer({ entry, context, popover }: RunningTimerProps) {
               <Anchor component={Link} to={projectPath(entry.projectId, 'time')} size="xs">
                 {entrySubject(entry, context)}
               </Anchor>
-            ) : (
+            ) : entry.routineId ? (
               <Anchor component={Link} to={PAGES.routines.path} size="xs">
                 {entrySubject(entry, context)}
               </Anchor>
+            ) : (
+              entrySubject(entry, context)
             )}
           </Text>
         </Stack>

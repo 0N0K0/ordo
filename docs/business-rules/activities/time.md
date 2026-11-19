@@ -8,7 +8,7 @@ Voir aussi : [Tâches](tasks.md), [Facturation](../finances/accounting.md), [Rou
 
 | Champ                                       | Règle                                                                                                                                                                                                                                                                                                                                                                                                                         |
 | ------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `projectId`                                 | Projet sur lequel le temps est passé ; `null` seulement pour le temps d’une routine sans projet. Supprimer le projet supprime ses temps sans routine (`onDelete: Cascade` : un tel temps doit avoir un projet), même ceux de tâches qui, elles, sortent du projet sans être supprimées ; les temps d'une routine restent, sans projet, avec leurs tâches, leur routine et leur évènement (`releaseRoutineTime`, décision DP). |
+| `projectId`                                 | Projet sur lequel le temps est passé, facultatif (un temps a au moins un projet, une tâche, une routine ou un évènement, décision D17). Supprimer le projet garde ses temps, sans projet, avec leurs tâches, leur routine et leur évènement (`releaseProjectTime`, `onDelete: SetNull`) ; seuls ceux qui ne gardent aucun rattachement (ni tâche, ni routine, ni évènement) sont supprimés. |
 | `routineId`                                 | Routine sur laquelle le temps est passé, facultative. Supprimer la routine la retire du temps (`SetNull`).                                                                                                                                                                                                                                                                                                                    |
 | `tasks`                                     | Tâches (plusieurs). Le temps est réparti à parts égales entre elles.                                                                                                                                                                                                                                                                                                                                                          |
 | `description`                               | Markdown (éditeur markdown), 65 536 caractères au plus (« Texte trop long. », décision DO) ; blanc = `null`.                                                                                                                                                                                                                                                                                                                  |
@@ -26,11 +26,11 @@ Champs calculés (GraphQL) : `routineLabel`, `calendarEventLabel`, `documentNumb
 
 Source : `placeOf`, `assertProjectAndTasks`, `assertActiveLinks`, `eventLinkData`.
 
-- Un temps a un projet, une routine, ou les deux. Sans routine, le projet est requis : « Le projet est requis. » (sous `projectId`).
+- Un temps a **au moins un projet, une tâche, une routine ou un évènement** (décision D17) : sinon « Choisissez un projet, une tâche, une routine ou un évènement. » (sous `projectId`, `TIME_SUBJECT_REQUIRED`). Un temps sur un évènement, ou sur des tâches, n’a donc pas besoin de projet.
 - Avec une routine et sans projet donné, le temps prend **le projet de la routine** (éventuellement aucun). Routine inconnue : « Routine introuvable. ».
 - Projet inconnu : « Projet introuvable. ». Un projet archivé est refusé, sauf s’il est déjà celui du temps.
 - Tâches : toutes doivent exister (« Tâche introuvable. ») et appartenir au projet **ou à l’un de ses sous-projets** : « Les tâches doivent appartenir au projet ou à ses sous-projets. ». Les tâches sans projet vont avec n’importe quel projet.
-- Sans projet (temps d’une routine) : seules des tâches sans projet sont acceptées : « Choisissez d’abord le projet des tâches. ».
+- Sans projet : seules des tâches sans projet sont acceptées : « Choisissez d’abord le projet des tâches. ».
 - Routine, tâches et évènement **nouvellement** choisis ne doivent pas être archivés (« Élément archivé : restaurez-le pour le modifier. » sous le champ, décision AA) ; ceux que le temps avait déjà restent valides.
 - Évènement : il doit exister (« Évènement introuvable. »). Pour un évènement récurrent, l’occurrence est requise : « Choisissez l’occurrence de l’évènement. ». Pour un évènement simple, la date d’occurrence est ignorée.
 - L’agenda ne montre que la part du temps **hors** de l’évènement choisi (voir [Agenda](calendar.md)).
@@ -78,7 +78,7 @@ Source : `createTimeEntry`, `timeEntryFormSchema`, `parseDuration`.
 
 - Début et durée requis ; durée en secondes entières, **de 1 minute à 24 heures** (`durationSchema` : « Durée attendue. », « Au moins 1 minute. », « 24 heures maximum. »).
 - La fin est calculée : début + durée.
-- Formulaire (schéma partagé) : jour requis (« La date est requise. »), heure de début `HH:MM` (« Heure attendue (HH:MM). »), durée tapée, projet requis sauf pour le temps d’une routine (« Le projet est requis. »), description markdown de 65 536 caractères au plus.
+- Formulaire (schéma partagé) : jour requis (« La date est requise. »), heure de début `HH:MM` (« Heure attendue (HH:MM). »), durée tapée, au moins un projet, une tâche, une routine ou un évènement (« Choisissez un projet, une tâche, une routine ou un évènement. »), description markdown de 65 536 caractères au plus.
 - Durées acceptées par `parseDuration` : « 1:30 », « 1h30 », « 1 h », « 45 min » (ou « mn », « m »), « 90 » (minutes), « 1,5h » ou « 1.5 h » (heures) ; hors de 1 min à 24 h ou illisible : « Durée attendue : 1:30, 1h30, 90 (minutes) ou 1,5 h. ».
 
 ## Modification

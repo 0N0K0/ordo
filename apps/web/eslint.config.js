@@ -298,6 +298,11 @@ export default defineConfig([
           selector: "Property[key.name='lat'] > MemberExpression.value[property.name='locationLat']",
           message: 'Utiliser addressOf(item) / locationOf(value) (features/geo/lib/location), et LocationCell (features/geo/components) dans un tableau.',
         },
+        // Location of an item typed in place: one rule of saving (chosen, cleared, or free text on leaving the field).
+        {
+          selector: "LogicalExpression[operator='||'][left.property.name='point'][right.operator='!'][right.argument.callee.property.name='trim']",
+          message: 'Utiliser useLocationDraft(item, save) (features/geo/hooks/use-location-draft) : adresse choisie, texte vidé, ou texte libre en quittant le champ.',
+        },
         // Links of an item (event, task, routine): one editor, one display, one input.
         {
           selector: "JSXElement[openingElement.name.name='AddItemButton'] > JSXText[value=/^\\s*Ajouter un lien\\s*$/], JSXAttribute[name.name='placeholder'][value.value='Libellé (facultatif)']",
@@ -676,7 +681,7 @@ export default defineConfig([
         // What a time was spent on: one name (agenda, header timer, timer card).
         {
           selector: "LogicalExpression[operator='??'][right.value=/./] > MemberExpression.left[property.name='routineLabel'], LogicalExpression[operator='??'] > MemberExpression.right[property.name='routineLabel']",
-          message: 'Utiliser entrySubject(entry, context) (features/time/lib/entry-subject) : le projet, ou la routine.',
+          message: 'Utiliser entrySubject(entry, context) (features/time/lib/entry-subject) : le projet, ou la routine, l’évènement, la tâche.',
         },
         // A typed cell: Escape gives the draft up before the blur saves it.
         {

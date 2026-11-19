@@ -131,6 +131,7 @@ function OrderFields({ list }: { list: ShoppingList }) {
             onChange={(next) => {
               setAddress(next);
               // Saved once a proposed address is chosen, or when the text is cleared.
+              // eslint-disable-next-line no-restricted-syntax -- the address of an order, not the location of an item.
               if (next.point || !next.text.trim()) save(true, next);
             }}
           />

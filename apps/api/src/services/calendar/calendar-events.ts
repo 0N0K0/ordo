@@ -22,6 +22,7 @@ import {
   occurrenceKey,
 } from '@ordo/shared';
 import { prisma } from '../../db';
+import { PARIS } from '../../today';
 import { assertBeneficiaries } from '../core/beneficiaries';
 import { Prisma, type CalendarEvent, type CalendarEventException } from '../../generated/prisma/client';
 import { clientError, fieldError, notFound, orNotFound, parseInput } from '../../graphql/errors';
@@ -56,7 +57,6 @@ export interface EventOccurrence {
   startTime: string | null;
   endDate: string;
   endTime: string | null;
-  timeZone: string;
   /** Start and end instants (midnight UTC of the dates for an all-day event). */
   start: Date;
   end: Date;
@@ -314,7 +314,6 @@ function eventData(event: Awaited<ReturnType<typeof parseEvent>>) {
     startTime: event.startTime,
     endDate: parseDay(event.endDate),
     endTime: event.endTime,
-    timeZone: event.timeZone,
     recurrence: event.recurrence ? toJson(event.recurrence) : undefined,
     reminders: [...new Set(event.reminders)].sort((a, b) => a - b),
     travelBefore: event.travelBefore,
@@ -524,7 +523,7 @@ export function toOccurrence(event: EventWithRelations, date: string | null, cha
   const endDate = change?.endDate ? formatDay(change.endDate) : duration && duration.unit !== 'DAYS' ? spanEnd(duration, startDate) : addDays(startDate, span);
   const startTime = allDay ? null : change ? change.startTime : event.startTime;
   const endTime = allDay ? null : change ? change.endTime : event.endTime;
-  const instant = (day: string, time: string | null) => (time ? zonedInstant(day, time, event.timeZone) : parseDay(day));
+  const instant = (day: string, time: string | null) => (time ? zonedInstant(day, time, PARIS) : parseDay(day));
   return {
     key: date ? occurrenceKey(event.id, date) : event.id,
     eventId: event.id,
@@ -541,7 +540,6 @@ export function toOccurrence(event: EventWithRelations, date: string | null, cha
     startTime,
     endDate,
     endTime,
-    timeZone: event.timeZone,
     start: instant(startDate, startTime),
     end: allDay ? parseDay(addDays(endDate, 1)) : instant(endDate, endTime),
     recurrence: storedRecurrence(event.recurrence),
@@ -648,7 +646,6 @@ function seriesInput(event: EventWithRelations, date: string): CalendarEventInpu
     startTime: event.startTime,
     endDate: addDays(date, span),
     endTime: event.endTime,
-    timeZone: event.timeZone,
     recurrence: storedRecurrence(event.recurrence),
     reminders: event.reminders,
     travelBefore: event.travelBefore,

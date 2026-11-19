@@ -146,7 +146,7 @@ function useTimeMutation<TVariables, TResult>(mutationFn: (variables: TVariables
 }
 
 export interface TimeEntryValues {
-  /** Project (null: none, for the time of a routine). */
+  /** Project (null: none, for a time with a task, a routine or an event). */
   projectId: string | null;
   /** Routine the time is spent on. */
   routineId?: string | null;

@@ -250,8 +250,8 @@ Source : `releaseProjectTasks` (par `releaseProjects`), appelé par `deleteProje
 - Les tâches d'un projet supprimé (et de ses sous-projets) **ne sont pas supprimées** : elles sortent du projet comme lors d'un transfert hors de tout projet (`moveTaskTrees`), archivées comprises. Elles perdent leur numéro, leur jalon, leurs sprints et leur lien GitHub (items retirés du tableau) ; leurs blocages et relations avec les tâches restées dans un projet sont retirés, ainsi que leur parent s'il reste dans un projet.
 - Seules les tâches des projets supprimés sortent (pas leurs sous-tâches, contrairement à un transfert) : une sous-tâche rangée dans un projet de la même arborescence qui n'est pas supprimé y reste, avec son numéro, son jalon et ses sprints ; elle perd seulement son parent, sorti de tout projet (une tâche d'un projet n'a qu'un parent de la même arborescence).
 - En base, `Task.projectId` est `onDelete: SetNull` (filet : le numéro est alors vidé par le déclencheur).
-- Ses alarmes restent, sans projet, avec leur tâche (`Alarm.projectId` en `onDelete: SetNull`) ; les temps d'une routine restent, sans projet (`releaseRoutineTime`), avec leurs tâches, leur routine et leur évènement.
-- Ce qui reste supprimé avec le projet : ses temps passés sans routine (`TimeEntry`, ceux des tâches compris : un temps sans routine doit avoir un projet), ses jalons et sprints.
+- Ses alarmes restent, sans projet, avec leur tâche (`Alarm.projectId` en `onDelete: SetNull`) ; ses temps restent, sans projet (`releaseProjectTime`, `TimeEntry.projectId` en `onDelete: SetNull`), avec leurs tâches, leur routine et leur évènement (décision D17).
+- Ce qui reste supprimé avec le projet : ses temps passés sans tâche, ni routine, ni évènement (un temps a au moins un rattachement), ses jalons et sprints.
 
 ## Clonage
 

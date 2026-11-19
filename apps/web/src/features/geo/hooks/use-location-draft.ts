@@ -1,0 +1,48 @@
+import { useState } from 'react';
+import type { AddressValue } from '../components/AddressInput';
+import { addressOf, locationOf, type ItemLocation } from '../lib/location';
+
+/**
+ * Location of an existing item typed in place (task panel, « Lieu » cell of a table), the same everywhere: saved once a
+ * proposed address is chosen or the map clicked (with its point), when the text is cleared, or on leaving the field
+ * for a free text typed alone; nothing saved when the location is unchanged.
+ * @param {ItemLocation} item Task or routine (its saved location).
+ * @param {(change: ItemLocation) => void} save Saves a change of the location (null: none, its point too).
+ * @returns {{ value: AddressValue, onChange: (value: AddressValue) => void, leave: () => void }} Value of the field, its
+ *   change handler, and what to call on leaving the field (saves the free text, then drops the draft).
+ */
+export function useLocationDraft(item: ItemLocation, save: (change: ItemLocation) => void) {
+  const [draft, setDraft] = useState<AddressValue | null>(null);
+
+  /**
+   * Saves an address, when it changes the location of the item.
+   * @param {AddressValue} value Address.
+   * @returns {void}
+   */
+  const commit = (value: AddressValue) => {
+    const change = { ...locationOf(value), location: value.text.trim() || null };
+    if (change.location !== item.location || change.locationLat !== item.locationLat || change.locationLon !== item.locationLon) save(change);
+  };
+
+  return {
+    value: draft ?? addressOf(item),
+    /**
+     * Keeps the typed address, saved at once when chosen or cleared.
+     * @param {AddressValue} value Address.
+     * @returns {void}
+     */
+    onChange: (value: AddressValue) => {
+      setDraft(value);
+      // eslint-disable-next-line no-restricted-syntax -- useLocationDraft itself.
+      if (value.point || !value.text.trim()) commit(value);
+    },
+    /**
+     * Leaves the field: saves a free text typed alone, then drops the draft.
+     * @returns {void}
+     */
+    leave: () => {
+      if (draft) commit(draft);
+      setDraft(null);
+    },
+  };
+}
