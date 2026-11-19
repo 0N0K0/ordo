@@ -17,7 +17,7 @@ export interface LookupOptions {
 }
 
 /** Model delegate able to find one whole record by id (`prisma.task`, `tx.sheet`…). */
-interface FindRecordDelegate<T> {
+export interface FindRecordDelegate<T> {
   findUnique(args: { where: { id: string } }): PromiseLike<T | null>;
 }
 

@@ -7,7 +7,7 @@ import { BatchMultiSelect } from '../../inputs/BatchMultiSelect';
 import { StackedMultiCell, type StackedItem } from './StackedMultiCell';
 import { AmountInput } from '../../inputs/AmountInput';
 import { currencySymbol } from '../../../lib/format';
-import { accepted, cellCombobox, cellField, checked, stopClick, useCellDraft, type CellSchema } from './cell-field';
+import { accepted, checked, stopClick, stoppedCellCombobox, stoppedCellField, useCellDraft, type CellSchema } from './cell-field';
 import { FRENCH_NUMBER_FORMAT } from '../../inputs/number-format';
 import { EXTERNAL_LINK } from '../../actions/link-props';
 
@@ -62,7 +62,7 @@ export function EditableText({ value, label, nullable = false, validate, schema,
 
   const input = (
     <TextInput
-      {...cellField}
+      {...stoppedCellField}
       type={link ? 'url' : 'text'}
       aria-label={label}
       placeholder={readOnly ? undefined : placeholder}
@@ -72,7 +72,6 @@ export function EditableText({ value, label, nullable = false, validate, schema,
       onBlur={save}
       onKeyDown={onKeyDown}
       fw={strong ? 500 : undefined}
-      onClick={stopClick}
       style={{ flex: 1, minWidth: 0 }}
     />
   );
@@ -158,7 +157,7 @@ export function EditableNumber({
   const unit = suffix ?? (amount ? currencySymbol() : undefined);
   return (
     <Field
-      {...cellField}
+      {...stoppedCellField}
       aria-label={label}
       placeholder={readOnly ? undefined : '—'}
       readOnly={readOnly}
@@ -174,7 +173,6 @@ export function EditableNumber({
       onChange={setDraft}
       onBlur={save}
       onKeyDown={onKeyDown}
-      onClick={stopClick}
       styles={{ input: { textAlign: 'right' } }}
     />
   );
@@ -196,7 +194,7 @@ interface EditableTimeProps {
  * @returns {JSX.Element} Cell.
  */
 export function EditableTime({ value, label, clearable = false, readOnly = false, onSave }: EditableTimeProps) {
-  return <TimePicker {...cellField} aria-label={label} readOnly={readOnly} clearable={clearable} value={value} onChange={(next) => next !== value && onSave(next)} onClick={stopClick} />;
+  return <TimePicker {...stoppedCellField} aria-label={label} readOnly={readOnly} clearable={clearable} value={value} onChange={(next) => next !== value && onSave(next)} />;
 }
 
 interface EditableDateProps {
@@ -218,7 +216,7 @@ interface EditableDateProps {
 export function EditableDate({ value, label, nullable = false, minDate, readOnly = false, onSave }: EditableDateProps) {
   return (
     <DatePickerInput
-      {...cellField}
+      {...stoppedCellField}
       aria-label={label}
       placeholder={readOnly ? undefined : '—'}
       readOnly={readOnly}
@@ -227,7 +225,6 @@ export function EditableDate({ value, label, nullable = false, minDate, readOnly
       popoverProps={{ withinPortal: true }}
       value={value}
       onChange={(next) => (next || nullable) && (next ?? null) !== value && onSave(next ?? null)}
-      onClick={stopClick}
     />
   );
 }
@@ -259,7 +256,7 @@ interface EditableSelectProps {
 export function EditableSelect({ value, label, data, nullable = false, renderOption, filter, leftSection, placeholder = '—', nothingFoundMessage, readOnly = false, onSave }: EditableSelectProps) {
   return (
     <Select
-      {...cellCombobox}
+      {...stoppedCellCombobox}
       aria-label={label}
       placeholder={readOnly ? undefined : placeholder}
       readOnly={readOnly}
@@ -273,7 +270,6 @@ export function EditableSelect({ value, label, data, nullable = false, renderOpt
       nothingFoundMessage={nothingFoundMessage}
       value={value}
       onChange={(next) => (next || nullable) && next !== value && onSave(next)}
-      onClick={stopClick}
     />
   );
 }
@@ -307,7 +303,7 @@ export function EditableMultiSelect({ value, label, data, items, renderOption, f
       items={items ?? value.map((id) => ({ id, label: labels.get(id) ?? id }))}
       renderSelect={({ onDropdownClose }) => (
         <BatchMultiSelect
-          {...cellCombobox}
+          {...stoppedCellCombobox}
           aria-label={label}
           placeholder={value.length ? undefined : '—'}
           searchable
@@ -318,7 +314,6 @@ export function EditableMultiSelect({ value, label, data, items, renderOption, f
           value={value}
           onChange={(next) => onSave(next)}
           onDropdownClose={onDropdownClose}
-          onClick={stopClick}
         />
       )}
     />
@@ -374,6 +369,7 @@ export function EditablePopoverCell({ target, empty = false, label, width, trunc
     <Popover opened={opened} onChange={onOpenedChange} onClose={onClose} position="bottom-start" withinPortal shadow="md" width={width}>
       <Popover.Target>
         <Anchor
+          // eslint-disable-next-line no-restricted-syntax -- the value of the cell, shown as a link that opens its editor.
           component="button"
           type="button"
           size="sm"

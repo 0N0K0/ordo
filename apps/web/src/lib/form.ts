@@ -49,7 +49,6 @@ export function showFormError<Values>(form: UseFormReturnType<Values>, error: un
     form.setErrors(error.fields);
     return;
   }
-  if (error instanceof GraphQLRequestError && error.code === 'UNAUTHENTICATED') return;
   notifyFailure(error);
 }
 

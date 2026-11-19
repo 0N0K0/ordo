@@ -24,6 +24,7 @@ import { localToday } from '../../../lib/dates';
 import * as fmt from '../../../lib/format';
 import { OVERDUE_INVOICES_PATH, PAGES } from '../../../app/pages';
 import { unarchived } from '../../../lib/archive';
+import { LATE_COLOR } from '../../../components/feedback/feedback-colors';
 
 type CardId = 'tasks' | 'routines' | 'agenda' | 'chrono' | 'shopping' | 'billing' | 'quotes' | 'treasury' | 'mail' | 'time';
 const DEFAULT_ORDER: CardId[] = ['tasks', 'routines', 'agenda', 'chrono', 'shopping', 'billing', 'quotes', 'treasury', 'mail', 'time'];
@@ -95,7 +96,7 @@ export function HomePage() {
           label="Tâches du jour"
           value={myTasks.tasks?.length ?? 0}
           hint={myTasks.overdue > 0 ? `${myTasks.overdue} en retard` : 'Aucune en retard'}
-          hintColor={myTasks.overdue > 0 ? 'orange' : 'dimmed'}
+          hintColor={myTasks.overdue > 0 ? LATE_COLOR : 'dimmed'}
           to={PAGES.tasks.path}
           loading={!myTasks.tasks}
         />
@@ -113,7 +114,7 @@ export function HomePage() {
               label="À encaisser"
               value={fmt.money(summary?.receivable ?? 0)}
               hint={summary && summary.overdue > 0 ? `${fmt.money(summary.overdue)} en retard` : 'Rien en retard'}
-              hintColor={summary && summary.overdue > 0 ? 'orange' : 'dimmed'}
+              hintColor={summary && summary.overdue > 0 ? LATE_COLOR : 'dimmed'}
               to={OVERDUE_INVOICES_PATH}
               loading={!summary}
             />

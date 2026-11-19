@@ -7,8 +7,8 @@ import { TravelField } from '../../geo/components/TravelField';
 import { confirmDestructive } from '../../../components/dialogs/confirm-destructive';
 import { openFormPanel } from '../../../components/panels/panels';
 import { PICKER_FORMATS } from '../../../lib/format';
-import { ItemAvatar } from '../../../components/items/ItemAvatar';
-import { listSelectProps } from '../../../components/items/item-look';
+
+import { itemSelectProps } from '../../../components/items/item-look';
 
 import { Alert, Anchor, Fieldset, Group, Select, SimpleGrid, Stack, Text, TextInput } from '@mantine/core';
 import { DatePickerInput, TimePicker } from '@mantine/dates';
@@ -402,15 +402,11 @@ export function EventForm({ context, occurrence, defaults, onDone, onDuplicate }
               <Select
                 label="Calendrier"
                 description={recurring ? 'Pour toute la série.' : undefined}
-                {...listSelectProps(calendars, undefined, values.calendarId ?? occurrence?.calendarId)}
                 // Without a choice, the event goes into the first calendar not archived.
+                {...itemSelectProps(calendars, values.calendarId ?? defaultCalendarId, undefined, values.calendarId ?? occurrence?.calendarId)}
                 value={values.calendarId ?? defaultCalendarId}
                 onChange={(calendarId) => form.setFieldValue('calendarId', calendarId)}
                 allowDeselect={false}
-                leftSection={(() => {
-                  const current = calendars.find((calendar) => calendar.id === (values.calendarId ?? defaultCalendarId));
-                  return current ? <ItemAvatar name={current.label} iconUrl={current.iconUrl} color={current.color} /> : undefined;
-                })()}
               />
               <ProjectSelect
                 context={context}

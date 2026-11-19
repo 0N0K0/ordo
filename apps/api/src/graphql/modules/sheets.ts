@@ -6,7 +6,7 @@ import * as sheets from '../../services/shopping/sheets';
 import * as stock from '../../services/shopping/stock';
 import { builder, type BuilderTypes } from '../builder';
 import { relationIds } from '../relation-fields';
-import { LabelColorInput, LabelColorPatch, labelMutations, labelObject } from '../label-inputs';
+import { labelMutations, labelObject } from '../label-inputs';
 import { fromDecimal } from '../../services/core/decimal';
 import { productInput, productInputFields, purchaseInput, purchaseInputFields } from '../product-inputs';
 import { reloaded } from '../reload';
@@ -310,4 +310,4 @@ builder.mutationFields((t) => ({
   }),
 }));
 
-labelMutations('SheetCategory', sheets.sheetCategories, { create: LabelColorInput, update: LabelColorPatch });
+labelMutations('SheetCategory', sheets.sheetCategories);

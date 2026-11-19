@@ -28,6 +28,7 @@ import { prisma, unscopedPrisma } from '../../db';
 import type { ScheduleType, WorkSchedule } from '../../generated/prisma/client';
 import { clientError, notFound, orNotFound, parseInput } from '../../graphql/errors';
 import { currentWorkspaceId } from '../../workspace-context';
+import { currentWorkspaceFields } from '../workspaces/current-workspace';
 import { toJson } from '../core/json';
 
 /**
@@ -236,7 +237,7 @@ function defaultKindOf(workspace: {
  * @returns {Promise<DefaultScheduleKind>} Kind.
  */
 export async function defaultScheduleKind(): Promise<DefaultScheduleKind> {
-  const workspace = await orNotFound(unscopedPrisma.workspace.findUnique({ where: { id: currentWorkspaceId() }, select: defaultKindSelect }), 'Espace');
+  const workspace = await currentWorkspaceFields(defaultKindSelect);
   return defaultKindOf(workspace);
 }
 

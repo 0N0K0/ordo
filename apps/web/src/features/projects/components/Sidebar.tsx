@@ -24,6 +24,7 @@ import { StaticTree } from './StaticTrees';
 import { TreeExpansionContext, type TreeExpansion } from '../lib/tree-expansion';
 import { PHONE_QUERY } from '../../../lib/use-is-phone';
 import { EmptyState } from '../../../components/feedback/EmptyState';
+import { useFoldedIds } from '../../../components/tree/use-folded-ids';
 
 type SectionKey = 'favorites' | 'active' | 'archives';
 
@@ -107,36 +108,22 @@ const isActive = (to: string, pathname: string) => pathname === to || pathname.s
  * @returns {JSX.Element} Groups.
  */
 function MenuGroups({ groups, pathname }: { groups: MenuGroup[]; pathname: string }) {
-  const [unfolded, setUnfolded] = useLocalStorage<string[]>({
-    key: 'ordo.sidebar.openGroups',
-    // Each window keeps its own (the last change is what a new window starts with).
-    sync: false,
-    defaultValue: [],
-    // A value of another shape (an older version, edited by hand) is dropped.
-    deserialize: (value) => {
-      try {
-        const parsed: unknown = value === undefined ? [] : JSON.parse(value);
-        return Array.isArray(parsed) ? parsed.filter((label): label is string => typeof label === 'string') : [];
-      } catch {
-        return [];
-      }
-    },
-  });
+  const { ids: unfolded, set: setUnfolded } = useFoldedIds('ordo.sidebar.openGroups');
   const current = groups.find((group) => group.links.some((item) => isActive(item.to, pathname)))?.label;
   // Going to a page of a folded group unfolds it.
   useEffect(() => {
-    if (current) setUnfolded((labels) => (labels.includes(current) ? labels : [...labels, current]));
+    if (current) setUnfolded([current], true);
   }, [current, setUnfolded]);
 
   return groups.map((group) => {
-    const opened = unfolded.includes(group.label);
+    const opened = unfolded.has(group.label);
     return (
       <NavLink
         key={group.label}
         label={group.label}
         leftSection={group.icon}
         opened={opened}
-        onChange={(next) => setUnfolded((labels) => (next ? [...labels, group.label] : labels.filter((label) => label !== group.label)))}
+        onChange={(next) => setUnfolded([group.label], next)}
         active={!opened && group.label === current}
         childrenOffset="md"
       >
@@ -173,12 +160,7 @@ export function Sidebar() {
     sync: false,
     defaultValue: { favorites: true, active: true, archives: false },
   });
-  const [collapsed, setCollapsed] = useLocalStorage<string[]>({
-    key: 'ordo.sidebar.collapsed',
-    // Each window keeps its own (the last change is what a new window starts with).
-    sync: false,
-    defaultValue: [],
-  });
+  const collapsed = useFoldedIds('ordo.sidebar.collapsed');
 
   const searching = search.trim().length > 0;
   const data = workspace.data;
@@ -187,8 +169,8 @@ export function Sidebar() {
   const archives = useMemo(() => (data ? buildArchiveSection(data, sort, search) : null), [data, sort, search]);
 
   // While searching, every branch is open so matches are visible.
-  const isExpanded = (key: string) => searching || !collapsed.includes(key);
-  const toggleNode = (key: string) => setCollapsed((current) => (current.includes(key) ? current.filter((id) => id !== key) : [...current, key]));
+  const isExpanded = (key: string) => searching || !collapsed.ids.has(key);
+  const toggleNode = collapsed.toggle;
   const toggleSection = (key: SectionKey) => setSections((current) => ({ ...current, [key]: !current[key] }));
 
   /**
@@ -197,7 +179,7 @@ export function Sidebar() {
    * @param {boolean} expanded Target state.
    * @returns {void}
    */
-  const setKeysExpanded = (keys: string[], expanded: boolean) => setCollapsed((current) => (expanded ? current.filter((key) => !keys.includes(key)) : [...new Set([...current, ...keys])]));
+  const setKeysExpanded = (keys: string[], expanded: boolean) => collapsed.set(keys, !expanded);
 
   /**
    * Fold / unfold actions of one tree, for the menus of its rows.

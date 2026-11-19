@@ -1,16 +1,17 @@
+import { NOTIFICATION_SOURCES, WORKSPACE_KINDS } from '@ordo/shared';
 import { done } from '../errors';
-import * as workspaces from '../../services/workspace/workspaces';
-import { currentWorkspace } from '../../workspace-context';
+import * as workspaces from '../../services/workspaces/workspaces';
+import { currentWorkspaceId } from '../../workspace-context';
 import { builder } from '../builder';
 
 const WorkspaceKind = builder.enumType('WorkspaceKind', {
   description: 'Professional (invoicing, clients, company) or personal workspace.',
-  values: ['PRO', 'PERSO'] as const,
+  values: WORKSPACE_KINDS,
 });
 
 const NotificationSource = builder.enumType('NotificationSource', {
   description: 'Kind of notification a workspace can give while another one is open.',
-  values: ['ALARMS', 'CALENDAR', 'MAILS'] as const,
+  values: NOTIFICATION_SOURCES,
 });
 
 builder.prismaObject('Workspace', {
@@ -44,7 +45,7 @@ builder.queryFields((t) => ({
   }),
   currentWorkspaceId: t.id({
     description: 'Workspace the request works in (the one the app asks for, or the first one).',
-    resolve: () => currentWorkspace().id,
+    resolve: () => currentWorkspaceId(),
   }),
 }));
 

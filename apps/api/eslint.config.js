@@ -171,6 +171,72 @@ const API_SYNTAX_RULES = [
     selector: "TSAsExpression[expression.type='TSAsExpression'][expression.expression.type='ArrayExpression']",
     message: 'Utiliser modelDelegate<D>(model, client) (services/core/delegate) sur des noms de modèles.',
   },
+  {
+    // const x = await findOrNotFound(…); refuseArchived(x);
+    selector: "VariableDeclaration[declarations.0.init.argument.callee.name='findOrNotFound'] + ExpressionStatement[expression.callee.name='refuseArchived'][expression.arguments.length=1]",
+    message: 'Utiliser findActive(prisma.x, id, « X ») (services/core/archive) : introuvable ou archivé, en une aide.',
+  },
+  {
+    selector: "CallExpression[callee.object.property.name='companyProfile']:has(Property[key.name='invoiceCategoryId'][value.value=true])",
+    message: 'Utiliser invoiceCategories() (services/accounting/company).',
+  },
+  {
+    selector: "CallExpression[callee.object.property.name='workspace'][callee.property.name=/^findUnique(OrThrow)?$/]:has(CallExpression[callee.name=/^currentWorkspace(Id)?$/])",
+    message: 'Utiliser currentWorkspaceFields(select) (services/workspaces/current-workspace).',
+  },
+  {
+    selector: "MemberExpression[object.callee.name='currentWorkspace'][property.name='id']",
+    message: 'Utiliser currentWorkspaceId() (workspace-context).',
+  },
+  {
+    selector: 'Literal[value=/^Ce moyen de paiement ne sert pas aux/]',
+    message: 'Utiliser assertMethodFor(methodId, incoming) (services/treasury/treasury-settings).',
+  },
+  {
+    selector: "Literal[value='Ce service n’appartient pas au client.']",
+    message: 'Utiliser assertService(serviceId, clientId) (services/accounting/client-parties).',
+  },
+  {
+    selector: "CallExpression[callee.name=/^(assertAllExist|activeIds|assertNoneArchived)$/] > Literal.arguments[value='Bénéficiaire']",
+    message: 'Utiliser assertBeneficiaries({ contributorIds, relationIds }, { field, keep }) (services/core/beneficiaries).',
+  },
+  {
+    selector: "LogicalExpression[operator='??'][left.callee.name='sniffImage']",
+    message: 'Utiliser sniffedType(buffer) (services/core/attachments).',
+  },
+  {
+    selector: "ObjectExpression:has(> Property[key.name='create'][value.name='LabelColorInput']):has(> Property[key.name='update'][value.name='LabelColorPatch'])",
+    message: 'Omettre les entrées de labelMutations (LABEL_COLOR_INPUTS par défaut, graphql/label-inputs).',
+  },
+  {
+    // await findOrNotFound(…); await prisma.x.delete(…): two queries for one deletion.
+    selector:
+      "ExpressionStatement[expression.argument.callee.name=/^(assertExists|findOrNotFound|orNotFound)$/] + ExpressionStatement[expression.argument.callee.property.name=/^(delete|deleteMany)$/]",
+    message: 'Utiliser deleteOrNotFound(prisma.x, id, « X ») (services/core/lookup) : supprimé, ou « X introuvable. », en une requête.',
+  },
+  {
+    // The saved record read again by hand for the answer of a mutation.
+    selector:
+      "CallExpression[callee.property.name='findUniqueOrThrow'] > ObjectExpression.arguments:has(> SpreadElement) > Property[key.name='where'] > ObjectExpression.value > Property[key.name='id'] > MemberExpression.value[object.type='AwaitExpression']",
+    message: 'Utiliser reloaded(prisma.x, query, saving) (graphql/reload).',
+  },
+  {
+    selector: "CallExpression[callee.name='fieldError'] > Literal.arguments:nth-child(2)[value=/introuvable\\.$/]",
+    message: 'Utiliser notFound(« X », champ) (graphql/errors) : « X introuvable. » sous le champ.',
+  },
+  {
+    // await assertNotArchived(kind, record.id): the record is already loaded (a value kept by `keep` apart).
+    selector: "CallExpression[callee.name='assertNotArchived'][arguments.length=2] > MemberExpression.arguments:nth-child(2)[property.name='id'][object.type='Identifier']",
+    message: 'Utiliser refuseArchived(record, field ?) (services/core/archive) sur l’élément déjà chargé.',
+  },
+  {
+    selector: "CallExpression[callee.property.name='enumType'] > ObjectExpression.arguments > Property[key.name='values'] > :matches(ArrayExpression, TSAsExpression[expression.type='ArrayExpression'])",
+    message: 'Exporter la liste du partagé (@ordo/shared, XXX_KINDS…) et l’utiliser dans values : une seule liste des valeurs.',
+  },
+  {
+    selector: 'TSAsExpression > TSNeverKeyword.typeAnnotation',
+    message: 'Utiliser unchecked(value) (graphql/unchecked) : le seul forçage de type d’une entrée GraphQL vers un service.',
+  },
 ];
 
 // Patterns of the fixtures' helpers (prisma/fixtures/factories).

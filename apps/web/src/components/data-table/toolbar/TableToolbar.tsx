@@ -1,12 +1,13 @@
 import { CountBadge } from '../../feedback/CountBadge';
-import { CloseButton, Collapse, Divider, Group, Indicator, Popover, Stack, Text, TextInput, Switch } from '@mantine/core';
+import { CloseButton, Collapse, Divider, Group, Popover, Stack, Text, TextInput, Switch } from '@mantine/core';
 import { ArrowCounterClockwiseIcon, ColumnsIcon, FloppyDiskIcon, FunnelIcon, MagnifyingGlassIcon, SlidersHorizontalIcon, SortAscendingIcon } from '@phosphor-icons/react';
 import { FoldHeading } from '../../actions/FoldHeading';
 import { useState, type ReactNode } from 'react';
 import { usePublishedHeight } from '../views/published-height';
 import { SubSection } from '../../page/SubSection';
 import { ActionButton } from '../../actions/ActionButton';
-import { MenuCaret } from '../../actions/MenuCaret';
+
+import { UnsavedIndicator, UNSAVED_CHANGES } from '../views/UnsavedIndicator';
 
 /** Quick search of a toolbar. */
 interface ToolbarSearch {
@@ -160,11 +161,11 @@ export function TableOptions({ dirty = false, onSave, onRevert, display, columns
   ].filter(Boolean);
   return (
     // A dot while the view has unsaved changes.
-    <Indicator disabled={!dirty} size={8} offset={4} position="top-end" color="orange">
+    <UnsavedIndicator dirty={dirty} offset={4}>
       {/* Never taller than the room left in the window: its content scrolls (the columns unfolded). */}
       <Popover position="bottom-end" shadow="md" withinPortal width={width} middlewares={{ flip: true, shift: true, size: { padding: 8 } }}>
         <Popover.Target>
-          <ActionButton priority="secondary" icon={<SlidersHorizontalIcon aria-hidden />} after={<MenuCaret />} aria-label={dirty ? 'Options (modifications non enregistrées)' : 'Options'}>
+          <ActionButton priority="secondary" icon={<SlidersHorizontalIcon aria-hidden />} aria-label={dirty ? `Options (${UNSAVED_CHANGES.toLowerCase()})` : 'Options'}>
             Options
           </ActionButton>
         </Popover.Target>
@@ -173,14 +174,14 @@ export function TableOptions({ dirty = false, onSave, onRevert, display, columns
             {dirty && (
               <>
                 <Text size="sm" c="orange">
-                  Modifications non enregistrées
+                  {UNSAVED_CHANGES}
                 </Text>
                 <Group gap="xs" grow>
                   <ActionButton priority="secondary" icon={<ArrowCounterClockwiseIcon aria-hidden />} onClick={onRevert}>
-                    Annuler
+                    Annuler les modifications
                   </ActionButton>
                   <ActionButton icon={<FloppyDiskIcon aria-hidden />} onClick={onSave}>
-                    Enregistrer
+                    Enregistrer les modifications
                   </ActionButton>
                 </Group>
                 {sections.length > 0 && <Divider />}
@@ -195,6 +196,6 @@ export function TableOptions({ dirty = false, onSave, onRevert, display, columns
           </Stack>
         </Popover.Dropdown>
       </Popover>
-    </Indicator>
+    </UnsavedIndicator>
   );
 }

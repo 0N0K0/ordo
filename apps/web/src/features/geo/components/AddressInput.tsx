@@ -8,6 +8,8 @@ import type { GeoPoint } from '@ordo/shared';
 import { CheckIcon, HouseIcon, MapPinIcon, MapPinLineIcon } from '@phosphor-icons/react';
 import { placesInTree, rootPlace, useAddressSearch, usePlaces, zonesOfText, zonesText } from '../api';
 import { unarchived } from '../../../lib/archive';
+import { toggledInList } from '../../../lib/sets';
+import { taggedKey, parseTaggedKey } from '../../../lib/tagged-key';
 
 /** Height of the lists of places and addresses at most (they scroll beyond). */
 const LIST_HEIGHT = 320;
@@ -93,7 +95,7 @@ export function AddressInput({ value, onChange, placeholder, withPlaces = true, 
     }
     const root = rootPlace(place, mapById(places));
     const before = chosen && chosen.root.id === root.id ? chosen.zoneIds : [];
-    const ids = before.includes(id) ? before.filter((other) => other !== id) : [...before, id];
+    const ids = toggledInList(before, id);
     // In the order of the tree; none left: the place itself.
     const zones = tree.filter((item) => ids.includes(item.id));
     onChange(zones.length ? { text: zonesText(root, zones), point } : { text: placeText(root), point });
@@ -112,7 +114,7 @@ export function AddressInput({ value, onChange, placeholder, withPlaces = true, 
    * @returns {void}
    */
   const choose = (key: string) => {
-    const [kind, id] = key.split(':');
+    const { tag: kind, id } = parseTaggedKey(key) ?? { tag: '', id: '' };
     if (kind === 'place') {
       choosePlace(id);
       // A zone ticked: the list stays open to tick others.
@@ -191,7 +193,7 @@ export function AddressInput({ value, onChange, placeholder, withPlaces = true, 
                   {placeOptions.map((place) => (
                     <Combobox.Option
                       key={place.id}
-                      value={`place:${place.id}`}
+                      value={taggedKey('place', place.id)}
                       active={ticked(place.id)}
                       aria-selected={place.parentId ? ticked(place.id) : undefined}
                       style={{ paddingLeft: `calc(var(--mantine-spacing-sm) + ${needle && !value.point ? 0 : place.depth} * var(--mantine-spacing-md))` }}
@@ -216,7 +218,7 @@ export function AddressInput({ value, onChange, placeholder, withPlaces = true, 
               {suggestions.length > 0 && (
                 <Combobox.Group label="Adresses (OpenStreetMap)">
                   {suggestions.map((suggestion, index) => (
-                    <Combobox.Option key={suggestion.address} value={`address:${index}`}>
+                    <Combobox.Option key={suggestion.address} value={taggedKey('address', index)}>
                       <Group gap="xs" wrap="nowrap">
                         <MapPinIcon aria-hidden />
                         <Text size="sm">{suggestion.address}</Text>

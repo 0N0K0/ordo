@@ -32,7 +32,7 @@ import { peopleData, peopleIds, assertPeople } from './people';
 import { clientError, notFound, orNotFound, parseInput } from '../../graphql/errors';
 import { BY_POSITION, nextPositionIn } from '../core/ordering';
 import { assertExists, deleteOrNotFound, findOrNotFound } from '../core/lookup';
-import { assertNoneArchived, assertNotArchived, assertActive, refuseArchived } from '../core/archive';
+import { assertNoneArchived, assertNotArchived, assertActive, findActive, refuseArchived } from '../core/archive';
 import { assertActiveRefs } from './refs';
 import { connectIds } from '../core/relations';
 import { fromDecimal, toDecimal } from '../core/decimal';
@@ -108,7 +108,7 @@ export function deleteLocation(id: string): Promise<void> {
  * @returns {Promise<void>}
  */
 async function assertItemRefs(data: StockItemInput, current?: StockItem | null): Promise<void> {
-  await assertExists(prisma.shoppingProduct, data.productId, 'Référence');
+  await assertExists(prisma.shoppingProduct, data.productId, 'Produit');
   await assertExists(prisma.shoppingCategory, data.categoryId, 'Catégorie');
   await assertExists(prisma.stockLocation, data.locationId, 'Emplacement');
   await assertActiveRefs({ productId: data.productId, categoryId: data.categoryId, locationId: data.locationId, unit: data.unit || null }, current);
@@ -131,23 +131,12 @@ const itemFields = (data: StockItemInput) => ({
 });
 
 /**
- * Loads an item or throws NOT_FOUND.
- * @param {string} id Item.
- * @returns {Promise<StockItem>} Item.
- */
-function findItem(id: string): Promise<StockItem> {
-  return findOrNotFound(prisma.stockItem, id, 'Article');
-}
-
-/**
  * Loads an item that can be changed: NOT_FOUND, or BAD_USER_INPUT when it is archived (read only).
  * @param {string} id Item.
  * @returns {Promise<StockItem>} Item.
  */
-async function findOpenItem(id: string): Promise<StockItem> {
-  const item = await findItem(id);
-  refuseArchived(item);
-  return item;
+function findOpenItem(id: string): Promise<StockItem> {
+  return findActive(prisma.stockItem, id, 'Article');
 }
 
 /**
@@ -185,8 +174,7 @@ export async function updateStockItem(id: string, input: StockItemInput): Promis
  * @returns {Promise<void>}
  */
 export async function deleteStockItem(id: string): Promise<void> {
-  await findItem(id);
-  await prisma.stockItem.delete({ where: { id } });
+  await deleteOrNotFound(prisma.stockItem, id, 'Article');
 }
 
 // Quantities -------------------------------------------------------------------------------------------------------
@@ -325,7 +313,7 @@ export async function recordCount(input: StockCountInput): Promise<StockCount> {
  */
 export async function setProductStock(id: string, input: ProductStockInput): Promise<void> {
   const data = parseInput(productStockSchema, input);
-  const product = await orNotFound(prisma.shoppingProduct.findUnique({ where: { id }, select: { id: true, stockLocationId: true, archivedAt: true } }), 'Référence');
+  const product = await orNotFound(prisma.shoppingProduct.findUnique({ where: { id }, select: { id: true, stockLocationId: true, archivedAt: true } }), 'Produit');
   refuseArchived(product);
   await assertActive(prisma.stockLocation, data.stockLocationId, 'Emplacement', { keep: product.stockLocationId, field: 'stockLocationId' });
   await prisma.shoppingProduct.update({ where: { id }, data: { ...data, autoStock: data.stockTracked && data.autoStock } });

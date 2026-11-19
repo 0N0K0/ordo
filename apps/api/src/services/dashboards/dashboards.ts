@@ -3,28 +3,17 @@ import { prisma } from '../../db';
 import type { Dashboard, DashboardChart } from '../../generated/prisma/client';
 import { parseInput } from '../../graphql/errors';
 import { BY_POSITION, moveInList, nextPositionIn } from '../core/ordering';
-import { assertExists, findOrNotFound } from '../core/lookup';
-import { assertNotArchived, refuseArchived } from '../core/archive';
+import { findOrNotFound, deleteOrNotFound } from '../core/lookup';
+import { assertActive, assertNotArchived, findActive } from '../core/archive';
 import { toJson } from '../core/json';
-
-/**
- * Loads a dashboard or throws NOT_FOUND.
- * @param {string} id Dashboard id.
- * @returns {Promise<Dashboard>} Dashboard.
- */
-function findDashboard(id: string): Promise<Dashboard> {
-  return findOrNotFound(prisma.dashboard, id, 'Tableau de bord');
-}
 
 /**
  * Loads a dashboard that can be changed (not archived) or throws.
  * @param {string} id Dashboard id.
  * @returns {Promise<Dashboard>} Dashboard.
  */
-async function findWritableDashboard(id: string): Promise<Dashboard> {
-  const dashboard = await findDashboard(id);
-  refuseArchived(dashboard);
-  return dashboard;
+function findWritableDashboard(id: string): Promise<Dashboard> {
+  return findActive(prisma.dashboard, id, 'Tableau de bord');
 }
 
 /**
@@ -54,7 +43,7 @@ function findChart(id: string): Promise<DashboardChart> {
  * @returns {Promise<Dashboard>} Dashboard.
  */
 export async function createDashboard(label: string, projectId: string | null): Promise<Dashboard> {
-  await assertExists(prisma.project, projectId, 'Projet');
+  await assertActive(prisma.project, projectId, 'Projet');
   const position = await nextPositionIn('dashboard', { projectId });
   return prisma.dashboard.create({ data: { label: parseInput(dashboardLabelSchema, label), projectId, position } });
 }
@@ -76,8 +65,7 @@ export async function renameDashboard(id: string, label: string): Promise<Dashbo
  * @returns {Promise<void>}
  */
 export async function deleteDashboard(id: string): Promise<void> {
-  await findDashboard(id);
-  await prisma.dashboard.delete({ where: { id } });
+  await deleteOrNotFound(prisma.dashboard, id, 'Tableau de bord');
 }
 
 /**
@@ -176,7 +164,7 @@ export async function transferChart(id: string, target: { dashboardId: string | 
   let dashboard: Dashboard | null;
   if (target.dashboardId) dashboard = await findWritableDashboard(target.dashboardId);
   else {
-    await assertExists(prisma.project, target.projectId, 'Projet');
+    await assertActive(prisma.project, target.projectId, 'Projet');
     // An archived dashboard takes no chart.
     dashboard = (await prisma.dashboard.findFirst({ where: { projectId: target.projectId, archivedAt: null }, orderBy: BY_POSITION })) ?? (await createDashboard('Tableau de bord', target.projectId));
   }

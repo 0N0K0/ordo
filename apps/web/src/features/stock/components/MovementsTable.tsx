@@ -11,6 +11,8 @@ import { SignedAmount } from '../../../components/money/SignedAmount';
 import { localDay } from '../../../lib/dates';
 import { monthColumn } from '../../../components/data-table/table/month-column';
 import { sheetPath, shoppingListPath } from '../../../app/pages';
+import { signedText } from '../../../components/money/signed-text';
+import { noteColumn } from '../../shopping/lib/product-columns';
 
 const KIND_COLORS: Record<StockMovementKind, string> = { PURCHASE: 'green', CONSUMPTION: 'blue', COUNT: 'grape', LOSS: 'red', CORRECTION: 'gray' };
 
@@ -50,11 +52,11 @@ export function MovementsTable({ itemId = null }: { itemId?: string | null }) {
       size: 110,
       numeric: true,
       sortValue: (movement) => movement.quantity,
-      text: (movement) => `${movement.quantity > 0 ? '+' : ''}${fmt.quantity({ quantity: movement.quantity })}`,
+      text: (movement) => signedText(movement.quantity, (quantity) => fmt.quantity({ quantity })),
       filter: { kind: 'number', value: (movement) => movement.quantity },
     },
     { id: 'source', label: 'Origine', size: 200, sortValue: (movement) => movement.source ?? null, text: (movement) => movement.source ?? '', groupable: true },
-    { id: 'note', label: 'Note', size: 200, sortValue: (movement) => movement.note ?? null, text: (movement) => movement.note ?? '' },
+    noteColumn({ size: 200, bulk: false }),
   ];
   const view = useDataView({ tableKey: itemId ? 'stock-item-movements' : 'stock-movements', getKey: (movement) => movement.id, columns, rows: movements ?? [], title: 'Mouvements du stock' });
   return (

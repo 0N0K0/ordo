@@ -1,4 +1,4 @@
-import { formatDay, fromCents } from '@ordo/shared';
+import { ACCOUNTING_DOCUMENT_STATUSES, ACCOUNTING_UNITS, DISCOUNT_TYPES, formatDay, fromCents, LINE_KINDS } from '@ordo/shared';
 import { prisma } from '../../db';
 import * as docs from '../../services/accounting/accounting-documents';
 import * as imported from '../../services/accounting/imported-documents';
@@ -30,10 +30,10 @@ function documentTotalFields<Field>(t: { float: (options: { resolve: (document: 
     totalGross: t.float({ resolve: (document) => fromDecimal(document.totalGross) }),
   };
 }
-const StatusEnum = builder.enumType('AccountingDocumentStatus', { values: ['DRAFT', 'FINAL', 'TEMPLATE'] as const });
-export const LineKindEnum = builder.enumType('AccountingLineKind', { values: ['ITEM', 'DISBURSEMENT', 'TEXT', 'DEDUCTION'] as const });
-export const UnitEnum = builder.enumType('AccountingUnit', { values: ['UNIT', 'HOUR', 'DAY', 'MONTH', 'FLAT', 'DEPOSIT'] as const });
-const DiscountTypeEnum = builder.enumType('DiscountType', { values: ['PERCENT', 'AMOUNT'] as const });
+const StatusEnum = builder.enumType('AccountingDocumentStatus', { values: ACCOUNTING_DOCUMENT_STATUSES });
+export const LineKindEnum = builder.enumType('AccountingLineKind', { values: LINE_KINDS });
+export const UnitEnum = builder.enumType('AccountingUnit', { values: ACCOUNTING_UNITS });
+const DiscountTypeEnum = builder.enumType('DiscountType', { values: DISCOUNT_TYPES });
 
 builder.prismaObject('AccountingLine', {
   fields: (t) => ({

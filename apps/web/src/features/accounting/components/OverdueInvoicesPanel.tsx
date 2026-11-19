@@ -25,6 +25,7 @@ import { FormActions } from '../../../components/dialogs/FormActions';
 import { unarchived } from '../../../lib/archive';
 import { ActionButton } from '../../../components/actions/ActionButton';
 import { accountLabel } from '../../mail/lib/mail-format';
+import { LATE_COLOR } from '../../../components/feedback/feedback-colors';
 
 /** Invoices not reminded for that many days are offered for a new reminder. */
 const REMIND_AFTER_DAYS = 7;
@@ -54,6 +55,8 @@ const OVERDUE_COLUMNS: DataColumn<OverdueInvoice>[] = [
   { id: 'client', label: 'Client', size: 200, hiddenByDefault: true, sortValue: (invoice) => invoice.clientName ?? null, text: (invoice) => invoice.clientName ?? '', groupable: true },
   {
     id: 'sent',
+    // Invoices to remind were all sent.
+    required: true,
     label: 'Envoi',
     size: 230,
     sortValue: (invoice) => invoice.sentAt ?? null,
@@ -254,7 +257,7 @@ export function OverdueInvoicesPanel() {
                     </Text>
                   )}
                 </Text>
-                <Badge size="xs" variant="light" color={sentSince > 45 ? 'red' : 'orange'}>
+                <Badge size="xs" variant="light" color={sentSince > 45 ? 'red' : LATE_COLOR}>
                   Envoyée {fmt.daysAgo(sentSince)}
                 </Badge>
                 {invoice.dueDate && (
@@ -264,7 +267,7 @@ export function OverdueInvoicesPanel() {
                 )}
               </>
             ),
-            balance: <>{fmt.money(invoice.balance ?? 0, invoice.currency)}</>,
+            balance: fmt.money(invoice.balance ?? 0, invoice.currency),
             reminder: (
               <>
                 {invoice.lastReminderAt ? (

@@ -1,8 +1,9 @@
 import { createRequire } from 'node:module';
 import PDFDocument from 'pdfkit';
 import { z } from 'zod';
-import { prisma, unscopedPrisma } from '../../db';
+import { prisma } from '../../db';
 import { currentWorkspaceId } from '../../workspace-context';
+import { currentWorkspaceFields } from '../workspaces/current-workspace';
 import { fileName, LOCALE } from '@ordo/shared';
 import { PARIS } from '../../today';
 
@@ -125,7 +126,7 @@ async function issuer(): Promise<{ name: string; logo: Buffer | null }> {
  */
 export async function issuerName(): Promise<string> {
   const company = await prisma.companyProfile.findUnique({ where: { workspaceId: currentWorkspaceId() }, select: { name: true } });
-  return company?.name.trim() || (await unscopedPrisma.workspace.findUnique({ where: { id: currentWorkspaceId() }, select: { label: true } }))?.label || 'Ordo';
+  return company?.name.trim() || (await currentWorkspaceFields({ label: true })).label || 'Ordo';
 }
 
 /**

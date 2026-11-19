@@ -2,6 +2,7 @@ import { InlineActions } from '../actions/ActionsMenu';
 import { Group, Text, ThemeIcon } from '@mantine/core';
 import { ArchiveIcon, ArrowCounterClockwiseIcon, PencilSimpleIcon, PlusIcon, TagIcon, TrashIcon } from '@phosphor-icons/react';
 import { useEffect, type ReactNode } from 'react';
+import { capitalize, agreed } from '@ordo/shared';
 import { archiveWithUndo, useSetArchived, useArchivedToggle, unarchived } from '../../lib/archive';
 import { ON_ERROR, onMutationError } from '../../lib/notify';
 import { CategoryTree } from '../tree/CategoryTree';
@@ -20,15 +21,17 @@ import { ActionButton } from '../actions/ActionButton';
 interface SettingsListProps<C extends SettingsItem, E extends object> extends SettingsItemKind<C, E> {
   title: string;
   description: ReactNode;
-  /** « le statut », « la catégorie »: in the messages (a noun after « la » agrees in the feminine: « archivée »). */
+  /** « le statut », « la catégorie », « l’étiquette »: in the messages. */
   noun: string;
+  /** The noun is feminine: the messages agree with it (« archivée », « supprimée »). Optional. Default = false. */
+  feminine?: boolean;
   items: readonly C[];
   /** A tree: items under others, moved under another by drag and drop. Optional. Default = false. */
   nested?: boolean;
   /** Number of rows of each item. Optional. */
   usage?: ReadonlyMap<string, number>;
-  /** What the rows are, in the deletion message (« tâches »). Optional. */
-  usageNoun?: string;
+  /** What the rows are, in the deletion message: one after « de » (« de la tâche », « de l’article »), several (« tâches »). Optional. */
+  usageNoun?: { one: string; many: string };
   /** Deletes an item. */
   remove: (id: string) => Promise<unknown>;
   /** Puts an item under a parent (null: top level) at an index among its siblings; none: the order of the list is saved as is. Optional. */
@@ -69,6 +72,7 @@ export function SettingsList<C extends SettingsItem, E extends object = Record<s
   title,
   description,
   noun,
+  feminine = false,
   items,
   nested = false,
   withColor = true,
@@ -97,7 +101,6 @@ export function SettingsList<C extends SettingsItem, E extends object = Record<s
   const reorder = useReorderSettingsItems();
   const setArchived = useSetArchived(kind);
   const { shown, showArchived, toggle: archivedToggle } = useArchivedToggle(items);
-  const feminine = noun.startsWith('la ');
 
   /**
    * Opens the form of an item in the side panel.
@@ -185,13 +188,15 @@ export function SettingsList<C extends SettingsItem, E extends object = Record<s
         <>
           {deleteMessage?.(item, path) ?? (
             <>
-              « {path} » sera supprimé définitivement{used && usageNoun ? ` et retiré des ${used} ${usageNoun} qui l’utilisent` : ''}.{nested ? ' Ses sous-éléments remonteront d’un niveau.' : ''}
+              « {path} » sera {agreed('supprimé', feminine)} définitivement
+              {used && usageNoun ? ` et ${agreed('retiré', feminine)} ${used === 1 ? `${usageNoun.one} qui l’utilise` : `des ${used} ${usageNoun.many} qui l’utilisent`}` : ''}.
+              {nested ? ' Ses sous-éléments remonteront d’un niveau.' : ''}
             </>
           )}
         </>
       ),
       run: () => remove(item.id),
-      done: `« ${path} » supprimé.`,
+      done: `« ${path} » ${agreed('supprimé', feminine)}.`,
     });
   };
 
@@ -222,6 +227,8 @@ export function SettingsList<C extends SettingsItem, E extends object = Record<s
         </Group>
       ) : (
         <CategoryTree
+          noun={capitalize(noun.replace(/^(le |la |l’)/, ''))}
+          feminine={feminine}
           categories={shown}
           nested={nested}
           storageKey={storageKey}
@@ -250,10 +257,12 @@ export function SettingsList<C extends SettingsItem, E extends object = Record<s
                   nested && !category.archived && { label: 'Ajouter un sous-élément', icon: <PlusIcon aria-hidden />, onClick: () => openForm({ parentId: category.id }) },
                   !category.archived && { label: 'Modifier', icon: <PencilSimpleIcon aria-hidden />, onClick: () => openForm({ item: category }) },
                   {
-                    // eslint-disable-next-line no-restricted-syntax -- an inline icon here (archiveEntry is a menu entry), told with the noun of the list.
+                    // eslint-disable-next-line no-restricted-syntax -- told with the noun of the list (archiveEntry tells its type).
                     label: category.archived ? 'Restaurer' : 'Archiver',
                     icon: category.archived ? <ArrowCounterClockwiseIcon aria-hidden /> : <ArchiveIcon aria-hidden />,
                     onClick: () => toggleArchived(category, path),
+                    // In the « … » menu, never a button (decision DJ).
+                    inMenu: true,
                   },
                   {
                     label: 'Supprimer',

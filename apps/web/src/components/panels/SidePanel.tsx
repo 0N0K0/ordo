@@ -35,7 +35,7 @@ export function PanelTitle({ children }: { children: ReactNode }) {
  */
 export function SidePanel({ title, size = 'md', children, ...props }: SidePanelProps) {
   return (
-    <Drawer position="right" size={WIDTHS[size]} padding="lg" zIndex={PANEL_Z_INDEX} title={<PanelTitle>{title}</PanelTitle>} {...props}>
+    <Drawer position="right" size={WIDTHS[size]} padding="lg" zIndex={PANEL_Z_INDEX} title={<PanelTitle>{title}</PanelTitle>} closeButtonProps={{ 'aria-label': 'Fermer' }} {...props}>
       {children}
     </Drawer>
   );

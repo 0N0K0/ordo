@@ -46,10 +46,17 @@ export function moveInOrder(orderedIds: string[], id: string, index: number): st
  * @param {string} id Id moved.
  * @param {number} index Target index among the siblings.
  * @param {(id: string, position: number) => Prisma.PrismaPromise<unknown>} save Update of one sibling's position.
+ * @param {{ $transaction: (queries: Prisma.PrismaPromise<unknown>[]) => Promise<unknown> }} [client] Client running the transaction (the one of `save`). Optional. Default = the client scoped to the current workspace.
  * @returns {Promise<void>}
  */
-export async function saveSiblingOrder(orderedIds: string[], id: string, index: number, save: (id: string, position: number) => Prisma.PrismaPromise<unknown>): Promise<void> {
-  await prisma.$transaction(moveInOrder(orderedIds, id, index).map((siblingId, position) => save(siblingId, position)));
+export async function saveSiblingOrder(
+  orderedIds: string[],
+  id: string,
+  index: number,
+  save: (id: string, position: number) => Prisma.PrismaPromise<unknown>,
+  client: { $transaction: (queries: Prisma.PrismaPromise<unknown>[]) => Promise<unknown> } = prisma,
+): Promise<void> {
+  await client.$transaction(moveInOrder(orderedIds, id, index).map((siblingId, position) => save(siblingId, position)));
 }
 
 /** What the ordered models have in common (each delegate of Prisma has these). */

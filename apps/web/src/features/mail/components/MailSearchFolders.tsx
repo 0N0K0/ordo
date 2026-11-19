@@ -1,6 +1,6 @@
 import { EmptyState } from '../../../components/feedback/EmptyState';
 import { joinedKey } from '@ordo/shared';
-import { formCallbacks } from '../../../lib/form';
+
 import { ErrorAlert } from '../../../components/feedback/ErrorAlert';
 import { ActionsMenu } from '../../../components/actions/ActionsMenu';
 import { countOf } from '../../../lib/text';
@@ -37,14 +37,11 @@ export function MailSearchFolders({ selectedId, onSelect }: { selectedId: string
     confirmDestructive({
       title: 'Supprimer le dossier de recherche',
       risks: <>Le dossier de recherche « {search.label} » sera supprimé définitivement. Les mails qu’il montre ne sont pas touchés.</>,
-      onConfirm: () => {
-        remove.mutate(
-          search.id,
-          formCallbacks(null, 'Dossier de recherche supprimé.', () => {
-            if (selectedId === search.id) onSelect(null);
-          }),
-        );
-      },
+      run: () =>
+        remove.mutateAsync(search.id).then(() => {
+          if (selectedId === search.id) onSelect(null);
+        }),
+      done: 'Dossier de recherche supprimé.',
     });
   };
 

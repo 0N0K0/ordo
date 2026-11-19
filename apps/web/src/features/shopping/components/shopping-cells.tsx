@@ -93,7 +93,7 @@ export function PeopleCell({ memberIds, relationIds, label, readOnly = false, on
       readOnly={readOnly}
       value={value}
       items={value.flatMap((key) => (people.byKey.has(key) ? [{ id: key, label: people.byKey.get(key)! }] : []))}
-      data={people.options}
+      data={people.optionsFor(relationIds)}
       onSave={(keys) => onSave(rowPeopleOf(keys))}
     />
   );

@@ -3,15 +3,17 @@ import { prisma } from '../../db';
 import { Prisma, type Alarm } from '../../generated/prisma/client';
 import { clientError, parseInput } from '../../graphql/errors';
 import { assertExists, deleteOrNotFound, findOrNotFound } from '../core/lookup';
+import { assertActive } from '../core/archive';
 
 /**
- * Validates an alarm and the project or task it points to.
+ * Validates an alarm and the project (not an archived one, unless the alarm already has it) or task it points to.
  * @param {AlarmInput} input Alarm input.
+ * @param {string | null} [keptProjectId] Project the alarm already has. Optional.
  * @returns {Promise<object>} Prisma data.
  */
-async function parseAlarm(input: AlarmInput) {
+async function parseAlarm(input: AlarmInput, keptProjectId: string | null = null) {
   const alarm = parseInput(alarmInputSchema, input);
-  await assertExists(prisma.project, alarm.projectId, 'Projet');
+  await assertActive(prisma.project, alarm.projectId, 'Projet', { keep: keptProjectId, field: 'projectId' });
   await assertExists(prisma.task, alarm.taskId, 'Tâche');
   const tracking = alarm.type === 'TRACKING_DURATION';
   return {
@@ -43,8 +45,8 @@ export async function createAlarm(input: AlarmInput): Promise<Alarm> {
  * @returns {Promise<Alarm>} Updated alarm.
  */
 export async function updateAlarm(id: string, input: AlarmInput): Promise<Alarm> {
-  await assertExists(prisma.alarm, id, 'Alarme');
-  return prisma.alarm.update({ where: { id }, data: { ...(await parseAlarm(input)), lastFiredAt: new Date() } });
+  const current = await findOrNotFound(prisma.alarm, id, 'Alarme');
+  return prisma.alarm.update({ where: { id }, data: { ...(await parseAlarm(input, current.projectId)), lastFiredAt: new Date() } });
 }
 
 /**

@@ -3,7 +3,7 @@ import { prisma } from '../../db';
 import type { Prisma } from '../../generated/prisma/client';
 import { modelDelegate } from './delegate';
 import { clientError, fieldError, notFound, orNotFound } from '../../graphql/errors';
-import { assertAllExist } from './lookup';
+import { assertAllExist, type FindRecordDelegate, findOrNotFound } from './lookup';
 import { SETTINGS_LISTS } from './settings-lists';
 import { BY_POSITION } from './ordering';
 
@@ -158,6 +158,20 @@ export function archivedError(field?: string): GraphQLError {
 export function refuseArchived(record: { archivedAt: Date | null }, field?: string): void {
   // eslint-disable-next-line no-restricted-syntax -- refuseArchived itself.
   if (record.archivedAt) throw archivedError(field);
+}
+
+/**
+ * Whole record that can be changed, found by id: NOT_FOUND « X introuvable. », or BAD_USER_INPUT « Élément archivé… » when it is archived (read only).
+ * @param {FindRecordDelegate<T>} model Model delegate (`prisma.sheet`…).
+ * @param {string} id Record id.
+ * @param {string} what Human-readable name of the record ("Fiche", "Liste"…).
+ * @returns {Promise<T>} Record.
+ */
+export async function findActive<T extends { archivedAt: Date | null }>(model: FindRecordDelegate<T>, id: string, what: string): Promise<T> {
+  const record = await findOrNotFound(model, id, what);
+  // eslint-disable-next-line no-restricted-syntax -- findActive itself.
+  refuseArchived(record);
+  return record;
 }
 
 /** Model delegate able to tell whether records are archived (`prisma.project`, `tx.stockLocation`…). */

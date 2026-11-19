@@ -5,7 +5,7 @@ import { localDay } from '../../../lib/dates';
 import { Group, Progress, SimpleGrid, Stack, Text } from '@mantine/core';
 import { ItemBadge } from '../../../components/items/ItemBadge';
 import { addDays, formatDuration } from '@ordo/shared';
-import { nextRing } from '../../alarms/lib/alarm-labels';
+import { nextRings } from '../../alarms/lib/alarm-labels';
 import { AlarmIcon, CalendarBlankIcon, CheckCircleIcon, CheckSquareOffsetIcon, ClockIcon } from '@phosphor-icons/react';
 import { useMemo } from 'react';
 import { Link } from 'react-router';
@@ -17,10 +17,11 @@ import classes from './Home.module.css';
 import tile from '../../../components/page/StatTile.module.css';
 import { CardFigure, HomeCard } from './HomeCard';
 import { HomeList, HomeRow } from './HomeList';
-import { dayLabel, isTaskLate, useHeldEvents, type WeekTime } from '../lib/home-data';
+import { dayLabel, useHeldEvents, type WeekTime } from '../lib/home-data';
 import * as fmt from '../../../lib/format';
-import { LateBadge } from './LateBadge';
+import { LateBadge } from '../../../components/feedback/LateBadge';
 import { taskNumber } from '../../tasks/hooks/use-task-context';
+import { isTaskOverdue } from '../../tasks/lib/task-overdue';
 
 interface TasksCardProps {
   context: TaskContext | null;
@@ -44,7 +45,7 @@ export function TasksCard({ context, tasks, today }: TasksCardProps) {
           items={tasks}
           render={(task) => {
             const status = task.statusId ? context.statusById.get(task.statusId) : undefined;
-            const late = isTaskLate(task, today);
+            const late = isTaskOverdue(task, today);
             return (
               <HomeRow
                 key={task.id}
@@ -88,9 +89,7 @@ export function AgendaCard({ today }: { today: string }) {
       const start = event.allDay ? null : new Date(event.start);
       list.push({ key: event.key, day: start ? localDay(start) : event.startDate, time: start ? fmt.time(start) : null, label: event.label, alarm: false });
     }
-    for (const alarm of alarms.data) {
-      const next = nextRing(alarm, now);
-      if (!next) continue;
+    for (const { alarm, at: next } of nextRings(alarms.data, now)) {
       const day = localDay(next);
       if (day < until) list.push({ key: `alarm-${alarm.id}`, day, time: fmt.time(next), label: alarm.label, alarm: true });
     }

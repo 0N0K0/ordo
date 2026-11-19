@@ -10,6 +10,7 @@ import { unarchived } from '../../../lib/archive';
 import { sortMilestones, useMilestoneOrder, type MilestoneOrder } from '../lib/milestone-order';
 import { useTasksData, type Contributor, type Milestone, type Sprint, type Task, type TaskLabel, type TaskStatus } from '../api';
 import { personName } from '../../../components/people/people-options';
+import { referenceTargets } from '../../../components/markdown/remark-references';
 
 export interface TaskContext {
   tasks: Task[];
@@ -109,11 +110,6 @@ export const taskRef = (task: { number: number | null }) => (task.number === nul
 export const taskNumber = (task: { number: number | null }): string => taskRef(task).trim();
 
 /**
- * Label of a task after its number ("#12 Écrire le devis"), the label alone for a task of no project.
- * @param {{ number: number | null, label: string }} task Task.
- * @returns {string} Text.
- */
-/**
  * Mark of a closed task after its name (« (fermée) »), nothing for an open one.
  * @param {{ closed: boolean }} task Task.
  * @returns {string} Mark, with its space before.
@@ -121,6 +117,11 @@ export const taskNumber = (task: { number: number | null }): string => taskRef(t
 // eslint-disable-next-line no-restricted-syntax -- closedMark itself.
 export const closedMark = (task: { closed: boolean }): string => (task.closed ? ' (fermée)' : '');
 
+/**
+ * Label of a task after its number ("#12 Écrire le devis"), the label alone for a task of no project.
+ * @param {{ number: number | null, label: string }} task Task.
+ * @returns {string} Text.
+ */
 // eslint-disable-next-line no-restricted-syntax -- taskNumbered itself.
 export const taskNumbered = (task: { number: number | null; label: string }): string => `${taskRef(task)}${task.label}`;
 
@@ -191,12 +192,9 @@ export function useTaskContext() {
     };
     // Tasks texts can reference, by id and by "<projectId>:<number>".
     const referenceTasks: ReferenceTask[] = tasks.map((task) => ({ id: task.id, projectId: task.projectId, number: task.number, label: task.label, place: placeOf(task.projectId) }));
-    const referenceById = mapById(referenceTasks);
-    // "#12" only names a task of a project.
-    const referenceByNumber = new Map(referenceTasks.filter((task) => task.number !== null).map((task) => [`${task.projectId}:${task.number}`, task]));
-    // Archived contributors are not offered by « @ » (their mentions still link: `handles`).
+    const references = referenceTargets(referenceTasks);
+    // Archived contributors are not offered by « @ ».
     const contributors = unarchived(data.contributors).map(({ handle, name, avatarUrl }) => ({ handle, name, avatarUrl }));
-    const handles = new Set(data.contributors.map((contributor) => contributor.handle));
     return {
       tasks,
       contributors: data.contributors,
@@ -252,7 +250,7 @@ export function useTaskContext() {
           return blocker !== undefined && !blocker.closed;
         }),
       suggestionsFor: (projectId) => ({ projectId, tasks: referenceTasks, contributors }),
-      targetsFor: (projectId) => ({ projectId, taskById: referenceById, taskByNumber: referenceByNumber, handles }),
+      targetsFor: (projectId) => ({ projectId, ...references }),
     };
   }, [data, workspace, meId, milestoneOrder]);
 

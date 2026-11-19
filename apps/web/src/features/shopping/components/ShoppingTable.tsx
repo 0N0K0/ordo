@@ -1,4 +1,5 @@
 import { Group, Text } from '@mantine/core';
+import { readOnlyCells } from '../../../components/data-table/table/data-table';
 import { shoppingItemSchema, type ShoppingItemInput } from '@ordo/shared';
 import { useMemo, type ReactNode } from 'react';
 import { AddShoppingRow, type ShoppingAdd } from './AddShoppingRow';
@@ -151,7 +152,7 @@ export function ShoppingTable<T extends ShoppingFields>({
     const name = item.label;
     return {
       // Columns without an editor of their own: their text.
-      ...Object.fromEntries(view.columns.filter((column) => column.text).map((column) => [column.id, column.text!(item)])),
+      ...readOnlyCells(view.columns, item),
       label: (
         <>
           <Group gap={4} wrap="nowrap">

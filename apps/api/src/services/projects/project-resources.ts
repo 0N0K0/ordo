@@ -5,15 +5,16 @@ import type { ProjectResource } from '../../generated/prisma/client';
 import { parseInput } from '../../graphql/errors';
 import { deleteAttachment, storeAttachment } from '../core/attachments';
 import { moveInList, nextPositionIn } from '../core/ordering';
-import { assertExists, findOrNotFound } from '../core/lookup';
+import { findOrNotFound } from '../core/lookup';
+import { assertActive, assertNotArchived } from '../core/archive';
 
 /**
- * Next position among the resources of a project.
+ * Next position among the resources of a project (not an archived one).
  * @param {string} projectId Project.
  * @returns {Promise<number>} Position.
  */
 async function nextPosition(projectId: string): Promise<number> {
-  await assertExists(prisma.project, projectId, 'Projet');
+  await assertActive(prisma.project, projectId, 'Projet');
   return nextPositionIn('projectResource', { projectId });
 }
 
@@ -43,13 +44,24 @@ export async function addProjectFiles(projectId: string, files: File[]): Promise
 }
 
 /**
+ * Loads a resource whose project can still take changes (not archived).
+ * @param {string} id Resource.
+ * @returns {Promise<ProjectResource>} Resource.
+ */
+async function editableResource(id: string): Promise<ProjectResource> {
+  const resource = await findOrNotFound(prisma.projectResource, id, 'Ressource');
+  await assertNotArchived('project', resource.projectId);
+  return resource;
+}
+
+/**
  * Renames a resource and changes its note (and the address of a link).
  * @param {string} id Resource.
  * @param {{ label: string, url?: string | null, note?: string | null }} input Changes (an omitted address or note is kept).
  * @returns {Promise<ProjectResource>} Resource.
  */
 export async function updateProjectResource(id: string, input: { label: string; url?: string | null; note?: string | null }): Promise<ProjectResource> {
-  const resource = await findOrNotFound(prisma.projectResource, id, 'Ressource');
+  const resource = await editableResource(id);
   // Omitted, the note is kept, as the address of a link (null clears it).
   const note = input.note === undefined ? resource.note : input.note;
   const data =
@@ -63,7 +75,7 @@ export async function updateProjectResource(id: string, input: { label: string; 
  * @returns {Promise<void>}
  */
 export async function deleteProjectResource(id: string): Promise<void> {
-  const resource = await findOrNotFound(prisma.projectResource, id, 'Ressource');
+  const resource = await editableResource(id);
   // The resource goes with its file (cascade).
   if (resource.attachmentId) await deleteAttachment(resource.attachmentId);
   else await prisma.projectResource.delete({ where: { id } });
@@ -76,6 +88,6 @@ export async function deleteProjectResource(id: string): Promise<void> {
  * @returns {Promise<void>}
  */
 export async function moveProjectResource(id: string, index: number): Promise<void> {
-  const resource = await findOrNotFound(prisma.projectResource, id, 'Ressource');
+  const resource = await editableResource(id);
   await moveInList('projectResource', id, index, { projectId: resource.projectId });
 }

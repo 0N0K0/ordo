@@ -23,6 +23,7 @@ export function CountBadge({ count, color, variant = 'filled', size = 'xs', labe
   if (count <= 0) return null;
   return (
     <Badge size={size} variant={variant} color={color} circle={size === 'xs' && count < 10} aria-label={label} {...others}>
+      {/* eslint-disable-next-line no-restricted-syntax -- CountBadge itself. */}
       {count}
     </Badge>
   );

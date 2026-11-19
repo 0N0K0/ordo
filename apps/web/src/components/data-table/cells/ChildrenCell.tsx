@@ -9,8 +9,8 @@ import { StackedValues } from './StackedValues';
 interface AddChild {
   /** Action (« Ajouter une sous-tâche »). */
   label: string;
-  /** Name of the element of the row, for the screen readers. */
-  name: string;
+  /** Label of the element of the row, for the screen readers. */
+  item: string;
   onClick: () => void;
 }
 
@@ -25,7 +25,7 @@ export function ChildrenCell({ children, add }: { children: ReactNode; add?: Add
     <Group gap={4} wrap="nowrap" align="flex-start" onClick={stopClick} style={{ minWidth: 0 }}>
       <StackedValues>{children}</StackedValues>
       {add && (
-        <IconAction label={add.label} size="sm" item={add.name} onClick={add.onClick} style={{ flex: 'none' }}>
+        <IconAction label={add.label} size="sm" item={add.item} onClick={add.onClick} style={{ flex: 'none' }}>
           <PlusIcon aria-hidden />
         </IconAction>
       )}

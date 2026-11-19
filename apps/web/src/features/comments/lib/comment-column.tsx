@@ -1,3 +1,4 @@
+import * as fmt from '../../../lib/format';
 import type { DataColumn } from '../../../components/data-table/table/data-table';
 import { CommentCount } from '../components/CommentCount';
 
@@ -28,7 +29,7 @@ export function commentColumn<R>(counts: Map<string, number>, idOf: (row: R) => 
     numeric: true,
     hiddenByDefault: true,
     sortValue: total,
-    text: (row) => (total(row) ? String(total(row)) : ''),
+    text: (row) => fmt.count(total(row)),
     cell: (row) => <CommentCount count={total(row)} />,
     filter: { kind: 'number', value: total },
   };

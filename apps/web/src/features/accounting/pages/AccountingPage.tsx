@@ -44,6 +44,7 @@ import { accountingQueryKey } from '../api';
 import { selectedLabel } from '../../../components/data-table/selection/selection-label';
 import * as fmt from '../../../lib/format';
 import { SettingsSection } from '../../../components/settings/SettingsSection';
+import { LATE_COLOR } from '../../../components/feedback/feedback-colors';
 
 /** Tabs of the settings sidebar. */
 const SETTINGS_TABS = ['zip', 'statuses', 'company'] as const;
@@ -103,7 +104,17 @@ const RECURRING_COLUMNS: DataColumn<RecurringInvoice>[] = [
     },
     groupable: true,
   },
-  { id: 'issued', required: true, label: 'Émises', size: 90, numeric: true, hiddenByDefault: true, sortValue: (item) => item.issuedCount, text: (item) => String(item.issuedCount) },
+  {
+    id: 'issued',
+    required: true,
+    label: 'Émises',
+    size: 90,
+    numeric: true,
+    hiddenByDefault: true,
+    sortValue: (item) => item.issuedCount,
+    text: (item) => fmt.count(item.issuedCount),
+    filter: { kind: 'number', value: (item) => item.issuedCount },
+  },
   {
     id: 'amount',
     required: true,
@@ -283,7 +294,7 @@ export function AccountingPage() {
           <PageTabs.Tab value="toSend" leftSection={<PaperPlaneTiltIcon aria-hidden />} rightSection={toSendCount ? <CountBadge count={toSendCount} color="blue" /> : undefined}>
             À envoyer
           </PageTabs.Tab>
-          <PageTabs.Tab value="overdue" leftSection={<BellRingingIcon aria-hidden />} rightSection={overdue.data?.length ? <CountBadge count={overdue.data.length} color="red" /> : undefined}>
+          <PageTabs.Tab value="overdue" leftSection={<BellRingingIcon aria-hidden />} rightSection={overdue.data?.length ? <CountBadge count={overdue.data.length} color={LATE_COLOR} /> : undefined}>
             À relancer
           </PageTabs.Tab>
           <PageTabs.Tab value="recurring" leftSection={<ArrowsClockwiseIcon aria-hidden />}>

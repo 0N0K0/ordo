@@ -1,6 +1,7 @@
 import { Box, Checkbox, Group, Text, Tooltip } from '@mantine/core';
 import { CheckCircleIcon, FlagIcon, PaperclipIcon } from '@phosphor-icons/react';
-import type { DragEvent, ReactNode } from 'react';
+import { useDraggable } from '@dnd-kit/core';
+import type { ReactNode } from 'react';
 import { correspondent, listDate, type Address } from '../lib/mail-format';
 import classes from '../pages/MailPage.module.css';
 
@@ -27,9 +28,8 @@ interface MailListItemProps {
   ticked: boolean;
   onTick: (ticked: boolean) => void;
   onOpen: () => void;
-  /** Starts dragging the mail to a folder. Optional (not draggable). */
-  onDragStart?: (event: DragEvent<HTMLDivElement>) => void;
-  onDragEnd?: () => void;
+  /** Dragging the mail to a folder (`components/dnd`): its drag id and what it carries. Optional (not draggable). */
+  drag?: { id: string; data: Record<string, unknown> };
   /** Under the subject (its account and folder…). Optional. */
   footer?: ReactNode;
 }
@@ -40,9 +40,12 @@ interface MailListItemProps {
  * @param {MailListItemProps} props Component props.
  * @returns {JSX.Element} Row.
  */
-export function MailListItem({ message, labels, ownAddresses, active, ticked, onTick, onOpen, onDragStart, onDragEnd, footer }: MailListItemProps) {
+export function MailListItem({ message, labels, ownAddresses, active, ticked, onTick, onOpen, drag, footer }: MailListItemProps) {
+  const { setNodeRef, listeners, isDragging } = useDraggable({ id: drag?.id ?? '', data: drag?.data, disabled: !drag });
   return (
     <div
+      ref={setNodeRef}
+      {...(drag ? listeners : {})}
       role="button"
       tabIndex={0}
       className={classes.item}
@@ -50,9 +53,8 @@ export function MailListItem({ message, labels, ownAddresses, active, ticked, on
       data-unread={!message.seen || undefined}
       data-done={message.done || undefined}
       data-selected={ticked || undefined}
-      draggable={Boolean(onDragStart)}
-      onDragStart={onDragStart}
-      onDragEnd={onDragEnd}
+      // Decision K: what is dragged is shown at half opacity.
+      style={isDragging ? { opacity: 'var(--onoko-dragging-opacity)' } : undefined}
       onClick={onOpen}
       onKeyDown={(event) => {
         if (event.key === 'Enter') onOpen();

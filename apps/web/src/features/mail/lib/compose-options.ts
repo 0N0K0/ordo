@@ -1,5 +1,5 @@
 import * as fmt from '../../../lib/format';
-import { escapeHtml, prefixedSubject, type Address } from './mail-format';
+import { escapeHtml, prefixedSubject, type Address, senderName, addressLabel } from './mail-format';
 
 /** A mail answered or forwarded: read on the server or linked to a project. */
 export interface SourceMail {
@@ -125,7 +125,7 @@ export function replyOptions(mail: SourceMail, all: boolean, own: ReadonlySet<st
     to,
     cc: [...new Set(cc)],
     subject: prefixedSubject(mail.subject, 'Re'),
-    quote: `<p>Le ${escapeHtml(fmt.dateTime(mail.date))}, ${escapeHtml(mail.from[0]?.name || mail.from[0]?.address || '')} a écrit :</p><blockquote>${bodyOf(mail)}</blockquote>`,
+    quote: `<p>Le ${escapeHtml(fmt.dateTime(mail.date))}, ${escapeHtml(senderName(mail.from))} a écrit :</p><blockquote>${bodyOf(mail)}</blockquote>`,
     inReplyTo: mail.messageId,
     references: [...mail.references, ...(mail.messageId ? [mail.messageId] : [])],
     projectId,
@@ -141,7 +141,7 @@ export function replyOptions(mail: SourceMail, all: boolean, own: ReadonlySet<st
  */
 export function forwardOptions(mail: SourceMail, files: SourceFiles['files'], projectId?: string | null): ComposeOptions {
   const header = [
-    `De : ${escapeHtml(mail.from.map((item) => (item.name ? `${item.name} <${item.address}>` : item.address)).join(', '))}`,
+    `De : ${escapeHtml(mail.from.map(addressLabel).join(', '))}`,
     `Date : ${escapeHtml(fmt.dateTime(mail.date))}`,
     `Objet : ${escapeHtml(mail.subject)}`,
     `À : ${escapeHtml(emails(mail.to).join(', '))}`,

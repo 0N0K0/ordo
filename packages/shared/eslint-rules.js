@@ -12,6 +12,14 @@ export const SHARED_SYNTAX_RULES = [
     selector: 'CallExpression[callee.property.name=/^toLocale(Date|Time)?String$/]',
     message: 'Utiliser les formats partagés (@ordo/shared : formatMoney, formatNumber, dateStyle) : un format par rôle.',
   },
+  {
+    selector: "ConditionalExpression[test.type='BinaryExpression'][test.operator=/^[<>]=?$/][test.right.value=0]:matches([consequent.value='IN'][alternate.value='OUT'], [consequent.value='OUT'][alternate.value='IN'])",
+    message: 'Utiliser directionOf(amount) (@ordo/shared) : entrée au-dessus de 0, sortie sinon (0 compris).',
+  },
+  {
+    selector: "CallExpression[callee.name='Number'] > CallExpression.arguments[callee.property.name='slice'][arguments.0.value=8]",
+    message: 'Utiliser dayOfMonthOf(day) (@ordo/shared).',
+  },
   // Same name: case and accents aside, as the search.
   {
     selector: 'BinaryExpression[operator=/^[!=]==$/][left.callee.property.name=/^(toLocaleLowerCase|toLowerCase)$/][right.callee.property.name=/^(toLocaleLowerCase|toLowerCase)$/]',
@@ -188,6 +196,15 @@ export const SHARED_SYNTAX_RULES = [
     message: 'Utiliser movedTo(others, moved, index) (@ordo/shared).',
   },
   // Schemas: one source.
+  {
+    // for (let current = …; current; current = current.parentId ? byId.get(current.parentId) : undefined)
+    selector: "ForStatement > AssignmentExpression.update:has(MemberExpression[property.name='parentId']), WhileStatement AssignmentExpression:has(> MemberExpression.right[property.name='parentId'])",
+    message: 'Utiliser lineageOf(byId, id) / ancestorsOf(byId, id) / pathOf (@ordo/shared) : les parents, cycles arrêtés.',
+  },
+  {
+    selector: "CallExpression[callee.property.name='join'][arguments.0.value=' › ']",
+    message: 'Utiliser pathOf(byId, id, label) ou LEVEL (@ordo/shared) : un seul chemin « Maison › Cuisine ».',
+  },
   {
     selector: "ObjectExpression[properties.length=2]:has(> Property[key.name='label'][value.name='labelTextSchema']):has(> Property[key.name='color'][value.name='colorSchema'])",
     message: 'Utiliser labelFormSchema (@ordo/shared) : un libellé et une couleur.',

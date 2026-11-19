@@ -1,6 +1,7 @@
-import { Switch, Tooltip, type MantineColor, type MantineSize } from '@mantine/core';
+import { Switch, type MantineColor, type MantineSize } from '@mantine/core';
 import type { ReactNode } from 'react';
 import classes from './StateSwitch.module.css';
+import { ActionTooltip } from '../actions/ActionTooltip';
 
 interface StateSwitchProps {
   /** What it tells when on (« Lait manque », « Favori », « Traité ») or the mode it turns on (« Modifier les plages »): its name. */
@@ -46,8 +47,8 @@ export function StateSwitch({ label, showLabel = false, checked, onChange, hint,
   if (!hint) return control;
   // A wrapper: the tooltip shows on a disabled switch too.
   return (
-    <Tooltip label={hint}>
-      <span className={classes.root}>{control}</span>
-    </Tooltip>
+    <ActionTooltip label={hint} wrapped>
+      {control}
+    </ActionTooltip>
   );
 }

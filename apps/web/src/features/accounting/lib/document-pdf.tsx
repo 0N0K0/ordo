@@ -81,6 +81,8 @@ const PHRASES: Record<AccountingDocumentType, { label: string; article: string }
  */
 export async function documentMailOptions(document: DocumentMail): Promise<ComposeOptions> {
   const phrase = PHRASES[document.type];
+  /** PDF of the document, as a file to join. @returns {Promise<File>} File. */
+  const pdf = (): Promise<File> => fetchFile(pdfUrl(document.id, true), fileName(`${phrase.label} ${document.number}`, 'pdf'));
   const amount = fmt.moneyCents(document.totalGross, document.currency);
   const date = document.dueDate ? fmt.exportDay(document.dueDate) : null;
   const detail =
@@ -104,15 +106,12 @@ export async function documentMailOptions(document: DocumentMail): Promise<Compo
       to: document.recipient.email ? [document.recipient.email] : [],
       subject: mail.subject,
       body: mail.html,
-      files: [await fetchFile(pdfUrl(document.id, true), fileName(`${phrase.label} ${document.number}`, 'pdf'))],
+      files: [await pdf()],
       projectId: document.projectId,
       onSent: document.onSent,
     };
   }
-  const files = await Promise.all([
-    fetchFile(pdfUrl(document.id, true), fileName(`${phrase.label} ${document.number}`, 'pdf')),
-    ...document.attachments.map((attachment) => fetchFile(attachment.url, attachment.filename)),
-  ]);
+  const files = await Promise.all([pdf(), ...document.attachments.map((attachment) => fetchFile(attachment.url, attachment.filename))]);
   return {
     to: document.recipient.email ? [document.recipient.email] : [],
     subject: `${phrase.label} ${document.number}${document.companyName ? ` — ${document.companyName}` : ''}`,

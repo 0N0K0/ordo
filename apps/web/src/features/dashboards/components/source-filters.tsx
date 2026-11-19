@@ -11,9 +11,10 @@ import { treeOptions, treeSelectProps } from '../../../components/tree/tree-sele
 import { categoryPaths, categoryTree } from '../../treasury/lib/categories';
 import { TaskFilterBuilder } from '../../tasks/components/TaskFilterBuilder';
 import { unarchived } from '../../../lib/archive';
-import { itemOptions, listSelectProps } from '../../../components/items/item-look';
+import { listSelectProps } from '../../../components/items/item-look';
 import type { TaskContext } from '../../tasks/hooks/use-task-context';
 import { DIRECTION_PLURALS } from '../../treasury/lib/direction';
+import { parseTaggedKey, taggedKey } from '../../../lib/tagged-key';
 
 /** Filters of the records of a chart (or of one of its data sets), whatever its source. */
 type SourceFilterFields = Pick<ChartConfig, 'search' | 'filter' | 'includeArchived' | 'documents' | 'treasury'>;
@@ -86,17 +87,23 @@ function TreasuryFilters({ config, change }: { config: Pick<ChartConfig, 'docume
       { id: 'direction:OUT', parentId: null, label: DIRECTION_PLURALS.OUT, pathless: true },
       ...categoryTree(all).map(({ category, path }) => ({
         id: path,
-        parentId: category.parentId ? (paths.get(category.parentId) ?? null) : `direction:${category.direction}`,
+        parentId: category.parentId ? (paths.get(category.parentId) ?? null) : taggedKey('direction', category.direction),
         label: category.label,
         color: category.color,
       })),
     ],
-    (id) => !id.startsWith('direction:') && (!archivedPaths.has(id) || filter.categories.includes(id)),
+    (id) => parseTaggedKey(id)?.tag !== 'direction' && (!archivedPaths.has(id) || filter.categories.includes(id)),
   );
   const set = (changes: Partial<ChartConfig['treasury']>) => change({ treasury: { ...filter, ...changes } });
   return (
     <Stack gap="sm">
-      <BatchMultiSelect label="Comptes" placeholder="Tous" data={itemOptions(accounts ?? [], undefined, filter.accountIds)} value={filter.accountIds} onChange={(accountIds) => set({ accountIds })} />
+      <BatchMultiSelect
+        label="Comptes"
+        placeholder="Tous"
+        {...listSelectProps(accounts ?? [], undefined, filter.accountIds)}
+        value={filter.accountIds}
+        onChange={(accountIds) => set({ accountIds })}
+      />
       <BatchMultiSelect label="Catégories" placeholder="Toutes" searchable {...treeSelectProps(categories)} value={filter.categories} onChange={(selected) => set({ categories: selected })} />
       <LabeledField label="Mouvements">
         <SegmentedControl
@@ -134,7 +141,7 @@ export function SourceFilters({ source, config, context, change }: { source: Cha
   if (source === 'treasury') return <TreasuryFilters config={config} change={change} />;
   return (
     <>
-      <TextInput placeholder="Recherche (libellé, description)" value={config.search} onChange={(event) => change({ search: event.currentTarget.value })} />
+      <TextInput label="Recherche" placeholder="Libellé, description" value={config.search} onChange={(event) => change({ search: event.currentTarget.value })} />
       <TaskFilterBuilder filter={config.filter} context={context} onChange={(filter) => change({ filter })} />
       <Switch label="Inclure les tâches archivées" checked={config.includeArchived} onChange={(event) => change({ includeArchived: event.currentTarget.checked })} />
     </>

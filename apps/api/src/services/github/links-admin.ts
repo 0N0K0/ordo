@@ -7,7 +7,6 @@ import { repositoryByName, resolveBoard, viewerLogin, type Board } from './board
 import { githubToken } from './client';
 import { currentWorkspaceId } from '../../workspace-context';
 import { assertActive } from '../core/archive';
-import { assertExists } from '../core/lookup';
 import { toJson } from '../core/json';
 
 /**
@@ -60,7 +59,7 @@ async function relatives(projectId: string): Promise<{ ancestors: string[]; desc
  * @returns {Promise<GithubProjectLink>} Link.
  */
 export async function saveGithubLink(projectId: string, input: GithubLinkInput): Promise<GithubProjectLink> {
-  await assertExists(prisma.project, projectId, 'Projet');
+  await assertActive(prisma.project, projectId, 'Projet');
   const { ancestors, descendants } = await relatives(projectId);
   const clash = await prisma.githubProjectLink.findFirst({ where: { projectId: { in: [...ancestors, ...descendants] } }, include: { project: { select: { label: true } } } });
   if (clash) throw clientError('BAD_USER_INPUT', `« ${clash.project.label} » est déjà lié à un tableau GitHub : un projet et ses sous-projets partagent un seul tableau.`);

@@ -46,7 +46,7 @@ import {
 } from './board';
 import { currentGithubConnection, githubToken } from './client';
 import { isUnmapped, mergeFields, type SyncFields } from './merge';
-import { schedulePerWorkspace } from '../workspace/workspaces';
+import { schedulePerWorkspace } from '../workspaces/workspaces';
 import { subtreeIds } from '../core/trees';
 import { connectIds } from '../core/relations';
 import { toJson } from '../core/json';

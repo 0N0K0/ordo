@@ -18,9 +18,10 @@ import classes from './Shopping.module.css';
 import { FoldHeading } from '../../../components/actions/FoldHeading';
 import { Caption } from '../../../components/page/Caption';
 import { EXTERNAL_LINK } from '../../../components/actions/link-props';
+import { taggedKey } from '../../../lib/tagged-key';
 
 interface HeadingProps {
-  name: string;
+  label: string;
   color: string | null;
   /** Image of the store or of the category. Optional. */
   iconUrl?: string | null;
@@ -37,7 +38,7 @@ interface HeadingProps {
  * @param {HeadingProps} props Component props.
  * @returns {JSX.Element} Heading.
  */
-function Heading({ name, color, iconUrl, count, depth, collapsed, onToggle }: HeadingProps) {
+function Heading({ label, color, iconUrl, count, depth, collapsed, onToggle }: HeadingProps) {
   return (
     <FoldHeading
       className={classes.storeHeading}
@@ -46,20 +47,21 @@ function Heading({ name, color, iconUrl, count, depth, collapsed, onToggle }: He
       expanded={!collapsed}
       onToggle={onToggle}
       style={{ paddingLeft: `calc(${Math.max(0, depth - 1)} * var(--mantine-spacing-md))` }}
-      icon={(color || iconUrl) && <ItemAvatar name={name} iconUrl={iconUrl} color={color} size={depth === 0 ? 20 : 16} />}
+      icon={(color || iconUrl) && <ItemAvatar name={label} iconUrl={iconUrl} color={color} size={depth === 0 ? 20 : 16} />}
       aside={
         <Badge size={depth === 0 ? 'lg' : 'md'} variant={count ? 'filled' : 'light'} color={count ? undefined : 'green'} aria-label={`${count} à acheter`}>
+          {/* eslint-disable-next-line no-restricted-syntax -- 0 shown too, in green: all bought (CountBadge hides it). */}
           {count}
         </Badge>
       }
     >
       {depth === 0 ? (
         <Text fw={700} size="lg">
-          {name}
+          {label}
         </Text>
       ) : (
         <Caption fw={depth <= 1 ? 700 : 600} size="sm">
-          {name}
+          {label}
         </Caption>
       )}
     </FoldHeading>
@@ -151,7 +153,7 @@ export function StoreMode({ list, onClose }: { list: ShoppingList; onClose: () =
       entry.kind === 'group' ? (
         <Heading
           key={`${prefix}${entry.id ?? NO_GROUP}`}
-          name={entry.label}
+          label={entry.label}
           color={entry.color}
           iconUrl={data?.shoppingCategories.find((category) => category.id === entry.id)?.iconUrl}
           count={entry.items.length}
@@ -181,14 +183,14 @@ export function StoreMode({ list, onClose }: { list: ShoppingList; onClose: () =
         </Group>
         {toBuy.length === 0 && <NoticeAlert kind="success">Tout est acheté.</NoticeAlert>}
         {deliverySections.map(({ delivery, items: deliveryItems }) => (
-          <Stack key={`delivery:${delivery.id}`} gap="xs">
+          <Stack key={taggedKey('delivery', delivery.id)} gap="xs">
             <Heading
-              name={delivery.label || (delivery.pickup ? 'Retrait' : 'Livraison')}
+              label={delivery.label || (delivery.pickup ? 'Retrait' : 'Livraison')}
               color={null}
               count={deliveryItems.length}
               depth={0}
-              collapsed={collapsed.has(`delivery:${delivery.id}`)}
-              onToggle={() => toggle(`delivery:${delivery.id}`)}
+              collapsed={collapsed.has(taggedKey('delivery', delivery.id))}
+              onToggle={() => toggle(taggedKey('delivery', delivery.id))}
             />
             <Group gap="sm" justify="space-between" wrap="wrap">
               <Text size="sm" c="dimmed">
@@ -216,13 +218,13 @@ export function StoreMode({ list, onClose }: { list: ShoppingList; onClose: () =
                 Réceptionnée
               </ActionButton>
             </Group>
-            {!collapsed.has(`delivery:${delivery.id}`) && deliveryItems.map((item) => row(item))}
+            {!collapsed.has(taggedKey('delivery', delivery.id)) && deliveryItems.map((item) => row(item))}
           </Stack>
         ))}
         {sections.map((section) => (
           <Stack key={section.key} gap="xs">
             <Heading
-              name={section.label}
+              label={section.label}
               color={section.color}
               iconUrl={'iconUrl' in section ? section.iconUrl : null}
               count={section.items.length}

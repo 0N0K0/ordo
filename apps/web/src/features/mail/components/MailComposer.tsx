@@ -3,9 +3,9 @@ import { openModal } from '../../../components/panels/open-modal';
 import { addDays, WEEKDAY_LABELS, weekdayOfDate, twoDigits } from '@ordo/shared';
 import { localInstant, localToday } from '../../../lib/dates';
 import { FileBadge } from '../../../components/items/FileBadge';
-import { Anchor, Checkbox, Collapse, FileButton, Group, Paper, Popover, Select, Stack, TagsInput, Text, TextInput } from '@mantine/core';
+import { Checkbox, Collapse, FileButton, Group, Paper, Popover, Select, Stack, TagsInput, Text, TextInput } from '@mantine/core';
 import { DateTimePicker } from '@mantine/dates';
-import { ClockCountdownIcon, ClockIcon, FloppyDiskIcon, PaperPlaneTiltIcon, PaperclipIcon, TrashIcon, XIcon, PencilSimpleLineIcon } from '@phosphor-icons/react';
+import { ClockCountdownIcon, ClockIcon, FloppyDiskIcon, PaperPlaneTiltIcon, PaperclipIcon, TrashIcon, XIcon, PencilSimpleLineIcon, PlusIcon } from '@phosphor-icons/react';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { RichEditor } from './RichEditor';
 import { notifySuccess, onMutationError } from '../../../lib/notify';
@@ -18,6 +18,7 @@ import { unarchived } from '../../../lib/archive';
 import { FormActions } from '../../../components/dialogs/FormActions';
 import { ActionButton } from '../../../components/actions/ActionButton';
 import { accountLabel } from '../lib/mail-format';
+import { FoldHeading } from '../../../components/actions/FoldHeading';
 
 const EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 /** Delay after the last change before the draft is saved. */
@@ -354,9 +355,9 @@ export function MailComposer({ options, onDone }: { options: ComposeOptions; onD
           <RecipientsInput label="À" value={to} onChange={setTo} autoFocus={to.length === 0} />
         </div>
         {!showCopies && (
-          <Anchor component="button" type="button" size="sm" mb={8} onClick={() => setShowCopies(true)}>
+          <ActionButton priority="tertiary" icon={<PlusIcon aria-hidden />} mb={8} onClick={() => setShowCopies(true)}>
             Cc / Cci
-          </Anchor>
+          </ActionButton>
         )}
       </Group>
       {showCopies && (
@@ -379,9 +380,9 @@ export function MailComposer({ options, onDone }: { options: ComposeOptions; onD
       )}
       {options.quote && (
         <Stack gap={4}>
-          <Anchor component="button" type="button" size="sm" onClick={() => setShowQuote((value) => !value)}>
-            {showQuote ? 'Masquer' : 'Afficher'} le message {options.forwarding ? 'transféré' : 'cité'}
-          </Anchor>
+          <FoldHeading inline expanded={showQuote} onToggle={() => setShowQuote((value) => !value)}>
+            Message {options.forwarding ? 'transféré' : 'cité'}
+          </FoldHeading>
           <Collapse expanded={showQuote}>
             <Paper withBorder p="xs" radius="sm">
               <MailBody html={options.quote} text={null} />

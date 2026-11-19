@@ -3,7 +3,7 @@ import { unarchived } from '../../../lib/archive';
 
 import { NO_SUGGESTIONS } from '../../../components/markdown/remark-references';
 
-import { listSelectProps } from '../../../components/items/item-look';
+import { itemSelectProps } from '../../../components/items/item-look';
 import { Divider, Group, SegmentedControl, Select, SimpleGrid, Stack, Text, TextInput } from '@mantine/core';
 import { DatePickerInput } from '@mantine/dates';
 import { treasuryEntrySchema, type TreasuryAllocationInput, sumOf } from '@ordo/shared';
@@ -34,6 +34,7 @@ import { MarkdownEditor } from '../../../components/markdown/MarkdownEditor';
 import { Comments } from '../../comments/components/Comments';
 import { FormActions } from '../../../components/dialogs/FormActions';
 import { RemoveButton } from '../../../components/actions/RemoveButton';
+import { taggedKey } from '../../../lib/tagged-key';
 
 /** Prefixes of the key of a document settled in a choice: made in Ordo, or imported. */
 const DOCUMENT_KEY = 'doc:';
@@ -186,7 +187,7 @@ export function EntryForm({ entry, status = 'ACTUAL', copy = false, onDone }: En
             onChange={(value) => form.setValues({ status: value as EntryValues['status'], recurrence: null, allocations: [] })}
           />
           <SimpleGrid cols={{ base: 1, sm: 2 }} spacing="sm">
-            <Select label="Compte" required {...listSelectProps(open, undefined, values.accountId)} allowDeselect={false} {...form.getInputProps('accountId')} />
+            <Select label="Compte" required {...itemSelectProps(open, values.accountId)} allowDeselect={false} {...form.getInputProps('accountId')} />
             <DatePickerInput
               label={forecast ? 'Date d’exécution prévue' : 'Date d’exécution'}
               required
@@ -239,7 +240,7 @@ export function EntryForm({ entry, status = 'ACTUAL', copy = false, onDone }: En
               clearable
               onCreate={create.method}
               placeholder={methods.length ? '—' : 'Aucun : tapez un libellé pour le créer'}
-              {...listSelectProps(methods, undefined, values.methodId)}
+              {...itemSelectProps(methods, values.methodId)}
               {...form.getInputProps('methodId')}
             />
           </SimpleGrid>
@@ -247,7 +248,7 @@ export function EntryForm({ entry, status = 'ACTUAL', copy = false, onDone }: En
             label={incoming ? 'Émetteur' : 'Destinataire'}
             onCreate={async (name) => {
               const id = await create.counterparty(name);
-              return id && `tiers:${id}`;
+              return id && taggedKey('tiers', id);
             }}
             clearable
             searchable

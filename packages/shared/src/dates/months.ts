@@ -35,6 +35,16 @@ export function dayOfMonthText(day: number): string {
   return day === 1 ? ordinal(1) : String(day);
 }
 
+/**
+ * Day of the month of a day.
+ * @param {string} day Day (YYYY-MM-DD).
+ * @returns {number} Day of the month (1 to 31).
+ */
+export function dayOfMonthOf(day: string): number {
+  // eslint-disable-next-line no-restricted-syntax -- dayOfMonthOf itself.
+  return Number(day.slice(8, 10));
+}
+
 /** Names of the positions of a weekday in its month (decision V): « 1er » to « 4e », and « dernier » (-1). */
 export const POSITION_LABELS: Record<number, string> = { 1: ordinal(1), 2: ordinal(2), 3: ordinal(3), 4: ordinal(4), [-1]: 'dernier' };
 

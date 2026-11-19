@@ -1,4 +1,5 @@
 import { formCallbacks } from '../../../lib/form';
+import { DocumentBalanceBadge } from './DocumentBalanceBadge';
 import { plural, countOf } from '../../../lib/text';
 import { EmptyState } from '../../../components/feedback/EmptyState';
 
@@ -39,6 +40,7 @@ import { commentColumn } from '../../comments/lib/comment-column';
 import type { TreeOption } from '../../../components/tree/tree-select';
 import { monthColumn } from '../../../components/data-table/table/month-column';
 import { documentPath } from '../../../app/pages';
+import { taggedKey } from '../../../lib/tagged-key';
 
 type Row = { kind: 'ordo'; document: AccountingDocumentSummary } | { kind: 'imported'; document: ImportedDocument };
 
@@ -47,7 +49,7 @@ type Row = { kind: 'ordo'; document: AccountingDocumentSummary } | { kind: 'impo
  * @param {Row} row Row.
  * @returns {string} Key.
  */
-const rowKey = (row: Row) => `${row.kind}:${row.document.id}`;
+const rowKey = (row: Row) => taggedKey(row.kind, row.document.id);
 
 /**
  * Tracking status of a document, as a text.
@@ -177,7 +179,7 @@ function documentColumns({ rows, projectLabels, projects }: { rows: Row[]; proje
       hiddenByDefault: true,
       sortValue: (row) => row.document.balance ?? 0,
       formatTotal: money,
-      text: (row) => (row.document.balance ? fmt.money(row.document.balance, row.document.currency) : ''),
+      text: (row) => (row.document.balance == null ? '' : fmt.money(row.document.balance, row.document.currency)),
       filter: { kind: 'number', value: (row) => row.document.balance ?? 0 },
     },
     {
@@ -221,11 +223,7 @@ function ImportedTracking({ document, onSelect }: { document: ImportedDocument; 
   return (
     <Group gap={4} wrap="nowrap" onClick={(event) => event.stopPropagation()}>
       <StatusMenu type={document.type} current={document.trackingStatus} onSelect={onSelect} readOnly={document.archived} />
-      {document.type !== 'QUOTE' && (
-        <Badge size="sm" variant="light" color={document.balance ? 'orange' : 'green'}>
-          {document.balance ? `Reste ${fmt.money(document.balance, document.currency)}` : 'Réglée'}
-        </Badge>
-      )}
+      {document.type !== 'QUOTE' && <DocumentBalanceBadge size="sm" balance={document.balance} currency={document.currency} />}
     </Group>
   );
 }
@@ -412,7 +410,7 @@ export function DocumentsTable({ tableKey, projectId = null, title, documents, i
    */
   const ordoCells = (document: AccountingDocumentSummary): Record<string, ReactNode> => ({
     number: (
-      <UnstyledButton onClick={() => navigate(documentPath(document.id))} aria-label={`Ouvrir ${document.number ?? 'le brouillon'}`}>
+      <UnstyledButton onClick={() => navigate(documentPath(document.id))} aria-label={document.number ? `Ouvrir « ${document.number} »` : 'Ouvrir le brouillon'}>
         <Group gap={6} wrap="nowrap">
           {document.number ? (
             <Text size="sm" ff="monospace" fw={600}>

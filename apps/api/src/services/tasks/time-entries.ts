@@ -2,7 +2,7 @@ import { durationSchema, parseOptionalDay, subtreeOf, timeDescriptionSchema } fr
 import { z } from 'zod';
 import { prisma } from '../../db';
 import type { TimeEntry } from '../../generated/prisma/client';
-import { clientError, fieldError, orNotFound, parseInput } from '../../graphql/errors';
+import { clientError, fieldError, notFound, orNotFound, parseInput } from '../../graphql/errors';
 import { assertNoneArchived, assertNotArchived, refuseArchived } from '../core/archive';
 import { connectIds } from '../core/relations';
 
@@ -57,13 +57,13 @@ async function assertProjectAndTasks(projectId: string | null, taskIds: string[]
   }
   const projects = await prisma.project.findMany({ select: { id: true, parentId: true, archivedAt: true } });
   const project = projects.find((item) => item.id === projectId);
-  if (!project) throw fieldError('projectId', 'Projet introuvable.');
+  if (!project) throw notFound('Projet', 'projectId');
   if (projectId !== keptProjectId) refuseArchived(project, 'projectId');
   if (taskIds.length === 0) return;
   // The project and its sub-projects.
   const subtree = subtreeOf(projects, projectId);
   const tasks = await prisma.task.findMany({ where: { id: { in: taskIds } }, select: { projectId: true } });
-  if (tasks.length !== new Set(taskIds).size) throw fieldError('taskIds', 'Tâche introuvable.');
+  if (tasks.length !== new Set(taskIds).size) throw notFound('Tâche', 'taskIds');
   // Tasks of no project go with any project.
   if (tasks.some((task) => task.projectId !== null && !subtree.has(task.projectId))) {
     throw fieldError('taskIds', 'Les tâches doivent appartenir au projet ou à ses sous-projets.');

@@ -11,7 +11,7 @@ import {
 import { prisma } from '../../db';
 import { Prisma, type Contributor, type TreasuryContext, type TreasuryContextPeriod, type TreasuryRelation } from '../../generated/prisma/client';
 import { clientError, fieldError, isUniqueConflict, orNotFound, parseField, parseInput, rethrowUnique } from '../../graphql/errors';
-import { createContributor, freeHandle } from '../workspace/contributors';
+import { createContributor, freeHandle } from '../projects/contributors';
 import { assertExists, deleteOrNotFound } from '../core/lookup';
 import { assertNotArchived, assertActive } from '../core/archive';
 import { nextPositionIn } from '../core/ordering';
@@ -61,7 +61,7 @@ export async function addMember(input: { contributorId?: string | null; name?: s
  * @returns {Promise<void>}
  */
 export async function removeMember(contributorId: string): Promise<void> {
-  const contributor = await orNotFound(prisma.contributor.findUnique({ where: { id: contributorId }, select: { userId: true } }), 'Membre');
+  const contributor = await orNotFound(prisma.contributor.findUnique({ where: { id: contributorId }, select: { userId: true } }), 'Contributeur');
   if (contributor.userId) throw clientError('BAD_USER_INPUT', 'Vous êtes toujours membre de votre équipe ou de votre foyer.');
   await prisma.contributor.update({ where: { id: contributorId }, data: { teamMember: false } });
 }

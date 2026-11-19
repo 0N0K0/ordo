@@ -16,9 +16,9 @@ import { type TaskContext, taskNumbered, useTaskContext } from '../../tasks/hook
 import { EditableText } from '../../../components/data-table/cells/EditableCells';
 import { applyDiff, bulkCellLabels, bulkSaver } from '../../../components/data-table/selection/bulk-edit';
 import { DataTable } from '../../../components/data-table/table/DataTable';
-import { withArchived, type DataColumn } from '../../../components/data-table/table/data-table';
+import { withArchived, type DataColumn, readOnlyCells } from '../../../components/data-table/table/data-table';
 import { useDataView, type FirstTableView, conditionFilter } from '../../../components/data-table/views/use-data-view';
-import { categoryOptions } from '../../../components/tree/category-tree';
+import { categoryOptions, categoryPaths } from '../../../components/tree/category-tree';
 import { shoppingKey, useShoppingData, useShoppingLists, useShoppingMutations, type ShoppingCategory, type ShoppingList, type ShoppingStore } from '../api';
 import { BaseLists } from '../components/BaseLists';
 import { ShoppingSettings } from '../components/ShoppingSettings';
@@ -38,6 +38,8 @@ import { useSetArchived, useArchivedToggle } from '../../../lib/archive';
 import { ShowArchivedSwitch } from '../../../components/filters/ShowArchivedSwitch';
 import { ArchivedBadge } from '../../../components/feedback/ArchivedBadge';
 import { useShoppingGrouping } from '../hooks/use-shopping-grouping';
+import { itemChoices } from '../../../components/items/item-look';
+import { ShoppingProgressBadge } from '../components/ShoppingProgressBadge';
 
 /** Views made the first time: the lists in progress, the closed ones. */
 const LIST_VIEWS: FirstTableView[] = [
@@ -67,6 +69,7 @@ const projectsOf = (list: ShoppingList, context: TaskContext | null) => [...new 
  */
 function listColumns(env: ListEnv): DataColumn<ShoppingList>[] {
   const { context } = env;
+  const categoryPath = categoryPaths(env.categories);
   const taskLabel = (id: string) => {
     const task = context?.taskById.get(id);
     return task ? (context?.taskLabel(task) ?? taskNumbered(task)) : '';
@@ -136,16 +139,27 @@ function listColumns(env: ListEnv): DataColumn<ShoppingList>[] {
       numeric: true,
       hiddenByDefault: true,
       sortValue: (list) => leftToBuy(list.items).length,
-      text: (list) => String(leftToBuy(list.items).length || ''),
+      text: (list) => fmt.count(leftToBuy(list.items).length),
+      filter: { kind: 'number', value: (list) => leftToBuy(list.items).length },
     },
-    { id: 'itemCount', required: true, label: 'Produits', size: 90, numeric: true, hiddenByDefault: true, sortValue: (list) => list.items.length, text: (list) => String(list.items.length) },
+    {
+      id: 'itemCount',
+      required: true,
+      label: 'Produits',
+      size: 90,
+      numeric: true,
+      hiddenByDefault: true,
+      sortValue: (list) => list.items.length,
+      text: (list) => fmt.count(list.items.length),
+      filter: { kind: 'number', value: (list) => list.items.length },
+    },
     {
       id: 'total',
       label: 'Total estimé',
       size: 120,
       numeric: true,
       sortValue: (list) => shoppingTotal(list.items) || null,
-      text: (list) => (shoppingTotal(list.items) > 0 ? fmt.money(shoppingTotal(list.items)) : ''),
+      text: (list) => fmt.money(shoppingTotal(list.items)),
       formatTotal: fmt.money,
     },
     {
@@ -180,7 +194,7 @@ function listColumns(env: ListEnv): DataColumn<ShoppingList>[] {
       label: 'Catégories',
       size: 180,
       hiddenByDefault: true,
-      text: (list) => [...new Set(list.items.flatMap((item) => (item.categoryId ? [env.categories.find((category) => category.id === item.categoryId)?.label ?? ''] : [])))].join(', '),
+      text: (list) => [...new Set(list.items.flatMap((item) => (item.categoryId ? [categoryPath.get(item.categoryId) ?? ''] : [])))].join(', '),
       filter: {
         kind: 'choices',
         value: (list) => [...new Set(list.items.flatMap((item) => (item.categoryId ? [item.categoryId] : [])))],
@@ -196,12 +210,12 @@ function listColumns(env: ListEnv): DataColumn<ShoppingList>[] {
       filter: {
         kind: 'choices',
         value: (list) => [...new Set(list.items.flatMap((item) => (item.storeId ? [item.storeId] : [])))],
-        options: env.stores.map((store) => ({ value: store.id, label: store.label, archived: store.archived })),
+        options: itemChoices(env.stores),
       },
     },
     {
       id: 'itemNames',
-      label: 'Produits (libellés)',
+      label: 'Libellés des produits',
       size: 220,
       hiddenByDefault: true,
       groupable: false,
@@ -248,7 +262,7 @@ export function ListsPanel({ projectId, projectIds }: { projectId?: string; proj
   /**
    * Saves lists, the closed and archived ones left as they are.
    * @param {ShoppingList[]} targets Lists.
-   * @param {(list: ShoppingList) => { name?: string, taskIds?: string[] }} changeFor Change of each.
+   * @param {(list: ShoppingList) => { label?: string, taskIds?: string[] }} changeFor Change of each.
    * @returns {void}
    */
   const saveLists = (targets: ShoppingList[], changeFor: (list: ShoppingList) => { label?: string; taskIds?: string[] }) => {
@@ -282,10 +296,8 @@ export function ListsPanel({ projectId, projectIds }: { projectId?: string; proj
       }}
       empty={<EmptyState icon={<ListChecksIcon aria-hidden />} message={projectIds ? 'Aucune liste : une liste rattachée à une tâche du projet s’affiche ici.' : 'Aucune liste pour le moment.'} />}
       cells={(list) => {
-        // Its required items (the optional ones apart).
-        const { bought, total: required } = shoppingProgress(list.items);
         return {
-          ...Object.fromEntries(columns.filter((column) => column.text).map((column) => [column.id, column.text!(list)])),
+          ...readOnlyCells(columns, list),
           label: (
             <Group gap="xs" wrap="nowrap">
               <EditableText value={list.label} label={cellLabelOf('label', list, 'Libellé')} strong readOnly={lockedOf(list)} onSave={(label) => label && bulk('label')(list, { label })} />
@@ -310,11 +322,7 @@ export function ListsPanel({ projectId, projectIds }: { projectId?: string; proj
               onSave={(taskIds) => bulk('tasks')(list, (target) => ({ taskIds: applyDiff(target.taskIds, list.taskIds, taskIds) }))}
             />
           ),
-          progress: (
-            <Badge size="sm" variant="light" color={required && bought === required ? 'green' : 'gray'}>
-              {bought} / {required}
-            </Badge>
-          ),
+          progress: <ShoppingProgressBadge items={list.items} />,
         };
       }}
       actions={(list) => (

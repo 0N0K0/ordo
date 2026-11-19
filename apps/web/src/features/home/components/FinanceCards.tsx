@@ -1,4 +1,4 @@
-import { LateBadge } from './LateBadge';
+import { LateBadge } from '../../../components/feedback/LateBadge';
 import { EmptyState } from '../../../components/feedback/EmptyState';
 import { SubSection } from '../../../components/page/SubSection';
 import { localDay } from '../../../lib/dates';
@@ -51,7 +51,7 @@ export function BillingCard({ summary, today }: { summary: BillingSummary | null
                     value={
                       <Group gap="xs" wrap="nowrap">
                         {invoice.dueDate && <LateBadge due={invoice.dueDate} today={today} />}
-                        <Text size="sm" fw={600} c="red">
+                        <Text size="sm" fw={600} c={LATE_COLOR}>
                           {fmt.money(invoice.balance ?? 0)}
                         </Text>
                       </Group>

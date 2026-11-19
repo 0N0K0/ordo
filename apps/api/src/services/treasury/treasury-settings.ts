@@ -12,7 +12,7 @@ import { prisma } from '../../db';
 import type { TreasuryCategory, TreasuryCounterparty, TreasuryPaymentMethod } from '../../generated/prisma/client';
 import { fieldError, orNotFound, parseInput } from '../../graphql/errors';
 import { getCompanyProfile } from '../accounting/company';
-import { assertNotArchived, assertActive, refuseArchived } from '../core/archive';
+import { assertActive, refuseArchived } from '../core/archive';
 import { deleteOrNotFound, findOrNotFound } from '../core/lookup';
 
 /** Category of the treasury as validated. */
@@ -31,7 +31,7 @@ const categories = treeListService<TreasuryCategory, ParsedCategory, TreasuryCat
       if (!data.parentId) return data;
       const parent = await findOrNotFound(prisma.treasuryCategory, data.parentId, 'Catégorie parente');
       // Nothing is put under an archived category (a category already there stays).
-      await assertNotArchived('treasuryCategory', parent.id, { keep: current?.parentId, field: 'parentId' });
+      if (parent.id !== current?.parentId) refuseArchived(parent, 'parentId');
       if (parent.direction !== data.direction) throw fieldError('parentId', 'La catégorie parente doit être du même sens.');
       return data;
     },
@@ -66,6 +66,23 @@ export const { create: createCategory, update: updateCategory, move: moveCategor
  */
 export async function createPaymentMethod(input: TreasuryPaymentMethodInput): Promise<TreasuryPaymentMethod> {
   return prisma.treasuryPaymentMethod.create({ data: { ...parseInput(treasuryPaymentMethodSchema, input), position: await nextPositionIn('treasuryPaymentMethod') } });
+}
+
+/**
+ * Checks that a payment method serves money in the direction of a movement (BAD_USER_INPUT under `methodId`).
+ * Nothing is checked when no method is given.
+ * @param {string | null | undefined} methodId Method. Optional.
+ * @param {boolean} incoming Money in (else out).
+ * @returns {Promise<void>}
+ */
+export async function assertMethodFor(methodId: string | null | undefined, incoming: boolean): Promise<void> {
+  if (!methodId) return;
+  const method = await orNotFound(prisma.treasuryPaymentMethod.findUnique({ where: { id: methodId }, select: { incoming: true, outgoing: true } }), 'Moyen de paiement');
+  if (!(incoming ? method.incoming : method.outgoing)) {
+    // eslint-disable-next-line no-restricted-syntax -- assertMethodFor itself.
+    const message = incoming ? 'Ce moyen de paiement ne sert pas aux entrées.' : 'Ce moyen de paiement ne sert pas aux sorties.';
+    throw fieldError('methodId', message);
+  }
 }
 
 /**
@@ -132,6 +149,7 @@ export async function deleteCounterparty(id: string): Promise<void> {
  * @returns {Promise<void>}
  */
 export async function setInvoiceCategories(input: { invoiceCategoryId: string | null; creditNoteCategoryId: string | null }): Promise<void> {
+  const company = await getCompanyProfile();
   for (const [id, direction, field] of [
     [input.invoiceCategoryId, 'IN', 'invoiceCategoryId'],
     [input.creditNoteCategoryId, 'OUT', 'creditNoteCategoryId'],
@@ -139,12 +157,11 @@ export async function setInvoiceCategories(input: { invoiceCategoryId: string | 
     if (!id) continue;
     const category = await orNotFound(prisma.treasuryCategory.findUnique({ where: { id }, select: { direction: true, archivedAt: true } }), 'Catégorie');
     // An archived category stays the one set, but is not set any more.
-    if (id !== (await getCompanyProfile())[field]) refuseArchived(category, field);
+    if (id !== company[field]) refuseArchived(category, field);
     if (category.direction !== direction) {
-      const message = direction === 'IN' ? 'Choisissez une catégorie d’entrées.' : 'Choisissez une catégorie de sorties.';
+      const message = direction === 'IN' ? 'Choisissez une catégorie d’entrée.' : 'Choisissez une catégorie de sortie.';
       throw fieldError(field, message);
     }
   }
-  const company = await getCompanyProfile();
   await prisma.companyProfile.update({ where: { id: company.id }, data: { invoiceCategoryId: input.invoiceCategoryId, creditNoteCategoryId: input.creditNoteCategoryId } });
 }

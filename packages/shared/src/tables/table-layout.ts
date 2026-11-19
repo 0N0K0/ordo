@@ -47,16 +47,51 @@ export function legacyLabelColumn(tableKey: string): 'title' | 'name' | null {
 const aliased = (id: unknown, from: string): unknown => (id === from ? 'label' : id);
 
 /**
+ * Stored filter (or node of one) with each of its conditions changed, at any depth.
+ * @param {unknown} node Stored filter node.
+ * @param {(condition: Record<string, unknown>) => Record<string, unknown>} change Change of a condition (a node with a `field`).
+ * @returns {unknown} Node.
+ */
+function mapConditions(node: unknown, change: (condition: Record<string, unknown>) => Record<string, unknown>): unknown {
+  if (!node || typeof node !== 'object') return node;
+  const item = node as Record<string, unknown>;
+  if (Array.isArray(item.children)) return { ...item, children: item.children.map((child) => mapConditions(child, change)) };
+  return 'field' in item ? change(item) : item;
+}
+
+/**
  * Filter (or node of one) with the old column id of its conditions read as `label`.
  * @param {unknown} node Stored filter node.
  * @param {string} from Old id.
  * @returns {unknown} Node.
  */
-function aliasedFilter(node: unknown, from: string): unknown {
-  if (!node || typeof node !== 'object') return node;
-  const item = node as Record<string, unknown>;
-  if (Array.isArray(item.children)) return { ...item, children: item.children.map((child) => aliasedFilter(child, from)) };
-  return 'field' in item ? { ...item, field: aliased(item.field, from) } : item;
+const aliasedFilter = (node: unknown, from: string): unknown => mapConditions(node, (condition) => ({ ...condition, field: aliased(condition.field, from) }));
+
+/** Old values of the choice filters of columns, read as the current ones: by column id, the new value of each old one. */
+export type LegacyFilterValues = Readonly<Record<string, Readonly<Record<string, string>>>>;
+
+/**
+ * Stored view of a table with the old values of its choice filters read as the current ones (a sentinel renamed: the
+ * stored views are not rewritten). Anything else is kept as it is.
+ * @param {unknown} stored Stored configuration.
+ * @param {LegacyFilterValues | undefined} values Old values by column, none for a table without any.
+ * @returns {unknown} Configuration.
+ */
+export function withFilterValues(stored: unknown, values: LegacyFilterValues | undefined): unknown {
+  if (!values || !stored || typeof stored !== 'object' || Array.isArray(stored) || !('filter' in stored)) return stored;
+  /**
+   * A stored value read as the current one.
+   * @param {Readonly<Record<string, string>>} renamed New value of each old one.
+   * @param {unknown} value Stored value.
+   * @returns {unknown} Value.
+   */
+  const current = (renamed: Readonly<Record<string, string>>, value: unknown): unknown => (typeof value === 'string' && Object.hasOwn(renamed, value) ? renamed[value] : value);
+  const filter = mapConditions((stored as { filter: unknown }).filter, (condition) => {
+    const renamed = typeof condition.field === 'string' && Object.hasOwn(values, condition.field) ? values[condition.field] : undefined;
+    if (!renamed) return condition;
+    return { ...condition, value: Array.isArray(condition.value) ? condition.value.map((value) => current(renamed, value)) : current(renamed, condition.value) };
+  });
+  return { ...stored, filter };
 }
 
 /**

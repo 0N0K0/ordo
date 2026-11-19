@@ -14,13 +14,14 @@ import {
   treasuryBudgetSchema,
 } from '@ordo/shared';
 import { prisma } from '../../db';
+import { invoiceCategories } from '../accounting/company';
 import { parisToday } from '../../today';
 import type { TreasuryBudget } from '../../generated/prisma/client';
 import { parseInput } from '../../graphql/errors';
 import { storedRecurrence } from '../calendar/calendar-events';
 import { treasuryProjection } from './treasury';
-import { assertExists, deleteOrNotFound, findOrNotFound } from '../core/lookup';
-import { assertActive, refuseArchived } from '../core/archive';
+import { assertExists, deleteOrNotFound } from '../core/lookup';
+import { assertActive, findActive } from '../core/archive';
 import { decimalCents, fromDecimal, toDecimal } from '../core/decimal';
 import { BY_POSITION } from '../core/ordering';
 
@@ -78,8 +79,7 @@ async function budgetData(input: TreasuryBudgetInput, previous: TreasuryBudget |
  */
 export async function saveBudget(id: string | null, input: TreasuryBudgetInput): Promise<TreasuryBudget> {
   if (!id) return prisma.treasuryBudget.create({ data: await budgetData(input, null) });
-  const previous = await findOrNotFound(prisma.treasuryBudget, id, 'Budget');
-  refuseArchived(previous);
+  const previous = await findActive(prisma.treasuryBudget, id, 'Budget');
   return prisma.treasuryBudget.update({ where: { id }, data: await budgetData(input, previous) });
 }
 
@@ -199,12 +199,12 @@ export async function budgetReport(from: string, to: string, meId: string | null
   }
   // What is expected of the invoices (due on final and imported ones, coming recurring ones) and credit notes, in
   // the categories set for them: forecast of the app user, in the context planned that day (overdue: today).
-  const company = await prisma.companyProfile.findFirst({ select: { invoiceCategoryId: true, creditNoteCategoryId: true } });
+  const company = await invoiceCategories();
   if (today <= lastDayOfMonth(to)) {
     const { items } = await treasuryProjection(today, today, lastDayOfMonth(to));
     for (const item of items) {
       if (item.kind === 'FORECAST' || item.kind === 'ACTUAL') continue;
-      const categoryId = item.amount < 0 ? (company?.creditNoteCategoryId ?? null) : (company?.invoiceCategoryId ?? null);
+      const categoryId = item.amount < 0 ? company.creditNoteCategoryId : company.invoiceCategoryId;
       add(item.date, { memberId: me, relationId: null, contextId: plannedContext(planned, item.date), categoryId }, item.amount, 'forecast');
     }
   }

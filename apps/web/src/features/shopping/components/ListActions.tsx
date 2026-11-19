@@ -152,11 +152,8 @@ function useListActions(list: ShoppingList, grouping: ShoppingGrouping, onDelete
       confirmDestructive({
         title: 'Supprimer la liste',
         risks: `${list.items.length ? `« ${list.label} » et ${countWith(list.items.length, 'élément', ['son', 'ses'])} seront supprimés` : `La liste « ${list.label} » sera supprimée`} définitivement. Les références et la répartition d’un mouvement rattaché ne changent pas.`,
-        onConfirm: () =>
-          mutations.deleteList.mutate(
-            { id: list.id },
-            formCallbacks(null, 'Liste supprimée.', () => onDeleted?.()),
-          ),
+        run: () => mutations.deleteList.mutateAsync({ id: list.id }).then(() => onDeleted?.()),
+        done: 'Liste supprimée.',
       }),
   };
   // Archived: read only.

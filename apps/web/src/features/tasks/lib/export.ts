@@ -101,7 +101,7 @@ export function taskCell(task: Task, column: TaskColumn, context: TaskContext): 
     case 'comments': {
       // A description counts as a comment.
       const count = commentTotal(task.commentCount, task.description);
-      return count ? String(count) : '';
+      return fmt.count(count);
     }
     case 'createdAt':
       return fmt.exportDay(task.createdAt);
@@ -111,14 +111,17 @@ export function taskCell(task: Task, column: TaskColumn, context: TaskContext): 
 }
 
 /**
- * Text of an event cell (title, project, people, status, tracked time, dates; empty elsewhere).
+ * Text of an event cell (title, project, people, status, tracked time, comments, dates; empty elsewhere).
  * @param {EventOccurrence} event Occurrence.
  * @param {TaskColumn} column Column.
  * @param {TaskContext} context Task context.
+ * @param {number} [comments] Its comments (its description counting as one). Optional. Default = 0.
  * @returns {string} Text.
  */
-export function eventCell(event: EventOccurrence, column: TaskColumn, context: TaskContext): string {
+export function eventCell(event: EventOccurrence, column: TaskColumn, context: TaskContext, comments = 0): string {
   switch (column) {
+    case 'comments':
+      return fmt.count(comments);
     case 'label':
       return event.location ? `${event.label} (${event.location})` : event.label;
     case 'project':

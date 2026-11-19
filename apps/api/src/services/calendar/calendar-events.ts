@@ -21,13 +21,14 @@ import {
   occurrenceKey,
 } from '@ordo/shared';
 import { prisma } from '../../db';
+import { assertBeneficiaries } from '../core/beneficiaries';
 import { Prisma, type CalendarEvent, type CalendarEventException } from '../../generated/prisma/client';
 import { clientError, fieldError, notFound, orNotFound, parseInput } from '../../graphql/errors';
 import { runInWorkspace } from '../../workspace-context';
 import { listSubscriptions, resolveCalendarId } from './calendars';
-import { assertProjectContributors } from '../workspace/contributors';
-import { assertAllExist, assertExists, findOrNotFound } from '../core/lookup';
-import { assertNotArchived, activeIds } from '../core/archive';
+import { assertProjectContributors } from '../projects/contributors';
+import { assertAllExist, findOrNotFound } from '../core/lookup';
+import { assertActive, assertNotArchived, activeIds, refuseArchived } from '../core/archive';
 import { connectIds } from '../core/relations';
 import { toJson } from '../core/json';
 
@@ -182,10 +183,11 @@ async function saveRoutineLinks(formerId: string | null, eventId: string, fields
  * @param {string} id Event.
  * @returns {Promise<[string[], string[], string[], string[]]>} Contributor ids, category ids, beneficiary ids and relation ids (beneficiaries or linked).
  */
-async function eventKept(id: string): Promise<[string[], string[], string[], string[]]> {
+async function eventKept(id: string): Promise<[string[], string[], string[], string[], string[]]> {
   const event = await prisma.calendarEvent.findUnique({
     where: { id },
     select: {
+      projectId: true,
       contributors: { select: { id: true } },
       categories: { select: { id: true } },
       beneficiaries: { select: { id: true } },
@@ -194,16 +196,16 @@ async function eventKept(id: string): Promise<[string[], string[], string[], str
     },
   });
   const ids = (items: { id: string }[] | undefined) => (items ?? []).map((item) => item.id);
-  return [ids(event?.contributors), ids(event?.categories), ids(event?.beneficiaries), [...ids(event?.beneficiaryRelations), ...ids(event?.relations)]];
+  return [ids(event?.contributors), ids(event?.categories), ids(event?.beneficiaries), [...ids(event?.beneficiaryRelations), ...ids(event?.relations)], event?.projectId ? [event.projectId] : []];
 }
 
 /**
  * Refuses a change of an archived event, or of an event of an archived calendar.
- * @param {Pick<CalendarEvent, 'id' | 'calendarId'>} event Event.
+ * @param {Pick<CalendarEvent, 'archivedAt' | 'calendarId'>} event Event, loaded.
  * @returns {Promise<void>}
  */
-async function assertEventWritable(event: Pick<CalendarEvent, 'id' | 'calendarId'>): Promise<void> {
-  await assertNotArchived('calendarEvent', event.id);
+async function assertEventWritable(event: Pick<CalendarEvent, 'archivedAt' | 'calendarId'>): Promise<void> {
+  refuseArchived(event);
   await assertNotArchived('calendar', event.calendarId);
 }
 
@@ -216,15 +218,15 @@ async function assertEventWritable(event: Pick<CalendarEvent, 'id' | 'calendarId
  * @param {string[]} [keepCategories] Categories already on the event. Optional.
  * @param {string[]} [keepBeneficiaries] Beneficiaries (contributors) already on the event. Optional.
  * @param {string[]} [keepRelations] Relations already on the event (beneficiaries or linked). Optional.
+ * @param {string[]} [keepProject] Project already of the event (kept even if archived). Optional.
  * @returns {Promise<ReturnType<typeof calendarEventInputSchema.parse>>} Validated fields.
  */
-async function parseEvent(input: CalendarEventInput, keep: string[] = [], keepCategories: string[] = [], keepBeneficiaries: string[] = [], keepRelations: string[] = []) {
+async function parseEvent(input: CalendarEventInput, keep: string[] = [], keepCategories: string[] = [], keepBeneficiaries: string[] = [], keepRelations: string[] = [], keepProject: string[] = []) {
   const event = parseInput(calendarEventInputSchema, input);
-  await assertExists(prisma.project, event.projectId, 'Projet');
+  await assertActive(prisma.project, event.projectId, 'Projet', { keep: keepProject, field: 'projectId' });
   await assertAllExist(prisma.contributor, event.contributorIds, 'Contributeur');
   await assertProjectContributors(event.projectId ?? null, event.contributorIds, keep, 'contributorIds');
-  await activeIds(prisma.contributor, event.beneficiaryIds, 'Bénéficiaire', { keep: keepBeneficiaries, field: 'beneficiaryIds', missingField: 'beneficiaryIds' });
-  await activeIds(prisma.treasuryRelation, event.beneficiaryRelationIds, 'Bénéficiaire', { keep: keepRelations, field: 'beneficiaryIds', missingField: 'beneficiaryIds' });
+  await assertBeneficiaries({ contributorIds: event.beneficiaryIds, relationIds: event.beneficiaryRelationIds }, { keep: { contributorIds: keepBeneficiaries, relationIds: keepRelations } });
   await activeIds(prisma.treasuryRelation, event.relationIds, 'Relation', { keep: keepRelations, field: 'relationIds' });
   await activeIds(prisma.calendarCategory, event.categoryIds, 'Catégorie', { keep: keepCategories, field: 'categoryIds' });
   const tasks = await prisma.task.findMany({ where: { id: { in: event.taskIds } }, select: { label: true, assignees: { select: { id: true } } } });

@@ -1,11 +1,10 @@
-import { FolderPlusIcon, PencilSimpleIcon, StarIcon, TrashIcon } from '@phosphor-icons/react';
+import { FolderPlusIcon, PencilSimpleIcon, StarIcon } from '@phosphor-icons/react';
 import { useProjectTree } from '../api';
 import { canHaveChildren } from '../lib/tree';
 import { entityLabel, useEntityActions, type EntityRef } from '../hooks/use-entity-actions';
 import { useTreeExpansion } from '../lib/tree-expansion';
 import { foldEntries } from '../lib/fold-entries';
 import { ActionsMenu } from '../../../components/actions/ActionsMenu';
-import { archiveEntry } from '../../../lib/archive';
 
 interface EntityMenuProps {
   entity: EntityRef;
@@ -55,12 +54,7 @@ export function EntityMenu({ entity, opened, onChange }: EntityMenuProps) {
           icon: <StarIcon weight={item.favorite ? 'fill' : 'regular'} aria-hidden />,
           onClick: () => actions.setFavorite(entity, !item.favorite),
         },
-        archiveEntry(
-          { archived: item.archived, type: entity.type === 'client' ? 'Client' : 'Projet', label: entityLabel(entity), cascade: entity.type === 'client' ? 'avec ses projets' : undefined },
-          actions.archiver(entity),
-          item.id,
-        ),
-        { label: 'Supprimer', icon: <TrashIcon aria-hidden />, onClick: () => actions.confirmDelete(entity), danger: true },
+        ...actions.lifecycleEntries(entity),
       ]}
     />
   );

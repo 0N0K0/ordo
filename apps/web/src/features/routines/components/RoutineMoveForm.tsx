@@ -1,4 +1,3 @@
-import { formCallbacks } from '../../../lib/form';
 import { LabeledField } from '../../../components/inputs/LabeledField';
 import { PICKER_FORMATS } from '../../../lib/format';
 import { Group, Select, Stack, Text } from '@mantine/core';
@@ -185,7 +184,8 @@ export function RoutineMoveForm({ routineId, onDone }: { routineId: string; onDo
                   risks: `L’occurrence du ${fmt.dayLong(date)} n’aura pas lieu : c’est une exception, les autres occurrences ne changent pas. Elle se rétablit depuis la liste des exceptions.`,
                   confirmLabel: 'Annuler l’occurrence',
                   confirmIcon: <CalendarXIcon aria-hidden />,
-                  onConfirm: () => deleteOccurrence.mutate({ id: routine.id, date, scope: 'THIS' }, formCallbacks(null, `Occurrence du ${fmt.dayLong(date)} annulée.`, onDone)),
+                  run: () => deleteOccurrence.mutateAsync({ id: routine.id, date, scope: 'THIS' }).then(() => onDone()),
+                  done: `Occurrence du ${fmt.dayLong(date)} annulée.`,
                 })
               }
             >

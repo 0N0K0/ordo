@@ -16,7 +16,7 @@ import tile from '../../../components/page/StatTile.module.css';
 import { CardFigure, HomeCard } from './HomeCard';
 import { HomeList, HomeRow } from './HomeList';
 import { leftToBuy } from '../../shopping/lib/shopping-format';
-import { LateBadge } from './LateBadge';
+import { LateBadge } from '../../../components/feedback/LateBadge';
 import { shoppingListPath, PAGES } from '../../../app/pages';
 import { WaitingIcon } from '../../routines/components/WaitingIcon';
 import { unarchived } from '../../../lib/archive';

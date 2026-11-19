@@ -3,6 +3,7 @@ import { treeOptions, type TreeNode, type TreeOption } from '../../../components
 import { ancestorsOf, lineageOf, mapById, LEVEL, MAX_PROJECT_DEPTH, sumOf } from '@ordo/shared';
 import type { Client, Project, ProjectTree } from '../api';
 import { collator, normalize } from '../../../lib/text';
+import { taggedKey } from '../../../lib/tagged-key';
 
 export type SortMode = 'manual' | 'name';
 
@@ -177,11 +178,11 @@ export function clientProjectOptions(
 export function projectNodes(tree: ProjectTree): TreeNode[] {
   const byOrder = <T extends { archived: boolean; position: number }>(a: T, b: T) => Number(a.archived) - Number(b.archived) || a.position - b.position;
   return [
-    ...[...tree.clients].sort(byOrder).map((client) => ({ id: `client:${client.id}`, parentId: null, label: client.name, color: client.color, iconUrl: client.iconUrl })),
+    ...[...tree.clients].sort(byOrder).map((client) => ({ id: taggedKey('client', client.id), parentId: null, label: client.name, color: client.color, iconUrl: client.iconUrl })),
     { id: 'client:none', parentId: null, label: 'Sans client', pathless: true },
     ...[...tree.projects]
       .sort(byOrder)
-      .map((project) => ({ id: project.id, parentId: project.parentId ?? `client:${project.clientId ?? 'none'}`, label: project.label, color: project.color, iconUrl: project.iconUrl })),
+      .map((project) => ({ id: project.id, parentId: project.parentId ?? taggedKey('client', project.clientId ?? 'none'), label: project.label, color: project.color, iconUrl: project.iconUrl })),
   ];
 }
 
@@ -290,12 +291,12 @@ function buildContextSection(tree: ProjectTree, sort: SortMode, search: string, 
     const project = byId.get(id);
     if (project?.clientId) shownClients.add(project.clientId);
     for (const parent of ancestorsOf(byId, id)) {
-      if (!content.has(parent.id)) contextKeys.add(`p:${parent.id}`);
+      if (!content.has(parent.id)) contextKeys.add(taggedKey('p', parent.id));
       included.add(parent.id);
     }
   }
   for (const clientId of shownClients) {
-    if (!clientIds.has(clientId)) contextKeys.add(`c:${clientId}`);
+    if (!clientIds.has(clientId)) contextKeys.add(taggedKey('c', clientId));
   }
 
   const shown = tree.projects.filter((project) => included.has(project.id));
@@ -367,8 +368,8 @@ export function buildArchiveSection(tree: ProjectTree, sort: SortMode, search: s
  * @returns {number} Count.
  */
 export function countSectionItems(section: TreeSection): number {
-  const countForest = (nodes: ProjectNode[]): number => sumOf(nodes, (node) => (section.context?.has(`p:${node.project.id}`) ? 0 : 1) + countForest(node.children));
-  return sumOf(section.clients, (node) => (section.context?.has(`c:${node.client.id}`) ? 0 : 1) + countForest(node.projects)) + countForest(section.orphans);
+  const countForest = (nodes: ProjectNode[]): number => sumOf(nodes, (node) => (section.context?.has(taggedKey('p', node.project.id)) ? 0 : 1) + countForest(node.children));
+  return sumOf(section.clients, (node) => (section.context?.has(taggedKey('c', node.client.id)) ? 0 : 1) + countForest(node.projects)) + countForest(section.orphans);
 }
 
 /**

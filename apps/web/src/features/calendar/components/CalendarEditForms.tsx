@@ -1,7 +1,7 @@
 import { PICKER_FORMATS } from '../../../lib/format';
 import { ArrowSquareOutIcon } from '@phosphor-icons/react';
 import { DeleteButton } from '../../../components/dialogs/DestructiveActions';
-import { Checkbox, Group, Stack, Text } from '@mantine/core';
+import { Group, Stack, Text, Switch } from '@mantine/core';
 import { DatePickerInput, TimePicker } from '@mantine/dates';
 import type { ScheduleSlotTime } from '@ordo/shared';
 import { useState } from 'react';
@@ -45,8 +45,8 @@ export function SlotEditForm({
           {label}
         </Text>
         <DatePickerInput label="Jour" required valueFormat={PICKER_FORMATS.weekday} value={value.date} onChange={(date) => date && setValue({ ...value, date: date })} data-autofocus />
-        <Checkbox
-          label="Toute la journée"
+        <Switch
+          label="Journée entière"
           checked={value.allDay}
           onChange={(event) => setValue(event.currentTarget.checked ? { ...value, allDay: true, start: '00:00', end: '24:00' } : { ...value, allDay: false, start: '09:00', end: '17:00' })}
         />

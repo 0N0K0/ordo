@@ -1,12 +1,13 @@
 import { ArchiveIcon, ArrowCounterClockwiseIcon, CopyIcon, TrashIcon } from '@phosphor-icons/react';
 import type { ReactNode } from 'react';
 import { countOf, plural } from '../../../lib/text';
-import type { ArchiveMutation } from '../../../lib/archive';
+import { type ArchiveMutation, archivedMessage } from '../../../lib/archive';
 import { notifySuccess, notifyWithUndo, onMutationError, notifyFailure } from '../../../lib/notify';
 import { confirmDestructive } from '../../dialogs/confirm-destructive';
 import type { RowMenuEntry } from '../../actions/ActionsMenu';
 import type { SelectionAction } from './SelectionBar';
 import { capitalize } from '../../../lib/format';
+import { agreed } from '@ordo/shared';
 
 /**
  * Runs an action on rows one after the other (their order kept), then tells how it went: the success, or the first
@@ -134,7 +135,7 @@ export function deleteItemsAction<R>(
   },
 ): SelectionAction {
   const one = rows.length === 1;
-  const removed = feminine ? 'supprimée' : 'supprimé';
+  const removed = agreed('supprimé', feminine);
   const counted = countOf(rows.length, noun, many);
   return deleteRowsAction(rows, {
     title: one ? `Supprimer ${the}` : `Supprimer les ${many ?? `${noun}s`}`,
@@ -225,14 +226,13 @@ export function archiveRowsAction({
   clear?: () => void;
   loading?: boolean;
 }): SelectionAction {
-  const ending = feminine ? 'e' : '';
   return switchRowsAction({
     on: archived,
     labels: ['Archiver', 'Restaurer'],
     icons: [<ArchiveIcon key="on" aria-hidden />, <ArrowCounterClockwiseIcon key="off" aria-hidden />],
     loading,
     apply,
-    done: (on) => `${label} ${plural(count, `${on ? 'archivé' : 'restauré'}${ending}`)}.`,
+    done: (on) => archivedMessage(label, on, { feminine, count }),
     undo,
     clear,
   });

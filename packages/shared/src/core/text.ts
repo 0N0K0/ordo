@@ -48,13 +48,13 @@ export function safeFilename(name: string): string {
 }
 
 /**
- * File name of an export or a download: its title cleaned (see `safeFilename`), then its extension.
- * @param {string} title Title.
+ * File name of an export or a download: its label cleaned (see `safeFilename`), then its extension.
+ * @param {string} label Label.
  * @param {string} extension Extension, without its dot (« pdf »).
  * @returns {string} File name.
  */
-export function fileName(title: string, extension: string): string {
-  return `${safeFilename(title)}.${extension}`;
+export function fileName(label: string, extension: string): string {
+  return `${safeFilename(label)}.${extension}`;
 }
 
 /**
@@ -92,6 +92,17 @@ export function copyName(name: string, max?: number): string {
  */
 export function plural(count: number, word: string, many = `${word}s`): string {
   return count > 1 ? many : word;
+}
+
+/**
+ * A participle or an adjective agreed with its noun: feminine, plural (« supprimé », « archivées »).
+ * @param {string} word Word, in the masculine singular (« supprimé »).
+ * @param {boolean} [feminine] Feminine noun. Optional. Default = false.
+ * @param {number} [count] How many: plural above 1. Optional. Default = 1.
+ * @returns {string} Word agreed.
+ */
+export function agreed(word: string, feminine = false, count = 1): string {
+  return plural(count, feminine ? `${word}e` : word);
 }
 
 /**

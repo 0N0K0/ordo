@@ -124,7 +124,7 @@ function ForeignSchedules() {
                   kind.subscribed && (
                     <LookToggle
                       label="Couleur et affichage dans cet agenda"
-                      ariaLabel={`Affichage de ${inWorkspace(kind.label, kind.workspaceLabel)}`}
+                      ariaLabel={`Affichage de « ${inWorkspace(kind.label, kind.workspaceLabel)} »`}
                       opened={opened === key}
                       onToggle={() => setOpened(opened === key ? null : key)}
                     />

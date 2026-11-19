@@ -145,7 +145,7 @@ export function routineColumns(env: RoutineEnv): DataColumn<Routine>[] {
       hiddenByDefault: true,
       bulk: true,
       sortValue: (routine) => routine.reminders.length || null,
-      text: (routine) => (routine.reminders.length ? String(routine.reminders.length) : ''),
+      text: (routine) => fmt.count(routine.reminders.length),
       filter: { kind: 'boolean', value: (routine) => routine.reminders.length > 0 },
     },
     {
@@ -162,11 +162,14 @@ export function routineColumns(env: RoutineEnv): DataColumn<Routine>[] {
     },
     {
       id: 'trackedTime',
-      label: 'Chrono',
+      // Time spent, as for the tasks (« Chrono » is their timer); never empty (decision CO).
+      label: 'Temps passé',
       size: 120,
       numeric: true,
-      sortValue: (routine) => routine.trackedSeconds || null,
+      required: true,
+      sortValue: (routine) => routine.trackedSeconds,
       text: (routine) => (routine.trackedSeconds ? formatDuration(routine.trackedSeconds) : ''),
+      filter: { kind: 'number', value: (routine) => routine.trackedSeconds / 3600 },
       formatTotal: (seconds) => formatDuration(Math.round(seconds)),
     },
     {

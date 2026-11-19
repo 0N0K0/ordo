@@ -40,6 +40,7 @@ import type { DataView } from '../views/use-data-view';
 import { suppressClickAfterDrop, useDragSensors } from '../../dnd/drag';
 import { DragHandle } from '../../dnd/DragHandle';
 import { FoldButton } from '../../actions/FoldButton';
+import { taggedKey } from '../../../lib/tagged-key';
 
 /** Cell before the columns (selection…): its header, its cell in each row, its width. */
 interface LeadingCell<R> {
@@ -567,7 +568,7 @@ export function DataTable<R>({
   const addRowOf = (group: RowGroup<R> | null): Entry | null => {
     const content = addRow?.(group);
     if (!content) return null;
-    const key = `add:${group?.key ?? ''}`;
+    const key = taggedKey('add', group?.key ?? '');
     return {
       key,
       render: (attrs) => (
@@ -601,7 +602,7 @@ export function DataTable<R>({
     if (add) entries.push(add);
     const footer = view.config?.footer;
     if (footer && shown.some((column) => footer[column.id])) {
-      const key = `footer:${group.key}`;
+      const key = taggedKey('footer', group.key);
       entries.push({ key, render: (attrs) => <GroupFooter key={key} trProps={{ ...attrs }} shown={shown} rows={item.own} totals={footer} label={group.label} before={before} after={1} /> });
     }
   };
@@ -710,7 +711,7 @@ export function DataTable<R>({
     });
     const unfolded = details?.(data);
     if (unfolded) {
-      const detailsKey = `details:${row.id}`;
+      const detailsKey = taggedKey('details', row.id);
       entries.push({
         key: detailsKey,
         render: (attrs) => (

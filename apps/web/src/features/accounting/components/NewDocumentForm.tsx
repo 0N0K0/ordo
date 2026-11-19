@@ -1,6 +1,6 @@
 import { Select, Stack, Text } from '@mantine/core';
 import { ClientSelect } from '../../projects/components/ClientSelect';
-import type { AccountingDocumentType } from '@ordo/shared';
+import { agreed, type AccountingDocumentType } from '@ordo/shared';
 import { useState } from 'react';
 import { useNavigate } from 'react-router';
 import { localToday } from '../../../lib/dates';
@@ -72,7 +72,7 @@ export function NewDocumentForm({
         onChange={setProjectId}
       />
       <Text size="xs" c="dimmed">
-        {THE_DOCUMENT_TYPE[type]} est {isFeminineDocumentType(type) ? 'créée' : 'créé'} en brouillon, sans numéro, avec vos conditions par défaut.
+        {THE_DOCUMENT_TYPE[type]} est {agreed('créé', isFeminineDocumentType(type))} en brouillon, sans numéro, avec vos conditions par défaut.
       </Text>
       <FormActions onCancel={onDone} submitLabel="Créer" onSubmit={() => void submit()} disabled={!clientId} loading={loading} />
     </Stack>

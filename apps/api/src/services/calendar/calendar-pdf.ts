@@ -12,6 +12,7 @@ import {
   WEEKDAY_SHORT_LABELS,
   weekdayText,
   twoDigits,
+  dayOfMonthOf,
 } from '@ordo/shared';
 import { z } from 'zod';
 import { parseInput } from '../../graphql/errors';
@@ -270,7 +271,7 @@ function drawMonth(doc: PdfDoc, view: z.infer<typeof calendarPdfSchema>, area: {
       if (day === today) doc.rect(x, y, cellWidth, cellHeight).fill(COLORS.today);
       else if (monthOfDay(day) !== month) doc.rect(x, y, cellWidth, cellHeight).fill(COLORS.light);
       doc.rect(x, y, cellWidth, cellHeight).lineWidth(0.3).strokeColor(COLORS.border).stroke();
-      clippedText(doc, String(Number(day.slice(8))), { x: x + 3, y: y + 2, width: cellWidth - 6, height: 10, size: 7.5, color: monthOfDay(day) === month ? COLORS.text : COLORS.muted, bold: true });
+      clippedText(doc, String(dayOfMonthOf(day)), { x: x + 3, y: y + 2, width: cellWidth - 6, height: 10, size: 7.5, color: monthOfDay(day) === month ? COLORS.text : COLORS.muted, bold: true });
       const ofDay = items.filter((item) => dayPart(item.start) <= day && day <= dayPart(item.end)).sort((a, b) => Number(b.allDay) - Number(a.allDay) || a.start.localeCompare(b.start));
       const room = Math.max(0, Math.floor((cellHeight - 13) / lineHeight));
       const shown = ofDay.length > room ? ofDay.slice(0, Math.max(0, room - 1)) : ofDay;

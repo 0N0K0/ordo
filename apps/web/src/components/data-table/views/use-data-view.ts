@@ -1,4 +1,15 @@
-import { legacyLabelColumn, tableViewConfig, tableViewConfigSchema, withLabelColumn, type ColumnLayout, type TableFilterGroup, type TableSort, type TableViewConfig } from '@ordo/shared';
+import {
+  legacyLabelColumn,
+  tableViewConfig,
+  tableViewConfigSchema,
+  withFilterValues,
+  withLabelColumn,
+  type ColumnLayout,
+  type LegacyFilterValues,
+  type TableFilterGroup,
+  type TableSort,
+  type TableViewConfig,
+} from '@ordo/shared';
 import { useCallback, useState } from 'react';
 import { useBulkSelection, type BulkCellProps, type BulkSelection } from '../selection/bulk-selection';
 import { newConditionFor } from '../../filters/filter-meta';
@@ -8,6 +19,7 @@ import { useSavedViews, type SavedViewsState } from './use-saved-views';
 import { shownColumns, sortRows, type DataColumn, type ShownColumn } from '../table/data-table';
 import { filterRows, groupRows, isGroupable, tableFilterFields, type RowGroup } from '../table/table-engine';
 import { useArchivedToggle, type ArchivedToggle } from '../../../lib/archive';
+import { ME_KEY } from '../../people/people-keys';
 
 /** First view of a table: its label and what it starts with. */
 export interface FirstTableView {
@@ -118,15 +130,25 @@ export interface DataView<R> {
   rowSelection: RowSelection | null;
 }
 
+/** « Moi » and the everyday context of the budgets, once « none » in their filters, now ME_KEY. */
+const BUDGET_KEY_VALUES: LegacyFilterValues = { who: { none: ME_KEY }, context: { none: ME_KEY } };
+
+/** Old values of the choice filters that stored views may still hold, by table: the one alias map, read when a view is parsed. */
+const LEGACY_FILTER_VALUES: Readonly<Record<string, LegacyFilterValues>> = {
+  'treasury-budgets': BUDGET_KEY_VALUES,
+  'treasury-budget-report': BUDGET_KEY_VALUES,
+  'treasury-budget-outside': BUDGET_KEY_VALUES,
+};
+
 /**
  * Configuration of a stored view of a table (the defaults when it is invalid), the old id of its label column read as
- * `label` (decision BI).
+ * `label` (decision BI) and the old values of its filters as the current ones.
  * @param {unknown} config Stored configuration.
  * @param {string} tableKey Table of the view.
  * @returns {TableViewConfig} Configuration.
  */
 function parseConfig(config: unknown, tableKey: string): TableViewConfig {
-  const result = tableViewConfigSchema.safeParse(withLabelColumn(config, legacyLabelColumn(tableKey)));
+  const result = tableViewConfigSchema.safeParse(withFilterValues(withLabelColumn(config, legacyLabelColumn(tableKey)), LEGACY_FILTER_VALUES[tableKey]));
   return result.success ? result.data : tableViewConfig();
 }
 

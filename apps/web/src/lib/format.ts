@@ -106,6 +106,14 @@ export const moneyCompact = (amount: number, currency = 'EUR') => moneyFormat(cu
 export const moneyRound = (amount: number, currency = 'EUR') => moneyFormat(currency, { maximumFractionDigits: 0 }).format(amount);
 
 /**
+ * A count in a column or an export: its number, blank for none (decision DH; an amount of 0 stays « 0,00 € »).
+ * @param {number} value Count.
+ * @returns {string} Text.
+ */
+// eslint-disable-next-line no-restricted-syntax -- fmt.count itself.
+export const count = (value: number): string => (value ? String(value) : '');
+
+/**
  * « 1 234,5 »: a number, with at most some decimals.
  * @param {number} value Number.
  * @param {number} [decimals=2] Most decimals. Optional. Default = 2.

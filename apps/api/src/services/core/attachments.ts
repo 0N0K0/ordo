@@ -76,6 +76,16 @@ export function sniffImage(buffer: Buffer): string | null {
 }
 
 /**
+ * Type of a file by its first bytes (the declared type is not trusted): recognized images and PDFs keep theirs, the rest is a plain download.
+ * @param {Buffer} buffer File content.
+ * @returns {string} Image type, `application/pdf` or `application/octet-stream`.
+ */
+export function sniffedType(buffer: Buffer): string {
+  // eslint-disable-next-line no-restricted-syntax -- sniffedType itself.
+  return sniffImage(buffer) ?? (isPdf(buffer) ? 'application/pdf' : 'application/octet-stream');
+}
+
+/**
  * Stored form of a file: recognized images and PDFs keep their type, the rest is served as a plain download.
  * @param {string} name File name.
  * @param {Buffer} buffer Content.
@@ -84,7 +94,7 @@ export function sniffImage(buffer: Buffer): string | null {
 export function attachmentData(name: string, buffer: Buffer) {
   return {
     filename: safeFilename(clipText(name, 200)),
-    mimeType: sniffImage(buffer) ?? (isPdf(buffer) ? 'application/pdf' : 'application/octet-stream'),
+    mimeType: sniffedType(buffer),
     size: buffer.length,
     data: new Uint8Array(buffer),
   };

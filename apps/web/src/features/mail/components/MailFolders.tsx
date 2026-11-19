@@ -5,7 +5,7 @@ import { confirmDestructive } from '../../../components/dialogs/confirm-destruct
 import { openFormPanel } from '../../../components/panels/panels';
 import { Box, Group, NavLink, Stack, Text } from '@mantine/core';
 import { requiredText } from '@ordo/shared';
-import { useLocalStorage } from '@mantine/hooks';
+
 import {
   ArchiveIcon,
   ArrowsOutCardinalIcon,
@@ -19,7 +19,8 @@ import {
   TrayIcon,
   WarningIcon,
 } from '@phosphor-icons/react';
-import { useState, type ReactNode } from 'react';
+import { useDndContext, useDndMonitor, useDraggable, useDroppable } from '@dnd-kit/core';
+import type { CSSProperties, ReactNode } from 'react';
 import { notifySuccess } from '../../../lib/notify';
 import { useMailActions, useMailFolderMutations, useMailFolders, type MailAccount } from '../api';
 import { MailCountBadges } from './MailCountBadges';
@@ -27,6 +28,10 @@ import { openLabelForm } from '../../../components/dialogs/open-label-form';
 import { FoldButton } from '../../../components/actions/FoldButton';
 import { ActionButton } from '../../../components/actions/ActionButton';
 import { movedMailsMessage, accountLabel } from '../lib/mail-format';
+import type { DraggedFolder, DraggedMails, MailDrag, MailDrop } from '../lib/mail-dnd';
+import { ErrorAlert } from '../../../components/feedback/ErrorAlert';
+import { useFoldedIds } from '../../../components/tree/use-folded-ids';
+import { taggedKey } from '../../../lib/tagged-key';
 
 const FOLDER_ICONS: Record<string, ReactNode> = {
   '\\Inbox': <TrayIcon aria-hidden />,
@@ -36,13 +41,6 @@ const FOLDER_ICONS: Record<string, ReactNode> = {
   '\\Junk': <WarningIcon aria-hidden />,
   '\\Archive': <ArchiveIcon aria-hidden />,
 };
-
-/** Mails being dragged, from the list to a folder. */
-export interface DraggedMails {
-  accountId: string;
-  folder: string;
-  uids: number[];
-}
 
 interface SelectedFolder {
   accountId: string;
@@ -56,10 +54,8 @@ interface AccountFoldersProps {
   account: MailAccount;
   selected: SelectedFolder | null;
   onSelect: (folder: SelectedFolder) => void;
-  /** Mails being dragged, if any. */
-  dragged: DraggedMails | null;
   /** Called once dragged mails are dropped in a folder. */
-  onDropped: () => void;
+  onDropped: (mails: DraggedMails) => void;
 }
 
 /**
@@ -70,11 +66,15 @@ interface AccountFoldersProps {
  * @param {AccountFoldersProps} props Component props.
  * @returns {JSX.Element} Folders.
  */
-export function AccountFolders({ account, selected, onSelect, dragged, onDropped }: AccountFoldersProps) {
+export function AccountFolders({ account, selected, onSelect, onDropped }: AccountFoldersProps) {
   const { data: folders, isPending, error } = useMailFolders(account.id);
   const { create, rename, remove, move: moveFolder } = useMailFolderMutations();
-  // Folder being dragged to another place of the tree.
-  const [draggedFolder, setDraggedFolder] = useState<{ path: string; name: string; parent: string | null } | null>(null);
+  // What is dragged (mails of the list, a folder of this account) and where it is.
+  const { active: activeDrag, over: overDrop } = useDndContext();
+  const drag = activeDrag?.data.current as MailDrag | undefined;
+  const dragged = drag?.kind === 'mails' ? drag.mails : null;
+  const draggedFolder = drag?.kind === 'folder' && drag.accountId === account.id ? drag.folder : null;
+  const { setNodeRef: setAccountRef } = useDroppable({ id: taggedKey('mail-account', account.id), data: { kind: 'account', accountId: account.id } satisfies MailDrop, disabled: !draggedFolder });
 
   /**
    * Moves a folder under another one, or to the top; the folder shown follows.
@@ -132,9 +132,8 @@ export function AccountFolders({ account, selected, onSelect, dragged, onDropped
     ));
   };
   const { move } = useMailActions();
-  const [over, setOver] = useState<string | null>(null);
   // Folders whose sub-folders are hidden, remembered in this browser.
-  const [collapsed, setCollapsed] = useLocalStorage<string[]>({ key: `ordo.mail.collapsed.${account.id}`, defaultValue: [] });
+  const { ids: collapsed, toggle: toggleFolded } = useFoldedIds(`ordo.mail.collapsed.${account.id}`);
   const byPath = new Map((folders ?? []).map((folder) => [folder.path, folder]));
   const parents = new Set((folders ?? []).map((folder) => folder.parent).filter((parent): parent is string => parent !== null));
   /**
@@ -147,6 +146,35 @@ export function AccountFolders({ account, selected, onSelect, dragged, onDropped
     for (let current = byPath.get(path)?.parent ?? null; current; current = byPath.get(current)?.parent ?? null) if (current === ancestor) return true;
     return false;
   };
+  /**
+   * Whether the mails or the folder dragged can be dropped in a folder: mails of this account from another folder, a
+   * folder anywhere but under itself or where it already is.
+   * @param {string} path Folder.
+   * @returns {boolean} Droppable.
+   */
+  const accepts = (path: string): boolean =>
+    dragged ? dragged.accountId === account.id && dragged.folder !== path : draggedFolder !== null && path !== draggedFolder.path && !within(path, draggedFolder.path) && path !== draggedFolder.parent;
+  // Where the dragged element would go: a folder of this account (its path), the account itself (''), or none.
+  const target = overDrop?.data.current as MailDrop | undefined;
+  const over = target?.accountId !== account.id ? null : target.kind === 'account' ? '' : accepts(target.path) ? target.path : null;
+  useDndMonitor({
+    onDragEnd: ({ active: ended, over: dropped }) => {
+      const what = ended.data.current as MailDrag | undefined;
+      const where = dropped?.data.current as MailDrop | undefined;
+      if (!what || where?.accountId !== account.id) return;
+      if (what.kind === 'folder') {
+        if (what.accountId !== account.id) return;
+        if (where.kind === 'account') placeFolder(what.folder, null);
+        else if (where.path !== what.folder.path && !within(where.path, what.folder.path) && where.path !== what.folder.parent) placeFolder(what.folder, where.path);
+        return;
+      }
+      if (where.kind !== 'folder' || what.mails.accountId !== account.id || what.mails.folder === where.path) return;
+      move.mutate(
+        { accountId: account.id, folder: what.mails.folder, uids: what.mails.uids, target: where.path },
+        formCallbacks(null, movedMailsMessage(what.mails.uids.length, where.name), () => onDropped(what.mails)),
+      );
+    },
+  });
 
   /**
    * Whether a folder is hidden by a collapsed ancestor.
@@ -154,7 +182,7 @@ export function AccountFolders({ account, selected, onSelect, dragged, onDropped
    * @returns {boolean} Hidden.
    */
   const hidden = (parent: string | null): boolean => {
-    for (let current = parent; current; current = byPath.get(current)?.parent ?? null) if (collapsed.includes(current)) return true;
+    for (let current = parent; current; current = byPath.get(current)?.parent ?? null) if (collapsed.has(current)) return true;
     return false;
   };
 
@@ -201,14 +229,11 @@ export function AccountFolders({ account, selected, onSelect, dragged, onDropped
     confirmDestructive({
       title: 'Supprimer le dossier',
       risks: <>Le dossier « {folder.name} », ses sous-dossiers et tous leurs mails seront supprimés définitivement du serveur.</>,
-      onConfirm: () => {
-        remove.mutate(
-          { accountId: account.id, path: folder.path },
-          formCallbacks(null, 'Dossier supprimé.', () => {
-            if (selected?.accountId === account.id && selected.folder.startsWith(folder.path)) onSelect({ accountId: account.id, folder: 'INBOX' });
-          }),
-        );
-      },
+      run: () =>
+        remove.mutateAsync({ accountId: account.id, path: folder.path }).then(() => {
+          if (selected?.accountId === account.id && selected.folder.startsWith(folder.path)) onSelect({ accountId: account.id, folder: 'INBOX' });
+        }),
+      done: 'Dossier supprimé.',
     });
   };
 
@@ -220,127 +245,99 @@ export function AccountFolders({ account, selected, onSelect, dragged, onDropped
       leftSection={<EnvelopeSimpleIcon aria-hidden />}
       childrenOffset={8}
       // A folder dropped on the account goes to the top level.
+      ref={setAccountRef}
       variant={over === '' ? 'filled' : 'light'}
       active={over === ''}
-      onDragOver={(event) => {
-        if (!draggedFolder) return;
-        event.preventDefault();
-        setOver('');
-      }}
-      onDragLeave={() => setOver((current) => (current === '' ? null : current))}
-      onDrop={(event) => {
-        setOver(null);
-        if (!draggedFolder) return;
-        event.preventDefault();
-        placeFolder(draggedFolder, null);
-        setDraggedFolder(null);
-      }}
     >
       {isPending && <ListSkeleton items={4} dense />}
       {error && (
-        <Text size="xs" c="red" px="sm" py={4}>
+        <ErrorAlert mx="sm" my={4} p="xs">
           {error.message}
-        </Text>
+        </ErrorAlert>
       )}
       {folders?.map((folder) => {
         if (hidden(folder.parent)) return null;
         const special = folder.specialUse !== null;
         const hasChildren = parents.has(folder.path);
-        const folded = collapsed.includes(folder.path);
-        // Mails of this account, from another folder, can be dropped here.
-        const droppable = dragged !== null && dragged.accountId === account.id && dragged.folder !== folder.path;
-        // A folder can go under any folder but itself and its sub-folders.
-        const folderDroppable = draggedFolder !== null && folder.path !== draggedFolder.path && !within(folder.path, draggedFolder.path) && folder.path !== draggedFolder.parent;
+        const folded = collapsed.has(folder.path);
         return (
-          <NavLink
-            key={folder.path}
-            component="div"
-            role="button"
-            tabIndex={0}
-            label={folder.name}
-            leftSection={
-              <Group gap={2} wrap="nowrap">
-                {hasChildren ? (
-                  <FoldButton
-                    size="xs"
-                    expanded={!folded}
-                    item={folder.name}
-                    inRow
-                    onToggle={() => setCollapsed(folded ? collapsed.filter((path) => path !== folder.path) : [...collapsed, folder.path])}
-                  />
-                ) : (
-                  <Box w={22} />
-                )}
-                {FOLDER_ICONS[folder.specialUse ?? ''] ?? <FolderIcon aria-hidden />}
-              </Group>
-            }
-            rightSection={
-              <Group gap={2} wrap="nowrap">
-                <MailCountBadges todo={folder.todo ?? 0} unread={folder.unseen} compact />
-                <ActionsMenu
-                  about={`le dossier « ${folder.name} »`}
-                  size="xs"
-                  inRow
-                  items={[
-                    { label: 'Nouveau sous-dossier', icon: <FolderPlusIcon aria-hidden />, onClick: () => askCreate(folder.path) },
-                    { label: 'Déplacer vers…', icon: <ArrowsOutCardinalIcon aria-hidden />, disabled: special, onClick: () => askMove(folder) },
-                    { label: 'Renommer', icon: <PencilSimpleIcon aria-hidden />, disabled: special, onClick: () => askRename(folder) },
-                    { label: 'Supprimer', icon: <TrashIcon aria-hidden />, danger: true, disabled: special, onClick: () => askDelete(folder) },
-                  ]}
-                />
-              </Group>
-            }
-            active={(selected?.accountId === account.id && selected.folder === folder.path) || over === folder.path}
-            variant={over === folder.path ? 'filled' : 'light'}
-            onClick={() => onSelect({ accountId: account.id, folder: folder.path })}
-            onKeyDown={(event) => {
-              if (event.key === 'Enter' || event.key === ' ') {
-                event.preventDefault();
-                onSelect({ accountId: account.id, folder: folder.path });
-              }
-            }}
-            draggable={!special}
-            onDragStart={(event) => {
-              event.stopPropagation();
-              event.dataTransfer.effectAllowed = 'move';
-              event.dataTransfer.setData('text/plain', folder.name);
-              setDraggedFolder({ path: folder.path, name: folder.name, parent: folder.parent });
-            }}
-            onDragEnd={() => setDraggedFolder(null)}
-            onDragOver={(event) => {
-              if (folderDroppable) {
-                event.preventDefault();
-                event.stopPropagation();
-                setOver(folder.path);
-                return;
-              }
-              if (!droppable) return;
-              event.preventDefault();
-              event.dataTransfer.dropEffect = 'move';
-              setOver(folder.path);
-            }}
-            onDragLeave={() => setOver((current) => (current === folder.path ? null : current))}
-            onDrop={(event) => {
-              setOver(null);
-              if (folderDroppable && draggedFolder) {
-                event.preventDefault();
-                event.stopPropagation();
-                placeFolder(draggedFolder, folder.path);
-                setDraggedFolder(null);
-                return;
-              }
-              if (!droppable || !dragged) return;
-              event.preventDefault();
-              move.mutate(
-                { accountId: account.id, folder: dragged.folder, uids: dragged.uids, target: folder.path },
-                formCallbacks(null, movedMailsMessage(dragged.uids.length, folder.name), onDropped),
-              );
-            }}
-            style={{ paddingLeft: `calc(var(--mantine-spacing-sm) + ${folder.depth} * var(--mantine-spacing-md))` }}
-          />
+          <FolderDnd key={folder.path} accountId={account.id} folder={folder} draggable={!special}>
+            {(dnd) => (
+              <NavLink
+                {...dnd}
+                component="div"
+                role="button"
+                tabIndex={0}
+                label={folder.name}
+                leftSection={
+                  <Group gap={2} wrap="nowrap">
+                    {hasChildren ? <FoldButton size="xs" expanded={!folded} item={folder.name} inRow onToggle={() => toggleFolded(folder.path)} /> : <Box w={22} />}
+                    {FOLDER_ICONS[folder.specialUse ?? ''] ?? <FolderIcon aria-hidden />}
+                  </Group>
+                }
+                rightSection={
+                  <Group gap={2} wrap="nowrap">
+                    <MailCountBadges todo={folder.todo ?? 0} unread={folder.unseen} compact />
+                    <ActionsMenu
+                      about={`le dossier « ${folder.name} »`}
+                      size="xs"
+                      inRow
+                      items={[
+                        { label: 'Nouveau sous-dossier', icon: <FolderPlusIcon aria-hidden />, onClick: () => askCreate(folder.path) },
+                        { label: 'Déplacer vers…', icon: <ArrowsOutCardinalIcon aria-hidden />, disabled: special, onClick: () => askMove(folder) },
+                        { label: 'Renommer', icon: <PencilSimpleIcon aria-hidden />, disabled: special, onClick: () => askRename(folder) },
+                        { label: 'Supprimer', icon: <TrashIcon aria-hidden />, danger: true, disabled: special, onClick: () => askDelete(folder) },
+                      ]}
+                    />
+                  </Group>
+                }
+                active={(selected?.accountId === account.id && selected.folder === folder.path) || over === folder.path}
+                variant={over === folder.path ? 'filled' : 'light'}
+                onClick={() => onSelect({ accountId: account.id, folder: folder.path })}
+                onKeyDown={(event) => {
+                  if (event.key === 'Enter' || event.key === ' ') {
+                    event.preventDefault();
+                    onSelect({ accountId: account.id, folder: folder.path });
+                  }
+                }}
+                style={{ ...dnd.style, paddingLeft: `calc(var(--mantine-spacing-sm) + ${folder.depth} * var(--mantine-spacing-md))` }}
+              />
+            )}
+          </FolderDnd>
         );
       })}
       {folders && <NavLink component="button" label="Nouveau dossier" leftSection={<FolderPlusIcon aria-hidden />} c="dimmed" onClick={() => askCreate(null)} />}
     </NavLink>
   );
+}
+
+/** What a folder row gets to be dragged and dropped on: its element, its pointer listeners, its look while dragged. */
+interface FolderDndProps {
+  ref: (element: HTMLElement | null) => void;
+  style?: CSSProperties;
+}
+
+/**
+ * A folder row as a drag source (not a special folder) and a drop target (`components/dnd`): mails and folders go in it.
+ * @param {{ accountId: string, folder: DraggedFolder, draggable: boolean, children: (dnd: FolderDndProps) => ReactNode }} props Component props: its account, the folder, whether it moves, the row.
+ * @returns {ReactNode} Row.
+ */
+function FolderDnd({ accountId, folder, draggable, children }: { accountId: string; folder: DraggedFolder; draggable: boolean; children: (dnd: FolderDndProps) => ReactNode }) {
+  const id = `mail-folder:${accountId}:${folder.path}`;
+  const {
+    setNodeRef: setDragRef,
+    listeners,
+    isDragging,
+  } = useDraggable({ id, data: { kind: 'folder', accountId, folder: { path: folder.path, name: folder.name, parent: folder.parent } } satisfies MailDrag, disabled: !draggable });
+  const { setNodeRef: setDropRef } = useDroppable({ id, data: { kind: 'folder', accountId, path: folder.path, name: folder.name } satisfies MailDrop });
+  /**
+   * Gives the row element to both the drag and the drop.
+   * @param {HTMLElement | null} element Row element.
+   * @returns {void}
+   */
+  const ref = (element: HTMLElement | null) => {
+    setDragRef(element);
+    setDropRef(element);
+  };
+  return children({ ref, ...(draggable ? listeners : {}), style: isDragging ? { opacity: 'var(--onoko-dragging-opacity)' } : undefined } as FolderDndProps);
 }

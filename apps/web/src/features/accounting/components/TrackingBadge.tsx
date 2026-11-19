@@ -102,15 +102,7 @@ export function TrackingBadge({ document, editable = false, onSelect }: { docume
   if (document.status !== 'FINAL') return <DraftBadge />;
   return (
     <Group gap={4} wrap="nowrap">
-      {editable && !document.archived ? (
-        <DocumentStatusMenu document={document} onSelect={onSelect} />
-      ) : (
-        document.trackingStatus && (
-          <Badge size="sm" variant="light" color={document.trackingStatus.color}>
-            {document.trackingStatus.label}
-          </Badge>
-        )
-      )}
+      {editable && !document.archived ? <DocumentStatusMenu document={document} onSelect={onSelect} /> : <ItemBadge size="sm" item={document.trackingStatus} />}
       {document.overdue && (
         <Badge size="sm" variant="light" color={LATE_COLOR}>
           {document.type === 'QUOTE' ? 'Expiré' : 'En retard'}

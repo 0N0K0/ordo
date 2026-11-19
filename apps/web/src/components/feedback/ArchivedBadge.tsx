@@ -1,5 +1,6 @@
 import { Badge, type MantineSize } from '@mantine/core';
 import { ArchiveIcon } from '@phosphor-icons/react';
+import { agreed } from '@ordo/shared';
 
 /**
  * « Archivé » badge of an archived thing (a task, a project, a list, an account), the same everywhere.
@@ -9,7 +10,7 @@ import { ArchiveIcon } from '@phosphor-icons/react';
 export function ArchivedBadge({ feminine = false, size }: { feminine?: boolean; size?: MantineSize }) {
   return (
     <Badge color="gray" variant="light" size={size} leftSection={<ArchiveIcon aria-hidden />}>
-      {feminine ? 'Archivée' : 'Archivé'}
+      {agreed('Archivé', feminine)}
     </Badge>
   );
 }

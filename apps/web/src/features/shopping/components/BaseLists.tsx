@@ -1,4 +1,3 @@
-import { formCallbacks } from '../../../lib/form';
 import { countOf, countWith, plural } from '../../../lib/text';
 import { moveToIndex } from '../../../lib/mutation';
 import { SortableTabs } from '../../../components/tabs/SortableTabs';
@@ -13,7 +12,7 @@ import { BlockSkeleton } from '../../../components/feedback/Skeletons';
 import { confirmDestructive } from '../../../components/dialogs/confirm-destructive';
 import { openFormPanel } from '../../../components/panels/panels';
 
-import { Badge, Group, Stack } from '@mantine/core';
+import { Group, Stack } from '@mantine/core';
 import { shoppingBaseListLabelSchema } from '@ordo/shared';
 import { ListBulletsIcon, PencilSimpleIcon, PlusIcon } from '@phosphor-icons/react';
 
@@ -24,6 +23,7 @@ import { ArchivedBadge } from '../../../components/feedback/ArchivedBadge';
 import { ON_ERROR } from '../../../lib/notify';
 import { shoppingKey, useShoppingData, useShoppingMutations, type ShoppingBaseList } from '../api';
 import { BaseList } from './BaseList';
+import { CountBadge } from '../../../components/feedback/CountBadge';
 
 const schema = z.object({ label: shoppingBaseListLabelSchema });
 
@@ -100,12 +100,8 @@ export function BaseLists() {
           déjà faites gardent leurs éléments.
         </>
       ),
-      onConfirm: () => {
-        mutations.deleteBaseList.mutate(
-          { id: baseList.id },
-          formCallbacks(null, 'Référence supprimée.', () => select(null)),
-        );
-      },
+      run: () => mutations.deleteBaseList.mutateAsync({ id: baseList.id }).then(() => select(null)),
+      done: 'Référence supprimée.',
     });
   };
 
@@ -135,7 +131,7 @@ export function BaseLists() {
         value={current.id}
         onChange={select}
         onMove={move}
-        name={(baseList) => `la référence ${baseList.label}`}
+        name={(baseList) => baseList.label}
         leftSection={(baseList) => <ItemAvatar name={baseList.label} iconUrl={baseList.iconUrl} color={baseList.color} />}
         label={(baseList) => {
           const missing = (data?.shoppingProducts ?? []).filter((product) => product.baseListId === baseList.id && product.missing).length;
@@ -143,11 +139,7 @@ export function BaseLists() {
             <Group gap={6} wrap="nowrap">
               {baseList.label}
               {baseList.archived && <ArchivedBadge feminine size="xs" />}
-              {missing > 0 && (
-                <Badge size="xs" variant="light" color="orange" aria-label={`${countOf(missing, 'manquant')}`}>
-                  {missing}
-                </Badge>
-              )}
+              <CountBadge count={missing} variant="light" color="orange" label={countOf(missing, 'manquant')} />
             </Group>
           );
         }}

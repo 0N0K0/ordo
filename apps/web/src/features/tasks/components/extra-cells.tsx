@@ -83,7 +83,7 @@ export function TrackedCell({ task }: { task: Task }) {
 export function SubtasksCell({ task, context, onAdd }: { task: Task; context: TaskContext; onAdd: () => void }) {
   const children = context.childrenOf(task.id);
   return (
-    <ChildrenCell add={!task.archived && { label: 'Ajouter une sous-tâche', name: task.label, onClick: onAdd }}>
+    <ChildrenCell add={!task.archived && { label: 'Ajouter une sous-tâche', item: task.label, onClick: onAdd }}>
       {children.map((child) => (
         <TaskRef key={child.id} task={child} blocked={context.isBlocked(child)} />
       ))}

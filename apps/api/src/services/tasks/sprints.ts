@@ -3,7 +3,7 @@ import { prisma } from '../../db';
 import type { Sprint } from '../../generated/prisma/client';
 import { parseInput } from '../../graphql/errors';
 import { assertNotArchived, assertActive, refuseArchived } from '../core/archive';
-import { findOrNotFound } from '../core/lookup';
+import { findOrNotFound, deleteOrNotFound } from '../core/lookup';
 
 /**
  * Loads a sprint or throws NOT_FOUND.
@@ -69,8 +69,7 @@ export async function updateSprint(id: string, input: SprintInput): Promise<Spri
  * @returns {Promise<void>}
  */
 export async function deleteSprint(id: string): Promise<void> {
-  await findSprint(id);
-  await prisma.sprint.delete({ where: { id } });
+  await deleteOrNotFound(prisma.sprint, id, 'Sprint');
 }
 
 /** Status of a task at the end of a sprint it is in. */

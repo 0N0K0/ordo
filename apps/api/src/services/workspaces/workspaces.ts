@@ -3,13 +3,14 @@ import type { NextFunction, Request, Response } from 'express';
 import { DEFAULT_SHOPPING_UNITS, readTaskColumnDefaults, taskColumnDefaultsSchema, weekSpanSchema, type TaskColumnDefaults, type WeekSpan, workspaceLabelSchema } from '@ordo/shared';
 import { z } from 'zod';
 import { prisma, unscopedPrisma } from '../../db';
-import { BY_POSITION, moveInOrder, nextPositionIn } from '../core/ordering';
+import { BY_POSITION, nextPositionIn, saveSiblingOrder } from '../core/ordering';
 import { Prisma, type NotificationSource, type Workspace, type WorkspaceKind } from '../../generated/prisma/client';
 import { clientError, notFound, parseInput } from '../../graphql/errors';
 import { assertExists, findOrNotFound } from '../core/lookup';
-import { currentWorkspace, runInWorkspace } from '../../workspace-context';
+import { currentWorkspace, currentWorkspaceId, runInWorkspace } from '../../workspace-context';
+import { currentWorkspaceFields } from './current-workspace';
 import { resolveCalendarId } from '../calendar/calendars';
-import { freeHandle } from './contributors';
+import { freeHandle } from '../projects/contributors';
 import { ensureDocumentStatuses } from '../accounting/document-statuses';
 
 /** Cookie (and header) naming the workspace the app shows. */
@@ -194,7 +195,7 @@ export async function setWorkspaceWeek(id: string, week: WeekSpan): Promise<Work
 export async function moveWorkspace(id: string, index: number): Promise<void> {
   const ids = (await listWorkspaces()).map((workspace) => workspace.id);
   if (!ids.includes(id)) throw notFound('Espace');
-  await unscopedPrisma.$transaction(moveInOrder(ids, id, index).map((item, position) => unscopedPrisma.workspace.update({ where: { id: item }, data: { position } })));
+  await saveSiblingOrder(ids, id, index, (item, position) => unscopedPrisma.workspace.update({ where: { id: item }, data: { position } }), unscopedPrisma);
 }
 
 /**
@@ -222,8 +223,8 @@ export async function deleteWorkspace(id: string): Promise<void> {
  * @returns {Promise<TaskColumnDefaults>} Order and hidden columns.
  */
 export async function taskColumnDefaults(): Promise<TaskColumnDefaults> {
-  const workspace = await unscopedPrisma.workspace.findUnique({ where: { id: currentWorkspace().id }, select: { taskColumns: true } });
-  return readTaskColumnDefaults(workspace?.taskColumns);
+  const workspace = await currentWorkspaceFields({ taskColumns: true });
+  return readTaskColumnDefaults(workspace.taskColumns);
 }
 
 /**
@@ -233,6 +234,6 @@ export async function taskColumnDefaults(): Promise<TaskColumnDefaults> {
  */
 export async function setTaskColumnDefaults(input: TaskColumnDefaults | null): Promise<TaskColumnDefaults> {
   const columns = input ? parseInput(taskColumnDefaultsSchema, input) : null;
-  await unscopedPrisma.workspace.update({ where: { id: currentWorkspace().id }, data: { taskColumns: columns ?? Prisma.DbNull } });
+  await unscopedPrisma.workspace.update({ where: { id: currentWorkspaceId() }, data: { taskColumns: columns ?? Prisma.DbNull } });
   return readTaskColumnDefaults(columns);
 }

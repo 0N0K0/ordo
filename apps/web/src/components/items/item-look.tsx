@@ -106,8 +106,9 @@ export function chosenAvatar<T extends OptionItem>(items: readonly T[], value: s
  * @param {readonly OptionItem[]} items Items, in their order.
  * @param {string | null | undefined} value Chosen item (offered even when archived). Optional.
  * @param {(item: T) => string} [label] Label of an item. Optional. Default = its label.
+ * @param {KeptValues} [keep] Value(s) offered even when archived (a form: the value it opened with). Optional. Default = `value`.
  * @returns {object} Props: `data`, `renderOption`, `leftSection`.
  */
-export function itemSelectProps<T extends OptionItem>(items: readonly T[], value: string | null | undefined, label: (item: T) => string = (item) => item.label) {
-  return { ...listSelectProps(items, label, value), leftSection: chosenAvatar(items, value, label) };
+export function itemSelectProps<T extends OptionItem>(items: readonly T[], value: string | null | undefined, label: (item: T) => string = (item) => item.label, keep: KeptValues = value) {
+  return { ...listSelectProps(items, label, keep), leftSection: chosenAvatar(items, value, label) };
 }

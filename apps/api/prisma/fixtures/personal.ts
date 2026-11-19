@@ -28,7 +28,7 @@ import { saveBudget } from '../../src/services/treasury/treasury-budgets';
 import { createCounterparty, createPaymentMethod } from '../../src/services/treasury/treasury-settings';
 import { addMember, saveContext, saveContextPeriod, saveRelation } from '../../src/services/treasury/treasury-team';
 import { saveDefaultScheduleKind, saveScheduleType, subscribeScheduleKind } from '../../src/services/calendar/work-schedules';
-import { ensureMeContributor, meContributorId, setWorkspaceNotifications } from '../../src/services/workspace/workspaces';
+import { ensureMeContributor, meContributorId, setWorkspaceNotifications } from '../../src/services/workspaces/workspaces';
 import { enterWorkspace, type WorkspaceScope } from '../../src/workspace-context';
 import { calendarCategory, chart, createEntry, EMPTY_ARTICLE, EMPTY_ENTRY, localAt, projectFactory, relativeDay, rule, taskFactory, TIME_ZONE, treasuryCategoryMaker } from './factories';
 import { initialsIcon } from './images';

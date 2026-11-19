@@ -150,7 +150,7 @@ export function AlarmForm({ context, alarm, copy = false, defaults, onDone }: Al
             {...form.getInputProps('taskId')}
           />
         </SimpleGrid>
-        <Textarea label="Note" autosize minRows={2} maxRows={8} {...form.getInputProps('note')} />
+        <Textarea label="Description" autosize minRows={2} maxRows={8} {...form.getInputProps('note')} />
         <Switch label="Active" {...form.getInputProps('enabled', { type: 'checkbox' })} />
         <FormActions onCancel={onDone} submitLabel={alarm && !copy ? 'Enregistrer' : 'Créer l’alarme'} loading={create.isPending || update.isPending} />
       </Stack>

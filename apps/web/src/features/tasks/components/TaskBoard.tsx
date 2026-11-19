@@ -1,4 +1,5 @@
 import { useSearchParam } from '../../../lib/search-params';
+import { readOnlyCells } from '../../../components/data-table/table/data-table';
 import { unarchived } from '../../../lib/archive';
 import { ErrorAlert } from '../../../components/feedback/ErrorAlert';
 import { ActionButton } from '../../../components/actions/ActionButton';
@@ -50,6 +51,7 @@ import { AddTaskRow } from './table-extras';
 import classes from './TaskTable.module.css';
 import { countOf, plural } from '../../../lib/text';
 import { CommentCount } from '../../comments/components/CommentCount';
+import { isTaskOverdue } from '../lib/task-overdue';
 
 /** Periods of the events listed with the tasks. */
 const EVENT_PERIOD_LABELS: Record<EventPeriod, string> = {
@@ -133,7 +135,6 @@ export function TaskBoard({ projectId, projectIds, createProjectId, header, empt
   // New views start with the columns chosen for the workspace.
   const { data: columnDefaults, isPending: defaultsPending } = useTaskColumnDefaults();
   const views = useTableViews({ tableKey: 'tasks', projectId, first: TASK_VIEWS, defaults: columnDefaults, ready: !defaultsPending });
-  const columns = useTaskColumns(context, today, { doable: filterUses(views.config?.filter, 'doableNow') });
   const showEvents = views.config?.options.events === true;
   const period = (views.config?.options.eventPeriod as EventPeriod | undefined) ?? 'next:30';
   const range = useMemo(() => {
@@ -151,6 +152,11 @@ export function TaskBoard({ projectId, projectIds, createProjectId, header, empt
         .map((event): TaskTableRow => ({ kind: 'event', key: eventRowKey(event), event })),
     [periodEvents.data, projectIds],
   );
+  const eventComments = useCommentCounts(
+    'EVENT',
+    eventRows.map((row) => (row.kind === 'event' ? row.event.eventId : '')),
+  );
+  const columns = useTaskColumns(context, today, { doable: filterUses(views.config?.filter, 'doableNow'), eventComments });
   const rows = useMemo(() => (showEvents ? [...tasks, ...eventRows] : tasks), [showEvents, tasks, eventRows]);
   const view = useDataView({
     tableKey: 'tasks',
@@ -163,11 +169,6 @@ export function TaskBoard({ projectId, projectIds, createProjectId, header, empt
     archived: (row) => row.kind === 'task' && row.task.archived,
     archivedLabel: 'Afficher les archivées',
   });
-  const eventComments = useCommentCounts(
-    'EVENT',
-    eventRows.map((row) => (row.kind === 'event' ? row.event.eventId : '')),
-  );
-
   /**
    * Saves a task dragged to another place or level (before the task now following it, under its new parent), or into
    * another group (its status, priority, type, milestone, an assignee, a tag or a sprint replaced by the group's).
@@ -212,7 +213,7 @@ export function TaskBoard({ projectId, projectIds, createProjectId, header, empt
    */
   const cells = (row: TaskTableRow): Record<string, ReactNode> => {
     if (!context) return {};
-    const texts = Object.fromEntries(columns.filter((column) => column.text).map((column) => [column.id, column.text!(row)]));
+    const texts = readOnlyCells(columns, row);
     if (row.kind === 'event') {
       const event = row.event;
       return {
@@ -274,7 +275,7 @@ export function TaskBoard({ projectId, projectIds, createProjectId, header, empt
       shopping: <ShoppingCell task={task} lists={shoppingLists ?? []} />,
       startDate: <DateCell task={task} column="startDate" />,
       endDate: <DateCell task={task} column="endDate" />,
-      deadline: <DateCell task={task} column="deadline" alert={task.deadline !== null && task.deadline < today && !context.isClosed(task)} />,
+      deadline: <DateCell task={task} column="deadline" alert={isTaskOverdue(task, today)} />,
       parent: <ParentCell task={task} context={context} />,
       milestone: <MilestoneCell task={task} context={context} />,
       sprint: <SprintCell task={task} context={context} />,

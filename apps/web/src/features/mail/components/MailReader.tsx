@@ -1,7 +1,7 @@
 import { IconAction } from '../../../components/actions/IconAction';
 import { projectPath } from '../../../app/pages';
 import { RemoveButton } from '../../../components/actions/RemoveButton';
-import { formCallbacks } from '../../../lib/form';
+
 import { ErrorAlert } from '../../../components/feedback/ErrorAlert';
 import { DetailSkeleton } from '../../../components/feedback/Skeletons';
 import { ItemBadge } from '../../../components/items/ItemBadge';
@@ -98,9 +98,8 @@ export function MailReader({ accountId, folder, uid, isDraft, onDeleted, onManag
       risks: 'La copie du mail conservée dans le projet sera supprimée, avec ses pièces jointes. Le mail reste dans la boîte mail.',
       confirmLabel: 'Détacher',
       confirmIcon: <LinkBreakIcon aria-hidden />,
-      onConfirm: () => {
-        unlink.mutate(copyId, formCallbacks(null, 'Mail détaché du projet.', onDeleted));
-      },
+      run: () => unlink.mutateAsync(copyId).then(() => onDeleted()),
+      done: 'Mail détaché du projet.',
     });
   };
 
@@ -144,9 +143,8 @@ export function MailReader({ accountId, folder, uid, isDraft, onDeleted, onManag
     confirmDestructive({
       title: 'Supprimer le mail',
       risks: 'Le mail sera placé dans la corbeille de la boîte (supprimé définitivement s’il y est déjà). Ses copies rattachées à des projets sont conservées.',
-      onConfirm: () => {
-        remove.mutate({ accountId, folder, uids: [uid] }, formCallbacks(null, 'Mail supprimé.', onDeleted));
-      },
+      run: () => remove.mutateAsync({ accountId, folder, uids: [uid] }).then(() => onDeleted()),
+      done: 'Mail supprimé.',
     });
   };
 
@@ -160,9 +158,8 @@ export function MailReader({ accountId, folder, uid, isDraft, onDeleted, onManag
     confirmDestructive({
       title: 'Supprimer le brouillon',
       risks: <>Le brouillon « {mail.subject} » sera supprimé définitivement de la boîte.</>,
-      onConfirm: () => {
-        deleteDraft.mutate({ accountId, folder, uid }, formCallbacks(null, 'Brouillon supprimé.', onDeleted));
-      },
+      run: () => deleteDraft.mutateAsync({ accountId, folder, uid }).then(() => onDeleted()),
+      done: 'Brouillon supprimé.',
     });
   };
   const base = `/api/mail/${accountId}/attachment?folder=${encodeURIComponent(folder)}&uid=${uid}`;

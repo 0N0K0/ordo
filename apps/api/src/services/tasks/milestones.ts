@@ -4,17 +4,8 @@ import { prisma } from '../../db';
 import type { Milestone } from '../../generated/prisma/client';
 import { parseInput } from '../../graphql/errors';
 import { moveInList, nextPositionIn } from '../core/ordering';
-import { assertNotArchived, assertActive, refuseArchived } from '../core/archive';
-import { findOrNotFound } from '../core/lookup';
-
-/**
- * Loads a milestone or throws NOT_FOUND.
- * @param {string} id Milestone id.
- * @returns {Promise<Milestone>} Milestone.
- */
-function findMilestone(id: string): Promise<Milestone> {
-  return findOrNotFound(prisma.milestone, id, 'Jalon');
-}
+import { assertNotArchived, assertActive, findActive } from '../core/archive';
+import { deleteOrNotFound } from '../core/lookup';
 
 /**
  * Loads a milestone that can be changed: neither it nor its project is archived (BAD_USER_INPUT « Élément archivé… »).
@@ -22,8 +13,7 @@ function findMilestone(id: string): Promise<Milestone> {
  * @returns {Promise<Milestone>} Milestone.
  */
 async function findEditableMilestone(id: string): Promise<Milestone> {
-  const milestone = await findMilestone(id);
-  refuseArchived(milestone);
+  const milestone = await findActive(prisma.milestone, id, 'Jalon');
   await assertNotArchived('project', milestone.projectId);
   return milestone;
 }
@@ -90,8 +80,7 @@ export async function updateMilestone(id: string, input: { label?: string | null
  * @returns {Promise<void>}
  */
 export async function deleteMilestone(id: string): Promise<void> {
-  await findMilestone(id);
-  await prisma.milestone.delete({ where: { id } });
+  await deleteOrNotFound(prisma.milestone, id, 'Jalon');
 }
 
 /**

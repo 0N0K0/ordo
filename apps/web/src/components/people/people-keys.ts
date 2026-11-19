@@ -1,10 +1,15 @@
 import { peopleOptions, personName, type PeopleGroup } from './people-options';
+import { taggedKey, parseTaggedKey } from '../../lib/tagged-key';
 
 /** Kinds of people a field can hold: contributors, members of the team or household, relations (people out of it). */
 type PersonKind = 'contributor' | 'member' | 'relation';
 
 const PREFIX: Record<PersonKind, string> = { contributor: 'c', member: 'm', relation: 'r' };
 const KIND = new Map(Object.entries(PREFIX).map(([kind, prefix]) => [prefix, kind as PersonKind]));
+
+/** Value of « Moi » (no member nor relation: the app user) in a select or a filter of people. */
+// eslint-disable-next-line no-restricted-syntax -- ME_KEY itself.
+export const ME_KEY = 'me';
 
 /** People of a field, by kind. */
 type People = Partial<Record<PersonKind, string[]>>;
@@ -15,7 +20,7 @@ type People = Partial<Record<PersonKind, string[]>>;
  * @param {string} id Id.
  * @returns {string} Key.
  */
-export const personKey = (kind: PersonKind, id: string): string => `${PREFIX[kind]}:${id}`;
+export const personKey = (kind: PersonKind, id: string): string => taggedKey(PREFIX[kind], id);
 
 /**
  * Options of people of one kind, from their names by id: the value is their people key.
@@ -33,8 +38,9 @@ export const personKeyOptions = (kind: PersonKind, names: ReadonlyMap<string, st
  * @returns {{ kind: PersonKind, id: string } | null} Person, null for none or an unknown key.
  */
 export function parsePersonKey(key: string | null | undefined): { kind: PersonKind; id: string } | null {
-  const kind = key ? KIND.get(key.slice(0, key.indexOf(':'))) : undefined;
-  return kind && key ? { kind, id: key.slice(key.indexOf(':') + 1) } : null;
+  const parsed = parseTaggedKey(key);
+  const kind = parsed && KIND.get(parsed.tag);
+  return kind && parsed ? { kind, id: parsed.id } : null;
 }
 
 /**

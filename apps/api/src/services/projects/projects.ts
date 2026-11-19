@@ -3,10 +3,10 @@ import { z } from 'zod';
 import { prisma } from '../../db';
 import type { Prisma, Project } from '../../generated/prisma/client';
 import { fieldError, notFound, parseField, parseInput } from '../../graphql/errors';
-import { assertActive, refuseArchived, isArchivedAs, cascadeArchive } from '../core/archive';
+import { activeIds, assertActive, refuseArchived, isArchivedAs, cascadeArchive, findActive } from '../core/archive';
 import { deleteOrphanIcons, resolveIconUpdate, storeIcon } from '../core/icons';
 import { BY_POSITION, moveInOrder, nextPositionIn } from '../core/ordering';
-import { assertAllExist, assertExists, findOrNotFound } from '../core/lookup';
+import { findOrNotFound } from '../core/lookup';
 import { assertDateRange } from '../core/date-range';
 import { connectIds } from '../core/relations';
 
@@ -128,12 +128,14 @@ function assertParent(tree: ProjectTree, parentId: string, movedId: string | nul
 }
 
 /**
- * Checks that every category exists.
+ * Checks that every category exists and is not archived (those the project already has stay valid).
  * @param {string[]} categoryIds Category ids.
+ * @param {string | null} [projectId] Project updated: its current categories are kept. Optional.
  * @returns {Promise<void>}
  */
-async function assertCategories(categoryIds: string[]): Promise<void> {
-  await assertAllExist(prisma.projectCategory, categoryIds, 'Catégorie');
+async function assertCategories(categoryIds: string[], projectId: string | null = null): Promise<void> {
+  const keep = projectId ? (await prisma.projectCategory.findMany({ where: { projects: { some: { id: projectId } } }, select: { id: true } })).map((category) => category.id) : [];
+  await activeIds(prisma.projectCategory, categoryIds, 'Catégorie', { keep, field: 'categoryIds' });
 }
 
 /**
@@ -164,10 +166,10 @@ const detailsSchema = z.object({
 /**
  * Validates the optional details of a project (undefined: unchanged, null: cleared).
  * @param {ProjectDetailsInput} input Raw details.
- * @param {{ startDate: Date | null, endDate: Date | null }} [current] Current dates, to check the range on update. Optional.
+ * @param {{ startDate: Date | null, endDate: Date | null, statusId: string | null }} [current] Current dates (to check the range) and status (kept even if archived) on update. Optional.
  * @returns {Promise<object>} Prisma data for the details.
  */
-async function parseDetails(input: ProjectDetailsInput, current?: { startDate: Date | null; endDate: Date | null }) {
+async function parseDetails(input: ProjectDetailsInput, current?: { startDate: Date | null; endDate: Date | null; statusId: string | null }) {
   const details = parseInput(detailsSchema, {
     description: input.description,
     startDate: input.startDate,
@@ -177,7 +179,7 @@ async function parseDetails(input: ProjectDetailsInput, current?: { startDate: D
 
   assertDateRange(details, current);
 
-  await assertExists(prisma.projectStatus, input.statusId, 'Statut');
+  await assertActive(prisma.projectStatus, input.statusId, 'Statut', { keep: current?.statusId, field: 'statusId' });
 
   return {
     description: details.description,
@@ -289,8 +291,7 @@ export async function updateProject(
     removeIcon?: boolean | null;
   },
 ): Promise<Project> {
-  const project = await findProject(id);
-  refuseArchived(project);
+  const project = await findActive(prisma.project, id, 'Projet');
   const label = parseField('label', projectLabelSchema.optional(), input.label ?? undefined);
 
   const parentId = input.parentId === undefined ? project.parentId : input.parentId;
@@ -299,7 +300,7 @@ export async function updateProject(
     await placeProject(await ProjectTree.load(), project, parentId, clientId, Number.MAX_SAFE_INTEGER);
   }
 
-  if (input.categoryIds) await assertCategories(input.categoryIds);
+  if (input.categoryIds) await assertCategories(input.categoryIds, id);
   const details = await parseDetails(input, project);
   const iconId = await resolveIconUpdate(project.iconId, input);
 

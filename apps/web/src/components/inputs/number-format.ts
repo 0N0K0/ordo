@@ -1,6 +1,7 @@
 import type { UseFormReturnType } from '@mantine/form';
 
 /** Separators of a number typed in a field, the same everywhere: « 1 000,5 ». Spread into a NumberInput. */
+// eslint-disable-next-line no-restricted-syntax -- FRENCH_NUMBER_FORMAT itself.
 export const FRENCH_NUMBER_FORMAT = { decimalSeparator: ',', thousandSeparator: ' ' } as const;
 
 /**

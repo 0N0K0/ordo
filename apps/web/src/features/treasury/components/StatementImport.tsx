@@ -4,7 +4,7 @@ import { NoticeAlert } from '../../../components/feedback/NoticeAlert';
 import { formCallbacks } from '../../../lib/form';
 import { Badge, Checkbox, FileInput, NumberInput, SegmentedControl, Select, SimpleGrid, Stack, Text } from '@mantine/core';
 import { countOf, normalize, plural } from '../../../lib/text';
-import { listSelectProps } from '../../../components/items/item-look';
+import { itemSelectProps } from '../../../components/items/item-look';
 import { addDays, daysBetween, occurrenceDates, parseCsv, readStatement, recurrenceSchema, statementMappingSchema, type StatementMapping, type StatementRow, occurrenceKey } from '@ordo/shared';
 import { FileCsvIcon, ArrowLeftIcon, ArrowRightIcon, EyeIcon, FileArrowUpIcon } from '@phosphor-icons/react';
 import { useMemo, useState } from 'react';
@@ -235,7 +235,7 @@ export function StatementImport({ accounts, onDone }: StatementImportProps) {
   if (step === 'file' || !mapping) {
     return (
       <Stack gap="sm">
-        <Select label="Compte" required {...listSelectProps(open)} value={accountId} onChange={setAccountId} allowDeselect={false} />
+        <Select label="Compte" required {...itemSelectProps(open, accountId)} value={accountId} onChange={setAccountId} allowDeselect={false} />
         <FileInput
           label="Relevé (CSV)"
           placeholder="Choisir le fichier exporté par la banque"

@@ -5,7 +5,7 @@ import { readSheetSources } from '@ordo/shared';
 import { BY_POSITION } from '../../services/core/ordering';
 import { builder, type BuilderTypes, type InputFields } from '../builder';
 import { relationIds } from '../relation-fields';
-import { labelMutations, labelObject, LabelColorInput, LabelColorPatch, treeItemObject } from '../label-inputs';
+import { LABEL_COLOR_INPUTS, labelMutations, labelObject, treeItemObject } from '../label-inputs';
 import { SheetSourceRef } from './sheets';
 import { fromDecimal } from '../../services/core/decimal';
 import { productInput, productInputFields, purchaseInput, purchaseInputFields } from '../product-inputs';
@@ -327,10 +327,9 @@ builder.mutationFields((t) => ({
   }),
 }));
 
-const nameColor = { create: LabelColorInput, update: LabelColorPatch };
-labelMutations('ShoppingStore', shopping.shoppingStores, nameColor);
-labelMutations('ShoppingStorage', shopping.shoppingStorages, nameColor);
-labelMutations('ShoppingUnit', { create: shopping.createUnit, update: shopping.updateUnit, remove: shopping.deleteUnit }, nameColor, {
+labelMutations('ShoppingStore', shopping.shoppingStores);
+labelMutations('ShoppingStorage', shopping.shoppingStorages);
+labelMutations('ShoppingUnit', { create: shopping.createUnit, update: shopping.updateUnit, remove: shopping.deleteUnit }, LABEL_COLOR_INPUTS, {
   update: 'Renames a unit; the products and items in it follow.',
   delete: 'Deletes a unit; the products and items in it are left without one.',
 });

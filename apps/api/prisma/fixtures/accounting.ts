@@ -1,5 +1,5 @@
 import { fakerFR as faker } from '@faker-js/faker';
-import { type AccountingDocumentInput, type AccountingLineInput, addDays, formatDay, mapById, occurrenceDates, parseDay, round2, sumOf } from '@ordo/shared';
+import { type AccountingDocumentInput, type AccountingLineInput, addDays, directionOf, formatDay, mapById, occurrenceDates, parseDay, round2, sumOf } from '@ordo/shared';
 import { prisma } from '../../src/db';
 import type { CatalogItem, Client, Project } from '../../src/generated/prisma/client';
 import { createDocument, createFromDocument, defaultFields, finalizeDocument, updateDocument, editableFields, findDocument } from '../../src/services/accounting/accounting-documents';
@@ -239,7 +239,7 @@ export async function seedAccounting({ clients, projects, today }: AccountingCon
   await category('TVA', 'OUT', 'Impôts et taxes');
   for (const label of ['Matériel', 'Logiciels']) await category(label, 'OUT', 'Équipement');
   for (const label of ['Frais bancaires', 'Déplacements', 'Repas']) await category(label, 'OUT', 'Frais de fonctionnement');
-  const categoryOf = (label: string, amount: number) => categoryIds.get(`${amount < 0 ? 'OUT' : 'IN'}:${label}`) ?? null;
+  const categoryOf = (label: string, amount: number) => categoryIds.get(`${directionOf(amount)}:${label}`) ?? null;
   const methodIds = new Map<string, string>();
   for (const method of [
     { label: 'Virement', incoming: true, outgoing: true },

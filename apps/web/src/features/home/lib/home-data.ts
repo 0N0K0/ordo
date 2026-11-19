@@ -12,6 +12,7 @@ import type { TaskContext } from '../../tasks/hooks/use-task-context';
 import * as fmt from '../../../lib/format';
 import { currentWeek } from '../../../lib/week';
 import { useCalendarEvents, type EventOccurrence } from '../../calendar/api';
+import { isTaskOverdue } from '../../tasks/lib/task-overdue';
 
 /**
  * A day relative to today: « Aujourd’hui », « Demain », « Hier » or « lun. 9 nov. ».
@@ -37,14 +38,6 @@ export function useHeldEvents(from: string, to: string): EventOccurrence[] | und
   const { data } = useCalendarEvents({ from, to });
   return useMemo(() => data?.filter((event) => !event.calledOff), [data]);
 }
-
-/**
- * Whether a task of the home page is overdue: past its « Date max ».
- * @param {{ deadline: string | null }} task Task.
- * @param {string} today Today.
- * @returns {boolean} Overdue.
- */
-export const isTaskLate = (task: { deadline: string | null }, today: string): boolean => task.deadline !== null && task.deadline < today;
 
 /** Name of the balance of the projection 30 days from today (`balanceIn30Days`). */
 // eslint-disable-next-line no-restricted-syntax -- the name itself.
@@ -136,7 +129,7 @@ export function useMyTodayTasks(context: TaskContext | null, today: string) {
   return useMemo(() => {
     if (!context) return { tasks: null, overdue: 0 };
     const tasks = matchTasks(context.tasks, columns, { filter: myTasksFilter('today') }, today);
-    const late = (task: Task) => isTaskLate(task, today);
+    const late = (task: Task) => isTaskOverdue(task, today);
     tasks.sort((a, b) => Number(late(b)) - Number(late(a)) || (a.deadline ?? a.endDate ?? '9999').localeCompare(b.deadline ?? b.endDate ?? '9999') || (a.number ?? 0) - (b.number ?? 0));
     return { tasks, overdue: tasks.filter(late).length };
   }, [context, columns, today]);

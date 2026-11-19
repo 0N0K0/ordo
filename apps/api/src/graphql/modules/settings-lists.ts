@@ -25,8 +25,8 @@ for (const type of TYPES) {
 for (const type of ['TreasuryAccount', 'TreasuryPaymentMethod', 'TreasuryCounterparty', 'ShoppingBaseList'] as const) {
   builder.prismaObjectField(type as 'TreasuryAccount', 'color', (t) => t.exposeString('color', { nullable: true }));
 }
-for (const type of ['ProjectCategory', 'TreasuryPaymentMethod', 'TreasuryCounterparty'] as const) {
-  builder.prismaObjectField(type as 'ProjectCategory', 'position', (t) => t.exposeInt('position'));
+for (const type of ['TreasuryPaymentMethod', 'TreasuryCounterparty'] as const) {
+  builder.prismaObjectField(type as 'TreasuryPaymentMethod', 'position', (t) => t.exposeInt('position'));
 }
 
 const SettingsItemLookInput = builder.inputType('SettingsItemLookInput', {

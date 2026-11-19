@@ -54,7 +54,7 @@ import {
 import { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router';
 import { localToday } from '../../../lib/dates';
-import { formCallbacks, showFormError, useAppForm } from '../../../lib/form';
+import { showFormError, useAppForm } from '../../../lib/form';
 import { notifySuccess, onMutationError, toastCallbacks, ON_ERROR } from '../../../lib/notify';
 import { confirmRemoveAttachment } from '../lib/remove-attachment';
 import { useMailComposer } from '../../mail/hooks/use-mail-composer';
@@ -243,12 +243,8 @@ function Editor({ document }: { document: AccountingDocument }) {
     confirmDestructive({
       title: 'Supprimer le brouillon',
       risks: 'Ce brouillon sera supprimé définitivement avec ses pièces jointes.',
-      onConfirm: () => {
-        mutations.remove.mutate(
-          document.id,
-          formCallbacks(null, 'Brouillon supprimé.', () => void navigate(PAGES.accounting.path)),
-        );
-      },
+      run: () => mutations.remove.mutateAsync(document.id).then(() => navigate(PAGES.accounting.path)),
+      done: 'Brouillon supprimé.',
     });
   };
 
@@ -346,7 +342,7 @@ function Editor({ document }: { document: AccountingDocument }) {
       <DetailHeader
         back={{ to: PAGES.accounting.path, label: PAGES.accounting.label }}
         order={1}
-        title={isTemplate ? `Modèle de facture récurrente` : documentTitle(document)}
+        title={isTemplate ? 'Modèle de facture récurrente' : documentTitle(document)}
         badges={
           <>
             <Badge variant="light" color={readOnly ? 'green' : isTemplate ? 'grape' : 'gray'}>

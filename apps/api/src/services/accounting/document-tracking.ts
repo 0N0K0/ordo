@@ -1,8 +1,10 @@
 import { type DocumentPaymentInput, documentPaymentSchema, isInvoice, parseDay, SENDING_CHANNELS, sumOf } from '@ordo/shared';
 import { z } from 'zod';
 import { prisma } from '../../db';
-import { type AccountingDocument } from '../../generated/prisma/client';
-import { clientError, fieldError, orNotFound, parseInput } from '../../graphql/errors';
+import { invoiceCategories } from './company';
+import { assertMethodFor } from '../treasury/treasury-settings';
+import { type AccountingDocument, type DocumentStatus } from '../../generated/prisma/client';
+import { clientError, orNotFound, parseInput } from '../../graphql/errors';
 import { deleteAttachment, storeAttachment } from '../core/attachments';
 import { assertNotArchived, assertActive, refuseArchived } from '../core/archive';
 import { scopedStatus, scopeOf, statusOf } from './document-statuses';
@@ -127,7 +129,7 @@ export async function syncPaymentStatus(ids: (string | null | undefined)[]): Pro
 async function finalDocument(id: string): Promise<AccountingDocument> {
   const document = await findOrNotFound(prisma.accountingDocument, id, 'Document');
   if (document.status !== 'FINAL') throw clientError('BAD_USER_INPUT', 'Le suivi ne concerne que les documents validés.');
-  await assertNotArchived('ACCOUNTING_DOCUMENT', id);
+  refuseArchived(document);
   return document;
 }
 
@@ -141,7 +143,7 @@ export async function setTrackingStatus(id: string, statusId: string): Promise<A
   const document = await finalDocument(id);
   const status = await scopedStatus(statusId, document.type);
   // An archived status stays the one of its documents, but is not given any more.
-  await assertNotArchived('DOCUMENT_STATUS', status.id, { keep: document.trackingStatusId, field: 'statusId' });
+  if (status.id !== document.trackingStatusId) refuseArchived(status, 'statusId');
   return prisma.accountingDocument.update({
     where: { id },
     data: {
@@ -158,7 +160,7 @@ export async function setTrackingStatus(id: string, statusId: string): Promise<A
  * @param {AccountingDocument['type']} type Document type.
  * @returns {Promise<{ id: string }>} Status.
  */
-export async function sentStatus(statusId: string, type: AccountingDocument['type']): Promise<{ id: string }> {
+export async function sentStatus(statusId: string, type: AccountingDocument['type']): Promise<DocumentStatus> {
   const status = await scopedStatus(statusId, type);
   if (status.category !== 'SENT') throw clientError('BAD_USER_INPUT', 'Ce statut n’est pas un statut d’envoi.');
   return status;
@@ -192,7 +194,7 @@ export async function markSent(id: string, options: { date?: string | null; via?
   refuseArchived(document);
   const sending = sendingData(options);
   const chosen = options.statusId ? await sentStatus(options.statusId, document.type) : null;
-  await assertNotArchived('DOCUMENT_STATUS', chosen?.id, { keep: document.trackingStatusId, field: 'statusId' });
+  if (chosen && chosen.id !== document.trackingStatusId) refuseArchived(chosen, 'statusId');
   const sent = chosen ?? (!document.trackingStatus || document.trackingStatus.category === 'TO_SEND' ? await statusOf(scopeOf(document.type), 'SENT') : null);
   return prisma.accountingDocument.update({
     where: { id },
@@ -265,22 +267,16 @@ export async function deleteReminder(id: string): Promise<void> {
  */
 export async function recordPayment(id: string, input: DocumentPaymentInput): Promise<void> {
   const payment = parseInput(documentPaymentSchema, input);
-  const document = await prisma.accountingDocument.findUnique({ where: { id }, include: { client: { select: { name: true } } } });
-  if (!document || document.status !== 'FINAL' || document.type === 'QUOTE') throw clientError('BAD_USER_INPUT', 'Seul un document validé (facture ou avoir) peut être réglé.');
-  await assertNotArchived('ACCOUNTING_DOCUMENT', id);
+  const document = await orNotFound(prisma.accountingDocument.findUnique({ where: { id }, include: { client: { select: { name: true } } } }), 'Document');
+  if (document.status !== 'FINAL' || document.type === 'QUOTE') throw clientError('BAD_USER_INPUT', 'Seul un document validé (facture ou avoir) peut être réglé.');
+  refuseArchived(document);
   await assertActive(prisma.treasuryAccount, payment.accountId, 'Compte', { field: 'accountId' });
   await assertNotArchived('TREASURY_PAYMENT_METHOD', payment.methodId, { field: 'methodId' });
   const refund = document.type === 'CREDIT_NOTE';
-  if (payment.methodId) {
-    const method = await orNotFound(prisma.treasuryPaymentMethod.findUnique({ where: { id: payment.methodId }, select: { incoming: true, outgoing: true } }), 'Moyen de paiement');
-    if (!(refund ? method.outgoing : method.incoming)) {
-      const message = refund ? 'Ce moyen de paiement ne sert pas aux sorties.' : 'Ce moyen de paiement ne sert pas aux entrées.';
-      throw fieldError('methodId', message);
-    }
-  }
+  await assertMethodFor(payment.methodId, !refund);
   // The category set for the payments of invoices (refunds of credit notes), else the usual one when it exists.
-  const company = await prisma.companyProfile.findFirst({ select: { invoiceCategoryId: true, creditNoteCategoryId: true } });
-  const chosen = refund ? company?.creditNoteCategoryId : company?.invoiceCategoryId;
+  const company = await invoiceCategories();
+  const chosen = refund ? company.creditNoteCategoryId : company.invoiceCategoryId;
   const category = chosen
     ? { id: chosen }
     : await prisma.treasuryCategory.findFirst({

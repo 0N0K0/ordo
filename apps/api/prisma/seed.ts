@@ -2,7 +2,7 @@ import { BY_POSITION } from '../src/services/core/ordering';
 import { fakerFR as faker } from '@faker-js/faker';
 import { confirm } from '@inquirer/prompts';
 import { prisma, unscopedPrisma } from '../src/db';
-import { createWorkspace, ensureMeContributor, meContributorId, setTaskColumnDefaults, setWorkspaceNotifications } from '../src/services/workspace/workspaces';
+import { createWorkspace, ensureMeContributor, meContributorId, setTaskColumnDefaults, setWorkspaceNotifications } from '../src/services/workspaces/workspaces';
 import { enterWorkspace } from '../src/workspace-context';
 import type { Project, TaskStatusCategory } from '../src/generated/prisma/client';
 import {

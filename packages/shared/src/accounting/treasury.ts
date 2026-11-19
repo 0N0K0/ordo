@@ -10,7 +10,9 @@ import { daySchema, isRealDay } from '../dates/times';
 import { colorSchema, optionalColorSchema } from '../core/workspace';
 import { twoDigits } from '../core/numbers';
 
-export type DocumentStatusScope = 'QUOTE' | 'INVOICE';
+/** Documents a tracking status applies to: quotes or invoices. */
+export const DOCUMENT_STATUS_SCOPES = ['QUOTE', 'INVOICE'] as const;
+export type DocumentStatusScope = (typeof DOCUMENT_STATUS_SCOPES)[number];
 export const DOCUMENT_STATUS_CATEGORIES = ['TO_SEND', 'SENT', 'ACCEPTED', 'REFUSED', 'PAID', 'CREDIT_DUE'] as const;
 export type DocumentStatusCategory = (typeof DOCUMENT_STATUS_CATEGORIES)[number];
 
@@ -47,8 +49,19 @@ const treasuryAllocationSchema = z
   .refine((allocation) => Boolean(allocation.documentId) !== Boolean(allocation.importedDocumentId), 'Choisissez un document.');
 export type TreasuryAllocationInput = z.input<typeof treasuryAllocationSchema>;
 
-const TREASURY_DIRECTIONS = ['IN', 'OUT'] as const;
+/** Directions of a treasury movement. */
+export const TREASURY_DIRECTIONS = ['IN', 'OUT'] as const;
 export type TreasuryDirection = (typeof TREASURY_DIRECTIONS)[number];
+
+/**
+ * Direction of a signed amount, as the API tells it: money in when positive, out otherwise (an amount of 0 included).
+ * @param {number} amount Signed amount.
+ * @returns {TreasuryDirection} Direction.
+ */
+export function directionOf(amount: number): TreasuryDirection {
+  // eslint-disable-next-line no-restricted-syntax -- directionOf itself.
+  return amount > 0 ? 'IN' : 'OUT';
+}
 
 /** Label of a treasury item (an account, a category…). */
 const label = requiredText(100);
@@ -74,7 +87,8 @@ export type TreasuryPaymentMethodInput = z.input<typeof treasuryPaymentMethodSch
 export const treasuryCounterpartySchema = z.object({ name, note: optionalText(2000) });
 export type TreasuryCounterpartyInput = z.input<typeof treasuryCounterpartySchema>;
 
-const TREASURY_LINE_MODES = ['AMOUNT', 'PERCENT'] as const;
+/** How a line of split shares the amount: an amount or a percentage. */
+export const TREASURY_LINE_MODES = ['AMOUNT', 'PERCENT'] as const;
 export type TreasuryLineMode = (typeof TREASURY_LINE_MODES)[number];
 
 /**
@@ -223,10 +237,13 @@ export function budgetMonths(budget: { month: string; repeatEvery: number | null
   return months;
 }
 
+/** Statuses of a treasury entry: done or expected. */
+export const TREASURY_ENTRY_STATUSES = ['ACTUAL', 'FORECAST'] as const;
+
 export const treasuryEntrySchema = z
   .object({
     accountId: z.string().min(1, 'Le compte est requis.'),
-    status: z.enum(['ACTUAL', 'FORECAST']),
+    status: z.enum(TREASURY_ENTRY_STATUSES),
     /** Execution date. */
     date: daySchema(),
     valueDate: daySchema().nullable(),

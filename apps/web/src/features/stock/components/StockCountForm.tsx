@@ -85,7 +85,7 @@ export function StockCountForm({ onDone }: { onDone: () => void }) {
           ),
         })}
       />
-      <Textarea label="Note" autosize minRows={1} value={note} onChange={(event) => setNote(event.currentTarget.value)} />
+      <Textarea label="Description" autosize minRows={1} value={note} onChange={(event) => setNote(event.currentTarget.value)} />
       <FormActions
         onCancel={onDone}
         submitLabel="Enregistrer l’inventaire"

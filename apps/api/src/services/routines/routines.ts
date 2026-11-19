@@ -47,19 +47,21 @@ import {
   withMove,
   withMovedTimes,
   joinedKey,
+  type TreePlace,
 } from '@ordo/shared';
 import { z } from 'zod';
 import { deleteTreeNode, treeListService } from '../core/trees';
 import { prisma } from '../../db';
+import { assertBeneficiaries } from '../core/beneficiaries';
 import { BY_POSITION, nextPositionIn, saveSiblingOrder } from '../core/ordering';
 import { Prisma, type Routine, type RoutineCategory } from '../../generated/prisma/client';
-import { clientError, fieldError, orNotFound, parseInput } from '../../graphql/errors';
+import { clientError, fieldError, notFound, orNotFound, parseInput } from '../../graphql/errors';
 import { storedRecurrence } from '../calendar/calendar-events';
 import { scheduleRule } from '../calendar/work-schedules';
-import { assertProjectContributors } from '../workspace/contributors';
+import { assertProjectContributors } from '../projects/contributors';
 import { parisToday } from '../../today';
-import { assertAllExist, assertExists, findOrNotFound } from '../core/lookup';
-import { assertNoneArchived, assertNotArchived, refuseArchived } from '../core/archive';
+import { assertAllExist, findOrNotFound } from '../core/lookup';
+import { assertActive, assertNoneArchived, assertNotArchived, refuseArchived, findActive } from '../core/archive';
 import { connectIds } from '../core/relations';
 import { toJson } from '../core/json';
 
@@ -487,6 +489,8 @@ async function parseRoutine(input: RoutineInput, id?: string, restoring = false)
           scheduleIds: true,
           excludedScheduleIds: true,
           parentId: true,
+          projectId: true,
+          assignees: { select: { id: true } },
           beneficiaries: { select: { id: true } },
           beneficiaryRelations: { select: { id: true } },
           requires: { select: { requiredId: true } },
@@ -515,29 +519,29 @@ async function parseRoutine(input: RoutineInput, id?: string, restoring = false)
     fromTime: data.moments[0]?.fromTime ?? null,
     dueTime: data.moments[0]?.dueTime ?? null,
   });
-  await assertExists(prisma.project, data.projectId, 'Projet', { field: 'projectId' });
+  await assertActive(prisma.project, data.projectId, 'Projet', { keep: restoring ? data.projectId : current?.projectId, field: 'projectId', missingField: 'projectId' });
   await assertAllExist(prisma.contributor, data.assigneeIds, 'Assigné', { field: 'assigneeIds' });
-  await assertAllExist(prisma.contributor, data.beneficiaryIds, 'Bénéficiaire', { field: 'beneficiaryIds' });
-  await assertAllExist(prisma.treasuryRelation, data.beneficiaryRelationIds, 'Bénéficiaire', { field: 'beneficiaryIds' });
   // Archived beneficiaries, parent and required routines: no longer chosen, those already there stay.
-  if (!restoring) await assertNoneArchived('contributor', data.beneficiaryIds, { keep: current?.beneficiaries.map((beneficiary) => beneficiary.id) ?? [], field: 'beneficiaryIds' });
-  if (!restoring) await assertNoneArchived('treasuryRelation', data.beneficiaryRelationIds, { keep: current?.beneficiaryRelations.map((relation) => relation.id) ?? [], field: 'beneficiaryIds' });
+  await assertBeneficiaries(
+    { contributorIds: data.beneficiaryIds, relationIds: data.beneficiaryRelationIds },
+    { keep: restoring ? 'all' : { contributorIds: current?.beneficiaries.map((beneficiary) => beneficiary.id), relationIds: current?.beneficiaryRelations.map((relation) => relation.id) } },
+  );
   if (!restoring) await assertNotArchived('routine', data.parentId, { keep: current?.parentId, field: 'parentId' });
   const keptRequiredIds = restoring ? data.requiredIds : (current?.requires.map((dependency) => dependency.requiredId) ?? []);
   await assertNoneArchived('routine', data.requiredIds, { keep: keptRequiredIds, field: 'requiredIds' });
   // Of a project: its contributors only (those already assigned stay).
-  const assigned = id ? (await prisma.routine.findUnique({ where: { id }, select: { assignees: { select: { id: true } } } }))?.assignees.map((assignee) => assignee.id) : [];
-  await assertProjectContributors(data.projectId ?? null, data.assigneeIds, assigned ?? [], 'assigneeIds', restoring);
+  const assigned = current?.assignees.map((assignee) => assignee.id) ?? [];
+  await assertProjectContributors(data.projectId ?? null, data.assigneeIds, assigned, 'assigneeIds', restoring);
 
   const all = await prisma.routine.findMany({ select: { id: true, parentId: true, requires: { select: { requiredId: true } } } });
   const known = new Set(all.map((routine) => routine.id));
   if (data.parentId) {
-    if (!known.has(data.parentId)) throw fieldError('parentId', 'Routine parente introuvable.');
+    if (!known.has(data.parentId)) throw notFound('Routine parente', 'parentId');
     if (id && isUnderOrSelf(new Map(all.map((routine) => [routine.id, routine.parentId])), data.parentId, id)) {
       throw fieldError('parentId', 'Une routine ne peut pas être rangée sous elle-même.');
     }
   }
-  if (data.requiredIds.some((requiredId) => !known.has(requiredId))) throw fieldError('requiredIds', 'Routine introuvable.');
+  if (data.requiredIds.some((requiredId) => !known.has(requiredId))) throw notFound('Routine', 'requiredIds');
   if (id && data.requiredIds.includes(id)) throw fieldError('requiredIds', 'Une routine ne peut pas dépendre d’elle-même.');
   if (id && data.requiredIds.length) {
     // No cycle: none of the required routines may (indirectly) require this one.
@@ -726,7 +730,7 @@ async function inputOf(id: string): Promise<RoutineInput> {
  * @returns {Promise<RoutineSlot>} Moment.
  */
 export async function momentOf(id: string): Promise<RoutineSlot> {
-  const routine = await findOrNotFound(prisma.routine, id, 'Routine');
+  const routine = await findRoutine(id);
   return storedMoments(routine)[0] ?? { fromTime: null, dueTime: null, optional: false };
 }
 
@@ -833,7 +837,7 @@ export async function deleteRoutine(id: string): Promise<void> {
 }
 
 /** Where a routine is dropped, relative to another one. */
-export type RoutinePlace = 'BEFORE' | 'AFTER' | 'INSIDE';
+export type RoutinePlace = TreePlace;
 
 /**
  * Moves a routine next to another one (before or after it: same parent), or last under it (a sub-routine), then
@@ -870,7 +874,7 @@ export async function moveRoutine(id: string, targetId: string, place: RoutinePl
  * @returns {Promise<string>} Occurrence date.
  */
 export async function setRoutineDone(id: string, done: boolean, date?: string | null, slot?: number | null, doneAt?: Date | null): Promise<string> {
-  const [routine, slots] = await Promise.all([findOrNotFound(prisma.routine, id, 'Routine'), loadScheduleContext()]);
+  const [routine, slots] = await Promise.all([findRoutine(id), loadScheduleContext()]);
   refuseArchived(routine);
   const occurrence = date ?? occurrencesOf(routine, undefined, slots).current;
   if (!occurrence) throw clientError('BAD_USER_INPUT', 'Cette routine n’a pas encore commencé.');
@@ -917,8 +921,7 @@ export async function bulkSetRoutinesDone(ids: string[], done: boolean): Promise
  * @returns {Promise<void>}
  */
 export async function moveRoutineOccurrence(id: string, date: string, to: string, times?: RoutineMoveTimes): Promise<void> {
-  const routine = await findOrNotFound(prisma.routine, id, 'Routine');
-  refuseArchived(routine);
+  const routine = await findActive(prisma.routine, id, 'Routine');
   if (await prisma.routineCheck.count({ where: { routineId: id, date: parseDay(date) } })) {
     throw clientError('BAD_USER_INPUT', 'Cette occurrence est déjà cochée : décochez-la pour la déplacer.');
   }
@@ -1000,8 +1003,7 @@ const hasBefore = (rule: Recurrence, start: string, date: string) => date > star
  * @returns {Promise<Routine & { schedule: WorkSchedule | null }>} Routine.
  */
 async function changeableOccurrence(id: string, date: string) {
-  const routine = await findOrNotFound(prisma.routine, id, 'Routine');
-  refuseArchived(routine);
+  const routine = await findActive(prisma.routine, id, 'Routine');
   if (await prisma.routineCheck.count({ where: { routineId: id, date: parseDay(date) } })) {
     throw clientError('BAD_USER_INPUT', 'Cette occurrence est déjà cochée : décochez-la pour la changer.');
   }

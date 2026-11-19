@@ -1,4 +1,4 @@
-import { stopClick } from '../../../components/data-table/cells/cell-field';
+import { stoppedCellCombobox } from '../../../components/data-table/cells/cell-field';
 import { Select, Text } from '@mantine/core';
 import { formatDuration, parseDuration } from '@ordo/shared';
 import { useState } from 'react';
@@ -83,8 +83,7 @@ export function TimeRoutineCell({ entry, readOnly, label, save }: { entry: TimeE
   if (readOnly) return <>{entry.routineLabel}</>;
   return (
     <Select
-      variant="unstyled"
-      size="xs"
+      {...stoppedCellCombobox}
       aria-label={label}
       placeholder="—"
       clearable
@@ -92,8 +91,6 @@ export function TimeRoutineCell({ entry, readOnly, label, save }: { entry: TimeE
       {...treeSelectProps(routineTreeOptions(data?.routines ?? [], (routine) => !routine.archived || routine.id === entry.routineId))}
       value={entry.routineId ?? null}
       onChange={(routineId) => save(entry, { routineId })}
-      onClick={stopClick}
-      comboboxProps={{ withinPortal: true }}
     />
   );
 }

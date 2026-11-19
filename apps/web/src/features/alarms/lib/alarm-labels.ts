@@ -93,3 +93,18 @@ export function alarmTarget(
   const project = alarm.projectId ? projectOf(alarm.projectId) : undefined;
   return project ? { label: project.label, to: projectPath(project.id) } : null;
 }
+
+/**
+ * Alarms that will still ring, each with its next ring, the soonest first.
+ * @param {readonly A[]} alarms Alarms.
+ * @param {Date} now Now.
+ * @returns {{ alarm: A, at: Date }[]} Alarms and their next ring.
+ */
+export function nextRings<A extends Alarm>(alarms: readonly A[], now: Date): { alarm: A; at: Date }[] {
+  return alarms
+    .flatMap((alarm) => {
+      const at = nextRing(alarm, now);
+      return at ? [{ alarm, at }] : [];
+    })
+    .sort((a, b) => a.at.getTime() - b.at.getTime());
+}

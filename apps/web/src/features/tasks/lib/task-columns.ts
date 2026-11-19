@@ -25,6 +25,8 @@ import { eventCell, taskCell } from './export';
 import { eventSortValue, sortValue } from './task-rows';
 import { localDay } from '../../../lib/dates';
 import { unarchived } from '../../../lib/archive';
+import { isTaskOverdue } from './task-overdue';
+import { taggedKey } from '../../../lib/tagged-key';
 
 /** Row of the task table: a task, or a calendar event listed with them (read only). */
 export type TaskTableRow = { kind: 'task'; key: string; task: Task } | { kind: 'event'; key: string; event: EventOccurrence };
@@ -39,6 +41,8 @@ interface TaskColumnExtras {
   alarmCounts?: ReadonlyMap<string, number>;
   /** Kinds of slots (calendar schedules). */
   slotKinds?: ColumnChoice[];
+  /** Comments by calendar event (of the events listed). */
+  eventComments?: ReadonlyMap<string, number>;
 }
 
 /** Categories of the statuses, in their order. */
@@ -75,7 +79,7 @@ export function filterUses(group: FilterGroupOf<string> | null | undefined, fiel
 }
 
 /** Key of the row of an event. */
-export const eventRowKey = (event: EventOccurrence) => `e:${event.key}`;
+export const eventRowKey = (event: EventOccurrence) => taggedKey('e', event.key);
 
 /** Relative sprints a filter chooses: the current one, the previous and next one of each project tree, past ones, future ones. */
 const SPRINT_TOKENS: ColumnChoice[] = [
@@ -94,7 +98,7 @@ const SPRINT_TOKENS: ColumnChoice[] = [
  * @param {TaskContext} context Task context.
  * @param {string} today Today, YYYY-MM-DD.
  * @param {TaskColumnExtras} [extras] What the tasks do not hold: those doable now, their alerts, their shopping, the
- *   kinds of slots. Optional.
+ *   kinds of slots, the comments of the events. Optional.
  * @returns {DataColumn<TaskTableRow>[]} Columns.
  */
 export function taskColumns(context: TaskContext, today: string, extras: TaskColumnExtras = {}): DataColumn<TaskTableRow>[] {
@@ -152,6 +156,13 @@ export function taskColumns(context: TaskContext, today: string, extras: TaskCol
    * @param {TaskColumn} id Column.
    * @returns {ColumnFilter<TaskTableRow> | false | undefined} Filter.
    */
+  /**
+   * Comments of a row, its description counting as one.
+   * @param {TaskTableRow} row Row.
+   * @returns {number} Number.
+   */
+  const commentsOf = (row: TaskTableRow): number =>
+    row.kind === 'task' ? commentTotal(row.task.commentCount, row.task.description) : commentTotal(extras.eventComments?.get(row.event.eventId), row.event.description);
   const filterOf = (id: TaskColumn): ColumnFilter<TaskTableRow> | false | undefined => {
     const task = (row: TaskTableRow) => (row.kind === 'task' ? row.task : null);
     switch (id) {
@@ -220,9 +231,9 @@ export function taskColumns(context: TaskContext, today: string, extras: TaskCol
       case 'effort':
         return { kind: 'number', value: (row) => task(row)?.effort ?? null };
       case 'trackedTime':
-        return { kind: 'number', value: (row) => (row.kind === 'task' ? row.task.trackedSeconds / 3600 : null) };
+        return { kind: 'number', value: (row) => (row.kind === 'task' ? row.task.trackedSeconds : row.event.trackedSeconds) / 3600 };
       case 'comments':
-        return { kind: 'number', value: (row) => (row.kind === 'task' ? commentTotal(row.task.commentCount, row.task.description) : null) };
+        return { kind: 'number', value: commentsOf };
       case 'startDate':
       case 'endDate':
         return { kind: 'date', value: (row) => (row.kind === 'task' ? (row.task[id] ?? null) : id === 'startDate' ? row.event.startDate : row.event.endDate) };
@@ -266,16 +277,16 @@ export function taskColumns(context: TaskContext, today: string, extras: TaskCol
     label: COLUMN_LABELS[id],
     size: COLUMN_SIZES[id],
     locked: LOCKED_COLUMNS.includes(id),
-    // Tasks and events always have a title.
-    required: id === 'label',
+    // Tasks and events always have a title; a count or a time is never empty (decision CO).
+    required: id === 'label' || id === 'comments' || id === 'trackedTime',
     hiddenByDefault: DEFAULT_HIDDEN_COLUMNS.includes(id),
     bulk: BULK_EDITABLE_COLUMNS.includes(id),
     numeric: id === 'effort' || id === 'trackedTime' || id === 'comments',
     sortValue: (row) => {
-      const value = row.kind === 'task' ? sortValue(row.task, id, context) : eventSortValue(row.event, id, context);
+      const value = row.kind === 'task' ? sortValue(row.task, id, context) : eventSortValue(row.event, id, context, commentsOf(row));
       return typeof value === 'number' || typeof value === 'string' ? value : null;
     },
-    text: (row) => (row.kind === 'task' ? taskCell(row.task, id, context) : eventCell(row.event, id, context)),
+    text: (row) => (row.kind === 'task' ? taskCell(row.task, id, context) : eventCell(row.event, id, context, commentsOf(row))),
     filter: filterOf(id),
     formatTotal: id === 'trackedTime' ? (seconds) => formatDuration(Math.round(seconds)) : undefined,
     groupable: ['slots', 'timer', 'subtasks', 'progress', 'alarms', 'shopping', 'comments'].includes(id) ? false : undefined,
@@ -313,14 +324,14 @@ export function taskColumns(context: TaskContext, today: string, extras: TaskCol
       text: (row) => (row.kind === 'task' ? (row.task.description ?? '') : (row.event.description ?? '')),
     },
     flag('closed', 'Fermée', (task) => context.isClosed(task)),
-    flag('overdue', 'En retard', (task) => task.deadline !== null && task.deadline < today && !context.isClosed(task)),
+    flag('overdue', 'En retard', (task) => isTaskOverdue(task, today)),
     flag('blocked', 'Bloquée', (task) => context.isBlocked(task)),
     flag('hasSubtasks', 'A des sous-tâches', (task) => context.childrenOf(task.id).length > 0),
     flag('archived', 'Archivée', (task) => task.archived),
     flag('doableNow', 'Faisable maintenant', (task) => extras.doableIds?.has(task.id) ?? false),
     flag('hasShopping', 'A des achats', (task) => extras.shoppingTaskIds?.has(task.id) ?? false),
     flag('hasAlarms', 'A des alarmes', (task) => (extras.alarmCounts?.get(task.id) ?? 0) > 0),
-    flag('hasComments', 'A des commentaires', (task) => task.commentCount > 0 || Boolean(task.description?.trim())),
+    flag('hasComments', 'A des commentaires', (task) => commentTotal(task.commentCount, task.description) > 0),
     {
       id: 'statusCategory',
       label: 'Catégorie de statut',

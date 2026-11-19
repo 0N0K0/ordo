@@ -20,6 +20,7 @@ import { useRoutineMutations, type Routine, type RoutineCheck } from '../api';
 import { windowText } from '../lib/routine-format';
 import * as fmt from '../../../lib/format';
 import { ActionButton } from '../../../components/actions/ActionButton';
+import { taggedKey } from '../../../lib/tagged-key';
 
 /** One time of the day of the history: planned (done or not), or ticked without being planned that day. */
 export interface HistoryItem {
@@ -182,7 +183,7 @@ export function RoutineDayAgenda({ day, today, items, byId, layers }: RoutineDay
     const slots = plannedSlots([rule], day, day);
     if (slots.length === 0) continue;
     events.push({
-      id: `slot-bar:${schedule.id}`,
+      id: taggedKey('slot-bar', schedule.id),
       title: label,
       allDay: true,
       start: day,
@@ -208,7 +209,7 @@ export function RoutineDayAgenda({ day, today, items, byId, layers }: RoutineDay
     if (!shownCalendars.has(occurrence.calendarId)) continue;
     const color = calendarColor.get(occurrence.calendarId) ?? subscriptionColor.get(occurrence.calendarId) ?? 'var(--mantine-primary-color-filled)';
     events.push({
-      id: `event:${occurrence.key}`,
+      id: taggedKey('event', occurrence.key),
       title: occurrence.label,
       ...occurrenceSpan(occurrence),
       backgroundColor: color,
@@ -237,7 +238,7 @@ export function RoutineDayAgenda({ day, today, items, byId, layers }: RoutineDay
     const timed = start !== null && end !== null && start < end;
     const status = doneAt ? `faite à ${localDay(doneAt) === item.date ? fmt.time(doneAt) : `${fmt.time(doneAt)} le ${fmt.dayShort(doneAt)}`}` : text;
     events.push({
-      id: `routine:${item.key}`,
+      id: taggedKey('routine', item.key),
       title: `${routine?.label ?? 'Routine supprimée'}${item.optional ? ' (facultatif)' : ''} · ${status}${item.planned ? '' : ' (non prévue ce jour)'}`,
       allDay: !timed,
       start: timed ? `${day}T${start}:00` : day,

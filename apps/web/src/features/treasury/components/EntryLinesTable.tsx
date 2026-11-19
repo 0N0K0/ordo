@@ -1,9 +1,9 @@
 import { useActiveWorkspace } from '../../workspaces/api';
-import { memberOrRelation, memberOrRelationKey, memberRelationOptions, parsePersonKey, personKey } from '../../../components/people/people-keys';
+import { memberOrRelation, memberOrRelationKey, memberRelationOptions, parsePersonKey, personKey, ME_KEY } from '../../../components/people/people-keys';
 import { unarchived } from '../../../lib/archive';
 import { Checkbox, Text } from '@mantine/core';
-import { listSelectProps, itemChoices } from '../../../components/items/item-look';
-import { EVERYDAY_CONTEXT, splitAmounts, type TreasuryLineMode, fromCents } from '@ordo/shared';
+import { itemChoices, itemSelectProps } from '../../../components/items/item-look';
+import { EVERYDAY_CONTEXT, splitAmounts, type TreasuryLineMode, fromCents, directionOf } from '@ordo/shared';
 import { DataTable } from '../../../components/data-table/table/DataTable';
 import { EditableDate, EditableNumber, EditableSelect, EditableText } from '../../../components/data-table/cells/EditableCells';
 import type { DataColumn } from '../../../components/data-table/table/data-table';
@@ -15,9 +15,11 @@ import { DocumentsCell, LinksCell, ProjectCell } from './entry-cells';
 import type { AnyEntry, EntryEnv, EntryUpdate } from '../lib/entry-env';
 import { applyDiff, bulkCellLabels, type BulkChange, bulkSaver } from '../../../components/data-table/selection/bulk-edit';
 import { entryValues } from '../lib/entry-values';
-import { categoryForDirection, valueInMode, type LineLink, type LineValues } from '../lib/lines';
+import { categoryForDirection, linkKey, valueInMode, type LineValues } from '../lib/lines';
 import { SignedAmount } from '../../../components/money/SignedAmount';
 import { meName, personName } from '../../../components/people/people-options';
+import { signedText } from '../../../components/money/signed-text';
+import { taggedKey } from '../../../lib/tagged-key';
 
 /** Line of a split entry, with its place and signed amount. */
 interface LineRow {
@@ -37,7 +39,7 @@ interface LineRow {
 const lineKey = (row: LineRow) => row.line.id ?? String(row.index);
 
 /** Key of the line of "me" (no member nor relation). */
-const ME = 'me';
+const ME = ME_KEY;
 
 /**
  * Key of the person a line is for.
@@ -54,7 +56,7 @@ const whomKey = (line: LineValues) => memberOrRelationKey(line) ?? ME;
 function lineColumns(env: EntryEnv): DataColumn<LineRow>[] {
   const me = env.settings?.treasuryMembers.find((member) => member.isMe);
   const whomName = (row: LineRow) => (whomKey(row.line) === ME ? meName(me) : (env.names.get(whomKey(row.line)) ?? ''));
-  const contextName = (row: LineRow) => (row.line.contextId ? (env.names.get(`context:${row.line.contextId}`) ?? '') : EVERYDAY_CONTEXT);
+  const contextName = (row: LineRow) => (row.line.contextId ? (env.names.get(taggedKey('context', row.line.contextId)) ?? '') : EVERYDAY_CONTEXT);
   const categoryLabel = (row: LineRow) => (row.line.categoryId ? (env.paths.get(row.line.categoryId) ?? '') : '');
   const projectLabelOf = (row: LineRow) => (row.line.projectId ? (env.projectLabels.get(row.line.projectId) ?? '') : '');
   const whomChoices = [
@@ -114,7 +116,7 @@ function lineColumns(env: EntryEnv): DataColumn<LineRow>[] {
       numeric: true,
       sortValue: (row) => row.amount,
       formatTotal: fmt.money,
-      text: (row) => `${row.amount > 0 ? '+' : ''}${fmt.money(row.amount)}`,
+      text: (row) => signedText(row.amount),
       filter: { kind: 'number', value: (row) => row.amount },
     },
     {
@@ -221,7 +223,7 @@ export function EntryLinesTable({ entry, env, save }: { entry: AnyEntry; env: En
       getKey={lineKey}
       cells={(row) => {
         const { line, index } = row;
-        const name = line.label ?? `la ligne ${index + 1}`;
+        const name = line.label ? `« ${line.label} »` : `la ligne ${index + 1}`;
         return {
           label: <EditableText value={line.label} label={cellLabelOf('label', row, 'Libellé')} nullable onSave={(label) => saveLine('label', row, { label })} />,
           whom: (
@@ -245,9 +247,9 @@ export function EntryLinesTable({ entry, env, save }: { entry: AnyEntry; env: En
               label={cellLabelOf('category', row, 'Catégorie')}
               nullable
               // A line going the other way (a refund in a purchase…) takes a category of that way.
-              {...treeSelectProps(categoryOptions(categories, row.amount < 0 ? 'OUT' : 'IN', undefined, line.categoryId))}
+              {...treeSelectProps(categoryOptions(categories, directionOf(row.amount), undefined, line.categoryId))}
               // A category of money out goes to the lines of money out only (and in to in).
-              onSave={(categoryId) => saveLine('category', row, (target) => (categoryId && !categoryForDirection(categories, categoryId, target.amount < 0 ? 'OUT' : 'IN') ? {} : { categoryId }))}
+              onSave={(categoryId) => saveLine('category', row, (target) => (categoryId && !categoryForDirection(categories, categoryId, directionOf(target.amount)) ? {} : { categoryId }))}
             />
           ),
           context: (
@@ -255,7 +257,7 @@ export function EntryLinesTable({ entry, env, save }: { entry: AnyEntry; env: En
               value={line.contextId}
               label={cellLabelOf('context', row, 'Contexte')}
               nullable
-              {...listSelectProps(env.settings?.treasuryContexts ?? [], undefined, line.contextId)}
+              {...itemSelectProps(env.settings?.treasuryContexts ?? [], line.contextId)}
               onSave={(contextId) => saveLine('context', row, { contextId })}
             />
           ),
@@ -322,13 +324,12 @@ export function EntryLinesTable({ entry, env, save }: { entry: AnyEntry; env: En
               links={line.links}
               entryId={entry.id}
               lines
-              label={`Lier ${name} à un autre mouvement`}
+              label={cellLabelOf('links', row, 'Mouvements liés')}
               onSave={(links) =>
                 saveLine('links', row, (target) => {
                   // Those added here added, those removed here removed, the others of the line kept.
-                  const keyOf = (link: LineLink) => `${link.kind}:${link.id}`;
-                  const kept = applyDiff(target.line.links.map(keyOf), line.links.map(keyOf), links.map(keyOf));
-                  const all = new Map([...target.line.links, ...links].map((link) => [keyOf(link), link]));
+                  const kept = applyDiff(target.line.links.map(linkKey), line.links.map(linkKey), links.map(linkKey));
+                  const all = new Map([...target.line.links, ...links].map((link) => [linkKey(link), link]));
                   const next = kept.flatMap((key) => (all.get(key) ? [all.get(key)!] : []));
                   return {
                     links: next,

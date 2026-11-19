@@ -26,11 +26,11 @@ import { periodName, quarterName } from '../../../lib/periods';
 import { treeSelectProps } from '../../tree/tree-select';
 import { collator, normalize } from '../../../lib/text';
 
-/** Kind of filter field of each kind of column filter. */
 /** Rank of what has none (a value out of the options, a row out of the order): after the others. */
 // eslint-disable-next-line no-restricted-syntax -- LAST_RANK itself.
 export const LAST_RANK = Number.MAX_SAFE_INTEGER;
 
+/** Kind of filter field of each kind of column filter. */
 const FIELD_KINDS: Record<ColumnFilter<unknown>['kind'], FilterFieldKind> = {
   text: 'text',
   number: 'number',

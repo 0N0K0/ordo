@@ -22,13 +22,14 @@ import { listDiff } from '../../../components/data-table/selection/bulk-edit';
 import classes from '../../../components/data-table/cells/EditableCells.module.css';
 
 import { BeneficiariesCell } from '../../beneficiaries/components/BeneficiariesSelect';
-import { stoppedCellCombobox, cellLabel, itemCellLabel, cellPicker, stopClick } from '../../../components/data-table/cells/cell-field';
+import { stoppedCellCombobox, stoppedCellField, cellLabel, itemCellLabel, cellPicker, stopClick } from '../../../components/data-table/cells/cell-field';
 import { EditableMultiSelect, EditableNumber } from '../../../components/data-table/cells/EditableCells';
 import { EditableLabel } from '../../../components/data-table/cells/EditableLabel';
 import { AssigneesCell as SharedAssigneesCell, ProjectCell as SharedProjectCell } from './context-cells';
 import { DependencyIcon } from '../../../components/data-table/cells/DependencyIcon';
 import { dateRangeProps } from '../../../components/inputs/date-range';
 import { beneficiariesDiff } from '../../beneficiaries/lib/beneficiaries-diff';
+import { LATE_COLOR } from '../../../components/feedback/feedback-colors';
 
 /**
  * Accessible label of a cell field, mentioning the bulk edit.
@@ -317,7 +318,7 @@ export function EffortCell({ task }: { task: Task }) {
 interface DateCellProps {
   task: Task;
   column: 'startDate' | 'endDate' | 'deadline' | 'minDate';
-  /** Shown in red (overdue: past its "Date max"). */
+  /** Shown in the lateness colour (overdue: `isTaskOverdue`). */
   alert?: boolean;
 }
 
@@ -339,10 +340,7 @@ export function DateCell({ task, column, alert }: DateCellProps) {
   const bounds = dateRangeProps({ value: [task[startKey], task[endKey]], onChange: ([start, end]) => apply({ [startKey]: start, [endKey]: end }) })[side];
   return (
     <DatePickerInput
-      variant="unstyled"
-      size="xs"
-      classNames={{ root: classes.root, input: classes.input, section: classes.section }}
-      onClick={stopClick}
+      {...stoppedCellField}
       aria-label={fieldLabel(DATE_LABELS[column], task, count)}
       value={task[column]}
       minDate={count < 2 ? bounds.minDate : undefined}
@@ -351,7 +349,7 @@ export function DateCell({ task, column, alert }: DateCellProps) {
       clearable={!task.archived}
       placeholder={task.archived ? undefined : '—'}
       popoverProps={{ withinPortal: true }}
-      c={alert ? 'red' : undefined}
+      c={alert ? LATE_COLOR : undefined}
       fw={alert ? 600 : undefined}
     />
   );

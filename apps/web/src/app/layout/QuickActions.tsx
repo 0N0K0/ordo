@@ -13,15 +13,14 @@ import { openTimerForm } from '../../features/time/lib/open-timer-form';
 import { useActiveWorkspace } from '../../features/workspaces/api';
 import classes from './QuickActions.module.css';
 import { useTimerHint } from '../../features/time/hooks/use-start-timer';
-import { MenuCaret } from '../../components/actions/MenuCaret';
+
 import { PROJECT_ROUTE } from '../pages';
 
 interface QuickAction {
   /** Name of the item (menu, screen readers). */
-  title: string;
+  label: string;
   icon: ReactNode;
   onClick: () => void;
-  disabled?: boolean;
   /** What it does besides (a timer running stops). Optional. */
   hint?: string;
 }
@@ -52,24 +51,24 @@ export function QuickActions() {
   };
 
   const actions: QuickAction[] = [
-    { title: 'Tâche', icon: <CheckSquareOffsetIcon aria-hidden />, onClick: () => taskActions.create(project ? { projectId: project.id } : undefined) },
-    { title: 'Évènement', icon: <CalendarPlusIcon aria-hidden />, onClick: () => openEvent({ defaults: project ? { projectId: project.id } : undefined }) },
+    { label: 'Tâche', icon: <CheckSquareOffsetIcon aria-hidden />, onClick: () => taskActions.create(project ? { projectId: project.id } : undefined) },
+    { label: 'Évènement', icon: <CalendarPlusIcon aria-hidden />, onClick: () => openEvent({ defaults: project ? { projectId: project.id } : undefined }) },
     // One timer runs at a time: the one running stops (decision Y).
-    { title: 'Chrono', icon: <PlayIcon aria-hidden />, onClick: openTimer, hint: timerHint() },
-    { title: 'Alarme', icon: <AlarmIcon aria-hidden />, onClick: () => openAlarm() },
-    { title: 'Mail', icon: <EnvelopeSimpleIcon aria-hidden />, onClick: () => openMail(project ? { projectId: project.id } : {}) },
+    { label: 'Chrono', icon: <PlayIcon aria-hidden />, onClick: openTimer, hint: timerHint() },
+    { label: 'Alarme', icon: <AlarmIcon aria-hidden />, onClick: () => openAlarm() },
+    { label: 'Mail', icon: <EnvelopeSimpleIcon aria-hidden />, onClick: () => openMail(project ? { projectId: project.id } : {}) },
     // No invoicing in a personal workspace.
-    ...(perso ? [] : [{ title: 'Devis', icon: <FileTextIcon aria-hidden />, onClick: () => openNewDocument('QUOTE', project ? { clientId: project.clientId, projectId: project.id } : {}) }]),
+    ...(perso ? [] : [{ label: 'Devis', icon: <FileTextIcon aria-hidden />, onClick: () => openNewDocument('QUOTE', project ? { clientId: project.clientId, projectId: project.id } : {}) }]),
   ];
 
   return (
     <ActionsMenu
       about="l’ajout"
       hover
-      items={actions.map((action) => ({ label: action.title, icon: action.icon, onClick: action.onClick, disabled: action.disabled, hint: action.hint }))}
+      items={actions.map((action) => ({ label: action.label, icon: action.icon, onClick: action.onClick, hint: action.hint }))}
       target={
         // On a very small screen, only the plus (the name stays for screen readers).
-        <ActionButton priority="secondary" className={classes.add} size="xs" icon={<PlusIcon aria-hidden />} after={<MenuCaret />} disabled={!context} aria-label="Ajouter">
+        <ActionButton priority="secondary" className={classes.add} size="xs" icon={<PlusIcon aria-hidden />} disabled={!context} aria-label="Ajouter">
           <span className={classes.label}>Ajouter</span>
         </ActionButton>
       }

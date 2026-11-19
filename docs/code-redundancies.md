@@ -1,104 +1,109 @@
 # Composants similaires et redondances de code
 
-État au 19 novembre 2026, matin, après neuf séries d'unifications (voir [Déjà unifié](#déjà-unifié)). Copier-coller (`npm run dup`) : 4 copies. Les décisions déjà prises sont en [annexe](#décisions-déjà-prises).
+État au 19 novembre 2026, fin de matinée, après neuf séries d'unifications (voir [Déjà unifié](#déjà-unifié)). Copier-coller (`npm run dup`) : 4 copies. Les décisions déjà prises sont en [annexe](#décisions-déjà-prises).
 
-La série du 19 novembre (lots 1 à 4 ci-dessous) est faite : les points 1 à 6 de cette page sont traités. Décisions de suivi :
-
-- **CN, CO, CP :** tranchées et appliquées (lot 5 : `ActionButton` primary plein, secondary clair, danger plein rouge ; bascules en `StateSwitch`). Voir l'annexe.
+Aucun doublon lourd. La série du 19 novembre (après-midi) a traité les points 1 à 7 ci-dessous, sauf : `slotEvents` (agenda de l'historique d'une routine, à essayer à l'écran), les réponses d'API qui renvoient un id (changeraient le schéma GraphQL), `findTask` dans `task-recurrence` (import circulaire), et quelques détails (`reveal.css` des cellules, `optionalNumber` du panneau de tâche, « Oui » d'une colonne oui/non, durée filtrée en texte).
 
 La bibliothèque de documents n'est pas traitée : elle sera refaite entièrement.
 
 ## Bugs
 
-### 1. Web
+### 1. API : archivage et erreurs
 
-- **Échap dans une cellule :** il enregistre probablement la saisie au lieu de l'annuler (`cell-field.ts:52-57` : l'annulation est appliquée trop tard, le `blur` enregistre l'ancien brouillon). Touche `EditableText` et `EditableNumber`. À vérifier dans le navigateur.
-- **Temps d'une routine dans l'agenda :** affiché « Projet » (`CalendarPage.tsx:286-307`) ; le nom d'un temps est construit de trois façons (agenda, `TimerWidget`, `TimerCard`). Proposition : `entrySubject(entry, context)`.
-- **Pluriels et accords :** « 1 tâches aujourd'hui », « 1 évènements aujourd'hui » (`NavBadges.tsx:29, 42`), « 0 sur 1 sous-tâches fermées » (`extra-cells.tsx:103`), « 1 temps seront supprimés » (`TimeLog.tsx:249`), « tâches et leurs commentaires seront supprimées » (`TaskDialogs.tsx:60`), « Le facture est créé » (`NewDocumentForm.tsx:75`).
-- **Menu d'un document :** son numéro est entre guillemets deux fois (« Actions de « « F-2026-001 » » », `DocumentEditor.tsx:343, 381`).
-- **« Relations » en perso :** `ShoppingForm.tsx:171` (décision 15).
-- **Évènements annulés sur l'accueil :** la carte Agenda et le badge de navigation les montrent et les comptent sans les marquer (voir décision CA).
-- **Infobulle du chrono :** affichée sur un bouton désactivé (`TimerToggle.tsx:34`) ; construite de quatre façons. Proposition : `useStartTimer().hint(disabled)`.
-- **Compte mail inconnu dans l'URL :** gardé au lieu de revenir au premier compte actif (`MailPage.tsx:62`).
-- **Clients des tableaux de bord :** options sans avatar (`source-filters.tsx:47-50`).
-- **Menu d'un bouton à libellé JSX :** « [object Object] » possible (`ActionButton.tsx:68, 88, 90`).
-- **Code mort :** trois propriétés `about` jamais lues (`TrackingBadge.tsx:42`, `MailOrganizeActions.tsx:70, 109`) ; un test d'archivé toujours faux (`RoutineDayAgenda.tsx:207`) ; des JSDoc orphelines (`TreasuryPage.tsx:69-73`, `home-data.ts:28`, `routine-view.ts:47-48`).
-- **Message eslint :** la règle `doc:` / `imp:` renvoie vers un `documentKey` qui n'existe pas dans `EntryForm.tsx`.
+- **Tâche archivée modifiable :** répétition (`task-recurrence.ts:48-62`), blocages et relations (`tasks.ts:548, 586` ; `assertSameTree` ignore `archivedAt`).
+- **Projet archivé :** ses ressources s'ajoutent, se renomment, se déplacent et se suppriment (`project-resources.ts:16, 52, 66, 79`).
+- **Client archivé :** ses coordonnées, prestations et contacts restent modifiables (`client-parties.ts:15, 48, 63, 84`), alors que `updateClient` refuse.
+- **Choisir une valeur archivée :** statut et catégories de projet seulement vérifiés (`projects.ts:136, 180`) ; un projet archivé reste choisissable pour routines, évènements, documents, trésorerie, mail, tableaux de bord, vues ; un client archivé n'est refusé que pour un projet (voir décision DA).
+- **Éléments de réglages archivés :** `setLook` change couleur et image d'un archivé ; un élément absent donne une erreur brute au lieu de « X introuvable. » (`settings-lists.ts:66-74`).
+- **Mauvais type d'erreur :** un document absent (`document-tracking.ts:269`) et un devis importé absent (`accounting-documents.ts:634-635`, écrit deux fois) donnent BAD_USER_INPUT au lieu de NOT_FOUND.
+- **Petits :** `cancelScheduled` marche sur un compte mail archivé (`mail/scheduled.ts:68`) ; `parseRoutine` lit deux fois la routine (`routines.ts:480, 529`) ; « Facture archivée. » au lieu de `ARCHIVED_MESSAGE` (`reminders.ts:53`).
+- **Libellés d'erreur :** « Référence » désigne une liste de base dans les courses mais un produit dans le stock (`stock.ts:111, 328`) ; bénéficiaires « Membre » / « Relation » sans champ (`shopping/people.ts:38-39`), « Membre » et « Contributeur » pour la même recherche (`treasury-team.ts:64, 135`), assignés « Contributeur » ou « Assigné » ; « catégorie d'entrée » / « d'entrées », « Un X porte déjà ce libellé. » / « Ce magasin existe déjà. ».
 
-### 2. API et partagé
+### 2. Web
 
-- **Document importé :** si la suppression de l'ancien fichier échoue, le nouveau est supprimé aussi et le document reste sans fichier (`imported-documents.ts:83-88`).
-- **« 1er » dans le PDF de trésorerie :** `longDayText` (partagé) écrit encore « 1 juin » (décision V) ; le « 1er » n'est ajouté que côté web.
-- **Suppressions de pièces jointes :** six appels ignorent un fichier manquant, quatre non. Proposition : `deleteAttachment(id)`.
-- **Petits :** `isInvoice` contourné (`document-tracking.ts:243`), `orNotFound` contourné (`calendar-ics.ts:260-261`), les noms des fichiers PDF des exports construits dans la route ; deux commentaires de schéma périmés (`schema.prisma:2677, 3024`).
+- **Icône des commentaires perdue** dans les tableaux des routines et des listes de courses : le texte passé dans `content` masque la cellule `CommentCount` (`RoutinesPage.tsx:172`, `ShoppingPage.tsx:288`). Correction : `readOnlyCells`.
+- **Évènements dans le tableau des tâches :** leurs commentaires et leur heure sont affichés mais vides pour la recherche, l'export, le filtre et le tri (`export.ts:120-144`, `task-columns.ts:223-225`, `task-rows.ts:107`).
+- **Colonnes de comptage (CO) :** les commentaires des tâches ne sont pas obligatoires et 0 trie comme vide (`task-columns.ts:270`, `task-rows.ts:91`) ; « Chrono » des routines filtré en texte, 0 vide (`routine-columns.ts:163-171`) ; « Chrono » veut dire temps passé dans les routines, chrono dans les tâches.
+- **Colonnes mal filtrées :** « Envoi » des impayés jamais vide mais facultatif (`OverdueInvoicesPanel.tsx:56`) ; « Emplacement » du stock jamais vide (« Tout le stock »), tri et texte différents (`StockPage.tsx:41-47`) ; comptes filtrés en texte (`ShoppingPage.tsx:132, 141`, `AccountingPage.tsx:106`) ; « Moi » et le contexte quotidien trient comme vides (`BudgetsPanel.tsx:431, 444`).
+- **Retard :** quatre règles (tableau et panneau, accueil sans test de clôture, agenda qui exige aussi l'absence de fin : `task-calendar.ts:49`). Proposition : `isTaskOverdue` (voir décision DD). Encore en rouge malgré CF : prévision en retard (`TreasuryPage.tsx:532`), impayés après 45 jours (`OverdueInvoicesPanel.tsx:257`), onglet des impayés (`AccountingPage.tsx:286`), et côté tâches, routines et accueil (voir décisions DB, DC).
+- **Montant nul :** une ligne à 0 est « Sortie » pour sa catégorie mais se voit proposer des catégories d'entrée (`SplitLinesEditor.tsx:95, 205, 209`).
+- **« Mouvements liés » :** le texte ignore les liens portés par les lignes, alors que la cellule et le filtre les comptent (`entry-columns.tsx:177`).
+- **Même personne proposée deux fois** dans les courses et le stock : une relation liée à un contributeur (`shopping-format.ts:331-345`), contrairement à `useBeneficiaries`.
+- **Réglages :** genre deviné par `startsWith('la ')`, donc « l'étiquette » au masculin (`SettingsList.tsx:96`) ; « sera supprimé » toujours au masculin, « retiré des 1 tâches » (`:187-192`) ; le glisser annonce « Catégorie déplacée » pour toutes les listes (`CategoryTree.tsx:129-130`).
+- **Vues :** « Les tâches ne sont pas modifiées. » sur tous les tableaux, pas de message « Vue supprimée. » (`ViewTabs.tsx:42`) ; `taskViewLabelSchema` sert à toutes les vues.
+- **Menus :** « Actions de « la vue X » » et « « la référence X » » (`ViewTabs.tsx:56`, `BaseLists.tsx:138`), contre la décision BF.
+- **Session expirée :** silencieuse dans les formulaires, toast d'erreur ailleurs (`lib/form.ts:52`, `lib/notify.tsx:162`). Proposition : le test dans `notifyFailure`.
+- **Mention `@nom` :** lien vers `/?assignee=…` que personne ne lit (`remark-references.ts:86`) (voir décision DK).
+- **Badge d'une routine due :** heure lue une fois, sans `useNow` (`routine-table-cells.tsx:21`).
+- **Réglé :** « Réglée » dans le tableau, « Réglé » dans la page d'un document importé (`DocumentsTable.tsx:226`, `ImportedDocumentPage.tsx:136`). Proposition : `BalanceBadge`.
+- **Petits :** recherche des tableaux de bord sans libellé (`source-filters.tsx:131`) ; flèche d'un `ActionButton danger` à menu pas rouge (`ActionButton.tsx:104`) ; fil d'Ariane de l'en-tête refait à la main sans garde de cycle (`HeaderTitle.tsx:29-34`, variable `workspace`) ; boutons de fermeture des panneaux et modales sans nom (`SidePanel.tsx:46`, `open-modal.ts:18`) ; code mort (`QuickAction.disabled`, gardes `CountBadge`, JSDoc orphelines `table-engine.ts:29`, `use-task-context.ts:112`, fragments vides, gabarits inutiles).
 
-## Petits doublons
+## Contournements des briques
 
 ### 3. API et partagé
 
-- **Chercher sinon introuvable :** 19 fonctions `findX` qui enveloppent `orNotFound`, souvent avec une variable inutile. Proposition : `findOrNotFound(model, id, what, args?)`.
-- **Existe puis non archivé :** `assertExists` puis `assertNotArchived` ×~22, `orNotFound` puis `assertNotArchived` ×26, la même séquence sur une liste ×4 ; `if (x.archivedAt) throw … ARCHIVED_MESSAGE` sur une ligne déjà chargée ×11. Propositions : `assertActive`, `activeIds`, `refuseArchived`.
-- **Archivage en cascade :** écrit deux fois (tâches, projets), avec le même retour anticipé ×3. Proposition : `cascadeArchive`.
-- **Arbres :** `ProjectTree` refait `ancestorsOf` / `subtreeOf`, l'archivage d'une tâche remonte les parents une requête par niveau, `descendantIds` n'enveloppe que `subtreeIds`.
-- **JSON :** ~24 forçages de type à l'écriture (`toJson`).
-- **Comparaison de noms :** `labelKey` et `productKey` recopient `sameName`, et `productKey` réduit aussi les espaces (voir décision CB).
-- **Divers :** `missing()` n'enveloppe que `notFound` ; `padStart(2, '0')` à la main ; le GraphQL des ressources de projet toujours dans la facturation ; dans les fixtures, les catégories de trésorerie ×2, des catégories d'agenda créées en direct, `projectOf` et `rootOf`.
-- **Vues enregistrées :** la migration a déjà renommé leurs identifiants ; la correspondance à la lecture (`LEGACY_LABEL_COLUMNS`, ~60 lignes) ne sert plus, mais reste en place jusqu'à la mise en production (décision CC).
+- **`reloaded` :** ×10 (`calendar.ts:402, 411`, `accounting.ts:279-343`, `tasks.ts:499, 592, 612`, `mail.ts:531`).
+- **`deleteOrNotFound` :** chercher puis supprimer ×7 (jalons, sprints, tableaux de bord, stock, courses ×2, vues).
+- **`refuseArchived` / `assertActive` / `activeIds` :** `assertNotArchived` après chargement ×7, `assertBaseList` puis `assertNotArchived` ×5, et `contributors.ts:132`, `organize.ts:30`, `shopping.ts:251, 554`.
+- **`notFound(what, field)` :** `fieldError(field, 'X introuvable.')` ×5.
+- **`findRoutine`, `findTask` :** contournés ×5.
+- **Énumérations GraphQL** qui recopient des constantes partagées : unités, types de ligne, remises, sens, modes de ligne, statut d'écriture, type de client, type d'espace. Proposition : les exporter du partagé.
+- **`pathOf`** (`geo.ts:178`) et `labelObject` (`workspace.ts:15`).
 
 ### 4. Web
 
-- **Document :** le nom d'un brouillon s'écrit « Brouillon », « (brouillon) », « ce brouillon », ou laisse une espace en fin de titre et de nom de fichier. Proposition : `documentName`, `documentTitle` (voir décision CD).
-- **Compte mail :** affiché de quatre façons (`addressLabel` contourné, « libellé (adresse) », l'adresse seule). Proposition : `accountLabel` (voir décision CE).
-- **Retard :** rouge plein dans le suivi, rouge clair dans la trésorerie, orange sur l'accueil (voir décision CF).
-- **Boutons destructifs :** trois apparences rouges (`ActionButton danger`, `DestructiveButton`, la confirmation pleine). Proposition : `danger` sur toutes les priorités (voir décision CG).
-- **En-têtes repliables :** 6 boutons faits à la main (barre d'outils, cas de répétition, barre latérale, mode courses ×2, répartition d'une écriture), « lots (n) » dans le stock. Proposition : `FoldHeading` (voir décision CH).
-- **Compteurs de groupe :** hors `CountBadge`, en trois tailles (voir décision CI).
-- **Sélecteurs avec avatar :** `Select` + `listSelectProps` + avatar de l'élément courant ×5, le même couple en sélection multiple ×2. Proposition : `ItemSelect`.
-- **Temps :** les options de tâches d'un temps de trois façons (arbre, liste plate, chemin), « (fermée) » écrit 4 fois. Proposition : `timeTaskOptions`.
-- **Divers :**
-  - `useInvalidatingMutation` contourné (espaces, contributeurs de la trésorerie) ;
-  - le champ nombre facultatif ×4 (`optionalNumberProps`) ;
-  - l'unité vide `''` ou `null` selon le formulaire produit ;
-  - les types de client ×2 ;
-  - le type de mouvement du stock réécrit, avec d'autres libellés ;
-  - les erreurs de connexion hors `formCallbacks` ;
-  - `{ remove }` ×4 ;
-  - la colonne commentaires des routines refait `commentColumn`, avec une autre apparence (voir décision CJ) ;
-  - le diff des bénéficiaires ×3 ;
-  - les liens d'alarme ×2 ;
-  - `SignedAmount` contourné (sarcelle au lieu de vert) ;
-  - « dans 30 jours » ×2 ;
-  - la valeur « vide en dernier » de 5 façons ;
-  - une clé `${workspaceId}|${typeId}` au lieu de `foreignSlotKind` ;
-  - deux formats de clé d'occurrence (`id:date` côté API, `id|date` côté web) ;
-  - le renommage en ligne refait dans le panneau d'une tâche et l'éditeur de graphique (voir décision CK) ;
-  - quelques aides d'une ligne.
-- **Libellés cachés sans guillemets :** « Redimensionner la colonne X », « Total de X », « Sélectionner X », « la répartition de X » ; « la fiche « … » » en `about` au lieu de `name`.
-- **Routes :** `'projects/:id'` et `'clients/:id'` écrits 4 fois ; `taskPath` n'utilise pas `PAGES.tasks.path`.
-- **Panneaux :** le voile des réglages en dur (`0.35`, `#000`) et un en-tête en h4 au lieu de celui du panneau latéral (voir décision CL).
-- **En-tête du tableau :** `DataTableHeader` (bibliothèque) recopie celui de `DataTable` (à supprimer avec la refonte de la bibliothèque).
-- **Survol des cellules :** la section droite refait `styles/reveal.css`.
+- **`itemSelectProps` :** ~15 sélections sans l'avatar du choix (paiement, relevé, écriture, équipe, budgets, courses, suivi, cellules de trésorerie, calendrier d'un évènement, horaires) ; statuts de suivi et comptes des tableaux de bord.
+- **`itemChoices`, `withArchived`, arbres :** options sans couleur (`shopping-columns.ts:46, 77`, `ShoppingPage.tsx:199`) ; `withArchived` recopié (`StockTable.tsx:119`, `shopping-columns.ts:102`) ; catégorie sans chemin (`ShoppingPage.tsx:183`) ; projets et tâches à plat (`SheetsTable.tsx:77`, `TimeLog.tsx:153`).
+- **`DraftBadge`, `ItemBadge`, `CountBadge`, `LATE_COLOR`, `ErrorAlert` :** contournés (`DocumentEditor.tsx:355`, `TrackingBadge.tsx:109`, `BaseLists.tsx:147`, `MailFolders.tsx:240`).
+- **`ActionButton priority="tertiary"` :** `Anchor component="button"` dans le mail et les courses ×5.
+- **`FoldHeading` :** citation du message répondu (`MailComposer.tsx:382`), recherche avancée sans `aria-expanded`.
+- **`confirmDestructive` `run`/`done` :** `formCallbacks(null…)` dans `onConfirm` ×7 (mail, espaces, routines).
+- **`addressLabel` / `senderName` :** refaits pour le transfert (`compose-options.ts:128, 144`).
+- **Inline :** `toggledIn` ×2, `optionalNumber` (`TaskPanel.tsx:319`), `FRENCH_NUMBER_FORMAT` (×4 avec la seule virgule), `stoppedCellField` ×7 dans `EditableCells.tsx`, `ActionTooltip` refait dans `StateSwitch`, `readOnlyCells` dans les horaires.
+- **Renommage en ligne (CK) :** encore dans l'arbre des projets (double-clic, `TreeRow.tsx:50-90`) et la liste des espaces (au blur, Échap n'annule pas : `WorkspacesManager.tsx:77`) (voir décision DF).
+- **Libellés cachés sans guillemets :** `Lier X à…` (`entry-columns.tsx:310`, `EntryLinesTable.tsx:224, 325`), `Ouvrir ${number}`, `Affichage de ${name}`, `SlotTimesFields`, `Désactiver ${alarm.label}`.
 
-### 5. Restes du renommage `label`
+## Petits doublons
 
-- `TitleCell` ×2, `EditableTitle`, `titleDraft` / `saveTitle`, `NEW_CHART_TITLES`, `AgendaItem.title`, `StackedItem.title` (une infobulle : `hint`), `AppPage.title` et `PAGES`, `AddRowField` (`onCreate(name)`), `deleteItemsAction({ name })`, `SheetsSection name`, `TimeBillingForm title`, des `label: name` à la déstructuration, `extendedProps.name`, des JSDoc périmées.
-- Un `projectPath` local qui masque celui d'`app/pages.ts`.
-- **Noms prêtant à confusion :** `features/projects/api` exporte encore `Workspace`, `useWorkspace`, `workspaceQueryKey` pour l'arbre des projets, à côté du `Workspace` des espaces ; deux `LinesEditor`, `newLine`, `KIND_LABELS`, `MOVED_TABS`, `toValues` (voir décision CM).
+### 5. API
+
+- **Chercher puis refuser si archivé :** 6 aides à 5 noms (`findWritableDashboard`, `findActiveAccount`, `findOpenItem`…) et ~20 en ligne. Proposition : `findActive(model, id, what)`.
+- **`as never` :** 27 conversions dans 7 modules GraphQL. Proposition : services en `unknown`, ou une seule aide `unchecked()`.
+- **Catégories de facture et d'avoir** lues ×3 ; profil de l'entreprise relu (×3, dans une boucle, ×2). Proposition : `invoiceCategories()`.
+- **Espace courant** lu de 4 façons ; `moveWorkspace` refait `saveSiblingOrder`.
+- **Moyen de paiement selon le sens** ×2 (`assertMethodFor`) ; prestation du client ×2 ; bénéficiaires vérifiés de 3 façons (`assertBeneficiaries`) ; type d'un fichier d'après ses octets ×2 (`sniffedType`) ; `LabelColorInput` / `LabelColorPatch` ×6 (`nameColor` dans les courses).
+- **Partagé :** jour du mois ×3 (`dayOfMonthOf`), chevauchement d'horaires ×2, types de série ×2 + web (`SERIES_TYPES`), `fileName(title…)`.
+- **API inégale :** réglages de trésorerie et recherches mail renvoient un id au lieu de l'objet ; `treasuryStatementPdf` sans `ReportFile`.
+- **Noms :** `graphql/modules/workspace.ts` (projets, clients) à côté de `workspaces.ts` ; `services/workspace/` ; `projectStatuses` dans les tâches (voir décision DL).
+
+### 6. Web
+
+- **Sens d'un montant** (`< 0 ? 'OUT' : 'IN'`) ×7. Proposition : `directionOf` (corrige le montant nul).
+- **Montant signé** `+` / `−` ×8. Proposition : `signedText`, à côté de `SignedAmount`.
+- **Clés étiquetées** `préfixe:id` codées et décodées de 4 façons, plus `${projectId}:${number}` ×3. Proposition : `taggedKey` / `parseTaggedKey`, `taskNumberKey`, `referenceTargets`.
+- **Accord au féminin** (« cochée », « sélectionnée », « archivée ») ×4. Proposition : `agreed(word, feminine, count)`. `archivedMessage` ×2.
+- **Plis mémorisés** de 4 façons (`useFolded`, barre latérale, dossiers mail). Proposition : `useFoldedIds(key)`.
+- **Agenda de l'historique d'une routine :** refait en plus simple (pas de barre de plages réglable, pas de hachures ni de couleur) (`RoutineDayAgenda.tsx:180-215`). Proposition : `slotEvents`.
+- **Moment d'un évènement :** 3 formateurs ; « Journée entière » / « Toute la journée », interrupteur ou case (voir décision DE).
+- **« Modifications non enregistrées » :** deux pastilles différentes, « Annuler » / « Annuler les modifications ».
+- **Divers :** « X de plus / Réduire » ×2 ; résumé de synchronisation GitHub ×2 ; prochaine alarme ×2 ; `hasComments` ; `LateBadge` à déplacer dans `components/feedback` ; boutons ouverts/fermés `IconAction variant={open…}` ×2 (prop `expanded`) ; deux tailles d'interrupteurs dans le même panneau ; état vide des réglages avec sa propre icône ; `EditableCells.module.css` refait `reveal.css` ; « Moi » vaut `'none'` ou `'me'` ; 0 exporté vide ou « 0 » (voir décision DH).
+- **Mots :** « Bénéficiaire » / « Bénéficiaires », « Note » / « Description », « Oui » dans une colonne oui/non, « Produits (libellés) », progression « x / y » ou « x sur y achetés », durée filtrée en heures ou en texte, « Marquer comme à faire » / « Marquer à traiter », confirmations « archivez-le plutôt » / « archivez plutôt » et noms en gras au lieu de « ».
+- **Restes du renommage `label` :** `onCreate(name)` (`CreatableSelect`, `BatchMultiSelect`), `promptName`, `QuickAction.title`, `look.name`, `AddChild.name`, `Heading name`, JSDoc « name » dans les courses, `entryCategories` = `entryProjects`.
 
 ## Règles eslint
 
-### 6. Trous
+### 7. Trous
 
-- **Web :** un nombre juste avant un nom au pluriel sans `plural` ; `${n} ${plural(n, nom)}` au lieu de `countOf` (y compris dans le JSX) ; `<Button variant="light" leftSection>` et `variant={cond ? … : …}` ; un texte « Réduire / Développer » écrit à la main ; `FoldChevron` dans un bouton ; un `name` dans un objet `menu={{ … }}` ou déjà entre guillemets ; un filtre d'archivés passé à une aide plutôt qu'à `.filter` ; un `Badge` avec un compte seul ; les `aria-label` sans guillemets hors `IconAction` ; les routes `'projects/:id'` ; les clés `${a}|${b}` autres que routines et sprints.
-- **API :** `if (id && !x)` après une recherche (`orNotFound`) ; `normalize(x.trim())` ; un test de facture écrit à la main ; `if (x.archivedAt) throw …` ; `prisma.attachment.delete` hors aide.
+- **Web :** clés `:` ; ``name={(x) => `la …`}`` (BF) ; `stoppedCellField` en attributs JSX ; `FoldHeading` contre `Anchor` + `Collapse` ; règles de boutons qui se recouvrent (322, 333, 577 couvertes par 770) ; participe passé écrit à la main ; parents remontés à la main ; `LATE_COLOR` contre un `color="red"` conditionnel ; `LinksCell` exclu de la règle des libellés ; `listSelectProps` seul sur une sélection simple ; `Badge` avec un compte seul ; `readOnlyCells` en `columns.filter().map` ; avatar dans une IIFE ; `decimalSeparator` seul ; `formCallbacks(null…)` dans `onConfirm` ; identifiant nu dans un `aria-label` ; `Anchor component="button"` ; ajout/retrait à la main dans un tableau.
+- **API :** chercher puis supprimer ; `findUniqueOrThrow({ ...query, where: { id: (await …).id } })` ; `fieldError(_, /introuvable\.$/)` ; `assertNotArchived` après chargement ; `enumType` avec une liste écrite ; `as never` ; `join(' › ')`.
 
 ## Plan proposé
 
-1. **Bugs (1, 2).** Environ 30 minutes.
-2. **Petits doublons et restes du renommage (3, 4, 5)**, avec les décisions. Environ 45 à 60 minutes.
-3. **Règles eslint (6).** Environ 20 à 40 minutes.
+1. **Bugs (1, 2).** Environ 45 à 60 minutes (API d'archivage comprise).
+2. **Contournements et petits doublons (3 à 6)**, avec les décisions. Environ 60 à 90 minutes.
+3. **Règles eslint (7).** Environ 30 à 45 minutes.
 
-Toutes les décisions de ce round sont prises (CA à CM, voir plus bas).
+Toutes les décisions de ce round sont prises (DA à DM, voir plus bas).
 
 ## Décisions déjà prises
 
@@ -187,6 +192,19 @@ Toutes les décisions de ce round sont prises (CA à CM, voir plus bas).
 - **CN. Aspect des boutons :** variante `primary` (plein) seulement pour ajouter un élément, valider une action ou soumettre un formulaire ; tous les autres boutons en `light` ; les petits boutons discrets (`xs`, « + Ajouter une ligne ») restent sans fond. Un bouton destructif (Supprimer…) est `primary` rouge, ni clair ni contour (remplace CG). Les bascules (`aria-pressed`) ne sont pas des boutons : ce sont des interrupteurs (`Switch`, ou choix segmenté pour un mode).
 - **CO. Colonnes de comptage :** 0 n'est pas vide ; elles n'ont pas « est vide ».
 - **CP. Colonnes incertaines :** restent facultatives. La colonne « Temps » de la facturation du temps montre les tâches et la description d'un temps : un temps peut n'avoir ni l'un ni l'autre, donc elle peut être vide.
+- **DA. Valeur archivée choisie :** un projet ou un client archivé est refusé partout, comme les éléments de réglages.
+- **DB. Impayés de plus de 45 jours :** second palier en rouge (orange avant).
+- **DC. Retard :** orange (`LATE_COLOR`) partout : tâches, routines, badge de navigation, panneau, finances de l'accueil.
+- **DD. Tâche en retard dans l'agenda :** même règle que le tableau (échéance passée et non close), via `isTaskOverdue`.
+- **DE. Journée entière :** « Journée entière », avec un interrupteur.
+- **DF. Renommage dans l'arbre des projets et la liste des espaces :** par `openLabelForm`, comme ailleurs.
+- **DG. En-tête des pages projet et client :** même règle qu'ailleurs (`DetailHeader`, menu « … » avec archiver et supprimer).
+- **DH. Zéro dans l'export :** « 0 » pour un montant, vide pour un compte.
+- **DI. Flèche :** sur tous les boutons qui ouvrent un menu ou un panneau (Filtrer, Trier compris).
+- **DJ. Archiver dans une liste de réglages :** dans le menu « … ».
+- **DK. Mention `@nom` :** plus de lien.
+- **DL. Noms dans l'API :** `graphql/modules/workspace.ts` et `services/workspace/` renommés `projects`.
+- **DM. Glisser-déposer du mail :** sur `components/dnd`, comme le reste.
 
 ## Restent à part
 
@@ -196,6 +214,8 @@ Toutes les décisions de ce round sont prises (CA à CM, voir plus bas).
 
 ## Déjà unifié
 
+- **Série du 19 novembre 2026 (après-midi) :** décisions DA à DM ; archivé refusé partout dans l'API (`findActive`, `assertBeneficiaries`, `assertMethodFor`, `assertService`), `unchecked()`, `invoiceCategories`, `sniffedType`, énumérations GraphQL tirées du partagé, `services/projects` et `services/workspaces` ; `isTaskOverdue`, `LATE_COLOR` partout, `DocumentBalanceBadge`, `PeopleField`, `directionOf`, `signedText`, `taggedKey`, `taskNumberKey`, `agreed`, `archivedMessage`, `useFoldedIds`, `eventMomentText`, `UnsavedIndicator`, `LateBadge` dans `components/feedback`, `DetailHeader` pour projets et clients, glisser-déposer du mail sur `components/dnd`, `MenuCaret` sur tout bouton qui ouvre ; alias de lecture `LEGACY_FILTER_VALUES` (« Moi » des budgets) ; trous eslint fermés.
+- **Série du 19 novembre 2026 (fin de matinée) :** décisions CN à CP ; `ActionButton` plein / clair / discret, destructif plein rouge, prop `after` ; bascules en `StateSwitch` ; `aria-pressed` et variantes écrites à la main interdites.
 - **Série du 19 novembre 2026 (matin) :** décisions CA à CM ; Échap annule dans les cellules (`useCellDraft`), `entrySubject`, `useHeldEvents`, `useTimerHint`, `clientItems`, `deleteAttachment`, « 1er » partagé, `startReport` nomme ses fichiers ; `findOrNotFound`, `assertActive` / `activeIds` / `refuseArchived` / `cascadeArchive`, `toJson`, `nameKey` ; `documentName` / `documentTitle` partagés, `accountLabel`, `LATE_COLOR`, `ActionButton danger`, `FoldHeading`, `itemSelectProps`, `timeTaskOptions`, `useInvalidatingMutation`, `occurrenceKey`, `joinedKey`, `PanelTitle`, `--onoko-overlay-color`, `CommentCount` dans toutes les colonnes commentaires ; restes du renommage `label`, `ProjectTree` ; trous eslint fermés ; filtres « est vide / n'est pas vide » sur tous les champs facultatifs (`DataColumn.required`, `EMPTY_LABELS`).
 - **Série du 18 novembre 2026 (nuit) :** décisions BA à BJ ; un seul message d'archivé ; création à la volée des catégories et statuts de projet ; `relationWords`, `dayOfMonthText`, `storeAttachment` partout, `labelKey`, `ActionTooltip`, `notifyFailure` ; `BY_POSITION` par libellé, `personNameSchema`, `bulkCellLabels`, `ActionButton priority="tertiary"`, `MenuCaret`, `EXTERNAL_LINK`, `AUTH_PATHS` ; identifiants de colonnes en `label` (migration des vues) ; `features/projects` ; trous eslint fermés.
 - **Série du 18 novembre 2026 (soirée) :** décisions Y à AI ; `useStartTimer` (remplace le chrono en cours), `assertNotArchived` / `assertNoneArchived` avec `field`, `freeHandle`, `attachmentUrl`, maximums de libellés exportés, `countWith`, `FoldButton`, `LateBadge`, `planCardActions`, `LabelForm`, JSON en `label`, `scheduleLabel`, adresses (`documentPath`, `sheetPath`…), `useUrlTab`, `archivedIds`, `taskShortRef`, `sumOf`, `movedTo`, `quarterOf`, `components/dnd/`, eslint dans l'API et le code partagé.

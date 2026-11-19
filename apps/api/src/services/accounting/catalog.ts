@@ -2,7 +2,7 @@ import { catalogItemSchema, type CatalogItemInput } from '@ordo/shared';
 import { prisma } from '../../db';
 import { type CatalogItem } from '../../generated/prisma/client';
 import { parseInput } from '../../graphql/errors';
-import { requirePro } from '../workspace/workspaces';
+import { requirePro } from '../workspaces/workspaces';
 import { assertActive } from '../core/archive';
 import { deleteOrNotFound } from '../core/lookup';
 import { toDecimal } from '../core/decimal';

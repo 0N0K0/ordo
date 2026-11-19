@@ -8,8 +8,9 @@ import { attachmentData, attachmentUrl } from '../core/attachments';
 import { isInbox, withImap, withMailbox } from './imap';
 import { findSpecialFolder } from './organize';
 import { bareMessageId, fetchParsed, messageHtml, parsedAddresses } from './reader';
-import { schedulePerWorkspace } from '../workspace/workspaces';
-import { assertExists, deleteOrNotFound } from '../core/lookup';
+import { schedulePerWorkspace } from '../workspaces/workspaces';
+import { deleteOrNotFound } from '../core/lookup';
+import { assertActive } from '../core/archive';
 import { NO_SUBJECT, UNNAMED_FILE } from '@ordo/shared';
 
 /**
@@ -84,7 +85,7 @@ export async function copyToProject(parsed: ParsedMail, { projectId, accountId, 
  * @returns {Promise<MailMessage>} Copy.
  */
 export async function linkMessage(accountId: string, folder: string, uid: number, projectId: string): Promise<MailMessage> {
-  await assertExists(prisma.project, projectId, 'Projet');
+  await assertActive(prisma.project, projectId, 'Projet');
   const parsed = await fetchParsed(accountId, folder, uid);
   return copyToProject(parsed, { projectId, accountId, sent: false });
 }

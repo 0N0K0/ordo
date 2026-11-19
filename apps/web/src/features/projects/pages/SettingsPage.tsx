@@ -80,7 +80,7 @@ export function SettingsPage() {
               title="Statuts de projet"
               description="Un projet a au plus un statut. L’ordre est celui des listes de sélection."
               noun="le statut"
-              usageNoun="projets"
+              usageNoun={{ one: 'du projet', many: 'projets' }}
               items={data?.projectStatuses ?? []}
               usage={statusUsage}
               {...statusItems}
@@ -89,7 +89,8 @@ export function SettingsPage() {
               title="Catégories de projet"
               description="Un projet peut avoir plusieurs catégories."
               noun="la catégorie"
-              usageNoun="projets"
+              feminine
+              usageNoun={{ one: 'du projet', many: 'projets' }}
               items={data?.projectCategories ?? []}
               usage={categoryUsage}
               {...categoryItems}

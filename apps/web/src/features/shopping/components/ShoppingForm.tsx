@@ -1,8 +1,8 @@
 import { NO_SUGGESTIONS } from '../../../components/markdown/remark-references';
 import { DatePickerInput } from '@mantine/dates';
-import { PeopleSelect } from '../../../components/people/PeopleSelect';
-import { rowPeopleKeys, rowPeopleOf, sheetSourceText, usePeople } from '../lib/shopping-format';
-import { listSelectProps } from '../../../components/items/item-look';
+import { PeopleField } from './PeopleField';
+import { sheetSourceText } from '../lib/shopping-format';
+import { itemSelectProps } from '../../../components/items/item-look';
 import { Anchor, Checkbox, Select, SimpleGrid, Stack, Text, TextInput } from '@mantine/core';
 import { Link } from 'react-router';
 import { shoppingItemSchema, shoppingProductSchema, type ShoppingProductInput } from '@ordo/shared';
@@ -58,7 +58,6 @@ export function ShoppingForm({ target, onDone }: ShoppingFormProps) {
   const storages = useStorageItems();
   const { context } = useTaskContext();
   const current = target.kind === 'product' ? target.product : target.item;
-  const people = usePeople();
   const { perso } = useActiveWorkspace();
   const form = useAppForm<FormValues>({
     initialValues: {
@@ -116,7 +115,7 @@ export function ShoppingForm({ target, onDone }: ShoppingFormProps) {
               label="Référence"
               required
               allowDeselect={false}
-              {...listSelectProps(data?.shoppingBaseLists ?? [], undefined, target.kind === 'product' ? target.product?.baseListId : null)}
+              {...itemSelectProps(data?.shoppingBaseLists ?? [], values.baseListId, undefined, target.kind === 'product' ? target.product?.baseListId : null)}
               {...form.getInputProps('baseListId')}
             />
           )}
@@ -134,7 +133,7 @@ export function ShoppingForm({ target, onDone }: ShoppingFormProps) {
               clearable
               searchable
               onCreate={itemCreator('Nouveau magasin', stores)}
-              {...listSelectProps(data?.shoppingStores ?? [], undefined, current?.storeId)}
+              {...itemSelectProps(data?.shoppingStores ?? [], values.storeId, undefined, current?.storeId)}
               {...form.getInputProps('storeId')}
             />
           </SimpleGrid>
@@ -152,19 +151,16 @@ export function ShoppingForm({ target, onDone }: ShoppingFormProps) {
                 clearable
                 searchable
                 onCreate={itemCreator('Nouveau mode de conservation', storages)}
-                {...listSelectProps(data?.shoppingStorages ?? [], undefined, current?.storageId)}
+                {...itemSelectProps(data?.shoppingStorages ?? [], values.storageId, undefined, current?.storageId)}
                 {...form.getInputProps('storageId')}
               />
               <DatePickerInput label="Date de péremption" placeholder="Aucune" clearable {...form.getInputProps('expiresAt')} />
             </SimpleGrid>
           )}
-          <PeopleSelect
-            label="Bénéficiaire"
+          <PeopleField
+            form={form}
+            label="Bénéficiaires"
             description={`Contributeurs et ${relationNoun(perso, true).toLowerCase()} concernés : la répartition d’un mouvement de trésorerie qui paie la liste.`}
-            placeholder="Personne en particulier"
-            data={people.options}
-            value={rowPeopleKeys(values)}
-            onChange={(keys) => form.setValues(rowPeopleOf(keys))}
           />
           <TextInput label="Lien vers le produit" placeholder="https://…" type="url" {...form.getInputProps('url')} />
           <MarkdownEditor

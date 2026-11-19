@@ -17,6 +17,7 @@ import {
   weekStartOf,
   sumOf,
   joinedKey,
+  type SeriesType,
 } from '@ordo/shared';
 import * as fmt from '../../../lib/format';
 import { periodName, quarterName, relativePeriodName } from '../../../lib/periods';
@@ -24,6 +25,9 @@ import { currentWeek } from '../../../lib/week';
 import { collator, countOf } from '../../../lib/text';
 import { yearOfDay } from '../../../lib/dates';
 import { DIRECTION_PLURALS } from '../../treasury/lib/direction';
+
+/** Labels of the ways a series is drawn. */
+export const SERIES_TYPE_LABELS: Record<SeriesType, string> = { bar: 'Barres', line: 'Courbe', area: 'Aire' };
 
 /** Labels of the dimensions, measures and buckets, shared by the editor and the charts. */
 export const DIMENSION_LABELS: Record<ChartDimension, string> = {
@@ -121,7 +125,7 @@ export interface ChartSeries {
   color: string;
   strokeDasharray?: string;
   /** Mixed charts: how this series is drawn. */
-  type?: 'bar' | 'line' | 'area';
+  type?: SeriesType;
   /** "right": on the percent axis. */
   yAxisId?: string;
   /** Mixed charts: series stacked together (those of a same data set). */

@@ -1,5 +1,6 @@
 import { type TreasuryLineMode, LEVEL, round2 } from '@ordo/shared';
 import * as fmt from '../../../lib/format';
+import { taggedKey } from '../../../lib/tagged-key';
 
 /**
  * Line of a split entry as edited: its value is relative to the entry (positive: in the direction of the entry,
@@ -111,4 +112,4 @@ export type LinkCandidate = LineLink & { accountLabel: string };
  * @param {Pick<LineLink, 'kind' | 'id'>} link Link.
  * @returns {string} "line:<id>" or "entry:<id>".
  */
-export const linkKey = (link: Pick<LineLink, 'kind' | 'id'>) => `${link.kind}:${link.id}`;
+export const linkKey = (link: Pick<LineLink, 'kind' | 'id'>) => taggedKey(link.kind, link.id);

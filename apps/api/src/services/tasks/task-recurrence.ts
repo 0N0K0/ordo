@@ -17,6 +17,7 @@ import { BY_POSITION, nextPositionIn } from '../core/ordering';
 import { Prisma, type Task } from '../../generated/prisma/client';
 import { clientError, parseInput } from '../../graphql/errors';
 import { findOrNotFound } from '../core/lookup';
+import { refuseArchived } from '../core/archive';
 
 /**
  * Stored repetition of a task series (a rule, or cases), or null.
@@ -47,6 +48,8 @@ function anchorOf(task: Pick<Task, 'startDate' | 'endDate'>): string | null {
 export async function setTaskRecurrence(id: string, recurrence: unknown): Promise<Task> {
   const found = await findOrNotFound(prisma.task, id, 'Tâche');
   const task = found.seriesId ? ((await prisma.task.findUnique({ where: { id: found.seriesId } })) ?? found) : found;
+  refuseArchived(found);
+  refuseArchived(task);
 
   if (recurrence === null) {
     return prisma.$transaction(async (tx) => {

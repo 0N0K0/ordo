@@ -1,4 +1,4 @@
-import { Button, type ButtonProps } from '@mantine/core';
+import { Button, type ButtonProps, Group } from '@mantine/core';
 import type { ComponentPropsWithoutRef, ReactNode } from 'react';
 import { Link } from 'react-router';
 import { ActionsMenu, type RowMenuEntry } from './ActionsMenu';
@@ -38,7 +38,7 @@ interface ActionButtonProps extends Omit<ButtonProps, 'variant' | 'color' | 'lef
   menuName?: string;
   /** Tooltip (what it does besides, why it is disabled): shown on a disabled button too. Optional. */
   hint?: ReactNode;
-  /** Content after the label: the count of a filter, the caret of a menu or a popover it opens, the date of a choice. Optional. */
+  /** Content after the label: the count of a filter, the date of a choice (the caret of a menu or a popover it opens comes by itself). Optional. */
   after?: ReactNode;
 }
 
@@ -86,9 +86,21 @@ function ActionButtonBody({ children, priority = 'primary', danger = false, icon
       />
     );
   }
+  // The target of a menu or a popover (its target gives it `aria-haspopup`): its caret after the rest (decision DI).
+  const opens = Boolean(props['aria-haspopup']);
+  const right = !opens ? (
+    after
+  ) : after ? (
+    <Group gap={4} wrap="nowrap">
+      {after}
+      <MenuCaret />
+    </Group>
+  ) : (
+    <MenuCaret />
+  );
   const button = (
     // eslint-disable-next-line no-restricted-syntax -- the one button whose look follows its priority.
-    <Button variant={variant} leftSection={icon} rightSection={after} onClick={onClick} {...link} {...props}>
+    <Button variant={variant} leftSection={icon} rightSection={right} onClick={onClick} {...link} {...props}>
       {children}
     </Button>
   );
@@ -101,7 +113,7 @@ function ActionButtonBody({ children, priority = 'primary', danger = false, icon
         items={menu}
         target={
           // eslint-disable-next-line no-restricted-syntax -- the caret of its menu, the same look.
-          <Button variant={variant} size={props.size} disabled={props.disabled} px="xs" aria-label={name ? `Autres façons « ${name} »` : 'Autres façons'}>
+          <Button variant={variant} size={props.size} color={props.color} disabled={props.disabled} px="xs" aria-label={name ? `Autres façons « ${name} »` : 'Autres façons'}>
             <MenuCaret />
           </Button>
         }

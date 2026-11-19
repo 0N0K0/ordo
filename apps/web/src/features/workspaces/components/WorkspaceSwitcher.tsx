@@ -8,7 +8,6 @@ import { switchWorkspace } from '../lib/switch';
 import { WorkspaceKindIcon } from './WorkspaceKindIcon';
 import { WorkspacesManager } from './WorkspacesManager';
 import classes from './WorkspaceSwitcher.module.css';
-import { MenuCaret } from '../../../components/actions/MenuCaret';
 
 /**
  * Opens the management of the workspaces.
@@ -52,7 +51,7 @@ export function WorkspaceSwitcher({ variant = 'button' }: { variant?: 'button' |
             {workspace?.label ?? 'Espace'}
           </UnstyledButton>
         ) : (
-          <ActionButton priority="tertiary" icon={workspace && <WorkspaceKindIcon kind={workspace.kind} />} after={<MenuCaret />} aria-label={label} maw={220}>
+          <ActionButton priority="tertiary" icon={workspace && <WorkspaceKindIcon kind={workspace.kind} />} aria-label={label} maw={220}>
             {workspace?.label ?? 'Espace'}
           </ActionButton>
         )

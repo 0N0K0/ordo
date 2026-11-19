@@ -47,6 +47,8 @@ import { ActionButton } from '../../../components/actions/ActionButton';
 import { RemoveButton } from '../../../components/actions/RemoveButton';
 import { EXTERNAL_LINK } from '../../../components/actions/link-props';
 import { openLabelForm } from '../../../components/dialogs/open-label-form';
+import { LATE_COLOR } from '../../../components/feedback/feedback-colors';
+import { isTaskOverdue } from '../lib/task-overdue';
 
 interface LinkListProps {
   label: string;
@@ -129,8 +131,8 @@ function TaskDetail({ task, context }: TaskDetailProps) {
    */
   const save = (input: Omit<TaskInputValues, 'projectId'>, onSuccess?: () => void) => updateTask.mutate({ id: task.id, input }, { onSuccess, onError: onMutationError });
   const dates = dateRangeProps({ value: [task.startDate, task.endDate], onChange: ([startDate, endDate]) => save({ startDate, endDate }) });
-  const overdue = task.deadline && task.deadline < localToday() && !task.closed ? 'En retard' : undefined;
-  const doable = dateRangeProps({ value: [task.minDate, task.deadline], onChange: ([minDate, deadline]) => save({ minDate, deadline }), errors: [undefined, overdue] });
+  const overdue = isTaskOverdue(task, localToday());
+  const doable = dateRangeProps({ value: [task.minDate, task.deadline], onChange: ([minDate, deadline]) => save({ minDate, deadline }) });
 
   /**
    * Renames the task in the side panel, as everywhere (decision CK).
@@ -328,7 +330,23 @@ function TaskDetail({ task, context }: TaskDetailProps) {
                 <DatePickerInput label="Fin" clearable placeholder="—" {...dates.end} />
               </Group>
               <DatePickerInput label="Date min" description="Avant, la tâche n’est pas à faire." clearable placeholder="—" {...doable.start} />
-              <DatePickerInput label="Date max" description="Au-delà, la tâche ouverte est en retard." clearable placeholder="—" {...doable.end} />
+              <DatePickerInput
+                label="Date max"
+                description={
+                  <>
+                    Au-delà, la tâche ouverte est en retard.
+                    {overdue && (
+                      <Text span inherit c={LATE_COLOR} fw={600}>
+                        {' '}
+                        En retard.
+                      </Text>
+                    )}
+                  </>
+                }
+                clearable
+                placeholder="—"
+                {...doable.end}
+              />
               <TaskSelect
                 context={context}
                 labelOf={(candidate) => context.taskLabel(candidate, task.projectId)}

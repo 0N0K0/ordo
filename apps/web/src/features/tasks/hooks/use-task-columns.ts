@@ -13,10 +13,14 @@ import type { TaskContext } from './use-task-context';
  * doable now (asked only when asked for), their alerts, their shopping, the kinds of slots.
  * @param {TaskContext | null} context Task context.
  * @param {string} today Today, YYYY-MM-DD.
- * @param {{ doable?: boolean }} [options] Whether the tasks doable now are asked (a filter on them). Optional.
+ * @param {{ doable?: boolean, eventComments?: ReadonlyMap<string, number> }} [options] Whether the tasks doable now are asked (a filter on them), and the comments of the events listed. Optional.
  * @returns {DataColumn<TaskTableRow>[]} Columns (none without context).
  */
-export function useTaskColumns(context: TaskContext | null, today: string, { doable = true }: { doable?: boolean } = {}): DataColumn<TaskTableRow>[] {
+export function useTaskColumns(
+  context: TaskContext | null,
+  today: string,
+  { doable = true, eventComments }: { doable?: boolean; eventComments?: ReadonlyMap<string, number> } = {},
+): DataColumn<TaskTableRow>[] {
   const alarmCounts = useTaskAlarmCounts();
   const { data: lists } = useShoppingLists();
   const { data: schedules } = useWorkSchedules();
@@ -25,6 +29,6 @@ export function useTaskColumns(context: TaskContext | null, today: string, { doa
     if (!context) return [];
     const shoppingTaskIds = new Set((lists ?? []).flatMap((list) => list.taskIds));
     const slotKinds = scheduleChoices(schedules).options;
-    return taskColumns(context, today, { doableIds, shoppingTaskIds, alarmCounts, slotKinds });
-  }, [context, today, doableIds, lists, alarmCounts, schedules]);
+    return taskColumns(context, today, { doableIds, shoppingTaskIds, alarmCounts, slotKinds, eventComments });
+  }, [context, today, doableIds, lists, alarmCounts, schedules, eventComments]);
 }

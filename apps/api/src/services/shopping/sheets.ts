@@ -37,7 +37,7 @@ import { copyOf, findOpenList } from './shopping';
 import { assertPeople, peopleData, peopleIds, withPeople } from './people';
 import { syncChecklistStock } from './stock';
 import { assertAllExist, assertExists, deleteOrNotFound, findOrNotFound } from '../core/lookup';
-import { assertNoneArchived, assertNotArchived, assertActive, refuseArchived, activeIds } from '../core/archive';
+import { assertNoneArchived, assertNotArchived, assertActive, refuseArchived, activeIds, findActive } from '../core/archive';
 import { assertActiveRefs, type ShoppingRefs } from './refs';
 import { createLabelService } from '../core/labels';
 import { connectIds } from '../core/relations';
@@ -89,10 +89,8 @@ async function assertProducts(items: SheetItemInput[], current?: ShoppingRefs | 
  * @param {string} id Sheet.
  * @returns {Promise<Sheet>} Sheet.
  */
-async function findOpenSheet(id: string): Promise<Sheet> {
-  const sheet = await findSheet(id);
-  refuseArchived(sheet);
-  return sheet;
+function findOpenSheet(id: string): Promise<Sheet> {
+  return findActive(prisma.sheet, id, 'Fiche');
 }
 
 /**
@@ -101,15 +99,6 @@ async function findOpenSheet(id: string): Promise<Sheet> {
  * @returns {Promise<void>}
  */
 const assertSheetsUsable = (ids: string[]): Promise<void> => assertNoneArchived('SHEET', ids);
-
-/**
- * Loads a sheet or throws NOT_FOUND.
- * @param {string} id Sheet.
- * @returns {Promise<Sheet>} Sheet.
- */
-function findSheet(id: string): Promise<Sheet> {
-  return findOrNotFound(prisma.sheet, id, 'Fiche');
-}
 
 /**
  * Fields of an item of a sheet or of a checklist.
@@ -311,7 +300,7 @@ export async function deleteSheetItems(ids: string[]): Promise<void> {
 }
 
 /** Categories of the sheets; the sheets of a deleted one stay, without it. */
-export const sheetCategories = createLabelService<SheetCategory>('sheetCategory', { notFound: 'Catégorie', conflict: 'Cette catégorie existe déjà.' }, { schema: sheetCategorySchema });
+export const sheetCategories = createLabelService<SheetCategory>('sheetCategory', { notFound: 'Catégorie', conflict: 'Une catégorie porte déjà ce libellé.' }, { schema: sheetCategorySchema });
 
 /**
  * Items of sheets times their multipliers, as they are summed into a list (in the order of the sheets).

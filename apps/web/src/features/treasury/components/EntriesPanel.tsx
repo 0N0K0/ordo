@@ -33,6 +33,7 @@ import { commentColumn } from '../../comments/lib/comment-column';
 import { SignedAmountCell } from '../../../components/money/SignedAmount';
 import { monthColumn } from '../../../components/data-table/table/month-column';
 import { useDeleteEntries } from '../hooks/use-delete-entries';
+import { signedText } from '../../../components/money/signed-text';
 
 /**
  * Money in and out of actual entries, linked money in and out of the period offsetting each other.
@@ -101,7 +102,7 @@ function entryColumns(env: EntryEnv): DataColumn<TreasuryEntry>[] {
       numeric: true,
       sortValue: (entry) => entry.amount,
       formatTotal: fmt.money,
-      text: (entry) => `${entry.amount > 0 ? '+' : ''}${fmt.money(entry.amount)}`,
+      text: (entry) => signedText(entry.amount),
       filter: { kind: 'number', value: (entry) => entry.amount },
     },
   ];

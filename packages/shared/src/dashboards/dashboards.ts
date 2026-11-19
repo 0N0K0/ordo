@@ -10,6 +10,10 @@ const CHART_SOURCES = ['tasks', 'documents', 'treasury'] as const;
 export type ChartSource = (typeof CHART_SOURCES)[number];
 
 /** Kinds of chart: bars side by side or stacked, lines, areas, donut, and the burndown of a sprint (tasks). */
+/** How a series of a mixed chart (a data set, a comparison) is drawn. */
+export const SERIES_TYPES = ['bar', 'line', 'area'] as const;
+export type SeriesType = (typeof SERIES_TYPES)[number];
+
 const CHART_TYPES = ['bar', 'stackedBar', 'line', 'area', 'donut', 'burndown'] as const;
 export type ChartType = (typeof CHART_TYPES)[number];
 
@@ -146,7 +150,7 @@ const chartDatasetSchema = z.object({
   /** Its own series: one per value of this field, or none. */
   series: z.enum(CHART_GROUP_DIMENSIONS).nullable().default(null),
   /** How it is drawn; the type of the chart when null. */
-  type: z.enum(['bar', 'line', 'area']).nullable().default(null),
+  type: z.enum(SERIES_TYPES).nullable().default(null),
   ...chartFilterFields,
 });
 export type ChartDataset = z.infer<typeof chartDatasetSchema>;
@@ -161,7 +165,7 @@ const chartComparisonSchema = z.object({
   a: z.string().min(1),
   b: z.string().min(1),
   /** How it is drawn. */
-  type: z.enum(['line', 'bar', 'area']).default('line'),
+  type: z.enum(SERIES_TYPES).default('line'),
 });
 export type ChartComparison = z.infer<typeof chartComparisonSchema>;
 

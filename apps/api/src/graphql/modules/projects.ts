@@ -1,25 +1,19 @@
+import { PROJECT_RESOURCE_KINDS } from '@ordo/shared';
 import { done } from '../errors';
 import { prisma } from '../../db';
-import { projectCategories } from '../../services/workspace/project-categories';
-import * as clients from '../../services/workspace/clients';
+import { projectCategories } from '../../services/projects/project-categories';
+import * as clients from '../../services/projects/clients';
 import { iconUrl } from '../../services/core/icons';
-import * as projects from '../../services/workspace/projects';
-import * as resources from '../../services/workspace/project-resources';
+import * as projects from '../../services/projects/projects';
+import * as resources from '../../services/projects/project-resources';
 import { resourceUrl } from '../../services/core/attachments';
-import { projectStatuses } from '../../services/tasks/statuses';
+import { projectStatuses } from '../../services/projects/project-statuses';
 import { BY_POSITION, BY_POSITION_NAME } from '../../services/core/ordering';
 import { builder, type InputFields } from '../builder';
-import { LabelColorInput, LabelColorPatch, labelMutations, labelObject } from '../label-inputs';
+import { labelMutations, labelObject } from '../label-inputs';
 import { reloaded } from '../reload';
 
-builder.prismaObject('ProjectCategory', {
-  fields: (t) => ({
-    id: t.exposeID('id'),
-    label: t.exposeString('label'),
-    color: t.exposeString('color'),
-  }),
-});
-
+labelObject('ProjectCategory');
 labelObject('ProjectStatus');
 
 builder.prismaObject('Client', {
@@ -199,12 +193,12 @@ builder.mutationFields((t) => ({
   }),
 }));
 
-labelMutations('ProjectCategory', projectCategories, { create: LabelColorInput, update: LabelColorPatch });
-labelMutations('ProjectStatus', projectStatuses, { create: LabelColorInput, update: LabelColorPatch });
+labelMutations('ProjectCategory', projectCategories);
+labelMutations('ProjectStatus', projectStatuses);
 
 // Resources of a project: files and links.
 
-const ResourceKindEnum = builder.enumType('ProjectResourceKind', { values: ['FILE', 'LINK'] as const });
+const ResourceKindEnum = builder.enumType('ProjectResourceKind', { values: PROJECT_RESOURCE_KINDS });
 
 builder.prismaObject('ProjectResource', {
   fields: (t) => ({

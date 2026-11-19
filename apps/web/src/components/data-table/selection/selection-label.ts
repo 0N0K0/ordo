@@ -1,4 +1,5 @@
-import { countOf, plural } from '../../../lib/text';
+import { countOf } from '../../../lib/text';
+import { agreed } from '@ordo/shared';
 
 /**
  * Rows selected, told: "3 lignes sélectionnées", "1 fiche sélectionnée".
@@ -7,5 +8,4 @@ import { countOf, plural } from '../../../lib/text';
  * @param {boolean} [feminine] Feminine name. Optional. Default = true.
  * @returns {string} Text.
  */
-export const selectedLabel = (count: number, [one, many]: [string, string] = ['ligne', 'lignes'], feminine = true) =>
-  `${countOf(count, one, many)} ${plural(count, feminine ? 'sélectionnée' : 'sélectionné')}`;
+export const selectedLabel = (count: number, [one, many]: [string, string] = ['ligne', 'lignes'], feminine = true) => `${countOf(count, one, many)} ${agreed('sélectionné', feminine, count)}`;

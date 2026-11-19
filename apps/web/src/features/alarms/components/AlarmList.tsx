@@ -99,7 +99,7 @@ export function AlarmList({ alarms, context, openForm, showTarget = true }: Alar
               </Stack>
               <Group gap="xs" wrap="nowrap">
                 <StateSwitch
-                  label={alarm.enabled ? `Désactiver ${alarm.label}` : `Activer ${alarm.label}`}
+                  label={alarm.enabled ? `Désactiver « ${alarm.label} »` : `Activer « ${alarm.label} »`}
                   checked={alarm.enabled}
                   onChange={(enabled) => update.mutate({ id: alarm.id, input: toAlarmInput(alarm, { enabled }) }, ON_ERROR)}
                 />

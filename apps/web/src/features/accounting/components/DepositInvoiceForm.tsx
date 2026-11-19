@@ -11,6 +11,7 @@ import { FormActions } from '../../../components/dialogs/FormActions';
 import { documentPath } from '../../../app/pages';
 import { unarchived } from '../../../lib/archive';
 import { optionalNumber } from '../../../components/inputs/number-format';
+import { taggedKey, parseTaggedKey } from '../../../lib/tagged-key';
 
 /** Quote a deposit can be made from, of Ordo or imported. */
 interface QuoteChoice {
@@ -48,7 +49,7 @@ export function DepositInvoiceForm({ quoteId, importedQuoteId, clientId: initial
   const { createDeposit } = useDocumentMutations();
   const navigate = useNavigate();
   const [clientId, setClientId] = useState<string | null>(initialClient);
-  const [choice, setChoice] = useState<string | null>(quoteId ? `ordo:${quoteId}` : importedQuoteId ? `imported:${importedQuoteId}` : null);
+  const [choice, setChoice] = useState<string | null>(quoteId ? taggedKey('ordo', quoteId) : importedQuoteId ? taggedKey('imported', importedQuoteId) : null);
   const [percent, setPercent] = useState<number | null>(null);
 
   // An archived quote is read only: no deposit invoiced from it.
@@ -56,7 +57,7 @@ export function DepositInvoiceForm({ quoteId, importedQuoteId, clientId: initial
     ...unarchived(documents.data ?? [])
       .filter((document) => document.type === 'QUOTE' && document.status === 'FINAL')
       .map((document) => ({
-        value: `ordo:${document.id}`,
+        value: taggedKey('ordo', document.id),
         label: `${document.number} — ${document.clientName}${document.label ? ` — ${document.label}` : ''}`,
         clientId: document.clientId,
         number: document.number ?? '',
@@ -68,7 +69,7 @@ export function DepositInvoiceForm({ quoteId, importedQuoteId, clientId: initial
     ...unarchived(imported.data ?? [])
       .filter((document) => document.type === 'QUOTE' && document.clientId)
       .map((document) => ({
-        value: `imported:${document.id}`,
+        value: taggedKey('imported', document.id),
         label: `${document.number} (importé) — ${document.clientName}${document.label ? ` — ${document.label}` : ''}`,
         clientId: document.clientId,
         number: document.number,
@@ -86,7 +87,7 @@ export function DepositInvoiceForm({ quoteId, importedQuoteId, clientId: initial
   const { run: submit, loading } = useAsyncAction(
     async () => {
       if (!selected) throw new Error('Choisissez un devis.');
-      const [kind, id] = selected.value.split(':');
+      const { tag: kind, id } = parseTaggedKey(selected.value) ?? { tag: '', id: '' };
       return createDeposit.mutateAsync({ quoteId: kind === 'ordo' ? id : null, importedQuoteId: kind === 'imported' ? id : null, percent: rate, issueDate: localToday() });
     },
     {

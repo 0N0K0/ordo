@@ -10,7 +10,7 @@ import { defaultValueFor, newConditionFor, nodeId, OPERATOR_LABELS, operatorsFor
 import { BatchMultiSelect } from '../inputs/BatchMultiSelect';
 import { RemoveButton } from '../actions/RemoveButton';
 import { ActionButton } from '../actions/ActionButton';
-import { optionalNumber } from '../inputs/number-format';
+import { optionalNumber, FRENCH_NUMBER_FORMAT } from '../inputs/number-format';
 
 // Dropdowns render inside the filter popover: in a portal, picking an option would count as a click
 // outside the popover and close it.
@@ -140,7 +140,14 @@ function ConditionEditor<F extends string>({ condition, fields, onChange, onRemo
       editor = <TextInput size="xs" aria-label="Valeur" value={typeof condition.value === 'string' ? condition.value : ''} onChange={(event) => set(event.currentTarget.value)} w={200} />;
     } else if (kind === 'number') {
       editor = (
-        <NumberInput size="xs" aria-label="Valeur" decimalSeparator="," value={typeof condition.value === 'number' ? condition.value : ''} onChange={(next) => set(optionalNumber(next))} w={110} />
+        <NumberInput
+          size="xs"
+          aria-label="Valeur"
+          {...FRENCH_NUMBER_FORMAT}
+          value={typeof condition.value === 'number' ? condition.value : ''}
+          onChange={(next) => set(optionalNumber(next))}
+          w={110}
+        />
       );
     } else if (kind === 'date') {
       const value = typeof condition.value === 'string' ? condition.value : '';

@@ -60,7 +60,7 @@ export function MailOrganizeActions({ groups, done, labelIds, onMoved, onManageL
     <Group gap={4} wrap="nowrap">
       <StateSwitch
         label="Traité"
-        hint={done ? 'Marquer à traiter' : 'Marquer comme traité'}
+        hint={done ? 'Marquer comme à traiter' : 'Marquer comme traité'}
         checked={done}
         color="green"
         icon={<CheckIcon weight="bold" aria-hidden />}

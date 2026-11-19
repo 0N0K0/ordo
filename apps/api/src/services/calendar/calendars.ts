@@ -3,6 +3,7 @@ import { prisma, unscopedPrisma } from '../../db';
 import type { Calendar, WorkspaceKind } from '../../generated/prisma/client';
 import { clientError, orNotFound, parseInput } from '../../graphql/errors';
 import { currentWorkspaceId } from '../../workspace-context';
+import { currentWorkspaceFields } from '../workspaces/current-workspace';
 import { BY_POSITION_ONLY, nextPositionIn } from '../core/ordering';
 import { firstActive, refuseArchived } from '../core/archive';
 import { findOrNotFound } from '../core/lookup';
@@ -48,7 +49,7 @@ export async function resolveCalendarId(id?: string | null): Promise<string> {
   // An archived calendar takes no new event: the first one that is not, else the first one (refused then).
   const first = await firstActive(prisma.calendar);
   if (first) return first.id;
-  const workspace = await unscopedPrisma.workspace.findUniqueOrThrow({ where: { id: currentWorkspaceId() }, select: { label: true } });
+  const workspace = await currentWorkspaceFields({ label: true });
   return (await prisma.calendar.create({ data: { label: workspace.label, color: DEFAULT_COLOR } })).id;
 }
 

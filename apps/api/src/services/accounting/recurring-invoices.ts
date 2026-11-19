@@ -6,8 +6,8 @@ import type { RecurringInvoice } from '../../generated/prisma/client';
 import { clientError, parseInput } from '../../graphql/errors';
 import { createDocument, editableFields, finalizeDocument, findDocument } from './accounting-documents';
 import { storedRecurrence } from '../calendar/calendar-events';
-import { schedulePerWorkspace } from '../workspace/workspaces';
-import { requirePro } from '../workspace/workspaces';
+import { schedulePerWorkspace } from '../workspaces/workspaces';
+import { requirePro } from '../workspaces/workspaces';
 import { assertActive, refuseArchived } from '../core/archive';
 import { findOrNotFound } from '../core/lookup';
 
@@ -116,7 +116,7 @@ export async function issueDueInvoices(today: string): Promise<number> {
       const template = await findDocument(recurring.templateId);
       const fields = await editableFields(template);
       const shift = daysBetween(fields.issueDate, next);
-      const invoice = await createDocument('INVOICE', { ...fields, issueDate: next, dueDate: fields.dueDate ? addDays(fields.dueDate, shift) : null }, { recurringId: recurring.id });
+      const invoice = await createDocument('INVOICE', { ...fields, issueDate: next, dueDate: fields.dueDate ? addDays(fields.dueDate, shift) : null }, { recurringId: recurring.id, inherited: true });
       if (recurring.autoFinalize) await finalizeDocument(invoice.id).catch((error: unknown) => console.warn('Facture récurrente non validée.', error));
       issued += 1;
       next = nextIssueDate(rule, formatDay(recurring.startDate), addDays(next, 1));

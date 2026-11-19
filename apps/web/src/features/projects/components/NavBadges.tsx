@@ -9,11 +9,12 @@ import { useTaskContext } from '../../tasks/hooks/use-task-context';
 import { useRunningTimer } from '../../time/api';
 import { useTreasuryAccounts } from '../../treasury/api';
 import * as fmt from '../../../lib/format';
+import { LATE_COLOR } from '../../../components/feedback/feedback-colors';
 
 // Each badge is its own component: a running timer refreshes its badge every second, not the whole sidebar.
 
 /**
- * Number of my tasks of today, red when some are overdue.
+ * Number of my tasks of today, in the lateness colour when some are overdue.
  * @returns {JSX.Element | null} Badge.
  */
 export function TasksNavBadge() {
@@ -25,7 +26,7 @@ export function TasksNavBadge() {
       count={tasks.length}
       size="sm"
       variant={overdue ? 'filled' : 'light'}
-      color={overdue ? 'red' : 'blue'}
+      color={overdue ? LATE_COLOR : 'blue'}
       label={`${countOf(tasks.length, 'tâche')} aujourd’hui${overdue ? `, dont ${overdue} en retard` : ''}`}
     />
   );

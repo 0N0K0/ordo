@@ -1,7 +1,7 @@
 import { SubSection } from '../../../components/page/SubSection';
 import { ActionButton } from '../../../components/actions/ActionButton';
 import { EmptyState } from '../../../components/feedback/EmptyState';
-import { Anchor, Badge, Group, Select, Text } from '@mantine/core';
+import { Anchor, Group, Select, Text } from '@mantine/core';
 import { PlusIcon } from '@phosphor-icons/react';
 import { Link } from 'react-router';
 import { toastCallbacks } from '../../../lib/notify';
@@ -9,10 +9,11 @@ import type { Task } from '../../tasks/api';
 import { useShoppingLists, useShoppingMutations } from '../api';
 import { shoppingTotal } from '../lib/export';
 import { openNewList } from '../lib/open-new-list';
-import { shoppingProgress } from '../lib/shopping-format';
+
 import * as fmt from '../../../lib/format';
 import { shoppingListPath } from '../../../app/pages';
 import { unarchived } from '../../../lib/archive';
+import { ShoppingProgressBadge } from './ShoppingProgressBadge';
 
 /**
  * Shopping lists of a task: their progress and total, a new list (from the missing products of base lists),
@@ -43,17 +44,13 @@ export function TaskShopping({ task }: { task: Task }) {
         <EmptyState compact message="Aucune liste d’achats." />
       ) : (
         own.map((list) => {
-          // Its required items (the optional ones apart).
-          const { bought, total: required } = shoppingProgress(list.items);
           const total = shoppingTotal(list.items);
           return (
             <Group key={list.id} gap="xs" wrap="nowrap">
               <Anchor component={Link} to={shoppingListPath(list.id)} size="sm" truncate style={{ flex: 1 }}>
                 {list.label}
               </Anchor>
-              <Badge size="sm" variant="light" color={required && bought === required ? 'green' : 'gray'}>
-                {bought} / {required}
-              </Badge>
+              <ShoppingProgressBadge items={list.items} />
               {total > 0 && (
                 <Text size="xs" c="dimmed" ff="monospace">
                   {fmt.money(total)}

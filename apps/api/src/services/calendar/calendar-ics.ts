@@ -1,4 +1,4 @@
-import { addDays, fileName, formatDay, occurrenceDates, type Recurrence, ruleValues, weekdayOfDate, zonedInstant } from '@ordo/shared';
+import { addDays, dayOfMonthOf, fileName, formatDay, occurrenceDates, type Recurrence, ruleValues, weekdayOfDate, zonedInstant } from '@ordo/shared';
 import { prisma } from '../../db';
 import { orNotFound } from '../../graphql/errors';
 import { occurrenceInclude, readEventLinks, storedRecurrence, toOccurrence, type CalendarLink, type EventWithRelations } from './calendar-events';
@@ -83,7 +83,7 @@ function clampedDates(rule: Recurrence, start: string, until: string | null): st
   if (day <= 28 || rule.monthlyMode !== 'DAY' || (rule.frequency !== 'YEARLY' && rule.frequency !== 'MONTHLY')) return [];
   const horizon = addDays(start, 366 * HORIZON_YEARS);
   const pattern = { ...rule, count: null, until: null, exceptions: [], pauses: [] };
-  return occurrenceDates(pattern, start, start, until && until < horizon ? until : horizon).filter((date) => Number(date.slice(8, 10)) !== day);
+  return occurrenceDates(pattern, start, start, until && until < horizon ? until : horizon).filter((date) => dayOfMonthOf(date) !== day);
 }
 
 /**

@@ -1,4 +1,5 @@
 import { PAGES, routineHistoryPath } from '../../../app/pages';
+import { readOnlyCells } from '../../../components/data-table/table/data-table';
 import { usePageTab } from '../../../components/tabs/use-page-tab';
 import { scheduleChoices } from '../../calendar/lib/schedule-choices';
 import { useSetParams, useSearchParam } from '../../../lib/search-params';
@@ -169,7 +170,7 @@ export function RoutinesPanel({ projectId, projectIds }: { projectId?: string; p
     // Being created: nothing to change on it until it is saved (the server does not know it yet).
     const readOnly = routine.archived || isDraftRoutine(routine);
     return {
-      ...Object.fromEntries(columns.filter((column) => column.text).map((column) => [column.id, column.text!(routine)])),
+      ...readOnlyCells(columns, routine),
       label: (
         <Group gap={4} wrap="nowrap">
           <RoutineDoneToggles routine={routine} dateLabel={routine.currentDate ? fmt.weekday(routine.currentDate) : undefined} disabled={readOnly} />

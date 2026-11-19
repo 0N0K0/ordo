@@ -1,4 +1,4 @@
-import { lineageOf, mapById, placeSchema, type GeoPoint, type PlaceInput, type TravelMode } from '@ordo/shared';
+import { lineageOf, mapById, pathOf, placeSchema, type GeoPoint, type PlaceInput, type TravelMode } from '@ordo/shared';
 import { env } from '../../env';
 import { treeListService } from './trees';
 import { prisma } from '../../db';
@@ -175,7 +175,7 @@ export async function places(): Promise<PlaceView[]> {
         parentId: row.parentId,
         lat: located.lat!,
         lon: located.lon!,
-        path: chain.map((item) => item.label).join(' › '),
+        path: pathOf(byId, row.id, (item) => item.label),
         color: row.color,
         iconId: row.iconId,
         position: row.position,

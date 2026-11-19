@@ -1,4 +1,4 @@
-import { sumOf } from '@ordo/shared';
+import { agreed, sumOf } from '@ordo/shared';
 import { deleteItemsAction, rowLabel } from '../../../components/data-table/selection/selection-actions';
 import type { SelectionAction } from '../../../components/data-table/selection/SelectionBar';
 import { countWith } from '../../../lib/text';
@@ -29,7 +29,7 @@ export function deleteSheetsAction<S extends DeletedSheet>(rows: readonly S[], r
       const alone = one && sheets[0].items.length === 0;
       const items = alone ? '' : one ? ` et ${countWith(sheets[0].items.length, 'élément', ['son', 'ses'])}` : ' et leurs éléments';
       const users = usedBy === 1 ? 'de la routine, de l’évènement ou de la tâche qui' : `des ${usedBy} routines, évènements ou tâches qui`;
-      const used = usedBy ? `, et ${alone ? 'retirée' : 'retirés'} ${users} ${one ? 'l’' : 'les '}${usedBy === 1 ? 'a' : 'ont'}` : '';
+      const used = usedBy ? `, et ${agreed('retiré', alone, alone ? 1 : 2)} ${users} ${one ? 'l’' : 'les '}${usedBy === 1 ? 'a' : 'ont'}` : '';
       return `${subject}${items} ${alone ? 'sera supprimée' : 'seront supprimés'} définitivement${used}. Les listes d’achats et les listes à cocher déjà faites ${one ? 'la' : 'les'} gardent.`;
     },
     remove,

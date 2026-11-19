@@ -105,9 +105,12 @@ function isValidIban(iban: string): boolean {
   return remainder === 1;
 }
 
+/** Kinds of client: a company or a person. */
+export const CLIENT_KINDS = ['COMPANY', 'INDIVIDUAL'] as const;
+
 /** Client details used on accounting documents. */
 export const clientDetailsSchema = z.object({
-  kind: z.enum(['COMPANY', 'INDIVIDUAL']),
+  kind: z.enum(CLIENT_KINDS),
   firstName: optionalText(PERSON_NAME_MAX),
   lastName: optionalText(PERSON_NAME_MAX),
   address: addressSchema.nullable(),
@@ -188,6 +191,9 @@ export const companyProfileSchema = z.object({
   quoteValidityDays: z.number().int().min(1, 'Au moins 1 jour.').max(365, '365 maximum.'),
 });
 export type CompanyProfileInput = z.input<typeof companyProfileSchema>;
+
+/** States of a document of Ordo: draft, final (numbered) or model of a recurring invoice. */
+export const ACCOUNTING_DOCUMENT_STATUSES = ['DRAFT', 'FINAL', 'TEMPLATE'] as const;
 
 // eslint-disable-next-line no-restricted-syntax -- the types themselves.
 export const ACCOUNTING_DOCUMENT_TYPES = ['QUOTE', 'INVOICE', 'DEPOSIT_INVOICE', 'CREDIT_NOTE'] as const;

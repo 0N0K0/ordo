@@ -1,4 +1,5 @@
 import { IconAction } from '../../../components/actions/IconAction';
+import { DocumentBalanceBadge } from '../components/DocumentBalanceBadge';
 import { NO_TARGETS } from '../../../components/markdown/remark-references';
 
 import { DetailSkeleton } from '../../../components/feedback/Skeletons';
@@ -131,11 +132,7 @@ export function ImportedDocumentPage() {
                   readOnly={document.archived}
                   onSelect={(status) => chooseTrackingStatus(document, status, { setStatus, markSent })}
                 />
-                {document.type !== 'QUOTE' && (
-                  <Badge variant="light" color={document.balance ? 'orange' : 'green'}>
-                    {document.balance ? `Reste ${money(document.balance)}` : 'Réglé'}
-                  </Badge>
-                )}
+                {document.type !== 'QUOTE' && <DocumentBalanceBadge balance={document.balance} currency={document.currency} />}
               </Group>
             </SettingsSection>
             <SettingsSection title="Informations">

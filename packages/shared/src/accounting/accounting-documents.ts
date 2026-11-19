@@ -11,9 +11,11 @@ import { recurrenceSchema } from '../dates/recurrence';
 
 export const ACCOUNTING_UNITS = ['UNIT', 'HOUR', 'DAY', 'MONTH', 'FLAT', 'DEPOSIT'] as const;
 export type AccountingUnit = (typeof ACCOUNTING_UNITS)[number];
-const LINE_KINDS = ['ITEM', 'DISBURSEMENT', 'TEXT', 'DEDUCTION'] as const;
+/** Kinds of line of an accounting document. */
+export const LINE_KINDS = ['ITEM', 'DISBURSEMENT', 'TEXT', 'DEDUCTION'] as const;
 export type LineKind = (typeof LINE_KINDS)[number];
-const DISCOUNT_TYPES = ['PERCENT', 'AMOUNT'] as const;
+/** Kinds of discount (and of deposit): a percentage or an amount. */
+export const DISCOUNT_TYPES = ['PERCENT', 'AMOUNT'] as const;
 export type DiscountType = (typeof DISCOUNT_TYPES)[number];
 
 /** Usual French VAT rates. */

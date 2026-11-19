@@ -26,6 +26,8 @@ interface IconActionOwnProps {
   'aria-label'?: string;
   /** Number shown on its corner (how many things are attached), none at 0. Optional. */
   indicator?: number;
+  /** What it opens (a panel, a search) is open: light, and `aria-expanded`; closed: subtle. Optional. Default = not a toggle of an opening. */
+  expanded?: boolean;
   /** Type of the button (« submit » in a form). Optional. Default = « button ». */
   type?: 'button' | 'submit' | 'reset';
   /** Its icon. */
@@ -39,10 +41,17 @@ interface IconActionOwnProps {
  * @param {IconActionProps} props Component props (and those of the action icon).
  * @returns {JSX.Element} Button.
  */
-export function IconAction({ label, item, hint, 'aria-label': ariaLabel, indicator, children, variant = 'subtle', color, ...props }: IconActionProps) {
+export function IconAction({ label, item, hint, 'aria-label': ariaLabel, indicator, children, expanded, variant: given, color, ...props }: IconActionProps) {
+  const variant = expanded === undefined ? (given ?? 'subtle') : expanded ? 'light' : 'subtle';
   const button = (
     // eslint-disable-next-line no-restricted-syntax -- the one icon button with its tooltip.
-    <ActionIcon variant={variant} color={color ?? (variant === 'subtle' ? 'gray' : undefined)} aria-label={ariaLabel ?? (item ? `${label} « ${item} »` : label)} {...(props as object)}>
+    <ActionIcon
+      variant={variant}
+      color={color ?? (variant === 'subtle' ? 'gray' : undefined)}
+      aria-label={ariaLabel ?? (item ? `${label} « ${item} »` : label)}
+      aria-expanded={expanded}
+      {...(props as object)}
+    >
       {children}
     </ActionIcon>
   );

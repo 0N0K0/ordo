@@ -150,7 +150,7 @@ function timeColumns(context: TaskContext | null, comments: Map<string, number>,
           .filter((task) => task !== undefined)
           .map((task) => context?.taskLabel(task) ?? '')
           .join(', '),
-      filter: { kind: 'choices', value: (entry) => entry.taskIds, options: (context?.tasks ?? []).map((task) => ({ value: task.id, label: context?.taskLabel(task) ?? task.label })) },
+      filter: { kind: 'choices', value: (entry) => entry.taskIds, options: context?.taskOptions(context.tasks) ?? [] },
     },
     {
       id: 'event',

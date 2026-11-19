@@ -66,6 +66,7 @@ import { SignedAmount, SignedAmountCell } from '../../../components/money/Signed
 import { monthColumn } from '../../../components/data-table/table/month-column';
 import { useDeleteEntries } from '../hooks/use-delete-entries';
 import { LATE_COLOR } from '../../../components/feedback/feedback-colors';
+import { signedText } from '../../../components/money/signed-text';
 
 const FORECAST_KINDS: Record<string, { label: string; color: string }> = {
   FORECAST: { label: 'Prévision', color: 'grape' },
@@ -136,7 +137,7 @@ function forecastColumns(entryOf: (row: ForecastRow) => ForecastEntry | undefine
       numeric: true,
       sortValue: ({ item }) => item.amount,
       formatTotal: fmt.money,
-      text: ({ item }) => `${item.amount > 0 ? '+' : ''}${fmt.money(item.amount)}`,
+      text: ({ item }) => signedText(item.amount),
       filter: { kind: 'number', value: ({ item }) => item.amount },
     },
   ];
@@ -529,7 +530,7 @@ export function TreasuryPage() {
                       <Text size="sm">{fmt.day(item.date)}</Text>
                     )}
                     {item.overdue && (
-                      <Badge size="xs" color="red" variant="light">
+                      <Badge size="xs" color={LATE_COLOR} variant="light">
                         Prévu le {fmt.day(item.dueDate)}
                       </Badge>
                     )}

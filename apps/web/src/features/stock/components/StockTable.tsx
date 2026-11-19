@@ -116,7 +116,10 @@ export function StockTable() {
       filter: {
         kind: 'choices',
         value: (item) => rowPeopleKeys(item),
-        options: people.options.flatMap((group) => group.items).map((option) => (people.archived.has(option.value) ? { ...option, archived: true } : option)),
+        options: withArchived(
+          people.options.flatMap((group) => group.items),
+          people.archived,
+        ),
       },
       groupable: true,
     },
@@ -300,7 +303,7 @@ export function StockTable() {
             <EditableMultiSelect
               value={rowPeopleKeys(item)}
               label={cellLabelOf('people', item, 'Bénéficiaires')}
-              data={people.options}
+              data={people.optionsFor(item.relationIds)}
               readOnly={readOnly}
               onSave={(keys) =>
                 bulk('people')(item, (target) => {

@@ -72,6 +72,8 @@ import { useAsyncAction } from '../../../lib/use-async-action';
 import { HiddenChecklist } from '../components/HiddenChecklist';
 import { archivedIds, unarchived } from '../../../lib/archive';
 import { inWorkspace } from '../lib/layer-label';
+import { LATE_COLOR } from '../../../components/feedback/feedback-colors';
+import { taggedKey } from '../../../lib/tagged-key';
 
 type View = 'dayGridMonth' | 'timeGridWeek' | 'timeGridDay';
 
@@ -103,6 +105,9 @@ interface Filters {
 const SETTINGS_TABS = ['display', 'settings'] as const;
 
 const DEFAULT_COLOR = 'var(--mantine-primary-color-filled)';
+
+/** Border of an overdue task (decision DC: the lateness colour). */
+const LATE_BORDER = `var(--mantine-color-${LATE_COLOR}-6)`;
 /** Rows of the collapsed all-day row (week and day views). */
 const ALL_DAY_ROWS = 2;
 
@@ -267,7 +272,7 @@ export function CalendarPage() {
       const subscription = subscriptionOf.get(occurrence.calendarId);
       if (!subscription || hidden.has(occurrence.calendarId)) continue;
       result.push({
-        id: `subscribed:${occurrence.key}`,
+        id: taggedKey('subscribed', occurrence.key),
         title: occurrence.label,
         ...occurrenceSpan(occurrence),
         editable: false,
@@ -474,26 +479,26 @@ export function CalendarPage() {
         if (span) {
           result.push({
             ...look,
-            id: `task:${task.id}`,
+            id: taggedKey('task', task.id),
             title: label,
             start: span.start,
             end: addDays(span.end, 1),
             // Up to a date the task does not hold (today, its latest date): moving it moves its start only.
             durationEditable: span.kind === 'dates',
-            // Late and carried by its span (up to today): in red.
-            ...(overdue && !deadline ? { borderColor: 'var(--mantine-color-red-6)' } : {}),
+            // Late and carried by its span (up to today): in the lateness colour.
+            ...(overdue && !deadline ? { borderColor: LATE_BORDER } : {}),
             extendedProps: { kind: 'task', task, part: span.kind },
           });
         }
         if (deadline) {
           result.push({
             ...look,
-            id: `task-deadline:${task.id}`,
+            id: taggedKey('task-deadline', task.id),
             title: label,
             start: deadline,
             end: addDays(deadline, 1),
             durationEditable: false,
-            borderColor: overdue ? 'var(--mantine-color-red-6)' : color,
+            borderColor: overdue ? LATE_BORDER : color,
             classNames: [...look.classNames, classes.deadline],
             extendedProps: { kind: 'task', task, part: 'deadline' },
           });

@@ -3,10 +3,10 @@ import { z } from 'zod';
 import { prisma } from '../../db';
 import type { Client } from '../../generated/prisma/client';
 import { parseInput } from '../../graphql/errors';
-import { refuseArchived, isArchivedAs } from '../core/archive';
+import { isArchivedAs, findActive } from '../core/archive';
 import { deleteOrphanIcons, resolveIconUpdate, storeIcon } from '../core/icons';
 import { BY_POSITION, moveInList, nextPositionIn } from '../core/ordering';
-import { requirePro } from './workspaces';
+import { requirePro } from '../workspaces/workspaces';
 import { findOrNotFound } from '../core/lookup';
 
 /**
@@ -47,8 +47,7 @@ export async function createClient(input: { name: string; color?: string | null;
  * @returns {Promise<Client>} Updated client.
  */
 export async function updateClient(id: string, input: { name?: string | null; color?: string | null; icon?: File | null; removeIcon?: boolean | null }): Promise<Client> {
-  const client = await findClient(id);
-  refuseArchived(client);
+  const client = await findActive(prisma.client, id, 'Client');
   const { name, color } = parseInput(z.object({ name: personNameSchema.optional(), color: optionalColorSchema.optional() }), { name: input.name ?? undefined, color: input.color });
   const iconId = await resolveIconUpdate(client.iconId, input);
 

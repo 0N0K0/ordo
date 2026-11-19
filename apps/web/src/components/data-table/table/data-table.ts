@@ -2,6 +2,7 @@ import { mapById, sumOf } from '@ordo/shared';
 import type { ColumnLayout, TableSort } from '@ordo/shared';
 import { collator } from '../../../lib/text';
 import { archivedIds } from '../../../lib/archive';
+import { toggledInList } from '../../../lib/sets';
 import type { ReactNode } from 'react';
 
 /** Choice of a column filtered by its values. */
@@ -30,12 +31,13 @@ export interface ColumnChoice {
 /**
  * Choices of a column filter flagged archived after their items (settings items, sprints…): they keep their labels,
  * and the filter offers them only while they are in it.
- * @param {readonly ColumnChoice[]} options Choices, valued by item id.
- * @param {readonly { id: string, archived?: boolean | null }[]} items Items of the choices.
+ * @param {readonly ColumnChoice[]} options Choices, valued by item id (or by key).
+ * @param {readonly { id: string, archived?: boolean | null }[] | ReadonlySet<string>} items Items of the choices, or the values archived.
  * @returns {ColumnChoice[]} Choices.
  */
-export function withArchived(options: readonly ColumnChoice[], items: readonly { id: string; archived?: boolean | null }[]): ColumnChoice[] {
-  const archived = archivedIds(items);
+export function withArchived(options: readonly ColumnChoice[], items: readonly { id: string; archived?: boolean | null }[] | ReadonlySet<string>): ColumnChoice[] {
+  const archived = items instanceof Set ? items : archivedIds(items as readonly { id: string; archived?: boolean | null }[]);
+  // eslint-disable-next-line no-restricted-syntax -- withArchived itself.
   return options.map((option) => (archived.has(option.value) ? { ...option, archived: true } : option));
 }
 
@@ -186,7 +188,7 @@ export function withVisibility<R>(columns: readonly DataColumn<R>[], layout: Col
   return {
     ...layout,
     columnOrder: columnOrder(columns, layout),
-    hiddenColumns: visible ? hidden.filter((item) => item !== id) : [...new Set([...hidden, id])],
+    hiddenColumns: toggledInList(hidden, id, !visible),
   };
 }
 

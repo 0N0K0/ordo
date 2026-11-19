@@ -1,6 +1,7 @@
 import { formatOptionalDay, isInvoice, reminderMail, sendRemindersSchema } from '@ordo/shared';
 import { prisma } from '../../db';
 import { parseInput, userErrorMessage } from '../../graphql/errors';
+import { ARCHIVED_MESSAGE } from '../core/archive';
 import { documentPdf } from './accounting-pdf';
 import { getCompanyProfile } from './company';
 import { documentBalances } from './document-tracking';
@@ -50,7 +51,7 @@ export async function sendReminders(input: { accountId: string; documentIds: str
       continue;
     }
     if (document.archivedAt) {
-      result.error = 'Facture archivée.';
+      result.error = ARCHIVED_MESSAGE;
       continue;
     }
     if (balance <= 0) {

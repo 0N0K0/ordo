@@ -11,9 +11,10 @@ import * as searches from '../../services/mail/searches';
 import { sendMail } from '../../services/mail/sender';
 import { BY_POSITION } from '../../services/core/ordering';
 import { builder, type BuilderTypes, type InputFields } from '../builder';
-import { LabelColorInput, LabelColorPatch, labelMutations, labelObject } from '../label-inputs';
+import { labelMutations, labelObject } from '../label-inputs';
 import { reloaded } from '../reload';
 import { attachmentUrl } from '../../services/core/attachments';
+import { unchecked } from '../unchecked';
 
 labelObject('MailLabel', { description: 'Flag of mails (label, color).' });
 
@@ -488,11 +489,11 @@ builder.mutationFields((t) => {
     }),
     createMailSearch: t.id({
       args: { input: t.arg({ type: MailSearchInput, required: true }) },
-      resolve: async (_root, { input }) => (await searches.createSearch(input as never)).id,
+      resolve: async (_root, { input }) => (await searches.createSearch(unchecked(input))).id,
     }),
     updateMailSearch: t.boolean({
       args: { id: t.arg.id({ required: true }), input: t.arg({ type: MailSearchInput, required: true }) },
-      resolve: (_root, { id, input }) => done(searches.updateSearch(id, input as never)),
+      resolve: (_root, { id, input }) => done(searches.updateSearch(id, unchecked(input))),
     }),
     deleteMailSearch: t.boolean({
       args: { id: t.arg.id({ required: true }) },
@@ -528,10 +529,7 @@ builder.mutationFields((t) => {
         projectId: t.arg.id({ required: true }),
       },
       resolve: async (query, _root, { accountId, folder, uid, projectId }) =>
-        prisma.mailMessage.findUniqueOrThrow({
-          ...query,
-          where: { id: (await linked.linkMessage(accountId, folder, uid, projectId)).id },
-        }),
+        reloaded(prisma.mailMessage, query, linked.linkMessage(accountId, folder, uid, projectId)),
     }),
     unlinkMail: t.boolean({
       args: { id: t.arg.id({ required: true }) },
@@ -557,4 +555,4 @@ builder.mutationFields((t) => {
 });
 
 // Deleting a flag also takes it off the marks kept in Ordo.
-labelMutations('MailLabel', { ...organize.mailLabels, remove: organize.deleteLabel }, { create: LabelColorInput, update: LabelColorPatch });
+labelMutations('MailLabel', { ...organize.mailLabels, remove: organize.deleteLabel });

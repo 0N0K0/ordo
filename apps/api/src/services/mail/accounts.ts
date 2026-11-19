@@ -8,7 +8,7 @@ import { closeImap, createImapClient, rethrowImapError } from './imap';
 import { sanitizeMailHtml } from './sanitize';
 import { decryptSecret, encryptSecret } from './secret';
 import { findOrNotFound } from '../core/lookup';
-import { refuseArchived } from '../core/archive';
+import { findActive } from '../core/archive';
 
 /**
  * Rethrows an SMTP failure as a user error with its detail: « Envoi impossible (…). ».
@@ -50,10 +50,8 @@ export function findAccount(id: string): Promise<MailAccount> {
  * @param {string} id Account id.
  * @returns {Promise<MailAccount>} Account.
  */
-export async function findActiveAccount(id: string): Promise<MailAccount> {
-  const account = await findAccount(id);
-  refuseArchived(account);
-  return account;
+export function findActiveAccount(id: string): Promise<MailAccount> {
+  return findActive(prisma.mailAccount, id, 'Boîte mail');
 }
 
 /**

@@ -2,8 +2,7 @@ import { CreatableSelect } from '../../../components/inputs/CreatableSelect';
 import { useLocationSelect } from '../hooks/use-location-select';
 
 import { Autocomplete, Checkbox, SimpleGrid, Stack, Textarea } from '@mantine/core';
-import { PeopleSelect } from '../../../components/people/PeopleSelect';
-import { rowPeopleKeys, rowPeopleOf, usePeople } from '../../shopping/lib/shopping-format';
+import { PeopleField } from '../../shopping/components/PeopleField';
 import { DatePickerInput } from '@mantine/dates';
 import { newStockItemSchema, type NewStockItemInput } from '@ordo/shared';
 
@@ -29,7 +28,6 @@ export function StockItemForm({ locationId = null, onDone }: { locationId?: stri
   const { data } = useShoppingData();
   const locationSelect = useLocationSelect();
   const { createItem } = useStockMutations();
-  const people = usePeople();
   // The archived references, places and categories are not offered.
   const products = unarchived(data?.shoppingProducts ?? []);
   const byName = new Map(products.map((product) => [product.label, product]));
@@ -75,7 +73,7 @@ export function StockItemForm({ locationId = null, onDone }: { locationId?: stri
           <Checkbox mt="xl" label="Périssable" description="Par lots datés" {...form.getInputProps('perishable', { type: 'checkbox' })} />
         </SimpleGrid>
         {values.perishable && <DatePickerInput label="Date de péremption" placeholder="Aucune" clearable {...form.getInputProps('expiresAt')} />}
-        <PeopleSelect label="Bénéficiaires" placeholder="Personne en particulier" data={people.options} value={rowPeopleKeys(values)} onChange={(keys) => form.setValues(rowPeopleOf(keys))} />
+        <PeopleField form={form} label="Bénéficiaires" />
         <Textarea label="Description" autosize minRows={2} maxRows={6} value={values.note ?? ''} onChange={(event) => form.setFieldValue('note', event.currentTarget.value || null)} />
         <FormActions onCancel={onDone} submitLabel="Ajouter" loading={createItem.isPending} />
       </Stack>

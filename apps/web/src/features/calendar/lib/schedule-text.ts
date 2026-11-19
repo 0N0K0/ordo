@@ -11,11 +11,11 @@ import * as fmt from '../../../lib/format';
 export const schedulesTitle = (perso: boolean): string => (perso ? 'Plages' : 'Plages de travail');
 
 /**
- * Hours of a case in words: "toute la journée", "09:00–12:30, 14:00–18:00".
+ * Hours of a case in words: "journée entière", "09:00–12:30, 14:00–18:00".
  * @param {ScheduleTimes} times Hours.
  * @returns {string} Text.
  */
-export const describeScheduleTimes = (times: ScheduleTimes) => (times.allDay ? 'toute la journée' : times.ranges.map((range) => `${range.start}–${range.end}`).join(', '));
+export const describeScheduleTimes = (times: ScheduleTimes) => (times.allDay ? 'journée entière' : times.ranges.map((range) => `${range.start}–${range.end}`).join(', '));
 
 /** New hours: 9:00–17:00. */
 export const defaultScheduleTimes = (): ScheduleTimes => ({ allDay: false, ranges: [{ start: '09:00', end: '17:00' }] });

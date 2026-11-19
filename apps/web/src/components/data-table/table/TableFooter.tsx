@@ -114,7 +114,7 @@ export function TableFooter<R>({ shown, rows, totals, onChange, before, after }:
 export function GroupFooter<R>({ shown, rows, totals, before, after, label, trProps }: Omit<TableFooterProps<R>, 'onChange'> & { label: string; trProps?: Record<string, unknown> }) {
   if (!shown.some((column) => totals[column.id])) return null;
   return (
-    <Table.Tr {...trProps} bg="var(--mantine-color-default-hover)" aria-label={`Totaux de ${label}`}>
+    <Table.Tr {...trProps} bg="var(--mantine-color-default-hover)" aria-label={`Totaux de « ${label} »`}>
       {before > 0 && <Table.Td colSpan={before} />}
       {shown.map((column) => {
         const chosen = totals[column.id];

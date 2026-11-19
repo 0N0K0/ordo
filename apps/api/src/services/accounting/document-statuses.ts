@@ -3,7 +3,7 @@ import { prisma } from '../../db';
 import { Prisma, type AccountingDocumentType, type DocumentStatus } from '../../generated/prisma/client';
 import { clientError, fieldError, notFound, parseInput, rethrowUnique } from '../../graphql/errors';
 import { BY_POSITION, nextPositionIn } from '../core/ordering';
-import { firstActive, refuseArchived } from '../core/archive';
+import { firstActive, findActive } from '../core/archive';
 import { findOrNotFound } from '../core/lookup';
 
 type Client = Prisma.TransactionClient | typeof prisma;
@@ -136,8 +136,7 @@ export async function createDocumentStatus(input: { scope: DocumentStatusScope; 
  * @returns {Promise<DocumentStatus>} Status.
  */
 export async function updateDocumentStatus(id: string, input: { label?: string | null; color?: string | null; category?: DocumentStatusCategory | null }): Promise<DocumentStatus> {
-  const status = await findOrNotFound(prisma.documentStatus, id, 'Statut');
-  refuseArchived(status);
+  const status = await findActive(prisma.documentStatus, id, 'Statut');
   const data = parseInput(labelFormSchema.partial(), {
     label: input.label ?? undefined,
     color: input.color ?? undefined,

@@ -1,10 +1,9 @@
 import { PERIOD_STATES, periodState, type PeriodState } from '../../../lib/periods';
-import { itemChoices } from '../../../components/items/item-look';
+import { itemChoices, itemSelectProps, listSelectProps } from '../../../components/items/item-look';
 import { countOf, copyName } from '../../../lib/text';
 import { ActionButton } from '../../../components/actions/ActionButton';
 import { ItemAvatar } from '../../../components/items/ItemAvatar';
 import * as fmt from '../../../lib/format';
-import { listSelectProps } from '../../../components/items/item-look';
 import { EmptyState } from '../../../components/feedback/EmptyState';
 import { Badge, Group, Stack, Text, TextInput, Tooltip } from '@mantine/core';
 import {
@@ -24,7 +23,7 @@ import { bulkCellLabels, bulkSaver } from '../../../components/data-table/select
 import { EditableDate, EditableSelect, EditableText } from '../../../components/data-table/cells/EditableCells';
 import { useDataView } from '../../../components/data-table/views/use-data-view';
 import { RowActions } from '../../../components/data-table/cells/RowActions';
-import type { DataColumn } from '../../../components/data-table/table/data-table';
+import { type DataColumn, readOnlyCells } from '../../../components/data-table/table/data-table';
 import { localToday } from '../../../lib/dates';
 import { useAppForm, formCallbacks } from '../../../lib/form';
 import { notifyError, ON_ERROR } from '../../../lib/notify';
@@ -113,7 +112,7 @@ function ScheduleForm({ schedule, copyOf, onDone }: { schedule?: WorkSchedule; c
               clearable
               searchable
               onCreate={itemCreator('Nouveau type de plage', typeItems)}
-              {...listSelectProps(types ?? [], undefined, schedule?.typeId)}
+              {...itemSelectProps(types ?? [], form.values.typeId, undefined, schedule?.typeId)}
               {...form.getInputProps('typeId')}
             />
           </Group>
@@ -361,6 +360,7 @@ export function WorkSchedulesManager() {
             // Archived: read only.
             if (schedule.archived) {
               return {
+                ...readOnlyCells(columns, row),
                 label: (
                   <Group gap="xs" wrap="nowrap">
                     <Text size="sm" fw={600}>
@@ -375,8 +375,6 @@ export function WorkSchedulesManager() {
                     <Text size="sm">{typeLabel}</Text>
                   </Group>
                 ),
-                start: <Text size="sm">{fmt.day(schedule.startDate)}</Text>,
-                end: <Text size="sm">{schedule.endDate ? fmt.day(schedule.endDate) : 'Sans fin'}</Text>,
                 hours: <ScheduleHours schedule={schedule} />,
                 state: (
                   <Badge size="sm" variant="light" color={STATE_COLORS[rowState]}>

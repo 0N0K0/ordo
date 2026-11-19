@@ -22,6 +22,7 @@ import { FormActions } from '../../../components/dialogs/FormActions';
 import { dateRangeProps } from '../../../components/inputs/date-range';
 import { vatRateOptions } from '../lib/labels';
 import { unarchived } from '../../../lib/archive';
+import { FRENCH_NUMBER_FORMAT } from '../../../components/inputs/number-format';
 
 /**
  * What a time was spent on: its tasks, then its description.
@@ -219,7 +220,7 @@ export function TimeBillingForm({ projectId: initialProject, projects, excludeId
             min={1}
             max={24}
             decimalScale={2}
-            decimalSeparator=","
+            {...FRENCH_NUMBER_FORMAT}
             value={hoursPerDay}
             onChange={(value) => setHoursPerDay(typeof value === 'number' && value > 0 ? value : 7)}
           />

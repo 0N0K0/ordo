@@ -1,4 +1,4 @@
-import { parseOptionalDay, readSlotRule, sumOf } from '@ordo/shared';
+import { parseOptionalDay, readSlotRule, sumOf, TREE_PLACES } from '@ordo/shared';
 import { daysBetween, formatDay, parseDay, readOpens, type RoutineInput, type RoutineMoveTimes } from '@ordo/shared';
 import { prisma } from '../../db';
 import { clientError, done } from '../errors';
@@ -222,7 +222,7 @@ builder.prismaObject('Routine', {
   }),
 });
 
-const RoutinePlaceEnum = builder.enumType('RoutinePlace', { values: ['BEFORE', 'AFTER', 'INSIDE'] as const, description: 'Where a routine is dropped, relative to another one.' });
+const RoutinePlaceEnum = builder.enumType('RoutinePlace', { values: TREE_PLACES, description: 'Where a routine is dropped, relative to another one.' });
 
 const CategoryInput = builder.inputType('RoutineCategoryInput', {
   fields: (t) => ({ label: t.string({ required: true }), color: t.string(), parentId: t.id() }),
