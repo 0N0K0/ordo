@@ -1,5 +1,5 @@
 import { IconAction } from '../../actions/IconAction';
-import { Anchor, Checkbox, Popover, Group, NumberInput, Select, Text, TextInput, type ComboboxItem, type ComboboxLikeRenderOptionInput, type OptionsFilter } from '@mantine/core';
+import { Anchor, Checkbox, Popover, Group, NumberInput, Text, TextInput, type ComboboxItem, type ComboboxLikeRenderOptionInput, type OptionsFilter } from '@mantine/core';
 import { DatePickerInput, TimePicker } from '@mantine/dates';
 import { ArrowSquareOutIcon } from '@phosphor-icons/react';
 import type { ReactNode } from 'react';
@@ -10,6 +10,7 @@ import { currencySymbol } from '../../../lib/format';
 import { accepted, checked, stopClick, stoppedCellCombobox, stoppedCellField, useCellDraft, type CellSchema } from './cell-field';
 import { FRENCH_NUMBER_FORMAT } from '../../inputs/number-format';
 import { EXTERNAL_LINK } from '../../actions/link-props';
+import { CreatableSelect } from '../../inputs/CreatableSelect';
 
 interface EditableTextProps {
   value: string | null;
@@ -245,17 +246,20 @@ interface EditableSelectProps {
   /** Shown when the search finds nothing. Optional. */
   nothingFoundMessage?: string;
   readOnly?: boolean;
+  /** Creates a choice named as typed (a setting: category, context…), resolving its value: it is then saved. Optional. */
+  onCreate?: (label: string) => Promise<string | null | undefined>;
   onSave: (value: string | null) => void;
 }
 
 /**
- * Choice cell: one of a list (searched), saved once chosen.
+ * Choice cell: one of a list (searched), saved once chosen; with `onCreate`, what is typed can be created.
  * @param {EditableSelectProps} props Component props.
  * @returns {JSX.Element} Cell.
  */
-export function EditableSelect({ value, label, data, nullable = false, renderOption, filter, leftSection, placeholder = '—', nothingFoundMessage, readOnly = false, onSave }: EditableSelectProps) {
+export function EditableSelect({ value, label, data, nullable = false, renderOption, filter, leftSection, placeholder = '—', nothingFoundMessage, readOnly = false, onCreate, onSave }: EditableSelectProps) {
   return (
-    <Select
+    <CreatableSelect
+      onCreate={readOnly ? undefined : onCreate}
       {...stoppedCellCombobox}
       aria-label={label}
       placeholder={readOnly ? undefined : placeholder}

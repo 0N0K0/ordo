@@ -1,7 +1,8 @@
 import { useActiveWorkspace } from '../../workspaces/api';
 import { memberOrRelation, memberOrRelationKey, memberRelationOptions, parsePersonKey, personKey, ME_KEY } from '../../../components/people/people-keys';
 import { unarchived } from '../../../lib/archive';
-import { Checkbox, Text } from '@mantine/core';
+import { Checkbox, Group, Text } from '@mantine/core';
+import { TrashIcon, UsersThreeIcon } from '@phosphor-icons/react';
 import { itemChoices, itemSelectProps } from '../../../components/items/item-look';
 import { EVERYDAY_CONTEXT, splitAmounts, type TreasuryLineMode, fromCents, directionOf } from '@ordo/shared';
 import { DataTable } from '../../../components/data-table/table/DataTable';
@@ -14,10 +15,19 @@ import { categoryChoices, categoryOptions } from '../lib/categories';
 import { DocumentsCell, LinksCell, ProjectCell } from './entry-cells';
 import type { AnyEntry, EntryEnv, EntryUpdate } from '../lib/entry-env';
 import { applyDiff, bulkCellLabels, type BulkChange, bulkSaver } from '../../../components/data-table/selection/bulk-edit';
-import { entryValues } from '../lib/entry-values';
-import { categoryForDirection, linkKey, valueInMode, type LineValues } from '../lib/lines';
+import { entryValues, linesChange } from '../lib/entry-values';
+import { categoryForDirection, equalShares, linkKey, newSplitLine, plannedLineContext, valueInMode, type LineLink, type LineValues } from '../lib/lines';
 import { SignedAmount } from '../../../components/money/SignedAmount';
-import { meName, personName } from '../../../components/people/people-options';
+import { meName, personName, relationWords } from '../../../components/people/people-options';
+import { ActionButton } from '../../../components/actions/ActionButton';
+import { AddItemButton } from '../../../components/actions/AddItemButton';
+import { AddRowButton } from '../../../components/data-table/cells/AddRowField';
+import { RowActions } from '../../../components/data-table/cells/RowActions';
+import { confirmDestructive } from '../../../components/dialogs/confirm-destructive';
+import { EmptyState } from '../../../components/feedback/EmptyState';
+import { createInPanel } from '../../../components/settings/create-settings-item';
+import { useCategoryCreators } from '../hooks/use-settings-items';
+import { ContextForm, RelationForm } from './TeamPanel';
 import { signedText } from '../../../components/money/signed-text';
 import { taggedKey } from '../../../lib/tagged-key';
 
@@ -167,9 +177,9 @@ function lineColumns(env: EntryEnv): DataColumn<LineRow>[] {
 }
 
 /**
- * Lines of a split entry unfolded under it, as a table like every other (views, search, filters, sorts, groups,
- * columns, footer): each field changed in place saves the entry; what the lines leave (« Non réparti ») is told in
- * its toolbar.
+ * Split of an entry unfolded under it, as a table like every other (views, search, filters, sorts, groups, columns,
+ * footer): its lines are added, changed in place and removed here, each change saving the entry; what the lines leave
+ * (« Non réparti ») is told in its toolbar. An entry that is not split yet shows how to start.
  * @param {{ entry: AnyEntry, env: EntryEnv, save: EntryUpdate }} props Component props.
  * @returns {JSX.Element} Table.
  */
@@ -180,6 +190,64 @@ export function EntryLinesTable({ entry, env, save }: { entry: AnyEntry; env: En
   const { perso } = useActiveWorkspace();
   const rows: LineRow[] = values.lines.map((line, index) => ({ index, line, amount: fromCents(amounts[index]), documents: entry.lines[index]?.documents ?? [] }));
   const view = useDataView({ tableKey: 'treasury-entry-lines', getKey: lineKey, columns: lineColumns(env), rows, title: `Répartition de ${entry.label}` });
+  const members = env.settings?.treasuryMembers ?? [];
+  const createCategory = useCategoryCreators(env.settings?.treasuryCategories ?? []);
+  // What is left to split, in the direction of the entry (cents): what a new line takes.
+  const left = remainder * sign;
+
+  /**
+   * Replaces the lines of the entry (its first lines split it: see `linesChange`).
+   * @param {LineValues[]} lines New lines.
+   * @returns {void}
+   */
+  const setLines = (lines: LineValues[]) => {
+    const linked: LineLink[] = entry.linkedEntries.map((item) => ({ kind: 'entry', id: item.id, entryLabel: item.label, date: item.date, label: null, amount: item.amount }));
+    save(entry, linesChange(values, lines, linked));
+  };
+
+  /**
+   * Adds a line: what is not split yet, for me, in the context planned that day.
+   * @returns {void}
+   */
+  const addLine = () =>
+    setLines([...values.lines, newSplitLine({ value: fromCents(left), memberId: members.find((member) => member.isMe)?.id ?? null, contextId: plannedLineContext(env.settings, entry.date) })]);
+
+  /**
+   * Removes a line, once confirmed: its amount is not split any more, its documents and links go with it.
+   * @param {LineRow} row Line.
+   * @returns {void}
+   */
+  const removeLine = (row: LineRow) =>
+    confirmDestructive({
+      title: 'Retirer la ligne',
+      risks: `${row.line.label ? `La ligne « ${row.line.label} »` : `La ligne ${row.index + 1}`} est retirée de la répartition de « ${entry.label} » : son montant redevient non réparti, ses pièces justificatives et ses liens sont détachés.`,
+      confirmLabel: 'Retirer',
+      onConfirm: () => setLines(values.lines.filter((_, position) => position !== row.index)),
+    });
+
+  /**
+   * Replaces the lines by an equal share for every member (confirmed when lines are replaced).
+   * @returns {void}
+   */
+  const splitEqually = () => {
+    const shares = () => setLines(equalShares(members, plannedLineContext(env.settings, entry.date)));
+    if (values.lines.length === 0) return shares();
+    confirmDestructive({
+      title: 'Répartir à parts égales',
+      risks: `Les lignes de la répartition de « ${entry.label} » sont remplacées par une ligne par membre : leurs catégories, pièces justificatives et liens sont perdus.`,
+      confirmLabel: 'Remplacer',
+      confirmIcon: <UsersThreeIcon aria-hidden />,
+      onConfirm: shares,
+    });
+  };
+
+  // A line takes what is left: nothing left, nothing to add (a line of no value is refused).
+  const addHint = left > 0 ? undefined : 'Tout le montant est réparti : réduisez une ligne pour en ajouter une.';
+  const equalSharesButton = members.length > 1 && (
+    <ActionButton priority="tertiary" icon={<UsersThreeIcon aria-hidden />} onClick={splitEqually}>
+      Parts égales entre les membres
+    </ActionButton>
+  );
   const categories = env.settings?.treasuryCategories ?? [];
 
   /**
@@ -210,17 +278,42 @@ export function EntryLinesTable({ entry, env, save }: { entry: AnyEntry; env: En
       verticalSpacing={4}
       bar={{
         searchLabel: 'Rechercher (libellé, bénéficiaire, catégorie)',
-        tools:
-          remainder !== 0 ? (
-            <Text size="sm" c="dimmed">
-              Non réparti :{' '}
-              <Text span inherit fw={600} ff="monospace" c="var(--mantine-color-text)">
-                {fmt.moneyCents(remainder)}
+        tools: (
+          <>
+            {equalSharesButton}
+            {remainder !== 0 && (
+              <Text size="sm" c="dimmed">
+                Non réparti :{' '}
+                <Text span inherit fw={600} ff="monospace" c="var(--mantine-color-text)">
+                  {fmt.moneyCents(remainder)}
+                </Text>
               </Text>
-            </Text>
-          ) : undefined,
+            )}
+          </>
+        ),
       }}
       getKey={lineKey}
+      empty={
+        <EmptyState
+          compact
+          message="Ce mouvement n’est pas réparti. Répartissez-le par membre, catégorie et contexte, en euros ou en pourcentage : une valeur positive va dans son sens, une négative en sens inverse (remboursement inclus dans un achat…). Ce qui reste est « non réparti »."
+          action={
+            <Group gap="xs">
+              <AddItemButton onClick={addLine} disabled={left <= 0}>
+                Ajouter une ligne
+              </AddItemButton>
+              {equalSharesButton}
+            </Group>
+          }
+        />
+      }
+      addRow={(group) => (group === null ? <AddRowButton label="Ajouter une ligne" onClick={addLine} disabled={left <= 0} title={addHint} /> : null)}
+      actions={(row) => (
+        <RowActions
+          name={row.line.label ?? `Ligne ${row.index + 1}`}
+          items={[{ label: 'Retirer', icon: <TrashIcon aria-hidden />, danger: true, onClick: () => removeLine(row) }]}
+        />
+      )}
       cells={(row) => {
         const { line, index } = row;
         const name = line.label ? `« ${line.label} »` : `la ligne ${index + 1}`;
@@ -232,6 +325,10 @@ export function EntryLinesTable({ entry, env, save }: { entry: AnyEntry; env: En
               label={cellLabelOf('whom', row, 'Bénéficiaire')}
               nullable
               data={memberRelationOptions(env.settings?.treasuryMembers ?? [], unarchived(env.settings?.treasuryRelations ?? [], line.relationId), { perso, withMe: false })}
+              onCreate={async (relationName) => {
+                const id = await createInPanel(relationWords(perso).new, (done) => <RelationForm name={relationName} onDone={done} />);
+                return id && memberOrRelationKey({ relationId: id });
+              }}
               // A loan is with a relation only.
               onSave={(key) =>
                 saveLine('whom', row, (target) => ({
@@ -248,6 +345,7 @@ export function EntryLinesTable({ entry, env, save }: { entry: AnyEntry; env: En
               nullable
               // A line going the other way (a refund in a purchase…) takes a category of that way.
               {...treeSelectProps(categoryOptions(categories, directionOf(row.amount), undefined, line.categoryId))}
+              onCreate={createCategory[directionOf(row.amount)]}
               // A category of money out goes to the lines of money out only (and in to in).
               onSave={(categoryId) => saveLine('category', row, (target) => (categoryId && !categoryForDirection(categories, categoryId, directionOf(target.amount)) ? {} : { categoryId }))}
             />
@@ -258,6 +356,7 @@ export function EntryLinesTable({ entry, env, save }: { entry: AnyEntry; env: En
               label={cellLabelOf('context', row, 'Contexte')}
               nullable
               {...itemSelectProps(env.settings?.treasuryContexts ?? [], line.contextId)}
+              onCreate={(contextLabel) => createInPanel('Nouveau contexte', (done) => <ContextForm label={contextLabel} onDone={done} />)}
               onSave={(contextId) => saveLine('context', row, { contextId })}
             />
           ),
@@ -286,7 +385,8 @@ export function EntryLinesTable({ entry, env, save }: { entry: AnyEntry; env: En
               label={cellLabelOf('value', row, 'Valeur')}
               suffix={line.mode === 'PERCENT' ? '%' : undefined}
               signed
-              onSave={(value) => value !== null && saveLine('value', row, { value })}
+              // A line that changes direction loses a category of the other direction.
+              onSave={(value) => value !== null && saveLine('value', row, (target) => ({ value, categoryId: categoryForDirection(categories, target.line.categoryId, directionOf(value * sign)) }))}
             />
           ),
           amount: <SignedAmount value={row.amount} />,
