@@ -1,5 +1,5 @@
 import { unarchived } from '../../../lib/archive';
-import { mapById, ROUTINE_LABEL_MAX } from '@ordo/shared';
+import { mapById } from '@ordo/shared';
 import { ArrowBendUpRightIcon, ArrowCounterClockwiseIcon, CheckCircleIcon } from '@phosphor-icons/react';
 
 import type { SelectionAction } from '../../../components/data-table/selection/SelectionBar';
@@ -71,7 +71,7 @@ export function useRoutineRowsActions() {
           ),
           {
             duplicate: async (routine) => {
-              const copyId = await create.mutateAsync({ ...routineInputOf(routine), label: copyName(routine.label, ROUTINE_LABEL_MAX) });
+              const copyId = await create.mutateAsync({ ...routineInputOf(routine), label: copyName(routine.label) });
               if ((data?.routines ?? []).some((item) => item.parentId === routine.id)) await copySubRoutines.mutateAsync({ fromId: routine.id, toId: copyId });
             },
             done: `${activeLabel} ${plural(activeIds.length, 'dupliquée')}.`,

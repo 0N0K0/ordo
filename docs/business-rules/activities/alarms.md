@@ -12,8 +12,8 @@ Supprimer le projet ou la tâche supprime ses alarmes (`onDelete: Cascade`).
 
 | Champ        | Règle                                                           | Message                                                                   |
 | ------------ | --------------------------------------------------------------- | ------------------------------------------------------------------------- |
-| `label`      | Requis, 200 caractères (`ALARM_LABEL_MAX`)                      | « Le libellé est requis. », « 200 caractères maximum. »                   |
-| `note`       | 4 000 caractères ; vide → null                                  | « 4 000 caractères maximum. »                                             |
+| `label`      | Requis, 250 caractères (`TEXT_MAX`, décision DO)                | « Le libellé est requis. », « 250 caractères maximum. »                   |
+| `note`       | Texte multiligne, 4 000 caractères ; vide → null                | « 4 000 caractères maximum. »                                             |
 | `interval`   | Entier 1 à 365                                                  | « Au moins 1. », « 365 maximum. »                                         |
 | `weekdays`   | 0 à 7 valeurs de 1 (lundi) à 7                                  | —                                                                         |
 | `recurrence` | Règle commune ou null (voir [Dates](../cross-cutting/dates.md)) | —                                                                         |

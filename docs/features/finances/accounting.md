@@ -251,7 +251,7 @@ Panneaux :
 - « Envoi » : « Moyen d’envoi » (« Mail », « Chorus Pro », « Courrier », « En main propre », « Autre » ; Chorus Pro par défaut), « Date d’envoi » (pas dans le futur ; « Les relances comptent à partir de cette date. ») ; toast « Envoi noté. ».
 - « Acceptation du devis » : « Date d’acceptation » (obligatoire), « Devis signé » (PDF ou image, remplace le précédent) ; toast « Devis accepté. ».
 - « Paiement » / « Remboursement » : « Compte » (comptes de trésorerie non archivés), « Date », « Montant » (le reste dû), « Moyen de paiement » (le premier cité dans les modes de règlement du document) ; sans compte : « Créez d’abord un compte dans la trésorerie. » ; toast « Paiement enregistré. » / « Remboursement enregistré. ». Le paiement crée un mouvement réel en [Trésorerie](treasury.md).
-- « Noter une relance » : « Note » (« Appel, courrier… », 500 caractères) ; toast « Relance notée. ».
+- « Noter une relance » : « Note » (zone de texte multiligne, « Appel, courrier… », 4 000 caractères) ; toast « Relance notée. ».
 
 ## Envoi par mail
 
@@ -354,7 +354,7 @@ La fiche client montre aussi le tableau « Documents comptables » du client et 
 ## Projets
 
 - Onglet facturation : tableau « Documents comptables » du projet et « Nouveau document » (désactivé sans client : « Rattachez le projet à un client pour lui établir des documents. »).
-- Onglet ressources : fichiers et liens du projet (« Ajouter des fichiers », « Ajouter un lien » avec « Libellé », « Adresse », « Note »), monter / descendre, « Modifier », « Supprimer » ; « Aucun document ni lien. ».
+- Onglet ressources : fichiers et liens du projet (« Ajouter des fichiers », « Ajouter un lien » avec « Libellé », « Adresse », « Note » multiligne de 4 000 caractères), monter / descendre, « Modifier », « Supprimer » ; « Aucun document ni lien. ».
 
 ## Ailleurs dans l’application
 

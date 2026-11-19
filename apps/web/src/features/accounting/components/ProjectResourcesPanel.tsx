@@ -6,7 +6,7 @@ import { EmptyState } from '../../../components/feedback/EmptyState';
 import { ListSkeleton } from '../../../components/feedback/Skeletons';
 import { confirmDestructive } from '../../../components/dialogs/confirm-destructive';
 import { openFormPanel } from '../../../components/panels/panels';
-import { Anchor, FileButton, Group, Paper, Stack, Text, TextInput, ThemeIcon } from '@mantine/core';
+import { Anchor, FileButton, Group, Paper, Stack, Text, Textarea, TextInput, ThemeIcon } from '@mantine/core';
 import { FigmaLogoIcon, FileIcon, GithubLogoIcon, GitlabLogoIcon, LinkIcon, PaperclipIcon, PencilSimpleIcon, TrashIcon, UploadSimpleIcon } from '@phosphor-icons/react';
 import { type ReactNode } from 'react';
 import { ON_ERROR, toastCallbacks } from '../../../lib/notify';
@@ -55,7 +55,7 @@ function ResourceForm({ projectId, resource, onDone }: { projectId: string; reso
       <Stack gap="md">
         <TextInput label="Libellé" required data-autofocus placeholder="Maquettes Figma, dépôt GitHub…" {...form.getInputProps('label')} />
         {isLink && <TextInput label="Adresse" required placeholder="https://…" {...form.getInputProps('url')} />}
-        <TextInput label="Note" {...form.getInputProps('note')} />
+        <Textarea label="Note" autosize minRows={2} {...form.getInputProps('note')} />
         <FormActions onCancel={onDone} submitLabel={resource ? 'Enregistrer' : 'Ajouter'} loading={addLink.isPending || update.isPending} />
       </Stack>
     </form>

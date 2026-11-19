@@ -112,7 +112,7 @@ Ouverts dans le panneau latéral (création, « Modifier ») ou dans le panneau 
 
 | Champ   | Détail                                      |
 | ------- | ------------------------------------------- |
-| « Nom » | requis, 100 caractères                      |
+| « Nom » | requis, 250 caractères                      |
 | Couleur | facultative (« Aucune »)                    |
 | Icône   | image facultative (logo, affiché en entier) |
 
@@ -122,14 +122,14 @@ Bouton « Créer le client » ou « Enregistrer » ; toasts « Client créé. »
 
 | Champ              | Détail                                                                                                                               |
 | ------------------ | ------------------------------------------------------------------------------------------------------------------------------------ |
-| « Libellé »        | requis, 120 caractères                                                                                                               |
+| « Libellé »        | requis, 250 caractères                                                                                                               |
 | « Projet parent »  | facultatif (« Aucun (projet racine) ») ; propose les projets actifs hors de son propre sous-arbre et laissant la place à ses niveaux |
 | « Client »         | PRO seulement, facultatif (« Sans client ») ; désactivé et « Hérité du projet parent. » quand un parent est choisi                   |
 | « Statut »         | facultatif (« Aucun »), avec création à la volée                                                                                     |
 | Couleur            | facultative                                                                                                                          |
 | « Catégories »     | plusieurs, avec création à la volée                                                                                                  |
 | « Début », « Fin » | dates facultatives ; la fin doit suivre le début                                                                                     |
-| « Description »    | Markdown, 5000 caractères                                                                                                            |
+| « Description »    | Markdown, 65 536 caractères                                                                                                          |
 | Icône              | image facultative                                                                                                                    |
 
 Défauts à la création : le client ou le parent d’où l’action est lancée. Bouton « Créer le projet » ou « Enregistrer » ; toasts « Projet créé. » / « Projet modifié. ».

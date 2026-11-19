@@ -43,7 +43,7 @@ En-tête « Achats », paramètres dans la barre latérale (« Paramètres des a
 - Onglets réordonnés par glisser-déposer (ordre enregistré comme les listes de paramètres).
 - Menu de chaque onglet : « Modifier » (sauf archivée), « Archiver » / « Restaurer », « Supprimer ». Bouton « + » : « Nouvelle référence ».
 - Interrupteur « Afficher les archivées » : les références archivées sont masquées par défaut ; affichées, elles sont en lecture seule.
-- Formulaire de référence (panneau latéral « Nouvelle référence » / « Modifier la référence ») : libellé (requis, 80 caractères), image et couleur facultative (formulaire commun des paramètres). Une référence créée est sélectionnée à la fermeture.
+- Formulaire de référence (panneau latéral « Nouvelle référence » / « Modifier la référence ») : libellé (requis, 250 caractères), image et couleur facultative (formulaire commun des paramètres). Une référence créée est sélectionnée à la fermeture.
 - Suppression : confirmation « Supprimer la référence » : « « X » sera supprimée définitivement, avec N produits et leur historique d'achat. Les listes déjà faites gardent leurs éléments. » Toast « Référence supprimée. ».
 - Aucune référence : état vide « Aucune référence : créez-en une par sorte d'achats (alimentation, fournitures scolaires, vêtements des enfants…), puis cochez ce qui manque pour générer une liste. » avec « Nouvelle référence ».
 
@@ -72,7 +72,7 @@ Panneau latéral « Nouveau produit » / « Modifier le produit » / « Élémen
 
 | Champ                    | Règle                                                                                                           |
 | ------------------------ | --------------------------------------------------------------------------------------------------------------- |
-| « Label »                | Requis, 120 caractères.                                                                                         |
+| « Label »                | Requis, 250 caractères.                                                                                         |
 | « Référence »            | Produit seulement, requis (« La liste type est requise. »).                                                     |
 | « Catégorie »            | Arbre des catégories (celles de la référence pour un produit) ; taper un nom absent crée la catégorie.          |
 | « Magasin »              | Facultatif ; taper un nom absent crée le magasin.                                                               |
@@ -82,7 +82,7 @@ Panneau latéral « Nouveau produit » / « Modifier le produit » / « Élémen
 | « Périssable »           | Case ; cochée, affiche « Mode de conservation » (créable) et « Date de péremption ».                            |
 | « Bénéficiaires »        | Contributeurs et relations ; sert à la répartition d'un mouvement de trésorerie qui paie la liste.              |
 | « Lien vers le produit » | URL http ou https.                                                                                              |
-| « Description »          | Markdown, 500 caractères.                                                                                       |
+| « Description »          | Markdown, 65 536 caractères.                                                                                    |
 | « Manque »               | Produit seulement ; coché par défaut pour un nouveau produit (« Il sera mis sur la prochaine liste générée. »). |
 
 Un élément venu de fiches affiche « Vient de la fiche … » avec leur part. Les commentaires du produit ou de l'élément s'affichent sous le formulaire. Toasts « Ajouté. » / « Modifié. ».
@@ -107,7 +107,7 @@ Table des listes (`ListsPanel`) :
 
 Panneau « Nouvelle liste » (`NewListForm`) :
 
-- « Libellé » (requis, 120 caractères ; proposé « Achats du … » ou « Consommables du … »).
+- « Libellé » (requis, 250 caractères ; proposé « Achats du … » ou « Consommables du … »).
 - « Tâches » (multi-sélection des tâches ouvertes ; requis depuis un projet : « Choisissez une tâche du projet : la liste y apparaît par ses tâches. »).
 - « Reprendre les produits manquants de » : une case par référence non archivée, « X (N manquants) », désactivée sans manquant.
 - « D'autres produits des références pourront être ajoutés ensuite. »
@@ -196,7 +196,7 @@ Panneau « Commande à distance » (`OrderPanel`) :
 - « Lieu de livraison » : recherche d'adresse ou de lieu enregistré ; enregistré quand une adresse proposée est choisie ou quand le texte est vidé.
 - Section « Livraisons » : « Ajouter une livraison » ; vide : « Aucune livraison : ajoutez-en une par colis (ou par retrait). ».
 - Chaque livraison : nom (ou « Retrait » / « Livraison »), badges « à retirer », « réceptionnée le … », fenêtre, adresse, nombre d'éléments, lien « Suivi » ; actions « Réceptionnée (ses éléments achetés) » / « Pas encore réceptionnée », « Modifier », « Supprimer » (confirmation : « La livraison sera supprimée ; ses éléments restent sur la liste, sans livraison. »).
-- Formulaire d'une livraison (« Nouvelle livraison » / « Modifier la livraison ») : « Libellé » (« Colis 1, Drive, Pharmacie… », 120 caractères), « Suivi de livraison » (URL), « À retirer », dates « Attendue à partir du » / « Au plus tard le » (ou « À retirer à partir du » / « Jusqu'au »), « Lieu de livraison » ou « Lieu de retrait » (vide : celui de la commande), « Éléments de la livraison » (par défaut, pour une nouvelle livraison, les éléments sans livraison). Toasts « Livraison ajoutée. » / « Livraison modifiée. ». Voir la remarque sur les dates dans [Code web des achats](../../web/features/supplies/shopping.md#componentsorderpaneltsx).
+- Formulaire d'une livraison (« Nouvelle livraison » / « Modifier la livraison ») : « Libellé » (« Colis 1, Drive, Pharmacie… », 250 caractères), « Suivi de livraison » (URL), « À retirer », dates « Attendue à partir du » / « Au plus tard le » (ou « À retirer à partir du » / « Jusqu'au »), « Lieu de livraison » ou « Lieu de retrait » (vide : celui de la commande), « Éléments de la livraison » (par défaut, pour une nouvelle livraison, les éléments sans livraison). Toasts « Livraison ajoutée. » / « Livraison modifiée. ». Voir la remarque sur les dates dans [Code web des achats](../../web/features/supplies/shopping.md#componentsorderpaneltsx).
 
 ## Paramètres des achats
 

@@ -2,7 +2,7 @@ import { dayInMonth, daysInMonth } from '../dates/months';
 import { minutesToTime, timeToMinutes } from '../dates/times';
 import { slotRuleSchema } from '../calendar/slot-rules';
 import { z } from 'zod';
-import { endAfter, requiredText } from '../core/rules';
+import { endAfter, markdownSchema, optionalText, requiredText } from '../core/rules';
 import { locatedFields } from '../core/geo';
 import { addDays, daysBetween, weekdayOfDate, monthOfYear, yearOfDay } from '../dates/days';
 import { occurrenceDates, recurrenceSchema, type Recurrence, type Span } from '../dates/recurrence';
@@ -13,7 +13,7 @@ import { optionalColorSchema } from '../core/workspace';
 
 /** Category of routines, in a tree. */
 export const routineCategorySchema = z.object({
-  label: requiredText(100),
+  label: requiredText(),
   color: optionalColorSchema,
   parentId: z.string().nullable(),
 });
@@ -110,18 +110,11 @@ export const routineCaseSchema = z
 export type RoutineCase = z.infer<typeof routineCaseSchema>;
 export type RoutineCaseInput = z.input<typeof routineCaseSchema>;
 
-/** Longest label of a routine. */
-export const ROUTINE_LABEL_MAX = 200;
-
 /** Routine fields, as saved. */
 export const routineSchema = z
   .object({
-    label: requiredText(ROUTINE_LABEL_MAX),
-    description: z
-      .string()
-      .max(4000, '4 000 caractères maximum.')
-      .transform((value) => (value.trim() ? value.trim() : null))
-      .nullable(),
+    label: requiredText(),
+    description: markdownSchema,
     /** Categories it is shown in. */
     categoryIds: z.array(z.string()).max(100),
     parentId: z.string().nullable(),
@@ -161,13 +154,7 @@ export const routineSchema = z
       .max(10, '10 rappels maximum.')
       .default([]),
     /** Where it is done: free text, and its point when chosen from the map or a search. */
-    location: z
-      .string()
-      .trim()
-      .max(500, '500 caractères maximum.')
-      .transform((value) => value || null)
-      .nullable()
-      .default(null),
+    location: optionalText().default(null),
     /** Point of the place, and travel time to it and back from it, in minutes. */
     ...locatedFields,
     projectId: z.string().nullable(),

@@ -11,7 +11,7 @@ import { SettingsList } from '../../../components/settings/SettingsList';
 import { EmptyState } from '../../../components/feedback/EmptyState';
 import { confirmDestructive } from '../../../components/dialogs/confirm-destructive';
 
-import { Badge, Group, Select, SimpleGrid, Stack, Table, Text, TextInput } from '@mantine/core';
+import { Badge, Group, Select, SimpleGrid, Stack, Table, Text, Textarea, TextInput } from '@mantine/core';
 import { DatePickerInput } from '@mantine/dates';
 import { mapById, EVERYDAY_CONTEXT, treasuryContextPeriodSchema, treasuryContextSchema, treasuryRelationSchema, agreed } from '@ordo/shared';
 import { CalendarBlankIcon, PencilSimpleIcon, PlusIcon, TrashIcon, UserMinusIcon } from '@phosphor-icons/react';
@@ -391,7 +391,7 @@ export function RelationForm({ relation, name = '', onDone }: { relation?: Treas
             form.setValues({ contributorId, ...(chosen && !form.values.name.trim() ? { name: chosen.name } : {}) });
           }}
         />
-        <TextInput label="Description" placeholder="Facultative" {...form.getInputProps('note')} value={form.values.note ?? ''} />
+        <Textarea label="Description" placeholder="Facultative" autosize minRows={2} {...form.getInputProps('note')} value={form.values.note ?? ''} />
         <FormActions onCancel={() => onDone()} loading={saveRelation.isPending} />
       </Stack>
     </form>

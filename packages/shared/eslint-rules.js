@@ -1,8 +1,33 @@
 // Guards of the shared bricks for the code that is not the web app (packages/shared, apps/api): each pattern below
 // has a brick in @ordo/shared or in the API; the message names it. The web has its own list (apps/web/eslint.config.js).
 
+/** Sizes of the texts (decision DO): one maximum per kind of text, from @ordo/shared; for the shared code, the API and the web. */
+export const TEXT_SIZE_RULES = [
+  {
+    // z.string().max(300), z.string().trim().min(1).max(60): a length written by hand.
+    selector:
+      "CallExpression[callee.property.name='max'][arguments.0.type='Literal']:matches([callee.object.callee.object.name='z'][callee.object.callee.property.name='string'], [callee.object.callee.object.callee.object.name='z'][callee.object.callee.object.callee.property.name='string'], [callee.object.callee.object.callee.object.callee.object.name='z'][callee.object.callee.object.callee.object.callee.property.name='string'], [callee.object.callee.object.callee.object.callee.object.callee.object.name='z'][callee.object.callee.object.callee.object.callee.object.callee.property.name='string'])",
+    message:
+      'Utiliser requiredText / optionalText / shortTextSchema (250), plainTextSchema / optionalPlainText (4 000) ou markdownSchema / markdownTextSchema (65 536) (@ordo/shared, décision DO) ; un champ à format nomme sa constante.',
+  },
+  {
+    selector: "CallExpression[callee.name='optionalText'][arguments.0.type='Literal']",
+    message: 'Utiliser optionalText() (250, décision DO) ; seul un champ à format passe sa constante nommée.',
+  },
+  {
+    selector: "Literal[value=/^[0-9][0-9 ]* caractères maximum\\.$/], Literal[value='Texte trop long.']",
+    message: 'Utiliser TEXT_TOO_LONG / PLAIN_TEXT_TOO_LONG / MARKDOWN_TOO_LONG ou les schémas de texte (@ordo/shared, décision DO) : un message par taille.',
+  },
+  {
+    // <TextInput maxLength={250} />
+    selector: "JSXAttribute[name.name='maxLength']:matches([value.type='Literal'], [value.expression.type='Literal'])",
+    message: 'Utiliser TEXT_MAX, PLAIN_TEXT_MAX ou MARKDOWN_MAX (@ordo/shared, décision DO) pour maxLength.',
+  },
+];
+
 /** Patterns of @ordo/shared, for the shared code and the API. */
 export const SHARED_SYNTAX_RULES = [
+  ...TEXT_SIZE_RULES,
   // Dates, numbers and amounts: one format per role.
   {
     selector: "NewExpression[callee.object.name='Intl'][callee.property.name=/^(DateTimeFormat|NumberFormat|RelativeTimeFormat)$/][arguments.length>0]",
@@ -77,8 +102,8 @@ export const SHARED_SYNTAX_RULES = [
   },
   // A person's name: one schema, one maximum (decision BB).
   {
-    selector: "CallExpression[callee.name='requiredText'][arguments.1.name='PERSON_NAME_REQUIRED']",
-    message: 'Utiliser personNameSchema (@ordo/shared) : 100 caractères au plus pour tout nom de personne.',
+    selector: "CallExpression[callee.name='requiredText'][arguments.0.name='PERSON_NAME_REQUIRED']",
+    message: 'Utiliser personNameSchema (@ordo/shared) : un seul schéma pour tout nom de personne.',
   },
   // Files: the same messages and fallback name in the web and the API.
   {

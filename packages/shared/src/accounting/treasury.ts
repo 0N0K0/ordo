@@ -2,7 +2,7 @@ import { formatMoney, percentOf, round2, toCents } from './accounting-documents'
 import { mapById, sumOf } from '../core/collections';
 import { clipText, escapeText } from '../core/text';
 import { z } from 'zod';
-import { END_AFTER_START, endAfter, endsAfter, optionalText, personNameSchema, requiredText } from '../core/rules';
+import { END_AFTER_START, endAfter, endsAfter, markdownSchema, optionalPlainText, optionalText, personNameSchema, requiredText } from '../core/rules';
 import { monthFromIndex, monthIndex } from '../dates/months';
 import { printedDay } from '../dates/days';
 import { recurrenceSchema } from '../dates/recurrence';
@@ -34,7 +34,7 @@ export const STATUS_CATEGORIES_BY_SCOPE: Record<DocumentStatusScope, { value: Do
 
 const amount = z.number({ error: 'Montant attendu.' }).min(-99_999_999, 'Montant trop grand.').max(99_999_999, 'Montant trop grand.');
 export const treasuryAccountSchema = z.object({
-  label: requiredText(100),
+  label: requiredText(),
   openingBalance: amount,
   openingDate: daySchema(),
 });
@@ -64,7 +64,7 @@ export function directionOf(amount: number): TreasuryDirection {
 }
 
 /** Label of a treasury item (an account, a category…). */
-const label = requiredText(100);
+const label = requiredText();
 /** Name of a person (a counterparty, a relation). */
 const name = personNameSchema;
 
@@ -84,7 +84,7 @@ export const treasuryPaymentMethodSchema = z
 export type TreasuryPaymentMethodInput = z.input<typeof treasuryPaymentMethodSchema>;
 
 /** Payer or payee that is not a client. */
-export const treasuryCounterpartySchema = z.object({ name, note: optionalText(2000) });
+export const treasuryCounterpartySchema = z.object({ name, note: optionalPlainText() });
 export type TreasuryCounterpartyInput = z.input<typeof treasuryCounterpartySchema>;
 
 /** How a line of split shares the amount: an amount or a percentage. */
@@ -96,16 +96,11 @@ export type TreasuryLineMode = (typeof TREASURY_LINE_MODES)[number];
  * context, for a project, with its supporting documents and its links (lines of other entries, or whole entries
  * without lines).
  */
-/** Longest label of a treasury entry. */
-export const ENTRY_LABEL_MAX = 300;
-/** Longest label of a line of a treasury entry. */
-export const ENTRY_LINE_LABEL_MAX = 200;
-
 const treasuryEntryLineSchema = z
   .object({
     /** Line kept (its links from other entries stay); none for a new line. */
     id: z.string().nullish(),
-    label: optionalText(ENTRY_LINE_LABEL_MAX),
+    label: optionalText(),
     mode: z.enum(TREASURY_LINE_MODES),
     value: z.number({ error: 'Valeur attendue.' }),
     memberId: z.string().nullable(),
@@ -157,7 +152,7 @@ export function splitAmounts(entryAmount: number, lines: readonly { mode: Treasu
 /** Person out of the team or household (friend, family, partner…) a line or a budget can be for. */
 export const treasuryRelationSchema = z.object({
   name,
-  note: optionalText(500),
+  note: optionalPlainText(),
   /** Contributor this person also is, if any (not a member). */
   contributorId: z.string().nullish(),
 });
@@ -165,7 +160,7 @@ export type TreasuryRelationInput = z.input<typeof treasuryRelationSchema>;
 
 /** Context of spending, not in a tree; a line without context is everyday spending. */
 export const treasuryContextSchema = z.object({
-  label: requiredText(60),
+  label: requiredText(),
   color: colorSchema,
 });
 
@@ -179,7 +174,7 @@ export const treasuryContextPeriodSchema = z
     contextId: z.string().min(1, 'Le contexte est requis.'),
     startDate: daySchema(),
     endDate: daySchema(),
-    note: optionalText(200),
+    note: markdownSchema,
   })
   .refine(...endAfter('startDate', 'endDate'));
 export type TreasuryContextPeriodInput = z.input<typeof treasuryContextPeriodSchema>;
@@ -247,7 +242,7 @@ export const treasuryEntrySchema = z
     /** Execution date. */
     date: daySchema(),
     valueDate: daySchema().nullable(),
-    label: requiredText(ENTRY_LABEL_MAX),
+    label: requiredText(),
     amount: amount.refine((value) => value !== 0, 'Le montant ne peut pas être nul.'),
     categoryId: z.string().nullable(),
     methodId: z.string().nullable(),
@@ -255,7 +250,7 @@ export const treasuryEntrySchema = z
     clientId: z.string().nullable(),
     counterpartyId: z.string().nullable(),
     projectId: z.string().nullable(),
-    note: optionalText(2000),
+    note: markdownSchema,
     /** Page about it on the internet (an online order…). */
     url: z
       .union([z.url({ protocol: /^https?$/, error: 'Lien invalide (http ou https).' }), z.literal('')])
@@ -523,7 +518,6 @@ export function readStatement(text: string, mapping: StatementMapping): Statemen
           .filter(Boolean)
           .join(' — ')
           .replace(/\s+/g, ' '),
-        ENTRY_LABEL_MAX,
       );
       let amount: number | null;
       if (mapping.amountColumn !== null) amount = statementAmount(cells[mapping.amountColumn]);
@@ -544,7 +538,7 @@ export const statementImportSchema = z.object({
     .array(
       z.object({
         date: daySchema(),
-        label: z.string().trim().min(1).max(300),
+        label: requiredText(),
         amount: amount.refine((value) => value !== 0, 'Montant nul.'),
         /** Forecast it realizes (its occurrence of that date). */
         forecastId: z.string().nullish(),

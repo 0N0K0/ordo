@@ -267,7 +267,7 @@ Classes du tableau : `.scroller` (zone de défilement), `.table`, `.head`, `.hea
 ### `use-saved-views.ts`
 
 - `SavedView<C>` (interface) — vue avec sa configuration analysée.
-- `useSavedViews<C>({ projectId, kind, tableKey?, parse, blank, first, ready?, param? })` — vues d’une portée et copie de travail de la vue courante : `views` (par position), `current`, `config`, `dirty` (comparaison JSON canonique, clés triées), `isPending`, `error`, `select`, `change`, `save`, `revert`, `createView(label, fromCurrent)`, `rename`, `duplicate` (nom de copie `copyName`, borné à `VIEW_LABEL_MAX`), `remove` (l’échec est laissé à l’appelant), `setDefault`, `move`. Les premières vues sont créées une seule fois par portée, l’une après l’autre, même en cas d’échec (pas de boucle). Paramètre d’adresse par défaut `view`. Sert aussi aux vues des tâches et des routines.
+- `useSavedViews<C>({ projectId, kind, tableKey?, parse, blank, first, ready?, param? })` — vues d’une portée et copie de travail de la vue courante : `views` (par position), `current`, `config`, `dirty` (comparaison JSON canonique, clés triées), `isPending`, `error`, `select`, `change`, `save`, `revert`, `createView(label, fromCurrent)`, `rename`, `duplicate` (nom de copie `copyName`, borné à `TEXT_MAX`), `remove` (l’échec est laissé à l’appelant), `setDefault`, `move`. Les premières vues sont créées une seule fois par portée, l’une après l’autre, même en cas d’échec (pas de boucle). Paramètre d’adresse par défaut `view`. Sert aussi aux vues des tâches et des routines.
 - `SavedViewsState<C>` (type) — son retour.
 - Interne : `canonical`.
 

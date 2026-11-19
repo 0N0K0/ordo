@@ -8,7 +8,7 @@ Voir aussi : [Temps passé](time.md), [Commentaires](../cross-cutting/comments.m
 
 | Champ                                      | Règle                                                                                                                                                                                              |
 | ------------------------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `label`                                    | Requis, texte nettoyé (`trim`), 256 caractères au plus (`TASK_LABEL_MAX`, `taskLabelSchema`). Message : « Le libellé est requis. », « 256 caractères maximum. ».                                   |
+| `label`                                    | Requis, texte nettoyé (`trim`), 250 caractères au plus (`TEXT_MAX`, `taskLabelSchema`, décision DO). Message : « Le libellé est requis. », « 250 caractères maximum. ».                            |
 | `number`                                   | Numéro lisible `#12`, **par projet**, donné par la base (voir [Numérotation](#numérotation)). Aucun sans projet. Les liens utilisent toujours l’`id`.                                              |
 | `description`                              | Markdown, 65 536 caractères au plus (« Texte trop long. ») ; un texte vide ou blanc est enregistré `null` (`markdownSchema`).                                                                      |
 | `projectId`                                | Facultatif : une tâche peut n’appartenir à aucun projet (pas de numéro, ni jalon, ni sprint, ni item GitHub). Le projet ne change pas par `updateTask` mais par transfert (`bulkTransferTasks`).   |
@@ -74,7 +74,7 @@ Source : migrations `20261107200000_task_numbers_per_project` et `20261114120000
 
 Source : `services/tasks/task-labels.ts` (via `createLabelService`, `services/core/labels.ts`), `packages/shared/src/tasks/task-columns.ts`.
 
-- Chaque liste est une liste de paramètres : libellé requis (50 caractères au plus, `LABEL_MAX`), couleur `#rrggbb` requise (« Couleur invalide (format #rrggbb). »), position manuelle, image facultative.
+- Chaque liste est une liste de paramètres : libellé requis (250 caractères au plus, `labelTextSchema`), couleur `#rrggbb` requise (« Couleur invalide (format #rrggbb). »), position manuelle, image facultative.
 - Libellé unique dans sa liste ; conflit (`CONFLICT`) :
   - « Un statut porte déjà ce libellé. »
   - « Une priorité porte déjà ce libellé. »
@@ -147,7 +147,7 @@ Source : `addTaskBlock`, `removeTaskBlock`, `addTaskRelation`, `removeTaskRelati
 Source : `services/tasks/milestones.ts`, `assertMilestone`.
 
 - Un jalon appartient à un projet (actif à la création : « Projet introuvable. » / archivé refusé).
-- Libellé requis, 120 caractères au plus (`MILESTONE_LABEL_MAX`) ; description markdown facultative ; échéance (`dueDate`) facultative.
+- Libellé requis, 250 caractères au plus (`milestoneLabelSchema`) ; description markdown facultative ; échéance (`dueDate`) facultative.
 - Créé à la fin de la liste du projet ; réordonné par `moveMilestone` (index dans son projet).
 - Modifier ou déplacer est refusé si le jalon ou son projet est archivé.
 - Une tâche ne prend qu’un jalon de **son arborescence de projets** : « Le jalon doit appartenir au projet de la tâche ou à son arborescence. ». Sans projet : « Une tâche sans projet n’a pas de jalon. ».
@@ -159,7 +159,7 @@ Source : `services/tasks/milestones.ts`, `assertMilestone`.
 
 Source : `services/tasks/sprints.ts`, `assertSprints`, `sprintSchema` (`packages/shared/src/tasks/tasks.ts`).
 
-- Un sprint appartient à un projet actif ; libellé requis (120 caractères au plus, `SPRINT_LABEL_MAX`), début et fin requis (« La date de début est requise. », « La date de fin est requise. »), la fin ne précède pas le début (« La fin doit suivre le début. »), objectif markdown facultatif.
+- Un sprint appartient à un projet actif ; libellé requis (250 caractères au plus, `sprintLabelSchema`), début et fin requis (« La date de début est requise. », « La date de fin est requise. »), la fin ne précède pas le début (« La fin doit suivre le début. »), objectif markdown facultatif.
 - Modification refusée si le sprint ou son projet est archivé.
 - Une tâche ne prend que des sprints de son arborescence : « Les sprints doivent appartenir au projet de la tâche ou à son arborescence. » ; sans projet : « Une tâche sans projet n’est dans aucun sprint. ». Sprint inconnu : « Sprint introuvable. ».
 - Supprimer un sprint : ses tâches le quittent simplement.
@@ -261,7 +261,7 @@ Source : `bulkUpdateTasks`.
 Source : `services/tasks/task-views.ts`, `tableViewConfigSchema` (voir [Tableaux](../../shared/cross-cutting/tables.md)).
 
 - Une vue appartient à une portée : `projectId` (onglet d’un projet, ou `null` pour la page), `kind` et `tableKey`. Seules les vues de type `TABLE` se créent et se modifient désormais : « Ce type de vue n’existe plus : les vues sont celles des tableaux. ». Les anciens types (tâches, routines, listes d’achats) sont conservés tels quels.
-- Libellé requis, 60 caractères au plus (`VIEW_LABEL_MAX`) ; `tableKey` : minuscules, chiffres et « - », 64 au plus (« Tableau invalide. »).
+- Libellé requis, 250 caractères au plus (`viewLabelSchema`) ; `tableKey` : minuscules, chiffres et « - », 64 au plus (« Tableau invalide. »).
 - La configuration (filtres, tris, groupes, colonnes, options) est validée et complétée par les valeurs par défaut.
 - Le projet doit être actif.
 - La première vue d’une portée devient sa vue par défaut ; supprimer la vue par défaut donne ce rôle à la première vue restante.
@@ -272,13 +272,13 @@ Source : `services/tasks/task-views.ts`, `tableViewConfigSchema` (voir [Tableaux
 
 Source : `taskColumnDefaults`, `setTaskColumnDefaults` (`services/workspaces/workspaces.ts`), `taskColumnDefaultsSchema`.
 
-- Par espace : ordre des colonnes et colonnes masquées des nouvelles vues de tâches (200 colonnes au plus, identifiants de 60 caractères au plus). La colonne `label` n’est jamais masquée.
+- Par espace : ordre des colonnes et colonnes masquées des nouvelles vues de tâches (200 colonnes au plus, identifiants de 64 caractères au plus, `TABLE_KEY_MAX`). La colonne `label` n’est jamais masquée.
 - `null` ou sans colonnes : celles de l’app (colonnes masquées par défaut : `blocking`, `related`, `milestone`, `createdAt`, `updatedAt`).
 - L’ancien identifiant de la colonne du libellé est relu comme `label` (décision BI).
 
 ## Contributeurs
 
-Les contributeurs (`Contributor`) sont gérés dans le module tâches mais leurs règles sont dans [Personnes](../cross-cutting/people.md) : nom requis (100 caractères), identifiant de mention (`handleSchema` : 2 à 39 caractères, minuscules, chiffres, `-` et `_`, ni au début ni à la fin pour `-` et `_`), rattachement aux projets (hérité par les sous-projets), « Moi » rattaché à tous les projets.
+Les contributeurs (`Contributor`) sont gérés dans le module tâches mais leurs règles sont dans [Personnes](../cross-cutting/people.md) : nom requis (250 caractères), identifiant de mention (`handleSchema` : 2 à 39 caractères, minuscules, chiffres, `-` et `_`, ni au début ni à la fin pour `-` et `_`), rattachement aux projets (hérité par les sous-projets), « Moi » rattaché à tous les projets.
 
 ## Pièces jointes
 

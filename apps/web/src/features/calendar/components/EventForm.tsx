@@ -1,7 +1,7 @@
 import { relationNoun } from '../../../components/people/people-options';
 import { ArchivedNotice } from '../../../components/feedback/ArchivedNotice';
 import { LabeledField } from '../../../components/inputs/LabeledField';
-import { copyName } from '../../../lib/text';
+import { copyName, fitName } from '../../../lib/text';
 import { AddItemButton } from '../../../components/actions/AddItemButton';
 import { TravelField } from '../../geo/components/TravelField';
 import { confirmDestructive } from '../../../components/dialogs/confirm-destructive';
@@ -12,7 +12,7 @@ import { itemSelectProps } from '../../../components/items/item-look';
 
 import { Alert, Anchor, Fieldset, Group, Select, SimpleGrid, Stack, Text, TextInput } from '@mantine/core';
 import { DatePickerInput, TimePicker } from '@mantine/dates';
-import { addDays, mapById, type CalendarEventInput, calendarEventInputSchema, daysBetween, formatDuration, type Recurrence, sharePeople, EVENT_LABEL_MAX } from '@ordo/shared';
+import { addDays, mapById, type CalendarEventInput, calendarEventInputSchema, daysBetween, formatDuration, type Recurrence, sharePeople, TEXT_MAX } from '@ordo/shared';
 import { ArrowArcRightIcon, ArrowCounterClockwiseIcon, CalendarXIcon, CopyIcon, LinkIcon, PlayIcon, XIcon } from '@phosphor-icons/react';
 import { Link } from 'react-router';
 import { useState } from 'react';
@@ -73,7 +73,7 @@ interface PostponeFormProps {
 function PostponeForm({ fields, label, loading, onCancel, onConfirm }: PostponeFormProps) {
   const span = Math.max(0, daysBetween(fields.startDate, fields.endDate));
   const [values, setValues] = useState({
-    label: `Report de l’évènement « ${label} »`,
+    label: fitName('Report de l’évènement « ', label, ' »'),
     startDate: addDays(fields.startDate, 1),
     startTime: fields.startTime ?? null,
     endTime: fields.endTime ?? null,
@@ -83,7 +83,7 @@ function PostponeForm({ fields, label, loading, onCancel, onConfirm }: PostponeF
   return (
     <Stack gap="sm">
       <Text size="sm">La date initiale sera annulée (l’évènement reste barré dans l’agenda) et un nouvel évènement, lié à elle, sera créé à la nouvelle date.</Text>
-      <TextInput label="Libellé" required value={values.label} onChange={(event) => setValues({ ...values, label: event.currentTarget.value })} />
+      <TextInput label="Libellé" required maxLength={TEXT_MAX} value={values.label} onChange={(event) => setValues({ ...values, label: event.currentTarget.value })} />
       <SimpleGrid cols={fields.allDay ? 1 : 3} spacing="sm">
         <DatePickerInput label="Nouvelle date" required valueFormat={PICKER_FORMATS.weekday} value={values.startDate} onChange={(date) => date && setValues({ ...values, startDate: date })} />
         {!fields.allDay && <TimePicker label="Début" required value={values.startTime ?? ''} onChange={(value) => setValues({ ...values, startTime: value || null })} />}
@@ -567,7 +567,7 @@ export function EventForm({ context, occurrence, defaults, onDone, onDuplicate }
                       icon={<CopyIcon aria-hidden />}
                       onClick={() =>
                         // Its fields as they are in the form; an occurrence of a series becomes a one-off event.
-                        onDuplicate({ ...values, label: copyName(values.label, EVENT_LABEL_MAX), recurrence: recurring ? null : (values.recurrence ?? null) })
+                        onDuplicate({ ...values, label: copyName(values.label), recurrence: recurring ? null : (values.recurrence ?? null) })
                       }
                     >
                       Dupliquer

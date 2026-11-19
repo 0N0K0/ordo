@@ -15,7 +15,6 @@ import {
   type ScheduleException,
   type WorkScheduleInput,
   workScheduleSchema,
-  WORK_SCHEDULE_LABEL_MAX,
 } from '@ordo/shared';
 import { CopyIcon, ClockIcon, PencilSimpleIcon, PlusIcon } from '@phosphor-icons/react';
 import { DataTable } from '../../../components/data-table/table/DataTable';
@@ -70,7 +69,7 @@ function ScheduleForm({ schedule, copyOf, onDone }: { schedule?: WorkSchedule; c
   const { data: defaultKind } = useDefaultScheduleKind();
   const form = useAppForm<ScheduleValues>({
     initialValues: {
-      label: schedule?.label ?? (copyOf ? copyName(copyOf.label, WORK_SCHEDULE_LABEL_MAX) : 'Semaine type'),
+      label: schedule?.label ?? (copyOf ? copyName(copyOf.label) : 'Semaine type'),
       // A copy has no dates: to choose.
       startDate: schedule ? schedule.startDate : copyOf ? '' : localToday(),
       endDate: schedule?.endDate ? schedule.endDate : null,

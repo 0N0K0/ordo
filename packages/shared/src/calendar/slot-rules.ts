@@ -20,7 +20,10 @@ export const ownSlotKind = (typeId: string | null | undefined) => typeId ?? DEFA
  */
 export const foreignSlotKind = (workspaceId: string, typeId: string | null | undefined) => `ws:${workspaceId}:${typeId ?? DEFAULT_SLOT_KIND}`;
 
-const kindsSchema = z.array(z.string().min(1).max(120)).max(30).default([]);
+/** Most characters of a kind of slots (a type id, or a `foreignSlotKind` reference): a key, not a free text. */
+const SLOT_KIND_MAX = 120;
+
+const kindsSchema = z.array(z.string().min(1).max(SLOT_KIND_MAX)).max(30).default([]);
 
 /**
  * Slots a task or a routine is done on and out of (whatever the day), by kind, of this workspace or shown from

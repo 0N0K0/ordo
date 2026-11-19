@@ -4,6 +4,7 @@ import reactHooks from 'eslint-plugin-react-hooks';
 import reactRefresh from 'eslint-plugin-react-refresh';
 import tseslint from 'typescript-eslint';
 import { defineConfig, globalIgnores } from 'eslint/config';
+import { TEXT_SIZE_RULES } from '../../packages/shared/eslint-rules.js';
 
 // Imports banned everywhere: Mantine pieces wrapped by a shared brick.
 const RESTRICTED_PATHS = [
@@ -96,6 +97,8 @@ export default defineConfig([
       // Dates, numbers and amounts: one format per role, in lib/format.
       'no-restricted-syntax': [
         'error',
+        // Sizes of the texts: one maximum per kind (decision DO).
+        ...TEXT_SIZE_RULES,
         // Heavy libraries stay out of the start of the app: their components are loaded when first shown.
         {
           selector: "ImportDeclaration[importKind!='type'][source.value=/\\/(RichEditor|PlaceMap)$/]",

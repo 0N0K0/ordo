@@ -54,14 +54,14 @@ Panneau « Nouvel article » (`StockItemForm`) :
 
 | Champ             | Règle                                                                                                                                                                       |
 | ----------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| « Article »       | Requis, 200 caractères. Saisie libre avec proposition des références : choisir une référence reprend sa catégorie, son unité, « Périssable » et son emplacement par défaut. |
+| « Article »       | Requis, 250 caractères. Saisie libre avec proposition des références : choisir une référence reprend sa catégorie, son unité, « Périssable » et son emplacement par défaut. |
 | « Emplacement »   | Facultatif ; taper un nom absent crée l'emplacement.                                                                                                                        |
 | « Catégorie »     | Catégorie des achats, créable.                                                                                                                                              |
 | « Quantité »      | ≥ 0, quantité de départ (enregistrée comme un inventaire « Quantité de départ »).                                                                                           |
 | « Unité »         | Unité des achats, créable.                                                                                                                                                  |
 | « Périssable »    | « Par lots datés » ; cochée, affiche « Date de péremption » (date du premier lot).                                                                                          |
 | « Bénéficiaires » | Contributeurs et relations.                                                                                                                                                 |
-| « Description »   | Texte, 500 caractères.                                                                                                                                                      |
+| « Description »   | Texte, 65 536 caractères (règle markdown des notes de produit).                                                                                                             |
 
 Toast « Article ajouté au stock. ».
 

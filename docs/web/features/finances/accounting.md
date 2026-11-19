@@ -151,7 +151,7 @@ Statuts, factures à relancer et suivi. Documents `DocumentStatuses`, `OverdueIn
 | --------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `TrackingPanel({ document, onRemind, remindPending })` (export) | Section « Suivi » d’un définitif : statut, retard, envoi, acceptation et devis signé, payé / reste dû / paiements, relances. Ouvre ses formulaires dans le panneau latéral. Utilisé par `DocumentEditor`. |
 | `AcceptForm`                                                    | Date d’acceptation et devis signé (`accept`).                                                                                                                                                             |
-| `ReminderForm`                                                  | Note d’une relance hors Ordo (`addReminder`).                                                                                                                                                             |
+| `ReminderForm`                                                  | Note d’une relance hors Ordo (`addReminder`) : `Textarea` limité à `PLAIN_TEXT_MAX` (4 000).                                                                                                              |
 | `Dialog` (type)                                                 | `payment`, `accept`, `reminder`, `sent`.                                                                                                                                                                  |
 
 ### `components/TrackingBadge.tsx`
@@ -327,7 +327,7 @@ Utilisés par `ClientBillingSection`.
 | ----------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------- |
 | `ProjectResourcesPanel({ projectId })` (export) | Ressources d’un projet : ajout de fichiers et de liens, déplacement, modification, suppression (confirmation). `ProjectPage`. |
 | `linkIcon(url)`                                 | Icône Figma, GitHub, GitLab ou lien.                                                                                          |
-| `ResourceForm({ projectId, resource, onDone })` | Libellé, adresse (liens), note (`projectLinkSchema`).                                                                         |
+| `ResourceForm({ projectId, resource, onDone })` | Libellé, adresse (liens), note multiligne (`Textarea`, 4 000 caractères) (`projectLinkSchema`).                               |
 
 ## lib
 

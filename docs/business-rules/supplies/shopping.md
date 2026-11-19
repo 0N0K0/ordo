@@ -8,20 +8,20 @@ Toutes les données sont propres à l'espace de travail courant (colonne `worksp
 
 Source : `packages/shared/src/shopping/shopping.ts`.
 
-| Champ                                             | Règle                                                          | Message                                                                           |
-| ------------------------------------------------- | -------------------------------------------------------------- | --------------------------------------------------------------------------------- |
-| Libellé d'un produit ou d'un élément              | Requis, 120 caractères (`SHOPPING_LABEL_MAX`), espaces retirés | « Le libellé est requis. », « 120 caractères maximum. »                           |
-| Libellé d'une liste                               | Requis, 120 caractères (`SHOPPING_LIST_LABEL_MAX`)             | idem                                                                              |
-| Libellé d'une référence                           | Requis, 80 caractères                                          | idem                                                                              |
-| Libellé d'une catégorie                           | Requis, 100 caractères                                         | idem                                                                              |
-| Libellé d'un magasin, mode de conservation, unité | Requis, 50 caractères (`labelFormSchema`)                      | idem                                                                              |
-| Quantité                                          | Nombre, 0 à 999 999, facultative                               | « Nombre attendu. », « Quantité positive attendue. », « Quantité trop grande. »   |
-| Unité                                             | Texte facultatif, 50 caractères (`UNIT_MAX`) ; vide → null     | « 50 caractères maximum. »                                                        |
-| Note (description)                                | Texte facultatif, 500 caractères (`ITEM_NOTE_MAX`)             | « 500 caractères maximum. »                                                       |
-| Prix unitaire                                     | 0 à 9 999 999, facultatif                                      | « Montant attendu. », « Le prix ne peut pas être négatif. », « Prix trop grand. » |
-| Lien                                              | URL http ou https, ou vide (→ null)                            | « Lien invalide (http ou https). »                                                |
-| Bénéficiaires                                     | 50 membres et 50 relations au plus                             | —                                                                                 |
-| Date de péremption                                | `YYYY-MM-DD` ou null                                           | —                                                                                 |
+| Champ                                             | Règle                                                                    | Message                                                                           |
+| ------------------------------------------------- | ------------------------------------------------------------------------ | --------------------------------------------------------------------------------- |
+| Libellé d'un produit ou d'un élément              | Requis, 250 caractères (`TEXT_MAX`, décision DO), espaces retirés        | « Le libellé est requis. », « 250 caractères maximum. »                           |
+| Libellé d'une liste                               | Requis, 250 caractères (`shoppingListLabelSchema`)                       | idem                                                                              |
+| Libellé d'une référence                           | Requis, 250 caractères                                                   | idem                                                                              |
+| Libellé d'une catégorie                           | Requis, 250 caractères                                                   | idem                                                                              |
+| Libellé d'un magasin, mode de conservation, unité | Requis, 250 caractères (`labelFormSchema`)                               | idem                                                                              |
+| Quantité                                          | Nombre, 0 à 999 999, facultative                                         | « Nombre attendu. », « Quantité positive attendue. », « Quantité trop grande. »   |
+| Unité                                             | Texte facultatif, 250 caractères (`unitSchema`) ; vide → null            | « 250 caractères maximum. »                                                       |
+| Note (description)                                | Markdown facultatif, 65 536 caractères (`itemNoteSchema`) ; blanc → null | « Texte trop long. »                                                              |
+| Prix unitaire                                     | 0 à 9 999 999, facultatif                                                | « Montant attendu. », « Le prix ne peut pas être négatif. », « Prix trop grand. » |
+| Lien                                              | URL http ou https, ou vide (→ null)                                      | « Lien invalide (http ou https). »                                                |
+| Bénéficiaires                                     | 50 membres et 50 relations au plus                                       | —                                                                                 |
+| Date de péremption                                | `YYYY-MM-DD` ou null                                                     | —                                                                                 |
 
 Ces limites (unité, note, quantité) sont les mêmes pour les fiches et le stock (décision A de `docs/code-redundancies.md`).
 
@@ -118,7 +118,7 @@ Catégories, magasins, modes, unités, références et emplacements sont des lis
 
 ### Duplication
 
-`duplicateShoppingList` : refusée si archivée. La copie s'appelle « X (copie) » (coupée à 120 caractères en gardant le suffixe), ouverte, avec une copie de tous les éléments (dans l'ordre), **sans** tâche ni mouvement de trésorerie. Les éléments copiés (`copyOf`) ne sont pas achetés et n'ont ni date de péremption, ni « Facultatif », ni fiches d'origine, ni livraison ; leur lien au produit, leurs champs d'achat et leurs bénéficiaires sont gardés. La commande à distance n'est pas copiée.
+`duplicateShoppingList` : refusée si archivée. La copie s'appelle « X (copie) » (coupée à 250 caractères en gardant le suffixe, `copyName`), ouverte, avec une copie de tous les éléments (dans l'ordre), **sans** tâche ni mouvement de trésorerie. Les éléments copiés (`copyOf`) ne sont pas achetés et n'ont ni date de péremption, ni « Facultatif », ni fiches d'origine, ni livraison ; leur lien au produit, leurs champs d'achat et leurs bénéficiaires sont gardés. La commande à distance n'est pas copiée.
 
 ### Suppression d'une liste
 
@@ -136,7 +136,7 @@ Catégories, magasins, modes, unités, références et emplacements sont des lis
   - coût d'un élément = quantité (1 sans quantité) × prix unitaire, arrondi au centime (`shoppingCost`) ; sans prix, 0 ;
   - un élément pour plusieurs personnes est partagé à parts égales ; les centimes restants vont aux premières personnes (membres puis relations) ;
   - un élément pour personne n'est pas réparti (mais compte dans le total).
-- Une ligne de répartition par personne, ajoutée après les lignes existantes, libellée du nom de la liste (coupé à 200 caractères) :
+- Une ligne de répartition par personne, ajoutée après les lignes existantes, libellée du nom de la liste (250 caractères au plus, comme une ligne) :
   - en montant si le total de la liste ≤ |montant du mouvement| : valeur = part en euros, du signe du mouvement (négatif pour un mouvement à 0) ;
   - en pourcentage sinon : part / total × 100, arrondi à 4 décimales.
 - Plus de 50 lignes au total : « Le mouvement aurait plus de 50 lignes de répartition. ».
@@ -179,13 +179,13 @@ Catégories, magasins, modes, unités, références et emplacements sont des lis
 
 Source : `apps/api/src/services/shopping/stock.ts` (« Remote orders »), `packages/shared/src/shopping/stock.ts`.
 
-- `setShoppingOrder(listId, { remote, deliveryAddress, deliveryLat, deliveryLon })` : liste existante et non archivée ; adresse 500 caractères, vide → null.
+- `setShoppingOrder(listId, { remote, deliveryAddress, deliveryLat, deliveryLon })` : liste existante et non archivée ; adresse 250 caractères, vide → null.
 - Livraison (`shoppingDeliverySchema`) :
-  - « Libellé » 120 caractères (« 120 caractères maximum. »), vide → null ;
+  - « Libellé » 250 caractères (« 250 caractères maximum. »), vide → null ;
   - lien de suivi http(s) (« Lien invalide (http ou https). ») ;
   - `pickup` : à retirer plutôt que livrée ;
   - fenêtre `windowFrom` / `windowTo` : la fin doit suivre le début (« La fin doit suivre le début. ») ;
-  - adresse 500 caractères ; sans adresse, lat / lon sont mis à null ;
+  - adresse 250 caractères ; sans adresse, lat / lon sont mis à null ;
   - `itemIds` : 500 au plus, tous de la liste de la livraison (sinon « Élément introuvable. »).
 - Un élément appartient à une seule livraison : l'assigner à une livraison l'enlève de la précédente ; enregistrer une livraison retire d'elle les éléments qui ne sont plus dans `itemIds`.
 - Création en dernier parmi les livraisons de la liste ; création refusée si la liste est archivée ; modification, suppression et réception refusées si la liste est archivée (« Livraison introuvable. » si absente).

@@ -2,13 +2,17 @@ import { z } from 'zod';
 import { MAX_PASSWORD_LENGTH, MIN_PASSWORD_LENGTH } from './password-rules';
 
 const REQUIRED = 'Champ requis.';
+/** Most characters of a login (a format). */
+const USERNAME_MAX = 32;
+/** Most characters of an email address (RFC 5321). */
+const EMAIL_MAX = 254;
 
 export const usernameSchema = z
   .string()
   .trim()
   .toLowerCase()
   .min(3, 'Au moins 3 caractères.')
-  .max(32, '32 caractères maximum.')
+  .max(USERNAME_MAX, `${USERNAME_MAX} caractères maximum.`)
   .regex(/^[a-z0-9._-]+$/, 'Lettres, chiffres, « . », « _ » et « - » uniquement.');
 
 export const emailSchema = z
@@ -16,7 +20,7 @@ export const emailSchema = z
   .trim()
   .toLowerCase()
   .min(1, REQUIRED)
-  .max(254, 'Adresse trop longue.')
+  .max(EMAIL_MAX, 'Adresse trop longue.')
   .pipe(z.email({ error: 'Adresse email invalide.' }));
 
 /** Identifier typed at login: a username or an email address. */

@@ -5,6 +5,7 @@ import { ActionsRow } from '../../../components/actions/ActionsRow';
 import { Accordion, Group, Paper, SegmentedControl, Select, SimpleGrid, Stack, Text, TextInput } from '@mantine/core';
 import {
   CHART_COMPARISON_KINDS,
+  clipText,
   defaultChartConfig,
   isTimeDimension,
   MAIN_DATASET,
@@ -112,7 +113,7 @@ export function DatasetsEditor({ config, change, context }: DatasetsEditorProps)
     const last = config.datasets.at(-1);
     const a = last?.id ?? MAIN_DATASET;
     const label = (id: string) => options.find((option) => option.value === id)?.label ?? '';
-    change({ comparisons: [...config.comparisons, { id: newId('c'), label: `% ${label(a)} / ${mainLabel}`, kind: 'ratio', a, b: MAIN_DATASET, type: 'line' }] });
+    change({ comparisons: [...config.comparisons, { id: newId('c'), label: clipText(`% ${label(a)} / ${mainLabel}`), kind: 'ratio', a, b: MAIN_DATASET, type: 'line' }] });
   };
 
   /**

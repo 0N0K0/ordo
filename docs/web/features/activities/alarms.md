@@ -65,7 +65,7 @@ Interne : `occurrenceStart(occurrence)` (instant, ou minuit local du premier jou
 
 ### `components/TaskAlarms.tsx`
 
-`TaskAlarms({ task, context })` : section « Alarmes » du panneau d’une tâche (`SubSection`) : alarmes de la tâche (`AlarmList` sans lien), état vide « Aucune alarme pour cette tâche. », « Ajouter une alarme » (défauts : titre coupé à 200 caractères par `clipText`, projet, tâche). Utilisé par `TaskPanel` (tâches).
+`TaskAlarms({ task, context })` : section « Alarmes » du panneau d’une tâche (`SubSection`) : alarmes de la tâche (`AlarmList` sans lien), état vide « Aucune alarme pour cette tâche. », « Ajouter une alarme » (défauts : titre de la tâche, de même taille qu’un libellé d’alarme, projet, tâche). Utilisé par `TaskPanel` (tâches).
 
 ## hooks
 

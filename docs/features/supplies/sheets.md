@@ -37,7 +37,7 @@ Suppression (dialogue de confirmation) : « La fiche « … » et ses 3 élémen
 - En-tête : retour « Fiches », titre, badge « Archivée », sous-titre « 3 éléments · rattachée à 2 routines, évènements ou tâches ».
 - Action « Utiliser cette fiche » (pas si archivée).
 - Menu : « Dupliquer » (ouvre la copie), « Archiver » / « Restaurer », « Supprimer » (retour à la liste).
-- Champs enregistrés au fil de l'eau (le texte en quittant le champ) : « Libellé » (requis, 100 caractères au plus ; vide, il revient à l'ancien), « Projet » (« Aucun : fiche de l'espace »), « Catégories », « Note » (20 000 caractères au plus). En lecture seule si la fiche est archivée.
+- Champs enregistrés au fil de l'eau (le texte en quittant le champ) : « Libellé » (requis, 250 caractères au plus ; vide, il revient à l'ancien), « Projet » (« Aucun : fiche de l'espace »), « Catégories », « Note » (texte multiligne, 4 000 caractères au plus). En lecture seule si la fiche est archivée.
 - Fiche introuvable : page « Cette fiche » introuvable, avec un retour vers « Fiches ».
 
 ### Tableau des éléments
@@ -46,7 +46,7 @@ Vue `sheet-items`. Chaque cellule se modifie sur place, et sur une sélection de
 
 | Colonne (id)   | Libellé                  | Contenu                                                                                                                      |
 | -------------- | ------------------------ | ---------------------------------------------------------------------------------------------------------------------------- |
-| `label`        | « Élément »              | Libellé (200 caractères au plus).                                                                                            |
+| `label`        | « Élément »              | Libellé (250 caractères au plus).                                                                                            |
 | `product`      | « Référence »            | Produit des références (base de produits des achats) ; les produits archivés ne sont plus proposés (sauf celui déjà choisi). |
 | `category`     | « Catégorie »            | Catégorie des achats.                                                                                                        |
 | `quantity`     | « Quantité »             | Nombre, 3 décimales.                                                                                                         |
@@ -111,7 +111,7 @@ Une liste par occurrence de routine ou d'évènement, une par tâche. Faite à l
 
 « Paramètres des fiches » :
 
-- « Catégories de fiches » : « Classent les fiches (recettes, valises, trousses…) : une fiche peut en avoir plusieurs. » Libellé (60 caractères au plus, unique) et couleur ; usage affiché ; supprimer une catégorie la retire des fiches. Voir [Paramètres](../cross-cutting/settings.md).
+- « Catégories de fiches » : « Classent les fiches (recettes, valises, trousses…) : une fiche peut en avoir plusieurs. » Libellé (250 caractères au plus, unique) et couleur ; usage affiché ; supprimer une catégorie la retire des fiches. Voir [Paramètres](../cross-cutting/settings.md).
 - Les catégories des éléments (celles des achats, aussi dans les paramètres des achats), avec leur usage par produits, éléments de listes et éléments de fiches.
 
 ## PRO et PERSO

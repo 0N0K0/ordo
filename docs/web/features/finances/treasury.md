@@ -212,7 +212,7 @@ Internes : `load`, `remap` (relit le fichier si l’encodage change), `submit`, 
 | `PeriodForm({ period?, contexts, onDone })`           | Formulaire de période planifiée (contexte, du, au, description).                                                                                             | `Contexts`.                                 |
 | `Contexts`                                            | « Contextes » (`SettingsList` `TREASURY_CONTEXT`) et « Contextes planifiés » (table, archivées masquées, lecture seule).                                     | `TeamPanel`.                                |
 | `TeamPanel` (export)                                  | Contextes et périodes, dans la barre de paramètres.                                                                                                          | `SettingsPanel`.                            |
-| `RelationForm({ relation?, name?, onDone })` (export) | Formulaire de relation (nom, contributeur, description).                                                                                                     | `EntryLinesTable`, `TeamRelations`.         |
+| `RelationForm({ relation?, name?, onDone })` (export) | Formulaire de relation (nom, contributeur, description multiligne : `Textarea`, 4 000 caractères).                                                           | `EntryLinesTable`, `TeamRelations`.         |
 | `TeamRelations` (export)                              | Section « Relations » / « Proches » : liste, usages, modification, archivage, suppression.                                                                   | `features/projects/pages/SettingsPage.tsx`. |
 
 ### `components/TreasuryItemForms.tsx`

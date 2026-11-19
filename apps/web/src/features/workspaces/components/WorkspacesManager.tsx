@@ -4,7 +4,7 @@ import { formCallbacks } from '../../../lib/form';
 import { InlineActions } from '../../../components/actions/ActionsMenu';
 import { confirmDestructive } from '../../../components/dialogs/confirm-destructive';
 import { Badge, Chip, Group, SegmentedControl, Select, Stack, Text, TextInput } from '@mantine/core';
-import { readWeek, WEEKDAY_LABELS, weekLength, WORKSPACE_LABEL_MAX, workspaceLabelSchema } from '@ordo/shared';
+import { readWeek, WEEKDAY_LABELS, weekLength, TEXT_MAX, workspaceLabelSchema } from '@ordo/shared';
 import { ArrowSquareOutIcon, PlusIcon, PencilSimpleIcon } from '@phosphor-icons/react';
 import { useState } from 'react';
 import { ON_ERROR, toastCallbacks } from '../../../lib/notify';
@@ -207,7 +207,7 @@ export function WorkspacesManager() {
           }}
         >
           <Group gap="xs" wrap="nowrap" align="flex-end">
-            <TextInput label="Libellé" placeholder="Libellé de l’espace" style={{ flex: 1 }} value={label} maxLength={WORKSPACE_LABEL_MAX} onChange={(event) => setLabel(event.currentTarget.value)} />
+            <TextInput label="Libellé" placeholder="Libellé de l’espace" style={{ flex: 1 }} value={label} maxLength={TEXT_MAX} onChange={(event) => setLabel(event.currentTarget.value)} />
             <SegmentedControl aria-label="Type du nouvel espace" data={KINDS} value={kind} onChange={(value) => setKind(value as WorkspaceKind)} />
             <ActionButton priority="secondary" type="submit" icon={<PlusIcon aria-hidden />} loading={create.isPending} disabled={!label.trim()}>
               Ajouter

@@ -28,7 +28,8 @@ L’API accepte ce que l’interface empêche.
 
 ## Incohérences entre le web et l’API
 
-- **Nom d’un dossier mail :** 255 caractères au plus côté web (`FOLDER_NAME`), 100 côté API. Voir [Code web des mails](web/features/resources/mail.md).
+- **Éditeur d’un texte selon sa taille (décision DO) :** la note d’un produit (`itemNoteSchema`) est du markdown (65 536), éditée en markdown dans les achats mais en zone de texte simple dans le stock (`StockItemForm`) et sur une ligne dans les fiches (`EditableText`) ; l’introduction et la conclusion d’un document comptable et la description d’un projet ou d’un produit du catalogue sont imprimées ou affichées en markdown mais saisies dans une zone de texte simple ; la note d’un mouvement de stock (4 000) est saisie sur une ligne. Voir [Nommage](business-rules/cross-cutting/naming.md).
+- **Documents comptables définitifs (décision DO) :** leurs textes plus longs que 250 (libellé, lignes, conditions, mention de TVA) sont gardés tels qu’émis ; un brouillon copié d’eux (duplication, avoir) les reprend et doit être raccourci avant d’être enregistré. Voir [Nommage](business-rules/cross-cutting/naming.md).
 - **Dossier de recherche créé depuis un projet :** l’entrée GraphQL `MailSearchInput` n’a pas de `projectId` ; il n’est pas sûr que le dossier garde la limite au projet. Voir [Règles des mails](business-rules/resources/mail.md).
 - **Date de péremption d’un produit :** la description GraphQL de `ShoppingProduct.expiresAt` dit qu’une fois la date passée le produit est marqué manquant ; aucun code ni tâche de fond ne le fait. Voir [Règles des achats](business-rules/supplies/shopping.md).
 

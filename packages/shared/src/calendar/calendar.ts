@@ -1,6 +1,6 @@
 import { z } from 'zod';
 import { joinedKey } from '../core/collections';
-import { END_AFTER_START, endsAfter, requiredText } from '../core/rules';
+import { END_AFTER_START, endsAfter, markdownSchema, optionalText, requiredText, shortTextSchema } from '../core/rules';
 import { locatedFields } from '../core/geo';
 import { recurrenceSchema } from '../dates/recurrence';
 import { daySchema, timeOfDaySchema, endDaySchema, startDaySchema } from '../dates/times';
@@ -8,34 +8,25 @@ import { colorSchema } from '../core/workspace';
 
 const calendarLinkSchema = z.object({
   url: z.url({ protocol: /^https?$/, error: 'Lien invalide (http ou https).' }),
-  label: z.string().trim().max(200, '200 caractères maximum.'),
+  label: shortTextSchema,
 });
 
-/** Longest label of a calendar event. */
-export const EVENT_LABEL_MAX = 300;
+/** Most characters of a time zone name (IANA, « Europe/Paris »): a format, not a free text. */
+const TIME_ZONE_MAX = 64;
 
 /** Calendar event fields. Times are local to `timeZone`; all-day events have none. */
 export const calendarEventInputSchema = z
   .object({
-    label: requiredText(EVENT_LABEL_MAX),
-    description: z
-      .string()
-      .max(65_536, 'Texte trop long.')
-      .transform((value) => (value.trim() ? value : null))
-      .nullable(),
-    location: z
-      .string()
-      .trim()
-      .max(500, '500 caractères maximum.')
-      .transform((value) => value || null)
-      .nullable(),
+    label: requiredText(),
+    description: markdownSchema,
+    location: optionalText(),
     links: z.array(calendarLinkSchema).max(20, '20 liens maximum.'),
     allDay: z.boolean(),
     startDate: startDaySchema,
     startTime: timeOfDaySchema.nullable(),
     endDate: endDaySchema,
     endTime: timeOfDaySchema.nullable(),
-    timeZone: z.string().min(1).max(64),
+    timeZone: z.string().min(1).max(TIME_ZONE_MAX),
     recurrence: recurrenceSchema.nullable(),
     /** Minutes before the start. */
     reminders: z
@@ -86,7 +77,7 @@ export const EVENT_SCOPES = ['THIS', 'FOLLOWING', 'ALL'] as const;
 export type EventScope = (typeof EVENT_SCOPES)[number];
 
 export const calendarCategoryFormSchema = z.object({
-  label: requiredText(80),
+  label: requiredText(),
   color: colorSchema,
   parentId: z.string().nullable(),
 });
@@ -94,7 +85,7 @@ export type CalendarCategoryFormValues = z.infer<typeof calendarCategoryFormSche
 
 /** Calendar of a workspace (every event belongs to one). */
 export const calendarFormSchema = z.object({
-  label: requiredText(80),
+  label: requiredText(),
   color: colorSchema,
 });
 export type CalendarFormValues = z.infer<typeof calendarFormSchema>;

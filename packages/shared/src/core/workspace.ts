@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { endAfter, optionalText, personNameSchema, requiredText } from './rules';
+import { endAfter, markdownSchema, optionalPlainText, personNameSchema, requiredText } from './rules';
 import { daySchema } from '../dates/times';
 
 export const MAX_ICON_BYTES = 1024 * 1024;
@@ -26,13 +26,13 @@ export const MAX_PROJECT_DEPTH = 5;
 export const ICON_MIME_TYPES = ['image/png', 'image/jpeg', 'image/webp', 'image/svg+xml'] as const;
 
 /** Label of a project (not unique). */
-export const projectLabelSchema = requiredText(120);
+export const projectLabelSchema = requiredText();
 
 /** Link of a project (a mock-up, a repository…): its label, address and note; a file has no address. */
 export const projectLinkSchema = z.object({
-  label: requiredText(200),
+  label: requiredText(),
   url: z.url({ protocol: /^https?$/, error: 'Lien invalide (http ou https).' }),
-  note: optionalText(1000),
+  note: optionalPlainText(),
 });
 export type ProjectLinkInput = z.input<typeof projectLinkSchema>;
 
@@ -45,17 +45,11 @@ export const NOTIFICATION_SOURCES = ['ALARMS', 'CALENDAR', 'MAILS'] as const;
 /** Kinds of resource of a project: an uploaded file or a link. */
 export const PROJECT_RESOURCE_KINDS = ['FILE', 'LINK'] as const;
 
-/** Longest label of a workspace. */
-export const WORKSPACE_LABEL_MAX = 60;
-
 /** Label of a workspace. */
-export const workspaceLabelSchema = requiredText(WORKSPACE_LABEL_MAX);
-
-/** Longest label of a configurable label item. */
-export const LABEL_MAX = 50;
+export const workspaceLabelSchema = requiredText();
 
 /** Label of a configurable label item (category, status…). */
-export const labelTextSchema = requiredText(LABEL_MAX);
+export const labelTextSchema = requiredText();
 
 /** Colour of a label made without one (a GitHub label, a default status): Mantine's gray. */
 // eslint-disable-next-line no-restricted-syntax -- the color itself.
@@ -69,12 +63,8 @@ export const colorSchema = z
 /** Optional color: null or empty clears it. */
 export const optionalColorSchema = z.union([colorSchema, z.literal('').transform(() => null)]).nullable();
 
-export const descriptionSchema = z
-  .string()
-  .trim()
-  .max(5000, '5000 caractères maximum.')
-  .transform((value) => value || null)
-  .nullable();
+/** Description of a project: markdown (shown as such). */
+export const descriptionSchema = markdownSchema;
 
 /** Calendar date, YYYY-MM-DD. */
 export const dateSchema = daySchema().nullable();

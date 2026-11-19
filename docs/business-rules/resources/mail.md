@@ -30,17 +30,17 @@ Source : `apps/api/src/services/mail/accounts.ts`, `secret.ts`, schéma `mailAcc
 
 ### Validation
 
-| Champ                          | Règle                                                                                   |
-| ------------------------------ | --------------------------------------------------------------------------------------- |
-| `label`                        | Requis, 80 caractères maximum (« Le libellé est requis. », « 80 caractères maximum. »). |
-| `email`                        | Adresse valide (« Adresse email invalide. »).                                           |
-| `displayName`                  | 120 caractères maximum ; vide enregistré à null.                                        |
-| `imapHost`, `smtpHost`         | Requis, 255 caractères maximum (« Le serveur est requis. »).                            |
-| `imapPort`, `smtpPort`         | Entier de 1 à 65 535 (« Port attendu. », « Port invalide. »).                           |
-| `imapSecure`, `smtpSecure`     | Booléens.                                                                               |
-| `imapUser`, `smtpUser`         | Requis, 255 caractères maximum (« L’identifiant est requis. »).                         |
-| `imapPassword`, `smtpPassword` | 1 000 caractères maximum ; requis à la création (« Le mot de passe est requis. »).      |
-| `saveSent`                     | Booléen.                                                                                |
+| Champ                          | Règle                                                                                     |
+| ------------------------------ | ----------------------------------------------------------------------------------------- |
+| `label`                        | Requis, 250 caractères maximum (« Le libellé est requis. », « 250 caractères maximum. »). |
+| `email`                        | Adresse valide (« Adresse email invalide. »).                                             |
+| `displayName`                  | 250 caractères maximum ; vide enregistré à null.                                          |
+| `imapHost`, `smtpHost`         | Requis, 255 caractères maximum (« Le serveur est requis. »).                              |
+| `imapPort`, `smtpPort`         | Entier de 1 à 65 535 (« Port attendu. », « Port invalide. »).                             |
+| `imapSecure`, `smtpSecure`     | Booléens.                                                                                 |
+| `imapUser`, `smtpUser`         | Requis, 255 caractères maximum (« L’identifiant est requis. »).                           |
+| `imapPassword`, `smtpPassword` | 1 000 caractères maximum ; requis à la création (« Le mot de passe est requis. »).        |
+| `saveSent`                     | Booléen.                                                                                  |
 
 - En modification, un mot de passe vide garde celui enregistré.
 - **Mot de passe lié au serveur** : si l’hôte, le port, l’identifiant ou le chiffrement IMAP (resp. SMTP) change, le mot de passe correspondant doit être ressaisi, sinon erreur sur le champ : « Saisissez à nouveau le mot de passe : le serveur, le port, l’identifiant ou le chiffrement a changé. ». But : ne jamais envoyer un mot de passe enregistré à un autre serveur. La même règle s’applique au test de connexion d’une boîte existante.
@@ -106,7 +106,7 @@ Brouillons (« Drafts ») et Indésirables (« Junk ») sont créés s’ils man
 
 ### Création, renommage, déplacement, suppression
 
-- Nom : requis, 100 caractères maximum, sans `*`, `%`, `"` ni `\` (« Le libellé est requis. », « 100 caractères maximum. », « Caractères interdits : * % " \ ») ; il ne peut pas contenir le séparateur du serveur (« Le nom ne peut pas contenir « / ». » par exemple).
+- Nom (`mailFolderNameSchema`, partagé par le web et l’API) : requis, 250 caractères maximum, sans `*`, `%`, `"` ni `\` (« Le libellé est requis. », « 250 caractères maximum. », « Caractères interdits : * % " \ ») ; il ne peut pas contenir le séparateur du serveur (« Le nom ne peut pas contenir « / ». » par exemple).
 - Création : au premier niveau ou sous un parent (« Dossier parent » introuvable sinon).
 - Renommage : reste sous son parent. Refusé sur la réception et les dossiers spéciaux : « Les dossiers spéciaux ne se renomment pas. ».
 - Déplacement (avec ses sous-dossiers) : sous un autre dossier ou au premier niveau. Refusé sur les spéciaux (« Les dossiers spéciaux ne se déplacent pas. »), sous lui-même ou un de ses sous-dossiers (« Un dossier ne peut pas aller dans lui-même ou dans un de ses sous-dossiers. »), si un dossier du même nom existe à la destination (« Un dossier « X » existe déjà à cet endroit. »). Sans changement de parent : rien n’est fait.
@@ -166,7 +166,7 @@ Sources : `apps/api/src/services/mail/keywords.ts`, `organize.ts`.
 
 ### Drapeaux (`MailLabel`)
 
-- Service de libellés commun (`createLabelService`) : libellé requis de 50 caractères maximum, couleur requise, unique dans l’espace (« Un drapeau porte déjà ce libellé. »), position en fin de liste, modification refusée s’il est archivé. Voir [Noms et libellés](../cross-cutting/naming.md).
+- Service de libellés commun (`createLabelService`) : libellé requis de 250 caractères maximum, couleur requise, unique dans l’espace (« Un drapeau porte déjà ce libellé. »), position en fin de liste, modification refusée s’il est archivé. Voir [Noms et libellés](../cross-cutting/naming.md).
 - Suppression : le drapeau est retiré des marques gardées dans Ordo ; ses mots-clés restent sur les mails du serveur, inutilisés.
 
 ### Spam (`reportMailSpam`)
@@ -193,8 +193,8 @@ Sources : `apps/api/src/services/mail/searches.ts`, `mailSearchCriteriaSchema` e
 | `state`                         | `all`, `todo`, `done`.                                                                                                                            |
 | `labelIds`                      | 50 au maximum ; un mail ayant **l’un** de ces drapeaux.                                                                                           |
 | `unread`                        | Non-lus seulement.                                                                                                                                |
-| `text`                          | 200 caractères maximum ; dans l’objet, l’expéditeur, les destinataires ou le corps.                                                               |
-| `from`, `to`, `subject`, `body` | 200 caractères maximum chacun.                                                                                                                    |
+| `text`                          | 250 caractères maximum ; dans l’objet, l’expéditeur, les destinataires ou le corps.                                                               |
+| `from`, `to`, `subject`, `body` | 250 caractères maximum chacun.                                                                                                                    |
 | `since`, `until`                | Jours (YYYY-MM-DD) inclus ; la fin doit suivre le début (« La fin doit suivre le début. », sur `until`, voir [Dates](../cross-cutting/dates.md)). |
 | `attachments`                   | Avec pièce jointe seulement.                                                                                                                      |
 | `projectId`                     | Mails dont une copie est dans ce projet (100 caractères maximum).                                                                                 |
@@ -213,7 +213,7 @@ Valeurs d’une nouvelle recherche (`EMPTY_MAIL_SEARCH`) : toutes les boîtes, r
 
 ### Dossiers de recherche (`MailSearch`)
 
-- Libellé requis, 60 caractères maximum ; critères validés comme ci-dessus.
+- Libellé requis, 250 caractères maximum ; critères validés comme ci-dessus.
 - Créé en fin de liste ; modification ou suppression d’un dossier inconnu : « Dossier de recherche » introuvable.
 - Rien n’est créé sur le serveur ; la suppression ne touche aucun mail.
 - Critères stockés illisibles : la recherche vaut « réceptions, à traiter ».

@@ -47,7 +47,7 @@ Les dialogues destructifs ont leurs propres boutons, dans l'ordre inverse (`Dest
 
 ## `LabelForm.tsx`
 
-- `LabelFormProps` (interface) : `initial`, `schema` (règle zod du libellé, ex. `requiredText(60)`), `submitLabel` (« Créer », « Renommer »), `onSubmit(label)` (une promesse garde le formulaire ouvert, en attente ; son échec va sous le champ ou en toast), `onDone`, `fieldLabel` (défaut « Libellé », décision AD), `placeholder`.
+- `LabelFormProps` (interface) : `initial`, `schema` (règle zod du libellé, ex. `requiredText()` ou `mailFolderNameSchema`), `submitLabel` (« Créer », « Renommer »), `onSubmit(label)` (une promesse garde le formulaire ouvert, en attente ; son échec va sous le champ ou en toast), `onDone`, `fieldLabel` (défaut « Libellé », décision AD), `placeholder`.
 - `LabelForm` : formulaire d'un seul libellé (créer ou renommer une vue, un tableau de bord, un dossier), validé comme les autres (`useAppForm` : au blur puis à chaque changement), envoyé par `useAsyncAction` ; le libellé est passé par `schema.parse` (donc nettoyé). Champ requis, autofocus.
 
 ## `open-label-form.tsx`

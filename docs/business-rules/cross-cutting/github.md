@@ -88,10 +88,10 @@ Les tâches du projet lié **et de ses sous-projets** ; les items du tableau (is
 1. **Itérations et sprints** (si un champ d’itération est choisi) :
    - un sprint dont l’itération a disparu est dépareillé ;
    - une itération sans sprint prend le sprint Ordo non apparié de même nom (comparaison `sameName`) ; si un sprint avait été créé depuis cette itération par une synchronisation précédente, ses tâches rejoignent le sprint Ordo et il est supprimé ;
-   - sinon l’itération devient un nouveau sprint du projet lié, avec ses dates (début, début + durée - 1) et son titre coupé à 120 caractères ;
+   - sinon l’itération devient un nouveau sprint du projet lié, avec ses dates (début, début + durée - 1) et son titre coupé à 250 caractères (`clipText`) ;
    - Ordo fait référence pour le nom et les dates d’un sprint apparié ; les itérations ne sont **jamais** écrites sur GitHub (l’API ne sait pas fixer leurs dates). Les sprints sans itération sont seulement comptés (`sprintsSkipped`).
 2. **Items disparus** : une tâche dont l’item n’est plus sur le tableau est déliée et marquée `REMOVED` (elle n’est plus renvoyée) ; ses commentaires perdent leur lien.
-3. **Items nouveaux** : chaque item inconnu devient une tâche du projet lié (titre coupé à 256 caractères, ou « Item GitHub <n> ») ; ses valeurs arrivent par la fusion qui suit.
+3. **Items nouveaux** : chaque item inconnu devient une tâche du projet lié (titre coupé à 250 caractères, ou « Item GitHub <n> ») ; ses valeurs arrivent par la fusion qui suit.
 4. **Fusion des paires** : chaque paire tâche / item est fusionnée champ par champ (voir plus bas), puis le temps passé est écrit, le numéro de la tâche suit celui de l’issue, et les commentaires sont synchronisés (issues seulement).
 5. **Tâches nouvelles** : les tâches de l’arbre non liées, non archivées, jamais retirées du tableau (et, sans `pushExisting`, créées après la liaison) deviennent des items, par numéro croissant : issues du dépôt choisi, sinon brouillons. Seules les valeurs renseignées dans Ordo sont envoyées.
 
@@ -117,8 +117,8 @@ Pour chaque champ, comparé à la valeur de la dernière synchronisation (instan
 - **Statut, priorité, type** : par les correspondances de la liaison ; une même option associée à plusieurs valeurs Ordo revient vers la première de la liste.
 - **Sprint** : un item a une itération, une tâche peut avoir plusieurs sprints. Côté Ordo, la valeur est l’itération actuelle de l’item si c’est l’un des sprints de la tâche, sinon le sprint le plus récent de la tâche. Une itération reçue **ajoute** son sprint à la tâche, sans retirer les autres.
 - **Assignés** : par le login GitHub des contributeurs. Les logins sans contributeur sont laissés tels quels des deux côtés ; les assignés Ordo sans login restent.
-- **Étiquettes / tags** : comparées par clé de nom (`nameKey`, « Été » = « ete »). Une étiquette reçue sans tag crée un tag (nom coupé à 50 caractères, couleur grise par défaut `DEFAULT_LABEL_COLOR`). Un tag envoyé sans étiquette dans le dépôt crée l’étiquette avec le nom et la couleur du tag.
-- **Jalon** : par titre (coupé à 120 caractères) ; un jalon absent est créé du côté qui ne l’a pas (dans le projet de la tâche, ou dans le dépôt : « Jalon « X » non créé sur GitHub : <détail>. »).
+- **Étiquettes / tags** : comparées par clé de nom (`nameKey`, « Été » = « ete »). Une étiquette reçue sans tag crée un tag (nom coupé à 250 caractères, couleur grise par défaut `DEFAULT_LABEL_COLOR`). Un tag envoyé sans étiquette dans le dépôt crée l’étiquette avec le nom et la couleur du tag.
+- **Jalon** : par titre (coupé à 250 caractères) ; un jalon absent est créé du côté qui ne l’a pas (dans le projet de la tâche, ou dans le dépôt : « Jalon « X » non créé sur GitHub : <détail>. »).
 - **Parent** : une issue parente du tableau ↔ la tâche parente ; une tâche n’est jamais placée sous elle-même ou l’une de ses sous-tâches.
 - **Dépendances et relations** : seules les issues liées à des tâches sont comparées ; une dépendance refusée par Ordo (circulaire, autre arbre de projets) est ignorée. Une relation symétrique n’est envoyée qu’une fois par paire.
 - **Fermeture** : une issue fermée ferme la tâche (date de fermeture conservée si elle l’était déjà).

@@ -27,14 +27,14 @@ Dans le panneau « Espaces » (sélecteur) et dans « Paramètres › Espaces »
 
 - Libellé, badge « Actuel » pour l’espace ouvert.
 - Type : bouton segmenté « Pro » / « Perso ». Toasts « Espace passé en personnel. » / « Espace passé en professionnel. ». Le passage en personnel est refusé si l’espace a des clients ou des documents de facturation.
-- Menu : « Renommer » (formulaire « Renommer l’espace » dans le panneau latéral, 60 caractères), « Monter » / « Descendre » (ordre du sélecteur), « Ouvrir » (désactivé pour l’espace actuel).
+- Menu : « Renommer » (formulaire « Renommer l’espace » dans le panneau latéral, 250 caractères), « Monter » / « Descendre » (ordre du sélecteur), « Ouvrir » (désactivé pour l’espace actuel).
 - « Supprimer » : désactivé quand il ne reste qu’un espace (« Le dernier espace ne peut pas être supprimé »). Confirmation « Supprimer l’espace » : « L’espace « X » sera supprimé définitivement avec tout son contenu : projets, tâches, temps, agenda, mails liés, documents, tableaux de bord, trésorerie[, clients et facturation]. Les boîtes mail restent intactes sur leur serveur. ». Toast « Espace supprimé. ». Supprimer l’espace ouvert bascule sur un autre.
 - « Notifier quand un autre espace est ouvert : » puces « Alarmes », « Rappels d’agenda », « Nouveaux mails » (plusieurs au choix).
 - « Semaine du … au … » : premier et dernier jour (lundi à dimanche). Texte d’aide : « N jours. Vue semaine de l’agenda, « cette semaine »… », ou « 8 jours : les semaines se chevauchent ce jour-là. » quand les deux jours sont les mêmes. Le changement recharge toutes les données.
 
 ### Nouvel espace
 
-« Libellé » (60 caractères au plus) et type « Pro » / « Perso » (Perso par défaut), bouton « Ajouter » (désactivé sans libellé). Toast « Espace créé. ». Le nouvel espace est préparé : profil « Moi » de chaque utilisateur, agenda, unités d’achat usuelles, statuts de suivi des documents (PRO).
+« Libellé » (250 caractères au plus) et type « Pro » / « Perso » (Perso par défaut), bouton « Ajouter » (désactivé sans libellé). Toast « Espace créé. ». Le nouvel espace est préparé : profil « Moi » de chaque utilisateur, agenda, unités d’achat usuelles, statuts de suivi des documents (PRO).
 
 ## Notifications d’un espace fermé
 

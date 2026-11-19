@@ -4,17 +4,13 @@ import {
   dayPart,
   DEFAULT_LABEL_COLOR,
   formatOptionalDay,
-  LABEL_MAX,
   mapById,
   nameKey,
-  MILESTONE_LABEL_MAX,
   parseDay,
   parseOptionalDay,
   round2,
   sameName,
-  SPRINT_LABEL_MAX,
   sumOf,
-  TASK_LABEL_MAX,
 } from '@ordo/shared';
 import { prisma } from '../../db';
 import { nextPositionIn } from '../core/ordering';
@@ -277,7 +273,7 @@ async function subtree(taskId: string): Promise<Set<string>> {
  */
 async function pullData(values: SyncFields, task: SyncedTask, maps: Maps, item: RemoteItem): Promise<Prisma.TaskUpdateInput> {
   const data: Prisma.TaskUpdateInput = {};
-  if ('title' in values) data.label = clipText(String(values.title), TASK_LABEL_MAX) || task.label;
+  if ('title' in values) data.label = clipText(String(values.title)) || task.label;
   if ('body' in values) data.description = values.body ? String(values.body) : null;
   if ('closed' in values) data.closedAt = values.closed ? (task.closedAt ?? new Date()) : null;
   if ('status' in values) data.status = values.status ? { connect: { id: maps.optionStatus.get(String(values.status))! } } : { disconnect: true };
@@ -318,11 +314,11 @@ async function pullData(values: SyncFields, task: SyncedTask, maps: Maps, item: 
     const ids: string[] = [];
     for (const key of values.labels as string[]) {
       // Names cut to the rule of the tags: a long label is found again by its cut name.
-      let tag = tags.find((item) => sameName(item.label, clipText(key, LABEL_MAX)));
+      let tag = tags.find((item) => sameName(item.label, clipText(key)));
       if (!tag) {
         const label = item.labels.find((entry) => nameKey(entry.name) === key);
         const position = await nextPositionIn('taskTag');
-        tag = await prisma.taskTag.create({ data: { label: clipText(label?.name ?? key, LABEL_MAX), color: DEFAULT_LABEL_COLOR, position } });
+        tag = await prisma.taskTag.create({ data: { label: clipText(label?.name ?? key), color: DEFAULT_LABEL_COLOR, position } });
         tags.push(tag);
       }
       ids.push(tag.id);
@@ -345,7 +341,7 @@ async function pullData(values: SyncFields, task: SyncedTask, maps: Maps, item: 
  */
 async function milestoneOf(projectId: string, title: string): Promise<string> {
   // Cut to the rule of the milestones: a long title is found again by its cut one.
-  const cut = clipText(title, MILESTONE_LABEL_MAX);
+  const cut = clipText(title);
   const found = await prisma.milestone.findFirst({ where: { projectId, label: cut }, select: { id: true } });
   if (found) return found.id;
   const position = await nextPositionIn('milestone', { projectId });
@@ -626,7 +622,7 @@ async function syncIterations(board: Board, link: GithubProjectLink, tree: strin
     if (!sprint) {
       const startDate = parseDay(iteration.startDate);
       const endDate = parseDay(addDays(iteration.startDate, iteration.duration - 1));
-      sprints.push(await prisma.sprint.create({ data: { projectId: link.projectId, label: clipText(iteration.title, SPRINT_LABEL_MAX), startDate, endDate, githubIterationId: iteration.id } }));
+      sprints.push(await prisma.sprint.create({ data: { projectId: link.projectId, label: clipText(iteration.title), startDate, endDate, githubIterationId: iteration.id } }));
       changed += 1;
     }
   }
@@ -711,7 +707,7 @@ export async function syncGithubProject(projectId: string): Promise<SyncSummary>
     const known = new Set((await prisma.task.findMany({ where: { githubItemId: { in: itemIds } }, select: { githubItemId: true } })).map((task) => task.githubItemId));
     const created = new Set(items.filter((entry) => !known.has(entry.itemId)).map((entry) => entry.itemId));
     for (const item of items.filter((entry) => created.has(entry.itemId))) {
-      const task = await createTask({ label: clipText(item.title, TASK_LABEL_MAX) || `Item GitHub ${item.number ?? ''}`.trim(), projectId });
+      const task = await createTask({ label: clipText(item.title) || `Item GitHub ${item.number ?? ''}`.trim(), projectId });
       // Empty snapshot except the title: every GitHub value is new, so it is pulled.
       await prisma.task.update({
         where: { id: task.id },

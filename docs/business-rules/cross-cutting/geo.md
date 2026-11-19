@@ -8,13 +8,13 @@ Un **lieu** (« Maison », « Bureau »…) a une adresse et un point (latitude,
 
 ### Champs (`placeSchema`)
 
-| Champ          | Règle                                                                                        | Message                                                |
-| -------------- | -------------------------------------------------------------------------------------------- | ------------------------------------------------------ |
-| `label`        | requis, coupé, 60 caractères au plus                                                         | « Le libellé est requis. », « 60 caractères maximum. » |
-| `address`      | coupée, 300 caractères au plus, vide par défaut                                              | « 300 caractères maximum. »                            |
-| `lat`, `lon`   | WGS 84 : latitude de -90 à 90, longitude de -180 à 180 ; obligatoires pour un lieu           | « Choisissez une adresse proposée. » (sur `address`)   |
-| `parentId`     | lieu ou zone qui contient une zone ; `null` pour un lieu                                     | —                                                      |
-| `color`, image | apparence commune des listes de paramètres (`services/core/settings-lists.ts`, type `PLACE`) | —                                                      |
+| Champ          | Règle                                                                                        | Message                                                 |
+| -------------- | -------------------------------------------------------------------------------------------- | ------------------------------------------------------- |
+| `label`        | requis, coupé, 250 caractères au plus (décision DO)                                          | « Le libellé est requis. », « 250 caractères maximum. » |
+| `address`      | coupée, 250 caractères au plus, vide par défaut                                              | « 250 caractères maximum. »                             |
+| `lat`, `lon`   | WGS 84 : latitude de -90 à 90, longitude de -180 à 180 ; obligatoires pour un lieu           | « Choisissez une adresse proposée. » (sur `address`)    |
+| `parentId`     | lieu ou zone qui contient une zone ; `null` pour un lieu                                     | —                                                       |
+| `color`, image | apparence commune des listes de paramètres (`services/core/settings-lists.ts`, type `PLACE`) | —                                                       |
 
 - Un lieu doit donc avoir un point, obtenu en choisissant une adresse proposée ou en cliquant sur la carte.
 - Pour une zone, l’adresse et le point envoyés sont ignorés : ils sont remis à vide (`address: ''`, `lat`/`lon` nuls).

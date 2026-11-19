@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { legacyLabelColumn, withLabelColumn } from '../tables/table-layout';
+import { legacyLabelColumn, TABLE_KEY_MAX, withLabelColumn } from '../tables/table-layout';
 
 /** Fixed meaning of a task status. */
 export const TASK_STATUS_CATEGORIES = ['TODO', 'IN_PROGRESS', 'DONE', 'CANCELLED'] as const;
@@ -80,7 +80,7 @@ export type TaskGroupBy = (typeof TASK_GROUP_BY)[number];
 export const DEFAULT_HIDDEN_COLUMNS: TaskColumn[] = ['blocking', 'related', 'milestone', 'createdAt', 'updatedAt'];
 
 /** Ids of columns of a table layout: any column of the table (the unknown ones are ignored by the table). */
-const columnIdsSchema = z.array(z.string().max(60)).max(200);
+const columnIdsSchema = z.array(z.string().max(TABLE_KEY_MAX)).max(200);
 
 /**
  * Columns new task views of a workspace start with, as the layout of the table: their order, and those hidden (empty:

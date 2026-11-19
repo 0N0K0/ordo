@@ -1,17 +1,19 @@
 import { z } from 'zod';
 import { parseInput } from '../../graphql/errors';
-import { PDF_TEXT, REPORT_MARGIN, reportHeadingSchema, type ReportFile, startReport, writeHeading } from '../core/pdf-report';
+import { PDF_TEXT, PRINTED_LABEL_MAX, REPORT_MARGIN, reportHeadingSchema, type ReportFile, startReport, writeHeading } from '../core/pdf-report';
 
 const PNG_DATA_URL = /^data:image\/png;base64,([A-Za-z0-9+/=]+)$/;
+/** Most characters of the data URL of a chart image. */
+const IMAGE_MAX = 12_000_000;
 
 /** Charts drawn by the app (PNG images) to print. */
 const chartsPdfSchema = reportHeadingSchema.extend({
   charts: z
     .array(
       z.object({
-        title: z.string().max(200),
-        description: z.string().max(500).default(''),
-        image: z.string().max(12_000_000).regex(PNG_DATA_URL, 'Image PNG attendue.'),
+        title: z.string().max(PRINTED_LABEL_MAX),
+        description: z.string().max(PRINTED_LABEL_MAX).default(''),
+        image: z.string().max(IMAGE_MAX).regex(PNG_DATA_URL, 'Image PNG attendue.'),
       }),
     )
     .min(1)

@@ -16,7 +16,7 @@ import {
 } from '@ordo/shared';
 import { z } from 'zod';
 import { parseInput } from '../../graphql/errors';
-import { PDF_TABLE, PDF_TEXT, type PdfDoc, reportHeadingSchema, type ReportFile, startReport, writeHeading } from '../core/pdf-report';
+import { PDF_TABLE, PDF_TEXT, type PdfDoc, PRINTED_LABEL_MAX, reportHeadingSchema, type ReportFile, startReport, writeHeading } from '../core/pdf-report';
 
 /** Local date and time, "YYYY-MM-DDTHH:MM". */
 const localDateTime = z.string().regex(LOCAL_DATE_TIME_PATTERN);
@@ -33,7 +33,7 @@ const calendarPdfSchema = reportHeadingSchema
     items: z
       .array(
         z.object({
-          label: z.string().max(300),
+          label: z.string().max(PRINTED_LABEL_MAX),
           kind: z.enum(['event', 'task', 'time', 'pause', 'work']),
           allDay: z.boolean(),
           /** All day: first and last days (YYYY-MM-DD, included); timed: local date-times. */

@@ -8,7 +8,7 @@ Toutes les données sont propres à l’espace courant (colonne `workspaceId`, v
 
 Source : `apps/api/src/services/calendar/calendars.ts`, schéma `calendarFormSchema` (`packages/shared/src/calendar/calendar.ts`).
 
-- Champs : libellé requis (80 caractères max, « Le libellé est requis. »), couleur `#rrggbb` (« Couleur invalide (format #rrggbb). »), image facultative, position.
+- Champs : libellé requis (250 caractères max, décision DO ; « Le libellé est requis. »), couleur `#rrggbb` (« Couleur invalide (format #rrggbb). »), image facultative, position.
 - Création : en dernière position (`nextPositionIn('calendar')`).
 - Modification : refusée si archivé (`ARCHIVED_MESSAGE` « Élément archivé : restaurez-le pour le modifier. »).
 - Calendrier par défaut d’un évènement (`resolveCalendarId`) : celui demandé (doit exister dans l’espace, sinon « Calendrier » introuvable), sinon le premier non archivé (ordre de position) ; s’il n’y en a aucun, un calendrier est créé au nom de l’espace, couleur `#228be6`.
@@ -28,7 +28,7 @@ Source : `apps/api/src/services/calendar/calendars.ts`, schéma `calendarFormSch
 
 Source : `apps/api/src/services/calendar/calendar-categories.ts` (service d’arbre commun `treeListService`, `apps/api/src/services/core/trees`), schéma `calendarCategoryFormSchema`.
 
-- Libellé requis (80 caractères), couleur requise `#rrggbb`, parent facultatif, image.
+- Libellé requis (250 caractères), couleur requise `#rrggbb`, parent facultatif, image.
 - Création : à la fin des enfants de son parent ; parent inexistant : « Catégorie parente » introuvable.
 - Modification : changer de parent la place en dernier.
 - Déplacement (`moveCalendarCategory`) : sous un autre parent (ou à la racine) puis à un index parmi ses frères ; refus des boucles : « Une catégorie ne peut pas être placée sous elle-même ou sous l’une de ses sous-catégories. ».
@@ -43,10 +43,10 @@ Source : `apps/api/src/services/calendar/calendar-events.ts`, schéma `calendarE
 
 | Champ                                                                       | Règle                                                                                    | Message                                                                                         |
 | --------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------- |
-| `label`                                                                     | Requis, 300 caractères (`EVENT_LABEL_MAX`)                                               | « Le libellé est requis. », « 300 caractères maximum. »                                         |
+| `label`                                                                     | Requis, 250 caractères (`TEXT_MAX`)                                                      | « Le libellé est requis. », « 250 caractères maximum. »                                         |
 | `description`                                                               | Markdown, 65 536 caractères ; vide → null                                                | « Texte trop long. »                                                                            |
-| `location`                                                                  | 500 caractères, vide → null                                                              | « 500 caractères maximum. »                                                                     |
-| `links`                                                                     | 20 max ; `url` http/https ; `label` 200 caractères                                       | « 20 liens maximum. », « Lien invalide (http ou https). »                                       |
+| `location`                                                                  | 250 caractères, vide → null                                                              | « 250 caractères maximum. »                                                                     |
+| `links`                                                                     | 20 max ; `url` http/https ; `label` 250 caractères                                       | « 20 liens maximum. », « Lien invalide (http ou https). »                                       |
 | `startDate`, `endDate`                                                      | Jours valides requis                                                                     | « La date de début est requise. », « La date de fin est requise. »                              |
 | `startTime`, `endTime`                                                      | `HH:MM`, requis si non journée entière                                                   | « L’heure de début est requise. », « L’heure de fin est requise. », « Heure attendue (HH:MM). » |
 | Fin / début                                                                 | La fin (date + heure) doit suivre le début                                               | « La fin doit suivre le début. »                                                                |
@@ -141,12 +141,12 @@ Source : `apps/api/src/services/calendar/work-schedules.ts`, schémas dans `pack
 
 ### Validation (`workScheduleSchema`)
 
-- Libellé requis, 100 caractères (`WORK_SCHEDULE_LABEL_MAX`).
+- Libellé requis, 250 caractères.
 - `startDate` requise ; `endDate` facultative, après le début : « La fin doit suivre le début. ».
 - `cases` : 1 à 20 (« Ajoutez au moins un cas. », « 20 cas au plus. »). Chaque cas : période facultative (`since`, `until`), ancre, règle de répétition commune avec durée, horaires.
   - Règle hebdomadaire : au moins un jour (« Choisissez au moins un jour. »).
   - Horaires : journée entière, ou au moins une tranche (« Ajoutez des horaires, ou « Journée entière ». ») ; 12 tranches max (« 12 tranches au plus. ») ; la fin d’une tranche suit son début ; tranches sans chevauchement (« Des horaires se chevauchent. »).
-- `exceptions` : 200 max (« 200 exceptions au plus. ») ; chacune `from` ≤ `to`, motif 100 caractères, 20 cas max ; sans cas : une pause. Triées par date de début à l’enregistrement.
+- `exceptions` : 200 max (« 200 exceptions au plus. ») ; chacune `from` ≤ `to`, motif 250 caractères, 20 cas max ; sans cas : une pause. Triées par date de début à l’enregistrement.
 - `typeId` : type de plage existant, non archivé sauf s’il est déjà celui de la plage (« Type de plage »).
 
 ### Enregistrement
@@ -175,7 +175,7 @@ Source : `apps/api/src/services/calendar/work-schedules.ts`, schémas dans `pack
 
 ## Types de plages
 
-- Service de libellés commun (`createLabelService`, voir [Nommage](../cross-cutting/naming.md)) : libellé requis 60 caractères, unique dans l’espace (« Un type porte déjà ce libellé. »), couleur `#rrggbb`, image, position, affichage.
+- Service de libellés commun (`createLabelService`, voir [Nommage](../cross-cutting/naming.md)) : libellé requis 250 caractères, unique dans l’espace (« Un type porte déjà ce libellé. »), couleur `#rrggbb`, image, position, affichage.
 - Affichage (`ScheduleDisplay`) : `dayDisplay` ∈ `SLOT_BACKGROUND` (défaut), `DAY_BACKGROUND`, `SLOT_BORDER`, `NONE` ; `dayBar` (défaut vrai) ; `monthDisplay` ∈ `BACKGROUND` (défaut), `BORDER`, `NONE`. Une valeur stockée inconnue retombe sur le défaut (`readScheduleDisplay`).
 - Suppression : les plages restent, sans type (`onDelete: SetNull`).
 - Archivage générique (`SCHEDULE_TYPE`) : plus proposé, mais gardé là où il est choisi.
@@ -183,7 +183,7 @@ Source : `apps/api/src/services/calendar/work-schedules.ts`, schémas dans `pack
 ### Type par défaut (plages sans type)
 
 - Stocké sur l’espace (`scheduleLabel`, `scheduleColor`, `scheduleDayDisplay`, `scheduleDayBar`, `scheduleMonthDisplay`).
-- Libellé 60 caractères max ; vide → « Travail » (`DEFAULT_SCHEDULE_KIND_LABEL`) ; couleur facultative (aucune : le vert des heures de travail).
+- Libellé 250 caractères max ; vide → « Travail » (`DEFAULT_SCHEDULE_KIND_LABEL`) ; couleur facultative (aucune : le vert des heures de travail).
 
 ### Abonnements aux types de plages d’autres espaces
 
@@ -221,7 +221,7 @@ Source : `apps/api/src/services/calendar/calendar-ics.ts`, route `GET /api/expor
 
 Source : `apps/api/src/services/calendar/calendar-pdf.ts`, route `POST /api/exports/calendar.pdf` (5 Mo, « Export PDF impossible. »).
 
-- Entrée : la vue telle qu’affichée (`view` mois/semaine/jour, `from`, `to`, `today`, titre et sous-titre) et ses éléments (5 000 max ; libellé 300 caractères ; genre `event`, `task`, `time`, `pause`, `work` ; dates ou date-heures locales ; couleur ; `struck`).
+- Entrée : la vue telle qu’affichée (`view` mois/semaine/jour, `from`, `to`, `today`, titre et sous-titre) et ses éléments (5 000 max ; libellé 500 caractères, `PRINTED_LABEL_MAX` = 2 × `TEXT_MAX` ; genre `event`, `task`, `time`, `pause`, `work` ; dates ou date-heures locales ; couleur ; `struck`).
 - `from` ≤ `to`, 45 jours d’écart au plus : « Période invalide. ».
 - A4 paysage, gabarit commun (`startReport`, voir [Erreurs](../cross-cutting/errors.md) pour le format des refus).
 

@@ -1,28 +1,15 @@
 import { normalize } from '../core/text';
 import { z } from 'zod';
-import { endAfter, personNameSchema, requiredText } from '../core/rules';
+import { endAfter, markdownTextSchema, personNameSchema, requiredText } from '../core/rules';
 import { dateSchema } from '../core/workspace';
 import { slotRuleSchema, type SlotRule } from '../calendar/slot-rules';
 import { endDaySchema, startDaySchema } from '../dates/times';
 
-/** Longest label of a task. */
-export const TASK_LABEL_MAX = 256;
-
-export const taskLabelSchema = requiredText(TASK_LABEL_MAX);
-
-/** Markdown text (description, comment); empty becomes null. */
-export const markdownSchema = z
-  .string()
-  .max(65_536, 'Texte trop long.')
-  .transform((value) => (value.trim() ? value : null))
-  .nullable();
+export const taskLabelSchema = requiredText();
 
 export const effortSchema = z.number({ error: 'Nombre attendu.' }).min(0, 'L’effort ne peut pas être négatif.').max(1_000_000, 'Valeur trop grande.').nullable();
 
-export const commentBodySchema = z
-  .string()
-  .max(65_536, 'Texte trop long.')
-  .refine((value) => value.trim().length > 0, 'Le commentaire est vide.');
+export const commentBodySchema = markdownTextSchema.refine((value) => value.trim().length > 0, 'Le commentaire est vide.');
 
 /** Most characters of a mention handle (as GitHub logins). */
 // eslint-disable-next-line no-restricted-syntax -- the maximum itself.
@@ -91,10 +78,7 @@ export const taskFormSchema = z
   .refine(...endAfter('minDate', 'deadline'));
 export type TaskFormValues = z.input<typeof taskFormSchema>;
 
-/** Longest label of a milestone. */
-export const MILESTONE_LABEL_MAX = 120;
-
-export const milestoneLabelSchema = requiredText(MILESTONE_LABEL_MAX);
+export const milestoneLabelSchema = requiredText();
 
 export const milestoneFormSchema = z.object({
   label: milestoneLabelSchema,
@@ -103,10 +87,7 @@ export const milestoneFormSchema = z.object({
 });
 export type MilestoneFormValues = z.input<typeof milestoneFormSchema>;
 
-/** Longest label of a sprint. */
-export const SPRINT_LABEL_MAX = 120;
-
-export const sprintLabelSchema = requiredText(SPRINT_LABEL_MAX);
+export const sprintLabelSchema = requiredText();
 
 /**
  * Schema of a sprint: its label, its days (the end not before the start) and its goal.

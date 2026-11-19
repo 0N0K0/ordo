@@ -37,13 +37,13 @@ Panneau latéral « Nouvelle alarme », « Modifier l’alarme » ou « Duplique
 
 | Champ                              | Détail                                                                                                                                                                                              |
 | ---------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| « Libellé »                        | Requis, 200 caractères ; exemple « Appeler le client, faire une pause… »                                                                                                                            |
+| « Libellé »                        | Requis, 250 caractères ; exemple « Appeler le client, faire une pause… »                                                                                                                            |
 | Type (« Type d’alarme »)           | « Rappel » (défaut), « Si pas de chrono », « Pendant le chrono », avec l’aide du type                                                                                                               |
 | « Toutes les » … « min de chrono » | Type « Pendant le chrono » : requis, 1 à 1 440 ; 50 par défaut                                                                                                                                      |
 | « Date, heure et répétition »      | Autres types : requis. Résumé ; la fenêtre de répétition commune contient la règle (aucune : une seule fois), « Date » (ou « À partir du » si répétée) et « Heure ». Par défaut aujourd’hui à 09:00 |
 | « Projet »                         | Facultatif ; le changer vide la tâche                                                                                                                                                               |
 | « Tâche »                          | Choisir d’abord un projet (« Choisissez d’abord un projet ») ; tâches que prend un chrono sur ce projet                                                                                             |
-| « Description »                    | Note, 4 000 caractères                                                                                                                                                                              |
+| « Description »                    | Texte multiligne, 4 000 caractères                                                                                                                                                                  |
 | « Active »                         | Activée par défaut                                                                                                                                                                                  |
 
 Boutons « Créer l’alarme » / « Enregistrer ». Toasts « Alarme créée. », « Alarme modifiée. », « Alarme dupliquée. ». Une copie reprend tout, avec le suffixe de copie dans le libellé.

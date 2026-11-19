@@ -1,7 +1,7 @@
 import { groupBy, sumOf } from '../core/collections';
 import { timeToMinutes } from '../dates/times';
 import { z } from 'zod';
-import { END_AFTER_START, endAfter, endsAfter, requiredText } from '../core/rules';
+import { END_AFTER_START, endAfter, endsAfter, requiredText, shortTextSchema } from '../core/rules';
 import { addDays, daysBetween, isoWeek, monthOfDay, monthOfYear, weekdayOfDate, yearOfDay } from '../dates/days';
 import { DEFAULT_RECURRENCE, ONE_DAY, type Duration, type Recurrence } from '../dates/recurrence';
 import { caseSpanOn, caseSpans, repetitionCaseSchema, type RepetitionCase } from '../dates/repetition';
@@ -99,20 +99,17 @@ export type ScheduleCase = RepetitionCase<ScheduleTimes>;
 const exceptionFields = {
   from: daySchema(),
   to: daySchema(),
-  label: z.string().trim().max(100, '100 caractères maximum.').default(''),
+  label: shortTextSchema.default(''),
 };
 
 /** Period with its own cases instead of the general ones (none: a pause, holidays…), dates included. */
 const scheduleExceptionSchema = z.object({ ...exceptionFields, cases: z.array(scheduleRepetitionCaseSchema).max(20, '20 cas au plus.').default([]) }).refine(...endAfter('from', 'to'));
 export type ScheduleException = z.infer<typeof scheduleExceptionSchema>;
 
-/** Longest label of planned time slots. */
-export const WORK_SCHEDULE_LABEL_MAX = 100;
-
 /** Planned time slots: a label, a kind, a period, its cases, and exceptions (periods with cases of their own). */
 export const workScheduleSchema = z
   .object({
-    label: requiredText(WORK_SCHEDULE_LABEL_MAX),
+    label: requiredText(),
     startDate: daySchema(),
     endDate: daySchema().nullable(),
     cases: z.array(scheduleRepetitionCaseSchema).min(1, 'Ajoutez au moins un cas.').max(20, '20 cas au plus.'),
@@ -464,7 +461,7 @@ const scheduleDisplayFields = {
 
 /** Kind of time slots ("Travail", "Garde des enfants"…), with its color and how its slots show. */
 export const scheduleTypeSchema = z.object({
-  label: requiredText(60),
+  label: requiredText(),
   color: colorSchema,
   ...scheduleDisplayFields,
 });
@@ -474,7 +471,7 @@ export const DEFAULT_SCHEDULE_KIND_LABEL = 'Travail';
 
 /** Schedules without kind of a workspace: their label (empty: "Travail"), color (none: the green of working hours) and display. */
 export const defaultScheduleKindSchema = z.object({
-  label: z.string().trim().max(60, '60 caractères maximum.'),
+  label: shortTextSchema,
   color: colorSchema.nullable(),
   ...scheduleDisplayFields,
 });

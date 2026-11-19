@@ -230,7 +230,7 @@ Barre « Paramètres de la trésorerie », sections une sous l’autre (listes d
 Dans l’onglet « contributors » de la page Paramètres (`features/projects/pages/SettingsPage.tsx`) :
 
 - « Équipe » / « Foyer » : membres (« Moi » toujours, badge « Moi ») ; ajout d’un contributeur existant ou d’un nouveau membre par son nom (crée le contributeur) ; « Retirer » (reste contributeur, toast « X n’est plus membre. ») ; « Archiver » ; interrupteur des archivés.
-- « Relations » / « Proches » : nom (« Paul, Mamie, Association du quartier… »), contributeur lié facultatif (non membre, pas déjà relation ; donne son nom si vide), description ; badge « Contributeur » ; usages (« N lignes, M budgets ») ; « Modifier », « Archiver », « Supprimer » (« Ses budgets aussi. Ses lignes vous seront attribuées. »).
+- « Relations » / « Proches » : nom (« Paul, Mamie, Association du quartier… »), contributeur lié facultatif (non membre, pas déjà relation ; donne son nom si vide), « Description » (zone de texte multiligne, 4 000 caractères) ; badge « Contributeur » ; usages (« N lignes, M budgets ») ; « Modifier », « Archiver », « Supprimer » (« Ses budgets aussi. Ses lignes vous seront attribuées. »).
 
 ## Ailleurs dans l’app
 

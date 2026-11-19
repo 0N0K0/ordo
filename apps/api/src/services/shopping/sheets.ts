@@ -3,16 +3,15 @@ import {
   checklistItemSchema,
   clipText,
   copyName,
-  ITEM_NOTE_MAX,
   itemNoteSchema,
   mapById,
+  MARKDOWN_MAX,
   parseDay,
   parseOptionalDay,
   productKey,
   quantitySchema,
   readSheetSources,
   roundQuantity,
-  SHEET_LABEL_MAX,
   sheetCategorySchema,
   type SheetInput,
   type SheetItemInput,
@@ -22,10 +21,8 @@ import {
   sheetMultiplierSchema,
   sheetSchema,
   type SheetSource,
-  SHOPPING_LABEL_MAX,
   shoppingItemSchema,
   timesSheet,
-  UNIT_MAX,
   unitSchema,
 } from '@ordo/shared';
 import { z } from 'zod';
@@ -183,7 +180,7 @@ export async function updateSheet(id: string, input: SheetInput): Promise<Sheet>
 export async function duplicateSheet(id: string): Promise<Sheet> {
   const sheet = await orNotFound(prisma.sheet.findUnique({ where: { id }, include: { items: { orderBy: BY_POSITION, include: withPeople }, categories: { select: { id: true } } } }), 'Fiche');
   refuseArchived(sheet);
-  const copy = await createSheet({ label: copyName(sheet.label, SHEET_LABEL_MAX), note: sheet.note, projectId: sheet.projectId, categoryIds: sheet.categories.map((category) => category.id) });
+  const copy = await createSheet({ label: copyName(sheet.label), note: sheet.note, projectId: sheet.projectId, categoryIds: sheet.categories.map((category) => category.id) });
   await prisma.$transaction(
     sheet.items.map((item) =>
       prisma.sheetItem.create({
@@ -337,8 +334,8 @@ async function partsOf(links: SheetLinkInput[]): Promise<SheetPart[]> {
 const QUANTITY_MAX = 999_999;
 
 /**
- * Part as a shopping item takes it: its label, note and unit cut to the limits of the shopping items (sheets saved
- * before the shared limits may hold longer texts), its quantity capped, then checked by the shopping item schemas.
+ * Part as a shopping item takes it: its label, note and unit cut to the text sizes (decision DO; texts saved before
+ * them may be longer), its quantity capped, then checked by the shopping item schemas.
  * @param {SheetPart} part Part.
  * @returns {SheetPart} Part that fits a shopping item.
  */
@@ -346,15 +343,15 @@ function fitForShopping(part: SheetPart): SheetPart {
   /**
    * Text cut to a length (clipText), none kept as none.
    * @param {string | null} text Text.
-   * @param {number} max Most characters.
+   * @param {number} [max] Most characters. Optional. Default = `TEXT_MAX`.
    * @returns {string | null} Cut text.
    */
-  const cut = (text: string | null, max: number): string | null => (text === null ? null : clipText(text, max));
+  const cut = (text: string | null, max?: number): string | null => (text === null ? null : clipText(text, max));
   return {
     ...part,
-    label: parseInput(shoppingItemSchema.shape.label, cut(part.label, SHOPPING_LABEL_MAX)),
-    note: parseInput(itemNoteSchema, cut(part.note, ITEM_NOTE_MAX)),
-    unit: parseInput(unitSchema, cut(part.unit, UNIT_MAX)),
+    label: parseInput(shoppingItemSchema.shape.label, cut(part.label)),
+    note: parseInput(itemNoteSchema, cut(part.note, MARKDOWN_MAX)),
+    unit: parseInput(unitSchema, cut(part.unit)),
     quantity: part.quantity === null ? null : parseInput(quantitySchema, Math.min(part.quantity, QUANTITY_MAX)),
   };
 }

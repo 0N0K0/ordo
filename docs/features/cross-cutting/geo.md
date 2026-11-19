@@ -11,7 +11,7 @@ Route `/settings?tab=places`. Composant `PlacesManager`. La zone prend la hauteu
   - Chaque élément : libellé, couleur (facultative) et image ; l’adresse s’affiche sous un lieu.
   - Ajout de lieux et de zones, modification, archivage, suppression.
   - Glisser-déposer : les lieux se réordonnent entre eux ; une zone passe sous un autre lieu ou une autre zone. Un lieu ne devient jamais une zone, ni une zone un lieu.
-- **Formulaire** : « Libellé » (60 caractères, unique parmi les lieux ou parmi les zones d’un même lieu) ; pour un lieu seulement, « Adresse » (requise, « Adresse, ou un clic sur la carte ») qu’il faut choisir parmi les propositions : « Choisissez une adresse proposée. ».
+- **Formulaire** : « Libellé » (250 caractères, unique parmi les lieux ou parmi les zones d’un même lieu) ; pour un lieu seulement, « Adresse » (requise, « Adresse, ou un clic sur la carte ») qu’il faut choisir parmi les propositions : « Choisissez une adresse proposée. ».
 - **Suppression** : « Le lieu « X » sera supprimé définitivement avec ses zones ; les évènements et routines gardent leur lieu en texte ; il ne sera plus proposé. » (« La zone… supprimée » pour une zone).
 
 ## Champ d’adresse

@@ -4,7 +4,7 @@ import { ListSkeleton } from '../../../components/feedback/Skeletons';
 import { confirmDestructive } from '../../../components/dialogs/confirm-destructive';
 import { openFormPanel } from '../../../components/panels/panels';
 import { Box, Group, NavLink, Stack, Text } from '@mantine/core';
-import { requiredText } from '@ordo/shared';
+import { mailFolderNameSchema } from '@ordo/shared';
 
 import {
   ArchiveIcon,
@@ -47,8 +47,6 @@ interface SelectedFolder {
   folder: string;
 }
 
-/** Rule of the name of a folder. */
-const FOLDER_NAME = requiredText(255);
 
 interface AccountFoldersProps {
   account: MailAccount;
@@ -195,7 +193,7 @@ export function AccountFolders({ account, selected, onSelect, onDropped }: Accou
     openLabelForm(parent ? 'Nouveau sous-dossier' : 'Nouveau dossier', {
       initial: '',
       fieldLabel: 'Nom',
-      schema: FOLDER_NAME,
+      schema: mailFolderNameSchema,
       submitLabel: 'Créer',
       onSubmit: (name) => create.mutateAsync({ accountId: account.id, parent, name }).then(() => notifySuccess('Dossier créé.')),
     });
@@ -210,7 +208,7 @@ export function AccountFolders({ account, selected, onSelect, onDropped }: Accou
     openLabelForm('Renommer le dossier', {
       initial: folder.name,
       fieldLabel: 'Nom',
-      schema: FOLDER_NAME,
+      schema: mailFolderNameSchema,
       submitLabel: 'Renommer',
       onSubmit: (name) =>
         rename.mutateAsync({ accountId: account.id, path: folder.path, name }).then((path) => {

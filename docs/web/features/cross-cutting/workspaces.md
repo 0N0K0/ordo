@@ -36,7 +36,7 @@ Tous les fichiers de `apps/web/src/features/workspaces/` : requête des espaces,
 
 ### `components/WorkspacesManager.tsx`
 
-- `WorkspacesManager()` : `SettingsGrid` avec la section « Espaces » (une ligne par espace) et « Nouvel espace » (libellé limité à `WORKSPACE_LABEL_MAX`, type par défaut `PERSO`, toast « Espace créé. »). Utilisé par `SettingsPage` (onglet `workspaces`) et le panneau ouvert depuis le sélecteur.
+- `WorkspacesManager()` : `SettingsGrid` avec la section « Espaces » (une ligne par espace) et « Nouvel espace » (libellé limité à `TEXT_MAX`, type par défaut `PERSO`, toast « Espace créé. »). Utilisé par `SettingsPage` (onglet `workspaces`) et le panneau ouvert depuis le sélecteur.
 - `WorkspaceRow({ workspace, index, count, current, fallbackId })` (interne) : type (`SegmentedControl`), menu `InlineActions` (« Renommer » via `openLabelForm` + `workspaceLabelSchema`, `moveEntries`, « Ouvrir »), `RemoveButton` + `confirmDestructive` (bascule sur `fallbackId` si l’espace ouvert est supprimé), puces des notifications (`Chip.Group`), semaine (deux `Select` sur `WEEKDAY_LABELS`, `readWeek`, `weekLength`).
 - Constantes internes : `KINDS`, `SOURCES`, `WEEKDAYS`.
 

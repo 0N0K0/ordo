@@ -6,7 +6,7 @@ Voir aussi : [Personnes](people.md), [Erreurs](errors.md), [Tâches de fond](bac
 
 ## Espaces : PRO et PERSO
 
-- Un espace est **professionnel** (`PRO` : facturation, clients, entreprise) ou **personnel** (`PERSO`). Libellé requis, 60 caractères max.
+- Un espace est **professionnel** (`PRO` : facturation, clients, entreprise) ou **personnel** (`PERSO`). Libellé requis, 250 caractères max.
 - Un espace personnel refuse la facturation (documents, documents importés, factures récurrentes), les clients, le catalogue et la fiche société : « Indisponible dans un espace personnel (facturation). » / « (clients) » / « (catalogue) » / « (société) » (`requirePro`).
 - Un espace PRO ne devient personnel que s'il n'a ni clients, ni documents de facturation, ni documents importés : « Cet espace a des clients ou des documents de facturation : il ne peut pas devenir personnel. ».
 - Règle de créneaux par défaut des tâches et routines : sur les heures de travail en PRO, n'importe où en PERSO (voir [calendar](../../shared/activities/calendar.md)).

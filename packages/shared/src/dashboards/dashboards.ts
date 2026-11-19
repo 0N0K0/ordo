@@ -1,8 +1,8 @@
 import { z } from 'zod';
-import { requiredText } from '../core/rules';
+import { requiredText, shortTextSchema } from '../core/rules';
 import { ACCOUNTING_DOCUMENT_TYPES } from '../accounting/accounting';
 import { calendarStart, shiftCalendar, type CalendarScale } from '../dates/periods';
-import { emptyTableFilter } from '../tables/table-views';
+import { emptyTableFilter, searchTextSchema } from '../tables/table-views';
 import { taskTableFilterSchema } from './task-filter-translation';
 
 /** What a chart is drawn from: tasks, accounting documents (quotes, invoices…), treasury movements. */
@@ -130,10 +130,13 @@ export type TreasuryChartFilter = z.infer<typeof treasuryChartFilterSchema>;
 /** Id of the main data set of a chart (its own source, measure and filters). */
 export const MAIN_DATASET = 'main';
 
+/** Most characters of the id of a data set or a comparison of a chart (a key). */
+const DATASET_ID_MAX = 40;
+
 /** Records a data set counts (tasks: same filters as the task views; documents; treasury entries). */
 const chartFilterFields = {
   filter: taskTableFilterSchema.default(emptyTableFilter),
-  search: z.string().max(200).default(''),
+  search: searchTextSchema,
   includeArchived: z.boolean().default(false),
   documents: documentChartFilterSchema.default(() => documentChartFilterSchema.parse({})),
   treasury: treasuryChartFilterSchema.default(() => treasuryChartFilterSchema.parse({})),
@@ -141,8 +144,8 @@ const chartFilterFields = {
 
 /** Additional data set of a chart: its own source, measure and filters, on the axis of the chart. */
 const chartDatasetSchema = z.object({
-  id: z.string().min(1).max(40),
-  label: requiredText(60, 'Nommez le jeu de données.'),
+  id: z.string().min(1).max(DATASET_ID_MAX),
+  label: requiredText('Nommez le jeu de données.'),
   source: z.enum(CHART_SOURCES),
   measure: z.enum(CHART_MEASURES),
   /** Date of the records on a time axis (the dates differ between sources); the axis date when null. */
@@ -158,8 +161,8 @@ export type ChartDataset = z.infer<typeof chartDatasetSchema>;
 /** Comparison of two data sets (their totals, whatever their series): the share of one in another (percent), or their difference. */
 export const CHART_COMPARISON_KINDS = ['ratio', 'difference'] as const;
 const chartComparisonSchema = z.object({
-  id: z.string().min(1).max(40),
-  label: requiredText(60, 'Nommez la comparaison.'),
+  id: z.string().min(1).max(DATASET_ID_MAX),
+  label: requiredText('Nommez la comparaison.'),
   kind: z.enum(CHART_COMPARISON_KINDS),
   /** Data sets compared (MAIN_DATASET or the id of another one): a / b, or a − b. */
   a: z.string().min(1),
@@ -187,7 +190,7 @@ export const chartConfigSchema = z
     sprintId: z.string().nullable().default(null),
     ...chartFilterFields,
     /** Label of the main data set (shown when there are several). */
-    label: z.string().trim().max(60, '60 caractères maximum.').default(''),
+    label: shortTextSchema.default(''),
     /** Other data sets, drawn on the same axis. */
     datasets: z.array(chartDatasetSchema).max(8, '8 jeux de données supplémentaires maximum.').default([]),
     /** Comparisons of data sets (ratio in percent on a right axis, or difference). */
@@ -234,13 +237,8 @@ export const chartConfigSchema = z
   });
 export type ChartConfig = z.infer<typeof chartConfigSchema>;
 
-/** Longest label of a chart. */
-export const CHART_LABEL_MAX = 120;
-/** Longest label of a dashboard. */
-export const DASHBOARD_LABEL_MAX = 60;
-
-export const chartLabelSchema = requiredText(CHART_LABEL_MAX);
-export const dashboardLabelSchema = requiredText(DASHBOARD_LABEL_MAX);
+export const chartLabelSchema = requiredText();
+export const dashboardLabelSchema = requiredText();
 
 /**
  * Configuration of a new chart of a source: tasks created per week, invoiced revenue per month, or money in

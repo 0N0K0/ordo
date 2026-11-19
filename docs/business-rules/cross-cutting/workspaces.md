@@ -36,7 +36,7 @@ La requête `currentWorkspaceId` rend l’espace retenu. Côté web, la fenêtre
 
 `createWorkspace({ label, kind })` :
 
-- `label` : requis, coupé, 60 caractères au plus (`workspaceLabelSchema`, `WORKSPACE_LABEL_MAX`) : « Le libellé est requis. », « 60 caractères maximum. ».
+- `label` : requis, coupé, 250 caractères au plus (`workspaceLabelSchema`, `TEXT_MAX`, décision DO) : « Le libellé est requis. », « 250 caractères maximum. ».
 - `kind` : `PRO` ou `PERSO`.
 - Le nouvel espace va à la fin du sélecteur.
 - Mise en place (`setUpWorkspace`), aussi rejouée à chaque modification :

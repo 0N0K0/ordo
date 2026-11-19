@@ -1,4 +1,4 @@
-import { type DocumentPaymentInput, documentPaymentSchema, isInvoice, parseDay, SENDING_CHANNELS, sumOf } from '@ordo/shared';
+import { type DocumentPaymentInput, documentPaymentSchema, fitName, isInvoice, optionalPlainText, parseDay, SENDING_CHANNELS, sumOf } from '@ordo/shared';
 import { z } from 'zod';
 import { prisma } from '../../db';
 import { invoiceCategories } from './company';
@@ -244,8 +244,8 @@ export async function addReminder(id: string, note: string | null): Promise<void
   const document = await finalDocument(id);
   if (!isInvoice(document.type)) throw clientError('BAD_USER_INPUT', 'Seule une facture peut être relancée.');
   // Too long: refused (no silent cut).
-  const text = parseInput(z.string().trim().max(500, '500 caractères maximum.').nullable(), note);
-  await prisma.documentReminder.create({ data: { documentId: id, note: text || null } });
+  const text = parseInput(optionalPlainText(), note ?? '');
+  await prisma.documentReminder.create({ data: { documentId: id, note: text } });
 }
 
 /**
@@ -290,7 +290,7 @@ export async function recordPayment(id: string, input: DocumentPaymentInput): Pr
       status: 'ACTUAL',
       date: parseDay(payment.date),
       valueDate: parseDay(payment.date),
-      label: `${refund ? 'Remboursement' : 'Règlement'} ${document.number} — ${document.client.name}`,
+      label: fitName(`${refund ? 'Remboursement' : 'Règlement'} ${document.number} — `, document.client.name),
       amount: toDecimal(refund ? -payment.amount : payment.amount),
       categoryId: category?.id ?? null,
       methodId: payment.methodId,

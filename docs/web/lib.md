@@ -165,7 +165,7 @@ eslint interdit `.slice(0, 10)`, `.slice(0, 7)`, `.split('T')[0]` et `new Date('
 
 ## Texte, ensembles, clés
 
-- `text.ts` : réexports de `@ordo/shared` (seul chemin pour `collator` et `normalize`) : `collator`, `copyName`, `countOf`, `countWith`, `ellipsis`, `nameKey`, `normalize`, `plural`, `sameName`. Voir [Partagé : core](../shared/cross-cutting/core.md) et [Noms](../business-rules/cross-cutting/naming.md).
+- `text.ts` : réexports de `@ordo/shared` (seul chemin pour `collator` et `normalize`) : `collator`, `copyName`, `countOf`, `countWith`, `ellipsis`, `fitName`, `nameKey`, `normalize`, `plural`, `sameName`. Voir [Partagé : core](../shared/cross-cutting/core.md) et [Noms](../business-rules/cross-cutting/naming.md).
 - `sets.ts` : `toggledIn(set, value)` (ensemble avec une valeur basculée), `toggledInList(list, value, on?)` (liste avec une valeur ajoutée en fin ou retirée, ou mise selon `on`). Imposés par eslint.
 - `tagged-key.ts` : `taggedKey(tag, id)` (`<sorte>:<id>`, valeur d'une liste mêlant des sortes : clients et tiers, ids de glisser-déposer), `parseTaggedKey(key)` (l'id peut contenir « : »), `taggedIds(keys, tag)`. Imposés par eslint.
 

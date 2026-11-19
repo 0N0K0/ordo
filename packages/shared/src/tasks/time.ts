@@ -1,17 +1,13 @@
 import { z } from 'zod';
-import { END_AFTER_START, endsAfter, requiredText } from '../core/rules';
+import { END_AFTER_START, endsAfter, markdownSchema, markdownTextSchema, optionalPlainText, requiredText } from '../core/rules';
 import { DEFAULT_RECURRENCE, occurrenceDates, recurrenceSchema, type Recurrence } from '../dates/recurrence';
 import { dateSchema } from '../core/workspace';
 import { daySchema, timeOfDaySchema } from '../dates/times';
 import { dayIn, localInstant } from '../dates/days';
 import { twoDigits } from '../core/numbers';
 
-/** What was done during a tracked time: plain text, several lines. Empty becomes null. */
-export const timeDescriptionSchema = z
-  .string()
-  .max(4000, '4 000 caractères maximum.')
-  .transform((value) => (value.trim() ? value.trim() : null))
-  .nullable();
+/** What was done during a tracked time: markdown (its editor). Blank becomes null. */
+export const timeDescriptionSchema = markdownSchema;
 
 /** Duration of a time entry, in seconds: up to 24 hours. */
 export const durationSchema = z
@@ -29,7 +25,7 @@ export const timeEntryFormSchema = z
     projectId: z.string(),
     routineId: z.string().nullable(),
     taskIds: z.array(z.string()),
-    description: z.string().max(4000, '4 000 caractères maximum.'),
+    description: markdownTextSchema,
     date: daySchema('La date est requise.'),
     start: timeOfDaySchema,
     duration: z.string().refine((value) => parseDuration(value) !== null, 'Durée attendue : 1:30, 1h30, 90 (minutes) ou 1,5 h.'),
@@ -101,18 +97,11 @@ export type AlarmType = (typeof ALARM_TYPES)[number];
 export const ALARM_FREQUENCIES = ['ONCE', 'DAILY', 'WEEKLY', 'MONTHLY'] as const;
 export type AlarmFrequency = (typeof ALARM_FREQUENCIES)[number];
 
-/** Longest label of an alarm. */
-export const ALARM_LABEL_MAX = 200;
-
 /** Alarm fields, as saved. */
 export const alarmInputSchema = z
   .object({
-    label: requiredText(ALARM_LABEL_MAX),
-    note: z
-      .string()
-      .max(4000, '4 000 caractères maximum.')
-      .transform((value) => (value.trim() ? value.trim() : null))
-      .nullable(),
+    label: requiredText(),
+    note: optionalPlainText(),
     type: z.enum(ALARM_TYPES),
     startDate: dateSchema,
     time: timeOfDaySchema.nullable(),
