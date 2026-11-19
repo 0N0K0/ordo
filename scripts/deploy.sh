@@ -32,18 +32,17 @@ echo "▶ Build"
 htaccess="$(mktemp)"
 if [[ -f apps/web/dist/.htaccess ]]; then cp apps/web/dist/.htaccess "$htaccess"; fi
 npm run build
-if [[ -s "$htaccess" ]]; then
-  cp "$htaccess" apps/web/dist/.htaccess
-  # Apache serves the built files itself: it gives them the security headers of the API (block replaced at each
-  # deployment; the previous one is kept if the new one cannot be printed).
-  if block="$(npm run --silent htaccess:print -w apps/api)" && [[ -n "$block" ]]; then
-    sed -i '/^# BEGIN ordo-security/,/^# END ordo-security/d' apps/web/dist/.htaccess
-    printf '%s\n' "$block" >> apps/web/dist/.htaccess
-  else
-    echo "Security headers of the .htaccess not updated." >&2
-  fi
-fi
+if [[ -s "$htaccess" ]]; then cp "$htaccess" apps/web/dist/.htaccess; fi
 rm -f "$htaccess"
+# Apache serves the built files itself: it gives them the security headers of the API and sends HTTP to HTTPS. The rules
+# live in the folder above the built app, where neither Vite nor cPanel (which rewrites its own .htaccess) removes them;
+# Apache applies the .htaccess of every folder on the way to a file. The previous ones are kept if they cannot be printed.
+if block="$(npm run --silent htaccess:print -w apps/api)" && [[ -n "$block" ]]; then
+  printf '%s\n' "$block" > apps/web/.htaccess
+  echo "Security rules written in apps/web/.htaccess"
+else
+  echo "Security rules of apps/web/.htaccess not updated." >&2
+fi
 
 if [[ "${BACKUP:-0}" == 1 ]]; then
   echo "▶ Database backup"
