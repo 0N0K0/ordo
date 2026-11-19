@@ -73,7 +73,7 @@ Une sonnerie = un carillon de trois notes (si l’onglet a déjà reçu un clic 
 ### Rappels d’évènements et alertes de routines
 
 - Rappels d’évènements : les occurrences d’hier à J+8 sont rechargées toutes les 5 minutes ; chaque rappel sonne à « début − minutes » (journée entière : minuit local du premier jour), au plus 6 heures en retard. Toast : libellé, « Journée entière » ou date et heure, lieu ; lien « Voir l’agenda ».
-- Alertes de routines : pour les routines du jour non cochées, chaque heure du jour non cochée sonne à ses minutes avant son moment (heure de départ, sinon début de sa fenêtre, sinon son heure limite), au plus 6 heures en retard ; hors des plages permises par la règle de plages de la routine, l’alerte attend le prochain moment permis. Toast : libellé, « Partir à HH:MM » le cas échéant, fenêtre et lieu ; actions « Marquer comme faite » et « Voir les routines ». Voir [Routines](routines.md).
+- Alertes de routines : pour les routines du jour non cochées, chaque heure du jour non cochée sonne à ses minutes avant son moment (heure de départ, sinon début de sa fenêtre, sinon son heure limite), au plus 6 heures en retard ; pendant un évènement qui occupe ses assignés, l’alerte attend le prochain moment libre. Toast : libellé, « Partir à HH:MM » le cas échéant, fenêtre et lieu ; actions « Marquer comme faite » et « Voir les routines ». Voir [Routines](routines.md).
 
 ### Plusieurs onglets
 

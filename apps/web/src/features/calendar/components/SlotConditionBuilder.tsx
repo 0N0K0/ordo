@@ -1,8 +1,8 @@
 import { LabeledField } from '../../../components/inputs/LabeledField';
-import { scheduleChoices } from '../../calendar/lib/schedule-choices';
+import { scheduleChoices } from '../lib/schedule-choices';
 import { Text } from '@mantine/core';
 import { conditionScheduleIds, SLOT_CONDITION_FIELD_OPERATORS, SLOT_CONDITION_FIELDS, slotConditionSchema, type FilterOperator, type SlotCondition, type SlotConditionField } from '@ordo/shared';
-import { useWorkSchedules } from '../../calendar/api';
+import { useWorkSchedules } from '../api';
 import { FieldsFilterBuilder, type FilterFields } from '../../../components/filters/FilterBuilder';
 import { emptySlotCondition } from '../lib/slot-condition-text';
 
@@ -11,14 +11,20 @@ const OPERATOR_LABELS: Record<SlotConditionField, Record<string, string>> = {
   freeTime: { isEmpty: 'hors de toutes les plages', notIn: 'hors de toutes les plages sauf' },
 };
 
+/** What the condition does, by item (shown under the label). */
+const EFFECTS = {
+  routine: 'Les moments ne sont gardés que sur les heures que la condition permet ; un jour sans aucune heure n’est pas une occurrence.',
+  task: 'La tâche n’est faisable que sur les heures que la condition permet.',
+} as const;
+
 /**
- * When a routine (or one of its cases) is done relative to the calendar schedules: on or out of some of them,
- * combined in groups with ET / OU, as the filters of the tables (« ((déjeuner ou dîner) et garde alternée) ou hors
- * sommeil »). Empty: any time.
- * @param {{ value: SlotCondition | null, onChange: (value: SlotCondition | null) => void }} props Condition and its change.
+ * When a task or a routine (or one of its cases) is done relative to the calendar schedules: on or out of some of
+ * them, or on the free time, combined in groups with ET / OU, as the filters of the tables (« ((déjeuner ou dîner) et
+ * garde alternée) ou hors sommeil »). Empty: any time.
+ * @param {{ value: SlotCondition | null, onChange: (value: SlotCondition | null) => void, item: 'routine' | 'task' }} props Condition, its change, and the item it is for (what the condition does).
  * @returns {JSX.Element} Builder.
  */
-export function SlotConditionBuilder({ value, onChange }: { value: SlotCondition | null; onChange: (value: SlotCondition | null) => void }) {
+export function SlotConditionBuilder({ value, onChange, item }: { value: SlotCondition | null; onChange: (value: SlotCondition | null) => void; item: keyof typeof EFFECTS }) {
   const { data: schedules } = useWorkSchedules();
   const fields: FilterFields<SlotConditionField> = {
     kinds: SLOT_CONDITION_FIELDS,
@@ -35,8 +41,7 @@ export function SlotConditionBuilder({ value, onChange }: { value: SlotCondition
   return (
     <LabeledField label="Plages de l’agenda">
       <Text size="xs" c="dimmed">
-        Facultatif : sur ou hors de certaines plages, ou sur le temps libre (hors de toutes les plages, sauf certaines), combinées en groupes (ET, OU). Les moments ne sont gardés que sur les heures
-        que la condition permet ; un jour sans aucune heure n’est pas une occurrence.
+        Facultatif : sur ou hors de certaines plages, ou sur le temps libre (hors de toutes les plages, sauf certaines), combinées en groupes (ET, OU). {EFFECTS[item]}
       </Text>
       <FieldsFilterBuilder filter={value ?? emptySlotCondition()} fields={fields} onChange={(next) => onChange(next.children.length ? next : null)} />
     </LabeledField>

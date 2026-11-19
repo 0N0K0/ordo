@@ -59,7 +59,7 @@ Le regroupement par catégories suit l'arbre des catégories (une sous-catégori
 | `description`                 | « Description »                     | masquée              | Texte.                                                                                                                                                                     |
 | `done`                        | « Faite »                           | masquée              | « Oui » si l'occurrence en cours est faite.                                                                                                                                |
 | `waiting`                     | « En attente »                      | masquée              | « Oui » si une routine requise n'est pas encore faite.                                                                                                                     |
-| `doableNow`                   | « Faisable maintenant »             | masquée              | « Oui » si les plages de l'espace permettent de la faire maintenant.                                                                                                       |
+| `doableNow`                   | « Faisable maintenant »             | masquée              | « Oui » si aucun évènement n'occupe ses assignés maintenant (sa condition de plages garde déjà ses moments aux heures permises).                                            |
 | commentaires                  | (colonne commune)                   |                      | Nombre de commentaires (la description compte pour un).                                                                                                                    |
 
 Recherche : « Rechercher (libellé, description, lieu) ».
@@ -71,7 +71,7 @@ Recherche : « Rechercher (libellé, description, lieu) ».
 - « Depuis lun. 10 nov. » (orange) : en retard depuis cette date.
 - À venir : la date de la prochaine fois en gris (ou « — »).
 - Une flèche indique une occurrence reportée ou avancée ; l'infobulle donne « Prochaine fois : … » (ou « Plus d'occurrence à venir ») et le jour prévu à l'origine.
-- Une routine « à faire » mais hors des plages de l'espace (voir [PRO et PERSO](#pro-et-perso)) passe « à venir ».
+- Une routine « à faire » dont un évènement occupe les assignés maintenant passe « à venir ».
 
 Les lignes faites et archivées sont estompées ; le libellé d'une routine faite est barré.
 
@@ -98,7 +98,7 @@ Une routine se déplace par glisser-déposer, comme une tâche : avant une autre
 - « Modifier » (action principale) : formulaire.
 - « Ajouter une sous-routine ».
 - « Reporter au lendemain » et « Reporter, changer l'horaire ou annuler… » (quand une occurrence peut être déplacée).
-- « Dupliquer » (avec ses sous-routines).
+- « Dupliquer » (avec ses sous-routines ; un ancien lien hors de l'arborescence de projets de la routine n'est pas copié).
 - « Historique » (onglet Historique filtré sur elle).
 - « Archiver » / « Restaurer ».
 - « Supprimer ».
@@ -144,7 +144,7 @@ Valeurs par défaut d'une nouvelle routine : tous les jours à partir d'aujourd'
 
 Sous les trajets, une ligne résume « Partir à 8 h 05 (trajet et 15 min sur place) · retour vers 9 h 00 » quand la routine a un seul moment.
 
-Toasts : « Routine créée. », « Routine modifiée. », « Routine dupliquée. ».
+Toasts : « Routine créée. », « Routine modifiée. », « Routine dupliquée. ». Une routine passée dans une autre arborescence de projets perd ses liens hors d'elle : « Routine modifiée. 2 liens retirés. » ; de même sur place (« Routine déplacée. 2 liens retirés. ») et sur une sélection (« Modification appliquée à 3 routines. 2 liens retirés. »).
 
 ### Fenêtre « Répétition et moments »
 
@@ -183,13 +183,12 @@ Une occurrence déjà cochée ne se déplace pas : il faut d'abord la décocher.
 
 - Accueil : carte des routines à faire aujourd'hui (en retard d'abord), cochées depuis la carte, avec report au lendemain et sablier d'attente (voir [Accueil](../cross-cutting/home.md)).
 - Agenda : occurrences des routines dans l'agenda, déplaçables, et routines liées à un évènement pour un jour (voir [Agenda](calendar.md)).
-- Alarmes : les rappels sonnent pour chaque moment non coché d'une routine due aujourd'hui, avant l'heure de départ (sinon le début, sinon l'heure limite) ; le toast propose de la cocher ; hors des plages permises, l'alarme attend le prochain moment permis (voir [Alarmes](alarms.md)).
+- Alarmes : les rappels sonnent pour chaque moment non coché d'une routine due aujourd'hui, avant l'heure de départ (sinon le début, sinon l'heure limite) ; le toast propose de la cocher ; pendant un évènement qui occupe ses assignés, l'alarme attend le prochain moment libre (voir [Alarmes](alarms.md)).
 - Temps : une saisie de temps ou le chronomètre peut porter sur une routine (projet de la routine par défaut) (voir [Temps](time.md)).
 
 ## PRO et PERSO
 
-- L'état « À faire » et la colonne « Faisable maintenant » tiennent compte de la règle de plages par défaut de l'espace : dans un espace professionnel, les heures de travail ; dans un espace personnel, n'importe quand ; et des évènements qui occupent les assignés. Hors de ces plages, une routine due est affichée « À venir ».
-- Le reste est identique dans les deux types d'espace.
+- Aucune différence : sans condition de plages, une routine se fait n'importe quand dans les deux types d'espace (décision D10) ; l'état « À faire » et la colonne « Faisable maintenant » ne tiennent compte que de sa condition (qui garde ses moments) et des évènements qui occupent les assignés.
 
 ## Paramètres : catégories
 

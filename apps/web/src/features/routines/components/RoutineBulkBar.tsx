@@ -8,7 +8,8 @@ import { openModal } from '../../../components/panels/open-modal';
 import { DeleteRoutinesDialog } from './DeleteRoutinesDialog';
 import { routineInputOf, useRoutineMutations, useRoutinesData, type Routine } from '../api';
 import { routinesLabel } from '../lib/routine-cell-edit';
-import { isDone, movableOccurrence } from '../lib/routine-format';
+import { copiedLinks, isDone, movableOccurrence } from '../lib/routine-format';
+import { useTaskContext } from '../../tasks/hooks/use-task-context';
 import { usePostponeRoutine } from '../hooks/use-routine-move';
 import { plural, copyName } from '../../../lib/text';
 
@@ -31,6 +32,7 @@ interface RoutineRowsActions {
 export function useRoutineRowsActions() {
   const { bulkArchive, bulkDone, create, copySubRoutines } = useRoutineMutations();
   const { data } = useRoutinesData();
+  const { context } = useTaskContext();
   const postpone = usePostponeRoutine();
   return (routines: Routine[], onClear: () => void = () => undefined): RoutineRowsActions => {
     const ids = routines.map((routine) => routine.id);
@@ -74,7 +76,7 @@ export function useRoutineRowsActions() {
           ),
           {
             duplicate: async (routine) => {
-              const copyId = await create.mutateAsync({ ...routineInputOf(routine), label: copyName(routine.label) });
+              const copyId = await create.mutateAsync({ ...routineInputOf(routine), label: copyName(routine.label), ...copiedLinks(routine, context, byId) });
               if ((data?.routines ?? []).some((item) => item.parentId === routine.id)) await copySubRoutines.mutateAsync({ fromId: routine.id, toId: copyId });
             },
             done: `${activeLabel} ${plural(activeIds.length, 'dupliquée')}.`,

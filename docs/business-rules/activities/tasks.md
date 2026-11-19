@@ -20,7 +20,7 @@ Voir aussi : [Temps passé](time.md), [Commentaires](../cross-cutting/comments.m
 | `startDate`, `endDate`                     | Jours (YYYY-MM-DD) ; la fin ne précède pas le début.                                                                                                                                               |
 | `minDate`                                  | « Date min » : la tâche n’est pas à faire avant.                                                                                                                                                   |
 | `deadline`                                 | « Date max » : au-delà, une tâche ouverte est en retard.                                                                                                                                           |
-| `slotRule`                                 | Plages où la tâche se fait (ou hors desquelles) : `{ mode, kinds }` ; `null` = défaut de l’espace (les heures de travail en espace PRO). Validé par `slotRuleSchema` (voir [Agenda](calendar.md)). |
+| `slotCondition`                            | Condition de plages, la même que celle des routines (décision D9) : groupes ET / OU sur des plages nommées et le temps libre ; `null` = n’importe quand (décision D10). Validée par `slotConditionSchema` (voir [Agenda](calendar.md)). |
 | `parentId`                                 | Tâche parente (sous-tâches).                                                                                                                                                                       |
 | `milestoneId`                              | Un jalon.                                                                                                                                                                                          |
 | `sprintIds`                                | Plusieurs sprints (une tâche peut s’étaler sur plusieurs).                                                                                                                                         |
@@ -36,7 +36,8 @@ Champs calculés exposés par GraphQL (`apps/api/src/graphql/modules/tasks.ts`) 
 - `blockingIds` (tâches qu’elle bloque), `blockedByIds` (tâches qui la bloquent), `relatedIds` (relations dans les deux sens).
 - `commentCount` : nombre de commentaires de la tâche.
 - `trackedSeconds` : temps passé, en secondes (voir [Temps passé d’une tâche](time.md#temps-passé-dune-tâche)).
-- `slotRule` lu par `readSlotRule` (une valeur illisible devient `null`).
+- `slotCondition` lue par `readSlotCondition` (une valeur illisible devient `null`) ; un groupe vide est enregistré comme `null`.
+- Plages de la condition : existantes (« Plage » introuvable) ; une plage archivée n’est plus acceptée, sauf si elle était déjà dans la condition de la tâche (`assertConditionSchedules`).
 
 ## Création
 
@@ -195,9 +196,9 @@ Source : `assertProjectContributors` (`services/projects/contributors.ts`), `ass
 
 ## Tâches faisables maintenant
 
-Source : requête `doableTaskIds(utcOffset)` (`services/calendar/slot-rules.ts`).
+Source : requête `doableTaskIds(utcOffset)` (`services/calendar/slot-conditions.ts`).
 
-Tâches ouvertes de l’espace dont la règle de plages (sinon le défaut de l’espace) autorise le moment présent de l’utilisateur, et dont aucun évènement n’occupe les assignés (aucun : « Moi »), sauf un évènement lié à la tâche. Détail dans [Agenda](calendar.md).
+Tâches ouvertes de l’espace dont la condition de plages (aucune : n’importe quand, dans les deux types d’espace) autorise le moment présent de l’utilisateur, et dont aucun évènement n’occupe les assignés (aucun : « Moi »), sauf un évènement lié à la tâche. Détail dans [Agenda](calendar.md).
 
 ## Pas de récurrence
 
@@ -251,7 +252,7 @@ Source : `releaseProjectTasks` (par `releaseProjects`), appelé par `deleteProje
 
 Source : `cloneTask`.
 
-- Copie tous les champs (libellé, description, projet, statut, priorité, type, effort, dates, « Date min »/« Date max », parent, jalon, sprints), les assignés, bénéficiaires, étiquettes et les liens de blocage et de relation. **Pas** les commentaires, ni l’état fermé, ni la règle de plages, ni le lien GitHub.
+- Copie tous les champs (libellé, description, projet, statut, priorité, type, effort, dates, « Date min »/« Date max », parent, jalon, sprints), les assignés, bénéficiaires, étiquettes et les liens de blocage et de relation de sa propre arborescence de projets (un ancien lien hors d’elle, gardé tant que la tâche ne change pas d’arborescence, n’est pas copié). **Pas** les commentaires, ni l’état fermé, ni la condition de plages, ni le lien GitHub.
 - Le clone est placé sous le même parent, à la fin de l’ordre manuel ; il reçoit un nouveau numéro (base).
 - Avec `includeSubtasks`, le sous-arbre est copié niveau par niveau sous le clone (les sous-tâches copiées gardent assignés, bénéficiaires, étiquettes et sprints, pas leurs liens de blocage ou de relation).
 - La tâche source peut être archivée (aucune vérification d’archivage) ; l’interface ne propose le clonage que sur les tâches non archivées.
@@ -296,4 +297,4 @@ Les contributeurs (`Contributor`) sont gérés dans le module tâches mais leurs
 
 ## Espace PRO / PERSO
 
-Les règles sont les mêmes dans les deux types d’espace. Seule différence : le défaut de la règle de plages (`slotRule = null`) correspond aux heures de travail en espace PRO (voir [Espaces et accès](../cross-cutting/workspaces-and-access.md) et [Agenda](calendar.md)). Toutes les données sont limitées à l’espace courant (`workspaceId`).
+Les règles sont les mêmes dans les deux types d’espace, condition de plages comprise (sans condition : n’importe quand, décision D10 ; voir [Agenda](calendar.md)). Toutes les données sont limitées à l’espace courant (`workspaceId`).

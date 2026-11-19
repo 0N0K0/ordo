@@ -1,5 +1,6 @@
 import { filterConditionSchemaFor, filterGroupSchemaFor, type FilterConditionOf, type FilterGroupOf } from '../tables/filters';
-import type { PlannedSlot } from '../calendar/work-schedules';
+import { addDays } from '../dates/days';
+import { plannedSlots, type PlannedSlot, type WorkScheduleRule } from './work-schedules';
 
 /**
  * Fields of the conditions on calendar schedules: some schedules (on or out of them), or the free time (out of every
@@ -193,4 +194,59 @@ function conditionIntervals(node: SlotCondition | SlotConditionItem | null | und
 export function windowsAllowed(window: TimeWindow, allowed: TimeWindow[] | null): TimeWindow[] {
   if (!allowed) return [window];
   return intersect([intervalOf(window)], allowed.map(intervalOf)).map(windowOf);
+}
+
+/** Slots of some schedules (`ALL_SCHEDULES`: every one) on a day. */
+export type SlotsOn = (ids: readonly string[], date: string) => PlannedSlot[];
+
+/**
+ * Slots of some schedules on a day, the slots of each day computed when first asked: what conditions on calendar
+ * schedules are evaluated on, for tasks and routines alike.
+ * @param {readonly WorkScheduleRule[]} rules Schedules of the workspace.
+ * @returns {SlotsOn} Slots of some schedules on a day.
+ */
+export function scheduleSlotsOn(rules: readonly WorkScheduleRule[]): SlotsOn {
+  const byDay = new Map<string, PlannedSlot[]>();
+  return (ids, date) => {
+    if (!ids.length) return [];
+    let slots = byDay.get(date);
+    if (!slots) byDay.set(date, (slots = plannedSlots(rules, date, date)));
+    // Every schedule (the free time) or those named.
+    return ids.includes(ALL_SCHEDULES) ? slots : slots.filter((slot) => ids.includes(slot.scheduleId));
+  };
+}
+
+/**
+ * Whether a condition on calendar schedules allows a moment (no condition: any moment).
+ * @param {SlotCondition | null | undefined} condition Condition.
+ * @param {SlotsOn} slotsOn Slots of some schedules on a day.
+ * @param {string} date YYYY-MM-DD.
+ * @param {string} time HH:MM.
+ * @returns {boolean} Allowed.
+ */
+export function conditionAllowsAt(condition: SlotCondition | null | undefined, slotsOn: SlotsOn, date: string, time: string): boolean {
+  if (!conditionConstrains(condition)) return true;
+  const windows = conditionWindows(condition, (ids) => slotsOn(ids, date)) ?? [];
+  return windows.some((window) => (window.fromTime ?? '00:00') <= time && time < (window.dueTime ?? '24:00'));
+}
+
+/**
+ * First moment a condition on calendar schedules allows from a moment on, within some days (the moment itself without
+ * condition); null when none.
+ * @param {SlotCondition | null | undefined} condition Condition.
+ * @param {SlotsOn} slotsOn Slots of some schedules on a day.
+ * @param {string} date YYYY-MM-DD.
+ * @param {string} time HH:MM.
+ * @param {number} days Days looked at, the date included.
+ * @returns {{ date: string, time: string } | null} Moment.
+ */
+export function nextConditionMoment(condition: SlotCondition | null | undefined, slotsOn: SlotsOn, date: string, time: string, days: number): { date: string; time: string } | null {
+  if (!conditionConstrains(condition)) return { date, time };
+  for (let offset = 0; offset < days; offset++) {
+    const day = addDays(date, offset);
+    const from = offset ? '00:00' : time;
+    const window = (conditionWindows(condition, (ids) => slotsOn(ids, day)) ?? []).find((item) => (item.dueTime ?? '24:00') > from);
+    if (window) return { date: day, time: (window.fromTime ?? '00:00') > from ? window.fromTime! : from };
+  }
+  return null;
 }

@@ -2,7 +2,7 @@ import { scheduleChoices } from '../../calendar/lib/schedule-choices';
 import { ItemAvatar } from '../../../components/items/ItemAvatar';
 import { Text, UnstyledButton } from '@mantine/core';
 import { mapById, readSlotCondition, type RoutineCase, routineSchema } from '@ordo/shared';
-import { describeSlotCondition } from '../lib/slot-condition-text';
+import { describeSlotCondition } from '../../calendar/lib/slot-condition-text';
 import { useState, type ReactNode } from 'react';
 
 import { categoryOptions, categoryTree } from '../../../components/tree/category-tree';

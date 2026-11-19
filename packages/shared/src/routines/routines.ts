@@ -1,6 +1,5 @@
 import { dayInMonth, daysInMonth } from '../dates/months';
 import { minutesToTime, timeToMinutes } from '../dates/times';
-import { slotRuleSchema } from '../calendar/slot-rules';
 import { z } from 'zod';
 import { endAfter, markdownSchema, optionalText, requiredText } from '../core/rules';
 import { locatedFields } from '../core/geo';
@@ -8,7 +7,7 @@ import { addDays, daysBetween, weekdayOfDate, monthOfYear, yearOfDay } from '../
 import { occurrenceDates, recurrenceSchema, type Recurrence, type Span } from '../dates/recurrence';
 import { caseSpans } from '../dates/repetition';
 import { timeOfDaySchema, daySchema, startDaySchema } from '../dates/times';
-import { slotConditionSchema, type SlotCondition } from './routine-times';
+import { slotConditionSchema, type SlotCondition } from '../calendar/slot-conditions';
 import { optionalColorSchema } from '../core/workspace';
 
 /** Category of routines, in a tree. */
@@ -168,8 +167,6 @@ export const routineSchema = z
     relatedIds: z.array(z.string()).max(100),
     /** « À partir du » of the occurrences of its rule (its cases have theirs); null: from their first day. */
     opensOn: routineOpensSchema.nullable().default(null),
-    /** Slots (by kind) it is done on or out of; null: the default of the workspace. */
-    slotRule: slotRuleSchema.nullable().default(null),
   })
   .refine(...endAfter('fromTime', 'dueTime', true))
   .refine((routine) => !routine.moments.length || routine.moments.some((moment) => !moment.optional), { path: ['moments'], message: 'Au moins un moment doit être obligatoire.' })

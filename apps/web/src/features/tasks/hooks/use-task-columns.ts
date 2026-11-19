@@ -10,7 +10,7 @@ import type { TaskContext } from './use-task-context';
 
 /**
  * Columns of the tasks (their filters, sorts, groups), with what some filters need that the tasks do not hold: those
- * doable now (asked only when asked for), their alerts, their shopping, the kinds of slots.
+ * doable now (asked only when asked for), their alerts, their shopping, the calendar schedules.
  * @param {TaskContext | null} context Task context.
  * @param {string} today Today, YYYY-MM-DD.
  * @param {{ doable?: boolean, eventComments?: ReadonlyMap<string, number> }} [options] Whether the tasks doable now are asked (a filter on them), and the comments of the events listed. Optional.
@@ -28,7 +28,7 @@ export function useTaskColumns(
   return useMemo(() => {
     if (!context) return [];
     const shoppingTaskIds = new Set((lists ?? []).flatMap((list) => list.taskIds));
-    const slotKinds = scheduleChoices(schedules).options;
-    return taskColumns(context, today, { doableIds, shoppingTaskIds, alarmCounts, slotKinds, eventComments });
+    const slotSchedules = scheduleChoices(schedules).options;
+    return taskColumns(context, today, { doableIds, shoppingTaskIds, alarmCounts, slotSchedules, eventComments });
   }, [context, today, doableIds, lists, alarmCounts, schedules, eventComments]);
 }

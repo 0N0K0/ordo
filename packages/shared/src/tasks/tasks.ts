@@ -2,7 +2,7 @@ import { normalize } from '../core/text';
 import { z } from 'zod';
 import { endAfter, markdownTextSchema, personNameSchema, requiredText } from '../core/rules';
 import { dateSchema } from '../core/workspace';
-import { slotRuleSchema, type SlotRule } from '../calendar/slot-rules';
+import { slotConditionSchema, type SlotCondition } from '../calendar/slot-conditions';
 import { endDaySchema, startDaySchema } from '../dates/times';
 
 export const taskLabelSchema = requiredText();
@@ -71,8 +71,8 @@ export const taskFormSchema = z
     /** « Bénéficiaires »: contributors and relations the task is for. */
     beneficiaryIds: z.array(z.string()).default([]),
     beneficiaryRelationIds: z.array(z.string()).default([]),
-    /** Slots it is done on or out of; null: the default of the workspace. */
-    slotRule: slotRuleSchema.nullable().default(null),
+    /** On or out of calendar schedules, or on the free time, in groups (and / or); null: any time. */
+    slotCondition: slotConditionSchema.nullable().default(null),
   })
   .refine(...endAfter('startDate', 'endDate'))
   .refine(...endAfter('minDate', 'deadline'));
@@ -123,6 +123,6 @@ export interface TaskInput {
   /** « Bénéficiaires »: contributors and relations the task is for. */
   beneficiaryIds?: string[] | null;
   beneficiaryRelationIds?: string[] | null;
-  /** Slots the task is done on or out of; null: the default of the workspace. */
-  slotRule?: SlotRule | null;
+  /** On or out of calendar schedules, or on the free time, in groups (and / or); null: any time. */
+  slotCondition?: SlotCondition | null;
 }

@@ -21,7 +21,7 @@ Documents GraphQL du temps (fragment `TimeEntryFields`, requêtes `TimeEntries`,
 | `TimerStartValues` (interface)         | Démarrage d’un chrono : `projectId?`, `routineId?`, `taskIds`, `description?`, `event?`.                                                                                                                  |
 | `useTimeMutations()`                   | `{ start, setPaused, stop, create, update, remove }` ; toutes invalident `['time']` et `['tasks']` (temps passé des tâches). `start` avertit ensuite si le chrono est hors des plages (`warnOutOfSlots`). |
 
-Internes : `useTimeMutation` (mutation invalidante), `warnOutOfSlots(queryClient, slotRules, input)` (toast « Hors des moments prévus » : routine ou tâches hors de leurs plages, ou assignés pris par un autre évènement ; lit les routines et tâches déjà en cache).
+Internes : `useTimeMutation` (mutation invalidante), `warnOutOfSlots(queryClient, slotRules, input)` (toast « Hors des moments prévus » : tâches hors des heures que leur condition de plages permet, ou assignés d’une tâche ou de la routine pris par un autre évènement ; lit les routines et tâches déjà en cache).
 
 ## pages/
 

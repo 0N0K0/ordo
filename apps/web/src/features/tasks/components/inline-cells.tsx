@@ -1,6 +1,6 @@
 import { Combobox, Select, Text, UnstyledButton, useCombobox } from '@mantine/core';
 import { ArrowsLeftRightIcon } from '@phosphor-icons/react';
-import { removedLinksNote } from '../lib/bulk-label';
+import { removedLinksNote } from '../../../lib/text';
 import { ItemBadge } from '../../../components/items/ItemBadge';
 import { ItemAvatar } from '../../../components/items/ItemAvatar';
 import { listSelectProps } from '../../../components/items/item-look';

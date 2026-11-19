@@ -1,4 +1,4 @@
-import { copyName } from '../../../lib/text';
+import { copyName, removedLinksNote } from '../../../lib/text';
 import { NO_SUGGESTIONS } from '../../../components/markdown/remark-references';
 import { Divider, Grid, NumberInput, Select, Stack, TextInput } from '@mantine/core';
 import {
@@ -12,6 +12,7 @@ import {
   type RoutineSlot,
   type SlotCondition,
   subtreeOf,
+  mapById,
 } from '@ordo/shared';
 import { BatchMultiSelect } from '../../../components/inputs/BatchMultiSelect';
 import { categoryOptions } from '../../../components/tree/category-tree';
@@ -22,7 +23,7 @@ import { ON_ERROR } from '../../../lib/notify';
 import { AssigneesSelect, ProjectSelect } from '../../tasks/components/task-ui';
 import { useTaskContext } from '../../tasks/hooks/use-task-context';
 import { useRoutineMutations, useRoutinesData, type Routine } from '../api';
-import { DAILY, linkableRoutine, routineTreeOptions, ruleOf } from '../lib/routine-format';
+import { copiedLinks, DAILY, linkableRoutine, routineTreeOptions, ruleOf } from '../lib/routine-format';
 import { RoutineSchedule } from './RoutineSchedule';
 import { treeSelectProps } from '../../../components/tree/tree-select';
 import { BeneficiariesSelect } from '../../beneficiaries/components/BeneficiariesSelect';
@@ -113,8 +114,8 @@ export function RoutineForm({ routine, copy = false, parent, categoryId = null, 
       travelAfter: routine?.travelAfter ?? 0,
       projectId: routine ? routine.projectId : (parent?.projectId ?? projectId),
       assigneeIds: routine?.assigneeIds ?? parent?.assigneeIds ?? [],
-      requiredIds: routine?.requiredIds ?? [],
-      relatedIds: routine?.relatedIds ?? [],
+      // A copy leaves out the former links out of its project tree.
+      ...(routine && copy ? copiedLinks(routine, context, mapById(routines)) : { requiredIds: routine?.requiredIds ?? [], relatedIds: routine?.relatedIds ?? [] }),
       beneficiaryIds: routine?.beneficiaryIds ?? parent?.beneficiaryIds ?? [],
       beneficiaryRelationIds: routine?.beneficiaryRelationIds ?? parent?.beneficiaryRelationIds ?? [],
       opensOn: readOpens(routine?.opensOn),
@@ -142,15 +143,17 @@ export function RoutineForm({ routine, copy = false, parent, categoryId = null, 
     // « À partir du » of its rule (its cases have theirs): dropped when it no longer fits the repetition.
     const opensOn = values.opensOn && !values.cases.length && opensFits(values.opensOn, values.recurrence.frequency) ? values.opensOn : null;
     const input = { ...values, description: values.description || null, opensOn };
-    const callbacks = formCallbacks(form, copy ? 'Routine dupliquée.' : routine ? 'Routine modifiée.' : 'Routine créée.', (created: unknown) => {
-      // A copy takes the sub-routines of the routine with it, under itself.
-      if (copy && routine && typeof created === 'string' && routines.some((item) => item.parentId === routine.id)) {
-        copySubRoutines.mutate({ fromId: routine.id, toId: created }, ON_ERROR);
-      }
-      onDone();
-    });
-    if (routine && !copy) update.mutate({ id: routine.id, input }, callbacks);
-    else create.mutate(input, callbacks);
+    // Moved to another project tree: the links left out of it are removed, and told (as for a task transferred).
+    if (routine && !copy) update.mutate({ id: routine.id, input }, formCallbacks(form, ({ removedLinks }) => `Routine modifiée.${removedLinksNote(removedLinks)}`, onDone));
+    else
+      create.mutate(
+        input,
+        formCallbacks(form, copy ? 'Routine dupliquée.' : 'Routine créée.', (created) => {
+          // A copy takes the sub-routines of the routine with it, under itself.
+          if (copy && routine && routines.some((item) => item.parentId === routine.id)) copySubRoutines.mutate({ fromId: routine.id, toId: created }, ON_ERROR);
+          onDone();
+        }),
+      );
   });
 
   return (

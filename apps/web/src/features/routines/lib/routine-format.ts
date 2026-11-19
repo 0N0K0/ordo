@@ -86,6 +86,24 @@ export function linkableRoutine(context: Pick<TaskContext, 'rootOf'>, projectId:
 }
 
 /**
+ * Links of a copy of a routine, kept to its project tree: a former link out of it (kept by the routine until it moves)
+ * is not copied, so that the copy obeys the rule rather than being refused. Unchanged while the projects load.
+ * @param {{ projectId?: string | null, requiredIds: readonly string[], relatedIds: readonly string[] }} routine Routine copied.
+ * @param {Pick<TaskContext, 'rootOf'> | null} context Task context (its project trees; none while loading).
+ * @param {ReadonlyMap<string, Routine>} byId Routines by id.
+ * @returns {{ requiredIds: string[], relatedIds: string[] }} Links of the copy.
+ */
+export function copiedLinks(
+  routine: { projectId?: string | null; requiredIds: readonly string[]; relatedIds: readonly string[] },
+  context: Pick<TaskContext, 'rootOf'> | null,
+  byId: ReadonlyMap<string, Routine>,
+): { requiredIds: string[]; relatedIds: string[] } {
+  const inTree = context ? inProjectTree(context, routine.projectId ?? null) : () => true;
+  const kept = (ids: readonly string[]) => ids.filter((id) => inTree(byId.get(id)?.projectId ?? null));
+  return { requiredIds: kept(routine.requiredIds), relatedIds: kept(routine.relatedIds) };
+}
+
+/**
  * Full path of a routine: the titles of its parent routines, then its own (« Linge › Étendre »).
  * @param {Routine} routine Routine.
  * @param {ReadonlyMap<string, Routine>} byId Routines by id.

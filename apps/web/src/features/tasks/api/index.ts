@@ -110,7 +110,7 @@ graphql(`
     githubLinked
     githubUrl
     githubNumber
-    slotRule
+    slotCondition
   }
 `);
 

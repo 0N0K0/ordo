@@ -265,10 +265,10 @@ type Documents = {
     "\n  mutation DeleteRoutineCategory($id: ID!) {\n    deleteRoutineCategory(id: $id)\n  }\n": typeof types.DeleteRoutineCategoryDocument,
     "\n  mutation CopySubRoutines($fromId: ID!, $toId: ID!) {\n    copySubRoutines(fromId: $fromId, toId: $toId)\n  }\n": typeof types.CopySubRoutinesDocument,
     "\n  mutation CreateRoutine($input: RoutineInput!) {\n    createRoutine(input: $input)\n  }\n": typeof types.CreateRoutineDocument,
-    "\n  mutation UpdateRoutine($id: ID!, $input: RoutineInput!, $restoring: Boolean) {\n    updateRoutine(id: $id, input: $input, restoring: $restoring)\n  }\n": typeof types.UpdateRoutineDocument,
-    "\n  mutation PatchRoutine($id: ID!, $input: RoutinePatch!) {\n    patchRoutine(id: $id, input: $input)\n  }\n": typeof types.PatchRoutineDocument,
+    "\n  mutation UpdateRoutine($id: ID!, $input: RoutineInput!, $restoring: Boolean) {\n    updateRoutine(id: $id, input: $input, restoring: $restoring) {\n      removedLinks\n    }\n  }\n": typeof types.UpdateRoutineDocument,
+    "\n  mutation PatchRoutine($id: ID!, $input: RoutinePatch!) {\n    patchRoutine(id: $id, input: $input) {\n      removedLinks\n    }\n  }\n": typeof types.PatchRoutineDocument,
     "\n  mutation MoveRoutine($id: ID!, $beforeId: ID, $parentId: ID, $categoryIds: [ID!]) {\n    moveRoutine(id: $id, beforeId: $beforeId, parentId: $parentId, categoryIds: $categoryIds)\n  }\n": typeof types.MoveRoutineDocument,
-    "\n  mutation BulkUpdateRoutines($ids: [ID!]!, $changes: RoutineBulkChanges!) {\n    bulkUpdateRoutines(ids: $ids, changes: $changes)\n  }\n": typeof types.BulkUpdateRoutinesDocument,
+    "\n  mutation BulkUpdateRoutines($ids: [ID!]!, $changes: RoutineBulkChanges!) {\n    bulkUpdateRoutines(ids: $ids, changes: $changes) {\n      removedLinks\n    }\n  }\n": typeof types.BulkUpdateRoutinesDocument,
     "\n  mutation BulkSetRoutinesArchived($ids: [ID!]!, $archived: Boolean!) {\n    bulkSetRoutinesArchived(ids: $ids, archived: $archived)\n  }\n": typeof types.BulkSetRoutinesArchivedDocument,
     "\n  mutation BulkSetRoutinesDone($ids: [ID!]!, $done: Boolean!) {\n    bulkSetRoutinesDone(ids: $ids, done: $done)\n  }\n": typeof types.BulkSetRoutinesDoneDocument,
     "\n  mutation BulkDeleteRoutines($ids: [ID!]!, $deleteSubRoutines: Boolean!) {\n    bulkDeleteRoutines(ids: $ids, deleteSubRoutines: $deleteSubRoutines)\n  }\n": typeof types.BulkDeleteRoutinesDocument,
@@ -367,7 +367,7 @@ type Documents = {
     "\n  fragment SprintFields on Sprint {\n    id\n    archived\n    projectId\n    label\n    goal\n    startDate\n    endDate\n  }\n": typeof types.SprintFieldsFragmentDoc,
     "\n  fragment MilestoneFields on Milestone {\n    id\n    archived\n    projectId\n    label\n    description\n    dueDate\n    position\n  }\n": typeof types.MilestoneFieldsFragmentDoc,
     "\n  fragment TaskLabelFields on TaskStatus {\n    id\n    archived\n    label\n    color\n    iconUrl\n    position\n  }\n": typeof types.TaskLabelFieldsFragmentDoc,
-    "\n  fragment TaskFields on Task {\n    id\n    number\n    label\n    description\n    projectId\n    statusId\n    priorityId\n    typeId\n    effort\n    startDate\n    endDate\n    parentId\n    milestoneId\n    sprintIds\n    deadline\n    minDate\n    position\n    archived\n    createdAt\n    updatedAt\n    assigneeIds\n    beneficiaryIds\n    beneficiaryRelationIds\n    tagIds\n    blockingIds\n    blockedByIds\n    relatedIds\n    commentCount\n    trackedSeconds\n    closed\n    closedAt\n    githubLinked\n    githubUrl\n    githubNumber\n    slotRule\n  }\n": typeof types.TaskFieldsFragmentDoc,
+    "\n  fragment TaskFields on Task {\n    id\n    number\n    label\n    description\n    projectId\n    statusId\n    priorityId\n    typeId\n    effort\n    startDate\n    endDate\n    parentId\n    milestoneId\n    sprintIds\n    deadline\n    minDate\n    position\n    archived\n    createdAt\n    updatedAt\n    assigneeIds\n    beneficiaryIds\n    beneficiaryRelationIds\n    tagIds\n    blockingIds\n    blockedByIds\n    relatedIds\n    commentCount\n    trackedSeconds\n    closed\n    closedAt\n    githubLinked\n    githubUrl\n    githubNumber\n    slotCondition\n  }\n": typeof types.TaskFieldsFragmentDoc,
     "\n  fragment TaskCommentFields on TaskComment {\n    id\n    body\n    createdAt\n    githubAuthor\n  }\n": typeof types.TaskCommentFieldsFragmentDoc,
     "\n  query TasksData {\n    tasks {\n      ...TaskFields\n    }\n    contributors {\n      ...ContributorFields\n    }\n    taskStatuses {\n      ...TaskLabelFields\n      category\n    }\n    taskPriorities {\n      id\n      archived\n      label\n      color\n      iconUrl\n      position\n    }\n    taskTypes {\n      id\n      archived\n      label\n      color\n      iconUrl\n      position\n    }\n    taskTags {\n      id\n      archived\n      label\n      color\n      iconUrl\n      position\n    }\n    milestones {\n      ...MilestoneFields\n    }\n    sprints {\n      ...SprintFields\n    }\n  }\n": typeof types.TasksDataDocument,
     "\n  query TaskComments($id: ID!) {\n    task(id: $id) {\n      id\n      comments {\n        ...TaskCommentFields\n      }\n    }\n  }\n": typeof types.TaskCommentsDocument,
@@ -725,10 +725,10 @@ const documents: Documents = {
     "\n  mutation DeleteRoutineCategory($id: ID!) {\n    deleteRoutineCategory(id: $id)\n  }\n": types.DeleteRoutineCategoryDocument,
     "\n  mutation CopySubRoutines($fromId: ID!, $toId: ID!) {\n    copySubRoutines(fromId: $fromId, toId: $toId)\n  }\n": types.CopySubRoutinesDocument,
     "\n  mutation CreateRoutine($input: RoutineInput!) {\n    createRoutine(input: $input)\n  }\n": types.CreateRoutineDocument,
-    "\n  mutation UpdateRoutine($id: ID!, $input: RoutineInput!, $restoring: Boolean) {\n    updateRoutine(id: $id, input: $input, restoring: $restoring)\n  }\n": types.UpdateRoutineDocument,
-    "\n  mutation PatchRoutine($id: ID!, $input: RoutinePatch!) {\n    patchRoutine(id: $id, input: $input)\n  }\n": types.PatchRoutineDocument,
+    "\n  mutation UpdateRoutine($id: ID!, $input: RoutineInput!, $restoring: Boolean) {\n    updateRoutine(id: $id, input: $input, restoring: $restoring) {\n      removedLinks\n    }\n  }\n": types.UpdateRoutineDocument,
+    "\n  mutation PatchRoutine($id: ID!, $input: RoutinePatch!) {\n    patchRoutine(id: $id, input: $input) {\n      removedLinks\n    }\n  }\n": types.PatchRoutineDocument,
     "\n  mutation MoveRoutine($id: ID!, $beforeId: ID, $parentId: ID, $categoryIds: [ID!]) {\n    moveRoutine(id: $id, beforeId: $beforeId, parentId: $parentId, categoryIds: $categoryIds)\n  }\n": types.MoveRoutineDocument,
-    "\n  mutation BulkUpdateRoutines($ids: [ID!]!, $changes: RoutineBulkChanges!) {\n    bulkUpdateRoutines(ids: $ids, changes: $changes)\n  }\n": types.BulkUpdateRoutinesDocument,
+    "\n  mutation BulkUpdateRoutines($ids: [ID!]!, $changes: RoutineBulkChanges!) {\n    bulkUpdateRoutines(ids: $ids, changes: $changes) {\n      removedLinks\n    }\n  }\n": types.BulkUpdateRoutinesDocument,
     "\n  mutation BulkSetRoutinesArchived($ids: [ID!]!, $archived: Boolean!) {\n    bulkSetRoutinesArchived(ids: $ids, archived: $archived)\n  }\n": types.BulkSetRoutinesArchivedDocument,
     "\n  mutation BulkSetRoutinesDone($ids: [ID!]!, $done: Boolean!) {\n    bulkSetRoutinesDone(ids: $ids, done: $done)\n  }\n": types.BulkSetRoutinesDoneDocument,
     "\n  mutation BulkDeleteRoutines($ids: [ID!]!, $deleteSubRoutines: Boolean!) {\n    bulkDeleteRoutines(ids: $ids, deleteSubRoutines: $deleteSubRoutines)\n  }\n": types.BulkDeleteRoutinesDocument,
@@ -827,7 +827,7 @@ const documents: Documents = {
     "\n  fragment SprintFields on Sprint {\n    id\n    archived\n    projectId\n    label\n    goal\n    startDate\n    endDate\n  }\n": types.SprintFieldsFragmentDoc,
     "\n  fragment MilestoneFields on Milestone {\n    id\n    archived\n    projectId\n    label\n    description\n    dueDate\n    position\n  }\n": types.MilestoneFieldsFragmentDoc,
     "\n  fragment TaskLabelFields on TaskStatus {\n    id\n    archived\n    label\n    color\n    iconUrl\n    position\n  }\n": types.TaskLabelFieldsFragmentDoc,
-    "\n  fragment TaskFields on Task {\n    id\n    number\n    label\n    description\n    projectId\n    statusId\n    priorityId\n    typeId\n    effort\n    startDate\n    endDate\n    parentId\n    milestoneId\n    sprintIds\n    deadline\n    minDate\n    position\n    archived\n    createdAt\n    updatedAt\n    assigneeIds\n    beneficiaryIds\n    beneficiaryRelationIds\n    tagIds\n    blockingIds\n    blockedByIds\n    relatedIds\n    commentCount\n    trackedSeconds\n    closed\n    closedAt\n    githubLinked\n    githubUrl\n    githubNumber\n    slotRule\n  }\n": types.TaskFieldsFragmentDoc,
+    "\n  fragment TaskFields on Task {\n    id\n    number\n    label\n    description\n    projectId\n    statusId\n    priorityId\n    typeId\n    effort\n    startDate\n    endDate\n    parentId\n    milestoneId\n    sprintIds\n    deadline\n    minDate\n    position\n    archived\n    createdAt\n    updatedAt\n    assigneeIds\n    beneficiaryIds\n    beneficiaryRelationIds\n    tagIds\n    blockingIds\n    blockedByIds\n    relatedIds\n    commentCount\n    trackedSeconds\n    closed\n    closedAt\n    githubLinked\n    githubUrl\n    githubNumber\n    slotCondition\n  }\n": types.TaskFieldsFragmentDoc,
     "\n  fragment TaskCommentFields on TaskComment {\n    id\n    body\n    createdAt\n    githubAuthor\n  }\n": types.TaskCommentFieldsFragmentDoc,
     "\n  query TasksData {\n    tasks {\n      ...TaskFields\n    }\n    contributors {\n      ...ContributorFields\n    }\n    taskStatuses {\n      ...TaskLabelFields\n      category\n    }\n    taskPriorities {\n      id\n      archived\n      label\n      color\n      iconUrl\n      position\n    }\n    taskTypes {\n      id\n      archived\n      label\n      color\n      iconUrl\n      position\n    }\n    taskTags {\n      id\n      archived\n      label\n      color\n      iconUrl\n      position\n    }\n    milestones {\n      ...MilestoneFields\n    }\n    sprints {\n      ...SprintFields\n    }\n  }\n": types.TasksDataDocument,
     "\n  query TaskComments($id: ID!) {\n    task(id: $id) {\n      id\n      comments {\n        ...TaskCommentFields\n      }\n    }\n  }\n": types.TaskCommentsDocument,
@@ -1938,11 +1938,11 @@ export function graphql(source: "\n  mutation CreateRoutine($input: RoutineInput
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */
-export function graphql(source: "\n  mutation UpdateRoutine($id: ID!, $input: RoutineInput!, $restoring: Boolean) {\n    updateRoutine(id: $id, input: $input, restoring: $restoring)\n  }\n"): typeof import('./graphql').UpdateRoutineDocument;
+export function graphql(source: "\n  mutation UpdateRoutine($id: ID!, $input: RoutineInput!, $restoring: Boolean) {\n    updateRoutine(id: $id, input: $input, restoring: $restoring) {\n      removedLinks\n    }\n  }\n"): typeof import('./graphql').UpdateRoutineDocument;
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */
-export function graphql(source: "\n  mutation PatchRoutine($id: ID!, $input: RoutinePatch!) {\n    patchRoutine(id: $id, input: $input)\n  }\n"): typeof import('./graphql').PatchRoutineDocument;
+export function graphql(source: "\n  mutation PatchRoutine($id: ID!, $input: RoutinePatch!) {\n    patchRoutine(id: $id, input: $input) {\n      removedLinks\n    }\n  }\n"): typeof import('./graphql').PatchRoutineDocument;
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */
@@ -1950,7 +1950,7 @@ export function graphql(source: "\n  mutation MoveRoutine($id: ID!, $beforeId: I
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */
-export function graphql(source: "\n  mutation BulkUpdateRoutines($ids: [ID!]!, $changes: RoutineBulkChanges!) {\n    bulkUpdateRoutines(ids: $ids, changes: $changes)\n  }\n"): typeof import('./graphql').BulkUpdateRoutinesDocument;
+export function graphql(source: "\n  mutation BulkUpdateRoutines($ids: [ID!]!, $changes: RoutineBulkChanges!) {\n    bulkUpdateRoutines(ids: $ids, changes: $changes) {\n      removedLinks\n    }\n  }\n"): typeof import('./graphql').BulkUpdateRoutinesDocument;
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */
@@ -2346,7 +2346,7 @@ export function graphql(source: "\n  fragment TaskLabelFields on TaskStatus {\n 
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */
-export function graphql(source: "\n  fragment TaskFields on Task {\n    id\n    number\n    label\n    description\n    projectId\n    statusId\n    priorityId\n    typeId\n    effort\n    startDate\n    endDate\n    parentId\n    milestoneId\n    sprintIds\n    deadline\n    minDate\n    position\n    archived\n    createdAt\n    updatedAt\n    assigneeIds\n    beneficiaryIds\n    beneficiaryRelationIds\n    tagIds\n    blockingIds\n    blockedByIds\n    relatedIds\n    commentCount\n    trackedSeconds\n    closed\n    closedAt\n    githubLinked\n    githubUrl\n    githubNumber\n    slotRule\n  }\n"): typeof import('./graphql').TaskFieldsFragmentDoc;
+export function graphql(source: "\n  fragment TaskFields on Task {\n    id\n    number\n    label\n    description\n    projectId\n    statusId\n    priorityId\n    typeId\n    effort\n    startDate\n    endDate\n    parentId\n    milestoneId\n    sprintIds\n    deadline\n    minDate\n    position\n    archived\n    createdAt\n    updatedAt\n    assigneeIds\n    beneficiaryIds\n    beneficiaryRelationIds\n    tagIds\n    blockingIds\n    blockedByIds\n    relatedIds\n    commentCount\n    trackedSeconds\n    closed\n    closedAt\n    githubLinked\n    githubUrl\n    githubNumber\n    slotCondition\n  }\n"): typeof import('./graphql').TaskFieldsFragmentDoc;
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */

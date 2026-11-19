@@ -12,7 +12,7 @@ import { DetailSkeleton } from '../../../components/feedback/Skeletons';
 import { SidePanel } from '../../../components/panels/SidePanel';
 import { Anchor, Badge, Divider, Fieldset, Grid, Group, Select, Stack, Text } from '@mantine/core';
 import { DatePickerInput } from '@mantine/dates';
-import { readSlotRule, taskLabelSchema, subtreeOf } from '@ordo/shared';
+import { readSlotCondition, taskLabelSchema, subtreeOf } from '@ordo/shared';
 import { ArrowCounterClockwiseIcon, CheckCircleIcon, GithubLogoIcon, PencilSimpleIcon, ArrowsLeftRightIcon } from '@phosphor-icons/react';
 import { useState } from 'react';
 import { Link } from 'react-router';
@@ -35,9 +35,9 @@ import { useTaskActions } from '../hooks/use-task-actions';
 import { type TaskContext, taskName, taskNumber, useTaskContext } from '../hooks/use-task-context';
 import { TASK_PARAM, useTaskLink } from '../hooks/use-task-link';
 import { BatchMultiSelect } from '../../../components/inputs/BatchMultiSelect';
-import { SlotRuleInput } from '../../calendar/components/SlotRuleInput';
+import { SlotConditionBuilder } from '../../calendar/components/SlotConditionBuilder';
 import { BeneficiariesSelect } from '../../beneficiaries/components/BeneficiariesSelect';
-import { removedLinksNote } from '../lib/bulk-label';
+import { removedLinksNote } from '../../../lib/text';
 import { dateRangeProps } from '../../../components/inputs/date-range';
 import { DetailHeader } from '../../../components/page/DetailHeader';
 import { EffortInput } from './EffortInput';
@@ -374,7 +374,7 @@ function TaskDetail({ task, context }: TaskDetailProps) {
                 searchable
                 nothingFoundMessage="Aucun sprint dans ce projet"
               />
-              <SlotRuleInput value={readSlotRule(task.slotRule)} onChange={(slotRule) => save({ slotRule })} />
+              <SlotConditionBuilder item="task" value={readSlotCondition(task.slotCondition)} onChange={(slotCondition) => save({ slotCondition })} />
               <Divider />
               <LinkList
                 label="Bloque"

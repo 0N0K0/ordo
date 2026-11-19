@@ -7,7 +7,7 @@ import type { QueryClient } from '@tanstack/react-query';
 import type { RoutinesDataQuery, TasksDataQuery } from '../../../graphql/graphql';
 import { notifyWarning } from '../../../lib/notify';
 import { routinesKey } from '../../routines/api';
-import { useSlotRules, type SlotRules } from '../../calendar/hooks/use-slot-rules';
+import { routineDoable, useSlotRules, type SlotRules } from '../../calendar/hooks/use-slot-rules';
 import { tasksQueryKey } from '../../tasks/api';
 
 export type TimeEntry = TimeEntryFieldsFragment;
@@ -169,8 +169,8 @@ export interface TimerStartValues {
 }
 
 /**
- * Warns when a timer starts on a routine or tasks out of their slots (their slot rule, else the default of the
- * workspace), or while an event keeps their assignees busy (but the event the timer is on): the timer runs all the
+ * Warns when a timer starts on tasks out of the hours their slot condition allows (a routine: its moments are kept
+ * to them already), or while an event keeps their assignees busy (but the event the timer is on): the timer runs all the
  * same.
  * @param {QueryClient} queryClient Query cache (routines and tasks loaded).
  * @param {SlotRules} slotRules Slot rules of the workspace.
@@ -181,15 +181,15 @@ function warnOutOfSlots(queryClient: QueryClient, slotRules: SlotRules, input: {
   const routine = input.routineId ? queryClient.getQueryData<RoutinesDataQuery>(routinesKey)?.routines.find((item) => item.id === input.routineId) : undefined;
   const tasks = queryClient.getQueryData<TasksDataQuery>(tasksQueryKey)?.tasks.filter((task) => input.taskIds.includes(task.id)) ?? [];
   const items = [
-    ...(routine ? [{ label: routine.label, slotRule: null, assigneeIds: routine.assigneeIds, routineId: routine.id }] : []),
-    ...tasks.map((task) => ({ label: task.label, slotRule: task.slotRule, assigneeIds: task.assigneeIds, taskId: task.id })),
+    ...(routine ? [{ label: routine.label, ...routineDoable(routine) }] : []),
+    ...tasks.map((task) => ({ label: task.label, slotCondition: task.slotCondition, assigneeIds: task.assigneeIds, taskId: task.id })),
   ];
   const lines = items.flatMap((item) => {
     const busy = slotRules.blocking(item);
     // The event the timer is on keeps nobody from it.
     const event = busy && (busy as { eventId?: string }).eventId !== input.event?.eventId ? busy : undefined;
     if (event) return [`${item.label} : pendant « ${event.label} »`];
-    return slotRules.inSlots(item.slotRule) ? [] : [`${item.label} : ${(slotRules.describe(slotRules.ruleOf(item.slotRule)) ?? '').toLowerCase()}`];
+    return slotRules.inSlots(item.slotCondition) ? [] : [`${item.label} : ${(slotRules.describe(item.slotCondition) ?? '').toLowerCase()}`];
   });
   if (!lines.length) return;
   notifyWarning('Hors des moments prévus', `Le chrono tourne quand même. ${lines.join(' · ')}.`);

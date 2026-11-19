@@ -137,7 +137,7 @@ Cellules non textuelles du tableau des tâches :
 
 | Nom                                      | Rôle                                                                                    |
 | ---------------------------------------- | --------------------------------------------------------------------------------------- |
-| `SlotsCell({ task })`                    | « Plages » : règle en mots (`useSlotRules`), modifiée dans une bulle (`SlotRuleInput`). |
+| `SlotsCell({ task })`                    | « Plages » : condition en mots (`useSlotRules().describe`, « N’importe quand » sans condition), modifiée dans une bulle (`SlotConditionBuilder`). |
 | `TimerCell({ task })`                    | « Chrono » : `TimerToggle` sur la tâche.                                                |
 | `TrackedCell({ task })`                  | « Temps passé » : lien `timePath(task.id)`.                                             |
 | `SubtasksCell({ task, context, onAdd })` | « Sous-tâches » (`ChildrenCell`) avec « Ajouter une sous-tâche ».                       |
@@ -273,7 +273,7 @@ Internes : `NO_PROJECT_LABEL` (« Sans projet »), `NO_PROJECT_NODE`.
 
 ### `hooks/use-task-columns.ts`
 
-- `useTaskColumns(context, today, { doable?, eventComments? })` : colonnes du tableau des tâches (`taskColumns`) avec ce qui leur manque : tâches faisables (`useDoableTaskIds`, seulement si `doable`), alarmes (`useTaskAlarmCounts`), listes d’achats, types de plages (`useWorkSchedules`), commentaires des évènements. Utilisé par `TaskBoard`, `ColumnDefaults`, `TaskFilterBuilder`, et les tableaux de bord / l’accueil via `matchTasks`.
+- `useTaskColumns(context, today, { doable?, eventComments? })` : colonnes du tableau des tâches (`taskColumns`) avec ce qui leur manque : tâches faisables (`useDoableTaskIds`, seulement si `doable`), alarmes (`useTaskAlarmCounts`), listes d’achats, plages que la condition peut citer (`useWorkSchedules`, `slotSchedules` : le filtre « Plages » porte sur les plages citées par la condition), commentaires des évènements. Utilisé par `TaskBoard`, `ColumnDefaults`, `TaskFilterBuilder`, et les tableaux de bord / l’accueil via `matchTasks`.
 
 ### `hooks/use-label-items.tsx`
 
@@ -329,7 +329,7 @@ Internes : `TaskColumnExtras`, `STATUS_CATEGORY_ORDER`, `STATUS_CATEGORY_LABELS`
 ### `lib/bulk-label.ts`
 
 - `tasksLabel(count)` : « 1 tâche » / « 3 tâches ».
-- `removedLinksNote(count)` : « 2 liens retirés. » (rien sans lien).
+- `removedLinksNote` est passé dans `lib/text.ts` (commun aux tâches et aux routines, voir [lib](../../lib.md)).
 
 ### `lib/open-tasks-dialog.tsx`
 

@@ -1,7 +1,7 @@
 import { Select, SimpleGrid, Stack, TextInput } from '@mantine/core';
-import { SlotRuleInput } from '../../calendar/components/SlotRuleInput';
+import { SlotConditionBuilder } from '../../calendar/components/SlotConditionBuilder';
 import { DatePickerInput } from '@mantine/dates';
-import { taskFormSchema, type TaskFormValues } from '@ordo/shared';
+import { readSlotCondition, taskFormSchema, type TaskFormValues } from '@ordo/shared';
 import { useTaskLink } from '../hooks/use-task-link';
 import { MarkdownEditor } from '../../../components/markdown/MarkdownEditor';
 import { useAppForm, formCallbacks } from '../../../lib/form';
@@ -56,7 +56,7 @@ export function TaskCreateForm({ context, defaults, onDone }: TaskCreateFormProp
       sprintIds: [],
       beneficiaryIds: [],
       beneficiaryRelationIds: [],
-      slotRule: null,
+      slotCondition: null,
     },
     schema: taskFormSchema,
   });
@@ -174,11 +174,7 @@ export function TaskCreateForm({ context, defaults, onDone }: TaskCreateFormProp
           <DatePickerInput label="Date min" clearable placeholder="—" {...doable.start} />
           <DatePickerInput label="Date max" clearable placeholder="—" {...doable.end} />
         </SimpleGrid>
-        <SlotRuleInput
-          value={form.values.slotRule ? { inside: form.values.slotRule.inside ?? [], outside: form.values.slotRule.outside ?? [] } : null}
-          onChange={(slotRule) => form.setFieldValue('slotRule', slotRule)}
-          error={form.errors['slotRule.outside'] as string | undefined}
-        />
+        <SlotConditionBuilder item="task" value={readSlotCondition(form.values.slotCondition)} onChange={(slotCondition) => form.setFieldValue('slotCondition', slotCondition)} />
         <FormActions onCancel={onDone} submitLabel="Créer la tâche" loading={createTask.isPending} />
       </Stack>
     </form>

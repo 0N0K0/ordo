@@ -1,6 +1,6 @@
 # Règles des routines
 
-Règles appliquées par l'API et le code partagé aux routines : validation, calcul des occurrences (règle, cas, « à partir du », plages), états, coches, exceptions (déplacements), historique, ordre, archivage et suppression. Sources : `apps/api/src/services/routines/routines.ts`, `apps/api/src/graphql/modules/routines.ts`, `packages/shared/src/routines/` (`routines.ts`, `routine-times.ts`, `routine-views.ts`). L'usage côté écran est dans [Routines](../../features/activities/routines.md).
+Règles appliquées par l'API et le code partagé aux routines : validation, calcul des occurrences (règle, cas, « à partir du », plages), états, coches, exceptions (déplacements), historique, ordre, archivage et suppression. Sources : `apps/api/src/services/routines/routines.ts`, `apps/api/src/graphql/modules/routines.ts`, `packages/shared/src/routines/` (`routines.ts`, `routine-views.ts`), `packages/shared/src/calendar/slot-conditions.ts`. L'usage côté écran est dans [Routines](../../features/activities/routines.md).
 
 ## Modèle
 
@@ -19,7 +19,7 @@ Champs d'une routine qui comptent pour les occurrences :
 | `moves`         | Exceptions : `[{ from, to, times }]` (jours `YYYY-MM-DD`).                                                                                    |
 | `archivedAt`    | Archivée : plus aucune occurrence. `archivedByCascade` : archivée avec sa routine parente.                                                    |
 
-Anciennes formes encore lues mais plus écrites : `fromTime` / `dueTime` seuls (un seul moment), `scheduleIds` / `excludedScheduleIds` (plages suivies / exclues, converties en condition), `scheduleId` / `scheduleAnchor` (plage suivie, plus utilisée), `slotRule` (toujours remis à `null` à l'enregistrement), `opensOn` en texte `"DD"` (mensuel) ou `"MM-DD"` (annuel).
+Anciennes formes encore lues mais plus écrites : `fromTime` / `dueTime` seuls (un seul moment), `scheduleIds` / `excludedScheduleIds` (plages suivies / exclues, converties en condition), `scheduleId` / `scheduleAnchor` (plage suivie, plus utilisée), `opensOn` en texte `"DD"` (mensuel) ou `"MM-DD"` (annuel).
 
 ## Validation (`routineSchema`, `parseRoutine`)
 
@@ -36,7 +36,7 @@ Source : `packages/shared/src/routines/routines.ts`, `apps/api/src/services/rout
 | `fromTime`, `dueTime`                                                                  | `HH:MM` (« Heure attendue (HH:MM). ») ou `null` ; la fin doit suivre strictement le début (« La fin doit suivre le début. »).                                                                                                                                        |
 | `moments`                                                                              | 10 au plus (« 10 moments au plus. ») ; chacun : fin après début ; s'il y en a, au moins un obligatoire (« Au moins un moment doit être obligatoire. »).                                                                                                              |
 | `cases`                                                                                | 20 au plus (« 20 cas au plus. ») ; chaque cas : 1 à 10 moments (« Ajoutez au moins un moment. », « 10 moments au plus. »), au moins un obligatoire, « à partir du » compatible.                                                                                      |
-| `slotCondition`                                                                        | Groupe de conditions ; champ `schedules` avec `in` / `notIn`, champ `freeTime` avec `isEmpty` / `notIn` (sinon « Sur ou hors des plages. ») ; chaque plage nommée doit exister (« Plage »).                                                                          |
+| `slotCondition`                                                                        | Groupe de conditions ; champ `schedules` avec `in` / `notIn`, champ `freeTime` avec `isEmpty` / `notIn` (sinon « Sur ou hors des plages. ») ; chaque plage nommée doit exister (« Plage ») et ne pas être archivée, sauf si elle était déjà dans une condition de la routine (`assertConditionSchedules`, commun avec les tâches).                                                                          |
 | `reminders`                                                                            | 10 au plus (« 10 rappels maximum. »), entiers de 0 à 1 440 ; doublons retirés, triés.                                                                                                                                                                                |
 | `location`                                                                             | 250 caractères au plus (« 250 caractères maximum. ») ; sans lieu, le point est effacé.                                                                                                                                                                               |
 | `travelBefore`, `travelAfter`                                                          | Minutes de trajet (schéma géo commun), 0 par défaut.                                                                                                                                                                                                                 |
@@ -54,14 +54,14 @@ Références vérifiées par `parseRoutine` :
 - Dépendances : chaque routine requise doit exister (« Routine »), non archivée (sauf si déjà présente) ; pas elle-même (« Une routine ne peut pas dépendre d'elle-même. ») ; pas de cycle, même indirect (« Ces dépendances forment une boucle. »).
 - « Relative à » (`relatedIds`) : chaque routine doit exister (« Routine »), non archivée (sauf si déjà liée) ; pas elle-même (« Une routine ne peut pas être liée à elle-même. »).
 - Dépendances et relations dans la **même arborescence de projets** que la routine, comme les tâches (décision DS) : une routine nouvellement liée d'une autre arborescence est refusée, « Les routines liées doivent appartenir au même projet ou à l’un de ses sous-projets. » ; sans projet : « Une routine sans projet ne se lie qu’à des routines sans projet. » (sous `requiredIds` ou `relatedIds`). Un lien déjà en place hors de l'arborescence reste tant qu'elle n'en change pas.
-- Changement d'arborescence de projets (formulaire, modification en masse, édition sur place) : ses liens avec les routines restées hors de la nouvelle arborescence sont retirés sans erreur, dans les deux sens (celles dont elle dépend, celles qui dépendent d'elle, ses relations), comme lors d'un transfert de tâche.
+- Changement d'arborescence de projets (formulaire, modification en masse, édition sur place) : ses liens avec les routines restées hors de la nouvelle arborescence sont retirés sans erreur, dans les deux sens (celles dont elle dépend, celles qui dépendent d'elle, ses relations), comme lors d'un transfert de tâche. `updateRoutine`, `patchRoutine` et `bulkUpdateRoutines` renvoient le nombre de liens retirés (`removedLinks`), annoncé à l'utilisateur comme pour les tâches.
 - `restoring` (annulation d'une modification en masse) : les valeurs archivées remises sont acceptées, seul ce contrôle est sauté.
 
 Normalisation à l'enregistrement :
 
 - Un horaire seul (`fromTime` / `dueTime` sans moments ni cas, anciens clients) devient un moment.
 - Avec des cas : `moments` et `slotCondition` sont vidés.
-- `scheduleIds`, `excludedScheduleIds` (convertis en condition avant), `scheduleId`, `scheduleAnchor`, `slotRule` sont remis à vide ; `fromTime` / `dueTime` prennent ceux du premier moment.
+- `scheduleIds`, `excludedScheduleIds` (convertis en condition avant), `scheduleId`, `scheduleAnchor` sont remis à vide ; `fromTime` / `dueTime` prennent ceux du premier moment.
 
 ## Catégories
 
@@ -75,7 +75,7 @@ Source : `treeListService('routineCategory', …)` dans `routines.ts`, schéma `
 
 ## Calcul des occurrences
 
-Source : `apps/api/src/services/routines/routines.ts` (`ruleSpans`, `occurrencesOf`, `occurrenceSpansBetween`, `slotsOf`), `packages/shared/src/routines/routines.ts`, `routine-times.ts`. Tout est calculé en jours de Paris (`parisToday`).
+Source : `apps/api/src/services/routines/routines.ts` (`ruleSpans`, `occurrencesOf`, `occurrenceSpansBetween`, `slotsOf`), `packages/shared/src/routines/routines.ts`, `packages/shared/src/calendar/slot-conditions.ts`. Tout est calculé en jours de Paris (`parisToday`).
 
 ### Occurrence
 
@@ -122,7 +122,7 @@ Source : `packages/shared/src/routines/routines.ts`, `ROUTINE_STATES`.
 
 | État                     | Règle                                                                                                                    |
 | ------------------------ | ------------------------------------------------------------------------------------------------------------------------ |
-| `upcoming` (« À venir ») | Pas d'occurrence en cours. Le web y range aussi une routine due que les plages de l'espace ne permettent pas maintenant. |
+| `upcoming` (« À venir ») | Pas d'occurrence en cours. Le web y range aussi une routine due dont un évènement occupe les assignés maintenant.        |
 | `done` (« Faite »)       | Occurrence en cours faite.                                                                                               |
 | `late` (« En retard »)   | Occurrence en cours non faite, échéance avant aujourd'hui.                                                               |
 | `due` (« À faire »)      | Occurrence en cours non faite, échéance aujourd'hui (ou plus tard, pendant son « à partir du »).                         |
@@ -196,7 +196,7 @@ Source : `moveRoutine`, `createRoutine`, `copySubRoutines`, `bulkDeleteRoutines`
 
 - Un seul ordre manuel global pour toutes les routines (`position`), comme les tâches (décision DT) : créée, une routine va à la fin de cet ordre. L'ordre affiché reste l'arbre (chaque routine sous sa parente), les sœurs dans l'ordre global.
 - `moveRoutine(id, beforeId, parentId?, categoryIds?)` : place la routine juste avant `beforeId` dans l'ordre global (`null` : à la fin ; voisine inconnue : « Routine introuvable. ») ; `parentId` donné change aussi de parente (vérifiée comme à l'enregistrement : existante, non archivée, pas sous elle-même), `null` : premier niveau, omis : inchangée. Placer « avant telle routine » fonctionne aussi dans une vue filtrée où la parente est masquée. Une routine archivée ne se déplace pas. Les catégories peuvent changer avec le déplacement. Seules les lignes dont la position change sont écrites.
-- `copySubRoutines(fromId, toId)` : copie récursive des sous-routines sous la copie, dans leur ordre ; une dépendance ou une relation vers une routine copiée pointe vers sa copie. La cible ne doit pas être archivée.
+- `copySubRoutines(fromId, toId)` : copie récursive des sous-routines sous la copie, dans leur ordre ; une dépendance ou une relation vers une routine copiée pointe vers sa copie ; un ancien lien d'une sous-routine hors de son arborescence de projets n'est pas copié (la copie se fait sans lui, plutôt que d'échouer à mi-chemin). La cible ne doit pas être archivée.
 - Suppression (`bulkDeleteRoutines(ids, deleteSubRoutines)`), comme les tâches (décision DR) : ses sous-routines sont, au choix, supprimées avec elle (tout le sous-arbre) ou remontées d'un niveau sous sa parente ; les sous-routines sélectionnées remontées par la suppression de leur parente sont supprimées aussi. Ses coches, dépendances, relations, fiches et listes à cocher partent avec elle, le temps chronométré reste sans routine. Les identifiants inexistants sont ignorés ; le résultat compte les routines données supprimées.
 
 ## Archivage
@@ -207,4 +207,4 @@ Source : `moveRoutine`, `createRoutine`, `copySubRoutines`, `bulkDeleteRoutines`
 
 ## Requête `routines`
 
-Toutes les routines, archivées comprises, dans l'ordre manuel global ; `routineCategories` dans leur ordre. Les plages de l'espace sont chargées une fois par requête (`loadScheduleContext`) et les calculs mémorisés par routine.
+Toutes les routines, archivées comprises, dans l'ordre manuel global ; `routineCategories` dans leur ordre. Les plages de l'espace sont chargées une fois par requête (`loadScheduleContext`, sur `loadSlotsOn` commun avec les tâches) et les calculs mémorisés par routine.

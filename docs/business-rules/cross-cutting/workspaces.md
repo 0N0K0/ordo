@@ -30,7 +30,7 @@ La requête `currentWorkspaceId` rend l’espace retenu. Côté web, la fenêtre
 
 - **PRO** : facturation, clients, société, catalogue.
 - **PERSO** : ni facturation, ni clients, ni société. `requirePro(what)` refuse les actions correspondantes avec « Indisponible dans un espace personnel (<what>). ». Appels actuels : `clients` (création d’un client), `facturation` (documents comptables, documents importés, factures récurrentes, une action de `company.ts`), `société` (`company.ts`), `catalogue` (`catalog.ts`).
-- Les règles d’horaires de l’agenda diffèrent aussi selon le type (`services/calendar/slot-rules.ts`) : voir [Agenda](../activities/calendar.md).
+- Agenda : seul un espace PRO avertit d’un évènement hors des plages de travail ; la condition de plages des tâches et routines est la même dans les deux types (sans condition : n’importe quand), voir [Agenda](../activities/calendar.md).
 
 ## Création
 

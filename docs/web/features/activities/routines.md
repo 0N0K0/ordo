@@ -32,13 +32,13 @@ Mutations de `useRoutineMutations()` (toutes invalident `routinesKey` en arrièr
 | `createCategory`, `updateCategory`, `deleteCategory`                   | catégories                                                  | —                                               |
 | `moveCategory`                                                         | `moveRoutineCategory`                                       | `moveInTree`                                    |
 | `create`                                                               | `createRoutine`                                             | ajoute un brouillon (`draftRoutine`)            |
-| `update`                                                               | `updateRoutine`                                             | —                                               |
+| `update`                                                               | `updateRoutine` (renvoie `removedLinks`)                    | —                                               |
 | `copySubRoutines`                                                      | `copySubRoutines`                                           | —                                               |
-| `patch`                                                                | `patchRoutine`                                              | fusionne les champs                             |
+| `patch`                                                                | `patchRoutine` (renvoie `removedLinks`)                     | fusionne les champs                             |
 | `move`                                                                 | `moveRoutine`                                               | `moveInCache`                                   |
 | `setDone`                                                              | `setRoutineDone`                                            | `withSlotsDone` (occurrence en cours seulement) |
 | `moveOccurrence`, `changeOccurrence`, `deleteOccurrence`, `removeMove` | exceptions                                                  | —                                               |
-| `bulkUpdate`                                                           | `bulkUpdateRoutines`                                        | `withBulkChanges`                               |
+| `bulkUpdate`                                                           | `bulkUpdateRoutines` (renvoie `removedLinks`)               | `withBulkChanges`                               |
 | `bulkArchive`                                                          | `bulkSetRoutinesArchived`                                   | `archiveInCache` (sous-routines, parentes)      |
 | `bulkDone`                                                             | `bulkSetRoutinesDone`                                       | tous les moments                                |
 | `bulkRemove`                                                           | `bulkDeleteRoutines` (`ids`, `deleteSubRoutines`)           | —                                               |
@@ -64,7 +64,7 @@ Internes : `ROUTINE_VIEWS`, `movedCategories(categoryIds, from, to)` (catégorie
 | Export               | Rôle                                                                                                                                                                                                                                                                                                                                                                                                                                        |
 | -------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `RoutineFormProps`   | `routine?`, `copy?`, `parent?`, `categoryId?`, `projectId?`, `onDone`.                                                                                                                                                                                                                                                                                                                                                                      |
-| `RoutineForm(props)` | Formulaire complet (panneau latéral) : libellé, description markdown, « Quand » (`RoutineSchedule`), fiches (`SheetsSection`), commentaires, projet, catégories (création en ligne), assignés, bénéficiaires, temps, parente, « Dépend de » et « Relative à » (`linkableRoutine` : même arborescence de projets). Valeurs par défaut reprises de la parente ; copie avec ses sous-routines (`copySubRoutines`). Validé par `routineSchema`. |
+| `RoutineForm(props)` | Formulaire complet (panneau latéral) : libellé, description markdown, « Quand » (`RoutineSchedule`), fiches (`SheetsSection`), commentaires, projet, catégories (création en ligne), assignés, bénéficiaires, temps, parente, « Dépend de » et « Relative à » (`linkableRoutine` : même arborescence de projets). Valeurs par défaut reprises de la parente ; copie avec ses sous-routines (`copySubRoutines`), sans ses anciens liens hors de son arborescence (`copiedLinks`). Enregistrée dans une autre arborescence : toast « Routine modifiée. » suivi de `removedLinksNote`. Validé par `routineSchema`. |
 
 Interne : `RoutineFormValues`.
 
@@ -84,14 +84,6 @@ Internes : `RoutineScheduleValues`, `RoutineRepetitionValue`, `RoutineTimes`, `A
 | `OpensOnInput({ frequency, value, onChange, error? })` | Champ « À partir du » : modes selon la fréquence, jour, position, jour de semaine, mois, semaine, jours avant. Utilisé par `RoutineSchedule` et `OpensOnCell`. |
 
 Internes : `NONE`, `modeOptions(frequency)`, `firstValue(mode, frequency)`.
-
-### `components/SlotConditionBuilder.tsx`
-
-| Export                                      | Rôle                                                                                                                                                                                                        |
-| ------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `SlotConditionBuilder({ value, onChange })` | Condition « Plages de l'agenda » construite avec `FieldsFilterBuilder` (champs `schedules`, `freeTime`) ; un groupe vide renvoie `null`. Plages archivées non proposées sauf celles déjà dans la condition. |
-
-Interne : `OPERATOR_LABELS`.
 
 ### `components/SlotTimesFields.tsx`
 
@@ -137,7 +129,7 @@ Interne : `DoneToggle` (`StateSwitch` vert avec coche).
 
 | Export                         | Rôle                                                                                                                                                                                                                                                         |
 | ------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| `useRoutineRowsActions()`      | Actions d'une ou plusieurs routines : `done` (cocher / décocher), `postpone`, `duplicate` (avec sous-routines, `outermost`), `archive`, `remove` (ouvre `DeleteRoutinesDialog` dans une fenêtre). Les archivées sont exclues sauf pour archiver / supprimer. |
+| `useRoutineRowsActions()`      | Actions d'une ou plusieurs routines : `done` (cocher / décocher), `postpone`, `duplicate` (avec sous-routines, `outermost` ; liens hors de l'arborescence non copiés, `copiedLinks`), `archive`, `remove` (ouvre `DeleteRoutinesDialog` dans une fenêtre). Les archivées sont exclues sauf pour archiver / supprimer. |
 | `useRoutineSelectionActions()` | Liste de ces actions pour la barre de sélection.                                                                                                                                                                                                             |
 
 Interne : `RoutineRowsActions`.
@@ -244,6 +236,7 @@ Interne : `MovedTimes`.
 | `routinePath(routine, byId)`                           | « Linge › Étendre ».                                                                                                                                                                      |
 | `waitingFor(routine, byId)`                            | Routines requises encore à faire.                                                                                                                                                         |
 | `linkableRoutine(context, projectId, selfId, linked?)` | Routines proposées pour un lien (« Dépend de », « Bloque », « Relative à ») : pas elle-même, non archivées, de son arborescence de projets (`inProjectTree`) ; celles déjà liées restent. |
+| `copiedLinks(routine, context, byId)`                  | Liens d'une copie (« Dépend de », « Relative à ») gardés à son arborescence de projets : un ancien lien hors d'elle n'est pas copié (inchangés tant que les projets chargent). Utilisé par `RoutineForm` (copie) et `useRoutineRowsActions` (« Dupliquer »). |
 | `windowOf(routine)`                                    | `{ fromTime: windowFrom, dueTime: windowTo }`.                                                                                                                                            |
 | `scheduleOf(routine)`                                  | Départ / retour (`routineSchedule`).                                                                                                                                                      |
 | `windowText(window)`                                   | « 8:20–8:30 », « avant 8:30 », « dès 16:30 », fenêtres jointes par « ou ». Utilisé aussi par les alarmes et l'accueil.                                                                    |
@@ -279,20 +272,13 @@ Interne : `dayText(date)`.
 | `useRoutineCellEdit(routine, column)`     | `{ apply, count, targets }` : applique une édition à la routine ou à la sélection (une requête en masse avec annulation). Les colonnes « Échéance » et « Répétition » partagent la sélection, de même que les deux horaires. |
 | `routineCellLabel(field, routine, count)` | Libellé accessible d'une cellule, mentionnant la sélection.                                                                                                                                                                  |
 
-Internes : `RoutineColumn`, `TABLE_COLUMNS`, `useBulkRoutineChanges` (instantané avant, toast « Annuler » via `restore`).
+Internes : `RoutineColumn`, `TABLE_COLUMNS`, `useBulkRoutineChanges` (instantané avant, toast « Annuler » via `restore`, suivi de `removedLinksNote`). Une édition sur place qui retire des liens (changement d'arborescence) le dit : « Routine déplacée. 2 liens retirés. ».
 
 ### `lib/opens-format.ts`
 
 | Export                        | Rôle                                                                                                                          |
 | ----------------------------- | ----------------------------------------------------------------------------------------------------------------------------- |
 | `opensText(opens, frequency)` | « le 15 du mois », « le 2e mardi de mars », « 3 jours avant l'échéance », « la veille de l'échéance » ; vide si incompatible. |
-
-### `lib/slot-condition-text.ts`
-
-| Export                                        | Rôle                                                                                                                                                       |
-| --------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `emptySlotCondition()`                        | Groupe ET vide.                                                                                                                                            |
-| `describeSlotCondition(node, names, nested?)` | Condition en clair (« sur « Déjeuner » ou « Dîner » », « hors de toutes les plages sauf … »), groupes entre parenthèses ; « plage supprimée » si inconnue. |
 
 ### `lib/open-routine-form.tsx`
 

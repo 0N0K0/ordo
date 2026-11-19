@@ -1,4 +1,4 @@
-import { dateSchema, effortSchema, groupBy, markdownSchema, parseOptionalDay, reaches, slotRuleSchema, type TaskInput as SharedTaskInput, taskLabelSchema } from '@ordo/shared';
+import { dateSchema, effortSchema, groupBy, markdownSchema, parseOptionalDay, reaches, readSlotCondition, slotConditionSchema, type TaskInput as SharedTaskInput, taskLabelSchema } from '@ordo/shared';
 import { z } from 'zod';
 import { prisma } from '../../db';
 import { assertBeneficiaries } from '../core/beneficiaries';
@@ -12,8 +12,10 @@ import { assertNoneArchived, type ArchivableModel, assertActive, refuseArchived,
 import { deleteTreeItems, subtreeIds, topmostIds } from '../core/trees';
 import { assertDateRange } from '../core/date-range';
 import { connectIds, orderedPair } from '../core/relations';
-import { loadProjectRootOf as loadRootOf } from '../projects/project-tree';
+import { inProjectTree, loadProjectRootOf as loadRootOf } from '../projects/project-tree';
 import { commentBody } from '../core/comments';
+import { toJson } from '../core/json';
+import { assertConditionSchedules } from '../calendar/slot-conditions';
 
 /**
  * Checks that a project exists and is active.
@@ -159,8 +161,8 @@ async function assertActiveRefs(refs: ActiveRefs, current: CurrentRefs = {}, res
   }
 }
 
-/** Fields of a task sent to create or change it, its slot rule as GraphQL gives it (JSON, checked by the schema). */
-export type TaskInput = Omit<SharedTaskInput, 'slotRule'> & { slotRule?: unknown };
+/** Fields of a task sent to create or change it, its slot condition as GraphQL gives it (JSON, checked by the schema). */
+export type TaskInput = Omit<SharedTaskInput, 'slotCondition'> & { slotCondition?: unknown };
 
 const detailsSchema = z.object({
   label: taskLabelSchema.optional(),
@@ -170,7 +172,7 @@ const detailsSchema = z.object({
   endDate: dateSchema.optional(),
   deadline: dateSchema.optional(),
   minDate: dateSchema.optional(),
-  slotRule: slotRuleSchema.nullable().optional(),
+  slotCondition: slotConditionSchema.nullable().optional(),
 });
 
 /**
@@ -188,7 +190,7 @@ function parseDetails(input: TaskInput, current?: { startDate: Date | null; endD
     endDate: input.endDate,
     deadline: input.deadline,
     minDate: input.minDate,
-    slotRule: input.slotRule as z.input<typeof slotRuleSchema> | null | undefined,
+    slotCondition: input.slotCondition as z.input<typeof slotConditionSchema> | null | undefined,
   });
   assertDateRange(details, current);
   return {
@@ -199,7 +201,8 @@ function parseDetails(input: TaskInput, current?: { startDate: Date | null; endD
     endDate: parseOptionalDay(details.endDate),
     deadline: parseOptionalDay(details.deadline),
     minDate: parseOptionalDay(details.minDate),
-    slotRule: details.slotRule === undefined ? undefined : (details.slotRule ?? Prisma.DbNull),
+    // An empty group is no condition (any time).
+    slotCondition: details.slotCondition === undefined ? undefined : details.slotCondition?.children.length ? toJson(details.slotCondition) : Prisma.DbNull,
   };
 }
 
@@ -211,6 +214,7 @@ function parseDetails(input: TaskInput, current?: { startDate: Date | null; endD
 export async function createTask(input: TaskInput & { label: string }): Promise<Task> {
   if (!input.label?.trim()) throw fieldError('label', 'Le libellé est requis.');
   const details = parseDetails(input);
+  await assertConditionSchedules([readSlotCondition(input.slotCondition)], []);
   const projectId = input.projectId ?? null;
   if (projectId) await assertProject(projectId);
   await assertReferences(input);
@@ -250,6 +254,8 @@ export async function createTask(input: TaskInput & { label: string }): Promise<
 export async function updateTask(id: string, input: TaskInput): Promise<Task> {
   const task = await findActive(prisma.task, id, 'Tâche');
   const details = parseDetails(input, task);
+  // Archived schedules: no longer chosen, those already in its condition stay.
+  if (input.slotCondition !== undefined) await assertConditionSchedules([readSlotCondition(input.slotCondition)], [readSlotCondition(task.slotCondition)]);
   await assertReferences(input);
   const links = await prisma.task.findUnique({
     where: { id },
@@ -399,7 +405,8 @@ const CLONED_LINKS = {
 } as const;
 
 /**
- * Clones a task (every field, assignees and links, but not comments), optionally with its sub-tasks.
+ * Clones a task (every field, assignees and links, but not comments), optionally with its sub-tasks. A former link out
+ * of its project tree (kept until it moves) is not copied.
  * @param {string} id Task id.
  * @param {boolean} includeSubtasks Whether to clone the sub-tree too.
  * @returns {Promise<Task>} Clone of the task.
@@ -413,6 +420,9 @@ export async function cloneTask(id: string, includeSubtasks: boolean): Promise<T
     relationsB: true,
   };
   const source = await orNotFound(prisma.task.findUnique({ where: { id }, include }), 'Tâche');
+  const linked = [...source.blocking.map((link) => link.blockedId), ...source.blockedBy.map((link) => link.blockerId), ...source.relationsA.map((link) => link.taskBId), ...source.relationsB.map((link) => link.taskAId)];
+  const projectOf = new Map((await prisma.task.findMany({ where: { id: { in: linked } }, select: { id: true, projectId: true } })).map((task) => [task.id, task.projectId]));
+  const inTree = inProjectTree(await loadRootOf(), source.projectId, projectOf);
 
   return prisma.$transaction(async (tx) => {
     let position = await nextPositionIn('task', {}, tx);
@@ -460,10 +470,13 @@ export async function cloneTask(id: string, includeSubtasks: boolean): Promise<T
       });
 
     const clone = await copy(source, source.parentId);
+    // Former links out of its project tree (kept until it moves) are not copied: the clone obeys the rule.
+    const blocking = source.blocking.map((link) => link.blockedId).filter(inTree);
+    const blockedBy = source.blockedBy.map((link) => link.blockerId).filter(inTree);
     await tx.taskBlock.createMany({
-      data: [...source.blocking.map((link) => ({ blockerId: clone.id, blockedId: link.blockedId })), ...source.blockedBy.map((link) => ({ blockerId: link.blockerId, blockedId: clone.id }))],
+      data: [...blocking.map((blockedId) => ({ blockerId: clone.id, blockedId })), ...blockedBy.map((blockerId) => ({ blockerId, blockedId: clone.id }))],
     });
-    const related = [...source.relationsA.map((link) => link.taskBId), ...source.relationsB.map((link) => link.taskAId)];
+    const related = [...source.relationsA.map((link) => link.taskBId), ...source.relationsB.map((link) => link.taskAId)].filter(inTree);
     await tx.taskRelation.createMany({
       data: related.map((other) => relationPair(clone.id, other)),
     });

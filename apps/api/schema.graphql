@@ -1594,12 +1594,12 @@ type Mutation {
   """
   Moves the tasks and their sub-tasks to another project, or out of any (projectId null).
   """
-  bulkTransferTasks(ids: [ID!]!, projectId: ID): TaskTransferResult!
+  bulkTransferTasks(ids: [ID!]!, projectId: ID): RemovedLinksResult!
 
   """
-  Applies the same changes to several routines; returns how many changed.
+  Applies the same changes to several routines; those moved to another project tree lose their links out of it (told back).
   """
-  bulkUpdateRoutines(changes: RoutineBulkChanges!, ids: [ID!]!): Int!
+  bulkUpdateRoutines(changes: RoutineBulkChanges!, ids: [ID!]!): RemovedLinksResult!
   bulkUpdateTasks(
     changes: BulkTaskInput!
     ids: [ID!]!
@@ -1936,8 +1936,10 @@ type Mutation {
   moveTreasuryCategory(id: ID!, index: Int, parentId: ID): Boolean!
   moveWorkspace(id: ID!, index: Int!): Boolean!
 
-  """Changes some fields of a routine (inline edits)."""
-  patchRoutine(id: ID!, input: RoutinePatch!): Boolean!
+  """
+  Changes some fields of a routine (inline edits); moved to another project tree, it loses its links out of it (told back).
+  """
+  patchRoutine(id: ID!, input: RoutinePatch!): RemovedLinksResult!
 
   """
   Cancels an event (or one occurrence) and creates its postponement, linked to it.
@@ -2215,6 +2217,10 @@ type Mutation {
   updateProjectResource(id: ID!, label: String!, note: String, url: String): Boolean!
   updateProjectStatus(id: ID!, input: LabelColorPatch!): ProjectStatus!
   updateRecurringInvoice(id: ID!, input: RecurringInvoiceInput!): Boolean!
+
+  """
+  Saves a routine; moved to another project tree, it loses its links out of it (told back).
+  """
   updateRoutine(
     id: ID!
     input: RoutineInput!
@@ -2223,7 +2229,7 @@ type Mutation {
     Undo: archived values given back are accepted (only that check is skipped).
     """
     restoring: Boolean
-  ): Boolean!
+  ): RemovedLinksResult!
   updateRoutineCategory(id: ID!, input: RoutineCategoryInput!): Boolean!
   updateScheduleType(id: ID!, input: ScheduleTypeInput!): ScheduleType!
   updateSheet(id: ID!, input: SheetInput!): Boolean!
@@ -2800,6 +2806,14 @@ type ReminderResult {
 }
 
 """
+Outcome of a change of project: the links removed because they left the project tree.
+"""
+type RemovedLinksResult {
+  """Links removed because they left the project tree."""
+  removedLinks: Int!
+}
+
+"""
 Task repeating on a calendar rule, ticked once done for its current occurrence.
 """
 type Routine {
@@ -2892,11 +2906,6 @@ type Routine {
   Following its rule: on or out of calendar schedules, in groups combined with and / or (the filters of the tables); null: any time.
   """
   slotCondition: JSON
-
-  """
-  Slots it is done on or out of ({ mode, kinds }); null: the workspace default.
-  """
-  slotRule: JSON
 
   """
   Times of the day of its current occurrence (its next one before it starts), with those ticked.
@@ -3894,9 +3903,9 @@ type Task {
   relatedIds: [ID!]!
 
   """
-  Slots the task is done on or out of; null: the default of the workspace.
+  On or out of calendar schedules, or on the free time, in groups combined with and / or (as a routine); null: any time.
   """
-  slotRule: JSON
+  slotCondition: JSON
 
   """Sprints the task is planned in."""
   sprintIds: [ID!]!
@@ -3947,9 +3956,9 @@ input TaskInput {
   projectId: ID
 
   """
-  Slots the task is done on or out of ({ mode, kinds }); null: the default of the workspace.
+  On or out of calendar schedules, or on the free time, in groups (and / or); null: any time.
   """
-  slotRule: JSON
+  slotCondition: JSON
   sprintIds: [ID!]
   startDate: Date
   statusId: ID
@@ -4018,11 +4027,6 @@ type TaskTag {
   position: Int!
 }
 
-type TaskTransferResult {
-  """Links removed because they left the project tree."""
-  removedLinks: Int!
-}
-
 type TaskType {
   """Archived: hidden by default, read only."""
   archived: Boolean!
@@ -4053,9 +4057,9 @@ input TaskUpdateInput {
   priorityId: ID
 
   """
-  Slots the task is done on or out of ({ mode, kinds }); null: the default of the workspace.
+  On or out of calendar schedules, or on the free time, in groups (and / or); null: any time.
   """
-  slotRule: JSON
+  slotCondition: JSON
   sprintIds: [ID!]
   startDate: Date
   statusId: ID

@@ -1,10 +1,11 @@
-import { parseOptionalDay, readSlotRule, sumOf } from '@ordo/shared';
+import { parseOptionalDay, sumOf } from '@ordo/shared';
 import { daysBetween, formatDay, parseDay, readOpens, type RoutineInput, type RoutineMoveTimes } from '@ordo/shared';
 import { prisma } from '../../db';
 import { clientError, done } from '../errors';
 import * as routines from '../../services/routines/routines';
 import type { Context } from '../context';
 import { BY_POSITION } from '../../services/core/ordering';
+import { RemovedLinksResult, removedLinks } from '../removed-links';
 import { builder, type InputFields } from '../builder';
 import { locatedChanges, locatedInput, locationInputFields, TRAVEL_DESCRIPTIONS, travelInputFields } from '../located-fields';
 import { relationIds } from '../relation-fields';
@@ -124,12 +125,6 @@ builder.prismaObject('Routine', {
       nullable: true,
       description: '« À partir du » of the occurrences of its rule: { mode: DAY | WEEKDAY | WEEK | BEFORE, … }; null: from their first day.',
       resolve: (routine) => readOpens(routine.opensOn),
-    }),
-    slotRule: t.field({
-      type: 'JSON',
-      nullable: true,
-      description: 'Slots it is done on or out of ({ mode, kinds }); null: the workspace default.',
-      resolve: (routine) => readSlotRule(routine.slotRule),
     }),
     windowFrom: t.string({
       nullable: true,
@@ -340,7 +335,6 @@ const routineInput = (input: typeof RoutineInputType.$inferInput): RoutineInput 
   moments: (input.moments ?? []) as RoutineInput['moments'],
   reminders: input.reminders ?? [],
   opensOn: (input.opensOn ?? null) as RoutineInput['opensOn'],
-  slotRule: null,
   cases: (input.cases ?? []) as RoutineInput['cases'],
   dueTime: input.dueTime ?? null,
   ...locatedInput(input),
@@ -478,16 +472,19 @@ builder.mutationFields((t) => ({
     args: { fromId: t.arg.id({ required: true }), toId: t.arg.id({ required: true }) },
     resolve: (_root, { fromId, toId }) => routines.copySubRoutines(fromId, toId),
   }),
-  updateRoutine: t.boolean({
+  updateRoutine: t.field({
+    type: RemovedLinksResult,
+    description: 'Saves a routine; moved to another project tree, it loses its links out of it (told back).',
     args: {
       id: t.arg.id({ required: true }),
       input: t.arg({ type: RoutineInputType, required: true }),
       restoring: t.arg.boolean({ description: 'Undo: archived values given back are accepted (only that check is skipped).' }),
     },
-    resolve: (_root, { id, input, restoring }) => done(routines.updateRoutine(id, routineInput(input), restoring ?? false)),
+    resolve: (_root, { id, input, restoring }) => removedLinks(routines.updateRoutine(id, routineInput(input), restoring ?? false)),
   }),
-  patchRoutine: t.boolean({
-    description: 'Changes some fields of a routine (inline edits).',
+  patchRoutine: t.field({
+    type: RemovedLinksResult,
+    description: 'Changes some fields of a routine (inline edits); moved to another project tree, it loses its links out of it (told back).',
     args: { id: t.arg.id({ required: true }), input: t.arg({ type: RoutinePatch, required: true }) },
     resolve: async (_root, { id, input }) => {
       const changes: Partial<RoutineInput> = {};
@@ -519,7 +516,7 @@ builder.mutationFields((t) => ({
       if (input.cases !== undefined && input.cases !== null) changes.cases = input.cases as RoutineInput['cases'];
       if (input.moments !== undefined && input.moments !== null) changes.moments = input.moments as RoutineInput['moments'];
       if (input.slotCondition !== undefined) changes.slotCondition = (input.slotCondition ?? null) as RoutineInput['slotCondition'];
-      return done(routines.patchRoutine(id, changes));
+      return removedLinks(routines.patchRoutine(id, changes));
     },
   }),
   moveRoutine: t.boolean({
@@ -528,12 +525,13 @@ builder.mutationFields((t) => ({
     args: { id: t.arg.id({ required: true }), beforeId: t.arg.id(), parentId: t.arg.id(), categoryIds: t.arg.idList() },
     resolve: (_root, { id, beforeId, parentId, categoryIds }) => done(routines.moveRoutine(id, beforeId ?? null, parentId, categoryIds || null)),
   }),
-  bulkUpdateRoutines: t.int({
-    description: 'Applies the same changes to several routines; returns how many changed.',
+  bulkUpdateRoutines: t.field({
+    type: RemovedLinksResult,
+    description: 'Applies the same changes to several routines; those moved to another project tree lose their links out of it (told back).',
     args: { ids: t.arg.idList({ required: true }), changes: t.arg({ type: RoutineBulkChangesInput, required: true }) },
     resolve: (_root, { ids, changes }) => {
       const list = (value: string[] | null | undefined) => value ?? undefined;
-      return routines.bulkUpdateRoutines(ids, {
+      return removedLinks(routines.bulkUpdateRoutines(ids, {
         addCategoryIds: list(changes.addCategoryIds),
         removeCategoryIds: list(changes.removeCategoryIds),
         addAssigneeIds: list(changes.addAssigneeIds),
@@ -550,7 +548,7 @@ builder.mutationFields((t) => ({
         moments: changes.moments ?? undefined,
         slotCondition: changes.slotCondition === undefined ? undefined : (changes.slotCondition ?? null),
         opensOn: changes.opensOn === undefined ? undefined : (changes.opensOn ?? null),
-      });
+      }));
     },
   }),
   bulkSetRoutinesArchived: t.int({

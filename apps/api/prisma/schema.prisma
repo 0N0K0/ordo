@@ -587,9 +587,8 @@ model Task {
   /// id, never the number.
   number               Int?
   label                String
-  /// Slots it is done on or out of: { mode: ANY | INSIDE | OUTSIDE, kinds: [kind refs] }; null: the workspace default
-  /// (on the working hours in a professional workspace).
-  slotRule             Json?
+  /// On or out of calendar schedules, or on the free time, in groups (and / or), as a routine; null: any time.
+  slotCondition        Json?
   /// Markdown.
   description          String?
   /// None: a task of no project (no number, no sprint, milestone nor GitHub item). A deleted project leaves its tasks
@@ -3114,9 +3113,6 @@ model Routine {
   /// « À partir du » of the occurrences of its rule: { mode: DAY, day, month } | { mode: WEEKDAY, position, weekday,
   /// month } | { mode: WEEK, week, weekday } | { mode: BEFORE, days }; null: from their first day.
   opensOn              Json?
-  /// Slots it is done on or out of: { mode: ANY | INSIDE | OUTSIDE, kinds: [kind refs] }; null: the workspace default
-  /// (on the working hours in a professional workspace).
-  slotRule             Json?
   /// Where it is done: free text, and its point when chosen from the map or a search.
   location             String?
   locationLat          Float?

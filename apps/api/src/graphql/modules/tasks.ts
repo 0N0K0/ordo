@@ -1,5 +1,5 @@
 import { done } from '../errors';
-import { doableTaskIds } from '../../services/calendar/slot-rules';
+import { doableTaskIds } from '../../services/calendar/slot-conditions';
 import { prisma } from '../../db';
 import { storeAttachment, attachmentUrl } from '../../services/core/attachments';
 import * as contributors from '../../services/projects/contributors';
@@ -9,9 +9,10 @@ import { iconUrl } from '../../services/core/icons';
 import { taskPriorities, taskStatuses, taskTags, taskTypes } from '../../services/tasks/task-labels';
 import * as taskViews from '../../services/tasks/task-views';
 import * as tasks from '../../services/tasks/tasks';
-import { readSlotRule, sumOf, TASK_STATUS_CATEGORIES, VIEW_KINDS } from '@ordo/shared';
+import { readSlotCondition, sumOf, TASK_STATUS_CATEGORIES, VIEW_KINDS } from '@ordo/shared';
 import * as workspaces from '../../services/workspaces/workspaces';
 import { BY_POSITION } from '../../services/core/ordering';
+import { RemovedLinksResult, removedLinks } from '../removed-links';
 import { builder, type InputFields } from '../builder';
 import { labelMutations, labelObject } from '../label-inputs';
 import { relationIds } from '../relation-fields';
@@ -172,7 +173,12 @@ builder.prismaObject('Task', {
     endDate: t.expose('endDate', { type: 'Date', nullable: true }),
     deadline: t.expose('deadline', { type: 'Date', nullable: true, description: 'Latest acceptable date ("Date max"): an open task past it is overdue.' }),
     minDate: t.expose('minDate', { type: 'Date', nullable: true, description: 'Earliest acceptable date ("Date min"): not to be done before.' }),
-    slotRule: t.field({ type: 'JSON', nullable: true, description: 'Slots the task is done on or out of; null: the default of the workspace.', resolve: (task) => readSlotRule(task.slotRule) }),
+    slotCondition: t.field({
+      type: 'JSON',
+      nullable: true,
+      description: 'On or out of calendar schedules, or on the free time, in groups combined with and / or (as a routine); null: any time.',
+      resolve: (task) => readSlotCondition(task.slotCondition),
+    }),
     parentId: t.exposeID('parentId', { nullable: true }),
     milestoneId: t.exposeID('milestoneId', { nullable: true }),
     sprintIds: t.idList(relationIds('sprints', 'Sprints the task is planned in.')),
@@ -243,7 +249,7 @@ const taskFields = (t: InputFields) => ({
   parentId: t.id(),
   milestoneId: t.id(),
   sprintIds: t.idList(),
-  slotRule: t.field({ type: 'JSON', description: 'Slots the task is done on or out of ({ mode, kinds }); null: the default of the workspace.' }),
+  slotCondition: t.field({ type: 'JSON', description: 'On or out of calendar schedules, or on the free time, in groups (and / or); null: any time.' }),
 });
 
 const TaskInput = builder.inputType('TaskInput', {
@@ -325,12 +331,6 @@ const TaskViewUpdateInput = builder.inputType('TaskViewUpdateInput', {
   fields: (t) => ({
     label: t.string(),
     config: t.field({ type: 'JSON' }),
-  }),
-});
-
-const TransferResult = builder.objectRef<{ removedLinks: number }>('TaskTransferResult').implement({
-  fields: (t) => ({
-    removedLinks: t.exposeInt('removedLinks', { description: 'Links removed because they left the project tree.' }),
   }),
 });
 
@@ -456,10 +456,10 @@ builder.mutationFields((t) => ({
     resolve: (_root, { ids, changes, restoring }) => done(tasks.bulkUpdateTasks(ids, changes, restoring ?? false)),
   }),
   bulkTransferTasks: t.field({
-    type: TransferResult,
+    type: RemovedLinksResult,
     description: 'Moves the tasks and their sub-tasks to another project, or out of any (projectId null).',
     args: { ids: t.arg.idList({ required: true }), projectId: t.arg.id() },
-    resolve: async (_root, { ids, projectId }) => ({ removedLinks: await tasks.bulkTransferTasks(ids, projectId ?? null) }),
+    resolve: (_root, { ids, projectId }) => removedLinks(tasks.bulkTransferTasks(ids, projectId ?? null)),
   }),
   bulkSetTasksArchived: t.boolean({
     description: 'Archiving cascades to sub-tasks; restoring restores them and the archived parents.',

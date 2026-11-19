@@ -194,18 +194,18 @@ Source : `apps/api/src/services/calendar/work-schedules.ts`, schémas dans `pack
 - `setScheduleSubscriptionLook` : couleur et affichage propres (chaque champ nul : celui du type) ; « Abonnement » introuvable si non abonné.
 - Suppression du type source ou de l’espace source : l’abonnement disparaît (cascade).
 
-## Règles de plages des tâches et routines
+## Condition de plages des tâches et routines
 
-Source : `packages/shared/src/calendar/slot-rules.ts`, `apps/api/src/services/calendar/slot-rules.ts`.
+Source : `packages/shared/src/calendar/slot-conditions.ts`, `apps/api/src/services/calendar/slot-conditions.ts`. Les tâches et les routines ont la même condition (décisions D9, DU).
 
-- Une règle `{ inside, outside }` : listes de genres de créneaux (30 max, 120 caractères). Genre d’un type de l’espace : son id ; plages sans type : `default` ; d’un autre espace : `ws:<espace>:<type ou default>`.
-- Un genre ne peut être à la fois choisi et exclu : « Un type de plages ne peut pas être à la fois choisi et exclu. ».
-- Un moment est permis s’il tombe dans un créneau d’un genre `inside` (n’importe quand si vide) et dans aucun genre `outside` ; les deux vides : partout.
-- Sans règle propre (`effectiveSlotRule`) : pendant les plages sans type en PRO, partout en PERSO.
-- Les genres sans aucune plage sont ignorés (`knownSlotRule`) : un espace PRO sans plage ne bloque rien.
-- L’ancienne forme `{ mode, kinds }` (`ANY`, `INSIDE`, `OUTSIDE`) est lue ; une règle invalide vaut « aucune ».
-- `nextAllowed` : prochain moment permis (le moment même, sinon le prochain début d’un créneau `inside` ou la prochaine fin d’un créneau `outside`).
-- `doableTaskIds(utcOffset, meId)` (requête `doableTaskIds` des tâches) : tâches ouvertes et non archivées dont la règle permet le moment actuel de l’utilisateur et qu’aucun évènement actif n’occupe (voir [Tâches](tasks.md)).
+- Une condition (`slotConditionSchema`) : groupes ET / OU, comme les filtres des tableaux, de conditions sur des **plages nommées** de l’espace : champ `schedules` avec `in` (« sur l’une des plages ») ou `notIn` (« hors des plages »), au moins une plage ; champ `freeTime` (« temps libre ») avec `isEmpty` (hors de toutes les plages, celles créées ensuite comprises) ou `notIn` (hors de toutes les plages sauf celles citées). Autre opérateur : « Sur ou hors des plages. ».
+- Plages citées : elles doivent exister (« Plage » introuvable, sous `slotCondition`) ; une plage archivée n’est plus choisie, celle déjà dans la condition reste (« Élément archivé », sous la règle commune, voir [Archivage](../cross-cutting/archiving.md)) ; `assertConditionSchedules`.
+- Heures permises un jour (`conditionWindows`) : `in` = les créneaux des plages citées, fusionnés ; `notIn` = hors d’eux ; temps libre = hors de tous les créneaux (sauf ceux des plages citées) ; « et » = intersection, « ou » = union. Les plages évaluées sont celles de l’espace, archivées comprises (`loadSlotsOn`, `scheduleSlotsOn`) ; pas celles affichées depuis d’autres espaces.
+- **Sans condition** (ou un groupe vide) : à n’importe quelle heure. Le type d’espace ne joue plus : plus de défaut « heures de travail » en PRO (décision D10).
+- Routine : la condition garde ses moments aux heures permises (voir [Routines](routines.md)). Tâche : elle est faisable à un moment que la condition permet (`conditionAllowsAt`).
+- `nextConditionMoment` : premier moment permis à partir d’un moment, sur quelques jours (le moment même sans condition).
+- `doableTaskIds(utcOffset, meId)` (requête `doableTaskIds` des tâches) : tâches ouvertes et non archivées dont la condition permet le moment actuel de l’utilisateur et qu’aucun évènement actif n’occupe (voir [Tâches](tasks.md)).
+- L’avertissement d’un évènement hors des plages de travail (espace PRO, formulaire d’évènement) ne change pas.
 
 ## Export iCalendar
 

@@ -178,9 +178,9 @@ Une copie reprend les cas et le type, sans dates ni exceptions (« choisissez se
 
 « « Routine » du … » : « Jour » (pas avant le début de la routine), « À partir de », « Avant », « Enregistrer… » (portée demandée), « Supprimer » (cette occurrence, ou elle et les suivantes), « Ouvrir la routine ». Voir [Routines](routines.md).
 
-## Règle de plages des tâches et routines
+## Condition de plages des tâches et routines
 
-Le champ « Plages » (`SlotRuleInput`, utilisé par les tâches et routines) : « Par défaut de l’espace (…) » ou « Choisies », puis « Pendant » (l’une de ces plages) et « Hors de » (aucune de ces plages), avec les types de l’espace et ceux des autres espaces abonnés. Par défaut : pendant les plages sans type (« Travail ») en PRO, partout en PERSO.
+Le champ « Plages de l’agenda » (`SlotConditionBuilder`, le même pour les tâches et les routines) : condition facultative sur les plages de l’espace, « Sur l’une des plages », « Hors des plages », « Temps libre » (hors de toutes les plages, sauf certaines), combinées en groupes ET / OU comme les filtres des tableaux ; « Aucune condition : à n’importe quelle heure. ». Sans condition, une tâche ou une routine se fait n’importe quand, en PRO comme en PERSO.
 
 ## Exports
 
@@ -200,5 +200,4 @@ Les rappels d’évènements sonnent tant qu’Ordo est ouvert (et pour d’autr
 
 - Nom des plages : « Plages de travail » (PRO) / « Plages » (PERSO).
 - Avertissement hors plages dans le formulaire d’évènement : PRO seulement.
-- Règle de plages par défaut des tâches et routines : pendant « Travail » (PRO), partout (PERSO).
 - Libellés des relations (« Relations » / « Proches ») et message de suppression des plages (temps prévu en PRO).

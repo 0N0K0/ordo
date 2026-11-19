@@ -58,6 +58,11 @@ const RESTRICTED_PATHS = [
     importNames: ['FILTER_OPERATORS'],
     message: 'Utiliser operatorsFor (components/filters/filter-meta) : les opérateurs propres d’un champ, sans « est vide » sur un champ obligatoire.',
   },
+  {
+    name: '@ordo/shared',
+    importNames: ['SLOT_CONDITION_FIELDS', 'SLOT_CONDITION_FIELD_OPERATORS'],
+    message: 'Condition de plages d’une tâche ou d’une routine : SlotConditionBuilder (features/calendar/components), un seul éditeur (décision DU).',
+  },
 ];
 
 // The same, Menu allowed: the genuinely special menus.
@@ -1036,6 +1041,11 @@ export default defineConfig([
     // ActionsMenu wraps Menu.
     files: ['src/components/actions/ActionsMenu.tsx'],
     rules: { 'no-restricted-imports': ['error', { paths: RESTRICTED_PATHS_ACTIONS_MENU, patterns: [NO_FEATURES] }] },
+  },
+  {
+    // The one editor of the slot conditions of tasks and routines.
+    files: ['src/features/calendar/components/SlotConditionBuilder.tsx'],
+    rules: { 'no-restricted-imports': ['error', { paths: RESTRICTED_PATHS.filter((path) => !path.importNames.includes('SLOT_CONDITION_FIELDS')) }] },
   },
   {
     // Menus of their own: the tree of the saved places in an address field; the library, to be rewritten.

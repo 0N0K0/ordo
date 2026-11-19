@@ -124,13 +124,17 @@ const CreateRoutineDocument = graphql(`
 
 const UpdateRoutineDocument = graphql(`
   mutation UpdateRoutine($id: ID!, $input: RoutineInput!, $restoring: Boolean) {
-    updateRoutine(id: $id, input: $input, restoring: $restoring)
+    updateRoutine(id: $id, input: $input, restoring: $restoring) {
+      removedLinks
+    }
   }
 `);
 
 const PatchRoutineDocument = graphql(`
   mutation PatchRoutine($id: ID!, $input: RoutinePatch!) {
-    patchRoutine(id: $id, input: $input)
+    patchRoutine(id: $id, input: $input) {
+      removedLinks
+    }
   }
 `);
 
@@ -142,7 +146,9 @@ const MoveRoutineDocument = graphql(`
 
 const BulkUpdateRoutinesDocument = graphql(`
   mutation BulkUpdateRoutines($ids: [ID!]!, $changes: RoutineBulkChanges!) {
-    bulkUpdateRoutines(ids: $ids, changes: $changes)
+    bulkUpdateRoutines(ids: $ids, changes: $changes) {
+      removedLinks
+    }
   }
 `);
 

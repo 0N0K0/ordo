@@ -30,8 +30,8 @@ import { EventLocation } from '../../geo/components/EventLocation';
 import { TravelCalculator } from '../../geo/components/TravelCalculator';
 import { OpensOnInput } from './OpensOnInput';
 import { opensText } from '../lib/opens-format';
-import { SlotConditionBuilder } from './SlotConditionBuilder';
-import { describeSlotCondition } from '../lib/slot-condition-text';
+import { SlotConditionBuilder } from '../../calendar/components/SlotConditionBuilder';
+import { describeSlotCondition } from '../../calendar/lib/slot-condition-text';
 import { DAILY, ruleOf, windowText } from '../lib/routine-format';
 import type { Routine } from '../api';
 import { RemindersSelect } from '../../../components/inputs/RemindersSelect';
@@ -120,7 +120,7 @@ const routineTimes = (names: Map<string, string>): RepetitionTimes<RoutineTimes>
   render: (times, onChange, index, rule) => (
     <Stack gap="sm">
       <MomentsEditor moments={times.moments} onChange={(moments) => onChange({ ...times, moments })} index={index} />
-      <SlotConditionBuilder value={times.condition} onChange={(condition) => onChange({ ...times, condition })} />
+      <SlotConditionBuilder item="routine" value={times.condition} onChange={(condition) => onChange({ ...times, condition })} />
       <OpensOnInput frequency={rule?.frequency ?? 'DAILY'} value={times.opens} onChange={(opens) => onChange({ ...times, opens })} />
     </Stack>
   ),

@@ -18,7 +18,8 @@ import { ProjectSelect } from './task-ui';
 import { taskName, taskNumber, taskNumbered } from '../hooks/use-task-context';
 import { TASK_PARAM, useTaskLink } from '../hooks/use-task-link';
 import { useBulkUndo } from '../lib/bulk-undo';
-import { removedLinksNote, tasksLabel } from '../lib/bulk-label';
+import { tasksLabel } from '../lib/bulk-label';
+import { removedLinksNote } from '../../../lib/text';
 import { useAsyncAction } from '../../../lib/use-async-action';
 
 /**

@@ -6,7 +6,8 @@ import {
   DEFAULT_HIDDEN_COLUMNS,
   formatDuration,
   ME,
-  readSlotRule,
+  conditionScheduleIds,
+  readSlotCondition,
   TASK_COLUMNS,
   TASK_STATUS_CATEGORIES,
   TASK_STATUS_CATEGORY_LABELS,
@@ -39,8 +40,8 @@ interface TaskColumnExtras {
   shoppingTaskIds?: ReadonlySet<string>;
   /** Active alerts by task. */
   alarmCounts?: ReadonlyMap<string, number>;
-  /** Kinds of slots (calendar schedules). */
-  slotKinds?: ColumnChoice[];
+  /** Calendar schedules a slot condition can name. */
+  slotSchedules?: ColumnChoice[];
   /** Comments by calendar event (of the events listed). */
   eventComments?: ReadonlyMap<string, number>;
 }
@@ -244,14 +245,11 @@ export function taskColumns(context: TaskContext, today: string, extras: TaskCol
       case 'updatedAt':
         return { kind: 'date', value: (row) => (row.kind === 'task' ? localDay(row.task[id]) : null) };
       case 'slots':
-        // Kinds of slots its rule names, during or out of.
+        // Schedules its condition names, on or out of them.
         return {
           kind: 'choices',
-          value: (row) => {
-            const rule = row.kind === 'task' ? readSlotRule(row.task.slotRule) : null;
-            return rule ? [...rule.inside, ...rule.outside] : [];
-          },
-          options: extras.slotKinds ?? [],
+          value: (row) => (row.kind === 'task' ? conditionScheduleIds(readSlotCondition(row.task.slotCondition)) : []),
+          options: extras.slotSchedules ?? [],
         };
       case 'timer':
       case 'subtasks':
