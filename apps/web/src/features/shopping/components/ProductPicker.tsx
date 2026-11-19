@@ -2,14 +2,15 @@ import { EmptyState } from '../../../components/feedback/EmptyState';
 import { formCallbacks } from '../../../lib/form';
 import { categoryPaths } from '../../../components/tree/category-tree';
 
-import { Anchor, Badge, Checkbox, Group, ScrollArea, Select, Stack, Text, TextInput } from '@mantine/core';
+import { Badge, Checkbox, Group, ScrollArea, Select, Stack, Text, TextInput } from '@mantine/core';
 import { Caption } from '../../../components/page/Caption';
 import { FormActions } from '../../../components/dialogs/FormActions';
-import { MagnifyingGlassIcon } from '@phosphor-icons/react';
+import { MagnifyingGlassIcon, CheckSquareIcon, SquareIcon } from '@phosphor-icons/react';
 import { useState } from 'react';
 import { useShoppingData, useShoppingMutations, type ShoppingList } from '../api';
 import { collator, countOf, plural, normalize } from '../../../lib/text';
 import { unarchived } from '../../../lib/archive';
+import { ActionButton } from '../../../components/actions/ActionButton';
 
 /**
  * Products of the base lists to add to a list: searched, filtered by base list or missing, checked then added in one go
@@ -80,14 +81,14 @@ export function ProductPicker({ list, onDone }: { list: ShoppingList; onDone: ()
       <Group gap="md">
         <Checkbox size="xs" label="Manquants seulement" checked={onlyMissing} onChange={(event) => setOnlyMissing(event.currentTarget.checked)} />
         {addable.length > 0 && (
-          <Anchor component="button" type="button" size="xs" onClick={() => setSelected(new Set([...selected, ...addable.map((product) => product.id)]))}>
+          <ActionButton priority="tertiary" icon={<CheckSquareIcon aria-hidden />} onClick={() => setSelected(new Set([...selected, ...addable.map((product) => product.id)]))}>
             Tout cocher
-          </Anchor>
+          </ActionButton>
         )}
         {selected.size > 0 && (
-          <Anchor component="button" type="button" size="xs" onClick={() => setSelected(new Set())}>
+          <ActionButton priority="tertiary" icon={<SquareIcon aria-hidden />} onClick={() => setSelected(new Set())}>
             Tout décocher
-          </Anchor>
+          </ActionButton>
         )}
       </Group>
       <ScrollArea.Autosize mah="50vh" type="auto" offsetScrollbars>

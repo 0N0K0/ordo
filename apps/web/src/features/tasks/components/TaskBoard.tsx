@@ -1,11 +1,12 @@
 import { useSearchParam } from '../../../lib/search-params';
+import { readOnlyCells } from '../../../components/data-table/table/data-table';
 import { unarchived } from '../../../lib/archive';
 import { ErrorAlert } from '../../../components/feedback/ErrorAlert';
 import { ActionButton } from '../../../components/actions/ActionButton';
 import { EmptyState } from '../../../components/feedback/EmptyState';
 import { Group, Select, Switch, Text, Tooltip } from '@mantine/core';
 import { addDays, DATE_PERIOD_LABELS, EVENT_PERIODS, type EventPeriod, filterPeriod, TASK_GROUP_BY, type TaskGroupBy } from '@ordo/shared';
-import { AlarmIcon, ArrowsClockwiseIcon, ChatCircleIcon, CheckSquareOffsetIcon, GithubLogoIcon, PlusIcon, SidebarSimpleIcon, TreeViewIcon } from '@phosphor-icons/react';
+import { AlarmIcon, ArrowsClockwiseIcon, CheckSquareOffsetIcon, GithubLogoIcon, PlusIcon, SidebarSimpleIcon, TreeViewIcon } from '@phosphor-icons/react';
 import { useMemo, type ReactNode } from 'react';
 
 import { DataTable, type RowMove } from '../../../components/data-table/table/DataTable';
@@ -28,7 +29,7 @@ import { useTaskActions } from '../hooks/use-task-actions';
 import { taskName, useTaskContext } from '../hooks/use-task-context';
 import { TASK_PARAM, useTaskLink } from '../hooks/use-task-link';
 import { useTaskSelectionActions } from './BulkBar';
-import { EventBeneficiariesCell, EventPeopleCell, EventStatusCell, EventTimeCell, EventTitleCell, EventWhenCell } from './event-cells';
+import { EventBeneficiariesCell, EventPeopleCell, EventStatusCell, EventTimeCell, EventLabelCell, EventWhenCell } from './event-cells';
 import { AlarmsCell, ProgressCell, ShoppingCell, SlotsCell, SubtasksCell, TimerCell, TrackedCell } from './extra-cells';
 import {
   AssigneesCell,
@@ -43,12 +44,14 @@ import {
   TaskBeneficiariesCell,
   TaskLinksCell,
   TaskProjectCell,
-  TitleCell,
+  TaskLabelCell,
 } from './inline-cells';
 import { groupDefaults } from '../lib/new-task-defaults';
 import { AddTaskRow } from './table-extras';
 import classes from './TaskTable.module.css';
 import { countOf, plural } from '../../../lib/text';
+import { CommentCount } from '../../comments/components/CommentCount';
+import { isTaskOverdue } from '../lib/task-overdue';
 
 /** Periods of the events listed with the tasks. */
 const EVENT_PERIOD_LABELS: Record<EventPeriod, string> = {
@@ -81,21 +84,6 @@ const TASK_VIEWS: FirstTableView[] = [
   },
   { label: 'Toutes' },
 ];
-
-/**
- * Number of comments of a row (its description counting as one), with its icon; nothing when none.
- * @param {{ count: number }} props Component props.
- * @returns {JSX.Element | null} Count.
- */
-function CommentCount({ count }: { count: number }) {
-  if (count === 0) return null;
-  return (
-    <Group gap={4} wrap="nowrap" c="dimmed">
-      <ChatCircleIcon aria-hidden />
-      <Text size="sm">{count}</Text>
-    </Group>
-  );
-}
 
 interface TaskBoardProps {
   /** Project whose views these are (its tasks and those of its sub-projects), or null for the tasks page. */
@@ -147,7 +135,6 @@ export function TaskBoard({ projectId, projectIds, createProjectId, header, empt
   // New views start with the columns chosen for the workspace.
   const { data: columnDefaults, isPending: defaultsPending } = useTaskColumnDefaults();
   const views = useTableViews({ tableKey: 'tasks', projectId, first: TASK_VIEWS, defaults: columnDefaults, ready: !defaultsPending });
-  const columns = useTaskColumns(context, today, { doable: filterUses(views.config?.filter, 'doableNow') });
   const showEvents = views.config?.options.events === true;
   const period = (views.config?.options.eventPeriod as EventPeriod | undefined) ?? 'next:30';
   const range = useMemo(() => {
@@ -165,6 +152,11 @@ export function TaskBoard({ projectId, projectIds, createProjectId, header, empt
         .map((event): TaskTableRow => ({ kind: 'event', key: eventRowKey(event), event })),
     [periodEvents.data, projectIds],
   );
+  const eventComments = useCommentCounts(
+    'EVENT',
+    eventRows.map((row) => (row.kind === 'event' ? row.event.eventId : '')),
+  );
+  const columns = useTaskColumns(context, today, { doable: filterUses(views.config?.filter, 'doableNow'), eventComments });
   const rows = useMemo(() => (showEvents ? [...tasks, ...eventRows] : tasks), [showEvents, tasks, eventRows]);
   const view = useDataView({
     tableKey: 'tasks',
@@ -177,11 +169,6 @@ export function TaskBoard({ projectId, projectIds, createProjectId, header, empt
     archived: (row) => row.kind === 'task' && row.task.archived,
     archivedLabel: 'Afficher les archivées',
   });
-  const eventComments = useCommentCounts(
-    'EVENT',
-    eventRows.map((row) => (row.kind === 'event' ? row.event.eventId : '')),
-  );
-
   /**
    * Saves a task dragged to another place or level (before the task now following it, under its new parent), or into
    * another group (its status, priority, type, milestone, an assignee, a tag or a sprint replaced by the group's).
@@ -226,13 +213,13 @@ export function TaskBoard({ projectId, projectIds, createProjectId, header, empt
    */
   const cells = (row: TaskTableRow): Record<string, ReactNode> => {
     if (!context) return {};
-    const texts = Object.fromEntries(columns.filter((column) => column.text).map((column) => [column.id, column.text!(row)]));
+    const texts = readOnlyCells(columns, row);
     if (row.kind === 'event') {
       const event = row.event;
       return {
         ...texts,
         comments: <CommentCount count={commentTotal(eventComments.get(event.eventId), event.description)} />,
-        label: <EventTitleCell event={event} context={context} />,
+        label: <EventLabelCell event={event} context={context} />,
         assignees: <EventPeopleCell event={event} context={context} />,
         beneficiaries: <EventBeneficiariesCell event={event} />,
         status: <EventStatusCell event={event} />,
@@ -245,7 +232,7 @@ export function TaskBoard({ projectId, projectIds, createProjectId, header, empt
     return {
       ...texts,
       label: (
-        <TitleCell
+        <TaskLabelCell
           task={task}
           context={context}
           prefix={
@@ -288,7 +275,7 @@ export function TaskBoard({ projectId, projectIds, createProjectId, header, empt
       shopping: <ShoppingCell task={task} lists={shoppingLists ?? []} />,
       startDate: <DateCell task={task} column="startDate" />,
       endDate: <DateCell task={task} column="endDate" />,
-      deadline: <DateCell task={task} column="deadline" alert={task.deadline !== null && task.deadline < today && !context.isClosed(task)} />,
+      deadline: <DateCell task={task} column="deadline" alert={isTaskOverdue(task, today)} />,
       parent: <ParentCell task={task} context={context} />,
       milestone: <MilestoneCell task={task} context={context} />,
       sprint: <SprintCell task={task} context={context} />,

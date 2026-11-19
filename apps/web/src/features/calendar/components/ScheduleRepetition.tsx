@@ -1,5 +1,5 @@
 import { AddItemButton } from '../../../components/actions/AddItemButton';
-import { Checkbox, Divider, Group, Paper, Stack, Text, TextInput } from '@mantine/core';
+import { Checkbox, Divider, Group, Paper, Stack, Text, TextInput, Switch } from '@mantine/core';
 import { DatePickerInput, TimePicker } from '@mantine/dates';
 import { type ScheduleCase, type ScheduleException, type ScheduleTimes, DURATION_UNITS } from '@ordo/shared';
 
@@ -36,10 +36,10 @@ function ScheduleTimesFields({ value, onChange, index }: { value: ScheduleTimes;
     onChange({ ...value, ranges: value.ranges.map((range, other) => (other === position ? { ...range, ...changes } : range)) });
   return (
     <Group gap="xs" align="flex-start">
-      <Checkbox
+      <Switch
         size="xs"
         mt={6}
-        label="Toute la journée"
+        label="Journée entière"
         checked={value.allDay}
         onChange={(event) => onChange({ allDay: event.currentTarget.checked, ranges: event.currentTarget.checked ? [] : [{ start: '09:00', end: '17:00' }] })}
       />

@@ -2,8 +2,8 @@ import { durationSchema, parseOptionalDay, subtreeOf, timeDescriptionSchema } fr
 import { z } from 'zod';
 import { prisma } from '../../db';
 import type { TimeEntry } from '../../generated/prisma/client';
-import { clientError, fieldError, orNotFound, parseInput } from '../../graphql/errors';
-import { ARCHIVED_MESSAGE, assertNoneArchived, assertNotArchived } from '../core/archive';
+import { clientError, fieldError, notFound, orNotFound, parseInput } from '../../graphql/errors';
+import { assertNoneArchived, assertNotArchived, refuseArchived } from '../core/archive';
 import { connectIds } from '../core/relations';
 
 /** Calendar event (and occurrence of a recurring one) a time is spent on. */
@@ -57,13 +57,13 @@ async function assertProjectAndTasks(projectId: string | null, taskIds: string[]
   }
   const projects = await prisma.project.findMany({ select: { id: true, parentId: true, archivedAt: true } });
   const project = projects.find((item) => item.id === projectId);
-  if (!project) throw fieldError('projectId', 'Projet introuvable.');
-  if (project.archivedAt && projectId !== keptProjectId) throw fieldError('projectId', ARCHIVED_MESSAGE);
+  if (!project) throw notFound('Projet', 'projectId');
+  if (projectId !== keptProjectId) refuseArchived(project, 'projectId');
   if (taskIds.length === 0) return;
   // The project and its sub-projects.
   const subtree = subtreeOf(projects, projectId);
   const tasks = await prisma.task.findMany({ where: { id: { in: taskIds } }, select: { projectId: true } });
-  if (tasks.length !== new Set(taskIds).size) throw fieldError('taskIds', 'Tâche introuvable.');
+  if (tasks.length !== new Set(taskIds).size) throw notFound('Tâche', 'taskIds');
   // Tasks of no project go with any project.
   if (tasks.some((task) => task.projectId !== null && !subtree.has(task.projectId))) {
     throw fieldError('taskIds', 'Les tâches doivent appartenir au projet ou à ses sous-projets.');
@@ -91,9 +91,8 @@ async function assertActiveLinks(
  * @param {string} id Time entry id.
  * @returns {Promise<TimeEntry & { tasks: { id: string }[] }>} Time entry with its task ids.
  */
-async function findEntry(id: string) {
-  const entry = await orNotFound(prisma.timeEntry.findUnique({ where: { id }, include: { tasks: { select: { id: true } }, document: { select: { number: true, status: true } } } }), 'Temps');
-  return entry;
+function findEntry(id: string) {
+  return orNotFound(prisma.timeEntry.findUnique({ where: { id }, include: { tasks: { select: { id: true } }, document: { select: { number: true, status: true } } } }), 'Temps');
 }
 
 /**

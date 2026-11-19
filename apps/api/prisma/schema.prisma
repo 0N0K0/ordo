@@ -2674,7 +2674,7 @@ model ShoppingItem {
   purchasedAt    DateTime?
   /// Not needed: bought if possible (the list is done without it).
   optional       Boolean            @default(false)
-  /// Sheets it comes from, with their share of its quantity: [{ sheetId, name, quantity }] (none: added by hand).
+  /// Sheets it comes from, with their share of its quantity: [{ sheetId, label, quantity }] (none: added by hand).
   sheetSources   Json               @default("[]")
   /// Delivery of a remote order it comes with (none: not ordered, or not assigned yet).
   deliveryId     String?
@@ -3021,7 +3021,7 @@ model ChecklistItem {
   unit           String?
   /// Description (markdown).
   note           String?
-  /// Sheets it comes from, with their share of its quantity: [{ sheetId, name, quantity }].
+  /// Sheets it comes from, with their share of its quantity: [{ sheetId, label, quantity }].
   sources        Json              @default("[]")
   /// Taken from the stock when ticked (given back when unticked).
   consumable     Boolean           @default(false)

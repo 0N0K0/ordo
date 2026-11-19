@@ -4,12 +4,11 @@ import * as fmt from '../../../lib/format';
 import { LabeledField } from '../../../components/inputs/LabeledField';
 import { unarchived } from '../../../lib/archive';
 import { BlockSkeleton } from '../../../components/feedback/Skeletons';
-import { Divider, Grid, Paper, Select, SegmentedControl, SimpleGrid, Stack, Switch, Text, TextInput } from '@mantine/core';
+import { Divider, Grid, Paper, Select, SegmentedControl, SimpleGrid, Stack, Switch, Text } from '@mantine/core';
 import {
   CHART_BUCKETS,
   CHART_PERIODS,
   chartConfigSchema,
-  chartLabelSchema,
   defaultChartConfig,
   isTimeDimension,
   SCALE_LABELS,
@@ -22,7 +21,7 @@ import {
 } from '@ordo/shared';
 import { useState } from 'react';
 import type { TaskContext } from '../../tasks/hooks/use-task-context';
-import { calendarParts, countLabel, DIMENSION_LABELS, measureLabel, NEW_CHART_TITLES, periodLabel } from '../lib/aggregate';
+import { calendarParts, countLabel, DIMENSION_LABELS, measureLabel, NEW_CHART_LABELS, periodLabel } from '../lib/aggregate';
 import { CalendarPeriodPicker } from './CalendarPeriodPicker';
 import { useDashboardMutations, type DashboardChart } from '../api';
 import { useChartData, type ChartScope } from '../lib/chart-data';
@@ -53,13 +52,14 @@ interface ChartEditorProps {
 }
 
 /**
- * Chart editor: source (tasks, invoicing, treasury), title, kind, axis (a date by day, week, month, quarter or
+ * Chart editor: source (tasks, invoicing, treasury), kind, axis (a date by day, week, month, quarter or
  * year over a period, or a field), measure, series, running total, sprint of a burndown, width, filters of the
  * records counted, other data sets and their comparisons (percent or difference); with a live preview.
  * @param {ChartEditorProps} props Component props.
  * @returns {JSX.Element} Editor.
  */
 export function ChartEditor({ dashboardId, chart, initial, scope, context, onDone }: ChartEditorProps) {
+  // Renamed from its menu, in the side panel (decision CK): the default title follows the source until it is renamed.
   const [title, setTitle] = useState(initial.label);
   // No invoicing in a personal workspace.
   const { perso } = useActiveWorkspace();
@@ -70,7 +70,6 @@ export function ChartEditor({ dashboardId, chart, initial, scope, context, onDon
       ? { ...initial.config, period: `${calendarParts(initial.config.period).scale}:${calendarParts(initial.config.period).anchor}` as ChartConfig['period'] }
       : initial.config,
   );
-  const [titleError, setTitleError] = useState<string | null>(null);
   const { createChart, updateChart } = useDashboardMutations();
   const { data, isPending } = useChartData(config, scope, context);
   const change = (changes: Partial<ChartConfig>) => setConfig((current) => ({ ...current, ...changes }));
@@ -88,10 +87,8 @@ export function ChartEditor({ dashboardId, chart, initial, scope, context, onDon
    * @returns {void}
    */
   const save = () => {
-    const titleResult = chartLabelSchema.safeParse(title);
-    setTitleError(titleResult.success ? null : (titleResult.error.issues[0]?.message ?? 'Libellé invalide.'));
-    if (!titleResult.success || !validation.success) return;
-    const input = { label: titleResult.data, config: validation.data, wide };
+    if (!validation.success) return;
+    const input = { label: title, config: validation.data, wide };
     const callbacks = formCallbacks(null, chart ? 'Diagramme modifié.' : 'Diagramme ajouté.', onDone);
     if (chart) updateChart.mutate({ id: chart.id, input }, callbacks);
     else createChart.mutate({ dashboardId, input }, callbacks);
@@ -132,14 +129,13 @@ export function ChartEditor({ dashboardId, chart, initial, scope, context, onDon
             onChange={(value) => {
               const next = defaultChartConfig(value as ChartSource);
               // The default title follows the source until it is changed.
-              if (title === NEW_CHART_TITLES[source]) setTitle(NEW_CHART_TITLES[value as ChartSource]);
+              if (title === NEW_CHART_LABELS[source]) setTitle(NEW_CHART_LABELS[value as ChartSource]);
               setConfig({
                 ...next,
                 type: config.type === 'burndown' ? next.type : config.type,
               });
             }}
           />
-          <TextInput label="Libellé" required data-autofocus value={title} error={titleError} onChange={(event) => setTitle(event.currentTarget.value)} />
           <Select
             label="Type"
             allowDeselect={false}

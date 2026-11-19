@@ -240,7 +240,7 @@ type Documents = {
     "\n  fragment LabelFields on ProjectCategory {\n    id\n    archived\n    label\n    color\n    position\n    iconUrl\n  }\n": typeof types.LabelFieldsFragmentDoc,
     "\n  fragment ProjectStatusFields on ProjectStatus {\n    id\n    archived\n    label\n    color\n    iconUrl\n    position\n  }\n": typeof types.ProjectStatusFieldsFragmentDoc,
     "\n  fragment ProjectFields on Project {\n    id\n    label\n    clientId\n    parentId\n    iconUrl\n    description\n    statusId\n    startDate\n    endDate\n    color\n    position\n    favorite\n    archived\n    categories {\n      ...LabelFields\n    }\n  }\n": typeof types.ProjectFieldsFragmentDoc,
-    "\n  query Workspace {\n    clients {\n      ...ClientFields\n    }\n    projects {\n      ...ProjectFields\n    }\n    projectCategories {\n      ...LabelFields\n    }\n    projectStatuses {\n      ...ProjectStatusFields\n    }\n  }\n": typeof types.WorkspaceDocument,
+    "\n  query ProjectTree {\n    clients {\n      ...ClientFields\n    }\n    projects {\n      ...ProjectFields\n    }\n    projectCategories {\n      ...LabelFields\n    }\n    projectStatuses {\n      ...ProjectStatusFields\n    }\n  }\n": typeof types.ProjectTreeDocument,
     "\n  mutation CreateClient($input: ClientInput!) {\n    createClient(input: $input) {\n      ...ClientFields\n    }\n  }\n": typeof types.CreateClientDocument,
     "\n  mutation UpdateClient($id: ID!, $input: ClientUpdateInput!) {\n    updateClient(id: $id, input: $input) {\n      ...ClientFields\n    }\n  }\n": typeof types.UpdateClientDocument,
     "\n  mutation SetClientFavorite($id: ID!, $favorite: Boolean!) {\n    setClientFavorite(id: $id, favorite: $favorite) {\n      ...ClientFields\n    }\n  }\n": typeof types.SetClientFavoriteDocument,
@@ -702,7 +702,7 @@ const documents: Documents = {
     "\n  fragment LabelFields on ProjectCategory {\n    id\n    archived\n    label\n    color\n    position\n    iconUrl\n  }\n": types.LabelFieldsFragmentDoc,
     "\n  fragment ProjectStatusFields on ProjectStatus {\n    id\n    archived\n    label\n    color\n    iconUrl\n    position\n  }\n": types.ProjectStatusFieldsFragmentDoc,
     "\n  fragment ProjectFields on Project {\n    id\n    label\n    clientId\n    parentId\n    iconUrl\n    description\n    statusId\n    startDate\n    endDate\n    color\n    position\n    favorite\n    archived\n    categories {\n      ...LabelFields\n    }\n  }\n": types.ProjectFieldsFragmentDoc,
-    "\n  query Workspace {\n    clients {\n      ...ClientFields\n    }\n    projects {\n      ...ProjectFields\n    }\n    projectCategories {\n      ...LabelFields\n    }\n    projectStatuses {\n      ...ProjectStatusFields\n    }\n  }\n": types.WorkspaceDocument,
+    "\n  query ProjectTree {\n    clients {\n      ...ClientFields\n    }\n    projects {\n      ...ProjectFields\n    }\n    projectCategories {\n      ...LabelFields\n    }\n    projectStatuses {\n      ...ProjectStatusFields\n    }\n  }\n": types.ProjectTreeDocument,
     "\n  mutation CreateClient($input: ClientInput!) {\n    createClient(input: $input) {\n      ...ClientFields\n    }\n  }\n": types.CreateClientDocument,
     "\n  mutation UpdateClient($id: ID!, $input: ClientUpdateInput!) {\n    updateClient(id: $id, input: $input) {\n      ...ClientFields\n    }\n  }\n": types.UpdateClientDocument,
     "\n  mutation SetClientFavorite($id: ID!, $favorite: Boolean!) {\n    setClientFavorite(id: $id, favorite: $favorite) {\n      ...ClientFields\n    }\n  }\n": types.SetClientFavoriteDocument,
@@ -1842,7 +1842,7 @@ export function graphql(source: "\n  fragment ProjectFields on Project {\n    id
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */
-export function graphql(source: "\n  query Workspace {\n    clients {\n      ...ClientFields\n    }\n    projects {\n      ...ProjectFields\n    }\n    projectCategories {\n      ...LabelFields\n    }\n    projectStatuses {\n      ...ProjectStatusFields\n    }\n  }\n"): typeof import('./graphql').WorkspaceDocument;
+export function graphql(source: "\n  query ProjectTree {\n    clients {\n      ...ClientFields\n    }\n    projects {\n      ...ProjectFields\n    }\n    projectCategories {\n      ...LabelFields\n    }\n    projectStatuses {\n      ...ProjectStatusFields\n    }\n  }\n"): typeof import('./graphql').ProjectTreeDocument;
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */

@@ -2,6 +2,7 @@ import { closestCenter, pointerWithin, type CollisionDetection, type DndContextP
 import { useDragSensors } from '../dnd/drag';
 import { arrayMove } from '@dnd-kit/sortable';
 import { useState } from 'react';
+import { useFoldedIds } from './use-folded-ids';
 import type { TreePlace } from './category-tree';
 
 /**
@@ -36,34 +37,8 @@ function pointerPlace({ over, activatorEvent, delta }: DragMoveEvent | DragOverE
  * @returns {[ReadonlySet<string>, (id: string) => void]} Folded ids and their toggle.
  */
 export function useFolded(storageKey?: string): [ReadonlySet<string>, (id: string) => void] {
-  const key = storageKey ? `ordo:folded:${storageKey}` : null;
-  const [folded, setFolded] = useState<ReadonlySet<string>>(() => {
-    if (!key) return new Set();
-    try {
-      return new Set(JSON.parse(localStorage.getItem(key) ?? '[]') as string[]);
-    } catch {
-      return new Set();
-    }
-  });
-  /**
-   * Folds or unfolds a row.
-   * @param {string} id Row id.
-   * @returns {void}
-   */
-  const toggle = (id: string) =>
-    setFolded((current) => {
-      const next = new Set(current);
-      if (!next.delete(id)) next.add(id);
-      if (key) {
-        try {
-          localStorage.setItem(key, JSON.stringify([...next]));
-        } catch {
-          // Not remembered: it stays folded until the page is left.
-        }
-      }
-      return next;
-    });
-  return [folded, toggle];
+  const { ids, toggle } = useFoldedIds(storageKey ? `ordo:folded:${storageKey}` : null);
+  return [ids, toggle];
 }
 
 /** Row of a tree shown flat while dragged: its id, its parent row and its depth. */

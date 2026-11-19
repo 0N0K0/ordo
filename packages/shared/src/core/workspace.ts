@@ -36,6 +36,15 @@ export const projectLinkSchema = z.object({
 });
 export type ProjectLinkInput = z.input<typeof projectLinkSchema>;
 
+/** Kinds of workspace: professional (invoicing, clients, company) or personal. */
+export const WORKSPACE_KINDS = ['PRO', 'PERSO'] as const;
+
+/** Kinds of notification a workspace can give while another one is open. */
+export const NOTIFICATION_SOURCES = ['ALARMS', 'CALENDAR', 'MAILS'] as const;
+
+/** Kinds of resource of a project: an uploaded file or a link. */
+export const PROJECT_RESOURCE_KINDS = ['FILE', 'LINK'] as const;
+
 /** Longest label of a workspace. */
 export const WORKSPACE_LABEL_MAX = 60;
 

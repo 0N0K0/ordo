@@ -1,11 +1,10 @@
 import { LabeledField } from '../../../components/inputs/LabeledField';
 import { NoticeAlert } from '../../../components/feedback/NoticeAlert';
 import { ErrorAlert } from '../../../components/feedback/ErrorAlert';
-import { countOf, plural, normalize, sameName } from '../../../lib/text';
+import { countOf, nameKey, plural, sameName } from '../../../lib/text';
 
 import { SettingsSection } from '../../../components/settings/SettingsSection';
 import { FormSkeleton } from '../../../components/feedback/Skeletons';
-import { DestructiveButton } from '../../../components/dialogs/DestructiveActions';
 import { confirmDestructive } from '../../../components/dialogs/confirm-destructive';
 import { Anchor, Badge, Divider, Group, Paper, Select, SimpleGrid, Stack, Switch, Table, Text, TextInput, ThemeIcon } from '@mantine/core';
 import { ArrowsClockwiseIcon, GithubLogoIcon, LinkBreakIcon, PencilSimpleIcon, MagnifyingGlassIcon } from '@phosphor-icons/react';
@@ -20,6 +19,7 @@ import { FormActions } from '../../../components/dialogs/FormActions';
 import { ActionButton } from '../../../components/actions/ActionButton';
 import { EXTERNAL_LINK } from '../../../components/actions/link-props';
 import { GITHUB_SETTINGS_PATH } from '../../../app/pages';
+import { syncSummaryText, type SyncSummary } from '../lib/sync-summary';
 
 /** Usual English names of the GitHub board options, for the first guess. */
 const SYNONYMS: Record<string, string[]> = {
@@ -35,21 +35,14 @@ const SYNONYMS: Record<string, string[]> = {
 };
 
 /**
- * Name compared without case or accents.
- * @param {string} name Name.
- * @returns {string} Folded name.
- */
-const fold = (name: string) => normalize(name).trim();
-
-/**
  * Option of the board guessed for an Ordo label (same name, or a usual English name).
  * @param {string} name Ordo label.
  * @param {{ id: string, name: string }[]} options Options.
  * @returns {string | undefined} Option id.
  */
 function guessOption(name: string, options: { id: string; name: string }[]): string | undefined {
-  const own = fold(name);
-  return options.find((option) => sameName(option.name, name) || (SYNONYMS[own] ?? []).includes(fold(option.name)))?.id;
+  const own = nameKey(name);
+  return options.find((option) => sameName(option.name, name) || (SYNONYMS[own] ?? []).includes(nameKey(option.name)))?.id;
 }
 
 /**
@@ -148,7 +141,7 @@ function LinkForm({ projectId, board, initial, context, onDone }: LinkFormProps)
                 size="xs"
                 placeholder="Non synchronisé"
                 clearable
-                aria-label={`Option GitHub de ${label.label}`}
+                aria-label={`Option GitHub de « ${label.label} »`}
                 data={choices}
                 value={values[key][label.id] ?? null}
                 onChange={(optionId) => {
@@ -396,7 +389,7 @@ export function ProjectGithubPanel({ projectId }: { projectId: string }) {
     );
   }
 
-  const summary = link.lastSyncSummary as Record<string, number> | null;
+  const summary = link.lastSyncSummary as SyncSummary | null;
   return (
     <Stack gap="md">
       <Paper withBorder radius="md" p="lg">
@@ -415,7 +408,7 @@ export function ProjectGithubPanel({ projectId }: { projectId: string }) {
                 </Badge>
               </Group>
               <Text size="sm" c="dimmed">
-                {link.linkedTaskCount} {plural(link.linkedTaskCount, 'tâche')} {plural(link.linkedTaskCount, 'liée')}
+                {countOf(link.linkedTaskCount, 'tâche')} {plural(link.linkedTaskCount, 'liée')}
                 {link.repositoryName ? ` · nouvelles tâches en issues de ${link.repositoryName}` : ' · nouvelles tâches en brouillons'}
                 {link.lastSyncAt && ` · dernière synchronisation le ${fmt.dateTime(link.lastSyncAt)}`}
               </Text>
@@ -427,10 +420,7 @@ export function ProjectGithubPanel({ projectId }: { projectId: string }) {
                 onClick={() =>
                   sync.mutate(
                     projectId,
-                    toastCallbacks(
-                      (result) =>
-                        `Synchronisé : ${countOf(result.pulledNew, 'tâche')} et ${countOf(result.pushedNew, 'item')} ${plural(result.pulledNew + result.pushedNew, 'créé')}, ${countOf(result.pulled, 'tâche')} et ${countOf(result.pushed, 'item')} mis à jour, ${countOf(result.renumbered, 'tâche')} ${plural(result.renumbered, 'renumérotée')},${result.sprintsSkipped ? ` ${countOf(result.sprintsSkipped, 'sprint')} sans itération (à créer dans GitHub),` : ''} ${countOf(result.comments, 'commentaire')} ${plural(result.comments, 'échangé')}.`,
-                    ),
+                    toastCallbacks((result) => `Synchronisé : ${syncSummaryText(result)}.`),
                   )
                 }
               >
@@ -439,19 +429,15 @@ export function ProjectGithubPanel({ projectId }: { projectId: string }) {
               <ActionButton priority="secondary" icon={<PencilSimpleIcon aria-hidden />} onClick={() => setEditing((value) => !value)}>
                 Réglages
               </ActionButton>
-              <DestructiveButton leftSection={<LinkBreakIcon aria-hidden />} onClick={confirmUnlink}>
+              <ActionButton danger icon={<LinkBreakIcon aria-hidden />} onClick={confirmUnlink}>
                 Délier
-              </DestructiveButton>
+              </ActionButton>
             </Group>
           </Group>
           {link.lastSyncError && <ErrorAlert title="Dernière synchronisation en échec">{link.lastSyncError}</ErrorAlert>}
           {summary && !link.lastSyncError && (
             <Text size="xs" c="dimmed">
-              Dernier échange : {countOf(summary.pulledNew, 'tâche')} {plural(summary.pulledNew, 'créée')} depuis GitHub, {countOf(summary.pushedNew, 'item')} {plural(summary.pushedNew, 'créé')} sur
-              GitHub, {countOf(summary.pulled, 'tâche')} et {countOf(summary.pushed, 'item')} mis à jour, {countOf(summary.unlinked, 'tâche')} {plural(summary.unlinked, 'déliée')},{' '}
-              {countOf(summary.sprints, 'sprint')} {plural(summary.sprints, 'créé')} ou mis à jour, {countOf(summary.renumbered ?? 0, 'tâche')} {plural(summary.renumbered ?? 0, 'renumérotée')},
-              {summary.sprintsSkipped ? ` ${countOf(summary.sprintsSkipped, 'sprint')} sans itération (à créer dans GitHub),` : ''} {countOf(summary.comments ?? 0, 'commentaire')}{' '}
-              {plural(summary.comments ?? 0, 'échangé')}.
+              Dernier échange : {syncSummaryText(summary)}.
             </Text>
           )}
         </Stack>

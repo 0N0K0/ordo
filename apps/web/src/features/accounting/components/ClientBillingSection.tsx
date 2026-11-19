@@ -13,6 +13,7 @@ import { countryName } from '../lib/countries';
 import { useClientBilling, useClientPartyMutations, type ClientBilling, type ClientContact, type ClientService } from '../api';
 import { ClientContactForm, ClientDetailsForm, ClientServiceForm } from './ClientPartyForms';
 import { EXTERNAL_LINK } from '../../../components/actions/link-props';
+import { CLIENT_KIND_LABELS } from '../lib/labels';
 
 /**
  * Address, email and phones, as text lines.
@@ -205,7 +206,7 @@ export function ClientBillingSection({ clientId }: { clientId: string }) {
             <Group gap="xs">
               {company ? client.name : [client.firstName, client.lastName].filter(Boolean).join(' ') || client.name}
               <Badge size="sm" variant="light" color="gray">
-                {company ? 'Professionnel' : 'Particulier'}
+                {CLIENT_KIND_LABELS[client.kind]}
               </Badge>
             </Group>
           }

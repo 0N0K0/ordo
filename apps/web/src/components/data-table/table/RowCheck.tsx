@@ -4,16 +4,16 @@ import type { RowSelection } from '../views/use-data-view';
 
 /**
  * Check box of a row: checked, its fields are all edited in bulk with those of the other rows checked.
- * @param {{ selection: RowSelection, rowKey: string, label: string }} props Selection, row, accessible name.
+ * @param {{ selection: RowSelection, rowKey: string, name?: string }} props Selection, row, its name (quoted in the hidden label; none: « la ligne »).
  * @returns {JSX.Element} Check box.
  */
-export function RowCheck({ selection, rowKey, label }: { selection: RowSelection; rowKey: string; label: string }) {
+export function RowCheck({ selection, rowKey, name }: { selection: RowSelection; rowKey: string; name?: string }) {
   return (
     <Checkbox
       size="xs"
       className={classes.rowCheck}
       wrapperProps={{ 'data-reveal': true }}
-      aria-label={`Sélectionner ${label}`}
+      aria-label={name ? `Sélectionner « ${name} »` : 'Sélectionner la ligne'}
       checked={selection.isChecked(rowKey)}
       // A click checks the row, it does not open it.
       onClick={(event) => event.stopPropagation()}

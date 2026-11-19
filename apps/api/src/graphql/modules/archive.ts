@@ -33,7 +33,6 @@ const TYPES = [
   'CatalogItem',
   'TreasuryAccount',
   'TreasuryCounterparty',
-  'ProjectCategory',
   'TaskStatus',
   'DocumentStatus',
   'ShoppingBaseList',

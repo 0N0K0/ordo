@@ -2,7 +2,7 @@ import { done } from '../errors';
 import { doableTaskIds } from '../../services/calendar/slot-rules';
 import { prisma } from '../../db';
 import { storeAttachment, attachmentUrl } from '../../services/core/attachments';
-import * as contributors from '../../services/workspace/contributors';
+import * as contributors from '../../services/projects/contributors';
 import * as milestones from '../../services/tasks/milestones';
 import * as sprints from '../../services/tasks/sprints';
 import { iconUrl } from '../../services/core/icons';
@@ -10,14 +10,15 @@ import { taskPriorities, taskStatuses, taskTags, taskTypes } from '../../service
 import * as taskViews from '../../services/tasks/task-views';
 import * as taskRecurrence from '../../services/tasks/task-recurrence';
 import * as tasks from '../../services/tasks/tasks';
-import { readSlotRule, sumOf, TASK_STATUS_CATEGORIES } from '@ordo/shared';
-import * as workspaces from '../../services/workspace/workspaces';
+import { readSlotRule, sumOf, TASK_STATUS_CATEGORIES, VIEW_KINDS } from '@ordo/shared';
+import * as workspaces from '../../services/workspaces/workspaces';
 import { BY_POSITION } from '../../services/core/ordering';
 import { builder, type InputFields } from '../builder';
 import { labelMutations, labelObject } from '../label-inputs';
 import { relationIds } from '../relation-fields';
 import { isMember } from '../../services/treasury/treasury-team';
 import { reloaded } from '../reload';
+import { unchecked } from '../unchecked';
 
 builder.prismaObject('Contributor', {
   fields: (t) => ({
@@ -131,7 +132,7 @@ builder.prismaObject('TaskStatus', {
 for (const name of ['TaskPriority', 'TaskType', 'TaskTag'] as const) labelObject(name);
 
 const ViewKindEnum = builder.enumType('ViewKind', {
-  values: ['TASKS', 'ROUTINES', 'SHOPPING_LISTS', 'TABLE'] as const,
+  values: VIEW_KINDS,
   description: 'What a saved view lists (TABLE: any other table, named by its key).',
 });
 
@@ -363,7 +364,7 @@ builder.mutationFields((t) => ({
     type: TaskColumnDefaultsRef,
     description: 'Chooses the columns new task views start with; without columns, gives back the app’s.',
     args: { columnOrder: t.arg.stringList(), hiddenColumns: t.arg.stringList() },
-    resolve: (_root, { columnOrder, hiddenColumns }) => workspaces.setTaskColumnDefaults(columnOrder ? ({ columnOrder, hiddenColumns: hiddenColumns ?? [] } as never) : null),
+    resolve: (_root, { columnOrder, hiddenColumns }) => workspaces.setTaskColumnDefaults(columnOrder ? unchecked({ columnOrder, hiddenColumns: hiddenColumns ?? [] }) : null),
   }),
 }));
 
@@ -496,10 +497,7 @@ builder.mutationFields((t) => ({
     type: 'TaskView',
     args: { input: t.arg({ type: TaskViewInput, required: true }) },
     resolve: async (query, _root, { input }) =>
-      prisma.taskView.findUniqueOrThrow({
-        ...query,
-        where: { id: (await taskViews.createView({ label: input.label, config: input.config, projectId: input.projectId, kind: input.kind, tableKey: input.tableKey })).id },
-      }),
+      reloaded(prisma.taskView, query, taskViews.createView({ label: input.label, config: input.config, projectId: input.projectId, kind: input.kind, tableKey: input.tableKey })),
   }),
   updateTaskView: t.prismaField({
     type: 'TaskView',
@@ -589,10 +587,7 @@ builder.mutationFields((t) => ({
     type: 'Contributor',
     args: { input: t.arg({ type: ContributorInput, required: true }) },
     resolve: async (query, _root, { input }) =>
-      prisma.contributor.findUniqueOrThrow({
-        ...query,
-        where: { id: (await contributors.createContributor(input)).id },
-      }),
+      reloaded(prisma.contributor, query, contributors.createContributor(input)),
   }),
   uploadAttachment: t.prismaField({
     type: 'Attachment',
@@ -609,10 +604,7 @@ builder.mutationFields((t) => ({
     type: 'Contributor',
     args: { id: t.arg.id({ required: true }), input: t.arg({ type: ContributorUpdateInput, required: true }) },
     resolve: async (query, _root, { id, input }) =>
-      prisma.contributor.findUniqueOrThrow({
-        ...query,
-        where: { id: (await contributors.updateContributor(id, input)).id },
-      }),
+      reloaded(prisma.contributor, query, contributors.updateContributor(id, input)),
   }),
   deleteContributor: t.boolean({
     args: { id: t.arg.id({ required: true }) },

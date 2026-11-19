@@ -1,7 +1,7 @@
 import { unarchived } from '../../../lib/archive';
 import { NoticeAlert } from '../../../components/feedback/NoticeAlert';
 import { FormSkeleton } from '../../../components/feedback/Skeletons';
-import { listSelectProps } from '../../../components/items/item-look';
+import { itemSelectProps } from '../../../components/items/item-look';
 import { Anchor, Select, Stack } from '@mantine/core';
 import { DatePickerInput } from '@mantine/dates';
 import { documentPaymentSchema } from '@ordo/shared';
@@ -92,14 +92,14 @@ function PaymentFields({ document, accounts, methods, onDone }: PaymentFieldsPro
       )}
     >
       <Stack gap="sm">
-        <Select label="Compte" required {...listSelectProps(open)} allowDeselect={false} {...form.getInputProps('accountId')} />
+        <Select label="Compte" required {...itemSelectProps(open, form.values.accountId)} allowDeselect={false} {...form.getInputProps('accountId')} />
         <DatePickerInput label="Date" required {...form.getInputProps('date')} />
         <AmountInput label="Montant" required min={0} {...form.getInputProps('amount')} />
         <Select
           label="Moyen de paiement"
           clearable
           placeholder={methods.length ? '—' : 'Aucun : ajoutez-en dans les paramètres de la trésorerie'}
-          {...listSelectProps(methods)}
+          {...itemSelectProps(methods, form.values.methodId)}
           {...form.getInputProps('methodId')}
         />
         <FormActions onCancel={onDone} loading={recordPayment.isPending} />

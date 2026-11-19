@@ -13,7 +13,7 @@ import { useEntryCellSave, type EntryValues } from '../lib/entry-values';
 import { bulkCellLabels, type BulkChange, bulkSaver } from '../../../components/data-table/selection/bulk-edit';
 import { useDataView, type FirstTableView, withinFilter } from '../../../components/data-table/views/use-data-view';
 import { ROW_ACTIONS_WIDTH, RowActions } from '../../../components/data-table/cells/RowActions';
-import type { DataColumn } from '../../../components/data-table/table/data-table';
+import { readOnlyCells, type DataColumn } from '../../../components/data-table/table/data-table';
 import { archiveItemsAction, rowMenuEntry } from '../../../components/data-table/selection/selection-actions';
 import { ArchivedBadge } from '../../../components/feedback/ArchivedBadge';
 import { archiveEntry, useSetArchived, unarchived } from '../../../lib/archive';
@@ -33,6 +33,7 @@ import { commentColumn } from '../../comments/lib/comment-column';
 import { SignedAmountCell } from '../../../components/money/SignedAmount';
 import { monthColumn } from '../../../components/data-table/table/month-column';
 import { useDeleteEntries } from '../hooks/use-delete-entries';
+import { signedText } from '../../../components/money/signed-text';
 
 /**
  * Money in and out of actual entries, linked money in and out of the period offsetting each other.
@@ -75,14 +76,15 @@ function entryColumns(env: EntryEnv): DataColumn<TreasuryEntry>[] {
     {
       id: 'date',
       bulk: true,
+      required: true,
       label: 'Date d’exécution',
       size: 130,
       sortValue: (entry) => entry.date,
       text: (entry) => fmt.day(entry.date),
       filter: { kind: 'date', value: (entry) => entry.date },
     },
-    { id: 'label', label: 'Libellé', size: 300, locked: true, bulk: true, sortValue: (entry) => entry.label, text: (entry) => entry.label },
-    ...entryFieldColumns<TreasuryEntry>((entry) => entry, env, { payerName: (entry) => entry.payerName ?? '' }),
+    { id: 'label', label: 'Libellé', size: 300, locked: true, required: true, bulk: true, sortValue: (entry) => entry.label, text: (entry) => entry.label },
+    ...entryFieldColumns<TreasuryEntry>((entry) => entry, env, { payerName: (entry) => entry.payerName ?? '', allEntries: true }),
     {
       id: 'settled',
       label: 'Documents réglés',
@@ -94,12 +96,13 @@ function entryColumns(env: EntryEnv): DataColumn<TreasuryEntry>[] {
     {
       id: 'amount',
       bulk: true,
+      required: true,
       label: 'Montant',
       size: 130,
       numeric: true,
       sortValue: (entry) => entry.amount,
       formatTotal: fmt.money,
-      text: (entry) => `${entry.amount > 0 ? '+' : ''}${fmt.money(entry.amount)}`,
+      text: (entry) => signedText(entry.amount),
       filter: { kind: 'number', value: (entry) => entry.amount },
     },
   ];
@@ -212,7 +215,7 @@ export function EntriesPanel({ accounts, onEdit, onDuplicate }: EntriesPanelProp
           entry.archived
             ? {
                 // Read only: the texts of the columns.
-                ...Object.fromEntries(columns.map((column) => [column.id, column.text?.(entry)])),
+                ...readOnlyCells(columns, entry),
                 label: (
                   <Group gap={4} wrap="nowrap">
                     <Text size="sm" truncate>
@@ -240,7 +243,6 @@ export function EntriesPanel({ accounts, onEdit, onDuplicate }: EntriesPanelProp
                 ),
                 settled: <SettledCell entry={entry} />,
                 amount: <SignedAmountCell value={entry.amount} label={cellLabelOf('amount', entry, 'Montant')} onSave={(change) => bulk('amount')(entry, change)} />,
-                comments: columns.find((column) => column.id === 'comments')?.text?.(entry),
               }
         }
         details={(entry) => !entry.archived && expanded.has(entry.id) && <EntryLinesTable entry={entry} env={env} save={saveEntry} />}

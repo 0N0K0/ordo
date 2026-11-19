@@ -23,9 +23,10 @@ export function ShoppingCategories({ categories, usage }: { categories: Shopping
       title="Catégories"
       description="Classent les produits, en arborescence : glissez une catégorie sur une autre pour l’y ranger. Une sous-catégorie sans couleur prend celle de sa catégorie parente. Une catégorie peut être réservée à certaines références."
       noun="la catégorie"
+      feminine
       items={categories}
       usage={usage}
-      usageNoun="produits et éléments"
+      usageNoun={{ one: 'du produit ou de l’élément', many: 'produits et éléments' }}
       remove={(id) => deleteCategory.mutateAsync(id)}
       move={(id, parentId, index) => moveCategory.mutateAsync({ id, parentId, index })}
       renderBadges={(category) =>

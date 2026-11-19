@@ -4,9 +4,10 @@ import { useMemo, useState } from 'react';
 import { graphql } from '../graphql';
 import type { ArchivableKind } from '../graphql/graphql';
 import { execute } from './graphql-client';
-import { plural } from './text';
+
 import { useInvalidatingMutation } from './mutation';
 import { notifyFailure, notifyWithUndo, onMutationError } from './notify';
+import { agreed } from '@ordo/shared';
 
 export type { ArchivableKind };
 
@@ -130,8 +131,8 @@ interface ArchivedMessageOptions {
  * @param {ArchivedMessageOptions} [options] Agreement and cascade. Optional. Default = masculine, one, no cascade.
  * @returns {string} Message.
  */
-function archivedMessage(label: string, archived: boolean, { feminine = false, count = 1, cascade }: ArchivedMessageOptions = {}): string {
-  return `${label} ${plural(count, `${archived ? 'archivé' : 'restauré'}${feminine ? 'e' : ''}`)}${archived && cascade ? ` ${cascade}` : ''}.`;
+export function archivedMessage(label: string, archived: boolean, { feminine = false, count = 1, cascade }: ArchivedMessageOptions = {}): string {
+  return `${label} ${agreed(archived ? 'archivé' : 'restauré', feminine, count)}${archived && cascade ? ` ${cascade}` : ''}.`;
 }
 
 /** Mutation archiving or restoring, as `useSetArchived` gives it (only its promise is used). */
@@ -215,5 +216,5 @@ export function archivedIds(items: readonly MaybeArchived[] | null | undefined):
  * @returns {string} Label.
  */
 export function archivedLabel(item: { label: string; archived?: boolean | null }, feminine = false): string {
-  return item.archived ? `${item.label} (${feminine ? 'archivée' : 'archivé'})` : item.label;
+  return item.archived ? `${item.label} (${agreed('archivé', feminine)})` : item.label;
 }

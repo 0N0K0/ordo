@@ -1,6 +1,7 @@
 import {
   budgetMonths,
   formatDay,
+  joinedKey,
   lastDayOfMonth,
   monthOfDate,
   monthOfDay,
@@ -13,13 +14,14 @@ import {
   treasuryBudgetSchema,
 } from '@ordo/shared';
 import { prisma } from '../../db';
+import { invoiceCategories } from '../accounting/company';
 import { parisToday } from '../../today';
 import type { TreasuryBudget } from '../../generated/prisma/client';
-import { orNotFound, parseInput } from '../../graphql/errors';
+import { parseInput } from '../../graphql/errors';
 import { storedRecurrence } from '../calendar/calendar-events';
 import { treasuryProjection } from './treasury';
 import { assertExists, deleteOrNotFound } from '../core/lookup';
-import { assertNotArchived } from '../core/archive';
+import { assertActive, findActive } from '../core/archive';
 import { decimalCents, fromDecimal, toDecimal } from '../core/decimal';
 import { BY_POSITION } from '../core/ordering';
 
@@ -53,13 +55,10 @@ export interface BudgetReportRow extends Key {
  */
 async function budgetData(input: TreasuryBudgetInput, previous: TreasuryBudget | null) {
   const budget = parseInput(treasuryBudgetSchema, input);
-  await assertExists(prisma.treasuryCategory, budget.categoryId, 'Catégorie');
+  await assertActive(prisma.treasuryCategory, budget.categoryId, 'Catégorie', { keep: previous?.categoryId, field: 'categoryId' });
   await assertExists(prisma.contributor, budget.memberId, 'Membre');
-  await assertExists(prisma.treasuryRelation, budget.relationId, 'Relation');
-  await assertExists(prisma.treasuryContext, budget.contextId, 'Contexte');
-  await assertNotArchived('TREASURY_CATEGORY', budget.categoryId, { keep: previous?.categoryId, field: 'categoryId' });
-  await assertNotArchived('TREASURY_RELATION', budget.relationId, { keep: previous?.relationId, field: 'relationId' });
-  await assertNotArchived('TREASURY_CONTEXT', budget.contextId, { keep: previous?.contextId, field: 'contextId' });
+  await assertActive(prisma.treasuryRelation, budget.relationId, 'Relation', { keep: previous?.relationId, field: 'relationId' });
+  await assertActive(prisma.treasuryContext, budget.contextId, 'Contexte', { keep: previous?.contextId, field: 'contextId' });
   return {
     month: parseDay(`${budget.month}-01`),
     memberId: budget.relationId ? null : budget.memberId,
@@ -80,8 +79,7 @@ async function budgetData(input: TreasuryBudgetInput, previous: TreasuryBudget |
  */
 export async function saveBudget(id: string | null, input: TreasuryBudgetInput): Promise<TreasuryBudget> {
   if (!id) return prisma.treasuryBudget.create({ data: await budgetData(input, null) });
-  const previous = await orNotFound(prisma.treasuryBudget.findUnique({ where: { id } }), 'Budget');
-  await assertNotArchived('TREASURY_BUDGET', id);
+  const previous = await findActive(prisma.treasuryBudget, id, 'Budget');
   return prisma.treasuryBudget.update({ where: { id }, data: await budgetData(input, previous) });
 }
 
@@ -121,7 +119,7 @@ export async function budgetReport(from: string, to: string, meId: string | null
   ]);
   const parentOf = new Map(categories.map((category) => [category.id, category.parentId]));
   const planned = periods.map((period) => ({ contextId: period.contextId, startDate: formatDay(period.startDate), endDate: formatDay(period.endDate) }));
-  const keyOf = (month: string, key: Key) => `${month}|${key.memberId ?? ''}|${key.relationId ?? ''}|${key.contextId ?? ''}|${key.categoryId ?? ''}`;
+  const keyOf = (month: string, key: Key) => joinedKey(month, key.memberId, key.relationId, key.contextId, key.categoryId);
   /**
    * Who a budget or a line is for: its relation, or its member (the app user when none).
    * @param {{ memberId: string | null, relationId: string | null }} row Budget or line.
@@ -201,12 +199,12 @@ export async function budgetReport(from: string, to: string, meId: string | null
   }
   // What is expected of the invoices (due on final and imported ones, coming recurring ones) and credit notes, in
   // the categories set for them: forecast of the app user, in the context planned that day (overdue: today).
-  const company = await prisma.companyProfile.findFirst({ select: { invoiceCategoryId: true, creditNoteCategoryId: true } });
+  const company = await invoiceCategories();
   if (today <= lastDayOfMonth(to)) {
     const { items } = await treasuryProjection(today, today, lastDayOfMonth(to));
     for (const item of items) {
       if (item.kind === 'FORECAST' || item.kind === 'ACTUAL') continue;
-      const categoryId = item.amount < 0 ? (company?.creditNoteCategoryId ?? null) : (company?.invoiceCategoryId ?? null);
+      const categoryId = item.amount < 0 ? company.creditNoteCategoryId : company.invoiceCategoryId;
       add(item.date, { memberId: me, relationId: null, contextId: plannedContext(planned, item.date), categoryId }, item.amount, 'forecast');
     }
   }

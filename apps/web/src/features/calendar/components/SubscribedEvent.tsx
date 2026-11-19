@@ -9,29 +9,16 @@ import { FormActions } from '../../../components/dialogs/FormActions';
 import { calendarPath } from '../../../app/pages';
 import { inWorkspace } from '../lib/layer-label';
 import { EXTERNAL_LINK } from '../../../components/actions/link-props';
+import { eventMomentText } from '../lib/event-moment';
 
 /**
- * When an occurrence takes place, in words.
+ * When an occurrence takes place, in words (`eventMomentText`).
  * @param {EventOccurrence} occurrence Occurrence.
  * @returns {string} Date(s) and times.
  */
 function when(occurrence: EventOccurrence): string {
-  return fmt.capitalize(whenLower(occurrence));
-}
-
-/**
- * When an occurrence takes place, in words, as formatted (lowercase day names).
- * @param {EventOccurrence} occurrence Occurrence.
- * @returns {string} Date(s) and times.
- */
-function whenLower(occurrence: EventOccurrence): string {
-  const day = (date: string) => fmt.dayLong(date);
-  if (occurrence.allDay) return occurrence.startDate === occurrence.endDate ? `${day(occurrence.startDate)}, journée entière` : `Du ${day(occurrence.startDate)} au ${day(occurrence.endDate)}`;
-  const start = new Date(occurrence.start);
-  const end = new Date(occurrence.end);
-  return occurrence.startDate === occurrence.endDate
-    ? `${day(occurrence.startDate)}, ${fmt.time(start)} – ${fmt.time(end)}`
-    : `Du ${day(occurrence.startDate)} ${fmt.time(start)} au ${day(occurrence.endDate)} ${fmt.time(end)}`;
+  const times = occurrence.allDay ? { startTime: null, endTime: null } : { startTime: fmt.time(new Date(occurrence.start)), endTime: fmt.time(new Date(occurrence.end)) };
+  return eventMomentText({ allDay: occurrence.allDay, startDate: occurrence.startDate, endDate: occurrence.endDate, ...times });
 }
 
 interface SubscribedEventProps {

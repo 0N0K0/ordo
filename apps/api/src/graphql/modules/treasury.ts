@@ -2,6 +2,7 @@ import { done } from '../errors';
 import {
   addDays,
   DOCUMENT_STATUS_CATEGORIES,
+  DOCUMENT_STATUS_SCOPES,
   formatDay,
   fromCents,
   INVOICE_TYPES,
@@ -9,10 +10,14 @@ import {
   monthOfDate,
   parseDay,
   REMINDER_DELAY_DAYS,
+  TREASURY_DIRECTIONS,
+  TREASURY_ENTRY_STATUSES,
+  TREASURY_LINE_MODES,
   type TreasuryAccountInput,
   type TreasuryEntryInput,
 } from '@ordo/shared';
 import { prisma } from '../../db';
+import { type InvoiceCategories, invoiceCategories } from '../../services/accounting/company';
 import * as reminders from '../../services/accounting/reminders';
 import * as statuses from '../../services/accounting/document-statuses';
 import * as tracking from '../../services/accounting/document-tracking';
@@ -22,7 +27,7 @@ import * as budgets from '../../services/treasury/treasury-budgets';
 import * as statements from '../../services/treasury/treasury-import';
 import * as loans from '../../services/treasury/treasury-loans';
 import * as team from '../../services/treasury/treasury-team';
-import { meContributorId } from '../../services/workspace/workspaces';
+import { meContributorId } from '../../services/workspaces/workspaces';
 import { currentWorkspace } from '../../workspace-context';
 import { BY_POSITION, BY_POSITION_NAME } from '../../services/core/ordering';
 import { builder } from '../builder';
@@ -30,6 +35,7 @@ import { LabelColorInput, labelObject } from '../label-inputs';
 import { parisToday } from '../../today';
 import { fromDecimal } from '../../services/core/decimal';
 import { attachmentUrl, resourceUrl } from '../../services/core/attachments';
+import { unchecked } from '../unchecked';
 
 // Balances are computed once per request for all documents (lists show many of them).
 const documentCache = new WeakMap<object, Promise<Map<string, tracking.DocumentBalance>>>();
@@ -55,12 +61,12 @@ function importedBalancesOf(ctx: object): Promise<Map<string, tracking.DocumentB
   return importedCache.get(ctx) as Promise<Map<string, tracking.DocumentBalance>>;
 }
 
-const ScopeEnum = builder.enumType('DocumentStatusScope', { values: ['QUOTE', 'INVOICE'] as const });
+const ScopeEnum = builder.enumType('DocumentStatusScope', { values: DOCUMENT_STATUS_SCOPES });
 const CategoryEnum = builder.enumType('DocumentStatusCategory', { values: DOCUMENT_STATUS_CATEGORIES });
-const EntryStatusEnum = builder.enumType('TreasuryEntryStatus', { values: ['ACTUAL', 'FORECAST'] as const });
-const DirectionEnum = builder.enumType('TreasuryDirection', { values: ['IN', 'OUT'] as const });
+const EntryStatusEnum = builder.enumType('TreasuryEntryStatus', { values: TREASURY_ENTRY_STATUSES });
+const DirectionEnum = builder.enumType('TreasuryDirection', { values: TREASURY_DIRECTIONS });
 
-const LineModeEnum = builder.enumType('TreasuryLineMode', { values: ['AMOUNT', 'PERCENT'] as const });
+const LineModeEnum = builder.enumType('TreasuryLineMode', { values: TREASURY_LINE_MODES });
 
 builder.prismaObject('TreasuryEntryLine', {
   description: 'Part of a split entry: for a member, in a category and a context (none: everyday spending).',
@@ -735,7 +741,7 @@ const PaymentInput = builder.inputType('DocumentPaymentInput', {
   }),
 });
 
-const InvoiceCategoriesRef = builder.objectRef<{ invoiceCategoryId: string | null; creditNoteCategoryId: string | null }>('InvoiceTreasuryCategories').implement({
+const InvoiceCategoriesRef = builder.objectRef<InvoiceCategories>('InvoiceTreasuryCategories').implement({
   fields: (t) => ({
     invoiceCategoryId: t.exposeID('invoiceCategoryId', { nullable: true, description: 'Money in: payments of invoices.' }),
     creditNoteCategoryId: t.exposeID('creditNoteCategoryId', { nullable: true, description: 'Money out: refunds of credit notes.' }),
@@ -799,10 +805,7 @@ builder.queryFields((t) => ({
   invoiceTreasuryCategories: t.field({
     type: InvoiceCategoriesRef,
     description: 'Treasury categories of the payments of invoices and of the refunds of credit notes: the budgets they count in.',
-    resolve: async () => {
-      const company = await prisma.companyProfile.findFirst({ select: { invoiceCategoryId: true, creditNoteCategoryId: true } });
-      return { invoiceCategoryId: company?.invoiceCategoryId ?? null, creditNoteCategoryId: company?.creditNoteCategoryId ?? null };
-    },
+    resolve: () => invoiceCategories(),
   }),
   documentStatuses: t.prismaField({
     type: ['DocumentStatus'],
@@ -930,7 +933,7 @@ builder.mutationFields((t) => ({
     resolve: (_root, { accountId, mapping, rows }) =>
       statements.importStatement({
         accountId,
-        mapping: (mapping ?? null) as never,
+        mapping: unchecked(mapping ?? null),
         rows: rows.map((row) => ({ ...row, forecastId: row.forecastId ?? null, occurrence: row.occurrence ?? null })),
       }),
   }),
@@ -1025,11 +1028,11 @@ builder.mutationFields((t) => ({
   }),
   createTreasuryCategory: t.id({
     args: { input: t.arg({ type: CategoryInput, required: true }) },
-    resolve: async (_root, { input }) => (await settings.createCategory(input as never)).id,
+    resolve: async (_root, { input }) => (await settings.createCategory(unchecked(input))).id,
   }),
   updateTreasuryCategory: t.boolean({
     args: { id: t.arg.id({ required: true }), input: t.arg({ type: CategoryInput, required: true }) },
-    resolve: (_root, { id, input }) => done(settings.updateCategory(id, input as never)),
+    resolve: (_root, { id, input }) => done(settings.updateCategory(id, unchecked(input))),
   }),
   moveTreasuryCategory: t.boolean({
     description: 'Moves a category under another one of the same direction (parentId), or to the top level (parentId null), at an index among its siblings (last without).',
@@ -1042,11 +1045,11 @@ builder.mutationFields((t) => ({
   }),
   createTreasuryPaymentMethod: t.id({
     args: { input: t.arg({ type: PaymentMethodInput, required: true }) },
-    resolve: async (_root, { input }) => (await settings.createPaymentMethod(input as never)).id,
+    resolve: async (_root, { input }) => (await settings.createPaymentMethod(unchecked(input))).id,
   }),
   updateTreasuryPaymentMethod: t.boolean({
     args: { id: t.arg.id({ required: true }), input: t.arg({ type: PaymentMethodInput, required: true }) },
-    resolve: (_root, { id, input }) => done(settings.updatePaymentMethod(id, input as never)),
+    resolve: (_root, { id, input }) => done(settings.updatePaymentMethod(id, unchecked(input))),
   }),
   deleteTreasuryPaymentMethod: t.boolean({
     args: { id: t.arg.id({ required: true }) },
@@ -1054,11 +1057,11 @@ builder.mutationFields((t) => ({
   }),
   createTreasuryCounterparty: t.id({
     args: { input: t.arg({ type: CounterpartyInput, required: true }) },
-    resolve: async (_root, { input }) => (await settings.createCounterparty(input as never)).id,
+    resolve: async (_root, { input }) => (await settings.createCounterparty(unchecked(input))).id,
   }),
   updateTreasuryCounterparty: t.boolean({
     args: { id: t.arg.id({ required: true }), input: t.arg({ type: CounterpartyInput, required: true }) },
-    resolve: (_root, { id, input }) => done(settings.updateCounterparty(id, input as never)),
+    resolve: (_root, { id, input }) => done(settings.updateCounterparty(id, unchecked(input))),
   }),
   deleteTreasuryCounterparty: t.boolean({
     args: { id: t.arg.id({ required: true }) },

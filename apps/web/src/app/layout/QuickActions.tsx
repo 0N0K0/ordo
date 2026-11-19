@@ -1,4 +1,4 @@
-import { Button } from '@mantine/core';
+import { ActionButton } from '../../components/actions/ActionButton';
 import { ActionsMenu } from '../../components/actions/ActionsMenu';
 import { AlarmIcon, CalendarPlusIcon, CheckSquareOffsetIcon, EnvelopeSimpleIcon, FileTextIcon, PlayIcon, PlusIcon } from '@phosphor-icons/react';
 import type { ReactNode } from 'react';
@@ -9,19 +9,18 @@ import { useEventForm } from '../../features/calendar/hooks/use-event-form';
 import { useMailComposer } from '../../features/mail/hooks/use-mail-composer';
 import { useTaskActions } from '../../features/tasks/hooks/use-task-actions';
 import { useTaskContext } from '../../features/tasks/hooks/use-task-context';
-import { useRunningTimer } from '../../features/time/api';
 import { openTimerForm } from '../../features/time/lib/open-timer-form';
 import { useActiveWorkspace } from '../../features/workspaces/api';
 import classes from './QuickActions.module.css';
-import { TIMER_REPLACED_HINT } from '../../features/time/hooks/use-start-timer';
-import { MenuCaret } from '../../components/actions/MenuCaret';
+import { useTimerHint } from '../../features/time/hooks/use-start-timer';
+
+import { PROJECT_ROUTE } from '../pages';
 
 interface QuickAction {
   /** Name of the item (menu, screen readers). */
-  title: string;
+  label: string;
   icon: ReactNode;
   onClick: () => void;
-  disabled?: boolean;
   /** What it does besides (a timer running stops). Optional. */
   hint?: string;
 }
@@ -34,13 +33,13 @@ interface QuickAction {
  */
 export function QuickActions() {
   const { context } = useTaskContext();
-  const projectId = useMatch('/projects/:id')?.params.id;
+  const projectId = useMatch(PROJECT_ROUTE)?.params.id;
   const project = projectId ? context?.projectById.get(projectId) : undefined;
   const taskActions = useTaskActions(context);
   const openEvent = useEventForm(context);
   const openAlarm = useAlarmForm(context);
   const openMail = useMailComposer();
-  const running = useRunningTimer();
+  const timerHint = useTimerHint();
   const { perso } = useActiveWorkspace();
 
   /**
@@ -52,26 +51,26 @@ export function QuickActions() {
   };
 
   const actions: QuickAction[] = [
-    { title: 'Tâche', icon: <CheckSquareOffsetIcon aria-hidden />, onClick: () => taskActions.create(project ? { projectId: project.id } : undefined) },
-    { title: 'Évènement', icon: <CalendarPlusIcon aria-hidden />, onClick: () => openEvent({ defaults: project ? { projectId: project.id } : undefined }) },
+    { label: 'Tâche', icon: <CheckSquareOffsetIcon aria-hidden />, onClick: () => taskActions.create(project ? { projectId: project.id } : undefined) },
+    { label: 'Évènement', icon: <CalendarPlusIcon aria-hidden />, onClick: () => openEvent({ defaults: project ? { projectId: project.id } : undefined }) },
     // One timer runs at a time: the one running stops (decision Y).
-    { title: 'Chrono', icon: <PlayIcon aria-hidden />, onClick: openTimer, hint: running.data ? TIMER_REPLACED_HINT : undefined },
-    { title: 'Alarme', icon: <AlarmIcon aria-hidden />, onClick: () => openAlarm() },
-    { title: 'Mail', icon: <EnvelopeSimpleIcon aria-hidden />, onClick: () => openMail(project ? { projectId: project.id } : {}) },
+    { label: 'Chrono', icon: <PlayIcon aria-hidden />, onClick: openTimer, hint: timerHint() },
+    { label: 'Alarme', icon: <AlarmIcon aria-hidden />, onClick: () => openAlarm() },
+    { label: 'Mail', icon: <EnvelopeSimpleIcon aria-hidden />, onClick: () => openMail(project ? { projectId: project.id } : {}) },
     // No invoicing in a personal workspace.
-    ...(perso ? [] : [{ title: 'Devis', icon: <FileTextIcon aria-hidden />, onClick: () => openNewDocument('QUOTE', project ? { clientId: project.clientId, projectId: project.id } : {}) }]),
+    ...(perso ? [] : [{ label: 'Devis', icon: <FileTextIcon aria-hidden />, onClick: () => openNewDocument('QUOTE', project ? { clientId: project.clientId, projectId: project.id } : {}) }]),
   ];
 
   return (
     <ActionsMenu
       about="l’ajout"
       hover
-      items={actions.map((action) => ({ label: action.title, icon: action.icon, onClick: action.onClick, disabled: action.disabled, hint: action.hint }))}
+      items={actions.map((action) => ({ label: action.label, icon: action.icon, onClick: action.onClick, hint: action.hint }))}
       target={
         // On a very small screen, only the plus (the name stays for screen readers).
-        <Button className={classes.add} size="xs" variant="light" leftSection={<PlusIcon aria-hidden />} rightSection={<MenuCaret />} disabled={!context} aria-label="Ajouter">
+        <ActionButton priority="secondary" className={classes.add} size="xs" icon={<PlusIcon aria-hidden />} disabled={!context} aria-label="Ajouter">
           <span className={classes.label}>Ajouter</span>
-        </Button>
+        </ActionButton>
       }
     />
   );

@@ -1,5 +1,5 @@
 import { done } from '../errors';
-import { ACCOUNTING_DOCUMENT_TYPES } from '@ordo/shared';
+import { ACCOUNTING_DOCUMENT_TYPES, CLIENT_KINDS } from '@ordo/shared';
 import { prisma } from '../../db';
 import * as parties from '../../services/accounting/client-parties';
 import * as company from '../../services/accounting/company';
@@ -7,12 +7,13 @@ import { BY_POSITION } from '../../services/core/ordering';
 import { builder } from '../builder';
 import { currentWorkspaceId } from '../../workspace-context';
 import { reloaded } from '../reload';
+import { unchecked } from '../unchecked';
 import { attachmentUrl } from '../../services/core/attachments';
 
 export const AccountingDocumentTypeEnum = builder.enumType('AccountingDocumentType', { values: ACCOUNTING_DOCUMENT_TYPES });
 
 const ClientKindEnum = builder.enumType('ClientKind', {
-  values: ['COMPANY', 'INDIVIDUAL'] as const,
+  values: CLIENT_KINDS,
 });
 
 builder.prismaObjectFields('Client', (t) => ({
@@ -224,8 +225,8 @@ builder.mutationFields((t) => ({
     resolve: async (query, _root, { input }) => {
       await company.updateCompanyProfile({
         ...input,
-        contact: (input.contact ?? null) as never,
-        address: (input.address ?? null) as never,
+        contact: unchecked(input.contact ?? null),
+        address: unchecked(input.address ?? null),
       });
       return prisma.companyProfile.findUniqueOrThrow({
         ...query,
@@ -263,8 +264,8 @@ builder.mutationFields((t) => ({
     resolve: async (query, _root, { id, input }) => {
       await parties.updateClientDetails(id, {
         ...input,
-        address: (input.address ?? null) as never,
-        phones: input.phones as never,
+        address: unchecked(input.address ?? null),
+        phones: unchecked(input.phones),
       });
       return reloaded(prisma.client, query, { id });
     },
@@ -276,18 +277,11 @@ builder.mutationFields((t) => ({
       input: t.arg({ type: ClientServiceInput, required: true }),
     },
     resolve: async (query, _root, { clientId, input }) =>
-      prisma.clientService.findUniqueOrThrow({
-        ...query,
-        where: {
-          id: (
-            await parties.createClientService(clientId, {
-              ...input,
-              address: (input.address ?? null) as never,
-              phones: input.phones as never,
-            })
-          ).id,
-        },
-      }),
+      reloaded(prisma.clientService, query, parties.createClientService(clientId, {
+        ...input,
+        address: unchecked(input.address ?? null),
+        phones: unchecked(input.phones),
+      })),
   }),
   updateClientService: t.prismaField({
     type: 'ClientService',
@@ -296,18 +290,11 @@ builder.mutationFields((t) => ({
       input: t.arg({ type: ClientServiceInput, required: true }),
     },
     resolve: async (query, _root, { id, input }) =>
-      prisma.clientService.findUniqueOrThrow({
-        ...query,
-        where: {
-          id: (
-            await parties.updateClientService(id, {
-              ...input,
-              address: (input.address ?? null) as never,
-              phones: input.phones as never,
-            })
-          ).id,
-        },
-      }),
+      reloaded(prisma.clientService, query, parties.updateClientService(id, {
+        ...input,
+        address: unchecked(input.address ?? null),
+        phones: unchecked(input.phones),
+      })),
   }),
   deleteClientService: t.boolean({
     args: { id: t.arg.id({ required: true }) },
@@ -320,18 +307,11 @@ builder.mutationFields((t) => ({
       input: t.arg({ type: ClientContactInput, required: true }),
     },
     resolve: async (query, _root, { clientId, input }) =>
-      prisma.clientContact.findUniqueOrThrow({
-        ...query,
-        where: {
-          id: (
-            await parties.createClientContact(clientId, {
-              ...input,
-              serviceId: input.serviceId ?? null,
-              phones: input.phones as never,
-            })
-          ).id,
-        },
-      }),
+      reloaded(prisma.clientContact, query, parties.createClientContact(clientId, {
+        ...input,
+        serviceId: input.serviceId ?? null,
+        phones: unchecked(input.phones),
+      })),
   }),
   updateClientContact: t.prismaField({
     type: 'ClientContact',
@@ -340,18 +320,11 @@ builder.mutationFields((t) => ({
       input: t.arg({ type: ClientContactInput, required: true }),
     },
     resolve: async (query, _root, { id, input }) =>
-      prisma.clientContact.findUniqueOrThrow({
-        ...query,
-        where: {
-          id: (
-            await parties.updateClientContact(id, {
-              ...input,
-              serviceId: input.serviceId ?? null,
-              phones: input.phones as never,
-            })
-          ).id,
-        },
-      }),
+      reloaded(prisma.clientContact, query, parties.updateClientContact(id, {
+        ...input,
+        serviceId: input.serviceId ?? null,
+        phones: unchecked(input.phones),
+      })),
   }),
   deleteClientContact: t.boolean({
     args: { id: t.arg.id({ required: true }) },

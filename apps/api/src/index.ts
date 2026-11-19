@@ -18,7 +18,7 @@ import { scheduleConversationFollowUp } from './services/mail/linked';
 import { scheduleMailSending } from './services/mail/scheduled';
 import { scheduleGithubSync } from './services/github/sync';
 import { scheduleRecurringInvoices } from './services/accounting/recurring-invoices';
-import { workspaceMiddleware } from './services/workspace/workspaces';
+import { workspaceMiddleware } from './services/workspaces/workspaces';
 
 const disableIntrospection: Plugin = {
   /**

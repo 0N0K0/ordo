@@ -4,10 +4,10 @@ import { formCallbacks } from '../../../lib/form';
 import { InlineActions } from '../../../components/actions/ActionsMenu';
 import { confirmDestructive } from '../../../components/dialogs/confirm-destructive';
 import { Badge, Chip, Group, SegmentedControl, Select, Stack, Text, TextInput } from '@mantine/core';
-import { readWeek, WEEKDAY_LABELS, weekLength, WORKSPACE_LABEL_MAX } from '@ordo/shared';
-import { ArrowSquareOutIcon, PlusIcon } from '@phosphor-icons/react';
+import { readWeek, WEEKDAY_LABELS, weekLength, WORKSPACE_LABEL_MAX, workspaceLabelSchema } from '@ordo/shared';
+import { ArrowSquareOutIcon, PlusIcon, PencilSimpleIcon } from '@phosphor-icons/react';
 import { useState } from 'react';
-import { notifySuccess, ON_ERROR, onMutationError } from '../../../lib/notify';
+import { ON_ERROR, toastCallbacks } from '../../../lib/notify';
 
 import { useWorkspaceMutations, useWorkspaces, type NotificationSource, type Workspace, type WorkspaceKind } from '../api';
 import { switchWorkspace } from '../lib/switch';
@@ -15,7 +15,8 @@ import { WorkspaceKindIcon } from './WorkspaceKindIcon';
 import { SettingsGrid } from '../../../components/settings/SettingsGrid';
 import { SettingsSection } from '../../../components/settings/SettingsSection';
 import { ActionButton } from '../../../components/actions/ActionButton';
-import { itemCellLabel } from '../../../components/data-table/cells/cell-field';
+
+import { openLabelForm } from '../../../components/dialogs/open-label-form';
 
 const KINDS = [
   { value: 'PRO', label: 'Pro' },
@@ -40,79 +41,69 @@ interface WorkspaceRowProps {
 }
 
 /**
- * One workspace: label (saved when left) and kind, order, opening, deletion after confirmation.
+ * One workspace: label (renamed in the side panel) and kind, order, opening, deletion after confirmation.
  * @param {WorkspaceRowProps} props Component props.
  * @returns {JSX.Element} Row.
  */
 function WorkspaceRow({ workspace, index, count, current, fallbackId }: WorkspaceRowProps) {
   const { update, setNotifications, setWeek, move, remove } = useWorkspaceMutations();
   const week = readWeek(workspace);
-  const [label, setLabel] = useState(workspace.label);
-
   /**
-   * Saves the label or the kind when they changed.
-   * @param {{ label?: string, kind?: WorkspaceKind }} changes Changes.
+   * Changes the kind of the workspace.
+   * @param {WorkspaceKind} kind New kind.
    * @returns {void}
    */
-  const save = (changes: { label?: string; kind?: WorkspaceKind }) => {
-    const input = { label: (changes.label ?? label).trim(), kind: changes.kind ?? workspace.kind };
-    if (!input.label) {
-      setLabel(workspace.label);
-      return;
-    }
-    if (input.label === workspace.label && input.kind === workspace.kind) return;
-    update.mutate(
-      { id: workspace.id, input },
-      {
-        onSuccess: () => changes.kind && notifySuccess(changes.kind === 'PERSO' ? 'Espace passé en personnel.' : 'Espace passé en professionnel.'),
-        onError: onMutationError,
-      },
-    );
-  };
+  const changeKind = (kind: WorkspaceKind) =>
+    update.mutate({ id: workspace.id, input: { label: workspace.label, kind } }, toastCallbacks(kind === 'PERSO' ? 'Espace passé en personnel.' : 'Espace passé en professionnel.'));
+
+  /**
+   * Opens the form renaming the workspace, in the side panel as elsewhere (decision DF).
+   * @returns {void}
+   */
+  const rename = () =>
+    openLabelForm('Renommer l’espace', {
+      initial: workspace.label,
+      schema: workspaceLabelSchema,
+      submitLabel: 'Renommer',
+      onSubmit: (label) => (label === workspace.label ? undefined : update.mutateAsync({ id: workspace.id, input: { label, kind: workspace.kind } })),
+    });
 
   return (
     <Stack gap={4}>
       <Group gap="xs" wrap="nowrap">
         <WorkspaceKindIcon kind={workspace.kind} />
-        <TextInput
-          aria-label={itemCellLabel('Libellé', `« ${workspace.label} »`, 1)}
-          style={{ flex: 1 }}
-          value={label}
-          maxLength={WORKSPACE_LABEL_MAX}
-          onChange={(event) => setLabel(event.currentTarget.value)}
-          onBlur={() => save({ label })}
-          rightSection={
-            current ? (
-              <Badge size="xs" variant="light">
-                Actuel
-              </Badge>
-            ) : null
-          }
-          rightSectionWidth={current ? 64 : undefined}
-        />
-        <SegmentedControl size="xs" aria-label="Type d’espace" data={KINDS} value={workspace.kind} onChange={(kind) => save({ kind: kind as WorkspaceKind })} />
+        <Group gap="xs" wrap="nowrap" style={{ flex: 1, minWidth: 0 }}>
+          <Text size="sm" fw={500} truncate>
+            {workspace.label}
+          </Text>
+          {current && (
+            <Badge size="xs" variant="light">
+              Actuel
+            </Badge>
+          )}
+        </Group>
+        <SegmentedControl size="xs" aria-label="Type d’espace" data={KINDS} value={workspace.kind} onChange={(kind) => changeKind(kind as WorkspaceKind)} />
         <InlineActions
           name={workspace.label}
           items={[
+            { label: 'Renommer', icon: <PencilSimpleIcon aria-hidden />, onClick: rename },
             ...moveEntries(index, count, (to) => move.mutate({ id: workspace.id, index: to }, ON_ERROR)),
             { label: 'Ouvrir', icon: <ArrowSquareOutIcon aria-hidden />, disabled: current, onClick: () => switchWorkspace(workspace.id) },
           ]}
         />
         <RemoveButton
           label={count === 1 ? 'Le dernier espace ne peut pas être supprimé' : 'Supprimer'}
-          aria-label={`Supprimer ${workspace.label}`}
+          aria-label={`Supprimer « ${workspace.label} »`}
           disabled={count === 1}
           onClick={() =>
             confirmDestructive({
               title: 'Supprimer l’espace',
               risks: `L’espace « ${workspace.label} » sera supprimé définitivement avec tout son contenu : projets, tâches, temps, agenda, mails liés, documents, tableaux de bord, trésorerie${workspace.kind === 'PRO' ? ', clients et facturation' : ''}. Les boîtes mail restent intactes sur leur serveur.`,
-              onConfirm: () =>
-                remove.mutate(
-                  workspace.id,
-                  formCallbacks(null, 'Espace supprimé.', () => {
-                    if (current && fallbackId) switchWorkspace(fallbackId);
-                  }),
-                ),
+              run: () =>
+                remove.mutateAsync(workspace.id).then(() => {
+                  if (current && fallbackId) switchWorkspace(fallbackId);
+                }),
+              done: 'Espace supprimé.',
             })
           }
         />

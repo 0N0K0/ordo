@@ -3,8 +3,10 @@ import { prisma, unscopedPrisma } from '../../db';
 import type { Calendar, WorkspaceKind } from '../../generated/prisma/client';
 import { clientError, orNotFound, parseInput } from '../../graphql/errors';
 import { currentWorkspaceId } from '../../workspace-context';
+import { currentWorkspaceFields } from '../workspaces/current-workspace';
 import { BY_POSITION_ONLY, nextPositionIn } from '../core/ordering';
-import { assertNotArchived, firstActive } from '../core/archive';
+import { firstActive, refuseArchived } from '../core/archive';
+import { findOrNotFound } from '../core/lookup';
 
 /** Color of the calendar a workspace starts with. */
 const DEFAULT_COLOR = '#228be6';
@@ -32,9 +34,8 @@ export interface SubscribableCalendar {
  * @param {string} id Calendar.
  * @returns {Promise<Calendar>} Calendar.
  */
-async function findCalendar(id: string): Promise<Calendar> {
-  const calendar = await orNotFound(prisma.calendar.findUnique({ where: { id } }), 'Calendrier');
-  return calendar;
+function findCalendar(id: string): Promise<Calendar> {
+  return findOrNotFound(prisma.calendar, id, 'Calendrier');
 }
 
 /**
@@ -48,7 +49,7 @@ export async function resolveCalendarId(id?: string | null): Promise<string> {
   // An archived calendar takes no new event: the first one that is not, else the first one (refused then).
   const first = await firstActive(prisma.calendar);
   if (first) return first.id;
-  const workspace = await unscopedPrisma.workspace.findUniqueOrThrow({ where: { id: currentWorkspaceId() }, select: { label: true } });
+  const workspace = await currentWorkspaceFields({ label: true });
   return (await prisma.calendar.create({ data: { label: workspace.label, color: DEFAULT_COLOR } })).id;
 }
 
@@ -70,8 +71,7 @@ export async function createCalendar(input: CalendarFormValues): Promise<Calenda
  * @returns {Promise<Calendar>} Calendar.
  */
 export async function updateCalendar(id: string, input: CalendarFormValues): Promise<Calendar> {
-  await findCalendar(id);
-  await assertNotArchived('calendar', id);
+  refuseArchived(await findCalendar(id));
   return prisma.calendar.update({ where: { id }, data: parseInput(calendarFormSchema, input) });
 }
 

@@ -1,3 +1,5 @@
+import { twoDigits } from '../core/numbers';
+
 /** Milliseconds in a day (calendar arithmetic, UTC). */
 // eslint-disable-next-line no-restricted-syntax -- the constant itself.
 export const DAY_MS = 86_400_000;
@@ -25,8 +27,7 @@ export function parseDay(date: string): Date {
 export function dayIn(instant: Date, timeZone?: string): string {
   // eslint-disable-next-line no-restricted-syntax -- the day in a time zone, as YYYY-MM-DD.
   if (timeZone) return instant.toLocaleDateString('sv-SE', { timeZone });
-  const two = (value: number) => String(value).padStart(2, '0');
-  return `${instant.getFullYear()}-${two(instant.getMonth() + 1)}-${two(instant.getDate())}`;
+  return `${instant.getFullYear()}-${twoDigits(instant.getMonth() + 1)}-${twoDigits(instant.getDate())}`;
 }
 
 /**

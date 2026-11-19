@@ -1,6 +1,10 @@
 /** Separator of the levels of a path (« Maison › Cuisine »). */
 export const LEVEL = ' › ';
 
+/** Where an item is dropped, relative to another one: before it, after it or inside it (as its child). */
+export const TREE_PLACES = ['BEFORE', 'AFTER', 'INSIDE'] as const;
+export type TreePlace = (typeof TREE_PLACES)[number];
+
 /** Item of a tree: its id and its parent (none, or unknown: the top level). */
 export interface TreeItem {
   id: string;
@@ -38,6 +42,7 @@ export function subtreeOf(items: readonly TreeItem[], id: string, withSelf = tru
 export function lineageOf<T extends TreeItem>(byId: ReadonlyMap<string, T>, id: string | null | undefined): T[] {
   const result: T[] = [];
   const seen = new Set<string>();
+  // eslint-disable-next-line no-restricted-syntax -- lineageOf itself.
   for (let current = id ? byId.get(id) : undefined; current && !seen.has(current.id); current = current.parentId ? byId.get(current.parentId) : undefined) {
     seen.add(current.id);
     result.push(current);

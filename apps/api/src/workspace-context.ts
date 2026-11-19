@@ -45,6 +45,7 @@ export function currentWorkspace(): WorkspaceScope {
  * @returns {string} Id.
  */
 export function currentWorkspaceId(): string {
+  // eslint-disable-next-line no-restricted-syntax -- currentWorkspaceId itself.
   return currentWorkspace().id;
 }
 

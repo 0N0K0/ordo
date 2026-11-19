@@ -38,7 +38,7 @@ export function ScheduleLookEditor({ value, onChange, name }: ScheduleLookEditor
         <Select
           size="xs"
           w={250}
-          aria-label={`Affichage de ${name} en semaine et en jour`}
+          aria-label={`Affichage de « ${name} » en semaine et en jour`}
           data={DAY_DISPLAYS}
           value={display.dayDisplay}
           allowDeselect={false}
@@ -52,7 +52,7 @@ export function ScheduleLookEditor({ value, onChange, name }: ScheduleLookEditor
         </Text>
         <SegmentedControl
           size="xs"
-          aria-label={`Affichage de ${name} en mois`}
+          aria-label={`Affichage de « ${name} » en mois`}
           data={MONTH_DISPLAYS}
           value={display.monthDisplay}
           onChange={(monthDisplay) => onChange({ ...display, monthDisplay: monthDisplay as ScheduleMonthDisplay })}

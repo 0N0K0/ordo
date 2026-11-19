@@ -1,10 +1,12 @@
-import { addDays, chartConfigSchema, DAY_MS, DEFAULT_RECURRENCE, emptyTableFilter, minutesToTime, parseDay, type Recurrence } from '@ordo/shared';
+import { addDays, chartConfigSchema, DAY_MS, DEFAULT_RECURRENCE, emptyTableFilter, minutesToTime, parseDay, type Recurrence, twoDigits } from '@ordo/shared';
 import type { z } from 'zod';
 import { fakerFR as faker } from '@faker-js/faker';
 import { Factory } from 'fishery';
 import { prisma } from '../../src/db';
 import { resolveCalendarId } from '../../src/services/calendar/calendars';
 import { createEntry as saveEntry } from '../../src/services/treasury/treasury';
+import { createCategory as createTreasuryCategory } from '../../src/services/treasury/treasury-settings';
+import { toJson } from '../../src/services/core/json';
 import type { CalendarEvent, Client, Contributor, Milestone, Prisma, Project, Task, TaskComment, TimeEntry } from '../../src/generated/prisma/client';
 
 /** Shade 6 of the Mantine colors, as offered by the app's color pickers. */
@@ -63,7 +65,7 @@ export function relativeDay(today: string): (offset: number) => string {
  */
 export function localAt(day: string, hour: number, minute = 0): Date {
   // eslint-disable-next-line no-restricted-syntax -- localAt itself.
-  return new Date(`${day}T${String(hour).padStart(2, '0')}:${String(minute).padStart(2, '0')}:00`);
+  return new Date(`${day}T${twoDigits(hour)}:${twoDigits(minute)}:00`);
 }
 
 /**
@@ -80,7 +82,7 @@ export const rule = (changes: Partial<Recurrence>): Recurrence => ({ ...DEFAULT_
  * @returns {Prisma.InputJsonValue} Stored configuration.
  */
 // eslint-disable-next-line no-restricted-syntax -- the helpers themselves.
-export const chart = (config: Partial<z.input<typeof chartConfigSchema>>) => chartConfigSchema.parse({ filter: emptyTableFilter(), ...config }) as unknown as Prisma.InputJsonValue;
+export const chart = (config: Partial<z.input<typeof chartConfigSchema>>) => toJson(chartConfigSchema.parse({ filter: emptyTableFilter(), ...config }));
 
 /**
  * Creates a movement; a split one has its categories on its lines only.
@@ -298,3 +300,58 @@ export const calendarEventFactory = Factory.define<Prisma.CalendarEventUnchecked
     calendarId: '',
   };
 });
+
+/** Direction of a treasury category. */
+type Direction = 'IN' | 'OUT';
+
+/**
+ * Maker of treasury categories (with sub-categories), and their ids by direction and label (« OUT:Repas »).
+ * @returns {{ ids: Map<string, string>, category: Function }} Ids, and `category(label, direction, parent?)` that creates one.
+ */
+export function treasuryCategoryMaker() {
+  const ids = new Map<string, string>();
+  /**
+   * Creates a treasury category, under a parent of the same direction already made.
+   * @param {string} label Label.
+   * @param {Direction} direction Direction.
+   * @param {string} [parent] Label of the parent. Optional. Default = top level.
+   * @returns {Promise<void>}
+   */
+  const category = async (label: string, direction: Direction, parent?: string): Promise<void> => {
+    ids.set(`${direction}:${label}`, (await createTreasuryCategory({ label, direction, parentId: parent ? (ids.get(`${direction}:${parent}`) ?? null) : null })).id);
+  };
+  return { ids, category };
+}
+
+/**
+ * The treasury categories of the workspace, found by label.
+ * @returns {Promise<(label: string, direction?: Direction) => string | null>} Id of a category by its label and direction (default: OUT).
+ */
+export async function treasuryCategoryIds(): Promise<(label: string, direction?: Direction) => string | null> {
+  // eslint-disable-next-line no-restricted-syntax -- the helper itself.
+  const categories = await prisma.treasuryCategory.findMany({ select: { id: true, label: true, direction: true } });
+  return (label, direction = 'OUT') => categories.find((item) => item.label === label && item.direction === direction)?.id ?? null;
+}
+
+/**
+ * Creates an agenda category.
+ * @param {string} label Label.
+ * @param {string} color Color.
+ * @param {string | null} parentId Parent. Optional. Default = top level.
+ * @param {number} [position] Position among its siblings. Optional. Default = 0.
+ * @returns {Promise<string>} Category id.
+ */
+export const calendarCategory = async (label: string, color: string, parentId: string | null = null, position = 0): Promise<string> =>
+  // eslint-disable-next-line no-restricted-syntax -- the helper itself.
+  (await prisma.calendarCategory.create({ data: { label, color, parentId, position } })).id;
+
+/**
+ * Root project of a client (the first one).
+ * @param {readonly Project[]} projects Projects.
+ * @param {string} clientId Client.
+ * @param {boolean} [activeOnly] Archived ones left out. Optional. Default = false.
+ * @returns {Project | null} Project.
+ */
+export const clientRootProject = (projects: readonly Project[], clientId: string, activeOnly = false): Project | null =>
+  // eslint-disable-next-line no-restricted-syntax -- the helper itself.
+  projects.find((project) => project.clientId === clientId && project.parentId === null && !(activeOnly && project.archivedAt)) ?? null;

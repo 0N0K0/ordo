@@ -3,8 +3,8 @@ import { GearSixIcon } from '@phosphor-icons/react';
 import { usePageSettings, useSettingsOpened } from './page-settings';
 
 /**
- * Button of the header opening or closing the settings of the page, always at the same place (before « Ajouter »);
- * on a page without settings, none.
+ * Button of the header opening or closing the settings of the page (light, its panel told open by `aria-expanded`:
+ * decision CN), always at the same place (before « Ajouter »); on a page without settings, none.
  * @returns {JSX.Element | null} Button.
  */
 export function SettingsButton() {
@@ -12,7 +12,7 @@ export function SettingsButton() {
   const { opened, setOpened } = useSettingsOpened();
   if (!title) return null;
   return (
-    <IconAction label={opened ? 'Fermer' : title} item={opened ? title : undefined} size="input-xs" variant={opened ? 'filled' : 'light'} aria-pressed={opened} onClick={() => setOpened(!opened)}>
+    <IconAction label={opened ? 'Fermer' : title} item={opened ? title : undefined} size="input-xs" variant="light" aria-expanded={opened} onClick={() => setOpened(!opened)}>
       <GearSixIcon aria-hidden />
     </IconAction>
   );

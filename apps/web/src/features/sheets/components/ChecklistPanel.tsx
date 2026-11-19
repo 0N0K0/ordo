@@ -53,7 +53,7 @@ export function ChecklistPanel({ owner, occurrenceDate = null }: { owner: SheetO
       text: (item) => (item.checkedAt ? 'Fait' : ''),
       filter: { kind: 'boolean', value: (item) => Boolean(item.checkedAt) },
     },
-    { id: 'label', label: 'Élément', size: 220, locked: true, bulk: true, sortValue: (item) => item.label, text: (item) => item.label },
+    { id: 'label', required: true, label: 'Élément', size: 220, locked: true, bulk: true, sortValue: (item) => item.label, text: (item) => item.label },
     quantityColumn<ChecklistItem>(),
     unitColumn<ChecklistItem>(),
     categoryColumn<ChecklistItem>(categories, { size: 160 }),
@@ -205,10 +205,10 @@ export function ChecklistPanel({ owner, occurrenceDate = null }: { owner: SheetO
                 label="Ajouter un élément"
                 where={`dans ${group?.label ?? 'la liste'}`}
                 schema={checklistItemSchema.shape.label}
-                onCreate={(name) =>
+                onCreate={(label) =>
                   mutations.addChecklistItem.mutateAsync({
                     listId: list.id,
-                    input: { productId: null, label: name, categoryId: null, quantity: null, unit: null, note: null, consumable: false, ...fields },
+                    input: { productId: null, label, categoryId: null, quantity: null, unit: null, note: null, consumable: false, ...fields },
                   })
                 }
               />

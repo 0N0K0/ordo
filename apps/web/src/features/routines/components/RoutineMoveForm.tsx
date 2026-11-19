@@ -1,4 +1,3 @@
-import { formCallbacks } from '../../../lib/form';
 import { LabeledField } from '../../../components/inputs/LabeledField';
 import { PICKER_FORMATS } from '../../../lib/format';
 import { Group, Select, Stack, Text } from '@mantine/core';
@@ -9,7 +8,6 @@ import { useState } from 'react';
 import { SubSection } from '../../../components/page/SubSection';
 import { ON_ERROR } from '../../../lib/notify';
 import { confirmDestructive } from '../../../components/dialogs/confirm-destructive';
-import { DestructiveButton } from '../../../components/dialogs/DestructiveActions';
 import { localToday } from '../../../lib/dates';
 import { useRoutineMutations, useRoutineOccurrences, useRoutinesData, type RoutineOccurrence } from '../api';
 import { movableOccurrence, moveTo, movesOf, windowText } from '../lib/routine-format';
@@ -176,8 +174,9 @@ export function RoutineMoveForm({ routineId, onDone }: { routineId: string; onDo
             Fermer
           </ActionButton>
           {date && (
-            <DestructiveButton
-              leftSection={<CalendarXIcon aria-hidden />}
+            <ActionButton
+              danger
+              icon={<CalendarXIcon aria-hidden />}
               loading={deleteOccurrence.isPending}
               onClick={() =>
                 confirmDestructive({
@@ -185,12 +184,13 @@ export function RoutineMoveForm({ routineId, onDone }: { routineId: string; onDo
                   risks: `L’occurrence du ${fmt.dayLong(date)} n’aura pas lieu : c’est une exception, les autres occurrences ne changent pas. Elle se rétablit depuis la liste des exceptions.`,
                   confirmLabel: 'Annuler l’occurrence',
                   confirmIcon: <CalendarXIcon aria-hidden />,
-                  onConfirm: () => deleteOccurrence.mutate({ id: routine.id, date, scope: 'THIS' }, formCallbacks(null, `Occurrence du ${fmt.dayLong(date)} annulée.`, onDone)),
+                  run: () => deleteOccurrence.mutateAsync({ id: routine.id, date, scope: 'THIS' }).then(() => onDone()),
+                  done: `Occurrence du ${fmt.dayLong(date)} annulée.`,
                 })
               }
             >
               Annuler l’occurrence
-            </DestructiveButton>
+            </ActionButton>
           )}
           {date && (
             <ActionButton type="submit" icon={submitIcon} disabled={!target || (target === date && !timesChanged)} loading={moveOccurrence.isPending}>

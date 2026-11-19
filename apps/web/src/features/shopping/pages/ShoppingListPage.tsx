@@ -222,7 +222,7 @@ export function ShoppingListPage() {
       <ShoppingSettings />
       <DetailHeader
         back={{ to: SHOPPING_LISTS_PATH, label: 'Listes d’achats' }}
-        page={<PageHeader title={PAGES.shopping.title} />}
+        page={<PageHeader title={PAGES.shopping.label} />}
         title={list.label}
         badges={
           list.archived ? (
@@ -296,7 +296,7 @@ export function ShoppingListPage() {
             <ActionButton priority="secondary" icon={<TruckIcon aria-hidden />} disabled={list.archived} onClick={() => openFormPanel('Commande à distance', () => <OrderPanel listId={list.id} />)}>
               {list.remote ? `Commande · ${countOf(list.deliveries.filter((delivery) => !delivery.receivedAt).length, 'livraison')} en cours` : 'Commande à distance'}
             </ActionButton>
-            <ActionButton icon={<ShoppingCartIcon aria-hidden />} disabled={list.items.length === 0 || list.archived} onClick={() => setStoreMode(true)}>
+            <ActionButton priority="secondary" icon={<ShoppingCartIcon aria-hidden />} disabled={list.items.length === 0 || list.archived} onClick={() => setStoreMode(true)}>
               Mode collecte
             </ActionButton>
             <ListActionsMenu list={list} grouping={grouping} onDeleted={() => navigate(SHOPPING_LISTS_PATH)} header />
@@ -334,7 +334,7 @@ export function ShoppingListPage() {
               ? undefined
               : {
                   label: 'Ajouter un élément hors références',
-                  onCreate: (name, place) => mutations.addItem.mutateAsync({ listId: list.id, input: blankInput(name, place) }),
+                  onCreate: (label, place) => mutations.addItem.mutateAsync({ listId: list.id, input: blankInput(label, place) }),
                   onPick: baseLists.length ? () => openFormPanel('Ajouter des produits des références', (close) => <ProductPicker list={list} onDone={close} />) : undefined,
                 }
           }

@@ -1,7 +1,7 @@
 import { subtreeOf } from '@ordo/shared';
 import { useSettingsTab } from '../../../components/tabs/use-settings-tab';
 import { SectionHeader } from '../../../components/page/SectionHeader';
-import { plural } from '../../../lib/text';
+import { countOf } from '../../../lib/text';
 import { ActionButton } from '../../../components/actions/ActionButton';
 import { EmptyState } from '../../../components/feedback/EmptyState';
 import { Stack, Text } from '@mantine/core';
@@ -12,7 +12,7 @@ import { ProjectBillingPanel } from '../../accounting/components/ProjectBillingP
 import { PageSettings } from '../../../app/layout/PageSettings';
 import { SettingsTabPanel, SettingsTabs } from '../../../components/tabs/SettingsTabs';
 import { ClientForm } from '../components/ClientForm';
-import { useWorkspace } from '../api';
+import { useProjectTree } from '../api';
 import { useEntityActions } from '../hooks/use-entity-actions';
 import { EntityHeader } from '../components/EntityHeader';
 import { EntitySkeleton } from '../components/EntityState';
@@ -30,7 +30,7 @@ const SETTINGS_TABS = ['billing', 'client'] as const;
  */
 export function ClientPage() {
   const { id } = useParams();
-  const { data, isPending } = useWorkspace();
+  const { data, isPending } = useProjectTree();
   const actions = useEntityActions();
   const [settingsTab, setSettingsTab] = useSettingsTab(SETTINGS_TABS);
 
@@ -48,7 +48,7 @@ export function ClientPage() {
         entity={{ type: 'client', item: client }}
         subtitle={
           <Text size="sm" c="dimmed">
-            {projects.length} {plural(projects.length, 'projet')}
+            {countOf(projects.length, 'projet')}
           </Text>
         }
         extraActions={

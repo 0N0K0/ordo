@@ -3,8 +3,8 @@ import { z } from 'zod';
 import { prisma } from '../../db';
 import type { Prisma } from '../../generated/prisma/client';
 import { parseInput, rethrowUnique } from '../../graphql/errors';
-import { assertNotArchived } from './archive';
-import { assertExists, deleteOrNotFound } from './lookup';
+import { assertActive } from './archive';
+import { deleteOrNotFound } from './lookup';
 import { modelDelegate } from './delegate';
 import { nextPositionIn } from './ordering';
 import type { SETTINGS_LISTS } from './settings-lists';
@@ -23,7 +23,7 @@ export type LabelModel = (typeof SETTINGS_LISTS)[keyof typeof SETTINGS_LISTS];
 interface LabelDelegate<T> {
   create(args: { data: Record<string, unknown> }): Promise<T>;
   update(args: { where: { id: string }; data: Record<string, unknown> }): Promise<T>;
-  findUnique(args: { where: { id: string }; select: { id: true } }): Promise<unknown>;
+  findUnique(args: { where: { id: string }; select: { archivedAt: true } }): Promise<{ archivedAt: Date | null } | null>;
   findUniqueOrThrow(args: { where: { id: string } }): Promise<T>;
   deleteMany(args: { where: { id: string } }): Promise<{ count: number }>;
 }
@@ -87,8 +87,7 @@ export function createLabelService<T extends { id: string } = Label>(model: Labe
      * @returns {Promise<T>} Updated item.
      */
     async update(id: string, input: object): Promise<T> {
-      await assertExists(delegate(), id, messages.notFound);
-      await assertNotArchived(model, id);
+      await assertActive(delegate(), id, messages.notFound);
       // null means "unchanged" for these required fields.
       const changes = Object.fromEntries(Object.entries(input).map(([key, value]) => [key, value ?? undefined]));
       const data = parseInput(patchSchema, changes);

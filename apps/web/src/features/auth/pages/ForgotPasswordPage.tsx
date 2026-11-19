@@ -4,7 +4,7 @@ import { Anchor, Stack, TextInput } from '@mantine/core';
 import { forgotPasswordFormSchema, type ForgotPasswordFormValues } from '@ordo/shared';
 import { Link } from 'react-router';
 
-import { showFormError, useAppForm } from '../../../lib/form';
+import { formCallbacks, useAppForm } from '../../../lib/form';
 import { useRequestPasswordReset } from '../api';
 import { AuthHeader } from './AuthLayout';
 import { AUTH_PATHS } from '../../../app/pages';
@@ -22,7 +22,7 @@ export function ForgotPasswordPage() {
   });
 
   const handleSubmit = form.onSubmit((values) => {
-    requestReset.mutate(values, { onError: (error) => showFormError(form, error) });
+    requestReset.mutate(values, formCallbacks(form, null));
   });
 
   return (

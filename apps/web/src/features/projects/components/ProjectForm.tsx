@@ -6,7 +6,7 @@ import { projectFormSchema, type ProjectFormValues, subtreeOf } from '@ordo/shar
 import { useState } from 'react';
 import { useAppForm, formCallbacks } from '../../../lib/form';
 import { MAX_PROJECT_DEPTH } from '@ordo/shared';
-import { useCreateProject, useUpdateProject, useWorkspace, type Project } from '../api';
+import { useCreateProject, useUpdateProject, useProjectTree, type Project } from '../api';
 import { IconField, type IconValue } from '../../../components/inputs/IconField';
 import { CategoriesInput, StatusInput } from './labels';
 import { ClientSelect } from './ClientSelect';
@@ -35,7 +35,7 @@ interface ProjectFormProps {
  * @returns {JSX.Element} Form.
  */
 export function ProjectForm({ project, defaults, onDone }: ProjectFormProps) {
-  const { data: workspace } = useWorkspace();
+  const { data: workspace } = useProjectTree();
   // No clients in a personal workspace.
   const { perso } = useActiveWorkspace();
   const createProject = useCreateProject();

@@ -424,6 +424,7 @@ export function useDocumentMutations() {
     remove: useMutation<boolean, Error, string>({
       mutationFn: async (id) => (await execute(DeleteDocument, { id })).deleteAccountingDocument,
       // The deleted document is not fetched again: its page would show « introuvable » before leaving.
+      // eslint-disable-next-line no-restricted-syntax -- a refresh leaving the deleted document out.
       onSettled: (_result, _error, id) => queryClient.invalidateQueries({ queryKey: accountingQueryKey, predicate: (query) => !(query.queryKey[1] === 'document' && query.queryKey[2] === id) }),
     }),
     finalize: useAccountingMutation(async (id: string) => (await execute(FinalizeDocument, { id })).finalizeAccountingDocument),

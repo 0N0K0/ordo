@@ -44,8 +44,7 @@ export interface RoutineEnv {
   doable: (routine: Routine) => boolean;
   /** Comments by routine (its description counts as one more). Optional. */
   comments?: Map<string, number>;
-  /** Kinds of slots, to filter on. Optional. */
-  /** Calendar schedules (the « Plages » filter). */
+  /** Calendar schedules (the « Plages » filter), to filter on. Optional. */
   slotKinds?: { value: string; label: string }[];
   /** People routines can be for, to filter on. Optional. */
   beneficiaries?: { value: string; label: string }[];

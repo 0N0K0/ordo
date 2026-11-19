@@ -1,15 +1,15 @@
 import { InlineActions } from '../../../components/actions/ActionsMenu';
 import { confirmDestructive } from '../../../components/dialogs/confirm-destructive';
-import { Anchor, Badge, Group, Paper, Stack, Switch, Text } from '@mantine/core';
+import { StateSwitch } from '../../../components/inputs/StateSwitch';
+import { Anchor, Badge, Group, Paper, Stack, Text } from '@mantine/core';
 import { CopyIcon, PencilSimpleIcon, TrashIcon } from '@phosphor-icons/react';
 import { Link } from 'react-router';
 import { ON_ERROR } from '../../../lib/notify';
 import type { TaskContext } from '../../tasks/hooks/use-task-context';
-import { describeAlarm, nextRing } from '../lib/alarm-labels';
+import { alarmTarget, describeAlarm, nextRing } from '../lib/alarm-labels';
 import { useAlarmMutations, type Alarm } from '../api';
 import type { AlarmFormOpener } from '../hooks/use-alarm-form';
 import * as fmt from '../../../lib/format';
-import { projectPath, taskPath } from '../../../app/pages';
 
 /**
  * Alarm fields to send back unchanged, with some changes.
@@ -61,8 +61,13 @@ export function AlarmList({ alarms, context, openForm, showTarget = true }: Alar
     <Stack gap="sm">
       {alarms.map((alarm) => {
         const next = nextRing(alarm, now);
-        const task = showTarget && alarm.taskId ? context.taskById.get(alarm.taskId) : undefined;
-        const project = showTarget && alarm.projectId ? context.projectById.get(alarm.projectId) : undefined;
+        const target = showTarget
+          ? alarmTarget(
+              alarm,
+              (id) => context.taskById.get(id),
+              (id) => context.projectById.get(id),
+            )
+          : null;
         return (
           <Paper key={alarm.id} withBorder radius="md" p="md" style={{ opacity: alarm.enabled ? undefined : 'var(--onoko-muted-opacity)' }}>
             <Group justify="space-between" wrap="nowrap" align="flex-start">
@@ -81,9 +86,9 @@ export function AlarmList({ alarms, context, openForm, showTarget = true }: Alar
                     Prochaine : {fmt.dateTimeShort(next)}
                   </Text>
                 )}
-                {(task ?? project) && (
-                  <Anchor component={Link} to={task ? taskPath(task) : projectPath(project!.id)} size="xs">
-                    {task ? context.taskLabel(task) : project!.label}
+                {target && (
+                  <Anchor component={Link} to={target.to} size="xs">
+                    {target.label}
                   </Anchor>
                 )}
                 {alarm.note && (
@@ -93,10 +98,10 @@ export function AlarmList({ alarms, context, openForm, showTarget = true }: Alar
                 )}
               </Stack>
               <Group gap="xs" wrap="nowrap">
-                <Switch
-                  aria-label={alarm.enabled ? `Désactiver ${alarm.label}` : `Activer ${alarm.label}`}
+                <StateSwitch
+                  label={alarm.enabled ? `Désactiver « ${alarm.label} »` : `Activer « ${alarm.label} »`}
                   checked={alarm.enabled}
-                  onChange={(event) => update.mutate({ id: alarm.id, input: toAlarmInput(alarm, { enabled: event.currentTarget.checked }) }, ON_ERROR)}
+                  onChange={(enabled) => update.mutate({ id: alarm.id, input: toAlarmInput(alarm, { enabled }) }, ON_ERROR)}
                 />
                 <InlineActions
                   name={alarm.label}

@@ -1,4 +1,5 @@
 import { PAGES, routineHistoryPath } from '../../../app/pages';
+import { readOnlyCells } from '../../../components/data-table/table/data-table';
 import { usePageTab } from '../../../components/tabs/use-page-tab';
 import { scheduleChoices } from '../../calendar/lib/schedule-choices';
 import { useSetParams, useSearchParam } from '../../../lib/search-params';
@@ -26,14 +27,13 @@ import { useSlotRules, routineDoable } from '../../calendar/hooks/use-slot-rules
 import { RoutineHistory } from '../components/RoutineHistory';
 import { RoutineSettings } from '../components/RoutineSettings';
 import { useCommentCounts } from '../../comments/api';
-import { commentTotal } from '../../comments/lib/comment-column';
 import { useBeneficiaries } from '../../beneficiaries/hooks/use-beneficiaries';
 import { useRunningTimer } from '../../time/api';
 import { routineColumns } from '../lib/routine-columns';
 import { routinesLabel } from '../lib/routine-cell-edit';
 import { AddRoutineRow, ChronoCell, StateCell } from '../components/routine-table-cells';
 import { RoutineDoneToggles } from '../components/DoneToggle';
-import { AssigneesCell, CategoriesCell, EstimateCell, ProjectCell, RepetitionCell, RepetitionText, RequiresCell, RoutineBeneficiariesCell, TitleCell } from '../components/routine-cells';
+import { AssigneesCell, CategoriesCell, EstimateCell, ProjectCell, RepetitionCell, RepetitionText, RequiresCell, RoutineBeneficiariesCell, RoutineLabelCell } from '../components/routine-cells';
 import { BlocksCell, LocationCell, OpensOnCell, ParentRoutineCell, RemindersCell, SubRoutinesCell, TimeOfDayCell, TravelCell } from '../components/extra-cells';
 import { isDone, movableOccurrence, waitingFor } from '../lib/routine-format';
 import { usePostponeRoutine } from '../hooks/use-routine-move';
@@ -170,12 +170,12 @@ export function RoutinesPanel({ projectId, projectIds }: { projectId?: string; p
     // Being created: nothing to change on it until it is saved (the server does not know it yet).
     const readOnly = routine.archived || isDraftRoutine(routine);
     return {
-      ...Object.fromEntries(columns.filter((column) => column.text).map((column) => [column.id, column.text!(routine)])),
+      ...readOnlyCells(columns, routine),
       label: (
         <Group gap={4} wrap="nowrap">
           <RoutineDoneToggles routine={routine} dateLabel={routine.currentDate ? fmt.weekday(routine.currentDate) : undefined} disabled={readOnly} />
           <Stack gap={0} style={{ flex: 1, minWidth: 0 }}>
-            <TitleCell routine={routine} readOnly={readOnly} />
+            <RoutineLabelCell routine={routine} readOnly={readOnly} />
             <RepetitionText routine={routine} />
           </Stack>
           {!done && <WaitingIcon waiting={waiting} />}
@@ -204,11 +204,6 @@ export function RoutinesPanel({ projectId, projectIds }: { projectId?: string; p
       categories: <CategoriesCell routine={routine} readOnly={readOnly} categories={categories} />,
       requires: <RequiresCell routine={routine} readOnly={readOnly} routines={routines} />,
       project: <ProjectCell routine={routine} readOnly={readOnly} context={context} />,
-      comments: (
-        <Text size="sm" c="dimmed" ta="right">
-          {commentTotal(comments.get(routine.id), routine.description) || ''}
-        </Text>
-      ),
       lastDoneAt: routine.lastDoneAt ? (
         <Text size="sm" className={classes.nowrap}>
           {fmt.dateTime(routine.lastDoneAt)}
@@ -294,7 +289,7 @@ export function RoutinesPage() {
 
   return (
     <Stack gap="lg">
-      <PageHeader title={PAGES.routines.title} />
+      <PageHeader title={PAGES.routines.label} />
       <RoutineSettings />
       <PageTabs value={tab} onChange={(value) => setTab(value, { routine: null })} keepMounted={false}>
         <PageTabs.List>

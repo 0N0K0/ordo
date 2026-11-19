@@ -1,4 +1,4 @@
-import { KeyboardSensor, PointerSensor, useSensor, useSensors } from '@dnd-kit/core';
+import { KeyboardSensor, PointerSensor, pointerWithin, useSensor, useSensors, type CollisionDetection } from '@dnd-kit/core';
 import { sortableKeyboardCoordinates } from '@dnd-kit/sortable';
 
 /**
@@ -31,3 +31,17 @@ export function useDragSensors(keyboard: 'sortable' | 'plain' | false = false) {
   const withKeys = useSensors(pointer, keys);
   return keyboard ? withKeys : pointerOnly;
 }
+
+/**
+ * Where a dragged element goes when targets are nested (a folder in its account, a row in its group): the smallest
+ * target under the pointer.
+ * @param {Parameters<CollisionDetection>[0]} args Collision arguments.
+ * @returns {ReturnType<CollisionDetection>} Collisions, the innermost first.
+ */
+export const innermostCollision: CollisionDetection = (args) => {
+  const area = (id: string | number) => {
+    const rect = args.droppableRects.get(id);
+    return rect ? rect.width * rect.height : Number.POSITIVE_INFINITY;
+  };
+  return [...pointerWithin(args)].sort((a, b) => area(a.id) - area(b.id));
+};

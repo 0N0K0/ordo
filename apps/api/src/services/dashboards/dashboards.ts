@@ -1,30 +1,19 @@
 import { chartConfigSchema, chartLabelSchema, copyName, dashboardLabelSchema, CHART_LABEL_MAX } from '@ordo/shared';
 import { prisma } from '../../db';
-import type { Dashboard, DashboardChart, Prisma } from '../../generated/prisma/client';
-import { orNotFound, parseInput } from '../../graphql/errors';
+import type { Dashboard, DashboardChart } from '../../generated/prisma/client';
+import { parseInput } from '../../graphql/errors';
 import { BY_POSITION, moveInList, nextPositionIn } from '../core/ordering';
-import { assertExists } from '../core/lookup';
-import { assertNotArchived } from '../core/archive';
-
-/**
- * Loads a dashboard or throws NOT_FOUND.
- * @param {string} id Dashboard id.
- * @returns {Promise<Dashboard>} Dashboard.
- */
-async function findDashboard(id: string): Promise<Dashboard> {
-  const dashboard = await orNotFound(prisma.dashboard.findUnique({ where: { id } }), 'Tableau de bord');
-  return dashboard;
-}
+import { findOrNotFound, deleteOrNotFound } from '../core/lookup';
+import { assertActive, assertNotArchived, findActive } from '../core/archive';
+import { toJson } from '../core/json';
 
 /**
  * Loads a dashboard that can be changed (not archived) or throws.
  * @param {string} id Dashboard id.
  * @returns {Promise<Dashboard>} Dashboard.
  */
-async function findWritableDashboard(id: string): Promise<Dashboard> {
-  const dashboard = await findDashboard(id);
-  await assertNotArchived('dashboard', id);
-  return dashboard;
+function findWritableDashboard(id: string): Promise<Dashboard> {
+  return findActive(prisma.dashboard, id, 'Tableau de bord');
 }
 
 /**
@@ -43,9 +32,8 @@ async function findWritableChart(id: string): Promise<DashboardChart> {
  * @param {string} id Chart id.
  * @returns {Promise<DashboardChart>} Chart.
  */
-async function findChart(id: string): Promise<DashboardChart> {
-  const chart = await orNotFound(prisma.dashboardChart.findUnique({ where: { id } }), 'Diagramme');
-  return chart;
+function findChart(id: string): Promise<DashboardChart> {
+  return findOrNotFound(prisma.dashboardChart, id, 'Diagramme');
 }
 
 /**
@@ -55,7 +43,7 @@ async function findChart(id: string): Promise<DashboardChart> {
  * @returns {Promise<Dashboard>} Dashboard.
  */
 export async function createDashboard(label: string, projectId: string | null): Promise<Dashboard> {
-  await assertExists(prisma.project, projectId, 'Projet');
+  await assertActive(prisma.project, projectId, 'Projet');
   const position = await nextPositionIn('dashboard', { projectId });
   return prisma.dashboard.create({ data: { label: parseInput(dashboardLabelSchema, label), projectId, position } });
 }
@@ -77,8 +65,7 @@ export async function renameDashboard(id: string, label: string): Promise<Dashbo
  * @returns {Promise<void>}
  */
 export async function deleteDashboard(id: string): Promise<void> {
-  await findDashboard(id);
-  await prisma.dashboard.delete({ where: { id } });
+  await deleteOrNotFound(prisma.dashboard, id, 'Tableau de bord');
 }
 
 /**
@@ -105,7 +92,7 @@ export interface ChartInput {
  * @returns {object} Prisma data.
  */
 function chartData(input: ChartInput) {
-  return { label: parseInput(chartLabelSchema, input.label), config: parseInput(chartConfigSchema, input.config) as unknown as Prisma.InputJsonValue, wide: input.wide };
+  return { label: parseInput(chartLabelSchema, input.label), config: toJson(parseInput(chartConfigSchema, input.config)), wide: input.wide };
 }
 
 /**
@@ -177,7 +164,7 @@ export async function transferChart(id: string, target: { dashboardId: string | 
   let dashboard: Dashboard | null;
   if (target.dashboardId) dashboard = await findWritableDashboard(target.dashboardId);
   else {
-    await assertExists(prisma.project, target.projectId, 'Projet');
+    await assertActive(prisma.project, target.projectId, 'Projet');
     // An archived dashboard takes no chart.
     dashboard = (await prisma.dashboard.findFirst({ where: { projectId: target.projectId, archivedAt: null }, orderBy: BY_POSITION })) ?? (await createDashboard('Tableau de bord', target.projectId));
   }

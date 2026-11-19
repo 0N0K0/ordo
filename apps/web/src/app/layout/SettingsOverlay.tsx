@@ -23,7 +23,7 @@ export function SettingsOverlay({ opened, onClose }: { opened: boolean; onClose:
 
   return (
     <Transition mounted={opened} transition="fade" duration={150}>
-      {(styles) => <Overlay className={classes.overlay} style={styles} backgroundOpacity={0.35} color="#000" onClick={onClose} aria-hidden />}
+      {(styles) => <Overlay className={classes.overlay} style={styles} onClick={onClose} aria-hidden />}
     </Transition>
   );
 }

@@ -1,7 +1,7 @@
 import type { ImapFlow, ListResponse } from 'imapflow';
 import { z } from 'zod';
 import { prisma } from '../../db';
-import { assertNotArchived } from '../core/archive';
+import { assertActive, assertNotArchived } from '../core/archive';
 import type { MailLabel } from '../../generated/prisma/client';
 import { clientError, notFound, parseInput } from '../../graphql/errors';
 import { INBOX, isInbox, withImap, withMailbox } from './imap';
@@ -27,9 +27,8 @@ type MarkChange = { labelId: string; on: boolean } | { done: boolean };
  */
 export async function markMails(accountId: string, folder: string, uids: number[], change: MarkChange): Promise<void> {
   await assertNotArchived('MAIL_ACCOUNT', accountId);
-  if ('labelId' in change) await assertExists(prisma.mailLabel, change.labelId, 'Drapeau');
   // An archived label is not put on mails anymore (it can still be taken off).
-  if ('labelId' in change && change.on) await assertNotArchived('MAIL_LABEL', change.labelId);
+  if ('labelId' in change) await (change.on ? assertActive(prisma.mailLabel, change.labelId, 'Drapeau') : assertExists(prisma.mailLabel, change.labelId, 'Drapeau'));
   const fallback = await withImap(accountId, async (client) => {
     return withMailbox(client, folder, async () => {
       if (!takesKeywords(client)) return messageIdsOf(client, uids);

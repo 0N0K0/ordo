@@ -1,9 +1,9 @@
-import { IconAction } from '../../../components/actions/IconAction';
+import { StateSwitch } from '../../../components/inputs/StateSwitch';
 import { categoryOptions, categoryTree } from '../../../components/tree/category-tree';
 import { Select } from '@mantine/core';
 import { localToday } from '../../../lib/dates';
 import { ItemAvatar } from '../../../components/items/ItemAvatar';
-import { listSelectProps } from '../../../components/items/item-look';
+import { listSelectProps, itemSelectProps, chosenAvatar } from '../../../components/items/item-look';
 import { DatePickerInput } from '@mantine/dates';
 import { type ReactNode } from 'react';
 
@@ -55,7 +55,6 @@ interface StoreCellProps {
  * @returns {JSX.Element} Cell.
  */
 export function StoreCell({ value, stores, label, readOnly = false, onSave }: StoreCellProps) {
-  const current = stores.find((store) => store.id === value);
   return (
     <Select
       {...cellCombobox}
@@ -64,8 +63,7 @@ export function StoreCell({ value, stores, label, readOnly = false, onSave }: St
       readOnly={readOnly}
       clearable={!readOnly}
       searchable
-      {...listSelectProps(stores, undefined, value)}
-      leftSection={current ? <ItemAvatar name={current.label} iconUrl={current.iconUrl} color={current.color} /> : undefined}
+      {...itemSelectProps(stores, value)}
       nothingFoundMessage="Aucun magasin (ajoutez-en dans les paramètres)"
       value={value}
       onChange={(storeId) => storeId !== value && onSave(storeId)}
@@ -95,7 +93,7 @@ export function PeopleCell({ memberIds, relationIds, label, readOnly = false, on
       readOnly={readOnly}
       value={value}
       items={value.flatMap((key) => (people.byKey.has(key) ? [{ id: key, label: people.byKey.get(key)! }] : []))}
-      data={people.options}
+      data={people.optionsFor(relationIds)}
       onSave={(keys) => onSave(rowPeopleOf(keys))}
     />
   );
@@ -117,7 +115,6 @@ interface ConservationCellProps {
  */
 export function ConservationCell({ perishable, storageId, storages, label, readOnly = false, onSave }: ConservationCellProps) {
   const value = conservationKey({ perishable, storageId });
-  const current = perishable ? storages.find((storage) => storage.id === storageId) : undefined;
   const storageLook = listSelectProps(storages, undefined, storageId);
   return (
     <Select
@@ -131,7 +128,7 @@ export function ConservationCell({ perishable, storageId, storages, label, readO
         ...(storageLook.data.length ? [{ group: 'Périssable, à conserver', items: storageLook.data }] : []),
       ]}
       renderOption={storageLook.renderOption}
-      leftSection={current ? <ItemAvatar name={current.label} iconUrl={current.iconUrl} color={current.color} /> : undefined}
+      leftSection={perishable ? chosenAvatar(storages, storageId) : undefined}
       value={value}
       onChange={(next) => {
         if (!next || next === value) return;
@@ -252,15 +249,11 @@ interface ToggleCellProps {
 }
 
 /**
- * State of a row that a click switches (missing, bought): an icon button, coloured when on, grey when off, unlike the
- * check boxes selecting rows; part of the bulk selection of its column like any cell.
+ * State of a row that a click switches (missing, bought): a switch, coloured with its icon when on, unlike the check
+ * boxes selecting rows; part of the bulk selection of its column like any cell.
  * @param {ToggleCellProps} props Component props.
- * @returns {JSX.Element} Toggle.
+ * @returns {JSX.Element} Switch.
  */
 export function ToggleCell({ on, label, hint, icon, color, readOnly = false, onSave }: ToggleCellProps) {
-  return (
-    <IconAction label={label} hint={hint} variant={on ? 'filled' : 'subtle'} color={on ? color : 'gray'} radius="xl" aria-pressed={on} disabled={readOnly} onClick={() => onSave(!on)}>
-      {icon}
-    </IconAction>
-  );
+  return <StateSwitch label={label} hint={hint} checked={on} color={color} icon={icon} disabled={readOnly} onChange={onSave} />;
 }

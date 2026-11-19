@@ -1,3 +1,4 @@
+import { occurrenceKey, readOccurrenceKey } from '@ordo/shared';
 import type { EventOccurrence } from '../../calendar/api';
 
 /** Event a time was spent on, as the API takes it. */
@@ -7,21 +8,12 @@ interface TimeEvent {
 }
 
 /**
- * Key of an occurrence of an event (`eventId|occurrenceDate`, the date empty for a single event): the value of the
- * event picked for a time.
- * @param {string} eventId Event.
- * @param {string | null | undefined} occurrenceDate Day of the occurrence (recurring events). Optional.
- * @returns {string} Key.
- */
-export const eventOccurrenceKey = (eventId: string, occurrenceDate?: string | null): string => `${eventId}|${occurrenceDate ?? ''}`;
-
-/**
  * Key of the event a time was spent on, if any.
  * @param {{ calendarEventId: string | null, calendarOccurrenceDate: string | null }} entry Time.
  * @returns {string | null} Key.
  */
 export const entryEventKey = (entry: { calendarEventId?: string | null; calendarOccurrenceDate?: string | null }): string | null =>
-  entry.calendarEventId ? eventOccurrenceKey(entry.calendarEventId, entry.calendarOccurrenceDate || null) : null;
+  entry.calendarEventId ? occurrenceKey(entry.calendarEventId, entry.calendarOccurrenceDate || null) : null;
 
 /**
  * Event of a key (none without key).
@@ -30,8 +22,8 @@ export const entryEventKey = (entry: { calendarEventId?: string | null; calendar
  */
 export function parseEventKey(key: string | null): TimeEvent | null {
   if (!key) return null;
-  const [eventId, occurrenceDate] = key.split('|');
-  return { eventId, occurrenceDate: occurrenceDate || null };
+  const { id, date } = readOccurrenceKey(key);
+  return { eventId: id, occurrenceDate: date };
 }
 
 /**
@@ -45,7 +37,7 @@ export function dayEventOptions(events: readonly EventOccurrence[], day: string)
   return events
     .filter((occurrence) => !occurrence.allDay || occurrence.startDate <= day)
     .map((occurrence) => ({
-      value: eventOccurrenceKey(occurrence.eventId, occurrence.occurrenceDate),
+      value: occurrenceKey(occurrence.eventId, occurrence.occurrenceDate),
       label: `${occurrence.allDay ? 'Journée' : `${occurrence.startTime}–${occurrence.endTime}`} · ${occurrence.label}${occurrence.calledOff ? ' (annulé)' : ''}`,
     }));
 }

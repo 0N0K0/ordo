@@ -4,7 +4,6 @@ import {
   countOf,
   daySchema,
   endAfter,
-  fileName,
   formatDay,
   formatMoney,
   longDayText,
@@ -141,10 +140,13 @@ export async function treasuryStatementPdf(input: StatementInput): Promise<{ fil
   );
   const offset = sumOf(entries, (entry, index) => (amounts[index] > 0 ? amounts[index] - Math.round(remaining.get(entry.id) ?? amounts[index]) : 0));
 
-  const { doc, top, finish } = await startReport({ title: `Relevé du ${printedDay(from)} au ${printedDay(to)}` });
+  const several = accounts.length > 1;
+  const { doc, top, finish } = await startReport({
+    title: `Relevé du ${printedDay(from)} au ${printedDay(to)}`,
+    filename: `Relevé ${several ? 'trésorerie' : accounts[0].label} du ${from} au ${to}`,
+  });
 
   const pageWidth = doc.page.width - 2 * REPORT_MARGIN;
-  const several = accounts.length > 1;
   const fixed: Column[] = [
     { label: 'Exécution', width: 52, align: 'left' },
     { label: 'Valeur', width: 52, align: 'left' },
@@ -396,6 +398,5 @@ export async function treasuryStatementPdf(input: StatementInput): Promise<{ fil
   y += 4;
   band(`Total de la période · Débit ${money(outgoing)} · Crédit ${money(incoming)}`, `Solde au ${printedDay(to)} : ${money(closing)}`, COLORS.month);
 
-  const content = await finish();
-  return { filename: fileName(`Relevé ${several ? 'trésorerie' : accounts[0].label} du ${from} au ${to}`, 'pdf'), content };
+  return finish();
 }

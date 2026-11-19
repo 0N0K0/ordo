@@ -73,6 +73,7 @@ export function LinkBadge({ link, onUnlink, variant = 'light', size, children, w
     <Badge
       size={size}
       variant={variant}
+      // eslint-disable-next-line no-restricted-syntax -- a badge of a link, coloured as its sign.
       color={link.amount < 0 ? 'red' : 'green'}
       leftSection={<LinkIcon aria-hidden />}
       rightSection={onUnlink && <RemoveButton variant="field" size="xs" label="Délier" aria-label={`Délier ${describeLink(link)}`} onClick={onUnlink} />}

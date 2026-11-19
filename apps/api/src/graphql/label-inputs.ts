@@ -6,6 +6,7 @@ import type { LabelService } from '../services/core/labels';
 import { builder, type BuilderTypes } from './builder';
 import { done } from './errors';
 import { reloaded } from './reload';
+import { unchecked } from './unchecked';
 
 /** Label and color of an item of a simple list (a status, a category, a store…). */
 export const LabelColorInput = builder.inputType('LabelColorInput', {
@@ -39,7 +40,7 @@ export const ARCHIVED_DESCRIPTION = 'Archived: hidden by default, read only.';
  * @returns {void}
  */
 function modelObject<Model extends keyof PrismaTypes>(name: keyof PrismaTypes, description: string | undefined, fields: (t: ObjectFields<Model>) => object): void {
-  builder.prismaObject(name as Model, { ...(description === undefined ? {} : { description }), fields } as never);
+  builder.prismaObject(name as Model, unchecked({ ...(description === undefined ? {} : { description }), fields }));
 }
 
 /**
@@ -83,6 +84,10 @@ export function treeItemObject(name: TreeItemModel, options: { description?: str
   }));
 }
 
+/** Inputs of the mutations of a list of label and color items: all fields to create, the changed ones to update. */
+// eslint-disable-next-line no-restricted-syntax -- LABEL_COLOR_INPUTS itself.
+export const LABEL_COLOR_INPUTS = { create: LabelColorInput, update: LabelColorPatch };
+
 /** Input type of the create or update mutation of a simple list (`LabelColorInput`, `TaskLabelInput`, `ScheduleTypeInput`…). */
 type LabelInputRef = InputObjectRef<BuilderTypes, object>;
 
@@ -91,14 +96,14 @@ type LabelInputRef = InputObjectRef<BuilderTypes, object>;
  * `deleteTaskStatus`…), the saved item reloaded with the fields the query asks for.
  * @param {LabelModel} name Prisma model (and GraphQL type) name, also the suffix of the mutations.
  * @param {LabelService<{ id: string }>} service Label service of the model.
- * @param {{ create: LabelInputRef, update: LabelInputRef }} inputs Input types of the create and update mutations.
+ * @param {{ create: LabelInputRef, update: LabelInputRef }} [inputs] Input types of the create and update mutations. Optional. Default = `LABEL_COLOR_INPUTS`.
  * @param {Partial<Record<'create' | 'update' | 'delete', string>>} [descriptions] Descriptions of the mutations (what follows them). Optional.
  * @returns {void}
  */
 export function labelMutations(
   name: LabelModel,
   service: LabelService<{ id: string }>,
-  inputs: { create: LabelInputRef; update: LabelInputRef },
+  inputs: { create: LabelInputRef; update: LabelInputRef } = LABEL_COLOR_INPUTS,
   descriptions: Partial<Record<'create' | 'update' | 'delete', string>> = {},
 ): void {
   // Every LabelModel is an object of the schema, so typing the calls with one of them is enough.

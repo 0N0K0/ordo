@@ -18,15 +18,18 @@ import {
   type ScheduleTypeInput,
   type WorkScheduleInput,
   type WorkScheduleRule,
+  foreignSlotKind,
 } from '@ordo/shared';
 import { BY_POSITION } from '../core/ordering';
 import { createLabelService } from '../core/labels';
 import { assertExists, deleteOrNotFound } from '../core/lookup';
-import { assertNotArchived } from '../core/archive';
+import { assertActive, refuseArchived } from '../core/archive';
 import { prisma, unscopedPrisma } from '../../db';
-import { Prisma, type ScheduleType, type WorkSchedule } from '../../generated/prisma/client';
+import type { ScheduleType, WorkSchedule } from '../../generated/prisma/client';
 import { clientError, notFound, orNotFound, parseInput } from '../../graphql/errors';
 import { currentWorkspaceId } from '../../workspace-context';
+import { currentWorkspaceFields } from '../workspaces/current-workspace';
+import { toJson } from '../core/json';
 
 /**
  * Schedule as the shared functions read it: its cases and exceptions, or, saved before cases, its former slots
@@ -64,15 +67,14 @@ export function scheduleRule(schedule: WorkSchedule): WorkScheduleRule {
  */
 async function scheduleData(input: WorkScheduleInput, currentTypeId: string | null = null) {
   const schedule = parseInput(workScheduleSchema, input);
-  await assertExists(prisma.scheduleType, schedule.typeId, 'Type de plage');
-  await assertNotArchived('scheduleType', schedule.typeId, { keep: currentTypeId, field: 'typeId' });
+  await assertActive(prisma.scheduleType, schedule.typeId, 'Type de plage', { keep: currentTypeId, field: 'typeId' });
   return {
     typeId: schedule.typeId ?? null,
     label: schedule.label,
     startDate: parseDay(schedule.startDate),
     endDate: parseOptionalDay(schedule.endDate),
-    cases: schedule.cases as Prisma.InputJsonValue,
-    exceptions: [...schedule.exceptions].sort((a, b) => a.from.localeCompare(b.from)) as Prisma.InputJsonValue,
+    cases: toJson(schedule.cases),
+    exceptions: toJson([...schedule.exceptions].sort((a, b) => a.from.localeCompare(b.from))),
     intervalWeeks: 1,
     slots: [],
     pauses: [],
@@ -95,8 +97,8 @@ export async function createWorkSchedule(input: WorkScheduleInput): Promise<Work
  * @returns {Promise<WorkSchedule>} Schedule.
  */
 export async function updateWorkSchedule(id: string, input: WorkScheduleInput): Promise<WorkSchedule> {
-  const current = await orNotFound(prisma.workSchedule.findUnique({ where: { id }, select: { id: true, typeId: true } }), 'Plage de travail');
-  await assertNotArchived('workSchedule', id);
+  const current = await orNotFound(prisma.workSchedule.findUnique({ where: { id }, select: { id: true, typeId: true, archivedAt: true } }), 'Plage de travail');
+  refuseArchived(current);
   const data = await scheduleData(input, current.typeId);
   return prisma.workSchedule.update({ where: { id }, data });
 }
@@ -235,7 +237,7 @@ function defaultKindOf(workspace: {
  * @returns {Promise<DefaultScheduleKind>} Kind.
  */
 export async function defaultScheduleKind(): Promise<DefaultScheduleKind> {
-  const workspace = await orNotFound(unscopedPrisma.workspace.findUnique({ where: { id: currentWorkspaceId() }, select: defaultKindSelect }), 'Espace');
+  const workspace = await currentWorkspaceFields(defaultKindSelect);
   return defaultKindOf(workspace);
 }
 
@@ -280,7 +282,7 @@ export async function foreignScheduleKinds(): Promise<ForeignScheduleKind[]> {
   const subscriptions = await prisma.workScheduleSubscription.findMany({
     select: { sourceWorkspaceId: true, typeId: true, ...lookSelect },
   });
-  const subscribed = new Map(subscriptions.map((item) => [`${item.sourceWorkspaceId}|${item.typeId ?? ''}`, item]));
+  const subscribed = new Map(subscriptions.map((item) => [foreignSlotKind(item.sourceWorkspaceId, item.typeId), item]));
   const workspaces = await unscopedPrisma.workspace.findMany({
     where: { id: { not: currentWorkspaceId() } },
     orderBy: BY_POSITION,
@@ -313,9 +315,9 @@ export async function foreignScheduleKinds(): Promise<ForeignScheduleKind[]> {
               typeId: null,
               label: untyped.label,
               sourceColor: untyped.color,
-              ...lookOf(subscribed.get(`${workspace.id}|`), asKind(untyped)),
+              ...lookOf(subscribed.get(foreignSlotKind(workspace.id, null)), asKind(untyped)),
               scheduleCount: workspace.workSchedules.length,
-              subscribed: subscribed.has(`${workspace.id}|`),
+              subscribed: subscribed.has(foreignSlotKind(workspace.id, null)),
             },
           ]
         : []),
@@ -324,9 +326,9 @@ export async function foreignScheduleKinds(): Promise<ForeignScheduleKind[]> {
         typeId: type.id,
         label: type.label,
         sourceColor: type.color,
-        ...lookOf(subscribed.get(`${workspace.id}|${type.id}`), type),
+        ...lookOf(subscribed.get(foreignSlotKind(workspace.id, type.id)), type),
         scheduleCount: type._count.schedules,
-        subscribed: subscribed.has(`${workspace.id}|${type.id}`),
+        subscribed: subscribed.has(foreignSlotKind(workspace.id, type.id)),
       })),
     ];
   });
@@ -341,7 +343,7 @@ export async function subscribedSchedules(): Promise<ForeignSchedule[]> {
     select: { sourceWorkspaceId: true, typeId: true, ...lookSelect },
   });
   if (!subscriptions.length) return [];
-  const lookByKind = new Map(subscriptions.map((item) => [`${item.sourceWorkspaceId}|${item.typeId ?? ''}`, item]));
+  const lookByKind = new Map(subscriptions.map((item) => [foreignSlotKind(item.sourceWorkspaceId, item.typeId), item]));
   const schedules = await unscopedPrisma.workSchedule.findMany({
     where: {
       OR: subscriptions.map((item) => ({
@@ -364,7 +366,7 @@ export async function subscribedSchedules(): Promise<ForeignSchedule[]> {
   });
   return schedules.map((schedule) => {
     const untyped = defaultKindOf(schedule.workspace);
-    const { color, display } = lookOf(lookByKind.get(`${schedule.workspaceId}|${schedule.typeId ?? ''}`), schedule.type ?? asKind(untyped));
+    const { color, display } = lookOf(lookByKind.get(foreignSlotKind(schedule.workspaceId, schedule.typeId)), schedule.type ?? asKind(untyped));
     return {
       rule: scheduleRule(schedule),
       typeLabel: schedule.type?.label ?? untyped.label,

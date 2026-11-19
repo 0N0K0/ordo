@@ -2,7 +2,7 @@ import { modelDelegate } from './delegate';
 import { colorSchema } from '@ordo/shared';
 import { prisma } from '../../db';
 import type { Prisma } from '../../generated/prisma/client';
-import { fieldError } from '../../graphql/errors';
+import { fieldError, orNotFound } from '../../graphql/errors';
 import { deleteOrphanIcons, resolveIconUpdate } from './icons';
 
 /**
@@ -41,7 +41,7 @@ export type SettingsListKind = keyof typeof SETTINGS_LISTS;
 
 /** What the lists have in common, whatever their model (each delegate of Prisma has these). */
 interface ListDelegate {
-  findUniqueOrThrow(args: { where: { id: string }; select: { id: true; iconId: true } }): Promise<{ id: string; iconId: string | null }>;
+  findUnique(args: { where: { id: string }; select: { id: true; iconId: true } }): Promise<{ id: string; iconId: string | null } | null>;
   update(args: { where: { id: string }; data: Record<string, unknown> }): Prisma.PrismaPromise<unknown>;
 }
 
@@ -53,7 +53,8 @@ interface ListDelegate {
 const delegate = (kind: SettingsListKind) => modelDelegate<ListDelegate>(SETTINGS_LISTS[kind]);
 
 /**
- * Changes the look of an item of a settings list: its color and / or its image (replaced or removed).
+ * Changes the look of an item of a settings list: its color and / or its image (replaced or removed). NOT_FOUND
+ * « Élément introuvable. » when there is none (an archived one is refused by its mutation).
  * @param {SettingsListKind} kind List.
  * @param {string} id Item.
  * @param {object} input Look.
@@ -64,7 +65,7 @@ const delegate = (kind: SettingsListKind) => modelDelegate<ListDelegate>(SETTING
  */
 export async function setLook(kind: SettingsListKind, id: string, input: { color?: string | null; icon?: File | null; removeIcon?: boolean | null }): Promise<string | null> {
   const model = delegate(kind);
-  const item = await model.findUniqueOrThrow({ where: { id }, select: { id: true, iconId: true } });
+  const item = await orNotFound(model.findUnique({ where: { id }, select: { id: true, iconId: true } }), 'Élément');
   // The same rule as every color of the app (#rrggbb).
   let color = input.color;
   if (color) {

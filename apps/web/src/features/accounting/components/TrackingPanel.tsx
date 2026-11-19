@@ -4,8 +4,8 @@ import { SubSection } from '../../../components/page/SubSection';
 import { formCallbacks } from '../../../lib/form';
 import { openFormPanel } from '../../../components/panels/panels';
 import { EmptyState } from '../../../components/feedback/EmptyState';
-import { ItemAvatar } from '../../../components/items/ItemAvatar';
-import { listSelectProps } from '../../../components/items/item-look';
+
+import { itemSelectProps } from '../../../components/items/item-look';
 
 import { FileInput, Group, Select, Stack, Table, Text, TextInput } from '@mantine/core';
 import { DatePickerInput } from '@mantine/dates';
@@ -125,15 +125,10 @@ export function TrackingPanel({ document, onRemind, remindPending }: { document:
     <SettingsSection title="Suivi">
       <Select
         label="Statut"
-        {...listSelectProps(scoped, undefined, document.trackingStatus?.id)}
+        {...itemSelectProps(scoped, document.trackingStatus?.id)}
         value={document.trackingStatus?.id ?? null}
         allowDeselect={false}
         readOnly={locked}
-        leftSection={
-          document.trackingStatus ? (
-            <ItemAvatar name={document.trackingStatus.label} iconUrl={scoped.find((status) => status.id === document.trackingStatus?.id)?.iconUrl} color={document.trackingStatus.color} />
-          ) : undefined
-        }
         onChange={(statusId) => {
           if (!statusId) return;
           // A "sent" status asks when and how it was sent.

@@ -1,4 +1,4 @@
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useQuery } from '@tanstack/react-query';
 import { useInvalidatingMutation } from '../../../lib/mutation';
 import type { TreasuryCategoryInput, TreasuryCounterpartyInput, TreasuryEntryInput, TreasuryPaymentMethodInput } from '@ordo/shared';
 import { graphql } from '../../../graphql';
@@ -15,7 +15,7 @@ import type {
 import { execute } from '../../../lib/graphql-client';
 import { accountingQueryKey } from '../../accounting/api';
 import { tasksQueryKey } from '../../tasks/api';
-import { workspaceQueryKey } from '../../projects/api';
+import { projectTreeQueryKey } from '../../projects/api';
 
 export type TreasuryAccount = TreasuryAccountsQuery['treasuryAccounts'][number];
 export type TreasuryEntry = TreasuryEntriesQuery['treasuryEntries'][number];
@@ -587,22 +587,10 @@ const DeleteContextPeriod = graphql(`
  * @returns {object} Mutations.
  */
 export function useTreasuryTeamMutations() {
-  const queryClient = useQueryClient();
-  const contributorsChanged = () =>
-    Promise.all([
-      queryClient.invalidateQueries({ queryKey: accountingQueryKey }),
-      queryClient.invalidateQueries({ queryKey: tasksQueryKey }),
-      queryClient.invalidateQueries({ queryKey: workspaceQueryKey }),
-    ]);
+  const contributorsChanged = { invalidate: [accountingQueryKey, tasksQueryKey, projectTreeQueryKey] };
   return {
-    addMember: useMutation({
-      mutationFn: async (variables: { contributorId?: string; name?: string }) => (await execute(AddMember, variables)).addTreasuryMember,
-      onSettled: contributorsChanged,
-    }),
-    removeMember: useMutation({
-      mutationFn: async (contributorId: string) => (await execute(RemoveMember, { contributorId })).removeTreasuryMember,
-      onSettled: contributorsChanged,
-    }),
+    addMember: useInvalidatingMutation(async (variables: { contributorId?: string; name?: string }) => (await execute(AddMember, variables)).addTreasuryMember, contributorsChanged),
+    removeMember: useInvalidatingMutation(async (contributorId: string) => (await execute(RemoveMember, { contributorId })).removeTreasuryMember, contributorsChanged),
     saveRelation: useTreasuryMutation(
       async (variables: { id: string | null; input: { name: string; note: string | null; contributorId: string | null } }) => (await execute(SaveRelation, variables)).saveTreasuryRelation,
     ),

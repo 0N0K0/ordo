@@ -1,10 +1,9 @@
 import { PERIOD_STATES, periodState, type PeriodState } from '../../../lib/periods';
-import { itemChoices } from '../../../components/items/item-look';
-import { plural, countOf, copyName } from '../../../lib/text';
+import { itemChoices, itemSelectProps, listSelectProps } from '../../../components/items/item-look';
+import { countOf, copyName } from '../../../lib/text';
 import { ActionButton } from '../../../components/actions/ActionButton';
 import { ItemAvatar } from '../../../components/items/ItemAvatar';
 import * as fmt from '../../../lib/format';
-import { listSelectProps } from '../../../components/items/item-look';
 import { EmptyState } from '../../../components/feedback/EmptyState';
 import { Badge, Group, Stack, Text, TextInput, Tooltip } from '@mantine/core';
 import {
@@ -24,7 +23,7 @@ import { bulkCellLabels, bulkSaver } from '../../../components/data-table/select
 import { EditableDate, EditableSelect, EditableText } from '../../../components/data-table/cells/EditableCells';
 import { useDataView } from '../../../components/data-table/views/use-data-view';
 import { RowActions } from '../../../components/data-table/cells/RowActions';
-import type { DataColumn } from '../../../components/data-table/table/data-table';
+import { type DataColumn, readOnlyCells } from '../../../components/data-table/table/data-table';
 import { localToday } from '../../../lib/dates';
 import { useAppForm, formCallbacks } from '../../../lib/form';
 import { notifyError, ON_ERROR } from '../../../lib/notify';
@@ -113,7 +112,7 @@ function ScheduleForm({ schedule, copyOf, onDone }: { schedule?: WorkSchedule; c
               clearable
               searchable
               onCreate={itemCreator('Nouveau type de plage', typeItems)}
-              {...listSelectProps(types ?? [], undefined, schedule?.typeId)}
+              {...itemSelectProps(types ?? [], form.values.typeId, undefined, schedule?.typeId)}
               {...form.getInputProps('typeId')}
             />
           </Group>
@@ -232,7 +231,7 @@ export function WorkSchedulesManager() {
       noun: 'plage',
       feminine: true,
       the: 'la plage',
-      name: ({ schedule }) => schedule.label,
+      label: ({ schedule }) => schedule.label,
       risks: (subject, one) =>
         `${subject} et ${one ? 'ses' : 'leurs'} exceptions seront supprimées définitivement${perso ? '' : ` : ${one ? 'elle ne comptera' : 'elles ne compteront'} plus dans le temps prévu`}. Les autres espaces abonnés ne ${one ? 'la' : 'les'} verront plus. Les évènements ne sont pas touchés.`,
       remove: ({ schedule }) => remove.mutateAsync(schedule.id),
@@ -247,9 +246,10 @@ export function WorkSchedulesManager() {
     (schedules ?? []).map((schedule) => schedule.id),
   );
   const columns: DataColumn<ScheduleRow>[] = [
-    { id: 'label', label: 'Libellé', size: 220, locked: true, bulk: true, sortValue: ({ schedule }) => schedule.label, text: ({ schedule }) => schedule.label },
+    { id: 'label', required: true, label: 'Libellé', size: 220, locked: true, bulk: true, sortValue: ({ schedule }) => schedule.label, text: ({ schedule }) => schedule.label },
     {
       id: 'type',
+      required: true,
       bulk: true,
       label: 'Type',
       size: 160,
@@ -264,6 +264,7 @@ export function WorkSchedulesManager() {
     },
     {
       id: 'start',
+      required: true,
       bulk: true,
       label: 'Début',
       size: 120,
@@ -291,6 +292,7 @@ export function WorkSchedulesManager() {
     },
     {
       id: 'state',
+      required: true,
       label: 'État',
       size: 110,
       sortValue: ({ state: rowState }) => STATE_ORDER[rowState],
@@ -358,6 +360,7 @@ export function WorkSchedulesManager() {
             // Archived: read only.
             if (schedule.archived) {
               return {
+                ...readOnlyCells(columns, row),
                 label: (
                   <Group gap="xs" wrap="nowrap">
                     <Text size="sm" fw={600}>
@@ -372,8 +375,6 @@ export function WorkSchedulesManager() {
                     <Text size="sm">{typeLabel}</Text>
                   </Group>
                 ),
-                start: <Text size="sm">{fmt.day(schedule.startDate)}</Text>,
-                end: <Text size="sm">{schedule.endDate ? fmt.day(schedule.endDate) : 'Sans fin'}</Text>,
                 hours: <ScheduleHours schedule={schedule} />,
                 state: (
                   <Badge size="sm" variant="light" color={STATE_COLORS[rowState]}>
@@ -430,7 +431,7 @@ export function WorkSchedulesManager() {
                         ))}
                       >
                         <Text size="xs" c="dimmed" style={{ cursor: 'help' }} tabIndex={0}>
-                          {exceptions.length} {plural(exceptions.length, 'exception')}
+                          {countOf(exceptions.length, 'exception')}
                         </Text>
                       </Tooltip>
                     )}

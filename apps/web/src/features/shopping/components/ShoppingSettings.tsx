@@ -33,7 +33,7 @@ export function ShoppingSettings() {
           title="Magasins"
           description={perso ? 'Où vous achetez les produits.' : 'Magasins et fournisseurs des produits.'}
           noun="le magasin"
-          usageNoun="produits"
+          usageNoun={{ one: 'du produit', many: 'produits' }}
           items={data?.shoppingStores ?? []}
           usage={countBy(rows, (row) => row.storeId)}
         />
@@ -42,7 +42,8 @@ export function ShoppingSettings() {
           title="Unités"
           description="Unités de quantité des produits (kg, boîte, bouteille…). Renommer une unité la renomme dans les produits et les listes."
           noun="l’unité"
-          usageNoun="produits"
+          feminine
+          usageNoun={{ one: 'du produit', many: 'produits' }}
           items={data?.shoppingUnits ?? []}
           usage={new Map((data?.shoppingUnits ?? []).map((unit) => [unit.id, rows.filter((row) => row.unit === unit.label).length]))}
         />
@@ -51,7 +52,7 @@ export function ShoppingSettings() {
           title="Modes de conservation"
           description="Comment se conservent les produits périssables : frais, congélation, à l’abri de la lumière…"
           noun="le mode de conservation"
-          usageNoun="produits"
+          usageNoun={{ one: 'du produit', many: 'produits' }}
           items={data?.shoppingStorages ?? []}
           usage={countBy(rows, (row) => row.storageId)}
         />

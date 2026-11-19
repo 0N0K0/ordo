@@ -27,7 +27,7 @@ import { DataTable } from '../../../components/data-table/table/DataTable';
 import { EditableDate, EditableText } from '../../../components/data-table/cells/EditableCells';
 import { useDataView } from '../../../components/data-table/views/use-data-view';
 import { RowActions } from '../../../components/data-table/cells/RowActions';
-import type { DataColumn } from '../../../components/data-table/table/data-table';
+import { readOnlyCells, type DataColumn } from '../../../components/data-table/table/data-table';
 import { localToday } from '../../../lib/dates';
 
 import {
@@ -62,17 +62,13 @@ import { archiveItemsAction, rowMenuEntry } from '../../../components/data-table
 import { selectedLabel } from '../../../components/data-table/selection/selection-label';
 import { AmountInput } from '../../../components/inputs/AmountInput';
 import { FormActions } from '../../../components/dialogs/FormActions';
-import { SignedAmountCell } from '../../../components/money/SignedAmount';
+import { SignedAmount, SignedAmountCell } from '../../../components/money/SignedAmount';
 import { monthColumn } from '../../../components/data-table/table/month-column';
 import { useDeleteEntries } from '../hooks/use-delete-entries';
+import { LATE_COLOR } from '../../../components/feedback/feedback-colors';
+import { signedText } from '../../../components/money/signed-text';
 
-/**
- * Amount in euros, from currency units.
- * @param {number} amount Amount.
- * @returns {string} Amount.
- */
-
-const KIND_LABELS: Record<string, { label: string; color: string }> = {
+const FORECAST_KINDS: Record<string, { label: string; color: string }> = {
   FORECAST: { label: 'Prévision', color: 'grape' },
   ACTUAL: { label: 'À venir', color: 'gray' },
   INVOICE: { label: 'Facture', color: 'blue' },
@@ -100,19 +96,25 @@ function forecastColumns(entryOf: (row: ForecastRow) => ForecastEntry | undefine
       id: 'date',
       label: 'Date d’exécution',
       size: 140,
+      required: true,
       bulk: true,
       sortValue: ({ item }) => item.date,
       text: ({ item }) => fmt.day(item.date),
       filter: { kind: 'date', value: ({ item }) => item.date },
     },
-    { id: 'label', label: 'Libellé', size: 320, locked: true, bulk: true, sortValue: ({ item }) => item.label, text: ({ item }) => item.label },
+    { id: 'label', label: 'Libellé', size: 320, locked: true, required: true, bulk: true, sortValue: ({ item }) => item.label, text: ({ item }) => item.label },
     {
       id: 'origin',
       label: 'Origine',
       size: 130,
-      sortValue: ({ item }) => (KIND_LABELS[item.kind] ?? KIND_LABELS.FORECAST).label,
-      text: ({ item }) => (KIND_LABELS[item.kind] ?? KIND_LABELS.FORECAST).label,
-      filter: { kind: 'choice', value: ({ item }) => (item.kind in KIND_LABELS ? item.kind : 'FORECAST'), options: Object.entries(KIND_LABELS).map(([value, kind]) => ({ value, label: kind.label })) },
+      required: true,
+      sortValue: ({ item }) => (FORECAST_KINDS[item.kind] ?? FORECAST_KINDS.FORECAST).label,
+      text: ({ item }) => (FORECAST_KINDS[item.kind] ?? FORECAST_KINDS.FORECAST).label,
+      filter: {
+        kind: 'choice',
+        value: ({ item }) => (item.kind in FORECAST_KINDS ? item.kind : 'FORECAST'),
+        options: Object.entries(FORECAST_KINDS).map(([value, kind]) => ({ value, label: kind.label })),
+      },
       groupable: true,
     },
     {
@@ -129,12 +131,13 @@ function forecastColumns(entryOf: (row: ForecastRow) => ForecastEntry | undefine
     {
       id: 'amount',
       bulk: true,
+      required: true,
       label: 'Montant',
       size: 130,
       numeric: true,
       sortValue: ({ item }) => item.amount,
       formatTotal: fmt.money,
-      text: ({ item }) => `${item.amount > 0 ? '+' : ''}${fmt.money(item.amount)}`,
+      text: ({ item }) => signedText(item.amount),
       filter: { kind: 'number', value: ({ item }) => item.amount },
     },
   ];
@@ -185,7 +188,7 @@ type Dialog = { kind: 'entry'; entry?: TreasuryEntry | ForecastEntry; status?: '
 const TREASURY_TABS = ['forecast', 'entries', 'budgets', 'loans'] as const;
 
 /** Former tabs of the page: the settings and the accounts, in the settings sidebar. */
-const MOVED_TABS = { settings: { changes: { [SETTINGS_PARAM]: '1' }, only: true }, accounts: { changes: { [SETTINGS_PARAM]: '1' }, only: true } };
+const TREASURY_MOVED_TABS = { settings: { changes: { [SETTINGS_PARAM]: '1' }, only: true }, accounts: { changes: { [SETTINGS_PARAM]: '1' }, only: true } };
 
 /**
  * Treasury: balance of the accounts, balance curve (actual, then forecast) over a month, a quarter or a
@@ -197,7 +200,7 @@ export function TreasuryPage() {
   const today = localToday();
   const [settingsParam] = useSearchParam(SETTINGS_PARAM);
   // The old settings and accounts tabs: in the settings sidebar.
-  const [tab, setTab] = usePageTab(TREASURY_TABS, TREASURY_TABS[0], MOVED_TABS);
+  const [tab, setTab] = usePageTab(TREASURY_TABS, TREASURY_TABS[0], TREASURY_MOVED_TABS);
   // Period of the chart: a month, quarter or calendar year, moved with arrows.
   const [scale, setScale] = useState<CalendarScale>('month');
   const [periodFirst, setPeriodFirst] = useState(() => calendarStart('month', today));
@@ -296,7 +299,7 @@ export function TreasuryPage() {
 
   const header = (
     <PageHeader
-      title={PAGES.treasury.title}
+      title={PAGES.treasury.label}
       actions={
         !accounts?.length ? (
           <ActionButton icon={<PlusIcon aria-hidden />} onClick={() => openFormPanel('Nouveau compte', (close) => <AccountItemForm onDone={() => close()} />)}>
@@ -353,7 +356,7 @@ export function TreasuryPage() {
           label="En retard"
           value={sumOf(late, (item) => item.amount)}
           hint={`${countOf(late.length, 'échéance')} ${plural(late.length, 'dépassée')}`}
-          color={late.length ? 'red' : undefined}
+          color={late.length ? LATE_COLOR : undefined}
         />
         <AmountTile
           label={`${end?.forecast === false ? 'Solde au' : 'Solde prévu au'} ${end ? fmt.day(end.date) : '—'}`}
@@ -374,6 +377,7 @@ export function TreasuryPage() {
             >
               <Popover opened={picking} onChange={setPicking} position="bottom" shadow="md" withArrow>
                 <Popover.Target>
+                  {/* eslint-disable-next-line no-restricted-syntax -- a period picker showing its value (no icon), small and discreet like a field. */}
                   <Button size="xs" variant="subtle" color="gray" miw={150} onClick={() => setPicking((open) => !open)} aria-label={`Choisir la période (${periodName(scale, periodFirst)})`}>
                     {periodName(scale, periodFirst)}
                   </Button>
@@ -495,12 +499,12 @@ export function TreasuryPage() {
             }}
             cells={(row) => {
               const { item } = row;
-              const kind = KIND_LABELS[item.kind] ?? KIND_LABELS.FORECAST;
+              const kind = FORECAST_KINDS[item.kind] ?? FORECAST_KINDS.FORECAST;
               const entry = forecastOf(row);
               if (entry?.archived) {
                 // Read only: the texts of the columns.
                 return {
-                  ...Object.fromEntries(columns.map((column) => [column.id, column.text?.(row)])),
+                  ...readOnlyCells(columns, row),
                   label: (
                     <Group gap={4} wrap="nowrap">
                       <Text size="sm" truncate>
@@ -526,7 +530,7 @@ export function TreasuryPage() {
                       <Text size="sm">{fmt.day(item.date)}</Text>
                     )}
                     {item.overdue && (
-                      <Badge size="xs" color="red" variant="light">
+                      <Badge size="xs" color={LATE_COLOR} variant="light">
                         Prévu le {fmt.day(item.dueDate)}
                       </Badge>
                     )}
@@ -572,10 +576,7 @@ export function TreasuryPage() {
                 amount: entry ? (
                   <SignedAmountCell value={entry.amount} label={forecastLabel('amount', row, 'Montant')} onSave={(change) => forecastSave(row)('amount')(entry, change)} />
                 ) : (
-                  <Text span inherit c={item.amount < 0 ? 'red' : 'green'}>
-                    {item.amount > 0 ? '+' : ''}
-                    {fmt.money(item.amount)}
-                  </Text>
+                  <SignedAmount value={item.amount} />
                 ),
               };
             }}

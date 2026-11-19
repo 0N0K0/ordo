@@ -1,3 +1,5 @@
+import { isTaskOverdue } from '../../tasks/lib/task-overdue';
+
 /** Dates of a task that place it in the calendar (YYYY-MM-DD). */
 interface TaskDates {
   startDate: string | null;
@@ -20,7 +22,7 @@ interface TaskSpan {
 
 /**
  * Where a task shows in the calendar: its span, its latest acceptable date on its own when apart from it, and
- * whether it is late (latest acceptable date past, no end, not closed).
+ * whether it is late (`isTaskOverdue`: latest acceptable date past, not closed).
  */
 interface TaskPlacement {
   span: TaskSpan | null;
@@ -34,8 +36,8 @@ interface TaskPlacement {
  * - start up to today without end: from the start to today (the task goes on), whatever its latest acceptable date;
  * - start after today without end: its start alone;
  * - end alone: that day;
- * - latest acceptable date: that day too, unless the span already ends on it; past without end (and the task not
- *   closed): late, shown today (carried by its span when it reaches today).
+ * - latest acceptable date: that day too, unless the span already ends on it; past (and the task not closed): late,
+ *   shown today (carried by its span when it reaches today).
  * @param {TaskDates & { closed?: boolean }} task Dates of the task, and whether it is closed.
  * @param {string} today Today (YYYY-MM-DD).
  * @returns {TaskPlacement} Span, latest acceptable date and lateness.
@@ -46,7 +48,7 @@ export function taskPlacement({ startDate, endDate, deadline, closed = false }: 
   else if (startDate && startDate < today) span = { start: startDate, end: today, kind: 'open' };
   else if (startDate) span = { start: startDate, end: startDate, kind: 'dates' };
   else if (endDate) span = { start: endDate, end: endDate, kind: 'dates' };
-  const overdue = Boolean(deadline && deadline < today && !endDate && !closed);
+  const overdue = isTaskOverdue({ deadline, closed }, today);
   if (overdue) {
     // Late: today, on its span when it reaches today, else on its own.
     const reachesToday = span !== null && span.start <= today && span.end >= today;

@@ -5,7 +5,7 @@ import { CREATE_VALUE, keepCreate, withCreate } from './creatable';
 
 interface CreatableSelectProps extends SelectProps {
   /** Creates a choice named as typed (a setting: category, store…), resolving its value. Optional: without, a plain select. */
-  onCreate?: (name: string) => Promise<string | null | undefined>;
+  onCreate?: (label: string) => Promise<string | null | undefined>;
 }
 
 /**
@@ -27,9 +27,9 @@ export function CreatableSelect({ onCreate, data, onChange, filter, searchable, 
       onSearchChange={setSearch}
       onChange={(value, option) => {
         if (value !== CREATE_VALUE) return onChange?.(value, option);
-        const name = search.trim();
-        onCreate(name)
-          .then((id) => id && onChange?.(id, { value: id, label: name }))
+        const label = search.trim();
+        onCreate(label)
+          .then((id) => id && onChange?.(id, { value: id, label }))
           .catch(onMutationError);
       }}
     />

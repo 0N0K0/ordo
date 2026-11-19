@@ -11,19 +11,21 @@ import {
   reaches,
   slotRuleSchema,
   type TaskInput as SharedTaskInput,
+  subtreeOf,
   taskLabelSchema,
 } from '@ordo/shared';
 import { z } from 'zod';
 import { deleteTreeNode } from '../core/trees';
 import { prisma } from '../../db';
+import { assertBeneficiaries } from '../core/beneficiaries';
 import { BY_POSITION, nextPositionIn } from '../core/ordering';
 import { Prisma, type Task, type TaskComment } from '../../generated/prisma/client';
 import { clientError, fieldError, notFound, orNotFound, parseInput } from '../../graphql/errors';
-import { assertProjectContributors, attachAssignees } from '../workspace/contributors';
+import { assertProjectContributors, attachAssignees } from '../projects/contributors';
 import { forgetGithubComment, forgetGithubItems } from '../github/links';
 import { forgetDeletedOccurrences } from './task-recurrence';
-import { assertAllExist, assertExists, deleteOrNotFound } from '../core/lookup';
-import { ARCHIVED_MESSAGE, assertNoneArchived, assertNotArchived, type ArchivableModel } from '../core/archive';
+import { assertAllExist, assertExists, deleteOrNotFound, findOrNotFound } from '../core/lookup';
+import { assertNoneArchived, type ArchivableModel, assertActive, refuseArchived, isArchivedAs, cascadeArchive, findActive } from '../core/archive';
 import { subtreeIds } from '../core/trees';
 import { assertDateRange } from '../core/date-range';
 import { connectIds } from '../core/relations';
@@ -44,18 +46,8 @@ async function loadRootOf(): Promise<(projectId: string | null) => string | null
  * @param {string} id Task id.
  * @returns {Promise<Task>} Task.
  */
-async function findTask(id: string): Promise<Task> {
-  const task = await orNotFound(prisma.task.findUnique({ where: { id } }), 'Tâche');
-  return task;
-}
-
-/**
- * Ids of every sub-task of a task.
- * @param {string} id Task id.
- * @returns {Promise<string[]>} Descendant ids.
- */
-function descendantIds(id: string): Promise<string[]> {
-  return subtreeIds('task', id, false);
+function findTask(id: string): Promise<Task> {
+  return findOrNotFound(prisma.task, id, 'Tâche');
 }
 
 /**
@@ -64,8 +56,7 @@ function descendantIds(id: string): Promise<string[]> {
  * @returns {Promise<void>}
  */
 async function assertProject(projectId: string): Promise<void> {
-  await orNotFound(prisma.project.findUnique({ where: { id: projectId }, select: { id: true } }), 'Projet', 'projectId');
-  await assertNotArchived('project', projectId, { field: 'projectId' });
+  await assertActive(prisma.project, projectId, 'Projet', { field: 'projectId', missingField: 'projectId' });
 }
 
 /**
@@ -76,27 +67,28 @@ async function assertProject(projectId: string): Promise<void> {
  * @returns {Promise<void>}
  */
 async function assertParent(parentId: string, projectId: string | null, childId: string | null): Promise<void> {
-  const parent = await orNotFound(prisma.task.findUnique({ where: { id: parentId }, select: { projectId: true } }), 'Tâche parente', 'parentId');
-  await assertNotArchived('task', parentId, { field: 'parentId' });
+  const parent = await orNotFound(prisma.task.findUnique({ where: { id: parentId }, select: { projectId: true, archivedAt: true } }), 'Tâche parente', 'parentId');
+  refuseArchived(parent, 'parentId');
   const rootOf = await loadRootOf();
   if (rootOf(parent.projectId) !== rootOf(projectId)) {
     throw fieldError('parentId', projectId ? 'La tâche parente doit appartenir au même projet ou à l’un de ses sous-projets.' : 'La tâche parente doit aussi être sans projet.');
   }
-  if (childId && (parentId === childId || (await descendantIds(childId)).includes(parentId))) {
+  if (childId && (parentId === childId || (await subtreeIds('task', childId, false)).includes(parentId))) {
     throw fieldError('parentId', 'Une tâche ne peut pas être placée sous l’une de ses sous-tâches.');
   }
 }
 
 /**
- * Checks that two tasks belong to the same project tree.
+ * Checks that two tasks can be linked: both active, in the same project tree.
  * @param {string} taskId First task.
  * @param {string} otherId Second task.
  * @returns {Promise<void>}
  */
 async function assertSameTree(taskId: string, otherId: string): Promise<void> {
   if (taskId === otherId) throw clientError('BAD_USER_INPUT', 'Une tâche ne peut pas être liée à elle-même.');
-  const tasks = await prisma.task.findMany({ where: { id: { in: [taskId, otherId] } }, select: { projectId: true } });
+  const tasks = await prisma.task.findMany({ where: { id: { in: [taskId, otherId] } }, select: { projectId: true, archivedAt: true } });
   if (tasks.length !== 2) throw notFound('Tâche');
+  tasks.forEach((task) => refuseArchived(task));
   const rootOf = await loadRootOf();
   if (rootOf(tasks[0].projectId) !== rootOf(tasks[1].projectId)) {
     throw clientError('BAD_USER_INPUT', 'Les deux tâches doivent appartenir au même projet ou à ses sous-projets (ou être toutes deux sans projet).');
@@ -128,7 +120,7 @@ async function assertSprints(sprintIds: string[], projectId: string | null): Pro
   if (sprintIds.length === 0) return;
   if (!projectId) throw fieldError('sprintIds', 'Une tâche sans projet n’est dans aucun sprint.');
   const sprints = await prisma.sprint.findMany({ where: { id: { in: sprintIds } }, select: { projectId: true } });
-  if (sprints.length !== new Set(sprintIds).size) throw fieldError('sprintIds', 'Sprint introuvable.');
+  if (sprints.length !== new Set(sprintIds).size) throw notFound('Sprint', 'sprintIds');
   const rootOf = await loadRootOf();
   if (sprints.some((sprint) => rootOf(sprint.projectId) !== rootOf(projectId))) {
     throw fieldError('sprintIds', 'Les sprints doivent appartenir au projet de la tâche ou à son arborescence.');
@@ -149,12 +141,12 @@ async function assertReferences(refs: {
   beneficiaryIds?: string[] | null;
   beneficiaryRelationIds?: string[] | null;
 }): Promise<void> {
-  await assertAllExist(prisma.contributor, refs.beneficiaryIds, 'Bénéficiaire', { field: 'beneficiaryIds' });
-  await assertAllExist(prisma.treasuryRelation, refs.beneficiaryRelationIds, 'Bénéficiaire', { field: 'beneficiaryIds' });
+  // Archived beneficiaries are refused with the other values (ACTIVE_REFS).
+  await assertBeneficiaries({ contributorIds: refs.beneficiaryIds, relationIds: refs.beneficiaryRelationIds }, { keep: 'all' });
   await assertExists(prisma.taskStatus, refs.statusId, 'Statut');
   await assertExists(prisma.taskPriority, refs.priorityId, 'Priorité');
   await assertExists(prisma.taskType, refs.typeId, 'Type');
-  await assertAllExist(prisma.contributor, refs.assigneeIds, 'Contributeur');
+  await assertAllExist(prisma.contributor, refs.assigneeIds, 'Assigné', { field: 'assigneeIds' });
   await assertAllExist(prisma.taskTag, refs.tagIds, 'Étiquette');
 }
 
@@ -291,8 +283,7 @@ export async function createTask(input: TaskInput & { label: string }): Promise<
  * @returns {Promise<Task>} Updated task.
  */
 export async function updateTask(id: string, input: TaskInput): Promise<Task> {
-  const task = await findTask(id);
-  if (task.archivedAt) throw clientError('BAD_USER_INPUT', ARCHIVED_MESSAGE);
+  const task = await findActive(prisma.task, id, 'Tâche');
   const details = parseDetails(input, task);
   await assertReferences(input);
   const links = await prisma.task.findUnique({
@@ -341,42 +332,13 @@ export async function updateTask(id: string, input: TaskInput): Promise<Task> {
  */
 export async function setTaskArchived(id: string, archived: boolean): Promise<Task> {
   const task = await findTask(id);
-  if ((task.archivedAt !== null) === archived) return task;
-  const descendants = await descendantIds(id);
-
-  if (archived) {
-    const now = new Date();
-    const [, updated] = await prisma.$transaction([
-      prisma.task.updateMany({
-        where: { id: { in: descendants }, archivedAt: null },
-        data: { archivedAt: now, archivedByCascade: true },
-      }),
-      prisma.task.update({ where: { id }, data: { archivedAt: now, archivedByCascade: false } }),
-    ]);
-    return updated;
-  }
-
-  const ancestorIds: string[] = [];
-  for (let parentId = task.parentId; parentId;) {
-    const parent = await prisma.task.findUnique({ where: { id: parentId }, select: { id: true, parentId: true, archivedAt: true } });
-    if (!parent) break;
-    if (parent.archivedAt) ancestorIds.push(parent.id);
-    parentId = parent.parentId;
-  }
-  const [, , , updated] = await prisma.$transaction([
-    prisma.task.updateMany({
-      where: { id: { in: descendants }, archivedByCascade: true },
-      data: { archivedAt: null, archivedByCascade: false },
-    }),
-    prisma.task.updateMany({ where: { id: { in: ancestorIds } }, data: { archivedAt: null, archivedByCascade: false } }),
-    // Sub-tasks archived by the cascade of a restored ancestor now stay archived on their own.
-    prisma.task.updateMany({
-      where: { archivedByCascade: true, id: { notIn: [id, ...descendants] }, parentId: { in: ancestorIds } },
-      data: { archivedByCascade: false },
-    }),
-    prisma.task.update({ where: { id }, data: { archivedAt: null, archivedByCascade: false } }),
-  ]);
-  return updated;
+  if (isArchivedAs(task, archived)) return task;
+  const tasks = await prisma.task.findMany({ select: { id: true, parentId: true, archivedAt: true } });
+  const descendantIds = [...subtreeOf(tasks, id, false)];
+  const ancestorIds = ancestorsOf(mapById(tasks), id)
+    .filter((ancestor) => ancestor.archivedAt)
+    .map((ancestor) => ancestor.id);
+  return cascadeArchive<Task>('task', id, archived, { descendantIds, ancestorIds });
 }
 
 /**
@@ -388,7 +350,7 @@ export async function setTaskArchived(id: string, archived: boolean): Promise<Ta
 export async function deleteTask(id: string, deleteSubtasks: boolean): Promise<void> {
   const task = await findTask(id);
   if (deleteSubtasks) {
-    const descendants = await descendantIds(id);
+    const descendants = await subtreeIds('task', id, false);
     await forgetGithubItems([id, ...descendants]);
     await forgetDeletedOccurrences([id, ...descendants]);
     await prisma.task.deleteMany({ where: { id: { in: [id, ...descendants] } } });
@@ -408,10 +370,9 @@ export async function deleteTask(id: string, deleteSubtasks: boolean): Promise<v
  * @returns {Promise<{ task: Task, removedLinks: number }>} Moved task and number of removed links.
  */
 export async function transferTask(id: string, projectId: string | null): Promise<{ task: Task; removedLinks: number }> {
-  const task = await findTask(id);
-  if (task.archivedAt) throw clientError('BAD_USER_INPUT', ARCHIVED_MESSAGE);
+  const task = await findActive(prisma.task, id, 'Tâche');
   if (projectId) await assertProject(projectId);
-  const moved = [id, ...(await descendantIds(id))];
+  const moved = [id, ...(await subtreeIds('task', id, false))];
   const rootOf = await loadRootOf();
   const targetRoot = rootOf(projectId);
 
@@ -597,12 +558,13 @@ export async function addTaskBlock(blockerId: string, blockedId: string): Promis
 }
 
 /**
- * Removes a "blocks" link.
+ * Removes a "blocks" link (neither task archived).
  * @param {string} blockerId Blocking task.
  * @param {string} blockedId Blocked task.
  * @returns {Promise<void>}
  */
 export async function removeTaskBlock(blockerId: string, blockedId: string): Promise<void> {
+  await assertNoneArchived('task', [blockerId, blockedId]);
   await prisma.taskBlock.deleteMany({ where: { blockerId, blockedId } });
 }
 
@@ -629,12 +591,13 @@ export async function addTaskRelation(taskId: string, otherId: string): Promise<
 }
 
 /**
- * Removes a "related to" link.
+ * Removes a "related to" link (neither task archived).
  * @param {string} taskId First task.
  * @param {string} otherId Second task.
  * @returns {Promise<void>}
  */
 export async function removeTaskRelation(taskId: string, otherId: string): Promise<void> {
+  await assertNoneArchived('task', [taskId, otherId]);
   await prisma.taskRelation.deleteMany({ where: relationPair(taskId, otherId) });
 }
 
@@ -645,7 +608,7 @@ export async function removeTaskRelation(taskId: string, otherId: string): Promi
  */
 async function assertCommentTask(id: string): Promise<void> {
   const comment = await orNotFound(prisma.taskComment.findUnique({ where: { id }, select: { task: { select: { archivedAt: true } } } }), 'Commentaire');
-  if (comment.task.archivedAt) throw clientError('BAD_USER_INPUT', ARCHIVED_MESSAGE);
+  refuseArchived(comment.task);
 }
 
 /**
@@ -655,8 +618,7 @@ async function assertCommentTask(id: string): Promise<void> {
  * @returns {Promise<TaskComment>} Comment.
  */
 export async function addComment(taskId: string, body: string): Promise<TaskComment> {
-  const task = await findTask(taskId);
-  if (task.archivedAt) throw clientError('BAD_USER_INPUT', ARCHIVED_MESSAGE);
+  await findActive(prisma.task, taskId, 'Tâche');
   return prisma.taskComment.create({ data: { taskId, body: commentBody(body) } });
 }
 
@@ -691,8 +653,7 @@ export async function deleteComment(id: string): Promise<void> {
  * @returns {Promise<void>}
  */
 export async function moveTask(id: string, beforeId: string | null, parentId?: string | null): Promise<void> {
-  const task = await findTask(id);
-  if (task.archivedAt) throw clientError('BAD_USER_INPUT', ARCHIVED_MESSAGE);
+  const task = await findActive(prisma.task, id, 'Tâche');
   if (parentId) await assertParent(parentId, task.projectId, id);
   const reparent = parentId !== undefined && parentId !== task.parentId ? [prisma.task.update({ where: { id }, data: { parentId } })] : [];
   if (beforeId === id) {

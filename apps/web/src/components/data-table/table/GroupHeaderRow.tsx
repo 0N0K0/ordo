@@ -1,8 +1,8 @@
-import { Badge, ColorSwatch, Group, Table, Text } from '@mantine/core';
+import { ColorSwatch, Table, Text } from '@mantine/core';
 
 import type { ReactNode } from 'react';
 import classes from './DataTable.module.css';
-import { FoldButton } from '../../actions/FoldButton';
+import { FoldHeading } from '../../actions/FoldHeading';
 
 interface GroupHeaderRowProps {
   label: string;
@@ -30,21 +30,23 @@ export function GroupHeaderRow({ label, count, summary, span, collapsed, onToggl
   return (
     <Table.Tr {...trProps} className={classes.groupRow} data-depth={depth}>
       <Table.Td colSpan={span} style={depth ? { paddingLeft: `calc(var(--mantine-spacing-xs) + ${depth} * var(--mantine-spacing-lg))` } : undefined}>
-        <Group gap="xs" wrap="nowrap">
-          <FoldButton expanded={!collapsed} item={label} onToggle={onToggle} />
-          {color && <ColorSwatch color={color} size={12} />}
+        <FoldHeading
+          expanded={!collapsed}
+          onToggle={onToggle}
+          count={count}
+          icon={color && <ColorSwatch color={color} size={12} />}
+          aside={
+            summary && (
+              <Text size="sm" c="dimmed">
+                {summary}
+              </Text>
+            )
+          }
+        >
           <Text size="sm" fw={depth === 0 ? 700 : 600}>
             {label}
           </Text>
-          <Badge size="sm" variant="light" color="gray">
-            {count}
-          </Badge>
-          {summary && (
-            <Text size="sm" c="dimmed" ml="auto">
-              {summary}
-            </Text>
-          )}
-        </Group>
+        </FoldHeading>
       </Table.Td>
     </Table.Tr>
   );

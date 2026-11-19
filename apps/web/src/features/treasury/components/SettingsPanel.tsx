@@ -37,9 +37,10 @@ function CategoryList({ direction, categories }: { direction: TreasuryDirection;
       title={`Catégories ${direction === 'IN' ? 'd’entrées' : 'de sorties'}`}
       description="En arborescence : glissez une catégorie sur une autre pour l’y ranger. Une sous-catégorie sans couleur prend celle de sa catégorie parente."
       noun="la catégorie"
+      feminine
       items={categories.filter((category) => category.direction === direction)}
       usage={new Map(categories.map((category) => [category.id, category.entryCount]))}
-      usageNoun="mouvements"
+      usageNoun={{ one: 'du mouvement', many: 'mouvements' }}
       storageKey={`treasury-categories-${direction}`}
       remove={(id) => deleteCategory.mutateAsync(id)}
       move={(id, parentId, index) => moveCategory.mutateAsync({ id, parentId, index })}
@@ -64,7 +65,7 @@ function MethodList({ methods }: { methods: TreasuryPaymentMethod[] }) {
       noun="le moyen de paiement"
       items={methods}
       usage={new Map(methods.map((method) => [method.id, method.entryCount]))}
-      usageNoun="mouvements"
+      usageNoun={{ one: 'du mouvement', many: 'mouvements' }}
       remove={(id) => deleteMethod.mutateAsync(id)}
       renderBadges={(method) => (
         <>
@@ -93,7 +94,7 @@ function CounterpartyList({ counterparties }: { counterparties: TreasuryCounterp
       noun="le tiers"
       items={counterpartyItems(counterparties)}
       usage={new Map(counterparties.map((counterparty) => [counterparty.id, counterparty.entryCount]))}
-      usageNoun="mouvements"
+      usageNoun={{ one: 'du mouvement', many: 'mouvements' }}
       remove={(id) => deleteCounterparty.mutateAsync(id)}
       deleteMessage={(counterparty) => (
         <>

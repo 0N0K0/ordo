@@ -1,5 +1,5 @@
 import { ActionsMenu } from '../../../components/actions/ActionsMenu';
-import { type AccountingLineInput, toCents, sumOf, fromCents } from '@ordo/shared';
+import { type AccountingLineInput, toCents, sumOf, fromCents, joinedKey } from '@ordo/shared';
 import { MinusCircleIcon } from '@phosphor-icons/react';
 import { useDeductibleDeposits } from '../api/documents';
 import * as fmt from '../../../lib/format';
@@ -27,11 +27,11 @@ export function DeductDepositMenu({ clientId, documentId, lines, currency, vatAp
   const deducted = new Map<string, number>();
   for (const line of lines) {
     if (line.kind !== 'DEDUCTION' || !line.deductedDocumentId) continue;
-    const key = `${line.deductedDocumentId}|${line.vatRate}`;
+    const key = joinedKey(line.deductedDocumentId, line.vatRate);
     deducted.set(key, (deducted.get(key) ?? 0) + toCents(line.quantity * line.unitPrice));
   }
   const offered = (deposits ?? []).flatMap((deposit) => {
-    const remaining = deposit.remaining.map((item) => ({ rate: item.rate, cents: toCents(item.amount) - (deducted.get(`${deposit.id}|${item.rate}`) ?? 0) })).filter((item) => item.cents > 0);
+    const remaining = deposit.remaining.map((item) => ({ rate: item.rate, cents: toCents(item.amount) - (deducted.get(joinedKey(deposit.id, item.rate)) ?? 0) })).filter((item) => item.cents > 0);
     return remaining.length ? [{ ...deposit, remaining }] : [];
   });
   if (!offered.length) return null;

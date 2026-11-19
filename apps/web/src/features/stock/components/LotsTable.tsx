@@ -19,6 +19,7 @@ export function LotsTable({ item, readOnly = false }: { item: StockItem; readOnl
   const columns: DataColumn<StockLot>[] = [
     {
       id: 'quantity',
+      required: true,
       label: 'Quantité',
       size: 120,
       numeric: true,
@@ -39,6 +40,7 @@ export function LotsTable({ item, readOnly = false }: { item: StockItem; readOnl
     },
     {
       id: 'createdAt',
+      required: true,
       label: 'Entré le',
       size: 130,
       sortValue: (lot) => lot.createdAt,

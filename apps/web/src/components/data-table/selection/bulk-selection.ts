@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState, type MouseEvent } from 'react';
+import { toggledInList } from '../../../lib/sets';
 
 /** Column of a selection of whole rows (their check boxes): every column edited in bulk. */
 export const ALL_COLUMNS = '*';
@@ -97,7 +98,7 @@ export function useBulkSelection({ keys, isBulk }: { keys: readonly string[]; is
             const [from, to] = [keys.indexOf(anchor.current), keys.indexOf(key)].sort((a, b) => a - b);
             next = [...new Set([...same, ...keys.slice(from, to + 1)])];
           } else {
-            next = same.includes(key) ? same.filter((item) => item !== key) : [...same, key];
+            next = toggledInList(same, key);
             anchor.current = key;
           }
           setSelection(next.length ? { column, keys: next } : null);

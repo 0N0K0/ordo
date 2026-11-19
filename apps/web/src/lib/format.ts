@@ -10,7 +10,6 @@ import {
   capitalize as capitalizeText,
   countOf,
   dateStyle,
-  dayOfMonthText,
   daysBetween,
   // eslint-disable-next-line no-restricted-imports -- fmt.moneyCents is the shared formatMoney.
   formatMoney,
@@ -27,12 +26,8 @@ import {
 /** « 13 nov. 2026 »: a date in a table, a list, a text. */
 export const day = dateStyle({ day: 'numeric', month: 'short', year: 'numeric' });
 
-/**
- * « 13 novembre 2026 », « 1er juin 2026 »: a date in a sentence, its weekday left out (the end of a repetition…).
- * @param {DateValue} value Day or instant.
- * @returns {string} Text.
- */
-export const dayInWords = (value: DateValue): string => longDayText(value).replace(/^1 /, `${dayOfMonthText(1)} `);
+/** « 13 novembre 2026 », « 1er juin 2026 »: a date in a sentence, its weekday left out (the end of a repetition…). */
+export const dayInWords = longDayText;
 
 /** « 13 nov. »: a date of the year around, a chart axis. */
 export const dayShort = dateStyle({ day: 'numeric', month: 'short' });
@@ -109,6 +104,14 @@ export const moneyCompact = (amount: number, currency = 'EUR') => moneyFormat(cu
  * @returns {string} Text.
  */
 export const moneyRound = (amount: number, currency = 'EUR') => moneyFormat(currency, { maximumFractionDigits: 0 }).format(amount);
+
+/**
+ * A count in a column or an export: its number, blank for none (decision DH; an amount of 0 stays « 0,00 € »).
+ * @param {number} value Count.
+ * @returns {string} Text.
+ */
+// eslint-disable-next-line no-restricted-syntax -- fmt.count itself.
+export const count = (value: number): string => (value ? String(value) : '');
 
 /**
  * « 1 234,5 »: a number, with at most some decimals.

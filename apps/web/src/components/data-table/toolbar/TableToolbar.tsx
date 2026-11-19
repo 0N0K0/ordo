@@ -1,12 +1,13 @@
 import { CountBadge } from '../../feedback/CountBadge';
-import { Button, CloseButton, Collapse, Divider, Group, Indicator, Popover, Stack, Text, TextInput, Switch } from '@mantine/core';
+import { CloseButton, Collapse, Divider, Group, Popover, Stack, Text, TextInput, Switch } from '@mantine/core';
 import { ArrowCounterClockwiseIcon, ColumnsIcon, FloppyDiskIcon, FunnelIcon, MagnifyingGlassIcon, SlidersHorizontalIcon, SortAscendingIcon } from '@phosphor-icons/react';
-import { FoldChevron } from '../../actions/FoldChevron';
+import { FoldHeading } from '../../actions/FoldHeading';
 import { useState, type ReactNode } from 'react';
 import { usePublishedHeight } from '../views/published-height';
 import { SubSection } from '../../page/SubSection';
 import { ActionButton } from '../../actions/ActionButton';
-import { MenuCaret } from '../../actions/MenuCaret';
+
+import { UnsavedIndicator, UNSAVED_CHANGES } from '../views/UnsavedIndicator';
 
 /** Quick search of a toolbar. */
 interface ToolbarSearch {
@@ -76,9 +77,9 @@ export function ToolbarFilter({ count, opened, onOpenedChange, children }: Toolb
   return (
     <Popover opened={isOpened} onChange={setOpened} position="bottom-start" shadow="md" withinPortal trapFocus={false} closeOnClickOutside>
       <Popover.Target>
-        <Button onClick={() => setOpened(!isOpened)} variant={count ? 'light' : 'default'} leftSection={<FunnelIcon aria-hidden />} rightSection={count ? <CountBadge count={count} /> : undefined}>
+        <ActionButton priority="secondary" onClick={() => setOpened(!isOpened)} icon={<FunnelIcon aria-hidden />} after={count ? <CountBadge count={count} /> : undefined}>
           Filtrer
-        </Button>
+        </ActionButton>
       </Popover.Target>
       {/* No scroll container: it would clip the dropdowns rendered inside the popover. */}
       <Popover.Dropdown maw="min(56rem, calc(100vw - 2rem))">{children}</Popover.Dropdown>
@@ -95,9 +96,9 @@ export function ToolbarSort({ count, children }: { count: number; children: Reac
   return (
     <Popover position="bottom-start" shadow="md" withinPortal>
       <Popover.Target>
-        <Button variant={count ? 'light' : 'default'} leftSection={<SortAscendingIcon aria-hidden />} rightSection={count ? <CountBadge count={count} /> : undefined}>
+        <ActionButton priority="secondary" icon={<SortAscendingIcon aria-hidden />} after={count ? <CountBadge count={count} /> : undefined}>
           Trier
-        </Button>
+        </ActionButton>
       </Popover.Target>
       <Popover.Dropdown>{children}</Popover.Dropdown>
     </Popover>
@@ -146,18 +147,9 @@ export function TableOptions({ dirty = false, onSave, onRevert, display, columns
     ),
     columns && (
       <Stack key="columns" gap="sm">
-        <Button
-          variant="subtle"
-          color="gray"
-          justify="space-between"
-          leftSection={<ColumnsIcon aria-hidden />}
-          rightSection={<FoldChevron expanded={columnsOpened} />}
-          onClick={() => setColumnsOpened((opened) => !opened)}
-          aria-expanded={columnsOpened}
-          fullWidth
-        >
-          Colonnes
-        </Button>
+        <FoldHeading expanded={columnsOpened} onToggle={() => setColumnsOpened((opened) => !opened)} icon={<ColumnsIcon aria-hidden />} px="xs" py={6}>
+          <Text size="sm">Colonnes</Text>
+        </FoldHeading>
         <Collapse expanded={columnsOpened}>{columns}</Collapse>
       </Stack>
     ),
@@ -169,28 +161,27 @@ export function TableOptions({ dirty = false, onSave, onRevert, display, columns
   ].filter(Boolean);
   return (
     // A dot while the view has unsaved changes.
-    <Indicator disabled={!dirty} size={8} offset={4} position="top-end" color="orange">
+    <UnsavedIndicator dirty={dirty} offset={4}>
       {/* Never taller than the room left in the window: its content scrolls (the columns unfolded). */}
       <Popover position="bottom-end" shadow="md" withinPortal width={width} middlewares={{ flip: true, shift: true, size: { padding: 8 } }}>
         <Popover.Target>
-          {/* eslint-disable-next-line no-restricted-syntax -- target of the options panel, with its caret. */}
-          <Button variant="default" leftSection={<SlidersHorizontalIcon aria-hidden />} rightSection={<MenuCaret />} aria-label={dirty ? 'Options (modifications non enregistrées)' : 'Options'}>
+          <ActionButton priority="secondary" icon={<SlidersHorizontalIcon aria-hidden />} aria-label={dirty ? `Options (${UNSAVED_CHANGES.toLowerCase()})` : 'Options'}>
             Options
-          </Button>
+          </ActionButton>
         </Popover.Target>
         <Popover.Dropdown style={{ overflowY: 'auto' }}>
           <Stack gap="sm">
             {dirty && (
               <>
                 <Text size="sm" c="orange">
-                  Modifications non enregistrées
+                  {UNSAVED_CHANGES}
                 </Text>
                 <Group gap="xs" grow>
                   <ActionButton priority="secondary" icon={<ArrowCounterClockwiseIcon aria-hidden />} onClick={onRevert}>
-                    Annuler
+                    Annuler les modifications
                   </ActionButton>
                   <ActionButton icon={<FloppyDiskIcon aria-hidden />} onClick={onSave}>
-                    Enregistrer
+                    Enregistrer les modifications
                   </ActionButton>
                 </Group>
                 {sections.length > 0 && <Divider />}
@@ -205,6 +196,6 @@ export function TableOptions({ dirty = false, onSave, onRevert, display, columns
           </Stack>
         </Popover.Dropdown>
       </Popover>
-    </Indicator>
+    </UnsavedIndicator>
   );
 }

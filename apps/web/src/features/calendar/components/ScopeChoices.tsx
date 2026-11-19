@@ -1,4 +1,6 @@
-import { Button, Stack, Text } from '@mantine/core';
+import { Stack, Text } from '@mantine/core';
+import { ArrowCounterClockwiseIcon, CheckIcon, ProhibitIcon, TrashIcon } from '@phosphor-icons/react';
+import { ActionButton } from '../../../components/actions/ActionButton';
 import type { CalendarEventScope } from '../api';
 import { FormActions } from '../../../components/dialogs/FormActions';
 
@@ -21,7 +23,8 @@ export interface ScopeQuestion {
  */
 export function ScopeChoices({ action, allowThis = true, allowFollowing = true, allowAll = true, onAnswer }: ScopeQuestion & { onAnswer: (scope: CalendarEventScope | null) => void }) {
   const remove = action === 'delete';
-  const color = remove ? 'red' : undefined;
+  // Each answer applies the change: filled, red for a deletion (decision CN).
+  const icon = remove ? <TrashIcon aria-hidden /> : action === 'cancel' ? <ProhibitIcon aria-hidden /> : action === 'restore' ? <ArrowCounterClockwiseIcon aria-hidden /> : <CheckIcon aria-hidden />;
   return (
     <Stack gap="md">
       <Text size="sm">
@@ -36,19 +39,19 @@ export function ScopeChoices({ action, allowThis = true, allowFollowing = true, 
       </Text>
       <Stack gap="xs">
         {allowThis && (
-          <Button variant="default" color={color} onClick={() => onAnswer('THIS')}>
+          <ActionButton danger={remove} icon={icon} onClick={() => onAnswer('THIS')}>
             Cette occurrence
-          </Button>
+          </ActionButton>
         )}
         {allowFollowing && (
-          <Button variant="default" color={color} onClick={() => onAnswer('FOLLOWING')}>
+          <ActionButton danger={remove} icon={icon} onClick={() => onAnswer('FOLLOWING')}>
             Celle-ci et les suivantes
-          </Button>
+          </ActionButton>
         )}
         {allowAll && (
-          <Button variant="default" color={color} onClick={() => onAnswer('ALL')}>
+          <ActionButton danger={remove} icon={icon} onClick={() => onAnswer('ALL')}>
             Toutes les occurrences
-          </Button>
+          </ActionButton>
         )}
       </Stack>
       <FormActions onCancel={() => onAnswer(null)} submitLabel={null} />

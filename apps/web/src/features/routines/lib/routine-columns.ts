@@ -3,11 +3,12 @@ import { ROUTINE_REPETITIONS, ROUTINE_STATES, conditionScheduleIds, formatDurati
 import { categoryOptions, categoryPaths, categoryTree } from '../../../components/tree/category-tree';
 import { withArchived, type DataColumn } from '../../../components/data-table/table/data-table';
 import * as fmt from '../../../lib/format';
-import { commentTotal } from '../../comments/lib/comment-column';
+import { commentColumn } from '../../comments/lib/comment-column';
 import type { Routine } from '../api';
 import { isDone, routineTreeOptions, currentRoutineState, waitingFor } from './routine-format';
 import { opensWords, REPETITION_LABELS, routineFrequency, ROUTINE_STATE_LABELS, type RoutineEnv } from './routine-view';
 import { localDay } from '../../../lib/dates';
+import { LAST_RANK } from '../../../components/data-table/table/table-engine';
 
 /**
  * Short date of a calendar date: "lun. 10 nov.".
@@ -42,7 +43,7 @@ export function routineColumns(env: RoutineEnv): DataColumn<Routine>[] {
   const state = (routine: Routine) => currentRoutineState(routine, env.today, env.doable(routine));
   const minutes = (value: number | null) => (value ? formatDuration(value * 60) : '');
   return [
-    { id: 'label', label: 'Libellé', size: 320, locked: true, bulk: true, sortValue: (routine) => routine.label, text: (routine) => routine.label },
+    { id: 'label', label: 'Libellé', size: 320, locked: true, required: true, bulk: true, sortValue: (routine) => routine.label, text: (routine) => routine.label },
     {
       id: 'currentDate',
       label: 'Échéance',
@@ -56,6 +57,7 @@ export function routineColumns(env: RoutineEnv): DataColumn<Routine>[] {
       id: 'state',
       label: 'État',
       size: 110,
+      required: true,
       hiddenByDefault: true,
       sortValue: (routine) => ROUTINE_STATES.indexOf(state(routine)),
       text: (routine) => ROUTINE_STATE_LABELS[state(routine)],
@@ -82,6 +84,7 @@ export function routineColumns(env: RoutineEnv): DataColumn<Routine>[] {
       id: 'startDate',
       label: 'Première fois',
       size: 130,
+      required: true,
       hiddenByDefault: true,
       sortValue: (routine) => routine.startDate,
       text: (routine) => dayText(routine.startDate),
@@ -91,6 +94,7 @@ export function routineColumns(env: RoutineEnv): DataColumn<Routine>[] {
       id: 'repetition',
       label: 'Répétition',
       size: 200,
+      required: true,
       hiddenByDefault: true,
       bulk: true,
       sortValue: (routine) => ROUTINE_REPETITIONS.indexOf(routineFrequency(routine)),
@@ -141,7 +145,7 @@ export function routineColumns(env: RoutineEnv): DataColumn<Routine>[] {
       hiddenByDefault: true,
       bulk: true,
       sortValue: (routine) => routine.reminders.length || null,
-      text: (routine) => (routine.reminders.length ? String(routine.reminders.length) : ''),
+      text: (routine) => fmt.count(routine.reminders.length),
       filter: { kind: 'boolean', value: (routine) => routine.reminders.length > 0 },
     },
     {
@@ -158,11 +162,14 @@ export function routineColumns(env: RoutineEnv): DataColumn<Routine>[] {
     },
     {
       id: 'trackedTime',
-      label: 'Chrono',
+      // Time spent, as for the tasks (« Chrono » is their timer); never empty (decision CO).
+      label: 'Temps passé',
       size: 120,
       numeric: true,
-      sortValue: (routine) => routine.trackedSeconds || null,
+      required: true,
+      sortValue: (routine) => routine.trackedSeconds,
       text: (routine) => (routine.trackedSeconds ? formatDuration(routine.trackedSeconds) : ''),
+      filter: { kind: 'number', value: (routine) => routine.trackedSeconds / 3600 },
       formatTotal: (seconds) => formatDuration(Math.round(seconds)),
     },
     {
@@ -207,7 +214,7 @@ export function routineColumns(env: RoutineEnv): DataColumn<Routine>[] {
       label: 'Catégories',
       size: 180,
       bulk: true,
-      sortValue: (routine) => (routine.categoryIds.length ? Math.min(...routine.categoryIds.map((id) => categoryRank.get(id) ?? Infinity)) : null),
+      sortValue: (routine) => (routine.categoryIds.length ? Math.min(...routine.categoryIds.map((id) => categoryRank.get(id) ?? LAST_RANK)) : null),
       text: (routine) => routine.categoryIds.map((id) => categoryLabel.get(id) ?? '').join(', '),
       filter: { kind: 'choices', value: (routine) => routine.categoryIds, options: withArchived(categoryOptions(categories), categories) },
       groupTree: categories.map((category) => ({ key: category.id, label: category.label, color: category.color, parentKey: category.parentId })),
@@ -266,15 +273,10 @@ export function routineColumns(env: RoutineEnv): DataColumn<Routine>[] {
       filter: { kind: 'boolean', value: (routine) => waitingFor(routine, byId).length > 0 },
     },
     { id: 'doableNow', label: 'Faisable maintenant', size: 140, hiddenByDefault: true, text: (routine) => (env.doable(routine) ? 'Oui' : ''), filter: { kind: 'boolean', value: env.doable } },
-    {
-      id: 'comments',
-      label: 'Commentaires',
-      size: 120,
-      numeric: true,
-      hiddenByDefault: true,
-      sortValue: (routine) => commentTotal(comments.get(routine.id), routine.description) || null,
-      text: (routine) => String(commentTotal(comments.get(routine.id), routine.description) || ''),
-      filter: { kind: 'number', value: (routine) => commentTotal(comments.get(routine.id), routine.description) },
-    },
+    commentColumn<Routine>(
+      comments,
+      (routine) => routine.id,
+      (routine) => routine.description,
+    ),
   ];
 }

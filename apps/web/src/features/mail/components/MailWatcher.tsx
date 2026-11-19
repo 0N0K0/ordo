@@ -12,6 +12,7 @@ import { claim, systemNotification, type RingLink } from '../../alarms/component
 import { notifyInfo } from '../../../lib/notify';
 import { switchWorkspace } from '../../workspaces/lib/switch';
 import { MAIL_CHECK_MS, onMailCheck } from '../lib/mail-check';
+import { taggedKey } from '../../../lib/tagged-key';
 
 const WatchedMailAccountsDocument = graphql(`
   query WatchedMailAccounts {
@@ -92,7 +93,7 @@ export function MailWatcher({ workspace }: MailWatcherProps) {
       playChime();
       if (fresh.length > MAX_MAIL_TOASTS) {
         const title = `${fresh.length} nouveaux mails`;
-        systemNotification(title, name ?? undefined, `mail:${accountId}`);
+        systemNotification(title, name ?? undefined, taggedKey('mail', accountId));
         notifyInfo({
           icon: <EnvelopeSimpleIcon />,
           title,

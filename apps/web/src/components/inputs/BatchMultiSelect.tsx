@@ -1,6 +1,5 @@
 // eslint-disable-next-line no-restricted-imports -- BatchMultiSelect wraps MultiSelect.
-import { Anchor, MultiSelect, Pill, type ComboboxData, type ComboboxItem, type ComboboxItemGroup, type MultiSelectProps } from '@mantine/core';
-import type { MouseEvent } from 'react';
+import { MultiSelect, Pill, type ComboboxData, type ComboboxItem, type ComboboxItemGroup, type MultiSelectProps } from '@mantine/core';
 import { MAX_STACKED, stackedCount } from '../data-table/cells/stacked';
 import { ItemAvatar } from '../items/ItemAvatar';
 import { hasAvatar } from '../items/item-look';
@@ -8,6 +7,8 @@ import { onMutationError } from '../../lib/notify';
 import { CREATE_VALUE, keepCreate, withCreate } from './creatable';
 import { useRef, useState } from 'react';
 import classes from './BatchMultiSelect.module.css';
+
+import { StackedToggle } from '../data-table/cells/StackedValues';
 
 /**
  * Same values, whatever their order.
@@ -73,7 +74,7 @@ export function BatchMultiSelect({
   onCreate,
   filter,
   ...props
-}: MultiSelectProps & { onCreate?: (name: string) => Promise<string | null | undefined> }) {
+}: MultiSelectProps & { onCreate?: (label: string) => Promise<string | null | undefined> }) {
   const [search, setSearch] = useState('');
   const [uncontrolled, setUncontrolled] = useState<string[]>(defaultValue ?? []);
   const committed = value ?? uncontrolled;
@@ -85,21 +86,7 @@ export function BatchMultiSelect({
   const shownValues = draft ?? committed;
   const shown = stackedCount(shownValues.length, expanded);
 
-  /**
-   * Unfolds or folds the values, without opening the list.
-   * @param {MouseEvent} event Click.
-   * @returns {void}
-   */
-  const toggle = (event: MouseEvent) => {
-    event.preventDefault();
-    event.stopPropagation();
-    setExpanded((current) => !current);
-  };
-  const toggleButton = (
-    <Anchor component="button" type="button" size="xs" className={classes.toggle} aria-expanded={expanded} onMouseDown={(event: MouseEvent) => event.preventDefault()} onClick={toggle}>
-      {expanded ? 'Réduire' : `${shownValues.length - shown} de plus`}
-    </Anchor>
-  );
+  const toggleButton = <StackedToggle hidden={shownValues.length - shown} expanded={expanded} onToggle={() => setExpanded((current) => !current)} className={classes.toggle} keepFocus />;
 
   /**
    * Gives the value chosen, when it changed.
@@ -129,13 +116,13 @@ export function BatchMultiSelect({
         const folded = shownValues.length > MAX_STACKED;
         // Beyond those shown: the first one hidden gives its place to « X de plus ».
         if (index >= shown) return index === shown ? toggleButton : null;
-        const look = (option ?? {}) as { color?: string | null; iconUrl?: string | null; name?: string };
+        const look = (option ?? {}) as { color?: string | null; iconUrl?: string | null };
         return (
           <>
             <Pill withRemoveButton={!props.readOnly && !disabled && !option?.disabled} onRemove={onRemove} disabled={disabled} className={classes.pill}>
               {hasAvatar(look) && (
                 <span className={classes.swatch}>
-                  <ItemAvatar name={look.name ?? option?.label ?? ''} iconUrl={look.iconUrl} color={look.color} size={14} />
+                  <ItemAvatar name={option?.label ?? ''} iconUrl={look.iconUrl} color={look.color} size={14} />
                 </span>
               )}
               {option?.label ?? String(pill)}
@@ -163,9 +150,9 @@ export function BatchMultiSelect({
         let next = picked;
         if (onCreate && picked.includes(CREATE_VALUE)) {
           next = picked.filter((item) => item !== CREATE_VALUE);
-          const name = search.trim();
+          const label = search.trim();
           setSearch('');
-          onCreate(name)
+          onCreate(label)
             .then((id) => {
               if (!id) return;
               const base = draftRef.current ?? committed;

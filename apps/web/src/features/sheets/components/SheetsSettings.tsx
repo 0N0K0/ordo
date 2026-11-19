@@ -28,7 +28,8 @@ export function SheetsSettings() {
           title="Catégories de fiches"
           description="Classent les fiches (recettes, valises, trousses…) : une fiche peut en avoir plusieurs."
           noun="la catégorie"
-          usageNoun="fiches"
+          feminine
+          usageNoun={{ one: 'de la fiche', many: 'fiches' }}
           items={sheetCategories ?? []}
           usage={sheetUsage}
           schema={labelFormSchema}

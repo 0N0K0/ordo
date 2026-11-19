@@ -1,4 +1,4 @@
-import { dayInMonth, daysInMonth } from './months';
+import { dayInMonth, dayOfMonthOf, daysInMonth } from './months';
 import { z } from 'zod';
 import { addDays, DAY_MS, formatDay, isoWeek, isoWeekday, monthOfYear, parseDay, weekdayOfDate, yearOfDay } from './days';
 import { daySchema } from './times';
@@ -71,7 +71,7 @@ export function spanEnd(duration: Duration, start: string): string {
       return dayInMonth(year + Math.floor(last / 12), (last % 12) + 1, 31);
     }
     case 'TO_DAY': {
-      const day = duration.day ?? Number(start.slice(8, 10));
+      const day = duration.day ?? dayOfMonthOf(start);
       if (duration.month !== null) {
         const end = dayInMonth(year, duration.month, day);
         return end >= start ? end : dayInMonth(year + 1, duration.month, day);

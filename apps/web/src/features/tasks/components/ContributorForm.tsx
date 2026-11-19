@@ -4,7 +4,7 @@ import { contributorFormSchema, suggestHandle, type ContributorFormValues } from
 import { useState } from 'react';
 import { useAppForm, formCallbacks } from '../../../lib/form';
 
-import { useWorkspace } from '../../projects/api';
+import { useProjectTree } from '../../projects/api';
 import { IconField, type IconValue } from '../../../components/inputs/IconField';
 import { treeSelectProps } from '../../../components/tree/tree-select';
 import { projectOptions } from '../../projects/lib/tree';
@@ -29,7 +29,7 @@ interface ContributorFormProps {
  */
 export function ContributorForm({ contributor, defaultProjectIds = [], onDone }: ContributorFormProps) {
   const { create, update } = useContributorMutations();
-  const { data: workspace } = useWorkspace();
+  const { data: workspace } = useProjectTree();
   const [projectIds, setProjectIds] = useState(contributor?.projectIds ?? defaultProjectIds);
   const [avatar, setAvatar] = useState<IconValue>({ file: null, remove: false });
   // The handle follows the name until it is edited by hand.

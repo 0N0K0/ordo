@@ -25,12 +25,12 @@ import { createView } from '../../src/services/tasks/task-views';
 import { createTimeEntry } from '../../src/services/tasks/time-entries';
 import { createAccount, realizeForecast } from '../../src/services/treasury/treasury';
 import { saveBudget } from '../../src/services/treasury/treasury-budgets';
-import { createCategory, createCounterparty, createPaymentMethod } from '../../src/services/treasury/treasury-settings';
+import { createCounterparty, createPaymentMethod } from '../../src/services/treasury/treasury-settings';
 import { addMember, saveContext, saveContextPeriod, saveRelation } from '../../src/services/treasury/treasury-team';
 import { saveDefaultScheduleKind, saveScheduleType, subscribeScheduleKind } from '../../src/services/calendar/work-schedules';
-import { ensureMeContributor, meContributorId, setWorkspaceNotifications } from '../../src/services/workspace/workspaces';
+import { ensureMeContributor, meContributorId, setWorkspaceNotifications } from '../../src/services/workspaces/workspaces';
 import { enterWorkspace, type WorkspaceScope } from '../../src/workspace-context';
-import { chart, createEntry, EMPTY_ARTICLE, EMPTY_ENTRY, localAt, projectFactory, relativeDay, rule, taskFactory, TIME_ZONE } from './factories';
+import { calendarCategory, chart, createEntry, EMPTY_ARTICLE, EMPTY_ENTRY, localAt, projectFactory, relativeDay, rule, taskFactory, TIME_ZONE, treasuryCategoryMaker } from './factories';
 import { initialsIcon } from './images';
 import { pdfFile } from './mail';
 import { rebuildStatusHistory } from './history';
@@ -167,9 +167,9 @@ export async function seedPersonal({
 
   // --- Calendar: family calendar, its events, the professional one subscribed to ------------------------------
   const family = await prisma.calendar.create({ data: { label: 'Famille', color: '#e64980', position: 0 } });
-  const kids = (await prisma.calendarCategory.create({ data: { label: 'Enfants', color: '#7950f2', position: 0 } })).id;
-  const health = (await prisma.calendarCategory.create({ data: { label: 'Santé', color: '#fa5252', position: 1 } })).id;
-  const leisure = (await prisma.calendarCategory.create({ data: { label: 'Loisirs', color: '#40c057', position: 2 } })).id;
+  const kids = await calendarCategory('Enfants', '#7950f2', null, 0);
+  const health = await calendarCategory('Santé', '#fa5252', null, 1);
+  const leisure = await calendarCategory('Loisirs', '#40c057', null, 2);
   const event = {
     description: null,
     location: null,
@@ -282,10 +282,7 @@ export async function seedPersonal({
   // --- Treasury of the household ---------------------------------------------------------------------------
   const account = await createAccount({ label: 'Compte joint', openingBalance: 2400, openingDate: day(-120) });
   await createAccount({ label: 'Livret A', openingBalance: 8000, openingDate: day(-120) });
-  const categoryIds = new Map<string, string>();
-  const category = async (label: string, direction: 'IN' | 'OUT', parent?: string) => {
-    categoryIds.set(`${direction}:${label}`, (await createCategory({ label, direction, parentId: parent ? (categoryIds.get(`${direction}:${parent}`) ?? null) : null })).id);
-  };
+  const { ids: categoryIds, category } = treasuryCategoryMaker();
   for (const label of ['Salaires', 'Allocations', 'Cadeaux reçus']) await category(label, 'IN');
   for (const label of ['Logement', 'Alimentation', 'Enfants', 'Loisirs', 'Santé', 'Cadeaux']) await category(label, 'OUT');
   for (const label of ['Loyer', 'Énergie']) await category(label, 'OUT', 'Logement');

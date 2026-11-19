@@ -1,7 +1,8 @@
 import { round2, toCents } from '../accounting/accounting-documents';
 import { z } from 'zod';
 import { requiredText, optionalText } from '../core/rules';
-import { normalize } from '../core/text';
+import { nameKey } from '../core/text';
+import { joinedKey } from '../core/collections';
 import { dateSchema, optionalColorSchema, type LabelFormValues } from '../core/workspace';
 
 const linkSchema = z
@@ -126,6 +127,5 @@ export const DEFAULT_SHOPPING_UNITS = ['pièce', 'kg', 'g', 'L', 'cl', 'boîte',
  */
 export function productKey(item: { productId?: string | null; label: string; unit?: string | null }): string {
   if (item.productId) return `p:${item.productId}`;
-  const clean = (text: string | null | undefined) => normalize((text ?? '').trim()).replace(/\s+/g, ' ');
-  return `l:${clean(item.label)}|${clean(item.unit)}`;
+  return `l:${joinedKey(nameKey(item.label), nameKey(item.unit))}`;
 }

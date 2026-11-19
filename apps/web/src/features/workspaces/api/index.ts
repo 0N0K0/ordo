@@ -1,4 +1,5 @@
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useQuery } from '@tanstack/react-query';
+import { useInvalidatingMutation } from '../../../lib/mutation';
 import { graphql } from '../../../graphql';
 import type { NotificationSource, WorkspaceKind, WorkspacesQuery } from '../../../graphql/graphql';
 import { execute } from '../../../lib/graphql-client';
@@ -101,27 +102,14 @@ export function useActiveWorkspace(): { workspace: Workspace | undefined; perso:
  * @returns {object} Mutations.
  */
 export function useWorkspaceMutations() {
-  const queryClient = useQueryClient();
-  const onSuccess = () => queryClient.invalidateQueries({ queryKey: workspacesQueryKey });
+  const changed = { invalidate: [workspacesQueryKey] };
   return {
-    create: useMutation({
-      mutationFn: async (input: { label: string; kind: WorkspaceKind }) => (await execute(CreateWorkspaceMutation, { input })).createWorkspace.id,
-      onSuccess,
-    }),
-    update: useMutation({
-      mutationFn: (variables: { id: string; input: { label: string; kind: WorkspaceKind } }) => execute(UpdateWorkspaceMutation, variables),
-      onSuccess,
-    }),
-    setNotifications: useMutation({
-      mutationFn: (variables: { id: string; sources: NotificationSource[] }) => execute(SetWorkspaceNotificationsMutation, variables),
-      onSuccess,
-    }),
+    create: useInvalidatingMutation(async (input: { label: string; kind: WorkspaceKind }) => (await execute(CreateWorkspaceMutation, { input })).createWorkspace.id, changed),
+    update: useInvalidatingMutation((variables: { id: string; input: { label: string; kind: WorkspaceKind } }) => execute(UpdateWorkspaceMutation, variables), changed),
+    setNotifications: useInvalidatingMutation((variables: { id: string; sources: NotificationSource[] }) => execute(SetWorkspaceNotificationsMutation, variables), changed),
     // Every « this week » follows: everything is reloaded.
-    setWeek: useMutation({
-      mutationFn: (variables: { id: string; start: number; end: number }) => execute(SetWorkspaceWeekMutation, variables),
-      onSuccess: () => queryClient.invalidateQueries(),
-    }),
-    move: useMutation({ mutationFn: (variables: { id: string; index: number }) => execute(MoveWorkspaceMutation, variables), onSuccess }),
-    remove: useMutation({ mutationFn: (id: string) => execute(DeleteWorkspaceMutation, { id }), onSuccess }),
+    setWeek: useInvalidatingMutation((variables: { id: string; start: number; end: number }) => execute(SetWorkspaceWeekMutation, variables), { invalidate: [[]] }),
+    move: useInvalidatingMutation((variables: { id: string; index: number }) => execute(MoveWorkspaceMutation, variables), changed),
+    remove: useInvalidatingMutation((id: string) => execute(DeleteWorkspaceMutation, { id }), changed),
   };
 }

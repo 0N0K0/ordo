@@ -11,6 +11,7 @@ import { TreeRow } from './TreeRow';
 import classes from './Tree.module.css';
 import { suppressClickAfterDrop, useDragSensors } from '../../../components/dnd/drag';
 import { sortableStyle } from '../../../components/dnd/sortable-style';
+import { taggedKey, parseTaggedKey } from '../../../lib/tagged-key';
 
 type ItemKind = 'client' | 'none' | 'project';
 
@@ -62,7 +63,7 @@ function flatten(section: TreeSection, isExpanded: (key: string) => boolean, sho
    */
   const walk = (nodes: ProjectNode[], depth: number, parentId: string) => {
     for (const node of nodes) {
-      const id = `project:${node.project.id}`;
+      const id = taggedKey('project', node.project.id);
       items.push({
         id,
         kind: 'project',
@@ -72,12 +73,12 @@ function flatten(section: TreeSection, isExpanded: (key: string) => boolean, sho
         height: nodeHeight(node),
         hasChildren: node.children.length > 0,
       });
-      if (isExpanded(`p:${node.project.id}`)) walk(node.children, depth + 1, id);
+      if (isExpanded(taggedKey('p', node.project.id))) walk(node.children, depth + 1, id);
     }
   };
 
   for (const node of section.clients) {
-    const id = `client:${node.client.id}`;
+    const id = taggedKey('client', node.client.id);
     items.push({
       id,
       kind: 'client',
@@ -90,7 +91,7 @@ function flatten(section: TreeSection, isExpanded: (key: string) => boolean, sho
     if (isExpanded(node.client.id)) walk(node.projects, 1, id);
   }
   if (section.orphans.length > 0 || showNone) {
-    const id = `none:${NO_CLIENT}`;
+    const id = taggedKey('none', NO_CLIENT);
     items.push({
       id,
       kind: 'none',
@@ -129,16 +130,16 @@ function getProjection(items: FlatItem[], activeId: string, overId: string, offs
  * @returns {[ItemKind, string]} Kind and id.
  */
 function parseId(dragId: string): [ItemKind, string] {
-  const [kind, ...rest] = dragId.split(':');
-  return [kind as ItemKind, rest.join(':')];
+  const { tag, id } = parseTaggedKey(dragId) ?? { tag: '', id: dragId };
+  return [tag as ItemKind, id];
 }
 
 // Clients only meet clients and "Sans client"; projects meet every row.
 const collisionDetection: CollisionDetection = (args) => {
-  const draggingClient = String(args.active.id).startsWith('client:');
+  const draggingClient = parseId(String(args.active.id))[0] === 'client';
   return closestCenter({
     ...args,
-    droppableContainers: draggingClient ? args.droppableContainers.filter((container) => !String(container.id).startsWith('project:')) : args.droppableContainers,
+    droppableContainers: draggingClient ? args.droppableContainers.filter((container) => parseId(String(container.id))[0] !== 'project') : args.droppableContainers,
   });
 };
 
@@ -310,7 +311,7 @@ export function ActiveTree({ section, dndEnabled, isExpanded, onToggle }: Active
       <div role="tree" aria-label="Clients et projets">
         <SortableContext items={items.map((item) => item.id)} strategy={verticalListSortingStrategy}>
           {items.map((item) => {
-            const expandKey = item.kind === 'project' ? `p:${item.entityId}` : item.entityId;
+            const expandKey = item.kind === 'project' ? taggedKey('p', item.entityId) : item.entityId;
             return (
               <SortableRow
                 key={item.id}

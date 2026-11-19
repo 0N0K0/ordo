@@ -3,13 +3,13 @@ import { z } from 'zod';
 import { prisma } from '../../db';
 import { parisToday } from '../../today';
 import type { RecurringInvoice } from '../../generated/prisma/client';
-import { clientError, orNotFound, parseInput } from '../../graphql/errors';
+import { clientError, parseInput } from '../../graphql/errors';
 import { createDocument, editableFields, finalizeDocument, findDocument } from './accounting-documents';
 import { storedRecurrence } from '../calendar/calendar-events';
-import { schedulePerWorkspace } from '../workspace/workspaces';
-import { requirePro } from '../workspace/workspaces';
-import { assertNotArchived } from '../core/archive';
-import { assertExists } from '../core/lookup';
+import { schedulePerWorkspace } from '../workspaces/workspaces';
+import { requirePro } from '../workspaces/workspaces';
+import { assertActive, refuseArchived } from '../core/archive';
+import { findOrNotFound } from '../core/lookup';
 
 export type RecurringSettings = z.input<typeof settingsSchema>;
 
@@ -36,7 +36,7 @@ export async function createRecurringInvoice(documentId: string, input: Recurrin
   const settings = parseInput(settingsSchema, input);
   const source = await findDocument(documentId);
   if (source.type !== 'INVOICE') throw clientError('BAD_USER_INPUT', 'Seule une facture peut être rendue récurrente.');
-  await assertNotArchived('ACCOUNTING_DOCUMENT', documentId);
+  refuseArchived(source);
   const template = await createDocument('INVOICE', await editableFields(source), { status: 'TEMPLATE' });
   return prisma.recurringInvoice.create({
     data: {
@@ -62,8 +62,7 @@ export async function createRecurringInvoice(documentId: string, input: Recurrin
  * @returns {Promise<RecurringInvoice>} Recurring invoice.
  */
 export async function updateRecurringInvoice(id: string, input: RecurringSettings, today: string): Promise<RecurringInvoice> {
-  await assertExists(prisma.recurringInvoice, id, 'Facture récurrente');
-  await assertNotArchived('RECURRING_INVOICE', id);
+  await assertActive(prisma.recurringInvoice, id, 'Facture récurrente');
   const settings = parseInput(settingsSchema, input);
   const next = nextIssueDate(settings.recurrence, settings.startDate, today > settings.startDate ? today : settings.startDate);
   return prisma.recurringInvoice.update({
@@ -78,7 +77,7 @@ export async function updateRecurringInvoice(id: string, input: RecurringSetting
  * @returns {Promise<void>}
  */
 export async function deleteRecurringInvoice(id: string): Promise<void> {
-  const recurring = await orNotFound(prisma.recurringInvoice.findUnique({ where: { id } }), 'Facture récurrente');
+  const recurring = await findOrNotFound(prisma.recurringInvoice, id, 'Facture récurrente');
   await prisma.accountingDocument.delete({ where: { id: recurring.templateId } });
 }
 
@@ -117,7 +116,7 @@ export async function issueDueInvoices(today: string): Promise<number> {
       const template = await findDocument(recurring.templateId);
       const fields = await editableFields(template);
       const shift = daysBetween(fields.issueDate, next);
-      const invoice = await createDocument('INVOICE', { ...fields, issueDate: next, dueDate: fields.dueDate ? addDays(fields.dueDate, shift) : null }, { recurringId: recurring.id });
+      const invoice = await createDocument('INVOICE', { ...fields, issueDate: next, dueDate: fields.dueDate ? addDays(fields.dueDate, shift) : null }, { recurringId: recurring.id, inherited: true });
       if (recurring.autoFinalize) await finalizeDocument(invoice.id).catch((error: unknown) => console.warn('Facture récurrente non validée.', error));
       issued += 1;
       next = nextIssueDate(rule, formatDay(recurring.startDate), addDays(next, 1));

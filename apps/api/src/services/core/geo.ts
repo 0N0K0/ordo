@@ -1,12 +1,12 @@
-import { lineageOf, mapById, placeSchema, type GeoPoint, type PlaceInput, type TravelMode } from '@ordo/shared';
+import { lineageOf, mapById, pathOf, placeSchema, type GeoPoint, type PlaceInput, type TravelMode } from '@ordo/shared';
 import { env } from '../../env';
 import { treeListService } from './trees';
 import { prisma } from '../../db';
 import { type Place } from '../../generated/prisma/client';
 import { clientError, fieldError, orNotFound, parseInput, rethrowUnique } from '../../graphql/errors';
 import { deleteOrNotFound } from './lookup';
-import { assertNotArchived } from './archive';
 import { BY_POSITION } from './ordering';
+import { refuseArchived } from './archive';
 
 /** Address found by a search: the address in words, the label of the place and its point (as a `Place`). */
 export interface AddressSuggestion {
@@ -175,7 +175,7 @@ export async function places(): Promise<PlaceView[]> {
         parentId: row.parentId,
         lat: located.lat!,
         lon: located.lon!,
-        path: chain.map((item) => item.label).join(' › '),
+        path: pathOf(byId, row.id, (item) => item.label),
         color: row.color,
         iconId: row.iconId,
         position: row.position,
@@ -242,8 +242,8 @@ export async function deletePlace(id: string): Promise<void> {
  * @returns {Promise<void>}
  */
 export async function movePlace(id: string, parentId: string | null, index: number): Promise<void> {
-  const place = await orNotFound(prisma.place.findUnique({ where: { id }, select: { parentId: true } }), 'Lieu');
-  await assertNotArchived('place', id);
+  const place = await orNotFound(prisma.place.findUnique({ where: { id }, select: { parentId: true, archivedAt: true } }), 'Lieu');
+  refuseArchived(place);
   if ((place.parentId === null) !== (parentId === null)) {
     throw clientError('BAD_USER_INPUT', place.parentId === null ? 'Un lieu garde son adresse : il ne peut pas devenir une zone.' : 'Une zone n’a pas d’adresse : elle ne peut pas devenir un lieu.');
   }

@@ -1,9 +1,9 @@
 import { DragHandle } from '../dnd/DragHandle';
 import { useSortableItem } from '../dnd/use-sortable-item';
-import { Collapse, Group, Paper, Stack, Text, UnstyledButton } from '@mantine/core';
+import { Collapse, Group, Paper, Stack, Text } from '@mantine/core';
 import type { ReactNode } from 'react';
 import { RemoveButton } from '../actions/RemoveButton';
-import { FoldChevron } from '../actions/FoldChevron';
+import { FoldHeading } from '../actions/FoldHeading';
 
 interface CaseCardProps {
   /** Number of the case, from 1. */
@@ -33,12 +33,9 @@ export function CaseCard({ index, summary, collapsible, opened, onToggle, onRemo
   const { ref, style, dragging, handle } = useSortableItem(sortId, !sortable);
   const shown = !collapsible || opened;
   const heading = (
-    <Group gap={6} wrap="nowrap" style={{ minWidth: 0 }}>
-      {collapsible && <FoldChevron expanded={shown} />}
-      <Text size="xs" c="dimmed" truncate={!shown}>
-        Cas {index} · {summary}
-      </Text>
-    </Group>
+    <Text size="xs" c="dimmed" truncate={!shown}>
+      Cas {index} · {summary}
+    </Text>
   );
   return (
     <Paper ref={ref} withBorder radius="sm" p="sm" shadow={dragging ? 'md' : undefined} style={style}>
@@ -46,9 +43,9 @@ export function CaseCard({ index, summary, collapsible, opened, onToggle, onRemo
         <Group justify="space-between" wrap="nowrap" gap={4}>
           {sortable && <DragHandle item={`Cas ${index}`} {...handle} size="sm" />}
           {collapsible ? (
-            <UnstyledButton onClick={onToggle} aria-expanded={shown} style={{ minWidth: 0, flex: 1 }}>
+            <FoldHeading expanded={shown} onToggle={onToggle} style={{ flex: 1 }}>
               {heading}
-            </UnstyledButton>
+            </FoldHeading>
           ) : (
             heading
           )}

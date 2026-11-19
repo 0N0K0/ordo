@@ -1,5 +1,6 @@
 import { formCallbacks } from '../../../lib/form';
 import { SegmentedControl, Select, Stack, Text, TextInput } from '@mantine/core';
+import { STOCK_MOVEMENT_LABELS, type StockMovementKind } from '@ordo/shared';
 import { DatePickerInput } from '@mantine/dates';
 import { useState } from 'react';
 import * as fmt from '../../../lib/format';
@@ -7,13 +8,10 @@ import { useStockMutations, type StockItem } from '../api';
 import { FormActions } from '../../../components/dialogs/FormActions';
 import { QuantityInput } from '../../../components/inputs/QuantityInput';
 
-type Kind = 'PURCHASE' | 'CONSUMPTION' | 'LOSS' | 'CORRECTION';
+type Kind = Exclude<StockMovementKind, 'COUNT'>;
 
-const KINDS: { value: Kind; label: string }[] = [
-  { value: 'CONSUMPTION', label: 'Consommé' },
-  { value: 'PURCHASE', label: 'Ajouté' },
-  { value: 'LOSS', label: 'Perdu' },
-];
+/** Kinds offered by hand, with the names of the movements (a correction is made from a lot). */
+const KINDS = (['CONSUMPTION', 'PURCHASE', 'LOSS'] as const).map((value) => ({ value, label: STOCK_MOVEMENT_LABELS[value] }));
 
 /**
  * Quantity in or out of an item of the stock: used up or lost (from a lot, or those that expire first), added (to a

@@ -1,10 +1,11 @@
 import { Anchor, Text } from '@mantine/core';
+import { ancestorsOf, mapById } from '@ordo/shared';
 import { Fragment, type ReactNode } from 'react';
 import { Link, useLocation, useMatch } from 'react-router';
-import { useWorkspace } from '../../features/projects/api';
+import { useProjectTree } from '../../features/projects/api';
 import { WorkspaceSwitcher } from '../../features/workspaces/components/WorkspaceSwitcher';
 import classes from './HeaderTitle.module.css';
-import { clientPath, pageOfPath, projectPath } from '../pages';
+import { CLIENT_ROUTE, clientPath, pageOfPath, PROJECT_ROUTE, projectPath } from '../pages';
 
 interface Crumb {
   label: string;
@@ -19,30 +20,26 @@ interface Crumb {
  */
 function useCrumbs(): Crumb[] {
   const { pathname } = useLocation();
-  const projectId = useMatch('/projects/:id')?.params.id;
-  const clientId = useMatch('/clients/:id')?.params.id;
-  const { data: workspace } = useWorkspace();
+  const projectId = useMatch(PROJECT_ROUTE)?.params.id;
+  const clientId = useMatch(CLIENT_ROUTE)?.params.id;
+  const { data: tree } = useProjectTree();
 
   if (projectId) {
-    const project = workspace?.projects.find((item) => item.id === projectId);
-    if (!project || !workspace) return [];
-    const crumbs: Crumb[] = [{ label: project.label }];
-    for (let parentId = project.parentId; parentId;) {
-      const parent = workspace.projects.find((item) => item.id === parentId);
-      if (!parent) break;
-      crumbs.unshift({ label: parent.label, to: projectPath(parent.id) });
-      parentId = parent.parentId;
-    }
-    const client = workspace.clients.find((item) => item.id === project.clientId);
+    const project = tree?.projects.find((item) => item.id === projectId);
+    if (!project || !tree) return [];
+    // Its parents, top first (a cycle stops them).
+    const parents = ancestorsOf(mapById(tree.projects), project.id).reverse();
+    const crumbs: Crumb[] = [...parents.map((parent) => ({ label: parent.label, to: projectPath(parent.id) })), { label: project.label }];
+    const client = tree.clients.find((item) => item.id === project.clientId);
     if (client) crumbs.unshift({ label: client.name, to: clientPath(client.id) });
     return crumbs;
   }
   if (clientId) {
-    const client = workspace?.clients.find((item) => item.id === clientId);
+    const client = tree?.clients.find((item) => item.id === clientId);
     return [{ label: client?.name ?? 'Client' }];
   }
-  const title = pageOfPath(pathname)?.title;
-  return title ? [{ label: title }] : [];
+  const label = pageOfPath(pathname)?.label;
+  return label ? [{ label }] : [];
 }
 
 /**

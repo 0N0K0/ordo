@@ -9,6 +9,7 @@ import { MailComposer } from '../components/MailComposer';
 export function useMailComposer() {
   return (options: ComposeOptions = {}) => {
     // Closing goes through the form, which asks whether to keep the draft.
+    // eslint-disable-next-line no-restricted-syntax -- a draft of a mail, not of a document.
     openFormPanel(options.draft ? 'Brouillon' : options.forwarding ? 'Transférer' : options.inReplyTo ? 'Répondre' : 'Nouveau mail', (close) => <MailComposer options={options} onDone={close} />, {
       size: 'lg',
       locked: true,

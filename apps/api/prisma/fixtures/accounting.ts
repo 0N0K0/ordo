@@ -1,5 +1,5 @@
 import { fakerFR as faker } from '@faker-js/faker';
-import { type AccountingDocumentInput, type AccountingLineInput, addDays, formatDay, mapById, occurrenceDates, parseDay, round2, sumOf } from '@ordo/shared';
+import { type AccountingDocumentInput, type AccountingLineInput, addDays, directionOf, formatDay, mapById, occurrenceDates, parseDay, round2, sumOf } from '@ordo/shared';
 import { prisma } from '../../src/db';
 import type { CatalogItem, Client, Project } from '../../src/generated/prisma/client';
 import { createDocument, createFromDocument, defaultFields, finalizeDocument, updateDocument, editableFields, findDocument } from '../../src/services/accounting/accounting-documents';
@@ -11,8 +11,8 @@ import { importDocument } from '../../src/services/accounting/imported-documents
 import { createRecurringInvoice, issueDueInvoices } from '../../src/services/accounting/recurring-invoices';
 import { createAccount, createEntry, realizeForecast } from '../../src/services/treasury/treasury';
 import { importStatement } from '../../src/services/treasury/treasury-import';
-import { createCategory, createCounterparty, createPaymentMethod } from '../../src/services/treasury/treasury-settings';
-import { EMPTY_ENTRY, localAt, maybe, relativeDay, rule } from './factories';
+import { createCounterparty, createPaymentMethod } from '../../src/services/treasury/treasury-settings';
+import { clientRootProject, EMPTY_ENTRY, localAt, maybe, relativeDay, rule, treasuryCategoryMaker } from './factories';
 import { logoFile } from './images';
 import { tinyPdf } from './mail';
 import { setCompanyLogo } from '../../src/services/accounting/company';
@@ -226,17 +226,12 @@ export async function seedAccounting({ clients, projects, today }: AccountingCon
   const byId = mapById(fresh);
   const [clientA, clientB, clientC, clientD] = clients.slice(0, 4).map((client) => byId.get(client.id)!);
   const archived = byId.get(clients[clients.length - 1].id)!;
-  const rootOf = (client: Client) => projects.find((project) => project.clientId === client.id && project.parentId === null) ?? null;
 
   // --- Treasury accounts ---------------------------------------------------------------------------
   const bank = await createAccount({ label: 'Compte courant pro', openingBalance: 6200, openingDate: day(-180) });
 
   // --- Treasury settings: categories (with sub-categories), payment methods, counterparties -------------
-  const categoryIds = new Map<string, string>();
-  const category = async (label: string, direction: 'IN' | 'OUT', parent?: string) => {
-    const created = await createCategory({ label, direction, parentId: parent ? (categoryIds.get(`${direction}:${parent}`) ?? null) : null });
-    categoryIds.set(`${direction}:${label}`, created.id);
-  };
+  const { ids: categoryIds, category } = treasuryCategoryMaker();
   for (const label of ['Ventes', 'Subventions', 'Remboursements de frais', 'Divers']) await category(label, 'IN');
   for (const label of ['Prestations', 'Ventes de produits']) await category(label, 'IN', 'Ventes');
   for (const label of ['Locaux', 'Charges sociales', 'Impôts et taxes', 'Équipement', 'Frais de fonctionnement', 'Remboursements clients', 'Divers']) await category(label, 'OUT');
@@ -244,7 +239,7 @@ export async function seedAccounting({ clients, projects, today }: AccountingCon
   await category('TVA', 'OUT', 'Impôts et taxes');
   for (const label of ['Matériel', 'Logiciels']) await category(label, 'OUT', 'Équipement');
   for (const label of ['Frais bancaires', 'Déplacements', 'Repas']) await category(label, 'OUT', 'Frais de fonctionnement');
-  const categoryOf = (label: string, amount: number) => categoryIds.get(`${amount < 0 ? 'OUT' : 'IN'}:${label}`) ?? null;
+  const categoryOf = (label: string, amount: number) => categoryIds.get(`${directionOf(amount)}:${label}`) ?? null;
   const methodIds = new Map<string, string>();
   for (const method of [
     { label: 'Virement', incoming: true, outgoing: true },
@@ -276,7 +271,13 @@ export async function seedAccounting({ clients, projects, today }: AccountingCon
    */
   const fields = async (type: 'QUOTE' | 'INVOICE', client: Client, date: string, changes: Partial<AccountingDocumentInput>) => {
     const contact = await prisma.clientContact.findFirst({ where: { clientId: client.id }, orderBy: { createdAt: 'asc' } });
-    return { ...(await defaultFields(type, client.id, date)), contactId: contact?.id ?? null, serviceId: contact?.serviceId ?? null, projectId: rootOf(client)?.id ?? null, ...changes };
+    return {
+      ...(await defaultFields(type, client.id, date)),
+      contactId: contact?.id ?? null,
+      serviceId: contact?.serviceId ?? null,
+      projectId: clientRootProject(projects, client.id)?.id ?? null,
+      ...changes,
+    };
   };
 
   /**

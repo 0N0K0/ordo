@@ -19,6 +19,7 @@ import * as fmt from '../../../lib/format';
 import { FormActions } from '../../../components/dialogs/FormActions';
 import { RemoveButton } from '../../../components/actions/RemoveButton';
 import { TIMER_RUNNING } from './TimerStop';
+import { entrySubject } from '../lib/entry-subject';
 
 /** Dropdowns inside a popover stay in it (a portal would close the popover on click). */
 const inPopover = { comboboxProps: { withinPortal: false } };
@@ -130,11 +131,11 @@ export function RunningTimer({ entry, context, popover }: RunningTimerProps) {
             {paused ? 'Chrono en pause' : TIMER_RUNNING} — depuis {fmt.time(entry.startedAt)} ·{' '}
             {entry.projectId ? (
               <Anchor component={Link} to={projectPath(entry.projectId, 'time')} size="xs">
-                {context.projectById.get(entry.projectId)?.label ?? 'Projet'}
+                {entrySubject(entry, context)}
               </Anchor>
             ) : (
               <Anchor component={Link} to={PAGES.routines.path} size="xs">
-                {entry.routineLabel ?? 'Routine'}
+                {entrySubject(entry, context)}
               </Anchor>
             )}
           </Text>

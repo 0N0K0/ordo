@@ -39,9 +39,9 @@ export function StockCountForm({ onDone }: { onDone: () => void }) {
   // The archived items are not counted.
   const rows = unarchived(items ?? []).filter((item) => within(item.locationId));
   const columns: DataColumn<StockItem>[] = [
-    { id: 'label', label: 'Article', size: 220, locked: true, sortValue: (item) => item.label, text: (item) => item.label },
+    { id: 'label', required: true, label: 'Article', size: 220, locked: true, sortValue: (item) => item.label, text: (item) => item.label },
     { id: 'location', label: 'Emplacement', size: 170, sortValue: (item) => places.get(item.locationId ?? '') ?? null, text: (item) => places.get(item.locationId ?? '') ?? '', groupable: true },
-    { id: 'expected', label: 'Attendu', size: 100, numeric: true, sortValue: (item) => item.quantity, text: (item) => fmt.quantity(item) },
+    { id: 'expected', required: true, label: 'Attendu', size: 100, numeric: true, sortValue: (item) => item.quantity, text: (item) => fmt.quantity(item) },
     {
       id: 'counted',
       label: 'Compté',
@@ -67,7 +67,7 @@ export function StockCountForm({ onDone }: { onDone: () => void }) {
           counted: (
             <QuantityInput
               size="xs"
-              aria-label={`Quantité comptée de ${item.label}`}
+              aria-label={`Quantité comptée de « ${item.label} »`}
               min={0}
               allowNegative={false}
               hideControls
@@ -85,7 +85,7 @@ export function StockCountForm({ onDone }: { onDone: () => void }) {
           ),
         })}
       />
-      <Textarea label="Note" autosize minRows={1} value={note} onChange={(event) => setNote(event.currentTarget.value)} />
+      <Textarea label="Description" autosize minRows={1} value={note} onChange={(event) => setNote(event.currentTarget.value)} />
       <FormActions
         onCancel={onDone}
         submitLabel="Enregistrer l’inventaire"

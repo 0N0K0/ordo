@@ -1,11 +1,10 @@
 import { IconAction } from '../../../components/actions/IconAction';
 import { projectPath } from '../../../app/pages';
 import { RemoveButton } from '../../../components/actions/RemoveButton';
-import { formCallbacks } from '../../../lib/form';
+
 import { ErrorAlert } from '../../../components/feedback/ErrorAlert';
 import { DetailSkeleton } from '../../../components/feedback/Skeletons';
 import { ItemBadge } from '../../../components/items/ItemBadge';
-import { DestructiveButton } from '../../../components/dialogs/DestructiveActions';
 import { confirmDestructive } from '../../../components/dialogs/confirm-destructive';
 import { Badge, Group, Stack } from '@mantine/core';
 import {
@@ -25,7 +24,7 @@ import { useOwnAddresses } from '../hooks/use-own-addresses';
 import { Link } from 'react-router';
 
 import { ON_ERROR } from '../../../lib/notify';
-import { useWorkspace } from '../../projects/api';
+import { useProjectTree } from '../../projects/api';
 import { fetchMailDraft, mailQueryKey, useMailActions, useMailLabels, useMailMessage, useProjectMails, type MailView } from '../api';
 import { MailOrganizeActions } from './MailOrganizeActions';
 import { forwardOptions, replyOptions, splitDraftHtml, type SourceMail } from '../lib/compose-options';
@@ -72,7 +71,7 @@ interface MailReaderProps {
  */
 export function MailReader({ accountId, folder, uid, isDraft, onDeleted, onManageLabels, projectId }: MailReaderProps) {
   const { data: mail, isPending, error } = useMailMessage({ accountId, folder, uid });
-  const { data: workspace } = useWorkspace();
+  const { data: workspace } = useProjectTree();
   const { data: labels } = useMailLabels();
   const { setSeen, remove, deleteDraft, unlink } = useMailActions();
   // From a project, its copy of the mail (to unlink it).
@@ -99,9 +98,8 @@ export function MailReader({ accountId, folder, uid, isDraft, onDeleted, onManag
       risks: 'La copie du mail conservée dans le projet sera supprimée, avec ses pièces jointes. Le mail reste dans la boîte mail.',
       confirmLabel: 'Détacher',
       confirmIcon: <LinkBreakIcon aria-hidden />,
-      onConfirm: () => {
-        unlink.mutate(copyId, formCallbacks(null, 'Mail détaché du projet.', onDeleted));
-      },
+      run: () => unlink.mutateAsync(copyId).then(() => onDeleted()),
+      done: 'Mail détaché du projet.',
     });
   };
 
@@ -145,9 +143,8 @@ export function MailReader({ accountId, folder, uid, isDraft, onDeleted, onManag
     confirmDestructive({
       title: 'Supprimer le mail',
       risks: 'Le mail sera placé dans la corbeille de la boîte (supprimé définitivement s’il y est déjà). Ses copies rattachées à des projets sont conservées.',
-      onConfirm: () => {
-        remove.mutate({ accountId, folder, uids: [uid] }, formCallbacks(null, 'Mail supprimé.', onDeleted));
-      },
+      run: () => remove.mutateAsync({ accountId, folder, uids: [uid] }).then(() => onDeleted()),
+      done: 'Mail supprimé.',
     });
   };
 
@@ -161,9 +158,8 @@ export function MailReader({ accountId, folder, uid, isDraft, onDeleted, onManag
     confirmDestructive({
       title: 'Supprimer le brouillon',
       risks: <>Le brouillon « {mail.subject} » sera supprimé définitivement de la boîte.</>,
-      onConfirm: () => {
-        deleteDraft.mutate({ accountId, folder, uid }, formCallbacks(null, 'Brouillon supprimé.', onDeleted));
-      },
+      run: () => deleteDraft.mutateAsync({ accountId, folder, uid }).then(() => onDeleted()),
+      done: 'Brouillon supprimé.',
     });
   };
   const base = `/api/mail/${accountId}/attachment?folder=${encodeURIComponent(folder)}&uid=${uid}`;
@@ -219,12 +215,12 @@ export function MailReader({ accountId, folder, uid, isDraft, onDeleted, onManag
       />
       {isDraft ? (
         <Group gap="xs">
-          <ActionButton size="xs" icon={<PencilSimpleLineIcon aria-hidden />} loading={resuming} onClick={() => void resume()}>
+          <ActionButton priority="secondary" size="xs" icon={<PencilSimpleLineIcon aria-hidden />} loading={resuming} onClick={() => void resume()}>
             Reprendre le brouillon
           </ActionButton>
-          <DestructiveButton size="xs" leftSection={<TrashIcon aria-hidden />} onClick={confirmDeleteDraft}>
+          <ActionButton danger size="xs" icon={<TrashIcon aria-hidden />} onClick={confirmDeleteDraft}>
             Supprimer le brouillon
-          </DestructiveButton>
+          </ActionButton>
         </Group>
       ) : (
         <Group gap="xs">
@@ -239,9 +235,9 @@ export function MailReader({ accountId, folder, uid, isDraft, onDeleted, onManag
           </ActionButton>
           {projectId ? (
             copy && (
-              <DestructiveButton size="xs" leftSection={<LinkBreakIcon aria-hidden />} onClick={() => confirmUnlink(copy.id)}>
+              <ActionButton danger size="xs" icon={<LinkBreakIcon aria-hidden />} onClick={() => confirmUnlink(copy.id)}>
                 Détacher du projet
-              </DestructiveButton>
+              </ActionButton>
             )
           ) : (
             <LinkToProject accountId={accountId} folder={folder} uid={uid} linkedProjectIds={mail.linkedProjectIds} />

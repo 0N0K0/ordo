@@ -147,7 +147,7 @@ export function AccountPage() {
 
   return (
     <Stack gap="lg">
-      <PageHeader title={PAGES.account.title} />
+      <PageHeader title={PAGES.account.label} />
       <SettingsSection title="Identifiant" description="Utilisable à la place de l’adresse email pour se connecter.">
         <UsernameForm key={user.username} user={user} />
       </SettingsSection>

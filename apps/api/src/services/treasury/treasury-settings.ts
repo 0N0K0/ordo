@@ -12,8 +12,8 @@ import { prisma } from '../../db';
 import type { TreasuryCategory, TreasuryCounterparty, TreasuryPaymentMethod } from '../../generated/prisma/client';
 import { fieldError, orNotFound, parseInput } from '../../graphql/errors';
 import { getCompanyProfile } from '../accounting/company';
-import { assertNotArchived } from '../core/archive';
-import { assertExists, deleteOrNotFound } from '../core/lookup';
+import { assertActive, refuseArchived } from '../core/archive';
+import { deleteOrNotFound, findOrNotFound } from '../core/lookup';
 
 /** Category of the treasury as validated. */
 type ParsedCategory = ReturnType<typeof treasuryCategorySchema.parse>;
@@ -29,9 +29,9 @@ const categories = treeListService<TreasuryCategory, ParsedCategory, TreasuryCat
     async parse(input, current) {
       const data = parseInput(treasuryCategorySchema, input);
       if (!data.parentId) return data;
-      const parent = await orNotFound(prisma.treasuryCategory.findUnique({ where: { id: data.parentId } }), 'Catégorie parente');
+      const parent = await findOrNotFound(prisma.treasuryCategory, data.parentId, 'Catégorie parente');
       // Nothing is put under an archived category (a category already there stays).
-      await assertNotArchived('treasuryCategory', parent.id, { keep: current?.parentId, field: 'parentId' });
+      if (parent.id !== current?.parentId) refuseArchived(parent, 'parentId');
       if (parent.direction !== data.direction) throw fieldError('parentId', 'La catégorie parente doit être du même sens.');
       return data;
     },
@@ -69,6 +69,23 @@ export async function createPaymentMethod(input: TreasuryPaymentMethodInput): Pr
 }
 
 /**
+ * Checks that a payment method serves money in the direction of a movement (BAD_USER_INPUT under `methodId`).
+ * Nothing is checked when no method is given.
+ * @param {string | null | undefined} methodId Method. Optional.
+ * @param {boolean} incoming Money in (else out).
+ * @returns {Promise<void>}
+ */
+export async function assertMethodFor(methodId: string | null | undefined, incoming: boolean): Promise<void> {
+  if (!methodId) return;
+  const method = await orNotFound(prisma.treasuryPaymentMethod.findUnique({ where: { id: methodId }, select: { incoming: true, outgoing: true } }), 'Moyen de paiement');
+  if (!(incoming ? method.incoming : method.outgoing)) {
+    // eslint-disable-next-line no-restricted-syntax -- assertMethodFor itself.
+    const message = incoming ? 'Ce moyen de paiement ne sert pas aux entrées.' : 'Ce moyen de paiement ne sert pas aux sorties.';
+    throw fieldError('methodId', message);
+  }
+}
+
+/**
  * Updates a payment method; a direction used by entries cannot be removed.
  * @param {string} id Method id.
  * @param {TreasuryPaymentMethodInput} input Method.
@@ -76,8 +93,7 @@ export async function createPaymentMethod(input: TreasuryPaymentMethodInput): Pr
  */
 export async function updatePaymentMethod(id: string, input: TreasuryPaymentMethodInput): Promise<TreasuryPaymentMethod> {
   const data = parseInput(treasuryPaymentMethodSchema, input);
-  await assertExists(prisma.treasuryPaymentMethod, id, 'Moyen de paiement');
-  await assertNotArchived('TREASURY_PAYMENT_METHOD', id);
+  await assertActive(prisma.treasuryPaymentMethod, id, 'Moyen de paiement');
   if (!data.incoming && (await prisma.treasuryEntry.count({ where: { methodId: id, amount: { gt: 0 } } }))) {
     throw fieldError('incoming', 'Des entrées utilisent ce moyen de paiement.', 'Des entrées l’utilisent.');
   }
@@ -113,8 +129,7 @@ export async function createCounterparty(input: TreasuryCounterpartyInput): Prom
  */
 export async function updateCounterparty(id: string, input: TreasuryCounterpartyInput): Promise<TreasuryCounterparty> {
   const data = parseInput(treasuryCounterpartySchema, input);
-  await assertExists(prisma.treasuryCounterparty, id, 'Tiers');
-  await assertNotArchived('TREASURY_COUNTERPARTY', id);
+  await assertActive(prisma.treasuryCounterparty, id, 'Tiers');
   return prisma.treasuryCounterparty.update({ where: { id }, data });
 }
 
@@ -134,19 +149,19 @@ export async function deleteCounterparty(id: string): Promise<void> {
  * @returns {Promise<void>}
  */
 export async function setInvoiceCategories(input: { invoiceCategoryId: string | null; creditNoteCategoryId: string | null }): Promise<void> {
+  const company = await getCompanyProfile();
   for (const [id, direction, field] of [
     [input.invoiceCategoryId, 'IN', 'invoiceCategoryId'],
     [input.creditNoteCategoryId, 'OUT', 'creditNoteCategoryId'],
   ] as const) {
     if (!id) continue;
-    const category = await orNotFound(prisma.treasuryCategory.findUnique({ where: { id }, select: { direction: true } }), 'Catégorie');
+    const category = await orNotFound(prisma.treasuryCategory.findUnique({ where: { id }, select: { direction: true, archivedAt: true } }), 'Catégorie');
     // An archived category stays the one set, but is not set any more.
-    await assertNotArchived('treasuryCategory', id, { keep: (await getCompanyProfile())[field], field });
+    if (id !== company[field]) refuseArchived(category, field);
     if (category.direction !== direction) {
-      const message = direction === 'IN' ? 'Choisissez une catégorie d’entrées.' : 'Choisissez une catégorie de sorties.';
+      const message = direction === 'IN' ? 'Choisissez une catégorie d’entrée.' : 'Choisissez une catégorie de sortie.';
       throw fieldError(field, message);
     }
   }
-  const company = await getCompanyProfile();
   await prisma.companyProfile.update({ where: { id: company.id }, data: { invoiceCategoryId: input.invoiceCategoryId, creditNoteCategoryId: input.creditNoteCategoryId } });
 }

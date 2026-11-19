@@ -1,23 +1,19 @@
+import { PROJECT_RESOURCE_KINDS } from '@ordo/shared';
 import { done } from '../errors';
 import { prisma } from '../../db';
-import { projectCategories } from '../../services/workspace/project-categories';
-import * as clients from '../../services/workspace/clients';
+import { projectCategories } from '../../services/projects/project-categories';
+import * as clients from '../../services/projects/clients';
 import { iconUrl } from '../../services/core/icons';
-import * as projects from '../../services/workspace/projects';
-import { projectStatuses } from '../../services/tasks/statuses';
+import * as projects from '../../services/projects/projects';
+import * as resources from '../../services/projects/project-resources';
+import { resourceUrl } from '../../services/core/attachments';
+import { projectStatuses } from '../../services/projects/project-statuses';
 import { BY_POSITION, BY_POSITION_NAME } from '../../services/core/ordering';
 import { builder, type InputFields } from '../builder';
-import { LabelColorInput, LabelColorPatch, labelMutations, labelObject } from '../label-inputs';
+import { labelMutations, labelObject } from '../label-inputs';
 import { reloaded } from '../reload';
 
-builder.prismaObject('ProjectCategory', {
-  fields: (t) => ({
-    id: t.exposeID('id'),
-    label: t.exposeString('label'),
-    color: t.exposeString('color'),
-  }),
-});
-
+labelObject('ProjectCategory');
 labelObject('ProjectStatus');
 
 builder.prismaObject('Client', {
@@ -197,5 +193,56 @@ builder.mutationFields((t) => ({
   }),
 }));
 
-labelMutations('ProjectCategory', projectCategories, { create: LabelColorInput, update: LabelColorPatch });
-labelMutations('ProjectStatus', projectStatuses, { create: LabelColorInput, update: LabelColorPatch });
+labelMutations('ProjectCategory', projectCategories);
+labelMutations('ProjectStatus', projectStatuses);
+
+// Resources of a project: files and links.
+
+const ResourceKindEnum = builder.enumType('ProjectResourceKind', { values: PROJECT_RESOURCE_KINDS });
+
+builder.prismaObject('ProjectResource', {
+  fields: (t) => ({
+    id: t.exposeID('id'),
+    projectId: t.exposeID('projectId'),
+    kind: t.field({ type: ResourceKindEnum, resolve: (resource) => resource.kind }),
+    label: t.exposeString('label'),
+    note: t.exposeString('note', { nullable: true }),
+    url: t.string({
+      select: { attachment: { select: { id: true, filename: true } } },
+      resolve: (resource) => resourceUrl(resource),
+    }),
+    size: t.int({ nullable: true, select: { attachment: { select: { size: true } } }, resolve: (resource) => resource.attachment?.size ?? null }),
+    createdAt: t.expose('createdAt', { type: 'DateTime' }),
+  }),
+});
+
+builder.queryFields((t) => ({
+  projectResources: t.prismaField({
+    type: ['ProjectResource'],
+    args: { projectId: t.arg.id({ required: true }) },
+    resolve: (query, _root, { projectId }) => prisma.projectResource.findMany({ ...query, where: { projectId }, orderBy: BY_POSITION }),
+  }),
+}));
+
+builder.mutationFields((t) => ({
+  addProjectLink: t.boolean({
+    args: { projectId: t.arg.id({ required: true }), label: t.arg.string({ required: true }), url: t.arg.string({ required: true }), note: t.arg.string() },
+    resolve: (_root, { projectId, label, url, note }) => done(resources.addProjectLink(projectId, { label, url, note: note ?? null })),
+  }),
+  addProjectFiles: t.boolean({
+    args: { projectId: t.arg.id({ required: true }), files: t.arg({ type: ['File'], required: true }) },
+    resolve: (_root, { projectId, files }) => done(resources.addProjectFiles(projectId, files)),
+  }),
+  updateProjectResource: t.boolean({
+    args: { id: t.arg.id({ required: true }), label: t.arg.string({ required: true }), url: t.arg.string(), note: t.arg.string() },
+    resolve: (_root, { id, label, url, note }) => done(resources.updateProjectResource(id, { label, url, note })),
+  }),
+  deleteProjectResource: t.boolean({
+    args: { id: t.arg.id({ required: true }) },
+    resolve: (_root, { id }) => done(resources.deleteProjectResource(id)),
+  }),
+  moveProjectResource: t.boolean({
+    args: { id: t.arg.id({ required: true }), index: t.arg.int({ required: true }) },
+    resolve: (_root, { id, index }) => done(resources.moveProjectResource(id, index)),
+  }),
+}));

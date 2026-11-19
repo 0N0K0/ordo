@@ -1,6 +1,6 @@
 import { IconAction } from '../actions/IconAction';
 import { Group, Loader, Paper, Tabs, Text, Textarea, UnstyledButton } from '@mantine/core';
-import { fileTooLarge, mapById, MAX_ATTACHMENT_BYTES } from '@ordo/shared';
+import { fileTooLarge, MAX_ATTACHMENT_BYTES } from '@ordo/shared';
 import {
   AtIcon,
   CheckSquareIcon,
@@ -22,7 +22,7 @@ import { notifyError } from '../../lib/notify';
 import { completeReference, insertLink, isUrl, prefixLines, referenceAt, wrapSelection, type EditResult, type ReferenceToken } from './markdown-commands';
 import classes from './MarkdownEditor.module.css';
 import { MarkdownView } from './MarkdownView';
-import { referenceLabel, taskReferenceUrl, taskShortRef, type ReferenceTargets, type ReferenceTask } from './remark-references';
+import { referenceLabel, taskReferenceUrl, taskShortRef, type ReferenceTargets, type ReferenceTask, referenceTargets } from './remark-references';
 import { countOf, normalize } from '../../lib/text';
 import { PersonOption } from '../people/people-rows';
 
@@ -113,9 +113,7 @@ export function MarkdownEditor({ value, onChange, suggestions, label, placeholde
   const targets: ReferenceTargets = useMemo(
     () => ({
       projectId: suggestions.projectId,
-      taskById: mapById(suggestions.tasks),
-      taskByNumber: new Map(suggestions.tasks.map((task) => [`${task.projectId}:${task.number}`, task])),
-      handles: new Set(suggestions.contributors.map((contributor) => contributor.handle)),
+      ...referenceTargets(suggestions.tasks),
     }),
     [suggestions],
   );

@@ -1,10 +1,6 @@
 import { clientPath, projectPath } from '../../../app/pages';
-import { TextInput } from '@mantine/core';
-import { personNameSchema, projectLabelSchema } from '@ordo/shared';
-
-import { forwardRef, useState, type CSSProperties, type HTMLAttributes, type KeyboardEvent } from 'react';
+import { forwardRef, useState, type CSSProperties, type HTMLAttributes } from 'react';
 import { Link, useLocation } from 'react-router';
-import { notifyError } from '../../../lib/notify';
 import { ItemAvatar } from '../../../components/items/ItemAvatar';
 import { entityLabel, useEntityActions, type EntityRef } from '../hooks/use-entity-actions';
 import { EntityMenu } from './EntityMenu';
@@ -26,7 +22,7 @@ interface TreeRowProps extends HTMLAttributes<HTMLDivElement> {
 }
 
 /**
- * Sidebar tree row: link to the detail page, inline rename on double-click,
+ * Sidebar tree row: link to the detail page, renamed in the side panel on double-click (decision DF),
  * action menu on "⋯" and right-click.
  * @param {TreeRowProps} props Component props (extra props and ref go to the row, for drag and drop).
  * @returns {JSX.Element} Row.
@@ -36,58 +32,9 @@ export const TreeRow = forwardRef<HTMLDivElement, TreeRowProps>(function TreeRow
   const actions = useEntityActions();
   const { pathname } = useLocation();
   const [menuOpened, setMenuOpened] = useState(false);
-  const [editing, setEditing] = useState(false);
   const label = entityLabel(entity);
   const isProject = entity.type === 'project';
-  const [draft, setDraft] = useState(label);
-  const [error, setError] = useState<string | null>(null);
   const href = entity.type === 'client' ? clientPath(item.id) : projectPath(item.id);
-
-  /**
-   * Starts the inline rename.
-   * @returns {void}
-   */
-  const startEditing = () => {
-    setDraft(label);
-    setError(null);
-    setEditing(true);
-  };
-
-  /**
-   * Validates and saves the new name (client) or label (project).
-   * @param {boolean} fromBlur Whether focus left the field (an invalid value is then dropped).
-   * @returns {void}
-   */
-  const commit = (fromBlur: boolean) => {
-    const result = (isProject ? projectLabelSchema : personNameSchema).safeParse(draft);
-    if (!result.success) {
-      const message = result.error.issues[0]?.message ?? 'Valeur invalide.';
-      if (fromBlur) {
-        notifyError(`${message} ${isProject ? 'Le libellé' : 'Le nom'} n’a pas été modifié.`);
-        setEditing(false);
-      } else {
-        setError(message);
-      }
-      return;
-    }
-    actions.rename(entity, result.data);
-    setEditing(false);
-  };
-
-  /**
-   * Enter saves, Escape cancels.
-   * @param {KeyboardEvent<HTMLInputElement>} event Key event.
-   * @returns {void}
-   */
-  const handleKeyDown = (event: KeyboardEvent<HTMLInputElement>) => {
-    if (event.key === 'Enter') {
-      event.preventDefault();
-      commit(false);
-    } else if (event.key === 'Escape') {
-      event.preventDefault();
-      setEditing(false);
-    }
-  };
 
   return (
     <div
@@ -98,7 +45,7 @@ export const TreeRow = forwardRef<HTMLDivElement, TreeRowProps>(function TreeRow
       data-active={pathname === href || undefined}
       data-muted={(muted ?? item.archived) || undefined}
       data-menu-open={menuOpened || undefined}
-      data-draggable={(draggable && !editing) || undefined}
+      data-draggable={draggable || undefined}
       data-dragging={dragging || undefined}
       data-reveal-host
       onContextMenu={(event) => {
@@ -108,46 +55,25 @@ export const TreeRow = forwardRef<HTMLDivElement, TreeRowProps>(function TreeRow
     >
       {expansion ? <FoldButton expanded={expansion.expanded} item={label} onToggle={expansion.onToggle} inRow /> : <span className={classes.spacer} />}
 
-      {editing ? (
-        <TextInput
-          size="xs"
-          value={draft}
-          error={error}
-          autoFocus
-          onFocus={(event) => event.currentTarget.select()}
-          onChange={(event) => {
-            setDraft(event.currentTarget.value);
-            setError(null);
-          }}
-          onKeyDown={handleKeyDown}
-          onBlur={() => commit(true)}
-          onPointerDown={(event) => event.stopPropagation()}
-          aria-label={isProject ? 'Nouveau libellé' : 'Nouveau nom'}
-          style={{ flex: 1 }}
-        />
-      ) : (
-        <Link
-          to={href}
-          className={classes.link}
-          draggable={false}
-          onDoubleClick={(event) => {
-            event.preventDefault();
-            startEditing();
-          }}
-        >
-          <ItemAvatar name={label} iconUrl={item.iconUrl} color={item.color ?? 'initials'} size={22} radius="sm" contain={!isProject} />
-          <span className={classes.name}>
-            <span>{label}</span>
-            {subtitle && <span className={classes.subtitle}>{subtitle}</span>}
-          </span>
-        </Link>
-      )}
-
-      {!editing && (
-        <span className={classes.actions} data-reveal>
-          <EntityMenu entity={entity} opened={menuOpened} onChange={setMenuOpened} />
+      <Link
+        to={href}
+        className={classes.link}
+        draggable={false}
+        onDoubleClick={(event) => {
+          event.preventDefault();
+          actions.rename(entity);
+        }}
+      >
+        <ItemAvatar name={label} iconUrl={item.iconUrl} color={item.color ?? 'initials'} size={22} radius="sm" contain={!isProject} />
+        <span className={classes.name}>
+          <span>{label}</span>
+          {subtitle && <span className={classes.subtitle}>{subtitle}</span>}
         </span>
-      )}
+      </Link>
+
+      <span className={classes.actions} data-reveal>
+        <EntityMenu entity={entity} opened={menuOpened} onChange={setMenuOpened} />
+      </span>
     </div>
   );
 });

@@ -1,13 +1,14 @@
 import { mailAccountFormSchema, signatureSchema, type MailAccountFormValues } from '@ordo/shared';
 import nodemailer from 'nodemailer';
 import { prisma } from '../../db';
-import { assertNotArchived } from '../core/archive';
 import type { MailAccount } from '../../generated/prisma/client';
-import { clientError, errorMessage, fieldError, orNotFound, parseInput } from '../../graphql/errors';
+import { clientError, errorMessage, fieldError, parseInput } from '../../graphql/errors';
 import { moveInList, nextPositionIn } from '../core/ordering';
 import { closeImap, createImapClient, rethrowImapError } from './imap';
 import { sanitizeMailHtml } from './sanitize';
 import { decryptSecret, encryptSecret } from './secret';
+import { findOrNotFound } from '../core/lookup';
+import { findActive } from '../core/archive';
 
 /**
  * Rethrows an SMTP failure as a user error with its detail: « Envoi impossible (…). ».
@@ -40,9 +41,8 @@ export function createSmtpTransport(account: Pick<MailAccount, 'smtpHost' | 'smt
  * @param {string} id Account id.
  * @returns {Promise<MailAccount>} Account.
  */
-export async function findAccount(id: string): Promise<MailAccount> {
-  const account = await orNotFound(prisma.mailAccount.findUnique({ where: { id } }), 'Boîte mail');
-  return account;
+export function findAccount(id: string): Promise<MailAccount> {
+  return findOrNotFound(prisma.mailAccount, id, 'Boîte mail');
 }
 
 /**
@@ -50,10 +50,8 @@ export async function findAccount(id: string): Promise<MailAccount> {
  * @param {string} id Account id.
  * @returns {Promise<MailAccount>} Account.
  */
-export async function findActiveAccount(id: string): Promise<MailAccount> {
-  const account = await findAccount(id);
-  await assertNotArchived('MAIL_ACCOUNT', id);
-  return account;
+export function findActiveAccount(id: string): Promise<MailAccount> {
+  return findActive(prisma.mailAccount, id, 'Boîte mail');
 }
 
 /**

@@ -10,7 +10,7 @@ import { DashboardBoard } from '../components/DashboardBoard';
 export function DashboardsPage() {
   return (
     <Stack gap="lg">
-      <PageHeader title={PAGES.dashboards.title} />
+      <PageHeader title={PAGES.dashboards.label} />
       <DashboardBoard projectId={null} title="Tous les projets" />
     </Stack>
   );

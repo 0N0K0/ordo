@@ -1,5 +1,4 @@
 import {
-  type AccountingDocumentType,
   type Address,
   addressLines,
   contactName,
@@ -15,6 +14,8 @@ import {
   toCents,
   UNIT_LABELS,
   isInvoice,
+  DOCUMENT_TYPE_LABELS,
+  documentTitle,
 } from '@ordo/shared';
 import { createPdf, PDF_TABLE, PDF_TEXT, type PdfDoc } from '../core/pdf-report';
 import { prisma } from '../../db';
@@ -23,13 +24,6 @@ import { buyerSnapshot, documentTotals, findDocument, lineInput, sellerSnapshot,
 import { documentBalances } from './document-tracking';
 import { FACTUR_X_FILENAME, facturXml, facturXmp, hasFacturX } from './factur-x';
 import { decimalCents, fromDecimal } from '../core/decimal';
-
-const TYPE_TITLES: Record<AccountingDocumentType, string> = {
-  QUOTE: 'Devis',
-  INVOICE: 'Facture',
-  DEPOSIT_INVOICE: 'Facture d’acompte',
-  CREDIT_NOTE: 'Avoir',
-};
 
 const COLORS = { ...PDF_TEXT, border: PDF_TABLE.border, fill: PDF_TABLE.fill, accent: '#aa9371' };
 const PAGE = { margin: 34, bottom: 60 };
@@ -792,7 +786,7 @@ function writeHeader(
   const sellerBottom = y;
 
   // Title, number and dates, above the window.
-  doc.font('bold').fontSize(20).fillColor(COLORS.accent).text(TYPE_TITLES[document.type].toUpperCase(), right, top, {
+  doc.font('bold').fontSize(20).fillColor(COLORS.accent).text(DOCUMENT_TYPE_LABELS[document.type].toUpperCase(), right, top, {
     width: rightWidth,
     align: 'right',
   });
@@ -923,7 +917,7 @@ function writeApproval(doc: PdfDoc, flow: Flow): void {
  * @returns {void}
  */
 function writeFooters(doc: PdfDoc, draft: boolean, document: DocumentWithLines): void {
-  const reference = `${TYPE_TITLES[document.type]} ${draft ? 'provisoire' : 'N° ' + document.number} du ${printedDay(document.issueDate)}`;
+  const reference = `${DOCUMENT_TYPE_LABELS[document.type]} ${draft ? 'provisoire' : 'N° ' + document.number} du ${printedDay(document.issueDate)}`;
   const range = doc.bufferedPageRange();
   for (let index = range.start; index < range.start + range.count; index++) {
     doc.switchToPage(index);
@@ -1026,8 +1020,7 @@ export async function documentPdf(id: string, options: { paid?: boolean } = {}):
       })
     : null;
   const totals = documentTotals(document);
-  const typeTitle = TYPE_TITLES[document.type];
-  const title = document.number ? `${typeTitle} ${document.number}${payments ? ' acquittée' : ''}` : `${typeTitle} (brouillon)`;
+  const title = `${documentTitle(document)}${document.number && payments ? ' acquittée' : ''}`;
 
   const { doc, end } = createPdf({
     size: 'A4',

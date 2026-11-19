@@ -2,19 +2,10 @@ import { dateSchema, markdownSchema, milestoneLabelSchema, parseOptionalDay } fr
 import { z } from 'zod';
 import { prisma } from '../../db';
 import type { Milestone } from '../../generated/prisma/client';
-import { orNotFound, parseInput } from '../../graphql/errors';
+import { parseInput } from '../../graphql/errors';
 import { moveInList, nextPositionIn } from '../core/ordering';
-import { assertNotArchived } from '../core/archive';
-
-/**
- * Loads a milestone or throws NOT_FOUND.
- * @param {string} id Milestone id.
- * @returns {Promise<Milestone>} Milestone.
- */
-async function findMilestone(id: string): Promise<Milestone> {
-  const milestone = await orNotFound(prisma.milestone.findUnique({ where: { id } }), 'Jalon');
-  return milestone;
-}
+import { assertNotArchived, assertActive, findActive } from '../core/archive';
+import { deleteOrNotFound } from '../core/lookup';
 
 /**
  * Loads a milestone that can be changed: neither it nor its project is archived (BAD_USER_INPUT « Élément archivé… »).
@@ -22,8 +13,7 @@ async function findMilestone(id: string): Promise<Milestone> {
  * @returns {Promise<Milestone>} Milestone.
  */
 async function findEditableMilestone(id: string): Promise<Milestone> {
-  const milestone = await findMilestone(id);
-  await assertNotArchived('milestone', id);
+  const milestone = await findActive(prisma.milestone, id, 'Jalon');
   await assertNotArchived('project', milestone.projectId);
   return milestone;
 }
@@ -44,8 +34,7 @@ const fieldsSchema = z.object({
  * @returns {Promise<Milestone>} Created milestone.
  */
 export async function createMilestone(input: { projectId: string; label: string; description?: string | null; dueDate?: string | null }): Promise<Milestone> {
-  await orNotFound(prisma.project.findUnique({ where: { id: input.projectId }, select: { id: true } }), 'Projet');
-  await assertNotArchived('project', input.projectId, { field: 'projectId' });
+  await assertActive(prisma.project, input.projectId, 'Projet', { field: 'projectId' });
   const fields = parseInput(fieldsSchema.required({ label: true }), {
     label: input.label,
     description: input.description ?? null,
@@ -91,8 +80,7 @@ export async function updateMilestone(id: string, input: { label?: string | null
  * @returns {Promise<void>}
  */
 export async function deleteMilestone(id: string): Promise<void> {
-  await findMilestone(id);
-  await prisma.milestone.delete({ where: { id } });
+  await deleteOrNotFound(prisma.milestone, id, 'Jalon');
 }
 
 /**

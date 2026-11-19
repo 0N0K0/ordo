@@ -1,4 +1,5 @@
 import { formCallbacks } from '../../../lib/form';
+import { DocumentBalanceBadge } from './DocumentBalanceBadge';
 import { plural, countOf } from '../../../lib/text';
 import { EmptyState } from '../../../components/feedback/EmptyState';
 
@@ -17,16 +18,16 @@ import { localToday } from '../../../lib/dates';
 import { ON_ERROR } from '../../../lib/notify';
 import { useDocumentMutations, useImportedDocumentMutations, type AccountingDocumentSummary, type ImportedDocument } from '../api/documents';
 import { openImportForm } from '../lib/imported-form';
-import { DOCUMENT_TYPE_LABELS, isFeminineDocumentType } from '../lib/labels';
+import { DOCUMENT_TYPE_LABELS, documentName, DRAFT_NAME, isFeminineDocumentType } from '../lib/labels';
 import { openDepositForm } from '../lib/new-document';
 import { openFile } from '../../files/lib/open-file';
 import { downloadUrl } from '../../files/lib/viewable';
 import { pdfUrl } from '../lib/document-pdf';
 import { openPaymentDialog } from '../lib/payment-dialog';
-import { StatusMenu, TrackingBadge } from './TrackingBadge';
+import { DraftBadge, StatusMenu, TrackingBadge } from './TrackingBadge';
 import { openSentDialog } from '../lib/sent-dialog';
 import * as fmt from '../../../lib/format';
-import { useWorkspace } from '../../projects/api';
+import { useProjectTree } from '../../projects/api';
 import { projectFullPath, projectOptions } from '../../projects/lib/tree';
 import { DocumentAttachmentsCell, DocumentProjectCell } from './document-cells';
 import { useCommentCounts } from '../../comments/api';
@@ -39,6 +40,7 @@ import { commentColumn } from '../../comments/lib/comment-column';
 import type { TreeOption } from '../../../components/tree/tree-select';
 import { monthColumn } from '../../../components/data-table/table/month-column';
 import { documentPath } from '../../../app/pages';
+import { taggedKey } from '../../../lib/tagged-key';
 
 type Row = { kind: 'ordo'; document: AccountingDocumentSummary } | { kind: 'imported'; document: ImportedDocument };
 
@@ -47,14 +49,14 @@ type Row = { kind: 'ordo'; document: AccountingDocumentSummary } | { kind: 'impo
  * @param {Row} row Row.
  * @returns {string} Key.
  */
-const rowKey = (row: Row) => `${row.kind}:${row.document.id}`;
+const rowKey = (row: Row) => taggedKey(row.kind, row.document.id);
 
 /**
  * Tracking status of a document, as a text.
  * @param {Row} row Row.
  * @returns {string} Text.
  */
-const trackingText = (row: Row) => (row.kind === 'ordo' && row.document.status !== 'FINAL' ? 'Brouillon' : (row.document.trackingStatus?.label ?? ''));
+const trackingText = (row: Row) => (row.kind === 'ordo' && row.document.status !== 'FINAL' ? DRAFT_NAME : (row.document.trackingStatus?.label ?? ''));
 
 /**
  * Columns of the documents (type and client only where they vary).
@@ -67,9 +69,10 @@ function documentColumns({ rows, projectLabels, projects }: { rows: Row[]; proje
   const projectOf = (row: Row) => (row.document.projectId ? (projectLabels.get(row.document.projectId) ?? '') : '');
   const money = (amount: number) => fmt.money(amount);
   return [
-    { id: 'number', label: 'Numéro', size: 150, locked: true, sortValue: (row) => row.document.number ?? null, text: (row) => row.document.number ?? 'Brouillon' },
+    { id: 'number', required: true, label: 'Numéro', size: 150, locked: true, sortValue: (row) => row.document.number ?? null, text: (row) => documentName(row.document.number) },
     {
       id: 'type',
+      required: true,
       label: 'Type',
       size: 130,
       sortValue: (row) => DOCUMENT_TYPE_LABELS[row.document.type],
@@ -79,6 +82,7 @@ function documentColumns({ rows, projectLabels, projects }: { rows: Row[]; proje
     },
     {
       id: 'date',
+      required: true,
       label: 'Date',
       size: 120,
       sortValue: (row) => row.document.issueDate,
@@ -128,6 +132,7 @@ function documentColumns({ rows, projectLabels, projects }: { rows: Row[]; proje
     },
     {
       id: 'origin',
+      required: true,
       label: 'Origine',
       size: 110,
       hiddenByDefault: true,
@@ -145,6 +150,7 @@ function documentColumns({ rows, projectLabels, projects }: { rows: Row[]; proje
     },
     {
       id: 'net',
+      required: true,
       label: 'Total HT',
       size: 120,
       numeric: true,
@@ -155,6 +161,7 @@ function documentColumns({ rows, projectLabels, projects }: { rows: Row[]; proje
     },
     {
       id: 'gross',
+      required: true,
       label: 'Total TTC',
       size: 140,
       numeric: true,
@@ -165,13 +172,14 @@ function documentColumns({ rows, projectLabels, projects }: { rows: Row[]; proje
     },
     {
       id: 'balance',
+      required: true,
       label: 'Reste dû',
       size: 120,
       numeric: true,
       hiddenByDefault: true,
       sortValue: (row) => row.document.balance ?? 0,
       formatTotal: money,
-      text: (row) => (row.document.balance ? fmt.money(row.document.balance, row.document.currency) : ''),
+      text: (row) => (row.document.balance == null ? '' : fmt.money(row.document.balance, row.document.currency)),
       filter: { kind: 'number', value: (row) => row.document.balance ?? 0 },
     },
     {
@@ -215,11 +223,7 @@ function ImportedTracking({ document, onSelect }: { document: ImportedDocument; 
   return (
     <Group gap={4} wrap="nowrap" onClick={(event) => event.stopPropagation()}>
       <StatusMenu type={document.type} current={document.trackingStatus} onSelect={onSelect} readOnly={document.archived} />
-      {document.type !== 'QUOTE' && (
-        <Badge size="sm" variant="light" color={document.balance ? 'orange' : 'green'}>
-          {document.balance ? `Reste ${fmt.money(document.balance, document.currency)}` : 'Réglée'}
-        </Badge>
-      )}
+      {document.type !== 'QUOTE' && <DocumentBalanceBadge size="sm" balance={document.balance} currency={document.currency} />}
     </Group>
   );
 }
@@ -262,7 +266,7 @@ function OrdoActions({ document, onDuplicated }: { document: AccountingDocumentS
         // A final document downloads its PDF; drafts have none yet.
         document.status === 'FINAL' && { label: 'Télécharger le PDF', icon: <DownloadSimpleIcon aria-hidden />, href: pdfUrl(document.id, true), download: true },
         archiveEntry(
-          { archived: document.archived, type: DOCUMENT_TYPE_LABELS[document.type], label: document.number ?? document.label ?? 'Brouillon', feminine: isFeminineDocumentType(document.type) },
+          { archived: document.archived, type: DOCUMENT_TYPE_LABELS[document.type], label: documentName(document.number, document.label), feminine: isFeminineDocumentType(document.type) },
           setArchived,
           document.id,
         ),
@@ -311,7 +315,7 @@ export function DocumentsTable({ tableKey, projectId = null, title, documents, i
     'IMPORTED_DOCUMENT',
     imported.map((document) => document.id),
   );
-  const { data: workspace } = useWorkspace();
+  const { data: workspace } = useProjectTree();
   const projectLabels = new Map((workspace?.projects ?? []).map((project) => [project.id, projectFullPath(workspace!, project)]));
   const projects = projectOptions(workspace, unarchived(workspace?.projects ?? []));
   // Latest first, before any sort.
@@ -359,7 +363,7 @@ export function DocumentsTable({ tableKey, projectId = null, title, documents, i
         ),
     });
   };
-  const cellLabelOf = bulkCellLabels<Row>(view, (row) => row.document.number ?? 'Brouillon');
+  const cellLabelOf = bulkCellLabels<Row>(view, (row) => documentName(row.document.number));
   const bulkTracking = bulkSaver<Row, StatusChoice>(
     view,
     (row, choice) => setTracking([row], choice),
@@ -386,7 +390,7 @@ export function DocumentsTable({ tableKey, projectId = null, title, documents, i
       noun: 'document importé',
       many: 'documents importés',
       the: 'le document importé',
-      name: (document) => document.number,
+      label: (document) => document.number,
       risks: (subject, one) => `${subject} et ${one ? 'son fichier' : 'leur fichier'} seront supprimés définitivement d’Ordo${note}.`,
       remove: (document) => remove.mutateAsync(document.id),
       clear,
@@ -406,16 +410,14 @@ export function DocumentsTable({ tableKey, projectId = null, title, documents, i
    */
   const ordoCells = (document: AccountingDocumentSummary): Record<string, ReactNode> => ({
     number: (
-      <UnstyledButton onClick={() => navigate(documentPath(document.id))} aria-label={`Ouvrir ${document.number ?? 'le brouillon'}`}>
+      <UnstyledButton onClick={() => navigate(documentPath(document.id))} aria-label={document.number ? `Ouvrir « ${document.number} »` : 'Ouvrir le brouillon'}>
         <Group gap={6} wrap="nowrap">
           {document.number ? (
             <Text size="sm" ff="monospace" fw={600}>
               {document.number}
             </Text>
           ) : (
-            <Badge size="sm" variant="light" color="gray">
-              Brouillon
-            </Badge>
+            <DraftBadge />
           )}
           {document.recurringId && <ArrowsClockwiseIcon aria-label="Issue d’une facture récurrente" />}
           {document.archived && <ArchivedBadge size="xs" />}
@@ -466,7 +468,7 @@ export function DocumentsTable({ tableKey, projectId = null, title, documents, i
   const importedCells = (document: ImportedDocument): Record<string, ReactNode> => ({
     number: (
       <Group gap={6} wrap="nowrap">
-        <UnstyledButton onClick={() => navigate(documentPath(document.id, true))} aria-label={`Ouvrir ${document.number}`}>
+        <UnstyledButton onClick={() => navigate(documentPath(document.id, true))} aria-label={`Ouvrir « ${document.number} »`}>
           <Text size="sm" ff="monospace" fw={600}>
             {document.number}
           </Text>

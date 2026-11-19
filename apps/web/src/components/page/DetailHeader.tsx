@@ -9,6 +9,8 @@ interface DetailHeaderProps {
   back?: { to: string; label: ReactNode };
   /** Header of the page (PageHeader), between the way back and the name. Optional. */
   page?: ReactNode;
+  /** Image of the element before its name (a client, a project). Optional. */
+  avatar?: ReactNode;
   /** Name of the element (an h3). */
   title: ReactNode;
   /** Level of the heading: 1 on a page without PageHeader, 2 under one (or in a panel). Optional. Default = 2. */
@@ -31,12 +33,13 @@ interface DetailHeaderProps {
  * @param {DetailHeaderProps} props Component props.
  * @returns {JSX.Element} Header.
  */
-export function DetailHeader({ back, page, title, order = 2, badges, subtitle, actions, menu, compact = false }: DetailHeaderProps) {
+export function DetailHeader({ back, page, avatar, title, order = 2, badges, subtitle, actions, menu, compact = false }: DetailHeaderProps) {
   return (
     <Stack gap={4}>
       {back && <BackLink to={back.to}>{back.label}</BackLink>}
       {page}
       <Group justify="space-between" align="flex-start" gap="sm" wrap="wrap">
+        {avatar}
         <Stack gap={2} style={{ flex: 1, minWidth: 0 }}>
           <Group gap="xs">
             <Title order={order} size="h3" style={{ wordBreak: 'break-word' }}>
@@ -49,7 +52,7 @@ export function DetailHeader({ back, page, title, order = 2, badges, subtitle, a
         {(actions || menu) && (
           <Group gap="xs" ml="auto" wrap="wrap">
             {actions}
-            {menu && <ActionsMenu name={menu.name} about={menu.about} items={menu.items} variant="default" size={compact ? 'input-xs' : 'input-sm'} />}
+            {menu && <ActionsMenu name={menu.name} about={menu.about} items={menu.items} variant="light" size={compact ? 'input-xs' : 'input-sm'} />}
           </Group>
         )}
       </Group>

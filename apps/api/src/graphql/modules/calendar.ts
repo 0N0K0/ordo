@@ -10,6 +10,7 @@ import { builder } from '../builder';
 import { locatedInput, locationInputFields, TRAVEL_DESCRIPTIONS, travelInputFields } from '../located-fields';
 import { LabelColorInput, labelMutations, labelObject } from '../label-inputs';
 import { reloaded } from '../reload';
+import { unchecked } from '../unchecked';
 
 builder.prismaObject('CalendarCategory', {
   fields: (t) => ({
@@ -251,8 +252,8 @@ const scheduleInput = (input: typeof WorkScheduleInput.$inferInput) => ({
   endDate: input.endDate ?? null,
   typeId: input.typeId ?? null,
   // Validated by the service.
-  cases: input.cases as never,
-  exceptions: input.exceptions as never,
+  cases: unchecked(input.cases),
+  exceptions: unchecked(input.exceptions),
 });
 
 const CalendarLinkInput = builder.inputType('CalendarLinkInput', {
@@ -302,7 +303,7 @@ const eventInput = (input: typeof CalendarEventInput.$inferInput) => ({
   ...locatedInput(input),
   startTime: input.startTime ?? null,
   endTime: input.endTime ?? null,
-  recurrence: (input.recurrence ?? null) as never,
+  recurrence: unchecked(input.recurrence ?? null),
   projectId: input.projectId ?? null,
   calendarId: input.calendarId ?? null,
   taskIds: input.taskIds ?? [],
@@ -399,19 +400,13 @@ builder.mutationFields((t) => ({
     type: 'CalendarCategory',
     args: { input: t.arg({ type: CalendarCategoryInput, required: true }) },
     resolve: async (query, _root, { input }) =>
-      prisma.calendarCategory.findUniqueOrThrow({
-        ...query,
-        where: { id: (await categories.createCalendarCategory({ ...input, parentId: input.parentId ?? null })).id },
-      }),
+      reloaded(prisma.calendarCategory, query, categories.createCalendarCategory({ ...input, parentId: input.parentId ?? null })),
   }),
   updateCalendarCategory: t.prismaField({
     type: 'CalendarCategory',
     args: { id: t.arg.id({ required: true }), input: t.arg({ type: CalendarCategoryInput, required: true }) },
     resolve: async (query, _root, { id, input }) =>
-      prisma.calendarCategory.findUniqueOrThrow({
-        ...query,
-        where: { id: (await categories.updateCalendarCategory(id, { ...input, parentId: input.parentId ?? null })).id },
-      }),
+      reloaded(prisma.calendarCategory, query, categories.updateCalendarCategory(id, { ...input, parentId: input.parentId ?? null })),
   }),
   deleteCalendarCategory: t.boolean({
     args: { id: t.arg.id({ required: true }) },
@@ -460,7 +455,7 @@ builder.mutationFields((t) => ({
     type: DefaultScheduleKindRef,
     args: { input: t.arg({ type: DefaultScheduleKindInput, required: true }) },
     // Display values are checked by the service.
-    resolve: (_root, { input }) => schedules.saveDefaultScheduleKind({ ...input, color: input.color ?? null } as never),
+    resolve: (_root, { input }) => schedules.saveDefaultScheduleKind(unchecked({ ...input, color: input.color ?? null })),
   }),
   setScheduleSubscriptionLook: t.boolean({
     description: 'Color and display of a kind of schedules subscribed to, in this workspace (null fields: those of the kind).',
@@ -469,9 +464,9 @@ builder.mutationFields((t) => ({
       done(
         schedules.setScheduleSubscriptionLook(workspaceId, typeId ?? null, {
           color: input.color ?? null,
-          dayDisplay: (input.dayDisplay ?? null) as never,
+          dayDisplay: unchecked(input.dayDisplay ?? null),
           dayBar: input.dayBar ?? null,
-          monthDisplay: (input.monthDisplay ?? null) as never,
+          monthDisplay: unchecked(input.monthDisplay ?? null),
         }),
       ),
   }),

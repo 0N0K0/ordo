@@ -7,7 +7,7 @@ import { useState } from 'react';
 import { localToday } from '../../../lib/dates';
 import { useAppForm, formCallbacks } from '../../../lib/form';
 
-import { useWorkspace } from '../../projects/api';
+import { useProjectTree } from '../../projects/api';
 import { useImportedDocumentMutations, type ImportedDocument } from '../api/documents';
 import { DOCUMENT_TYPE_LABELS } from '../lib/labels';
 import { clientProjectOptions } from '../../projects/lib/tree';
@@ -41,7 +41,7 @@ interface FormValues extends Record<string, unknown> {
  * @returns {JSX.Element} Form.
  */
 export function ImportedDocumentForm({ document, onDone }: { document?: ImportedDocument; onDone: () => void }) {
-  const { data: workspace } = useWorkspace();
+  const { data: workspace } = useProjectTree();
   const { create, update } = useImportedDocumentMutations();
   const [file, setFile] = useState<File | null>(null);
   const form = useAppForm<FormValues>({

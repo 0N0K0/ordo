@@ -1,19 +1,20 @@
-import { tableKeySchema, tableViewConfigSchema, taskViewLabelSchema } from '@ordo/shared';
+import { tableKeySchema, tableViewConfigSchema, viewLabelSchema } from '@ordo/shared';
 import { z } from 'zod';
 import { prisma } from '../../db';
 import type { Prisma, TaskView, ViewKind } from '../../generated/prisma/client';
-import { clientError, orNotFound, parseField, parseInput } from '../../graphql/errors';
+import { clientError, parseField, parseInput } from '../../graphql/errors';
 import { BY_POSITION, moveInList, nextPositionIn } from '../core/ordering';
-import { assertExists } from '../core/lookup';
+import { findOrNotFound } from '../core/lookup';
+import { assertActive } from '../core/archive';
+import { toJson } from '../core/json';
 
 /**
  * Loads a view or throws NOT_FOUND.
  * @param {string} id View id.
  * @returns {Promise<TaskView>} View.
  */
-async function findView(id: string): Promise<TaskView> {
-  const view = await orNotFound(prisma.taskView.findUnique({ where: { id } }), 'Vue');
-  return view;
+function findView(id: string): Promise<TaskView> {
+  return findOrNotFound(prisma.taskView, id, 'Vue');
 }
 
 /**
@@ -21,11 +22,11 @@ async function findView(id: string): Promise<TaskView> {
  * of a table (the former kinds — tasks, routines, shopping lists — are kept as they are, no longer changed).
  * @param {ViewKind} kind Kind of the view.
  * @param {unknown} config Raw configuration.
- * @returns {Prisma.InputJsonObject} Configuration, ready to store.
+ * @returns {Prisma.InputJsonValue} Configuration, ready to store.
  */
-function parseConfig(kind: ViewKind, config: unknown): Prisma.InputJsonObject {
+function parseConfig(kind: ViewKind, config: unknown): Prisma.InputJsonValue {
   if (kind !== 'TABLE') throw clientError('BAD_USER_INPUT', 'Ce type de vue n’existe plus : les vues sont celles des tableaux.');
-  return parseField('config', tableViewConfigSchema, config) as unknown as Prisma.InputJsonObject;
+  return toJson(parseField('config', tableViewConfigSchema, config));
 }
 
 /**
@@ -57,12 +58,12 @@ const scopeOf = (view: TaskView) => viewScope(view.projectId, view.kind, view.ta
  * @returns {Promise<TaskView>} Created view.
  */
 export async function createView(input: { label: string; config: unknown; projectId?: string | null; kind?: ViewKind | null; tableKey?: string | null }): Promise<TaskView> {
-  const { label } = parseInput(z.object({ label: taskViewLabelSchema }), input);
+  const { label } = parseInput(z.object({ label: viewLabelSchema }), input);
   const kind = input.kind ?? 'TABLE';
   const tableKey = kind === 'TABLE' ? parseField('tableKey', tableKeySchema, input.tableKey) : null;
   const config = parseConfig(kind, input.config);
   const projectId = input.projectId ?? null;
-  await assertExists(prisma.project, projectId, 'Projet');
+  await assertActive(prisma.project, projectId, 'Projet');
   const [position, count] = await Promise.all([nextPositionIn('taskView', viewScope(projectId, kind, tableKey)), prisma.taskView.count({ where: viewScope(projectId, kind, tableKey) })]);
   return prisma.taskView.create({
     data: { label, kind, tableKey, config, projectId, position, isDefault: count === 0 },
@@ -79,7 +80,7 @@ export async function createView(input: { label: string; config: unknown; projec
  */
 export async function updateView(id: string, input: { label?: string | null; config?: unknown }): Promise<TaskView> {
   const view = await findView(id);
-  const label = parseField('label', taskViewLabelSchema.optional(), input.label ?? undefined);
+  const label = parseField('label', viewLabelSchema.optional(), input.label ?? undefined);
   const config = input.config === undefined || input.config === null ? undefined : parseConfig(view.kind, input.config);
   return prisma.taskView.update({ where: { id }, data: { label, config } });
 }

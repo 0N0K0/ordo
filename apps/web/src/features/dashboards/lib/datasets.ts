@@ -1,4 +1,4 @@
-import { type ChartComparison, type ChartConfig, isTimeDimension, MAIN_DATASET, round2, sumOf } from '@ordo/shared';
+import { type ChartComparison, type ChartConfig, isTimeDimension, MAIN_DATASET, round2, type SeriesType, sumOf } from '@ordo/shared';
 import { MEASURE_LABELS, PALETTE, type ChartData, type ChartSeries } from './aggregate';
 
 /** A data set of a chart, as a configuration of its own. */
@@ -7,7 +7,7 @@ interface DatasetPart {
   label: string;
   config: ChartConfig;
   /** How it is drawn, when not like the chart. */
-  type: 'bar' | 'line' | 'area' | null;
+  type: SeriesType | null;
 }
 
 /**

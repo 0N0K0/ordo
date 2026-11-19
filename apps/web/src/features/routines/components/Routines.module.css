@@ -28,15 +28,6 @@
       opacity var(--onoko-transition);
   }
 
-  /* Done toggle of a routine: a circle, a filled green check once done. */
-  .doneToggle {
-    /* Dimension */
-    flex-shrink: 0;
-
-    /* Typographie */
-    font-size: var(--mantine-font-size-lg);
-  }
-
   .nowrap {
     /* Typographie */
     white-space: nowrap;

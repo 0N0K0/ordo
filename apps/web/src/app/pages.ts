@@ -22,28 +22,28 @@ import { SETTINGS_TAB_PARAM } from '../components/tabs/use-settings-tab';
 /** A page of the app: its address, its name (menu, header, page title) and its icon (menu). */
 interface AppPage {
   path: string;
-  title: string;
+  label: string;
   icon: Icon;
 }
 
 /** Pages of the app, one place for their names and icons (clients and projects show their own). */
 export const PAGES = {
-  home: { path: '/', title: 'Accueil', icon: HouseIcon },
-  tasks: { path: '/tasks', title: 'Tâches', icon: CheckSquareOffsetIcon },
-  routines: { path: '/routines', title: 'Routines', icon: ArrowsClockwiseIcon },
-  calendar: { path: '/calendar', title: 'Agenda', icon: CalendarBlankIcon },
-  time: { path: '/time', title: 'Chronos', icon: TimerIcon },
-  alarms: { path: '/alarms', title: 'Alarmes', icon: AlarmIcon },
-  shopping: { path: '/shopping', title: 'Achats', icon: BasketIcon },
-  sheets: { path: '/sheets', title: 'Fiches', icon: ClipboardTextIcon },
-  stock: { path: '/stock', title: 'Inventaire', icon: ArchiveIcon },
-  accounting: { path: '/accounting', title: 'Facturation', icon: ReceiptIcon },
-  treasury: { path: '/treasury', title: 'Trésorerie', icon: BankIcon },
-  mail: { path: '/mail', title: 'Mails', icon: EnvelopeSimpleIcon },
-  documents: { path: '/documents', title: 'Documents', icon: FolderOpenIcon },
-  dashboards: { path: '/dashboards', title: 'Tableaux de bord', icon: ChartBarIcon },
-  settings: { path: '/settings', title: 'Paramètres', icon: GearSixIcon },
-  account: { path: '/account', title: 'Mon compte', icon: UserCircleIcon },
+  home: { path: '/', label: 'Accueil', icon: HouseIcon },
+  tasks: { path: '/tasks', label: 'Tâches', icon: CheckSquareOffsetIcon },
+  routines: { path: '/routines', label: 'Routines', icon: ArrowsClockwiseIcon },
+  calendar: { path: '/calendar', label: 'Agenda', icon: CalendarBlankIcon },
+  time: { path: '/time', label: 'Chronos', icon: TimerIcon },
+  alarms: { path: '/alarms', label: 'Alarmes', icon: AlarmIcon },
+  shopping: { path: '/shopping', label: 'Achats', icon: BasketIcon },
+  sheets: { path: '/sheets', label: 'Fiches', icon: ClipboardTextIcon },
+  stock: { path: '/stock', label: 'Inventaire', icon: ArchiveIcon },
+  accounting: { path: '/accounting', label: 'Facturation', icon: ReceiptIcon },
+  treasury: { path: '/treasury', label: 'Trésorerie', icon: BankIcon },
+  mail: { path: '/mail', label: 'Mails', icon: EnvelopeSimpleIcon },
+  documents: { path: '/documents', label: 'Documents', icon: FolderOpenIcon },
+  dashboards: { path: '/dashboards', label: 'Tableaux de bord', icon: ChartBarIcon },
+  settings: { path: '/settings', label: 'Paramètres', icon: GearSixIcon },
+  account: { path: '/account', label: 'Mon compte', icon: UserCircleIcon },
 } satisfies Record<string, AppPage>;
 
 /** Pages of the sign-in (outside the app), their addresses. */
@@ -78,6 +78,14 @@ export function pageOfPath(pathname: string): AppPage | null {
   return BY_SEGMENT.get(pathname.split('/')[1] ?? '') ?? null;
 }
 
+/** Route of the page of a project (the router, `useMatch`). */
+// eslint-disable-next-line no-restricted-syntax -- the route itself.
+export const PROJECT_ROUTE = '/projects/:id';
+
+/** Route of the page of a client (the router, `useMatch`). */
+// eslint-disable-next-line no-restricted-syntax -- the route itself.
+export const CLIENT_ROUTE = '/clients/:id';
+
 /**
  * Page of a project, on a tab.
  * @param {string} id Project.
@@ -108,7 +116,8 @@ export const clientPath = (id: string): string => `/clients/${id}`;
  * @param {{ id: string, projectId: string | null }} task Task.
  * @returns {string} Path.
  */
-export const taskPath = (task: { id: string; projectId: string | null }): string => (task.projectId ? `${projectPath(task.projectId, 'tasks')}&task=${task.id}` : `/tasks?task=${task.id}`);
+export const taskPath = (task: { id: string; projectId: string | null }): string =>
+  task.projectId ? `${projectPath(task.projectId, 'tasks')}&task=${task.id}` : `${PAGES.tasks.path}?task=${task.id}`;
 
 /**
  * Mails page on a folder of an account, a mail open (optional).

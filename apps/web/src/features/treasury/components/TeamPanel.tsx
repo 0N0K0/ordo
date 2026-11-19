@@ -4,7 +4,7 @@ import { ColorField } from '../../../components/inputs/ColorField';
 import { openFormPanel } from '../../../components/panels/panels';
 import { ActionButton } from '../../../components/actions/ActionButton';
 import { PersonRow } from '../../../components/people/people-rows';
-import { listSelectProps } from '../../../components/items/item-look';
+import { itemSelectProps } from '../../../components/items/item-look';
 import { ItemAvatar } from '../../../components/items/ItemAvatar';
 import { createdId } from '../../../components/settings/settings-api';
 import { SettingsList } from '../../../components/settings/SettingsList';
@@ -13,7 +13,7 @@ import { confirmDestructive } from '../../../components/dialogs/confirm-destruct
 
 import { Badge, Group, Select, SimpleGrid, Stack, Table, Text, TextInput } from '@mantine/core';
 import { DatePickerInput } from '@mantine/dates';
-import { mapById, EVERYDAY_CONTEXT, treasuryContextPeriodSchema, treasuryContextSchema, treasuryRelationSchema } from '@ordo/shared';
+import { mapById, EVERYDAY_CONTEXT, treasuryContextPeriodSchema, treasuryContextSchema, treasuryRelationSchema, agreed } from '@ordo/shared';
 import { CalendarBlankIcon, PencilSimpleIcon, PlusIcon, TrashIcon, UserMinusIcon } from '@phosphor-icons/react';
 import { ArchivedBadge } from '../../../components/feedback/ArchivedBadge';
 import { ShowArchivedSwitch } from '../../../components/filters/ShowArchivedSwitch';
@@ -209,7 +209,7 @@ function PeriodForm({ period, contexts, onDone }: { period?: TreasuryContextPeri
       )}
     >
       <Stack gap="sm">
-        <Select label="Contexte" required allowDeselect={false} {...listSelectProps(contexts, undefined, period?.contextId)} {...form.getInputProps('contextId')} />
+        <Select label="Contexte" required allowDeselect={false} {...itemSelectProps(contexts, form.values.contextId, undefined, period?.contextId)} {...form.getInputProps('contextId')} />
         <SimpleGrid cols={2} spacing="sm">
           <DatePickerInput label="Du" required {...days.start} />
           <DatePickerInput label="Au" required {...days.end} />
@@ -356,7 +356,6 @@ export function RelationForm({ relation, name = '', onDone }: { relation?: Treas
   const { data: settings } = useTreasurySettings();
   const { context } = useTaskContext();
   const words = relationWords(useActiveWorkspace().perso);
-  const e = words.feminine ? 'e' : '';
   const form = useAppForm<{ name: string; note: string | null; contributorId: string | null }>({
     initialValues: { name: relation?.name ?? name, note: relation?.note ?? null, contributorId: relation?.contributorId ?? null },
     schema: treasuryRelationSchema,
@@ -372,7 +371,7 @@ export function RelationForm({ relation, name = '', onDone }: { relation?: Treas
       onSubmit={form.onSubmit((input) =>
         saveRelation.mutate(
           { id: relation?.id ?? null, input: { name: input.name, note: input.note || null, contributorId: input.contributorId ?? null } },
-          formCallbacks(form, `${words.noun} ${relation ? 'modifié' : 'ajouté'}${e}.`, (id: string) => onDone(relation ? undefined : id)),
+          formCallbacks(form, `${words.noun} ${agreed(relation ? 'modifié' : 'ajouté', words.feminine)}.`, (id: string) => onDone(relation ? undefined : id)),
         ),
       )}
     >
@@ -392,7 +391,7 @@ export function RelationForm({ relation, name = '', onDone }: { relation?: Treas
             form.setValues({ contributorId, ...(chosen && !form.values.name.trim() ? { name: chosen.name } : {}) });
           }}
         />
-        <TextInput label="Note" placeholder="Facultative" {...form.getInputProps('note')} value={form.values.note ?? ''} />
+        <TextInput label="Description" placeholder="Facultative" {...form.getInputProps('note')} value={form.values.note ?? ''} />
         <FormActions onCancel={() => onDone()} loading={saveRelation.isPending} />
       </Stack>
     </form>
@@ -410,7 +409,6 @@ export function TeamRelations() {
   const { deleteRelation } = useTreasuryTeamMutations();
   const setArchived = useSetArchived('TREASURY_RELATION', [treasuryKey]);
   const words = relationWords(useActiveWorkspace().perso);
-  const e = words.feminine ? 'e' : '';
   /**
    * Opens the form of a new or changed relation.
    * @param {TreasuryRelation} [relation] Relation changed. Optional.
@@ -428,7 +426,7 @@ export function TeamRelations() {
       title={words.many}
       actions={
         <>
-          <ShowArchivedSwitch {...relationsToggle} label={`Afficher les archivé${e}s`} />
+          <ShowArchivedSwitch {...relationsToggle} label={`Afficher les ${agreed('archivé', words.feminine, 2)}`} />
           <ActionButton priority="secondary" size="xs" icon={<PlusIcon aria-hidden />} onClick={() => openRelation()}>
             {words.new}
           </ActionButton>
@@ -474,9 +472,9 @@ export function TeamRelations() {
                         onClick: () =>
                           confirmDestructive({
                             title: `Supprimer ${words.the}`,
-                            risks: `${fmt.capitalize(words.the)} « ${relation.name} » sera supprimé${e} définitivement.${relation.budgetCount ? ` Ses budgets aussi.` : ''}${relation.lineCount ? ` Ses lignes vous seront attribuées.` : ''}`,
+                            risks: `${fmt.capitalize(words.the)} « ${relation.name} » sera ${agreed('supprimé', words.feminine)} définitivement.${relation.budgetCount ? ` Ses budgets aussi.` : ''}${relation.lineCount ? ` Ses lignes vous seront attribuées.` : ''}`,
                             run: () => deleteRelation.mutateAsync(relation.id),
-                            done: `${words.noun} supprimé${e}.`,
+                            done: `${words.noun} ${agreed('supprimé', words.feminine)}.`,
                           }),
                       },
                     ]}

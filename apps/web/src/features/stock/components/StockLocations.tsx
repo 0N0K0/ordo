@@ -20,7 +20,7 @@ export function StockLocations({ usage }: { usage: Map<string, number> }) {
       noun="l’emplacement"
       items={locations ?? []}
       usage={usage}
-      usageNoun="articles"
+      usageNoun={{ one: 'de l’article', many: 'articles' }}
       storageKey="ordo.stock.locations"
       remove={(id) => deleteLocation.mutateAsync(id)}
       move={(id, parentId, index) => moveLocation.mutateAsync({ id, parentId, index })}

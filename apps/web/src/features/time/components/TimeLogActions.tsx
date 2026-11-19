@@ -2,9 +2,8 @@ import { ActionButton } from '../../../components/actions/ActionButton';
 import { Group } from '@mantine/core';
 import { PlayIcon, PlusIcon } from '@phosphor-icons/react';
 import type { TaskContext } from '../../tasks/hooks/use-task-context';
-import { useRunningTimer } from '../api';
 import { openTimerForm } from '../lib/open-timer-form';
-import { TIMER_REPLACED_HINT } from '../hooks/use-start-timer';
+import { useTimerHint } from '../hooks/use-start-timer';
 
 interface TimeLogActionsProps {
   context: TaskContext | null | undefined;
@@ -23,7 +22,7 @@ interface TimeLogActionsProps {
  * @returns {JSX.Element} Actions.
  */
 export function TimeLogActions({ context, onNew, projectId, archived = false }: TimeLogActionsProps) {
-  const running = useRunningTimer();
+  const timerHint = useTimerHint();
   return (
     <Group gap="sm" wrap="nowrap">
       <ActionButton priority="secondary" icon={<PlusIcon aria-hidden />} onClick={onNew} disabled={!context || archived}>
@@ -33,7 +32,7 @@ export function TimeLogActions({ context, onNew, projectId, archived = false }: 
       <ActionButton
         priority="secondary"
         icon={<PlayIcon aria-hidden />}
-        hint={running.data && !archived ? TIMER_REPLACED_HINT : undefined}
+        hint={timerHint(!context || archived)}
         onClick={() => context && openTimerForm(context, projectId)}
         disabled={!context || archived}
       >

@@ -6,6 +6,8 @@ import { withImap } from './imap';
 import { findSpecialFolder } from './organize';
 import { conversationProjects, copySentToProjects } from './linked';
 import { decryptSecret } from './secret';
+import { assertActive } from '../core/archive';
+import { prisma } from '../../db';
 
 export interface SendMailInput extends MailFields {
   accountId: string;
@@ -52,6 +54,7 @@ export async function deliverMessage(account: MailAccount, message: Pick<BuiltMe
  */
 export async function sendMail(input: SendMailInput): Promise<{ projectIds: string[] }> {
   const account = await findActiveAccount(input.accountId);
+  await assertActive(prisma.project, input.projectId, 'Projet', { field: 'projectId' });
   const message = await buildMessage(account, input);
   const projectIds = await deliverMessage(account, message, input.projectId ?? null);
   if (input.draft) await deleteDraft(input.draft.accountId, input.draft.folder, input.draft.uid).catch(() => undefined);

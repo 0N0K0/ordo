@@ -18,16 +18,19 @@ import {
   spanEnd,
   sumOf,
   zonedInstant,
+  occurrenceKey,
 } from '@ordo/shared';
 import { prisma } from '../../db';
+import { assertBeneficiaries } from '../core/beneficiaries';
 import { Prisma, type CalendarEvent, type CalendarEventException } from '../../generated/prisma/client';
 import { clientError, fieldError, notFound, orNotFound, parseInput } from '../../graphql/errors';
 import { runInWorkspace } from '../../workspace-context';
 import { listSubscriptions, resolveCalendarId } from './calendars';
-import { assertProjectContributors } from '../workspace/contributors';
-import { assertAllExist, assertExists } from '../core/lookup';
-import { assertNoneArchived, assertNotArchived } from '../core/archive';
+import { assertProjectContributors } from '../projects/contributors';
+import { assertAllExist, findOrNotFound } from '../core/lookup';
+import { assertActive, assertNotArchived, activeIds, refuseArchived } from '../core/archive';
 import { connectIds } from '../core/relations';
+import { toJson } from '../core/json';
 
 export interface CalendarLink {
   url: string;
@@ -165,7 +168,11 @@ async function saveRoutineLinks(formerId: string | null, eventId: string, fields
     ...(formerId && formerId !== eventId ? [prisma.calendarEventRoutine.updateMany({ where: { eventId: formerId, date: { gte: parseDay(fields.startDate) } }, data: { eventId } })] : []),
     prisma.calendarEventRoutine.deleteMany({ where: { eventId, date: days } }),
     prisma.calendarEventRoutine.createMany({
-      data: [...new Map(fields.routineLinks.map((link) => [`${link.routineId}|${link.date}`, link])).values()].map((link) => ({ eventId, routineId: link.routineId, date: parseDay(link.date) })),
+      data: [...new Map(fields.routineLinks.map((link) => [occurrenceKey(link.routineId, link.date), link])).values()].map((link) => ({
+        eventId,
+        routineId: link.routineId,
+        date: parseDay(link.date),
+      })),
     }),
   ]);
 }
@@ -176,10 +183,11 @@ async function saveRoutineLinks(formerId: string | null, eventId: string, fields
  * @param {string} id Event.
  * @returns {Promise<[string[], string[], string[], string[]]>} Contributor ids, category ids, beneficiary ids and relation ids (beneficiaries or linked).
  */
-async function eventKept(id: string): Promise<[string[], string[], string[], string[]]> {
+async function eventKept(id: string): Promise<[string[], string[], string[], string[], string[]]> {
   const event = await prisma.calendarEvent.findUnique({
     where: { id },
     select: {
+      projectId: true,
       contributors: { select: { id: true } },
       categories: { select: { id: true } },
       beneficiaries: { select: { id: true } },
@@ -188,16 +196,16 @@ async function eventKept(id: string): Promise<[string[], string[], string[], str
     },
   });
   const ids = (items: { id: string }[] | undefined) => (items ?? []).map((item) => item.id);
-  return [ids(event?.contributors), ids(event?.categories), ids(event?.beneficiaries), [...ids(event?.beneficiaryRelations), ...ids(event?.relations)]];
+  return [ids(event?.contributors), ids(event?.categories), ids(event?.beneficiaries), [...ids(event?.beneficiaryRelations), ...ids(event?.relations)], event?.projectId ? [event.projectId] : []];
 }
 
 /**
  * Refuses a change of an archived event, or of an event of an archived calendar.
- * @param {Pick<CalendarEvent, 'id' | 'calendarId'>} event Event.
+ * @param {Pick<CalendarEvent, 'archivedAt' | 'calendarId'>} event Event, loaded.
  * @returns {Promise<void>}
  */
-async function assertEventWritable(event: Pick<CalendarEvent, 'id' | 'calendarId'>): Promise<void> {
-  await assertNotArchived('calendarEvent', event.id);
+async function assertEventWritable(event: Pick<CalendarEvent, 'archivedAt' | 'calendarId'>): Promise<void> {
+  refuseArchived(event);
   await assertNotArchived('calendar', event.calendarId);
 }
 
@@ -210,21 +218,17 @@ async function assertEventWritable(event: Pick<CalendarEvent, 'id' | 'calendarId
  * @param {string[]} [keepCategories] Categories already on the event. Optional.
  * @param {string[]} [keepBeneficiaries] Beneficiaries (contributors) already on the event. Optional.
  * @param {string[]} [keepRelations] Relations already on the event (beneficiaries or linked). Optional.
+ * @param {string[]} [keepProject] Project already of the event (kept even if archived). Optional.
  * @returns {Promise<ReturnType<typeof calendarEventInputSchema.parse>>} Validated fields.
  */
-async function parseEvent(input: CalendarEventInput, keep: string[] = [], keepCategories: string[] = [], keepBeneficiaries: string[] = [], keepRelations: string[] = []) {
+async function parseEvent(input: CalendarEventInput, keep: string[] = [], keepCategories: string[] = [], keepBeneficiaries: string[] = [], keepRelations: string[] = [], keepProject: string[] = []) {
   const event = parseInput(calendarEventInputSchema, input);
-  await assertExists(prisma.project, event.projectId, 'Projet');
+  await assertActive(prisma.project, event.projectId, 'Projet', { keep: keepProject, field: 'projectId' });
   await assertAllExist(prisma.contributor, event.contributorIds, 'Contributeur');
   await assertProjectContributors(event.projectId ?? null, event.contributorIds, keep, 'contributorIds');
-  await assertAllExist(prisma.contributor, event.beneficiaryIds, 'Bénéficiaire', { field: 'beneficiaryIds' });
-  await assertAllExist(prisma.treasuryRelation, event.beneficiaryRelationIds, 'Bénéficiaire', { field: 'beneficiaryIds' });
-  await assertAllExist(prisma.treasuryRelation, event.relationIds, 'Relation');
-  await assertNoneArchived('contributor', event.beneficiaryIds, { keep: keepBeneficiaries, field: 'beneficiaryIds' });
-  await assertNoneArchived('treasuryRelation', event.beneficiaryRelationIds, { keep: keepRelations, field: 'beneficiaryIds' });
-  await assertNoneArchived('treasuryRelation', event.relationIds, { keep: keepRelations, field: 'relationIds' });
-  await assertAllExist(prisma.calendarCategory, event.categoryIds, 'Catégorie');
-  await assertNoneArchived('calendarCategory', event.categoryIds, { keep: keepCategories, field: 'categoryIds' });
+  await assertBeneficiaries({ contributorIds: event.beneficiaryIds, relationIds: event.beneficiaryRelationIds }, { keep: { contributorIds: keepBeneficiaries, relationIds: keepRelations } });
+  await activeIds(prisma.treasuryRelation, event.relationIds, 'Relation', { keep: keepRelations, field: 'relationIds' });
+  await activeIds(prisma.calendarCategory, event.categoryIds, 'Catégorie', { keep: keepCategories, field: 'categoryIds' });
   const tasks = await prisma.task.findMany({ where: { id: { in: event.taskIds } }, select: { label: true, assignees: { select: { id: true } } } });
   if (tasks.length !== new Set(event.taskIds).size) throw notFound('Tâche');
   // A task is about an event of someone of its assignees (or either side has nobody).
@@ -320,7 +324,7 @@ function eventData(event: Awaited<ReturnType<typeof parseEvent>>) {
     endDate: parseDay(event.endDate),
     endTime: event.endTime,
     timeZone: event.timeZone,
-    recurrence: (event.recurrence ?? undefined) as Prisma.InputJsonValue | undefined,
+    recurrence: event.recurrence ? toJson(event.recurrence) : undefined,
     reminders: [...new Set(event.reminders)].sort((a, b) => a - b),
     travelBefore: event.travelBefore,
     travelAfter: event.travelAfter,
@@ -334,9 +338,8 @@ function eventData(event: Awaited<ReturnType<typeof parseEvent>>) {
  * @param {string} id Event id.
  * @returns {Promise<CalendarEvent>} Event.
  */
-async function findEvent(id: string): Promise<CalendarEvent> {
-  const event = await orNotFound(prisma.calendarEvent.findUnique({ where: { id } }), 'Évènement');
-  return event;
+function findEvent(id: string): Promise<CalendarEvent> {
+  return findOrNotFound(prisma.calendarEvent, id, 'Évènement');
 }
 
 /**
@@ -528,7 +531,7 @@ export function toOccurrence(event: EventWithRelations, date: string | null, cha
   const endTime = allDay ? null : change ? change.endTime : event.endTime;
   const instant = (day: string, time: string | null) => (time ? zonedInstant(day, time, event.timeZone) : parseDay(day));
   return {
-    key: date ? `${event.id}:${date}` : event.id,
+    key: date ? occurrenceKey(event.id, date) : event.id,
     eventId: event.id,
     occurrenceDate: date,
     modified: change !== undefined,
@@ -667,9 +670,8 @@ function seriesInput(event: EventWithRelations, date: string): CalendarEventInpu
  * @param {string} id Event id.
  * @returns {Promise<EventWithRelations>} Event.
  */
-async function findEventWithRelations(id: string): Promise<EventWithRelations> {
-  const event = await orNotFound(prisma.calendarEvent.findUnique({ where: { id }, include: occurrenceInclude }), 'Évènement');
-  return event;
+function findEventWithRelations(id: string): Promise<EventWithRelations> {
+  return orNotFound(prisma.calendarEvent.findUnique({ where: { id }, include: occurrenceInclude }), 'Évènement');
 }
 
 /**
@@ -712,7 +714,7 @@ export async function setEventCalledOff(id: string, scope: EventScope, occurrenc
         location: current.location,
         locationLat: current.locationLat,
         locationLon: current.locationLon,
-        links: current.links as unknown as Prisma.InputJsonValue,
+        links: toJson(current.links),
         allDay: current.allDay,
         startDate: parseDay(current.startDate),
         startTime: current.startTime,

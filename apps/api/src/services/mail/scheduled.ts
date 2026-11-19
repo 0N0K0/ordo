@@ -2,12 +2,13 @@ import { prisma } from '../../db';
 import type { ScheduledMail } from '../../generated/prisma/client';
 import { errorMessage, fieldError, notFound } from '../../graphql/errors';
 import { findActiveAccount } from './accounts';
+import { assertActive } from '../core/archive';
 import { buildMessage } from './compose';
 import { deleteDraft } from './drafts';
 import { withImap } from './imap';
 import { specialFolder } from './organize';
 import { deliverMessage, type SendMailInput } from './sender';
-import { forEachWorkspace, schedulePerWorkspace } from '../workspace/workspaces';
+import { forEachWorkspace, schedulePerWorkspace } from '../workspaces/workspaces';
 import { NO_SUBJECT } from '@ordo/shared';
 
 /**
@@ -22,6 +23,7 @@ export async function scheduleMail(input: SendMailInput, sendAt: Date): Promise<
     throw fieldError('sendAt', 'Choisissez un moment à venir.');
   }
   const account = await findActiveAccount(input.accountId);
+  await assertActive(prisma.project, input.projectId, 'Projet', { field: 'projectId' });
   const message = await buildMessage(account, input, { date: sendAt });
   const scheduled = await prisma.scheduledMail.create({
     data: {
@@ -61,13 +63,14 @@ export async function sendScheduled(id: string): Promise<void> {
 }
 
 /**
- * Cancels a scheduled mail: it goes back to the drafts folder of its account, to be changed or sent.
+ * Cancels a scheduled mail (not one of an archived account): it goes back to the drafts folder of its account, to be changed or sent.
  * @param {string} id Scheduled mail.
  * @returns {Promise<void>}
  */
 export async function cancelScheduled(id: string): Promise<void> {
   const scheduled = await prisma.scheduledMail.findUnique({ where: { id } });
   if (!scheduled || scheduled.status === 'SENT' || scheduled.status === 'SENDING') throw notFound('Envoi programmé');
+  await findActiveAccount(scheduled.accountId);
   await withImap(scheduled.accountId, async (client) => {
     const path = await specialFolder(client, '\\Drafts', 'Drafts');
     await client.append(path, Buffer.from(scheduled.copy), ['\\Draft', '\\Seen']);

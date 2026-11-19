@@ -1,5 +1,5 @@
 import { Text } from '@mantine/core';
-import { listSelectProps, itemChoices } from '../../../components/items/item-look';
+import { itemChoices, itemSelectProps } from '../../../components/items/item-look';
 import type { ReactNode } from 'react';
 import { EditableDate, EditableSelect } from '../../../components/data-table/cells/EditableCells';
 import type { DataColumn } from '../../../components/data-table/table/data-table';
@@ -9,27 +9,24 @@ import { treeSelectProps } from '../../../components/tree/tree-select';
 import * as fmt from '../../../lib/format';
 import { categoryChoices, categoryOptions } from './categories';
 import { DocumentsCell, LinksCell, PayerCell, ProjectCell, RecurrenceCell } from '../components/entry-cells';
-import { entryLinks, payerKey, recurrenceText, type AnyEntry, type EntryEnv, type EntrySave } from './entry-env';
+import { entryLinks, linkedLabels, payerKey, recurrenceText, type AnyEntry, type EntryEnv, type EntrySave } from './entry-env';
 import { monthColumn } from '../../../components/data-table/table/month-column';
+import { directionOf } from '@ordo/shared';
 
 /** Value of the rows without a value in a choice filter. */
 const NONE = 'none';
 
 /**
- * Categories of an entry: its own, or those of its lines.
- * @param {AnyEntry | undefined} entry Entry (none: no category).
- * @returns {string[]} Category ids.
+ * Categories or projects of an entry: its own, or those of its lines.
+ * @param {AnyEntry | undefined} entry Entry (none: none).
+ * @param {'categoryId' | 'projectId'} field Field read.
+ * @returns {string[]} Ids.
  */
-const entryCategories = (entry: AnyEntry | undefined): string[] =>
-  !entry ? [] : entry.lines.length ? [...new Set(entry.lines.flatMap((line) => (line.categoryId ? [line.categoryId] : [])))] : entry.categoryId ? [entry.categoryId] : [];
-
-/**
- * Projects of an entry: its own, or those of its lines.
- * @param {AnyEntry | undefined} entry Entry (none: no project).
- * @returns {string[]} Project ids.
- */
-const entryProjects = (entry: AnyEntry | undefined): string[] =>
-  !entry ? [] : entry.lines.length ? [...new Set(entry.lines.flatMap((line) => (line.projectId ? [line.projectId] : [])))] : entry.projectId ? [entry.projectId] : [];
+const entryRefs = (entry: AnyEntry | undefined, field: 'categoryId' | 'projectId'): string[] => {
+  if (!entry) return [];
+  if (!entry.lines.length) return entry[field] ? [entry[field]] : [];
+  return [...new Set(entry.lines.flatMap((line) => (line[field] ? [line[field]] : [])))];
+};
 
 /**
  * Supporting documents of an entry and of its lines.
@@ -43,17 +40,22 @@ const allDocuments = (entry: AnyEntry) => [...entry.documents, ...entry.lines.fl
  * payee, project, supporting documents, linked entries, and the repetition of a forecast.
  * @param {(row: R) => AnyEntry | undefined} entryOf Entry of a row (none: an invoice due…).
  * @param {EntryEnv} env Names.
- * @param {{ payerName: (row: R) => string, recurrence?: boolean }} options Name of the payer of a row (with or without entry), and a repetition column.
+ * @param {{ payerName: (row: R) => string, recurrence?: boolean, allEntries?: boolean }} options Name of the payer of a row (with or without entry), a
+ *   repetition column, and whether every row is an entry (its account and value date are then never empty).
  * @returns {DataColumn<R>[]} Columns.
  */
-export function entryFieldColumns<R>(entryOf: (row: R) => AnyEntry | undefined, env: EntryEnv, options: { payerName: (row: R) => string; recurrence?: boolean }): DataColumn<R>[] {
+export function entryFieldColumns<R>(
+  entryOf: (row: R) => AnyEntry | undefined,
+  env: EntryEnv,
+  options: { payerName: (row: R) => string; recurrence?: boolean; allEntries?: boolean },
+): DataColumn<R>[] {
   const categoryText = (row: R) => {
-    return entryCategories(entryOf(row))
+    return entryRefs(entryOf(row), 'categoryId')
       .map((id) => env.paths.get(id) ?? '')
       .join(', ');
   };
   const projectText = (row: R) => {
-    return entryProjects(entryOf(row))
+    return entryRefs(entryOf(row), 'projectId')
       .map((id) => env.projectLabels.get(id) ?? '')
       .join(', ');
   };
@@ -65,6 +67,7 @@ export function entryFieldColumns<R>(entryOf: (row: R) => AnyEntry | undefined, 
     {
       id: 'account',
       bulk: true,
+      required: options.allEntries,
       label: 'Compte',
       size: 150,
       sortValue: (row) => entryOf(row)?.accountLabel ?? null,
@@ -78,6 +81,7 @@ export function entryFieldColumns<R>(entryOf: (row: R) => AnyEntry | undefined, 
     },
     {
       id: 'valueDate',
+      required: options.allEntries,
       bulk: true,
       label: 'Date de valeur',
       size: 130,
@@ -101,6 +105,7 @@ export function entryFieldColumns<R>(entryOf: (row: R) => AnyEntry | undefined, 
           return entry ? (payerKey(entry) ?? NONE) : null;
         },
         options: [{ value: NONE, label: 'Aucun' }, ...env.payers.flatMap((group) => group.items)],
+        none: NONE,
       },
       groupable: true,
     },
@@ -113,7 +118,7 @@ export function entryFieldColumns<R>(entryOf: (row: R) => AnyEntry | undefined, 
       text: categoryText,
       filter: {
         kind: 'choices',
-        value: (row) => entryCategories(entryOf(row)),
+        value: (row) => entryRefs(entryOf(row), 'categoryId'),
         options: categoryChoices(env.settings?.treasuryCategories ?? []),
       },
       groupable: true,
@@ -141,7 +146,7 @@ export function entryFieldColumns<R>(entryOf: (row: R) => AnyEntry | undefined, 
       hiddenByDefault: true,
       sortValue: (row) => projectText(row) || null,
       text: projectText,
-      filter: { kind: 'choices', value: (row) => entryProjects(entryOf(row)), options: env.projects },
+      filter: { kind: 'choices', value: (row) => entryRefs(entryOf(row), 'projectId'), options: env.projects },
       groupable: true,
     },
     {
@@ -166,8 +171,12 @@ export function entryFieldColumns<R>(entryOf: (row: R) => AnyEntry | undefined, 
       label: 'Mouvements liés',
       size: 220,
       hiddenByDefault: true,
-      text: (row) => (entryOf(row)?.linkedEntries ?? []).map((linked) => linked.label).join(', '),
-      filter: { kind: 'boolean', value: (row) => Boolean(entryOf(row)?.linkedEntries.length || entryOf(row)?.linkedByLines.length) },
+      // Its links and those of its lines, as the cell.
+      text: (row) => {
+        const entry = entryOf(row);
+        return entry ? linkedLabels(entry).join(', ') : '';
+      },
+      filter: { kind: 'boolean', value: (row) => Boolean(entryOf(row) && (linkedLabels(entryOf(row)!).length || entryOf(row)!.linkedByLines.length)) },
     },
   ];
   if (options.recurrence) {
@@ -224,20 +233,20 @@ export function entryFieldCells(entry: AnyEntry, env: EntryEnv, save: (column: s
   const valueDate = entry.valueDate ?? entry.date;
   const categories = env.settings?.treasuryCategories ?? [];
   const methods = env.settings?.treasuryPaymentMethods ?? [];
-  const direction = (row: AnyEntry) => (row.amount < 0 ? 'OUT' : 'IN');
+  const direction = (row: AnyEntry) => directionOf(row.amount);
   return {
     account: (
       <EditableSelect
         value={entry.accountId}
         label={labelOf('account', 'Compte')}
-        {...listSelectProps(env.accounts, undefined, entry.accountId)}
+        {...itemSelectProps(env.accounts, entry.accountId)}
         onSave={(accountId) => accountId && save('account')(entry, { accountId })}
       />
     ),
     valueDate: <EditableDate value={valueDate} label={labelOf('valueDate', 'Date de valeur')} nullable onSave={(next) => save('valueDate')(entry, { valueDate: next })} />,
     payer: <PayerCell entry={entry} env={env} label={labelOf('payer', entry.amount < 0 ? 'Destinataire' : 'Émetteur')} save={save('payer')} />,
     category: split ? (
-      onLines(entryCategories(entry).map((id) => env.paths.get(id) ?? ''))
+      onLines(entryRefs(entry, 'categoryId').map((id) => env.paths.get(id) ?? ''))
     ) : (
       <EditableSelect
         value={entry.categoryId ?? null}
@@ -255,9 +264,8 @@ export function entryFieldCells(entry: AnyEntry, env: EntryEnv, save: (column: s
         value={entry.methodId ?? null}
         label={labelOf('method', 'Moyen de paiement')}
         nullable
-        {...listSelectProps(
+        {...itemSelectProps(
           methods.filter((method) => (entry.amount < 0 ? method.outgoing : method.incoming) || method.id === entry.methodId),
-          undefined,
           entry.methodId,
         )}
         onSave={(methodId) =>
@@ -269,7 +277,7 @@ export function entryFieldCells(entry: AnyEntry, env: EntryEnv, save: (column: s
       />
     ),
     project: split ? (
-      onLines(entryProjects(entry).map((id) => env.projectLabels.get(id) ?? ''))
+      onLines(entryRefs(entry, 'projectId').map((id) => env.projectLabels.get(id) ?? ''))
     ) : (
       <ProjectCell value={entry.projectId ?? null} env={env} label={labelOf('project', 'Projet')} onSave={(projectId) => save('project')(entry, (row) => (row.lines.length ? {} : { projectId }))} />
     ),
@@ -293,13 +301,13 @@ export function entryFieldCells(entry: AnyEntry, env: EntryEnv, save: (column: s
       />
     ),
     links: split ? (
-      onLines(entry.lines.flatMap((line) => [...line.linkedEntries.map((linked) => linked.label), ...line.linkedLines.map((linked) => linked.entryLabel)]))
+      onLines(linkedLabels(entry))
     ) : (
       <LinksCell
         links={entryLinks(entry)}
         entryId={entry.id}
         lines={false}
-        label={`Lier ${entry.label} à un mouvement`}
+        label={labelOf('links', 'Mouvements liés')}
         onSave={(links) =>
           save('links')(entry, (row) =>
             row.lines.length

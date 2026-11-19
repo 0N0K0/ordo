@@ -3,7 +3,7 @@ import { usePageTab } from '../../../components/tabs/use-page-tab';
 import { PAGES, SETTINGS_PARAM, documentPath } from '../../../app/pages';
 import { CountBadge } from '../../../components/feedback/CountBadge';
 import { useSetParams } from '../../../lib/search-params';
-import { plural } from '../../../lib/text';
+import { countOf, plural } from '../../../lib/text';
 import { PageHeader } from '../../../components/page/PageHeader';
 import { ActionButton } from '../../../components/actions/ActionButton';
 import { EmptyState } from '../../../components/feedback/EmptyState';
@@ -44,6 +44,7 @@ import { accountingQueryKey } from '../api';
 import { selectedLabel } from '../../../components/data-table/selection/selection-label';
 import * as fmt from '../../../lib/format';
 import { SettingsSection } from '../../../components/settings/SettingsSection';
+import { LATE_COLOR } from '../../../components/feedback/feedback-colors';
 
 /** Tabs of the settings sidebar. */
 const SETTINGS_TABS = ['zip', 'statuses', 'company'] as const;
@@ -59,7 +60,7 @@ const TABS = [
 const PAGE_TABS = [...TABS.map((item) => item.value), 'toSend', 'overdue', 'recurring', 'catalog'] as const;
 
 /** Former tabs of the page: the tracking statuses, in the settings sidebar. */
-const MOVED_TABS = { tracking: { changes: { [SETTINGS_PARAM]: '1' } } };
+const ACCOUNTING_MOVED_TABS = { tracking: { changes: { [SETTINGS_PARAM]: '1' } } };
 
 /**
  * Repetition of a recurring invoice, as a sentence.
@@ -73,7 +74,7 @@ function repetitionText(item: RecurringInvoice): string {
 
 /** Columns of the recurring invoices. */
 const RECURRING_COLUMNS: DataColumn<RecurringInvoice>[] = [
-  { id: 'label', label: 'Libellé', size: 280, locked: true, bulk: true, sortValue: (item) => item.label, text: (item) => item.label },
+  { id: 'label', required: true, label: 'Libellé', size: 280, locked: true, bulk: true, sortValue: (item) => item.label, text: (item) => item.label },
   { id: 'client', label: 'Client', size: 200, sortValue: (item) => item.template.clientName ?? null, text: (item) => item.template.clientName ?? '', groupable: true },
   { id: 'repetition', label: 'Répétition', size: 240, text: repetitionText, groupable: true },
   {
@@ -86,6 +87,7 @@ const RECURRING_COLUMNS: DataColumn<RecurringInvoice>[] = [
   },
   {
     id: 'state',
+    required: true,
     label: 'État',
     size: 120,
     bulk: true,
@@ -102,9 +104,20 @@ const RECURRING_COLUMNS: DataColumn<RecurringInvoice>[] = [
     },
     groupable: true,
   },
-  { id: 'issued', label: 'Émises', size: 90, numeric: true, hiddenByDefault: true, sortValue: (item) => item.issuedCount, text: (item) => String(item.issuedCount) },
+  {
+    id: 'issued',
+    required: true,
+    label: 'Émises',
+    size: 90,
+    numeric: true,
+    hiddenByDefault: true,
+    sortValue: (item) => item.issuedCount,
+    text: (item) => fmt.count(item.issuedCount),
+    filter: { kind: 'number', value: (item) => item.issuedCount },
+  },
   {
     id: 'amount',
+    required: true,
     label: 'Montant',
     size: 130,
     numeric: true,
@@ -155,7 +168,7 @@ function RecurringList() {
       many: 'factures récurrentes',
       feminine: true,
       the: 'la facture récurrente',
-      name: rowLabel,
+      label: rowLabel,
       risks: (subject, one) => `${subject} et ${one ? 'son modèle' : 'leurs modèles'} seront supprimés définitivement ; les factures déjà émises sont conservées.`,
       remove: (item) => remove.mutateAsync(item.id),
       clear,
@@ -190,7 +203,7 @@ function RecurringList() {
                 )}
               </Group>
               <Text size="xs" c="dimmed">
-                {item.issuedCount} {plural(item.issuedCount, 'facture')} {plural(item.issuedCount, 'émise')}
+                {countOf(item.issuedCount, 'facture')} {plural(item.issuedCount, 'émise')}
               </Text>
             </>
           ),
@@ -239,7 +252,7 @@ export function AccountingPage() {
   const setParams = useSetParams();
   // Imported documents are now listed with their type (the former tab shows the quotes).
   // The old tab of the tracking statuses: its settings, in the sidebar.
-  const [tab, setTab] = usePageTab(PAGE_TABS, 'QUOTE', MOVED_TABS);
+  const [tab, setTab] = usePageTab(PAGE_TABS, 'QUOTE', ACCOUNTING_MOVED_TABS);
   const { data: documents, isPending } = useAccountingDocuments();
   const imported = useImportedDocuments();
   const overdue = useOverdueInvoices(localToday());
@@ -264,7 +277,7 @@ export function AccountingPage() {
   return (
     <Stack gap="lg">
       <PageHeader
-        title={PAGES.accounting.title}
+        title={PAGES.accounting.label}
         actions={
           <ActionButton icon={<PlusIcon aria-hidden />} menu={newDocumentMenu()}>
             Nouveau document
@@ -281,7 +294,7 @@ export function AccountingPage() {
           <PageTabs.Tab value="toSend" leftSection={<PaperPlaneTiltIcon aria-hidden />} rightSection={toSendCount ? <CountBadge count={toSendCount} color="blue" /> : undefined}>
             À envoyer
           </PageTabs.Tab>
-          <PageTabs.Tab value="overdue" leftSection={<BellRingingIcon aria-hidden />} rightSection={overdue.data?.length ? <CountBadge count={overdue.data.length} color="red" /> : undefined}>
+          <PageTabs.Tab value="overdue" leftSection={<BellRingingIcon aria-hidden />} rightSection={overdue.data?.length ? <CountBadge count={overdue.data.length} color={LATE_COLOR} /> : undefined}>
             À relancer
           </PageTabs.Tab>
           <PageTabs.Tab value="recurring" leftSection={<ArrowsClockwiseIcon aria-hidden />}>

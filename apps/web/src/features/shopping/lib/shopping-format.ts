@@ -324,9 +324,10 @@ export const visibleRows = <T>(rows: ShoppingRow<T>[], collapsed: ReadonlySet<st
 
 /**
  * People a product, an item or a sheet item can be for, by id, and their names: beneficiaries, so any contributor and
- * any relation, whatever the project.
- * @returns {{ members: Map<string, string>, relations: Map<string, string>, byKey: Map<string, string>, options: object[], archived: Set<string> }} Names (also by
- *   people key), select options and the people keys of the archived ones.
+ * any relation, whatever the project. A relation linked to a contributor is offered once, as the contributor (as
+ * `useBeneficiaries`), unless already chosen.
+ * @returns {{ members: Map<string, string>, relations: Map<string, string>, byKey: Map<string, string>, options: object[], optionsFor: Function, archived: Set<string> }} Names (also by
+ *   people key), select options (`optionsFor(relationIds)`: with the relations already chosen) and the people keys of the archived ones.
  */
 export function usePeople() {
   const { data } = useTreasurySettings();
@@ -336,13 +337,26 @@ export function usePeople() {
   const relations = new Map((data?.treasuryRelations ?? []).map((relation) => [relation.id, relation.name]));
   const memberOptions = personKeyOptions('member', members);
   const relationOptions = personKeyOptions('relation', relations);
-  const options = buildOptions(memberOptions, relationOptions);
+  const linked = new Set((data?.treasuryRelations ?? []).filter((relation) => relation.contributorId).map((relation) => personKey('relation', relation.id)));
+  /**
+   * Select options: every contributor, the relations not linked to one (or already chosen).
+   * @param {readonly string[]} [chosenRelationIds] Relations already chosen. Optional. Default = none.
+   * @returns {object[]} Groups of options.
+   */
+  const optionsFor = (chosenRelationIds: readonly string[] = []) => {
+    const chosen = new Set(chosenRelationIds.map((id) => personKey('relation', id)));
+    return buildOptions(
+      memberOptions,
+      relationOptions.filter((option) => !linked.has(option.value) || chosen.has(option.value)),
+    );
+  };
+  const options = optionsFor();
   const byKey = new Map([...memberOptions, ...relationOptions].map((option) => [option.value, option.label]));
   const archived = new Set([
     ...(context?.contributors ?? []).filter((contributor) => contributor.archived).map((contributor) => personKey('member', contributor.id)),
     ...(data?.treasuryRelations ?? []).filter((relation) => relation.archived).map((relation) => personKey('relation', relation.id)),
   ]);
-  return { members, relations, byKey, options, archived };
+  return { members, relations, byKey, options, optionsFor, archived };
 }
 
 /**
@@ -413,8 +427,8 @@ export function listsOfProjects<T extends { taskIds: string[] }>(lists: T[], con
 export const UNIT_COLOR = DEFAULT_LABEL_COLOR;
 
 /**
- * « Gâteau · 1,5 »: a sheet an item of a list comes from, with its share (none: its name alone).
- * @param {{ name: string, quantity: number | null }} source Sheet and share.
+ * « Gâteau · 1,5 »: a sheet an item of a list comes from, with its share (none: its label alone).
+ * @param {{ label: string, quantity: number | null }} source Sheet and share.
  * @returns {string} Text.
  */
 export const sheetSourceText = (source: { label: string; quantity: number | null }) => (source.quantity !== null ? `${source.label} · ${fmt.quantity({ quantity: source.quantity })}` : source.label);

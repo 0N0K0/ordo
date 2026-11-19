@@ -17,6 +17,7 @@ import { MovementsTable } from '../components/MovementsTable';
 import { StockLocations } from '../components/StockLocations';
 import { StockTable } from '../components/StockTable';
 import { localDay } from '../../../lib/dates';
+import { noteColumn } from '../../shopping/lib/product-columns';
 
 /**
  * Inventories recorded, latest first.
@@ -26,9 +27,16 @@ function CountsTable() {
   const { data: counts } = useStockCounts();
   const { data: locations } = useStockLocations();
   const places = categoryPaths(locations ?? []);
+  /**
+   * Place of an inventory: its path, or the whole stock.
+   * @param {StockCount} count Inventory.
+   * @returns {string} Place.
+   */
+  const locationOf = (count: StockCount) => (count.locationId ? (places.get(count.locationId) ?? '') : 'Tout le stock');
   const columns: DataColumn<StockCount>[] = [
     {
       id: 'date',
+      required: true,
       label: 'Date',
       size: 160,
       locked: true,
@@ -38,22 +46,25 @@ function CountsTable() {
     },
     {
       id: 'location',
+      // Without a place: the whole stock (never empty).
+      required: true,
       label: 'Emplacement',
       size: 200,
-      sortValue: (count) => places.get(count.locationId ?? '') ?? 'Tout le stock',
-      text: (count) => (count.locationId ? (places.get(count.locationId) ?? '') : 'Tout le stock'),
+      sortValue: locationOf,
+      text: locationOf,
       groupable: true,
     },
     {
       id: 'lines',
+      required: true,
       label: 'Écarts notés',
       size: 120,
       numeric: true,
       sortValue: (count) => count.lines,
-      text: (count) => String(count.lines),
+      text: (count) => fmt.count(count.lines),
       filter: { kind: 'number', value: (count) => count.lines },
     },
-    { id: 'note', label: 'Note', size: 260, sortValue: (count) => count.note ?? null, text: (count) => count.note ?? '' },
+    noteColumn({ size: 260, bulk: false }),
   ];
   const view = useDataView({ tableKey: 'stock-counts', getKey: (count) => count.id, columns, rows: counts ?? [], title: 'Inventaires' });
   return (
@@ -96,7 +107,7 @@ export function StockPage() {
   const [tab, setTab] = usePageTab(STOCK_TABS);
   return (
     <Stack gap="lg">
-      <PageHeader title={PAGES.stock.title} />
+      <PageHeader title={PAGES.stock.label} />
       <PageTabs value={tab} onChange={(value) => setTab(value, {}, { only: true })} keepMounted={false}>
         <PageTabs.List>
           <PageTabs.Tab value="stock" leftSection={<ArchiveIcon aria-hidden />}>

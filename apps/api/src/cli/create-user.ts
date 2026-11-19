@@ -4,7 +4,7 @@ import { strongPasswordSchema } from '@ordo/shared/password-strength';
 import type { z } from 'zod';
 import { hashPassword } from '../auth/crypto';
 import { prisma } from '../db';
-import { ensureMeContributor, forEachWorkspace } from '../services/workspace/workspaces';
+import { ensureMeContributor, forEachWorkspace } from '../services/workspaces/workspaces';
 
 /**
  * Turns a zod schema into an inquirer validator.

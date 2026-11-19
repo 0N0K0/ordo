@@ -24,9 +24,10 @@ export function RoutineSettings() {
           title="Catégories"
           description="Classent les routines, en arborescence : glissez une catégorie sur une autre pour l’y ranger. Une sous-catégorie sans couleur prend celle de sa catégorie parente."
           noun="la catégorie"
+          feminine
           items={categories}
           usage={usage}
-          usageNoun="routines"
+          usageNoun={{ one: 'de la routine', many: 'routines' }}
           remove={(id) => deleteCategory.mutateAsync(id)}
           move={(id, parentId, index) => moveCategory.mutateAsync({ id, parentId, index })}
         />

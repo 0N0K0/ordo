@@ -37,7 +37,7 @@ export function PageMessage({ icon, title, message, code }: PageMessageProps) {
       <Text c="dimmed" ta="center">
         {message}
       </Text>
-      <ActionButton to={PAGES.home.path} icon={<HouseIcon aria-hidden />}>
+      <ActionButton priority="secondary" to={PAGES.home.path} icon={<HouseIcon aria-hidden />}>
         Retour à l’accueil
       </ActionButton>
     </Stack>

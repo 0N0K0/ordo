@@ -1,5 +1,5 @@
 import { Paper, Stack, Text } from '@mantine/core';
-import { placeSchema, type GeoPoint } from '@ordo/shared';
+import { placeSchema, type GeoPoint, agreed } from '@ordo/shared';
 import { useRef, type CSSProperties } from 'react';
 import { createdId } from '../../../components/settings/settings-api';
 import { SettingsList } from '../../../components/settings/SettingsList';
@@ -115,8 +115,8 @@ export function PlacesManager() {
             }
             deleteMessage={(place, path) => (
               <>
-                {place.parentId ? 'La zone' : 'Le lieu'} « {path} » sera supprimé{place.parentId ? 'e' : ''} définitivement avec ses zones ; les évènements et routines gardent leur lieu en texte ; il
-                ne sera plus proposé.
+                {place.parentId ? 'La zone' : 'Le lieu'} « {path} » sera {agreed('supprimé', Boolean(place.parentId))} définitivement avec ses zones ; les évènements et routines gardent leur lieu en
+                texte ; il ne sera plus proposé.
               </>
             )}
           />

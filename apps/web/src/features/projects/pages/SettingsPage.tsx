@@ -13,7 +13,7 @@ import { ContributorsManager } from '../../tasks/components/ContributorsManager'
 import { TeamMembers, TeamRelations } from '../../treasury/components/TeamPanel';
 import { useActiveWorkspace } from '../../workspaces/api';
 import { WorkspacesManager } from '../../workspaces/components/WorkspacesManager';
-import { useWorkspace } from '../api';
+import { useProjectTree } from '../api';
 import { useProjectCategoryItems, useProjectStatusItems } from '../hooks/use-label-items';
 import { SettingsGrid } from '../../../components/settings/SettingsGrid';
 import { PageTabs } from '../../../components/tabs/PageTabs';
@@ -29,7 +29,7 @@ const SETTINGS_PAGE_TABS = ['projects', 'contributors', 'places', 'github', 'wor
  * @returns {JSX.Element} Page.
  */
 export function SettingsPage() {
-  const { data } = useWorkspace();
+  const { data } = useProjectTree();
   const statusItems = useProjectStatusItems();
   const categoryItems = useProjectCategoryItems();
 
@@ -55,7 +55,7 @@ export function SettingsPage() {
 
   return (
     <Stack gap="lg">
-      <PageHeader title={PAGES.settings.title} />
+      <PageHeader title={PAGES.settings.label} />
       <PageTabs value={tab} onChange={(value) => setTab(value, {}, { only: true })} keepMounted={false}>
         <PageTabs.List>
           <PageTabs.Tab value="projects" leftSection={<FoldersIcon aria-hidden />}>
@@ -80,7 +80,7 @@ export function SettingsPage() {
               title="Statuts de projet"
               description="Un projet a au plus un statut. L’ordre est celui des listes de sélection."
               noun="le statut"
-              usageNoun="projets"
+              usageNoun={{ one: 'du projet', many: 'projets' }}
               items={data?.projectStatuses ?? []}
               usage={statusUsage}
               {...statusItems}
@@ -89,7 +89,8 @@ export function SettingsPage() {
               title="Catégories de projet"
               description="Un projet peut avoir plusieurs catégories."
               noun="la catégorie"
-              usageNoun="projets"
+              feminine
+              usageNoun={{ one: 'du projet', many: 'projets' }}
               items={data?.projectCategories ?? []}
               usage={categoryUsage}
               {...categoryItems}

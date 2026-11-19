@@ -1,4 +1,5 @@
 import type { MarkdownSuggestions } from './MarkdownEditor';
+import { mapById } from '@ordo/shared';
 
 /** Minimal mdast node shape used by the plugin. */
 interface MdNode {
@@ -27,12 +28,31 @@ export interface ReferenceTargets {
   taskById: ReadonlyMap<string, ReferenceTask>;
   /** Tasks by "<projectId>:<number>". */
   taskByNumber: ReadonlyMap<string, ReferenceTask>;
-  /** Existing contributor handles. */
-  handles: Set<string>;
 }
 
-/** Targets of texts without task nor contributor references. */
-export const NO_TARGETS: ReferenceTargets = { projectId: null, taskById: new Map(), taskByNumber: new Map(), handles: new Set() };
+/**
+ * Key of a task by its number in its project, as `ReferenceTargets.taskByNumber` holds it.
+ * @param {string} projectId Project.
+ * @param {number | string} number Number of the task in it.
+ * @returns {string} « <projectId>:<number> ».
+ */
+export const taskNumberKey = (projectId: string, number: number | string): string => `${projectId}:${number}`;
+
+/**
+ * Tasks texts can reference, by id and by number in their project (`ReferenceTargets` without its project).
+ * @param {readonly ReferenceTask[]} tasks Tasks.
+ * @returns {Omit<ReferenceTargets, 'projectId'>} Tasks by id and by `taskNumberKey`.
+ */
+export function referenceTargets(tasks: readonly ReferenceTask[]): Omit<ReferenceTargets, 'projectId'> {
+  return {
+    taskById: mapById(tasks),
+    // "#12" only names a task of a project.
+    taskByNumber: new Map(tasks.flatMap((task) => (task.projectId !== null && task.number !== null ? [[taskNumberKey(task.projectId, task.number), task] as const] : []))),
+  };
+}
+
+/** Targets of texts without task references. */
+export const NO_TARGETS: ReferenceTargets = { projectId: null, taskById: new Map(), taskByNumber: new Map() };
 
 /** Suggestions of an editor of a text without task nor contributor references. */
 export const NO_SUGGESTIONS: MarkdownSuggestions = { projectId: null, tasks: [], contributors: [] };
@@ -65,26 +85,26 @@ export function taskShortRef(task: { number: number | null; label: string; proje
 /** Address of a task in a text: by its id (its number changes with a transfer). */
 export const taskReferenceUrl = (id: string) => `?task=${encodeURIComponent(id)}`;
 
-// "#12" or "@handle", not glued to a word (so "a#1" and emails stay untouched).
-const REFERENCE = /(^|[^\p{L}\p{N}_&/])(#(\d+)|@([a-z0-9](?:[a-z0-9_-]*[a-z0-9])?))/giu;
+// "#12", not glued to a word (so "a#1" stays untouched). A mention « @handle » stays plain text (decision DK).
+const REFERENCE = /(^|[^\p{L}\p{N}_&/])(#(\d+))/gu;
 const TASK_LINK = /^\?task=([^&]+)$/;
 const SKIPPED = new Set(['link', 'linkReference', 'inlineCode', 'code', 'definition']);
 
 /**
- * Splits a text node into text and link nodes for task and mention references.
+ * Splits a text node into text and link nodes for task references.
  * @param {string} text Text value.
- * @param {ReferenceTargets} targets Existing tasks and contributors.
+ * @param {ReferenceTargets} targets Existing tasks.
  * @returns {MdNode[]} Replacement nodes.
  */
 function splitText(text: string, targets: ReferenceTargets): MdNode[] {
   const nodes: MdNode[] = [];
   let last = 0;
   for (const match of text.matchAll(REFERENCE)) {
-    const [, before, reference, number, handle] = match;
+    const [, before, reference, number] = match;
     const start = match.index + before.length;
-    const task = number && targets.projectId ? targets.taskByNumber.get(`${targets.projectId}:${number}`) : undefined;
-    const url = number ? (task ? taskReferenceUrl(task.id) : null) : targets.handles.has(handle.toLowerCase()) ? `/?assignee=${handle.toLowerCase()}` : null;
-    if (!url) continue;
+    const task = targets.projectId ? targets.taskByNumber.get(taskNumberKey(targets.projectId, number)) : undefined;
+    if (!task) continue;
+    const url = taskReferenceUrl(task.id);
     if (start > last) nodes.push({ type: 'text', value: text.slice(last, start) });
     nodes.push({ type: 'link', url, children: [{ type: 'text', value: reference }] });
     last = start + reference.length;
@@ -95,10 +115,10 @@ function splitText(text: string, targets: ReferenceTargets): MdNode[] {
 }
 
 /**
- * Remark plugin: a typed "#12" becomes a link to task 12 of the project of the text, "@handle" a link to that
- * contributor's tasks, and a link to a task by id ("?task=<id>") shows its current number (with its client and
- * project when it is of another project). Unknown numbers and handles are left as plain text.
- * @param {ReferenceTargets} targets Existing tasks and contributors, and the project of the text.
+ * Remark plugin: a typed "#12" becomes a link to task 12 of the project of the text, and a link to a task by id
+ * ("?task=<id>") shows its current number (with its client and project when it is of another project). Unknown
+ * numbers, and mentions (« @handle », decision DK), are left as plain text.
+ * @param {ReferenceTargets} targets Existing tasks, and the project of the text.
  * @returns {() => (tree: MdNode) => void} Remark plugin.
  */
 export function remarkReferences(targets: ReferenceTargets) {
