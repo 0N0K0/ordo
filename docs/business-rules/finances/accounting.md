@@ -158,7 +158,7 @@ Réglage (`setSequenceStart`, mutation `setDocumentSequence`) : prochain numéro
 - facture depuis un devis : lignes du devis sans ses déductions, plus une déduction « Déjà facturé : F… » par document et par taux pour ce qui a déjà été facturé sur le devis (factures et acomptes définitifs moins leurs avoirs définitifs) ; une déduction d’acompte est liée à son acompte ; conditions, mode de règlement et intérêts de retard du devis repris, échéance recalculée ;
 - avoir : lignes de la facture, objet « Avoir sur la facture F… », conditions par défaut d’un avoir.
 
-Montant déjà facturé sur un devis (`invoicedAmount`, champ `invoicedNet`) : somme HT des factures et acomptes définitifs issus du devis moins leurs avoirs définitifs.
+Montant déjà facturé sur un devis (`invoicedAmounts`, champ `invoicedNet`, calculé en une requête pour tous les devis d'une liste) : somme HT des factures et acomptes définitifs issus du devis moins leurs avoirs définitifs.
 
 ## Factures d’acompte
 
@@ -210,7 +210,7 @@ Acomptes à déduire (`deductibleDeposits`, requête `deductibleDeposits`) : aco
 - Acceptation (`acceptQuote`) : devis seulement (« Seul un devis peut être accepté. ») ; le devis signé remplace le précédent (l’ancien fichier est supprimé). `removeSignedQuote` retire le fichier.
 - Relance notée (`addReminder`) : factures et acomptes seulement (« Seule une facture peut être relancée. ») ; note de 500 caractères au plus (« 500 caractères maximum. »), refusée plutôt que coupée. Supprimer une relance est refusé sur un document archivé.
 
-Destinataire (`billingRecipient`, champ `billingEmail`) : email du contact, sinon du service, sinon du client.
+Destinataire (`billingRecipient` ; `billingRecipients` pour une liste, champ `billingEmail`) : email du contact, sinon du service, sinon du client.
 
 Factures à relancer (requête `overdueInvoices`) : factures et acomptes définitifs envoyés au moins `REMINDER_DELAY_DAYS` (15) jours avant (envoyée le 1er : relançable dès le 16) et encore dus, la date d’envoi comptant et non l’échéance ; triées par date d’envoi puis numéro. Le web retire les archivées.
 

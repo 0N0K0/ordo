@@ -7,7 +7,7 @@ import type { SettingsItemValues } from '../../../components/settings/SettingsIt
 import { useFillHeight } from '../../../lib/fill-height';
 import { AddressInput } from './AddressInput';
 import { pickedAddress, usePlaceMutations, usePlaces, type Place } from '../api';
-import { PlaceMap } from './PlaceMap';
+import { LazyPlaceMap } from './LazyPlaceMap';
 import classes from './PlacesManager.module.css';
 
 /** Address of a place in its form: its text and its point (none for a zone, which has the point of its place). */
@@ -58,7 +58,7 @@ export function PlacesManager() {
     <div ref={fillRef} className={classes.root} style={{ '--fill-height': fillHeight ? `${fillHeight}px` : undefined } as CSSProperties}>
       <div className={classes.body}>
         <Paper withBorder radius="md" className={classes.map}>
-          <PlaceMap points={points} onPick={(point) => void pick(point)} height="100%" />
+          <LazyPlaceMap points={points} onPick={(point) => void pick(point)} height="100%" />
         </Paper>
         <div className={classes.side}>
           <SettingsList<Place, PlaceAddressValues>

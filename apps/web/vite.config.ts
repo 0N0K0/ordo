@@ -38,6 +38,20 @@ export default defineConfig({
       },
     }),
   ],
+  build: {
+    rolldownOptions: {
+      output: {
+        // The libraries every page needs, apart from the code of the app: a deployment that only changes the app leaves
+        // them in the cache of the browser. Pages and the libraries of a few pages are split by their lazy imports.
+        codeSplitting: {
+          groups: [
+            { name: 'react', test: /node_modules[\\/](react|react-dom|react-router|scheduler)[\\/]/ },
+            { name: 'mantine', test: /node_modules[\\/](@mantine[\\/](core|hooks)|@floating-ui)[\\/]/ },
+          ],
+        },
+      },
+    },
+  },
   server: {
     port: 5173,
     strictPort: true,

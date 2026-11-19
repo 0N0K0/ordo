@@ -1,36 +1,39 @@
 import { createBrowserRouter } from 'react-router';
-import { AccountPage } from '../features/account/pages/AccountPage';
-import { AccountingPage } from '../features/accounting/pages/AccountingPage';
-import { DocumentPage } from '../features/accounting/pages/DocumentPage';
-import { ImportedDocumentPage } from '../features/accounting/pages/ImportedDocumentPage';
-import { TreasuryPage } from '../features/treasury/pages/TreasuryPage';
-import { DashboardsPage } from '../features/dashboards/pages/DashboardsPage';
-import { LibraryPage } from '../features/library/pages/LibraryPage';
-import { AlarmsPage } from '../features/alarms/pages/AlarmsPage';
-import { CalendarPage } from '../features/calendar/pages/CalendarPage';
-import { MailPage } from '../features/mail/pages/MailPage';
-import { ShoppingListPage } from '../features/shopping/pages/ShoppingListPage';
-import { ShoppingPage } from '../features/shopping/pages/ShoppingPage';
-import { SheetsPage } from '../features/sheets/pages/SheetsPage';
-import { SheetPage } from '../features/sheets/pages/SheetPage';
-import { StockPage } from '../features/stock/pages/StockPage';
-import { RoutinesPage } from '../features/routines/pages/RoutinesPage';
 import { AuthLayout } from '../features/auth/pages/AuthLayout';
 import { RequireAuth, RequireGuest } from '../features/auth/pages/guards';
-import { ConfirmEmailPage } from '../features/auth/pages/ConfirmEmailPage';
-import { ForgotPasswordPage } from '../features/auth/pages/ForgotPasswordPage';
 import { LoginPage } from '../features/auth/pages/LoginPage';
-import { ResetPasswordPage } from '../features/auth/pages/ResetPasswordPage';
-import { ClientPage } from '../features/projects/pages/ClientPage';
-import { ProjectPage } from '../features/projects/pages/ProjectPage';
-import { SettingsPage } from '../features/projects/pages/SettingsPage';
 import { ProOnly } from '../features/workspaces/pages/ProOnly';
+import { lazyNamed } from '../lib/lazy';
 import { AppLayout } from './layout/AppLayout';
-import { HomePage } from '../features/home/pages/HomePage';
-import { TasksPage } from '../features/tasks/pages/TasksPage';
-import { TimePage } from '../features/time/pages/TimePage';
 import { NotFoundPage } from './NotFoundPage';
 import { AUTH_PATHS, CLIENT_ROUTE, PAGES, PROJECT_ROUTE, routeOf } from './pages';
+
+// Pages are loaded when first opened, under the `Suspense` of their layout: the app starts with the layouts and the login page.
+const AccountPage = lazyNamed(() => import('../features/account/pages/AccountPage'), (module) => module.AccountPage);
+const AccountingPage = lazyNamed(() => import('../features/accounting/pages/AccountingPage'), (module) => module.AccountingPage);
+const DocumentPage = lazyNamed(() => import('../features/accounting/pages/DocumentPage'), (module) => module.DocumentPage);
+const ImportedDocumentPage = lazyNamed(() => import('../features/accounting/pages/ImportedDocumentPage'), (module) => module.ImportedDocumentPage);
+const TreasuryPage = lazyNamed(() => import('../features/treasury/pages/TreasuryPage'), (module) => module.TreasuryPage);
+const DashboardsPage = lazyNamed(() => import('../features/dashboards/pages/DashboardsPage'), (module) => module.DashboardsPage);
+const LibraryPage = lazyNamed(() => import('../features/library/pages/LibraryPage'), (module) => module.LibraryPage);
+const AlarmsPage = lazyNamed(() => import('../features/alarms/pages/AlarmsPage'), (module) => module.AlarmsPage);
+const CalendarPage = lazyNamed(() => import('../features/calendar/pages/CalendarPage'), (module) => module.CalendarPage);
+const MailPage = lazyNamed(() => import('../features/mail/pages/MailPage'), (module) => module.MailPage);
+const ShoppingListPage = lazyNamed(() => import('../features/shopping/pages/ShoppingListPage'), (module) => module.ShoppingListPage);
+const ShoppingPage = lazyNamed(() => import('../features/shopping/pages/ShoppingPage'), (module) => module.ShoppingPage);
+const SheetsPage = lazyNamed(() => import('../features/sheets/pages/SheetsPage'), (module) => module.SheetsPage);
+const SheetPage = lazyNamed(() => import('../features/sheets/pages/SheetPage'), (module) => module.SheetPage);
+const StockPage = lazyNamed(() => import('../features/stock/pages/StockPage'), (module) => module.StockPage);
+const RoutinesPage = lazyNamed(() => import('../features/routines/pages/RoutinesPage'), (module) => module.RoutinesPage);
+const ConfirmEmailPage = lazyNamed(() => import('../features/auth/pages/ConfirmEmailPage'), (module) => module.ConfirmEmailPage);
+const ForgotPasswordPage = lazyNamed(() => import('../features/auth/pages/ForgotPasswordPage'), (module) => module.ForgotPasswordPage);
+const ResetPasswordPage = lazyNamed(() => import('../features/auth/pages/ResetPasswordPage'), (module) => module.ResetPasswordPage);
+const ClientPage = lazyNamed(() => import('../features/projects/pages/ClientPage'), (module) => module.ClientPage);
+const ProjectPage = lazyNamed(() => import('../features/projects/pages/ProjectPage'), (module) => module.ProjectPage);
+const SettingsPage = lazyNamed(() => import('../features/projects/pages/SettingsPage'), (module) => module.SettingsPage);
+const HomePage = lazyNamed(() => import('../features/home/pages/HomePage'), (module) => module.HomePage);
+const TasksPage = lazyNamed(() => import('../features/tasks/pages/TasksPage'), (module) => module.TasksPage);
+const TimePage = lazyNamed(() => import('../features/time/pages/TimePage'), (module) => module.TimePage);
 
 export const router = createBrowserRouter([
   {

@@ -459,28 +459,43 @@ export async function finalizeDocument(id: string): Promise<AccountingDocument> 
  * @returns {Promise<{ number: string, rates: Map<number, number> }[]>} Invoiced bases (cents) per document.
  */
 async function invoicedOnQuote(quoteId: string) {
+  return (await invoicedOnQuotes([quoteId])).get(quoteId) ?? [];
+}
+
+/**
+ * What was invoiced on several quotes (see `invoicedOnQuote`), in one query.
+ * @param {string[]} quoteIds Quotes.
+ * @returns {Promise<Map<string, { id: string, type: AccountingDocumentType, number: string, rates: Map<number, number> }[]>>} Invoices of each quote that has some.
+ */
+async function invoicedOnQuotes(quoteIds: string[]) {
   const invoices = await prisma.accountingDocument.findMany({
-    where: { sourceId: quoteId, status: 'FINAL', type: { in: [...INVOICE_TYPES] } },
+    where: { sourceId: { in: quoteIds }, status: 'FINAL', type: { in: [...INVOICE_TYPES] } },
     include: { lines: true, derived: { where: { status: 'FINAL', type: 'CREDIT_NOTE' }, include: { lines: true } } },
     orderBy: { issueDate: 'asc' },
   });
-  return invoices.map((invoice) => {
+  const byQuote = new Map<string, { id: string; type: AccountingDocumentType; number: string; rates: Map<number, number> }[]>();
+  for (const invoice of invoices) {
+    if (!invoice.sourceId) continue;
     const rates = new Map<number, number>();
     for (const item of documentTotals(invoice).vat) rates.set(item.rate, item.base);
     for (const credit of invoice.derived) {
       for (const item of documentTotals(credit).vat) rates.set(item.rate, (rates.get(item.rate) ?? 0) - item.base);
     }
-    return { id: invoice.id, type: invoice.type, number: invoice.number ?? '', rates };
-  });
+    const items = byQuote.get(invoice.sourceId) ?? [];
+    items.push({ id: invoice.id, type: invoice.type, number: invoice.number ?? '', rates });
+    byQuote.set(invoice.sourceId, items);
+  }
+  return byQuote;
 }
 
 /**
- * Amount excluding VAT already invoiced on a quote, in cents.
- * @param {string} quoteId Quote.
- * @returns {Promise<number>} Amount.
+ * Amount excluding VAT already invoiced on each of several quotes, in cents, in one query.
+ * @param {string[]} quoteIds Quotes.
+ * @returns {Promise<number[]>} Amounts, in the order of the quotes.
  */
-export async function invoicedAmount(quoteId: string): Promise<number> {
-  return sumOf(await invoicedOnQuote(quoteId), (item) => sumOf([...item.rates.values()], (base) => base));
+export async function invoicedAmounts(quoteIds: string[]): Promise<number[]> {
+  const invoiced = await invoicedOnQuotes(quoteIds);
+  return quoteIds.map((id) => sumOf(invoiced.get(id) ?? [], (item) => sumOf([...item.rates.values()], (base) => base)));
 }
 
 /**

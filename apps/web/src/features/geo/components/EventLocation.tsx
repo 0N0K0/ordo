@@ -2,7 +2,7 @@ import { Stack } from '@mantine/core';
 import type { GeoPoint } from '@ordo/shared';
 import { AddressInput, type AddressValue } from './AddressInput';
 import { pickedAddress } from '../api';
-import { PlaceMap } from './PlaceMap';
+import { LazyPlaceMap } from './LazyPlaceMap';
 
 interface EventLocationProps {
   value: AddressValue;
@@ -29,7 +29,7 @@ export function EventLocation({ value, onChange, error }: EventLocationProps) {
   return (
     <Stack gap={6}>
       <AddressInput label="Lieu" placeholder="Adresse, lieu enregistré, salle, visio…" value={value} error={error} onChange={onChange} />
-      {value.point && <PlaceMap height={180} points={[{ id: 'event', label: value.text, ...value.point, active: true }]} onPick={(point) => void move(point)} />}
+      {value.point && <LazyPlaceMap height={180} points={[{ id: 'event', label: value.text, ...value.point, active: true }]} onPick={(point) => void move(point)} />}
     </Stack>
   );
 }

@@ -7,7 +7,7 @@ import { Checkbox, Collapse, FileButton, Group, Paper, Popover, Select, Stack, T
 import { DateTimePicker } from '@mantine/dates';
 import { ClockCountdownIcon, ClockIcon, FloppyDiskIcon, PaperPlaneTiltIcon, PaperclipIcon, TrashIcon, XIcon, PencilSimpleLineIcon, PlusIcon } from '@phosphor-icons/react';
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { RichEditor } from './RichEditor';
+import { LazyRichEditor } from './LazyRichEditor';
 import { notifySuccess, onMutationError } from '../../../lib/notify';
 import { useMailActions, useMailAccounts } from '../api';
 import { mailHtml, type ComposeOptions, type MailLocation, type SourceFiles } from '../lib/compose-options';
@@ -367,7 +367,7 @@ export function MailComposer({ options, onDone }: { options: ComposeOptions; onD
         </>
       )}
       <TextInput label="Objet" value={subject} onChange={(event) => setSubject(event.currentTarget.value)} />
-      <RichEditor value={body} onChange={setBody} minHeight={220} autoFocus={to.length > 0} />
+      <LazyRichEditor value={body} onChange={setBody} minHeight={220} autoFocus={to.length > 0} />
       {account?.signature && (
         <Stack gap={4}>
           <Checkbox label="Ajouter la signature" checked={withSignature} onChange={(event) => setWithSignature(event.currentTarget.checked)} />
