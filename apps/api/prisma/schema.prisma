@@ -197,6 +197,15 @@ model AuthToken {
   @@index([userId, type])
 }
 
+/// Counter of a rate limit (failed logins, reset requests, password checks), shared by every process and kept across restarts.
+model RateLimit {
+  /// Limit and what it counts for: « login:… », « login-id:… », « reset:… », « pwcheck:… ».
+  key    String    @id
+  points Int
+  /// End of the counting window; the row is deleted an hour later.
+  expire DateTime?
+}
+
 /// Uploaded image, stored apart so lists never load the bytes.
 model Icon {
   id                     String                  @id @default(cuid())

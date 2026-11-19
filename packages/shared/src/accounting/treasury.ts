@@ -1,6 +1,6 @@
 import { formatMoney, percentOf, round2, toCents } from './accounting-documents';
 import { mapById, sumOf } from '../core/collections';
-import { clipText } from '../core/text';
+import { clipText, escapeText } from '../core/text';
 import { z } from 'zod';
 import { END_AFTER_START, endAfter, endsAfter, optionalText, personNameSchema, requiredText } from '../core/rules';
 import { monthFromIndex, monthIndex } from '../dates/months';
@@ -307,14 +307,6 @@ export const documentPaymentSchema = z.object({
 });
 export type DocumentPaymentInput = z.input<typeof documentPaymentSchema>;
 
-/**
- * Text escaped for HTML.
- * @param {string} text Text.
- * @returns {string} HTML.
- */
-function escapeText(text: string): string {
-  return text.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
-}
 
 /** What the reminder of an unpaid invoice says. */
 interface ReminderMailInput {

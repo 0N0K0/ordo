@@ -4,8 +4,8 @@ import { PrismaClient } from './generated/prisma/client';
 import { getDatamodel } from './generated/pothos-types';
 import { currentWorkspaceId } from './workspace-context';
 
-/** Models shared by every workspace (accounts); every other one belongs to a workspace. */
-const SHARED = new Set(['Workspace', 'User', 'Session', 'AuthToken']);
+/** Models shared by every workspace (accounts, rate limits); every other one belongs to a workspace. */
+const SHARED = new Set(['Workspace', 'User', 'Session', 'AuthToken', 'RateLimit']);
 
 type Data = Record<string, unknown>;
 

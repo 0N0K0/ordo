@@ -145,3 +145,12 @@ export function ellipsis(text: string, max: number): string {
  * @returns {string} Text.
  */
 export const capitalize = (text: string) => text.replace(/^./, (letter) => letter.toUpperCase());
+
+/**
+ * Text escaped for HTML (content of an element, or value of an attribute between double quotes).
+ * @param {string} text Text.
+ * @returns {string} HTML.
+ */
+export function escapeText(text: string): string {
+  return text.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+}

@@ -3,13 +3,14 @@ import { calendarIcs } from '../services/calendar/calendar-ics';
 import { calendarPdf } from '../services/calendar/calendar-pdf';
 import { chartsPdf } from '../services/dashboards/charts-pdf';
 import { tablePdf } from '../services/core/table-pdf';
-import { downloadRoute, queryText } from './http';
+import { downloadRoute, queryText, sessionRequired } from './http';
 
 export const exportsRouter: Router = Router();
 
 // PDF of a table the app has formatted (task list of a view…), downloaded.
 exportsRouter.post(
   '/table.pdf',
+  sessionRequired,
   express.json({ limit: '5mb' }),
   downloadRoute(async (req) => ({ ...(await tablePdf(req.body)), type: 'application/pdf' }), 'Export PDF impossible.'),
 );
@@ -17,6 +18,7 @@ exportsRouter.post(
 // PDF of charts drawn by the app (PNG images), downloaded.
 exportsRouter.post(
   '/charts.pdf',
+  sessionRequired,
   express.json({ limit: '50mb' }),
   downloadRoute(async (req) => ({ ...(await chartsPdf(req.body)), type: 'application/pdf' }), 'Export PDF impossible.'),
 );
@@ -30,6 +32,7 @@ exportsRouter.get(
 // PDF of a calendar view as displayed (its items sent by the app), downloaded.
 exportsRouter.post(
   '/calendar.pdf',
+  sessionRequired,
   express.json({ limit: '5mb' }),
   downloadRoute(async (req) => ({ ...(await calendarPdf(req.body)), type: 'application/pdf' }), 'Export PDF impossible.'),
 );

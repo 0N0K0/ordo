@@ -155,7 +155,7 @@ export async function updateMailAccount(id: string, input: MailAccountFormValues
 export async function setMailSignature(id: string, signature: string): Promise<MailAccount> {
   await findActiveAccount(id);
   const html = parseInput(signatureSchema, signature).trim();
-  return prisma.mailAccount.update({ where: { id }, data: { signature: html ? sanitizeMailHtml(html) : null } });
+  return prisma.mailAccount.update({ where: { id }, data: { signature: html ? sanitizeMailHtml(html, true) : null } });
 }
 
 /**

@@ -1,6 +1,6 @@
 # Espaces de travail et accès
 
-Espaces professionnels et personnels, isolation des données par espace, partage entre espaces (abonnements, notifications), compte utilisateur, connexion, sessions et limites de tentatives. Sources : `apps/api/src/services/workspaces/workspaces.ts`, `apps/api/src/workspace-context.ts`, `apps/api/src/db.ts`, `apps/api/src/services/core/auth.ts`, `apps/api/src/auth/{session,crypto,rate-limit}.ts`, `apps/api/src/graphql/{builder,context}.ts`, `apps/api/src/graphql/modules/{auth,workspaces}.ts`, `apps/api/src/cli/create-user.ts`, `apps/api/src/services/calendar/{calendars,work-schedules}.ts`, `packages/shared/src/core/{auth,password-rules,password-strength,workspace}.ts`.
+Espaces professionnels et personnels, isolation des données par espace, partage entre espaces (abonnements, notifications), compte utilisateur, connexion, sessions et limites de tentatives. Sources : `apps/api/src/services/workspaces/workspaces.ts`, `apps/api/src/workspace-context.ts`, `apps/api/src/db.ts`, `apps/api/src/services/core/auth.ts`, `apps/api/src/auth/{session,crypto,rate-limit}.ts`, `apps/api/src/graphql/{builder,context}.ts`, `apps/api/src/{env,index,security-headers}.ts`, `apps/api/src/routes/http.ts`, `apps/api/src/graphql/modules/{auth,workspaces}.ts`, `apps/api/src/cli/create-user.ts`, `apps/api/src/services/calendar/{calendars,work-schedules}.ts`, `packages/shared/src/core/{auth,password-rules,password-strength,workspace}.ts`.
 
 Voir aussi : [Personnes](people.md), [Erreurs](errors.md), [Tâches de fond](background-jobs.md), [Fonctionnalités : espaces](../../features/cross-cutting/workspaces.md), [Fonctionnalités : authentification](../../features/cross-cutting/auth.md).
 
@@ -25,7 +25,7 @@ Voir aussi : [Personnes](people.md), [Erreurs](errors.md), [Tâches de fond](bac
 ### Isolation des données
 
 - Chaque requête HTTP travaille dans **un** espace : celui de l'en-tête `x-ordo-workspace`, sinon du cookie `ordo_workspace`, sinon le premier espace (`workspaceMiddleware`). Le middleware passe avant l'authentification.
-- Toutes les lignes, sauf `Workspace`, `User`, `Session` et `AuthToken`, appartiennent à un espace. Le client Prisma étendu (`apps/api/src/db.ts`) ajoute `workspaceId` à toutes les lectures, mises à jour et suppressions, et donne l'espace à toutes les créations (y compris imbriquées) ; l'espace d'une ligne ne change jamais. Une requête hors espace échoue (« No workspace… », erreur interne).
+- Toutes les lignes, sauf `Workspace`, `User`, `Session`, `AuthToken` et `RateLimit`, appartiennent à un espace. Le client Prisma étendu (`apps/api/src/db.ts`) ajoute `workspaceId` à toutes les lectures, mises à jour et suppressions, et donne l'espace à toutes les créations (y compris imbriquées) ; l'espace d'une ligne ne change jamais. Une requête hors espace échoue (« No workspace… », erreur interne).
 - `unscopedPrisma` (sans limite) ne sert qu'aux espaces eux-mêmes, aux abonnements entre espaces et à la suppression d'un espace. Le SQL brut filtre lui-même par `currentWorkspaceId()`.
 - Les tâches de fond tournent espace par espace (`forEachWorkspace`), une erreur dans un espace n'arrêtant pas les autres.
 
@@ -47,24 +47,32 @@ Voir aussi : [Personnes](people.md), [Erreurs](errors.md), [Tâches de fond](bac
 - Toute requête GraphQL exige une session (`authScopes: { loggedIn: true }` sur `Query` et `Mutation`) : sinon `UNAUTHENTICATED` « Connexion requise. ».
 - Champs publics (`skipTypeScopes`) : `health`, `me` (renvoie `null` sans session), `login`, `logout`, `requestPasswordReset`, `resetPassword`, `confirmEmailChange`.
 - Routes de fichiers (`/api/attachments`, `/api/icons`, `/api/accounting`, `/api/mail`, `/api/exports`, `/api/library`, `/api/treasury`) : 401 sans session.
-- En production, l'introspection GraphQL est désactivée et GraphiQL absent ; CSP stricte (`helmet`), images autorisées depuis `tile.openstreetmap.org`.
+- **Mode** : l'API tourne en production sauf si `NODE_ENV` vaut `development` ou `test` ; la valeur du `.env` l'emporte sur celle de l'hébergeur (`apps/api/src/env.ts`). Hors production : GraphiQL, introspection, pas de CSP, cookie sans `secure`, détail des erreurs inattendues.
+- En production, l'introspection GraphQL est désactivée, GraphiQL et la page d'accueil de Yoga absents ; CSP stricte (`helmet`, `apps/api/src/security-headers.ts`) : valeurs par défaut de `helmet`, images permises depuis `data:`, `blob:` et toute adresse `https:` (tuiles des cartes, images liées dans un texte, images distantes d'un mail une fois autorisées).
+- Les fichiers du front servis par Apache (dont `index.html`) reçoivent les mêmes en-têtes par le `.htaccess` (`htaccessSecurityBlock`, écrit par `scripts/deploy.sh`) : HSTS, `nosniff`, `X-Frame-Options: SAMEORIGIN`, `Referrer-Policy: no-referrer`, `Cross-Origin-Opener-Policy: same-origin`, et la CSP sur les pages HTML.
+- **CORS** désactivé : le front et l'API partagent la même origine, aucun autre site ne peut lire les réponses.
+- Un corps de requête n'est lu que pour un utilisateur connecté quand il peut être lourd : envoi de fichiers en GraphQL (multipart) et exports (`sessionRequired`), 401 sinon. Un envoi de fichiers est refusé pendant sa lecture au-delà de 25 Mo par fichier ou de 50 fichiers ; chaque service applique ensuite sa propre limite.
 
 ## Connexion et sessions
 
 - Connexion par identifiant **ou** email (contient « @ ») et mot de passe : « Identifiant ou mot de passe incorrect. » (`INVALID_CREDENTIALS`), même temps de réponse que l'utilisateur existe ou non (vérification d'un hash factice).
 - Mots de passe hachés en argon2id (64 Mio, 3 passes, 4 voies).
-- Session : jeton aléatoire de 32 octets dans le cookie `ordo_session` (`httpOnly`, `sameSite=strict`, `secure` en production), seul son SHA-256 est stocké. Expiration après **14 jours sans activité** ; l'échéance glissante est réécrite au plus une fois par jour. Une session expirée est supprimée à sa lecture ; toutes les sessions expirées sont purgées à chaque connexion.
-- Déconnexion : supprime la session et le cookie.
+- Session : jeton aléatoire de 32 octets dans le cookie `ordo_session` (`httpOnly`, `sameSite=strict`, `secure` en production), seul son SHA-256 est stocké. Expiration après **14 jours sans activité** ; l'échéance glissante est réécrite au plus une fois par jour. Une session ne dure jamais plus de **90 jours**, même active : passé ce délai, il faut se reconnecter. Une session expirée est supprimée à sa lecture ; toutes les sessions expirées sont purgées à chaque connexion.
+- Déconnexion : supprime la session et le cookie, et demande au navigateur de vider son cache du site (`Clear-Site-Data: "cache"`) : les pièces jointes y sont gardées un an.
 
 ## Limites de tentatives
 
-En mémoire (`rate-limiter-flexible`), donc remises à zéro au redémarrage :
+Comptées en base (`rate-limiter-flexible`, table `RateLimit`) : un redémarrage ne les remet pas à zéro et tous les processus de l'app les partagent. Si la base échoue, le compte se fait en mémoire. Les compteurs expirés sont supprimés une heure après leur fin.
 
-| Limite                               | Clés              | Seuil                                     |
-| ------------------------------------ | ----------------- | ----------------------------------------- |
-| Connexions échouées                  | IP et identifiant | 5 par 15 min (remise à zéro après succès) |
-| Demandes de réinitialisation         | IP                | 3 par heure                               |
-| Vérifications du mot de passe actuel | utilisateur       | 5 par 15 min (remise à zéro après succès) |
+| Limite                               | Clé         | Seuil                                       |
+| ------------------------------------ | ----------- | ------------------------------------------- |
+| Connexions échouées                  | IP          | 5 par 15 min (remise à zéro après succès)   |
+| Connexions échouées                  | identifiant | 100 par 15 min (remise à zéro après succès) |
+| Demandes de réinitialisation         | IP          | 3 par heure                                 |
+| Vérifications du mot de passe actuel | utilisateur | 5 par 15 min (remise à zéro après succès)   |
+
+- La limite par identifiant est volontairement très au-dessus de celle par IP : quelques échecs d'un tiers ne verrouillent pas le compte, une attaque répartie sur beaucoup d'adresses reste arrêtée.
+- Chaque connexion échouée est journalisée avec son adresse (« Failed login from … »). Une adresse « unknown » signifie que l'hébergeur la masque : toutes les visites partagent alors le même compteur par IP.
 
 Dépassement : « Trop de tentatives. Réessayez dans N min. ».
 

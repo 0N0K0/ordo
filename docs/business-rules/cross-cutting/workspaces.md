@@ -8,7 +8,7 @@ L’authentification, les comptes et le partage entre utilisateurs sont décrits
 
 Sources : `apps/api/src/workspace-context.ts`, `apps/api/src/db.ts`.
 
-- Toutes les données appartiennent à un espace, sauf les modèles partagés `Workspace`, `User`, `Session` et `AuthToken` (`SHARED` dans `db.ts`).
+- Toutes les données appartiennent à un espace, sauf les modèles partagés `Workspace`, `User`, `Session`, `AuthToken` et `RateLimit` (`SHARED` dans `db.ts`).
 - Le client Prisma `prisma` est limité à l’espace courant : les lectures, mises à jour et suppressions sont filtrées par `workspaceId`, et les créations (y compris les créations imbriquées des relations) reçoivent l’espace courant. L’espace d’une ligne ne change jamais.
 - L’espace courant est porté par un `AsyncLocalStorage` (`runInWorkspace`, `currentWorkspace`, `currentWorkspaceId`). Une requête sur des données d’espace hors de tout espace lève une erreur interne (« No workspace… »).
 - `unscopedPrisma` sert aux modèles partagés et aux opérations qui traversent les espaces (liste des espaces, suppression…).

@@ -3,7 +3,7 @@ import { strongPasswordSchema } from '@ordo/shared/password-strength';
 import type { Request, Response } from 'express';
 import { z } from 'zod';
 import { hashPassword, generateToken, hashToken, verifyPassword } from '../../auth/crypto';
-import { consume, loginLimiter, passwordCheckLimiter, reset, resetRequestLimiter } from '../../auth/rate-limit';
+import { consume, loginIdentifierLimiter, loginLimiter, passwordCheckLimiter, reset, resetRequestLimiter } from '../../auth/rate-limit';
 import { createSession, destroySession, destroyUserSessions, purgeExpiredSessions, type SessionInfo } from '../../auth/session';
 import { prisma } from '../../db';
 import { env } from '../../env';
@@ -73,16 +73,20 @@ async function findValidToken(token: string, type: 'PASSWORD_RESET' | 'EMAIL_CHA
 export async function login(req: Request, res: Response, input: { identifier: string; password: string }): Promise<User> {
   const { identifier, password } = parseInput(z.object({ identifier: identifierSchema, password: z.string().min(1) }), input);
   const ip = req.ip ?? 'unknown';
-  await consume(loginLimiter, `ip:${ip}`, `id:${identifier}`);
+  await consume(loginLimiter, ip);
+  await consume(loginIdentifierLimiter, identifier);
 
   const user = await prisma.user.findUnique({
     where: identifier.includes('@') ? { email: identifier } : { username: identifier },
   });
   if (!(await verifyPassword(user?.passwordHash ?? null, password)) || !user) {
+    // The address the limit counts for (« unknown »: the host hides it, and every visitor shares one counter).
+    console.warn(`Failed login from ${ip}.`);
     throw clientError('INVALID_CREDENTIALS', 'Identifiant ou mot de passe incorrect.');
   }
 
-  await reset(loginLimiter, `ip:${ip}`, `id:${identifier}`);
+  await reset(loginLimiter, ip);
+  await reset(loginIdentifierLimiter, identifier);
   await purgeExpiredSessions();
   await createSession(req, res, user.id);
   return user;

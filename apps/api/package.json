@@ -5,12 +5,13 @@
   "version": "1.0.0",
   "description": "",
   "scripts": {
-    "dev": "tsx watch src/index.ts",
+    "dev": "NODE_ENV=development tsx watch src/index.ts",
     "build": "tsup",
     "start": "node dist/index.js",
     "typecheck": "tsc",
     "schema:print": "tsx src/cli/print-schema.ts",
     "user:create": "tsx src/cli/create-user.ts",
+    "htaccess:print": "tsx src/cli/print-htaccess.ts",
     "db:seed": "prisma db seed --",
     "lint": "eslint src prisma"
   },
@@ -41,6 +42,7 @@
     "@pothos/plugin-scope-auth": "^4.2.2",
     "@prisma/adapter-pg": "~7.10.1",
     "@prisma/client": "~7.10.1",
+    "@whatwg-node/fetch": "^0.12.1",
     "cookie": "^1.1.1",
     "dotenv": "^17.4.2",
     "express": "^5.3.0",

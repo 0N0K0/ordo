@@ -67,7 +67,7 @@ Elles ne tournent que lorsque l'application est ouverte :
 Sur o2switch, Passenger endort l'application sans visite : les minuteries s'arrêtent alors (envois programmés, factures récurrentes, synchronisation GitHub, suivi des conversations). Une tâche cron cPanel appelle le site toutes les 5 minutes en production pour la garder éveillée (voir `docs/deployment.md`, « Garder l'app éveillée ») :
 
 ```text
-*/5 * * * * curl -fsS https://ordo.onoko.dev/ > /dev/null
+*/5 * * * * curl -fsS https://<nom-de-domaine>/ > /dev/null
 ```
 
 Au réveil, les tâches rattrapent ce qui est dû (premier passage 10 à 30 s après le démarrage).

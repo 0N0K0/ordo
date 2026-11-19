@@ -108,7 +108,7 @@ Classes partagées par la page et les listes : `page`, `grid`, `gridInner`, `col
 
 ### `components/MailBody.tsx` et `MailBody.module.css`
 
-- `MailBody({ html, text })` : corps d’un mail ; HTML dans une `iframe` `sandbox` sans `allow-scripts`, ajustée à la hauteur du contenu ; images distantes bloquées jusqu’à « Afficher les images » ; texte brut sinon, « Ce mail est vide. ». Utilisé par `MailReader`, `MailComposer` (signature, citation).
+- `MailBody({ html, text })` : corps d’un mail ; HTML dans une `iframe` `sandbox` sans `allow-scripts`, ajustée à la hauteur du contenu ; polices distantes bloquées, images distantes bloquées jusqu’à « Afficher les images » ; texte brut sinon, « Ce mail est vide. ». Utilisé par `MailReader`, `MailComposer` (signature, citation).
 - Interne : `frameDocument(html, remoteImages)` (document du cadre, avec sa politique de sécurité et ses styles).
 - CSS : `frame`, `text`.
 

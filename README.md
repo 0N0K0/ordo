@@ -32,6 +32,7 @@ Renseigner `apps/api/.env` :
 
 | Variable       | Description                                                              |
 | -------------- | ------------------------------------------------------------------------ |
+| `NODE_ENV`     | `development` sur sa machine ; en production par défaut                  |
 | `DATABASE_URL` | URL PostgreSQL (la valeur par défaut correspond au `docker-compose.yml`) |
 | `PORT`         | Port de l'API (défaut `3000`)                                            |
 | `APP_URL`      | URL publique du front, utilisée dans les liens envoyés par email         |

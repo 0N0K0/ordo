@@ -9,6 +9,8 @@ const SESSION_COOKIE = 'ordo_session';
 
 /** Idle timeout: the session expires after this long without activity. */
 const SESSION_TTL = 14 * DAY_MS;
+/** Longest life of a session, however active: past it, the user logs in again. */
+const SESSION_MAX_AGE = 90 * DAY_MS;
 /** Sliding expiry is persisted at most once per interval to limit writes. */
 const TOUCH_INTERVAL = DAY_MS;
 
@@ -67,13 +69,14 @@ export async function getSession(req: Request, res: Response): Promise<SessionIn
   if (!session) return null;
 
   const now = Date.now();
-  if (session.expiresAt.getTime() <= now) {
+  const latest = session.createdAt.getTime() + SESSION_MAX_AGE;
+  if (session.expiresAt.getTime() <= now || latest <= now) {
     await prisma.session.deleteMany({ where: { id: session.id } });
     return null;
   }
 
   if (now - session.lastSeenAt.getTime() > TOUCH_INTERVAL) {
-    const expiresAt = new Date(now + SESSION_TTL);
+    const expiresAt = new Date(Math.min(now + SESSION_TTL, latest));
     await prisma.session.update({
       where: { id: session.id },
       data: { lastSeenAt: new Date(now), expiresAt },
@@ -85,7 +88,7 @@ export async function getSession(req: Request, res: Response): Promise<SessionIn
 }
 
 /**
- * Closes the given session and clears its cookie.
+ * Closes the given session and clears its cookie, with the files the browser kept of it (attachments are cached for long).
  * @param {Response} res Express response.
  * @param {string} sessionId Session to close.
  * @returns {Promise<void>}
@@ -93,6 +96,7 @@ export async function getSession(req: Request, res: Response): Promise<SessionIn
 export async function destroySession(res: Response, sessionId: string): Promise<void> {
   await prisma.session.deleteMany({ where: { id: sessionId } });
   res.clearCookie(SESSION_COOKIE, { path: '/' });
+  res.setHeader('Clear-Site-Data', '"cache"');
 }
 
 /**

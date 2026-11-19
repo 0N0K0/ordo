@@ -1,8 +1,12 @@
-import 'dotenv/config';
+import { config } from 'dotenv';
 import { z } from 'zod';
 
+// The .env of the app decides: a variable the host already sets (Passenger gives its own NODE_ENV) never wins over it.
+config({ override: true });
+
 const envSchema = z.object({
-  NODE_ENV: z.enum(['development', 'production', 'test']).default('development'),
+  /** Production unless told otherwise: the protections (secure cookie, CSP, no GraphiQL) are only dropped on purpose. */
+  NODE_ENV: z.enum(['development', 'production', 'test']).default('production'),
   PORT: z.coerce.number().int().positive().default(3000),
   DATABASE_URL: z.url(),
   /** Public URL of the front, used to build links sent by email. */

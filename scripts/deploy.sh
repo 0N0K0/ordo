@@ -18,6 +18,8 @@ if [[ ! -L .env ]]; then
   echo "Missing .env -> apps/api/.env link: the API reads the .env of the app root." >&2
   exit 1
 fi
+# The secrets of the app are read by its owner only.
+chmod 600 apps/api/.env
 
 echo "▶ Install (node $(node -v), npm $(npm -v))"
 # Development dependencies too: Prisma CLI, tsup and Vite build the app.
@@ -30,7 +32,17 @@ echo "▶ Build"
 htaccess="$(mktemp)"
 if [[ -f apps/web/dist/.htaccess ]]; then cp apps/web/dist/.htaccess "$htaccess"; fi
 npm run build
-if [[ -s "$htaccess" ]]; then cp "$htaccess" apps/web/dist/.htaccess; fi
+if [[ -s "$htaccess" ]]; then
+  cp "$htaccess" apps/web/dist/.htaccess
+  # Apache serves the built files itself: it gives them the security headers of the API (block replaced at each
+  # deployment; the previous one is kept if the new one cannot be printed).
+  if block="$(npm run --silent htaccess:print -w apps/api)" && [[ -n "$block" ]]; then
+    sed -i '/^# BEGIN ordo-security/,/^# END ordo-security/d' apps/web/dist/.htaccess
+    printf '%s\n' "$block" >> apps/web/dist/.htaccess
+  else
+    echo "Security headers of the .htaccess not updated." >&2
+  fi
+fi
 rm -f "$htaccess"
 
 if [[ "${BACKUP:-0}" == 1 ]]; then
@@ -38,13 +50,23 @@ if [[ "${BACKUP:-0}" == 1 ]]; then
   url="$(sed -n 's/^DATABASE_URL="\{0,1\}\([^"]*\)"\{0,1\}$/\1/p' apps/api/.env)"
   dir="$HOME/backups/$(basename "$PWD")"
   mkdir -p "$dir"
+  chmod 700 "$dir"
+  file="$dir/$(date +%Y%m%d-%H%M%S).dump"
+  # BACKUP_GPG_RECIPIENT (apps/api/.env): the dump is encrypted for that public key, whose private key is not on the server.
+  recipient="$(sed -n 's/^BACKUP_GPG_RECIPIENT="\{0,1\}\([^"]*\)"\{0,1\}$/\1/p' apps/api/.env)"
   # pg_dump rejects Prisma's URL parameters (?schema=…).
-  pg_dump "${url%%\?*}" -Fc -f "$dir/$(date +%Y%m%d-%H%M%S).dump"
+  if [[ -n "$recipient" ]]; then
+    file="$file.gpg"
+    pg_dump "${url%%\?*}" -Fc | gpg --batch --yes --trust-model always --encrypt --recipient "$recipient" --output "$file"
+  else
+    pg_dump "${url%%\?*}" -Fc -f "$file"
+  fi
+  chmod 600 "$file"
   # The 10 latest backups are kept (timestamped names: ls is safe).
   # shellcheck disable=SC2012
-  ls -1t "$dir"/*.dump | tail -n +11 | xargs -r rm --
+  ls -1t "$dir"/*.dump* | tail -n +11 | xargs -r rm --
   # shellcheck disable=SC2012
-  ls -1t "$dir"/*.dump | head -1
+  ls -1t "$dir"/*.dump* | head -1
 fi
 
 echo "▶ Migrations"

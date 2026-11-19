@@ -40,7 +40,7 @@ Icônes des clients, projets, éléments des listes de réglages ; avatars des c
 
 ## Service des fichiers
 
-Toutes les routes exigent une session (401 sinon) et envoient `X-Content-Type-Options: nosniff`.
+Toutes les routes exigent une session (401 sinon) et envoient `X-Content-Type-Options: nosniff`. Le corps JSON des exports n'est lu qu'une fois la session vérifiée.
 
 | Route                                                      | Contenu                                                            | Affichage                                                                                                  | Cache                                              |
 | ---------------------------------------------------------- | ------------------------------------------------------------------ | ---------------------------------------------------------------------------------------------------------- | -------------------------------------------------- |
