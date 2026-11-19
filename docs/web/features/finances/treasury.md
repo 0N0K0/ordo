@@ -13,9 +13,8 @@ features/treasury/
   components/
     AccountsSettings.tsx      BudgetsPanel.tsx        DirectionBadge.tsx
     EntriesPanel.tsx          EntryForm.tsx           EntryLinesTable.tsx
-    EntryUrl.tsx              LineAttachments.tsx     LoansPanel.tsx
-    SettingsPanel.tsx         SplitLinesEditor.tsx    StatementForm.tsx
-    StatementImport.tsx       SupportingDocumentsSelect.tsx
+    EntryUrl.tsx              LoansPanel.tsx          SettingsPanel.tsx
+    StatementForm.tsx         StatementImport.tsx     SupportingDocumentsSelect.tsx
     TeamPanel.tsx             TreasuryItemForms.tsx
     entry-cells.tsx           entry-links.tsx
   hooks/
@@ -131,39 +130,34 @@ Fonctions internes de `BudgetsPanel` : `deleteBudgets` (action « Supprimer » a
 
 ### `components/EntryForm.tsx`
 
-| Élément                                                  | Rôle                                                                                                                                                                                                                                                                                                                                                              |
-| -------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `EntryForm({ entry?, status?, copy?, onDone })` (export) | Formulaire de mouvement ou de prévision (voir [Formulaire de mouvement](../../../features/finances/treasury.md#formulaire-de-mouvement)) : `useAppForm` + `treasuryEntrySchema`, répartition (`SplitLinesEditor`), pièces, liens, répétition (`RuleField`), règlements de documents (PRO, réel), commentaires. Envoie `entryPayload`. Utilisé par `TreasuryPage`. |
-| `DOCUMENT_KEY`, `IMPORTED_KEY`                           | Préfixes `doc:` / `imp:` d’un document réglé dans le choix.                                                                                                                                                                                                                                                                                                       |
-| `settledKey(id, imported)`                               | Clé d’un document.                                                                                                                                                                                                                                                                                                                                                |
-| `allocationKey(allocation)`, `allocationOfKey(key)`      | Règlement ↔ clé.                                                                                                                                                                                                                                                                                                                                                  |
-| `LinkedSummary`                                          | Mouvement lié tel que montré.                                                                                                                                                                                                                                                                                                                                     |
-| `entryLink(entry)`                                       | Mouvement lié en `LineLink` (son badge).                                                                                                                                                                                                                                                                                                                          |
-| `EntryFormProps`                                         | Props.                                                                                                                                                                                                                                                                                                                                                            |
+| Élément                                                  | Rôle                                                                                                                                                                                                                                                                                                                            |
+| -------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `EntryForm({ entry?, status?, copy?, onDone })` (export) | Formulaire de mouvement ou de prévision (voir [Formulaire de mouvement](../../../features/finances/treasury.md#formulaire-de-mouvement)) : `useAppForm` + `treasuryEntrySchema`, pièces, liens, répétition (`RuleField`), règlements de documents (PRO, réel), commentaires. Envoie `entryPayload`. Utilisé par `TreasuryPage`. |
+| `DOCUMENT_KEY`, `IMPORTED_KEY`                           | Préfixes `doc:` / `imp:` d’un document réglé dans le choix.                                                                                                                                                                                                                                                                     |
+| `settledKey(id, imported)`                               | Clé d’un document.                                                                                                                                                                                                                                                                                                              |
+| `allocationKey(allocation)`, `allocationOfKey(key)`      | Règlement ↔ clé.                                                                                                                                                                                                                                                                                                                |
+| `LinkedSummary`                                          | Mouvement lié tel que montré.                                                                                                                                                                                                                                                                                                   |
+| `entryLink(entry)`                                       | Mouvement lié en `LineLink` (son badge).                                                                                                                                                                                                                                                                                        |
+| `EntryFormProps`                                         | Props.                                                                                                                                                                                                                                                                                                                          |
 
 Internes : `settleOption` (option d’un document avec son reste dû), `settleable` (documents réglables), `handleSubmit`.
 
 ### `components/EntryLinesTable.tsx`
 
-| Élément                                          | Rôle                                                                                                                                                                                                                                                        |
-| ------------------------------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `EntryLinesTable({ entry, env, save })` (export) | Lignes d’un mouvement décomposé, dépliées sous lui, en table (vue `treasury-entry-lines`) éditable en place et en masse ; chaque modification enregistre le mouvement entier ; « Non réparti » dans la barre. Utilisé par `TreasuryPage` et `EntriesPanel`. |
-| `LineRow`                                        | Ligne : rang, valeurs, montant signé, pièces.                                                                                                                                                                                                               |
-| `lineKey(row)`                                   | Clé : id ou rang.                                                                                                                                                                                                                                           |
-| `ME`                                             | Clé de « Moi » (`ME_KEY`).                                                                                                                                                                                                                                  |
-| `whomKey(line)`                                  | Clé du bénéficiaire (`m:`, `r:` ou `ME`).                                                                                                                                                                                                                   |
-| `lineColumns(env)`                               | Colonnes : « Libellé », « Bénéficiaire », « Catégorie », « Contexte », « Unité », « Valeur », « Montant », « Prêt », « Date », « Projet », « Pièces justificatives », « Relative à un autre mouvement ».                                                    |
+| Élément                                          | Rôle                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                |
+| ------------------------------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `EntryLinesTable({ entry, env, save })` (export) | Répartition d’un mouvement, dépliée sous lui, en table (vue `treasury-entry-lines`) : seul endroit où ses lignes s’ajoutent (ligne d’ajout, `linesChange`), se modifient en place et en masse, se retirent (menu de la ligne, confirmation) et se répartissent à parts égales (`equalShares`) ; sélections créables (relation, catégorie, contexte) ; chaque modification enregistre le mouvement entier ; « Non réparti » dans la barre ; état vide pour un mouvement non décomposé. Utilisé par `TreasuryPage` et `EntriesPanel`. |
+| `LineRow`                                        | Ligne : rang, valeurs, montant signé, pièces.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                       |
+| `lineKey(row)`                                   | Clé : id ou rang.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                   |
+| `ME`                                             | Clé de « Moi » (`ME_KEY`).                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                          |
+| `whomKey(line)`                                  | Clé du bénéficiaire (`m:`, `r:` ou `ME`).                                                                                                                                                                                                                                                                                                                                                                                                                                                                                           |
+| `lineColumns(env)`                               | Colonnes : « Libellé », « Bénéficiaire », « Catégorie », « Contexte », « Unité », « Valeur », « Montant », « Prêt », « Date », « Projet », « Pièces justificatives », « Relative à un autre mouvement ».                                                                                                                                                                                                                                                                                                                            |
 
 Internes : `saveLines`, `saveLine` (avec `bulkSaver`, `applyDiff` pour les pièces et les liens).
 
 ### `components/EntryUrl.tsx`
 
 - `EntryUrl({ url, label })` : bouton « Ouvrir le lien » (nouvel onglet) vers la page web d’un mouvement ; rien sans lien. Utilisé dans les libellés du prévisionnel et des mouvements.
-
-### `components/LineAttachments.tsx`
-
-- `LineAttachments({ line, onChange, entryId, projects, documentGroups, onClose })` : rattachements d’une ligne dans un panneau : « Prêt », « Date d’achat », « Projet », « Pièces justificatives », « Liens » (`LinkBadge`, `EntryLinkSelect`), « Terminé ». Utilisé par `SplitLinesEditor`.
-- Interne : `LineAttachmentsProps`, `setLinks` (met à jour `links`, `linkedLineIds`, `linkedEntryIds`).
 
 ### `components/LoansPanel.tsx`
 
@@ -184,12 +178,6 @@ Internes : `saveLines`, `saveLine` (avec `bulkSaver`, `applyDiff` pour les pièc
 | `MethodList({ methods })`                 | Liste des moyens de paiement, badges de sens.                                                                                                                                                                                    |
 | `CounterpartyList({ counterparties })`    | Liste des tiers, message de suppression adapté au nombre de mouvements.                                                                                                                                                          |
 | `InvoiceCategories({ categories })`       | Choix des catégories des factures et avoirs (`setInvoiceCategories`, toast « Catégorie enregistrée. »).                                                                                                                          |
-
-### `components/SplitLinesEditor.tsx`
-
-- `SplitLinesEditor({ lines, onChange, amount, direction, date, settings, errors, entryId, projects, documentGroups })` : éditeur de la répartition dans `EntryForm` : table des lignes (libellé, bénéficiaire créable, catégorie créable du sens de la ligne, contexte créable, unité, valeur, rattachements, montant, retrait), pied « Non réparti », « Ajouter une ligne », « Parts égales entre les membres », panneau `LineAttachments`.
-- `SplitLinesEditorProps` : props (montant positif et sens du mouvement, jour pour le contexte planifié, erreurs du formulaire).
-- Internes : `createRelation` / `createContext` (création dans un panneau, `createInPanel` avec `RelationForm` / `ContextForm`), `createCategory`, `change`, `lineDirection` (`directionOf`), `keepCategory`, `add`, `splitEqually`, `whomOptions`.
 
 ### `components/StatementForm.tsx`
 
@@ -212,7 +200,7 @@ Internes : `load`, `remap` (relit le fichier si l’encodage change), `submit`, 
 
 ### `components/SupportingDocumentsSelect.tsx`
 
-- `SupportingDocumentsSelect({ data, value, onChange, error })` : multi-choix « Pièces justificatives » (`BatchMultiSelect`, clés `lib:` / `res:`). Utilisé par `EntryForm` et `LineAttachments`.
+- `SupportingDocumentsSelect({ data, value, onChange, error })` : multi-choix « Pièces justificatives » (`BatchMultiSelect`, clés `lib:` / `res:`). Utilisé par `EntryForm`.
 - `SupportingDocumentsSelectProps`.
 
 ### `components/TeamPanel.tsx`
@@ -220,11 +208,11 @@ Internes : `load`, `remap` (relit le fichier si l’encodage change), `submit`, 
 | Élément                                               | Rôle                                                                                                                                                         | Utilisé par                                 |
 | ----------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------ | ------------------------------------------- |
 | `TeamMembers` (export)                                | Section « Équipe » / « Foyer » : membres (noms et avatars à jour des contributeurs), archivage, « Retirer », ajout d’un contributeur ou d’un nouveau membre. | `features/projects/pages/SettingsPage.tsx`. |
-| `ContextForm({ context?, label?, onDone })` (export)  | Formulaire de contexte (libellé, couleur) ; rend l’id créé.                                                                                                  | `SplitLinesEditor` (création à la volée).   |
+| `ContextForm({ context?, label?, onDone })` (export)  | Formulaire de contexte (libellé, couleur) ; rend l’id créé.                                                                                                  | `EntryLinesTable` (création à la volée).    |
 | `PeriodForm({ period?, contexts, onDone })`           | Formulaire de période planifiée (contexte, du, au, description).                                                                                             | `Contexts`.                                 |
 | `Contexts`                                            | « Contextes » (`SettingsList` `TREASURY_CONTEXT`) et « Contextes planifiés » (table, archivées masquées, lecture seule).                                     | `TeamPanel`.                                |
 | `TeamPanel` (export)                                  | Contextes et périodes, dans la barre de paramètres.                                                                                                          | `SettingsPanel`.                            |
-| `RelationForm({ relation?, name?, onDone })` (export) | Formulaire de relation (nom, contributeur, description).                                                                                                     | `SplitLinesEditor`, `TeamRelations`.        |
+| `RelationForm({ relation?, name?, onDone })` (export) | Formulaire de relation (nom, contributeur, description).                                                                                                     | `EntryLinesTable`, `TeamRelations`.         |
 | `TeamRelations` (export)                              | Section « Relations » / « Proches » : liste, usages, modification, archivage, suppression.                                                                   | `features/projects/pages/SettingsPage.tsx`. |
 
 ### `components/TreasuryItemForms.tsx`
@@ -252,7 +240,7 @@ Cellules des tables de mouvements.
 | `EntryLinkSelect({ entryId, links, lines?, withAccount?, onLink, ...selectProps })` | Recherche d’une ligne ou d’un mouvement à lier (filtrée par le serveur, au moins 2 caractères), vidée après choix. |
 | `LinkBadge({ link, onUnlink?, variant?, size?, children?, withTooltip? })`          | Badge d’un lien, rouge (sortie) ou vert (entrée), croix « Délier ».                                                |
 
-Utilisés par `EntryForm`, `LineAttachments`, `LinksCell`. Interfaces internes : `EntryLinkSelectProps`, `LinkBadgeProps`.
+Utilisés par `EntryForm`, `LinksCell`. Interfaces internes : `EntryLinkSelectProps`, `LinkBadgeProps`.
 
 ## hooks
 
@@ -277,7 +265,7 @@ Définitions de listes de paramètres et créateurs à la volée.
 | `useCategoryCreators(categories)` | Créateurs de catégorie par sens pour un `CreatableSelect` (« Nouvelle catégorie », parent parmi les catégories non archivées du sens). |
 | `useEntryCreators(direction)`     | Créateurs de moyen de paiement (servant le sens) et de tiers.                                                                          |
 
-Internes : `AccountExtra`, `CategoryExtra`, `MethodExtra`, `CounterpartyExtra`, `COUNTERPARTY_FORM_SCHEMA` (nom dans le champ libellé), `Creator`. Utilisés par `AccountsSettings`, `TreasuryItemForms`, `SettingsPanel`, `EntryForm`, `SplitLinesEditor`, `BudgetsPanel`.
+Internes : `AccountExtra`, `CategoryExtra`, `MethodExtra`, `CounterpartyExtra`, `COUNTERPARTY_FORM_SCHEMA` (nom dans le champ libellé), `Creator`. Utilisés par `AccountsSettings`, `TreasuryItemForms`, `SettingsPanel`, `EntryForm`, `EntryLinesTable`, `BudgetsPanel`.
 
 ## lib
 
@@ -339,6 +327,7 @@ Internes : `PayerSource`, `DocumentSource`.
 | ------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
 | `EntryValues`                                     | Valeurs du formulaire de mouvement : montant positif + `direction`, lignes relatives au sens.                                                                            |
 | `entryValues(entry, { status, copy, accountId })` | Valeurs d’un mouvement (ou d’un nouveau, à aujourd’hui) ; une copie n’a ni règlements ni ids de lignes ; les montants des lignes deviennent relatifs au sens.            |
+| `linesChange(values, lines, linked)`              | Changement d’un mouvement dont les lignes sont remplacées : aux premières lignes, catégorie et projet passent sur elles, pièces et liens sur la première.                |
 | `entryPayload(input)`                             | Entrée de la mutation : montant et lignes en montant signés par le sens, pas de répétition pour un réel, pas de règlement pour une prévision, `links` retiré des lignes. |
 | `useEntryCellSave()`                              | Enregistre un changement de cellule : le reste du mouvement tel quel (`updateEntry`, erreurs en toast).                                                                  |
 
@@ -348,8 +337,9 @@ Internes : `PayerSource`, `DocumentSource`.
 | ------------------------------------------------- | ------------------------------------------------------------------------------------------- |
 | `LineValues`                                      | Ligne éditée (valeur relative au sens du mouvement, `links` affichés).                      |
 | `LineLink`                                        | Ligne d’un autre mouvement ou mouvement entier lié (`kind`, libellés, date, montant signé). |
-| `attachmentCount(line)`                           | Nombre de rattachements (projet, prêt, date, pièces, liens) : indicateur du trombone.       |
 | `newSplitLine(fields)`                            | Nouvelle ligne (défauts : montant, 0, sans bénéficiaire).                                   |
+| `plannedLineContext(settings, date)`              | Contexte planifié ce jour-là, proposé à une nouvelle ligne.                                 |
+| `equalShares(members, contextId)`                 | Lignes à parts égales : une en % par membre, la dernière prend l’arrondi.                   |
 | `describeLink(link)`                              | « 12 mars 2026 · Courses › Glace · −4,50 € ».                                               |
 | `valueInMode(mode, share, entryAmount)`           | Valeur dans une autre unité en gardant la part (0 pour un mouvement de 0).                  |
 | `categoryForDirection(categories, id, direction)` | Garde une catégorie seulement si elle est du sens de la ligne.                              |

@@ -5,7 +5,7 @@ import { EmptyState } from '../../../components/feedback/EmptyState';
 
 import { Group, Stack, Switch, Text } from '@mantine/core';
 import { offsetLinkedMovements } from '@ordo/shared';
-import { ArrowsLeftRightIcon, CopyIcon, FileCsvIcon, FilePdfIcon, PencilSimpleIcon } from '@phosphor-icons/react';
+import { ArrowsLeftRightIcon, ArrowsSplitIcon, CopyIcon, FileCsvIcon, FilePdfIcon, PencilSimpleIcon } from '@phosphor-icons/react';
 import { useMemo, useState } from 'react';
 import { DataTable } from '../../../components/data-table/table/DataTable';
 import { EditableDate, EditableText } from '../../../components/data-table/cells/EditableCells';
@@ -238,7 +238,7 @@ export function EntriesPanel({ accounts, onEdit, onDuplicate }: EntriesPanelProp
                   <Group gap={4} wrap="nowrap">
                     <EditableText value={entry.label} label={cellLabelOf('label', entry, 'Libellé')} onSave={(label) => label && bulk('label')(entry, { label })} />
                     <EntryUrl url={entry.url} label={entry.label} />
-                    {entry.lines.length > 0 && <DetailsToggle opened={expanded.has(entry.id)} count={entry.lines.length} label={entry.label} onToggle={() => toggle(entry.id)} />}
+                    {(entry.lines.length > 0 || expanded.has(entry.id)) && <DetailsToggle opened={expanded.has(entry.id)} count={entry.lines.length} label={entry.label} onToggle={() => toggle(entry.id)} />}
                   </Group>
                 ),
                 settled: <SettledCell entry={entry} />,
@@ -252,6 +252,8 @@ export function EntriesPanel({ accounts, onEdit, onDuplicate }: EntriesPanelProp
             primary={!entry.archived && { label: 'Modifier', icon: <PencilSimpleIcon aria-hidden />, onClick: () => onEdit(entry) }}
             items={[
               !entry.archived && { label: 'Dupliquer', icon: <CopyIcon aria-hidden />, onClick: () => onDuplicate(entry) },
+              // An entry not split yet: its split opens under it, where its lines are added.
+              !entry.archived && entry.lines.length === 0 && !expanded.has(entry.id) && { label: 'Répartir', icon: <ArrowsSplitIcon aria-hidden />, onClick: () => toggle(entry.id) },
               archiveEntry({ archived: entry.archived, type: 'Mouvement', label: entry.label }, setArchived, entry.id),
               rowMenuEntry(deleteEntries.movements([entry])),
             ]}

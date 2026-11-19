@@ -18,7 +18,7 @@ import { Anchor, Badge, Button, Group, Popover, SegmentedControl, SimpleGrid, St
 import { AreaChart } from '@mantine/charts';
 import { DatePickerInput, MonthPicker, YearPicker } from '@mantine/dates';
 import { addDays, CALENDAR_SCALE_OPTIONS, mapById, calendarEnd, type CalendarScale, calendarStart, shiftCalendar, sumOf } from '@ordo/shared';
-import { BankIcon, CalendarPlusIcon, CheckIcon, CopyIcon, PencilSimpleIcon, PlusIcon } from '@phosphor-icons/react';
+import { ArrowsSplitIcon, BankIcon, CalendarPlusIcon, CheckIcon, CopyIcon, PencilSimpleIcon, PlusIcon } from '@phosphor-icons/react';
 import { ArchivedBadge } from '../../../components/feedback/ArchivedBadge';
 import { archiveEntry, useSetArchived, unarchived } from '../../../lib/archive';
 import { useState } from 'react';
@@ -495,7 +495,7 @@ export function TreasuryPage() {
             isArchived={(row) => row.item.archived || (forecastOf(row)?.archived ?? false)}
             details={(row) => {
               const entry = forecastOf(row);
-              return entry && !entry.archived && entry.lines.length > 0 && unfolded.has(forecastKey(row)) ? <EntryLinesTable entry={entry} env={env} save={saveEntry} /> : null;
+              return entry && !entry.archived && unfolded.has(forecastKey(row)) ? <EntryLinesTable entry={entry} env={env} save={saveEntry} /> : null;
             }}
             cells={(row) => {
               const { item } = row;
@@ -554,7 +554,7 @@ export function TreasuryPage() {
                         )}
                         {!entry && item.archived && <ArchivedBadge size="xs" />}
                         <EntryUrl url={entry?.url} label={item.label} />
-                        {entry && entry.lines.length > 0 && (
+                        {entry && (entry.lines.length > 0 || unfolded.has(forecastKey(row))) && (
                           <DetailsToggle opened={unfolded.has(forecastKey(row))} count={entry.lines.length} label={item.label} onToggle={() => unfold(forecastKey(row))} />
                         )}
                       </Group>
@@ -580,7 +580,8 @@ export function TreasuryPage() {
                 ),
               };
             }}
-            actions={({ item }) => {
+            actions={(row) => {
+              const { item } = row;
               const entry = item.entryId ? forecastById.get(item.entryId) : undefined;
               if (!entry || (item.kind !== 'ACTUAL' && item.kind !== 'FORECAST')) return null;
               // An actual entry is one dated after today; a forecast is realized.
@@ -603,6 +604,10 @@ export function TreasuryPage() {
                       icon: <CopyIcon aria-hidden />,
                       onClick: () => openDialog({ kind: 'entry', entry, copy: true }),
                     },
+                    // An entry not split yet: its split opens under it, where its lines are added.
+                    !entry.archived &&
+                      entry.lines.length === 0 &&
+                      !unfolded.has(forecastKey(row)) && { label: 'Répartir', icon: <ArrowsSplitIcon aria-hidden />, onClick: () => unfold(forecastKey(row)) },
                     archiveItem,
                     rowMenuEntry(forecast ? deleteEntries.forecasts([entry]) : deleteEntries.movements([entry])),
                   ]}

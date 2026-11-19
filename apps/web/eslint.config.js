@@ -989,6 +989,23 @@ export default defineConfig([
     },
   },
   {
+    // The split of an entry is a DataTable (EntryLinesTable), like its other tables: no table of lines made by hand in a
+    // form. TeamPanel is out of the single table (decision of 2026-11-17).
+    files: ['src/features/treasury/**/*.{ts,tsx}'],
+    ignores: ['src/features/treasury/components/TeamPanel.tsx'],
+    rules: {
+      'no-restricted-imports': [
+        'error',
+        {
+          paths: [
+            ...RESTRICTED_PATHS,
+            { name: '@mantine/core', importNames: ['Table'], message: 'Utiliser DataTable (components/data-table) : la trésorerie n’a pas de tableau fait à la main (la répartition est EntryLinesTable).' },
+          ],
+        },
+      ],
+    },
+  },
+  {
     files: ['src/components/**/*.{ts,tsx}', 'src/lib/**/*.{ts,tsx}'],
     rules: { 'no-restricted-imports': ['error', { paths: RESTRICTED_PATHS, patterns: [NO_FEATURES] }] },
   },

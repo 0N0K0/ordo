@@ -56,7 +56,7 @@ Table unique (`DataTable`, clé de vue `treasury-forecast`, titre « Prévisionn
 | -------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | « Mois »             | Mois de la date attendue (pour grouper).                                                                                                                                                                                                                                                                                               |
 | « Date d’exécution » | Date attendue ; modifiable en place pour une prévision non répétée ou un mouvement réel à venir ; badge « Prévu le JJ/MM » si en retard. Filtre date.                                                                                                                                                                                  |
-| « Libellé »          | Verrouillé. Lien vers le document pour une facture / un avoir (badge archivé si besoin) ; texte modifiable en place pour un mouvement ; lien externe (`url`) ; bouton « détails » qui déplie la répartition.                                                                                                                           |
+| « Libellé »          | Verrouillé. Lien vers le document pour une facture / un avoir (badge archivé si besoin) ; texte modifiable en place pour un mouvement ; lien externe (`url`) ; bouton « détails » qui déplie la répartition (mouvement décomposé, ou répartition ouverte par « Répartir »).                                                            |
 | « Origine »          | Badge : « Prévision » (violet), « À venir » (gris, mouvement réel futur), « Facture » (bleu), « Avoir » (orange), « Importé » (cyan), « Récurrente » (sarcelle). Filtre à choix, groupable.                                                                                                                                            |
 | « En retard »        | Masquée par défaut ; filtre booléen, groupable.                                                                                                                                                                                                                                                                                        |
 | Colonnes partagées   | « Compte », « Date de valeur », « Mois de valeur », « Émetteur / destinataire », « Catégories », « Moyen de paiement », « Projet », « Pièces justificatives », « Mouvements liés », « Répétition » (voir [Colonnes partagées des mouvements](#colonnes-partagées-des-mouvements)). Vides pour une ligne sans mouvement (facture due…). |
@@ -102,7 +102,7 @@ Table des mouvements réels (clé `treasury-entries`, titre « Mouvements »), t
 
 ### Actions sur les mouvements
 
-- Ligne : « Modifier » (principale), « Dupliquer », « Archiver » / « Restaurer », « Supprimer ».
+- Ligne : « Modifier » (principale), « Dupliquer », « Répartir » (mouvement non décomposé : déplie sa répartition, vide, sous lui), « Archiver » / « Restaurer », « Supprimer ». Mêmes actions sur un mouvement ou une prévision du prévisionnel.
 - Sélection (« N mouvements ») : « Archiver », « Supprimer ».
 - Confirmation de suppression : « … sera supprimé définitivement. », plus « Les documents qu’il règle redeviendront dus. » et « Ses liens avec d’autres mouvements seront retirés. » selon le cas.
 - Un mouvement archivé : masqué sauf si la vue l’inclut, lecture seule, badge « Archivé » ; il compte dans les soldes, le prévisionnel et les relevés.
@@ -110,7 +110,16 @@ Table des mouvements réels (clé `treasury-entries`, titre « Mouvements »), t
 
 ### Répartition dépliée
 
-Sous un mouvement décomposé, la table « Répartition de [libellé] » (clé `treasury-entry-lines`) liste ses lignes, modifiables en place : « Libellé », « Bénéficiaire » (Moi, un membre ou une relation), « Catégorie » (du sens de la ligne), « Contexte » (vide : « Quotidien »), « Unité » (€ ou %), « Valeur », « Montant » (calculé), « Prêt » (case, seulement avec une relation), « Date » (date d’achat propre), « Projet », « Pièces justificatives », « Relative à un autre mouvement » (liens). Recherche « Rechercher (libellé, bénéficiaire, catégorie) » ; s’il en reste, « Non réparti : X » dans la barre. Chaque modification enregistre le mouvement entier.
+La répartition d’un mouvement ne se fait qu’ici, pas dans son formulaire. Sous un mouvement (bouton « détails » s’il est décomposé, action « Répartir » sinon), la table « Répartition de [libellé] » (clé `treasury-entry-lines`) liste ses lignes, un tableau comme les autres (vues, recherche, filtres, tri, regroupement, colonnes, sélection en masse). Chaque modification enregistre le mouvement entier.
+
+- Colonnes, modifiables en place : « Libellé », « Bénéficiaire » (Moi, un membre ou une relation ; création d’une relation à la volée), « Catégorie » (du sens de la ligne ; création à la volée), « Contexte » (vide : « Quotidien » ; création à la volée), « Unité » (€ ou %, la part reste la même au changement d’unité), « Valeur », « Montant » (calculé), « Prêt » (case, seulement avec une relation), « Date » (date d’achat propre), « Projet », « Pièces justificatives », « Relative à un autre mouvement » (liens).
+- Une valeur positive va dans le sens du mouvement, une négative en sens inverse (remboursement inclus dans un achat…) ; changer le signe d’une valeur retire une catégorie qui n’est plus du bon sens ; choisir un bénéficiaire qui n’est pas une relation décoche « Prêt ».
+- « Ajouter une ligne » (ligne d’ajout en bas du tableau) : nouvelle ligne avec ce qui reste à répartir, pour « Moi », dans le contexte planifié ce jour-là. Désactivée quand tout est réparti : « Tout le montant est réparti : réduisez une ligne pour en ajouter une. » (une ligne sans valeur est refusée).
+- Première ligne d’un mouvement (il devient décomposé) : sa catégorie et son projet passent sur les lignes, ses pièces et ses liens sur la première.
+- « Retirer » (menu de la ligne) : confirmation « Retirer la ligne » (« La ligne … est retirée de la répartition de « … » : son montant redevient non réparti, ses pièces justificatives et ses liens sont détachés. »).
+- « Parts égales entre les membres » (barre d’outils, s’il y a plus d’un membre) : une ligne en % par membre (la dernière prend l’arrondi) ; s’il y a déjà des lignes, confirmation « Répartir à parts égales » (« Les lignes … sont remplacées par une ligne par membre : leurs catégories, pièces justificatives et liens sont perdus. », bouton « Remplacer »).
+- Recherche « Rechercher (libellé, bénéficiaire, catégorie) » ; s’il en reste, « Non réparti : X » dans la barre.
+- Sans ligne : « Ce mouvement n’est pas réparti. Répartissez-le par membre, catégorie et contexte, en euros ou en pourcentage : une valeur positive va dans son sens, une négative en sens inverse (remboursement inclus dans un achat…). Ce qui reste est « non réparti ». », avec « Ajouter une ligne » et « Parts égales entre les membres ».
 
 ## Colonnes partagées des mouvements
 
@@ -149,7 +158,6 @@ Ouvert dans le panneau latéral (large) : « Nouveau mouvement », « Nouvelle p
 | « Projet »                                         | Projets avec chemin complet ; archivés seulement s’ils sont déjà choisis. Absent si décomposé.                                                                                                                                              |
 | « Description »                                    | Markdown.                                                                                                                                                                                                                                   |
 | « Lien »                                           | URL http(s) (« https://… (une commande en ligne, par exemple) »).                                                                                                                                                                           |
-| « Répartition »                                    | Éditeur de lignes (voir ci-dessous).                                                                                                                                                                                                        |
 | « Pièces justificatives »                          | Documents de la bibliothèque ou des projets (groupés par lieu, le projet du mouvement d’abord). Absent si décomposé.                                                                                                                        |
 | « Mouvements liés »                                | Badges et recherche d’un mouvement (au moins 2 caractères, avec son compte) ; un mouvement décomposé ne se lie que par ses lignes ; les lignes d’autres mouvements liées au mouvement entier sont montrées en contour. Absent si décomposé. |
 | Répétition                                         | Prévision seulement (`RuleField`, sans répétition hebdomadaire).                                                                                                                                                                            |
@@ -159,19 +167,10 @@ Comportements :
 
 - Documents proposés : factures validées (entrée) ou avoirs (sortie), Ordo ou importés, non archivés et encore dus, ou déjà réglés par ce mouvement ; libellé « N° — client (reste X) ».
 - Choisir un document propose comme montant réglé le reste dû (dans la limite du montant restant à affecter) ; un mouvement sans montant prend ce montant ; un mouvement sans libellé prend « Règlement [document] » / « Remboursement [document] ».
-- Décomposer un mouvement (première ligne ajoutée) : la catégorie et le projet passent sur les lignes, les pièces et les liens passent sur la première ligne. Texte : « Décomposé : catégorie, projet, pièces justificatives et liens se précisent sur chaque ligne. »
+- La répartition ne se modifie pas dans le formulaire (voir [Répartition dépliée](#répartition-dépliée)) : les lignes d’un mouvement décomposé sont gardées telles quelles à l’enregistrement. Texte, décomposé : « Décomposé : catégorie, projet, pièces justificatives et liens se précisent sur chaque ligne de sa répartition, dépliée sous le mouvement dans le tableau (« détails »). » ; sinon : « La répartition par membre, catégorie et contexte se fait dans le tableau, une fois le mouvement enregistré : action « Répartir » de sa ligne. ». Une erreur de l’enregistrement sur une ligne s’affiche en alerte « Répartition : … ».
 - Dupliquer : copie sans les documents réglés et sans les identifiants de lignes.
 - En modification (pas en copie), les commentaires du mouvement s’affichent sous le formulaire (lecture seule s’il est archivé).
 - Toasts : « Mouvement ajouté. », « Mouvement modifié. », « Mouvement dupliqué. ».
-
-### Éditeur de répartition
-
-- Texte d’aide : « Répartissez le mouvement par membre, catégorie et contexte, en euros ou en pourcentage. Une valeur positive va dans le sens du mouvement, une négative en sens inverse (remboursement inclus dans un achat…). Ce qui reste est « non réparti ». »
-- Table (une ligne par ligne) : « Libellé » (facultatif), « Bénéficiaire » (placeholder le nom de « Moi » ; membres, relations ; création d’une relation à la volée), « Catégorie » (du sens de la ligne ; création à la volée), « Contexte » (placeholder « Quotidien » ; création à la volée), « Unité » (€ / %, la part reste la même au changement d’unité), « Valeur », bouton trombone « Rattacher » (avec compteur), « Montant » calculé, « Retirer ». Pied : « Non réparti ».
-- « Ajouter une ligne » : nouvelle ligne avec ce qui reste à répartir, pour « Moi », dans le contexte planifié ce jour-là.
-- « Parts égales entre les membres » (s’il y a plus d’un membre) : remplace les lignes par une ligne en % par membre (la dernière prend l’arrondi).
-- Changer le signe d’une valeur retire une catégorie qui n’est plus du bon sens ; choisir un bénéficiaire qui n’est pas une relation décoche « Prêt ».
-- « Rattachements de la ligne N » (panneau latéral) : « Prêt » (désactivé sans relation ; « Une sortie prête à la relation (ou lui rembourse ce que vous lui devez), une entrée vous fait prêter par elle (ou vous rembourse). Suivi dans l’onglet Prêts. »), « Date d’achat » (« Si elle diffère de celle du mouvement (carte à débit différé) : budgets et graphiques la comptent ce jour-là. »), « Projet », « Pièces justificatives », « Liens » (une ligne d’un autre mouvement, ou un mouvement entier non décomposé), bouton « Terminé ».
 
 ## Onglet « Budgets »
 
@@ -198,7 +197,7 @@ Comportements :
 - Table (clé `treasury-loans`) en arbre : une ligne par relation (nom en gras, « Solde » en badge « Soldé » / « Vous doit X » / « Vous lui devez X », « Sorti vers elle », « Reçu d’elle »), ses lignes de prêt dessous (libellé « mouvement › ligne », « Date », « Montant » signé). Colonne nommée « Relation / ligne » ou « Proche / ligne ».
 - Action d’une relation : « Commentaires » (panneau « Commentaires · [nom] », lecture seule si la relation est archivée).
 - Relation supprimée : « Relation supprimée » / « Proche supprimé ».
-- État vide : « Aucun prêt. Dans la répartition d’un mouvement, une ligne pour une relation peut être marquée « Prêt » (bouton trombone) : … ».
+- État vide : « Aucun prêt. Dans la répartition d’un mouvement, une ligne pour une relation peut être marquée « Prêt » (colonne « Prêt ») : … ».
 
 ## Import d’un relevé bancaire (CSV)
 
