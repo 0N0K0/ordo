@@ -2,7 +2,6 @@ import { openFile } from '../../files/lib/open-file';
 import { FileBadge } from '../../../components/items/FileBadge';
 import { IconAction } from '../../../components/actions/IconAction';
 import { DetailNotFound } from '../../../components/feedback/DetailNotFound';
-import { DestructiveButton } from '../../../components/dialogs/DestructiveActions';
 import { ArchivedNotice } from '../../../components/feedback/ArchivedNotice';
 import { NoticeAlert } from '../../../components/feedback/NoticeAlert';
 
@@ -60,7 +59,7 @@ import { notifySuccess, onMutationError, toastCallbacks, ON_ERROR } from '../../
 import { confirmRemoveAttachment } from '../lib/remove-attachment';
 import { useMailComposer } from '../../mail/hooks/use-mail-composer';
 
-import { useWorkspace } from '../../projects/api';
+import { useProjectTree } from '../../projects/api';
 import { useClientBilling, useCompanyProfile } from '../api';
 import { documentMailOptions, openPdfPreview, pdfUrl } from '../lib/document-pdf';
 import { useAccountingDocument, useDocumentMutations, useLatestDocumentDate, useRecurringInvoices, type AccountingDocument } from '../api/documents';
@@ -68,9 +67,9 @@ import { ArchivedBadge } from '../../../components/feedback/ArchivedBadge';
 import { archiveEntry, useSetArchived } from '../../../lib/archive';
 import { accountingQueryKey } from '../api';
 import { SettingsSection } from '../../../components/settings/SettingsSection';
-import { DOCUMENT_TYPE_LABELS, isFeminineDocumentType } from '../lib/labels';
+import { DOCUMENT_TYPE_LABELS, documentName, documentTitle, DRAFT_NAME, isFeminineDocumentType } from '../lib/labels';
 import { DeductDepositMenu } from './DeductDepositMenu';
-import { LinesEditor } from './LinesEditor';
+import { DocumentLinesEditor } from './DocumentLinesEditor';
 import { openDepositForm } from '../lib/new-document';
 import { useTrackingMutations } from '../api/tracking';
 import { TimeBillingForm } from './TimeBillingForm';
@@ -95,7 +94,7 @@ type FormValues = AccountingDocumentInput & Record<string, unknown>;
  * @param {AccountingDocument} document Document.
  * @returns {FormValues} Values.
  */
-function toValues(document: AccountingDocument): FormValues {
+function documentValues(document: AccountingDocument): FormValues {
   return {
     clientId: document.clientId,
     serviceId: document.serviceId ?? null,
@@ -144,9 +143,9 @@ function toValues(document: AccountingDocument): FormValues {
  */
 function Editor({ document }: { document: AccountingDocument }) {
   const navigate = useNavigate();
-  const { data: workspace } = useWorkspace();
+  const { data: workspace } = useProjectTree();
   const mutations = useDocumentMutations();
-  const form = useAppForm<FormValues>({ initialValues: toValues(document), schema: accountingDocumentInputSchema });
+  const form = useAppForm<FormValues>({ initialValues: documentValues(document), schema: accountingDocumentInputSchema });
   const values = form.values;
   const service = dateRangeProps(formRange(form, 'serviceStart', 'serviceEnd'));
   const { data: client } = useClientBilling(values.clientId);
@@ -258,7 +257,7 @@ function Editor({ document }: { document: AccountingDocument }) {
    * @returns {void}
    */
   const preview = () => {
-    const title = `${DOCUMENT_TYPE_LABELS[document.type]} ${document.number ?? '(brouillon)'}`;
+    const title = documentTitle(document);
     if (dirty && !readOnly) save(() => openPdfPreview(document.id, title));
     else openPdfPreview(document.id, title);
   };
@@ -339,19 +338,19 @@ function Editor({ document }: { document: AccountingDocument }) {
     );
   };
 
-  const typeLabel = DOCUMENT_TYPE_LABELS[document.type];
-  const documentName = `« ${document.number ?? document.label ?? 'Brouillon'} »`;
+  // Quoted by the menu (« Actions de « F-2026-001 » »).
+  const label = documentName(document.number, document.label);
 
   return (
     <Stack gap="md">
       <DetailHeader
-        back={{ to: PAGES.accounting.path, label: PAGES.accounting.title }}
+        back={{ to: PAGES.accounting.path, label: PAGES.accounting.label }}
         order={1}
-        title={isTemplate ? `Modèle de facture récurrente` : `${typeLabel} ${document.number ?? ''}`}
+        title={isTemplate ? `Modèle de facture récurrente` : documentTitle(document)}
         badges={
           <>
             <Badge variant="light" color={readOnly ? 'green' : isTemplate ? 'grape' : 'gray'}>
-              {readOnly ? 'Définitif' : isTemplate ? 'Modèle' : 'Brouillon'}
+              {readOnly ? 'Définitif' : isTemplate ? 'Modèle' : DRAFT_NAME}
             </Badge>
             {archived && <ArchivedBadge feminine={archivedRecurring} />}
           </>
@@ -378,13 +377,13 @@ function Editor({ document }: { document: AccountingDocument }) {
           isTemplate
             ? undefined
             : {
-                name: documentName,
+                name: label,
                 items: [
                   archiveEntry(
                     {
                       archived: document.archived,
                       type: DOCUMENT_TYPE_LABELS[document.type],
-                      label: document.number ?? document.label ?? 'Brouillon',
+                      label,
                       feminine: isFeminineDocumentType(document.type),
                     },
                     setArchived,
@@ -434,9 +433,9 @@ function Editor({ document }: { document: AccountingDocument }) {
                     Valider
                   </ActionButton>
                 )}
-                <DestructiveButton leftSection={<TrashIcon aria-hidden />} onClick={confirmDelete}>
+                <ActionButton priority="secondary" danger icon={<TrashIcon aria-hidden />} onClick={confirmDelete}>
                   Supprimer le brouillon
-                </DestructiveButton>
+                </ActionButton>
               </>
             )}
             {readOnly && !archived && isQuote && (
@@ -485,7 +484,7 @@ function Editor({ document }: { document: AccountingDocument }) {
       {isQuote && readOnly && document.invoicedNet !== null && document.invoicedNet !== undefined && (
         <Text size="sm">
           Déjà facturé : <b>{fmt.money(document.invoicedNet, currency)}</b> HT sur {fmt.money(document.totalNet, currency)} HT
-          {document.derived.length > 0 && ` (${document.derived.map((item) => item.number ?? 'brouillon').join(', ')})`}
+          {document.derived.length > 0 && ` (${document.derived.map((item) => documentName(item.number)).join(', ')})`}
         </Text>
       )}
 
@@ -505,7 +504,7 @@ function Editor({ document }: { document: AccountingDocument }) {
           )}
           {readOnly && finalView === 'preview' ? (
             <Paper withBorder radius="md" style={{ overflow: 'hidden' }}>
-              <FilePreview url={pdfUrl(document.id)} filename={`${DOCUMENT_TYPE_LABELS[document.type]} ${document.number ?? ''}`} kind="pdf" height={PAGE_PREVIEW_HEIGHT} />
+              <FilePreview url={pdfUrl(document.id)} filename={documentTitle(document)} kind="pdf" height={PAGE_PREVIEW_HEIGHT} />
             </Paper>
           ) : (
             <Stack gap="md">
@@ -567,7 +566,7 @@ function Editor({ document }: { document: AccountingDocument }) {
                 </Group>
                 <Textarea label="Introduction" autosize minRows={2} readOnly={locked} {...form.getInputProps('introduction')} />
                 <Divider label="Lignes" labelPosition="left" />
-                <LinesEditor
+                <DocumentLinesEditor
                   lines={values.lines}
                   totals={totals.lines}
                   onChange={(lines) => form.setFieldValue('lines', lines)}
@@ -718,7 +717,7 @@ function Editor({ document }: { document: AccountingDocument }) {
                 {document.derived.map((item) => (
                   <Group key={item.id} justify="space-between">
                     <Anchor component={Link} to={documentPath(item.id)} size="sm">
-                      {DOCUMENT_TYPE_LABELS[item.type]} {item.number ?? '(brouillon)'}
+                      {documentTitle(item)}
                     </Anchor>
                     <Text size="sm" ff="monospace">
                       {fmt.money(item.totalGross, currency)}
@@ -789,7 +788,7 @@ function AttachmentsSection({ document, readOnly = false }: { document: Accounti
               filename={attachment.filename}
               max={48}
               onClick={() => openFile({ url: attachment.url, filename: attachment.filename })}
-              onRemove={readOnly ? undefined : () => confirmRemoveAttachment(attachment, document.number ?? 'ce brouillon', () => removeAttachment.mutateAsync(attachment.id))}
+              onRemove={readOnly ? undefined : () => confirmRemoveAttachment(attachment, documentName(document.number), () => removeAttachment.mutateAsync(attachment.id))}
             />
           ))}
         </Group>
@@ -811,7 +810,7 @@ export function DocumentEditor({ id }: { id: string }) {
   const { data: document, isPending, error } = useAccountingDocument(id);
   if (isPending) return <DetailSkeleton fields={6} />;
   if (error) return <ErrorAlert>{error.message}</ErrorAlert>;
-  if (!document) return <DetailNotFound what="Ce document" backTo={PAGES.accounting.path} backLabel={PAGES.accounting.title} />;
+  if (!document) return <DetailNotFound what="Ce document" backTo={PAGES.accounting.path} backLabel={PAGES.accounting.label} />;
   // A validated document is shown again, read only.
   return <Editor key={`${document.id}-${document.status}`} document={document} />;
 }

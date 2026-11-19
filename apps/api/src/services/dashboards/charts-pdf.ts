@@ -1,6 +1,6 @@
 import { z } from 'zod';
 import { parseInput } from '../../graphql/errors';
-import { PDF_TEXT, REPORT_MARGIN, reportHeadingSchema, startReport, writeHeading } from '../core/pdf-report';
+import { PDF_TEXT, REPORT_MARGIN, reportHeadingSchema, type ReportFile, startReport, writeHeading } from '../core/pdf-report';
 
 const PNG_DATA_URL = /^data:image\/png;base64,([A-Za-z0-9+/=]+)$/;
 
@@ -23,9 +23,9 @@ type ChartsPdfInput = z.input<typeof chartsPdfSchema>;
  * PDF (A4 landscape) of charts: one per page (the image shows its title) with its description, the first page
  * also with the title of the export; in the template shared by every export (logo, date, page numbers).
  * @param {ChartsPdfInput} input Charts.
- * @returns {Promise<Buffer>} PDF.
+ * @returns {Promise<ReportFile>} PDF and its file name.
  */
-export async function chartsPdf(input: ChartsPdfInput): Promise<Buffer> {
+export async function chartsPdf(input: ChartsPdfInput): Promise<ReportFile> {
   const data = parseInput(chartsPdfSchema, input);
   const { doc, top, finish } = await startReport({ title: data.title, autoFirstPage: false });
 

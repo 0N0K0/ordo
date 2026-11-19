@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import { optionalText, PERSON_NAME_MAX, personNameSchema, requiredText } from '../core/rules';
+import { twoDigits } from '../core/numbers';
 
 /** Postal address, in the order of international postal conventions (ISO 19160 / UPU). */
 const addressSchema = z.object({
@@ -203,6 +204,37 @@ export const INVOICE_TYPES = ['INVOICE', 'DEPOSIT_INVOICE'] as const satisfies r
  */
 export const isInvoice = (type: string): boolean => (INVOICE_TYPES as readonly string[]).includes(type);
 
+/** Name of each document type (« Facture »). */
+export const DOCUMENT_TYPE_LABELS: Record<AccountingDocumentType, string> = {
+  QUOTE: 'Devis',
+  INVOICE: 'Facture',
+  DEPOSIT_INVOICE: 'Facture d’acompte',
+  CREDIT_NOTE: 'Avoir',
+};
+
+/** Name of a document without number (decision CD): « Brouillon », the same everywhere. */
+// eslint-disable-next-line no-restricted-syntax -- the name itself.
+export const DRAFT_NAME = 'Brouillon';
+
+/**
+ * Name of a document: its number, else its label (a template), else « Brouillon ».
+ * @param {string | null | undefined} number Number. Optional.
+ * @param {string | null} [label] Label. Optional. Default = none.
+ * @returns {string} Name.
+ */
+export function documentName(number: string | null | undefined, label?: string | null): string {
+  return number ?? label ?? DRAFT_NAME;
+}
+
+/**
+ * Title of a document (preview, PDF, file name, links): « Facture F-2026-001 », « Facture Brouillon ».
+ * @param {{ type: AccountingDocumentType, number?: string | null }} document Document.
+ * @returns {string} Title.
+ */
+export function documentTitle(document: { type: AccountingDocumentType; number?: string | null }): string {
+  return `${DOCUMENT_TYPE_LABELS[document.type]} ${documentName(document.number)}`;
+}
+
 /** Number prefix of each document type. */
 export const DOCUMENT_PREFIXES: Record<AccountingDocumentType, string> = {
   QUOTE: 'D',
@@ -219,5 +251,5 @@ export const DOCUMENT_PREFIXES: Record<AccountingDocumentType, string> = {
  * @returns {string} Number.
  */
 export function documentNumber(type: AccountingDocumentType, year: number, counter: number): string {
-  return `${DOCUMENT_PREFIXES[type]}${String(year % 100).padStart(2, '0')}${String(counter).padStart(5, '0')}`;
+  return `${DOCUMENT_PREFIXES[type]}${twoDigits(year % 100)}${String(counter).padStart(5, '0')}`;
 }

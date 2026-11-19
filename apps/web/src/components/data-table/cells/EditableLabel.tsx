@@ -1,10 +1,10 @@
 import { Group, Text, TextInput, UnstyledButton } from '@mantine/core';
-import { useState, type ReactNode } from 'react';
+import type { ReactNode } from 'react';
 import { Link, type To } from 'react-router';
 import classes from './EditableCells.module.css';
-import { checked, stopClick, type CellSchema } from './cell-field';
+import { checked, stopClick, useCellDraft, type CellSchema } from './cell-field';
 
-interface EditableTitleProps {
+interface EditableLabelProps {
   value: string;
   /** Accessible name of the field when renamed (« Libellé de la tâche #12 »). */
   label: string;
@@ -26,20 +26,20 @@ interface EditableTitleProps {
 /**
  * Title cell of a table: a click on the title opens the row (its page, or what `onOpen` opens); a double-click elsewhere
  * in the cell renames it in place, saved when leaving the field (or Enter) if valid and changed; Escape gives it up.
- * @param {EditableTitleProps} props Component props.
+ * @param {EditableLabelProps} props Component props.
  * @returns {JSX.Element} Cell.
  */
-export function EditableTitle({ value, label, schema, to, onOpen, before, after, readOnly = false, onSave }: EditableTitleProps) {
-  const [draft, setDraft] = useState<string | null>(null);
+export function EditableLabel({ value, label, schema, to, onOpen, before, after, readOnly = false, onSave }: EditableLabelProps) {
+  const { draft, setDraft, take, onKeyDown } = useCellDraft<string>();
 
   /**
-   * Saves the new title when valid and changed.
+   * Saves the new title when valid and changed (none after Escape).
    * @returns {void}
    */
   const save = () => {
-    if (draft === null) return;
-    setDraft(null);
-    const result = checked(schema, draft, 'Libellé invalide.');
+    const typed = take();
+    if (typed === null) return;
+    const result = checked(schema, typed, 'Libellé invalide.');
     if (result && result.value !== value) onSave(result.value);
   };
 
@@ -53,10 +53,7 @@ export function EditableTitle({ value, label, schema, to, onOpen, before, after,
         onClick={stopClick}
         onFocus={(event) => event.currentTarget.select()}
         onChange={(event) => setDraft(event.currentTarget.value)}
-        onKeyDown={(event) => {
-          if (event.key === 'Enter') event.currentTarget.blur();
-          if (event.key === 'Escape') setDraft(null);
-        }}
+        onKeyDown={onKeyDown}
         onBlur={save}
         style={{ flex: 1 }}
       />

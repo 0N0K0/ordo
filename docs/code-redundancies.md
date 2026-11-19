@@ -1,8 +1,12 @@
 # Composants similaires et redondances de code
 
-État au 18 novembre 2026, fin de soirée, après huit séries d'unifications (voir [Déjà unifié](#déjà-unifié)). Copier-coller (`npm run dup`) : 4 copies, 35 lignes (0,03 %). Les décisions déjà prises sont en [annexe](#décisions-déjà-prises).
+État au 19 novembre 2026, matin, après neuf séries d'unifications (voir [Déjà unifié](#déjà-unifié)). Copier-coller (`npm run dup`) : 4 copies. Les décisions déjà prises sont en [annexe](#décisions-déjà-prises).
 
-Aucun doublon lourd dans aucun périmètre. Restent une quinzaine de petits bugs, des détails et des trous de règles eslint. Les 5 migrations de la journée ont été relues : compatibles PG 9.6, renommages d'index complets, identifiants de colonnes alignés sur le web.
+La série du 19 novembre (lots 1 à 4 ci-dessous) est faite : les points 1 à 6 de cette page sont traités. Restent à trancher :
+
+- **CN. Boutons d'aspect « actif »** (interrupteurs `aria-pressed`, cibles de menu : Filtrer, Trier, « Ajouter » de l'en-tête, « Modifier les plages ») : garder leur `variant="light"` / variante en ternaire, ou les aligner sur `ActionButton` ? La règle eslint les ignore en attendant.
+- **CO. Filtres « est vide » sur les colonnes de comptage** (commentaires, lots, utilisée par…) : 0 n'est pas vide, elles sont marquées obligatoires (pas de « est vide »). À confirmer.
+- **CP. Colonnes laissées facultatives faute de certitude :** emplacement d'un inventaire, répétition d'une facture récurrente, objet d'un document, « travail » de la facturation du temps, horaires d'une plage.
 
 La bibliothèque de documents n'est pas traitée : elle sera refaite entièrement.
 
@@ -41,7 +45,7 @@ La bibliothèque de documents n'est pas traitée : elle sera refaite entièremen
 - **JSON :** ~24 forçages de type à l'écriture (`toJson`).
 - **Comparaison de noms :** `labelKey` et `productKey` recopient `sameName`, et `productKey` réduit aussi les espaces (voir décision CB).
 - **Divers :** `missing()` n'enveloppe que `notFound` ; `padStart(2, '0')` à la main ; le GraphQL des ressources de projet toujours dans la facturation ; dans les fixtures, les catégories de trésorerie ×2, des catégories d'agenda créées en direct, `projectOf` et `rootOf`.
-- **Vues enregistrées :** la migration a déjà renommé leurs identifiants ; la correspondance à la lecture (`LEGACY_LABEL_COLUMNS`, ~60 lignes) ne sert plus (voir décision CC).
+- **Vues enregistrées :** la migration a déjà renommé leurs identifiants ; la correspondance à la lecture (`LEGACY_LABEL_COLUMNS`, ~60 lignes) ne sert plus, mais reste en place jusqu'à la mise en production (décision CC).
 
 ### 4. Web
 
@@ -96,21 +100,7 @@ La bibliothèque de documents n'est pas traitée : elle sera refaite entièremen
 2. **Petits doublons et restes du renommage (3, 4, 5)**, avec les décisions. Environ 45 à 60 minutes.
 3. **Règles eslint (6).** Environ 20 à 40 minutes.
 
-Décisions à prendre :
-
-- **CA. Évènements annulés sur l'accueil :** les masquer, ou les montrer barrés ?
-- **CB. Comparaison de noms :** réduire aussi les espaces intérieurs partout (comme `productKey`), ou nulle part ?
-- **CC. Anciens identifiants de colonnes :** supprimer la correspondance à la lecture (la migration a tout renommé), ou la garder un temps par sécurité ?
-- **CD. Brouillon de document :** « Brouillon » ou « (brouillon) » ?
-- **CE. Compte mail :** « Nom <adresse> », « Nom (adresse) » ou l'adresse seule ?
-- **CF. Retard dans la facturation et la trésorerie :** orange comme l'accueil, ou rouge ?
-- **CG. Bouton destructif secondaire :** rouge clair ou contour rouge ?
-- **CH. En-têtes repliables :** tout l'en-tête cliquable (comme la barre latérale), ou un chevron seul (comme les groupes de tableau) ?
-- **CI. Compteurs de groupe :** quelle taille (xs, sm ou lg) ?
-- **CJ. Colonne commentaires :** avec l'icône (comme les tâches), ou le nombre seul ?
-- **CK. Renommage en ligne** (titre du panneau de tâche, graphique) : une variante en ligne de `LabelForm`, ou les garder ?
-- **CL. En-tête des panneaux :** celui du panneau latéral partout (y compris les réglages) ?
-- **CM. Arbre des projets :** renommer `Workspace` / `useWorkspace` en `ProjectTree` / `useProjectTree`, et les doublons de noms (`LinesEditor`…) ?
+Toutes les décisions de ce round sont prises (CA à CM, voir plus bas).
 
 ## Décisions déjà prises
 
@@ -183,6 +173,19 @@ Décisions à prendre :
 - **BH. Sens d'un mouvement :** « Entrées / Sorties » partout.
 - **BI. Identifiants de colonnes :** `title` / `name` renommés `label`, avec une migration des vues enregistrées.
 - **BJ. Dossier :** `features/workspace` renommé `features/projects`.
+- **CA. Évènements annulés sur l'accueil :** masqués (carte Agenda et badge de navigation), et non comptés.
+- **CB. Comparaison de noms :** les espaces intérieurs en trop sont réduits partout, en plus de la casse et des espaces au début et à la fin ; une seule règle commune (`sameName`), reprise par `labelKey` et `productKey`.
+- **CC. Anciens identifiants de colonnes :** la correspondance à la lecture (`LEGACY_LABEL_COLUMNS`) est gardée pour l'instant ; à supprimer une fois la migration `label_column_ids` passée en production.
+- **CD. Brouillon de document :** « Brouillon », sans parenthèses ni espace en fin de titre et de nom de fichier.
+- **CE. Compte mail :** « Nom <adresse> » partout (`accountLabel`).
+- **CF. Retard dans la facturation et la trésorerie :** orange, comme l'accueil.
+- **CG. Bouton destructif secondaire :** contour rouge.
+- **CH. En-têtes repliables :** toute la ligne est cliquable, partout (`FoldHeading`), groupes de tableau compris.
+- **CI. Compteurs de groupe :** taille `xs`.
+- **CJ. Colonne commentaires :** avec l'icône, comme les tâches.
+- **CK. Renommage en ligne :** supprimé ; le titre du panneau de tâche et celui d'un graphique se renomment comme ailleurs, par `LabelForm` dans le panneau latéral.
+- **CL. En-tête des panneaux :** celui du panneau latéral partout, réglages compris ; le voile des réglages est tiré des tokens de couleur (plus de `#000` ni d'opacité en dur).
+- **CM. Arbre des projets :** `Workspace` / `useWorkspace` renommés `ProjectTree` / `useProjectTree`, et les doublons de noms (`LinesEditor`…) renommés.
 
 ## Restent à part
 
@@ -192,6 +195,7 @@ Décisions à prendre :
 
 ## Déjà unifié
 
+- **Série du 19 novembre 2026 (matin) :** décisions CA à CM ; Échap annule dans les cellules (`useCellDraft`), `entrySubject`, `useHeldEvents`, `useTimerHint`, `clientItems`, `deleteAttachment`, « 1er » partagé, `startReport` nomme ses fichiers ; `findOrNotFound`, `assertActive` / `activeIds` / `refuseArchived` / `cascadeArchive`, `toJson`, `nameKey` ; `documentName` / `documentTitle` partagés, `accountLabel`, `LATE_COLOR`, `ActionButton danger`, `FoldHeading`, `itemSelectProps`, `timeTaskOptions`, `useInvalidatingMutation`, `occurrenceKey`, `joinedKey`, `PanelTitle`, `--onoko-overlay-color`, `CommentCount` dans toutes les colonnes commentaires ; restes du renommage `label`, `ProjectTree` ; trous eslint fermés ; filtres « est vide / n'est pas vide » sur tous les champs facultatifs (`DataColumn.required`, `EMPTY_LABELS`).
 - **Série du 18 novembre 2026 (nuit) :** décisions BA à BJ ; un seul message d'archivé ; création à la volée des catégories et statuts de projet ; `relationWords`, `dayOfMonthText`, `storeAttachment` partout, `labelKey`, `ActionTooltip`, `notifyFailure` ; `BY_POSITION` par libellé, `personNameSchema`, `bulkCellLabels`, `ActionButton priority="tertiary"`, `MenuCaret`, `EXTERNAL_LINK`, `AUTH_PATHS` ; identifiants de colonnes en `label` (migration des vues) ; `features/projects` ; trous eslint fermés.
 - **Série du 18 novembre 2026 (soirée) :** décisions Y à AI ; `useStartTimer` (remplace le chrono en cours), `assertNotArchived` / `assertNoneArchived` avec `field`, `freeHandle`, `attachmentUrl`, maximums de libellés exportés, `countWith`, `FoldButton`, `LateBadge`, `planCardActions`, `LabelForm`, JSON en `label`, `scheduleLabel`, adresses (`documentPath`, `sheetPath`…), `useUrlTab`, `archivedIds`, `taskShortRef`, `sumOf`, `movedTo`, `quarterOf`, `components/dnd/`, eslint dans l'API et le code partagé.
 - **Série du 18 novembre 2026 (fin de journée) :** points 1 à 14 et décisions O à X : `queryFlag`, `usePageTab`, `clipText`, `productKey`, `sameName`, `nextPositionIn` en transaction, `dates/days.ts`, `endAfter`, `productInputFields`, `reloaded`, pluriels et nombres partagés ; `ON_ERROR`, `unarchived`, `useArchivedToggle`, `DestructiveRisks`, `IconAction`, `CreatableSelect` dans la trésorerie et le stock, adresses (`projectPath`…), `date-range`, `DetailHeader`, « Archiver » dans les menus, `TimerStop`, `deleteItemsAction`, menus à points verticaux, `--onoko-muted-opacity`, ordinaux partagés, `Caption`, `NameForm` ; renommage `label` en base ; `jscpd` (65 → 4 copies).

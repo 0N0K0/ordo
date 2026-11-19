@@ -4,13 +4,14 @@ import { ACCOUNTING_DOCUMENT_TYPES, type ChartConfig } from '@ordo/shared';
 import { DOCUMENT_TYPE_LABELS } from '../../accounting/lib/labels';
 import { useDocumentStatuses } from '../../accounting/api/tracking';
 import { useTreasuryAccounts, useTreasurySettings } from '../../treasury/api';
-import { useWorkspace } from '../../projects/api';
+import { useProjectTree } from '../../projects/api';
+import { clientItems } from '../../projects/lib/tree';
 import { BatchMultiSelect } from '../../../components/inputs/BatchMultiSelect';
 import { treeOptions, treeSelectProps } from '../../../components/tree/tree-select';
 import { categoryPaths, categoryTree } from '../../treasury/lib/categories';
 import { TaskFilterBuilder } from '../../tasks/components/TaskFilterBuilder';
 import { unarchived } from '../../../lib/archive';
-import { itemOptions } from '../../../components/items/item-look';
+import { itemOptions, listSelectProps } from '../../../components/items/item-look';
 import type { TaskContext } from '../../tasks/hooks/use-task-context';
 import { DIRECTION_PLURALS } from '../../treasury/lib/direction';
 
@@ -26,7 +27,7 @@ type SourceFilterChange = (changes: Partial<SourceFilterFields>) => void;
  * @returns {JSX.Element} Filters.
  */
 function DocumentFilters({ config, change }: { config: Pick<ChartConfig, 'documents' | 'treasury'>; change: SourceFilterChange }) {
-  const { data: workspace } = useWorkspace();
+  const { data: workspace } = useProjectTree();
   const { data: statuses } = useDocumentStatuses();
   const filter = config.documents;
   const set = (changes: Partial<ChartConfig['documents']>) => change({ documents: { ...filter, ...changes } });
@@ -43,11 +44,8 @@ function DocumentFilters({ config, change }: { config: Pick<ChartConfig, 'docume
         label="Clients"
         placeholder="Tous"
         searchable
-        // Archived ones are no longer offered, but those chosen stay.
-        data={unarchived(workspace?.clients ?? [], filter.clientIds).map((client) => ({
-          value: client.id,
-          label: client.name,
-        }))}
+        // Each with its avatar; archived ones are no longer offered, but those chosen stay.
+        {...listSelectProps(clientItems(workspace?.clients ?? []), undefined, filter.clientIds)}
         value={filter.clientIds}
         onChange={(clientIds) => set({ clientIds })}
       />

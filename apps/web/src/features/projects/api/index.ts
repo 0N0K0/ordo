@@ -3,14 +3,14 @@ import { byPosition, subtreeOf } from '@ordo/shared';
 import { patchQuery, useInvalidatingMutation } from '../../../lib/mutation';
 import { useQuery } from '@tanstack/react-query';
 import { graphql } from '../../../graphql';
-import type { ClientFieldsFragment, LabelFieldsFragment, ProjectFieldsFragment, ProjectStatusFieldsFragment, WorkspaceQuery } from '../../../graphql/graphql';
+import type { ClientFieldsFragment, LabelFieldsFragment, ProjectFieldsFragment, ProjectStatusFieldsFragment, ProjectTreeQuery } from '../../../graphql/graphql';
 import { execute } from '../../../lib/graphql-client';
 
 export type Client = ClientFieldsFragment;
 export type Project = ProjectFieldsFragment;
 export type ProjectCategory = LabelFieldsFragment;
 export type ProjectStatus = ProjectStatusFieldsFragment;
-export type Workspace = WorkspaceQuery;
+export type ProjectTree = ProjectTreeQuery;
 
 graphql(`
   fragment ClientFields on Client {
@@ -67,8 +67,8 @@ graphql(`
   }
 `);
 
-const WorkspaceDocument = graphql(`
-  query Workspace {
+const ProjectTreeDocument = graphql(`
+  query ProjectTree {
     clients {
       ...ClientFields
     }
@@ -216,16 +216,16 @@ const DeleteProjectStatusDocument = graphql(`
   }
 `);
 
-export const workspaceQueryKey = ['workspace'] as const;
+export const projectTreeQueryKey = ['workspace'] as const;
 
 /**
  * Clients, projects, categories and statuses (everything the sidebar needs).
- * @returns {UseQueryResult<Workspace>} Query state.
+ * @returns {UseQueryResult<ProjectTree>} Query state.
  */
-export function useWorkspace() {
+export function useProjectTree() {
   return useQuery({
-    queryKey: workspaceQueryKey,
-    queryFn: () => execute(WorkspaceDocument),
+    queryKey: projectTreeQueryKey,
+    queryFn: () => execute(ProjectTreeDocument),
   });
 }
 
@@ -233,19 +233,19 @@ export function useWorkspace() {
  * Mutation refreshing the workspace afterwards, with an optional optimistic update rolled back on error.
  * @param {object} options Mutation options.
  * @param {(variables: TVariables) => Promise<TResult>} options.mutationFn Request.
- * @param {(workspace: Workspace, variables: TVariables) => Workspace} [options.optimistic] Immediate cache change. Optional.
+ * @param {(workspace: ProjectTree, variables: TVariables) => ProjectTree} [options.optimistic] Immediate cache change. Optional.
  * @returns {UseMutationResult<TResult, Error, TVariables>} Mutation state.
  */
-function useWorkspaceMutation<TVariables, TResult>({
+function useProjectTreeMutation<TVariables, TResult>({
   mutationFn,
   optimistic,
 }: {
   mutationFn: (variables: TVariables) => Promise<TResult>;
-  optimistic?: (workspace: Workspace, variables: TVariables) => Workspace;
+  optimistic?: (workspace: ProjectTree, variables: TVariables) => ProjectTree;
 }) {
   return useInvalidatingMutation(mutationFn, {
-    invalidate: [workspaceQueryKey],
-    optimistic: optimistic && ((queryClient, variables) => patchQuery<Workspace>(queryClient, workspaceQueryKey, (workspace) => optimistic(workspace, variables))),
+    invalidate: [projectTreeQueryKey],
+    optimistic: optimistic && ((queryClient, variables) => patchQuery<ProjectTree>(queryClient, projectTreeQueryKey, (workspace) => optimistic(workspace, variables))),
   });
 }
 
@@ -283,7 +283,7 @@ function reposition<T extends { id: string; position: number }>(items: T[], sibl
  * @returns {UseMutationResult} Mutation state.
  */
 export function useCreateClient() {
-  return useWorkspaceMutation({
+  return useProjectTreeMutation({
     mutationFn: async (input: { name: string; color?: string | null; icon?: File | null }) => (await execute(CreateClientDocument, { input })).createClient,
   });
 }
@@ -293,7 +293,7 @@ export function useCreateClient() {
  * @returns {UseMutationResult} Mutation state.
  */
 export function useUpdateClient() {
-  return useWorkspaceMutation({
+  return useProjectTreeMutation({
     mutationFn: async (variables: { id: string; input: { name?: string; color?: string | null; icon?: File | null; removeIcon?: boolean } }) =>
       (await execute(UpdateClientDocument, variables)).updateClient,
     optimistic: (workspace, { id, input }) => ({
@@ -312,7 +312,7 @@ export function useUpdateClient() {
  * @returns {UseMutationResult} Mutation state.
  */
 export function useSetClientFavorite() {
-  return useWorkspaceMutation({
+  return useProjectTreeMutation({
     mutationFn: async (variables: { id: string; favorite: boolean }) => (await execute(SetClientFavoriteDocument, variables)).setClientFavorite,
     optimistic: (workspace, { id, favorite }) => ({
       ...workspace,
@@ -326,7 +326,7 @@ export function useSetClientFavorite() {
  * @returns {UseMutationResult} Mutation state.
  */
 export function useSetClientArchived() {
-  return useWorkspaceMutation({
+  return useProjectTreeMutation({
     mutationFn: async (variables: { id: string; archived: boolean }) => (await execute(SetClientArchivedDocument, variables)).setClientArchived,
     optimistic: (workspace, { id, archived }) => ({
       ...workspace,
@@ -342,7 +342,7 @@ export function useSetClientArchived() {
  * @returns {UseMutationResult} Mutation state.
  */
 export function useDeleteClient() {
-  return useWorkspaceMutation({
+  return useProjectTreeMutation({
     mutationFn: async (variables: { id: string; deleteProjects: boolean }) => (await execute(DeleteClientDocument, variables)).deleteClient,
     optimistic: (workspace, { id, deleteProjects }) => ({
       ...workspace,
@@ -359,7 +359,7 @@ export function useDeleteClient() {
  * @returns {UseMutationResult} Mutation state.
  */
 export function useMoveClient() {
-  return useWorkspaceMutation({
+  return useProjectTreeMutation({
     mutationFn: async (variables: { id: string; index: number }) => (await execute(MoveClientDocument, variables)).moveClient,
     optimistic: (workspace, { id, index }) => {
       const moved = workspace.clients.find((client) => client.id === id);
@@ -389,7 +389,7 @@ interface ProjectInputValues {
  * @returns {UseMutationResult} Mutation state.
  */
 export function useCreateProject() {
-  return useWorkspaceMutation({
+  return useProjectTreeMutation({
     mutationFn: async (input: Omit<ProjectInputValues, 'removeIcon'>) => (await execute(CreateProjectDocument, { input })).createProject,
   });
 }
@@ -399,7 +399,7 @@ export function useCreateProject() {
  * @returns {UseMutationResult} Mutation state.
  */
 export function useUpdateProject() {
-  return useWorkspaceMutation({
+  return useProjectTreeMutation({
     mutationFn: async (variables: { id: string; input: Partial<ProjectInputValues> }) => (await execute(UpdateProjectDocument, variables)).updateProject,
     optimistic: (workspace, { id, input }) => ({
       ...workspace,
@@ -416,7 +416,7 @@ export function useUpdateProject() {
  * @returns {UseMutationResult} Mutation state.
  */
 export function useSetProjectFavorite() {
-  return useWorkspaceMutation({
+  return useProjectTreeMutation({
     mutationFn: async (variables: { id: string; favorite: boolean }) => (await execute(SetProjectFavoriteDocument, variables)).setProjectFavorite,
     optimistic: (workspace, { id, favorite }) => ({
       ...workspace,
@@ -430,7 +430,7 @@ export function useSetProjectFavorite() {
  * @returns {UseMutationResult} Mutation state.
  */
 export function useSetProjectArchived() {
-  return useWorkspaceMutation({
+  return useProjectTreeMutation({
     mutationFn: async (variables: { id: string; archived: boolean }) => (await execute(SetProjectArchivedDocument, variables)).setProjectArchived,
     optimistic: (workspace, { id, archived }) => {
       // Archiving cascades to sub-projects; restoring is settled by the refetch.
@@ -448,7 +448,7 @@ export function useSetProjectArchived() {
  * @returns {UseMutationResult} Mutation state.
  */
 export function useDeleteProject() {
-  return useWorkspaceMutation({
+  return useProjectTreeMutation({
     mutationFn: async (variables: { id: string }) => (await execute(DeleteProjectDocument, variables)).deleteProject,
     optimistic: (workspace, { id }) => {
       const removed = subtreeOf(workspace.projects, id);
@@ -462,7 +462,7 @@ export function useDeleteProject() {
  * @returns {UseMutationResult} Mutation state.
  */
 export function useMoveProject() {
-  return useWorkspaceMutation({
+  return useProjectTreeMutation({
     mutationFn: async (variables: { id: string; parentId: string | null; clientId: string | null; index: number }) => (await execute(MoveProjectDocument, variables)).moveProject,
     optimistic: (workspace, { id, parentId, clientId, index }) => {
       const project = workspace.projects.find((item) => item.id === id);
@@ -483,7 +483,7 @@ export function useMoveProject() {
  * @returns {UseMutationResult} Mutation state.
  */
 export function useCreateProjectCategory() {
-  return useWorkspaceMutation({
+  return useProjectTreeMutation({
     mutationFn: async (input: { label: string; color: string }) => (await execute(CreateProjectCategoryDocument, { input })).createProjectCategory,
   });
 }
@@ -493,7 +493,7 @@ export function useCreateProjectCategory() {
  * @returns {UseMutationResult} Mutation state.
  */
 export function useUpdateProjectCategory() {
-  return useWorkspaceMutation({
+  return useProjectTreeMutation({
     mutationFn: async (variables: { id: string; input: { label?: string; color?: string } }) => (await execute(UpdateProjectCategoryDocument, variables)).updateProjectCategory,
   });
 }
@@ -503,7 +503,7 @@ export function useUpdateProjectCategory() {
  * @returns {UseMutationResult} Mutation state.
  */
 export function useDeleteProjectCategory() {
-  return useWorkspaceMutation({
+  return useProjectTreeMutation({
     mutationFn: async (variables: { id: string }) => (await execute(DeleteProjectCategoryDocument, variables)).deleteProjectCategory,
   });
 }
@@ -513,7 +513,7 @@ export function useDeleteProjectCategory() {
  * @returns {UseMutationResult} Mutation state.
  */
 export function useCreateProjectStatus() {
-  return useWorkspaceMutation({
+  return useProjectTreeMutation({
     mutationFn: async (input: { label: string; color: string }) => (await execute(CreateProjectStatusDocument, { input })).createProjectStatus,
   });
 }
@@ -523,7 +523,7 @@ export function useCreateProjectStatus() {
  * @returns {UseMutationResult} Mutation state.
  */
 export function useUpdateProjectStatus() {
-  return useWorkspaceMutation({
+  return useProjectTreeMutation({
     mutationFn: async (variables: { id: string; input: { label?: string; color?: string } }) => (await execute(UpdateProjectStatusDocument, variables)).updateProjectStatus,
   });
 }
@@ -533,7 +533,7 @@ export function useUpdateProjectStatus() {
  * @returns {UseMutationResult} Mutation state.
  */
 export function useDeleteProjectStatus() {
-  return useWorkspaceMutation({
+  return useProjectTreeMutation({
     mutationFn: async (variables: { id: string }) => (await execute(DeleteProjectStatusDocument, variables)).deleteProjectStatus,
   });
 }

@@ -30,7 +30,7 @@ export function TimePage() {
 
   return (
     <Stack gap="lg">
-      <PageHeader title={PAGES.time.title} />
+      <PageHeader title={PAGES.time.label} />
       {/* In a personal workspace, slots are no working hours: timers are not compared with them. */}
       {!perso && <PlannedTime />}
       <SectionHeader title="Temps passé" />

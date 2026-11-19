@@ -10,7 +10,7 @@ import { PackageIcon, ArchiveIcon, FolderOpenIcon, MagnifyingGlassIcon, PlusIcon
 import { useEffect, useMemo, useState, type ReactNode } from 'react';
 import { Link, useLocation } from 'react-router';
 
-import { useWorkspace } from '../api';
+import { useProjectTree } from '../api';
 import { buildActiveSection, buildArchiveSection, buildFavoriteSection, countSectionItems, sectionKeys, noClientKeys, subtreeKeys, type SortMode, type TreeSection } from '../lib/tree';
 import { useEntityActions, type EntityRef } from '../hooks/use-entity-actions';
 import { MailNavBadge } from '../../mail/components/MailNavBadge';
@@ -59,8 +59,8 @@ interface MenuGroup {
  * @returns {MenuLink} Link.
  */
 function pageLink(key: PageKey, badge?: ReactNode): MenuLink {
-  const { path, title, icon: PageIcon } = PAGES[key];
-  return { to: path, label: title, icon: <PageIcon aria-hidden />, badge };
+  const { path, label, icon: PageIcon } = PAGES[key];
+  return { to: path, label, icon: <PageIcon aria-hidden />, badge };
 }
 
 /** Menu below « Accueil »: groups folding and unfolding their pages. */
@@ -153,7 +153,7 @@ function MenuGroups({ groups, pathname }: { groups: MenuGroup[]; pathname: strin
  * @returns {JSX.Element} Sidebar content.
  */
 export function Sidebar() {
-  const workspace = useWorkspace();
+  const workspace = useProjectTree();
   // A personal workspace has no clients nor invoicing.
   const { perso } = useActiveWorkspace();
   const groups = MENU_GROUPS.map((group) => ({ ...group, links: perso ? group.links.filter((item) => !PRO_ONLY.has(item.to)) : group.links })).filter((group) => group.links.length > 0);
@@ -234,7 +234,7 @@ export function Sidebar() {
 
   return (
     <Stack h="100%" gap={0}>
-      <NavLink component={Link} to={PAGES.home.path} label={PAGES.home.title} leftSection={<PAGES.home.icon aria-hidden />} active={pathname === '/'} />
+      <NavLink component={Link} to={PAGES.home.path} label={PAGES.home.label} leftSection={<PAGES.home.icon aria-hidden />} active={pathname === '/'} />
       <Box pb="xs" style={{ borderBottom: '1px solid var(--app-shell-border-color)' }}>
         <MenuGroups groups={groups} pathname={pathname} />
       </Box>
@@ -338,7 +338,7 @@ export function Sidebar() {
       <NavLink
         component={Link}
         to={PAGES.settings.path}
-        label={PAGES.settings.title}
+        label={PAGES.settings.label}
         leftSection={<PAGES.settings.icon aria-hidden />}
         active={pathname === PAGES.settings.path}
         style={{ borderTop: '1px solid var(--app-shell-border-color)' }}

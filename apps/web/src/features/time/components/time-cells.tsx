@@ -8,10 +8,10 @@ import { localDay, localInstant, localParts } from '../../../lib/dates';
 import * as fmt from '../../../lib/format';
 import { useCalendarEvents } from '../../calendar/api';
 import { useRoutinesData } from '../../routines/api';
-import { type TaskContext, taskNumbered } from '../../tasks/hooks/use-task-context';
+import { type TaskContext } from '../../tasks/hooks/use-task-context';
 import { entrySeconds } from '@ordo/shared';
 import type { TimeEntry, TimeEntryValues } from '../api';
-import { timeTasks } from '../lib/time-tasks';
+import { timeTaskOptions, timeTasks } from '../lib/time-tasks';
 import { dayEventOptions, entryEventKey, parseEventKey } from '../lib/time-events';
 import { applyDiff, type BulkChange } from '../../../components/data-table/selection/bulk-edit';
 import { treeSelectProps } from '../../../components/tree/tree-select';
@@ -104,11 +104,11 @@ export function TimeRoutineCell({ entry, readOnly, label, save }: { entry: TimeE
  * @returns {JSX.Element} Cell.
  */
 export function TimeTasksCell({ entry, context, readOnly, label, save }: { entry: TimeEntry; context: TaskContext; readOnly: boolean; label: string; save: Save }) {
-  const options = timeTasks(context, entry.projectId ?? null, entry.taskIds).map((task) => ({ value: task.id, label: taskNumbered(task) }));
+  const options = treeSelectProps(timeTaskOptions(context, timeTasks(context, entry.projectId ?? null, entry.taskIds)));
   return (
     <EditableMultiSelect
       label={label}
-      data={options}
+      {...options}
       value={entry.taskIds}
       readOnly={readOnly}
       onSave={(taskIds) => save(entry, (row) => ({ taskIds: applyDiff(row.taskIds, entry.taskIds, taskIds) }))}

@@ -43,10 +43,15 @@ const allDocuments = (entry: AnyEntry) => [...entry.documents, ...entry.lines.fl
  * payee, project, supporting documents, linked entries, and the repetition of a forecast.
  * @param {(row: R) => AnyEntry | undefined} entryOf Entry of a row (none: an invoice due…).
  * @param {EntryEnv} env Names.
- * @param {{ payerName: (row: R) => string, recurrence?: boolean }} options Name of the payer of a row (with or without entry), and a repetition column.
+ * @param {{ payerName: (row: R) => string, recurrence?: boolean, allEntries?: boolean }} options Name of the payer of a row (with or without entry), a
+ *   repetition column, and whether every row is an entry (its account and value date are then never empty).
  * @returns {DataColumn<R>[]} Columns.
  */
-export function entryFieldColumns<R>(entryOf: (row: R) => AnyEntry | undefined, env: EntryEnv, options: { payerName: (row: R) => string; recurrence?: boolean }): DataColumn<R>[] {
+export function entryFieldColumns<R>(
+  entryOf: (row: R) => AnyEntry | undefined,
+  env: EntryEnv,
+  options: { payerName: (row: R) => string; recurrence?: boolean; allEntries?: boolean },
+): DataColumn<R>[] {
   const categoryText = (row: R) => {
     return entryCategories(entryOf(row))
       .map((id) => env.paths.get(id) ?? '')
@@ -65,6 +70,7 @@ export function entryFieldColumns<R>(entryOf: (row: R) => AnyEntry | undefined, 
     {
       id: 'account',
       bulk: true,
+      required: options.allEntries,
       label: 'Compte',
       size: 150,
       sortValue: (row) => entryOf(row)?.accountLabel ?? null,
@@ -78,6 +84,7 @@ export function entryFieldColumns<R>(entryOf: (row: R) => AnyEntry | undefined, 
     },
     {
       id: 'valueDate',
+      required: options.allEntries,
       bulk: true,
       label: 'Date de valeur',
       size: 130,
@@ -101,6 +108,7 @@ export function entryFieldColumns<R>(entryOf: (row: R) => AnyEntry | undefined, 
           return entry ? (payerKey(entry) ?? NONE) : null;
         },
         options: [{ value: NONE, label: 'Aucun' }, ...env.payers.flatMap((group) => group.items)],
+        none: NONE,
       },
       groupable: true,
     },

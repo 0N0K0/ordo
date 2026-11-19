@@ -9,7 +9,6 @@ import { useState } from 'react';
 import { SubSection } from '../../../components/page/SubSection';
 import { ON_ERROR } from '../../../lib/notify';
 import { confirmDestructive } from '../../../components/dialogs/confirm-destructive';
-import { DestructiveButton } from '../../../components/dialogs/DestructiveActions';
 import { localToday } from '../../../lib/dates';
 import { useRoutineMutations, useRoutineOccurrences, useRoutinesData, type RoutineOccurrence } from '../api';
 import { movableOccurrence, moveTo, movesOf, windowText } from '../lib/routine-format';
@@ -176,8 +175,10 @@ export function RoutineMoveForm({ routineId, onDone }: { routineId: string; onDo
             Fermer
           </ActionButton>
           {date && (
-            <DestructiveButton
-              leftSection={<CalendarXIcon aria-hidden />}
+            <ActionButton
+              priority="secondary"
+              danger
+              icon={<CalendarXIcon aria-hidden />}
               loading={deleteOccurrence.isPending}
               onClick={() =>
                 confirmDestructive({
@@ -190,7 +191,7 @@ export function RoutineMoveForm({ routineId, onDone }: { routineId: string; onDo
               }
             >
               Annuler l’occurrence
-            </DestructiveButton>
+            </ActionButton>
           )}
           {date && (
             <ActionButton type="submit" icon={submitIcon} disabled={!target || (target === date && !timesChanged)} loading={moveOccurrence.isPending}>

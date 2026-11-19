@@ -179,7 +179,7 @@ export function SheetPage() {
     (sheet?.items ?? []).map((item) => item.id),
   );
   const columns: DataColumn<SheetDetailItem>[] = [
-    { id: 'label', label: 'Élément', size: 220, locked: true, bulk: true, sortValue: (item) => item.label, text: (item) => item.label },
+    { id: 'label', required: true, label: 'Élément', size: 220, locked: true, bulk: true, sortValue: (item) => item.label, text: (item) => item.label },
     {
       id: 'product',
       label: 'Référence',
@@ -219,7 +219,7 @@ export function SheetPage() {
   );
 
   if (isPending) return <DetailSkeleton />;
-  if (!sheet) return <DetailNotFound what="Cette fiche" feminine backTo={PAGES.sheets.path} backLabel={PAGES.sheets.title} />;
+  if (!sheet) return <DetailNotFound what="Cette fiche" feminine backTo={PAGES.sheets.path} backLabel={PAGES.sheets.label} />;
 
   const locked = sheet.archived;
   const remove = rowMenuEntry(deleteSheetsAction([sheet], (row) => mutations.remove.mutateAsync(row.id).then(() => navigate(PAGES.sheets.path))));
@@ -261,8 +261,8 @@ export function SheetPage() {
   return (
     <Stack gap="lg">
       <DetailHeader
-        back={{ to: PAGES.sheets.path, label: PAGES.sheets.title }}
-        page={<PageHeader title={PAGES.sheets.title} />}
+        back={{ to: PAGES.sheets.path, label: PAGES.sheets.label }}
+        page={<PageHeader title={PAGES.sheets.label} />}
         title={sheet.label}
         badges={sheet.archived && <ArchivedBadge feminine />}
         subtitle={
@@ -282,7 +282,7 @@ export function SheetPage() {
           )
         }
         menu={{
-          about: `la fiche « ${sheet.label} »`,
+          name: sheet.label,
           items: [
             !sheet.archived && {
               label: 'Dupliquer',

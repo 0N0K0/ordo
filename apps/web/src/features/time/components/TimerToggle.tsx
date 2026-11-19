@@ -3,7 +3,7 @@ import { type ActionIconProps } from '@mantine/core';
 import { PlayIcon } from '@phosphor-icons/react';
 import { stopClick } from '../../../components/data-table/cells/cell-field';
 import type { TimeEntry, TimerStartValues } from '../api';
-import { TIMER_REPLACED_HINT, useStartTimer } from '../hooks/use-start-timer';
+import { useStartTimer } from '../hooks/use-start-timer';
 import { StopTimerButton } from './TimerStop';
 
 interface TimerToggleProps {
@@ -26,12 +26,12 @@ interface TimerToggleProps {
  * @returns {JSX.Element} Button.
  */
 export function TimerToggle({ name, mine, input, disabled = false, size }: TimerToggleProps) {
-  const { startTimer, isPending: starting, replacing } = useStartTimer();
+  const { startTimer, isPending: starting, hint } = useStartTimer();
   if (mine) return <StopTimerButton entry={mine} name={name} size={size} />;
   return (
     <IconAction
       label="Démarrer le chrono"
-      hint={replacing ? `Démarrer le chrono. ${TIMER_REPLACED_HINT}` : undefined}
+      hint={hint(disabled, 'Démarrer le chrono.')}
       size={size}
       loading={starting}
       disabled={disabled}

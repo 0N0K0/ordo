@@ -11,11 +11,11 @@ import { treasuryEntrySchema, type TreasuryAllocationInput, sumOf } from '@ordo/
 import { useState } from 'react';
 import { useAppForm, formCallbacks } from '../../../lib/form';
 import { useAccountingDocuments, useImportedDocuments } from '../../accounting/api/documents';
-import { useWorkspace } from '../../projects/api';
+import { useProjectTree } from '../../projects/api';
 import { useTreasuryAccounts, useTreasuryDocumentOptions, useTreasuryMutations, useTreasurySettings, type ForecastEntry, type TreasuryEntry } from '../api';
 import { categoryOptions } from '../lib/categories';
 import { DIRECTION_OPTIONS } from '../lib/direction';
-import { LinesEditor } from './LinesEditor';
+import { SplitLinesEditor } from './SplitLinesEditor';
 import type { LineLink } from '../lib/lines';
 import { documentGroups, payerGroups, payerKey, payerOfKey } from '../lib/entry-env';
 import { SupportingDocumentsSelect } from './SupportingDocumentsSelect';
@@ -105,7 +105,7 @@ export function EntryForm({ entry, status = 'ACTUAL', copy = false, onDone }: En
   const { data: settings } = useTreasurySettings();
   const { data: documentOptions } = useTreasuryDocumentOptions();
   const [linked, setLinked] = useState<LinkedSummary[]>(() => (entry?.linkedEntries ?? []).map((item) => ({ ...item, date: item.date })));
-  const { data: workspace } = useWorkspace();
+  const { data: workspace } = useProjectTree();
   // No invoicing in a personal workspace: no documents to settle.
   const { perso } = useActiveWorkspace();
   const { data: documents } = useAccountingDocuments();
@@ -263,7 +263,7 @@ export function EntryForm({ entry, status = 'ACTUAL', copy = false, onDone }: En
           <TextInput label="Lien" placeholder="https://… (une commande en ligne, par exemple)" type="url" {...form.getInputProps('url')} />
 
           <Divider label="Répartition" labelPosition="left" />
-          <LinesEditor
+          <SplitLinesEditor
             lines={values.lines}
             onChange={(lines) => {
               if (split || !lines.length) {

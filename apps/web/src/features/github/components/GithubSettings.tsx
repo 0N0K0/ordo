@@ -1,6 +1,5 @@
 import { EmptyState } from '../../../components/feedback/EmptyState';
 import { FormSkeleton } from '../../../components/feedback/Skeletons';
-import { DestructiveButton } from '../../../components/dialogs/DestructiveActions';
 import { confirmDestructive } from '../../../components/dialogs/confirm-destructive';
 import { Anchor, Badge, Group, PasswordInput, Table, Text, TextInput } from '@mantine/core';
 import { GithubLogoIcon, PlugsIcon, KeyIcon } from '@phosphor-icons/react';
@@ -118,9 +117,9 @@ export function GithubSettings() {
               {login ? 'Remplacer' : 'Connecter'}
             </ActionButton>
             {login && (
-              <DestructiveButton mt={25} leftSection={<PlugsIcon aria-hidden />} onClick={confirmRemove}>
+              <ActionButton priority="secondary" danger mt={25} icon={<PlugsIcon aria-hidden />} onClick={confirmRemove}>
                 Déconnecter
-              </DestructiveButton>
+              </ActionButton>
             )}
           </Group>
         </form>

@@ -1,10 +1,17 @@
 import { unarchived, archivedIds } from '../../../lib/archive';
 import { treeOptions, type TreeNode, type TreeOption } from '../../../components/tree/tree-select';
 import { ancestorsOf, lineageOf, mapById, LEVEL, MAX_PROJECT_DEPTH, sumOf } from '@ordo/shared';
-import type { Client, Project, Workspace } from '../api';
+import type { Client, Project, ProjectTree } from '../api';
 import { collator, normalize } from '../../../lib/text';
 
 export type SortMode = 'manual' | 'name';
+
+/**
+ * Clients as the items of a select (listSelectProps): a client keeps its name, offered as the label of its option.
+ * @param {readonly Client[]} clients Clients.
+ * @returns {(Client & { label: string })[]} Items.
+ */
+export const clientItems = (clients: readonly Client[]): (Client & { label: string })[] => clients.map((client) => ({ ...client, label: client.name }));
 
 /** Container id used for projects without client. */
 export const NO_CLIENT = 'none';
@@ -103,45 +110,45 @@ function filterSection(section: TreeSection, search: string): TreeSection {
 }
 
 /**
- * Client name and parent titles of a project, from the client down to its parent.
- * @param {Workspace} workspace Workspace data.
+ * Client name and parent labels of a project, from the client down to its parent.
+ * @param {ProjectTree} tree Clients, projects, categories and statuses.
  * @param {Project} project Project.
  * @returns {string} Path such as "Acme › Site › V2" (without client: its parents alone, empty for a root project).
  */
-function projectPath(workspace: Workspace, project: Project): string {
-  const names = lineageOf(mapById(workspace.projects), project.parentId)
+function projectAncestry(tree: ProjectTree, project: Project): string {
+  const names = lineageOf(mapById(tree.projects), project.parentId)
     .reverse()
     .map((parent) => parent.label);
-  const client = workspace.clients.find((item) => item.id === project.clientId);
+  const client = tree.clients.find((item) => item.id === project.clientId);
   return [...(client ? [client.name] : []), ...names].join(LEVEL);
 }
 
 /**
  * Full path of a project, its client first: what lists offering projects show.
- * @param {Workspace} workspace Workspace data.
+ * @param {ProjectTree} tree Clients, projects, categories and statuses.
  * @param {Project} project Project.
  * @returns {string} "Client › Projet › Sous-projet" (without client: "Projet › Sous-projet").
  */
-export function projectFullPath(workspace: Workspace, project: Project): string {
-  return [projectPath(workspace, project), project.label].filter(Boolean).join(LEVEL);
+export function projectFullPath(tree: ProjectTree, project: Project): string {
+  return [projectAncestry(tree, project), project.label].filter(Boolean).join(LEVEL);
 }
 
 /**
  * Options of a select of projects, in the order of the tree: under their client (greyed out, not selectable), each
  * project followed by its sub-projects, indented; parents not offered are greyed out too.
- * @param {Workspace | undefined} workspace Workspace data.
+ * @param {ProjectTree | undefined} tree Clients, projects, categories and statuses.
  * @param {Project[]} projects Projects offered.
  * @returns {TreeOption[]} Options.
  */
-export function projectOptions(workspace: Workspace | undefined, projects: Project[]): TreeOption[] {
+export function projectOptions(tree: ProjectTree | undefined, projects: Project[]): TreeOption[] {
   const offered = new Set(projects.map((project) => project.id));
-  if (!workspace) return treeOptions(projects.map((project) => ({ id: project.id, parentId: null, label: project.label })));
-  return treeOptions(projectNodes(workspace), (id) => offered.has(id));
+  if (!tree) return treeOptions(projects.map((project) => ({ id: project.id, parentId: null, label: project.label })));
+  return treeOptions(projectNodes(tree), (id) => offered.has(id));
 }
 
 /**
  * Options of a select of the projects of a client (projectOptions), archived ones left out unless asked.
- * @param {Workspace | undefined} workspace Workspace data.
+ * @param {ProjectTree | undefined} tree Clients, projects, categories and statuses.
  * @param {string | null} clientId Client (null: the projects without client, or every project with `anyWhenNoClient`).
  * @param {object} [options] Options. Optional.
  * @param {boolean} [options.archived=false] Offers the archived projects too. Optional. Default = false.
@@ -150,29 +157,29 @@ export function projectOptions(workspace: Workspace | undefined, projects: Proje
  * @returns {TreeOption[]} Options.
  */
 export function clientProjectOptions(
-  workspace: Workspace | undefined,
+  tree: ProjectTree | undefined,
   clientId: string | null,
   { archived = false, keepId = null, anyWhenNoClient = false }: { archived?: boolean; keepId?: string | null; anyWhenNoClient?: boolean } = {},
 ): TreeOption[] {
-  const projects = workspace?.projects ?? [];
+  const projects = tree?.projects ?? [];
   const offered = (archived ? projects : unarchived(projects, keepId)).filter(
     (project) => (keepId != null && project.id === keepId) || (anyWhenNoClient && !clientId) || project.clientId === clientId,
   );
-  return projectOptions(workspace, offered);
+  return projectOptions(tree, offered);
 }
 
 /**
  * Tree of the clients (ids "client:<id>", "client:none" for the projects without client) and of their projects,
  * siblings in their manual order (archived last).
- * @param {Workspace} workspace Workspace data.
+ * @param {ProjectTree} tree Clients, projects, categories and statuses.
  * @returns {TreeNode[]} Nodes.
  */
-export function projectNodes(workspace: Workspace): TreeNode[] {
+export function projectNodes(tree: ProjectTree): TreeNode[] {
   const byOrder = <T extends { archived: boolean; position: number }>(a: T, b: T) => Number(a.archived) - Number(b.archived) || a.position - b.position;
   return [
-    ...[...workspace.clients].sort(byOrder).map((client) => ({ id: `client:${client.id}`, parentId: null, label: client.name, color: client.color, iconUrl: client.iconUrl })),
+    ...[...tree.clients].sort(byOrder).map((client) => ({ id: `client:${client.id}`, parentId: null, label: client.name, color: client.color, iconUrl: client.iconUrl })),
     { id: 'client:none', parentId: null, label: 'Sans client', pathless: true },
-    ...[...workspace.projects]
+    ...[...tree.projects]
       .sort(byOrder)
       .map((project) => ({ id: project.id, parentId: project.parentId ?? `client:${project.clientId ?? 'none'}`, label: project.label, color: project.color, iconUrl: project.iconUrl })),
   ];
@@ -211,16 +218,16 @@ export function canHaveChildren(projects: Project[], id: string): boolean {
 
 /**
  * Builds the main tree: active clients with their active project trees, and active trees without client.
- * @param {Workspace} workspace Workspace data.
+ * @param {ProjectTree} tree Clients, projects, categories and statuses.
  * @param {SortMode} sort Sort mode.
  * @param {string} search Search text.
  * @returns {TreeSection} Active section.
  */
-export function buildActiveSection(workspace: Workspace, sort: SortMode, search: string): TreeSection {
-  const active = unarchived(workspace.projects);
+export function buildActiveSection(tree: ProjectTree, sort: SortMode, search: string): TreeSection {
+  const active = unarchived(tree.projects);
   const roots = active.filter((project) => !project.parentId);
   const section: TreeSection = {
-    clients: sortItems(unarchived(workspace.clients), sort).map((client) => ({
+    clients: sortItems(unarchived(tree.clients), sort).map((client) => ({
       client,
       projects: buildForest(
         roots.filter((project) => project.clientId === client.id),
@@ -249,16 +256,16 @@ interface ContextSeeds {
 /**
  * Builds a section showing some clients and projects with their sub-trees, plus their client and
  * parent projects as context so the hierarchy stays readable.
- * @param {Workspace} workspace Workspace data.
+ * @param {ProjectTree} tree Clients, projects, categories and statuses.
  * @param {SortMode} sort Sort mode.
  * @param {string} search Search text.
  * @param {ContextSeeds} seeds Section content.
  * @returns {TreeSection} Section with its context keys.
  */
-function buildContextSection(workspace: Workspace, sort: SortMode, search: string, { clientIds, projectIds, keep }: ContextSeeds): TreeSection {
-  const byId = mapById(workspace.projects);
+function buildContextSection(tree: ProjectTree, sort: SortMode, search: string, { clientIds, projectIds, keep }: ContextSeeds): TreeSection {
+  const byId = mapById(tree.projects);
   const childrenOf = new Map<string, Project[]>();
-  for (const project of workspace.projects) {
+  for (const project of tree.projects) {
     if (!project.parentId) continue;
     childrenOf.set(project.parentId, [...(childrenOf.get(project.parentId) ?? []), project]);
   }
@@ -273,7 +280,7 @@ function buildContextSection(workspace: Workspace, sort: SortMode, search: strin
     content.add(project.id);
     (childrenOf.get(project.id) ?? []).filter(keep).forEach(addSubtree);
   };
-  workspace.projects.filter((project) => keep(project) && ((project.clientId && clientIds.has(project.clientId) && !project.parentId) || projectIds.has(project.id))).forEach(addSubtree);
+  tree.projects.filter((project) => keep(project) && ((project.clientId && clientIds.has(project.clientId) && !project.parentId) || projectIds.has(project.id))).forEach(addSubtree);
 
   // Ancestors and clients of the content are shown as context.
   const included = new Set(content);
@@ -291,11 +298,11 @@ function buildContextSection(workspace: Workspace, sort: SortMode, search: strin
     if (!clientIds.has(clientId)) contextKeys.add(`c:${clientId}`);
   }
 
-  const shown = workspace.projects.filter((project) => included.has(project.id));
+  const shown = tree.projects.filter((project) => included.has(project.id));
   const roots = shown.filter((project) => !project.parentId);
   const section: TreeSection = {
     clients: sortItems(
-      workspace.clients.filter((client) => shownClients.has(client.id)),
+      tree.clients.filter((client) => shownClients.has(client.id)),
       sort,
     ).map((client) => ({
       client,
@@ -317,20 +324,20 @@ function buildContextSection(workspace: Workspace, sort: SortMode, search: strin
 /**
  * Builds the favorites tree: favorite clients with their active projects, and favorite projects with
  * their active sub-projects, under their client and parents.
- * @param {Workspace} workspace Workspace data.
+ * @param {ProjectTree} tree Clients, projects, categories and statuses.
  * @param {SortMode} sort Sort mode.
  * @param {string} search Search text.
  * @returns {TreeSection} Favorites section.
  */
-export function buildFavoriteSection(workspace: Workspace, sort: SortMode, search: string): TreeSection {
-  return buildContextSection(workspace, sort, search, {
+export function buildFavoriteSection(tree: ProjectTree, sort: SortMode, search: string): TreeSection {
+  return buildContextSection(tree, sort, search, {
     clientIds: new Set(
-      unarchived(workspace.clients)
+      unarchived(tree.clients)
         .filter((client) => client.favorite)
         .map((client) => client.id),
     ),
     projectIds: new Set(
-      unarchived(workspace.projects)
+      unarchived(tree.projects)
         .filter((project) => project.favorite)
         .map((project) => project.id),
     ),
@@ -341,15 +348,15 @@ export function buildFavoriteSection(workspace: Workspace, sort: SortMode, searc
 /**
  * Builds the archive tree: archived clients with their projects, and archived projects with their
  * sub-projects, under their (possibly active) client and parents.
- * @param {Workspace} workspace Workspace data.
+ * @param {ProjectTree} tree Clients, projects, categories and statuses.
  * @param {SortMode} sort Sort mode.
  * @param {string} search Search text.
  * @returns {TreeSection} Archive section.
  */
-export function buildArchiveSection(workspace: Workspace, sort: SortMode, search: string): TreeSection {
-  return buildContextSection(workspace, sort, search, {
-    clientIds: archivedIds(workspace.clients),
-    projectIds: archivedIds(workspace.projects),
+export function buildArchiveSection(tree: ProjectTree, sort: SortMode, search: string): TreeSection {
+  return buildContextSection(tree, sort, search, {
+    clientIds: archivedIds(tree.clients),
+    projectIds: archivedIds(tree.projects),
     keep: (project) => project.archived,
   });
 }

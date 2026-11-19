@@ -6,7 +6,7 @@ import {
   formatOptionalDay,
   LABEL_MAX,
   mapById,
-  normalize,
+  nameKey,
   MILESTONE_LABEL_MAX,
   parseDay,
   parseOptionalDay,
@@ -49,6 +49,7 @@ import { isUnmapped, mergeFields, type SyncFields } from './merge';
 import { schedulePerWorkspace } from '../workspace/workspaces';
 import { subtreeIds } from '../core/trees';
 import { connectIds } from '../core/relations';
+import { toJson } from '../core/json';
 
 interface SyncSummary {
   /** Tasks created from items, and items created from tasks. */
@@ -130,18 +131,11 @@ function fieldValue(value: FieldValue | undefined): string | number | null {
 }
 
 /**
- * Key of a label name: compared without case nor accents, spaces around left out (« Été » and « ete » are one label).
- * @param {string} name Name.
- * @returns {string} Key.
- */
-const labelKey = (name: string): string => normalize(name.trim());
-
-/**
- * Label names compared by their key (labelKey).
+ * Label names compared by their key (`nameKey`: « Été » and « ete » are one label).
  * @param {string[]} names Names.
  * @returns {string[]} Keys, sorted, each once.
  */
-const labelKeys = (names: string[]) => [...new Set(names.map(labelKey))].sort();
+const labelKeys = (names: string[]) => [...new Set(names.map(nameKey))].sort();
 
 /**
  * Issues of linked tasks (tasks without issue have no counterpart and are left alone on both sides).
@@ -326,7 +320,7 @@ async function pullData(values: SyncFields, task: SyncedTask, maps: Maps, item: 
       // Names cut to the rule of the tags: a long label is found again by its cut name.
       let tag = tags.find((item) => sameName(item.label, clipText(key, LABEL_MAX)));
       if (!tag) {
-        const label = item.labels.find((entry) => labelKey(entry.name) === key);
+        const label = item.labels.find((entry) => nameKey(entry.name) === key);
         const position = await nextPositionIn('taskTag');
         tag = await prisma.taskTag.create({ data: { label: clipText(label?.name ?? key, LABEL_MAX), color: DEFAULT_LABEL_COLOR, position } });
         tags.push(tag);
@@ -441,13 +435,13 @@ async function pushValues(
   if ('labels' in values && item.repositoryId) {
     let repository = labels.get(item.repositoryId);
     if (!repository) {
-      repository = new Map((await repositoryLabels(token, item.repositoryId)).map((label) => [labelKey(label.name), label.id]));
+      repository = new Map((await repositoryLabels(token, item.repositoryId)).map((label) => [nameKey(label.name), label.id]));
       labels.set(item.repositoryId, repository);
     }
     const wanted = values.labels as string[];
     const add: string[] = [];
     for (const key of wanted) {
-      if (item.labels.some((label) => labelKey(label.name) === key)) continue;
+      if (item.labels.some((label) => nameKey(label.name) === key)) continue;
       let id = repository.get(key);
       if (!id) {
         // A tag without label in the repository: created with the tag's label and color.
@@ -457,7 +451,7 @@ async function pushValues(
       }
       add.push(id);
     }
-    const remove = item.labels.filter((label) => !wanted.includes(labelKey(label.name))).map((label) => label.id);
+    const remove = item.labels.filter((label) => !wanted.includes(nameKey(label.name))).map((label) => label.id);
     await setIssueLabels(token, item.contentId, add, remove);
   }
   if ('parent' in values && item.type === 'ISSUE') {
@@ -767,7 +761,7 @@ export async function syncGithubProject(projectId: string): Promise<SyncSummary>
     const labels: LabelCache = new Map();
     const milestones: MilestoneCache = new Map();
     const sent: SentRelations = new Set();
-    const tagColors = new Map((await prisma.taskTag.findMany()).map((tag) => [labelKey(tag.label), tag.color]));
+    const tagColors = new Map((await prisma.taskTag.findMany()).map((tag) => [nameKey(tag.label), tag.color]));
     /**
      * What a push of the values of a task needs besides them: its tags, the caches of this sync.
      * @param {SyncedTask} task Task.
@@ -776,7 +770,7 @@ export async function syncGithubProject(projectId: string): Promise<SyncSummary>
      */
     const pushContext = (task: SyncedTask, knownBefore: string[]): Parameters<typeof pushValues>[4] => ({
       knownBefore,
-      tags: task.tags.map((tag) => ({ label: tag.label, color: tagColors.get(labelKey(tag.label)) })),
+      tags: task.tags.map((tag) => ({ label: tag.label, color: tagColors.get(nameKey(tag.label)) })),
       labels,
       milestones,
       sent,
@@ -808,7 +802,7 @@ export async function syncGithubProject(projectId: string): Promise<SyncSummary>
           githubContentType: item.type,
           githubUrl: item.url,
           githubNumber: item.number,
-          githubSnapshot: result.snapshot as Prisma.InputJsonValue,
+          githubSnapshot: toJson(result.snapshot),
         },
       });
       if (Object.keys(result.pull).length && !created.has(item.itemId)) summary.pulled += 1;
@@ -868,7 +862,7 @@ export async function syncGithubProject(projectId: string): Promise<SyncSummary>
           githubContentType: created.type,
           githubUrl: created.url,
           githubNumber: created.number,
-          githubSnapshot: snapshot as Prisma.InputJsonValue,
+          githubSnapshot: toJson(snapshot),
         },
       });
       if (created.number !== null && (await matchIssueNumber(task.id, created.number))) summary.renumbered += 1;
@@ -878,7 +872,7 @@ export async function syncGithubProject(projectId: string): Promise<SyncSummary>
 
     await prisma.githubProjectLink.update({
       where: { id: link.id },
-      data: { lastSyncAt: new Date(), lastSyncError: null, lastSyncSummary: summary as unknown as Prisma.InputJsonValue, label: board.title, url: board.url },
+      data: { lastSyncAt: new Date(), lastSyncError: null, lastSyncSummary: toJson(summary), label: board.title, url: board.url },
     });
     return summary;
   } catch (error) {

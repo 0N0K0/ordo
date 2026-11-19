@@ -2,18 +2,18 @@ import { dateSchema, markdownSchema, milestoneLabelSchema, parseOptionalDay } fr
 import { z } from 'zod';
 import { prisma } from '../../db';
 import type { Milestone } from '../../generated/prisma/client';
-import { orNotFound, parseInput } from '../../graphql/errors';
+import { parseInput } from '../../graphql/errors';
 import { moveInList, nextPositionIn } from '../core/ordering';
-import { assertNotArchived } from '../core/archive';
+import { assertNotArchived, assertActive, refuseArchived } from '../core/archive';
+import { findOrNotFound } from '../core/lookup';
 
 /**
  * Loads a milestone or throws NOT_FOUND.
  * @param {string} id Milestone id.
  * @returns {Promise<Milestone>} Milestone.
  */
-async function findMilestone(id: string): Promise<Milestone> {
-  const milestone = await orNotFound(prisma.milestone.findUnique({ where: { id } }), 'Jalon');
-  return milestone;
+function findMilestone(id: string): Promise<Milestone> {
+  return findOrNotFound(prisma.milestone, id, 'Jalon');
 }
 
 /**
@@ -23,7 +23,7 @@ async function findMilestone(id: string): Promise<Milestone> {
  */
 async function findEditableMilestone(id: string): Promise<Milestone> {
   const milestone = await findMilestone(id);
-  await assertNotArchived('milestone', id);
+  refuseArchived(milestone);
   await assertNotArchived('project', milestone.projectId);
   return milestone;
 }
@@ -44,8 +44,7 @@ const fieldsSchema = z.object({
  * @returns {Promise<Milestone>} Created milestone.
  */
 export async function createMilestone(input: { projectId: string; label: string; description?: string | null; dueDate?: string | null }): Promise<Milestone> {
-  await orNotFound(prisma.project.findUnique({ where: { id: input.projectId }, select: { id: true } }), 'Projet');
-  await assertNotArchived('project', input.projectId, { field: 'projectId' });
+  await assertActive(prisma.project, input.projectId, 'Projet', { field: 'projectId' });
   const fields = parseInput(fieldsSchema.required({ label: true }), {
     label: input.label,
     description: input.description ?? null,

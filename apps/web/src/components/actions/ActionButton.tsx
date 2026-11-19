@@ -15,7 +15,11 @@ interface ActionButtonProps extends Omit<ButtonProps, 'variant' | 'color' | 'lef
   children: ReactNode;
   /** Main action (filled), another one (outlined) or a small one (subtle text, xs: decision BE). Optional. Default = 'primary'. */
   priority?: ActionPriority;
-  /** Destructive small action (« Retirer » the logo…), in red: tertiary only. Optional. Default = false. */
+  /**
+   * Destructive action, in red (decision CG): filled for the confirmation of a destructive dialog, red outline for
+   * a button starting one (« Supprimer le brouillon », « Délier »), subtle red text for a small one (« Retirer » the logo).
+   * Optional. Default = false.
+   */
   danger?: boolean;
   /** Icon before the label: every action button has one. */
   icon: ReactNode;
@@ -30,6 +34,8 @@ interface ActionButtonProps extends Omit<ButtonProps, 'variant' | 'color' | 'lef
    * button itself without `onClick`/`to`, by its caret otherwise. Optional.
    */
   menu?: readonly RowMenuEntry[];
+  /** Name of the action in the hidden labels of its menu, when its label is not plain text. Optional. Default = its label. */
+  menuName?: string;
   /** Tooltip (what it does besides, why it is disabled): shown on a disabled button too. Optional. */
   hint?: ReactNode;
 }
@@ -56,15 +62,18 @@ export function ActionButton({ hint, ...props }: ActionButtonProps) {
  * @param {ActionButtonProps} props Component props.
  * @returns {JSX.Element} Button.
  */
-function ActionButtonBody({ children, priority = 'primary', danger = false, icon, to, href, download, menu, onClick, ...rest }: Omit<ActionButtonProps, 'hint'>) {
-  const variant = priority === 'primary' ? 'filled' : priority === 'secondary' ? 'default' : 'subtle';
-  // A small action: always xs, red when destructive.
-  const props = priority === 'tertiary' ? { ...rest, size: 'xs', ...(danger ? { color: 'red' } : {}) } : rest;
+function ActionButtonBody({ children, priority = 'primary', danger = false, icon, to, href, download, menu, menuName, onClick, ...rest }: Omit<ActionButtonProps, 'hint'>) {
+  // A destructive secondary action: a red outline (decision CG), not the grey one of the others.
+  const variant = priority === 'primary' ? 'filled' : priority === 'secondary' ? (danger ? 'outline' : 'default') : 'subtle';
+  // A small action: always xs. Red when destructive, whatever the priority.
+  const props = { ...rest, ...(priority === 'tertiary' && { size: 'xs' }), ...(danger && { color: 'red' }) };
+  // A label in JSX has no text to quote (« [object Object] »): its menu then needs `menuName`.
+  const name = menuName ?? (typeof children === 'string' || typeof children === 'number' ? String(children) : undefined);
   const link = to ? ({ component: Link, to } as object) : href ? ({ component: 'a', href, download } as object) : {};
   if (menu && !onClick && !to && !href) {
     return (
       <ActionsMenu
-        name={String(children)}
+        name={name}
         items={menu}
         target={
           <Button variant={variant} leftSection={icon} rightSection={<MenuCaret />} {...props}>
@@ -84,10 +93,10 @@ function ActionButtonBody({ children, priority = 'primary', danger = false, icon
     <Button.Group>
       {button}
       <ActionsMenu
-        name={String(children)}
+        name={name}
         items={menu}
         target={
-          <Button variant={variant} size={props.size} disabled={props.disabled} px="xs" aria-label={`Autres façons « ${String(children)} »`}>
+          <Button variant={variant} size={props.size} disabled={props.disabled} px="xs" aria-label={name ? `Autres façons « ${name} »` : 'Autres façons'}>
             <MenuCaret />
           </Button>
         }

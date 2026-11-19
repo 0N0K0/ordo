@@ -1,4 +1,4 @@
-import { plural } from '../../../lib/text';
+import { countOf, plural } from '../../../lib/text';
 
 /**
  * Rows selected, told: "3 lignes sélectionnées", "1 fiche sélectionnée".
@@ -8,4 +8,4 @@ import { plural } from '../../../lib/text';
  * @returns {string} Text.
  */
 export const selectedLabel = (count: number, [one, many]: [string, string] = ['ligne', 'lignes'], feminine = true) =>
-  `${count} ${plural(count, one, many)} ${plural(count, feminine ? 'sélectionnée' : 'sélectionné')}`;
+  `${countOf(count, one, many)} ${plural(count, feminine ? 'sélectionnée' : 'sélectionné')}`;

@@ -1,6 +1,6 @@
 import { toggledIn } from '../../../lib/sets';
 import { LabeledField } from '../../../components/inputs/LabeledField';
-import { plural } from '../../../lib/text';
+import { countOf } from '../../../lib/text';
 import { EmptyState } from '../../../components/feedback/EmptyState';
 import { TableSkeleton } from '../../../components/feedback/Skeletons';
 import { Checkbox, Group, NumberInput, SegmentedControl, Select, SimpleGrid, Stack, Text, TextInput } from '@mantine/core';
@@ -32,10 +32,11 @@ const workOf = (entry: BillableTime) => [entry.tasks.join(', '), entry.descripti
 
 /** Columns of the time to bill. */
 const BILLING_COLUMNS: DataColumn<BillableTime>[] = [
-  { id: 'day', label: 'Jour', size: 110, sortValue: (entry) => entry.day, text: (entry) => fmt.dayShort(entry.day), filter: { kind: 'date', value: (entry) => entry.day } },
+  { id: 'day', required: true, label: 'Jour', size: 110, sortValue: (entry) => entry.day, text: (entry) => fmt.dayShort(entry.day), filter: { kind: 'date', value: (entry) => entry.day } },
   { id: 'work', label: 'Temps', size: 320, locked: true, sortValue: workOf, text: workOf },
   {
     id: 'duration',
+    required: true,
     label: 'Durée',
     size: 100,
     numeric: true,
@@ -83,7 +84,7 @@ export function TimeBillingForm({ projectId: initialProject, projects, excludeId
   const [hoursPerDay, setHoursPerDay] = useState(7);
   const [unitPrice, setUnitPrice] = useState(0);
   const [vatRate, setVatRate] = useState(vatApplicable ? 20 : 0);
-  const [title, setTitle] = useState('Prestation');
+  const [lineLabel, setLineLabel] = useState('Prestation');
   const [roundQuarter, setRoundQuarter] = useState(false);
   const [unchecked, setUnchecked] = useState<Set<string>>(new Set());
   const entries = useTimeEntries(projectId ?? '');
@@ -102,7 +103,7 @@ export function TimeBillingForm({ projectId: initialProject, projects, excludeId
     }))
     .filter((entry) => (!from || entry.day >= from) && (!to || entry.day <= to));
   const selected = billable.filter((entry) => !unchecked.has(entry.id));
-  const lines = timeLines(selected, { grouping, unit, hoursPerDay, unitPrice, vatRate, label: title.trim() || 'Prestation', roundQuarter });
+  const lines = timeLines(selected, { grouping, unit, hoursPerDay, unitPrice, vatRate, label: lineLabel.trim() || 'Prestation', roundQuarter });
   const total = sumOf(lines, (line) => toCents(line.quantity * line.unitPrice));
   const days = selected.map((entry) => entry.day).sort();
   const view = useDataView({ tableKey: 'time-billing', columns: BILLING_COLUMNS, rows: billable, title: 'Temps à facturer', getKey: (entry) => entry.id });
@@ -179,11 +180,11 @@ export function TimeBillingForm({ projectId: initialProject, projects, excludeId
             setUnit(item.unit as 'HOUR' | 'DAY');
             setUnitPrice(item.unitPrice);
             setVatRate(item.vatRate);
-            setTitle(item.label);
+            setLineLabel(item.label);
           }}
         />
       )}
-      <TextInput label="Libellé des lignes" value={title} onChange={(event) => setTitle(event.currentTarget.value)} />
+      <TextInput label="Libellé des lignes" value={lineLabel} onChange={(event) => setLineLabel(event.currentTarget.value)} />
       <SimpleGrid cols={{ base: 1, sm: 2 }} spacing="sm">
         <LabeledField label="Une ligne">
           <SegmentedControl
@@ -230,7 +231,7 @@ export function TimeBillingForm({ projectId: initialProject, projects, excludeId
 
       <Group justify="space-between" align="center">
         <Text size="sm" c="dimmed">
-          {selected.length} temps, {formatDuration(sumOf(selected, (entry) => entry.seconds))} → {lines.length} {plural(lines.length, 'ligne')}, {fmt.moneyCents(total)} HT
+          {selected.length} temps, {formatDuration(sumOf(selected, (entry) => entry.seconds))} → {countOf(lines.length, 'ligne')}, {fmt.moneyCents(total)} HT
         </Text>
         <FormActions
           onCancel={onCancel}

@@ -12,7 +12,7 @@ import { MarkdownEditor } from '../../../components/markdown/MarkdownEditor';
 import { MarkdownView } from '../../../components/markdown/MarkdownView';
 import { NO_SUGGESTIONS, NO_TARGETS } from '../../../components/markdown/remark-references';
 import { useCatalogItems } from '../api/catalog';
-import classes from './LinesEditor.module.css';
+import classes from './DocumentLinesEditor.module.css';
 import * as fmt from '../../../lib/format';
 import { AmountInput } from '../../../components/inputs/AmountInput';
 import { DiscountInput } from './DiscountInput';
@@ -20,7 +20,7 @@ import { QuantityInput } from '../../../components/inputs/QuantityInput';
 import { vatRateOptions } from '../lib/labels';
 import { itemCellLabel } from '../../../components/data-table/cells/cell-field';
 
-const KIND_LABELS: Record<LineKind, string> = { ITEM: 'Article', DISBURSEMENT: 'Débours', TEXT: 'Texte', DEDUCTION: 'Déjà facturé' };
+const LINE_KIND_LABELS: Record<LineKind, string> = { ITEM: 'Article', DISBURSEMENT: 'Débours', TEXT: 'Texte', DEDUCTION: 'Déjà facturé' };
 
 /**
  * New line of a kind.
@@ -28,7 +28,7 @@ const KIND_LABELS: Record<LineKind, string> = { ITEM: 'Article', DISBURSEMENT: '
  * @param {number} vatRate Default VAT rate.
  * @returns {AccountingLineInput} Line.
  */
-function newLine(kind: LineKind, vatRate: number): AccountingLineInput {
+function newDocumentLine(kind: LineKind, vatRate: number): AccountingLineInput {
   return {
     kind,
     label: '',
@@ -77,7 +77,7 @@ function LineRow({ line, total, index, count, readOnly, vatApplicable, currency,
             className={classes.kind}
             title={line.deductedDocumentId ? 'Déduction liée à une facture d’acompte' : undefined}
           >
-            {line.deductedDocumentId ? 'Acompte' : KIND_LABELS[line.kind]}
+            {line.deductedDocumentId ? 'Acompte' : LINE_KIND_LABELS[line.kind]}
           </Badge>
           <TextInput
             aria-label={itemCellLabel('Libellé', `la ligne ${index + 1}`, 1)}
@@ -193,7 +193,7 @@ function useLineKeys(count: number): { keys: number[]; setKeys: (keys: number[])
   return { keys: synced, setKeys };
 }
 
-interface LinesEditorProps {
+interface DocumentLinesEditorProps {
   lines: AccountingLineInput[];
   totals: LineTotal[];
   onChange: (lines: AccountingLineInput[]) => void;
@@ -209,10 +209,10 @@ interface LinesEditorProps {
 /**
  * Lines of a document: items, disbursements (outside VAT), text lines and deductions of what was already
  * invoiced; added (blank or from the catalogue), reordered and removed.
- * @param {LinesEditorProps} props Component props.
+ * @param {DocumentLinesEditorProps} props Component props.
  * @returns {JSX.Element} Editor.
  */
-export function LinesEditor({ lines, totals, onChange, readOnly, vatApplicable, currency, errors, extraActions }: LinesEditorProps) {
+export function DocumentLinesEditor({ lines, totals, onChange, readOnly, vatApplicable, currency, errors, extraActions }: DocumentLinesEditorProps) {
   const defaultRate = vatApplicable ? 20 : 0;
   const { data: catalog } = useCatalogItems();
   const offered = unarchived(catalog ?? []);
@@ -244,9 +244,9 @@ export function LinesEditor({ lines, totals, onChange, readOnly, vatApplicable, 
       ))}
       {!readOnly && (
         <Group gap="xs">
-          <AddItemButton onClick={() => onChange([...lines, newLine('ITEM', defaultRate)])}>Ajouter un article</AddItemButton>
-          <AddItemButton onClick={() => onChange([...lines, newLine('DISBURSEMENT', 0)])}>Ajouter un débours</AddItemButton>
-          <AddItemButton onClick={() => onChange([...lines, newLine('TEXT', 0)])}>Ajouter un texte</AddItemButton>
+          <AddItemButton onClick={() => onChange([...lines, newDocumentLine('ITEM', defaultRate)])}>Ajouter un article</AddItemButton>
+          <AddItemButton onClick={() => onChange([...lines, newDocumentLine('DISBURSEMENT', 0)])}>Ajouter un débours</AddItemButton>
+          <AddItemButton onClick={() => onChange([...lines, newDocumentLine('TEXT', 0)])}>Ajouter un texte</AddItemButton>
           {offered.length > 0 && (
             <Select
               size="xs"
@@ -261,7 +261,7 @@ export function LinesEditor({ lines, totals, onChange, readOnly, vatApplicable, 
                 const item = offered.find((entry) => entry.id === id);
                 if (!item) return;
                 const kind = item.kind === 'DISBURSEMENT' ? 'DISBURSEMENT' : 'ITEM';
-                onChange([...lines, { ...newLine(kind, item.vatRate), label: item.label, description: item.description ?? null, unit: item.unit, unitPrice: item.unitPrice }]);
+                onChange([...lines, { ...newDocumentLine(kind, item.vatRate), label: item.label, description: item.description ?? null, unit: item.unit, unitPrice: item.unitPrice }]);
               }}
             />
           )}

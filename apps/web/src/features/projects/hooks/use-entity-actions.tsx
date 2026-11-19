@@ -14,10 +14,10 @@ import {
   useSetProjectFavorite,
   useUpdateClient,
   useUpdateProject,
-  workspaceQueryKey,
+  projectTreeQueryKey,
   type Client,
   type Project,
-  type Workspace,
+  type ProjectTree,
 } from '../api';
 import { ClientForm } from '../components/ClientForm';
 import { DeleteClientDialog, DeleteProjectDialog } from '../components/DeleteDialogs';
@@ -133,7 +133,7 @@ export function useEntityActions() {
      */
     confirmDelete: (entity: EntityRef) => {
       if (entity.type === 'client') {
-        const workspace = queryClient.getQueryData<Workspace>(workspaceQueryKey);
+        const workspace = queryClient.getQueryData<ProjectTree>(projectTreeQueryKey);
         const projectCount = workspace?.projects.filter((project) => project.clientId === entity.item.id).length ?? 0;
         openModal('Supprimer le client', (close) => (
           <DeleteClientDialog
@@ -146,7 +146,7 @@ export function useEntityActions() {
           />
         ));
       } else {
-        const workspace = queryClient.getQueryData<Workspace>(workspaceQueryKey);
+        const workspace = queryClient.getQueryData<ProjectTree>(projectTreeQueryKey);
         const subProjectCount = workspace ? subtreeOf(workspace.projects, entity.item.id, false).size : 0;
         openModal('Supprimer le projet', (close) => (
           <DeleteProjectDialog

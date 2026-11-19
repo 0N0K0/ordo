@@ -5,8 +5,8 @@ import { z } from 'zod';
 import { prisma, unscopedPrisma } from '../../db';
 import { BY_POSITION, moveInOrder, nextPositionIn } from '../core/ordering';
 import { Prisma, type NotificationSource, type Workspace, type WorkspaceKind } from '../../generated/prisma/client';
-import { clientError, notFound, orNotFound, parseInput } from '../../graphql/errors';
-import { assertExists } from '../core/lookup';
+import { clientError, notFound, parseInput } from '../../graphql/errors';
+import { assertExists, findOrNotFound } from '../core/lookup';
 import { currentWorkspace, runInWorkspace } from '../../workspace-context';
 import { resolveCalendarId } from '../calendar/calendars';
 import { freeHandle } from './contributors';
@@ -152,7 +152,7 @@ export async function createWorkspace(input: { label: string; kind: WorkspaceKin
  */
 export async function updateWorkspace(id: string, input: { label: string; kind: WorkspaceKind }): Promise<Workspace> {
   const data = parseInput(workspaceInputSchema, input);
-  const workspace = await orNotFound(unscopedPrisma.workspace.findUnique({ where: { id } }), 'Espace');
+  const workspace = await findOrNotFound(unscopedPrisma.workspace, id, 'Espace');
   if (workspace.kind === 'PRO' && data.kind === 'PERSO') {
     const used = await runInWorkspace(workspace, async () => (await prisma.client.count()) + (await prisma.accountingDocument.count()) + (await prisma.importedDocument.count()));
     if (used > 0) throw clientError('BAD_USER_INPUT', 'Cet espace a des clients ou des documents de facturation : il ne peut pas devenir personnel.');
@@ -203,7 +203,7 @@ export async function moveWorkspace(id: string, index: number): Promise<void> {
  * @returns {Promise<void>}
  */
 export async function deleteWorkspace(id: string): Promise<void> {
-  const workspace = await orNotFound(unscopedPrisma.workspace.findUnique({ where: { id } }), 'Espace');
+  const workspace = await findOrNotFound(unscopedPrisma.workspace, id, 'Espace');
   if ((await unscopedPrisma.workspace.count()) <= 1) throw clientError('BAD_USER_INPUT', 'Le dernier espace ne peut pas être supprimé.');
   await runInWorkspace(workspace, () =>
     prisma.$transaction(async (tx) => {

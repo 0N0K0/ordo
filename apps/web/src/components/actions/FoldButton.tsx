@@ -1,5 +1,6 @@
 import type { ActionIconProps } from '@mantine/core';
 import { FoldChevron } from './FoldChevron';
+import { foldAction, foldLabel } from './fold-label';
 import { IconAction } from './IconAction';
 
 interface FoldButtonProps {
@@ -9,8 +10,8 @@ interface FoldButtonProps {
   onToggle: () => void;
   /** What it folds (« Projet A »): the hidden label says « Réduire « Projet A » ». Optional. */
   item?: string;
-  /** Hidden label when the element is not a name (« Développer les sous-éléments »). Optional. Default = from the action and `item`. */
-  'aria-label'?: string;
+  /** What it folds when not a name, with its determiner (« les sous-éléments »): « Développer les sous-éléments ». Optional. Default = from the action and `item`. */
+  about?: string;
   /** In a clickable or draggable row: its clicks and pointer presses stay on the button. Optional. */
   inRow?: boolean;
   /** Size. Optional. Default = sm. */
@@ -23,12 +24,12 @@ interface FoldButtonProps {
  * @param {FoldButtonProps} props Component props.
  * @returns {JSX.Element} Button.
  */
-export function FoldButton({ expanded, onToggle, item, 'aria-label': ariaLabel, inRow = false, size = 'sm' }: FoldButtonProps) {
+export function FoldButton({ expanded, onToggle, item, about, inRow = false, size = 'sm' }: FoldButtonProps) {
   return (
     <IconAction
-      label={expanded ? 'Réduire' : 'Développer'}
+      label={foldAction(expanded)}
       item={item}
-      aria-label={ariaLabel}
+      aria-label={about ? foldLabel(expanded, about) : undefined}
       aria-expanded={expanded}
       size={size}
       onClick={(event) => {

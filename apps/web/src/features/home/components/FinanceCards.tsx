@@ -12,11 +12,13 @@ import { useOverdueInvoices } from '../../accounting/api/tracking';
 import type { TreasuryProjection } from '../../treasury/api';
 import { CardFigure, HomeCard } from './HomeCard';
 import { HOME_ROWS, HomeList, HomeRow } from './HomeList';
-import { balanceIn30Days, dayLabel, type BillingSummary } from '../lib/home-data';
+import { balanceIn30Days, IN_30_DAYS, dayLabel, type BillingSummary } from '../lib/home-data';
 import * as fmt from '../../../lib/format';
 import { countOf } from '../../../lib/text';
 import { documentPath, OVERDUE_INVOICES_PATH, PAGES } from '../../../app/pages';
 import { unarchived } from '../../../lib/archive';
+import { LATE_COLOR } from '../../../components/feedback/feedback-colors';
+import { SignedAmount } from '../../../components/money/SignedAmount';
 
 /**
  * Revenue of the month and of the year, drafts to finish, and the overdue invoices to follow up.
@@ -125,7 +127,7 @@ export function TreasuryCard({ projection, today }: { projection: TreasuryProjec
         <Stack gap="sm">
           <SimpleGrid cols={3}>
             <CardFigure label="Aujourd’hui" value={fmt.money(projection.balance)} />
-            <CardFigure label="Dans 30 jours" value={data.at30 ? fmt.money(data.at30.balance) : '—'} />
+            <CardFigure label={IN_30_DAYS} value={data.at30 ? fmt.money(data.at30.balance) : '—'} />
             <CardFigure label="Point bas (3 mois)" value={data.lowest ? fmt.money(data.lowest.balance) : '—'} color={data.lowest && data.lowest.balance < 0 ? 'red' : undefined} />
           </SimpleGrid>
           {data.forecast.length > 1 && (
@@ -145,17 +147,14 @@ export function TreasuryCard({ projection, today }: { projection: TreasuryProjec
               {data.coming.map((item, index) => (
                 <Group key={`${item.date}-${item.label}-${index}`} justify="space-between" wrap="nowrap" gap="xs">
                   <Group gap="xs" wrap="nowrap" miw={0}>
-                    <Text size="sm" c={item.overdue ? 'orange' : 'dimmed'} w={88} style={{ flexShrink: 0 }}>
+                    <Text size="sm" c={item.overdue ? LATE_COLOR : 'dimmed'} w={88} style={{ flexShrink: 0 }}>
                       {item.overdue ? 'En retard' : dayLabel(item.date, today)}
                     </Text>
                     <Text size="sm" truncate>
                       {item.label}
                     </Text>
                   </Group>
-                  <Text size="sm" fw={600} c={item.amount < 0 ? 'red' : 'teal'} style={{ flexShrink: 0 }}>
-                    {item.amount > 0 ? '+' : ''}
-                    {fmt.money(item.amount)}
-                  </Text>
+                  <SignedAmount value={item.amount} fw={600} style={{ flexShrink: 0, whiteSpace: 'nowrap' }} />
                 </Group>
               ))}
             </SubSection>

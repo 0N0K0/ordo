@@ -2,7 +2,7 @@ import { localToday } from '../../../lib/dates';
 import { ON_ERROR } from '../../../lib/notify';
 import type { Recurrence, TreasuryAllocationInput } from '@ordo/shared';
 import { useTreasuryMutations, type ForecastEntry, type TreasuryEntry } from '../api';
-import { newLine, type LineValues } from './lines';
+import { newSplitLine, type LineValues } from './lines';
 
 /** Values of the entry form (and of an entry changed in a cell of a table). */
 export interface EntryValues extends Record<string, unknown> {
@@ -69,7 +69,7 @@ export function entryValues(entry: TreasuryEntry | ForecastEntry | undefined, de
     projectResourceIds: (entry?.documents ?? []).filter((document) => document.source === 'PROJECT').map((document) => document.id),
     // A stored amount is signed; edited, it is relative to the direction of the entry.
     lines: (entry?.lines ?? []).map((line) =>
-      newLine({
+      newSplitLine({
         id: defaults.copy ? null : line.id,
         label: line.label ?? null,
         mode: line.mode,

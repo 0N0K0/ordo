@@ -5,6 +5,7 @@ import { ArrowsClockwiseIcon, CalendarBlankIcon } from '@phosphor-icons/react';
 import { useNow } from '../../../lib/use-now';
 
 import { notifySuccess, ON_ERROR } from '../../../lib/notify';
+import { countOf } from '../../../lib/text';
 import { applyDiff, bulkTargets, useBulkTable } from '../../../components/data-table/selection/bulk-edit';
 import { eventRowKey, type TaskTableRow } from '../lib/task-columns';
 import type { TaskColumn } from '@ordo/shared';
@@ -20,6 +21,7 @@ import { itemCellLabel, stoppedCellField } from '../../../components/data-table/
 import * as fmt from '../../../lib/format';
 import { AssigneesCell } from './context-cells';
 import { BeneficiariesCell } from '../../beneficiaries/components/BeneficiariesSelect';
+import { beneficiariesDiff } from '../../beneficiaries/lib/beneficiaries-diff';
 
 /**
  * Title of an event row: calendar icon, title (opens the event; struck through when cancelled or postponed) and
@@ -27,7 +29,7 @@ import { BeneficiariesCell } from '../../beneficiaries/components/BeneficiariesS
  * @param {{ event: EventOccurrence, context: TaskContext }} props Occurrence and task context.
  * @returns {JSX.Element} Cell.
  */
-export function EventTitleCell({ event, context }: { event: EventOccurrence; context: TaskContext }) {
+export function EventLabelCell({ event, context }: { event: EventOccurrence; context: TaskContext }) {
   const openEvent = useEventForm(context);
   // Cancelled or postponed: struck through, like in the calendar.
   const postponed = event.postponedTo.length > 0;
@@ -109,7 +111,7 @@ function useEventSave(event: EventOccurrence, column: TaskColumn) {
       if (!Object.keys(change).length) continue;
       update.mutate({ id: target.eventId, scope: target.occurrenceDate ? scope : 'ALL', occurrenceDate: target.occurrenceDate, input: { ...occurrenceInput(target), ...change } }, ON_ERROR);
     }
-    if (targets.length > 1) notifySuccess(`Modification appliquée à ${targets.length} évènements.`);
+    if (targets.length > 1) notifySuccess(`Modification appliquée à ${countOf(targets.length, 'évènement')}.`);
   };
 }
 
@@ -265,16 +267,5 @@ export function EventWhenCell({ event, side }: { event: EventOccurrence; side: '
 export function EventBeneficiariesCell({ event }: { event: EventOccurrence }) {
   const save = useEventSave(event, 'beneficiaries');
   const label = useEventCellLabel(event, 'beneficiaries', 'Bénéficiaires');
-  return (
-    <BeneficiariesCell
-      label={label}
-      value={event}
-      onSave={(beneficiaries) =>
-        void save((target) => ({
-          beneficiaryIds: applyDiff(target.beneficiaryIds, event.beneficiaryIds, beneficiaries.beneficiaryIds),
-          beneficiaryRelationIds: applyDiff(target.beneficiaryRelationIds, event.beneficiaryRelationIds, beneficiaries.beneficiaryRelationIds),
-        }))
-      }
-    />
-  );
+  return <BeneficiariesCell label={label} value={event} onSave={(beneficiaries) => void save((target) => beneficiariesDiff(target, event, beneficiaries))} />;
 }

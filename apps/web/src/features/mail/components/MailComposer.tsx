@@ -1,8 +1,7 @@
 import { IconAction } from '../../../components/actions/IconAction';
 import { openModal } from '../../../components/panels/open-modal';
-import { addDays, WEEKDAY_LABELS, weekdayOfDate } from '@ordo/shared';
+import { addDays, WEEKDAY_LABELS, weekdayOfDate, twoDigits } from '@ordo/shared';
 import { localInstant, localToday } from '../../../lib/dates';
-import { DestructiveButton } from '../../../components/dialogs/DestructiveActions';
 import { FileBadge } from '../../../components/items/FileBadge';
 import { Anchor, Button, Checkbox, Collapse, FileButton, Group, Paper, Popover, Select, Stack, TagsInput, Text, TextInput } from '@mantine/core';
 import { DateTimePicker } from '@mantine/dates';
@@ -18,6 +17,7 @@ import { currentWeek } from '../../../lib/week';
 import { unarchived } from '../../../lib/archive';
 import { FormActions } from '../../../components/dialogs/FormActions';
 import { ActionButton } from '../../../components/actions/ActionButton';
+import { accountLabel } from '../lib/mail-format';
 
 const EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 /** Delay after the last change before the draft is saved. */
@@ -35,7 +35,7 @@ function schedulePresets(): { label: string; at: Date }[] {
    * @param {number} hour Hour.
    * @returns {Date} Instant.
    */
-  const at = (days: number, hour: number) => localInstant(addDays(today, days), `${String(hour).padStart(2, '0')}:00`);
+  const at = (days: number, hour: number) => localInstant(addDays(today, days), `${twoDigits(hour)}:00`);
   // First day of the next week of the workspace.
   const week = currentWeek();
   const nextStart = (week.start - weekdayOfDate(today) + 7) % 7 || 7;
@@ -257,8 +257,10 @@ export function MailComposer({ options, onDone }: { options: ComposeOptions; onD
         <Stack gap="md">
           <Text size="sm">Enregistrez le brouillon pour reprendre ce mail plus tard (dossier Brouillons de la boîte), ou supprimez-le : il sera alors perdu définitivement.</Text>
           <Group justify="flex-end" gap="sm">
-            <DestructiveButton
-              leftSection={<TrashIcon aria-hidden />}
+            <ActionButton
+              priority="secondary"
+              danger
+              icon={<TrashIcon aria-hidden />}
               onClick={() => {
                 close();
                 void discard()
@@ -273,7 +275,7 @@ export function MailComposer({ options, onDone }: { options: ComposeOptions; onD
               }}
             >
               Supprimer le brouillon
-            </DestructiveButton>
+            </ActionButton>
             <ActionButton
               icon={<FloppyDiskIcon aria-hidden />}
               onClick={() => {
@@ -347,13 +349,7 @@ export function MailComposer({ options, onDone }: { options: ComposeOptions; onD
           <XIcon aria-hidden />
         </IconAction>
       </Group>
-      <Select
-        label="De"
-        data={(accounts ?? []).map((item) => ({ value: item.id, label: item.displayName ? `${item.displayName} <${item.email}>` : item.email }))}
-        value={account?.id ?? null}
-        onChange={setAccountId}
-        allowDeselect={false}
-      />
+      <Select label="De" data={(accounts ?? []).map((item) => ({ value: item.id, label: accountLabel(item) }))} value={account?.id ?? null} onChange={setAccountId} allowDeselect={false} />
       <Group gap="xs" align="flex-end" wrap="nowrap">
         <div style={{ flex: 1 }}>
           <RecipientsInput label="À" value={to} onChange={setTo} autoFocus={to.length === 0} />

@@ -1,4 +1,4 @@
-import { formatDay, fromCents } from '@ordo/shared';
+import { formatDay, fromCents, joinedKey } from '@ordo/shared';
 import type { AccountingUnit, Address, DocumentTotals } from '@ordo/shared';
 import type { AccountingDocumentType } from '../../generated/prisma/client';
 import { lineInput, type Buyer, type DocumentWithLines, type Seller } from './accounting-documents';
@@ -201,7 +201,7 @@ export function facturXml(document: DocumentWithLines, totals: DocumentTotals, s
       }
     : franchise;
   const itemCategory = (rate: number): TaxCategory => (!vatApplicable ? franchise : rate > 0 ? { code: 'S', rate } : { code: 'Z', rate: 0 });
-  const key = (category: TaxCategory) => `${category.code}|${category.rate}`;
+  const key = (category: TaxCategory) => joinedKey(category.code, category.rate);
 
   // Breakdown per category: bases come from the totals (after discount and deductions), disbursements apart.
   const breakdown = new Map<string, { category: TaxCategory; basis: number; tax: number }>();

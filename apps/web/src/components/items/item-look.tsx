@@ -88,3 +88,26 @@ export function listSelectProps<T extends OptionItem>(
   const data = itemOptions(items, label, keep);
   return { data, renderOption: itemRenderOption(data) };
 }
+
+/**
+ * Avatar of the item chosen in a select (its image, or its initials on its color), before its value.
+ * @param {readonly OptionItem[]} items Items.
+ * @param {string | null | undefined} value Chosen item. Optional.
+ * @param {(item: T) => string} [label] Label of an item. Optional. Default = its label.
+ * @returns {ReactNode} Avatar, or nothing without a choice.
+ */
+export function chosenAvatar<T extends OptionItem>(items: readonly T[], value: string | null | undefined, label: (item: T) => string = (item) => item.label): ReactNode {
+  const current = value ? items.find((item) => item.id === value) : undefined;
+  return current ? <ItemAvatar name={label(current)} iconUrl={current.iconUrl} color={current.color} /> : undefined;
+}
+
+/**
+ * Props of a Select of one item of a flat settings list (`listSelectProps`), with the avatar of the chosen item before it.
+ * @param {readonly OptionItem[]} items Items, in their order.
+ * @param {string | null | undefined} value Chosen item (offered even when archived). Optional.
+ * @param {(item: T) => string} [label] Label of an item. Optional. Default = its label.
+ * @returns {object} Props: `data`, `renderOption`, `leftSection`.
+ */
+export function itemSelectProps<T extends OptionItem>(items: readonly T[], value: string | null | undefined, label: (item: T) => string = (item) => item.label) {
+  return { ...listSelectProps(items, label, value), leftSection: chosenAvatar(items, value, label) };
+}

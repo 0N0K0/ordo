@@ -1,7 +1,21 @@
-import { addDays, colorSchema, countOf, dayPart, daysBetween, daySchema, endAfter, LOCAL_DATE_TIME_PATTERN, monthOfDay, timeToMinutes, WEEKDAY_SHORT_LABELS, weekdayText } from '@ordo/shared';
+import {
+  addDays,
+  colorSchema,
+  countOf,
+  dayPart,
+  daysBetween,
+  daySchema,
+  endAfter,
+  LOCAL_DATE_TIME_PATTERN,
+  monthOfDay,
+  timeToMinutes,
+  WEEKDAY_SHORT_LABELS,
+  weekdayText,
+  twoDigits,
+} from '@ordo/shared';
 import { z } from 'zod';
 import { parseInput } from '../../graphql/errors';
-import { PDF_TABLE, PDF_TEXT, type PdfDoc, reportHeadingSchema, startReport, writeHeading } from '../core/pdf-report';
+import { PDF_TABLE, PDF_TEXT, type PdfDoc, reportHeadingSchema, type ReportFile, startReport, writeHeading } from '../core/pdf-report';
 
 /** Local date and time, "YYYY-MM-DDTHH:MM". */
 const localDateTime = z.string().regex(LOCAL_DATE_TIME_PATTERN);
@@ -46,7 +60,7 @@ const MARGIN = 28;
  */
 function tint(hex: string, ratio: number): string {
   const channel = (index: number) => Math.round(255 - (255 - parseInt(hex.slice(1 + index * 2, 3 + index * 2), 16)) * ratio);
-  return `#${[0, 1, 2].map((index) => channel(index).toString(16).padStart(2, '0')).join('')}`;
+  return `#${[0, 1, 2].map((index) => twoDigits(channel(index).toString(16))).join('')}`;
 }
 
 /**
@@ -169,7 +183,7 @@ function drawTimeGrid(doc: PdfDoc, view: z.infer<typeof calendarPdfSchema>, area
       .lineWidth(0.3)
       .strokeColor(COLORS.border)
       .stroke();
-    if (hour < endHour) clippedText(doc, `${String(hour).padStart(2, '0')}:00`, { x: area.x, y: lineY + 1, width: axis - 3, height: 9, size: 6.5, color: COLORS.muted });
+    if (hour < endHour) clippedText(doc, `${twoDigits(hour)}:00`, { x: area.x, y: lineY + 1, width: axis - 3, height: 9, size: 6.5, color: COLORS.muted });
   }
   days.forEach((_, index) =>
     doc
@@ -297,9 +311,9 @@ function drawMonth(doc: PdfDoc, view: z.infer<typeof calendarPdfSchema>, area: {
  * and the working hours in the background; cancelled events and done tasks struck through. Light colors,
  * for printing, in the template shared by every export (logo, date, page number).
  * @param {CalendarPdfInput} input View and its items.
- * @returns {Promise<Buffer>} PDF.
+ * @returns {Promise<ReportFile>} PDF and its file name.
  */
-export async function calendarPdf(input: CalendarPdfInput): Promise<Buffer> {
+export async function calendarPdf(input: CalendarPdfInput): Promise<ReportFile> {
   const view = parseInput(calendarPdfSchema, input);
   const { today } = view;
   const { doc, top, finish } = await startReport({ title: view.title });

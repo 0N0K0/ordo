@@ -69,7 +69,7 @@ export function TableFooter<R>({ shown, rows, totals, onChange, before, after }:
                 about={`total de « ${column.label} »`}
                 position="bottom-start"
                 target={
-                  <UnstyledButton aria-label={`Total de ${column.label}`} style={{ whiteSpace: 'nowrap' }}>
+                  <UnstyledButton aria-label={`Total de « ${column.label} »`} style={{ whiteSpace: 'nowrap' }}>
                     {chosen ? (
                       <Text span size="sm" ff={column.numeric ? 'monospace' : undefined}>
                         <Text span size="xs" c="dimmed">

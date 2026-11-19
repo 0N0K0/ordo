@@ -57,7 +57,7 @@ export function DeleteTasksDialog({ tasks, context, onDone }: TasksDialogProps) 
             La tâche <strong>{taskNumbered(single)}</strong> et ses commentaires seront supprimés définitivement. Pour la retirer des listes sans perdre ses données, archivez-la plutôt.
           </>
         ) : (
-          `${tasksLabel(tasks.length)} et leurs commentaires seront supprimées définitivement. Pour les retirer des listes sans perdre leurs données, archivez-les plutôt.`
+          `${tasksLabel(tasks.length)} et leurs commentaires seront supprimés définitivement. Pour les retirer des listes sans perdre leurs données, archivez-les plutôt.`
         )}
       </DestructiveRisks>
       {subtasks > 0 && (

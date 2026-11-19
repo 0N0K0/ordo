@@ -24,6 +24,7 @@ import { countOf, plural } from '../../../lib/text';
 import { FormActions } from '../../../components/dialogs/FormActions';
 import { unarchived } from '../../../lib/archive';
 import { ActionButton } from '../../../components/actions/ActionButton';
+import { accountLabel } from '../../mail/lib/mail-format';
 
 /** Invoices not reminded for that many days are offered for a new reminder. */
 const REMIND_AFTER_DAYS = 7;
@@ -43,6 +44,7 @@ function daysSinceReminder(invoice: OverdueInvoice, today: string): number | nul
 const OVERDUE_COLUMNS: DataColumn<OverdueInvoice>[] = [
   {
     id: 'invoice',
+    required: true,
     label: 'Facture',
     size: 220,
     locked: true,
@@ -60,6 +62,7 @@ const OVERDUE_COLUMNS: DataColumn<OverdueInvoice>[] = [
   },
   {
     id: 'balance',
+    required: true,
     label: 'Reste dû',
     size: 130,
     numeric: true,
@@ -113,8 +116,8 @@ export function OverdueInvoicesPanel() {
     openModal(`Relancer ${countOf(chosen.length, 'facture')}`, (close) => (
       <Stack gap="md">
         <Text size="sm">
-          {countOf(chosen.length, 'mail')} {plural(chosen.length, 'partira', 'partiront')} depuis {from?.email}, un par facture, avec la facture en PDF et le reste dû. Chaque relance sera notée sur sa
-          facture.
+          {countOf(chosen.length, 'mail')} {plural(chosen.length, 'partira', 'partiront')} depuis {from ? accountLabel(from) : ''}, un par facture, avec la facture en PDF et le reste dû. Chaque
+          relance sera notée sur sa facture.
         </Text>
         <Stack gap={2}>
           {chosen.map((invoice) => (
@@ -173,7 +176,7 @@ export function OverdueInvoicesPanel() {
           tools: (
             <>
               <Text size="sm">
-                {view.rows.length} {plural(view.rows.length, 'facture')} en retard, <b>{fmt.moneyCents(total)}</b> à encaisser.
+                {countOf(view.rows.length, 'facture')} en retard, <b>{fmt.moneyCents(total)}</b> à encaisser.
               </Text>
               <Group gap="sm" ml="auto" wrap="wrap">
                 <ActionButton priority="tertiary" icon={<ListChecksIcon aria-hidden />} disabled={stale.length === 0} onClick={() => setSelected(new Set(stale.map((invoice) => invoice.id)))}>
@@ -184,7 +187,7 @@ export function OverdueInvoicesPanel() {
                     aria-label="Boîte d’envoi"
                     w={240}
                     allowDeselect={false}
-                    data={unarchived(accounts, account).map((item) => ({ value: item.id, label: item.email }))}
+                    data={unarchived(accounts, account).map((item) => ({ value: item.id, label: accountLabel(item) }))}
                     value={account}
                     onChange={setAccountId}
                   />
@@ -215,7 +218,7 @@ export function OverdueInvoicesPanel() {
           ),
           cell: (invoice) => (
             <Checkbox
-              aria-label={`Relancer ${invoice.number}`}
+              aria-label={`Relancer « ${invoice.number} »`}
               checked={selected.has(invoice.id) && Boolean(invoice.billingEmail)}
               disabled={!invoice.billingEmail}
               onChange={() => toggle(invoice.id)}
@@ -268,7 +271,7 @@ export function OverdueInvoicesPanel() {
                   <>
                     <Text size="sm">{fmt.day(invoice.lastReminderAt)}</Text>
                     <Text size="xs" c="dimmed">
-                      {fmt.daysAgo(since ?? 0)} · {invoice.reminderCount} {plural(invoice.reminderCount, 'relance')}
+                      {fmt.daysAgo(since ?? 0)} · {countOf(invoice.reminderCount, 'relance')}
                     </Text>
                   </>
                 ) : (

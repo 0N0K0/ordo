@@ -103,3 +103,22 @@ export async function storeAttachment(file: File, owner: { accountingDocumentId?
   // eslint-disable-next-line no-restricted-syntax -- storeAttachment itself.
   return prisma.attachment.create({ data: { ...attachmentData(file.name, Buffer.from(await file.arrayBuffer())), ...owner } });
 }
+
+/**
+ * Deletes a stored file, the same everywhere: a file already gone is no error. A leftover (the old file of a
+ * replacement, the file of an element deleted, the new file of a change refused) never fails the change it follows:
+ * its failure is only logged.
+ * @param {string | null | undefined} id File, none: nothing to do.
+ * @param {boolean} [leftover] Cleanup after the change itself. Optional. Default = false (a failure is thrown).
+ * @returns {Promise<void>}
+ */
+export async function deleteAttachment(id: string | null | undefined, leftover = false): Promise<void> {
+  if (!id) return;
+  // eslint-disable-next-line no-restricted-syntax -- deleteAttachment itself.
+  const removal = prisma.attachment.deleteMany({ where: { id } });
+  if (!leftover) {
+    await removal;
+    return;
+  }
+  await removal.catch((error: unknown) => console.warn('Fichier non supprimé.', error));
+}

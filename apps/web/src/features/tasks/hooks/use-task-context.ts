@@ -2,7 +2,7 @@ import { mapById, byPosition, LEVEL, lineageOf } from '@ordo/shared';
 import { useMemo } from 'react';
 import type { MarkdownSuggestions } from '../../../components/markdown/MarkdownEditor';
 import type { ReferenceTargets, ReferenceTask } from '../../../components/markdown/remark-references';
-import { useWorkspace, type Project } from '../../projects/api';
+import { useProjectTree, type Project } from '../../projects/api';
 import { treeOptions, type TreeOption } from '../../../components/tree/tree-select';
 import { projectFullPath, projectNodes, projectOptions } from '../../projects/lib/tree';
 import { useMe } from '../../auth/api';
@@ -113,6 +113,14 @@ export const taskNumber = (task: { number: number | null }): string => taskRef(t
  * @param {{ number: number | null, label: string }} task Task.
  * @returns {string} Text.
  */
+/**
+ * Mark of a closed task after its name (« (fermée) »), nothing for an open one.
+ * @param {{ closed: boolean }} task Task.
+ * @returns {string} Mark, with its space before.
+ */
+// eslint-disable-next-line no-restricted-syntax -- closedMark itself.
+export const closedMark = (task: { closed: boolean }): string => (task.closed ? ' (fermée)' : '');
+
 // eslint-disable-next-line no-restricted-syntax -- taskNumbered itself.
 export const taskNumbered = (task: { number: number | null; label: string }): string => `${taskRef(task)}${task.label}`;
 
@@ -130,7 +138,7 @@ export const taskName = (task: { number: number | null; label: string }) => (tas
  */
 export function useTaskContext() {
   const tasksQuery = useTasksData();
-  const workspaceQuery = useWorkspace();
+  const workspaceQuery = useProjectTree();
   const { data: me } = useMe();
   const meId = me?.contributorId ?? null;
   const data = tasksQuery.data;

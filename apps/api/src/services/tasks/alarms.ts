@@ -1,8 +1,8 @@
 import { type AlarmInput, alarmInputSchema, parseOptionalDay } from '@ordo/shared';
 import { prisma } from '../../db';
 import { Prisma, type Alarm } from '../../generated/prisma/client';
-import { clientError, orNotFound, parseInput } from '../../graphql/errors';
-import { assertExists, deleteOrNotFound } from '../core/lookup';
+import { clientError, parseInput } from '../../graphql/errors';
+import { assertExists, deleteOrNotFound, findOrNotFound } from '../core/lookup';
 
 /**
  * Validates an alarm and the project or task it points to.
@@ -54,7 +54,7 @@ export async function updateAlarm(id: string, input: AlarmInput): Promise<Alarm>
  * @returns {Promise<Alarm>} Updated alarm.
  */
 export async function markAlarmFired(id: string, at: Date): Promise<Alarm> {
-  const alarm = await orNotFound(prisma.alarm.findUnique({ where: { id } }), 'Alarme');
+  const alarm = await findOrNotFound(prisma.alarm, id, 'Alarme');
   if (at.getTime() > Date.now() + 60_000) throw clientError('BAD_USER_INPUT', 'Moment invalide.');
   if (alarm.lastFiredAt && alarm.lastFiredAt >= at) return alarm;
   return prisma.alarm.update({ where: { id }, data: { lastFiredAt: at } });

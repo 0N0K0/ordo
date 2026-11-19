@@ -1,4 +1,11 @@
 import { FILTER_OPERATORS, VALUELESS_OPERATORS, type FilterConditionOf, type FilterFieldKind, type FilterGroupOf, type FilterOperator, sumOf } from '@ordo/shared';
+import type { FilterFields } from './FilterBuilder';
+
+/** « est vide » / « n’est pas vide »: the same words for every kind of field. */
+const EMPTY_LABELS = { isEmpty: 'est vide', isNotEmpty: 'n’est pas vide' } as const;
+
+/** Operators of emptiness, left out of the fields whose value is never empty (required). */
+const EMPTY_OPERATORS: readonly FilterOperator[] = ['isEmpty', 'isNotEmpty'];
 
 export const OPERATOR_LABELS: Record<FilterFieldKind, Partial<Record<FilterOperator, string>>> = {
   text: {
@@ -6,10 +13,9 @@ export const OPERATOR_LABELS: Record<FilterFieldKind, Partial<Record<FilterOpera
     notContains: 'ne contient pas',
     is: 'est',
     isNot: 'n’est pas',
-    isEmpty: 'est vide',
-    isNotEmpty: 'n’est pas vide',
+    ...EMPTY_LABELS,
   },
-  number: { eq: '=', neq: '≠', lt: '<', lte: '≤', gt: '>', gte: '≥', isEmpty: 'est vide', isNotEmpty: 'n’est pas vide' },
+  number: { eq: '=', neq: '≠', lt: '<', lte: '≤', gt: '>', gte: '≥', ...EMPTY_LABELS },
   date: {
     is: 'le',
     before: 'avant le',
@@ -17,22 +23,19 @@ export const OPERATOR_LABELS: Record<FilterFieldKind, Partial<Record<FilterOpera
     onOrBefore: 'au plus tard le',
     onOrAfter: 'au plus tôt le',
     within: 'pendant',
-    isEmpty: 'n’est pas renseignée',
-    isNotEmpty: 'est renseignée',
+    ...EMPTY_LABELS,
   },
   reference: {
     in: 'est',
     notIn: 'n’est pas',
     inTree: 'est dans (sous-éléments inclus)',
-    isEmpty: 'est vide',
-    isNotEmpty: 'n’est pas vide',
+    ...EMPTY_LABELS,
   },
   multiReference: {
     anyOf: 'inclut l’un de',
     allOf: 'inclut tous',
     noneOf: 'n’inclut aucun de',
-    isEmpty: 'personne',
-    isNotEmpty: 'au moins une personne',
+    ...EMPTY_LABELS,
   },
   sprint: {
     in: 'est l’un de',
@@ -43,21 +46,25 @@ export const OPERATOR_LABELS: Record<FilterFieldKind, Partial<Record<FilterOpera
     next: 'suivant',
     past: 'passé',
     future: 'à venir',
-    isEmpty: 'aucun',
-    isNotEmpty: 'au moins un',
+    ...EMPTY_LABELS,
   },
   boolean: { isTrue: 'oui', isFalse: 'non' },
-  category: { in: 'est', notIn: 'n’est pas' },
+  category: { in: 'est', notIn: 'n’est pas', ...EMPTY_LABELS },
 };
 
 /**
- * Operators of a field, from the kinds of the fields filtered.
- * @param {Record<F, FilterFieldKind>} kinds Kind of each field.
+ * Operators a condition on a field offers: its own ones (when it has some), else those of its kind, emptiness left out
+ * of a required field; the operator of the condition stays offered when it no longer is (a saved « est vide » on a
+ * field marked required since).
+ * @param {Pick<FilterFields<F>, 'kinds' | 'operators' | 'required'>} fields Fields filtered.
  * @param {F} field Field.
+ * @param {string} [current] Operator of the condition. Optional.
  * @returns {readonly FilterOperator[]} Operators.
  */
-export function operatorsFor<F extends string>(kinds: Record<F, FilterFieldKind>, field: F): readonly FilterOperator[] {
-  return FILTER_OPERATORS[kinds[field]];
+export function operatorsFor<F extends string>(fields: Pick<FilterFields<F>, 'kinds' | 'operators' | 'required'>, field: F, current?: string): readonly FilterOperator[] {
+  const all: readonly FilterOperator[] = FILTER_OPERATORS[fields.kinds[field]];
+  const own = fields.operators?.(field) ?? (fields.required?.has(field) ? all.filter((operator) => !EMPTY_OPERATORS.includes(operator)) : all);
+  return current && !own.includes(current as FilterOperator) && all.includes(current as FilterOperator) ? [...own, current as FilterOperator] : own;
 }
 
 /**
@@ -89,14 +96,14 @@ export function defaultValueFor(kind: FilterFieldKind, operator: FilterOperator)
 }
 
 /**
- * New condition on a field, with its first operator.
- * @param {Record<F, FilterFieldKind>} kinds Kind of each field.
+ * New condition on a field, with the first operator it offers.
+ * @param {Pick<FilterFields<F>, 'kinds' | 'operators' | 'required'>} fields Fields filtered.
  * @param {F} field Field.
  * @returns {FilterConditionOf<F>} Condition.
  */
-export function newConditionFor<F extends string>(kinds: Record<F, FilterFieldKind>, field: F): FilterConditionOf<F> {
-  const operator = operatorsFor(kinds, field)[0];
-  return { type: 'condition', id: nodeId(), field, operator, value: defaultValueFor(kinds[field], operator) };
+export function newConditionFor<F extends string>(fields: Pick<FilterFields<F>, 'kinds' | 'operators' | 'required'>, field: F): FilterConditionOf<F> {
+  const operator = operatorsFor(fields, field)[0];
+  return { type: 'condition', id: nodeId(), field, operator, value: defaultValueFor(fields.kinds[field], operator) };
 }
 
 /**

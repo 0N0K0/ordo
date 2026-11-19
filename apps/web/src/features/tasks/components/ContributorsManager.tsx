@@ -10,7 +10,7 @@ import { archiveEntry, useSetArchived, useArchivedToggle } from '../../../lib/ar
 import { ShowArchivedSwitch } from '../../../components/filters/ShowArchivedSwitch';
 import { ArchivedBadge } from '../../../components/feedback/ArchivedBadge';
 
-import { useWorkspace } from '../../projects/api';
+import { useProjectTree } from '../../projects/api';
 import { useContributorMutations, type Contributor } from '../api';
 import { useContributorForm } from '../hooks/use-contributor-form';
 import { useTreasurySettings } from '../../treasury/api';
@@ -41,7 +41,7 @@ export function ContributorsManager({ contributors, usage }: ContributorsManager
   const setArchived = useSetArchived('CONTRIBUTOR');
   const { shown, toggle: archivedToggle } = useArchivedToggle(contributors);
   const openForm = useContributorForm();
-  const { data: workspace } = useWorkspace();
+  const { data: workspace } = useProjectTree();
   const { perso } = useActiveWorkspace();
 
   /**

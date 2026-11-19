@@ -28,7 +28,7 @@ export function AlarmsPage() {
   return (
     <Stack gap="lg" className={classes.root}>
       <PageHeader
-        title={PAGES.alarms.title}
+        title={PAGES.alarms.label}
         actions={
           <ActionButton icon={<PlusIcon aria-hidden />} onClick={() => openForm()} disabled={!context}>
             Nouvelle alarme

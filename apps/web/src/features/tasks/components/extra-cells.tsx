@@ -5,6 +5,7 @@ import { TaskProgress } from './TaskProgress';
 import { stopClick } from '../../../components/data-table/cells/cell-field';
 import { Anchor, Badge, Group, Tooltip } from '@mantine/core';
 import { formatDuration, readSlotRule } from '@ordo/shared';
+import { countOf, plural } from '../../../lib/text';
 import { AlarmIcon, BasketIcon, PlusIcon } from '@phosphor-icons/react';
 import { Link } from 'react-router';
 import { toastCallbacks } from '../../../lib/notify';
@@ -100,7 +101,7 @@ export function ProgressCell({ task, context }: { task: Task; context: TaskConte
   if (children.length === 0) return null;
   const done = children.filter((child) => child.closed).length;
   return (
-    <Tooltip label={`${done} sur ${children.length} sous-tâches fermées`}>
+    <Tooltip label={`${done} sur ${countOf(children.length, 'sous-tâche')} ${plural(children.length, 'fermée')}`}>
       <div>
         <TaskProgress done={done} total={children.length} size="sm" unit={false} label="Avancement des sous-tâches" />
       </div>

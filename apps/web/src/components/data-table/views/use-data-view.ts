@@ -239,7 +239,7 @@ export function useDataView<R>({
         onFilter:
           id in fields.kinds
             ? () => {
-                views.change((current) => ({ ...current, filter: { ...current.filter, children: [...current.filter.children, newConditionFor(fields.kinds, id)] } }));
+                views.change((current) => ({ ...current, filter: { ...current.filter, children: [...current.filter.children, newConditionFor(fields, id)] } }));
                 setFilterOpened(true);
               }
             : undefined,

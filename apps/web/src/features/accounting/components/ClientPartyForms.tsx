@@ -6,6 +6,7 @@ import { useAppForm, formCallbacks } from '../../../lib/form';
 
 import { useClientPartyMutations, type ClientBilling, type ClientContact, type ClientService } from '../api';
 import { FormActions } from '../../../components/dialogs/FormActions';
+import { CLIENT_KIND_LABELS } from '../lib/labels';
 
 /**
  * Errors of the address fields, from the form errors ("address.city" → "city").
@@ -64,10 +65,7 @@ export function ClientDetailsForm({ client, onDone }: { client: ClientBilling; o
     <form noValidate onSubmit={form.onSubmit((values) => updateDetails.mutate({ id: client.id, input: values }, formCallbacks(form, 'Coordonnées enregistrées.', onDone)))}>
       <Stack gap="md">
         <SegmentedControl
-          data={[
-            { value: 'COMPANY', label: 'Professionnel' },
-            { value: 'INDIVIDUAL', label: 'Particulier' },
-          ]}
+          data={Object.entries(CLIENT_KIND_LABELS).map(([value, label]) => ({ value, label }))}
           value={form.values.kind}
           onChange={(kind) => form.setFieldValue('kind', kind as DetailsValues['kind'])}
           aria-label="Type de client"

@@ -1,12 +1,12 @@
-import { dateSchema, descriptionSchema, mapById, MAX_PROJECT_DEPTH, optionalColorSchema, parseOptionalDay, projectLabelSchema } from '@ordo/shared';
+import { ancestorsOf, dateSchema, descriptionSchema, mapById, MAX_PROJECT_DEPTH, optionalColorSchema, parseOptionalDay, projectLabelSchema, subtreeOf } from '@ordo/shared';
 import { z } from 'zod';
 import { prisma } from '../../db';
 import type { Prisma, Project } from '../../generated/prisma/client';
-import { clientError, fieldError, notFound, orNotFound, parseField, parseInput } from '../../graphql/errors';
-import { ARCHIVED_MESSAGE, assertNotArchived } from '../core/archive';
+import { fieldError, notFound, parseField, parseInput } from '../../graphql/errors';
+import { assertActive, refuseArchived, isArchivedAs, cascadeArchive } from '../core/archive';
 import { deleteOrphanIcons, resolveIconUpdate, storeIcon } from '../core/icons';
 import { BY_POSITION, moveInOrder, nextPositionIn } from '../core/ordering';
-import { assertAllExist, assertExists } from '../core/lookup';
+import { assertAllExist, assertExists, findOrNotFound } from '../core/lookup';
 import { assertDateRange } from '../core/date-range';
 import { connectIds } from '../core/relations';
 
@@ -55,15 +55,7 @@ class ProjectTree {
    * @returns {TreeProject[]} Ancestors.
    */
   ancestors(id: string): TreeProject[] {
-    const result: TreeProject[] = [];
-    let parentId = this.byId.get(id)?.parentId ?? null;
-    while (parentId) {
-      const parent = this.byId.get(parentId);
-      if (!parent) break;
-      result.push(parent);
-      parentId = parent.parentId;
-    }
-    return result;
+    return ancestorsOf(this.byId, id);
   }
 
   /**
@@ -81,14 +73,7 @@ class ProjectTree {
    * @returns {TreeProject[]} Descendants.
    */
   descendants(id: string): TreeProject[] {
-    const result: TreeProject[] = [];
-    const queue = [...(this.childrenOf.get(id) ?? [])];
-    while (queue.length > 0) {
-      const project = queue.shift()!;
-      result.push(project);
-      queue.push(...(this.childrenOf.get(project.id) ?? []));
-    }
-    return result;
+    return [...subtreeOf([...this.byId.values()], id, false)].map((descendant) => this.byId.get(descendant)!);
   }
 
   /**
@@ -107,9 +92,8 @@ class ProjectTree {
  * @param {string} id Project id.
  * @returns {Promise<Project>} Project.
  */
-async function findProject(id: string): Promise<Project> {
-  const project = await orNotFound(prisma.project.findUnique({ where: { id } }), 'Projet');
-  return project;
+function findProject(id: string): Promise<Project> {
+  return findOrNotFound(prisma.project, id, 'Projet');
 }
 
 /**
@@ -119,8 +103,7 @@ async function findProject(id: string): Promise<Project> {
  */
 async function assertAttachableClient(clientId: string | null): Promise<void> {
   if (!clientId) return;
-  await orNotFound(prisma.client.findUnique({ where: { id: clientId }, select: { id: true } }), 'Client');
-  await assertNotArchived('client', clientId, { field: 'clientId' });
+  await assertActive(prisma.client, clientId, 'Client', { field: 'clientId' });
 }
 
 /**
@@ -133,7 +116,7 @@ async function assertAttachableClient(clientId: string | null): Promise<void> {
 function assertParent(tree: ProjectTree, parentId: string, movedId: string | null): string | null {
   const parent = tree.byId.get(parentId);
   if (!parent) throw notFound('Projet parent');
-  if (parent.archivedAt) throw fieldError('parentId', ARCHIVED_MESSAGE);
+  refuseArchived(parent, 'parentId');
   if (movedId && (parentId === movedId || tree.ancestors(parentId).some((ancestor) => ancestor.id === movedId))) {
     throw fieldError('parentId', 'Un projet ne peut pas être placé dans l’un de ses sous-projets.');
   }
@@ -307,7 +290,7 @@ export async function updateProject(
   },
 ): Promise<Project> {
   const project = await findProject(id);
-  if (project.archivedAt) throw clientError('BAD_USER_INPUT', ARCHIVED_MESSAGE);
+  refuseArchived(project);
   const label = parseField('label', projectLabelSchema.optional(), input.label ?? undefined);
 
   const parentId = input.parentId === undefined ? project.parentId : input.parentId;
@@ -353,52 +336,25 @@ export async function setProjectFavorite(id: string, favorite: boolean): Promise
  */
 export async function setProjectArchived(id: string, archived: boolean): Promise<Project> {
   const project = await findProject(id);
-  if ((project.archivedAt !== null) === archived) return project;
+  if (isArchivedAs(project, archived)) return project;
   const tree = await ProjectTree.load();
   const descendantIds = tree.descendants(id).map((descendant) => descendant.id);
-
-  if (archived) {
-    const now = new Date();
-    const [, updated] = await prisma.$transaction([
-      prisma.project.updateMany({
-        where: { id: { in: descendantIds }, archivedAt: null },
-        data: { archivedAt: now, archivedByCascade: true },
-      }),
-      prisma.project.update({ where: { id }, data: { archivedAt: now, archivedByCascade: false } }),
-    ]);
-    return updated;
-  }
+  if (archived) return cascadeArchive<Project>('project', id, true, { descendantIds });
 
   // Archived ancestors come back alone: their other sub-projects stay archived on their own.
-  const archivedAncestorIds = tree
+  const ancestorIds = tree
     .ancestors(id)
     .filter((ancestor) => ancestor.archivedAt)
     .map((ancestor) => ancestor.id);
   const client = project.clientId ? await prisma.client.findUnique({ where: { id: project.clientId }, select: { archivedAt: true } }) : null;
-  const clientArchived = Boolean(project.clientId && client?.archivedAt);
-
-  const [, , , updated] = await prisma.$transaction([
-    prisma.project.updateMany({
-      where: { id: { in: descendantIds }, archivedByCascade: true },
-      data: { archivedAt: null, archivedByCascade: false },
-    }),
-    prisma.project.updateMany({
-      where: { id: { in: archivedAncestorIds } },
-      data: { archivedAt: null, archivedByCascade: false },
-    }),
-    prisma.project.updateMany({
-      // Projects archived by the cascade of a restored ancestor now stay archived on their own.
-      where: {
-        archivedByCascade: true,
-        id: { notIn: [id, ...descendantIds] },
-        OR: [{ parentId: { in: archivedAncestorIds } }, ...(clientArchived ? [{ clientId: project.clientId }] : [])],
-      },
-      data: { archivedByCascade: false },
-    }),
-    prisma.project.update({ where: { id }, data: { archivedAt: null, archivedByCascade: false } }),
-    ...(clientArchived ? [prisma.client.update({ where: { id: project.clientId! }, data: { archivedAt: null } })] : []),
-  ]);
-  return updated;
+  const clientId = client?.archivedAt ? project.clientId : null;
+  return cascadeArchive<Project>('project', id, false, {
+    descendantIds,
+    ancestorIds,
+    // Projects archived along with a restored client too.
+    alongWith: clientId ? [{ clientId }] : [],
+    restoreAlso: clientId ? [prisma.client.update({ where: { id: clientId }, data: { archivedAt: null } })] : [],
+  });
 }
 
 /**

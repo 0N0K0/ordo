@@ -53,7 +53,7 @@ export const attachmentCount = (line: LineValues) =>
  * @param {Partial<LineValues>} fields Its fields.
  * @returns {LineValues} Line.
  */
-export function newLine(fields: Partial<LineValues>): LineValues {
+export function newSplitLine(fields: Partial<LineValues>): LineValues {
   return {
     id: null,
     label: null,

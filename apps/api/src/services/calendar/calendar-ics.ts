@@ -1,6 +1,6 @@
 import { addDays, fileName, formatDay, occurrenceDates, type Recurrence, ruleValues, weekdayOfDate, zonedInstant } from '@ordo/shared';
 import { prisma } from '../../db';
-import { notFound } from '../../graphql/errors';
+import { orNotFound } from '../../graphql/errors';
 import { occurrenceInclude, readEventLinks, storedRecurrence, toOccurrence, type CalendarLink, type EventWithRelations } from './calendar-events';
 
 /** Repeated events without end are written with their exclusions up to this many years ahead. */
@@ -257,8 +257,7 @@ function eventLines(event: ExportedEvent, stamp: Date): string[] {
  * @returns {Promise<{ filename: string, content: string }>} File name and content (as the other exports).
  */
 export async function calendarIcs(calendarId: string | null): Promise<{ filename: string; content: string }> {
-  const calendar = calendarId ? await prisma.calendar.findUnique({ where: { id: calendarId }, select: { label: true } }) : null;
-  if (calendarId && !calendar) throw notFound('Calendrier');
+  const calendar = calendarId ? await orNotFound(prisma.calendar.findUnique({ where: { id: calendarId }, select: { label: true } }), 'Calendrier') : null;
   const events = await prisma.calendarEvent.findMany({
     // Archived events left out, and the archived calendars from the file of all of them.
     where: calendarId ? { calendarId, archivedAt: null } : { archivedAt: null, calendar: { archivedAt: null } },

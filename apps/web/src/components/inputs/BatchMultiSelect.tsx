@@ -8,6 +8,7 @@ import { onMutationError } from '../../lib/notify';
 import { CREATE_VALUE, keepCreate, withCreate } from './creatable';
 import { useRef, useState } from 'react';
 import classes from './BatchMultiSelect.module.css';
+import { foldAction } from '../actions/fold-label';
 
 /**
  * Same values, whatever their order.
@@ -97,7 +98,7 @@ export function BatchMultiSelect({
   };
   const toggleButton = (
     <Anchor component="button" type="button" size="xs" className={classes.toggle} aria-expanded={expanded} onMouseDown={(event: MouseEvent) => event.preventDefault()} onClick={toggle}>
-      {expanded ? 'Réduire' : `${shownValues.length - shown} de plus`}
+      {expanded ? foldAction(true) : `${shownValues.length - shown} de plus`}
     </Anchor>
   );
 

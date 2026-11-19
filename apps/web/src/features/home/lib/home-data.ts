@@ -11,6 +11,7 @@ import { myTasksFilter } from '../../tasks/lib/my-tasks';
 import type { TaskContext } from '../../tasks/hooks/use-task-context';
 import * as fmt from '../../../lib/format';
 import { currentWeek } from '../../../lib/week';
+import { useCalendarEvents, type EventOccurrence } from '../../calendar/api';
 
 /**
  * A day relative to today: « Aujourd’hui », « Demain », « Hier » or « lun. 9 nov. ».
@@ -25,7 +26,18 @@ export function dayLabel(date: string, today: string): string {
   return fmt.weekday(date);
 }
 
-/** Invoicing at a glance. */
+/**
+ * Events of the home page (Agenda card, navigation badge) between two days: the cancelled ones hidden, and not counted
+ * (decision CA).
+ * @param {string} from First day.
+ * @param {string} to Last day.
+ * @returns {EventOccurrence[] | undefined} Events held, undefined while loading.
+ */
+export function useHeldEvents(from: string, to: string): EventOccurrence[] | undefined {
+  const { data } = useCalendarEvents({ from, to });
+  return useMemo(() => data?.filter((event) => !event.calledOff), [data]);
+}
+
 /**
  * Whether a task of the home page is overdue: past its « Date max ».
  * @param {{ deadline: string | null }} task Task.
@@ -33,6 +45,10 @@ export function dayLabel(date: string, today: string): string {
  * @returns {boolean} Overdue.
  */
 export const isTaskLate = (task: { deadline: string | null }, today: string): boolean => task.deadline !== null && task.deadline < today;
+
+/** Name of the balance of the projection 30 days from today (`balanceIn30Days`). */
+// eslint-disable-next-line no-restricted-syntax -- the name itself.
+export const IN_30_DAYS = 'Dans 30 jours';
 
 /**
  * Point of the treasury projection 30 days from today (the last one by then), shown on the home page.

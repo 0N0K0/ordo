@@ -52,6 +52,11 @@ const RESTRICTED_PATHS = [
     importNames: ['DotsThreeIcon', 'DotsThreeVerticalIcon', 'DotsThreeOutlineIcon', 'DotsThreeOutlineVerticalIcon', 'DotsThreeCircleIcon', 'DotsThreeCircleVerticalIcon'],
     message: 'Un menu « … » : ActionsMenu sans target (trois points verticaux, décision T ; variant="default" à côté de boutons).',
   },
+  {
+    name: '@ordo/shared',
+    importNames: ['FILTER_OPERATORS'],
+    message: 'Utiliser operatorsFor (components/filters/filter-meta) : les opérateurs propres d’un champ, sans « est vide » sur un champ obligatoire.',
+  },
 ];
 
 // The same, Menu allowed: the genuinely special menus.
@@ -59,6 +64,17 @@ const RESTRICTED_PATHS_BUT_MENU = RESTRICTED_PATHS.filter((path) => !path.import
 
 // ActionsMenu itself: wraps Menu and draws the « … » button.
 const RESTRICTED_PATHS_ACTIONS_MENU = RESTRICTED_PATHS_BUT_MENU.filter((path) => path.name !== '@phosphor-icons/react');
+
+// A count in a template followed by the text after it: `${count} tâches`, `${n} ${plural(n, 'tâche')}` (the expressions
+// and the texts of a template are two lists: expression i is followed by text i + 1).
+const COUNT_EXPRESSION = (path) =>
+  `:matches([${path}.type='Identifier'][${path}.name=/^(count|n|total|size|length)$|(Count|Total)$/], [${path}.type='MemberExpression'][${path}.property.name=/^(length|size|count|total)$|(Count|Total)$/])`;
+const COUNT_THEN = (text) =>
+  [0, 1, 2, 3, 4]
+    .map((index) => `TemplateLiteral${COUNT_EXPRESSION(`expressions.${index}`)}[quasis.${index + 1}.value.raw=${text}]`)
+    .join(', ');
+// A plural noun right after a count (« 3 tâches »), invariable words aside (temps, fois, mois…).
+const PLURAL_NOUN = "/^ (?!(temps|fois|mois|pas|plus|dans|sans|sous|vers|après|depuis)(?![a-zàâçéèêëîïôûùüœ]))[a-zàâçéèêëîïôûùüœ’-]*[a-zàâçéèêëîïôûùüœ]s(?![a-zàâçéèêëîïôûùüœ])/";
 
 // The shared bricks (components/, lib/) never depend on a feature.
 const NO_FEATURES = {
@@ -516,7 +532,7 @@ export default defineConfig([
         {
           selector: 'TemplateLiteral > TemplateElement[value.raw=/^(doc|imp):$/]',
           message:
-            'Utiliser documentKey / allocationKey / allocationOfKey, les clés des documents réglés (fonctions de features/treasury/components/EntryForm.tsx ; le documentKey de features/treasury/lib/entry-env est une autre clé).',
+            'Utiliser settledKey / allocationKey / allocationOfKey, les clés des documents réglés (fonctions de features/treasury/components/EntryForm.tsx ; le documentKey de features/treasury/lib/entry-env est une autre clé).',
         },
         {
           selector: "JSXOpeningElement[name.name='Alert'] > JSXAttribute[name.name='color'][value.value='red']",
@@ -539,6 +555,11 @@ export default defineConfig([
           selector:
             "LogicalExpression:has(> BinaryExpression[right.value='INVOICE']):has(> BinaryExpression[right.value='DEPOSIT_INVOICE']), ArrayExpression[elements.length=2][elements.0.value='INVOICE'][elements.1.value='DEPOSIT_INVOICE'], ArrayExpression[elements.length=4][elements.0.value='QUOTE'][elements.1.value='INVOICE']",
           message: 'Utiliser isInvoice(type), INVOICE_TYPES ou ACCOUNTING_DOCUMENT_TYPES (@ordo/shared).',
+        },
+        {
+          // « Not a quote nor a credit note »: an invoice.
+          selector: "LogicalExpression:has(> BinaryExpression[right.value='QUOTE']):has(> BinaryExpression[right.value='CREDIT_NOTE'])",
+          message: 'Utiliser isInvoice(type) (@ordo/shared) : une facture ou une facture d’acompte.',
         },
         // Mail: the bricks of features/mail and @ordo/shared.
         {
@@ -622,6 +643,181 @@ export default defineConfig([
           selector: 'JSXOpeningElement[name.name=/^(Editable\\w+|(?!Links)\\w+Cell)$/] > JSXAttribute[name.name=/^(aria-)?label$/] > JSXExpressionContainer > TemplateLiteral',
           message: 'Utiliser bulkCellLabels(view, nom) (data-table/selection/bulk-edit) ou itemCellLabel (cell-field) : la forme commune, sélection comprise.',
         },
+        // What a time was spent on: one name (agenda, header timer, timer card).
+        {
+          selector: "LogicalExpression[operator='??'][right.value=/./] > MemberExpression.left[property.name='routineLabel'], LogicalExpression[operator='??'] > MemberExpression.right[property.name='routineLabel']",
+          message: 'Utiliser entrySubject(entry, context) (features/time/lib/entry-subject) : le projet, ou la routine.',
+        },
+        // A typed cell: Escape gives the draft up before the blur saves it.
+        {
+          selector: "JSXAttribute[name.name='onKeyDown'] CallExpression[callee.name='setDraft']",
+          message: 'Utiliser useCellDraft (components/data-table/cells/cell-field) : Entrée enregistre, Échap annule sans enregistrer.',
+        },
+        // Round 8, lot 2: the bricks of the small duplicates.
+        {
+          selector: "Literal[value=/^\\(?[Bb]rouillon\\)?$/], Literal[value='ce brouillon'], JSXText[value=/^\\s*Brouillon\\s*$/]",
+          message: 'Utiliser DRAFT_NAME, documentName(number, label ?) ou documentTitle(document) (@ordo/shared), DraftBadge (accounting) : « Brouillon » (décision CD).',
+        },
+        {
+          selector: "TemplateLiteral:has(> MemberExpression[object.name='DOCUMENT_TYPE_LABELS']):has(> MemberExpression[property.name='number']), TemplateLiteral:has(> MemberExpression[object.name='DOCUMENT_TYPE_LABELS']):has(> LogicalExpression[left.property.name='number'])",
+          message: 'Utiliser documentTitle(document) (@ordo/shared) : « Facture F-2026-001 », « Facture Brouillon », sans espace en fin.',
+        },
+        {
+          selector: "TemplateLiteral:has(> MemberExpression[property.name='email']):has(> TemplateElement[value.raw=/<$/]), Property[key.name='label'] > MemberExpression.value[property.name='email'], TemplateLiteral:has(> MemberExpression[property.name='email']):has(> TemplateElement[value.raw=/\\($/])",
+          message: 'Utiliser accountLabel(account) (features/mail/lib/mail-format) : « Nom <adresse> » (décision CE).',
+        },
+        {
+          selector: "ConditionalExpression:matches([test.property.name=/^(overdue|late)$/], [test.object.name=/^(late|overdue)$/]) > Literal.consequent[value=/^(red|orange)$/]",
+          message: 'Utiliser LATE_COLOR (components/feedback/feedback-colors) : un retard en orange (décisions AI, CF).',
+        },
+        {
+          selector: "JSXOpeningElement[name.name='Button'] > JSXAttribute[name.name='color'][value.value='red']",
+          message: 'Utiliser ActionButton danger (components/actions) : rouge plein, contour rouge en secondaire, texte rouge en tertiaire (décision CG).',
+        },
+        {
+          selector: "JSXOpeningElement[name.name=/^(UnstyledButton|Button)$/]:has(> JSXAttribute[name.name='aria-expanded']):not(:has(> JSXAttribute[name.name='aria-haspopup']))",
+          message: 'Utiliser FoldHeading (components/actions/FoldHeading) : toute la ligne cliquable, chevron, titre, compte (décision CH).',
+        },
+        {
+          selector: "JSXAttribute[name.name='leftSection'] > JSXExpressionContainer > ConditionalExpression[test.name='current'] > JSXElement.consequent[openingElement.name.name='ItemAvatar']",
+          message: 'Utiliser itemSelectProps(items, value) ou chosenAvatar(items, value) (components/items/item-look).',
+        },
+        {
+          selector: "Literal[value=' (fermée)'], TemplateElement[value.raw=/\\(fermée\\)/]",
+          message: 'Utiliser closedMark(task) (tasks/hooks/use-task-context) ou timeTaskOptions(context, tasks) (time/lib/time-tasks).',
+        },
+        {
+          selector: "ObjectExpression:has(> Property[key.name='mutationFn']) > Property[key.name=/^on(Success|Settled)$/]:has(CallExpression[callee.property.name='invalidateQueries']):not(:has(IfStatement))",
+          message: 'Utiliser useInvalidatingMutation(request, { invalidate }) (lib/mutation).',
+        },
+        {
+          selector: "JSXAttribute[name.name='onChange'] ConditionalExpression[test.operator='==='][test.left.operator='typeof'][test.right.value='number'][alternate.value=null], JSXAttribute[name.name='onChange'] ConditionalExpression[test.operator='==='][test.right.value=''][consequent.value=null][alternate.callee.name='Number'], VariableDeclarator[id.name='optionalNumber']",
+          message: 'Utiliser optionalNumberProps(form, champ) ou optionalNumber(value) (components/inputs/number-format).',
+        },
+        {
+          selector: "Property > Literal.value[value=/^(Professionnel|Particulier)$/], ConditionalExpression > Literal[value=/^(Professionnel|Particulier)$/]",
+          message: 'Utiliser CLIENT_KIND_LABELS (features/accounting/lib/labels).',
+        },
+        {
+          selector: "Literal[value=/^(Consommé|Ajouté|Perdu)$/]",
+          message: 'Utiliser STOCK_MOVEMENT_LABELS (@ordo/shared) : les mêmes noms de mouvements partout.',
+        },
+        {
+          selector: "CallExpression[callee.property.name='mutate'] > ObjectExpression > Property[key.name='onError'] > ArrowFunctionExpression > CallExpression[callee.name='showFormError']",
+          message: 'Utiliser formCallbacks(form, message ou null) (lib/form).',
+        },
+        {
+          selector: "Property[key.name='beneficiaryRelationIds'] > CallExpression[callee.name='applyDiff']",
+          message: 'Utiliser beneficiariesDiff(target, before, after) (features/beneficiaries/lib/beneficiaries-diff).',
+        },
+        {
+          selector: "CallExpression[callee.name='alarmTaskLabel']",
+          message: 'Utiliser alarmTarget(alarm, taskOf, projectOf) (features/alarms/lib/alarm-labels) : le même lien partout.',
+        },
+        {
+          selector: "JSXAttribute[name.name=/^(c|color)$/] ConditionalExpression[test.operator='<'][test.right.value=0][consequent.value='red'] > Literal.alternate[value=/^(teal|green)$/]",
+          message: 'Utiliser SignedAmount (components/money/SignedAmount) : entrée en vert avec « + », sortie en rouge.',
+        },
+        {
+          selector: "Literal[value='Dans 30 jours'], TemplateElement[value.raw=/^Dans 30 jours/]",
+          message: 'Utiliser IN_30_DAYS (features/home/lib/home-data).',
+        },
+        {
+          selector: "MemberExpression[object.name='Number'][property.name='MAX_SAFE_INTEGER']",
+          message: 'Utiliser LAST_RANK (components/data-table/table/table-engine) : ce qui n’a pas de rang, en dernier.',
+        },
+        {
+          selector: "TemplateLiteral[quasis.length=3][quasis.0.value.raw=''][quasis.1.value.raw=/^[|:]$/][expressions.1.property.name=/([dD]ate|typeId)$/], TemplateLiteral[quasis.length=3][quasis.0.value.raw=''][quasis.1.value.raw=/^[|:]$/][expressions.1.left.property.name='typeId']",
+          message: 'Utiliser occurrenceKey(id, date) / readOccurrenceKey(key) ou foreignSlotKind(workspaceId, typeId) (@ordo/shared) : un seul format de clé.',
+        },
+        {
+          selector: "VariableDeclarator[id.elements.0.name=/^(title|label|name)Draft$/]",
+          message: 'Utiliser openLabelForm(titre, { … }) (components/dialogs/open-label-form) : renommer dans le panneau latéral (décision CK).',
+        },
+        {
+          selector: "TemplateLiteral[quasis.0.value.raw=/^(Redimensionner la colonne|Total de|Sélectionner|la répartition de) $/]",
+          message: 'Nommer l’élément entre guillemets dans un libellé caché : « Total de « X » ».',
+        },
+        {
+          selector: "Literal[value=/^\\/?(projects|clients)\\/:id$/]",
+          message: 'Utiliser PROJECT_ROUTE / CLIENT_ROUTE (app/pages).',
+        },
+        {
+          selector: "JSXOpeningElement[name.name='Overlay'] > JSXAttribute[name.name=/^(color|backgroundOpacity)$/]",
+          message: 'Voile tiré des tokens : --onoko-overlay-color (styles/tokens.css), pas de couleur ni d’opacité en dur (décision CL).',
+        },
+        {
+          selector: "JSXElement[openingElement.name.name='Text']:has(> JSXExpressionContainer CallExpression[callee.name='commentTotal']), ObjectExpression:has(> Property[key.name='label'][value.value='Commentaires']) > Property[key.name='id'] > Literal.value[value='comments']",
+          message: 'Utiliser commentColumn(counts, idOf, descriptionOf) et CommentCount (features/comments) : la colonne commentaires avec son icône (décision CJ).',
+        },
+        {
+          selector: "CallExpression[callee.property.name='padStart'][arguments.0.value=2][arguments.1.value='0']",
+          message: 'Utiliser twoDigits(value) (@ordo/shared).',
+        },
+        // Round 8, lot 3: the holes of the rules above.
+        {
+          // « 3 tâches » written by hand; a phrase of its own for one (« Tous les jours ») is left alone.
+          selector: `:matches(${COUNT_THEN(PLURAL_NOUN)}):not(ConditionalExpression:matches([test.right.value=1], [test.right.value=2]) > TemplateLiteral), JSXExpressionContainer${COUNT_EXPRESSION('expression')} + JSXText[value=${PLURAL_NOUN.replace('/^ ', '/^\\s+')}]`,
+          message: 'Utiliser countOf(count, mot) (lib/text) : « 1 tâche », « 3 tâches ».',
+        },
+        {
+          selector: `${COUNT_THEN("' '")}:has(> CallExpression[callee.name='plural']), JSXExpressionContainer${COUNT_EXPRESSION('expression')}:not(JSXText[value=/(\\/|sur)\\s*$/] + JSXExpressionContainer) + JSXText[value=/^\\s+$/] + JSXExpressionContainer[expression.callee.name='plural']`,
+          // « 3 / 5 faits », « 2 sur 5 achetés »: the agreement follows the other count.
+          message: 'Utiliser countOf(count, mot) (lib/text) au lieu de « ${count} ${plural(count, mot)} ».',
+        },
+        {
+          // Decision AB: the light and the switching variants too; a toggle (aria-pressed) and the target of a popover or a menu (its state shown) aside.
+          selector:
+            "JSXOpeningElement[name.name='Button']:has(> JSXAttribute[name.name='leftSection']):has(> JSXAttribute[name.name='variant']:matches([value.value='light'], [value.expression.type='ConditionalExpression'])):not(:has(> JSXAttribute[name.name='aria-pressed'])):not(JSXElement[openingElement.name.property.name='Target'] > JSXElement > JSXOpeningElement):not(JSXAttribute[name.name='target'] JSXOpeningElement)",
+          message: 'Utiliser ActionButton (components/actions/ActionButton), priority primary / secondary / tertiary : icône et libellé (décision AB).',
+        },
+        {
+          // Decision AE.
+          selector: 'Literal[value=/^(Réduire|Développer)\\b/], TemplateElement[value.raw=/^(Réduire|Développer)\\b/], JSXText[value=/^\\s*(Réduire|Développer)\\b/]',
+          message: 'Utiliser foldAction(expanded) / foldLabel(expanded, about) (components/actions/fold-label), ou about de FoldButton / FoldHeading : « Développer / Réduire » (décision AE).',
+        },
+        {
+          selector: "JSXElement[openingElement.name.name=/^(Button|UnstyledButton|ActionButton|Anchor)$/] JSXOpeningElement[name.name='FoldChevron'], JSXOpeningElement[name.name=/^(Button|UnstyledButton|ActionButton|Anchor)$/] JSXOpeningElement[name.name='FoldChevron']",
+          message: 'Utiliser FoldHeading (une ligne qui plie) ou FoldButton (un bouton icône) (components/actions) : un seul bouton de pliage (décisions AE, CH).',
+        },
+        {
+          // Decision BF: the name of a menu given as an object, or quoted twice.
+          selector:
+            "JSXAttribute[name.name='menu'] > JSXExpressionContainer > ObjectExpression > Property[key.name='name'] :matches(Literal[value=/^(la|le|les|ce|ces|cet|cette|mon|du|des) /], Literal[value=/^l’/], TemplateElement[value.raw=/^(la|le|les|ce|ces|mon|du|des) /], TemplateElement[value.raw=/^l’/]), JSXOpeningElement[name.name=/^(ActionsMenu|RowActions|InlineActions|DetailHeader)$/] > JSXAttribute[name.name='name'] :matches(Literal[value=/«/], TemplateElement[value.raw=/«/]), JSXAttribute[name.name='menu'] > JSXExpressionContainer > ObjectExpression > Property[key.name='name'] :matches(Literal[value=/«/], TemplateElement[value.raw=/«/])",
+          message: 'Un nom sans guillemets dans name (ActionsMenu les ajoute : « Actions de « X » »), une description dans about : ActionsSubject (components/actions/actions-subject).',
+        },
+        {
+          // The archived taken out by a helper of its own instead of `.filter`.
+          selector:
+            "CallExpression:not([callee.property.name=/^(filter|find|some|every|findIndex|findLast)$/]) > ArrowFunctionExpression.arguments[params.length=1] > UnaryExpression.body[operator='!'] > MemberExpression.argument[object.type='Identifier'][property.name='archived']",
+          message: 'Utiliser unarchived(items, keep) (lib/archive), puis filter / find / some : les archivés retirés, la valeur en cours gardée.',
+        },
+        {
+          selector: `JSXElement[openingElement.name.name='Badge'][children.length=1] > JSXExpressionContainer${COUNT_EXPRESSION('expression')}`,
+          message: 'Utiliser CountBadge (components/feedback/CountBadge) : un compte seul, la même pastille partout (décision CI).',
+        },
+        {
+          // Decision W: an element named in a hidden label is quoted (IconAction quotes its `item` itself).
+          selector: [0, 1, 2, 3]
+            .map(
+              (index) =>
+                `JSXOpeningElement:not([name.name='IconAction']) > JSXAttribute[name.name='aria-label'] > JSXExpressionContainer > TemplateLiteral[quasis.${index}.value.raw=/([^«]|^) $/][expressions.${index}.type='MemberExpression'][expressions.${index}.property.name=/^(label|name|title|subject|number)$/]`,
+            )
+            .join(', '),
+          message: 'Nommer l’élément entre guillemets dans un libellé caché : « Supprimer « X » » (décision W), ou item d’IconAction.',
+        },
+        {
+          selector: 'TemplateElement[value.raw=/\\/:id$/], TemplateElement[value.raw=/^\\/:id/]',
+          message: 'Utiliser PROJECT_ROUTE / CLIENT_ROUTE ou routeOf(path, « :id ») (app/pages).',
+        },
+        {
+          selector: "TemplateLiteral:has(> TemplateElement[value.raw='|'])",
+          message: 'Utiliser joinedKey(a, b, …) (@ordo/shared), occurrenceKey(id, date), routineLinkKey ou sprintTaskKey : un seul format de clé.',
+        },
+        {
+          selector: "CallExpression[callee.object.name='Object'][callee.property.name='fromEntries'] > CallExpression.arguments[callee.property.name='map'][callee.object.name='columns']",
+          message: 'Utiliser readOnlyCells(columns, row) (components/data-table/table/data-table) : le texte de chaque colonne, la cellule d’une colonne commune.',
+        },
       ],
     },
   },
@@ -633,6 +829,11 @@ export default defineConfig([
     // App-wide features the bricks read (the user, the active workspace and its week, a file link): known exceptions.
     files: ['src/lib/query-client.ts', 'src/lib/week.ts', 'src/components/people/people-options.ts', 'src/components/markdown/MarkdownView.tsx'],
     rules: { 'no-restricted-imports': ['error', { paths: RESTRICTED_PATHS }] },
+  },
+  {
+    // operatorsFor reads the operators of each kind.
+    files: ['src/components/filters/filter-meta.ts'],
+    rules: { 'no-restricted-imports': ['error', { paths: RESTRICTED_PATHS.filter((path) => !path.importNames.includes('FILTER_OPERATORS')), patterns: [NO_FEATURES] }] },
   },
   {
     // ActionsMenu wraps Menu.

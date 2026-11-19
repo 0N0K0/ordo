@@ -100,7 +100,7 @@ function WorkspaceRow({ workspace, index, count, current, fallbackId }: Workspac
         />
         <RemoveButton
           label={count === 1 ? 'Le dernier espace ne peut pas être supprimé' : 'Supprimer'}
-          aria-label={`Supprimer ${workspace.label}`}
+          aria-label={`Supprimer « ${workspace.label} »`}
           disabled={count === 1}
           onClick={() =>
             confirmDestructive({

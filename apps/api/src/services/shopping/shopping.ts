@@ -36,8 +36,8 @@ import {
 } from '../../generated/prisma/client';
 import { clientError, notFound, orNotFound, parseInput } from '../../graphql/errors';
 import { BY_POSITION, nextPositionIn } from '../core/ordering';
-import { assertAllExist, assertExists, deleteOrNotFound } from '../core/lookup';
-import { assertNoneArchived, assertNotArchived } from '../core/archive';
+import { assertExists, deleteOrNotFound, findOrNotFound } from '../core/lookup';
+import { assertNoneArchived, assertNotArchived, refuseArchived, activeIds } from '../core/archive';
 import { assertActiveRefs, type ShoppingRefs } from './refs';
 import { connectIds } from '../core/relations';
 import { decimalCents, fromDecimal, toDecimal } from '../core/decimal';
@@ -118,10 +118,8 @@ const categories = treeListService<CategoryWithLists, ParsedCategory, ShoppingCa
     include: { baseLists: { select: { id: true } } },
     async parse(input, current) {
       const data = parseInput(shoppingCategorySchema, input);
-      data.baseListIds = [...new Set(data.baseListIds)];
-      await assertAllExist(prisma.shoppingBaseList, data.baseListIds, 'Référence');
       // Archived base lists: no longer chosen, those already there stay.
-      await assertNoneArchived('SHOPPING_BASE_LIST', data.baseListIds, { keep: current?.baseLists.map((baseList) => baseList.id), field: 'baseListIds' });
+      data.baseListIds = await activeIds(prisma.shoppingBaseList, data.baseListIds, 'Référence', { keep: current?.baseLists.map((baseList) => baseList.id), field: 'baseListIds' });
       return data;
     },
     moveInput: (category, parentId) => ({ label: category.label, color: category.color, parentId, baseListIds: category.baseLists.map((baseList) => baseList.id) }),
@@ -210,8 +208,8 @@ export async function createProduct(input: ShoppingProductInput): Promise<Shoppi
  * @returns {Promise<ShoppingProduct>} Product.
  */
 export async function updateProduct(id: string, input: ShoppingProductInput): Promise<ShoppingProduct> {
-  const current = await orNotFound(prisma.shoppingProduct.findUnique({ where: { id } }), 'Produit');
-  await assertNotArchived('SHOPPING_PRODUCT', id);
+  const current = await findOrNotFound(prisma.shoppingProduct, id, 'Produit');
+  refuseArchived(current);
   await assertNotArchived('SHOPPING_BASE_LIST', current.baseListId);
   const data = await parseShopping(shoppingProductSchema, input, current);
   await assertBaseList(data.baseListId);
@@ -227,8 +225,7 @@ export async function updateProduct(id: string, input: ShoppingProductInput): Pr
  * @returns {Promise<void>}
  */
 export async function setProductsMissing(ids: string[], missing: boolean): Promise<void> {
-  await assertAllExist(prisma.shoppingProduct, ids, 'Produit');
-  await assertNoneArchived('SHOPPING_PRODUCT', ids);
+  await activeIds(prisma.shoppingProduct, ids, 'Produit');
   await prisma.$transaction([prisma.shoppingProduct.updateMany({ where: { id: { in: ids } }, data: { missing } })]);
 }
 
@@ -325,7 +322,7 @@ export function updateUnit(id: string, input: Partial<ShoppingStoreInput>): Prom
  * @returns {Promise<void>}
  */
 export async function deleteUnit(id: string): Promise<void> {
-  const unit = await orNotFound(prisma.shoppingUnit.findUnique({ where: { id } }), 'Unité');
+  const unit = await findOrNotFound(prisma.shoppingUnit, id, 'Unité');
   await prisma.$transaction([
     prisma.shoppingProduct.updateMany({ where: { unit: unit.label }, data: { unit: null } }),
     prisma.shoppingItem.updateMany({ where: { unit: unit.label }, data: { unit: null } }),
@@ -371,9 +368,8 @@ export const tasksClosed = (tasks: { closedAt: Date | null }[]): boolean => task
  * @param {string} id List id.
  * @returns {Promise<ShoppingList>} List.
  */
-export async function findList(id: string): Promise<ShoppingList> {
-  const list = await orNotFound(prisma.shoppingList.findUnique({ where: { id } }), 'Liste');
-  return list;
+export function findList(id: string): Promise<ShoppingList> {
+  return findOrNotFound(prisma.shoppingList, id, 'Liste');
 }
 
 /**
@@ -383,7 +379,7 @@ export async function findList(id: string): Promise<ShoppingList> {
  */
 export async function findOpenList(id: string): Promise<ShoppingList> {
   const list = await findList(id);
-  await assertNotArchived('SHOPPING_LIST', id);
+  refuseArchived(list);
   return list;
 }
 
@@ -401,10 +397,7 @@ const assertItemOpen = (item: { listId: string }): Promise<void> => assertNotArc
  * @returns {Promise<string[]>} Tasks, without duplicates.
  */
 async function assertTasks(taskIds: string[], current: string[] = []): Promise<string[]> {
-  const ids = [...new Set(taskIds)];
-  await assertAllExist(prisma.task, ids, 'Tâche');
-  await assertNoneArchived('task', ids, { keep: current, field: 'taskIds' });
-  return ids;
+  return activeIds(prisma.task, taskIds, 'Tâche', { keep: current, field: 'taskIds' });
 }
 
 /**
@@ -415,9 +408,7 @@ async function assertTasks(taskIds: string[], current: string[] = []): Promise<s
 export async function createList({ label, taskIds, baseListIds }: { label: string; taskIds: string[]; baseListIds: string[] }): Promise<ShoppingList> {
   const tasks = connectIds(await assertTasks(taskIds));
   const data = { label: parseInput(shoppingListLabelSchema, label), tasks: { connect: tasks } };
-  const ids = [...new Set(baseListIds)];
-  await assertAllExist(prisma.shoppingBaseList, ids, 'Référence');
-  await assertNoneArchived('SHOPPING_BASE_LIST', ids, { field: 'baseListIds' });
+  const ids = await activeIds(prisma.shoppingBaseList, baseListIds, 'Référence', { field: 'baseListIds' });
   // The archived products are not offered anymore.
   const products = ids.length ? await prisma.shoppingProduct.findMany({ where: { missing: true, archivedAt: null, baseListId: { in: ids } }, include: withPeople, orderBy: { label: 'asc' } }) : [];
   return prisma.shoppingList.create({ data: { ...data, items: { create: products.map((product, position) => copyOf(product, product.id, position)) } } });
@@ -463,7 +454,7 @@ export async function setListClosed(id: string, closed: boolean): Promise<Shoppi
  */
 export async function duplicateList(id: string): Promise<ShoppingList> {
   const list = await orNotFound(prisma.shoppingList.findUnique({ where: { id }, include: { items: { include: withPeople, orderBy: BY_POSITION } } }), 'Liste');
-  await assertNotArchived('SHOPPING_LIST', id);
+  refuseArchived(list);
   return prisma.shoppingList.create({
     data: {
       label: copyName(list.label, SHOPPING_LIST_LABEL_MAX),
@@ -492,7 +483,7 @@ export async function deleteList(id: string): Promise<void> {
  */
 export async function attachListEntry(id: string, entryId: string | null): Promise<ShoppingList> {
   const list = await orNotFound(prisma.shoppingList.findUnique({ where: { id }, include: { items: { include: withPeople } } }), 'Liste');
-  await assertNotArchived('SHOPPING_LIST', id);
+  refuseArchived(list);
   if (entryId === null) return prisma.shoppingList.update({ where: { id }, data: { entryId: null } });
   if (list.entryId === entryId) throw clientError('BAD_USER_INPUT', 'La liste est déjà rattachée à ce mouvement.');
   await assertNotArchived('TREASURY_ENTRY', entryId);
@@ -535,9 +526,8 @@ export async function attachListEntry(id: string, entryId: string | null): Promi
  * @param {string} id Item id.
  * @returns {Promise<ShoppingItem>} Item.
  */
-async function findItem(id: string): Promise<ShoppingItem> {
-  const item = await orNotFound(prisma.shoppingItem.findUnique({ where: { id } }), 'Élément');
-  return item;
+function findItem(id: string): Promise<ShoppingItem> {
+  return findOrNotFound(prisma.shoppingItem, id, 'Élément');
 }
 
 /**

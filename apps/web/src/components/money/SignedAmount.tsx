@@ -16,6 +16,7 @@ interface SignedAmountProps extends TextProps {
  */
 export function SignedAmount({ value, format = fmt.money, ...props }: SignedAmountProps) {
   return (
+    // eslint-disable-next-line no-restricted-syntax -- SignedAmount itself.
     <Text span size="sm" ff="monospace" c={value < 0 ? 'red' : 'green'} style={{ whiteSpace: 'nowrap' }} {...props}>
       {value > 0 ? '+' : ''}
       {format(value)}
@@ -38,6 +39,7 @@ interface SignedAmountCellProps {
  */
 export function SignedAmountCell({ value, label, onSave }: SignedAmountCellProps) {
   return (
+    // eslint-disable-next-line no-restricted-syntax -- SignedAmountCell itself.
     <Text span inherit c={value < 0 ? 'red' : 'green'}>
       <EditableNumber
         amount

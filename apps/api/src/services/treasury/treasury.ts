@@ -19,9 +19,10 @@ import { clientError, fieldError, notFound, orNotFound, parseInput } from '../..
 import { storedRecurrence } from '../calendar/calendar-events';
 import { documentBalances, importedBalances, syncPaymentStatus } from '../accounting/document-tracking';
 import { assertAllExist, assertExists, deleteOrNotFound } from '../core/lookup';
-import { assertNotArchived } from '../core/archive';
+import { assertNotArchived, assertActive, refuseArchived } from '../core/archive';
 import { connectIds } from '../core/relations';
 import { decimalCents, fromDecimal, toDecimal } from '../core/decimal';
+import { toJson } from '../core/json';
 
 /**
  * Balance of an account at the end of a day: opening balance plus its actual entries since the opening date.
@@ -59,8 +60,7 @@ export async function createAccount(input: TreasuryAccountInput): Promise<Treasu
  */
 export async function updateAccount(id: string, input: TreasuryAccountInput): Promise<TreasuryAccount> {
   const data = parseInput(treasuryAccountSchema, input);
-  await assertExists(prisma.treasuryAccount, id, 'Compte');
-  await assertNotArchived('TREASURY_ACCOUNT', id);
+  await assertActive(prisma.treasuryAccount, id, 'Compte');
   return prisma.treasuryAccount.update({
     where: { id },
     data: { label: data.label, openingBalance: toDecimal(data.openingBalance), openingDate: parseDay(data.openingDate) },
@@ -307,7 +307,7 @@ function entryData(entry: Awaited<ReturnType<typeof parseEntry>>) {
     projectId: entry.projectId,
     note: entry.note,
     url: entry.url ?? null,
-    recurrence: entry.recurrence ? (entry.recurrence as Prisma.InputJsonValue) : Prisma.DbNull,
+    recurrence: entry.recurrence ? toJson(entry.recurrence) : Prisma.DbNull,
   };
 }
 
@@ -364,8 +364,8 @@ export async function createEntry(input: TreasuryEntryInput): Promise<TreasuryEn
  * @returns {Promise<TreasuryEntry>} Entry.
  */
 export async function updateEntry(id: string, input: TreasuryEntryInput): Promise<TreasuryEntry> {
-  const previous = await orNotFound(prisma.treasuryEntry.findUnique({ where: { id }, select: ENTRY_REFS }), 'Mouvement');
-  await assertNotArchived('TREASURY_ENTRY', id);
+  const previous = await orNotFound(prisma.treasuryEntry.findUnique({ where: { id }, select: { ...ENTRY_REFS, archivedAt: true } }), 'Mouvement');
+  refuseArchived(previous);
   const entry = await parseEntry(input, id, previous);
   if (entry.linkedEntryIds.includes(id)) throw fieldError('linkedEntryIds', 'Un mouvement ne peut pas être lié à lui-même.', 'Retirez ce mouvement de ses liens.');
   const updated = await prisma.$transaction(async (tx) => {

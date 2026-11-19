@@ -20,7 +20,7 @@ export function useDeleteEntries() {
       deleteItemsAction(rows, {
         noun: 'mouvement',
         the: 'le mouvement',
-        name: rowLabel,
+        label: rowLabel,
         risks: (subject, one, entries) =>
           [
             `${subject} ${one ? 'sera supprimé' : 'seront supprimés'} définitivement.`,
@@ -37,7 +37,7 @@ export function useDeleteEntries() {
         noun: 'prévision',
         feminine: true,
         the: 'la prévision',
-        name: rowLabel,
+        label: rowLabel,
         risks: (subject, one) => `${subject} et toutes ${one ? 'ses' : 'leurs'} répétitions seront supprimées${note}.`,
         remove,
         clear,

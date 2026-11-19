@@ -4,8 +4,8 @@ import { prisma } from '../../db';
 import { type Contributor } from '../../generated/prisma/client';
 import { clientError, fieldError, orNotFound, parseInput, rethrowUnique } from '../../graphql/errors';
 import { deleteOrphanIcons, resolveIconUpdate, storeIcon } from '../core/icons';
-import { assertAllExist } from '../core/lookup';
-import { assertNoneArchived, assertNotArchived } from '../core/archive';
+import { assertAllExist, findOrNotFound } from '../core/lookup';
+import { assertNoneArchived, assertNotArchived, refuseArchived } from '../core/archive';
 import { lineageIds } from '../core/trees';
 import { connectIds } from '../core/relations';
 
@@ -78,9 +78,9 @@ export async function updateContributor(
     projectIds?: string[] | null;
   },
 ): Promise<Contributor> {
-  const contributor = await orNotFound(prisma.contributor.findUnique({ where: { id } }), 'Contributeur');
+  const contributor = await findOrNotFound(prisma.contributor, id, 'Contributeur');
   // Read only when archived.
-  await assertNotArchived('contributor', id);
+  refuseArchived(contributor);
   if (input.projectIds) await assertProjects(input.projectIds);
   const data = parseInput(z.object({ name: personNameSchema.optional(), handle: handleSchema.optional() }), {
     name: input.name ?? undefined,

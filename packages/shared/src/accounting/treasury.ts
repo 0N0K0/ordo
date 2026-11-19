@@ -8,6 +8,7 @@ import { printedDay } from '../dates/days';
 import { recurrenceSchema } from '../dates/recurrence';
 import { daySchema, isRealDay } from '../dates/times';
 import { colorSchema, optionalColorSchema } from '../core/workspace';
+import { twoDigits } from '../core/numbers';
 
 export type DocumentStatusScope = 'QUOTE' | 'INVOICE';
 export const DOCUMENT_STATUS_CATEGORIES = ['TO_SEND', 'SENT', 'ACCEPTED', 'REFUSED', 'PAID', 'CREDIT_DUE'] as const;
@@ -490,8 +491,8 @@ function statementDate(value: string | undefined, format: StatementMapping['date
   if (parts.length !== 3) return null;
   const [first, month, day] = format === 'YYYY-MM-DD' ? parts : [parts[2], parts[1], parts[0]];
   let year = first;
-  if (format === 'DD/MM/YY' || year.length === 2) year = `20${year.padStart(2, '0')}`;
-  const date = `${year.padStart(4, '0')}-${month.padStart(2, '0')}-${day.padStart(2, '0')}`;
+  if (format === 'DD/MM/YY' || year.length === 2) year = `20${twoDigits(year)}`;
+  const date = `${year.padStart(4, '0')}-${twoDigits(month)}-${twoDigits(day)}`;
   return isRealDay(date) ? date : null;
 }
 

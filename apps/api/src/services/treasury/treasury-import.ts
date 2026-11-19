@@ -1,11 +1,10 @@
 import { parseDay, statementImportSchema, type StatementImportInput } from '@ordo/shared';
 import { prisma } from '../../db';
-import { Prisma } from '../../generated/prisma/client';
 import { parseInput } from '../../graphql/errors';
 import { realizeForecast } from './treasury';
-import { assertNotArchived } from '../core/archive';
-import { assertExists } from '../core/lookup';
+import { assertActive } from '../core/archive';
 import { toDecimal } from '../core/decimal';
+import { toJson } from '../core/json';
 
 /**
  * Imports the operations of a bank statement into an account (chosen and checked in the preview): each one
@@ -16,9 +15,8 @@ import { toDecimal } from '../core/decimal';
  */
 export async function importStatement(input: StatementImportInput): Promise<{ created: number; realized: number }> {
   const data = parseInput(statementImportSchema, input);
-  await assertExists(prisma.treasuryAccount, data.accountId, 'Compte');
-  await assertNotArchived('TREASURY_ACCOUNT', data.accountId);
-  if (data.mapping) await prisma.treasuryAccount.update({ where: { id: data.accountId }, data: { csvMapping: data.mapping as Prisma.InputJsonValue } });
+  await assertActive(prisma.treasuryAccount, data.accountId, 'Compte');
+  if (data.mapping) await prisma.treasuryAccount.update({ where: { id: data.accountId }, data: { csvMapping: toJson(data.mapping) } });
   let created = 0;
   let realized = 0;
   for (const row of data.rows) {

@@ -1,5 +1,6 @@
 import { IconAction } from '../../components/actions/IconAction';
-import { AppShell, Group, ScrollArea, Title } from '@mantine/core';
+import { AppShell, Group, ScrollArea } from '@mantine/core';
+import { PanelTitle } from '../../components/panels/SidePanel';
 import { XIcon } from '@phosphor-icons/react';
 import type { MouseEvent as ReactMouseEvent, PointerEvent as ReactPointerEvent } from 'react';
 import { ResizeHandle } from './ResizeHandle';
@@ -30,9 +31,7 @@ export function SettingsAside({ onContainer, resize }: SettingsAsideProps) {
       {/* Its left edge resizes it (not on a phone: it takes the whole width there). */}
       {!mobile && <ResizeHandle edge="left" label="Redimensionner les paramètres" {...resize} />}
       <Group justify="space-between" wrap="nowrap" className={classes.header}>
-        <Title order={2} size="h4">
-          {title ?? 'Paramètres'}
-        </Title>
+        <PanelTitle>{title ?? 'Paramètres'}</PanelTitle>
         <IconAction label="Fermer" aria-label="Fermer les paramètres" onClick={() => setOpened(false)}>
           <XIcon aria-hidden />
         </IconAction>

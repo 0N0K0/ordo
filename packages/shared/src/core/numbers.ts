@@ -27,3 +27,13 @@ export function formatNumber(value: number, decimals = 2): string {
  * @returns {string} Text.
  */
 export const formatPercent = (value: number, decimals = 2): string => `${formatNumber(value, decimals)} %`;
+
+/**
+ * A number on two digits at least, a zero before (« 07 »): hours, minutes, days and months written by hand, hex channels.
+ * @param {number | string} value Number, or its digits (« 7 », « a »).
+ * @returns {string} Text.
+ */
+export function twoDigits(value: number | string): string {
+  // eslint-disable-next-line no-restricted-syntax -- twoDigits itself.
+  return String(value).padStart(2, '0');
+}

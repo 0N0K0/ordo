@@ -9,8 +9,8 @@ import { fetchCalendarEvents, type EventOccurrence } from '../../calendar/api';
 import { MailWatcher } from '../../mail/components/MailWatcher';
 import { useWorkspaces, type Workspace } from '../api';
 import { switchWorkspace } from '../lib/switch';
-import { PAGES, projectPath, taskPath } from '../../../app/pages';
-import { alarmTaskLabel } from '../../alarms/lib/alarm-labels';
+import { PAGES } from '../../../app/pages';
+import { alarmTarget } from '../../alarms/lib/alarm-labels';
 
 const ElsewhereAlarmsDocument = graphql(`
   query ElsewhereAlarms {
@@ -99,11 +99,13 @@ function ElsewhereWorkspace({ workspace }: { workspace: Workspace }) {
      * @returns {RingLink[]} Links.
      */
     const alarmLinks = (alarm: ElsewhereAlarm): RingLink[] => {
-      // Its number is only unique in its project: the project comes with it (as in the open workspace).
-      const place = alarm.task?.projectId ? projectLabels.get(alarm.task.projectId) : undefined;
-      if (alarm.task) return [link(alarmTaskLabel(alarm.task, place), taskPath(alarm.task))];
-      if (alarm.project) return [link(alarm.project.label, projectPath(alarm.project.id))];
-      return [link(`Ouvrir « ${label} »`, PAGES.home.path)];
+      // As in the open workspace; the label of the project of a task from the projects of that workspace.
+      const target = alarmTarget(
+        { taskId: alarm.task?.id ?? null, projectId: alarm.project?.id ?? null },
+        () => alarm.task ?? undefined,
+        (id) => (alarm.project?.id === id ? alarm.project : projectLabels.has(id) ? { id, label: projectLabels.get(id)! } : undefined),
+      );
+      return [target ? link(target.label, target.to) : link(`Ouvrir « ${label} »`, PAGES.home.path)];
     };
 
     /**

@@ -1,4 +1,4 @@
-import { sumOf } from '../core/collections';
+import { joinedKey, sumOf } from '../core/collections';
 import { normalize } from '../core/text';
 import { ACCOUNTING_DOCUMENT_TYPES } from './accounting';
 import { lastDayOfMonth } from '../dates/months';
@@ -251,7 +251,7 @@ const moneyFormats = new Map<string, Intl.NumberFormat>();
  * @returns {Intl.NumberFormat} Format.
  */
 export function moneyFormat(currency: string, options: Intl.NumberFormatOptions = {}): Intl.NumberFormat {
-  const key = `${currency}|${JSON.stringify(options)}`;
+  const key = joinedKey(currency, JSON.stringify(options));
   let format = moneyFormats.get(key);
   if (!format) {
     // eslint-disable-next-line no-restricted-syntax -- the money format itself.

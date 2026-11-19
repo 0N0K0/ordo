@@ -1,5 +1,5 @@
 import { sumOf } from '@ordo/shared';
-import { PDF_TABLE, PDF_TEXT, type PdfDoc, REPORT_MARGIN, reportHeadingSchema, startReport, writeHeading } from './pdf-report';
+import { PDF_TABLE, PDF_TEXT, type PdfDoc, REPORT_MARGIN, reportHeadingSchema, type ReportFile, startReport, writeHeading } from './pdf-report';
 import { z } from 'zod';
 import { parseInput } from '../../graphql/errors';
 
@@ -70,9 +70,9 @@ function columnWidths(doc: PdfDoc, table: z.infer<typeof tablePdfSchema>, pageWi
  * marker and events with a round one in the first column, indented by level, or plain rows of data (columns
  * aligned as asked); in the template shared by every export (logo, date, page numbers).
  * @param {TablePdfInput} input Table.
- * @returns {Promise<Buffer>} PDF.
+ * @returns {Promise<ReportFile>} PDF and its file name.
  */
-export async function tablePdf(input: TablePdfInput): Promise<Buffer> {
+export async function tablePdf(input: TablePdfInput): Promise<ReportFile> {
   const table = parseInput(tablePdfSchema, input);
   const { doc, top, finish } = await startReport({ title: table.title });
 

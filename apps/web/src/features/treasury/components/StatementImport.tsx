@@ -5,7 +5,7 @@ import { formCallbacks } from '../../../lib/form';
 import { Badge, Checkbox, FileInput, NumberInput, SegmentedControl, Select, SimpleGrid, Stack, Text } from '@mantine/core';
 import { countOf, normalize, plural } from '../../../lib/text';
 import { listSelectProps } from '../../../components/items/item-look';
-import { addDays, daysBetween, occurrenceDates, parseCsv, readStatement, recurrenceSchema, statementMappingSchema, type StatementMapping, type StatementRow } from '@ordo/shared';
+import { addDays, daysBetween, occurrenceDates, parseCsv, readStatement, recurrenceSchema, statementMappingSchema, type StatementMapping, type StatementRow, occurrenceKey } from '@ordo/shared';
 import { FileCsvIcon, ArrowLeftIcon, ArrowRightIcon, EyeIcon, FileArrowUpIcon } from '@phosphor-icons/react';
 import { useMemo, useState } from 'react';
 import { useForecastEntries, useImportStatement, useTreasuryEntries, type TreasuryAccount } from '../api';
@@ -80,9 +80,9 @@ interface PreviewRow extends StatementRow {
 
 /** Columns of the preview of the import. */
 const PREVIEW_COLUMNS: DataColumn<PreviewRow>[] = [
-  { id: 'date', label: 'Date', size: 120, sortValue: (row) => row.date, text: (row) => fmt.day(row.date), filter: { kind: 'date', value: (row) => row.date } },
-  { id: 'label', label: 'Libellé', size: 360, locked: true, sortValue: (row) => row.label, text: (row) => row.label },
-  { id: 'amount', label: 'Montant', size: 130, numeric: true, sortValue: (row) => row.amount, text: (row) => fmt.money(row.amount), formatTotal: fmt.money },
+  { id: 'date', label: 'Date', size: 120, required: true, sortValue: (row) => row.date, text: (row) => fmt.day(row.date), filter: { kind: 'date', value: (row) => row.date } },
+  { id: 'label', label: 'Libellé', size: 360, locked: true, required: true, sortValue: (row) => row.label, text: (row) => row.label },
+  { id: 'amount', label: 'Montant', size: 130, numeric: true, required: true, sortValue: (row) => row.amount, text: (row) => fmt.money(row.amount), formatTotal: fmt.money },
 ];
 
 interface StatementImportProps {
@@ -156,9 +156,9 @@ export function StatementImport({ accounts, onDone }: StatementImportProps) {
       const planned = twin
         ? undefined
         : expected.find(
-            (item) => !forecastUsed.has(`${item.id}|${item.occurrence}`) && Math.abs(item.amount - row.amount) < 0.005 && Math.abs(daysBetween(item.occurrence, row.date)) <= FORECAST_DAYS,
+            (item) => !forecastUsed.has(occurrenceKey(item.id, item.occurrence)) && Math.abs(item.amount - row.amount) < 0.005 && Math.abs(daysBetween(item.occurrence, row.date)) <= FORECAST_DAYS,
           );
-      if (planned) forecastUsed.add(`${planned.id}|${planned.occurrence}`);
+      if (planned) forecastUsed.add(occurrenceKey(planned.id, planned.occurrence));
       return { ...row, key, duplicate: twin ? twin.label : null, forecast: planned ? { id: planned.id, occurrence: planned.occurrence, label: planned.label } : null };
     });
   }, [rows, existing.data, forecasts.data, accountId, range]);
@@ -394,7 +394,7 @@ export function StatementImport({ accounts, onDone }: StatementImportProps) {
               }
             />
           ),
-          cell: (row) => <Checkbox size="xs" aria-label={`Importer ${row.label}`} checked={ticked(row)} onChange={() => setExcluded((current) => toggledIn(current, row.key))} />,
+          cell: (row) => <Checkbox size="xs" aria-label={`Importer « ${row.label} »`} checked={ticked(row)} onChange={() => setExcluded((current) => toggledIn(current, row.key))} />,
         }}
         cells={(row) => ({
           date: <span style={{ whiteSpace: 'nowrap' }}>{fmt.day(row.date)}</span>,
@@ -427,7 +427,7 @@ export function StatementImport({ accounts, onDone }: StatementImportProps) {
         cancelLabel="Retour"
         cancelIcon={<ArrowLeftIcon aria-hidden />}
         submitIcon={<FileArrowUpIcon aria-hidden />}
-        submitLabel={`Importer ${chosen.length} ${plural(chosen.length, 'opération')}`}
+        submitLabel={`Importer ${countOf(chosen.length, 'opération')}`}
         loading={importStatement.isPending || existing.isFetching}
         disabled={!chosen.length}
         onSubmit={submit}

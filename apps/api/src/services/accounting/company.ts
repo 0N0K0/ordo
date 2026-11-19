@@ -2,7 +2,7 @@ import { ACCOUNTING_DOCUMENT_TYPES, companyProfileSchema, documentNumber, type A
 import { prisma } from '../../db';
 import type { CompanyProfile } from '../../generated/prisma/client';
 import { clientError, parseInput } from '../../graphql/errors';
-import { storeAttachment } from '../core/attachments';
+import { deleteAttachment, storeAttachment } from '../core/attachments';
 import { currentWorkspaceId } from '../../workspace-context';
 import { requirePro } from '../workspace/workspaces';
 
@@ -38,13 +38,13 @@ export async function setCompanyLogo(file: File | null): Promise<CompanyProfile>
   if (file) {
     const stored = await storeAttachment(file);
     if (stored.mimeType !== 'image/png' && stored.mimeType !== 'image/jpeg') {
-      await prisma.attachment.delete({ where: { id: stored.id } });
+      await deleteAttachment(stored.id, true);
       throw clientError('BAD_USER_INPUT', 'Logo en PNG ou JPEG uniquement.');
     }
     logoId = stored.id;
   }
   const updated = await prisma.companyProfile.update({ where: { workspaceId: currentWorkspaceId() }, data: { logoId } });
-  if (profile.logoId) await prisma.attachment.delete({ where: { id: profile.logoId } }).catch(() => undefined);
+  await deleteAttachment(profile.logoId, true);
   return updated;
 }
 

@@ -14,7 +14,7 @@ import type { TaskContext } from '../../tasks/hooks/use-task-context';
 
 import { useRoutinesData, type Routine, type RoutineCategory } from '../api';
 import { routineCellLabel, routinesLabel, useRoutineCellEdit } from '../lib/routine-cell-edit';
-import { applyDiff, listDiff } from '../../../components/data-table/selection/bulk-edit';
+import { listDiff } from '../../../components/data-table/selection/bulk-edit';
 import { describeRoutineCase, routinePath, ruleOf, waitingFor } from '../lib/routine-format';
 import { openRoutineForm } from '../lib/open-routine-form';
 import { RoutineRepetitionModal } from './RoutineSchedule';
@@ -22,9 +22,10 @@ import { treeSelectProps } from '../../../components/tree/tree-select';
 import { BeneficiariesCell } from '../../beneficiaries/components/BeneficiariesSelect';
 import { routineTreeOptions } from '../lib/routine-format';
 import { EditableMultiSelect, EditableNumber } from '../../../components/data-table/cells/EditableCells';
-import { EditableTitle } from '../../../components/data-table/cells/EditableTitle';
+import { EditableLabel } from '../../../components/data-table/cells/EditableLabel';
 import { AssigneesCell as SharedAssigneesCell, ProjectCell as SharedProjectCell } from '../../tasks/components/context-cells';
 import { DependencyIcon } from '../../../components/data-table/cells/DependencyIcon';
+import { beneficiariesDiff } from '../../beneficiaries/lib/beneficiaries-diff';
 
 interface CellProps {
   routine: Routine;
@@ -37,10 +38,10 @@ interface CellProps {
  * @param {CellProps} props Component props.
  * @returns {JSX.Element} Cell.
  */
-export function TitleCell({ routine, readOnly = false }: CellProps) {
+export function RoutineLabelCell({ routine, readOnly = false }: CellProps) {
   const { apply } = useRoutineCellEdit(routine, 'label');
   return (
-    <EditableTitle
+    <EditableLabel
       value={routine.label}
       label={routineCellLabel('Libellé', routine, 1)}
       schema={routineSchema.shape.label}
@@ -149,7 +150,7 @@ export function RequiresCell({ routine, readOnly = false, routines }: CellProps 
               {
                 id,
                 label: routinePath(required, byId),
-                title: waiting.has(id) ? `${routinePath(required, byId)} (pas encore faite)` : routinePath(required, byId),
+                hint: waiting.has(id) ? `${routinePath(required, byId)} (pas encore faite)` : routinePath(required, byId),
                 icon: <DependencyIcon done={!waiting.has(id)} />,
               },
             ]
@@ -252,12 +253,7 @@ export function RoutineBeneficiariesCell({ routine, readOnly = false }: CellProp
       label={routineCellLabel('Bénéficiaires', routine, count)}
       value={routine}
       readOnly={readOnly}
-      onSave={(beneficiaries) =>
-        apply((target) => ({
-          beneficiaryIds: applyDiff(target.beneficiaryIds, routine.beneficiaryIds, beneficiaries.beneficiaryIds),
-          beneficiaryRelationIds: applyDiff(target.beneficiaryRelationIds, routine.beneficiaryRelationIds, beneficiaries.beneficiaryRelationIds),
-        }))
-      }
+      onSave={(beneficiaries) => apply((target) => beneficiariesDiff(target, routine, beneficiaries))}
     />
   );
 }

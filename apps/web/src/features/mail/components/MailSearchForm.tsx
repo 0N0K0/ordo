@@ -9,6 +9,7 @@ import { BatchMultiSelect } from '../../../components/inputs/BatchMultiSelect';
 import { FormActions } from '../../../components/dialogs/FormActions';
 import { unarchived } from '../../../lib/archive';
 import { dateRangeProps, formRange } from '../../../components/inputs/date-range';
+import { accountLabel } from '../lib/mail-format';
 
 /**
  * Search folder: label, accounts, folders looked into, done state, flags, unread only, text. Kept in Ordo, it is
@@ -53,7 +54,7 @@ export function MailSearchForm({ search, initial, onDone }: { search?: MailSearc
         <BatchMultiSelect
           label="Boîtes"
           placeholder={values.accountIds.length ? undefined : 'Toutes les boîtes'}
-          data={unarchived(accounts ?? [], values.accountIds).map((account) => ({ value: account.id, label: `${account.label} (${account.email})` }))}
+          data={unarchived(accounts ?? [], values.accountIds).map((account) => ({ value: account.id, label: accountLabel(account) }))}
           clearable
           {...form.getInputProps('accountIds')}
         />

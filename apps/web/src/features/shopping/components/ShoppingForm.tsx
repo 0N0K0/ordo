@@ -22,6 +22,9 @@ import { QuantityInput } from '../../../components/inputs/QuantityInput';
 import { ShoppingCategoryField, UnitField } from './ProductFields';
 import { plural } from '../../../lib/text';
 import { PAGES } from '../../../app/pages';
+import { useActiveWorkspace } from '../../workspaces/api';
+import { relationNoun } from '../../../components/people/people-options';
+import { optionalNumberProps } from '../../../components/inputs/number-format';
 
 type FormValues = Omit<ShoppingProductInput, 'quantity' | 'unitPrice' | 'url' | 'note' | 'unit' | 'perishable' | 'storageId' | 'expiresAt'> & {
   perishable: boolean;
@@ -31,7 +34,7 @@ type FormValues = Omit<ShoppingProductInput, 'quantity' | 'unitPrice' | 'url' | 
   unitPrice: number | null;
   url: string;
   note: string;
-  unit: string;
+  unit: string | null;
   memberIds: string[];
   relationIds: string[];
 };
@@ -56,6 +59,7 @@ export function ShoppingForm({ target, onDone }: ShoppingFormProps) {
   const { context } = useTaskContext();
   const current = target.kind === 'product' ? target.product : target.item;
   const people = usePeople();
+  const { perso } = useActiveWorkspace();
   const form = useAppForm<FormValues>({
     initialValues: {
       label: current?.label ?? '',
@@ -64,7 +68,7 @@ export function ShoppingForm({ target, onDone }: ShoppingFormProps) {
       url: current?.url ?? '',
       note: current?.note ?? '',
       quantity: current?.quantity ?? null,
-      unit: current?.unit ?? '',
+      unit: current?.unit ?? null,
       unitPrice: current?.unitPrice ?? null,
       memberIds: current?.memberIds ?? [],
       relationIds: current?.relationIds ?? [],
@@ -135,21 +139,9 @@ export function ShoppingForm({ target, onDone }: ShoppingFormProps) {
             />
           </SimpleGrid>
           <SimpleGrid cols={{ base: 1, xs: 3 }}>
-            <QuantityInput
-              label="Quantité"
-              min={0}
-              allowNegative={false}
-              {...form.getInputProps('quantity')}
-              onChange={(value) => form.setFieldValue('quantity', typeof value === 'number' ? value : null)}
-            />
-            <UnitField current={current?.unit} {...form.getInputProps('unit')} value={values.unit} onChange={(unit) => form.setFieldValue('unit', unit ?? '')} />
-            <AmountInput
-              label="Prix unitaire estimé"
-              min={0}
-              allowNegative={false}
-              {...form.getInputProps('unitPrice')}
-              onChange={(value) => form.setFieldValue('unitPrice', typeof value === 'number' ? value : null)}
-            />
+            <QuantityInput label="Quantité" min={0} allowNegative={false} {...optionalNumberProps(form, 'quantity')} />
+            <UnitField current={current?.unit} {...form.getInputProps('unit')} value={values.unit} />
+            <AmountInput label="Prix unitaire estimé" min={0} allowNegative={false} {...optionalNumberProps(form, 'unitPrice')} />
           </SimpleGrid>
           <Checkbox label="Périssable" description="À conserver d’une certaine façon, jusqu’à une date de péremption." {...form.getInputProps('perishable', { type: 'checkbox' })} />
           {values.perishable && (
@@ -168,7 +160,7 @@ export function ShoppingForm({ target, onDone }: ShoppingFormProps) {
           )}
           <PeopleSelect
             label="Bénéficiaire"
-            description="Membres et relations concernés : la répartition d’un mouvement de trésorerie qui paie la liste."
+            description={`Contributeurs et ${relationNoun(perso, true).toLowerCase()} concernés : la répartition d’un mouvement de trésorerie qui paie la liste.`}
             placeholder="Personne en particulier"
             data={people.options}
             value={rowPeopleKeys(values)}

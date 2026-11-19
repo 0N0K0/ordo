@@ -16,7 +16,7 @@ import { useState } from 'react';
 import type { TreasurySettings } from '../api';
 import { categoryOptions } from '../lib/categories';
 import { LineAttachments } from './LineAttachments';
-import { attachmentCount, categoryForDirection, newLine, valueInMode, type LineValues } from '../lib/lines';
+import { attachmentCount, categoryForDirection, newSplitLine, valueInMode, type LineValues } from '../lib/lines';
 import { treeSelectProps, type TreeOption } from '../../../components/tree/tree-select';
 import * as fmt from '../../../lib/format';
 import { AmountInput } from '../../../components/inputs/AmountInput';
@@ -27,7 +27,7 @@ import { IconAction } from '../../../components/actions/IconAction';
 import { ActionButton } from '../../../components/actions/ActionButton';
 import { itemCellLabel } from '../../../components/data-table/cells/cell-field';
 
-interface LinesEditorProps {
+interface SplitLinesEditorProps {
   lines: LineValues[];
   onChange: (lines: LineValues[]) => void;
   /** Amount of the entry, positive, and its direction. */
@@ -50,10 +50,10 @@ interface LinesEditorProps {
  * Each line has its project, supporting documents and links (lines of other entries, whole entries without lines).
  * What the lines leave is "not split" (no category). A table, one line per row; splits equally between the members
  * in one click; a context can be created from a line.
- * @param {LinesEditorProps} props Component props.
+ * @param {SplitLinesEditorProps} props Component props.
  * @returns {JSX.Element} Editor.
  */
-export function LinesEditor({ lines, onChange, amount, direction, date, settings, errors, entryId, projects, documentGroups }: LinesEditorProps) {
+export function SplitLinesEditor({ lines, onChange, amount, direction, date, settings, errors, entryId, projects, documentGroups }: SplitLinesEditorProps) {
   // Line whose attachments are edited.
   const [attaching, setAttaching] = useState<number | null>(null);
   const sign = direction === 'IN' ? 1 : -1;
@@ -98,7 +98,7 @@ export function LinesEditor({ lines, onChange, amount, direction, date, settings
    * New line: what is not split yet, for me, in the category of the entry and the planned context.
    * @returns {void}
    */
-  const add = () => onChange([...lines, newLine({ value: fromCents(Math.max(remainder, 0)) || 0, memberId: me?.id ?? null, contextId: planned })]);
+  const add = () => onChange([...lines, newSplitLine({ value: fromCents(Math.max(remainder, 0)) || 0, memberId: me?.id ?? null, contextId: planned })]);
 
   /**
    * Replaces the lines by an equal share for every member.
@@ -108,7 +108,7 @@ export function LinesEditor({ lines, onChange, amount, direction, date, settings
     const share = round2(100 / members.length);
     onChange(
       members.map((member, index) =>
-        newLine({
+        newSplitLine({
           mode: 'PERCENT',
           // The last one takes what rounding leaves.
           value: index === members.length - 1 ? round2(100 - share * (members.length - 1)) : share,

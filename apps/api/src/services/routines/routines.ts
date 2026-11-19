@@ -46,6 +46,7 @@ import {
   windowsAllowed,
   withMove,
   withMovedTimes,
+  joinedKey,
 } from '@ordo/shared';
 import { z } from 'zod';
 import { deleteTreeNode, treeListService } from '../core/trees';
@@ -57,9 +58,10 @@ import { storedRecurrence } from '../calendar/calendar-events';
 import { scheduleRule } from '../calendar/work-schedules';
 import { assertProjectContributors } from '../workspace/contributors';
 import { parisToday } from '../../today';
-import { assertAllExist, assertExists } from '../core/lookup';
-import { ARCHIVED_MESSAGE, assertNoneArchived, assertNotArchived } from '../core/archive';
+import { assertAllExist, assertExists, findOrNotFound } from '../core/lookup';
+import { assertNoneArchived, assertNotArchived, refuseArchived } from '../core/archive';
 import { connectIds } from '../core/relations';
+import { toJson } from '../core/json';
 
 /**
  * Error attached to a form field.
@@ -158,7 +160,7 @@ function remember<T>(routine: object, schedules: ScheduleContext, key: string, r
   // In a request: by routine id (its fields may get rows of their own).
   const id = (routine as { id?: unknown }).id;
   if (schedules.memo && typeof id === 'string') {
-    const own = `${id}|${key}`;
+    const own = joinedKey(id, key);
     if (!schedules.memo.has(own)) schedules.memo.set(own, run());
     return schedules.memo.get(own) as T;
   }
@@ -564,11 +566,11 @@ const scalars = (data: ReturnType<typeof routineSchema.parse>) => ({
   scheduleIds: data.scheduleIds,
   excludedScheduleIds: data.excludedScheduleIds,
   moments: data.moments,
-  slotCondition: data.slotCondition ? (data.slotCondition as unknown as Prisma.InputJsonValue) : Prisma.DbNull,
+  slotCondition: data.slotCondition ? toJson(data.slotCondition) : Prisma.DbNull,
   reminders: [...new Set(data.reminders)].sort((a, b) => a - b),
   opensOn: data.opensOn ?? Prisma.DbNull,
   slotRule: data.slotRule ?? Prisma.DbNull,
-  cases: data.cases as Prisma.InputJsonValue,
+  cases: toJson(data.cases),
   location: data.location,
   locationLat: data.location ? data.locationLat : null,
   locationLon: data.location ? data.locationLon : null,
@@ -636,9 +638,8 @@ export async function copySubRoutines(fromId: string, toId: string): Promise<num
  * @param {string} id Routine id.
  * @returns {Promise<Routine>} Routine.
  */
-async function findRoutine(id: string): Promise<Routine> {
-  const routine = await orNotFound(prisma.routine.findUnique({ where: { id } }), 'Routine');
-  return routine;
+function findRoutine(id: string): Promise<Routine> {
+  return findOrNotFound(prisma.routine, id, 'Routine');
 }
 
 /**
@@ -649,8 +650,7 @@ async function findRoutine(id: string): Promise<Routine> {
  * @returns {Promise<Routine>} Routine.
  */
 export async function updateRoutine(id: string, input: RoutineInput, restoring = false): Promise<Routine> {
-  await findRoutine(id);
-  await assertNotArchived('routine', id);
+  refuseArchived(await findRoutine(id));
   const data = await parseRoutine(input, id, restoring);
   return prisma.$transaction(async (tx) => {
     await tx.routineDependency.deleteMany({ where: { routineId: id } });
@@ -726,7 +726,7 @@ async function inputOf(id: string): Promise<RoutineInput> {
  * @returns {Promise<RoutineSlot>} Moment.
  */
 export async function momentOf(id: string): Promise<RoutineSlot> {
-  const routine = await orNotFound(prisma.routine.findUnique({ where: { id } }), 'Routine');
+  const routine = await findOrNotFound(prisma.routine, id, 'Routine');
   return storedMoments(routine)[0] ?? { fromTime: null, dueTime: null, optional: false };
 }
 
@@ -848,9 +848,9 @@ export async function moveRoutine(id: string, targetId: string, place: RoutinePl
   if (id === targetId) throw clientError('BAD_USER_INPUT', 'Une routine ne peut pas être déplacée sur elle-même.');
   const routine = await findRoutine(id);
   const target = await findRoutine(targetId);
-  await assertNotArchived('routine', id);
+  refuseArchived(routine);
   // Nothing added under an archived routine.
-  if (place === 'INSIDE') await assertNotArchived('routine', targetId);
+  if (place === 'INSIDE') refuseArchived(target);
   const parentId = place === 'INSIDE' ? target.id : target.parentId;
   // The parent is checked (no loop) by the regular update.
   if (parentId !== routine.parentId || categoryIds) await patchRoutine(id, { parentId, ...(categoryIds && { categoryIds }) });
@@ -870,8 +870,8 @@ export async function moveRoutine(id: string, targetId: string, place: RoutinePl
  * @returns {Promise<string>} Occurrence date.
  */
 export async function setRoutineDone(id: string, done: boolean, date?: string | null, slot?: number | null, doneAt?: Date | null): Promise<string> {
-  const [routine, slots] = await Promise.all([orNotFound(prisma.routine.findUnique({ where: { id } }), 'Routine'), loadScheduleContext()]);
-  if (routine.archivedAt) throw clientError('BAD_USER_INPUT', ARCHIVED_MESSAGE);
+  const [routine, slots] = await Promise.all([findOrNotFound(prisma.routine, id, 'Routine'), loadScheduleContext()]);
+  refuseArchived(routine);
   const occurrence = date ?? occurrencesOf(routine, undefined, slots).current;
   if (!occurrence) throw clientError('BAD_USER_INPUT', 'Cette routine n’a pas encore commencé.');
   if (occurrence > parisToday()) throw clientError('BAD_USER_INPUT', 'Une occurrence à venir ne peut pas être cochée.');
@@ -917,8 +917,8 @@ export async function bulkSetRoutinesDone(ids: string[], done: boolean): Promise
  * @returns {Promise<void>}
  */
 export async function moveRoutineOccurrence(id: string, date: string, to: string, times?: RoutineMoveTimes): Promise<void> {
-  const routine = await orNotFound(prisma.routine.findUnique({ where: { id } }), 'Routine');
-  if (routine.archivedAt) throw clientError('BAD_USER_INPUT', ARCHIVED_MESSAGE);
+  const routine = await findOrNotFound(prisma.routine, id, 'Routine');
+  refuseArchived(routine);
   if (await prisma.routineCheck.count({ where: { routineId: id, date: parseDay(date) } })) {
     throw clientError('BAD_USER_INPUT', 'Cette occurrence est déjà cochée : décochez-la pour la déplacer.');
   }
@@ -950,7 +950,7 @@ export async function moveRoutineOccurrence(id: string, date: string, to: string
  */
 export async function removeRoutineMove(id: string, from: string): Promise<void> {
   const routine = await orNotFound(prisma.routine.findUnique({ where: { id }, select: { moves: true, archivedAt: true } }), 'Routine');
-  if (routine.archivedAt) throw clientError('BAD_USER_INPUT', ARCHIVED_MESSAGE);
+  refuseArchived(routine);
   await prisma.routine.update({ where: { id }, data: { moves: storedMoves(routine.moves).filter((move) => move.from !== from) } });
 }
 
@@ -1000,8 +1000,8 @@ const hasBefore = (rule: Recurrence, start: string, date: string) => date > star
  * @returns {Promise<Routine & { schedule: WorkSchedule | null }>} Routine.
  */
 async function changeableOccurrence(id: string, date: string) {
-  const routine = await orNotFound(prisma.routine.findUnique({ where: { id } }), 'Routine');
-  if (routine.archivedAt) throw clientError('BAD_USER_INPUT', ARCHIVED_MESSAGE);
+  const routine = await findOrNotFound(prisma.routine, id, 'Routine');
+  refuseArchived(routine);
   if (await prisma.routineCheck.count({ where: { routineId: id, date: parseDay(date) } })) {
     throw clientError('BAD_USER_INPUT', 'Cette occurrence est déjà cochée : décochez-la pour la changer.');
   }

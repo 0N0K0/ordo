@@ -1,6 +1,7 @@
 import { Anchor, Stack } from '@mantine/core';
 import { Children, useState, type ReactNode } from 'react';
 import { MAX_STACKED, stackedCount } from './stacked';
+import { foldAction } from '../../actions/fold-label';
 
 /**
  * Button unfolding or folding the values of a cell.
@@ -20,7 +21,7 @@ export function StackedToggle({ hidden, expanded, onToggle }: { hidden: number; 
         onToggle();
       }}
     >
-      {expanded ? 'Réduire' : `${hidden} de plus`}
+      {expanded ? foldAction(true) : `${hidden} de plus`}
     </Anchor>
   );
 }

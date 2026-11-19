@@ -11,6 +11,7 @@ import {
   round2,
   splitAmounts,
   fromCents,
+  DRAFT_NAME,
 } from '@ordo/shared';
 import { localDay, localToday } from '../../../lib/dates';
 import { unarchived } from '../../../lib/archive';
@@ -198,7 +199,7 @@ export function documentChartData(
               return [
                 {
                   key: 'draft',
-                  label: 'Brouillon',
+                  label: DRAFT_NAME,
                   order: -1,
                   color: 'gray.4',
                 },
@@ -247,7 +248,7 @@ export function documentChartData(
                 ? [
                     {
                       key: 'draft',
-                      label: 'Brouillon',
+                      label: DRAFT_NAME,
                       order: 0,
                       color: 'gray.5',
                     },

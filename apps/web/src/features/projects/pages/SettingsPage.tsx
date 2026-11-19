@@ -13,7 +13,7 @@ import { ContributorsManager } from '../../tasks/components/ContributorsManager'
 import { TeamMembers, TeamRelations } from '../../treasury/components/TeamPanel';
 import { useActiveWorkspace } from '../../workspaces/api';
 import { WorkspacesManager } from '../../workspaces/components/WorkspacesManager';
-import { useWorkspace } from '../api';
+import { useProjectTree } from '../api';
 import { useProjectCategoryItems, useProjectStatusItems } from '../hooks/use-label-items';
 import { SettingsGrid } from '../../../components/settings/SettingsGrid';
 import { PageTabs } from '../../../components/tabs/PageTabs';
@@ -29,7 +29,7 @@ const SETTINGS_PAGE_TABS = ['projects', 'contributors', 'places', 'github', 'wor
  * @returns {JSX.Element} Page.
  */
 export function SettingsPage() {
-  const { data } = useWorkspace();
+  const { data } = useProjectTree();
   const statusItems = useProjectStatusItems();
   const categoryItems = useProjectCategoryItems();
 
@@ -55,7 +55,7 @@ export function SettingsPage() {
 
   return (
     <Stack gap="lg">
-      <PageHeader title={PAGES.settings.title} />
+      <PageHeader title={PAGES.settings.label} />
       <PageTabs value={tab} onChange={(value) => setTab(value, {}, { only: true })} keepMounted={false}>
         <PageTabs.List>
           <PageTabs.Tab value="projects" leftSection={<FoldersIcon aria-hidden />}>

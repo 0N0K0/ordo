@@ -14,14 +14,24 @@ export function normalize(text: string): string {
 }
 
 /**
- * Whether two names are the same, as a search sees them: spaces around, case and accents aside (« eleve » is « Élève »).
+ * Key of a name, as a search sees it (decision CB): spaces around left out, inner runs of spaces as one, case and
+ * accents aside (« eleve » is « Élève »). Two names of the same key are the same name.
+ * @param {string | null | undefined} name Name. Optional.
+ * @returns {string} Key (empty for no name).
+ */
+export function nameKey(name: string | null | undefined): string {
+  // eslint-disable-next-line no-restricted-syntax -- nameKey itself.
+  return normalize((name ?? '').trim()).replace(/\s+/g, ' ');
+}
+
+/**
+ * Whether two names are the same (same `nameKey`).
  * @param {string} a Name.
  * @param {string} b Other name.
  * @returns {boolean} Same name.
  */
 export function sameName(a: string, b: string): boolean {
-  // eslint-disable-next-line no-restricted-syntax -- sameName itself.
-  return normalize(a.trim()) === normalize(b.trim());
+  return nameKey(a) === nameKey(b);
 }
 
 /** Name of a file that has none, or whose name is empty once cleaned (attachments, links, exports). */

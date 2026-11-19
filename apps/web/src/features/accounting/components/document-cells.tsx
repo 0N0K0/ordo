@@ -9,6 +9,7 @@ import { EditableSelect } from '../../../components/data-table/cells/EditableCel
 import { treeSelectProps, type TreeOption } from '../../../components/tree/tree-select';
 import { openFile } from '../../files/lib/open-file';
 import { useDocumentMutations, type AccountingDocumentSummary, type ImportedDocument } from '../api/documents';
+import { documentName } from '../lib/labels';
 
 /**
  * Project of a document, chosen in place: drafts and final documents alike (it is not printed on them); read only
@@ -55,7 +56,7 @@ export function DocumentAttachmentsCell(props: ({ kind: 'ordo'; document: Accoun
     ) : null;
   }
   const { document } = props;
-  const name = document.number ?? 'ce brouillon';
+  const name = documentName(document.number);
   return (
     <Group gap={4} wrap="nowrap" align="flex-start" onClick={stopClick}>
       <StackedValues>

@@ -31,8 +31,8 @@ import { Prisma, type ShoppingDelivery, type StockCount, type StockItem, type St
 import { peopleData, peopleIds, assertPeople } from './people';
 import { clientError, notFound, orNotFound, parseInput } from '../../graphql/errors';
 import { BY_POSITION, nextPositionIn } from '../core/ordering';
-import { assertExists, deleteOrNotFound } from '../core/lookup';
-import { assertNoneArchived, assertNotArchived } from '../core/archive';
+import { assertExists, deleteOrNotFound, findOrNotFound } from '../core/lookup';
+import { assertNoneArchived, assertNotArchived, assertActive, refuseArchived } from '../core/archive';
 import { assertActiveRefs } from './refs';
 import { connectIds } from '../core/relations';
 import { fromDecimal, toDecimal } from '../core/decimal';
@@ -135,9 +135,8 @@ const itemFields = (data: StockItemInput) => ({
  * @param {string} id Item.
  * @returns {Promise<StockItem>} Item.
  */
-async function findItem(id: string): Promise<StockItem> {
-  const item = await orNotFound(prisma.stockItem.findUnique({ where: { id } }), 'Article');
-  return item;
+function findItem(id: string): Promise<StockItem> {
+  return findOrNotFound(prisma.stockItem, id, 'Article');
 }
 
 /**
@@ -147,7 +146,7 @@ async function findItem(id: string): Promise<StockItem> {
  */
 async function findOpenItem(id: string): Promise<StockItem> {
   const item = await findItem(id);
-  await assertNotArchived('STOCK_ITEM', id);
+  refuseArchived(item);
   return item;
 }
 
@@ -216,9 +215,8 @@ interface MoveSource {
 async function addIn(tx: Tx, item: StockItem, quantity: number, expiresAt: string | null, lotId: string | null, source: MoveSource): Promise<void> {
   const date = item.perishable ? parseOptionalDay(expiresAt) : null;
   const lot = lotId
-    ? await tx.stockLot.findFirst({ where: { id: lotId, itemId: item.id } })
+    ? await orNotFound(tx.stockLot.findFirst({ where: { id: lotId, itemId: item.id } }), 'Lot')
     : await tx.stockLot.findFirst({ where: { itemId: item.id, ...(item.perishable ? { expiresAt: date } : {}) }, orderBy: { createdAt: 'asc' } });
-  if (lotId && !lot) throw notFound('Lot');
   const target = lot
     ? await tx.stockLot.update({ where: { id: lot.id }, data: { quantity: toDecimal(roundQuantity(fromDecimal(lot.quantity) + quantity)) } })
     : await tx.stockLot.create({ data: { itemId: item.id, quantity: toDecimal(roundQuantity(quantity)), expiresAt: date } });
@@ -292,8 +290,7 @@ export async function setLotExpiry(id: string, expiresAt: string | null): Promis
  */
 export async function recordCount(input: StockCountInput): Promise<StockCount> {
   const data = parseInput(stockCountSchema, input);
-  await assertExists(prisma.stockLocation, data.locationId, 'Emplacement');
-  await assertNotArchived('STOCK_LOCATION', data.locationId, { field: 'locationId' });
+  await assertActive(prisma.stockLocation, data.locationId, 'Emplacement', { field: 'locationId' });
   const items = await prisma.stockItem.findMany({ where: { id: { in: data.lines.map((line) => line.itemId) } }, include: { lots: true } });
   if (items.length !== new Set(data.lines.map((line) => line.itemId)).size) throw notFound('Article');
   await assertNoneArchived(
@@ -328,10 +325,9 @@ export async function recordCount(input: StockCountInput): Promise<StockCount> {
  */
 export async function setProductStock(id: string, input: ProductStockInput): Promise<void> {
   const data = parseInput(productStockSchema, input);
-  const product = await orNotFound(prisma.shoppingProduct.findUnique({ where: { id }, select: { id: true, stockLocationId: true } }), 'Référence');
-  await assertNotArchived('SHOPPING_PRODUCT', id);
-  await assertExists(prisma.stockLocation, data.stockLocationId, 'Emplacement');
-  await assertNotArchived('STOCK_LOCATION', data.stockLocationId, { keep: product.stockLocationId, field: 'stockLocationId' });
+  const product = await orNotFound(prisma.shoppingProduct.findUnique({ where: { id }, select: { id: true, stockLocationId: true, archivedAt: true } }), 'Référence');
+  refuseArchived(product);
+  await assertActive(prisma.stockLocation, data.stockLocationId, 'Emplacement', { keep: product.stockLocationId, field: 'stockLocationId' });
   await prisma.shoppingProduct.update({ where: { id }, data: { ...data, autoStock: data.stockTracked && data.autoStock } });
 }
 
@@ -375,8 +371,7 @@ async function itemFor(
  */
 export async function addPurchase(input: StockPurchaseInput): Promise<void> {
   const data = parseInput(stockPurchaseSchema, input);
-  await assertExists(prisma.stockLocation, data.locationId, 'Emplacement');
-  await assertNotArchived('STOCK_LOCATION', data.locationId, { field: 'locationId' });
+  await assertActive(prisma.stockLocation, data.locationId, 'Emplacement', { field: 'locationId' });
   await prisma.$transaction((tx) => storePurchase(tx, data.shoppingItemId, data.quantity, data.locationId, data.expiresAt));
 }
 
@@ -486,7 +481,7 @@ async function consumeProduct(tx: Tx, productId: string, quantity: number, sourc
 export async function useSheet(sheetId: string, multiplier: number): Promise<{ taken: number; short: string[] }> {
   const times = parseInput(sheetMultiplierSchema, multiplier);
   const sheet = await orNotFound(prisma.sheet.findUnique({ where: { id: sheetId }, include: { items: { orderBy: BY_POSITION } } }), 'Fiche');
-  await assertNotArchived('SHEET', sheetId);
+  refuseArchived(sheet);
   return prisma.$transaction(async (tx) => {
     let taken = 0;
     const short: string[] = [];
@@ -528,8 +523,7 @@ export async function syncChecklistStock(tx: Tx, ids: string[], checked: boolean
  */
 export async function setShoppingOrder(listId: string, input: ShoppingOrderInput): Promise<void> {
   const data = parseInput(shoppingOrderSchema, input);
-  await assertExists(prisma.shoppingList, listId, 'Liste');
-  await assertNotArchived('SHOPPING_LIST', listId);
+  await assertActive(prisma.shoppingList, listId, 'Liste');
   await prisma.shoppingList.update({ where: { id: listId }, data: { ...data, deliveryAddress: data.deliveryAddress || null } });
 }
 
@@ -572,8 +566,7 @@ async function assignItems(tx: Tx, listId: string, deliveryId: string, itemIds: 
  */
 export async function createDelivery(listId: string, input: ShoppingDeliveryInput): Promise<ShoppingDelivery> {
   const data = parseInput(shoppingDeliverySchema, input);
-  await assertExists(prisma.shoppingList, listId, 'Liste');
-  await assertNotArchived('SHOPPING_LIST', listId);
+  await assertActive(prisma.shoppingList, listId, 'Liste');
   const position = await nextPositionIn('shoppingDelivery', { listId });
   return prisma.$transaction(async (tx) => {
     const delivery = await tx.shoppingDelivery.create({ data: { ...deliveryFields(data), listId, position } });
@@ -589,7 +582,7 @@ export async function createDelivery(listId: string, input: ShoppingDeliveryInpu
  * @returns {Promise<ShoppingDelivery>} Delivery.
  */
 export async function updateDelivery(id: string, input: ShoppingDeliveryInput): Promise<ShoppingDelivery> {
-  const delivery = await orNotFound(prisma.shoppingDelivery.findUnique({ where: { id } }), 'Livraison');
+  const delivery = await findOrNotFound(prisma.shoppingDelivery, id, 'Livraison');
   await assertNotArchived('SHOPPING_LIST', delivery.listId);
   const data = parseInput(shoppingDeliverySchema, input);
   return prisma.$transaction(async (tx) => {

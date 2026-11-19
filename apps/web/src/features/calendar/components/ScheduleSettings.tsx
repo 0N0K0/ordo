@@ -1,11 +1,11 @@
 import { useScheduleTypeItems } from '../hooks/use-settings-items';
 import { ColorField } from '../../../components/inputs/ColorField';
-import { plural } from '../../../lib/text';
+import { countOf } from '../../../lib/text';
 import { Badge, Group, Stack, Text, TextInput } from '@mantine/core';
 import { SettingsSection } from '../../../components/settings/SettingsSection';
 import { ByWorkspace } from './ByWorkspace';
 
-import { DEFAULT_SCHEDULE_KIND_LABEL, readScheduleDisplay } from '@ordo/shared';
+import { DEFAULT_SCHEDULE_KIND_LABEL, foreignSlotKind, readScheduleDisplay } from '@ordo/shared';
 import { SettingsList } from '../../../components/settings/SettingsList';
 import { ArrowCounterClockwiseIcon } from '@phosphor-icons/react';
 import { useState } from 'react';
@@ -108,7 +108,7 @@ function ForeignSchedules() {
     >
       <ByWorkspace items={kinds} workspaceOf={(kind) => ({ id: kind.workspaceId, label: kind.workspaceLabel })}>
         {(kind) => {
-          const key = `${kind.workspaceId}|${kind.typeId ?? ''}`;
+          const key = foreignSlotKind(kind.workspaceId, kind.typeId);
           const target = { workspaceId: kind.workspaceId, typeId: kind.typeId ?? null };
           const look = { color: kind.color ?? null, ...readScheduleDisplay(kind) };
           return (
@@ -117,7 +117,7 @@ function ForeignSchedules() {
                 label={kind.label}
                 color={kind.color ?? 'green'}
                 workspaceLabel={kind.workspaceLabel}
-                hint={`${kind.scheduleCount} ${plural(kind.scheduleCount, 'plage')}${kind.customized ? ' · affichage personnalisé' : ''}`}
+                hint={`${countOf(kind.scheduleCount, 'plage')}${kind.customized ? ' · affichage personnalisé' : ''}`}
                 subscribed={kind.subscribed}
                 onChange={(subscribed) => (subscribed ? subscribe : unsubscribe).mutate(target, ON_ERROR)}
                 actions={
@@ -142,7 +142,7 @@ function ForeignSchedules() {
                       size="xs"
                       w={140}
                       placeholder="Vert"
-                      aria-label={`Couleur de ${kind.label} dans cet agenda`}
+                      aria-label={`Couleur de « ${kind.label} » dans cet agenda`}
                       defaultValue={kind.color ?? ''}
                       onChangeEnd={(value) => setLook.mutate({ ...target, input: { ...look, color: value || null } }, ON_ERROR)}
                     />

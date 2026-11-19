@@ -1,19 +1,19 @@
 import { chartConfigSchema, chartLabelSchema, copyName, dashboardLabelSchema, CHART_LABEL_MAX } from '@ordo/shared';
 import { prisma } from '../../db';
-import type { Dashboard, DashboardChart, Prisma } from '../../generated/prisma/client';
-import { orNotFound, parseInput } from '../../graphql/errors';
+import type { Dashboard, DashboardChart } from '../../generated/prisma/client';
+import { parseInput } from '../../graphql/errors';
 import { BY_POSITION, moveInList, nextPositionIn } from '../core/ordering';
-import { assertExists } from '../core/lookup';
-import { assertNotArchived } from '../core/archive';
+import { assertExists, findOrNotFound } from '../core/lookup';
+import { assertNotArchived, refuseArchived } from '../core/archive';
+import { toJson } from '../core/json';
 
 /**
  * Loads a dashboard or throws NOT_FOUND.
  * @param {string} id Dashboard id.
  * @returns {Promise<Dashboard>} Dashboard.
  */
-async function findDashboard(id: string): Promise<Dashboard> {
-  const dashboard = await orNotFound(prisma.dashboard.findUnique({ where: { id } }), 'Tableau de bord');
-  return dashboard;
+function findDashboard(id: string): Promise<Dashboard> {
+  return findOrNotFound(prisma.dashboard, id, 'Tableau de bord');
 }
 
 /**
@@ -23,7 +23,7 @@ async function findDashboard(id: string): Promise<Dashboard> {
  */
 async function findWritableDashboard(id: string): Promise<Dashboard> {
   const dashboard = await findDashboard(id);
-  await assertNotArchived('dashboard', id);
+  refuseArchived(dashboard);
   return dashboard;
 }
 
@@ -43,9 +43,8 @@ async function findWritableChart(id: string): Promise<DashboardChart> {
  * @param {string} id Chart id.
  * @returns {Promise<DashboardChart>} Chart.
  */
-async function findChart(id: string): Promise<DashboardChart> {
-  const chart = await orNotFound(prisma.dashboardChart.findUnique({ where: { id } }), 'Diagramme');
-  return chart;
+function findChart(id: string): Promise<DashboardChart> {
+  return findOrNotFound(prisma.dashboardChart, id, 'Diagramme');
 }
 
 /**
@@ -105,7 +104,7 @@ export interface ChartInput {
  * @returns {object} Prisma data.
  */
 function chartData(input: ChartInput) {
-  return { label: parseInput(chartLabelSchema, input.label), config: parseInput(chartConfigSchema, input.config) as unknown as Prisma.InputJsonValue, wide: input.wide };
+  return { label: parseInput(chartLabelSchema, input.label), config: toJson(parseInput(chartConfigSchema, input.config)), wide: input.wide };
 }
 
 /**

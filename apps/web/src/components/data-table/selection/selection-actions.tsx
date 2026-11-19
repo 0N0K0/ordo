@@ -99,7 +99,7 @@ export const rowLabel = (row: { label: string }): string => row.label;
  * @param {string} [options.many] Noun of several, when not the noun with an « s ». Optional.
  * @param {boolean} [options.feminine] Named in the feminine (« supprimée »). Optional. Default = false.
  * @param {string} options.the The noun with its article, for the title of one (« l’article »).
- * @param {(row: R) => string} [options.name] Name of a row (inside the quotes); without it, one row is « Ce budget ». Optional.
+ * @param {(row: R) => string} [options.label] Label of a row (inside the quotes); without it, one row is « Ce budget ». Optional.
  * @param {(subject: string, one: boolean, rows: readonly R[]) => ReactNode} options.risks Risks, given what is deleted (« « Riz » » or « 3 articles ») and whether it is one row.
  * @param {(row: R) => Promise<unknown>} [options.remove] Deletes a row. Optional (or removeAll).
  * @param {(rows: readonly R[]) => Promise<unknown>} [options.removeAll] Deletes every row at once. Optional (or remove).
@@ -114,7 +114,7 @@ export function deleteItemsAction<R>(
     many,
     feminine = false,
     the,
-    name,
+    label: labelOf,
     risks,
     remove,
     removeAll,
@@ -125,7 +125,7 @@ export function deleteItemsAction<R>(
     many?: string;
     feminine?: boolean;
     the: string;
-    name?: (row: R) => string;
+    label?: (row: R) => string;
     risks: (subject: string, one: boolean, rows: readonly R[]) => ReactNode;
     remove?: (row: R) => Promise<unknown>;
     removeAll?: (rows: readonly R[]) => Promise<unknown>;
@@ -138,7 +138,7 @@ export function deleteItemsAction<R>(
   const counted = countOf(rows.length, noun, many);
   return deleteRowsAction(rows, {
     title: one ? `Supprimer ${the}` : `Supprimer les ${many ?? `${noun}s`}`,
-    risks: risks(one ? (name ? `« ${name(rows[0])} »` : `${feminine ? 'Cette' : 'Ce'} ${noun}`) : counted, one, rows),
+    risks: risks(one ? (labelOf ? `« ${labelOf(rows[0])} »` : `${feminine ? 'Cette' : 'Ce'} ${noun}`) : counted, one, rows),
     remove,
     removeAll,
     done: one ? `${capitalize(noun)} ${removed}.` : `${counted} ${plural(rows.length, removed)}.`,

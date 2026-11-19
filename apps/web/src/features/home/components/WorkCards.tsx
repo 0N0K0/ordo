@@ -10,7 +10,6 @@ import { AlarmIcon, CalendarBlankIcon, CheckCircleIcon, CheckSquareOffsetIcon, C
 import { useMemo } from 'react';
 import { Link } from 'react-router';
 import { useAlarms } from '../../alarms/api';
-import { useCalendarEvents } from '../../calendar/api';
 import type { Task } from '../../tasks/api';
 import type { TaskContext } from '../../tasks/hooks/use-task-context';
 import { useTaskLink } from '../../tasks/hooks/use-task-link';
@@ -18,7 +17,7 @@ import classes from './Home.module.css';
 import tile from '../../../components/page/StatTile.module.css';
 import { CardFigure, HomeCard } from './HomeCard';
 import { HomeList, HomeRow } from './HomeList';
-import { dayLabel, isTaskLate, type WeekTime } from '../lib/home-data';
+import { dayLabel, isTaskLate, useHeldEvents, type WeekTime } from '../lib/home-data';
 import * as fmt from '../../../lib/format';
 import { LateBadge } from './LateBadge';
 import { taskNumber } from '../../tasks/hooks/use-task-context';
@@ -67,7 +66,7 @@ interface AgendaItem {
   day: string;
   /** Hour, or null for the whole day. */
   time: string | null;
-  title: string;
+  label: string;
   alarm: boolean;
 }
 
@@ -77,26 +76,26 @@ interface AgendaItem {
  * @returns {JSX.Element} Card.
  */
 export function AgendaCard({ today }: { today: string }) {
-  const events = useCalendarEvents({ from: today, to: addDays(today, 6) });
+  const events = useHeldEvents(today, addDays(today, 6));
   const alarms = useAlarms();
   const items = useMemo(() => {
-    if (!events.data || !alarms.data) return null;
+    if (!events || !alarms.data) return null;
     const now = new Date();
     const until = addDays(today, 7);
     const list: AgendaItem[] = [];
-    for (const event of events.data) {
+    for (const event of events) {
       if (!event.allDay && event.end && Date.parse(event.end) < now.getTime()) continue;
       const start = event.allDay ? null : new Date(event.start);
-      list.push({ key: event.key, day: start ? localDay(start) : event.startDate, time: start ? fmt.time(start) : null, title: event.label, alarm: false });
+      list.push({ key: event.key, day: start ? localDay(start) : event.startDate, time: start ? fmt.time(start) : null, label: event.label, alarm: false });
     }
     for (const alarm of alarms.data) {
       const next = nextRing(alarm, now);
       if (!next) continue;
       const day = localDay(next);
-      if (day < until) list.push({ key: `alarm-${alarm.id}`, day, time: fmt.time(next), title: alarm.label, alarm: true });
+      if (day < until) list.push({ key: `alarm-${alarm.id}`, day, time: fmt.time(next), label: alarm.label, alarm: true });
     }
     return list.sort((a, b) => a.day.localeCompare(b.day) || (a.time ?? '').localeCompare(b.time ?? ''));
-  }, [events.data, alarms.data, today]);
+  }, [events, alarms.data, today]);
 
   return (
     <HomeCard title="Agenda" icon={<CalendarBlankIcon aria-hidden />} to={PAGES.calendar.path} linkLabel="Ouvrir l’agenda" loading={!items}>
@@ -116,7 +115,7 @@ export function AgendaCard({ today }: { today: string }) {
                   </Text>
                   {item.alarm && <AlarmIcon aria-label="Alarme" style={{ flexShrink: 0 }} />}
                   <Text span size="sm" truncate>
-                    {item.title}
+                    {item.label}
                   </Text>
                 </Group>
               }

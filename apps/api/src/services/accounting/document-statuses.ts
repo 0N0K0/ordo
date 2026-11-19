@@ -1,9 +1,10 @@
 import { DEFAULT_LABEL_COLOR, type DocumentStatusCategory, type DocumentStatusScope, labelFormSchema, STATUS_CATEGORIES_BY_SCOPE } from '@ordo/shared';
 import { prisma } from '../../db';
 import { Prisma, type AccountingDocumentType, type DocumentStatus } from '../../generated/prisma/client';
-import { clientError, fieldError, notFound, orNotFound, parseInput, rethrowUnique } from '../../graphql/errors';
+import { clientError, fieldError, notFound, parseInput, rethrowUnique } from '../../graphql/errors';
 import { BY_POSITION, nextPositionIn } from '../core/ordering';
-import { assertNotArchived, firstActive } from '../core/archive';
+import { firstActive, refuseArchived } from '../core/archive';
+import { findOrNotFound } from '../core/lookup';
 
 type Client = Prisma.TransactionClient | typeof prisma;
 
@@ -135,8 +136,8 @@ export async function createDocumentStatus(input: { scope: DocumentStatusScope; 
  * @returns {Promise<DocumentStatus>} Status.
  */
 export async function updateDocumentStatus(id: string, input: { label?: string | null; color?: string | null; category?: DocumentStatusCategory | null }): Promise<DocumentStatus> {
-  const status = await orNotFound(prisma.documentStatus.findUnique({ where: { id } }), 'Statut');
-  await assertNotArchived('DOCUMENT_STATUS', id);
+  const status = await findOrNotFound(prisma.documentStatus, id, 'Statut');
+  refuseArchived(status);
   const data = parseInput(labelFormSchema.partial(), {
     label: input.label ?? undefined,
     color: input.color ?? undefined,
@@ -158,7 +159,7 @@ export async function updateDocumentStatus(id: string, input: { label?: string |
  * @returns {Promise<void>}
  */
 export async function deleteDocumentStatus(id: string): Promise<void> {
-  const status = await orNotFound(prisma.documentStatus.findUnique({ where: { id } }), 'Statut');
+  const status = await findOrNotFound(prisma.documentStatus, id, 'Statut');
   await assertNotLast(status);
   await prisma.$transaction(async (tx) => {
     const replacement = await tx.documentStatus.findFirstOrThrow({

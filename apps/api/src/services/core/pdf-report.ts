@@ -3,7 +3,7 @@ import PDFDocument from 'pdfkit';
 import { z } from 'zod';
 import { prisma, unscopedPrisma } from '../../db';
 import { currentWorkspaceId } from '../../workspace-context';
-import { LOCALE } from '@ordo/shared';
+import { fileName, LOCALE } from '@ordo/shared';
 import { PARIS } from '../../today';
 
 /** A PDF document being written (pdfkit). */
@@ -99,8 +99,14 @@ export interface Report {
   top: number;
   /** Bottom of the content of a page (above the footer). */
   bottom: number;
-  /** Writes the header and footer of every page and returns the PDF. */
-  finish: () => Promise<Buffer>;
+  /** Writes the header and footer of every page and returns the PDF, with the name of its file. */
+  finish: () => Promise<ReportFile>;
+}
+
+/** A report ready to download: the name of its file (« Titre.pdf ») and its content. */
+export interface ReportFile {
+  filename: string;
+  content: Buffer;
 }
 
 /**
@@ -127,11 +133,11 @@ export async function issuerName(): Promise<string> {
  * company (or the name of the company or of the workspace) and the title at the top, the date of the export, the
  * issuer and the page number at the bottom. The content goes between `top` and `bottom`; pages added keep these
  * margins.
- * @param {{ title: string, autoFirstPage?: boolean }} options Title (header and PDF properties), and whether the
- * first page is added at once (default true).
+ * @param {{ title: string, filename?: string, autoFirstPage?: boolean }} options Title (header and PDF properties), name
+ * of the file without its extension (default: the title), and whether the first page is added at once (default true).
  * @returns {Promise<Report>} Document, content area and finisher.
  */
-export async function startReport({ title, autoFirstPage = true }: { title: string; autoFirstPage?: boolean }): Promise<Report> {
+export async function startReport({ title, filename = title, autoFirstPage = true }: { title: string; filename?: string; autoFirstPage?: boolean }): Promise<Report> {
   const from = await issuer();
   const exportedAt = exportFormat.format(new Date());
   const top = REPORT_MARGIN + HEADER_HEIGHT;
@@ -146,10 +152,10 @@ export async function startReport({ title, autoFirstPage = true }: { title: stri
   });
 
   /**
-   * Header and footer of every page, then the PDF.
-   * @returns {Promise<Buffer>} PDF.
+   * Header and footer of every page, then the PDF and the name of its file.
+   * @returns {Promise<ReportFile>} File.
    */
-  const finish = async (): Promise<Buffer> => {
+  const finish = async (): Promise<ReportFile> => {
     const range = doc.bufferedPageRange();
     for (let index = range.start; index < range.start + range.count; index++) {
       doc.switchToPage(index);
@@ -198,7 +204,7 @@ export async function startReport({ title, autoFirstPage = true }: { title: stri
       doc.text(`${from.name} · Exporté le ${exportedAt}`, REPORT_MARGIN, footerTop, { width: width * 0.7, lineBreak: false, ellipsis: true });
       doc.text(`Page ${index + 1} / ${range.count}`, REPORT_MARGIN + width * 0.7, footerTop, { width: width * 0.3, align: 'right', lineBreak: false });
     }
-    return end();
+    return { filename: fileName(filename, 'pdf'), content: await end() };
   };
 
   return { doc, top, bottom: footer, finish };

@@ -4,7 +4,8 @@ import type { Calendar, WorkspaceKind } from '../../generated/prisma/client';
 import { clientError, orNotFound, parseInput } from '../../graphql/errors';
 import { currentWorkspaceId } from '../../workspace-context';
 import { BY_POSITION_ONLY, nextPositionIn } from '../core/ordering';
-import { assertNotArchived, firstActive } from '../core/archive';
+import { firstActive, refuseArchived } from '../core/archive';
+import { findOrNotFound } from '../core/lookup';
 
 /** Color of the calendar a workspace starts with. */
 const DEFAULT_COLOR = '#228be6';
@@ -32,9 +33,8 @@ export interface SubscribableCalendar {
  * @param {string} id Calendar.
  * @returns {Promise<Calendar>} Calendar.
  */
-async function findCalendar(id: string): Promise<Calendar> {
-  const calendar = await orNotFound(prisma.calendar.findUnique({ where: { id } }), 'Calendrier');
-  return calendar;
+function findCalendar(id: string): Promise<Calendar> {
+  return findOrNotFound(prisma.calendar, id, 'Calendrier');
 }
 
 /**
@@ -70,8 +70,7 @@ export async function createCalendar(input: CalendarFormValues): Promise<Calenda
  * @returns {Promise<Calendar>} Calendar.
  */
 export async function updateCalendar(id: string, input: CalendarFormValues): Promise<Calendar> {
-  await findCalendar(id);
-  await assertNotArchived('calendar', id);
+  refuseArchived(await findCalendar(id));
   return prisma.calendar.update({ where: { id }, data: parseInput(calendarFormSchema, input) });
 }
 

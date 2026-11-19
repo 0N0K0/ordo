@@ -67,7 +67,6 @@ export function MailOrganizeActions({ groups, done, labelIds, onMoved, onManageL
         {done ? <CheckCircleIcon weight="fill" aria-hidden /> : <CircleIcon aria-hidden />}
       </IconAction>
       <ActionsMenu
-        about="des drapeaux"
         keepOpen
         target={
           <IconAction label="Drapeaux">
@@ -106,7 +105,6 @@ export function MailOrganizeActions({ groups, done, labelIds, onMoved, onManageL
       </IconAction>
       {oneAccount && !noMove && (
         <ActionsMenu
-          about="du déplacement"
           maxHeight={360}
           target={
             <IconAction label="Déplacer vers…" aria-label="Déplacer vers un dossier">
@@ -176,7 +174,7 @@ export function MailSelectionBar({ groups, done, labelIds, onGone, onClear, onMa
   return (
     <Group gap={4} wrap="nowrap" style={{ flex: 1 }} justify="flex-end">
       <Text size="xs" c="dimmed" mr="auto">
-        {count} {plural(count, 'sélectionné')}
+        {countOf(count, 'sélectionné')}
       </Text>
       <MailOrganizeActions groups={groups} done={done} labelIds={labelIds} onMoved={onGone} onManageLabels={onManageLabels} noMove={noMove} />
       <IconAction label="Marquer comme lu" onClick={() => void Promise.all(groups.map((group) => setSeen.mutateAsync({ ...group, seen: true }))).catch(onMutationError)}>

@@ -13,6 +13,11 @@ const API_SYNTAX_RULES = [
     message: 'Utiliser storeAttachment(file, owner) (services/core/attachments) : fichier vide refusé, 10 Mo au plus.',
   },
   {
+    // A stored file deleted by hand: a missing one throws, a leftover fails the change it follows.
+    selector: "CallExpression[callee.object.property.name='attachment'][callee.property.name=/^(delete|deleteMany)$/]",
+    message: 'Utiliser deleteAttachment(id, leftover ?) (services/core/attachments) : un fichier déjà parti n’est pas une erreur, un reste n’échoue jamais le changement.',
+  },
+  {
     // « Ce projet est archivé. », « Cette tâche est archivée. »: one message everywhere (decision BC).
     selector: 'Literal[value=/est archivée?/], TemplateElement[value.raw=/est archivée?/]',
     message: 'Utiliser assertNotArchived(kind, id, { keep, field }) ou ARCHIVED_MESSAGE (services/core/archive) : un seul message, sous le champ.',
@@ -22,6 +27,62 @@ const API_SYNTAX_RULES = [
     selector:
       "VariableDeclaration:has(AwaitExpression > CallExpression[callee.property.name=/^find(Unique|First)$/]) + IfStatement[test.operator='!'][test.argument.type='Identifier']:matches([consequent.argument.callee.name=/^(notFound|fieldError)$/], [consequent.body.0.argument.callee.name=/^(notFound|fieldError)$/])",
     message: 'Utiliser orNotFound(prisma.x.findUnique(…), « Élément », champ ?) (graphql/errors) : « Élément introuvable. », sous le champ quand il y en a un.',
+  },
+  {
+    // orNotFound(prisma.x.findUnique({ where: { id } }), « X »): the whole record by its id.
+    selector:
+      "CallExpression[callee.name='orNotFound'][arguments.length=2] > CallExpression.arguments:first-child[callee.property.name='findUnique'] > ObjectExpression.arguments[properties.length=1] > Property[key.name='where'] > ObjectExpression.value[properties.length=1] > Property[key.name='id']",
+    message: 'Utiliser findOrNotFound(prisma.x, id, « X ») (services/core/lookup).',
+  },
+  {
+    // const x = await orNotFound(…); return x;
+    selector: "VariableDeclaration[declarations.0.init.argument.callee.name=/^(orNotFound|findOrNotFound)$/] + ReturnStatement[argument.type='Identifier']",
+    message: 'Renvoyer directement orNotFound(…) / findOrNotFound(…), sans variable.',
+  },
+  {
+    // assertExists(…) then assertNotArchived(…): two queries for one check.
+    selector:
+      "ExpressionStatement[expression.argument.callee.name='assertExists'] + ExpressionStatement[expression.argument.callee.name='assertNotArchived'], ExpressionStatement[expression.argument.callee.name='orNotFound']:has(Property[key.name='select'] > ObjectExpression[properties.length=1] > Property[key.name='id']) + ExpressionStatement[expression.argument.callee.name='assertNotArchived']",
+    message: 'Utiliser assertActive(prisma.x, id, « X », { keep, field, missingField }) (services/core/archive) : existe et non archivé, en une requête.',
+  },
+  {
+    selector: "ExpressionStatement[expression.argument.callee.name='assertAllExist'] + ExpressionStatement[expression.argument.callee.name='assertNoneArchived']",
+    message: 'Utiliser activeIds(prisma.x, ids, « X », { keep, field }) (services/core/archive) : existent et non archivés, en une requête.',
+  },
+  {
+    // if (x.archivedAt) throw …: on a record already loaded.
+    selector: "IfStatement[test.type='MemberExpression'][test.property.name='archivedAt']:matches([consequent.type='ThrowStatement'], [consequent.body.0.type='ThrowStatement'])",
+    message: 'Utiliser refuseArchived(record, field ?) (services/core/archive) : « Élément archivé… », sous le champ quand il y en a un.',
+  },
+  {
+    // The same test written otherwise: optional chaining, after another condition.
+    selector:
+      "IfStatement:matches([test.type='ChainExpression'][test.expression.property.name='archivedAt'], [test.operator='&&'][test.right.type='MemberExpression'][test.right.property.name='archivedAt']):matches([consequent.type='ThrowStatement'], [consequent.body.0.type='ThrowStatement'])",
+    message: 'Utiliser refuseArchived(record, field ?) (services/core/archive) : « Élément archivé… », sous le champ quand il y en a un.',
+  },
+  {
+    selector: "CallExpression[callee.name=/^(fieldError|clientError)$/] > Identifier.arguments[name='ARCHIVED_MESSAGE']",
+    message: 'Utiliser archivedError(field ?), refuseArchived ou assertNotArchived (services/core/archive) : le même refus partout.',
+  },
+  {
+    // const x = id ? await prisma.y.findUnique(…) : null; if (id && !x) throw notFound(…).
+    selector:
+      "IfStatement[test.operator='&&'][test.right.operator='!'][test.right.argument.type='Identifier']:matches([consequent.argument.callee.name=/^(notFound|fieldError)$/], [consequent.body.0.argument.callee.name=/^(notFound|fieldError)$/])",
+    message: 'Utiliser orNotFound(prisma.x.findUnique(…), « Élément ») dans la branche qui cherche (graphql/errors) : « Élément introuvable. ».',
+  },
+  {
+    // const x = await findX(id); await assertNotArchived(kind, id): the record already tells it.
+    selector:
+      "VariableDeclaration[declarations.0.init.argument.callee.name=/^(find[A-Z]\\w*|orNotFound|findOrNotFound)$/] + ExpressionStatement[expression.argument.callee.name='assertNotArchived'][expression.argument.arguments.1.type='Identifier']",
+    message: 'Utiliser refuseArchived(record) (services/core/archive) sur l’élément déjà chargé.',
+  },
+  {
+    selector: "IfStatement[test.type='BinaryExpression'][test.operator='==='][test.left.type='BinaryExpression'][test.left.left.property.name='archivedAt'] > ReturnStatement",
+    message: 'Utiliser isArchivedAs(record, archived) (services/core/archive).',
+  },
+  {
+    selector: "TSAsExpression > TSTypeReference.typeAnnotation[typeName.left.name='Prisma'][typeName.right.name=/^InputJson(Value|Object|Array)$/]",
+    message: 'Utiliser toJson(value) (services/core/json) : le seul forçage de type des écritures JSON.',
   },
   {
     selector: "CallExpression[callee.name='clientError'][arguments.0.value='NOT_FOUND']",
@@ -115,7 +176,7 @@ const API_SYNTAX_RULES = [
 // Patterns of the fixtures' helpers (prisma/fixtures/factories).
 const FIXTURE_SYNTAX_RULES = [
   {
-    selector: "NewExpression[callee.name='Date'] > TemplateLiteral.arguments:has(CallExpression[callee.property.name='padStart'])",
+    selector: "NewExpression[callee.name='Date'] > TemplateLiteral.arguments:has(CallExpression[callee.name='twoDigits'])",
     message: 'Utiliser localAt(day, hour, minute) (fixtures/factories).',
   },
   {
@@ -141,6 +202,18 @@ const FIXTURE_SYNTAX_RULES = [
   {
     selector: "ObjectExpression:has(> Property[key.name='unitPrice'][value.value=null]):has(> Property[key.name='quantity'][value.value=null])",
     message: 'Utiliser ...EMPTY_ARTICLE (fixtures/factories).',
+  },
+  {
+    selector: "CallExpression[callee.object.property.name='calendarCategory'][callee.property.name='create']",
+    message: 'Utiliser calendarCategory(label, color, parentId, position) (fixtures/factories).',
+  },
+  {
+    selector: "CallExpression[callee.object.property.name='treasuryCategory'][callee.property.name=/^find(Many|First)$/]",
+    message: 'Utiliser treasuryCategoryIds() (fixtures/factories).',
+  },
+  {
+    selector: "CallExpression[callee.property.name='find'] > ArrowFunctionExpression > LogicalExpression:has(BinaryExpression[operator='==='][left.property.name='clientId']):has(BinaryExpression[left.property.name='parentId'][right.value=null])",
+    message: 'Utiliser clientRootProject(projects, clientId, activeOnly ?) (fixtures/factories).',
   },
 ];
 

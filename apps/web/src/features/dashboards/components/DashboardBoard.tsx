@@ -12,7 +12,7 @@ import { confirmDestructive } from '../../../components/dialogs/confirm-destruct
 import { openFormPanel } from '../../../components/panels/panels';
 import { Group, Paper, SimpleGrid, Stack, Text } from '@mantine/core';
 
-import { chartConfigSchema, dashboardLabelSchema, defaultChartConfig, type ChartConfig, type ChartSource } from '@ordo/shared';
+import { chartConfigSchema, chartLabelSchema, dashboardLabelSchema, defaultChartConfig, type ChartConfig, type ChartSource } from '@ordo/shared';
 import {
   ArrowBendUpRightIcon,
   ArrowsHorizontalIcon,
@@ -26,6 +26,7 @@ import {
   PencilSimpleIcon,
   PlusIcon,
   TableIcon,
+  TextAaIcon,
   TrashIcon,
 } from '@phosphor-icons/react';
 import { SortableArea } from '../../../components/dnd/sortable';
@@ -48,7 +49,7 @@ import { chartTable, downloadChartCsv, downloadChartTablePdf } from '../lib/char
 import { describeChart, useChartData, type ChartScope } from '../lib/chart-data';
 import { ChartView } from './ChartView';
 import { TransferChartForm } from './TransferChartForm';
-import { countLabel, NEW_CHART_TITLES } from '../lib/aggregate';
+import { countLabel, NEW_CHART_LABELS } from '../lib/aggregate';
 import * as fmt from '../../../lib/format';
 import { countOf, countWith } from '../../../lib/text';
 import { openLabelForm } from '../../../components/dialogs/open-label-form';
@@ -244,6 +245,17 @@ function ChartCard({ chart, index, count, scope, context, dashboardLabel, captur
                 ? []
                 : ([
                     { label: 'Modifier', icon: <PencilSimpleIcon aria-hidden />, onClick: onEdit },
+                    {
+                      label: 'Renommer',
+                      icon: <TextAaIcon aria-hidden />,
+                      onClick: () =>
+                        openLabelForm('Renommer le diagramme', {
+                          initial: chart.label,
+                          schema: chartLabelSchema,
+                          submitLabel: 'Renommer',
+                          onSubmit: (label) => updateChart.mutateAsync({ id: chart.id, input: { label, config, wide: chart.wide } }),
+                        }),
+                    },
                     { label: 'Dupliquer', icon: <CopyIcon aria-hidden />, onClick: () => duplicateChart.mutate(chart.id, ON_ERROR) },
                     {
                       label: chart.wide ? 'Demi-largeur' : 'Pleine largeur',
@@ -386,7 +398,7 @@ export function DashboardBoard({ projectId, title }: DashboardBoardProps) {
                   wide: chart.wide,
                 }
               : {
-                  label: NEW_CHART_TITLES[source],
+                  label: NEW_CHART_LABELS[source],
                   config: defaultChartConfig(source),
                   wide: false,
                 }

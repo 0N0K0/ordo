@@ -10,7 +10,7 @@ import { useMe } from '../../auth/api';
 import { ChronoCard } from '../components/ChronoCard';
 import { BillingCard, QuotesCard, TreasuryCard } from '../components/FinanceCards';
 import { StatTile } from '../../../components/page/StatTile';
-import { balanceIn30Days, billingSummary, useMyTodayTasks, useWeekTime } from '../lib/home-data';
+import { balanceIn30Days, IN_30_DAYS, billingSummary, useMyTodayTasks, useWeekTime } from '../lib/home-data';
 import { MailCard } from '../components/MailCard';
 import { SortableGrid } from '../components/SortableGrid';
 import { RoutinesCard, ShoppingCard } from '../components/LifeCards';
@@ -123,7 +123,7 @@ export function HomePage() {
         <StatTile
           label="Trésorerie"
           value={fmt.money(projection.data?.balance ?? 0)}
-          hint={at30 ? `Dans 30 jours : ${fmt.money(at30.balance)}` : undefined}
+          hint={at30 ? `${IN_30_DAYS} : ${fmt.money(at30.balance)}` : undefined}
           hintColor={at30 && at30.balance < 0 ? 'red' : 'dimmed'}
           to={PAGES.treasury.path}
           loading={!projection.data}

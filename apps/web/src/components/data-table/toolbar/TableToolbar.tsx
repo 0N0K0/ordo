@@ -1,7 +1,7 @@
 import { CountBadge } from '../../feedback/CountBadge';
 import { Button, CloseButton, Collapse, Divider, Group, Indicator, Popover, Stack, Text, TextInput, Switch } from '@mantine/core';
 import { ArrowCounterClockwiseIcon, ColumnsIcon, FloppyDiskIcon, FunnelIcon, MagnifyingGlassIcon, SlidersHorizontalIcon, SortAscendingIcon } from '@phosphor-icons/react';
-import { FoldChevron } from '../../actions/FoldChevron';
+import { FoldHeading } from '../../actions/FoldHeading';
 import { useState, type ReactNode } from 'react';
 import { usePublishedHeight } from '../views/published-height';
 import { SubSection } from '../../page/SubSection';
@@ -146,18 +146,9 @@ export function TableOptions({ dirty = false, onSave, onRevert, display, columns
     ),
     columns && (
       <Stack key="columns" gap="sm">
-        <Button
-          variant="subtle"
-          color="gray"
-          justify="space-between"
-          leftSection={<ColumnsIcon aria-hidden />}
-          rightSection={<FoldChevron expanded={columnsOpened} />}
-          onClick={() => setColumnsOpened((opened) => !opened)}
-          aria-expanded={columnsOpened}
-          fullWidth
-        >
-          Colonnes
-        </Button>
+        <FoldHeading expanded={columnsOpened} onToggle={() => setColumnsOpened((opened) => !opened)} icon={<ColumnsIcon aria-hidden />} px="xs" py={6}>
+          <Text size="sm">Colonnes</Text>
+        </FoldHeading>
         <Collapse expanded={columnsOpened}>{columns}</Collapse>
       </Stack>
     ),

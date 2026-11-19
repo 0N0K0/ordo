@@ -13,7 +13,7 @@ import { Prisma, type Contributor, type TreasuryContext, type TreasuryContextPer
 import { clientError, fieldError, isUniqueConflict, orNotFound, parseField, parseInput, rethrowUnique } from '../../graphql/errors';
 import { createContributor, freeHandle } from '../workspace/contributors';
 import { assertExists, deleteOrNotFound } from '../core/lookup';
-import { assertNotArchived } from '../core/archive';
+import { assertNotArchived, assertActive } from '../core/archive';
 import { nextPositionIn } from '../core/ordering';
 
 /** Members of the team (professional workspace) or household (personal one): "Moi", then the others. */
@@ -74,8 +74,7 @@ export async function removeMember(contributorId: string): Promise<void> {
  */
 export async function saveContext(id: string | null, input: TreasuryContextInput): Promise<TreasuryContext> {
   const data = parseInput(treasuryContextSchema, input);
-  await assertExists(prisma.treasuryContext, id, 'Contexte');
-  await assertNotArchived('TREASURY_CONTEXT', id);
+  await assertActive(prisma.treasuryContext, id, 'Contexte');
   try {
     return await prisma.$transaction(async (tx) => {
       if (id) return tx.treasuryContext.update({ where: { id }, data });
@@ -103,9 +102,8 @@ export async function deleteContext(id: string): Promise<void> {
  */
 export async function saveContextPeriod(id: string | null, input: TreasuryContextPeriodInput): Promise<TreasuryContextPeriod> {
   const data = parseInput(treasuryContextPeriodSchema, input);
-  await assertExists(prisma.treasuryContext, data.contextId, 'Contexte');
   // A period is part of its context: none added to, nor taken from, an archived one.
-  await assertNotArchived('TREASURY_CONTEXT', data.contextId, { field: 'contextId' });
+  await assertActive(prisma.treasuryContext, data.contextId, 'Contexte', { field: 'contextId' });
   const fields = { contextId: data.contextId, startDate: parseDay(data.startDate), endDate: parseDay(data.endDate), note: data.note };
   if (!id) return prisma.treasuryContextPeriod.create({ data: fields });
   const previous = await orNotFound(prisma.treasuryContextPeriod.findUnique({ where: { id }, select: { contextId: true } }), 'Période');
@@ -132,8 +130,7 @@ export async function deleteContextPeriod(id: string): Promise<void> {
  */
 export async function saveRelation(id: string | null, input: TreasuryRelationInput): Promise<TreasuryRelation> {
   const parsed = parseInput(treasuryRelationSchema, input);
-  await assertExists(prisma.treasuryRelation, id, 'Relation');
-  await assertNotArchived('TREASURY_RELATION', id);
+  await assertActive(prisma.treasuryRelation, id, 'Relation');
   if (parsed.contributorId) {
     const contributor = await orNotFound(prisma.contributor.findUnique({ where: { id: parsed.contributorId }, select: { teamMember: true, userId: true } }), 'Contributeur');
     if (isMember(contributor)) {

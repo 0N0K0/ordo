@@ -1,10 +1,10 @@
 import { Anchor, Text } from '@mantine/core';
 import { Fragment, type ReactNode } from 'react';
 import { Link, useLocation, useMatch } from 'react-router';
-import { useWorkspace } from '../../features/projects/api';
+import { useProjectTree } from '../../features/projects/api';
 import { WorkspaceSwitcher } from '../../features/workspaces/components/WorkspaceSwitcher';
 import classes from './HeaderTitle.module.css';
-import { clientPath, pageOfPath, projectPath } from '../pages';
+import { CLIENT_ROUTE, clientPath, pageOfPath, PROJECT_ROUTE, projectPath } from '../pages';
 
 interface Crumb {
   label: string;
@@ -19,9 +19,9 @@ interface Crumb {
  */
 function useCrumbs(): Crumb[] {
   const { pathname } = useLocation();
-  const projectId = useMatch('/projects/:id')?.params.id;
-  const clientId = useMatch('/clients/:id')?.params.id;
-  const { data: workspace } = useWorkspace();
+  const projectId = useMatch(PROJECT_ROUTE)?.params.id;
+  const clientId = useMatch(CLIENT_ROUTE)?.params.id;
+  const { data: workspace } = useProjectTree();
 
   if (projectId) {
     const project = workspace?.projects.find((item) => item.id === projectId);
@@ -41,8 +41,8 @@ function useCrumbs(): Crumb[] {
     const client = workspace?.clients.find((item) => item.id === clientId);
     return [{ label: client?.name ?? 'Client' }];
   }
-  const title = pageOfPath(pathname)?.title;
-  return title ? [{ label: title }] : [];
+  const label = pageOfPath(pathname)?.label;
+  return label ? [{ label }] : [];
 }
 
 /**

@@ -4,7 +4,7 @@ import { prisma } from '../../db';
 import type { Comment } from '../../generated/prisma/client';
 import { notFound, orNotFound, parseField } from '../../graphql/errors';
 import { assertNotArchived, type ArchivableModel } from './archive';
-import { deleteOrNotFound } from './lookup';
+import { deleteOrNotFound, findOrNotFound } from './lookup';
 
 /** Items that take comments (tasks have their own), and their column on a comment. */
 export const COMMENT_TARGETS = {
@@ -79,7 +79,7 @@ async function assertTarget(target: CommentTarget, id: string): Promise<void> {
  * @returns {Promise<void>}
  */
 async function assertCommentTarget(id: string): Promise<void> {
-  const comment = await orNotFound(prisma.comment.findUnique({ where: { id } }), 'Commentaire');
+  const comment = await findOrNotFound(prisma.comment, id, 'Commentaire');
   const target = (Object.keys(COMMENT_TARGETS) as CommentTarget[]).find((kind) => comment[COMMENT_TARGETS[kind]]);
   if (target) await assertTarget(target, comment[COMMENT_TARGETS[target]]!);
 }

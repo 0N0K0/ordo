@@ -6,15 +6,15 @@ import { fetchCalendarEvents, type EventOccurrence } from '../../calendar/api';
 import { useTasksData } from '../../tasks/api';
 import { useRoutineMutations, useRoutinesData } from '../../routines/api';
 import { useRunningTimer } from '../../time/api';
-import { useWorkspace } from '../../projects/api';
+import { useProjectTree } from '../../projects/api';
 import { useAlarmMutations, useAlarms, type Alarm } from '../api';
 import { unlockAudioOnGesture } from '../lib/alarm-sound';
 import { dueAlarms, ringAlarm, ringReminders, type RingLink } from './ring';
 import { ringRoutineReminders } from '../lib/ring-routines';
 import { ON_ERROR } from '../../../lib/notify';
 import { useSlotRules, routineDoable } from '../../calendar/hooks/use-slot-rules';
-import { projectPath, taskPath, PAGES } from '../../../app/pages';
-import { alarmTaskLabel } from '../lib/alarm-labels';
+import { PAGES } from '../../../app/pages';
+import { alarmTarget } from '../lib/alarm-labels';
 
 const TICK_MS = 15_000;
 
@@ -29,7 +29,7 @@ export function AlarmCenter() {
   const { data: alarms } = useAlarms();
   const { data: running } = useRunningTimer();
   const { data: tasksData } = useTasksData();
-  const { data: workspace } = useWorkspace();
+  const { data: workspace } = useProjectTree();
   const { markFired } = useAlarmMutations();
   const { data: routinesData } = useRoutinesData();
   const { setDone } = useRoutineMutations();
@@ -80,12 +80,12 @@ export function AlarmCenter() {
      */
     const alarmLinks = (alarm: Alarm): RingLink[] => {
       const { tasksData: data, workspace: space } = latest.current;
-      const task = alarm.taskId ? data?.tasks.find((item) => item.id === alarm.taskId) : undefined;
-      // Its number is only unique in its project: the project comes with it.
-      const place = task?.projectId ? space?.projects.find((item) => item.id === task.projectId)?.label : undefined;
-      if (task) return [link(alarmTaskLabel(task, place), taskPath(task))];
-      const project = alarm.projectId ? space?.projects.find((item) => item.id === alarm.projectId) : undefined;
-      return project ? [link(project.label, projectPath(project.id))] : [];
+      const target = alarmTarget(
+        alarm,
+        (id) => data?.tasks.find((item) => item.id === id),
+        (id) => space?.projects.find((item) => item.id === id),
+      );
+      return target ? [link(target.label, target.to)] : [];
     };
 
     /**

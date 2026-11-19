@@ -73,7 +73,7 @@ function listColumns(env: ListEnv): DataColumn<ShoppingList>[] {
   };
   const listState = (list: ShoppingList) => (listClosed(list, context) ? 'CLOSED' : 'OPEN');
   return [
-    { id: 'label', label: 'Liste', size: 260, locked: true, bulk: true, sortValue: (list) => list.label, text: (list) => list.label },
+    { id: 'label', required: true, label: 'Liste', size: 260, locked: true, bulk: true, sortValue: (list) => list.label, text: (list) => list.label },
     {
       id: 'tasks',
       label: 'Tâches',
@@ -104,6 +104,7 @@ function listColumns(env: ListEnv): DataColumn<ShoppingList>[] {
     },
     {
       id: 'state',
+      required: true,
       label: 'État',
       size: 110,
       hiddenByDefault: true,
@@ -129,6 +130,7 @@ function listColumns(env: ListEnv): DataColumn<ShoppingList>[] {
     },
     {
       id: 'remaining',
+      required: true,
       label: 'Restant',
       size: 90,
       numeric: true,
@@ -136,7 +138,7 @@ function listColumns(env: ListEnv): DataColumn<ShoppingList>[] {
       sortValue: (list) => leftToBuy(list.items).length,
       text: (list) => String(leftToBuy(list.items).length || ''),
     },
-    { id: 'itemCount', label: 'Produits', size: 90, numeric: true, hiddenByDefault: true, sortValue: (list) => list.items.length, text: (list) => String(list.items.length) },
+    { id: 'itemCount', required: true, label: 'Produits', size: 90, numeric: true, hiddenByDefault: true, sortValue: (list) => list.items.length, text: (list) => String(list.items.length) },
     {
       id: 'total',
       label: 'Total estimé',
@@ -148,6 +150,7 @@ function listColumns(env: ListEnv): DataColumn<ShoppingList>[] {
     },
     {
       id: 'createdAt',
+      required: true,
       label: 'Créée le',
       size: 110,
       sortValue: (list) => list.createdAt,
@@ -373,7 +376,7 @@ export function ShoppingPage() {
 
   return (
     <Stack gap="lg">
-      <PageHeader title={PAGES.shopping.title} />
+      <PageHeader title={PAGES.shopping.label} />
       <ShoppingSettings />
       <PageTabs value={tab} onChange={(value) => setTab(value)} keepMounted={false}>
         <PageTabs.List>

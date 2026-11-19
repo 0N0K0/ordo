@@ -31,6 +31,7 @@ import { TimeDayCell, TimeDurationCell, TimeEventCell, TimeRoutineCell, TimeStar
 import { monthColumn } from '../../../components/data-table/table/month-column';
 import { TIMER_RUNNING, TimerRunningBadge } from './TimerStop';
 import { documentPath } from '../../../app/pages';
+import { DRAFT_NAME } from '../../accounting/lib/labels';
 
 /**
  * Seconds of the finished times (a running timer counts once stopped).
@@ -54,6 +55,13 @@ function events(entries: readonly TimeEntry[]): { value: string; label: string }
   return [...byId].map(([value, label]) => ({ value, label })).sort((a, b) => collator.compare(a.label, b.label));
 }
 
+/**
+ * Invoice of a billed time: its number, or « Brouillon » while the invoice is a draft.
+ * @param {TimeEntry} entry Time (billed).
+ * @returns {string} Text.
+ */
+const billedText = (entry: TimeEntry): string => (entry.documentNumber ? `Facturé : ${entry.documentNumber}` : DRAFT_NAME);
+
 /** Views made the first time the times are shown, by day: this week (opened first), this month, every time. */
 const TIME_VIEWS: FirstTableView[] = [
   { label: 'Cette semaine', config: { filter: withinFilter('day', 'thisWeek'), groupBy: 'day', sorting: [{ id: 'day', desc: true }] } },
@@ -74,6 +82,7 @@ function timeColumns(context: TaskContext | null, comments: Map<string, number>,
   return [
     {
       id: 'day',
+      required: true,
       bulk: true,
       label: 'Date',
       size: 200,
@@ -95,6 +104,7 @@ function timeColumns(context: TaskContext | null, comments: Map<string, number>,
     },
     {
       id: 'duration',
+      required: true,
       bulk: true,
       label: 'Durée',
       size: 100,
@@ -154,10 +164,11 @@ function timeColumns(context: TaskContext | null, comments: Map<string, number>,
     },
     {
       id: 'invoice',
+      required: true,
       label: 'Facture',
       size: 150,
       sortValue: (entry) => entry.documentNumber ?? null,
-      text: (entry) => (entry.documentId ? (entry.documentNumber ? `Facturé : ${entry.documentNumber}` : 'Brouillon') : 'Non facturé'),
+      text: (entry) => (entry.documentId ? billedText(entry) : 'Non facturé'),
       filter: {
         kind: 'choice',
         value: (entry) => (entry.documentId ? (entry.documentNumber ? 'billed' : 'draft') : 'unbilled'),
@@ -246,7 +257,7 @@ export function TimeLog({ entries, context, projectId, emptyMessage, onEdit, onD
           {
             ...deleteRowsAction(deletable, {
               title: 'Supprimer les temps',
-              risks: `${deletable.length} temps seront supprimés définitivement et retirés du temps passé de leurs tâches${deletable.length < rows.length ? ' (les temps facturés sont gardés)' : ''}.`,
+              risks: `${deletable.length} temps ${plural(deletable.length, 'sera', 'seront')} ${plural(deletable.length, 'supprimé')} définitivement et ${plural(deletable.length, 'retiré')} du temps passé de ${plural(deletable.length, 'ses', 'leurs')} tâches${deletable.length < rows.length ? ' (les temps facturés sont gardés)' : ''}.`,
               remove: (entry) => remove.mutateAsync(entry.id),
               done: `${deletable.length} temps ${plural(deletable.length, 'supprimé')}.`,
               clear,
@@ -311,7 +322,7 @@ export function TimeLog({ entries, context, projectId, emptyMessage, onEdit, onD
           event: <TimeEventCell entry={entry} readOnly={!editable(entry)} label={cellLabelOf('event', entry, 'Évènement')} save={bulk('event')} />,
           invoice: entry.documentId && (
             <Badge size="sm" variant="light" color={entry.documentNumber ? 'green' : 'gray'} component={Link} to={documentPath(entry.documentId)} style={{ cursor: 'pointer' }}>
-              {entry.documentNumber ? `Facturé : ${entry.documentNumber}` : 'Brouillon'}
+              {billedText(entry)}
             </Badge>
           ),
         };

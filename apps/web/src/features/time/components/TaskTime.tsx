@@ -4,7 +4,7 @@ import { formatDuration } from '@ordo/shared';
 import { PlayIcon } from '@phosphor-icons/react';
 import type { Task } from '../../tasks/api';
 import { useRunningTimer } from '../api';
-import { TIMER_REPLACED_HINT, useStartTimer } from '../hooks/use-start-timer';
+import { useStartTimer } from '../hooks/use-start-timer';
 import { TimerControls } from './TimerControls';
 import { TimerRunningBadge } from './TimerStop';
 import { ActionButton } from '../../../components/actions/ActionButton';
@@ -16,7 +16,7 @@ import { ActionButton } from '../../../components/actions/ActionButton';
  */
 export function TaskTime({ task }: { task: Task }) {
   const running = useRunningTimer();
-  const { startTimer, isPending, replacing } = useStartTimer();
+  const { startTimer, isPending, hint } = useStartTimer();
   const onThisTask = running.data?.taskIds.includes(task.id) ?? false;
   return (
     <LabeledField label="Temps passé">
@@ -34,7 +34,7 @@ export function TaskTime({ task }: { task: Task }) {
             priority="secondary"
             size="compact-sm"
             icon={<PlayIcon aria-hidden />}
-            hint={replacing && !task.archived ? TIMER_REPLACED_HINT : undefined}
+            hint={hint(task.archived)}
             loading={isPending}
             disabled={task.archived}
             onClick={() => startTimer({ projectId: task.projectId, taskIds: [task.id] })}

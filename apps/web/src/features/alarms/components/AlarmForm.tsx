@@ -13,6 +13,7 @@ import { RuleEditor } from '../../../components/recurrence/RepetitionEditor';
 import { RepetitionField } from '../../../components/recurrence/RepetitionField';
 import { useAlarmMutations, type Alarm, type AlarmInput } from '../api';
 import { FormActions } from '../../../components/dialogs/FormActions';
+import { optionalNumberProps } from '../../../components/inputs/number-format';
 
 const TYPES: { value: AlarmType; label: string }[] = [
   { value: 'REMINDER', label: 'Rappel' },
@@ -101,15 +102,7 @@ export function AlarmForm({ context, alarm, copy = false, defaults, onDone }: Al
         </Stack>
 
         {tracking ? (
-          <NumberInput
-            label="Toutes les"
-            suffix=" min de chrono"
-            min={1}
-            max={24 * 60}
-            required
-            {...form.getInputProps('minutes')}
-            onChange={(value) => form.setFieldValue('minutes', typeof value === 'number' ? value : null)}
-          />
+          <NumberInput label="Toutes les" suffix=" min de chrono" min={1} max={24 * 60} required {...optionalNumberProps(form, 'minutes')} />
         ) : (
           <RepetitionField<AlarmTiming>
             label="Date, heure et répétition"

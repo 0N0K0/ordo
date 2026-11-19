@@ -1,6 +1,6 @@
 import { PERIOD_STATES, periodState, type PeriodState } from '../../../lib/periods';
 import { itemChoices } from '../../../components/items/item-look';
-import { plural, countOf, copyName } from '../../../lib/text';
+import { countOf, copyName } from '../../../lib/text';
 import { ActionButton } from '../../../components/actions/ActionButton';
 import { ItemAvatar } from '../../../components/items/ItemAvatar';
 import * as fmt from '../../../lib/format';
@@ -232,7 +232,7 @@ export function WorkSchedulesManager() {
       noun: 'plage',
       feminine: true,
       the: 'la plage',
-      name: ({ schedule }) => schedule.label,
+      label: ({ schedule }) => schedule.label,
       risks: (subject, one) =>
         `${subject} et ${one ? 'ses' : 'leurs'} exceptions seront supprimées définitivement${perso ? '' : ` : ${one ? 'elle ne comptera' : 'elles ne compteront'} plus dans le temps prévu`}. Les autres espaces abonnés ne ${one ? 'la' : 'les'} verront plus. Les évènements ne sont pas touchés.`,
       remove: ({ schedule }) => remove.mutateAsync(schedule.id),
@@ -247,9 +247,10 @@ export function WorkSchedulesManager() {
     (schedules ?? []).map((schedule) => schedule.id),
   );
   const columns: DataColumn<ScheduleRow>[] = [
-    { id: 'label', label: 'Libellé', size: 220, locked: true, bulk: true, sortValue: ({ schedule }) => schedule.label, text: ({ schedule }) => schedule.label },
+    { id: 'label', required: true, label: 'Libellé', size: 220, locked: true, bulk: true, sortValue: ({ schedule }) => schedule.label, text: ({ schedule }) => schedule.label },
     {
       id: 'type',
+      required: true,
       bulk: true,
       label: 'Type',
       size: 160,
@@ -264,6 +265,7 @@ export function WorkSchedulesManager() {
     },
     {
       id: 'start',
+      required: true,
       bulk: true,
       label: 'Début',
       size: 120,
@@ -291,6 +293,7 @@ export function WorkSchedulesManager() {
     },
     {
       id: 'state',
+      required: true,
       label: 'État',
       size: 110,
       sortValue: ({ state: rowState }) => STATE_ORDER[rowState],
@@ -430,7 +433,7 @@ export function WorkSchedulesManager() {
                         ))}
                       >
                         <Text size="xs" c="dimmed" style={{ cursor: 'help' }} tabIndex={0}>
-                          {exceptions.length} {plural(exceptions.length, 'exception')}
+                          {countOf(exceptions.length, 'exception')}
                         </Text>
                       </Tooltip>
                     )}

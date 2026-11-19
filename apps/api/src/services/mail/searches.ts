@@ -2,11 +2,11 @@ import { addDays, collator, EMPTY_MAIL_SEARCH, type MailSearchCriteria, mailSear
 import { prisma } from '../../db';
 import { nextPositionIn } from '../core/ordering';
 import type { MailSearch } from '../../generated/prisma/client';
-import { orNotFound, parseInput } from '../../graphql/errors';
+import { parseInput } from '../../graphql/errors';
 import { folderLabel, isInbox, selectableFolders, withImap, withMailbox } from './imap';
 import { DONE_KEYWORD, labelKeyword, messageIdsOf, takesKeywords } from './keywords';
 import { PAGE_SIZE, SUMMARY_FETCH, toSummary, type MailSummary } from './reader';
-import { assertExists, deleteOrNotFound } from '../core/lookup';
+import { assertExists, deleteOrNotFound, findOrNotFound } from '../core/lookup';
 
 /** Folders a search does not look into, with "every folder". */
 const SKIPPED = new Set(['\\Trash', '\\Junk', '\\Drafts', '\\Sent']);
@@ -163,7 +163,7 @@ async function searchFolder(
  * @returns {Promise<{ messages: MailSearchHit[], total: number }>} Mails and total count.
  */
 export async function searchResults(id: string, page: number): Promise<{ messages: MailSearchHit[]; total: number }> {
-  const search = await orNotFound(prisma.mailSearch.findUnique({ where: { id } }), 'Dossier de recherche');
+  const search = await findOrNotFound(prisma.mailSearch, id, 'Dossier de recherche');
   return runSearch(searchCriteria(search), page);
 }
 

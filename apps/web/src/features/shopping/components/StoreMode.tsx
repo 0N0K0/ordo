@@ -2,7 +2,8 @@ import { formCallbacks } from '../../../lib/form';
 import { NoticeAlert } from '../../../components/feedback/NoticeAlert';
 import { plural } from '../../../lib/text';
 import { byPosition } from '@ordo/shared';
-import { Anchor, Badge, Button, Checkbox, CloseButton, Group, Modal, Stack, Text, Title, UnstyledButton } from '@mantine/core';
+import { Anchor, Badge, Checkbox, CloseButton, Group, Modal, Stack, Text, Title } from '@mantine/core';
+import { ActionButton } from '../../../components/actions/ActionButton';
 import { ItemAvatar } from '../../../components/items/ItemAvatar';
 import { ArrowSquareOutIcon, PackageIcon } from '@phosphor-icons/react';
 import { useState, type ReactNode } from 'react';
@@ -14,7 +15,7 @@ import { useShoppingData, useShoppingMutations, type ShoppingItem, type Shopping
 import { NO_GROUP, shoppingRows, visibleRows } from '../lib/shopping-format';
 import * as fmt from '../../../lib/format';
 import classes from './Shopping.module.css';
-import { FoldChevron } from '../../../components/actions/FoldChevron';
+import { FoldHeading } from '../../../components/actions/FoldHeading';
 import { Caption } from '../../../components/page/Caption';
 import { EXTERNAL_LINK } from '../../../components/actions/link-props';
 
@@ -38,30 +39,30 @@ interface HeadingProps {
  */
 function Heading({ name, color, iconUrl, count, depth, collapsed, onToggle }: HeadingProps) {
   return (
-    <UnstyledButton
+    <FoldHeading
       className={classes.storeHeading}
+      radius="md"
       data-depth={depth}
-      onClick={onToggle}
-      aria-expanded={!collapsed}
+      expanded={!collapsed}
+      onToggle={onToggle}
       style={{ paddingLeft: `calc(${Math.max(0, depth - 1)} * var(--mantine-spacing-md))` }}
-    >
-      <Group gap="xs" wrap="nowrap">
-        <FoldChevron expanded={!collapsed} />
-        {(color || iconUrl) && <ItemAvatar name={name} iconUrl={iconUrl} color={color} size={depth === 0 ? 20 : 16} />}
-        {depth === 0 ? (
-          <Text fw={700} size="lg" style={{ flex: 1 }}>
-            {name}
-          </Text>
-        ) : (
-          <Caption fw={depth <= 1 ? 700 : 600} size="sm" style={{ flex: 1 }}>
-            {name}
-          </Caption>
-        )}
+      icon={(color || iconUrl) && <ItemAvatar name={name} iconUrl={iconUrl} color={color} size={depth === 0 ? 20 : 16} />}
+      aside={
         <Badge size={depth === 0 ? 'lg' : 'md'} variant={count ? 'filled' : 'light'} color={count ? undefined : 'green'} aria-label={`${count} à acheter`}>
           {count}
         </Badge>
-      </Group>
-    </UnstyledButton>
+      }
+    >
+      {depth === 0 ? (
+        <Text fw={700} size="lg">
+          {name}
+        </Text>
+      ) : (
+        <Caption fw={depth <= 1 ? 700 : 600} size="sm">
+          {name}
+        </Caption>
+      )}
+    </FoldHeading>
   );
 }
 
@@ -201,10 +202,10 @@ export function StoreMode({ list, onClose }: { list: ShoppingList; onClose: () =
                   </>
                 )}
               </Text>
-              <Button
+              <ActionButton
+                priority="secondary"
                 size="sm"
-                variant="light"
-                leftSection={<PackageIcon aria-hidden />}
+                icon={<PackageIcon aria-hidden />}
                 onClick={() =>
                   setDeliveryReceived.mutate(
                     { id: delivery.id, received: true },
@@ -213,7 +214,7 @@ export function StoreMode({ list, onClose }: { list: ShoppingList; onClose: () =
                 }
               >
                 Réceptionnée
-              </Button>
+              </ActionButton>
             </Group>
             {!collapsed.has(`delivery:${delivery.id}`) && deliveryItems.map((item) => row(item))}
           </Stack>
@@ -234,17 +235,11 @@ export function StoreMode({ list, onClose }: { list: ShoppingList; onClose: () =
         ))}
         {bought.length > 0 && (
           <Stack gap="xs">
-            <UnstyledButton className={classes.storeHeading} data-depth={0} onClick={() => toggle('bought')} aria-expanded={!collapsed.has('bought')}>
-              <Group gap="xs" wrap="nowrap">
-                <FoldChevron expanded={!collapsed.has('bought')} />
-                <Text fw={700} size="lg" c="dimmed" style={{ flex: 1 }}>
-                  Acheté
-                </Text>
-                <Badge size="lg" variant="light" color="gray">
-                  {bought.length}
-                </Badge>
-              </Group>
-            </UnstyledButton>
+            <FoldHeading className={classes.storeHeading} radius="md" data-depth={0} expanded={!collapsed.has('bought')} onToggle={() => toggle('bought')} count={bought.length}>
+              <Text fw={700} size="lg" c="dimmed">
+                Acheté
+              </Text>
+            </FoldHeading>
             {!collapsed.has('bought') && bought.map((item) => row(item))}
           </Stack>
         )}

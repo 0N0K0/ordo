@@ -2,6 +2,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { graphql } from '../../../graphql';
 import type { AccountUserFragment } from '../../../graphql/graphql';
 import { execute } from '../../../lib/graphql-client';
+import { useInvalidatingMutation } from '../../../lib/mutation';
 
 export type AccountUser = AccountUserFragment;
 
@@ -165,11 +166,7 @@ export function useResetPassword() {
  * @returns {UseMutationResult} Mutation state.
  */
 export function useConfirmEmailChange() {
-  const queryClient = useQueryClient();
-  return useMutation({
-    mutationFn: async (variables: { token: string }) => (await execute(ConfirmEmailChangeMutation, variables)).confirmEmailChange,
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: meQueryKey }),
-  });
+  return useInvalidatingMutation(async (variables: { token: string }) => (await execute(ConfirmEmailChangeMutation, variables)).confirmEmailChange, { invalidate: [meQueryKey] });
 }
 
 /**

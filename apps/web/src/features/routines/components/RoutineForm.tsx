@@ -34,6 +34,7 @@ import { useRoutineCategoryItems } from '../hooks/use-category-items';
 import { itemCreator } from '../../../components/settings/create-settings-item';
 import { FormActions } from '../../../components/dialogs/FormActions';
 import { SubSection } from '../../../components/page/SubSection';
+import { optionalNumberProps } from '../../../components/inputs/number-format';
 
 interface RoutineFormValues extends Record<string, unknown> {
   label: string;
@@ -161,7 +162,7 @@ export function RoutineForm({ routine, copy = false, parent, categoryId = null, 
               <SubSection title="Quand" gap="md">
                 <RoutineSchedule values={form.values} errors={form.errors} onChange={(changes) => form.setValues(changes)} />
               </SubSection>
-              {routine && !copy && <SheetsSection owner={{ routineId: routine.id }} occurrenceDate={routine.currentDate || null} name={routine.label} />}
+              {routine && !copy && <SheetsSection owner={{ routineId: routine.id }} occurrenceDate={routine.currentDate || null} label={routine.label} />}
               {routine && !copy && <Comments target="ROUTINE" id={routine.id} projectId={routine.projectId ?? null} readOnly={routine.archived} />}
             </Stack>
           </Grid.Col>
@@ -210,17 +211,7 @@ export function RoutineForm({ routine, copy = false, parent, categoryId = null, 
                 value={{ beneficiaryIds: form.values.beneficiaryIds, beneficiaryRelationIds: form.values.beneficiaryRelationIds }}
                 onChange={(beneficiaries) => form.setValues({ ...beneficiaries })}
               />
-              <NumberInput
-                label="Temps à y consacrer"
-                description="En minutes"
-                min={1}
-                max={24 * 60}
-                allowDecimal={false}
-                suffix=" min"
-                {...form.getInputProps('estimate')}
-                value={form.values.estimate ?? ''}
-                onChange={(value) => form.setFieldValue('estimate', value === '' ? null : Number(value))}
-              />
+              <NumberInput label="Temps à y consacrer" description="En minutes" min={1} max={24 * 60} allowDecimal={false} suffix=" min" {...optionalNumberProps(form, 'estimate')} />
               <Divider />
               <Select label="Routine parente" placeholder="Aucune" clearable searchable {...treeSelectProps(routineOptions((item) => !excluded.has(item.id)))} {...form.getInputProps('parentId')} />
               <BatchMultiSelect

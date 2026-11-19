@@ -1,17 +1,17 @@
 import { addDays, formatDay, groupBy, markdownSchema, parseDay, sprintSchema } from '@ordo/shared';
 import { prisma } from '../../db';
 import type { Sprint } from '../../generated/prisma/client';
-import { orNotFound, parseInput } from '../../graphql/errors';
-import { assertNotArchived } from '../core/archive';
+import { parseInput } from '../../graphql/errors';
+import { assertNotArchived, assertActive, refuseArchived } from '../core/archive';
+import { findOrNotFound } from '../core/lookup';
 
 /**
  * Loads a sprint or throws NOT_FOUND.
  * @param {string} id Sprint id.
  * @returns {Promise<Sprint>} Sprint.
  */
-async function findSprint(id: string): Promise<Sprint> {
-  const sprint = await orNotFound(prisma.sprint.findUnique({ where: { id } }), 'Sprint');
-  return sprint;
+function findSprint(id: string): Promise<Sprint> {
+  return findOrNotFound(prisma.sprint, id, 'Sprint');
 }
 
 const fieldsSchema = sprintSchema(markdownSchema);
@@ -45,8 +45,7 @@ function sprintData(input: SprintInput) {
  * @returns {Promise<Sprint>} Created sprint.
  */
 export async function createSprint(projectId: string, input: SprintInput): Promise<Sprint> {
-  await orNotFound(prisma.project.findUnique({ where: { id: projectId }, select: { id: true } }), 'Projet');
-  await assertNotArchived('project', projectId, { field: 'projectId' });
+  await assertActive(prisma.project, projectId, 'Projet', { field: 'projectId' });
   return prisma.sprint.create({ data: { projectId, ...sprintData(input) } });
 }
 
@@ -59,7 +58,7 @@ export async function createSprint(projectId: string, input: SprintInput): Promi
 export async function updateSprint(id: string, input: SprintInput): Promise<Sprint> {
   const sprint = await findSprint(id);
   // Read only when archived, or in an archived project.
-  await assertNotArchived('sprint', id);
+  refuseArchived(sprint);
   await assertNotArchived('project', sprint.projectId);
   return prisma.sprint.update({ where: { id }, data: sprintData(input) });
 }

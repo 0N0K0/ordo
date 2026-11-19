@@ -22,7 +22,7 @@ export function deleteSheetsAction<S extends DeletedSheet>(rows: readonly S[], r
     noun: 'fiche',
     feminine: true,
     the: 'la fiche',
-    name: rowLabel,
+    label: rowLabel,
     risks: (subject, one, sheets) => {
       const usedBy = sumOf(sheets, (sheet) => sheet.usedBy ?? 0);
       // « ses 0 éléments » left out: a sheet without items is deleted alone (« sera supprimée »).

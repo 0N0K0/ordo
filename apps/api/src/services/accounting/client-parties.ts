@@ -2,8 +2,8 @@ import { clientContactSchema, clientDetailsSchema, clientServiceSchema, type Cli
 import { prisma } from '../../db';
 import { nextPositionIn } from '../core/ordering';
 import { Prisma, type Client, type ClientContact, type ClientService } from '../../generated/prisma/client';
-import { clientError, orNotFound, parseInput } from '../../graphql/errors';
-import { assertExists, deleteOrNotFound } from '../core/lookup';
+import { clientError, parseInput } from '../../graphql/errors';
+import { assertExists, deleteOrNotFound, findOrNotFound } from '../core/lookup';
 
 /**
  * Updates the billing details of a client (kind, address, identifiers, contact information).
@@ -94,7 +94,7 @@ export async function createClientContact(clientId: string, input: ClientContact
  * @returns {Promise<ClientContact>} Contact.
  */
 export async function updateClientContact(id: string, input: ClientContactInput): Promise<ClientContact> {
-  const contact = await orNotFound(prisma.clientContact.findUnique({ where: { id } }), 'Contact');
+  const contact = await findOrNotFound(prisma.clientContact, id, 'Contact');
   const data = parseInput(clientContactSchema, input);
   await assertService(data.serviceId, contact.clientId);
   return prisma.clientContact.update({ where: { id }, data });

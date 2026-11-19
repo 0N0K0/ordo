@@ -10,7 +10,7 @@ import { PageHeader } from '../../../components/page/PageHeader';
 import { EmptyState } from '../../../components/feedback/EmptyState';
 import { ListSkeleton } from '../../../components/feedback/Skeletons';
 import { Badge, Box, Grid, NavLink, Paper, Stack, Text } from '@mantine/core';
-import { mapById } from '@ordo/shared';
+import { mapById, joinedKey } from '@ordo/shared';
 
 import { ClockCountdownIcon, EnvelopeSimpleIcon } from '@phosphor-icons/react';
 import { useEffect, useMemo, useState } from 'react';
@@ -57,9 +57,9 @@ export function MailPage() {
 
   // The archived accounts are left out of the page (restored from its settings).
   const active = useMemo(() => unarchived(accounts ?? []), [accounts]);
-  // An archived account asked in the URL: the first active one instead.
+  // An archived or unknown account asked in the URL: the first active one instead (once the accounts are known).
   const requested = params.get('account');
-  const accountId = (requested && !(accounts ?? []).some((account) => account.id === requested && account.archived) ? requested : null) ?? active[0]?.id ?? null;
+  const accountId = (requested && (!accounts || active.some((account) => account.id === requested)) ? requested : null) ?? active[0]?.id ?? null;
   const folder = params.get('folder') ?? 'INBOX';
   const uid = params.get('uid') ? Number(params.get('uid')) : null;
   const page = Math.max(1, Number(params.get('page') ?? 1));
@@ -79,7 +79,7 @@ export function MailPage() {
   const labelById = useMemo(() => mapById(labels ?? []), [labels]);
   const ownAddresses = useOwnAddresses();
   // Mails ticked in the list (of the folder shown), and mails being dragged to a folder.
-  const { selected, setSelected, tick } = usePageSelection<number>(`${accountId}|${folder}|${page}|${doneFilter}|${debouncedSearch}`);
+  const { selected, setSelected, tick } = usePageSelection<number>(joinedKey(accountId, folder, page, doneFilter, debouncedSearch));
   const [dragged, setDragged] = useState<DraggedMails | null>(null);
   // Accounts and flags are managed in the settings sidebar (the old ?accounts=1 opens it).
   const { setOpened: setSettingsOpened } = useSettingsOpened();
@@ -99,7 +99,7 @@ export function MailPage() {
   if (!isPending && active.length === 0) {
     return (
       <Stack gap="lg">
-        <PageHeader title={PAGES.mail.title} />
+        <PageHeader title={PAGES.mail.label} />
         <EmptyState
           icon={<EnvelopeSimpleIcon aria-hidden />}
           message={accounts?.length ? 'Toutes les boîtes mail sont archivées : restaurez-en une, ou ajoutez-en une.' : 'Aucune boîte mail configurée : ajoutez-en une.'}
@@ -129,7 +129,7 @@ export function MailPage() {
         <MailLabelsManager />
       </PageSettings>
       <PageHeader
-        title={PAGES.mail.title}
+        title={PAGES.mail.label}
         actions={
           <>
             <MailHeaderActions onCompose={() => compose({ accountId })} />

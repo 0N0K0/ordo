@@ -5,7 +5,7 @@ import { ActionButton } from '../../../components/actions/ActionButton';
 import { EmptyState } from '../../../components/feedback/EmptyState';
 import { Group, Select, Switch, Text, Tooltip } from '@mantine/core';
 import { addDays, DATE_PERIOD_LABELS, EVENT_PERIODS, type EventPeriod, filterPeriod, TASK_GROUP_BY, type TaskGroupBy } from '@ordo/shared';
-import { AlarmIcon, ArrowsClockwiseIcon, ChatCircleIcon, CheckSquareOffsetIcon, GithubLogoIcon, PlusIcon, SidebarSimpleIcon, TreeViewIcon } from '@phosphor-icons/react';
+import { AlarmIcon, ArrowsClockwiseIcon, CheckSquareOffsetIcon, GithubLogoIcon, PlusIcon, SidebarSimpleIcon, TreeViewIcon } from '@phosphor-icons/react';
 import { useMemo, type ReactNode } from 'react';
 
 import { DataTable, type RowMove } from '../../../components/data-table/table/DataTable';
@@ -28,7 +28,7 @@ import { useTaskActions } from '../hooks/use-task-actions';
 import { taskName, useTaskContext } from '../hooks/use-task-context';
 import { TASK_PARAM, useTaskLink } from '../hooks/use-task-link';
 import { useTaskSelectionActions } from './BulkBar';
-import { EventBeneficiariesCell, EventPeopleCell, EventStatusCell, EventTimeCell, EventTitleCell, EventWhenCell } from './event-cells';
+import { EventBeneficiariesCell, EventPeopleCell, EventStatusCell, EventTimeCell, EventLabelCell, EventWhenCell } from './event-cells';
 import { AlarmsCell, ProgressCell, ShoppingCell, SlotsCell, SubtasksCell, TimerCell, TrackedCell } from './extra-cells';
 import {
   AssigneesCell,
@@ -43,12 +43,13 @@ import {
   TaskBeneficiariesCell,
   TaskLinksCell,
   TaskProjectCell,
-  TitleCell,
+  TaskLabelCell,
 } from './inline-cells';
 import { groupDefaults } from '../lib/new-task-defaults';
 import { AddTaskRow } from './table-extras';
 import classes from './TaskTable.module.css';
 import { countOf, plural } from '../../../lib/text';
+import { CommentCount } from '../../comments/components/CommentCount';
 
 /** Periods of the events listed with the tasks. */
 const EVENT_PERIOD_LABELS: Record<EventPeriod, string> = {
@@ -81,21 +82,6 @@ const TASK_VIEWS: FirstTableView[] = [
   },
   { label: 'Toutes' },
 ];
-
-/**
- * Number of comments of a row (its description counting as one), with its icon; nothing when none.
- * @param {{ count: number }} props Component props.
- * @returns {JSX.Element | null} Count.
- */
-function CommentCount({ count }: { count: number }) {
-  if (count === 0) return null;
-  return (
-    <Group gap={4} wrap="nowrap" c="dimmed">
-      <ChatCircleIcon aria-hidden />
-      <Text size="sm">{count}</Text>
-    </Group>
-  );
-}
 
 interface TaskBoardProps {
   /** Project whose views these are (its tasks and those of its sub-projects), or null for the tasks page. */
@@ -232,7 +218,7 @@ export function TaskBoard({ projectId, projectIds, createProjectId, header, empt
       return {
         ...texts,
         comments: <CommentCount count={commentTotal(eventComments.get(event.eventId), event.description)} />,
-        label: <EventTitleCell event={event} context={context} />,
+        label: <EventLabelCell event={event} context={context} />,
         assignees: <EventPeopleCell event={event} context={context} />,
         beneficiaries: <EventBeneficiariesCell event={event} />,
         status: <EventStatusCell event={event} />,
@@ -245,7 +231,7 @@ export function TaskBoard({ projectId, projectIds, createProjectId, header, empt
     return {
       ...texts,
       label: (
-        <TitleCell
+        <TaskLabelCell
           task={task}
           context={context}
           prefix={

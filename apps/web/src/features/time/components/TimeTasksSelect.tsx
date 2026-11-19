@@ -1,6 +1,6 @@
 import type { MultiSelectProps } from '@mantine/core';
 import type { TaskContext } from '../../tasks/hooks/use-task-context';
-import { timeTasks } from '../lib/time-tasks';
+import { timeTaskOptions, timeTasks } from '../lib/time-tasks';
 import { BatchMultiSelect } from '../../../components/inputs/BatchMultiSelect';
 import { treeSelectProps } from '../../../components/tree/tree-select';
 
@@ -26,7 +26,7 @@ export function TimeTasksSelect({ context, projectId, value, onChange, ...props 
       placeholder={value.length ? undefined : projectId ? 'Aucune' : 'Choisissez d’abord un projet'}
       disabled={!projectId}
       // As their tree (sub-tasks under their parent), the closed ones told.
-      {...treeSelectProps(context.taskOptions(tasks).map((option) => (context.taskById.get(option.value)?.closed ? { ...option, label: `${option.label} (fermée)` } : option)))}
+      {...treeSelectProps(timeTaskOptions(context, tasks))}
       value={value}
       onChange={onChange}
       searchable

@@ -15,6 +15,19 @@ interface SidePanelProps extends Omit<DrawerProps, 'position' | 'size' | 'title'
 }
 
 /**
+ * Title of a panel on the right, the same in the side panels and the settings of a page (decision CL).
+ * @param {{ children: ReactNode }} props Component props: the title.
+ * @returns {JSX.Element} Title.
+ */
+export function PanelTitle({ children }: { children: ReactNode }) {
+  return (
+    <Text size="sm" fw={600}>
+      {children}
+    </Text>
+  );
+}
+
+/**
  * Side panel on the right of the page, the one of every form and detail (as the panel of a task): its title, then its
  * content.
  * @param {SidePanelProps} props Component props.
@@ -22,18 +35,7 @@ interface SidePanelProps extends Omit<DrawerProps, 'position' | 'size' | 'title'
  */
 export function SidePanel({ title, size = 'md', children, ...props }: SidePanelProps) {
   return (
-    <Drawer
-      position="right"
-      size={WIDTHS[size]}
-      padding="lg"
-      zIndex={PANEL_Z_INDEX}
-      title={
-        <Text size="sm" fw={600}>
-          {title}
-        </Text>
-      }
-      {...props}
-    >
+    <Drawer position="right" size={WIDTHS[size]} padding="lg" zIndex={PANEL_Z_INDEX} title={<PanelTitle>{title}</PanelTitle>} {...props}>
       {children}
     </Drawer>
   );

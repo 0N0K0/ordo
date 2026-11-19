@@ -23,7 +23,7 @@ import { useVirtualizer } from '@tanstack/react-virtual';
 
 import { ColumnHeaderMenu, type ColumnMove } from '../toolbar/ColumnHeaderMenu';
 import { clampWidth, columnOrder, MAX_WIDTH, MIN_WIDTH, toggleSort, withOrder, withVisibility, type ShownColumn, type TreeGroup } from './data-table';
-import { columnFilter } from './table-engine';
+import { columnFilter, LAST_RANK } from './table-engine';
 import { DataViewBar, type DataViewBarProps } from '../toolbar/DataViewBar';
 import { GroupHeaderRow } from './GroupHeaderRow';
 import { NoMatch } from './NoMatch';
@@ -362,7 +362,7 @@ export function DataTable<R>({
   const inOrder = (rows: R[]) =>
     manual && !onMoveRow && rank.size
       ? rows
-          .map((row, index) => ({ row, index, at: rank.get(getKey(row)) ?? Number.MAX_SAFE_INTEGER }))
+          .map((row, index) => ({ row, index, at: rank.get(getKey(row)) ?? LAST_RANK }))
           .sort((a, b) => a.at - b.at || a.index - b.index)
           .map((item) => item.row)
       : rows;
@@ -641,6 +641,12 @@ export function DataTable<R>({
       key: row.id,
       render: (attrs) => {
         const content = cells(data);
+        /**
+         * Content of a cell: from the table's `cells`, else the column's own (a shared column).
+         * @param {ShownColumn<R>} column Column.
+         * @returns {ReactNode} Content.
+         */
+        const cellOf = (column: ShownColumn<R>) => (column.id in content ? content[column.id] : column.cell?.(data));
         return (
           <DataRow
             key={row.id}
@@ -660,7 +666,7 @@ export function DataTable<R>({
                   <Table.Td px={4} onClick={(event) => event.stopPropagation()}>
                     <Group gap={2} wrap="nowrap">
                       {(rowDrag || tree) && handle}
-                      {checks && (locked ? <span style={{ width: ROW_CHECK_WIDTH - 8, flex: 'none' }} /> : <RowCheck selection={checks} rowKey={key} label={shown[0]?.text?.(data) || 'la ligne'} />)}
+                      {checks && (locked ? <span style={{ width: ROW_CHECK_WIDTH - 8, flex: 'none' }} /> : <RowCheck selection={checks} rowKey={key} name={shown[0]?.text?.(data) || undefined} />)}
                     </Group>
                   </Table.Td>
                 )}
@@ -683,19 +689,14 @@ export function DataTable<R>({
                       {first ? (
                         <Group gap={4} wrap="nowrap" style={{ minWidth: 0, width: '100%' }}>
                           {row.getCanExpand() ? (
-                            <FoldButton
-                              expanded={row.getIsExpanded()}
-                              aria-label={row.getIsExpanded() ? 'Réduire les sous-éléments' : 'Développer les sous-éléments'}
-                              inRow
-                              onToggle={() => row.toggleExpanded()}
-                            />
+                            <FoldButton expanded={row.getIsExpanded()} about="les sous-éléments" inRow onToggle={() => row.toggleExpanded()} />
                           ) : (
                             <span className={classes.chevronSpacer} />
                           )}
-                          <div style={{ minWidth: 0, flex: 1 }}>{content[column.id]}</div>
+                          <div style={{ minWidth: 0, flex: 1 }}>{cellOf(column)}</div>
                         </Group>
                       ) : (
-                        content[column.id]
+                        cellOf(column)
                       )}
                     </Table.Td>
                   );
@@ -817,7 +818,7 @@ export function DataTable<R>({
                       <div
                         role="separator"
                         aria-orientation="vertical"
-                        aria-label={`Redimensionner la colonne ${column.label}`}
+                        aria-label={`Redimensionner la colonne « ${column.label} »`}
                         className={classes.resizer}
                         data-resizing={header.column.getIsResizing() || undefined}
                         onPointerDown={(event) => event.stopPropagation()}

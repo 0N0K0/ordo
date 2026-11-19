@@ -2,10 +2,10 @@ import { projectLinkSchema as linkSchema } from '@ordo/shared';
 import { z } from 'zod';
 import { prisma } from '../../db';
 import type { ProjectResource } from '../../generated/prisma/client';
-import { orNotFound, parseInput } from '../../graphql/errors';
-import { storeAttachment } from '../core/attachments';
+import { parseInput } from '../../graphql/errors';
+import { deleteAttachment, storeAttachment } from '../core/attachments';
 import { moveInList, nextPositionIn } from '../core/ordering';
-import { assertExists } from '../core/lookup';
+import { assertExists, findOrNotFound } from '../core/lookup';
 
 /**
  * Next position among the resources of a project.
@@ -49,7 +49,7 @@ export async function addProjectFiles(projectId: string, files: File[]): Promise
  * @returns {Promise<ProjectResource>} Resource.
  */
 export async function updateProjectResource(id: string, input: { label: string; url?: string | null; note?: string | null }): Promise<ProjectResource> {
-  const resource = await orNotFound(prisma.projectResource.findUnique({ where: { id } }), 'Ressource');
+  const resource = await findOrNotFound(prisma.projectResource, id, 'Ressource');
   // Omitted, the note is kept, as the address of a link (null clears it).
   const note = input.note === undefined ? resource.note : input.note;
   const data =
@@ -63,8 +63,9 @@ export async function updateProjectResource(id: string, input: { label: string; 
  * @returns {Promise<void>}
  */
 export async function deleteProjectResource(id: string): Promise<void> {
-  const resource = await orNotFound(prisma.projectResource.findUnique({ where: { id } }), 'Ressource');
-  if (resource.attachmentId) await prisma.attachment.delete({ where: { id: resource.attachmentId } });
+  const resource = await findOrNotFound(prisma.projectResource, id, 'Ressource');
+  // The resource goes with its file (cascade).
+  if (resource.attachmentId) await deleteAttachment(resource.attachmentId);
   else await prisma.projectResource.delete({ where: { id } });
 }
 
@@ -75,6 +76,6 @@ export async function deleteProjectResource(id: string): Promise<void> {
  * @returns {Promise<void>}
  */
 export async function moveProjectResource(id: string, index: number): Promise<void> {
-  const resource = await orNotFound(prisma.projectResource.findUnique({ where: { id } }), 'Ressource');
+  const resource = await findOrNotFound(prisma.projectResource, id, 'Ressource');
   await moveInList('projectResource', id, index, { projectId: resource.projectId });
 }

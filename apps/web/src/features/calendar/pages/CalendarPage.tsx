@@ -18,7 +18,7 @@ import FullCalendar from '@fullcalendar/react';
 import timeGridPlugin from '@fullcalendar/timegrid';
 import { Button, Group, Paper, SegmentedControl, Stack, Switch, Text, Tooltip } from '@mantine/core';
 import { useLocalStorage } from '@mantine/hooks';
-import { addDays, entrySeconds, formatDuration, mapById, plannedSlots, type ScheduleSlotTime, shiftTime, timeToMinutes, weekLength } from '@ordo/shared';
+import { addDays, entrySeconds, formatDuration, mapById, occurrenceKey, plannedSlots, type ScheduleSlotTime, shiftTime, timeToMinutes, weekLength } from '@ordo/shared';
 import { CheckIcon, ClockIcon, FilePdfIcon, PencilSimpleIcon, PlusIcon } from '@phosphor-icons/react';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router';
@@ -33,7 +33,8 @@ import { useTaskLink } from '../../tasks/hooks/use-task-link';
 import { useTimeEntriesSince } from '../../time/api';
 import { useNow } from '../../../lib/use-now';
 import { useTimeEntryDialogs } from '../../time/hooks/use-time-dialogs';
-import { entryEventKey, eventOccurrenceKey } from '../../time/lib/time-events';
+import { entryEventKey } from '../../time/lib/time-events';
+import { entrySubject } from '../../time/lib/entry-subject';
 import {
   useCalendarCategories,
   useCalendarEventMutations,
@@ -278,7 +279,7 @@ export function CalendarPage() {
     // Tracked times: blocks from their start to their end (now while running), in the color of their project.
     // A time spent on an event only shows its part outside the event.
     if (showTimers && range) {
-      const occurrenceByKey = new Map((events.data ?? []).map((occurrence) => [eventOccurrenceKey(occurrence.eventId, occurrence.occurrenceDate), occurrence]));
+      const occurrenceByKey = new Map((events.data ?? []).map((occurrence) => [occurrenceKey(occurrence.eventId, occurrence.occurrenceDate), occurrence]));
       for (const entry of timeEntries.data ?? []) {
         const start = new Date(entry.startedAt);
         if (localDay(start) > range.to) continue;
@@ -304,7 +305,7 @@ export function CalendarPage() {
         parts.forEach(([partStart, partEnd], index) =>
           result.push({
             id: `time:${entry.id}:${index}`,
-            title: `${running ? '● ' : ''}${occurrence ? `Hors « ${occurrence.label} » · ` : ''}${project?.label ?? 'Projet'}${entry.description ? ` — ${entry.description}` : ''} (${formatDuration(entrySeconds(entry, minute * 60_000))})`,
+            title: `${running ? '● ' : ''}${occurrence ? `Hors « ${occurrence.label} » · ` : ''}${entrySubject(entry, context)}${entry.description ? ` — ${entry.description}` : ''} (${formatDuration(entrySeconds(entry, minute * 60_000))})`,
             start: partStart,
             end: partEnd,
             editable: false,
@@ -331,7 +332,7 @@ export function CalendarPage() {
       // Hours of slots in the background (week, day), by day: those at the same time share the width of the day.
       const columns = new Map<string, { key: string; order: number; start: string; end: string; look: EventInput }[]>();
       let order = 0;
-      for (const { schedule, rule, color, label: name, foreign, display } of sources) {
+      for (const { schedule, rule, color, label, foreign, display } of sources) {
         // An archived schedule (read only) stays in the background.
         if (!foreign && editingSlots && !('archived' in schedule && schedule.archived)) {
           // Being changed: each slot an event, moved to another day or hour, stretched, or opened.
@@ -339,7 +340,7 @@ export function CalendarPage() {
             const time: ScheduleSlotTime = { date: slot.date, start: slot.start, end: slot.end, allDay: slot.allDay };
             result.push({
               id: `edit-slot:${rule.id}:${slot.date}:${slot.start}:${slot.end}`,
-              title: name,
+              title: label,
               allDay: slot.allDay,
               start: slot.allDay ? slot.date : `${slot.date}T${slot.start}:00`,
               end: slot.allDay ? addDays(slot.date, 1) : `${slot.date}T${slot.end}:00`,
@@ -348,7 +349,7 @@ export function CalendarPage() {
               textColor: 'var(--mantine-color-text)',
               classNames: [classes.editSlot],
               durationEditable: !slot.allDay,
-              extendedProps: { kind: 'editSlot', schedule: rule, name, slot: time },
+              extendedProps: { kind: 'editSlot', schedule: rule, label, slot: time },
             });
           }
           continue;
@@ -402,7 +403,7 @@ export function CalendarPage() {
               if (display.dayBar) {
                 result.push({
                   ...day,
-                  title: name,
+                  title: label,
                   editable: false,
                   extendedProps: { kind: 'slot' },
                   ...slotBarLook({ color, foreign }),
@@ -759,7 +760,7 @@ export function CalendarPage() {
   const fill = view !== 'dayGridMonth';
   return (
     <Stack gap="md" className={fill ? classes.fill : undefined}>
-      <PageHeader title={PAGES.calendar.title} />
+      <PageHeader title={PAGES.calendar.label} />
       {/* The view and the period on the left, the slots and a new event on the right. */}
       <Group justify="space-between" wrap="wrap" gap="sm">
         <Group gap="xs" wrap="wrap">
@@ -900,13 +901,7 @@ export function CalendarPage() {
             // day to the same day), one week further each time.
             timeGridWeek: { duration: { days: weekLength(week) }, dateAlignment: 'week', dateIncrement: { weeks: 1 } },
           }}
-          allDayContent={() => (
-            <FoldButton
-              expanded={allDayExpanded}
-              aria-label={allDayExpanded ? 'Réduire la ligne journée entière' : 'Développer la ligne journée entière'}
-              onToggle={() => setAllDayExpanded(!allDayExpanded)}
-            />
-          )}
+          allDayContent={() => <FoldButton expanded={allDayExpanded} about="la ligne journée entière" onToggle={() => setAllDayExpanded(!allDayExpanded)} />}
           // "+N": expands the whole all-day row instead of opening a popover (same view and period: no move).
           moreLinkClick={(info) => {
             setAllDayExpanded(true);
@@ -958,7 +953,7 @@ export function CalendarPage() {
             info.jsEvent.preventDefault();
             // A bar of planned slots opens nothing.
             if (info.event.extendedProps.kind === 'slot') return;
-            if (info.event.extendedProps.kind === 'editSlot') edits.openSlot(info.event.extendedProps.schedule, info.event.extendedProps.name, info.event.extendedProps.slot);
+            if (info.event.extendedProps.kind === 'editSlot') edits.openSlot(info.event.extendedProps.schedule, info.event.extendedProps.label, info.event.extendedProps.slot);
             else if (info.event.extendedProps.kind === 'task') navigate(taskLink.to(info.event.extendedProps.task.id));
             else if (info.event.extendedProps.kind === 'routine' || info.event.extendedProps.kind === 'routineTravel')
               edits.openRoutine(info.event.extendedProps.occurrence, info.event.extendedProps.movedFrom);

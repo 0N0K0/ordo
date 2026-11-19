@@ -66,6 +66,8 @@ function lineColumns(env: EntryEnv): DataColumn<LineRow>[] {
     {
       id: 'whom',
       bulk: true,
+      // « Moi » without member nor relation, the everyday context without context: never empty.
+      required: true,
       label: 'Bénéficiaire',
       size: 170,
       sortValue: whomName,
@@ -90,6 +92,7 @@ function lineColumns(env: EntryEnv): DataColumn<LineRow>[] {
     {
       id: 'context',
       bulk: true,
+      required: true,
       label: 'Contexte',
       size: 160,
       sortValue: contextName,
@@ -107,6 +110,7 @@ function lineColumns(env: EntryEnv): DataColumn<LineRow>[] {
       id: 'amount',
       label: 'Montant',
       size: 120,
+      required: true,
       numeric: true,
       sortValue: (row) => row.amount,
       formatTotal: fmt.money,

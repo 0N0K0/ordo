@@ -1,12 +1,7 @@
 import { type AccountingDocumentType, isInvoice, VAT_RATES } from '@ordo/shared';
 import * as fmt from '../../../lib/format';
 
-export const DOCUMENT_TYPE_LABELS: Record<AccountingDocumentType, string> = {
-  QUOTE: 'Devis',
-  INVOICE: 'Facture',
-  DEPOSIT_INVOICE: 'Facture d’acompte',
-  CREDIT_NOTE: 'Avoir',
-};
+export { DOCUMENT_TYPE_LABELS, documentName, documentTitle, DRAFT_NAME } from '@ordo/shared';
 
 /**
  * Whether a document type is named in the feminine (« Facture « F-12 » archivée. »).
@@ -17,11 +12,27 @@ export function isFeminineDocumentType(type: AccountingDocumentType): boolean {
   return isInvoice(type);
 }
 
+/** Kind of a client: a company (« Professionnel ») or a person (« Particulier »). */
+/* eslint-disable no-restricted-syntax -- the labels themselves. */
+export const CLIENT_KIND_LABELS: Record<'COMPANY' | 'INDIVIDUAL', string> = {
+  COMPANY: 'Professionnel',
+  INDIVIDUAL: 'Particulier',
+};
+/* eslint-enable no-restricted-syntax */
+
 export const NEW_DOCUMENT_TITLES: Record<AccountingDocumentType, string> = {
   QUOTE: 'Nouveau devis',
   INVOICE: 'Nouvelle facture',
   DEPOSIT_INVOICE: 'Nouvelle facture d’acompte',
   CREDIT_NOTE: 'Nouvel avoir',
+};
+
+/** A document type with its definite article (« La facture est créée… »). */
+export const THE_DOCUMENT_TYPE: Record<AccountingDocumentType, string> = {
+  QUOTE: 'Le devis',
+  INVOICE: 'La facture',
+  DEPOSIT_INVOICE: 'La facture d’acompte',
+  CREDIT_NOTE: 'L’avoir',
 };
 
 export const EMPTY_DOCUMENTS: Record<AccountingDocumentType, string> = {

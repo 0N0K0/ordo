@@ -48,7 +48,7 @@ function sheetColumns(context: TaskContext | null, categories: SheetCategory[], 
       .join(', ');
   const itemText = (item: Sheet['items'][number]) => `${item.label}${fmt.quantity(item) ? ` · ${fmt.quantity(item)}` : ''}`;
   return [
-    { id: 'label', label: 'Libellé', size: 240, locked: true, sortValue: (sheet) => sheet.label, text: (sheet) => sheet.label },
+    { id: 'label', required: true, label: 'Libellé', size: 240, locked: true, sortValue: (sheet) => sheet.label, text: (sheet) => sheet.label },
     {
       id: 'categories',
       label: 'Catégories',
@@ -81,6 +81,7 @@ function sheetColumns(context: TaskContext | null, categories: SheetCategory[], 
     { id: 'items', label: 'Éléments', size: 320, text: (sheet) => sheet.items.map(itemText).join(', ') },
     {
       id: 'usedBy',
+      required: true,
       label: 'Rattachée à',
       size: 130,
       numeric: true,
@@ -91,6 +92,7 @@ function sheetColumns(context: TaskContext | null, categories: SheetCategory[], 
     },
     {
       id: 'updatedAt',
+      required: true,
       label: 'Modifiée le',
       size: 130,
       hiddenByDefault: true,

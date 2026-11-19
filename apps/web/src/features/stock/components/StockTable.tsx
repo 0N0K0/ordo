@@ -1,5 +1,5 @@
 import { locationSelectProps } from '../hooks/use-location-select';
-import { Badge, Button, Group, Text } from '@mantine/core';
+import { Badge, Group, Text } from '@mantine/core';
 import { rowPeopleKeys, rowPeopleOf, usePeople } from '../../shopping/lib/shopping-format';
 import { ArchiveIcon, MinusIcon, PlusIcon, WarningIcon, ClockCounterClockwiseIcon, ListChecksIcon } from '@phosphor-icons/react';
 import { useState } from 'react';
@@ -37,6 +37,7 @@ import { ShowArchivedSwitch } from '../../../components/filters/ShowArchivedSwit
 import { ArchivedBadge } from '../../../components/feedback/ArchivedBadge';
 import { categoryColumn, consumableColumn, noteColumn, quantityColumn, unitColumn } from '../../shopping/lib/product-columns';
 import { CategoryCell, UnitCell } from '../../shopping/components/shopping-cells';
+import { FoldHeading } from '../../../components/actions/FoldHeading';
 
 type Change = Partial<Parameters<typeof stockItemInput>[1]>;
 
@@ -73,7 +74,7 @@ export function StockTable() {
     return price === null || price === undefined ? null : round2(price * item.quantity);
   };
   const columns: DataColumn<StockItem>[] = [
-    { id: 'label', label: 'Article', size: 220, locked: true, bulk: true, sortValue: (item) => item.label, text: (item) => item.label },
+    { id: 'label', required: true, label: 'Article', size: 220, locked: true, bulk: true, sortValue: (item) => item.label, text: (item) => item.label },
     {
       id: 'location',
       label: 'Emplacement',
@@ -85,7 +86,7 @@ export function StockTable() {
       groupable: true,
     },
     categoryColumn<StockItem>(categories),
-    quantityColumn<StockItem>({ size: 110, bulk: false }),
+    quantityColumn<StockItem>({ size: 110, bulk: false, required: true }),
     unitColumn<StockItem>({ groupable: true }),
     {
       id: 'expiry',
@@ -98,6 +99,7 @@ export function StockTable() {
     },
     {
       id: 'lots',
+      required: true,
       label: 'Lots',
       size: 170,
       hiddenByDefault: true,
@@ -154,6 +156,7 @@ export function StockTable() {
     noteColumn<StockItem>({ hiddenByDefault: true }),
     {
       id: 'updatedAt',
+      required: true,
       label: 'Modifié le',
       size: 130,
       hiddenByDefault: true,
@@ -191,7 +194,7 @@ export function StockTable() {
     deleteItemsAction(rows, {
       noun: 'article',
       the: 'l’article',
-      name: rowLabel,
+      label: rowLabel,
       risks: (subject, one) => `${subject} ${one ? 'sera supprimé' : 'seront supprimés'} définitivement du stock, avec ${one ? 'ses' : 'leurs'} lots et ${one ? 'son' : 'leur'} historique.`,
       remove: (item) => mutations.deleteItem.mutateAsync(item.id),
       clear,
@@ -242,9 +245,9 @@ export function StockTable() {
               <EditableText value={item.label} label={cellLabelOf('label', item, 'Libellé')} strong readOnly={readOnly} onSave={(label) => label && bulk('label')(item, { label })} />
               {item.archived && <ArchivedBadge size="xs" />}
               {item.lots.length > 1 && (
-                <Button variant="subtle" color="gray" size="compact-xs" aria-expanded={unfolded.has(item.id)} onClick={() => toggle(item.id)}>
-                  lots ({item.lots.length})
-                </Button>
+                <FoldHeading inline expanded={unfolded.has(item.id)} onToggle={() => toggle(item.id)} count={item.lots.length} about={`les lots de « ${item.label} »`}>
+                  lots
+                </FoldHeading>
               )}
             </Group>
           ),

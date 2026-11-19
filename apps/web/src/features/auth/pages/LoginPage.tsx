@@ -2,7 +2,7 @@ import { Anchor, PasswordInput, Stack, TextInput } from '@mantine/core';
 import { SignInIcon } from '@phosphor-icons/react';
 import { loginFormSchema, type LoginFormValues } from '@ordo/shared';
 import { Link } from 'react-router';
-import { showFormError, useAppForm } from '../../../lib/form';
+import { formCallbacks, useAppForm } from '../../../lib/form';
 import { useLogin } from '../api';
 import { AuthHeader } from './AuthLayout';
 import { AUTH_PATHS } from '../../../app/pages';
@@ -20,7 +20,7 @@ export function LoginPage() {
   });
 
   const handleSubmit = form.onSubmit((values) => {
-    login.mutate(values, { onError: (error) => showFormError(form, error) });
+    login.mutate(values, formCallbacks(form, null));
   });
 
   return (

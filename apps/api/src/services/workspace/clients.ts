@@ -2,20 +2,20 @@ import { personNameSchema, optionalColorSchema } from '@ordo/shared';
 import { z } from 'zod';
 import { prisma } from '../../db';
 import type { Client } from '../../generated/prisma/client';
-import { clientError, orNotFound, parseInput } from '../../graphql/errors';
-import { ARCHIVED_MESSAGE } from '../core/archive';
+import { parseInput } from '../../graphql/errors';
+import { refuseArchived, isArchivedAs } from '../core/archive';
 import { deleteOrphanIcons, resolveIconUpdate, storeIcon } from '../core/icons';
 import { BY_POSITION, moveInList, nextPositionIn } from '../core/ordering';
 import { requirePro } from './workspaces';
+import { findOrNotFound } from '../core/lookup';
 
 /**
  * Loads a client or throws NOT_FOUND.
  * @param {string} id Client id.
  * @returns {Promise<Client>} Client.
  */
-async function findClient(id: string): Promise<Client> {
-  const client = await orNotFound(prisma.client.findUnique({ where: { id } }), 'Client');
-  return client;
+function findClient(id: string): Promise<Client> {
+  return findOrNotFound(prisma.client, id, 'Client');
 }
 
 /**
@@ -48,7 +48,7 @@ export async function createClient(input: { name: string; color?: string | null;
  */
 export async function updateClient(id: string, input: { name?: string | null; color?: string | null; icon?: File | null; removeIcon?: boolean | null }): Promise<Client> {
   const client = await findClient(id);
-  if (client.archivedAt) throw clientError('BAD_USER_INPUT', ARCHIVED_MESSAGE);
+  refuseArchived(client);
   const { name, color } = parseInput(z.object({ name: personNameSchema.optional(), color: optionalColorSchema.optional() }), { name: input.name ?? undefined, color: input.color });
   const iconId = await resolveIconUpdate(client.iconId, input);
 
@@ -76,7 +76,7 @@ export async function setClientFavorite(id: string, favorite: boolean): Promise<
  */
 export async function setClientArchived(id: string, archived: boolean): Promise<Client> {
   const client = await findClient(id);
-  if ((client.archivedAt !== null) === archived) return client;
+  if (isArchivedAs(client, archived)) return client;
 
   if (archived) {
     const now = new Date();

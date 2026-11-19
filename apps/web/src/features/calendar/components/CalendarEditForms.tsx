@@ -13,17 +13,17 @@ import { ActionButton } from '../../../components/actions/ActionButton';
 
 /**
  * Form changing a slot of a schedule from the calendar: its day and hours (or the whole day); or deleting it.
- * @param {{ name: string, slot: ScheduleSlotTime, onSave: (change: ScheduleSlotTime) => void, onDelete: () => void, onClose: () => void }} props Component props.
+ * @param {{ label: string, slot: ScheduleSlotTime, onSave: (change: ScheduleSlotTime) => void, onDelete: () => void, onClose: () => void }} props Component props.
  * @returns {JSX.Element} Form.
  */
 export function SlotEditForm({
-  name,
+  label,
   slot,
   onSave,
   onDelete,
   onClose,
 }: {
-  name: string;
+  label: string;
   slot: ScheduleSlotTime;
   onSave: (change: ScheduleSlotTime) => void;
   onDelete: () => void;
@@ -42,7 +42,7 @@ export function SlotEditForm({
     >
       <Stack gap="md">
         <Text size="sm" c="dimmed">
-          {name}
+          {label}
         </Text>
         <DatePickerInput label="Jour" required valueFormat={PICKER_FORMATS.weekday} value={value.date} onChange={(date) => date && setValue({ ...value, date: date })} data-autofocus />
         <Checkbox

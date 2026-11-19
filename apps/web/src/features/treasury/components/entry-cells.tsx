@@ -1,5 +1,5 @@
 import { IconAction } from '../../../components/actions/IconAction';
-import { Badge, Button, Group, Popover, Stack, Text, Tooltip } from '@mantine/core';
+import { Badge, Group, Popover, Stack, Text, Tooltip } from '@mantine/core';
 import type { Recurrence } from '@ordo/shared';
 import { LinkIcon, PencilSimpleIcon, ReceiptIcon } from '@phosphor-icons/react';
 import { FileBadge } from '../../../components/items/FileBadge';
@@ -16,7 +16,7 @@ import { handleFileClick } from '../../files/lib/open-file';
 import { EntryLinkSelect, LinkBadge } from './entry-links';
 import { linkKey, type LineLink } from '../lib/lines';
 import { documentKey, payerKey, payerOfKey, supportingOfKeys, type AnyEntry, type EntryDocument, type EntryEnv, type EntrySave } from '../lib/entry-env';
-import { FoldChevron } from '../../../components/actions/FoldChevron';
+import { FoldHeading } from '../../../components/actions/FoldHeading';
 import { documentPath } from '../../../app/pages';
 
 /**
@@ -182,16 +182,8 @@ export function RecurrenceCell({ entry, save }: { entry: AnyEntry; save: EntrySa
  */
 export function DetailsToggle({ opened, count, label, onToggle }: { opened: boolean; count: number; label: string; onToggle: () => void }) {
   return (
-    <Button
-      variant="subtle"
-      color="gray"
-      size="compact-xs"
-      leftSection={<FoldChevron expanded={opened} />}
-      aria-expanded={opened}
-      aria-label={`${opened ? 'Réduire' : 'Développer'} la répartition de ${label}`}
-      onClick={onToggle}
-    >
-      détails ({count})
-    </Button>
+    <FoldHeading inline expanded={opened} onToggle={onToggle} count={count} about={`la répartition de « ${label} »`}>
+      détails
+    </FoldHeading>
   );
 }

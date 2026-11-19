@@ -26,7 +26,7 @@ import { MailCountBadges } from './MailCountBadges';
 import { openLabelForm } from '../../../components/dialogs/open-label-form';
 import { FoldButton } from '../../../components/actions/FoldButton';
 import { ActionButton } from '../../../components/actions/ActionButton';
-import { movedMailsMessage } from '../lib/mail-format';
+import { movedMailsMessage, accountLabel } from '../lib/mail-format';
 
 const FOLDER_ICONS: Record<string, ReactNode> = {
   '\\Inbox': <TrayIcon aria-hidden />,
@@ -215,7 +215,7 @@ export function AccountFolders({ account, selected, onSelect, dragged, onDropped
   return (
     <NavLink
       label={account.label}
-      description={account.email}
+      description={accountLabel(account)}
       defaultOpened
       leftSection={<EnvelopeSimpleIcon aria-hidden />}
       childrenOffset={8}

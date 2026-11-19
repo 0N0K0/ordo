@@ -94,7 +94,7 @@ function HeaderCell<R>({ column, index, sort, sortCount, sortIndex, shown, onSor
       <div
         role="separator"
         aria-orientation="vertical"
-        aria-label={`Redimensionner la colonne ${column.label}`}
+        aria-label={`Redimensionner la colonne « ${column.label} »`}
         className={classes.resizer}
         onPointerDown={startResize}
         onPointerMove={(event) => start.current && onResize(clampWidth(start.current.width + event.clientX - start.current.x))}

@@ -2870,10 +2870,10 @@ export type ProjectStatusFieldsFragment = { id: string, archived: boolean, label
 
 export type ProjectFieldsFragment = { id: string, label: string, clientId: string | null, parentId: string | null, iconUrl: string | null, description: string | null, statusId: string | null, startDate: string | null, endDate: string | null, color: string | null, position: number, favorite: boolean, archived: boolean, categories: Array<{ id: string, archived: boolean, label: string, color: string, position: number, iconUrl: string | null }> };
 
-export type WorkspaceQueryVariables = Exact<{ [key: string]: never; }>;
+export type ProjectTreeQueryVariables = Exact<{ [key: string]: never; }>;
 
 
-export type WorkspaceQuery = { clients: Array<{ id: string, name: string, iconUrl: string | null, color: string | null, position: number, favorite: boolean, archived: boolean }>, projects: Array<{ id: string, label: string, clientId: string | null, parentId: string | null, iconUrl: string | null, description: string | null, statusId: string | null, startDate: string | null, endDate: string | null, color: string | null, position: number, favorite: boolean, archived: boolean, categories: Array<{ id: string, archived: boolean, label: string, color: string, position: number, iconUrl: string | null }> }>, projectCategories: Array<{ id: string, archived: boolean, label: string, color: string, position: number, iconUrl: string | null }>, projectStatuses: Array<{ id: string, archived: boolean, label: string, color: string, iconUrl: string | null, position: number }> };
+export type ProjectTreeQuery = { clients: Array<{ id: string, name: string, iconUrl: string | null, color: string | null, position: number, favorite: boolean, archived: boolean }>, projects: Array<{ id: string, label: string, clientId: string | null, parentId: string | null, iconUrl: string | null, description: string | null, statusId: string | null, startDate: string | null, endDate: string | null, color: string | null, position: number, favorite: boolean, archived: boolean, categories: Array<{ id: string, archived: boolean, label: string, color: string, position: number, iconUrl: string | null }> }>, projectCategories: Array<{ id: string, archived: boolean, label: string, color: string, position: number, iconUrl: string | null }>, projectStatuses: Array<{ id: string, archived: boolean, label: string, color: string, iconUrl: string | null, position: number }> };
 
 export type CreateClientMutationVariables = Exact<{
   input: ClientInput;
@@ -7470,8 +7470,8 @@ export const WatchedUnreadMailsDocument = new TypedDocumentString(`
   }
 }
     `) as unknown as TypedDocumentString<WatchedUnreadMailsQuery, WatchedUnreadMailsQueryVariables>;
-export const WorkspaceDocument = new TypedDocumentString(`
-    query Workspace {
+export const ProjectTreeDocument = new TypedDocumentString(`
+    query ProjectTree {
   clients {
     ...ClientFields
   }
@@ -7527,7 +7527,7 @@ fragment ProjectFields on Project {
   categories {
     ...LabelFields
   }
-}`) as unknown as TypedDocumentString<WorkspaceQuery, WorkspaceQueryVariables>;
+}`) as unknown as TypedDocumentString<ProjectTreeQuery, ProjectTreeQueryVariables>;
 export const CreateClientDocument = new TypedDocumentString(`
     mutation CreateClient($input: ClientInput!) {
   createClient(input: $input) {

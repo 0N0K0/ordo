@@ -29,6 +29,7 @@ function CountsTable() {
   const columns: DataColumn<StockCount>[] = [
     {
       id: 'date',
+      required: true,
       label: 'Date',
       size: 160,
       locked: true,
@@ -46,6 +47,7 @@ function CountsTable() {
     },
     {
       id: 'lines',
+      required: true,
       label: 'Écarts notés',
       size: 120,
       numeric: true,
@@ -96,7 +98,7 @@ export function StockPage() {
   const [tab, setTab] = usePageTab(STOCK_TABS);
   return (
     <Stack gap="lg">
-      <PageHeader title={PAGES.stock.title} />
+      <PageHeader title={PAGES.stock.label} />
       <PageTabs value={tab} onChange={(value) => setTab(value, {}, { only: true })} keepMounted={false}>
         <PageTabs.List>
           <PageTabs.Tab value="stock" leftSection={<ArchiveIcon aria-hidden />}>

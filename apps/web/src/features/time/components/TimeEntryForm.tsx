@@ -1,6 +1,6 @@
 import { Select, SimpleGrid, Stack, TextInput } from '@mantine/core';
 import { DatePickerInput, TimePicker } from '@mantine/dates';
-import { parseDuration, timeEntryFormSchema, type TimeEntryFormValues } from '@ordo/shared';
+import { parseDuration, timeEntryFormSchema, type TimeEntryFormValues, twoDigits } from '@ordo/shared';
 import { useState } from 'react';
 import { localInstant, localParts, localToday } from '../../../lib/dates';
 import { useAppForm, formCallbacks } from '../../../lib/form';
@@ -49,7 +49,7 @@ export function TimeEntryForm({ context, entry, defaultProjectId, copy = false, 
       description: entry?.description ?? '',
       date: initial.date,
       start: initial.start,
-      duration: `${Math.floor(minutes / 60)}:${String(minutes % 60).padStart(2, '0')}`,
+      duration: `${Math.floor(minutes / 60)}:${twoDigits(minutes % 60)}`,
     },
     schema: timeEntryFormSchema,
   });

@@ -1,5 +1,4 @@
-import { ItemAvatar } from '../../../components/items/ItemAvatar';
-import { listSelectProps } from '../../../components/items/item-look';
+import { listSelectProps, itemSelectProps } from '../../../components/items/item-look';
 import { byPosition } from '@ordo/shared';
 import { BatchMultiSelect } from '../../../components/inputs/BatchMultiSelect';
 import { CreatableSelect } from '../../../components/inputs/CreatableSelect';
@@ -50,13 +49,11 @@ interface StatusInputProps {
  */
 export function StatusInput({ statuses, value, onChange, error }: StatusInputProps) {
   const statusItems = useProjectStatusItems();
-  const current = statuses.find((status) => status.id === value);
   return (
     <CreatableSelect
       label="Statut"
       placeholder="Aucun"
-      {...listSelectProps([...statuses].sort(byPosition), undefined, value)}
-      leftSection={current ? <ItemAvatar name={current.label} iconUrl={current.iconUrl} color={current.color} /> : undefined}
+      {...itemSelectProps([...statuses].sort(byPosition), value)}
       value={value}
       onChange={onChange}
       onCreate={itemCreator('Nouveau statut', statusItems)}

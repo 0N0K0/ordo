@@ -30,7 +30,7 @@ import { HomePage } from '../features/home/pages/HomePage';
 import { TasksPage } from '../features/tasks/pages/TasksPage';
 import { TimePage } from '../features/time/pages/TimePage';
 import { NotFoundPage } from './NotFoundPage';
-import { AUTH_PATHS, PAGES, routeOf } from './pages';
+import { AUTH_PATHS, CLIENT_ROUTE, PAGES, PROJECT_ROUTE, routeOf } from './pages';
 
 export const router = createBrowserRouter([
   {
@@ -81,14 +81,14 @@ export const router = createBrowserRouter([
           { path: routeOf(PAGES.documents.path), element: <LibraryPage /> },
           { path: routeOf(PAGES.settings.path), element: <SettingsPage /> },
           {
-            path: 'clients/:id',
+            path: routeOf(CLIENT_ROUTE),
             element: (
               <ProOnly>
                 <ClientPage />
               </ProOnly>
             ),
           },
-          { path: 'projects/:id', element: <ProjectPage /> },
+          { path: routeOf(PROJECT_ROUTE), element: <ProjectPage /> },
         ],
       },
     ],

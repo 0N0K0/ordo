@@ -78,7 +78,7 @@ export function MailListItem({ message, labels, ownAddresses, active, ticked, on
             <Group gap={4} wrap="nowrap">
               {labels.map((label) => (
                 <Tooltip key={label.id} label={label.label}>
-                  <FlagIcon weight="fill" color={label.color} aria-label={`Drapeau ${label.label}`} />
+                  <FlagIcon weight="fill" color={label.color} aria-label={`Drapeau « ${label.label} »`} />
                 </Tooltip>
               ))}
               {message.hasAttachments && <PaperclipIcon aria-label="Pièces jointes" />}

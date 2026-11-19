@@ -1,11 +1,10 @@
 import { LabeledField } from '../../../components/inputs/LabeledField';
 import { NoticeAlert } from '../../../components/feedback/NoticeAlert';
 import { ErrorAlert } from '../../../components/feedback/ErrorAlert';
-import { countOf, plural, normalize, sameName } from '../../../lib/text';
+import { countOf, nameKey, plural, sameName } from '../../../lib/text';
 
 import { SettingsSection } from '../../../components/settings/SettingsSection';
 import { FormSkeleton } from '../../../components/feedback/Skeletons';
-import { DestructiveButton } from '../../../components/dialogs/DestructiveActions';
 import { confirmDestructive } from '../../../components/dialogs/confirm-destructive';
 import { Anchor, Badge, Divider, Group, Paper, Select, SimpleGrid, Stack, Switch, Table, Text, TextInput, ThemeIcon } from '@mantine/core';
 import { ArrowsClockwiseIcon, GithubLogoIcon, LinkBreakIcon, PencilSimpleIcon, MagnifyingGlassIcon } from '@phosphor-icons/react';
@@ -35,21 +34,14 @@ const SYNONYMS: Record<string, string[]> = {
 };
 
 /**
- * Name compared without case or accents.
- * @param {string} name Name.
- * @returns {string} Folded name.
- */
-const fold = (name: string) => normalize(name).trim();
-
-/**
  * Option of the board guessed for an Ordo label (same name, or a usual English name).
  * @param {string} name Ordo label.
  * @param {{ id: string, name: string }[]} options Options.
  * @returns {string | undefined} Option id.
  */
 function guessOption(name: string, options: { id: string; name: string }[]): string | undefined {
-  const own = fold(name);
-  return options.find((option) => sameName(option.name, name) || (SYNONYMS[own] ?? []).includes(fold(option.name)))?.id;
+  const own = nameKey(name);
+  return options.find((option) => sameName(option.name, name) || (SYNONYMS[own] ?? []).includes(nameKey(option.name)))?.id;
 }
 
 /**
@@ -148,7 +140,7 @@ function LinkForm({ projectId, board, initial, context, onDone }: LinkFormProps)
                 size="xs"
                 placeholder="Non synchronisé"
                 clearable
-                aria-label={`Option GitHub de ${label.label}`}
+                aria-label={`Option GitHub de « ${label.label} »`}
                 data={choices}
                 value={values[key][label.id] ?? null}
                 onChange={(optionId) => {
@@ -415,7 +407,7 @@ export function ProjectGithubPanel({ projectId }: { projectId: string }) {
                 </Badge>
               </Group>
               <Text size="sm" c="dimmed">
-                {link.linkedTaskCount} {plural(link.linkedTaskCount, 'tâche')} {plural(link.linkedTaskCount, 'liée')}
+                {countOf(link.linkedTaskCount, 'tâche')} {plural(link.linkedTaskCount, 'liée')}
                 {link.repositoryName ? ` · nouvelles tâches en issues de ${link.repositoryName}` : ' · nouvelles tâches en brouillons'}
                 {link.lastSyncAt && ` · dernière synchronisation le ${fmt.dateTime(link.lastSyncAt)}`}
               </Text>
@@ -439,9 +431,9 @@ export function ProjectGithubPanel({ projectId }: { projectId: string }) {
               <ActionButton priority="secondary" icon={<PencilSimpleIcon aria-hidden />} onClick={() => setEditing((value) => !value)}>
                 Réglages
               </ActionButton>
-              <DestructiveButton leftSection={<LinkBreakIcon aria-hidden />} onClick={confirmUnlink}>
+              <ActionButton priority="secondary" danger icon={<LinkBreakIcon aria-hidden />} onClick={confirmUnlink}>
                 Délier
-              </DestructiveButton>
+              </ActionButton>
             </Group>
           </Group>
           {link.lastSyncError && <ErrorAlert title="Dernière synchronisation en échec">{link.lastSyncError}</ErrorAlert>}

@@ -266,6 +266,8 @@ export function taskColumns(context: TaskContext, today: string, extras: TaskCol
     label: COLUMN_LABELS[id],
     size: COLUMN_SIZES[id],
     locked: LOCKED_COLUMNS.includes(id),
+    // Tasks and events always have a title.
+    required: id === 'label',
     hiddenByDefault: DEFAULT_HIDDEN_COLUMNS.includes(id),
     bulk: BULK_EDITABLE_COLUMNS.includes(id),
     numeric: id === 'effort' || id === 'trackedTime' || id === 'comments',

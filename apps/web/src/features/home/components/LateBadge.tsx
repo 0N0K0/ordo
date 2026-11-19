@@ -1,5 +1,6 @@
 import { Badge } from '@mantine/core';
 import * as fmt from '../../../lib/format';
+import { LATE_COLOR } from '../../../components/feedback/feedback-colors';
 
 /**
  * Lateness of a row of the home page, the same on every card (decision AI): « 3 j de retard », in orange.
@@ -8,7 +9,7 @@ import * as fmt from '../../../lib/format';
  */
 export function LateBadge({ due, today }: { due: string; today: string }) {
   return (
-    <Badge color="orange" variant="light">
+    <Badge color={LATE_COLOR} variant="light">
       {fmt.daysLate(due, today)}
     </Badge>
   );

@@ -2,9 +2,9 @@ import { unarchived } from '../../../lib/archive';
 import { CountBadge } from '../../../components/feedback/CountBadge';
 import { Badge } from '@mantine/core';
 import { formatDuration, sumOf } from '@ordo/shared';
+import { countOf } from '../../../lib/text';
 import { localToday } from '../../../lib/dates';
-import { useCalendarEvents } from '../../calendar/api';
-import { useMyTodayTasks, useWeekTime } from '../../home/lib/home-data';
+import { useHeldEvents, useMyTodayTasks, useWeekTime } from '../../home/lib/home-data';
 import { useTaskContext } from '../../tasks/hooks/use-task-context';
 import { useRunningTimer } from '../../time/api';
 import { useTreasuryAccounts } from '../../treasury/api';
@@ -26,20 +26,20 @@ export function TasksNavBadge() {
       size="sm"
       variant={overdue ? 'filled' : 'light'}
       color={overdue ? 'red' : 'blue'}
-      label={`${tasks.length} tâches aujourd’hui${overdue ? `, dont ${overdue} en retard` : ''}`}
+      label={`${countOf(tasks.length, 'tâche')} aujourd’hui${overdue ? `, dont ${overdue} en retard` : ''}`}
     />
   );
 }
 
 /**
- * Number of events of today.
+ * Number of events of today, the cancelled ones not counted.
  * @returns {JSX.Element | null} Badge.
  */
 export function AgendaNavBadge() {
   const today = localToday();
-  const { data: events } = useCalendarEvents({ from: today, to: today });
+  const events = useHeldEvents(today, today);
   if (!events) return null;
-  return <CountBadge count={events.length} size="sm" variant="light" label={`${events.length} évènements aujourd’hui`} />;
+  return <CountBadge count={events.length} size="sm" variant="light" label={`${countOf(events.length, 'évènement')} aujourd’hui`} />;
 }
 
 /**

@@ -1,5 +1,5 @@
 import { FolderPlusIcon, PencilSimpleIcon, StarIcon, TrashIcon } from '@phosphor-icons/react';
-import { useWorkspace } from '../api';
+import { useProjectTree } from '../api';
 import { canHaveChildren } from '../lib/tree';
 import { entityLabel, useEntityActions, type EntityRef } from '../hooks/use-entity-actions';
 import { useTreeExpansion } from '../lib/tree-expansion';
@@ -23,7 +23,7 @@ interface EntityMenuProps {
  */
 export function EntityMenu({ entity, opened, onChange }: EntityMenuProps) {
   const actions = useEntityActions();
-  const { data: workspace } = useWorkspace();
+  const { data: workspace } = useProjectTree();
   const expansion = useTreeExpansion();
   const foldable = expansion?.hasChildren(entity) ?? false;
   const { item } = entity;

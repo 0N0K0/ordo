@@ -3,14 +3,13 @@ import { prisma } from '../../db';
 import * as docs from '../../services/accounting/accounting-documents';
 import * as imported from '../../services/accounting/imported-documents';
 import * as recurring from '../../services/accounting/recurring-invoices';
-import * as resources from '../../services/workspace/project-resources';
 import { BY_POSITION } from '../../services/core/ordering';
 import { builder } from '../builder';
 import { clientError, done } from '../errors';
 import { AccountingDocumentTypeEnum } from './accounting';
 import { parisToday } from '../../today';
 import { fromDecimal } from '../../services/core/decimal';
-import { attachmentUrl, resourceUrl } from '../../services/core/attachments';
+import { attachmentUrl } from '../../services/core/attachments';
 
 /** Totals of a document, as stored. */
 interface DocumentTotals {
@@ -201,24 +200,6 @@ const importedInput = (input: typeof ImportedDocumentInput.$inferInput): importe
   note: input.note ?? null,
 });
 
-const ResourceKindEnum = builder.enumType('ProjectResourceKind', { values: ['FILE', 'LINK'] as const });
-
-builder.prismaObject('ProjectResource', {
-  fields: (t) => ({
-    id: t.exposeID('id'),
-    projectId: t.exposeID('projectId'),
-    kind: t.field({ type: ResourceKindEnum, resolve: (resource) => resource.kind }),
-    label: t.exposeString('label'),
-    note: t.exposeString('note', { nullable: true }),
-    url: t.string({
-      select: { attachment: { select: { id: true, filename: true } } },
-      resolve: (resource) => resourceUrl(resource),
-    }),
-    size: t.int({ nullable: true, select: { attachment: { select: { size: true } } }, resolve: (resource) => resource.attachment?.size ?? null }),
-    createdAt: t.expose('createdAt', { type: 'DateTime' }),
-  }),
-});
-
 const LineInput = builder.inputType('AccountingLineInput', {
   fields: (t) => ({
     kind: t.field({ type: LineKindEnum, required: true }),
@@ -391,11 +372,6 @@ builder.queryFields((t) => ({
         orderBy: [{ issueDate: 'desc' }, { createdAt: 'desc' }],
       }),
   }),
-  projectResources: t.prismaField({
-    type: ['ProjectResource'],
-    args: { projectId: t.arg.id({ required: true }) },
-    resolve: (query, _root, { projectId }) => prisma.projectResource.findMany({ ...query, where: { projectId }, orderBy: BY_POSITION }),
-  }),
 }));
 
 builder.mutationFields((t) => ({
@@ -507,25 +483,5 @@ builder.mutationFields((t) => ({
   deleteImportedDocument: t.boolean({
     args: { id: t.arg.id({ required: true }) },
     resolve: (_root, { id }) => done(imported.deleteImportedDocument(id)),
-  }),
-  addProjectLink: t.boolean({
-    args: { projectId: t.arg.id({ required: true }), label: t.arg.string({ required: true }), url: t.arg.string({ required: true }), note: t.arg.string() },
-    resolve: (_root, { projectId, label, url, note }) => done(resources.addProjectLink(projectId, { label, url, note: note ?? null })),
-  }),
-  addProjectFiles: t.boolean({
-    args: { projectId: t.arg.id({ required: true }), files: t.arg({ type: ['File'], required: true }) },
-    resolve: (_root, { projectId, files }) => done(resources.addProjectFiles(projectId, files)),
-  }),
-  updateProjectResource: t.boolean({
-    args: { id: t.arg.id({ required: true }), label: t.arg.string({ required: true }), url: t.arg.string(), note: t.arg.string() },
-    resolve: (_root, { id, label, url, note }) => done(resources.updateProjectResource(id, { label, url, note })),
-  }),
-  deleteProjectResource: t.boolean({
-    args: { id: t.arg.id({ required: true }) },
-    resolve: (_root, { id }) => done(resources.deleteProjectResource(id)),
-  }),
-  moveProjectResource: t.boolean({
-    args: { id: t.arg.id({ required: true }), index: t.arg.int({ required: true }) },
-    resolve: (_root, { id, index }) => done(resources.moveProjectResource(id, index)),
   }),
 }));

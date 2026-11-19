@@ -1,7 +1,6 @@
 import { CloseButton, Group, Paper, Text } from '@mantine/core';
 import type { ReactNode } from 'react';
 import { confirmDestructive } from '../../dialogs/confirm-destructive';
-import { DestructiveButton } from '../../dialogs/DestructiveActions';
 import classes from './SelectionBar.module.css';
 import { ActionButton } from '../../actions/ActionButton';
 
@@ -40,16 +39,18 @@ export function SelectionBar({ label, actions, onClear }: SelectionBarProps) {
         </Text>
         {actions.map((action) =>
           action.destructive || action.danger ? (
-            <DestructiveButton
+            <ActionButton
+              priority="secondary"
+              danger
               key={action.label}
               size="xs"
-              leftSection={action.icon}
+              icon={action.icon}
               loading={action.loading}
               disabled={action.disabled}
               onClick={() => (action.destructive ? confirmDestructive({ ...action.destructive, onConfirm: action.onClick }) : action.onClick())}
             >
               {action.label}
-            </DestructiveButton>
+            </ActionButton>
           ) : (
             <ActionButton priority="secondary" key={action.label} size="xs" icon={action.icon} loading={action.loading} disabled={action.disabled} onClick={action.onClick}>
               {action.label}

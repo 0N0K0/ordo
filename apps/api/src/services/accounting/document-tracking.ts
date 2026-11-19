@@ -1,13 +1,13 @@
-import { type DocumentPaymentInput, documentPaymentSchema, parseDay, SENDING_CHANNELS, sumOf } from '@ordo/shared';
+import { type DocumentPaymentInput, documentPaymentSchema, isInvoice, parseDay, SENDING_CHANNELS, sumOf } from '@ordo/shared';
 import { z } from 'zod';
 import { prisma } from '../../db';
 import { type AccountingDocument } from '../../generated/prisma/client';
 import { clientError, fieldError, orNotFound, parseInput } from '../../graphql/errors';
-import { storeAttachment } from '../core/attachments';
-import { assertNotArchived } from '../core/archive';
+import { deleteAttachment, storeAttachment } from '../core/attachments';
+import { assertNotArchived, assertActive, refuseArchived } from '../core/archive';
 import { scopedStatus, scopeOf, statusOf } from './document-statuses';
 import { parisToday } from '../../today';
-import { assertExists, deleteOrNotFound } from '../core/lookup';
+import { deleteOrNotFound, findOrNotFound } from '../core/lookup';
 import { decimalCents, toDecimal } from '../core/decimal';
 
 /** Settlement of a final invoice, deposit invoice or credit note, in cents. */
@@ -125,7 +125,7 @@ export async function syncPaymentStatus(ids: (string | null | undefined)[]): Pro
  * @returns {Promise<AccountingDocument>} Document.
  */
 async function finalDocument(id: string): Promise<AccountingDocument> {
-  const document = await orNotFound(prisma.accountingDocument.findUnique({ where: { id } }), 'Document');
+  const document = await findOrNotFound(prisma.accountingDocument, id, 'Document');
   if (document.status !== 'FINAL') throw clientError('BAD_USER_INPUT', 'Le suivi ne concerne que les documents validés.');
   await assertNotArchived('ACCOUNTING_DOCUMENT', id);
   return document;
@@ -189,7 +189,7 @@ export function sendingData(options: { date?: string | null; via?: string | null
 export async function markSent(id: string, options: { date?: string | null; via?: string | null; statusId?: string | null } = {}): Promise<AccountingDocument> {
   const document = await orNotFound(prisma.accountingDocument.findUnique({ where: { id }, include: { trackingStatus: true } }), 'Document');
   if (document.status !== 'FINAL') throw clientError('BAD_USER_INPUT', 'Seul un document validé peut être envoyé.');
-  await assertNotArchived('ACCOUNTING_DOCUMENT', id);
+  refuseArchived(document);
   const sending = sendingData(options);
   const chosen = options.statusId ? await sentStatus(options.statusId, document.type) : null;
   await assertNotArchived('DOCUMENT_STATUS', chosen?.id, { keep: document.trackingStatusId, field: 'statusId' });
@@ -216,7 +216,7 @@ export async function acceptQuote(id: string, date: string, file: File | null): 
     where: { id },
     data: { trackingStatusId: accepted.id, acceptedAt: parseDay(date), ...(signed ? { signedAttachmentId: signed.id } : {}) },
   });
-  if (signed && document.signedAttachmentId) await prisma.attachment.delete({ where: { id: document.signedAttachmentId } }).catch(() => undefined);
+  if (signed) await deleteAttachment(document.signedAttachmentId, true);
   return updated;
 }
 
@@ -228,7 +228,7 @@ export async function acceptQuote(id: string, date: string, file: File | null): 
 export async function removeSignedQuote(id: string): Promise<AccountingDocument> {
   const document = await finalDocument(id);
   const updated = await prisma.accountingDocument.update({ where: { id }, data: { signedAttachmentId: null } });
-  if (document.signedAttachmentId) await prisma.attachment.delete({ where: { id: document.signedAttachmentId } }).catch(() => undefined);
+  await deleteAttachment(document.signedAttachmentId, true);
   return updated;
 }
 
@@ -240,7 +240,7 @@ export async function removeSignedQuote(id: string): Promise<AccountingDocument>
  */
 export async function addReminder(id: string, note: string | null): Promise<void> {
   const document = await finalDocument(id);
-  if (document.type === 'QUOTE' || document.type === 'CREDIT_NOTE') throw clientError('BAD_USER_INPUT', 'Seule une facture peut être relancée.');
+  if (!isInvoice(document.type)) throw clientError('BAD_USER_INPUT', 'Seule une facture peut être relancée.');
   // Too long: refused (no silent cut).
   const text = parseInput(z.string().trim().max(500, '500 caractères maximum.').nullable(), note);
   await prisma.documentReminder.create({ data: { documentId: id, note: text || null } });
@@ -268,8 +268,7 @@ export async function recordPayment(id: string, input: DocumentPaymentInput): Pr
   const document = await prisma.accountingDocument.findUnique({ where: { id }, include: { client: { select: { name: true } } } });
   if (!document || document.status !== 'FINAL' || document.type === 'QUOTE') throw clientError('BAD_USER_INPUT', 'Seul un document validé (facture ou avoir) peut être réglé.');
   await assertNotArchived('ACCOUNTING_DOCUMENT', id);
-  await assertExists(prisma.treasuryAccount, payment.accountId, 'Compte');
-  await assertNotArchived('TREASURY_ACCOUNT', payment.accountId, { field: 'accountId' });
+  await assertActive(prisma.treasuryAccount, payment.accountId, 'Compte', { field: 'accountId' });
   await assertNotArchived('TREASURY_PAYMENT_METHOD', payment.methodId, { field: 'methodId' });
   const refund = document.type === 'CREDIT_NOTE';
   if (payment.methodId) {

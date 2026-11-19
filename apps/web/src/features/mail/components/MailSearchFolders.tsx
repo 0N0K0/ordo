@@ -1,4 +1,5 @@
 import { EmptyState } from '../../../components/feedback/EmptyState';
+import { joinedKey } from '@ordo/shared';
 import { formCallbacks } from '../../../lib/form';
 import { ErrorAlert } from '../../../components/feedback/ErrorAlert';
 import { ActionsMenu } from '../../../components/actions/ActionsMenu';
@@ -105,7 +106,7 @@ interface MailSearchListProps {
  * @param {{ accountId: string, folder: string, uid: number }} mail Mail.
  * @returns {string} Key.
  */
-const mailKey = (mail: { accountId: string; folder: string; uid: number }) => `${mail.accountId}|${mail.folder}|${mail.uid}`;
+const mailKey = (mail: { accountId: string; folder: string; uid: number }) => joinedKey(mail.accountId, mail.folder, mail.uid);
 
 /**
  * Mails of a search folder or of an advanced search, latest first, with their account and folder; several can be
@@ -116,7 +117,7 @@ const mailKey = (mail: { accountId: string; folder: string; uid: number }) => `$
 export function MailSearchList({ query, empty, noMove, page, onPage, open, onOpen, onOpenGone, onManageLabels }: MailSearchListProps) {
   const results = useMailSearchResults({ ...query, page: page - 1 });
   // Ticked mails, for the page of results shown.
-  const pageKey = `${JSON.stringify(query)}|${page}`;
+  const pageKey = joinedKey(JSON.stringify(query), page);
   const { selected, setSelected, tick } = usePageSelection<string>(pageKey);
   const { data: labels } = useMailLabels();
   const { data: accounts } = useMailAccounts();

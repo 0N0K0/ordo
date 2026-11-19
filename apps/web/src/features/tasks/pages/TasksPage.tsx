@@ -12,7 +12,7 @@ import { PageSettings } from '../../../app/layout/PageSettings';
 export function TasksPage() {
   return (
     <Stack gap="md">
-      <PageHeader title={PAGES.tasks.title} />
+      <PageHeader title={PAGES.tasks.label} />
       {/* Statuses, priorities, types, tags and columns of the tasks: in the settings sidebar, as on every page. */}
       <PageSettings title="Paramètres des tâches">
         <TaskSettings />

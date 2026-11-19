@@ -270,7 +270,7 @@ export function BaseList({ baseList }: { baseList: ShoppingBaseList }) {
           add={{
             label: 'Ajouter un produit',
             // A product added is usually missing.
-            onCreate: (name, place) => mutations.createProduct.mutateAsync({ ...blankInput(name, place), baseListId: baseList.id, missing: true }),
+            onCreate: (label, place) => mutations.createProduct.mutateAsync({ ...blankInput(label, place), baseListId: baseList.id, missing: true }),
           }}
           label={`Produits de ${baseList.label}`}
           onSave={(product, input) => !product.archived && mutations.updateProduct.mutate({ id: product.id, input: { ...input, baseListId: product.baseListId, missing: product.missing } }, ON_ERROR)}

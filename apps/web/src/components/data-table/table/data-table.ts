@@ -2,6 +2,7 @@ import { mapById, sumOf } from '@ordo/shared';
 import type { ColumnLayout, TableSort } from '@ordo/shared';
 import { collator } from '../../../lib/text';
 import { archivedIds } from '../../../lib/archive';
+import type { ReactNode } from 'react';
 
 /** Choice of a column filtered by its values. */
 export interface ColumnChoice {
@@ -40,14 +41,15 @@ export function withArchived(options: readonly ColumnChoice[], items: readonly {
 
 /**
  * How a column is filtered: its kind and the value of a row (a text by default: the text of the column).
- * Dates are YYYY-MM-DD; a choice is one value of its options, several choices a list of them.
+ * Dates are YYYY-MM-DD; a choice is one value of its options (`none`: the value of its « Aucun » option, empty for
+ * « est vide »), several choices a list of them.
  */
 export type ColumnFilter<R> =
   | { kind: 'text'; value?: (row: R) => string | null }
   | { kind: 'number'; value: (row: R) => number | null }
   | { kind: 'date'; value: (row: R) => string | null }
   | { kind: 'boolean'; value: (row: R) => boolean }
-  | { kind: 'choice'; value: (row: R) => string | null; options: ColumnChoice[] }
+  | { kind: 'choice'; value: (row: R) => string | null; options: ColumnChoice[]; none?: string }
   | { kind: 'choices'; value: (row: R) => string[]; options: ColumnChoice[] };
 
 /** Group of a tree of groups of a table (categories with sub-categories…). */
@@ -77,8 +79,15 @@ export interface DataColumn<R> {
   formatTotal?: (value: number) => string;
   /** Text of the cell: exported, searched, and the name of its group. Optional: without, the column is left out of them. */
   text?: (row: R) => string;
+  /** Content of its cells when the `cells` of the table leave the column out (a column shared by several tables). Optional. */
+  cell?: (row: R) => ReactNode;
   /** How the column is filtered. Optional. Default = by its text (none without text); false: not filtered. */
   filter?: ColumnFilter<R> | false;
+  /**
+   * Its value is never empty (a label, a status, an amount, a mandatory date…): its filter does not offer « est vide » /
+   * « n’est pas vide ». Optional. Default = false.
+   */
+  required?: boolean;
   /**
    * The rows can be grouped by its values (those of its filter: a date by period, each of several values; else its
    * text). Optional. Default = every column but the label (locked); false: not.
@@ -96,6 +105,17 @@ export interface DataColumn<R> {
    * a change made in one of them applies to all. Optional. Default = false.
    */
   bulk?: boolean;
+}
+
+/**
+ * Read-only cells of a row (an archived one): the text of each column, the cell of a shared column.
+ * @param {readonly DataColumn<R>[]} columns Columns.
+ * @param {R} row Row.
+ * @returns {Record<string, ReactNode>} Cells by column.
+ */
+export function readOnlyCells<R>(columns: readonly DataColumn<R>[], row: R): Record<string, ReactNode> {
+  // eslint-disable-next-line no-restricted-syntax -- readOnlyCells itself.
+  return Object.fromEntries(columns.map((column) => [column.id, column.cell ? column.cell(row) : column.text?.(row)]));
 }
 
 /** Column shown, with its width. */

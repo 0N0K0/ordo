@@ -15,6 +15,7 @@ import { FormActions } from '../../../components/dialogs/FormActions';
 import { QuantityInput } from '../../../components/inputs/QuantityInput';
 import { ShoppingCategoryField, UnitField } from '../../shopping/components/ProductFields';
 import { unarchived } from '../../../lib/archive';
+import { optionalNumberProps } from '../../../components/inputs/number-format';
 
 type Values = NewStockItemInput & Record<string, unknown>;
 
@@ -69,14 +70,8 @@ export function StockItemForm({ locationId = null, onDone }: { locationId?: stri
           <ShoppingCategoryField {...form.getInputProps('categoryId')} value={values.categoryId ?? null} onChange={(categoryId) => form.setFieldValue('categoryId', categoryId)} />
         </SimpleGrid>
         <SimpleGrid cols={{ base: 1, xs: 3 }} spacing="sm">
-          <QuantityInput
-            label="Quantité"
-            min={0}
-            allowNegative={false}
-            {...form.getInputProps('quantity')}
-            onChange={(value) => form.setFieldValue('quantity', typeof value === 'number' ? value : null)}
-          />
-          <UnitField current={values.unit} {...form.getInputProps('unit')} value={values.unit ?? null} onChange={(unit) => form.setFieldValue('unit', unit)} />
+          <QuantityInput label="Quantité" min={0} allowNegative={false} {...optionalNumberProps(form, 'quantity')} />
+          <UnitField current={values.unit} {...form.getInputProps('unit')} value={values.unit} />
           <Checkbox mt="xl" label="Périssable" description="Par lots datés" {...form.getInputProps('perishable', { type: 'checkbox' })} />
         </SimpleGrid>
         {values.perishable && <DatePickerInput label="Date de péremption" placeholder="Aucune" clearable {...form.getInputProps('expiresAt')} />}

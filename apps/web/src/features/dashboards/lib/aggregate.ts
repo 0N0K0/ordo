@@ -16,6 +16,7 @@ import {
   shiftCalendar,
   weekStartOf,
   sumOf,
+  joinedKey,
 } from '@ordo/shared';
 import * as fmt from '../../../lib/format';
 import { periodName, quarterName, relativePeriodName } from '../../../lib/periods';
@@ -105,7 +106,7 @@ export function countLabel(config: ChartConfig, count: number): string {
 }
 
 /** Title of a new chart, by source. */
-export const NEW_CHART_TITLES: Record<ChartSource, string> = {
+export const NEW_CHART_LABELS: Record<ChartSource, string> = {
   tasks: 'Tâches créées par semaine',
   documents: 'Chiffre d’affaires HT par mois',
   treasury: 'Entrées et sorties par mois',
@@ -291,7 +292,7 @@ export function aggregate(records: ChartRecord[], config: ChartConfig, today: st
       axis.set(x.key, x);
       for (const serie of series) {
         seriesKeys.set(serie.key, serie);
-        cells.set(`${x.key}|${serie.key}`, (cells.get(`${x.key}|${serie.key}`) ?? 0) + value);
+        cells.set(joinedKey(x.key, serie.key), (cells.get(joinedKey(x.key, serie.key)) ?? 0) + value);
       }
     }
   }
@@ -318,7 +319,7 @@ export function aggregate(records: ChartRecord[], config: ChartConfig, today: st
   const rows = xs.map((x) => {
     const row: Record<string, string | number | null> = { x: x.label };
     for (const serie of series) {
-      let value = cells.get(`${x.key}|${serie.key}`) ?? 0;
+      let value = cells.get(joinedKey(x.key, serie.key)) ?? 0;
       if (config.cumulative && time) {
         value += running.get(serie.key) ?? 0;
         running.set(serie.key, value);
@@ -334,7 +335,7 @@ export function aggregate(records: ChartRecord[], config: ChartConfig, today: st
   const slices = xs
     .map((x, index) => ({
       name: x.label,
-      value: round2(sumOf(series, (serie) => cells.get(`${x.key}|${serie.key}`) ?? 0)),
+      value: round2(sumOf(series, (serie) => cells.get(joinedKey(x.key, serie.key)) ?? 0)),
       color: x.color ?? PALETTE[index % PALETTE.length],
     }))
     .filter((slice) => slice.value !== 0);

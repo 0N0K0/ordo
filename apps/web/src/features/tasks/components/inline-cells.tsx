@@ -15,19 +15,20 @@ import { confirmDestructive } from '../../../components/dialogs/confirm-destruct
 import { TaskSelect } from './task-ui';
 
 import { linkableTasks } from '../lib/task-links';
-import { type TaskContext, taskName, taskNumber } from '../hooks/use-task-context';
+import { closedMark, type TaskContext, taskName, taskNumber } from '../hooks/use-task-context';
 import { useTaskLink } from '../hooks/use-task-link';
 import { useCellEdit } from '../lib/cell-edit';
-import { applyDiff, listDiff } from '../../../components/data-table/selection/bulk-edit';
+import { listDiff } from '../../../components/data-table/selection/bulk-edit';
 import classes from '../../../components/data-table/cells/EditableCells.module.css';
 
 import { BeneficiariesCell } from '../../beneficiaries/components/BeneficiariesSelect';
 import { stoppedCellCombobox, cellLabel, itemCellLabel, cellPicker, stopClick } from '../../../components/data-table/cells/cell-field';
 import { EditableMultiSelect, EditableNumber } from '../../../components/data-table/cells/EditableCells';
-import { EditableTitle } from '../../../components/data-table/cells/EditableTitle';
+import { EditableLabel } from '../../../components/data-table/cells/EditableLabel';
 import { AssigneesCell as SharedAssigneesCell, ProjectCell as SharedProjectCell } from './context-cells';
 import { DependencyIcon } from '../../../components/data-table/cells/DependencyIcon';
 import { dateRangeProps } from '../../../components/inputs/date-range';
+import { beneficiariesDiff } from '../../beneficiaries/lib/beneficiaries-diff';
 
 /**
  * Accessible label of a cell field, mentioning the bulk edit.
@@ -46,12 +47,12 @@ function fieldLabel(name: string, task: Task, count: number): string {
  * @param {{ task: Task, context: TaskContext, prefix?: ReactNode }} props Component props.
  * @returns {JSX.Element} Cell.
  */
-export function TitleCell({ task, context, prefix }: { task: Task; context: TaskContext; prefix?: ReactNode }) {
+export function TaskLabelCell({ task, context, prefix }: { task: Task; context: TaskContext; prefix?: ReactNode }) {
   const link = useTaskLink();
   const { apply } = useCellEdit(task, 'label');
   const children = context.childrenOf(task.id);
   return (
-    <EditableTitle
+    <EditableLabel
       value={task.label}
       label={fieldLabel('Libellé', task, 1)}
       schema={taskLabelSchema}
@@ -268,7 +269,7 @@ export function BlockedByCell({ task, context }: { task: Task; context: TaskCont
               {
                 id,
                 label: `${context.taskLabel(blocker, task.projectId)}`,
-                title: `${context.taskLabel(blocker, task.projectId)}${blocker.closed ? ' (fermée)' : ' (ouverte : bloque la tâche)'}`,
+                hint: `${context.taskLabel(blocker, task.projectId)}${blocker.closed ? closedMark(blocker) : ' (ouverte : bloque la tâche)'}`,
                 icon: <DependencyIcon done={blocker.closed} />,
               },
             ]
@@ -369,12 +370,7 @@ export function TaskBeneficiariesCell({ task }: { task: Task }) {
       label={fieldLabel('Bénéficiaires', task, count)}
       value={task}
       readOnly={task.archived}
-      onSave={(beneficiaries) =>
-        apply((target) => ({
-          beneficiaryIds: applyDiff(target.beneficiaryIds, task.beneficiaryIds, beneficiaries.beneficiaryIds),
-          beneficiaryRelationIds: applyDiff(target.beneficiaryRelationIds, task.beneficiaryRelationIds, beneficiaries.beneficiaryRelationIds),
-        }))
-      }
+      onSave={(beneficiaries) => apply((target) => beneficiariesDiff(target, task, beneficiaries))}
     />
   );
 }
@@ -409,7 +405,7 @@ export function TaskLinksCell({ task, context, kind }: { task: Task; context: Ta
       label={label}
       items={ids.flatMap((id) => {
         const other = context.taskById.get(id);
-        return other ? [{ id, label: `${context.taskLabel(other, task.projectId)}`, title: `${context.taskLabel(other, task.projectId)}${other.closed ? ' (fermée)' : ''}` }] : [];
+        return other ? [{ id, label: `${context.taskLabel(other, task.projectId)}`, hint: `${context.taskLabel(other, task.projectId)}${closedMark(other)}` }] : [];
       })}
       data={[...candidates, ...extra].map((item) => ({ value: item.id, label: `${context.taskLabel(item, task.projectId)}` }))}
       value={ids}

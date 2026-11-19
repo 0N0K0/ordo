@@ -2,18 +2,18 @@ import { tableKeySchema, tableViewConfigSchema, taskViewLabelSchema } from '@ord
 import { z } from 'zod';
 import { prisma } from '../../db';
 import type { Prisma, TaskView, ViewKind } from '../../generated/prisma/client';
-import { clientError, orNotFound, parseField, parseInput } from '../../graphql/errors';
+import { clientError, parseField, parseInput } from '../../graphql/errors';
 import { BY_POSITION, moveInList, nextPositionIn } from '../core/ordering';
-import { assertExists } from '../core/lookup';
+import { assertExists, findOrNotFound } from '../core/lookup';
+import { toJson } from '../core/json';
 
 /**
  * Loads a view or throws NOT_FOUND.
  * @param {string} id View id.
  * @returns {Promise<TaskView>} View.
  */
-async function findView(id: string): Promise<TaskView> {
-  const view = await orNotFound(prisma.taskView.findUnique({ where: { id } }), 'Vue');
-  return view;
+function findView(id: string): Promise<TaskView> {
+  return findOrNotFound(prisma.taskView, id, 'Vue');
 }
 
 /**
@@ -21,11 +21,11 @@ async function findView(id: string): Promise<TaskView> {
  * of a table (the former kinds — tasks, routines, shopping lists — are kept as they are, no longer changed).
  * @param {ViewKind} kind Kind of the view.
  * @param {unknown} config Raw configuration.
- * @returns {Prisma.InputJsonObject} Configuration, ready to store.
+ * @returns {Prisma.InputJsonValue} Configuration, ready to store.
  */
-function parseConfig(kind: ViewKind, config: unknown): Prisma.InputJsonObject {
+function parseConfig(kind: ViewKind, config: unknown): Prisma.InputJsonValue {
   if (kind !== 'TABLE') throw clientError('BAD_USER_INPUT', 'Ce type de vue n’existe plus : les vues sont celles des tableaux.');
-  return parseField('config', tableViewConfigSchema, config) as unknown as Prisma.InputJsonObject;
+  return toJson(parseField('config', tableViewConfigSchema, config));
 }
 
 /**

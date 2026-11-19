@@ -1,4 +1,4 @@
-import type { KeyboardEvent, SyntheticEvent } from 'react';
+import { useRef, useState, type KeyboardEvent, type SyntheticEvent } from 'react';
 import { notifyError } from '../../../lib/notify';
 import classes from './EditableCells.module.css';
 
@@ -43,18 +43,52 @@ export const cellPicker = (readOnly: boolean) =>
     comboboxProps: { withinPortal: true },
   }) as const;
 
+/** Draft of a typed cell (see useCellDraft). */
+export interface CellDraft<T> {
+  /** Value being typed; null: none (the saved value shows). */
+  draft: T | null;
+  setDraft: (draft: T | null) => void;
+  /** Takes the draft to save it when leaving the field: null when none, or given up by Escape. */
+  take: () => T | null;
+  /** Keys: Enter saves (by leaving the field), Escape gives up the draft and leaves the field without saving. */
+  onKeyDown: (event: KeyboardEvent<HTMLInputElement>) => void;
+}
+
 /**
- * Keys of a typed cell: Enter saves (by leaving the field), Escape gives up the draft.
- * @param {KeyboardEvent<HTMLInputElement>} event Key event.
- * @param {() => void} cancel Gives up the draft.
- * @returns {void}
+ * Draft of a typed cell, saved when leaving the field. Escape gives it up: the blur it triggers runs with the draft of
+ * the last render, so the give-up is kept in a ref the blur reads.
+ * @returns {CellDraft<T>} Draft, its setter, its taker for the blur and the key handler.
  */
-export function cellKeys(event: KeyboardEvent<HTMLInputElement>, cancel: () => void): void {
-  if (event.key === 'Enter') event.currentTarget.blur();
-  if (event.key === 'Escape') {
-    cancel();
-    event.currentTarget.blur();
-  }
+export function useCellDraft<T>(): CellDraft<T> {
+  const [draft, setDraft] = useState<T | null>(null);
+  const cancelled = useRef(false);
+
+  /**
+   * Takes the draft (and clears it), unless Escape gave it up.
+   * @returns {T | null} Draft to save, or null.
+   */
+  const take = () => {
+    const given = cancelled.current ? null : draft;
+    cancelled.current = false;
+    setDraft(null);
+    return given;
+  };
+
+  /**
+   * Enter leaves the field (which saves); Escape gives up the draft, then leaves the field.
+   * @param {KeyboardEvent<HTMLInputElement>} event Key event.
+   * @returns {void}
+   */
+  const onKeyDown = (event: KeyboardEvent<HTMLInputElement>) => {
+    if (event.key === 'Enter') event.currentTarget.blur();
+    if (event.key === 'Escape') {
+      cancelled.current = true;
+      setDraft(null);
+      event.currentTarget.blur();
+    }
+  };
+
+  return { draft, setDraft, take, onKeyDown };
 }
 
 /** Rule of a field (a zod schema of `@ordo/shared`): its value checked and normalized. */

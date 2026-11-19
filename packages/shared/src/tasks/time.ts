@@ -4,6 +4,7 @@ import { DEFAULT_RECURRENCE, occurrenceDates, recurrenceSchema, type Recurrence 
 import { dateSchema } from '../core/workspace';
 import { daySchema, timeOfDaySchema } from '../dates/times';
 import { dayIn, localInstant } from '../dates/days';
+import { twoDigits } from '../core/numbers';
 
 /** What was done during a tracked time: plain text, several lines. Empty becomes null. */
 export const timeDescriptionSchema = z
@@ -61,7 +62,7 @@ export function parseDuration(text: string): number | null {
 export function formatDuration(seconds: number): string {
   const minutes = Math.round(seconds / 60);
   if (minutes < 60) return `${minutes} min`;
-  return `${Math.floor(minutes / 60)} h ${String(minutes % 60).padStart(2, '0')}`;
+  return `${Math.floor(minutes / 60)} h ${twoDigits(minutes % 60)}`;
 }
 
 /**
@@ -73,7 +74,7 @@ export function formatClock(seconds: number): string {
   const total = Math.max(0, Math.floor(seconds));
   const hours = Math.floor(total / 3600);
   const minutes = Math.floor((total % 3600) / 60);
-  return `${hours}:${String(minutes).padStart(2, '0')}:${String(total % 60).padStart(2, '0')}`;
+  return `${hours}:${twoDigits(minutes)}:${twoDigits(total % 60)}`;
 }
 
 /**

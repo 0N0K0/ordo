@@ -56,6 +56,7 @@ const loanColumns = (words: RelationWords): DataColumn<LoanRow>[] => [
     label: `${words.noun} / ligne`,
     size: 260,
     locked: true,
+    required: true,
     sortValue: (row) => (row.kind === 'relation' ? row.name : row.label),
     text: (row) => (row.kind === 'relation' ? row.name : row.label),
   },

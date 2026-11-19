@@ -3,8 +3,7 @@ import { mapById } from '@ordo/shared';
 import { Anchor, Box, Group, Select, Text, Tooltip, type SelectProps } from '@mantine/core';
 import { PeopleSelect } from '../../../components/people/PeopleSelect';
 
-import { ItemAvatar } from '../../../components/items/ItemAvatar';
-import { listSelectProps } from '../../../components/items/item-look';
+import { listSelectProps, itemSelectProps } from '../../../components/items/item-look';
 import { CheckCircleIcon, CircleIcon, LockIcon } from '@phosphor-icons/react';
 import { Link } from 'react-router';
 import { useTaskLink } from '../hooks/use-task-link';
@@ -67,20 +66,8 @@ function useLabelCreator(kind: TaskLabelKind) {
  * @returns {JSX.Element} Select.
  */
 export function LabelSelect({ labels, value, onChange, kind, ...props }: LabelSelectProps) {
-  const current = labels.find((label) => label.id === value);
   const create = useLabelCreator(kind ?? 'status');
-  return (
-    <CreatableSelect
-      onCreate={kind ? create : undefined}
-      {...listSelectProps(labels, undefined, value)}
-      leftSection={current ? <ItemAvatar name={current.label} iconUrl={current.iconUrl} color={current.color} /> : undefined}
-      value={value}
-      onChange={onChange}
-      clearable
-      placeholder="Aucun"
-      {...props}
-    />
-  );
+  return <CreatableSelect onCreate={kind ? create : undefined} {...itemSelectProps(labels, value)} value={value} onChange={onChange} clearable placeholder="Aucun" {...props} />;
 }
 
 interface TagsSelectProps {
