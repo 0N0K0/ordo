@@ -11,7 +11,7 @@ import { treasuryEntrySchema, type TreasuryAllocationInput, sumOf } from '@ordo/
 import { useState } from 'react';
 import { useAppForm, formCallbacks } from '../../../lib/form';
 import { useAccountingDocuments, useImportedDocuments } from '../../accounting/api/documents';
-import { useWorkspace } from '../../workspace/api';
+import { useWorkspace } from '../../projects/api';
 import { useTreasuryAccounts, useTreasuryDocumentOptions, useTreasuryMutations, useTreasurySettings, type ForecastEntry, type TreasuryEntry } from '../api';
 import { categoryOptions } from '../lib/categories';
 import { DIRECTION_OPTIONS } from '../lib/direction';
@@ -24,7 +24,7 @@ import { entryPayload, entryValues, type EntryValues } from '../lib/entry-values
 import { useCategoryCreators, useEntryCreators } from '../hooks/use-settings-items';
 import { CreatableSelect } from '../../../components/inputs/CreatableSelect';
 import { useActiveWorkspace } from '../../workspaces/api';
-import { projectOptions } from '../../workspace/lib/tree';
+import { projectOptions } from '../../projects/lib/tree';
 
 import { treeSelectProps } from '../../../components/tree/tree-select';
 import * as fmt from '../../../lib/format';
@@ -40,21 +40,21 @@ const DOCUMENT_KEY = 'doc:';
 const IMPORTED_KEY = 'imp:';
 
 /**
- * Key of a document in the choice of the documents settled: « doc:id » or « imp:id ».
+ * Key of a document settled, in the choice of the documents settled: « doc:id » or « imp:id ».
  * @param {string} id Document.
  * @param {boolean} imported Whether it is imported.
  * @returns {string} Key.
  */
-const documentKey = (id: string, imported: boolean): string => `${imported ? IMPORTED_KEY : DOCUMENT_KEY}${id}`;
+const settledKey = (id: string, imported: boolean): string => `${imported ? IMPORTED_KEY : DOCUMENT_KEY}${id}`;
 
 /**
- * Key of a document settled, in the choice of the documents (see documentKey).
+ * Key of a document settled, in the choice of the documents (see settledKey).
  * @param {{ documentId?: string | null, importedDocumentId?: string | null }} allocation Document settled.
  * @returns {string | null} Key, none without a document.
  */
 function allocationKey(allocation: { documentId?: string | null; importedDocumentId?: string | null }): string | null {
-  if (allocation.documentId) return documentKey(allocation.documentId, false);
-  return allocation.importedDocumentId ? documentKey(allocation.importedDocumentId, true) : null;
+  if (allocation.documentId) return settledKey(allocation.documentId, false);
+  return allocation.importedDocumentId ? settledKey(allocation.importedDocumentId, true) : null;
 }
 
 /**
@@ -153,14 +153,14 @@ export function EntryForm({ entry, status = 'ACTUAL', copy = false, onDone }: En
   // Documents it can settle: still due and not archived, or already settled by this entry.
   const own = new Set((entry?.allocations ?? []).map((allocation) => allocation.documentId ?? allocation.importedDocumentId));
   const settleable = [
-    ...(documents ?? [])
+    ...unarchived(documents ?? [], [...own])
       .filter((document) => document.status === 'FINAL' && document.type !== 'QUOTE' && (document.type === 'CREDIT_NOTE') !== incoming)
-      .filter((document) => ((document.balance ?? 0) > 0 && !document.archived) || own.has(document.id))
-      .map((document) => settleOption(documentKey(document.id, false), `${document.number} — ${document.clientName}`, document)),
-    ...(imported ?? [])
+      .filter((document) => (document.balance ?? 0) > 0 || own.has(document.id))
+      .map((document) => settleOption(settledKey(document.id, false), `${document.number} — ${document.clientName}`, document)),
+    ...unarchived(imported ?? [], [...own])
       .filter((document) => document.type !== 'QUOTE' && (document.type === 'CREDIT_NOTE') !== incoming)
-      .filter((document) => ((document.balance ?? 0) > 0 && !document.archived) || own.has(document.id))
-      .map((document) => settleOption(documentKey(document.id, true), `${document.number} (importé) — ${document.clientName}`, document)),
+      .filter((document) => (document.balance ?? 0) > 0 || own.has(document.id))
+      .map((document) => settleOption(settledKey(document.id, true), `${document.number} (importé) — ${document.clientName}`, document)),
   ];
   const allocated = sumOf(values.allocations, (allocation) => allocation.amount);
   const keyOf = (allocation: TreasuryAllocationInput) => allocationKey(allocation);

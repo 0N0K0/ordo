@@ -3,7 +3,7 @@ import { prisma, unscopedPrisma } from '../../db';
 import type { Calendar, WorkspaceKind } from '../../generated/prisma/client';
 import { clientError, orNotFound, parseInput } from '../../graphql/errors';
 import { currentWorkspaceId } from '../../workspace-context';
-import { BY_POSITION, nextPositionIn } from '../core/ordering';
+import { BY_POSITION_ONLY, nextPositionIn } from '../core/ordering';
 import { assertNotArchived, firstActive } from '../core/archive';
 
 /** Color of the calendar a workspace starts with. */
@@ -93,7 +93,7 @@ export async function deleteCalendar(id: string): Promise<void> {
  */
 export async function listSubscriptions(): Promise<CalendarSubscriptionView[]> {
   const subscriptions = await prisma.calendarSubscription.findMany({
-    orderBy: BY_POSITION,
+    orderBy: BY_POSITION_ONLY,
     include: { calendar: { include: { workspace: { select: { id: true, label: true, kind: true } } } } },
   });
   return subscriptions.map(({ id, calendar }) => ({ id, calendarId: calendar.id, label: calendar.label, color: calendar.color, workspace: calendar.workspace }));

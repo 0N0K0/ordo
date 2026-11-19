@@ -197,9 +197,10 @@ export function entryFieldColumns<R>(entryOf: (row: R) => AnyEntry | undefined, 
  * @param {AnyEntry} entry Entry.
  * @param {EntryEnv} env Names and options.
  * @param {(column: string) => EntrySave} save Save of a column.
+ * @param {(column: string, field: string) => string} labelOf Accessible label of the cell of a column (bulkCellLabels).
  * @returns {Record<string, ReactNode>} Cells by column id.
  */
-export function entryFieldCells(entry: AnyEntry, env: EntryEnv, save: (column: string) => EntrySave): Record<string, ReactNode> {
+export function entryFieldCells(entry: AnyEntry, env: EntryEnv, save: (column: string) => EntrySave, labelOf: (column: string, field: string) => string): Record<string, ReactNode> {
   const split = entry.lines.length > 0;
   /**
    * Values a split entry has on its lines, one under the other (read only: changed on the lines).
@@ -228,19 +229,19 @@ export function entryFieldCells(entry: AnyEntry, env: EntryEnv, save: (column: s
     account: (
       <EditableSelect
         value={entry.accountId}
-        label={`Compte de ${entry.label}`}
+        label={labelOf('account', 'Compte')}
         {...listSelectProps(env.accounts, undefined, entry.accountId)}
         onSave={(accountId) => accountId && save('account')(entry, { accountId })}
       />
     ),
-    valueDate: <EditableDate value={valueDate} label={`Date de valeur de ${entry.label}`} nullable onSave={(next) => save('valueDate')(entry, { valueDate: next })} />,
-    payer: <PayerCell entry={entry} env={env} save={save('payer')} />,
+    valueDate: <EditableDate value={valueDate} label={labelOf('valueDate', 'Date de valeur')} nullable onSave={(next) => save('valueDate')(entry, { valueDate: next })} />,
+    payer: <PayerCell entry={entry} env={env} label={labelOf('payer', entry.amount < 0 ? 'Destinataire' : 'Émetteur')} save={save('payer')} />,
     category: split ? (
       onLines(entryCategories(entry).map((id) => env.paths.get(id) ?? ''))
     ) : (
       <EditableSelect
         value={entry.categoryId ?? null}
-        label={`Catégorie de ${entry.label}`}
+        label={labelOf('category', 'Catégorie')}
         nullable
         {...treeSelectProps(categoryOptions(categories, direction(entry), undefined, entry.categoryId))}
         // A category of money out goes to money out only (and in to in).
@@ -252,7 +253,7 @@ export function entryFieldCells(entry: AnyEntry, env: EntryEnv, save: (column: s
     method: (
       <EditableSelect
         value={entry.methodId ?? null}
-        label={`Moyen de paiement de ${entry.label}`}
+        label={labelOf('method', 'Moyen de paiement')}
         nullable
         {...listSelectProps(
           methods.filter((method) => (entry.amount < 0 ? method.outgoing : method.incoming) || method.id === entry.methodId),
@@ -270,7 +271,7 @@ export function entryFieldCells(entry: AnyEntry, env: EntryEnv, save: (column: s
     project: split ? (
       onLines(entryProjects(entry).map((id) => env.projectLabels.get(id) ?? ''))
     ) : (
-      <ProjectCell value={entry.projectId ?? null} env={env} label={`Projet de ${entry.label}`} onSave={(projectId) => save('project')(entry, (row) => (row.lines.length ? {} : { projectId }))} />
+      <ProjectCell value={entry.projectId ?? null} env={env} label={labelOf('project', 'Projet')} onSave={(projectId) => save('project')(entry, (row) => (row.lines.length ? {} : { projectId }))} />
     ),
     documents: split ? (
       onLines(entry.lines.flatMap((line) => line.documents.map((document) => document.label)))
@@ -278,7 +279,7 @@ export function entryFieldCells(entry: AnyEntry, env: EntryEnv, save: (column: s
       <DocumentsCell
         documents={entry.documents}
         env={env}
-        label={`Pièces justificatives de ${entry.label}`}
+        label={labelOf('documents', 'Pièces justificatives')}
         onSave={(ids) =>
           save('documents')(entry, (row) => {
             if (row.lines.length) return {};

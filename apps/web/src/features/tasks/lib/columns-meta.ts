@@ -1,7 +1,7 @@
 import type { TaskColumn } from '@ordo/shared';
 
 export const COLUMN_LABELS: Record<TaskColumn, string> = {
-  title: 'Libellé',
+  label: 'Libellé',
   project: 'Projet',
   status: 'Statut',
   priority: 'Priorité',
@@ -33,11 +33,11 @@ export const COLUMN_LABELS: Record<TaskColumn, string> = {
 };
 
 /** Columns that cannot be hidden. */
-export const LOCKED_COLUMNS: readonly TaskColumn[] = ['title'];
+export const LOCKED_COLUMNS: readonly TaskColumn[] = ['label'];
 
 /** Default width of each column, in px. */
 export const COLUMN_SIZES: Record<TaskColumn, number> = {
-  title: 400,
+  label: 400,
   project: 200,
   status: 140,
   priority: 120,
@@ -70,7 +70,7 @@ export const COLUMN_SIZES: Record<TaskColumn, number> = {
 
 /** Columns whose cells can be selected and edited together. */
 export const BULK_EDITABLE_COLUMNS: readonly TaskColumn[] = [
-  'title',
+  'label',
   'project',
   'beneficiaries',
   'slots',

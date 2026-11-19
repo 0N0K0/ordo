@@ -2,8 +2,8 @@ import { InlineActions } from '../actions/ActionsMenu';
 import { Group, Text, ThemeIcon } from '@mantine/core';
 import { ArchiveIcon, ArrowCounterClockwiseIcon, PencilSimpleIcon, PlusIcon, TagIcon, TrashIcon } from '@phosphor-icons/react';
 import { useEffect, type ReactNode } from 'react';
-import { archiveWithUndo, useSetArchived, useArchivedToggle } from '../../lib/archive';
-import { notifySuccess, ON_ERROR, onMutationError } from '../../lib/notify';
+import { archiveWithUndo, useSetArchived, useArchivedToggle, unarchived } from '../../lib/archive';
+import { ON_ERROR, onMutationError } from '../../lib/notify';
 import { CategoryTree } from '../tree/CategoryTree';
 import { categoryTree } from '../tree/category-tree';
 import { confirmDestructive } from '../dialogs/confirm-destructive';
@@ -74,6 +74,7 @@ export function SettingsList<C extends SettingsItem, E extends object = Record<s
   withColor = true,
   colorRequired,
   labelPlaceholder,
+  labelField,
   usage,
   usageNoun,
   schema,
@@ -115,6 +116,7 @@ export function SettingsList<C extends SettingsItem, E extends object = Record<s
         withColor={withColor}
         colorRequired={colorRequired}
         labelPlaceholder={labelPlaceholder}
+        labelField={labelField}
         schema={schema}
         extra={extra}
         create={create}
@@ -146,7 +148,7 @@ export function SettingsList<C extends SettingsItem, E extends object = Record<s
       .map(({ category }) => category)
       .filter((other) => other.id !== id);
     const siblings = order.filter((other) => (other.parentId ?? null) === parentId);
-    const shownSiblings = siblings.filter((other) => showArchived || !other.archived);
+    const shownSiblings = showArchived ? siblings : unarchived(siblings);
     const before = shownSiblings[index];
     const last = shownSiblings[shownSiblings.length - 1];
     const fullIndex = before ? siblings.indexOf(before) : last ? siblings.indexOf(last) + 1 : 0;
@@ -188,9 +190,8 @@ export function SettingsList<C extends SettingsItem, E extends object = Record<s
           )}
         </>
       ),
-      onConfirm: () => {
-        remove(item.id).then(() => notifySuccess(`« ${path} » supprimé.`), onMutationError);
-      },
+      run: () => remove(item.id),
+      done: `« ${path} » supprimé.`,
     });
   };
 
@@ -249,6 +250,7 @@ export function SettingsList<C extends SettingsItem, E extends object = Record<s
                   nested && !category.archived && { label: 'Ajouter un sous-élément', icon: <PlusIcon aria-hidden />, onClick: () => openForm({ parentId: category.id }) },
                   !category.archived && { label: 'Modifier', icon: <PencilSimpleIcon aria-hidden />, onClick: () => openForm({ item: category }) },
                   {
+                    // eslint-disable-next-line no-restricted-syntax -- an inline icon here (archiveEntry is a menu entry), told with the noun of the list.
                     label: category.archived ? 'Restaurer' : 'Archiver',
                     icon: category.archived ? <ArrowCounterClockwiseIcon aria-hidden /> : <ArchiveIcon aria-hidden />,
                     onClick: () => toggleArchived(category, path),

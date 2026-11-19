@@ -153,19 +153,19 @@
     background-color: var(--mantine-color-green-light) !important;
 
     /* Effets */
-    opacity: 0.6 !important;
+    opacity: var(--onoko-planned-opacity) !important;
   }
 
   /* Planned slots of a kind: its color, light. */
   .typedSlot {
     /* Effets */
-    opacity: 0.25 !important;
+    opacity: var(--onoko-planned-typed-opacity) !important;
   }
 
   /* Day of planned slots, at the top of the week and the day: a light bar, under the events. */
   .slotBar {
     /* Effets */
-    opacity: 0.6;
+    opacity: var(--onoko-planned-opacity);
 
     /* Interactions */
     cursor: default;

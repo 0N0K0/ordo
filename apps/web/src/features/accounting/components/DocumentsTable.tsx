@@ -8,7 +8,7 @@ import { ArrowsClockwiseIcon, CoinsIcon, CopyIcon, DownloadSimpleIcon, FilePdfIc
 import type { ReactNode } from 'react';
 import { useNavigate } from 'react-router';
 import { DataTable } from '../../../components/data-table/table/DataTable';
-import { bulkSaver } from '../../../components/data-table/selection/bulk-edit';
+import { bulkCellLabels, bulkSaver } from '../../../components/data-table/selection/bulk-edit';
 import { useTrackingMutations } from '../api/tracking';
 import type { DataColumn } from '../../../components/data-table/table/data-table';
 import { RowActions } from '../../../components/data-table/cells/RowActions';
@@ -26,8 +26,8 @@ import { openPaymentDialog } from '../lib/payment-dialog';
 import { StatusMenu, TrackingBadge } from './TrackingBadge';
 import { openSentDialog } from '../lib/sent-dialog';
 import * as fmt from '../../../lib/format';
-import { useWorkspace } from '../../workspace/api';
-import { projectFullPath, projectOptions } from '../../workspace/lib/tree';
+import { useWorkspace } from '../../projects/api';
+import { projectFullPath, projectOptions } from '../../projects/lib/tree';
 import { DocumentAttachmentsCell, DocumentProjectCell } from './document-cells';
 import { useCommentCounts } from '../../comments/api';
 import { archiveRowsAction, deleteItemsAction, rowMenuEntry, duplicateRowsAction } from '../../../components/data-table/selection/selection-actions';
@@ -115,7 +115,7 @@ function documentColumns({ rows, projectLabels, projects }: { rows: Row[]; proje
       filter: { kind: 'choice', value: (row) => row.document.projectId ?? null, options: projects },
       groupable: true,
     },
-    { id: 'title', label: 'Objet', size: 300, sortValue: (row) => row.document.label ?? null, text: (row) => row.document.label ?? '' },
+    { id: 'label', label: 'Objet', size: 300, sortValue: (row) => row.document.label ?? null, text: (row) => row.document.label ?? '' },
     {
       id: 'tracking',
       bulk: true,
@@ -235,7 +235,8 @@ function OrdoActions({ document, onDuplicated }: { document: AccountingDocumentS
   const setArchived = useSetArchived('ACCOUNTING_DOCUMENT', [accountingQueryKey]);
   return (
     <RowActions
-      name={document.number ?? 'le brouillon'}
+      name={document.number}
+      about="le brouillon"
       // An invoice still due takes a payment, a credit note still to refund a refund.
       primary={
         !document.archived &&
@@ -358,6 +359,7 @@ export function DocumentsTable({ tableKey, projectId = null, title, documents, i
         ),
     });
   };
+  const cellLabelOf = bulkCellLabels<Row>(view, (row) => row.document.number ?? 'Brouillon');
   const bulkTracking = bulkSaver<Row, StatusChoice>(
     view,
     (row, choice) => setTracking([row], choice),
@@ -420,14 +422,14 @@ export function DocumentsTable({ tableKey, projectId = null, title, documents, i
         </Group>
       </UnstyledButton>
     ),
-    title: (
+    label: (
       <Stack gap={0}>
         <Text size="sm" truncate>
           {document.label ?? '—'}
         </Text>
         {document.type === 'QUOTE' && document.invoicedNet != null && document.totalNet > 0 && (
           <Text size="xs" c="dimmed">
-            Facturé à {Math.round((document.invoicedNet / document.totalNet) * 100)} %
+            Facturé à {fmt.percent((document.invoicedNet / document.totalNet) * 100, 0)}
           </Text>
         )}
         {document.sourceNumber && (
@@ -475,7 +477,7 @@ export function DocumentsTable({ tableKey, projectId = null, title, documents, i
         {document.archived && <ArchivedBadge size="xs" />}
       </Group>
     ),
-    title: (
+    label: (
       <Text size="sm" truncate>
         {document.label ?? '—'}
       </Text>
@@ -532,7 +534,7 @@ export function DocumentsTable({ tableKey, projectId = null, title, documents, i
         type: DOCUMENT_TYPE_LABELS[row.document.type],
         date: fmt.day(row.document.issueDate),
         dueDate: row.document.dueDate ? fmt.day(row.document.dueDate) : null,
-        project: <DocumentProjectCell document={row.document} projects={projects} onSave={(projectId) => bulkProject(row, projectId)} />,
+        project: <DocumentProjectCell document={row.document} projects={projects} label={cellLabelOf('project', row, 'Projet')} onSave={(projectId) => bulkProject(row, projectId)} />,
         attachments:
           row.kind === 'ordo' ? (
             <DocumentAttachmentsCell kind="ordo" document={row.document} onAdd={(files) => bulkFiles(row, files)} />

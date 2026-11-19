@@ -113,12 +113,11 @@ const emails = (addresses: Address[]) => addresses.map((item) => item.address);
  * Options of a reply (to the sender, or to everyone).
  * @param {SourceMail} mail Answered mail.
  * @param {boolean} all Reply to all recipients.
- * @param {string[]} ownAddresses Addresses of the user's accounts, left out of the recipients.
+ * @param {ReadonlySet<string>} own Addresses of the user's accounts, lowercased (`useOwnAddresses`), left out of the recipients.
  * @param {string | null} [projectId] Project it is answered from. Optional.
  * @returns {ComposeOptions} Compose options.
  */
-export function replyOptions(mail: SourceMail, all: boolean, ownAddresses: string[], projectId?: string | null): ComposeOptions {
-  const own = new Set(ownAddresses.map((address) => address.toLowerCase()));
+export function replyOptions(mail: SourceMail, all: boolean, own: ReadonlySet<string>, projectId?: string | null): ComposeOptions {
   const to = emails(mail.replyTo?.length ? mail.replyTo : mail.from);
   const cc = all ? emails([...mail.to, ...mail.cc]).filter((address) => !own.has(address.toLowerCase()) && !to.includes(address)) : [];
   return {

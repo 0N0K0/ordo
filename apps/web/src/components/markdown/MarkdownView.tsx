@@ -7,6 +7,7 @@ import remarkGfm from 'remark-gfm';
 import { remarkReferences, type ReferenceTargets } from './remark-references';
 import { remarkTaskOffsets, toggleTask } from './task-list';
 import { FileLink } from '../../features/files/components/FileLink';
+import { EXTERNAL_LINK } from '../actions/link-props';
 
 /**
  * Markdown link: task references ("?task=12") open the task over the current page, internal paths use
@@ -43,7 +44,7 @@ function MarkdownLink({ href = '', children }: { href?: string; children?: React
     );
   }
   return (
-    <Anchor href={href} target="_blank" rel="noopener noreferrer">
+    <Anchor href={href} {...EXTERNAL_LINK}>
       {children}
     </Anchor>
   );
@@ -59,7 +60,7 @@ function MarkdownLink({ href = '', children }: { href?: string; children?: React
 function MarkdownImage({ src, alt }: { src?: string | Blob; alt?: string }) {
   if (typeof src !== 'string') return null;
   return (
-    <a href={src} target="_blank" rel="noopener">
+    <a href={src} {...EXTERNAL_LINK}>
       <img src={src} alt={alt ?? ''} loading="lazy" style={{ maxWidth: '100%', height: 'auto' }} />
     </a>
   );

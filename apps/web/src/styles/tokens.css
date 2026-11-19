@@ -9,6 +9,16 @@
     /* Opacity of what is set back (decision U): archived, done or closed, or left out (an unticked or skipped row). */
     --onoko-muted-opacity: 0.5;
 
+    /* Opacity of a disabled element (UX rule: about 40 %). */
+    --onoko-disabled-opacity: 0.4;
+
+    /* Opacity of the planned slots in the calendar (working hours, slot bars), behind the events; a typed slot lighter. */
+    --onoko-planned-opacity: 0.6;
+    --onoko-planned-typed-opacity: 0.25;
+
+    /* Lowest opacity of a pulsing element (a running timer). */
+    --onoko-pulse-opacity: 0.35;
+
     /* Opacity of a list being refreshed (shown while the new one loads): still readable. */
     --onoko-stale-opacity: 0.6;
 

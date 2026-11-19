@@ -4,8 +4,8 @@ import type { BulkChange } from '../../../components/data-table/selection/bulk-e
 import { useMemo } from 'react';
 import { describeRecurrence } from '../../../components/recurrence/describe-recurrence';
 import type { TreeOption } from '../../../components/tree/tree-select';
-import { useWorkspace } from '../../workspace/api';
-import { projectFullPath, projectOptions } from '../../workspace/lib/tree';
+import { useWorkspace } from '../../projects/api';
+import { projectFullPath, projectOptions } from '../../projects/lib/tree';
 import { useTreasuryDocumentOptions, useTreasurySettings, type ForecastEntry, type TreasuryAccount, type TreasuryEntry, type TreasurySettings } from '../api';
 import { categoryPaths } from './categories';
 import type { EntryValues } from './entry-values';

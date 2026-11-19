@@ -1,3 +1,4 @@
+import { useSearchParam } from '../../../lib/search-params';
 import { formCallbacks } from '../../../lib/form';
 import { usePageTab } from '../../../components/tabs/use-page-tab';
 import { PAGES, SETTINGS_PARAM, documentPath } from '../../../app/pages';
@@ -21,7 +22,7 @@ import { BankIcon, CalendarPlusIcon, CheckIcon, CopyIcon, PencilSimpleIcon, Plus
 import { ArchivedBadge } from '../../../components/feedback/ArchivedBadge';
 import { archiveEntry, useSetArchived, unarchived } from '../../../lib/archive';
 import { useState } from 'react';
-import { Link, useSearchParams } from 'react-router';
+import { Link } from 'react-router';
 import { DataTable } from '../../../components/data-table/table/DataTable';
 import { EditableDate, EditableText } from '../../../components/data-table/cells/EditableCells';
 import { useDataView } from '../../../components/data-table/views/use-data-view';
@@ -45,7 +46,7 @@ import { EntriesPanel } from '../components/EntriesPanel';
 import { DetailsToggle, PayerCell } from '../components/entry-cells';
 import { entryFieldCells, entryFieldColumns } from '../lib/entry-columns';
 import { useEntryEnv, type EntryEnv, type EntrySave } from '../lib/entry-env';
-import { bulkSaver, changeOf } from '../../../components/data-table/selection/bulk-edit';
+import { bulkCellLabels, bulkSaver, changeOf } from '../../../components/data-table/selection/bulk-edit';
 import type { EntryValues } from '../lib/entry-values';
 import { EntryLinesTable } from '../components/EntryLinesTable';
 import { EntryUrl } from '../components/EntryUrl';
@@ -194,7 +195,7 @@ const MOVED_TABS = { settings: { changes: { [SETTINGS_PARAM]: '1' }, only: true 
  */
 export function TreasuryPage() {
   const today = localToday();
-  const [params] = useSearchParams();
+  const [settingsParam] = useSearchParam(SETTINGS_PARAM);
   // The old settings and accounts tabs: in the settings sidebar.
   const [tab, setTab] = usePageTab(TREASURY_TABS, TREASURY_TABS[0], MOVED_TABS);
   // Period of the chart: a month, quarter or calendar year, moved with arrows.
@@ -253,6 +254,7 @@ export function TreasuryPage() {
       if (Object.keys(change).length) saveEntry(entry, change);
     }
   };
+  const forecastLabel = bulkCellLabels<ForecastRow>(forecastView, (row) => row.item.label);
   const forecastBulk = bulkSaver<ForecastRow, Partial<EntryValues>>(forecastView, (row, change) => saveForecasts([row], () => change), saveForecasts);
   /**
    * Save of a column of a row, as the entry cells call it.
@@ -439,7 +441,7 @@ export function TreasuryPage() {
         value={tab}
         onChange={(value) =>
           // The settings sidebar stays as it is.
-          setTab(value, { [SETTINGS_PARAM]: params.get(SETTINGS_PARAM) }, { only: true })
+          setTab(value, { [SETTINGS_PARAM]: settingsParam }, { only: true })
         }
         keepMounted={false}
       >
@@ -510,14 +512,14 @@ export function TreasuryPage() {
                 };
               }
               return {
-                ...(entry ? entryFieldCells(entry, env, forecastSave(row)) : {}),
+                ...(entry ? entryFieldCells(entry, env, forecastSave(row), (column, field) => forecastLabel(column, row, field)) : {}),
                 date: (
                   <>
                     {/* A repeating forecast moves by its rule (its form), each other entry by its cell. */}
                     {entry && entry.recurrence == null ? (
                       <EditableDate
                         value={item.date}
-                        label={`Date de ${item.label}`}
+                        label={forecastLabel('date', row, 'Date')}
                         onSave={(date) => date && forecastSave(row)('date')(entry, (target) => (target.recurrence == null ? { date } : {}))}
                       />
                     ) : (
@@ -542,7 +544,7 @@ export function TreasuryPage() {
                     ) : (
                       <Group gap={4} wrap="nowrap">
                         {entry ? (
-                          <EditableText value={entry.label} label={`Libellé de ${item.label}`} onSave={(label) => label && forecastSave(row)('label')(entry, { label })} />
+                          <EditableText value={entry.label} label={forecastLabel('label', row, 'Libellé')} onSave={(label) => label && forecastSave(row)('label')(entry, { label })} />
                         ) : (
                           <Text size="sm">{item.label}</Text>
                         )}
@@ -555,7 +557,11 @@ export function TreasuryPage() {
                     )}
                   </>
                 ),
-                payer: entry ? <PayerCell entry={entry} env={env} save={forecastSave(row)('payer')} /> : <Text size="sm">{item.payerName ?? ''}</Text>,
+                payer: entry ? (
+                  <PayerCell entry={entry} env={env} label={forecastLabel('payer', row, entry.amount < 0 ? 'Destinataire' : 'Émetteur')} save={forecastSave(row)('payer')} />
+                ) : (
+                  <Text size="sm">{item.payerName ?? ''}</Text>
+                ),
                 origin: (
                   <>
                     <Badge size="sm" variant="light" color={kind.color}>
@@ -564,7 +570,7 @@ export function TreasuryPage() {
                   </>
                 ),
                 amount: entry ? (
-                  <SignedAmountCell value={entry.amount} label={`Montant de ${item.label}`} onSave={(change) => forecastSave(row)('amount')(entry, change)} />
+                  <SignedAmountCell value={entry.amount} label={forecastLabel('amount', row, 'Montant')} onSave={(change) => forecastSave(row)('amount')(entry, change)} />
                 ) : (
                   <Text span inherit c={item.amount < 0 ? 'red' : 'green'}>
                     {item.amount > 0 ? '+' : ''}

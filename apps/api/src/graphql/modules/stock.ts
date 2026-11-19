@@ -7,6 +7,7 @@ import { relationIds } from '../relation-fields';
 import { fromDecimal } from '../../services/core/decimal';
 import { productInput, productInputFields } from '../product-inputs';
 import { treeItemObject } from '../label-inputs';
+import { BY_POSITION } from '../../services/core/ordering';
 
 const StockMovementKindEnum = builder.enumType('StockMovementKind', { values: STOCK_MOVEMENT_KINDS, description: 'Why a quantity of the stock changed.' });
 
@@ -200,12 +201,12 @@ const deliveryInput = (input: typeof DeliveryInput.$inferInput) => ({
 builder.queryFields((t) => ({
   stockLocations: t.prismaField({
     type: ['StockLocation'],
-    resolve: (query) => prisma.stockLocation.findMany({ ...query, orderBy: [{ position: 'asc' }, { label: 'asc' }] }),
+    resolve: (query) => prisma.stockLocation.findMany({ ...query, orderBy: BY_POSITION }),
   }),
   stockItems: t.prismaField({
     type: ['StockItem'],
     description: 'Items of the stock, in their order.',
-    resolve: (query) => prisma.stockItem.findMany({ ...query, orderBy: [{ position: 'asc' }, { label: 'asc' }] }),
+    resolve: (query) => prisma.stockItem.findMany({ ...query, orderBy: BY_POSITION }),
   }),
   stockMovements: t.prismaField({
     type: ['StockMovement'],

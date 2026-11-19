@@ -3,12 +3,12 @@ import { ActionsMenu } from '../../../components/actions/ActionsMenu';
 import { ItemAvatar } from '../../../components/items/ItemAvatar';
 import { ItemBadge } from '../../../components/items/ItemBadge';
 import type { AccountingDocumentType } from '@ordo/shared';
-import { CaretDownIcon } from '@phosphor-icons/react';
 
 import { unarchived } from '../../../lib/archive';
 import type { AccountingDocumentSummary } from '../api/documents';
 import { chooseTrackingStatus } from '../lib/sent-dialog';
 import { useDocumentStatuses, useTrackingMutations } from '../api/tracking';
+import { MenuCaret } from '../../../components/actions/MenuCaret';
 
 type TrackedDocument = Pick<AccountingDocumentSummary, 'id' | 'archived' | 'status' | 'type' | 'number' | 'trackingStatus' | 'overdue' | 'sentAt' | 'sentVia'>;
 
@@ -39,12 +39,12 @@ export function StatusMenu({ type, current, onSelect, pending, readOnly = false 
   if (readOnly || scoped.length === 0) return <ItemBadge item={current ?? { label: 'Sans statut' }} size="sm" />;
   return (
     <ActionsMenu
-      name="statut"
+      about="du statut"
       inRow
       position="bottom-start"
       target={
         <UnstyledButton aria-label={`Statut : ${current?.label ?? 'aucun'} (changer)`} onClick={(event) => event.stopPropagation()}>
-          <ItemBadge item={current ?? { label: 'Sans statut' }} size="sm" rightSection={<CaretDownIcon aria-hidden size={10} />} style={{ cursor: 'pointer' }} />
+          <ItemBadge item={current ?? { label: 'Sans statut' }} size="sm" rightSection={<MenuCaret size={10} />} style={{ cursor: 'pointer' }} />
         </UnstyledButton>
       }
       items={[

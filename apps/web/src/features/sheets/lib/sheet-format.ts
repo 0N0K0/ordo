@@ -1,5 +1,6 @@
 import type { SheetInput, SheetItemInput } from '@ordo/shared';
 import { idsOfKind } from '../../../components/people/people-keys';
+import { conservationOf } from '../../shopping/lib/conservation';
 
 /**
  * Input of a sheet as it is, with some fields changed.
@@ -79,8 +80,7 @@ export function itemGroupFields(columnId: string, key: string): Partial<SheetIte
     case 'optional':
       return { optional: yes };
     case 'conservation':
-      if (key === 'no') return { perishable: false, storageId: null };
-      return key === 'yes' ? { perishable: true, storageId: null } : { perishable: true, storageId: key };
+      return conservationOf(key);
     case 'people':
       return { memberIds: idsOfKind(key ? [key] : [], 'member'), relationIds: idsOfKind(key ? [key] : [], 'relation') };
     // A new item has no reference, is not done, has no source sheet.

@@ -124,7 +124,7 @@ builder.prismaObject('ShoppingList', {
     deliveryAddress: t.exposeString('deliveryAddress', { nullable: true }),
     deliveryLat: t.exposeFloat('deliveryLat', { nullable: true }),
     deliveryLon: t.exposeFloat('deliveryLon', { nullable: true }),
-    deliveries: t.relation('deliveries', { query: { orderBy: [{ position: 'asc' }, { windowFrom: 'asc' }] } }),
+    deliveries: t.relation('deliveries', { query: { orderBy: BY_POSITION } }),
   }),
 });
 
@@ -181,7 +181,7 @@ builder.queryFields((t) => ({
   shoppingCategories: t.prismaField({
     type: ['ShoppingCategory'],
     description: 'Categories of the shopping products (a tree).',
-    resolve: (query) => prisma.shoppingCategory.findMany({ ...query, orderBy: [{ position: 'asc' }, { label: 'asc' }] }),
+    resolve: (query) => prisma.shoppingCategory.findMany({ ...query, orderBy: BY_POSITION }),
   }),
   shoppingStores: t.prismaField({
     type: ['ShoppingStore'],

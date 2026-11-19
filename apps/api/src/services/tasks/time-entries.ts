@@ -3,6 +3,7 @@ import { z } from 'zod';
 import { prisma } from '../../db';
 import type { TimeEntry } from '../../generated/prisma/client';
 import { clientError, fieldError, orNotFound, parseInput } from '../../graphql/errors';
+import { ARCHIVED_MESSAGE, assertNoneArchived, assertNotArchived } from '../core/archive';
 import { connectIds } from '../core/relations';
 
 /** Calendar event (and occurrence of a recurring one) a time is spent on. */
@@ -20,8 +21,7 @@ export interface TimeEventLink {
 async function eventLinkData(link: TimeEventLink | null | undefined): Promise<{ calendarEventId: string | null; calendarOccurrenceDate: Date | null } | undefined> {
   if (link === undefined) return undefined;
   if (link === null) return { calendarEventId: null, calendarOccurrenceDate: null };
-  const event = await prisma.calendarEvent.findUnique({ where: { id: link.eventId }, select: { recurrence: true } });
-  if (!event) throw fieldError('calendarEventId', 'Évènement introuvable.');
+  const event = await orNotFound(prisma.calendarEvent.findUnique({ where: { id: link.eventId }, select: { recurrence: true } }), 'Évènement', 'calendarEventId');
   const recurring = event.recurrence !== null;
   if (recurring && !link.occurrenceDate) throw fieldError('calendarEventId', 'Choisissez l’occurrence de l’évènement.');
   return { calendarEventId: link.eventId, calendarOccurrenceDate: recurring ? parseOptionalDay(link.occurrenceDate || null) : null };
@@ -38,8 +38,7 @@ async function placeOf(projectId: string | null | undefined, routineId: string |
     if (!projectId) throw fieldError('projectId', 'Le projet est requis.');
     return { projectId, routineId: null };
   }
-  const routine = await prisma.routine.findUnique({ where: { id: routineId }, select: { projectId: true } });
-  if (!routine) throw fieldError('routineId', 'Routine introuvable.');
+  const routine = await orNotFound(prisma.routine.findUnique({ where: { id: routineId }, select: { projectId: true } }), 'Routine', 'routineId');
   return { projectId: projectId ?? routine.projectId, routineId };
 }
 
@@ -47,10 +46,10 @@ async function placeOf(projectId: string | null | undefined, routineId: string |
  * Checks the project of a time entry and that its tasks belong to the project or its sub-projects.
  * @param {string | null} projectId Project (none: no task either).
  * @param {string[]} taskIds Tasks.
- * @param {boolean} active Whether the project must not be archived (new time).
+ * @param {string | null} [keptProjectId] Project the time already had: accepted even if archived. Optional.
  * @returns {Promise<void>}
  */
-async function assertProjectAndTasks(projectId: string | null, taskIds: string[], active: boolean): Promise<void> {
+async function assertProjectAndTasks(projectId: string | null, taskIds: string[], keptProjectId?: string | null): Promise<void> {
   if (!projectId) {
     // Without project: only tasks of no project.
     if (taskIds.length && (await prisma.task.count({ where: { id: { in: taskIds }, projectId: { not: null } } }))) throw fieldError('taskIds', 'Choisissez d’abord le projet des tâches.');
@@ -59,7 +58,7 @@ async function assertProjectAndTasks(projectId: string | null, taskIds: string[]
   const projects = await prisma.project.findMany({ select: { id: true, parentId: true, archivedAt: true } });
   const project = projects.find((item) => item.id === projectId);
   if (!project) throw fieldError('projectId', 'Projet introuvable.');
-  if (active && project.archivedAt) throw fieldError('projectId', 'Ce projet est archivé.');
+  if (project.archivedAt && projectId !== keptProjectId) throw fieldError('projectId', ARCHIVED_MESSAGE);
   if (taskIds.length === 0) return;
   // The project and its sub-projects.
   const subtree = subtreeOf(projects, projectId);
@@ -69,6 +68,22 @@ async function assertProjectAndTasks(projectId: string | null, taskIds: string[]
   if (tasks.some((task) => task.projectId !== null && !subtree.has(task.projectId))) {
     throw fieldError('taskIds', 'Les tâches doivent appartenir au projet ou à ses sous-projets.');
   }
+}
+
+/**
+ * Checks that the routine, the tasks and the event chosen for a time are not archived; the ones it already had stay
+ * valid (decision AA: the error shows under the field).
+ * @param {{ routineId: string | null, taskIds: readonly string[], eventId: string | null | undefined }} chosen Values chosen.
+ * @param {{ routineId: string | null, taskIds: readonly string[], eventId: string | null }} [kept] Values the time already had. Optional.
+ * @returns {Promise<void>}
+ */
+async function assertActiveLinks(
+  chosen: { routineId: string | null; taskIds: readonly string[]; eventId: string | null | undefined },
+  kept?: { routineId: string | null; taskIds: readonly string[]; eventId: string | null },
+): Promise<void> {
+  await assertNotArchived('routine', chosen.routineId, { keep: kept?.routineId, field: 'routineId' });
+  await assertNoneArchived('task', chosen.taskIds, { keep: kept?.taskIds, field: 'taskIds' });
+  await assertNotArchived('calendarEvent', chosen.eventId, { keep: kept?.eventId, field: 'calendarEventId' });
 }
 
 /**
@@ -124,7 +139,8 @@ export async function stopTimer(): Promise<TimeEntry | null> {
 export async function startTimer(input: { projectId?: string | null; routineId?: string | null; taskIds: string[]; description?: string | null; event?: TimeEventLink | null }): Promise<TimeEntry> {
   const description = parseInput(timeDescriptionSchema, input.description ?? null);
   const place = await placeOf(input.projectId, input.routineId);
-  await assertProjectAndTasks(place.projectId, input.taskIds, true);
+  await assertProjectAndTasks(place.projectId, input.taskIds);
+  await assertActiveLinks({ ...place, taskIds: input.taskIds, eventId: input.event?.eventId });
   const link = await eventLinkData(input.event ?? null);
   await stopTimer();
   return prisma.timeEntry.create({
@@ -180,7 +196,8 @@ export async function createTimeEntry(input: TimeEntryInput & { startedAt: Date;
   });
   const taskIds = input.taskIds ?? [];
   const place = await placeOf(input.projectId, input.routineId);
-  await assertProjectAndTasks(place.projectId, taskIds, true);
+  await assertProjectAndTasks(place.projectId, taskIds);
+  await assertActiveLinks({ ...place, taskIds, eventId: input.event?.eventId });
   const link = await eventLinkData(input.event ?? null);
   return prisma.timeEntry.create({
     data: {
@@ -215,7 +232,8 @@ export async function updateTimeEntry(id: string, input: TimeEntryInput): Promis
   }
   const place = await placeOf(input.projectId === undefined ? entry.projectId : input.projectId, input.routineId === undefined ? entry.routineId : input.routineId);
   const taskIds = input.taskIds ?? entry.tasks.map((task) => task.id);
-  await assertProjectAndTasks(place.projectId, taskIds, false);
+  await assertProjectAndTasks(place.projectId, taskIds, entry.projectId);
+  await assertActiveLinks({ ...place, taskIds, eventId: input.event?.eventId }, { routineId: entry.routineId, taskIds: entry.tasks.map((task) => task.id), eventId: entry.calendarEventId });
 
   const startedAt = input.startedAt ?? entry.startedAt;
   const seconds = duration ?? entry.duration;

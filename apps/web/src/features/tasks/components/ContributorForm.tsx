@@ -4,10 +4,10 @@ import { contributorFormSchema, suggestHandle, type ContributorFormValues } from
 import { useState } from 'react';
 import { useAppForm, formCallbacks } from '../../../lib/form';
 
-import { useWorkspace } from '../../workspace/api';
+import { useWorkspace } from '../../projects/api';
 import { IconField, type IconValue } from '../../../components/inputs/IconField';
 import { treeSelectProps } from '../../../components/tree/tree-select';
-import { projectOptions } from '../../workspace/lib/tree';
+import { projectOptions } from '../../projects/lib/tree';
 import { useContributorMutations, type Contributor } from '../api';
 import { BatchMultiSelect } from '../../../components/inputs/BatchMultiSelect';
 import { FormActions } from '../../../components/dialogs/FormActions';

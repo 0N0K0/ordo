@@ -1,9 +1,8 @@
 import { modelDelegate } from './delegate';
 import { commentBodySchema } from '@ordo/shared';
-import { z } from 'zod';
 import { prisma } from '../../db';
 import type { Comment } from '../../generated/prisma/client';
-import { notFound, orNotFound, parseInput } from '../../graphql/errors';
+import { notFound, orNotFound, parseField } from '../../graphql/errors';
 import { assertNotArchived, type ArchivableModel } from './archive';
 import { deleteOrNotFound } from './lookup';
 
@@ -91,7 +90,7 @@ async function assertCommentTarget(id: string): Promise<void> {
  * @returns {string} Body.
  */
 export function commentBody(body: string): string {
-  return parseInput(z.object({ body: commentBodySchema }), { body }).body;
+  return parseField('body', commentBodySchema, body);
 }
 
 /**

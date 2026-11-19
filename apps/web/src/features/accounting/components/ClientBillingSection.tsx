@@ -12,6 +12,7 @@ import { countryName } from '../lib/countries';
 
 import { useClientBilling, useClientPartyMutations, type ClientBilling, type ClientContact, type ClientService } from '../api';
 import { ClientContactForm, ClientDetailsForm, ClientServiceForm } from './ClientPartyForms';
+import { EXTERNAL_LINK } from '../../../components/actions/link-props';
 
 /**
  * Address, email and phones, as text lines.
@@ -43,7 +44,7 @@ function ContactInfo({ address, email, phones, website }: { address: unknown; em
       {/* Validated as http(s) by the API; checked again before becoming a link. */}
       {website &&
         (/^https?:\/\//i.test(website) ? (
-          <Anchor href={website} target="_blank" rel="noopener noreferrer" size="sm">
+          <Anchor href={website} {...EXTERNAL_LINK} size="sm">
             {website}
           </Anchor>
         ) : (

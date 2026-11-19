@@ -1,5 +1,6 @@
 import { IconAction } from '../../../components/actions/IconAction';
 import { ArrowSquareOutIcon } from '@phosphor-icons/react';
+import { EXTERNAL_LINK } from '../../../components/actions/link-props';
 
 /**
  * Opens the page of an entry on the internet (an online order…) in a new tab.
@@ -11,7 +12,7 @@ import { ArrowSquareOutIcon } from '@phosphor-icons/react';
 export function EntryUrl({ url, label }: { url: string | null | undefined; label: string }) {
   if (!url) return null;
   return (
-    <IconAction label={url} component="a" href={url} target="_blank" rel="noopener noreferrer" size="sm" aria-label={`Ouvrir le lien de ${label}`}>
+    <IconAction label="Ouvrir le lien" item={label} hint={url} component="a" href={url} {...EXTERNAL_LINK} size="sm">
       <ArrowSquareOutIcon aria-hidden />
     </IconAction>
   );

@@ -8,5 +8,6 @@ import { prisma } from '../../db';
  * @returns {D} Delegate.
  */
 export function modelDelegate<D>(model: string, client: object = prisma): D {
+  // eslint-disable-next-line no-restricted-syntax -- modelDelegate itself.
   return (client as Record<string, unknown>)[model] as D;
 }

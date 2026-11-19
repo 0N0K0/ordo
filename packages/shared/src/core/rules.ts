@@ -11,6 +11,13 @@ export const PERSON_NAME_REQUIRED = 'Le nom est requis.';
  */
 export const requiredText = (max: number, required = 'Le libellé est requis.') => z.string().trim().min(1, required).max(max, `${max} caractères maximum.`);
 
+/** Most characters of a person's name: contributor, relation, contact, client, counterparty, company (decision BB). */
+export const PERSON_NAME_MAX = 100;
+
+/** Name of a person, physical or legal (contributor, relation, contact, client, counterparty, company): required, at most `PERSON_NAME_MAX`. */
+// eslint-disable-next-line no-restricted-syntax -- the schema itself.
+export const personNameSchema = requiredText(PERSON_NAME_MAX, PERSON_NAME_REQUIRED);
+
 /**
  * Text that may be left empty (saved as null): trimmed, at most a length.
  * @param {number} max Most characters.

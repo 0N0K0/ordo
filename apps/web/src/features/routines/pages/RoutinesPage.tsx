@@ -1,7 +1,7 @@
 import { PAGES, routineHistoryPath } from '../../../app/pages';
 import { usePageTab } from '../../../components/tabs/use-page-tab';
 import { scheduleChoices } from '../../calendar/lib/schedule-choices';
-import { useSetParams } from '../../../lib/search-params';
+import { useSetParams, useSearchParam } from '../../../lib/search-params';
 import { mapById, byPosition } from '@ordo/shared';
 import { PageHeader } from '../../../components/page/PageHeader';
 import { ActionButton } from '../../../components/actions/ActionButton';
@@ -10,11 +10,10 @@ import { EmptyState } from '../../../components/feedback/EmptyState';
 import { Group, Stack, Text } from '@mantine/core';
 import { ArrowBendUpRightIcon, ArrowsClockwiseIcon, CalendarDotsIcon, ClockCounterClockwiseIcon, PencilSimpleIcon, PlusIcon, TreeViewIcon } from '@phosphor-icons/react';
 import { useMemo, type ReactNode } from 'react';
-import { useSearchParams } from 'react-router';
 import { PageTabs } from '../../../components/tabs/PageTabs';
 import { DataTable, type RowMove } from '../../../components/data-table/table/DataTable';
 import { RowActions } from '../../../components/data-table/cells/RowActions';
-import { useDataView, type FirstTableView } from '../../../components/data-table/views/use-data-view';
+import { useDataView, type FirstTableView, conditionFilter } from '../../../components/data-table/views/use-data-view';
 import { localToday } from '../../../lib/dates';
 import * as fmt from '../../../lib/format';
 import { ON_ERROR } from '../../../lib/notify';
@@ -48,7 +47,7 @@ import { WaitingIcon } from '../components/WaitingIcon';
 const ROUTINE_VIEWS: FirstTableView[] = [
   {
     label: 'À faire',
-    config: { groupBy: 'categories', filter: { type: 'group', id: 'root', combinator: 'and', children: [{ type: 'condition', id: 'todo', field: 'state', operator: 'in', value: ['late', 'due'] }] } },
+    config: { groupBy: 'categories', filter: conditionFilter('state', 'in', ['late', 'due'], 'todo') },
   },
   { label: 'Toutes', config: { groupBy: 'categories' } },
 ];
@@ -172,7 +171,7 @@ export function RoutinesPanel({ projectId, projectIds }: { projectId?: string; p
     const readOnly = routine.archived || isDraftRoutine(routine);
     return {
       ...Object.fromEntries(columns.filter((column) => column.text).map((column) => [column.id, column.text!(routine)])),
-      title: (
+      label: (
         <Group gap={4} wrap="nowrap">
           <RoutineDoneToggles routine={routine} dateLabel={routine.currentDate ? fmt.weekday(routine.currentDate) : undefined} disabled={readOnly} />
           <Stack gap={0} style={{ flex: 1, minWidth: 0 }}>
@@ -289,7 +288,7 @@ const ROUTINE_TABS = ['routines', 'history'] as const;
  * @returns {JSX.Element} Page.
  */
 export function RoutinesPage() {
-  const [params] = useSearchParams();
+  const [routineParam] = useSearchParam('routine');
   const setParams = useSetParams();
   const [tab, setTab] = usePageTab(ROUTINE_TABS);
 
@@ -310,7 +309,7 @@ export function RoutinesPage() {
           <RoutinesPanel />
         </PageTabs.Panel>
         <PageTabs.Panel value="history">
-          <RoutineHistory routineId={params.get('routine')} onRoutine={(id) => setParams({ routine: id })} />
+          <RoutineHistory routineId={routineParam} onRoutine={(id) => setParams({ routine: id })} />
         </PageTabs.Panel>
       </PageTabs>
     </Stack>

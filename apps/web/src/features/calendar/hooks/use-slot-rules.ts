@@ -23,6 +23,7 @@ import { scheduleRules, useCalendarEvents, useForeignScheduleKinds, useScheduleS
 import { localDay, localInstant } from '../../../lib/dates';
 import { useActiveWorkspace } from '../../workspaces/api';
 import { useTaskContext } from '../../tasks/hooks/use-task-context';
+import { inWorkspace } from '../lib/layer-label';
 
 /** Days ahead the next allowed moment is looked for. */
 const LOOKAHEAD_DAYS = 14;
@@ -139,7 +140,7 @@ export function useSlotRules(): SlotRules {
       ...(types ?? []).map((type) => ({ value: ownSlotKind(type.id), label: type.label, group: 'Cet espace', archived: type.archived })),
       ...(foreignKinds ?? [])
         .filter((kind) => kind.subscribed)
-        .map((kind) => ({ value: foreignSlotKind(kind.workspaceId, kind.typeId), label: `${kind.label} (${kind.workspaceLabel})`, group: kind.workspaceLabel })),
+        .map((kind) => ({ value: foreignSlotKind(kind.workspaceId, kind.typeId), label: inWorkspace(kind.label, kind.workspaceLabel), group: kind.workspaceLabel })),
     ];
     const labelOf = new Map(kinds.map((kind) => [kind.value, kind.label]));
     /**

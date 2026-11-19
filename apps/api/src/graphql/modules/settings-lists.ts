@@ -1,3 +1,4 @@
+import { capitalize } from '@ordo/shared';
 import { assertNotArchived } from '../../services/core/archive';
 import { iconUrl } from '../../services/core/icons';
 import * as lists from '../../services/core/settings-lists';
@@ -9,33 +10,10 @@ const SettingsListKindEnum = builder.enumType('SettingsListKind', {
   values: Object.keys(lists.SETTINGS_LISTS) as lists.SettingsListKind[],
 });
 
-/** GraphQL types of the items of the settings lists (places apart: not a Prisma object). */
-const TYPES = [
-  'ProjectStatus',
-  'ProjectCategory',
-  'TaskStatus',
-  'TaskPriority',
-  'TaskType',
-  'TaskTag',
-  'DocumentStatus',
-  'SheetCategory',
-  'ShoppingStore',
-  'ShoppingUnit',
-  'ShoppingStorage',
-  'ShoppingBaseList',
-  'ShoppingCategory',
-  'MailLabel',
-  'Calendar',
-  'CalendarCategory',
-  'ScheduleType',
-  'TreasuryAccount',
-  'TreasuryContext',
-  'TreasuryPaymentMethod',
-  'TreasuryCounterparty',
-  'TreasuryCategory',
-  'RoutineCategory',
-  'StockLocation',
-] as const;
+/** GraphQL types of the items of the settings lists: their models, capitalized (places apart: not a Prisma object). */
+const TYPES = Object.values(lists.SETTINGS_LISTS)
+  .filter((model) => model !== 'place')
+  .map((model) => capitalize(model));
 
 for (const type of TYPES) {
   builder.prismaObjectField(type as 'TaskTag', 'iconUrl', (t) =>

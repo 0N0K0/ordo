@@ -21,6 +21,7 @@ import * as fmt from '../../../lib/format';
 import { routineTreeOptions, ruleOf } from '../lib/routine-format';
 import { RemindersSelect } from '../../../components/inputs/RemindersSelect';
 import { ChildrenCell } from '../../../components/data-table/cells/ChildrenCell';
+import { unarchived } from '../../../lib/archive';
 
 /**
  * Whether a routine has its own single time of the day (not several moments, nor those of cases or of schedules).
@@ -58,7 +59,7 @@ export function ParentRoutineCell({ routine, routines, readOnly = false }: { rou
  * @returns {JSX.Element} Cell.
  */
 export function SubRoutinesCell({ routine, routines, readOnly = false }: { routine: Routine; routines: Routine[]; readOnly?: boolean }) {
-  const children = routines.filter((other) => other.parentId === routine.id && !other.archived);
+  const children = unarchived(routines).filter((other) => other.parentId === routine.id);
   return (
     <ChildrenCell add={!readOnly && { label: 'Ajouter une sous-routine', name: routine.label, onClick: () => openRoutineForm({ parent: routine }) }}>
       {children.map((child) => (

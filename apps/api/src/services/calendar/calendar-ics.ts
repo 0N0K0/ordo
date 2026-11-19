@@ -1,7 +1,7 @@
-import { addDays, formatDay, occurrenceDates, type Recurrence, ruleValues, weekdayOfDate, zonedInstant } from '@ordo/shared';
+import { addDays, fileName, formatDay, occurrenceDates, type Recurrence, ruleValues, weekdayOfDate, zonedInstant } from '@ordo/shared';
 import { prisma } from '../../db';
 import { notFound } from '../../graphql/errors';
-import { occurrenceInclude, storedRecurrence, toOccurrence, type CalendarLink, type EventWithRelations } from './calendar-events';
+import { occurrenceInclude, readEventLinks, storedRecurrence, toOccurrence, type CalendarLink, type EventWithRelations } from './calendar-events';
 
 /** Repeated events without end are written with their exclusions up to this many years ahead. */
 const HORIZON_YEARS = 10;
@@ -204,7 +204,7 @@ function eventLines(event: ExportedEvent, stamp: Date): string[] {
     `LAST-MODIFIED:${icsStamp(event.updatedAt)}`,
     ...body({
       label: event.label,
-      links: (event.links as unknown as CalendarLink[] | null) ?? [],
+      links: readEventLinks(event.links),
       description: event.description,
       location: event.location,
       allDay: event.allDay,
@@ -254,9 +254,9 @@ function eventLines(event: ExportedEvent, stamp: Date): string[] {
  * iCalendar file of a calendar of the workspace, or of all of them: its events, repeated ones with their
  * repetition, exclusions and changed occurrences, reminders as alarms.
  * @param {string | null} calendarId Calendar, or null for every calendar of the workspace.
- * @returns {Promise<{ name: string, content: string }>} File name (without extension) and content.
+ * @returns {Promise<{ filename: string, content: string }>} File name and content (as the other exports).
  */
-export async function calendarIcs(calendarId: string | null): Promise<{ name: string; content: string }> {
+export async function calendarIcs(calendarId: string | null): Promise<{ filename: string; content: string }> {
   const calendar = calendarId ? await prisma.calendar.findUnique({ where: { id: calendarId }, select: { label: true } }) : null;
   if (calendarId && !calendar) throw notFound('Calendrier');
   const events = await prisma.calendarEvent.findMany({
@@ -277,5 +277,5 @@ export async function calendarIcs(calendarId: string | null): Promise<{ name: st
     ...events.flatMap((event) => eventLines(event, stamp)),
     'END:VCALENDAR',
   ];
-  return { name, content: `${lines.map(fold).join('\r\n')}\r\n` };
+  return { filename: fileName(name, 'ics'), content: `${lines.map(fold).join('\r\n')}\r\n` };
 }

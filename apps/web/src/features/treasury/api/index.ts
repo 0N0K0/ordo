@@ -15,7 +15,7 @@ import type {
 import { execute } from '../../../lib/graphql-client';
 import { accountingQueryKey } from '../../accounting/api';
 import { tasksQueryKey } from '../../tasks/api';
-import { workspaceQueryKey } from '../../workspace/api';
+import { workspaceQueryKey } from '../../projects/api';
 
 export type TreasuryAccount = TreasuryAccountsQuery['treasuryAccounts'][number];
 export type TreasuryEntry = TreasuryEntriesQuery['treasuryEntries'][number];

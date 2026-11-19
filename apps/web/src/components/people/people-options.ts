@@ -36,6 +36,36 @@ export const meName = (me: { name: string } | null | undefined): string => (me ?
 // eslint-disable-next-line no-restricted-syntax -- the brick the rule points to.
 export const relationNoun = (perso: boolean, many = false): string => (perso ? 'Proche' : 'Relation') + (many ? 's' : '');
 
+/** Words of the people out of the team or household (decision 15), agreed with their noun. */
+export interface RelationWords {
+  /** « Relation » / « Proche ». */
+  noun: string;
+  /** « Relations » / « Proches ». */
+  many: string;
+  /** « la relation » / « le proche ». */
+  the: string;
+  /** « Nouvelle relation » / « Nouveau proche ». */
+  new: string;
+  /** « Aucune relation. » / « Aucun proche. » */
+  none: string;
+  /** The noun is feminine (« relation »): the agreement of the words that go with it. */
+  feminine: boolean;
+}
+
+/**
+ * Words of the people out of the team or household: « relation » in a pro workspace, « proche » in a personal one,
+ * with their agreement (« Relation modifiée. », « Proche modifié. »).
+ * @param {boolean} perso A personal workspace.
+ * @returns {RelationWords} Words.
+ */
+export function relationWords(perso: boolean): RelationWords {
+  const noun = relationNoun(perso);
+  return perso
+    ? { noun, many: relationNoun(perso, true), the: 'le proche', new: 'Nouveau proche', none: 'Aucun proche.', feminine: false }
+    : // eslint-disable-next-line no-restricted-syntax -- the brick the rule points to.
+      { noun, many: relationNoun(perso, true), the: 'la relation', new: 'Nouvelle relation', none: 'Aucune relation.', feminine: true };
+}
+
 /**
  * Options of a select of people, grouped: « Contributeurs », then « Relations » in a pro workspace or « Proches » in a
  * personal one; an empty group left out.

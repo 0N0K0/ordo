@@ -34,7 +34,7 @@ function CategoryList({ direction, categories }: { direction: TreasuryDirection;
     <SettingsList
       {...definition}
       nested
-      title={`Catégories de ${direction === 'IN' ? 'recettes' : 'dépenses'}`}
+      title={`Catégories ${direction === 'IN' ? 'd’entrées' : 'de sorties'}`}
       description="En arborescence : glissez une catégorie sur une autre pour l’y ranger. Une sous-catégorie sans couleur prend celle de sa catégorie parente."
       noun="la catégorie"
       items={categories.filter((category) => category.direction === direction)}
@@ -98,7 +98,11 @@ function CounterpartyList({ counterparties }: { counterparties: TreasuryCounterp
       deleteMessage={(counterparty) => (
         <>
           « {counterparty.name} » sera supprimé définitivement.
-          {counterparty.entryCount ? ` Ses ${entries(counterparty.entryCount)} n’auront plus d’émetteur ou de destinataire : archivez-le plutôt pour les garder.` : ''}
+          {counterparty.entryCount === 1
+            ? ' Son mouvement n’aura plus d’émetteur ou de destinataire : archivez-le plutôt pour le garder.'
+            : counterparty.entryCount
+              ? ` Ses ${entries(counterparty.entryCount)} n’auront plus d’émetteur ou de destinataire : archivez-le plutôt pour les garder.`
+              : ''}
         </>
       )}
     />

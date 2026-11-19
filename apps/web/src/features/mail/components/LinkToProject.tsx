@@ -1,5 +1,5 @@
 import { formCallbacks } from '../../../lib/form';
-import { Button, Popover, Stack } from '@mantine/core';
+import { Popover, Stack } from '@mantine/core';
 import { useDisclosure } from '@mantine/hooks';
 import { FolderSimplePlusIcon } from '@phosphor-icons/react';
 import { useState } from 'react';
@@ -29,8 +29,8 @@ export function LinkToProject({ accountId, folder, uid, linkedProjectIds }: { ac
       <Popover.Dropdown>
         <Stack gap="sm">
           {context && <ProjectSelect context={context} label="Projet" value={projectId} onChange={setProjectId} comboboxProps={{ withinPortal: false }} data-autofocus />}
-          <Button
-            leftSection={<FolderSimplePlusIcon aria-hidden />}
+          <ActionButton
+            icon={<FolderSimplePlusIcon aria-hidden />}
             disabled={!projectId || linkedProjectIds.includes(projectId)}
             loading={link.isPending}
             onClick={() =>
@@ -45,7 +45,7 @@ export function LinkToProject({ accountId, folder, uid, linkedProjectIds }: { ac
             }
           >
             Rattacher
-          </Button>
+          </ActionButton>
         </Stack>
       </Popover.Dropdown>
     </Popover>

@@ -1,9 +1,10 @@
-import { MAX_ICON_BYTES } from '@ordo/shared';
+import { ICON_ERRORS, MAX_ICON_BYTES } from '@ordo/shared';
 import DOMPurify from 'isomorphic-dompurify';
 import sharp from 'sharp';
 import { prisma } from '../../db';
 import { getDatamodel } from '../../generated/pothos-types';
 import { fieldError } from '../../graphql/errors';
+import { imageKind } from './attachments';
 
 /** Raster icons are resized to fit in this square (px). */
 const ICON_SIZE = 256;
@@ -16,9 +17,8 @@ type IconKind = 'png' | 'jpeg' | 'webp' | 'svg';
  * @returns {IconKind | null} Detected kind, or null when unsupported.
  */
 function sniff(buffer: Buffer): IconKind | null {
-  if (buffer.subarray(0, 8).equals(Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]))) return 'png';
-  if (buffer[0] === 0xff && buffer[1] === 0xd8 && buffer[2] === 0xff) return 'jpeg';
-  if (buffer.toString('ascii', 0, 4) === 'RIFF' && buffer.toString('ascii', 8, 12) === 'WEBP') return 'webp';
+  const raster = imageKind(buffer);
+  if (raster) return raster === 'gif' ? null : raster;
 
   const head = buffer.toString('utf8', 0, 2048).replace(/^\uFEFF/, '');
   const withoutProlog = head.replace(/^\s*(<\?xml[^>]*\?>|<!--[\s\S]*?-->|<!DOCTYPE[^>]*>|\s)*/i, '');
@@ -31,11 +31,11 @@ function sniff(buffer: Buffer): IconKind | null {
  * @returns {Promise<{ mimeType: string, data: Buffer }>} Icon ready to be stored.
  */
 async function processIcon(file: File): Promise<{ mimeType: string; data: Buffer }> {
-  if (file.size > MAX_ICON_BYTES) throw fieldError('icon', 'Image trop lourde (1 Mo maximum).');
+  if (file.size > MAX_ICON_BYTES) throw fieldError('icon', ICON_ERRORS.tooLarge);
 
   const buffer = Buffer.from(await file.arrayBuffer());
   const kind = sniff(buffer);
-  if (!kind) throw fieldError('icon', 'Format non pris en charge (JPG, PNG, WebP ou SVG).');
+  if (!kind) throw fieldError('icon', ICON_ERRORS.format);
 
   if (kind === 'svg') {
     // Strips scripts, event handlers and external references.

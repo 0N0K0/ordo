@@ -1,4 +1,3 @@
-import { Tooltip } from '@mantine/core';
 import { DownloadSimpleIcon } from '@phosphor-icons/react';
 import { calendarIcsUrl } from '../api';
 import { ActionButton } from '../../../components/actions/ActionButton';
@@ -11,11 +10,16 @@ import { ActionButton } from '../../../components/actions/ActionButton';
  */
 export function CalendarsIcsButton({ disabled = false }: { disabled?: boolean }) {
   return (
-    <Tooltip label="Tous les calendriers de l’espace, dans un fichier pour un autre agenda (Google, Apple, Outlook…)">
-      {/* eslint-disable-next-line no-restricted-syntax -- the one button of the whole export. */}
-      <ActionButton priority="secondary" href={calendarIcsUrl(null)} download icon={<DownloadSimpleIcon aria-hidden />} disabled={disabled}>
-        Tout exporter (.ics)
-      </ActionButton>
-    </Tooltip>
+    <ActionButton
+      priority="secondary"
+      // eslint-disable-next-line no-restricted-syntax -- the one button of the whole export.
+      href={calendarIcsUrl(null)}
+      download
+      icon={<DownloadSimpleIcon aria-hidden />}
+      hint="Tous les calendriers de l’espace, dans un fichier pour un autre agenda (Google, Apple, Outlook…)"
+      disabled={disabled}
+    >
+      Tout exporter (.ics)
+    </ActionButton>
   );
 }

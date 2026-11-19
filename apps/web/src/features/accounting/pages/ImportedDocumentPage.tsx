@@ -84,7 +84,7 @@ export function ImportedDocumentPage() {
           </>
         }
         menu={{
-          name: `« ${document.number} »`,
+          name: document.number,
           items: [
             archiveEntry({ archived: document.archived, type: DOCUMENT_TYPE_LABELS[document.type], label: document.number, feminine: isFeminineDocumentType(document.type) }, setArchived, document.id),
           ],

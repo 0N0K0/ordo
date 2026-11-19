@@ -1,6 +1,6 @@
 import { ActionsMenu } from '../actions/ActionsMenu';
 import { FormActions } from '../dialogs/FormActions';
-import { Button, Group, Paper, Stack, Text, Tooltip } from '@mantine/core';
+import { Group, Paper, Stack, Text, Tooltip } from '@mantine/core';
 import { PencilSimpleIcon, TrashIcon, ChatCircleTextIcon } from '@phosphor-icons/react';
 import { useState } from 'react';
 import { confirmDestructive } from '../dialogs/confirm-destructive';
@@ -10,6 +10,7 @@ import { MarkdownEditor, type MarkdownSuggestions } from '../markdown/MarkdownEd
 import { MarkdownView } from '../markdown/MarkdownView';
 import type { ReferenceTargets } from '../markdown/remark-references';
 import * as fmt from '../../lib/format';
+import { ActionButton } from '../actions/ActionButton';
 
 /** Comment as the thread shows it. */
 interface ThreadComment {
@@ -86,7 +87,7 @@ function CommentCard({
         </Group>
         {draft === null && !readOnly && (
           <ActionsMenu
-            name="ce commentaire"
+            about="ce commentaire"
             size="sm"
             items={[
               { label: 'Modifier', icon: <PencilSimpleIcon aria-hidden />, onClick: () => setDraft(comment.body) },
@@ -150,9 +151,9 @@ export function CommentThread({ comments, loading = false, actions, suggestions,
         <>
           <MarkdownEditor label="Ajouter un commentaire" value={body} onChange={setBody} suggestions={suggestions} minRows={3} placeholder="Écrivez un commentaire…" onSubmitShortcut={submit} />
           <Group justify="flex-end">
-            <Button leftSection={<ChatCircleTextIcon aria-hidden />} onClick={submit} loading={actions.adding} disabled={!body.trim()}>
+            <ActionButton icon={<ChatCircleTextIcon aria-hidden />} onClick={submit} loading={actions.adding} disabled={!body.trim()}>
               Commenter
-            </Button>
+            </ActionButton>
           </Group>
         </>
       )}

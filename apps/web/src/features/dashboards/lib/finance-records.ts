@@ -10,6 +10,7 @@ import {
   plannedContext,
   round2,
   splitAmounts,
+  fromCents,
 } from '@ordo/shared';
 import { localDay, localToday } from '../../../lib/dates';
 import { unarchived } from '../../../lib/archive';
@@ -29,6 +30,7 @@ import type {
 } from '../../treasury/api';
 import { categoryLineage, categoryPathLineage } from '../../treasury/lib/categories';
 import { aggregate, bucketLabel, bucketOf, nextBucket, none, periodRange, type ChartData, type ChartRecord, type Key } from './aggregate';
+import { DIRECTION_PLURALS } from '../../treasury/lib/direction';
 
 const TYPE_ORDER = ['QUOTE', 'DEPOSIT_INVOICE', 'INVOICE', 'CREDIT_NOTE'];
 const TYPE_COLORS: Record<string, string> = {
@@ -107,9 +109,9 @@ function chartDocuments(documents: AccountingDocumentSummary[], imported: Import
     draft: document.status === 'DRAFT',
     imported: false,
     issueDate: document.issueDate,
-    dueDate: document.dueDate ? document.dueDate : null,
+    dueDate: document.dueDate || null,
     sentAt: document.sentAt ? localDay(document.sentAt) : null,
-    acceptedAt: document.acceptedAt ? document.acceptedAt : null,
+    acceptedAt: document.acceptedAt || null,
     clientId: document.clientId,
     clientName: document.clientName,
     projectId: document.projectId ?? null,
@@ -127,7 +129,7 @@ function chartDocuments(documents: AccountingDocumentSummary[], imported: Import
         draft: false,
         imported: true,
         issueDate: document.issueDate,
-        dueDate: document.dueDate ? document.dueDate : null,
+        dueDate: document.dueDate || null,
         sentAt: null,
         acceptedAt: null,
         clientId: document.clientId ?? null,
@@ -404,7 +406,7 @@ export function treasuryChartData({
         ...base,
         ...(line.date ? { date: line.date } : {}),
         ...category(line.categoryId ?? null),
-        amount: amounts[index] / 100,
+        amount: fromCents(amounts[index]),
         projectId: line.projectId ?? null,
         memberId: line.memberId ?? null,
         relationId: line.relationId ?? null,
@@ -415,7 +417,7 @@ export function treasuryChartData({
     if (remainder !== 0 || !entry.lines.length) {
       own.push({
         id: `entry:${entry.id}`,
-        movement: { ...base, ...category(entry.categoryId ?? null), amount: remainder / 100, projectId: entry.projectId ?? null, memberId: null, contextId: plannedContext(plannedDays, date) },
+        movement: { ...base, ...category(entry.categoryId ?? null), amount: fromCents(remainder), projectId: entry.projectId ?? null, memberId: null, contextId: plannedContext(plannedDays, date) },
         linkedIds: [...entry.linkedEntries.map((linked) => `entry:${linked.id}`), ...entry.linkedByLines.map((linked) => `line:${linked.id}`)],
       });
     }
@@ -479,7 +481,7 @@ export function treasuryChartData({
           return account ? [{ key: account.id, label: account.label, order: account.label }] : none('Sans compte');
         }
         case 'direction':
-          return movement.amount >= 0 ? [{ key: 'in', label: 'Entrées', order: 0, color: 'green.6' }] : [{ key: 'out', label: 'Sorties', order: 1, color: 'red.6' }];
+          return movement.amount >= 0 ? [{ key: 'in', label: DIRECTION_PLURALS.IN, order: 0, color: 'green.6' }] : [{ key: 'out', label: DIRECTION_PLURALS.OUT, order: 1, color: 'red.6' }];
         case 'project':
           return movement.projectId
             ? [

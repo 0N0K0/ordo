@@ -4,6 +4,7 @@ import type { MouseEvent } from 'react';
 import { RemoveButton } from '../actions/RemoveButton';
 import * as fmt from '../../lib/format';
 import { ellipsis } from '../../lib/text';
+import { EXTERNAL_LINK } from '../actions/link-props';
 
 interface FileBadgeProps {
   /** File name, cut beyond `max` characters (whole in its tooltip). */
@@ -14,8 +15,8 @@ interface FileBadgeProps {
   max?: number;
   /** Opens it as a link. Optional. */
   href?: string;
-  /** Target of the link (`_blank`: a new tab). Optional. */
-  target?: string;
+  /** The link opens in a new tab (EXTERNAL_LINK). Optional. Default = false. */
+  external?: boolean;
   /** Opens it (its viewer, a download). Optional: without it nor `href`, the badge is not clickable. */
   onClick?: (event: MouseEvent<HTMLElement>) => void;
   /** Removes it, from the gray cross on its right. Optional. */
@@ -30,10 +31,10 @@ interface FileBadgeProps {
  * @param {FileBadgeProps} props Component props.
  * @returns {JSX.Element} Badge.
  */
-export function FileBadge({ filename, size, max = 24, href, target, onClick, onRemove, badgeSize = 'sm' }: FileBadgeProps) {
+export function FileBadge({ filename, size, max = 24, href, external = false, onClick, onRemove, badgeSize = 'sm' }: FileBadgeProps) {
   const shown = ellipsis(filename, max);
   const clickable = Boolean(href || onClick);
-  const link = href ? { component: 'a' as const, href, target, rel: target ? 'noopener noreferrer' : undefined } : {};
+  const link = href ? { component: 'a' as const, href, ...(external ? EXTERNAL_LINK : {}) } : {};
   return (
     <Badge
       {...link}

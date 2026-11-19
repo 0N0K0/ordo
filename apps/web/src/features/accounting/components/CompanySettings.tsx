@@ -1,6 +1,6 @@
 import { NoticeAlert } from '../../../components/feedback/NoticeAlert';
 import { FormSkeleton } from '../../../components/feedback/Skeletons';
-import { Autocomplete, Avatar, Button, Fieldset, FileButton, Group, NumberInput, Select, SimpleGrid, Stack, Switch, Table, Text, Textarea, TextInput } from '@mantine/core';
+import { Autocomplete, Avatar, Fieldset, FileButton, Group, NumberInput, Select, SimpleGrid, Stack, Switch, Table, Text, Textarea, TextInput } from '@mantine/core';
 import { companyProfileSchema, DOCUMENT_PREFIXES, documentNumber, LATE_INTEREST_PRESETS, PAYMENT_METHOD_PRESETS, PAYMENT_TERMS_PRESETS, type CompanyProfileInput } from '@ordo/shared';
 import { UploadSimpleIcon, FloppyDiskIcon, TrashIcon } from '@phosphor-icons/react';
 import { useState } from 'react';
@@ -87,9 +87,9 @@ function CompanyForm({ profile }: { profile: CompanyProfile }) {
                     )}
                   </FileButton>
                   {profile.logoUrl && (
-                    <Button size="xs" variant="subtle" color="red" leftSection={<TrashIcon aria-hidden />} onClick={() => setLogo.mutate(null, ON_ERROR)}>
+                    <ActionButton priority="tertiary" danger icon={<TrashIcon aria-hidden />} onClick={() => setLogo.mutate(null, ON_ERROR)}>
                       Retirer
-                    </Button>
+                    </ActionButton>
                   )}
                 </Group>
                 <Text size="xs" c="dimmed">

@@ -5,7 +5,7 @@ import { EmptyState } from '../../../components/feedback/EmptyState';
 import { TableSkeleton } from '../../../components/feedback/Skeletons';
 import { Checkbox, Group, NumberInput, SegmentedControl, Select, SimpleGrid, Stack, Text, TextInput } from '@mantine/core';
 import { DatePickerInput } from '@mantine/dates';
-import { type AccountingLineInput, formatDuration, toCents, VAT_RATES, sumOf } from '@ordo/shared';
+import { type AccountingLineInput, formatDuration, toCents, sumOf } from '@ordo/shared';
 import { useState } from 'react';
 import { useTaskContext } from '../../tasks/hooks/use-task-context';
 import { useTimeEntries } from '../../time/api';
@@ -20,6 +20,8 @@ import { useDataView } from '../../../components/data-table/views/use-data-view'
 import { localDay } from '../../../lib/dates';
 import { FormActions } from '../../../components/dialogs/FormActions';
 import { dateRangeProps } from '../../../components/inputs/date-range';
+import { vatRateOptions } from '../lib/labels';
+import { unarchived } from '../../../lib/archive';
 
 /**
  * What a time was spent on: its tasks, then its description.
@@ -87,7 +89,7 @@ export function TimeBillingForm({ projectId: initialProject, projects, excludeId
   const entries = useTimeEntries(projectId ?? '');
   const { context } = useTaskContext();
   const { data: catalog } = useCatalogItems();
-  const rates = (catalog ?? []).filter((item) => !item.archived && item.kind === 'ITEM' && (item.unit === 'HOUR' || item.unit === 'DAY'));
+  const rates = unarchived(catalog ?? []).filter((item) => item.kind === 'ITEM' && (item.unit === 'HOUR' || item.unit === 'DAY'));
 
   const billable: BillableTime[] = (entries.data ?? [])
     .filter((entry) => entry.duration !== null && !entry.documentId && !excludeIds.includes(entry.id))
@@ -223,15 +225,7 @@ export function TimeBillingForm({ projectId: initialProject, projects, excludeId
         ) : (
           <Checkbox label="Arrondir au quart d’heure supérieur" mt={28} checked={roundQuarter} onChange={(event) => setRoundQuarter(event.currentTarget.checked)} />
         )}
-        {vatApplicable && (
-          <Select
-            label="TVA"
-            allowDeselect={false}
-            data={[...new Set([...VAT_RATES, vatRate])].map((rate) => ({ value: String(rate), label: `${fmt.percent(rate)}` }))}
-            value={String(vatRate)}
-            onChange={(rate) => rate !== null && setVatRate(Number(rate))}
-          />
-        )}
+        {vatApplicable && <Select label="TVA" allowDeselect={false} data={vatRateOptions(vatRate)} value={String(vatRate)} onChange={(rate) => rate !== null && setVatRate(Number(rate))} />}
       </SimpleGrid>
 
       <Group justify="space-between" align="center">

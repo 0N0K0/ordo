@@ -1,7 +1,7 @@
 import { useScheduleTypeItems } from '../hooks/use-settings-items';
 import { ColorField } from '../../../components/inputs/ColorField';
 import { plural } from '../../../lib/text';
-import { Badge, Button, Group, Stack, Text, TextInput } from '@mantine/core';
+import { Badge, Group, Stack, Text, TextInput } from '@mantine/core';
 import { SettingsSection } from '../../../components/settings/SettingsSection';
 import { ByWorkspace } from './ByWorkspace';
 
@@ -15,6 +15,8 @@ import { useDefaultScheduleKind, useForeignScheduleKinds, useScheduleTypes, useW
 import { ScheduleLookEditor } from './ScheduleLookEditor';
 import { LookPanel, LookToggle } from './LookToggle';
 import { SubscriptionRow } from './SubscriptionRow';
+import { ActionButton } from '../../../components/actions/ActionButton';
+import { inWorkspace } from '../lib/layer-label';
 
 /**
  * Schedules without kind: their label, color and display in the calendar (a setting apart, not an item of the list of
@@ -122,7 +124,7 @@ function ForeignSchedules() {
                   kind.subscribed && (
                     <LookToggle
                       label="Couleur et affichage dans cet agenda"
-                      ariaLabel={`Affichage de ${kind.label} (${kind.workspaceLabel})`}
+                      ariaLabel={`Affichage de ${inWorkspace(kind.label, kind.workspaceLabel)}`}
                       opened={opened === key}
                       onToggle={() => setOpened(opened === key ? null : key)}
                     />
@@ -148,14 +150,13 @@ function ForeignSchedules() {
                   <ScheduleLookEditor name={kind.label} value={kind} onChange={(display) => setLook.mutate({ ...target, input: { ...look, ...display } }, ON_ERROR)} />
                   {kind.customized && (
                     <div>
-                      <Button
-                        size="compact-xs"
-                        variant="subtle"
-                        leftSection={<ArrowCounterClockwiseIcon aria-hidden />}
+                      <ActionButton
+                        priority="tertiary"
+                        icon={<ArrowCounterClockwiseIcon aria-hidden />}
                         onClick={() => setLook.mutate({ ...target, input: { color: null, dayDisplay: null, dayBar: null, monthDisplay: null } }, ON_ERROR)}
                       >
                         Reprendre ceux du type
-                      </Button>
+                      </ActionButton>
                     </div>
                   )}
                 </Stack>

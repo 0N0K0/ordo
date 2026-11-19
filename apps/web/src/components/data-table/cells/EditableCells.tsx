@@ -9,6 +9,7 @@ import { AmountInput } from '../../inputs/AmountInput';
 import { currencySymbol } from '../../../lib/format';
 import { accepted, cellCombobox, cellField, cellKeys, checked, stopClick, type CellSchema } from './cell-field';
 import { FRENCH_NUMBER_FORMAT } from '../../inputs/number-format';
+import { EXTERNAL_LINK } from '../../actions/link-props';
 
 interface EditableTextProps {
   value: string | null;
@@ -79,7 +80,7 @@ export function EditableText({ value, label, nullable = false, validate, schema,
   return (
     <Group gap={2} wrap="nowrap">
       {input}
-      <IconAction label={value} component="a" href={value} target="_blank" rel="noopener noreferrer" size="sm" aria-label={`Ouvrir ${value}`} onClick={stopClick}>
+      <IconAction label="Ouvrir le lien" item={value} hint={value} component="a" href={value} {...EXTERNAL_LINK} size="sm" onClick={stopClick}>
         <ArrowSquareOutIcon aria-hidden />
       </IconAction>
     </Group>

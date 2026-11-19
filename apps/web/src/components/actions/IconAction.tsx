@@ -1,4 +1,5 @@
-import { ActionIcon, Indicator, Tooltip, type ActionIconProps } from '@mantine/core';
+import { ActionIcon, Indicator, type ActionIconProps } from '@mantine/core';
+import { ActionTooltip } from './ActionTooltip';
 import type { ComponentPropsWithoutRef, ElementType, ReactNode } from 'react';
 
 /** Props of an element opened by the button (a link, a file, an outside page). */
@@ -33,7 +34,8 @@ interface IconActionOwnProps {
 
 /**
  * Button made of an icon alone, the same everywhere: its action in a tooltip, and the action with the element it acts on
- * as its hidden label (« Modifier « Urgent » »); subtle and gray unless told otherwise.
+ * as its hidden label (« Modifier « Urgent » »); subtle and gray unless told otherwise. The tooltip shows on a disabled
+ * button too.
  * @param {IconActionProps} props Component props (and those of the action icon).
  * @returns {JSX.Element} Button.
  */
@@ -45,7 +47,7 @@ export function IconAction({ label, item, hint, 'aria-label': ariaLabel, indicat
     </ActionIcon>
   );
   return (
-    <Tooltip label={hint ?? label}>
+    <ActionTooltip label={hint ?? label} disabled={Boolean((props as { disabled?: boolean }).disabled)}>
       {indicator === undefined ? (
         button
       ) : (
@@ -53,6 +55,6 @@ export function IconAction({ label, item, hint, 'aria-label': ariaLabel, indicat
           {button}
         </Indicator>
       )}
-    </Tooltip>
+    </ActionTooltip>
   );
 }

@@ -1,5 +1,5 @@
 import type { GraphQLError } from 'graphql';
-import { fieldError, notFound } from '../../graphql/errors';
+import { notFound } from '../../graphql/errors';
 
 /** Model delegate able to find one record by id (`prisma.project`, `tx.client`…). */
 interface FindByIdDelegate {
@@ -24,7 +24,7 @@ export interface LookupOptions {
  * @returns {GraphQLError} NOT_FOUND error, or BAD_USER_INPUT error of the field.
  */
 function missing(what: string, { field }: LookupOptions): GraphQLError {
-  return field ? fieldError(field, `${what} introuvable.`) : notFound(what);
+  return notFound(what, field);
 }
 
 /**

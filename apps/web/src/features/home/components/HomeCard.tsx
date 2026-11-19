@@ -30,7 +30,7 @@ export function HomeCard({ title, icon, to, linkLabel = 'Tout voir', loading, ch
       <Stack gap="sm" h="100%">
         <Group justify="space-between" wrap="nowrap">
           <Group gap="xs" wrap="nowrap">
-            {handle && <DragHandle label={`Déplacer la carte ${title}`} size="sm" {...handle} />}
+            {handle && <DragHandle item={title} size="sm" {...handle} />}
             <ThemeIcon variant="light" radius="md">
               {icon}
             </ThemeIcon>

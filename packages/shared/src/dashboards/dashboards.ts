@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import { requiredText } from '../core/rules';
+import { ACCOUNTING_DOCUMENT_TYPES } from '../accounting/accounting';
 import { calendarStart, shiftCalendar, type CalendarScale } from '../dates/periods';
 import { emptyTableFilter } from '../tables/table-views';
 import { taskTableFilterSchema } from './task-filter-translation';
@@ -100,7 +101,7 @@ export function isTimeDimension(dimension: ChartDimension): boolean {
 /** Documents counted by a chart. */
 export const documentChartFilterSchema = z.object({
   /** Types counted; empty: every type. */
-  types: z.array(z.enum(['QUOTE', 'INVOICE', 'DEPOSIT_INVOICE', 'CREDIT_NOTE'])).default([]),
+  types: z.array(z.enum(ACCOUNTING_DOCUMENT_TYPES)).default([]),
   clientIds: z.array(z.string()).default([]),
   /** Tracking statuses; empty: every status. */
   statusIds: z.array(z.string()).default([]),

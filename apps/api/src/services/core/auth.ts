@@ -8,7 +8,7 @@ import { createSession, destroySession, destroyUserSessions, purgeExpiredSession
 import { prisma } from '../../db';
 import { env } from '../../env';
 import { type Prisma, type User } from '../../generated/prisma/client';
-import { clientError, fieldError, isUniqueConflict, parseInput } from '../../graphql/errors';
+import { clientError, fieldError, isUniqueConflict, parseField, parseInput } from '../../graphql/errors';
 import type { Mail } from '../../mail/mailer';
 import { sendMail } from '../../mail/mailer';
 import { emailChangedNoticeMail, emailChangeMail, passwordChangedNoticeMail, passwordResetMail } from '../../mail/templates';
@@ -105,7 +105,7 @@ export async function logout(res: Response, session: SessionInfo | null): Promis
  * @returns {Promise<void>}
  */
 export async function requestPasswordReset(req: Request, rawIdentifier: string): Promise<void> {
-  const { identifier } = parseInput(z.object({ identifier: identifierSchema }), { identifier: rawIdentifier });
+  const identifier = parseField('identifier', identifierSchema, rawIdentifier);
   await consume(resetRequestLimiter, req.ip ?? 'unknown');
 
   const user = await prisma.user.findUnique({
@@ -138,7 +138,7 @@ export async function requestPasswordReset(req: Request, rawIdentifier: string):
  * @returns {Promise<Prisma.PrismaPromise<unknown>[]>} Writes, for a transaction.
  */
 async function passwordWrites(user: { id: string; username: string; email: string }, password: string): Promise<Prisma.PrismaPromise<unknown>[]> {
-  parseInput(z.object({ password: strongPasswordSchema([user.username, user.email]) }), { password });
+  parseField('password', strongPasswordSchema([user.username, user.email]), password);
   return [prisma.user.update({ where: { id: user.id }, data: { passwordHash: await hashPassword(password) } }), prisma.authToken.deleteMany({ where: { userId: user.id, type: 'PASSWORD_RESET' } })];
 }
 
@@ -178,7 +178,7 @@ export async function changePassword(session: SessionInfo, currentPassword: stri
  */
 export async function changeUsername(session: SessionInfo, currentPassword: string, rawUsername: string): Promise<User> {
   const user = await verifyCurrentPassword(session, currentPassword);
-  const { username } = parseInput(z.object({ username: usernameSchema }), { username: rawUsername });
+  const username = parseField('username', usernameSchema, rawUsername);
   if (username === user.username) return user;
 
   try {
@@ -199,7 +199,7 @@ export async function changeUsername(session: SessionInfo, currentPassword: stri
  */
 export async function requestEmailChange(session: SessionInfo, currentPassword: string, rawEmail: string): Promise<User> {
   const user = await verifyCurrentPassword(session, currentPassword);
-  const { email } = parseInput(z.object({ email: emailSchema }), { email: rawEmail });
+  const email = parseField('email', emailSchema, rawEmail);
 
   if (email === user.email) {
     const message = "C'est déjà votre adresse actuelle.";

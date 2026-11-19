@@ -1,7 +1,7 @@
 import { Text, TextInput, UnstyledButton, type UnstyledButtonProps } from '@mantine/core';
 import { PlusIcon } from '@phosphor-icons/react';
 import { useState, type ComponentPropsWithRef } from 'react';
-import { notifyError } from '../../../lib/notify';
+import { notifyError, notifyFailure } from '../../../lib/notify';
 import classes from './AddRowField.module.css';
 import type { CellSchema } from './cell-field';
 
@@ -41,10 +41,10 @@ export function AddRowField({ label, where, hint, schema, onCreate, onCancel, au
       return;
     }
     setName('');
-    onCreate(result.data).catch((error: Error) => {
+    onCreate(result.data).catch((error: unknown) => {
       // Back in the field, unless another name is being typed.
       setName((current) => current || result.data);
-      notifyError(error.message);
+      notifyFailure(error);
     });
   };
 

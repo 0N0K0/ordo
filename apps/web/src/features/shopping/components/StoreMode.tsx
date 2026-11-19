@@ -16,6 +16,7 @@ import * as fmt from '../../../lib/format';
 import classes from './Shopping.module.css';
 import { FoldChevron } from '../../../components/actions/FoldChevron';
 import { Caption } from '../../../components/page/Caption';
+import { EXTERNAL_LINK } from '../../../components/actions/link-props';
 
 interface HeadingProps {
   name: string;
@@ -79,7 +80,8 @@ export function StoreMode({ list, onClose }: { list: ShoppingList; onClose: () =
   const { setDeliveryReceived } = useStockMutations();
   const propose = useStockProposal();
   const [collapsed, setCollapsed] = useState<ReadonlySet<string>>(new Set());
-  const stores = [...(data?.shoppingStores ?? [])].sort(byPosition);
+  // Stores come in their order (by position).
+  const stores = data?.shoppingStores ?? [];
   const known = new Set(stores.map((store) => store.id));
   const items = [...list.items].sort(byPosition);
   const toBuy = items.filter((item) => !item.purchasedAt);
@@ -193,7 +195,7 @@ export function StoreMode({ list, onClose }: { list: ShoppingList; onClose: () =
                 {delivery.trackingUrl && /^https?:\/\//i.test(delivery.trackingUrl) && (
                   <>
                     {' · '}
-                    <Anchor href={delivery.trackingUrl} target="_blank" rel="noopener noreferrer" size="sm">
+                    <Anchor href={delivery.trackingUrl} {...EXTERNAL_LINK} size="sm">
                       Suivi <ArrowSquareOutIcon aria-hidden style={{ verticalAlign: 'middle' }} />
                     </Anchor>
                   </>

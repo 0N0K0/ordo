@@ -1,6 +1,7 @@
 import { Group, Stack, Title } from '@mantine/core';
 import type { ReactNode } from 'react';
 import { ActionsMenu, type RowMenuEntry } from '../actions/ActionsMenu';
+import type { ActionsSubject } from '../actions/actions-subject';
 import { BackLink } from './BackLink';
 
 interface DetailHeaderProps {
@@ -18,8 +19,8 @@ interface DetailHeaderProps {
   subtitle?: ReactNode;
   /** Buttons on the right (ActionButton, IconAction…), before the menu. Optional. */
   actions?: ReactNode;
-  /** « … » menu of the element: what it is called in its label (« la tâche ») and its entries; « Archiver » always goes there. Optional. */
-  menu?: { name: string; items: readonly RowMenuEntry[] };
+  /** « … » menu of the element: its name or what it is (ActionsSubject: « la tâche ») and its entries; « Archiver » always goes there. Optional. */
+  menu?: ActionsSubject & { items: readonly RowMenuEntry[] };
   /** Smaller menu button, for a header of xs buttons (a side panel). Optional. Default = false. */
   compact?: boolean;
 }
@@ -48,7 +49,7 @@ export function DetailHeader({ back, page, title, order = 2, badges, subtitle, a
         {(actions || menu) && (
           <Group gap="xs" ml="auto" wrap="wrap">
             {actions}
-            {menu && <ActionsMenu name={menu.name} items={menu.items} variant="default" size={compact ? 'input-xs' : 'input-sm'} />}
+            {menu && <ActionsMenu name={menu.name} about={menu.about} items={menu.items} variant="default" size={compact ? 'input-xs' : 'input-sm'} />}
           </Group>
         )}
       </Group>

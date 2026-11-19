@@ -1,5 +1,5 @@
-import { Button, FileButton, Group, Input, Stack, Text } from '@mantine/core';
-import { ICON_MIME_TYPES, MAX_ICON_BYTES } from '@ordo/shared';
+import { FileButton, Group, Input, Stack, Text } from '@mantine/core';
+import { ICON_ERRORS, ICON_MIME_TYPES, MAX_ICON_BYTES } from '@ordo/shared';
 import { ImageIcon, TrashIcon } from '@phosphor-icons/react';
 import { useEffect, useMemo, useState } from 'react';
 import { ItemAvatar } from '../items/ItemAvatar';
@@ -51,11 +51,11 @@ export function IconField({ value, onChange, currentUrl, name, color, error, con
   const handleFile = (file: File | null) => {
     if (!file) return;
     if (!(ICON_MIME_TYPES as readonly string[]).includes(file.type)) {
-      setLocalError('Format non pris en charge (JPG, PNG, WebP ou SVG).');
+      setLocalError(ICON_ERRORS.format);
       return;
     }
     if (file.size > MAX_ICON_BYTES) {
-      setLocalError('Image trop lourde (1 Mo maximum).');
+      setLocalError(ICON_ERRORS.tooLarge);
       return;
     }
     setLocalError(null);
@@ -76,9 +76,9 @@ export function IconField({ value, onChange, currentUrl, name, color, error, con
               )}
             </FileButton>
             {shownUrl && (
-              <Button variant="subtle" color="red" size="xs" leftSection={<TrashIcon aria-hidden />} onClick={() => onChange({ file: null, remove: true })}>
+              <ActionButton priority="tertiary" danger icon={<TrashIcon aria-hidden />} onClick={() => onChange({ file: null, remove: true })}>
                 Retirer
-              </Button>
+              </ActionButton>
             )}
           </Group>
           <Text size="xs" c="dimmed">

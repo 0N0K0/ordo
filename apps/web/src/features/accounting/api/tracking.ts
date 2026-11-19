@@ -1,11 +1,10 @@
 import { unarchived } from '../../../lib/archive';
 import { useQuery } from '@tanstack/react-query';
-import { useInvalidatingMutation } from '../../../lib/mutation';
 import type { DocumentPaymentInput, DocumentStatusCategory, DocumentStatusScope, SendingChannel } from '@ordo/shared';
 import { graphql } from '../../../graphql';
 import type { DocumentStatusesQuery, OverdueInvoicesQuery } from '../../../graphql/graphql';
 import { execute } from '../../../lib/graphql-client';
-import { accountingQueryKey } from './index';
+import { accountingQueryKey, useAccountingMutation } from './index';
 
 export type DocumentStatus = DocumentStatusesQuery['documentStatuses'][number];
 export type OverdueInvoice = OverdueInvoicesQuery['overdueInvoices'][number];
@@ -132,15 +131,6 @@ export function useOverdueInvoices(today: string) {
     queryKey: [...accountingQueryKey, 'overdue', today],
     queryFn: async () => unarchived((await execute(OverdueInvoicesDocument, { today })).overdueInvoices),
   });
-}
-
-/**
- * Mutation refreshing the accounting data (documents, statuses, treasury) once done.
- * @param {(variables: TVariables) => Promise<TResult>} mutationFn Request.
- * @returns {UseMutationResult} Mutation state.
- */
-function useAccountingMutation<TVariables, TResult>(mutationFn: (variables: TVariables) => Promise<TResult>) {
-  return useInvalidatingMutation(mutationFn, { invalidate: [accountingQueryKey] });
 }
 
 /**

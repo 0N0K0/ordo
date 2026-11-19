@@ -1,10 +1,7 @@
 import { sumOf } from '@ordo/shared';
-import { PDF_TABLE, PDF_TEXT, REPORT_MARGIN, reportHeadingSchema, startReport, writeHeading } from './pdf-report';
-import PDFDocument from 'pdfkit';
+import { PDF_TABLE, PDF_TEXT, type PdfDoc, REPORT_MARGIN, reportHeadingSchema, startReport, writeHeading } from './pdf-report';
 import { z } from 'zod';
 import { parseInput } from '../../graphql/errors';
-
-type Doc = InstanceType<typeof PDFDocument>;
 
 /** Table printed as a PDF: the rows and columns the user sees, already formatted. */
 const tablePdfSchema = reportHeadingSchema.extend({
@@ -28,7 +25,6 @@ const tablePdfSchema = reportHeadingSchema.extend({
 type TablePdfInput = z.input<typeof tablePdfSchema>;
 
 const COLORS = { ...PDF_TEXT, ...PDF_TABLE, task: '#2f9e44', event: '#1c7ed6' };
-const MARGIN = REPORT_MARGIN;
 const PAD = 4;
 const FONT_SIZE = 8;
 const INDENT = 10;
@@ -40,12 +36,12 @@ const MAX_NATURAL = { first: 340, other: 170 };
 /**
  * Column widths fitting the page: each column at least as wide as its longest word, at most its longest text
  * (capped); the room left is shared in proportion, and narrow pages shrink the wide columns first.
- * @param {Doc} doc PDF document (fonts registered).
+ * @param {PdfDoc} doc PDF document (fonts registered).
  * @param {z.infer<typeof tablePdfSchema>} table Table.
  * @param {number} pageWidth Width to fill.
  * @returns {number[]} Widths.
  */
-function columnWidths(doc: Doc, table: z.infer<typeof tablePdfSchema>, pageWidth: number): number[] {
+function columnWidths(doc: PdfDoc, table: z.infer<typeof tablePdfSchema>, pageWidth: number): number[] {
   const measure = (text: string, bold: boolean) =>
     doc
       .font(bold ? 'bold' : 'regular')
@@ -80,13 +76,13 @@ export async function tablePdf(input: TablePdfInput): Promise<Buffer> {
   const table = parseInput(tablePdfSchema, input);
   const { doc, top, finish } = await startReport({ title: table.title });
 
-  const pageWidth = doc.page.width - 2 * MARGIN;
+  const pageWidth = doc.page.width - 2 * REPORT_MARGIN;
   const widths = columnWidths(doc, table, pageWidth);
-  const xs = widths.map((_, index) => MARGIN + sumOf(widths.slice(0, index), (width) => width));
+  const xs = widths.map((_, index) => REPORT_MARGIN + sumOf(widths.slice(0, index), (width) => width));
   const bottom = () => doc.page.height - doc.page.margins.bottom;
   let y = top;
 
-  y = writeHeading(doc, table, { x: MARGIN, y, width: pageWidth }) + 8;
+  y = writeHeading(doc, table, { x: REPORT_MARGIN, y, width: pageWidth }) + 8;
 
   /**
    * Header row (column labels).
@@ -95,7 +91,7 @@ export async function tablePdf(input: TablePdfInput): Promise<Buffer> {
   const header = () => {
     doc.font('bold').fontSize(FONT_SIZE);
     const height = Math.max(...table.columns.map((label, index) => doc.heightOfString(label, { width: widths[index] - 2 * PAD }))) + 2 * PAD;
-    doc.rect(MARGIN, y, pageWidth, height).fill(COLORS.fill);
+    doc.rect(REPORT_MARGIN, y, pageWidth, height).fill(COLORS.fill);
     doc.fillColor(COLORS.text);
     table.columns.forEach((label, index) => doc.text(label, xs[index] + PAD, y + PAD, { width: widths[index] - 2 * PAD, align: table.align[index] ?? 'left' }));
     y += height;
@@ -120,8 +116,8 @@ export async function tablePdf(input: TablePdfInput): Promise<Buffer> {
       const label = row.cells[0] ?? '';
       const height = doc.heightOfString(label, { width: pageWidth - 2 * PAD }) + 2 * PAD;
       ensure(height + 14);
-      doc.rect(MARGIN, y, pageWidth, height).fill(COLORS.group);
-      doc.fillColor(COLORS.text).text(label, MARGIN + PAD, y + PAD, { width: pageWidth - 2 * PAD });
+      doc.rect(REPORT_MARGIN, y, pageWidth, height).fill(COLORS.group);
+      doc.fillColor(COLORS.text).text(label, REPORT_MARGIN + PAD, y + PAD, { width: pageWidth - 2 * PAD });
       y += height;
       continue;
     }
@@ -134,7 +130,7 @@ export async function tablePdf(input: TablePdfInput): Promise<Buffer> {
     // The header repeated on a new page leaves the bold font.
     doc.font('regular').fontSize(FONT_SIZE);
     // Marker: square for a task, dot for an event.
-    const markerX = MARGIN + PAD + row.depth * INDENT;
+    const markerX = REPORT_MARGIN + PAD + row.depth * INDENT;
     const markerY = y + PAD + FONT_SIZE / 2;
     if (row.kind === 'event') doc.circle(markerX + 2.5, markerY, 2.5).fill(COLORS.event);
     else if (!plain)
@@ -146,8 +142,8 @@ export async function tablePdf(input: TablePdfInput): Promise<Buffer> {
     table.columns.forEach((_, index) => doc.text(row.cells[index] ?? '', xs[index] + PAD + (index === 0 ? indent : 0), y + PAD, { width: cellWidth(index), align: table.align[index] ?? 'left' }));
     y += height;
     doc
-      .moveTo(MARGIN, y)
-      .lineTo(MARGIN + pageWidth, y)
+      .moveTo(REPORT_MARGIN, y)
+      .lineTo(REPORT_MARGIN + pageWidth, y)
       .lineWidth(0.4)
       .strokeColor(COLORS.border)
       .stroke();

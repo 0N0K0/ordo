@@ -1,5 +1,5 @@
 import { LabeledField } from '../../../components/inputs/LabeledField';
-import { Group, Text, Tooltip } from '@mantine/core';
+import { Group, Text } from '@mantine/core';
 import { formatDuration } from '@ordo/shared';
 import { PlayIcon } from '@phosphor-icons/react';
 import type { Task } from '../../tasks/api';
@@ -30,18 +30,17 @@ export function TaskTime({ task }: { task: Task }) {
             <TimerControls entry={running.data} size="sm" look="header" />
           </Group>
         ) : (
-          <Tooltip label={TIMER_REPLACED_HINT} disabled={!replacing}>
-            <ActionButton
-              priority="secondary"
-              size="compact-sm"
-              icon={<PlayIcon aria-hidden />}
-              loading={isPending}
-              disabled={task.archived}
-              onClick={() => startTimer({ projectId: task.projectId, taskIds: [task.id] })}
-            >
-              Démarrer le chrono
-            </ActionButton>
-          </Tooltip>
+          <ActionButton
+            priority="secondary"
+            size="compact-sm"
+            icon={<PlayIcon aria-hidden />}
+            hint={replacing && !task.archived ? TIMER_REPLACED_HINT : undefined}
+            loading={isPending}
+            disabled={task.archived}
+            onClick={() => startTimer({ projectId: task.projectId, taskIds: [task.id] })}
+          >
+            Démarrer le chrono
+          </ActionButton>
         )}
       </Group>
     </LabeledField>

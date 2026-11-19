@@ -45,7 +45,7 @@ export function SidebarSection({ title, count, opened, onToggle, onSetAllExpande
             </Badge>
           )}
         </UnstyledButton>
-        <ActionsMenu name={`la section ${title}`} size="sm" items={[...(actions ?? []), 'divider', ...(onSetAllExpanded ? foldEntries(onSetAllExpanded) : [])]} />
+        <ActionsMenu about={`la section « ${title} »`} size="sm" items={[...(actions ?? []), 'divider', ...(onSetAllExpanded ? foldEntries(onSetAllExpanded) : [])]} />
       </div>
       <Collapse expanded={opened} transitionDuration={150}>
         {children}

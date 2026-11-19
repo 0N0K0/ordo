@@ -2,8 +2,8 @@ import { tableKeySchema, tableViewConfigSchema, taskViewLabelSchema } from '@ord
 import { z } from 'zod';
 import { prisma } from '../../db';
 import type { Prisma, TaskView, ViewKind } from '../../generated/prisma/client';
-import { clientError, orNotFound, parseInput } from '../../graphql/errors';
-import { moveInList, nextPositionIn } from '../core/ordering';
+import { clientError, orNotFound, parseField, parseInput } from '../../graphql/errors';
+import { BY_POSITION, moveInList, nextPositionIn } from '../core/ordering';
 import { assertExists } from '../core/lookup';
 
 /**
@@ -25,7 +25,7 @@ async function findView(id: string): Promise<TaskView> {
  */
 function parseConfig(kind: ViewKind, config: unknown): Prisma.InputJsonObject {
   if (kind !== 'TABLE') throw clientError('BAD_USER_INPUT', 'Ce type de vue n’existe plus : les vues sont celles des tableaux.');
-  return parseInput(z.object({ config: tableViewConfigSchema }), { config }).config as unknown as Prisma.InputJsonObject;
+  return parseField('config', tableViewConfigSchema, config) as unknown as Prisma.InputJsonObject;
 }
 
 /**
@@ -59,7 +59,7 @@ const scopeOf = (view: TaskView) => viewScope(view.projectId, view.kind, view.ta
 export async function createView(input: { label: string; config: unknown; projectId?: string | null; kind?: ViewKind | null; tableKey?: string | null }): Promise<TaskView> {
   const { label } = parseInput(z.object({ label: taskViewLabelSchema }), input);
   const kind = input.kind ?? 'TABLE';
-  const tableKey = kind === 'TABLE' ? parseInput(z.object({ tableKey: tableKeySchema }), { tableKey: input.tableKey }).tableKey : null;
+  const tableKey = kind === 'TABLE' ? parseField('tableKey', tableKeySchema, input.tableKey) : null;
   const config = parseConfig(kind, input.config);
   const projectId = input.projectId ?? null;
   await assertExists(prisma.project, projectId, 'Projet');
@@ -79,7 +79,7 @@ export async function createView(input: { label: string; config: unknown; projec
  */
 export async function updateView(id: string, input: { label?: string | null; config?: unknown }): Promise<TaskView> {
   const view = await findView(id);
-  const { label } = parseInput(z.object({ label: taskViewLabelSchema.optional() }), { label: input.label ?? undefined });
+  const label = parseField('label', taskViewLabelSchema.optional(), input.label ?? undefined);
   const config = input.config === undefined || input.config === null ? undefined : parseConfig(view.kind, input.config);
   return prisma.taskView.update({ where: { id }, data: { label, config } });
 }
@@ -93,7 +93,7 @@ export async function updateView(id: string, input: { label?: string | null; con
 export async function duplicateView(id: string, label: string): Promise<TaskView> {
   const source = await findView(id);
   const copy = await createView({ label, config: source.config, projectId: source.projectId, kind: source.kind, tableKey: source.tableKey });
-  const ids = (await prisma.taskView.findMany({ where: scopeOf(source), orderBy: { position: 'asc' }, select: { id: true } })).map((v) => v.id);
+  const ids = (await prisma.taskView.findMany({ where: scopeOf(source), orderBy: BY_POSITION, select: { id: true } })).map((v) => v.id);
   await moveView(copy.id, ids.indexOf(source.id) + 1);
   return copy;
 }
@@ -109,7 +109,7 @@ export async function deleteView(id: string): Promise<void> {
   if (view.isDefault) {
     const first = await prisma.taskView.findFirst({
       where: scopeOf(view),
-      orderBy: { position: 'asc' },
+      orderBy: BY_POSITION,
       select: { id: true },
     });
     if (first) await prisma.taskView.update({ where: { id: first.id }, data: { isDefault: true } });

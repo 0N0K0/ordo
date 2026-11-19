@@ -25,6 +25,15 @@ export function ordinal(value: number): string {
   return value === 1 ? '1er' : `${value}e`;
 }
 
+/**
+ * Day of a month as told in French (decision V): « 1er » for the first, the number otherwise (« le 1er », « le 15 »).
+ * @param {number} day Day of the month (1 to 31).
+ * @returns {string} Text.
+ */
+export function dayOfMonthText(day: number): string {
+  return day === 1 ? ordinal(1) : String(day);
+}
+
 /** Names of the positions of a weekday in its month (decision V): « 1er » to « 4e », and « dernier » (-1). */
 export const POSITION_LABELS: Record<number, string> = { 1: ordinal(1), 2: ordinal(2), 3: ordinal(3), 4: ordinal(4), [-1]: 'dernier' };
 

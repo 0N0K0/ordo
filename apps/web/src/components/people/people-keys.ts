@@ -18,6 +18,16 @@ type People = Partial<Record<PersonKind, string[]>>;
 export const personKey = (kind: PersonKind, id: string): string => `${PREFIX[kind]}:${id}`;
 
 /**
+ * Options of people of one kind, from their names by id: the value is their people key.
+ * @param {PersonKind} kind Kind of the people.
+ * @param {ReadonlyMap<string, string>} names Names by id.
+ * @returns {{ value: string, label: string }[]} Options.
+ */
+export const personKeyOptions = (kind: PersonKind, names: ReadonlyMap<string, string>): { value: string; label: string }[] =>
+  // eslint-disable-next-line no-restricted-syntax -- personKeyOptions itself.
+  [...names].map(([id, label]) => ({ value: personKey(kind, id), label }));
+
+/**
  * Kind and id of a select value.
  * @param {string | null | undefined} key Key.
  * @returns {{ kind: PersonKind, id: string } | null} Person, null for none or an unknown key.

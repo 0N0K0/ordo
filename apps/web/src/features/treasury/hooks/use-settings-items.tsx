@@ -2,7 +2,7 @@ import { Checkbox, Group, SimpleGrid, Text, Textarea } from '@mantine/core';
 import { DatePickerInput } from '@mantine/dates';
 import { treasuryAccountSchema, treasuryCategorySchema, treasuryCounterpartySchema, treasuryPaymentMethodSchema, type TreasuryDirection } from '@ordo/shared';
 import { AmountInput } from '../../../components/inputs/AmountInput';
-import { itemMutations } from '../../../components/settings/settings-api';
+import { itemMutations, treeItemInput, type TreeItemValues } from '../../../components/settings/settings-api';
 import type { SettingsItemKind } from '../../../components/settings/SettingsItemForm';
 import { localToday } from '../../../lib/dates';
 import { itemCreator } from '../../../components/settings/create-settings-item';
@@ -70,10 +70,10 @@ export function useCategoryItems(direction: TreasuryDirection): SettingsItemKind
   const { createCategory, updateCategory } = useTreasuryMutations();
   /**
    * Input of a category from the form values.
-   * @param {{ label: string, color: string, parentId: string | null }} values Values.
+   * @param {TreeItemValues} values Values.
    * @returns {object} Input.
    */
-  const input = (values: { label: string; color: string; parentId: string | null }) => ({ label: values.label, color: values.color || null, direction, parentId: values.parentId });
+  const input = (values: TreeItemValues) => ({ ...treeItemInput(values), direction });
   return {
     kind: 'TREASURY_CATEGORY',
     schema: treasuryCategorySchema,
@@ -130,6 +130,7 @@ export function useCounterpartyItems(): SettingsItemKind<TreasuryCounterpartyIte
     kind: 'TREASURY_COUNTERPARTY',
     colorRequired: false,
     labelPlaceholder: 'Fournisseur, administration, banque…',
+    labelField: 'Nom',
     schema: COUNTERPARTY_FORM_SCHEMA,
     extra: {
       initial: (counterparty) => ({ note: counterparty?.note ?? '' }),

@@ -1,6 +1,6 @@
 import { openFormPanel } from '../../../components/panels/panels';
 import type { RowMenuEntry } from '../../../components/actions/ActionsMenu';
-import type { AccountingDocumentType } from '@ordo/shared';
+import { ACCOUNTING_DOCUMENT_TYPES, type AccountingDocumentType } from '@ordo/shared';
 import { FileArrowUpIcon, FileTextIcon } from '@phosphor-icons/react';
 import { DepositInvoiceForm } from '../components/DepositInvoiceForm';
 import { DOCUMENT_TYPE_LABELS, NEW_DOCUMENT_TITLES } from './labels';
@@ -37,7 +37,7 @@ export function openNewDocument(type: AccountingDocumentType, preset: { clientId
  */
 export function newDocumentMenu(preset: { clientId?: string | null; projectId?: string | null } = {}): RowMenuEntry[] {
   return [
-    ...(['QUOTE', 'INVOICE', 'DEPOSIT_INVOICE', 'CREDIT_NOTE'] as const).map((type) => ({
+    ...ACCOUNTING_DOCUMENT_TYPES.map((type) => ({
       label: DOCUMENT_TYPE_LABELS[type],
       icon: <FileTextIcon aria-hidden />,
       onClick: () => openNewDocument(type, preset),

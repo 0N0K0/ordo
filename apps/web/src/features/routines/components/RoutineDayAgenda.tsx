@@ -1,3 +1,4 @@
+import { archivedIds } from '../../../lib/archive';
 import { openFormPanel } from '../../../components/panels/panels';
 import { ArrowCounterClockwiseIcon, CheckCircleIcon, ClockIcon } from '@phosphor-icons/react';
 import type { EventClickArg, EventInput } from '@fullcalendar/core';
@@ -5,7 +6,7 @@ import frLocale from '@fullcalendar/core/locales/fr';
 import interactionPlugin from '@fullcalendar/interaction';
 import FullCalendar from '@fullcalendar/react';
 import timeGridPlugin from '@fullcalendar/timegrid';
-import { Button, Group, Stack, Text } from '@mantine/core';
+import { Group, Stack, Text } from '@mantine/core';
 import { DatePickerInput, TimePicker } from '@mantine/dates';
 import { addDays, plannedSlots, shiftTime } from '@ordo/shared';
 import { useMemo, useState } from 'react';
@@ -13,7 +14,7 @@ import { localDay, localInstant } from '../../../lib/dates';
 import { notifyWithUndo, ON_ERROR } from '../../../lib/notify';
 import { useCalendarEvents, useCalendars, useScheduleSources, useSubscribedCalendarEvents } from '../../calendar/api';
 import { useNow } from '../../../lib/use-now';
-import { occurrenceSpan, scheduleSources, slotBarLook } from '../../calendar/lib/calendar-events';
+import { isArchivedOccurrence, occurrenceSpan, scheduleSources, slotBarLook } from '../../calendar/lib/calendar-events';
 import calendarClasses from '../../calendar/pages/CalendarPage.module.css';
 import { useRoutineMutations, type Routine, type RoutineCheck } from '../api';
 import { windowText } from '../lib/routine-format';
@@ -131,9 +132,9 @@ function TickForm({ item, routine, today, onDone }: TickFormProps) {
             Décocher
           </ActionButton>
         )}
-        <Button leftSection={item.check ? <ClockIcon aria-hidden /> : <CheckCircleIcon aria-hidden />} onClick={() => save(true)} disabled={!routine || !time || future} loading={setDone.isPending}>
+        <ActionButton icon={item.check ? <ClockIcon aria-hidden /> : <CheckCircleIcon aria-hidden />} onClick={() => save(true)} disabled={!routine || !time || future} loading={setDone.isPending}>
           {item.check ? 'Changer l’heure' : 'Cocher comme faite'}
-        </Button>
+        </ActionButton>
       </Group>
     </Stack>
   );
@@ -165,9 +166,12 @@ export function RoutineDayAgenda({ day, today, items, byId, layers }: RoutineDay
   const range = useMemo(() => ({ from: day, to: day }), [day]);
   const { data: calendars } = useCalendars();
   const { schedules, foreign, types, defaultKind } = useScheduleSources();
-  const shownCalendars = new Set(layers.calendarIds);
+  // Archived calendars (and archived events) are hidden, even when a saved layer still names them.
+  const archivedCalendars = archivedIds(calendars?.calendars);
+  const calendarIds = layers.calendarIds.filter((id) => !archivedCalendars.has(id));
+  const shownCalendars = new Set(calendarIds);
   const subscriptions = (calendars?.calendarSubscriptions ?? []).filter((subscription) => shownCalendars.has(subscription.calendarId));
-  const ownEvents = useCalendarEvents(layers.calendarIds.length ? range : null);
+  const ownEvents = useCalendarEvents(calendarIds.length ? range : null);
   const subscribedEvents = useSubscribedCalendarEvents(subscriptions.length ? range : null);
 
   const events: EventInput[] = [];
@@ -200,7 +204,7 @@ export function RoutineDayAgenda({ day, today, items, byId, layers }: RoutineDay
   const calendarColor = new Map((calendars?.calendars ?? []).map((calendar) => [calendar.id, calendar.color]));
   const subscriptionColor = new Map(subscriptions.map((subscription) => [subscription.calendarId, subscription.color]));
   for (const occurrence of [...(ownEvents.data ?? []), ...(subscribedEvents.data ?? [])]) {
-    if (!shownCalendars.has(occurrence.calendarId)) continue;
+    if (!shownCalendars.has(occurrence.calendarId) || isArchivedOccurrence(occurrence, archivedCalendars)) continue;
     const color = calendarColor.get(occurrence.calendarId) ?? subscriptionColor.get(occurrence.calendarId) ?? 'var(--mantine-primary-color-filled)';
     events.push({
       id: `event:${occurrence.key}`,

@@ -77,7 +77,7 @@ export function entryValues(entry: TreasuryEntry | ForecastEntry | undefined, de
         memberId: line.memberId ?? null,
         relationId: line.relationId ?? null,
         loan: line.loan,
-        date: line.date ? line.date : null,
+        date: line.date || null,
         categoryId: line.categoryId ?? null,
         contextId: line.contextId ?? null,
         projectId: line.projectId ?? null,

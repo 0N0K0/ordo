@@ -1,10 +1,10 @@
-import { collator, NO_SUBJECT, sameName, sumOf } from '@ordo/shared';
+import { collator, type MailSortBy, NO_SUBJECT, sameName, sumOf, UNNAMED_FILE } from '@ordo/shared';
 import type { FetchMessageObject, ImapFlow, ListResponse, MessageAddressObject, MessageStructureObject } from 'imapflow';
 import { simpleParser, type AddressObject, type ParsedMail } from 'mailparser';
 import { prisma } from '../../db';
 import { assertNotArchived } from '../core/archive';
-import { clientError, notFound } from '../../graphql/errors';
-import { withImap, withMailbox } from './imap';
+import { notFound } from '../../graphql/errors';
+import { folderLabel, INBOX, isInbox, isSelectable, selectableFolders, withImap, withMailbox } from './imap';
 import { findSpecialFolder } from './organize';
 import { DONE_KEYWORD, keywordLabel, messageIdsOf, takesKeywords } from './keywords';
 import { sanitizeMailHtml } from './sanitize';
@@ -159,7 +159,7 @@ export async function listFolders(accountId: string): Promise<MailFolder[]> {
     // Mails to do in each folder: without the done keyword, or without a done mark kept in Ordo.
     const todo = new Map<string, number>();
     for (const folder of folders) {
-      if (folder.flags.has('\\Noselect') || folder.flags.has('\\NonExistent') || NO_TODO.has(folder.specialUse ?? '')) continue;
+      if (!isSelectable(folder) || NO_TODO.has(folder.specialUse ?? '')) continue;
       const lock = await client.getMailboxLock(folder.path).catch(() => null);
       if (!lock) continue;
       try {
@@ -174,17 +174,16 @@ export async function listFolders(accountId: string): Promise<MailFolder[]> {
       }
     }
     const rank = (folder: ListResponse) => {
-      if (folder.path.toUpperCase() === 'INBOX') return 0;
+      if (isInbox(folder.path)) return 0;
       const index = SPECIAL_ORDER.indexOf(folder.specialUse ?? '');
       return index < 0 ? SPECIAL_ORDER.length : index;
     };
-    return folders
-      .filter((folder) => !folder.flags.has('\\Noselect') && !folder.flags.has('\\NonExistent'))
+    return selectableFolders(folders)
       .sort((a, b) => rank(a) - rank(b) || collator.compare(a.path, b.path))
       .map((folder) => ({
         path: folder.path,
-        name: folder.path.toUpperCase() === 'INBOX' ? 'Réception' : folder.name,
-        specialUse: folder.path.toUpperCase() === 'INBOX' ? '\\Inbox' : (folder.specialUse ?? null),
+        name: folderLabel(folder),
+        specialUse: isInbox(folder.path) ? '\\Inbox' : (folder.specialUse ?? null),
         unseen: folder.status?.unseen ?? 0,
         depth: folder.parent.length,
         parent: folder.parentPath || null,
@@ -218,12 +217,12 @@ export function todoMails(): Promise<number> {
  * @returns {Promise<number>} Count; accounts that cannot be reached are skipped.
  */
 export function unreadInboxes(): Promise<number> {
-  return sumOverAccounts(async (accountId) => (await withImap(accountId, async (client) => (await client.status('INBOX', { unseen: true })) || null))?.unseen ?? 0);
+  return sumOverAccounts(async (accountId) => (await withImap(accountId, async (client) => (await client.status(INBOX, { unseen: true })) || null))?.unseen ?? 0);
 }
 
 /** Order of the mails of a folder. */
 interface MailSort {
-  by: 'date' | 'correspondent' | 'subject' | 'size';
+  by: MailSortBy;
   ascending: boolean;
 }
 
@@ -369,6 +368,14 @@ export async function fetchParsed(accountId: string, folder: string, uid: number
 }
 
 /**
+ * Name of an attachment of a message: its own, or « sans-nom-2 » (its number) without one.
+ * @param {{ filename?: string }} attachment Attachment.
+ * @param {number} index Its index in the message.
+ * @returns {string} File name.
+ */
+const attachmentName = (attachment: { filename?: string }, index: number): string => attachment.filename || `${UNNAMED_FILE}-${index + 1}`;
+
+/**
  * Attachments of a parsed message, numbered in order.
  * @param {ParsedMail} parsed Parsed message.
  * @returns {MailAttachmentInfo[]} Attachments.
@@ -376,7 +383,7 @@ export async function fetchParsed(accountId: string, folder: string, uid: number
 export function attachmentInfos(parsed: ParsedMail): MailAttachmentInfo[] {
   return parsed.attachments.map((attachment, index) => ({
     index,
-    filename: attachment.filename || `piece-jointe-${index + 1}`,
+    filename: attachmentName(attachment, index),
     contentType: attachment.contentType,
     size: attachment.size,
     inline: Boolean(attachment.related && attachment.contentId),
@@ -478,6 +485,6 @@ export async function deleteMessages(accountId: string, folder: string, uids: nu
 export async function messageAttachment(accountId: string, folder: string, uid: number, index: number) {
   const parsed = await fetchParsed(accountId, folder, uid);
   const attachment = parsed.attachments[index];
-  if (!attachment) throw clientError('NOT_FOUND', 'Pièce jointe introuvable.');
-  return { filename: attachment.filename || `piece-jointe-${index + 1}`, contentType: attachment.contentType, content: attachment.content };
+  if (!attachment) throw notFound('Pièce jointe');
+  return { filename: attachmentName(attachment, index), contentType: attachment.contentType, content: attachment.content };
 }

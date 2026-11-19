@@ -1,3 +1,4 @@
+import { useSearchParam } from '../../../lib/search-params';
 import { unarchived } from '../../../lib/archive';
 import { ErrorAlert } from '../../../components/feedback/ErrorAlert';
 import { ActionButton } from '../../../components/actions/ActionButton';
@@ -6,11 +7,10 @@ import { Group, Select, Switch, Text, Tooltip } from '@mantine/core';
 import { addDays, DATE_PERIOD_LABELS, EVENT_PERIODS, type EventPeriod, filterPeriod, TASK_GROUP_BY, type TaskGroupBy } from '@ordo/shared';
 import { AlarmIcon, ArrowsClockwiseIcon, ChatCircleIcon, CheckSquareOffsetIcon, GithubLogoIcon, PlusIcon, SidebarSimpleIcon, TreeViewIcon } from '@phosphor-icons/react';
 import { useMemo, type ReactNode } from 'react';
-import { useSearchParams } from 'react-router';
 
 import { DataTable, type RowMove } from '../../../components/data-table/table/DataTable';
 import { RowActions } from '../../../components/data-table/cells/RowActions';
-import { useDataView, useTableViews, type FirstTableView } from '../../../components/data-table/views/use-data-view';
+import { useDataView, useTableViews, type FirstTableView, conditionFilter } from '../../../components/data-table/views/use-data-view';
 import { localToday } from '../../../lib/dates';
 import { ON_ERROR } from '../../../lib/notify';
 import * as fmt from '../../../lib/format';
@@ -64,7 +64,7 @@ const EVENT_PERIOD_LABELS: Record<EventPeriod, string> = {
 
 /** Views made the first time: the open tasks, mine, all. */
 const TASK_VIEWS: FirstTableView[] = [
-  { label: 'En cours', config: { filter: { type: 'group', id: 'root', combinator: 'and', children: [{ type: 'condition', id: 'open', field: 'closed', operator: 'isFalse', value: null }] } } },
+  { label: 'En cours', config: { filter: conditionFilter('closed', 'isFalse', null, 'open') } },
   {
     label: 'Mes tâches',
     config: {
@@ -132,8 +132,7 @@ export function TaskBoard({ projectId, projectIds, createProjectId, header, empt
   const selectionActions = useTaskSelectionActions(context);
   const alarmCounts = useTaskAlarmCounts();
   const { data: shoppingLists } = useShoppingLists();
-  const [params] = useSearchParams();
-  const openId = params.get(TASK_PARAM);
+  const [openId] = useSearchParam(TASK_PARAM);
   const today = localToday();
   const tasks = useMemo(
     () =>
@@ -233,7 +232,7 @@ export function TaskBoard({ projectId, projectIds, createProjectId, header, empt
       return {
         ...texts,
         comments: <CommentCount count={commentTotal(eventComments.get(event.eventId), event.description)} />,
-        title: <EventTitleCell event={event} context={context} />,
+        label: <EventTitleCell event={event} context={context} />,
         assignees: <EventPeopleCell event={event} context={context} />,
         beneficiaries: <EventBeneficiariesCell event={event} />,
         status: <EventStatusCell event={event} />,
@@ -245,7 +244,7 @@ export function TaskBoard({ projectId, projectIds, createProjectId, header, empt
     const task = row.task;
     return {
       ...texts,
-      title: (
+      label: (
         <TitleCell
           task={task}
           context={context}
@@ -366,7 +365,7 @@ export function TaskBoard({ projectId, projectIds, createProjectId, header, empt
         actions={(row) =>
           row.kind === 'task' && (
             <RowActions
-              name={`la tâche ${taskName(row.task)}`}
+              about={`la tâche ${taskName(row.task)}`}
               primary={{ label: 'Ouvrir', icon: <SidebarSimpleIcon aria-hidden />, onClick: () => taskLink.open(row.task.id) }}
               items={[
                 // An archived task is read only: no sub-task added under it.

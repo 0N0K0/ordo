@@ -2,8 +2,8 @@ import { Group, Select, Switch } from '@mantine/core';
 import { GROUP_PERIODS, SCALE_LABELS, type GroupPeriod } from '@ordo/shared';
 import { FileCsvIcon, FilePdfIcon } from '@phosphor-icons/react';
 import { BulkHint } from '../selection/BulkHint';
-import { useState, type ReactNode } from 'react';
-import { onMutationError } from '../../../lib/notify';
+import type { ReactNode } from 'react';
+import { useAsyncAction } from '../../../lib/use-async-action';
 import { FieldsFilterBuilder } from '../../filters/FilterBuilder';
 import { countConditions } from '../../filters/filter-meta';
 import { ViewTabs } from '../views/ViewTabs';
@@ -25,24 +25,13 @@ const PERIOD_LABELS: Record<GroupPeriod, string> = { DAY: SCALE_LABELS.day, WEEK
  * @returns {JSX.Element} Buttons.
  */
 function ExportButtons<R>({ table, disabled = false }: { table: () => TableExport<R>; disabled?: boolean }) {
-  const [exporting, setExporting] = useState(false);
+  const pdf = useAsyncAction(() => downloadTablePdf(table()));
   return (
     <Group gap="xs" grow>
       <ActionButton priority="secondary" icon={<FileCsvIcon aria-hidden />} disabled={disabled} onClick={() => downloadTableCsv(table())}>
         CSV
       </ActionButton>
-      <ActionButton
-        priority="secondary"
-        icon={<FilePdfIcon aria-hidden />}
-        disabled={disabled}
-        loading={exporting}
-        onClick={() => {
-          setExporting(true);
-          downloadTablePdf(table())
-            .catch(onMutationError)
-            .finally(() => setExporting(false));
-        }}
-      >
+      <ActionButton priority="secondary" icon={<FilePdfIcon aria-hidden />} disabled={disabled} loading={pdf.loading} onClick={() => pdf.run()}>
         PDF
       </ActionButton>
     </Group>

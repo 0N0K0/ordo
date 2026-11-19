@@ -3,13 +3,13 @@ import { AppShell, Burger, Button, Group, Stack } from '@mantine/core';
 import { ActionsMenu } from '../../components/actions/ActionsMenu';
 import { useDisclosure, useLocalStorage } from '@mantine/hooks';
 import { ModalsProvider } from '@mantine/modals';
-import { CaretDownIcon, SignOutIcon, UserIcon } from '@phosphor-icons/react';
+import { SignOutIcon, UserIcon } from '@phosphor-icons/react';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Outlet, useLocation } from 'react-router';
 import { useLogout, useMe } from '../../features/auth/api';
 import { TaskPanel } from '../../features/tasks/components/TaskPanel';
 import { AlarmCenter } from '../../features/alarms/components/AlarmCenter';
-import { Sidebar } from '../../features/workspace/components/Sidebar';
+import { Sidebar } from '../../features/projects/components/Sidebar';
 import { MailWatcher } from '../../features/mail/components/MailWatcher';
 import { ElsewhereNotifier } from '../../features/workspaces/components/ElsewhereNotifier';
 import { WorkspaceGate } from '../../features/workspaces/components/WorkspaceGate';
@@ -29,6 +29,7 @@ import { SETTINGS_PANEL, SIDEBAR_PANEL } from './panel-widths';
 import { ResizeHandle } from './ResizeHandle';
 import { useIsPhone } from '../../lib/use-is-phone';
 import { PAGES } from '../pages';
+import { MenuCaret } from '../../components/actions/MenuCaret';
 
 /**
  * Layout of the logged-in area, once its workspace is known: header (with the workspace switcher), resizable
@@ -113,7 +114,7 @@ export function AppLayout() {
                   <QuickActions />
                   {/* The logged-in account: its page and the logout, on hover (or a click, by touch or keyboard). */}
                   <ActionsMenu
-                    name="mon compte"
+                    about="mon compte"
                     hover
                     items={[
                       { label: 'Mon compte', icon: <UserIcon aria-hidden />, to: PAGES.account.path },
@@ -121,15 +122,7 @@ export function AppLayout() {
                       { label: 'Me déconnecter', icon: <SignOutIcon aria-hidden />, onClick: handleLogout },
                     ]}
                     target={
-                      <Button
-                        variant="subtle"
-                        size="xs"
-                        leftSection={<UserIcon aria-hidden />}
-                        rightSection={<CaretDownIcon aria-hidden size={12} />}
-                        loading={logout.isPending}
-                        aria-haspopup="menu"
-                        maw={200}
-                      >
+                      <Button variant="subtle" size="xs" leftSection={<UserIcon aria-hidden />} rightSection={<MenuCaret />} loading={logout.isPending} maw={200}>
                         {user?.username ?? 'Mon compte'}
                       </Button>
                     }

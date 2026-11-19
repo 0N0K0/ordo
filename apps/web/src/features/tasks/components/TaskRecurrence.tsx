@@ -8,7 +8,7 @@ import { RepetitionField } from '../../../components/recurrence/RepetitionField'
 import { DeletedDates } from '../../../components/recurrence/DeletedDates';
 import { toastCallbacks } from '../../../lib/notify';
 import { useSetTaskRecurrence, type Task } from '../api';
-import { taskRef, type TaskContext } from '../hooks/use-task-context';
+import { type TaskContext, taskNumber } from '../hooks/use-task-context';
 import { useTaskLink } from '../hooks/use-task-link';
 
 /** Repetition of a series being edited: one rule (none: it does not repeat) or cases, and its deleted occurrences. */
@@ -87,7 +87,7 @@ export function TaskRecurrence({ task, context }: { task: Task; context: TaskCon
         <Text size="xs" c="dimmed">
           Occurrence du {task.occurrenceDate ? fmt.dayInWords(task.occurrenceDate) : '—'} de{' '}
           <Anchor component={Link} to={link.to(series.id)} size="xs">
-            {taskRef(series).trim()}
+            {taskNumber(series)}
           </Anchor>
         </Text>
       )}

@@ -1,8 +1,42 @@
-import { ImapFlow } from 'imapflow';
+import { ImapFlow, type ListResponse } from 'imapflow';
 import { prisma } from '../../db';
 import type { MailAccount } from '../../generated/prisma/client';
 import { clientError, errorMessage, orNotFound } from '../../graphql/errors';
 import { decryptSecret } from './secret';
+
+/** Path of the inbox (IMAP names it so on every server, any case). */
+export const INBOX = 'INBOX';
+
+/**
+ * Whether a folder path is the inbox (case aside, as IMAP says).
+ * @param {string} path Folder path.
+ * @returns {boolean} The inbox.
+ */
+// eslint-disable-next-line no-restricted-syntax -- isInbox itself.
+export const isInbox = (path: string): boolean => path.toUpperCase() === INBOX;
+
+/**
+ * Name of a folder shown to the user: « Réception » for the inbox, its own name otherwise.
+ * @param {{ path: string, name: string }} folder Folder.
+ * @returns {string} Name.
+ */
+// eslint-disable-next-line no-restricted-syntax -- the helpers themselves.
+export const folderLabel = (folder: { path: string; name: string }): string => (isInbox(folder.path) ? 'Réception' : folder.name);
+
+/**
+ * Whether a folder can be opened (not a mere parent, not gone).
+ * @param {ListResponse} folder Folder listed by the server.
+ * @returns {boolean} Selectable.
+ */
+// eslint-disable-next-line no-restricted-syntax -- the helpers themselves.
+export const isSelectable = (folder: ListResponse): boolean => !folder.flags.has('\\Noselect') && !folder.flags.has('\\NonExistent');
+
+/**
+ * Folders that can be opened, among those listed by the server.
+ * @param {ListResponse[]} folders Folders.
+ * @returns {ListResponse[]} The selectable ones.
+ */
+export const selectableFolders = (folders: ListResponse[]): ListResponse[] => folders.filter(isSelectable);
 
 /** A pooled connection is closed after this idle time. */
 const IDLE_MS = 5 * 60_000;

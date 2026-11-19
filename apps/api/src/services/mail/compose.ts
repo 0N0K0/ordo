@@ -1,5 +1,5 @@
 import { randomUUID } from 'node:crypto';
-import { recipientsSchema, sumOf } from '@ordo/shared';
+import { recipientsSchema, sumOf, UNNAMED_FILE } from '@ordo/shared';
 import { convert } from 'html-to-text';
 import MailComposer from 'nodemailer/lib/mail-composer';
 import { z } from 'zod';
@@ -113,7 +113,7 @@ export async function buildMessage(account: MailAccount, input: MailFields, opti
     files.push(
       ...original.attachments
         .filter((attachment, index) => (indexes ? indexes.includes(index) : !attachment.related))
-        .map((attachment) => ({ filename: attachment.filename || 'piece-jointe', content: attachment.content })),
+        .map((attachment) => ({ filename: attachment.filename || UNNAMED_FILE, content: attachment.content })),
     );
   }
   if (sumOf(files, (file) => file.content.length) > MAX_TOTAL_BYTES) {

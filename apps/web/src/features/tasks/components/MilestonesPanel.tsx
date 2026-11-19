@@ -17,7 +17,7 @@ import type { ReactNode } from 'react';
 import { milestoneFormSchema, type MilestoneFormValues } from '@ordo/shared';
 import { FlagIcon, PlusIcon } from '@phosphor-icons/react';
 
-import { useSetArchived, useArchivedToggle } from '../../../lib/archive';
+import { useSetArchived, useArchivedToggle, unarchived } from '../../../lib/archive';
 import { ShowArchivedSwitch } from '../../../components/filters/ShowArchivedSwitch';
 
 import { MarkdownEditor } from '../../../components/markdown/MarkdownEditor';
@@ -98,7 +98,7 @@ function SortableMilestone({ milestone, sortable, children }: SortableMilestoneP
   return (
     <Paper ref={ref} withBorder radius="md" p="md" shadow={dragging ? 'md' : undefined} style={style}>
       <Group gap="sm" wrap="nowrap" align="flex-start">
-        {sortable && <DragHandle label={`Déplacer le jalon ${milestone.label}`} {...handle} />}
+        {sortable && <DragHandle item={milestone.label} {...handle} />}
         <div style={{ flex: 1, minWidth: 0 }}>{children}</div>
       </Group>
     </Paper>
@@ -171,7 +171,7 @@ export function MilestonesPanel({ projectId }: { projectId: string }) {
         // Manual order: the dropped milestone moves to its new place.
         <SortableArea ids={milestones.map((milestone) => milestone.id)} layout="list" onMove={(id, _, index) => move.mutate({ id, index }, ON_ERROR)}>
           {milestones.map((milestone) => {
-            const tasks = context.tasks.filter((task) => task.milestoneId === milestone.id && !task.archived);
+            const tasks = unarchived(context.tasks).filter((task) => task.milestoneId === milestone.id);
             const done = tasks.filter((task) => context.isClosed(task)).length;
             const late = milestone.dueDate !== null && milestone.dueDate < today && done < tasks.length;
             return (

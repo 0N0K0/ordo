@@ -1,4 +1,4 @@
-import { Button, Group, Paper, SegmentedControl, SimpleGrid, Stack, Switch, Text, TextInput, type GroupProps } from '@mantine/core';
+import { Group, Paper, SegmentedControl, SimpleGrid, Stack, Switch, Text, TextInput, type GroupProps } from '@mantine/core';
 import { listSelectProps } from '../../../components/items/item-look';
 import { DatePickerInput } from '@mantine/dates';
 import { EMPTY_MAIL_SEARCH, type MailSearchCriteria } from '@ordo/shared';
@@ -105,16 +105,16 @@ export function AdvancedSearchPanel({ accountId, folder, value, onSearch, onClea
             Les 200 mails les plus récents de chaque dossier sont examinés.
           </Text>
           <Group justify="space-between" gap="xs">
-            <Button size="xs" variant="subtle" leftSection={<FloppyDiskIcon aria-hidden />} onClick={() => onSave(criteria)}>
+            <ActionButton priority="tertiary" icon={<FloppyDiskIcon aria-hidden />} onClick={() => onSave(criteria)}>
               Enregistrer en dossier de recherche
-            </Button>
+            </ActionButton>
             <Group gap="xs">
               <ActionButton priority="secondary" size="xs" icon={<EraserIcon aria-hidden />} onClick={onClear}>
                 Effacer
               </ActionButton>
-              <Button size="xs" type="submit" leftSection={<MagnifyingGlassIcon aria-hidden />}>
+              <ActionButton size="xs" type="submit" icon={<MagnifyingGlassIcon aria-hidden />}>
                 Rechercher
-              </Button>
+              </ActionButton>
             </Group>
           </Group>
         </Stack>
@@ -144,12 +144,12 @@ export function AdvancedSearchHeader({ open, onToggle, onQuit, ...props }: Advan
         Recherche avancée
       </Text>
       <Group gap={4}>
-        <Button size="compact-xs" variant="subtle" leftSection={<SlidersHorizontalIcon aria-hidden />} onClick={onToggle}>
+        <ActionButton priority="tertiary" icon={<SlidersHorizontalIcon aria-hidden />} onClick={onToggle}>
           {open ? 'Masquer les critères' : 'Modifier'}
-        </Button>
-        <Button size="compact-xs" variant="subtle" color="gray" leftSection={<XIcon aria-hidden />} onClick={onQuit}>
+        </ActionButton>
+        <ActionButton priority="tertiary" icon={<XIcon aria-hidden />} onClick={onQuit}>
           Quitter
-        </Button>
+        </ActionButton>
       </Group>
     </Group>
   );

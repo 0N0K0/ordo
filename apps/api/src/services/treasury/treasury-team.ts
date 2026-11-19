@@ -6,12 +6,11 @@ import {
   type TreasuryContextInput,
   type TreasuryContextPeriodInput,
   type TreasuryRelationInput,
-  contributorNameSchema,
+  personNameSchema,
 } from '@ordo/shared';
-import { z } from 'zod';
 import { prisma } from '../../db';
 import { Prisma, type Contributor, type TreasuryContext, type TreasuryContextPeriod, type TreasuryRelation } from '../../generated/prisma/client';
-import { clientError, fieldError, isUniqueConflict, orNotFound, parseInput, rethrowUnique } from '../../graphql/errors';
+import { clientError, fieldError, isUniqueConflict, orNotFound, parseField, parseInput, rethrowUnique } from '../../graphql/errors';
 import { createContributor, freeHandle } from '../workspace/contributors';
 import { assertExists, deleteOrNotFound } from '../core/lookup';
 import { assertNotArchived } from '../core/archive';
@@ -51,7 +50,7 @@ export async function addMember(input: { contributorId?: string | null; name?: s
     if (relation) throw clientError('BAD_USER_INPUT', `Ce contributeur est la relation « ${relation.name} » : il ne peut pas aussi être membre.`);
     return prisma.contributor.update({ where: { id: input.contributorId }, data: { teamMember: true } });
   }
-  const { name } = parseInput(z.object({ name: contributorNameSchema }), { name: input.name ?? '' });
+  const name = parseField('name', personNameSchema, input.name ?? '');
   const contributor = await createContributor({ name, handle: await freeHandle(name) });
   return prisma.contributor.update({ where: { id: contributor.id }, data: { teamMember: true } });
 }

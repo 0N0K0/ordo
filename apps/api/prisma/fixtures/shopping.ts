@@ -14,7 +14,9 @@ import {
   setListClosed,
 } from '../../src/services/shopping/shopping';
 import { createEntry } from '../../src/services/treasury/treasury';
+import { EMPTY_ARTICLE, EMPTY_ENTRY } from './factories';
 import type { SeededTeam } from './team';
+import { BY_POSITION } from '../../src/services/core/ordering';
 
 /** Fields of a product or an item, from its label. */
 type Article = Partial<ShoppingItemInput> & { label: string };
@@ -32,21 +34,21 @@ type Article = Partial<ShoppingItemInput> & { label: string };
 export async function seedShopping({ team, today }: { team: SeededTeam; today: string }): Promise<void> {
   // --- Stores and storage modes ----------------------------------------------------------------------
   const stores = new Map<string, string>();
-  for (const [name, color] of [
+  for (const [label, color] of [
     ['Biocoop', '#40c057'],
     ['Carrefour', '#228be6'],
     ['Bureau Vallée', '#fd7e14'],
     ['En ligne', '#7950f2'],
   ] as const) {
-    stores.set(name, (await shoppingStores.create({ label: name, color })).id);
+    stores.set(label, (await shoppingStores.create({ label, color })).id);
   }
   const storages = new Map<string, string>();
-  for (const [name, color] of [
+  for (const [label, color] of [
     ['Réfrigérateur', '#15aabf'],
     ['Congélateur', '#4c6ef5'],
     ['Placard', '#fab005'],
   ] as const) {
-    storages.set(name, (await shoppingStorages.create({ label: name, color })).id);
+    storages.set(label, (await shoppingStorages.create({ label, color })).id);
   }
 
   // --- Base lists and categories ----------------------------------------------------------------------
@@ -54,8 +56,8 @@ export async function seedShopping({ team, today }: { team: SeededTeam; today: s
   const supplies = await createBaseList('Fournitures');
   const upkeep = await createBaseList('Entretien');
   const categories = new Map<string, string>();
-  const category = async (name: string, color: string | null, baseListIds: string[], parent?: string) => {
-    categories.set(name, (await createCategory({ label: name, color, parentId: parent ? (categories.get(parent) ?? null) : null, baseListIds })).id);
+  const category = async (label: string, color: string | null, baseListIds: string[], parent?: string) => {
+    categories.set(label, (await createCategory({ label, color, parentId: parent ? (categories.get(parent) ?? null) : null, baseListIds })).id);
   };
   await category('Alimentation', '#40c057', [kitchen.id]);
   await category('Boissons', '#15aabf', [kitchen.id], 'Alimentation');
@@ -70,11 +72,7 @@ export async function seedShopping({ team, today }: { team: SeededTeam; today: s
     label,
     categoryId: categories.get(categoryLabel) ?? null,
     storeId: storeLabel ? (stores.get(storeLabel) ?? null) : null,
-    url: null,
-    note: null,
-    quantity: null,
-    unit: null,
-    unitPrice: null,
+    ...EMPTY_ARTICLE,
     ...changes,
   });
   const perishable = (storage: string, days: number) => ({ perishable: true, storageId: storages.get(storage) ?? null, expiresAt: addDays(today, days) });
@@ -105,7 +103,7 @@ export async function seedShopping({ team, today }: { team: SeededTeam; today: s
   // Open: the missing products of two base lists, a few of them bought, plus an item of this list only.
   const open = await createList({ label: 'Courses de la semaine', taskIds: tasks.map(({ id }) => id), baseListIds: [kitchen.id, upkeep.id] });
   await addItem(open.id, article({ label: 'Fleurs pour l’accueil', quantity: 1, unit: 'bouquet', unitPrice: 15, note: 'Pour la visite du client jeudi.' }, 'Alimentation', null));
-  const openItems = await prisma.shoppingItem.findMany({ where: { listId: open.id }, orderBy: { position: 'asc' } });
+  const openItems = await prisma.shoppingItem.findMany({ where: { listId: open.id }, orderBy: BY_POSITION });
   for (const item of openItems.slice(0, 2)) await setItemPurchased(item.id, true);
 
   // Done last month: bought, and paid with a movement of the treasury.
@@ -124,20 +122,11 @@ export async function seedShopping({ team, today }: { team: SeededTeam; today: s
       accountId: account.id,
       status: 'ACTUAL',
       date: addDays(today, -27),
-      valueDate: null,
+      ...EMPTY_ENTRY,
       label: 'Bureau Vallée — fournitures de rentrée',
       amount: -110.1,
       categoryId,
       methodId: (await prisma.treasuryPaymentMethod.findFirst({ where: { label: 'Carte' } }))?.id ?? null,
-      clientId: null,
-      counterpartyId: null,
-      projectId: null,
-      note: null,
-      recurrence: null,
-      allocations: [],
-      linkedEntryIds: [],
-      libraryDocumentIds: [],
-      projectResourceIds: [],
     });
     await attachListEntry(done.id, entry.id);
   }

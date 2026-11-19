@@ -5,7 +5,7 @@ import { ImapFlow } from 'imapflow';
 import MailComposer from 'nodemailer/lib/mail-composer';
 import { prisma } from '../../src/db';
 import type { Project } from '../../src/generated/prisma/client';
-import { closeImap } from '../../src/services/mail/imap';
+import { closeImap, isInbox } from '../../src/services/mail/imap';
 import { copyToProject } from '../../src/services/mail/linked';
 import { mailLabels, markMails } from '../../src/services/mail/organize';
 import { fetchParsed } from '../../src/services/mail/reader';
@@ -67,6 +67,14 @@ export function tinyPdf(text: string): string {
   body += `xref\n0 ${objects.length + 1}\n0000000000 65535 f \n${offsets.map((offset) => `${String(offset).padStart(10, '0')} 00000 n \n`).join('')}`;
   return `${body}trailer\n<< /Size ${objects.length + 1} /Root 1 0 R >>\nstartxref\n${xref}\n%%EOF\n`;
 }
+
+/**
+ * PDF file of the fixtures, with one line of text.
+ * @param {string} name File name.
+ * @param {string} text Text (ASCII).
+ * @returns {File} File.
+ */
+export const pdfFile = (name: string, text: string): File => new File([tinyPdf(text)], name, { type: 'application/pdf' });
 
 /**
  * Mailbox of the fixtures: the Ordo account (IMAP on GreenMail, SMTP on Mailpit) and its messages, received,
@@ -347,9 +355,9 @@ export async function seedMailbox({ projects, today }: { projects: Project[]; to
     })
       .compile()
       .build();
-    const flags = [...(mail.seen || mail.folder !== 'INBOX' ? ['\\Seen'] : []), ...(mail.flagged ? ['\\Flagged'] : []), ...(mail.folder === FOLDERS.drafts ? ['\\Draft'] : [])];
+    const flags = [...(mail.seen || !isInbox(mail.folder) ? ['\\Seen'] : []), ...(mail.flagged ? ['\\Flagged'] : []), ...(mail.folder === FOLDERS.drafts ? ['\\Draft'] : [])];
     const appended = await client.append(mail.folder, raw, flags, date);
-    if (mail.folder === 'INBOX' && appended && appended.uid) inbox.set(mail.subject, appended.uid);
+    if (isInbox(mail.folder) && appended && appended.uid) inbox.set(mail.subject, appended.uid);
     if (mail.projectId && appended && appended.uid) linked.push({ folder: mail.folder, uid: appended.uid, projectId: mail.projectId, sent: mail.folder === FOLDERS.sent });
   }
   await client.logout();
@@ -360,7 +368,7 @@ export async function seedMailbox({ projects, today }: { projects: Project[]; to
   }
 
   // --- Flags, done mails and search folders (reused when they exist: the kept mail accounts may use them) ------
-  const label = async (name: string, color: string) => (await prisma.mailLabel.findFirst({ where: { label: name } })) ?? (await mailLabels.create({ label: name, color }));
+  const label = async (text: string, color: string) => (await prisma.mailLabel.findFirst({ where: { label: text } })) ?? (await mailLabels.create({ label: text, color }));
   const urgent = (await label('Urgent', '#fa5252')).id;
   const billing = (await label('À facturer', '#fab005')).id;
   await label('Personnel', '#e64980');

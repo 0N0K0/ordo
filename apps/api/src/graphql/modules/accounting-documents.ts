@@ -10,7 +10,7 @@ import { clientError, done } from '../errors';
 import { AccountingDocumentTypeEnum } from './accounting';
 import { parisToday } from '../../today';
 import { fromDecimal } from '../../services/core/decimal';
-import { attachmentUrl } from '../../services/core/attachments';
+import { attachmentUrl, resourceUrl } from '../../services/core/attachments';
 
 /** Totals of a document, as stored. */
 interface DocumentTotals {
@@ -110,7 +110,7 @@ builder.prismaObject('AccountingDocument', {
       resolve: async (document) => (document.type === 'QUOTE' && document.status === 'FINAL' ? fromCents(await docs.invoicedAmount(document.id)) : null),
     }),
     recurringId: t.exposeID('recurringId', { nullable: true }),
-    lines: t.relation('lines', { query: { orderBy: { position: 'asc' } } }),
+    lines: t.relation('lines', { query: { orderBy: BY_POSITION } }),
     attachments: t.field({
       type: [DocumentAttachment],
       select: { attachments: { select: { id: true, filename: true, size: true }, orderBy: { createdAt: 'asc' } } },
@@ -212,7 +212,7 @@ builder.prismaObject('ProjectResource', {
     note: t.exposeString('note', { nullable: true }),
     url: t.string({
       select: { attachment: { select: { id: true, filename: true } } },
-      resolve: (resource) => (resource.kind === 'LINK' ? (resource.url ?? '') : attachmentUrl(resource.attachment)),
+      resolve: (resource) => resourceUrl(resource),
     }),
     size: t.int({ nullable: true, select: { attachment: { select: { size: true } } }, resolve: (resource) => resource.attachment?.size ?? null }),
     createdAt: t.expose('createdAt', { type: 'DateTime' }),

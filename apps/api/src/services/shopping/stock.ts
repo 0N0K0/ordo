@@ -30,7 +30,7 @@ import { prisma } from '../../db';
 import { Prisma, type ShoppingDelivery, type StockCount, type StockItem, type StockLocation, type StockMovementKind } from '../../generated/prisma/client';
 import { peopleData, peopleIds, assertPeople } from './people';
 import { clientError, notFound, orNotFound, parseInput } from '../../graphql/errors';
-import { nextPositionIn } from '../core/ordering';
+import { BY_POSITION, nextPositionIn } from '../core/ordering';
 import { assertExists, deleteOrNotFound } from '../core/lookup';
 import { assertNoneArchived, assertNotArchived } from '../core/archive';
 import { assertActiveRefs } from './refs';
@@ -349,8 +349,8 @@ async function itemFor(
   locationId: string | null,
 ): Promise<StockItem> {
   const same = source.productId
-    ? await tx.stockItem.findMany({ where: { productId: source.productId, archivedAt: null }, orderBy: { position: 'asc' } })
-    : (await tx.stockItem.findMany({ where: { productId: null, archivedAt: null }, orderBy: { position: 'asc' } })).filter((item) => productKey(item) === productKey(source));
+    ? await tx.stockItem.findMany({ where: { productId: source.productId, archivedAt: null }, orderBy: BY_POSITION })
+    : (await tx.stockItem.findMany({ where: { productId: null, archivedAt: null }, orderBy: BY_POSITION })).filter((item) => productKey(item) === productKey(source));
   const found = same.find((item) => item.locationId === locationId) ?? (locationId ? undefined : same[0]);
   if (found) return found;
   return tx.stockItem.create({
@@ -466,7 +466,7 @@ export async function stockByProduct(): Promise<{ productId: string; quantity: n
  * @returns {Promise<number>} Quantity taken.
  */
 async function consumeProduct(tx: Tx, productId: string, quantity: number, source: MoveSource): Promise<number> {
-  const items = await tx.stockItem.findMany({ where: { productId, archivedAt: null }, include: { lots: { select: { expiresAt: true } } }, orderBy: { position: 'asc' } });
+  const items = await tx.stockItem.findMany({ where: { productId, archivedAt: null }, include: { lots: { select: { expiresAt: true } } }, orderBy: BY_POSITION });
   // The items whose lots expire first first.
   const first = (item: (typeof items)[number]) => Math.min(...item.lots.map((lot) => lot.expiresAt?.getTime() ?? Infinity), Infinity);
   let left = quantity;
@@ -485,7 +485,7 @@ async function consumeProduct(tx: Tx, productId: string, quantity: number, sourc
  */
 export async function useSheet(sheetId: string, multiplier: number): Promise<{ taken: number; short: string[] }> {
   const times = parseInput(sheetMultiplierSchema, multiplier);
-  const sheet = await orNotFound(prisma.sheet.findUnique({ where: { id: sheetId }, include: { items: { orderBy: { position: 'asc' } } } }), 'Fiche');
+  const sheet = await orNotFound(prisma.sheet.findUnique({ where: { id: sheetId }, include: { items: { orderBy: BY_POSITION } } }), 'Fiche');
   await assertNotArchived('SHEET', sheetId);
   return prisma.$transaction(async (tx) => {
     let taken = 0;

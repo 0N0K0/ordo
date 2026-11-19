@@ -12,6 +12,7 @@ import { openNewList } from '../lib/open-new-list';
 import { shoppingProgress } from '../lib/shopping-format';
 import * as fmt from '../../../lib/format';
 import { shoppingListPath } from '../../../app/pages';
+import { unarchived } from '../../../lib/archive';
 
 /**
  * Shopping lists of a task: their progress and total, a new list (from the missing products of base lists),
@@ -23,8 +24,8 @@ export function TaskShopping({ task }: { task: Task }) {
   const { data: lists } = useShoppingLists();
   const { updateList } = useShoppingMutations();
   // The archived lists are hidden.
-  const own = (lists ?? []).filter((list) => list.taskIds.includes(task.id) && !list.archived);
-  const free = (lists ?? []).filter((list) => !list.taskIds.includes(task.id) && !list.closed && !list.archived);
+  const own = unarchived(lists ?? []).filter((list) => list.taskIds.includes(task.id));
+  const free = unarchived(lists ?? []).filter((list) => !list.taskIds.includes(task.id) && !list.closed);
 
   return (
     <SubSection

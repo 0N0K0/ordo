@@ -78,7 +78,7 @@ export function TaskCreateForm({ context, defaults, onDone }: TaskCreateFormProp
   return (
     <form onSubmit={handleSubmit} noValidate>
       <Stack gap="md">
-        <TextInput label="Titre" required data-autofocus {...form.getInputProps('label')} />
+        <TextInput label="Libellé" required data-autofocus {...form.getInputProps('label')} />
         <SimpleGrid cols={{ base: 1, sm: 2 }} spacing="md">
           <ProjectSelect
             context={context}

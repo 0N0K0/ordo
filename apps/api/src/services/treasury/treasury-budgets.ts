@@ -21,6 +21,7 @@ import { treasuryProjection } from './treasury';
 import { assertExists, deleteOrNotFound } from '../core/lookup';
 import { assertNotArchived } from '../core/archive';
 import { decimalCents, fromDecimal, toDecimal } from '../core/decimal';
+import { BY_POSITION } from '../core/ordering';
 
 /** Key of a budget or of what it compares with: member or relation, context (null: everyday), category. */
 interface Key {
@@ -176,7 +177,7 @@ export async function budgetReport(from: string, to: string, meId: string | null
         { status: 'FORECAST', date: { lte: last } },
       ],
     },
-    select: { status: true, date: true, amount: true, categoryId: true, recurrence: true, lines: { orderBy: { position: 'asc' } } },
+    select: { status: true, date: true, amount: true, categoryId: true, recurrence: true, lines: { orderBy: BY_POSITION } },
   });
   for (const entry of entries) {
     const start = formatDay(entry.date);

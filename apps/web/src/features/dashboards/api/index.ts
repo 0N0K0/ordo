@@ -5,6 +5,14 @@ import { graphql } from '../../../graphql';
 import type { DashboardsQuery, SprintTaskStatusesQuery } from '../../../graphql/graphql';
 import { execute } from '../../../lib/graphql-client';
 
+/**
+ * Key of a task in a sprint, in the map of `useSprintTaskStatuses`.
+ * @param {string} sprintId Sprint.
+ * @param {string} taskId Task.
+ * @returns {string} Key.
+ */
+export const sprintTaskKey = (sprintId: string, taskId: string): string => `${sprintId}|${taskId}`;
+
 export type Dashboard = DashboardsQuery['dashboards'][number];
 export type DashboardChart = Dashboard['charts'][number];
 
@@ -34,7 +42,7 @@ export function useSprintTaskStatuses(today: string, enabled: boolean) {
   return useQuery({
     enabled,
     queryKey: [...tasksQueryKey, 'sprint-statuses', today],
-    queryFn: async () => new Map((await execute(SprintTaskStatusesDocument, { today })).sprintTaskStatuses.map((item) => [`${item.sprintId}|${item.taskId}`, item])),
+    queryFn: async () => new Map((await execute(SprintTaskStatusesDocument, { today })).sprintTaskStatuses.map((item) => [sprintTaskKey(item.sprintId, item.taskId), item])),
   });
 }
 

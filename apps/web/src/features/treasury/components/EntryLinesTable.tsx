@@ -3,7 +3,7 @@ import { memberOrRelation, memberOrRelationKey, memberRelationOptions, parsePers
 import { unarchived } from '../../../lib/archive';
 import { Checkbox, Text } from '@mantine/core';
 import { listSelectProps, itemChoices } from '../../../components/items/item-look';
-import { EVERYDAY_CONTEXT, splitAmounts, type TreasuryLineMode } from '@ordo/shared';
+import { EVERYDAY_CONTEXT, splitAmounts, type TreasuryLineMode, fromCents } from '@ordo/shared';
 import { DataTable } from '../../../components/data-table/table/DataTable';
 import { EditableDate, EditableNumber, EditableSelect, EditableText } from '../../../components/data-table/cells/EditableCells';
 import type { DataColumn } from '../../../components/data-table/table/data-table';
@@ -13,7 +13,7 @@ import * as fmt from '../../../lib/format';
 import { categoryChoices, categoryOptions } from '../lib/categories';
 import { DocumentsCell, LinksCell, ProjectCell } from './entry-cells';
 import type { AnyEntry, EntryEnv, EntryUpdate } from '../lib/entry-env';
-import { applyDiff, bulkSaver, type BulkChange } from '../../../components/data-table/selection/bulk-edit';
+import { applyDiff, bulkCellLabels, type BulkChange, bulkSaver } from '../../../components/data-table/selection/bulk-edit';
 import { entryValues } from '../lib/entry-values';
 import { categoryForDirection, valueInMode, type LineLink, type LineValues } from '../lib/lines';
 import { SignedAmount } from '../../../components/money/SignedAmount';
@@ -172,7 +172,7 @@ export function EntryLinesTable({ entry, env, save }: { entry: AnyEntry; env: En
   const { amounts, remainder } = splitAmounts(entry.amount, entry.lines);
   const sign = entry.amount < 0 ? -1 : 1;
   const { perso } = useActiveWorkspace();
-  const rows: LineRow[] = values.lines.map((line, index) => ({ index, line, amount: amounts[index] / 100, documents: entry.lines[index]?.documents ?? [] }));
+  const rows: LineRow[] = values.lines.map((line, index) => ({ index, line, amount: fromCents(amounts[index]), documents: entry.lines[index]?.documents ?? [] }));
   const view = useDataView({ tableKey: 'treasury-entry-lines', getKey: lineKey, columns: lineColumns(env), rows, title: `Répartition de ${entry.label}` });
   const categories = env.settings?.treasuryCategories ?? [];
 
@@ -186,6 +186,7 @@ export function EntryLinesTable({ entry, env, save }: { entry: AnyEntry; env: En
     const byIndex = new Map(changed.map((row) => [row.index, changeFor(row)]));
     save(entry, { lines: values.lines.map((line, position) => (byIndex.has(position) ? { ...line, ...byIndex.get(position) } : line)) });
   };
+  const cellLabelOf = bulkCellLabels(view, (row) => row.line.label ?? `Ligne ${row.index + 1}`);
   const bulk = bulkSaver<LineRow, Partial<LineValues>>(view, (row, change) => saveLines([row], () => change), saveLines);
 
   /**
@@ -218,11 +219,11 @@ export function EntryLinesTable({ entry, env, save }: { entry: AnyEntry; env: En
         const { line, index } = row;
         const name = line.label ?? `la ligne ${index + 1}`;
         return {
-          label: <EditableText value={line.label} label={`Libellé de ${name}`} nullable onSave={(label) => saveLine('label', row, { label })} />,
+          label: <EditableText value={line.label} label={cellLabelOf('label', row, 'Libellé')} nullable onSave={(label) => saveLine('label', row, { label })} />,
           whom: (
             <EditableSelect
               value={whomKey(line) === ME ? null : whomKey(line)}
-              label={`Bénéficiaire de ${name}`}
+              label={cellLabelOf('whom', row, 'Bénéficiaire')}
               nullable
               data={memberRelationOptions(env.settings?.treasuryMembers ?? [], unarchived(env.settings?.treasuryRelations ?? [], line.relationId), { perso, withMe: false })}
               // A loan is with a relation only.
@@ -237,7 +238,7 @@ export function EntryLinesTable({ entry, env, save }: { entry: AnyEntry; env: En
           category: (
             <EditableSelect
               value={line.categoryId}
-              label={`Catégorie de ${name}`}
+              label={cellLabelOf('category', row, 'Catégorie')}
               nullable
               // A line going the other way (a refund in a purchase…) takes a category of that way.
               {...treeSelectProps(categoryOptions(categories, row.amount < 0 ? 'OUT' : 'IN', undefined, line.categoryId))}
@@ -248,7 +249,7 @@ export function EntryLinesTable({ entry, env, save }: { entry: AnyEntry; env: En
           context: (
             <EditableSelect
               value={line.contextId}
-              label={`Contexte de ${name}`}
+              label={cellLabelOf('context', row, 'Contexte')}
               nullable
               {...listSelectProps(env.settings?.treasuryContexts ?? [], undefined, line.contextId)}
               onSave={(contextId) => saveLine('context', row, { contextId })}
@@ -257,7 +258,7 @@ export function EntryLinesTable({ entry, env, save }: { entry: AnyEntry; env: En
           mode: (
             <EditableSelect
               value={line.mode}
-              label={`Unité de ${name}`}
+              label={cellLabelOf('mode', row, 'Unité')}
               data={[
                 { value: 'AMOUNT', label: '€' },
                 { value: 'PERCENT', label: '%' },
@@ -276,7 +277,7 @@ export function EntryLinesTable({ entry, env, save }: { entry: AnyEntry; env: En
             <EditableNumber
               amount={line.mode === 'AMOUNT'}
               value={line.value}
-              label={`Valeur de ${name}`}
+              label={cellLabelOf('value', row, 'Valeur')}
               suffix={line.mode === 'PERCENT' ? '%' : undefined}
               signed
               onSave={(value) => value !== null && saveLine('value', row, { value })}
@@ -297,13 +298,13 @@ export function EntryLinesTable({ entry, env, save }: { entry: AnyEntry; env: En
               }}
             />
           ),
-          date: <EditableDate value={line.date} label={`Date d’achat de ${name}`} nullable onSave={(date) => saveLine('date', row, { date })} />,
-          project: <ProjectCell value={line.projectId} env={env} label={`Projet de ${name}`} onSave={(projectId) => saveLine('project', row, { projectId })} />,
+          date: <EditableDate value={line.date} label={cellLabelOf('date', row, 'Date d’achat')} nullable onSave={(date) => saveLine('date', row, { date })} />,
+          project: <ProjectCell value={line.projectId} env={env} label={cellLabelOf('project', row, 'Projet')} onSave={(projectId) => saveLine('project', row, { projectId })} />,
           documents: (
             <DocumentsCell
               documents={row.documents}
               env={env}
-              label={`Pièces justificatives de ${name}`}
+              label={cellLabelOf('documents', row, 'Pièces justificatives')}
               onSave={(ids) =>
                 saveLine('documents', row, (target) => ({
                   libraryDocumentIds: applyDiff(target.line.libraryDocumentIds, line.libraryDocumentIds, ids.libraryDocumentIds),

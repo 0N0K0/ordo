@@ -16,7 +16,7 @@ import { ArchivedBadge } from '../../../components/feedback/ArchivedBadge';
 import { archiveEntry, unarchived, useSetArchived } from '../../../lib/archive';
 import { useState, type ReactNode } from 'react';
 import { DataTable } from '../../../components/data-table/table/DataTable';
-import { bulkSaver } from '../../../components/data-table/selection/bulk-edit';
+import { bulkCellLabels, bulkSaver } from '../../../components/data-table/selection/bulk-edit';
 import { EditableNumber, EditableSelect } from '../../../components/data-table/cells/EditableCells';
 import { useDataView } from '../../../components/data-table/views/use-data-view';
 import { RowActions } from '../../../components/data-table/cells/RowActions';
@@ -37,8 +37,9 @@ import { CreatableSelect } from '../../../components/inputs/CreatableSelect';
 import { archiveItemsAction, deleteItemsAction, rowMenuEntry } from '../../../components/data-table/selection/selection-actions';
 import { selectedLabel } from '../../../components/data-table/selection/selection-label';
 import { FormActions } from '../../../components/dialogs/FormActions';
-import { meName, personName } from '../../../components/people/people-options';
+import { meName, personName, relationNoun } from '../../../components/people/people-options';
 import { dateRangeProps, followBounds, formRange } from '../../../components/inputs/date-range';
+import { DIRECTION_PLURALS } from '../lib/direction';
 
 /** Repetitions of a budget: that month only, every X months, or every year (12 months). */
 const REPEAT_MODES = [
@@ -196,8 +197,8 @@ function BudgetForm({ budget, defaults, onDone }: { budget?: TreasuryBudget; def
             fullWidth
             aria-label="Sens du budget"
             data={[
-              { value: 'OUT', label: 'Sorties (dépenses)' },
-              { value: 'IN', label: 'Entrées (recettes)' },
+              { value: 'OUT', label: DIRECTION_PLURALS.OUT },
+              { value: 'IN', label: DIRECTION_PLURALS.IN },
             ]}
             value={direction}
             onChange={(value) => {
@@ -280,6 +281,7 @@ type Dialog = { budget?: TreasuryBudget; defaults?: Partial<BudgetValues>; copy?
  * @returns {JSX.Element} Panel.
  */
 export function BudgetsPanel() {
+  const { perso } = useActiveWorkspace();
   const [month, setMonth] = useState(() => monthOfDay(localToday()));
   const { data, isPending } = useTreasuryBudgets(month, month);
   const { data: settings } = useTreasurySettings();
@@ -388,7 +390,7 @@ export function BudgetsPanel() {
           <Group gap={6} wrap="nowrap">
             {relationName.get(row.relationId) ?? ''}
             <Badge size="xs" variant="light" color="grape">
-              Relation
+              {relationNoun(perso)}
             </Badge>
           </Group>
         ) : row.memberId ? (
@@ -497,7 +499,7 @@ export function BudgetsPanel() {
         label: 'Avancement',
         size: 160,
         sortValue: (row) => (row.budget ? (used(row, 'actual') + used(row, 'forecast')) / row.budget : 0),
-        text: (row) => `${row.budget ? Math.round(((used(row, 'actual') + used(row, 'forecast')) / row.budget) * 100) : 0} %`,
+        text: (row) => fmt.percent(row.budget ? ((used(row, 'actual') + used(row, 'forecast')) / row.budget) * 100 : 0, 0),
         filter: false,
       },
     ],
@@ -574,6 +576,7 @@ export function BudgetsPanel() {
   });
 
   // Archived budgets are read only.
+  const cellLabelOf = bulkCellLabels(definedView, (budget: TreasuryBudget) => (budget.categoryId ? (paths.get(budget.categoryId) ?? 'Budget') : 'Sans catégorie'));
   const bulk = bulkSaver<TreasuryBudget, Partial<BudgetValues>>(definedView, (budget, change) => !budget.archived && Object.keys(change).length > 0 && saveBudget(budget, change));
 
   return (
@@ -622,8 +625,8 @@ export function BudgetsPanel() {
                 ),
                 progress: (
                   <>
-                    <Tooltip label={`${Math.round(ratio)} % (réel ${Math.round(actualRatio)} %)${over ? (income ? ' · au-delà du budget' : ' · budget dépassé') : ''}`}>
-                      <Progress.Root size="md" aria-label={`${income ? 'Reçu' : 'Utilisé'} à ${Math.round(ratio)} %`}>
+                    <Tooltip label={`${fmt.percent(ratio, 0)} (réel ${fmt.percent(actualRatio, 0)})${over ? (income ? ' · au-delà du budget' : ' · budget dépassé') : ''}`}>
+                      <Progress.Root size="md" aria-label={`${income ? 'Reçu' : 'Utilisé'} à ${fmt.percent(ratio, 0)}`}>
                         <Progress.Section value={Math.min(100, actualRatio)} color={barColor} />
                         <Progress.Section value={Math.max(0, Math.min(100, ratio) - Math.min(100, actualRatio))} color={`${barColor}.3`} />
                       </Progress.Root>
@@ -661,7 +664,7 @@ export function BudgetsPanel() {
             })}
             actions={(row) => (
               <RowActions
-                name="ces mouvements"
+                about="ces mouvements"
                 primary={
                   row.categoryId && {
                     label: 'Créer le budget',
@@ -716,7 +719,7 @@ export function BudgetsPanel() {
                     month: (
                       <MonthCell
                         value={budget.month}
-                        label="Premier mois du budget"
+                        label={cellLabelOf('month', budget, 'Premier mois')}
                         // A first month set after the last one moves the last one to it (decision Q).
                         onSave={(month) => month && bulk('month')(budget, (row) => ({ month, repeatUntil: followBounds([row.month, row.repeatUntil ?? null], 'start', month)[1] }))}
                       />
@@ -724,7 +727,7 @@ export function BudgetsPanel() {
                     repeat: (
                       <EditableSelect
                         value={budget.repeatEvery ? String(budget.repeatEvery) : 'ONCE'}
-                        label="Répétition du budget"
+                        label={cellLabelOf('repeat', budget, 'Répétition')}
                         data={[
                           ...REPEAT_CHOICES,
                           ...(budget.repeatEvery && !REPEAT_CHOICES.some((choice) => choice.value === String(budget.repeatEvery))
@@ -737,7 +740,7 @@ export function BudgetsPanel() {
                     until: budget.repeatEvery ? (
                       <MonthCell
                         value={budget.repeatUntil ?? null}
-                        label="Dernier mois du budget"
+                        label={cellLabelOf('until', budget, 'Dernier mois')}
                         nullable
                         minMonth={budget.month}
                         onSave={(repeatUntil) =>
@@ -753,7 +756,7 @@ export function BudgetsPanel() {
                     who: (
                       <EditableSelect
                         value={whoKey(budget)}
-                        label="Bénéficiaire du budget"
+                        label={cellLabelOf('who', budget, 'Bénéficiaire')}
                         nullable
                         data={whoChoices.filter((choice) => choice.value !== ME_KEY && (!archivedWho.has(choice.value) || choice.value === whoKey(budget)))}
                         onSave={(key) => bulk('who')(budget, memberOrRelation(key))}
@@ -762,7 +765,7 @@ export function BudgetsPanel() {
                     context: (
                       <EditableSelect
                         value={budget.contextId ?? null}
-                        label="Contexte du budget"
+                        label={cellLabelOf('context', budget, 'Contexte')}
                         nullable
                         data={unarchived(settings?.treasuryContexts ?? [], budget.contextId).map((item) => ({ value: item.id, label: item.label }))}
                         onSave={(contextId) => bulk('context')(budget, { contextId })}
@@ -771,7 +774,7 @@ export function BudgetsPanel() {
                     category: (
                       <EditableSelect
                         value={budget.categoryId}
-                        label="Catégorie du budget"
+                        label={cellLabelOf('category', budget, 'Catégorie')}
                         {...treeSelectProps([...categoryOptions(categories, 'OUT', undefined, budget.categoryId), ...categoryOptions(categories, 'IN', undefined, budget.categoryId)])}
                         onSave={(categoryId) => categoryId && bulk('category')(budget, { categoryId })}
                       />
@@ -782,7 +785,7 @@ export function BudgetsPanel() {
                         <EditableNumber
                           amount
                           value={budget.amount}
-                          label="Montant du budget"
+                          label={cellLabelOf('amount', budget, 'Montant')}
                           validate={(amount) => (amount > 0 ? null : 'Montant positif attendu.')}
                           onSave={(amount) => amount !== null && bulk('amount')(budget, { amount })}
                         />
@@ -794,7 +797,7 @@ export function BudgetsPanel() {
               const archiveItem = archiveEntry({ archived: budget.archived, type: 'Budget', label: paths.get(budget.categoryId) ?? '' }, setArchived, budget.id);
               return (
                 <RowActions
-                  name="le budget"
+                  about="le budget"
                   primary={budget.archived ? undefined : { label: 'Modifier (et ses répétitions)', icon: <PencilSimpleIcon aria-hidden />, onClick: () => openBudget({ budget }) }}
                   items={[
                     !budget.archived && {

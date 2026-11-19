@@ -2,7 +2,6 @@ import { Group, Select, Stack, Text } from '@mantine/core';
 import { LabeledField } from '../../../components/inputs/LabeledField';
 import { useState } from 'react';
 import { confirmDestructive } from '../../../components/dialogs/confirm-destructive';
-import { notifySuccess, onMutationError } from '../../../lib/notify';
 import { useSheets } from '../api';
 import { FormActions } from '../../../components/dialogs/FormActions';
 import { MultiplierInput } from './MultiplierInput';
@@ -63,10 +62,8 @@ export function SheetPicker({ onAdd, present = [], onRemove, onDone }: SheetPick
                   confirmDestructive({
                     title: 'Retirer la fiche',
                     risks: `La part de « ${sheet.label} » sera retirée des quantités de la liste, et les éléments qu’elle seule apportait (pas encore achetés ou cochés) seront supprimés.`,
-                    onConfirm: () =>
-                      onRemove(sheet.sheetId)
-                        .then(() => notifySuccess('Fiche retirée.'))
-                        .catch(onMutationError),
+                    run: () => onRemove(sheet.sheetId),
+                    done: 'Fiche retirée.',
                   })
                 }
               />

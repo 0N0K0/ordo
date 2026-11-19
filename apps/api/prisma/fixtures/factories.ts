@@ -1,8 +1,10 @@
-import { addDays, DAY_MS, DEFAULT_RECURRENCE, minutesToTime, parseDay, type Recurrence } from '@ordo/shared';
+import { addDays, chartConfigSchema, DAY_MS, DEFAULT_RECURRENCE, emptyTableFilter, minutesToTime, parseDay, type Recurrence } from '@ordo/shared';
+import type { z } from 'zod';
 import { fakerFR as faker } from '@faker-js/faker';
 import { Factory } from 'fishery';
 import { prisma } from '../../src/db';
 import { resolveCalendarId } from '../../src/services/calendar/calendars';
+import { createEntry as saveEntry } from '../../src/services/treasury/treasury';
 import type { CalendarEvent, Client, Contributor, Milestone, Prisma, Project, Task, TaskComment, TimeEntry } from '../../src/generated/prisma/client';
 
 /** Shade 6 of the Mantine colors, as offered by the app's color pickers. */
@@ -71,6 +73,41 @@ export function localAt(day: string, hour: number, minute = 0): Date {
  */
 // eslint-disable-next-line no-restricted-syntax -- rule itself.
 export const rule = (changes: Partial<Recurrence>): Recurrence => ({ ...DEFAULT_RECURRENCE, ...changes });
+
+/**
+ * Chart configuration from the defaults.
+ * @param {Partial<z.input<typeof chartConfigSchema>>} config Changes (defaults filled by the schema).
+ * @returns {Prisma.InputJsonValue} Stored configuration.
+ */
+// eslint-disable-next-line no-restricted-syntax -- the helpers themselves.
+export const chart = (config: Partial<z.input<typeof chartConfigSchema>>) => chartConfigSchema.parse({ filter: emptyTableFilter(), ...config }) as unknown as Prisma.InputJsonValue;
+
+/**
+ * Creates a movement; a split one has its categories on its lines only.
+ * @param {Parameters<typeof saveEntry>[0]} input Movement.
+ * @returns {ReturnType<typeof saveEntry>} Movement.
+ */
+// eslint-disable-next-line no-restricted-syntax -- the helpers themselves.
+export const createEntry = (input: Parameters<typeof saveEntry>[0]) => saveEntry(input.lines?.length ? { ...input, categoryId: null } : input);
+
+/** Fields of a movement the fixtures leave empty (no value date, client, counterparty, project, note, repetition, links). */
+// eslint-disable-next-line no-restricted-syntax -- the helpers themselves.
+export const EMPTY_ENTRY = {
+  valueDate: null,
+  clientId: null,
+  counterpartyId: null,
+  projectId: null,
+  note: null,
+  recurrence: null,
+  allocations: [],
+  linkedEntryIds: [],
+  libraryDocumentIds: [],
+  projectResourceIds: [],
+};
+
+/** Fields of a product or a shopping item the fixtures leave empty unless given. */
+// eslint-disable-next-line no-restricted-syntax -- the helpers themselves.
+export const EMPTY_ARTICLE = { url: null, note: null, quantity: null, unit: null, unitPrice: null };
 
 /**
  * Optional value: present with the given probability.

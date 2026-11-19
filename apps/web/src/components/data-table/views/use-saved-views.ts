@@ -1,8 +1,7 @@
 import { copyName } from '../../../lib/text';
-import { useSetParams } from '../../../lib/search-params';
+import { useSetParams, useSearchParam } from '../../../lib/search-params';
 import { byPosition, VIEW_LABEL_MAX } from '@ordo/shared';
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { useSearchParams } from 'react-router';
 import { onMutationError, ON_ERROR } from '../../../lib/notify';
 import { useTaskViewMutations, useTaskViews, type TaskViewRecord, type ViewKind } from './api';
 
@@ -49,7 +48,7 @@ interface SavedViewsOptions<C> {
 export function useSavedViews<C>({ projectId, kind, tableKey = null, parse, blank, first, ready = true, param = 'view' }: SavedViewsOptions<C>) {
   const viewsQuery = useTaskViews(projectId, kind, tableKey);
   const mutations = useTaskViewMutations();
-  const [params] = useSearchParams();
+  const [requestedId] = useSearchParam(param);
   const setParams = useSetParams();
   const [drafts, setDrafts] = useState<Record<string, C>>({});
   // Scope whose first views were asked for: asked once only, even when it fails (no retry loop).
@@ -57,7 +56,6 @@ export function useSavedViews<C>({ projectId, kind, tableKey = null, parse, blan
 
   const views: SavedView<C>[] = useMemo(() => [...(viewsQuery.data ?? [])].sort(byPosition).map((view) => ({ ...view, config: parse(view.config) })), [viewsQuery.data, parse]);
 
-  const requestedId = params.get(param);
   const current = views.find((view) => view.id === requestedId) ?? views.find((view) => view.isDefault) ?? views[0];
   const config = current ? (drafts[current.id] ?? current.config) : null;
   const dirty = Boolean(current && drafts[current.id] && canonical(drafts[current.id]) !== canonical(current.config));

@@ -29,6 +29,6 @@ export const stockItemInput = (item: StockItem, change: Partial<NewStockItemInpu
  */
 export const nextExpiry = (item: StockItem): string | null =>
   item.lots
-    .map((lot) => (lot.expiresAt ? lot.expiresAt : null))
+    .map((lot) => lot.expiresAt || null)
     .filter((date): date is string => date !== null)
     .sort()[0] ?? null;

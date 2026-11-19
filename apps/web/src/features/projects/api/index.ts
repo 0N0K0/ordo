@@ -279,16 +279,6 @@ function reposition<T extends { id: string; position: number }>(items: T[], sibl
 }
 
 /**
- * Ids of every sub-project of a project.
- * @param {Project[]} projects Every project.
- * @param {string} id Project id.
- * @returns {Set<string>} Descendant ids.
- */
-export function descendantIds(projects: Project[], id: string): Set<string> {
-  return subtreeOf(projects, id, false);
-}
-
-/**
  * Creates a client.
  * @returns {UseMutationResult} Mutation state.
  */
@@ -479,7 +469,7 @@ export function useMoveProject() {
       if (!project) return workspace;
       const targetClientId = parentId ? (workspace.projects.find((item) => item.id === parentId)?.clientId ?? null) : clientId;
       const siblings = unarchived(workspace.projects.filter((item) => (parentId ? item.parentId === parentId : !item.parentId && item.clientId === targetClientId))).sort(byPosition);
-      const descendants = descendantIds(workspace.projects, id);
+      const descendants = subtreeOf(workspace.projects, id, false);
       const projects = reposition(workspace.projects, siblings, { ...project, parentId, clientId: targetClientId }, index).map((item) =>
         descendants.has(item.id) ? { ...item, clientId: targetClientId } : item,
       );

@@ -1,6 +1,6 @@
 import { ErrorAlert } from '../../../components/feedback/ErrorAlert';
 import { FloppyDiskIcon } from '@phosphor-icons/react';
-import { Anchor, Button, Stack } from '@mantine/core';
+import { Anchor, Stack } from '@mantine/core';
 import { resetPasswordFormSchema, type ResetPasswordFormValues } from '@ordo/shared';
 import { Link, useNavigate } from 'react-router';
 
@@ -9,6 +9,8 @@ import { useResetPassword } from '../api';
 import { AuthHeader } from './AuthLayout';
 import { NewPasswordFields } from '../components/NewPasswordFields';
 import { useSearchParam } from '../../../lib/search-params';
+import { AUTH_PATHS } from '../../../app/pages';
+import { ActionButton } from '../../../components/actions/ActionButton';
 
 /**
  * Sets a new password from the link received by email.
@@ -27,7 +29,7 @@ export function ResetPasswordPage() {
     if (!token) return;
     resetPassword.mutate(
       { token, password },
-      formCallbacks(form, 'Mot de passe modifié. Vous pouvez vous connecter.', () => navigate('/login', { replace: true })),
+      formCallbacks(form, 'Mot de passe modifié. Vous pouvez vous connecter.', () => navigate(AUTH_PATHS.login, { replace: true })),
     );
   });
 
@@ -38,15 +40,15 @@ export function ResetPasswordPage() {
         <form onSubmit={handleSubmit} noValidate>
           <Stack gap="md">
             <NewPasswordFields form={form} autoFocus />
-            <Button type="submit" leftSection={<FloppyDiskIcon aria-hidden />} loading={resetPassword.isPending} fullWidth>
+            <ActionButton type="submit" icon={<FloppyDiskIcon aria-hidden />} loading={resetPassword.isPending} fullWidth>
               Enregistrer
-            </Button>
+            </ActionButton>
           </Stack>
         </form>
       ) : (
         <ErrorAlert title="Lien invalide">Ce lien de réinitialisation est incomplet. Demandez-en un nouveau.</ErrorAlert>
       )}
-      <Anchor component={Link} to="/forgot-password" size="sm">
+      <Anchor component={Link} to={AUTH_PATHS.forgotPassword} size="sm">
         Demander un nouveau lien
       </Anchor>
     </>

@@ -2,7 +2,7 @@ import { formatMoney, percentOf, round2, toCents } from './accounting-documents'
 import { mapById, sumOf } from '../core/collections';
 import { clipText } from '../core/text';
 import { z } from 'zod';
-import { END_AFTER_START, endAfter, endsAfter, optionalText, PERSON_NAME_REQUIRED, requiredText } from '../core/rules';
+import { END_AFTER_START, endAfter, endsAfter, optionalText, personNameSchema, requiredText } from '../core/rules';
 import { monthFromIndex, monthIndex } from '../dates/months';
 import { printedDay } from '../dates/days';
 import { recurrenceSchema } from '../dates/recurrence';
@@ -52,7 +52,7 @@ export type TreasuryDirection = (typeof TREASURY_DIRECTIONS)[number];
 /** Label of a treasury item (an account, a category…). */
 const label = requiredText(100);
 /** Name of a person (a counterparty, a relation). */
-const name = requiredText(100, PERSON_NAME_REQUIRED);
+const name = personNameSchema;
 
 /** Category of entries, for money in or out, possibly under a parent of the same direction. */
 export const treasuryCategorySchema = z.object({

@@ -1,7 +1,7 @@
 import { PICKER_FORMATS } from '../../../lib/format';
 import { ArrowSquareOutIcon } from '@phosphor-icons/react';
 import { DeleteButton } from '../../../components/dialogs/DestructiveActions';
-import { Button, Checkbox, Group, Stack, Text } from '@mantine/core';
+import { Checkbox, Group, Stack, Text } from '@mantine/core';
 import { DatePickerInput, TimePicker } from '@mantine/dates';
 import type { ScheduleSlotTime } from '@ordo/shared';
 import { useState } from 'react';
@@ -9,6 +9,7 @@ import { openRoutineForm } from '../../routines/lib/open-routine-form';
 import type { RoutineOccurrenceRef } from '../hooks/calendar-edits';
 import { FormActions } from '../../../components/dialogs/FormActions';
 import { rangeError, rangeProps } from '../../../components/inputs/date-range';
+import { ActionButton } from '../../../components/actions/ActionButton';
 
 /**
  * Form changing a slot of a schedule from the calendar: its day and hours (or the whole day); or deleting it.
@@ -114,16 +115,16 @@ export function RoutineOccurrenceForm({
           danger={
             <>
               <DeleteButton onClick={onDelete} />
-              <Button
-                variant="subtle"
-                leftSection={<ArrowSquareOutIcon aria-hidden />}
+              <ActionButton
+                priority="tertiary"
+                icon={<ArrowSquareOutIcon aria-hidden />}
                 onClick={() => {
                   onClose();
                   openRoutineForm({ routine: occurrence.routine });
                 }}
               >
                 Ouvrir la routine
-              </Button>
+              </ActionButton>
             </>
           }
         />

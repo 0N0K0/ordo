@@ -13,7 +13,7 @@ import {
   treasuryEntrySchema,
 } from '@ordo/shared';
 import { prisma } from '../../db';
-import { nextPositionIn } from '../core/ordering';
+import { BY_POSITION, nextPositionIn } from '../core/ordering';
 import { Prisma, type TreasuryAccount, type TreasuryEntry } from '../../generated/prisma/client';
 import { clientError, fieldError, notFound, orNotFound, parseInput } from '../../graphql/errors';
 import { storedRecurrence } from '../calendar/calendar-events';
@@ -413,7 +413,7 @@ export async function deleteEntry(id: string): Promise<void> {
 export async function realizeForecast(id: string, occurrence: string, actual: { date: string; amount: number }): Promise<TreasuryEntry> {
   const forecast = await prisma.treasuryEntry.findUnique({
     where: { id },
-    include: { lines: { orderBy: { position: 'asc' }, include: { libraryDocuments: { select: { id: true } }, projectResources: { select: { id: true } } } } },
+    include: { lines: { orderBy: BY_POSITION, include: { libraryDocuments: { select: { id: true } }, projectResources: { select: { id: true } } } } },
   });
   if (!forecast || forecast.status !== 'FORECAST') throw notFound('Prévision');
   await assertNotArchived('TREASURY_ENTRY', id);

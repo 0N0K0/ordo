@@ -12,7 +12,7 @@ import { createRecurringInvoice, issueDueInvoices } from '../../src/services/acc
 import { createAccount, createEntry, realizeForecast } from '../../src/services/treasury/treasury';
 import { importStatement } from '../../src/services/treasury/treasury-import';
 import { createCategory, createCounterparty, createPaymentMethod } from '../../src/services/treasury/treasury-settings';
-import { localAt, maybe, relativeDay, rule } from './factories';
+import { EMPTY_ENTRY, localAt, maybe, relativeDay, rule } from './factories';
 import { logoFile } from './images';
 import { tinyPdf } from './mail';
 import { setCompanyLogo } from '../../src/services/accounting/company';
@@ -262,16 +262,7 @@ export async function seedAccounting({ clients, projects, today }: AccountingCon
   }
   const counterpartyOf = (name: string | undefined) => (name ? (counterpartyIds.get(name) ?? null) : null);
   const entryBase = {
-    valueDate: null,
-    clientId: null,
-    counterpartyId: null,
-    projectId: null,
-    note: null,
-    recurrence: null,
-    allocations: [],
-    linkedEntryIds: [],
-    libraryDocumentIds: [],
-    projectResourceIds: [],
+    ...EMPTY_ENTRY,
   };
   await createAccount({ label: 'Livret pro', openingBalance: 12000, openingDate: day(-180) });
 

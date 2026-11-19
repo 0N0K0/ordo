@@ -22,6 +22,7 @@ interface DestructiveActionsProps {
 export function DestructiveActions({ onConfirm, onCancel, loading = false, confirmLabel = 'Supprimer', confirmIcon = <TrashIcon aria-hidden /> }: DestructiveActionsProps) {
   return (
     <Group justify="flex-end" gap="sm">
+      {/* eslint-disable-next-line no-restricted-syntax -- the red confirmation of a destructive dialog (ActionButton has no color). */}
       <Button color="red" leftSection={confirmIcon} onClick={onConfirm} loading={loading} data-autofocus>
         {confirmLabel}
       </Button>

@@ -72,6 +72,25 @@ export function createdId(result: unknown): string {
   throw new Error('L’élément créé est introuvable.');
 }
 
+/** Values of the form of an item of a tree list (label, color, parent). */
+export interface TreeItemValues {
+  label: string;
+  color: string;
+  parentId: string | null;
+}
+
+/**
+ * Input of an item of a tree list from its form values: label, color (none when left empty), parent.
+ * @param {TreeItemValues} values Values.
+ * @returns {{ label: string, color: string | null, parentId: string | null }} Input.
+ */
+// eslint-disable-next-line no-restricted-syntax -- treeItemInput itself.
+export const treeItemInput = (values: TreeItemValues): { label: string; color: string | null; parentId: string | null } => ({
+  label: values.label,
+  color: values.color || null,
+  parentId: values.parentId,
+});
+
 /** Mutation of a list, as TanStack Query gives it (only its promise is used). */
 interface AsyncMutation<V> {
   mutateAsync: (variables: V) => Promise<unknown>;

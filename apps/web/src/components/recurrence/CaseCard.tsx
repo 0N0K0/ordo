@@ -44,7 +44,7 @@ export function CaseCard({ index, summary, collapsible, opened, onToggle, onRemo
     <Paper ref={ref} withBorder radius="sm" p="sm" shadow={dragging ? 'md' : undefined} style={style}>
       <Stack gap={shown ? 'xs' : 0}>
         <Group justify="space-between" wrap="nowrap" gap={4}>
-          {sortable && <DragHandle label={`Déplacer le cas ${index}`} {...handle} size="sm" />}
+          {sortable && <DragHandle item={`Cas ${index}`} {...handle} size="sm" />}
           {collapsible ? (
             <UnstyledButton onClick={onToggle} aria-expanded={shown} style={{ minWidth: 0, flex: 1 }}>
               {heading}

@@ -397,7 +397,7 @@ builder.prismaObject('RoutineCheck', {
 builder.queryFields((t) => ({
   routineCategories: t.prismaField({
     type: ['RoutineCategory'],
-    resolve: (query) => prisma.routineCategory.findMany({ ...query, orderBy: [{ position: 'asc' }, { label: 'asc' }] }),
+    resolve: (query) => prisma.routineCategory.findMany({ ...query, orderBy: BY_POSITION }),
   }),
   routines: t.prismaField({
     type: ['Routine'],

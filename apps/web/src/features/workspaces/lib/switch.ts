@@ -45,8 +45,8 @@ export function rememberWorkspace(id: string): void {
 
 /** Pages of one item: in another workspace, the page of their list (a project: the home page). */
 const ITEM_PAGES: [RegExp, string][] = [
-  [/^\/projects\/[^/]+/, '/'],
-  [/^\/clients\/[^/]+/, '/'],
+  [/^\/projects\/[^/]+/, PAGES.home.path],
+  [/^\/clients\/[^/]+/, PAGES.home.path],
   [/^\/accounting\/(imported\/)?[^/]+/, PAGES.accounting.path],
   [/^\/shopping\/[^/]+/, PAGES.shopping.path],
 ];

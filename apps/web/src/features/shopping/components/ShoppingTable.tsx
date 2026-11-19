@@ -4,7 +4,7 @@ import { useMemo, type ReactNode } from 'react';
 import { AddShoppingRow, type ShoppingAdd } from './AddShoppingRow';
 import { useShoppingData, type ShoppingCategory } from '../api';
 import { CategoryCell, ConservationCell, ExpiryCell, PeopleCell, StoreCell, ToggleCell, UnitCell } from './shopping-cells';
-import { applyDiff, bulkSaver, type BulkChange } from '../../../components/data-table/selection/bulk-edit';
+import { applyDiff, bulkCellLabels, type BulkChange, bulkSaver } from '../../../components/data-table/selection/bulk-edit';
 import { StackedValues } from '../../../components/data-table/cells/StackedValues';
 import { EditableCheck, EditableNumber, EditableText } from '../../../components/data-table/cells/EditableCells';
 import { DataTable, type GroupTree, type RowMove } from '../../../components/data-table/table/DataTable';
@@ -111,6 +111,7 @@ export function ShoppingTable<T extends ShoppingFields>({
     return { groups, groupOf: (row) => groupsOfRow(row, grouping), noneLabel: NO_GROUP_NAME[grouping], showEmpty };
   }, [allCategories, data, people.byKey, grouping, showEmpty]);
   // A change in a cell saves its row, or every row of the bulk selection of its column.
+  const cellLabelOf = bulkCellLabels(view, (item) => item.label);
   const saveCell = bulkSaver<T, Partial<ShoppingItemInput>>(view, (row, patch) => Object.keys(patch).length > 0 && onSave(row, { ...inputOf(row), ...patch }));
   // The toggle of a row, or of every row of its bulk selection (all at once).
   const saveToggle = (row: T, on: boolean) =>
@@ -151,10 +152,17 @@ export function ShoppingTable<T extends ShoppingFields>({
     return {
       // Columns without an editor of their own: their text.
       ...Object.fromEntries(view.columns.filter((column) => column.text).map((column) => [column.id, column.text!(item)])),
-      name: (
+      label: (
         <>
           <Group gap={4} wrap="nowrap">
-            <EditableText value={name} label={`Libellé de ${name}`} schema={shoppingItemSchema.shape.label} strong readOnly={readOnly} onSave={(value) => value && save('name', { label: value })} />
+            <EditableText
+              value={name}
+              label={cellLabelOf('label', item, 'Libellé')}
+              schema={shoppingItemSchema.shape.label}
+              strong
+              readOnly={readOnly}
+              onSave={(value) => value && save('label', { label: value })}
+            />
             {badge?.(item)}
           </Group>
           {item.note && (
@@ -165,13 +173,27 @@ export function ShoppingTable<T extends ShoppingFields>({
         </>
       ),
       category: (
-        <CategoryCell value={item.categoryId ?? null} categories={allCategories} label={`Catégorie de ${name}`} readOnly={readOnly} onSave={(categoryId) => save('category', { categoryId })} />
+        <CategoryCell
+          value={item.categoryId ?? null}
+          categories={allCategories}
+          label={cellLabelOf('category', item, 'Catégorie')}
+          readOnly={readOnly}
+          onSave={(categoryId) => save('category', { categoryId })}
+        />
       ),
-      store: <StoreCell value={item.storeId ?? null} stores={data?.shoppingStores ?? []} label={`Magasin de ${name}`} readOnly={readOnly} onSave={(storeId) => save('store', { storeId })} />,
+      store: (
+        <StoreCell
+          value={item.storeId ?? null}
+          stores={data?.shoppingStores ?? []}
+          label={cellLabelOf('store', item, 'Magasin')}
+          readOnly={readOnly}
+          onSave={(storeId) => save('store', { storeId })}
+        />
+      ),
       quantity: (
         <EditableNumber
           value={item.quantity ?? null}
-          label={`Quantité de ${name}`}
+          label={cellLabelOf('quantity', item, 'Quantité')}
           decimals={3}
           min={0}
           schema={shoppingItemSchema.shape.quantity}
@@ -179,12 +201,12 @@ export function ShoppingTable<T extends ShoppingFields>({
           onSave={(quantity) => save('quantity', { quantity })}
         />
       ),
-      unit: <UnitCell value={item.unit ?? null} label={`Unité de ${name}`} readOnly={readOnly} onSave={(unit) => save('unit', { unit })} />,
+      unit: <UnitCell value={item.unit ?? null} label={cellLabelOf('unit', item, 'Unité')} readOnly={readOnly} onSave={(unit) => save('unit', { unit })} />,
       unitPrice: (
         <EditableNumber
           amount
           value={item.unitPrice ?? null}
-          label={`Prix unitaire estimé de ${name}`}
+          label={cellLabelOf('unitPrice', item, 'Prix unitaire estimé')}
           min={0}
           schema={shoppingItemSchema.shape.unitPrice}
           readOnly={readOnly}
@@ -196,7 +218,7 @@ export function ShoppingTable<T extends ShoppingFields>({
           perishable={item.perishable}
           storageId={item.storageId ?? null}
           storages={data?.shoppingStorages ?? []}
-          label={`Conservation de ${name}`}
+          label={cellLabelOf('conservation', item, 'Conservation')}
           readOnly={readOnly}
           onSave={(conservation) => save('conservation', (target) => ({ ...conservation, expiresAt: conservation.perishable ? (target.expiresAt ?? null) : null }))}
         />
@@ -205,7 +227,7 @@ export function ShoppingTable<T extends ShoppingFields>({
         <ExpiryCell
           value={item.expiresAt ?? null}
           disabled={!item.perishable}
-          label={`Date de péremption de ${name}`}
+          label={cellLabelOf('expiresAt', item, 'Date de péremption')}
           readOnly={readOnly}
           onSave={(expiresAt) => save('expiresAt', (target) => (target.perishable ? { expiresAt } : {}))}
         />
@@ -214,7 +236,7 @@ export function ShoppingTable<T extends ShoppingFields>({
         <PeopleCell
           memberIds={item.memberIds}
           relationIds={item.relationIds}
-          label={`Bénéficiaires de ${name}`}
+          label={cellLabelOf('people', item, 'Bénéficiaires')}
           readOnly={readOnly}
           onSave={(chosen) =>
             save('people', (target) => ({ memberIds: applyDiff(target.memberIds, item.memberIds, chosen.memberIds), relationIds: applyDiff(target.relationIds, item.relationIds, chosen.relationIds) }))
@@ -225,7 +247,7 @@ export function ShoppingTable<T extends ShoppingFields>({
         <EditableText
           link
           value={item.url ?? null}
-          label={`Lien vers ${name}`}
+          label={cellLabelOf('url', item, 'Lien')}
           placeholder="https://…"
           schema={shoppingItemSchema.shape.url}
           readOnly={readOnly}
@@ -233,7 +255,9 @@ export function ShoppingTable<T extends ShoppingFields>({
         />
       ),
       // An item of a list (a product has none): not needed, bought if possible.
-      optional: 'optional' in item && <EditableCheck value={Boolean(item.optional)} label={`${name} facultatif`} readOnly={readOnly} onSave={(optional) => save('optional', { optional })} />,
+      optional: 'optional' in item && (
+        <EditableCheck value={Boolean(item.optional)} label={cellLabelOf('optional', item, 'Facultatif')} readOnly={readOnly} onSave={(optional) => save('optional', { optional })} />
+      ),
       // Sheets an item of a list comes from, with their share (products of the references have none).
       sheets: 'sheetSources' in item && Array.isArray(item.sheetSources) && (
         <StackedValues>

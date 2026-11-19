@@ -1,25 +1,20 @@
 import { addDays, colorSchema, countOf, dayPart, daysBetween, daySchema, endAfter, LOCAL_DATE_TIME_PATTERN, monthOfDay, timeToMinutes, WEEKDAY_SHORT_LABELS, weekdayText } from '@ordo/shared';
-import PDFDocument from 'pdfkit';
 import { z } from 'zod';
 import { parseInput } from '../../graphql/errors';
-import { PDF_TABLE, PDF_TEXT, reportHeadingSchema, startReport, writeHeading } from '../core/pdf-report';
+import { PDF_TABLE, PDF_TEXT, type PdfDoc, reportHeadingSchema, startReport, writeHeading } from '../core/pdf-report';
 
-type Doc = InstanceType<typeof PDFDocument>;
-
-const isoDate = daySchema();
 /** Local date and time, "YYYY-MM-DDTHH:MM". */
 const localDateTime = z.string().regex(LOCAL_DATE_TIME_PATTERN);
-const hexColor = colorSchema;
 
 /** A view of the calendar, as displayed (filters applied), to print. */
 const calendarPdfSchema = reportHeadingSchema
   .extend({
     view: z.enum(['month', 'week', 'day']),
     /** First and last days shown, included. */
-    from: isoDate,
-    to: isoDate,
+    from: daySchema(),
+    to: daySchema(),
     /** The user's day (highlighted). */
-    today: isoDate,
+    today: daySchema(),
     items: z
       .array(
         z.object({
@@ -27,9 +22,9 @@ const calendarPdfSchema = reportHeadingSchema
           kind: z.enum(['event', 'task', 'time', 'pause', 'work']),
           allDay: z.boolean(),
           /** All day: first and last days (YYYY-MM-DD, included); timed: local date-times. */
-          start: z.union([isoDate, localDateTime]),
-          end: z.union([isoDate, localDateTime]),
-          color: hexColor,
+          start: z.union([daySchema(), localDateTime]),
+          end: z.union([daySchema(), localDateTime]),
+          color: colorSchema,
           /** Cancelled or done: struck through. */
           struck: z.boolean().default(false),
         }),
@@ -56,7 +51,7 @@ function tint(hex: string, ratio: number): string {
 
 /**
  * Writes a text clipped to a box (ellipsis on its last line).
- * @param {Doc} doc PDF.
+ * @param {PdfDoc} doc PDF.
  * @param {string} text Text.
  * @param {object} box Box and style.
  * @param {number} box.x Left.
@@ -69,7 +64,7 @@ function tint(hex: string, ratio: number): string {
  * @param {boolean} [box.struck] Struck through. Optional.
  * @returns {void}
  */
-function clippedText(doc: Doc, text: string, box: { x: number; y: number; width: number; height: number; size: number; color: string; bold?: boolean; struck?: boolean }): void {
+function clippedText(doc: PdfDoc, text: string, box: { x: number; y: number; width: number; height: number; size: number; color: string; bold?: boolean; struck?: boolean }): void {
   if (box.width < 6 || box.height < box.size) return;
   doc
     .font(box.bold ? 'bold' : 'regular')
@@ -83,13 +78,13 @@ function clippedText(doc: Doc, text: string, box: { x: number; y: number; width:
 /**
  * Week or day view: an all-day row, then the hours with the working hours in the background and the timed
  * items side by side when they overlap.
- * @param {Doc} doc PDF.
+ * @param {PdfDoc} doc PDF.
  * @param {z.infer<typeof calendarPdfSchema>} view View.
  * @param {{ x: number, y: number, width: number, height: number }} area Area to fill.
  * @param {string} today Today (highlighted).
  * @returns {void}
  */
-function drawTimeGrid(doc: Doc, view: z.infer<typeof calendarPdfSchema>, area: { x: number; y: number; width: number; height: number }, today: string): void {
+function drawTimeGrid(doc: PdfDoc, view: z.infer<typeof calendarPdfSchema>, area: { x: number; y: number; width: number; height: number }, today: string): void {
   const days = Array.from({ length: daysBetween(view.from, view.to) + 1 }, (_, index) => addDays(view.from, index));
   const axis = 30;
   const columnWidth = (area.width - axis) / days.length;
@@ -236,13 +231,13 @@ function drawTimeGrid(doc: Doc, view: z.infer<typeof calendarPdfSchema>, area: {
 
 /**
  * Month view: weeks of days, each listing its items (time and title), "+n" when they do not fit.
- * @param {Doc} doc PDF.
+ * @param {PdfDoc} doc PDF.
  * @param {z.infer<typeof calendarPdfSchema>} view View.
  * @param {{ x: number, y: number, width: number, height: number }} area Area to fill.
  * @param {string} today Today (highlighted).
  * @returns {void}
  */
-function drawMonth(doc: Doc, view: z.infer<typeof calendarPdfSchema>, area: { x: number; y: number; width: number; height: number }, today: string): void {
+function drawMonth(doc: PdfDoc, view: z.infer<typeof calendarPdfSchema>, area: { x: number; y: number; width: number; height: number }, today: string): void {
   const weeks = Math.ceil((daysBetween(view.from, view.to) + 1) / 7);
   const headerHeight = 14;
   const cellWidth = area.width / 7;

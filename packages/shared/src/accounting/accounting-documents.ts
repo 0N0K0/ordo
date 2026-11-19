@@ -1,4 +1,6 @@
 import { sumOf } from '../core/collections';
+import { normalize } from '../core/text';
+import { ACCOUNTING_DOCUMENT_TYPES } from './accounting';
 import { lastDayOfMonth } from '../dates/months';
 import { z } from 'zod';
 import { END_AFTER_START, endsAfter, optionalText, requiredText } from '../core/rules';
@@ -289,14 +291,21 @@ export const LATE_INTEREST_PRESETS = ['Taux d’intérêt légal en vigueur', 'T
 export const BILLING_SCHEDULE_PRESETS = ['En une fois, à la livraison', 'À la commande', 'Au mois, en fin de mois', 'Tous les 1er du mois', 'Tous les 15 du mois', 'À l’avancement', 'Par jalon'];
 
 /**
+ * Payment terms as compared with the presets: trimmed, case and accents aside.
+ * @param {string | null | undefined} terms Payment terms.
+ * @returns {string} Folded text.
+ */
+const foldedTerms = (terms: string | null | undefined): string => normalize(terms?.trim() ?? '');
+
+/**
  * Whether payment terms ask to pay on receipt ("À réception", "Comptant"): the due date is then the issue date,
  * printed as "À réception".
  * @param {string | null} terms Payment terms.
  * @returns {boolean} Paid on receipt.
  */
 export function paidOnReceipt(terms: string | null | undefined): boolean {
-  const text = terms?.trim().toLowerCase() ?? '';
-  return /^(à|a) réception$/.test(text) || text === 'comptant';
+  const text = foldedTerms(terms);
+  return text === 'a reception' || text === 'comptant';
 }
 
 /**
@@ -306,9 +315,8 @@ export function paidOnReceipt(terms: string | null | undefined): boolean {
  * @returns {string | null} Due date, or null when the terms do not give one.
  */
 export function dueDateForTerms(terms: string | null, issueDate: string): string | null {
-  const text = terms?.trim().toLowerCase() ?? '';
   if (paidOnReceipt(terms)) return issueDate;
-  const match = /^(?:à|a) (\d{1,3}) jours( fin de mois)?$/.exec(text);
+  const match = /^a (\d{1,3}) jours( fin de mois)?$/.exec(foldedTerms(terms));
   if (!match) return null;
   const due = addDays(issueDate, Number(match[1]));
   if (!match[2]) return due;
@@ -330,7 +338,7 @@ export function depositAmount(type: DiscountType | null, value: number | null, t
 /** Quote or invoice issued before Ordo: main information (its file is sent apart). */
 export const importedDocumentSchema = z
   .object({
-    type: z.enum(['QUOTE', 'INVOICE', 'DEPOSIT_INVOICE', 'CREDIT_NOTE']),
+    type: z.enum(ACCOUNTING_DOCUMENT_TYPES),
     number: requiredText(60, 'Le numéro est requis.'),
     issueDate: daySchema('La date est requise.'),
     dueDate: daySchema().nullable(),

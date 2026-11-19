@@ -1,5 +1,17 @@
 import { done } from '../errors';
-import { addDays, DOCUMENT_STATUS_CATEGORIES, formatDay, fromCents, lineCents, monthOfDate, parseDay, REMINDER_DELAY_DAYS, type TreasuryAccountInput, type TreasuryEntryInput } from '@ordo/shared';
+import {
+  addDays,
+  DOCUMENT_STATUS_CATEGORIES,
+  formatDay,
+  fromCents,
+  INVOICE_TYPES,
+  lineCents,
+  monthOfDate,
+  parseDay,
+  REMINDER_DELAY_DAYS,
+  type TreasuryAccountInput,
+  type TreasuryEntryInput,
+} from '@ordo/shared';
 import { prisma } from '../../db';
 import * as reminders from '../../services/accounting/reminders';
 import * as statuses from '../../services/accounting/document-statuses';
@@ -12,12 +24,12 @@ import * as loans from '../../services/treasury/treasury-loans';
 import * as team from '../../services/treasury/treasury-team';
 import { meContributorId } from '../../services/workspace/workspaces';
 import { currentWorkspace } from '../../workspace-context';
-import { BY_POSITION } from '../../services/core/ordering';
+import { BY_POSITION, BY_POSITION_NAME } from '../../services/core/ordering';
 import { builder } from '../builder';
 import { LabelColorInput, labelObject } from '../label-inputs';
 import { parisToday } from '../../today';
 import { fromDecimal } from '../../services/core/decimal';
-import { attachmentUrl } from '../../services/core/attachments';
+import { attachmentUrl, resourceUrl } from '../../services/core/attachments';
 
 // Balances are computed once per request for all documents (lists show many of them).
 const documentCache = new WeakMap<object, Promise<Map<string, tracking.DocumentBalance>>>();
@@ -248,14 +260,6 @@ const documentSelect = {
   select: { id: true, kind: true, url: true, attachment: { select: { id: true, filename: true } } },
 } as const;
 
-/**
- * Address of a file or link document.
- * @param {{ kind: string, url: string | null, attachment: { id: string, filename: string } | null }} document Document.
- * @returns {string} URL.
- */
-const documentUrl = (document: { kind: string; url: string | null; attachment: { id: string; filename: string } | null }) =>
-  document.kind === 'LINK' ? (document.url ?? '') : attachmentUrl(document.attachment);
-
 const linkedSelect = { select: { id: true, date: true, label: true, amount: true, status: true } } as const;
 
 /** Line of another entry linked to a line or a whole entry. */
@@ -315,8 +319,8 @@ const SUPPORTING_DOCUMENTS = {
  * @returns {EntryDocument[]} Documents.
  */
 function supportingDocuments(owner: {
-  libraryDocuments: (Parameters<typeof documentUrl>[0] & { id: string; kind: string; title: string; folder: { name: string } | null })[];
-  projectResources: (Parameters<typeof documentUrl>[0] & { id: string; kind: string; label: string; project: { id: string; label: string } })[];
+  libraryDocuments: (Parameters<typeof resourceUrl>[0] & { id: string; kind: string; title: string; folder: { name: string } | null })[];
+  projectResources: (Parameters<typeof resourceUrl>[0] & { id: string; kind: string; label: string; project: { id: string; label: string } })[];
 }): EntryDocument[] {
   return [
     ...owner.libraryDocuments.map((document) => ({
@@ -324,7 +328,7 @@ function supportingDocuments(owner: {
       source: 'LIBRARY' as const,
       kind: document.kind,
       label: document.title,
-      url: documentUrl(document),
+      url: resourceUrl(document),
       projectId: null,
       place: document.folder?.name ?? 'Documents',
     })),
@@ -333,7 +337,7 @@ function supportingDocuments(owner: {
       source: 'PROJECT' as const,
       kind: resource.kind,
       label: resource.label,
-      url: documentUrl(resource),
+      url: resourceUrl(resource),
       projectId: resource.project.id,
       place: resource.project.label,
     })),
@@ -405,7 +409,7 @@ builder.prismaObject('TreasuryEntry', {
     url: t.exposeString('url', { nullable: true, description: 'Page about it on the internet (an online order…).' }),
     recurrence: t.field({ type: 'JSON', nullable: true, resolve: (entry) => entry.recurrence }),
     allocations: t.relation('allocations'),
-    lines: t.relation('lines', { description: 'Split of the amount; what the lines leave is "not split".', query: { orderBy: { position: 'asc' } } }),
+    lines: t.relation('lines', { description: 'Split of the amount; what the lines leave is "not split".', query: { orderBy: BY_POSITION } }),
     documents: t.field({
       type: [EntryDocumentRef],
       description: 'Supporting documents: of the library, then of projects.',
@@ -785,7 +789,7 @@ builder.queryFields((t) => ({
       // Sent on the 1st: reminded from the 16th.
       const sentBefore = parseDay(addDays(args.today, -(REMINDER_DELAY_DAYS - 1)));
       const late = await prisma.accountingDocument.findMany({
-        where: { status: 'FINAL', type: { in: ['INVOICE', 'DEPOSIT_INVOICE'] }, sentAt: { lt: sentBefore } },
+        where: { status: 'FINAL', type: { in: [...INVOICE_TYPES] }, sentAt: { lt: sentBefore } },
         select: { id: true },
       });
       const ids = late.filter((document) => (balances.get(document.id)?.balance ?? 0) > 0).map((document) => document.id);
@@ -825,15 +829,15 @@ builder.queryFields((t) => ({
   }),
   treasuryCategories: t.prismaField({
     type: ['TreasuryCategory'],
-    resolve: (query) => prisma.treasuryCategory.findMany({ ...query, orderBy: [{ direction: 'asc' }, { position: 'asc' }, { label: 'asc' }] }),
+    resolve: (query) => prisma.treasuryCategory.findMany({ ...query, orderBy: [{ direction: 'asc' }, ...BY_POSITION] }),
   }),
   treasuryPaymentMethods: t.prismaField({
     type: ['TreasuryPaymentMethod'],
-    resolve: (query) => prisma.treasuryPaymentMethod.findMany({ ...query, orderBy: [{ position: 'asc' }, { label: 'asc' }] }),
+    resolve: (query) => prisma.treasuryPaymentMethod.findMany({ ...query, orderBy: BY_POSITION }),
   }),
   treasuryCounterparties: t.prismaField({
     type: ['TreasuryCounterparty'],
-    resolve: (query) => prisma.treasuryCounterparty.findMany({ ...query, orderBy: [{ archivedAt: { sort: 'asc', nulls: 'first' } }, { position: 'asc' }, { name: 'asc' }] }),
+    resolve: (query) => prisma.treasuryCounterparty.findMany({ ...query, orderBy: [{ archivedAt: { sort: 'asc', nulls: 'first' } }, ...BY_POSITION_NAME] }),
   }),
   treasuryDocumentOptions: t.field({
     type: [EntryDocumentRef],
@@ -843,7 +847,7 @@ builder.queryFields((t) => ({
         prisma.libraryDocument.findMany({ ...SUPPORTING_DOCUMENTS.library, orderBy: { title: 'asc' } }),
         prisma.projectResource.findMany({
           ...SUPPORTING_DOCUMENTS.project,
-          orderBy: [{ project: { label: 'asc' } }, { position: 'asc' }],
+          orderBy: [{ project: { label: 'asc' } }, ...BY_POSITION],
         }),
       ]);
       return supportingDocuments({ libraryDocuments: documents, projectResources: resources });

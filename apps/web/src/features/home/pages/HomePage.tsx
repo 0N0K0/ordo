@@ -1,6 +1,6 @@
 import { ActionButton } from '../../../components/actions/ActionButton';
 import { PageHeader } from '../../../components/page/PageHeader';
-import { Button, Group, SimpleGrid, Stack } from '@mantine/core';
+import { Group, SimpleGrid, Stack } from '@mantine/core';
 import { addDays, formatDuration } from '@ordo/shared';
 import { useLocalStorage } from '@mantine/hooks';
 import { ArrowCounterClockwiseIcon, FolderPlusIcon, UserPlusIcon } from '@phosphor-icons/react';
@@ -10,7 +10,7 @@ import { useMe } from '../../auth/api';
 import { ChronoCard } from '../components/ChronoCard';
 import { BillingCard, QuotesCard, TreasuryCard } from '../components/FinanceCards';
 import { StatTile } from '../../../components/page/StatTile';
-import { billingSummary, useMyTodayTasks, useWeekTime } from '../lib/home-data';
+import { balanceIn30Days, billingSummary, useMyTodayTasks, useWeekTime } from '../lib/home-data';
 import { MailCard } from '../components/MailCard';
 import { SortableGrid } from '../components/SortableGrid';
 import { RoutinesCard, ShoppingCard } from '../components/LifeCards';
@@ -18,11 +18,11 @@ import { AgendaCard, TasksCard, TimeCard } from '../components/WorkCards';
 import { useMailAccounts, useUnreadMailCount } from '../../mail/api';
 import { useTaskContext } from '../../tasks/hooks/use-task-context';
 import { useTreasuryProjection } from '../../treasury/api';
-import { useEntityActions } from '../../workspace/hooks/use-entity-actions';
+import { useEntityActions } from '../../projects/hooks/use-entity-actions';
 import { useActiveWorkspace } from '../../workspaces/api';
 import { localToday } from '../../../lib/dates';
 import * as fmt from '../../../lib/format';
-import { PAGES } from '../../../app/pages';
+import { OVERDUE_INVOICES_PATH, PAGES } from '../../../app/pages';
 import { unarchived } from '../../../lib/archive';
 
 type CardId = 'tasks' | 'routines' | 'agenda' | 'chrono' | 'shopping' | 'billing' | 'quotes' | 'treasury' | 'mail' | 'time';
@@ -48,8 +48,7 @@ export function HomePage() {
   const imported = useImportedDocuments();
   const summary = useMemo(() => (documents.data && imported.data ? billingSummary(documents.data, today, imported.data) : null), [documents.data, imported.data, today]);
   const projection = useTreasuryProjection({ today, from: today, until: addDays(today, 90) });
-  const in30 = addDays(today, 30);
-  const at30 = projection.data ? [...projection.data.series].reverse().find((point) => point.date <= in30) : undefined;
+  const at30 = projection.data ? balanceIn30Days(projection.data.series, today) : undefined;
   const accounts = useMailAccounts();
   const hasMail = unarchived(accounts.data ?? []).length > 0;
   const unread = useUnreadMailCount(hasMail);
@@ -96,7 +95,7 @@ export function HomePage() {
           label="Tâches du jour"
           value={myTasks.tasks?.length ?? 0}
           hint={myTasks.overdue > 0 ? `${myTasks.overdue} en retard` : 'Aucune en retard'}
-          hintColor={myTasks.overdue > 0 ? 'red' : 'dimmed'}
+          hintColor={myTasks.overdue > 0 ? 'orange' : 'dimmed'}
           to={PAGES.tasks.path}
           loading={!myTasks.tasks}
         />
@@ -114,8 +113,8 @@ export function HomePage() {
               label="À encaisser"
               value={fmt.money(summary?.receivable ?? 0)}
               hint={summary && summary.overdue > 0 ? `${fmt.money(summary.overdue)} en retard` : 'Rien en retard'}
-              hintColor={summary && summary.overdue > 0 ? 'red' : 'dimmed'}
-              to="/accounting?tab=overdue"
+              hintColor={summary && summary.overdue > 0 ? 'orange' : 'dimmed'}
+              to={OVERDUE_INVOICES_PATH}
               loading={!summary}
             />
             <StatTile label="Devis en attente" value={summary?.pendingQuotes.length ?? 0} hint={`${fmt.money(summary?.pendingQuotesNet ?? 0)} HT`} to={PAGES.accounting.path} loading={!summary} />
@@ -138,9 +137,9 @@ export function HomePage() {
       />
       {customized && (
         <Group justify="center">
-          <Button variant="subtle" color="gray" size="xs" leftSection={<ArrowCounterClockwiseIcon aria-hidden />} onClick={() => setStoredOrder(DEFAULT_ORDER)}>
+          <ActionButton priority="tertiary" icon={<ArrowCounterClockwiseIcon aria-hidden />} onClick={() => setStoredOrder(DEFAULT_ORDER)}>
             Disposition par défaut
-          </Button>
+          </ActionButton>
         </Group>
       )}
     </Stack>

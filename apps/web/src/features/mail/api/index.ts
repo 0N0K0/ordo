@@ -2,7 +2,7 @@ import { keepPreviousData, useIsFetching, useMutation, useQueries, useQuery, use
 import { useInvalidatingMutation } from '../../../lib/mutation';
 import { graphql } from '../../../graphql';
 import type { LinkedMailFieldsFragment, MailDraftQuery, SaveMailDraftInput, MailAccountFieldsFragment, MailAccountInput, MailViewFieldsFragment, SendMailInput } from '../../../graphql/graphql';
-import type { MailSearchCriteria, MailSearchInput } from '@ordo/shared';
+import type { MailSearchCriteria, MailSearchInput, MailSearchSortBy } from '@ordo/shared';
 import { execute } from '../../../lib/graphql-client';
 import { MAIL_CHECK_MS, requestMailCheck } from '../lib/mail-check';
 
@@ -563,7 +563,7 @@ export function useMailSearches() {
  * @param {object | null} params Search (or criteria, and order) and page; null when none is open.
  * @returns {UseQueryResult} Query state.
  */
-export function useMailSearchResults(params: { id: string; page: number } | { criteria: MailSearchCriteria; page: number; sort?: 'date' | 'correspondent' | 'subject'; ascending?: boolean } | null) {
+export function useMailSearchResults(params: { id: string; page: number } | { criteria: MailSearchCriteria; page: number; sort?: MailSearchSortBy; ascending?: boolean } | null) {
   return useQuery({
     queryKey: [...mailQueryKey, 'search-results', params],
     queryFn: async () =>

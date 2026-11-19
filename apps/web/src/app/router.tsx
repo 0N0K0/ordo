@@ -21,15 +21,16 @@ import { ConfirmEmailPage } from '../features/auth/pages/ConfirmEmailPage';
 import { ForgotPasswordPage } from '../features/auth/pages/ForgotPasswordPage';
 import { LoginPage } from '../features/auth/pages/LoginPage';
 import { ResetPasswordPage } from '../features/auth/pages/ResetPasswordPage';
-import { ClientPage } from '../features/workspace/pages/ClientPage';
-import { ProjectPage } from '../features/workspace/pages/ProjectPage';
-import { SettingsPage } from '../features/workspace/pages/SettingsPage';
+import { ClientPage } from '../features/projects/pages/ClientPage';
+import { ProjectPage } from '../features/projects/pages/ProjectPage';
+import { SettingsPage } from '../features/projects/pages/SettingsPage';
 import { ProOnly } from '../features/workspaces/pages/ProOnly';
 import { AppLayout } from './layout/AppLayout';
 import { HomePage } from '../features/home/pages/HomePage';
 import { TasksPage } from '../features/tasks/pages/TasksPage';
 import { TimePage } from '../features/time/pages/TimePage';
 import { NotFoundPage } from './NotFoundPage';
+import { AUTH_PATHS, PAGES, routeOf } from './pages';
 
 export const router = createBrowserRouter([
   {
@@ -39,20 +40,20 @@ export const router = createBrowserRouter([
         element: <AppLayout />,
         children: [
           { index: true, element: <HomePage /> },
-          { path: 'tasks', element: <TasksPage /> },
-          { path: 'time', element: <TimePage /> },
-          { path: 'account', element: <AccountPage /> },
-          { path: 'alarms', element: <AlarmsPage /> },
-          { path: 'shopping', element: <ShoppingPage /> },
-          { path: 'shopping/:id', element: <ShoppingListPage /> },
-          { path: 'sheets', element: <SheetsPage /> },
-          { path: 'sheets/:id', element: <SheetPage /> },
-          { path: 'stock', element: <StockPage /> },
-          { path: 'routines', element: <RoutinesPage /> },
-          { path: 'mail', element: <MailPage /> },
-          { path: 'calendar', element: <CalendarPage /> },
+          { path: routeOf(PAGES.tasks.path), element: <TasksPage /> },
+          { path: routeOf(PAGES.time.path), element: <TimePage /> },
+          { path: routeOf(PAGES.account.path), element: <AccountPage /> },
+          { path: routeOf(PAGES.alarms.path), element: <AlarmsPage /> },
+          { path: routeOf(PAGES.shopping.path), element: <ShoppingPage /> },
+          { path: routeOf(PAGES.shopping.path, ':id'), element: <ShoppingListPage /> },
+          { path: routeOf(PAGES.sheets.path), element: <SheetsPage /> },
+          { path: routeOf(PAGES.sheets.path, ':id'), element: <SheetPage /> },
+          { path: routeOf(PAGES.stock.path), element: <StockPage /> },
+          { path: routeOf(PAGES.routines.path), element: <RoutinesPage /> },
+          { path: routeOf(PAGES.mail.path), element: <MailPage /> },
+          { path: routeOf(PAGES.calendar.path), element: <CalendarPage /> },
           {
-            path: 'accounting',
+            path: routeOf(PAGES.accounting.path),
             element: (
               <ProOnly>
                 <AccountingPage />
@@ -60,7 +61,7 @@ export const router = createBrowserRouter([
             ),
           },
           {
-            path: 'accounting/imported/:id',
+            path: routeOf(PAGES.accounting.path, 'imported/:id'),
             element: (
               <ProOnly>
                 <ImportedDocumentPage />
@@ -68,17 +69,17 @@ export const router = createBrowserRouter([
             ),
           },
           {
-            path: 'accounting/:id',
+            path: routeOf(PAGES.accounting.path, ':id'),
             element: (
               <ProOnly>
                 <DocumentPage />
               </ProOnly>
             ),
           },
-          { path: 'treasury', element: <TreasuryPage /> },
-          { path: 'dashboards', element: <DashboardsPage /> },
-          { path: 'documents', element: <LibraryPage /> },
-          { path: 'settings', element: <SettingsPage /> },
+          { path: routeOf(PAGES.treasury.path), element: <TreasuryPage /> },
+          { path: routeOf(PAGES.dashboards.path), element: <DashboardsPage /> },
+          { path: routeOf(PAGES.documents.path), element: <LibraryPage /> },
+          { path: routeOf(PAGES.settings.path), element: <SettingsPage /> },
           {
             path: 'clients/:id',
             element: (
@@ -98,13 +99,13 @@ export const router = createBrowserRouter([
       {
         element: <RequireGuest />,
         children: [
-          { path: 'login', element: <LoginPage /> },
-          { path: 'forgot-password', element: <ForgotPasswordPage /> },
+          { path: routeOf(AUTH_PATHS.login), element: <LoginPage /> },
+          { path: routeOf(AUTH_PATHS.forgotPassword), element: <ForgotPasswordPage /> },
         ],
       },
       // Reachable whether logged in or not: these pages come from email links.
-      { path: 'reset-password', element: <ResetPasswordPage /> },
-      { path: 'confirm-email', element: <ConfirmEmailPage /> },
+      { path: routeOf(AUTH_PATHS.resetPassword), element: <ResetPasswordPage /> },
+      { path: routeOf(AUTH_PATHS.confirmEmail), element: <ConfirmEmailPage /> },
     ],
   },
   { path: '*', element: <NotFoundPage /> },
