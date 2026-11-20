@@ -73,6 +73,7 @@ Source : `apps/api/src/services/calendar/calendar-events.ts`, schéma `calendarE
 - Journée entière : heures effacées, trajets remis à 0.
 - Calendrier : résolu comme ci-dessus ; refusé s’il est archivé (champ `calendarId`).
 - Liens des routines : ceux des jours de l’occurrence enregistrée sont remplacés (ceux des autres jours sont gardés), dédoublonnés par `routineId|date`.
+- Tâche transformée en routine (lot 15, décision FL) : un évènement non récurrent lié à la tâche est lié à la routine le jour de son début ; un évènement récurrent perd ce lien. Routine transformée en tâche : les évènements liés à son occurrence en cours (sinon la suivante, sinon la première) sont liés à la tâche, les autres liens partent avec elle. La règle de la personne commune n'est pas revérifiée (lien déjà en place).
 
 ### Écriture d’un évènement existant
 

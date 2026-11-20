@@ -227,7 +227,7 @@ Tâches ouvertes de l’espace dont l’« Ouverture » suivie (la sienne, sinon
 
 ## Pas de récurrence
 
-Une tâche ne se répète pas : ce qui revient est une [routine](routines.md). La notion de tâche récurrente a été supprimée le 19 novembre 2026 : les occurrences déjà créées restent, comme tâches ordinaires ; les répétitions enregistrées ne sont plus lues (colonnes `recurrence`, `seriesId` et `occurrenceDate` retirées de `Task`) ; aucune conversion en routine.
+Une tâche ne se répète pas : ce qui revient est une [routine](routines.md). La notion de tâche récurrente a été supprimée le 19 novembre 2026 : les occurrences déjà créées restent, comme tâches ordinaires ; les répétitions enregistrées ne sont plus lues (colonnes `recurrence`, `seriesId` et `occurrenceDate` retirées de `Task`) ; aucune conversion automatique en routine (une tâche se transforme à la main : voir [Transformer en routine](#transformer-en-routine)).
 
 ## Archivage
 
@@ -282,6 +282,19 @@ Source : `duplicateTask` (décision D20 : « Dupliquer », la copie enregistrée
 - La copie s’appelle « … (copie) » (`copyName`, 250 caractères au plus) ; elle est placée sous le même parent, à la fin de l’ordre manuel ; elle reçoit un nouveau numéro (base).
 - Avec `includeSubtasks`, le sous-arbre est copié niveau par niveau sous la copie (les sous-tâches copiées gardent leur libellé, assignés, bénéficiaires, étiquettes et sprints, pas leurs liens de blocage ou de relation).
 - La tâche source peut être archivée (aucune vérification d’archivage) ; l’interface ne propose la duplication que sur les tâches non archivées.
+
+## Transformer en routine
+
+Source : `convertTaskToRoutine(id, confirm)` (`services/routines/conversion.ts`, mutation GraphQL du même nom), lot 15 (décision FL). Le sens inverse est dans [Routines](routines.md#transformer-en-tâche).
+
+- Refusée pour une tâche archivée (« Élément archivé : restaurez-le pour le modifier. ») et pour une tâche qui a des sous-tâches, archivées comprises : « Une tâche qui a des sous-tâches ne devient pas une routine : déplacez ou supprimez d’abord ses sous-tâches. ».
+- Sans `confirm`, rien ne change : `CONFIRMATION_REQUIRED` (« Transformer la tâche en routine lui fait perdre ce qu’une routine n’a pas : confirmez pour continuer. »), extension `lost` : ce qui est perdu, par sorte (`ConversionLoss`, `packages/shared/src/routines/conversion.ts`), toujours demandé, même vide.
+- Une seule transaction : une nouvelle routine est créée (à la fin de l’ordre manuel), la tâche supprimée ; l’identifiant n’est pas gardé.
+- Gardés : libellé, description, projet, assignés, bénéficiaires (contributeurs et relations), liens, lieu et son point, condition de créneaux, rappels « À HH:MM ». Les valeurs déjà sur la tâche restent, même archivées ou plus rattachées au projet (comme une valeur déjà en place).
+- Dates : l’« Échéance » suivie (la sienne, sinon celle de son sprint unique) devient la première fois de la routine (sans échéance : l’« Ouverture » suivie, sinon aujourd’hui, heure de Paris) ; une « Ouverture » avant l’échéance devient l’« Ouverture » de la routine, « N jours avant » (366 au plus). La routine se répète chaque jour (`DAILY_RECURRENCE`), sans moment ; la répétition se choisit ensuite dans son panneau.
+- Repris par la routine : ses temps passés (lot 8 : le temps porte sur la routine au lieu de la tâche), ses fiches (`SheetLink`), sa liste à cocher et ses commentaires, placés sur la première occurrence programmée (la condition de créneaux peut la décaler ; dates et textes des commentaires gardés, leur lien GitHub non) ; un évènement non récurrent lié à la tâche est lié à la routine le jour du début de l’évènement.
+- Tâche fermée (`closedAt`, annulée comprise) : la première occurrence est cochée, chacun de ses moments (`RoutineCheck`, fait à la date de fermeture), pour qu’elle ne soit pas en retard. Une première occurrence à venir n’est pas cochée (une occurrence à venir ne se coche pas) ; une tâche ouverte ne coche rien.
+- Perdus (comptés dans `lost`) : numéro (`number`), statut, priorité, type, étiquettes, jalon, sprints, item GitHub (retiré du tableau GitHub, en tâche de fond, comme à la suppression), effort, dates de début et de fin, liens « bloque » et « relative à » (`taskLinks`), listes d’achats liées, lien de ses alarmes (gardées, sans tâche : `alarms`), liens avec des évènements récurrents (`events`), une autre liste à cocher que la première (`checklists`), la tâche parente (`parent` : la routine est au premier niveau). Son historique de statuts part avec elle. Les liens « #12 » ou `?task=` écrits vers elle dans les textes ne mènent plus nulle part, comme après une suppression.
 
 ## Modification en masse
 

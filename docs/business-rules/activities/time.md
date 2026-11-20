@@ -44,6 +44,7 @@ Source : `timeLeftEmpty`, `releaseSubjectTime` (`time-entries.ts`), appelés par
 - Un temps **sans projet** dont tout ce qu’il porte (tâches, routines, évènements) est supprimé est **supprimé avec eux** : un temps a au moins un projet, une tâche, une routine ou un évènement.
 - Les temps des occurrences supprimées d’un évènement récurrent (« cette occurrence », « celle-ci et les suivantes ») perdent ces occurrences.
 - Série coupée ou déplacée : les temps des occurrences suivantes (ou de toutes) suivent leur occurrence vers le nouvel évènement ou leur nouveau jour ; une occurrence reportée emmène ses temps vers son report (voir [Agenda](calendar.md)).
+- Une tâche transformée en routine, ou une routine en tâche (lot 15, décision FL), n'est pas une suppression pour ses temps : ils portent sur le nouvel élément au lieu de l'ancien, aucun n'est supprimé (voir [Tâches](tasks.md#transformer-en-routine), [Routines](routines.md#transformer-en-tâche)).
 - La confirmation de la suppression dit combien de temps seront supprimés, et combien de commentaires (requête `lostOnDelete`, mêmes arguments que la suppression).
 - **Exception :** un temps **facturé** (`documentId` posé, brouillon ou facture validée) n’est **jamais** supprimé, ni ainsi ni avec son projet : il fait partie de sa facture. Il reste, même sans rien de rattaché ; c’est le seul cas d’un temps sans projet, ni tâche, ni routine, ni évènement.
 

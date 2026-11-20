@@ -111,7 +111,15 @@ Grouper par : état, projet (en arbre), statut, priorité, type, assignés, bén
 
 - « Ouvrir » (panneau latéral).
 - « Ajouter une sous-tâche » (pas sur une tâche archivée).
-- « Dupliquer », « Transférer », « Archiver », « Supprimer » ; sur une tâche archivée : « Restaurer », « Supprimer ».
+- « Dupliquer », « Transférer », « Transformer en routine », « Archiver », « Supprimer » ; sur une tâche archivée : « Restaurer », « Supprimer ». Le même menu est celui du panneau d’une tâche (« … »).
+
+### Transformer en routine
+
+« Transformer en routine » (lot 15, menu d’une ligne et du panneau) remplace la tâche par une routine. Désactivé sur une tâche qui a des sous-tâches (infobulle « Une tâche qui a des sous-tâches ne devient pas une routine. »).
+
+- Confirmation destructive « Transformer en routine » : « La tâche est remplacée par une routine répétée chaque jour (sa répétition se choisit ensuite dans son panneau) : son échéance devient celle de la première occurrence, qui reçoit ses commentaires et sa liste à cocher ; ses temps et ses fiches la suivent. Les liens écrits vers la tâche dans les textes ne mèneront plus nulle part. », puis « Elle perd : » et la liste de ce qui est perdu, avec les nombres (« son numéro », « son statut », « sa priorité », « son type », « ses 3 étiquettes », « son jalon », « ses 2 sprints », « son lien GitHub (l’item est retiré du tableau) », « son effort », « ses dates de début et de fin », « ses 2 liens « Dépend de », « Bloque » ou « Relative à » avec d’autres tâches », « son lien avec sa liste d’achats », « son lien avec son alarme (gardées, sans tâche) », « son lien avec un évènement » (évènement récurrent), « son parent (elle passe au premier niveau) »), puis « Cette action est irréversible. ». Boutons « Transformer en routine » puis « Annuler ».
+- Une fois fait : toast « Tâche transformée en routine : choisissez sa répétition. », le panneau encore ouvert sur la tâche se ferme (depuis sa ligne comme depuis son panneau) et celui de la nouvelle routine s’ouvre (répétition quotidienne par défaut, à changer dans « Quand »).
+- Ce qui est gardé : libellé, description, projet, assignés, bénéficiaires, liens, lieu, condition de créneaux, rappels « À HH:MM », temps passés, fiches ; l’« Échéance » (la sienne, sinon celle de son sprint) devient le jour de la première occurrence (sans échéance : son « Ouverture », sinon aujourd’hui) et l’« Ouverture », si elle est avant, l’« Ouverture » de la routine (« N jours avant ») ; ses commentaires et sa liste à cocher vont sur la première occurrence ; un évènement non récurrent lié à la tâche est lié à la routine le jour de l’évènement. Une tâche fermée (annulée comprise) donne une routine dont la première occurrence est cochée (tous ses moments), pour qu’elle ne soit pas en retard ; une première occurrence à venir n’est pas cochée. Règles : [Tâches](../../business-rules/activities/tasks.md#transformer-en-routine).
 
 ### Actions sur les tâches cochées
 

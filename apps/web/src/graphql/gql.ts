@@ -265,6 +265,8 @@ type Documents = {
     "\n  mutation MoveRoutineCategory($id: ID!, $parentId: ID, $index: Int) {\n    moveRoutineCategory(id: $id, parentId: $parentId, index: $index)\n  }\n": typeof types.MoveRoutineCategoryDocument,
     "\n  mutation DeleteRoutineCategory($id: ID!) {\n    deleteRoutineCategory(id: $id)\n  }\n": typeof types.DeleteRoutineCategoryDocument,
     "\n  mutation CopySubRoutines($fromId: ID!, $toId: ID!) {\n    copySubRoutines(fromId: $fromId, toId: $toId)\n  }\n": typeof types.CopySubRoutinesDocument,
+    "\n  mutation ConvertTaskToRoutine($id: ID!, $confirm: Boolean) {\n    convertTaskToRoutine(id: $id, confirm: $confirm)\n  }\n": typeof types.ConvertTaskToRoutineDocument,
+    "\n  mutation ConvertRoutineToTask($id: ID!, $confirm: Boolean) {\n    convertRoutineToTask(id: $id, confirm: $confirm)\n  }\n": typeof types.ConvertRoutineToTaskDocument,
     "\n  mutation CreateRoutine($input: RoutineInput!, $copyOf: ID) {\n    createRoutine(input: $input, copyOf: $copyOf)\n  }\n": typeof types.CreateRoutineDocument,
     "\n  mutation UpdateRoutine($id: ID!, $input: RoutineInput!, $restoring: Boolean, $confirmLoss: Boolean) {\n    updateRoutine(id: $id, input: $input, restoring: $restoring, confirmLoss: $confirmLoss) {\n      removedLinks\n    }\n  }\n": typeof types.UpdateRoutineDocument,
     "\n  mutation PatchRoutine($id: ID!, $input: RoutinePatch!, $confirmLoss: Boolean) {\n    patchRoutine(id: $id, input: $input, confirmLoss: $confirmLoss) {\n      removedLinks\n    }\n  }\n": typeof types.PatchRoutineDocument,
@@ -728,6 +730,8 @@ const documents: Documents = {
     "\n  mutation MoveRoutineCategory($id: ID!, $parentId: ID, $index: Int) {\n    moveRoutineCategory(id: $id, parentId: $parentId, index: $index)\n  }\n": types.MoveRoutineCategoryDocument,
     "\n  mutation DeleteRoutineCategory($id: ID!) {\n    deleteRoutineCategory(id: $id)\n  }\n": types.DeleteRoutineCategoryDocument,
     "\n  mutation CopySubRoutines($fromId: ID!, $toId: ID!) {\n    copySubRoutines(fromId: $fromId, toId: $toId)\n  }\n": types.CopySubRoutinesDocument,
+    "\n  mutation ConvertTaskToRoutine($id: ID!, $confirm: Boolean) {\n    convertTaskToRoutine(id: $id, confirm: $confirm)\n  }\n": types.ConvertTaskToRoutineDocument,
+    "\n  mutation ConvertRoutineToTask($id: ID!, $confirm: Boolean) {\n    convertRoutineToTask(id: $id, confirm: $confirm)\n  }\n": types.ConvertRoutineToTaskDocument,
     "\n  mutation CreateRoutine($input: RoutineInput!, $copyOf: ID) {\n    createRoutine(input: $input, copyOf: $copyOf)\n  }\n": types.CreateRoutineDocument,
     "\n  mutation UpdateRoutine($id: ID!, $input: RoutineInput!, $restoring: Boolean, $confirmLoss: Boolean) {\n    updateRoutine(id: $id, input: $input, restoring: $restoring, confirmLoss: $confirmLoss) {\n      removedLinks\n    }\n  }\n": types.UpdateRoutineDocument,
     "\n  mutation PatchRoutine($id: ID!, $input: RoutinePatch!, $confirmLoss: Boolean) {\n    patchRoutine(id: $id, input: $input, confirmLoss: $confirmLoss) {\n      removedLinks\n    }\n  }\n": types.PatchRoutineDocument,
@@ -1941,6 +1945,14 @@ export function graphql(source: "\n  mutation DeleteRoutineCategory($id: ID!) {\
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */
 export function graphql(source: "\n  mutation CopySubRoutines($fromId: ID!, $toId: ID!) {\n    copySubRoutines(fromId: $fromId, toId: $toId)\n  }\n"): typeof import('./graphql').CopySubRoutinesDocument;
+/**
+ * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
+ */
+export function graphql(source: "\n  mutation ConvertTaskToRoutine($id: ID!, $confirm: Boolean) {\n    convertTaskToRoutine(id: $id, confirm: $confirm)\n  }\n"): typeof import('./graphql').ConvertTaskToRoutineDocument;
+/**
+ * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
+ */
+export function graphql(source: "\n  mutation ConvertRoutineToTask($id: ID!, $confirm: Boolean) {\n    convertRoutineToTask(id: $id, confirm: $confirm)\n  }\n"): typeof import('./graphql').ConvertRoutineToTaskDocument;
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */

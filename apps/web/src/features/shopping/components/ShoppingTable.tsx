@@ -73,7 +73,8 @@ interface ShoppingTableProps<T extends ShoppingFields> {
  * Table of products or items, the data table of every table, grouped as its view says (by category as their tree, by
  * store, way of keeping, person, or any other column; or not): each field changed in place, a row moved to another
  * category, store, way of keeping or person by drag and drop on the heading or a row of its group (only the groups
- * that have rows show), a row adding one at the end of each group (in it) and of the table.
+ * that have rows show), put in the order chosen by hand by drag and drop when the view has no sort (kept in the view,
+ * within a group or not), a row adding one at the end of each group (in it) and of the table.
  * @param {ShoppingTableProps<T>} props Component props.
  * @returns {JSX.Element} Table.
  */
@@ -112,7 +113,8 @@ export function ShoppingTable<T extends ShoppingFields>({
     )(toggle.id)(row, on);
 
   /**
-   * Moves a dropped row to the group it was dropped in (another category, store, way of keeping or person).
+   * Moves a dropped row to the group it was dropped in (another category, store, way of keeping or person); its place
+   * chosen by hand is kept in the view (its manual order).
    * @param {RowMove} move Drop.
    * @returns {void}
    */
@@ -274,6 +276,7 @@ export function ShoppingTable<T extends ShoppingFields>({
       className={classes.table}
       groupSummary={summary}
       onMoveRow={tableReadOnly ? undefined : handleMove}
+      orderInView
       readOnly={tableReadOnly ? () => true : rowReadOnly}
       isArchived={rowReadOnly}
       rowProps={(item) => ({ className: classes.itemRow, 'data-done': done?.(item) || undefined })}

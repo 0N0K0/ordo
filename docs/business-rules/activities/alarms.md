@@ -6,7 +6,7 @@ Règles des alarmes (validation, programmation, occurrences, sonneries) et des r
 
 `Alarm` (`apps/api/prisma/schema.prisma`) : `label`, `note`, `type` (`REMINDER`, `NOT_TRACKING`, `TRACKING_DURATION`), `startDate`, `time` (`HH:MM` local), anciens champs de répétition `frequency` (`ONCE`, `DAILY`, `WEEKLY`, `MONTHLY`), `interval`, `weekdays`, `endDate`, la répétition commune `recurrence` (JSON), `minutes`, `projectId`, `taskId`, `enabled`, `lastFiredAt`. Les heures sont dans le fuseau local de l’utilisateur (celui du navigateur qui sonne).
 
-Supprimer la tâche supprime ses alarmes (`onDelete: Cascade`) ; supprimer le projet les garde, sans projet, avec leur tâche (`onDelete: SetNull`, décision DP).
+Supprimer la tâche supprime ses alarmes (`onDelete: Cascade`) ; la transformer en routine les garde, sans tâche (lot 15, décision FL : une routine n'a pas d'alarme) ; supprimer le projet les garde, sans projet, avec leur tâche (`onDelete: SetNull`, décision DP).
 
 ## Validation (`alarmInputSchema`)
 

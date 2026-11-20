@@ -105,6 +105,7 @@ Source : `setSheetLinks`, `ownerScope`.
 - L'enregistrement remplace tous les rattachements, dans l'ordre donné.
 - Les listes à cocher déjà faites ne changent pas ; celles faites ensuite suivent les nouvelles fiches.
 - Supprimer la routine, l'évènement ou la tâche supprime ses rattachements et ses listes à cocher.
+- Une tâche transformée en routine (lot 15, décision FL) lui passe ses fiches et sa liste à cocher (sur la première occurrence) ; une routine transformée en tâche lui passe ses fiches et la liste à cocher de son occurrence en cours (sinon la suivante, sinon la première), les autres partent avec elle.
 
 ## Listes à cocher
 

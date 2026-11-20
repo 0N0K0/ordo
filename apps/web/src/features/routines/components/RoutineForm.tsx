@@ -1,7 +1,7 @@
 import { readReminders, type Reminder } from '@ordo/shared';
 import { removedLinksNote } from '../../../lib/text';
 import { NO_SUGGESTIONS } from '../../../components/markdown/remark-references';
-import { Divider, Fieldset, Grid, NumberInput, Select, Stack, TextInput } from '@mantine/core';
+import { Divider, Fieldset, Grid, Group, NumberInput, Select, Stack, TextInput } from '@mantine/core';
 import {
   opensFits,
   readOpens,
@@ -41,6 +41,11 @@ import { SubSection } from '../../../components/page/SubSection';
 import { optionalNumberProps } from '../../../components/inputs/number-format';
 import { LinksField } from '../../../components/inputs/LinksField';
 import { linkInputs } from '../../../lib/links';
+import { ActionsMenu } from '../../../components/actions/ActionsMenu';
+import { useConvertActivity } from '../hooks/use-convert-activity';
+import { useRoutineRowsActions } from './RoutineBulkBar';
+import { rowMenuEntry } from '../../../components/data-table/selection/selection-actions';
+import type { RowMenuEntry } from '../../../components/actions/ActionsMenu';
 
 interface RoutineFormValues extends Record<string, unknown> {
   label: string;
@@ -149,6 +154,8 @@ export function RoutineForm({ routine, parent, categoryId = null, projectId = nu
   const { context } = useTaskContext();
   const { create, update } = useRoutineMutations();
   const categoryItems = useRoutineCategoryItems();
+  const convert = useConvertActivity();
+  const rowActionsOf = useRoutineRowsActions();
   const routines = data?.routines ?? [];
   const base = useAppForm<RoutineFormValues>({
     initialValues: routine
@@ -216,14 +223,33 @@ export function RoutineForm({ routine, parent, categoryId = null, projectId = nu
    */
   const linkOptions = (linked: string[]) => routineTreeOptions(routines, context ? linkableRoutine(context, form.values.projectId, routine?.id ?? null, linked) : () => false);
 
+  /**
+   * Its « … » menu, as the task's: « Dupliquer », « Transformer en tâche » (lot 15, refused with sub-routines),
+   * « Archiver », « Supprimer » (the actions of its row, `useRoutineRowsActions`); archived: « Restaurer »,
+   * « Supprimer ». Deleted or transformed, its panel closes (`closeRoutinePanels`).
+   * @param {Routine} item Routine of the panel (of the cache).
+   * @returns {RowMenuEntry[]} Entries.
+   */
+  const menu = (item: Routine): RowMenuEntry[] => {
+    const { duplicate, archive, remove } = rowActionsOf([item]);
+    if (item.archived) return [archive, remove].map(rowMenuEntry);
+    return [rowMenuEntry(duplicate), convert.toTask(item, routines.some((other) => other.parentId === item.id)), rowMenuEntry(archive), rowMenuEntry(remove)];
+  };
+
   // A new routine only: an existing one is saved field by field (Enter saves the text typed).
   const handleSubmit = form.onSubmit((values) => create.mutate(formInput(values), formCallbacks(form, 'Routine créée.', onDone)));
 
   return (
     <form onSubmit={handleSubmit} noValidate>
+      {current && (
+        // Out of the fieldset: archived (read only), its menu still offers « Restaurer » and « Supprimer ».
+        <Group justify="flex-end" gap="xs" wrap="nowrap" mb="lg">
+          {!readOnly && <SaveStatus saving={saving} />}
+          <ActionsMenu about="la routine" items={menu(current)} variant="light" size="input-xs" />
+        </Group>
+      )}
       <Fieldset variant="unstyled" disabled={readOnly} p={0} m={0}>
         <Stack gap="lg">
-          {routine && !readOnly && <SaveStatus saving={saving} />}
           <TextInput label="Libellé" required data-autofocus={routine ? undefined : true} {...form.getInputProps('label')} />
           {/* As the task panel: the text and when it comes on the left, its properties on the right. */}
           <Grid gap="xl">

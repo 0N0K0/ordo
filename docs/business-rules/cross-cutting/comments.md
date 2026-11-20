@@ -104,3 +104,4 @@ Source : `services/github/sync.ts` (`syncComments`), `forgetGithubComment` (`ser
 
 - Dupliquer une tâche ne copie pas ses commentaires.
 - Supprimer une tâche supprime ses commentaires.
+- Transformer une tâche en routine (lot 15, décision FL) recopie ses commentaires en commentaires de la routine, sur sa première occurrence (textes et dates gardés, lien GitHub perdu) ; transformer une routine en tâche recopie ceux de son occurrence en cours (sinon la suivante, sinon la première) en commentaires de tâche, les autres sont supprimés avec la routine (comptés dans la confirmation). Voir [Tâches](../activities/tasks.md#transformer-en-routine) et [Routines](../activities/routines.md#transformer-en-tâche).
