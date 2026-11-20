@@ -1,6 +1,6 @@
 # Éléments des listes de réglages : avatars, badges, options
 
-Affichage des éléments des listes paramétrables (statuts, catégories, étiquettes, drapeaux…) et des fichiers : avatars, badges, options de sélection avec avatar, archivés exclus. Source : `apps/web/src/components/items/`. Les listes elles-mêmes (`SettingsList`) sont dans [Réglages](settings.md).
+Affichage des éléments des listes paramétrables (statuts, catégories, étiquettes, drapeaux…), des fichiers et des liens : avatars, badges, options de sélection avec avatar, archivés exclus. Source : `apps/web/src/components/items/`. Les listes elles-mêmes (`SettingsList`) sont dans [Réglages](settings.md).
 
 ## `ItemAvatar.tsx`
 
@@ -19,6 +19,12 @@ Badge d'un élément de liste de réglages, le même partout : dans sa couleur (
 ### `FileBadge`
 
 Badge d'un fichier, le même partout (décision E : pièces jointes, justificatifs, fichiers d'un mail) : trombone, nom coupé à `max` caractères (24 par défaut, nom complet en infobulle), taille facultative (« · 12 Ko », `fmt.fileSize`). Props : `filename`, `size`, `max`, `href` (lien), `external` (nouvel onglet, `EXTERNAL_LINK`), `onClick` (visionneuse, téléchargement), `onRemove` (croix grise `RemoveButton variant="field"`), `badgeSize` (`sm`). Imposé par eslint (un `PaperclipIcon` dans un `FileLink` est interdit). Utilisé par la facturation, les mails, la trésorerie.
+
+## `ItemLinks.tsx`
+
+### `ItemLinks`
+
+Liens d'un évènement, d'une tâche ou d'une routine, affichés pareil partout : leur libellé (sinon leur adresse), coupés à la largeur, ouverts dans un nouvel onglet (`EXTERNAL_LINK`) ; rien sans lien. Prop : `links`. Utilisé par `SubscribedEvent` (agenda) et `TaskLinks` (panneau d'une tâche). Imposé par eslint (un `.links.map` qui dessine des `Anchor`).
 
 ## `item-look.tsx`
 

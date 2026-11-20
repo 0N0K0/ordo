@@ -9,6 +9,8 @@ interface CommentsProps {
   target: CommentTarget;
   /** Item (Message-ID for a mail). */
   id: string;
+  /** Occurrence of a routine or a recurring event whose comments these are (decision D19); none: a one-off event or another item. Optional. */
+  occurrenceDate?: string | null;
   /** Project of the item: « #12 » is task 12 of it. Optional. */
   projectId?: string | null;
   /** Heading above the thread. Optional. Default = « Commentaires ». */
@@ -18,13 +20,14 @@ interface CommentsProps {
 }
 
 /**
- * Comments of an item (routine, event, document, mail…): the shared thread, under its heading (read only on an archived item).
+ * Comments of an item (routine, event, document, mail…), of one occurrence for a routine or an event: the shared thread,
+ * under its heading (read only on an archived item).
  * @param {CommentsProps} props Component props.
  * @returns {JSX.Element} Comments.
  */
-export function Comments({ target, id, projectId = null, title = 'Commentaires', readOnly = false }: CommentsProps) {
+export function Comments({ target, id, occurrenceDate = null, projectId = null, title = 'Commentaires', readOnly = false }: CommentsProps) {
   const { context } = useTaskContext();
-  const comments = useComments(target, id);
+  const comments = useComments(target, id, occurrenceDate);
   const mutations = useCommentMutations();
   const thread = (
     <CommentThread
@@ -32,7 +35,7 @@ export function Comments({ target, id, projectId = null, title = 'Commentaires',
       loading={comments.isPending}
       suggestions={context?.suggestionsFor(projectId) ?? { ...NO_SUGGESTIONS, projectId }}
       targets={context?.targetsFor(projectId) ?? { ...NO_TARGETS, projectId }}
-      actions={threadActions(mutations, { add: (body) => ({ target, id, body }), remove: (commentId) => commentId })}
+      actions={threadActions(mutations, { add: (body) => ({ target, id, body, occurrenceDate }), remove: (commentId) => commentId })}
       readOnly={readOnly}
     />
   );

@@ -1,5 +1,6 @@
 import { movedTo } from '@ordo/shared';
 import { useMutation, useQueryClient, type QueryClient, type QueryKey } from '@tanstack/react-query';
+import { useSyncExternalStore } from 'react';
 
 /** What a mutation refreshes once done, and what it shows before. */
 interface InvalidatingOptions<V> {
@@ -64,5 +65,50 @@ export function moveToIndex<T extends { id: string }>(list: readonly T[], id: st
     list.filter((item) => item.id !== id),
     moved,
     index,
+  );
+}
+
+/**
+ * First item matching in the queries of a key (the key and those it prefixes), as the cache holds them now.
+ * @param {QueryClient} queryClient Query client.
+ * @param {QueryKey} queryKey Queries (a prefix).
+ * @param {(data: D) => readonly T[] | undefined} items Items of the data of a query.
+ * @param {(item: T) => boolean} match Item looked for.
+ * @returns {T | undefined} Item, none when not (yet) loaded.
+ */
+function cachedFind<D, T>(queryClient: QueryClient, queryKey: QueryKey, items: (data: D) => readonly T[] | undefined, match: (item: T) => boolean): T | undefined {
+  for (const [, data] of queryClient.getQueriesData<D>({ queryKey })) {
+    const found = data === undefined ? undefined : items(data)?.find(match);
+    if (found) return found;
+  }
+  return undefined;
+}
+
+/**
+ * Item by id in the queries of a key (the key and those it prefixes), as the cache holds them now: a copy just saved,
+ * once its mutation refreshed them (decision D20 opens it).
+ * @param {QueryClient} queryClient Query client.
+ * @param {QueryKey} queryKey Queries (a prefix).
+ * @param {string} id Item.
+ * @param {(data: D) => readonly T[] | undefined} items Items of the data of a query.
+ * @returns {T | undefined} Item, none when not (yet) loaded.
+ */
+export function cachedItem<D, T extends { id: string }>(queryClient: QueryClient, queryKey: QueryKey, id: string, items: (data: D) => readonly T[] | undefined): T | undefined {
+  return cachedFind(queryClient, queryKey, items, (item: T) => item.id === id);
+}
+
+/**
+ * Item of the cache, followed as it changes (refreshed, changed elsewhere): the item of a detail panel saved field by
+ * field opened on a copy of it (`useFieldSave`'s `saved`), whatever query holds it.
+ * @param {QueryKey} queryKey Queries (a prefix).
+ * @param {(data: D) => readonly T[] | undefined} items Items of the data of a query.
+ * @param {(item: T) => boolean} match Item looked for.
+ * @returns {T | undefined} Item as the cache holds it now, none when not (or no longer) there.
+ */
+export function useCachedItem<D, T>(queryKey: QueryKey, items: (data: D) => readonly T[] | undefined, match: (item: T) => boolean): T | undefined {
+  const queryClient = useQueryClient();
+  return useSyncExternalStore(
+    (onChange) => queryClient.getQueryCache().subscribe(onChange),
+    () => cachedFind(queryClient, queryKey, items, match),
   );
 }

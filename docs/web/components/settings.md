@@ -31,21 +31,21 @@ Règles métier côté API : [Nommage](../../business-rules/cross-cutting/naming
 
 - `SettingsItem` (interface) — élément : `id`, `label`, `color?`, `iconUrl?`, `parentId?`, `position?`, `archived`.
 - `SettingsItemValues<E>` (type) — valeurs du formulaire : `label`, `color`, `parentId`, plus les champs propres `E`.
-- `SettingsItemKind<C, E>` (interface) — ce que partagent une liste et le formulaire de ses éléments : `kind`, `withColor?` (défaut `true`), `colorRequired?` (défaut : `true` pour une liste plate ; en arbre, vide = couleur du parent), `labelPlaceholder?`, `labelField?` (défaut « Libellé » ; « Nom » pour les personnes physiques ou morales, décision AD), `schema` (zod de `@ordo/shared`), `extra?` (`initial(item?)`, `render(form, item?)` : champs propres à la liste, ex. catégorie de statut), `create(values) → id`, `update(id, values)`.
-- `SettingsItemForm` — formulaire d’un élément (toutes les listes). Props en plus du `SettingsItemKind` : `item?` (modifié ; absent : nouveau), `parentId?` (parent d’un nouvel élément), `tree?` (éléments de l’arbre ; absent : liste plate), `withParent?` (défaut `true` : choix du parent dans le formulaire, sinon seulement par glisser-déposer), `initial?` (valeurs de départ, ex. une adresse choisie sur une carte), `onDone(createdId?)`.
+- `SettingsItemKind<C, E>` (interface) — ce que partagent une liste et le formulaire de ses éléments : `kind`, `withColor?` (défaut `true`), `colorRequired?` (défaut : `true` pour une liste plate ; en arbre, vide = couleur du parent), `labelPlaceholder?`, `labelField?` (défaut « Libellé » ; « Nom » pour les personnes physiques ou morales, décision AD), `schema` (zod de `@ordo/shared`), `extra?` (`initial(item?)`, `render(form, item, commit)` : champs propres à la liste, ex. catégorie de statut ; `commit(champs)` les enregistre tout de suite pour un éditeur sans `getInputProps`, rien sur un nouvel élément ; `onBlur?` : ceux enregistrés en les quittant, textes et nombres), `create(values) → id`, `update(id, values)`.
+- `SettingsItemForm` — formulaire d’un élément (toutes les listes). Props en plus du `SettingsItemKind` : `item?` (modifié ; absent : nouveau), `parentId?` (parent d’un nouvel élément), `tree?` (éléments de l’arbre ; absent : liste plate), `withParent?` (défaut `true` : choix du parent dans le formulaire, sinon seulement par glisser-déposer), `initial?` (valeurs de départ, ex. une adresse choisie sur une carte), `liveItems?` (`LiveSource` des éléments de la liste, `lib/live-value` : l’élément modifié et l’arbre suivis, passés à `saved` de `useFieldSave` ; absent : `item` et `tree` tels quels), `onDone(createdId?)`. Un élément archivé ailleurs pendant que son panneau est ouvert passe en lecture seule (`readOnly` de `useFieldSave` suit `archived` de l’élément suivi ; `Fieldset` désactivé, plus de `SaveStatus`).
 
 Champs, dans l’ordre :
 
 1. « Libellé » (ou `labelField`), obligatoire, autofocus.
-2. Couleur (`ColorField`), si `withColor` ; description « Vide : celle de son parent. » quand elle n’est pas obligatoire.
+2. Couleur (`ColorField`, `commitProps('color')` : choisie, enregistrée aussitôt ; tapée, en la quittant), si `withColor` ; description « Vide : celle de son parent. » quand elle n’est pas obligatoire.
 3. Image (`IconField`), aperçu avec le nom et la couleur.
 4. « Parent » (select en arbre, placeholder « Aucun (premier niveau) », cherchable, effaçable), en arbre et si `withParent` ; l’élément modifié et ses descendants sont exclus.
 5. Les champs propres (`extra.render`).
-6. `FormActions` : « Créer » ou « Enregistrer », « Annuler ».
+6. `FormActions` « Créer », « Annuler » : sur un nouvel élément seulement.
 
 Couleur de départ d’un nouvel élément : celle du parent si elle est obligatoire ou si le parent n’en a pas, sinon la première du nuancier (`useColorSwatches`) ; vide en arbre quand le parent a une couleur (héritée).
 
-Enregistrement : `create` ou `update`, puis `useSettingsItemLook` pour l’image (nouvelle ou retirée) et la couleur (toujours envoyée quand la liste a une couleur). Toast « Ajout enregistré. » ou « Modifications enregistrées. » (`formCallbacks`, `lib/form`).
+Nouvel élément : `create`, puis `useSettingsItemLook` pour l’image et la couleur (toujours envoyée quand la liste a une couleur) ; toast « Ajout enregistré. » (`formCallbacks`, `lib/form`). Élément existant : panneau enregistré champ par champ (décision D22, `useFieldSave`, `SaveStatus`) : le libellé et les champs `extra.onBlur` en les quittant, la couleur par `commitProps`, les autres dès qu’ils changent ; les valeurs de l’élément tel que la liste le tient (`liveItems`, `saved` tiré de `valuesOf(item)`) suivies, changées ailleurs ; la couleur et l’image (`IconField`, `formIconProps` : `icon` / `removeIcon`, valeurs du formulaire) par `useSettingsItemLook`, les autres champs par `update(id, valeurs)` (toutes, sans l’image) ; une confirmation de `update` refusée (`ActionDeclined`, ex. catégorie d’un statut de tâche qui ferme ou rouvre ses tâches) remet le champ sans toast. Internes : `valuesOf(item?)` (valeurs du formulaire d’un élément ou d’un nouveau), `itemValues(values)` (valeurs sans l’image).
 
 Utilisé par `SettingsList`, `create-settings-item` et des features (`calendar`, `geo`, `projects`, `routines`, `shopping`, `stock`, `tasks`, `treasury`).
 

@@ -2,7 +2,10 @@ import { IconAction } from '../../actions/IconAction';
 import { Anchor, Checkbox, Popover, Group, NumberInput, Text, TextInput, type ComboboxItem, type ComboboxLikeRenderOptionInput, type OptionsFilter } from '@mantine/core';
 import { DatePickerInput, TimePicker } from '@mantine/dates';
 import { ArrowSquareOutIcon } from '@phosphor-icons/react';
-import type { ReactNode } from 'react';
+import { useState, type ReactNode } from 'react';
+import { markdownSchema } from '@ordo/shared';
+import { MarkdownEditor, type MarkdownSuggestions } from '../../markdown/MarkdownEditor';
+import { NO_SUGGESTIONS } from '../../markdown/remark-references';
 import { BatchMultiSelect } from '../../inputs/BatchMultiSelect';
 import { StackedMultiCell, type StackedItem } from './StackedMultiCell';
 import { AmountInput } from '../../inputs/AmountInput';
@@ -278,18 +281,49 @@ export function EditableSelect({ value, label, data, nullable = false, renderOpt
   );
 }
 
-interface EditableMultiSelectProps {
+interface CellMultiSelectProps {
   value: string[];
+  /** Accessible name. */
   label: string;
   data: (ComboboxItem | { group: string; items: ComboboxItem[] })[];
-  /** Values as listed in the cell (an avatar, a state…). Optional. Default = their labels. */
-  items?: StackedItem[];
   renderOption?: (item: ComboboxLikeRenderOptionInput<ComboboxItem>) => ReactNode;
   filter?: OptionsFilter;
   /** Shown when the search finds nothing. Optional. */
   nothingFoundMessage?: string;
-  readOnly?: boolean;
   onSave: (value: string[]) => void;
+  /** Its list closed (from `StackedMultiCell`). */
+  onDropdownClose: () => void;
+}
+
+/**
+ * Multi-select of a choices cell, opened by `StackedMultiCell` (`EditableMultiSelect`, or a cell loading its options
+ * once opened): its choices saved once its list closes.
+ * @param {CellMultiSelectProps} props Component props.
+ * @returns {JSX.Element} Multi-select.
+ */
+export function CellMultiSelect({ value, label, data, renderOption, filter, nothingFoundMessage, onSave, onDropdownClose }: CellMultiSelectProps) {
+  return (
+    // eslint-disable-next-line no-restricted-syntax -- CellMultiSelect itself.
+    <BatchMultiSelect
+      {...stoppedCellCombobox}
+      aria-label={label}
+      placeholder={value.length ? undefined : '—'}
+      searchable
+      data={data}
+      renderOption={renderOption}
+      filter={filter}
+      nothingFoundMessage={nothingFoundMessage}
+      value={value}
+      onChange={(next) => onSave(next)}
+      onDropdownClose={onDropdownClose}
+    />
+  );
+}
+
+interface EditableMultiSelectProps extends Omit<CellMultiSelectProps, 'onDropdownClose'> {
+  /** Values as listed in the cell (an avatar, a state…). Optional. Default = their labels. */
+  items?: StackedItem[];
+  readOnly?: boolean;
 }
 
 /**
@@ -298,28 +332,14 @@ interface EditableMultiSelectProps {
  * @param {EditableMultiSelectProps} props Component props.
  * @returns {JSX.Element} Cell.
  */
-export function EditableMultiSelect({ value, label, data, items, renderOption, filter, nothingFoundMessage, readOnly = false, onSave }: EditableMultiSelectProps) {
-  const labels = new Map(data.flatMap((item) => ('group' in item ? item.items : [item])).map((item) => [item.value, item.label]));
+export function EditableMultiSelect({ items, readOnly = false, ...select }: EditableMultiSelectProps) {
+  const labels = new Map(select.data.flatMap((item) => ('group' in item ? item.items : [item])).map((item) => [item.value, item.label]));
   return (
     <StackedMultiCell
-      label={label}
+      label={select.label}
       readOnly={readOnly}
-      items={items ?? value.map((id) => ({ id, label: labels.get(id) ?? id }))}
-      renderSelect={({ onDropdownClose }) => (
-        <BatchMultiSelect
-          {...stoppedCellCombobox}
-          aria-label={label}
-          placeholder={value.length ? undefined : '—'}
-          searchable
-          data={data}
-          renderOption={renderOption}
-          filter={filter}
-          nothingFoundMessage={nothingFoundMessage}
-          value={value}
-          onChange={(next) => onSave(next)}
-          onDropdownClose={onDropdownClose}
-        />
-      )}
+      items={items ?? select.value.map((id) => ({ id, label: labels.get(id) ?? id }))}
+      renderSelect={({ onDropdownClose }) => <CellMultiSelect {...select} onDropdownClose={onDropdownClose} />}
     />
   );
 }
@@ -391,5 +411,43 @@ export function EditablePopoverCell({ target, empty = false, label, width, trunc
       </Popover.Target>
       <Popover.Dropdown onClick={stopClick}>{children}</Popover.Dropdown>
     </Popover>
+  );
+}
+
+interface EditableMarkdownProps {
+  value: string | null;
+  /** Accessible name of the cell. */
+  label: string;
+  /** Items offered when typing "#" and "@". Optional. Default = none. */
+  suggestions?: MarkdownSuggestions;
+  readOnly?: boolean;
+  onSave: (value: string | null) => void;
+}
+
+/**
+ * Markdown cell (a note, a description): its text cut on one line, written in the shared markdown editor opened in a
+ * popover, saved when it closes if changed (blank: none).
+ * @param {EditableMarkdownProps} props Component props.
+ * @returns {JSX.Element} Cell.
+ */
+export function EditableMarkdown({ value, label, suggestions = NO_SUGGESTIONS, readOnly = false, onSave }: EditableMarkdownProps) {
+  const [opened, setOpened] = useState(false);
+  const [draft, setDraft] = useState<string | null>(null);
+
+  /**
+   * Saves the draft when valid and changed, then clears it.
+   * @returns {void}
+   */
+  const save = () => {
+    if (draft === null) return;
+    setDraft(null);
+    const result = checked(markdownSchema, draft, 'Valeur invalide.');
+    if (result && result.value !== (value ?? null)) onSave(result.value);
+  };
+
+  return (
+    <EditablePopoverCell width={420} empty={!value} label={label} truncate readOnly={readOnly} opened={opened} onOpenedChange={setOpened} onClose={save} target={value || '—'}>
+      <MarkdownEditor value={draft ?? value ?? ''} onChange={setDraft} suggestions={suggestions} minRows={3} autoFocus />
+    </EditablePopoverCell>
   );
 }

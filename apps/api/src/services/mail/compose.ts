@@ -34,6 +34,10 @@ export interface MailFields {
 }
 
 const MAX_TOTAL_BYTES = 20 * 1024 * 1024;
+/** Most characters of an address of a draft (RFC 5321). */
+const ADDRESS_MAX = 320;
+/** Most characters of a subject (a line of RFC 5322). */
+const SUBJECT_MAX = 998;
 
 interface InlineImage {
   filename: string;
@@ -95,8 +99,8 @@ export interface BuiltMessage {
  * @returns {Promise<BuiltMessage>} Message.
  */
 export async function buildMessage(account: MailAccount, input: MailFields, options: { draft?: boolean; headers?: Record<string, string>; date?: Date } = {}): Promise<BuiltMessage> {
-  const recipients = options.draft ? z.array(z.string().max(320)).max(100) : recipientsSchema;
-  const fields = parseInput(z.object({ to: recipients, cc: recipients, bcc: recipients, subject: z.string().trim().max(998, 'Objet trop long.') }), {
+  const recipients = options.draft ? z.array(z.string().max(ADDRESS_MAX)).max(100) : recipientsSchema;
+  const fields = parseInput(z.object({ to: recipients, cc: recipients, bcc: recipients, subject: z.string().trim().max(SUBJECT_MAX, 'Objet trop long.') }), {
     to: input.to,
     cc: input.cc ?? [],
     bcc: input.bcc ?? [],

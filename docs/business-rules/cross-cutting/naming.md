@@ -10,53 +10,31 @@ Voir aussi : [core](../../shared/cross-cutting/core.md), [Erreurs](errors.md), [
 - Dans la base, l'API et les données JSON (sources des fiches, jeux de données des graphiques, instantané de prestation), tout libellé s'appelle `label`, titres et espaces de travail compris ; seules les personnes gardent `name` : contributeurs, utilisateurs, relations, contacts, clients, tiers de trésorerie.
 - Message d'un libellé vide : « Le libellé est requis. » (`requiredText`) ; d'un nom vide : « Le nom est requis. » (`personNameSchema`) ; variantes : « Le prénom est requis. », « Le nom de la société est requis. », « Le numéro est requis. ».
 - Tout libellé est « trimé » ; un texte facultatif vide est enregistré `null` (`optionalText`).
-- Message de longueur : « N caractères maximum. ».
+- Message de longueur : « 250 caractères maximum. » (texte court), « 500 caractères maximum. » (mention légale), « 4 000 caractères maximum. » (zone de texte), « Texte trop long. » (markdown).
+
+## Mots employés
+
+- Décision DZ : un horaire prévu de l'agenda (`WorkSchedule`) s'appelle partout « créneau » (« un créneau », « Créneaux de travail » en PRO, « Créneaux » en PERSO, « Type de créneau ») ; l'ancien mot (voir décision DZ) n'est plus employé, ni dans l'interface, ni dans les messages de l'API, ni dans la documentation.
+- « Ouverture » et « Échéance » : les deux jours qui bornent une tâche (`minDate`, `deadline`) s'appellent « Ouverture » et « Échéance » (« l'ouverture », « l'échéance », au féminin ; « date d'ouverture » quand un groupe nominal se lit mieux) ; le jour dès lequel une occurrence de routine peut être faite (`opensOn`, son premier jour) s'appelle aussi « Ouverture ». Les anciens libellés « Date min » / « Date max » (tâches) et « À partir du » (tâches et routines) ne sont plus employés, ni dans l'interface, ni dans les messages de l'API, ni dans la documentation (« à partir du » reste dans les phrases ordinaires et pour les dates de début d'une alarme, d'un créneau, d'une recherche de mails ou d'une livraison).
+- Décision D20 (EZ) : copier un élément se dit partout « Dupliquer » (la copie, « … (copie) », est enregistrée tout de suite puis ouverte) ; « Cloner » n'est plus employé.
+- Les heures d'un créneau un jour donné sont ses « horaires » (« Créneau du 12 novembre » dans le formulaire du jour, « Horaires retirés du créneau. ») ; un intervalle de dates qui n'est pas un créneau est une « période ».
 
 ## Longueurs maximales
 
-| Élément                                                                                                                | Max    | Constante / source                                 |
-| ---------------------------------------------------------------------------------------------------------------------- | ------ | -------------------------------------------------- |
-| Nom de personne (contributeur, relation, contact, client, tiers, entreprise)                                           | 100    | `PERSON_NAME_MAX` (décision BB)                    |
-| Libellé d'élément paramétrable (statut, priorité, type, étiquette, catégorie de projet, magasin, unité, drapeau mail…) | 50     | `LABEL_MAX`                                        |
-| Espace                                                                                                                 | 60     | `WORKSPACE_LABEL_MAX`                              |
-| Vue enregistrée                                                                                                        | 60     | `VIEW_LABEL_MAX`                                   |
-| Tableau de bord                                                                                                        | 60     | `DASHBOARD_LABEL_MAX`                              |
-| Graphique                                                                                                              | 120    | `CHART_LABEL_MAX`                                  |
-| Projet                                                                                                                 | 120    | `projectLabelSchema`                               |
-| Lien de projet                                                                                                         | 200    | `projectLinkSchema`                                |
-| Tâche                                                                                                                  | 256    | `TASK_LABEL_MAX`                                   |
-| Jalon, sprint                                                                                                          | 120    | `MILESTONE_LABEL_MAX`, `SPRINT_LABEL_MAX`          |
-| Alarme                                                                                                                 | 200    | `ALARM_LABEL_MAX`                                  |
-| Événement                                                                                                              | 300    | `EVENT_LABEL_MAX`                                  |
-| Agenda, catégorie d'agenda                                                                                             | 80     | `calendarFormSchema`, `calendarCategoryFormSchema` |
-| Plage (horaire)                                                                                                        | 100    | `WORK_SCHEDULE_LABEL_MAX`                          |
-| Type de plage                                                                                                          | 60     | `scheduleTypeSchema`                               |
-| Lieu                                                                                                                   | 60     | `placeSchema`                                      |
-| Routine                                                                                                                | 200    | `ROUTINE_LABEL_MAX`                                |
-| Catégorie de routine                                                                                                   | 100    | `routineCategorySchema`                            |
-| Fiche                                                                                                                  | 100    | `SHEET_LABEL_MAX`                                  |
-| Catégorie de fiche                                                                                                     | 60     | `sheetCategorySchema`                              |
-| Article de fiche, article de stock                                                                                     | 200    | `sheetItemSchema`, `stockItemSchema`               |
-| Produit, article de courses                                                                                            | 120    | `SHOPPING_LABEL_MAX`                               |
-| Liste de courses                                                                                                       | 120    | `SHOPPING_LIST_LABEL_MAX`                          |
-| Liste type                                                                                                             | 80     | `shoppingBaseListLabelSchema`                      |
-| Catégorie de courses                                                                                                   | 100    | `shoppingCategorySchema`                           |
-| Emplacement de stock                                                                                                   | 80     | `stockLocationSchema`                              |
-| Unité (texte d'un article)                                                                                             | 50     | `UNIT_MAX`                                         |
-| Boîte mail                                                                                                             | 80     | `mailAccountFormSchema`                            |
-| Dossier de recherche mail                                                                                              | 60     | `mailSearchSchema`                                 |
-| Mouvement de trésorerie                                                                                                | 300    | `ENTRY_LABEL_MAX`                                  |
-| Ligne de ventilation                                                                                                   | 200    | `ENTRY_LINE_LABEL_MAX`                             |
-| Compte, catégorie, moyen de paiement                                                                                   | 100    | `treasury.ts`                                      |
-| Contexte de dépense                                                                                                    | 60     | `treasuryContextSchema`                            |
-| Service client                                                                                                         | 120    | `clientServiceSchema`                              |
-| Ligne de document comptable                                                                                            | 300    | `accountingLineSchema`                             |
-| Produit du catalogue                                                                                                   | 300    | `catalogItemSchema`                                |
-| Facture récurrente                                                                                                     | 200    | `recurringInvoiceSchema`                           |
-| Description                                                                                                            | 5000   | `descriptionSchema`                                |
-| Texte markdown (description de tâche, commentaire, description d'événement)                                            | 65 536 | `markdownSchema`, `commentBodySchema`              |
-| Identifiant de mention                                                                                                 | 2 à 39 | `handleSchema`                                     |
-| Identifiant de connexion                                                                                               | 3 à 32 | `usernameSchema`                                   |
+Décision DO : une seule taille par sorte de texte, partout dans l'application (`packages/shared/src/core/rules.ts`).
+
+| Sorte de texte                                                                                                                                                                                                                                                                                                                                 | Max    | Constante, schémas                                                                 | Message                       |
+| ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------ | ---------------------------------------------------------------------------------- | ----------------------------- |
+| Texte court libre : libellés de tous les items et des listes de réglages, noms de personnes (décision BB), titres, lieu, adresse, motif, libellé de lien, recherche, critères de recherche mail, capital et mode de règlement de la société et des documents comptables                                                                        | 250    | `TEXT_MAX` ; `requiredText`, `optionalText`, `shortTextSchema`, `personNameSchema` | « 250 caractères maximum. »   |
+| Zone de texte simple (plusieurs lignes, sans markdown) : notes de fiche, de ressource de projet, de relance, de tiers et de relation, description d'une alarme, « Autres mentions »                                                                                                                                                            | 4 000  | `PLAIN_TEXT_MAX` ; `plainTextSchema`, `optionalPlainText`                          | « 4 000 caractères maximum. » |
+| Mention légale de la société et des documents comptables : mention d'exonération de TVA, conditions de règlement, intérêts de retard, immatriculation                                                                                                                                                                                          | 500    | `LEGAL_TEXT_MAX` ; `legalTextSchema`, `optionalLegalText`                          | « 500 caractères maximum. »   |
+| Markdown : description (tâche, routine, évènement, projet, jalon, temps, ligne et produit du catalogue, document importé, mouvement de trésorerie), commentaire, objectif de sprint, introduction et conclusion d'un document comptable, note d'un produit, note d'un mouvement de stock, note d'un inventaire, note d'une période de contexte | 65 536 | `MARKDOWN_MAX` ; `markdownSchema`, `markdownTextSchema`, `commentBodySchema`       | « Texte trop long. »          |
+
+- Un champ édité avec l'éditeur markdown compte comme markdown, même s'il était une zone de texte simple avant (description d'une routine, d'un temps).
+- Hors règle, chacun avec sa constante nommée : les champs à format (identifiant de mention 2 à 39, `HANDLE_MAX` ; identifiant de connexion 3 à 32 ; email 254 ; couleur ; heure ; clé de tableau 64, `TABLE_KEY_MAX` ; code postal 20 ; téléphone 30 ; numéro de TVA 20 ; code d'activité 20 ; SIREN, SIRET, IBAN, BIC ; serveur et identifiant de boîte mail 255 ; objet d'un mail 998), les adresses URL, la signature HTML d'une boîte mail (100 000, « Signature trop longue. »), le nom d'un fichier stocké (coupé à 200).
+- Le web reprend les mêmes constantes pour `maxLength` (l'éditeur markdown est limité à `MARKDOWN_MAX`).
+- Les valeurs déjà enregistrées plus longues ont été raccourcies (migration `20261119150000_text_sizes`), documents comptables définitifs compris (leurs textes, leurs lignes et la société figée comme vendeur) : c'est la seule exception à la règle « un document définitif n'est jamais modifié ».
+- Un libellé construit reste dans les 250 : copie (`copyName`), report d'un évènement et mouvement de trésorerie d'une facture ou d'un règlement (`fitName`, le nom coupé, les mots fixes entiers), comparaison d'un graphique et libellé « échéancier — client » (`clipText`).
 
 ## Unicité
 
@@ -67,7 +45,7 @@ L'unicité est garantie par la base (contraintes `@@unique` de `schema.prisma`) 
 | Statut de projet, statut de tâche        | l'espace                                                                                                            | « Un statut porte déjà ce libellé. »                                                |
 | Catégorie de projet, catégorie de fiche  | l'espace                                                                                                            | « Une catégorie porte déjà ce libellé. »                                            |
 | Priorité de tâche                        | l'espace                                                                                                            | « Une priorité porte déjà ce libellé. »                                             |
-| Type de tâche, type de plage             | l'espace                                                                                                            | « Un type porte déjà ce libellé. »                                                  |
+| Type de tâche, type de créneau             | l'espace                                                                                                            | « Un type porte déjà ce libellé. »                                                  |
 | Étiquette de tâche                       | l'espace                                                                                                            | « Une étiquette porte déjà ce libellé. »                                            |
 | Statut de suivi de document              | l'espace et sa portée (devis / factures)                                                                            | « Un statut porte déjà ce libellé. »                                                |
 | Drapeau mail                             | l'espace                                                                                                            | « Un drapeau porte déjà ce libellé. »                                               |
@@ -100,11 +78,11 @@ Décision CB : deux noms sont le même nom s'ils ont la même clé `nameKey` : e
 
 ## Copies
 
-`copyName(name, max)` : « Nom (copie) », le nom coupé si nécessaire pour garder le suffixe dans la longueur maximale. Utilisé pour dupliquer un graphique, une liste de courses, une fiche.
+`copyName(name)` : « Nom (copie) », le nom coupé si nécessaire pour garder le suffixe dans les 250 caractères. Utilisé par « Dupliquer » (décision D20) : un graphique, une liste de courses, une fiche, une tâche, une routine, une alarme, un évènement, une vue, un créneau, un mouvement ou une prévision de trésorerie.
 
 ## Textes venus d'ailleurs
 
-`clipText(text, max)` coupe un texte importé (titre GitHub, libellé de relevé bancaire, ancienne fiche) à la longueur de sa règle.
+`clipText(text, max?)` coupe un texte importé (titre GitHub, libellé de relevé bancaire, ancienne fiche) à la longueur de sa règle, 250 par défaut.
 
 ## Noms de fichiers
 

@@ -1,5 +1,5 @@
 import { done } from '../errors';
-import { doableTaskIds } from '../../services/calendar/slot-rules';
+import { doableTaskIds } from '../../services/calendar/slot-conditions';
 import { prisma } from '../../db';
 import { storeAttachment, attachmentUrl } from '../../services/core/attachments';
 import * as contributors from '../../services/projects/contributors';
@@ -8,17 +8,23 @@ import * as sprints from '../../services/tasks/sprints';
 import { iconUrl } from '../../services/core/icons';
 import { taskPriorities, taskStatuses, taskTags, taskTypes } from '../../services/tasks/task-labels';
 import * as taskViews from '../../services/tasks/task-views';
-import * as taskRecurrence from '../../services/tasks/task-recurrence';
 import * as tasks from '../../services/tasks/tasks';
-import { readSlotRule, sumOf, TASK_STATUS_CATEGORIES, VIEW_KINDS } from '@ordo/shared';
+import { parseOptionalDay, readSlotCondition, sumOf, TASK_STATUS_CATEGORIES, VIEW_KINDS } from '@ordo/shared';
+import { DUE_DATES_SELECT as DUE_SELECT, storedDueDates as dueDatesOf } from '../../services/tasks/due-dates';
 import * as workspaces from '../../services/workspaces/workspaces';
 import { BY_POSITION } from '../../services/core/ordering';
+import { RemovedLinksResult, removedLinks } from '../removed-links';
 import { builder, type InputFields } from '../builder';
 import { labelMutations, labelObject } from '../label-inputs';
 import { relationIds } from '../relation-fields';
 import { isMember } from '../../services/treasury/treasury-team';
 import { reloaded } from '../reload';
 import { unchecked } from '../unchecked';
+import { locationInputFields } from '../located-fields';
+import { ItemLinkInput, ItemLinkRef } from '../link-fields';
+import { ReminderInput, ReminderRef } from '../reminder-fields';
+import { readReminders } from '@ordo/shared';
+import { readLinks } from '../../services/core/links';
 
 builder.prismaObject('Contributor', {
   fields: (t) => ({
@@ -171,9 +177,44 @@ builder.prismaObject('Task', {
     effort: t.exposeFloat('effort', { nullable: true }),
     startDate: t.expose('startDate', { type: 'Date', nullable: true }),
     endDate: t.expose('endDate', { type: 'Date', nullable: true }),
-    deadline: t.expose('deadline', { type: 'Date', nullable: true, description: 'Latest acceptable date ("Date max"): an open task past it is overdue.' }),
-    minDate: t.expose('minDate', { type: 'Date', nullable: true, description: 'Earliest acceptable date ("Date min"): not to be done before.' }),
-    slotRule: t.field({ type: 'JSON', nullable: true, description: 'Slots the task is done on or out of; null: the default of the workspace.', resolve: (task) => readSlotRule(task.slotRule) }),
+    deadline: t.expose('deadline', { type: 'Date', nullable: true, description: 'Latest acceptable date (« Échéance »): an open task past it is overdue.' }),
+    minDate: t.expose('minDate', { type: 'Date', nullable: true, description: 'Earliest acceptable date (« Ouverture »): not to be done before.' }),
+    effectiveMinDate: t.field({
+      type: 'Date',
+      nullable: true,
+      description: '« Ouverture » the task goes by: its own, else the start of its sprint when it is in exactly one (decision of lot 12).',
+      select: DUE_SELECT,
+      resolve: (task) => parseOptionalDay(dueDatesOf(task).minDate),
+    }),
+    effectiveDeadline: t.field({
+      type: 'Date',
+      nullable: true,
+      description: '« Échéance » the task goes by (overdue, reminders, sorting, filters): its own, else the end of its sprint when it is in exactly one.',
+      select: DUE_SELECT,
+      resolve: (task) => parseOptionalDay(dueDatesOf(task).deadline),
+    }),
+    minDateFromSprint: t.boolean({ description: 'Its « Ouverture » is that of its sprint (none of its own).', select: DUE_SELECT, resolve: (task) => dueDatesOf(task).minDateFromSprint }),
+    deadlineFromSprint: t.boolean({ description: 'Its « Échéance » is that of its sprint (none of its own).', select: DUE_SELECT, resolve: (task) => dueDatesOf(task).deadlineFromSprint }),
+    cancelled: t.boolean({
+      description: 'Its status is of the category « Annulé »: closed, shown struck through (decision D23).',
+      select: { status: { select: { category: true } } },
+      resolve: (task) => task.status?.category === 'CANCELLED',
+    }),
+    slotCondition: t.field({
+      type: 'JSON',
+      nullable: true,
+      description: 'On or out of calendar schedules, or on the free time, in groups combined with and / or (as a routine); null: any time.',
+      resolve: (task) => readSlotCondition(task.slotCondition),
+    }),
+    location: t.exposeString('location', { nullable: true, description: 'Where it is done (free text); no travel time: a task has no hours.' }),
+    locationLat: t.exposeFloat('locationLat', { nullable: true, description: 'Point of the location; none: unknown.' }),
+    locationLon: t.exposeFloat('locationLon', { nullable: true }),
+    links: t.field({ type: [ItemLinkRef], description: 'Links, as those of the events.', resolve: (task) => readLinks(task.links) }),
+    reminders: t.field({
+      type: [ReminderRef],
+      description: 'Reminders « À HH:MM » (Paris time), rung every day from « Ouverture » to « Échéance » (its day only without « Ouverture »; never without « Échéance »).',
+      resolve: (task) => readReminders(task.reminders),
+    }),
     parentId: t.exposeID('parentId', { nullable: true }),
     milestoneId: t.exposeID('milestoneId', { nullable: true }),
     sprintIds: t.idList(relationIds('sprints', 'Sprints the task is planned in.')),
@@ -204,14 +245,6 @@ builder.prismaObject('Task', {
       resolve: (task) => [...task.relationsA.map((link) => link.taskBId), ...task.relationsB.map((link) => link.taskAId)],
     }),
     commentCount: t.relationCount('comments'),
-    recurrence: t.field({
-      type: 'JSON',
-      nullable: true,
-      description: 'Repetition, on the first task of a recurring series.',
-      resolve: (task) => task.recurrence ?? null,
-    }),
-    seriesId: t.exposeID('seriesId', { nullable: true, description: 'First task of the series this task is an occurrence of.' }),
-    occurrenceDate: t.expose('occurrenceDate', { type: 'Date', nullable: true }),
     trackedSeconds: t.int({
       description: 'Tracked time in seconds: each finished time entry is shared equally between its tasks.',
       select: { timeEntries: { where: { duration: { not: null } }, select: { duration: true, _count: { select: { tasks: true } } } } },
@@ -252,7 +285,10 @@ const taskFields = (t: InputFields) => ({
   parentId: t.id(),
   milestoneId: t.id(),
   sprintIds: t.idList(),
-  slotRule: t.field({ type: 'JSON', description: 'Slots the task is done on or out of ({ mode, kinds }); null: the default of the workspace.' }),
+  slotCondition: t.field({ type: 'JSON', description: 'On or out of calendar schedules, or on the free time, in groups (and / or); null: any time.' }),
+  ...locationInputFields(t, 'Null: none (its point too).'),
+  links: t.field({ type: [ItemLinkInput], description: '20 at most, http or https; null: none.' }),
+  reminders: t.field({ type: [ReminderInput], description: 'Reminders « À HH:MM » only, 10 at most; null: none.' }),
 });
 
 const TaskInput = builder.inputType('TaskInput', {
@@ -334,12 +370,6 @@ const TaskViewUpdateInput = builder.inputType('TaskViewUpdateInput', {
   fields: (t) => ({
     label: t.string(),
     config: t.field({ type: 'JSON' }),
-  }),
-});
-
-const TransferResult = builder.objectRef<{ removedLinks: number }>('TaskTransferResult').implement({
-  fields: (t) => ({
-    removedLinks: t.exposeInt('removedLinks', { description: 'Links removed because they left the project tree.' }),
   }),
 });
 
@@ -441,26 +471,16 @@ builder.mutationFields((t) => ({
     args: { id: t.arg.id({ required: true }), input: t.arg({ type: TaskUpdateInput, required: true }) },
     resolve: async (query, _root, { id, input }) => reloaded(prisma.task, query, tasks.updateTask(id, input)),
   }),
-  cloneTask: t.prismaField({
+  duplicateTask: t.prismaField({
     type: 'Task',
+    description: 'Duplicates a task, named « … (copie) » (decision D20), with its sub-tasks when asked; not its comments.',
     args: { id: t.arg.id({ required: true }), includeSubtasks: t.arg.boolean({ required: true }) },
-    resolve: async (query, _root, { id, includeSubtasks }) => reloaded(prisma.task, query, tasks.cloneTask(id, includeSubtasks)),
+    resolve: async (query, _root, { id, includeSubtasks }) => reloaded(prisma.task, query, tasks.duplicateTask(id, includeSubtasks)),
   }),
   moveTask: t.boolean({
     description: 'Places a task before another one in the manual order (at the end when beforeId is null), and under ' + 'parentId when given (null: top-level task; omitted: parent unchanged).',
     args: { id: t.arg.id({ required: true }), beforeId: t.arg.id(), parentId: t.arg.id() },
     resolve: (_root, { id, beforeId, parentId }) => done(tasks.moveTask(id, beforeId ?? null, parentId)),
-  }),
-  setTaskRecurrence: t.prismaField({
-    type: 'Task',
-    description: 'Makes a task recurring, changes its repetition, or stops it (null). On an occurrence, its series is changed.',
-    args: { id: t.arg.id({ required: true }), recurrence: t.arg({ type: 'JSON' }) },
-    resolve: async (query, _root, { id, recurrence }) => reloaded(prisma.task, query, taskRecurrence.setTaskRecurrence(id, recurrence ?? null)),
-  }),
-  materializeTaskOccurrences: t.int({
-    description: 'Creates the occurrences of recurring tasks falling in a displayed period; returns how many were created.',
-    args: { from: t.arg({ type: 'Date', required: true }), to: t.arg({ type: 'Date', required: true }) },
-    resolve: (_root, { from, to }) => taskRecurrence.materializeTaskOccurrences(from, to),
   }),
   setTasksClosed: t.boolean({
     description: 'Closes (done) or reopens tasks; a closed task no longer blocks other tasks.',
@@ -476,10 +496,10 @@ builder.mutationFields((t) => ({
     resolve: (_root, { ids, changes, restoring }) => done(tasks.bulkUpdateTasks(ids, changes, restoring ?? false)),
   }),
   bulkTransferTasks: t.field({
-    type: TransferResult,
+    type: RemovedLinksResult,
     description: 'Moves the tasks and their sub-tasks to another project, or out of any (projectId null).',
     args: { ids: t.arg.idList({ required: true }), projectId: t.arg.id() },
-    resolve: async (_root, { ids, projectId }) => ({ removedLinks: await tasks.bulkTransferTasks(ids, projectId ?? null) }),
+    resolve: (_root, { ids, projectId }) => removedLinks(tasks.bulkTransferTasks(ids, projectId ?? null)),
   }),
   bulkSetTasksArchived: t.boolean({
     description: 'Archiving cascades to sub-tasks; restoring restores them and the archived parents.',

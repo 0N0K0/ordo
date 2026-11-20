@@ -374,7 +374,7 @@ input CalendarCategoryInput {
   parentId: ID
 }
 
-"""Times are local to timeZone; all-day events have none."""
+"""Times are Paris times; all-day events have none."""
 input CalendarEventInput {
   allDay: Boolean!
 
@@ -392,7 +392,7 @@ input CalendarEventInput {
   endDate: Date!
   endTime: String
   label: String!
-  links: [CalendarLinkInput!]!
+  links: [ItemLinkInput!]!
   location: String
 
   """Point of the location; none: unknown."""
@@ -404,8 +404,10 @@ input CalendarEventInput {
   """Relations without contributor taking part; none: none."""
   relationIds: [ID!]
 
-  """Minutes before the start."""
-  reminders: [Int!]!
+  """
+  Minutes before the start (24 hours at most) or a time of its first day, 10 at most.
+  """
+  reminders: [ReminderInput!]!
 
   """
   Routines of a day of the occurrence it is about (its other days kept); none when omitted.
@@ -416,7 +418,6 @@ input CalendarEventInput {
 
   """Tasks the event is about (none when omitted)."""
   taskIds: [ID!]
-  timeZone: String!
 
   """Travel time back, in minutes; none: 0."""
   travelAfter: Int
@@ -450,7 +451,7 @@ type CalendarEventOccurrence {
   eventId: ID!
   key: String!
   label: String!
-  links: [CalendarLink!]!
+  links: [ItemLink!]!
   location: String
   locationLat: Float
   locationLon: Float
@@ -463,7 +464,11 @@ type CalendarEventOccurrence {
 
   """Relations without contributor taking part."""
   relationIds: [ID!]!
-  reminders: [Int!]!
+
+  """
+  Minutes before the start (all day: Paris midnight of its first day), or a time of its first day.
+  """
+  reminders: [Reminder!]!
 
   """Routines of a day of the occurrence it is about."""
   routineLinks: [EventRoutineLink!]!
@@ -472,7 +477,6 @@ type CalendarEventOccurrence {
   startDate: String!
   startTime: String
   taskIds: [ID!]!
-  timeZone: String!
 
   """Time tracked on the occurrence."""
   trackedSeconds: Int!
@@ -489,16 +493,6 @@ enum CalendarEventScope {
   ALL
   FOLLOWING
   THIS
-}
-
-type CalendarLink {
-  label: String!
-  url: String!
-}
-
-input CalendarLinkInput {
-  label: String!
-  url: String!
 }
 
 """Event (and occurrence) a postponement replaces."""
@@ -701,6 +695,21 @@ type Comment {
 type CommentCount {
   count: Int!
   id: ID!
+}
+
+"""
+Comment deleted with an occurrence (its text and dates), to give it back on undo.
+"""
+type CommentSnapshot {
+  body: String!
+  createdAt: DateTime!
+  updatedAt: DateTime!
+}
+
+input CommentSnapshotInput {
+  body: String!
+  createdAt: DateTime!
+  updatedAt: DateTime!
 }
 
 """Kind of item a comment goes on (tasks have their own comments)."""
@@ -980,6 +989,9 @@ scalar File
 Kind of schedules of another workspace (or its schedules without kind), with whether this one shows it.
 """
 type ForeignScheduleKind {
+  """Kind archived in its workspace: no longer offered in a slot condition."""
+  archived: Boolean!
+
   """In this workspace: the subscription’s, or the kind’s."""
   color: String
 
@@ -1002,9 +1014,10 @@ type ForeignScheduleKind {
 }
 
 """
-Schedule of a kind of another workspace this one subscribes to, shown read only.
+Schedule of another workspace: of a kind this one subscribes to (shown read only), or one a slot condition can name.
 """
 type ForeignWorkSchedule {
+  archived: Boolean!
   cases: JSON!
 
   """In this workspace."""
@@ -1210,6 +1223,18 @@ type InvoiceTreasuryCategories {
   invoiceCategoryId: ID
 }
 
+"""Link of an event, a task or a routine."""
+type ItemLink {
+  """Empty: none (the address is shown)."""
+  label: String!
+  url: String!
+}
+
+input ItemLinkInput {
+  label: String!
+  url: String!
+}
+
 """Arbitrary JSON value, validated by the resolver that receives it."""
 scalar JSON
 
@@ -1269,6 +1294,17 @@ type LinkedMailAttachment {
   inline: Boolean!
   size: Int!
   url: String!
+}
+
+"""What a deletion takes with it, for its confirmation."""
+type LostOnDelete {
+  """Comments of the items and occurrences deleted (decision D19)."""
+  comments: Int!
+
+  """
+  Times without project, not billed, left with nothing attached (extra A of decision D17).
+  """
+  times: Int!
 }
 
 """Mailbox settings (passwords are never returned)."""
@@ -1519,7 +1555,14 @@ type Mutation {
   acceptQuote(date: Date!, file: File, id: ID!): Boolean!
   addAccountingAttachments(files: [File!]!, id: ID!): Boolean!
   addChecklistItem(input: SheetItemInput!, listId: ID!): ID!
-  addComment(body: String!, id: String!, target: CommentTarget!): Comment!
+  addComment(
+    body: String!
+    id: String!
+
+    """Occurrence of a routine or a recurring event (required for them)."""
+    occurrenceDate: Date
+    target: CommentTarget!
+  ): Comment!
   addDocumentReminder(id: ID!, note: String): Boolean!
   addLibraryFiles(files: [File!]!, folderId: ID): [ID!]!
   addLibraryLink(folderId: ID, note: String, title: String!, url: String!): ID!
@@ -1561,12 +1604,24 @@ type Mutation {
   Attaches a list to the treasury entry paying it (adding its split by person), or detaches it (entryId null).
   """
   attachShoppingListEntry(entryId: ID, id: ID!): Boolean!
-  bulkDeleteRoutines(ids: [ID!]!): Int!
+
+  """
+  Deletes routines with their sub-routines, or alone (their sub-routines move up a level); returns how many of those given were deleted.
+  """
+  bulkDeleteRoutines(
+    """false moves unselected sub-routines up."""
+    deleteSubRoutines: Boolean!
+    ids: [ID!]!
+  ): Int!
   bulkDeleteTasks(
     """false moves unselected sub-tasks up."""
     deleteSubtasks: Boolean!
     ids: [ID!]!
   ): Boolean!
+
+  """
+  Archiving cascades to sub-routines; restoring restores those archived along and the archived parents. Returns how many of those given changed.
+  """
   bulkSetRoutinesArchived(archived: Boolean!, ids: [ID!]!): Int!
 
   """
@@ -1582,12 +1637,20 @@ type Mutation {
   """
   Moves the tasks and their sub-tasks to another project, or out of any (projectId null).
   """
-  bulkTransferTasks(ids: [ID!]!, projectId: ID): TaskTransferResult!
+  bulkTransferTasks(ids: [ID!]!, projectId: ID): RemovedLinksResult!
 
   """
-  Applies the same changes to several routines; returns how many changed.
+  Applies the same changes to several routines; those moved to another project tree lose their links out of it (told back).
   """
-  bulkUpdateRoutines(changes: RoutineBulkChanges!, ids: [ID!]!): Int!
+  bulkUpdateRoutines(
+    changes: RoutineBulkChanges!
+
+    """
+    Occurrences made to disappear with their comments or times are confirmed: false (default) refuses with CONFIRMATION_REQUIRED and extension lost { times, comments } when there are some; true deletes them.
+    """
+    confirmLoss: Boolean
+    ids: [ID!]!
+  ): RemovedLinksResult!
   bulkUpdateTasks(
     changes: BulkTaskInput!
     ids: [ID!]!
@@ -1608,9 +1671,20 @@ type Mutation {
   """
   Changes the day and the times of one time of the day of an occurrence: this one (an exception), it and the following ones, or all.
   """
-  changeRoutineOccurrence(date: Date!, dueTime: String, fromTime: String, id: ID!, scope: CalendarEventScope!, slot: Int!, to: Date!): Boolean!
+  changeRoutineOccurrence(
+    """
+    Occurrences made to disappear with their comments or times are confirmed: false (default) refuses with CONFIRMATION_REQUIRED and extension lost { times, comments } when there are some; true deletes them.
+    """
+    confirmLoss: Boolean
+    date: Date!
+    dueTime: String
+    fromTime: String
+    id: ID!
+    scope: CalendarEventScope!
+    slot: Int!
+    to: Date!
+  ): Boolean!
   changeUsername(currentPassword: String!, username: String!): User!
-  cloneTask(id: ID!, includeSubtasks: Boolean!): Task!
 
   """Works without a session: the link may be opened on another device."""
   confirmEmailChange(token: String!): Boolean!
@@ -1652,7 +1726,15 @@ type Mutation {
   createProjectCategory(input: LabelColorInput!): ProjectCategory!
   createProjectStatus(input: LabelColorInput!): ProjectStatus!
   createRecurringInvoice(documentId: ID!, input: RecurringInvoiceInput!): ID!
-  createRoutine(input: RoutineInput!): ID!
+
+  """
+  Creates a routine; a copy (copyOf) leaves out the former links of the routine copied out of its project tree.
+  """
+  createRoutine(
+    """Routine the new one is a copy of."""
+    copyOf: ID
+    input: RoutineInput!
+  ): ID!
   createRoutineCategory(input: RoutineCategoryInput!): ID!
   createScheduleType(input: ScheduleTypeInput!): ScheduleType!
   createSheet(input: SheetInput!): ID!
@@ -1682,7 +1764,17 @@ type Mutation {
   createTreasuryCounterparty(input: TreasuryCounterpartyInput!): ID!
   createTreasuryEntry(input: TreasuryEntryInput!): ID!
   createTreasuryPaymentMethod(input: TreasuryPaymentMethodInput!): ID!
-  createWorkSchedule(input: WorkScheduleInput!): ID!
+
+  """
+  Creates a schedule; the occurrences of routines it makes disappear (no moment left) lose their comments, once confirmed.
+  """
+  createWorkSchedule(
+    """
+    Occurrences made to disappear with their comments or times are confirmed: false (default) refuses with CONFIRMATION_REQUIRED and extension lost { times, comments } when there are some; true deletes them.
+    """
+    confirmLoss: Boolean
+    input: WorkScheduleInput!
+  ): ID!
   createWorkspace(input: WorkspaceInput!): Workspace!
   deleteAccountingDocument(id: ID!): Boolean!
   deleteAlarm(id: ID!): Boolean!
@@ -1730,7 +1822,9 @@ type Mutation {
   """Deletes a saved place (events keep their address)."""
   deletePlace(id: ID!): Boolean!
 
-  """Deletes the project and all its sub-projects."""
+  """
+  Deletes the project and all its sub-projects; their tasks leave them (out of any project).
+  """
   deleteProject(id: ID!): Boolean!
   deleteProjectCategory(id: ID!): Boolean!
   deleteProjectResource(id: ID!): Boolean!
@@ -1739,12 +1833,20 @@ type Mutation {
   deleteRoutineCategory(id: ID!): Boolean!
 
   """
-  Deletes an occurrence (THIS: an exception) or it and the following ones (FOLLOWING); true when the routine was archived (nothing left).
+  Deletes an occurrence (THIS: an exception) or it and the following ones (FOLLOWING), with their comments; tells whether the routine was archived (nothing left) and gives the comments deleted with THIS, for an undo.
   """
-  deleteRoutineOccurrence(date: Date!, id: ID!, scope: CalendarEventScope!): Boolean!
+  deleteRoutineOccurrence(date: Date!, id: ID!, scope: CalendarEventScope!): RoutineOccurrenceDeletion!
 
-  """Deletes a kind of time slots (its schedules stay, without kind)."""
-  deleteScheduleType(id: ID!): Boolean!
+  """
+  Deletes a kind of time slots (its schedules stay, without kind); the occurrences of routines it makes disappear lose their comments, once confirmed.
+  """
+  deleteScheduleType(
+    """
+    Occurrences made to disappear with their comments or times are confirmed: false (default) refuses with CONFIRMATION_REQUIRED and extension lost { times, comments } when there are some; true deletes them.
+    """
+    confirmLoss: Boolean
+    id: ID!
+  ): Boolean!
   deleteSheet(id: ID!): Boolean!
   deleteSheetCategory(id: ID!): Boolean!
   deleteSheetItems(ids: [ID!]!): Boolean!
@@ -1790,7 +1892,17 @@ type Mutation {
   Deletes a relation: its budgets go with it, its lines become the app user's.
   """
   deleteTreasuryRelation(id: ID!): Boolean!
-  deleteWorkSchedule(id: ID!): Boolean!
+
+  """
+  Deletes a schedule; the occurrences of routines it makes disappear (no moment left) lose their comments, once confirmed.
+  """
+  deleteWorkSchedule(
+    """
+    Occurrences made to disappear with their comments or times are confirmed: false (default) refuses with CONFIRMATION_REQUIRED and extension lost { times, comments } when there are some; true deletes them.
+    """
+    confirmLoss: Boolean
+    id: ID!
+  ): Boolean!
 
   """Deletes a workspace and everything in it (not the last one)."""
   deleteWorkspace(id: ID!): Boolean!
@@ -1803,6 +1915,11 @@ type Mutation {
   """
   duplicateShoppingItem(id: ID!): ID!
   duplicateShoppingList(id: ID!): ID!
+
+  """
+  Duplicates a task, named « … (copie) » (decision D20), with its sub-tasks when asked; not its comments.
+  """
+  duplicateTask(id: ID!, includeSubtasks: Boolean!): Task!
   duplicateTaskView(id: ID!, label: String!): TaskView!
 
   """Makes a draft final; returns its number."""
@@ -1843,11 +1960,6 @@ type Mutation {
   markMails(accountId: ID!, done: Boolean, folder: String!, labelId: ID, on: Boolean, uids: [Int!]!): Boolean!
 
   """
-  Creates the occurrences of recurring tasks falling in a displayed period; returns how many were created.
-  """
-  materializeTaskOccurrences(from: Date!, to: Date!): Int!
-
-  """
   Moves a category at an index among its siblings; with parentId, under another category first (null: top level).
   """
   moveCalendarCategory(id: ID!, index: Int!, parentId: ID): Boolean!
@@ -1885,9 +1997,9 @@ type Mutation {
   moveProjectResource(id: ID!, index: Int!): Boolean!
 
   """
-  Moves a routine before or after another one (same parent), or last under it; categoryIds, when given, become its categories.
+  Places a routine before another one in the global manual order (at the end when beforeId is null), and under parentId when given (null: top level; omitted: parent unchanged); categoryIds, when given, become its categories.
   """
-  moveRoutine(categoryIds: [ID!], id: ID!, place: RoutinePlace!, targetId: ID!): Boolean!
+  moveRoutine(beforeId: ID, categoryIds: [ID!], id: ID!, parentId: ID): Boolean!
 
   """
   Moves a category under another one (parentId), or to the top level (parentId null), at an index among its siblings (last without).
@@ -1927,8 +2039,17 @@ type Mutation {
   moveTreasuryCategory(id: ID!, index: Int, parentId: ID): Boolean!
   moveWorkspace(id: ID!, index: Int!): Boolean!
 
-  """Changes some fields of a routine (inline edits)."""
-  patchRoutine(id: ID!, input: RoutinePatch!): Boolean!
+  """
+  Changes some fields of a routine (inline edits); moved to another project tree, it loses its links out of it (told back).
+  """
+  patchRoutine(
+    """
+    Occurrences made to disappear with their comments or times are confirmed: false (default) refuses with CONFIRMATION_REQUIRED and extension lost { times, comments } when there are some; true deletes them.
+    """
+    confirmLoss: Boolean
+    id: ID!
+    input: RoutinePatch!
+  ): RemovedLinksResult!
 
   """
   Cancels an event (or one occurrence) and creates its postponement, linked to it.
@@ -1942,8 +2063,15 @@ type Mutation {
   removeAccountingAttachment(attachmentId: ID!): Boolean!
   removeGithubToken: Boolean!
 
-  """Removes an exception: the occurrence goes back to its own day."""
-  removeRoutineMove(from: Date!, id: ID!): Boolean!
+  """
+  Removes an exception: the occurrence goes back to its own day; after its deletion (undo), with the comments deleted with it.
+  """
+  removeRoutineMove(
+    """Comments deleted with the occurrence, given back on it."""
+    comments: [CommentSnapshotInput!]
+    from: Date!
+    id: ID!
+  ): Boolean!
   removeSheetFromShoppingList(listId: ID!, sheetId: ID!): Boolean!
   removeSignedQuote(id: ID!): Boolean!
   removeTaskBlock(blockedId: ID!, blockerId: ID!): Boolean!
@@ -2132,11 +2260,6 @@ type Mutation {
   setTaskColumnDefaults(columnOrder: [String!], hiddenColumns: [String!]): TaskColumnDefaults!
 
   """
-  Makes a task recurring, changes its repetition, or stops it (null). On an occurrence, its series is changed.
-  """
-  setTaskRecurrence(id: ID!, recurrence: JSON): Task!
-
-  """
   Closes (done) or reopens tasks; a closed task no longer blocks other tasks.
   """
   setTasksClosed(closed: Boolean!, ids: [ID!]!): Boolean!
@@ -2188,7 +2311,16 @@ type Mutation {
   """
   Changes an event; for a recurring one, the occurrence, it and the following ones, or the whole series.
   """
-  updateCalendarEvent(id: ID!, input: CalendarEventInput!, occurrenceDate: Date, scope: CalendarEventScope!): ID!
+  updateCalendarEvent(
+    """
+    Occurrences made to disappear with their comments or times are confirmed: false (default) refuses with CONFIRMATION_REQUIRED and extension lost { times, comments } when there are some; true deletes them.
+    """
+    confirmLoss: Boolean
+    id: ID!
+    input: CalendarEventInput!
+    occurrenceDate: Date
+    scope: CalendarEventScope!
+  ): ID!
   updateCatalogItem(id: ID!, input: CatalogItemInput!): Boolean!
   updateChecklistItem(id: ID!, input: SheetItemInput!): Boolean!
   updateClient(id: ID!, input: ClientUpdateInput!): Client!
@@ -2211,7 +2343,15 @@ type Mutation {
   updateProjectResource(id: ID!, label: String!, note: String, url: String): Boolean!
   updateProjectStatus(id: ID!, input: LabelColorPatch!): ProjectStatus!
   updateRecurringInvoice(id: ID!, input: RecurringInvoiceInput!): Boolean!
+
+  """
+  Saves a routine; moved to another project tree, it loses its links out of it (told back).
+  """
   updateRoutine(
+    """
+    Occurrences made to disappear with their comments or times are confirmed: false (default) refuses with CONFIRMATION_REQUIRED and extension lost { times, comments } when there are some; true deletes them.
+    """
+    confirmLoss: Boolean
     id: ID!
     input: RoutineInput!
 
@@ -2219,7 +2359,7 @@ type Mutation {
     Undo: archived values given back are accepted (only that check is skipped).
     """
     restoring: Boolean
-  ): Boolean!
+  ): RemovedLinksResult!
   updateRoutineCategory(id: ID!, input: RoutineCategoryInput!): Boolean!
   updateScheduleType(id: ID!, input: ScheduleTypeInput!): ScheduleType!
   updateSheet(id: ID!, input: SheetInput!): Boolean!
@@ -2251,7 +2391,18 @@ type Mutation {
   updateTreasuryCounterparty(id: ID!, input: TreasuryCounterpartyInput!): Boolean!
   updateTreasuryEntry(id: ID!, input: TreasuryEntryInput!): Boolean!
   updateTreasuryPaymentMethod(id: ID!, input: TreasuryPaymentMethodInput!): Boolean!
-  updateWorkSchedule(id: ID!, input: WorkScheduleInput!): Boolean!
+
+  """
+  Changes a schedule; the occurrences of routines it makes disappear (no moment left) lose their comments, once confirmed.
+  """
+  updateWorkSchedule(
+    """
+    Occurrences made to disappear with their comments or times are confirmed: false (default) refuses with CONFIRMATION_REQUIRED and extension lost { times, comments } when there are some; true deletes them.
+    """
+    confirmLoss: Boolean
+    id: ID!
+    input: WorkScheduleInput!
+  ): Boolean!
 
   """
   Renames a workspace or changes its kind (it only becomes personal without clients nor invoicing documents).
@@ -2269,8 +2420,6 @@ type Mutation {
 
 """Kind of notification a workspace can give while another one is open."""
 enum NotificationSource {
-  ALARMS
-  CALENDAR
   MAILS
 }
 
@@ -2452,13 +2601,26 @@ type Query {
   """Every client, archived ones included, in manual order."""
   clients: [Client!]!
 
-  """Number of comments of items of a kind (descriptions not counted)."""
-  commentCounts(ids: [String!]!, target: CommentTarget!): [CommentCount!]!
+  """
+  Number of comments of items of a kind (descriptions not counted); of occurrences for routines and events.
+  """
+  commentCounts(
+    """
+    Items; for routines and events, occurrence keys (« id|YYYY-MM-DD », the id alone for a one-off event).
+    """
+    ids: [String!]!
+    target: CommentTarget!
+  ): [CommentCount!]!
 
-  """Comments of an item, oldest first."""
+  """
+  Comments of an item, oldest first; of one occurrence for a routine or an event (decision D19).
+  """
   comments(
     """Item id (Message-ID for a mail)."""
     id: String!
+
+    """Occurrence of a routine or a recurring event (none: a one-off event)."""
+    occurrenceDate: Date
     target: CommentTarget!
   ): [Comment!]!
   companyProfile: CompanyProfile!
@@ -2525,6 +2687,27 @@ type Query {
 
   """Every document of the library (content of the files left out)."""
   libraryDocuments: [LibraryDocument!]!
+
+  """
+  What a deletion of tasks, routines, occurrences of a routine, an event (occurrences) or a calendar takes with it: the times without project, not billed, left with nothing attached, and the comments of the routines, events and occurrences deleted.
+  """
+  lostOnDelete(
+    """Calendar deleted with all its events."""
+    calendarId: ID
+    eventId: ID
+    occurrenceDate: Date
+    routineIds: [ID!]
+
+    """
+    Occurrence of a routine cancelled (THIS: it stays, with its comments: nothing lost), or it and the following ones deleted (FOLLOWING).
+    """
+    routineOccurrence: RoutineOccurrenceGoneInput
+    scope: CalendarEventScope
+    taskIds: [ID!]
+
+    """Their sub-tasks or sub-routines are deleted too."""
+    withSubtree: Boolean
+  ): LostOnDelete!
   mailAccounts: [MailAccount!]!
 
   """
@@ -2580,6 +2763,11 @@ type Query {
   newDocumentDefaults(clientId: ID!, issueDate: Date!, type: AccountingDocumentType!): JSON!
 
   """
+  Every schedule of the other workspaces of the user (archived ones too), shown or not: what a slot condition can name.
+  """
+  otherWorkspaceSchedules: [ForeignWorkSchedule!]!
+
+  """
   Final invoices still due, sent 15 days ago or more (the sending counts, not the due date), sent first first.
   """
   overdueInvoices(today: Date!): [AccountingDocument!]!
@@ -2608,7 +2796,7 @@ type Query {
   routineChecks(from: Date!, to: Date!): [RoutineCheck!]!
 
   """
-  Occurrences of the routines not archived in a period (both days included, 100 days at most), with their times of the day ticked.
+  Occurrences of the routines in a period (both days included, 100 days at most), with their times of the day ticked: the cancelled ones too (flagged), and those of the archived routines due before their archiving (flagged).
   """
   routineOccurrences(from: Date!, to: Date!): [RoutineOccurrence!]!
 
@@ -2787,12 +2975,39 @@ input RecurringInvoiceInput {
   startDate: Date!
 }
 
+"""
+Reminder of a task, a routine or an event: minutes before a moment (0: at the start), or a time of the day of its day (Paris time). One of the two is null.
+"""
+type Reminder {
+  """HH:MM on the day of the item (Paris time)."""
+  at: String
+
+  """Minutes before, 0 to 1 440 (events and routines)."""
+  before: Int
+}
+
+input ReminderInput {
+  """HH:MM."""
+  at: String
+
+  """Minutes before, 0 to 1 440."""
+  before: Int
+}
+
 type ReminderResult {
   documentId: ID!
 
   """Null when sent, else why it was not."""
   error: String
   number: String!
+}
+
+"""
+Outcome of a change of project: the links removed because they left the project tree.
+"""
+type RemovedLinksResult {
+  """Links removed because they left the project tree."""
+  removedLinks: Int!
 }
 
 """
@@ -2841,6 +3056,9 @@ type Routine {
   id: ID!
   label: String!
   lastDoneAt: DateTime
+
+  """Links, as those of the events."""
+  links: [ItemLink!]!
   location: String
   locationLat: Float
   locationLon: Float
@@ -2859,10 +3077,12 @@ type Routine {
   nextDate: Date
 
   """
-  « À partir du » of the occurrences of its rule: { mode: DAY | WEEKDAY | WEEK | BEFORE, … }; null: from their first day.
+  « Ouverture » of the occurrences of its rule: { mode: DAY | WEEKDAY | WEEK | BEFORE, … }; null: from their first day.
   """
   opensOn: JSON
   parentId: ID
+
+  """Global manual order of every routine (not among siblings)."""
   position: Int!
   projectId: ID
 
@@ -2871,10 +3091,18 @@ type Routine {
   """
   recurrence: JSON!
 
+  """« Relative à »: routines related to this one (both ways)."""
+  relatedIds: [ID!]!
+
   """
-  Alerts, in minutes before its moment (when to leave, else its start, else its latest time).
+  Occurrences its reminders ring for: its current one while not done and its next one.
   """
-  reminders: [Int!]!
+  reminderOccurrences: [RoutineReminderOccurrence!]!
+
+  """
+  Reminders: minutes (24 hours at most) before the first day (« Ouverture ») of an occurrence at the start of each time of the day (« dès »), or a time of that day.
+  """
+  reminders: [Reminder!]!
 
   """Routines to do before this one."""
   requiredIds: [ID!]!
@@ -2885,17 +3113,14 @@ type Routine {
   slotCondition: JSON
 
   """
-  Slots it is done on or out of ({ mode, kinds }); null: the workspace default.
-  """
-  slotRule: JSON
-
-  """
   Times of the day of its current occurrence (its next one before it starts), with those ticked.
   """
   slots: [RoutineSlot!]!
   startDate: Date!
 
-  """Time tracked on it, finished entries only."""
+  """
+  Time tracked on it, finished entries only; a time on several routines is shared equally between them.
+  """
   trackedSeconds: Int!
 
   """Travel time back, in minutes."""
@@ -2921,6 +3146,9 @@ Same changes for several routines (omitted fields unchanged; null clears estimat
 input RoutineBulkChanges {
   addAssigneeIds: [ID!]
   addCategoryIds: [ID!]
+
+  """« Relative à » added (never to itself)."""
+  addRelatedIds: [ID!]
   addRequiredIds: [ID!]
 
   """Cases (with recurrence: its whole repetition); empty: its rule."""
@@ -2938,12 +3166,13 @@ input RoutineBulkChanges {
   """Times of the day following its rule."""
   moments: JSON
 
-  """« À partir du » of its rule; null: none."""
+  """« Ouverture » of its rule; null: none."""
   opensOn: JSON
   projectId: ID
   recurrence: JSON
   removeAssigneeIds: [ID!]
   removeCategoryIds: [ID!]
+  removeRelatedIds: [ID!]
   removeRequiredIds: [ID!]
 
   """On or out of calendar schedules, following its rule; null: any time."""
@@ -3015,6 +3244,11 @@ input RoutineInput {
   """HH:MM."""
   fromTime: String
   label: String!
+
+  """
+  20 at most, http or https; required, as relatedIds: an omitted field never wipes them.
+  """
+  links: [ItemLinkInput!]!
   location: String
 
   """Point of the location; none: unknown."""
@@ -3025,13 +3259,16 @@ input RoutineInput {
   moments: JSON
 
   """
-  « À partir du » of the occurrences of its rule: { mode: DAY | WEEKDAY | WEEK | BEFORE, … }; null: none.
+  « Ouverture » of the occurrences of its rule: { mode: DAY | WEEKDAY | WEEK | BEFORE, … }; null: none.
   """
   opensOn: JSON
   parentId: ID
   projectId: ID
   recurrence: JSON!
-  reminders: [Int!]
+
+  """« Relative à »: routines related to it (same project tree)."""
+  relatedIds: [ID!]!
+  reminders: [ReminderInput!]
   requiredIds: [ID!]!
 
   """
@@ -3049,6 +3286,16 @@ input RoutineInput {
 
 """Occurrence of a routine on a day (for the calendar)."""
 type RoutineOccurrence {
+  """
+  Of an archived routine (an occurrence due before the day it was archived): read only.
+  """
+  archived: Boolean!
+
+  """
+  Cancelled (an exception without a day): shown struck through, read only, given back by removing its exception.
+  """
+  cancelled: Boolean!
+
   """Due day (its last day)."""
   date: Date!
 
@@ -3064,6 +3311,23 @@ type RoutineOccurrence {
 
   """First day it can be done."""
   startDate: Date!
+}
+
+type RoutineOccurrenceDeletion {
+  """No occurrence left: the routine was archived."""
+  archived: Boolean!
+
+  """Comments deleted with this occurrence alone (THIS), for an undo."""
+  comments: [CommentSnapshot!]!
+}
+
+input RoutineOccurrenceGoneInput {
+  """Occurrence (its day now)."""
+  date: Date!
+  id: ID!
+
+  """THIS or FOLLOWING."""
+  scope: CalendarEventScope!
 }
 
 """Changes of a routine (omitted fields unchanged)."""
@@ -3094,9 +3358,7 @@ input RoutinePatch {
   """Times of the day following its rule."""
   moments: JSON
 
-  """
-  « À partir du »: { mode: DAY | WEEKDAY | WEEK | BEFORE, … }; null: none.
-  """
+  """« Ouverture »: { mode: DAY | WEEKDAY | WEEK | BEFORE, … }; null: none."""
   opensOn: JSON
 
   """Null: top level."""
@@ -3105,9 +3367,12 @@ input RoutinePatch {
   """Null: none."""
   projectId: ID
   recurrence: JSON
+  relatedIds: [ID!]
 
-  """Minutes before its moment."""
-  reminders: [Int!]
+  """
+  Minutes (24 hours at most) before the lowest date and time of an occurrence, or a time of its first day.
+  """
+  reminders: [ReminderInput!]
   requiredIds: [ID!]
 
   """On or out of calendar schedules, following its rule; null: any time."""
@@ -3121,11 +3386,26 @@ input RoutinePatch {
   travelBefore: Int
 }
 
-"""Where a routine is dropped, relative to another one."""
-enum RoutinePlace {
-  AFTER
-  BEFORE
-  INSIDE
+"""Occurrence of a routine its reminders ring for (Paris time)."""
+type RoutineReminderOccurrence {
+  """Due day of the occurrence."""
+  date: Date!
+
+  """Its first day (« Ouverture »): the day of its reminders « À HH:MM »."""
+  day: Date!
+
+  """
+  Its times of the day not ticked, with the moment its reminders « N min avant » count from.
+  """
+  slots: [RoutineReminderSlot!]!
+}
+
+type RoutineReminderSlot {
+  """First day of the occurrence at the start of the time of the day."""
+  at: DateTime!
+
+  """Index of its time of the day."""
+  slot: Int!
 }
 
 """Time of the day of an occurrence of a routine."""
@@ -3849,6 +4129,11 @@ type Task {
   """Tasks this task blocks."""
   blockingIds: [ID!]!
 
+  """
+  Its status is of the category « Annulé »: closed, shown struck through (decision D23).
+  """
+  cancelled: Boolean!
+
   """Closed (done) task."""
   closed: Boolean!
   closedAt: DateTime
@@ -3856,9 +4141,24 @@ type Task {
   comments: [TaskComment!]!
   createdAt: DateTime!
 
-  """Latest acceptable date ("Date max"): an open task past it is overdue."""
+  """
+  Latest acceptable date (« Échéance »): an open task past it is overdue.
+  """
   deadline: Date
+
+  """Its « Échéance » is that of its sprint (none of its own)."""
+  deadlineFromSprint: Boolean!
   description: String
+
+  """
+  « Échéance » the task goes by (overdue, reminders, sorting, filters): its own, else the end of its sprint when it is in exactly one.
+  """
+  effectiveDeadline: Date
+
+  """
+  « Ouverture » the task goes by: its own, else the start of its sprint when it is in exactly one (decision of lot 12).
+  """
+  effectiveMinDate: Date
   effort: Float
   endDate: Date
 
@@ -3870,34 +4170,45 @@ type Task {
   githubUrl: String
   id: ID!
   label: String!
+
+  """Links, as those of the events."""
+  links: [ItemLink!]!
+
+  """Where it is done (free text); no travel time: a task has no hours."""
+  location: String
+
+  """Point of the location; none: unknown."""
+  locationLat: Float
+  locationLon: Float
   milestoneId: ID
 
-  """Earliest acceptable date ("Date min"): not to be done before."""
+  """Earliest acceptable date (« Ouverture »): not to be done before."""
   minDate: Date
+
+  """Its « Ouverture » is that of its sprint (none of its own)."""
+  minDateFromSprint: Boolean!
 
   """
   Number within its project (#12); none without project. Links use the id.
   """
   number: Int
-  occurrenceDate: Date
   parentId: ID
   position: Int!
   priorityId: ID
 
   """None: a task of no project."""
   projectId: ID
-
-  """Repetition, on the first task of a recurring series."""
-  recurrence: JSON
   relatedIds: [ID!]!
 
-  """First task of the series this task is an occurrence of."""
-  seriesId: ID
+  """
+  Reminders « À HH:MM » (Paris time), rung every day from « Ouverture » to « Échéance » (its day only without « Ouverture »; never without « Échéance »).
+  """
+  reminders: [Reminder!]!
 
   """
-  Slots the task is done on or out of; null: the default of the workspace.
+  On or out of calendar schedules, or on the free time, in groups combined with and / or (as a routine); null: any time.
   """
-  slotRule: JSON
+  slotCondition: JSON
 
   """Sprints the task is planned in."""
   sprintIds: [ID!]!
@@ -3937,6 +4248,16 @@ input TaskInput {
   effort: Float
   endDate: Date
   label: String!
+
+  """20 at most, http or https; null: none."""
+  links: [ItemLinkInput!]
+
+  """Null: none (its point too)."""
+  location: String
+
+  """Point of the location; none: unknown."""
+  locationLat: Float
+  locationLon: Float
   milestoneId: ID
   minDate: Date
   parentId: ID
@@ -3947,10 +4268,13 @@ input TaskInput {
   """
   projectId: ID
 
+  """Reminders « À HH:MM » only, 10 at most; null: none."""
+  reminders: [ReminderInput!]
+
   """
-  Slots the task is done on or out of ({ mode, kinds }); null: the default of the workspace.
+  On or out of calendar schedules, or on the free time, in groups (and / or); null: any time.
   """
-  slotRule: JSON
+  slotCondition: JSON
   sprintIds: [ID!]
   startDate: Date
   statusId: ID
@@ -4019,11 +4343,6 @@ type TaskTag {
   position: Int!
 }
 
-type TaskTransferResult {
-  """Links removed because they left the project tree."""
-  removedLinks: Int!
-}
-
 type TaskType {
   """Archived: hidden by default, read only."""
   archived: Boolean!
@@ -4048,15 +4367,28 @@ input TaskUpdateInput {
   effort: Float
   endDate: Date
   label: String
+
+  """20 at most, http or https; null: none."""
+  links: [ItemLinkInput!]
+
+  """Null: none (its point too)."""
+  location: String
+
+  """Point of the location; none: unknown."""
+  locationLat: Float
+  locationLon: Float
   milestoneId: ID
   minDate: Date
   parentId: ID
   priorityId: ID
 
+  """Reminders « À HH:MM » only, 10 at most; null: none."""
+  reminders: [ReminderInput!]
+
   """
-  Slots the task is done on or out of ({ mode, kinds }); null: the default of the workspace.
+  On or out of calendar schedules, or on the free time, in groups (and / or); null: any time.
   """
-  slotRule: JSON
+  slotCondition: JSON
   sprintIds: [ID!]
   startDate: Date
   statusId: ID
@@ -4097,12 +4429,6 @@ input TaskViewUpdateInput {
 }
 
 type TimeEntry {
-  """Calendar event the time was spent on."""
-  calendarEventId: ID
-  calendarEventLabel: String
-
-  """Its occurrence, for a recurring event."""
-  calendarOccurrenceDate: Date
   description: String
 
   """Invoice the time is billed on."""
@@ -4114,27 +4440,42 @@ type TimeEntry {
   """Seconds, pauses excluded; null while running."""
   duration: Int
   endedAt: DateTime
+
+  """Calendar events (occurrences) the time was spent on (decision D18)."""
+  events: [TimeEntryEvent!]!
   id: ID!
   pausedAt: DateTime
   pausedSeconds: Int!
   projectId: ID
 
-  """Routine the time is spent on."""
-  routineId: ID
-  routineLabel: String
+  """Routines the time is spent on (decision D18)."""
+  routines: [Routine!]!
   startedAt: DateTime!
   taskIds: [ID!]!
 }
 
-"""A project, a routine (its project by default) or both."""
+"""
+Calendar event (its occurrence for a recurring one) a time was spent on.
+"""
+type TimeEntryEvent {
+  eventId: ID!
+  label: String!
+
+  """Its occurrence, for a recurring event."""
+  occurrenceDate: Date
+}
+
+"""
+At least a project, a task, a routine (the project of the first one by default) or an event.
+"""
 input TimeEntryInput {
   description: String
 
   """Seconds."""
   duration: Int!
-  event: TimeEventInput
+  events: [TimeEventInput!]
   projectId: ID
-  routineId: ID
+  routineIds: [ID!]
   startedAt: DateTime!
   taskIds: [ID!]!
 }
@@ -4148,13 +4489,15 @@ input TimeEntryUpdateInput {
   """Seconds."""
   duration: Int
 
-  """Null: no event; omitted: unchanged."""
-  event: TimeEventInput
+  """Omitted: unchanged."""
+  events: [TimeEventInput!]
   projectId: ID
 
-  """Null: no routine; omitted: unchanged."""
-  routineId: ID
+  """Omitted: unchanged."""
+  routineIds: [ID!]
   startedAt: DateTime
+
+  """Omitted: unchanged."""
   taskIds: [ID!]
 }
 
@@ -4166,12 +4509,14 @@ input TimeEventInput {
   occurrenceDate: Date
 }
 
-"""A project, a routine (its project by default) or both."""
+"""
+At least a project, a task, a routine (the project of the first one by default) or an event.
+"""
 input TimerInput {
   description: String
-  event: TimeEventInput
+  events: [TimeEventInput!]
   projectId: ID
-  routineId: ID
+  routineIds: [ID!]
   taskIds: [ID!]!
 }
 

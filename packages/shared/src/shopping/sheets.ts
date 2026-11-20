@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { requiredText } from '../core/rules';
+import { optionalPlainText, requiredText } from '../core/rules';
 import { colorSchema } from '../core/workspace';
 import { itemNoteSchema, quantitySchema, shoppingItemSchema, unitSchema } from './shopping';
 
@@ -10,7 +10,7 @@ export const sheetItemSchema = z.object({
   /** Item kept (its comments with it); none: a new one. */
   id: z.string().nullish(),
   productId: z.string().nullable(),
-  label: requiredText(200),
+  label: requiredText(),
   /** Category of the shopping products. */
   categoryId: z.string().nullable(),
   quantity: quantitySchema.nullable(),
@@ -30,13 +30,10 @@ export const sheetItemSchema = z.object({
 });
 export type SheetItemInput = z.input<typeof sheetItemSchema>;
 
-/** Longest label of a sheet. */
-export const SHEET_LABEL_MAX = 100;
-
 /** Sheet: a label, a note, its project and categories (its items are changed one by one). */
 export const sheetSchema = z.object({
-  label: requiredText(SHEET_LABEL_MAX),
-  note: z.string().max(20_000, 'Note trop longue.').nullable(),
+  label: requiredText(),
+  note: optionalPlainText(),
   /** Project it belongs to; none: of the workspace. */
   projectId: z.string().nullable(),
   categoryIds: z.array(z.string()).max(50),
@@ -45,7 +42,7 @@ export type SheetInput = z.infer<typeof sheetSchema>;
 
 /** Category of the sheets: a label and a color. */
 export const sheetCategorySchema = z.object({
-  label: requiredText(60),
+  label: requiredText(),
   color: colorSchema,
 });
 export type SheetCategoryInput = z.infer<typeof sheetCategorySchema>;
@@ -56,6 +53,21 @@ export const sheetMultiplierSchema = z.number().positive('Multiplicateur positif
 /** Sheet of a routine, an event or a task, times a multiplier. */
 export const sheetLinkSchema = z.object({ sheetId: z.string().min(1), multiplier: sheetMultiplierSchema });
 export type SheetLinkInput = z.infer<typeof sheetLinkSchema>;
+/**
+ * Sheets of a routine, an event or a task as their panel edits them (decision D22): a multiplier emptied is not
+ * positive (« Multiplicateur positif attendu. »).
+ */
+export const sheetLinksFormSchema = z.object({
+  links: z.array(
+    z.object({
+      sheetId: z.string().min(1),
+      multiplier: z
+        .union([z.number(), z.literal('')])
+        .transform((value) => (value === '' ? 0 : value))
+        .pipe(sheetMultiplierSchema),
+    }),
+  ),
+});
 
 /** Item of a checklist added by hand, or changed. */
 export const checklistItemSchema = sheetItemSchema;

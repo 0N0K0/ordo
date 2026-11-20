@@ -5,11 +5,11 @@ import { companyProfileSchema, DOCUMENT_PREFIXES, documentNumber, LATE_INTEREST_
 import { UploadSimpleIcon, FloppyDiskIcon, TrashIcon } from '@phosphor-icons/react';
 import { useState } from 'react';
 import { AddressFields } from './AddressFields';
-import { useAppForm, formCallbacks } from '../../../lib/form';
+import { useAppForm, useFieldSave, nestedErrors } from '../../../lib/form';
+import { SaveStatus } from '../../../components/feedback/SaveStatus';
 import { ON_ERROR, toastCallbacks } from '../../../lib/notify';
 import { useCompanyMutations, useCompanyProfile, useDocumentSequences, type AccountingDocumentType, type CompanyProfile } from '../api';
 import { DOCUMENT_TYPE_LABELS } from '../lib/labels';
-import { FormActions } from '../../../components/dialogs/FormActions';
 import { SettingsSection } from '../../../components/settings/SettingsSection';
 import { ActionButton } from '../../../components/actions/ActionButton';
 
@@ -51,28 +51,63 @@ function companyValues(profile: CompanyProfile): FormValues {
   };
 }
 
+/** Fields of the profile saved on leaving them (decision D22): texts, numbers and the address. */
+const ON_BLUR = [
+  'name',
+  'contact',
+  'legalForm',
+  'capital',
+  'registration',
+  'siren',
+  'siret',
+  'activityCode',
+  'vatNumber',
+  'vatExemptionText',
+  'address',
+  'email',
+  'phone',
+  'website',
+  'bankName',
+  'accountHolder',
+  'iban',
+  'bic',
+  'paymentTerms',
+  'paymentDays',
+  'paymentMethods',
+  'lateInterest',
+  'otherMentions',
+  'referenceLabel',
+  'quoteValidityDays',
+] as const;
+
 /**
- * Business profile form: identity, address, contact, VAT, bank details, default terms and mentions.
+ * Business profile: identity, address, contact, VAT, bank details, default terms and mentions. Each field is saved as
+ * soon as it changes (texts, numbers and the address on leaving them, decision D22, `useFieldSave`), the profile of the
+ * cache followed.
  * @param {{ profile: CompanyProfile }} props Current profile.
  * @returns {JSX.Element} Form.
  */
 function CompanyForm({ profile }: { profile: CompanyProfile }) {
   const { update, setLogo } = useCompanyMutations();
-  const form = useAppForm<FormValues>({
+  const base = useAppForm<FormValues>({
     initialValues: companyValues(profile),
     schema: companyProfileSchema,
   });
-  const addressErrors = Object.fromEntries(
-    Object.entries(form.errors)
-      .filter(([key]) => key.startsWith('address.'))
-      .map(([key, message]) => [key.slice('address.'.length), String(message)]),
-  );
+  const { form, saving, fieldProps } = useFieldSave(base, {
+    save: (_changes, values) => update.mutateAsync(values as CompanyProfileInput as never),
+    schema: companyProfileSchema,
+    saved: companyValues(profile),
+    onBlur: ON_BLUR,
+  });
+  const addressErrors = nestedErrors(form.errors, 'address');
 
-  const handleSubmit = form.onSubmit((values) => update.mutate({ ...values, address: values.address } as CompanyProfileInput as never, formCallbacks(form, 'Profil de la société enregistré.')));
+  // Enter in a text saves it (the fields are saved one by one).
+  const handleSubmit = form.onSubmit(() => undefined);
 
   return (
     <form onSubmit={handleSubmit} noValidate>
       <Stack gap="lg">
+        <SaveStatus saving={saving} />
         <Fieldset legend="Identité">
           <Stack gap="sm">
             <Group gap="md" align="center">
@@ -109,7 +144,7 @@ function CompanyForm({ profile }: { profile: CompanyProfile }) {
           </Stack>
         </Fieldset>
 
-        <AddressFields legend="Adresse" value={form.values.address ?? null} onChange={(address) => form.setFieldValue('address', address)} errors={addressErrors} />
+        <AddressFields legend="Adresse" {...fieldProps('address')} errors={addressErrors} />
 
         <Fieldset legend="Coordonnées">
           <TextInput label="Nom du contact" {...form.getInputProps('contact')} />
@@ -167,8 +202,6 @@ function CompanyForm({ profile }: { profile: CompanyProfile }) {
             <Textarea label="Autres mentions" autosize minRows={2} {...form.getInputProps('otherMentions')} />
           </Stack>
         </Fieldset>
-
-        <FormActions loading={update.isPending} />
       </Stack>
     </form>
   );

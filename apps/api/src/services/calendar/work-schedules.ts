@@ -25,7 +25,7 @@ import { createLabelService } from '../core/labels';
 import { assertExists, deleteOrNotFound } from '../core/lookup';
 import { assertActive, refuseArchived } from '../core/archive';
 import { prisma, unscopedPrisma } from '../../db';
-import type { ScheduleType, WorkSchedule } from '../../generated/prisma/client';
+import type { Prisma, ScheduleType, WorkSchedule } from '../../generated/prisma/client';
 import { clientError, notFound, orNotFound, parseInput } from '../../graphql/errors';
 import { currentWorkspaceId } from '../../workspace-context';
 import { currentWorkspaceFields } from '../workspaces/current-workspace';
@@ -59,6 +59,18 @@ export function scheduleRule(schedule: WorkSchedule): WorkScheduleRule {
 }
 
 /**
+ * Rule a schedule would have once saved with an input (checked as on saving), to compare the occurrences of the
+ * routines before and after a change of it.
+ * @param {string} id Schedule (any id for a new one).
+ * @param {WorkScheduleInput} input Schedule.
+ * @returns {WorkScheduleRule} Rule.
+ */
+function scheduleRuleOf(id: string, input: WorkScheduleInput): WorkScheduleRule {
+  const schedule = parseInput(workScheduleSchema, input);
+  return { id, label: schedule.label, startDate: schedule.startDate, endDate: schedule.endDate ?? null, cases: schedule.cases, exceptions: schedule.exceptions, typeId: schedule.typeId ?? null };
+}
+
+/**
  * Prisma data of a schedule, exceptions by date; the former format is emptied (cases replace it). A kind archived
  * is refused unless it is the current one.
  * @param {WorkScheduleInput} input Schedule.
@@ -67,7 +79,7 @@ export function scheduleRule(schedule: WorkSchedule): WorkScheduleRule {
  */
 async function scheduleData(input: WorkScheduleInput, currentTypeId: string | null = null) {
   const schedule = parseInput(workScheduleSchema, input);
-  await assertActive(prisma.scheduleType, schedule.typeId, 'Type de plage', { keep: currentTypeId, field: 'typeId' });
+  await assertActive(prisma.scheduleType, schedule.typeId, 'Type de créneau', { keep: currentTypeId, field: 'typeId' });
   return {
     typeId: schedule.typeId ?? null,
     label: schedule.label,
@@ -82,38 +94,68 @@ async function scheduleData(input: WorkScheduleInput, currentTypeId: string | nu
 }
 
 /**
+ * Before a change of the schedules is saved, once checked: what it does to the routines (their occurrences it makes
+ * disappear, `settleScheduleChange`), given the schedules of the workspace as it leaves them.
+ */
+export type ScheduleChangeSettler = (change: (own: WorkScheduleRule[]) => WorkScheduleRule[]) => Promise<void>;
+
+/** No settling (internal changes). */
+const NO_SETTLER: ScheduleChangeSettler = async () => {};
+
+/**
  * Creates a schedule.
  * @param {WorkScheduleInput} input Schedule.
+ * @param {ScheduleChangeSettler} [settle] Run once checked, before it is saved. Optional. Default = none.
  * @returns {Promise<WorkSchedule>} Schedule.
  */
-export async function createWorkSchedule(input: WorkScheduleInput): Promise<WorkSchedule> {
-  return prisma.workSchedule.create({ data: await scheduleData(input) });
+export async function createWorkSchedule(input: WorkScheduleInput, settle: ScheduleChangeSettler = NO_SETTLER): Promise<WorkSchedule> {
+  const data = await scheduleData(input);
+  await settle((own) => [...own, scheduleRuleOf('new', input)]);
+  return prisma.workSchedule.create({ data });
 }
 
 /**
  * Replaces a schedule (its slots and pauses with it).
  * @param {string} id Schedule id.
  * @param {WorkScheduleInput} input Schedule.
+ * @param {ScheduleChangeSettler} [settle] Run once checked, before it is saved. Optional. Default = none.
  * @returns {Promise<WorkSchedule>} Schedule.
  */
-export async function updateWorkSchedule(id: string, input: WorkScheduleInput): Promise<WorkSchedule> {
-  const current = await orNotFound(prisma.workSchedule.findUnique({ where: { id }, select: { id: true, typeId: true, archivedAt: true } }), 'Plage de travail');
+export async function updateWorkSchedule(id: string, input: WorkScheduleInput, settle: ScheduleChangeSettler = NO_SETTLER): Promise<WorkSchedule> {
+  const current = await orNotFound(prisma.workSchedule.findUnique({ where: { id }, select: { id: true, typeId: true, archivedAt: true } }), 'Créneau de travail');
   refuseArchived(current);
   const data = await scheduleData(input, current.typeId);
+  await settle((own) => own.map((rule) => (rule.id === id ? scheduleRuleOf(id, input) : rule)));
   return prisma.workSchedule.update({ where: { id }, data });
 }
 
 /**
  * Deletes a schedule.
  * @param {string} id Schedule id.
+ * @param {ScheduleChangeSettler} [settle] Run once found, before it is deleted. Optional. Default = none.
  * @returns {Promise<void>}
  */
-export async function deleteWorkSchedule(id: string): Promise<void> {
-  await deleteOrNotFound(prisma.workSchedule, id, 'Plage de travail');
+export async function deleteWorkSchedule(id: string, settle: ScheduleChangeSettler = NO_SETTLER): Promise<void> {
+  await assertExists(prisma.workSchedule, id, 'Créneau de travail');
+  await settle((own) => own.filter((rule) => rule.id !== id));
+  await deleteOrNotFound(prisma.workSchedule, id, 'Créneau de travail');
 }
 
 /** Kinds of time slots (label, color and display, checked here); the schedules of a deleted one stay, without kind. */
-export const scheduleTypes = createLabelService<ScheduleType>('scheduleType', { notFound: 'Type de plage', conflict: 'Un type porte déjà ce libellé.' }, { schema: scheduleTypeSchema });
+export const scheduleTypes = createLabelService<ScheduleType>('scheduleType', { notFound: 'Type de créneau', conflict: 'Un type porte déjà ce libellé.' }, { schema: scheduleTypeSchema });
+
+/**
+ * Deletes a kind of time slots: its schedules stay, without kind (the working hours of the workspace), which may make
+ * occurrences of routines disappear (asked first through `settle`).
+ * @param {string} id Kind.
+ * @param {ScheduleChangeSettler} [settle] Run once found, before it is deleted. Optional. Default = none.
+ * @returns {Promise<void>}
+ */
+export async function deleteScheduleType(id: string, settle: ScheduleChangeSettler = NO_SETTLER): Promise<void> {
+  await assertExists(prisma.scheduleType, id, 'Type de créneau');
+  await settle((own) => own.map((rule) => (rule.typeId === id ? { ...rule, typeId: null } : rule)));
+  await scheduleTypes.remove(id);
+}
 
 /**
  * Saves a kind of time slots.
@@ -125,9 +167,10 @@ export function saveScheduleType(id: string | null, input: ScheduleTypeInput): P
   return id ? scheduleTypes.update(id, input) : scheduleTypes.create(input);
 }
 
-/** Schedule of another workspace shown in this one, with its kind, workspace, and color and display here. */
+/** Schedule of another workspace (shown or named in this one), with its kind, workspace, and color and display here. */
 export interface ForeignSchedule {
   rule: WorkScheduleRule;
+  archived: boolean;
   typeLabel: string | null;
   color: string | null;
   display: ScheduleDisplay;
@@ -150,6 +193,8 @@ export interface ForeignScheduleKind {
   customized: boolean;
   scheduleCount: number;
   subscribed: boolean;
+  /** Kind archived in its workspace (no longer offered in a slot condition). */
+  archived: boolean;
 }
 
 /** Look of a subscription as stored. */
@@ -299,6 +344,7 @@ export async function foreignScheduleKinds(): Promise<ForeignScheduleKind[]> {
           dayDisplay: true,
           dayBar: true,
           monthDisplay: true,
+          archivedAt: true,
           _count: { select: { schedules: true } },
         },
       },
@@ -318,6 +364,7 @@ export async function foreignScheduleKinds(): Promise<ForeignScheduleKind[]> {
               ...lookOf(subscribed.get(foreignSlotKind(workspace.id, null)), asKind(untyped)),
               scheduleCount: workspace.workSchedules.length,
               subscribed: subscribed.has(foreignSlotKind(workspace.id, null)),
+              archived: false,
             },
           ]
         : []),
@@ -329,28 +376,48 @@ export async function foreignScheduleKinds(): Promise<ForeignScheduleKind[]> {
         ...lookOf(subscribed.get(foreignSlotKind(workspace.id, type.id)), type),
         scheduleCount: type._count.schedules,
         subscribed: subscribed.has(foreignSlotKind(workspace.id, type.id)),
+        archived: type.archivedAt !== null,
       })),
     ];
   });
 }
 
 /**
+ * Subscriptions of this workspace to the kinds of schedules of other workspaces, with their look.
+ * @returns {Promise<({ sourceWorkspaceId: string, typeId: string | null } & StoredLook)[]>} Subscriptions.
+ */
+const scheduleSubscriptions = () => prisma.workScheduleSubscription.findMany({ select: { sourceWorkspaceId: true, typeId: true, ...lookSelect } });
+
+/**
  * Schedules of the kinds of other workspaces this one shows (those added later too).
  * @returns {Promise<ForeignSchedule[]>} Schedules.
  */
 export async function subscribedSchedules(): Promise<ForeignSchedule[]> {
-  const subscriptions = await prisma.workScheduleSubscription.findMany({
-    select: { sourceWorkspaceId: true, typeId: true, ...lookSelect },
-  });
+  const subscriptions = await scheduleSubscriptions();
   if (!subscriptions.length) return [];
+  return foreignSchedules({ OR: subscriptions.map((item) => ({ workspaceId: item.sourceWorkspaceId, typeId: item.typeId })) }, subscriptions);
+}
+
+/**
+ * Every schedule of the other workspaces of the user (archived ones too), shown or not: what a slot condition can
+ * name of them.
+ * @returns {Promise<ForeignSchedule[]>} Schedules.
+ */
+export async function otherWorkspaceSchedules(): Promise<ForeignSchedule[]> {
+  return foreignSchedules({ workspaceId: { not: currentWorkspaceId() } }, await scheduleSubscriptions());
+}
+
+/**
+ * Schedules of other workspaces, with their color and display here (those of their subscription, else of their kind).
+ * @param {Prisma.WorkScheduleWhereInput} where Schedules wanted (of other workspaces).
+ * @param {readonly ({ sourceWorkspaceId: string, typeId: string | null } & StoredLook)[]} subscriptions Subscriptions of this workspace.
+ * @returns {Promise<ForeignSchedule[]>} Schedules.
+ */
+async function foreignSchedules(where: Prisma.WorkScheduleWhereInput, subscriptions: readonly ({ sourceWorkspaceId: string; typeId: string | null } & StoredLook)[]): Promise<ForeignSchedule[]> {
   const lookByKind = new Map(subscriptions.map((item) => [foreignSlotKind(item.sourceWorkspaceId, item.typeId), item]));
   const schedules = await unscopedPrisma.workSchedule.findMany({
-    where: {
-      OR: subscriptions.map((item) => ({
-        workspaceId: item.sourceWorkspaceId,
-        typeId: item.typeId,
-      })),
-    },
+    where,
+    orderBy: [{ startDate: 'asc' }, { createdAt: 'asc' }],
     include: {
       type: {
         select: {
@@ -369,6 +436,7 @@ export async function subscribedSchedules(): Promise<ForeignSchedule[]> {
     const { color, display } = lookOf(lookByKind.get(foreignSlotKind(schedule.workspaceId, schedule.typeId)), schedule.type ?? asKind(untyped));
     return {
       rule: scheduleRule(schedule),
+      archived: schedule.archivedAt !== null,
       typeLabel: schedule.type?.label ?? untyped.label,
       color,
       display,
@@ -400,7 +468,7 @@ export async function setScheduleSubscriptionLook(sourceWorkspaceId: string, typ
  * @returns {Promise<void>}
  */
 export async function subscribeScheduleKind(sourceWorkspaceId: string, typeId: string | null): Promise<void> {
-  if (sourceWorkspaceId === currentWorkspaceId()) throw clientError('BAD_USER_INPUT', 'Ces plages appartiennent déjà à cet espace.');
+  if (sourceWorkspaceId === currentWorkspaceId()) throw clientError('BAD_USER_INPUT', 'Ces créneaux appartiennent déjà à cet espace.');
   await assertExists(unscopedPrisma.workspace, sourceWorkspaceId, 'Espace');
   if (
     typeId &&
@@ -409,7 +477,7 @@ export async function subscribeScheduleKind(sourceWorkspaceId: string, typeId: s
       select: { id: true },
     }))
   )
-    throw notFound('Type de plage');
+    throw notFound('Type de créneau');
   // A null kind is not unique for the database: checked here.
   if (
     await prisma.workScheduleSubscription.findFirst({

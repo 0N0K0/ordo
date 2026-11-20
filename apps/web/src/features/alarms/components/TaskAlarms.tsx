@@ -1,4 +1,3 @@
-import { ALARM_LABEL_MAX, clipText } from '@ordo/shared';
 import { SubSection } from '../../../components/page/SubSection';
 
 import { EmptyState } from '../../../components/feedback/EmptyState';
@@ -23,7 +22,7 @@ export function TaskAlarms({ task, context }: { task: Task; context: TaskContext
   const { data, isPending } = useAlarms();
   const openForm = useAlarmForm(context);
   const alarms = (data ?? []).filter((alarm) => alarm.taskId === task.id);
-  const create = () => openForm(undefined, { defaults: { label: clipText(task.label, ALARM_LABEL_MAX), projectId: task.projectId, taskId: task.id } });
+  const create = () => openForm(undefined, { defaults: { label: task.label, projectId: task.projectId, taskId: task.id } });
 
   return (
     <SubSection title="Alarmes" gap="xs">

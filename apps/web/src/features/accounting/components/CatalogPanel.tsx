@@ -3,7 +3,7 @@ import { EmptyState } from '../../../components/feedback/EmptyState';
 import { TableSkeleton } from '../../../components/feedback/Skeletons';
 
 import { openFormPanel } from '../../../components/panels/panels';
-import { Badge, Group, SegmentedControl, Select, SimpleGrid, Stack, Text, Textarea, TextInput } from '@mantine/core';
+import { Badge, Fieldset, Group, SegmentedControl, Select, SimpleGrid, Stack, Text, Textarea, TextInput } from '@mantine/core';
 import { ACCOUNTING_UNITS, catalogItemSchema, UNIT_LABELS, type CatalogItemInput } from '@ordo/shared';
 import { PackageIcon, PencilSimpleIcon, PlusIcon } from '@phosphor-icons/react';
 import { ArchivedBadge } from '../../../components/feedback/ArchivedBadge';
@@ -16,7 +16,8 @@ import { EditableNumber, EditableSelect, EditableText } from '../../../component
 import { useDataView } from '../../../components/data-table/views/use-data-view';
 import { RowActions } from '../../../components/data-table/cells/RowActions';
 import type { DataColumn } from '../../../components/data-table/table/data-table';
-import { useAppForm, formCallbacks } from '../../../lib/form';
+import { useAppForm, useFieldSave, formCallbacks } from '../../../lib/form';
+import { SaveStatus } from '../../../components/feedback/SaveStatus';
 import { ON_ERROR } from '../../../lib/notify';
 import { useCompanyProfile } from '../api';
 import { useCatalogItems, useCatalogMutations, type CatalogItem } from '../api/catalog';
@@ -66,66 +67,83 @@ const CATALOG_COLUMNS: DataColumn<CatalogItem>[] = [
   },
 ];
 
+/** Values of the form of a catalogue item. */
+type CatalogValues = CatalogItemInput & Record<string, unknown>;
+
 /**
- * Catalogue item form: kind, label, description, unit, price, VAT.
+ * Values of a catalogue item, as it is (a new one: a service by the hour, at the VAT of the company).
+ * @param {CatalogItem} [item] Item, as the cache holds it. Optional.
+ * @param {boolean} [vatApplicable] VAT applies to the company (a new item: 20 %, else 0). Optional.
+ * @returns {CatalogValues} Values.
+ */
+const catalogValues = (item?: CatalogItem, vatApplicable?: boolean): CatalogValues => ({
+  kind: (item?.kind as CatalogItemInput['kind']) ?? 'ITEM',
+  label: item?.label ?? '',
+  description: item?.description ?? '',
+  unit: item?.unit ?? 'HOUR',
+  unitPrice: item?.unitPrice ?? 0,
+  vatRate: item?.vatRate ?? (vatApplicable === false ? 0 : 20),
+});
+
+/**
+ * Catalogue item form: kind, label, description, unit, price, VAT. A new item is a form with « Ajouter »; an existing
+ * one, its panel, saves each field as soon as it changes (texts and the price on leaving them, decision D22,
+ * `useFieldSave`), the one of the cache followed; archived, it is read only.
  * @param {{ item?: CatalogItem, onDone: () => void }} props Item to edit (none: new item) and close callback.
  * @returns {JSX.Element} Form.
  */
 function CatalogItemForm({ item, onDone }: { item?: CatalogItem; onDone: () => void }) {
   const { data: company } = useCompanyProfile();
+  const { data: items } = useCatalogItems();
   const { create, update } = useCatalogMutations();
-  const form = useAppForm<CatalogItemInput & Record<string, unknown>>({
-    initialValues: {
-      kind: (item?.kind as CatalogItemInput['kind']) ?? 'ITEM',
-      label: item?.label ?? '',
-      description: item?.description ?? '',
-      unit: item?.unit ?? 'HOUR',
-      unitPrice: item?.unitPrice ?? 0,
-      vatRate: item?.vatRate ?? (company?.vatApplicable === false ? 0 : 20),
-    },
+  const base = useAppForm<CatalogValues>({ initialValues: catalogValues(item, company?.vatApplicable), schema: catalogItemSchema });
+  const current = item && (items?.find((candidate) => candidate.id === item.id) ?? item);
+  const readOnly = Boolean(current?.archived);
+  const { form, saving } = useFieldSave(base, {
+    // The raw values: the API validates (and trims) them.
+    save: item ? (_changes, input) => update.mutateAsync({ id: item.id, input }) : null,
     schema: catalogItemSchema,
+    saved: current && catalogValues(current),
+    onBlur: ['label', 'description', 'unitPrice'],
+    readOnly,
   });
   const disbursement = form.values.kind === 'DISBURSEMENT';
   return (
     <Stack gap="lg">
-      <form
-        noValidate
-        onSubmit={form.onSubmit(() => {
-          const callbacks = formCallbacks(form, item ? 'Article modifié.' : 'Article ajouté au catalogue.', onDone);
-          // The raw values: the API validates (and trims) them.
-          if (item) update.mutate({ id: item.id, input: form.values }, callbacks);
-          else create.mutate(form.values, callbacks);
-        })}
-      >
-        <Stack gap="sm">
-          <SegmentedControl
-            data={[
-              { value: 'ITEM', label: 'Produit ou service' },
-              { value: 'DISBURSEMENT', label: 'Débours' },
-            ]}
-            {...form.getInputProps('kind')}
-            onChange={(kind) => form.setValues({ kind: kind as CatalogItemInput['kind'], ...(kind === 'DISBURSEMENT' && { vatRate: 0, unit: 'FLAT' }) })}
-          />
-          <TextInput label="Libellé" required data-autofocus {...form.getInputProps('label')} />
-          <Textarea label="Description" description="Reprise dans la ligne (markdown)." autosize minRows={2} {...form.getInputProps('description')} />
-          <SimpleGrid cols={{ base: 1, sm: disbursement ? 2 : 3 }} spacing="sm">
-            <Select label="Unité" allowDeselect={false} data={ACCOUNTING_UNITS.map((unit) => ({ value: unit, label: UNIT_LABELS[unit].label }))} {...form.getInputProps('unit')} />
-            <AmountInput label="Prix unitaire HT" {...form.getInputProps('unitPrice')} />
-            {!disbursement && (
-              <Select
-                label="TVA"
-                allowDeselect={false}
-                data={vatRateOptions(form.values.vatRate)}
-                value={String(form.values.vatRate)}
-                onChange={(rate) => rate !== null && form.setFieldValue('vatRate', Number(rate))}
-                error={form.errors.vatRate}
-              />
-            )}
-          </SimpleGrid>
-          <FormActions onCancel={onDone} loading={create.isPending || update.isPending} />
-        </Stack>
+      {/* A new item only: an existing one is saved field by field (Enter saves the text typed). */}
+      <form noValidate onSubmit={form.onSubmit(() => create.mutate(form.values, formCallbacks(form, 'Article ajouté au catalogue.', onDone)))}>
+        <Fieldset variant="unstyled" disabled={readOnly} p={0} m={0}>
+          <Stack gap="sm">
+            {item && !readOnly && <SaveStatus saving={saving} />}
+            <SegmentedControl
+              data={[
+                { value: 'ITEM', label: 'Produit ou service' },
+                { value: 'DISBURSEMENT', label: 'Débours' },
+              ]}
+              {...form.getInputProps('kind')}
+              onChange={(kind) => form.setValues({ kind: kind as CatalogItemInput['kind'], ...(kind === 'DISBURSEMENT' && { vatRate: 0, unit: 'FLAT' }) })}
+            />
+            <TextInput label="Libellé" required data-autofocus={item ? undefined : true} {...form.getInputProps('label')} />
+            <Textarea label="Description" description="Reprise dans la ligne (markdown)." autosize minRows={2} {...form.getInputProps('description')} />
+            <SimpleGrid cols={{ base: 1, sm: disbursement ? 2 : 3 }} spacing="sm">
+              <Select label="Unité" allowDeselect={false} data={ACCOUNTING_UNITS.map((unit) => ({ value: unit, label: UNIT_LABELS[unit].label }))} {...form.getInputProps('unit')} />
+              <AmountInput label="Prix unitaire HT" {...form.getInputProps('unitPrice')} />
+              {!disbursement && (
+                <Select
+                  label="TVA"
+                  allowDeselect={false}
+                  data={vatRateOptions(form.values.vatRate)}
+                  value={String(form.values.vatRate)}
+                  onChange={(rate) => rate !== null && form.setFieldValue('vatRate', Number(rate))}
+                  error={form.errors.vatRate}
+                />
+              )}
+            </SimpleGrid>
+            {!item && <FormActions onCancel={onDone} submitLabel="Ajouter" loading={create.isPending} />}
+          </Stack>
+        </Fieldset>
       </form>
-      {item && <Comments target="CATALOG_ITEM" id={item.id} readOnly={item.archived} />}
+      {item && <Comments target="CATALOG_ITEM" id={item.id} readOnly={readOnly} />}
     </Stack>
   );
 }

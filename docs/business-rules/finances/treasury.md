@@ -20,7 +20,7 @@ Sources : `apps/api/src/services/treasury/treasury.ts`, schéma `treasuryAccount
 
 | Champ            | Règle                                                                                        |
 | ---------------- | -------------------------------------------------------------------------------------------- |
-| `label`          | Requis, 100 caractères au plus (« Le libellé est requis. », « 100 caractères maximum. »).    |
+| `label`          | Requis, 250 caractères au plus (« Le libellé est requis. », « 250 caractères maximum. »).    |
 | `openingBalance` | Montant (voir plus haut).                                                                    |
 | `openingDate`    | Jour valide, requis.                                                                         |
 | couleur, image   | Comme toute liste de paramètres (`TREASURY_ACCOUNT`, [Nommage](../cross-cutting/naming.md)). |
@@ -44,13 +44,13 @@ Sources : `apps/api/src/services/treasury/treasury.ts`, schéma `treasuryEntrySc
 | `status`                                   | `ACTUAL` (réel) ou `FORECAST` (prévu).                                                                                                                         |
 | `date`                                     | Date d’exécution, jour valide. C’est elle qui compte pour le solde.                                                                                            |
 | `valueDate`                                | Jour ou null ; null = la date d’exécution (enregistrée telle quelle). Information seulement.                                                                   |
-| `label`                                    | Requis, `ENTRY_LABEL_MAX` = 300 caractères.                                                                                                                    |
+| `label`                                    | Requis, 250 caractères (`TEXT_MAX`, décision DO).                                                                                                              |
 | `amount`                                   | Signé, non nul.                                                                                                                                                |
 | `categoryId`                               | Facultatif ; doit être du sens du mouvement : « Choisissez une catégorie d’entrée. » / « Choisissez une catégorie de sortie. »                                 |
 | `methodId`                                 | Facultatif ; doit servir ce sens : « Ce moyen de paiement ne sert pas aux entrées. » / « Ce moyen de paiement ne sert pas aux sorties. »                       |
 | `clientId` / `counterpartyId`              | Émetteur ou destinataire : un client ou un tiers, pas les deux (« Choisissez un client ou un tiers, pas les deux. »). Chacun doit exister.                     |
 | `projectId`                                | Facultatif, doit exister.                                                                                                                                      |
-| `note`                                     | Facultative, 2 000 caractères.                                                                                                                                 |
+| `note`                                     | Facultative, markdown, 65 536 caractères (« Texte trop long. ») ; blanche → null.                                                                              |
 | `url`                                      | Facultative, http ou https (« Lien invalide (http ou https). ») ; vide = null.                                                                                 |
 | `recurrence`                               | Règle de répétition ([Dates](../cross-cutting/dates.md)) ; seulement pour une prévision : « Seul un mouvement prévu peut se répéter. »                         |
 | `allocations`                              | Documents réglés (voir plus bas) ; 50 au plus (« 50 documents maximum. ») ; seulement pour un mouvement réel : « Seul un mouvement réel règle des documents. » |
@@ -96,7 +96,7 @@ Sources : `treasury.ts` (`assertLines`, `saveLines`), schéma `treasuryEntryLine
 | Champ                              | Règle                                                                                                                                                                                                                                   |
 | ---------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `id`                               | Ligne gardée (ses liens restent) ; doit appartenir au mouvement modifié, sinon « Ligne » introuvable. Absent : nouvelle ligne.                                                                                                          |
-| `label`                            | Facultatif, `ENTRY_LINE_LABEL_MAX` = 200 caractères.                                                                                                                                                                                    |
+| `label`                            | Facultatif, 250 caractères (`TEXT_MAX`).                                                                                                                                                                                                |
 | `mode`                             | `AMOUNT` (montant signé) ou `PERCENT` (pourcentage signé du montant du mouvement).                                                                                                                                                      |
 | `value`                            | Non nulle ; au plus 99 999 999 en montant (« Montant trop grand. »), 1 000 en pourcentage (« 1 000 % au plus. »).                                                                                                                       |
 | `memberId` / `relationId`          | Pour un membre ou une relation, pas les deux : « Un membre ou une relation, pas les deux. » Aucun des deux : l’utilisateur de l’app (« Moi »). Doivent exister (« Membre », « Relation »).                                              |
@@ -144,13 +144,13 @@ Source : `treasuryProjection(today, from, until)` (`treasury.ts`). La page web d
 
 Seuls les comptes **non archivés** sont pris en compte.
 
-| Origine (`kind`)          | Ce qui est repris                                                                                                                                                                                                                 | Date attendue                                                       | Montant                           |
-| ------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------- | --------------------------------- |
-| `FORECAST`                | Prévisions des comptes ouverts. Répétée : ses occurrences entre aujourd’hui et `until` (les occurrences passées ne sont pas reprises). Simple : sa date si elle est au plus `until`.                                              | Sa date ; passée : aujourd’hui (`overdue`).                         | Celui de la prévision.            |
-| `ACTUAL`                  | Mouvements réels datés après aujourd’hui et au plus `until`.                                                                                                                                                                      | Sa date.                                                            | Le sien.                          |
-| `INVOICE` / `CREDIT_NOTE` | Documents Ordo validés encore dus (`documentBalances`, solde > 0). Libellé « Facture N — client » / « Avoir N — client ».                                                                                                         | Échéance, sinon date d’émission ; passée : aujourd’hui (`overdue`). | Reste dû ; négatif pour un avoir. |
-| `IMPORTED`                | Documents importés non soldés (`importedBalances`). Libellé avec « (importé) ».                                                                                                                                                   | Idem.                                                               | Idem.                             |
-| `RECURRING_INVOICE`       | Factures récurrentes actives, non archivées, avec une prochaine date : occurrences de leur règle de `nextDate` à `until`, payées après le même délai que leur modèle (échéance − émission du modèle). Libellé « [nom] — client ». | Date de paiement (jamais en retard).                                | Total TTC du modèle.              |
+| Origine (`kind`)          | Ce qui est repris                                                                                                                                                                                                                                         | Date attendue                                                       | Montant                           |
+| ------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------- | --------------------------------- |
+| `FORECAST`                | Prévisions des comptes ouverts. Répétée : ses occurrences entre aujourd’hui et `until` (les occurrences passées ne sont pas reprises). Simple : sa date si elle est au plus `until`.                                                                      | Sa date ; passée : aujourd’hui (`overdue`).                         | Celui de la prévision.            |
+| `ACTUAL`                  | Mouvements réels datés après aujourd’hui et au plus `until`.                                                                                                                                                                                              | Sa date.                                                            | Le sien.                          |
+| `INVOICE` / `CREDIT_NOTE` | Documents Ordo validés encore dus (`documentBalances`, solde > 0). Libellé « Facture N — client » / « Avoir N — client », le nom du client coupé pour tenir en 250 caractères (`fitName`).                                                                | Échéance, sinon date d’émission ; passée : aujourd’hui (`overdue`). | Reste dû ; négatif pour un avoir. |
+| `IMPORTED`                | Documents importés non soldés (`importedBalances`). Libellé avec « (importé) ».                                                                                                                                                                           | Idem.                                                               | Idem.                             |
+| `RECURRING_INVOICE`       | Factures récurrentes actives, non archivées, avec une prochaine date : occurrences de leur règle de `nextDate` à `until`, payées après le même délai que leur modèle (échéance − émission du modèle). Libellé « [nom] — client », coupé à 250 caractères. | Date de paiement (jamais en retard).                                | Total TTC du modèle.              |
 
 - `payerName` : client ou tiers du mouvement, client du document (ou nom de client saisi sur un importé).
 - `archived` : le mouvement ou le document est archivé ; il compte quand même (argent réel), seule sa ligne est masquée côté web.
@@ -168,7 +168,7 @@ Seuls les comptes **non archivés** sont pris en compte.
 
 Sources : `apps/api/src/services/treasury/treasury-settings.ts`, schéma `treasuryCategorySchema`, arbre générique `treeListService` ([Ordre](../cross-cutting/ordering.md)).
 
-- Champs : `label` (requis, 100 caractères), `color` (facultative ; vide l’efface, omise la laisse), `direction` (`IN` / `OUT`), `parentId`.
+- Champs : `label` (requis, 250 caractères), `color` (facultative ; vide l’efface, omise la laisse), `direction` (`IN` / `OUT`), `parentId`.
 - Une catégorie est dans l’arbre de son sens : le parent doit être du même sens : « La catégorie parente doit être du même sens. » ; il doit exister (« Catégorie parente ») ; une catégorie ne peut pas être rangée sous elle-même : « Une catégorie ne peut pas être rangée sous elle-même. »
 - Rien n’est rangé sous une catégorie archivée (une catégorie déjà dessous y reste).
 - Création : dernière parmi ses sœurs (même sens, même parent). Changement de parent : elle passe en dernier. Déplacement (`moveTreasuryCategory`) : sous une autre catégorie du même sens, ou à la racine, à un rang (dernier sans rang).
@@ -189,7 +189,7 @@ Sources : `apps/api/src/services/treasury/treasury-settings.ts`, schéma `treasu
 
 Source : `treasury-settings.ts`, schéma `treasuryPaymentMethodSchema`.
 
-- Champs : `label` (requis, 100), `incoming`, `outgoing` ; au moins un sens : « Choisissez au moins un sens. »
+- Champs : `label` (requis, 250), `incoming`, `outgoing` ; au moins un sens : « Choisissez au moins un sens. »
 - Création en dernière position. Modification refusée s’il est archivé.
 - Retirer un sens utilisé est refusé : « Des entrées utilisent ce moyen de paiement. » (entrées = montant > 0), « Des sorties utilisent ce moyen de paiement. »
 - Suppression : ses mouvements le perdent (`SetNull`).
@@ -199,7 +199,7 @@ Source : `treasury-settings.ts`, schéma `treasuryPaymentMethodSchema`.
 
 Source : `treasury-settings.ts`, schéma `treasuryCounterpartySchema`.
 
-- Émetteur ou destinataire qui n’est pas un client. Champs : `name` (nom de personne, requis, 100 caractères : « Le nom est requis. »), `note` (2 000).
+- Émetteur ou destinataire qui n’est pas un client. Champs : `name` (nom de personne, requis, 250 caractères : « Le nom est requis. »), `note` (texte multiligne, 4 000).
 - Création en dernière position ; modification refusée s’il est archivé ; suppression : ses mouvements perdent leur émetteur ou destinataire.
 - Liste : non archivés d’abord, puis position et nom.
 
@@ -217,7 +217,7 @@ Source : `apps/api/src/services/treasury/treasury-team.ts`.
 
 Source : `treasury-team.ts`, schéma `treasuryRelationSchema`.
 
-- Personne hors de l’équipe ou du foyer (amis, famille, partenaires…) pour qui une ligne ou un budget peut être. Champs : `name` (nom de personne), `note` (500), `contributorId` facultatif.
+- Personne hors de l’équipe ou du foyer (amis, famille, partenaires…) pour qui une ligne ou un budget peut être. Champs : `name` (nom de personne), `note` (texte multiligne, 4 000), `contributorId` facultatif.
 - Le contributeur lié ne peut pas être membre : « Ce contributeur est membre : il n’est pas une relation. »
 - Unicité dans l’espace : le nom (« Une relation porte déjà ce nom. ») et le contributeur (« Ce contributeur est déjà une relation. »).
 - Modification refusée si elle est archivée.
@@ -229,10 +229,10 @@ Source : `treasury-team.ts`, schéma `treasuryRelationSchema`.
 
 Source : `treasury-team.ts`, schémas `treasuryContextSchema`, `treasuryContextPeriodSchema`, `plannedContext`.
 
-- Contexte : `label` requis (60 caractères), `color` requise. Pas d’arbre. Une ligne sans contexte est du « Quotidien » (`EVERYDAY_CONTEXT`).
+- Contexte : `label` requis (250 caractères), `color` requise. Pas d’arbre. Une ligne sans contexte est du « Quotidien » (`EVERYDAY_CONTEXT`).
 - Libellé unique dans l’espace : « Un contexte porte déjà ce libellé. » Modification refusée s’il est archivé. Création en dernière position.
 - Suppression : ses périodes sont supprimées, les lignes qui l’avaient n’ont plus de contexte (`SetNull`) ; ses budgets sont aussi supprimés (`TreasuryBudget.context` en `onDelete: Cascade`, non signalé dans le message de l’interface).
-- Période : `contextId` requis (« Le contexte est requis. »), `startDate` et `endDate` (jours inclus, la fin suit le début : « La fin doit suivre le début. »), `note` (200).
+- Période : `contextId` requis (« Le contexte est requis. »), `startDate` et `endDate` (jours inclus, la fin suit le début : « La fin doit suivre le début. »), `note` (markdown, 65 536).
 - Une période fait partie de son contexte : on ne peut ni en ajouter, ni en modifier, ni en supprimer pour un contexte archivé.
 - Contexte proposé un jour (`plannedContext`) : celui d’une période qui contient ce jour ; si plusieurs se chevauchent, celle qui commence le plus tard ; sinon aucun (« Quotidien »). Côté web, les contextes archivés ne sont pas proposés.
 - Changer ou supprimer une période ne modifie pas les lignes déjà enregistrées.
@@ -256,16 +256,16 @@ Source : `apps/api/src/services/treasury/treasury-budgets.ts`, schéma `treasury
 - Une catégorie, relation ou un contexte archivé est refusé, sauf si c’est déjà celui du budget. Le membre doit exister.
 - `saveTreasuryBudget` : crée (sans id) ou modifie un budget **et toutes ses répétitions** (une seule ligne en base) ; modification refusée s’il est archivé.
 - Suppression : le budget et ses répétitions.
-- Mois couverts dans une plage (`budgetMonths`) : sans répétition, son mois s’il est dans la plage ; sinon chaque n mois à partir du premier, jusqu’à `repeatUntil` ou la fin de la plage.
+- Mois couverts dans une période (`budgetMonths`) : sans répétition, son mois s’il est dans la période ; sinon chaque n mois à partir du premier, jusqu’à `repeatUntil` ou la fin de la période.
 
 ### Rapport (`treasuryBudgetReport(from, to)`)
 
 - Budgets pris : non archivés, de premier mois au plus `to`. Plusieurs budgets de même clé (mois, bénéficiaire, contexte, catégorie) s’additionnent.
-- Mouvements pris : réels datés dans la plage ; réels hors plage ayant des lignes datées dans la plage (carte à débit différé) ; prévisions datées au plus la fin de la plage (répétées : leurs occurrences dans la plage ; simples : seulement si elles sont dans la plage). Les mouvements archivés comptent.
+- Mouvements pris : réels datés dans la période ; réels hors période ayant des lignes datées dans la période (carte à débit différé) ; prévisions datées au plus la fin de la période (répétées : leurs occurrences dans la période ; simples : seulement si elles sont dans la période). Les mouvements archivés comptent.
 - Chaque ligne d’un mouvement compte pour sa relation, sinon son membre, sinon l’utilisateur, dans son contexte et sa catégorie, au mois de sa date propre (mouvement réel seulement) ou du mouvement. **Les lignes de prêt ne comptent pas** (ce n’est pas une dépense).
 - Le non réparti, ou le mouvement entier sans lignes, compte pour l’utilisateur, dans le contexte planifié ce jour-là, et dans la catégorie du mouvement (aucune pour le non réparti d’un mouvement décomposé).
 - Une part va au budget de son mois, bénéficiaire et contexte pour sa catégorie, ou pour la catégorie parente la plus proche qui en a un. Sans budget, elle est « hors budget » (`budgeted: false`), sous sa propre clé.
-- Ce qui est attendu des factures et avoirs (lignes du prévisionnel hors `FORECAST` / `ACTUAL`, à partir d’aujourd’hui) compte en prévu pour l’utilisateur, dans le contexte planifié ce jour-là, dans la catégorie des factures (montant positif) ou des avoirs (négatif) réglée dans les paramètres. Seulement si aujourd’hui est au plus la fin de la plage.
+- Ce qui est attendu des factures et avoirs (lignes du prévisionnel hors `FORECAST` / `ACTUAL`, à partir d’aujourd’hui) compte en prévu pour l’utilisateur, dans le contexte planifié ce jour-là, dans la catégorie des factures (montant positif) ou des avoirs (négatif) réglée dans les paramètres. Seulement si aujourd’hui est au plus la fin de la période.
 - Lignes renvoyées : `budget` (positif), `actual` et `forecast` (sommes signées), triées par mois puis budgets avant hors budget. Les budgets archivés ne comptent pas : leurs mouvements sont hors budget.
 - Côté web, ce qui est « utilisé » se lit dans le sens de la catégorie (sorties en positif pour une catégorie de sortie).
 
@@ -299,12 +299,12 @@ Lecture (`readStatement`, partagée, faite côté web) :
 - CSV avec cellules entre guillemets (séparateurs, sauts de ligne et guillemets doublés acceptés) ; lignes vides ignorées.
 - Date : séparateurs `/`, `.` ou `-` ; année sur 2 chiffres = 20xx ; date réelle exigée.
 - Montant : espaces, espaces insécables et « € » retirés, « + » initial retiré ; le dernier « , » ou « . » suivi d’au plus 2 chiffres est la marque décimale ; arrondi à 2 décimales. Débit / crédit : crédit − |débit|.
-- Libellé : espaces multiples réduits, coupé à 300 caractères.
+- Libellé : espaces multiples réduits, coupé à 250 caractères.
 - Les lignes sans date, libellé ou montant valides (ou montant nul) sont ignorées (en-têtes, totaux…).
 
 ### Import (`importTreasuryStatement`)
 
-- 1 à 2 000 opérations (« Aucune opération à importer. », « 2 000 opérations au plus. ») ; chaque opération : date, libellé (1 à 300 caractères), montant non nul, prévision réalisée facultative (`forecastId`, `occurrence`).
+- 1 à 2 000 opérations (« Aucune opération à importer. », « 2 000 opérations au plus. ») ; chaque opération : date, libellé (1 à 250 caractères), montant non nul, prévision réalisée facultative (`forecastId`, `occurrence`).
 - Le compte doit être actif (non archivé). Le mapping, s’il est donné, est gardé sur le compte (`csvMapping`) pour ses prochains relevés.
 - Opération avec prévision : la prévision est réalisée (date et montant de l’opération, à l’occurrence donnée, sinon à la date), le mouvement créé passe sur le compte importé et sa note reçoit « Relevé : [libellé bancaire] » à la suite de la note de la prévision.
 - Sinon : nouveau mouvement réel (date d’exécution et de valeur = date de l’opération, libellé, montant), sans catégorie, à catégoriser ou répartir ensuite.
@@ -336,7 +336,7 @@ Source : `recordPayment` (`apps/api/src/services/accounting/document-tracking.ts
 
 - Seul un document validé (facture ou avoir), non archivé, peut être réglé : « Seul un document validé (facture ou avoir) peut être réglé. »
 - Compte actif, moyen non archivé et du bon sens.
-- Crée un mouvement réel : libellé « Règlement N — client » ou « Remboursement N — client », montant négatif pour un avoir, catégorie des factures / avoirs des paramètres, sinon une catégorie nommée « Ventes » (entrée) ou « Remboursements clients » (sortie) si elle existe ; client et projet du document ; un règlement du montant.
+- Crée un mouvement réel : libellé « Règlement N — client » ou « Remboursement N — client » (nom du client coupé pour tenir en 250 caractères, `fitName`), montant négatif pour un avoir, catégorie des factures / avoirs des paramètres, sinon une catégorie nommée « Ventes » (entrée) ou « Remboursements clients » (sortie) si elle existe ; client et projet du document ; un règlement du montant.
 - Puis le statut de suivi du document est recalculé.
 
 ## Autres éléments du module GraphQL

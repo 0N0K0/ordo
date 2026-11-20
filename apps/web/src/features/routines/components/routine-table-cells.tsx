@@ -87,11 +87,11 @@ export function StateCell({ routine, today, doable }: { routine: Routine; today:
  * @returns {JSX.Element} Cell.
  */
 export function ChronoCell({ routine, running }: { routine: Routine; running: TimeEntry | null | undefined }) {
-  const mine = running?.routineId === routine.id ? running : null;
+  const mine = running?.routines.some((item) => item.id === routine.id) ? running : null;
   const now = useNow(Boolean(mine) && !mine?.pausedAt);
   return (
     <Group gap={4} wrap="nowrap">
-      <TimerToggle name={routine.label} mine={mine} input={{ routineId: routine.id, taskIds: [] }} disabled={routine.archived} size="sm" />
+      <TimerToggle name={routine.label} mine={mine} input={{ routineIds: [routine.id], taskIds: [] }} disabled={routine.archived} size="sm" />
       <Text size="xs" c={mine ? undefined : 'dimmed'} className={classes.nowrap}>
         {mine ? formatClock(entrySeconds(mine, now)) : routine.trackedSeconds ? formatDuration(routine.trackedSeconds) : ''}
       </Text>
@@ -126,6 +126,8 @@ export function AddRoutineRow({ categoryId, projectId, groupName }: { categoryId
           projectId,
           assigneeIds: [],
           requiredIds: [],
+          relatedIds: [],
+          links: [],
         })
       }
     />

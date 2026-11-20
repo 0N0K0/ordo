@@ -1,9 +1,9 @@
-import { copyName } from '../../../lib/text';
 import { NumberInput, SegmentedControl, SimpleGrid, Stack, Switch, Text, Textarea, TextInput } from '@mantine/core';
 import { DatePickerInput, TimePicker } from '@mantine/dates';
-import { alarmInputSchema, alarmRule, type AlarmType, type Recurrence, ALARM_LABEL_MAX } from '@ordo/shared';
+import { alarmInputSchema, alarmRule, type AlarmType, type Recurrence } from '@ordo/shared';
 import { localToday } from '../../../lib/dates';
-import { useAppForm, formCallbacks } from '../../../lib/form';
+import { useAppForm, useFieldSave, formCallbacks } from '../../../lib/form';
+import { SaveStatus } from '../../../components/feedback/SaveStatus';
 
 import { ProjectSelect, TaskSelect } from '../../tasks/components/task-ui';
 import type { TaskContext } from '../../tasks/hooks/use-task-context';
@@ -11,7 +11,7 @@ import { timeTasks } from '../../time/lib/time-tasks';
 import { describeAlarmTiming, legacyFields, type AlarmTiming } from '../lib/alarm-labels';
 import { RuleEditor } from '../../../components/recurrence/RepetitionEditor';
 import { RepetitionField } from '../../../components/recurrence/RepetitionField';
-import { useAlarmMutations, type Alarm, type AlarmInput } from '../api';
+import { useAlarmMutations, useAlarms, type Alarm, type AlarmInput } from '../api';
 import { FormActions } from '../../../components/dialogs/FormActions';
 import { optionalNumberProps } from '../../../components/inputs/number-format';
 
@@ -50,50 +50,91 @@ export interface AlarmDefaults {
 interface AlarmFormProps {
   context: TaskContext;
   alarm?: Alarm;
-  /** The alarm is copied into a new one. */
-  copy?: boolean;
   /** Values of a new alarm. */
   defaults?: AlarmDefaults;
   onDone: () => void;
 }
 
 /**
+ * Values of the form of an existing alarm (also those its panel follows in the cache).
+ * @param {Alarm} alarm Alarm.
+ * @returns {AlarmFormValues} Values.
+ */
+function alarmFormValues(alarm: Alarm): AlarmFormValues {
+  return {
+    label: alarm.label,
+    note: alarm.note ?? '',
+    type: alarm.type,
+    startDate: alarm.startDate ?? localToday(),
+    time: alarm.time ?? '09:00',
+    recurrence: alarmRule(alarm),
+    minutes: alarm.minutes ?? 50,
+    projectId: alarm.projectId,
+    taskId: alarm.taskId,
+    enabled: alarm.enabled,
+  };
+}
+
+/**
+ * Input of the API from the values of the form: the minutes of a tracking alarm only.
+ * @param {AlarmFormValues} values Values.
+ * @returns {AlarmInput} Input.
+ */
+const alarmInputOf = (values: AlarmFormValues): AlarmInput => ({
+  ...values,
+  ...legacyFields(values.recurrence),
+  note: values.note || null,
+  minutes: values.type === 'TRACKING_DURATION' ? values.minutes : null,
+});
+
+/** Fields of an alarm saved on leaving them, in its panel (decision D22). */
+const ON_BLUR = ['label', 'note', 'minutes'] as const;
+
+/**
  * Alarm creation / edition: label, type, schedule (date, time, repetition, weekdays, end) or tracking
- * duration, optional project or task, note.
+ * duration, optional project or task, note. A new alarm is a form with « Créer l’alarme »; an existing one, its panel,
+ * saves each field as soon as it changes (texts and the minutes on leaving them, decision D22, `useFieldSave`).
  * @param {AlarmFormProps} props Component props.
  * @returns {JSX.Element} Form.
  */
-export function AlarmForm({ context, alarm, copy = false, defaults, onDone }: AlarmFormProps) {
+export function AlarmForm({ context, alarm, defaults, onDone }: AlarmFormProps) {
   const { create, update } = useAlarmMutations();
-  const form = useAppForm<AlarmFormValues>({
-    initialValues: {
-      label: alarm ? (copy ? copyName(alarm.label, ALARM_LABEL_MAX) : alarm.label) : (defaults?.label ?? ''),
-      note: alarm?.note ?? '',
-      type: alarm?.type ?? 'REMINDER',
-      startDate: alarm?.startDate ?? localToday(),
-      time: alarm?.time ?? '09:00',
-      recurrence: alarm ? alarmRule(alarm) : null,
-      minutes: alarm?.minutes ?? 50,
-      projectId: alarm ? alarm.projectId : (defaults?.projectId ?? null),
-      taskId: alarm ? alarm.taskId : (defaults?.taskId ?? null),
-      enabled: alarm?.enabled ?? true,
-    },
+  const { data: alarms } = useAlarms();
+  const base = useAppForm<AlarmFormValues>({
+    initialValues: alarm
+      ? alarmFormValues(alarm)
+      : {
+          label: defaults?.label ?? '',
+          note: '',
+          type: 'REMINDER',
+          startDate: localToday(),
+          time: '09:00',
+          recurrence: null,
+          minutes: 50,
+          projectId: defaults?.projectId ?? null,
+          taskId: defaults?.taskId ?? null,
+          enabled: true,
+        },
     schema: alarmInputSchema,
+  });
+  const current = alarm && (alarms?.find((item) => item.id === alarm.id) ?? alarm);
+  const { form, saving } = useFieldSave(base, {
+    save: alarm ? (_changes, values) => update.mutateAsync({ id: alarm.id, input: alarmInputOf(values) }) : null,
+    schema: alarmInputSchema,
+    saved: current && alarmFormValues(current),
+    onBlur: ON_BLUR,
   });
   const { type } = form.values;
   const tracking = type === 'TRACKING_DURATION';
 
-  const handleSubmit = form.onSubmit((values) => {
-    const input: AlarmInput = { ...values, ...legacyFields(values.recurrence), note: values.note || null, minutes: tracking ? values.minutes : null };
-    const callbacks = formCallbacks(form, copy ? 'Alarme dupliquée.' : alarm ? 'Alarme modifiée.' : 'Alarme créée.', onDone);
-    if (alarm && !copy) update.mutate({ id: alarm.id, input }, callbacks);
-    else create.mutate(input, callbacks);
-  });
+  // A new alarm only: an existing one is saved field by field (Enter saves the text typed).
+  const handleSubmit = form.onSubmit((values) => create.mutate(alarmInputOf(values), formCallbacks(form, 'Alarme créée.', onDone)));
 
   return (
     <form onSubmit={handleSubmit} noValidate>
       <Stack gap="md">
-        <TextInput label="Libellé" required data-autofocus placeholder="Appeler le client, faire une pause…" {...form.getInputProps('label')} />
+        {alarm && <SaveStatus saving={saving} />}
+        <TextInput label="Libellé" required data-autofocus={alarm ? undefined : true} placeholder="Appeler le client, faire une pause…" {...form.getInputProps('label')} />
         <Stack gap={4}>
           <SegmentedControl fullWidth data={TYPES} value={type} onChange={(value) => form.setFieldValue('type', value as AlarmType)} aria-label="Type d’alarme" />
           <Text size="xs" c="dimmed">
@@ -135,10 +176,8 @@ export function AlarmForm({ context, alarm, copy = false, defaults, onDone }: Al
             clearable
             placeholder="Aucun"
             {...form.getInputProps('projectId')}
-            onChange={(projectId) => {
-              form.setFieldValue('projectId', projectId);
-              form.setFieldValue('taskId', null);
-            }}
+            // Its task goes with it (saved together).
+            onChange={(projectId) => form.setValues({ projectId, taskId: null })}
           />
           <TaskSelect
             context={context}
@@ -152,7 +191,7 @@ export function AlarmForm({ context, alarm, copy = false, defaults, onDone }: Al
         </SimpleGrid>
         <Textarea label="Description" autosize minRows={2} maxRows={8} {...form.getInputProps('note')} />
         <Switch label="Active" {...form.getInputProps('enabled', { type: 'checkbox' })} />
-        <FormActions onCancel={onDone} submitLabel={alarm && !copy ? 'Enregistrer' : 'Créer l’alarme'} loading={create.isPending || update.isPending} />
+        {!alarm && <FormActions onCancel={onDone} submitLabel="Créer l’alarme" loading={create.isPending} />}
       </Stack>
     </form>
   );

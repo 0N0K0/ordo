@@ -1,52 +1,28 @@
 import { z } from 'zod';
 import { joinedKey } from '../core/collections';
-import { END_AFTER_START, endsAfter, requiredText } from '../core/rules';
+import { END_AFTER_START, endsAfter, markdownSchema, optionalText, requiredText } from '../core/rules';
 import { locatedFields } from '../core/geo';
+import { itemLinksSchema } from '../core/links';
 import { recurrenceSchema } from '../dates/recurrence';
 import { daySchema, timeOfDaySchema, endDaySchema, startDaySchema } from '../dates/times';
+import { remindersSchema } from '../dates/reminders';
 import { colorSchema } from '../core/workspace';
 
-const calendarLinkSchema = z.object({
-  url: z.url({ protocol: /^https?$/, error: 'Lien invalide (http ou https).' }),
-  label: z.string().trim().max(200, '200 caractères maximum.'),
-});
-
-/** Longest label of a calendar event. */
-export const EVENT_LABEL_MAX = 300;
-
-/** Calendar event fields. Times are local to `timeZone`; all-day events have none. */
+/** Calendar event fields. Times are Paris times (every event is in Paris time); all-day events have none. */
 export const calendarEventInputSchema = z
   .object({
-    label: requiredText(EVENT_LABEL_MAX),
-    description: z
-      .string()
-      .max(65_536, 'Texte trop long.')
-      .transform((value) => (value.trim() ? value : null))
-      .nullable(),
-    location: z
-      .string()
-      .trim()
-      .max(500, '500 caractères maximum.')
-      .transform((value) => value || null)
-      .nullable(),
-    links: z.array(calendarLinkSchema).max(20, '20 liens maximum.'),
+    label: requiredText(),
+    description: markdownSchema,
+    location: optionalText(),
+    links: itemLinksSchema,
     allDay: z.boolean(),
     startDate: startDaySchema,
     startTime: timeOfDaySchema.nullable(),
     endDate: endDaySchema,
     endTime: timeOfDaySchema.nullable(),
-    timeZone: z.string().min(1).max(64),
     recurrence: recurrenceSchema.nullable(),
-    /** Minutes before the start. */
-    reminders: z
-      .array(
-        z
-          .number()
-          .int()
-          .min(0)
-          .max(60 * 24 * 30),
-      )
-      .max(10),
+    /** Minutes before the start (24 hours at most), or a time of its first day (decision D16). */
+    reminders: remindersSchema,
     /** Point of the location, and travel time to the event and back from it, in minutes (timed events). */
     ...locatedFields,
     projectId: z.string().nullable(),
@@ -86,7 +62,7 @@ export const EVENT_SCOPES = ['THIS', 'FOLLOWING', 'ALL'] as const;
 export type EventScope = (typeof EVENT_SCOPES)[number];
 
 export const calendarCategoryFormSchema = z.object({
-  label: requiredText(80),
+  label: requiredText(),
   color: colorSchema,
   parentId: z.string().nullable(),
 });
@@ -94,7 +70,7 @@ export type CalendarCategoryFormValues = z.infer<typeof calendarCategoryFormSche
 
 /** Calendar of a workspace (every event belongs to one). */
 export const calendarFormSchema = z.object({
-  label: requiredText(80),
+  label: requiredText(),
   color: colorSchema,
 });
 export type CalendarFormValues = z.infer<typeof calendarFormSchema>;

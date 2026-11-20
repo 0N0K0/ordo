@@ -17,7 +17,10 @@ Options :
 - `confirmLabel` (défaut « Supprimer »), `confirmIcon` (défaut corbeille) ;
 - `onConfirm` : l'action, une fois confirmée ;
 - `run` : l'action en promesse (`mutateAsync`) ; son échec va dans un toast d'erreur (`onMutationError`) ;
-- `done` : message de succès de `run` (« Alarme supprimée. »), sinon pas de toast.
+- `done` : message de succès de `run` (« Alarme supprimée. »), sinon pas de toast ;
+- `onCancel` : ce qui suit un refus (« Annuler », Échap, clic à côté), par exemple pour une confirmation attendue en promesse (`withLossConfirmation`).
+
+`confirmedDestructive(options)` : la même modale attendue en promesse (`title`, `risks`, `confirmLabel`, `confirmIcon`) : résolue une fois confirmée, refusée par `ActionDeclined` (silencieux dans les toasts d'erreur). Utilisée par `withLossConfirmation` et la catégorie d'un statut de tâche (`useTaskStatusItems`).
 
 La modale se ferme avant l'action. eslint interdit d'écrire « irréversible » ailleurs et d'appeler `notifySuccess` dans `onConfirm` (utiliser `run` + `done`).
 
@@ -47,7 +50,7 @@ Les dialogues destructifs ont leurs propres boutons, dans l'ordre inverse (`Dest
 
 ## `LabelForm.tsx`
 
-- `LabelFormProps` (interface) : `initial`, `schema` (règle zod du libellé, ex. `requiredText(60)`), `submitLabel` (« Créer », « Renommer »), `onSubmit(label)` (une promesse garde le formulaire ouvert, en attente ; son échec va sous le champ ou en toast), `onDone`, `fieldLabel` (défaut « Libellé », décision AD), `placeholder`.
+- `LabelFormProps` (interface) : `initial`, `schema` (règle zod du libellé, ex. `requiredText()` ou `mailFolderNameSchema`), `submitLabel` (« Créer », « Renommer »), `onSubmit(label)` (une promesse garde le formulaire ouvert, en attente ; son échec va sous le champ ou en toast), `onDone`, `fieldLabel` (défaut « Libellé », décision AD), `placeholder`.
 - `LabelForm` : formulaire d'un seul libellé (créer ou renommer une vue, un tableau de bord, un dossier), validé comme les autres (`useAppForm` : au blur puis à chaque changement), envoyé par `useAsyncAction` ; le libellé est passé par `schema.parse` (donc nettoyé). Champ requis, autofocus.
 
 ## `open-label-form.tsx`

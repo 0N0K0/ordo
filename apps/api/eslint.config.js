@@ -6,6 +6,28 @@ import { SHARED_SYNTAX_RULES } from '../../packages/shared/eslint-rules.js';
 
 // Patterns of the bricks of the API (services/core, graphql, routes/http).
 const API_SYNTAX_RULES = [
+  // Trees of tasks and routines (decisions DQ to DT).
+  {
+    selector: "CallExpression[callee.name='cascadeArchive'][arguments.0.value=/^(task|routine)$/]",
+    message: 'Utiliser archiveTree(model, id, archived, « X ») (services/core/archive) : sous-éléments et parents archivés trouvés au même endroit.',
+  },
+  {
+    selector: "CallExpression[callee.property.name='some'][callee.object.callee.name='ancestorsOf']",
+    message: 'Utiliser topmostIds(model, ids) (services/core/trees) : les éléments du haut d’une sélection.',
+  },
+  {
+    selector: "CallExpression[callee.property.name='at'][callee.object.callee.name='lineageOf']",
+    message: 'Utiliser loadProjectRootOf() (services/projects/project-tree) : le projet racine, pour lier dans une même arborescence.',
+  },
+  {
+    selector: "CallExpression[callee.name='movedTo']",
+    message: 'Utiliser moveBefore (ordre global), moveInList ou saveSiblingOrder (services/core/ordering).',
+  },
+  {
+    // a < b ? { aId: a, bId: b } : { aId: b, bId: a }: a symmetric link stored once.
+    selector: "ConditionalExpression[test.operator='<'][consequent.type=/^(ObjectExpression|ArrayExpression)$/][alternate.type=/^(ObjectExpression|ArrayExpression)$/]",
+    message: 'Utiliser orderedPair(a, b) (services/core/relations) : la paire d’un lien symétrique.',
+  },
   {
     // An uploaded file stored without the checks (empty, 10 MB): with the client, a transaction or a nested write.
     selector:
@@ -164,8 +186,8 @@ const API_SYNTAX_RULES = [
     message: 'Utiliser parseField(champ, schéma, valeur) (graphql/errors).',
   },
   {
-    selector: "TSAsExpression TSTypeReference[typeName.name='CalendarLink']",
-    message: 'Utiliser readEventLinks(links) (services/calendar/calendar-events).',
+    selector: "TSAsExpression TSTypeReference[typeName.name=/^(CalendarLink|ItemLink)$/]",
+    message: 'Utiliser readLinks(links) (services/core/links).',
   },
   {
     selector: "TSAsExpression[expression.type='TSAsExpression'][expression.expression.type='ArrayExpression']",

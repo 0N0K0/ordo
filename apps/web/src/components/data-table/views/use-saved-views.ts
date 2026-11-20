@@ -1,6 +1,6 @@
 import { copyName } from '../../../lib/text';
 import { useSetParams, useSearchParam } from '../../../lib/search-params';
-import { byPosition, VIEW_LABEL_MAX } from '@ordo/shared';
+import { byPosition } from '@ordo/shared';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { onMutationError, ON_ERROR } from '../../../lib/notify';
 import { useTaskViewMutations, useTaskViews, type TaskViewRecord, type ViewKind } from './api';
@@ -145,12 +145,12 @@ export function useSavedViews<C>({ projectId, kind, tableKey = null, parse, blan
      */
     rename: (id: string, label: string) => mutations.update.mutate({ id, input: { label } }, ON_ERROR),
 
-    /**
-     * Duplicates a view (saved configuration) and opens the copy.
-     * @param {SavedView<C>} view View.
-     * @returns {void}
-     */
-    duplicate: (view: SavedView<C>) => mutations.duplicate.mutate({ id: view.id, label: copyName(view.label, VIEW_LABEL_MAX) }, { onSuccess: (copy) => select(copy.id), onError: onMutationError }),
+    /** « Dupliquer » a view (decision D20): saved at once as « … (copie) », then the copy opens. */
+    duplicate: {
+      duplicate: async (view: SavedView<C>) => (await mutations.duplicate.mutateAsync({ id: view.id, label: copyName(view.label) })).id,
+      done: 'Vue dupliquée.',
+      open: (id: string) => select(id),
+    },
 
     /**
      * Deletes a view (its failure left to the caller: `confirmDestructive` tells it).

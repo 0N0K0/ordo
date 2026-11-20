@@ -8,7 +8,7 @@ Voir aussi : [Espaces et accès](workspaces-and-access.md), [Archivage](archivin
 
 | Sorte                  | Modèle                                            | Rôle                                                                                                                                                             |
 | ---------------------- | ------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Contributeur           | `Contributor`                                     | Personne qui peut être assignée, participer, être mentionnée (`@handle`). Nom (100 max), identifiant de mention unique dans l'espace, avatar, projets rattachés. |
+| Contributeur           | `Contributor`                                     | Personne qui peut être assignée, participer, être mentionnée (`@handle`). Nom (250 max), identifiant de mention unique dans l'espace, avatar, projets rattachés. |
 | « Moi »                | `Contributor` avec `userId`                       | Profil contributeur de l'utilisateur dans chaque espace.                                                                                                         |
 | Membre                 | `Contributor` avec `teamMember` (ou « Moi »)      | Membre de l'équipe (espace PRO) ou du foyer (espace PERSO) : ventilation des dépenses, budgets, « Pour » des courses.                                            |
 | Relation               | `TreasuryRelation`                                | Personne hors équipe ou foyer (ami, famille, partenaire…) : lignes de trésorerie, budgets, prêts, bénéficiaires. Peut être aussi un contributeur (non membre).   |
@@ -40,6 +40,8 @@ Règle unique (2026-11-18) pour les assignés des tâches et des routines et les
 - Un contributeur archivé n'est pas nouvellement choisi (sauf annulation d'une action, `restoring`).
 - Modifications groupées de tâches : la règle s'applique à chaque tâche de la sélection.
 - Déplacer une tâche vers un autre projet : ses assignés (et ceux de ses sous-tâches) **suivent** et sont rattachés au projet cible s'ils ne l'étaient pas déjà, directement ou par un parent (`attachAssignees`) ; « Moi » et les archivés ne sont jamais rattachés.
+- Même règle pour une routine ou un évènement qui change de projet (décision DP) : ses assignés ou contributeurs restent, même s'ils ne sont pas du nouveau projet, et y sont rattachés (`followProject`). Les sous-routines ne suivent pas : elles gardent leur projet.
+- Seules les personnes déjà enregistrées suivent : une personne ajoutée dans le même enregistrement que le changement de projet doit être du nouveau projet, sinon « Seuls les contributeurs du projet peuvent être choisis. » (accepté tel quel, décision DP).
 - Une tâche peut être rattachée à un événement si ses assignés et les participants ont quelqu'un en commun, ou si l'un des deux côtés est vide (`sharePeople`).
 
 ## Bénéficiaires

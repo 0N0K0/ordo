@@ -87,6 +87,8 @@ export async function seedRoutines({ projects, contributors, meId, scheduleId }:
     projectId: null,
     assigneeIds: [],
     requiredIds: [],
+    relatedIds: [],
+    links: [],
     ...changes,
   });
   const mine = meId ? [meId] : [];
@@ -105,14 +107,14 @@ export async function seedRoutines({ projects, contributors, meId, scheduleId }:
     }),
   );
   const timesheet = await createRoutine(
-    base('Saisir les temps de la semaine', -56, rule({ weekdays: [5] }), { categoryIds: [paperwork], dueTime: '18:00', estimate: 15, reminders: [30], assigneeIds: mine }),
+    base('Saisir les temps de la semaine', -56, rule({ weekdays: [5] }), { categoryIds: [paperwork], dueTime: '18:00', estimate: 15, reminders: [{ before: 30 }], assigneeIds: mine }),
   );
   await createRoutine(
     base('Préparer la facturation du mois', -90, rule({ frequency: 'MONTHLY', monthlyMode: 'DAY' }), {
       description: 'Relever les temps passés, vérifier les acomptes, puis émettre les factures.',
       categoryIds: [paperwork],
       estimate: 60,
-      reminders: [1440],
+      reminders: [{ before: 1440 }],
       requiredIds: [timesheet.id],
       assigneeIds: mine,
     }),
@@ -148,7 +150,7 @@ export async function seedRoutines({ projects, contributors, meId, scheduleId }:
       locationLon: gym.lon,
       travelBefore: 15,
       travelAfter: 20,
-      reminders: [15],
+      reminders: [{ before: 15 }],
     }),
   );
   const cleaning = await createRoutine(base('Ménage du bureau', -70, rule({ weekdays: [1, 4] }), { categoryIds: [tidying], estimate: 30, assigneeIds: contributors.slice(0, 2).map(({ id }) => id) }));
@@ -173,7 +175,7 @@ export async function seedRoutines({ projects, contributors, meId, scheduleId }:
     const routine = timed.find((item) => item.id === check.routineId)!;
     if (!faker.datatype.boolean(0.6)) continue;
     const minutes = Math.max(5, routine.estimate! + faker.number.int({ min: -5, max: 10 }));
-    await createTimeEntry({ routineId: routine.id, projectId: routine.projectId, startedAt: new Date(check.doneAt.getTime() - minutes * 60_000), duration: minutes * 60 });
+    await createTimeEntry({ routineIds: [routine.id], projectId: routine.projectId, startedAt: new Date(check.doneAt.getTime() - minutes * 60_000), duration: minutes * 60 });
   }
 
   // --- Exceptions to the rules ---------------------------------------------------------------------------

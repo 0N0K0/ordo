@@ -1,7 +1,5 @@
 import { useSearchParam } from '../../../lib/search-params';
-import { sumOf } from '@ordo/shared';
 import { NoticeAlert } from '../../../components/feedback/NoticeAlert';
-import { CopyIcon } from '@phosphor-icons/react';
 import { Checkbox, Stack, Text } from '@mantine/core';
 import { useState } from 'react';
 import type { TasksDialogProps } from '../lib/open-tasks-dialog';
@@ -12,18 +10,20 @@ import { FormActions } from '../../../components/dialogs/FormActions';
 import { notifySuccess, notifyWithUndo, onMutationError } from '../../../lib/notify';
 import { formCallbacks } from '../../../lib/form';
 import { plural, countWith } from '../../../lib/text';
-import { useBulkTaskMutations, useCloneTask } from '../api';
-import { countSubtasks } from '../lib/task-links';
+import { useBulkTaskMutations } from '../api';
+import { countSubtasks, inProjectTree } from '../lib/task-links';
 import { ProjectSelect } from './task-ui';
-import { taskName, taskNumber, taskNumbered } from '../hooks/use-task-context';
+import { taskName, taskNumbered } from '../hooks/use-task-context';
 import { TASK_PARAM, useTaskLink } from '../hooks/use-task-link';
 import { useBulkUndo } from '../lib/bulk-undo';
-import { removedLinksNote, tasksLabel } from '../lib/bulk-label';
-import { useAsyncAction } from '../../../lib/use-async-action';
+import { tasksLabel } from '../lib/bulk-label';
+import { removedLinksNote } from '../../../lib/text';
+import { LostOnDeleteRisk } from '../../time/components/LostOnDeleteRisk';
 
 /**
  * Deletion of tasks, confirmed; with sub-tasks not deleted with them, asks whether to keep them (moved up a level) or
- * delete them too. The task open in the side panel closes when deleted.
+ * delete them too; tells the times without project deleted with them (extra A of decision D17). The task open in the
+ * side panel closes when deleted.
  * @param {TasksDialogProps} props Component props.
  * @returns {JSX.Element} Dialog content.
  */
@@ -57,6 +57,7 @@ export function DeleteTasksDialog({ tasks, context, onDone }: TasksDialogProps) 
         ) : (
           `${tasksLabel(tasks.length)} et leurs commentaires seront supprimés définitivement. Pour les retirer des listes sans perdre leurs données, archivez-les plutôt.`
         )}
+        <LostOnDeleteRisk query={{ taskIds: [...selected], withSubtree: mode === 'delete' }} />
       </DestructiveRisks>
       {subtasks > 0 && (
         <CascadeChoice
@@ -88,7 +89,7 @@ export function TransferTasksDialog({ tasks, context, onDone }: TasksDialogProps
   const chosen = none || projectId !== null;
   const single = tasks.length === 1 ? tasks[0] : null;
   const subtasks = single ? countSubtasks(context, single.id) : 0;
-  const leavesTree = chosen && tasks.some((task) => context.rootOf(target) !== context.rootOf(task.projectId));
+  const leavesTree = chosen && tasks.some((task) => !inProjectTree(context, target)(task.projectId));
 
   /**
    * Moved tasks (those no other one moved holds), then their sub-tasks level by level, as they are now.
@@ -161,51 +162,3 @@ export function TransferTasksDialog({ tasks, context, onDone }: TasksDialogProps
   );
 }
 
-/**
- * Clone of one task or of several, confirmed: each one cloned in turn with its sub-tasks, under its clone (a task under
- * another one cloned comes with it); all the fields, the assignees and the links copied, not the comments. A single
- * clone opens.
- * @param {TasksDialogProps} props Component props.
- * @returns {JSX.Element} Dialog content.
- */
-export function CloneTasksDialog({ tasks, context, onDone }: TasksDialogProps) {
-  const cloneTask = useCloneTask();
-  const link = useTaskLink();
-  const single = tasks.length === 1 ? tasks[0] : null;
-  const { run: clone, loading: pending } = useAsyncAction(
-    async () => {
-      // A task already cloned with its parent is not cloned again.
-      const roots = outermost(
-        tasks,
-        (task) => task.id,
-        (id) => context.taskById.get(id)?.parentId,
-      );
-      let last: { id: string; number: number | null } | null = null;
-      for (const task of roots) last = await cloneTask.mutateAsync({ id: task.id, includeSubtasks: true });
-      return last;
-    },
-    {
-      onDone: (last) => {
-        notifySuccess(single ? `Tâche ${taskName(single)} clonée${last && taskNumber(last) ? ` en ${taskNumber(last)}` : ''}.` : `${tasksLabel(tasks.length)} ${plural(tasks.length, 'clonée')}.`);
-        onDone(true);
-        if (single && last) link.open(last.id);
-      },
-    },
-  );
-  const subtasks = sumOf(tasks, (task) => countSubtasks(context, task.id));
-  return (
-    <Stack gap="md">
-      <Text size="sm">
-        {single ? 'La tâche sera clonée' : `${tasksLabel(tasks.length)} seront clonées`} : tous les champs, les assignés et les liens sont copiés ; les commentaires ne le sont pas.
-      </Text>
-      {subtasks > 0 && (
-        <Text size="sm">
-          {single
-            ? (subtasks === 1 ? 'Sa sous-tâche est clonée' : `Ses ${subtasks} sous-tâches sont clonées`) + ' avec elle, sous le clone.'
-            : 'Leurs sous-tâches sont clonées avec elles, sous leur clone.'}
-        </Text>
-      )}
-      <FormActions onCancel={() => onDone(false)} submitLabel="Cloner" submitIcon={<CopyIcon aria-hidden />} loading={pending} autoFocus onSubmit={() => void clone()} />
-    </Stack>
-  );
-}

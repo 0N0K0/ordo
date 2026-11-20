@@ -19,8 +19,8 @@ import { parseTaggedKey, taggedKey } from '../../../lib/tagged-key';
 /** Filters of the records of a chart (or of one of its data sets), whatever its source. */
 type SourceFilterFields = Pick<ChartConfig, 'search' | 'filter' | 'includeArchived' | 'documents' | 'treasury'>;
 
-/** Change of the filters of a chart (or of one of its data sets). */
-type SourceFilterChange = (changes: Partial<SourceFilterFields>) => void;
+/** Change of the filters of a chart (or of one of its data sets); `typing`: a text being typed (saved on leaving it). */
+type SourceFilterChange = (changes: Partial<SourceFilterFields>, typing?: boolean) => void;
 
 /**
  * Filters of a document chart: types, clients, tracking statuses, drafts, imported documents, credit notes.
@@ -141,7 +141,8 @@ export function SourceFilters({ source, config, context, change }: { source: Cha
   if (source === 'treasury') return <TreasuryFilters config={config} change={change} />;
   return (
     <>
-      <TextInput label="Recherche" placeholder="Libellé, description" value={config.search} onChange={(event) => change({ search: event.currentTarget.value })} />
+      {/* Typed, saved on leaving it (an empty change). */}
+      <TextInput label="Recherche" placeholder="Libellé, description" value={config.search} onChange={(event) => change({ search: event.currentTarget.value }, true)} onBlur={() => change({})} />
       <TaskFilterBuilder filter={config.filter} context={context} onChange={(filter) => change({ filter })} />
       <Switch label="Inclure les tâches archivées" checked={config.includeArchived} onChange={(event) => change({ includeArchived: event.currentTarget.checked })} />
     </>

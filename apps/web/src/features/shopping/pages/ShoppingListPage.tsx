@@ -25,6 +25,7 @@ import {
   TrashIcon,
   TruckIcon,
   CheckIcon,
+  EyeIcon,
 } from '@phosphor-icons/react';
 import { useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router';
@@ -383,7 +384,11 @@ export function ShoppingListPage() {
           actions={(item) => (
             <RowActions
               name={item.label}
-              primary={!closed && { label: 'Modifier', icon: <PencilSimpleIcon aria-hidden />, onClick: () => openShoppingForm({ kind: 'item', listId: list.id, item }) }}
+              primary={
+                closed
+                  ? { label: 'Voir', icon: <EyeIcon aria-hidden />, onClick: () => openShoppingForm({ kind: 'item', listId: list.id, item }, true) }
+                  : { label: 'Modifier', icon: <PencilSimpleIcon aria-hidden />, onClick: () => openShoppingForm({ kind: 'item', listId: list.id, item }) }
+              }
               items={[
                 ...(!item.productId && !closed
                   ? baseLists.map((baseList) => ({

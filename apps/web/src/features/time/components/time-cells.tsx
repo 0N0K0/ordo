@@ -1,8 +1,8 @@
-import { stoppedCellCombobox } from '../../../components/data-table/cells/cell-field';
-import { Select, Text } from '@mantine/core';
+import { Text } from '@mantine/core';
 import { formatDuration, parseDuration } from '@ordo/shared';
-import { useState } from 'react';
-import { EditableDate, EditableMultiSelect, EditablePopoverCell, EditableText, EditableTime } from '../../../components/data-table/cells/EditableCells';
+import type { ComponentProps, ReactNode } from 'react';
+import { CellMultiSelect, EditableDate, EditableText, EditableTime } from '../../../components/data-table/cells/EditableCells';
+import { StackedMultiCell, type StackedItem } from '../../../components/data-table/cells/StackedMultiCell';
 
 import { localDay, localInstant, localParts } from '../../../lib/dates';
 import * as fmt from '../../../lib/format';
@@ -11,11 +11,11 @@ import { useRoutinesData } from '../../routines/api';
 import { type TaskContext } from '../../tasks/hooks/use-task-context';
 import { entrySeconds } from '@ordo/shared';
 import type { TimeEntry, TimeEntryValues } from '../api';
-import { timeTaskOptions, timeTasks } from '../lib/time-tasks';
-import { dayEventOptions, entryEventKey, parseEventKey } from '../lib/time-events';
+import { timeRoutineOptions, timeTaskOptions, timeTasks } from '../lib/time-tasks';
+import { dayEventOptions } from '../lib/time-events';
+import { TIME_SUBJECTS, type TimeSubjectKind } from '../lib/time-subjects';
 import { applyDiff, type BulkChange } from '../../../components/data-table/selection/bulk-edit';
 import { treeSelectProps } from '../../../components/tree/tree-select';
-import { routineTreeOptions } from '../../routines/lib/routine-format';
 
 type Save = (entry: TimeEntry, change: BulkChange<TimeEntry, Partial<TimeEntryValues>>) => void;
 
@@ -73,24 +73,57 @@ export function TimeDurationCell({ entry, readOnly, label, save }: { entry: Time
   );
 }
 
+/** Multi-select of a subject cell, but its options. */
+type SubjectSelectProps = Omit<ComponentProps<typeof CellMultiSelect>, 'data' | 'renderOption' | 'filter'>;
+
+interface TimeSubjectCellProps {
+  kind: TimeSubjectKind;
+  entry: TimeEntry;
+  readOnly: boolean;
+  label: string;
+  /** Values listed in the cell. */
+  items: StackedItem[];
+  /** Multi-select shown once the cell opens, given its value and handlers (its options added). */
+  select: (props: SubjectSelectProps) => ReactNode;
+  save: Save;
+}
+
 /**
- * Routine of a time, chosen in place.
- * @param {{ entry: TimeEntry, readOnly: boolean, label: string, save: Save }} props Component props.
+ * Routines, tasks or events of a time, chosen in place (several of each, decision D18): on a selection, each row gets
+ * the ones added and loses the ones removed. Removing the last one of a time without project is refused by the API.
+ * @param {TimeSubjectCellProps} props Component props.
  * @returns {JSX.Element} Cell.
  */
-export function TimeRoutineCell({ entry, readOnly, label, save }: { entry: TimeEntry; readOnly: boolean; label: string; save: Save }) {
-  const { data } = useRoutinesData();
-  if (readOnly) return <>{entry.routineLabel}</>;
+function TimeSubjectCell({ kind, entry, readOnly, label, items, select, save }: TimeSubjectCellProps) {
+  const subject = TIME_SUBJECTS[kind];
+  const current = subject.ids(entry);
   return (
-    <Select
-      {...stoppedCellCombobox}
-      aria-label={label}
-      placeholder="—"
-      clearable
-      searchable
-      {...treeSelectProps(routineTreeOptions(data?.routines ?? [], (routine) => !routine.archived || routine.id === entry.routineId))}
-      value={entry.routineId ?? null}
-      onChange={(routineId) => save(entry, { routineId })}
+    <StackedMultiCell
+      label={label}
+      readOnly={readOnly}
+      items={items}
+      renderSelect={({ onDropdownClose }) => select({ label, value: current, onSave: (next) => save(entry, (row) => subject.change(applyDiff(subject.ids(row), current, next))), onDropdownClose })}
+    />
+  );
+}
+
+/**
+ * Routines of a time, chosen in place among those of its project tree (and of no project).
+ * @param {{ entry: TimeEntry, context: TaskContext, readOnly: boolean, label: string, save: Save }} props Component props.
+ * @returns {JSX.Element} Cell.
+ */
+export function TimeRoutinesCell({ entry, context, readOnly, label, save }: { entry: TimeEntry; context: TaskContext; readOnly: boolean; label: string; save: Save }) {
+  const { data } = useRoutinesData();
+  const ids = TIME_SUBJECTS.routines.ids(entry);
+  return (
+    <TimeSubjectCell
+      kind="routines"
+      entry={entry}
+      readOnly={readOnly}
+      label={label}
+      items={entry.routines.map((routine) => ({ id: routine.id, label: routine.label }))}
+      select={(props) => <CellMultiSelect {...props} {...treeSelectProps(timeRoutineOptions(context, data?.routines ?? [], entry.projectId ?? null, ids))} />}
+      save={save}
     />
   );
 }
@@ -101,45 +134,47 @@ export function TimeRoutineCell({ entry, readOnly, label, save }: { entry: TimeE
  * @returns {JSX.Element} Cell.
  */
 export function TimeTasksCell({ entry, context, readOnly, label, save }: { entry: TimeEntry; context: TaskContext; readOnly: boolean; label: string; save: Save }) {
-  const options = treeSelectProps(timeTaskOptions(context, timeTasks(context, entry.projectId ?? null, entry.taskIds)));
+  const tasks = entry.taskIds.map((id) => context.taskById.get(id)).filter((task) => task !== undefined);
   return (
-    <EditableMultiSelect
-      label={label}
-      {...options}
-      value={entry.taskIds}
+    <TimeSubjectCell
+      kind="tasks"
+      entry={entry}
       readOnly={readOnly}
-      onSave={(taskIds) => save(entry, (row) => ({ taskIds: applyDiff(row.taskIds, entry.taskIds, taskIds) }))}
+      label={label}
+      items={tasks.map((task) => ({ id: task.id, label: context.taskLabel(task) }))}
+      select={(props) => <CellMultiSelect {...props} {...treeSelectProps(timeTaskOptions(context, timeTasks(context, entry.projectId ?? null, entry.taskIds)))} />}
+      save={save}
     />
   );
 }
 
 /**
- * Event of a time, chosen in place among the events of its day (loaded when opened).
+ * Multi-select of the events of the day of a time, loaded once its cell opens, with those of the time.
+ * @param {SubjectSelectProps & { entry: TimeEntry }} props Component props.
+ * @returns {JSX.Element} Multi-select.
+ */
+function DayEventsSelect({ entry, ...props }: SubjectSelectProps & { entry: TimeEntry }) {
+  const day = localDay(entry.startedAt);
+  const { data: events } = useCalendarEvents({ from: day, to: day });
+  return <CellMultiSelect {...props} data={dayEventOptions(events ?? [], day, entry)} nothingFoundMessage="Aucun évènement ce jour-là" />;
+}
+
+/**
+ * Events of a time, chosen in place among the events of its day (loaded when opened).
  * @param {{ entry: TimeEntry, readOnly: boolean, label: string, save: Save }} props Component props.
  * @returns {JSX.Element} Cell.
  */
-export function TimeEventCell({ entry, readOnly, label, save }: { entry: TimeEntry; readOnly: boolean; label: string; save: Save }) {
-  const [opened, setOpened] = useState(false);
-  const day = localDay(entry.startedAt);
-  const { data: events } = useCalendarEvents(opened ? { from: day, to: day } : null);
-  const current = entryEventKey(entry);
-  const options = dayEventOptions(events ?? [], day);
-  if (current && !options.some((option) => option.value === current)) options.unshift({ value: current, label: entry.calendarEventLabel ?? 'Évènement' });
-  if (readOnly) return <>{entry.calendarEventLabel}</>;
+export function TimeEventsCell({ entry, readOnly, label, save }: { entry: TimeEntry; readOnly: boolean; label: string; save: Save }) {
+  const keys = TIME_SUBJECTS.events.ids(entry);
   return (
-    <EditablePopoverCell width={320} empty={!entry.calendarEventLabel} truncate opened={opened} onOpenedChange={setOpened} target={entry.calendarEventLabel ?? '—'}>
-      <Select
-        label={label}
-        placeholder="Aucun"
-        clearable
-        data={options}
-        value={current}
-        onChange={(key) => {
-          save(entry, { event: parseEventKey(key) });
-          setOpened(false);
-        }}
-        comboboxProps={{ withinPortal: false }}
-      />
-    </EditablePopoverCell>
+    <TimeSubjectCell
+      kind="events"
+      entry={entry}
+      readOnly={readOnly}
+      label={label}
+      items={entry.events.map((link, index) => ({ id: keys[index], label: link.label }))}
+      select={(props) => <DayEventsSelect {...props} entry={entry} />}
+      save={save}
+    />
   );
 }

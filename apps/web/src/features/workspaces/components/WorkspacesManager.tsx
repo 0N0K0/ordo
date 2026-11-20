@@ -4,7 +4,7 @@ import { formCallbacks } from '../../../lib/form';
 import { InlineActions } from '../../../components/actions/ActionsMenu';
 import { confirmDestructive } from '../../../components/dialogs/confirm-destructive';
 import { Badge, Chip, Group, SegmentedControl, Select, Stack, Text, TextInput } from '@mantine/core';
-import { readWeek, WEEKDAY_LABELS, weekLength, WORKSPACE_LABEL_MAX, workspaceLabelSchema } from '@ordo/shared';
+import { readWeek, WEEKDAY_LABELS, weekLength, TEXT_MAX, workspaceLabelSchema } from '@ordo/shared';
 import { ArrowSquareOutIcon, PlusIcon, PencilSimpleIcon } from '@phosphor-icons/react';
 import { useState } from 'react';
 import { ON_ERROR, toastCallbacks } from '../../../lib/notify';
@@ -23,11 +23,8 @@ const KINDS = [
   { value: 'PERSO', label: 'Perso' },
 ];
 
-const SOURCES: { value: NotificationSource; label: string }[] = [
-  { value: 'ALARMS', label: 'Alarmes' },
-  { value: 'CALENDAR', label: 'Rappels d’agenda' },
-  { value: 'MAILS', label: 'Nouveaux mails' },
-];
+// Alarms and reminders ring whatever workspace is open: only the new mails are a choice.
+const SOURCES: { value: NotificationSource; label: string }[] = [{ value: 'MAILS', label: 'Nouveaux mails' }];
 
 const WEEKDAYS = WEEKDAY_LABELS.map((label, index) => ({ value: String(index + 1), label }));
 
@@ -110,7 +107,7 @@ function WorkspaceRow({ workspace, index, count, current, fallbackId }: Workspac
       </Group>
       <Group gap="xs" pl={28}>
         <Text size="xs" c="dimmed">
-          Notifier quand un autre espace est ouvert :
+          Quand un autre espace est ouvert (alarmes et rappels sonnent toujours), notifier aussi :
         </Text>
         <Chip.Group multiple value={workspace.notifyElsewhere} onChange={(sources) => setNotifications.mutate({ id: workspace.id, sources: sources as NotificationSource[] }, ON_ERROR)}>
           {SOURCES.map((source) => (
@@ -207,7 +204,7 @@ export function WorkspacesManager() {
           }}
         >
           <Group gap="xs" wrap="nowrap" align="flex-end">
-            <TextInput label="Libellé" placeholder="Libellé de l’espace" style={{ flex: 1 }} value={label} maxLength={WORKSPACE_LABEL_MAX} onChange={(event) => setLabel(event.currentTarget.value)} />
+            <TextInput label="Libellé" placeholder="Libellé de l’espace" style={{ flex: 1 }} value={label} maxLength={TEXT_MAX} onChange={(event) => setLabel(event.currentTarget.value)} />
             <SegmentedControl aria-label="Type du nouvel espace" data={KINDS} value={kind} onChange={(value) => setKind(value as WorkspaceKind)} />
             <ActionButton priority="secondary" type="submit" icon={<PlusIcon aria-hidden />} loading={create.isPending} disabled={!label.trim()}>
               Ajouter

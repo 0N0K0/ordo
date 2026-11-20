@@ -3,8 +3,9 @@ import { SortableTabs } from '../../tabs/SortableTabs';
 import { confirmDestructive } from '../../dialogs/confirm-destructive';
 import { openLabelForm } from '../../dialogs/open-label-form';
 
-import { viewLabelSchema, VIEW_LABEL_MAX } from '@ordo/shared';
-import { ArrowCounterClockwiseIcon, CopyIcon, FloppyDiskIcon, PencilSimpleIcon, StarIcon } from '@phosphor-icons/react';
+import { viewLabelSchema } from '@ordo/shared';
+import { ArrowCounterClockwiseIcon, FloppyDiskIcon, PencilSimpleIcon, StarIcon } from '@phosphor-icons/react';
+import { duplicateRowsAction, rowMenuEntry } from '../selection/selection-actions';
 import type { SavedView, SavedViewsState } from './use-saved-views';
 import { usePublishedHeight } from './published-height';
 import { UnsavedIndicator, UNSAVED_CHANGES } from './UnsavedIndicator';
@@ -65,7 +66,7 @@ export function ViewTabs<C>({ state }: { state: SavedViewsState<C> }) {
         dirty && { label: 'Annuler les modifications', icon: <ArrowCounterClockwiseIcon aria-hidden />, hint: UNSAVED_CHANGES, onClick: state.revert },
         dirty && 'divider',
         { label: 'Renommer', icon: <PencilSimpleIcon aria-hidden />, onClick: () => promptLabel('Renommer la vue', view.label, 'Renommer', (name) => state.rename(view.id, name)) },
-        { label: 'Dupliquer', icon: <CopyIcon aria-hidden />, onClick: () => state.duplicate(view) },
+        rowMenuEntry(duplicateRowsAction([view], state.duplicate)),
         !view.isDefault && { label: 'Définir par défaut', icon: <StarIcon aria-hidden />, onClick: () => state.setDefault(view) },
       ]}
       onDelete={confirmDelete}
@@ -74,7 +75,7 @@ export function ViewTabs<C>({ state }: { state: SavedViewsState<C> }) {
         label: 'Nouvelle vue',
         menu: [
           { label: 'Vue vierge', onClick: () => promptLabel('Nouvelle vue', 'Nouvelle vue', 'Créer', (name) => state.createView(name, false)) },
-          { label: 'À partir de l’affichage actuel', onClick: () => promptLabel('Nouvelle vue', copyName(current?.label ?? 'Vue', VIEW_LABEL_MAX), 'Créer', (name) => state.createView(name, true)) },
+          { label: 'À partir de l’affichage actuel', onClick: () => promptLabel('Nouvelle vue', copyName(current?.label ?? 'Vue'), 'Créer', (name) => state.createView(name, true)) },
         ],
       }}
     />

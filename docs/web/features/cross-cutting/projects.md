@@ -28,7 +28,7 @@ Requête unique `ProjectTree` (clients, projets, catégories, statuts) mise en c
 | `useCreateProjectCategory()`, `useUpdateProjectCategory()`, `useDeleteProjectCategory()` | CRUD des catégories (`LabelColorInput` / `LabelColorPatch`).                                                                                                        |
 | `useCreateProjectStatus()`, `useUpdateProjectStatus()`, `useDeleteProjectStatus()`       | CRUD des statuts.                                                                                                                                                   |
 
-Internes : `useProjectTreeMutation` (mutation invalidant l’arbre, avec un patch optimiste annulé en cas d’erreur, via `useInvalidatingMutation` et `patchQuery` de `lib/mutation`), `patch` (change un élément d’une liste), `reposition` (place un élément à un index parmi des frères et renumérote), `ProjectInputValues`.
+Internes : `useProjectTreeMutation` (mutation invalidant l’arbre, et les requêtes `also` données — `tasksQueryKey` pour `useDeleteProject` et `useDeleteClient`, dont les tâches sortent des projets —, avec un patch optimiste annulé en cas d’erreur, via `useInvalidatingMutation` et `patchQuery` de `lib/mutation`), `patch` (change un élément d’une liste), `reposition` (place un élément à un index parmi des frères et renumérote), `ProjectInputValues`.
 
 ## `components/`
 
@@ -39,7 +39,7 @@ Internes : `useProjectTreeMutation` (mutation invalidant l’arbre, avec un patc
 
 ### `components/ClientForm.tsx`
 
-`ClientForm({ client?, onDone? })` : formulaire de création ou modification d’un client (« Nom », `ColorField`, `IconField` en mode `contain`) avec `clientFormSchema` ; sans `onDone` (panneau des paramètres de la page), pas de bouton « Annuler ». Utilisé par `useEntityActions.openClientForm` et `ClientPage`.
+`ClientForm({ client?, onDone? })` : formulaire de création d’un client (« Créer le client ») ou panneau d’un client existant enregistré champ par champ (décision D22, `useFieldSave` : nom en le quittant, couleur par `commitProps` (choisie : aussitôt, tapée : en la quittant), seuls les champs changés envoyés à `useUpdateClient`, `SaveStatus` ; le client du cache `useProjectTree` suivi ; archivé : lecture seule) : « Nom », `ColorField`, `IconField` en mode `contain` (`formIconProps` : fichier `icon` et retrait `removeIcon`, valeurs du formulaire), `clientFormSchema` ; sans `onDone` (panneau des paramètres de la page), pas de bouton « Annuler ». Utilisé par `useEntityActions.openClientForm` et `ClientPage`.
 
 ### `components/ClientSelect.tsx`
 
@@ -47,8 +47,8 @@ Internes : `useProjectTreeMutation` (mutation invalidant l’arbre, avec un patc
 
 ### `components/DeleteDialogs.tsx`
 
-- `DeleteClientDialog({ client, projectCount, onDone })` : confirmation de suppression d’un client, avec `CascadeChoice` « Que faire de ses N projets ? » (détacher par défaut, ou supprimer) ; `DestructiveRisks` / `DestructiveActions`.
-- `DeleteProjectDialog({ project, subProjectCount, onDone })` : confirmation de suppression d’un projet et de ses sous-projets.
+- `DeleteClientDialog({ client, projectCount, onDone })` : confirmation de suppression d’un client, avec `CascadeChoice` « Que faire de ses N projets ? » (détacher par défaut, ou supprimer : un second `DestructiveRisks` dit que leurs tâches sortent des projets) ; `DestructiveRisks` / `DestructiveActions`.
+- `DeleteProjectDialog({ project, subProjectCount, onDone })` : confirmation de suppression d’un projet et de ses sous-projets, qui dit que leurs tâches ne sont pas supprimées mais sortent du projet.
 
 Ouverts par `useEntityActions.confirmDelete` dans `openModal`.
 
@@ -86,7 +86,7 @@ Pastilles du menu, chacune son composant pour que le chrono ne rafraîchisse que
 
 ### `components/ProjectForm.tsx`
 
-`ProjectForm({ project?, defaults?, onDone? })` : formulaire de création ou modification d’un projet (`projectFormSchema`) : libellé, projet parent (`treeSelectProps(projectOptions(...))` limité aux projets actifs hors du sous-arbre et laissant la place à sa hauteur), client (masqué en PERSO, hérité et désactivé avec un parent), `StatusInput`, couleur, `CategoriesInput`, période (`dateRangeProps` / `formRange`), description, icône. À l’envoi, le client d’un sous-projet est celui du parent. Utilisé par `useEntityActions.openProjectForm` et le panneau des paramètres de `ProjectPage`.
+`ProjectForm({ project?, defaults?, onDone? })` : formulaire de création ou modification d’un projet (`projectFormSchema`) : libellé, projet parent (`treeSelectProps(projectOptions(...))` limité aux projets actifs hors du sous-arbre et laissant la place à sa hauteur), client (masqué en PERSO, hérité et désactivé avec un parent), `StatusInput`, couleur, `CategoriesInput`, période (`dateRangeProps` / `formRange`), description, icône (`formIconProps`). Un nouveau projet : « Créer le projet » ; à l’envoi, le client d’un sous-projet est celui du parent. Un projet existant : panneau enregistré champ par champ (décision D22, `useFieldSave` : libellé et description en les quittant, couleur par `commitProps` ; seuls les champs changés envoyés à `useUpdateProject` ; `SaveStatus` ; le projet du cache suivi ; archivé : lecture seule). Utilisé par `useEntityActions.openProjectForm` et le panneau des paramètres de `ProjectPage`.
 
 ### `components/ProjectList.tsx` (+ `ProjectList.module.css`)
 
@@ -175,7 +175,7 @@ Internes : `labelOf`, `sortItems`, `buildForest`, `filterForest`, `filterSection
 
 ### `pages/ClientPage.tsx`
 
-`ClientPage()` : route `/clients/:id` (dans `ProOnly`). En-tête, `PageSettings` « Paramètres du client » (onglets `billing` → `ClientBillingSection`, `client` → `ClientForm`, via `useSettingsTab`), section « Projets » (`ProjectList` ou `EmptyState`), `ProjectBillingPanel` du client et de ses projets. Constante interne `SETTINGS_TABS`.
+`ClientPage()` : route `/clients/:id` (dans `ProOnly`). En-tête, `PageSettings` « Paramètres du client » (onglets `billing` → `ClientBillingSection`, en lecture seule si le client est archivé, `client` → `ClientForm`, via `useSettingsTab`), section « Projets » (`ProjectList` ou `EmptyState`), `ProjectBillingPanel` du client et de ses projets. Constante interne `SETTINGS_TABS`.
 
 ### `pages/ProjectPage.tsx`
 

@@ -1,5 +1,5 @@
 import type { ImapFlow, ListResponse } from 'imapflow';
-import { z } from 'zod';
+import { mailFolderNameSchema } from '@ordo/shared';
 import { prisma } from '../../db';
 import { assertActive, assertNotArchived } from '../core/archive';
 import type { MailLabel } from '../../generated/prisma/client';
@@ -146,13 +146,6 @@ function userFolder(folders: ListResponse[], path: string, refused: string): Lis
   return folder;
 }
 
-const folderNameSchema = z
-  .string()
-  .trim()
-  .min(1, 'Le libellé est requis.')
-  .max(100, '100 caractères maximum.')
-  .refine((name) => !/[*%"\\]/.test(name), 'Caractères interdits : * % " \\');
-
 /**
  * Creates a folder, at the top or under another one.
  * @param {string} accountId Account.
@@ -162,7 +155,7 @@ const folderNameSchema = z
  */
 export async function createFolder(accountId: string, parent: string | null, name: string): Promise<string> {
   await assertNotArchived('MAIL_ACCOUNT', accountId);
-  const clean = parseInput(folderNameSchema, name);
+  const clean = parseInput(mailFolderNameSchema, name);
   return withImap(accountId, async (client) => {
     if (!parent) return (await client.mailboxCreate([clean])).path;
     const folder = (await client.list()).find((item) => item.path === parent);
@@ -181,7 +174,7 @@ export async function createFolder(accountId: string, parent: string | null, nam
  */
 export async function renameFolder(accountId: string, path: string, name: string): Promise<string> {
   await assertNotArchived('MAIL_ACCOUNT', accountId);
-  const clean = parseInput(folderNameSchema, name);
+  const clean = parseInput(mailFolderNameSchema, name);
   return withImap(accountId, async (client) => {
     const folder = userFolder(await client.list(), path, 'Les dossiers spéciaux ne se renomment pas.');
     if (clean.includes(folder.delimiter)) throw clientError('BAD_USER_INPUT', `Le nom ne peut pas contenir « ${folder.delimiter} ».`);
@@ -234,7 +227,7 @@ export async function deleteFolder(accountId: string, path: string): Promise<voi
   });
 }
 
-/** Flags of the mails: a label of LABEL_MAX characters like the other labels (decision Z), unique in the workspace (decision L). */
+/** Flags of the mails: a label of TEXT_MAX characters like the other labels (decisions Z, DO), unique in the workspace (decision L). */
 export const mailLabels = createLabelService<MailLabel>('mailLabel', { notFound: 'Drapeau', conflict: 'Un drapeau porte déjà ce libellé.' });
 
 /**

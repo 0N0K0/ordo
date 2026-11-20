@@ -3,7 +3,7 @@ import { normalize } from '../core/text';
 import { ACCOUNTING_DOCUMENT_TYPES } from './accounting';
 import { lastDayOfMonth } from '../dates/months';
 import { z } from 'zod';
-import { END_AFTER_START, endsAfter, optionalText, requiredText } from '../core/rules';
+import { END_AFTER_START, endsAfter, markdownSchema, optionalLegalText, optionalPlainText, optionalText, requiredText, shortTextSchema } from '../core/rules';
 import { addDays } from '../dates/days';
 import { LOCALE } from '../core/numbers';
 import { daySchema, startDaySchema } from '../dates/times';
@@ -25,12 +25,8 @@ const amount = z.number({ error: 'Montant attendu.' }).min(-99_999_999, 'Montant
 
 const accountingLineSchema = z.object({
   kind: z.enum(LINE_KINDS),
-  label: z.string().trim().max(300, '300 caractères maximum.'),
-  description: z
-    .string()
-    .max(20_000, 'Texte trop long.')
-    .transform((value) => (value.trim() ? value : null))
-    .nullable(),
+  label: shortTextSchema,
+  description: markdownSchema,
   quantity: z.number({ error: 'Quantité attendue.' }).min(-999_999).max(999_999),
   unit: z.enum(ACCOUNTING_UNITS),
   unitPrice: amount,
@@ -41,6 +37,25 @@ const accountingLineSchema = z.object({
   deductedDocumentId: z.string().nullish(),
 });
 export type AccountingLineInput = z.infer<typeof accountingLineSchema>;
+
+/**
+ * Line left as it was added: no label, description, price, discount nor deduction, a quantity of 1 (its kind, unit
+ * and VAT rate are only defaults). Ignored: not saved, it blocks nothing (no error on its label).
+ * @param {AccountingLineInput} line Line.
+ * @returns {boolean} Whether it is blank.
+ */
+export function isBlankLine(line: Pick<AccountingLineInput, 'label' | 'description' | 'quantity' | 'unitPrice' | 'discountValue' | 'deductedDocumentId'>): boolean {
+  return !line.label.trim() && !line.description?.trim() && line.quantity === 1 && line.unitPrice === 0 && !line.discountValue && !line.deductedDocumentId;
+}
+
+/**
+ * Lines of a document as saved: the blank ones dropped (`isBlankLine`).
+ * @param {T[]} lines Lines.
+ * @returns {T[]} Lines saved.
+ */
+export function withoutBlankLines<T extends AccountingLineInput>(lines: readonly T[]): T[] {
+  return lines.filter((line) => !isBlankLine(line));
+}
 
 /** Editable fields of a draft document. */
 export const accountingDocumentInputSchema = z
@@ -53,18 +68,18 @@ export const accountingDocumentInputSchema = z
     dueDate: daySchema().nullable(),
     serviceStart: daySchema().nullable(),
     serviceEnd: daySchema().nullable(),
-    label: optionalText(300),
-    introduction: optionalText(20_000),
-    referenceLabel: optionalText(60),
-    referenceValue: optionalText(200),
-    conclusion: optionalText(20_000),
-    paymentTerms: optionalText(1000),
-    paymentMethods: optionalText(500),
+    label: optionalText(),
+    introduction: markdownSchema,
+    referenceLabel: optionalText(),
+    referenceValue: optionalText(),
+    conclusion: markdownSchema,
+    paymentTerms: optionalLegalText(),
+    paymentMethods: optionalText(),
     depositType: z.enum(DISCOUNT_TYPES).nullable(),
     depositValue: z.number().min(0, 'L’acompte ne peut pas être négatif.').max(99_999_999).nullable(),
-    lateInterest: optionalText(1000),
-    billingSchedule: optionalText(300),
-    otherMentions: optionalText(2000),
+    lateInterest: optionalLegalText(),
+    billingSchedule: optionalText(),
+    otherMentions: optionalPlainText(),
     showBankDetails: z.boolean(),
     vatApplicable: z.boolean(),
     globalDiscountType: z.enum(DISCOUNT_TYPES).nullable(),
@@ -85,7 +100,8 @@ export const accountingDocumentInputSchema = z
       context.addIssue({ code: 'custom', path: ['globalDiscountValue'], message: '100 % maximum.' });
     }
     document.lines.forEach((line, index) => {
-      if (line.kind !== 'TEXT' && !line.label.trim()) {
+      // A blank line is ignored (dropped when saved).
+      if (line.kind !== 'TEXT' && !line.label.trim() && !isBlankLine(line)) {
         context.addIssue({ code: 'custom', path: ['lines', index, 'label'], message: 'Le libellé est requis.' });
       }
       if (line.discountType === 'PERCENT' && (line.discountValue ?? 0) > 100) {
@@ -341,33 +357,18 @@ export function depositAmount(type: DiscountType | null, value: number | null, t
 export const importedDocumentSchema = z
   .object({
     type: z.enum(ACCOUNTING_DOCUMENT_TYPES),
-    number: requiredText(60, 'Le numéro est requis.'),
+    number: requiredText('Le numéro est requis.'),
     issueDate: daySchema('La date est requise.'),
     dueDate: daySchema().nullable(),
     clientId: z.string().nullable(),
-    clientName: z
-      .string()
-      .trim()
-      .max(200)
-      .transform((value) => value || null)
-      .nullable(),
+    clientName: optionalText(),
     projectId: z.string().nullable(),
-    label: z
-      .string()
-      .trim()
-      .max(300)
-      .transform((value) => value || null)
-      .nullable(),
+    label: optionalText(),
     totalNet: z.number({ error: 'Montant attendu.' }).min(-99_999_999).max(99_999_999),
     totalVat: z.number({ error: 'Montant attendu.' }).min(-99_999_999).max(99_999_999),
     totalGross: z.number({ error: 'Montant attendu.' }).min(-99_999_999).max(99_999_999),
     currency: z.string().regex(/^[A-Z]{3}$/, 'Devise invalide.'),
-    note: z
-      .string()
-      .trim()
-      .max(2000)
-      .transform((value) => value || null)
-      .nullable(),
+    note: markdownSchema,
     /** Paid or refunded outside the treasury of Ordo: not expected any more. */
     settled: z.boolean(),
   })
@@ -382,12 +383,8 @@ export type ImportedDocumentInput = z.input<typeof importedDocumentSchema>;
 /** Product or service of the catalogue: default fields of a line. */
 export const catalogItemSchema = z.object({
   kind: z.enum(['ITEM', 'DISBURSEMENT']),
-  label: requiredText(300),
-  description: z
-    .string()
-    .max(20_000, 'Texte trop long.')
-    .transform((value) => (value.trim() ? value : null))
-    .nullable(),
+  label: requiredText(),
+  description: markdownSchema,
   unit: z.enum(ACCOUNTING_UNITS),
   unitPrice: amount,
   vatRate: z.number().min(0, 'Taux invalide.').max(100, 'Taux invalide.'),
@@ -413,7 +410,7 @@ export const REMINDER_DELAY_DAYS = 15;
 
 /** Schedule of a recurring invoice: its label, repetition, first issue date, drafts or final invoices, active. */
 export const recurringInvoiceSchema = z.object({
-  label: requiredText(200),
+  label: requiredText(),
   recurrence: recurrenceSchema,
   startDate: startDaySchema,
   autoFinalize: z.boolean(),

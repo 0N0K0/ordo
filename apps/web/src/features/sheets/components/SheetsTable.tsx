@@ -1,7 +1,7 @@
 import { countOf, plural } from '../../../lib/text';
 import { Anchor, Group, Text } from '@mantine/core';
 import { listSelectProps, itemChoices } from '../../../components/items/item-look';
-import { ClipboardTextIcon, CopyIcon, CookingPotIcon, EyeIcon, PencilSimpleIcon, PlusIcon } from '@phosphor-icons/react';
+import { ClipboardTextIcon, CookingPotIcon, EyeIcon, PencilSimpleIcon, PlusIcon } from '@phosphor-icons/react';
 
 import { Link, useNavigate } from 'react-router';
 import { ActionButton } from '../../../components/actions/ActionButton';
@@ -18,11 +18,11 @@ import { openFormPanel } from '../../../components/panels/panels';
 import { treeSelectProps } from '../../../components/tree/tree-select';
 import { localDay } from '../../../lib/dates';
 import * as fmt from '../../../lib/format';
-import { ON_ERROR, toastCallbacks } from '../../../lib/notify';
+import { ON_ERROR } from '../../../lib/notify';
 import { useTaskContext, type TaskContext } from '../../tasks/hooks/use-task-context';
 import { sheetsKey, useSheetCategories, useSheetMutations, useSheets, type Sheet, type SheetCategory } from '../api';
 import { sheetInput } from '../lib/sheet-format';
-import { archiveItemsAction, rowMenuEntry, duplicateRowsAction } from '../../../components/data-table/selection/selection-actions';
+import { archiveItemsAction, rowMenuEntry, duplicateRowsAction, type DuplicateOptions } from '../../../components/data-table/selection/selection-actions';
 import { selectedLabel } from '../../../components/data-table/selection/selection-label';
 import { SheetUseForm } from './SheetUseForm';
 import { archiveEntry, useSetArchived, useArchivedToggle, unarchived } from '../../../lib/archive';
@@ -137,6 +137,8 @@ export function SheetsTable({ projectId = null }: { projectId?: string | null })
    * Creates a sheet and opens its page.
    * @returns {void}
    */
+  // « Dupliquer » (decision D20): saved at once, then its page opens.
+  const duplicateSheet: DuplicateOptions<{ id: string }, string> = { duplicate: (sheet) => duplicate.mutateAsync(sheet.id), done: 'Fiche dupliquée.', open: (id) => void navigate(sheetPath(id)) };
   const createSheet = () => create.mutate({ label: 'Nouvelle fiche', note: null, projectId, categoryIds: [] }, { onSuccess: (id) => navigate(sheetPath(id)), ...ON_ERROR });
 
   return (
@@ -150,7 +152,7 @@ export function SheetsTable({ projectId = null }: { projectId?: string | null })
         // An archived sheet is not copied.
         ...(rows.some((sheet) => sheet.archived)
           ? []
-          : [duplicateRowsAction(rows, { duplicate: (sheet) => duplicate.mutateAsync(sheet.id), done: `${countOf(rows.length, 'fiche')} ${plural(rows.length, 'dupliquée')}.` })]),
+          : [duplicateRowsAction(rows, { ...duplicateSheet, done: rows.length > 1 ? `${countOf(rows.length, 'fiche')} ${plural(rows.length, 'dupliquée')}.` : duplicateSheet.done })]),
         archiveItemsAction(rows, setArchived, { noun: 'fiche', feminine: true, clear }),
         deleteSheetsAction(rows, (sheet) => remove.mutateAsync(sheet.id), clear),
       ]}
@@ -239,7 +241,7 @@ export function SheetsTable({ projectId = null }: { projectId?: string | null })
                 icon: <CookingPotIcon aria-hidden />,
                 onClick: () => openFormPanel(`Utiliser « ${sheet.label} »`, (close) => <SheetUseForm sheetId={sheet.id} label={sheet.label} onDone={close} />),
               },
-              !sheet.archived && { label: 'Dupliquer', icon: <CopyIcon aria-hidden />, onClick: () => duplicate.mutate(sheet.id, toastCallbacks('Fiche dupliquée.')) },
+              !sheet.archived && rowMenuEntry(duplicateRowsAction([sheet], duplicateSheet)),
               archiveEntry({ archived: sheet.archived, type: 'Fiche', label: sheet.label, feminine: true }, setArchived, sheet.id),
               rowMenuEntry(deleteSheetsAction([sheet], (row) => remove.mutateAsync(row.id))),
             ]}

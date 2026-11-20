@@ -1,7 +1,7 @@
 import { groupBy, sumOf } from '../core/collections';
 import { timeToMinutes } from '../dates/times';
 import { z } from 'zod';
-import { END_AFTER_START, endAfter, endsAfter, requiredText } from '../core/rules';
+import { END_AFTER_START, endAfter, endsAfter, requiredText, shortTextSchema } from '../core/rules';
 import { addDays, daysBetween, isoWeek, monthOfDay, monthOfYear, weekdayOfDate, yearOfDay } from '../dates/days';
 import { DEFAULT_RECURRENCE, ONE_DAY, type Duration, type Recurrence } from '../dates/recurrence';
 import { caseSpanOn, caseSpans, repetitionCaseSchema, type RepetitionCase } from '../dates/repetition';
@@ -99,20 +99,17 @@ export type ScheduleCase = RepetitionCase<ScheduleTimes>;
 const exceptionFields = {
   from: daySchema(),
   to: daySchema(),
-  label: z.string().trim().max(100, '100 caractères maximum.').default(''),
+  label: shortTextSchema.default(''),
 };
 
 /** Period with its own cases instead of the general ones (none: a pause, holidays…), dates included. */
 const scheduleExceptionSchema = z.object({ ...exceptionFields, cases: z.array(scheduleRepetitionCaseSchema).max(20, '20 cas au plus.').default([]) }).refine(...endAfter('from', 'to'));
 export type ScheduleException = z.infer<typeof scheduleExceptionSchema>;
 
-/** Longest label of planned time slots. */
-export const WORK_SCHEDULE_LABEL_MAX = 100;
-
 /** Planned time slots: a label, a kind, a period, its cases, and exceptions (periods with cases of their own). */
 export const workScheduleSchema = z
   .object({
-    label: requiredText(WORK_SCHEDULE_LABEL_MAX),
+    label: requiredText(),
     startDate: daySchema(),
     endDate: daySchema().nullable(),
     cases: z.array(scheduleRepetitionCaseSchema).min(1, 'Ajoutez au moins un cas.').max(20, '20 cas au plus.'),
@@ -464,7 +461,7 @@ const scheduleDisplayFields = {
 
 /** Kind of time slots ("Travail", "Garde des enfants"…), with its color and how its slots show. */
 export const scheduleTypeSchema = z.object({
-  label: requiredText(60),
+  label: requiredText(),
   color: colorSchema,
   ...scheduleDisplayFields,
 });
@@ -474,7 +471,7 @@ export const DEFAULT_SCHEDULE_KIND_LABEL = 'Travail';
 
 /** Schedules without kind of a workspace: their label (empty: "Travail"), color (none: the green of working hours) and display. */
 export const defaultScheduleKindSchema = z.object({
-  label: z.string().trim().max(60, '60 caractères maximum.'),
+  label: shortTextSchema,
   color: colorSchema.nullable(),
   ...scheduleDisplayFields,
 });
@@ -510,6 +507,11 @@ export interface ScheduleSlotTime {
   end: string;
   allDay: boolean;
 }
+
+/** Day and hours of a slot changed from the calendar (its panel): the end after the start, but for the whole day. */
+export const scheduleSlotTimeSchema = z
+  .object({ date: daySchema(), start: z.string(), end: z.string(), allDay: z.boolean() })
+  .refine((slot) => slot.allDay || endsAfter(slot.start, slot.end, true), { path: ['end'], message: END_AFTER_START });
 
 /** Which slots a change of a slot applies to: that day only (an exception), it and the following ones, or all. */
 type ScheduleSlotScope = 'THIS' | 'FOLLOWING' | 'ALL';
@@ -602,7 +604,7 @@ export function changedScheduleSlot(
   scope: ScheduleSlotScope,
 ): { cases: ScheduleCase[]; exceptions: ScheduleException[] } {
   if (change && !change.allDay && change.end <= change.start) throw new Error(END_AFTER_START);
-  if (change && (change.date < schedule.startDate || (schedule.endDate && change.date > schedule.endDate))) throw new Error('Ce jour est en dehors de la période de la plage.');
+  if (change && (change.date < schedule.startDate || (schedule.endDate && change.date > schedule.endDate))) throw new Error('Ce jour est en dehors de la période du créneau.');
   if (scope === 'THIS') {
     const others = daySlots(schedule, slot.date);
     const index = others.findIndex((other) => sameHours(other, slot));
@@ -643,6 +645,6 @@ export function changedScheduleSlot(
   if (exception) {
     return { cases: [...schedule.cases], exceptions: schedule.exceptions.map((other) => (other === exception ? { ...other, cases: nextCases } : other)) };
   }
-  if (!nextCases.length) throw new Error('Ce sont les derniers horaires de la plage : supprimez la plage elle-même.');
+  if (!nextCases.length) throw new Error('Ce sont les derniers horaires du créneau : supprimez le créneau lui-même.');
   return { cases: nextCases, exceptions: [...schedule.exceptions] };
 }

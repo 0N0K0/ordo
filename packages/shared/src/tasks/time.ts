@@ -1,17 +1,13 @@
 import { z } from 'zod';
-import { END_AFTER_START, endsAfter, requiredText } from '../core/rules';
+import { END_AFTER_START, endsAfter, markdownSchema, markdownTextSchema, optionalPlainText, requiredText } from '../core/rules';
 import { DEFAULT_RECURRENCE, occurrenceDates, recurrenceSchema, type Recurrence } from '../dates/recurrence';
 import { dateSchema } from '../core/workspace';
 import { daySchema, timeOfDaySchema } from '../dates/times';
 import { dayIn, localInstant } from '../dates/days';
 import { twoDigits } from '../core/numbers';
 
-/** What was done during a tracked time: plain text, several lines. Empty becomes null. */
-export const timeDescriptionSchema = z
-  .string()
-  .max(4000, '4 000 caractères maximum.')
-  .transform((value) => (value.trim() ? value.trim() : null))
-  .nullable();
+/** What was done during a tracked time: markdown (its editor). Blank becomes null. */
+export const timeDescriptionSchema = markdownSchema;
 
 /** Duration of a time entry, in seconds: up to 24 hours. */
 export const durationSchema = z
@@ -20,21 +16,29 @@ export const durationSchema = z
   .min(60, 'Au moins 1 minute.')
   .max(24 * 3600, '24 heures maximum.');
 
+/** A time has at least a project, a task, a routine or an event (decision D17). */
+export const TIME_SUBJECT_REQUIRED = 'Choisissez un projet, une tâche, une routine ou un évènement.';
+
 /**
  * Manual time entry form: day, start time, duration ("1:30", "1h30", "90" minutes or "1,5" hours). The project may be
- * left empty for the time of a routine.
+ * left empty when the time has a task, a routine or an event (decision D17); several of each (decision D18).
  */
 export const timeEntryFormSchema = z
   .object({
     projectId: z.string(),
-    routineId: z.string().nullable(),
+    routineIds: z.array(z.string()),
     taskIds: z.array(z.string()),
-    description: z.string().max(4000, '4 000 caractères maximum.'),
+    /** Events (occurrence keys) the time was spent on. */
+    events: z.array(z.string()),
+    description: markdownTextSchema,
     date: daySchema('La date est requise.'),
     start: timeOfDaySchema,
     duration: z.string().refine((value) => parseDuration(value) !== null, 'Durée attendue : 1:30, 1h30, 90 (minutes) ou 1,5 h.'),
   })
-  .refine((values) => values.projectId !== '' || values.routineId !== null, { path: ['projectId'], message: 'Le projet est requis.' });
+  .refine((values) => values.projectId !== '' || values.routineIds.length > 0 || values.taskIds.length > 0 || values.events.length > 0, {
+    path: ['projectId'],
+    message: TIME_SUBJECT_REQUIRED,
+  });
 export type TimeEntryFormValues = z.infer<typeof timeEntryFormSchema>;
 
 /**
@@ -101,18 +105,11 @@ export type AlarmType = (typeof ALARM_TYPES)[number];
 export const ALARM_FREQUENCIES = ['ONCE', 'DAILY', 'WEEKLY', 'MONTHLY'] as const;
 export type AlarmFrequency = (typeof ALARM_FREQUENCIES)[number];
 
-/** Longest label of an alarm. */
-export const ALARM_LABEL_MAX = 200;
-
 /** Alarm fields, as saved. */
 export const alarmInputSchema = z
   .object({
-    label: requiredText(ALARM_LABEL_MAX),
-    note: z
-      .string()
-      .max(4000, '4 000 caractères maximum.')
-      .transform((value) => (value.trim() ? value.trim() : null))
-      .nullable(),
+    label: requiredText(),
+    note: optionalPlainText(),
     type: z.enum(ALARM_TYPES),
     startDate: dateSchema,
     time: timeOfDaySchema.nullable(),

@@ -1,7 +1,7 @@
 import { CreatableSelect } from '../../../components/inputs/CreatableSelect';
 import { useLocationSelect } from '../hooks/use-location-select';
 
-import { Autocomplete, Checkbox, SimpleGrid, Stack, Textarea } from '@mantine/core';
+import { Autocomplete, Checkbox, SimpleGrid, Stack } from '@mantine/core';
 import { PeopleField } from '../../shopping/components/PeopleField';
 import { DatePickerInput } from '@mantine/dates';
 import { newStockItemSchema, type NewStockItemInput } from '@ordo/shared';
@@ -15,6 +15,8 @@ import { QuantityInput } from '../../../components/inputs/QuantityInput';
 import { ShoppingCategoryField, UnitField } from '../../shopping/components/ProductFields';
 import { unarchived } from '../../../lib/archive';
 import { optionalNumberProps } from '../../../components/inputs/number-format';
+import { MarkdownEditor } from '../../../components/markdown/MarkdownEditor';
+import { NO_SUGGESTIONS } from '../../../components/markdown/remark-references';
 
 type Values = NewStockItemInput & Record<string, unknown>;
 
@@ -74,7 +76,7 @@ export function StockItemForm({ locationId = null, onDone }: { locationId?: stri
         </SimpleGrid>
         {values.perishable && <DatePickerInput label="Date de péremption" placeholder="Aucune" clearable {...form.getInputProps('expiresAt')} />}
         <PeopleField form={form} label="Bénéficiaires" />
-        <Textarea label="Description" autosize minRows={2} maxRows={6} value={values.note ?? ''} onChange={(event) => form.setFieldValue('note', event.currentTarget.value || null)} />
+        <MarkdownEditor label="Description" value={values.note ?? ''} onChange={(note) => form.setFieldValue('note', note || null)} suggestions={NO_SUGGESTIONS} minRows={2} error={form.errors.note as string | undefined} />
         <FormActions onCancel={onDone} submitLabel="Ajouter" loading={createItem.isPending} />
       </Stack>
     </form>

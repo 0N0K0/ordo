@@ -177,7 +177,7 @@ builder.mutationFields((t) => ({
     resolve: async (query, _root, { id, archived }) => reloaded(prisma.project, query, projects.setProjectArchived(id, archived)),
   }),
   deleteProject: t.boolean({
-    description: 'Deletes the project and all its sub-projects.',
+    description: 'Deletes the project and all its sub-projects; their tasks leave them (out of any project).',
     args: { id: t.arg.id({ required: true }) },
     resolve: (_root, { id }) => done(projects.deleteProject(id)),
   }),

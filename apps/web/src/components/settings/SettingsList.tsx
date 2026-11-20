@@ -14,6 +14,7 @@ import { ShowArchivedSwitch } from '../filters/ShowArchivedSwitch';
 import { openFormPanel } from '../panels/panels';
 import { ArchivedBadge } from '../feedback/ArchivedBadge';
 import { useReorderSettingsItems } from './settings-api';
+import { useLiveSource } from '../../lib/live-value';
 import { SettingsItemForm, type SettingsItem, type SettingsItemKind, type SettingsItemValues } from './SettingsItemForm';
 import { SettingsSection } from './SettingsSection';
 import { ActionButton } from '../actions/ActionButton';
@@ -61,7 +62,7 @@ interface SettingsListProps<C extends SettingsItem, E extends object> extends Se
 /**
  * Settings list, flat or tree (every one of the app): each item with its avatar (its image, or its initials on its
  * color), its name and number of uses; added, edited (name, color, image, parent, fields of the list) in the side
- * panel, archived or restored (with an undo), deleted once confirmed, reordered — and in a tree put under another — by
+ * panel (the item followed as the list refreshes), archived or restored (with an undo), deleted once confirmed, reordered — and in a tree put under another — by
  * drag and drop. Archived items are hidden behind « Afficher les archivés » (shown when there are some), with their
  * badge, read only (neither edited nor moved, nor given sub-items).
  * @param {SettingsListProps<C, E>} props Component props.
@@ -101,6 +102,8 @@ export function SettingsList<C extends SettingsItem, E extends object = Record<s
   const reorder = useReorderSettingsItems();
   const setArchived = useSetArchived(kind);
   const { shown, showArchived, toggle: archivedToggle } = useArchivedToggle(items);
+  // The form of an item follows the list (a panel renders once): values changed elsewhere are taken.
+  const liveItems = useLiveSource(items);
 
   /**
    * Opens the form of an item in the side panel.
@@ -114,6 +117,7 @@ export function SettingsList<C extends SettingsItem, E extends object = Record<s
         item={item}
         parentId={parentId}
         tree={nested ? items : undefined}
+        liveItems={liveItems}
         withParent={withParent}
         initial={initial}
         withColor={withColor}

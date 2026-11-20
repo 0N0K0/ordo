@@ -7,11 +7,11 @@ import { itemChoices, itemSelectProps } from '../../../components/items/item-loo
 import { EmptyState } from '../../../components/feedback/EmptyState';
 import { TableSkeleton } from '../../../components/feedback/Skeletons';
 
-import { Badge, Group, Progress, SegmentedControl, Select, SimpleGrid, Stack, Text, Tooltip, NumberInput } from '@mantine/core';
+import { Badge, Fieldset, Group, Progress, SegmentedControl, Select, SimpleGrid, Stack, Text, Tooltip, NumberInput } from '@mantine/core';
 import { SettingsSection } from '../../../components/settings/SettingsSection';
 import { MonthPickerInput } from '@mantine/dates';
 import { EVERYDAY_CONTEXT, joinedKey, treasuryBudgetSchema } from '@ordo/shared';
-import { ChartPieSliceIcon, CopyIcon, PencilSimpleIcon, PlusIcon, WarningIcon } from '@phosphor-icons/react';
+import { ChartPieSliceIcon, PencilSimpleIcon, PlusIcon, WarningIcon } from '@phosphor-icons/react';
 import { ArchivedBadge } from '../../../components/feedback/ArchivedBadge';
 import { archiveEntry, unarchived, useSetArchived } from '../../../lib/archive';
 import { useState, type ReactNode } from 'react';
@@ -22,7 +22,8 @@ import { useDataView } from '../../../components/data-table/views/use-data-view'
 import { RowActions } from '../../../components/data-table/cells/RowActions';
 import type { DataColumn } from '../../../components/data-table/table/data-table';
 import { localToday, monthOfDay } from '../../../lib/dates';
-import { useAppForm, formCallbacks } from '../../../lib/form';
+import { useAppForm, useFieldSave, formCallbacks } from '../../../lib/form';
+import { SaveStatus } from '../../../components/feedback/SaveStatus';
 import { ON_ERROR } from '../../../lib/notify';
 import { treasuryKey, useTreasuryBudgetMutations, useTreasuryBudgets, useTreasurySettings, type BudgetReportRow, type TreasuryBudget } from '../api';
 import { categoryChoices, categoryOptions, categoryPaths } from '../lib/categories';
@@ -34,7 +35,9 @@ import { Comments } from '../../comments/components/Comments';
 import { useCommentCounts } from '../../comments/api';
 import { commentColumn } from '../../comments/lib/comment-column';
 import { CreatableSelect } from '../../../components/inputs/CreatableSelect';
-import { archiveItemsAction, deleteItemsAction, rowMenuEntry } from '../../../components/data-table/selection/selection-actions';
+import { archiveItemsAction, deleteItemsAction, duplicateRowsAction, rowMenuEntry } from '../../../components/data-table/selection/selection-actions';
+import { useQueryClient } from '@tanstack/react-query';
+import { cachedItem, useCachedItem } from '../../../lib/mutation';
 import { selectedLabel } from '../../../components/data-table/selection/selection-label';
 import { FormActions } from '../../../components/dialogs/FormActions';
 import { meName, personName, relationNoun } from '../../../components/people/people-options';
@@ -143,8 +146,20 @@ const budgetValues = (budget: TreasuryBudget): BudgetValues => ({
 });
 
 /**
+ * Budgets of the data of a treasury query (those of the budgets of some months).
+ * @param {unknown} data Data of a query.
+ * @returns {readonly TreasuryBudget[] | undefined} Budgets, none for another query.
+ */
+const budgetsOf = (data: unknown) => (data && typeof data === 'object' && 'treasuryBudgets' in data ? (data as TreasuryBudgetsData).treasuryBudgets : undefined);
+
+/** Data of the query of the budgets. */
+type TreasuryBudgetsData = { treasuryBudgets: TreasuryBudget[] };
+
+/**
  * Budget form: money out or in, month, member (none: me), context (none: everyday), category of that direction,
- * amount, repetition.
+ * amount, repetition. A new budget is a form with « Créer »; an existing one, its panel, saves each field as soon as it
+ * changes (the amount and the number of months on leaving them, decision D22, `useFieldSave`), the one of the cache
+ * followed; archived, it is read only.
  * @param {{ budget?: TreasuryBudget, defaults?: Partial<BudgetValues>, onDone: () => void }} props Component props.
  * @returns {JSX.Element} Form.
  */
@@ -154,7 +169,7 @@ function BudgetForm({ budget, defaults, onDone }: { budget?: TreasuryBudget; def
   const { perso } = useActiveWorkspace();
   const members = settings?.treasuryMembers ?? [];
   const categories = settings?.treasuryCategories ?? [];
-  const form = useAppForm<BudgetValues>({
+  const base = useAppForm<BudgetValues>({
     initialValues: {
       month: budget?.month ?? monthOfDay(localToday()),
       memberId: budget?.memberId ?? null,
@@ -169,9 +184,30 @@ function BudgetForm({ budget, defaults, onDone }: { budget?: TreasuryBudget; def
     },
     schema: treasuryBudgetSchema,
   });
+  const me = members.find((member) => member.isMe);
+  /**
+   * Input of a budget from its values: "Moi" is no member at all; a budget of a single month ends with it.
+   * @param {BudgetValues} input Values.
+   * @returns {BudgetValues} Input.
+   */
+  const budgetInput = (input: BudgetValues): BudgetValues => ({
+    ...input,
+    memberId: input.memberId === me?.id ? null : input.memberId,
+    relationId: input.relationId ?? null,
+    repeatUntil: input.repeatEvery ? input.repeatUntil : null,
+  });
+  const cached = useCachedItem(treasuryKey, budgetsOf, (item: TreasuryBudget) => item.id === budget?.id);
+  const current = budget && (cached ?? budget);
+  const readOnly = Boolean(current?.archived);
+  const { form, saving, commit } = useFieldSave(base, {
+    save: budget ? (_changes, input) => save.mutateAsync({ id: budget.id, input: budgetInput(input) }) : null,
+    schema: treasuryBudgetSchema,
+    saved: current && budgetValues(current),
+    onBlur: ['amount', 'repeatEvery'],
+    readOnly,
+  });
   const values = form.values;
   const months = dateRangeProps(formRange(form, 'month', 'repeatUntil'), { month: true });
-  const me = members.find((member) => member.isMe);
   // Money out or in: the direction of the category, unless chosen first (none chosen: money out).
   const [chosenDirection, setDirection] = useState<'OUT' | 'IN' | null>(null);
   // Kept apart from the months: « every 12 months » chosen as such stays so while edited.
@@ -184,102 +220,96 @@ function BudgetForm({ budget, defaults, onDone }: { budget?: TreasuryBudget; def
 
   return (
     <Stack gap="lg">
-      <form
-        noValidate
-        onSubmit={form.onSubmit((input) =>
-          save.mutate(
-            // "Moi" is no member at all.
-            {
-              id: budget?.id ?? null,
-              input: { ...input, memberId: input.memberId === me?.id ? null : input.memberId, relationId: input.relationId ?? null, repeatUntil: input.repeatEvery ? input.repeatUntil : null },
-            },
-            formCallbacks(form, budget ? 'Budget modifié.' : 'Budget créé.', onDone),
-          ),
-        )}
-      >
-        <Stack gap="sm">
-          <SimpleGrid cols={{ base: 1, sm: 2 }} spacing="sm">
-            <MonthPickerInput label={values.repeatEvery ? 'À partir de' : 'Mois'} required {...months.start} />
-            <AmountInput label={direction === 'OUT' ? 'Sorties prévues' : 'Entrées prévues'} required min={0} prefix={direction === 'OUT' ? '− ' : '+ '} {...form.getInputProps('amount')} />
-          </SimpleGrid>
-          <SegmentedControl
-            fullWidth
-            aria-label="Sens du budget"
-            data={[
-              { value: 'OUT', label: DIRECTION_PLURALS.OUT },
-              { value: 'IN', label: DIRECTION_PLURALS.IN },
-            ]}
-            value={direction}
-            onChange={(value) => {
-              setDirection(value as 'OUT' | 'IN');
-              // A category of the other direction no longer fits.
-              if (categories.find((category) => category.id === values.categoryId)?.direction !== value) form.setFieldValue('categoryId', '');
-            }}
-          />
-          <CreatableSelect
-            label="Catégorie"
-            required
-            searchable
-            onCreate={createCategory[direction]}
-            {...treeSelectProps(categoryOptions(categories, direction, undefined, budget?.categoryId))}
-            nothingFoundMessage={direction === 'OUT' ? 'Aucune catégorie de sortie' : 'Aucune catégorie d’entrée'}
-            description="Le budget couvre aussi ses sous-catégories qui n’ont pas le leur."
-            {...form.getInputProps('categoryId')}
-          />
-          <SimpleGrid cols={{ base: 1, sm: 2 }} spacing="sm">
-            <Select
-              label="Bénéficiaire"
-              placeholder={meName(me)}
-              clearable
-              searchable
-              data={memberRelationOptions(members, unarchived(settings?.treasuryRelations ?? [], budget?.relationId), { perso, withMe: false })}
-              value={memberOrRelationKey(values)}
-              onChange={(key) => form.setValues(memberOrRelation(key))}
-              error={form.errors.memberId}
-            />
-            <Select
-              label="Contexte"
-              placeholder={EVERYDAY_CONTEXT}
-              clearable
-              {...itemSelectProps(settings?.treasuryContexts ?? [], form.values.contextId, undefined, budget?.contextId)}
-              {...form.getInputProps('contextId')}
-            />
-          </SimpleGrid>
-          <SimpleGrid cols={{ base: 1, sm: 2 }} spacing="sm">
-            <Select
-              label="Répétition"
-              allowDeselect={false}
-              data={REPEAT_MODES}
-              value={repeatMode}
-              onChange={(mode) => {
-                setRepeatMode(mode ?? 'ONCE');
-                form.setFieldValue('repeatEvery', mode === 'YEAR' ? 12 : mode === 'MONTHS' ? (values.repeatEvery && values.repeatEvery !== 12 ? values.repeatEvery : 1) : null);
+      {/* A new budget only: an existing one is saved field by field (Enter saves the amount typed). */}
+      <form noValidate onSubmit={form.onSubmit((input) => save.mutate({ id: null, input: budgetInput(input) }, formCallbacks(form, 'Budget créé.', onDone)))}>
+        <Fieldset variant="unstyled" disabled={readOnly} p={0} m={0}>
+          <Stack gap="sm">
+            {budget && !readOnly && <SaveStatus saving={saving} />}
+            <SimpleGrid cols={{ base: 1, sm: 2 }} spacing="sm">
+              <MonthPickerInput label={values.repeatEvery ? 'À partir de' : 'Mois'} required {...months.start} />
+              <AmountInput label={direction === 'OUT' ? 'Sorties prévues' : 'Entrées prévues'} required min={0} prefix={direction === 'OUT' ? '− ' : '+ '} {...form.getInputProps('amount')} />
+            </SimpleGrid>
+            <SegmentedControl
+              fullWidth
+              aria-label="Sens du budget"
+              data={[
+                { value: 'OUT', label: DIRECTION_PLURALS.OUT },
+                { value: 'IN', label: DIRECTION_PLURALS.IN },
+              ]}
+              value={direction}
+              onChange={(value) => {
+                setDirection(value as 'OUT' | 'IN');
+                // A category of the other direction no longer fits.
+                if (categories.find((category) => category.id === values.categoryId)?.direction !== value) form.setFieldValue('categoryId', '');
               }}
             />
-            {repeatMode === 'MONTHS' && (
-              <NumberInput
-                label="Tous les"
-                suffix=" mois"
-                min={1}
-                max={24}
-                allowDecimal={false}
-                value={values.repeatEvery ?? 1}
-                onChange={(value) => form.setFieldValue('repeatEvery', Math.min(24, Math.max(1, Number(value) || 1)))}
-                error={form.errors.repeatEvery}
+            <CreatableSelect
+              label="Catégorie"
+              required
+              searchable
+              onCreate={createCategory[direction]}
+              {...treeSelectProps(categoryOptions(categories, direction, undefined, budget?.categoryId))}
+              nothingFoundMessage={direction === 'OUT' ? 'Aucune catégorie de sortie' : 'Aucune catégorie d’entrée'}
+              description="Le budget couvre aussi ses sous-catégories qui n’ont pas le leur."
+              {...form.getInputProps('categoryId')}
+            />
+            <SimpleGrid cols={{ base: 1, sm: 2 }} spacing="sm">
+              <Select
+                label="Bénéficiaire"
+                placeholder={meName(me)}
+                clearable
+                searchable
+                data={memberRelationOptions(members, unarchived(settings?.treasuryRelations ?? [], budget?.relationId), { perso, withMe: false })}
+                value={memberOrRelationKey(values)}
+                onChange={(key) => form.setValues(memberOrRelation(key))}
+                error={form.errors.memberId}
               />
-            )}
-            {values.repeatEvery && <MonthPickerInput label="Jusqu’à" placeholder="Sans fin" clearable {...months.end} />}
-          </SimpleGrid>
-          <FormActions onCancel={onDone} loading={save.isPending} />
-        </Stack>
+              <Select
+                label="Contexte"
+                placeholder={EVERYDAY_CONTEXT}
+                clearable
+                {...itemSelectProps(settings?.treasuryContexts ?? [], form.values.contextId, undefined, budget?.contextId)}
+                {...form.getInputProps('contextId')}
+              />
+            </SimpleGrid>
+            <SimpleGrid cols={{ base: 1, sm: 2 }} spacing="sm">
+              <Select
+                label="Répétition"
+                allowDeselect={false}
+                data={REPEAT_MODES}
+                value={repeatMode}
+                onChange={(mode) => {
+                  setRepeatMode(mode ?? 'ONCE');
+                  form.setFieldValue('repeatEvery', mode === 'YEAR' ? 12 : mode === 'MONTHS' ? (values.repeatEvery && values.repeatEvery !== 12 ? values.repeatEvery : 1) : null);
+                  commit(['repeatEvery']);
+                }}
+              />
+              {repeatMode === 'MONTHS' && (
+                <NumberInput
+                  label="Tous les"
+                  suffix=" mois"
+                  min={1}
+                  max={24}
+                  allowDecimal={false}
+                  value={values.repeatEvery ?? 1}
+                  onChange={(value) => form.setFieldValue('repeatEvery', Math.min(24, Math.max(1, Number(value) || 1)))}
+                  onBlur={() => commit(['repeatEvery'])}
+                  error={form.errors.repeatEvery}
+                />
+              )}
+              {values.repeatEvery && <MonthPickerInput label="Jusqu’à" placeholder="Sans fin" clearable {...months.end} />}
+            </SimpleGrid>
+            {!budget && <FormActions onCancel={onDone} submitLabel="Créer" loading={save.isPending} />}
+          </Stack>
+        </Fieldset>
       </form>
-      {budget && <Comments target="BUDGET" id={budget.id} readOnly={budget.archived} />}
+      {budget && <Comments target="BUDGET" id={budget.id} readOnly={readOnly} />}
     </Stack>
   );
 }
 
-// A copy is a new budget with the values of another one.
-type Dialog = { budget?: TreasuryBudget; defaults?: Partial<BudgetValues>; copy?: boolean };
+// A budget changed, or the values of a new one.
+type Dialog = { budget?: TreasuryBudget; defaults?: Partial<BudgetValues> };
 
 /**
  * Budgets: those of a month compared with its actual and forecast movements (what is spent, or received, and what
@@ -295,6 +325,7 @@ export function BudgetsPanel() {
   const { data, isPending } = useTreasuryBudgets(month, month);
   const { data: settings } = useTreasurySettings();
   const { remove, save } = useTreasuryBudgetMutations();
+  const queryClient = useQueryClient();
   /**
    * « Supprimer » of budgets, on a row as on a selection.
    * @param {TreasuryBudget[]} rows Budgets.
@@ -344,14 +375,12 @@ export function BudgetsPanel() {
   const budgeted = rows.filter((row) => row.budgeted);
   const outside = rows.filter((row) => !row.budgeted);
   /**
-   * Opens the form of a new, changed or copied budget.
+   * Opens the form of a new or changed budget.
    * @param {Dialog} dialog Budget changed, or the values of a new one.
    * @returns {void}
    */
   const openBudget = (dialog: Dialog) =>
-    openFormPanel(dialog.budget ? 'Modifier le budget' : dialog.copy ? 'Dupliquer le budget' : 'Nouveau budget', (close) => (
-      <BudgetForm budget={dialog.budget} defaults={dialog.defaults} onDone={close} />
-    ));
+    openFormPanel(dialog.budget ? 'Modifier le budget' : 'Nouveau budget', (close) => <BudgetForm budget={dialog.budget} defaults={dialog.defaults} onDone={close} />);
 
   /**
    * What a row used of its budget: money out for a category of money out, money in otherwise.
@@ -839,16 +868,18 @@ export function BudgetsPanel() {
                   about="le budget"
                   primary={budget.archived ? undefined : { label: 'Modifier (et ses répétitions)', icon: <PencilSimpleIcon aria-hidden />, onClick: () => openBudget({ budget }) }}
                   items={[
-                    !budget.archived && {
-                      label: 'Dupliquer',
-                      icon: <CopyIcon aria-hidden />,
-                      onClick: () =>
-                        // A new budget with its values, to change (month, category…) before it is saved.
-                        openBudget({
-                          copy: true,
-                          defaults: budgetValues(budget),
+                    // A new budget with its values, saved at once, then its form opens (decision D20).
+                    !budget.archived &&
+                      rowMenuEntry(
+                        duplicateRowsAction([budget], {
+                          duplicate: (source) => save.mutateAsync({ id: null, input: budgetValues(source) }),
+                          done: 'Budget dupliqué.',
+                          open: (id) => {
+                            const copy = cachedItem(queryClient, treasuryKey, id, (budgets: { treasuryBudgets?: TreasuryBudget[] }) => budgets?.treasuryBudgets);
+                            if (copy) openBudget({ budget: copy });
+                          },
                         }),
-                    },
+                      ),
                     archiveItem,
                     rowMenuEntry(deleteBudgets([budget])),
                   ]}

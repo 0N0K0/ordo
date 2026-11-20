@@ -4,7 +4,8 @@ import { isTaskOverdue } from '../../tasks/lib/task-overdue';
 interface TaskDates {
   startDate: string | null;
   endDate: string | null;
-  deadline: string | null;
+  /** « Échéance » it goes by (its own, else that of its single sprint). */
+  effectiveDeadline: string | null;
 }
 
 /**
@@ -42,13 +43,13 @@ interface TaskPlacement {
  * @param {string} today Today (YYYY-MM-DD).
  * @returns {TaskPlacement} Span, latest acceptable date and lateness.
  */
-export function taskPlacement({ startDate, endDate, deadline, closed = false }: TaskDates & { closed?: boolean }, today: string): TaskPlacement {
+export function taskPlacement({ startDate, endDate, effectiveDeadline: deadline, closed = false }: TaskDates & { closed?: boolean }, today: string): TaskPlacement {
   let span: TaskSpan | null = null;
   if (startDate && endDate) span = { start: startDate, end: endDate >= startDate ? endDate : startDate, kind: 'dates' };
   else if (startDate && startDate < today) span = { start: startDate, end: today, kind: 'open' };
   else if (startDate) span = { start: startDate, end: startDate, kind: 'dates' };
   else if (endDate) span = { start: endDate, end: endDate, kind: 'dates' };
-  const overdue = isTaskOverdue({ deadline, closed }, today);
+  const overdue = isTaskOverdue({ effectiveDeadline: deadline, closed }, today);
   if (overdue) {
     // Late: today, on its span when it reaches today, else on its own.
     const reachesToday = span !== null && span.start <= today && span.end >= today;

@@ -1,5 +1,6 @@
-import { changedList } from '@ordo/shared';
-import type { RoutineBulkChanges } from '@ordo/shared';
+import { linkInputs } from '../../../lib/links';
+import { ancestorsOf, byPosition, changedList, mapById, movedTo, readReminders, subtreeOf } from '@ordo/shared';
+import type { Reminder, RoutineBulkChanges } from '@ordo/shared';
 import { patchQuery, useInvalidatingMutation } from '../../../lib/mutation';
 import {
   readSlotCondition,
@@ -12,11 +13,13 @@ import {
   type RoutineSlot,
   type SlotCondition,
 } from '@ordo/shared';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, type QueryKey } from '@tanstack/react-query';
+import { tasksQueryKey } from '../../tasks/api';
 import { moveInTree } from '../../../components/tree/category-tree';
 import { graphql } from '../../../graphql';
-import type { CalendarEventScope, RoutineChecksQuery, RoutineOccurrencesQuery, RoutinesDataQuery } from '../../../graphql/graphql';
+import type { CalendarEventScope, DeleteRoutineOccurrenceMutation, RoutineChecksQuery, RoutineOccurrencesQuery, RoutinesDataQuery } from '../../../graphql/graphql';
 import { execute } from '../../../lib/graphql-client';
+import { withLossConfirmation } from '../../time/lib/confirm-loss';
 
 export type RoutineCategory = RoutinesDataQuery['routineCategories'][number];
 export type Routine = RoutinesDataQuery['routines'][number];
@@ -47,7 +50,18 @@ const RoutinesDataDocument = graphql(`
       dueTime
       slotCondition
       moments
-      reminders
+      reminders {
+        before
+        at
+      }
+      reminderOccurrences {
+        date
+        day
+        slots {
+          slot
+          at
+        }
+      }
       cases
       moves
       done
@@ -64,6 +78,10 @@ const RoutinesDataDocument = graphql(`
       location
       locationLat
       locationLon
+      links {
+        url
+        label
+      }
       travelBefore
       travelAfter
       projectId
@@ -73,6 +91,7 @@ const RoutinesDataDocument = graphql(`
       beneficiaryIds
       beneficiaryRelationIds
       requiredIds
+      relatedIds
       currentDate
       firstDate
       nextDate
@@ -115,32 +134,38 @@ const CopySubRoutinesDocument = graphql(`
 `);
 
 const CreateRoutineDocument = graphql(`
-  mutation CreateRoutine($input: RoutineInput!) {
-    createRoutine(input: $input)
+  mutation CreateRoutine($input: RoutineInput!, $copyOf: ID) {
+    createRoutine(input: $input, copyOf: $copyOf)
   }
 `);
 
 const UpdateRoutineDocument = graphql(`
-  mutation UpdateRoutine($id: ID!, $input: RoutineInput!, $restoring: Boolean) {
-    updateRoutine(id: $id, input: $input, restoring: $restoring)
+  mutation UpdateRoutine($id: ID!, $input: RoutineInput!, $restoring: Boolean, $confirmLoss: Boolean) {
+    updateRoutine(id: $id, input: $input, restoring: $restoring, confirmLoss: $confirmLoss) {
+      removedLinks
+    }
   }
 `);
 
 const PatchRoutineDocument = graphql(`
-  mutation PatchRoutine($id: ID!, $input: RoutinePatch!) {
-    patchRoutine(id: $id, input: $input)
+  mutation PatchRoutine($id: ID!, $input: RoutinePatch!, $confirmLoss: Boolean) {
+    patchRoutine(id: $id, input: $input, confirmLoss: $confirmLoss) {
+      removedLinks
+    }
   }
 `);
 
 const MoveRoutineDocument = graphql(`
-  mutation MoveRoutine($id: ID!, $targetId: ID!, $place: RoutinePlace!, $categoryIds: [ID!]) {
-    moveRoutine(id: $id, targetId: $targetId, place: $place, categoryIds: $categoryIds)
+  mutation MoveRoutine($id: ID!, $beforeId: ID, $parentId: ID, $categoryIds: [ID!]) {
+    moveRoutine(id: $id, beforeId: $beforeId, parentId: $parentId, categoryIds: $categoryIds)
   }
 `);
 
 const BulkUpdateRoutinesDocument = graphql(`
-  mutation BulkUpdateRoutines($ids: [ID!]!, $changes: RoutineBulkChanges!) {
-    bulkUpdateRoutines(ids: $ids, changes: $changes)
+  mutation BulkUpdateRoutines($ids: [ID!]!, $changes: RoutineBulkChanges!, $confirmLoss: Boolean) {
+    bulkUpdateRoutines(ids: $ids, changes: $changes, confirmLoss: $confirmLoss) {
+      removedLinks
+    }
   }
 `);
 
@@ -157,8 +182,8 @@ const BulkSetRoutinesDoneDocument = graphql(`
 `);
 
 const BulkDeleteRoutinesDocument = graphql(`
-  mutation BulkDeleteRoutines($ids: [ID!]!) {
-    bulkDeleteRoutines(ids: $ids)
+  mutation BulkDeleteRoutines($ids: [ID!]!, $deleteSubRoutines: Boolean!) {
+    bulkDeleteRoutines(ids: $ids, deleteSubRoutines: $deleteSubRoutines)
   }
 `);
 
@@ -175,20 +200,27 @@ const MoveRoutineOccurrenceDocument = graphql(`
 `);
 
 const ChangeRoutineOccurrenceDocument = graphql(`
-  mutation ChangeRoutineOccurrence($id: ID!, $date: Date!, $scope: CalendarEventScope!, $to: Date!, $slot: Int!, $fromTime: String, $dueTime: String) {
-    changeRoutineOccurrence(id: $id, date: $date, scope: $scope, to: $to, slot: $slot, fromTime: $fromTime, dueTime: $dueTime)
+  mutation ChangeRoutineOccurrence($id: ID!, $date: Date!, $scope: CalendarEventScope!, $to: Date!, $slot: Int!, $fromTime: String, $dueTime: String, $confirmLoss: Boolean) {
+    changeRoutineOccurrence(id: $id, date: $date, scope: $scope, to: $to, slot: $slot, fromTime: $fromTime, dueTime: $dueTime, confirmLoss: $confirmLoss)
   }
 `);
 
 const DeleteRoutineOccurrenceDocument = graphql(`
   mutation DeleteRoutineOccurrence($id: ID!, $date: Date!, $scope: CalendarEventScope!) {
-    deleteRoutineOccurrence(id: $id, date: $date, scope: $scope)
+    deleteRoutineOccurrence(id: $id, date: $date, scope: $scope) {
+      archived
+      comments {
+        body
+        createdAt
+        updatedAt
+      }
+    }
   }
 `);
 
 const RemoveRoutineMoveDocument = graphql(`
-  mutation RemoveRoutineMove($id: ID!, $from: Date!) {
-    removeRoutineMove(id: $id, from: $from)
+  mutation RemoveRoutineMove($id: ID!, $from: Date!, $comments: [CommentSnapshotInput!]) {
+    removeRoutineMove(id: $id, from: $from, comments: $comments)
   }
 `);
 
@@ -206,6 +238,9 @@ const RoutineChecksDocument = graphql(`
 `);
 
 export type RoutineCheck = RoutineChecksQuery['routineChecks'][number];
+
+/** Comment deleted with an occurrence, given back by « Annuler » (decision D19). */
+export type CommentSnapshot = DeleteRoutineOccurrenceMutation['deleteRoutineOccurrence']['comments'][number];
 
 /**
  * Times of the day ticked in a period.
@@ -233,6 +268,8 @@ const RoutineOccurrencesDocument = graphql(`
       startDate
       shownDate
       movedFrom
+      cancelled
+      archived
       slots {
         index
         fromTime
@@ -248,8 +285,9 @@ const RoutineOccurrencesDocument = graphql(`
 export type RoutineOccurrence = RoutineOccurrencesQuery['routineOccurrences'][number];
 
 /**
- * Occurrences of the routines (not archived) in a period, with their times of the day ticked: refreshed with the
- * routines.
+ * Occurrences of the routines in a period, with their times of the day ticked: refreshed with the routines. The
+ * cancelled ones are there too (`cancelled`, shown struck through) and, for an archived routine, those due before its
+ * archiving (`archived`, read only).
  * @param {{ from: string, to: string } | null} range Period (both days included), or null: none.
  * @param {boolean} [enabled] Loaded. Optional. Default = true.
  * @returns {UseQueryResult<RoutineOccurrence[]>} Query state.
@@ -275,11 +313,12 @@ export function useRoutinesData() {
  * Mutation refreshing the routines afterwards, with an optional optimistic change rolled back on error.
  * @param {(variables: V) => Promise<R>} fn Request.
  * @param {(data: RoutinesDataQuery, variables: V) => RoutinesDataQuery} [patch] Immediate cache change. Optional.
+ * @param {readonly QueryKey[]} [also] Other queries refreshed too. Optional. Default = none.
  * @returns {UseMutationResult} Mutation state.
  */
-function useRoutineMutation<V, R>(fn: (variables: V) => Promise<R>, patch?: (data: RoutinesDataQuery, variables: V) => RoutinesDataQuery) {
+function useRoutineMutation<V, R>(fn: (variables: V) => Promise<R>, patch?: (data: RoutinesDataQuery, variables: V) => RoutinesDataQuery, also: readonly QueryKey[] = []) {
   return useInvalidatingMutation(fn, {
-    invalidate: [routinesKey],
+    invalidate: [routinesKey, ...also],
     optimistic: patch && ((queryClient, variables) => patchQuery<RoutinesDataQuery>(queryClient, routinesKey, (data) => patch(data, variables))),
     // Refreshed in the background: the change (shown at once) is not held up by the reload of every routine.
     background: true,
@@ -299,13 +338,12 @@ const DRAFT = 'draft-';
 export const isDraftRoutine = (routine: { id: string }) => routine.id.startsWith(DRAFT);
 
 /**
- * Routine being created, as typed (shown until the saved one replaces it): last of its siblings, nothing computed yet.
+ * Routine being created, as typed (shown until the saved one replaces it): last of the manual order, nothing computed yet.
  * @param {RoutineInput} input Routine.
  * @param {readonly Routine[]} routines Routines in the cache.
  * @returns {Routine} Draft.
  */
 function draftRoutine(input: RoutineInput, routines: readonly Routine[]): Routine {
-  const siblings = routines.filter((routine) => (routine.parentId ?? null) === (input.parentId ?? null));
   return {
     id: `${DRAFT}${(draftCount += 1)}`,
     label: input.label,
@@ -319,7 +357,8 @@ function draftRoutine(input: RoutineInput, routines: readonly Routine[]): Routin
     dueTime: input.dueTime ?? null,
     slotCondition: input.slotCondition ?? null,
     moments: input.moments ?? [],
-    reminders: input.reminders ?? [],
+    reminders: readReminders(input.reminders),
+    reminderOccurrences: [],
     cases: input.cases ?? [],
     moves: [],
     done: false,
@@ -328,15 +367,17 @@ function draftRoutine(input: RoutineInput, routines: readonly Routine[]): Routin
     location: input.location ?? null,
     locationLat: input.locationLat ?? null,
     locationLon: input.locationLon ?? null,
+    links: input.links,
     travelBefore: input.travelBefore ?? 0,
     travelAfter: input.travelAfter ?? 0,
     projectId: input.projectId ?? null,
-    position: Math.max(-1, ...siblings.map((routine) => routine.position)) + 1,
+    position: Math.max(-1, ...routines.map((routine) => routine.position)) + 1,
     archived: false,
     assigneeIds: input.assigneeIds ?? [],
     beneficiaryIds: input.beneficiaryIds ?? [],
     beneficiaryRelationIds: input.beneficiaryRelationIds ?? [],
     requiredIds: input.requiredIds ?? [],
+    relatedIds: input.relatedIds ?? [],
     currentDate: null,
     firstDate: null,
     nextDate: null,
@@ -381,32 +422,47 @@ const patchRoutine = (data: RoutinesDataQuery, id: string, change: (routine: Rou
   routines: data.routines.map((routine) => (routine.id === id ? change(routine) : routine)),
 });
 
-/** Where a routine is dropped, relative to another one. */
-export type RoutinePlace = 'BEFORE' | 'AFTER' | 'INSIDE';
-
-/** Move of a routine next to or under another one; its new categories, if they change. */
+/** Move of a routine in the global manual order (before another one, or at the end), under a new parent and in new categories when they change. */
 export interface RoutineMove {
   id: string;
-  targetId: string;
-  place: RoutinePlace;
+  /** Routine it goes before; null: at the end. */
+  beforeId: string | null;
+  /** New parent (null: top level); omitted: unchanged. */
+  parentId?: string | null;
   categoryIds?: string[] | null;
 }
 
 /**
- * Moves a routine in the cached data: next to the target (its parent and category), or last under it.
+ * Moves a routine in the cached data, as a task: before another one in the global order (at the end without one), under
+ * its new parent and in its new categories.
  * @param {RoutinesDataQuery} data Cached data.
  * @param {RoutineMove} move Move.
  * @returns {RoutinesDataQuery} New data.
  */
-function moveInCache(data: RoutinesDataQuery, { id, targetId, place, categoryIds }: RoutineMove): RoutinesDataQuery {
-  const moved = data.routines.find((routine) => routine.id === id);
-  const target = data.routines.find((routine) => routine.id === targetId);
-  if (!moved || !target) return data;
-  const placed = { ...moved, parentId: place === 'INSIDE' ? target.id : target.parentId, categoryIds: categoryIds ?? moved.categoryIds };
-  const rest = data.routines.filter((routine) => routine.id !== id);
-  const index = rest.indexOf(target);
-  rest.splice(place === 'INSIDE' ? rest.length : place === 'BEFORE' ? index : index + 1, 0, placed);
-  return { ...data, routines: rest };
+function moveInCache(data: RoutinesDataQuery, { id, beforeId, parentId, categoryIds }: RoutineMove): RoutinesDataQuery {
+  const ordered = [...data.routines].sort(byPosition);
+  const moved = ordered.find((routine) => routine.id === id);
+  const others = ordered.filter((routine) => routine.id !== id);
+  const index = beforeId ? others.findIndex((routine) => routine.id === beforeId) : others.length;
+  if (!moved || index < 0) return data;
+  const placed = { ...moved, ...(parentId !== undefined && { parentId }), categoryIds: categoryIds ?? moved.categoryIds };
+  return { ...data, routines: movedTo(others, placed, index).map((routine, position) => ({ ...routine, position })) };
+}
+
+/**
+ * Routines archived or restored in the cached data, as the API does: archiving takes their sub-routines along,
+ * restoring brings back their archived parents (the sub-routines archived along come back with the refresh).
+ * @param {RoutinesDataQuery} data Cached data.
+ * @param {readonly string[]} ids Routines.
+ * @param {boolean} archived Archived (else restored).
+ * @returns {RoutinesDataQuery} New data.
+ */
+function archiveInCache(data: RoutinesDataQuery, ids: readonly string[], archived: boolean): RoutinesDataQuery {
+  const byId = mapById(data.routines);
+  const touched = new Set(
+    ids.flatMap((id) => (archived ? [...subtreeOf(data.routines, id)] : [id, ...ancestorsOf(byId, id).map((ancestor) => ancestor.id)])),
+  );
+  return { ...data, routines: data.routines.map((routine) => (touched.has(routine.id) ? { ...routine, archived } : routine)) };
 }
 
 /** Inline changes of a routine. */
@@ -419,13 +475,14 @@ export interface RoutinePatchValues {
   beneficiaryIds?: string[];
   beneficiaryRelationIds?: string[];
   requiredIds?: string[];
+  relatedIds?: string[];
   projectId?: string | null;
   location?: string | null;
   locationLat?: number | null;
   locationLon?: number | null;
   travelBefore?: number;
   travelAfter?: number;
-  reminders?: number[];
+  reminders?: Reminder[];
   opensOn?: RoutineOpens | null;
   fromTime?: string | null;
   dueTime?: string | null;
@@ -462,11 +519,13 @@ export function routineInputOf(routine: Routine): RoutineInput {
     location: routine.location,
     locationLat: routine.locationLat,
     locationLon: routine.locationLon,
+    links: linkInputs(routine.links),
     travelBefore: routine.travelBefore,
     travelAfter: routine.travelAfter,
     projectId: routine.projectId,
     assigneeIds: routine.assigneeIds,
     requiredIds: routine.requiredIds,
+    relatedIds: routine.relatedIds,
   };
 }
 
@@ -482,6 +541,7 @@ function withBulkChanges(routine: Routine, changes: RoutineBulkChanges): Routine
     categoryIds: changedList(routine.categoryIds, changes.addCategoryIds, changes.removeCategoryIds),
     assigneeIds: changedList(routine.assigneeIds, changes.addAssigneeIds, changes.removeAssigneeIds),
     requiredIds: changedList(routine.requiredIds, changes.addRequiredIds, changes.removeRequiredIds).filter((id) => id !== routine.id),
+    relatedIds: changedList(routine.relatedIds, changes.addRelatedIds, changes.removeRelatedIds).filter((id) => id !== routine.id),
     ...(changes.estimate !== undefined && { estimate: changes.estimate }),
     ...(changes.projectId !== undefined && { projectId: changes.projectId }),
     ...(changes.fromTime !== undefined && { fromTime: changes.fromTime }),
@@ -504,17 +564,20 @@ export function useRoutineMutations() {
       (data, { id, parentId, index }) => ({ ...data, routineCategories: moveInTree(data.routineCategories, id, parentId, index) }),
     ),
     deleteCategory: useRoutineMutation(async (id: string) => (await execute(DeleteCategoryDocument, { id })).deleteRoutineCategory),
-    // Shown at once, as typed, until the saved routine (its occurrences computed) replaces it.
+    // Shown at once, as typed, until the saved routine (its occurrences computed) replaces it. A copy (copyOf) leaves
+    // out the former links of the routine copied out of its project tree (the API does).
     create: useRoutineMutation(
-      async (input: RoutineInput) => (await execute(CreateRoutineDocument, { input })).createRoutine,
+      async ({ copyOf, ...input }: RoutineInput & { copyOf?: string | null }) => (await execute(CreateRoutineDocument, { input, copyOf })).createRoutine,
       (data, input) => ({ ...data, routines: [...data.routines, draftRoutine(input, data.routines)] }),
     ),
-    update: useRoutineMutation(async (variables: { id: string; input: RoutineInput }) => (await execute(UpdateRoutineDocument, variables)).updateRoutine),
+    // A change of project attaches the assignees to it: the contributors (task data) are refreshed too.
+    update: useRoutineMutation(async (variables: { id: string; input: RoutineInput }) => withLossConfirmation(async (confirmLoss) => (await execute(UpdateRoutineDocument, { ...variables, confirmLoss })).updateRoutine), undefined, [tasksQueryKey]),
     /** Copies the sub-routines of a routine under its copy (theirs too). */
     copySubRoutines: useRoutineMutation(async (variables: { fromId: string; toId: string }) => (await execute(CopySubRoutinesDocument, variables)).copySubRoutines),
     patch: useRoutineMutation(
-      async (variables: { id: string; input: RoutinePatchValues }) => (await execute(PatchRoutineDocument, variables)).patchRoutine,
+      async (variables: { id: string; input: RoutinePatchValues }) => withLossConfirmation(async (confirmLoss) => (await execute(PatchRoutineDocument, { ...variables, confirmLoss })).patchRoutine),
       (data, { id, input }) => patchRoutine(data, id, (routine) => ({ ...routine, ...input })),
+      [tasksQueryKey],
     ),
     move: useRoutineMutation(async (variables: RoutineMove) => (await execute(MoveRoutineDocument, variables)).moveRoutine, moveInCache),
     setDone: useRoutineMutation(
@@ -526,19 +589,23 @@ export function useRoutineMutations() {
     ),
     changeOccurrence: useRoutineMutation(
       async (variables: { id: string; date: string; scope: CalendarEventScope; to: string; slot: number; fromTime: string | null; dueTime: string | null }) =>
-        (await execute(ChangeRoutineOccurrenceDocument, variables as never)).changeRoutineOccurrence,
+        withLossConfirmation(async (confirmLoss) => (await execute(ChangeRoutineOccurrenceDocument, { ...variables, confirmLoss } as never)).changeRoutineOccurrence),
     ),
     deleteOccurrence: useRoutineMutation(
       async (variables: { id: string; date: string; scope: CalendarEventScope }) => (await execute(DeleteRoutineOccurrenceDocument, variables as never)).deleteRoutineOccurrence,
     ),
-    removeMove: useRoutineMutation(async (variables: { id: string; from: string }) => (await execute(RemoveRoutineMoveDocument, variables)).removeRoutineMove),
+    removeMove: useRoutineMutation(
+      async (variables: { id: string; from: string; comments?: CommentSnapshot[] }) => (await execute(RemoveRoutineMoveDocument, variables as never)).removeRoutineMove,
+    ),
     bulkUpdate: useRoutineMutation(
-      async (variables: { ids: string[]; changes: RoutineBulkChanges }) => (await execute(BulkUpdateRoutinesDocument, variables)).bulkUpdateRoutines,
+      async (variables: { ids: string[]; changes: RoutineBulkChanges }) =>
+        withLossConfirmation(async (confirmLoss) => (await execute(BulkUpdateRoutinesDocument, { ...variables, confirmLoss })).bulkUpdateRoutines),
       (data, { ids, changes }) => ({ ...data, routines: data.routines.map((routine) => (ids.includes(routine.id) ? withBulkChanges(routine, changes) : routine)) }),
+      [tasksQueryKey],
     ),
     bulkArchive: useRoutineMutation(
       async (variables: { ids: string[]; archived: boolean }) => (await execute(BulkSetRoutinesArchivedDocument, variables)).bulkSetRoutinesArchived,
-      (data, { ids, archived }) => ({ ...data, routines: data.routines.map((routine) => (ids.includes(routine.id) ? { ...routine, archived } : routine)) }),
+      (data, { ids, archived }) => archiveInCache(data, ids, archived),
     ),
     bulkDone: useRoutineMutation(
       async (variables: { ids: string[]; done: boolean }) => (await execute(BulkSetRoutinesDoneDocument, variables)).bulkSetRoutinesDone,
@@ -555,7 +622,9 @@ export function useRoutineMutations() {
         ),
       }),
     ),
-    bulkRemove: useRoutineMutation(async (ids: string[]) => (await execute(BulkDeleteRoutinesDocument, { ids })).bulkDeleteRoutines),
+    bulkRemove: useRoutineMutation(
+      async (variables: { ids: string[]; deleteSubRoutines: boolean }) => (await execute(BulkDeleteRoutinesDocument, variables)).bulkDeleteRoutines,
+    ),
     /** Puts routines back as they were (undo of a bulk change: the archived values given back accepted). */
     restore: useRoutineMutation(async (routines: Routine[]) => {
       for (const routine of routines) await execute(UpdateRoutineDocument, { id: routine.id, input: routineInputOf(routine), restoring: true });

@@ -1,8 +1,8 @@
 import { unarchived } from '../../../lib/archive';
 import { useEntityCellEdit } from '../../../components/data-table/selection/bulk-edit';
-import { notifyWithUndo, onMutationError, ON_ERROR } from '../../../lib/notify';
+import { notifySuccess, notifyWithUndo, onMutationError, ON_ERROR } from '../../../lib/notify';
 import { useRoutineMutations, useRoutinesData, type Routine, type RoutineBulkChanges, type RoutinePatchValues } from '../api';
-import { countOf } from '../../../lib/text';
+import { countOf, removedLinksNote } from '../../../lib/text';
 import { itemCellLabel } from '../../../components/data-table/cells/cell-field';
 
 /** Columns of the routine table edited together on a cell selection. */
@@ -23,6 +23,7 @@ type RoutineColumn =
   | 'beneficiaries'
   | 'estimate'
   | 'requires'
+  | 'related'
   | 'blocks'
   | 'parent'
   | 'project';
@@ -56,7 +57,8 @@ function useBulkRoutineChanges() {
     bulkUpdate.mutate(
       { ids, changes },
       {
-        onSuccess: () => notifyWithUndo(message, () => restore.mutate(before, ON_ERROR)),
+        // Routines moved to another project tree lose their links out of it: told, as for tasks transferred.
+        onSuccess: ({ removedLinks }) => notifyWithUndo(message + removedLinksNote(removedLinks), () => restore.mutate(before, ON_ERROR)),
         onError: onMutationError,
       },
     );
@@ -79,7 +81,17 @@ export function useRoutineCellEdit(routine: Routine, column: RoutineColumn) {
   return useEntityCellEdit<Routine, RoutinePatchValues, RoutineBulkChanges>(routine, TABLE_COLUMNS[column] ?? column, {
     // Archived routines are read only: left out of the changes made on a selection.
     rows: unarchived(data?.routines ?? []),
-    save: (item, change) => patch.mutate({ id: item.id, input: change }, ON_ERROR),
+    // Moved to another project tree: the links left out of it are removed, and told (as for a task transferred).
+    save: (item, change) =>
+      patch.mutate(
+        { id: item.id, input: change },
+        {
+          ...ON_ERROR,
+          onSuccess: ({ removedLinks }) => {
+            if (removedLinks > 0) notifySuccess(`Routine déplacée.${removedLinksNote(removedLinks)}`);
+          },
+        },
+      ),
     saveMany: (rows, changes) =>
       applyBulk(
         rows.map((item) => item.id),

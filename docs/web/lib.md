@@ -7,7 +7,7 @@ Fonctions et hooks transverses de l'application web : client GraphQL, mutations,
 ### `graphql-client.ts`
 
 - `pinWorkspace(id)` : épingle les requêtes de cet onglet à un espace (en-tête `x-ordo-workspace`) ; `null` : suivre le cookie. Le cookie est partagé entre onglets, l'épinglage garde chaque onglet dans son espace. Appelé par `features/workspaces`.
-- `GraphQLRequestError` (classe) : erreur de l'API, avec `code` (défaut `INTERNAL_SERVER_ERROR`) et `fields` (messages par champ, lus par `showFormError`).
+- `GraphQLRequestError` (classe) : erreur de l'API, avec `code` (défaut `INTERNAL_SERVER_ERROR`), `fields` (messages par champ, lus par `showFormError`) et `extensions` (les autres, par exemple `lost` de `CONFIRMATION_REQUIRED`).
 - `execute(document, variables?)` : lance une opération GraphQL typée (générée par codegen) sur `/api/graphql`, cookie de session compris, dans l'espace de l'onglet. Des `File` dans les variables envoient une requête multipart (spécification GraphQL multipart, fonctions internes `extractFiles`, `buildBody`).
 - `executeIn(workspace, document, variables?)` : la même dans un autre espace (notifications d'un autre espace : mails, agenda).
 - Erreurs : serveur injoignable → « Le serveur est injoignable. » (code `NETWORK_ERROR`) ; première erreur GraphQL relancée ; réponse vide ou en erreur → « Une erreur inattendue est survenue. ». Fonction interne `request`.
@@ -33,7 +33,16 @@ Fraîcheur des données :
 
 - `useInvalidatingMutation(mutationFn, { invalidate, optimistic, background })` : mutation de l'application : la requête, puis les requêtes dont la clé commence par `invalidate` rafraîchies ; `optimistic(queryClient, variables)` change les données affichées tout de suite (requêtes annulées puis remises comme avant en cas d'erreur) ; `background` : la mutation n'attend pas le rechargement. Sous toutes les mutations de l'application ; imposée par eslint (`invalidateQueries` dans `onSuccess` interdit).
 - `patchQuery(queryClient, queryKey, patch)` : change en place les données d'une requête chargée (changement optimiste).
+- `cachedItem(queryClient, queryKey, id, items)` : élément d'un identifiant dans les requêtes d'une clé (et celles qu'elle préfixe), tel que le cache le tient : une copie qui vient d'être enregistrée, une fois sa mutation rafraîchie, pour l'ouvrir (décision D20).
+- `useCachedItem(queryKey, items, match)` : même recherche (premier élément qui répond à `match`), suivie à chaque changement du cache (`useSyncExternalStore` sur le cache des requêtes) : l'élément d'un panneau enregistré champ par champ ouvert sur une copie, quelle que soit la requête qui le tient (`saved` de `useFieldSave`, décision D22). Utilisé par `TimeEntryForm`, `RoutineOccurrenceForm`, `ShoppingForm`, `ImportedDocumentForm`, `EntryForm`, `BudgetForm`. Interne `cachedFind`, partagée avec `cachedItem`.
 - `moveToIndex(list, id, index)` : liste avec un élément déplacé à un indice (ordre optimiste d'un glisser-déposer), borné comme le serveur (`movedTo` partagé) ; `null` si l'élément n'y est pas. Voir [Ordre](../business-rules/cross-cutting/ordering.md).
+
+### `live-value.ts`
+
+- `useLiveSource(value)` : source (`LiveSource` : `get`, `subscribe`) d'une valeur du composant, le même objet à chaque rendu, annoncée à chaque changement : donnée au contenu d'un panneau ouvert sur une copie (un panneau ne se rend qu'une fois à son ouverture), pour qu'il suive la valeur sans connaître la requête qui la tient. Utilisé par `SettingsList` (ses éléments, pour `SettingsItemForm`), `ClientBillingSection` (client archivé, pour `ClientPartyForms`).
+- `useLiveValue(source?)` : la valeur d'une source, suivie (`useSyncExternalStore`) ; rien sans source. Utilisé par `SettingsItemForm`, `ClientDetailsForm`, `ClientServiceForm`, `ClientContactForm`.
+- Interne : `liveStore(initial)`.
+À préférer à `useCachedItem` quand le composant qui ouvre le panneau tient déjà la liste à jour (une liste reçue en props, de requêtes différentes selon la liste).
 
 ### `search-params.ts`
 
@@ -46,7 +55,23 @@ Fraîcheur des données :
 
 - `useAppForm({ initialValues, schema })` : formulaire Mantine aux règles de l'application : validation par schéma (zod, `schemaResolver` synchrone) au blur, puis à chaque changement d'un champ qui a une erreur ; pas de validation au montage.
 - `showFormError(form, error)` : erreur de l'API : messages par champ sur le formulaire si l'un des champs y est (`GraphQLRequestError.fields`, préfixe avant le premier « . »), sinon un toast.
+- `nestedErrors(errors, field)` : erreurs sous un champ du formulaire, par chemin à l'intérieur (`address.city` → `city`, `phones.0.number` → `0.number`) : pour un éditeur d'un objet ou d'une liste (adresse, téléphones, répartition). `CompanyForm`, `ClientPartyForms`, `EntryForm`. Imposé par eslint (pas de `startsWith('champ.')` écrit à la main).
 - `formCallbacks(form, message, onDone?, { then })` : `onSuccess` / `onError` de la mutation d'un formulaire : toast de succès (`message`, ou fonction du résultat ; `null` : pas de toast), fermeture (`onDone(result)`), suite (`then`) ; erreur sur les champs (ou en toast, et toujours en toast sans formulaire). ~53 fichiers ; imposé par eslint.
+- `useFieldSave(base, { save, schema, saved?, onBlur?, readOnly?, onSaved?, toSaved?, check? })` : panneau de détail d'un élément existant enregistré champ par champ, comme celui des tâches (décision D22). Prend le formulaire `useAppForm` de l'élément et rend `{ form, saving, commit, settled, fieldProps, commitProps }` (interface `FieldSave`, options `FieldSaveOptions`) :
+  - `form` : le même formulaire, dont chaque champ est enregistré dès qu'il change (listes, dates, interrupteurs, `getInputProps` d'un champ de choix, `setFieldValue`, `setValues`), ou en le quittant pour ceux de `onBlur` (textes, nombres, description, liens, lieu ; Entrée dans un texte les enregistre aussi : `onSubmit` remplacé). Les champs passés à `LinksField`, `optionalNumberProps` ou un composant qui prend `form` marchent tels quels.
+  - Chaque champ est d'abord vérifié par le schéma, sur toutes les valeurs (une règle entre champs compte) : son erreur s'affiche sous lui (règles de `useAppForm` : en le quittant, puis à chaque changement) et il n'est pas enregistré.
+  - Le changement s'affiche tout de suite ; les enregistrements passent l'un après l'autre (`save(changes, values)` : les champs changés et toutes les valeurs telles qu'enregistrées, pour une mise à jour qui prend l'élément entier). Un échec remet le champ comme il était enregistré, dans un toast d'erreur (qui reste) ; une erreur de l'API sur l'un des champs va sous lui (la saisie reste) ; une confirmation refusée (`ActionDeclined`, par exemple `withLossConfirmation`) remet le champ sans toast. `onSaved(result, changes)` suit un enregistrement réussi.
+  - `saved` : valeurs de l'élément dans le cache, suivies quand elles changent ailleurs (une cellule, un autre onglet), sauf pour un champ en cours de saisie.
+  - `commit(fields)` : vérifie et enregistre des champs tout de suite (un éditeur sans `getInputProps` : la description en la quittant, un lieu choisi, un lien retiré) ; rend `false` quand l'un est invalide (pas enregistré).
+  - `check(values, fields)` : erreurs que le schéma ne peut pas trouver, sur les champs sur le point d'être enregistrés (une connexion dont un serveur a changé attend son mot de passe : `MailAccountForm`, `passwordsToRetype`) ; les champs ne sont pas enregistrés, les erreurs dessous.
+  - Ce qui n'est pas encore enregistré (un texte tapé sans quitter le champ, tout champ qui diffère de ce qui est enregistré) l'est quand le panneau qui tient le formulaire se ferme (bouton, Échap, clic dehors : un champ invalide le garde ouvert une fois, son erreur dessous), quand le formulaire disparaît (panneau fermé par son contenu ou remplacé, page quittée dans l'app) et quand le navigateur quitte la page (`pagehide`) : `usePanelFlush` (`components/panels`), sans rien à écrire dans les panneaux (décision FJ). Rien en lecture seule ni sur un nouvel élément. Imposé par eslint : pas de `onBlur` qui lit `event.currentTarget.value` dans un panneau D22.
+  - `fieldProps(field)` : `{ value, onChange, onBlur }` d'un éditeur sans `getInputProps` lié à un champ enregistré en le quittant (une description `MarkdownEditor`, une adresse `AddressFields`, des téléphones `PhonesField`, une signature `RichEditor` / `LazyRichEditor`). Imposé par eslint (pas de `onBlur={() => commit(...)}` sur ces éditeurs).
+  - `commitProps(field)` : props `getInputProps` du champ plus `onCommit`, enregistré seulement quand le champ annonce sa valeur choisie, quelle que soit la liste `onBlur` : une couleur (`ColorField` : prise dans le nuancier, aussitôt ; tapée, en la quittant). Imposé par eslint (pas de `getInputProps` sur `ColorField` dans un panneau D22). Utilisé par `ProjectForm`, `ClientForm`, `SettingsItemForm`.
+  - `settled()` : promesse tenue une fois les enregistrements demandés passés (réussis ou non) : avant une action sur l'élément tel qu'enregistré (aperçu du PDF, validation d'un document).
+  - `toSaved(values)` : les valeurs telles qu'elles sont enregistrées, tirées de celles du formulaire (une ligne vierge retirée : `withoutBlankLines` dans `DocumentEditor`) : comparées aux valeurs enregistrées et envoyées ; le formulaire garde ce qui a été saisi (ses erreurs trouvées dessus, à leur place).
+  - `saving` : un enregistrement est en cours (`SaveStatus`).
+  - Sans `save` (un nouvel élément) ou en lecture seule : le formulaire tel quel, enregistré par son bouton (`commit` ne fait rien).
+  Utilisé par `RoutineForm`, `EventForm`, `RoutineOccurrenceForm`, `TimeEntryForm`, `AlarmForm`, `TaskLinks`, `TaskDescription`, l'effort du panneau d'une tâche (`TaskDetail`), les fiches d'une routine, d'un évènement ou d'une tâche (`SheetLinksField`), les panneaux de l'économat (lot 14b, décision FG) et des finances (lot 14c, décision FH : `RecurringForm`, `ImportedDocumentForm`, `ResourceForm`, `ClientDetailsForm`, `ClientServiceForm`, `ClientContactForm`, `CatalogItemForm`, `CompanyForm`, `DocumentEditor`, `EntryForm`, `BudgetForm`, `PeriodForm`, `RelationForm`), des ressources et du transversal (lot 14d, décision FI : `ProjectForm`, `ClientForm`, `MilestoneForm`, `SprintForm`, `ContributorForm`, `ChartEditor`, `MailAccountForm`, `MailSearchForm`, `SignatureForm`, `SettingsItemForm`, `ScheduleForm`, `SlotEditForm`, `LinkForm`) : tous les panneaux de détail de l'app (D22 complète). Imposé par eslint : pas de bouton « Enregistrer » (`FormActions` sans `submitLabel`, ou « Enregistrer… ») dans ces panneaux (liste des composants dans la règle). Seule exception voulue : « Enregistrer » de la numérotation des documents (`NumberingSettings`), qui change un compteur.
 
 ### `use-async-action.ts`
 
@@ -64,7 +89,8 @@ Toasts (en haut à droite, `Notifications` de `main.tsx`) : une erreur reste jus
 - `onMutationError(error)` : le gestionnaire de tout `onError` (→ `notifyFailure`).
 - `ON_ERROR` : `{ onError: onMutationError }`, options d'une mutation sans toast de succès.
 - `toastCallbacks(message)` : `onSuccess` (toast) et `onError` d'une mutation sans formulaire.
-- `notifyFailure(error, fallback?)` : échec d'une action quelconque en toast d'erreur : son message, ou « Une erreur inattendue est survenue. » ; une session expirée (`UNAUTHENTICATED`) reste silencieuse (retour à la connexion).
+- `notifyFailure(error, fallback?)` : échec d'une action quelconque en toast d'erreur : son message, ou « Une erreur inattendue est survenue. » ; une session expirée (`UNAUTHENTICATED`) reste silencieuse (retour à la connexion), une action refusée à sa confirmation (`ActionDeclined`) aussi.
+- `ActionDeclined` (classe) : erreur d'une action que l'utilisateur a refusée à sa confirmation (« Action annulée. ») ; elle s'arrête sans toast. Lancée par `withLossConfirmation`.
 - `notifyWithUndo(message, onUndo)` : succès avec bouton « Annuler » (8 s).
 - Interne : `toastBody` (lignes de texte et boutons `tertiary`).
 
@@ -143,7 +169,7 @@ eslint interdit `.slice(0, 10)`, `.slice(0, 7)`, `.split('T')[0]` et `new Date('
 - `quarterName(day)` : « T4 2026 ».
 - `periodName(scale, start)` : « Novembre 2026 », « T4 2026 », « 2026 ».
 - `relativePeriodName(scale, previous)` : « Ce mois-ci », « Le trimestre dernier »…
-- `PeriodState`, `PERIOD_STATES` et `periodState(start, end, now, { endExclusive })` : où en est une période (sprint, évènement, plage) : « À venir » (bleu), « En cours » (vert), « Passée » (gris), décision F.
+- `PeriodState`, `PERIOD_STATES` et `periodState(start, end, now, { endExclusive })` : où en est une période (sprint, évènement, créneau) : « À venir » (bleu), « En cours » (vert), « Passée » (gris), décision F.
 
 ### `week.ts`
 
@@ -163,9 +189,10 @@ eslint interdit `.slice(0, 10)`, `.slice(0, 7)`, `.split('T')[0]` et `new Date('
 - `PdfTableRow` (interface) et `postTablePdf(table)` : PDF d'un tableau (`/api/exports/table.pdf`) : titre, sous-titre, colonnes, lignes (groupes et lignes indentés), alignements.
 - `downloadCsv(lines, title)` : CSV pour tableurs français : points-virgules, virgules décimales, UTF-8 avec BOM, textes entre guillemets.
 
-## Texte, ensembles, clés
+## Texte, liens, ensembles, clés
 
-- `text.ts` : réexports de `@ordo/shared` (seul chemin pour `collator` et `normalize`) : `collator`, `copyName`, `countOf`, `countWith`, `ellipsis`, `nameKey`, `normalize`, `plural`, `sameName`. Voir [Partagé : core](../shared/cross-cutting/core.md) et [Noms](../business-rules/cross-cutting/naming.md).
+- `text.ts` : réexports de `@ordo/shared` (seul chemin pour `collator` et `normalize`) : `collator`, `copyName`, `countOf`, `countWith`, `ellipsis`, `fitName`, `nameKey`, `normalize`, `plural`, `sameName` ; et `removedLinksNote(count)` : fin du message d’un changement de projet qui a retiré des liens, « 2 liens retirés. » (rien sans lien), pour les tâches transférées et les routines déplacées (venu de `features/tasks/lib/bulk-label.ts`). Voir [Partagé : core](../shared/cross-cutting/core.md) et [Noms](../business-rules/cross-cutting/naming.md).
+- `links.ts` : `linkInputs(links)` : liens d'un élément (évènement, tâche, routine) reçus de l'API, renvoyés en entrée (adresse et libellé seuls). Imposé par eslint. Utilisé par `occurrenceInput` (agenda), `routineInputOf`, `RoutineForm`, `TaskLinks`.
 - `sets.ts` : `toggledIn(set, value)` (ensemble avec une valeur basculée), `toggledInList(list, value, on?)` (liste avec une valeur ajoutée en fin ou retirée, ou mise selon `on`). Imposés par eslint.
 - `tagged-key.ts` : `taggedKey(tag, id)` (`<sorte>:<id>`, valeur d'une liste mêlant des sortes : clients et tiers, ids de glisser-déposer), `parseTaggedKey(key)` (l'id peut contenir « : »), `taggedIds(keys, tag)`. Imposés par eslint.
 

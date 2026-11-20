@@ -37,7 +37,7 @@ Suppression (dialogue de confirmation) : « La fiche « … » et ses 3 élémen
 - En-tête : retour « Fiches », titre, badge « Archivée », sous-titre « 3 éléments · rattachée à 2 routines, évènements ou tâches ».
 - Action « Utiliser cette fiche » (pas si archivée).
 - Menu : « Dupliquer » (ouvre la copie), « Archiver » / « Restaurer », « Supprimer » (retour à la liste).
-- Champs enregistrés au fil de l'eau (le texte en quittant le champ) : « Libellé » (requis, 100 caractères au plus ; vide, il revient à l'ancien), « Projet » (« Aucun : fiche de l'espace »), « Catégories », « Note » (20 000 caractères au plus). En lecture seule si la fiche est archivée.
+- Champs enregistrés chacun dès qu'il change (décision D22 ; les textes en les quittant) : « Libellé » (requis, 250 caractères au plus ; vide, l'erreur s'affiche dessous et rien n'est enregistré), « Projet » (« Aucun : fiche de l'espace »), « Catégories », « Note » (texte multiligne, 4 000 caractères au plus). « Enregistrement… » puis « Enregistré » au-dessus ; un échec remet le champ comme il était, dans un toast d'erreur ; un champ changé ailleurs est repris. En lecture seule si la fiche est archivée.
 - Fiche introuvable : page « Cette fiche » introuvable, avec un retour vers « Fiches ».
 
 ### Tableau des éléments
@@ -46,7 +46,7 @@ Vue `sheet-items`. Chaque cellule se modifie sur place, et sur une sélection de
 
 | Colonne (id)   | Libellé                  | Contenu                                                                                                                      |
 | -------------- | ------------------------ | ---------------------------------------------------------------------------------------------------------------------------- |
-| `label`        | « Élément »              | Libellé (200 caractères au plus).                                                                                            |
+| `label`        | « Élément »              | Libellé (250 caractères au plus).                                                                                            |
 | `product`      | « Référence »            | Produit des références (base de produits des achats) ; les produits archivés ne sont plus proposés (sauf celui déjà choisi). |
 | `category`     | « Catégorie »            | Catégorie des achats.                                                                                                        |
 | `quantity`     | « Quantité »             | Nombre, 3 décimales.                                                                                                         |
@@ -57,7 +57,7 @@ Vue `sheet-items`. Chaque cellule se modifie sur place, et sur une sélection de
 | `people`       | « Bénéficiaires »        | Membres et relations.                                                                                                        |
 | `url`          | « Lien vers le produit » | Lien `http` ou `https`.                                                                                                      |
 | `optional`     | « Facultatif »           | Acheté si possible.                                                                                                          |
-| `note`         | « Description »          | Texte.                                                                                                                       |
+| `note`         | « Description »          | Markdown, modifiable dans l'éditeur markdown ouvert dans un popover.                                                         |
 | commentaires   | (colonne commune)        | Nombre de commentaires de l'élément.                                                                                         |
 
 - Recherche : « Rechercher (élément, description) ».
@@ -92,7 +92,7 @@ Voir [Achats](shopping.md).
 Dans le formulaire d'une routine, d'une occurrence d'évènement et le panneau d'une tâche, la section « Fiches » :
 
 - « Chaque occurrence a sa liste à cocher, faite de ces fiches à son ouverture (modifiable ensuite). »
-- Une ligne par fiche : choix de la fiche, multiplicateur (« Fois »), « Retirer » ; « Ajouter une fiche » (désactivé s'il n'en reste aucune à ajouter). Enregistré à chaque changement. Les fiches archivées ne sont plus proposées (celles déjà attachées restent).
+- Une ligne par fiche : choix de la fiche, multiplicateur (« Fois »), « Retirer » ; « Ajouter une fiche » (désactivé s'il n'en reste aucune à ajouter). Enregistré à chaque changement : une fiche choisie, ajoutée ou retirée aussitôt, un multiplicateur en quittant son champ (ou en fermant le panneau pendant sa saisie) ; vidé ou nul, il n'est pas enregistré, « Multiplicateur positif attendu. » dessous. Les fiches archivées ne sont plus proposées (celles déjà attachées restent).
 - Bouton « Liste à cocher » (tâche) ou « Liste à cocher du 10 nov. 2026 » (occurrence en cours de la routine, occurrence de l'évènement) : ouvre la liste dans le panneau latéral (`lg`), titre « Liste à cocher · … · … ».
 
 ## Liste à cocher
@@ -102,7 +102,7 @@ Une liste par occurrence de routine ou d'évènement, une par tâche. Faite à l
 - En-tête : « 2 / 5 faits · lundi 10 novembre 2026 ».
 - « Ajouter une fiche » : même panneau que pour les listes d'achats (sans retrait), éléments additionnés à ceux de la liste.
 - « Refaire depuis les fiches » (confirmation : « La liste sera refaite à partir des fiches : ce qui est coché, ajouté ou modifié dans cette liste sera perdu. », toast « Liste refaite. »).
-- Tableau (vue `checklist`) : « Fait » (case), « Élément », « Quantité », « Unité », « Catégorie », « Consommable » (masquée ; coché, un élément de référence est retiré du stock quand il est coché et rendu quand il est décoché), « Description » (masquée), « Fiches » (d'où vient l'élément ; filtre, regroupement). Les lignes faites sont marquées comme telles.
+- Tableau (vue `checklist`) : « Fait » (case), « Élément », « Quantité », « Unité », « Catégorie », « Consommable » (masquée ; coché, un élément de référence est retiré du stock quand il est coché et rendu quand il est décoché), « Description » (masquée ; markdown, modifiable dans l'éditeur markdown ouvert dans un popover), « Fiches » (d'où vient l'élément ; filtre, regroupement). Les lignes faites sont marquées comme telles.
 - Ligne d'ajout « Ajouter un élément dans … » (élément non consommable par défaut, valeur du groupe reprise).
 - « Retirer » un élément (menu, sans confirmation) ou une sélection (avec confirmation).
 - Sans fiche attachée : « Aucune fiche : ajoutez-en pour faire la liste à cocher. » et le champ des fiches.
@@ -111,7 +111,7 @@ Une liste par occurrence de routine ou d'évènement, une par tâche. Faite à l
 
 « Paramètres des fiches » :
 
-- « Catégories de fiches » : « Classent les fiches (recettes, valises, trousses…) : une fiche peut en avoir plusieurs. » Libellé (60 caractères au plus, unique) et couleur ; usage affiché ; supprimer une catégorie la retire des fiches. Voir [Paramètres](../cross-cutting/settings.md).
+- « Catégories de fiches » : « Classent les fiches (recettes, valises, trousses…) : une fiche peut en avoir plusieurs. » Libellé (250 caractères au plus, unique) et couleur ; usage affiché ; supprimer une catégorie la retire des fiches. Voir [Paramètres](../cross-cutting/settings.md).
 - Les catégories des éléments (celles des achats, aussi dans les paramètres des achats), avec leur usage par produits, éléments de listes et éléments de fiches.
 
 ## PRO et PERSO

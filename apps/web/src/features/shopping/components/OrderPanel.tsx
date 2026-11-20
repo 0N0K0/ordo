@@ -10,7 +10,9 @@ import { useState } from 'react';
 import { BatchMultiSelect } from '../../../components/inputs/BatchMultiSelect';
 import { confirmDestructive } from '../../../components/dialogs/confirm-destructive';
 import { openFormPanel } from '../../../components/panels/panels';
-import { useAppForm, formCallbacks } from '../../../lib/form';
+import { useAppForm, useFieldSave, formCallbacks } from '../../../lib/form';
+import { SaveStatus } from '../../../components/feedback/SaveStatus';
+import { useLocationDraft } from '../../geo/hooks/use-location-draft';
 import * as fmt from '../../../lib/format';
 import { notifySuccess, ON_ERROR } from '../../../lib/notify';
 import { AddressInput, type AddressValue } from '../../geo/components/AddressInput';
@@ -26,45 +28,71 @@ import { EXTERNAL_LINK } from '../../../components/actions/link-props';
 
 type Delivery = ShoppingList['deliveries'][number];
 
+/** Values of the form of a delivery. */
+type DeliveryValues = ShoppingDeliveryInput & Record<string, unknown>;
+
+/** Fields of a delivery saved on leaving them, in its panel (decision D22): its texts and its place. */
+const ON_BLUR = ['label', 'trackingUrl', 'address', 'lat', 'lon'] as const;
+
+/**
+ * Values of the form of a delivery (a new one: the items without delivery).
+ * @param {ShoppingList} list List.
+ * @param {Delivery} [delivery] Delivery, as the cache holds it. Optional.
+ * @returns {DeliveryValues} Values.
+ */
+const deliveryValues = (list: ShoppingList, delivery?: Delivery): DeliveryValues => ({
+  label: delivery?.label ?? null,
+  trackingUrl: delivery?.trackingUrl ?? null,
+  pickup: delivery?.pickup ?? false,
+  windowFrom: delivery?.windowFrom ? delivery.windowFrom : null,
+  windowTo: delivery?.windowTo ? delivery.windowTo : null,
+  address: delivery?.address ?? null,
+  lat: delivery?.lat ?? null,
+  lon: delivery?.lon ?? null,
+  itemIds: list.items.filter((item) => (delivery ? item.deliveryId === delivery.id : !item.deliveryId)).map((item) => item.id),
+});
+
 /**
  * Delivery of a remote order: its name, tracking, to pick up or not, when, where (when other than the place of the
- * order), and the items it brings.
+ * order), and the items it brings. A new one is a form with « Ajouter »; an existing one, its panel, saves each field as
+ * soon as it changes (its texts on leaving them, its place once chosen, cleared or left: decision D22, `useFieldSave`),
+ * the delivery of the cache followed.
  * @param {{ list: ShoppingList, delivery?: Delivery, onDone: () => void }} props List, delivery edited (none: a new one), and what follows.
  * @returns {JSX.Element} Form.
  */
 function DeliveryForm({ list, delivery, onDone }: { list: ShoppingList; delivery?: Delivery; onDone: () => void }) {
   const { createDelivery, updateDelivery } = useStockMutations();
-  const form = useAppForm<ShoppingDeliveryInput & Record<string, unknown>>({
-    initialValues: {
-      label: delivery?.label ?? null,
-      trackingUrl: delivery?.trackingUrl ?? null,
-      pickup: delivery?.pickup ?? false,
-      windowFrom: delivery?.windowFrom ? delivery.windowFrom : null,
-      windowTo: delivery?.windowTo ? delivery.windowTo : null,
-      address: delivery?.address ?? null,
-      lat: delivery?.lat ?? null,
-      lon: delivery?.lon ?? null,
-      itemIds: delivery ? list.items.filter((item) => item.deliveryId === delivery.id).map((item) => item.id) : list.items.filter((item) => !item.deliveryId).map((item) => item.id),
-    },
+  const { data: lists } = useShoppingLists();
+  const currentList = lists?.find((item) => item.id === list.id) ?? list;
+  const current = delivery && (currentList.deliveries.find((item) => item.id === delivery.id) ?? delivery);
+  const base = useAppForm<DeliveryValues>({ initialValues: deliveryValues(list, delivery), schema: shoppingDeliverySchema });
+  const { form, saving, commit } = useFieldSave(base, {
+    save: delivery ? (_changes, input) => updateDelivery.mutateAsync({ id: delivery.id, input }) : null,
     schema: shoppingDeliverySchema,
+    saved: current && deliveryValues(currentList, current),
+    onBlur: ON_BLUR,
   });
   const values = form.getValues();
   const expected = dateRangeProps(formRange(form, 'windowFrom', 'windowTo'));
-  const address: AddressValue = { text: values.address ?? '', point: values.lat !== null && values.lon !== null ? { lat: values.lat, lon: values.lon } : null };
-  const handleSubmit = form.onSubmit((input) => {
-    const callbacks = formCallbacks(form, delivery ? 'Livraison modifiée.' : 'Livraison ajoutée.', onDone);
-    if (delivery) updateDelivery.mutate({ id: delivery.id, input }, callbacks);
-    else createDelivery.mutate({ listId: list.id, input }, callbacks);
+  // Put in the form once chosen, cleared or left (as every place), then saved at once for an existing delivery.
+  // A delivery names its place `address`, `lat`, `lon`.
+  const place = useLocationDraft({ location: values.address, locationLat: values.lat, locationLon: values.lon }, ({ location, locationLat, locationLon }) => {
+    form.setValues({ address: location, lat: locationLat, lon: locationLon });
+    commit(['address', 'lat', 'lon']);
   });
+  // A new delivery only: an existing one is saved field by field (Enter saves the text typed).
+  const handleSubmit = form.onSubmit((input) => createDelivery.mutate({ listId: list.id, input }, formCallbacks(form, 'Livraison ajoutée.', onDone)));
   return (
     <form onSubmit={handleSubmit} noValidate>
       <Stack gap="md">
+        {delivery && <SaveStatus saving={saving} />}
         <TextInput
           label="Libellé"
           placeholder="Colis 1, Drive, Pharmacie…"
-          data-autofocus
+          data-autofocus={delivery ? undefined : true}
           value={values.label ?? ''}
           onChange={(event) => form.setFieldValue('label', event.currentTarget.value || null)}
+          onBlur={() => commit(['label'])}
         />
         <TextInput
           label="Suivi de livraison"
@@ -72,6 +100,7 @@ function DeliveryForm({ list, delivery, onDone }: { list: ShoppingList; delivery
           type="url"
           value={values.trackingUrl ?? ''}
           onChange={(event) => form.setFieldValue('trackingUrl', event.currentTarget.value || null)}
+          onBlur={() => commit(['trackingUrl'])}
           error={form.errors.trackingUrl}
         />
         <Checkbox label="À retirer" description="Point relais, retrait en magasin, consigne… plutôt que livré." {...form.getInputProps('pickup', { type: 'checkbox' })} />
@@ -83,11 +112,12 @@ function DeliveryForm({ list, delivery, onDone }: { list: ShoppingList; delivery
           label={values.pickup ? 'Lieu de retrait' : 'Lieu de livraison'}
           description={list.deliveryAddress ? `Vide : ${list.deliveryAddress}.` : undefined}
           placeholder="Si différent de celui de la commande"
-          value={address}
-          onChange={(next) => form.setValues({ address: next.text || null, lat: next.point?.lat ?? null, lon: next.point?.lon ?? null })}
+          value={place.value}
+          onChange={place.onChange}
+          onBlur={place.leave}
         />
-        <BatchMultiSelect label="Éléments de la livraison" data={list.items.map((item) => ({ value: item.id, label: item.label }))} searchable clearable {...form.getInputProps('itemIds')} />
-        <FormActions onCancel={onDone} submitLabel={delivery ? 'Enregistrer' : 'Ajouter'} loading={createDelivery.isPending || updateDelivery.isPending} />
+        <BatchMultiSelect label="Éléments de la livraison" data={currentList.items.map((item) => ({ value: item.id, label: item.label }))} searchable clearable {...form.getInputProps('itemIds')} />
+        {!delivery && <FormActions onCancel={onDone} submitLabel="Ajouter" loading={createDelivery.isPending} />}
       </Stack>
     </form>
   );
@@ -131,6 +161,7 @@ function OrderFields({ list }: { list: ShoppingList }) {
             onChange={(next) => {
               setAddress(next);
               // Saved once a proposed address is chosen, or when the text is cleared.
+              // eslint-disable-next-line no-restricted-syntax -- the address of an order, not the location of an item.
               if (next.point || !next.text.trim()) save(true, next);
             }}
           />

@@ -4,7 +4,7 @@ import { z } from 'zod';
 import { prisma } from '../../db';
 import { currentWorkspaceId } from '../../workspace-context';
 import { currentWorkspaceFields } from '../workspaces/current-workspace';
-import { fileName, LOCALE } from '@ordo/shared';
+import { fileName, LOCALE, TEXT_MAX } from '@ordo/shared';
 import { PARIS } from '../../today';
 
 /** A PDF document being written (pdfkit). */
@@ -56,10 +56,15 @@ export function createPdf({ title, author, ...options }: PdfOptions): { doc: Pdf
   return { doc, end };
 }
 
+/** Most characters of a printed label or title, as the app sends it (a label of `TEXT_MAX` and words around it): a bound of the request, not a field. */
+export const PRINTED_LABEL_MAX = 2 * TEXT_MAX;
+/** Most characters of a printed cell, as the app sends it. */
+export const PRINTED_CELL_MAX = 5000;
+
 /** Title and subtitle of an export, as the app sends them. */
 export const reportHeadingSchema = z.object({
-  title: z.string().trim().min(1).max(200),
-  subtitle: z.string().max(500).default(''),
+  title: z.string().trim().min(1).max(PRINTED_LABEL_MAX),
+  subtitle: z.string().max(PRINTED_LABEL_MAX).default(''),
 });
 
 /**

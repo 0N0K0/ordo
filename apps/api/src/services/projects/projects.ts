@@ -9,6 +9,8 @@ import { BY_POSITION, moveInOrder, nextPositionIn } from '../core/ordering';
 import { findOrNotFound } from '../core/lookup';
 import { assertDateRange } from '../core/date-range';
 import { connectIds } from '../core/relations';
+import { releaseProjectTasks } from '../tasks/tasks';
+import { releaseProjectTime } from '../tasks/time-entries';
 
 /** Minimal project shape used to reason about the tree. */
 interface TreeProject {
@@ -359,14 +361,29 @@ export async function setProjectArchived(id: string, archived: boolean): Promise
 }
 
 /**
- * Deletes a project and its whole sub-tree.
+ * Takes out of projects about to be deleted what outlives them (decision DP): their tasks (`releaseProjectTasks`) and
+ * their time, without project (`releaseProjectTime`: only the time left with nothing attached is deleted, decision
+ * D17); their alarms are kept by the database (`onDelete: SetNull`).
+ * @param {string[]} projectIds Projects deleted (a project and its sub-projects, or the projects of a client).
+ * @returns {Promise<void>}
+ */
+export async function releaseProjects(projectIds: string[]): Promise<void> {
+  await releaseProjectTasks(projectIds);
+  await releaseProjectTime(projectIds);
+}
+
+/**
+ * Deletes a project and its whole sub-tree. Their tasks are not deleted: they leave the project, as in a transfer out
+ * of any project (`releaseProjects`).
  * @param {string} id Project id.
  * @returns {Promise<void>}
  */
 export async function deleteProject(id: string): Promise<void> {
   const project = await findProject(id);
   const tree = await ProjectTree.load();
-  const iconIds = [project.iconId, ...tree.descendants(id).map((descendant) => descendant.iconId)];
+  const descendants = tree.descendants(id);
+  const iconIds = [project.iconId, ...descendants.map((descendant) => descendant.iconId)];
+  await releaseProjects([id, ...descendants.map((descendant) => descendant.id)]);
   // Sub-projects are removed by the ON DELETE CASCADE of the parent relation.
   await prisma.project.delete({ where: { id } });
   await deleteOrphanIcons(iconIds);

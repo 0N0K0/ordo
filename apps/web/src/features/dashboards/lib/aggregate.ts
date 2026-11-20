@@ -5,6 +5,7 @@ import {
   type CalendarScale,
   calendarStart,
   type ChartBucket,
+  chartConfigSchema,
   type ChartConfig,
   type ChartDimension,
   type ChartGroupDimension,
@@ -18,6 +19,7 @@ import {
   sumOf,
   joinedKey,
   type SeriesType,
+  defaultChartConfig,
 } from '@ordo/shared';
 import * as fmt from '../../../lib/format';
 import { periodName, quarterName, relativePeriodName } from '../../../lib/periods';
@@ -107,6 +109,16 @@ export function measureLabel(source: ChartSource, measure: ChartMeasure): string
 export function countLabel(config: ChartConfig, count: number): string {
   const noun = config.source === 'tasks' ? 'tâche' : config.source === 'documents' ? 'document' : config.measure === 'balance' ? 'point' : 'mouvement';
   return countOf(count, noun);
+}
+
+/**
+ * Stored configuration of a chart, or the defaults when it no longer validates.
+ * @param {unknown} config Stored configuration.
+ * @returns {ChartConfig} Configuration.
+ */
+export function parseConfig(config: unknown): ChartConfig {
+  const result = chartConfigSchema.safeParse(config);
+  return result.success ? result.data : defaultChartConfig();
 }
 
 /** Title of a new chart, by source. */

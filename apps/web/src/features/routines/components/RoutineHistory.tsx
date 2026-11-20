@@ -65,7 +65,8 @@ export function RoutineHistory({ routineId, onRoutine }: { routineId: string | n
   const routines = routinesData?.routines ?? [];
   const byId = mapById(routines);
   const items = historyItems(
-    (occurrences ?? []).filter((occurrence) => occurrence.date === day && (!routineId || occurrence.routineId === routineId)),
+    // A cancelled occurrence is not planned (struck through in the calendar).
+    (occurrences ?? []).filter((occurrence) => occurrence.date === day && !occurrence.cancelled && (!routineId || occurrence.routineId === routineId)),
     (checks ?? []).filter((check) => check.date === day && (!routineId || check.routineId === routineId)),
     byId,
   );
@@ -108,14 +109,14 @@ export function RoutineHistory({ routineId, onRoutine }: { routineId: string | n
       </Group>
       <Group gap="sm" grow preventGrowOverflow={false}>
         <BatchMultiSelect
-          label="Plages"
+          label="Créneaux"
           placeholder={layers.scheduleIds.length ? undefined : 'Aucune'}
           data={layerOptions.schedules}
           value={layers.scheduleIds}
           onChange={(scheduleIds) => setLayers((current) => ({ ...current, scheduleIds }))}
           searchable
           clearable
-          nothingFoundMessage="Aucune plage (voir Agenda › Paramètres)"
+          nothingFoundMessage="Aucun créneau (voir Agenda › Paramètres)"
         />
         <BatchMultiSelect
           label="Calendriers"

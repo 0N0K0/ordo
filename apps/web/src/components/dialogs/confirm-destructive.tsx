@@ -1,6 +1,6 @@
 import { Stack } from '@mantine/core';
 import type { ReactNode } from 'react';
-import { notifySuccess, onMutationError } from '../../lib/notify';
+import { ActionDeclined, notifySuccess, onMutationError } from '../../lib/notify';
 import { DestructiveActions, DestructiveRisks } from './DestructiveActions';
 import { openModal } from '../panels/open-modal';
 
@@ -19,6 +19,8 @@ interface ConfirmDestructiveOptions {
   run?: () => Promise<unknown>;
   /** Success message of `run` (« Alarme supprimée. »). Optional. Default = no toast. */
   done?: string;
+  /** What follows a refusal (Cancel, Escape, a click outside). Optional. */
+  onCancel?: () => void;
 }
 
 /**
@@ -27,8 +29,11 @@ interface ConfirmDestructiveOptions {
  * @param {ConfirmDestructiveOptions} options Dialog.
  * @returns {void}
  */
-export function confirmDestructive({ title, risks, confirmLabel, confirmIcon, onConfirm, run, done }: ConfirmDestructiveOptions): void {
-  openModal(title, (close) => (
+export function confirmDestructive({ title, risks, confirmLabel, confirmIcon, onConfirm, run, done, onCancel }: ConfirmDestructiveOptions): void {
+  let confirmed = false;
+  openModal(
+    title,
+    (close) => (
     <Stack gap="md">
       <DestructiveRisks>{risks}</DestructiveRisks>
       <DestructiveActions
@@ -36,11 +41,25 @@ export function confirmDestructive({ title, risks, confirmLabel, confirmIcon, on
         confirmIcon={confirmIcon}
         onCancel={close}
         onConfirm={() => {
+          confirmed = true;
           close();
           onConfirm?.();
           run?.().then(() => done && notifySuccess(done), onMutationError);
         }}
       />
     </Stack>
-  ));
+    ),
+    { onClose: () => !confirmed && onCancel?.() },
+  );
+}
+
+/**
+ * Asks for the confirmation of a destructive action and waits for the answer; declined (Cancel, Escape, a click
+ * outside): `ActionDeclined` (silent in the error toasts), so that the caller's change stops there.
+ * @param {Pick<ConfirmDestructiveOptions, 'title' | 'risks' | 'confirmLabel' | 'confirmIcon'>} options Dialog.
+ * @returns {Promise<void>} Resolved once confirmed.
+ */
+export async function confirmedDestructive(options: Pick<ConfirmDestructiveOptions, 'title' | 'risks' | 'confirmLabel' | 'confirmIcon'>): Promise<void> {
+  const confirmed = await new Promise<boolean>((resolve) => confirmDestructive({ ...options, onConfirm: () => resolve(true), onCancel: () => resolve(false) }));
+  if (!confirmed) throw new ActionDeclined();
 }

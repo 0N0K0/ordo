@@ -1,9 +1,9 @@
 import { MONTH_LABELS, ofMonth, opensFits, ordinal, POSITION_LABELS, WEEKDAY_LABELS, type Recurrence, type RoutineOpens } from '@ordo/shared';
 
 /**
- * « À partir du » in words, without « dès »: « le 15 du mois », « le 15 mars », « le 2e mardi du mois », « le lundi
+ * « Ouverture » in words, without « dès »: « le 15 du mois », « le 15 mars », « le 2e mardi du mois », « le lundi
  * de la semaine 12 », « 3 jours avant l’échéance ».
- * @param {RoutineOpens} opens « À partir du ».
+ * @param {RoutineOpens} opens « Ouverture ».
  * @param {Recurrence['frequency']} frequency Frequency of its rule.
  * @returns {string} Words (empty when it does not fit the frequency).
  */

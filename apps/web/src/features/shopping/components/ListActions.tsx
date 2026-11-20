@@ -5,18 +5,20 @@ import { confirmDestructive } from '../../../components/dialogs/confirm-destruct
 import { Stack, Text, TextInput, UnstyledButton } from '@mantine/core';
 import { useDebouncedValue } from '@mantine/hooks';
 import { byPosition, shoppingListFormSchema } from '@ordo/shared';
-import { ArrowCounterClockwiseIcon, BankIcon, CheckCircleIcon, CopyIcon, FilePdfIcon, PencilSimpleIcon, TextAlignLeftIcon, TrashIcon } from '@phosphor-icons/react';
+import { ArrowCounterClockwiseIcon, BankIcon, CheckCircleIcon, FilePdfIcon, PencilSimpleIcon, TextAlignLeftIcon, TrashIcon } from '@phosphor-icons/react';
 import { useState } from 'react';
 import { useNavigate } from 'react-router';
 import { z } from 'zod';
 import { BatchMultiSelect } from '../../../components/inputs/BatchMultiSelect';
 import { ActionsMenu, type RowMenuEntry } from '../../../components/actions/ActionsMenu';
-import { useAppForm, formCallbacks } from '../../../lib/form';
+import { useAppForm, useFieldSave, formCallbacks } from '../../../lib/form';
+import { SaveStatus } from '../../../components/feedback/SaveStatus';
+import { duplicateRowsAction, rowMenuEntry } from '../../../components/data-table/selection/selection-actions';
 import { notifyError, notifySuccess, onMutationError, toastCallbacks } from '../../../lib/notify';
 import { archiveEntry, useSetArchived } from '../../../lib/archive';
 import { useTaskContext } from '../../tasks/hooks/use-task-context';
 import { useTreasuryEntrySearch } from '../../treasury/api';
-import { shoppingKey, useShoppingData, useShoppingMutations, type ShoppingList } from '../api';
+import { shoppingKey, useShoppingData, useShoppingLists, useShoppingMutations, type ShoppingList } from '../api';
 import { downloadShoppingPdf, shoppingText } from '../lib/export';
 import { openFormPanel } from '../../../components/panels/panels';
 import { listClosed, shoppingRows, taskOptions, usePeople, type ShoppingGrouping } from '../lib/shopping-format';
@@ -28,18 +30,31 @@ import { shoppingListPath } from '../../../app/pages';
 
 const listSchema = shoppingListFormSchema;
 
+/** Values of the panel of a list. */
+type ListValues = z.input<typeof listSchema>;
+
 /**
- * Name and tasks of a list.
- * @param {{ list: ShoppingList, onDone: () => void }} props Component props.
- * @returns {JSX.Element} Form.
+ * Name and tasks of a list, each saved as soon as it changes (the name on leaving it, decision D22, `useFieldSave`),
+ * the list of the cache followed.
+ * @param {{ list: ShoppingList }} props Component props.
+ * @returns {JSX.Element} Panel.
  */
-function ListForm({ list, onDone }: { list: ShoppingList; onDone: () => void }) {
+function ListForm({ list }: { list: ShoppingList }) {
   const { context } = useTaskContext();
   const { updateList } = useShoppingMutations();
-  const form = useAppForm<z.input<typeof listSchema>>({ initialValues: { label: list.label, taskIds: list.taskIds }, schema: listSchema });
+  const { data: lists } = useShoppingLists();
+  const current = lists?.find((item) => item.id === list.id) ?? list;
+  const base = useAppForm<ListValues>({ initialValues: { label: list.label, taskIds: list.taskIds }, schema: listSchema });
+  const { form, saving } = useFieldSave(base, {
+    save: (_changes, values) => updateList.mutateAsync({ id: list.id, label: values.label, taskIds: values.taskIds }),
+    schema: listSchema,
+    saved: { label: current.label, taskIds: current.taskIds },
+    onBlur: ['label'],
+  });
   return (
-    <form noValidate onSubmit={form.onSubmit((values) => updateList.mutate({ id: list.id, label: values.label, taskIds: values.taskIds }, formCallbacks(form, 'Liste modifiée.', onDone)))}>
+    <form noValidate onSubmit={form.onSubmit(() => undefined)}>
       <Stack gap="md">
+        <SaveStatus saving={saving} />
         <TextInput label="Libellé" required data-autofocus {...form.getInputProps('label')} />
         {/* The tasks of the list stay offered, even closed. */}
         <BatchMultiSelect
@@ -52,7 +67,6 @@ function ListForm({ list, onDone }: { list: ShoppingList; onDone: () => void }) 
           disabled={!context}
           {...form.getInputProps('taskIds')}
         />
-        <FormActions onCancel={onDone} loading={updateList.isPending} />
       </Stack>
     </form>
   );
@@ -160,7 +174,7 @@ function useListActions(list: ShoppingList, grouping: ShoppingGrouping, onDelete
   if (list.archived) return [...exports, 'divider', archive, remove];
 
   return [
-    { label: 'Renommer, changer de tâche', icon: <PencilSimpleIcon aria-hidden />, onClick: () => openFormPanel('Modifier la liste', (close) => <ListForm list={list} onDone={close} />) },
+    { label: 'Renommer, changer de tâche', icon: <PencilSimpleIcon aria-hidden />, onClick: () => openFormPanel('Modifier la liste', () => <ListForm list={list} />) },
     list.entryId
       ? {
           label: 'Détacher du mouvement',
@@ -172,15 +186,8 @@ function useListActions(list: ShoppingList, grouping: ShoppingGrouping, onDelete
           icon: <BankIcon aria-hidden />,
           onClick: () => openFormPanel('Rattacher à un mouvement de trésorerie', (close) => <EntryPicker list={list} onDone={close} />),
         },
-    {
-      label: 'Dupliquer',
-      icon: <CopyIcon aria-hidden />,
-      onClick: () =>
-        mutations.duplicateList.mutate(
-          { id: list.id },
-          formCallbacks(null, 'Liste dupliquée.', (copyId: string) => navigate(shoppingListPath(copyId))),
-        ),
-    },
+    // Saved at once, then its page opens (decision D20).
+    rowMenuEntry(duplicateRowsAction([list], { duplicate: (source) => mutations.duplicateList.mutateAsync({ id: source.id }), done: 'Liste dupliquée.', open: (copyId) => void navigate(shoppingListPath(copyId)) })),
     'divider',
     ...exports,
     'divider',

@@ -1,47 +1,49 @@
 import { useSearchParam } from '../../../lib/search-params';
 import { AddItemButton } from '../../../components/actions/AddItemButton';
-import { IconAction } from '../../../components/actions/IconAction';
 import { PAGES, projectPath } from '../../../app/pages';
 import { TaskProgress } from './TaskProgress';
 import { SubSection } from '../../../components/page/SubSection';
-import { FormActions } from '../../../components/dialogs/FormActions';
 import { ArchivedBadge } from '../../../components/feedback/ArchivedBadge';
+import { SaveStatus } from '../../../components/feedback/SaveStatus';
+import { useAppForm, useFieldSave } from '../../../lib/form';
 
 import { EmptyState } from '../../../components/feedback/EmptyState';
 import { DetailSkeleton } from '../../../components/feedback/Skeletons';
 import { SidePanel } from '../../../components/panels/SidePanel';
 import { Anchor, Badge, Divider, Fieldset, Grid, Group, Select, Stack, Text } from '@mantine/core';
 import { DatePickerInput } from '@mantine/dates';
-import { readSlotRule, taskLabelSchema, subtreeOf } from '@ordo/shared';
+import { effortFormSchema, readSlotCondition, taskLabelSchema, subtreeOf } from '@ordo/shared';
 import { ArrowCounterClockwiseIcon, CheckCircleIcon, GithubLogoIcon, PencilSimpleIcon, ArrowsLeftRightIcon } from '@phosphor-icons/react';
 import { useState } from 'react';
 import { Link } from 'react-router';
 
-import { MarkdownEditor } from '../../../components/markdown/MarkdownEditor';
-import { MarkdownView } from '../../../components/markdown/MarkdownView';
 import { localToday } from '../../../lib/dates';
 import { ON_ERROR, onMutationError, toastCallbacks } from '../../../lib/notify';
 import { confirmDestructive } from '../../../components/dialogs/confirm-destructive';
-import { useBulkTaskMutations, useSetTasksClosed, useTaskBlock, useTaskRelation, useUpdateTask, type Task, type TaskInputValues } from '../api';
+import { useBulkTaskMutations, useTaskBlock, useTaskRelation, useUpdateTask, type Task, type TaskInputValues } from '../api';
 import { TaskAlarms } from '../../alarms/components/TaskAlarms';
 import { TaskShopping } from '../../shopping/components/TaskShopping';
 import { SheetsSection } from '../../sheets/components/SheetsSection';
 import { TaskTime } from '../../time/components/TaskTime';
 import { TaskComments } from './TaskComments';
-import { TaskRecurrence } from './TaskRecurrence';
-import { linkableTasks } from '../lib/task-links';
+import { inProjectTree, linkableTasks } from '../lib/task-links';
 import { AssigneesSelect, LabelSelect, ProjectSelect, TagsSelect, TaskRef, TaskSelect, TaskStateIcon } from './task-ui';
 import { useTaskActions } from '../hooks/use-task-actions';
 
 import { type TaskContext, taskName, taskNumber, useTaskContext } from '../hooks/use-task-context';
 import { TASK_PARAM, useTaskLink } from '../hooks/use-task-link';
 import { BatchMultiSelect } from '../../../components/inputs/BatchMultiSelect';
-import { SlotRuleInput } from '../../calendar/components/SlotRuleInput';
+import { SlotConditionBuilder } from '../../calendar/components/SlotConditionBuilder';
 import { BeneficiariesSelect } from '../../beneficiaries/components/BeneficiariesSelect';
-import { removedLinksNote } from '../lib/bulk-label';
+import { removedLinksNote } from '../../../lib/text';
 import { dateRangeProps } from '../../../components/inputs/date-range';
 import { DetailHeader } from '../../../components/page/DetailHeader';
 import { EffortInput } from './EffortInput';
+import { TaskLinks } from './TaskLinks';
+import { TaskDescription } from './TaskDescription';
+import { TaskLocation } from './TaskLocation';
+import { TaskReminders } from './TaskReminders';
+import { sprintDateHint } from '../lib/sprint-dates';
 import { DetailNotFound } from '../../../components/feedback/DetailNotFound';
 import { ActionButton } from '../../../components/actions/ActionButton';
 import { RemoveButton } from '../../../components/actions/RemoveButton';
@@ -108,20 +110,20 @@ interface TaskDetailProps {
 }
 
 /**
- * Detail of a task: title, description, sub-tasks and comments, with properties and links on the side. An archived
+ * Detail of a task: title, description, links, sub-tasks and comments, with properties (location included) and links
+ * to other tasks on the side. An archived
  * task is read only (its fields disabled; « Restaurer » in its menu).
  * @param {TaskDetailProps} props Component props.
  * @returns {JSX.Element} Detail.
  */
 function TaskDetail({ task, context }: TaskDetailProps) {
   const updateTask = useUpdateTask();
-  const setClosed = useSetTasksClosed();
   const { transfer: transferTask } = useBulkTaskMutations();
   const taskBlock = useTaskBlock();
   const taskRelation = useTaskRelation();
   const actions = useTaskActions(context);
-  const [description, setDescription] = useState<string | null>(null);
   const locked = task.archived;
+  const closeAction = actions.close(task);
 
   /**
    * Saves a change right away.
@@ -130,8 +132,23 @@ function TaskDetail({ task, context }: TaskDetailProps) {
    * @returns {void}
    */
   const save = (input: Omit<TaskInputValues, 'projectId'>, onSuccess?: () => void) => updateTask.mutate({ id: task.id, input }, { onSuccess, onError: onMutationError });
+  /**
+   * Saves a change and tells when it is done (the description and the links: their failure is told by useFieldSave).
+   * @param {Omit<TaskInputValues, 'projectId'>} input Changed fields.
+   * @returns {Promise<unknown>} Saved task.
+   */
+  const saveNow = (input: Omit<TaskInputValues, 'projectId'>) => updateTask.mutateAsync({ id: task.id, input });
   const dates = dateRangeProps({ value: [task.startDate, task.endDate], onChange: ([startDate, endDate]) => save({ startDate, endDate }) });
   const overdue = isTaskOverdue(task, localToday());
+  // The effort: saved on leaving it (decision D22), also when the panel closes while it is typed.
+  const effortBase = useAppForm<{ effort: number | '' }>({ initialValues: { effort: task.effort ?? '' }, schema: effortFormSchema });
+  const effort = useFieldSave(effortBase, {
+    save: ({ effort: value }) => saveNow({ effort: typeof value === 'number' ? value : null }),
+    schema: effortFormSchema,
+    saved: { effort: task.effort ?? '' },
+    onBlur: ['effort'],
+    readOnly: locked,
+  });
   const doable = dateRangeProps({ value: [task.minDate, task.deadline], onChange: ([minDate, deadline]) => save({ minDate, deadline }) });
 
   /**
@@ -170,7 +187,7 @@ function TaskDetail({ task, context }: TaskDetailProps) {
       );
     const linked =
       task.parentId !== null || task.blockingIds.length + task.blockedByIds.length + task.relatedIds.length > 0 || task.milestoneId !== null || task.sprintIds.length > 0 || subtasks.length > 0;
-    if (context.rootOf(projectId) === context.rootOf(task.projectId) || !linked) return transfer();
+    if (inProjectTree(context, projectId)(task.projectId) || !linked) return transfer();
     confirmDestructive({
       title: 'Changer de projet',
       risks: (
@@ -193,7 +210,10 @@ function TaskDetail({ task, context }: TaskDetailProps) {
           compact
           title={
             <>
-              {task.label}{' '}
+              {/* Cancelled (status « Annulé », decision D23): struck through. */}
+              <Text span inherit td={task.cancelled ? 'line-through' : undefined}>
+                {task.label}
+              </Text>{' '}
               <Text span c="dimmed" inherit fw={400}>
                 {taskNumber(task)}
               </Text>
@@ -216,8 +236,9 @@ function TaskDetail({ task, context }: TaskDetailProps) {
                   priority="secondary"
                   size="xs"
                   icon={task.closed ? <ArrowCounterClockwiseIcon aria-hidden /> : <CheckCircleIcon aria-hidden />}
-                  loading={setClosed.isPending}
-                  onClick={() => setClosed.mutate({ ids: [task.id], closed: !task.closed }, ON_ERROR)}
+                  // As the selection and the menu: told in a toast with « Annuler ».
+                  loading={closeAction.loading}
+                  onClick={closeAction.onClick}
                 >
                   {task.closed ? 'Rouvrir' : 'Fermer la tâche'}
                 </ActionButton>
@@ -240,35 +261,9 @@ function TaskDetail({ task, context }: TaskDetailProps) {
       <Grid gap="xl">
         <Grid.Col span={{ base: 12, md: 8 }}>
           <Stack gap="lg">
-            <SubSection
-              title="Description"
-              gap="xs"
-              action={
-                description === null &&
-                !locked && (
-                  <IconAction label="Modifier la description" size="sm" onClick={() => setDescription(task.description ?? '')}>
-                    <PencilSimpleIcon aria-hidden />
-                  </IconAction>
-                )
-              }
-            >
-              {description === null ? (
-                <MarkdownView targets={context.targetsFor(task.projectId)} onChange={locked ? undefined : (next) => save({ description: next })}>
-                  {task.description}
-                </MarkdownView>
-              ) : (
-                <Stack gap="xs">
-                  <MarkdownEditor
-                    value={description}
-                    onChange={setDescription}
-                    suggestions={context.suggestionsFor(task.projectId)}
-                    autoFocus
-                    onSubmitShortcut={() => save({ description: description || null }, () => setDescription(null))}
-                  />
-                  <FormActions size="xs" onCancel={() => setDescription(null)} onSubmit={() => save({ description: description || null }, () => setDescription(null))} loading={updateTask.isPending} />
-                </Stack>
-              )}
-            </SubSection>
+            <TaskDescription task={task} context={context} locked={locked} save={saveNow} />
+
+            <TaskLinks task={task} locked={locked} save={saveNow} />
 
             <SubSection
               title={
@@ -307,6 +302,8 @@ function TaskDetail({ task, context }: TaskDetailProps) {
           {/* An archived task: every field and action of the side disabled. */}
           <Fieldset variant="unstyled" disabled={locked}>
             <Stack gap="md">
+              {/* Each field saved as soon as it changes (decision D22): the state of the saves. */}
+              {!locked && <SaveStatus saving={updateTask.isPending || transferTask.isPending || effort.saving} />}
               <ProjectSelect context={context} label="Projet" placeholder="Sans projet" clearable value={task.projectId} onChange={changeProject} disabled={transferTask.isPending} />
               <LabelSelect kind="status" label="Statut" labels={context.statuses} value={task.statusId} onChange={(statusId) => save({ statusId })} />
               <LabelSelect kind="priority" label="Priorité" labels={context.priorities} value={task.priorityId} onChange={(priorityId) => save({ priorityId })} />
@@ -314,24 +311,15 @@ function TaskDetail({ task, context }: TaskDetailProps) {
               <AssigneesSelect contributors={context.assignableFor([task.projectId], task.assigneeIds)} value={task.assigneeIds} onChange={(assigneeIds) => save({ assigneeIds })} />
               <TagsSelect tags={context.tags} value={task.tagIds} onChange={(tagIds) => save({ tagIds })} />
               <BeneficiariesSelect value={{ beneficiaryIds: task.beneficiaryIds, beneficiaryRelationIds: task.beneficiaryRelationIds }} onChange={(beneficiaries) => save(beneficiaries)} />
-              <EffortInput
-                key={`effort-${task.effort}`}
-                defaultValue={task.effort ?? ''}
-                onBlur={(event) => {
-                  const raw = event.currentTarget.value.replace(',', '.').trim();
-                  const effort = raw === '' ? null : Number(raw);
-                  if (effort !== task.effort && (effort === null || Number.isFinite(effort))) save({ effort });
-                }}
-              />
+              <EffortInput {...effort.form.getInputProps('effort')} />
               <TaskTime task={task} />
-              <TaskRecurrence task={task} context={context} />
               <Group grow gap="xs">
                 <DatePickerInput label="Début" clearable placeholder="—" {...dates.start} />
                 <DatePickerInput label="Fin" clearable placeholder="—" {...dates.end} />
               </Group>
-              <DatePickerInput label="Date min" description="Avant, la tâche n’est pas à faire." clearable placeholder="—" {...doable.start} />
+              <DatePickerInput label="Ouverture" description="Avant, la tâche n’est pas à faire." clearable placeholder={sprintDateHint(task, 'minDate') ?? '—'} {...doable.start} />
               <DatePickerInput
-                label="Date max"
+                label="Échéance"
                 description={
                   <>
                     Au-delà, la tâche ouverte est en retard.
@@ -344,9 +332,10 @@ function TaskDetail({ task, context }: TaskDetailProps) {
                   </>
                 }
                 clearable
-                placeholder="—"
+                placeholder={sprintDateHint(task, 'deadline') ?? '—'}
                 {...doable.end}
               />
+              <TaskReminders value={task.reminders} minDate={task.effectiveMinDate} deadline={task.effectiveDeadline} disabled={locked} onChange={(reminders) => save({ reminders })} />
               <TaskSelect
                 context={context}
                 labelOf={(candidate) => context.taskLabel(candidate, task.projectId)}
@@ -376,7 +365,8 @@ function TaskDetail({ task, context }: TaskDetailProps) {
                 searchable
                 nothingFoundMessage="Aucun sprint dans ce projet"
               />
-              <SlotRuleInput value={readSlotRule(task.slotRule)} onChange={(slotRule) => save({ slotRule })} />
+              <SlotConditionBuilder item="task" value={readSlotCondition(task.slotCondition)} onChange={(slotCondition) => save({ slotCondition })} />
+              <TaskLocation task={task} save={save} />
               <Divider />
               <LinkList
                 label="Bloque"

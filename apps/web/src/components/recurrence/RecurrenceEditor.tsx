@@ -4,7 +4,6 @@ import { Chip, Group, NumberInput, SegmentedControl, Select, Stack, Text } from 
 import { DatePickerInput } from '@mantine/dates';
 import { DEFAULT_RECURRENCE, ruleValues, withRuleValues, type Recurrence, type RecurrenceFrequency, WEEKDAY_SHORT_LABELS, weekdayOptions, monthOptions, positionOptions } from '@ordo/shared';
 import { PauseIcon } from '@phosphor-icons/react';
-import type { ReactNode } from 'react';
 import { DeletedDates } from './DeletedDates';
 import { describeRecurrence } from './describe-recurrence';
 import { RemoveButton } from '../actions/RemoveButton';
@@ -32,18 +31,15 @@ interface RecurrenceEditorProps {
   weekly?: boolean;
   /** « Ne se répète pas » offered. Optional. Default = true. */
   allowNone?: boolean;
-  /** Exceptions of what repeats (occurrences moved or changed), listed after the deleted dates. Optional. */
-  exceptions?: ReactNode;
 }
 
 /**
  * Rule of a repetition: frequency, interval, weekdays and even / odd weeks, the day of the month or of the year
- * (chosen, prefilled from the first date), end (date or number), paused periods, deleted dates and the exceptions of
- * what repeats, with a readable summary.
+ * (chosen, prefilled from the first date), end (date or number), paused periods and deleted dates, with a readable summary.
  * @param {RecurrenceEditorProps} props Component props.
  * @returns {JSX.Element} Editor.
  */
-export function RecurrenceEditor({ value, onChange, start, withinPortal = true, weekly = true, allowNone = true, exceptions }: RecurrenceEditorProps) {
+export function RecurrenceEditor({ value, onChange, start, withinPortal = true, weekly = true, allowNone = true }: RecurrenceEditorProps) {
   const comboboxProps = { withinPortal };
   const rule = value;
   const values = rule ? ruleValues(rule, start) : null;
@@ -249,8 +245,6 @@ export function RecurrenceEditor({ value, onChange, start, withinPortal = true, 
           </LabeledField>
 
           <DeletedDates dates={rule.exceptions} onChange={(dates) => update({ exceptions: dates })} />
-
-          {exceptions}
 
           <Text size="sm" c="dimmed">
             {describeRecurrence(rule, start, weekly)}.

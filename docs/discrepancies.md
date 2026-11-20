@@ -14,10 +14,11 @@ Corrigés par le commit `5e1bc2de`.
 L’API accepte ce que l’interface empêche.
 
 - **Liste de courses clôturée :** lecture seule dans l’interface ; l’API ne refuse les changements que si la liste est archivée. Voir [Achats](features/supplies/shopping.md) et [Règles des achats](business-rules/supplies/shopping.md).
-- **Copie d’une tâche archivée :** `cloneTask` ne refuse pas une source archivée ; l’interface ne propose la copie que sur les tâches non archivées. Voir [Règles des tâches](business-rules/activities/tasks.md).
+- **Copie d’une tâche archivée :** `duplicateTask` ne refuse pas une source archivée ; l’interface ne propose la copie que sur les tâches non archivées. Voir [Règles des tâches](business-rules/activities/tasks.md).
 - **Déplacement d’un projet archivé :** `moveProject` l’accepte ; l’interface ne le propose pas. Voir [Règles des projets](business-rules/cross-cutting/projects.md).
-- **Dates min / max d’une tâche :** l’ordre « Date min » / « Date max » n’est vérifié que par le formulaire (`taskFormSchema`) ; l’API (`assertDateRange`) ne vérifie que début / fin. Voir [Règles des tâches](business-rules/activities/tasks.md).
+- **Ouverture et échéance d’une tâche :** l’ordre « Ouverture » / « Échéance » n’est vérifié que par le formulaire (`taskFormSchema`) ; l’API (`assertDateRange`) ne vérifie que début / fin. Voir [Règles des tâches](business-rules/activities/tasks.md).
 - **Inventaire :** l’API ne vérifie pas que les articles comptés sont dans l’emplacement choisi ; seule l’interface les filtre. Voir [Règles du stock](business-rules/supplies/stock.md).
+- **Occurrence seule d’un évènement récurrent :** `updateCalendarEvent` en `THIS` ignore sans erreur les champs de la série reçus (répétition, calendrier, projet, contributeurs, bénéficiaires, relations, catégories, tâches, rappels) ; depuis le lot 14a, le panneau les met en lecture seule quand il est ouvert sur « Cette occurrence ». Voir [Règles de l’agenda](business-rules/activities/calendar.md) et [Agenda](features/activities/calendar.md).
 
 ## Archivage incomplet
 
@@ -28,7 +29,7 @@ L’API accepte ce que l’interface empêche.
 
 ## Incohérences entre le web et l’API
 
-- **Nom d’un dossier mail :** 255 caractères au plus côté web (`FOLDER_NAME`), 100 côté API. Voir [Code web des mails](web/features/resources/mail.md).
+- **Éditeur d’un texte selon sa taille (décision DO) :** l’introduction et la conclusion d’un document comptable et la description d’un projet ou d’un produit du catalogue sont imprimées ou affichées en markdown mais saisies dans une zone de texte simple. Voir [Nommage](business-rules/cross-cutting/naming.md).
 - **Dossier de recherche créé depuis un projet :** l’entrée GraphQL `MailSearchInput` n’a pas de `projectId` ; il n’est pas sûr que le dossier garde la limite au projet. Voir [Règles des mails](business-rules/resources/mail.md).
 - **Date de péremption d’un produit :** la description GraphQL de `ShoppingProduct.expiresAt` dit qu’une fois la date passée le produit est marqué manquant ; aucun code ni tâche de fond ne le fait. Voir [Règles des achats](business-rules/supplies/shopping.md).
 
@@ -38,7 +39,6 @@ L’API accepte ce que l’interface empêche.
 - **Suppression d’un contexte de trésorerie :** ses budgets sont supprimés aussi (`onDelete: Cascade`), mais la confirmation de l’interface ne le dit pas. Voir [Règles de la trésorerie](business-rules/finances/treasury.md).
 - **Décocher un achat :** retire aussi du stock ce qui avait été ajouté à la main par « Ajouter au stock ». Voir [Règles du stock](business-rules/supplies/stock.md).
 - **Commentaires d’un mail :** sans clé étrangère, ils ne sont pas supprimés avec le mail, et le mail n’est pas vérifié à l’ajout (seul un identifiant vide est refusé). Voir [Règles des commentaires](business-rules/cross-cutting/comments.md).
-- **Rappels d’évènements :** les occurrences annulées ne sont pas filtrées (`ringReminders` ne teste pas `calledOff`). Voir [Règles des alarmes](business-rules/activities/alarms.md).
 - **Alarme de durée du chrono :** elle compte tout chrono en cours, sans vérifier qu’il porte sur sa tâche ou son projet. Voir [Règles des alarmes](business-rules/activities/alarms.md).
 - **PDF des documents :** la forme juridique, le capital et l’immatriculation du profil de la société ne sont pas imprimés, alors que les réglages « Ma société » les présentent comme imprimés et que le commentaire du pied de page parle d’« identité légale ». Voir [Règles de la facturation](business-rules/finances/accounting.md) et [Réglages](features/cross-cutting/settings.md).
 - **Message du tableau des tâches vide :** « Créez d’abord un projet : chaque tâche appartient à un projet. », alors que des tâches sans projet existent. Voir [Tâches](features/activities/tasks.md).
@@ -47,8 +47,7 @@ L’API accepte ce que l’interface empêche.
 
 - **Relances d’impayés :** [Déploiement](deployment.md) les cite parmi les tâches de fond, mais le code ne les envoie qu’à la main (`sendRemindersSchema`). Voir [Tâches de fond](business-rules/cross-cutting/background-jobs.md).
 - **Suppression d’un client qui a des documents :** refusée par la relation `Restrict` du schéma ; le message affiché n’a pas été relevé. Voir [Règles de la facturation](business-rules/finances/accounting.md).
-- **Suppression d’un projet ou d’un client :** les cascades vers les tâches, temps et documents ne sont pas détaillées. Voir [Règles des projets](business-rules/cross-cutting/projects.md).
 - **Unicité des libellés dans les arbres :** aucune contrainte dans le schéma pour les projets, tâches, évènements, routines, fiches, listes, comptes, catégories, emplacements et agendas ; à confirmer arbre par arbre. Voir [Noms et libellés](business-rules/cross-cutting/naming.md).
 - **Erreurs des fonctions partagées :** certaines lèvent une `Error` simple au message destiné à l’utilisateur ; sa conversion en erreur client par chaque service appelant n’a pas été vérifiée. Voir [Erreurs](business-rules/cross-cutting/errors.md).
-- **Partage multi-utilisateur :** aucun rôle ni permission par espace dans le code actuel ; prévu sur la branche `multi-user-sharing`. Voir [Espaces et accès](business-rules/cross-cutting/workspaces-and-access.md).
+- **Partage multi-utilisateur :** aucun rôle ni permission par espace dans le code actuel ; prévu sur la branche `multi-user-sharing`. Voir [Espaces et accès](business-rules/cross-cutting/workspaces-and-access.md). À limiter alors aux espaces de l'utilisateur connecté : les lectures d'autres espaces par `unscopedPrisma` qui prennent aujourd'hui « tout espace autre que l'espace courant » — `foreignScheduleKinds` et `otherWorkspaceSchedules` (`services/calendar/work-schedules.ts`), `assertConditionSchedules` et `loadSlotsOn` (`services/calendar/slot-conditions.ts`), et `settleScheduleChange` (`services/routines/routines.ts`), qui lit et règle les routines des autres espaces par `runInWorkspace`.
 - **Dossier `components/address/` vide :** à supprimer, ou à garder pour une brique commune. Voir [Adresses](web/components/address.md).

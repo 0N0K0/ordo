@@ -36,21 +36,21 @@ Section « GitHub » du panneau des paramètres d’un projet. Composant `Projec
 
 1. « Adresse du tableau » (`https://github.com/users/compte/projects/1` ou `/orgs/…`), bouton « Charger ». Une erreur s’affiche sous le champ.
 2. Le formulaire de réglages s’affiche, prérempli par devinette (voir plus bas).
-3. Enregistrer : toast « Liaison enregistrée. Lancez une synchronisation pour échanger les tâches. ».
+3. « Lier » : toast « Liaison enregistrée. Lancez une synchronisation pour échanger les tâches. ».
 
 ### Formulaire de réglages
 
 - En tête : lien vers le tableau, et « Toujours synchronisés : titre, description et commentaires ; pour les issues, l’ouverture / fermeture, le jalon, le parent (sous-issues), les dépendances (« bloquée par »), les relations (« relative à ») et le numéro (celui de l’issue). Choisissez où vont les autres champs. ».
-- Champs du tableau pour chaque champ Ordo (« Non synchronisé » par défaut) : « Statut », « Priorité », « Type » (un champ du tableau, ou « Types d’issue de l’organisation »), « Sprint (itérations) », « Début », « Fin », « Date max », « Effort », « Temps passé » (« En heures, d’Ordo vers GitHub »). Un champ d’issue de l’organisation est marqué « (champ d’issue) ».
+- Champs du tableau pour chaque champ Ordo (« Non synchronisé » par défaut) : « Statut », « Priorité », « Type » (un champ du tableau, ou « Types d’issue de l’organisation »), « Sprint (itérations) », « Début », « Fin », « Échéance », « Effort », « Temps passé » (« En heures, d’Ordo vers GitHub »). Un champ d’issue de l’organisation est marqué « (champ d’issue) ».
 - Interrupteurs « Assignés (assignees GitHub) » et « Étiquettes (labels des issues) ».
 - Avec un champ d’itération, rappel : « Itérations et sprints se correspondent par leur nom : une itération sans sprint devient un sprint du projet ; un sprint sans itération est à créer dans les réglages du tableau GitHub (l’API ne sait pas donner ses dates à une itération). Ordo fait référence pour les noms et dates. Une tâche placée dans une itération sur GitHub est ajoutée à son sprint, sans perdre ses autres sprints. ».
 - Tables de correspondance « Statuts », « Priorités », « Types » : pour chaque valeur Ordo, l’option GitHub (« Non synchronisé » possible). Pour les types d’issue : « Les brouillons d’issue n’ont pas de type. ». Changer de champ vide sa correspondance.
 - « Dépôt des nouvelles tâches » (« compte/dépôt ») : « Les tâches créées dans Ordo deviennent des issues de ce dépôt (compte/dépôt) ; vide : des brouillons du tableau. ».
 - « Envoyer aussi les tâches qui existaient avant la liaison » (non par défaut).
 - « Synchronisation automatique (toutes les 10 minutes) » (oui par défaut).
-- Boutons « Annuler » et « Enregistrer ».
+- Nouvelle liaison : boutons « Annuler » et « Lier ». Liaison existante (« Réglages ») : enregistrée champ par champ (décision D22) : chaque choix dès qu’il change, le dépôt en le quittant (« Forme attendue : compte/dépôt. » dessous s’il n’est pas écrit ainsi), « Enregistrement… » / « Enregistré » en haut, sans bouton ; « Réglages » referme le formulaire.
 
-**Devinette initiale** : statut = champ à choix unique nommé « Status » ou « Statut » ; priorité = nom contenant « priorit » ; type = types d’issue de l’organisation s’il y en a, sinon un champ « Type » ; itération = premier champ d’itération ; début, fin, date max, effort, temps passé par leur nom (anglais ou français). Options devinées par nom identique ou nom anglais usuel (« À faire » ↔ « Todo », « To do », « Backlog » ; « En cours » ↔ « In progress », « Doing » ; « En revue » ↔ « In review » ; « Terminé » ↔ « Done », « Closed » ; « Annulé » ↔ « Cancelled », « Won't do » ; priorités « Urgente », « Haute », « Moyenne », « Basse » ↔ « P0 »…« P3 », « Urgent », « High », « Medium », « Low »…). Assignés et étiquettes activés, synchronisation automatique activée.
+**Devinette initiale** : statut = champ à choix unique nommé « Status » ou « Statut » ; priorité = nom contenant « priorit » ; type = types d’issue de l’organisation s’il y en a, sinon un champ « Type » ; itération = premier champ d’itération ; début, fin, échéance, effort, temps passé par leur nom (anglais ou français). Options devinées par nom identique ou nom anglais usuel (« À faire » ↔ « Todo », « To do », « Backlog » ; « En cours » ↔ « In progress », « Doing » ; « En revue » ↔ « In review » ; « Terminé » ↔ « Done », « Closed » ; « Annulé » ↔ « Cancelled », « Won't do » ; priorités « Urgente », « Haute », « Moyenne », « Basse » ↔ « P0 »…« P3 », « Urgent », « High », « Medium », « Low »…). Assignés et étiquettes activés, synchronisation automatique activée.
 
 ### Projet lié
 

@@ -80,14 +80,20 @@ export function useBulkUndo() {
     changes: (tasks: Task[], changes: BulkChanges) => () => run(revertChanges(tasks, changes).map((step) => () => update.mutateAsync({ ...step, restoring: true }))),
 
     /**
-     * Undo of a close / reopen: only the tasks whose state changed go back.
+     * Undo of a close / reopen: only the tasks whose state changed go back. A cancelled task reopened by hand took the
+     * first « À faire » status (decision FA): its « Annulé » status comes back too, which closes it again.
      * @param {Task[]} tasks Tasks before the change.
      * @param {boolean} closed Applied state.
      * @returns {() => void} Undo.
      */
     closed: (tasks: Task[], closed: boolean) => () => {
-      const ids = tasks.filter((task) => task.closed !== closed).map((task) => task.id);
-      return run(ids.length ? [() => setClosed.mutateAsync({ ids, closed: !closed })] : []);
+      const changed = tasks.filter((task) => task.closed !== closed);
+      const cancelled = closed ? [] : changed.filter((task) => task.cancelled);
+      const ids = changed.filter((task) => !cancelled.includes(task)).map((task) => task.id);
+      return run([
+        ...(ids.length ? [() => setClosed.mutateAsync({ ids, closed: !closed })] : []),
+        ...idsBy(cancelled, (task) => task.statusId).map(([statusId, statusIds]) => () => update.mutateAsync({ ids: statusIds, changes: { statusId }, restoring: true })),
+      ]);
     },
 
     /**

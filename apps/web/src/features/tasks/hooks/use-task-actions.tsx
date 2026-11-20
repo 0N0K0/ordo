@@ -1,6 +1,7 @@
 import { openFormPanel } from '../../../components/panels/panels';
 import type { RowMenuEntry } from '../../../components/actions/ActionsMenu';
 import { rowMenuEntry } from '../../../components/data-table/selection/selection-actions';
+import type { SelectionAction } from '../../../components/data-table/selection/SelectionBar';
 import type { Task } from '../api';
 import { TaskCreateForm } from '../components/TaskCreateForm';
 import type { TaskContext } from './use-task-context';
@@ -16,14 +17,22 @@ export function useTaskActions(context: TaskContext | null) {
   return {
     /**
      * Actions of a task in its menu (the menu of every row: table, detail panel), those of the selection bar on that
-     * task alone: clone, transfer, archive, delete (an archived task, read only: restore, delete).
+     * task alone: duplicate, transfer, archive, delete (an archived task, read only: restore, delete).
      * @param {Task} task Task.
      * @returns {RowMenuEntry[]} Actions.
      */
     menu: (task: Task): RowMenuEntry[] => {
-      const { clone, transfer, archive, remove } = actionsOf([task]);
-      return (task.archived ? [archive, remove] : [clone, transfer, archive, remove]).map(rowMenuEntry);
+      const { duplicate, transfer, archive, remove } = actionsOf([task]);
+      return (task.archived ? [archive, remove] : [duplicate, transfer, archive, remove]).map(rowMenuEntry);
     },
+
+    /**
+     * « Fermer » / « Rouvrir » of a task alone, as the selection and the menu do: the toast tells it, with « Annuler »
+     * (a cancelled task reopened gets its « Annulé » status back, `useBulkUndo().closed`).
+     * @param {Task} task Task.
+     * @returns {SelectionAction} Action (its click and its loading).
+     */
+    close: (task: Task): SelectionAction => actionsOf([task]).close,
 
     /**
      * Opens the new task form.

@@ -109,20 +109,21 @@ type Documents = {
     "\n  mutation ChangeUsername($currentPassword: String!, $username: String!) {\n    changeUsername(currentPassword: $currentPassword, username: $username) {\n      ...AccountUser\n    }\n  }\n": typeof types.ChangeUsernameDocument,
     "\n  mutation RequestEmailChange($currentPassword: String!, $email: String!) {\n    requestEmailChange(currentPassword: $currentPassword, email: $email) {\n      ...AccountUser\n    }\n  }\n": typeof types.RequestEmailChangeDocument,
     "\n  mutation CancelEmailChange {\n    cancelEmailChange {\n      ...AccountUser\n    }\n  }\n": typeof types.CancelEmailChangeDocument,
-    "\n  fragment CalendarEventOccurrenceFields on CalendarEventOccurrence {\n    key\n    eventId\n    occurrenceDate\n    modified\n    label\n    description\n    location\n    links {\n      url\n      label\n    }\n    allDay\n    startDate\n    startTime\n    endDate\n    endTime\n    timeZone\n    start\n    end\n    recurrence\n    seriesStartDate\n    reminders\n    travelBefore\n    travelAfter\n    projectId\n    calendarId\n    archived\n    contributorIds\n    relationIds\n    beneficiaryIds\n    beneficiaryRelationIds\n    categoryIds\n    taskIds\n    routineLinks {\n      routineId\n      date\n    }\n    calledOff\n    postponedFrom {\n      eventId\n      date\n      label\n    }\n    postponedTo {\n      eventId\n      label\n      startDate\n      startTime\n    }\n    trackedSeconds\n  }\n": typeof types.CalendarEventOccurrenceFieldsFragmentDoc,
+    "\n  fragment CalendarEventOccurrenceFields on CalendarEventOccurrence {\n    key\n    eventId\n    occurrenceDate\n    modified\n    label\n    description\n    location\n    links {\n      url\n      label\n    }\n    allDay\n    startDate\n    startTime\n    endDate\n    endTime\n    start\n    end\n    recurrence\n    seriesStartDate\n    reminders {\n      before\n      at\n    }\n    travelBefore\n    travelAfter\n    projectId\n    calendarId\n    archived\n    contributorIds\n    relationIds\n    beneficiaryIds\n    beneficiaryRelationIds\n    categoryIds\n    taskIds\n    routineLinks {\n      routineId\n      date\n    }\n    calledOff\n    postponedFrom {\n      eventId\n      date\n      label\n    }\n    postponedTo {\n      eventId\n      label\n      startDate\n      startTime\n    }\n    trackedSeconds\n  }\n": typeof types.CalendarEventOccurrenceFieldsFragmentDoc,
     "\n  query WorkSchedules {\n    workSchedules {\n      id\n      archived\n      label\n      startDate\n      endDate\n      typeId\n      cases\n      exceptions\n    }\n    scheduleTypes {\n      id\n      archived\n      label\n      color\n      iconUrl\n      dayDisplay\n      dayBar\n      monthDisplay\n      position\n    }\n    defaultScheduleKind {\n      label\n      color\n      dayDisplay\n      dayBar\n      monthDisplay\n    }\n  }\n": typeof types.WorkSchedulesDocument,
-    "\n  query ForeignScheduleKinds {\n    foreignScheduleKinds {\n      workspaceId\n      workspaceLabel\n      typeId\n      label\n      color\n      sourceColor\n      dayDisplay\n      dayBar\n      monthDisplay\n      customized\n      scheduleCount\n      subscribed\n    }\n  }\n": typeof types.ForeignScheduleKindsDocument,
+    "\n  query ForeignScheduleKinds {\n    foreignScheduleKinds {\n      workspaceId\n      workspaceLabel\n      typeId\n      label\n      color\n      sourceColor\n      dayDisplay\n      dayBar\n      monthDisplay\n      customized\n      scheduleCount\n      subscribed\n      archived\n    }\n  }\n": typeof types.ForeignScheduleKindsDocument,
     "\n  query SubscribedWorkSchedules {\n    subscribedWorkSchedules {\n      id\n      label\n      startDate\n      endDate\n      cases\n      exceptions\n      typeLabel\n      typeId\n      color\n      dayDisplay\n      dayBar\n      monthDisplay\n      workspaceId\n      workspaceLabel\n    }\n  }\n": typeof types.SubscribedWorkSchedulesDocument,
+    "\n  query OtherWorkspaceSchedules {\n    otherWorkspaceSchedules {\n      id\n      archived\n      label\n      startDate\n      endDate\n      cases\n      exceptions\n      typeId\n      workspaceId\n      workspaceLabel\n    }\n  }\n": typeof types.OtherWorkspaceSchedulesDocument,
     "\n  mutation CreateScheduleType($input: ScheduleTypeInput!) {\n    createScheduleType(input: $input) {\n      id\n    }\n  }\n": typeof types.CreateScheduleTypeDocument,
     "\n  mutation UpdateScheduleType($id: ID!, $input: ScheduleTypeInput!) {\n    updateScheduleType(id: $id, input: $input) {\n      id\n    }\n  }\n": typeof types.UpdateScheduleTypeDocument,
-    "\n  mutation DeleteScheduleType($id: ID!) {\n    deleteScheduleType(id: $id)\n  }\n": typeof types.DeleteScheduleTypeDocument,
+    "\n  mutation DeleteScheduleType($id: ID!, $confirmLoss: Boolean) {\n    deleteScheduleType(id: $id, confirmLoss: $confirmLoss)\n  }\n": typeof types.DeleteScheduleTypeDocument,
     "\n  mutation SubscribeScheduleKind($workspaceId: ID!, $typeId: ID) {\n    subscribeScheduleKind(workspaceId: $workspaceId, typeId: $typeId)\n  }\n": typeof types.SubscribeScheduleKindDocument,
     "\n  mutation SaveDefaultScheduleKind($input: DefaultScheduleKindInput!) {\n    saveDefaultScheduleKind(input: $input) {\n      label\n    }\n  }\n": typeof types.SaveDefaultScheduleKindDocument,
     "\n  mutation SetScheduleSubscriptionLook($workspaceId: ID!, $typeId: ID, $input: ScheduleSubscriptionLookInput!) {\n    setScheduleSubscriptionLook(workspaceId: $workspaceId, typeId: $typeId, input: $input)\n  }\n": typeof types.SetScheduleSubscriptionLookDocument,
     "\n  mutation UnsubscribeScheduleKind($workspaceId: ID!, $typeId: ID) {\n    unsubscribeScheduleKind(workspaceId: $workspaceId, typeId: $typeId)\n  }\n": typeof types.UnsubscribeScheduleKindDocument,
-    "\n  mutation CreateWorkSchedule($input: WorkScheduleInput!) {\n    createWorkSchedule(input: $input)\n  }\n": typeof types.CreateWorkScheduleDocument,
-    "\n  mutation UpdateWorkSchedule($id: ID!, $input: WorkScheduleInput!) {\n    updateWorkSchedule(id: $id, input: $input)\n  }\n": typeof types.UpdateWorkScheduleDocument,
-    "\n  mutation DeleteWorkSchedule($id: ID!) {\n    deleteWorkSchedule(id: $id)\n  }\n": typeof types.DeleteWorkScheduleDocument,
+    "\n  mutation CreateWorkSchedule($input: WorkScheduleInput!, $confirmLoss: Boolean) {\n    createWorkSchedule(input: $input, confirmLoss: $confirmLoss)\n  }\n": typeof types.CreateWorkScheduleDocument,
+    "\n  mutation UpdateWorkSchedule($id: ID!, $input: WorkScheduleInput!, $confirmLoss: Boolean) {\n    updateWorkSchedule(id: $id, input: $input, confirmLoss: $confirmLoss)\n  }\n": typeof types.UpdateWorkScheduleDocument,
+    "\n  mutation DeleteWorkSchedule($id: ID!, $confirmLoss: Boolean) {\n    deleteWorkSchedule(id: $id, confirmLoss: $confirmLoss)\n  }\n": typeof types.DeleteWorkScheduleDocument,
     "\n  mutation SetCalendarEventCalledOff($id: ID!, $scope: CalendarEventScope!, $occurrenceDate: Date, $calledOff: Boolean!) {\n    setCalendarEventCalledOff(id: $id, scope: $scope, occurrenceDate: $occurrenceDate, calledOff: $calledOff)\n  }\n": typeof types.SetCalendarEventCalledOffDocument,
     "\n  mutation PostponeCalendarEvent($id: ID!, $occurrenceDate: Date, $input: CalendarEventInput!) {\n    postponeCalendarEvent(id: $id, occurrenceDate: $occurrenceDate, input: $input)\n  }\n": typeof types.PostponeCalendarEventDocument,
     "\n  query CalendarCategories {\n    calendarCategories {\n      id\n      archived\n      label\n      color\n      iconUrl\n      parentId\n      position\n    }\n  }\n": typeof types.CalendarCategoriesDocument,
@@ -140,12 +141,11 @@ type Documents = {
     "\n  mutation DeleteCalendarCategory($id: ID!) {\n    deleteCalendarCategory(id: $id)\n  }\n": typeof types.DeleteCalendarCategoryDocument,
     "\n  mutation MoveCalendarCategory($id: ID!, $index: Int!, $parentId: ID) {\n    moveCalendarCategory(id: $id, index: $index, parentId: $parentId)\n  }\n": typeof types.MoveCalendarCategoryDocument,
     "\n  mutation CreateCalendarEvent($input: CalendarEventInput!) {\n    createCalendarEvent(input: $input)\n  }\n": typeof types.CreateCalendarEventDocument,
-    "\n  mutation UpdateCalendarEvent($id: ID!, $input: CalendarEventInput!, $scope: CalendarEventScope!, $occurrenceDate: Date) {\n    updateCalendarEvent(id: $id, input: $input, scope: $scope, occurrenceDate: $occurrenceDate)\n  }\n": typeof types.UpdateCalendarEventDocument,
+    "\n  mutation UpdateCalendarEvent($id: ID!, $input: CalendarEventInput!, $scope: CalendarEventScope!, $occurrenceDate: Date, $confirmLoss: Boolean) {\n    updateCalendarEvent(id: $id, input: $input, scope: $scope, occurrenceDate: $occurrenceDate, confirmLoss: $confirmLoss)\n  }\n": typeof types.UpdateCalendarEventDocument,
     "\n  mutation DeleteCalendarEvent($id: ID!, $scope: CalendarEventScope!, $occurrenceDate: Date) {\n    deleteCalendarEvent(id: $id, scope: $scope, occurrenceDate: $occurrenceDate)\n  }\n": typeof types.DeleteCalendarEventDocument,
-    "\n  mutation MaterializeTaskOccurrences($from: Date!, $to: Date!) {\n    materializeTaskOccurrences(from: $from, to: $to)\n  }\n": typeof types.MaterializeTaskOccurrencesDocument,
-    "\n  query Comments($target: CommentTarget!, $id: String!) {\n    comments(target: $target, id: $id) {\n      id\n      body\n      createdAt\n    }\n  }\n": typeof types.CommentsDocument,
+    "\n  query Comments($target: CommentTarget!, $id: String!, $occurrenceDate: Date) {\n    comments(target: $target, id: $id, occurrenceDate: $occurrenceDate) {\n      id\n      body\n      createdAt\n    }\n  }\n": typeof types.CommentsDocument,
     "\n  query CommentCounts($target: CommentTarget!, $ids: [String!]!) {\n    commentCounts(target: $target, ids: $ids) {\n      id\n      count\n    }\n  }\n": typeof types.CommentCountsDocument,
-    "\n  mutation AddComment($target: CommentTarget!, $id: String!, $body: String!) {\n    addComment(target: $target, id: $id, body: $body) {\n      id\n    }\n  }\n": typeof types.AddCommentDocument,
+    "\n  mutation AddComment($target: CommentTarget!, $id: String!, $body: String!, $occurrenceDate: Date) {\n    addComment(target: $target, id: $id, body: $body, occurrenceDate: $occurrenceDate) {\n      id\n    }\n  }\n": typeof types.AddCommentDocument,
     "\n  mutation UpdateComment($id: ID!, $body: String!) {\n    updateComment(id: $id, body: $body) {\n      id\n    }\n  }\n": typeof types.UpdateCommentDocument,
     "\n  mutation DeleteComment($id: ID!) {\n    deleteComment(id: $id)\n  }\n": typeof types.DeleteCommentDocument,
     "\n  query SprintTaskStatuses($today: Date!) {\n    sprintTaskStatuses(today: $today) {\n      sprintId\n      taskId\n      statusId\n      closed\n    }\n  }\n": typeof types.SprintTaskStatusesDocument,
@@ -259,27 +259,27 @@ type Documents = {
     "\n  mutation CreateProjectStatus($input: LabelColorInput!) {\n    createProjectStatus(input: $input) {\n      ...ProjectStatusFields\n    }\n  }\n": typeof types.CreateProjectStatusDocument,
     "\n  mutation UpdateProjectStatus($id: ID!, $input: LabelColorPatch!) {\n    updateProjectStatus(id: $id, input: $input) {\n      ...ProjectStatusFields\n    }\n  }\n": typeof types.UpdateProjectStatusDocument,
     "\n  mutation DeleteProjectStatus($id: ID!) {\n    deleteProjectStatus(id: $id)\n  }\n": typeof types.DeleteProjectStatusDocument,
-    "\n  query RoutinesData {\n    routineCategories {\n      id\n      archived\n      label\n      color\n      iconUrl\n      parentId\n      position\n    }\n    routines {\n      id\n      label\n      description\n      categoryIds\n      parentId\n      startDate\n      recurrence\n      estimate\n      fromTime\n      dueTime\n      slotCondition\n      moments\n      reminders\n      cases\n      moves\n      done\n      slots {\n        index\n        fromTime\n        dueTime\n        optional\n        done\n        windows\n      }\n      windowFrom\n      windowTo\n      location\n      locationLat\n      locationLon\n      travelBefore\n      travelAfter\n      projectId\n      position\n      archived\n      assigneeIds\n      beneficiaryIds\n      beneficiaryRelationIds\n      requiredIds\n      currentDate\n      firstDate\n      nextDate\n      doneDates\n      lastDoneAt\n      trackedSeconds\n      opensOn\n    }\n  }\n": typeof types.RoutinesDataDocument,
+    "\n  query RoutinesData {\n    routineCategories {\n      id\n      archived\n      label\n      color\n      iconUrl\n      parentId\n      position\n    }\n    routines {\n      id\n      label\n      description\n      categoryIds\n      parentId\n      startDate\n      recurrence\n      estimate\n      fromTime\n      dueTime\n      slotCondition\n      moments\n      reminders {\n        before\n        at\n      }\n      reminderOccurrences {\n        date\n        day\n        slots {\n          slot\n          at\n        }\n      }\n      cases\n      moves\n      done\n      slots {\n        index\n        fromTime\n        dueTime\n        optional\n        done\n        windows\n      }\n      windowFrom\n      windowTo\n      location\n      locationLat\n      locationLon\n      links {\n        url\n        label\n      }\n      travelBefore\n      travelAfter\n      projectId\n      position\n      archived\n      assigneeIds\n      beneficiaryIds\n      beneficiaryRelationIds\n      requiredIds\n      relatedIds\n      currentDate\n      firstDate\n      nextDate\n      doneDates\n      lastDoneAt\n      trackedSeconds\n      opensOn\n    }\n  }\n": typeof types.RoutinesDataDocument,
     "\n  mutation CreateRoutineCategory($input: RoutineCategoryInput!) {\n    createRoutineCategory(input: $input)\n  }\n": typeof types.CreateRoutineCategoryDocument,
     "\n  mutation UpdateRoutineCategory($id: ID!, $input: RoutineCategoryInput!) {\n    updateRoutineCategory(id: $id, input: $input)\n  }\n": typeof types.UpdateRoutineCategoryDocument,
     "\n  mutation MoveRoutineCategory($id: ID!, $parentId: ID, $index: Int) {\n    moveRoutineCategory(id: $id, parentId: $parentId, index: $index)\n  }\n": typeof types.MoveRoutineCategoryDocument,
     "\n  mutation DeleteRoutineCategory($id: ID!) {\n    deleteRoutineCategory(id: $id)\n  }\n": typeof types.DeleteRoutineCategoryDocument,
     "\n  mutation CopySubRoutines($fromId: ID!, $toId: ID!) {\n    copySubRoutines(fromId: $fromId, toId: $toId)\n  }\n": typeof types.CopySubRoutinesDocument,
-    "\n  mutation CreateRoutine($input: RoutineInput!) {\n    createRoutine(input: $input)\n  }\n": typeof types.CreateRoutineDocument,
-    "\n  mutation UpdateRoutine($id: ID!, $input: RoutineInput!, $restoring: Boolean) {\n    updateRoutine(id: $id, input: $input, restoring: $restoring)\n  }\n": typeof types.UpdateRoutineDocument,
-    "\n  mutation PatchRoutine($id: ID!, $input: RoutinePatch!) {\n    patchRoutine(id: $id, input: $input)\n  }\n": typeof types.PatchRoutineDocument,
-    "\n  mutation MoveRoutine($id: ID!, $targetId: ID!, $place: RoutinePlace!, $categoryIds: [ID!]) {\n    moveRoutine(id: $id, targetId: $targetId, place: $place, categoryIds: $categoryIds)\n  }\n": typeof types.MoveRoutineDocument,
-    "\n  mutation BulkUpdateRoutines($ids: [ID!]!, $changes: RoutineBulkChanges!) {\n    bulkUpdateRoutines(ids: $ids, changes: $changes)\n  }\n": typeof types.BulkUpdateRoutinesDocument,
+    "\n  mutation CreateRoutine($input: RoutineInput!, $copyOf: ID) {\n    createRoutine(input: $input, copyOf: $copyOf)\n  }\n": typeof types.CreateRoutineDocument,
+    "\n  mutation UpdateRoutine($id: ID!, $input: RoutineInput!, $restoring: Boolean, $confirmLoss: Boolean) {\n    updateRoutine(id: $id, input: $input, restoring: $restoring, confirmLoss: $confirmLoss) {\n      removedLinks\n    }\n  }\n": typeof types.UpdateRoutineDocument,
+    "\n  mutation PatchRoutine($id: ID!, $input: RoutinePatch!, $confirmLoss: Boolean) {\n    patchRoutine(id: $id, input: $input, confirmLoss: $confirmLoss) {\n      removedLinks\n    }\n  }\n": typeof types.PatchRoutineDocument,
+    "\n  mutation MoveRoutine($id: ID!, $beforeId: ID, $parentId: ID, $categoryIds: [ID!]) {\n    moveRoutine(id: $id, beforeId: $beforeId, parentId: $parentId, categoryIds: $categoryIds)\n  }\n": typeof types.MoveRoutineDocument,
+    "\n  mutation BulkUpdateRoutines($ids: [ID!]!, $changes: RoutineBulkChanges!, $confirmLoss: Boolean) {\n    bulkUpdateRoutines(ids: $ids, changes: $changes, confirmLoss: $confirmLoss) {\n      removedLinks\n    }\n  }\n": typeof types.BulkUpdateRoutinesDocument,
     "\n  mutation BulkSetRoutinesArchived($ids: [ID!]!, $archived: Boolean!) {\n    bulkSetRoutinesArchived(ids: $ids, archived: $archived)\n  }\n": typeof types.BulkSetRoutinesArchivedDocument,
     "\n  mutation BulkSetRoutinesDone($ids: [ID!]!, $done: Boolean!) {\n    bulkSetRoutinesDone(ids: $ids, done: $done)\n  }\n": typeof types.BulkSetRoutinesDoneDocument,
-    "\n  mutation BulkDeleteRoutines($ids: [ID!]!) {\n    bulkDeleteRoutines(ids: $ids)\n  }\n": typeof types.BulkDeleteRoutinesDocument,
+    "\n  mutation BulkDeleteRoutines($ids: [ID!]!, $deleteSubRoutines: Boolean!) {\n    bulkDeleteRoutines(ids: $ids, deleteSubRoutines: $deleteSubRoutines)\n  }\n": typeof types.BulkDeleteRoutinesDocument,
     "\n  mutation SetRoutineDone($id: ID!, $done: Boolean!, $date: Date, $slot: Int, $doneAt: DateTime) {\n    setRoutineDone(id: $id, done: $done, date: $date, slot: $slot, doneAt: $doneAt)\n  }\n": typeof types.SetRoutineDoneDocument,
     "\n  mutation MoveRoutineOccurrence($id: ID!, $date: Date!, $to: Date!, $times: JSON) {\n    moveRoutineOccurrence(id: $id, date: $date, to: $to, times: $times)\n  }\n": typeof types.MoveRoutineOccurrenceDocument,
-    "\n  mutation ChangeRoutineOccurrence($id: ID!, $date: Date!, $scope: CalendarEventScope!, $to: Date!, $slot: Int!, $fromTime: String, $dueTime: String) {\n    changeRoutineOccurrence(id: $id, date: $date, scope: $scope, to: $to, slot: $slot, fromTime: $fromTime, dueTime: $dueTime)\n  }\n": typeof types.ChangeRoutineOccurrenceDocument,
-    "\n  mutation DeleteRoutineOccurrence($id: ID!, $date: Date!, $scope: CalendarEventScope!) {\n    deleteRoutineOccurrence(id: $id, date: $date, scope: $scope)\n  }\n": typeof types.DeleteRoutineOccurrenceDocument,
-    "\n  mutation RemoveRoutineMove($id: ID!, $from: Date!) {\n    removeRoutineMove(id: $id, from: $from)\n  }\n": typeof types.RemoveRoutineMoveDocument,
+    "\n  mutation ChangeRoutineOccurrence($id: ID!, $date: Date!, $scope: CalendarEventScope!, $to: Date!, $slot: Int!, $fromTime: String, $dueTime: String, $confirmLoss: Boolean) {\n    changeRoutineOccurrence(id: $id, date: $date, scope: $scope, to: $to, slot: $slot, fromTime: $fromTime, dueTime: $dueTime, confirmLoss: $confirmLoss)\n  }\n": typeof types.ChangeRoutineOccurrenceDocument,
+    "\n  mutation DeleteRoutineOccurrence($id: ID!, $date: Date!, $scope: CalendarEventScope!) {\n    deleteRoutineOccurrence(id: $id, date: $date, scope: $scope) {\n      archived\n      comments {\n        body\n        createdAt\n        updatedAt\n      }\n    }\n  }\n": typeof types.DeleteRoutineOccurrenceDocument,
+    "\n  mutation RemoveRoutineMove($id: ID!, $from: Date!, $comments: [CommentSnapshotInput!]) {\n    removeRoutineMove(id: $id, from: $from, comments: $comments)\n  }\n": typeof types.RemoveRoutineMoveDocument,
     "\n  query RoutineChecks($from: Date!, $to: Date!) {\n    routineChecks(from: $from, to: $to) {\n      routineId\n      date\n      slot\n      doneAt\n      fromTime\n      dueTime\n    }\n  }\n": typeof types.RoutineChecksDocument,
-    "\n  query RoutineOccurrences($from: Date!, $to: Date!) {\n    routineOccurrences(from: $from, to: $to) {\n      routineId\n      date\n      startDate\n      shownDate\n      movedFrom\n      slots {\n        index\n        fromTime\n        dueTime\n        optional\n        done\n        windows\n      }\n    }\n  }\n": typeof types.RoutineOccurrencesDocument,
+    "\n  query RoutineOccurrences($from: Date!, $to: Date!) {\n    routineOccurrences(from: $from, to: $to) {\n      routineId\n      date\n      startDate\n      shownDate\n      movedFrom\n      cancelled\n      archived\n      slots {\n        index\n        fromTime\n        dueTime\n        optional\n        done\n        windows\n      }\n    }\n  }\n": typeof types.RoutineOccurrencesDocument,
     "\n  query Sheets($projectId: ID) {\n    sheets(projectId: $projectId) {\n      id\n      archived\n      label\n      note\n      projectId\n      categoryIds\n      position\n      createdAt\n      updatedAt\n      usedBy\n      items {\n        id\n        productId\n        label\n        categoryId\n        quantity\n        unit\n        note\n        consumable\n        storeId\n        url\n        perishable\n        storageId\n        memberIds\n        relationIds\n        optional\n        position\n      }\n    }\n  }\n": typeof types.SheetsDocument,
     "\n  query Sheet($id: ID!) {\n    sheet(id: $id) {\n      id\n      archived\n      label\n      note\n      projectId\n      categoryIds\n      usedBy\n      updatedAt\n      items {\n        id\n        productId\n        label\n        categoryId\n        quantity\n        unit\n        note\n        consumable\n        storeId\n        url\n        perishable\n        storageId\n        memberIds\n        relationIds\n        optional\n        position\n      }\n    }\n  }\n": typeof types.SheetDocument,
     "\n  query SheetCategories {\n    sheetCategories {\n      id\n      archived\n      label\n      color\n      iconUrl\n      position\n    }\n  }\n": typeof types.SheetCategoriesDocument,
@@ -368,14 +368,13 @@ type Documents = {
     "\n  fragment SprintFields on Sprint {\n    id\n    archived\n    projectId\n    label\n    goal\n    startDate\n    endDate\n  }\n": typeof types.SprintFieldsFragmentDoc,
     "\n  fragment MilestoneFields on Milestone {\n    id\n    archived\n    projectId\n    label\n    description\n    dueDate\n    position\n  }\n": typeof types.MilestoneFieldsFragmentDoc,
     "\n  fragment TaskLabelFields on TaskStatus {\n    id\n    archived\n    label\n    color\n    iconUrl\n    position\n  }\n": typeof types.TaskLabelFieldsFragmentDoc,
-    "\n  fragment TaskFields on Task {\n    id\n    number\n    label\n    description\n    projectId\n    statusId\n    priorityId\n    typeId\n    effort\n    startDate\n    endDate\n    parentId\n    milestoneId\n    sprintIds\n    deadline\n    minDate\n    position\n    archived\n    createdAt\n    updatedAt\n    assigneeIds\n    beneficiaryIds\n    beneficiaryRelationIds\n    tagIds\n    blockingIds\n    blockedByIds\n    relatedIds\n    commentCount\n    trackedSeconds\n    recurrence\n    seriesId\n    occurrenceDate\n    closed\n    closedAt\n    githubLinked\n    githubUrl\n    githubNumber\n    slotRule\n  }\n": typeof types.TaskFieldsFragmentDoc,
+    "\n  fragment TaskFields on Task {\n    id\n    number\n    label\n    description\n    projectId\n    statusId\n    priorityId\n    typeId\n    effort\n    startDate\n    endDate\n    parentId\n    milestoneId\n    sprintIds\n    deadline\n    minDate\n    effectiveDeadline\n    effectiveMinDate\n    deadlineFromSprint\n    minDateFromSprint\n    cancelled\n    position\n    archived\n    createdAt\n    updatedAt\n    assigneeIds\n    beneficiaryIds\n    beneficiaryRelationIds\n    tagIds\n    blockingIds\n    blockedByIds\n    relatedIds\n    commentCount\n    trackedSeconds\n    closed\n    closedAt\n    githubLinked\n    githubUrl\n    githubNumber\n    slotCondition\n    location\n    locationLat\n    locationLon\n    links {\n      url\n      label\n    }\n    reminders {\n      before\n      at\n    }\n  }\n": typeof types.TaskFieldsFragmentDoc,
     "\n  fragment TaskCommentFields on TaskComment {\n    id\n    body\n    createdAt\n    githubAuthor\n  }\n": typeof types.TaskCommentFieldsFragmentDoc,
     "\n  query TasksData {\n    tasks {\n      ...TaskFields\n    }\n    contributors {\n      ...ContributorFields\n    }\n    taskStatuses {\n      ...TaskLabelFields\n      category\n    }\n    taskPriorities {\n      id\n      archived\n      label\n      color\n      iconUrl\n      position\n    }\n    taskTypes {\n      id\n      archived\n      label\n      color\n      iconUrl\n      position\n    }\n    taskTags {\n      id\n      archived\n      label\n      color\n      iconUrl\n      position\n    }\n    milestones {\n      ...MilestoneFields\n    }\n    sprints {\n      ...SprintFields\n    }\n  }\n": typeof types.TasksDataDocument,
     "\n  query TaskComments($id: ID!) {\n    task(id: $id) {\n      id\n      comments {\n        ...TaskCommentFields\n      }\n    }\n  }\n": typeof types.TaskCommentsDocument,
     "\n  mutation CreateTask($input: TaskInput!) {\n    createTask(input: $input) {\n      ...TaskFields\n    }\n  }\n": typeof types.CreateTaskDocument,
     "\n  mutation UpdateTask($id: ID!, $input: TaskUpdateInput!) {\n    updateTask(id: $id, input: $input) {\n      ...TaskFields\n    }\n  }\n": typeof types.UpdateTaskDocument,
-    "\n  mutation CloneTask($id: ID!, $includeSubtasks: Boolean!) {\n    cloneTask(id: $id, includeSubtasks: $includeSubtasks) {\n      id\n      number\n    }\n  }\n": typeof types.CloneTaskDocument,
-    "\n  mutation SetTaskRecurrence($id: ID!, $recurrence: JSON) {\n    setTaskRecurrence(id: $id, recurrence: $recurrence) {\n      id\n    }\n  }\n": typeof types.SetTaskRecurrenceDocument,
+    "\n  mutation DuplicateTask($id: ID!, $includeSubtasks: Boolean!) {\n    duplicateTask(id: $id, includeSubtasks: $includeSubtasks) {\n      id\n      number\n    }\n  }\n": typeof types.DuplicateTaskDocument,
     "\n  mutation MoveTask($id: ID!, $beforeId: ID, $parentId: ID) {\n    moveTask(id: $id, beforeId: $beforeId, parentId: $parentId)\n  }\n": typeof types.MoveTaskDocument,
     "\n  mutation AddTaskBlock($blockerId: ID!, $blockedId: ID!) {\n    addTaskBlock(blockerId: $blockerId, blockedId: $blockedId)\n  }\n": typeof types.AddTaskBlockDocument,
     "\n  mutation RemoveTaskBlock($blockerId: ID!, $blockedId: ID!) {\n    removeTaskBlock(blockerId: $blockerId, blockedId: $blockedId)\n  }\n": typeof types.RemoveTaskBlockDocument,
@@ -415,7 +414,7 @@ type Documents = {
     "\n  mutation CreateSprint($projectId: ID!, $input: SprintInput!) {\n    createSprint(projectId: $projectId, input: $input)\n  }\n": typeof types.CreateSprintDocument,
     "\n  mutation UpdateSprint($id: ID!, $input: SprintInput!) {\n    updateSprint(id: $id, input: $input)\n  }\n": typeof types.UpdateSprintDocument,
     "\n  mutation DeleteSprint($id: ID!) {\n    deleteSprint(id: $id)\n  }\n": typeof types.DeleteSprintDocument,
-    "\n  fragment TimeEntryFields on TimeEntry {\n    id\n    projectId\n    routineId\n    routineLabel\n    description\n    startedAt\n    endedAt\n    pausedAt\n    pausedSeconds\n    duration\n    taskIds\n    documentId\n    documentNumber\n    calendarEventId\n    calendarOccurrenceDate\n    calendarEventLabel\n  }\n": typeof types.TimeEntryFieldsFragmentDoc,
+    "\n  fragment TimeEntryFields on TimeEntry {\n    id\n    projectId\n    routines {\n      id\n      label\n    }\n    description\n    startedAt\n    endedAt\n    pausedAt\n    pausedSeconds\n    duration\n    taskIds\n    documentId\n    documentNumber\n    events {\n      eventId\n      occurrenceDate\n      label\n    }\n  }\n": typeof types.TimeEntryFieldsFragmentDoc,
     "\n  query TimeEntries($projectId: ID, $since: DateTime) {\n    timeEntries(projectId: $projectId, since: $since) {\n      ...TimeEntryFields\n    }\n  }\n": typeof types.TimeEntriesDocument,
     "\n  query RunningTimeEntry {\n    runningTimeEntry {\n      ...TimeEntryFields\n    }\n  }\n": typeof types.RunningTimeEntryDocument,
     "\n  mutation StartTimer($input: TimerInput!) {\n    startTimer(input: $input) {\n      id\n    }\n  }\n": typeof types.StartTimerDocument,
@@ -423,6 +422,7 @@ type Documents = {
     "\n  mutation StopTimer {\n    stopTimer {\n      id\n    }\n  }\n": typeof types.StopTimerDocument,
     "\n  mutation CreateTimeEntry($input: TimeEntryInput!) {\n    createTimeEntry(input: $input) {\n      id\n    }\n  }\n": typeof types.CreateTimeEntryDocument,
     "\n  mutation UpdateTimeEntry($id: ID!, $input: TimeEntryUpdateInput!) {\n    updateTimeEntry(id: $id, input: $input) {\n      id\n    }\n  }\n": typeof types.UpdateTimeEntryDocument,
+    "\n  query LostOnDelete(\n    $taskIds: [ID!]\n    $routineIds: [ID!]\n    $withSubtree: Boolean\n    $eventId: ID\n    $scope: CalendarEventScope\n    $occurrenceDate: Date\n    $calendarId: ID\n    $routineOccurrence: RoutineOccurrenceGoneInput\n  ) {\n    lostOnDelete(\n      taskIds: $taskIds\n      routineIds: $routineIds\n      withSubtree: $withSubtree\n      eventId: $eventId\n      scope: $scope\n      occurrenceDate: $occurrenceDate\n      calendarId: $calendarId\n      routineOccurrence: $routineOccurrence\n    ) {\n      times\n      comments\n    }\n  }\n": typeof types.LostOnDeleteDocument,
     "\n  mutation DeleteTimeEntry($id: ID!) {\n    deleteTimeEntry(id: $id)\n  }\n": typeof types.DeleteTimeEntryDocument,
     "\n  fragment TreasuryEntryFields on TreasuryEntry {\n    id\n    archived\n    accountId\n    accountLabel\n    status\n    date\n    valueDate\n    label\n    amount\n    categoryId\n    methodId\n    methodLabel\n    clientId\n    counterpartyId\n    payerName\n    linkedEntries {\n      id\n      date\n      label\n      amount\n      status\n    }\n    projectId\n    note\n    url\n    recurrence\n    lines {\n      id\n      label\n      mode\n      value\n      memberId\n      relationId\n      loan\n      date\n      categoryId\n      contextId\n      projectId\n      documents {\n        ...TreasuryEntryDocumentFields\n      }\n      linkedLines {\n        id\n        entryId\n        entryLabel\n        date\n        label\n        amount\n        status\n      }\n      linkedEntries {\n        id\n        date\n        label\n        amount\n        status\n      }\n    }\n    linkedByLines {\n      id\n      entryId\n      entryLabel\n      date\n      label\n      amount\n      status\n    }\n    allocations {\n      id\n      amount\n      documentId\n      importedDocumentId\n      documentLabel\n    }\n    documents {\n      ...TreasuryEntryDocumentFields\n    }\n  }\n": typeof types.TreasuryEntryFieldsFragmentDoc,
     "\n  fragment TreasuryEntryDocumentFields on TreasuryEntryDocument {\n    id\n    source\n    kind\n    label\n    url\n    projectId\n    place\n  }\n": typeof types.TreasuryEntryDocumentFieldsFragmentDoc,
@@ -473,6 +473,7 @@ type Documents = {
     "\n  mutation MoveWorkspace($id: ID!, $index: Int!) {\n    moveWorkspace(id: $id, index: $index)\n  }\n": typeof types.MoveWorkspaceDocument,
     "\n  mutation DeleteWorkspace($id: ID!) {\n    deleteWorkspace(id: $id)\n  }\n": typeof types.DeleteWorkspaceDocument,
     "\n  query ElsewhereAlarms {\n    alarms {\n      ...AlarmFields\n      task {\n        id\n        number\n        label\n        projectId\n      }\n      project {\n        id\n        label\n      }\n    }\n    projects {\n      id\n      label\n    }\n    runningTimeEntry {\n      id\n      startedAt\n      endedAt\n      pausedAt\n      pausedSeconds\n      duration\n    }\n  }\n": typeof types.ElsewhereAlarmsDocument,
+    "\n  query ElsewhereReminders {\n    tasks {\n      id\n      number\n      label\n      projectId\n      closed\n      archived\n      effectiveMinDate\n      effectiveDeadline\n      reminders {\n        before\n        at\n      }\n    }\n    routines {\n      id\n      label\n      archived\n      location\n      currentDate\n      reminders {\n        before\n        at\n      }\n      reminderOccurrences {\n        date\n        day\n        slots {\n          slot\n          at\n        }\n      }\n      slots {\n        index\n        fromTime\n        dueTime\n        optional\n        done\n        windows\n      }\n    }\n  }\n": typeof types.ElsewhereRemindersDocument,
     "\n  mutation ElsewhereMarkAlarmFired($id: ID!, $at: DateTime!) {\n    markAlarmFired(id: $id, at: $at)\n  }\n": typeof types.ElsewhereMarkAlarmFiredDocument,
     "\n  mutation SetArchived($kind: ArchivableKind!, $ids: [ID!]!, $archived: Boolean!) {\n    setArchived(kind: $kind, ids: $ids, archived: $archived)\n  }\n": typeof types.SetArchivedDocument,
 };
@@ -571,20 +572,21 @@ const documents: Documents = {
     "\n  mutation ChangeUsername($currentPassword: String!, $username: String!) {\n    changeUsername(currentPassword: $currentPassword, username: $username) {\n      ...AccountUser\n    }\n  }\n": types.ChangeUsernameDocument,
     "\n  mutation RequestEmailChange($currentPassword: String!, $email: String!) {\n    requestEmailChange(currentPassword: $currentPassword, email: $email) {\n      ...AccountUser\n    }\n  }\n": types.RequestEmailChangeDocument,
     "\n  mutation CancelEmailChange {\n    cancelEmailChange {\n      ...AccountUser\n    }\n  }\n": types.CancelEmailChangeDocument,
-    "\n  fragment CalendarEventOccurrenceFields on CalendarEventOccurrence {\n    key\n    eventId\n    occurrenceDate\n    modified\n    label\n    description\n    location\n    links {\n      url\n      label\n    }\n    allDay\n    startDate\n    startTime\n    endDate\n    endTime\n    timeZone\n    start\n    end\n    recurrence\n    seriesStartDate\n    reminders\n    travelBefore\n    travelAfter\n    projectId\n    calendarId\n    archived\n    contributorIds\n    relationIds\n    beneficiaryIds\n    beneficiaryRelationIds\n    categoryIds\n    taskIds\n    routineLinks {\n      routineId\n      date\n    }\n    calledOff\n    postponedFrom {\n      eventId\n      date\n      label\n    }\n    postponedTo {\n      eventId\n      label\n      startDate\n      startTime\n    }\n    trackedSeconds\n  }\n": types.CalendarEventOccurrenceFieldsFragmentDoc,
+    "\n  fragment CalendarEventOccurrenceFields on CalendarEventOccurrence {\n    key\n    eventId\n    occurrenceDate\n    modified\n    label\n    description\n    location\n    links {\n      url\n      label\n    }\n    allDay\n    startDate\n    startTime\n    endDate\n    endTime\n    start\n    end\n    recurrence\n    seriesStartDate\n    reminders {\n      before\n      at\n    }\n    travelBefore\n    travelAfter\n    projectId\n    calendarId\n    archived\n    contributorIds\n    relationIds\n    beneficiaryIds\n    beneficiaryRelationIds\n    categoryIds\n    taskIds\n    routineLinks {\n      routineId\n      date\n    }\n    calledOff\n    postponedFrom {\n      eventId\n      date\n      label\n    }\n    postponedTo {\n      eventId\n      label\n      startDate\n      startTime\n    }\n    trackedSeconds\n  }\n": types.CalendarEventOccurrenceFieldsFragmentDoc,
     "\n  query WorkSchedules {\n    workSchedules {\n      id\n      archived\n      label\n      startDate\n      endDate\n      typeId\n      cases\n      exceptions\n    }\n    scheduleTypes {\n      id\n      archived\n      label\n      color\n      iconUrl\n      dayDisplay\n      dayBar\n      monthDisplay\n      position\n    }\n    defaultScheduleKind {\n      label\n      color\n      dayDisplay\n      dayBar\n      monthDisplay\n    }\n  }\n": types.WorkSchedulesDocument,
-    "\n  query ForeignScheduleKinds {\n    foreignScheduleKinds {\n      workspaceId\n      workspaceLabel\n      typeId\n      label\n      color\n      sourceColor\n      dayDisplay\n      dayBar\n      monthDisplay\n      customized\n      scheduleCount\n      subscribed\n    }\n  }\n": types.ForeignScheduleKindsDocument,
+    "\n  query ForeignScheduleKinds {\n    foreignScheduleKinds {\n      workspaceId\n      workspaceLabel\n      typeId\n      label\n      color\n      sourceColor\n      dayDisplay\n      dayBar\n      monthDisplay\n      customized\n      scheduleCount\n      subscribed\n      archived\n    }\n  }\n": types.ForeignScheduleKindsDocument,
     "\n  query SubscribedWorkSchedules {\n    subscribedWorkSchedules {\n      id\n      label\n      startDate\n      endDate\n      cases\n      exceptions\n      typeLabel\n      typeId\n      color\n      dayDisplay\n      dayBar\n      monthDisplay\n      workspaceId\n      workspaceLabel\n    }\n  }\n": types.SubscribedWorkSchedulesDocument,
+    "\n  query OtherWorkspaceSchedules {\n    otherWorkspaceSchedules {\n      id\n      archived\n      label\n      startDate\n      endDate\n      cases\n      exceptions\n      typeId\n      workspaceId\n      workspaceLabel\n    }\n  }\n": types.OtherWorkspaceSchedulesDocument,
     "\n  mutation CreateScheduleType($input: ScheduleTypeInput!) {\n    createScheduleType(input: $input) {\n      id\n    }\n  }\n": types.CreateScheduleTypeDocument,
     "\n  mutation UpdateScheduleType($id: ID!, $input: ScheduleTypeInput!) {\n    updateScheduleType(id: $id, input: $input) {\n      id\n    }\n  }\n": types.UpdateScheduleTypeDocument,
-    "\n  mutation DeleteScheduleType($id: ID!) {\n    deleteScheduleType(id: $id)\n  }\n": types.DeleteScheduleTypeDocument,
+    "\n  mutation DeleteScheduleType($id: ID!, $confirmLoss: Boolean) {\n    deleteScheduleType(id: $id, confirmLoss: $confirmLoss)\n  }\n": types.DeleteScheduleTypeDocument,
     "\n  mutation SubscribeScheduleKind($workspaceId: ID!, $typeId: ID) {\n    subscribeScheduleKind(workspaceId: $workspaceId, typeId: $typeId)\n  }\n": types.SubscribeScheduleKindDocument,
     "\n  mutation SaveDefaultScheduleKind($input: DefaultScheduleKindInput!) {\n    saveDefaultScheduleKind(input: $input) {\n      label\n    }\n  }\n": types.SaveDefaultScheduleKindDocument,
     "\n  mutation SetScheduleSubscriptionLook($workspaceId: ID!, $typeId: ID, $input: ScheduleSubscriptionLookInput!) {\n    setScheduleSubscriptionLook(workspaceId: $workspaceId, typeId: $typeId, input: $input)\n  }\n": types.SetScheduleSubscriptionLookDocument,
     "\n  mutation UnsubscribeScheduleKind($workspaceId: ID!, $typeId: ID) {\n    unsubscribeScheduleKind(workspaceId: $workspaceId, typeId: $typeId)\n  }\n": types.UnsubscribeScheduleKindDocument,
-    "\n  mutation CreateWorkSchedule($input: WorkScheduleInput!) {\n    createWorkSchedule(input: $input)\n  }\n": types.CreateWorkScheduleDocument,
-    "\n  mutation UpdateWorkSchedule($id: ID!, $input: WorkScheduleInput!) {\n    updateWorkSchedule(id: $id, input: $input)\n  }\n": types.UpdateWorkScheduleDocument,
-    "\n  mutation DeleteWorkSchedule($id: ID!) {\n    deleteWorkSchedule(id: $id)\n  }\n": types.DeleteWorkScheduleDocument,
+    "\n  mutation CreateWorkSchedule($input: WorkScheduleInput!, $confirmLoss: Boolean) {\n    createWorkSchedule(input: $input, confirmLoss: $confirmLoss)\n  }\n": types.CreateWorkScheduleDocument,
+    "\n  mutation UpdateWorkSchedule($id: ID!, $input: WorkScheduleInput!, $confirmLoss: Boolean) {\n    updateWorkSchedule(id: $id, input: $input, confirmLoss: $confirmLoss)\n  }\n": types.UpdateWorkScheduleDocument,
+    "\n  mutation DeleteWorkSchedule($id: ID!, $confirmLoss: Boolean) {\n    deleteWorkSchedule(id: $id, confirmLoss: $confirmLoss)\n  }\n": types.DeleteWorkScheduleDocument,
     "\n  mutation SetCalendarEventCalledOff($id: ID!, $scope: CalendarEventScope!, $occurrenceDate: Date, $calledOff: Boolean!) {\n    setCalendarEventCalledOff(id: $id, scope: $scope, occurrenceDate: $occurrenceDate, calledOff: $calledOff)\n  }\n": types.SetCalendarEventCalledOffDocument,
     "\n  mutation PostponeCalendarEvent($id: ID!, $occurrenceDate: Date, $input: CalendarEventInput!) {\n    postponeCalendarEvent(id: $id, occurrenceDate: $occurrenceDate, input: $input)\n  }\n": types.PostponeCalendarEventDocument,
     "\n  query CalendarCategories {\n    calendarCategories {\n      id\n      archived\n      label\n      color\n      iconUrl\n      parentId\n      position\n    }\n  }\n": types.CalendarCategoriesDocument,
@@ -602,12 +604,11 @@ const documents: Documents = {
     "\n  mutation DeleteCalendarCategory($id: ID!) {\n    deleteCalendarCategory(id: $id)\n  }\n": types.DeleteCalendarCategoryDocument,
     "\n  mutation MoveCalendarCategory($id: ID!, $index: Int!, $parentId: ID) {\n    moveCalendarCategory(id: $id, index: $index, parentId: $parentId)\n  }\n": types.MoveCalendarCategoryDocument,
     "\n  mutation CreateCalendarEvent($input: CalendarEventInput!) {\n    createCalendarEvent(input: $input)\n  }\n": types.CreateCalendarEventDocument,
-    "\n  mutation UpdateCalendarEvent($id: ID!, $input: CalendarEventInput!, $scope: CalendarEventScope!, $occurrenceDate: Date) {\n    updateCalendarEvent(id: $id, input: $input, scope: $scope, occurrenceDate: $occurrenceDate)\n  }\n": types.UpdateCalendarEventDocument,
+    "\n  mutation UpdateCalendarEvent($id: ID!, $input: CalendarEventInput!, $scope: CalendarEventScope!, $occurrenceDate: Date, $confirmLoss: Boolean) {\n    updateCalendarEvent(id: $id, input: $input, scope: $scope, occurrenceDate: $occurrenceDate, confirmLoss: $confirmLoss)\n  }\n": types.UpdateCalendarEventDocument,
     "\n  mutation DeleteCalendarEvent($id: ID!, $scope: CalendarEventScope!, $occurrenceDate: Date) {\n    deleteCalendarEvent(id: $id, scope: $scope, occurrenceDate: $occurrenceDate)\n  }\n": types.DeleteCalendarEventDocument,
-    "\n  mutation MaterializeTaskOccurrences($from: Date!, $to: Date!) {\n    materializeTaskOccurrences(from: $from, to: $to)\n  }\n": types.MaterializeTaskOccurrencesDocument,
-    "\n  query Comments($target: CommentTarget!, $id: String!) {\n    comments(target: $target, id: $id) {\n      id\n      body\n      createdAt\n    }\n  }\n": types.CommentsDocument,
+    "\n  query Comments($target: CommentTarget!, $id: String!, $occurrenceDate: Date) {\n    comments(target: $target, id: $id, occurrenceDate: $occurrenceDate) {\n      id\n      body\n      createdAt\n    }\n  }\n": types.CommentsDocument,
     "\n  query CommentCounts($target: CommentTarget!, $ids: [String!]!) {\n    commentCounts(target: $target, ids: $ids) {\n      id\n      count\n    }\n  }\n": types.CommentCountsDocument,
-    "\n  mutation AddComment($target: CommentTarget!, $id: String!, $body: String!) {\n    addComment(target: $target, id: $id, body: $body) {\n      id\n    }\n  }\n": types.AddCommentDocument,
+    "\n  mutation AddComment($target: CommentTarget!, $id: String!, $body: String!, $occurrenceDate: Date) {\n    addComment(target: $target, id: $id, body: $body, occurrenceDate: $occurrenceDate) {\n      id\n    }\n  }\n": types.AddCommentDocument,
     "\n  mutation UpdateComment($id: ID!, $body: String!) {\n    updateComment(id: $id, body: $body) {\n      id\n    }\n  }\n": types.UpdateCommentDocument,
     "\n  mutation DeleteComment($id: ID!) {\n    deleteComment(id: $id)\n  }\n": types.DeleteCommentDocument,
     "\n  query SprintTaskStatuses($today: Date!) {\n    sprintTaskStatuses(today: $today) {\n      sprintId\n      taskId\n      statusId\n      closed\n    }\n  }\n": types.SprintTaskStatusesDocument,
@@ -721,27 +722,27 @@ const documents: Documents = {
     "\n  mutation CreateProjectStatus($input: LabelColorInput!) {\n    createProjectStatus(input: $input) {\n      ...ProjectStatusFields\n    }\n  }\n": types.CreateProjectStatusDocument,
     "\n  mutation UpdateProjectStatus($id: ID!, $input: LabelColorPatch!) {\n    updateProjectStatus(id: $id, input: $input) {\n      ...ProjectStatusFields\n    }\n  }\n": types.UpdateProjectStatusDocument,
     "\n  mutation DeleteProjectStatus($id: ID!) {\n    deleteProjectStatus(id: $id)\n  }\n": types.DeleteProjectStatusDocument,
-    "\n  query RoutinesData {\n    routineCategories {\n      id\n      archived\n      label\n      color\n      iconUrl\n      parentId\n      position\n    }\n    routines {\n      id\n      label\n      description\n      categoryIds\n      parentId\n      startDate\n      recurrence\n      estimate\n      fromTime\n      dueTime\n      slotCondition\n      moments\n      reminders\n      cases\n      moves\n      done\n      slots {\n        index\n        fromTime\n        dueTime\n        optional\n        done\n        windows\n      }\n      windowFrom\n      windowTo\n      location\n      locationLat\n      locationLon\n      travelBefore\n      travelAfter\n      projectId\n      position\n      archived\n      assigneeIds\n      beneficiaryIds\n      beneficiaryRelationIds\n      requiredIds\n      currentDate\n      firstDate\n      nextDate\n      doneDates\n      lastDoneAt\n      trackedSeconds\n      opensOn\n    }\n  }\n": types.RoutinesDataDocument,
+    "\n  query RoutinesData {\n    routineCategories {\n      id\n      archived\n      label\n      color\n      iconUrl\n      parentId\n      position\n    }\n    routines {\n      id\n      label\n      description\n      categoryIds\n      parentId\n      startDate\n      recurrence\n      estimate\n      fromTime\n      dueTime\n      slotCondition\n      moments\n      reminders {\n        before\n        at\n      }\n      reminderOccurrences {\n        date\n        day\n        slots {\n          slot\n          at\n        }\n      }\n      cases\n      moves\n      done\n      slots {\n        index\n        fromTime\n        dueTime\n        optional\n        done\n        windows\n      }\n      windowFrom\n      windowTo\n      location\n      locationLat\n      locationLon\n      links {\n        url\n        label\n      }\n      travelBefore\n      travelAfter\n      projectId\n      position\n      archived\n      assigneeIds\n      beneficiaryIds\n      beneficiaryRelationIds\n      requiredIds\n      relatedIds\n      currentDate\n      firstDate\n      nextDate\n      doneDates\n      lastDoneAt\n      trackedSeconds\n      opensOn\n    }\n  }\n": types.RoutinesDataDocument,
     "\n  mutation CreateRoutineCategory($input: RoutineCategoryInput!) {\n    createRoutineCategory(input: $input)\n  }\n": types.CreateRoutineCategoryDocument,
     "\n  mutation UpdateRoutineCategory($id: ID!, $input: RoutineCategoryInput!) {\n    updateRoutineCategory(id: $id, input: $input)\n  }\n": types.UpdateRoutineCategoryDocument,
     "\n  mutation MoveRoutineCategory($id: ID!, $parentId: ID, $index: Int) {\n    moveRoutineCategory(id: $id, parentId: $parentId, index: $index)\n  }\n": types.MoveRoutineCategoryDocument,
     "\n  mutation DeleteRoutineCategory($id: ID!) {\n    deleteRoutineCategory(id: $id)\n  }\n": types.DeleteRoutineCategoryDocument,
     "\n  mutation CopySubRoutines($fromId: ID!, $toId: ID!) {\n    copySubRoutines(fromId: $fromId, toId: $toId)\n  }\n": types.CopySubRoutinesDocument,
-    "\n  mutation CreateRoutine($input: RoutineInput!) {\n    createRoutine(input: $input)\n  }\n": types.CreateRoutineDocument,
-    "\n  mutation UpdateRoutine($id: ID!, $input: RoutineInput!, $restoring: Boolean) {\n    updateRoutine(id: $id, input: $input, restoring: $restoring)\n  }\n": types.UpdateRoutineDocument,
-    "\n  mutation PatchRoutine($id: ID!, $input: RoutinePatch!) {\n    patchRoutine(id: $id, input: $input)\n  }\n": types.PatchRoutineDocument,
-    "\n  mutation MoveRoutine($id: ID!, $targetId: ID!, $place: RoutinePlace!, $categoryIds: [ID!]) {\n    moveRoutine(id: $id, targetId: $targetId, place: $place, categoryIds: $categoryIds)\n  }\n": types.MoveRoutineDocument,
-    "\n  mutation BulkUpdateRoutines($ids: [ID!]!, $changes: RoutineBulkChanges!) {\n    bulkUpdateRoutines(ids: $ids, changes: $changes)\n  }\n": types.BulkUpdateRoutinesDocument,
+    "\n  mutation CreateRoutine($input: RoutineInput!, $copyOf: ID) {\n    createRoutine(input: $input, copyOf: $copyOf)\n  }\n": types.CreateRoutineDocument,
+    "\n  mutation UpdateRoutine($id: ID!, $input: RoutineInput!, $restoring: Boolean, $confirmLoss: Boolean) {\n    updateRoutine(id: $id, input: $input, restoring: $restoring, confirmLoss: $confirmLoss) {\n      removedLinks\n    }\n  }\n": types.UpdateRoutineDocument,
+    "\n  mutation PatchRoutine($id: ID!, $input: RoutinePatch!, $confirmLoss: Boolean) {\n    patchRoutine(id: $id, input: $input, confirmLoss: $confirmLoss) {\n      removedLinks\n    }\n  }\n": types.PatchRoutineDocument,
+    "\n  mutation MoveRoutine($id: ID!, $beforeId: ID, $parentId: ID, $categoryIds: [ID!]) {\n    moveRoutine(id: $id, beforeId: $beforeId, parentId: $parentId, categoryIds: $categoryIds)\n  }\n": types.MoveRoutineDocument,
+    "\n  mutation BulkUpdateRoutines($ids: [ID!]!, $changes: RoutineBulkChanges!, $confirmLoss: Boolean) {\n    bulkUpdateRoutines(ids: $ids, changes: $changes, confirmLoss: $confirmLoss) {\n      removedLinks\n    }\n  }\n": types.BulkUpdateRoutinesDocument,
     "\n  mutation BulkSetRoutinesArchived($ids: [ID!]!, $archived: Boolean!) {\n    bulkSetRoutinesArchived(ids: $ids, archived: $archived)\n  }\n": types.BulkSetRoutinesArchivedDocument,
     "\n  mutation BulkSetRoutinesDone($ids: [ID!]!, $done: Boolean!) {\n    bulkSetRoutinesDone(ids: $ids, done: $done)\n  }\n": types.BulkSetRoutinesDoneDocument,
-    "\n  mutation BulkDeleteRoutines($ids: [ID!]!) {\n    bulkDeleteRoutines(ids: $ids)\n  }\n": types.BulkDeleteRoutinesDocument,
+    "\n  mutation BulkDeleteRoutines($ids: [ID!]!, $deleteSubRoutines: Boolean!) {\n    bulkDeleteRoutines(ids: $ids, deleteSubRoutines: $deleteSubRoutines)\n  }\n": types.BulkDeleteRoutinesDocument,
     "\n  mutation SetRoutineDone($id: ID!, $done: Boolean!, $date: Date, $slot: Int, $doneAt: DateTime) {\n    setRoutineDone(id: $id, done: $done, date: $date, slot: $slot, doneAt: $doneAt)\n  }\n": types.SetRoutineDoneDocument,
     "\n  mutation MoveRoutineOccurrence($id: ID!, $date: Date!, $to: Date!, $times: JSON) {\n    moveRoutineOccurrence(id: $id, date: $date, to: $to, times: $times)\n  }\n": types.MoveRoutineOccurrenceDocument,
-    "\n  mutation ChangeRoutineOccurrence($id: ID!, $date: Date!, $scope: CalendarEventScope!, $to: Date!, $slot: Int!, $fromTime: String, $dueTime: String) {\n    changeRoutineOccurrence(id: $id, date: $date, scope: $scope, to: $to, slot: $slot, fromTime: $fromTime, dueTime: $dueTime)\n  }\n": types.ChangeRoutineOccurrenceDocument,
-    "\n  mutation DeleteRoutineOccurrence($id: ID!, $date: Date!, $scope: CalendarEventScope!) {\n    deleteRoutineOccurrence(id: $id, date: $date, scope: $scope)\n  }\n": types.DeleteRoutineOccurrenceDocument,
-    "\n  mutation RemoveRoutineMove($id: ID!, $from: Date!) {\n    removeRoutineMove(id: $id, from: $from)\n  }\n": types.RemoveRoutineMoveDocument,
+    "\n  mutation ChangeRoutineOccurrence($id: ID!, $date: Date!, $scope: CalendarEventScope!, $to: Date!, $slot: Int!, $fromTime: String, $dueTime: String, $confirmLoss: Boolean) {\n    changeRoutineOccurrence(id: $id, date: $date, scope: $scope, to: $to, slot: $slot, fromTime: $fromTime, dueTime: $dueTime, confirmLoss: $confirmLoss)\n  }\n": types.ChangeRoutineOccurrenceDocument,
+    "\n  mutation DeleteRoutineOccurrence($id: ID!, $date: Date!, $scope: CalendarEventScope!) {\n    deleteRoutineOccurrence(id: $id, date: $date, scope: $scope) {\n      archived\n      comments {\n        body\n        createdAt\n        updatedAt\n      }\n    }\n  }\n": types.DeleteRoutineOccurrenceDocument,
+    "\n  mutation RemoveRoutineMove($id: ID!, $from: Date!, $comments: [CommentSnapshotInput!]) {\n    removeRoutineMove(id: $id, from: $from, comments: $comments)\n  }\n": types.RemoveRoutineMoveDocument,
     "\n  query RoutineChecks($from: Date!, $to: Date!) {\n    routineChecks(from: $from, to: $to) {\n      routineId\n      date\n      slot\n      doneAt\n      fromTime\n      dueTime\n    }\n  }\n": types.RoutineChecksDocument,
-    "\n  query RoutineOccurrences($from: Date!, $to: Date!) {\n    routineOccurrences(from: $from, to: $to) {\n      routineId\n      date\n      startDate\n      shownDate\n      movedFrom\n      slots {\n        index\n        fromTime\n        dueTime\n        optional\n        done\n        windows\n      }\n    }\n  }\n": types.RoutineOccurrencesDocument,
+    "\n  query RoutineOccurrences($from: Date!, $to: Date!) {\n    routineOccurrences(from: $from, to: $to) {\n      routineId\n      date\n      startDate\n      shownDate\n      movedFrom\n      cancelled\n      archived\n      slots {\n        index\n        fromTime\n        dueTime\n        optional\n        done\n        windows\n      }\n    }\n  }\n": types.RoutineOccurrencesDocument,
     "\n  query Sheets($projectId: ID) {\n    sheets(projectId: $projectId) {\n      id\n      archived\n      label\n      note\n      projectId\n      categoryIds\n      position\n      createdAt\n      updatedAt\n      usedBy\n      items {\n        id\n        productId\n        label\n        categoryId\n        quantity\n        unit\n        note\n        consumable\n        storeId\n        url\n        perishable\n        storageId\n        memberIds\n        relationIds\n        optional\n        position\n      }\n    }\n  }\n": types.SheetsDocument,
     "\n  query Sheet($id: ID!) {\n    sheet(id: $id) {\n      id\n      archived\n      label\n      note\n      projectId\n      categoryIds\n      usedBy\n      updatedAt\n      items {\n        id\n        productId\n        label\n        categoryId\n        quantity\n        unit\n        note\n        consumable\n        storeId\n        url\n        perishable\n        storageId\n        memberIds\n        relationIds\n        optional\n        position\n      }\n    }\n  }\n": types.SheetDocument,
     "\n  query SheetCategories {\n    sheetCategories {\n      id\n      archived\n      label\n      color\n      iconUrl\n      position\n    }\n  }\n": types.SheetCategoriesDocument,
@@ -830,14 +831,13 @@ const documents: Documents = {
     "\n  fragment SprintFields on Sprint {\n    id\n    archived\n    projectId\n    label\n    goal\n    startDate\n    endDate\n  }\n": types.SprintFieldsFragmentDoc,
     "\n  fragment MilestoneFields on Milestone {\n    id\n    archived\n    projectId\n    label\n    description\n    dueDate\n    position\n  }\n": types.MilestoneFieldsFragmentDoc,
     "\n  fragment TaskLabelFields on TaskStatus {\n    id\n    archived\n    label\n    color\n    iconUrl\n    position\n  }\n": types.TaskLabelFieldsFragmentDoc,
-    "\n  fragment TaskFields on Task {\n    id\n    number\n    label\n    description\n    projectId\n    statusId\n    priorityId\n    typeId\n    effort\n    startDate\n    endDate\n    parentId\n    milestoneId\n    sprintIds\n    deadline\n    minDate\n    position\n    archived\n    createdAt\n    updatedAt\n    assigneeIds\n    beneficiaryIds\n    beneficiaryRelationIds\n    tagIds\n    blockingIds\n    blockedByIds\n    relatedIds\n    commentCount\n    trackedSeconds\n    recurrence\n    seriesId\n    occurrenceDate\n    closed\n    closedAt\n    githubLinked\n    githubUrl\n    githubNumber\n    slotRule\n  }\n": types.TaskFieldsFragmentDoc,
+    "\n  fragment TaskFields on Task {\n    id\n    number\n    label\n    description\n    projectId\n    statusId\n    priorityId\n    typeId\n    effort\n    startDate\n    endDate\n    parentId\n    milestoneId\n    sprintIds\n    deadline\n    minDate\n    effectiveDeadline\n    effectiveMinDate\n    deadlineFromSprint\n    minDateFromSprint\n    cancelled\n    position\n    archived\n    createdAt\n    updatedAt\n    assigneeIds\n    beneficiaryIds\n    beneficiaryRelationIds\n    tagIds\n    blockingIds\n    blockedByIds\n    relatedIds\n    commentCount\n    trackedSeconds\n    closed\n    closedAt\n    githubLinked\n    githubUrl\n    githubNumber\n    slotCondition\n    location\n    locationLat\n    locationLon\n    links {\n      url\n      label\n    }\n    reminders {\n      before\n      at\n    }\n  }\n": types.TaskFieldsFragmentDoc,
     "\n  fragment TaskCommentFields on TaskComment {\n    id\n    body\n    createdAt\n    githubAuthor\n  }\n": types.TaskCommentFieldsFragmentDoc,
     "\n  query TasksData {\n    tasks {\n      ...TaskFields\n    }\n    contributors {\n      ...ContributorFields\n    }\n    taskStatuses {\n      ...TaskLabelFields\n      category\n    }\n    taskPriorities {\n      id\n      archived\n      label\n      color\n      iconUrl\n      position\n    }\n    taskTypes {\n      id\n      archived\n      label\n      color\n      iconUrl\n      position\n    }\n    taskTags {\n      id\n      archived\n      label\n      color\n      iconUrl\n      position\n    }\n    milestones {\n      ...MilestoneFields\n    }\n    sprints {\n      ...SprintFields\n    }\n  }\n": types.TasksDataDocument,
     "\n  query TaskComments($id: ID!) {\n    task(id: $id) {\n      id\n      comments {\n        ...TaskCommentFields\n      }\n    }\n  }\n": types.TaskCommentsDocument,
     "\n  mutation CreateTask($input: TaskInput!) {\n    createTask(input: $input) {\n      ...TaskFields\n    }\n  }\n": types.CreateTaskDocument,
     "\n  mutation UpdateTask($id: ID!, $input: TaskUpdateInput!) {\n    updateTask(id: $id, input: $input) {\n      ...TaskFields\n    }\n  }\n": types.UpdateTaskDocument,
-    "\n  mutation CloneTask($id: ID!, $includeSubtasks: Boolean!) {\n    cloneTask(id: $id, includeSubtasks: $includeSubtasks) {\n      id\n      number\n    }\n  }\n": types.CloneTaskDocument,
-    "\n  mutation SetTaskRecurrence($id: ID!, $recurrence: JSON) {\n    setTaskRecurrence(id: $id, recurrence: $recurrence) {\n      id\n    }\n  }\n": types.SetTaskRecurrenceDocument,
+    "\n  mutation DuplicateTask($id: ID!, $includeSubtasks: Boolean!) {\n    duplicateTask(id: $id, includeSubtasks: $includeSubtasks) {\n      id\n      number\n    }\n  }\n": types.DuplicateTaskDocument,
     "\n  mutation MoveTask($id: ID!, $beforeId: ID, $parentId: ID) {\n    moveTask(id: $id, beforeId: $beforeId, parentId: $parentId)\n  }\n": types.MoveTaskDocument,
     "\n  mutation AddTaskBlock($blockerId: ID!, $blockedId: ID!) {\n    addTaskBlock(blockerId: $blockerId, blockedId: $blockedId)\n  }\n": types.AddTaskBlockDocument,
     "\n  mutation RemoveTaskBlock($blockerId: ID!, $blockedId: ID!) {\n    removeTaskBlock(blockerId: $blockerId, blockedId: $blockedId)\n  }\n": types.RemoveTaskBlockDocument,
@@ -877,7 +877,7 @@ const documents: Documents = {
     "\n  mutation CreateSprint($projectId: ID!, $input: SprintInput!) {\n    createSprint(projectId: $projectId, input: $input)\n  }\n": types.CreateSprintDocument,
     "\n  mutation UpdateSprint($id: ID!, $input: SprintInput!) {\n    updateSprint(id: $id, input: $input)\n  }\n": types.UpdateSprintDocument,
     "\n  mutation DeleteSprint($id: ID!) {\n    deleteSprint(id: $id)\n  }\n": types.DeleteSprintDocument,
-    "\n  fragment TimeEntryFields on TimeEntry {\n    id\n    projectId\n    routineId\n    routineLabel\n    description\n    startedAt\n    endedAt\n    pausedAt\n    pausedSeconds\n    duration\n    taskIds\n    documentId\n    documentNumber\n    calendarEventId\n    calendarOccurrenceDate\n    calendarEventLabel\n  }\n": types.TimeEntryFieldsFragmentDoc,
+    "\n  fragment TimeEntryFields on TimeEntry {\n    id\n    projectId\n    routines {\n      id\n      label\n    }\n    description\n    startedAt\n    endedAt\n    pausedAt\n    pausedSeconds\n    duration\n    taskIds\n    documentId\n    documentNumber\n    events {\n      eventId\n      occurrenceDate\n      label\n    }\n  }\n": types.TimeEntryFieldsFragmentDoc,
     "\n  query TimeEntries($projectId: ID, $since: DateTime) {\n    timeEntries(projectId: $projectId, since: $since) {\n      ...TimeEntryFields\n    }\n  }\n": types.TimeEntriesDocument,
     "\n  query RunningTimeEntry {\n    runningTimeEntry {\n      ...TimeEntryFields\n    }\n  }\n": types.RunningTimeEntryDocument,
     "\n  mutation StartTimer($input: TimerInput!) {\n    startTimer(input: $input) {\n      id\n    }\n  }\n": types.StartTimerDocument,
@@ -885,6 +885,7 @@ const documents: Documents = {
     "\n  mutation StopTimer {\n    stopTimer {\n      id\n    }\n  }\n": types.StopTimerDocument,
     "\n  mutation CreateTimeEntry($input: TimeEntryInput!) {\n    createTimeEntry(input: $input) {\n      id\n    }\n  }\n": types.CreateTimeEntryDocument,
     "\n  mutation UpdateTimeEntry($id: ID!, $input: TimeEntryUpdateInput!) {\n    updateTimeEntry(id: $id, input: $input) {\n      id\n    }\n  }\n": types.UpdateTimeEntryDocument,
+    "\n  query LostOnDelete(\n    $taskIds: [ID!]\n    $routineIds: [ID!]\n    $withSubtree: Boolean\n    $eventId: ID\n    $scope: CalendarEventScope\n    $occurrenceDate: Date\n    $calendarId: ID\n    $routineOccurrence: RoutineOccurrenceGoneInput\n  ) {\n    lostOnDelete(\n      taskIds: $taskIds\n      routineIds: $routineIds\n      withSubtree: $withSubtree\n      eventId: $eventId\n      scope: $scope\n      occurrenceDate: $occurrenceDate\n      calendarId: $calendarId\n      routineOccurrence: $routineOccurrence\n    ) {\n      times\n      comments\n    }\n  }\n": types.LostOnDeleteDocument,
     "\n  mutation DeleteTimeEntry($id: ID!) {\n    deleteTimeEntry(id: $id)\n  }\n": types.DeleteTimeEntryDocument,
     "\n  fragment TreasuryEntryFields on TreasuryEntry {\n    id\n    archived\n    accountId\n    accountLabel\n    status\n    date\n    valueDate\n    label\n    amount\n    categoryId\n    methodId\n    methodLabel\n    clientId\n    counterpartyId\n    payerName\n    linkedEntries {\n      id\n      date\n      label\n      amount\n      status\n    }\n    projectId\n    note\n    url\n    recurrence\n    lines {\n      id\n      label\n      mode\n      value\n      memberId\n      relationId\n      loan\n      date\n      categoryId\n      contextId\n      projectId\n      documents {\n        ...TreasuryEntryDocumentFields\n      }\n      linkedLines {\n        id\n        entryId\n        entryLabel\n        date\n        label\n        amount\n        status\n      }\n      linkedEntries {\n        id\n        date\n        label\n        amount\n        status\n      }\n    }\n    linkedByLines {\n      id\n      entryId\n      entryLabel\n      date\n      label\n      amount\n      status\n    }\n    allocations {\n      id\n      amount\n      documentId\n      importedDocumentId\n      documentLabel\n    }\n    documents {\n      ...TreasuryEntryDocumentFields\n    }\n  }\n": types.TreasuryEntryFieldsFragmentDoc,
     "\n  fragment TreasuryEntryDocumentFields on TreasuryEntryDocument {\n    id\n    source\n    kind\n    label\n    url\n    projectId\n    place\n  }\n": types.TreasuryEntryDocumentFieldsFragmentDoc,
@@ -935,6 +936,7 @@ const documents: Documents = {
     "\n  mutation MoveWorkspace($id: ID!, $index: Int!) {\n    moveWorkspace(id: $id, index: $index)\n  }\n": types.MoveWorkspaceDocument,
     "\n  mutation DeleteWorkspace($id: ID!) {\n    deleteWorkspace(id: $id)\n  }\n": types.DeleteWorkspaceDocument,
     "\n  query ElsewhereAlarms {\n    alarms {\n      ...AlarmFields\n      task {\n        id\n        number\n        label\n        projectId\n      }\n      project {\n        id\n        label\n      }\n    }\n    projects {\n      id\n      label\n    }\n    runningTimeEntry {\n      id\n      startedAt\n      endedAt\n      pausedAt\n      pausedSeconds\n      duration\n    }\n  }\n": types.ElsewhereAlarmsDocument,
+    "\n  query ElsewhereReminders {\n    tasks {\n      id\n      number\n      label\n      projectId\n      closed\n      archived\n      effectiveMinDate\n      effectiveDeadline\n      reminders {\n        before\n        at\n      }\n    }\n    routines {\n      id\n      label\n      archived\n      location\n      currentDate\n      reminders {\n        before\n        at\n      }\n      reminderOccurrences {\n        date\n        day\n        slots {\n          slot\n          at\n        }\n      }\n      slots {\n        index\n        fromTime\n        dueTime\n        optional\n        done\n        windows\n      }\n    }\n  }\n": types.ElsewhereRemindersDocument,
     "\n  mutation ElsewhereMarkAlarmFired($id: ID!, $at: DateTime!) {\n    markAlarmFired(id: $id, at: $at)\n  }\n": types.ElsewhereMarkAlarmFiredDocument,
     "\n  mutation SetArchived($kind: ArchivableKind!, $ids: [ID!]!, $archived: Boolean!) {\n    setArchived(kind: $kind, ids: $ids, archived: $archived)\n  }\n": types.SetArchivedDocument,
 };
@@ -1318,7 +1320,7 @@ export function graphql(source: "\n  mutation CancelEmailChange {\n    cancelEma
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */
-export function graphql(source: "\n  fragment CalendarEventOccurrenceFields on CalendarEventOccurrence {\n    key\n    eventId\n    occurrenceDate\n    modified\n    label\n    description\n    location\n    links {\n      url\n      label\n    }\n    allDay\n    startDate\n    startTime\n    endDate\n    endTime\n    timeZone\n    start\n    end\n    recurrence\n    seriesStartDate\n    reminders\n    travelBefore\n    travelAfter\n    projectId\n    calendarId\n    archived\n    contributorIds\n    relationIds\n    beneficiaryIds\n    beneficiaryRelationIds\n    categoryIds\n    taskIds\n    routineLinks {\n      routineId\n      date\n    }\n    calledOff\n    postponedFrom {\n      eventId\n      date\n      label\n    }\n    postponedTo {\n      eventId\n      label\n      startDate\n      startTime\n    }\n    trackedSeconds\n  }\n"): typeof import('./graphql').CalendarEventOccurrenceFieldsFragmentDoc;
+export function graphql(source: "\n  fragment CalendarEventOccurrenceFields on CalendarEventOccurrence {\n    key\n    eventId\n    occurrenceDate\n    modified\n    label\n    description\n    location\n    links {\n      url\n      label\n    }\n    allDay\n    startDate\n    startTime\n    endDate\n    endTime\n    start\n    end\n    recurrence\n    seriesStartDate\n    reminders {\n      before\n      at\n    }\n    travelBefore\n    travelAfter\n    projectId\n    calendarId\n    archived\n    contributorIds\n    relationIds\n    beneficiaryIds\n    beneficiaryRelationIds\n    categoryIds\n    taskIds\n    routineLinks {\n      routineId\n      date\n    }\n    calledOff\n    postponedFrom {\n      eventId\n      date\n      label\n    }\n    postponedTo {\n      eventId\n      label\n      startDate\n      startTime\n    }\n    trackedSeconds\n  }\n"): typeof import('./graphql').CalendarEventOccurrenceFieldsFragmentDoc;
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */
@@ -1326,11 +1328,15 @@ export function graphql(source: "\n  query WorkSchedules {\n    workSchedules {\
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */
-export function graphql(source: "\n  query ForeignScheduleKinds {\n    foreignScheduleKinds {\n      workspaceId\n      workspaceLabel\n      typeId\n      label\n      color\n      sourceColor\n      dayDisplay\n      dayBar\n      monthDisplay\n      customized\n      scheduleCount\n      subscribed\n    }\n  }\n"): typeof import('./graphql').ForeignScheduleKindsDocument;
+export function graphql(source: "\n  query ForeignScheduleKinds {\n    foreignScheduleKinds {\n      workspaceId\n      workspaceLabel\n      typeId\n      label\n      color\n      sourceColor\n      dayDisplay\n      dayBar\n      monthDisplay\n      customized\n      scheduleCount\n      subscribed\n      archived\n    }\n  }\n"): typeof import('./graphql').ForeignScheduleKindsDocument;
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */
 export function graphql(source: "\n  query SubscribedWorkSchedules {\n    subscribedWorkSchedules {\n      id\n      label\n      startDate\n      endDate\n      cases\n      exceptions\n      typeLabel\n      typeId\n      color\n      dayDisplay\n      dayBar\n      monthDisplay\n      workspaceId\n      workspaceLabel\n    }\n  }\n"): typeof import('./graphql').SubscribedWorkSchedulesDocument;
+/**
+ * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
+ */
+export function graphql(source: "\n  query OtherWorkspaceSchedules {\n    otherWorkspaceSchedules {\n      id\n      archived\n      label\n      startDate\n      endDate\n      cases\n      exceptions\n      typeId\n      workspaceId\n      workspaceLabel\n    }\n  }\n"): typeof import('./graphql').OtherWorkspaceSchedulesDocument;
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */
@@ -1342,7 +1348,7 @@ export function graphql(source: "\n  mutation UpdateScheduleType($id: ID!, $inpu
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */
-export function graphql(source: "\n  mutation DeleteScheduleType($id: ID!) {\n    deleteScheduleType(id: $id)\n  }\n"): typeof import('./graphql').DeleteScheduleTypeDocument;
+export function graphql(source: "\n  mutation DeleteScheduleType($id: ID!, $confirmLoss: Boolean) {\n    deleteScheduleType(id: $id, confirmLoss: $confirmLoss)\n  }\n"): typeof import('./graphql').DeleteScheduleTypeDocument;
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */
@@ -1362,15 +1368,15 @@ export function graphql(source: "\n  mutation UnsubscribeScheduleKind($workspace
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */
-export function graphql(source: "\n  mutation CreateWorkSchedule($input: WorkScheduleInput!) {\n    createWorkSchedule(input: $input)\n  }\n"): typeof import('./graphql').CreateWorkScheduleDocument;
+export function graphql(source: "\n  mutation CreateWorkSchedule($input: WorkScheduleInput!, $confirmLoss: Boolean) {\n    createWorkSchedule(input: $input, confirmLoss: $confirmLoss)\n  }\n"): typeof import('./graphql').CreateWorkScheduleDocument;
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */
-export function graphql(source: "\n  mutation UpdateWorkSchedule($id: ID!, $input: WorkScheduleInput!) {\n    updateWorkSchedule(id: $id, input: $input)\n  }\n"): typeof import('./graphql').UpdateWorkScheduleDocument;
+export function graphql(source: "\n  mutation UpdateWorkSchedule($id: ID!, $input: WorkScheduleInput!, $confirmLoss: Boolean) {\n    updateWorkSchedule(id: $id, input: $input, confirmLoss: $confirmLoss)\n  }\n"): typeof import('./graphql').UpdateWorkScheduleDocument;
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */
-export function graphql(source: "\n  mutation DeleteWorkSchedule($id: ID!) {\n    deleteWorkSchedule(id: $id)\n  }\n"): typeof import('./graphql').DeleteWorkScheduleDocument;
+export function graphql(source: "\n  mutation DeleteWorkSchedule($id: ID!, $confirmLoss: Boolean) {\n    deleteWorkSchedule(id: $id, confirmLoss: $confirmLoss)\n  }\n"): typeof import('./graphql').DeleteWorkScheduleDocument;
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */
@@ -1442,7 +1448,7 @@ export function graphql(source: "\n  mutation CreateCalendarEvent($input: Calend
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */
-export function graphql(source: "\n  mutation UpdateCalendarEvent($id: ID!, $input: CalendarEventInput!, $scope: CalendarEventScope!, $occurrenceDate: Date) {\n    updateCalendarEvent(id: $id, input: $input, scope: $scope, occurrenceDate: $occurrenceDate)\n  }\n"): typeof import('./graphql').UpdateCalendarEventDocument;
+export function graphql(source: "\n  mutation UpdateCalendarEvent($id: ID!, $input: CalendarEventInput!, $scope: CalendarEventScope!, $occurrenceDate: Date, $confirmLoss: Boolean) {\n    updateCalendarEvent(id: $id, input: $input, scope: $scope, occurrenceDate: $occurrenceDate, confirmLoss: $confirmLoss)\n  }\n"): typeof import('./graphql').UpdateCalendarEventDocument;
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */
@@ -1450,11 +1456,7 @@ export function graphql(source: "\n  mutation DeleteCalendarEvent($id: ID!, $sco
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */
-export function graphql(source: "\n  mutation MaterializeTaskOccurrences($from: Date!, $to: Date!) {\n    materializeTaskOccurrences(from: $from, to: $to)\n  }\n"): typeof import('./graphql').MaterializeTaskOccurrencesDocument;
-/**
- * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
- */
-export function graphql(source: "\n  query Comments($target: CommentTarget!, $id: String!) {\n    comments(target: $target, id: $id) {\n      id\n      body\n      createdAt\n    }\n  }\n"): typeof import('./graphql').CommentsDocument;
+export function graphql(source: "\n  query Comments($target: CommentTarget!, $id: String!, $occurrenceDate: Date) {\n    comments(target: $target, id: $id, occurrenceDate: $occurrenceDate) {\n      id\n      body\n      createdAt\n    }\n  }\n"): typeof import('./graphql').CommentsDocument;
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */
@@ -1462,7 +1464,7 @@ export function graphql(source: "\n  query CommentCounts($target: CommentTarget!
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */
-export function graphql(source: "\n  mutation AddComment($target: CommentTarget!, $id: String!, $body: String!) {\n    addComment(target: $target, id: $id, body: $body) {\n      id\n    }\n  }\n"): typeof import('./graphql').AddCommentDocument;
+export function graphql(source: "\n  mutation AddComment($target: CommentTarget!, $id: String!, $body: String!, $occurrenceDate: Date) {\n    addComment(target: $target, id: $id, body: $body, occurrenceDate: $occurrenceDate) {\n      id\n    }\n  }\n"): typeof import('./graphql').AddCommentDocument;
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */
@@ -1918,7 +1920,7 @@ export function graphql(source: "\n  mutation DeleteProjectStatus($id: ID!) {\n 
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */
-export function graphql(source: "\n  query RoutinesData {\n    routineCategories {\n      id\n      archived\n      label\n      color\n      iconUrl\n      parentId\n      position\n    }\n    routines {\n      id\n      label\n      description\n      categoryIds\n      parentId\n      startDate\n      recurrence\n      estimate\n      fromTime\n      dueTime\n      slotCondition\n      moments\n      reminders\n      cases\n      moves\n      done\n      slots {\n        index\n        fromTime\n        dueTime\n        optional\n        done\n        windows\n      }\n      windowFrom\n      windowTo\n      location\n      locationLat\n      locationLon\n      travelBefore\n      travelAfter\n      projectId\n      position\n      archived\n      assigneeIds\n      beneficiaryIds\n      beneficiaryRelationIds\n      requiredIds\n      currentDate\n      firstDate\n      nextDate\n      doneDates\n      lastDoneAt\n      trackedSeconds\n      opensOn\n    }\n  }\n"): typeof import('./graphql').RoutinesDataDocument;
+export function graphql(source: "\n  query RoutinesData {\n    routineCategories {\n      id\n      archived\n      label\n      color\n      iconUrl\n      parentId\n      position\n    }\n    routines {\n      id\n      label\n      description\n      categoryIds\n      parentId\n      startDate\n      recurrence\n      estimate\n      fromTime\n      dueTime\n      slotCondition\n      moments\n      reminders {\n        before\n        at\n      }\n      reminderOccurrences {\n        date\n        day\n        slots {\n          slot\n          at\n        }\n      }\n      cases\n      moves\n      done\n      slots {\n        index\n        fromTime\n        dueTime\n        optional\n        done\n        windows\n      }\n      windowFrom\n      windowTo\n      location\n      locationLat\n      locationLon\n      links {\n        url\n        label\n      }\n      travelBefore\n      travelAfter\n      projectId\n      position\n      archived\n      assigneeIds\n      beneficiaryIds\n      beneficiaryRelationIds\n      requiredIds\n      relatedIds\n      currentDate\n      firstDate\n      nextDate\n      doneDates\n      lastDoneAt\n      trackedSeconds\n      opensOn\n    }\n  }\n"): typeof import('./graphql').RoutinesDataDocument;
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */
@@ -1942,23 +1944,23 @@ export function graphql(source: "\n  mutation CopySubRoutines($fromId: ID!, $toI
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */
-export function graphql(source: "\n  mutation CreateRoutine($input: RoutineInput!) {\n    createRoutine(input: $input)\n  }\n"): typeof import('./graphql').CreateRoutineDocument;
+export function graphql(source: "\n  mutation CreateRoutine($input: RoutineInput!, $copyOf: ID) {\n    createRoutine(input: $input, copyOf: $copyOf)\n  }\n"): typeof import('./graphql').CreateRoutineDocument;
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */
-export function graphql(source: "\n  mutation UpdateRoutine($id: ID!, $input: RoutineInput!, $restoring: Boolean) {\n    updateRoutine(id: $id, input: $input, restoring: $restoring)\n  }\n"): typeof import('./graphql').UpdateRoutineDocument;
+export function graphql(source: "\n  mutation UpdateRoutine($id: ID!, $input: RoutineInput!, $restoring: Boolean, $confirmLoss: Boolean) {\n    updateRoutine(id: $id, input: $input, restoring: $restoring, confirmLoss: $confirmLoss) {\n      removedLinks\n    }\n  }\n"): typeof import('./graphql').UpdateRoutineDocument;
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */
-export function graphql(source: "\n  mutation PatchRoutine($id: ID!, $input: RoutinePatch!) {\n    patchRoutine(id: $id, input: $input)\n  }\n"): typeof import('./graphql').PatchRoutineDocument;
+export function graphql(source: "\n  mutation PatchRoutine($id: ID!, $input: RoutinePatch!, $confirmLoss: Boolean) {\n    patchRoutine(id: $id, input: $input, confirmLoss: $confirmLoss) {\n      removedLinks\n    }\n  }\n"): typeof import('./graphql').PatchRoutineDocument;
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */
-export function graphql(source: "\n  mutation MoveRoutine($id: ID!, $targetId: ID!, $place: RoutinePlace!, $categoryIds: [ID!]) {\n    moveRoutine(id: $id, targetId: $targetId, place: $place, categoryIds: $categoryIds)\n  }\n"): typeof import('./graphql').MoveRoutineDocument;
+export function graphql(source: "\n  mutation MoveRoutine($id: ID!, $beforeId: ID, $parentId: ID, $categoryIds: [ID!]) {\n    moveRoutine(id: $id, beforeId: $beforeId, parentId: $parentId, categoryIds: $categoryIds)\n  }\n"): typeof import('./graphql').MoveRoutineDocument;
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */
-export function graphql(source: "\n  mutation BulkUpdateRoutines($ids: [ID!]!, $changes: RoutineBulkChanges!) {\n    bulkUpdateRoutines(ids: $ids, changes: $changes)\n  }\n"): typeof import('./graphql').BulkUpdateRoutinesDocument;
+export function graphql(source: "\n  mutation BulkUpdateRoutines($ids: [ID!]!, $changes: RoutineBulkChanges!, $confirmLoss: Boolean) {\n    bulkUpdateRoutines(ids: $ids, changes: $changes, confirmLoss: $confirmLoss) {\n      removedLinks\n    }\n  }\n"): typeof import('./graphql').BulkUpdateRoutinesDocument;
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */
@@ -1970,7 +1972,7 @@ export function graphql(source: "\n  mutation BulkSetRoutinesDone($ids: [ID!]!, 
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */
-export function graphql(source: "\n  mutation BulkDeleteRoutines($ids: [ID!]!) {\n    bulkDeleteRoutines(ids: $ids)\n  }\n"): typeof import('./graphql').BulkDeleteRoutinesDocument;
+export function graphql(source: "\n  mutation BulkDeleteRoutines($ids: [ID!]!, $deleteSubRoutines: Boolean!) {\n    bulkDeleteRoutines(ids: $ids, deleteSubRoutines: $deleteSubRoutines)\n  }\n"): typeof import('./graphql').BulkDeleteRoutinesDocument;
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */
@@ -1982,15 +1984,15 @@ export function graphql(source: "\n  mutation MoveRoutineOccurrence($id: ID!, $d
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */
-export function graphql(source: "\n  mutation ChangeRoutineOccurrence($id: ID!, $date: Date!, $scope: CalendarEventScope!, $to: Date!, $slot: Int!, $fromTime: String, $dueTime: String) {\n    changeRoutineOccurrence(id: $id, date: $date, scope: $scope, to: $to, slot: $slot, fromTime: $fromTime, dueTime: $dueTime)\n  }\n"): typeof import('./graphql').ChangeRoutineOccurrenceDocument;
+export function graphql(source: "\n  mutation ChangeRoutineOccurrence($id: ID!, $date: Date!, $scope: CalendarEventScope!, $to: Date!, $slot: Int!, $fromTime: String, $dueTime: String, $confirmLoss: Boolean) {\n    changeRoutineOccurrence(id: $id, date: $date, scope: $scope, to: $to, slot: $slot, fromTime: $fromTime, dueTime: $dueTime, confirmLoss: $confirmLoss)\n  }\n"): typeof import('./graphql').ChangeRoutineOccurrenceDocument;
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */
-export function graphql(source: "\n  mutation DeleteRoutineOccurrence($id: ID!, $date: Date!, $scope: CalendarEventScope!) {\n    deleteRoutineOccurrence(id: $id, date: $date, scope: $scope)\n  }\n"): typeof import('./graphql').DeleteRoutineOccurrenceDocument;
+export function graphql(source: "\n  mutation DeleteRoutineOccurrence($id: ID!, $date: Date!, $scope: CalendarEventScope!) {\n    deleteRoutineOccurrence(id: $id, date: $date, scope: $scope) {\n      archived\n      comments {\n        body\n        createdAt\n        updatedAt\n      }\n    }\n  }\n"): typeof import('./graphql').DeleteRoutineOccurrenceDocument;
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */
-export function graphql(source: "\n  mutation RemoveRoutineMove($id: ID!, $from: Date!) {\n    removeRoutineMove(id: $id, from: $from)\n  }\n"): typeof import('./graphql').RemoveRoutineMoveDocument;
+export function graphql(source: "\n  mutation RemoveRoutineMove($id: ID!, $from: Date!, $comments: [CommentSnapshotInput!]) {\n    removeRoutineMove(id: $id, from: $from, comments: $comments)\n  }\n"): typeof import('./graphql').RemoveRoutineMoveDocument;
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */
@@ -1998,7 +2000,7 @@ export function graphql(source: "\n  query RoutineChecks($from: Date!, $to: Date
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */
-export function graphql(source: "\n  query RoutineOccurrences($from: Date!, $to: Date!) {\n    routineOccurrences(from: $from, to: $to) {\n      routineId\n      date\n      startDate\n      shownDate\n      movedFrom\n      slots {\n        index\n        fromTime\n        dueTime\n        optional\n        done\n        windows\n      }\n    }\n  }\n"): typeof import('./graphql').RoutineOccurrencesDocument;
+export function graphql(source: "\n  query RoutineOccurrences($from: Date!, $to: Date!) {\n    routineOccurrences(from: $from, to: $to) {\n      routineId\n      date\n      startDate\n      shownDate\n      movedFrom\n      cancelled\n      archived\n      slots {\n        index\n        fromTime\n        dueTime\n        optional\n        done\n        windows\n      }\n    }\n  }\n"): typeof import('./graphql').RoutineOccurrencesDocument;
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */
@@ -2354,7 +2356,7 @@ export function graphql(source: "\n  fragment TaskLabelFields on TaskStatus {\n 
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */
-export function graphql(source: "\n  fragment TaskFields on Task {\n    id\n    number\n    label\n    description\n    projectId\n    statusId\n    priorityId\n    typeId\n    effort\n    startDate\n    endDate\n    parentId\n    milestoneId\n    sprintIds\n    deadline\n    minDate\n    position\n    archived\n    createdAt\n    updatedAt\n    assigneeIds\n    beneficiaryIds\n    beneficiaryRelationIds\n    tagIds\n    blockingIds\n    blockedByIds\n    relatedIds\n    commentCount\n    trackedSeconds\n    recurrence\n    seriesId\n    occurrenceDate\n    closed\n    closedAt\n    githubLinked\n    githubUrl\n    githubNumber\n    slotRule\n  }\n"): typeof import('./graphql').TaskFieldsFragmentDoc;
+export function graphql(source: "\n  fragment TaskFields on Task {\n    id\n    number\n    label\n    description\n    projectId\n    statusId\n    priorityId\n    typeId\n    effort\n    startDate\n    endDate\n    parentId\n    milestoneId\n    sprintIds\n    deadline\n    minDate\n    effectiveDeadline\n    effectiveMinDate\n    deadlineFromSprint\n    minDateFromSprint\n    cancelled\n    position\n    archived\n    createdAt\n    updatedAt\n    assigneeIds\n    beneficiaryIds\n    beneficiaryRelationIds\n    tagIds\n    blockingIds\n    blockedByIds\n    relatedIds\n    commentCount\n    trackedSeconds\n    closed\n    closedAt\n    githubLinked\n    githubUrl\n    githubNumber\n    slotCondition\n    location\n    locationLat\n    locationLon\n    links {\n      url\n      label\n    }\n    reminders {\n      before\n      at\n    }\n  }\n"): typeof import('./graphql').TaskFieldsFragmentDoc;
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */
@@ -2378,11 +2380,7 @@ export function graphql(source: "\n  mutation UpdateTask($id: ID!, $input: TaskU
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */
-export function graphql(source: "\n  mutation CloneTask($id: ID!, $includeSubtasks: Boolean!) {\n    cloneTask(id: $id, includeSubtasks: $includeSubtasks) {\n      id\n      number\n    }\n  }\n"): typeof import('./graphql').CloneTaskDocument;
-/**
- * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
- */
-export function graphql(source: "\n  mutation SetTaskRecurrence($id: ID!, $recurrence: JSON) {\n    setTaskRecurrence(id: $id, recurrence: $recurrence) {\n      id\n    }\n  }\n"): typeof import('./graphql').SetTaskRecurrenceDocument;
+export function graphql(source: "\n  mutation DuplicateTask($id: ID!, $includeSubtasks: Boolean!) {\n    duplicateTask(id: $id, includeSubtasks: $includeSubtasks) {\n      id\n      number\n    }\n  }\n"): typeof import('./graphql').DuplicateTaskDocument;
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */
@@ -2542,7 +2540,7 @@ export function graphql(source: "\n  mutation DeleteSprint($id: ID!) {\n    dele
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */
-export function graphql(source: "\n  fragment TimeEntryFields on TimeEntry {\n    id\n    projectId\n    routineId\n    routineLabel\n    description\n    startedAt\n    endedAt\n    pausedAt\n    pausedSeconds\n    duration\n    taskIds\n    documentId\n    documentNumber\n    calendarEventId\n    calendarOccurrenceDate\n    calendarEventLabel\n  }\n"): typeof import('./graphql').TimeEntryFieldsFragmentDoc;
+export function graphql(source: "\n  fragment TimeEntryFields on TimeEntry {\n    id\n    projectId\n    routines {\n      id\n      label\n    }\n    description\n    startedAt\n    endedAt\n    pausedAt\n    pausedSeconds\n    duration\n    taskIds\n    documentId\n    documentNumber\n    events {\n      eventId\n      occurrenceDate\n      label\n    }\n  }\n"): typeof import('./graphql').TimeEntryFieldsFragmentDoc;
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */
@@ -2571,6 +2569,10 @@ export function graphql(source: "\n  mutation CreateTimeEntry($input: TimeEntryI
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */
 export function graphql(source: "\n  mutation UpdateTimeEntry($id: ID!, $input: TimeEntryUpdateInput!) {\n    updateTimeEntry(id: $id, input: $input) {\n      id\n    }\n  }\n"): typeof import('./graphql').UpdateTimeEntryDocument;
+/**
+ * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
+ */
+export function graphql(source: "\n  query LostOnDelete(\n    $taskIds: [ID!]\n    $routineIds: [ID!]\n    $withSubtree: Boolean\n    $eventId: ID\n    $scope: CalendarEventScope\n    $occurrenceDate: Date\n    $calendarId: ID\n    $routineOccurrence: RoutineOccurrenceGoneInput\n  ) {\n    lostOnDelete(\n      taskIds: $taskIds\n      routineIds: $routineIds\n      withSubtree: $withSubtree\n      eventId: $eventId\n      scope: $scope\n      occurrenceDate: $occurrenceDate\n      calendarId: $calendarId\n      routineOccurrence: $routineOccurrence\n    ) {\n      times\n      comments\n    }\n  }\n"): typeof import('./graphql').LostOnDeleteDocument;
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */
@@ -2771,6 +2773,10 @@ export function graphql(source: "\n  mutation DeleteWorkspace($id: ID!) {\n    d
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */
 export function graphql(source: "\n  query ElsewhereAlarms {\n    alarms {\n      ...AlarmFields\n      task {\n        id\n        number\n        label\n        projectId\n      }\n      project {\n        id\n        label\n      }\n    }\n    projects {\n      id\n      label\n    }\n    runningTimeEntry {\n      id\n      startedAt\n      endedAt\n      pausedAt\n      pausedSeconds\n      duration\n    }\n  }\n"): typeof import('./graphql').ElsewhereAlarmsDocument;
+/**
+ * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
+ */
+export function graphql(source: "\n  query ElsewhereReminders {\n    tasks {\n      id\n      number\n      label\n      projectId\n      closed\n      archived\n      effectiveMinDate\n      effectiveDeadline\n      reminders {\n        before\n        at\n      }\n    }\n    routines {\n      id\n      label\n      archived\n      location\n      currentDate\n      reminders {\n        before\n        at\n      }\n      reminderOccurrences {\n        date\n        day\n        slots {\n          slot\n          at\n        }\n      }\n      slots {\n        index\n        fromTime\n        dueTime\n        optional\n        done\n        windows\n      }\n    }\n  }\n"): typeof import('./graphql').ElsewhereRemindersDocument;
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */

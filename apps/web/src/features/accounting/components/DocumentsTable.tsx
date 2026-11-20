@@ -1,11 +1,10 @@
-import { formCallbacks } from '../../../lib/form';
 import { DocumentBalanceBadge } from './DocumentBalanceBadge';
 import { plural, countOf } from '../../../lib/text';
 import { EmptyState } from '../../../components/feedback/EmptyState';
 
 import { Badge, Group, Stack, Text, UnstyledButton } from '@mantine/core';
 
-import { ArrowsClockwiseIcon, CoinsIcon, CopyIcon, DownloadSimpleIcon, FilePdfIcon, HandCoinsIcon, PencilSimpleIcon, ReceiptIcon } from '@phosphor-icons/react';
+import { ArrowsClockwiseIcon, CoinsIcon, DownloadSimpleIcon, FilePdfIcon, HandCoinsIcon, PencilSimpleIcon, ReceiptIcon } from '@phosphor-icons/react';
 import type { ReactNode } from 'react';
 import { useNavigate } from 'react-router';
 import { DataTable } from '../../../components/data-table/table/DataTable';
@@ -253,16 +252,16 @@ function OrdoActions({ document, onDuplicated }: { document: AccountingDocumentS
         }
       }
       items={[
-        !document.archived && {
-          label: 'Dupliquer en brouillon',
-          icon: <CopyIcon aria-hidden />,
-          disabled: duplicate.isPending,
-          onClick: () =>
-            duplicate.mutate(
-              { id: document.id, issueDate: localToday() },
-              formCallbacks(null, 'Document dupliqué en brouillon.', (id) => onDuplicated(id)),
-            ),
-        },
+        // A draft copy, dated today, saved at once, then opened (decision D20).
+        !document.archived &&
+          rowMenuEntry(
+            duplicateRowsAction([document], {
+              duplicate: (source) => duplicate.mutateAsync({ id: source.id, issueDate: localToday() }),
+              done: 'Document dupliqué en brouillon.',
+              open: onDuplicated,
+              loading: duplicate.isPending,
+            }),
+          ),
         // A final document downloads its PDF; drafts have none yet.
         document.status === 'FINAL' && { label: 'Télécharger le PDF', icon: <DownloadSimpleIcon aria-hidden />, href: pdfUrl(document.id, true), download: true },
         archiveEntry(
@@ -513,14 +512,12 @@ export function DocumentsTable({ tableKey, projectId = null, title, documents, i
             count: rows.length,
             clear,
           }),
-          {
-            ...duplicateRowsAction(copied, {
-              label: 'Dupliquer en brouillon',
-              duplicate: (document) => documentMutations.duplicate.mutateAsync({ id: document.id, issueDate: localToday() }),
-              done: `${countOf(copied.length, 'document')} ${plural(copied.length, 'dupliqué')} en brouillon.`,
-            }),
+          duplicateRowsAction(copied, {
+            duplicate: (document) => documentMutations.duplicate.mutateAsync({ id: document.id, issueDate: localToday() }),
+            done: `${countOf(copied.length, 'document')} ${plural(copied.length, 'dupliqué')} en brouillon.`,
+            open: (id) => void navigate(documentPath(id)),
             disabled: copied.length === 0,
-          },
+          }),
           {
             ...deleteImported(importedRows, clear, importedRows.length < rows.length ? ' (les documents d’Ordo sélectionnés ne le sont pas)' : ''),
             disabled: importedRows.length === 0,

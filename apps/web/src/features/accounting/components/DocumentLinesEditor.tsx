@@ -54,6 +54,8 @@ interface LineRowProps {
   onChange: (line: AccountingLineInput) => void;
   onMove: (offset: number) => void;
   onRemove: () => void;
+  /** Called when the focus leaves the line (its fields can be saved). Optional. */
+  onLeave?: () => void;
 }
 
 /**
@@ -61,12 +63,20 @@ interface LineRowProps {
  * @param {LineRowProps} props Component props.
  * @returns {JSX.Element} Line.
  */
-function LineRow({ line, total, index, count, readOnly, vatApplicable, currency, errors, onChange, onMove, onRemove }: LineRowProps) {
+function LineRow({ line, total, index, count, readOnly, vatApplicable, currency, errors, onChange, onMove, onRemove, onLeave }: LineRowProps) {
   const [showDescription, setShowDescription] = useState(Boolean(line.description));
   const priced = line.kind !== 'TEXT';
   const update = (changes: Partial<AccountingLineInput>) => onChange({ ...line, ...changes });
   return (
-    <Paper withBorder radius="sm" p="xs" className={classes.line} data-kind={line.kind}>
+    <Paper
+      withBorder
+      radius="sm"
+      p="xs"
+      className={classes.line}
+      data-kind={line.kind}
+      // Leaving the line, not moving from one of its fields to another.
+      onBlur={(event) => !event.currentTarget.contains(event.relatedTarget as Node | null) && onLeave?.()}
+    >
       <Stack gap={6}>
         <Group gap="xs" wrap="nowrap" align="flex-start">
           <Badge
@@ -204,19 +214,33 @@ interface DocumentLinesEditorProps {
   errors: Record<string, unknown>;
   /** Other ways to add lines (tracked time…). Optional. */
   extraActions?: ReactNode;
+  /**
+   * Called when the lines can be saved (a document saved field by field, decision D22): on leaving a line, once a line
+   * is moved, removed or added from the catalogue (a blank line waits until it is left). Optional.
+   */
+  onCommit?: () => void;
 }
 
 /**
  * Lines of a document: items, disbursements (outside VAT), text lines and deductions of what was already
- * invoiced; added (blank or from the catalogue), reordered and removed.
+ * invoiced; added (blank or from the catalogue), reordered and removed; `onCommit` tells when they can be saved.
  * @param {DocumentLinesEditorProps} props Component props.
  * @returns {JSX.Element} Editor.
  */
-export function DocumentLinesEditor({ lines, totals, onChange, readOnly, vatApplicable, currency, errors, extraActions }: DocumentLinesEditorProps) {
+export function DocumentLinesEditor({ lines, totals, onChange, readOnly, vatApplicable, currency, errors, extraActions, onCommit }: DocumentLinesEditorProps) {
   const defaultRate = vatApplicable ? 20 : 0;
   const { data: catalog } = useCatalogItems();
   const offered = unarchived(catalog ?? []);
   const { keys, setKeys } = useLineKeys(lines.length);
+  /**
+   * Changes the lines, then tells they can be saved.
+   * @param {AccountingLineInput[]} next Lines.
+   * @returns {void}
+   */
+  const changeNow = (next: AccountingLineInput[]) => {
+    onChange(next);
+    onCommit?.();
+  };
   return (
     <Stack gap="xs">
       {lines.length === 0 && <EmptyState compact message="Aucune ligne." />}
@@ -234,12 +258,13 @@ export function DocumentLinesEditor({ lines, totals, onChange, readOnly, vatAppl
           onChange={(next) => onChange(lines.map((item, position) => (position === index ? next : item)))}
           onMove={(offset) => {
             setKeys(arrayMove(keys, index, index + offset));
-            onChange(arrayMove(lines, index, index + offset));
+            changeNow(arrayMove(lines, index, index + offset));
           }}
           onRemove={() => {
             setKeys(keys.filter((_, position) => position !== index));
-            onChange(lines.filter((_, position) => position !== index));
+            changeNow(lines.filter((_, position) => position !== index));
           }}
+          onLeave={onCommit}
         />
       ))}
       {!readOnly && (
@@ -261,7 +286,7 @@ export function DocumentLinesEditor({ lines, totals, onChange, readOnly, vatAppl
                 const item = offered.find((entry) => entry.id === id);
                 if (!item) return;
                 const kind = item.kind === 'DISBURSEMENT' ? 'DISBURSEMENT' : 'ITEM';
-                onChange([...lines, { ...newDocumentLine(kind, item.vatRate), label: item.label, description: item.description ?? null, unit: item.unit, unitPrice: item.unitPrice }]);
+                changeNow([...lines, { ...newDocumentLine(kind, item.vatRate), label: item.label, description: item.description ?? null, unit: item.unit, unitPrice: item.unitPrice }]);
               }}
             />
           )}

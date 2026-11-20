@@ -65,6 +65,7 @@ model Workspace {
   libraryDocuments          LibraryDocument[]
   attachments               Attachment[]
   timeEntries               TimeEntry[]
+  timeEntryEvents           TimeEntryEvent[]
   alarms                    Alarm[]
   mailAccounts              MailAccount[]
   mailMessages              MailMessage[]
@@ -117,6 +118,7 @@ model Workspace {
   routineCategories         RoutineCategory[]
   routines                  Routine[]
   routineDependencies       RoutineDependency[]
+  routineRelations          RoutineRelation[]
   routineChecks             RoutineCheck[]
   sheets                    Sheet[]
   sheetItems                SheetItem[]
@@ -132,10 +134,8 @@ model Workspace {
   shoppingDeliveries        ShoppingDelivery[]
 }
 
-/// Kind of notification a workspace can give while another one is open.
+/// Kind of notification a workspace can give while another one is open (its alarms and reminders always ring).
 enum NotificationSource {
-  ALARMS
-  CALENDAR
   MAILS
 }
 
@@ -586,14 +586,20 @@ model Task {
   /// id, never the number.
   number               Int?
   label                String
-  /// Slots it is done on or out of: { mode: ANY | INSIDE | OUTSIDE, kinds: [kind refs] }; null: the workspace default
-  /// (on the working hours in a professional workspace).
-  slotRule             Json?
+  /// On or out of calendar schedules, or on the free time, in groups (and / or), as a routine; null: any time.
+  slotCondition        Json?
   /// Markdown.
   description          String?
-  /// None: a task of no project (no number, no sprint, milestone nor GitHub item).
+  /// Where it is done: free text, and its point when chosen from the map or a search (no travel time: no hours).
+  location             String?
+  locationLat          Float?
+  locationLon          Float?
+  /// [{ url, label }], as those of the events.
+  links                Json               @default("[]")
+  /// None: a task of no project (no number, no sprint, milestone nor GitHub item). A deleted project leaves its tasks
+  /// without project (the API takes them out first, as in a transfer).
   projectId            String?
-  project              Project?           @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  project              Project?           @relation(fields: [projectId], references: [id], onDelete: SetNull)
   statusId             String?
   status               TaskStatus?        @relation(fields: [statusId], references: [id], onDelete: SetNull)
   priorityId           String?
@@ -615,10 +621,13 @@ model Task {
   effort               Float?
   startDate            DateTime?          @db.Date
   endDate              DateTime?          @db.Date
-  /// Latest acceptable date ("Date max"): an open task past it is overdue.
-  /// Earliest acceptable date (« Date min »): the task is not to be done before it.
+  /// Latest acceptable date (« Échéance »): an open task past it is overdue.
+  /// Earliest acceptable date (« Ouverture »): the task is not to be done before it.
   minDate              DateTime?          @db.Date
   deadline             DateTime?          @db.Date
+  /// Reminders [{ before: null, at: "HH:MM" }] (Paris time), 10 at most: rung every day from « Ouverture » to
+  /// « Échéance » (the « Échéance » day only without « Ouverture »; never without « Échéance »).
+  reminders            Json               @default("[]")
   /// Parent task, possibly in another project of the same tree.
   parentId             String?
   parent               Task?              @relation("TaskTree", fields: [parentId], references: [id], onDelete: SetNull)
@@ -658,14 +667,6 @@ model Task {
   alarms               Alarm[]
   /// Shopping lists of the task (closed along with it).
   shoppingLists        ShoppingList[]     @relation("ShoppingListTasks")
-  /// Repetition of a recurring task (set on the first task of the series).
-  recurrence           Json?
-  /// First task of the series this task is an occurrence of.
-  seriesId             String?
-  series               Task?              @relation("TaskSeries", fields: [seriesId], references: [id], onDelete: SetNull)
-  occurrences          Task[]             @relation("TaskSeries")
-  /// Date of the occurrence in its series (the first task: its own date).
-  occurrenceDate       DateTime?          @db.Date
   /// Workspace the row belongs to (always given by the app; the default fails outside one).
   workspaceId          String             @default(dbgenerated("current_setting('ordo.workspace'::text)"))
   workspace            Workspace          @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
@@ -676,7 +677,6 @@ model Task {
   @@index([milestoneId])
   @@index([deadline])
   @@index([closedAt])
-  @@index([seriesId])
   @@index([workspaceId])
 }
 
@@ -762,6 +762,9 @@ model Comment {
   routine            Routine?            @relation(fields: [routineId], references: [id], onDelete: Cascade)
   eventId            String?
   event              CalendarEvent?      @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  /// Occurrence of the routine or event the comment is on (decision D19): the day of the occurrence (that of its
+  /// ticks for a routine); null for a one-off event and for the other items.
+  occurrenceDate     DateTime?           @db.Date
   scheduleId         String?
   schedule           WorkSchedule?       @relation(fields: [scheduleId], references: [id], onDelete: Cascade)
   timeEntryId        String?
@@ -1077,47 +1080,61 @@ model Attachment {
 
 /// Tracked time on a project, optionally spent on tasks (shared equally between them).
 model TimeEntry {
-  id                     String              @id @default(cuid())
-  /// Project the time is spent on; null for the time of a routine without project.
-  projectId              String?
-  project                Project?            @relation(fields: [projectId], references: [id], onDelete: Cascade)
-  /// Routine the time is spent on (an entry has a project, a routine, or both).
-  routineId              String?
-  routine                Routine?            @relation(fields: [routineId], references: [id], onDelete: SetNull)
+  id            String              @id @default(cuid())
+  /// Project the time is spent on, if any (a time has at least a project, a task, a routine or an event, decision D17).
+  /// A deleted project leaves its time without project; the API first deletes the time left with nothing attached.
+  projectId     String?
+  project       Project?            @relation(fields: [projectId], references: [id], onDelete: SetNull)
+  /// Routines the time is spent on (several, decision D18).
+  routines      Routine[]
   /// What was done (plain text, several lines).
-  description            String?
-  startedAt              DateTime
+  description   String?
+  startedAt     DateTime
   /// Null while the timer runs (a single entry runs at a time).
-  endedAt                DateTime?
+  endedAt       DateTime?
   /// Start of the current pause, while paused.
-  pausedAt               DateTime?
+  pausedAt      DateTime?
   /// Paused time before the current pause, in seconds.
-  pausedSeconds          Int                 @default(0)
+  pausedSeconds Int                 @default(0)
   /// Effective duration in seconds (pauses excluded), set once stopped.
-  duration               Int?
+  duration      Int?
   /// Invoice (draft or final) the time is billed on.
-  documentId             String?
-  document               AccountingDocument? @relation(fields: [documentId], references: [id], onDelete: SetNull)
-  /// Calendar event the time was spent on (its occurrence `calendarOccurrenceDate` for a recurring one): the
-  /// calendar only shows the part of the time outside the event.
-  calendarEventId        String?
-  calendarEvent          CalendarEvent?      @relation(fields: [calendarEventId], references: [id], onDelete: SetNull)
-  calendarOccurrenceDate DateTime?           @db.Date
-  createdAt              DateTime            @default(now())
-  updatedAt              DateTime            @updatedAt
-  tasks                  Task[]
+  documentId    String?
+  document      AccountingDocument? @relation(fields: [documentId], references: [id], onDelete: SetNull)
+  /// Calendar events (occurrences) the time was spent on (several, decision D18): the calendar only shows the part
+  /// of the time outside them.
+  events        TimeEntryEvent[]
+  createdAt     DateTime            @default(now())
+  updatedAt     DateTime            @updatedAt
+  tasks         Task[]
   /// Comments (markdown).
-  comments               Comment[]
+  comments      Comment[]
   /// Workspace the row belongs to (always given by the app; the default fails outside one).
-  workspaceId            String              @default(dbgenerated("current_setting('ordo.workspace'::text)"))
-  workspace              Workspace           @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  workspaceId   String              @default(dbgenerated("current_setting('ordo.workspace'::text)"))
+  workspace     Workspace           @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
 
   @@index([projectId])
-  @@index([routineId])
-  @@index([calendarEventId])
   @@index([startedAt])
   @@index([endedAt])
   @@index([documentId])
+  @@index([workspaceId])
+}
+
+/// Calendar event (and occurrence of a recurring one) a time is spent on (decision D18).
+model TimeEntryEvent {
+  id             String        @id @default(cuid())
+  timeEntryId    String
+  timeEntry      TimeEntry     @relation(fields: [timeEntryId], references: [id], onDelete: Cascade)
+  eventId        String
+  event          CalendarEvent @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  /// Occurrence of a recurring event (null for a one-off event).
+  occurrenceDate DateTime?     @db.Date
+  /// Workspace the row belongs to (always given by the app; the default fails outside one).
+  workspaceId    String        @default(dbgenerated("current_setting('ordo.workspace'::text)"))
+  workspace      Workspace     @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+
+  @@index([timeEntryId])
+  @@index([eventId])
   @@index([workspaceId])
 }
 
@@ -1159,8 +1176,9 @@ model Alarm {
   recurrence  Json?
   /// Tracking time between two rings (TRACKING_DURATION).
   minutes     Int?
+  /// A deleted project leaves its alarms without project (decision DP).
   projectId   String?
-  project     Project?       @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  project     Project?       @relation(fields: [projectId], references: [id], onDelete: SetNull)
   taskId      String?
   task        Task?          @relation(fields: [taskId], references: [id], onDelete: Cascade)
   enabled     Boolean        @default(true)
@@ -1409,7 +1427,7 @@ model CalendarCategory {
   @@index([workspaceId])
 }
 
-/// Calendar event, possibly recurring. Times are local to `timeZone`; all-day events have no times.
+/// Calendar event, possibly recurring. Times are Paris times (no time zone of its own); all-day events have no times.
 model CalendarEvent {
   id                   String                   @id @default(cuid())
   label                String
@@ -1429,12 +1447,11 @@ model CalendarEvent {
   /// Last day, included.
   endDate              DateTime                 @db.Date
   endTime              String?
-  /// IANA time zone of the times.
-  timeZone             String
   /// Repetition (see the shared recurrence rule), null for a one-off event.
   recurrence           Json?
-  /// Reminders, in minutes before the start.
-  reminders            Int[]
+  /// Reminders, 10 at most: [{ before: minutes (24 hours at most), at: null }] before the start, or [{ before: null,
+  /// at: "HH:MM" }] on the day of the start (Paris time).
+  reminders            Json                     @default("[]")
   /// Travel time to the event and back from it, in minutes (timed events).
   travelBefore         Int                      @default(0)
   travelAfter          Int                      @default(0)
@@ -1458,8 +1475,8 @@ model CalendarEvent {
   postponedFrom        CalendarEvent?           @relation("EventPostponement", fields: [postponedFromId], references: [id], onDelete: SetNull)
   postponedFromDate    DateTime?                @db.Date
   postponements        CalendarEvent[]          @relation("EventPostponement")
-  /// Times tracked on the event.
-  timeEntries          TimeEntry[]
+  /// Times tracked on the event (its occurrences).
+  timeEntryLinks       TimeEntryEvent[]
   /// Tasks the event is about.
   tasks                Task[]                   @relation("CalendarEventTasks")
   /// Routines of a day the event is about (their occurrence of that day is done during it).
@@ -3080,7 +3097,8 @@ model Routine {
   description          String?
   /// Categories it is shown in (a sub-routine is shown under its parent).
   categories           RoutineCategory[]      @relation("RoutineCategories")
-  /// Parent routine (null for a top-level one). Deleting a routine puts its sub-routines one level up.
+  /// Parent routine (null for a top-level one). Deleting a routine deletes its sub-routines or puts them one level up
+  /// (chosen by the API).
   parentId             String?
   parent               Routine?               @relation("RoutineTree", fields: [parentId], references: [id], onDelete: SetNull)
   children             Routine[]              @relation("RoutineTree")
@@ -3099,7 +3117,7 @@ model Routine {
   cases                Json                   @default("[]")
   /// Exceptions: occurrences postponed or brought forward to another day, [{ from, to }] (YYYY-MM-DD).
   moves                Json                   @default("[]")
-  /// Calendar schedule ("plage") it follows instead of its own times and repetition: it occurs on the days of the
+  /// Calendar schedule ("créneau") it follows instead of its own times and repetition: it occurs on the days of the
   /// schedule, before its start (START), during it (WHOLE) or after its end (END).
   scheduleId           String?
   schedule             WorkSchedule?          @relation(fields: [scheduleId], references: [id], onDelete: SetNull)
@@ -3113,27 +3131,29 @@ model Routine {
   /// On or out of calendar schedules, in groups (and / or), following its rule; none: any time (or, saved before
   /// it, scheduleIds / excludedScheduleIds).
   slotCondition        Json?
-  /// Alerts, in minutes before its moment (when to leave, else its start, else its latest time), on the days it is due.
-  reminders            Int[]                  @default([])
-  /// « À partir du » of the occurrences of its rule: { mode: DAY, day, month } | { mode: WEEKDAY, position, weekday,
+  /// Reminders, 10 at most: [{ before: minutes (24 hours at most), at: null }] before the first day of an occurrence
+  /// (« Ouverture ») at the start of each time of the day (« dès »), or [{ before: null, at: "HH:MM" }] on that day.
+  reminders            Json                   @default("[]")
+  /// « Ouverture » of the occurrences of its rule: { mode: DAY, day, month } | { mode: WEEKDAY, position, weekday,
   /// month } | { mode: WEEK, week, weekday } | { mode: BEFORE, days }; null: from their first day.
   opensOn              Json?
-  /// Slots it is done on or out of: { mode: ANY | INSIDE | OUTSIDE, kinds: [kind refs] }; null: the workspace default
-  /// (on the working hours in a professional workspace).
-  slotRule             Json?
   /// Where it is done: free text, and its point when chosen from the map or a search.
   location             String?
   locationLat          Float?
   locationLon          Float?
+  /// [{ url, label }], as those of the events.
+  links                Json                   @default("[]")
   /// Travel time to the place and back from it, in minutes.
   travelBefore         Int                    @default(0)
   travelAfter          Int                    @default(0)
   /// Project its tracked time goes to, if any.
   projectId            String?
   project              Project?               @relation(fields: [projectId], references: [id], onDelete: SetNull)
-  /// Manual order among siblings.
+  /// Global manual order of every routine (as the tasks: not among siblings).
   position             Int                    @default(0)
   archivedAt           DateTime?
+  /// Archived along with its parent routine: restoring the parent restores it.
+  archivedByCascade    Boolean                @default(false)
   createdAt            DateTime               @default(now())
   updatedAt            DateTime               @updatedAt
   assignees            Contributor[]          @relation("RoutineAssignees")
@@ -3146,6 +3166,9 @@ model Routine {
   requires             RoutineDependency[]    @relation("RoutineDependent")
   /// Routines requiring this one.
   requiredBy           RoutineDependency[]    @relation("RoutineRequired")
+  /// Symmetric relations (« Relative à »), stored once with routineAId < routineBId.
+  relationsA           RoutineRelation[]      @relation("RoutineRelationA")
+  relationsB           RoutineRelation[]      @relation("RoutineRelationB")
   /// Occurrences ticked as done.
   checks               RoutineCheck[]
   timeEntries          TimeEntry[]
@@ -3176,6 +3199,21 @@ model RoutineDependency {
 
   @@id([routineId, requiredId])
   @@index([requiredId])
+  @@index([workspaceId])
+}
+
+/// "related to", symmetric (« Relative à »).
+model RoutineRelation {
+  routineAId  String
+  routineA    Routine   @relation("RoutineRelationA", fields: [routineAId], references: [id], onDelete: Cascade)
+  routineBId  String
+  routineB    Routine   @relation("RoutineRelationB", fields: [routineBId], references: [id], onDelete: Cascade)
+  /// Workspace the row belongs to (always given by the app; the default fails outside one).
+  workspaceId String    @default(dbgenerated("current_setting('ordo.workspace'::text)"))
+  workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+
+  @@id([routineAId, routineBId])
+  @@index([routineBId])
   @@index([workspaceId])
 }
 

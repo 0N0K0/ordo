@@ -6,7 +6,7 @@ import { DataTable } from '../../../components/data-table/table/DataTable';
 import { bulkCellLabels, bulkSaver } from '../../../components/data-table/selection/bulk-edit';
 import type { DataColumn } from '../../../components/data-table/table/data-table';
 import { categoryColumn, consumableColumn, noteColumn, quantityColumn, unitColumn } from '../../shopping/lib/product-columns';
-import { EditableCheck, EditableNumber, EditableText } from '../../../components/data-table/cells/EditableCells';
+import { EditableCheck, EditableNumber, EditableText, EditableMarkdown } from '../../../components/data-table/cells/EditableCells';
 import { RowActions } from '../../../components/data-table/cells/RowActions';
 import { StackedValues } from '../../../components/data-table/cells/StackedValues';
 import { useDataView } from '../../../components/data-table/views/use-data-view';
@@ -180,7 +180,7 @@ export function ChecklistPanel({ owner, occurrenceDate = null }: { owner: SheetO
           category: (
             <CategoryCell value={item.categoryId ?? null} categories={categories} label={cellLabelOf('category', item, 'Catégorie')} onSave={(categoryId) => bulk('category')(item, { categoryId })} />
           ),
-          note: <EditableText value={item.note ?? null} label={cellLabelOf('note', item, 'Description')} nullable onSave={(note) => bulk('note')(item, { note })} />,
+          note: <EditableMarkdown value={item.note ?? null} label={cellLabelOf('note', item, 'Description')} onSave={(note) => bulk('note')(item, { note })} />,
           // Ticked, a consumable item that is a reference is taken from the stock.
           consumable: <EditableCheck value={item.consumable} label={cellLabelOf('consumable', item, 'Consommable')} onSave={(consumable) => bulk('consumable')(item, { consumable })} />,
           sources: (

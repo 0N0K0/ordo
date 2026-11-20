@@ -6,7 +6,7 @@ import { ActionButton } from '../../../components/actions/ActionButton';
 import { EmptyState } from '../../../components/feedback/EmptyState';
 import { Group, Select, Switch, Text, Tooltip } from '@mantine/core';
 import { addDays, DATE_PERIOD_LABELS, EVENT_PERIODS, type EventPeriod, filterPeriod, TASK_GROUP_BY, type TaskGroupBy } from '@ordo/shared';
-import { AlarmIcon, ArrowsClockwiseIcon, CheckSquareOffsetIcon, GithubLogoIcon, PlusIcon, SidebarSimpleIcon, TreeViewIcon } from '@phosphor-icons/react';
+import { AlarmIcon, CheckSquareOffsetIcon, GithubLogoIcon, PlusIcon, SidebarSimpleIcon, TreeViewIcon } from '@phosphor-icons/react';
 import { useMemo, type ReactNode } from 'react';
 
 import { DataTable, type RowMove } from '../../../components/data-table/table/DataTable';
@@ -43,6 +43,7 @@ import {
   TagsCell,
   TaskBeneficiariesCell,
   TaskLinksCell,
+  TaskLocationCell,
   TaskProjectCell,
   TaskLabelCell,
 } from './inline-cells';
@@ -154,7 +155,7 @@ export function TaskBoard({ projectId, projectIds, createProjectId, header, empt
   );
   const eventComments = useCommentCounts(
     'EVENT',
-    eventRows.map((row) => (row.kind === 'event' ? row.event.eventId : '')),
+    eventRows.map((row) => (row.kind === 'event' ? row.event.key : '')),
   );
   const columns = useTaskColumns(context, today, { doable: filterUses(views.config?.filter, 'doableNow'), eventComments });
   const rows = useMemo(() => (showEvents ? [...tasks, ...eventRows] : tasks), [showEvents, tasks, eventRows]);
@@ -218,7 +219,7 @@ export function TaskBoard({ projectId, projectIds, createProjectId, header, empt
       const event = row.event;
       return {
         ...texts,
-        comments: <CommentCount count={commentTotal(eventComments.get(event.eventId), event.description)} />,
+        comments: <CommentCount count={commentTotal(eventComments.get(event.key), event.description)} />,
         label: <EventLabelCell event={event} context={context} />,
         assignees: <EventPeopleCell event={event} context={context} />,
         beneficiaries: <EventBeneficiariesCell event={event} />,
@@ -243,11 +244,6 @@ export function TaskBoard({ projectId, projectIds, createProjectId, header, empt
                   <GithubLogoIcon aria-label="GitHub" className={classes.recurring} />
                 </Tooltip>
               )}
-              {(task.recurrence || task.seriesId) && (
-                <Tooltip label={task.seriesId ? 'Occurrence d’une tâche récurrente' : 'Tâche récurrente'}>
-                  <ArrowsClockwiseIcon aria-label="Récurrente" className={classes.recurring} />
-                </Tooltip>
-              )}
               {alarmCounts.has(task.id) && (
                 <Tooltip label={`${countOf(alarmCounts.get(task.id) ?? 0, 'alarme')} ${plural(alarmCounts.get(task.id) ?? 0, 'active')}`}>
                   <AlarmIcon aria-label="Alarmes" className={classes.recurring} />
@@ -268,6 +264,7 @@ export function TaskBoard({ projectId, projectIds, createProjectId, header, empt
       trackedTime: <TrackedCell task={task} />,
       minDate: <DateCell task={task} column="minDate" />,
       slots: <SlotsCell task={task} />,
+      location: <TaskLocationCell task={task} />,
       timer: <TimerCell task={task} />,
       subtasks: <SubtasksCell task={task} context={context} onAdd={() => taskActions.create({ parentId: task.id, projectId: task.projectId ?? undefined })} />,
       progress: <ProgressCell task={task} context={context} />,
@@ -348,6 +345,7 @@ export function TaskBoard({ projectId, projectIds, createProjectId, header, empt
         isActive={(row) => row.kind === 'task' && row.task.id === openId}
         isArchived={(row) => row.kind === 'task' && row.task.archived}
         isDone={(row) => row.kind === 'task' && row.task.closed}
+        isStruck={(row) => row.kind === 'task' && row.task.cancelled}
         cells={cells}
         actions={(row) =>
           row.kind === 'task' && (

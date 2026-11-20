@@ -4,7 +4,7 @@ import { ActionsMenu } from '../../../components/actions/ActionsMenu';
 import { TaskProgress } from './TaskProgress';
 import { stopClick } from '../../../components/data-table/cells/cell-field';
 import { Anchor, Badge, Group, Tooltip } from '@mantine/core';
-import { formatDuration, readSlotRule } from '@ordo/shared';
+import { formatDuration, readSlotCondition } from '@ordo/shared';
 import { countOf, plural } from '../../../lib/text';
 import { AlarmIcon, BasketIcon, PlusIcon } from '@phosphor-icons/react';
 import { Link } from 'react-router';
@@ -12,7 +12,7 @@ import { toastCallbacks } from '../../../lib/notify';
 import { useAlarmForm } from '../../alarms/hooks/use-alarm-form';
 import { useShoppingMutations, type ShoppingList } from '../../shopping/api';
 import { openNewList } from '../../shopping/lib/open-new-list';
-import { SlotRuleInput } from '../../calendar/components/SlotRuleInput';
+import { SlotConditionBuilder } from '../../calendar/components/SlotConditionBuilder';
 import { useSlotRules } from '../../calendar/hooks/use-slot-rules';
 import { useRunningTimer } from '../../time/api';
 import { TimerToggle } from '../../time/components/TimerToggle';
@@ -25,27 +25,17 @@ import { ChildrenCell } from '../../../components/data-table/cells/ChildrenCell'
 import { shoppingListPath, timePath } from '../../../app/pages';
 
 /**
- * « Plages » cell: the slots of the task told in words, changed in a popover.
+ * « Créneaux » cell: the slot condition of the task told in words (none: « N’importe quand »), changed in a popover.
  * @param {{ task: Task }} props Component props.
  * @returns {JSX.Element} Cell.
  */
 export function SlotsCell({ task }: { task: Task }) {
   const { apply } = useCellEdit(task, 'slots');
-  const { describe, ruleOf } = useSlotRules();
-  const own = readSlotRule(task.slotRule);
+  const { describe } = useSlotRules();
+  const own = readSlotCondition(task.slotCondition);
   return (
-    <EditablePopoverCell
-      width={420}
-      empty={!own}
-      readOnly={task.archived}
-      target={
-        <>
-          {describe(ruleOf(task.slotRule)) ?? 'Partout'}
-          {!own && ' (défaut)'}
-        </>
-      }
-    >
-      <SlotRuleInput value={own} onChange={(slotRule) => apply({ slotRule })} />
+    <EditablePopoverCell width={560} empty={!own} readOnly={task.archived} target={describe(own) ?? 'N’importe quand'}>
+      <SlotConditionBuilder item="task" value={own} onChange={(slotCondition) => apply({ slotCondition })} />
     </EditablePopoverCell>
   );
 }

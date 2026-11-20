@@ -142,13 +142,25 @@ export function toastCallbacks<T = unknown>(message: string | ((result: T) => st
   return { onSuccess: (result) => notifySuccess(typeof message === 'string' ? message : message(result)), onError: onMutationError };
 }
 
+/** An action the user declined at its confirmation (« Annuler »): it stops there, without an error toast. */
+export class ActionDeclined extends Error {
+  /**
+   * @param {string} [message] What was declined. Optional. Default = « Action annulée. ».
+   */
+  constructor(message = 'Action annulée.') {
+    super(message);
+    this.name = 'ActionDeclined';
+  }
+}
+
 /** Message of an error thrown without one (not an `Error`). */
 const UNEXPECTED_ERROR = 'Une erreur inattendue est survenue.';
 
 /**
  * Failure of an action caught in a `catch` (whatever was thrown), told in an error toast: its message, or a fallback
  * when it has none (never an empty toast). The one rule of every error toast (onMutationError, useAsyncAction, forms…).
- * An expired session is silent: the app goes back to the sign-in page.
+ * An expired session is silent: the app goes back to the sign-in page; an action declined at its confirmation
+ * (`ActionDeclined`) too.
  * @param {unknown} error What was thrown.
  * @param {string} [fallback] Message when it has none. Optional. Default = « Une erreur inattendue est survenue. ».
  * @returns {void}
@@ -156,6 +168,8 @@ const UNEXPECTED_ERROR = 'Une erreur inattendue est survenue.';
 export function notifyFailure(error: unknown, fallback: string = UNEXPECTED_ERROR): void {
   // eslint-disable-next-line no-restricted-syntax -- notifyFailure itself.
   if (error instanceof GraphQLRequestError && error.code === 'UNAUTHENTICATED') return;
+  // Declined at its confirmation: nothing failed.
+  if (error instanceof ActionDeclined) return;
   notifyError(error instanceof Error && error.message ? error.message : fallback);
 }
 

@@ -1,6 +1,6 @@
 import { Combobox, Select, Text, UnstyledButton, useCombobox } from '@mantine/core';
 import { ArrowsLeftRightIcon } from '@phosphor-icons/react';
-import { removedLinksNote } from '../lib/bulk-label';
+import { removedLinksNote } from '../../../lib/text';
 import { ItemBadge } from '../../../components/items/ItemBadge';
 import { ItemAvatar } from '../../../components/items/ItemAvatar';
 import { listSelectProps } from '../../../components/items/item-look';
@@ -14,7 +14,7 @@ import { useBulkTaskMutations, useTaskBlock, useTaskRelation, type Task, type Ta
 import { confirmDestructive } from '../../../components/dialogs/confirm-destructive';
 import { TaskSelect } from './task-ui';
 
-import { linkableTasks } from '../lib/task-links';
+import { inProjectTree, linkableTasks } from '../lib/task-links';
 import { closedMark, type TaskContext, taskName, taskNumber } from '../hooks/use-task-context';
 import { useTaskLink } from '../hooks/use-task-link';
 import { useCellEdit } from '../lib/cell-edit';
@@ -30,6 +30,8 @@ import { DependencyIcon } from '../../../components/data-table/cells/DependencyI
 import { dateRangeProps } from '../../../components/inputs/date-range';
 import { beneficiariesDiff } from '../../beneficiaries/lib/beneficiaries-diff';
 import { LATE_COLOR } from '../../../components/feedback/feedback-colors';
+import { sprintDateHint } from '../lib/sprint-dates';
+import { LocationCell } from '../../geo/components/LocationCell';
 
 /**
  * Accessible label of a cell field, mentioning the bulk edit.
@@ -322,13 +324,13 @@ interface DateCellProps {
   alert?: boolean;
 }
 
-const DATE_LABELS = { startDate: 'Début', endDate: 'Fin', deadline: 'Date max', minDate: 'Date min' } as const;
+const DATE_LABELS = { startDate: 'Début', endDate: 'Fin', deadline: 'Échéance', minDate: 'Ouverture' } as const;
 
 /** Period each date column bounds: its start and end columns. */
 const DATE_RANGES = { startDate: ['startDate', 'endDate'], endDate: ['startDate', 'endDate'], minDate: ['minDate', 'deadline'], deadline: ['minDate', 'deadline'] } as const;
 
 /**
- * Start, end or "Date max" cell: date picker.
+ * Start, end or « Échéance » cell: date picker.
  * @param {DateCellProps} props Component props.
  * @returns {JSX.Element} Cell.
  */
@@ -338,6 +340,8 @@ export function DateCell({ task, column, alert }: DateCellProps) {
   const side = column === startKey ? 'start' : 'end';
   // A single task keeps a valid period (the other bound follows); with several, the API checks every task.
   const bounds = dateRangeProps({ value: [task[startKey], task[endKey]], onChange: ([start, end]) => apply({ [startKey]: start, [endKey]: end }) })[side];
+  // Without its own « Ouverture » / « Échéance »: that of its single sprint, shown in place (a date typed wins).
+  const inherited = column === 'minDate' || column === 'deadline' ? sprintDateHint(task, column) : null;
   return (
     <DatePickerInput
       {...stoppedCellField}
@@ -347,7 +351,7 @@ export function DateCell({ task, column, alert }: DateCellProps) {
       onChange={(date) => (count < 2 ? bounds.onChange(date) : apply({ [column]: date }, { [column]: date }))}
       readOnly={task.archived}
       clearable={!task.archived}
-      placeholder={task.archived ? undefined : '—'}
+      placeholder={inherited ?? (task.archived ? undefined : '—')}
       popoverProps={{ withinPortal: true }}
       c={alert ? LATE_COLOR : undefined}
       fw={alert ? 600 : undefined}
@@ -462,7 +466,7 @@ export function TaskProjectCell({ task, context }: { task: Task; context: TaskCo
         toastCallbacks(({ removedLinks }: { removedLinks: number }) => `${count > 1 ? `${count} tâches déplacées` : 'Tâche déplacée'}.${removedLinksNote(removedLinks)}`),
       );
     const linked = (item: Task) => item.parentId !== null || item.blockingIds.length + item.blockedByIds.length + item.relatedIds.length > 0 || item.milestoneId !== null || item.sprintIds.length > 0;
-    if (!moved.some((item) => linked(item) && context.rootOf(projectId) !== context.rootOf(item.projectId))) return transfer();
+    if (!moved.some((item) => linked(item) && !inProjectTree(context, projectId)(item.projectId))) return transfer();
     confirmDestructive({
       title: 'Changer de projet',
       risks: 'La tâche (et ses sous-tâches) passe dans une autre arborescence : sa tâche parente, ses blocages et relations avec les tâches restées, son jalon et ses sprints seront retirés.',
@@ -472,4 +476,14 @@ export function TaskProjectCell({ task, context }: { task: Task; context: TaskCo
     });
   };
   return <SharedProjectCell value={task.projectId} context={context} label={fieldLabel('Projet', task, count)} placeholder="Sans projet" readOnly={task.archived} onSave={move} />;
+}
+
+/**
+ * Location cell of a task (`LocationCell`), on the selection of its table: an address chosen in place, or none.
+ * @param {{ task: Task }} props Component props.
+ * @returns {JSX.Element} Cell.
+ */
+export function TaskLocationCell({ task }: { task: Task }) {
+  const { apply, count } = useCellEdit(task, 'location');
+  return <LocationCell item={task} label={fieldLabel('Lieu', task, count)} readOnly={task.archived} count={count} onSave={(change) => apply(change)} />;
 }

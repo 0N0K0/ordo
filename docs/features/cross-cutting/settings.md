@@ -15,7 +15,7 @@ Où se règle quoi : le panneau de paramètres de chaque page (barre latérale d
 La plupart des sections sont des listes de paramètres (statuts, catégories, étiquettes…), qui se comportent toutes de la même façon :
 
 - Chaque élément montre son avatar (image, ou initiales sur sa couleur), son nom et son nombre d’utilisations.
-- « Ajouter » ouvre le formulaire dans le panneau latéral (nom, couleur, image, parent pour une arborescence, champs propres à la liste) ; « Modifier » idem.
+- « Ajouter » ouvre le formulaire dans le panneau latéral (nom, couleur, image, parent pour une arborescence, champs propres à la liste ; bouton « Créer », toast « Ajout enregistré. ») ; « Modifier » ouvre le même panneau, enregistré champ par champ (décision D22) : chaque champ dès qu’il change (nom, textes et nombres en les quittant ; couleur dès qu’elle est choisie dans le nuancier ou le sélecteur, en la quittant quand elle est tapée ; adresse d’un lieu dès qu’elle est choisie, effacée ou quittée), « Enregistrement… » / « Enregistré » en haut, sans bouton ; un élément changé ailleurs pendant que le panneau est ouvert (glissé sous un autre parent, une autre fenêtre) y prend ses nouvelles valeurs, sauf un champ en cours de saisie. Une confirmation demandée par la liste (catégorie d’un statut de tâche qui ferme ou rouvre ses tâches) passe avant l’enregistrement ; refusée, le champ revient à sa valeur.
 - Réordonner par glisser-déposer ; dans une arborescence, glisser un élément sur un autre l’y range ; menu « Ajouter un sous-élément ».
 - « Archiver » / « Restaurer » (avec annulation) ; les archivés sont masqués derrière « Afficher les archivés », en lecture seule.
 - « Supprimer » (dans le menu « … ») après confirmation : « « X » sera supprimé définitivement et retiré des N … qui l’utilisent. » ; dans une arborescence : « Ses sous-éléments remonteront d’un niveau. »
@@ -92,10 +92,10 @@ Page `/calendar`. Voir [Agenda](../activities/calendar.md).
 
 | Onglet                  | Ce qu’il gère                                                                                                                                                                                                                                                                                                                           |
 | ----------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| « Affichage et export » | « Affichage » : calendriers et plages affichés ou masqués, « Aussi dans l’agenda » (Tâches, Routines, plages, Chronos, archivés), « Heures (semaine, jour) » « Par 5 minutes » (sinon par 30). « Exporter » : « Vue en PDF » et l’export ICS des calendriers.                                                                           |
-| « Paramètres »          | « Calendriers » et « Calendriers des autres espaces » (abonnements en lecture seule), « Catégories d’agenda » (arborescence ; filtrer sur une catégorie inclut ses sous-catégories), « Plages sans type », « Types de plages » (couleur et affichage), « Plages des autres espaces » (abonnement à un type de plage d’un autre espace). |
+| « Affichage et export » | « Affichage » : calendriers et créneaux affichés ou masqués, « Aussi dans l’agenda » (Tâches, Routines, créneaux, Chronos, archivés), « Heures (semaine, jour) » « Par 5 minutes » (sinon par 30). « Exporter » : « Vue en PDF » et l’export ICS des calendriers.                                                                           |
+| « Paramètres »          | « Calendriers » et « Calendriers des autres espaces » (abonnements en lecture seule), « Catégories d’agenda » (arborescence ; filtrer sur une catégorie inclut ses sous-catégories), « Créneaux sans type », « Types de créneaux » (couleur et affichage), « Créneaux des autres espaces » (abonnement à un type de créneau d’un autre espace). |
 
-Les plages elles-mêmes se gèrent par un bouton de la page, pas dans le panneau.
+Les créneaux eux-mêmes se gèrent par un bouton de la page, pas dans le panneau.
 
 ### Mails — « Paramètres des mails »
 
