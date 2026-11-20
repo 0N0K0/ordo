@@ -156,6 +156,12 @@ export default defineConfig([
           selector: `FunctionDeclaration[id.name=${D22_PANELS}] JSXOpeningElement[name.name='ColorField'] > JSXSpreadAttribute > CallExpression[callee.property.name='getInputProps']`,
           message: 'Utiliser commitProps(champ) de useFieldSave (lib/form) : couleur choisie enregistrée aussitôt, tapée en la quittant.',
         },
+        // A field of a detail panel saved on leaving it by hand, from its DOM value: useFieldSave (getInputProps, fieldProps),
+        // which also saves it when the panel closes while it is typed (decision FJ).
+        {
+          selector: `FunctionDeclaration[id.name=${D22_PANELS}] JSXAttribute[name.name='onBlur'] MemberExpression[object.property.name='currentTarget'][property.name='value']`,
+          message: 'Champ de panneau de détail : useFieldSave (lib/form), enregistré en le quittant et aussi à la fermeture du panneau (décision FJ).',
+        },
         // One word and one behaviour to copy anything (decision D20): « Dupliquer », saved at once, then opened.
         {
           selector: "Literal[value=/\\bClon(er|é|ée|és|ées|age)\\b/i], TemplateElement[value.raw=/\\bClon(er|é|ée|és|ées|age)\\b/i], JSXText[value=/\\bClon(er|é|ée|és|ées|age)\\b/i]",

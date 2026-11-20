@@ -26,6 +26,8 @@ L’API accepte ce que l’interface empêche.
 - **Évènement archivé :** sa suppression n’est pas refusée, alors que modification, annulation et report le sont. Voir [Règles de l’agenda](business-rules/activities/calendar.md).
 - **Mouvement de trésorerie archivé :** sa suppression ne vérifie pas l’archivage. Voir [Règles de la trésorerie](business-rules/finances/treasury.md).
 - **Listes à cocher :** elles ne vérifient pas l’archivage de leur propriétaire (routine, évènement, tâche). Voir [Règles des fiches](business-rules/supplies/sheets.md).
+- **Lecture seule figée à l’ouverture d’un panneau (décision FJ) :** quelques panneaux reçoivent leur lecture seule de celui qui les ouvre et ne la suivent pas si l’élément ou son conteneur est archivé ailleurs pendant qu’ils sont ouverts : services, contacts et coordonnées d’un client (`ClientPartyForms`, `readOnly` donné par `ClientBillingSection`), élément d’une liste de courses close ou archivée (`ShoppingForm`, `target.readOnly`), occurrence d’une routine dans l’agenda (`RoutineOccurrenceForm` : l’occurrence du cache disparaît quand la routine est archivée, la copie ouverte reste modifiable). L’API refuse quand même la modification (« Élément archivé : restaurez-le pour le modifier. »). Voir [Code web des achats](web/features/supplies/shopping.md).
+- **Multiplicateur d’une fiche liée (`SheetLinksField`) :** enregistré à la main en quittant un champ non contrôlé, hors de `useFieldSave` : tapé puis panneau fermé sans quitter le champ, il n’est pas enregistré (décision FJ). Voir [Code web des fiches](web/features/supplies/sheets.md).
 
 ## Incohérences entre le web et l’API
 

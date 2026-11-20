@@ -3,7 +3,7 @@ import { PlugsConnectedIcon } from '@phosphor-icons/react';
 import { Checkbox, Fieldset, Group, NumberInput, PasswordInput, Select, SimpleGrid, Stack, Switch, TextInput } from '@mantine/core';
 import { mailAccountFormSchema, PASSWORD_AGAIN, passwordsToRetype, type MailAccountFormValues } from '@ordo/shared';
 
-import { useEffect, useState, type ChangeEvent, type FormEvent } from 'react';
+import { useEffect, useRef, useState, type ChangeEvent, type FormEvent } from 'react';
 import { showFormError, useAppForm, formCallbacks, useFieldSave } from '../../../lib/form';
 import { SaveStatus } from '../../../components/feedback/SaveStatus';
 import { GraphQLRequestError } from '../../../lib/graphql-client';
@@ -74,6 +74,8 @@ export function MailAccountForm({ account, onDone }: MailAccountFormProps) {
   const { data: accounts } = useMailAccounts();
   const current = account && (accounts?.find((item) => item.id === account.id) ?? account);
   const [sameLogin, setSameLogin] = useState(!account || account.imapUser === account.smtpUser);
+  // The choice as it is when a save is checked (changed and saved in the same event).
+  const sameRef = useRef(sameLogin);
   const [tested, setTested] = useState(false);
   const base = useAppForm<MailAccountFormValues>({ initialValues: accountValues(account), schema: mailAccountFormSchema });
   const { form, saving, commit } = useFieldSave(base, {
@@ -82,6 +84,13 @@ export function MailAccountForm({ account, onDone }: MailAccountFormProps) {
     saved: current && accountValues(current),
     onBlur: ['label', 'email', 'displayName', ...CONNECTION],
     readOnly: Boolean(current?.archived),
+    // A server changed waits for its password, an error under it (under the receiving one with "same login").
+    check: (values, fields) => {
+      if (!current || !fields.some((field) => (CONNECTION as readonly string[]).includes(field))) return {};
+      const same = sameRef.current;
+      const [missing] = passwordsToRetype(toInput(values, same), current);
+      return missing ? { [same ? 'imapPassword' : missing]: PASSWORD_AGAIN } : {};
+    },
   });
 
   const { imapUser, imapPassword } = form.values;
@@ -92,20 +101,10 @@ export function MailAccountForm({ account, onDone }: MailAccountFormProps) {
   }, [sameLogin, imapUser, imapPassword]);
 
   /**
-   * Saves the connection of an existing account (nothing on a new one): a server changed waits for its password, an
-   * error under it (under the receiving one with "same login").
-   * @param {boolean} [same=sameLogin] Same login for sending. Optional. Default = the current choice.
+   * Saves the connection of an existing account together (nothing on a new one), once checked (`check`).
    * @returns {void}
    */
-  const saveConnection = (same = sameLogin) => {
-    if (!current) return;
-    const [missing] = passwordsToRetype(toInput(base.getValues(), same), current);
-    if (missing) {
-      base.setFieldError(same ? 'imapPassword' : missing, PASSWORD_AGAIN);
-      return;
-    }
-    commit(CONNECTION);
-  };
+  const saveConnection = () => void commit(CONNECTION);
 
   /**
    * Props of a field of the connection: saved with the whole connection on leaving it (a switch: once changed).
@@ -230,9 +229,10 @@ export function MailAccountForm({ account, onDone }: MailAccountFormProps) {
               onChange={(event) => {
                 const same = event.currentTarget.checked;
                 setSameLogin(same);
+                sameRef.current = same;
                 if (!same) return;
                 base.setValues({ smtpUser: base.getValues().imapUser, smtpPassword: base.getValues().imapPassword });
-                saveConnection(true);
+                saveConnection();
               }}
             />
             {!sameLogin && (

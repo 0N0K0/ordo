@@ -1,5 +1,5 @@
 import { ColorField } from '../inputs/ColorField';
-import { Select, Stack, TextInput } from '@mantine/core';
+import { Fieldset, Select, Stack, TextInput } from '@mantine/core';
 import type { UseFormReturnType } from '@mantine/form';
 import type { ReactNode } from 'react';
 import { IconField } from '../inputs/IconField';
@@ -94,7 +94,8 @@ interface SettingsItemFormProps<C extends SettingsItem, E extends object> extend
  * initials on its color without one), parent in a tree, and the fields of its list. A new item is created by its
  * button; an existing one is saved field by field (decision D22): the color and the image through the look of every
  * list, the other fields by the list (a confirmation it asks, declined, puts the field back), the item of the list
- * followed (`liveItems`); the color at once when picked, on leaving it when typed (`commitProps`).
+ * followed (`liveItems`); the color at once when picked, on leaving it when typed (`commitProps`). Archived (elsewhere,
+ * while it is open), it is read only.
  * @param {SettingsItemFormProps<C, E>} props Component props.
  * @returns {JSX.Element} Form.
  */
@@ -121,6 +122,8 @@ export function SettingsItemForm<C extends SettingsItem, E extends object = Reco
   // The item and the tree as the list holds them now (the copy opened when it is no longer there).
   const item = openedItem && (live?.find((other) => other.id === openedItem.id) ?? openedItem);
   const tree = openedTree && (live ?? openedTree);
+  // Archived (elsewhere, the panel open): read only, as an archived item everywhere.
+  const readOnly = Boolean(item?.archived);
   const look = useSettingsItemLook();
   const parentColor = tree && parentId ? categoryTree(tree).find((placed) => placed.category.id === parentId)?.color : null;
   /**
@@ -167,6 +170,7 @@ export function SettingsItemForm<C extends SettingsItem, E extends object = Reco
     schema,
     saved: item && valuesOf(item),
     onBlur: ['label', 'color', ...(extra?.onBlur ?? [])] as (keyof FormValues<E> & string)[],
+    readOnly,
   });
 
   const callbacks = formCallbacks(form, 'Ajout enregistré.', (id: string) => onDone(id));
@@ -184,17 +188,19 @@ export function SettingsItemForm<C extends SettingsItem, E extends object = Reco
   const values = form.getValues();
   return (
     <form onSubmit={handleSubmit} noValidate>
-      <Stack gap="md">
-        {item && <SaveStatus saving={saving} />}
-        <TextInput label={labelField} required placeholder={labelPlaceholder} data-autofocus {...form.getInputProps('label')} />
-        {withColor && <ColorField required={colorRequired} description={colorRequired ? undefined : 'Vide : celle de son parent.'} {...commitProps('color')} />}
-        <IconField {...formIconProps(form, 'icon', 'removeIcon')} currentUrl={item?.iconUrl ?? null} name={values.label} color={withColor ? values.color || parentColor : null} />
-        {tree && withParent && (
-          <Select label="Parent" placeholder="Aucun (premier niveau)" clearable searchable {...treeSelectProps(categoryOptions(tree, item?.id))} {...form.getInputProps('parentId')} />
-        )}
-        {extra?.render(form as unknown as UseFormReturnType<SettingsItemValues<E>>, item, commit as (fields: readonly (keyof E & string)[]) => void)}
-        {!item && <FormActions onCancel={() => onDone()} submitLabel="Créer" loading={pending} />}
-      </Stack>
+      <Fieldset variant="unstyled" disabled={readOnly} p={0} m={0}>
+        <Stack gap="md">
+          {item && !readOnly && <SaveStatus saving={saving} />}
+          <TextInput label={labelField} required placeholder={labelPlaceholder} data-autofocus {...form.getInputProps('label')} />
+          {withColor && <ColorField required={colorRequired} description={colorRequired ? undefined : 'Vide : celle de son parent.'} {...commitProps('color')} />}
+          <IconField {...formIconProps(form, 'icon', 'removeIcon')} currentUrl={item?.iconUrl ?? null} name={values.label} color={withColor ? values.color || parentColor : null} />
+          {tree && withParent && (
+            <Select label="Parent" placeholder="Aucun (premier niveau)" clearable searchable {...treeSelectProps(categoryOptions(tree, item?.id))} {...form.getInputProps('parentId')} />
+          )}
+          {extra?.render(form as unknown as UseFormReturnType<SettingsItemValues<E>>, item, commit as (fields: readonly (keyof E & string)[]) => void)}
+          {!item && <FormActions onCancel={() => onDone()} submitLabel="Créer" loading={pending} />}
+        </Stack>
+      </Fieldset>
     </form>
   );
 }

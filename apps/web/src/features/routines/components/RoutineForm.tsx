@@ -1,7 +1,7 @@
 import { readReminders, type Reminder } from '@ordo/shared';
 import { removedLinksNote } from '../../../lib/text';
 import { NO_SUGGESTIONS } from '../../../components/markdown/remark-references';
-import { Divider, Grid, NumberInput, Select, Stack, TextInput } from '@mantine/core';
+import { Divider, Fieldset, Grid, NumberInput, Select, Stack, TextInput } from '@mantine/core';
 import {
   opensFits,
   readOpens,
@@ -186,12 +186,14 @@ export function RoutineForm({ routine, parent, categoryId = null, projectId = nu
   });
   // An existing routine: each field saved as soon as it changes (decision D22), the routine of the cache followed.
   const current = routine && (routines.find((item) => item.id === routine.id) ?? routine);
+  // Archived (elsewhere too, the panel open): read only.
+  const readOnly = Boolean(current?.archived);
   const { form, saving, commit, fieldProps } = useFieldSave(base, {
     save: routine ? (_changes, values) => update.mutateAsync({ id: routine.id, input: formInput(values) }) : null,
     schema: routineSchema,
     saved: current && routineFormValues(current),
     onBlur: ON_BLUR,
-    readOnly: routine?.archived,
+    readOnly,
     // Moved to another project tree: the links left out of it are removed, and told (as for a task transferred).
     onSaved: (result) => {
       const { removedLinks } = result as { removedLinks: number };
@@ -219,85 +221,87 @@ export function RoutineForm({ routine, parent, categoryId = null, projectId = nu
 
   return (
     <form onSubmit={handleSubmit} noValidate>
-      <Stack gap="lg">
-        {routine && <SaveStatus saving={saving} />}
-        <TextInput label="Libellé" required data-autofocus={routine ? undefined : true} {...form.getInputProps('label')} />
-        {/* As the task panel: the text and when it comes on the left, its properties on the right. */}
-        <Grid gap="xl">
-          <Grid.Col span={{ base: 12, md: 8 }}>
-            <Stack gap="md">
-              <MarkdownEditor label="Description" {...fieldProps('description')} suggestions={context?.suggestionsFor(form.values.projectId) ?? NO_SUGGESTIONS} minRows={3} />
-              <LinksField form={form} onRemoved={() => commit(['links'])} />
-              <SubSection title="Quand" gap="md">
-                <RoutineSchedule values={form.values} errors={form.errors} onChange={(changes) => form.setValues(changes)} onCommit={commit} />
-              </SubSection>
-              {routine && <SheetsSection owner={{ routineId: routine.id }} occurrenceDate={routine.currentDate || null} label={routine.label} />}
-              {routine && <RoutineComments routine={routine} occurrenceDate={occurrenceDate ?? panelOccurrence(routine)} />}
-            </Stack>
-          </Grid.Col>
-          <Grid.Col span={{ base: 12, md: 4 }}>
-            <Stack gap="md">
-              {context && (
-                <ProjectSelect
-                  context={context}
-                  label="Projet"
-                  description="Facultatif : le temps chronométré sur la routine y est compté."
-                  placeholder="Aucun"
+      <Fieldset variant="unstyled" disabled={readOnly} p={0} m={0}>
+        <Stack gap="lg">
+          {routine && !readOnly && <SaveStatus saving={saving} />}
+          <TextInput label="Libellé" required data-autofocus={routine ? undefined : true} {...form.getInputProps('label')} />
+          {/* As the task panel: the text and when it comes on the left, its properties on the right. */}
+          <Grid gap="xl">
+            <Grid.Col span={{ base: 12, md: 8 }}>
+              <Stack gap="md">
+                <MarkdownEditor label="Description" {...fieldProps('description')} suggestions={context?.suggestionsFor(form.values.projectId) ?? NO_SUGGESTIONS} minRows={3} />
+                <LinksField form={form} onRemoved={() => commit(['links'])} />
+                <SubSection title="Quand" gap="md">
+                  <RoutineSchedule values={form.values} errors={form.errors} onChange={(changes) => form.setValues(changes)} onCommit={commit} />
+                </SubSection>
+                {routine && <SheetsSection owner={{ routineId: routine.id }} occurrenceDate={routine.currentDate || null} label={routine.label} />}
+                {routine && <RoutineComments routine={routine} occurrenceDate={occurrenceDate ?? panelOccurrence(routine)} />}
+              </Stack>
+            </Grid.Col>
+            <Grid.Col span={{ base: 12, md: 4 }}>
+              <Stack gap="md">
+                {context && (
+                  <ProjectSelect
+                    context={context}
+                    label="Projet"
+                    description="Facultatif : le temps chronométré sur la routine y est compté."
+                    placeholder="Aucun"
+                    clearable
+                    // The assignees stay: on saving, they are attached to the new project.
+                    {...form.getInputProps('projectId')}
+                  />
+                )}
+                <BatchMultiSelect
+                  onCreate={itemCreator('Nouvelle catégorie', categoryItems, { tree: unarchived(data?.routineCategories ?? []) })}
+                  label="Catégories"
+                  placeholder={form.values.categoryIds.length ? undefined : 'Aucune'}
                   clearable
-                  // The assignees stay: on saving, they are attached to the new project.
-                  {...form.getInputProps('projectId')}
+                  searchable
+                  // Archived categories are no longer offered, but those of the routine stay.
+                  {...treeSelectProps(categoryOptions(data?.routineCategories ?? [], undefined, unarchivedOffered(data?.routineCategories ?? [], form.values.categoryIds)))}
+                  nothingFoundMessage="Aucune catégorie : tapez son libellé pour la créer"
+                  {...form.getInputProps('categoryIds')}
                 />
-              )}
-              <BatchMultiSelect
-                onCreate={itemCreator('Nouvelle catégorie', categoryItems, { tree: unarchived(data?.routineCategories ?? []) })}
-                label="Catégories"
-                placeholder={form.values.categoryIds.length ? undefined : 'Aucune'}
-                clearable
-                searchable
-                // Archived categories are no longer offered, but those of the routine stay.
-                {...treeSelectProps(categoryOptions(data?.routineCategories ?? [], undefined, unarchivedOffered(data?.routineCategories ?? [], form.values.categoryIds)))}
-                nothingFoundMessage="Aucune catégorie : tapez son libellé pour la créer"
-                {...form.getInputProps('categoryIds')}
-              />
-              {context && (
-                <AssigneesSelect
-                  // Of a project: its contributors only (the chosen assignees stay, even when the project changes).
-                  contributors={context.assignableFor([form.values.projectId], form.values.assigneeIds)}
-                  value={form.values.assigneeIds}
-                  onChange={(ids) => form.setFieldValue('assigneeIds', ids)}
-                  error={form.errors.assigneeIds as string | undefined}
+                {context && (
+                  <AssigneesSelect
+                    // Of a project: its contributors only (the chosen assignees stay, even when the project changes).
+                    contributors={context.assignableFor([form.values.projectId], form.values.assigneeIds)}
+                    value={form.values.assigneeIds}
+                    onChange={(ids) => form.setFieldValue('assigneeIds', ids)}
+                    error={form.errors.assigneeIds as string | undefined}
+                  />
+                )}
+                <BeneficiariesSelect
+                  value={{ beneficiaryIds: form.values.beneficiaryIds, beneficiaryRelationIds: form.values.beneficiaryRelationIds }}
+                  onChange={(beneficiaries) => form.setValues({ ...beneficiaries })}
                 />
-              )}
-              <BeneficiariesSelect
-                value={{ beneficiaryIds: form.values.beneficiaryIds, beneficiaryRelationIds: form.values.beneficiaryRelationIds }}
-                onChange={(beneficiaries) => form.setValues({ ...beneficiaries })}
-              />
-              <NumberInput label="Temps à y consacrer" description="En minutes" min={1} max={24 * 60} allowDecimal={false} suffix=" min" {...optionalNumberProps(form, 'estimate')} />
-              <Divider />
-              <Select label="Routine parente" placeholder="Aucune" clearable searchable {...treeSelectProps(routineOptions((item) => !excluded.has(item.id)))} {...form.getInputProps('parentId')} />
-              <BatchMultiSelect
-                label="Dépend de"
-                description="Routines à faire avant : tant qu’elles ne sont pas cochées, celle-ci est en attente."
-                placeholder={form.values.requiredIds.length ? undefined : 'Aucune'}
-                {...treeSelectProps(linkOptions(form.values.requiredIds))}
-                searchable
-                clearable
-                {...form.getInputProps('requiredIds')}
-              />
-              <BatchMultiSelect
-                label="Relative à"
-                description="Routines liées, sans ordre entre elles."
-                placeholder={form.values.relatedIds.length ? undefined : 'Aucune'}
-                {...treeSelectProps(linkOptions(form.values.relatedIds))}
-                searchable
-                clearable
-                {...form.getInputProps('relatedIds')}
-              />
-            </Stack>
-          </Grid.Col>
-        </Grid>
-        {!routine && <FormActions onCancel={onDone} submitLabel="Créer" loading={create.isPending} />}
-      </Stack>
+                <NumberInput label="Temps à y consacrer" description="En minutes" min={1} max={24 * 60} allowDecimal={false} suffix=" min" {...optionalNumberProps(form, 'estimate')} />
+                <Divider />
+                <Select label="Routine parente" placeholder="Aucune" clearable searchable {...treeSelectProps(routineOptions((item) => !excluded.has(item.id)))} {...form.getInputProps('parentId')} />
+                <BatchMultiSelect
+                  label="Dépend de"
+                  description="Routines à faire avant : tant qu’elles ne sont pas cochées, celle-ci est en attente."
+                  placeholder={form.values.requiredIds.length ? undefined : 'Aucune'}
+                  {...treeSelectProps(linkOptions(form.values.requiredIds))}
+                  searchable
+                  clearable
+                  {...form.getInputProps('requiredIds')}
+                />
+                <BatchMultiSelect
+                  label="Relative à"
+                  description="Routines liées, sans ordre entre elles."
+                  placeholder={form.values.relatedIds.length ? undefined : 'Aucune'}
+                  {...treeSelectProps(linkOptions(form.values.relatedIds))}
+                  searchable
+                  clearable
+                  {...form.getInputProps('relatedIds')}
+                />
+              </Stack>
+            </Grid.Col>
+          </Grid>
+          {!routine && <FormActions onCancel={onDone} submitLabel="Créer" loading={create.isPending} />}
+        </Stack>
+      </Fieldset>
     </form>
   );
 }

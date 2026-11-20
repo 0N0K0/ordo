@@ -10,6 +10,7 @@ Voir aussi : [Règles : tâches](../../business-rules/activities/tasks.md), [Rè
 | ------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `taskLabelSchema`                                 | Libellé de tâche : `requiredText()` (requis, 250 caractères max, décision DO).                                                                                                                  |
 | `effortSchema`                                    | Effort : nombre (« Nombre attendu. »), ≥ 0 (« L’effort ne peut pas être négatif. »), ≤ 1 000 000 (« Valeur trop grande. »), facultatif.                                                         |
+| `effortFieldSchema`, `effortFormSchema`            | Effort tel qu’un champ nombre le tient (`''` devient `null`, puis `effortSchema`), seul (`{ effort }`) : l’effort du panneau d’une tâche, enregistré en le quittant (décision D22). |
 | `commentBodySchema`                               | Commentaire : `markdownTextSchema` (65 536 max) non vide (« Le commentaire est vide. »). Les textes markdown suivent `markdownSchema` de [core](../cross-cutting/core.md) (`core/rules.ts`).    |
 | `HANDLE_MAX`                                      | `39` (comme les identifiants GitHub).                                                                                                                                                           |
 | `handleSchema`                                    | Identifiant de mention `@` : `trim`, minuscules, 2 à 39 caractères, lettres, chiffres, « - » et « _ », ni « - » ni « _ » au début ou à la fin.                                                  |
@@ -33,7 +34,7 @@ Champs de `taskFormSchema` :
 | `description`                                 | Texte.                                                                                                        |
 | `statusId`, `priorityId`, `typeId`            | Facultatifs.                                                                                                  |
 | `assigneeIds`, `tagIds`, `sprintIds`          | Listes d'ids.                                                                                                 |
-| `effort`                                      | `''` devient `null`, puis `effortSchema`.                                                                     |
+| `effort`                                      | `effortFieldSchema` : `''` devient `null`, puis `effortSchema`.                                               |
 | `startDate`, `endDate`, `deadline`, `minDate` | Jours facultatifs ; « Ouverture » : pas avant ce jour.                                                         |
 | `parentId`, `milestoneId`                     | Facultatifs.                                                                                                  |
 | `beneficiaryIds`, `beneficiaryRelationIds`    | « Bénéficiaires » : contributeurs et relations pour qui est la tâche.                                         |

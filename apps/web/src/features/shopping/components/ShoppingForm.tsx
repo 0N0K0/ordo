@@ -133,8 +133,8 @@ export function ShoppingForm({ target, onDone }: ShoppingFormProps) {
       });
     return mutations.updateItem.mutateAsync({ id: target.item!.id, input: itemInput(values) });
   };
-  // An archived product, an item of a closed or archived list: read only (its comments too).
-  const readOnly = target.kind === 'product' ? Boolean(target.product?.archived) : Boolean(target.readOnly);
+  // An archived product (elsewhere too, the panel open), an item of a closed or archived list: read only (its comments too).
+  const readOnly = target.kind === 'product' ? Boolean((current as ShoppingProduct | undefined)?.archived) : Boolean(target.readOnly);
   const { form, saving, fieldProps } = useFieldSave(base, {
     save: edited ? save : null,
     schema,
@@ -230,7 +230,7 @@ export function ShoppingForm({ target, onDone }: ShoppingFormProps) {
           </Stack>
         </Fieldset>
       </form>
-      {target.kind === 'product' && target.product && <Comments target="SHOPPING_PRODUCT" id={target.product.id} readOnly={target.product.archived} />}
+      {target.kind === 'product' && target.product && <Comments target="SHOPPING_PRODUCT" id={target.product.id} readOnly={readOnly} />}
       {target.kind === 'item' && target.item && <Comments target="SHOPPING_ITEM" id={target.item.id} readOnly={readOnly} />}
     </Stack>
   );

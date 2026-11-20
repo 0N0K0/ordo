@@ -11,6 +11,13 @@ import { taskRemindersSchema, type ReminderFields } from '../dates/reminders';
 export const taskLabelSchema = requiredText();
 
 export const effortSchema = z.number({ error: 'Nombre attendu.' }).min(0, 'L’effort ne peut pas être négatif.').max(1_000_000, 'Valeur trop grande.').nullable();
+/** Effort as a number input holds it (empty: none), checked as `effortSchema`. */
+export const effortFieldSchema = z
+  .union([z.number(), z.literal('')])
+  .transform((value) => (value === '' ? null : value))
+  .pipe(effortSchema);
+/** Effort of a task alone, saved on leaving it in the task panel (decision D22). */
+export const effortFormSchema = z.object({ effort: effortFieldSchema });
 
 export const commentBodySchema = markdownTextSchema.refine((value) => value.trim().length > 0, 'Le commentaire est vide.');
 
@@ -59,10 +66,7 @@ export const taskFormSchema = z
     typeId: z.string().nullable(),
     assigneeIds: z.array(z.string()),
     tagIds: z.array(z.string()),
-    effort: z
-      .union([z.number(), z.literal('')])
-      .transform((value) => (value === '' ? null : value))
-      .pipe(effortSchema),
+    effort: effortFieldSchema,
     startDate: dateSchema,
     endDate: dateSchema,
     deadline: dateSchema,

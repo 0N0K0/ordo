@@ -2,6 +2,7 @@ import { schemaResolver, useForm, type UseFormReturnType } from '@mantine/form';
 import { useEffect, useRef, useState } from 'react';
 import { GraphQLRequestError } from './graphql-client';
 import { notifyFailure, notifySuccess } from './notify';
+import { usePanelFlush } from '../components/panels/panels';
 
 type Schema = Parameters<typeof schemaResolver>[0];
 
@@ -121,14 +122,19 @@ export interface FieldSaveOptions<Values> {
    * form keeps what was typed (its errors found on it). Optional. Default = the values as they are.
    */
   toSaved?: (values: Values) => Values;
+  /**
+   * Errors the schema cannot find, on fields about to be saved (a password to type again once a server changed): the
+   * fields are not saved, the errors under them. Optional.
+   */
+  check?: (values: Values, fields: readonly (keyof Values & string)[]) => Record<string, string>;
 }
 
 /** What `useFieldSave` gives: the form, whether a save runs, and the save of fields now. */
 export interface FieldSave<Values> {
   form: UseFormReturnType<Values>;
   saving: boolean;
-  /** Checks and saves fields now (no-op on a new item or read only). */
-  commit: (fields: readonly (keyof Values & string)[]) => void;
+  /** Checks and saves fields now (no-op on a new item or read only); false when one is invalid (not saved). */
+  commit: (fields: readonly (keyof Values & string)[]) => boolean;
   /** Settles once the saves asked so far are done, failed ones included (before an action on the item as saved: a preview, a validation). */
   settled: () => Promise<void>;
   /**
@@ -184,8 +190,12 @@ function fieldErrors(schema: Schema, values: Record<string, unknown>, fields: re
  * under it (the rules of `useAppForm`: on leaving it, then on every change); a field in error is not saved. The change
  * shows at once; the saves run one after the other; a failure puts the field back as saved, in an error toast (an
  * error of the API on a field goes under it; a confirmation declined, `ActionDeclined`, puts it back silently). Values
- * changed elsewhere are followed, but not while a field is being typed. Without `save` (a new item) or read only, the
- * form is returned as it is: a form saved by its button.
+ * changed elsewhere are followed, but not while a field is being typed. What was not saved yet (a text being typed,
+ * not left) is saved when the side panel holding the form closes (`usePanelFlush`: by its close button, Escape or a
+ * click outside — an invalid field keeps it open once, its error under it), when the form goes away (the panel closed
+ * by its content or replaced, the page changed) and when the browser leaves the page (`pagehide`, as far as the
+ * browser lets the request go). Without `save` (a new item) or read only, the form is returned as it is: a form saved
+ * by its button.
  * @param {UseFormReturnType<Values>} base Form of the item (`useAppForm`).
  * @param {FieldSaveOptions<Values>} options How it is saved.
  * @returns {FieldSave<Values>} Form to bind the fields to, whether a save is running (`SaveStatus`), the save of
@@ -195,7 +205,7 @@ function fieldErrors(schema: Schema, values: Record<string, unknown>, fields: re
  *   tells its value is chosen (`commitProps`: a color).
  */
 export function useFieldSave<Values extends Record<string, unknown>>(base: UseFormReturnType<Values>, options: FieldSaveOptions<Values>): FieldSave<Values> {
-  const { save, schema, saved, onBlur = [], readOnly = false, onSaved, toSaved = (values: Values) => values } = options;
+  const { save, schema, saved, onBlur = [], readOnly = false, onSaved, toSaved = (values: Values) => values, check } = options;
   const live = save !== null && !readOnly;
   // Values as saved (or being saved), and the last values of the cache seen.
   const savedValues = useRef<Values | null>(null);
@@ -208,6 +218,58 @@ export function useFieldSave<Values extends Record<string, unknown>>(base: UseFo
    * @returns {Values} Values.
    */
   const savedNow = (): Values => (savedValues.current ??= base.getInitialValues());
+
+  /**
+   * Saves fields once checked, when they changed.
+   * @param {readonly string[]} fields Fields.
+   * @returns {boolean} False when one is invalid (not saved, its error under it).
+   */
+  const commit = (fields: readonly string[]): boolean => {
+    const values = base.getValues();
+    const previous = savedNow();
+    const errors = { ...fieldErrors(schema, values, fields), ...check?.(values, fields as readonly (keyof Values & string)[]) };
+    base.setErrors((current) => ({ ...Object.fromEntries(Object.entries(current).filter(([path]) => !fields.includes(fieldOf(path)))), ...errors }));
+    if (Object.keys(errors).length) return false;
+    const toSave = toSaved(values);
+    const changes = Object.fromEntries(fields.filter((field) => !sameValue(toSave[field], previous[field])).map((field) => [field, toSave[field]])) as Partial<Values>;
+    const changed = Object.keys(changes);
+    if (!changed.length || !save) return true;
+    const next = { ...previous, ...changes } as Values;
+    savedValues.current = next;
+    setPending((count) => count + 1);
+    queue.current = queue.current
+      .then(() => save(changes, next))
+      .then(
+        (result) => onSaved?.(result, changes),
+        (error: unknown) => {
+          // Put back as saved; the API's errors on these fields go under them (what was typed stays).
+          const back = Object.fromEntries(changed.map((field) => [field, previous[field]])) as Partial<Values>;
+          savedValues.current = { ...(savedValues.current ?? previous), ...back };
+          if (error instanceof GraphQLRequestError && Object.keys(error.fields).some((path) => changed.includes(fieldOf(path)))) {
+            base.setErrors((current) => ({ ...current, ...error.fields }));
+            return;
+          }
+          base.setValues(back);
+          notifyFailure(error);
+        },
+      )
+      .finally(() => setPending((count) => count - 1));
+    return true;
+  };
+
+  /**
+   * Saves every field that differs from what was saved (a text being typed, not left yet).
+   * @returns {boolean} False when one is invalid (not saved, its error under it).
+   */
+  const flush = (): boolean => {
+    const toSave = toSaved(base.getValues());
+    const previous = savedNow();
+    const fields = Object.keys(toSave).filter((field) => !sameValue(toSave[field], previous[field]));
+    return fields.length ? commit(fields) : true;
+  };
+
+  // What was not saved yet is saved before the panel closes, when the form goes away or the page.
+  usePanelFlush(live ? flush : () => true);
 
   // Values changed elsewhere: taken, unless the field is being typed (it differs from what was saved).
   useEffect(() => {
@@ -241,45 +303,8 @@ export function useFieldSave<Values extends Record<string, unknown>>(base: UseFo
       onChange: (value) => base.setFieldValue(field, value as never),
       onBlur: () => undefined,
     });
-    return { form: base, saving: pending > 0, commit: () => undefined, settled, fieldProps: formFieldProps, commitProps: (field) => ({ ...base.getInputProps(field), onCommit: () => undefined }) };
+    return { form: base, saving: pending > 0, commit: () => true, settled, fieldProps: formFieldProps, commitProps: (field) => ({ ...base.getInputProps(field), onCommit: () => undefined }) };
   }
-
-  /**
-   * Saves fields once checked, when they changed.
-   * @param {readonly string[]} fields Fields.
-   * @returns {void}
-   */
-  const commit = (fields: readonly string[]) => {
-    const values = base.getValues();
-    const previous = savedNow();
-    const errors = fieldErrors(schema, values, fields);
-    base.setErrors((current) => ({ ...Object.fromEntries(Object.entries(current).filter(([path]) => !fields.includes(fieldOf(path)))), ...errors }));
-    if (Object.keys(errors).length) return;
-    const toSave = toSaved(values);
-    const changes = Object.fromEntries(fields.filter((field) => !sameValue(toSave[field], previous[field])).map((field) => [field, toSave[field]])) as Partial<Values>;
-    const changed = Object.keys(changes);
-    if (!changed.length) return;
-    const next = { ...previous, ...changes } as Values;
-    savedValues.current = next;
-    setPending((count) => count + 1);
-    queue.current = queue.current
-      .then(() => save(changes, next))
-      .then(
-        (result) => onSaved?.(result, changes),
-        (error: unknown) => {
-          // Put back as saved; the API's errors on these fields go under them (what was typed stays).
-          const back = Object.fromEntries(changed.map((field) => [field, previous[field]])) as Partial<Values>;
-          savedValues.current = { ...(savedValues.current ?? previous), ...back };
-          if (error instanceof GraphQLRequestError && Object.keys(error.fields).some((path) => changed.includes(fieldOf(path)))) {
-            base.setErrors((current) => ({ ...current, ...error.fields }));
-            return;
-          }
-          base.setValues(back);
-          notifyFailure(error);
-        },
-      )
-      .finally(() => setPending((count) => count - 1));
-  };
 
   /**
    * Whether a field is saved on leaving it.

@@ -1,4 +1,5 @@
-import { useState } from 'react';
+import { useRef, useState } from 'react';
+import { usePanelFlush } from '../../../components/panels/panels';
 import type { AddressValue } from '../components/AddressInput';
 import { addressOf, locationOf, type ItemLocation } from '../lib/location';
 
@@ -6,7 +7,8 @@ import { addressOf, locationOf, type ItemLocation } from '../lib/location';
  * Location of an existing item typed in place (task panel, « Lieu » cell of a table), the same everywhere: saved once a
  * proposed address is chosen or the map clicked (with its point), when the text is cleared, or on leaving the field
  * for a free text typed alone; nothing saved when the location is unchanged, but on a selection of several rows (the
- * other rows take the location of the one clicked).
+ * other rows take the location of the one clicked). A free text typed and not left is saved too when its side panel
+ * closes, the field goes away or the page (`usePanelFlush`).
  * @param {ItemLocation} item Task or routine (its saved location).
  * @param {(change: ItemLocation) => void} save Saves a change of the location (null: none, its point too).
  * @param {boolean} [several] The change applies to several rows (a cell selection). Optional. Default = false.
@@ -15,6 +17,8 @@ import { addressOf, locationOf, type ItemLocation } from '../lib/location';
  */
 export function useLocationDraft(item: ItemLocation, save: (change: ItemLocation) => void, several = false) {
   const [draft, setDraft] = useState<AddressValue | null>(null);
+  // The draft last saved by a flush (not saved twice: on closing the panel, then as it goes away).
+  const flushed = useRef<AddressValue | null>(null);
 
   /**
    * Saves an address, when it changes the location of the item.
@@ -25,6 +29,14 @@ export function useLocationDraft(item: ItemLocation, save: (change: ItemLocation
     const change = { ...locationOf(value), location: value.text.trim() || null };
     if (several || change.location !== item.location || change.locationLat !== item.locationLat || change.locationLon !== item.locationLon) save(change);
   };
+
+  usePanelFlush(() => {
+    if (draft && draft !== flushed.current) {
+      flushed.current = draft;
+      commit(draft);
+    }
+    return true;
+  });
 
   return {
     value: draft ?? addressOf(item),

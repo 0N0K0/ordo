@@ -5,13 +5,14 @@ import { TaskProgress } from './TaskProgress';
 import { SubSection } from '../../../components/page/SubSection';
 import { ArchivedBadge } from '../../../components/feedback/ArchivedBadge';
 import { SaveStatus } from '../../../components/feedback/SaveStatus';
+import { useAppForm, useFieldSave } from '../../../lib/form';
 
 import { EmptyState } from '../../../components/feedback/EmptyState';
 import { DetailSkeleton } from '../../../components/feedback/Skeletons';
 import { SidePanel } from '../../../components/panels/SidePanel';
 import { Anchor, Badge, Divider, Fieldset, Grid, Group, Select, Stack, Text } from '@mantine/core';
 import { DatePickerInput } from '@mantine/dates';
-import { readSlotCondition, taskLabelSchema, subtreeOf } from '@ordo/shared';
+import { effortFormSchema, readSlotCondition, taskLabelSchema, subtreeOf } from '@ordo/shared';
 import { ArrowCounterClockwiseIcon, CheckCircleIcon, GithubLogoIcon, PencilSimpleIcon, ArrowsLeftRightIcon } from '@phosphor-icons/react';
 import { useState } from 'react';
 import { Link } from 'react-router';
@@ -139,6 +140,15 @@ function TaskDetail({ task, context }: TaskDetailProps) {
   const saveNow = (input: Omit<TaskInputValues, 'projectId'>) => updateTask.mutateAsync({ id: task.id, input });
   const dates = dateRangeProps({ value: [task.startDate, task.endDate], onChange: ([startDate, endDate]) => save({ startDate, endDate }) });
   const overdue = isTaskOverdue(task, localToday());
+  // The effort: saved on leaving it (decision D22), also when the panel closes while it is typed.
+  const effortBase = useAppForm<{ effort: number | '' }>({ initialValues: { effort: task.effort ?? '' }, schema: effortFormSchema });
+  const effort = useFieldSave(effortBase, {
+    save: ({ effort: value }) => saveNow({ effort: typeof value === 'number' ? value : null }),
+    schema: effortFormSchema,
+    saved: { effort: task.effort ?? '' },
+    onBlur: ['effort'],
+    readOnly: locked,
+  });
   const doable = dateRangeProps({ value: [task.minDate, task.deadline], onChange: ([minDate, deadline]) => save({ minDate, deadline }) });
 
   /**
@@ -293,7 +303,7 @@ function TaskDetail({ task, context }: TaskDetailProps) {
           <Fieldset variant="unstyled" disabled={locked}>
             <Stack gap="md">
               {/* Each field saved as soon as it changes (decision D22): the state of the saves. */}
-              {!locked && <SaveStatus saving={updateTask.isPending || transferTask.isPending} />}
+              {!locked && <SaveStatus saving={updateTask.isPending || transferTask.isPending || effort.saving} />}
               <ProjectSelect context={context} label="Projet" placeholder="Sans projet" clearable value={task.projectId} onChange={changeProject} disabled={transferTask.isPending} />
               <LabelSelect kind="status" label="Statut" labels={context.statuses} value={task.statusId} onChange={(statusId) => save({ statusId })} />
               <LabelSelect kind="priority" label="Priorité" labels={context.priorities} value={task.priorityId} onChange={(priorityId) => save({ priorityId })} />
@@ -301,15 +311,7 @@ function TaskDetail({ task, context }: TaskDetailProps) {
               <AssigneesSelect contributors={context.assignableFor([task.projectId], task.assigneeIds)} value={task.assigneeIds} onChange={(assigneeIds) => save({ assigneeIds })} />
               <TagsSelect tags={context.tags} value={task.tagIds} onChange={(tagIds) => save({ tagIds })} />
               <BeneficiariesSelect value={{ beneficiaryIds: task.beneficiaryIds, beneficiaryRelationIds: task.beneficiaryRelationIds }} onChange={(beneficiaries) => save(beneficiaries)} />
-              <EffortInput
-                key={`effort-${task.effort}`}
-                defaultValue={task.effort ?? ''}
-                onBlur={(event) => {
-                  const raw = event.currentTarget.value.replace(',', '.').trim();
-                  const effort = raw === '' ? null : Number(raw);
-                  if (effort !== task.effort && (effort === null || Number.isFinite(effort))) save({ effort });
-                }}
-              />
+              <EffortInput {...effort.form.getInputProps('effort')} />
               <TaskTime task={task} />
               <Group grow gap="xs">
                 <DatePickerInput label="Début" clearable placeholder="—" {...dates.start} />
