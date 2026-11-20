@@ -43,7 +43,7 @@ Page de détail dont l'élément n'existe pas (supprimé, mauvaise adresse) : `B
 
 ### `SaveStatus`
 
-État d'un panneau de détail enregistré champ par champ (décision D22, `useFieldSave`), en haut du panneau : « Enregistrement… » (petit chargement) pendant un enregistrement, « Enregistré » (coche) sinon ; même place dans les deux cas, lu par les lecteurs d'écran quand il change (`role="status"`). Prop `saving`. Utilisé par les panneaux des tâches, des routines, des évènements, des occurrences de routine, des temps et des alarmes.
+État d'un panneau de détail enregistré champ par champ (décision D22, `useFieldSave`), en haut du panneau : « Enregistrement… » (petit chargement) pendant un enregistrement, « Enregistré » (coche) sinon ; même place dans les deux cas, lu par les lecteurs d'écran quand il change (`role="status"`). Prop `saving`. Utilisé par les panneaux des tâches, des routines, des évènements, des occurrences de routine, des temps, des alarmes, des produits et éléments des achats, des listes, des livraisons et des fiches.
 
 ### `FullPageLoader`
 

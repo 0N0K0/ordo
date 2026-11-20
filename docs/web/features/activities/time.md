@@ -59,7 +59,7 @@ Les trois cellules de sujets passent par l’interne `TimeSubjectCell({ kind, en
 
 ### `components/TimeEntryForm.tsx`
 
-- `TimeEntryForm({ context, entry?, defaultProjectId?, onDone })` : formulaire d’ajout (« Ajouter ») ou panneau d’un temps existant enregistré champ par champ (décision D22, `useFieldSave` : durée et description en les quittant, le reste dès qu’il change, `SaveStatus` en tête ; entrée de l’API par `entryInput`) : projet (facultatif avec une tâche, une routine ou un évènement, décision D17 ; le changer vide routines et tâches, enregistrés ensemble), jour, début, durée, routines, tâches et évènements du jour (`TimeSubjectsFields`, valeurs `routineIds`, `taskIds`, `events` du formulaire), description ; schéma `timeEntryFormSchema` ; en modification, commentaires du temps (`Comments` cible `TIME_ENTRY`). Ouvert par `useTimeEntryDialogs`.
+- `TimeEntryForm({ context, entry?, defaultProjectId?, onDone })` : formulaire d’ajout (« Ajouter ») ou panneau d’un temps existant enregistré champ par champ (décision D22, `useFieldSave` : durée et description en les quittant, le reste dès qu’il change, `SaveStatus` en tête ; entrée de l’API par `entryInput`) : projet (facultatif avec une tâche, une routine ou un évènement, décision D17 ; le changer vide routines et tâches, enregistrés ensemble), jour, début, durée, routines, tâches et évènements du jour (`TimeSubjectsFields`, valeurs `routineIds`, `taskIds`, `events` du formulaire), description ; schéma `timeEntryFormSchema` ; en modification, commentaires du temps (`Comments` cible `TIME_ENTRY`) ; le temps du cache est suivi (`useCachedItem` sur `timeQueryKey`, valeurs d’un temps : interne `timeEntryFormValues`). Ouvert par `useTimeEntryDialogs`.
 
 ### `components/TimeLogActions.tsx`
 

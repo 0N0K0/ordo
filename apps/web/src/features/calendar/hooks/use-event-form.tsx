@@ -8,8 +8,8 @@ import { askScope } from '../lib/ask-scope';
 
 /**
  * Opens the event form in the side panel, for a new event or an occurrence. An occurrence of a recurring event asks
- * first, once, which occurrences the changes of its panel apply to (decision D22; cancelled: nothing opens), unless it
- * is read only (archived, or in an archived calendar).
+ * first, once, which occurrences the changes of its panel apply to (decision D22; dismissed: it opens read only, its
+ * comments open), unless it is read only (archived, or in an archived calendar).
  * @param {TaskContext | null} context Task context (projects, contributors, mentions).
  * An event duplicated from the form is saved at once and opens in place of it (decision D20).
  * @returns {(options?: { occurrence?: EventOccurrence, defaults?: Partial<CalendarEventInput> }) => void} Opener.
@@ -26,12 +26,11 @@ export function useEventForm(context: TaskContext | null) {
   const open = async ({ occurrence, defaults }: { occurrence?: EventOccurrence; defaults?: Partial<CalendarEventInput> } = {}) => {
     if (!context) return;
     const readOnly = Boolean(occurrence?.archived) || (occurrence ? archivedCalendars.has(occurrence.calendarId) : false);
-    let scope: CalendarEventScope = 'ALL';
-    if (occurrence?.occurrenceDate != null && !readOnly) {
-      const answer = await askScope({ action: 'update', title: 'Ouvrir un évènement récurrent', note: 'Les modifications faites dans le panneau, chacune enregistrée aussitôt, s’y appliqueront.' });
-      if (!answer) return;
-      scope = answer;
-    }
+    // Dismissed: no scope, the panel opens read only (its comments can still be written).
+    const scope: CalendarEventScope | null =
+      occurrence?.occurrenceDate != null && !readOnly
+        ? await askScope({ action: 'update', title: 'Ouvrir un évènement récurrent', note: 'Les modifications faites dans le panneau, chacune enregistrée aussitôt, s’y appliqueront.' })
+        : 'ALL';
     openFormPanel(
       occurrence ? 'Évènement' : 'Nouvel évènement',
       (close) => (

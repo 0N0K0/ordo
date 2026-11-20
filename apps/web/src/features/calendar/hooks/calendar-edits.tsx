@@ -146,22 +146,22 @@ export function useCalendarEdits() {
 
   /**
    * Opens the panel of an occurrence of a routine, saved field by field (decision D22): asks first, once, which
-   * occurrences its changes apply to (cancelled: nothing opens); a cancelled occurrence, or one of an archived routine,
-   * opens without asking.
+   * occurrences its changes apply to (dismissed: it opens read only); a cancelled occurrence, or one of an archived
+   * routine, opens without asking.
    * @param {RoutineOccurrenceRef} occurrence Occurrence.
    * @param {string | null} movedFrom Day of the rule it was moved from, if any.
    * @returns {Promise<void>}
    */
   const openRoutine = async (occurrence: RoutineOccurrenceRef, movedFrom: string | null) => {
-    let scope: CalendarEventScope = 'THIS';
-    if (!occurrence.cancelled && !occurrence.archived) {
-      const answer = await askScope({ action: 'update', title: 'Modifier une routine', note: 'Les modifications faites dans le panneau, chacune enregistrée aussitôt, s’y appliqueront.' });
-      if (!answer) return;
-      scope = answer;
-    }
+    // Dismissed: no scope, the panel opens read only.
+    const scope: CalendarEventScope | null =
+      occurrence.cancelled || occurrence.archived
+        ? 'THIS'
+        : await askScope({ action: 'update', title: 'Modifier une routine', note: 'Les modifications faites dans le panneau, chacune enregistrée aussitôt, s’y appliqueront.' });
     openFormPanel(`« ${occurrence.routine.label} » du ${fmt.dayLong(occurrence.date)}`, (close) => (
       <RoutineOccurrenceForm
         occurrence={occurrence}
+        movedFrom={movedFrom}
         scope={scope}
         onClose={close}
         onDelete={() => {

@@ -7,7 +7,8 @@ import { SaveStatus } from '../../../components/feedback/SaveStatus';
 
 import { ProjectSelect } from '../../tasks/components/task-ui';
 import type { TaskContext } from '../../tasks/hooks/use-task-context';
-import { useTimeMutations, type TimeEntry, type TimeEntryValues } from '../api';
+import { timeQueryKey, useTimeMutations, type TimeEntry, type TimeEntryValues } from '../api';
+import { useCachedItem } from '../../../lib/mutation';
 import { TimeSubjectsFields } from './TimeSubjectsFields';
 import { entryEventKeys, parseEventKeys } from '../lib/time-events';
 import { MarkdownEditor } from '../../../components/markdown/MarkdownEditor';
@@ -38,6 +39,26 @@ const entryInput = (values: TimeEntryFormValues): TimeEntryValues => ({
   events: parseEventKeys(values.events),
 });
 
+/**
+ * Values of the form of an existing time (its local day and start time, its duration as « h:mm »).
+ * @param {TimeEntry} entry Time.
+ * @returns {TimeEntryFormValues} Values.
+ */
+const timeEntryFormValues = (entry: TimeEntry): TimeEntryFormValues => {
+  const { date, time } = localParts(entry.startedAt);
+  const minutes = entry.duration ? Math.round(entry.duration / 60) : 60;
+  return {
+    projectId: entry.projectId ?? '',
+    routineIds: entry.routines.map((routine) => routine.id),
+    taskIds: entry.taskIds,
+    events: entryEventKeys(entry),
+    description: entry.description ?? '',
+    date,
+    start: time,
+    duration: `${Math.floor(minutes / 60)}:${twoDigits(minutes % 60)}`,
+  };
+};
+
 /** Fields of a time saved on leaving them, in its panel (decision D22). */
 const ON_BLUR = ['duration', 'description'] as const;
 
@@ -51,25 +72,22 @@ const ON_BLUR = ['duration', 'description'] as const;
  */
 export function TimeEntryForm({ context, entry, defaultProjectId, onDone }: TimeEntryFormProps) {
   const { create, update } = useTimeMutations();
-  const parts = entry ? localParts(entry.startedAt) : null;
-  const initial = parts ? { date: parts.date, start: parts.time } : { date: localToday(), start: '09:00' };
-  const minutes = entry?.duration ? Math.round(entry.duration / 60) : 60;
   const base = useAppForm<TimeEntryFormValues>({
-    initialValues: {
-      projectId: entry?.projectId ?? defaultProjectId ?? '',
-      routineIds: entry?.routines.map((routine) => routine.id) ?? [],
-      taskIds: entry?.taskIds ?? [],
-      events: entry ? entryEventKeys(entry) : [],
-      description: entry?.description ?? '',
-      date: initial.date,
-      start: initial.start,
-      duration: `${Math.floor(minutes / 60)}:${twoDigits(minutes % 60)}`,
-    },
+    initialValues: entry
+      ? timeEntryFormValues(entry)
+      : { projectId: defaultProjectId ?? '', routineIds: [], taskIds: [], events: [], description: '', date: localToday(), start: '09:00', duration: '1:00' },
     schema: timeEntryFormSchema,
   });
+  // The time of the cache followed (changed in a cell, another tab: decision D22), whatever list holds it.
+  const current = useCachedItem(
+    timeQueryKey,
+    (entries: TimeEntry[] | TimeEntry | null) => (Array.isArray(entries) ? entries : []),
+    (item: TimeEntry) => item.id === entry?.id,
+  );
   const { form, saving, commit } = useFieldSave(base, {
     save: entry ? (_changes, values) => update.mutateAsync({ id: entry.id, input: entryInput(values) }) : null,
     schema: timeEntryFormSchema,
+    saved: entry && timeEntryFormValues(current ?? entry),
     onBlur: ON_BLUR,
   });
 

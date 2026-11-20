@@ -37,7 +37,7 @@ Suppression (dialogue de confirmation) : « La fiche « … » et ses 3 élémen
 - En-tête : retour « Fiches », titre, badge « Archivée », sous-titre « 3 éléments · rattachée à 2 routines, évènements ou tâches ».
 - Action « Utiliser cette fiche » (pas si archivée).
 - Menu : « Dupliquer » (ouvre la copie), « Archiver » / « Restaurer », « Supprimer » (retour à la liste).
-- Champs enregistrés au fil de l'eau (le texte en quittant le champ) : « Libellé » (requis, 250 caractères au plus ; vide, il revient à l'ancien), « Projet » (« Aucun : fiche de l'espace »), « Catégories », « Note » (texte multiligne, 4 000 caractères au plus). En lecture seule si la fiche est archivée.
+- Champs enregistrés chacun dès qu'il change (décision D22 ; les textes en les quittant) : « Libellé » (requis, 250 caractères au plus ; vide, l'erreur s'affiche dessous et rien n'est enregistré), « Projet » (« Aucun : fiche de l'espace »), « Catégories », « Note » (texte multiligne, 4 000 caractères au plus). « Enregistrement… » puis « Enregistré » au-dessus ; un échec remet le champ comme il était, dans un toast d'erreur ; un champ changé ailleurs est repris. En lecture seule si la fiche est archivée.
 - Fiche introuvable : page « Cette fiche » introuvable, avec un retour vers « Fiches ».
 
 ### Tableau des éléments

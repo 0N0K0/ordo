@@ -85,7 +85,7 @@ Panneau latéral « Nouveau produit » / « Modifier le produit » / « Élémen
 | « Description »          | Markdown, 65 536 caractères.                                                                                    |
 | « Manque »               | Produit seulement ; coché par défaut pour un nouveau produit (« Il sera mis sur la prochaine liste générée. »). |
 
-Un élément venu de fiches affiche « Vient de la fiche … » avec leur part. Les commentaires du produit ou de l'élément s'affichent sous le formulaire. Toasts « Ajouté. » / « Modifié. ».
+Un élément venu de fiches affiche « Vient de la fiche … » avec leur part. Les commentaires du produit ou de l'élément s'affichent sous le formulaire. Un nouveau produit ou élément : bouton « Ajouter », toast « Ajouté. ». Un produit ou un élément existant s'enregistre champ par champ (décision D22) : chaque champ dès qu'il change (« Label », « Quantité », « Prix unitaire estimé », « Lien vers le produit » et « Description » en les quittant), sans bouton « Enregistrer » ; « Enregistrement… » puis « Enregistré » en haut du panneau ; un champ invalide garde son erreur dessous et n'est pas enregistré, un échec le remet comme il était, dans un toast d'erreur ; un champ changé ailleurs (une cellule, un autre onglet) est repris, sauf pendant sa saisie. Un produit archivé s'ouvre en lecture seule.
 
 ### Déplacer des produits
 
@@ -159,7 +159,7 @@ Panneau « Ajouter des produits des références » (`ProductPicker`) : recherch
 
 Menu de la liste (page et table des listes, `ListActionsMenu`) :
 
-- « Renommer, changer de tâche » : panneau « Modifier la liste » (« Libellé », « Tâches » — les tâches de la liste restent proposées même closes). Toast « Liste modifiée. ».
+- « Renommer, changer de tâche » : panneau « Modifier la liste » (« Libellé », « Tâches » — les tâches de la liste restent proposées même closes), chaque champ enregistré dès qu'il change (le libellé en le quittant, décision D22), « Enregistrement… » / « Enregistré », sans bouton.
 - « Rattacher à un mouvement » : panneau « Rattacher à un mouvement de trésorerie » ; recherche d'un mouvement ou d'une prévision (2 caractères au moins) ; explication : chaque personne concernée reçoit une ligne de répartition. Toast « Liste rattachée : la répartition a été ajoutée au mouvement. ». Une fois rattachée : « Détacher du mouvement » (« Liste détachée du mouvement (sa répartition reste). »).
 - « Dupliquer » : toast « Liste dupliquée. » puis ouverture de la copie.
 - « Copier en texte » : texte pour un message (catégories indentées, ☐/☑, quantité, personnes, prix, note, lien, total). Toasts « Liste copiée : collez-la dans un message. » ou « La liste n'a pas pu être copiée. ».
@@ -196,7 +196,7 @@ Panneau « Commande à distance » (`OrderPanel`) :
 - « Lieu de livraison » : recherche d'adresse ou de lieu enregistré ; enregistré quand une adresse proposée est choisie ou quand le texte est vidé.
 - Section « Livraisons » : « Ajouter une livraison » ; vide : « Aucune livraison : ajoutez-en une par colis (ou par retrait). ».
 - Chaque livraison : nom (ou « Retrait » / « Livraison »), badges « à retirer », « réceptionnée le … », fenêtre, adresse, nombre d'éléments, lien « Suivi » ; actions « Réceptionnée (ses éléments achetés) » / « Pas encore réceptionnée », « Modifier », « Supprimer » (confirmation : « La livraison sera supprimée ; ses éléments restent sur la liste, sans livraison. »).
-- Formulaire d'une livraison (« Nouvelle livraison » / « Modifier la livraison ») : « Libellé » (« Colis 1, Drive, Pharmacie… », 250 caractères), « Suivi de livraison » (URL), « À retirer », dates « Attendue à partir du » / « Au plus tard le » (ou « À retirer à partir du » / « Jusqu'au »), « Lieu de livraison » ou « Lieu de retrait » (vide : celui de la commande), « Éléments de la livraison » (par défaut, pour une nouvelle livraison, les éléments sans livraison). Toasts « Livraison ajoutée. » / « Livraison modifiée. ». Voir la remarque sur les dates dans [Code web des achats](../../web/features/supplies/shopping.md#componentsorderpaneltsx).
+- Formulaire d'une livraison (« Nouvelle livraison » / « Modifier la livraison ») : « Libellé » (« Colis 1, Drive, Pharmacie… », 250 caractères), « Suivi de livraison » (URL), « À retirer », dates « Attendue à partir du » / « Au plus tard le » (ou « À retirer à partir du » / « Jusqu'au »), « Lieu de livraison » ou « Lieu de retrait » (vide : celui de la commande), « Éléments de la livraison » (par défaut, pour une nouvelle livraison, les éléments sans livraison). Nouvelle : bouton « Ajouter », toast « Livraison ajoutée. ». Existante : chaque champ enregistré dès qu'il change (décision D22 ; libellé et suivi en les quittant, le lieu quand une adresse proposée est choisie, quand le texte est vidé ou en le quittant), « Enregistrement… » / « Enregistré », sans bouton ; un champ invalide garde son erreur dessous et n'est pas enregistré, un échec le remet comme il était, dans un toast d'erreur ; un champ changé ailleurs (une cellule, un autre onglet) est repris, sauf pendant sa saisie. Voir la remarque sur les dates dans [Code web des achats](../../web/features/supplies/shopping.md#componentsorderpaneltsx).
 
 ## Paramètres des achats
 

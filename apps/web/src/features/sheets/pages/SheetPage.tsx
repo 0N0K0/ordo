@@ -1,5 +1,6 @@
 import { DetailNotFound } from '../../../components/feedback/DetailNotFound';
-import { formCallbacks } from '../../../lib/form';
+import { formCallbacks, useAppForm, useFieldSave } from '../../../lib/form';
+import { SaveStatus } from '../../../components/feedback/SaveStatus';
 import { listSelectProps } from '../../../components/items/item-look';
 
 import { PAGES, sheetPath } from '../../../app/pages';
@@ -41,7 +42,7 @@ import { selectedLabel } from '../../../components/data-table/selection/selectio
 import { optionalColumn, sheetShoppingColumns } from '../../shopping/lib/shopping-columns';
 import { CategoryCell, ConservationCell, PeopleCell, StoreCell, UnitCell } from '../../shopping/components/shopping-cells';
 import { usePeople } from '../../shopping/lib/shopping-format';
-import { sheetItemSchema, shoppingItemSchema, type SheetItemInput } from '@ordo/shared';
+import { sheetItemSchema, sheetSchema, shoppingItemSchema, type SheetInput, type SheetItemInput } from '@ordo/shared';
 import { SheetUseForm } from '../components/SheetUseForm';
 import { countOf, plural, sameName } from '../../../lib/text';
 import { FormActions } from '../../../components/dialogs/FormActions';
@@ -94,9 +95,19 @@ function SheetProductsForm({ sheetId, onDone }: { sheetId: string; onDone: () =>
   );
 }
 
+/** Values of the fields of a sheet. */
+type SheetValues = SheetInput & Record<string, unknown>;
+
 /**
- * Name, project, categories and note of a sheet, saved as they change (the text when leaving its field); read only
- * when it is archived.
+ * Fields of a sheet as the form holds them.
+ * @param {SheetDetail} sheet Sheet.
+ * @returns {SheetValues} Values.
+ */
+const sheetValues = (sheet: SheetDetail): SheetValues => sheetInput(sheet, {});
+
+/**
+ * Name, project, categories and note of a sheet, each saved as soon as it changes (the texts on leaving them, decision
+ * D22, `useFieldSave`, `SaveStatus`), the sheet of the cache followed; read only when it is archived.
  * @param {{ sheet: SheetDetail }} props Sheet.
  * @returns {JSX.Element} Fields.
  */
@@ -104,53 +115,44 @@ function SheetFields({ sheet }: { sheet: SheetDetail }) {
   const { update } = useSheetMutations();
   const { data: categories } = useSheetCategories();
   const { context } = useTaskContext();
-  const [name, setName] = useState(sheet.label);
-  const [note, setNote] = useState(sheet.note ?? '');
-  const save = (change: Parameters<typeof sheetInput>[1]) => update.mutate({ id: sheet.id, input: sheetInput(sheet, change) }, ON_ERROR);
+  const base = useAppForm<SheetValues>({ initialValues: sheetValues(sheet), schema: sheetSchema });
+  const { form, saving } = useFieldSave(base, {
+    save: (_changes, values) => update.mutateAsync({ id: sheet.id, input: { ...values, note: values.note || null } }),
+    schema: sheetSchema,
+    saved: sheetValues(sheet),
+    onBlur: ['label', 'note'],
+    readOnly: sheet.archived,
+  });
   return (
     <Paper withBorder radius="md" p="md">
-      <Stack gap="sm">
-        <SimpleGrid cols={{ base: 1, sm: 3 }} spacing="sm">
-          <TextInput
-            label="Libellé"
-            required
-            readOnly={sheet.archived}
-            value={name}
-            onChange={(event) => setName(event.currentTarget.value)}
-            onBlur={() => (name.trim() && name.trim() !== sheet.label ? save({ label: name.trim() }) : setName(sheet.label))}
-          />
-          {context && (
-            <ProjectSelect
-              context={context}
-              label="Projet"
-              placeholder="Aucun : fiche de l’espace"
-              clearable={!sheet.archived}
+      <form noValidate onSubmit={form.onSubmit(() => undefined)}>
+        <Stack gap="sm">
+          {!sheet.archived && <SaveStatus saving={saving} />}
+          <SimpleGrid cols={{ base: 1, sm: 3 }} spacing="sm">
+            <TextInput label="Libellé" required readOnly={sheet.archived} {...form.getInputProps('label')} />
+            {context && (
+              <ProjectSelect
+                context={context}
+                label="Projet"
+                placeholder="Aucun : fiche de l’espace"
+                clearable={!sheet.archived}
+                readOnly={sheet.archived}
+                {...form.getInputProps('projectId')}
+                onChange={(projectId) => form.setFieldValue('projectId', projectId || null)}
+              />
+            )}
+            <BatchMultiSelect
+              label="Catégories"
+              placeholder={form.values.categoryIds.length ? undefined : 'Aucune'}
+              searchable
               readOnly={sheet.archived}
-              value={sheet.projectId ?? null}
-              onChange={(projectId) => projectId !== (sheet.projectId ?? null) && save({ projectId: projectId || null })}
+              {...listSelectProps(categories ?? [], undefined, sheet.categoryIds)}
+              {...form.getInputProps('categoryIds')}
             />
-          )}
-          <BatchMultiSelect
-            label="Catégories"
-            placeholder={sheet.categoryIds.length ? undefined : 'Aucune'}
-            searchable
-            readOnly={sheet.archived}
-            {...listSelectProps(categories ?? [], undefined, sheet.categoryIds)}
-            value={sheet.categoryIds}
-            onChange={(categoryIds) => save({ categoryIds })}
-          />
-        </SimpleGrid>
-        <Textarea
-          label="Note"
-          autosize
-          minRows={1}
-          maxRows={8}
-          readOnly={sheet.archived}
-          value={note}
-          onChange={(event) => setNote(event.currentTarget.value)}
-          onBlur={() => note !== (sheet.note ?? '') && save({ note: note || null })}
-        />
-      </Stack>
+          </SimpleGrid>
+          <Textarea label="Note" autosize minRows={1} maxRows={8} readOnly={sheet.archived} {...form.getInputProps('note')} value={form.values.note ?? ''} />
+        </Stack>
+      </form>
     </Paper>
   );
 }
@@ -292,8 +294,7 @@ export function SheetPage() {
           ],
         }}
       />
-      {/* Made again once saved (its texts are those of the sheet). */}
-      <SheetFields key={`${sheet.id}:${sheet.updatedAt}`} sheet={sheet} />
+      <SheetFields key={sheet.id} sheet={sheet} />
       <DataTable
         framed
         view={view}

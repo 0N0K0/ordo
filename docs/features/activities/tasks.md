@@ -153,7 +153,7 @@ Ouvert par `?task=<id>` par-dessus la page courante (titre « Projet · Tâche #
 En-tête :
 
 - libellé et numéro, badge GitHub (« GitHub #12 », lien vers l’issue, ou « Brouillon GitHub »), badge « Archivée » ;
-- boutons « Fermer la tâche » / « Rouvrir » et « Renommer » (formulaire « Renommer la tâche ») ;
+- boutons « Fermer la tâche » / « Rouvrir » (toast « 1 tâche fermée. » / « 1 tâche rouverte. » avec « Annuler », comme la sélection et le menu) et « Renommer » (formulaire « Renommer la tâche ») ;
 - menu : « Dupliquer », « Transférer », « Archiver » / « Restaurer », « Supprimer » ;
 - icône d’état et lien vers le projet (ou « Sans projet »).
 

@@ -98,9 +98,9 @@ Interfaces internes : `UnitCellProps`, `StoreCellProps`, `PeopleCellProps`, `Con
 
 ### `components/ShoppingForm.tsx`
 
-- `ShoppingForm({ target, onDone })` : formulaire d'un produit (`target.kind === 'product'`, avec `baseListId`, `product?`) ou d'un élément (`kind: 'item'`, `listId`, `item?`) : libellé, référence (produit), catégorie (`ShoppingCategoryField`), magasin (`CreatableSelect` + `itemCreator`), quantité, unité (`UnitField`), prix, périssable + mode + date, bénéficiaires (`PeopleField`), lien, description (`MarkdownEditor`), « Manque » (produit). Schéma `shoppingProductSchema` ou `shoppingItemSchema`. Commentaires sous le formulaire. Utilisé par `openShoppingForm`.
+- `ShoppingForm({ target, onDone })` : formulaire d'un produit (`target.kind === 'product'`, avec `baseListId`, `product?`) ou d'un élément (`kind: 'item'`, `listId`, `item?`) : libellé, référence (produit), catégorie (`ShoppingCategoryField`), magasin (`CreatableSelect` + `itemCreator`), quantité, unité (`UnitField`), prix, périssable + mode + date, bénéficiaires (`PeopleField`), lien, description (`MarkdownEditor`), « Manque » (produit). Schéma `shoppingProductSchema` ou `shoppingItemSchema`. Nouveau : formulaire « Ajouter » (`createProduct` / `addItem`, `formCallbacks`). Existant : panneau enregistré champ par champ (décision D22, `useFieldSave` : libellé, quantité, prix, lien et description en les quittant, le reste dès qu'il change ; `SaveStatus` en tête ; `updateProduct` / `updateItem` avec toutes les valeurs) ; le produit du cache (`useShoppingData`) ou l'élément du cache (`useCachedItem` sur les listes) est suivi ; produit archivé : lecture seule (`Fieldset` désactivé). Commentaires sous le formulaire. Utilisé par `openShoppingForm`.
 - `ShoppingFormProps` (interface) : `target`, `onDone`. Utilisé par `open-shopping-form.tsx`.
-- Interne : `FormValues`.
+- Internes : `FormValues`, `ON_BLUR`, `shoppingFormValues(target, current?)` (valeurs d'un produit ou d'un élément).
 
 ### `components/ProductFields.tsx`
 
@@ -134,7 +134,7 @@ Champs de formulaire partagés par les achats et le stock.
 - `ListActionsMenu({ list, grouping, header?, onDeleted? })` : menu des actions d'une liste (`ActionsMenu`, variante bordée dans l'en-tête de la page). Utilisé par `ShoppingPage` et `ShoppingListPage`.
 - Internes :
   - `useListActions(list, grouping, onDeleted?)` : entrées du menu (renommer, rattacher / détacher un mouvement, dupliquer, copier en texte, PDF, clôturer / rouvrir, archiver, supprimer ; réduites pour une liste archivée) ;
-  - `ListForm({ list, onDone })` : formulaire « Modifier la liste » (libellé, tâches) ;
+  - `ListForm({ list })` : panneau « Modifier la liste » (libellé, tâches), enregistré champ par champ (décision D22, `useFieldSave`, libellé en le quittant, `SaveStatus`) par `updateList` ; la liste du cache (`useShoppingLists`) est suivie ;
   - `EntryPicker({ list, onDone })` : recherche d'un mouvement de trésorerie (`useTreasuryEntrySearch`, saisie retardée de 250 ms) et rattachement ;
   - `ListActionsMenuProps`, `listSchema`.
 
@@ -148,7 +148,7 @@ Champs de formulaire partagés par les achats et le stock.
 - `OrderPanel({ listId })` : panneau « Commande à distance » ; relit la liste à chaque changement et affiche `OrderFields`. Utilisé par `ShoppingListPage`.
 - Internes :
   - `OrderFields({ list })` : interrupteur, lieu de livraison (`AddressInput`, enregistré au choix d'une adresse proposée ou au texte vidé), liste des livraisons (réception, modification, suppression confirmée) ;
-  - `DeliveryForm({ list, delivery?, onDone })` : formulaire d'une livraison (`shoppingDeliverySchema`) ; ses dates sont liées à `windowFrom` / `windowTo` par `formRange`.
+  - `DeliveryForm({ list, delivery?, onDone })` : formulaire d'une nouvelle livraison (« Ajouter », `createDelivery`) ou panneau d'une livraison existante enregistré champ par champ (décision D22, `useFieldSave` : libellé et suivi en les quittant, le lieu par `useLocationDraft` — choisi, vidé ou quitté —, le reste dès qu'il change ; `SaveStatus` ; `updateDelivery`), la livraison et la liste du cache suivies (`useShoppingLists`) ; schéma `shoppingDeliverySchema` ; ses dates sont liées à `windowFrom` / `windowTo` par `formRange`. Internes : `DeliveryValues`, `ON_BLUR`, `deliveryValues(list, delivery?)`.
 
 ### `components/ShoppingSettings.tsx`
 

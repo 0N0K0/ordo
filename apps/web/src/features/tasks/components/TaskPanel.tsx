@@ -19,7 +19,7 @@ import { Link } from 'react-router';
 import { localToday } from '../../../lib/dates';
 import { ON_ERROR, onMutationError, toastCallbacks } from '../../../lib/notify';
 import { confirmDestructive } from '../../../components/dialogs/confirm-destructive';
-import { useBulkTaskMutations, useSetTasksClosed, useTaskBlock, useTaskRelation, useUpdateTask, type Task, type TaskInputValues } from '../api';
+import { useBulkTaskMutations, useTaskBlock, useTaskRelation, useUpdateTask, type Task, type TaskInputValues } from '../api';
 import { TaskAlarms } from '../../alarms/components/TaskAlarms';
 import { TaskShopping } from '../../shopping/components/TaskShopping';
 import { SheetsSection } from '../../sheets/components/SheetsSection';
@@ -117,12 +117,12 @@ interface TaskDetailProps {
  */
 function TaskDetail({ task, context }: TaskDetailProps) {
   const updateTask = useUpdateTask();
-  const setClosed = useSetTasksClosed();
   const { transfer: transferTask } = useBulkTaskMutations();
   const taskBlock = useTaskBlock();
   const taskRelation = useTaskRelation();
   const actions = useTaskActions(context);
   const locked = task.archived;
+  const closeAction = actions.close(task);
 
   /**
    * Saves a change right away.
@@ -226,8 +226,9 @@ function TaskDetail({ task, context }: TaskDetailProps) {
                   priority="secondary"
                   size="xs"
                   icon={task.closed ? <ArrowCounterClockwiseIcon aria-hidden /> : <CheckCircleIcon aria-hidden />}
-                  loading={setClosed.isPending}
-                  onClick={() => setClosed.mutate({ ids: [task.id], closed: !task.closed }, ON_ERROR)}
+                  // As the selection and the menu: told in a toast with « Annuler ».
+                  loading={closeAction.loading}
+                  onClick={closeAction.onClick}
                 >
                   {task.closed ? 'Rouvrir' : 'Fermer la tâche'}
                 </ActionButton>

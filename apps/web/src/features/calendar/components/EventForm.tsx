@@ -134,10 +134,11 @@ interface EventFormProps {
   /** Opens the copy of the event once saved (« Dupliquer », decision D20): its id and fields. Optional: no « Dupliquer ». */
   onDuplicated?: (id: string, fields: CalendarEventInput) => void;
   /**
-   * Occurrences of a recurring event the changes of its panel apply to, chosen once when it opens (decision D22).
-   * Optional. Default = 'ALL' (a single event: all of it).
+   * Occurrences of a recurring event the changes of its panel apply to, chosen once when it opens (decision D22); null:
+   * the question was dismissed, the panel is read only (its comments can still be written). Optional. Default = 'ALL'
+   * (a single event: all of it).
    */
-  scope?: CalendarEventScope;
+  scope?: CalendarEventScope | null;
 }
 
 /** Fields of an event saved on leaving them, in its panel (decision D22): texts, travel times, its links and its place. */
@@ -161,7 +162,8 @@ interface SaveTarget {
  * saves each field as soon as it changes (texts on leaving them, decision D22, `useFieldSave`), for the occurrences
  * chosen when it opened (`scope`): one occurrence alone changes only its own fields (label, description, place, links,
  * days and hours, travel times, routines of its days), the others are those of the series. Deleting still asks which
- * occurrences. An archived event (or one of an archived calendar) opens read only: it can be restored or deleted.
+ * occurrences. An archived event (or one of an archived calendar) opens read only: it can be restored or deleted. Opened
+ * without a scope (the question dismissed), it is read only too, its comments open.
  * @param {EventFormProps} props Component props.
  * @returns {JSX.Element} Form.
  */
@@ -204,7 +206,10 @@ export function EventForm({ context, occurrence, defaults, onDone, onDuplicated,
   const setArchived = useSetArchived('CALENDAR_EVENT', [calendarQueryKey]);
   // Archived (its series), or in an archived calendar (its container): read only.
   const calendarArchived = occurrence ? archivedIds(calendars).has(occurrence.calendarId) : false;
-  const readOnly = Boolean(occurrence?.archived) || calendarArchived;
+  const archived = Boolean(occurrence?.archived) || calendarArchived;
+  // No scope chosen when it opened: read only, nothing archived.
+  const reading = scope === null;
+  const readOnly = archived || reading;
   // Without a choice, the event goes into the first calendar not archived.
   const defaultCalendarId = unarchived(calendars)[0]?.id ?? null;
   // Questions are stacked over this form's panel: it must stay mounted to finish the save.
@@ -244,7 +249,7 @@ export function EventForm({ context, occurrence, defaults, onDone, onDuplicated,
   const [target, setTarget] = useState<SaveTarget>(() => ({
     eventId: occurrence?.eventId ?? '',
     occurrenceDate: occurrence?.occurrenceDate ?? null,
-    scope: occurrence?.occurrenceDate != null ? scope : 'ALL',
+    scope: occurrence?.occurrenceDate != null ? (scope ?? 'ALL') : 'ALL',
     ruleStart: occurrence?.seriesStartDate ?? occurrence?.startDate ?? '',
   }));
   // The saves run one after the other: each reads where the previous one left the event.
@@ -354,7 +359,12 @@ export function EventForm({ context, occurrence, defaults, onDone, onDuplicated,
     <form onSubmit={handleSubmit} noValidate>
       <Stack gap="md">
         {occurrence && !readOnly && <SaveStatus saving={saving} />}
-        {readOnly && (
+        {reading && !archived && (
+          <Text size="sm" c="dimmed">
+            Lecture seule : aucune portée n’a été choisie à l’ouverture. Fermez le panneau et rouvrez-le pour modifier l’évènement.
+          </Text>
+        )}
+        {archived && (
           <ArchivedNotice
             title={
               <Group gap="xs">
@@ -582,13 +592,13 @@ export function EventForm({ context, occurrence, defaults, onDone, onDuplicated,
             occurrenceDate={target.occurrenceDate}
             projectId={values.projectId ?? null}
             title={target.occurrenceDate ? `Commentaires du ${fmt.day(target.occurrenceDate)}` : undefined}
-            readOnly={readOnly}
+            readOnly={archived}
           />
         )}
 
         {readOnly ? (
           <Group justify="space-between" gap="sm">
-            {occurrence ? (
+            {occurrence && !reading ? (
               <Group gap={4}>
                 <DeleteButton onClick={() => void handleDelete()} loading={remove.isPending} />
                 {!calendarArchived && archiveMenu}
