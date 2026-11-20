@@ -26,7 +26,8 @@ import { describeCase } from '../../../components/recurrence/describe-recurrence
 import * as fmt from '../../../lib/format';
 import { localToday } from '../../../lib/dates';
 import { EventLocation } from '../../geo/components/EventLocation';
-import { addressOf, locationOf } from '../../geo/lib/location';
+import { addressOf } from '../../geo/lib/location';
+import { useFormLocation } from '../../geo/hooks/use-location-draft';
 import { TravelCalculator } from '../../geo/components/TravelCalculator';
 import { OpensOnInput } from './OpensOnInput';
 import { opensText } from '../lib/opens-format';
@@ -319,6 +320,11 @@ interface RoutineScheduleProps {
   values: RoutineScheduleValues;
   errors: Record<string, ReactNode>;
   onChange: (changes: Partial<RoutineScheduleValues>) => void;
+  /**
+   * Saves fields typed now, in a panel saved field by field (`useFieldSave`): the place once chosen, cleared or left,
+   * a travel time once left. Optional.
+   */
+  onCommit?: (fields: (keyof RoutineScheduleValues & string)[]) => void;
 }
 
 /**
@@ -328,12 +334,14 @@ interface RoutineScheduleProps {
  * @param {RoutineScheduleProps} props Component props.
  * @returns {JSX.Element} Fields.
  */
-export function RoutineSchedule({ values, errors, onChange }: RoutineScheduleProps) {
+export function RoutineSchedule({ values, errors, onChange, onCommit }: RoutineScheduleProps) {
   const { names } = useSlotChoices();
   const mode: RepetitionModeValue = values.cases.length ? 'CASES' : 'RULE';
   const single = mode === 'RULE' && values.moments.length <= 1 ? (values.moments[0] ?? ANY_TIME) : null;
   const { leaveAt, backAt } = routineSchedule({ ...values, fromTime: single?.fromTime ?? null, dueTime: single?.dueTime ?? null });
   const address = addressOf(values);
+  // Put in the form (and saved, field by field) once chosen, cleared or left.
+  const place = useFormLocation(values, onChange, onCommit);
   const timed = mode !== 'RULE' || Boolean(values.slotCondition) || values.moments.some((moment) => moment.fromTime || moment.dueTime);
   return (
     <Stack gap="sm">
@@ -356,14 +364,17 @@ export function RoutineSchedule({ values, errors, onChange }: RoutineSchedulePro
         describe={(value) => describeRepetition(value, names)}
         editor={(draft, setDraft) => <RoutineRepetitionEditor draft={draft} setDraft={setDraft} names={names} />}
       />
-      <EventLocation value={address} error={errors.location} onChange={(value) => onChange(locationOf(value))} />
+      <EventLocation value={place.value} error={errors.location} onChange={place.onChange} onBlur={place.leave} />
       <SimpleGrid cols={{ base: 1, xs: 3 }} spacing="sm">
-        <TravelField way="before" description="Pour y aller" value={values.travelBefore} onChange={(value) => onChange({ travelBefore: Number(value) || 0 })} error={errors.travelBefore} />
-        <TravelField way="after" description="Pour en revenir" value={values.travelAfter} onChange={(value) => onChange({ travelAfter: Number(value) || 0 })} error={errors.travelAfter} />
+        <TravelField way="before" description="Pour y aller" value={values.travelBefore} onChange={(value) => onChange({ travelBefore: Number(value) || 0 })} onBlur={() => onCommit?.(['travelBefore'])} error={errors.travelBefore} />
+        <TravelField way="after" description="Pour en revenir" value={values.travelAfter} onChange={(value) => onChange({ travelAfter: Number(value) || 0 })} onBlur={() => onCommit?.(['travelAfter'])} error={errors.travelAfter} />
         <Stack justify="flex-end">
           <TravelCalculator
             eventPoint={address.point}
-            onResult={({ before, after }) => onChange({ ...(before !== undefined && { travelBefore: before }), ...(after !== undefined && { travelAfter: after }) })}
+            onResult={({ before, after }) => {
+              onChange({ ...(before !== undefined && { travelBefore: before }), ...(after !== undefined && { travelAfter: after }) });
+              onCommit?.(['travelBefore', 'travelAfter']);
+            }}
           />
         </Stack>
       </SimpleGrid>

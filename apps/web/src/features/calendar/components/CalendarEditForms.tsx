@@ -3,12 +3,16 @@ import { ArrowCounterClockwiseIcon, ArrowSquareOutIcon, XIcon } from '@phosphor-
 import { DeleteButton } from '../../../components/dialogs/DestructiveActions';
 import { Group, Stack, Text, Switch } from '@mantine/core';
 import { DatePickerInput, TimePicker } from '@mantine/dates';
-import type { ScheduleSlotTime } from '@ordo/shared';
-import { useState } from 'react';
+import { routineSlotSchema, type ScheduleSlotTime } from '@ordo/shared';
+import { useRef, useState } from 'react';
 import { openRoutineForm } from '../../routines/lib/open-routine-form';
 import type { RoutineOccurrenceRef } from '../hooks/calendar-edits';
 import { FormActions } from '../../../components/dialogs/FormActions';
-import { rangeError, rangeProps } from '../../../components/inputs/date-range';
+import { SaveStatus } from '../../../components/feedback/SaveStatus';
+import { useAppForm, useFieldSave } from '../../../lib/form';
+import { useRoutineMutations } from '../../routines/api';
+import type { CalendarEventScope } from '../api';
+import { rangeProps } from '../../../components/inputs/date-range';
 import { ActionButton } from '../../../components/actions/ActionButton';
 
 /**
@@ -62,48 +66,66 @@ export function SlotEditForm({
   );
 }
 
+/** Day and times of one time of the day of a routine occurrence, as its panel edits them. */
+interface OccurrenceValues extends Record<string, unknown> {
+  date: string;
+  fromTime: string | null;
+  dueTime: string | null;
+  optional: boolean;
+}
+
 /**
- * Form changing an occurrence of a routine from the calendar: its day and the times of one of its times of the day; or
- * cancelling it; or opening the routine. A cancelled occurrence is only given back (« Rétablir »); one of an archived
- * routine is read only.
- * @param {{ occurrence: RoutineOccurrenceRef, onSave: (to: string, times: { fromTime: string | null, dueTime: string | null }) => void, onDelete: () => void, onRestore: () => void, onClose: () => void }} props Component props.
- * @returns {JSX.Element} Form.
+ * Panel of an occurrence of a routine from the calendar: its day and the times of one of its times of the day, each
+ * saved as soon as it changes (decision D22) for the occurrences chosen when the panel opened (`scope`: this one, an
+ * exception; it and the following ones; all); or cancelling it; or opening the routine. A cancelled occurrence is only
+ * given back (« Rétablir »); one of an archived routine is read only.
+ * @param {{ occurrence: RoutineOccurrenceRef, scope: CalendarEventScope, onDelete: () => void, onRestore: () => void, onClose: () => void }} props Component props.
+ * @returns {JSX.Element} Panel.
  */
 export function RoutineOccurrenceForm({
   occurrence,
-  onSave,
+  scope,
   onDelete,
   onRestore,
   onClose,
 }: {
   occurrence: RoutineOccurrenceRef;
-  onSave: (to: string, times: { fromTime: string | null; dueTime: string | null }) => void;
+  scope: CalendarEventScope;
   onDelete: () => void;
   onRestore: () => void;
   onClose: () => void;
 }) {
-  const [date, setDate] = useState(occurrence.date);
-  const [fromTime, setFromTime] = useState(occurrence.slot.fromTime);
-  const [dueTime, setDueTime] = useState(occurrence.slot.dueTime);
-  const invalid = Boolean(rangeError(fromTime, dueTime, true));
+  const { changeOccurrence } = useRoutineMutations();
+  // Its day now: a save that moves it moves the occurrence the next one changes.
+  const day = useRef(occurrence.date);
+  const base = useAppForm<OccurrenceValues>({
+    initialValues: { date: occurrence.date, fromTime: occurrence.slot.fromTime, dueTime: occurrence.slot.dueTime, optional: false },
+    schema: routineSlotSchema,
+  });
+  const { form, saving } = useFieldSave(base, {
+    save:
+      occurrence.cancelled || occurrence.archived
+        ? null
+        : async (_changes, values) => {
+            await changeOccurrence.mutateAsync({ id: occurrence.routine.id, date: day.current, scope, to: values.date, slot: occurrence.slot.index, fromTime: values.fromTime, dueTime: values.dueTime });
+            day.current = values.date;
+          },
+    schema: routineSlotSchema,
+  });
   const hours = rangeProps(
     {
-      value: [fromTime ?? '', dueTime ?? ''],
-      onChange: ([from, due]) => {
-        setFromTime(from || null);
-        setDueTime(due || null);
-      },
+      value: [form.values.fromTime ?? '', form.values.dueTime ?? ''],
+      onChange: ([from, due]) => form.setValues({ fromTime: from || null, dueTime: due || null }),
     },
     true,
   );
-  const unchanged = date === occurrence.date && fromTime === occurrence.slot.fromTime && dueTime === occurrence.slot.dueTime;
   const openRoutine = (
     <ActionButton
       priority="tertiary"
       icon={<ArrowSquareOutIcon aria-hidden />}
       onClick={() => {
         onClose();
-        openRoutineForm({ routine: occurrence.routine, occurrenceDate: occurrence.date });
+        openRoutineForm({ routine: occurrence.routine, occurrenceDate: day.current });
       }}
     >
       Ouvrir la routine
@@ -134,31 +156,27 @@ export function RoutineOccurrenceForm({
     );
   }
   return (
-    <form
-      noValidate
-      onSubmit={(event) => {
-        event.preventDefault();
-        if (!invalid && !unchanged) onSave(date, { fromTime, dueTime });
-      }}
-    >
-      <Stack gap="md">
-        <DatePickerInput label="Jour" required valueFormat={PICKER_FORMATS.weekday} minDate={occurrence.routine.startDate} value={date} onChange={(value) => value && setDate(value)} data-autofocus />
-        <Group gap="sm" grow>
-          <TimePicker label="À partir de" {...hours.start} />
-          <TimePicker label="Avant" {...hours.end} />
-        </Group>
-        <FormActions
-          onCancel={onClose}
-          submitLabel="Enregistrer…"
-          disabled={invalid || unchanged}
-          danger={
-            <>
-              <DeleteButton onClick={onDelete} />
-              {openRoutine}
-            </>
-          }
-        />
-      </Stack>
-    </form>
+    <Stack gap="md">
+      <SaveStatus saving={saving} />
+      <Text size="sm" c="dimmed">
+        {SCOPE_NOTES[scope]}
+      </Text>
+      <DatePickerInput label="Jour" required valueFormat={PICKER_FORMATS.weekday} minDate={occurrence.routine.startDate} {...form.getInputProps('date')} onChange={(value) => value && form.setFieldValue('date', value)} />
+      <Group gap="sm" grow>
+        <TimePicker label="À partir de" {...hours.start} />
+        <TimePicker label="Avant" {...hours.end} error={form.errors.dueTime ?? hours.end.error} />
+      </Group>
+      <Group gap={4}>
+        <DeleteButton onClick={onDelete} />
+        {openRoutine}
+      </Group>
+    </Stack>
   );
 }
+
+/** What the changes of the panel of a routine occurrence apply to, by the scope chosen when it opened. */
+const SCOPE_NOTES: Record<CalendarEventScope, string> = {
+  THIS: 'Cette occurrence seulement : c’est une exception, la règle ne change pas.',
+  FOLLOWING: 'Cette occurrence et les suivantes.',
+  ALL: 'Toutes les occurrences.',
+};

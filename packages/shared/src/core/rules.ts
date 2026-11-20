@@ -76,6 +76,10 @@ export const optionalPlainText = () => plainTextSchema.transform((value) => valu
 /** Markdown text as written (spaces kept), at most `MARKDOWN_MAX` (decision DO). */
 export const markdownTextSchema = z.string().max(MARKDOWN_MAX, MARKDOWN_TOO_LONG);
 
+/** Form of a description typed alone (the panel of a task, saved as typed: decision D22). */
+export const descriptionFormSchema = z.object({ description: markdownTextSchema });
+export type DescriptionFormValues = z.input<typeof descriptionFormSchema>;
+
 /** Markdown text (description, comment, note…); blank becomes null. */
 export const markdownSchema = markdownTextSchema.transform((value) => (value.trim() ? value : null)).nullable();
 

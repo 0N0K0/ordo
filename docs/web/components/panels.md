@@ -2,7 +2,7 @@
 
 Le panneau latéral de droite, qui reçoit tous les formulaires et détails, et l'ouverture des modales (réservées aux confirmations et questions). Source : `apps/web/src/components/panels/`.
 
-Règle : un formulaire s'ouvre toujours dans le panneau latéral (`openFormPanel`) ; une modale (`openModal`) ne sert qu'aux confirmations. eslint interdit `modals.open` et `modals.openConfirmModal` hors de `openModal`.
+Règle : un formulaire s'ouvre toujours dans le panneau latéral (`openFormPanel`) ; une modale (`openModal`) ne sert qu'aux confirmations. Le panneau d'un élément existant s'enregistre champ par champ (décision D22, `useFieldSave` de `lib/form.ts`, `SaveStatus`). eslint interdit `modals.open` et `modals.openConfirmModal` hors de `openModal`.
 
 ## `panels.ts`
 

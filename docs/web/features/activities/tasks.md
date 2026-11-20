@@ -24,6 +24,7 @@ Types exportés :
 | `Milestone`, `Sprint` | Fragments des jalons et sprints.                                                                                                                |
 | `TaskStatusCategory`  | Ré-export du type GraphQL.                                                                                                                      |
 | `TaskInputValues`     | Champs envoyés à la création / modification (`TaskInput` partagé).                                                                              |
+| `TaskSave`            | Enregistrement immédiat d’un changement depuis le panneau (`updateTask.mutateAsync`), donné à `TaskDescription` et `TaskLinks`.                 |
 | `TaskLabelKind`       | `'status' \| 'priority' \| 'type' \| 'tag'` (clés de `LabelDocuments`).                                                                         |
 | `BulkChanges`         | Changements d’une modification en masse (statut, priorité, type, jalon, effort, dates, ajouts / retraits d’assignés, d’étiquettes, de sprints). |
 
@@ -76,7 +77,7 @@ Interne : `LabelDocuments` (documents CRUD par type de libellé), `useTasksMutat
 
 - `TaskPanel()` : panneau latéral (`SidePanel`) de la tâche de l’URL (`?task=`), par-dessus toute page ; squelette pendant le chargement, `DetailNotFound` si introuvable. Monté par `app/layout/AppLayout.tsx`.
 - Internes :
-  - `TaskDetail({ task, context })` : en-tête (badges GitHub / archivée, « Fermer la tâche » / « Rouvrir », « Renommer » via `openLabelForm`, menu `useTaskActions`), description (`MarkdownView` / `MarkdownEditor`), liens (`TaskLinks`), lieu (`TaskLocation`) et rappels (`TaskReminders`), dans la colonne de propriétés, sous-tâches, commentaires (`TaskComments`), colonne de propriétés (projet → transfert avec confirmation, libellés, assignés, étiquettes, bénéficiaires, effort, `TaskTime`, dates, parent, jalon, sprints, `SlotRuleInput`, liens, `TaskAlarms`, `TaskShopping`, `SheetsSection`). `Fieldset` désactivé sur une tâche archivée.
+  - `TaskDetail({ task, context })` : en-tête (badges GitHub / archivée, « Fermer la tâche » / « Rouvrir », « Renommer » via `openLabelForm`, menu `useTaskActions`), description (`TaskDescription`), liens (`TaskLinks`), lieu (`TaskLocation`) et rappels (`TaskReminders`), dans la colonne de propriétés, sous-tâches, commentaires (`TaskComments`), colonne de propriétés (projet → transfert avec confirmation, libellés, assignés, étiquettes, bénéficiaires, effort, `TaskTime`, dates, parent, jalon, sprints, `SlotRuleInput`, liens, `TaskAlarms`, `TaskShopping`, `SheetsSection`). Chaque champ est enregistré dès qu’il change (décision D22) ; `SaveStatus` en tête de la colonne de propriétés (`updateTask` ou transfert en cours). `Fieldset` désactivé sur une tâche archivée.
   - `LinkList({ label, tasks, candidates, context, onAdd, onRemove })` : liste « Bloque » / « Dépend de » / « Relative à » avec « Retirer » et « Ajouter une tâche » (`TaskSelect`).
 
 ### `components/TaskCreateForm.tsx`
@@ -85,7 +86,11 @@ Interne : `LabelDocuments` (documents CRUD par type de libellé), `useTasksMutat
 
 ### `components/TaskLinks.tsx`
 
-- `TaskLinks({ task, locked })` : section « Liens » du panneau : `ItemLinks` (« Aucun lien. » sinon), crayon « Modifier les liens » (sauf archivée). Interne : `TaskLinksEditor({ task, onClose })`, `LinksField` sur `linksFormSchema`, enregistré par `updateTask` (`{ links }`), erreurs sous les champs.
+- `TaskLinks({ task, locked, save })` : section « Liens » du panneau : `ItemLinks` (« Aucun lien. » sinon), `EditToggle` (« Modifier les liens », puis la coche « Terminer la modification des liens » ; sauf archivée). Interne : `TaskLinksEditor({ task, save })`, `LinksField` sur `useFieldSave` (`linksFormSchema`) : un lien est enregistré une fois validé (en quittant ses champs), un retrait tout de suite (décision D22, plus de bouton « Enregistrer »), erreurs sous les champs.
+
+### `components/TaskDescription.tsx`
+
+- `TaskDescription({ task, context, locked, save })` : section « Description » du panneau : `MarkdownView` (cases cochables en place, enregistrées tout de suite), `EditToggle` (« Modifier la description » / « Terminer la modification de la description »). Interne : `TaskDescriptionEditor({ task, context, save, onClose })`, `MarkdownEditor` sur `useFieldSave` (`descriptionFormSchema`) : enregistrée en quittant l’éditeur, et par Ctrl/⌘ + Entrée qui le ferme aussi (décision D22, plus de « Enregistrer » / « Annuler »).
 
 ### `components/TaskReminders.tsx`
 
@@ -335,7 +340,7 @@ Internes : `TaskColumnExtras`, `STATUS_CATEGORY_ORDER`, `STATUS_CATEGORY_LABELS`
 
 ### `lib/bulk-undo.ts`
 
-- `useBulkUndo()` : fabriques des « Annuler » des toasts, à partir de l’état des tâches avant l’action : `changes(tasks, changes)` (rétablit champs et ajouts / retraits, `restoring: true`), `closed(tasks, closed)`, `archived(tasks, archived)`, `transfer(levels)` (remet chaque niveau dans son projet). Toasts « Action annulée. » / « L’action n’a pas pu être annulée. ».
+- `useBulkUndo()` : fabriques des « Annuler » des toasts, à partir de l’état des tâches avant l’action : `changes(tasks, changes)` (rétablit champs et ajouts / retraits, `restoring: true`), `closed(tasks, closed)` (une tâche « Annulé » rouverte à la main retrouve aussi son statut, qui la referme : `update` du statut avec `restoring`), `archived(tasks, archived)`, `transfer(levels)` (remet chaque niveau dans son projet). Toasts « Action annulée. » / « L’action n’a pas pu être annulée. ».
 - Internes : `SCALAR_FIELDS`, `revertChanges`, `idsBy`.
 
 ### `lib/bulk-label.ts`

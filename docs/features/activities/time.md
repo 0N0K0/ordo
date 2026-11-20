@@ -75,7 +75,7 @@ Colonnes :
 
 ## Formulaire d’un temps
 
-Panneau « Ajouter un temps » ou « Modifier le temps » (`TimeEntryForm`) :
+Panneau « Ajouter un temps » ou « Temps » (existant, `TimeEntryForm`) :
 
 | Champ           | Détail                                                                                                                                                                                                                                       |
 | --------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -88,7 +88,7 @@ Panneau « Ajouter un temps » ou « Modifier le temps » (`TimeEntryForm`) :
 | « Évènements »  | Plusieurs (décision D18), parmi les évènements du jour choisi (« 09:00–10:00 · Titre », « Journée · Titre », « (annulé) ») : « Le temps passé sur des évènements de l’agenda : seule la part hors de ces évènements y apparaît. » (avec plusieurs : « … ; il est réparti à parts égales entre les 2 évènements. ») ; « Aucun évènement ce jour-là » s’il n’y en a pas. |
 | « Description » | Markdown (« Ce que vous avez fait… »).                                                                                                                                                                                                       |
 
-Boutons « Ajouter » / « Enregistrer ». Toasts « Temps ajouté. », « Temps modifié. ». « Dupliquer » (décision D20) enregistre tout de suite une copie (mêmes projet, tâches, routines, évènements, description, début et durée ; jamais facturée), « Temps dupliqué. », puis ouvre « Modifier le temps » sur elle. En modification, les commentaires du temps s’affichent sous le formulaire ([Commentaires](../cross-cutting/comments.md)).
+Bouton « Ajouter » pour un nouveau temps (toast « Temps ajouté. »). Un temps existant s'enregistre champ par champ (décision D22) : chaque champ dès qu'il change (« Durée » et « Description » en les quittant ; changer de projet vide et enregistre ensemble routines et tâches), sans bouton « Enregistrer » ; « Enregistrement… » puis « Enregistré » en haut du panneau ; un champ invalide garde son erreur dessous et n'est pas enregistré, un échec le remet comme il était, dans un toast d'erreur. « Dupliquer » (décision D20) enregistre tout de suite une copie (mêmes projet, tâches, routines, évènements, description, début et durée ; jamais facturée), « Temps dupliqué. », puis ouvre son panneau « Temps ». En modification, les commentaires du temps s’affichent sous le formulaire ([Commentaires](../cross-cutting/comments.md)).
 
 Suppression d’un temps : confirmation « Supprimer le temps » : « Ce temps (1 h 30) sera supprimé définitivement et retiré du temps passé de ses tâches. ». Toast « Temps supprimé. ».
 

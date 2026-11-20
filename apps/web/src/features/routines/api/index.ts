@@ -541,6 +541,7 @@ function withBulkChanges(routine: Routine, changes: RoutineBulkChanges): Routine
     categoryIds: changedList(routine.categoryIds, changes.addCategoryIds, changes.removeCategoryIds),
     assigneeIds: changedList(routine.assigneeIds, changes.addAssigneeIds, changes.removeAssigneeIds),
     requiredIds: changedList(routine.requiredIds, changes.addRequiredIds, changes.removeRequiredIds).filter((id) => id !== routine.id),
+    relatedIds: changedList(routine.relatedIds, changes.addRelatedIds, changes.removeRelatedIds).filter((id) => id !== routine.id),
     ...(changes.estimate !== undefined && { estimate: changes.estimate }),
     ...(changes.projectId !== undefined && { projectId: changes.projectId }),
     ...(changes.fromTime !== undefined && { fromTime: changes.fromTime }),

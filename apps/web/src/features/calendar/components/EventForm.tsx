@@ -14,10 +14,11 @@ import { DatePickerInput, TimePicker } from '@mantine/dates';
 import { addDays, mapById, type CalendarEventInput, calendarEventInputSchema, daysBetween, formatDuration, type Recurrence, sharePeople, TEXT_MAX } from '@ordo/shared';
 import { ArrowArcRightIcon, ArrowCounterClockwiseIcon, CalendarXIcon, PlayIcon, XIcon } from '@phosphor-icons/react';
 import { Link } from 'react-router';
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { MarkdownEditor } from '../../../components/markdown/MarkdownEditor';
 import { localToday } from '../../../lib/dates';
-import { useAppForm, formCallbacks } from '../../../lib/form';
+import { useAppForm, useFieldSave, formCallbacks } from '../../../lib/form';
+import { SaveStatus } from '../../../components/feedback/SaveStatus';
 import { AssigneesSelect, ProjectSelect } from '../../tasks/components/task-ui';
 import type { TaskContext } from '../../tasks/hooks/use-task-context';
 import { DeleteButton } from '../../../components/dialogs/DestructiveActions';
@@ -30,11 +31,12 @@ import { LostOnDeleteRisk } from '../../time/components/LostOnDeleteRisk';
 import { scopeLostNote } from '../../time/lib/lost-on-delete';
 import { timeTaskOptions, timeTasks } from '../../time/lib/time-tasks';
 import { EventLocation } from '../../geo/components/EventLocation';
-import { addressOf, locationOf } from '../../geo/lib/location';
+import { addressOf } from '../../geo/lib/location';
+import { useFormLocation } from '../../geo/hooks/use-location-draft';
 import { TravelCalculator } from '../../geo/components/TravelCalculator';
 import { useTreasurySettings } from '../../treasury/api';
 import { useActiveWorkspace } from '../../workspaces/api';
-import { askScope, chooseScope } from '../lib/ask-scope';
+import { askScope } from '../lib/ask-scope';
 import { AvailabilityHint } from './AvailabilityHint';
 import { categoryOptions } from '../../../components/tree/category-tree';
 import { occurrenceInput, routineLinkKey, routineLinkOf } from '../lib/event-input';
@@ -131,19 +133,39 @@ interface EventFormProps {
   onDone: () => void;
   /** Opens the copy of the event once saved (« Dupliquer », decision D20): its id and fields. Optional: no « Dupliquer ». */
   onDuplicated?: (id: string, fields: CalendarEventInput) => void;
+  /**
+   * Occurrences of a recurring event the changes of its panel apply to, chosen once when it opens (decision D22).
+   * Optional. Default = 'ALL' (a single event: all of it).
+   */
+  scope?: CalendarEventScope;
+}
+
+/** Fields of an event saved on leaving them, in its panel (decision D22): texts, travel times, its links and its place. */
+const ON_BLUR = ['label', 'description', 'links', 'location', 'locationLat', 'locationLon', 'travelBefore', 'travelAfter'] as const;
+
+/** Event and occurrence the panel saves to: the series may be split (« celle-ci et les suivantes ») or moved by a save. */
+interface SaveTarget {
+  eventId: string;
+  /** Occurrence in its series (null: a single event). */
+  occurrenceDate: string | null;
+  scope: CalendarEventScope;
+  /** First day of its series (its rule is edited from there). */
+  ruleStart: string;
 }
 
 /**
  * Calendar event form: label, dates and times (or all day), repetition with pauses, place, links,
  * project, contributors, categories, tasks, reminders, description; a timer can be started on it. An event can be cancelled (kept struck through)
  * and restored, or postponed (cancelled, and a new event linked to it takes the new date); a warning tells
- * when it falls outside the working hours. For an occurrence of a recurring event, saving, deleting,
- * cancelling and restoring ask which occurrences are concerned. An archived event (or one of an archived calendar)
- * opens read only: it can be restored or deleted.
+ * when it falls outside the working hours. A new event is a form with « Créer l’évènement »; an existing one, its panel,
+ * saves each field as soon as it changes (texts on leaving them, decision D22, `useFieldSave`), for the occurrences
+ * chosen when it opened (`scope`): one occurrence alone changes only its own fields (label, description, place, links,
+ * days and hours, travel times, routines of its days), the others are those of the series. Deleting still asks which
+ * occurrences. An archived event (or one of an archived calendar) opens read only: it can be restored or deleted.
  * @param {EventFormProps} props Component props.
  * @returns {JSX.Element} Form.
  */
-export function EventForm({ context, occurrence, defaults, onDone, onDuplicated }: EventFormProps) {
+export function EventForm({ context, occurrence, defaults, onDone, onDuplicated, scope = 'ALL' }: EventFormProps) {
   const categoryItems = useCalendarCategoryItems();
   const { create, update, remove, setCalledOff } = useCalendarEventMutations();
   const { startTimer, isPending: timerStarting, hint: timerHint } = useStartTimer();
@@ -153,7 +175,10 @@ export function EventForm({ context, occurrence, defaults, onDone, onDuplicated 
    * @returns {void}
    */
   const openPostpone = () =>
-    occurrence && openFormPanel('Reporter l’évènement', (close) => <PostponePanel fields={values} occurrence={occurrence} onCancel={close} onDone={() => (close(), onDone())} />);
+    occurrence &&
+    openFormPanel('Reporter l’évènement', (close) => (
+      <PostponePanel fields={values} occurrence={{ ...occurrence, eventId: target.eventId, occurrenceDate: target.occurrenceDate }} onCancel={close} onDone={() => (close(), onDone())} />
+    ));
 
   /**
    * Starts a timer on this occurrence (its project if any, tasks and label): no project needed (decision D17).
@@ -169,7 +194,7 @@ export function EventForm({ context, occurrence, defaults, onDone, onDuplicated 
       // project; without project, only those).
       taskIds: timeTaskIds,
       description: values.label,
-      events: [{ eventId: occurrence.eventId, occurrenceDate: occurrence.occurrenceDate }],
+      events: [{ eventId: target.eventId, occurrenceDate: target.occurrenceDate }],
     });
   };
   const { data: categories } = useCalendarCategories();
@@ -213,8 +238,42 @@ export function EventForm({ context, occurrence, defaults, onDone, onDuplicated 
         routineLinks: [],
         ...defaults,
       };
-  const form = useAppForm<FormValues>({ initialValues: initial as FormValues, schema: calendarEventInputSchema });
+  const base = useAppForm<FormValues>({ initialValues: initial as FormValues, schema: calendarEventInputSchema });
+  // Where the saves go: a split (« celle-ci et les suivantes ») makes a new series, then edited as a whole; a series
+  // moved whole moves its occurrence; one occurrence alone stays itself.
+  const [target, setTarget] = useState<SaveTarget>(() => ({
+    eventId: occurrence?.eventId ?? '',
+    occurrenceDate: occurrence?.occurrenceDate ?? null,
+    scope: occurrence?.occurrenceDate != null ? scope : 'ALL',
+    ruleStart: occurrence?.seriesStartDate ?? occurrence?.startDate ?? '',
+  }));
+  // The saves run one after the other: each reads where the previous one left the event.
+  const saveTarget = useRef(target);
+  const { form, saving, commit } = useFieldSave(base, {
+    save: occurrence
+      ? async (_changes, input) => {
+          const now = saveTarget.current;
+          const eventId = await update.mutateAsync({ id: now.eventId, input, scope: now.scope, occurrenceDate: now.occurrenceDate });
+          if (now.scope === 'THIS') return;
+          const split = now.scope === 'FOLLOWING' && eventId !== now.eventId;
+          saveTarget.current = {
+            eventId,
+            occurrenceDate: input.recurrence ? input.startDate : null,
+            scope: 'ALL',
+            ruleStart: split || !input.recurrence ? input.startDate : addDays(now.ruleStart, daysBetween(now.occurrenceDate ?? input.startDate, input.startDate)),
+          };
+          setTarget(saveTarget.current);
+        }
+      : null,
+    schema: calendarEventInputSchema,
+    onBlur: ON_BLUR,
+    readOnly,
+  });
   const values = form.values;
+  // Put in the form (and saved, field by field) once chosen, cleared or left.
+  const place = useFormLocation(values, (change) => form.setValues(change), commit);
+  // One occurrence edited alone: the fields of the series stay as they are (the API keeps them).
+  const seriesFields = target.scope === 'THIS' && target.occurrenceDate !== null;
   const { perso } = useActiveWorkspace();
   // Relations with a contributor take part as that contributor, archived ones are not offered; one already chosen stays.
   const relationOptions = unarchived(treasury?.treasuryRelations ?? [], values.relationIds)
@@ -234,27 +293,17 @@ export function EventForm({ context, occurrence, defaults, onDone, onDuplicated 
     if (!routine || (!chosenLinks.has(key) && (routine.archived || !sharePeople(routine.assigneeIds, values.contributorIds)))) return [];
     return [{ value: key, label: multiDay ? `${routine.label} (${fmt.weekday(link.date)})` : routine.label }];
   });
-  const recurring = occurrence?.occurrenceDate != null;
+  const recurring = target.occurrenceDate !== null;
 
   // Archives the event (its whole series) or restores it, with an undo, then closes the form; in its « … » menu.
   const archiveMenu = occurrence && (
-    <ActionsMenu about="l’évènement" items={[archiveEntry({ archived: occurrence.archived, type: 'Évènement', label: occurrence.label }, setArchived, occurrence.eventId, onDone)]} />
+    <ActionsMenu about="l’évènement" items={[archiveEntry({ archived: occurrence.archived, type: 'Évènement', label: occurrence.label }, setArchived, target.eventId, onDone)]} />
   );
   // A rule is edited from the start of its series (for the whole series or the following occurrences).
-  const ruleStart = recurring && occurrence ? occurrence.seriesStartDate : values.startDate;
+  const ruleStart = recurring ? target.ruleStart : values.startDate;
 
-  const handleSubmit = form.onSubmit(async (input) => {
-    const callbacks = formCallbacks(form, occurrence ? 'Évènement modifié.' : 'Évènement créé.', onDone);
-    if (!occurrence) {
-      create.mutate(input, callbacks);
-      return;
-    }
-    // A new rule applies from an occurrence on, never to this one alone.
-    const ruleChanged = JSON.stringify(input.recurrence) !== JSON.stringify(occurrence.recurrence);
-    const scope = await chooseScope(recurring, { action: 'update', allowThis: !ruleChanged });
-    if (!scope) return;
-    update.mutate({ id: occurrence.eventId, input, scope, occurrenceDate: occurrence.occurrenceDate }, callbacks);
-  });
+  // A new event only: an existing one is saved field by field (Enter saves the text typed).
+  const handleSubmit = form.onSubmit((input) => create.mutate(input, formCallbacks(form, 'Évènement créé.', onDone)));
 
   /**
    * Deletes the event (asking which occurrences for a recurring one), telling the times without project (extra A of
@@ -268,8 +317,8 @@ export function EventForm({ context, occurrence, defaults, onDone, onDuplicated 
      * @param {CalendarEventScope} scope Scope.
      * @returns {void}
      */
-    const run = (scope: CalendarEventScope) => remove.mutate({ id: occurrence.eventId, scope, occurrenceDate: occurrence.occurrenceDate }, formCallbacks(null, 'Évènement supprimé.', onDone));
-    const lost = { eventId: occurrence.eventId, occurrenceDate: occurrence.occurrenceDate };
+    const run = (scope: CalendarEventScope) => remove.mutate({ id: target.eventId, scope, occurrenceDate: target.occurrenceDate }, formCallbacks(null, 'Évènement supprimé.', onDone));
+    const lost = { eventId: target.eventId, occurrenceDate: target.occurrenceDate };
     if (recurring) {
       const [THIS, FOLLOWING, ALL] = await Promise.all((['THIS', 'FOLLOWING', 'ALL'] as const).map((scope) => fetchLostOnDelete({ ...lost, scope })));
       const scope = await askScope({ action: 'delete', note: scopeLostNote({ THIS, FOLLOWING, ALL }) });
@@ -289,20 +338,22 @@ export function EventForm({ context, occurrence, defaults, onDone, onDuplicated 
   };
 
   /**
-   * Cancels the event (kept struck through) or restores it, asking which occurrences for a recurring one.
+   * Cancels the event (kept struck through) or restores it, for the occurrences chosen when the panel opened.
    * @param {boolean} calledOff Cancel (true) or restore (false).
-   * @returns {Promise<void>}
+   * @returns {void}
    */
-  const handleCalledOff = async (calledOff: boolean) => {
+  const handleCalledOff = (calledOff: boolean) => {
     if (!occurrence) return;
-    const scope = await chooseScope(recurring, { action: calledOff ? 'cancel' : 'restore' });
-    if (!scope) return;
-    setCalledOff.mutate({ id: occurrence.eventId, scope, occurrenceDate: occurrence.occurrenceDate, calledOff }, formCallbacks(null, calledOff ? 'Évènement annulé.' : 'Évènement rétabli.', onDone));
+    setCalledOff.mutate(
+      { id: target.eventId, scope: target.scope, occurrenceDate: target.occurrenceDate, calledOff },
+      formCallbacks(null, calledOff ? 'Évènement annulé.' : 'Évènement rétabli.', onDone),
+    );
   };
 
   return (
     <form onSubmit={handleSubmit} noValidate>
       <Stack gap="md">
+        {occurrence && !readOnly && <SaveStatus saving={saving} />}
         {readOnly && (
           <ArchivedNotice
             title={
@@ -347,9 +398,15 @@ export function EventForm({ context, occurrence, defaults, onDone, onDuplicated 
         )}
         <Fieldset variant="unstyled" disabled={readOnly} p={0} m={0}>
           <Stack gap="md">
-            <TextInput label="Libellé" required data-autofocus {...form.getInputProps('label')} />
+            <TextInput label="Libellé" required data-autofocus={occurrence ? undefined : true} {...form.getInputProps('label')} />
+            {seriesFields && (
+              <Text size="xs" c="dimmed">
+                Cette occurrence seulement : sa répétition, son calendrier, son projet, ses personnes, ses catégories, ses tâches et ses rappels sont ceux de la série.
+              </Text>
+            )}
             <EventRepetition
               ruleStart={ruleStart}
+              ruleLocked={seriesFields}
               error={(form.errors.startDate ?? form.errors.endDate ?? form.errors.startTime ?? form.errors.endTime ?? form.errors.recurrence) as string | undefined}
               value={{
                 allDay: values.allDay,
@@ -359,7 +416,8 @@ export function EventForm({ context, occurrence, defaults, onDone, onDuplicated 
                 endTime: values.endTime ?? null,
                 recurrence: (values.recurrence as Recurrence | null | undefined) ?? null,
               }}
-              onChange={(timing) => form.setValues({ ...timing })}
+              // One occurrence alone keeps the rule of its series.
+              onChange={(timing) => form.setValues({ ...timing, ...(seriesFields && { recurrence: values.recurrence }) })}
             />
             {!values.allDay && (
               <SimpleGrid cols={{ base: 1, xs: 2 }} spacing="sm">
@@ -368,94 +426,100 @@ export function EventForm({ context, occurrence, defaults, onDone, onDuplicated 
                 <div>
                   <TravelCalculator
                     eventPoint={addressOf(values).point}
-                    onResult={({ before, after }) => form.setValues({ ...(before !== undefined && { travelBefore: before }), ...(after !== undefined && { travelAfter: after }) })}
+                    onResult={({ before, after }) => {
+                      form.setValues({ ...(before !== undefined && { travelBefore: before }), ...(after !== undefined && { travelAfter: after }) });
+                      commit(['travelBefore', 'travelAfter']);
+                    }}
                   />
                 </div>
               </SimpleGrid>
             )}
             <AvailabilityHint allDay={values.allDay} startDate={values.startDate} startTime={values.startTime ?? null} endDate={values.endDate} endTime={values.endTime ?? null} />
 
-            <EventLocation value={addressOf(values)} error={form.errors.location} onChange={(value) => form.setValues(locationOf(value))} />
+            <EventLocation value={place.value} error={form.errors.location} onChange={place.onChange} onBlur={place.leave} />
 
-            <LinksField form={form} />
+            <LinksField form={form} onRemoved={() => commit(['links'])} />
 
             <SimpleGrid cols={{ base: 1, sm: 2 }} spacing="sm">
-              <Select
-                label="Calendrier"
-                description={recurring ? 'Pour toute la série.' : undefined}
-                // Without a choice, the event goes into the first calendar not archived.
-                {...itemSelectProps(calendars, values.calendarId ?? defaultCalendarId, undefined, values.calendarId ?? occurrence?.calendarId)}
-                value={values.calendarId ?? defaultCalendarId}
-                onChange={(calendarId) => form.setFieldValue('calendarId', calendarId)}
-                allowDeselect={false}
-              />
-              <ProjectSelect
-                context={context}
-                label="Projet"
-                clearable
-                placeholder="Aucun"
-                // The contributors stay: on saving, they are attached to the new project.
-                {...form.getInputProps('projectId')}
-              />
-              <AssigneesSelect
-                label="Contributeurs"
-                description={values.projectId ? 'Contributeurs du projet.' : undefined}
-                contributors={context.assignableFor([values.projectId ?? null], values.contributorIds)}
-                value={values.contributorIds}
-                onChange={(contributorIds) => form.setFieldValue('contributorIds', contributorIds)}
-              />
-              <BeneficiariesSelect
-                description="Pour qui est l’évènement (l’anniversaire de votre fils) : ni forcément présents, ni contributeurs."
-                value={{ beneficiaryIds: values.beneficiaryIds ?? [], beneficiaryRelationIds: values.beneficiaryRelationIds ?? [] }}
-                onChange={(beneficiaries) => form.setValues({ ...beneficiaries })}
-              />
-              <BatchMultiSelect
-                label={relationNoun(perso, true)}
-                description={perso ? 'Personnes hors du foyer, sans contributeur' : 'Personnes hors de l’équipe, sans contributeur'}
-                placeholder={(values.relationIds ?? []).length ? undefined : 'Aucune'}
-                data={relationOptions}
-                searchable
-                clearable
-                nothingFoundMessage={perso ? 'Ajoutez des proches dans Paramètres › Foyer et contributeurs' : 'Ajoutez des relations dans Paramètres › Équipe et contributeurs'}
-                {...form.getInputProps('relationIds')}
-              />
-              <BatchMultiSelect
-                onCreate={itemCreator('Nouvelle catégorie d’agenda', categoryItems, { tree: unarchived(categories ?? []) })}
-                label="Catégories"
-                placeholder={values.categoryIds.length ? undefined : 'Aucune'}
-                // Archived categories are no longer offered, but those of the event stay.
-                {...treeSelectProps(categoryOptions(categories ?? [], undefined, unarchivedOffered(categories ?? [], values.categoryIds)))}
-                searchable
-                clearable
-                nothingFoundMessage="Créez des catégories dans Agenda › Paramètres"
-                {...form.getInputProps('categoryIds')}
-              />
-              <BatchMultiSelect
-                label="Tâches"
-                placeholder={values.taskIds?.length ? undefined : 'Aucune'}
-                description={
-                  [values.projectId ? 'Tâches du projet, de ses sous-projets ou sans projet' : null, values.contributorIds.length ? 'avec un contributeur de l’évènement (ou sans assigné)' : null]
-                    .filter(Boolean)
-                    .join(', ') || undefined
-                }
-                // Those a time on its project can take (the project, its sub-projects, tasks without project: as its timer), with
-                // someone in common with the event (or nobody on either side); those chosen stay.
-                {...treeSelectProps(
-                  timeTaskOptions(
-                    context,
-                    (values.projectId ? timeTasks(context, values.projectId, values.taskIds ?? []) : unarchived(context.tasks, values.taskIds)).filter(
-                      (task) => values.taskIds?.includes(task.id) || sharePeople(task.assigneeIds, values.contributorIds),
+              {/* One occurrence edited alone: the fields of its series are read only (laid out in the grid all the same). */}
+              <Fieldset variant="unstyled" disabled={seriesFields} display="contents">
+                <Select
+                  label="Calendrier"
+                  description={recurring ? 'Pour toute la série.' : undefined}
+                  // Without a choice, the event goes into the first calendar not archived.
+                  {...itemSelectProps(calendars, values.calendarId ?? defaultCalendarId, undefined, values.calendarId ?? occurrence?.calendarId)}
+                  value={values.calendarId ?? defaultCalendarId}
+                  onChange={(calendarId) => form.setFieldValue('calendarId', calendarId)}
+                  allowDeselect={false}
+                />
+                <ProjectSelect
+                  context={context}
+                  label="Projet"
+                  clearable
+                  placeholder="Aucun"
+                  // The contributors stay: on saving, they are attached to the new project.
+                  {...form.getInputProps('projectId')}
+                />
+                <AssigneesSelect
+                  label="Contributeurs"
+                  description={values.projectId ? 'Contributeurs du projet.' : undefined}
+                  contributors={context.assignableFor([values.projectId ?? null], values.contributorIds)}
+                  value={values.contributorIds}
+                  onChange={(contributorIds) => form.setFieldValue('contributorIds', contributorIds)}
+                />
+                <BeneficiariesSelect
+                  description="Pour qui est l’évènement (l’anniversaire de votre fils) : ni forcément présents, ni contributeurs."
+                  value={{ beneficiaryIds: values.beneficiaryIds ?? [], beneficiaryRelationIds: values.beneficiaryRelationIds ?? [] }}
+                  onChange={(beneficiaries) => form.setValues({ ...beneficiaries })}
+                />
+                <BatchMultiSelect
+                  label={relationNoun(perso, true)}
+                  description={perso ? 'Personnes hors du foyer, sans contributeur' : 'Personnes hors de l’équipe, sans contributeur'}
+                  placeholder={(values.relationIds ?? []).length ? undefined : 'Aucune'}
+                  data={relationOptions}
+                  searchable
+                  clearable
+                  nothingFoundMessage={perso ? 'Ajoutez des proches dans Paramètres › Foyer et contributeurs' : 'Ajoutez des relations dans Paramètres › Équipe et contributeurs'}
+                  {...form.getInputProps('relationIds')}
+                />
+                <BatchMultiSelect
+                  onCreate={itemCreator('Nouvelle catégorie d’agenda', categoryItems, { tree: unarchived(categories ?? []) })}
+                  label="Catégories"
+                  placeholder={values.categoryIds.length ? undefined : 'Aucune'}
+                  // Archived categories are no longer offered, but those of the event stay.
+                  {...treeSelectProps(categoryOptions(categories ?? [], undefined, unarchivedOffered(categories ?? [], values.categoryIds)))}
+                  searchable
+                  clearable
+                  nothingFoundMessage="Créez des catégories dans Agenda › Paramètres"
+                  {...form.getInputProps('categoryIds')}
+                />
+                <BatchMultiSelect
+                  label="Tâches"
+                  placeholder={values.taskIds?.length ? undefined : 'Aucune'}
+                  description={
+                    [values.projectId ? 'Tâches du projet, de ses sous-projets ou sans projet' : null, values.contributorIds.length ? 'avec un contributeur de l’évènement (ou sans assigné)' : null]
+                      .filter(Boolean)
+                      .join(', ') || undefined
+                  }
+                  // Those a time on its project can take (the project, its sub-projects, tasks without project: as its timer), with
+                  // someone in common with the event (or nobody on either side); those chosen stay.
+                  {...treeSelectProps(
+                    timeTaskOptions(
+                      context,
+                      (values.projectId ? timeTasks(context, values.projectId, values.taskIds ?? []) : unarchived(context.tasks, values.taskIds)).filter(
+                        (task) => values.taskIds?.includes(task.id) || sharePeople(task.assigneeIds, values.contributorIds),
+                      ),
                     ),
-                  ),
-                )}
-                searchable
-                clearable
-                limit={100}
-                nothingFoundMessage="Aucune tâche"
-                value={values.taskIds ?? []}
-                onChange={(taskIds) => form.setFieldValue('taskIds', taskIds)}
-                error={form.errors.taskIds as string | undefined}
-              />
+                  )}
+                  searchable
+                  clearable
+                  limit={100}
+                  nothingFoundMessage="Aucune tâche"
+                  value={values.taskIds ?? []}
+                  onChange={(taskIds) => form.setFieldValue('taskIds', taskIds)}
+                  error={form.errors.taskIds as string | undefined}
+                />
+              </Fieldset>
               <BatchMultiSelect
                 label="Routines"
                 placeholder={(values.routineLinks ?? []).length ? undefined : 'Aucune'}
@@ -468,13 +532,15 @@ export function EventForm({ context, occurrence, defaults, onDone, onDuplicated 
                 onChange={(keys) => form.setFieldValue('routineLinks', keys.map(routineLinkOf))}
                 error={form.errors.routineLinks as string | undefined}
               />
-              <RemindersSelect
-                label="Rappels"
-                description={values.allDay ? 'Avant minuit le premier jour (« 6 h avant » : la veille à 18 h), 24 h au plus.' : 'Avant le début, 24 h au plus.'}
-                emptyLabel="Aucun"
-                value={values.reminders} onChange={(reminders) => form.setFieldValue('reminders', reminders)} clearable />
+              <Fieldset variant="unstyled" disabled={seriesFields} display="contents">
+                <RemindersSelect
+                  label="Rappels"
+                  description={values.allDay ? 'Avant minuit le premier jour (« 6 h avant » : la veille à 18 h), 24 h au plus.' : 'Avant le début, 24 h au plus.'}
+                  emptyLabel="Aucun"
+                  value={values.reminders} onChange={(reminders) => form.setFieldValue('reminders', reminders)} clearable />
+              </Fieldset>
             </SimpleGrid>
-            {recurring && (
+            {recurring && !seriesFields && (
               <Text size="xs" c="dimmed">
                 Projet, contributeurs, catégories, tâches et rappels s’appliquent à toute la série.
               </Text>
@@ -508,14 +574,14 @@ export function EventForm({ context, occurrence, defaults, onDone, onDuplicated 
             />
           </Stack>
         </Fieldset>
-        {occurrence && !readOnly && <SheetsSection owner={{ eventId: occurrence.eventId }} occurrenceDate={occurrence.occurrenceDate ?? occurrence.startDate} label={values.label || 'l’évènement'} />}
+        {occurrence && !readOnly && <SheetsSection owner={{ eventId: target.eventId }} occurrenceDate={target.occurrenceDate ?? values.startDate} label={values.label || 'l’évènement'} />}
         {occurrence && (
           <Comments
             target="EVENT"
-            id={occurrence.eventId}
-            occurrenceDate={occurrence.occurrenceDate}
+            id={target.eventId}
+            occurrenceDate={target.occurrenceDate}
             projectId={values.projectId ?? null}
-            title={occurrence.occurrenceDate ? `Commentaires du ${fmt.day(occurrence.occurrenceDate)}` : undefined}
+            title={target.occurrenceDate ? `Commentaires du ${fmt.day(target.occurrenceDate)}` : undefined}
             readOnly={readOnly}
           />
         )}
@@ -534,44 +600,38 @@ export function EventForm({ context, occurrence, defaults, onDone, onDuplicated 
               Fermer
             </ActionButton>
           </Group>
+        ) : occurrence ? (
+          // Saved field by field: only the actions on the event (decision D22).
+          <Group gap={4}>
+            <DeleteButton onClick={() => void handleDelete()} loading={remove.isPending} />
+            {onDuplicated && (
+              <DuplicateButton
+                // Its fields as they are in the form; an occurrence of a series becomes a one-off event.
+                item={{ ...values, label: copyName(values.label), recurrence: recurring ? null : (values.recurrence ?? null) }}
+                hint={recurring ? 'Copie de cette occurrence, en évènement unique' : 'Copie de l’évènement'}
+                duplicate={async (fields: CalendarEventInput) => ({ id: await create.mutateAsync(fields), fields })}
+                done="Évènement dupliqué."
+                open={({ id, fields }) => onDuplicated(id, fields)}
+              />
+            )}
+            {occurrence.calledOff ? (
+              <ActionButton priority="secondary" icon={<ArrowCounterClockwiseIcon aria-hidden />} onClick={() => handleCalledOff(false)} loading={setCalledOff.isPending}>
+                Rétablir
+              </ActionButton>
+            ) : (
+              <>
+                <ActionButton priority="secondary" icon={<CalendarXIcon aria-hidden />} onClick={() => handleCalledOff(true)} loading={setCalledOff.isPending}>
+                  Annuler l’évènement
+                </ActionButton>
+                <ActionButton priority="secondary" icon={<ArrowArcRightIcon aria-hidden />} onClick={openPostpone}>
+                  Reporter
+                </ActionButton>
+              </>
+            )}
+            {archiveMenu}
+          </Group>
         ) : (
-          <FormActions
-            onCancel={onDone}
-            submitLabel={occurrence ? 'Enregistrer' : 'Créer l’évènement'}
-            loading={create.isPending || update.isPending}
-            danger={
-              occurrence && (
-                <>
-                  <DeleteButton onClick={() => void handleDelete()} loading={remove.isPending} />
-                  {onDuplicated && (
-                    <DuplicateButton
-                      // Its fields as they are in the form; an occurrence of a series becomes a one-off event.
-                      item={{ ...values, label: copyName(values.label), recurrence: recurring ? null : (values.recurrence ?? null) }}
-                      hint={recurring ? 'Copie de cette occurrence, en évènement unique' : 'Copie de l’évènement'}
-                      duplicate={async (fields: CalendarEventInput) => ({ id: await create.mutateAsync(fields), fields })}
-                      done="Évènement dupliqué."
-                      open={({ id, fields }) => onDuplicated(id, fields)}
-                    />
-                  )}
-                  {occurrence.calledOff ? (
-                    <ActionButton priority="secondary" icon={<ArrowCounterClockwiseIcon aria-hidden />} onClick={() => void handleCalledOff(false)} loading={setCalledOff.isPending}>
-                      Rétablir
-                    </ActionButton>
-                  ) : (
-                    <>
-                      <ActionButton priority="secondary" icon={<CalendarXIcon aria-hidden />} onClick={() => void handleCalledOff(true)} loading={setCalledOff.isPending}>
-                        Annuler l’évènement
-                      </ActionButton>
-                      <ActionButton priority="secondary" icon={<ArrowArcRightIcon aria-hidden />} onClick={openPostpone}>
-                        Reporter
-                      </ActionButton>
-                    </>
-                  )}
-                  {archiveMenu}
-                </>
-              )
-            }
-          />
+          <FormActions onCancel={onDone} submitLabel="Créer l’évènement" loading={create.isPending} />
         )}
       </Stack>
     </form>

@@ -471,6 +471,9 @@ export interface RoutineBulkChanges {
   removeAssigneeIds?: string[];
   addRequiredIds?: string[];
   removeRequiredIds?: string[];
+  /** « Relative à »: routines added to and removed from the relations of each (never itself). */
+  addRelatedIds?: string[];
+  removeRelatedIds?: string[];
   /** Minutes. */
   estimate?: number | null;
   projectId?: string | null;

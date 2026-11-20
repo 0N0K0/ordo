@@ -21,11 +21,24 @@ interface EventTiming {
 
 /**
  * Days, hours and repetition of an event in its panel: their summary, every setting in the common repetition modal
- * (whole day, start and end, rule, and the length of each occurrence of an all-day event).
- * @param {{ value: EventTiming, onChange: (value: EventTiming) => void, ruleStart: string, error?: string }} props Timing, its change, first day of the series, error.
+ * (whole day, start and end, rule, and the length of each occurrence of an all-day event). With `ruleLocked` (one
+ * occurrence of a series edited alone), only its days and hours: the rule is the one of the series.
+ * @param {{ value: EventTiming, onChange: (value: EventTiming) => void, ruleStart: string, error?: string, ruleLocked?: boolean }} props Timing, its change, first day of the series, error, rule not editable. Optional.
  * @returns {JSX.Element} Field.
  */
-export function EventRepetition({ value, onChange, ruleStart, error }: { value: EventTiming; onChange: (value: EventTiming) => void; ruleStart: string; error?: string }) {
+export function EventRepetition({
+  value,
+  onChange,
+  ruleStart,
+  error,
+  ruleLocked = false,
+}: {
+  value: EventTiming;
+  onChange: (value: EventTiming) => void;
+  ruleStart: string;
+  error?: string;
+  ruleLocked?: boolean;
+}) {
   return (
     <RepetitionField<EventTiming>
       label="Date et répétition"
@@ -52,17 +65,7 @@ export function EventRepetition({ value, onChange, ruleStart, error }: { value: 
           value: [draft.startDate, draft.endDate],
           onChange: ([startDate, endDate]) => startDate && endDate && set({ startDate, endDate, ...(draft.recurrence?.duration ? { recurrence: { ...draft.recurrence, duration: null } } : {}) }),
         });
-        return (
-          <RuleEditor
-            rule={draft.recurrence}
-            onChange={(rule) => {
-              // A length of the rule sets the end of the event (its first occurrence).
-              const duration = rule?.duration;
-              set({ recurrence: rule, ...(duration && draft.allDay ? { endDate: spanEnd(duration, draft.startDate) } : {}) });
-            }}
-            start={ruleStart}
-            durations={draft.allDay && draft.recurrence ? DURATION_UNITS : undefined}
-            footer={
+        const footer = (
               <Stack gap="sm">
                 <Switch
                   label="Journée entière"
@@ -94,7 +97,19 @@ export function EventRepetition({ value, onChange, ruleStart, error }: { value: 
                   {!draft.allDay && <TimePicker label="Heure de fin" required value={draft.endTime ?? ''} onChange={(endTime) => set({ endTime: endTime || null })} />}
                 </SimpleGrid>
               </Stack>
-            }
+        );
+        if (ruleLocked) return footer;
+        return (
+          <RuleEditor
+            rule={draft.recurrence}
+            onChange={(rule) => {
+              // A length of the rule sets the end of the event (its first occurrence).
+              const duration = rule?.duration;
+              set({ recurrence: rule, ...(duration && draft.allDay ? { endDate: spanEnd(duration, draft.startDate) } : {}) });
+            }}
+            start={ruleStart}
+            durations={draft.allDay && draft.recurrence ? DURATION_UNITS : undefined}
+            footer={footer}
           />
         );
       }}

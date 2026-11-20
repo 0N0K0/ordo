@@ -1,11 +1,10 @@
 import { useSearchParam } from '../../../lib/search-params';
 import { AddItemButton } from '../../../components/actions/AddItemButton';
-import { IconAction } from '../../../components/actions/IconAction';
 import { PAGES, projectPath } from '../../../app/pages';
 import { TaskProgress } from './TaskProgress';
 import { SubSection } from '../../../components/page/SubSection';
-import { FormActions } from '../../../components/dialogs/FormActions';
 import { ArchivedBadge } from '../../../components/feedback/ArchivedBadge';
+import { SaveStatus } from '../../../components/feedback/SaveStatus';
 
 import { EmptyState } from '../../../components/feedback/EmptyState';
 import { DetailSkeleton } from '../../../components/feedback/Skeletons';
@@ -17,8 +16,6 @@ import { ArrowCounterClockwiseIcon, CheckCircleIcon, GithubLogoIcon, PencilSimpl
 import { useState } from 'react';
 import { Link } from 'react-router';
 
-import { MarkdownEditor } from '../../../components/markdown/MarkdownEditor';
-import { MarkdownView } from '../../../components/markdown/MarkdownView';
 import { localToday } from '../../../lib/dates';
 import { ON_ERROR, onMutationError, toastCallbacks } from '../../../lib/notify';
 import { confirmDestructive } from '../../../components/dialogs/confirm-destructive';
@@ -42,6 +39,7 @@ import { dateRangeProps } from '../../../components/inputs/date-range';
 import { DetailHeader } from '../../../components/page/DetailHeader';
 import { EffortInput } from './EffortInput';
 import { TaskLinks } from './TaskLinks';
+import { TaskDescription } from './TaskDescription';
 import { TaskLocation } from './TaskLocation';
 import { TaskReminders } from './TaskReminders';
 import { sprintDateHint } from '../lib/sprint-dates';
@@ -124,7 +122,6 @@ function TaskDetail({ task, context }: TaskDetailProps) {
   const taskBlock = useTaskBlock();
   const taskRelation = useTaskRelation();
   const actions = useTaskActions(context);
-  const [description, setDescription] = useState<string | null>(null);
   const locked = task.archived;
 
   /**
@@ -134,6 +131,12 @@ function TaskDetail({ task, context }: TaskDetailProps) {
    * @returns {void}
    */
   const save = (input: Omit<TaskInputValues, 'projectId'>, onSuccess?: () => void) => updateTask.mutate({ id: task.id, input }, { onSuccess, onError: onMutationError });
+  /**
+   * Saves a change and tells when it is done (the description and the links: their failure is told by useFieldSave).
+   * @param {Omit<TaskInputValues, 'projectId'>} input Changed fields.
+   * @returns {Promise<unknown>} Saved task.
+   */
+  const saveNow = (input: Omit<TaskInputValues, 'projectId'>) => updateTask.mutateAsync({ id: task.id, input });
   const dates = dateRangeProps({ value: [task.startDate, task.endDate], onChange: ([startDate, endDate]) => save({ startDate, endDate }) });
   const overdue = isTaskOverdue(task, localToday());
   const doable = dateRangeProps({ value: [task.minDate, task.deadline], onChange: ([minDate, deadline]) => save({ minDate, deadline }) });
@@ -247,37 +250,9 @@ function TaskDetail({ task, context }: TaskDetailProps) {
       <Grid gap="xl">
         <Grid.Col span={{ base: 12, md: 8 }}>
           <Stack gap="lg">
-            <SubSection
-              title="Description"
-              gap="xs"
-              action={
-                description === null &&
-                !locked && (
-                  <IconAction label="Modifier la description" size="sm" onClick={() => setDescription(task.description ?? '')}>
-                    <PencilSimpleIcon aria-hidden />
-                  </IconAction>
-                )
-              }
-            >
-              {description === null ? (
-                <MarkdownView targets={context.targetsFor(task.projectId)} onChange={locked ? undefined : (next) => save({ description: next })}>
-                  {task.description}
-                </MarkdownView>
-              ) : (
-                <Stack gap="xs">
-                  <MarkdownEditor
-                    value={description}
-                    onChange={setDescription}
-                    suggestions={context.suggestionsFor(task.projectId)}
-                    autoFocus
-                    onSubmitShortcut={() => save({ description: description || null }, () => setDescription(null))}
-                  />
-                  <FormActions size="xs" onCancel={() => setDescription(null)} onSubmit={() => save({ description: description || null }, () => setDescription(null))} loading={updateTask.isPending} />
-                </Stack>
-              )}
-            </SubSection>
+            <TaskDescription task={task} context={context} locked={locked} save={saveNow} />
 
-            <TaskLinks task={task} locked={locked} />
+            <TaskLinks task={task} locked={locked} save={saveNow} />
 
             <SubSection
               title={
@@ -316,6 +291,8 @@ function TaskDetail({ task, context }: TaskDetailProps) {
           {/* An archived task: every field and action of the side disabled. */}
           <Fieldset variant="unstyled" disabled={locked}>
             <Stack gap="md">
+              {/* Each field saved as soon as it changes (decision D22): the state of the saves. */}
+              {!locked && <SaveStatus saving={updateTask.isPending || transferTask.isPending} />}
               <ProjectSelect context={context} label="Projet" placeholder="Sans projet" clearable value={task.projectId} onChange={changeProject} disabled={transferTask.isPending} />
               <LabelSelect kind="status" label="Statut" labels={context.statuses} value={task.statusId} onChange={(statusId) => save({ statusId })} />
               <LabelSelect kind="priority" label="Priorité" labels={context.priorities} value={task.priorityId} onChange={(priorityId) => save({ priorityId })} />

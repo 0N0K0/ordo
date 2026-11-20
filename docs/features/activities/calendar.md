@@ -63,7 +63,7 @@ Affichage des créneaux, selon le type (ou l’abonnement) :
 
 Un changement de créneau (glissé, étiré, supprimé ici, ou créé, modifié, supprimé dans les paramètres) ou la suppression d’un type de créneau (ses créneaux deviennent sans type) qui fait disparaître des occurrences de routines (de cet espace, ou d’un autre de vos espaces dont la condition cite ce créneau ou un type de cet espace) (leur condition ne leur laisse plus aucun moment ; celles déjà cochées restent) demande la même confirmation qu’un changement de règle, « Occurrences supprimées », avec le nombre de commentaires perdus (`withLossConfirmation`).
 
-Formulaire d’une occurrence de routine : « Jour », « À partir de », « Avant », « Enregistrer… » (puis portée), « Supprimer » (question « Annuler ou supprimer une occurrence de routine » : « Annuler cette occurrence » — elle reste affichée, barrée, avec ses commentaires — ou « Supprimer celle-ci et les suivantes », en rouge — la routine s’arrête avant elle, leurs commentaires supprimés), « Ouvrir la routine ». Une occurrence annulée n’offre que « Ouvrir la routine », « Fermer » et « Rétablir » (« Cette occurrence est annulée : elle reste affichée, barrée, avec ses commentaires. », toast « Occurrence du … rétablie. ») ; celle d’une routine archivée, « Ouvrir la routine » et « Fermer » (« La routine est archivée : cette occurrence passée est en lecture seule. Restaurez la routine pour la modifier. »).
+Panneau d’une occurrence de routine : la portée est demandée une fois, à son ouverture (« Modifier une routine » : « Cette occurrence », « Celle-ci et les suivantes », « Toutes les occurrences » ; « Annuler » : rien ne s’ouvre ; sans question pour une occurrence annulée ou d’une routine archivée), rappelée en tête (« Cette occurrence seulement : c’est une exception, la règle ne change pas. », « Cette occurrence et les suivantes. », « Toutes les occurrences. ») ; « Jour », « À partir de », « Avant », chacun enregistré dès qu’il change (décision D22, « Enregistrement… » / « Enregistré », pas de bouton « Enregistrer »), « Supprimer » (question « Annuler ou supprimer une occurrence de routine » : « Annuler cette occurrence » — elle reste affichée, barrée, avec ses commentaires — ou « Supprimer celle-ci et les suivantes », en rouge — la routine s’arrête avant elle, leurs commentaires supprimés), « Ouvrir la routine ». Une occurrence annulée n’offre que « Ouvrir la routine », « Fermer » et « Rétablir » (« Cette occurrence est annulée : elle reste affichée, barrée, avec ses commentaires. », toast « Occurrence du … rétablie. ») ; celle d’une routine archivée, « Ouvrir la routine » et « Fermer » (« La routine est archivée : cette occurrence passée est en lecture seule. Restaurez la routine pour la modifier. »).
 
 Toasts : « Exception ajoutée au créneau pour ce jour. », « Créneau modifié. », « Horaires retirés du créneau. », « Exception ajoutée : « X » le …, la règle ne change pas. », « « X » modifiée. », « Occurrence du … annulée. » (avec annulation), « Plus aucune occurrence : « X » est archivée. » (ses sous-routines avec elle), « « X » s’arrête avant le …. ».
 
@@ -98,6 +98,10 @@ Section « Exporter » :
 
 Ouvert dans le panneau latéral (large) : « Nouvel évènement » ou « Évènement » (existant, une copie qui vient d’être enregistrée comprise). Accessible depuis l’agenda, les actions rapides « Ajouter › Évènement » (pré-rempli avec le projet ouvert), les cellules d’évènements des tâches.
 
+Un évènement existant s’enregistre champ par champ (décision D22) : chaque champ est enregistré dès qu’il change (libellé, description, liens, lieu et trajets en les quittant ; Entrée dans le libellé aussi), sans bouton « Enregistrer » ; « Enregistrement… » puis « Enregistré » en haut du panneau. Un champ invalide garde son erreur dessous et n’est pas enregistré ; un échec le remet comme il était, dans un toast d’erreur. Seule la création garde son bouton « Créer l’évènement ».
+
+Pour une occurrence d’un récurrent, la portée est demandée une seule fois, à l’ouverture du panneau (« Ouvrir un évènement récurrent » : « À quelles occurrences appliquer la modification ? Les modifications faites dans le panneau, chacune enregistrée aussitôt, s’y appliqueront. », « Cette occurrence », « Celle-ci et les suivantes », « Toutes les occurrences » ; « Annuler » : le panneau ne s’ouvre pas) ; un évènement archivé (ou d’un calendrier archivé) s’ouvre sans la question. « Celle-ci et les suivantes » coupe la série au premier enregistrement, les suivants modifient la nouvelle série. « Cette occurrence » ne change que ses propres champs (libellé, description, lieu, liens, jour et heures, trajets, routines de ses jours) : la répétition, le calendrier, le projet, les contributeurs, les bénéficiaires, les relations, les catégories, les tâches et les rappels, ceux de la série, sont en lecture seule (« Cette occurrence seulement : sa répétition, son calendrier, son projet, ses personnes, ses catégories, ses tâches et ses rappels sont ceux de la série. »), et la fenêtre « Date et répétition » ne montre que la journée entière, les jours et les heures.
+
 ### Champs
 
 | Champ                                     | Détail                                                                                                                                                                                                                                                                                                                                                                                      |
@@ -119,7 +123,7 @@ Ouvert dans le panneau latéral (large) : « Nouvel évènement » ou « Évène
 | « Rappels »                               | Plusieurs au choix, 10 au plus (décision D16), deux groupes : « Avant » (« Au début », « 5 min avant » … « 2 h avant », « 6 h avant », 24 heures au plus ; un rappel gardé d’avant hors des préréglages, « 1 jour avant », s’affiche « 24 h 00 avant ») et « À une heure, le jour J » (« À 08:00 le jour J », toutes les demi-heures, ou une heure tapée (« 8:15 », « 8h15 », « 8 ») ; une saisie qui n’est pas une heure affiche « Heure attendue (HH:MM). » sous le champ) ; 15 min avant par défaut. Aide « Avant le début, 24 h au plus. » (journée entière : « Avant minuit le premier jour (« 6 h avant » : la veille à 18 h), 24 h au plus. ») |
 | « Description »                           | Markdown, avec suggestions (références de tâches, projets)                                                                                                                                                                                                                                                                                                                                  |
 
-Pour un récurrent : « Projet, contributeurs, catégories, tâches et rappels s’appliquent à toute la série. ».
+Pour un récurrent ouvert sur « Celle-ci et les suivantes » ou « Toutes les occurrences » : « Projet, contributeurs, catégories, tâches et rappels s’appliquent à toute la série. ».
 
 « Journée entière » est un interrupteur, dans la répétition d'un évènement comme dans un créneau.
 
@@ -127,16 +131,15 @@ Pour un récurrent : « Projet, contributeurs, catégories, tâches et rappels s
 
 - « Démarrer le chrono » (avec ou sans projet, décision D17) : chrono rattaché à l’occurrence (d’autres évènements peuvent s’y ajouter ensuite, décision D18), sur son projet s’il en a un ; affiche « X chronométrées sur cet évènement. ».
 - Fiches (checklists par occurrence, voir [Fiches](../supplies/sheets.md)) et commentaires de l’occurrence (« Commentaires du 12 nov. 2026 » pour un récurrent, décision D19, voir [Commentaires](../cross-cutting/comments.md)).
-- « Enregistrer » (récurrent : choix de la portée ; si la répétition a changé, « Cette occurrence » n’est pas proposée).
 - « Supprimer » : confirmation « Supprimer l’évènement » (« … sera supprimé définitivement. », suivi s'il y en a de « 2 temps sans projet, qui ne portent sur rien d’autre, seront aussi supprimés (les temps facturés sont gardés). ») ou, pour un récurrent, choix de la portée (« La suppression est définitive. », suivi s'il y en a de « Temps sans projet supprimés avec : cette occurrence 1, celle-ci et les suivantes 2, toutes 3 (les temps facturés sont gardés). » et de « Commentaires supprimés avec : cette occurrence 1, celle-ci et les suivantes 2, toutes 3. »). Pour un évènement unique, « 3 commentaires seront aussi supprimés. » suit la phrase des temps.
 - « Dupliquer » (décision D20) : la copie est enregistrée tout de suite avec les champs du formulaire (suffixe de copie ajouté au libellé, `copyName`), toast « Évènement dupliqué. », puis la copie s’ouvre à la place ; une occurrence d’une série devient un évènement unique.
-- « Annuler l’évènement » : reste barré dans l’agenda ; « Rétablir » l’inverse. Portée demandée pour un récurrent.
+- « Annuler l’évènement » : reste barré dans l’agenda ; « Rétablir » l’inverse. Pour un récurrent : les occurrences choisies à l’ouverture du panneau.
 - « Reporter » : panneau « Reporter l’évènement » avec « Libellé » (par défaut « Report de l’évènement « X » », le nom coupé pour tenir en 250 caractères, `fitName`), « Nouvelle date » (lendemain par défaut), « Début », « Fin » ; l’évènement garde sa durée ; la date initiale est annulée et un nouvel évènement unique, lié, est créé ; les commentaires et les temps de l’occurrence passent au report. Toast « Évènement reporté. ».
 - Menu « … » : archiver / restaurer (toute la série).
 - Bandeaux : « Évènement annulé » (« Il reste dans l’agenda, barré. Reporté au … ») ; « Report de l’évènement « X » du … » avec lien vers ce jour.
 - Archivé (ou calendrier archivé) : formulaire en lecture seule, « Évènement archivé » / « Calendrier archivé », seules restent la suppression, le menu d’archivage (si le calendrier n’est pas archivé) et « Fermer ».
 
-Toasts : « Évènement créé. », « Évènement modifié. », « Évènement supprimé. », « Évènement annulé. », « Évènement rétabli. ».
+Toasts : « Évènement créé. », « Évènement supprimé. », « Évènement annulé. », « Évènement rétabli. ».
 
 ## Évènement d’un autre espace
 
@@ -180,7 +183,7 @@ Actions : « Nouveaux créneaux » ; par ligne « Modifier », « Dupliquer », 
 
 ## Occurrence de routine dans l’agenda
 
-« « Routine » du … » : « Jour » (pas avant le début de la routine), « À partir de », « Avant », « Enregistrer… » (portée demandée), « Supprimer » (« Annuler cette occurrence » ou « Supprimer celle-ci et les suivantes » ; la question ajoute s'il y en a « Commentaires supprimés avec : celle-ci et les suivantes 2. »), « Ouvrir la routine » (sur l'occurrence cliquée). Voir [Routines](routines.md).
+« « Routine » du … » (portée demandée à l'ouverture) : « Jour » (pas avant le début de la routine), « À partir de », « Avant », enregistrés dès qu'ils changent, « Supprimer » (« Annuler cette occurrence » ou « Supprimer celle-ci et les suivantes » ; la question ajoute s'il y en a « Commentaires supprimés avec : celle-ci et les suivantes 2. »), « Ouvrir la routine » (sur l'occurrence cliquée). Voir [Routines](routines.md).
 
 ## Condition de créneaux des tâches et routines
 

@@ -2,11 +2,12 @@ import { SimpleGrid, Stack, TextInput } from '@mantine/core';
 import { DatePickerInput, TimePicker } from '@mantine/dates';
 import { parseDuration, timeEntryFormSchema, type TimeEntryFormValues, twoDigits } from '@ordo/shared';
 import { localInstant, localParts, localToday } from '../../../lib/dates';
-import { useAppForm, formCallbacks } from '../../../lib/form';
+import { useAppForm, useFieldSave, formCallbacks } from '../../../lib/form';
+import { SaveStatus } from '../../../components/feedback/SaveStatus';
 
 import { ProjectSelect } from '../../tasks/components/task-ui';
 import type { TaskContext } from '../../tasks/hooks/use-task-context';
-import { useTimeMutations, type TimeEntry } from '../api';
+import { useTimeMutations, type TimeEntry, type TimeEntryValues } from '../api';
 import { TimeSubjectsFields } from './TimeSubjectsFields';
 import { entryEventKeys, parseEventKeys } from '../lib/time-events';
 import { MarkdownEditor } from '../../../components/markdown/MarkdownEditor';
@@ -23,8 +24,28 @@ interface TimeEntryFormProps {
 }
 
 /**
+ * Input of the API from the values of the form (local day and time).
+ * @param {TimeEntryFormValues} values Values.
+ * @returns {TimeEntryValues} Input.
+ */
+const entryInput = (values: TimeEntryFormValues): TimeEntryValues => ({
+  projectId: values.projectId || null,
+  routineIds: values.routineIds,
+  taskIds: values.taskIds,
+  description: values.description,
+  startedAt: localInstant(values.date, values.start).toISOString(),
+  duration: parseDuration(values.duration)!,
+  events: parseEventKeys(values.events),
+});
+
+/** Fields of a time saved on leaving them, in its panel (decision D22). */
+const ON_BLUR = ['duration', 'description'] as const;
+
+/**
  * Time added by hand, or edited: project, day, start time, duration, routines, tasks, the calendar events it was spent
  * on (several of each, decision D18) and description; at least a project, a task, a routine or an event (decision D17).
+ * A new time is a form with « Ajouter »; an existing one, its panel, saves each field as soon as it changes (the
+ * duration and the description on leaving them, decision D22, `useFieldSave`).
  * @param {TimeEntryFormProps} props Component props.
  * @returns {JSX.Element} Form.
  */
@@ -33,7 +54,7 @@ export function TimeEntryForm({ context, entry, defaultProjectId, onDone }: Time
   const parts = entry ? localParts(entry.startedAt) : null;
   const initial = parts ? { date: parts.date, start: parts.time } : { date: localToday(), start: '09:00' };
   const minutes = entry?.duration ? Math.round(entry.duration / 60) : 60;
-  const form = useAppForm<TimeEntryFormValues>({
+  const base = useAppForm<TimeEntryFormValues>({
     initialValues: {
       projectId: entry?.projectId ?? defaultProjectId ?? '',
       routineIds: entry?.routines.map((routine) => routine.id) ?? [],
@@ -46,39 +67,29 @@ export function TimeEntryForm({ context, entry, defaultProjectId, onDone }: Time
     },
     schema: timeEntryFormSchema,
   });
-
-  const handleSubmit = form.onSubmit((values) => {
-    const input = {
-      projectId: values.projectId || null,
-      routineIds: values.routineIds,
-      taskIds: values.taskIds,
-      description: values.description,
-      // Local day and time.
-      startedAt: localInstant(values.date, values.start).toISOString(),
-      duration: parseDuration(values.duration)!,
-      events: parseEventKeys(values.events),
-    };
-    const callbacks = formCallbacks(form, entry ? 'Temps modifié.' : 'Temps ajouté.', onDone);
-    if (entry) update.mutate({ id: entry.id, input }, callbacks);
-    else create.mutate(input, callbacks);
+  const { form, saving, commit } = useFieldSave(base, {
+    save: entry ? (_changes, values) => update.mutateAsync({ id: entry.id, input: entryInput(values) }) : null,
+    schema: timeEntryFormSchema,
+    onBlur: ON_BLUR,
   });
+
+  // A new time only: an existing one is saved field by field (Enter saves the text typed).
+  const handleSubmit = form.onSubmit((values) => create.mutate(entryInput(values), formCallbacks(form, 'Temps ajouté.', onDone)));
 
   return (
     <Stack gap="lg">
       <form onSubmit={handleSubmit} noValidate>
         <Stack gap="md">
+          {entry && <SaveStatus saving={saving} />}
           <ProjectSelect
             context={context}
             label="Projet"
             description="Facultatif avec une tâche, une routine ou un évènement."
             clearable
-            data-autofocus
+            data-autofocus={entry ? undefined : true}
             {...form.getInputProps('projectId')}
-            onChange={(projectId) => {
-              form.setFieldValue('projectId', projectId ?? '');
-              // Tasks and routines go with the project tree (the API's rule).
-              form.setValues({ taskIds: [], routineIds: [] });
-            }}
+            // Tasks and routines go with the project tree (the API's rule): emptied with it, saved together.
+            onChange={(projectId) => form.setValues({ projectId: projectId ?? '', taskIds: [], routineIds: [] })}
           />
           <SimpleGrid cols={{ base: 1, xs: 3 }} spacing="md">
             <DatePickerInput label="Jour" required {...form.getInputProps('date')} />
@@ -99,10 +110,11 @@ export function TimeEntryForm({ context, entry, defaultProjectId, onDone }: Time
             placeholder="Ce que vous avez fait…"
             value={form.values.description}
             onChange={(description) => form.setFieldValue('description', description)}
+            onBlur={() => commit(['description'])}
             suggestions={context.suggestionsFor(form.values.projectId || null)}
             minRows={3}
           />
-          <FormActions onCancel={onDone} submitLabel={entry ? 'Enregistrer' : 'Ajouter'} loading={create.isPending || update.isPending} />
+          {!entry && <FormActions onCancel={onDone} submitLabel="Ajouter" loading={create.isPending} />}
         </Stack>
       </form>
       {entry && <Comments target="TIME_ENTRY" id={entry!.id} projectId={entry!.projectId ?? null} />}

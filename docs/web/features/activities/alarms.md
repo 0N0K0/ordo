@@ -57,9 +57,9 @@ Interne : `occurrenceStart(occurrence)` (instant, ou minuit de Paris du premier 
 
 ### `components/AlarmForm.tsx`
 
-- `AlarmForm({ context, alarm?, defaults?, onDone })` : formulaire (`useAppForm` + `alarmInputSchema`) : libellé, type (`SegmentedControl` + aide), minutes de chrono (`optionalNumberProps`) ou `RepetitionField` + `RuleEditor` (date, heure, répétition ; résumé `describeAlarmTiming`), `ProjectSelect` / `TaskSelect` (tâches `timeTasks`), description, « Active ». À l’envoi : `legacyFields(recurrence)` ajouté, `minutes` vidé hors chrono ; `formCallbacks` (« Alarme créée. », « Alarme modifiée. »). Plus de mode copie (décision D20) : « Dupliquer » de `AlarmList` (`duplicateRowsAction`) enregistre la copie (`toAlarmInput` + `copyName`), puis ouvre le formulaire sur elle (`cachedItem`, `alarmsQueryKey`, exporté).
+- `AlarmForm({ context, alarm?, defaults?, onDone })` : formulaire de création (« Créer l’alarme ») ou panneau d’une alarme existante enregistré champ par champ (décision D22, `useFieldSave` : libellé, description et minutes en les quittant, le reste dès qu’il change, projet et tâche ensemble ; `SaveStatus` en tête ; l’alarme du cache suivie, `useAlarms`) — `useAppForm` + `alarmInputSchema` : libellé, type (`SegmentedControl` + aide), minutes de chrono (`optionalNumberProps`) ou `RepetitionField` + `RuleEditor` (date, heure, répétition ; résumé `describeAlarmTiming`), `ProjectSelect` / `TaskSelect` (tâches `timeTasks`), description, « Active ». À l’envoi (`alarmInputOf`) : `legacyFields(recurrence)` ajouté, `minutes` vidé hors chrono ; création par `formCallbacks` (« Alarme créée. »). Plus de mode copie (décision D20) : « Dupliquer » de `AlarmList` (`duplicateRowsAction`) enregistre la copie (`toAlarmInput` + `copyName`), puis ouvre le formulaire sur elle (`cachedItem`, `alarmsQueryKey`, exporté).
 - `AlarmDefaults` (interface) : `label`, `projectId`, `taskId` d’une nouvelle alarme.
-- Internes : `TYPES` (libellés des types), `TYPE_HELP` (aides), `AlarmFormValues`, `AlarmFormProps`.
+- Internes : `TYPES` (libellés des types), `TYPE_HELP` (aides), `AlarmFormValues`, `AlarmFormProps`, `alarmFormValues(alarm)`, `alarmInputOf(values)`, `ON_BLUR`.
 - Utilisé par `useAlarmForm`.
 
 ### `components/AlarmList.tsx`
@@ -75,7 +75,7 @@ Interne : `occurrenceStart(occurrence)` (instant, ou minuit de Paris du premier 
 ### `hooks/use-alarm-form.tsx`
 
 - `AlarmFormOpener` (type) : `(alarm?, { defaults? }) => void`.
-- `useAlarmForm(context)` : ouvre `AlarmForm` dans `openFormPanel` (« Nouvelle alarme », « Modifier l’alarme ») ; sans contexte : rien. Utilisé par `AlarmsPage`, `TaskAlarms`, `AlarmsCell` (`extra-cells`, tâches), `ChronoCard` (accueil), `QuickActions` (app).
+- `useAlarmForm(context)` : ouvre `AlarmForm` dans `openFormPanel` (« Nouvelle alarme », « Alarme ») ; sans contexte : rien. Utilisé par `AlarmsPage`, `TaskAlarms`, `AlarmsCell` (`extra-cells`, tâches), `ChronoCard` (accueil), `QuickActions` (app).
 
 ## lib
 

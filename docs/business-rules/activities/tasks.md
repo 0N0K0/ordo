@@ -108,7 +108,7 @@ Un statut a une catégorie fixe (`TASK_STATUS_CATEGORIES`), `TODO` par défaut �
   - passer à un statut « Annulé » (création, modification, modification en masse, annulation d’une modification en masse, copie) **ferme** la tâche (une tâche déjà fermée garde sa date de fermeture) ; elle s’affiche alors barrée ;
   - quitter un statut « Annulé » pour un autre statut, ou pour aucun, **rouvre** la tâche ;
   - les autres changements de statut, « Terminé » compris, ne ferment ni ne rouvrent rien ;
-  - rouvrir à la main une tâche « Annulé » lui donne le premier statut « À faire » non archivé (aucun s'il n'y en a pas) ; fermer à la main ne change pas le statut ;
+  - rouvrir à la main une tâche « Annulé » lui donne le premier statut « À faire » non archivé (aucun s'il n'y en a pas) ; « Annuler » de son toast lui rend aussi son statut « Annulé », qui la referme (lot 14a) ; fermer à la main ne change pas le statut ;
   - changer la catégorie d'un statut dans les paramètres applique la règle à ses tâches, archivées comprises : vers « Annulé », ses tâches ouvertes sont fermées ; hors de « Annulé », ses tâches fermées sont rouvertes (`taskStatuses`, `afterUpdate`) ; le web le confirme d'abord avec leur nombre ;
   - la synchronisation GitHub suit la même règle (voir [GitHub](../cross-cutting/github.md#correspondances-et-cas-particuliers)).
 - Les tâches qui avaient déjà un statut « Annulé » sans être fermées ont été fermées, datées de leur dernière modification (migration `20261120150000_cancelled_tasks_closed`).

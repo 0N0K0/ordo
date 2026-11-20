@@ -123,6 +123,13 @@ export default defineConfig([
           selector: "CallExpression[callee.name='lazy']",
           message: 'Utiliser lazyNamed (lib/lazy) : une seule façon de charger un composant à la demande.',
         },
+        // Detail panels saved field by field (decision D22, useFieldSave): no « Enregistrer » button in them (their creation
+        // form keeps « Créer… »). Each converted panel adds its component here (lots 14b–14d).
+        {
+          selector:
+            "FunctionDeclaration[id.name=/^(TaskDetail|TaskLinks|TaskLinksEditor|RoutineForm|EventForm|RoutineOccurrenceForm|TimeEntryForm|AlarmForm)$/] JSXOpeningElement[name.name='FormActions']:matches(:not(:has(JSXAttribute[name.name='submitLabel'])), :has(JSXAttribute[name.name='submitLabel'] Literal[value=/^Enregistrer/]))",
+          message: 'Panneau de détail enregistré champ par champ (décision D22) : useFieldSave (lib/form) et SaveStatus, pas de bouton « Enregistrer ».',
+        },
         // One word and one behaviour to copy anything (decision D20): « Dupliquer », saved at once, then opened.
         {
           selector: "Literal[value=/\\bClon(er|é|ée|és|ées|age)\\b/i], TemplateElement[value.raw=/\\bClon(er|é|ée|és|ées|age)\\b/i], JSXText[value=/\\bClon(er|é|ée|és|ées|age)\\b/i]",

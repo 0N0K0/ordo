@@ -13,7 +13,7 @@ import type { TaskContext } from '../../tasks/hooks/use-task-context';
 
 import { useRoutinesData, type Routine, type RoutineCategory } from '../api';
 import { routineCellLabel, routinesLabel, useRoutineCellEdit } from '../lib/routine-cell-edit';
-import { applyDiff, listDiff } from '../../../components/data-table/selection/bulk-edit';
+import { listDiff } from '../../../components/data-table/selection/bulk-edit';
 import { describeRoutineCase, linkableRoutine, routinePath, ruleOf, waitingFor } from '../lib/routine-format';
 import { openRoutineForm } from '../lib/open-routine-form';
 import { RoutineRepetitionModal } from './RoutineSchedule';
@@ -155,8 +155,8 @@ export function RoutineLinksCell({ routine, readOnly = false, routines, context,
       onSave={(next) => {
         const { added, removed } = listDiff(ids, next);
         if (kind === 'requires') apply({ requiredIds: next }, { addRequiredIds: added, removeRequiredIds: removed });
-        // Each routine of the selection gets (or loses) the same relations, never to itself.
-        else apply((target) => ({ relatedIds: applyDiff(target.relatedIds, ids, next).filter((id) => id !== target.id) }));
+        // Each routine of the selection gets (or loses) the same relations, never to itself: one bulk change, with « Annuler ».
+        else apply({ relatedIds: next }, { addRelatedIds: added, removeRelatedIds: removed });
       }}
     />
   );

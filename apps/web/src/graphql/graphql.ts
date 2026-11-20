@@ -605,6 +605,8 @@ export type ReminderInput = {
 export type RoutineBulkChanges = {
   addAssigneeIds?: Array<string | number> | null | undefined;
   addCategoryIds?: Array<string | number> | null | undefined;
+  /** « Relative à » added (never to itself). */
+  addRelatedIds?: Array<string | number> | null | undefined;
   addRequiredIds?: Array<string | number> | null | undefined;
   /** Cases (with recurrence: its whole repetition); empty: its rule. */
   cases?: unknown;
@@ -622,6 +624,7 @@ export type RoutineBulkChanges = {
   recurrence?: unknown;
   removeAssigneeIds?: Array<string | number> | null | undefined;
   removeCategoryIds?: Array<string | number> | null | undefined;
+  removeRelatedIds?: Array<string | number> | null | undefined;
   removeRequiredIds?: Array<string | number> | null | undefined;
   /** On or out of calendar schedules, following its rule; null: any time. */
   slotCondition?: unknown;

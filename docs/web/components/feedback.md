@@ -41,6 +41,10 @@ Page qui ne peut pas s'afficher (introuvable, indisponible dans cet espace) : ic
 
 Page de détail dont l'élément n'existe pas (supprimé, mauvaise adresse) : `BackLink` vers sa liste au-dessus (si `backTo`), puis `PageMessage` « Introuvable », « `what` n’existe pas ou a été supprimé. » (« supprimée » au féminin). Props : `what` (« Cette fiche »), `feminine` (accord via `agreed`), `backTo`, `backLabel`. Utilisé par les projets, la facturation, les tâches, les achats, les fiches.
 
+### `SaveStatus`
+
+État d'un panneau de détail enregistré champ par champ (décision D22, `useFieldSave`), en haut du panneau : « Enregistrement… » (petit chargement) pendant un enregistrement, « Enregistré » (coche) sinon ; même place dans les deux cas, lu par les lecteurs d'écran quand il change (`role="status"`). Prop `saving`. Utilisé par les panneaux des tâches, des routines, des évènements, des occurrences de routine, des temps et des alarmes.
+
 ### `FullPageLoader`
 
 Chargement plein écran (`Center` de hauteur `100dvh` + `Loader`) pendant le chargement de ce dont toute page a besoin (session, espace). Prop `label` (libellé accessible). Utilisé par `features/auth` (gardes) et `features/workspaces` (`WorkspaceGate`). Imposé par eslint.

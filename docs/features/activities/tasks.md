@@ -159,12 +159,12 @@ En-tête :
 
 Colonne principale :
 
-- « Description » : affichée en markdown (cases à cocher cochables en place), crayon « Modifier la description » pour l’éditer.
-- « Liens » : ouverts dans un nouvel onglet (« Aucun lien. » sinon) ; crayon « Modifier les liens » : le champ des liens des évènements, « Enregistrer » / « Annuler ».
+- « Description » : affichée en markdown (cases à cocher cochables en place), crayon « Modifier la description » pour l’éditer : enregistrée en quittant l’éditeur (décision D22), Ctrl/⌘ + Entrée l’enregistre et ferme l’éditeur ; la coche « Terminer la modification de la description » revient au texte affiché.
+- « Liens » : ouverts dans un nouvel onglet (« Aucun lien. » sinon) ; crayon « Modifier les liens » : le champ des liens des évènements, chaque lien enregistré une fois validé (en quittant ses champs), un retrait tout de suite (décision D22) ; la coche « Terminer la modification des liens » revient aux liens affichés.
 - « Sous-tâches » : « 2/5 », barre d’avancement, liste, « Ajouter une sous-tâche ».
 - « Commentaires » : le fil de commentaires (voir [Commentaires](../cross-cutting/comments.md)).
 
-Colonne de propriétés (chaque champ enregistré dès qu’il change) :
+Colonne de propriétés (chaque champ enregistré dès qu’il change, décision D22 ; « Enregistrement… » puis « Enregistré » en tête) :
 
 - « Projet » (changement = transfert ; confirmation « Changer de projet » si la tâche quitte son arborescence et a des liens : elle prend le numéro suivant du projet, ou perd son numéro et son lien GitHub hors projet) ;
 - « Statut », « Priorité », « Type », « Assignés », « Étiquettes », « Bénéficiaires », « Effort » ;
@@ -181,7 +181,7 @@ Une tâche archivée : tous les champs désactivés, pas de bouton, commentaires
 ## Fermer, dupliquer, transférer, archiver, supprimer
 
 - **Fermer / Rouvrir** : toast « 2 tâches fermées. » / « rouvertes. », annulable. Une tâche fermée est barrée de violet, ne bloque plus, n’est plus en retard.
-- **Statut « Annulé »** (décision D23) : choisir un statut de cette catégorie ferme la tâche ; son libellé est alors barré (tableau, titre du panneau ; agenda, comme toute tâche fermée). Choisir ensuite un autre statut (ou aucun) la rouvre. « Terminé » ne ferme pas la tâche. « Rouvrir » une tâche annulée lui donne le premier statut « À faire » ; « Fermer » ne change pas le statut. Dans les paramètres, passer un statut vers ou hors de « Annulé » demande une confirmation : « Fermer ses tâches » (« Un statut « Annulé » ferme ses tâches : 3 tâches ouvertes de ce statut seront fermées et barrées. », « Fermer et enregistrer ») ou « Rouvrir ses tâches » (« Ce statut n’est plus « Annulé » : 2 tâches fermées de ce statut seront rouvertes. », « Rouvrir et enregistrer »).
+- **Statut « Annulé »** (décision D23) : choisir un statut de cette catégorie ferme la tâche ; son libellé est alors barré (tableau, titre du panneau ; agenda, comme toute tâche fermée). Choisir ensuite un autre statut (ou aucun) la rouvre. « Terminé » ne ferme pas la tâche. « Rouvrir » une tâche annulée lui donne le premier statut « À faire » (« Annuler » du toast lui rend son statut « Annulé » et la referme) ; « Fermer » ne change pas le statut. Dans les paramètres, passer un statut vers ou hors de « Annulé » demande une confirmation : « Fermer ses tâches » (« Un statut « Annulé » ferme ses tâches : 3 tâches ouvertes de ce statut seront fermées et barrées. », « Fermer et enregistrer ») ou « Rouvrir ses tâches » (« Ce statut n’est plus « Annulé » : 2 tâches fermées de ce statut seront rouvertes. », « Rouvrir et enregistrer »).
 - **Dupliquer** (décision D20) : sans fenêtre, chaque tâche du haut de la sélection est copiée tout de suite, nommée « … (copie) » : tous les champs, les assignés et les liens (le lieu, les liens (URL) et les rappels compris ; un ancien lien hors de l’arborescence de projets de la tâche n’est pas copié), pas les commentaires ; ses sous-tâches sont copiées sous la copie (leurs libellés gardés). Toast « Tâche dupliquée. » (« 3 tâches dupliquées. ») ; la copie d’une tâche seule s’ouvre dans le panneau.
 - **Transférer** (panneau « Transférer la tâche » / « Transférer les tâches ») : « Projet de destination » ou case « Sans projet » (perte du numéro, du jalon, des sprints et du lien GitHub). Avertissement si le projet est dans une autre arborescence. Toast « Tâche #12 transférée. » ; annulable s’il n’a retiré aucun lien, sinon il indique « 2 liens retirés. ».
 - **Archiver / Restaurer** : en cascade sur les sous-tâches ; annulable.

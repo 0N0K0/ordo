@@ -1080,6 +1080,8 @@ export async function bulkUpdateRoutines(ids: string[], changes: RoutineBulkChan
         assigneeIds: changedList(current.assigneeIds, changes.addAssigneeIds, changes.removeAssigneeIds),
         // A routine never depends on itself, even when the selection does.
         requiredIds: changedList(current.requiredIds, changes.addRequiredIds, changes.removeRequiredIds).filter((requiredId) => requiredId !== id),
+        // Nor is it related to itself.
+        relatedIds: changedList(current.relatedIds, changes.addRelatedIds, changes.removeRelatedIds).filter((relatedId) => relatedId !== id),
         ...(changes.estimate !== undefined && { estimate: changes.estimate }),
         ...(changes.projectId !== undefined && { projectId: changes.projectId }),
         // A repetition of its own: it no longer follows its cases.

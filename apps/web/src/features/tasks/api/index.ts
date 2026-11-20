@@ -468,6 +468,9 @@ function useTasksMutation<TVariables, TResult>(mutationFn: (variables: TVariable
 /** Fields of a task sent on a creation or an update (the shared input of the API). */
 export type TaskInputValues = TaskInput;
 
+/** Saves a change of a task now, from its panel (a section edited in place: its description, its links). */
+export type TaskSave = (input: Omit<TaskInputValues, 'projectId'>) => Promise<unknown>;
+
 /**
  * Creates a task.
  * @returns {UseMutationResult} Mutation state.

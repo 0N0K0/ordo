@@ -18,6 +18,7 @@ L’API accepte ce que l’interface empêche.
 - **Déplacement d’un projet archivé :** `moveProject` l’accepte ; l’interface ne le propose pas. Voir [Règles des projets](business-rules/cross-cutting/projects.md).
 - **Ouverture et échéance d’une tâche :** l’ordre « Ouverture » / « Échéance » n’est vérifié que par le formulaire (`taskFormSchema`) ; l’API (`assertDateRange`) ne vérifie que début / fin. Voir [Règles des tâches](business-rules/activities/tasks.md).
 - **Inventaire :** l’API ne vérifie pas que les articles comptés sont dans l’emplacement choisi ; seule l’interface les filtre. Voir [Règles du stock](business-rules/supplies/stock.md).
+- **Occurrence seule d’un évènement récurrent :** `updateCalendarEvent` en `THIS` ignore sans erreur les champs de la série reçus (répétition, calendrier, projet, contributeurs, bénéficiaires, relations, catégories, tâches, rappels) ; depuis le lot 14a, le panneau les met en lecture seule quand il est ouvert sur « Cette occurrence ». Voir [Règles de l’agenda](business-rules/activities/calendar.md) et [Agenda](features/activities/calendar.md).
 
 ## Archivage incomplet
 

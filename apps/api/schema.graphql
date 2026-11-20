@@ -3146,6 +3146,9 @@ Same changes for several routines (omitted fields unchanged; null clears estimat
 input RoutineBulkChanges {
   addAssigneeIds: [ID!]
   addCategoryIds: [ID!]
+
+  """« Relative à » added (never to itself)."""
+  addRelatedIds: [ID!]
   addRequiredIds: [ID!]
 
   """Cases (with recurrence: its whole repetition); empty: its rule."""
@@ -3169,6 +3172,7 @@ input RoutineBulkChanges {
   recurrence: JSON
   removeAssigneeIds: [ID!]
   removeCategoryIds: [ID!]
+  removeRelatedIds: [ID!]
   removeRequiredIds: [ID!]
 
   """On or out of calendar schedules, following its rule; null: any time."""

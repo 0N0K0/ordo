@@ -33,7 +33,7 @@ Route `PAGES.alarms.path` = `/alarms`, composant `AlarmsPage`. Contenu centré, 
 
 ## Formulaire d’alarme
 
-Panneau latéral « Nouvelle alarme » ou « Modifier l’alarme ». Ouvert depuis la page, la section « Alarmes » d’une tâche, la cellule « Alarmes » du tableau des tâches, la carte « Chrono et alarmes » de l’accueil, et les actions rapides « Ajouter › Alarme ».
+Panneau latéral « Nouvelle alarme » ou « Alarme » (existante). Ouvert depuis la page, la section « Alarmes » d’une tâche, la cellule « Alarmes » du tableau des tâches, la carte « Chrono et alarmes » de l’accueil, et les actions rapides « Ajouter › Alarme ».
 
 | Champ                              | Détail                                                                                                                                                                                              |
 | ---------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -46,7 +46,7 @@ Panneau latéral « Nouvelle alarme » ou « Modifier l’alarme ». Ouvert depu
 | « Description »                    | Texte multiligne, 4 000 caractères                                                                                                                                                                  |
 | « Active »                         | Activée par défaut                                                                                                                                                                                  |
 
-Boutons « Créer l’alarme » / « Enregistrer ». Toasts « Alarme créée. », « Alarme modifiée. ». « Dupliquer » (décision D20) enregistre tout de suite une copie qui reprend tout, avec le suffixe de copie dans le libellé (« Alarme dupliquée. »), puis ouvre « Modifier l’alarme » sur elle.
+Bouton « Créer l’alarme » pour une nouvelle alarme (toast « Alarme créée. »). Une alarme existante s’enregistre champ par champ (décision D22) : chaque champ dès qu’il change (« Libellé », « Description » et les minutes en les quittant ; le projet et la tâche vidée ensemble), sans bouton « Enregistrer » ; « Enregistrement… » puis « Enregistré » en haut du panneau ; un champ invalide garde son erreur dessous et n’est pas enregistré, un échec le remet comme il était, dans un toast d’erreur. « Dupliquer » (décision D20) enregistre tout de suite une copie qui reprend tout, avec le suffixe de copie dans le libellé (« Alarme dupliquée. »), puis ouvre son panneau « Alarme ».
 
 Modifier la programmation d’une alarme repart de zéro : les occurrences déjà passées ne sonnent pas.
 

@@ -192,7 +192,7 @@ Annulation depuis l'agenda (`deleteRoutineOccurrence`) :
 Source : `bulkUpdateRoutines`, `patchRoutine` (GraphQL).
 
 - Une sélection contenant une routine archivée est refusée entièrement.
-- Listes (catégories, assignés, dépendances) : ajouts et retraits ; « Relative à » se change routine par routine (`patchRoutine`) ; une routine ne dépend jamais d'elle-même, même si elle est dans la sélection.
+- Listes (catégories, assignés, dépendances, « Relative à ») : ajouts et retraits (`addRelatedIds` / `removeRelatedIds` pour « Relative à », lot 14a : une seule modification en masse, annulable) ; une routine ne dépend jamais d'elle-même, ni n'est relative à elle-même, même si elle est dans la sélection.
 - Une nouvelle `recurrence` vide les cas ; des horaires (`fromTime` / `dueTime`) donnent un seul moment.
 - Toutes les routines sont validées avant que la première soit enregistrée.
 - Nouveau projet : la sélection part ensemble, ses liens internes restent (voir [Validation](#validation-routineschema-parseroutine) ci-dessus).

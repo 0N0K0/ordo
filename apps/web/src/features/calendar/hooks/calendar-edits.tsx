@@ -3,7 +3,7 @@ import { changedScheduleSlot, type ScheduleSlotTime, type WorkScheduleRule } fro
 import { notifyFailure, notifySuccess, notifyWithUndo, ON_ERROR, onMutationError, toastCallbacks } from '../../../lib/notify';
 import { useRoutineMutations, type Routine } from '../../routines/api';
 import * as fmt from '../../../lib/format';
-import { useWorkScheduleMutations } from '../api';
+import { useWorkScheduleMutations, type CalendarEventScope } from '../api';
 import { askScope } from '../lib/ask-scope';
 import { fetchLostOnDelete } from '../../time/api';
 import { scopeLostNote } from '../../time/lib/lost-on-delete';
@@ -145,20 +145,25 @@ export function useCalendarEdits() {
   };
 
   /**
-   * Opens the form of an occurrence of a routine.
+   * Opens the panel of an occurrence of a routine, saved field by field (decision D22): asks first, once, which
+   * occurrences its changes apply to (cancelled: nothing opens); a cancelled occurrence, or one of an archived routine,
+   * opens without asking.
    * @param {RoutineOccurrenceRef} occurrence Occurrence.
    * @param {string | null} movedFrom Day of the rule it was moved from, if any.
-   * @returns {void}
+   * @returns {Promise<void>}
    */
-  const openRoutine = (occurrence: RoutineOccurrenceRef, movedFrom: string | null) => {
+  const openRoutine = async (occurrence: RoutineOccurrenceRef, movedFrom: string | null) => {
+    let scope: CalendarEventScope = 'THIS';
+    if (!occurrence.cancelled && !occurrence.archived) {
+      const answer = await askScope({ action: 'update', title: 'Modifier une routine', note: 'Les modifications faites dans le panneau, chacune enregistrée aussitôt, s’y appliqueront.' });
+      if (!answer) return;
+      scope = answer;
+    }
     openFormPanel(`« ${occurrence.routine.label} » du ${fmt.dayLong(occurrence.date)}`, (close) => (
       <RoutineOccurrenceForm
         occurrence={occurrence}
+        scope={scope}
         onClose={close}
-        onSave={(to, times) => {
-          close();
-          void changeRoutine(occurrence, to, times);
-        }}
         onDelete={() => {
           close();
           void removeRoutine(occurrence, movedFrom);

@@ -17,11 +17,12 @@ interface LinksForm {
 
 /**
  * Links of an item (event, task, routine), the same everywhere: an address (http or https) and an optional label
- * each, added and removed one by one, `ITEM_LINKS_MAX` at most (`itemLinksSchema` checks them).
- * @param {{ form: LinksForm }} props Form of the item (its `links` field).
+ * each, added and removed one by one, `ITEM_LINKS_MAX` at most (`itemLinksSchema` checks them). In a panel saved field
+ * by field (`useFieldSave`), a link is saved once typed (on leaving its inputs), a removal at once (`onRemoved`).
+ * @param {{ form: LinksForm, onRemoved?: () => void }} props Form of the item (its `links` field), and what follows a removal (its save). Optional.
  * @returns {JSX.Element} Field.
  */
-export function LinksField({ form }: { form: LinksForm }) {
+export function LinksField({ form, onRemoved }: { form: LinksForm; onRemoved?: () => void }) {
   const value = form.values.links ?? [];
   /**
    * Puts new links in the form.
@@ -36,7 +37,11 @@ export function LinksField({ form }: { form: LinksForm }) {
           <TextInput aria-label={`Adresse du lien ${index + 1}`} placeholder="https://…" leftSection={<LinkIcon aria-hidden />} style={{ flex: 2 }} {...form.getInputProps(`links.${index}.url`)} />
           {/* eslint-disable-next-line no-restricted-syntax -- LinksField itself. */}
           <TextInput aria-label={`Libellé du lien ${index + 1}`} placeholder="Libellé (facultatif)" style={{ flex: 1 }} {...form.getInputProps(`links.${index}.label`)} />
-          <RemoveButton label="Retirer" mt={4} aria-label={`Retirer le lien ${index + 1}`} onClick={() => onChange(value.filter((__, position) => position !== index))} />
+          <RemoveButton label="Retirer" mt={4} aria-label={`Retirer le lien ${index + 1}`} onClick={() => {
+              onChange(value.filter((__, position) => position !== index));
+              onRemoved?.();
+            }}
+          />
         </Group>
       ))}
       {/* eslint-disable-next-line no-restricted-syntax -- LinksField itself. */}

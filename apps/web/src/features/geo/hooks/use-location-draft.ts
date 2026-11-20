@@ -48,3 +48,24 @@ export function useLocationDraft(item: ItemLocation, save: (change: ItemLocation
     },
   };
 }
+
+/** Fields of the place of an item, saved together. */
+export const PLACE_FIELDS = ['location', 'locationLat', 'locationLon'] as const;
+
+/** Place fields as a form holds them (its text never null). */
+type FormLocation = { location: string; locationLat: number | null; locationLon: number | null };
+
+/**
+ * Location field of the form of an item (event, routine): `useLocationDraft` on its values, the place put in the form
+ * when chosen, cleared or left, then saved now in a panel saved field by field (`commit` of `useFieldSave`).
+ * @param {Partial<ItemLocation>} values Values of the form (its place).
+ * @param {(change: FormLocation) => void} set Puts the place in the form.
+ * @param {(fields: (typeof PLACE_FIELDS)[number][]) => void} [commit] Saves the place fields now. Optional.
+ * @returns {{ value: AddressValue, onChange: (value: AddressValue) => void, leave: () => void }} As `useLocationDraft`.
+ */
+export function useFormLocation(values: Partial<ItemLocation>, set: (change: FormLocation) => void, commit?: (fields: (typeof PLACE_FIELDS)[number][]) => void) {
+  return useLocationDraft({ location: values.location || null, locationLat: values.locationLat ?? null, locationLon: values.locationLon ?? null }, (change) => {
+    set({ ...change, location: change.location ?? '' });
+    commit?.([...PLACE_FIELDS]);
+  });
+}

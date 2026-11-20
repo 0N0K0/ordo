@@ -59,7 +59,7 @@ Les trois cellules de sujets passent par l’interne `TimeSubjectCell({ kind, en
 
 ### `components/TimeEntryForm.tsx`
 
-- `TimeEntryForm({ context, entry?, defaultProjectId?, onDone })` : formulaire d’un temps (ajout, modification) : projet (facultatif avec une tâche, une routine ou un évènement, décision D17 ; le changer vide routines et tâches), jour, début, durée, routines, tâches et évènements du jour (`TimeSubjectsFields`, valeurs `routineIds`, `taskIds`, `events` du formulaire), description ; schéma `timeEntryFormSchema` ; en modification, commentaires du temps (`Comments` cible `TIME_ENTRY`). Ouvert par `useTimeEntryDialogs`.
+- `TimeEntryForm({ context, entry?, defaultProjectId?, onDone })` : formulaire d’ajout (« Ajouter ») ou panneau d’un temps existant enregistré champ par champ (décision D22, `useFieldSave` : durée et description en les quittant, le reste dès qu’il change, `SaveStatus` en tête ; entrée de l’API par `entryInput`) : projet (facultatif avec une tâche, une routine ou un évènement, décision D17 ; le changer vide routines et tâches, enregistrés ensemble), jour, début, durée, routines, tâches et évènements du jour (`TimeSubjectsFields`, valeurs `routineIds`, `taskIds`, `events` du formulaire), description ; schéma `timeEntryFormSchema` ; en modification, commentaires du temps (`Comments` cible `TIME_ENTRY`). Ouvert par `useTimeEntryDialogs`.
 
 ### `components/TimeLogActions.tsx`
 
@@ -148,7 +148,7 @@ Classes `running` (bloc du chrono dans l’en-tête), `summary` (bouton sujet + 
 
 ### `hooks/use-time-dialogs.tsx`
 
-- `useTimeEntryDialogs(context, defaultProjectId?)` : `{ openForm(entry?), duplicate, confirmDelete(entry) }` : formulaire d’un temps dans le panneau, « Dupliquer » (`DuplicateOptions` de `duplicateRowsAction`, décision D20 : copie enregistrée tout de suite, jamais facturée, puis son formulaire ouvert via `cachedItem`) et confirmation de suppression. Utilisé par `TimePage`, `ProjectTimePanel`, l’agenda.
+- `useTimeEntryDialogs(context, defaultProjectId?)` : `{ openForm(entry?), duplicate, confirmDelete(entry) }` : formulaire d’un temps dans le panneau (« Ajouter un temps », ou « Temps » pour un temps existant), « Dupliquer » (`DuplicateOptions` de `duplicateRowsAction`, décision D20 : copie enregistrée tout de suite, jamais facturée, puis son formulaire ouvert via `cachedItem`) et confirmation de suppression. Utilisé par `TimePage`, `ProjectTimePanel`, l’agenda.
 
 ## lib/
 

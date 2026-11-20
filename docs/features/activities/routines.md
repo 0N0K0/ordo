@@ -95,7 +95,7 @@ Une routine se déplace par glisser-déposer, comme une tâche : avant une autre
 
 ### Menu d'une routine
 
-- « Modifier » (action principale) : formulaire.
+- « Modifier » (action principale) : panneau de la routine, enregistré champ par champ (décision D22).
 - « Ajouter une sous-routine ».
 - « Reporter au lendemain » et « Reporter, changer l'horaire ou annuler… » (quand une occurrence peut être déplacée).
 - « Dupliquer » (décision D20 : enregistrée tout de suite, « … (copie) », avec ses sous-routines ; un ancien lien hors de l'arborescence de projets de la routine n'est pas copié) ; toast « Routine dupliquée. », puis le panneau de la copie s'ouvre.
@@ -119,7 +119,9 @@ Suppression : dialogue de confirmation « Supprimer la routine » (« Supprimer 
 
 ## Formulaire d'une routine
 
-Ouvert dans le panneau latéral (largeur `lg`) par « Nouvelle routine », « Modifier », un clic sur le libellé, « Ajouter une sous-routine » ou une copie qui vient d'être enregistrée. Titres : « Nouvelle routine », « Modifier la routine », « Nouvelle sous-routine de « … » ».
+Ouvert dans le panneau latéral (largeur `lg`) par « Nouvelle routine », « Modifier », un clic sur le libellé, « Ajouter une sous-routine » ou une copie qui vient d'être enregistrée. Titres : « Nouvelle routine », « Routine » (existante), « Nouvelle sous-routine de « … » ».
+
+Une routine existante s'enregistre champ par champ (décision D22), comme une tâche : chaque champ est enregistré dès qu'il change (libellé, description, « Temps à y consacrer », liens, lieu et trajets en les quittant ; Entrée dans le libellé aussi ; la fenêtre « Répétition et moments » une fois validée), sans bouton « Enregistrer » ; « Enregistrement… » puis « Enregistré » en haut du panneau. Un champ invalide garde son erreur dessous et n'est pas enregistré ; un échec le remet comme il était, dans un toast d'erreur ; un changement qui fait disparaître des occurrences demande la confirmation habituelle (refusée : le champ revient). La création garde son bouton « Créer ».
 
 | Champ                                                                        | Règle                                                                                                                                                                                                                                                                         |
 | ---------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -145,7 +147,7 @@ Valeurs par défaut d'une nouvelle routine : tous les jours à partir d'aujourd'
 
 Sous les trajets, une ligne résume « Partir à 8 h 05 (trajet et 15 min sur place) · retour vers 9 h 00 » quand la routine a un seul moment.
 
-Toasts : « Routine créée. », « Routine modifiée. ». Une routine passée dans une autre arborescence de projets perd ses liens hors d'elle : « Routine modifiée. 2 liens retirés. » ; de même sur place (« Routine déplacée. 2 liens retirés. ») et sur une sélection (« Modification appliquée à 3 routines. 2 liens retirés. »).
+Toasts : « Routine créée. ». Une routine passée dans une autre arborescence de projets perd ses liens hors d'elle : « Routine déplacée. 2 liens retirés. » (panneau et tableau), « Modification appliquée à 3 routines. 2 liens retirés. » sur une sélection.
 
 ### Fenêtre « Répétition et moments »
 

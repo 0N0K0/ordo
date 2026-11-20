@@ -14,7 +14,7 @@ export type AlarmFormOpener = (alarm?: Alarm, options?: { defaults?: AlarmDefaul
 export function useAlarmForm(context: TaskContext | null): AlarmFormOpener {
   return (alarm, { defaults } = {}) => {
     if (!context) return;
-    openFormPanel(alarm ? 'Modifier l’alarme' : 'Nouvelle alarme', (close) => (
+    openFormPanel(alarm ? 'Alarme' : 'Nouvelle alarme', (close) => (
       <AlarmForm context={context} alarm={alarm} defaults={defaults} onDone={close} />
     ));
   };
