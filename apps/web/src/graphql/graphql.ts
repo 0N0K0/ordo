@@ -2254,7 +2254,7 @@ export type DeleteCalendarEventMutation = { deleteCalendarEvent: boolean };
 export type BirthdaysQueryVariables = Exact<{ [key: string]: never; }>;
 
 
-export type BirthdaysQuery = { birthdays: Array<{ id: string, contributorId: string | null, relationId: string | null, name: string, birthDate: string, reminders: Array<{ before: number | null, at: string | null, days: number | null }> }> };
+export type BirthdaysQuery = { birthdays: Array<{ id: string, contributorId: string | null, relationId: string | null, name: string, birthDate: string, archived: boolean, aliases: Array<string>, reminders: Array<{ before: number | null, at: string | null, days: number | null }> }> };
 
 export type CommentsQueryVariables = Exact<{
   target: CommentTarget;
@@ -4048,6 +4048,7 @@ export type DeleteTaskCommentMutation = { deleteTaskComment: boolean };
 
 export type CreateContributorMutationVariables = Exact<{
   input: ContributorInput;
+  confirmLoss?: boolean | null | undefined;
 }>;
 
 
@@ -4056,6 +4057,7 @@ export type CreateContributorMutation = { createContributor: { id: string, archi
 export type UpdateContributorMutationVariables = Exact<{
   id: string | number;
   input: ContributorUpdateInput;
+  confirmLoss?: boolean | null | undefined;
 }>;
 
 
@@ -4071,6 +4073,7 @@ export type SetProjectContributorsMutation = { setProjectContributors: boolean }
 
 export type DeleteContributorMutationVariables = Exact<{
   id: string | number;
+  confirmLoss?: boolean | null | undefined;
 }>;
 
 
@@ -4557,6 +4560,7 @@ export type RemoveTreasuryMemberMutation = { removeTreasuryMember: boolean };
 export type SaveTreasuryRelationMutationVariables = Exact<{
   id?: string | number | null | undefined;
   input: TreasuryRelationInput;
+  confirmLoss?: boolean | null | undefined;
 }>;
 
 
@@ -4564,6 +4568,7 @@ export type SaveTreasuryRelationMutation = { saveTreasuryRelation: string };
 
 export type DeleteTreasuryRelationMutationVariables = Exact<{
   id: string | number;
+  confirmLoss?: boolean | null | undefined;
 }>;
 
 
@@ -4688,6 +4693,7 @@ export type SetArchivedMutationVariables = Exact<{
   kind: ArchivableKind;
   ids: Array<string | number> | string | number;
   archived: boolean;
+  confirmLoss?: boolean | null | undefined;
 }>;
 
 
@@ -6792,12 +6798,14 @@ export const DeleteCalendarEventDocument = new TypedDocumentString(`
     `) as unknown as TypedDocumentString<DeleteCalendarEventMutation, DeleteCalendarEventMutationVariables>;
 export const BirthdaysDocument = new TypedDocumentString(`
     query Birthdays {
-  birthdays {
+  birthdays(archived: true) {
     id
     contributorId
     relationId
     name
     birthDate
+    archived
+    aliases
     reminders {
       before
       at
@@ -9307,8 +9315,8 @@ export const DeleteTaskCommentDocument = new TypedDocumentString(`
 }
     `) as unknown as TypedDocumentString<DeleteTaskCommentMutation, DeleteTaskCommentMutationVariables>;
 export const CreateContributorDocument = new TypedDocumentString(`
-    mutation CreateContributor($input: ContributorInput!) {
-  createContributor(input: $input) {
+    mutation CreateContributor($input: ContributorInput!, $confirmLoss: Boolean) {
+  createContributor(input: $input, confirmLoss: $confirmLoss) {
     ...ContributorFields
   }
 }
@@ -9330,8 +9338,8 @@ export const CreateContributorDocument = new TypedDocumentString(`
   phones
 }`) as unknown as TypedDocumentString<CreateContributorMutation, CreateContributorMutationVariables>;
 export const UpdateContributorDocument = new TypedDocumentString(`
-    mutation UpdateContributor($id: ID!, $input: ContributorUpdateInput!) {
-  updateContributor(id: $id, input: $input) {
+    mutation UpdateContributor($id: ID!, $input: ContributorUpdateInput!, $confirmLoss: Boolean) {
+  updateContributor(id: $id, input: $input, confirmLoss: $confirmLoss) {
     ...ContributorFields
   }
 }
@@ -9358,8 +9366,8 @@ export const SetProjectContributorsDocument = new TypedDocumentString(`
 }
     `) as unknown as TypedDocumentString<SetProjectContributorsMutation, SetProjectContributorsMutationVariables>;
 export const DeleteContributorDocument = new TypedDocumentString(`
-    mutation DeleteContributor($id: ID!) {
-  deleteContributor(id: $id)
+    mutation DeleteContributor($id: ID!, $confirmLoss: Boolean) {
+  deleteContributor(id: $id, confirmLoss: $confirmLoss)
 }
     `) as unknown as TypedDocumentString<DeleteContributorMutation, DeleteContributorMutationVariables>;
 export const CreateTaskStatusDocument = new TypedDocumentString(`
@@ -10100,13 +10108,13 @@ export const RemoveTreasuryMemberDocument = new TypedDocumentString(`
 }
     `) as unknown as TypedDocumentString<RemoveTreasuryMemberMutation, RemoveTreasuryMemberMutationVariables>;
 export const SaveTreasuryRelationDocument = new TypedDocumentString(`
-    mutation SaveTreasuryRelation($id: ID, $input: TreasuryRelationInput!) {
-  saveTreasuryRelation(id: $id, input: $input)
+    mutation SaveTreasuryRelation($id: ID, $input: TreasuryRelationInput!, $confirmLoss: Boolean) {
+  saveTreasuryRelation(id: $id, input: $input, confirmLoss: $confirmLoss)
 }
     `) as unknown as TypedDocumentString<SaveTreasuryRelationMutation, SaveTreasuryRelationMutationVariables>;
 export const DeleteTreasuryRelationDocument = new TypedDocumentString(`
-    mutation DeleteTreasuryRelation($id: ID!) {
-  deleteTreasuryRelation(id: $id)
+    mutation DeleteTreasuryRelation($id: ID!, $confirmLoss: Boolean) {
+  deleteTreasuryRelation(id: $id, confirmLoss: $confirmLoss)
 }
     `) as unknown as TypedDocumentString<DeleteTreasuryRelationMutation, DeleteTreasuryRelationMutationVariables>;
 export const SaveTreasuryContextDocument = new TypedDocumentString(`
@@ -10351,7 +10359,12 @@ export const ElsewhereMarkAlarmFiredDocument = new TypedDocumentString(`
 }
     `) as unknown as TypedDocumentString<ElsewhereMarkAlarmFiredMutation, ElsewhereMarkAlarmFiredMutationVariables>;
 export const SetArchivedDocument = new TypedDocumentString(`
-    mutation SetArchived($kind: ArchivableKind!, $ids: [ID!]!, $archived: Boolean!) {
-  setArchived(kind: $kind, ids: $ids, archived: $archived)
+    mutation SetArchived($kind: ArchivableKind!, $ids: [ID!]!, $archived: Boolean!, $confirmLoss: Boolean) {
+  setArchived(
+    kind: $kind
+    ids: $ids
+    archived: $archived
+    confirmLoss: $confirmLoss
+  )
 }
     `) as unknown as TypedDocumentString<SetArchivedMutation, SetArchivedMutationVariables>;

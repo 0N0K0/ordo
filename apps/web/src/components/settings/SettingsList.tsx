@@ -104,9 +104,10 @@ export function SettingsList<C extends SettingsItem, E extends object = Record<s
   withParent = true,
   canMove,
   adderRef,
+  confirmLoss,
 }: SettingsListProps<C, E>) {
   const reorder = useReorderSettingsItems();
-  const setArchived = useSetArchived(kind);
+  const setArchived = useSetArchived(kind, undefined, confirmLoss);
   const { shown, showArchived, toggle: archivedToggle } = useArchivedToggle(items);
   // The form of an item follows the list (a panel renders once): values changed elsewhere are taken.
   const liveItems = useLiveSource(items);

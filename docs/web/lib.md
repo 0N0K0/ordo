@@ -102,8 +102,9 @@ Voir [Règles : archivage](../business-rules/cross-cutting/archiving.md).
 
 - `ArchivableKind` (type, réexporté du schéma GraphQL) : sortes d'éléments archivables.
 - `ARCHIVED_MESSAGE` : « Élément archivé : restaurez-le pour le modifier. » (le même que l'API, décision BC).
-- `setArchived(kind, ids, archived)` : archive (masqué par défaut, lecture seule) ou restaure des éléments d'une sorte, tous d'un coup (mutation `setArchived`).
-- `useSetArchived(kind, invalidate = [[]])` : la mutation, puis les requêtes rafraîchies (par défaut toutes : l'élément peut apparaître dans beaucoup de listes, sélections, filtres).
+- `setArchived(kind, ids, archived, confirmLoss?)` : archive (masqué par défaut, lecture seule) ou restaure des éléments d'une sorte, tous d'un coup (mutation `setArchived` ; `confirmLoss` : occurrences de routines perdues confirmées, décision FQ).
+- `useSetArchived(kind, invalidate = [[]], confirmLoss?)` : la mutation, puis les requêtes rafraîchies (par défaut toutes : l'élément peut apparaître dans beaucoup de listes, sélections, filtres) ; `confirmLoss` (`LossConfirmation`, en pratique `withLossConfirmation` des features) demande ce que l'archivage perd quand l'API le refuse sans confirmation (créneaux, types, personnes : `useSlotSourceArchiving`, garde eslint).
+- `LossConfirmation` (type) : exécute un changement refusable par `CONFIRMATION_REQUIRED` en demandant d'abord (décision FQ).
 - `unarchived(items, keep?, idOf?)` : éléments non archivés, comme une sélection ou un filtre les propose, en gardant les valeurs en cours `keep`. ~90 fichiers ; imposé par eslint (`filter(x => !x.archived)` interdit).
 - `ArchivedToggle` (interface) et `useArchivedToggle(items, isArchived?)` : « Afficher les archivés » d'une liste, d'un tableau, d'un tableau de bord : éléments affichés (`shown`), état (`showArchived`) et props de l'interrupteur (`toggle` : `checked`, `onChange`, `count` ; sans archivé, l'interrupteur ne s'affiche pas).
 - `archivedMessage(label, archived, { feminine, count, cascade })` : « « Courses » archivée. », « 3 listes restaurées. », avec ce qui est archivé avec (« avec ses projets »).

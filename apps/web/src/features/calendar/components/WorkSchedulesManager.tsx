@@ -38,8 +38,8 @@ import { notifyError, ON_ERROR } from '../../../lib/notify';
 import { openFormPanel } from '../../../components/panels/panels';
 import { SectionHeader } from '../../../components/page/SectionHeader';
 import { useActiveWorkspace } from '../../workspaces/api';
-import { calendarQueryKey, useDefaultScheduleKind, useScheduleTypes, useWorkScheduleMutations, useWorkSchedules, type WorkSchedule } from '../api';
-import { archiveEntry, useSetArchived } from '../../../lib/archive';
+import { calendarQueryKey, useDefaultScheduleKind, useScheduleTypes, useSlotSourceArchiving, useWorkScheduleMutations, useWorkSchedules, type WorkSchedule } from '../api';
+import { archiveEntry } from '../../../lib/archive';
 import { ArchivedBadge } from '../../../components/feedback/ArchivedBadge';
 import { ScheduleRepetition } from './ScheduleRepetition';
 import { describeScheduleCase, EPHEMERIDES_TITLE, exceptionPeriod, newScheduleCase, schedulesTitle } from '../lib/schedule-text';
@@ -247,7 +247,7 @@ export function WorkSchedulesManager({ ephemeris = false }: { ephemeris?: boolea
   const { data: defaultKind } = useDefaultScheduleKind();
   const { create, remove, update } = useWorkScheduleMutations();
   const queryClient = useQueryClient();
-  const setArchived = useSetArchived('WORK_SCHEDULE', [calendarQueryKey]);
+  const setArchived = useSlotSourceArchiving('WORK_SCHEDULE', []);
 
   /**
    * Saves fields of a schedule changed in their cells (its hours and exceptions kept).

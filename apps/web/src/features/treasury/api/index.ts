@@ -17,7 +17,8 @@ import { execute } from '../../../lib/graphql-client';
 import { accountingQueryKey } from '../../accounting/api';
 import { tasksQueryKey } from '../../tasks/api';
 import { projectTreeQueryKey } from '../../projects/api';
-import { birthdaysQueryKey, calendarQueryKey } from '../../calendar/api';
+import { birthdaysQueryKey, calendarQueryKey, SLOT_DEPENDENT_KEYS } from '../../calendar/api';
+import { withLossConfirmation } from '../../time/lib/confirm-loss';
 
 export type TreasuryAccount = TreasuryAccountsQuery['treasuryAccounts'][number];
 export type TreasuryEntry = TreasuryEntriesQuery['treasuryEntries'][number];
@@ -566,14 +567,14 @@ const RemoveMember = graphql(`
 `);
 
 const SaveRelation = graphql(`
-  mutation SaveTreasuryRelation($id: ID, $input: TreasuryRelationInput!) {
-    saveTreasuryRelation(id: $id, input: $input)
+  mutation SaveTreasuryRelation($id: ID, $input: TreasuryRelationInput!, $confirmLoss: Boolean) {
+    saveTreasuryRelation(id: $id, input: $input, confirmLoss: $confirmLoss)
   }
 `);
 
 const DeleteRelation = graphql(`
-  mutation DeleteTreasuryRelation($id: ID!) {
-    deleteTreasuryRelation(id: $id)
+  mutation DeleteTreasuryRelation($id: ID!, $confirmLoss: Boolean) {
+    deleteTreasuryRelation(id: $id, confirmLoss: $confirmLoss)
   }
 `);
 
@@ -593,12 +594,16 @@ export function useTreasuryTeamMutations() {
   return {
     addMember: useInvalidatingMutation(async (variables: { contributorId?: string; name?: string }) => (await execute(AddMember, variables)).addTreasuryMember, contributorsChanged),
     removeMember: useInvalidatingMutation(async (contributorId: string) => (await execute(RemoveMember, { contributorId })).removeTreasuryMember, contributorsChanged),
-    // Its birthday follows (lot 16).
+    // Its birthday follows (lot 16): moved or gone (birth date, contributor), the occurrences of routines lost are
+    // confirmed first, and what depends on it refreshed (decision FQ).
     saveRelation: useInvalidatingMutation(
-      async (variables: { id: string | null; input: { name: string; note: string | null; contributorId: string | null } & PersonDetailsValues }) => (await execute(SaveRelation, variables)).saveTreasuryRelation,
-      { invalidate: [accountingQueryKey, birthdaysQueryKey] },
+      async (variables: { id: string | null; input: { name: string; note: string | null; contributorId: string | null } & PersonDetailsValues }) =>
+        withLossConfirmation(async (confirmLoss) => (await execute(SaveRelation, { ...variables, confirmLoss })).saveTreasuryRelation),
+      { invalidate: [accountingQueryKey, birthdaysQueryKey, ...SLOT_DEPENDENT_KEYS] },
     ),
-    deleteRelation: useTreasuryMutation(async (id: string) => (await execute(DeleteRelation, { id })).deleteTreasuryRelation),
+    deleteRelation: useInvalidatingMutation(async (id: string) => withLossConfirmation(async (confirmLoss) => (await execute(DeleteRelation, { id, confirmLoss })).deleteTreasuryRelation), {
+      invalidate: [accountingQueryKey, birthdaysQueryKey, ...SLOT_DEPENDENT_KEYS],
+    }),
     saveContext: useInvalidatingMutation(async (variables: { id: string | null; input: { label: string; color: string } }) => (await execute(SaveContext, variables)).saveTreasuryContext, {
       invalidate: [treasuryKey, calendarQueryKey],
     }),

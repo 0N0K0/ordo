@@ -12,10 +12,16 @@ import { agreed } from '@ordo/shared';
 export type { ArchivableKind };
 
 const SetArchivedDocument = graphql(`
-  mutation SetArchived($kind: ArchivableKind!, $ids: [ID!]!, $archived: Boolean!) {
-    setArchived(kind: $kind, ids: $ids, archived: $archived)
+  mutation SetArchived($kind: ArchivableKind!, $ids: [ID!]!, $archived: Boolean!, $confirmLoss: Boolean) {
+    setArchived(kind: $kind, ids: $ids, archived: $archived, confirmLoss: $confirmLoss)
   }
 `);
+
+/**
+ * Runs a change the API may refuse while what it loses is not confirmed (CONFIRMATION_REQUIRED), asking first
+ * (`withLossConfirmation` of the features: schedules, kinds and people archived, decision FQ).
+ */
+export type LossConfirmation = <T>(run: (confirm: boolean) => Promise<T>) => Promise<T>;
 
 /** Message of the API refusing a change of an archived element (the same as `ARCHIVED_MESSAGE` of the API). */
 export const ARCHIVED_MESSAGE = 'Élément archivé : restaurez-le pour le modifier.';
@@ -25,20 +31,26 @@ export const ARCHIVED_MESSAGE = 'Élément archivé : restaurez-le pour le modif
  * @param {ArchivableKind} kind Kind of the elements.
  * @param {readonly string[]} ids Elements.
  * @param {boolean} archived Archives (else restores).
+ * @param {boolean} [confirmLoss] What it loses is confirmed (decision FQ). Optional. Default = to confirm.
  * @returns {Promise<boolean>} Done.
  */
-export async function setArchived(kind: ArchivableKind, ids: readonly string[], archived: boolean): Promise<boolean> {
-  return (await execute(SetArchivedDocument, { kind, ids: [...ids], archived })).setArchived;
+export async function setArchived(kind: ArchivableKind, ids: readonly string[], archived: boolean, confirmLoss?: boolean): Promise<boolean> {
+  return (await execute(SetArchivedDocument, { kind, ids: [...ids], archived, confirmLoss })).setArchived;
 }
 
 /**
  * Archives or restores elements of a kind (`mutate({ ids, archived })`), then refreshes the queries showing them.
  * @param {ArchivableKind} kind Kind of the elements.
  * @param {readonly QueryKey[]} [invalidate] Queries refreshed (with what starts with these keys). Optional. Default = every query (the element may show in many lists, selects, filters…).
+ * @param {LossConfirmation} [confirmLoss] Asks what the change loses when the API refuses it unconfirmed (archiving a
+ * schedule, a kind or a person: occurrences of routines, decision FQ). Optional. Default = never asked.
  * @returns {UseMutationResult<boolean, Error, { ids: readonly string[], archived: boolean }>} Mutation state.
  */
-export function useSetArchived(kind: ArchivableKind, invalidate: readonly QueryKey[] = [[]]) {
-  return useInvalidatingMutation(({ ids, archived }: { ids: readonly string[]; archived: boolean }) => setArchived(kind, ids, archived), { invalidate });
+export function useSetArchived(kind: ArchivableKind, invalidate: readonly QueryKey[] = [[]], confirmLoss?: LossConfirmation) {
+  return useInvalidatingMutation(
+    ({ ids, archived }: { ids: readonly string[]; archived: boolean }) => (confirmLoss ? confirmLoss((confirm) => setArchived(kind, ids, archived, confirm)) : setArchived(kind, ids, archived)),
+    { invalidate },
+  );
 }
 
 /** Element that may be archived (its `archived` field; none: never archived). */

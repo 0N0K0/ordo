@@ -1120,6 +1120,12 @@ export default defineConfig([
           selector: "JSXOpeningElement[name.name='BirthDateField']",
           message: 'Utiliser PersonDetailsFields (components/people) : les détails d’une personne, les mêmes partout (décision FO).',
         },
+        {
+          // Decision FQ: archiving a schedule, a kind or a person may make occurrences of routines disappear.
+          selector: "CallExpression[callee.name='useSetArchived'][arguments.0.value=/^(WORK_SCHEDULE|SCHEDULE_TYPE|CONTRIBUTOR|TREASURY_RELATION)$/]",
+          message:
+            'Utiliser useSlotSourceArchiving(kind) (features/calendar/api) : archiver un créneau, un type ou une personne confirme les occurrences de routines perdues et recharge ce qui en dépend (décision FQ ; un type : confirmLoss de useScheduleTypeItems).',
+        },
       ],
     },
   },

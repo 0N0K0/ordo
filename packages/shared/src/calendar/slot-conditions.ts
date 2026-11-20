@@ -1,6 +1,6 @@
 import { filterConditionSchemaFor, filterGroupSchemaFor, type FilterConditionOf, type FilterGroupOf } from '../tables/filters';
 import { addDays } from '../dates/days';
-import { plannedSlots, slotSchedules, type PlannedSlot, type WorkScheduleRule } from './work-schedules';
+import { countedSchedules, plannedSlots, slotSchedules, type PlannedSlot, type WorkScheduleRule } from './work-schedules';
 import { BIRTHDAY_SLOT_KIND, birthdaySlotId, birthdaySlotPerson, scheduleSlotKind } from './slot-kinds';
 import { birthdaysBetween, readBirthDate } from '../people/birthdays';
 
@@ -254,38 +254,53 @@ export interface ForeignScheduleRule {
   rule: WorkScheduleRule;
 }
 
-/** Birthday of a person, as slot conditions count it (lot 16c): its id (`personBirthdayId`) and the birth date. */
+/**
+ * Birthday of a person, as slot conditions count it (lot 16c): its id (`personBirthdayId`), the birth date, whether
+ * its person is archived (it then gives no moment, decision FQ), and the other ids it is the birthday of (a relation
+ * linked to a contributor: one person, one birthday, decision FQ).
+ */
 export interface BirthdaySource {
   /** `contributor:<id>` or `relation:<id>`. */
   id: string;
   /** YYYY-MM-DD, or --MM-DD without year. */
   birthDate: string;
+  /** Its person is archived: no moment. Optional. Default = false. */
+  archived?: boolean;
+  /** Other birthday ids (`personBirthdayId`) naming the same one: the relation linked to the contributor, or the reverse. Optional. Default = none. */
+  aliases?: readonly string[];
 }
 
 /**
  * Slots of some schedules on a day, the slots of each day computed when first asked: what conditions on calendar
  * schedules are evaluated on, for tasks and routines alike. The schedules of the other workspaces only count where a
  * condition names them (or their kinds), never in the free time; nor do the éphémérides of the workspace, nor the
- * birthdays (whole days, named by `birthdaySlotId` or all of them by `BIRTHDAY_SLOT_KIND`, lot 16c).
+ * birthdays (whole days, named by `birthdaySlotId` or all of them by `BIRTHDAY_SLOT_KIND`, lot 16c). Archived
+ * schedules, those of archived kinds and the birthdays of archived people count nowhere (decision FQ).
  * @param {readonly WorkScheduleRule[]} rules Schedules of the workspace.
  * @param {readonly ForeignScheduleRule[]} [foreign] Schedules of the other workspaces of the user. Optional. Default = none.
  * @param {readonly BirthdaySource[]} [birthdays] Birthdays of the people of the workspace. Optional. Default = none.
  * @returns {SlotsOn} Slots of some schedules on a day.
  */
 export function scheduleSlotsOn(rules: readonly WorkScheduleRule[], foreign: readonly ForeignScheduleRule[] = [], birthdays: readonly BirthdaySource[] = []): SlotsOn {
+  // Archived schedules, those of archived kinds and the birthdays of archived people give no moment (decision FQ).
+  const counted = countedSchedules(rules);
+  const others = foreign.filter(({ rule }) => countedSchedules([rule]).length);
   // The free time: out of the créneaux of the workspace, its éphémérides left out (lot 16).
-  const own = new Set(slotSchedules(rules).map((rule) => rule.id));
-  const kindOf = new Map<string, string | null>([...rules.map((rule) => [rule.id, scheduleSlotKind(rule)] as const), ...foreign.map(({ workspaceId, rule }) => [rule.id, scheduleSlotKind(rule, workspaceId)] as const)]);
-  const all = [...rules, ...foreign.map(({ rule }) => rule)];
-  // Birthdays: a whole day each year, of the kind of every birthday.
+  const own = new Set(slotSchedules(counted).map((rule) => rule.id));
+  const kindOf = new Map<string, string | null>([...counted.map((rule) => [rule.id, scheduleSlotKind(rule)] as const), ...others.map(({ workspaceId, rule }) => [rule.id, scheduleSlotKind(rule, workspaceId)] as const)]);
+  const all = [...counted, ...others.map(({ rule }) => rule)];
+  // Birthdays: a whole day each year, of the kind of every birthday; a reference to another id of the same person
+  // names it too (decision FQ).
   const births = birthdays.flatMap((birthday) => {
-    const birth = readBirthDate(birthday.birthDate);
+    const birth = !birthday.archived && readBirthDate(birthday.birthDate);
     return birth ? [{ scheduleId: birthdaySlotId(birthday.id), birth }] : [];
   });
+  const aliasOf = new Map(birthdays.filter((birthday) => !birthday.archived).flatMap((birthday) => (birthday.aliases ?? []).map((alias) => [birthdaySlotId(alias), birthdaySlotId(birthday.id)] as const)));
   for (const { scheduleId } of births) kindOf.set(scheduleId, BIRTHDAY_SLOT_KIND);
   const byDay = new Map<string, PlannedSlot[]>();
-  return ({ ids = [], kinds = [] }, date) => {
-    if (!ids.length && !kinds.length) return [];
+  return ({ ids: asked = [], kinds = [] }, date) => {
+    if (!asked.length && !kinds.length) return [];
+    const ids = asked.map((id) => aliasOf.get(id) ?? id);
     let slots = byDay.get(date);
     if (!slots) {
       const birthdaySlots = births.filter(({ birth }) => birthdaysBetween(birth, date, date).length).map(({ scheduleId }) => ({ date, start: '00:00', end: '24:00', allDay: true, scheduleId }));

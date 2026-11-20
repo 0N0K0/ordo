@@ -145,7 +145,7 @@ type Documents = {
     "\n  mutation CreateCalendarEvent($input: CalendarEventInput!) {\n    createCalendarEvent(input: $input)\n  }\n": typeof types.CreateCalendarEventDocument,
     "\n  mutation UpdateCalendarEvent($id: ID!, $input: CalendarEventInput!, $scope: CalendarEventScope!, $occurrenceDate: Date, $confirmLoss: Boolean) {\n    updateCalendarEvent(id: $id, input: $input, scope: $scope, occurrenceDate: $occurrenceDate, confirmLoss: $confirmLoss)\n  }\n": typeof types.UpdateCalendarEventDocument,
     "\n  mutation DeleteCalendarEvent($id: ID!, $scope: CalendarEventScope!, $occurrenceDate: Date) {\n    deleteCalendarEvent(id: $id, scope: $scope, occurrenceDate: $occurrenceDate)\n  }\n": typeof types.DeleteCalendarEventDocument,
-    "\n  query Birthdays {\n    birthdays {\n      id\n      contributorId\n      relationId\n      name\n      birthDate\n      reminders {\n        before\n        at\n        days\n      }\n    }\n  }\n": typeof types.BirthdaysDocument,
+    "\n  query Birthdays {\n    birthdays(archived: true) {\n      id\n      contributorId\n      relationId\n      name\n      birthDate\n      archived\n      aliases\n      reminders {\n        before\n        at\n        days\n      }\n    }\n  }\n": typeof types.BirthdaysDocument,
     "\n  query Comments($target: CommentTarget!, $id: String!, $occurrenceDate: Date) {\n    comments(target: $target, id: $id, occurrenceDate: $occurrenceDate) {\n      id\n      body\n      createdAt\n    }\n  }\n": typeof types.CommentsDocument,
     "\n  query CommentCounts($target: CommentTarget!, $ids: [String!]!) {\n    commentCounts(target: $target, ids: $ids) {\n      id\n      count\n    }\n  }\n": typeof types.CommentCountsDocument,
     "\n  mutation AddComment($target: CommentTarget!, $id: String!, $body: String!, $occurrenceDate: Date) {\n    addComment(target: $target, id: $id, body: $body, occurrenceDate: $occurrenceDate) {\n      id\n    }\n  }\n": typeof types.AddCommentDocument,
@@ -388,10 +388,10 @@ type Documents = {
     "\n  mutation AddTaskComment($taskId: ID!, $body: String!) {\n    addTaskComment(taskId: $taskId, body: $body) {\n      ...TaskCommentFields\n    }\n  }\n": typeof types.AddTaskCommentDocument,
     "\n  mutation UpdateTaskComment($id: ID!, $body: String!) {\n    updateTaskComment(id: $id, body: $body) {\n      ...TaskCommentFields\n    }\n  }\n": typeof types.UpdateTaskCommentDocument,
     "\n  mutation DeleteTaskComment($id: ID!) {\n    deleteTaskComment(id: $id)\n  }\n": typeof types.DeleteTaskCommentDocument,
-    "\n  mutation CreateContributor($input: ContributorInput!) {\n    createContributor(input: $input) {\n      ...ContributorFields\n    }\n  }\n": typeof types.CreateContributorDocument,
-    "\n  mutation UpdateContributor($id: ID!, $input: ContributorUpdateInput!) {\n    updateContributor(id: $id, input: $input) {\n      ...ContributorFields\n    }\n  }\n": typeof types.UpdateContributorDocument,
+    "\n  mutation CreateContributor($input: ContributorInput!, $confirmLoss: Boolean) {\n    createContributor(input: $input, confirmLoss: $confirmLoss) {\n      ...ContributorFields\n    }\n  }\n": typeof types.CreateContributorDocument,
+    "\n  mutation UpdateContributor($id: ID!, $input: ContributorUpdateInput!, $confirmLoss: Boolean) {\n    updateContributor(id: $id, input: $input, confirmLoss: $confirmLoss) {\n      ...ContributorFields\n    }\n  }\n": typeof types.UpdateContributorDocument,
     "\n  mutation SetProjectContributors($projectId: ID!, $contributorIds: [ID!]!) {\n    setProjectContributors(projectId: $projectId, contributorIds: $contributorIds)\n  }\n": typeof types.SetProjectContributorsDocument,
-    "\n  mutation DeleteContributor($id: ID!) {\n    deleteContributor(id: $id)\n  }\n": typeof types.DeleteContributorDocument,
+    "\n  mutation DeleteContributor($id: ID!, $confirmLoss: Boolean) {\n    deleteContributor(id: $id, confirmLoss: $confirmLoss)\n  }\n": typeof types.DeleteContributorDocument,
     "\n      mutation CreateTaskStatus($input: TaskLabelInput!) {\n        createTaskStatus(input: $input) {\n          id\n        }\n      }\n    ": typeof types.CreateTaskStatusDocument,
     "\n      mutation UpdateTaskStatus($id: ID!, $input: TaskLabelUpdateInput!) {\n        updateTaskStatus(id: $id, input: $input) {\n          id\n        }\n      }\n    ": typeof types.UpdateTaskStatusDocument,
     "\n      mutation DeleteTaskStatus($id: ID!) {\n        deleteTaskStatus(id: $id)\n      }\n    ": typeof types.DeleteTaskStatusDocument,
@@ -459,8 +459,8 @@ type Documents = {
     "\n  mutation SetInvoiceTreasuryCategories($invoiceCategoryId: ID, $creditNoteCategoryId: ID) {\n    setInvoiceTreasuryCategories(invoiceCategoryId: $invoiceCategoryId, creditNoteCategoryId: $creditNoteCategoryId)\n  }\n": typeof types.SetInvoiceTreasuryCategoriesDocument,
     "\n  mutation AddTreasuryMember($contributorId: ID, $name: String) {\n    addTreasuryMember(contributorId: $contributorId, name: $name)\n  }\n": typeof types.AddTreasuryMemberDocument,
     "\n  mutation RemoveTreasuryMember($contributorId: ID!) {\n    removeTreasuryMember(contributorId: $contributorId)\n  }\n": typeof types.RemoveTreasuryMemberDocument,
-    "\n  mutation SaveTreasuryRelation($id: ID, $input: TreasuryRelationInput!) {\n    saveTreasuryRelation(id: $id, input: $input)\n  }\n": typeof types.SaveTreasuryRelationDocument,
-    "\n  mutation DeleteTreasuryRelation($id: ID!) {\n    deleteTreasuryRelation(id: $id)\n  }\n": typeof types.DeleteTreasuryRelationDocument,
+    "\n  mutation SaveTreasuryRelation($id: ID, $input: TreasuryRelationInput!, $confirmLoss: Boolean) {\n    saveTreasuryRelation(id: $id, input: $input, confirmLoss: $confirmLoss)\n  }\n": typeof types.SaveTreasuryRelationDocument,
+    "\n  mutation DeleteTreasuryRelation($id: ID!, $confirmLoss: Boolean) {\n    deleteTreasuryRelation(id: $id, confirmLoss: $confirmLoss)\n  }\n": typeof types.DeleteTreasuryRelationDocument,
     "\n  mutation SaveTreasuryContext($id: ID, $input: LabelColorInput!) {\n    saveTreasuryContext(id: $id, input: $input)\n  }\n": typeof types.SaveTreasuryContextDocument,
     "\n  query TreasuryBudgets($from: String!, $to: String!) {\n    treasuryBudgets {\n      id\n      archived\n      month\n      memberId\n      relationId\n      contextId\n      categoryId\n      amount\n      repeatEvery\n      repeatUntil\n    }\n    treasuryBudgetReport(from: $from, to: $to) {\n      month\n      memberId\n      relationId\n      contextId\n      categoryId\n      budget\n      actual\n      forecast\n      budgeted\n    }\n  }\n": typeof types.TreasuryBudgetsDocument,
     "\n  mutation SaveTreasuryBudget($id: ID, $input: TreasuryBudgetInput!) {\n    saveTreasuryBudget(id: $id, input: $input)\n  }\n": typeof types.SaveTreasuryBudgetDocument,
@@ -477,7 +477,7 @@ type Documents = {
     "\n  query ElsewhereAlarms {\n    alarms {\n      ...AlarmFields\n      task {\n        id\n        number\n        label\n        projectId\n      }\n      project {\n        id\n        label\n      }\n    }\n    projects {\n      id\n      label\n    }\n    runningTimeEntry {\n      id\n      startedAt\n      endedAt\n      pausedAt\n      pausedSeconds\n      duration\n    }\n  }\n": typeof types.ElsewhereAlarmsDocument,
     "\n  query ElsewhereReminders {\n    tasks {\n      id\n      number\n      label\n      projectId\n      closed\n      archived\n      effectiveMinDate\n      effectiveDeadline\n      reminders {\n        before\n        at\n        days\n      }\n    }\n    routines {\n      id\n      label\n      archived\n      location\n      currentDate\n      reminders {\n        before\n        at\n        days\n      }\n      reminderOccurrences {\n        date\n        day\n        slots {\n          slot\n          at\n        }\n      }\n      slots {\n        index\n        fromTime\n        dueTime\n        optional\n        done\n        windows\n      }\n    }\n    workSchedules {\n      id\n      archived\n      label\n      startDate\n      endDate\n      typeId\n      ephemeris\n      cases\n      exceptions\n      reminders {\n        before\n        at\n        days\n      }\n    }\n    birthdays {\n      id\n      name\n      birthDate\n      reminders {\n        before\n        at\n        days\n      }\n    }\n  }\n": typeof types.ElsewhereRemindersDocument,
     "\n  mutation ElsewhereMarkAlarmFired($id: ID!, $at: DateTime!) {\n    markAlarmFired(id: $id, at: $at)\n  }\n": typeof types.ElsewhereMarkAlarmFiredDocument,
-    "\n  mutation SetArchived($kind: ArchivableKind!, $ids: [ID!]!, $archived: Boolean!) {\n    setArchived(kind: $kind, ids: $ids, archived: $archived)\n  }\n": typeof types.SetArchivedDocument,
+    "\n  mutation SetArchived($kind: ArchivableKind!, $ids: [ID!]!, $archived: Boolean!, $confirmLoss: Boolean) {\n    setArchived(kind: $kind, ids: $ids, archived: $archived, confirmLoss: $confirmLoss)\n  }\n": typeof types.SetArchivedDocument,
 };
 const documents: Documents = {
     "\n  query TaskViews($projectId: ID, $kind: ViewKind, $tableKey: String) {\n    taskViews(projectId: $projectId, kind: $kind, tableKey: $tableKey) {\n      id\n      label\n      config\n      isDefault\n      position\n    }\n  }\n": types.TaskViewsDocument,
@@ -610,7 +610,7 @@ const documents: Documents = {
     "\n  mutation CreateCalendarEvent($input: CalendarEventInput!) {\n    createCalendarEvent(input: $input)\n  }\n": types.CreateCalendarEventDocument,
     "\n  mutation UpdateCalendarEvent($id: ID!, $input: CalendarEventInput!, $scope: CalendarEventScope!, $occurrenceDate: Date, $confirmLoss: Boolean) {\n    updateCalendarEvent(id: $id, input: $input, scope: $scope, occurrenceDate: $occurrenceDate, confirmLoss: $confirmLoss)\n  }\n": types.UpdateCalendarEventDocument,
     "\n  mutation DeleteCalendarEvent($id: ID!, $scope: CalendarEventScope!, $occurrenceDate: Date) {\n    deleteCalendarEvent(id: $id, scope: $scope, occurrenceDate: $occurrenceDate)\n  }\n": types.DeleteCalendarEventDocument,
-    "\n  query Birthdays {\n    birthdays {\n      id\n      contributorId\n      relationId\n      name\n      birthDate\n      reminders {\n        before\n        at\n        days\n      }\n    }\n  }\n": types.BirthdaysDocument,
+    "\n  query Birthdays {\n    birthdays(archived: true) {\n      id\n      contributorId\n      relationId\n      name\n      birthDate\n      archived\n      aliases\n      reminders {\n        before\n        at\n        days\n      }\n    }\n  }\n": types.BirthdaysDocument,
     "\n  query Comments($target: CommentTarget!, $id: String!, $occurrenceDate: Date) {\n    comments(target: $target, id: $id, occurrenceDate: $occurrenceDate) {\n      id\n      body\n      createdAt\n    }\n  }\n": types.CommentsDocument,
     "\n  query CommentCounts($target: CommentTarget!, $ids: [String!]!) {\n    commentCounts(target: $target, ids: $ids) {\n      id\n      count\n    }\n  }\n": types.CommentCountsDocument,
     "\n  mutation AddComment($target: CommentTarget!, $id: String!, $body: String!, $occurrenceDate: Date) {\n    addComment(target: $target, id: $id, body: $body, occurrenceDate: $occurrenceDate) {\n      id\n    }\n  }\n": types.AddCommentDocument,
@@ -853,10 +853,10 @@ const documents: Documents = {
     "\n  mutation AddTaskComment($taskId: ID!, $body: String!) {\n    addTaskComment(taskId: $taskId, body: $body) {\n      ...TaskCommentFields\n    }\n  }\n": types.AddTaskCommentDocument,
     "\n  mutation UpdateTaskComment($id: ID!, $body: String!) {\n    updateTaskComment(id: $id, body: $body) {\n      ...TaskCommentFields\n    }\n  }\n": types.UpdateTaskCommentDocument,
     "\n  mutation DeleteTaskComment($id: ID!) {\n    deleteTaskComment(id: $id)\n  }\n": types.DeleteTaskCommentDocument,
-    "\n  mutation CreateContributor($input: ContributorInput!) {\n    createContributor(input: $input) {\n      ...ContributorFields\n    }\n  }\n": types.CreateContributorDocument,
-    "\n  mutation UpdateContributor($id: ID!, $input: ContributorUpdateInput!) {\n    updateContributor(id: $id, input: $input) {\n      ...ContributorFields\n    }\n  }\n": types.UpdateContributorDocument,
+    "\n  mutation CreateContributor($input: ContributorInput!, $confirmLoss: Boolean) {\n    createContributor(input: $input, confirmLoss: $confirmLoss) {\n      ...ContributorFields\n    }\n  }\n": types.CreateContributorDocument,
+    "\n  mutation UpdateContributor($id: ID!, $input: ContributorUpdateInput!, $confirmLoss: Boolean) {\n    updateContributor(id: $id, input: $input, confirmLoss: $confirmLoss) {\n      ...ContributorFields\n    }\n  }\n": types.UpdateContributorDocument,
     "\n  mutation SetProjectContributors($projectId: ID!, $contributorIds: [ID!]!) {\n    setProjectContributors(projectId: $projectId, contributorIds: $contributorIds)\n  }\n": types.SetProjectContributorsDocument,
-    "\n  mutation DeleteContributor($id: ID!) {\n    deleteContributor(id: $id)\n  }\n": types.DeleteContributorDocument,
+    "\n  mutation DeleteContributor($id: ID!, $confirmLoss: Boolean) {\n    deleteContributor(id: $id, confirmLoss: $confirmLoss)\n  }\n": types.DeleteContributorDocument,
     "\n      mutation CreateTaskStatus($input: TaskLabelInput!) {\n        createTaskStatus(input: $input) {\n          id\n        }\n      }\n    ": types.CreateTaskStatusDocument,
     "\n      mutation UpdateTaskStatus($id: ID!, $input: TaskLabelUpdateInput!) {\n        updateTaskStatus(id: $id, input: $input) {\n          id\n        }\n      }\n    ": types.UpdateTaskStatusDocument,
     "\n      mutation DeleteTaskStatus($id: ID!) {\n        deleteTaskStatus(id: $id)\n      }\n    ": types.DeleteTaskStatusDocument,
@@ -924,8 +924,8 @@ const documents: Documents = {
     "\n  mutation SetInvoiceTreasuryCategories($invoiceCategoryId: ID, $creditNoteCategoryId: ID) {\n    setInvoiceTreasuryCategories(invoiceCategoryId: $invoiceCategoryId, creditNoteCategoryId: $creditNoteCategoryId)\n  }\n": types.SetInvoiceTreasuryCategoriesDocument,
     "\n  mutation AddTreasuryMember($contributorId: ID, $name: String) {\n    addTreasuryMember(contributorId: $contributorId, name: $name)\n  }\n": types.AddTreasuryMemberDocument,
     "\n  mutation RemoveTreasuryMember($contributorId: ID!) {\n    removeTreasuryMember(contributorId: $contributorId)\n  }\n": types.RemoveTreasuryMemberDocument,
-    "\n  mutation SaveTreasuryRelation($id: ID, $input: TreasuryRelationInput!) {\n    saveTreasuryRelation(id: $id, input: $input)\n  }\n": types.SaveTreasuryRelationDocument,
-    "\n  mutation DeleteTreasuryRelation($id: ID!) {\n    deleteTreasuryRelation(id: $id)\n  }\n": types.DeleteTreasuryRelationDocument,
+    "\n  mutation SaveTreasuryRelation($id: ID, $input: TreasuryRelationInput!, $confirmLoss: Boolean) {\n    saveTreasuryRelation(id: $id, input: $input, confirmLoss: $confirmLoss)\n  }\n": types.SaveTreasuryRelationDocument,
+    "\n  mutation DeleteTreasuryRelation($id: ID!, $confirmLoss: Boolean) {\n    deleteTreasuryRelation(id: $id, confirmLoss: $confirmLoss)\n  }\n": types.DeleteTreasuryRelationDocument,
     "\n  mutation SaveTreasuryContext($id: ID, $input: LabelColorInput!) {\n    saveTreasuryContext(id: $id, input: $input)\n  }\n": types.SaveTreasuryContextDocument,
     "\n  query TreasuryBudgets($from: String!, $to: String!) {\n    treasuryBudgets {\n      id\n      archived\n      month\n      memberId\n      relationId\n      contextId\n      categoryId\n      amount\n      repeatEvery\n      repeatUntil\n    }\n    treasuryBudgetReport(from: $from, to: $to) {\n      month\n      memberId\n      relationId\n      contextId\n      categoryId\n      budget\n      actual\n      forecast\n      budgeted\n    }\n  }\n": types.TreasuryBudgetsDocument,
     "\n  mutation SaveTreasuryBudget($id: ID, $input: TreasuryBudgetInput!) {\n    saveTreasuryBudget(id: $id, input: $input)\n  }\n": types.SaveTreasuryBudgetDocument,
@@ -942,7 +942,7 @@ const documents: Documents = {
     "\n  query ElsewhereAlarms {\n    alarms {\n      ...AlarmFields\n      task {\n        id\n        number\n        label\n        projectId\n      }\n      project {\n        id\n        label\n      }\n    }\n    projects {\n      id\n      label\n    }\n    runningTimeEntry {\n      id\n      startedAt\n      endedAt\n      pausedAt\n      pausedSeconds\n      duration\n    }\n  }\n": types.ElsewhereAlarmsDocument,
     "\n  query ElsewhereReminders {\n    tasks {\n      id\n      number\n      label\n      projectId\n      closed\n      archived\n      effectiveMinDate\n      effectiveDeadline\n      reminders {\n        before\n        at\n        days\n      }\n    }\n    routines {\n      id\n      label\n      archived\n      location\n      currentDate\n      reminders {\n        before\n        at\n        days\n      }\n      reminderOccurrences {\n        date\n        day\n        slots {\n          slot\n          at\n        }\n      }\n      slots {\n        index\n        fromTime\n        dueTime\n        optional\n        done\n        windows\n      }\n    }\n    workSchedules {\n      id\n      archived\n      label\n      startDate\n      endDate\n      typeId\n      ephemeris\n      cases\n      exceptions\n      reminders {\n        before\n        at\n        days\n      }\n    }\n    birthdays {\n      id\n      name\n      birthDate\n      reminders {\n        before\n        at\n        days\n      }\n    }\n  }\n": types.ElsewhereRemindersDocument,
     "\n  mutation ElsewhereMarkAlarmFired($id: ID!, $at: DateTime!) {\n    markAlarmFired(id: $id, at: $at)\n  }\n": types.ElsewhereMarkAlarmFiredDocument,
-    "\n  mutation SetArchived($kind: ArchivableKind!, $ids: [ID!]!, $archived: Boolean!) {\n    setArchived(kind: $kind, ids: $ids, archived: $archived)\n  }\n": types.SetArchivedDocument,
+    "\n  mutation SetArchived($kind: ArchivableKind!, $ids: [ID!]!, $archived: Boolean!, $confirmLoss: Boolean) {\n    setArchived(kind: $kind, ids: $ids, archived: $archived, confirmLoss: $confirmLoss)\n  }\n": types.SetArchivedDocument,
 };
 
 /**
@@ -1468,7 +1468,7 @@ export function graphql(source: "\n  mutation DeleteCalendarEvent($id: ID!, $sco
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */
-export function graphql(source: "\n  query Birthdays {\n    birthdays {\n      id\n      contributorId\n      relationId\n      name\n      birthDate\n      reminders {\n        before\n        at\n        days\n      }\n    }\n  }\n"): typeof import('./graphql').BirthdaysDocument;
+export function graphql(source: "\n  query Birthdays {\n    birthdays(archived: true) {\n      id\n      contributorId\n      relationId\n      name\n      birthDate\n      archived\n      aliases\n      reminders {\n        before\n        at\n        days\n      }\n    }\n  }\n"): typeof import('./graphql').BirthdaysDocument;
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */
@@ -2440,11 +2440,11 @@ export function graphql(source: "\n  mutation DeleteTaskComment($id: ID!) {\n   
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */
-export function graphql(source: "\n  mutation CreateContributor($input: ContributorInput!) {\n    createContributor(input: $input) {\n      ...ContributorFields\n    }\n  }\n"): typeof import('./graphql').CreateContributorDocument;
+export function graphql(source: "\n  mutation CreateContributor($input: ContributorInput!, $confirmLoss: Boolean) {\n    createContributor(input: $input, confirmLoss: $confirmLoss) {\n      ...ContributorFields\n    }\n  }\n"): typeof import('./graphql').CreateContributorDocument;
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */
-export function graphql(source: "\n  mutation UpdateContributor($id: ID!, $input: ContributorUpdateInput!) {\n    updateContributor(id: $id, input: $input) {\n      ...ContributorFields\n    }\n  }\n"): typeof import('./graphql').UpdateContributorDocument;
+export function graphql(source: "\n  mutation UpdateContributor($id: ID!, $input: ContributorUpdateInput!, $confirmLoss: Boolean) {\n    updateContributor(id: $id, input: $input, confirmLoss: $confirmLoss) {\n      ...ContributorFields\n    }\n  }\n"): typeof import('./graphql').UpdateContributorDocument;
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */
@@ -2452,7 +2452,7 @@ export function graphql(source: "\n  mutation SetProjectContributors($projectId:
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */
-export function graphql(source: "\n  mutation DeleteContributor($id: ID!) {\n    deleteContributor(id: $id)\n  }\n"): typeof import('./graphql').DeleteContributorDocument;
+export function graphql(source: "\n  mutation DeleteContributor($id: ID!, $confirmLoss: Boolean) {\n    deleteContributor(id: $id, confirmLoss: $confirmLoss)\n  }\n"): typeof import('./graphql').DeleteContributorDocument;
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */
@@ -2724,11 +2724,11 @@ export function graphql(source: "\n  mutation RemoveTreasuryMember($contributorI
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */
-export function graphql(source: "\n  mutation SaveTreasuryRelation($id: ID, $input: TreasuryRelationInput!) {\n    saveTreasuryRelation(id: $id, input: $input)\n  }\n"): typeof import('./graphql').SaveTreasuryRelationDocument;
+export function graphql(source: "\n  mutation SaveTreasuryRelation($id: ID, $input: TreasuryRelationInput!, $confirmLoss: Boolean) {\n    saveTreasuryRelation(id: $id, input: $input, confirmLoss: $confirmLoss)\n  }\n"): typeof import('./graphql').SaveTreasuryRelationDocument;
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */
-export function graphql(source: "\n  mutation DeleteTreasuryRelation($id: ID!) {\n    deleteTreasuryRelation(id: $id)\n  }\n"): typeof import('./graphql').DeleteTreasuryRelationDocument;
+export function graphql(source: "\n  mutation DeleteTreasuryRelation($id: ID!, $confirmLoss: Boolean) {\n    deleteTreasuryRelation(id: $id, confirmLoss: $confirmLoss)\n  }\n"): typeof import('./graphql').DeleteTreasuryRelationDocument;
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */
@@ -2796,7 +2796,7 @@ export function graphql(source: "\n  mutation ElsewhereMarkAlarmFired($id: ID!, 
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */
-export function graphql(source: "\n  mutation SetArchived($kind: ArchivableKind!, $ids: [ID!]!, $archived: Boolean!) {\n    setArchived(kind: $kind, ids: $ids, archived: $archived)\n  }\n"): typeof import('./graphql').SetArchivedDocument;
+export function graphql(source: "\n  mutation SetArchived($kind: ArchivableKind!, $ids: [ID!]!, $archived: Boolean!, $confirmLoss: Boolean) {\n    setArchived(kind: $kind, ids: $ids, archived: $archived, confirmLoss: $confirmLoss)\n  }\n"): typeof import('./graphql').SetArchivedDocument;
 
 
 export function graphql(source: string) {

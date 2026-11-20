@@ -43,11 +43,11 @@ Hooks et constantes exportés :
 | `useTaskBlock()`              | Ajoute (`add: true`) ou retire un lien « bloque ».                                                                                              |
 | `useTaskRelation()`           | Ajoute ou retire un lien « relative à ».                                                                                                        |
 | `useTaskCommentMutations()`   | `{ add, update, remove }` des commentaires de tâche.                                                                                            |
-| `useContributorMutations()`   | `{ create, update, remove, setProjectContributors }` ; `remove` invalide aussi la facturation (`accountingQueryKey`).                           |
+| `useContributorMutations()`   | `{ create, update, remove, setProjectContributors }` ; `create`, `update`, `remove` dans `withLossConfirmation` (anniversaire cité par des routines, décision FQ), rechargent les tâches et les routines ; `remove` invalide aussi la facturation (`accountingQueryKey`). |
 | `useTaskLabelMutations(kind)` | `{ create, update, remove }` d’une liste de paramètres (statut, priorité, type, étiquette).                                                     |
 | `useTaskColumnDefaults()`     | Colonnes des nouvelles vues de l’espace (`readTaskColumnDefaults`).                                                                             |
 | `useSetTaskColumnDefaults()`  | Les change (`null` : celles de l’app) ; mise à jour optimiste du cache.                                                                         |
-| `useDoableTaskIds(enabled)`   | Ensemble des tâches faisables maintenant ; demandé seulement si `enabled`, rafraîchi chaque minute ; envoie le décalage UTC du navigateur.      |
+| `useDoableTaskIds(enabled)`, `doableTasksKey` | Ensemble des tâches faisables maintenant ; demandé seulement si `enabled`, rafraîchi chaque minute ; envoie le décalage UTC du navigateur. Sa clé est rechargée avec les sources des conditions (`SLOT_DEPENDENT_KEYS`, décision FQ). |
 | `useBulkTaskMutations()`      | `{ update, transfer, archive, remove }` : `bulkUpdateTasks` (avec `restoring`), `bulkTransferTasks`, `bulkSetTasksArchived`, `bulkDeleteTasks`. |
 | `useMilestoneMutations()`     | `{ create, update, remove, move }` ; `move` (interne `useMoveMilestone`) réordonne le cache tout de suite.                                      |
 | `useSprintMutations()`        | `{ create, update, remove }`.                                                                                                                   |

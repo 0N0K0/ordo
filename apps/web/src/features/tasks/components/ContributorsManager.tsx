@@ -6,7 +6,8 @@ import { confirmDestructive } from '../../../components/dialogs/confirm-destruct
 import { Badge, Group, Stack, Text, Tooltip } from '@mantine/core';
 import { PencilSimpleIcon, PlusIcon, TrashIcon, UsersIcon } from '@phosphor-icons/react';
 
-import { archiveEntry, useSetArchived, useArchivedToggle } from '../../../lib/archive';
+import { archiveEntry, useArchivedToggle } from '../../../lib/archive';
+import { useSlotSourceArchiving } from '../../calendar/api';
 import { ShowArchivedSwitch } from '../../../components/filters/ShowArchivedSwitch';
 import { ArchivedBadge } from '../../../components/feedback/ArchivedBadge';
 
@@ -38,7 +39,7 @@ export function ContributorsManager({ contributors, usage }: ContributorsManager
   // Contributor → name of the relation they are.
   const relationOf = new Map((treasury?.treasuryRelations ?? []).filter((relation) => relation.contributorId).map((relation) => [relation.contributorId as string, relation.name]));
   const { remove } = useContributorMutations();
-  const setArchived = useSetArchived('CONTRIBUTOR');
+  const setArchived = useSlotSourceArchiving('CONTRIBUTOR');
   const { shown, toggle: archivedToggle } = useArchivedToggle(contributors);
   const openForm = useContributorForm();
   const { data: workspace } = useProjectTree();

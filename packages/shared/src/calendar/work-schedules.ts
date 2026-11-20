@@ -139,6 +139,10 @@ export interface WorkScheduleRule {
   typeId?: string | null;
   /** An éphéméride (holidays, birthday…), not a créneau: never in the free time, the working hours nor the planned time. */
   ephemeris?: boolean;
+  /** Archived: gives no moment to the slot conditions (decision FQ). Optional. Default = false. */
+  archived?: boolean;
+  /** Of an archived kind: gives no moment to the slot conditions either (decision FQ). Optional. Default = false. */
+  kindArchived?: boolean;
 }
 
 /**
@@ -158,6 +162,16 @@ export const UNTYPED_EPHEMERIS_LABEL = 'Éphéméride';
  * @returns {T[]} Créneaux.
  */
 export const slotSchedules = <T extends { ephemeris?: boolean | null }>(schedules: readonly T[]): T[] => schedules.filter((schedule) => !schedule.ephemeris);
+
+/**
+ * The schedules the slot conditions count (decision FQ): neither archived nor of an archived kind. The others may still
+ * be named by a condition (shown « archivé »), they just give it no moment, nor take any from the free time.
+ * @template T
+ * @param {readonly T[]} schedules Schedules.
+ * @returns {T[]} Schedules counted.
+ */
+export const countedSchedules = <T extends { archived?: boolean | null; kindArchived?: boolean | null }>(schedules: readonly T[]): T[] =>
+  schedules.filter((schedule) => !schedule.archived && !schedule.kindArchived);
 
 /** Planned time slot on a date. */
 export interface PlannedSlot {

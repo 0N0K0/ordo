@@ -1,3 +1,5 @@
+import { CONFIRM_LOSS_DESCRIPTION } from '../occurrence-fields';
+import { peopleSettler } from '../../services/routines/routines';
 import { done } from '../errors';
 import { doableTaskIds } from '../../services/calendar/slot-conditions';
 import { prisma } from '../../db';
@@ -612,9 +614,9 @@ builder.mutationFields((t) => ({
 
   createContributor: t.prismaField({
     type: 'Contributor',
-    args: { input: t.arg({ type: ContributorInput, required: true }) },
-    resolve: async (query, _root, { input }) =>
-      reloaded(prisma.contributor, query, contributors.createContributor(input)),
+    args: { input: t.arg({ type: ContributorInput, required: true }), confirmLoss: t.arg.boolean({ description: `${CONFIRM_LOSS_DESCRIPTION} Its birthday (slot conditions).` }) },
+    resolve: async (query, _root, { input, confirmLoss }) =>
+      reloaded(prisma.contributor, query, contributors.createContributor(input, peopleSettler(confirmLoss))),
   }),
   uploadAttachment: t.prismaField({
     type: 'Attachment',
@@ -629,13 +631,17 @@ builder.mutationFields((t) => ({
   }),
   updateContributor: t.prismaField({
     type: 'Contributor',
-    args: { id: t.arg.id({ required: true }), input: t.arg({ type: ContributorUpdateInput, required: true }) },
-    resolve: async (query, _root, { id, input }) =>
-      reloaded(prisma.contributor, query, contributors.updateContributor(id, input)),
+    args: {
+      id: t.arg.id({ required: true }),
+      input: t.arg({ type: ContributorUpdateInput, required: true }),
+      confirmLoss: t.arg.boolean({ description: `${CONFIRM_LOSS_DESCRIPTION} Its birthday moved or gone (slot conditions).` }),
+    },
+    resolve: async (query, _root, { id, input, confirmLoss }) =>
+      reloaded(prisma.contributor, query, contributors.updateContributor(id, input, peopleSettler(confirmLoss))),
   }),
   deleteContributor: t.boolean({
-    args: { id: t.arg.id({ required: true }) },
-    resolve: (_root, { id }) => done(contributors.deleteContributor(id)),
+    args: { id: t.arg.id({ required: true }), confirmLoss: t.arg.boolean({ description: `${CONFIRM_LOSS_DESCRIPTION} Its birthday gone (slot conditions).` }) },
+    resolve: (_root, { id, confirmLoss }) => done(contributors.deleteContributor(id, peopleSettler(confirmLoss))),
   }),
 }));
 

@@ -14,6 +14,7 @@ import { currentWorkspaceId } from '../../workspace-context';
 import { clientError, fieldError, isUniqueConflict, orNotFound, parseField, parseInput } from '../../graphql/errors';
 import { createContributor, freeHandle } from '../projects/contributors';
 import { personDetailsData, type PersonDetailsFields } from '../core/person-details';
+import { NO_PEOPLE_SETTLER, personChange, type PeopleChangeSettler } from '../calendar/birthdays';
 import { assertExists, deleteOrNotFound } from '../core/lookup';
 import { assertActive } from '../core/archive';
 
@@ -105,11 +106,18 @@ export async function contextEphemerides(): Promise<(ContextEphemeris & { schedu
  * possibly a contributor too (not a member).
  * @param {string | null} id Relation to change, or null to create one.
  * @param {TreasuryRelationInput} input Name, note, contributor, and its details (birth date, birthday reminders, email addresses, phones: omitted, left unchanged).
+ * @param {PeopleChangeSettler} [settle] Run once checked when its birth date or its contributor changes (the birthday
+ * that applies to it, decision FQ), before it is saved. Optional. Default = none.
  * @returns {Promise<TreasuryRelation>} Relation.
  */
-export async function saveRelation(id: string | null, input: Pick<TreasuryRelationInput, 'name' | 'note' | 'contributorId'> & PersonDetailsFields): Promise<TreasuryRelation> {
+export async function saveRelation(
+  id: string | null,
+  input: Pick<TreasuryRelationInput, 'name' | 'note' | 'contributorId'> & PersonDetailsFields,
+  settle: PeopleChangeSettler = NO_PEOPLE_SETTLER,
+): Promise<TreasuryRelation> {
   const parsed = parseInput(treasuryRelationSchema.pick({ name: true, note: true, contributorId: true }), input);
   await assertActive(prisma.treasuryRelation, id, 'Relation');
+  const current = id ? await prisma.treasuryRelation.findUnique({ where: { id }, select: { birthDate: true, contributorId: true } }) : null;
   if (parsed.contributorId) {
     const contributor = await orNotFound(prisma.contributor.findUnique({ where: { id: parsed.contributorId }, select: { teamMember: true, userId: true } }), 'Contributeur');
     if (isMember(contributor)) {
@@ -118,6 +126,10 @@ export async function saveRelation(id: string | null, input: Pick<TreasuryRelati
     }
   }
   const data = { name: parsed.name, note: parsed.note, contributorId: parsed.contributorId ?? null, ...personDetailsData(input) };
+  // Its birthday, or the one that applies to it (its contributor's), changes.
+  const birthDate = data.birthDate === undefined ? (current?.birthDate ?? null) : data.birthDate;
+  if (birthDate !== (current?.birthDate ?? null) || data.contributorId !== (current?.contributorId ?? null))
+    await settle(personChange('relation', id ?? '', { name: data.name, birthDate, contributorId: data.contributorId }));
   try {
     return id ? await prisma.treasuryRelation.update({ where: { id }, data }) : await prisma.treasuryRelation.create({ data });
   } catch (error) {
@@ -133,8 +145,11 @@ export async function saveRelation(id: string | null, input: Pick<TreasuryRelati
 /**
  * Deletes a relation: its budgets go with it, its lines become the app user's.
  * @param {string} id Relation.
+ * @param {PeopleChangeSettler} [settle] Run once found, before it is deleted (its birthday goes, decision FQ). Optional. Default = none.
  * @returns {Promise<void>}
  */
-export async function deleteRelation(id: string): Promise<void> {
+export async function deleteRelation(id: string, settle: PeopleChangeSettler = NO_PEOPLE_SETTLER): Promise<void> {
+  await assertExists(prisma.treasuryRelation, id, 'Relation');
+  await settle(personChange('relation', id, null));
   await deleteOrNotFound(prisma.treasuryRelation, id, 'Relation');
 }

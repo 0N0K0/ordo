@@ -49,6 +49,7 @@ export type ArchivableModel = (typeof ARCHIVABLE)[ArchivableKind] | 'client' | '
 interface ArchiveDelegate {
   count(args: { where: Record<string, unknown> }): PromiseLike<number>;
   updateMany(args: { where: Record<string, unknown>; data: Record<string, unknown> }): PromiseLike<unknown>;
+  findMany(args: { where: Record<string, unknown>; select: { id: true } }): PromiseLike<{ id: string }[]>;
 }
 
 /**
@@ -81,17 +82,22 @@ const archivedWhere = (archived: boolean): Record<string, unknown> => ({ archive
 
 /**
  * Archives or restores elements of a kind, all at once (an id given twice counts once). Archiving keeps the date of
- * those archived already.
+ * those archived already. `settle` runs once they are found, before they change: what it does elsewhere (the
+ * occurrences of routines a schedule, a kind or a person archived makes disappear, decision FQ).
  * @param {ArchivableKind} kind Kind of the elements.
  * @param {readonly string[]} ids Elements.
  * @param {boolean} archived Archives (else restores).
+ * @param {(ids: string[]) => Promise<void>} [settle] Run once found, before the change. Optional. Default = none.
  * @returns {Promise<void>}
  */
-export async function setArchived(kind: ArchivableKind, ids: readonly string[], archived: boolean): Promise<void> {
+export async function setArchived(kind: ArchivableKind, ids: readonly string[], archived: boolean, settle?: (ids: string[]) => Promise<void>): Promise<void> {
   const model = ARCHIVABLE[kind];
   const unique = [...new Set(ids)];
   await assertAllExist(delegate(model), unique, 'Élément');
   if (!unique.length) return;
+  // Only those whose state changes.
+  const changing = (await delegate(model).findMany({ where: { id: { in: unique }, ...archivedWhere(!archived) }, select: { id: true } })).map((item) => item.id);
+  if (settle && changing.length) await settle(changing);
   await delegate(model).updateMany({ where: { id: { in: unique }, ...archivedWhere(!archived) }, data: { archivedAt: archived ? new Date() : null } });
 }
 

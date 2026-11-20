@@ -13,7 +13,7 @@ import { mapById, EVERYDAY_CONTEXT, treasuryContextSchema, treasuryRelationSchem
 import { CalendarStarIcon, PencilSimpleIcon, PlusIcon, TrashIcon, UserMinusIcon } from '@phosphor-icons/react';
 import { ArchivedBadge } from '../../../components/feedback/ArchivedBadge';
 import { ShowArchivedSwitch } from '../../../components/filters/ShowArchivedSwitch';
-import { archiveEntry, unarchived, useSetArchived, useArchivedToggle } from '../../../lib/archive';
+import { archiveEntry, unarchived, useArchivedToggle } from '../../../lib/archive';
 import { useState } from 'react';
 import { useAppForm, useFieldSave, formCallbacks } from '../../../lib/form';
 import { SaveStatus } from '../../../components/feedback/SaveStatus';
@@ -28,7 +28,7 @@ import { countOf } from '../../../lib/text';
 import { FormActions } from '../../../components/dialogs/FormActions';
 import { SettingsSection } from '../../../components/settings/SettingsSection';
 import { InlineActions } from '../../../components/actions/ActionsMenu';
-import { birthdaysQueryKey, useScheduleTypes } from '../../calendar/api';
+import { useScheduleTypes, useSlotSourceArchiving } from '../../calendar/api';
 import { useScheduleTypeItems } from '../../calendar/hooks/use-settings-items';
 import { openSchedulesManager } from '../../calendar/lib/open-schedules';
 import { inWorkspace } from '../../calendar/lib/layer-label';
@@ -50,7 +50,7 @@ export function TeamMembers() {
   const { perso } = useActiveWorkspace();
   const { addMember, removeMember } = useTreasuryTeamMutations();
   const [name, setName] = useState('');
-  const setArchived = useSetArchived('CONTRIBUTOR');
+  const setArchived = useSlotSourceArchiving('CONTRIBUTOR');
   // Names and avatars as the contributors have them now (renamed or removed in the list of contributors).
   const contributorById = mapById(context?.contributors ?? []);
   const members = (settings?.treasuryMembers ?? [])
@@ -365,7 +365,7 @@ export function RelationForm({ relation, name = '', onDone }: { relation?: Treas
 export function TeamRelations() {
   const { data: settings } = useTreasurySettings();
   const { deleteRelation } = useTreasuryTeamMutations();
-  const setArchived = useSetArchived('TREASURY_RELATION', [treasuryKey, birthdaysQueryKey]);
+  const setArchived = useSlotSourceArchiving('TREASURY_RELATION', [treasuryKey]);
   const { perso } = useActiveWorkspace();
   const words = relationWords(perso);
   /**

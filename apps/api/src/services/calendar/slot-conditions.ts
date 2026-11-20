@@ -21,7 +21,7 @@ import { prisma, unscopedPrisma } from '../../db';
 import { archivedError } from '../core/archive';
 import { notFound } from '../../graphql/errors';
 import { currentWorkspaceId } from '../../workspace-context';
-import { birthdays } from './birthdays';
+import { birthdays, personChange, type PeopleChange } from './birthdays';
 import { eventOccurrences } from './calendar-events';
 import { otherWorkspaceSchedules, scheduleRule } from './work-schedules';
 import { DUE_DATES_SELECT, storedDueDates } from '../tasks/due-dates';
@@ -40,16 +40,49 @@ const citeOtherWorkspaces = (conditions: readonly (SlotCondition | null | undefi
     (condition) => conditionKinds(condition).some((kind) => foreignSlotKindWorkspace(kind) !== null) || conditionScheduleIds(condition).some((id) => !own.has(id) && birthdaySlotPerson(id) === null),
   );
 
-/** Schedules of a workspace as a change would leave them (created, changed or deleted, not saved yet). */
+/**
+ * Schedules of a workspace as a change would leave them (created, changed, archived or deleted, not saved yet), or its
+ * people (a birthday changed, moved or gone, decision FQ).
+ */
 export interface ScheduleChange {
   /** Workspace of the schedules changed (this one, or another one of the user whose schedules are named here). */
   workspaceId: string;
-  /** Its schedules once changed. */
-  apply: (rules: WorkScheduleRule[]) => WorkScheduleRule[];
+  /** Its schedules once changed. Optional. Default = unchanged. */
+  apply?: (rules: WorkScheduleRule[]) => WorkScheduleRule[];
+  /** Its people once changed (their birthdays: of this workspace only). Optional. Default = unchanged. */
+  people?: PeopleChange;
+}
+
+/** What a change does, without its workspace (the current one): its schedules, its people. */
+export type ScheduleEdit = Omit<ScheduleChange, 'workspaceId'>;
+
+/**
+ * What archiving or restoring some elements does to the slot conditions (decision FQ): schedules, kinds of schedules
+ * and people give no moment once archived; null for the other kinds.
+ * @param {string} kind Kind of the elements (`ArchivableKind`).
+ * @param {readonly string[]} ids Elements.
+ * @param {boolean} archived Archived (else restored).
+ * @returns {ScheduleEdit | null} Change.
+ */
+export function archiveEdit(kind: string, ids: readonly string[], archived: boolean): ScheduleEdit | null {
+  const chosen = new Set(ids);
+  const people = (person: 'contributor' | 'relation'): PeopleChange => (rows) => ids.reduce((all, id) => personChange(person, id, { archived })(all), rows);
+  switch (kind) {
+    case 'WORK_SCHEDULE':
+      return { apply: (rules) => rules.map((rule) => (chosen.has(rule.id) ? { ...rule, archived } : rule)) };
+    case 'SCHEDULE_TYPE':
+      return { apply: (rules) => rules.map((rule) => (rule.typeId && chosen.has(rule.typeId) ? { ...rule, kindArchived: archived } : rule)) };
+    case 'CONTRIBUTOR':
+      return { people: people('contributor') };
+    case 'TREASURY_RELATION':
+      return { people: people('relation') };
+    default:
+      return null;
+  }
 }
 
 /**
- * Slots of the schedules of the current workspace (archived ones too), loaded once, those of a day computed when first
+ * Slots of the schedules of the current workspace (archived ones and those of archived kinds give none, decision FQ), loaded once, those of a day computed when first
  * asked: what the conditions of tasks and routines are evaluated on. The schedules of the other workspaces of the user
  * are loaded too when the conditions name some of them or of their kinds, and the birthdays of the people of the
  * workspace when they name some (lot 16c; both always without conditions given: the routines of a request are not
@@ -60,20 +93,23 @@ export interface ScheduleChange {
  * @returns {Promise<SlotsOn>} Slots of some schedules on a day.
  */
 export async function loadSlotsOn(conditions?: readonly (SlotCondition | null | undefined)[], change?: ScheduleChange): Promise<SlotsOn> {
-  const own = await prisma.workSchedule.findMany();
+  // With the archiving of their kinds: archived schedules and kinds give no moment (decision FQ).
+  const own = await prisma.workSchedule.findMany({ include: { type: { select: { archivedAt: true } } } });
   const here = currentWorkspaceId();
   const [loaded, people] = await Promise.all([
     !conditions || citeOtherWorkspaces(conditions, new Set(own.map((schedule) => schedule.id))) ? otherWorkspaceSchedules() : [],
-    !conditions || conditions.some(conditionCitesBirthdays) ? birthdays() : [],
+    // Archived people flagged (no moment); a change of the people is one of this workspace.
+    !conditions || conditions.some(conditionCitesBirthdays) ? birthdays({ change: change?.workspaceId === here ? change.people : undefined }) : [],
   ]);
   const rules = own.map(scheduleRule);
   let foreign = loaded.map((schedule) => ({ workspaceId: schedule.workspace.id, rule: schedule.rule }));
+  const apply = change?.apply;
   // Those of another workspace changed: as the change leaves them.
-  if (change && change.workspaceId !== here && loaded.length) {
-    const changed = change.apply(foreign.filter((item) => item.workspaceId === change.workspaceId).map((item) => item.rule));
+  if (change && apply && change.workspaceId !== here && loaded.length) {
+    const changed = apply(foreign.filter((item) => item.workspaceId === change.workspaceId).map((item) => item.rule));
     foreign = [...foreign.filter((item) => item.workspaceId !== change.workspaceId), ...changed.map((rule) => ({ workspaceId: change.workspaceId, rule }))];
   }
-  return scheduleSlotsOn(change?.workspaceId === here ? change.apply(rules) : rules, foreign, people);
+  return scheduleSlotsOn(apply && change.workspaceId === here ? apply(rules) : rules, foreign, people);
 }
 
 /**

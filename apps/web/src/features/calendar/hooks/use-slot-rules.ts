@@ -2,6 +2,7 @@ import * as fmt from '../../../lib/format';
 import { addDays, blockingEvent, type BusyEvent, busyUntil, conditionAllowsAt, nextConditionMoment, readSlotCondition, scheduleSlotsOn } from '@ordo/shared';
 import { useMemo } from 'react';
 import { useNow } from '../../../lib/use-now';
+import { archivedIds } from '../../../lib/archive';
 import { scheduleRules, useCalendarEvents } from '../api';
 import { localDay, localInstant } from '../../../lib/dates';
 import { useTaskContext } from '../../tasks/hooks/use-task-context';
@@ -86,11 +87,13 @@ export function useSlotRules(): SlotRules {
   const meId = context?.meId ?? null;
 
   return useMemo(() => {
-    // The schedules of the workspace and of the other ones, archived ones too, and the birthdays (as the API).
+    // The schedules of the workspace and of the other ones, and the birthdays (as the API): the archived ones, those of
+    // archived kinds and of archived people give no moment (decision FQ).
     const foreign = sources.foreignSchedules ?? [];
+    const archivedKinds = archivedIds([...(sources.types ?? []), ...(sources.foreignKinds ?? []).flatMap((kind) => (kind.typeId ? [{ id: kind.typeId, archived: kind.archived }] : []))]);
     const slotsOn = scheduleSlotsOn(
-      scheduleRules(sources.schedules ?? []),
-      scheduleRules(foreign).map((rule, index) => ({ workspaceId: foreign[index].workspaceId, rule })),
+      scheduleRules(sources.schedules ?? [], archivedKinds),
+      scheduleRules(foreign, archivedKinds).map((rule, index) => ({ workspaceId: foreign[index].workspaceId, rule })),
       sources.birthdays ?? [],
     );
     const { names } = slotChoices(sources);

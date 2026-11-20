@@ -8,6 +8,7 @@ import { activeIds, assertActive, assertNoneArchived, findActive } from '../core
 import { lineageIds } from '../core/trees';
 import { connectIds } from '../core/relations';
 import { personDetailsData, type PersonDetailsFields } from '../core/person-details';
+import { NO_PEOPLE_SETTLER, personChange, type PeopleChangeSettler } from '../calendar/birthdays';
 
 /**
  * Handle free in the workspace for a new contributor, made from a name (suggestHandle: letters, digits and « - »,
@@ -41,11 +42,17 @@ export async function freeHandle(name: string, { fallback = 'membre', suffix }: 
  * @param {string} input.handle Unique mention handle.
  * @param {File | null} [input.avatar] Avatar file. Optional.
  * @param {string[] | null} [input.projectIds] Projects the contributor is attached to. Optional.
+ * @param {PeopleChangeSettler} [settle] Run once checked when it has a birth date, before it is saved (decision FQ). Optional. Default = none.
  * @returns {Promise<Contributor>} Created contributor.
  */
-export async function createContributor(input: { name: string; handle: string; avatar?: File | null; projectIds?: string[] | null } & PersonDetailsFields): Promise<Contributor> {
+export async function createContributor(
+  input: { name: string; handle: string; avatar?: File | null; projectIds?: string[] | null } & PersonDetailsFields,
+  settle: PeopleChangeSettler = NO_PEOPLE_SETTLER,
+): Promise<Contributor> {
   const data = { ...parseInput(z.object({ name: personNameSchema, handle: handleSchema }), input), ...personDetailsData(input) };
   if (input.projectIds?.length) await assertProjects(input.projectIds);
+  // A new birthday (a condition out of every birthday loses its day, decision FQ).
+  if (data.birthDate) await settle(personChange('contributor', '', { name: data.name, birthDate: data.birthDate }));
   const iconId = input.avatar ? await storeIcon(input.avatar) : null;
   try {
     return await prisma.contributor.create({
@@ -67,6 +74,8 @@ export async function createContributor(input: { name: string; handle: string; a
  * @param {boolean | null} [input.removeAvatar] Removes the avatar. Optional.
  * @param {string[] | null} [input.projectIds] Projects the contributor is directly attached to. Optional.
  * @param {string | null} [input.birthDate] Birth date (`YYYY-MM-DD` or `--MM-DD`), with the other details (lot 16). Optional.
+ * @param {PeopleChangeSettler} [settle] Run once checked when the birth date changes, before it is saved (the
+ * occurrences of routines naming birthdays it makes disappear, decision FQ). Optional. Default = none.
  * @returns {Promise<Contributor>} Updated contributor.
  */
 export async function updateContributor(
@@ -78,6 +87,7 @@ export async function updateContributor(
     removeAvatar?: boolean | null;
     projectIds?: string[] | null;
   } & PersonDetailsFields,
+  settle: PeopleChangeSettler = NO_PEOPLE_SETTLER,
 ): Promise<Contributor> {
   // Read only when archived.
   const contributor = await findActive(prisma.contributor, id, 'Contributeur');
@@ -87,6 +97,7 @@ export async function updateContributor(
     handle: input.handle ?? undefined,
   });
   const details = personDetailsData(input);
+  if (details.birthDate !== undefined && details.birthDate !== contributor.birthDate) await settle(personChange('contributor', id, { birthDate: details.birthDate }));
   const iconId = await resolveIconUpdate(contributor.iconId, { icon: input.avatar, removeIcon: input.removeAvatar });
   try {
     const updated = await prisma.contributor.update({
@@ -104,11 +115,13 @@ export async function updateContributor(
 /**
  * Deletes a contributor; tasks simply lose this assignee.
  * @param {string} id Contributor id.
+ * @param {PeopleChangeSettler} [settle] Run once checked, before it is deleted (its birthday goes, decision FQ). Optional. Default = none.
  * @returns {Promise<void>}
  */
-export async function deleteContributor(id: string): Promise<void> {
+export async function deleteContributor(id: string, settle: PeopleChangeSettler = NO_PEOPLE_SETTLER): Promise<void> {
   const contributor = await orNotFound(prisma.contributor.findUnique({ where: { id }, include: { user: { select: { id: true } } } }), 'Contributeur');
   if (contributor.user) throw clientError('BAD_USER_INPUT', 'Votre propre profil ne peut pas être supprimé.');
+  await settle(personChange('contributor', id, null));
   await prisma.contributor.delete({ where: { id } });
   await deleteOrphanIcons([contributor.iconId]);
 }

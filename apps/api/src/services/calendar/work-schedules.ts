@@ -37,11 +37,12 @@ import { toJson } from '../core/json';
 
 /**
  * Schedule as the shared functions read it: its cases and exceptions, or, saved before cases, its former slots
- * and pauses converted (invalid stored items left out).
- * @param {WorkSchedule} schedule Stored schedule.
+ * and pauses converted (invalid stored items left out), archived or of an archived kind (its kind read with it: the
+ * slot conditions do not count it, decision FQ).
+ * @param {WorkSchedule & { type?: { archivedAt: Date | null } | null }} schedule Stored schedule (with its kind's archiving, optional).
  * @returns {WorkScheduleRule} Rule.
  */
-export function scheduleRule(schedule: WorkSchedule): WorkScheduleRule {
+export function scheduleRule(schedule: WorkSchedule & { type?: { archivedAt: Date | null } | null }): WorkScheduleRule {
   const startDate = formatDay(schedule.startDate);
   // Cases of the former form converted (their rhythms count from the start of the period).
   const cases = readScheduleCases(schedule.cases, startDate);
@@ -60,6 +61,8 @@ export function scheduleRule(schedule: WorkSchedule): WorkScheduleRule {
       })),
     typeId: schedule.typeId,
     ephemeris: schedule.ephemeris,
+    archived: schedule.archivedAt !== null,
+    kindArchived: Boolean(schedule.type?.archivedAt),
   };
 }
 
@@ -145,7 +148,14 @@ export async function updateWorkSchedule(id: string, input: WorkScheduleInput, s
   const current = await orNotFound(prisma.workSchedule.findUnique({ where: { id }, select: { id: true, typeId: true, archivedAt: true } }), 'Créneau de travail');
   refuseArchived(current);
   const data = await scheduleData(input, current.typeId);
-  await settle((own) => own.map((rule) => (rule.id === id ? scheduleRuleOf(id, input, data.ephemeris) : rule)));
+  // Its kind kept: archived as it is (decision FQ); another one: not archived (checked).
+  await settle((own) =>
+    own.map((rule) => {
+      if (rule.id !== id) return rule;
+      const next = scheduleRuleOf(id, input, data.ephemeris);
+      return { ...next, kindArchived: Boolean(rule.kindArchived && rule.typeId === next.typeId) };
+    }),
+  );
   return prisma.workSchedule.update({ where: { id }, data });
 }
 
@@ -178,7 +188,7 @@ export async function setWorkScheduleEphemeris(id: string, ephemeris: boolean, s
   refuseArchived(current);
   if (current.ephemeris === ephemeris) return;
   const leavesKind = Boolean(current.type && current.type.ephemeris !== ephemeris);
-  await settle((own) => own.map((rule) => (rule.id === id ? { ...rule, ephemeris, ...(leavesKind ? { typeId: null } : {}) } : rule)));
+  await settle((own) => own.map((rule) => (rule.id === id ? { ...rule, ephemeris, ...(leavesKind ? { typeId: null, kindArchived: false } : {}) } : rule)));
   await prisma.workSchedule.update({ where: { id }, data: { ephemeris, ...(leavesKind ? { typeId: null } : {}) } });
 }
 
@@ -262,7 +272,7 @@ export const scheduleTypes: typeof baseScheduleTypes = {
  */
 export async function deleteScheduleType(id: string, settle: ScheduleChangeSettler = NO_SETTLER): Promise<void> {
   await assertExists(prisma.scheduleType, id, 'Type de créneau');
-  await settle((own) => own.map((rule) => (rule.typeId === id ? { ...rule, typeId: null } : rule)));
+  await settle((own) => own.map((rule) => (rule.typeId === id ? { ...rule, typeId: null, kindArchived: false } : rule)));
   await scheduleTypes.remove(id);
 }
 
@@ -545,6 +555,7 @@ async function foreignSchedules(where: Prisma.WorkScheduleWhereInput, subscripti
           dayDisplay: true,
           dayBar: true,
           monthDisplay: true,
+          archivedAt: true,
         },
       },
       workspace: { select: { id: true, label: true, ...defaultKindSelect } },

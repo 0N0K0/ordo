@@ -327,6 +327,16 @@ Birthday of a contributor or a relation (lot 16): a whole-day éphéméride deri
 """
 type Birthday {
   """
+  Other ids (`relation:<id>`, `contributor:<id>`) naming the same birthday in the slot conditions: the relation linked to the contributor whose birthday applies, or the reverse.
+  """
+  aliases: [String!]!
+
+  """
+  Its person is archived (asked with `archived: true` only): shown nowhere, no moment to the slot conditions.
+  """
+  archived: Boolean!
+
+  """
   Birth date: YYYY-MM-DD, or --MM-DD when the year is not known. Its birthday shows in the calendar (query birthdays).
   """
   birthDate: String!
@@ -1796,7 +1806,13 @@ type Mutation {
   createClient(input: ClientInput!): Client!
   createClientContact(clientId: ID!, input: ClientContactInput!): ClientContact!
   createClientService(clientId: ID!, input: ClientServiceInput!): ClientService!
-  createContributor(input: ContributorInput!): Contributor!
+  createContributor(
+    """
+    Occurrences made to disappear with their comments or times are confirmed: false (default) refuses with CONFIRMATION_REQUIRED and extension lost { times, comments } when there are some; true deletes them. Its birthday (slot conditions).
+    """
+    confirmLoss: Boolean
+    input: ContributorInput!
+  ): Contributor!
   createDashboard(label: String!, projectId: ID): ID!
   createDashboardChart(dashboardId: ID!, input: DashboardChartInput!): ID!
 
@@ -1889,7 +1905,13 @@ type Mutation {
   deleteClientContact(id: ID!): Boolean!
   deleteClientService(id: ID!): Boolean!
   deleteComment(id: ID!): Boolean!
-  deleteContributor(id: ID!): Boolean!
+  deleteContributor(
+    """
+    Occurrences made to disappear with their comments or times are confirmed: false (default) refuses with CONFIRMATION_REQUIRED and extension lost { times, comments } when there are some; true deletes them. Its birthday gone (slot conditions).
+    """
+    confirmLoss: Boolean
+    id: ID!
+  ): Boolean!
   deleteDashboard(id: ID!): Boolean!
   deleteDashboardChart(id: ID!): Boolean!
 
@@ -1981,7 +2003,13 @@ type Mutation {
   """
   Deletes a relation: its budgets go with it, its lines become the app user's.
   """
-  deleteTreasuryRelation(id: ID!): Boolean!
+  deleteTreasuryRelation(
+    """
+    Occurrences made to disappear with their comments or times are confirmed: false (default) refuses with CONFIRMATION_REQUIRED and extension lost { times, comments } when there are some; true deletes them. Its birthday gone (slot conditions).
+    """
+    confirmLoss: Boolean
+    id: ID!
+  ): Boolean!
 
   """
   Deletes a schedule; the occurrences of routines it makes disappear (no moment left) lose their comments, once confirmed.
@@ -2230,7 +2258,14 @@ type Mutation {
   saveTreasuryContext(id: ID, input: LabelColorInput!): ID!
 
   """Creates a relation (without id) or changes one."""
-  saveTreasuryRelation(id: ID, input: TreasuryRelationInput!): ID!
+  saveTreasuryRelation(
+    """
+    Occurrences made to disappear with their comments or times are confirmed: false (default) refuses with CONFIRMATION_REQUIRED and extension lost { times, comments } when there are some; true deletes them. Its birthday moved or gone (birth date, contributor; slot conditions).
+    """
+    confirmLoss: Boolean
+    id: ID
+    input: TreasuryRelationInput!
+  ): ID!
 
   """Schedules a mail (built now, sent at its time); its draft is removed."""
   scheduleMail(input: SendMailInput!, sendAt: DateTime!): ID!
@@ -2252,7 +2287,16 @@ type Mutation {
   """
   Archives (hidden by default, read only) or restores elements of a kind, all at once.
   """
-  setArchived(archived: Boolean!, ids: [ID!]!, kind: ArchivableKind!): Boolean!
+  setArchived(
+    archived: Boolean!
+
+    """
+    Occurrences made to disappear with their comments or times are confirmed: false (default) refuses with CONFIRMATION_REQUIRED and extension lost { times, comments } when there are some; true deletes them. Schedules, kinds of schedules, contributors and relations.
+    """
+    confirmLoss: Boolean
+    ids: [ID!]!
+    kind: ArchivableKind!
+  ): Boolean!
 
   """
   Cancels an event, kept in the calendar struck through, or restores it; for a recurring one, the occurrence, it and the following ones, or the whole series.
@@ -2440,7 +2484,14 @@ type Mutation {
   updateClientService(id: ID!, input: ClientServiceInput!): ClientService!
   updateComment(body: String!, id: ID!): Comment!
   updateCompanyProfile(input: CompanyProfileInput!): CompanyProfile!
-  updateContributor(id: ID!, input: ContributorUpdateInput!): Contributor!
+  updateContributor(
+    """
+    Occurrences made to disappear with their comments or times are confirmed: false (default) refuses with CONFIRMATION_REQUIRED and extension lost { times, comments } when there are some; true deletes them. Its birthday moved or gone (slot conditions).
+    """
+    confirmLoss: Boolean
+    id: ID!
+    input: ContributorUpdateInput!
+  ): Contributor!
   updateDashboardChart(id: ID!, input: DashboardChartInput!): Boolean!
   updateDocumentStatus(category: DocumentStatusCategory, color: String, id: ID!, label: String): Boolean!
   updateImportedDocument(file: File, id: ID!, input: ImportedDocumentInput!): Boolean!
@@ -2691,9 +2742,14 @@ type Query {
   alarms: [Alarm!]!
 
   """
-  Birthdays of the people of the workspace (contributors and relations with a birth date, not archived), by name.
+  Birthdays of the people of the workspace (contributors and relations with a birth date, not archived unless asked), by name.
   """
-  birthdays: [Birthday!]!
+  birthdays(
+    """
+    Those of archived people too (flagged `archived`): what a slot condition may still name.
+    """
+    archived: Boolean
+  ): [Birthday!]!
   calendarCategories: [CalendarCategory!]!
 
   """Occurrences of the events overlapping a period (dates included)."""

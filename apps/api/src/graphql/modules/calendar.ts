@@ -339,14 +339,19 @@ const BirthdayRef = builder.objectRef<birthdays.PersonBirthday>('Birthday').impl
     name: t.exposeString('name'),
     birthDate: t.exposeString('birthDate', { description: BIRTH_DATE_DESCRIPTION }),
     reminders: t.field({ type: [ReminderRef], description: 'Reminders « À HH:MM » or « N jours avant, à HH:MM » of the birthday.', resolve: (birthday) => birthday.reminders }),
+    archived: t.exposeBoolean('archived', { description: 'Its person is archived (asked with `archived: true` only): shown nowhere, no moment to the slot conditions.' }),
+    aliases: t.exposeStringList('aliases', {
+      description: 'Other ids (`relation:<id>`, `contributor:<id>`) naming the same birthday in the slot conditions: the relation linked to the contributor whose birthday applies, or the reverse.',
+    }),
   }),
 });
 
 builder.queryFields((t) => ({
   birthdays: t.field({
     type: [BirthdayRef],
-    description: 'Birthdays of the people of the workspace (contributors and relations with a birth date, not archived), by name.',
-    resolve: () => birthdays.birthdays(),
+    description: 'Birthdays of the people of the workspace (contributors and relations with a birth date, not archived unless asked), by name.',
+    args: { archived: t.arg.boolean({ description: 'Those of archived people too (flagged `archived`): what a slot condition may still name.' }) },
+    resolve: (_root, { archived }) => birthdays.birthdays({ archived: archived ?? false }),
   }),
   calendars: t.prismaField({
     type: ['Calendar'],
@@ -517,29 +522,29 @@ builder.mutationFields((t) => ({
   createWorkSchedule: t.id({
     description: 'Creates a schedule; the occurrences of routines it makes disappear (no moment left) lose their comments, once confirmed.',
     args: { input: t.arg({ type: WorkScheduleInput, required: true }), confirmLoss: t.arg.boolean({ description: CONFIRM_LOSS_DESCRIPTION }) },
-    resolve: async (_root, { input, confirmLoss }) => (await schedules.createWorkSchedule(scheduleInput(input), (change) => settleScheduleChange(change, confirmLoss ?? false))).id,
+    resolve: async (_root, { input, confirmLoss }) => (await schedules.createWorkSchedule(scheduleInput(input), (change) => settleScheduleChange({ apply: change }, confirmLoss ?? false))).id,
   }),
   updateWorkSchedule: t.boolean({
     description: 'Changes a schedule; the occurrences of routines it makes disappear (no moment left) lose their comments, once confirmed.',
     args: { id: t.arg.id({ required: true }), input: t.arg({ type: WorkScheduleInput, required: true }), confirmLoss: t.arg.boolean({ description: CONFIRM_LOSS_DESCRIPTION }) },
-    resolve: (_root, { id, input, confirmLoss }) => done(schedules.updateWorkSchedule(id, scheduleInput(input), (change) => settleScheduleChange(change, confirmLoss ?? false))),
+    resolve: (_root, { id, input, confirmLoss }) => done(schedules.updateWorkSchedule(id, scheduleInput(input), (change) => settleScheduleChange({ apply: change }, confirmLoss ?? false))),
   }),
   setWorkScheduleEphemeris: t.boolean({
     description:
       'Turns a schedule into an éphéméride or back into a créneau (its id kept; a kind of the other nature left); the occurrences of routines it makes disappear lose their comments, once confirmed.',
     args: { id: t.arg.id({ required: true }), ephemeris: t.arg.boolean({ required: true }), confirmLoss: t.arg.boolean({ description: CONFIRM_LOSS_DESCRIPTION }) },
-    resolve: (_root, { id, ephemeris, confirmLoss }) => done(schedules.setWorkScheduleEphemeris(id, ephemeris, (change) => settleScheduleChange(change, confirmLoss ?? false))),
+    resolve: (_root, { id, ephemeris, confirmLoss }) => done(schedules.setWorkScheduleEphemeris(id, ephemeris, (change) => settleScheduleChange({ apply: change }, confirmLoss ?? false))),
   }),
   setScheduleTypeEphemeris: t.boolean({
     description:
       'Turns a whole kind (its schedules with it, ids kept) into a kind of éphémérides or back into a kind of créneaux; the occurrences of routines it makes disappear lose their comments, once confirmed.',
     args: { id: t.arg.id({ required: true }), ephemeris: t.arg.boolean({ required: true }), confirmLoss: t.arg.boolean({ description: CONFIRM_LOSS_DESCRIPTION }) },
-    resolve: (_root, { id, ephemeris, confirmLoss }) => done(schedules.setScheduleTypeEphemeris(id, ephemeris, (change) => settleScheduleChange(change, confirmLoss ?? false))),
+    resolve: (_root, { id, ephemeris, confirmLoss }) => done(schedules.setScheduleTypeEphemeris(id, ephemeris, (change) => settleScheduleChange({ apply: change }, confirmLoss ?? false))),
   }),
   deleteWorkSchedule: t.boolean({
     description: 'Deletes a schedule; the occurrences of routines it makes disappear (no moment left) lose their comments, once confirmed.',
     args: { id: t.arg.id({ required: true }), confirmLoss: t.arg.boolean({ description: CONFIRM_LOSS_DESCRIPTION }) },
-    resolve: (_root, { id, confirmLoss }) => done(schedules.deleteWorkSchedule(id, (change) => settleScheduleChange(change, confirmLoss ?? false))),
+    resolve: (_root, { id, confirmLoss }) => done(schedules.deleteWorkSchedule(id, (change) => settleScheduleChange({ apply: change }, confirmLoss ?? false))),
   }),
   deleteCalendarEvent: t.boolean({
     args: { id: t.arg.id({ required: true }), scope: t.arg({ type: EventScope, required: true }), occurrenceDate: t.arg({ type: 'Date' }) },
@@ -553,5 +558,5 @@ labelMutations(
   schedules.scheduleTypes,
   { create: ScheduleTypeInput, update: ScheduleTypeInput },
   { delete: 'Deletes a kind of time slots (its schedules stay, without kind); the occurrences of routines it makes disappear lose their comments, once confirmed.' },
-  (id, confirmLoss) => schedules.deleteScheduleType(id, (change) => settleScheduleChange(change, confirmLoss)),
+  (id, confirmLoss) => schedules.deleteScheduleType(id, (change) => settleScheduleChange({ apply: change }, confirmLoss)),
 );

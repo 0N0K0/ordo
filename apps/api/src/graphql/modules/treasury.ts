@@ -1,3 +1,5 @@
+import { CONFIRM_LOSS_DESCRIPTION } from '../occurrence-fields';
+import { peopleSettler } from '../../services/routines/routines';
 import { done } from '../errors';
 import {
   addDays,
@@ -945,13 +947,18 @@ builder.mutationFields((t) => ({
   }),
   saveTreasuryRelation: t.id({
     description: 'Creates a relation (without id) or changes one.',
-    args: { id: t.arg.id(), input: t.arg({ type: RelationInput, required: true }) },
-    resolve: async (_root, { id, input }) => (await team.saveRelation(id ?? null, { ...input, note: input.note ?? null, contributorId: input.contributorId ?? null })).id,
+    args: {
+      id: t.arg.id(),
+      input: t.arg({ type: RelationInput, required: true }),
+      confirmLoss: t.arg.boolean({ description: `${CONFIRM_LOSS_DESCRIPTION} Its birthday moved or gone (birth date, contributor; slot conditions).` }),
+    },
+    resolve: async (_root, { id, input, confirmLoss }) =>
+      (await team.saveRelation(id ?? null, { ...input, note: input.note ?? null, contributorId: input.contributorId ?? null }, peopleSettler(confirmLoss))).id,
   }),
   deleteTreasuryRelation: t.boolean({
     description: "Deletes a relation: its budgets go with it, its lines become the app user's.",
-    args: { id: t.arg.id({ required: true }) },
-    resolve: (_root, { id }) => done(team.deleteRelation(id)),
+    args: { id: t.arg.id({ required: true }), confirmLoss: t.arg.boolean({ description: `${CONFIRM_LOSS_DESCRIPTION} Its birthday gone (slot conditions).` }) },
+    resolve: (_root, { id, confirmLoss }) => done(team.deleteRelation(id, peopleSettler(confirmLoss))),
   }),
   importTreasuryStatement: t.field({
     type: 'JSON',

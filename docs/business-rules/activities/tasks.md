@@ -42,7 +42,7 @@ Champs calculés exposés par GraphQL (`apps/api/src/graphql/modules/tasks.ts`) 
 - `commentCount` : nombre de commentaires de la tâche.
 - `trackedSeconds` : temps passé, en secondes (voir [Temps passé d’une tâche](time.md#temps-passé-dune-tâche)).
 - `slotCondition` lue par `readSlotCondition` (une valeur illisible devient `null`) ; un groupe vide est enregistré comme `null`.
-- Créneaux, types et anniversaires de la condition (anniversaire d’une personne ou tous, lot 16c) : existants (« Créneau », « Type de créneau », « Espace », « Contributeur », « Relation » introuvable) ; un créneau ou un type archivé n’est plus accepté, sauf s’il était déjà dans la condition de la tâche (`assertConditionSchedules`, voir [Agenda](calendar.md#condition-de-créneaux-des-tâches-et-routines)).
+- Créneaux, types et anniversaires de la condition (anniversaire d’une personne ou tous, lot 16c) : existants (« Créneau », « Type de créneau », « Espace », « Contributeur », « Relation » introuvable) ; un créneau, un type ou une personne archivé n’est plus accepté, sauf s’il était déjà dans la condition de la tâche (`assertConditionSchedules`, voir [Agenda](calendar.md#condition-de-créneaux-des-tâches-et-routines)) ; gardé, il ne donne plus aucun moment : la tâche n’est pas faisable par lui (décision FQ).
 - Un type sans aucun créneau ne permet aucun moment : une tâche limitée à ce type (« sur l’un des types ») n’est jamais faisable tant qu’aucun créneau de ce type n’existe (comportement voulu).
 - Les tâches dont la règle de créneaux datait d’avant la condition l’ont gardée telle quelle en conditions sur les types (migration `20261119190000_task_slot_condition`, décision DX).
 

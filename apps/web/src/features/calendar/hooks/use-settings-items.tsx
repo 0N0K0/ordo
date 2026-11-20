@@ -4,6 +4,7 @@ import type { SettingsItemKind } from '../../../components/settings/SettingsItem
 import { Checkbox, Stack, Switch } from '@mantine/core';
 import { useCalendarCategoryMutations, useWorkScheduleMutations, type CalendarCategory, type ScheduleType, type ScheduleTypeFields } from '../api';
 import { ScheduleLookEditor } from '../components/ScheduleLookEditor';
+import { withLossConfirmation } from '../../time/lib/confirm-loss';
 
 /**
  * Categories of the calendar, for their settings list and their form (a creation from a select too): label, color
@@ -47,6 +48,8 @@ export function useScheduleTypeItems({ ephemeris = false, budgetContext = false 
   });
   return {
     kind: 'SCHEDULE_TYPE',
+    // Archiving or restoring a kind changes what its schedules give the slot conditions (decision FQ).
+    confirmLoss: withLossConfirmation,
     schema: labelFormSchema,
     extra: {
       initial: (type) => ({
