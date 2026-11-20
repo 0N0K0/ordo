@@ -1281,6 +1281,17 @@ type LinkedMailAttachment {
   url: String!
 }
 
+"""What a deletion takes with it, for its confirmation."""
+type LostOnDelete {
+  """Comments of the items and occurrences deleted (decision D19)."""
+  comments: Int!
+
+  """
+  Times without project, not billed, left with nothing attached (extra A of decision D17).
+  """
+  times: Int!
+}
+
 """Mailbox settings (passwords are never returned)."""
 type MailAccount {
   """Archived: hidden by default, read only."""
@@ -1529,7 +1540,14 @@ type Mutation {
   acceptQuote(date: Date!, file: File, id: ID!): Boolean!
   addAccountingAttachments(files: [File!]!, id: ID!): Boolean!
   addChecklistItem(input: SheetItemInput!, listId: ID!): ID!
-  addComment(body: String!, id: String!, target: CommentTarget!): Comment!
+  addComment(
+    body: String!
+    id: String!
+
+    """Occurrence of a routine or a recurring event (required for them)."""
+    occurrenceDate: Date
+    target: CommentTarget!
+  ): Comment!
   addDocumentReminder(id: ID!, note: String): Boolean!
   addLibraryFiles(files: [File!]!, folderId: ID): [ID!]!
   addLibraryLink(folderId: ID, note: String, title: String!, url: String!): ID!
@@ -2478,13 +2496,26 @@ type Query {
   """Every client, archived ones included, in manual order."""
   clients: [Client!]!
 
-  """Number of comments of items of a kind (descriptions not counted)."""
-  commentCounts(ids: [String!]!, target: CommentTarget!): [CommentCount!]!
+  """
+  Number of comments of items of a kind (descriptions not counted); of occurrences for routines and events.
+  """
+  commentCounts(
+    """
+    Items; for routines and events, occurrence keys (« id|YYYY-MM-DD », the id alone for a one-off event).
+    """
+    ids: [String!]!
+    target: CommentTarget!
+  ): [CommentCount!]!
 
-  """Comments of an item, oldest first."""
+  """
+  Comments of an item, oldest first; of one occurrence for a routine or an event (decision D19).
+  """
   comments(
     """Item id (Message-ID for a mail)."""
     id: String!
+
+    """Occurrence of a routine or a recurring event (none: a one-off event)."""
+    occurrenceDate: Date
     target: CommentTarget!
   ): [Comment!]!
   companyProfile: CompanyProfile!
@@ -2551,6 +2582,27 @@ type Query {
 
   """Every document of the library (content of the files left out)."""
   libraryDocuments: [LibraryDocument!]!
+
+  """
+  What a deletion of tasks, routines, occurrences of a routine, an event (occurrences) or a calendar takes with it: the times without project, not billed, left with nothing attached, and the comments of the routines, events and occurrences deleted.
+  """
+  lostOnDelete(
+    """Calendar deleted with all its events."""
+    calendarId: ID
+    eventId: ID
+    occurrenceDate: Date
+    routineIds: [ID!]
+
+    """
+    Occurrence of a routine deleted (THIS), or it and the following ones (FOLLOWING).
+    """
+    routineOccurrence: RoutineOccurrenceGoneInput
+    scope: CalendarEventScope
+    taskIds: [ID!]
+
+    """Their sub-tasks or sub-routines are deleted too."""
+    withSubtree: Boolean
+  ): LostOnDelete!
   mailAccounts: [MailAccount!]!
 
   """
@@ -2744,22 +2796,6 @@ type Query {
   Time entries, latest first: those of a project and its sub-projects, of a routine, or every entry; optionally only those started since a moment.
   """
   timeEntries(projectId: ID, routineId: ID, since: DateTime): [TimeEntry!]!
-
-  """
-  Number of times deleted with tasks, routines, an event (occurrences) or a calendar about to be deleted: those without project, not billed, left with nothing attached.
-  """
-  timeLostOnDelete(
-    """Calendar deleted with all its events."""
-    calendarId: ID
-    eventId: ID
-    occurrenceDate: Date
-    routineIds: [ID!]
-    scope: CalendarEventScope
-    taskIds: [ID!]
-
-    """Their sub-tasks or sub-routines are deleted too."""
-    withSubtree: Boolean
-  ): Int!
 
   """
   Mails to do (not marked as done) of every account, in every folder but drafts, sent, archive, junk and trash.
@@ -3156,6 +3192,15 @@ type RoutineOccurrence {
 
   """First day it can be done."""
   startDate: Date!
+}
+
+input RoutineOccurrenceGoneInput {
+  """Occurrence (its day now)."""
+  date: Date!
+  id: ID!
+
+  """THIS or FOLLOWING."""
+  scope: CalendarEventScope!
 }
 
 """Changes of a routine (omitted fields unchanged)."""

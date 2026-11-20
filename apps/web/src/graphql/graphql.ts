@@ -671,6 +671,14 @@ export type RoutineInput = {
   travelBefore?: number | null | undefined;
 };
 
+export type RoutineOccurrenceGoneInput = {
+  /** Occurrence (its day now). */
+  date: string;
+  id: string | number;
+  /** THIS or FOLLOWING. */
+  scope: CalendarEventScope;
+};
+
 /** Changes of a routine (omitted fields unchanged). */
 export type RoutinePatch = {
   assigneeIds?: Array<string | number> | null | undefined;
@@ -2187,6 +2195,7 @@ export type DeleteCalendarEventMutation = { deleteCalendarEvent: boolean };
 export type CommentsQueryVariables = Exact<{
   target: CommentTarget;
   id: string;
+  occurrenceDate?: string | null | undefined;
 }>;
 
 
@@ -2204,6 +2213,7 @@ export type AddCommentMutationVariables = Exact<{
   target: CommentTarget;
   id: string;
   body: string;
+  occurrenceDate?: string | null | undefined;
 }>;
 
 
@@ -4232,7 +4242,7 @@ export type UpdateTimeEntryMutationVariables = Exact<{
 
 export type UpdateTimeEntryMutation = { updateTimeEntry: { id: string } };
 
-export type TimeLostOnDeleteQueryVariables = Exact<{
+export type LostOnDeleteQueryVariables = Exact<{
   taskIds?: Array<string | number> | string | number | null | undefined;
   routineIds?: Array<string | number> | string | number | null | undefined;
   withSubtree?: boolean | null | undefined;
@@ -4240,10 +4250,11 @@ export type TimeLostOnDeleteQueryVariables = Exact<{
   scope?: CalendarEventScope | null | undefined;
   occurrenceDate?: string | null | undefined;
   calendarId?: string | number | null | undefined;
+  routineOccurrence?: RoutineOccurrenceGoneInput | null | undefined;
 }>;
 
 
-export type TimeLostOnDeleteQuery = { timeLostOnDelete: number };
+export type LostOnDeleteQuery = { lostOnDelete: { times: number, comments: number } };
 
 export type DeleteTimeEntryMutationVariables = Exact<{
   id: string | number;
@@ -6669,8 +6680,8 @@ export const DeleteCalendarEventDocument = new TypedDocumentString(`
 }
     `) as unknown as TypedDocumentString<DeleteCalendarEventMutation, DeleteCalendarEventMutationVariables>;
 export const CommentsDocument = new TypedDocumentString(`
-    query Comments($target: CommentTarget!, $id: String!) {
-  comments(target: $target, id: $id) {
+    query Comments($target: CommentTarget!, $id: String!, $occurrenceDate: Date) {
+  comments(target: $target, id: $id, occurrenceDate: $occurrenceDate) {
     id
     body
     createdAt
@@ -6686,8 +6697,13 @@ export const CommentCountsDocument = new TypedDocumentString(`
 }
     `) as unknown as TypedDocumentString<CommentCountsQuery, CommentCountsQueryVariables>;
 export const AddCommentDocument = new TypedDocumentString(`
-    mutation AddComment($target: CommentTarget!, $id: String!, $body: String!) {
-  addComment(target: $target, id: $id, body: $body) {
+    mutation AddComment($target: CommentTarget!, $id: String!, $body: String!, $occurrenceDate: Date) {
+  addComment(
+    target: $target
+    id: $id
+    body: $body
+    occurrenceDate: $occurrenceDate
+  ) {
     id
   }
 }
@@ -9405,9 +9421,9 @@ export const UpdateTimeEntryDocument = new TypedDocumentString(`
   }
 }
     `) as unknown as TypedDocumentString<UpdateTimeEntryMutation, UpdateTimeEntryMutationVariables>;
-export const TimeLostOnDeleteDocument = new TypedDocumentString(`
-    query TimeLostOnDelete($taskIds: [ID!], $routineIds: [ID!], $withSubtree: Boolean, $eventId: ID, $scope: CalendarEventScope, $occurrenceDate: Date, $calendarId: ID) {
-  timeLostOnDelete(
+export const LostOnDeleteDocument = new TypedDocumentString(`
+    query LostOnDelete($taskIds: [ID!], $routineIds: [ID!], $withSubtree: Boolean, $eventId: ID, $scope: CalendarEventScope, $occurrenceDate: Date, $calendarId: ID, $routineOccurrence: RoutineOccurrenceGoneInput) {
+  lostOnDelete(
     taskIds: $taskIds
     routineIds: $routineIds
     withSubtree: $withSubtree
@@ -9415,9 +9431,13 @@ export const TimeLostOnDeleteDocument = new TypedDocumentString(`
     scope: $scope
     occurrenceDate: $occurrenceDate
     calendarId: $calendarId
-  )
+    routineOccurrence: $routineOccurrence
+  ) {
+    times
+    comments
+  }
 }
-    `) as unknown as TypedDocumentString<TimeLostOnDeleteQuery, TimeLostOnDeleteQueryVariables>;
+    `) as unknown as TypedDocumentString<LostOnDeleteQuery, LostOnDeleteQueryVariables>;
 export const DeleteTimeEntryDocument = new TypedDocumentString(`
     mutation DeleteTimeEntry($id: ID!) {
   deleteTimeEntry(id: $id)

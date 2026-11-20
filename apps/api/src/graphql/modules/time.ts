@@ -3,13 +3,32 @@ import { ALARM_FREQUENCIES, ALARM_TYPES, type AlarmInput } from '@ordo/shared';
 import { prisma } from '../../db';
 import * as alarms from '../../services/tasks/alarms';
 import * as timeEntries from '../../services/tasks/time-entries';
+import type { GoneOccurrences } from '../../services/tasks/time-entries';
 import { builder, type InputFields } from '../builder';
 import { relationIds } from '../relation-fields';
 import { deletedTreeIds, subtreeIds } from '../../services/core/trees';
-import { goneOccurrences } from '../../services/calendar/calendar-events';
+import { goneOccurrences, placeLegacyEventComments } from '../../services/calendar/calendar-events';
+import { placeLegacyRoutineComments } from '../../services/routines/routines';
 import { calendarEventsGone } from '../../services/calendar/calendars';
 import { EventScope } from './calendar';
 import { reloaded } from '../reload';
+import { commentsLostOnDelete } from '../../services/core/comments';
+
+const LostOnDeleteRef = builder.objectRef<{ times: number; comments: number }>('LostOnDelete').implement({
+  description: 'What a deletion takes with it, for its confirmation.',
+  fields: (t) => ({
+    times: t.exposeInt('times', { description: 'Times without project, not billed, left with nothing attached (extra A of decision D17).' }),
+    comments: t.exposeInt('comments', { description: 'Comments of the items and occurrences deleted (decision D19).' }),
+  }),
+});
+
+const RoutineOccurrenceGoneInput = builder.inputType('RoutineOccurrenceGoneInput', {
+  fields: (t) => ({
+    id: t.id({ required: true }),
+    date: t.field({ type: 'Date', required: true, description: 'Occurrence (its day now).' }),
+    scope: t.field({ type: EventScope, required: true, description: 'THIS or FOLLOWING.' }),
+  }),
+});
 
 builder.prismaObject('TimeEntry', {
   fields: (t) => ({
@@ -178,8 +197,10 @@ builder.queryFields((t) => ({
       });
     },
   }),
-  timeLostOnDelete: t.int({
-    description: 'Number of times deleted with tasks, routines, an event (occurrences) or a calendar about to be deleted: those without project, not billed, left with nothing attached.',
+  lostOnDelete: t.field({
+    type: LostOnDeleteRef,
+    description:
+      'What a deletion of tasks, routines, occurrences of a routine, an event (occurrences) or a calendar takes with it: the times without project, not billed, left with nothing attached, and the comments of the routines, events and occurrences deleted.',
     args: {
       taskIds: t.arg.idList(),
       routineIds: t.arg.idList(),
@@ -188,15 +209,22 @@ builder.queryFields((t) => ({
       scope: t.arg({ type: EventScope }),
       occurrenceDate: t.arg({ type: 'Date' }),
       calendarId: t.arg.id({ description: 'Calendar deleted with all its events.' }),
+      routineOccurrence: t.arg({ type: RoutineOccurrenceGoneInput, description: 'Occurrence of a routine deleted (THIS), or it and the following ones (FOLLOWING).' }),
     },
-    resolve: async (_root, { taskIds, routineIds, withSubtree, eventId, scope, occurrenceDate, calendarId }) =>
-      (
-        await timeEntries.timeLeftEmpty({
-          taskIds: await deletedTreeIds('task', taskIds ?? [], withSubtree ?? false),
-          routineIds: await deletedTreeIds('routine', routineIds ?? [], withSubtree ?? false),
-          events: [...(eventId ? [await goneOccurrences(eventId, scope ?? 'ALL', occurrenceDate)] : []), ...(calendarId ? await calendarEventsGone(calendarId) : [])],
-        })
-      ).length,
+    resolve: async (_root, { taskIds, routineIds, withSubtree, eventId, scope, occurrenceDate, calendarId, routineOccurrence }) => {
+      const routinesGone = await deletedTreeIds('routine', routineIds ?? [], withSubtree ?? false);
+      // Comments written before they were on occurrences: placed first, to be counted on theirs.
+      if (routineOccurrence) await placeLegacyRoutineComments([routineOccurrence.id]);
+      if (eventId) await placeLegacyEventComments([eventId]);
+      const events: GoneOccurrences[] = [...(eventId ? [await goneOccurrences(eventId, scope ?? 'ALL', occurrenceDate)] : []), ...(calendarId ? await calendarEventsGone(calendarId) : [])];
+      const times = await timeEntries.timeLeftEmpty({ taskIds: await deletedTreeIds('task', taskIds ?? [], withSubtree ?? false), routineIds: routinesGone, events });
+      const comments = await commentsLostOnDelete({
+        routineIds: routinesGone,
+        routines: routineOccurrence ? [routineOccurrence.scope === 'THIS' ? { id: routineOccurrence.id, on: routineOccurrence.date } : { id: routineOccurrence.id, from: routineOccurrence.date }] : [],
+        events: events.map((gone) => ({ id: gone.eventId, on: gone.on, from: gone.from })),
+      });
+      return { times: times.length, comments };
+    },
   }),
   runningTimeEntry: t.prismaField({
     type: 'TimeEntry',

@@ -166,6 +166,7 @@ Source : `moveRoutineOccurrence`, `removeRoutineMove`, `changeRoutineOccurrence`
 - Routine archivée : refusée.
 - Redéplacer une occurrence déjà déplacée modifie son exception ; la remettre à son jour avec ses horaires supprime l'exception. Seuls les horaires qui diffèrent de la règle sont gardés.
 - `removeRoutineMove` : supprime l'exception, l'occurrence revient à son jour.
+- Les commentaires d'une occurrence déplacée la suivent (vers son nouveau jour, et retour quand l'exception est retirée ; décision D19). Depuis l'agenda, `FOLLOWING` et `ALL` ne déplacent que ceux de l'occurrence changée.
 
 Depuis l'agenda (`changeRoutineOccurrence`, portée `THIS` / `FOLLOWING` / `ALL`) :
 
@@ -181,6 +182,7 @@ Annulation depuis l'agenda (`deleteRoutineOccurrence`) :
 - `FOLLOWING` : les règles (ou cas) s'arrêtent avant ; les cas sans occurrence avant sont retirés ; s'il ne reste rien, la routine est archivée (la mutation renvoie `true`).
 - `ALL` refusé : « Archivez ou supprimez la routine elle-même. »
 - Les coches passées restent dans l'historique.
+- Les commentaires des occurrences supprimées (celle-ci, ou à partir d'elle) sont supprimés (décision D19) ; « Annuler » (retrait de l'exception) ne les rend pas. La question de portée en donne le nombre pour chaque choix (`lostOnDelete`, `routineOccurrence`).
 
 ## Modifications en masse
 

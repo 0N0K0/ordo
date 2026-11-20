@@ -3,7 +3,7 @@ import { readOnlyCells } from '../../../components/data-table/table/data-table';
 import { usePageTab } from '../../../components/tabs/use-page-tab';
 import { useSlotChoices } from '../../calendar/hooks/use-slot-sources';
 import { useSetParams, useSearchParam } from '../../../lib/search-params';
-import { mapById } from '@ordo/shared';
+import { mapById, occurrenceKey } from '@ordo/shared';
 import { PageHeader } from '../../../components/page/PageHeader';
 import { ActionButton } from '../../../components/actions/ActionButton';
 import { EmptyState } from '../../../components/feedback/EmptyState';
@@ -34,7 +34,7 @@ import { AddRoutineRow, ChronoCell, StateCell } from '../components/routine-tabl
 import { RoutineDoneToggles } from '../components/DoneToggle';
 import { AssigneesCell, CategoriesCell, EstimateCell, ProjectCell, RepetitionCell, RepetitionText, RoutineBeneficiariesCell, RoutineLabelCell, RoutineLinksCell } from '../components/routine-cells';
 import { BlocksCell, RoutineLocationCell, OpensOnCell, ParentRoutineCell, RemindersCell, SubRoutinesCell, TimeOfDayCell, TravelCell } from '../components/extra-cells';
-import { isDone, movableOccurrence, waitingFor } from '../lib/routine-format';
+import { isDone, movableOccurrence, panelOccurrence, waitingFor } from '../lib/routine-format';
 import { usePostponeRoutine } from '../hooks/use-routine-move';
 import { useRoutineRowsActions, useRoutineSelectionActions } from '../components/RoutineBulkBar';
 import { rowMenuEntry } from '../../../components/data-table/selection/selection-actions';
@@ -91,7 +91,7 @@ export function RoutinesPanel({ projectId, projectIds }: { projectId?: string; p
   // Without those being created (no comment yet): no count asked again for them.
   const comments = useCommentCounts(
     'ROUTINE',
-    useMemo(() => routines.filter((routine) => !isDraftRoutine(routine)).map((routine) => routine.id), [routines]),
+    useMemo(() => routines.filter((routine) => !isDraftRoutine(routine)).map((routine) => occurrenceKey(routine.id, panelOccurrence(routine))), [routines]),
   );
   const { choices: beneficiaryChoices } = useBeneficiaries();
   const byId = useMemo(() => mapById(routines), [routines]);

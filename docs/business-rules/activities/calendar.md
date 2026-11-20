@@ -12,7 +12,7 @@ Source : `apps/api/src/services/calendar/calendars.ts`, schéma `calendarFormSch
 - Création : en dernière position (`nextPositionIn('calendar')`).
 - Modification : refusée si archivé (`ARCHIVED_MESSAGE` « Élément archivé : restaurez-le pour le modifier. »).
 - Calendrier par défaut d’un évènement (`resolveCalendarId`) : celui demandé (doit exister dans l’espace, sinon « Calendrier » introuvable), sinon le premier non archivé (ordre de position) ; s’il n’y en a aucun, un calendrier est créé au nom de l’espace, couleur `#228be6`.
-- Suppression : supprime ses évènements (cascade base) et les abonnements des autres espaces ; refusée pour le dernier calendrier de l’espace : « Le dernier calendrier ne peut pas être supprimé. ». Les temps suivis sur ses évènements restent, sans eux (`TimeEntryEvent`, `onDelete: Cascade`), sauf ceux sans projet qui ne portent plus sur rien, supprimés avant (`releaseSubjectTime` sur `calendarEventsGone` ; la confirmation en donne le nombre, `timeLostOnDelete(calendarId)`, voir [Temps](time.md#suppression-de-ce-sur-quoi-porte-le-temps)) ; un temps facturé est toujours gardé.
+- Suppression : supprime ses évènements (cascade base) et les abonnements des autres espaces ; refusée pour le dernier calendrier de l’espace : « Le dernier calendrier ne peut pas être supprimé. ». Les temps suivis sur ses évènements restent, sans eux (`TimeEntryEvent`, `onDelete: Cascade`), sauf ceux sans projet qui ne portent plus sur rien, supprimés avant (`releaseSubjectTime` sur `calendarEventsGone` ; la confirmation en donne le nombre, avec celui des commentaires de ses évènements, `lostOnDelete(calendarId)`, voir [Temps](time.md#suppression-de-ce-sur-quoi-porte-le-temps)) ; un temps facturé est toujours gardé.
 - Archivage : par la mutation générique `setArchived` (genre `CALENDAR`, liste de paramètres). Un calendrier archivé ne prend aucun nouvel évènement et rend ses évènements non modifiables (voir plus bas). Voir [Archivage](../cross-cutting/archiving.md).
 - Ordre : `BY_POSITION` (voir [Ordre](../cross-cutting/ordering.md)).
 
@@ -77,7 +77,7 @@ Source : `apps/api/src/services/calendar/calendar-events.ts`, schéma `calendarE
 ### Écriture d’un évènement existant
 
 - Refusée si l’évènement est archivé ou si son calendrier l’est (`assertEventWritable`) — modification, annulation/rétablissement, report. La **suppression** n’est pas refusée pour un évènement archivé.
-- Évènement unique : tous les champs remplacés, répétition effacée si absente.
+- Évènement unique : tous les champs remplacés, répétition effacée si absente. Devenu récurrent, ses temps et commentaires vont à sa première occurrence.
 
 ### Portées d’un évènement récurrent (`EVENT_SCOPES`)
 
@@ -86,16 +86,17 @@ Source : `apps/api/src/services/calendar/calendar-events.ts`, schéma `calendarE
 Modification (`updateCalendarEvent`) :
 
 - `THIS` : une exception (`CalendarEventException`, unique par `(eventId, date)`) reçoit libellé, description, lieu, liens, journée entière, dates, heures, trajets de l’occurrence ; calendrier, projet, contributeurs, catégories, tâches et rappels restent ceux de la série. L’interface n’offre pas `THIS` quand la répétition change.
-- `ALL` (ou `FOLLOWING` sur la première occurrence) : la série se déplace d’autant que l’occurrence (décalage en jours appliqué au début de la série, même durée) ; si le décalage n’est pas nul, toutes les exceptions sont supprimées (elles ne correspondent plus).
-- `FOLLOWING` : la série s’arrête la veille de l’occurrence (`endSeriesBefore` : nombre d’occurrences réduit, ou date de fin à la veille ; exceptions à partir de cette date supprimées) et un nouvel évènement commence avec les changements. Si la règle a un nombre d’occurrences inchangé, le nouveau nombre est diminué des occurrences déjà passées (au moins 1). Les liens de routines des jours suivants passent au nouvel évènement.
+- `ALL` (ou `FOLLOWING` sur la première occurrence) : la série se déplace d’autant que l’occurrence (décalage en jours appliqué au début de la série, même durée) ; si le décalage n’est pas nul, toutes les exceptions sont supprimées (elles ne correspondent plus) ; les temps et commentaires des occurrences sont décalés d’autant. Sans répétition, ceux de la première occurrence deviennent ceux de l’évènement unique.
+- `FOLLOWING` : la série s’arrête la veille de l’occurrence (`endSeriesBefore` : nombre d’occurrences réduit, ou date de fin à la veille ; exceptions à partir de cette date supprimées) et un nouvel évènement commence avec les changements. Si la règle a un nombre d’occurrences inchangé, le nouveau nombre est diminué des occurrences déjà passées (au moins 1). Les liens de routines des jours suivants passent au nouvel évènement, ainsi que les temps (`TimeEntryEvent`) et les commentaires des occurrences à partir de la coupure, décalés d’autant de jours que l’occurrence (`remapOccurrenceRows`, décision D19).
 
 Suppression (`deleteCalendarEvent`) :
 
 - évènement unique, `ALL`, ou `FOLLOWING` depuis la première occurrence : suppression de l’évènement (et en cascade : exceptions, liens de routines…) ;
 - `THIS` : exception marquée `cancelled` (l’occurrence n’apparaît plus) ;
-- `FOLLOWING` : la série s’arrête la veille (`endSeriesBefore`).
+- `FOLLOWING` : la série s’arrête la veille (`endSeriesBefore`) ;
+- les commentaires des occurrences supprimées sont supprimés (`deleteGoneComments`, décision D19 ; ceux de tout l’évènement, en cascade).
 
-Avant, les temps des occurrences supprimées les perdent ; ceux sans projet qui ne portent plus sur rien sont supprimés (`goneOccurrences`, `releaseSubjectTime`), sauf les facturés ; la confirmation en donne le nombre pour chaque choix (`timeLostOnDelete`). Voir [Temps](time.md#suppression-de-ce-sur-quoi-porte-le-temps).
+Avant, les temps des occurrences supprimées les perdent ; ceux sans projet qui ne portent plus sur rien sont supprimés (`goneOccurrences`, `releaseSubjectTime`), sauf les facturés ; la confirmation en donne le nombre pour chaque choix, avec celui des commentaires (`lostOnDelete`). Voir [Temps](time.md#suppression-de-ce-sur-quoi-porte-le-temps).
 
 Annulation / rétablissement (`setEventCalledOff`) — l’évènement reste affiché, barré :
 
@@ -106,7 +107,8 @@ Annulation / rétablissement (`setEventCalledOff`) — l’évènement reste aff
 Report (`postponeCalendarEvent`) :
 
 - crée un évènement unique (répétition supprimée) avec les champs donnés, lié par `postponedFromId` et `postponedFromDate` (l’occurrence d’origine) ;
-- puis annule l’occurrence d’origine (`THIS`).
+- puis annule l’occurrence d’origine (`THIS`) ;
+- les commentaires et les temps de l’occurrence d’origine passent au report (décision D19).
 - Supprimer l’évènement d’origine remet le lien du report à vide (`onDelete: SetNull`).
 
 ### Occurrences (`eventOccurrences`, `toOccurrence`)
@@ -127,7 +129,7 @@ Genre `CALENDAR_EVENT` de `setArchived` : archive toute la série. Un évènemen
 
 ### Commentaires et fiches
 
-Commentaires sur `EVENT` (toute la série) — voir [Commentaires](../cross-cutting/comments.md) ; fiches par occurrence (`sheetLinks`, `checklists`) — voir [Fiches](../supplies/sheets.md).
+Commentaires sur `EVENT`, par occurrence (décision D19) — voir [Commentaires](../cross-cutting/comments.md) ; fiches par occurrence (`sheetLinks`, `checklists`) — voir [Fiches](../supplies/sheets.md).
 
 ## Disponibilité et occupation
 

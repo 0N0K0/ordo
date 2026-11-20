@@ -42,7 +42,7 @@ interface TaskColumnExtras {
   alarmCounts?: ReadonlyMap<string, number>;
   /** Calendar schedules a slot condition can name. */
   slotSchedules?: ColumnChoice[];
-  /** Comments by calendar event (of the events listed). */
+  /** Comments by occurrence of the events listed (their key, decision D19). */
   eventComments?: ReadonlyMap<string, number>;
 }
 
@@ -163,7 +163,7 @@ export function taskColumns(context: TaskContext, today: string, extras: TaskCol
    * @returns {number} Number.
    */
   const commentsOf = (row: TaskTableRow): number =>
-    row.kind === 'task' ? commentTotal(row.task.commentCount, row.task.description) : commentTotal(extras.eventComments?.get(row.event.eventId), row.event.description);
+    row.kind === 'task' ? commentTotal(row.task.commentCount, row.task.description) : commentTotal(extras.eventComments?.get(row.event.key), row.event.description);
   const filterOf = (id: TaskColumn): ColumnFilter<TaskTableRow> | false | undefined => {
     const task = (row: TaskTableRow) => (row.kind === 'task' ? row.task : null);
     switch (id) {

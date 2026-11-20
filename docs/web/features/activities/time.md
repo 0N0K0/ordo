@@ -8,7 +8,7 @@ Fonctionnalités : [Temps passé](../../../features/activities/time.md). Règles
 
 ### `api/index.ts`
 
-Documents GraphQL du temps (fragment `TimeEntryFields` avec `routines { id label }` et `events { eventId occurrenceDate label }`, requêtes `TimeEntries`, `RunningTimeEntry`, `TimeLostOnDelete`, mutations `StartTimer`, `SetTimerPaused`, `StopTimer`, `CreateTimeEntry`, `UpdateTimeEntry`, `DeleteTimeEntry`) et hooks.
+Documents GraphQL du temps (fragment `TimeEntryFields` avec `routines { id label }` et `events { eventId occurrenceDate label }`, requêtes `TimeEntries`, `RunningTimeEntry`, `LostOnDelete`, mutations `StartTimer`, `SetTimerPaused`, `StopTimer`, `CreateTimeEntry`, `UpdateTimeEntry`, `DeleteTimeEntry`) et hooks.
 
 | Nom                                    | Rôle                                                                                                                                                                                                      |
 | -------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -20,9 +20,10 @@ Documents GraphQL du temps (fragment `TimeEntryFields` avec `routines { id label
 | `TimeEntryValues` (interface)          | Champs d’un temps envoyés : `projectId`, `routineIds?`, `taskIds`, `description`, `startedAt`, `duration` (secondes), `events?` (plusieurs de chaque, décision D18). |
 | `TimerStartValues` (interface)         | Démarrage d’un chrono : `projectId?`, `routineIds?`, `taskIds`, `description?`, `events?`. |
 | `TimeEventLink` (interface)            | Évènement d’un temps envoyé : `{ eventId, occurrenceDate }`. |
-| `TimeLostQuery` (interface)            | Éléments sur le point d’être supprimés : `taskIds?`, `routineIds?`, `withSubtree?`, `eventId?`, `scope?`, `occurrenceDate?`. |
-| `fetchTimeLost(query)`                 | Nombre de temps sans projet qu’une suppression emporte (requête `timeLostOnDelete` ; `TimeLostQuery` : tâches, routines, évènement, ou `calendarId`). Utilisé par `EventForm` (les trois portées d’un récurrent). |
-| `useTimeLost(query)`                   | Le même nombre en requête React Query. Utilisé par `TimeLostRisk`. |
+| `LostOnDeleteQuery` (interface)        | Éléments sur le point d’être supprimés : `taskIds?`, `routineIds?`, `withSubtree?`, `eventId?`, `scope?`, `occurrenceDate?`, `calendarId?`, `routineOccurrence?` (`{ id, date, scope }` : occurrence de routine, ou elle et les suivantes). |
+| `LostOnDelete` (interface)             | `{ times, comments }` : temps sans projet laissés sans rattachement, commentaires de ce qui est supprimé (décision D19). |
+| `fetchLostOnDelete(query)`             | Ce qu’une suppression emporte : temps sans projet et commentaires (requête `lostOnDelete`). Utilisé par `EventForm` (les trois portées d’un récurrent) et `useCalendarEdits` (suppression d’une occurrence de routine, deux portées). |
+| `useLostOnDelete(query)`               | La même chose en requête React Query. Utilisé par `LostOnDeleteRisk`. |
 | `useTimeMutations()`                   | `{ start, setPaused, stop, create, update, remove }` ; toutes invalident `['time']` et `['tasks']` (temps passé des tâches). `start` avertit ensuite si le chrono est hors des créneaux (`warnOutOfSlots`). |
 
 Internes : `useTimeMutation` (mutation invalidante), `warnOutOfSlots(queryClient, slotRules, input)` (toast « Hors des moments prévus » : tâches hors des heures que leur condition de créneaux permet, ou assignés d’une tâche ou d’une routine pris par un autre évènement que ceux du chrono ; lit les routines et tâches déjà en cache).
@@ -122,10 +123,14 @@ Classes `running` (bloc du chrono dans l’en-tête), `summary` (bouton sujet + 
 - `TimeSubjectsFields({ context, projectId, day, entry?, value, onChange, errors?, comboboxProps? })` : ce sur quoi porte un temps, le même dans son formulaire et le chrono (décision D18) : « Routines » (`timeRoutineOptions` ; « Le temps est réparti à parts égales entre les n routines. »), « Tâches » (`TimeTasksSelect`), « Évènements » du jour (`dayEventOptions`, ceux du temps gardés). Utilisé par `TimeEntryForm`, `TimerStartForm`, `RunningTimer`.
 - `TimeSubjectsValue` (type) : `{ routineIds, taskIds, events }` (clés d’occurrence).
 
-### `components/TimeLostRisk.tsx`
+### `components/LostOnDeleteRisk.tsx`
 
-- `TimeLostRisk({ query })` : phrase de la confirmation d’une suppression de tâches, de routines, d’un évènement ou d’un calendrier : « 2 temps sans projet, qui ne portent sur rien d’autre, seront aussi supprimés (les temps facturés sont gardés). » (`useTimeLost` ; rien sans aucun). Utilisé par `DeleteTasksDialog`, `DeleteRoutinesDialog`, `EventForm`, `CalendarsManager`.
-- Interne : `timeLostText(count)`.
+- `LostOnDeleteRisk({ query })` : phrases de la confirmation d’une suppression de tâches, de routines, d’un évènement ou d’un calendrier : « 2 temps sans projet, qui ne portent sur rien d’autre, seront aussi supprimés (les temps facturés sont gardés). » et « 3 commentaires seront aussi supprimés. » (`useLostOnDelete`, `lostOnDeleteText` ; rien sans aucun). Seule brique de ce rôle (remplace `TimeLostRisk`). Utilisé par `DeleteTasksDialog`, `DeleteRoutinesDialog`, `EventForm`, `CalendarsManager`.
+
+### `lib/lost-on-delete.ts`
+
+- `lostOnDeleteText(lost)` : les deux phrases ci-dessus (vide sans rien).
+- `scopeLostNote(lost)` : note de la question de portée d’une suppression : « Temps sans projet supprimés avec : cette occurrence 1, celle-ci et les suivantes 2, toutes 3 (les temps facturés sont gardés). Commentaires supprimés avec : cette occurrence 1, … » (seulement les choix proposés ; rien sans aucun). Utilisé par `EventForm` et `useCalendarEdits`.
 
 ## hooks/
 

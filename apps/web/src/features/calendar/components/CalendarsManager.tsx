@@ -14,7 +14,7 @@ import { ON_ERROR } from '../../../lib/notify';
 import { calendarIcsUrl, useCalendarMutations, useCalendars, useSubscribableCalendars } from '../api';
 import { SettingsSection } from '../../../components/settings/SettingsSection';
 import { SubscriptionRow } from './SubscriptionRow';
-import { TimeLostRisk } from '../../time/components/TimeLostRisk';
+import { LostOnDeleteRisk } from '../../time/components/LostOnDeleteRisk';
 
 /**
  * Calendars of the workspace, as every settings list: added, edited (label, color, image), reordered by drag and drop,
@@ -45,7 +45,7 @@ function OwnCalendars() {
       deleteMessage={(calendar) => (
         <>
           Le calendrier « {calendar.label} » sera supprimé définitivement avec tous ses évènements (récurrents compris). Les temps suivis sur ces évènements sont conservés, sans eux.
-          <TimeLostRisk query={{ calendarId: calendar.id }} /> Les autres espaces abonnés ne le verront plus.
+          <LostOnDeleteRisk query={{ calendarId: calendar.id }} /> Les autres espaces abonnés ne le verront plus.
         </>
       )}
     />

@@ -25,8 +25,9 @@ import { calendarQueryKey, useCalendarCategories, useCalendarEventMutations, use
 import { archivedIds, archiveEntry, unarchived, unarchivedOffered, useSetArchived } from '../../../lib/archive';
 import { ArchivedBadge } from '../../../components/feedback/ArchivedBadge';
 import { useStartTimer } from '../../time/hooks/use-start-timer';
-import { fetchTimeLost } from '../../time/api';
-import { TimeLostRisk } from '../../time/components/TimeLostRisk';
+import { fetchLostOnDelete } from '../../time/api';
+import { LostOnDeleteRisk } from '../../time/components/LostOnDeleteRisk';
+import { scopeLostNote } from '../../time/lib/lost-on-delete';
 import { timeTaskOptions, timeTasks } from '../../time/lib/time-tasks';
 import { EventLocation } from '../../geo/components/EventLocation';
 import { addressOf, locationOf } from '../../geo/lib/location';
@@ -255,8 +256,8 @@ export function EventForm({ context, occurrence, defaults, onDone, onDuplicate }
   });
 
   /**
-   * Deletes the event (asking which occurrences for a recurring one), telling the times without project deleted with
-   * it (extra A of decision D17).
+   * Deletes the event (asking which occurrences for a recurring one), telling the times without project (extra A of
+   * decision D17) and the comments (decision D19) deleted with it.
    * @returns {Promise<void>}
    */
   const handleDelete = async () => {
@@ -269,9 +270,8 @@ export function EventForm({ context, occurrence, defaults, onDone, onDuplicate }
     const run = (scope: CalendarEventScope) => remove.mutate({ id: occurrence.eventId, scope, occurrenceDate: occurrence.occurrenceDate }, formCallbacks(null, 'Évènement supprimé.', onDone));
     const lost = { eventId: occurrence.eventId, occurrenceDate: occurrence.occurrenceDate };
     if (recurring) {
-      const [one, following, all] = await Promise.all((['THIS', 'FOLLOWING', 'ALL'] as const).map((scope) => fetchTimeLost({ ...lost, scope })));
-      const note = all ? `Temps sans projet supprimés avec : cette occurrence ${one}, celle-ci et les suivantes ${following}, toutes ${all} (les temps facturés sont gardés).` : undefined;
-      const scope = await askScope({ action: 'delete', note });
+      const [THIS, FOLLOWING, ALL] = await Promise.all((['THIS', 'FOLLOWING', 'ALL'] as const).map((scope) => fetchLostOnDelete({ ...lost, scope })));
+      const scope = await askScope({ action: 'delete', note: scopeLostNote({ THIS, FOLLOWING, ALL }) });
       if (scope) run(scope);
       return;
     }
@@ -280,7 +280,7 @@ export function EventForm({ context, occurrence, defaults, onDone, onDuplicate }
       risks: (
         <>
           L’évènement « {occurrence?.label ?? ''} » sera supprimé définitivement.
-          <TimeLostRisk query={{ ...lost, scope: 'ALL' }} />
+          <LostOnDeleteRisk query={{ ...lost, scope: 'ALL' }} />
         </>
       ),
       onConfirm: () => run('ALL'),
@@ -509,7 +509,14 @@ export function EventForm({ context, occurrence, defaults, onDone, onDuplicate }
         </Fieldset>
         {occurrence && !readOnly && <SheetsSection owner={{ eventId: occurrence.eventId }} occurrenceDate={occurrence.occurrenceDate ?? occurrence.startDate} label={values.label || 'l’évènement'} />}
         {occurrence && (
-          <Comments target="EVENT" id={occurrence.eventId} projectId={values.projectId ?? null} title={occurrence.occurrenceDate ? 'Commentaires (toute la série)' : undefined} readOnly={readOnly} />
+          <Comments
+            target="EVENT"
+            id={occurrence.eventId}
+            occurrenceDate={occurrence.occurrenceDate}
+            projectId={values.projectId ?? null}
+            title={occurrence.occurrenceDate ? `Commentaires du ${fmt.day(occurrence.occurrenceDate)}` : undefined}
+            readOnly={readOnly}
+          />
         )}
 
         {readOnly ? (

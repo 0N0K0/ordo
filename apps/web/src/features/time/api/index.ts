@@ -94,9 +94,30 @@ const UpdateTimeEntryDocument = graphql(`
   }
 `);
 
-const TimeLostOnDeleteDocument = graphql(`
-  query TimeLostOnDelete($taskIds: [ID!], $routineIds: [ID!], $withSubtree: Boolean, $eventId: ID, $scope: CalendarEventScope, $occurrenceDate: Date, $calendarId: ID) {
-    timeLostOnDelete(taskIds: $taskIds, routineIds: $routineIds, withSubtree: $withSubtree, eventId: $eventId, scope: $scope, occurrenceDate: $occurrenceDate, calendarId: $calendarId)
+const LostOnDeleteDocument = graphql(`
+  query LostOnDelete(
+    $taskIds: [ID!]
+    $routineIds: [ID!]
+    $withSubtree: Boolean
+    $eventId: ID
+    $scope: CalendarEventScope
+    $occurrenceDate: Date
+    $calendarId: ID
+    $routineOccurrence: RoutineOccurrenceGoneInput
+  ) {
+    lostOnDelete(
+      taskIds: $taskIds
+      routineIds: $routineIds
+      withSubtree: $withSubtree
+      eventId: $eventId
+      scope: $scope
+      occurrenceDate: $occurrenceDate
+      calendarId: $calendarId
+      routineOccurrence: $routineOccurrence
+    ) {
+      times
+      comments
+    }
   }
 `);
 
@@ -185,8 +206,8 @@ export interface TimerStartValues {
   events?: TimeEventLink[];
 }
 
-/** Items about to be deleted (as their deletion takes them), whose times may be deleted with them. */
-export interface TimeLostQuery {
+/** Items about to be deleted (as their deletion takes them), whose times and comments may be deleted with them. */
+export interface LostOnDeleteQuery {
   taskIds?: string[];
   routineIds?: string[];
   /** Their sub-tasks or sub-routines are deleted too. */
@@ -196,25 +217,34 @@ export interface TimeLostQuery {
   occurrenceDate?: string | null;
   /** A calendar deleted with all its events. */
   calendarId?: string;
+  /** An occurrence of a routine deleted (THIS), or it and the following ones (FOLLOWING). */
+  routineOccurrence?: { id: string; date: string; scope: CalendarEventScope };
+}
+
+/** What a deletion takes with it: times without project left with nothing attached, comments of what is deleted. */
+export interface LostOnDelete {
+  times: number;
+  comments: number;
 }
 
 /**
- * Number of times deleted with tasks, routines, an event (occurrences) or a calendar: those without project, not billed, left
- * with nothing attached (extra A of decision D17).
- * @param {TimeLostQuery} query Items about to be deleted.
- * @returns {Promise<number>} Number of times.
+ * What a deletion of tasks, routines, occurrences of a routine, an event (occurrences) or a calendar takes with it: the
+ * times without project, not billed, left with nothing attached (extra A of decision D17), and the comments of what is
+ * deleted (decision D19).
+ * @param {LostOnDeleteQuery} query Items about to be deleted.
+ * @returns {Promise<LostOnDelete>} Numbers.
  */
-export async function fetchTimeLost(query: TimeLostQuery): Promise<number> {
-  return (await execute(TimeLostOnDeleteDocument, query)).timeLostOnDelete;
+export async function fetchLostOnDelete(query: LostOnDeleteQuery): Promise<LostOnDelete> {
+  return (await execute(LostOnDeleteDocument, query)).lostOnDelete;
 }
 
 /**
- * Number of times a deletion takes with it (`fetchTimeLost`), for its confirmation.
- * @param {TimeLostQuery} query Items about to be deleted.
- * @returns {UseQueryResult<number>} Query state.
+ * What a deletion takes with it (`fetchLostOnDelete`), for its confirmation.
+ * @param {LostOnDeleteQuery} query Items about to be deleted.
+ * @returns {UseQueryResult<LostOnDelete>} Query state.
  */
-export function useTimeLost(query: TimeLostQuery) {
-  return useQuery({ queryKey: [...timeQueryKey, 'lost', query], queryFn: () => fetchTimeLost(query) });
+export function useLostOnDelete(query: LostOnDeleteQuery) {
+  return useQuery({ queryKey: [...timeQueryKey, 'lost', query], queryFn: () => fetchLostOnDelete(query) });
 }
 
 /**

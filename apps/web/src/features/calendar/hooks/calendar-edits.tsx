@@ -5,6 +5,8 @@ import { useRoutineMutations, type Routine } from '../../routines/api';
 import * as fmt from '../../../lib/format';
 import { useWorkScheduleMutations } from '../api';
 import { askScope } from '../lib/ask-scope';
+import { fetchLostOnDelete } from '../../time/api';
+import { scopeLostNote } from '../../time/lib/lost-on-delete';
 import { RoutineOccurrenceForm, SlotEditForm } from '../components/CalendarEditForms';
 
 /** Time of the day of a routine occurrence shown in the calendar. */
@@ -86,14 +88,15 @@ export function useCalendarEdits() {
   };
 
   /**
-   * Deletes an occurrence of a routine, or it and the following ones.
+   * Deletes an occurrence of a routine, or it and the following ones, telling the comments deleted with them (decision D19).
    * @param {RoutineOccurrenceRef} occurrence Occurrence.
    * @param {string | null} movedFrom Day of the rule it was moved from, if any.
    * @returns {Promise<void>}
    */
   const removeRoutine = async (occurrence: RoutineOccurrenceRef, movedFrom: string | null) => {
     const { routine, date } = occurrence;
-    const scope = await askScope({ action: 'delete', title: 'Supprimer une occurrence de routine', allowFollowing: true, allowAll: false });
+    const [THIS, FOLLOWING] = await Promise.all((['THIS', 'FOLLOWING'] as const).map((scope) => fetchLostOnDelete({ routineOccurrence: { id: routine.id, date, scope } })));
+    const scope = await askScope({ action: 'delete', title: 'Supprimer une occurrence de routine', allowFollowing: true, allowAll: false, note: scopeLostNote({ THIS, FOLLOWING }) });
     if (!scope) return;
     deleteOccurrence.mutate(
       { id: routine.id, date, scope },

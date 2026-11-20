@@ -1,11 +1,11 @@
 import { beneficiaryKeys } from '../../beneficiaries/hooks/use-beneficiaries';
-import { ROUTINE_REPETITIONS, ROUTINE_STATES, conditionReferences, formatDuration, readSlotCondition, type RoutineCase } from '@ordo/shared';
+import { ROUTINE_REPETITIONS, ROUTINE_STATES, conditionReferences, formatDuration, occurrenceKey, readSlotCondition, type RoutineCase } from '@ordo/shared';
 import { categoryOptions, categoryPaths, categoryTree } from '../../../components/tree/category-tree';
 import { withArchived, type DataColumn } from '../../../components/data-table/table/data-table';
 import * as fmt from '../../../lib/format';
 import { commentColumn } from '../../comments/lib/comment-column';
 import type { Routine } from '../api';
-import { isDone, routineTreeOptions, currentRoutineState, waitingFor } from './routine-format';
+import { isDone, panelOccurrence, routineTreeOptions, currentRoutineState, waitingFor } from './routine-format';
 import { opensWords, REPETITION_LABELS, routineFrequency, ROUTINE_STATE_LABELS, type RoutineEnv } from './routine-view';
 import { localDay } from '../../../lib/dates';
 import { LAST_RANK } from '../../../components/data-table/table/table-engine';
@@ -284,7 +284,8 @@ export function routineColumns(env: RoutineEnv): DataColumn<Routine>[] {
     { id: 'doableNow', label: 'Faisable maintenant', size: 140, hiddenByDefault: true, text: (routine) => (env.doable(routine) ? 'Oui' : ''), filter: { kind: 'boolean', value: env.doable } },
     commentColumn<Routine>(
       comments,
-      (routine) => routine.id,
+      // The comments of the occurrence its panel opens on (decision D19).
+      (routine) => occurrenceKey(routine.id, panelOccurrence(routine)),
       (routine) => routine.description,
     ),
   ];

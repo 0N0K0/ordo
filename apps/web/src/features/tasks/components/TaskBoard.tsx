@@ -155,7 +155,7 @@ export function TaskBoard({ projectId, projectIds, createProjectId, header, empt
   );
   const eventComments = useCommentCounts(
     'EVENT',
-    eventRows.map((row) => (row.kind === 'event' ? row.event.eventId : '')),
+    eventRows.map((row) => (row.kind === 'event' ? row.event.key : '')),
   );
   const columns = useTaskColumns(context, today, { doable: filterUses(views.config?.filter, 'doableNow'), eventComments });
   const rows = useMemo(() => (showEvents ? [...tasks, ...eventRows] : tasks), [showEvents, tasks, eventRows]);
@@ -219,7 +219,7 @@ export function TaskBoard({ projectId, projectIds, createProjectId, header, empt
       const event = row.event;
       return {
         ...texts,
-        comments: <CommentCount count={commentTotal(eventComments.get(event.eventId), event.description)} />,
+        comments: <CommentCount count={commentTotal(eventComments.get(event.key), event.description)} />,
         label: <EventLabelCell event={event} context={context} />,
         assignees: <EventPeopleCell event={event} context={context} />,
         beneficiaries: <EventBeneficiariesCell event={event} />,

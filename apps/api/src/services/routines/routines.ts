@@ -6,9 +6,11 @@ import {
   conditionConstrains,
   conditionWindows,
   daysBetween,
+  dayIn,
   daySchema,
   formatDay,
   isUnderOrSelf,
+  mapById,
   MAX_ROUTINE_MOVES,
   movedFrom,
   movedOccurrences,
@@ -60,7 +62,7 @@ import { clientError, fieldError, notFound, orNotFound, parseInput } from '../..
 import { storedRecurrence } from '../calendar/calendar-events';
 import { assertConditionSchedules, loadSlotsOn } from '../calendar/slot-conditions';
 import { assertProjectContributors, followProject } from '../projects/contributors';
-import { parisToday } from '../../today';
+import { PARIS, parisToday } from '../../today';
 import { assertAllExist, findOrNotFound } from '../core/lookup';
 import { archiveTree, assertActive, assertNoneArchived, assertNotArchived, refuseArchived, findActive } from '../core/archive';
 import { connectIds, orderedPair } from '../core/relations';
@@ -68,6 +70,8 @@ import { loadProjectRootOf, outsideMovedTree } from '../projects/project-tree';
 import { toJson } from '../core/json';
 import { readLinks } from '../core/links';
 import { storedLocation } from '../core/geo';
+import { remapOccurrenceRows } from '../core/occurrence-rows';
+import { deleteGoneComments, placeLegacyComments } from '../core/comments';
 
 /** Routine with what its occurrences are computed from. */
 export type RoutineTiming = Pick<Routine, 'startDate' | 'recurrence' | 'cases' | 'moves' | 'fromTime' | 'dueTime' | 'scheduleIds' | 'excludedScheduleIds' | 'moments' | 'slotCondition'> &
@@ -1048,6 +1052,7 @@ export async function bulkSetRoutinesDone(ids: string[], done: boolean): Promise
  */
 export async function moveRoutineOccurrence(id: string, date: string, to: string, times?: RoutineMoveTimes): Promise<void> {
   const routine = await findActive(prisma.routine, id, 'Routine');
+  await placeLegacyRoutineComments([id]);
   if (await prisma.routineCheck.count({ where: { routineId: id, date: parseDay(date) } })) {
     throw clientError('BAD_USER_INPUT', 'Cette occurrence est déjà cochée : décochez-la pour la déplacer.');
   }
@@ -1069,6 +1074,39 @@ export async function moveRoutineOccurrence(id: string, date: string, to: string
   const moves = withMove(stored, move.from, move.to, changed);
   if (moves.length > MAX_ROUTINE_MOVES) throw clientError('BAD_USER_INPUT', `${MAX_ROUTINE_MOVES} exceptions au plus.`);
   await prisma.routine.update({ where: { id }, data: { moves } });
+  await followOccurrence(id, date, move.to);
+}
+
+/**
+ * Places the comments of routines written before they were on occurrences (decision D19) on the occurrence current on
+ * the day each was written (Paris time; none: the next one, else the first one, else the first day of the routine), and
+ * saves them there. Archived routines are computed as if they were not.
+ * @param {readonly string[]} ids Routines read.
+ * @returns {Promise<void>}
+ */
+export async function placeLegacyRoutineComments(ids: readonly string[]): Promise<void> {
+  await placeLegacyComments('ROUTINE', ids, async (routineIds) => {
+    const routines = mapById(await prisma.routine.findMany({ where: { id: { in: routineIds } } }));
+    const schedules = await loadScheduleContext();
+    return (routineId, createdAt) => {
+      const found = routines.get(routineId);
+      if (!found) return null;
+      const routine = { ...found, archivedAt: null };
+      const { current, next } = occurrencesOf(routine, dayIn(createdAt, PARIS), schedules);
+      return current ?? next ?? firstOccurrence(routine, schedules) ?? formatDay(routine.startDate);
+    };
+  });
+}
+
+/**
+ * Comments of an occurrence of a routine moved to another day: they follow it (decision D19).
+ * @param {string} id Routine id.
+ * @param {string} date Day it was on.
+ * @param {string | null} to Day it is on now (null: none, left).
+ * @returns {Promise<void>}
+ */
+async function followOccurrence(id: string, date: string, to: string | null): Promise<void> {
+  if (to && to !== date) await remapOccurrenceRows('routineId', id, (day) => (day === date ? to : undefined));
 }
 
 /**
@@ -1080,7 +1118,11 @@ export async function moveRoutineOccurrence(id: string, date: string, to: string
 export async function removeRoutineMove(id: string, from: string): Promise<void> {
   const routine = await orNotFound(prisma.routine.findUnique({ where: { id }, select: { moves: true, archivedAt: true } }), 'Routine');
   refuseArchived(routine);
-  await prisma.routine.update({ where: { id }, data: { moves: storedMoves(routine.moves).filter((move) => move.from !== from) } });
+  await placeLegacyRoutineComments([id]);
+  const moves = storedMoves(routine.moves);
+  await prisma.routine.update({ where: { id }, data: { moves: moves.filter((move) => move.from !== from) } });
+  const moved = moves.find((move) => move.from === from)?.to;
+  if (moved) await followOccurrence(id, moved, from);
 }
 
 /** Which occurrences a change applies to: this one (an exception), it and the following ones, or all. */
@@ -1151,6 +1193,7 @@ async function changeableOccurrence(id: string, date: string) {
  */
 export async function changeRoutineOccurrence(id: string, date: string, scope: RoutineScope, to: string, slot: number, times: { fromTime: string | null; dueTime: string | null }): Promise<void> {
   const routine = await changeableOccurrence(id, date);
+  await placeLegacyRoutineComments([id]);
   const start = formatDay(routine.startDate);
   const parsedTo = parseInput(daySchema(), to);
   const window = parseInput(routineSlotSchema, { ...times, optional: false });
@@ -1172,6 +1215,7 @@ export async function changeRoutineOccurrence(id: string, date: string, scope: R
     const next = withMove(moves, date, parsedTo, changed);
     if (next.length > MAX_ROUTINE_MOVES) throw clientError('BAD_USER_INPUT', `${MAX_ROUTINE_MOVES} exceptions au plus.`);
     await prisma.routine.update({ where: { id }, data: { moves: next } });
+    await followOccurrence(id, date, parsedTo);
     return;
   }
   const delta = daysBetween(origin, parsedTo);
@@ -1221,11 +1265,14 @@ export async function changeRoutineOccurrence(id: string, date: string, scope: R
     }
   }
   await prisma.routine.update({ where: { id }, data: { moves: keptMoves } });
+  // The occurrence changed keeps its comments (those of the other occurrences stay on their days).
+  await followOccurrence(id, date, parsedTo);
 }
 
 /**
  * Deletes an occurrence of a routine from the calendar: this one alone (an exception), or it and the following ones
- * (its repetitions end before it; archived when nothing comes before). Ticked occurrences stay in the history.
+ * (its repetitions end before it; archived when nothing comes before), with their comments. Ticked occurrences stay in
+ * the history.
  * @param {string} id Routine id.
  * @param {string} date Occurrence (its day now).
  * @param {'THIS' | 'FOLLOWING'} scope Occurrences deleted.
@@ -1233,6 +1280,9 @@ export async function changeRoutineOccurrence(id: string, date: string, scope: R
  */
 export async function deleteRoutineOccurrence(id: string, date: string, scope: 'THIS' | 'FOLLOWING'): Promise<boolean> {
   const routine = await changeableOccurrence(id, date);
+  // Their comments go with them (decision D19), those written before being placed first.
+  await placeLegacyRoutineComments([id]);
+  await deleteGoneComments({ routines: [scope === 'THIS' ? { id, on: date } : { id, from: date }] });
   const moves = storedMoves(routine.moves);
   if (scope === 'THIS') {
     const next = withMove(moves, date, null);

@@ -25,7 +25,8 @@ import { ON_ERROR } from '../../../lib/notify';
 import { AssigneesSelect, ProjectSelect } from '../../tasks/components/task-ui';
 import { useTaskContext } from '../../tasks/hooks/use-task-context';
 import { useRoutineMutations, useRoutinesData, type Routine } from '../api';
-import { copiedLinks, DAILY, linkableRoutine, routineTreeOptions, ruleOf } from '../lib/routine-format';
+import { copiedLinks, DAILY, linkableRoutine, panelOccurrence, routineTreeOptions, ruleOf } from '../lib/routine-format';
+import * as fmt from '../../../lib/format';
 import { RoutineSchedule } from './RoutineSchedule';
 import { treeSelectProps } from '../../../components/tree/tree-select';
 import { BeneficiariesSelect } from '../../beneficiaries/components/BeneficiariesSelect';
@@ -80,6 +81,8 @@ export interface RoutineFormProps {
   categoryId?: string | null;
   /** Project of a new routine. */
   projectId?: string | null;
+  /** Occurrence open in the panel (chosen in the calendar), whose comments it shows; none: `panelOccurrence`. Optional. */
+  occurrenceDate?: string | null;
   onDone: () => void;
 }
 
@@ -90,7 +93,7 @@ export interface RoutineFormProps {
  * @param {RoutineFormProps} props Component props.
  * @returns {JSX.Element} Form.
  */
-export function RoutineForm({ routine, copy = false, parent, categoryId = null, projectId = null, onDone }: RoutineFormProps) {
+export function RoutineForm({ routine, copy = false, parent, categoryId = null, projectId = null, occurrenceDate = null, onDone }: RoutineFormProps) {
   const { data } = useRoutinesData();
   const { context } = useTaskContext();
   const { create, update, copySubRoutines } = useRoutineMutations();
@@ -183,7 +186,7 @@ export function RoutineForm({ routine, copy = false, parent, categoryId = null, 
                 <RoutineSchedule values={form.values} errors={form.errors} onChange={(changes) => form.setValues(changes)} />
               </SubSection>
               {routine && !copy && <SheetsSection owner={{ routineId: routine.id }} occurrenceDate={routine.currentDate || null} label={routine.label} />}
-              {routine && !copy && <Comments target="ROUTINE" id={routine.id} projectId={routine.projectId ?? null} readOnly={routine.archived} />}
+              {routine && !copy && <RoutineComments routine={routine} occurrenceDate={occurrenceDate ?? panelOccurrence(routine)} />}
             </Stack>
           </Grid.Col>
           <Grid.Col span={{ base: 12, md: 4 }}>
@@ -250,5 +253,25 @@ export function RoutineForm({ routine, copy = false, parent, categoryId = null, 
         <FormActions onCancel={onDone} submitLabel={routine && !copy ? 'Enregistrer' : 'Créer'} loading={create.isPending || update.isPending} />
       </Stack>
     </form>
+  );
+}
+
+/**
+ * Comments of the occurrence of a routine open in its panel (decision D19), titled with its day; nothing without any
+ * occurrence.
+ * @param {{ routine: Routine, occurrenceDate: string | null }} props Routine and its occurrence.
+ * @returns {JSX.Element | null} Comments.
+ */
+function RoutineComments({ routine, occurrenceDate }: { routine: Routine; occurrenceDate: string | null }) {
+  if (!occurrenceDate) return null;
+  return (
+    <Comments
+      target="ROUTINE"
+      id={routine.id}
+      occurrenceDate={occurrenceDate}
+      title={`Commentaires du ${fmt.day(occurrenceDate)}`}
+      projectId={routine.projectId ?? null}
+      readOnly={routine.archived}
+    />
   );
 }

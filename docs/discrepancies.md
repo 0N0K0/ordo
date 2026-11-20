@@ -34,7 +34,7 @@ L’API accepte ce que l’interface empêche.
 
 ## Comportements à confirmer
 
-- **Temps d’une série d’évènements coupée :** modifier « celle-ci et les suivantes » crée un nouvel évènement ; les liens de routines des jours suivants y passent, mais les temps des occurrences suivantes restent rattachés à l’ancien évènement, à des dates qui n’en sont plus des occurrences (déjà le cas avant la décision D18). Voir [Règles de l’agenda](business-rules/activities/calendar.md).
+- **Commentaires d’occurrences disparues (D19) :** une règle d’évènement ou de routine changée sans décalage (« toute la série », « celle-ci et les suivantes ») laisse les commentaires et les temps des occurrences qui n’existent plus à leur date : ils ne s’affichent plus, et aucune confirmation ne le dit (la modification n’en a pas). Voir [Règles des commentaires](business-rules/cross-cutting/comments.md).
 - **Sens d’une catégorie de trésorerie :** le changement de sens n’est refusé que si des mouvements utilisent la catégorie ; les lignes de répartition ne sont pas vérifiées. Voir [Règles de la trésorerie](business-rules/finances/treasury.md).
 - **Suppression d’un contexte de trésorerie :** ses budgets sont supprimés aussi (`onDelete: Cascade`), mais la confirmation de l’interface ne le dit pas. Voir [Règles de la trésorerie](business-rules/finances/treasury.md).
 - **Décocher un achat :** retire aussi du stock ce qui avait été ajouté à la main par « Ajouter au stock ». Voir [Règles du stock](business-rules/supplies/stock.md).

@@ -37,6 +37,8 @@ import { assertActive, assertNotArchived, activeIds, refuseArchived } from '../c
 import { connectIds } from '../core/relations';
 import { releaseSubjectTime, type GoneOccurrences } from '../tasks/time-entries';
 import { toJson } from '../core/json';
+import { remapOccurrenceRows } from '../core/occurrence-rows';
+import { deleteGoneComments, placeLegacyComments } from '../core/comments';
 import { readLinks } from '../core/links';
 import { storedLocation } from '../core/geo';
 
@@ -140,6 +142,39 @@ export const occurrenceInclude = {
 export function storedRecurrence(value: unknown): Recurrence | null {
   const parsed = recurrenceSchema.safeParse(value);
   return parsed.success ? parsed.data : null;
+}
+
+/**
+ * First occurrence of a recurring event shown in the calendar: the first day of its rule (its excluded dates and pauses
+ * left out), not deleted on its own (a `cancelled` exception); scanned year by year over ten years.
+ * @param {Pick<CalendarEvent, 'id' | 'startDate' | 'recurrence'>} event Event.
+ * @param {object} [client] Client or transaction. Optional. Default = the client of the workspace.
+ * @returns {Promise<string | null>} Day, null for a one-off event or without any.
+ */
+export async function firstShownOccurrence(event: Pick<CalendarEvent, 'id' | 'startDate' | 'recurrence'>, client: Prisma.TransactionClient = prisma): Promise<string | null> {
+  const rule = storedRecurrence(event.recurrence);
+  if (!rule) return null;
+  const deleted = new Set((await client.calendarEventException.findMany({ where: { eventId: event.id, cancelled: true }, select: { date: true } })).map((change) => formatDay(change.date)));
+  const start = formatDay(event.startDate);
+  for (let year = 0, from = start; year < 10; year += 1, from = addDays(from, 366)) {
+    const found = occurrenceDates(rule, start, from, addDays(from, 365)).find((date) => !deleted.has(date));
+    if (found) return found;
+  }
+  return null;
+}
+
+/**
+ * Places the comments of recurring events written before they were on occurrences (decision D19) on the first
+ * occurrence shown of their series (`firstShownOccurrence`), and saves them there; those of one-off events are theirs.
+ * @param {readonly string[]} ids Events read.
+ * @returns {Promise<void>}
+ */
+export async function placeLegacyEventComments(ids: readonly string[]): Promise<void> {
+  await placeLegacyComments('EVENT', ids, async (eventIds) => {
+    const events = await prisma.calendarEvent.findMany({ where: { id: { in: eventIds } }, select: { id: true, startDate: true, recurrence: true } });
+    const firsts = new Map(await Promise.all(events.map(async (event) => [event.id, await firstShownOccurrence(event)] as const)));
+    return (eventId) => firsts.get(eventId) ?? null;
+  });
 }
 
 /**
@@ -419,12 +454,20 @@ export async function updateCalendarEvent(id: string, input: CalendarEventInput,
 async function updateEventFields(id: string, input: CalendarEventInput, scope: EventScope, occurrenceDate?: string | null): Promise<CalendarEvent> {
   const event = await findEvent(id);
   await assertEventWritable(event);
+  // Comments written before they were on occurrences: placed before the occurrences change.
+  await placeLegacyEventComments([id]);
   const fields = await parseEvent(input, ...(await eventKept(id)));
   const occurrence = occurrenceOf(event, occurrenceDate);
   const relations = eventRelations(fields, 'set');
 
   if (!occurrence) {
-    return prisma.calendarEvent.update({ where: { id }, data: { ...eventData(fields), recurrence: fields.recurrence ?? Prisma.JsonNull, ...relations } });
+    return prisma.$transaction(async (tx) => {
+      const updated = await tx.calendarEvent.update({ where: { id }, data: { ...eventData(fields), recurrence: fields.recurrence ?? Prisma.JsonNull, ...relations } });
+      // Now repeating: the comments and times of its single occurrence go to its first one shown.
+      const first = fields.recurrence ? await firstShownOccurrence(updated, tx) : null;
+      if (first) await remapOccurrenceRows('eventId', id, (date) => (date === null ? first : undefined), { client: tx });
+      return updated;
+    });
   }
   const seriesStart = formatDay(event.startDate);
 
@@ -460,6 +503,7 @@ async function updateEventFields(id: string, input: CalendarEventInput, scope: E
     const endDate = addDays(startDate, daysBetween(fields.startDate, fields.endDate));
     return prisma.$transaction(async (tx) => {
       if (shift !== 0) await tx.calendarEventException.deleteMany({ where: { eventId: id } });
+      await remapOccurrenceRows('eventId', id, movedOccurrence(seriesStart, shift, Boolean(fields.recurrence)), { client: tx });
       return tx.calendarEvent.update({
         where: { id },
         data: {
@@ -480,14 +524,35 @@ async function updateEventFields(id: string, input: CalendarEventInput, scope: E
     if (rule && rule.count !== null && occurrence.rule.count === rule.count) {
       rule = { ...rule, count: Math.max(1, rule.count - occurrencesBefore(occurrence.rule, seriesStart, occurrence.date)) };
     }
-    return tx.calendarEvent.create({
+    const created = await tx.calendarEvent.create({
       data: {
         ...eventData(fields),
         recurrence: rule ?? undefined,
         ...eventRelations(fields),
       },
     });
+    // The comments and times of the following occurrences go to the new series, moved as the occurrence was.
+    const shift = daysBetween(occurrence.date, fields.startDate);
+    await remapOccurrenceRows('eventId', id, movedOccurrence(occurrence.date, shift, Boolean(rule)), { to: created.id, client: tx });
+    return created;
   });
+}
+
+/**
+ * Day of the occurrences of a series from a date once moved (a series moved, or split from that date): as many days
+ * later or earlier; for a series that no longer repeats, its first occurrence becomes the single one (null) and the
+ * others are left.
+ * @param {string} from First occurrence moved.
+ * @param {number} shift Days moved.
+ * @param {boolean} recurring The series still repeats.
+ * @returns {(date: string | null) => string | null | undefined} New day of an occurrence (undefined: left).
+ */
+function movedOccurrence(from: string, shift: number, recurring: boolean): (date: string | null) => string | null | undefined {
+  return (date) => {
+    if (date === null || date < from) return undefined;
+    if (recurring) return addDays(date, shift);
+    return date === from ? null : undefined;
+  };
 }
 
 /**
@@ -507,8 +572,8 @@ export async function goneOccurrences(id: string, scope: EventScope, occurrenceD
 
 /**
  * Deletes an event, or for a recurring one: one occurrence, it and the following ones, or the whole series. The times
- * left with nothing attached are deleted first (extra A of decision D17, billed ones kept), and the times on the
- * occurrences deleted leave them.
+ * left with nothing attached are deleted first (extra A of decision D17, billed ones kept), the times on the
+ * occurrences deleted leave them, and their comments are deleted (decision D19).
  * @param {string} id Event id.
  * @param {EventScope} scope Scope.
  * @param {string | null} [occurrenceDate] Occurrence. Optional for a one-off event.
@@ -519,6 +584,9 @@ export async function deleteCalendarEvent(id: string, scope: EventScope, occurre
   const occurrence = occurrenceOf(event, occurrenceDate);
   const gone = await goneOccurrences(id, scope, occurrenceDate);
   await releaseSubjectTime({ events: [gone] });
+  await placeLegacyEventComments([id]);
+  // The comments of the occurrences deleted go with them (decision D19; a whole event: in cascade).
+  if (gone.on || gone.from) await deleteGoneComments({ events: [{ id, on: gone.on, from: gone.from }] });
   if (!occurrence || (!gone.on && !gone.from)) {
     await prisma.calendarEvent.delete({ where: { id } });
     return;
@@ -756,7 +824,7 @@ export async function setEventCalledOff(id: string, scope: EventScope, occurrenc
 
 /**
  * Postpones an event (one occurrence of a recurring one): it is cancelled and kept struck through, and a new
- * one-off event, linked to it, takes the new date.
+ * one-off event, linked to it, takes the new date, with the comments and times of the occurrence.
  * @param {string} id Event id.
  * @param {string | null | undefined} occurrenceDate Occurrence. Optional for a one-off event.
  * @param {CalendarEventInput} input New event (its dates, label…).
@@ -765,6 +833,7 @@ export async function setEventCalledOff(id: string, scope: EventScope, occurrenc
 export async function postponeCalendarEvent(id: string, occurrenceDate: string | null | undefined, input: CalendarEventInput): Promise<CalendarEvent> {
   const event = await findEvent(id);
   await assertEventWritable(event);
+  await placeLegacyEventComments([id]);
   const occurrence = occurrenceOf(event, occurrenceDate);
   const fields = await parseEvent({ ...input, recurrence: null }, ...(await eventKept(id)));
   const created = await prisma.calendarEvent.create({
@@ -777,6 +846,9 @@ export async function postponeCalendarEvent(id: string, occurrenceDate: string |
     },
   });
   await setEventCalledOff(id, 'THIS', occurrence?.date ?? null, true);
+  // The comments and times of the occurrence follow it to its postponement (a one-off event: its single occurrence).
+  const from = occurrence?.date ?? null;
+  await remapOccurrenceRows('eventId', id, (date) => (date === from ? null : undefined), { to: created.id });
   // Postponed into another project: its contributors follow.
   await followProject(event.projectId, created.projectId, fields.contributorIds);
   return created;

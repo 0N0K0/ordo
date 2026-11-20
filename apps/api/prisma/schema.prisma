@@ -762,6 +762,9 @@ model Comment {
   routine            Routine?            @relation(fields: [routineId], references: [id], onDelete: Cascade)
   eventId            String?
   event              CalendarEvent?      @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  /// Occurrence of the routine or event the comment is on (decision D19): the day of the occurrence (that of its
+  /// ticks for a routine); null for a one-off event and for the other items.
+  occurrenceDate     DateTime?           @db.Date
   scheduleId         String?
   schedule           WorkSchedule?       @relation(fields: [scheduleId], references: [id], onDelete: Cascade)
   timeEntryId        String?

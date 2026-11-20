@@ -7,7 +7,7 @@ import { formCallbacks } from '../../../lib/form';
 import { countWith, plural } from '../../../lib/text';
 import { useRoutineMutations, type Routine } from '../api';
 import { routinesLabel } from '../lib/routine-cell-edit';
-import { TimeLostRisk } from '../../time/components/TimeLostRisk';
+import { LostOnDeleteRisk } from '../../time/components/LostOnDeleteRisk';
 
 interface DeleteRoutinesDialogProps {
   /** Routines deleted. */
@@ -50,7 +50,7 @@ export function DeleteRoutinesDialog({ routines, all, onDone }: DeleteRoutinesDi
         {single
           ? `« ${single.label} » sera supprimée définitivement avec l’historique de ses coches ; le temps chronométré reste, sans elle. Pour la retirer sans perdre ses données, archivez-la plutôt.`
           : `${label} seront supprimées définitivement avec l’historique de leurs coches ; le temps chronométré reste, sans elles. Pour les retirer sans perdre leurs données, archivez-les plutôt.`}
-        <TimeLostRisk query={{ routineIds: [...selected], withSubtree: mode === 'delete' }} />
+        <LostOnDeleteRisk query={{ routineIds: [...selected], withSubtree: mode === 'delete' }} />
       </DestructiveRisks>
       {subRoutines > 0 && (
         <CascadeChoice

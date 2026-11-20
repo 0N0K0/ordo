@@ -120,7 +120,7 @@ export function RoutineOccurrenceForm({
                 icon={<ArrowSquareOutIcon aria-hidden />}
                 onClick={() => {
                   onClose();
-                  openRoutineForm({ routine: occurrence.routine });
+                  openRoutineForm({ routine: occurrence.routine, occurrenceDate: occurrence.date });
                 }}
               >
                 Ouvrir la routine
