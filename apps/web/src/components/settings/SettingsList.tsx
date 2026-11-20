@@ -41,6 +41,8 @@ interface SettingsListProps<C extends SettingsItem, E extends object> extends Se
   renderBadges?: (item: C) => ReactNode;
   /** Deletion message, instead of the default one. Optional. */
   deleteMessage?: (item: C, path: string) => ReactNode;
+  /** Deletion that loses nothing (the opposite action undoes it): « Cette action est irréversible. » left out, and its toast instead of « « X » supprimé. ». Optional. Default = irreversible. */
+  reversibleDelete?: (item: C, path: string) => string;
   /** Key remembering the folded items of a tree in this browser. Optional. */
   storageKey?: string;
   /** Buttons of a row of the list of its own (export…), before the common ones. Optional. */
@@ -92,6 +94,7 @@ export function SettingsList<C extends SettingsItem, E extends object = Record<s
   move,
   renderBadges,
   deleteMessage,
+  reversibleDelete,
   storageKey,
   renderActions,
   menuItems,
@@ -203,7 +206,8 @@ export function SettingsList<C extends SettingsItem, E extends object = Record<s
         </>
       ),
       run: () => remove(item.id),
-      done: `« ${path} » ${agreed('supprimé', feminine)}.`,
+      reversible: Boolean(reversibleDelete),
+      done: reversibleDelete?.(item, path) ?? `« ${path} » ${agreed('supprimé', feminine)}.`,
     });
   };
 

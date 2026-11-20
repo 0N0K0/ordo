@@ -154,7 +154,7 @@ Source : `apps/api/src/services/calendar/work-schedules.ts`, schémas dans `pack
   - Horaires : journée entière, ou au moins une tranche (« Ajoutez des horaires, ou « Journée entière ». ») ; 12 tranches max (« 12 tranches au plus. ») ; la fin d’une tranche suit son début ; tranches sans chevauchement (« Des horaires se chevauchent. »).
 - `exceptions` : 200 max (« 200 exceptions au plus. ») ; chacune `from` ≤ `to`, motif 250 caractères, 20 cas max ; sans cas : une pause. Triées par date de début à l’enregistrement.
 - `typeId` : type de créneau existant, non archivé sauf s’il est déjà celui du créneau (« Type de créneau »).
-- `ephemeris` (lot 16) : un éphéméride plutôt qu’un créneau ; avec un type, c’est la nature du type qui s’applique (la valeur envoyée est ignorée), sans type celle envoyée (défaut : créneau).
+- `ephemeris` (lot 16) : une éphéméride plutôt qu’un créneau ; avec un type, c’est la nature du type qui s’applique (la valeur envoyée est ignorée), sans type celle envoyée (défaut : créneau).
 
 ### Enregistrement
 
@@ -194,14 +194,14 @@ Source : `apps/api/src/services/calendar/work-schedules.ts`, schémas dans `pack
 
 Source : `apps/api/src/services/calendar/work-schedules.ts` (`setWorkScheduleEphemeris`, `setScheduleTypeEphemeris`), `packages/shared/src/calendar/work-schedules.ts` (`slotSchedules`, `wholeDaysCase`, `UNTYPED_EPHEMERIS_LABEL`).
 
-- Un éphéméride (vacances, jours fériés, vacances scolaires, anniversaires…) est un créneau d’une autre **nature** : même table (`WorkSchedule.ephemeris`), mêmes règles (validation, jours entiers ou horaires, répétition, exceptions, archivage, « Dupliquer », commentaires, abonnements des autres espaces, changement des horaires depuis l’agenda). Pas de table à part : un éphéméride garde son id quand il est converti.
+- Une éphéméride (vacances, jours fériés, vacances scolaires, anniversaires…) est un créneau d’une autre **nature** : même table (`WorkSchedule.ephemeris`), mêmes règles (validation, jours entiers ou horaires, répétition, exceptions, archivage, « Dupliquer », commentaires, abonnements des autres espaces, changement des horaires depuis l’agenda). Pas de table à part : une éphéméride garde son id quand elle est convertie.
 - La nature est portée par le type (`ScheduleType.ephemeris` : un type est tout de créneaux ou tout d’éphémérides) et, sans type, par le créneau lui-même. Un créneau typé prend la nature de son type (à l’enregistrement, et quand le type est converti : `updateMany` de ses créneaux).
-- Il n’y a pas de type par défaut des éphémérides : un éphéméride sans type n’a aucun type au sens des conditions (`scheduleSlotKind` renvoie `null`), n’entre pas dans `default` (« Travail », les créneaux sans type) ni dans l’abonnement aux créneaux sans type d’un autre espace ; il s’appelle « Éphéméride » (`UNTYPED_EPHEMERIS_LABEL`) et n’a pas de couleur côté API (gris côté web).
-- Conditions de créneaux : un éphéméride se cite comme un créneau (`schedules`), un type d’éphémérides comme un type (`kinds`). En revanche le **temps libre ne tient pas compte des éphémérides** : seuls les créneaux de l’espace en sont exclus (`scheduleSlotsOn`, `slotSchedules`), et les exceptions « sauf » du temps libre ne proposent que des créneaux.
+- Il n’y a pas de type par défaut des éphémérides : une éphéméride sans type n’a aucun type au sens des conditions (`scheduleSlotKind` renvoie `null`), n’entre pas dans `default` (« Travail », les créneaux sans type) ni dans l’abonnement aux créneaux sans type d’un autre espace ; elle s’appelle « Éphéméride » (`UNTYPED_EPHEMERIS_LABEL`) et n’a pas de couleur côté API (gris côté web).
+- Conditions de créneaux : une éphéméride se cite comme un créneau (`schedules`), un type d’éphémérides comme un type (`kinds`). En revanche le **temps libre ne tient pas compte des éphémérides** : seuls les créneaux de l’espace en sont exclus (`scheduleSlotsOn`, `slotSchedules`), et les exceptions « sauf » du temps libre ne proposent que des créneaux.
 - Heures de travail : les éphémérides ne comptent ni dans l’avertissement PRO « hors des heures de travail » (`AvailabilityHint`), ni dans le temps prévu (`PlannedTime`, `slotMinutes`), ni dans le type par défaut.
 - Conversion (`setWorkScheduleEphemeris(id, ephemeris, confirmLoss)`) : un créneau devient éphéméride ou l’inverse, son id gardé ; refusée s’il est archivé ; sans effet s’il a déjà cette nature. Un créneau d’un type de l’autre nature **quitte son type** (il devient sans type) : un type n’est jamais mixte. Les occurrences de routines que la conversion fait disparaître passent par `confirmLoss` (`settleScheduleChange`), comme une modification.
 - Conversion d’un type entier (`setScheduleTypeEphemeris(id, ephemeris, confirmLoss)`) : le type et tous ses créneaux changent de nature, ids gardés ; refusée s’il est archivé, et vers les créneaux tant qu’il sert de contexte au budget (« Ce type sert de contexte au budget : retirez d’abord « Sert de contexte au budget ». ») ; même `confirmLoss`.
-- Un nouvel éphéméride (web) dure la journée du jour, journée entière, tous les jours de sa période (`wholeDaysCase`).
+- Une nouvelle éphéméride (web) dure la journée du jour, journée entière, tous les jours de sa période (`wholeDaysCase`).
 
 ### Type par défaut (créneaux sans type)
 
@@ -210,7 +210,7 @@ Source : `apps/api/src/services/calendar/work-schedules.ts` (`setWorkScheduleEph
 
 ### Abonnements aux types de créneaux d’autres espaces
 
-- `foreignScheduleKinds` : pour chaque autre espace, son type par défaut (s’il a des créneaux sans type, éphémérides sans type non comptés) et chacun de ses types (avec `ephemeris`), avec nombre de créneaux, couleur et affichage effectifs ici (ceux de l’abonnement, sinon du type), `customized`, `subscribed`.
+- `foreignScheduleKinds` : pour chaque autre espace, son type par défaut (s’il a des créneaux sans type, éphémérides sans type non comptées) et chacun de ses types (avec `ephemeris`), avec nombre de créneaux, couleur et affichage effectifs ici (ceux de l’abonnement, sinon du type), `customized`, `subscribed`.
 - `subscribeScheduleKind` : refus pour l’espace courant (« Ces créneaux appartiennent déjà à cet espace. ») ; espace source existant (« Espace ») ; type appartenant à cet espace (« Type de créneau ») ; sans effet si déjà abonné (vérifié en code, car un type nul n’est pas unique en base).
 - Abonné à un type, l’espace voit tous les créneaux de ce type, même ajoutés ensuite (`subscribedSchedules`), en lecture seule ; abonné aux créneaux sans type, il ne voit que les créneaux (pas les éphémérides sans type).
 - `otherWorkspaceSchedules` : tous les créneaux des autres espaces (archivés compris, avec `archived`), abonné ou non : ce qu’une condition de créneaux peut en citer. `foreignScheduleKinds` donne aussi `archived` pour chaque type.

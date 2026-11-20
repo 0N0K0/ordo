@@ -176,22 +176,24 @@ export interface ContextEphemeris {
 }
 
 /**
- * Context proposed on a day, from the éphémérides of the contexts (they replace the planned periods, lot 16): that of
- * an éphéméride with slots that day (whole day or hours), the one starting last when several have, or none (everyday
- * spending). The answer of each day is kept.
+ * Context proposed on a day, from the éphémérides of the contexts (they replace the planned periods, lot 16): the
+ * context of the éphémérides with slots that day (whole day or hours) when they all are of one context (several of it
+ * still are one), none when several contexts cover the day (two contexts at once: the user chooses, decision FN) or
+ * none does (everyday spending). The answer of each day is kept.
  * @param {readonly ContextEphemeris[]} ephemerides Éphémérides of the contexts.
  * @returns {(date: string) => string | null} Context id of a day.
  */
 export function contextPlanner(ephemerides: readonly ContextEphemeris[]): (date: string) => string | null {
   const byDay = new Map<string, string | null>();
   return (date) => {
-    if (!byDay.has(date))
-      byDay.set(
-        date,
+    if (!byDay.has(date)) {
+      const covering = new Set(
         ephemerides
           .filter(({ rule }) => rule.startDate <= date && (!rule.endDate || date <= rule.endDate) && plannedSlots([rule], date, date).length > 0)
-          .sort((a, b) => b.rule.startDate.localeCompare(a.rule.startDate))[0]?.contextId ?? null,
+          .map(({ contextId }) => contextId),
       );
+      byDay.set(date, covering.size === 1 ? [...covering][0] : null);
+    }
     return byDay.get(date) ?? null;
   };
 }

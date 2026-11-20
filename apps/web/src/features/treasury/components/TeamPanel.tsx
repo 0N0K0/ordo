@@ -29,7 +29,7 @@ import { countOf } from '../../../lib/text';
 import { FormActions } from '../../../components/dialogs/FormActions';
 import { SettingsSection } from '../../../components/settings/SettingsSection';
 import { InlineActions } from '../../../components/actions/ActionsMenu';
-import { useScheduleTypes, useWorkScheduleMutations } from '../../calendar/api';
+import { useScheduleTypes } from '../../calendar/api';
 import { useScheduleTypeItems } from '../../calendar/hooks/use-settings-items';
 import { openSchedulesManager } from '../../calendar/lib/open-schedules';
 import { inWorkspace } from '../../calendar/lib/layer-label';
@@ -194,16 +194,25 @@ export function ContextForm({ label = '', onDone }: { label?: string; onDone: (c
 function Contexts() {
   const { data: settings } = useTreasurySettings();
   const { data: types } = useScheduleTypes();
-  const { removeType } = useWorkScheduleMutations();
   const kind = useScheduleTypeItems({ ephemeris: true, budgetContext: true });
   const { perso } = useActiveWorkspace();
+  /**
+   * Deletes a context: « Sert de contexte au budget » unchecked on its kind, as in the form of the kind (the kind and
+   * its éphémérides stay; refused while lines or budgets have it).
+   * @param {string} id Kind.
+   * @returns {Promise<unknown>} Update.
+   */
+  const uncheckContext = (id: string) => {
+    const type = (types ?? []).find((item) => item.id === id)!;
+    return kind.update(id, { label: type.label, color: type.color, parentId: null, ...kind.extra!.initial(type), budgetContext: false, sharedContext: false });
+  };
   const shared = (settings?.treasuryContexts ?? []).filter((context) => context.workspaceLabel);
   return (
     <>
       <SettingsList
         {...kind}
         title="Contextes"
-        description={`Une même dépense ne compte pas pareil en vacances ou au quotidien. Une ligne sans contexte est du « ${EVERYDAY_CONTEXT} ». Chaque contexte est un type d’éphémérides de l’agenda : les lignes des mouvements datés pendant l’un de ses éphémérides prennent ce contexte (modifiable).`}
+        description={`Une même dépense ne compte pas pareil en vacances ou au quotidien. Une ligne sans contexte est du « ${EVERYDAY_CONTEXT} ». Chaque contexte est un type d’éphémérides de l’agenda : les lignes des mouvements datés pendant l’une de ses éphémérides prennent ce contexte (modifiable).`}
         noun="le contexte"
         items={(types ?? []).filter((type) => type.budgetContext)}
         headerActions={
@@ -211,13 +220,14 @@ function Contexts() {
             Périodes
           </ActionButton>
         }
-        remove={(id) => removeType.mutateAsync(id)}
+        remove={(id) => uncheckContext(id)}
         deleteMessage={(item) => (
           <>
-            « {item.label} » sera supprimé définitivement, avec son type d’éphémérides (ses éphémérides restent, sans type). Les lignes qui l’avaient deviendront du « {EVERYDAY_CONTEXT} » et ses budgets
-            seront supprimés.
+            « {item.label} » ne sera plus un contexte du budget : son type d’éphémérides et ses éphémérides restent dans l’agenda, sans « Sert de contexte au budget » (à
+            recocher dans les types d’éphémérides). Refusé tant que des lignes ou des budgets l’ont.
           </>
         )}
+        reversibleDelete={(item) => `« ${item.label} » n’est plus un contexte.`}
       />
       {shared.length > 0 && (
         <SettingsSection title="Contextes partagés par d’autres espaces" description="Ils se modifient dans l’agenda de leur espace.">

@@ -38,10 +38,10 @@ export function useScheduleConversion() {
             confirmLabel: 'Convertir',
             confirmIcon: <ArrowsLeftRightIcon aria-hidden />,
             risks: toEphemeris
-              ? `« ${schedule.label} » devient un éphéméride : il ne compte plus dans ${SLOT_ONLY}.${kind} Les conditions qui le citent par son nom le gardent.`
+              ? `« ${schedule.label} » devient une éphéméride : elle ne compte plus dans ${SLOT_ONLY}.${kind} Les conditions qui la citent par son nom la gardent.`
               : `« ${schedule.label} » devient un créneau : il compte dans ${SLOT_ONLY}.${kind} Les conditions qui le citent par son nom le gardent.`,
             run: () => setEphemeris.mutateAsync({ id: schedule.id, ephemeris: toEphemeris }),
-            done: toEphemeris ? 'Converti en éphéméride.' : 'Converti en créneau.',
+            done: toEphemeris ? 'Converti en éphéméride.' : 'Convertie en créneau.',
           }),
       };
     },

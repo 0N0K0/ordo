@@ -362,6 +362,7 @@ export function treasuryChartData({
 }): ChartData {
   if (config.measure === 'balance') return balanceChartData(projection, config, today);
   const filter = config.treasury;
+  // None on a day several contexts cover (decision FN).
   const plannedOn = contextPlanner(ephemerides);
   const expected: ChartMovement[] =
     filter.includeForecast && projection

@@ -66,6 +66,7 @@ Props (en plus du `SettingsItemKind`) :
 | `move?(id, parentId, index)`                        | Déplacement propre à la liste ; absent : l’ordre complet est enregistré (`reorderSettingsItems`).                                             |
 | `renderBadges?`, `renderActions?`, `headerActions?` | Badges après le nom, boutons propres d’une ligne (export…), boutons de l’en-tête avant « Ajouter ».                                           |
 | `deleteMessage?(item, path)`                        | Message de suppression à la place du message par défaut.                                                                                      |
+| `reversibleDelete?(item, path)`                     | Suppression qui ne perd rien (l’action inverse la défait) : sans « Cette action est irréversible. », toast rendu à la place de « « X » supprimé. ». |
 | `storageKey?`                                       | Clé des plis mémorisés.                                                                                                                       |
 | `menuItems?(item)`                                  | Entrées propres du menu « … » d’une ligne (une conversion…), avant « Supprimer » (`RowMenuEntry[]`).                                         |
 | `undeletable?(item)`                                | Raison pour laquelle un élément ne peut pas être supprimé (« le dernier agenda »…) : « Supprimer » désactivé avec cette raison en infobulle.  |

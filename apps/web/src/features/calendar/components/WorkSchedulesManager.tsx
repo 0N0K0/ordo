@@ -87,7 +87,7 @@ const scheduleInputOf = (schedule: WorkSchedule): ScheduleValues => ({
  */
 const wordsOf = (ephemeris: boolean, perso: boolean) =>
   ephemeris
-    ? { title: EPHEMERIDES_TITLE, one: 'éphéméride', many: 'éphémérides', type: 'Éphéméride', create: 'Nouvel éphéméride', created: 'Éphéméride créé.', copied: 'Éphéméride dupliqué.', empty: 'Aucun éphéméride.', newType: 'Nouveau type d’éphémérides' }
+    ? { title: EPHEMERIDES_TITLE, one: 'éphéméride', many: 'éphémérides', type: 'Éphéméride', create: 'Nouvelle éphéméride', created: 'Éphéméride créée.', copied: 'Éphéméride dupliquée.', empty: 'Aucune éphéméride.', newType: 'Nouveau type d’éphémérides' }
     : { title: schedulesTitle(perso), one: 'créneau', many: 'créneaux', type: 'Créneau', create: 'Nouveaux créneaux', created: 'Créneaux créés.', copied: 'Créneaux dupliqués.', empty: 'Aucun créneau.', newType: 'Nouveau type de créneau' };
 
 /**

@@ -120,7 +120,7 @@ export async function budgetReport(from: string, to: string, meId: string | null
     contextEphemerides(),
   ]);
   const parentOf = new Map(categories.map((category) => [category.id, category.parentId]));
-  // The context of a day: that of its éphémérides (lot 16).
+  // The context of a day: that of its éphémérides (lot 16); none when several contexts cover it (decision FN).
   const planned = contextPlanner(ephemerides);
   const keyOf = (month: string, key: Key) => joinedKey(month, key.memberId, key.relationId, key.contextId, key.categoryId);
   /**
