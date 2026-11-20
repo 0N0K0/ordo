@@ -1,4 +1,4 @@
-import { ancestorsOf, mapById, subtreeOf } from '@ordo/shared';
+import { ancestorsOf, dayIn, mapById, subtreeOf } from '@ordo/shared';
 import type { GraphQLError } from 'graphql';
 import { prisma } from '../../db';
 import type { Prisma } from '../../generated/prisma/client';
@@ -7,6 +7,7 @@ import { clientError, fieldError, notFound, orNotFound } from '../../graphql/err
 import { assertAllExist, type FindRecordDelegate, findOrNotFound } from './lookup';
 import { SETTINGS_LISTS } from './settings-lists';
 import { BY_POSITION } from './ordering';
+import { PARIS } from '../../today';
 
 /** Message of the error refusing a change of an archived element (or of its sub-elements). */
 export const ARCHIVED_MESSAGE = 'Élément archivé : restaurez-le pour le modifier.';
@@ -327,3 +328,11 @@ export async function archiveTree<T extends { archivedAt: Date | null }>(model: 
     .map((ancestor) => ancestor.id);
   return cascadeArchive<T>(model, id, archived, { descendantIds, ancestorIds });
 }
+
+/**
+ * Day an item with occurrences (a routine, an event) was archived, Paris time (decision D21): its occurrences ending
+ * before that day stay, archived (read only); none from it on. Restored, it has them all again. Null when not archived.
+ * @param {{ archivedAt?: Date | null }} item Item.
+ * @returns {string | null} Day (YYYY-MM-DD).
+ */
+export const archivedOn = (item: { archivedAt?: Date | null }): string | null => (item.archivedAt ? dayIn(item.archivedAt, PARIS) : null);

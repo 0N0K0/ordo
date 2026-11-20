@@ -1,5 +1,5 @@
 import { PICKER_FORMATS } from '../../../lib/format';
-import { ArrowSquareOutIcon } from '@phosphor-icons/react';
+import { ArrowCounterClockwiseIcon, ArrowSquareOutIcon, XIcon } from '@phosphor-icons/react';
 import { DeleteButton } from '../../../components/dialogs/DestructiveActions';
 import { Group, Stack, Text, Switch } from '@mantine/core';
 import { DatePickerInput, TimePicker } from '@mantine/dates';
@@ -64,19 +64,22 @@ export function SlotEditForm({
 
 /**
  * Form changing an occurrence of a routine from the calendar: its day and the times of one of its times of the day; or
- * deleting it; or opening the routine.
- * @param {{ occurrence: RoutineOccurrenceRef, onSave: (to: string, times: { fromTime: string | null, dueTime: string | null }) => void, onDelete: () => void, onClose: () => void }} props Component props.
+ * cancelling it; or opening the routine. A cancelled occurrence is only given back (« Rétablir »); one of an archived
+ * routine is read only.
+ * @param {{ occurrence: RoutineOccurrenceRef, onSave: (to: string, times: { fromTime: string | null, dueTime: string | null }) => void, onDelete: () => void, onRestore: () => void, onClose: () => void }} props Component props.
  * @returns {JSX.Element} Form.
  */
 export function RoutineOccurrenceForm({
   occurrence,
   onSave,
   onDelete,
+  onRestore,
   onClose,
 }: {
   occurrence: RoutineOccurrenceRef;
   onSave: (to: string, times: { fromTime: string | null; dueTime: string | null }) => void;
   onDelete: () => void;
+  onRestore: () => void;
   onClose: () => void;
 }) {
   const [date, setDate] = useState(occurrence.date);
@@ -94,6 +97,42 @@ export function RoutineOccurrenceForm({
     true,
   );
   const unchanged = date === occurrence.date && fromTime === occurrence.slot.fromTime && dueTime === occurrence.slot.dueTime;
+  const openRoutine = (
+    <ActionButton
+      priority="tertiary"
+      icon={<ArrowSquareOutIcon aria-hidden />}
+      onClick={() => {
+        onClose();
+        openRoutineForm({ routine: occurrence.routine, occurrenceDate: occurrence.date });
+      }}
+    >
+      Ouvrir la routine
+    </ActionButton>
+  );
+  if (occurrence.cancelled || occurrence.archived) {
+    return (
+      <Stack gap="md">
+        <Text size="sm">
+          {occurrence.archived
+            ? 'La routine est archivée : cette occurrence passée est en lecture seule. Restaurez la routine pour la modifier.'
+            : 'Cette occurrence est annulée : elle reste affichée, barrée, avec ses commentaires.'}
+        </Text>
+        <Group justify="space-between" gap="sm">
+          {openRoutine}
+          <Group gap="sm">
+            <ActionButton priority="secondary" icon={<XIcon aria-hidden />} onClick={onClose}>
+              Fermer
+            </ActionButton>
+            {!occurrence.archived && (
+              <ActionButton icon={<ArrowCounterClockwiseIcon aria-hidden />} onClick={onRestore}>
+                Rétablir
+              </ActionButton>
+            )}
+          </Group>
+        </Group>
+      </Stack>
+    );
+  }
   return (
     <form
       noValidate
@@ -115,16 +154,7 @@ export function RoutineOccurrenceForm({
           danger={
             <>
               <DeleteButton onClick={onDelete} />
-              <ActionButton
-                priority="tertiary"
-                icon={<ArrowSquareOutIcon aria-hidden />}
-                onClick={() => {
-                  onClose();
-                  openRoutineForm({ routine: occurrence.routine, occurrenceDate: occurrence.date });
-                }}
-              >
-                Ouvrir la routine
-              </ActionButton>
+              {openRoutine}
             </>
           }
         />

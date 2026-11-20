@@ -209,7 +209,10 @@ builder.queryFields((t) => ({
       scope: t.arg({ type: EventScope }),
       occurrenceDate: t.arg({ type: 'Date' }),
       calendarId: t.arg.id({ description: 'Calendar deleted with all its events.' }),
-      routineOccurrence: t.arg({ type: RoutineOccurrenceGoneInput, description: 'Occurrence of a routine deleted (THIS), or it and the following ones (FOLLOWING).' }),
+      routineOccurrence: t.arg({
+        type: RoutineOccurrenceGoneInput,
+        description: 'Occurrence of a routine cancelled (THIS: it stays, with its comments: nothing lost), or it and the following ones deleted (FOLLOWING).',
+      }),
     },
     resolve: async (_root, { taskIds, routineIds, withSubtree, eventId, scope, occurrenceDate, calendarId, routineOccurrence }) => {
       const routinesGone = await deletedTreeIds('routine', routineIds ?? [], withSubtree ?? false);
@@ -220,7 +223,8 @@ builder.queryFields((t) => ({
       const times = await timeEntries.timeLeftEmpty({ taskIds: await deletedTreeIds('task', taskIds ?? [], withSubtree ?? false), routineIds: routinesGone, events });
       const comments = await commentsLostOnDelete({
         routineIds: routinesGone,
-        routines: routineOccurrence ? [routineOccurrence.scope === 'THIS' ? { id: routineOccurrence.id, on: routineOccurrence.date } : { id: routineOccurrence.id, from: routineOccurrence.date }] : [],
+        // A cancelled occurrence stays shown with its comments (decision D23): only the following ones deleted lose theirs.
+        routines: routineOccurrence?.scope === 'FOLLOWING' ? [{ id: routineOccurrence.id, from: routineOccurrence.date }] : [],
         events: events.map((gone) => ({ id: gone.eventId, on: gone.on, from: gone.from })),
       });
       return { times: times.length, comments };

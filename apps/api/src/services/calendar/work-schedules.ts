@@ -59,6 +59,18 @@ export function scheduleRule(schedule: WorkSchedule): WorkScheduleRule {
 }
 
 /**
+ * Rule a schedule would have once saved with an input (checked as on saving), to compare the occurrences of the
+ * routines before and after a change of it.
+ * @param {string} id Schedule (any id for a new one).
+ * @param {WorkScheduleInput} input Schedule.
+ * @returns {WorkScheduleRule} Rule.
+ */
+function scheduleRuleOf(id: string, input: WorkScheduleInput): WorkScheduleRule {
+  const schedule = parseInput(workScheduleSchema, input);
+  return { id, label: schedule.label, startDate: schedule.startDate, endDate: schedule.endDate ?? null, cases: schedule.cases, exceptions: schedule.exceptions, typeId: schedule.typeId ?? null };
+}
+
+/**
  * Prisma data of a schedule, exceptions by date; the former format is emptied (cases replace it). A kind archived
  * is refused unless it is the current one.
  * @param {WorkScheduleInput} input Schedule.
@@ -82,33 +94,50 @@ async function scheduleData(input: WorkScheduleInput, currentTypeId: string | nu
 }
 
 /**
+ * Before a change of the schedules is saved, once checked: what it does to the routines (their occurrences it makes
+ * disappear, `settleScheduleChange`), given the schedules of the workspace as it leaves them.
+ */
+export type ScheduleChangeSettler = (change: (own: WorkScheduleRule[]) => WorkScheduleRule[]) => Promise<void>;
+
+/** No settling (internal changes). */
+const NO_SETTLER: ScheduleChangeSettler = async () => {};
+
+/**
  * Creates a schedule.
  * @param {WorkScheduleInput} input Schedule.
+ * @param {ScheduleChangeSettler} [settle] Run once checked, before it is saved. Optional. Default = none.
  * @returns {Promise<WorkSchedule>} Schedule.
  */
-export async function createWorkSchedule(input: WorkScheduleInput): Promise<WorkSchedule> {
-  return prisma.workSchedule.create({ data: await scheduleData(input) });
+export async function createWorkSchedule(input: WorkScheduleInput, settle: ScheduleChangeSettler = NO_SETTLER): Promise<WorkSchedule> {
+  const data = await scheduleData(input);
+  await settle((own) => [...own, scheduleRuleOf('new', input)]);
+  return prisma.workSchedule.create({ data });
 }
 
 /**
  * Replaces a schedule (its slots and pauses with it).
  * @param {string} id Schedule id.
  * @param {WorkScheduleInput} input Schedule.
+ * @param {ScheduleChangeSettler} [settle] Run once checked, before it is saved. Optional. Default = none.
  * @returns {Promise<WorkSchedule>} Schedule.
  */
-export async function updateWorkSchedule(id: string, input: WorkScheduleInput): Promise<WorkSchedule> {
+export async function updateWorkSchedule(id: string, input: WorkScheduleInput, settle: ScheduleChangeSettler = NO_SETTLER): Promise<WorkSchedule> {
   const current = await orNotFound(prisma.workSchedule.findUnique({ where: { id }, select: { id: true, typeId: true, archivedAt: true } }), 'Créneau de travail');
   refuseArchived(current);
   const data = await scheduleData(input, current.typeId);
+  await settle((own) => own.map((rule) => (rule.id === id ? scheduleRuleOf(id, input) : rule)));
   return prisma.workSchedule.update({ where: { id }, data });
 }
 
 /**
  * Deletes a schedule.
  * @param {string} id Schedule id.
+ * @param {ScheduleChangeSettler} [settle] Run once found, before it is deleted. Optional. Default = none.
  * @returns {Promise<void>}
  */
-export async function deleteWorkSchedule(id: string): Promise<void> {
+export async function deleteWorkSchedule(id: string, settle: ScheduleChangeSettler = NO_SETTLER): Promise<void> {
+  await assertExists(prisma.workSchedule, id, 'Créneau de travail');
+  await settle((own) => own.filter((rule) => rule.id !== id));
   await deleteOrNotFound(prisma.workSchedule, id, 'Créneau de travail');
 }
 

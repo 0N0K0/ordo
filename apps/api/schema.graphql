@@ -1764,7 +1764,17 @@ type Mutation {
   createTreasuryCounterparty(input: TreasuryCounterpartyInput!): ID!
   createTreasuryEntry(input: TreasuryEntryInput!): ID!
   createTreasuryPaymentMethod(input: TreasuryPaymentMethodInput!): ID!
-  createWorkSchedule(input: WorkScheduleInput!): ID!
+
+  """
+  Creates a schedule; the occurrences of routines it makes disappear (no moment left) lose their comments, once confirmed.
+  """
+  createWorkSchedule(
+    """
+    Occurrences made to disappear with their comments or times are confirmed: false (default) refuses with CONFIRMATION_REQUIRED and extension lost { times, comments } when there are some; true deletes them.
+    """
+    confirmLoss: Boolean
+    input: WorkScheduleInput!
+  ): ID!
   createWorkspace(input: WorkspaceInput!): Workspace!
   deleteAccountingDocument(id: ID!): Boolean!
   deleteAlarm(id: ID!): Boolean!
@@ -1874,7 +1884,17 @@ type Mutation {
   Deletes a relation: its budgets go with it, its lines become the app user's.
   """
   deleteTreasuryRelation(id: ID!): Boolean!
-  deleteWorkSchedule(id: ID!): Boolean!
+
+  """
+  Deletes a schedule; the occurrences of routines it makes disappear (no moment left) lose their comments, once confirmed.
+  """
+  deleteWorkSchedule(
+    """
+    Occurrences made to disappear with their comments or times are confirmed: false (default) refuses with CONFIRMATION_REQUIRED and extension lost { times, comments } when there are some; true deletes them.
+    """
+    confirmLoss: Boolean
+    id: ID!
+  ): Boolean!
 
   """Deletes a workspace and everything in it (not the last one)."""
   deleteWorkspace(id: ID!): Boolean!
@@ -2363,7 +2383,18 @@ type Mutation {
   updateTreasuryCounterparty(id: ID!, input: TreasuryCounterpartyInput!): Boolean!
   updateTreasuryEntry(id: ID!, input: TreasuryEntryInput!): Boolean!
   updateTreasuryPaymentMethod(id: ID!, input: TreasuryPaymentMethodInput!): Boolean!
-  updateWorkSchedule(id: ID!, input: WorkScheduleInput!): Boolean!
+
+  """
+  Changes a schedule; the occurrences of routines it makes disappear (no moment left) lose their comments, once confirmed.
+  """
+  updateWorkSchedule(
+    """
+    Occurrences made to disappear with their comments or times are confirmed: false (default) refuses with CONFIRMATION_REQUIRED and extension lost { times, comments } when there are some; true deletes them.
+    """
+    confirmLoss: Boolean
+    id: ID!
+    input: WorkScheduleInput!
+  ): Boolean!
 
   """
   Renames a workspace or changes its kind (it only becomes personal without clients nor invoicing documents).
@@ -2660,7 +2691,7 @@ type Query {
     routineIds: [ID!]
 
     """
-    Occurrence of a routine deleted (THIS), or it and the following ones (FOLLOWING).
+    Occurrence of a routine cancelled (THIS: it stays, with its comments: nothing lost), or it and the following ones deleted (FOLLOWING).
     """
     routineOccurrence: RoutineOccurrenceGoneInput
     scope: CalendarEventScope
@@ -2757,7 +2788,7 @@ type Query {
   routineChecks(from: Date!, to: Date!): [RoutineCheck!]!
 
   """
-  Occurrences of the routines not archived in a period (both days included, 100 days at most), with their times of the day ticked.
+  Occurrences of the routines in a period (both days included, 100 days at most), with their times of the day ticked: the cancelled ones too (flagged), and those of the archived routines due before their archiving (flagged).
   """
   routineOccurrences(from: Date!, to: Date!): [RoutineOccurrence!]!
 
@@ -3243,6 +3274,16 @@ input RoutineInput {
 
 """Occurrence of a routine on a day (for the calendar)."""
 type RoutineOccurrence {
+  """
+  Of an archived routine (an occurrence due before the day it was archived): read only.
+  """
+  archived: Boolean!
+
+  """
+  Cancelled (an exception without a day): shown struck through, read only, given back by removing its exception.
+  """
+  cancelled: Boolean!
+
   """Due day (its last day)."""
   date: Date!
 
@@ -4076,6 +4117,11 @@ type Task {
   """Tasks this task blocks."""
   blockingIds: [ID!]!
 
+  """
+  Its status is of the category « Annulé »: closed, shown struck through (decision D23).
+  """
+  cancelled: Boolean!
+
   """Closed (done) task."""
   closed: Boolean!
   closedAt: DateTime
@@ -4087,7 +4133,20 @@ type Task {
   Latest acceptable date (« Échéance »): an open task past it is overdue.
   """
   deadline: Date
+
+  """Its « Échéance » is that of its sprint (none of its own)."""
+  deadlineFromSprint: Boolean!
   description: String
+
+  """
+  « Échéance » the task goes by (overdue, reminders, sorting, filters): its own, else the end of its sprint when it is in exactly one.
+  """
+  effectiveDeadline: Date
+
+  """
+  « Ouverture » the task goes by: its own, else the start of its sprint when it is in exactly one (decision of lot 12).
+  """
+  effectiveMinDate: Date
   effort: Float
   endDate: Date
 
@@ -4113,6 +4172,9 @@ type Task {
 
   """Earliest acceptable date (« Ouverture »): not to be done before."""
   minDate: Date
+
+  """Its « Ouverture » is that of its sprint (none of its own)."""
+  minDateFromSprint: Boolean!
 
   """
   Number within its project (#12); none without project. Links use the id.

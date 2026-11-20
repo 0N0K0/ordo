@@ -106,6 +106,8 @@ interface DataTableProps<R> extends Omit<TableProps, 'children'> {
   isArchived?: (row: R) => boolean;
   /** The row is done, closed or left out (dimmed, as an archived one). Optional. */
   isDone?: (row: R) => boolean;
+  /** The row is struck through (its label: a done routine, a cancelled task). Optional. */
+  isStruck?: (row: R) => boolean;
   /** The row is read only (shown among the others: no drag, no check, no cell selection). Optional. */
   readOnly?: (row: R) => boolean;
   /** Rows still loading: a skeleton in place of the table. Optional. Default = false. */
@@ -333,6 +335,7 @@ export function DataTable<R>({
   isActive,
   isArchived,
   isDone,
+  isStruck,
   readOnly,
   loading = false,
   toolbar = true,
@@ -659,6 +662,7 @@ export function DataTable<R>({
             active={isActive?.(data) ?? false}
             archived={isArchived?.(data) ?? false}
             done={isDone?.(data) ?? false}
+            struck={isStruck?.(data) ?? false}
             checked={checks?.isChecked(key) ?? false}
             rowProps={rowProps?.(data) ?? {}}
           >
@@ -925,6 +929,8 @@ interface DataRowProps {
   active: boolean;
   archived: boolean;
   done: boolean;
+  /** Its label struck through. */
+  struck: boolean;
   checked: boolean;
   rowProps: TableTrProps;
   /** Cells, receiving the drag handle to place in the first cell. */
@@ -937,7 +943,7 @@ interface DataRowProps {
  * @param {DataRowProps} props Component props.
  * @returns {JSX.Element} Row.
  */
-function DataRow({ id, attrs, draggable, dropTarget, active, archived, done, checked, rowProps, children }: DataRowProps) {
+function DataRow({ id, attrs, draggable, dropTarget, active, archived, done, struck, checked, rowProps, children }: DataRowProps) {
   const { setNodeRef, setActivatorNodeRef, attributes, listeners, transform, transition, isDragging } = useSortable({ id, disabled: !draggable });
   const { className, style, ...props } = rowProps;
   const handle = draggable ? (
@@ -969,6 +975,7 @@ function DataRow({ id, attrs, draggable, dropTarget, active, archived, done, che
       data-active={active || undefined}
       data-archived={archived || undefined}
       data-done={done || undefined}
+      data-struck={struck || undefined}
       data-selected={checked || undefined}
       data-dragging={isDragging || undefined}
       data-drop-target={dropTarget || undefined}

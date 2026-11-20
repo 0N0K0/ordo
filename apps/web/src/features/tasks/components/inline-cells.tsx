@@ -30,6 +30,7 @@ import { DependencyIcon } from '../../../components/data-table/cells/DependencyI
 import { dateRangeProps } from '../../../components/inputs/date-range';
 import { beneficiariesDiff } from '../../beneficiaries/lib/beneficiaries-diff';
 import { LATE_COLOR } from '../../../components/feedback/feedback-colors';
+import { sprintDateHint } from '../lib/sprint-dates';
 import { LocationCell } from '../../geo/components/LocationCell';
 
 /**
@@ -339,6 +340,8 @@ export function DateCell({ task, column, alert }: DateCellProps) {
   const side = column === startKey ? 'start' : 'end';
   // A single task keeps a valid period (the other bound follows); with several, the API checks every task.
   const bounds = dateRangeProps({ value: [task[startKey], task[endKey]], onChange: ([start, end]) => apply({ [startKey]: start, [endKey]: end }) })[side];
+  // Without its own « Ouverture » / « Échéance »: that of its single sprint, shown in place (a date typed wins).
+  const inherited = column === 'minDate' || column === 'deadline' ? sprintDateHint(task, column) : null;
   return (
     <DatePickerInput
       {...stoppedCellField}
@@ -348,7 +351,7 @@ export function DateCell({ task, column, alert }: DateCellProps) {
       onChange={(date) => (count < 2 ? bounds.onChange(date) : apply({ [column]: date }, { [column]: date }))}
       readOnly={task.archived}
       clearable={!task.archived}
-      placeholder={task.archived ? undefined : '—'}
+      placeholder={inherited ?? (task.archived ? undefined : '—')}
       popoverProps={{ withinPortal: true }}
       c={alert ? LATE_COLOR : undefined}
       fw={alert ? 600 : undefined}

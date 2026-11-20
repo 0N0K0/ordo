@@ -21,6 +21,10 @@ export interface RoutineOccurrenceRef {
   routine: Routine;
   date: string;
   slot: RoutineSlotTimes;
+  /** Cancelled (shown struck through, decision D23): only given back. Optional. Default = false. */
+  cancelled?: boolean;
+  /** Of an archived routine, before its archiving (decision D21): read only. Optional. Default = false. */
+  archived?: boolean;
 }
 
 /**
@@ -88,8 +92,8 @@ export function useCalendarEdits() {
   };
 
   /**
-   * Deletes an occurrence of a routine, or it and the following ones, telling the comments deleted with them (decision D19);
-   * « Annuler » gives a single occurrence back with its comments.
+   * Cancels an occurrence of a routine (it stays shown struck through, with its comments: decision D23), or deletes it and
+   * the following ones, telling the comments deleted with them (decision D19); « Annuler » gives a single occurrence back.
    * @param {RoutineOccurrenceRef} occurrence Occurrence.
    * @param {string | null} movedFrom Day of the rule it was moved from, if any.
    * @returns {Promise<void>}
@@ -105,8 +109,8 @@ export function useCalendarEdits() {
         onError: onMutationError,
         onSuccess: ({ archived, comments }) => {
           if (archived) notifySuccess(`Plus aucune occurrence : « ${routine.label} » est archivée.`);
-          // « Annuler » gives the occurrence back with its comments.
-          else if (scope === 'THIS') notifyWithUndo(`Occurrence du ${fmt.dayLong(date)} supprimée.`, () => removeMove.mutate({ id: routine.id, from: movedFrom ?? date, comments }, ON_ERROR));
+          // « Annuler » gives the occurrence back (it kept its comments).
+          else if (scope === 'THIS') notifyWithUndo(`Occurrence du ${fmt.dayLong(date)} annulée.`, () => removeMove.mutate({ id: routine.id, from: movedFrom ?? date, comments }, ON_ERROR));
           else notifySuccess(`« ${routine.label} » s’arrête avant le ${fmt.dayLong(date)}.`);
         },
       },
@@ -157,6 +161,10 @@ export function useCalendarEdits() {
         onDelete={() => {
           close();
           void removeRoutine(occurrence, movedFrom);
+        }}
+        onRestore={() => {
+          close();
+          removeMove.mutate({ id: occurrence.routine.id, from: occurrence.date }, toastCallbacks(`Occurrence du ${fmt.dayLong(occurrence.date)} rétablie.`));
         }}
       />
     ));

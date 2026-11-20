@@ -9,7 +9,7 @@ import { iconUrl } from '../../services/core/icons';
 import { taskPriorities, taskStatuses, taskTags, taskTypes } from '../../services/tasks/task-labels';
 import * as taskViews from '../../services/tasks/task-views';
 import * as tasks from '../../services/tasks/tasks';
-import { readSlotCondition, sumOf, TASK_STATUS_CATEGORIES, VIEW_KINDS } from '@ordo/shared';
+import { formatDay, formatOptionalDay, parseOptionalDay, readSlotCondition, sumOf, TASK_STATUS_CATEGORIES, taskDueDates, VIEW_KINDS } from '@ordo/shared';
 import * as workspaces from '../../services/workspaces/workspaces';
 import { BY_POSITION } from '../../services/core/ordering';
 import { RemovedLinksResult, removedLinks } from '../removed-links';
@@ -163,6 +163,20 @@ builder.prismaObject('TaskComment', {
   }),
 });
 
+/** What the dates a task goes by are computed from: its sprints with their days. */
+const DUE_SELECT = { sprints: { select: { id: true, startDate: true, endDate: true } } } as const;
+
+/**
+ * « Ouverture » / « Échéance » a task goes by: its own, else those of its single sprint (`taskDueDates`).
+ * @param {{ minDate: Date | null, deadline: Date | null, sprints: { id: string, startDate: Date, endDate: Date }[] }} task Task with its sprints.
+ * @returns {import('@ordo/shared').TaskDueDates} Dates.
+ */
+const dueDatesOf = (task: { minDate: Date | null; deadline: Date | null; sprints: { id: string; startDate: Date; endDate: Date }[] }) =>
+  taskDueDates({ minDate: formatOptionalDay(task.minDate), deadline: formatOptionalDay(task.deadline), sprintIds: task.sprints.map((sprint) => sprint.id) }, (id) => {
+    const sprint = task.sprints.find((item) => item.id === id);
+    return sprint && { startDate: formatDay(sprint.startDate), endDate: formatDay(sprint.endDate) };
+  });
+
 builder.prismaObject('Task', {
   fields: (t) => ({
     id: t.exposeID('id'),
@@ -178,6 +192,27 @@ builder.prismaObject('Task', {
     endDate: t.expose('endDate', { type: 'Date', nullable: true }),
     deadline: t.expose('deadline', { type: 'Date', nullable: true, description: 'Latest acceptable date (« Échéance »): an open task past it is overdue.' }),
     minDate: t.expose('minDate', { type: 'Date', nullable: true, description: 'Earliest acceptable date (« Ouverture »): not to be done before.' }),
+    effectiveMinDate: t.field({
+      type: 'Date',
+      nullable: true,
+      description: '« Ouverture » the task goes by: its own, else the start of its sprint when it is in exactly one (decision of lot 12).',
+      select: DUE_SELECT,
+      resolve: (task) => parseOptionalDay(dueDatesOf(task).minDate),
+    }),
+    effectiveDeadline: t.field({
+      type: 'Date',
+      nullable: true,
+      description: '« Échéance » the task goes by (overdue, reminders, sorting, filters): its own, else the end of its sprint when it is in exactly one.',
+      select: DUE_SELECT,
+      resolve: (task) => parseOptionalDay(dueDatesOf(task).deadline),
+    }),
+    minDateFromSprint: t.boolean({ description: 'Its « Ouverture » is that of its sprint (none of its own).', select: DUE_SELECT, resolve: (task) => dueDatesOf(task).minDateFromSprint }),
+    deadlineFromSprint: t.boolean({ description: 'Its « Échéance » is that of its sprint (none of its own).', select: DUE_SELECT, resolve: (task) => dueDatesOf(task).deadlineFromSprint }),
+    cancelled: t.boolean({
+      description: 'Its status is of the category « Annulé »: closed, shown struck through (decision D23).',
+      select: { status: { select: { category: true } } },
+      resolve: (task) => task.status?.category === 'CANCELLED',
+    }),
     slotCondition: t.field({
       type: 'JSON',
       nullable: true,

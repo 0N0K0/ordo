@@ -14,6 +14,7 @@ import type {
 } from '../../../graphql/graphql';
 import { execute, executeIn } from '../../../lib/graphql-client';
 import { withLossConfirmation } from '../../time/lib/confirm-loss';
+import { routinesKey } from '../../routines/api';
 import { archivedIds, unarchived } from '../../../lib/archive';
 
 export type EventOccurrence = CalendarEventOccurrenceFieldsFragment;
@@ -218,20 +219,20 @@ const UnsubscribeScheduleKindDocument = graphql(`
 `);
 
 const CreateWorkScheduleDocument = graphql(`
-  mutation CreateWorkSchedule($input: WorkScheduleInput!) {
-    createWorkSchedule(input: $input)
+  mutation CreateWorkSchedule($input: WorkScheduleInput!, $confirmLoss: Boolean) {
+    createWorkSchedule(input: $input, confirmLoss: $confirmLoss)
   }
 `);
 
 const UpdateWorkScheduleDocument = graphql(`
-  mutation UpdateWorkSchedule($id: ID!, $input: WorkScheduleInput!) {
-    updateWorkSchedule(id: $id, input: $input)
+  mutation UpdateWorkSchedule($id: ID!, $input: WorkScheduleInput!, $confirmLoss: Boolean) {
+    updateWorkSchedule(id: $id, input: $input, confirmLoss: $confirmLoss)
   }
 `);
 
 const DeleteWorkScheduleDocument = graphql(`
-  mutation DeleteWorkSchedule($id: ID!) {
-    deleteWorkSchedule(id: $id)
+  mutation DeleteWorkSchedule($id: ID!, $confirmLoss: Boolean) {
+    deleteWorkSchedule(id: $id, confirmLoss: $confirmLoss)
   }
 `);
 
@@ -631,9 +632,17 @@ export function useScheduleSources() {
  */
 export function useWorkScheduleMutations() {
   return {
-    create: useCalendarMutation(async (input: WorkScheduleInput) => (await execute(CreateWorkScheduleDocument, { input } as never)).createWorkSchedule),
-    update: useCalendarMutation(async (variables: { id: string; input: WorkScheduleInput }) => (await execute(UpdateWorkScheduleDocument, variables as never)).updateWorkSchedule),
-    remove: useCalendarMutation(async (id: string) => (await execute(DeleteWorkScheduleDocument, { id })).deleteWorkSchedule),
+    // The occurrences of routines a change makes disappear (no moment left) are confirmed first, with what they lose.
+    create: useCalendarMutation(
+      async (input: WorkScheduleInput) => withLossConfirmation(async (confirmLoss) => (await execute(CreateWorkScheduleDocument, { input, confirmLoss } as never)).createWorkSchedule),
+      [routinesKey],
+    ),
+    update: useCalendarMutation(
+      async (variables: { id: string; input: WorkScheduleInput }) =>
+        withLossConfirmation(async (confirmLoss) => (await execute(UpdateWorkScheduleDocument, { ...variables, confirmLoss } as never)).updateWorkSchedule),
+      [routinesKey],
+    ),
+    remove: useCalendarMutation(async (id: string) => withLossConfirmation(async (confirmLoss) => (await execute(DeleteWorkScheduleDocument, { id, confirmLoss })).deleteWorkSchedule), [routinesKey]),
     createType: useCalendarMutation(async (input: { label: string; color: string } & ScheduleDisplay) => (await execute(CreateScheduleTypeDocument, { input })).createScheduleType),
     updateType: useCalendarMutation(
       async (variables: { id: string; input: { label: string; color: string } & ScheduleDisplay }) => (await execute(UpdateScheduleTypeDocument, variables)).updateScheduleType,

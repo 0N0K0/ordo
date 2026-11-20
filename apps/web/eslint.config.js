@@ -891,7 +891,7 @@ export default defineConfig([
           message: 'Utiliser readOnlyCells(columns, row) (components/data-table/table/data-table) : le texte de chaque colonne, la cellule d’une colonne commune.',
         },
         {
-          selector: "BinaryExpression[operator='<'][left.property.name='deadline'], BinaryExpression[operator='<'][left.name='deadline']",
+          selector: "BinaryExpression[operator='<'][left.property.name=/^(deadline|effectiveDeadline)$/], BinaryExpression[operator='<'][left.name=/^(deadline|effectiveDeadline)$/]",
           message: 'Utiliser isTaskOverdue(task, today) (features/tasks/lib/task-overdue) : une seule règle de retard (décision DD).',
         },
         {

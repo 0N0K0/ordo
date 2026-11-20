@@ -104,3 +104,15 @@ export function readTaskColumnDefaults(stored: unknown): TaskColumnDefaults {
   const parsed = taskColumnDefaultsSchema.safeParse(withLabelColumn(stored ?? {}, legacyLabelColumn('tasks')));
   return parsed.success ? parsed.data : { columnOrder: [], hiddenColumns: [] };
 }
+
+/**
+ * What a change of status does to a task being closed (decision D23): a status « Annulé » closes it, leaving one
+ * reopens it; the other categories (« Terminé » included) leave it as it is.
+ * @param {TaskStatusCategory | null} from Category of its status now (null: none).
+ * @param {TaskStatusCategory | null} to Category of its new status (null: none).
+ * @returns {'close' | 'reopen' | null} Effect.
+ */
+export function statusClosing(from: TaskStatusCategory | null, to: TaskStatusCategory | null): 'close' | 'reopen' | null {
+  if (to === 'CANCELLED') return 'close';
+  return from === 'CANCELLED' ? 'reopen' : null;
+}

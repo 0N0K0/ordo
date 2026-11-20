@@ -103,7 +103,7 @@ Une routine se déplace par glisser-déposer, comme une tâche : avant une autre
 - « Archiver » / « Restaurer ».
 - « Supprimer ».
 
-Une routine archivée n'offre que « Historique », « Restaurer » et « Supprimer ».
+Une routine archivée n'offre que « Historique », « Restaurer » et « Supprimer ». Archivée, elle n'a plus d'occurrence à venir ; ses occurrences dues avant le jour de l'archivage restent, archivées (agenda avec « Afficher les archivés », lecture seule) ; la restaurer remet tout comme avant (décision D21).
 
 ### Actions sur la sélection
 
@@ -165,7 +165,7 @@ Le résumé s'écrit une ligne par élément : « À partir du 10 nov. 2026 », 
   - « Nouvelle date » (requise, pas avant la première fois) : plus tard pour reporter, plus tôt pour avancer, le même jour pour ne changer que l'horaire.
   - « Horaires » : « dès » / « avant » de chaque moment.
   - Bouton « Reporter », « Avancer » ou « Changer l'horaire » selon la date.
-  - « Annuler l'occurrence » (destructif) : confirmation « Annuler cette occurrence ? » expliquant qu'elle se rétablit depuis la liste des exceptions ; toast « Occurrence du … annulée. ».
+  - « Annuler l'occurrence » (destructif) : confirmation « Annuler cette occurrence ? » (« L’occurrence du … n’aura pas lieu : elle reste affichée, barrée, avec ses commentaires ; c’est une exception, les autres occurrences ne changent pas. Elle se rétablit depuis la liste des exceptions ou l’agenda. ») ; toast « Occurrence du … annulée. ». Une occurrence annulée reste dans l'agenda, barrée (décision D23), mais n'est plus à faire (ni état, ni rappels, ni « Historique ») ; elle n'est plus proposée dans « Occurrence ».
   - « Exceptions » : chaque occurrence déplacée (« reportée », « avancée », « autres horaires », « annulée ») avec « Remettre à son jour ».
 - Depuis l'agenda, une occurrence se déplace aussi par glisser-déposer, pour « cette occurrence », « celle-ci et les suivantes » ou « toutes » (voir [Agenda](calendar.md)).
 

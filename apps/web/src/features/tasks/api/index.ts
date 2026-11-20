@@ -92,6 +92,11 @@ graphql(`
     sprintIds
     deadline
     minDate
+    effectiveDeadline
+    effectiveMinDate
+    deadlineFromSprint
+    minDateFromSprint
+    cancelled
     position
     archived
     createdAt

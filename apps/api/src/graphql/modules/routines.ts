@@ -388,6 +388,10 @@ interface OccurrenceState {
   /** Day it shows on: its due day once past, today while it runs, its first day before. */
   shownDate: string;
   movedFrom: string | null;
+  /** Cancelled (an exception without a day): shown struck through (decision D23). */
+  cancelled: boolean;
+  /** Of an archived routine: an occurrence before its archiving, read only (decision D21). */
+  archived: boolean;
   slots: SlotState[];
 }
 
@@ -399,6 +403,8 @@ const RoutineOccurrenceRef = builder.objectRef<OccurrenceState>('RoutineOccurren
     startDate: t.field({ type: 'Date', description: 'First day it can be done.', resolve: (occurrence) => parseDay(occurrence.startDate) }),
     shownDate: t.field({ type: 'Date', description: 'Day it shows on: its due day once past, today while it runs, its first day before.', resolve: (occurrence) => parseDay(occurrence.shownDate) }),
     movedFrom: t.field({ type: 'Date', nullable: true, description: 'Day of the rule it was moved from (an exception).', resolve: (occurrence) => parseOptionalDay(occurrence.movedFrom) }),
+    cancelled: t.exposeBoolean('cancelled', { description: 'Cancelled (an exception without a day): shown struck through, read only, given back by removing its exception.' }),
+    archived: t.exposeBoolean('archived', { description: 'Of an archived routine (an occurrence due before the day it was archived): read only.' }),
     slots: t.field({ type: [RoutineSlotRef], resolve: (occurrence) => occurrence.slots }),
   }),
 });
@@ -440,12 +446,13 @@ builder.queryFields((t) => ({
   }),
   routineOccurrences: t.field({
     type: [RoutineOccurrenceRef],
-    description: `Occurrences of the routines not archived in a period (both days included, ${OCCURRENCE_DAYS} days at most), with their times of the day ticked.`,
+    description: `Occurrences of the routines in a period (both days included, ${OCCURRENCE_DAYS} days at most), with their times of the day ticked: the cancelled ones too (flagged), and those of the archived routines due before their archiving (flagged).`,
     args: { from: t.arg({ type: 'Date', required: true }), to: t.arg({ type: 'Date', required: true }) },
     resolve: async (_root, { from, to }, ctx) => {
       if (to < from || daysBetween(from, to) >= OCCURRENCE_DAYS) throw clientError('BAD_USER_INPUT', `Période de ${OCCURRENCE_DAYS} jours au plus.`);
       const list = await prisma.routine.findMany({
-        where: { archivedAt: null },
+        // Archived ones: their occurrences before their archiving (decision D21).
+        where: { OR: [{ archivedAt: null }, { archivedAt: { gte: parseDay(from) } }] },
         select: { ...TIMING, checks: { where: { date: { gte: parseDay(from), lte: parseDay(to) } }, select: { date: true, slot: true } } },
       });
       const context = await slotsOf(ctx);
@@ -453,12 +460,14 @@ builder.queryFields((t) => ({
       return list.flatMap((routine) => {
         const moves = routines.storedMoves(routine.moves);
         const ticked = new Set(routine.checks.map((check) => `${formatDay(check.date)}/${check.slot}`));
-        return routines.occurrenceSpansBetween(routine, from, to, context).map(({ start, end: date }) => ({
+        return routines.occurrenceSpansBetween(routine, from, to, context, true).map(({ start, end: date, cancelled = false }) => ({
           routineId: routine.id,
           date,
           startDate: start,
           shownDate: routines.shownDay({ start, end: date }, today),
           movedFrom: moves.find((move) => move.to === date && move.from !== date)?.from ?? null,
+          cancelled,
+          archived: routine.archivedAt !== null,
           slots: routines.slotsOf(routine, date, context).map((slot, index) => ({ index, ...slot, done: ticked.has(`${date}/${index}`) })),
         }));
       });

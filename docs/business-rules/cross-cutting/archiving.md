@@ -61,7 +61,11 @@ Les clients, projets, tâches et routines utilisent un indicateur `archivedByCas
 
 - Archivage groupé `bulkSetRoutinesArchived(ids, archived)` : chaque id doit exister, un id répété compte une fois, la date des déjà archivées est gardée.
 - Même mécanique que les tâches (`archiveTree`, décision DQ) : archiver une routine archive ses sous-routines actives, la restaurer restaure celles archivées avec elle et ses parentes archivées seules. Une routine sélectionnée sous une autre sélectionnée suit celle-ci (`topmostIds`).
-- Une routine archivée n'a plus d'occurrence due (rien n'est calculé).
+- Une routine archivée n'a plus d'occurrence due ni à venir ; ses occurrences dues avant le jour de l'archivage restent, archivées, en lecture seule ; la restaurer remet tout comme avant (décision D21, `archivedOn`). Archivée parce qu'une suppression « celle-ci et les suivantes » ne lui laisse rien, elle l'est avec ses sous-routines.
+
+### Évènement
+
+- `setArchived(CALENDAR_EVENT)` archive toute la série ; comme une routine (décision D21), seules ses occurrences finies avant le jour de l'archivage restent, archivées ; aucune ensuite. Restauré, il retrouve toutes ses occurrences.
 - Les modifications groupées sont refusées si la sélection contient une routine archivée.
 
 ## Effets de l'archivage ailleurs

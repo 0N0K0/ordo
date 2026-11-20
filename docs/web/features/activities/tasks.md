@@ -366,7 +366,8 @@ Internes : `TaskColumnExtras`, `STATUS_CATEGORY_ORDER`, `STATUS_CATEGORY_LABELS`
 
 ### `lib/task-overdue.ts`
 
-- `isTaskOverdue(task, today)` : « Échéance » passée et tâche non fermée (décision DD) ; la seule implémentation (règle eslint).
+- `isTaskOverdue(task, today)` : « Échéance » suivie (`effectiveDeadline`, calculée par l’API : la sienne, sinon celle de son sprint unique) passée et tâche non fermée (décision DD) ; la seule implémentation (règle eslint, sur `deadline` et `effectiveDeadline`).
+- `sprintDateHint(task, field)` (`lib/sprint-dates.ts`) : « 12 nov. 2026 (sprint) » quand la tâche prend son « Ouverture » ou son « Échéance » de son sprint unique (`minDateFromSprint`, `deadlineFromSprint`), sinon `null` ; texte grisé du champ vide (`DateCell`, `TaskPanel`).
 
 ### `lib/my-tasks.ts`
 

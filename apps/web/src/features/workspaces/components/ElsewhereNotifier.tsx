@@ -52,8 +52,8 @@ const ElsewhereRemindersDocument = graphql(`
       projectId
       closed
       archived
-      minDate
-      deadline
+      effectiveMinDate
+      effectiveDeadline
       reminders {
         before
         at

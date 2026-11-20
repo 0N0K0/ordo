@@ -247,6 +247,7 @@ export function RoutinesPanel({ projectId, projectIds }: { projectId?: string; p
       onMoveRow={handleMove}
       readOnly={isDraftRoutine}
       isArchived={(routine) => routine.archived}
+      isStruck={isDone}
       rowProps={(routine) => ({ className: classes.row, 'data-done': isDone(routine) || undefined })}
       cells={cells}
       actions={actions}

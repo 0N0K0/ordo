@@ -52,7 +52,7 @@ export function TasksCard({ context, tasks, today }: TasksCardProps) {
                 to={link.to(task.id)}
                 label={task.label}
                 subtitle={[context.projectLabel(task.projectId), taskNumber(task)].filter(Boolean).join(' · ')}
-                value={late && task.deadline ? <LateBadge due={task.deadline} today={today} /> : <ItemBadge item={status} />}
+                value={late && task.effectiveDeadline ? <LateBadge due={task.effectiveDeadline} today={today} /> : <ItemBadge item={status} />}
               />
             );
           }}

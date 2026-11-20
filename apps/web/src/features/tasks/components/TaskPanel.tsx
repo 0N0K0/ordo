@@ -44,6 +44,7 @@ import { EffortInput } from './EffortInput';
 import { TaskLinks } from './TaskLinks';
 import { TaskLocation } from './TaskLocation';
 import { TaskReminders } from './TaskReminders';
+import { sprintDateHint } from '../lib/sprint-dates';
 import { DetailNotFound } from '../../../components/feedback/DetailNotFound';
 import { ActionButton } from '../../../components/actions/ActionButton';
 import { RemoveButton } from '../../../components/actions/RemoveButton';
@@ -196,7 +197,10 @@ function TaskDetail({ task, context }: TaskDetailProps) {
           compact
           title={
             <>
-              {task.label}{' '}
+              {/* Cancelled (status « Annulé », decision D23): struck through. */}
+              <Text span inherit td={task.cancelled ? 'line-through' : undefined}>
+                {task.label}
+              </Text>{' '}
               <Text span c="dimmed" inherit fw={400}>
                 {taskNumber(task)}
               </Text>
@@ -333,7 +337,7 @@ function TaskDetail({ task, context }: TaskDetailProps) {
                 <DatePickerInput label="Début" clearable placeholder="—" {...dates.start} />
                 <DatePickerInput label="Fin" clearable placeholder="—" {...dates.end} />
               </Group>
-              <DatePickerInput label="Ouverture" description="Avant, la tâche n’est pas à faire." clearable placeholder="—" {...doable.start} />
+              <DatePickerInput label="Ouverture" description="Avant, la tâche n’est pas à faire." clearable placeholder={sprintDateHint(task, 'minDate') ?? '—'} {...doable.start} />
               <DatePickerInput
                 label="Échéance"
                 description={
@@ -348,10 +352,10 @@ function TaskDetail({ task, context }: TaskDetailProps) {
                   </>
                 }
                 clearable
-                placeholder="—"
+                placeholder={sprintDateHint(task, 'deadline') ?? '—'}
                 {...doable.end}
               />
-              <TaskReminders value={task.reminders} minDate={task.minDate} deadline={task.deadline} disabled={locked} onChange={(reminders) => save({ reminders })} />
+              <TaskReminders value={task.reminders} minDate={task.effectiveMinDate} deadline={task.effectiveDeadline} disabled={locked} onChange={(reminders) => save({ reminders })} />
               <TaskSelect
                 context={context}
                 labelOf={(candidate) => context.taskLabel(candidate, task.projectId)}

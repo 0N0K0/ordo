@@ -133,11 +133,12 @@ export function ringReminders(occurrences: EventOccurrence[], now: Date, links: 
 }
 
 /** What the reminders of a task are rung from (a task of the open workspace or of another one). */
-export type RemindedTask = Pick<Task, 'id' | 'label' | 'closed' | 'archived' | 'minDate' | 'deadline' | 'reminders'>;
+export type RemindedTask = Pick<Task, 'id' | 'label' | 'closed' | 'archived' | 'effectiveMinDate' | 'effectiveDeadline' | 'reminders'>;
 
 /**
  * Rings the reminders of the open tasks (not closed nor archived) that are due: at their times of the day, every day
- * from their « Ouverture » to their « Échéance » (the « Échéance » day only without « Ouverture »; none without it).
+ * from their « Ouverture » to their « Échéance » (the « Échéance » day only without « Ouverture »; none without it), those
+ * they go by: their own, else those of their single sprint.
  * @template {RemindedTask} T
  * @param {T[]} tasks Tasks.
  * @param {Date} now Current time.
@@ -148,10 +149,11 @@ export type RemindedTask = Pick<Task, 'id' | 'label' | 'closed' | 'archived' | '
 export function ringTaskReminders<T extends RemindedTask>(tasks: T[], now: Date, links: (task: T) => RingLink[], workspaceLabel?: string): void {
   for (const task of tasks) {
     if (task.closed || task.archived || !task.reminders.length) continue;
-    ringPlannedReminders(taskReminders(taggedKey('task', task.id), task, now), now, () => ({
+    const days = { minDate: task.effectiveMinDate, deadline: task.effectiveDeadline, reminders: task.reminders };
+    ringPlannedReminders(taskReminders(taggedKey('task', task.id), days, now), now, () => ({
       icon: <CheckSquareIcon />,
       title: task.label,
-      lines: [task.deadline && `Échéance : ${fmt.day(task.deadline)}`],
+      lines: [task.effectiveDeadline && `Échéance : ${fmt.day(task.effectiveDeadline)}`],
       actions: links(task),
     }), workspaceLabel);
   }

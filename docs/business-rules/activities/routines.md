@@ -17,7 +17,7 @@ Champs d'une routine qui comptent pour les occurrences :
 | `opensOn`       | « Ouverture » des occurrences de la règle.                                                                                                  |
 | `cases`         | Cas (chacun : `from`, `until`, `recurrence`, `slots`, `condition`, `opens`) ; non vide, ils remplacent la règle, ses moments et sa condition. |
 | `moves`         | Exceptions : `[{ from, to, times }]` (jours `YYYY-MM-DD`).                                                                                    |
-| `archivedAt`    | Archivée : plus aucune occurrence. `archivedByCascade` : archivée avec sa routine parente.                                                    |
+| `archivedAt`    | Archivée : plus aucune occurrence à venir, celles dues avant le jour de l'archivage restent, archivées (décision D21). `archivedByCascade` : archivée avec sa routine parente. |
 
 Anciennes formes encore lues mais plus écrites : `fromTime` / `dueTime` seuls (un seul moment), `scheduleIds` / `excludedScheduleIds` (créneaux suivis / exclus, convertis en condition), `scheduleId` / `scheduleAnchor` (créneau suivi, plus utilisé), `opensOn` en texte `"DD"` (mensuel) ou `"MM-DD"` (annuel).
 
@@ -84,7 +84,7 @@ Une occurrence va de son premier jour (son ouverture) à son jour d'échéance (
 
 - Source : les cas s'il y en a, sinon la règle (`storedRule`). Une routine enregistrée avec des créneaux suivis avant les conditions (`scheduleIds` sans `slotCondition`) se répète chaque jour.
 - Un cas compte à partir de son `from` (jamais avant la première fois de la routine) jusqu'à son `until`. Un jour dû par plusieurs cas suit le premier cas (`routineCaseOn`).
-- Rien avant `startDate`. Une routine archivée n'a aucune occurrence.
+- Rien avant `startDate`. Une routine archivée n'a plus aucune occurrence due ni à venir ; celles dont l'échéance précède le jour de son archivage (heure de Paris, `archivedOn`) restent, archivées, en lecture seule ; aucune à partir de ce jour. La restaurer remet toutes ses occurrences, comme avant (décision D21, Q5).
 
 ### « Ouverture » (`routineOpenDate`)
 
@@ -100,7 +100,8 @@ Une occurrence va de son premier jour (son ouverture) à son jour d'échéance (
 - `freeTime isEmpty` : hors de tous les créneaux de l'espace (y compris ceux créés plus tard) ; `freeTime notIn [ids]` : hors de tous sauf ceux nommés (des créneaux de l'espace). Les créneaux des autres espaces n'y comptent pas.
 - Groupes : ET = intersection, OU = union. Un groupe vide ne contraint rien.
 - Horaires fusionnés quand ils se touchent ; un horaire « toute la journée » couvre la journée ; un horaire finissant à 23:59 va jusqu'à la fin du jour.
-- Chaque moment est réduit aux heures permises (plusieurs fenêtres si des horaires le coupent) ; un moment sans heure permise disparaît ce jour-là. Une occurrence dont aucun jour n'a de moment permis n'existe pas (`doable`).
+- Chaque moment est réduit aux heures permises (plusieurs fenêtres si des horaires le coupent) ; un moment sans heure permise disparaît ce jour-là. Une occurrence dont aucun jour n'a de moment permis n'est pas programmée (`doable`) : elle n'existe pas (agenda, liste, état, rappels, « à faire », comptes), **sauf si elle a déjà été faite** (au moins un moment coché) : elle reste alors (lot 12). Les occurrences cochées des routines à condition ou à cas sont chargées une fois par requête avec les créneaux (`loadScheduleContext`, `checked`).
+- Un changement de créneau (création, modification, suppression ; `createWorkSchedule`, `updateWorkSchedule`, `deleteWorkSchedule`, argument `confirmLoss`) qui fait ainsi disparaître des occurrences de routines de l'espace passe par la même confirmation qu'un changement de règle (décision EW, `settleScheduleChange`) : leurs commentaires sont supprimés une fois confirmé, sinon `CONFIRMATION_REQUIRED` et rien ne change. Seules les routines de l'espace, non archivées, à condition ou à cas, sont regardées.
 
 ### Occurrence en cours et suivante (`occurrencesOf`)
 
@@ -153,7 +154,7 @@ Source : `setRoutineDone`, `bulkSetRoutinesDone`, `routineChecks`.
 - Routine archivée : refusée (lecture seule).
 - En masse : chaque routine non archivée qui a une occurrence en cours voit tous ses moments cochés ou décochés ; les autres sont ignorées.
 - Les coches restent quand la routine est modifiée ; elles sont supprimées avec elle.
-- Requêtes : `doneDates` (30 dernières occurrences cochées), `lastDoneAt`, `routineChecks(from, to)` (2 000 au plus, plus récentes d'abord ; `fromTime` / `dueTime` du moment tels que la routine est maintenant), `routineOccurrences(from, to)` (routines non archivées, période de 100 jours au plus : « Période de 100 jours au plus. »).
+- Requêtes : `doneDates` (30 dernières occurrences cochées), `lastDoneAt`, `routineChecks(from, to)` (2 000 au plus, plus récentes d'abord ; `fromTime` / `dueTime` du moment tels que la routine est maintenant), `routineOccurrences(from, to)` (période de 100 jours au plus : « Période de 100 jours au plus. » ; avec les occurrences annulées, `cancelled`, et celles des routines archivées dues avant leur archivage, `archived`).
 
 ## Exceptions et déplacements
 
@@ -180,11 +181,11 @@ Occurrences qui disparaissent (décision EW) : un changement de la règle (formu
 
 Annulation depuis l'agenda (`deleteRoutineOccurrence`) :
 
-- `THIS` : exception sans nouveau jour.
-- `FOLLOWING` : les règles (ou cas) s'arrêtent avant ; les cas sans occurrence avant sont retirés ; s'il ne reste rien, la routine est archivée (la mutation renvoie `archived: true`).
+- `THIS` : exception sans nouveau jour : l'occurrence est **annulée** et reste visible, barrée, comme un évènement annulé (décision D23), avec ses commentaires (aucun n'est supprimé ; `comments` renvoyé vide). Elle n'est plus due : ni état, ni rappels, ni coche dans l'historique, ni « à faire ». Seule la requête `routineOccurrences` la renvoie (`cancelled: true`). Retirer l'exception (`removeRoutineMove`, « Annuler » du toast, « Rétablir ») la rétablit.
+- `FOLLOWING` : les règles (ou cas) s'arrêtent avant ; les cas sans occurrence avant sont retirés ; les commentaires des occurrences à partir d'elle sont supprimés (décision D19). S'il ne reste rien, la routine est archivée comme par « Archiver », ses sous-routines avec elle (`archiveTree`, décision D12) ; la mutation renvoie `archived: true`.
 - `ALL` refusé : « Archivez ou supprimez la routine elle-même. »
 - Les coches passées restent dans l'historique.
-- Les commentaires des occurrences supprimées (celle-ci, ou à partir d'elle) sont supprimés (décision D19). La question de portée en donne le nombre pour chaque choix (`lostOnDelete`, `routineOccurrence`). Pour `THIS`, la mutation les renvoie (`comments` : texte et dates) et « Annuler » (retrait de l'exception) les rend à l'occurrence (décision EV). Une occurrence déjà déplacée revient à son jour de règle, pas au jour où elle avait été déplacée.
+- La question de portée donne le nombre de commentaires perdus pour chaque choix (`lostOnDelete`, `routineOccurrence` : rien pour `THIS`). Une occurrence déjà déplacée revient à son jour de règle, pas au jour où elle avait été déplacée.
 
 ## Modifications en masse
 
@@ -211,8 +212,8 @@ Source : `moveRoutine`, `createRoutine`, `copySubRoutines`, `bulkDeleteRoutines`
 ## Archivage
 
 - `bulkSetRoutinesArchived(ids, archived)` : chaque routine doit exister ; archiver garde la date de celles déjà archivées. Comme les tâches (décision DQ, `archiveTree`) : archiver une routine archive aussi ses sous-routines actives (`archivedByCascade`) ; la restaurer restaure celles archivées avec elle, et ses parentes archivées (seules : leurs autres sous-routines archivées avec elles restent archivées, pour leur propre compte). Une routine sélectionnée sous une autre sélectionnée suit celle-ci. Le résultat compte les routines données qui ont changé d'état.
-- Une routine archivée parce qu'une suppression d'occurrences depuis l'agenda ne lui laisse plus rien (`deleteRoutineOccurrence`, `FOLLOWING`) est archivée seule.
-- Archivée : lecture seule (modification, coche, déplacement, ajout de sous-routine refusés), aucune occurrence, plus proposée comme parente ou dépendance (celles déjà en place restent). Voir [Archivage](../cross-cutting/archiving.md).
+- Une routine archivée parce qu'une suppression d'occurrences depuis l'agenda ne lui laisse plus rien (`deleteRoutineOccurrence`, `FOLLOWING`) l'est comme par « Archiver » : ses sous-routines actives avec elle (lot 12).
+- Archivée : lecture seule (modification, coche, déplacement, ajout de sous-routine refusés), plus d'occurrence à venir (ses occurrences dues avant le jour de l'archivage restent, archivées : décision D21), plus proposée comme parente ou dépendance (celles déjà en place restent). Restaurée, elle retrouve toutes ses occurrences. Voir [Archivage](../cross-cutting/archiving.md).
 
 ## Requête `routines`
 

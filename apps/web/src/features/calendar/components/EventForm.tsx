@@ -227,7 +227,7 @@ export function EventForm({ context, occurrence, defaults, onDone, onDuplicated 
   const multiDay = values.startDate !== values.endDate;
   const chosenLinks = new Set((values.routineLinks ?? []).map(routineLinkKey));
   const routineOptions = [
-    ...new Map([...(routineDays ?? []).map((item) => ({ routineId: item.routineId, date: item.date })), ...(values.routineLinks ?? [])].map((link) => [routineLinkKey(link), link])).values(),
+    ...new Map([...unarchived(routineDays ?? []).filter((item) => !item.cancelled).map((item) => ({ routineId: item.routineId, date: item.date })), ...(values.routineLinks ?? [])].map((link) => [routineLinkKey(link), link])).values(),
   ].flatMap((link) => {
     const routine = routineById.get(link.routineId);
     const key = routineLinkKey(link);

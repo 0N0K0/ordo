@@ -268,6 +268,8 @@ const RoutineOccurrencesDocument = graphql(`
       startDate
       shownDate
       movedFrom
+      cancelled
+      archived
       slots {
         index
         fromTime
@@ -283,8 +285,9 @@ const RoutineOccurrencesDocument = graphql(`
 export type RoutineOccurrence = RoutineOccurrencesQuery['routineOccurrences'][number];
 
 /**
- * Occurrences of the routines (not archived) in a period, with their times of the day ticked: refreshed with the
- * routines.
+ * Occurrences of the routines in a period, with their times of the day ticked: refreshed with the routines. The
+ * cancelled ones are there too (`cancelled`, shown struck through) and, for an archived routine, those due before its
+ * archiving (`archived`, read only).
  * @param {{ from: string, to: string } | null} range Period (both days included), or null: none.
  * @param {boolean} [enabled] Loaded. Optional. Default = true.
  * @returns {UseQueryResult<RoutineOccurrence[]>} Query state.

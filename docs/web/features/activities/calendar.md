@@ -32,7 +32,7 @@ Documents GraphQL (fragment `CalendarEventOccurrenceFields`, requêtes `WorkSche
 | `useOtherWorkspaceSchedules()`                                     | Tous les créneaux des autres espaces de l’utilisateur, archivés compris (`otherWorkspaceSchedules`), abonné ou non                                                      | `useSlotSources`                                                                  |
 | `useSubscribedSchedules()`                                         | Créneaux des types abonnés                                                                                                                                                   | `useScheduleSources`, routines                                                    |
 | `useScheduleSources()`                                             | `{ schedules, foreign, types, defaultKind }` (undefined pendant le chargement)                                                                                             | `CalendarPage`, `RoutineDayAgenda`                                                |
-| `useWorkScheduleMutations()`                                       | `create`, `update`, `remove` des créneaux ; `createType`, `updateType`, `removeType` ; `subscribe`, `unsubscribe`, `setLook` des abonnements ; `saveDefaultKind`             | gestionnaires, `calendar-edits`, `use-settings-items`                             |
+| `useWorkScheduleMutations()`                                       | `create`, `update`, `remove` des créneaux (dans `withLossConfirmation` : occurrences de routines qui disparaissent confirmées ; les routines rechargées) ; `createType`, `updateType`, `removeType` ; `subscribe`, `unsubscribe`, `setLook` des abonnements ; `saveDefaultKind`             | gestionnaires, `calendar-edits`, `use-settings-items`                             |
 | `scheduleRules(schedules)`                                         | Créneaux (de l’espace ou abonnés) en `WorkScheduleRule` (cas et exceptions validés, invalides ignorés)                                                                      | `AvailabilityHint`, `useSlotRules`, `calendar-events.ts`, `PlannedTime` (temps)   |
 | `calendarIcsUrl(calendarId)`                                       | Adresse `/api/exports/calendar.ics[?calendar=…]`                                                                                                                           | `CalendarsManager`, `CalendarsIcsButton`                                          |
 
@@ -83,7 +83,7 @@ Classes de la page et de FullCalendar : `fill` (semaine/jour pleine hauteur), `c
 ### `components/CalendarEditForms.tsx`
 
 - `SlotEditForm({ label, slot, onSave, onDelete, onClose })` : jour, journée entière, heures (`rangeProps`) des horaires d’un créneau un jour donné ; supprimer.
-- `RoutineOccurrenceForm({ occurrence, onSave, onDelete, onClose })` : jour (pas avant le début de la routine), « À partir de », « Avant » (`rangeProps`, `rangeError`) d’une occurrence de routine ; supprimer ; « Ouvrir la routine » (`openRoutineForm`, sur l’occurrence cliquée : `occurrenceDate`).
+- `RoutineOccurrenceForm({ occurrence, onSave, onDelete, onRestore, onClose })` : jour (pas avant le début de la routine), « À partir de », « Avant » (`rangeProps`, `rangeError`) d’une occurrence de routine ; supprimer (portée : annuler celle-ci ou arrêter avant) ; « Ouvrir la routine » (`openRoutineForm`, sur l’occurrence cliquée : `occurrenceDate`). Occurrence annulée (`occurrence.cancelled`, décision D23) : texte, « Fermer », « Rétablir » (`onRestore`) ; d’une routine archivée (`occurrence.archived`, D21) : lecture seule.
 
 Utilisés par `useCalendarEdits`.
 
@@ -170,7 +170,7 @@ Utilisés par `ScheduleSettings`.
   - `changeSlot(schedule, slot, change | null, revert?)` : demande la portée, calcule `changedScheduleSlot`, enregistre (`useWorkScheduleMutations().update`), toasts ;
   - `changeRoutine(occurrence, to, times, revert?)` : portée puis `changeOccurrence` (routines) ;
   - `openSlot(schedule, label, slot)` : panneau `SlotEditForm` ;
-  - `openRoutine(occurrence, movedFrom)` : panneau `RoutineOccurrenceForm`.
+  - `openRoutine(occurrence, movedFrom)` : panneau `RoutineOccurrenceForm` ; « Rétablir » retire l’exception (`removeMove`). `RoutineOccurrenceRef` porte `cancelled` et `archived` (occurrences annulées barrées et non déplaçables ; d’une routine archivée estompées, avec « Afficher les archivés »).
   - Interne `removeRoutine(occurrence, movedFrom)` : portée (`THIS`/`FOLLOWING`), `deleteOccurrence`, annulation via `removeMove` avec les commentaires supprimés (`comments`, décision EV).
 - Type interne `RoutineSlotTimes`. Utilisé par `CalendarPage`.
 
@@ -270,5 +270,5 @@ Déplacé de `features/routines/lib` : utilisé par `SlotConditionBuilder`, `use
 ### `lib/task-calendar.ts`
 
 - `TaskSpanKind` (type) : `dates` ou `open`.
-- `taskPlacement(task, today)` : période, échéance à part et retard d’une tâche dans l’agenda (`isTaskOverdue`). Utilisé par `CalendarPage`.
+- `taskPlacement(task, today)` : période, échéance à part (`effectiveDeadline` : la sienne, sinon celle de son sprint unique) et retard d’une tâche dans l’agenda (`isTaskOverdue`). Utilisé par `CalendarPage`.
 - Types internes `TaskDates`, `TaskSpan`, `TaskPlacement`.

@@ -345,6 +345,7 @@ export function TaskBoard({ projectId, projectIds, createProjectId, header, empt
         isActive={(row) => row.kind === 'task' && row.task.id === openId}
         isArchived={(row) => row.kind === 'task' && row.task.archived}
         isDone={(row) => row.kind === 'task' && row.task.closed}
+        isStruck={(row) => row.kind === 'task' && row.task.cancelled}
         cells={cells}
         actions={(row) =>
           row.kind === 'task' && (

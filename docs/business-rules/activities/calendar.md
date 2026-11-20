@@ -126,7 +126,7 @@ Report (`postponeCalendarEvent`) :
 
 ### Archivage
 
-Genre `CALENDAR_EVENT` de `setArchived` : archive toute la série. Un évènement archivé est masqué par défaut, en lecture seule, exclu de l’export ICS et de la disponibilité. Voir [Archivage](../cross-cutting/archiving.md).
+Genre `CALENDAR_EVENT` de `setArchived` : archive toute la série. Un évènement archivé est masqué par défaut, en lecture seule, exclu de l’export ICS et de la disponibilité. Comme une routine (décision D21, `archivedOn`) : seules ses occurrences finies avant le jour de l’archivage (heure de Paris) restent, archivées ; aucune à partir de ce jour (`eventOccurrences`). Le restaurer remet toutes ses occurrences (Q5). Voir [Archivage](../cross-cutting/archiving.md).
 
 ### Commentaires et fiches
 
@@ -159,6 +159,7 @@ Source : `apps/api/src/services/calendar/work-schedules.ts`, schémas dans `pack
 - L’ancien format (`intervalWeeks`, `slots`, `pauses`) est vidé à chaque enregistrement ; il n’est plus que lu et converti (`fromLegacySchedule` : jours ayant les mêmes horaires → un cas toutes les n semaines ; pauses → exceptions sans cas). L’ancienne forme des cas (`pattern`, `every`…) est aussi convertie à la lecture (`readScheduleCases`). Les éléments stockés invalides sont ignorés à la lecture.
 - Modification refusée si le créneau est archivé.
 - Suppression : définitive (« Créneau de travail » introuvable sinon). Les évènements ne sont pas touchés.
+- Création, modification et suppression prennent `confirmLoss` : les occurrences de routines qu’elles font disparaître (plus aucun moment permis, celles cochées gardées) perdent leurs commentaires une fois confirmé (voir [Routines](routines.md#créneaux-de-lagenda-conditionwindows-windowsallowed)) ; vérifié après la validation du créneau, avant son enregistrement (`ScheduleChangeSettler`).
 - Archivage générique (`WORK_SCHEDULE`) : lecture seule ; les routines qui le suivent continuent à le lire.
 
 ### Calcul des horaires du jour (`plannedSlots`)

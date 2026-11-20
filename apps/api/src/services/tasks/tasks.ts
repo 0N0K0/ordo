@@ -1,4 +1,4 @@
-import { copyName, dateSchema, effortSchema, groupBy, itemLinksSchema, normalizedReminders, readReminders, taskRemindersSchema, locationPointFields, markdownSchema, optionalText, parseOptionalDay, reaches, readSlotCondition, slotConditionSchema, type TaskInput as SharedTaskInput, taskLabelSchema } from '@ordo/shared';
+import { copyName, dateSchema, effortSchema, groupBy, itemLinksSchema, normalizedReminders, readReminders, taskRemindersSchema, locationPointFields, markdownSchema, optionalText, parseOptionalDay, reaches, readSlotCondition, slotConditionSchema, statusClosing, type TaskInput as SharedTaskInput, taskLabelSchema } from '@ordo/shared';
 import { z } from 'zod';
 import { prisma } from '../../db';
 import { assertBeneficiaries } from '../core/beneficiaries';
@@ -19,6 +19,27 @@ import { toJson } from '../core/json';
 import { readLinks } from '../core/links';
 import { storedLocation } from '../core/geo';
 import { assertConditionSchedules } from '../calendar/slot-conditions';
+
+/**
+ * Closes or reopens tasks whose status changes (decision D23): to a status « Annulé » closes them (those already closed
+ * keep their date), out of one reopens them; the other categories leave them.
+ * @param {readonly { id: string, statusId: string | null }[]} tasks Tasks, with their status before the change.
+ * @param {string | null | undefined} statusId New status (undefined: unchanged).
+ * @returns {Promise<void>}
+ */
+async function closeOnStatus(tasks: readonly { id: string; statusId: string | null }[], statusId: string | null | undefined): Promise<void> {
+  if (statusId === undefined) return;
+  const changed = tasks.filter((task) => task.statusId !== statusId);
+  if (!changed.length) return;
+  const ids = [...new Set([statusId, ...changed.map((task) => task.statusId)].filter((id): id is string => id !== null))];
+  const categories = new Map((await prisma.taskStatus.findMany({ where: { id: { in: ids } }, select: { id: true, category: true } })).map((status) => [status.id, status.category]));
+  const categoryOf = (id: string | null) => (id ? (categories.get(id) ?? null) : null);
+  const effects = changed.map((task) => ({ id: task.id, effect: statusClosing(categoryOf(task.statusId), categoryOf(statusId)) }));
+  const close = effects.filter((item) => item.effect === 'close').map((item) => item.id);
+  const reopen = effects.filter((item) => item.effect === 'reopen').map((item) => item.id);
+  if (close.length) await prisma.task.updateMany({ where: { id: { in: close }, closedAt: null }, data: { closedAt: new Date() } });
+  if (reopen.length) await prisma.task.updateMany({ where: { id: { in: reopen } }, data: { closedAt: null } });
+}
 
 /**
  * Checks that a project exists and is active.
@@ -258,7 +279,9 @@ export async function createTask(input: TaskInput & { label: string }): Promise<
       tags: { connect: connectIds(input.tagIds ?? []) },
     },
   });
-  return task;
+  // Created with a status « Annulé »: closed (decision D23).
+  await closeOnStatus([{ id: task.id, statusId: null }], task.statusId);
+  return task.statusId ? prisma.task.findUniqueOrThrow({ where: { id: task.id } }) : task;
 }
 
 /**
@@ -307,6 +330,11 @@ export async function updateTask(id: string, input: TaskInput): Promise<Task> {
       ...(input.tagIds && { tags: { set: connectIds(input.tagIds) } }),
     },
   });
+  // To or out of a status « Annulé »: closed or reopened (decision D23).
+  if (input.statusId !== undefined && input.statusId !== task.statusId) {
+    await closeOnStatus([task], input.statusId);
+    return prisma.task.findUniqueOrThrow({ where: { id } });
+  }
   return updated;
 }
 
@@ -439,6 +467,8 @@ export async function duplicateTask(id: string, includeSubtasks: boolean): Promi
   const linked = [...source.blocking.map((link) => link.blockedId), ...source.blockedBy.map((link) => link.blockerId), ...source.relationsA.map((link) => link.taskBId), ...source.relationsB.map((link) => link.taskAId)];
   const projectOf = new Map((await prisma.task.findMany({ where: { id: { in: linked } }, select: { id: true, projectId: true } })).map((task) => [task.id, task.projectId]));
   const inTree = inProjectTree(await loadRootOf(), source.projectId, projectOf);
+  // A copy with a status « Annulé » is closed, as any task given one (decision D23).
+  const cancelled = new Set((await prisma.taskStatus.findMany({ where: { category: 'CANCELLED' }, select: { id: true } })).map((status) => status.id));
 
   return prisma.$transaction(async (tx) => {
     let position = await nextPositionIn('task', {}, tx);
@@ -469,6 +499,7 @@ export async function duplicateTask(id: string, includeSubtasks: boolean): Promi
           description: task.description,
           projectId: task.projectId,
           statusId: task.statusId,
+          closedAt: task.statusId && cancelled.has(task.statusId) ? new Date() : null,
           priorityId: task.priorityId,
           typeId: task.typeId,
           effort: task.effort,
@@ -815,6 +846,8 @@ export async function bulkUpdateTasks(ids: string[], changes: BulkTaskChanges, r
         )
       : []),
   ]);
+  // To or out of a status « Annulé »: closed or reopened (decision D23).
+  await closeOnStatus(tasks, changes.statusId);
 }
 
 /**

@@ -5,6 +5,7 @@ import * as categories from '../../services/calendar/calendar-categories';
 import * as calendars from '../../services/calendar/calendars';
 import * as events from '../../services/calendar/calendar-events';
 import * as schedules from '../../services/calendar/work-schedules';
+import { settleScheduleChange } from '../../services/routines/routines';
 import { BY_POSITION } from '../../services/core/ordering';
 import { builder } from '../builder';
 import { locatedInput, locationInputFields, TRAVEL_DESCRIPTIONS, travelInputFields } from '../located-fields';
@@ -476,16 +477,19 @@ builder.mutationFields((t) => ({
     resolve: (_root, { workspaceId, typeId }) => done(schedules.unsubscribeScheduleKind(workspaceId, typeId ?? null)),
   }),
   createWorkSchedule: t.id({
-    args: { input: t.arg({ type: WorkScheduleInput, required: true }) },
-    resolve: async (_root, { input }) => (await schedules.createWorkSchedule(scheduleInput(input))).id,
+    description: 'Creates a schedule; the occurrences of routines it makes disappear (no moment left) lose their comments, once confirmed.',
+    args: { input: t.arg({ type: WorkScheduleInput, required: true }), confirmLoss: t.arg.boolean({ description: CONFIRM_LOSS_DESCRIPTION }) },
+    resolve: async (_root, { input, confirmLoss }) => (await schedules.createWorkSchedule(scheduleInput(input), (change) => settleScheduleChange(change, confirmLoss ?? false))).id,
   }),
   updateWorkSchedule: t.boolean({
-    args: { id: t.arg.id({ required: true }), input: t.arg({ type: WorkScheduleInput, required: true }) },
-    resolve: (_root, { id, input }) => done(schedules.updateWorkSchedule(id, scheduleInput(input))),
+    description: 'Changes a schedule; the occurrences of routines it makes disappear (no moment left) lose their comments, once confirmed.',
+    args: { id: t.arg.id({ required: true }), input: t.arg({ type: WorkScheduleInput, required: true }), confirmLoss: t.arg.boolean({ description: CONFIRM_LOSS_DESCRIPTION }) },
+    resolve: (_root, { id, input, confirmLoss }) => done(schedules.updateWorkSchedule(id, scheduleInput(input), (change) => settleScheduleChange(change, confirmLoss ?? false))),
   }),
   deleteWorkSchedule: t.boolean({
-    args: { id: t.arg.id({ required: true }) },
-    resolve: (_root, { id }) => done(schedules.deleteWorkSchedule(id)),
+    description: 'Deletes a schedule; the occurrences of routines it makes disappear (no moment left) lose their comments, once confirmed.',
+    args: { id: t.arg.id({ required: true }), confirmLoss: t.arg.boolean({ description: CONFIRM_LOSS_DESCRIPTION }) },
+    resolve: (_root, { id, confirmLoss }) => done(schedules.deleteWorkSchedule(id, (change) => settleScheduleChange(change, confirmLoss ?? false))),
   }),
   deleteCalendarEvent: t.boolean({
     args: { id: t.arg.id({ required: true }), scope: t.arg({ type: EventScope, required: true }), occurrenceDate: t.arg({ type: 'Date' }) },

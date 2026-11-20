@@ -130,7 +130,7 @@ export function useMyTodayTasks(context: TaskContext | null, today: string) {
     if (!context) return { tasks: null, overdue: 0 };
     const tasks = matchTasks(context.tasks, columns, { filter: myTasksFilter('today') }, today);
     const late = (task: Task) => isTaskOverdue(task, today);
-    tasks.sort((a, b) => Number(late(b)) - Number(late(a)) || (a.deadline ?? a.endDate ?? '9999').localeCompare(b.deadline ?? b.endDate ?? '9999') || (a.number ?? 0) - (b.number ?? 0));
+    tasks.sort((a, b) => Number(late(b)) - Number(late(a)) || (a.effectiveDeadline ?? a.endDate ?? '9999').localeCompare(b.effectiveDeadline ?? b.endDate ?? '9999') || (a.number ?? 0) - (b.number ?? 0));
     return { tasks, overdue: tasks.filter(late).length };
   }, [context, columns, today]);
 }

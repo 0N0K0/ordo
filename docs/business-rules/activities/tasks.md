@@ -18,23 +18,25 @@ Voir aussi : [Temps passé](time.md), [Commentaires](../cross-cutting/comments.m
 | `beneficiaryIds`, `beneficiaryRelationIds` | « Bénéficiaires » : contributeurs et relations pour qui est la tâche.                                                                                                                              |
 | `effort`                                   | Nombre ≥ 0 et ≤ 1 000 000, ou vide (`effortSchema`). Messages : « Nombre attendu. », « L’effort ne peut pas être négatif. », « Valeur trop grande. ». Pas d’unité imposée.                         |
 | `startDate`, `endDate`                     | Jours (YYYY-MM-DD) ; la fin ne précède pas le début.                                                                                                                                               |
-| `minDate`                                  | « Ouverture » : la tâche n’est pas à faire avant.                                                                                                                                                   |
-| `deadline`                                 | « Échéance » : au-delà, une tâche ouverte est en retard.                                                                                                                                           |
+| `minDate`                                  | « Ouverture » : la tâche n’est pas à faire avant. Sans elle, celle de son sprint quand elle est dans un seul sprint (voir [Dates héritées du sprint](#dates-héritées-du-sprint)).                  |
+| `deadline`                                 | « Échéance » : au-delà, une tâche ouverte est en retard. Sans elle, celle de son sprint quand elle est dans un seul sprint.                                                                         |
 | `slotCondition`                            | Condition de créneaux, la même que celle des routines (décision D9) : groupes ET / OU sur des créneaux nommés, des types de créneaux (de cet espace ou d’un autre espace de l’utilisateur) et le temps libre ; `null` = n’importe quand (décision D10). Validée par `slotConditionSchema` (voir [Agenda](calendar.md)). |
 | `location`, `locationLat`, `locationLon`   | Lieu (décision D6), le champ des évènements et des routines : texte libre facultatif, 250 caractères au plus (`optionalText`, vide → `null`), et son point quand il est choisi sur la carte ou dans une recherche (voir [Lieux](../cross-cutting/geo.md#durées-saisies-sur-un-élément)). Ni trajet, ni heure de départ ou de retour : une tâche n’a pas d’heures. Un point va avec un lieu, ses deux coordonnées ou aucune (`storedLocation`). |
 | `links`                                    | Liens (décision D5), ceux des évènements : 20 au plus (« 20 liens maximum. »), adresse http ou https (« Lien invalide (http ou https). »), libellé facultatif de 250 caractères (`itemLinksSchema`). Aucun par défaut. |
-| `reminders`                                | Rappels (décision D16) : seulement « À HH:MM » (`{ at }`, heure de Paris ; « Une tâche n’a que des rappels à une heure précise. »), 10 au plus (« 10 rappels maximum. », « Heure attendue (HH:MM). », `taskRemindersSchema`), dédoublonnés et triés (`normalizedReminders`) ; sonnés chaque jour de l’ouverture à l’échéance, le jour de l’échéance seulement sans ouverture, jamais sans échéance (Q2 : pas de limite de 24 heures). Aucun par défaut. Voir [Alarmes](alarms.md#rappels-des-tâches-routines-et-évènements). |
+| `reminders`                                | Rappels (décision D16) : seulement « À HH:MM » (`{ at }`, heure de Paris ; « Une tâche n’a que des rappels à une heure précise. »), 10 au plus (« 10 rappels maximum. », « Heure attendue (HH:MM). », `taskRemindersSchema`), dédoublonnés et triés (`normalizedReminders`) ; sonnés chaque jour de l’ouverture à l’échéance (celles qu’elle suit : les siennes, sinon celles de son sprint unique), le jour de l’échéance seulement sans ouverture, jamais sans échéance (Q2 : pas de limite de 24 heures). Aucun par défaut. Voir [Alarmes](alarms.md#rappels-des-tâches-routines-et-évènements). |
 | `parentId`                                 | Tâche parente (sous-tâches).                                                                                                                                                                       |
 | `milestoneId`                              | Un jalon.                                                                                                                                                                                          |
 | `sprintIds`                                | Plusieurs sprints (une tâche peut s’étaler sur plusieurs).                                                                                                                                         |
 | `position`                                 | Ordre manuel global (voir [Ordre manuel](#ordre-manuel-et-déplacement)).                                                                                                                           |
-| `closedAt`                                 | Tâche fermée (faite), **indépendamment du statut**.                                                                                                                                                |
+| `closedAt`                                 | Tâche fermée (faite). Seul un statut de catégorie « Annulé » y touche : il la ferme, le quitter la rouvre (décision D23, voir [Catégories de statut](#catégories-de-statut)).                       |
 | `archivedAt`, `archivedByCascade`          | Archivage, avec la trace d’un archivage en cascade.                                                                                                                                                |
 | `github*`                                  | Synchronisation avec un item de tableau GitHub (voir [GitHub](../cross-cutting/github.md)).                                                                                                        |
 
 Champs calculés exposés par GraphQL (`apps/api/src/graphql/modules/tasks.ts`) :
 
 - `closed` : `closedAt !== null`.
+- `cancelled` : son statut est de catégorie « Annulé » (la tâche est alors fermée et s’affiche barrée, décision D23).
+- `effectiveMinDate`, `effectiveDeadline` : « Ouverture » et « Échéance » que la tâche suit, les siennes ou celles de son sprint unique ; `minDateFromSprint`, `deadlineFromSprint` : la valeur vient du sprint (`taskDueDates`, voir [Dates héritées du sprint](#dates-héritées-du-sprint)).
 - `githubLinked` : la tâche a un `githubItemId`.
 - `blockingIds` (tâches qu’elle bloque), `blockedByIds` (tâches qui la bloquent), `relatedIds` (relations dans les deux sens).
 - `commentCount` : nombre de commentaires de la tâche.
@@ -102,7 +104,11 @@ Un statut a une catégorie fixe (`TASK_STATUS_CATEGORIES`), `TODO` par défaut �
 | `CANCELLED`   | « Annulé »       | « Annulée »      | fermé  |
 
 - La catégorie donne le sens du statut quel que soit son libellé (filtres, tâches « en cours » de l’accueil, filtre « Catégorie de statut »).
-- **C’est l’état ouvert / fermé (`closedAt`) qui dit si une tâche est faite**, pas le statut : changer de statut ne ferme ni ne rouvre la tâche, et inversement.
+- **C’est l’état ouvert / fermé (`closedAt`) qui dit si une tâche est faite.** Une seule catégorie y touche (décision D23, Q6, `statusClosing`, `closeOnStatus`) :
+  - passer à un statut « Annulé » (création, modification, modification en masse, annulation d’une modification en masse, copie) **ferme** la tâche (une tâche déjà fermée garde sa date de fermeture) ; elle s’affiche alors barrée ;
+  - quitter un statut « Annulé » pour un autre statut, ou pour aucun, **rouvre** la tâche ;
+  - les autres changements de statut, « Terminé » compris, ne ferment ni ne rouvrent rien ; fermer ou rouvrir ne change pas le statut.
+- Les tâches qui avaient déjà un statut « Annulé » sans être fermées ont été fermées, datées de leur dernière modification (migration `20261120150000_cancelled_tasks_closed`).
 
 ## Fermer et rouvrir
 
@@ -197,7 +203,17 @@ Source : `assertProjectContributors` (`services/projects/contributors.ts`), `ass
 
 - Début / fin : créneau valide (« La fin doit suivre le début. »).
 - « Ouverture » / « Échéance » : créneau valide dans le formulaire partagé.
-- **En retard** (décision DD, `isTaskOverdue` côté web) : « Échéance » passée (strictement avant aujourd’hui) et tâche non fermée. La même règle partout (tableau, panneau, accueil, agenda).
+- **En retard** (décision DD, `isTaskOverdue` côté web) : « Échéance » suivie (`effectiveDeadline` : la sienne, sinon celle de son sprint) passée (strictement avant aujourd’hui) et tâche non fermée. La même règle partout (tableau, panneau, accueil, agenda).
+
+### Dates héritées du sprint
+
+Source : `taskDueDates` (`packages/shared/src/tasks/tasks.ts`), champs GraphQL `effectiveMinDate`, `effectiveDeadline`, `minDateFromSprint`, `deadlineFromSprint` (décision du lot 12, 20 novembre 2026).
+
+- Une tâche dans **un seul** sprint, sans « Ouverture » à elle, prend le premier jour du sprint ; sans « Échéance » à elle, son dernier jour. Chaque date est prise à part : une date saisie sur la tâche l’emporte.
+- Dans plusieurs sprints, ou dans aucun : rien n’est hérité.
+- La valeur héritée n’est pas enregistrée : elle est calculée à chaque lecture, et suit donc le sprint quand ses dates changent (ou quand la tâche entre dans un sprint ou en sort).
+- Elle compte partout où compte la date : retard, rappels (« À HH:MM », de l’ouverture à l’échéance), tri et filtres des colonnes « Ouverture » et « Échéance », export, accueil, agenda. Elle s’affiche « 12 nov. 2026 (sprint) » à la place du champ vide.
+- Les champs `minDate` / `deadline` restent ceux de la tâche (modification, copie, GitHub).
 - Un jalon est « en retard » quand son échéance est passée et qu’il reste des tâches non fermées ; un sprint quand sa fin est passée avec des tâches non fermées (calculs web, voir [Fonctionnalités](../../features/activities/tasks.md)).
 
 ## Tâches faisables maintenant
@@ -259,6 +275,7 @@ Source : `releaseProjectTasks` (par `releaseProjects`), appelé par `deleteProje
 Source : `duplicateTask` (décision D20 : « Dupliquer », la copie enregistrée tout de suite puis ouverte ; l’ancienne mutation `cloneTask` est renommée).
 
 - Copie tous les champs (libellé, description, projet, statut, priorité, type, effort, dates, « Ouverture » / « Échéance », rappels, lieu et son point, liens, parent, jalon, sprints), les assignés, bénéficiaires, étiquettes et les liens de blocage et de relation de sa propre arborescence de projets (un ancien lien hors d’elle, gardé tant que la tâche ne change pas d’arborescence, n’est pas copié). **Pas** les commentaires, ni l’état fermé, ni la condition de créneaux, ni le lien GitHub.
+- Une copie dont le statut est « Annulé » est fermée, comme toute tâche qui reçoit ce statut (décision D23).
 - La copie s’appelle « … (copie) » (`copyName`, 250 caractères au plus) ; elle est placée sous le même parent, à la fin de l’ordre manuel ; elle reçoit un nouveau numéro (base).
 - Avec `includeSubtasks`, le sous-arbre est copié niveau par niveau sous la copie (les sous-tâches copiées gardent leur libellé, assignés, bénéficiaires, étiquettes et sprints, pas leurs liens de blocage ou de relation).
 - La tâche source peut être archivée (aucune vérification d’archivage) ; l’interface ne propose la duplication que sur les tâches non archivées.

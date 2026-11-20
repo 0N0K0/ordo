@@ -12,6 +12,7 @@ import {
   scheduleSlotsOn,
   type SlotCondition,
   type SlotsOn,
+  type WorkScheduleRule,
 } from '@ordo/shared';
 import { prisma, unscopedPrisma } from '../../db';
 import { archivedError } from '../core/archive';
@@ -38,13 +39,16 @@ const citeOtherWorkspaces = (conditions: readonly (SlotCondition | null | undefi
  * are loaded too when the conditions name some of them or of their kinds (always without conditions given: the
  * routines of a request are not known yet).
  * @param {readonly (SlotCondition | null | undefined)[]} [conditions] Conditions evaluated. Optional. Default = unknown.
+ * @param {(own: WorkScheduleRule[]) => WorkScheduleRule[]} [change] The schedules of the workspace as a change would
+ * leave them (created, changed or deleted, not saved yet). Optional. Default = as they are.
  * @returns {Promise<SlotsOn>} Slots of some schedules on a day.
  */
-export async function loadSlotsOn(conditions?: readonly (SlotCondition | null | undefined)[]): Promise<SlotsOn> {
+export async function loadSlotsOn(conditions?: readonly (SlotCondition | null | undefined)[], change?: (own: WorkScheduleRule[]) => WorkScheduleRule[]): Promise<SlotsOn> {
   const own = await prisma.workSchedule.findMany();
   const foreign = !conditions || citeOtherWorkspaces(conditions, new Set(own.map((schedule) => schedule.id))) ? await otherWorkspaceSchedules() : [];
+  const rules = own.map(scheduleRule);
   return scheduleSlotsOn(
-    own.map(scheduleRule),
+    change ? change(rules) : rules,
     foreign.map((schedule) => ({ workspaceId: schedule.workspace.id, rule: schedule.rule })),
   );
 }
