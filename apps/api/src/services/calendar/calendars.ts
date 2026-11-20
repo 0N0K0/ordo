@@ -7,6 +7,7 @@ import { currentWorkspaceFields } from '../workspaces/current-workspace';
 import { BY_POSITION_ONLY, nextPositionIn } from '../core/ordering';
 import { firstActive, refuseArchived } from '../core/archive';
 import { findOrNotFound } from '../core/lookup';
+import { releaseSubjectTime } from '../tasks/time-entries';
 
 /** Color of the calendar a workspace starts with. */
 const DEFAULT_COLOR = '#228be6';
@@ -76,14 +77,17 @@ export async function updateCalendar(id: string, input: CalendarFormValues): Pro
 }
 
 /**
- * Deletes a calendar with its events (and the subscriptions of other workspaces to it). The last one of a
- * workspace stays.
+ * Deletes a calendar with its events (and the subscriptions of other workspaces to it), and the times they leave with
+ * nothing attached. The last one of a workspace stays.
  * @param {string} id Calendar.
  * @returns {Promise<void>}
  */
 export async function deleteCalendar(id: string): Promise<void> {
   await findCalendar(id);
   if ((await prisma.calendar.count()) <= 1) throw clientError('BAD_USER_INPUT', 'Le dernier calendrier ne peut pas être supprimé.');
+  // The times its events leave with nothing attached go with them (extra A of decision D17, billed ones kept).
+  const events = await prisma.calendarEvent.findMany({ where: { calendarId: id }, select: { id: true } });
+  await releaseSubjectTime({ events: events.map((event) => ({ eventId: event.id })) });
   await prisma.calendar.delete({ where: { id } });
 }
 

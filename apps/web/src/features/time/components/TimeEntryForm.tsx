@@ -1,4 +1,4 @@
-import { Select, SimpleGrid, Stack, TextInput } from '@mantine/core';
+import { SimpleGrid, Stack, TextInput } from '@mantine/core';
 import { DatePickerInput, TimePicker } from '@mantine/dates';
 import { parseDuration, timeEntryFormSchema, type TimeEntryFormValues, twoDigits } from '@ordo/shared';
 import { localInstant, localParts, localToday } from '../../../lib/dates';
@@ -6,15 +6,11 @@ import { useAppForm, formCallbacks } from '../../../lib/form';
 
 import { ProjectSelect } from '../../tasks/components/task-ui';
 import type { TaskContext } from '../../tasks/hooks/use-task-context';
-import { useCalendarEvents } from '../../calendar/api';
 import { useTimeMutations, type TimeEntry } from '../api';
-import { TimeTasksSelect } from './TimeTasksSelect';
-import { dayEventOptions, entryEventKey, parseEventKey } from '../lib/time-events';
+import { TimeSubjectsFields } from './TimeSubjectsFields';
+import { entryEventKeys, parseEventKeys } from '../lib/time-events';
 import { MarkdownEditor } from '../../../components/markdown/MarkdownEditor';
 import { Comments } from '../../comments/components/Comments';
-import { useRoutinesData } from '../../routines/api';
-import { treeSelectProps } from '../../../components/tree/tree-select';
-import { routineTreeOptions } from '../../routines/lib/routine-format';
 import { FormActions } from '../../../components/dialogs/FormActions';
 
 interface TimeEntryFormProps {
@@ -29,23 +25,22 @@ interface TimeEntryFormProps {
 }
 
 /**
- * Time added by hand, or edited: project, routine, tasks, day, start time, duration, the calendar event it was spent
- * on and description; at least a project, a task, a routine or an event (decision D17).
+ * Time added by hand, or edited: project, day, start time, duration, routines, tasks, the calendar events it was spent
+ * on (several of each, decision D18) and description; at least a project, a task, a routine or an event (decision D17).
  * @param {TimeEntryFormProps} props Component props.
  * @returns {JSX.Element} Form.
  */
 export function TimeEntryForm({ context, entry, defaultProjectId, copy = false, onDone }: TimeEntryFormProps) {
   const { create, update } = useTimeMutations();
-  const { data: routinesData } = useRoutinesData();
   const parts = entry ? localParts(entry.startedAt) : null;
   const initial = parts ? { date: parts.date, start: parts.time } : { date: localToday(), start: '09:00' };
   const minutes = entry?.duration ? Math.round(entry.duration / 60) : 60;
   const form = useAppForm<TimeEntryFormValues>({
     initialValues: {
       projectId: entry?.projectId ?? defaultProjectId ?? '',
-      routineId: entry?.routineId ?? null,
+      routineIds: entry?.routines.map((routine) => routine.id) ?? [],
       taskIds: entry?.taskIds ?? [],
-      eventKey: entry ? entryEventKey(entry) : null,
+      events: entry ? entryEventKeys(entry) : [],
       description: entry?.description ?? '',
       date: initial.date,
       start: initial.start,
@@ -54,23 +49,16 @@ export function TimeEntryForm({ context, entry, defaultProjectId, copy = false, 
     schema: timeEntryFormSchema,
   });
 
-  // The event the time was spent on: one of the events of its day.
-  const eventKey = form.values.eventKey;
-  const { data: dayEvents } = useCalendarEvents(form.values.date ? { from: form.values.date, to: form.values.date } : null);
-  const eventOptions = dayEventOptions(dayEvents ?? [], form.values.date);
-  // The event of the entry stays listed while its day is shown, even when it moved.
-  if (eventKey && !eventOptions.some((option) => option.value === eventKey) && entry?.calendarEventLabel) eventOptions.push({ value: eventKey, label: entry.calendarEventLabel });
-
   const handleSubmit = form.onSubmit((values) => {
     const input = {
       projectId: values.projectId || null,
-      routineId: values.routineId,
+      routineIds: values.routineIds,
       taskIds: values.taskIds,
       description: values.description,
       // Local day and time.
       startedAt: localInstant(values.date, values.start).toISOString(),
       duration: parseDuration(values.duration)!,
-      event: parseEventKey(values.eventKey),
+      events: parseEventKeys(values.events),
     };
     const callbacks = formCallbacks(form, copy ? 'Temps dupliqué.' : entry ? 'Temps modifié.' : 'Temps ajouté.', onDone);
     if (entry && !copy) update.mutate({ id: entry.id, input }, callbacks);
@@ -90,39 +78,23 @@ export function TimeEntryForm({ context, entry, defaultProjectId, copy = false, 
             {...form.getInputProps('projectId')}
             onChange={(projectId) => {
               form.setFieldValue('projectId', projectId ?? '');
-              form.setFieldValue('taskIds', []);
+              // Tasks and routines go with the project tree (the API's rule).
+              form.setValues({ taskIds: [], routineIds: [] });
             }}
-          />
-          <Select
-            label="Routine"
-            placeholder="Aucune"
-            clearable
-            searchable
-            {...treeSelectProps(routineTreeOptions(routinesData?.routines ?? [], (routine) => !routine.archived || routine.id === form.values.routineId))}
-            {...form.getInputProps('routineId')}
-          />
-          <TimeTasksSelect
-            context={context}
-            projectId={form.values.projectId || null}
-            value={form.values.taskIds}
-            onChange={(taskIds) => form.setFieldValue('taskIds', taskIds)}
-            error={form.errors.taskIds}
           />
           <SimpleGrid cols={{ base: 1, xs: 3 }} spacing="md">
             <DatePickerInput label="Jour" required {...form.getInputProps('date')} />
             <TimePicker label="Début" required {...form.getInputProps('start')} />
             <TextInput label="Durée" required placeholder="1:30" description="1:30, 1h30, 90 ou 1,5h" {...form.getInputProps('duration')} />
           </SimpleGrid>
-          <Select
-            label="Évènement"
-            description="Le temps passé sur un évènement de l’agenda : seule la part hors de l’évènement y apparaît."
-            placeholder={eventOptions.length ? 'Aucun' : 'Aucun évènement ce jour-là'}
-            clearable
-            searchable
-            data={eventOptions}
-            value={eventKey}
-            onChange={(key) => form.setFieldValue('eventKey', key)}
-            error={form.errors.calendarEventId}
+          <TimeSubjectsFields
+            context={context}
+            projectId={form.values.projectId || null}
+            day={form.values.date || localToday()}
+            entry={entry}
+            value={{ routineIds: form.values.routineIds, taskIds: form.values.taskIds, events: form.values.events }}
+            onChange={(change) => form.setValues(change)}
+            errors={{ routineIds: form.errors.routineIds, taskIds: form.errors.taskIds, events: form.errors.events }}
           />
           <MarkdownEditor
             label="Description"

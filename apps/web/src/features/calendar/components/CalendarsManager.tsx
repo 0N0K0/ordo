@@ -43,7 +43,7 @@ function OwnCalendars() {
       undeletable={() => (calendars.length === 1 ? 'Le dernier calendrier ne peut pas être supprimé' : null)}
       deleteMessage={(calendar) => (
         <>
-          Le calendrier « {calendar.label} » sera supprimé définitivement avec tous ses évènements (récurrents compris). Les temps suivis sur ces évènements sont conservés, sans lien. Les autres
+          Le calendrier « {calendar.label} » sera supprimé définitivement avec tous ses évènements (récurrents compris). Les temps suivis sur ces évènements sont conservés, sans eux, sauf ceux sans projet qui ne portent sur rien d’autre (les temps facturés sont toujours gardés). Les autres
           espaces abonnés ne le verront plus.
         </>
       )}

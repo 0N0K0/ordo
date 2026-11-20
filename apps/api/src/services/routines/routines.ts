@@ -47,6 +47,7 @@ import {
 } from '@ordo/shared';
 import { z } from 'zod';
 import { deleteTreeItems, topmostIds, treeListService } from '../core/trees';
+import { releaseSubjectTime } from '../tasks/time-entries';
 import { prisma } from '../../db';
 import { assertBeneficiaries } from '../core/beneficiaries';
 import { BY_POSITION, moveBefore, nextPositionIn } from '../core/ordering';
@@ -912,15 +913,16 @@ export async function bulkSetRoutinesArchived(ids: string[], archived: boolean):
 
 /**
  * Deletes routines: each with its sub-routines, or alone (its sub-routines then go one level up). Their ticks,
- * dependencies, relations, sheets and checklists go with them; their tracked time stays (without routine). Ids missing
- * are skipped.
+ * dependencies, relations, sheets and checklists go with them; their tracked time stays (without them), but the times
+ * they leave with nothing attached (no project, task, other routine or event; not billed) are deleted with them (extra
+ * A of decision D17). Ids missing are skipped.
  * @param {string[]} ids Routine ids.
  * @param {boolean} deleteSubRoutines Their sub-routines are deleted too (else moved up a level).
  * @returns {Promise<number>} Number of routines given that were deleted.
  */
 export async function bulkDeleteRoutines(ids: string[], deleteSubRoutines: boolean): Promise<number> {
   const count = await prisma.routine.count({ where: { id: { in: [...new Set(ids)] } } });
-  await deleteTreeItems('routine', ids, deleteSubRoutines);
+  await deleteTreeItems('routine', ids, deleteSubRoutines, (gone) => releaseSubjectTime({ routineIds: gone }));
   return count;
 }
 

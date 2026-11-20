@@ -7,6 +7,7 @@ import { Prisma, type Task, type TaskComment } from '../../generated/prisma/clie
 import { clientError, fieldError, notFound, orNotFound, parseInput } from '../../graphql/errors';
 import { assertProjectContributors, attachAssignees } from '../projects/contributors';
 import { forgetGithubComment, forgetGithubItems } from '../github/links';
+import { releaseSubjectTime } from './time-entries';
 import { assertAllExist, assertExists, deleteOrNotFound } from '../core/lookup';
 import { assertNoneArchived, type ArchivableModel, assertActive, refuseArchived, archiveTree, findActive } from '../core/archive';
 import { deleteTreeItems, subtreeIds, topmostIds } from '../core/trees';
@@ -837,7 +838,8 @@ export async function bulkSetTasksArchived(ids: string[], archived: boolean): Pr
 }
 
 /**
- * Deletes several tasks; their unselected sub-tasks are deleted too, or moved up.
+ * Deletes several tasks; their unselected sub-tasks are deleted too, or moved up. The times they leave with nothing
+ * attached (no project, no other task, routine or event; not billed) are deleted with them (extra A of decision D17).
  * @param {string[]} ids Task ids.
  * @param {boolean} deleteSubtasks Whether to delete the sub-trees.
  * @returns {Promise<void>}
@@ -845,5 +847,8 @@ export async function bulkSetTasksArchived(ids: string[], archived: boolean): Pr
 export async function bulkDeleteTasks(ids: string[], deleteSubtasks: boolean): Promise<void> {
   await assertTasks(ids);
   // Their GitHub items are taken off the board first.
-  await deleteTreeItems('task', ids, deleteSubtasks, forgetGithubItems);
+  await deleteTreeItems('task', ids, deleteSubtasks, async (gone) => {
+    await forgetGithubItems(gone);
+    await releaseSubjectTime({ taskIds: gone });
+  });
 }

@@ -111,7 +111,7 @@ Barre de sélection (« 3 routines sélectionnées ») : « Cocher » / « Déco
 
 Archiver une routine archive aussi ses sous-routines ; la restaurer restaure celles archivées avec elle, et ses parentes archivées (comme les tâches).
 
-Suppression : dialogue de confirmation « Supprimer la routine » (« Supprimer les routines ») : « « … » sera supprimée définitivement avec l'historique de ses coches ; le temps chronométré reste, sans routine. Pour la retirer sans perdre ses données, archivez-la plutôt. Cette action est irréversible. » Si elle a des sous-routines : « Que faire de sa sous-routine / ses N sous-routines ? » (plusieurs : « Que faire de leurs sous-routines non sélectionnées ? »), au choix « Les conserver (elles remontent d'un niveau) » (par défaut) ou « Les supprimer aussi, définitivement ». Boutons « Supprimer » puis « Annuler ». Toast « Routine « … » supprimée. » / « 3 routines supprimées. ».
+Suppression : dialogue de confirmation « Supprimer la routine » (« Supprimer les routines ») : « « … » sera supprimée définitivement avec l'historique de ses coches ; le temps chronométré reste, sans elle. Pour la retirer sans perdre ses données, archivez-la plutôt. Cette action est irréversible. », suivi, s'il y en a, de « 2 temps sans projet, qui ne portent sur rien d’autre, seront aussi supprimés (les temps facturés sont gardés). » (selon le choix pour les sous-routines) Si elle a des sous-routines : « Que faire de sa sous-routine / ses N sous-routines ? » (plusieurs : « Que faire de leurs sous-routines non sélectionnées ? »), au choix « Les conserver (elles remontent d'un niveau) » (par défaut) ou « Les supprimer aussi, définitivement ». Boutons « Supprimer » puis « Annuler ». Toast « Routine « … » supprimée. » / « 3 routines supprimées. ».
 
 ### État vide
 
@@ -185,7 +185,7 @@ Une occurrence déjà cochée ne se déplace pas : il faut d'abord la décocher.
 - Accueil : carte des routines à faire aujourd'hui (en retard d'abord), cochées depuis la carte, avec report au lendemain et sablier d'attente (voir [Accueil](../cross-cutting/home.md)).
 - Agenda : occurrences des routines dans l'agenda, déplaçables, et routines liées à un évènement pour un jour (voir [Agenda](calendar.md)).
 - Alarmes : les rappels sonnent pour chaque moment non coché d'une routine due aujourd'hui, avant l'heure de départ (sinon le début, sinon l'heure limite) ; le toast propose de la cocher ; pendant un évènement qui occupe ses assignés, l'alarme attend le prochain moment libre (voir [Alarmes](alarms.md)).
-- Temps : une saisie de temps ou le chronomètre peut porter sur une routine (projet de la routine par défaut) (voir [Temps](time.md)).
+- Temps : une saisie de temps ou le chronomètre peut porter sur une ou plusieurs routines (projet de la première par défaut ; temps réparti à parts égales entre elles, décision D18) (voir [Temps](time.md)).
 
 ## PRO et PERSO
 

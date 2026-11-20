@@ -182,7 +182,9 @@ function meets<R>(
     case 'choices': {
       const own = Array.isArray(value) ? value : [];
       const chosen = Array.isArray(wanted) ? wanted : [];
-      if (operator === 'anyOf') return chosen.some((item) => own.includes(item));
+      // « est » / « n’est pas », saved while the column held one value (the routine or the event of a time), read as
+      // « inclut l’un de » / « n’inclut aucun de ».
+      if (operator === 'anyOf' || operator === 'in') return chosen.some((item) => own.includes(item));
       if (operator === 'allOf') return chosen.every((item) => own.includes(item));
       return !chosen.some((item) => own.includes(item));
     }

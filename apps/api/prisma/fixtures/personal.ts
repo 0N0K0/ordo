@@ -443,7 +443,7 @@ export async function seedPersonal({
   const checks = await tickRoutines(today);
   const gardenRoutine = await prisma.routine.findFirst({ where: { label: 'Arroser le jardin' } });
   for (const check of checks.filter((item) => item.routineId === gardenRoutine?.id).slice(0, 6)) {
-    await createTimeEntry({ routineId: check.routineId, projectId: garden.id, startedAt: new Date(check.doneAt.getTime() - 10 * 60_000), duration: 10 * 60 });
+    await createTimeEntry({ routineIds: [check.routineId], projectId: garden.id, startedAt: new Date(check.doneAt.getTime() - 10 * 60_000), duration: 10 * 60 });
   }
 
   // --- Tracked time on the projects ------------------------------------------------------------------------

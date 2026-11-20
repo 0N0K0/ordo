@@ -25,17 +25,17 @@ Un seul chrono tourne à la fois.
 
 ### Démarrer
 
-- Depuis « Démarrer le chrono » (page « Chronos », onglet « Temps » d’un projet), le menu « Ajouter » › « Chrono » : panneau « Nouveau chrono » (`TimerStartForm`) avec « Projet » (« Facultatif avec une tâche. »), « Tâches » (celles du projet et de ses sous-projets, et celles sans projet ; sans projet, seulement celles sans projet), « Description » (markdown). Bouton « Démarrer le chrono », désactivé sans projet ni tâche (décision D17).
+- Depuis « Démarrer le chrono » (page « Chronos », onglet « Temps » d’un projet), le menu « Ajouter » › « Chrono » : panneau « Nouveau chrono » (`TimerStartForm`) avec « Projet » (« Facultatif avec une tâche, une routine ou un évènement. »), « Routines », « Tâches » (celles du projet et de ses sous-projets, et celles sans projet ; sans projet, seulement celles sans projet), « Évènements » (ceux du jour), plusieurs de chaque (décision D18), « Description » (markdown). Bouton « Démarrer le chrono », désactivé sans projet, ni routine, ni tâche, ni évènement (décision D17).
 - Depuis une tâche (colonne « Chrono », panneau de la tâche) : démarre directement sur la tâche et son projet (aucun pour une tâche sans projet).
 - Depuis une routine ou un évènement : voir [Routines](routines.md) et [Agenda](calendar.md).
 - Si un chrono tourne déjà, il s’arrête et son temps est enregistré (décision Y). Les boutons le disent en info-bulle : « Le chrono en cours s’arrête (son temps est enregistré). ». Toast : « Chrono démarré. » ou « Chrono démarré. Le chrono en cours s’est arrêté. Temps enregistré : 1 h 05. ».
-- Avertissement (toast) « Hors des moments prévus » si la routine ou une tâche est hors de ses créneaux, ou si ses assignés sont pris par un évènement (autre que celui du chrono) : « Le chrono tourne quand même. Libellé : pendant « Réunion » · … ».
+- Avertissement (toast) « Hors des moments prévus » si une routine ou une tâche est hors de ses créneaux, ou si ses assignés sont pris par un évènement (autre que ceux du chrono) : « Le chrono tourne quand même. Libellé : pendant « Réunion » · … ».
 - Bouton désactivé sur un élément archivé ou dans un projet archivé.
 
 ### Pendant qu’il tourne
 
-- **En-tête** (`TimerWidget`) : point, projet (sinon routine, évènement ou première tâche, `entrySubject`), horloge `1:05:09` ; clic : bulle « Détails du chrono » ; boutons pause / reprise et arrêt.
-- **Détails** (`RunningTimer`, aussi sur l’accueil) : horloge, « Chrono en cours » ou « Chrono en pause », « depuis 09:12 », lien vers le projet (onglet « Temps ») ou vers les routines, sinon le libellé de l’évènement ou de la première tâche, sans lien ; « Pause » / « Reprendre », « Arrêter le chrono » (rouge), « Abandonner (sans enregistrer) » ; le projet, les tâches et la description restent modifiables (changer de projet vide les tâches ; la description s’enregistre à la sortie du champ).
+- **En-tête** (`TimerWidget`) : point, projet (sinon première routine, premier évènement ou première tâche, suivi de « + N » pour les autres, `entrySubject`), horloge `1:05:09` ; clic : bulle « Détails du chrono » ; boutons pause / reprise et arrêt.
+- **Détails** (`RunningTimer`, aussi sur l’accueil) : horloge, « Chrono en cours » ou « Chrono en pause », « depuis 09:12 », lien vers le projet (onglet « Temps ») ou vers les routines, sinon le libellé du premier évènement ou de la première tâche, sans lien ; « Pause » / « Reprendre », « Arrêter le chrono » (rouge), « Abandonner (sans enregistrer) » ; le projet, les routines, les tâches, les évènements (du jour du chrono) et la description restent modifiables (changer de projet vide les routines et les tâches ; la description s’enregistre à la sortie du champ ; retirer le dernier d’un chrono sans projet est refusé : « Choisissez un projet, une tâche, une routine ou un évènement. »).
 - **Abandonner** : confirmation « Abandonner le chrono » : « Le temps en cours (12 min) ne sera pas enregistré. ». Toast « Chrono abandonné. ».
 - **Arrêter** : toast « Temps enregistré : 1 h 05. ». Un chrono en pause s’arrête au début de sa pause.
 - Dans le tableau des temps, le chrono en cours a le badge « Chrono en cours » à la place de sa durée ; il n’a pas de menu (il se modifie depuis le chrono).
@@ -57,16 +57,17 @@ Colonnes :
 | « Heure de fin »            | Lecture seule (calculée).                                                                                                                                 |
 | « Durée »                   | Modifiable en tapant « 1:30 », « 1h30 », « 90 » ou « 1,5h » ; total en pied et par groupe.                                                                |
 | « Projet »                  | Modifiable (un projet ne peut être vidé que si le temps garde une tâche, une routine ou un évènement) ; le filtre garde les sous-projets.                  |
-| « Routine »                 | Modifiable.                                                                                                                                               |
+| « Routines »                | Routines du projet (et sans projet), en arbre, plusieurs (décision D18). Groupable (un temps sur deux routines est dans les deux groupes).               |
 | « Tâches »                  | Tâches du projet (et sans projet), en arbre, les fermées marquées « (fermée) ».                                                                           |
-| « Évènement »               | Évènement de l’agenda du jour (chargé à l’ouverture).                                                                                                     |
+| « Évènements »              | Évènements de l’agenda du jour (chargés à l’ouverture), plusieurs (décision D18). Groupable.                                                              |
 | « Facture »                 | « Non facturé », badge « Brouillon » (gris) ou « Facturé : F-… » (vert), lien vers la facture. Filtre « Non facturé », « Sur un brouillon », « Facturé ». |
 | « Commentaires »            | Nombre (la description compte pour un), masquée par défaut.                                                                                               |
 
 - Recherche : « Rechercher (projet, routine, tâche, évènement) ».
 - Barre : « 12 h 30 au total, dont 2 h 00 non facturé. » ou « …, tout est facturé. » (temps terminés des lignes affichées).
 - Un temps est modifiable en place s’il est terminé et pas sur une facture validée ; sinon ses cellules sont en lecture seule.
-- Sélection de cellules : une modification s’applique à toutes les cellules sélectionnées de la colonne.
+- Sélection de cellules : une modification s’applique à toutes les cellules sélectionnées de la colonne ; pour les routines, tâches et évènements, chaque temps reçoit ceux ajoutés et perd ceux retirés. Retirer le dernier d’un temps sans projet est refusé (« Choisissez un projet, une tâche, une routine ou un évènement. »).
+- Filtres « Routines » et « Évènements » : « inclut l’un de », « inclut tous », « n’inclut aucun de » ; un filtre enregistré « est » / « n’est pas » (quand la colonne n’avait qu’une valeur) se lit « inclut l’un de » / « n’inclut aucun de ».
 - Menu d’une ligne (temps terminés) : « Modifier » (pas s’il est facturé sur une facture validée), « Dupliquer », « Supprimer » (idem).
 - Sélection : « Supprimer les temps » (les temps facturés sont gardés : « (les temps facturés sont gardés) »).
 - Vide : « Aucun temps pour le moment. » (page) / « Aucun temps sur ce projet. ».
@@ -78,13 +79,13 @@ Panneau « Ajouter un temps », « Modifier le temps » ou « Dupliquer le temps
 
 | Champ           | Détail                                                                                                                                                                                                                                       |
 | --------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| « Projet »      | « Facultatif avec une tâche, une routine ou un évènement. » : sans aucun des quatre, « Choisissez un projet, une tâche, une routine ou un évènement. » (décision D17). Changer de projet vide les tâches.                                     |
-| « Routine »     | Facultative (les routines archivées ne sont proposées que si c’est la valeur actuelle).                                                                                                                                                      |
-| « Tâches »      | Tâches du projet, de ses sous-projets et sans projet ; sans projet, les tâches sans projet (« Sans projet : tâches sans projet. ») ; avec plusieurs tâches : « Le temps est réparti à parts égales entre les 3 tâches. ».                                                                                                               |
+| « Projet »      | « Facultatif avec une tâche, une routine ou un évènement. » : sans aucun des quatre, « Choisissez un projet, une tâche, une routine ou un évènement. » (décision D17). Changer de projet vide les routines et les tâches.                     |
 | « Jour »        | Requis (aujourd’hui par défaut).                                                                                                                                                                                                             |
 | « Début »       | Requis (09:00 par défaut).                                                                                                                                                                                                                   |
 | « Durée »       | Requise (« 1:30, 1h30, 90 ou 1,5h » ; 1:00 par défaut).                                                                                                                                                                                      |
-| « Évènement »   | Évènements du jour choisi (« 09:00–10:00 · Titre », « Journée · Titre », « (annulé) ») : « Le temps passé sur un évènement de l’agenda : seule la part hors de l’évènement y apparaît. » ; « Aucun évènement ce jour-là » s’il n’y en a pas. |
+| « Routines »    | Plusieurs (décision D18) : routines du projet, de ses sous-projets et sans projet ; sans projet, les routines sans projet (« Sans projet : routines sans projet. ») ; les archivées ne sont proposées que si le temps les a ; avec plusieurs : « Le temps est réparti à parts égales entre les 2 routines. ». |
+| « Tâches »      | Tâches du projet, de ses sous-projets et sans projet ; sans projet, les tâches sans projet (« Sans projet : tâches sans projet. ») ; avec plusieurs tâches : « Le temps est réparti à parts égales entre les 3 tâches. ».                                                                                                               |
+| « Évènements »  | Plusieurs (décision D18), parmi les évènements du jour choisi (« 09:00–10:00 · Titre », « Journée · Titre », « (annulé) ») : « Le temps passé sur des évènements de l’agenda : seule la part hors de ces évènements y apparaît. » (avec plusieurs : « … ; il est réparti à parts égales entre les 2 évènements. ») ; « Aucun évènement ce jour-là » s’il n’y en a pas. |
 | « Description » | Markdown (« Ce que vous avez fait… »).                                                                                                                                                                                                       |
 
 Boutons « Ajouter » / « Enregistrer ». Toasts « Temps ajouté. », « Temps modifié. », « Temps dupliqué. ». En modification, les commentaires du temps s’affichent sous le formulaire ([Commentaires](../cross-cutting/comments.md)).
@@ -102,7 +103,8 @@ En haut de la page « Chronos », **en espace PRO seulement** (en PERSO, les cr�
 
 ## Temps passé d’une tâche
 
-- Colonne « Temps passé » et panneau d’une tâche : somme des parts de la tâche dans chaque temps terminé (un temps sur trois tâches compte un tiers pour chacune).
+- Colonne « Temps passé » et panneau d’une tâche : somme des parts de la tâche dans chaque temps terminé (un temps sur trois tâches compte un tiers pour chacune). De même pour une routine (colonne « Temps passé » des routines) et une occurrence d’évènement, entre les routines ou les évènements du temps (décision D18).
+- Supprimer une tâche, une routine ou un évènement supprime aussi les temps sans projet qui ne portent sur rien d’autre (la confirmation le dit : « 2 temps sans projet, qui ne portent sur rien d’autre, seront aussi supprimés (les temps facturés sont gardés). ») ; un temps facturé n’est jamais supprimé.
 - Lien vers `/time?task=<id>`.
 
 ## Facturation

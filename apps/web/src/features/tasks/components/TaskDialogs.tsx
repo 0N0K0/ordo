@@ -21,10 +21,12 @@ import { useBulkUndo } from '../lib/bulk-undo';
 import { tasksLabel } from '../lib/bulk-label';
 import { removedLinksNote } from '../../../lib/text';
 import { useAsyncAction } from '../../../lib/use-async-action';
+import { TimeLostRisk } from '../../time/components/TimeLostRisk';
 
 /**
  * Deletion of tasks, confirmed; with sub-tasks not deleted with them, asks whether to keep them (moved up a level) or
- * delete them too. The task open in the side panel closes when deleted.
+ * delete them too; tells the times without project deleted with them (extra A of decision D17). The task open in the
+ * side panel closes when deleted.
  * @param {TasksDialogProps} props Component props.
  * @returns {JSX.Element} Dialog content.
  */
@@ -58,6 +60,7 @@ export function DeleteTasksDialog({ tasks, context, onDone }: TasksDialogProps) 
         ) : (
           `${tasksLabel(tasks.length)} et leurs commentaires seront supprimés définitivement. Pour les retirer des listes sans perdre leurs données, archivez-les plutôt.`
         )}
+        <TimeLostRisk query={{ taskIds: [...selected], withSubtree: mode === 'delete' }} />
       </DestructiveRisks>
       {subtasks > 0 && (
         <CascadeChoice

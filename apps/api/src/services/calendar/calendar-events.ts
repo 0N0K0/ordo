@@ -32,6 +32,7 @@ import { assertProjectContributors, followProject } from '../projects/contributo
 import { assertAllExist, findOrNotFound } from '../core/lookup';
 import { assertActive, assertNotArchived, activeIds, refuseArchived } from '../core/archive';
 import { connectIds } from '../core/relations';
+import { releaseSubjectTime, type GoneOccurrences } from '../tasks/time-entries';
 import { toJson } from '../core/json';
 import { readLinks } from '../core/links';
 import { storedLocation } from '../core/geo';
@@ -105,7 +106,10 @@ export type EventWithRelations = CalendarEvent & {
   routineLinks: { routineId: string; date: Date }[];
   postponedFrom: { label: string } | null;
   postponements: { id: string; label: string; startDate: Date; startTime: string | null; postponedFromDate: Date | null }[];
-  timeEntries: { calendarOccurrenceDate: Date | null; startedAt: Date; endedAt: Date | null; pausedAt: Date | null; pausedSeconds: number; duration: number | null }[];
+  timeEntryLinks: {
+    occurrenceDate: Date | null;
+    timeEntry: { startedAt: Date; endedAt: Date | null; pausedAt: Date | null; pausedSeconds: number; duration: number | null; _count: { events: number } };
+  }[];
 };
 
 /** Prisma `include` of an event for its occurrences (toOccurrence). */
@@ -120,7 +124,9 @@ export const occurrenceInclude = {
   routineLinks: { select: { routineId: true, date: true } },
   postponedFrom: { select: { label: true } },
   postponements: { select: { id: true, label: true, startDate: true, startTime: true, postponedFromDate: true } },
-  timeEntries: { select: { calendarOccurrenceDate: true, startedAt: true, endedAt: true, pausedAt: true, pausedSeconds: true, duration: true } },
+  timeEntryLinks: {
+    select: { occurrenceDate: true, timeEntry: { select: { startedAt: true, endedAt: true, pausedAt: true, pausedSeconds: true, duration: true, _count: { select: { events: true } } } } },
+  },
 } as const;
 
 /**
@@ -482,7 +488,24 @@ async function updateEventFields(id: string, input: CalendarEventInput, scope: E
 }
 
 /**
- * Deletes an event, or for a recurring one: one occurrence, it and the following ones, or the whole series.
+ * Occurrences an event deletion takes: the whole event (a one-off event, every occurrence, or from the first one), one
+ * occurrence, or it and the following ones.
+ * @param {string} id Event id.
+ * @param {EventScope} scope Scope.
+ * @param {string | null} [occurrenceDate] Occurrence. Optional for a one-off event.
+ * @returns {Promise<GoneOccurrences>} Occurrences deleted.
+ */
+export async function goneOccurrences(id: string, scope: EventScope, occurrenceDate?: string | null): Promise<GoneOccurrences> {
+  const event = await findEvent(id);
+  const occurrence = occurrenceOf(event, occurrenceDate);
+  if (!occurrence || scope === 'ALL' || (scope === 'FOLLOWING' && occurrence.date === formatDay(event.startDate))) return { eventId: id };
+  return scope === 'THIS' ? { eventId: id, on: occurrence.date } : { eventId: id, from: occurrence.date };
+}
+
+/**
+ * Deletes an event, or for a recurring one: one occurrence, it and the following ones, or the whole series. The times
+ * left with nothing attached are deleted first (extra A of decision D17, billed ones kept), and the times on the
+ * occurrences deleted leave them.
  * @param {string} id Event id.
  * @param {EventScope} scope Scope.
  * @param {string | null} [occurrenceDate] Occurrence. Optional for a one-off event.
@@ -491,11 +514,13 @@ async function updateEventFields(id: string, input: CalendarEventInput, scope: E
 export async function deleteCalendarEvent(id: string, scope: EventScope, occurrenceDate?: string | null): Promise<void> {
   const event = await findEvent(id);
   const occurrence = occurrenceOf(event, occurrenceDate);
-  if (!occurrence || scope === 'ALL' || (scope === 'FOLLOWING' && occurrence.date === formatDay(event.startDate))) {
+  const gone = await goneOccurrences(id, scope, occurrenceDate);
+  await releaseSubjectTime({ events: [gone] });
+  if (!occurrence || (!gone.on && !gone.from)) {
     await prisma.calendarEvent.delete({ where: { id } });
     return;
   }
-  if (scope === 'THIS') {
+  if (gone.on) {
     await prisma.calendarEventException.upsert({
       where: { eventId_date: { eventId: id, date: parseDay(occurrence.date) } },
       create: { eventId: id, date: parseDay(occurrence.date), cancelled: true },
@@ -557,16 +582,19 @@ export function toOccurrence(event: EventWithRelations, date: string | null, cha
     postponedTo: event.postponements
       .filter((postponement) => formatOptionalDay(postponement.postponedFromDate) === date)
       .map((postponement) => ({ eventId: postponement.id, label: postponement.label, startDate: formatDay(postponement.startDate), startTime: postponement.startTime })),
-    trackedSeconds: sumOf(
-      event.timeEntries.filter((entry) => formatOptionalDay(entry.calendarOccurrenceDate) === date),
-      (entry) =>
-        entrySeconds({
-          startedAt: entry.startedAt.toISOString(),
-          endedAt: entry.endedAt?.toISOString() ?? null,
-          pausedAt: entry.pausedAt?.toISOString() ?? null,
-          pausedSeconds: entry.pausedSeconds,
-          duration: entry.duration,
-        }),
+    // A time on several events (occurrences) is shared equally between them (decision D18), as between its tasks.
+    trackedSeconds: Math.round(
+      sumOf(
+        event.timeEntryLinks.filter((link) => formatOptionalDay(link.occurrenceDate) === date),
+        ({ timeEntry: entry }) =>
+          entrySeconds({
+            startedAt: entry.startedAt.toISOString(),
+            endedAt: entry.endedAt?.toISOString() ?? null,
+            pausedAt: entry.pausedAt?.toISOString() ?? null,
+            pausedSeconds: entry.pausedSeconds,
+            duration: entry.duration,
+          }) / Math.max(1, entry._count.events),
+      ),
     ),
   };
 }

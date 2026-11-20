@@ -175,7 +175,7 @@ export async function seedRoutines({ projects, contributors, meId, scheduleId }:
     const routine = timed.find((item) => item.id === check.routineId)!;
     if (!faker.datatype.boolean(0.6)) continue;
     const minutes = Math.max(5, routine.estimate! + faker.number.int({ min: -5, max: 10 }));
-    await createTimeEntry({ routineId: routine.id, projectId: routine.projectId, startedAt: new Date(check.doneAt.getTime() - minutes * 60_000), duration: minutes * 60 });
+    await createTimeEntry({ routineIds: [routine.id], projectId: routine.projectId, startedAt: new Date(check.doneAt.getTime() - minutes * 60_000), duration: minutes * 60 });
   }
 
   // --- Exceptions to the rules ---------------------------------------------------------------------------

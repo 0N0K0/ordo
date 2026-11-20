@@ -482,5 +482,5 @@ export function TaskProjectCell({ task, context }: { task: Task; context: TaskCo
  */
 export function TaskLocationCell({ task }: { task: Task }) {
   const { apply, count } = useCellEdit(task, 'location');
-  return <LocationCell item={task} label={fieldLabel('Lieu', task, count)} readOnly={task.archived} onSave={(change) => apply(change)} />;
+  return <LocationCell item={task} label={fieldLabel('Lieu', task, count)} readOnly={task.archived} count={count} onSave={(change) => apply(change)} />;
 }

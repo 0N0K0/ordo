@@ -21,21 +21,21 @@ export const TIME_SUBJECT_REQUIRED = 'Choisissez un projet, une tâche, une rout
 
 /**
  * Manual time entry form: day, start time, duration ("1:30", "1h30", "90" minutes or "1,5" hours). The project may be
- * left empty when the time has a task, a routine or an event (decision D17).
+ * left empty when the time has a task, a routine or an event (decision D17); several of each (decision D18).
  */
 export const timeEntryFormSchema = z
   .object({
     projectId: z.string(),
-    routineId: z.string().nullable(),
+    routineIds: z.array(z.string()),
     taskIds: z.array(z.string()),
-    /** Event (occurrence key) the time was spent on, if any. */
-    eventKey: z.string().nullable(),
+    /** Events (occurrence keys) the time was spent on. */
+    events: z.array(z.string()),
     description: markdownTextSchema,
     date: daySchema('La date est requise.'),
     start: timeOfDaySchema,
     duration: z.string().refine((value) => parseDuration(value) !== null, 'Durée attendue : 1:30, 1h30, 90 (minutes) ou 1,5 h.'),
   })
-  .refine((values) => values.projectId !== '' || values.routineId !== null || values.taskIds.length > 0 || values.eventKey !== null, {
+  .refine((values) => values.projectId !== '' || values.routineIds.length > 0 || values.taskIds.length > 0 || values.events.length > 0, {
     path: ['projectId'],
     message: TIME_SUBJECT_REQUIRED,
   });

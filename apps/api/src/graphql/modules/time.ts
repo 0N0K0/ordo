@@ -5,15 +5,16 @@ import * as alarms from '../../services/tasks/alarms';
 import * as timeEntries from '../../services/tasks/time-entries';
 import { builder, type InputFields } from '../builder';
 import { relationIds } from '../relation-fields';
-import { subtreeIds } from '../../services/core/trees';
+import { deletedTreeIds, subtreeIds } from '../../services/core/trees';
+import { goneOccurrences } from '../../services/calendar/calendar-events';
+import { EventScope } from './calendar';
 import { reloaded } from '../reload';
 
 builder.prismaObject('TimeEntry', {
   fields: (t) => ({
     id: t.exposeID('id'),
     projectId: t.exposeID('projectId', { nullable: true }),
-    routineId: t.exposeID('routineId', { nullable: true, description: 'Routine the time is spent on.' }),
-    routineLabel: t.string({ nullable: true, select: { routine: { select: { label: true } } }, resolve: (entry) => entry.routine?.label ?? null }),
+    routines: t.relation('routines', { description: 'Routines the time is spent on (decision D18).' }),
     description: t.exposeString('description', { nullable: true }),
     startedAt: t.expose('startedAt', { type: 'DateTime' }),
     endedAt: t.expose('endedAt', { type: 'DateTime', nullable: true }),
@@ -22,15 +23,22 @@ builder.prismaObject('TimeEntry', {
     duration: t.exposeInt('duration', { nullable: true, description: 'Seconds, pauses excluded; null while running.' }),
     taskIds: t.idList(relationIds('tasks')),
     documentId: t.exposeID('documentId', { nullable: true, description: 'Invoice the time is billed on.' }),
-    calendarEventId: t.exposeID('calendarEventId', { nullable: true, description: 'Calendar event the time was spent on.' }),
-    calendarOccurrenceDate: t.expose('calendarOccurrenceDate', { type: 'Date', nullable: true, description: 'Its occurrence, for a recurring event.' }),
-    calendarEventLabel: t.string({ nullable: true, select: { calendarEvent: { select: { label: true } } }, resolve: (entry) => entry.calendarEvent?.label ?? null }),
+    events: t.relation('events', { description: 'Calendar events (occurrences) the time was spent on (decision D18).' }),
     documentNumber: t.string({
       nullable: true,
       description: 'Number of that invoice, null while it is a draft.',
       select: { document: { select: { number: true } } },
       resolve: (entry) => entry.document?.number ?? null,
     }),
+  }),
+});
+
+builder.prismaObject('TimeEntryEvent', {
+  description: 'Calendar event (its occurrence for a recurring one) a time was spent on.',
+  fields: (t) => ({
+    eventId: t.exposeID('eventId'),
+    occurrenceDate: t.expose('occurrenceDate', { type: 'Date', nullable: true, description: 'Its occurrence, for a recurring event.' }),
+    label: t.string({ select: { event: { select: { label: true } } }, resolve: (link) => link.event.label }),
   }),
 });
 
@@ -67,34 +75,34 @@ const TimeEventInput = builder.inputType('TimeEventInput', {
 });
 
 /**
- * Event link of an input: null clears it, undefined leaves it unchanged.
- * @param {{ eventId: string, occurrenceDate?: string | null } | null | undefined} event GraphQL input.
- * @returns {import('../../services/tasks/time-entries').TimeEventLink | null | undefined} Service input.
+ * Event links of an input: null or omitted leaves them unchanged (none for a new time).
+ * @param {{ eventId: string, occurrenceDate?: string | null }[] | null | undefined} events GraphQL input.
+ * @returns {import('../../services/tasks/time-entries').TimeEventLink[] | undefined} Service input.
  */
-const eventLink = (event: { eventId: string; occurrenceDate?: string | null } | null | undefined) =>
-  event === undefined ? undefined : event === null ? null : { eventId: event.eventId, occurrenceDate: event.occurrenceDate ?? null };
+const eventLinks = (events: readonly { eventId: string; occurrenceDate?: string | null }[] | null | undefined) =>
+  events?.map((event) => ({ eventId: event.eventId, occurrenceDate: event.occurrenceDate ?? null }));
 
 /**
- * What a time is spent on, for a timer and an entry: a project, a routine (its project by default) or both, its tasks,
- * its description and event.
+ * What a time is spent on, for a timer and an entry: a project, routines (the project of the first one by default),
+ * tasks and events (several of each, decision D18), and its description.
  * @param {InputFields} t Field builder.
  * @returns {object} Fields.
  */
 const spentOnFields = (t: InputFields) => ({
   projectId: t.id(),
-  routineId: t.id(),
+  routineIds: t.idList(),
   taskIds: t.idList({ required: true }),
   description: t.string(),
-  event: t.field({ type: TimeEventInput }),
+  events: t.field({ type: [TimeEventInput] }),
 });
 
 const TimerInput = builder.inputType('TimerInput', {
-  description: 'At least a project, a task, a routine (its project by default) or an event.',
+  description: 'At least a project, a task, a routine (the project of the first one by default) or an event.',
   fields: (t) => spentOnFields(t),
 });
 
 const TimeEntryInput = builder.inputType('TimeEntryInput', {
-  description: 'At least a project, a task, a routine (its project by default) or an event.',
+  description: 'At least a project, a task, a routine (the project of the first one by default) or an event.',
   fields: (t) => ({
     ...spentOnFields(t),
     startedAt: t.field({ type: 'DateTime', required: true }),
@@ -106,12 +114,12 @@ const TimeEntryUpdateInput = builder.inputType('TimeEntryUpdateInput', {
   description: 'Omitted fields are left unchanged. The duration of the running timer cannot be changed.',
   fields: (t) => ({
     projectId: t.id(),
-    routineId: t.id({ description: 'Null: no routine; omitted: unchanged.' }),
-    taskIds: t.idList(),
+    routineIds: t.idList({ description: 'Omitted: unchanged.' }),
+    taskIds: t.idList({ description: 'Omitted: unchanged.' }),
     description: t.string(),
     startedAt: t.field({ type: 'DateTime' }),
     duration: t.int({ description: 'Seconds.' }),
-    event: t.field({ type: TimeEventInput, description: 'Null: no event; omitted: unchanged.' }),
+    events: t.field({ type: [TimeEventInput], description: 'Omitted: unchanged.' }),
   }),
 });
 
@@ -162,12 +170,31 @@ builder.queryFields((t) => ({
         ...query,
         where: {
           ...(projectIds ? { projectId: { in: projectIds } } : {}),
-          ...(routineId ? { routineId: routineId } : {}),
+          ...(routineId ? { routines: { some: { id: routineId } } } : {}),
           ...(since ? { startedAt: { gte: since } } : {}),
         },
         orderBy: { startedAt: 'desc' },
       });
     },
+  }),
+  timeLostOnDelete: t.int({
+    description: 'Number of times deleted with tasks, routines or an event (occurrences) about to be deleted: those without project, not billed, left with nothing attached.',
+    args: {
+      taskIds: t.arg.idList(),
+      routineIds: t.arg.idList(),
+      withSubtree: t.arg.boolean({ description: 'Their sub-tasks or sub-routines are deleted too.' }),
+      eventId: t.arg.id(),
+      scope: t.arg({ type: EventScope }),
+      occurrenceDate: t.arg({ type: 'Date' }),
+    },
+    resolve: async (_root, { taskIds, routineIds, withSubtree, eventId, scope, occurrenceDate }) =>
+      (
+        await timeEntries.timeLeftEmpty({
+          taskIds: await deletedTreeIds('task', taskIds ?? [], withSubtree ?? false),
+          routineIds: await deletedTreeIds('routine', routineIds ?? [], withSubtree ?? false),
+          events: eventId ? [await goneOccurrences(eventId, scope ?? 'ALL', occurrenceDate)] : [],
+        })
+      ).length,
   }),
   runningTimeEntry: t.prismaField({
     type: 'TimeEntry',
@@ -185,7 +212,7 @@ builder.mutationFields((t) => ({
     type: 'TimeEntry',
     description: 'Starts a timer; the running one is stopped first.',
     args: { input: t.arg({ type: TimerInput, required: true }) },
-    resolve: async (query, _root, { input }) => reloaded(prisma.timeEntry, query, timeEntries.startTimer({ ...input, event: eventLink(input.event) })),
+    resolve: async (query, _root, { input }) => reloaded(prisma.timeEntry, query, timeEntries.startTimer({ ...input, events: eventLinks(input.events) })),
   }),
   setTimerPaused: t.prismaField({
     type: 'TimeEntry',
@@ -203,12 +230,12 @@ builder.mutationFields((t) => ({
   createTimeEntry: t.prismaField({
     type: 'TimeEntry',
     args: { input: t.arg({ type: TimeEntryInput, required: true }) },
-    resolve: async (query, _root, { input }) => reloaded(prisma.timeEntry, query, timeEntries.createTimeEntry({ ...input, event: eventLink(input.event) })),
+    resolve: async (query, _root, { input }) => reloaded(prisma.timeEntry, query, timeEntries.createTimeEntry({ ...input, events: eventLinks(input.events) })),
   }),
   updateTimeEntry: t.prismaField({
     type: 'TimeEntry',
     args: { id: t.arg.id({ required: true }), input: t.arg({ type: TimeEntryUpdateInput, required: true }) },
-    resolve: async (query, _root, { id, input }) => reloaded(prisma.timeEntry, query, timeEntries.updateTimeEntry(id, { ...input, event: eventLink(input.event) })),
+    resolve: async (query, _root, { id, input }) => reloaded(prisma.timeEntry, query, timeEntries.updateTimeEntry(id, { ...input, events: eventLinks(input.events) })),
   }),
   deleteTimeEntry: t.boolean({
     args: { id: t.arg.id({ required: true }) },

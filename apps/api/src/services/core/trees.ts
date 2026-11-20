@@ -89,6 +89,19 @@ export async function topmostIds(model: OrderedModel, ids: readonly string[]): P
 }
 
 /**
+ * Items a deletion of tree items takes (`deleteTreeItems`): those given, with their whole sub-trees or not.
+ * @param {OrderedModel} model Model.
+ * @param {readonly string[]} ids Items.
+ * @param {boolean} withSubtree Their sub-trees are deleted too.
+ * @returns {Promise<string[]>} Ids deleted.
+ */
+export async function deletedTreeIds(model: OrderedModel, ids: readonly string[], withSubtree: boolean): Promise<string[]> {
+  if (!withSubtree || !ids.length) return [...new Set(ids)];
+  const items = await delegate(model).findMany({ select: { id: true, parentId: true } });
+  return [...new Set(ids.flatMap((id) => [...subtreeOf(items, id)]))];
+}
+
+/**
  * Deletes items of a tree (tasks, routines): with their whole sub-tree, or alone, their children going up a level.
  * Ids missing are skipped; selected items moved up by the deletion of their parent are deleted too.
  * @param {OrderedModel} model Model.

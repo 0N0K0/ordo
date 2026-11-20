@@ -25,6 +25,8 @@ import { calendarQueryKey, useCalendarCategories, useCalendarEventMutations, use
 import { archivedIds, archiveEntry, unarchived, unarchivedOffered, useSetArchived } from '../../../lib/archive';
 import { ArchivedBadge } from '../../../components/feedback/ArchivedBadge';
 import { useStartTimer } from '../../time/hooks/use-start-timer';
+import { fetchTimeLost } from '../../time/api';
+import { TimeLostRisk } from '../../time/components/TimeLostRisk';
 import { timeTaskOptions, timeTasks } from '../../time/lib/time-tasks';
 import { EventLocation } from '../../geo/components/EventLocation';
 import { addressOf, locationOf } from '../../geo/lib/location';
@@ -166,7 +168,7 @@ export function EventForm({ context, occurrence, defaults, onDone, onDuplicate }
       // project; without project, only those).
       taskIds: timeTaskIds,
       description: values.label,
-      event: { eventId: occurrence.eventId, occurrenceDate: occurrence.occurrenceDate },
+      events: [{ eventId: occurrence.eventId, occurrenceDate: occurrence.occurrenceDate }],
     });
   };
   const { data: categories } = useCalendarCategories();
@@ -254,7 +256,8 @@ export function EventForm({ context, occurrence, defaults, onDone, onDuplicate }
   });
 
   /**
-   * Deletes the event (asking which occurrences for a recurring one).
+   * Deletes the event (asking which occurrences for a recurring one), telling the times without project deleted with
+   * it (extra A of decision D17).
    * @returns {Promise<void>}
    */
   const handleDelete = async () => {
@@ -265,14 +268,22 @@ export function EventForm({ context, occurrence, defaults, onDone, onDuplicate }
      * @returns {void}
      */
     const run = (scope: CalendarEventScope) => remove.mutate({ id: occurrence.eventId, scope, occurrenceDate: occurrence.occurrenceDate }, formCallbacks(null, 'Évènement supprimé.', onDone));
+    const lost = { eventId: occurrence.eventId, occurrenceDate: occurrence.occurrenceDate };
     if (recurring) {
-      const scope = await askScope({ action: 'delete' });
+      const [one, following, all] = await Promise.all((['THIS', 'FOLLOWING', 'ALL'] as const).map((scope) => fetchTimeLost({ ...lost, scope })));
+      const note = all ? `Temps sans projet supprimés avec : cette occurrence ${one}, celle-ci et les suivantes ${following}, toutes ${all} (les temps facturés sont gardés).` : undefined;
+      const scope = await askScope({ action: 'delete', note });
       if (scope) run(scope);
       return;
     }
     confirmDestructive({
       title: 'Supprimer l’évènement',
-      risks: `L’évènement « ${occurrence?.label ?? ''} » sera supprimé définitivement.`,
+      risks: (
+        <>
+          L’évènement « {occurrence?.label ?? ''} » sera supprimé définitivement.
+          <TimeLostRisk query={{ ...lost, scope: 'ALL' }} />
+        </>
+      ),
       onConfirm: () => run('ALL'),
     });
   };

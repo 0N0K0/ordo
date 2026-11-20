@@ -646,7 +646,7 @@ await createCalendarEvent({
 if (firstRoot) {
   for (let date = addDays(monday, -14); date < today; date = addDays(date, 1)) {
     if (weekdayOfDate(date) > 5 || !faker.datatype.boolean(0.7)) continue;
-    await createTimeEntry({ projectId: firstRoot.id, event: { eventId: standUp, occurrenceDate: date }, description: 'Stand-up', startedAt: localAt(date, 9), duration: 15 * 60 });
+    await createTimeEntry({ projectId: firstRoot.id, events: [{ eventId: standUp, occurrenceDate: date }], description: 'Stand-up', startedAt: localAt(date, 9), duration: 15 * 60 });
   }
 }
 // The next sport session is moved to the day after (the occurrence is called off and a new event made).

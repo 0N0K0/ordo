@@ -218,9 +218,9 @@ builder.prismaObject('Routine', {
       resolve: (routine) => routine.checks[0]?.doneAt ?? null,
     }),
     trackedSeconds: t.int({
-      description: 'Time tracked on it, finished entries only.',
-      select: { timeEntries: { select: { duration: true } } },
-      resolve: (routine) => sumOf(routine.timeEntries, (entry) => entry.duration ?? 0),
+      description: 'Time tracked on it, finished entries only; a time on several routines is shared equally between them.',
+      select: { timeEntries: { where: { duration: { not: null } }, select: { duration: true, _count: { select: { routines: true } } } } },
+      resolve: (routine) => Math.round(sumOf(routine.timeEntries, (entry) => (entry.duration ?? 0) / Math.max(1, entry._count.routines))),
     }),
   }),
 });

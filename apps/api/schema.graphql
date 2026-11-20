@@ -2742,6 +2742,20 @@ type Query {
   timeEntries(projectId: ID, routineId: ID, since: DateTime): [TimeEntry!]!
 
   """
+  Number of times deleted with tasks, routines or an event (occurrences) about to be deleted: those without project, not billed, left with nothing attached.
+  """
+  timeLostOnDelete(
+    eventId: ID
+    occurrenceDate: Date
+    routineIds: [ID!]
+    scope: CalendarEventScope
+    taskIds: [ID!]
+
+    """Their sub-tasks or sub-routines are deleted too."""
+    withSubtree: Boolean
+  ): Int!
+
+  """
   Mails to do (not marked as done) of every account, in every folder but drafts, sent, archive, junk and trash.
   """
   todoMailCount: Int!
@@ -2933,7 +2947,9 @@ type Routine {
   slots: [RoutineSlot!]!
   startDate: Date!
 
-  """Time tracked on it, finished entries only."""
+  """
+  Time tracked on it, finished entries only; a time on several routines is shared equally between them.
+  """
   trackedSeconds: Int!
 
   """Travel time back, in minutes."""
@@ -4155,12 +4171,6 @@ input TaskViewUpdateInput {
 }
 
 type TimeEntry {
-  """Calendar event the time was spent on."""
-  calendarEventId: ID
-  calendarEventLabel: String
-
-  """Its occurrence, for a recurring event."""
-  calendarOccurrenceDate: Date
   description: String
 
   """Invoice the time is billed on."""
@@ -4172,29 +4182,42 @@ type TimeEntry {
   """Seconds, pauses excluded; null while running."""
   duration: Int
   endedAt: DateTime
+
+  """Calendar events (occurrences) the time was spent on (decision D18)."""
+  events: [TimeEntryEvent!]!
   id: ID!
   pausedAt: DateTime
   pausedSeconds: Int!
   projectId: ID
 
-  """Routine the time is spent on."""
-  routineId: ID
-  routineLabel: String
+  """Routines the time is spent on (decision D18)."""
+  routines: [Routine!]!
   startedAt: DateTime!
   taskIds: [ID!]!
 }
 
 """
-At least a project, a task, a routine (its project by default) or an event.
+Calendar event (its occurrence for a recurring one) a time was spent on.
+"""
+type TimeEntryEvent {
+  eventId: ID!
+  label: String!
+
+  """Its occurrence, for a recurring event."""
+  occurrenceDate: Date
+}
+
+"""
+At least a project, a task, a routine (the project of the first one by default) or an event.
 """
 input TimeEntryInput {
   description: String
 
   """Seconds."""
   duration: Int!
-  event: TimeEventInput
+  events: [TimeEventInput!]
   projectId: ID
-  routineId: ID
+  routineIds: [ID!]
   startedAt: DateTime!
   taskIds: [ID!]!
 }
@@ -4208,13 +4231,15 @@ input TimeEntryUpdateInput {
   """Seconds."""
   duration: Int
 
-  """Null: no event; omitted: unchanged."""
-  event: TimeEventInput
+  """Omitted: unchanged."""
+  events: [TimeEventInput!]
   projectId: ID
 
-  """Null: no routine; omitted: unchanged."""
-  routineId: ID
+  """Omitted: unchanged."""
+  routineIds: [ID!]
   startedAt: DateTime
+
+  """Omitted: unchanged."""
   taskIds: [ID!]
 }
 
@@ -4227,13 +4252,13 @@ input TimeEventInput {
 }
 
 """
-At least a project, a task, a routine (its project by default) or an event.
+At least a project, a task, a routine (the project of the first one by default) or an event.
 """
 input TimerInput {
   description: String
-  event: TimeEventInput
+  events: [TimeEventInput!]
   projectId: ID
-  routineId: ID
+  routineIds: [ID!]
   taskIds: [ID!]!
 }
 

@@ -105,7 +105,7 @@ export function TimeOfDayCell({ routine, field, readOnly = false }: { routine: R
  */
 export function RoutineLocationCell({ routine, readOnly = false }: { routine: Routine; readOnly?: boolean }) {
   const { apply, count } = useRoutineCellEdit(routine, 'location');
-  return <LocationCell item={routine} label={routineCellLabel('Lieu', routine, count)} readOnly={readOnly} onSave={(change) => apply(change)} />;
+  return <LocationCell item={routine} label={routineCellLabel('Lieu', routine, count)} readOnly={readOnly} count={count} onSave={(change) => apply(change)} />;
 }
 
 /**

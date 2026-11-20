@@ -27,7 +27,8 @@ import { routineTreeOptions } from '../../routines/lib/routine-format';
 import type { TreeOption } from '../../../components/tree/tree-select';
 import { deleteRowsAction } from '../../../components/data-table/selection/selection-actions';
 import { selectedLabel } from '../../../components/data-table/selection/selection-label';
-import { TimeDayCell, TimeDurationCell, TimeEventCell, TimeRoutineCell, TimeStartCell, TimeTasksCell } from './time-cells';
+import { TimeDayCell, TimeDurationCell, TimeEventsCell, TimeRoutinesCell, TimeStartCell, TimeTasksCell } from './time-cells';
+import { hasSubject } from '../lib/time-subjects';
 import { monthColumn } from '../../../components/data-table/table/month-column';
 import { TIMER_RUNNING, TimerRunningBadge } from './TimerStop';
 import { documentPath } from '../../../app/pages';
@@ -51,9 +52,16 @@ const finishedSeconds = (entries: readonly TimeEntry[]) =>
  */
 function events(entries: readonly TimeEntry[]): { value: string; label: string }[] {
   const byId = new Map<string, string>();
-  for (const entry of entries) if (entry.calendarEventId) byId.set(entry.calendarEventId, entry.calendarEventLabel ?? 'Évènement');
+  for (const entry of entries) for (const link of entry.events) byId.set(link.eventId, link.label);
   return [...byId].map(([value, label]) => ({ value, label })).sort((a, b) => collator.compare(a.label, b.label));
 }
+
+/**
+ * Labels of the routines or events of a time, one after the other.
+ * @param {readonly { label: string }[]} items Routines or events.
+ * @returns {string} Text.
+ */
+const labelsText = (items: readonly { label: string }[]): string => items.map((item) => item.label).join(', ');
 
 /**
  * Invoice of a billed time: its number, or « Brouillon » while the invoice is a draft.
@@ -132,11 +140,11 @@ function timeColumns(context: TaskContext | null, comments: Map<string, number>,
     {
       id: 'routine',
       bulk: true,
-      label: 'Routine',
+      label: 'Routines',
       size: 180,
-      sortValue: (entry) => entry.routineLabel ?? null,
-      text: (entry) => entry.routineLabel ?? '',
-      filter: { kind: 'choice', value: (entry) => entry.routineId ?? null, options: routines },
+      sortValue: (entry) => labelsText(entry.routines) || null,
+      text: (entry) => labelsText(entry.routines),
+      filter: { kind: 'choices', value: (entry) => entry.routines.map((routine) => routine.id), options: routines },
       groupable: true,
     },
     {
@@ -155,11 +163,11 @@ function timeColumns(context: TaskContext | null, comments: Map<string, number>,
     {
       id: 'event',
       bulk: true,
-      label: 'Évènement',
+      label: 'Évènements',
       size: 200,
-      sortValue: (entry) => entry.calendarEventLabel ?? null,
-      text: (entry) => entry.calendarEventLabel ?? '',
-      filter: { kind: 'choice', value: (entry) => entry.calendarEventId ?? null, options: events(entries) },
+      sortValue: (entry) => labelsText(entry.events) || null,
+      text: (entry) => labelsText(entry.events),
+      filter: { kind: 'choices', value: (entry) => entry.events.map((link) => link.eventId), options: events(entries) },
       groupable: true,
     },
     {
@@ -302,14 +310,18 @@ export function TimeLog({ entries, context, projectId, emptyMessage, onEdit, onD
                   label={cellLabelOf('project', entry, 'Projet')}
                   {...treeSelectProps(context.projectOptions(unarchived(context.projects, entry.projectId)))}
                   // A time keeps at least a project, a task, a routine or an event (decision D17).
-                  onSave={(next) => (next || entry.routineId || entry.taskIds.length || entry.calendarEventId) && bulk('project')(entry, { projectId: next || null })}
+                  onSave={(next) => (next || hasSubject(entry)) && bulk('project')(entry, { projectId: next || null })}
                 />
               ) : entry.projectId && entry.projectId !== projectId ? (
                 context?.projectById.get(entry.projectId)?.label
               ) : null}
             </>
           ),
-          routine: <TimeRoutineCell entry={entry} readOnly={!editable(entry)} label={cellLabelOf('routine', entry, 'Routine')} save={bulk('routine')} />,
+          routine: context ? (
+            <TimeRoutinesCell entry={entry} context={context} readOnly={!editable(entry)} label={cellLabelOf('routine', entry, 'Routines')} save={bulk('routine')} />
+          ) : (
+            labelsText(entry.routines)
+          ),
           tasks:
             context && editable(entry) ? (
               <TimeTasksCell entry={entry} context={context} readOnly={false} label={cellLabelOf('tasks', entry, 'Tâches')} save={bulk('tasks')} />
@@ -320,7 +332,7 @@ export function TimeLog({ entries, context, projectId, emptyMessage, onEdit, onD
                 ))}
               </StackedValues>
             ),
-          event: <TimeEventCell entry={entry} readOnly={!editable(entry)} label={cellLabelOf('event', entry, 'Évènement')} save={bulk('event')} />,
+          event: <TimeEventsCell entry={entry} readOnly={!editable(entry)} label={cellLabelOf('event', entry, 'Évènements')} save={bulk('event')} />,
           invoice: entry.documentId && (
             <Badge size="sm" variant="light" color={entry.documentNumber ? 'green' : 'gray'} component={Link} to={documentPath(entry.documentId)} style={{ cursor: 'pointer' }}>
               {billedText(entry)}

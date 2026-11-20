@@ -492,6 +492,17 @@ export default defineConfig([
             "ObjectExpression:has(> Property[key.name='id'][value.value='root']) > Property[key.name='children'] > ArrayExpression[elements.length=1] > ObjectExpression:has(> Property[key.name='type'][value.value='condition'])",
           message: 'Utiliser conditionFilter(champ, opérateur, valeur) ou withinFilter(champ, période) (components/data-table/views/use-data-view).',
         },
+        // Multi-select of a choices cell: one, saved once its list closes.
+        {
+          selector: "JSXOpeningElement[name.name='BatchMultiSelect']:has(> JSXSpreadAttribute[argument.name='stoppedCellCombobox'])",
+          message: 'Utiliser EditableMultiSelect, ou CellMultiSelect dans un StackedMultiCell (components/data-table/cells/EditableCells).',
+        },
+        // What a time is spent on besides its project (decision D18): one reading.
+        {
+          selector:
+            "LogicalExpression[operator='||']:has(MemberExpression[property.name='length'][object.property.name='routines']):has(MemberExpression[property.name='length'][object.property.name='taskIds'])",
+          message: 'Utiliser hasSubject(entry) ou TIME_SUBJECTS (features/time/lib/time-subjects).',
+        },
         {
           selector: "TemplateLiteral:has(> MemberExpression[property.name=/^(routineId|sprintId)$/]):has(> TemplateElement[value.raw='|'])",
           message: 'Utiliser routineLinkKey(lien) / routineLinkOf(clé) (features/calendar/lib/event-input) ou sprintTaskKey(sprint, tâche) (features/dashboards/api).',

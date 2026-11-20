@@ -1047,14 +1047,14 @@ export type TaskViewUpdateInput = {
   label?: string | null | undefined;
 };
 
-/** At least a project, a task, a routine (its project by default) or an event. */
+/** At least a project, a task, a routine (the project of the first one by default) or an event. */
 export type TimeEntryInput = {
   description?: string | null | undefined;
   /** Seconds. */
   duration: number;
-  event?: TimeEventInput | null | undefined;
+  events?: Array<TimeEventInput> | null | undefined;
   projectId?: string | number | null | undefined;
-  routineId?: string | number | null | undefined;
+  routineIds?: Array<string | number> | null | undefined;
   startedAt: string;
   taskIds: Array<string | number>;
 };
@@ -1064,12 +1064,13 @@ export type TimeEntryUpdateInput = {
   description?: string | null | undefined;
   /** Seconds. */
   duration?: number | null | undefined;
-  /** Null: no event; omitted: unchanged. */
-  event?: TimeEventInput | null | undefined;
+  /** Omitted: unchanged. */
+  events?: Array<TimeEventInput> | null | undefined;
   projectId?: string | number | null | undefined;
-  /** Null: no routine; omitted: unchanged. */
-  routineId?: string | number | null | undefined;
+  /** Omitted: unchanged. */
+  routineIds?: Array<string | number> | null | undefined;
   startedAt?: string | null | undefined;
+  /** Omitted: unchanged. */
   taskIds?: Array<string | number> | null | undefined;
 };
 
@@ -1079,12 +1080,12 @@ export type TimeEventInput = {
   occurrenceDate?: string | null | undefined;
 };
 
-/** At least a project, a task, a routine (its project by default) or an event. */
+/** At least a project, a task, a routine (the project of the first one by default) or an event. */
 export type TimerInput = {
   description?: string | null | undefined;
-  event?: TimeEventInput | null | undefined;
+  events?: Array<TimeEventInput> | null | undefined;
   projectId?: string | number | null | undefined;
-  routineId?: string | number | null | undefined;
+  routineIds?: Array<string | number> | null | undefined;
   taskIds: Array<string | number>;
 };
 
@@ -4173,7 +4174,7 @@ export type DeleteSprintMutationVariables = Exact<{
 
 export type DeleteSprintMutation = { deleteSprint: boolean };
 
-export type TimeEntryFieldsFragment = { id: string, projectId: string | null, routineId: string | null, routineLabel: string | null, description: string | null, startedAt: string, endedAt: string | null, pausedAt: string | null, pausedSeconds: number, duration: number | null, taskIds: Array<string>, documentId: string | null, documentNumber: string | null, calendarEventId: string | null, calendarOccurrenceDate: string | null, calendarEventLabel: string | null };
+export type TimeEntryFieldsFragment = { id: string, projectId: string | null, description: string | null, startedAt: string, endedAt: string | null, pausedAt: string | null, pausedSeconds: number, duration: number | null, taskIds: Array<string>, documentId: string | null, documentNumber: string | null, routines: Array<{ id: string, label: string }>, events: Array<{ eventId: string, occurrenceDate: string | null, label: string }> };
 
 export type TimeEntriesQueryVariables = Exact<{
   projectId?: string | number | null | undefined;
@@ -4181,12 +4182,12 @@ export type TimeEntriesQueryVariables = Exact<{
 }>;
 
 
-export type TimeEntriesQuery = { timeEntries: Array<{ id: string, projectId: string | null, routineId: string | null, routineLabel: string | null, description: string | null, startedAt: string, endedAt: string | null, pausedAt: string | null, pausedSeconds: number, duration: number | null, taskIds: Array<string>, documentId: string | null, documentNumber: string | null, calendarEventId: string | null, calendarOccurrenceDate: string | null, calendarEventLabel: string | null }> };
+export type TimeEntriesQuery = { timeEntries: Array<{ id: string, projectId: string | null, description: string | null, startedAt: string, endedAt: string | null, pausedAt: string | null, pausedSeconds: number, duration: number | null, taskIds: Array<string>, documentId: string | null, documentNumber: string | null, routines: Array<{ id: string, label: string }>, events: Array<{ eventId: string, occurrenceDate: string | null, label: string }> }> };
 
 export type RunningTimeEntryQueryVariables = Exact<{ [key: string]: never; }>;
 
 
-export type RunningTimeEntryQuery = { runningTimeEntry: { id: string, projectId: string | null, routineId: string | null, routineLabel: string | null, description: string | null, startedAt: string, endedAt: string | null, pausedAt: string | null, pausedSeconds: number, duration: number | null, taskIds: Array<string>, documentId: string | null, documentNumber: string | null, calendarEventId: string | null, calendarOccurrenceDate: string | null, calendarEventLabel: string | null } | null };
+export type RunningTimeEntryQuery = { runningTimeEntry: { id: string, projectId: string | null, description: string | null, startedAt: string, endedAt: string | null, pausedAt: string | null, pausedSeconds: number, duration: number | null, taskIds: Array<string>, documentId: string | null, documentNumber: string | null, routines: Array<{ id: string, label: string }>, events: Array<{ eventId: string, occurrenceDate: string | null, label: string }> } | null };
 
 export type StartTimerMutationVariables = Exact<{
   input: TimerInput;
@@ -4221,6 +4222,18 @@ export type UpdateTimeEntryMutationVariables = Exact<{
 
 
 export type UpdateTimeEntryMutation = { updateTimeEntry: { id: string } };
+
+export type TimeLostOnDeleteQueryVariables = Exact<{
+  taskIds?: Array<string | number> | string | number | null | undefined;
+  routineIds?: Array<string | number> | string | number | null | undefined;
+  withSubtree?: boolean | null | undefined;
+  eventId?: string | number | null | undefined;
+  scope?: CalendarEventScope | null | undefined;
+  occurrenceDate?: string | null | undefined;
+}>;
+
+
+export type TimeLostOnDeleteQuery = { timeLostOnDelete: number };
 
 export type DeleteTimeEntryMutationVariables = Exact<{
   id: string | number;
@@ -5178,8 +5191,10 @@ export const TimeEntryFieldsFragmentDoc = new TypedDocumentString(`
     fragment TimeEntryFields on TimeEntry {
   id
   projectId
-  routineId
-  routineLabel
+  routines {
+    id
+    label
+  }
   description
   startedAt
   endedAt
@@ -5189,9 +5204,11 @@ export const TimeEntryFieldsFragmentDoc = new TypedDocumentString(`
   taskIds
   documentId
   documentNumber
-  calendarEventId
-  calendarOccurrenceDate
-  calendarEventLabel
+  events {
+    eventId
+    occurrenceDate
+    label
+  }
 }
     `, {"fragmentName":"TimeEntryFields"}) as unknown as TypedDocumentString<TimeEntryFieldsFragment, unknown>;
 export const TreasuryEntryDocumentFieldsFragmentDoc = new TypedDocumentString(`
@@ -9255,8 +9272,10 @@ export const TimeEntriesDocument = new TypedDocumentString(`
     fragment TimeEntryFields on TimeEntry {
   id
   projectId
-  routineId
-  routineLabel
+  routines {
+    id
+    label
+  }
   description
   startedAt
   endedAt
@@ -9266,9 +9285,11 @@ export const TimeEntriesDocument = new TypedDocumentString(`
   taskIds
   documentId
   documentNumber
-  calendarEventId
-  calendarOccurrenceDate
-  calendarEventLabel
+  events {
+    eventId
+    occurrenceDate
+    label
+  }
 }`) as unknown as TypedDocumentString<TimeEntriesQuery, TimeEntriesQueryVariables>;
 export const RunningTimeEntryDocument = new TypedDocumentString(`
     query RunningTimeEntry {
@@ -9279,8 +9300,10 @@ export const RunningTimeEntryDocument = new TypedDocumentString(`
     fragment TimeEntryFields on TimeEntry {
   id
   projectId
-  routineId
-  routineLabel
+  routines {
+    id
+    label
+  }
   description
   startedAt
   endedAt
@@ -9290,9 +9313,11 @@ export const RunningTimeEntryDocument = new TypedDocumentString(`
   taskIds
   documentId
   documentNumber
-  calendarEventId
-  calendarOccurrenceDate
-  calendarEventLabel
+  events {
+    eventId
+    occurrenceDate
+    label
+  }
 }`) as unknown as TypedDocumentString<RunningTimeEntryQuery, RunningTimeEntryQueryVariables>;
 export const StartTimerDocument = new TypedDocumentString(`
     mutation StartTimer($input: TimerInput!) {
@@ -9329,6 +9354,18 @@ export const UpdateTimeEntryDocument = new TypedDocumentString(`
   }
 }
     `) as unknown as TypedDocumentString<UpdateTimeEntryMutation, UpdateTimeEntryMutationVariables>;
+export const TimeLostOnDeleteDocument = new TypedDocumentString(`
+    query TimeLostOnDelete($taskIds: [ID!], $routineIds: [ID!], $withSubtree: Boolean, $eventId: ID, $scope: CalendarEventScope, $occurrenceDate: Date) {
+  timeLostOnDelete(
+    taskIds: $taskIds
+    routineIds: $routineIds
+    withSubtree: $withSubtree
+    eventId: $eventId
+    scope: $scope
+    occurrenceDate: $occurrenceDate
+  )
+}
+    `) as unknown as TypedDocumentString<TimeLostOnDeleteQuery, TimeLostOnDeleteQueryVariables>;
 export const DeleteTimeEntryDocument = new TypedDocumentString(`
     mutation DeleteTimeEntry($id: ID!) {
   deleteTimeEntry(id: $id)

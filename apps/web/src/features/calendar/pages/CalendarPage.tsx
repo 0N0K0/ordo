@@ -34,7 +34,7 @@ import { useTaskLink } from '../../tasks/hooks/use-task-link';
 import { useTimeEntriesSince } from '../../time/api';
 import { useNow } from '../../../lib/use-now';
 import { useTimeEntryDialogs } from '../../time/hooks/use-time-dialogs';
-import { entryEventKey } from '../../time/lib/time-events';
+import { entryEventKeys } from '../../time/lib/time-events';
 import { entrySubject } from '../../time/lib/entry-subject';
 import {
   useCalendarCategories,
@@ -285,9 +285,15 @@ export function CalendarPage() {
         const color = project?.color ?? 'var(--mantine-color-gray-6)';
         const stop = end > start ? end : new Date(start.getTime() + 60_000);
         let parts: [Date, Date][] = [[start, stop]];
-        const key = entryEventKey(entry);
-        const occurrence = key ? occurrenceByKey.get(key) : undefined;
-        if (occurrence && !occurrence.allDay) {
+        // Its events (several, decision D18): the time shows outside each of them, nothing of it beside an all-day one.
+        const occurrences = entryEventKeys(entry)
+          .map((key) => occurrenceByKey.get(key))
+          .filter((occurrence) => occurrence !== undefined);
+        for (const occurrence of occurrences) {
+          if (occurrence.allDay) {
+            parts = [];
+            break;
+          }
           const eventStart = new Date(occurrence.start);
           const eventEnd = new Date(occurrence.end);
           parts = parts.flatMap(
@@ -297,11 +303,12 @@ export function CalendarPage() {
                 [new Date(Math.max(from.getTime(), eventEnd.getTime())), to],
               ].filter(([partStart, partEnd]) => partEnd.getTime() - partStart.getTime() >= 60_000) as [Date, Date][],
           );
-        } else if (occurrence?.allDay) parts = [];
+        }
+        const outside = occurrences.length ? `Hors ${occurrences.map((occurrence) => `« ${occurrence.label} »`).join(', ')} · ` : '';
         parts.forEach(([partStart, partEnd], index) =>
           result.push({
             id: `time:${entry.id}:${index}`,
-            title: `${running ? '● ' : ''}${occurrence ? `Hors « ${occurrence.label} » · ` : ''}${entrySubject(entry, context)}${entry.description ? ` — ${entry.description}` : ''} (${formatDuration(entrySeconds(entry, minute * 60_000))})`,
+            title: `${running ? '● ' : ''}${outside}${entrySubject(entry, context)}${entry.description ? ` — ${entry.description}` : ''} (${formatDuration(entrySeconds(entry, minute * 60_000))})`,
             start: partStart,
             end: partEnd,
             editable: false,

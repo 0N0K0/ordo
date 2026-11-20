@@ -7,6 +7,7 @@ import { formCallbacks } from '../../../lib/form';
 import { countWith, plural } from '../../../lib/text';
 import { useRoutineMutations, type Routine } from '../api';
 import { routinesLabel } from '../lib/routine-cell-edit';
+import { TimeLostRisk } from '../../time/components/TimeLostRisk';
 
 interface DeleteRoutinesDialogProps {
   /** Routines deleted. */
@@ -19,7 +20,7 @@ interface DeleteRoutinesDialogProps {
 
 /**
  * Deletion of routines, confirmed, as that of tasks: with sub-routines not deleted with them, asks whether to keep them
- * (moved up a level) or delete them too.
+ * (moved up a level) or delete them too; tells the times without project deleted with them (extra A of decision D17).
  * @param {DeleteRoutinesDialogProps} props Component props.
  * @returns {JSX.Element} Dialog content.
  */
@@ -47,8 +48,9 @@ export function DeleteRoutinesDialog({ routines, all, onDone }: DeleteRoutinesDi
     <Stack gap="md">
       <DestructiveRisks>
         {single
-          ? `« ${single.label} » sera supprimée définitivement avec l’historique de ses coches ; le temps chronométré reste, sans routine. Pour la retirer sans perdre ses données, archivez-la plutôt.`
-          : `${label} seront supprimées définitivement avec l’historique de leurs coches ; le temps chronométré reste, sans routine. Pour les retirer sans perdre leurs données, archivez-les plutôt.`}
+          ? `« ${single.label} » sera supprimée définitivement avec l’historique de ses coches ; le temps chronométré reste, sans elle. Pour la retirer sans perdre ses données, archivez-la plutôt.`
+          : `${label} seront supprimées définitivement avec l’historique de leurs coches ; le temps chronométré reste, sans elles. Pour les retirer sans perdre leurs données, archivez-les plutôt.`}
+        <TimeLostRisk query={{ routineIds: [...selected], withSubtree: mode === 'delete' }} />
       </DestructiveRisks>
       {subRoutines > 0 && (
         <CascadeChoice

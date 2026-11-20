@@ -12,7 +12,7 @@ Source : `apps/api/src/services/calendar/calendars.ts`, schéma `calendarFormSch
 - Création : en dernière position (`nextPositionIn('calendar')`).
 - Modification : refusée si archivé (`ARCHIVED_MESSAGE` « Élément archivé : restaurez-le pour le modifier. »).
 - Calendrier par défaut d’un évènement (`resolveCalendarId`) : celui demandé (doit exister dans l’espace, sinon « Calendrier » introuvable), sinon le premier non archivé (ordre de position) ; s’il n’y en a aucun, un calendrier est créé au nom de l’espace, couleur `#228be6`.
-- Suppression : supprime ses évènements (cascade base) et les abonnements des autres espaces ; refusée pour le dernier calendrier de l’espace : « Le dernier calendrier ne peut pas être supprimé. ». Les temps suivis sur ses évènements restent, sans lien (`TimeEntry.calendarEvent`, `onDelete: SetNull`).
+- Suppression : supprime ses évènements (cascade base) et les abonnements des autres espaces ; refusée pour le dernier calendrier de l’espace : « Le dernier calendrier ne peut pas être supprimé. ». Les temps suivis sur ses évènements restent, sans eux (`TimeEntryEvent`, `onDelete: Cascade`), sauf ceux sans projet qui ne portent plus sur rien, supprimés avant (`releaseSubjectTime`, voir [Temps](time.md#suppression-de-ce-sur-quoi-porte-le-temps)) ; un temps facturé est toujours gardé.
 - Archivage : par la mutation générique `setArchived` (genre `CALENDAR`, liste de paramètres). Un calendrier archivé ne prend aucun nouvel évènement et rend ses évènements non modifiables (voir plus bas). Voir [Archivage](../cross-cutting/archiving.md).
 - Ordre : `BY_POSITION` (voir [Ordre](../cross-cutting/ordering.md)).
 
@@ -95,6 +95,8 @@ Suppression (`deleteCalendarEvent`) :
 - `THIS` : exception marquée `cancelled` (l’occurrence n’apparaît plus) ;
 - `FOLLOWING` : la série s’arrête la veille (`endSeriesBefore`).
 
+Avant, les temps des occurrences supprimées les perdent ; ceux sans projet qui ne portent plus sur rien sont supprimés (`goneOccurrences`, `releaseSubjectTime`), sauf les facturés ; la confirmation en donne le nombre pour chaque choix (`timeLostOnDelete`). Voir [Temps](time.md#suppression-de-ce-sur-quoi-porte-le-temps).
+
 Annulation / rétablissement (`setEventCalledOff`) — l’évènement reste affiché, barré :
 
 - unique ou `ALL` : drapeau de l’évènement et de toutes ses exceptions ;
@@ -115,7 +117,7 @@ Report (`postponeCalendarEvent`) :
 - Durée d’une occurrence : celle de la règle (`duration` en semaines, mois, jusqu’au jour/semaine/mois…), sinon celle de l’évènement ; une exception donne ses propres dates.
 - Instants : heures de Paris (`zonedInstant` avec `Europe/Paris`) : un évènement n’a plus de fuseau propre (décision D7) ; les évènements créés dans un autre fuseau gardent leurs heures telles qu’écrites, lues en heure de Paris ; journée entière : minuit UTC des dates, fin = lendemain du dernier jour.
 - `calledOff` : celui de l’évènement ou de l’exception.
-- `trackedSeconds` : somme des temps suivis sur cette occurrence (chronos en cours jusqu’à maintenant).
+- `trackedSeconds` : somme des temps suivis sur cette occurrence (chronos en cours jusqu’à maintenant), chacun divisé par le nombre d’évènements du temps (décision D18).
 - `postponedTo` : reports de cette occurrence ; `postponedFrom` : origine du report.
 - `archived` : l’évènement (sa série) est archivé. Le paramètre `activeOnly` (calendriers abonnés, disponibilité) exclut les évènements archivés et ceux des calendriers archivés.
 

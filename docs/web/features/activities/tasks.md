@@ -97,7 +97,7 @@ Dialogues sur une ou plusieurs tâches (props `TasksDialogProps`), ouverts par `
 
 | Nom                   | Rôle                                                                                                                                                                           |
 | --------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| `DeleteTasksDialog`   | Confirmation destructive ; choix pour les sous-tâches (`CascadeChoice` : remonter ou supprimer) ; ferme le panneau si la tâche ouverte est supprimée.                          |
+| `DeleteTasksDialog`   | Confirmation destructive ; choix pour les sous-tâches (`CascadeChoice` : remonter ou supprimer) ; temps sans projet supprimés avec elles (`TimeLostRisk`, selon le choix) ; ferme le panneau si la tâche ouverte est supprimée. |
 | `TransferTasksDialog` | Projet de destination ou « Sans projet » ; avertissement de sortie d’arborescence ; annulation (`useBulkUndo().transfer`) seulement sans lien retiré. Interne : `movedLevels`. |
 | `CloneTasksDialog`    | Clone chaque tâche du haut de la sélection avec ses sous-tâches (`outermost`) ; ouvre un clone unique.                                                                         |
 

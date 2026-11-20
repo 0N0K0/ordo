@@ -414,7 +414,7 @@ type Documents = {
     "\n  mutation CreateSprint($projectId: ID!, $input: SprintInput!) {\n    createSprint(projectId: $projectId, input: $input)\n  }\n": typeof types.CreateSprintDocument,
     "\n  mutation UpdateSprint($id: ID!, $input: SprintInput!) {\n    updateSprint(id: $id, input: $input)\n  }\n": typeof types.UpdateSprintDocument,
     "\n  mutation DeleteSprint($id: ID!) {\n    deleteSprint(id: $id)\n  }\n": typeof types.DeleteSprintDocument,
-    "\n  fragment TimeEntryFields on TimeEntry {\n    id\n    projectId\n    routineId\n    routineLabel\n    description\n    startedAt\n    endedAt\n    pausedAt\n    pausedSeconds\n    duration\n    taskIds\n    documentId\n    documentNumber\n    calendarEventId\n    calendarOccurrenceDate\n    calendarEventLabel\n  }\n": typeof types.TimeEntryFieldsFragmentDoc,
+    "\n  fragment TimeEntryFields on TimeEntry {\n    id\n    projectId\n    routines {\n      id\n      label\n    }\n    description\n    startedAt\n    endedAt\n    pausedAt\n    pausedSeconds\n    duration\n    taskIds\n    documentId\n    documentNumber\n    events {\n      eventId\n      occurrenceDate\n      label\n    }\n  }\n": typeof types.TimeEntryFieldsFragmentDoc,
     "\n  query TimeEntries($projectId: ID, $since: DateTime) {\n    timeEntries(projectId: $projectId, since: $since) {\n      ...TimeEntryFields\n    }\n  }\n": typeof types.TimeEntriesDocument,
     "\n  query RunningTimeEntry {\n    runningTimeEntry {\n      ...TimeEntryFields\n    }\n  }\n": typeof types.RunningTimeEntryDocument,
     "\n  mutation StartTimer($input: TimerInput!) {\n    startTimer(input: $input) {\n      id\n    }\n  }\n": typeof types.StartTimerDocument,
@@ -422,6 +422,7 @@ type Documents = {
     "\n  mutation StopTimer {\n    stopTimer {\n      id\n    }\n  }\n": typeof types.StopTimerDocument,
     "\n  mutation CreateTimeEntry($input: TimeEntryInput!) {\n    createTimeEntry(input: $input) {\n      id\n    }\n  }\n": typeof types.CreateTimeEntryDocument,
     "\n  mutation UpdateTimeEntry($id: ID!, $input: TimeEntryUpdateInput!) {\n    updateTimeEntry(id: $id, input: $input) {\n      id\n    }\n  }\n": typeof types.UpdateTimeEntryDocument,
+    "\n  query TimeLostOnDelete($taskIds: [ID!], $routineIds: [ID!], $withSubtree: Boolean, $eventId: ID, $scope: CalendarEventScope, $occurrenceDate: Date) {\n    timeLostOnDelete(taskIds: $taskIds, routineIds: $routineIds, withSubtree: $withSubtree, eventId: $eventId, scope: $scope, occurrenceDate: $occurrenceDate)\n  }\n": typeof types.TimeLostOnDeleteDocument,
     "\n  mutation DeleteTimeEntry($id: ID!) {\n    deleteTimeEntry(id: $id)\n  }\n": typeof types.DeleteTimeEntryDocument,
     "\n  fragment TreasuryEntryFields on TreasuryEntry {\n    id\n    archived\n    accountId\n    accountLabel\n    status\n    date\n    valueDate\n    label\n    amount\n    categoryId\n    methodId\n    methodLabel\n    clientId\n    counterpartyId\n    payerName\n    linkedEntries {\n      id\n      date\n      label\n      amount\n      status\n    }\n    projectId\n    note\n    url\n    recurrence\n    lines {\n      id\n      label\n      mode\n      value\n      memberId\n      relationId\n      loan\n      date\n      categoryId\n      contextId\n      projectId\n      documents {\n        ...TreasuryEntryDocumentFields\n      }\n      linkedLines {\n        id\n        entryId\n        entryLabel\n        date\n        label\n        amount\n        status\n      }\n      linkedEntries {\n        id\n        date\n        label\n        amount\n        status\n      }\n    }\n    linkedByLines {\n      id\n      entryId\n      entryLabel\n      date\n      label\n      amount\n      status\n    }\n    allocations {\n      id\n      amount\n      documentId\n      importedDocumentId\n      documentLabel\n    }\n    documents {\n      ...TreasuryEntryDocumentFields\n    }\n  }\n": typeof types.TreasuryEntryFieldsFragmentDoc,
     "\n  fragment TreasuryEntryDocumentFields on TreasuryEntryDocument {\n    id\n    source\n    kind\n    label\n    url\n    projectId\n    place\n  }\n": typeof types.TreasuryEntryDocumentFieldsFragmentDoc,
@@ -875,7 +876,7 @@ const documents: Documents = {
     "\n  mutation CreateSprint($projectId: ID!, $input: SprintInput!) {\n    createSprint(projectId: $projectId, input: $input)\n  }\n": types.CreateSprintDocument,
     "\n  mutation UpdateSprint($id: ID!, $input: SprintInput!) {\n    updateSprint(id: $id, input: $input)\n  }\n": types.UpdateSprintDocument,
     "\n  mutation DeleteSprint($id: ID!) {\n    deleteSprint(id: $id)\n  }\n": types.DeleteSprintDocument,
-    "\n  fragment TimeEntryFields on TimeEntry {\n    id\n    projectId\n    routineId\n    routineLabel\n    description\n    startedAt\n    endedAt\n    pausedAt\n    pausedSeconds\n    duration\n    taskIds\n    documentId\n    documentNumber\n    calendarEventId\n    calendarOccurrenceDate\n    calendarEventLabel\n  }\n": types.TimeEntryFieldsFragmentDoc,
+    "\n  fragment TimeEntryFields on TimeEntry {\n    id\n    projectId\n    routines {\n      id\n      label\n    }\n    description\n    startedAt\n    endedAt\n    pausedAt\n    pausedSeconds\n    duration\n    taskIds\n    documentId\n    documentNumber\n    events {\n      eventId\n      occurrenceDate\n      label\n    }\n  }\n": types.TimeEntryFieldsFragmentDoc,
     "\n  query TimeEntries($projectId: ID, $since: DateTime) {\n    timeEntries(projectId: $projectId, since: $since) {\n      ...TimeEntryFields\n    }\n  }\n": types.TimeEntriesDocument,
     "\n  query RunningTimeEntry {\n    runningTimeEntry {\n      ...TimeEntryFields\n    }\n  }\n": types.RunningTimeEntryDocument,
     "\n  mutation StartTimer($input: TimerInput!) {\n    startTimer(input: $input) {\n      id\n    }\n  }\n": types.StartTimerDocument,
@@ -883,6 +884,7 @@ const documents: Documents = {
     "\n  mutation StopTimer {\n    stopTimer {\n      id\n    }\n  }\n": types.StopTimerDocument,
     "\n  mutation CreateTimeEntry($input: TimeEntryInput!) {\n    createTimeEntry(input: $input) {\n      id\n    }\n  }\n": types.CreateTimeEntryDocument,
     "\n  mutation UpdateTimeEntry($id: ID!, $input: TimeEntryUpdateInput!) {\n    updateTimeEntry(id: $id, input: $input) {\n      id\n    }\n  }\n": types.UpdateTimeEntryDocument,
+    "\n  query TimeLostOnDelete($taskIds: [ID!], $routineIds: [ID!], $withSubtree: Boolean, $eventId: ID, $scope: CalendarEventScope, $occurrenceDate: Date) {\n    timeLostOnDelete(taskIds: $taskIds, routineIds: $routineIds, withSubtree: $withSubtree, eventId: $eventId, scope: $scope, occurrenceDate: $occurrenceDate)\n  }\n": types.TimeLostOnDeleteDocument,
     "\n  mutation DeleteTimeEntry($id: ID!) {\n    deleteTimeEntry(id: $id)\n  }\n": types.DeleteTimeEntryDocument,
     "\n  fragment TreasuryEntryFields on TreasuryEntry {\n    id\n    archived\n    accountId\n    accountLabel\n    status\n    date\n    valueDate\n    label\n    amount\n    categoryId\n    methodId\n    methodLabel\n    clientId\n    counterpartyId\n    payerName\n    linkedEntries {\n      id\n      date\n      label\n      amount\n      status\n    }\n    projectId\n    note\n    url\n    recurrence\n    lines {\n      id\n      label\n      mode\n      value\n      memberId\n      relationId\n      loan\n      date\n      categoryId\n      contextId\n      projectId\n      documents {\n        ...TreasuryEntryDocumentFields\n      }\n      linkedLines {\n        id\n        entryId\n        entryLabel\n        date\n        label\n        amount\n        status\n      }\n      linkedEntries {\n        id\n        date\n        label\n        amount\n        status\n      }\n    }\n    linkedByLines {\n      id\n      entryId\n      entryLabel\n      date\n      label\n      amount\n      status\n    }\n    allocations {\n      id\n      amount\n      documentId\n      importedDocumentId\n      documentLabel\n    }\n    documents {\n      ...TreasuryEntryDocumentFields\n    }\n  }\n": types.TreasuryEntryFieldsFragmentDoc,
     "\n  fragment TreasuryEntryDocumentFields on TreasuryEntryDocument {\n    id\n    source\n    kind\n    label\n    url\n    projectId\n    place\n  }\n": types.TreasuryEntryDocumentFieldsFragmentDoc,
@@ -2536,7 +2538,7 @@ export function graphql(source: "\n  mutation DeleteSprint($id: ID!) {\n    dele
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */
-export function graphql(source: "\n  fragment TimeEntryFields on TimeEntry {\n    id\n    projectId\n    routineId\n    routineLabel\n    description\n    startedAt\n    endedAt\n    pausedAt\n    pausedSeconds\n    duration\n    taskIds\n    documentId\n    documentNumber\n    calendarEventId\n    calendarOccurrenceDate\n    calendarEventLabel\n  }\n"): typeof import('./graphql').TimeEntryFieldsFragmentDoc;
+export function graphql(source: "\n  fragment TimeEntryFields on TimeEntry {\n    id\n    projectId\n    routines {\n      id\n      label\n    }\n    description\n    startedAt\n    endedAt\n    pausedAt\n    pausedSeconds\n    duration\n    taskIds\n    documentId\n    documentNumber\n    events {\n      eventId\n      occurrenceDate\n      label\n    }\n  }\n"): typeof import('./graphql').TimeEntryFieldsFragmentDoc;
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */
@@ -2565,6 +2567,10 @@ export function graphql(source: "\n  mutation CreateTimeEntry($input: TimeEntryI
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */
 export function graphql(source: "\n  mutation UpdateTimeEntry($id: ID!, $input: TimeEntryUpdateInput!) {\n    updateTimeEntry(id: $id, input: $input) {\n      id\n    }\n  }\n"): typeof import('./graphql').UpdateTimeEntryDocument;
+/**
+ * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
+ */
+export function graphql(source: "\n  query TimeLostOnDelete($taskIds: [ID!], $routineIds: [ID!], $withSubtree: Boolean, $eventId: ID, $scope: CalendarEventScope, $occurrenceDate: Date) {\n    timeLostOnDelete(taskIds: $taskIds, routineIds: $routineIds, withSubtree: $withSubtree, eventId: $eventId, scope: $scope, occurrenceDate: $occurrenceDate)\n  }\n"): typeof import('./graphql').TimeLostOnDeleteDocument;
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */

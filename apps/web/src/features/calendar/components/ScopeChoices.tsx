@@ -14,6 +14,8 @@ export interface ScopeQuestion {
   allowAll?: boolean;
   /** Title instead of the one of a recurring event. Optional. */
   title?: string;
+  /** What else the change takes (times deleted with the occurrences…), after the question. Optional. */
+  note?: string;
 }
 
 /**
@@ -21,7 +23,7 @@ export interface ScopeQuestion {
  * @param {ScopeQuestion & { onAnswer: (scope: CalendarEventScope | null) => void }} props Question and answer handler.
  * @returns {JSX.Element} Choices.
  */
-export function ScopeChoices({ action, allowThis = true, allowFollowing = true, allowAll = true, onAnswer }: ScopeQuestion & { onAnswer: (scope: CalendarEventScope | null) => void }) {
+export function ScopeChoices({ action, allowThis = true, allowFollowing = true, allowAll = true, note, onAnswer }: ScopeQuestion & { onAnswer: (scope: CalendarEventScope | null) => void }) {
   const remove = action === 'delete';
   // Each answer applies the change: filled, red for a deletion (decision CN).
   const icon = remove ? <TrashIcon aria-hidden /> : action === 'cancel' ? <ProhibitIcon aria-hidden /> : action === 'restore' ? <ArrowCounterClockwiseIcon aria-hidden /> : <CheckIcon aria-hidden />;
@@ -36,6 +38,7 @@ export function ScopeChoices({ action, allowThis = true, allowFollowing = true, 
               ? 'Quelles occurrences rétablir ?'
               : 'À quelles occurrences appliquer la modification ?'}
         {!allowThis && ' La répétition a changé : elle ne peut pas s’appliquer à une seule occurrence.'}
+        {note && ` ${note}`}
       </Text>
       <Stack gap="xs">
         {allowThis && (

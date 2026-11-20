@@ -65,6 +65,7 @@ model Workspace {
   libraryDocuments          LibraryDocument[]
   attachments               Attachment[]
   timeEntries               TimeEntry[]
+  timeEntryEvents           TimeEntryEvent[]
   alarms                    Alarm[]
   mailAccounts              MailAccount[]
   mailMessages              MailMessage[]
@@ -1075,48 +1076,61 @@ model Attachment {
 
 /// Tracked time on a project, optionally spent on tasks (shared equally between them).
 model TimeEntry {
-  id                     String              @id @default(cuid())
+  id            String              @id @default(cuid())
   /// Project the time is spent on, if any (a time has at least a project, a task, a routine or an event, decision D17).
   /// A deleted project leaves its time without project; the API first deletes the time left with nothing attached.
-  projectId              String?
-  project                Project?            @relation(fields: [projectId], references: [id], onDelete: SetNull)
-  /// Routine the time is spent on.
-  routineId              String?
-  routine                Routine?            @relation(fields: [routineId], references: [id], onDelete: SetNull)
+  projectId     String?
+  project       Project?            @relation(fields: [projectId], references: [id], onDelete: SetNull)
+  /// Routines the time is spent on (several, decision D18).
+  routines      Routine[]
   /// What was done (plain text, several lines).
-  description            String?
-  startedAt              DateTime
+  description   String?
+  startedAt     DateTime
   /// Null while the timer runs (a single entry runs at a time).
-  endedAt                DateTime?
+  endedAt       DateTime?
   /// Start of the current pause, while paused.
-  pausedAt               DateTime?
+  pausedAt      DateTime?
   /// Paused time before the current pause, in seconds.
-  pausedSeconds          Int                 @default(0)
+  pausedSeconds Int                 @default(0)
   /// Effective duration in seconds (pauses excluded), set once stopped.
-  duration               Int?
+  duration      Int?
   /// Invoice (draft or final) the time is billed on.
-  documentId             String?
-  document               AccountingDocument? @relation(fields: [documentId], references: [id], onDelete: SetNull)
-  /// Calendar event the time was spent on (its occurrence `calendarOccurrenceDate` for a recurring one): the
-  /// calendar only shows the part of the time outside the event.
-  calendarEventId        String?
-  calendarEvent          CalendarEvent?      @relation(fields: [calendarEventId], references: [id], onDelete: SetNull)
-  calendarOccurrenceDate DateTime?           @db.Date
-  createdAt              DateTime            @default(now())
-  updatedAt              DateTime            @updatedAt
-  tasks                  Task[]
+  documentId    String?
+  document      AccountingDocument? @relation(fields: [documentId], references: [id], onDelete: SetNull)
+  /// Calendar events (occurrences) the time was spent on (several, decision D18): the calendar only shows the part
+  /// of the time outside them.
+  events        TimeEntryEvent[]
+  createdAt     DateTime            @default(now())
+  updatedAt     DateTime            @updatedAt
+  tasks         Task[]
   /// Comments (markdown).
-  comments               Comment[]
+  comments      Comment[]
   /// Workspace the row belongs to (always given by the app; the default fails outside one).
-  workspaceId            String              @default(dbgenerated("current_setting('ordo.workspace'::text)"))
-  workspace              Workspace           @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  workspaceId   String              @default(dbgenerated("current_setting('ordo.workspace'::text)"))
+  workspace     Workspace           @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
 
   @@index([projectId])
-  @@index([routineId])
-  @@index([calendarEventId])
   @@index([startedAt])
   @@index([endedAt])
   @@index([documentId])
+  @@index([workspaceId])
+}
+
+/// Calendar event (and occurrence of a recurring one) a time is spent on (decision D18).
+model TimeEntryEvent {
+  id             String        @id @default(cuid())
+  timeEntryId    String
+  timeEntry      TimeEntry     @relation(fields: [timeEntryId], references: [id], onDelete: Cascade)
+  eventId        String
+  event          CalendarEvent @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  /// Occurrence of a recurring event (null for a one-off event).
+  occurrenceDate DateTime?     @db.Date
+  /// Workspace the row belongs to (always given by the app; the default fails outside one).
+  workspaceId    String        @default(dbgenerated("current_setting('ordo.workspace'::text)"))
+  workspace      Workspace     @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+
+  @@index([timeEntryId])
+  @@index([eventId])
   @@index([workspaceId])
 }
 
@@ -1456,8 +1470,8 @@ model CalendarEvent {
   postponedFrom        CalendarEvent?           @relation("EventPostponement", fields: [postponedFromId], references: [id], onDelete: SetNull)
   postponedFromDate    DateTime?                @db.Date
   postponements        CalendarEvent[]          @relation("EventPostponement")
-  /// Times tracked on the event.
-  timeEntries          TimeEntry[]
+  /// Times tracked on the event (its occurrences).
+  timeEntryLinks       TimeEntryEvent[]
   /// Tasks the event is about.
   tasks                Task[]                   @relation("CalendarEventTasks")
   /// Routines of a day the event is about (their occurrence of that day is done during it).

@@ -5,13 +5,15 @@ import { addressOf, locationOf, type ItemLocation } from '../lib/location';
 /**
  * Location of an existing item typed in place (task panel, « Lieu » cell of a table), the same everywhere: saved once a
  * proposed address is chosen or the map clicked (with its point), when the text is cleared, or on leaving the field
- * for a free text typed alone; nothing saved when the location is unchanged.
+ * for a free text typed alone; nothing saved when the location is unchanged, but on a selection of several rows (the
+ * other rows take the location of the one clicked).
  * @param {ItemLocation} item Task or routine (its saved location).
  * @param {(change: ItemLocation) => void} save Saves a change of the location (null: none, its point too).
+ * @param {boolean} [several] The change applies to several rows (a cell selection). Optional. Default = false.
  * @returns {{ value: AddressValue, onChange: (value: AddressValue) => void, leave: () => void }} Value of the field, its
  *   change handler, and what to call on leaving the field (saves the free text, then drops the draft).
  */
-export function useLocationDraft(item: ItemLocation, save: (change: ItemLocation) => void) {
+export function useLocationDraft(item: ItemLocation, save: (change: ItemLocation) => void, several = false) {
   const [draft, setDraft] = useState<AddressValue | null>(null);
 
   /**
@@ -21,7 +23,7 @@ export function useLocationDraft(item: ItemLocation, save: (change: ItemLocation
    */
   const commit = (value: AddressValue) => {
     const change = { ...locationOf(value), location: value.text.trim() || null };
-    if (change.location !== item.location || change.locationLat !== item.locationLat || change.locationLon !== item.locationLon) save(change);
+    if (several || change.location !== item.location || change.locationLat !== item.locationLat || change.locationLon !== item.locationLon) save(change);
   };
 
   return {

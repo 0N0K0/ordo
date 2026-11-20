@@ -138,7 +138,7 @@ Interne : `RoutineRowsActions`.
 
 | Export                                            | Rôle                                                                                                                                                                                                                           |
 | ------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| `DeleteRoutinesDialog({ routines, all, onDone })` | Confirmation de la suppression de routines, comme celle des tâches (`DestructiveRisks`, `CascadeChoice`, `DestructiveActions`) : avec des sous-routines non supprimées avec elles, les conserver (remontées) ou les supprimer. |
+| `DeleteRoutinesDialog({ routines, all, onDone })` | Confirmation de la suppression de routines, comme celle des tâches (`DestructiveRisks`, `CascadeChoice`, `DestructiveActions`) : avec des sous-routines non supprimées avec elles, les conserver (remontées) ou les supprimer ; les temps sans projet supprimés avec elles (`TimeLostRisk`, selon le choix). |
 
 ### `components/routine-cells.tsx`
 
@@ -178,7 +178,7 @@ Interne : `hasOwnTimes(routine)`.
 | Export                                                | Rôle                                                                                      |
 | ----------------------------------------------------- | ----------------------------------------------------------------------------------------- |
 | `StateCell({ routine, today, doable })`               | Badge d'état (« Fait », « Depuis … », date à venir, ou `DueBadge`) et flèche d'exception. |
-| `ChronoCell({ routine, running })`                    | `TimerToggle` et temps passé (ou chrono en cours).                                        |
+| `ChronoCell({ routine, running })`                    | `TimerToggle` (chrono démarré sur `routineIds: [id]`) et temps passé (ou chrono en cours, s’il porte sur la routine). |
 | `AddRoutineRow({ categoryId, projectId, groupName })` | Ligne d'ajout : routine quotidienne dès aujourd'hui.                                      |
 
 Interne : `DueBadge` (« Après … », « Partir maintenant », « Aujourd'hui … », rafraîchi chaque minute).
