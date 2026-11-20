@@ -6,14 +6,14 @@ import { useSearchParam } from '../../../lib/search-params';
 import { tasksQueryKey } from '../../tasks/api';
 import { TASK_PARAM, useTaskLink } from '../../tasks/hooks/use-task-link';
 import { fetchRoutine, useRoutineMutations } from '../api';
-import { openRoutineForm } from '../lib/open-routine-form';
+import { closeRoutinePanels, openRoutineForm } from '../lib/open-routine-form';
 
 /**
  * « Transformer en routine » / « Transformer en tâche » (lot 15), the entries of the « … » menus of a task and of a
  * routine (table row and panel): refused while the item has sub-items (the entry disabled, with why); asked with the
- * destructive confirmation listing what is lost (`conversionDialog`); once done, the item's panel closes and the new
- * item's opens (as « Dupliquer » opens the copy).
- * @returns {{ toRoutine: (task: { id: string }, hasChildren: boolean) => RowAction, toTask: (routine: { id: string }, hasChildren: boolean, onDone?: () => void) => RowAction }} Entries.
+ * destructive confirmation listing what is lost (`conversionDialog`); once done, the panel still open on the item (from
+ * its row or its panel) closes and the new item's opens (as « Dupliquer » opens the copy).
+ * @returns {{ toRoutine: (task: { id: string }, hasChildren: boolean) => RowAction, toTask: (routine: { id: string }, hasChildren: boolean) => RowAction }} Entries.
  */
 export function useConvertActivity() {
   const { convertTask, convertToTask } = useRoutineMutations();
@@ -44,10 +44,9 @@ export function useConvertActivity() {
      * Entry turning a routine into a task; the task panel opens.
      * @param {{ id: string }} routine Routine (not archived).
      * @param {boolean} hasChildren It has sub-routines (refused).
-     * @param {() => void} [onDone] Closes the panel of the routine, when the entry is in it. Optional.
      * @returns {RowAction} Entry.
      */
-    toTask: (routine: { id: string }, hasChildren: boolean, onDone?: () => void): RowAction => ({
+    toTask: (routine: { id: string }, hasChildren: boolean): RowAction => ({
       label: 'Transformer en tâche',
       icon: <CheckSquareIcon aria-hidden />,
       disabled: hasChildren || convertToTask.isPending,
@@ -55,7 +54,7 @@ export function useConvertActivity() {
       onClick: () =>
         void convertToTask.mutateAsync(routine.id).then(async (taskId) => {
           notifySuccess('Routine transformée en tâche.');
-          onDone?.();
+          closeRoutinePanels([routine.id]);
           // The new task in the tasks first: its panel finds it.
           await queryClient.invalidateQueries({ queryKey: tasksQueryKey });
           link.open(taskId);

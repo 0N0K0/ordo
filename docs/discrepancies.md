@@ -41,7 +41,6 @@ L’API accepte ce que l’interface empêche.
 - **Commentaires d’un mail :** sans clé étrangère, ils ne sont pas supprimés avec le mail, et le mail n’est pas vérifié à l’ajout (seul un identifiant vide est refusé). Voir [Règles des commentaires](business-rules/cross-cutting/comments.md).
 - **Alarme de durée du chrono :** elle compte tout chrono en cours, sans vérifier qu’il porte sur sa tâche ou son projet. Voir [Règles des alarmes](business-rules/activities/alarms.md).
 - **PDF des documents :** la forme juridique, le capital et l’immatriculation du profil de la société ne sont pas imprimés, alors que les réglages « Ma société » les présentent comme imprimés et que le commentaire du pied de page parle d’« identité légale ». Voir [Règles de la facturation](business-rules/finances/accounting.md) et [Réglages](features/cross-cutting/settings.md).
-- **Routine transformée en tâche depuis le tableau, son panneau ouvert :** « Transformer en tâche » du menu d'une ligne ne ferme pas un panneau déjà ouvert sur cette routine (celui du menu « … » du panneau, si) : le panneau reste sur la routine supprimée jusqu'à sa fermeture. Voir [Routines](features/activities/routines.md#menu-dune-routine).
 - **Message du tableau des tâches vide :** « Créez d’abord un projet : chaque tâche appartient à un projet. », alors que des tâches sans projet existent. Voir [Tâches](features/activities/tasks.md).
 
 ## Documentation à mettre à jour ou à compléter

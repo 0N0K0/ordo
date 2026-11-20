@@ -104,10 +104,12 @@ Une routine se déplace par glisser-déposer, comme une tâche : avant une autre
 - « Archiver » / « Restaurer ».
 - « Supprimer ».
 
-« Transformer en tâche » est aussi dans le menu « … » du panneau d’une routine existante (en haut, à côté de « Enregistré »). Il remplace la routine par une tâche :
+Le panneau d’une routine existante a aussi un menu « … » (en haut, à côté de « Enregistré »), comme celui d’une tâche : « Dupliquer », « Transformer en tâche », « Archiver », « Supprimer » ; archivée : « Restaurer », « Supprimer ». Ce sont les mêmes actions que celles de sa ligne (même confirmation de suppression, avec le choix pour ses sous-routines) ; après « Supprimer », le panneau se ferme (supprimée depuis sa ligne ou la sélection aussi).
+
+« Transformer en tâche » remplace la routine par une tâche :
 
 - Confirmation destructive « Transformer en tâche » : « La routine est remplacée par une tâche « À faire », datée par son occurrence en cours : elle en reçoit les commentaires, la liste à cocher et les évènements ; ses temps et ses fiches la suivent. », puis « Elle perd : » et la liste, avec les nombres (« sa répétition », « l’historique de ses occurrences (ses 12 coches) », « ses 2 rappels « avant » », « son lien « Dépend de » ou « Relative à » avec d’autres routines », « ses 2 catégories », « son temps à y consacrer », « ses trajets », « les 4 commentaires des autres occurrences », « ses 2 autres listes à cocher », « ses 3 liens avec des évènements », « son parent (elle passe au premier niveau) »), puis « Cette action est irréversible. ». Boutons « Transformer en tâche » puis « Annuler ».
-- Une fois fait : toast « Routine transformée en tâche. », le panneau de la routine se ferme et celui de la nouvelle tâche s’ouvre.
+- Une fois fait : toast « Routine transformée en tâche. », le panneau encore ouvert sur la routine se ferme (depuis sa ligne comme depuis son panneau) et celui de la nouvelle tâche s’ouvre.
 - Ce qui est gardé : libellé, description, projet, assignés, bénéficiaires, liens, lieu, condition de créneaux, rappels « À HH:MM », temps chronométrés, fiches ; l’occurrence en cours (sinon la suivante, sinon la première) donne l’« Échéance » (son jour d’échéance) et l’« Ouverture » (son premier jour, s’il est avant), ses commentaires, sa liste à cocher et ses évènements ; la tâche prend le premier statut « À faire ». Règles : [Routines](../../business-rules/activities/routines.md#transformer-en-tâche).
 
 Une routine archivée n'offre que « Historique », « Restaurer » et « Supprimer ». Archivée, elle n'a plus d'occurrence à venir ; ses occurrences ouvertes avant le jour de l'archivage restent, archivées, même dues après (agenda avec « Afficher les archivés », lecture seule ; « Historique » : estompées, marquées « (archivée) », un clic n'ouvre rien) ; la restaurer remet tout comme avant (décision D21).

@@ -10,7 +10,7 @@ import { routineInputOf, routinesKey, useRoutineMutations, useRoutinesData, type
 import type { RoutinesDataQuery } from '../../../graphql/graphql';
 import { useQueryClient } from '@tanstack/react-query';
 import { cachedItem } from '../../../lib/mutation';
-import { openRoutineForm } from '../lib/open-routine-form';
+import { closeRoutinePanels, openRoutineForm } from '../lib/open-routine-form';
 import { routinesLabel } from '../lib/routine-cell-edit';
 import { isDone, movableOccurrence } from '../lib/routine-format';
 import { usePostponeRoutine } from '../hooks/use-routine-move';
@@ -28,7 +28,7 @@ interface RoutineRowsActions {
 /**
  * Actions on routines, the same on the routines checked (bar of the table) and on one routine (its menu): ticked or
  * unticked, postponed to the next day, duplicated with their sub-routines, archived or restored with their sub-routines
- * (undone from the toast), deleted (their sub-routines kept or deleted along, as chosen). Archived routines are read
+ * (undone from the toast), deleted (their sub-routines kept or deleted along, as chosen; their panels closed). Archived routines are read
  * only: left out of all but archive/restore and delete.
  * @returns {(routines: Routine[], onClear?: () => void) => RoutineRowsActions} Actions of routines, given how to clear the selection.
  */
@@ -104,7 +104,7 @@ export function useRoutineRowsActions() {
         feminine: true,
         clear: onClear,
       }),
-      // Its own dialog: what to do with the sub-routines.
+      // Its own dialog: what to do with the sub-routines; their panels closed once deleted (the panel's menu too).
       remove: {
         label: 'Supprimer',
         icon: <TrashIcon aria-hidden />,
@@ -116,7 +116,9 @@ export function useRoutineRowsActions() {
               all={data?.routines ?? []}
               onDone={(success) => {
                 close();
-                if (success) onClear();
+                if (!success) return;
+                closeRoutinePanels(ids);
+                onClear();
               }}
             />
           )),

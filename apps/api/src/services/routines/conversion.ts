@@ -9,7 +9,7 @@ import { BY_POSITION, nextPositionIn } from '../core/ordering';
 import { forgetGithubItems } from '../github/links';
 import { DUE_DATES_SELECT, storedDueDates } from '../tasks/due-dates';
 import { parisToday } from '../../today';
-import { firstOccurrence, loadScheduleContext, occurrenceSpansBetween, occurrencesOf, placeLegacyRoutineComments, ROUTINE_LINKS, storedCondition, type RoutineTiming } from './routines';
+import { firstOccurrence, loadScheduleContext, occurrenceSpansBetween, occurrencesOf, placeLegacyRoutineComments, ROUTINE_LINKS, slotsOf, storedCondition, type RoutineTiming } from './routines';
 
 /** Largest « Ouverture » of a routine before its due day, in days (`routineOpensSchema`, mode BEFORE). */
 const MAX_OPENS_BEFORE = 366;
@@ -32,7 +32,8 @@ function assertConversionConfirmed(lost: ConversionLoss, confirm: boolean, messa
  * sheets and checklist move to the routine; its comments go to the first occurrence; its one-off events become events
  * of that day of the routine. Its « Échéance » (its own, else its single sprint's) is the due day of the first
  * occurrence (none: its « Ouverture », else today), its « Ouverture » the routine's « Ouverture » when it differs. It
- * repeats every day (chosen afterwards in its panel). Refused for an archived task or one with sub-tasks. What it loses
+ * repeats every day (chosen afterwards in its panel). A closed task (« Fermée », cancelled included) ticks that first
+ * occurrence, each of its times of the day, when it closed (not when it is still to come: not late either). Refused for an archived task or one with sub-tasks. What it loses
  * (number, status, priority, type, tags, milestone, sprints, GitHub item, effort, dates, links with tasks, shopping
  * lists, alarms' link, recurring events, parent) is asked first (`confirm`).
  * @param {string} id Task id.
@@ -105,8 +106,11 @@ export async function convertTaskToRoutine(id: string, confirm: boolean): Promis
     opensOn: opens,
   };
   // Its condition may leave the first days without any moment: the first occurrence scheduled.
-  const first = firstOccurrence(timing, await loadScheduleContext()) ?? due;
+  const schedules = await loadScheduleContext();
+  const first = firstOccurrence(timing, schedules) ?? due;
   const firstDate = parseDay(first);
+  // Closed: its first occurrence done (each of its times of the day), not to show late; one to come is not ticked.
+  const ticked = task.closedAt && first <= parisToday() ? Math.max(1, slotsOf(timing, first, schedules).length) : 0;
   // Off the GitHub board, as a deleted task.
   await forgetGithubItems([id]);
   const position = await nextPositionIn('routine');
@@ -134,6 +138,7 @@ export async function convertTaskToRoutine(id: string, confirm: boolean): Promis
         timeEntries: { connect: task.timeEntries },
       },
     });
+    if (ticked) await tx.routineCheck.createMany({ data: Array.from({ length: ticked }, (_, slot) => ({ routineId: routine.id, date: firstDate, slot, doneAt: task.closedAt ?? undefined })) });
     if (task.comments.length) await tx.comment.createMany({ data: task.comments.map((comment) => ({ ...comment, routineId: routine.id, occurrenceDate: firstDate })) });
     await tx.sheetLink.updateMany({ where: { taskId: id }, data: { taskId: null, routineId: routine.id } });
     const [checklist] = task.checklists;
