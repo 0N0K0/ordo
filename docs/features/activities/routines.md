@@ -87,11 +87,11 @@ Chaque cellule éditable se modifie sur place. Sur une sélection de cellules d'
 
 ### Ligne d'ajout
 
-En bas du tableau (ou de chaque catégorie quand il est regroupé par catégories) : champ « Ajouter une routine dans … », indice « tous les jours ». Un libellé puis Entrée crée une routine quotidienne à partir d'aujourd'hui, dans la catégorie du groupe et le projet de la page. Elle s'affiche aussitôt (brouillon en lecture seule) en attendant d'être enregistrée. Pas de ligne d'ajout quand le tableau est regroupé par autre chose que les catégories.
+En bas du tableau (et de chaque catégorie quand il est regroupé par catégories ; regroupé, la ligne du bas reste seulement quand le groupe « Sans valeur » n'est pas affiché) : champ « Ajouter une routine dans … », indice « tous les jours ». Un libellé puis Entrée crée une routine quotidienne à partir d'aujourd'hui, dans la catégorie du groupe et le projet de la page. Elle s'affiche aussitôt (brouillon en lecture seule) en attendant d'être enregistrée. Pas de ligne d'ajout quand le tableau est regroupé par autre chose que les catégories.
 
 ### Glisser-déposer
 
-Une routine se déplace par glisser-déposer, comme une tâche : avant une autre dans un seul ordre manuel global, et sous un autre parent quand elle change de niveau (devient sous-routine, ou remonte au premier niveau). Le déplacement fonctionne aussi dans une vue filtrée où sa parente est masquée. Une routine archivée ne se déplace pas. Déposée dans une autre catégorie (tableau regroupé par catégories), elle quitte la catégorie d'origine pour la nouvelle ; déposée dans le groupe sans catégorie, elle perd toutes ses catégories.
+Une routine se déplace par glisser-déposer, comme une tâche : avant une autre dans un seul ordre manuel global, et sous un autre parent quand elle change de niveau (devient sous-routine, ou remonte au premier niveau). Le déplacement fonctionne aussi dans une vue filtrée où sa parente est masquée. Une routine archivée ne se déplace pas. Déposée dans une autre catégorie (tableau regroupé par catégories), elle quitte la catégorie d'origine pour la nouvelle ; déposée dans le groupe sans catégorie, elle perd toutes ses catégories. Les catégories sans routine n'apparaissent pas pendant le glisser (décision FK) : pour mettre une routine dans une catégorie vide, on change sa cellule « Catégories » ou son panneau.
 
 ### Menu d'une routine
 

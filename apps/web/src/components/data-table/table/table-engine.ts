@@ -272,6 +272,9 @@ export function isGroupable<R>(column: DataColumn<R>): boolean {
   return Boolean(column.text || columnFilter(column));
 }
 
+/** Name of the group of the rows without value, unless the column names it (`groupNoneLabel`). */
+export const NO_VALUE_LABEL = 'Sans valeur';
+
 /**
  * Groups of a row by a column: its value as told by its filter (each value of several, the period of a date, yes or
  * no), else its text; with the order of the groups.
@@ -281,7 +284,7 @@ export function isGroupable<R>(column: DataColumn<R>): boolean {
  * @returns {{ key: string, label: string, order: string | number | null }[]} Groups (one without value: key '').
  */
 function groupsOf<R>(row: R, column: DataColumn<R>, period: GroupPeriod): { key: string; label: string; order: string | number | null }[] {
-  const none = [{ key: '', label: 'Sans valeur', order: null }];
+  const none = [{ key: '', label: column.groupNoneLabel ?? NO_VALUE_LABEL, order: null }];
   const filter = columnFilter(column);
   if (column.groupValue) {
     const values = column.groupValue(row);

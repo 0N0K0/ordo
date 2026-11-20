@@ -119,7 +119,7 @@ function EntryPicker({ list, onDone }: { list: ShoppingList; onDone: () => void 
  * detach from a treasury entry, duplicate, copy as text, export as PDF, close or reopen, archive or restore, delete. An
  * archived list is read only: only its exports, « Restaurer » and « Supprimer ».
  * @param {ShoppingList} list List.
- * @param {ShoppingGrouping} grouping Grouping of the exports (as the list is shown).
+ * @param {ShoppingGrouping} grouping Grouping of the exports (as the list is shown on its page; by category elsewhere).
  * @param {() => void} [onDeleted] After the list is deleted (leaves its page). Optional.
  * @returns {RowMenuEntry[]} Actions.
  */
@@ -207,8 +207,8 @@ function useListActions(list: ShoppingList, grouping: ShoppingGrouping, onDelete
 
 interface ListActionsMenuProps {
   list: ShoppingList;
-  /** Grouping of the exports (as the list is shown). */
-  grouping: ShoppingGrouping;
+  /** Grouping of the exports: as the list is shown on its page. Optional. Default = by category. */
+  grouping?: ShoppingGrouping;
   /** In the header of the list's page, next to its buttons (a bordered button). Optional. Default = false. */
   header?: boolean;
   /** After the list is deleted (leaves its page). Optional. */
@@ -220,6 +220,6 @@ interface ListActionsMenuProps {
  * @param {ListActionsMenuProps} props Component props.
  * @returns {JSX.Element | null} Menu.
  */
-export function ListActionsMenu({ list, grouping, header = false, onDeleted }: ListActionsMenuProps) {
+export function ListActionsMenu({ list, grouping = 'category', header = false, onDeleted }: ListActionsMenuProps) {
   return <ActionsMenu about={`la liste « ${list.label} »`} items={useListActions(list, grouping, onDeleted)} {...(header ? { variant: 'light' as const, size: 'input-sm' } : {})} />;
 }

@@ -45,9 +45,8 @@ import { openFormPanel } from '../../../components/panels/panels';
 import { ProductPicker } from '../components/ProductPicker';
 import { useCommentCounts } from '../../comments/api';
 import { commentColumn } from '../../comments/lib/comment-column';
-import { blankInput, listClosed, listTasks, usePeople, shoppingProgress } from '../lib/shopping-format';
+import { blankInput, groupingOfColumn, listClosed, listTasks, usePeople, shoppingProgress } from '../lib/shopping-format';
 import { ShoppingSettings } from '../components/ShoppingSettings';
-import { GroupingOptions } from '../components/GroupingControl';
 import { itemColumns, optionalColumn } from '../lib/shopping-columns';
 import { ShoppingTable } from '../components/ShoppingTable';
 import { StoreMode } from '../components/StoreMode';
@@ -63,7 +62,6 @@ import { deleteRowsAction } from '../../../components/data-table/selection/selec
 import { selectedLabel } from '../../../components/data-table/selection/selection-label';
 import { Comments } from '../../comments/components/Comments';
 import { DetailHeader } from '../../../components/page/DetailHeader';
-import { useShoppingGrouping } from '../hooks/use-shopping-grouping';
 
 type ShoppingItem = ShoppingList['items'][number];
 
@@ -76,11 +74,14 @@ const listSheets = (items: ShoppingItem[]) => [
   ...new Map(items.flatMap((item) => item.sheetSources.map((source) => [source.sheetId, { sheetId: source.sheetId, label: source.label }] as const))).values(),
 ];
 
-/** Views made the first time a list is shown: every item (opened first), what is left to buy. */
-const LIST_VIEWS: FirstTableView[] = [{ label: 'Tout' }, { label: 'À acheter', config: { filter: conditionFilter('bought', 'isFalse') } }];
+/** Views made the first time a list is shown, grouped by category: every item (opened first), what is left to buy. */
+const LIST_VIEWS: FirstTableView[] = [
+  { label: 'Tout', config: { groupBy: 'category' } },
+  { label: 'À acheter', config: { groupBy: 'category', filter: conditionFilter('bought', 'isFalse') } },
+];
 
 /**
- * Page of a shopping list: its items by category or by store, ticked as bought (their products of the base list
+ * Page of a shopping list: its items (grouped by category at first, as its view says), ticked as bought (their products of the base list
  * follow), products of the base list or other items added, the estimated total; its task and the treasury entry
  * paying it; copy, export, store mode, closing, archive and deletion. Closed or archived, it is read only.
  * @returns {JSX.Element} Page.
@@ -92,8 +93,6 @@ export function ShoppingListPage() {
   const { data } = useShoppingData();
   const { context } = useTaskContext();
   const mutations = useShoppingMutations();
-  const groupingOptions = useShoppingGrouping('list');
-  const { grouping, showEmpty } = groupingOptions;
   const [storeMode, setStoreMode] = useState(false);
   const list = lists?.find((item) => item.id === id);
   // Projects of the list, through its tasks: their contributors are the members offered.
@@ -112,7 +111,6 @@ export function ShoppingListPage() {
     (list?.items ?? []).map((item) => item.id),
   );
   const columns = itemColumns<ShoppingItem>(
-    grouping,
     {
       categories: data?.shoppingCategories ?? [],
       stores: data?.shoppingStores ?? [],
@@ -260,8 +258,7 @@ export function ShoppingListPage() {
       <DataViewBar
         view={view}
         searchLabel="Rechercher un produit"
-        manualText="Sans tri : l’ordre de la liste, dans ses catégories."
-        displayOptions={<GroupingOptions {...groupingOptions} />}
+        manualText="Sans tri : l’ordre de la liste."
         actions={
           <Group gap="sm" ml="auto" wrap="wrap">
             {!closed && (
@@ -300,7 +297,7 @@ export function ShoppingListPage() {
             <ActionButton priority="secondary" icon={<ShoppingCartIcon aria-hidden />} disabled={list.items.length === 0 || list.archived} onClick={() => setStoreMode(true)}>
               Mode collecte
             </ActionButton>
-            <ListActionsMenu list={list} grouping={grouping} onDeleted={() => navigate(SHOPPING_LISTS_PATH)} header />
+            <ListActionsMenu list={list} grouping={groupingOfColumn(view.groupColumn?.id) ?? 'category'} onDeleted={() => navigate(SHOPPING_LISTS_PATH)} header />
           </Group>
         }
       />
@@ -326,10 +323,8 @@ export function ShoppingListPage() {
             },
           ]}
           items={[...list.items].sort(byPosition)}
-          grouping={grouping}
           label={`Éléments de ${list.label}`}
           readOnly={closed}
-          showEmpty={showEmpty}
           add={
             closed
               ? undefined

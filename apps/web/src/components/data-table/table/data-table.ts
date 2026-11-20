@@ -102,6 +102,8 @@ export interface DataColumn<R> {
   groupTree?: readonly TreeGroup[];
   /** Values the rows are grouped by, when not those of its filter (a filter keeping sub-projects…). Optional. */
   groupValue?: (row: R) => readonly string[];
+  /** Name of the group of the rows without value (« Sans catégorie »…). Optional. Default = « Sans valeur ». */
+  groupNoneLabel?: string;
   /**
    * Its cells are edited in bulk: selected (Ctrl / ⌘ + click, Shift + click for a range, or « Sélectionner la colonne »),
    * a change made in one of them applies to all. Optional. Default = false.

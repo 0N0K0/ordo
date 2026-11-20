@@ -114,6 +114,7 @@ export function DataViewBar<R>({
                 <>
                   {groupable.length > 0 && (
                     <Select
+                      // eslint-disable-next-line no-restricted-syntax -- the group-by of the view itself.
                       label="Grouper par"
                       placeholder="Aucun groupe"
                       data={groupable.map((column) => ({ value: column.id, label: column.label }))}

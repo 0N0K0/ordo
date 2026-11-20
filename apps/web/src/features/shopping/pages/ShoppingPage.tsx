@@ -37,7 +37,6 @@ import { localDay } from '../../../lib/dates';
 import { useSetArchived, useArchivedToggle } from '../../../lib/archive';
 import { ShowArchivedSwitch } from '../../../components/filters/ShowArchivedSwitch';
 import { ArchivedBadge } from '../../../components/feedback/ArchivedBadge';
-import { useShoppingGrouping } from '../hooks/use-shopping-grouping';
 import { itemChoices } from '../../../components/items/item-look';
 import { ShoppingProgressBadge } from '../components/ShoppingProgressBadge';
 
@@ -246,7 +245,6 @@ export function ListsPanel({ projectId, projectIds }: { projectId?: string; proj
   const { updateList, duplicateList, setClosed, deleteList } = useShoppingMutations();
   const navigate = useNavigate();
   const setArchived = useSetArchived('SHOPPING_LIST', [shoppingKey]);
-  const { grouping } = useShoppingGrouping('list');
   const closedOf = (list: ShoppingList) => listClosed(list, context);
   // Archived or closed: read only.
   const lockedOf = (list: ShoppingList) => list.archived || closedOf(list);
@@ -328,7 +326,7 @@ export function ListsPanel({ projectId, projectIds }: { projectId?: string; proj
       }}
       actions={(list) => (
         <Group justify="flex-end">
-          <ListActionsMenu list={list} grouping={grouping} />
+          <ListActionsMenu list={list} />
         </Group>
       )}
       isArchived={lockedOf}

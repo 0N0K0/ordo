@@ -21,7 +21,6 @@ import { shoppingKey, useShoppingData, useShoppingMutations, type ShoppingBaseLi
 import { openNewList } from '../lib/open-new-list';
 import { openShoppingForm } from '../lib/open-shopping-form';
 import { blankInput, categoriesForBaseList, usePeople } from '../lib/shopping-format';
-import { GroupingOptions } from './GroupingControl';
 import { itemColumns } from '../lib/shopping-columns';
 import { ShoppingTable, type ShoppingToggle } from './ShoppingTable';
 import * as fmt from '../../../lib/format';
@@ -35,10 +34,12 @@ import { useStockLocations, useStockMutations } from '../../stock/api';
 import { archiveItemsAction, deleteRowsAction } from '../../../components/data-table/selection/selection-actions';
 import { selectedLabel } from '../../../components/data-table/selection/selection-label';
 import { collator, countOf, plural } from '../../../lib/text';
-import { useShoppingGrouping } from '../hooks/use-shopping-grouping';
 
-/** Views made the first time a base list is shown: every product, the missing ones. */
-const BASE_LIST_VIEWS: FirstTableView[] = [{ label: 'Tous' }, { label: 'Manquants', config: { filter: conditionFilter('missing', 'isTrue') } }];
+/** Views made the first time a base list is shown, grouped by category: every product, the missing ones. */
+const BASE_LIST_VIEWS: FirstTableView[] = [
+  { label: 'Tous', config: { groupBy: 'category' } },
+  { label: 'Manquants', config: { groupBy: 'category', filter: conditionFilter('missing', 'isTrue') } },
+];
 
 /**
  * Asks for confirmation before removing a product from its base list.
@@ -78,7 +79,7 @@ const MISSING_TOGGLE = (save: (ids: string[], missing: boolean) => void): Shoppi
 });
 
 /**
- * A base list: its products as the tree of their categories (or by store), each marked missing or not and changed
+ * A base list: its products (grouped as the tree of their categories at first, as its view says), each marked missing or not and changed
  * in place, moved to another category by drag and drop; the missing ones make a new list. The archived products are
  * hidden until « Afficher les archivés », read only, left out of the lists made; an archived base list is read only.
  * @param {{ baseList: ShoppingBaseList }} props Component props.
@@ -87,8 +88,6 @@ const MISSING_TOGGLE = (save: (ids: string[], missing: boolean) => void): Shoppi
 export function BaseList({ baseList }: { baseList: ShoppingBaseList }) {
   const { data, isPending } = useShoppingData();
   const mutations = useShoppingMutations();
-  const groupingOptions = useShoppingGrouping('base');
-  const { grouping, showEmpty } = groupingOptions;
   const people = usePeople();
   const { data: locations } = useStockLocations();
   const stockMutations = useStockMutations();
@@ -107,7 +106,6 @@ export function BaseList({ baseList }: { baseList: ShoppingBaseList }) {
     products.map((product) => product.id),
   );
   const columns = itemColumns<ShoppingProduct>(
-    grouping,
     { categories, stores: data?.shoppingStores ?? [], storages: data?.shoppingStorages ?? [], members: people.members, relations: people.relations, archivedPeople: people.archived },
     [
       commentColumn<ShoppingProduct>(
@@ -211,7 +209,7 @@ export function BaseList({ baseList }: { baseList: ShoppingBaseList }) {
       <DataViewBar
         view={view}
         searchLabel="Rechercher un produit"
-        manualText="Sans tri : les produits par libellé, dans leurs catégories."
+        manualText="Sans tri : les produits par libellé."
         actions={
           <Group gap="sm" wrap="nowrap">
             <ShowArchivedSwitch {...archivedToggle} />
@@ -226,7 +224,6 @@ export function BaseList({ baseList }: { baseList: ShoppingBaseList }) {
             </ActionButton>
           </Group>
         }
-        displayOptions={<GroupingOptions {...groupingOptions} />}
       />
 
       {isPending ? (
@@ -264,8 +261,6 @@ export function BaseList({ baseList }: { baseList: ShoppingBaseList }) {
             }),
             archiveItemsAction(rows, setArchived, { noun: 'produit', clear }),
           ]}
-          grouping={grouping}
-          showEmpty={showEmpty}
           categories={categories}
           add={{
             label: 'Ajouter un produit',

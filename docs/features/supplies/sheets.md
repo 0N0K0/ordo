@@ -48,7 +48,7 @@ Vue `sheet-items`. Chaque cellule se modifie sur place, et sur une sélection de
 | -------------- | ------------------------ | ---------------------------------------------------------------------------------------------------------------------------- |
 | `label`        | « Élément »              | Libellé (250 caractères au plus).                                                                                            |
 | `product`      | « Référence »            | Produit des références (base de produits des achats) ; les produits archivés ne sont plus proposés (sauf celui déjà choisi). |
-| `category`     | « Catégorie »            | Catégorie des achats.                                                                                                        |
+| `category`     | « Catégorie »            | Catégorie des achats (groupée en arbre, « Sans catégorie »).                                                                                                        |
 | `quantity`     | « Quantité »             | Nombre, 3 décimales.                                                                                                         |
 | `unit`         | « Unité »                | Unité.                                                                                                                       |
 | `consumable`   | « Consommable »          | Coché : consommé quand la fiche est utilisée (une recette) ; décoché : revient (une valise).                                 |
