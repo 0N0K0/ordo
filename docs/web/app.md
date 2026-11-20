@@ -14,6 +14,10 @@ Charge les styles Mantine (en couches : core, notifications, dates, tiptap, char
 
 Si le code d'une page n'existe plus sur le serveur (nouvelle version déployée depuis le chargement), l'évènement `vite:preloadError` recharge l'application, une seule fois par onglet (`sessionStorage`, clé `ordo-reloaded`).
 
+Juste avant de monter l'application, `main.tsx` pose l'attribut `data-app-started` sur `<html>` : l'application a démarré, son toast de mise à jour (`UpdatePrompt`) prend le relais.
+
+**Version cassée au chargement (`public/boot-rescue.js`).** Script classique, hors du bundle, chargé par `index.html` avant l'application (fichier séparé : la politique de sécurité refuse les scripts écrits dans la page). Une erreur avant le démarrage (évènement `error` ou `unhandledrejection` sans `data-app-started`, par exemple une erreur à l'évaluation d'un module) empêcherait le toast de jamais s'afficher, et le service worker continuerait de servir cette version. Le script passe alors à la nouvelle version : celle qui attend dans le service worker, ou celle qu'il cherche aussitôt (`registration.update()`), par le message `SKIP_WAITING` qu'écoute le service worker généré, puis recharge la page quand elle prend la main. Une seule fois par onglet (`sessionStorage`, clé `ordo-boot-rescued`) : une version encore cassée ne boucle pas.
+
 ## Routes (`router.tsx`)
 
 `router` : routeur `createBrowserRouter` de `react-router`. Les chemins viennent de `PAGES` et `AUTH_PATHS` (`routeOf`).
