@@ -25,11 +25,11 @@ import { createTimeEntry } from '../../src/services/tasks/time-entries';
 import { createAccount, realizeForecast } from '../../src/services/treasury/treasury';
 import { saveBudget } from '../../src/services/treasury/treasury-budgets';
 import { createCounterparty, createPaymentMethod } from '../../src/services/treasury/treasury-settings';
-import { addMember, saveContext, saveContextPeriod, saveRelation } from '../../src/services/treasury/treasury-team';
+import { addMember, saveContext, saveRelation } from '../../src/services/treasury/treasury-team';
 import { saveDefaultScheduleKind, saveScheduleType, subscribeScheduleKind } from '../../src/services/calendar/work-schedules';
 import { ensureMeContributor, meContributorId, setWorkspaceNotifications } from '../../src/services/workspaces/workspaces';
 import { enterWorkspace, type WorkspaceScope } from '../../src/workspace-context';
-import { calendarCategory, chart, createEntry, EMPTY_ARTICLE, EMPTY_ENTRY, localAt, projectFactory, relativeDay, rule, taskFactory, treasuryCategoryMaker } from './factories';
+import { calendarCategory, chart, contextPeriod, createEntry, EMPTY_ARTICLE, EMPTY_ENTRY, localAt, projectFactory, relativeDay, rule, taskFactory, treasuryCategoryMaker } from './factories';
 import { initialsIcon } from './images';
 import { pdfFile } from './mail';
 import { rebuildStatusHistory } from './history';
@@ -283,7 +283,7 @@ export async function seedPersonal({
   const transfer = (await createPaymentMethod({ label: 'Virement', incoming: true, outgoing: true })).id;
   const landlord = (await createCounterparty({ name: 'Régie Lyon Centre', note: null })).id;
   const holidaysContext = (await saveContext(null, { label: 'Vacances', color: '#fab005' })).id;
-  await saveContextPeriod(null, { contextId: holidaysContext, startDate: day(30), endDate: day(44), note: 'Gîte en Ardèche' });
+  await contextPeriod(holidaysContext, day(30), day(44), 'Gîte en Ardèche');
   const entry = {
     accountId: account.id,
     ...EMPTY_ENTRY,

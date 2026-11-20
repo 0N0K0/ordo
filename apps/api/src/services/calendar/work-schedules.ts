@@ -4,6 +4,7 @@ import {
   formatDay,
   formatOptionalDay,
   fromLegacySchedule,
+  normalizedReminders,
   parseDay,
   parseOptionalDay,
   readScheduleDisplay,
@@ -19,6 +20,8 @@ import {
   type WorkScheduleInput,
   type WorkScheduleRule,
   foreignSlotKind,
+  scheduleTypeContextError,
+  UNTYPED_EPHEMERIS_LABEL,
 } from '@ordo/shared';
 import { BY_POSITION } from '../core/ordering';
 import { createLabelService } from '../core/labels';
@@ -26,18 +29,20 @@ import { assertExists, deleteOrNotFound } from '../core/lookup';
 import { assertActive, refuseArchived } from '../core/archive';
 import { prisma, unscopedPrisma } from '../../db';
 import type { Prisma, ScheduleType, WorkSchedule } from '../../generated/prisma/client';
-import { clientError, notFound, orNotFound, parseInput } from '../../graphql/errors';
+import { clientError, fieldError, notFound, orNotFound, parseInput } from '../../graphql/errors';
+import { assertKindContextsKept, syncKindContexts } from '../treasury/treasury-contexts';
 import { currentWorkspaceId } from '../../workspace-context';
 import { currentWorkspaceFields } from '../workspaces/current-workspace';
 import { toJson } from '../core/json';
 
 /**
  * Schedule as the shared functions read it: its cases and exceptions, or, saved before cases, its former slots
- * and pauses converted (invalid stored items left out).
- * @param {WorkSchedule} schedule Stored schedule.
+ * and pauses converted (invalid stored items left out), archived or of an archived kind (its kind read with it: the
+ * slot conditions do not count it, decision FQ).
+ * @param {WorkSchedule & { type?: { archivedAt: Date | null } | null }} schedule Stored schedule (with its kind's archiving, optional).
  * @returns {WorkScheduleRule} Rule.
  */
-export function scheduleRule(schedule: WorkSchedule): WorkScheduleRule {
+export function scheduleRule(schedule: WorkSchedule & { type?: { archivedAt: Date | null } | null }): WorkScheduleRule {
   const startDate = formatDay(schedule.startDate);
   // Cases of the former form converted (their rhythms count from the start of the period).
   const cases = readScheduleCases(schedule.cases, startDate);
@@ -55,6 +60,9 @@ export function scheduleRule(schedule: WorkSchedule): WorkScheduleRule {
         pauses: schedule.pauses,
       })),
     typeId: schedule.typeId,
+    ephemeris: schedule.ephemeris,
+    archived: schedule.archivedAt !== null,
+    kindArchived: Boolean(schedule.type?.archivedAt),
   };
 }
 
@@ -63,16 +71,27 @@ export function scheduleRule(schedule: WorkSchedule): WorkScheduleRule {
  * routines before and after a change of it.
  * @param {string} id Schedule (any id for a new one).
  * @param {WorkScheduleInput} input Schedule.
+ * @param {boolean} ephemeris An éphéméride (that of its kind, `scheduleData`).
  * @returns {WorkScheduleRule} Rule.
  */
-function scheduleRuleOf(id: string, input: WorkScheduleInput): WorkScheduleRule {
+function scheduleRuleOf(id: string, input: WorkScheduleInput, ephemeris: boolean): WorkScheduleRule {
   const schedule = parseInput(workScheduleSchema, input);
-  return { id, label: schedule.label, startDate: schedule.startDate, endDate: schedule.endDate ?? null, cases: schedule.cases, exceptions: schedule.exceptions, typeId: schedule.typeId ?? null };
+  return {
+    id,
+    label: schedule.label,
+    startDate: schedule.startDate,
+    endDate: schedule.endDate ?? null,
+    cases: schedule.cases,
+    exceptions: schedule.exceptions,
+    typeId: schedule.typeId ?? null,
+    ephemeris,
+  };
 }
 
 /**
  * Prisma data of a schedule, exceptions by date; the former format is emptied (cases replace it). A kind archived
- * is refused unless it is the current one.
+ * is refused unless it is the current one. With a kind, it is of the nature of its kind (créneau or éphéméride, lot
+ * 16); without one, of the nature asked.
  * @param {WorkScheduleInput} input Schedule.
  * @param {string | null} [currentTypeId] Kind of the schedule changed. Optional.
  * @returns {Promise<object>} Data.
@@ -80,13 +99,17 @@ function scheduleRuleOf(id: string, input: WorkScheduleInput): WorkScheduleRule 
 async function scheduleData(input: WorkScheduleInput, currentTypeId: string | null = null) {
   const schedule = parseInput(workScheduleSchema, input);
   await assertActive(prisma.scheduleType, schedule.typeId, 'Type de créneau', { keep: currentTypeId, field: 'typeId' });
+  const type = schedule.typeId ? await prisma.scheduleType.findUnique({ where: { id: schedule.typeId }, select: { ephemeris: true } }) : null;
   return {
     typeId: schedule.typeId ?? null,
+    ephemeris: type ? type.ephemeris : schedule.ephemeris,
     label: schedule.label,
     startDate: parseDay(schedule.startDate),
     endDate: parseOptionalDay(schedule.endDate),
     cases: toJson(schedule.cases),
     exceptions: toJson([...schedule.exceptions].sort((a, b) => a.from.localeCompare(b.from))),
+    // Omitted: left unchanged (a change of its hours from the calendar).
+    ...(schedule.reminders && { reminders: toJson(normalizedReminders(schedule.reminders)) }),
     intervalWeeks: 1,
     slots: [],
     pauses: [],
@@ -110,7 +133,7 @@ const NO_SETTLER: ScheduleChangeSettler = async () => {};
  */
 export async function createWorkSchedule(input: WorkScheduleInput, settle: ScheduleChangeSettler = NO_SETTLER): Promise<WorkSchedule> {
   const data = await scheduleData(input);
-  await settle((own) => [...own, scheduleRuleOf('new', input)]);
+  await settle((own) => [...own, scheduleRuleOf('new', input, data.ephemeris)]);
   return prisma.workSchedule.create({ data });
 }
 
@@ -125,7 +148,14 @@ export async function updateWorkSchedule(id: string, input: WorkScheduleInput, s
   const current = await orNotFound(prisma.workSchedule.findUnique({ where: { id }, select: { id: true, typeId: true, archivedAt: true } }), 'Créneau de travail');
   refuseArchived(current);
   const data = await scheduleData(input, current.typeId);
-  await settle((own) => own.map((rule) => (rule.id === id ? scheduleRuleOf(id, input) : rule)));
+  // Its kind kept: archived as it is (decision FQ); another one: not archived (checked).
+  await settle((own) =>
+    own.map((rule) => {
+      if (rule.id !== id) return rule;
+      const next = scheduleRuleOf(id, input, data.ephemeris);
+      return { ...next, kindArchived: Boolean(rule.kindArchived && rule.typeId === next.typeId) };
+    }),
+  );
   return prisma.workSchedule.update({ where: { id }, data });
 }
 
@@ -141,8 +171,97 @@ export async function deleteWorkSchedule(id: string, settle: ScheduleChangeSettl
   await deleteOrNotFound(prisma.workSchedule, id, 'Créneau de travail');
 }
 
+/**
+ * Turns a schedule into an éphéméride or back into a créneau (lot 16): its id stays (the slot conditions naming it keep
+ * it). A schedule of a kind of the other nature leaves its kind (a whole kind is one or the other). Refused once
+ * archived; the occurrences of routines it makes disappear are asked first through `settle`.
+ * @param {string} id Schedule.
+ * @param {boolean} ephemeris Éphéméride (or créneau).
+ * @param {ScheduleChangeSettler} [settle] Run once checked, before it is saved. Optional. Default = none.
+ * @returns {Promise<void>}
+ */
+export async function setWorkScheduleEphemeris(id: string, ephemeris: boolean, settle: ScheduleChangeSettler = NO_SETTLER): Promise<void> {
+  const current = await orNotFound(
+    prisma.workSchedule.findUnique({ where: { id }, select: { archivedAt: true, ephemeris: true, type: { select: { ephemeris: true } } } }),
+    'Créneau de travail',
+  );
+  refuseArchived(current);
+  if (current.ephemeris === ephemeris) return;
+  const leavesKind = Boolean(current.type && current.type.ephemeris !== ephemeris);
+  await settle((own) => own.map((rule) => (rule.id === id ? { ...rule, ephemeris, ...(leavesKind ? { typeId: null, kindArchived: false } : {}) } : rule)));
+  await prisma.workSchedule.update({ where: { id }, data: { ephemeris, ...(leavesKind ? { typeId: null } : {}) } });
+}
+
+/**
+ * Turns a whole kind into a kind of éphémérides or back into a kind of créneaux (lot 16), its schedules with it: ids
+ * stay (the slot conditions naming it or them keep them). Refused once archived, and for a context of the budget back
+ * into créneaux; the occurrences of routines it makes disappear are asked first through `settle`.
+ * @param {string} id Kind.
+ * @param {boolean} ephemeris Éphémérides (or créneaux).
+ * @param {ScheduleChangeSettler} [settle] Run once checked, before it is saved. Optional. Default = none.
+ * @returns {Promise<void>}
+ */
+export async function setScheduleTypeEphemeris(id: string, ephemeris: boolean, settle: ScheduleChangeSettler = NO_SETTLER): Promise<void> {
+  const current = await orNotFound(prisma.scheduleType.findUnique({ where: { id }, select: { archivedAt: true, ephemeris: true, budgetContext: true } }), 'Type de créneau');
+  refuseArchived(current);
+  if (current.ephemeris === ephemeris) return;
+  if (current.budgetContext) throw clientError('BAD_USER_INPUT', 'Ce type sert de contexte au budget : retirez d’abord « Sert de contexte au budget ».');
+  await settle((own) => own.map((rule) => (rule.typeId === id ? { ...rule, ephemeris } : rule)));
+  await prisma.$transaction([prisma.scheduleType.update({ where: { id }, data: { ephemeris } }), prisma.workSchedule.updateMany({ where: { typeId: id }, data: { ephemeris } })]);
+}
+
 /** Kinds of time slots (label, color and display, checked here); the schedules of a deleted one stay, without kind. */
-export const scheduleTypes = createLabelService<ScheduleType>('scheduleType', { notFound: 'Type de créneau', conflict: 'Un type porte déjà ce libellé.' }, { schema: scheduleTypeSchema });
+const baseScheduleTypes = createLabelService<ScheduleType>('scheduleType', { notFound: 'Type de créneau', conflict: 'Un type porte déjà ce libellé.' }, { schema: scheduleTypeSchema });
+
+/**
+ * Budget fields of a kind as it would be saved, checked (`scheduleTypeContextError`).
+ * @param {{ ephemeris: boolean, budgetContext: boolean, sharedContext: boolean }} type Kind.
+ * @returns {void}
+ */
+function checkKindContext(type: { ephemeris: boolean; budgetContext: boolean; sharedContext: boolean }): void {
+  const error = scheduleTypeContextError(type);
+  if (error) throw fieldError(error.field, error.message);
+}
+
+/**
+ * Kinds of time slots: the label service, the nature fixed at the creation (a conversion changes it,
+ * `setScheduleTypeEphemeris`), the budget fields checked, and the treasury contexts it is kept with it (one per
+ * workspace where it is one, `syncKindContexts`; those it would remove refused while they have lines or budgets).
+ */
+export const scheduleTypes: typeof baseScheduleTypes = {
+  ...baseScheduleTypes,
+  /**
+   * Creates a kind, and its context when it is one.
+   * @param {object} input Kind.
+   * @returns {Promise<ScheduleType>} Kind.
+   */
+  async create(input: object) {
+    // Fields left out (null from GraphQL) take their default.
+    const data = parseInput(scheduleTypeSchema, Object.fromEntries(Object.entries(input).filter(([, value]) => value !== null)));
+    checkKindContext(data);
+    const type = await baseScheduleTypes.create(data);
+    await syncKindContexts(type.id);
+    return type;
+  },
+  /**
+   * Changes a kind (not its nature), and its contexts.
+   * @param {string} id Kind.
+   * @param {object} input Changed fields.
+   * @returns {Promise<ScheduleType>} Kind.
+   */
+  async update(id: string, input: object) {
+    const current = await orNotFound(prisma.scheduleType.findUnique({ where: { id }, select: { ephemeris: true, budgetContext: true, sharedContext: true } }), 'Type de créneau');
+    const { ephemeris: _nature, ...changes } = input as { ephemeris?: unknown };
+    const patch = changes as { budgetContext?: boolean | null; sharedContext?: boolean | null };
+    const budgetContext = patch.budgetContext ?? current.budgetContext;
+    const next = { ephemeris: current.ephemeris, budgetContext, sharedContext: budgetContext && (patch.sharedContext ?? current.sharedContext) };
+    checkKindContext(next);
+    await assertKindContextsKept(id, next);
+    const type = await baseScheduleTypes.update(id, { ...changes, sharedContext: next.sharedContext });
+    await syncKindContexts(id);
+    return type;
+  },
+};
 
 /**
  * Deletes a kind of time slots: its schedules stay, without kind (the working hours of the workspace), which may make
@@ -153,7 +272,7 @@ export const scheduleTypes = createLabelService<ScheduleType>('scheduleType', { 
  */
 export async function deleteScheduleType(id: string, settle: ScheduleChangeSettler = NO_SETTLER): Promise<void> {
   await assertExists(prisma.scheduleType, id, 'Type de créneau');
-  await settle((own) => own.map((rule) => (rule.typeId === id ? { ...rule, typeId: null } : rule)));
+  await settle((own) => own.map((rule) => (rule.typeId === id ? { ...rule, typeId: null, kindArchived: false } : rule)));
   await scheduleTypes.remove(id);
 }
 
@@ -195,6 +314,8 @@ export interface ForeignScheduleKind {
   subscribed: boolean;
   /** Kind archived in its workspace (no longer offered in a slot condition). */
   archived: boolean;
+  /** A kind of éphémérides (lot 16). */
+  ephemeris: boolean;
 }
 
 /** Look of a subscription as stored. */
@@ -345,10 +466,12 @@ export async function foreignScheduleKinds(): Promise<ForeignScheduleKind[]> {
           dayBar: true,
           monthDisplay: true,
           archivedAt: true,
+          ephemeris: true,
           _count: { select: { schedules: true } },
         },
       },
-      workSchedules: { where: { typeId: null }, select: { id: true } },
+      // The working hours: its créneaux without kind (its éphémérides without kind are of no kind).
+      workSchedules: { where: { typeId: null, ephemeris: false }, select: { id: true } },
     },
   });
   return workspaces.flatMap((workspace) => {
@@ -365,6 +488,7 @@ export async function foreignScheduleKinds(): Promise<ForeignScheduleKind[]> {
               scheduleCount: workspace.workSchedules.length,
               subscribed: subscribed.has(foreignSlotKind(workspace.id, null)),
               archived: false,
+              ephemeris: false,
             },
           ]
         : []),
@@ -377,6 +501,7 @@ export async function foreignScheduleKinds(): Promise<ForeignScheduleKind[]> {
         scheduleCount: type._count.schedules,
         subscribed: subscribed.has(foreignSlotKind(workspace.id, type.id)),
         archived: type.archivedAt !== null,
+        ephemeris: type.ephemeris,
       })),
     ];
   });
@@ -395,7 +520,11 @@ const scheduleSubscriptions = () => prisma.workScheduleSubscription.findMany({ s
 export async function subscribedSchedules(): Promise<ForeignSchedule[]> {
   const subscriptions = await scheduleSubscriptions();
   if (!subscriptions.length) return [];
-  return foreignSchedules({ OR: subscriptions.map((item) => ({ workspaceId: item.sourceWorkspaceId, typeId: item.typeId })) }, subscriptions);
+  // Without kind: the working hours, its créneaux only.
+  return foreignSchedules(
+    { OR: subscriptions.map((item) => ({ workspaceId: item.sourceWorkspaceId, typeId: item.typeId, ...(item.typeId ? {} : { ephemeris: false }) })) },
+    subscriptions,
+  );
 }
 
 /**
@@ -426,6 +555,7 @@ async function foreignSchedules(where: Prisma.WorkScheduleWhereInput, subscripti
           dayDisplay: true,
           dayBar: true,
           monthDisplay: true,
+          archivedAt: true,
         },
       },
       workspace: { select: { id: true, label: true, ...defaultKindSelect } },
@@ -433,11 +563,13 @@ async function foreignSchedules(where: Prisma.WorkScheduleWhereInput, subscripti
   });
   return schedules.map((schedule) => {
     const untyped = defaultKindOf(schedule.workspace);
-    const { color, display } = lookOf(lookByKind.get(foreignSlotKind(schedule.workspaceId, schedule.typeId)), schedule.type ?? asKind(untyped));
+    // An éphéméride without kind: none (no default kind, no color: the web gives it its own).
+    const loose = !schedule.type && schedule.ephemeris;
+    const { color, display } = lookOf(lookByKind.get(foreignSlotKind(schedule.workspaceId, schedule.typeId)), schedule.type ?? (loose ? null : asKind(untyped)));
     return {
       rule: scheduleRule(schedule),
       archived: schedule.archivedAt !== null,
-      typeLabel: schedule.type?.label ?? untyped.label,
+      typeLabel: schedule.type?.label ?? (loose ? UNTYPED_EPHEMERIS_LABEL : untyped.label),
       color,
       display,
       workspace: { id: schedule.workspace.id, label: schedule.workspace.label },

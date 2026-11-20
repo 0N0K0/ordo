@@ -1,7 +1,7 @@
 import { Fieldset, SegmentedControl, Select, SimpleGrid, Stack, Text, TextInput } from '@mantine/core';
 import { clientContactSchema, clientDetailsSchema, clientServiceSchema, type Address, type Phone } from '@ordo/shared';
 import { AddressFields } from './AddressFields';
-import { PhonesField } from './PhonesField';
+import { ContactListField } from '../../../components/inputs/ContactListField';
 import { useAppForm, useFieldSave, formCallbacks, nestedErrors } from '../../../lib/form';
 import { SaveStatus } from '../../../components/feedback/SaveStatus';
 
@@ -95,7 +95,7 @@ export function ClientDetailsForm({ client, readOnly: readOnlySource }: { client
             <TextInput label="Email" {...form.getInputProps('email')} />
             {company && <TextInput label="Site internet" placeholder="https://…" {...form.getInputProps('website')} />}
           </SimpleGrid>
-          <PhonesField {...fieldProps('phones')} errors={nestedErrors(form.errors, 'phones')} />
+          <ContactListField kind="phones" {...fieldProps('phones')} errors={nestedErrors(form.errors, 'phones')} />
           {company && (
             <SimpleGrid cols={{ base: 1, sm: 2 }} spacing="sm">
               <TextInput label="Numéro de TVA" placeholder="FR12345678901" {...form.getInputProps('vatNumber')} />
@@ -157,7 +157,7 @@ export function ClientServiceForm({ clientId, service, onDone, readOnly: readOnl
           <TextInput label="Libellé du service" required data-autofocus={service ? undefined : true} placeholder="Comptabilité, agence de Lyon…" {...form.getInputProps('label')} />
           <AddressFields legend="Adresse" {...fieldProps('address')} errors={nestedErrors(form.errors, 'address')} />
           <TextInput label="Email" {...form.getInputProps('email')} />
-          <PhonesField {...fieldProps('phones')} errors={nestedErrors(form.errors, 'phones')} />
+          <ContactListField kind="phones" {...fieldProps('phones')} errors={nestedErrors(form.errors, 'phones')} />
           {!service && <FormActions onCancel={onDone} loading={createService.isPending} submitLabel="Ajouter" />}
         </Stack>
       </Fieldset>
@@ -236,7 +236,7 @@ export function ClientContactForm({
             />
           </SimpleGrid>
           <TextInput label="Email" {...form.getInputProps('email')} />
-          <PhonesField {...fieldProps('phones')} errors={nestedErrors(form.errors, 'phones')} />
+          <ContactListField kind="phones" {...fieldProps('phones')} errors={nestedErrors(form.errors, 'phones')} />
           {client.kind === 'INDIVIDUAL' && (
             <Text size="xs" c="dimmed">
               Client particulier : les contacts servent surtout aux proches ou aux intermédiaires.

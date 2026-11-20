@@ -1,4 +1,5 @@
 import { parseCookie } from 'cookie';
+import { addSharedContexts } from '../treasury/treasury-contexts';
 import type { NextFunction, Request, Response } from 'express';
 import { DEFAULT_SHOPPING_UNITS, readTaskColumnDefaults, taskColumnDefaultsSchema, weekSpanSchema, type TaskColumnDefaults, type WeekSpan, workspaceLabelSchema } from '@ordo/shared';
 import { z } from 'zod';
@@ -142,6 +143,8 @@ export async function createWorkspace(input: { label: string; kind: WorkspaceKin
   const data = parseInput(workspaceInputSchema, input);
   const workspace = await unscopedPrisma.workspace.create({ data: { ...data, position: await nextPositionIn('workspace', {}, unscopedPrisma) } });
   await setUpWorkspace(workspace);
+  // The contexts of the budget shared by the other workspaces are contexts here too (lot 16).
+  await addSharedContexts(workspace.id);
   return workspace;
 }
 

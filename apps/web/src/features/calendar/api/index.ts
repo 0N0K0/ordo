@@ -1,9 +1,10 @@
 import { useQuery, type QueryKey } from '@tanstack/react-query';
-import { tasksQueryKey } from '../../tasks/api';
+import { doableTasksKey, tasksQueryKey } from '../../tasks/api';
 import { useInvalidatingMutation } from '../../../lib/mutation';
 import { graphql } from '../../../graphql';
-import { readScheduleCases, readScheduleExceptions, type ScheduleDisplay, type ScheduleSubscriptionLook, type WorkScheduleInput, type WorkScheduleRule } from '@ordo/shared';
+import { countedSchedules, readScheduleCases, readScheduleExceptions, slotSchedules, type ScheduleDisplay, type ScheduleSubscriptionLook, type WorkScheduleInput, type WorkScheduleRule } from '@ordo/shared';
 import type {
+  BirthdaysQuery,
   CalendarEventInput,
   CalendarEventOccurrenceFieldsFragment,
   CalendarEventScope,
@@ -15,11 +16,14 @@ import type {
 import { execute, executeIn } from '../../../lib/graphql-client';
 import { withLossConfirmation } from '../../time/lib/confirm-loss';
 import { routinesKey } from '../../routines/api';
-import { archivedIds, unarchived } from '../../../lib/archive';
+import { treasuryKey } from '../../treasury/api';
+import { archivedIds, unarchived, useSetArchived } from '../../../lib/archive';
 
 export type EventOccurrence = CalendarEventOccurrenceFieldsFragment;
 export type WorkSchedule = WorkSchedulesQuery['workSchedules'][number];
 export type ScheduleType = WorkSchedulesQuery['scheduleTypes'][number];
+/** Fields of a kind saved: label, color, display; nature (at its creation) and budget fields (lot 16). */
+export type ScheduleTypeFields = { label: string; color: string } & ScheduleDisplay & { ephemeris?: boolean; budgetContext?: boolean; sharedContext?: boolean };
 export type { CalendarEventInput, CalendarEventScope };
 
 graphql(`
@@ -47,6 +51,7 @@ graphql(`
     reminders {
       before
       at
+      days
     }
     travelBefore
     travelAfter
@@ -88,8 +93,14 @@ const WorkSchedulesDocument = graphql(`
       startDate
       endDate
       typeId
+      ephemeris
       cases
       exceptions
+      reminders {
+        before
+        at
+        days
+      }
     }
     scheduleTypes {
       id
@@ -100,6 +111,9 @@ const WorkSchedulesDocument = graphql(`
       dayDisplay
       dayBar
       monthDisplay
+      ephemeris
+      budgetContext
+      sharedContext
       position
     }
     defaultScheduleKind {
@@ -128,6 +142,7 @@ const ForeignScheduleKindsDocument = graphql(`
       scheduleCount
       subscribed
       archived
+      ephemeris
     }
   }
 `);
@@ -143,6 +158,7 @@ const SubscribedSchedulesDocument = graphql(`
       exceptions
       typeLabel
       typeId
+      ephemeris
       color
       dayDisplay
       dayBar
@@ -164,6 +180,7 @@ const OtherWorkspaceSchedulesDocument = graphql(`
       cases
       exceptions
       typeId
+      ephemeris
       workspaceId
       workspaceLabel
     }
@@ -227,6 +244,18 @@ const CreateWorkScheduleDocument = graphql(`
 const UpdateWorkScheduleDocument = graphql(`
   mutation UpdateWorkSchedule($id: ID!, $input: WorkScheduleInput!, $confirmLoss: Boolean) {
     updateWorkSchedule(id: $id, input: $input, confirmLoss: $confirmLoss)
+  }
+`);
+
+const SetWorkScheduleEphemerisDocument = graphql(`
+  mutation SetWorkScheduleEphemeris($id: ID!, $ephemeris: Boolean!, $confirmLoss: Boolean) {
+    setWorkScheduleEphemeris(id: $id, ephemeris: $ephemeris, confirmLoss: $confirmLoss)
+  }
+`);
+
+const SetScheduleTypeEphemerisDocument = graphql(`
+  mutation SetScheduleTypeEphemeris($id: ID!, $ephemeris: Boolean!, $confirmLoss: Boolean) {
+    setScheduleTypeEphemeris(id: $id, ephemeris: $ephemeris, confirmLoss: $confirmLoss)
   }
 `);
 
@@ -405,6 +434,12 @@ const DeleteCalendarEventDocument = graphql(`
 /** Root key of the calendar queries (events, calendars, categories, schedules). */
 export const calendarQueryKey = ['calendar'] as const;
 
+/**
+ * What the sources of the slot conditions (schedules, kinds, birthdays) change, refreshed with them (decision FQ): the
+ * routines (their occurrences come from the API) and the tasks doable now.
+ */
+export const SLOT_DEPENDENT_KEYS: readonly QueryKey[] = [routinesKey, doableTasksKey];
+
 export type CalendarCategory = Awaited<ReturnType<typeof fetchCategories>>[number];
 
 /**
@@ -564,6 +599,59 @@ export function useCalendarEventMutations() {
   };
 }
 
+const BirthdaysDocument = graphql(`
+  query Birthdays {
+    birthdays(archived: true) {
+      id
+      contributorId
+      relationId
+      name
+      birthDate
+      archived
+      aliases
+      reminders {
+        before
+        at
+        days
+      }
+    }
+  }
+`);
+
+/** Birthday of a person (lot 16): derived from its birth date by the API. */
+export type PersonBirthday = BirthdaysQuery['birthdays'][number];
+
+/**
+ * Key of the birthdays: under the tasks (a contributor changed or archived reloads them); a relation changed or
+ * archived reloads them too (`saveRelation`, its archiving).
+ */
+export const birthdaysQueryKey = [...tasksQueryKey, 'birthdays'] as const;
+
+/**
+ * Birthdays of the people of the workspace (contributors and relations with a birth date, lot 16), those of archived
+ * people too, flagged (one query for both hooks).
+ * @returns {Promise<PersonBirthday[]>} Birthdays.
+ */
+const fetchBirthdays = async () => (await execute(BirthdaysDocument)).birthdays;
+
+/**
+ * Birthdays of the people of the workspace (contributors and relations with a birth date, not archived, lot 16): those
+ * the calendar shows and the alarms ring.
+ * @returns {UseQueryResult} Query state.
+ */
+export function useBirthdays() {
+  return useQuery({ queryKey: birthdaysQueryKey, queryFn: fetchBirthdays, select: (birthdays) => unarchived(birthdays) });
+}
+
+/**
+ * Birthdays a slot condition may name (decision FQ): those of archived people too, flagged (still named, « archivé »,
+ * no moment), with the other ids naming each (`aliases`: a relation linked to a contributor).
+ * @returns {UseQueryResult} Query state.
+ */
+export function useSlotBirthdays() {
+  return useQuery({ queryKey: birthdaysQueryKey, queryFn: fetchBirthdays });
+}
+
 /**
  * Planned working hours.
  * @returns {UseQueryResult} Query state.
@@ -635,21 +723,31 @@ export function useWorkScheduleMutations() {
     // The occurrences of routines a change makes disappear (no moment left) are confirmed first, with what they lose.
     create: useCalendarMutation(
       async (input: WorkScheduleInput) => withLossConfirmation(async (confirmLoss) => (await execute(CreateWorkScheduleDocument, { input, confirmLoss } as never)).createWorkSchedule),
-      [routinesKey],
+      SLOT_DEPENDENT_KEYS,
     ),
     update: useCalendarMutation(
       async (variables: { id: string; input: WorkScheduleInput }) =>
         withLossConfirmation(async (confirmLoss) => (await execute(UpdateWorkScheduleDocument, { ...variables, confirmLoss } as never)).updateWorkSchedule),
-      [routinesKey],
+      SLOT_DEPENDENT_KEYS,
     ),
-    remove: useCalendarMutation(async (id: string) => withLossConfirmation(async (confirmLoss) => (await execute(DeleteWorkScheduleDocument, { id, confirmLoss })).deleteWorkSchedule), [routinesKey]),
-    createType: useCalendarMutation(async (input: { label: string; color: string } & ScheduleDisplay) => (await execute(CreateScheduleTypeDocument, { input })).createScheduleType),
-    updateType: useCalendarMutation(
-      async (variables: { id: string; input: { label: string; color: string } & ScheduleDisplay }) => (await execute(UpdateScheduleTypeDocument, variables)).updateScheduleType,
-    ),
+    remove: useCalendarMutation(async (id: string) => withLossConfirmation(async (confirmLoss) => (await execute(DeleteWorkScheduleDocument, { id, confirmLoss })).deleteWorkSchedule), SLOT_DEPENDENT_KEYS),
+    // A kind of éphémérides may be a context of the treasury (lot 16): its contexts follow it.
+    createType: useCalendarMutation(async (input: ScheduleTypeFields) => (await execute(CreateScheduleTypeDocument, { input })).createScheduleType, [treasuryKey]),
+    updateType: useCalendarMutation(async (variables: { id: string; input: ScheduleTypeFields }) => (await execute(UpdateScheduleTypeDocument, variables)).updateScheduleType, [treasuryKey]),
     removeType: useCalendarMutation(
       async (id: string) => withLossConfirmation(async (confirmLoss) => (await execute(DeleteScheduleTypeDocument, { id, confirmLoss })).deleteScheduleType),
-      [routinesKey],
+      [...SLOT_DEPENDENT_KEYS, treasuryKey],
+    ),
+    // « Convertir en éphéméride(s) » / « Convertir en créneau(x) » (lot 16): ids kept; occurrences of routines lost confirmed first.
+    setEphemeris: useCalendarMutation(
+      async (variables: { id: string; ephemeris: boolean }) =>
+        withLossConfirmation(async (confirmLoss) => (await execute(SetWorkScheduleEphemerisDocument, { ...variables, confirmLoss })).setWorkScheduleEphemeris),
+      [...SLOT_DEPENDENT_KEYS, treasuryKey],
+    ),
+    setTypeEphemeris: useCalendarMutation(
+      async (variables: { id: string; ephemeris: boolean }) =>
+        withLossConfirmation(async (confirmLoss) => (await execute(SetScheduleTypeEphemerisDocument, { ...variables, confirmLoss })).setScheduleTypeEphemeris),
+      [...SLOT_DEPENDENT_KEYS, treasuryKey],
     ),
     subscribe: useCalendarMutation(async (kind: { workspaceId: string; typeId: string | null }) => (await execute(SubscribeScheduleKindDocument, kind)).subscribeScheduleKind),
     saveDefaultKind: useCalendarMutation(
@@ -663,13 +761,28 @@ export function useWorkScheduleMutations() {
 }
 
 /**
+ * Archives or restores schedules, contributors or relations (`useSetArchived`), the sources of the slot conditions
+ * (decision FQ): the occurrences of routines it makes disappear are confirmed first (`withLossConfirmation`, as a change
+ * of schedule), then what depends on them is refreshed (`SLOT_DEPENDENT_KEYS`, the birthdays with the people).
+ * @param {'WORK_SCHEDULE' | 'CONTRIBUTOR' | 'TREASURY_RELATION'} kind Kind of the elements (a kind of schedules: `useScheduleTypeItems`).
+ * @param {readonly QueryKey[]} [invalidate] Queries refreshed besides. Optional. Default = every query.
+ * @returns {UseMutationResult} Mutation state.
+ */
+export function useSlotSourceArchiving(kind: 'WORK_SCHEDULE' | 'CONTRIBUTOR' | 'TREASURY_RELATION', invalidate: readonly QueryKey[] = [[]]) {
+  return useSetArchived(kind, [...invalidate, ...SLOT_DEPENDENT_KEYS, kind === 'WORK_SCHEDULE' ? calendarQueryKey : birthdaysQueryKey], withLossConfirmation);
+}
+
+/**
  * Schedules as the shared functions read them (those of this workspace, or of another one subscribed to): their
- * cases and exceptions validated (invalid ones left out).
+ * cases and exceptions validated (invalid ones left out), archived or of an archived kind (the slot conditions do not
+ * count them, decision FQ).
  * @param {object[]} schedules Schedules.
+ * @param {ReadonlySet<string>} [archivedKinds] Kinds archived (ids). Optional. Default = none.
  * @returns {import('@ordo/shared').WorkScheduleRule[]} Rules.
  */
 export function scheduleRules(
-  schedules: readonly { id: string; label: string; startDate: string; endDate?: string | null; cases: unknown; exceptions: unknown; typeId?: string | null }[],
+  schedules: readonly { id: string; label: string; startDate: string; endDate?: string | null; cases: unknown; exceptions: unknown; typeId?: string | null; ephemeris?: boolean | null; archived?: boolean | null }[],
+  archivedKinds: ReadonlySet<string> = new Set(),
 ): WorkScheduleRule[] {
   return schedules.map((schedule) => ({
     id: schedule.id,
@@ -679,8 +792,42 @@ export function scheduleRules(
     cases: readScheduleCases(schedule.cases, schedule.startDate),
     exceptions: readScheduleExceptions(schedule.exceptions),
     typeId: schedule.typeId ?? null,
+    ephemeris: schedule.ephemeris ?? false,
+    archived: Boolean(schedule.archived),
+    kindArchived: Boolean(schedule.typeId && archivedKinds.has(schedule.typeId)),
   }));
 }
+
+/**
+ * Working hours of the workspace, as the hint of an event out of them (`AvailabilityHint`) and the planned time
+ * (`PlannedTime`) count them: its créneaux (the éphémérides left out, lot 16), neither archived nor of an archived kind
+ * (`countedSchedules`, as the slot conditions, decision FQ).
+ * @returns {UseQueryResult<WorkScheduleRule[]>} Query state: the rules of the créneaux counted.
+ */
+export function useWorkingHours() {
+  return useQuery({
+    queryKey: [...calendarQueryKey, 'work-schedules'],
+    queryFn: () => execute(WorkSchedulesDocument),
+    // eslint-disable-next-line no-restricted-syntax -- the working hours themselves.
+    select: (data) => countedSchedules(scheduleRules(slotSchedules(data.workSchedules), archivedIds(data.scheduleTypes))),
+  });
+}
+
+/**
+ * Input of a schedule from its rule and a change of its cases and exceptions (an hour moved in the calendar): its
+ * kind and nature kept.
+ * @param {WorkScheduleRule} rule Schedule.
+ * @param {Pick<WorkScheduleInput, 'cases' | 'exceptions'>} change New cases and exceptions.
+ * @returns {WorkScheduleInput} Input.
+ */
+export const ruleScheduleInput = (rule: WorkScheduleRule, change: Pick<WorkScheduleInput, 'cases' | 'exceptions'>): WorkScheduleInput => ({
+  label: rule.label,
+  startDate: rule.startDate,
+  endDate: rule.endDate,
+  typeId: rule.typeId ?? null,
+  ephemeris: rule.ephemeris ?? false,
+  ...change,
+});
 
 /**
  * Address of the iCalendar file of a calendar of the workspace, or of all of them (downloaded with the session).

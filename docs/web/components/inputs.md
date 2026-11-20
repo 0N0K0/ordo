@@ -44,20 +44,26 @@ Props : celles de `MultiSelect` (`value` / `onChange` = la valeur enregistrée),
 
 ### `RemindersSelect`
 
-« Rappels » d'une tâche, d'une routine ou d'un évènement, le seul éditeur des trois (décision D16), sur `BatchMultiSelect`, 10 au plus (`REMINDERS_MAX`), de types mêlés, en deux groupes :
+« Rappels » d'une tâche, d'une routine, d'un évènement, d'une éphéméride ou d'un anniversaire, le seul éditeur de tous (décision D16, lot 16), sur `BatchMultiSelect`, 10 au plus (`REMINDERS_MAX`), de types mêlés, en trois groupes :
 
 - « Avant » (`kinds` contient `before`) : « Au début » et « N min avant », parmi `REMINDER_PRESETS` ;
-- « À une heure, le jour J » (`kinds` contient `at`) : toutes les demi-heures (`REMINDER_TIME_PRESETS`), ou une heure tapée (« 8:15 », « 8h15 », « 8 », création à la volée) ; une saisie qui n'est pas une heure affiche « Heure attendue (HH:MM). » **sous le champ** (erreur du champ, jusqu'au changement suivant ; décision EP).
+- « Jours avant » (`kinds` contient `days`, décision FO) : « 1 jour avant, à 09:00 »… parmi `REMINDER_DAYS_PRESETS`, ou tapé (« 3 j », « 3 j 18:30 », « J-3 8h », « 3 jours avant à 8h » ; sans heure : 09:00) ;
+- « À une heure, le jour J » (`kinds` contient `at`) : toutes les demi-heures (`REMINDER_TIME_PRESETS`), ou une heure tapée (« 8:15 », « 8h15 », « 8 », création à la volée) ; une saisie qui n'est ni une heure ni des jours avant affiche « Heure attendue (HH:MM). » (sans `days`) ou « Heure (HH:MM) ou jours avant (« 3 j 08:00 ») attendus. » **sous le champ** (erreur du champ, jusqu'au changement suivant ; décision EP).
 
-Une valeur gardée d'avant hors des préréglages reste affichée (`reminderLabel`). Props : `kinds` (défaut : les deux), `value` (rappels du formulaire ou de GraphQL, lus par `readReminders`), `onChange` (`Reminder[]` dans l'ordre enregistré, `normalizedReminders`), `day` (jour des heures dans les libellés, « le jour J » par défaut, vide pour une tâche), `emptyLabel`, et les props du `MultiSelect` (`error` passée sous le champ). Choix encodés par `reminderKey` / `reminderOfKey`. Utilisé par l'agenda (`EventForm`), les routines (`RoutineSchedule` : seulement `at` sans horaire ni créneau ; `RemindersCell`) et les tâches (`TaskReminders`, `at` seulement). Interne : `typedTime`, `TYPED_TIME_ERROR`.
+Une valeur gardée d'avant hors des préréglages reste affichée (`reminderLabel`). Props : `kinds` (défaut : les trois), `value` (rappels du formulaire ou de GraphQL, lus par `readReminders`), `onChange` (`Reminder[]` dans l'ordre enregistré, `normalizedReminders`), `day` (jour des heures dans les libellés, « le jour J » par défaut, vide pour une tâche), `emptyLabel`, et les props du `MultiSelect` (`error` passée sous le champ). Choix encodés par `reminderKey` / `reminderOfKey`, groupés par `reminderKindOf`. Utilisé par l'agenda (`EventForm`, éphémérides de `WorkSchedulesManager`), les routines (`RoutineSchedule` : `at` et `days` sans horaire ni créneau ; `RemindersCell`), les tâches (`TaskReminders`, `at` et `days`) et les personnes (`PersonDetailsFields`, `at` et `days`). Internes : `typedTime`, `typedDaysReminder`, `TYPED_TIME_ERROR`, `TYPED_REMINDER_ERROR`.
 
 ### `reminder-presets.ts`
 
 - `ReminderPreset` (type) : `{ value, label }`.
-- `REMINDER_PRESETS` : rappels « avant » d'un évènement ou d'une routine, en minutes : « Au début », 5, 10, 15, 30 min, 1 h, 2 h, 6 h (24 heures au plus : plus de « 1 jour avant », « 2 jours avant », « 1 semaine avant » ; remplace `EVENT_REMINDERS` et `ROUTINE_REMINDERS`).
+- `REMINDER_PRESETS` : rappels « avant » d'un évènement ou d'une routine, en minutes : « Au début », 5, 10, 15, 30 min, 1 h, 2 h, 6 h (24 heures au plus ; remplace `EVENT_REMINDERS` et `ROUTINE_REMINDERS`).
+- `REMINDER_DAYS_PRESETS` / `REMINDER_DAYS_TIME` : « N jours avant » proposés (1, 2, 3, 7, 14, 30) et leur heure (09:00, aussi celle d'un « 3 j » tapé sans heure).
 - `REMINDER_TIME_PRESETS` : heures `00:00` à `23:30`, toutes les demi-heures (« À HH:MM »).
 - `REMINDER_DAY` : « le jour J ».
-- `reminderLabel(reminder, day?)` : « Au début », le préréglage, sinon la durée (« 24 h 00 avant ») ; « À 08:00 le jour J » (`day` vide : « À 08:00 »).
+- `reminderLabel(reminder, day?)` : « Au début », le préréglage, sinon la durée (« 24 h 00 avant ») ; « À 08:00 le jour J » (`day` vide : « À 08:00 ») ; « 3 jours avant, à 08:00 ».
+
+### `ContactListField`
+
+`ContactListField({ kind, value, onChange, errors?, onBlur? })` : liste à libellés pour joindre une personne ou une organisation, la même pour chaque sorte (décision FP, lot 16c ; ex-`PhonesField`) : `kind="phones"` « Téléphones » (libellé et numéro, « Ajouter un numéro ») ou `kind="emails"` « Adresses mail » (libellé et adresse, « Ajouter une adresse »), ajout et retrait ; l’erreur de chacun sous lui (`errors`, chemins `N.label`, `N.number` ou `N.address`) ; `onBlur` : un champ quitté, une entrée retirée (enregistrés alors, décision D22). Téléphones : clients, services et contacts (`ClientPartyForms`), contributeurs et relations ; adresses mail : contributeurs et relations (`PersonDetailsFields`).
 
 ## Couleur, icône, liens, groupe de contrôles
 

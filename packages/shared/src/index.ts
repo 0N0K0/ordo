@@ -42,3 +42,6 @@ export * from './core/collections';
 export * from './dates/periods';
 export * from './dates/format';
 export * from './core/rules';
+export * from './people/contact';
+export * from './people/birthdays';
+export * from './people/person-details';

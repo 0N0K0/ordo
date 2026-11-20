@@ -71,7 +71,7 @@ Les trois cellules de sujets passent par l’interne `TimeSubjectCell({ kind, en
 
 ### `components/PlannedTime.tsx`
 
-- `PlannedTime()` : section « Prévu et réalisé » : temps prévu par les créneaux de travail (`plannedSlots`, `slotMinutes`) contre temps chronométré, aujourd’hui, la semaine (de l’espace, `weekRange`) et par jour ; en direct pendant un chrono (`useNow`). Rien sans créneaux. Utilisé par `TimePage`.
+- `PlannedTime()` : section « Prévu et réalisé » : temps prévu par les créneaux de travail comptés (`useWorkingHours` : ni éphémérides, ni archivés, ni d’un type archivé, décision FR ; `plannedSlots`, `slotMinutes`) contre temps chronométré, aujourd’hui, la semaine (de l’espace, `weekRange`) et par jour ; en direct pendant un chrono (`useNow`). Rien sans créneaux. Utilisé par `TimePage`.
 - Interne : `Gauge({ label, tracked, planned })` (jauge, orange au-delà de 100 %).
 
 ### `components/TaskTime.tsx`

@@ -1,11 +1,10 @@
 import { z } from 'zod';
 import { legalTextSchema, optionalLegalText, optionalText, personNameSchema, plainTextSchema, requiredText, shortTextSchema } from '../core/rules';
 import { twoDigits } from '../core/numbers';
+import { optionalEmailSchema, PHONE_MAX, phonesSchema } from '../people/contact';
 
 /** Most characters of a postal code (a format, not a free text). */
 const POSTAL_CODE_MAX = 20;
-/** Most characters of a phone number (a format). */
-const PHONE_MAX = 30;
 /** Most characters of a VAT number (a format). */
 const VAT_NUMBER_MAX = 20;
 /** Most characters of an activity code (NAF / APE, a format). */
@@ -56,17 +55,6 @@ export function addressLines(address: Address, countryName: (code: string) => st
   ].filter((line) => line.trim());
 }
 
-const phoneSchema = z.object({
-  label: shortTextSchema,
-  number: z.string().trim().min(3, 'Numéro invalide.').max(PHONE_MAX, 'Numéro invalide.'),
-});
-const phonesSchema = z.array(phoneSchema).max(10);
-export type Phone = z.infer<typeof phoneSchema>;
-
-const emailSchema = z
-  .union([z.email({ error: 'Adresse email invalide.' }), z.literal('')])
-  .transform((value) => value || null)
-  .nullable();
 const websiteSchema = z
   .union([z.url({ protocol: /^https?$/, error: 'Adresse invalide (http ou https).' }), z.literal('')])
   .transform((value) => value || null)
@@ -123,7 +111,7 @@ export const clientDetailsSchema = z.object({
   firstName: optionalText(),
   lastName: optionalText(),
   address: addressSchema.nullable(),
-  email: emailSchema,
+  email: optionalEmailSchema,
   phones: phonesSchema,
   website: websiteSchema,
   vatNumber: optionalText(VAT_NUMBER_MAX),
@@ -136,7 +124,7 @@ export type ClientDetailsInput = z.input<typeof clientDetailsSchema>;
 export const clientServiceSchema = z.object({
   label: requiredText(),
   address: addressSchema.nullable(),
-  email: emailSchema,
+  email: optionalEmailSchema,
   phones: phonesSchema,
 });
 export type ClientServiceInput = z.input<typeof clientServiceSchema>;
@@ -145,7 +133,7 @@ export const clientContactSchema = z.object({
   serviceId: z.string().nullable(),
   firstName: requiredText('Le prénom est requis.'),
   lastName: personNameSchema,
-  email: emailSchema,
+  email: optionalEmailSchema,
   jobTitle: optionalText(),
   phones: phonesSchema,
 });
@@ -174,7 +162,7 @@ export const companyProfileSchema = z.object({
   vatApplicable: z.boolean(),
   vatExemptionText: legalTextSchema.min(1, 'La mention est requise.'),
   address: addressSchema.nullable(),
-  email: emailSchema,
+  email: optionalEmailSchema,
   phone: optionalText(PHONE_MAX),
   website: websiteSchema,
   bankName: optionalText(),

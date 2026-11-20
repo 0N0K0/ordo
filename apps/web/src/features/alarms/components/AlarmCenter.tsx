@@ -1,8 +1,9 @@
-import { addDays } from '@ordo/shared';
+import { reminderDayRange } from '@ordo/shared';
 import { useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router';
-import { localToday } from '../../../lib/dates';
-import { fetchCalendarEvents, type EventOccurrence } from '../../calendar/api';
+import { fetchCalendarEvents, useBirthdays, useWorkSchedules, type EventOccurrence } from '../../calendar/api';
+import { ringBirthdayReminders, ringEphemerisReminders } from '../lib/ring-calendar';
+import { usePersonOpener } from '../../calendar/hooks/use-person-opener';
 import { useTasksData } from '../../tasks/api';
 import { useRoutineMutations, useRoutinesData } from '../../routines/api';
 import { useRunningTimer } from '../../time/api';
@@ -21,8 +22,8 @@ const TICK_MS = 15_000;
 /**
  * Rings the alarms of the workspace open while the app is: chime, system notification (when allowed) and a
  * toast that stays until closed. Scheduled alarms ring at their times (missed ones, within a few hours, ring
- * on opening); tracking alarms ring after every set duration of the running timer; event reminders and routine alerts
- * before their moments. Renders nothing.
+ * on opening); tracking alarms ring after every set duration of the running timer; the reminders of events, routines,
+ * tasks, éphémérides and birthdays at their moments. Renders nothing.
  * @returns {null} Nothing.
  */
 export function AlarmCenter() {
@@ -34,18 +35,20 @@ export function AlarmCenter() {
   const { data: routinesData } = useRoutinesData();
   const { setDone } = useRoutineMutations();
   const slotRules = useSlotRules();
+  const { data: schedules } = useWorkSchedules();
+  const { data: birthdays } = useBirthdays();
+  const openPerson = usePersonOpener();
   // Tracking alarms: last rung step per alarm and timer, so a reload does not ring past steps again.
   const trackingSteps = useRef(new Map<string, number>());
   // Event occurrences of the next days, for their reminders.
   const upcoming = useRef<EventOccurrence[]>([]);
   useEffect(() => {
     /**
-     * Loads the event occurrences from yesterday to the day after tomorrow.
+     * Loads the event occurrences from yesterday to the most days a reminder rings before (« N jours avant »).
      * @returns {void}
      */
     const load = () => {
-      const today = localToday();
-      fetchCalendarEvents({ from: addDays(today, -1), to: addDays(today, 8) })
+      fetchCalendarEvents(reminderDayRange(new Date()))
         .then((occurrences) => {
           upcoming.current = occurrences;
         })
@@ -56,10 +59,10 @@ export function AlarmCenter() {
     return () => window.clearInterval(timer);
   }, []);
   const navigate = useNavigate();
-  const latest = useRef({ alarms, running, tasksData, workspace, markFired, navigate, routinesData, setDone, slotRules });
+  const latest = useRef({ alarms, running, tasksData, workspace, markFired, navigate, routinesData, setDone, slotRules, schedules, birthdays, openPerson });
 
   useEffect(() => {
-    latest.current = { alarms, running, tasksData, workspace, markFired, navigate, routinesData, setDone, slotRules };
+    latest.current = { alarms, running, tasksData, workspace, markFired, navigate, routinesData, setDone, slotRules, schedules, birthdays, openPerson };
   });
 
   useEffect(() => unlockAudioOnGesture(), []);
@@ -96,6 +99,8 @@ export function AlarmCenter() {
       const { alarms: list, running: entry, markFired: mark } = latest.current;
       const now = new Date();
       ringReminders(upcoming.current, now, [link('Voir l’agenda', PAGES.calendar.path)]);
+      ringEphemerisReminders(latest.current.schedules ?? [], now, [link('Voir l’agenda', PAGES.calendar.path)]);
+      ringBirthdayReminders(latest.current.birthdays ?? [], now, (birthday) => [{ label: 'Ouvrir la fiche', onClick: () => latest.current.openPerson(birthday) }]);
       ringRoutineReminders(
         latest.current.routinesData?.routines ?? [],
         now,

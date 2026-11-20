@@ -30,12 +30,12 @@ Fragment `AlarmFields`, requête `Alarms`, mutations `CreateAlarm`, `UpdateAlarm
 
 ### `components/AlarmCenter.tsx`
 
-`AlarmCenter()` : composant sans rendu monté dans `AppLayout` (app) : fait sonner, dans l’espace ouvert, les alarmes et les rappels des évènements, des routines et des tâches.
+`AlarmCenter()` : composant sans rendu monté dans `AppLayout` (app) : fait sonner, dans l’espace ouvert, les alarmes et les rappels des évènements, des routines, des tâches, des éphémérides et des anniversaires.
 
-- Données : `useAlarms`, `useRunningTimer` (temps), `useTasksData` (tâches), `useProjectTree` (projets), `useRoutinesData` + `useRoutineMutations().setDone` (routines), `useSlotRules` (agenda).
-- Occurrences d’évènements d’hier à J+8 rechargées toutes les 5 minutes (`fetchCalendarEvents`), gardées dans une ref.
+- Données : `useAlarms`, `useRunningTimer` (temps), `useTasksData` (tâches), `useProjectTree` (projets), `useRoutinesData` + `useRoutineMutations().setDone` (routines), `useSlotRules`, `useWorkSchedules`, `useBirthdays`, `usePersonOpener` (agenda).
+- Occurrences d’évènements d’hier à J+31 (`reminderDayRange`, de quoi sonner un « N jours avant ») rechargées toutes les 5 minutes (`fetchCalendarEvents`), gardées dans une ref.
 - `unlockAudioOnGesture()` au montage.
-- Vérification toutes les `TICK_MS` = 15 s : `ringReminders` (lien « Voir l’agenda »), `ringRoutineReminders` (lien « Voir les routines », « Marquer comme faite », report via `slotRules.nextAllowedAt(routineDoable(routine), at)`), `ringTaskReminders` (lien vers la tâche, `alarmTarget`), puis `dueAlarms` + `ringAlarm` (liens `alarmTarget`, `markFired`).
+- Vérification toutes les `TICK_MS` = 15 s : `ringReminders` (lien « Voir l’agenda »), `ringRoutineReminders` (lien « Voir les routines », « Marquer comme faite », report via `slotRules.nextAllowedAt(routineDoable(routine), at)`), `ringTaskReminders` (lien vers la tâche, `alarmTarget`), `ringEphemerisReminders` (lien « Voir l’agenda »), `ringBirthdayReminders` (« Ouvrir la fiche » : `usePersonOpener`), puis `dueAlarms` + `ringAlarm` (liens `alarmTarget`, `markFired`).
 - Les liens des toasts naviguent avec `useNavigate` (les toasts sont hors du routeur). Valeurs les plus récentes lues par une ref `latest`. Paliers des alarmes de chrono : ref `trackingSteps`.
 
 ### `components/ring.tsx`
@@ -48,12 +48,21 @@ Fragment `AlarmFields`, requête `Alarms`, mutations `CreateAlarm`, `UpdateAlarm
 | `systemNotification(title, body, tag)`                      | Notification système si autorisée                                                                                                            | ici, `MailWatcher`                                |
 | `ringAlarm(alarm, key, links, workspaceLabel?)`             | Carillon + notification + toast `notifyInfo` d’une alarme (« Espace « X » » si autre espace)                                                 | `AlarmCenter`, `ElsewhereNotifier`                |
 | `ReminderToast` (type)                                      | Ce que montre le toast d’un rappel : `icon`, `title`, `lines`, `actions`                                                                     | ici, `ring-routines.tsx`                          |
-| `ringPlannedReminders(planned, now, toast, workspaceLabel?)` | La seule sonnerie des rappels (générique : `toast` reçoit le rappel planifié tel que donné) (décision D16) : chaque rappel dû (≤ 6 h de retard) réservé une fois (`claim` 7 h, clé `ordo.alarm.<clé>`), carillon, notification système, toast `notifyInfo` (`id` = clé ; « Espace « X » » si autre espace). Règle eslint : `playChime()` appelé ailleurs renvoie vers elle (exceptions commentées : `ringAlarm`, `MailWatcher`) | `ringReminders`, `ringTaskReminders`, `ringRoutineReminders` |
-| `ringReminders(occurrences, now, links, workspaceLabel?)`   | Rappels d’évènements (`remindersBefore` depuis le début, `remindersAt` le premier jour ; clé `event:<clé>:before:<minutes>` / `…:at:<HH:MM>`), sauf occurrences annulées                                             | `AlarmCenter`, `ElsewhereNotifier`                |
-| `RemindedTask` (type), `ringTaskReminders(tasks, now, links, workspaceLabel?)` | Rappels « À HH:MM » des tâches ouvertes non archivées (`taskReminders`, clé `task:<id>:<jour>:at:<HH:MM>`) ; type minimal, celui des tâches d'un autre espace aussi | `AlarmCenter`, `ElsewhereNotifier` |
+| `ringPlannedReminders(planned, now, toast, workspaceLabel?)` | La seule sonnerie des rappels (générique : `toast` reçoit le rappel planifié tel que donné) (décision D16) : chaque rappel dû (≤ 6 h de retard) réservé une fois (`claim` 7 h, clé `ordo.alarm.<clé>`), carillon, notification système, toast `notifyInfo` (`id` = clé ; « Espace « X » » si autre espace). Règle eslint : `playChime()` appelé ailleurs renvoie vers elle (exceptions commentées : `ringAlarm`, `MailWatcher`) | `ringReminders`, `ringTaskReminders`, `ringRoutineReminders`, `ring-calendar.tsx` |
+| `ringReminders(occurrences, now, links, workspaceLabel?)`   | Rappels d’évènements (`occurrenceReminders` : « avant » le début, « À HH:MM » et « N jours avant » le premier jour ; clé `event:<clé>:before:<minutes>` / `…:at:<HH:MM>` / `…:days:<N>:<HH:MM>`), sauf occurrences annulées                                             | `AlarmCenter`, `ElsewhereNotifier`                |
+| `RemindedTask` (type), `ringTaskReminders(tasks, now, links, workspaceLabel?)` | Rappels « À HH:MM » et « N jours avant » l’échéance des tâches ouvertes non archivées (`taskReminders`, clé `task:<id>:<jour>:at:<HH:MM>` / `task:<id>:<échéance>:days:<N>:<HH:MM>`) ; type minimal, celui des tâches d'un autre espace aussi | `AlarmCenter`, `ElsewhereNotifier` |
 | `dueAlarms(alarms, running, now, trackingSteps, markFired)` | Alarmes à sonner maintenant, avec leur clé d’occurrence ; enregistre les occurrences planifiées comme sonnées                                | `AlarmCenter`, `ElsewhereNotifier`                |
 
 Interne : `occurrenceStart(occurrence)` (instant, ou minuit de Paris du premier jour en journée entière, `parisInstant`).
+
+### `lib/ring-calendar.tsx`
+
+Lot 16, décision FO.
+
+| Export                                                      | Rôle                                                                                                                                         | Utilisé par                         |
+| ----------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------- |
+| `RemindedSchedule` (type), `ringEphemerisReminders(schedules, now, links, workspaceLabel?)` | Rappels des éphémérides non archivées (un créneau n'en sonne aucun) : pour chaque suite de jours d’hier à J+31 (`scheduleRuns`, `reminderDayRange`), `occurrenceReminders` depuis son premier horaire ; clé `ephemeris:<id>:<jour>:…` ; toast `CalendarStarIcon`, libellé, jour | `AlarmCenter`, `ElsewhereNotifier` |
+| `RemindedBirthday` (type), `ringBirthdayReminders(birthdays, now, links, workspaceLabel?)` | Rappels des anniversaires (`birthdaysBetween` d’hier à J+31, `remindersAt`) ; clé `birthday:<contributor\|relation>:<id>:<jour>:…` ; toast `CakeIcon`, `birthdayLabel` (« Anniversaire de Paul — 40 ans »), jour | `AlarmCenter`, `ElsewhereNotifier` |
 
 ### `components/AlarmForm.tsx`
 

@@ -545,7 +545,11 @@ export function EventForm({ context, occurrence, defaults, onDone, onDuplicated,
               <Fieldset variant="unstyled" disabled={seriesFields} display="contents">
                 <RemindersSelect
                   label="Rappels"
-                  description={values.allDay ? 'Avant minuit le premier jour (« 6 h avant » : la veille à 18 h), 24 h au plus.' : 'Avant le début, 24 h au plus.'}
+                  description={
+                    values.allDay
+                      ? 'Avant minuit le premier jour (« 6 h avant » : la veille à 18 h), 24 h au plus ; ou à une heure du premier jour ou de quelques jours avant.'
+                      : 'Avant le début, 24 h au plus ; ou à une heure du premier jour ou de quelques jours avant.'
+                  }
                   emptyLabel="Aucun"
                   value={values.reminders} onChange={(reminders) => form.setFieldValue('reminders', reminders)} clearable />
               </Fieldset>

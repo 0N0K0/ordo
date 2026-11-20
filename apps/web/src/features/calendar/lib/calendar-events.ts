@@ -1,6 +1,6 @@
 import type { EventInput } from '@fullcalendar/core';
-import { addDays, mapById, readScheduleDisplay, type ScheduleDisplay, type WorkScheduleRule } from '@ordo/shared';
-import { scheduleRules, type ScheduleType, type useDefaultScheduleKind, type useSubscribedSchedules, type WorkSchedule } from '../api';
+import { addDays, birthdayLabel, birthdaysBetween, DEFAULT_SCHEDULE_DISPLAY, mapById, readBirthDate, readScheduleDisplay, type ScheduleDisplay, UNTYPED_EPHEMERIS_LABEL, type WorkScheduleRule } from '@ordo/shared';
+import { scheduleRules, type PersonBirthday, type ScheduleType, type useDefaultScheduleKind, type useSubscribedSchedules, type WorkSchedule } from '../api';
 import classes from '../pages/CalendarPage.module.css';
 import { inWorkspace } from './layer-label';
 
@@ -34,10 +34,15 @@ export function isArchivedOccurrence(occurrence: { archived: boolean; calendarId
   return occurrence.archived || archivedCalendarIds.has(occurrence.calendarId);
 }
 
+/** Color of the éphémérides without kind (they have no default kind, lot 16). */
+export const EPHEMERIS_COLOR = 'var(--mantine-color-gray-6)';
+
 /** Schedule shown as slots: its rule, the color of its kind, its label, whether of another workspace, and its display. */
 interface ScheduleSource {
   schedule: WorkSchedule | ForeignSchedule;
   rule: WorkScheduleRule;
+  /** An éphéméride (lot 16): dotted. */
+  ephemeris: boolean;
   color: string | null;
   label: string;
   foreign: boolean;
@@ -69,11 +74,12 @@ export function scheduleSources(own: readonly WorkSchedule[], foreign: readonly 
   const typeOf = mapById(types);
   return [
     ...own.map((schedule) => {
-      // Without kind: the default kind of the workspace.
-      const kind = (schedule.typeId ? typeOf.get(schedule.typeId) : undefined) ?? defaultKind;
+      // Without kind: the default kind of the workspace; an éphéméride without kind, its own look.
+      const kind = (schedule.typeId ? typeOf.get(schedule.typeId) : undefined) ?? (schedule.ephemeris ? { label: UNTYPED_EPHEMERIS_LABEL, color: EPHEMERIS_COLOR, ...DEFAULT_SCHEDULE_DISPLAY } : defaultKind);
       return {
         schedule,
         rule: scheduleRules([schedule])[0],
+        ephemeris: schedule.ephemeris,
         color: kind?.color ?? null,
         label: scheduleLayerLabel(schedule.label, kind?.label),
         foreign: false,
@@ -83,7 +89,8 @@ export function scheduleSources(own: readonly WorkSchedule[], foreign: readonly 
     ...foreign.map((schedule) => ({
       schedule,
       rule: scheduleRules([schedule])[0],
-      color: schedule.color ?? null,
+      ephemeris: schedule.ephemeris,
+      color: schedule.color ?? (schedule.ephemeris && !schedule.typeId ? EPHEMERIS_COLOR : null),
       label: scheduleLayerLabel(schedule.label, schedule.typeLabel, schedule.workspaceLabel),
       foreign: true,
       display: readScheduleDisplay(schedule),
@@ -93,15 +100,62 @@ export function scheduleSources(own: readonly WorkSchedule[], foreign: readonly 
 
 /**
  * Look of the bar of a schedule on a day (the all-day row of the week and the day): in the color of its kind (working
- * hours without one), hatched for a schedule of another workspace.
- * @param {{ color: string | null, foreign: boolean }} source Schedule shown.
+ * hours without one), hatched for a schedule of another workspace, dotted and in italics for an éphéméride.
+ * @param {{ color: string | null, foreign: boolean, ephemeris?: boolean }} source Schedule shown.
  * @returns {Pick<EventInput, 'backgroundColor' | 'borderColor' | 'textColor' | 'classNames'>} Event props.
  */
-export function slotBarLook({ color, foreign }: { color: string | null; foreign: boolean }): Pick<EventInput, 'backgroundColor' | 'borderColor' | 'textColor' | 'classNames'> {
+export function slotBarLook({ color, foreign, ephemeris = false }: { color: string | null; foreign: boolean; ephemeris?: boolean }): Pick<EventInput, 'backgroundColor' | 'borderColor' | 'textColor' | 'classNames'> {
   return {
     backgroundColor: color ?? 'var(--mantine-color-green-light)',
     borderColor: color ?? 'var(--mantine-color-green-light)',
     textColor: 'var(--mantine-color-text)',
-    classNames: [classes.slotBar, ...(foreign ? [classes.subscribedSlot] : [])],
+    classNames: [classes.slotBar, ...slotLookClasses({ foreign, ephemeris })],
   };
+}
+
+/**
+ * Classes telling a schedule shown apart: hatched from another workspace, dotted an éphéméride (lot 16).
+ * @param {{ foreign: boolean, ephemeris?: boolean }} source Schedule shown.
+ * @returns {string[]} Classes.
+ */
+export function slotLookClasses({ foreign, ephemeris = false }: { foreign: boolean; ephemeris?: boolean }): string[] {
+  return [...(foreign ? [classes.subscribedSlot] : []), ...(ephemeris ? [classes.ephemeris, classes.ephemerisBar] : [])];
+}
+
+/**
+ * Birthdays of a period as the calendar shows them (lot 16): whole-day éphémérides without kind (gray, dotted), a bar
+ * « Anniversaire de Paul — 40 ans » (opening the person) and the day in the background, in every view, the month too
+ * (lot 16c: unlike the other éphémérides, whose month shows the background only).
+ * @param {readonly PersonBirthday[]} birthdays Birthdays of the workspace.
+ * @param {string} from First day shown.
+ * @param {string} to Last day shown.
+ * @param {boolean} month Month view.
+ * @returns {EventInput[]} Events.
+ */
+export function birthdayEvents(birthdays: readonly PersonBirthday[], from: string, to: string, month: boolean): EventInput[] {
+  return birthdays.flatMap((birthday) => {
+    const birth = readBirthDate(birthday.birthDate);
+    if (!birth) return [];
+    return birthdaysBetween(birth, from, to).flatMap(({ date, age }) => {
+      const day = { start: date, end: addDays(date, 1), allDay: true };
+      const background: EventInput = {
+        ...day,
+        id: `birthday-day:${birthday.id}:${date}`,
+        display: 'background',
+        backgroundColor: EPHEMERIS_COLOR,
+        classNames: [classes.typedSlot, ...slotLookClasses({ foreign: false, ephemeris: true })],
+      };
+      const bar: EventInput = {
+        ...day,
+        id: `birthday:${birthday.id}:${date}`,
+        title: birthdayLabel(birthday.name, age),
+        editable: false,
+        extendedProps: { kind: 'birthday', birthday },
+        ...slotBarLook({ color: EPHEMERIS_COLOR, foreign: false, ephemeris: true }),
+      };
+      // The week and the day: the hours of the day in the background too.
+      if (month) return [background, bar];
+      return [bar, { ...background, start: `${date}T00:00:00`, end: `${addDays(date, 1)}T00:00:00`, allDay: false, id: `birthday-whole:${birthday.id}:${date}` }];
+    });
+  });
 }

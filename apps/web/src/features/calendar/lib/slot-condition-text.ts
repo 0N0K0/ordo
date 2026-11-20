@@ -1,4 +1,4 @@
-import type { SlotCondition, SlotConditionItem } from '@ordo/shared';
+import { birthdaySlotPerson, type SlotCondition, type SlotConditionItem } from '@ordo/shared';
 
 /**
  * Condition without any part (any time).
@@ -10,12 +10,12 @@ export const emptySlotCondition = (): SlotCondition => ({ type: 'group', id: 'ro
  * Names of some schedules or kinds, quoted, joined.
  * @param {unknown} value Ids or kind references.
  * @param {Map<string, string>} names Names of the schedules and kinds.
- * @param {string} missing Name of one no longer there.
+ * @param {string} missing Name of one no longer there (a birthday no longer there: « anniversaire retiré »).
  * @param {string} joint « ou », « et ».
  * @returns {{ text: string, count: number }} Text and how many.
  */
 function quoted(value: unknown, names: Map<string, string>, missing: string, joint: string): { text: string; count: number } {
-  const list = (Array.isArray(value) ? value : []).map((id: string) => `« ${names.get(id) ?? missing} »`);
+  const list = (Array.isArray(value) ? value : []).map((id: string) => `« ${names.get(id) ?? (birthdaySlotPerson(id) ? 'anniversaire retiré' : missing)} »`);
   return { text: list.join(` ${joint} `), count: list.length };
 }
 

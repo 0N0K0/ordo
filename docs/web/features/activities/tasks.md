@@ -43,11 +43,11 @@ Hooks et constantes exportés :
 | `useTaskBlock()`              | Ajoute (`add: true`) ou retire un lien « bloque ».                                                                                              |
 | `useTaskRelation()`           | Ajoute ou retire un lien « relative à ».                                                                                                        |
 | `useTaskCommentMutations()`   | `{ add, update, remove }` des commentaires de tâche.                                                                                            |
-| `useContributorMutations()`   | `{ create, update, remove, setProjectContributors }` ; `remove` invalide aussi la facturation (`accountingQueryKey`).                           |
+| `useContributorMutations()`   | `{ create, update, remove, setProjectContributors }` ; `create`, `update`, `remove` dans `withLossConfirmation` (anniversaire cité par des routines, décision FQ), rechargent les tâches et les routines ; `remove` invalide aussi la facturation (`accountingQueryKey`). |
 | `useTaskLabelMutations(kind)` | `{ create, update, remove }` d’une liste de paramètres (statut, priorité, type, étiquette).                                                     |
 | `useTaskColumnDefaults()`     | Colonnes des nouvelles vues de l’espace (`readTaskColumnDefaults`).                                                                             |
 | `useSetTaskColumnDefaults()`  | Les change (`null` : celles de l’app) ; mise à jour optimiste du cache.                                                                         |
-| `useDoableTaskIds(enabled)`   | Ensemble des tâches faisables maintenant ; demandé seulement si `enabled`, rafraîchi chaque minute ; envoie le décalage UTC du navigateur.      |
+| `useDoableTaskIds(enabled)`, `doableTasksKey` | Ensemble des tâches faisables maintenant ; demandé seulement si `enabled`, rafraîchi chaque minute ; envoie le décalage UTC du navigateur. Sa clé est rechargée avec les sources des conditions (`SLOT_DEPENDENT_KEYS`, décision FQ). |
 | `useBulkTaskMutations()`      | `{ update, transfer, archive, remove }` : `bulkUpdateTasks` (avec `restoring`), `bulkTransferTasks`, `bulkSetTasksArchived`, `bulkDeleteTasks`. |
 | `useMilestoneMutations()`     | `{ create, update, remove, move }` ; `move` (interne `useMoveMilestone`) réordonne le cache tout de suite.                                      |
 | `useSprintMutations()`        | `{ create, update, remove }`.                                                                                                                   |
@@ -94,7 +94,7 @@ Interne : `LabelDocuments` (documents CRUD par type de libellé), `useTasksMutat
 
 ### `components/TaskReminders.tsx`
 
-- `TaskReminders({ value, minDate, deadline, onChange, error?, disabled? })` : « Rappels » d'une tâche (décision D16), dans « Nouvelle tâche » (`TaskCreateForm`) et le panneau (`TaskDetail`, enregistré à chaque changement) : `RemindersSelect` en « À HH:MM » seulement (`kinds={['at']}`, `day` vide), aide selon « Ouverture » / « Échéance », désactivé sans échéance.
+- `TaskReminders({ value, minDate, deadline, onChange, error?, disabled? })` : « Rappels » d'une tâche (décision D16), dans « Nouvelle tâche » (`TaskCreateForm`) et le panneau (`TaskDetail`, enregistré à chaque changement) : `RemindersSelect` en « À HH:MM » et « N jours avant » l’échéance (`kinds={['at', 'days']}`, `day` vide, lot 16), aide selon « Ouverture » / « Échéance », désactivé sans échéance.
 
 ### `components/TaskLocation.tsx`
 
@@ -245,7 +245,7 @@ Internes : `NEW_LABEL_TITLES`, `useLabelCreator(kind)` (ouvre le formulaire du l
 
 ### `components/ContributorForm.tsx`
 
-- `ContributorForm({ contributor?, defaultProjectIds?, onDone })` : formulaire d’un nouveau contributeur (« Ajouter » ; identifiant proposé par `suggestHandle` tant qu’il n’est pas touché) ou panneau d’un contributeur existant enregistré champ par champ (décision D22, `useFieldSave` : nom et identifiant en les quittant, image et projets dès qu’ils changent, seuls les champs changés envoyés ; `SaveStatus` ; le contributeur de `useTaskContext` suivi ; archivé : lecture seule) : nom, identifiant, image (`IconField`, `formIconProps` : `avatar` / `removeAvatar`), projets (valeur du formulaire ; pas de projets pour « Moi »). Ouvert par `useContributorForm`.
+- `ContributorForm({ contributor?, defaultProjectIds?, onDone })` : formulaire d’un nouveau contributeur (« Ajouter » ; identifiant proposé par `suggestHandle` tant qu’il n’est pas touché) ou panneau d’un contributeur existant enregistré champ par champ (décision D22, `useFieldSave` : nom et identifiant en les quittant, image et projets dès qu’ils changent, seuls les champs changés envoyés ; `SaveStatus` ; le contributeur de `useTaskContext` suivi ; archivé : lecture seule) : nom, identifiant, image (`IconField`, `formIconProps` : `avatar` / `removeAvatar`), projets (valeur du formulaire ; pas de projets pour « Moi »), et ses détails (`PersonDetailsFields` : date de naissance, rappels d’anniversaire, adresses mail, téléphones ; enregistrés en les quittant, les rappels dès qu’ils changent ; lot 16). Ouvert par `useContributorForm`.
 
 ### `components/TaskTable.module.css`
 

@@ -47,13 +47,14 @@ import {
   withMovedTimes,
   joinedKey,
   normalizedReminders,
+  REMINDER_LOOKAHEAD_DAYS,
   readReminders,
   parisInstant,
   routineReminderTime,
-  type WorkScheduleRule,
   conditionKinds,
   conditionScheduleIds,
   foreignSlotKindWorkspace,
+  conditionCitesBirthdays,
 } from '@ordo/shared';
 import { z } from 'zod';
 import { deleteTreeItems, topmostIds, treeListService } from '../core/trees';
@@ -65,7 +66,8 @@ import { BY_POSITION, moveBefore, nextPositionIn } from '../core/ordering';
 import { Prisma, type Routine, type RoutineCategory } from '../../generated/prisma/client';
 import { clientError, fieldError, notFound, orNotFound, parseInput } from '../../graphql/errors';
 import { storedRecurrence } from '../calendar/calendar-events';
-import { assertConditionSchedules, loadSlotsOn, type ScheduleChange } from '../calendar/slot-conditions';
+import { assertConditionSchedules, loadSlotsOn, type ScheduleChange, type ScheduleEdit } from '../calendar/slot-conditions';
+import type { PeopleChangeSettler } from '../calendar/birthdays';
 import { assertProjectContributors, followProject } from '../projects/contributors';
 import { PARIS, parisToday } from '../../today';
 import { assertAllExist, findOrNotFound } from '../core/lookup';
@@ -488,14 +490,25 @@ export interface RoutineReminderOccurrence {
  * Occurrences the reminders of a routine ring for: its current one while not done and its next one (a reminder up to 24
  * hours before may ring before it opens), each with its first day (« Ouverture ») and, for each time of the day not
  * ticked, its first day at the start of the time (« dès », else its latest time; a time without any hour has none).
+ * With reminders « N jours avant » (`ahead` days at most), also the later occurrences that open within those days.
  * An archived routine has none (no occurrence).
  * @param {RoutineTiming & { checks: { date: Date, slot: number }[] }} routine Routine with its latest checks.
  * @param {ScheduleContext} [schedules] Schedules. Optional. Default = none.
+ * @param {number} [ahead] Most days before of its reminders « N jours avant ». Optional. Default = 0.
  * @returns {RoutineReminderOccurrence[]} Occurrences.
  */
-export function reminderOccurrences(routine: RoutineTiming & { checks: { date: Date; slot: number }[] }, schedules: ScheduleContext = NO_SCHEDULES): RoutineReminderOccurrence[] {
+export function reminderOccurrences(routine: RoutineTiming & { checks: { date: Date; slot: number }[] }, schedules: ScheduleContext = NO_SCHEDULES, ahead = 0): RoutineReminderOccurrence[] {
   const { current, next } = occurrencesOf(routine, undefined, schedules);
-  return [current, next].flatMap((due) => {
+  const today = parisToday();
+  const last = addDays(today, ahead);
+  // Later occurrences opening within the days of the reminders « N jours avant ».
+  const later =
+    ahead > 0 && next
+      ? occurrenceSpansBetween(routine, addDays(next, 1), addDays(last, REMINDER_LOOKAHEAD_DAYS), schedules)
+          .filter((span) => span.start <= last)
+          .map((span) => span.end)
+      : [];
+  return [current, next, ...later].flatMap((due) => {
     if (!due) return [];
     const ticked = new Set(due === current ? routine.checks.filter((check) => formatDay(check.date) === due).map((check) => check.slot) : []);
     const slots = slotsOf(routine, due, schedules);
@@ -918,26 +931,30 @@ async function lostRoutineOccurrences(current: Routine, next: Routine, follows?:
 }
 
 /**
- * Before a change of the calendar schedules of the workspace (one created, changed or deleted): the occurrences of the
- * routines that it makes disappear (their condition no longer leaves them any moment; those ticked stay) lose their
- * comments, as with a change of their rule (decision EW, lot 12). Without `confirmLoss: true` while some would be lost,
- * nothing changes (CONFIRMATION_REQUIRED, asked once for all the routines); confirmed, those comments are deleted.
- * Only the routines of the workspace are looked at (not archived, with a condition or cases).
- * @param {(own: WorkScheduleRule[]) => WorkScheduleRule[]} change Schedules of the workspace once changed.
+ * Before a change of the calendar schedules of the workspace (one created, changed, archived, restored or deleted, a
+ * kind archived or restored) or of its people (a birthday changed, moved or gone: birth date, archiving, link of a
+ * relation to a contributor, creation, deletion; decision FQ), the occurrences of the routines that it makes disappear
+ * (their condition no longer leaves them any moment; those ticked stay) lose their comments, as with a change of their
+ * rule (decision EW, lot 12). Without `confirmLoss: true` while some would be lost, nothing changes
+ * (CONFIRMATION_REQUIRED, asked once for all the routines); confirmed, those comments are deleted. Only the routines of
+ * the workspace are looked at (not archived, with a condition or cases), and, for a change of schedules, those of the
+ * other workspaces naming them.
+ * @param {ScheduleEdit} edit Schedules and people of the workspace once changed.
  * @param {boolean} [confirmLoss] Loss confirmed (true), to confirm (false). Optional. Default = no question.
  * @returns {Promise<void>}
  */
-export async function settleScheduleChange(apply: (own: WorkScheduleRule[]) => WorkScheduleRule[], confirmLoss?: boolean): Promise<void> {
-  const change: ScheduleChange = { workspaceId: currentWorkspaceId(), apply };
-  const own = new Set((await prisma.workSchedule.findMany({ select: { id: true } })).map((schedule) => schedule.id));
-  // Here: every routine following schedules (the free time counts them all). Elsewhere: those naming one of these
-  // schedules, or a kind of this workspace.
-  const here = await routinesLosing(change, () => true);
-  const others = await unscopedPrisma.workspace.findMany({ where: { id: { not: change.workspaceId } }, select: { id: true, kind: true } });
+export async function settleScheduleChange(edit: ScheduleEdit, confirmLoss?: boolean): Promise<void> {
+  const change: ScheduleChange = { workspaceId: currentWorkspaceId(), ...edit };
+  // Here: every routine following schedules (the free time counts them all); only those naming birthdays for a change
+  // of the people alone. Elsewhere: those naming one of these schedules, or a kind of this workspace (birthdays are
+  // never named elsewhere).
+  const here = await routinesLosing(change, edit.apply ? () => true : conditionCitesBirthdays);
+  const own = edit.apply ? new Set((await prisma.workSchedule.findMany({ select: { id: true } })).map((schedule) => schedule.id)) : null;
+  const others = own ? await unscopedPrisma.workspace.findMany({ where: { id: { not: change.workspaceId } }, select: { id: true, kind: true } }) : [];
   const elsewhere = await Promise.all(
     others.map((workspace) =>
       runInWorkspace(workspace, async () => {
-        const lost = await routinesLosing(change, (condition) => conditionScheduleIds(condition).some((id) => own.has(id)) || conditionKinds(condition).some((kind) => foreignSlotKindWorkspace(kind) === change.workspaceId));
+        const lost = await routinesLosing(change, (condition) => conditionScheduleIds(condition).some((id) => own!.has(id)) || conditionKinds(condition).some((kind) => foreignSlotKindWorkspace(kind) === change.workspaceId));
         // Its deletions run in its workspace.
         return lost.map((item) => ({ ...item, settle: () => runInWorkspace(workspace, item.settle) }));
       }),
@@ -947,6 +964,17 @@ export async function settleScheduleChange(apply: (own: WorkScheduleRule[]) => W
   assertLossConfirmed(losses, confirmLoss);
   for (const lost of losses) await lost.settle();
 }
+
+/**
+ * Settling of a change of the people (`settleScheduleChange`, decision FQ): the mutations of contributors and relations
+ * give it to their services.
+ * @param {boolean | null} [confirmLoss] Loss confirmed. Optional. Default = to confirm.
+ * @returns {PeopleChangeSettler} Settler.
+ */
+export const peopleSettler =
+  (confirmLoss?: boolean | null): PeopleChangeSettler =>
+  (people) =>
+    settleScheduleChange({ people }, confirmLoss ?? false);
 
 /**
  * What a change of schedules takes from the routines of the current workspace whose conditions are concerned: the

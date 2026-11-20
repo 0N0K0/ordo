@@ -79,7 +79,6 @@ model Workspace {
   calendarCategories        CalendarCategory[]
   treasuryEntryLines        TreasuryEntryLine[]
   treasuryContexts          TreasuryContext[]
-  treasuryContextPeriods    TreasuryContextPeriod[]
   treasuryBudgets           TreasuryBudget[]
   treasuryRelations         TreasuryRelation[]
   scheduleTypes             ScheduleType[]
@@ -230,7 +229,6 @@ model Icon {
   calendars              Calendar[]
   scheduleTypes          ScheduleType[]
   treasuryAccounts       TreasuryAccount[]
-  treasuryContexts       TreasuryContext[]
   treasuryPaymentMethods TreasuryPaymentMethod[]
   treasuryCounterparties TreasuryCounterparty[]
   shoppingBaseLists      ShoppingBaseList[]
@@ -461,6 +459,15 @@ model Contributor {
   user                  User?               @relation(fields: [userId], references: [id], onDelete: SetNull)
   /// GitHub login: assignees are synchronized with the GitHub boards through it.
   githubLogin           String?
+  /// Birth date: YYYY-MM-DD, or --MM-DD when the year is not known (lot 16). Its birthday is a whole-day éphéméride
+  /// derived at read time.
+  birthDate             String?
+  /// Reminders of its birthday: [{ before: null, at: "HH:MM", days }] (on the day or some days before).
+  birthdayReminders     Json                @default("[]")
+  /// [{ label, address }]: several email addresses (lot 16c).
+  emails                Json                @default("[]")
+  /// [{ label, number }]
+  phones                Json                @default("[]")
   /// Member of the team (professional workspace) or household (personal one): treasury entries are split
   /// between members. The app user ("Moi") always is one.
   teamMember            Boolean             @default(false)
@@ -1569,6 +1576,12 @@ model ScheduleType {
   dayBar        Boolean                    @default(true)
   /// Its days in the month: BACKGROUND, BORDER or NONE.
   monthDisplay  String                     @default("BACKGROUND")
+  /// A kind of éphémérides (holidays, school holidays, birthdays…), not of créneaux: its schedules are éphémérides.
+  ephemeris     Boolean                    @default(false)
+  /// Éphémérides only: the kind is a context of the treasury (its éphémérides are its periods).
+  budgetContext Boolean                    @default(false)
+  /// Budget context only: a context in every workspace of the user, not only in its own.
+  sharedContext Boolean                    @default(false)
   position      Int                        @default(0)
   /// Archived: hidden by default and read only until restored.
   archivedAt    DateTime?
@@ -1576,6 +1589,8 @@ model ScheduleType {
   schedules     WorkSchedule[]
   /// Other workspaces showing its schedules.
   subscriptions WorkScheduleSubscription[]
+  /// Treasury contexts it is (one per workspace where it is a context).
+  contexts      TreasuryContext[]
   /// Workspace the row belongs to (always given by the app; the default fails outside one).
   workspaceId   String                     @default(dbgenerated("current_setting('ordo.workspace'::text)"))
   workspace     Workspace                  @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
@@ -1611,9 +1626,12 @@ model WorkScheduleSubscription {
 model WorkSchedule {
   id            String        @id @default(cuid())
   label         String
-  /// Kind of time it plans ("Travail", "Garde des enfants"…); none: working hours.
+  /// Kind of time it plans ("Travail", "Garde des enfants"…); none: working hours (or, an éphéméride, no kind).
   typeId        String?
   type          ScheduleType? @relation(fields: [typeId], references: [id], onDelete: SetNull)
+  /// An éphéméride (holidays, birthday…), not a créneau: that of its kind when it has one. Never in the free time nor
+  /// the working hours.
+  ephemeris     Boolean       @default(false)
   startDate     DateTime      @db.Date
   endDate       DateTime?     @db.Date
   /// Former format (until cases): every n weeks, counted from the week of `startDate`.
@@ -1626,6 +1644,9 @@ model WorkSchedule {
   cases         Json          @default("[]")
   /// Periods with cases of their own instead of the general ones (none: a pause), dates included.
   exceptions    Json          @default("[]")
+  /// Reminders of an éphéméride (lot 16), [{ before, at, days }] as those of the events; a créneau has none (kept
+  /// without ringing when an éphéméride becomes one).
+  reminders     Json          @default("[]")
   /// Archived: hidden by default and read only until restored.
   archivedAt    DateTime?
   createdAt     DateTime      @default(now())
@@ -2142,26 +2163,22 @@ model TreasuryEntryLine {
 }
 
 /// Context of spending ("Vacances", "Rentrée"…), not in a tree: the same purchase does not mean the same in two
-/// contexts. A line without context is everyday spending ("Quotidien").
+/// contexts. A line without context is everyday spending ("Quotidien"). It is a kind of éphémérides "Sert de contexte
+/// au budget" (its label, color, image, position and archiving), its éphémérides its periods: one row per workspace
+/// where it is a context (its own; every one when shared), which the lines and budgets of that workspace name.
 model TreasuryContext {
-  id          String                  @id @default(cuid())
-  label       String
-  /// Image shown as its avatar (none: its initials on its color).
-  iconId      String?
-  icon        Icon?                   @relation(fields: [iconId], references: [id], onDelete: SetNull)
-  color       String
-  position    Int                     @default(0)
-  /// Archived: hidden by default and read only until restored.
-  archivedAt  DateTime?
-  createdAt   DateTime                @default(now())
-  periods     TreasuryContextPeriod[]
-  lines       TreasuryEntryLine[]
-  budgets     TreasuryBudget[]
+  id             String              @id @default(cuid())
+  scheduleTypeId String
+  scheduleType   ScheduleType        @relation(fields: [scheduleTypeId], references: [id], onDelete: Cascade)
+  createdAt      DateTime            @default(now())
+  lines          TreasuryEntryLine[]
+  budgets        TreasuryBudget[]
   /// Workspace the row belongs to (always given by the app; the default fails outside one).
-  workspaceId String                  @default(dbgenerated("current_setting('ordo.workspace'::text)"))
-  workspace   Workspace               @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  workspaceId    String              @default(dbgenerated("current_setting('ordo.workspace'::text)"))
+  workspace      Workspace           @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
 
-  @@unique([workspaceId, label])
+  @@unique([workspaceId, scheduleTypeId])
+  @@index([scheduleTypeId])
 }
 
 /// Person out of the team or household (friend, family, partner…) lines and budgets can be for: loan, gift…
@@ -2170,6 +2187,15 @@ model TreasuryRelation {
   id                    String              @id @default(cuid())
   name                  String
   note                  String?
+  /// Birth date: YYYY-MM-DD, or --MM-DD when the year is not known (lot 16). Its birthday is a whole-day éphéméride
+  /// derived at read time.
+  birthDate             String?
+  /// Reminders of its birthday: [{ before: null, at: "HH:MM", days }] (on the day or some days before).
+  birthdayReminders     Json                @default("[]")
+  /// [{ label, address }]: several email addresses (lot 16c).
+  emails                Json                @default("[]")
+  /// [{ label, number }]
+  phones                Json                @default("[]")
   /// Contributor this person also is (on projects, tasks…), if any.
   contributorId         String?
   contributor           Contributor?        @relation(fields: [contributorId], references: [id], onDelete: SetNull)
@@ -2233,24 +2259,6 @@ model TreasuryBudget {
   @@index([relationId])
   @@index([contextId])
   @@index([categoryId])
-}
-
-/// Period a context is planned for: the lines of the entries dated in it get that context proposed.
-model TreasuryContextPeriod {
-  id          String          @id @default(cuid())
-  contextId   String
-  context     TreasuryContext @relation(fields: [contextId], references: [id], onDelete: Cascade)
-  /// First and last days, included.
-  startDate   DateTime        @db.Date
-  endDate     DateTime        @db.Date
-  note        String?
-  createdAt   DateTime        @default(now())
-  /// Workspace the row belongs to (always given by the app; the default fails outside one).
-  workspaceId String          @default(dbgenerated("current_setting('ordo.workspace'::text)"))
-  workspace   Workspace       @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
-
-  @@index([contextId])
-  @@index([workspaceId, startDate])
 }
 
 enum TreasuryEntryStatus {
