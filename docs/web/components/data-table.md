@@ -25,7 +25,7 @@ Une colonne déclare tout ce que le tableau en fait :
 - `numeric` (aligné à droite, police monospace ; filtré comme un nombre via `sortValue`) et `formatTotal` (écriture du total du pied) ;
 - `filter` : comment filtrer (`text`, `number`, `date`, `boolean`, `choice`, `choices`), `false` pour ne pas filtrer ; par défaut : un nombre pour une colonne `numeric`, du texte si elle a un `text`, sinon rien ;
 - `required` : jamais vide, pas de « est vide » dans son filtre ; une colonne de comptage (commentaires, relances, éléments…) l'est toujours : 0 est une valeur ;
-- `groupable` (par défaut toutes sauf la colonne verrouillée), `groupTree` (groupes en arbre, ex. catégories), `groupValue` (valeurs de regroupement propres) ;
+- `groupable` (par défaut toutes sauf la colonne verrouillée), `groupTree` (groupes en arbre, ex. catégories, ou dans l’ordre des paramètres), `groupValue` (valeurs de regroupement propres), `groupNoneLabel` (nom du groupe des lignes sans valeur, défaut « Sans valeur ») ;
 - `bulk` : ses cellules se modifient en masse.
 
 Les colonnes affichées, leur ordre et leurs largeurs viennent de la disposition (`ColumnLayout` : `columnOrder`, `hiddenColumns`, `columnSizing`) enregistrée dans la vue. Une colonne ajoutée après coup se place à la fin de l’ordre enregistré. Largeurs bornées entre 40 et 1200 px.
@@ -60,9 +60,11 @@ Chaque tableau (`tableKey`, et éventuellement un projet) a ses vues : des ongle
 
 ### Regroupement
 
-- « Grouper par » (Options) ou « Grouper selon les valeurs » (menu d’en-tête) regroupe les lignes selon la colonne : une date par période (« Période » : jour, semaine, mois, trimestre, année ; défaut mois), une colonne à valeurs multiples place la ligne dans chacun de ses groupes, un booléen en « Oui » / « Non », sinon le texte. Les lignes sans valeur vont dans « Sans valeur », en dernier.
+- « Grouper par » (Options) ou « Grouper selon les valeurs » (menu d’en-tête) regroupe les lignes selon la colonne : une date par période (« Période » : jour, semaine, mois, trimestre, année ; défaut mois), une colonne à valeurs multiples place la ligne dans chacun de ses groupes, un booléen en « Oui » / « Non », sinon le texte. Les lignes sans valeur vont dans « Sans valeur » (ou le `groupNoneLabel` de la colonne : « Sans catégorie »…), en dernier.
 - Les groupes suivent l’ordre des options de la colonne (ou de la valeur de tri), inversé si la colonne est triée en décroissant.
-- Une colonne avec `groupTree` regroupe en arbre de groupes ; une feature peut aussi fournir ses propres groupes (`groupTree` du tableau) quand la vue ne groupe pas.
+- Une colonne avec `groupTree` regroupe en arbre de groupes (un groupe parent s’affiche s’il a des lignes dans ses sous-groupes).
+- Le regroupement est seulement celui de la vue (décision FK) : un tableau n’a pas de regroupement à lui par-dessus ou à la place, toujours actif ; il démarre groupé par une vue créée la première fois (`first`, `groupBy`), et l’utilisateur change ou retire le regroupement comme sur tout tableau. Une règle eslint l’impose (pas d’attribut `groupTree`, `grouping` ou `showEmpty` sur un `…Table`, pas d’autre champ « Grouper par »).
+- Les groupes sans ligne ne s’affichent jamais, pas même pendant un glisser-déposer : une ligne se lâche sur un groupe qui a déjà des lignes ; pour la mettre dans un groupe vide, on change sa valeur (cellule, modification en lot ou formulaire).
 - Chaque groupe a un en-tête repliable avec son nombre de lignes (et un résumé `groupSummary`), une ligne d’ajout et ses totaux. Avec `onMoveRow`, une ligne lâchée sur un en-tête de groupe y va en premier.
 
 ### Arbre de lignes
@@ -128,6 +130,7 @@ Interne : `hiddenIds`.
 | `filterRows(rows, columns, { search, filter }, today)` | Lignes gardées par la recherche et l’arbre de filtres. Utilisé aussi par `tasks`.                                                                                                                                                                                                                                                                                                                                                                                            |
 | `RowGroup<R>` (interface)                              | Groupe : `key`, `label`, `rows`.                                                                                                                                                                                                                                                                                                                                                                                                                                             |
 | `isGroupable(column)`                                  | Groupable : pas `groupable: false`, pas verrouillée, et a un `text` ou un filtre.                                                                                                                                                                                                                                                                                                                                                                                            |
+| `NO_VALUE_LABEL`                                       | « Sans valeur » : nom du groupe des lignes sans valeur, sauf `groupNoneLabel` de la colonne.
 | `groupRows(rows, column, sorting, period?)`            | Lignes groupées (voir « Regroupement »). Utilisé aussi par `library`.                                                                                                                                                                                                                                                                                                                                                                                                        |
 | `groupableColumns(columns)`                            | Colonnes groupables.                                                                                                                                                                                                                                                                                                                                                                                                                                                         |
 
@@ -136,7 +139,6 @@ Internes : `FIELD_KINDS`, `filterable`, `offeredChoices` (choix archivés retir�
 ### `DataTable.tsx`
 
 - `RowMove` (interface) — déplacement d’une ligne remis à `onMoveRow` : `key`, `beforeKey` (null : en dernier), `parentKey?` (seulement si le niveau a changé), `groupKey?` / `fromGroupKey?` (changement de groupe ; `''` = groupe sans valeur). Utilisé par `routines`, `shopping`, `tasks`.
-- `GroupTree<R>` (interface) — groupes propres du tableau : `groups`, `groupOf(row)` (plusieurs : la ligne dans chacun ; aucun : groupe sans, en dernier), `noneLabel`, `showEmpty?` (les groupes vides s’affichent toujours pendant un glisser). Utilisé par `shopping`.
 - `DataTable<R>` — le tableau.
 
 Props de `DataTable` (en plus de celles de `Table` Mantine) :
@@ -157,19 +159,18 @@ Props de `DataTable` (en plus de celles de `Table` Mantine) :
 | `selectionActions?(rows, clear)`, `selectionLabel?(count)` | Actions de la `SelectionBar` sur les lignes cochées, et leur libellé (défaut « N lignes sélectionnées »).                                                                           |
 | `parentKey?(row)`                                          | Arbre de lignes.                                                                                                                                                                    |
 | `onMoveRow?(move)`                                         | Enregistre un déplacement manuel.                                                                                                                                                   |
-| `addRow?(group)`                                           | Ligne d’ajout en fin de tableau (`null`) et de chaque groupe.                                                                                                                       |
+| `addRow?(group)`                                           | Ligne d’ajout de chaque groupe, et en fin de tableau (`null`) quand il n’est pas groupé ou qu’il est groupé en arbre sans groupe « sans » affiché.                                     |
 | `isActive?`, `isArchived?`, `isDone?`, `isStruck?`, `readOnly?` | Ligne ouverte dans le panneau (surlignée), archivée ou terminée (atténuée, `--onoko-muted-opacity`, règle eslint), au libellé barré (`data-struck` : routine faite, tâche annulée ; le champ « Libellé… » de la ligne), en lecture seule (ni glisser, ni case, ni sélection de cellule). |
 | `loading?`                                                 | Squelette (`TableSkeleton`) à la place du tableau (aussi tant que les vues chargent).                                                                                               |
 | `toolbar?`                                                 | Onglets et barre affichés (défaut `true` ; `false` dans un formulaire).                                                                                                             |
 | `maxHeight?`                                               | Hauteur maximale propre (un tableau dans un formulaire).                                                                                                                            |
-| `groupTree?`                                               | Groupes propres (`GroupTree`).                                                                                                                                                      |
 
 Comportement interne notable :
 
 - Colonnes techniques : `__lead` (poignée + case), `__leading`, `__actions` ; ids de glisser préfixés `col:` (colonnes) et `g:` (groupes). Les colonnes ne rencontrent que des colonnes (`pointerWithin`), les lignes que des lignes (`closestCenter`).
 - Lignes déplaçables quand la vue est sans tri (et non groupée, sauf si `onMoveRow` gère les groupes) ; les sous-lignes suivent leur parent et sont cachées pendant le glisser ; le nouveau parent se déplie.
 - L’état replié / déplié est conservé quand les lignes changent (frappe dans un filtre).
-- Internes : `apply`, `collisionDetection`, `getProjection`, `treeOf`, `groupTreeOf`, `HeaderCell` (en-tête glissable, `aria-sort`, titre « Glisser pour déplacer la colonne »), `DataRow` (ligne glissable verticalement, attributs `data-active`, `data-archived`, `data-done`, `data-selected`, `data-dragging`, `data-drop-target`), `GroupHeading` (en-tête de groupe cible de dépôt), `EntryRow` (mémoïsée), `TableBody` (virtualisation au-delà de `VIRTUAL_FROM` = 400 lignes, hauteur estimée 37 px).
+- Internes : `apply`, `collisionDetection`, `getProjection`, `treeOf`, `GroupTree` (arbre de groupes d’une colonne : `groups`, `groupOf`, `noneLabel`), `groupTreeOf` (groupes sans ligne toujours retirés), `HeaderCell` (en-tête glissable, `aria-sort`, titre « Glisser pour déplacer la colonne »), `DataRow` (ligne glissable verticalement, attributs `data-active`, `data-archived`, `data-done`, `data-selected`, `data-dragging`, `data-drop-target`), `GroupHeading` (en-tête de groupe cible de dépôt), `EntryRow` (mémoïsée), `TableBody` (virtualisation au-delà de `VIRTUAL_FROM` = 400 lignes, hauteur estimée 37 px).
 
 ### `DataTableHeader.tsx`
 

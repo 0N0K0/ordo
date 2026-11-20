@@ -53,7 +53,7 @@ Fonctions internes : `useShoppingMutation` (mutation qui invalide `shoppingKey`)
 ### `pages/ShoppingListPage.tsx`
 
 - `ShoppingListPage()` : page `/shopping/:id`. Charge listes, données, contexte des tâches, stock par référence (`useProductStock`) ; construit les colonnes (`itemColumns` + `optionalColumn` + « Acheté », « En stock », « Livraison », « Fiches », commentaires), la vue `shopping-list` (vues `LIST_VIEWS`, colonne de lot « Acheté »), l'en-tête `DetailHeader`, la barre `DataViewBar` (ajout depuis les références / hors références / une fiche via `SheetPicker`, « Commande à distance » → `OrderPanel`, « Mode collecte » → `StoreMode`, `ListActionsMenu`), le tableau `ShoppingTable` (bascule « Acheté » qui appelle `useStockProposal` après achat, actions de ligne, actions de sélection « Ajouter au stock… » et « Retirer de la liste »), le total estimé et les commentaires. Gère les états chargement (`TableSkeleton`), introuvable (`DetailNotFound`), vide (`EmptyState`), clos / archivé (lecture seule ; « Voir » ouvre un élément en lecture seule).
-- Internes : `listSheets(items)` (fiches d'origine des éléments, chacune une fois), `LIST_VIEWS` (« Tout », « À acheter »), `deliveryName` (nom affiché d'une livraison), `assignDelivery(moved, deliveryId)` (met des éléments dans une livraison en enregistrant les livraisons qu'ils quittent et rejoignent), `bulkDelivery` (cellule « Livraison » en lot).
+- Internes : `listSheets(items)` (fiches d'origine des éléments, chacune une fois), `LIST_VIEWS` (« Tout », « À acheter », groupées par catégorie), `deliveryName` (nom affiché d'une livraison), `assignDelivery(moved, deliveryId)` (met des éléments dans une livraison en enregistrant les livraisons qu'ils quittent et rejoignent), `bulkDelivery` (cellule « Livraison » en lot).
 
 ## components
 
@@ -65,11 +65,11 @@ Fonctions internes : `useShoppingMutation` (mutation qui invalide `shoppingKey`)
 ### `components/BaseList.tsx`
 
 - `BaseList({ baseList })` : produits d'une référence dans `ShoppingTable` : colonnes `itemColumns` + commentaires, « Dernier achat », « Manque », réglages de stock (« Suivie en stock », « Consommable », « Ajout auto au stock », « Emplacement en stock », via `setProductStock` en lot) ; bascule `MISSING_TOGGLE` ; boutons déplacer / nouveau produit / générer une liste ; actions de ligne et de sélection ; « Tout décocher ». Utilisé par `BaseLists`.
-- Internes : `BASE_LIST_VIEWS` (« Tous », « Manquants »), `confirmDelete(product, onConfirm)` (confirmation « Retirer le produit »), `MISSING_TOGGLE(save)` (bascule « Manque », caddie orange), `stockBulk` (enregistre les réglages de stock).
+- Internes : `BASE_LIST_VIEWS` (« Tous », « Manquants », groupées par catégorie), `confirmDelete(product, onConfirm)` (confirmation « Retirer le produit »), `MISSING_TOGGLE(save)` (bascule « Manque », caddie orange), `stockBulk` (enregistre les réglages de stock).
 
 ### `components/ShoppingTable.tsx`
 
-- `ShoppingTable<T>(props)` : tableau commun des produits et des éléments (sur `DataTable`) : groupes en arbre (`groupTree` construit avec `shoppingRows`), cellules modifiables sur place et en lot (`bulkSaver`), glisser-déposer d'une ligne vers un autre groupe (`moveToGroup`), bascule en tête (`ToggleCell`), ligne d'ajout par groupe (`AddShoppingRow` + `placeInGroup`). Props principales : `items`, `grouping`, `label`, `readOnly`, `rowReadOnly`, `onSave(row, input)`, `toggle`, `badge`, `extra`, `extraCells`, `actions`, `summary`, `done`, `categories`, `add`, `showEmpty`, `view`, `selectionActions`, `selectionLabel`. Utilisé par `BaseList` et `ShoppingListPage`.
+- `ShoppingTable<T>(props)` : tableau commun des produits et des éléments (sur `DataTable`), groupé seulement par la vue (décision FK) : le regroupement de la vue par « Catégorie », « Magasin », « Conservation » ou « Bénéficiaires » (`groupingOfColumn`) fait des glisser-déposer vers un autre groupe (qui a des lignes) un changement de ce champ (`moveToGroup`) et place la ligne ajoutée dans un groupe (`AddShoppingRow` + `placeInGroup`) ; groupé par une autre colonne ou pas groupé, une ligne lâchée ou ajoutée ne change pas de place. Cellules modifiables sur place et en lot (`bulkSaver`), bascule en tête (`ToggleCell`). Props principales : `items`, `label`, `readOnly`, `rowReadOnly`, `onSave(row, input)`, `toggle`, `badge`, `extra`, `extraCells`, `actions`, `summary`, `done`, `categories`, `add`, `view`, `selectionActions`, `selectionLabel`. Utilisé par `BaseList` et `ShoppingListPage`.
 - `ShoppingToggle<T>` (interface) : bascule d'une ligne (`id`, `name`, `value`, `label`, `hint`, `icon`, `color`, `onChange(rows, on)`). Utilisé par `BaseList` et `ShoppingListPage`.
 - Interne : `ShoppingTableProps<T>`, `handleMove(move)`, `cells(item)` (cellules : libellé + note, catégorie, magasin, quantité, unité, prix, conservation, date, bénéficiaires, lien, facultatif, fiches).
 
@@ -131,7 +131,7 @@ Champs de formulaire partagés par les achats et le stock.
 
 ### `components/ListActions.tsx`
 
-- `ListActionsMenu({ list, grouping, header?, onDeleted? })` : menu des actions d'une liste (`ActionsMenu`, variante bordée dans l'en-tête de la page). Utilisé par `ShoppingPage` et `ShoppingListPage`.
+- `ListActionsMenu({ list, grouping?, header?, onDeleted? })` : menu des actions d'une liste (`ActionsMenu`, variante bordée dans l'en-tête de la page) ; exports groupés par `grouping` (sur la page de la liste : celui de sa vue s'il est d'achats, sinon par catégorie ; défaut par catégorie). Utilisé par `ShoppingPage` et `ShoppingListPage`.
 - Internes :
   - `useListActions(list, grouping, onDeleted?)` : entrées du menu (renommer, rattacher / détacher un mouvement, dupliquer, copier en texte, PDF, clôturer / rouvrir, archiver, supprimer ; réduites pour une liste archivée) ;
   - `ListForm({ list })` : panneau « Modifier la liste » (libellé, tâches), enregistré champ par champ (décision D22, `useFieldSave`, libellé en le quittant, `SaveStatus`) par `updateList` ; la liste du cache (`useShoppingLists`) est suivie ;
@@ -166,21 +166,11 @@ Champs de formulaire partagés par les achats et le stock.
 
 - `ShoppingProgressBadge({ items })` : badge « achetés / requis » (`shoppingProgress`), vert quand tout est acheté. Utilisé par `ShoppingPage` et `TaskShopping`.
 
-### `components/GroupingControl.tsx`
-
-- `GroupingControl({ value, onChange })` : select « Grouper par » (`SHOPPING_GROUPINGS`).
-- `GroupingOptions({ grouping, onGrouping, showEmpty, onShowEmpty })` : `GroupingControl` + interrupteur des groupes vides (`EMPTY_GROUPS_LABEL`), dans les options d'affichage de la barre. Utilisé par `BaseList` et `ShoppingListPage` (props venues de `useShoppingGrouping`).
-
 ### `components/Shopping.module.css`
 
 Classes : `.table` (tables d'achats), `.itemRow` (ligne ; barrée quand `data-done`), `.storeList`, `.storeHeading`, `.storeRow`, `.storeName`, `.nowrap` (mode collecte, et `.storeRow` pour les résultats de `EntryPicker`).
 
 ## hooks
-
-### `hooks/use-shopping-grouping.ts`
-
-- `useShoppingGrouping(kind: 'list' | 'base')` : regroupement gardé dans le navigateur (`useLocalStorage`, clés `ordo.shopping.listGrouping` / `ordo.shopping.baseGrouping`, défaut `category`) et affichage des groupes vides (`ordo.shopping.showEmptyCategories`, commun). Renvoie `{ grouping, onGrouping, showEmpty, onShowEmpty }`. Utilisé par `BaseList`, `ShoppingListPage`, `ListsPanel` (exports).
-- Interne : `GROUPING_KEYS`.
 
 ### `hooks/use-settings-items.tsx`
 
@@ -211,17 +201,16 @@ Fonctions de mise en forme et de calcul des produits et éléments. (partagé)
 | `blankInput(label, place)`                          | Saisie d'un nouveau produit ou élément avec seulement un libellé, dans un groupe.                                                                                                                 | `BaseList`, `ShoppingListPage`                              |
 | `categoriesForBaseList(categories, baseListId)`     | Catégories proposées dans une référence (et leurs parents pour garder l'arbre).                                                                                                                   | `BaseList`, `ShoppingCategoryField`                         |
 | `ShoppingGrouping` (type)                           | `'category' \| 'store' \| 'storage' \| 'people'`.                                                                                                                                                 | tables, exports                                             |
-| `SHOPPING_GROUPINGS`                                | Options « Catégorie », « Magasin », « Conservation », « Bénéficiaire ».                                                                                                                           | `GroupingControl`                                           |
-| `NO_GROUP_NAME`                                     | Nom du groupe « sans » de chaque regroupement.                                                                                                                                                    | `ShoppingTable`, `shoppingRows`                             |
-| `EMPTY_GROUPS_LABEL`                                | Libellé de l'interrupteur des groupes vides.                                                                                                                                                      | `GroupingOptions`                                           |
+| `groupingOfColumn(columnId)` | Regroupement d'achats d'une vue groupée par « Catégorie », « Magasin », « Conservation » ou « Bénéficiaires » (`category`, `store`, `storage`, `people`) ; `null` pour une autre colonne ou aucune. | `ShoppingTable`, `ShoppingListPage` (exports) |
+| `NO_GROUP_NAME`                                     | Nom du groupe « sans » de chaque regroupement.                                                                                                                                                    | `shopping-columns` (`groupNoneLabel`), `shoppingRows`                             |
 | `rowPeopleKeys(row)`                                | Clés de personnes (`m:id`, `r:id`) d'une ligne.                                                                                                                                                   | cellules, colonnes, `PeopleField`, `StockTable`             |
 | `rowPeopleOf(keys)`                                 | `{ memberIds, relationIds }` à partir de clés.                                                                                                                                                    | `PeopleCell`, `PeopleField`, `StockTable`                   |
-| `groupsOfRow(row, grouping)`                        | Groupes d'une ligne (plusieurs pour les personnes).                                                                                                                                               | `ShoppingTable`                                             |
+| `groupsOfRow(row, grouping)`                        | Groupes d'une ligne (plusieurs pour les personnes).                                                                                                                                               | `shoppingRows`                                             |
 | `moveToGroup(row, grouping, from, to)`              | Champs changés quand une ligne passe d'un groupe à un autre (null si rien).                                                                                                                       | `ShoppingTable`                                             |
 | `placeInGroup(grouping, groupId)`                   | Champs d'une ligne ajoutée dans un groupe.                                                                                                                                                        | `ShoppingTable`                                             |
 | `ShoppingRow<T>` (type)                             | Ligne d'un rendu groupé : titre de groupe ou produit / élément.                                                                                                                                   | `export.ts`, `StoreMode`                                    |
 | `NO_GROUP`                                          | Clé du groupe « sans » dans les groupes repliés (`'none'`).                                                                                                                                       | `StoreMode`                                                 |
-| `shoppingRows(items, grouping, labels, showEmpty?)` | Lignes groupées (arbre des catégories, ou magasins, modes, personnes ; le groupe « sans » à la fin).                                                                                              | `ShoppingTable`, `ListActions` (exports), `StoreMode`       |
+| `shoppingRows(items, grouping, labels)` | Lignes groupées (arbre des catégories, ou magasins, modes, personnes ; groupes sans ligne retirés ; le groupe « sans » à la fin).                                                                                              | `ListActions` (exports), `StoreMode`       |
 | `visibleRows(rows, collapsed)`                      | Lignes restantes une fois des groupes repliés.                                                                                                                                                    | `StoreMode`                                                 |
 | `usePeople()`                                       | Personnes possibles (tout contributeur, toute relation ; relation liée à un contributeur proposée comme lui) : `members`, `relations`, `byKey`, `options`, `optionsFor(relationIds)`, `archived`. | tables et formulaires des achats, `StockTable`, `SheetPage` |
 | `taskChoices(context)`                              | Tâches ouvertes non archivées et leur libellé (interne en pratique).                                                                                                                              | `taskOptions`                                               |
@@ -236,10 +225,10 @@ Interne : `ShoppingGroupLabels`.
 
 ### `lib/shopping-columns.ts`
 
-- `itemColumns<T>(grouping, names, extra?)` : colonnes communes des produits et éléments (libellé, catégorie, magasin, quantité, unité, prix, conservation, date, bénéficiaires, lien) ; la colonne du regroupement courant est masquée par défaut. Utilisé par `BaseList`, `ShoppingListPage`.
+- `itemColumns<T>(names, extra?)` : colonnes communes des produits et éléments (libellé, catégorie, magasin, quantité, unité, prix, conservation, date, bénéficiaires, lien), toutes affichées ; « Catégorie » (arbre), « Magasin », « Conservation » (`groupValue` : le mode d'un périssable) et « Bénéficiaires » se groupent avec leurs groupes dans l'ordre des paramètres (`groupTree`) et leur groupe « sans » (`groupNoneLabel` = `NO_GROUP_NAME`). Utilisé par `BaseList`, `ShoppingListPage`.
 - `optionalColumn<T>()` : colonne « Facultatif ». Utilisé par `ShoppingListPage`, `SheetPage`.
 - `sheetShoppingColumns<T>(names)` : colonnes magasin, conservation, bénéficiaires, lien pour les éléments de fiches. Utilisé par `SheetPage`.
-- Internes : `ItemNames`, `SHEET_SHOPPING_COLUMNS`.
+- Internes : `ItemNames`, `SHEET_SHOPPING_COLUMNS`, `flatGroups(items)` (groupes des magasins, modes), `peopleGroups(names)` (membres puis relations, par clé de personne).
 
 ### `lib/product-columns.ts`
 
@@ -249,7 +238,7 @@ Colonnes de produits partagées par achats, stock, fiches et listes à cocher. (
 | -------------------------------------- | --------------------------------------------------------------------- | -------------------------------------------------------------------------- |
 | `quantityColumn(options?)`             | « Quantité », numérique.                                              | `itemColumns`, `StockTable`, `SheetPage`, `ChecklistPanel`                 |
 | `unitColumn(options?)`                 | « Unité ».                                                            | idem                                                                       |
-| `categoryColumn(categories, options?)` | « Catégorie » : chemin complet, filtre en arbre (archivées marquées). | idem                                                                       |
+| `categoryColumn(categories, options?)` | « Catégorie » : chemin complet, filtre en arbre (archivées marquées), groupée en arbre (`groupTree`, couleur héritée), « Sans catégorie ». | idem                                                                       |
 | `consumableColumn(options?)`           | « Consommable ».                                                      | `StockTable`, `SheetPage`, `ChecklistPanel`                                |
 | `noteColumn(options?)`                 | « Description » (note).                                               | `StockPage`, `StockTable`, `MovementsTable`, `SheetPage`, `ChecklistPanel` |
 

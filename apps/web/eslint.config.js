@@ -162,6 +162,16 @@ export default defineConfig([
           selector: `FunctionDeclaration[id.name=${D22_PANELS}] JSXAttribute[name.name='onBlur'] MemberExpression[object.property.name='currentTarget'][property.name='value']`,
           message: 'Champ de panneau de détail : useFieldSave (lib/form), enregistré en le quittant et aussi à la fermeture du panneau (décision FJ).',
         },
+        // A table is grouped only by the group-by of its view (decision FK): no grouping of its own on top of it or in
+        // place of it, no « show empty groups » option. A column groups as a tree with its `groupTree`.
+        {
+          selector: "JSXOpeningElement[name.name=/Table$/] > JSXAttribute[name.name=/^(groupTree|grouping|showEmpty)$/]",
+          message: 'Regroupement d’un tableau : celui de sa vue seulement (« Grouper par », décision FK) ; un arbre de groupes se déclare sur la colonne (groupTree), sans groupes vides.',
+        },
+        {
+          selector: "JSXAttribute[name.name='label'] Literal[value=/^Grouper par/]",
+          message: '« Grouper par » est l’option de la vue du tableau (DataViewBar, décision FK) : pas de contrôle de regroupement à côté.',
+        },
         // One word and one behaviour to copy anything (decision D20): « Dupliquer », saved at once, then opened.
         {
           selector: "Literal[value=/\\bClon(er|é|ée|és|ées|age)\\b/i], TemplateElement[value.raw=/\\bClon(er|é|ée|és|ées|age)\\b/i], JSXText[value=/\\bClon(er|é|ée|és|ées|age)\\b/i]",

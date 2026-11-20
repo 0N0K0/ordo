@@ -8,8 +8,8 @@ import { CategoryCell, ConservationCell, ExpiryCell, PeopleCell, StoreCell, Togg
 import { applyDiff, bulkCellLabels, type BulkChange, bulkSaver } from '../../../components/data-table/selection/bulk-edit';
 import { StackedValues } from '../../../components/data-table/cells/StackedValues';
 import { EditableCheck, EditableNumber, EditableText } from '../../../components/data-table/cells/EditableCells';
-import { DataTable, type GroupTree, type RowMove } from '../../../components/data-table/table/DataTable';
-import { groupsOfRow, inputOf, moveToGroup, NO_GROUP_NAME, placeInGroup, sheetSourceText, shoppingRows, usePeople, type ShoppingFields, type ShoppingGrouping } from '../lib/shopping-format';
+import { DataTable, type RowMove } from '../../../components/data-table/table/DataTable';
+import { groupingOfColumn, inputOf, moveToGroup, placeInGroup, sheetSourceText, type ShoppingFields } from '../lib/shopping-format';
 import classes from './Shopping.module.css';
 import type { SelectionAction } from '../../../components/data-table/selection/SelectionBar';
 import type { DataView } from '../../../components/data-table/views/use-data-view';
@@ -35,7 +35,6 @@ export interface ShoppingToggle<T> {
 interface ShoppingTableProps<T extends ShoppingFields> {
   /** Every product or item, in their order (to move them). */
   items: T[];
-  grouping: ShoppingGrouping;
   /** Accessible name of the table. */
   label: string;
   /** Nothing can be changed (a closed or archived list). */
@@ -60,11 +59,9 @@ interface ShoppingTableProps<T extends ShoppingFields> {
   done?: (row: T) => boolean;
   /** Categories of the tree (all by default; those of a base list). Optional. */
   categories?: ShoppingCategory[];
-  /** Row added at the end of each category (or store) and of the table. Optional. */
+  /** Row added at the end of each group and of the table. Optional. */
   add?: ShoppingAdd;
-  /** Also the categories (or stores) without rows. Optional. */
-  showEmpty?: boolean;
-  /** Saved views of the table: the rows it keeps, sorted, its columns (as on every table). */
+  /** Saved views of the table: the rows it keeps, sorted, its columns, its grouping (as on every table). */
   view: DataView<T>;
   /** Actions on the rows checked that the columns cannot do, in a bar under the table. Optional. */
   selectionActions?: (rows: T[], clear: () => void) => SelectionAction[];
@@ -73,20 +70,19 @@ interface ShoppingTableProps<T extends ShoppingFields> {
 }
 
 /**
- * Table of products or items, the data table of every table: grouped as the tree of their categories (or by store,
- * way of keeping, person), each field changed in place, a row moved to another group by drag and drop on its heading
- * or one of its rows (the empty groups show while dragging), a row adding one at the end of each group.
+ * Table of products or items, the data table of every table, grouped as its view says (by category as their tree, by
+ * store, way of keeping, person, or any other column; or not): each field changed in place, a row moved to another
+ * category, store, way of keeping or person by drag and drop on the heading or a row of its group (only the groups
+ * that have rows show), a row adding one at the end of each group (in it) and of the table.
  * @param {ShoppingTableProps<T>} props Component props.
  * @returns {JSX.Element} Table.
  */
 export function ShoppingTable<T extends ShoppingFields>({
   items,
-  grouping,
   label,
   summary,
   categories,
   add,
-  showEmpty = false,
   view,
   selectionActions,
   selectionLabel,
@@ -101,16 +97,9 @@ export function ShoppingTable<T extends ShoppingFields>({
   done,
 }: ShoppingTableProps<T>) {
   const { data } = useShoppingData();
-  const people = usePeople();
   const allCategories = useMemo(() => categories ?? data?.shoppingCategories ?? [], [categories, data]);
-  // Groups of the grouping, as a tree (categories) or a list (stores, ways of keeping, people).
-  const groupTree = useMemo((): GroupTree<T> => {
-    const labels = { categories: allCategories, stores: data?.shoppingStores ?? [], storages: data?.shoppingStorages ?? [], people: people.byKey };
-    const groups = shoppingRows([], grouping, labels, true).flatMap((row) =>
-      row.kind === 'group' && row.id !== null ? [{ key: row.id, label: row.label, color: row.color, parentKey: row.parents.at(-1) ?? null }] : [],
-    );
-    return { groups, groupOf: (row) => groupsOfRow(row, grouping), noneLabel: NO_GROUP_NAME[grouping], showEmpty };
-  }, [allCategories, data, people.byKey, grouping, showEmpty]);
+  // Category, store, way of keeping or people the view groups by (a drop or an add in a group sets it); null: another.
+  const grouping = groupingOfColumn(view.groupColumn?.id);
   // A change in a cell saves its row, or every row of the bulk selection of its column.
   const cellLabelOf = bulkCellLabels(view, (item) => item.label);
   const saveCell = bulkSaver<T, Partial<ShoppingItemInput>>(view, (row, patch) => Object.keys(patch).length > 0 && onSave(row, { ...inputOf(row), ...patch }));
@@ -128,7 +117,7 @@ export function ShoppingTable<T extends ShoppingFields>({
    * @returns {void}
    */
   const handleMove = (move: RowMove) => {
-    if (move.groupKey === undefined) return;
+    if (move.groupKey === undefined || !grouping) return;
     const row = items.find((item) => item.id === move.key);
     if (row && rowReadOnly?.(row)) return;
     const change = row ? moveToGroup(row, grouping, move.fromGroupKey || null, move.groupKey || null) : null;
@@ -283,7 +272,6 @@ export function ShoppingTable<T extends ShoppingFields>({
       verticalSpacing={2}
       aria-label={label}
       className={classes.table}
-      groupTree={groupTree}
       groupSummary={summary}
       onMoveRow={tableReadOnly ? undefined : handleMove}
       readOnly={tableReadOnly ? () => true : rowReadOnly}
@@ -311,7 +299,11 @@ export function ShoppingTable<T extends ShoppingFields>({
           {actions(item)}
         </Group>
       )}
-      addRow={add && !tableReadOnly ? (group) => <AddShoppingRow {...add} place={placeInGroup(grouping, group?.key || null)} groupName={group?.label ?? NO_GROUP_NAME[grouping]} /> : undefined}
+      addRow={
+        add && !tableReadOnly
+          ? (group) => <AddShoppingRow {...add} place={grouping ? placeInGroup(grouping, group?.key || null) : {}} groupName={(grouping && group?.label) || label} />
+          : undefined
+      }
       selectionActions={selectionActions}
       selectionLabel={selectionLabel}
     />

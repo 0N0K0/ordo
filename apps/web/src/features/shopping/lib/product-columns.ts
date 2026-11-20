@@ -1,5 +1,5 @@
 import { withArchived, type DataColumn } from '../../../components/data-table/table/data-table';
-import { categoryOptions, categoryPaths, type TreeCategory } from '../../../components/tree/category-tree';
+import { categoryOptions, categoryPaths, categoryTree, type TreeCategory } from '../../../components/tree/category-tree';
 import * as fmt from '../../../lib/format';
 
 /** What a table changes of a product column: its id, size, bulk edit, grouping, hidden at first… */
@@ -35,7 +35,8 @@ export function unitColumn<T extends { unit?: string | null }>(options: ColumnOp
 
 /**
  * « Catégorie » column of products: the full path of their shopping category, filtered in the tree of the categories
- * (the archived ones marked).
+ * (the archived ones marked), grouped as that tree (a sub-category under its parent, with its color), the products
+ * without category in « Sans catégorie ».
  * @param {readonly (TreeCategory & { archived?: boolean | null })[]} categories Shopping categories.
  * @param {ColumnOptions<T>} [options] What the table changes. Optional.
  * @returns {DataColumn<T>} Column.
@@ -52,6 +53,8 @@ export function categoryColumn<T extends { categoryId?: string | null }>(categor
     text: categoryOf,
     filter: { kind: 'choice', value: (item) => item.categoryId ?? null, options: withArchived(categoryOptions(categories), categories) },
     groupable: true,
+    groupTree: categoryTree(categories).map(({ category, color }) => ({ key: category.id, label: category.label, color, parentKey: category.parentId ?? null })),
+    groupNoneLabel: 'Sans catégorie',
     ...options,
   };
 }
