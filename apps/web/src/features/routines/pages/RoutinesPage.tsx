@@ -36,6 +36,7 @@ import { AssigneesCell, CategoriesCell, EstimateCell, ProjectCell, RepetitionCel
 import { BlocksCell, RoutineLocationCell, OpensOnCell, ParentRoutineCell, RemindersCell, SubRoutinesCell, TimeOfDayCell, TravelCell } from '../components/extra-cells';
 import { isDone, movableOccurrence, panelOccurrence, waitingFor } from '../lib/routine-format';
 import { usePostponeRoutine } from '../hooks/use-routine-move';
+import { useConvertActivity } from '../hooks/use-convert-activity';
 import { useRoutineRowsActions, useRoutineSelectionActions } from '../components/RoutineBulkBar';
 import { rowMenuEntry } from '../../../components/data-table/selection/selection-actions';
 import classes from '../components/Routines.module.css';
@@ -88,6 +89,7 @@ export function RoutinesPanel({ projectId, projectIds }: { projectId?: string; p
   const postpone = usePostponeRoutine();
   const selectionActions = useRoutineSelectionActions();
   const rowActionsOf = useRoutineRowsActions();
+  const convert = useConvertActivity();
   // Without those being created (no comment yet): no count asked again for them.
   const comments = useCommentCounts(
     'ROUTINE',
@@ -219,6 +221,7 @@ export function RoutinesPanel({ projectId, projectIds }: { projectId?: string; p
           !readOnly && movableOccurrence(routine) && { label: 'Reporter, changer l’horaire ou annuler…', icon: <CalendarDotsIcon aria-hidden />, onClick: () => openRoutineMove(routine) },
           'divider',
           !readOnly && rowMenuEntry(rowActions.duplicate),
+          !readOnly && convert.toTask(routine, routines.some((item) => item.parentId === routine.id)),
           { label: 'Historique', icon: <ClockCounterClockwiseIcon aria-hidden />, to: routineHistoryPath(routine.id) },
           rowMenuEntry(rowActions.archive),
           rowMenuEntry(rowActions.remove),

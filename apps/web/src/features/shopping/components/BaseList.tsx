@@ -209,7 +209,7 @@ export function BaseList({ baseList }: { baseList: ShoppingBaseList }) {
       <DataViewBar
         view={view}
         searchLabel="Rechercher un produit"
-        manualText="Sans tri : les produits par libellé."
+        manualText="Sans tri : l’ordre choisi à la main (glissez les produits), sinon par libellé."
         actions={
           <Group gap="sm" wrap="nowrap">
             <ShowArchivedSwitch {...archivedToggle} />

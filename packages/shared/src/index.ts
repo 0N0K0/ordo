@@ -23,6 +23,7 @@ export * from './shopping/shopping';
 export * from './shopping/sheets';
 export * from './shopping/stock';
 export * from './routines/routines';
+export * from './routines/conversion';
 export * from './calendar/slot-conditions';
 export * from './calendar/slot-kinds';
 export * from './routines/routine-views';

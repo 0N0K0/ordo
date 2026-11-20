@@ -286,7 +286,7 @@ Internes : `NO_PROJECT_LABEL` (« Sans projet »), `NO_PROJECT_NODE`.
 
 ### `hooks/use-task-actions.tsx`
 
-- `useTaskActions(context)` : `{ menu(task), close(task), create(defaults?) }` : entrées du menu d’une tâche (« Dupliquer », « Transférer », « Archiver », « Supprimer » ; « Restaurer », « Supprimer » si archivée), « Fermer » / « Rouvrir » d’une tâche seule (`close` de `useTaskRowsActions` : toast avec « Annuler », bouton du panneau) et ouverture du formulaire de création dans le panneau (« Nouvelle tâche » / « Nouvelle sous-tâche »). Utilisé par `TaskBoard`, `TaskPanel`, le menu « Ajouter » de l’en-tête.
+- `useTaskActions(context)` : `{ menu(task), close(task), create(defaults?) }` : entrées du menu d’une tâche (« Dupliquer », « Transférer », « Transformer en routine » — `useConvertActivity().toRoutine`, lot 15 —, « Archiver », « Supprimer » ; « Restaurer », « Supprimer » si archivée), « Fermer » / « Rouvrir » d’une tâche seule (`close` de `useTaskRowsActions` : toast avec « Annuler », bouton du panneau) et ouverture du formulaire de création dans le panneau (« Nouvelle tâche » / « Nouvelle sous-tâche »). Utilisé par `TaskBoard`, `TaskPanel`, le menu « Ajouter » de l’en-tête.
 
 ### `hooks/use-task-columns.ts`
 

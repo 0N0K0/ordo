@@ -1690,6 +1690,24 @@ type Mutation {
   confirmEmailChange(token: String!): Boolean!
 
   """
+  Turns a routine (not archived, without sub-routines) into a task, dated by its current occurrence (lot 15): the routine is deleted, what both have moves to the task; returns the task id. Unconfirmed: CONFIRMATION_REQUIRED, extension `lost` (what is lost, by kind), nothing changed.
+  """
+  convertRoutineToTask(
+    """What is lost is confirmed."""
+    confirm: Boolean
+    id: ID!
+  ): ID!
+
+  """
+  Turns a task (not archived, without sub-tasks) into a routine repeated every day (lot 15): the task is deleted, what both have moves to the routine; returns the routine id. Unconfirmed: CONFIRMATION_REQUIRED, extension `lost` (what is lost, by kind), nothing changed.
+  """
+  convertTaskToRoutine(
+    """What is lost is confirmed."""
+    confirm: Boolean
+    id: ID!
+  ): ID!
+
+  """
   Copies the sub-routines of a routine under its copy (theirs too); returns how many were copied.
   """
   copySubRoutines(fromId: ID!, toId: ID!): Int!

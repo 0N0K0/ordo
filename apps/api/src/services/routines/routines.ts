@@ -982,6 +982,16 @@ async function outsideTree(id: string, from: string | null, to: string | null, m
   return [...outsideMovedTree(rootOf, others, [id, ...movedWith], to)];
 }
 
+/** People, categories and links of a routine to other routines, as its input (and its conversion into a task) reads them. */
+export const ROUTINE_LINKS = {
+  assignees: { select: { id: true } },
+  beneficiaries: { select: { id: true } },
+  beneficiaryRelations: { select: { id: true } },
+  categories: { select: { id: true } },
+  requires: { select: { requiredId: true } },
+  ...RELATIONS,
+} as const;
+
 /**
  * Current form of a routine as an input.
  * @param {string} id Routine id.
@@ -991,14 +1001,7 @@ async function inputOf(id: string): Promise<RoutineInput> {
   const routine = await orNotFound(
     prisma.routine.findUnique({
       where: { id },
-      include: {
-        assignees: { select: { id: true } },
-        beneficiaries: { select: { id: true } },
-        beneficiaryRelations: { select: { id: true } },
-        categories: { select: { id: true } },
-        requires: { select: { requiredId: true } },
-        ...RELATIONS,
-      },
+      include: ROUTINE_LINKS,
     }),
     'Routine',
   );

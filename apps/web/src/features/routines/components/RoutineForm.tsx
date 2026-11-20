@@ -1,7 +1,7 @@
 import { readReminders, type Reminder } from '@ordo/shared';
 import { removedLinksNote } from '../../../lib/text';
 import { NO_SUGGESTIONS } from '../../../components/markdown/remark-references';
-import { Divider, Fieldset, Grid, NumberInput, Select, Stack, TextInput } from '@mantine/core';
+import { Divider, Fieldset, Grid, Group, NumberInput, Select, Stack, TextInput } from '@mantine/core';
 import {
   opensFits,
   readOpens,
@@ -41,6 +41,8 @@ import { SubSection } from '../../../components/page/SubSection';
 import { optionalNumberProps } from '../../../components/inputs/number-format';
 import { LinksField } from '../../../components/inputs/LinksField';
 import { linkInputs } from '../../../lib/links';
+import { ActionsMenu } from '../../../components/actions/ActionsMenu';
+import { useConvertActivity } from '../hooks/use-convert-activity';
 
 interface RoutineFormValues extends Record<string, unknown> {
   label: string;
@@ -149,6 +151,7 @@ export function RoutineForm({ routine, parent, categoryId = null, projectId = nu
   const { context } = useTaskContext();
   const { create, update } = useRoutineMutations();
   const categoryItems = useRoutineCategoryItems();
+  const convert = useConvertActivity();
   const routines = data?.routines ?? [];
   const base = useAppForm<RoutineFormValues>({
     initialValues: routine
@@ -223,7 +226,13 @@ export function RoutineForm({ routine, parent, categoryId = null, projectId = nu
     <form onSubmit={handleSubmit} noValidate>
       <Fieldset variant="unstyled" disabled={readOnly} p={0} m={0}>
         <Stack gap="lg">
-          {routine && !readOnly && <SaveStatus saving={saving} />}
+          {routine && !readOnly && (
+            // Its « … » menu (lot 15): « Transformer en tâche » (refused with sub-routines); the panel closes once done.
+            <Group justify="flex-end" gap="xs" wrap="nowrap">
+              <SaveStatus saving={saving} />
+              <ActionsMenu about="la routine" items={[convert.toTask(routine, routines.some((item) => item.parentId === routine.id), onDone)]} variant="light" size="input-xs" />
+            </Group>
+          )}
           <TextInput label="Libellé" required data-autofocus={routine ? undefined : true} {...form.getInputProps('label')} />
           {/* As the task panel: the text and when it comes on the left, its properties on the right. */}
           <Grid gap="xl">

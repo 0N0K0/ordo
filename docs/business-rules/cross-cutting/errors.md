@@ -18,7 +18,7 @@ Toute erreur destinée à l'utilisateur est une `GraphQLError` créée par `clie
 | `CONFLICT`            | Valeur unique déjà prise (libellé, identifiant, email, numéro…).                                                   | 409                       |
 | `TOO_MANY_REQUESTS`   | Limite de tentatives atteinte (« Trop de tentatives. Réessayez dans N min. », extension `retryAfter` en secondes). | 429                       |
 | `SERVICE_UNAVAILABLE` | Service externe injoignable (cartographie, serveur mail…).                                                         | 503                       |
-| `CONFIRMATION_REQUIRED` | Changement qui supprimerait des données sans confirmation : règle d'une série d'évènements ou d'une routine qui fait disparaître des occurrences ayant des commentaires ou des temps (extension `lost` : `{ times, comments }`, décision EW). Le web demande la confirmation et renvoie avec `confirmLoss: true`. | —                         |
+| `CONFIRMATION_REQUIRED` | Changement qui supprimerait des données sans confirmation : règle d'une série d'évènements ou d'une routine qui fait disparaître des occurrences ayant des commentaires ou des temps (extension `lost` : `{ times, comments }`, décision EW) ; transformation d'une tâche en routine ou l'inverse (extension `lost` : `ConversionLoss`, décision FL, toujours demandée). Le web demande la confirmation et renvoie avec `confirmLoss: true` (`confirm: true` pour une transformation). | —                         |
 
 ## Erreurs rattachées à un champ
 
