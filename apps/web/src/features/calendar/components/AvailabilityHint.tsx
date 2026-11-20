@@ -1,8 +1,8 @@
 import { NoticeAlert } from '../../../components/feedback/NoticeAlert';
 
-import { plannedPauses, plannedSlots, slotSchedules, withinSlots } from '@ordo/shared';
+import { plannedPauses, plannedSlots, withinSlots } from '@ordo/shared';
 
-import { scheduleRules, useWorkSchedules } from '../api';
+import { useWorkingHours } from '../api';
 import { useActiveWorkspace } from '../../workspaces/api';
 
 interface AvailabilityHintProps {
@@ -15,19 +15,18 @@ interface AvailabilityHintProps {
 
 /**
  * Warning when a timed event of one day falls outside the planned working hours of that day (a pause is told
- * only when no other schedule works that day). The éphémérides do not count (lot 16). Nothing
+ * only when no other schedule works that day). The éphémérides do not count (lot 16), nor the archived créneaux and
+ * those of an archived kind (decision FQ). Nothing
  * without working hours, for an all-day event or one over several days.
  * @param {AvailabilityHintProps} props Dates and times of the event.
  * @returns {JSX.Element | null} Warning.
  */
 export function AvailabilityHint({ allDay, startDate, startTime, endDate, endTime }: AvailabilityHintProps) {
-  // The working hours: the créneaux, the éphémérides left out (lot 16).
-  const { data: all } = useWorkSchedules();
-  const schedules = all && slotSchedules(all);
+  // The working hours: the créneaux counted (no éphéméride, lot 16; none archived, decision FQ).
+  const { data: rules } = useWorkingHours();
   // In a personal workspace, slots are no working hours: nothing to warn about.
   const { perso } = useActiveWorkspace();
-  if (perso || !schedules?.length || allDay || !startTime || !endTime || !startDate || startDate !== endDate) return null;
-  const rules = scheduleRules(schedules);
+  if (perso || !rules?.length || allDay || !startTime || !endTime || !startDate || startDate !== endDate) return null;
   const slots = plannedSlots(rules, startDate, startDate);
   // Within the slots of a schedule working that day (another one may be paused): fine.
   if (withinSlots(slots, startDate, startTime, endTime)) return null;

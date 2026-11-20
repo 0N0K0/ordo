@@ -100,6 +100,7 @@ En haut de la page « Chronos », **en espace PRO seulement** (en PERSO, les cr�
 - une barre par jour de la semaine de l’espace (qui peut commencer un autre jour que lundi), info-bulle « 6 h 30 chronométrées sur 7 h 00 prévues » ;
 - note : « Temps prévu par vos créneaux de travail (Agenda › Créneaux de travail), hors pauses. » (`schedulesTitle`, voir [Agenda](calendar.md)).
 - Le chrono en cours compte en direct.
+- Les éphémérides, les créneaux archivés et ceux d’un type archivé ne comptent pas dans le temps prévu (décision FR) ; s’il ne reste aucun créneau compté, la section ne s’affiche pas.
 
 ## Temps passé d’une tâche
 

@@ -1106,6 +1106,11 @@ export default defineConfig([
           message: 'Utiliser slotSchedules (@ordo/shared) : les créneaux, sans les éphémérides (décision FM).',
         },
         {
+          // Decision FR: the working hours count neither the éphémérides nor the archived créneaux (as the conditions).
+          selector: "CallExpression[callee.name='scheduleRules'] > CallExpression.arguments[callee.name='slotSchedules']",
+          message: 'Utiliser useWorkingHours (features/calendar/api) : les heures de travail, sans éphémérides ni créneaux archivés (décision FR).',
+        },
+        {
           // Lot 16: the input of a schedule from its rule keeps its kind and nature.
           selector: "ObjectExpression:has(> Property[key.name='label']):has(> Property[key.name='startDate']):has(> Property[key.name='typeId']):has(> SpreadElement[argument.name='next'])",
           message: 'Utiliser ruleScheduleInput (features/calendar/api) : l’entrée d’un créneau depuis sa règle garde son type et sa nature (décision FM).',

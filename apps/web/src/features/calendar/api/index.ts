@@ -2,7 +2,7 @@ import { useQuery, type QueryKey } from '@tanstack/react-query';
 import { doableTasksKey, tasksQueryKey } from '../../tasks/api';
 import { useInvalidatingMutation } from '../../../lib/mutation';
 import { graphql } from '../../../graphql';
-import { readScheduleCases, readScheduleExceptions, type ScheduleDisplay, type ScheduleSubscriptionLook, type WorkScheduleInput, type WorkScheduleRule } from '@ordo/shared';
+import { countedSchedules, readScheduleCases, readScheduleExceptions, slotSchedules, type ScheduleDisplay, type ScheduleSubscriptionLook, type WorkScheduleInput, type WorkScheduleRule } from '@ordo/shared';
 import type {
   BirthdaysQuery,
   CalendarEventInput,
@@ -796,6 +796,21 @@ export function scheduleRules(
     archived: Boolean(schedule.archived),
     kindArchived: Boolean(schedule.typeId && archivedKinds.has(schedule.typeId)),
   }));
+}
+
+/**
+ * Working hours of the workspace, as the hint of an event out of them (`AvailabilityHint`) and the planned time
+ * (`PlannedTime`) count them: its créneaux (the éphémérides left out, lot 16), neither archived nor of an archived kind
+ * (`countedSchedules`, as the slot conditions, decision FQ).
+ * @returns {UseQueryResult<WorkScheduleRule[]>} Query state: the rules of the créneaux counted.
+ */
+export function useWorkingHours() {
+  return useQuery({
+    queryKey: [...calendarQueryKey, 'work-schedules'],
+    queryFn: () => execute(WorkSchedulesDocument),
+    // eslint-disable-next-line no-restricted-syntax -- the working hours themselves.
+    select: (data) => countedSchedules(scheduleRules(slotSchedules(data.workSchedules), archivedIds(data.scheduleTypes))),
+  });
 }
 
 /**
