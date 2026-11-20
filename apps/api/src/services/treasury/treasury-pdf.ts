@@ -98,7 +98,7 @@ export async function treasuryStatementPdf(input: StatementInput): Promise<{ fil
           date: true,
           member: { select: { name: true } },
           relation: { select: { name: true } },
-          context: { select: { label: true } },
+          context: { select: { scheduleType: { select: { label: true } } } },
           project: { select: { label: true } },
         },
       },
@@ -346,7 +346,7 @@ export async function treasuryStatementPdf(input: StatementInput): Promise<{ fil
             [
               line.label ?? '',
               line.relation ? `pour ${line.relation.name}` : line.member ? `pour ${line.member.name}` : '',
-              line.context?.label ?? '',
+              line.context?.scheduleType.label ?? '',
               line.project ? `projet ${line.project.label}` : '',
               line.loan ? 'prêt' : '',
               line.date ? `le ${printedDay(line.date)}` : '',

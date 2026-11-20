@@ -2,7 +2,7 @@ import { Group, Progress, SimpleGrid, Stack, Text, Tooltip } from '@mantine/core
 import { addDays, daysBetween, entrySeconds, formatDuration, plannedSlots, slotMinutes, weekRange } from '@ordo/shared';
 import { useMemo } from 'react';
 import { localMidnight, localParts, localToday } from '../../../lib/dates';
-import { scheduleRules, useWorkSchedules } from '../../calendar/api';
+import { useWorkingHours } from '../../calendar/api';
 import { schedulesTitle } from '../../calendar/lib/schedule-text';
 import { useActiveWorkspace } from '../../workspaces/api';
 import { useTimeEntriesSince } from '../api';
@@ -34,8 +34,8 @@ function Gauge({ label, tracked, planned }: { label: string; tracked: number; pl
 }
 
 /**
- * Planned time (working hours) against tracked time: today, this week, and each day of the week. Nothing
- * without working hours.
+ * Planned time (working hours: the créneaux counted, `useWorkingHours`) against tracked time: today, this week, and
+ * each day of the week. Nothing without working hours.
  * @returns {JSX.Element | null} Card.
  */
 export function PlannedTime() {
@@ -45,14 +45,15 @@ export function PlannedTime() {
   const [monday, after] = weekRange(today, currentWeek());
   const sunday = addDays(after, -1);
   const length = daysBetween(monday, after);
-  const { data: schedules } = useWorkSchedules();
+  const { data: rules } = useWorkingHours();
   const entries = useTimeEntriesSince(localMidnight(monday));
   const running = (entries.data ?? []).some((entry) => entry.endedAt === null && entry.pausedAt === null);
   const now = useNow(running);
 
   const days = useMemo(() => {
-    if (!schedules) return [];
-    const slots = plannedSlots(scheduleRules(schedules), monday, sunday);
+    if (!rules) return [];
+    // The créneaux counted only: an éphéméride is no planned work (lot 16), nor an archived créneau (decision FQ).
+    const slots = plannedSlots(rules, monday, sunday);
     const trackedByDay = new Map<string, number>();
     for (const entry of entries.data ?? []) {
       const day = localParts(entry.startedAt).date;
@@ -62,9 +63,9 @@ export function PlannedTime() {
       const date = addDays(monday, index);
       return { date, planned: slotMinutes(slots.filter((slot) => slot.date === date)), tracked: trackedByDay.get(date) ?? 0 };
     });
-  }, [schedules, entries.data, monday, sunday, now, length]);
+  }, [rules, entries.data, monday, sunday, now, length]);
 
-  if (!schedules?.length) return null;
+  if (!rules?.length) return null;
   const todayRow = days.find((day) => day.date === today);
   const week = days.reduce((sum, day) => ({ planned: sum.planned + day.planned, tracked: sum.tracked + day.tracked }), { planned: 0, tracked: 0 });
 

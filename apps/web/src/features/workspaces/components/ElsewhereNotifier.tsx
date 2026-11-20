@@ -1,11 +1,11 @@
-import { addDays } from '@ordo/shared';
+import { reminderDayRange } from '@ordo/shared';
 import { useEffect } from 'react';
 import { graphql } from '../../../graphql';
 import type { ElsewhereAlarmsQuery, ElsewhereRemindersQuery } from '../../../graphql/graphql';
-import { localToday } from '../../../lib/dates';
 import { executeIn } from '../../../lib/graphql-client';
 import { dueAlarms, ringAlarm, ringReminders, ringTaskReminders, type RingLink } from '../../alarms/components/ring';
 import { ringRoutineReminders } from '../../alarms/lib/ring-routines';
+import { ringBirthdayReminders, ringEphemerisReminders } from '../../alarms/lib/ring-calendar';
 import { fetchCalendarEvents, type EventOccurrence } from '../../calendar/api';
 import { MailWatcher } from '../../mail/components/MailWatcher';
 import { useWorkspaces, type Workspace } from '../api';
@@ -57,6 +57,7 @@ const ElsewhereRemindersDocument = graphql(`
       reminders {
         before
         at
+        days
       }
     }
     routines {
@@ -68,6 +69,7 @@ const ElsewhereRemindersDocument = graphql(`
       reminders {
         before
         at
+        days
       }
       reminderOccurrences {
         date
@@ -84,6 +86,32 @@ const ElsewhereRemindersDocument = graphql(`
         optional
         done
         windows
+      }
+    }
+    workSchedules {
+      id
+      archived
+      label
+      startDate
+      endDate
+      typeId
+      ephemeris
+      cases
+      exceptions
+      reminders {
+        before
+        at
+        days
+      }
+    }
+    birthdays {
+      id
+      name
+      birthDate
+      reminders {
+        before
+        at
+        days
       }
     }
   }
@@ -103,8 +131,8 @@ const ALARMS_MS = 60_000;
 const CALENDAR_MS = 5 * 60_000;
 
 /**
- * Gives the notifications of a workspace that is not the one open: its alarms and the reminders of its tasks, routines
- * and events always (they ring whatever workspace is open), its new mails as chosen in its settings (every 10 minutes,
+ * Gives the notifications of a workspace that is not the one open: its alarms and the reminders of its tasks, routines,
+ * events, éphémérides and birthdays always (they ring whatever workspace is open), its new mails as chosen in its settings (every 10 minutes,
  * and when asked). Their links open that workspace. A routine reminder waits for no free moment here (the slot rules
  * are those of the open workspace) and offers no « Marquer comme faite ».
  * @param {{ workspace: Workspace }} props Workspace.
@@ -119,7 +147,7 @@ function ElsewhereWorkspace({ workspace }: { workspace: Workspace }) {
     // Labels of the projects: a task number is only unique in its project.
     let projectLabels = new Map<string, string>();
     let upcoming: EventOccurrence[] = [];
-    let reminded: ElsewhereRemindersQuery = { tasks: [], routines: [] };
+    let reminded: ElsewhereRemindersQuery = { tasks: [], routines: [], workSchedules: [], birthdays: [] };
     const trackingSteps = new Map<string, number>();
     const timers: number[] = [];
 
@@ -188,8 +216,7 @@ function ElsewhereWorkspace({ workspace }: { workspace: Workspace }) {
         .catch(() => undefined);
     }, ALARMS_MS);
     every(() => {
-      const today = localToday();
-      fetchCalendarEvents({ from: addDays(today, -1), to: addDays(today, 8) }, id)
+      fetchCalendarEvents(reminderDayRange(new Date()), id)
         .then((occurrences) => {
           upcoming = occurrences;
         })
@@ -203,7 +230,10 @@ function ElsewhereWorkspace({ workspace }: { workspace: Workspace }) {
     timers.push(
       window.setInterval(() => {
         const now = new Date();
-        ringReminders(upcoming, now, [link(`Voir l’agenda de « ${label} »`, PAGES.calendar.path)], label);
+        const calendarLinks = [link(`Voir l’agenda de « ${label} »`, PAGES.calendar.path)];
+        ringReminders(upcoming, now, calendarLinks, label);
+        ringEphemerisReminders(reminded.workSchedules, now, calendarLinks, label);
+        ringBirthdayReminders(reminded.birthdays, now, () => calendarLinks, label);
         ringTaskReminders(reminded.tasks, now, taskLinks, label);
         ringRoutineReminders(reminded.routines, now, [link(`Voir les routines de « ${label} »`, PAGES.routines.path)], undefined, undefined, label);
         for (const { alarm, key } of dueAlarms(alarms, running, now, trackingSteps, markFired)) ringAlarm(alarm, key, alarmLinks(alarm), label);

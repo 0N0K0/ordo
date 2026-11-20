@@ -20,7 +20,7 @@ import timeGridPlugin from '@fullcalendar/timegrid';
 import { Group, Paper, SegmentedControl, Stack, Switch, Text } from '@mantine/core';
 import { useLocalStorage } from '@mantine/hooks';
 import { addDays, entrySeconds, formatDuration, mapById, occurrenceKey, plannedSlots, type ScheduleSlotTime, shiftTime, timeToMinutes, weekLength } from '@ordo/shared';
-import { ClockIcon, FilePdfIcon, PlusIcon } from '@phosphor-icons/react';
+import { CalendarStarIcon, ClockIcon, FilePdfIcon, PlusIcon } from '@phosphor-icons/react';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router';
 
@@ -37,6 +37,7 @@ import { useTimeEntryDialogs } from '../../time/hooks/use-time-dialogs';
 import { entryEventKeys } from '../../time/lib/time-events';
 import { entrySubject } from '../../time/lib/entry-subject';
 import {
+  useBirthdays,
   useCalendarCategories,
   useCalendarEventMutations,
   useCalendarEvents,
@@ -48,11 +49,12 @@ import {
 import { askScope } from '../lib/ask-scope';
 import { useCalendarEdits, type RoutineOccurrenceRef } from '../hooks/calendar-edits';
 import { slotColumns } from '../lib/slot-columns';
-import { schedulesTitle } from '../lib/schedule-text';
+import { EPHEMERIDES_TITLE, schedulesTitle } from '../lib/schedule-text';
 import classes from './CalendarPage.module.css';
 import { downloadCalendarPdf, pdfItems } from '../lib/calendar-pdf';
 import { occurrenceInput } from '../lib/event-input';
-import { isArchivedOccurrence, occurrenceSpan, scheduleSources, slotBarLook } from '../lib/calendar-events';
+import { birthdayEvents, isArchivedOccurrence, occurrenceSpan, scheduleSources, slotBarLook, slotLookClasses } from '../lib/calendar-events';
+import { usePersonOpener } from '../hooks/use-person-opener';
 import { ShowArchivedSwitch } from '../../../components/filters/ShowArchivedSwitch';
 import { placeRoutineBlocks, type RoutineBlock } from '../lib/routine-layout';
 import { manualOrder } from '../../routines/lib/routine-format';
@@ -62,7 +64,7 @@ import { CalendarCategoriesManager } from '../components/CalendarCategoriesManag
 import { CalendarsManager } from '../components/CalendarsManager';
 import { CalendarsIcsButton } from '../components/CalendarsIcsButton';
 import { ScheduleSettings } from '../components/ScheduleSettings';
-import { WorkSchedulesManager } from '../components/WorkSchedulesManager';
+import { openSchedulesManager } from '../lib/open-schedules';
 import { useActiveWorkspace } from '../../workspaces/api';
 import { PageSettings } from '../../../app/layout/PageSettings';
 import { SettingsTabPanel, SettingsTabs } from '../../../components/tabs/SettingsTabs';
@@ -157,6 +159,8 @@ export function CalendarPage() {
   const navigate = useNavigate();
   const taskLink = useTaskLink();
   const { schedules, types: scheduleTypes, defaultKind, foreign: foreignSchedules } = useScheduleSources();
+  const { data: birthdays } = useBirthdays();
+  const openPerson = usePersonOpener();
   const { perso } = useActiveWorkspace();
   // Tracked times of the displayed period (from its first day, local midnight).
   const showTimers = filters.timers === true;
@@ -335,7 +339,7 @@ export function CalendarPage() {
       // Hours of slots in the background (week, day), by day: those at the same time share the width of the day.
       const columns = new Map<string, { key: string; order: number; start: string; end: string; look: EventInput }[]>();
       let order = 0;
-      for (const { schedule, rule, color, label, foreign, display } of sources) {
+      for (const { schedule, rule, color, label, foreign, display, ephemeris } of sources) {
         // An archived schedule (read only) stays in the background.
         if (!foreign && editingSlots && !('archived' in schedule && schedule.archived)) {
           // Being changed: each slot an event, moved to another day or hour, stretched, or opened.
@@ -358,7 +362,8 @@ export function CalendarPage() {
           continue;
         }
         if (filters.workHours === false || filters.hiddenScheduleIds?.includes(rule.id)) continue;
-        const hatched = foreign ? [classes.subscribedSlot] : [];
+        // Hatched from another workspace, dotted an éphéméride (lot 16).
+        const hatched = slotLookClasses({ foreign, ephemeris });
         const background = {
           display: 'background',
           ...(color ? { backgroundColor: color } : {}),
@@ -409,7 +414,7 @@ export function CalendarPage() {
                   title: label,
                   editable: false,
                   extendedProps: { kind: 'slot' },
-                  ...slotBarLook({ color, foreign }),
+                  ...slotBarLook({ color, foreign, ephemeris }),
                 });
               }
               if (display.dayDisplay === 'DAY_BACKGROUND')
@@ -457,6 +462,8 @@ export function CalendarPage() {
         }
       }
     }
+    // Birthdays (lot 16): whole-day éphémérides of the people, with the planned slots.
+    if (range && birthdays && filters.workHours !== false) result.push(...birthdayEvents(birthdays, range.from, range.to, view === 'dayGridMonth'));
     if (filters.tasks) {
       const today = localToday();
       for (const task of context.tasks) {
@@ -634,6 +641,7 @@ export function CalendarPage() {
     scheduleTypes,
     defaultKind,
     foreignSchedules,
+    birthdays,
     view,
     showTimers,
     timeEntries.data,
@@ -790,8 +798,11 @@ export function CalendarPage() {
           </PeriodNav>
         </Group>
         <Group gap="xs" wrap="wrap">
-          <ActionButton priority="secondary" icon={<ClockIcon aria-hidden />} onClick={() => openFormPanel(schedulesTitle(perso), () => <WorkSchedulesManager />, 'lg')}>
+          <ActionButton priority="secondary" icon={<ClockIcon aria-hidden />} onClick={() => openSchedulesManager(false, perso)}>
             {schedulesTitle(perso)}
+          </ActionButton>
+          <ActionButton priority="secondary" icon={<CalendarStarIcon aria-hidden />} onClick={() => openSchedulesManager(true, perso)}>
+            {EPHEMERIDES_TITLE}
           </ActionButton>
           {/* A mode, not a button (decision CN). */}
           <StateSwitch
@@ -832,7 +843,7 @@ export function CalendarPage() {
                   onChange={(hiddenCalendarIds) => setFilters({ ...filters, hiddenCalendarIds })}
                 />
                 <HiddenChecklist
-                  label={schedulesTitle(perso)}
+                  label={`${schedulesTitle(perso)} et ${EPHEMERIDES_TITLE.toLowerCase()}`}
                   empty="Aucun créneau."
                   choices={scheduleChoices}
                   hidden={hiddenSchedules}
@@ -844,7 +855,7 @@ export function CalendarPage() {
                     [
                       ['tasks', 'Tâches', filters.tasks],
                       ['routines', 'Routines', showRoutines],
-                      ['workHours', schedulesTitle(perso), filters.workHours !== false],
+                      ['workHours', `${schedulesTitle(perso)} et ${EPHEMERIDES_TITLE.toLowerCase()}`, filters.workHours !== false],
                       ['timers', 'Chronos', showTimers],
                     ] as const
                   ).map(([key, label, checked]) => (
@@ -969,6 +980,8 @@ export function CalendarPage() {
             info.jsEvent.preventDefault();
             // A bar of planned slots opens nothing.
             if (info.event.extendedProps.kind === 'slot') return;
+            // A birthday opens its person (lot 16).
+            if (info.event.extendedProps.kind === 'birthday') return openPerson(info.event.extendedProps.birthday);
             if (info.event.extendedProps.kind === 'editSlot') edits.openSlot(info.event.extendedProps.schedule, info.event.extendedProps.label, info.event.extendedProps.slot);
             else if (info.event.extendedProps.kind === 'task') navigate(taskLink.to(info.event.extendedProps.task.id));
             else if (info.event.extendedProps.kind === 'routine' || info.event.extendedProps.kind === 'routineTravel')

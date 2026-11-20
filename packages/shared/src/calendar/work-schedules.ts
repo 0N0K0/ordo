@@ -8,6 +8,7 @@ import { caseSpanOn, caseSpans, repetitionCaseSchema, type RepetitionCase } from
 import { colorSchema } from '../core/workspace';
 import { timeOfDaySchema, daySchema } from '../dates/times';
 import { dayOfMonthOf, daysInMonth, monthIndex, shiftMonth } from '../dates/months';
+import { remindersSchema } from '../dates/reminders';
 
 /** Hours of a day of a case, in local time. */
 const timeRangeSchema = z.object({ start: timeOfDaySchema, end: timeOfDaySchema }).refine(...endAfter('start', 'end', true));
@@ -114,8 +115,12 @@ export const workScheduleSchema = z
     endDate: daySchema().nullable(),
     cases: z.array(scheduleRepetitionCaseSchema).min(1, 'Ajoutez au moins un cas.').max(20, '20 cas au plus.'),
     exceptions: z.array(scheduleExceptionSchema).max(200, '200 exceptions au plus.'),
-    /** Kind of time it plans; none: working hours. */
+    /** Kind of time it plans; none: working hours (or, an éphéméride, no kind). */
     typeId: z.string().nullish(),
+    /** An éphéméride, not a créneau (lot 16): with a kind, that of the kind (set by the API). */
+    ephemeris: z.boolean().default(false),
+    /** Reminders of an éphéméride (lot 16, decision FO), every kind; omitted: left unchanged. A créneau rings none. */
+    reminders: remindersSchema.optional(),
   })
   .superRefine((schedule, context) => {
     if (!endsAfter(schedule.startDate, schedule.endDate)) context.addIssue({ code: 'custom', path: ['endDate'], message: END_AFTER_START });
@@ -130,9 +135,43 @@ export interface WorkScheduleRule {
   endDate: string | null;
   cases: readonly ScheduleCase[];
   exceptions: readonly ScheduleException[];
-  /** Kind of time it plans; none: working hours. */
+  /** Kind of time it plans; none: working hours (or, an éphéméride, no kind). */
   typeId?: string | null;
+  /** An éphéméride (holidays, birthday…), not a créneau: never in the free time, the working hours nor the planned time. */
+  ephemeris?: boolean;
+  /** Archived: gives no moment to the slot conditions (decision FQ). Optional. Default = false. */
+  archived?: boolean;
+  /** Of an archived kind: gives no moment to the slot conditions either (decision FQ). Optional. Default = false. */
+  kindArchived?: boolean;
 }
+
+/**
+ * Case of every day, the whole day: that of a new éphéméride (holidays: every day of its period, lot 16).
+ * @returns {ScheduleCase} Case.
+ */
+export const wholeDaysCase = (): ScheduleCase => ({ since: null, until: null, anchor: null, rule: { ...DEFAULT_RECURRENCE, frequency: 'DAILY' }, times: { allDay: true, ranges: [] } });
+
+/** Name of an éphéméride without kind (it has no default kind, unlike the créneaux: « Travail »). */
+export const UNTYPED_EPHEMERIS_LABEL = 'Éphéméride';
+
+/**
+ * The créneaux of some schedules, their éphémérides left out: what the free time, the working hours (the hint of an
+ * event out of them, the planned time) count (lot 16).
+ * @template T
+ * @param {readonly T[]} schedules Schedules.
+ * @returns {T[]} Créneaux.
+ */
+export const slotSchedules = <T extends { ephemeris?: boolean | null }>(schedules: readonly T[]): T[] => schedules.filter((schedule) => !schedule.ephemeris);
+
+/**
+ * The schedules the slot conditions count (decision FQ): neither archived nor of an archived kind. The others may still
+ * be named by a condition (shown « archivé »), they just give it no moment, nor take any from the free time.
+ * @template T
+ * @param {readonly T[]} schedules Schedules.
+ * @returns {T[]} Schedules counted.
+ */
+export const countedSchedules = <T extends { archived?: boolean | null; kindArchived?: boolean | null }>(schedules: readonly T[]): T[] =>
+  schedules.filter((schedule) => !schedule.archived && !schedule.kindArchived);
 
 /** Planned time slot on a date. */
 export interface PlannedSlot {
@@ -309,6 +348,33 @@ export function plannedSlots(schedules: readonly WorkScheduleRule[], from: strin
   return result.sort((a, b) => a.date.localeCompare(b.date) || a.start.localeCompare(b.start));
 }
 
+/** Start of a run of consecutive days of a schedule: its first day and the start of its first slot (00:00 all day). */
+export interface ScheduleRun {
+  day: string;
+  start: string;
+}
+
+/**
+ * Runs of consecutive days of a schedule starting between two dates (included): what the reminders of an éphéméride
+ * count from (lot 16, decision FO), each run its first day and the start of its first slot that day.
+ * @param {WorkScheduleRule} schedule Schedule.
+ * @param {string} from First date.
+ * @param {string} to Last date.
+ * @returns {ScheduleRun[]} Runs, by day.
+ */
+export function scheduleRuns(schedule: WorkScheduleRule, from: string, to: string): ScheduleRun[] {
+  // The day before tells whether a run goes on from before `from`.
+  const slots = plannedSlots([schedule], addDays(from, -1), to);
+  const days = new Set(slots.map((slot) => slot.date));
+  const runs: ScheduleRun[] = [];
+  for (const slot of slots) {
+    if (slot.date < from || days.has(addDays(slot.date, -1)) || runs.at(-1)?.day === slot.date) continue;
+    // Slots are by start: the first one of the day.
+    runs.push({ day: slot.date, start: slot.start });
+  }
+  return runs;
+}
+
 /**
  * Paused periods of the schedules (exceptions without cases) overlapping two dates (included).
  * @param {readonly WorkScheduleRule[]} schedules Schedules.
@@ -459,12 +525,33 @@ const scheduleDisplayFields = {
   monthDisplay: z.enum(SCHEDULE_MONTH_DISPLAYS),
 };
 
-/** Kind of time slots ("Travail", "Garde des enfants"…), with its color and how its slots show. */
+/**
+ * Kind of time slots ("Travail", "Garde des enfants"…), with its color and how its slots show; a kind of éphémérides
+ * (set at its creation, changed by a conversion, lot 16) may be a context of the budget, shared or not
+ * (`scheduleTypeContextError`).
+ */
 export const scheduleTypeSchema = z.object({
   label: requiredText(),
   color: colorSchema,
   ...scheduleDisplayFields,
+  ephemeris: z.boolean().default(false),
+  /** Its éphémérides are the periods of a context of the treasury (the kind is the context). */
+  budgetContext: z.boolean().default(false),
+  /** A context in every workspace of the user. */
+  sharedContext: z.boolean().default(false),
 });
+
+/**
+ * What refuses the budget fields of a kind: a kind of créneaux is never a context; « Partagé entre espaces » needs
+ * « Sert de contexte au budget ».
+ * @param {{ ephemeris: boolean, budgetContext: boolean, sharedContext: boolean }} type Kind as it would be saved.
+ * @returns {{ field: 'budgetContext' | 'sharedContext', message: string } | null} Error, or none.
+ */
+export function scheduleTypeContextError(type: { ephemeris: boolean; budgetContext: boolean; sharedContext: boolean }): { field: 'budgetContext' | 'sharedContext'; message: string } | null {
+  if (type.budgetContext && !type.ephemeris) return { field: 'budgetContext', message: 'Seul un type d’éphémérides sert de contexte au budget.' };
+  if (type.sharedContext && !type.budgetContext) return { field: 'sharedContext', message: 'Seul un contexte du budget se partage entre espaces.' };
+  return null;
+}
 
 /** Label of the schedules without kind, unless the workspace labels them. */
 export const DEFAULT_SCHEDULE_KIND_LABEL = 'Travail';

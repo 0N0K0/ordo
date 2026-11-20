@@ -7,7 +7,8 @@ import {
   EVERYDAY_CONTEXT,
   mapById,
   offsetLinkedMovements,
-  plannedContext,
+  contextPlanner,
+  type ContextEphemeris,
   round2,
   splitAmounts,
   fromCents,
@@ -23,7 +24,6 @@ import type {
   TreasuryAccount,
   TreasuryCategory,
   TreasuryContext,
-  TreasuryContextPeriod,
   TreasuryEntry,
   TreasuryMember,
   TreasuryProjection,
@@ -324,7 +324,7 @@ interface ChartMovement {
  * @param {TreasuryMember[]} input.members Members of the team or household.
  * @param {TreasuryRelation[]} input.relations Relations (people out of the team or household).
  * @param {TreasuryContext[]} input.contexts Contexts.
- * @param {TreasuryContextPeriod[]} input.periods Planned periods of the contexts.
+ * @param {ContextEphemeris[]} input.ephemerides Éphémérides of the contexts (their periods, lot 16).
  * @param {TreasuryProjection | null} input.projection Projection (expected movements and balance).
  * @param {TreasuryAccount[]} input.accounts Accounts.
  * @param {ChartConfig} input.config Configuration.
@@ -339,7 +339,7 @@ export function treasuryChartData({
   members,
   relations,
   contexts,
-  periods,
+  ephemerides,
   projection,
   accounts,
   config,
@@ -352,7 +352,7 @@ export function treasuryChartData({
   members: TreasuryMember[];
   relations: TreasuryRelation[];
   contexts: TreasuryContext[];
-  periods: TreasuryContextPeriod[];
+  ephemerides: ContextEphemeris[];
   projection: TreasuryProjection | null;
   accounts: TreasuryAccount[];
   config: ChartConfig;
@@ -362,7 +362,8 @@ export function treasuryChartData({
 }): ChartData {
   if (config.measure === 'balance') return balanceChartData(projection, config, today);
   const filter = config.treasury;
-  const plannedDays = periods.map((period) => ({ contextId: period.contextId, startDate: period.startDate, endDate: period.endDate }));
+  // None on a day several contexts cover (decision FN).
+  const plannedOn = contextPlanner(ephemerides);
   const expected: ChartMovement[] =
     filter.includeForecast && projection
       ? projection.items
@@ -376,7 +377,7 @@ export function treasuryChartData({
             accountId: item.accountId ?? null,
             projectId: null,
             memberId: null,
-            contextId: plannedContext(plannedDays, item.date),
+            contextId: plannedOn(item.date),
             forecast: true,
           }))
       : [];
@@ -419,7 +420,7 @@ export function treasuryChartData({
     if (remainder !== 0 || !entry.lines.length) {
       own.push({
         id: taggedKey('entry', entry.id),
-        movement: { ...base, ...category(entry.categoryId ?? null), amount: fromCents(remainder), projectId: entry.projectId ?? null, memberId: null, contextId: plannedContext(plannedDays, date) },
+        movement: { ...base, ...category(entry.categoryId ?? null), amount: fromCents(remainder), projectId: entry.projectId ?? null, memberId: null, contextId: plannedOn(date) },
         linkedIds: [...entry.linkedEntries.map((linked) => taggedKey('entry', linked.id)), ...entry.linkedByLines.map((linked) => taggedKey('line', linked.id))],
       });
     }

@@ -1,6 +1,6 @@
 # Alarmes
 
-Ce que l’utilisateur peut faire avec les alarmes : la page `/alarms` (« Alarmes »), les alarmes d’une tâche, et ce qui sonne pendant qu’Ordo est ouvert (alarmes, rappels des tâches, des routines et des évènements), y compris pour les autres espaces. Code : `apps/web/src/features/alarms/**` (voir [Code web des alarmes](../../web/features/activities/alarms.md)) ; règles : [Règles des alarmes](../../business-rules/activities/alarms.md).
+Ce que l’utilisateur peut faire avec les alarmes : la page `/alarms` (« Alarmes »), les alarmes d’une tâche, et ce qui sonne pendant qu’Ordo est ouvert (alarmes, rappels des tâches, des routines, des évènements, des éphémérides et des anniversaires), y compris pour les autres espaces. Code : `apps/web/src/features/alarms/**` (voir [Code web des alarmes](../../web/features/activities/alarms.md)) ; règles : [Règles des alarmes](../../business-rules/activities/alarms.md).
 
 ## Types d’alarmes
 
@@ -72,11 +72,13 @@ Une sonnerie = un carillon de trois notes (si l’onglet a déjà reçu un clic 
 
 ### Rappels des tâches, des routines et des évènements
 
-Les rappels (« Rappels », 10 au plus, de types mêlés : « Au début », « N min avant », « À HH:MM le jour J ») fonctionnent de la même façon pour les trois (décision D16), en heure de Paris, au plus 6 heures en retard, quel que soit l’espace ouvert ; ils sont à côté des alarmes, qui restent.
+Les rappels (« Rappels », 10 au plus, de types mêlés : « Au début », « N min avant », « À HH:MM le jour J », « N jours avant, à HH:MM » (1 à 30 jours, lot 16)) fonctionnent de la même façon partout (décision D16), en heure de Paris, au plus 6 heures en retard, quel que soit l’espace ouvert ; ils sont à côté des alarmes, qui restent.
 
-- Évènements : « Au début », minutes avant le début (24 heures au plus ; journée entière : minuit du premier jour), ou à une heure du premier jour ; les occurrences d’hier à J+8 sont rechargées toutes les 5 minutes ; une occurrence annulée ne sonne pas. Toast : libellé, « Journée entière » ou date et heure, lieu ; lien « Voir l’agenda ».
-- Routines : « Au début » ou minutes avant le premier jour de l’occurrence (« Ouverture ») à l’heure « dès » de chaque moment non coché (sinon son heure maximale), 24 heures au plus, ou à une heure de ce jour (une fois par occurrence), pour l’occurrence en cours tant qu’elle n’est pas faite et pour la suivante ; pendant un évènement qui occupe ses assignés, le rappel attend le prochain moment libre. Toast : libellé, horaires du moment et lieu ; actions « Marquer comme faite » (occurrence en cours) et « Voir les routines ». Voir [Routines](routines.md).
-- Tâches : « À HH:MM » seulement, à une ou plusieurs heures du jour, chaque jour de l’ouverture à l’échéance (le jour de l’échéance seulement sans ouverture) ; aucun sans échéance ; une tâche fermée ou archivée ne sonne pas. Toast : libellé, « Échéance » ; lien vers la tâche. Voir [Tâches](tasks.md).
+- Évènements : « Au début », minutes avant le début (24 heures au plus ; journée entière : minuit du premier jour), ou à une heure du premier jour ou de N jours avant ; les occurrences d’hier à J+31 sont rechargées toutes les 5 minutes ; une occurrence annulée ne sonne pas. Toast : libellé, « Journée entière » ou date et heure, lieu ; lien « Voir l’agenda ».
+- Routines : « Au début » ou minutes avant le premier jour de l’occurrence (« Ouverture ») à l’heure « dès » de chaque moment non coché (sinon son heure maximale), 24 heures au plus, ou à une heure de ce jour ou de N jours avant (une fois par occurrence), pour l’occurrence en cours tant qu’elle n’est pas faite et pour la suivante ; pendant un évènement qui occupe ses assignés, le rappel attend le prochain moment libre. Toast : libellé, horaires du moment et lieu ; actions « Marquer comme faite » (occurrence en cours) et « Voir les routines ». Voir [Routines](routines.md).
+- Tâches : à une heure seulement, à une ou plusieurs heures du jour, chaque jour de l’ouverture à l’échéance (le jour de l’échéance seulement sans ouverture), ou une fois N jours avant l’échéance ; aucun sans échéance ; une tâche fermée ou archivée ne sonne pas. Toast : libellé, « Échéance » ; lien vers la tâche. Voir [Tâches](tasks.md).
+- Éphémérides : leurs rappels (panneau d’une éphéméride) comptent depuis le premier jour de chaque suite de jours qu’elle couvre (minuit pour une journée entière) ; une éphéméride archivée ne sonne pas. Toast : libellé, jour ; lien « Voir l’agenda ».
+- Anniversaires : les « Rappels d’anniversaire » d’un contributeur ou d’une relation (le jour même ou N jours avant, à une heure). Toast : « Anniversaire de Paul — 40 ans » (l’âge quand l’année de naissance est connue), le jour ; action « Ouvrir la fiche ». Voir [Personnes](../../business-rules/cross-cutting/people.md#coordonnées-date-de-naissance-anniversaire).
 
 ### Plusieurs onglets
 
@@ -84,7 +86,7 @@ Une occurrence n’est sonnée que par un seul onglet (de n’importe quel espac
 
 ### Notifications des autres espaces
 
-Pour chaque autre espace, le composant `ElsewhereNotifier` fait toujours sonner ses alarmes (rechargées chaque minute) et les rappels de ses évènements, tâches et routines (rechargés toutes les 5 minutes), sans choix de l’espace (décision EO) ; ses nouveaux mails selon son réglage « Nouveaux mails » (voir [Espaces](../cross-cutting/workspaces.md)). Les rappels d’une routine d’un autre espace n’attendent pas un moment libre et ne proposent pas « Marquer comme faite ». Le toast indique « Espace « X » » et ses liens ouvrent cet espace.
+Pour chaque autre espace, le composant `ElsewhereNotifier` fait toujours sonner ses alarmes (rechargées chaque minute) et les rappels de ses évènements, tâches, routines, éphémérides et anniversaires (rechargés toutes les 5 minutes ; un anniversaire ouvre l’agenda de cet espace), sans choix de l’espace (décision EO) ; ses nouveaux mails selon son réglage « Nouveaux mails » (voir [Espaces](../cross-cutting/workspaces.md)). Les rappels d’une routine d’un autre espace n’attendent pas un moment libre et ne proposent pas « Marquer comme faite ». Le toast indique « Espace « X » » et ses liens ouvrent cet espace.
 
 ## Différences PRO / PERSO
 

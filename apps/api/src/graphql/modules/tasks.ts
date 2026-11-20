@@ -1,3 +1,5 @@
+import { CONFIRM_LOSS_DESCRIPTION } from '../occurrence-fields';
+import { peopleSettler } from '../../services/routines/routines';
 import { done } from '../errors';
 import { doableTaskIds } from '../../services/calendar/slot-conditions';
 import { prisma } from '../../db';
@@ -23,7 +25,8 @@ import { unchecked } from '../unchecked';
 import { locationInputFields } from '../located-fields';
 import { ItemLinkInput, ItemLinkRef } from '../link-fields';
 import { ReminderInput, ReminderRef } from '../reminder-fields';
-import { readReminders } from '@ordo/shared';
+import { readEmails, readPhones, readReminders } from '@ordo/shared';
+import { BIRTH_DATE_DESCRIPTION, personDetailsInputFields } from '../person-fields';
 import { readLinks } from '../../services/core/links';
 
 builder.prismaObject('Contributor', {
@@ -42,6 +45,10 @@ builder.prismaObject('Contributor', {
       resolve: (contributor) => isMember(contributor),
     }),
     projectIds: t.idList(relationIds('projects', 'Projects the contributor is directly attached to; their sub-projects inherit it.')),
+    birthDate: t.exposeString('birthDate', { nullable: true, description: BIRTH_DATE_DESCRIPTION }),
+    birthdayReminders: t.field({ type: [ReminderRef], description: 'Reminders of its birthday.', resolve: (contributor) => readReminders(contributor.birthdayReminders) }),
+    emails: t.field({ type: 'JSON', description: '[{ label, address }]', resolve: (contributor) => readEmails(contributor.emails) }),
+    phones: t.field({ type: 'JSON', description: '[{ label, number }]', resolve: (contributor) => readPhones(contributor.phones) }),
   }),
 });
 
@@ -310,6 +317,7 @@ const ContributorInput = builder.inputType('ContributorInput', {
     projectIds: t.idList({ description: 'Projects the contributor is directly attached to.' }),
     handle: t.string({ required: true }),
     avatar: t.field({ type: 'File' }),
+    ...personDetailsInputFields(t),
   }),
 });
 
@@ -320,6 +328,7 @@ const ContributorUpdateInput = builder.inputType('ContributorUpdateInput', {
     handle: t.string(),
     avatar: t.field({ type: 'File' }),
     removeAvatar: t.boolean(),
+    ...personDetailsInputFields(t),
   }),
 });
 
@@ -605,9 +614,9 @@ builder.mutationFields((t) => ({
 
   createContributor: t.prismaField({
     type: 'Contributor',
-    args: { input: t.arg({ type: ContributorInput, required: true }) },
-    resolve: async (query, _root, { input }) =>
-      reloaded(prisma.contributor, query, contributors.createContributor(input)),
+    args: { input: t.arg({ type: ContributorInput, required: true }), confirmLoss: t.arg.boolean({ description: `${CONFIRM_LOSS_DESCRIPTION} Its birthday (slot conditions).` }) },
+    resolve: async (query, _root, { input, confirmLoss }) =>
+      reloaded(prisma.contributor, query, contributors.createContributor(input, peopleSettler(confirmLoss))),
   }),
   uploadAttachment: t.prismaField({
     type: 'Attachment',
@@ -622,13 +631,17 @@ builder.mutationFields((t) => ({
   }),
   updateContributor: t.prismaField({
     type: 'Contributor',
-    args: { id: t.arg.id({ required: true }), input: t.arg({ type: ContributorUpdateInput, required: true }) },
-    resolve: async (query, _root, { id, input }) =>
-      reloaded(prisma.contributor, query, contributors.updateContributor(id, input)),
+    args: {
+      id: t.arg.id({ required: true }),
+      input: t.arg({ type: ContributorUpdateInput, required: true }),
+      confirmLoss: t.arg.boolean({ description: `${CONFIRM_LOSS_DESCRIPTION} Its birthday moved or gone (slot conditions).` }),
+    },
+    resolve: async (query, _root, { id, input, confirmLoss }) =>
+      reloaded(prisma.contributor, query, contributors.updateContributor(id, input, peopleSettler(confirmLoss))),
   }),
   deleteContributor: t.boolean({
-    args: { id: t.arg.id({ required: true }) },
-    resolve: (_root, { id }) => done(contributors.deleteContributor(id)),
+    args: { id: t.arg.id({ required: true }), confirmLoss: t.arg.boolean({ description: `${CONFIRM_LOSS_DESCRIPTION} Its birthday gone (slot conditions).` }) },
+    resolve: (_root, { id, confirmLoss }) => done(contributors.deleteContributor(id, peopleSettler(confirmLoss))),
   }),
 }));
 

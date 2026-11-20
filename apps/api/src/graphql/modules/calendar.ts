@@ -1,5 +1,5 @@
 import { done } from '../errors';
-import { EVENT_SCOPES } from '@ordo/shared';
+import { EVENT_SCOPES, readReminders } from '@ordo/shared';
 import { prisma } from '../../db';
 import * as categories from '../../services/calendar/calendar-categories';
 import * as calendars from '../../services/calendar/calendars';
@@ -11,6 +11,8 @@ import { builder } from '../builder';
 import { locatedInput, locationInputFields, TRAVEL_DESCRIPTIONS, travelInputFields } from '../located-fields';
 import { ItemLinkInput, ItemLinkRef } from '../link-fields';
 import { ReminderInput, ReminderRef } from '../reminder-fields';
+import { BIRTH_DATE_DESCRIPTION } from '../person-fields';
+import * as birthdays from '../../services/calendar/birthdays';
 import { CONFIRM_LOSS_DESCRIPTION } from '../occurrence-fields';
 import { LabelColorInput, labelMutations, labelObject } from '../label-inputs';
 import { reloaded } from '../reload';
@@ -121,7 +123,8 @@ const EventOccurrence = builder.objectRef<events.EventOccurrence>('CalendarEvent
   }),
 });
 
-builder.prismaObject('WorkSchedule', {
+/** Planned time slots (a créneau or an éphéméride); also the periods of the contexts of the treasury. */
+export const WorkScheduleRef = builder.prismaObject('WorkSchedule', {
   description: 'Planned time slots: a period, its cases (which days, which hours) and exceptions (periods with cases of their own).',
   fields: (t) => ({
     id: t.exposeID('id'),
@@ -130,7 +133,13 @@ builder.prismaObject('WorkSchedule', {
     endDate: t.expose('endDate', { type: 'Date', nullable: true }),
     cases: t.field({ type: 'JSON', description: 'Cases (shared schedule case shape).', resolve: (schedule) => schedules.scheduleRule(schedule).cases }),
     exceptions: t.field({ type: 'JSON', description: 'Exceptions: { from, to, label, cases }.', resolve: (schedule) => schedules.scheduleRule(schedule).exceptions }),
-    typeId: t.exposeID('typeId', { nullable: true, description: 'Kind of time it plans; none: working hours.' }),
+    typeId: t.exposeID('typeId', { nullable: true, description: 'Kind of time it plans; none: working hours (or, an éphéméride, no kind).' }),
+    ephemeris: t.exposeBoolean('ephemeris', { description: 'An éphéméride, not a créneau (that of its kind when it has one).' }),
+    reminders: t.field({
+      type: [ReminderRef],
+      description: 'Reminders of an éphéméride, counted from the first day of each run of consecutive days it has (a créneau rings none).',
+      resolve: (schedule) => readReminders(schedule.reminders),
+    }),
   }),
 });
 
@@ -143,6 +152,9 @@ builder.prismaObject('ScheduleType', {
     dayDisplay: t.exposeString('dayDisplay', { description: 'Its slots in the week and the day: SLOT_BACKGROUND, DAY_BACKGROUND, SLOT_BORDER or NONE.' }),
     dayBar: t.exposeBoolean('dayBar', { description: 'A bar at the top of the week and the day on each day with slots.' }),
     monthDisplay: t.exposeString('monthDisplay', { description: 'Its days in the month: BACKGROUND, BORDER or NONE.' }),
+    ephemeris: t.exposeBoolean('ephemeris', { description: 'A kind of éphémérides (holidays, birthdays…), not of créneaux.' }),
+    budgetContext: t.exposeBoolean('budgetContext', { description: 'Éphémérides only: a context of the treasury, its éphémérides its periods.' }),
+    sharedContext: t.exposeBoolean('sharedContext', { description: 'A context in every workspace of the user.' }),
     position: t.exposeInt('position'),
   }),
 });
@@ -154,6 +166,9 @@ const ScheduleTypeInput = builder.inputType('ScheduleTypeInput', {
     dayDisplay: t.string({ required: true }),
     dayBar: t.boolean({ required: true }),
     monthDisplay: t.string({ required: true }),
+    ephemeris: t.boolean({ description: 'A kind of éphémérides; set at its creation only (a conversion changes it).' }),
+    budgetContext: t.boolean({ description: 'Éphémérides only: « Sert de contexte au budget ».' }),
+    sharedContext: t.boolean({ description: 'Budget context only: « Partagé entre espaces ».' }),
   }),
 });
 
@@ -203,7 +218,8 @@ const ForeignScheduleRef = builder.objectRef<schedules.ForeignSchedule>('Foreign
     cases: t.field({ type: 'JSON', resolve: (item) => item.rule.cases }),
     exceptions: t.field({ type: 'JSON', resolve: (item) => item.rule.exceptions }),
     typeLabel: t.exposeString('typeLabel', { nullable: true }),
-    typeId: t.id({ nullable: true, description: 'Kind in its workspace; none: its working hours.', resolve: (item) => item.rule.typeId ?? null }),
+    typeId: t.id({ nullable: true, description: 'Kind in its workspace; none: its working hours (or, an éphéméride, no kind).', resolve: (item) => item.rule.typeId ?? null }),
+    ephemeris: t.boolean({ description: 'An éphéméride, not a créneau.', resolve: (item) => item.rule.ephemeris ?? false }),
     color: t.exposeString('color', { nullable: true, description: 'In this workspace.' }),
     dayDisplay: t.string({ resolve: (item) => item.display.dayDisplay }),
     dayBar: t.boolean({ resolve: (item) => item.display.dayBar }),
@@ -229,6 +245,7 @@ const ForeignScheduleKindRef = builder.objectRef<schedules.ForeignScheduleKind>(
     scheduleCount: t.exposeInt('scheduleCount'),
     subscribed: t.exposeBoolean('subscribed'),
     archived: t.exposeBoolean('archived', { description: 'Kind archived in its workspace: no longer offered in a slot condition.' }),
+    ephemeris: t.exposeBoolean('ephemeris', { description: 'A kind of éphémérides.' }),
   }),
 });
 
@@ -239,7 +256,9 @@ const WorkScheduleInput = builder.inputType('WorkScheduleInput', {
     endDate: t.field({ type: 'Date' }),
     cases: t.field({ type: 'JSON', required: true, description: 'Cases (shared schedule case shape).' }),
     exceptions: t.field({ type: 'JSON', required: true, description: 'Exceptions: { from, to, label, cases }.' }),
-    typeId: t.id({ description: 'Kind of time it plans; none: working hours.' }),
+    typeId: t.id({ description: 'Kind of time it plans; none: working hours (or, an éphéméride, no kind).' }),
+    ephemeris: t.boolean({ description: 'Without kind: an éphéméride, not a créneau (with one: that of its kind).' }),
+    reminders: t.field({ type: [ReminderInput], description: 'Reminders of an éphéméride, 10 at most; omitted: left unchanged.' }),
   }),
 });
 
@@ -252,6 +271,8 @@ const scheduleInput = (input: typeof WorkScheduleInput.$inferInput) => ({
   ...input,
   endDate: input.endDate ?? null,
   typeId: input.typeId ?? null,
+  ephemeris: input.ephemeris ?? false,
+  reminders: input.reminders ?? undefined,
   // Validated by the service.
   cases: unchecked(input.cases),
   exceptions: unchecked(input.exceptions),
@@ -309,7 +330,29 @@ const eventInput = (input: typeof CalendarEventInput.$inferInput) => ({
   beneficiaryRelationIds: input.beneficiaryRelationIds ?? [],
 });
 
+const BirthdayRef = builder.objectRef<birthdays.PersonBirthday>('Birthday').implement({
+  description: 'Birthday of a contributor or a relation (lot 16): a whole-day éphéméride derived from its birth date, every year, not stored.',
+  fields: (t) => ({
+    id: t.exposeID('id', { description: '`contributor:<id>` or `relation:<id>`.' }),
+    contributorId: t.exposeID('contributorId', { nullable: true, description: 'Contributor it is of (also set for a relation that is a contributor).' }),
+    relationId: t.exposeID('relationId', { nullable: true, description: 'Relation it is of.' }),
+    name: t.exposeString('name'),
+    birthDate: t.exposeString('birthDate', { description: BIRTH_DATE_DESCRIPTION }),
+    reminders: t.field({ type: [ReminderRef], description: 'Reminders « À HH:MM » or « N jours avant, à HH:MM » of the birthday.', resolve: (birthday) => birthday.reminders }),
+    archived: t.exposeBoolean('archived', { description: 'Its person is archived (asked with `archived: true` only): shown nowhere, no moment to the slot conditions.' }),
+    aliases: t.exposeStringList('aliases', {
+      description: 'Other ids (`relation:<id>`, `contributor:<id>`) naming the same birthday in the slot conditions: the relation linked to the contributor whose birthday applies, or the reverse.',
+    }),
+  }),
+});
+
 builder.queryFields((t) => ({
+  birthdays: t.field({
+    type: [BirthdayRef],
+    description: 'Birthdays of the people of the workspace (contributors and relations with a birth date, not archived unless asked), by name.',
+    args: { archived: t.arg.boolean({ description: 'Those of archived people too (flagged `archived`): what a slot condition may still name.' }) },
+    resolve: (_root, { archived }) => birthdays.birthdays({ archived: archived ?? false }),
+  }),
   calendars: t.prismaField({
     type: ['Calendar'],
     description: 'Calendars of the workspace, in their order.',
@@ -479,17 +522,29 @@ builder.mutationFields((t) => ({
   createWorkSchedule: t.id({
     description: 'Creates a schedule; the occurrences of routines it makes disappear (no moment left) lose their comments, once confirmed.',
     args: { input: t.arg({ type: WorkScheduleInput, required: true }), confirmLoss: t.arg.boolean({ description: CONFIRM_LOSS_DESCRIPTION }) },
-    resolve: async (_root, { input, confirmLoss }) => (await schedules.createWorkSchedule(scheduleInput(input), (change) => settleScheduleChange(change, confirmLoss ?? false))).id,
+    resolve: async (_root, { input, confirmLoss }) => (await schedules.createWorkSchedule(scheduleInput(input), (change) => settleScheduleChange({ apply: change }, confirmLoss ?? false))).id,
   }),
   updateWorkSchedule: t.boolean({
     description: 'Changes a schedule; the occurrences of routines it makes disappear (no moment left) lose their comments, once confirmed.',
     args: { id: t.arg.id({ required: true }), input: t.arg({ type: WorkScheduleInput, required: true }), confirmLoss: t.arg.boolean({ description: CONFIRM_LOSS_DESCRIPTION }) },
-    resolve: (_root, { id, input, confirmLoss }) => done(schedules.updateWorkSchedule(id, scheduleInput(input), (change) => settleScheduleChange(change, confirmLoss ?? false))),
+    resolve: (_root, { id, input, confirmLoss }) => done(schedules.updateWorkSchedule(id, scheduleInput(input), (change) => settleScheduleChange({ apply: change }, confirmLoss ?? false))),
+  }),
+  setWorkScheduleEphemeris: t.boolean({
+    description:
+      'Turns a schedule into an éphéméride or back into a créneau (its id kept; a kind of the other nature left); the occurrences of routines it makes disappear lose their comments, once confirmed.',
+    args: { id: t.arg.id({ required: true }), ephemeris: t.arg.boolean({ required: true }), confirmLoss: t.arg.boolean({ description: CONFIRM_LOSS_DESCRIPTION }) },
+    resolve: (_root, { id, ephemeris, confirmLoss }) => done(schedules.setWorkScheduleEphemeris(id, ephemeris, (change) => settleScheduleChange({ apply: change }, confirmLoss ?? false))),
+  }),
+  setScheduleTypeEphemeris: t.boolean({
+    description:
+      'Turns a whole kind (its schedules with it, ids kept) into a kind of éphémérides or back into a kind of créneaux; the occurrences of routines it makes disappear lose their comments, once confirmed.',
+    args: { id: t.arg.id({ required: true }), ephemeris: t.arg.boolean({ required: true }), confirmLoss: t.arg.boolean({ description: CONFIRM_LOSS_DESCRIPTION }) },
+    resolve: (_root, { id, ephemeris, confirmLoss }) => done(schedules.setScheduleTypeEphemeris(id, ephemeris, (change) => settleScheduleChange({ apply: change }, confirmLoss ?? false))),
   }),
   deleteWorkSchedule: t.boolean({
     description: 'Deletes a schedule; the occurrences of routines it makes disappear (no moment left) lose their comments, once confirmed.',
     args: { id: t.arg.id({ required: true }), confirmLoss: t.arg.boolean({ description: CONFIRM_LOSS_DESCRIPTION }) },
-    resolve: (_root, { id, confirmLoss }) => done(schedules.deleteWorkSchedule(id, (change) => settleScheduleChange(change, confirmLoss ?? false))),
+    resolve: (_root, { id, confirmLoss }) => done(schedules.deleteWorkSchedule(id, (change) => settleScheduleChange({ apply: change }, confirmLoss ?? false))),
   }),
   deleteCalendarEvent: t.boolean({
     args: { id: t.arg.id({ required: true }), scope: t.arg({ type: EventScope, required: true }), occurrenceDate: t.arg({ type: 'Date' }) },
@@ -503,5 +558,5 @@ labelMutations(
   schedules.scheduleTypes,
   { create: ScheduleTypeInput, update: ScheduleTypeInput },
   { delete: 'Deletes a kind of time slots (its schedules stay, without kind); the occurrences of routines it makes disappear lose their comments, once confirmed.' },
-  (id, confirmLoss) => schedules.deleteScheduleType(id, (change) => settleScheduleChange(change, confirmLoss)),
+  (id, confirmLoss) => schedules.deleteScheduleType(id, (change) => settleScheduleChange({ apply: change }, confirmLoss)),
 );

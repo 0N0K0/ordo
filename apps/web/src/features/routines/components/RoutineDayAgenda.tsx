@@ -14,7 +14,7 @@ import { localDay, localInstant } from '../../../lib/dates';
 import { notifyWithUndo, ON_ERROR } from '../../../lib/notify';
 import { useCalendarEvents, useCalendars, useScheduleSources, useSubscribedCalendarEvents } from '../../calendar/api';
 import { useNow } from '../../../lib/use-now';
-import { occurrenceSpan, scheduleSources, slotBarLook } from '../../calendar/lib/calendar-events';
+import { occurrenceSpan, scheduleSources, slotBarLook, slotLookClasses } from '../../calendar/lib/calendar-events';
 import calendarClasses from '../../calendar/pages/CalendarPage.module.css';
 import { useRoutineMutations, type Routine, type RoutineCheck } from '../api';
 import { windowText } from '../lib/routine-format';
@@ -179,7 +179,7 @@ export function RoutineDayAgenda({ day, today, items, byId, layers }: RoutineDay
   // Slots of the chosen schedules: their hours in the background, their name in the all-day row.
   const shownSchedules = new Set(layers.scheduleIds);
   const slotSources = scheduleSources(schedules ?? [], foreign ?? [], types ?? [], defaultKind).filter(({ schedule }) => shownSchedules.has(schedule.id));
-  for (const { schedule, rule, color, label, foreign } of slotSources) {
+  for (const { schedule, rule, color, label, foreign, ephemeris } of slotSources) {
     const slots = plannedSlots([rule], day, day);
     if (slots.length === 0) continue;
     events.push({
@@ -188,7 +188,7 @@ export function RoutineDayAgenda({ day, today, items, byId, layers }: RoutineDay
       allDay: true,
       start: day,
       end: addDays(day, 1),
-      ...slotBarLook({ color, foreign }),
+      ...slotBarLook({ color, foreign, ephemeris }),
     });
     for (const slot of slots) {
       events.push({
@@ -197,7 +197,7 @@ export function RoutineDayAgenda({ day, today, items, byId, layers }: RoutineDay
         end: slot.allDay ? `${addDays(day, 1)}T00:00:00` : `${day}T${slot.end}:00`,
         display: 'background',
         ...(color ? { backgroundColor: color } : {}),
-        classNames: [color ? calendarClasses.typedSlot : calendarClasses.workHours],
+        classNames: [color ? calendarClasses.typedSlot : calendarClasses.workHours, ...slotLookClasses({ foreign, ephemeris })],
       });
     }
   }

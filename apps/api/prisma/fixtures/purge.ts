@@ -34,7 +34,6 @@ export async function purgeWorkspace(): Promise<void> {
     'catalogItem',
     'treasuryBudget',
     'treasuryRelation',
-    'treasuryContextPeriod',
     'treasuryContext',
     'treasuryAccount',
     'treasuryCategory',

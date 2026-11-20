@@ -1,3 +1,5 @@
+import { CONFIRM_LOSS_DESCRIPTION } from '../occurrence-fields';
+import { peopleSettler } from '../../services/routines/routines';
 import { done } from '../errors';
 import {
   addDays,
@@ -9,6 +11,9 @@ import {
   lineCents,
   monthOfDate,
   parseDay,
+  readEmails,
+  readPhones,
+  readReminders,
   REMINDER_DELAY_DAYS,
   TREASURY_DIRECTIONS,
   TREASURY_ENTRY_STATUSES,
@@ -28,12 +33,17 @@ import * as statements from '../../services/treasury/treasury-import';
 import * as loans from '../../services/treasury/treasury-loans';
 import * as team from '../../services/treasury/treasury-team';
 import { meContributorId } from '../../services/workspaces/workspaces';
-import { currentWorkspace } from '../../workspace-context';
+import { ReminderRef } from '../reminder-fields';
+import { BIRTH_DATE_DESCRIPTION, personDetailsInputFields } from '../person-fields';
+import { currentWorkspace, currentWorkspaceId } from '../../workspace-context';
+import { iconUrl } from '../../services/core/icons';
+import type { ContextEphemeris } from '@ordo/shared';
 import { BY_POSITION, BY_POSITION_NAME } from '../../services/core/ordering';
-import type { TreasuryAccount } from '../../generated/prisma/client';
+import type { TreasuryAccount, WorkSchedule } from '../../generated/prisma/client';
 import { batchedBy } from '../batch';
 import { builder } from '../builder';
-import { LabelColorInput, labelObject } from '../label-inputs';
+import { WorkScheduleRef } from './calendar';
+import { LabelColorInput } from '../label-inputs';
 import { parisToday } from '../../today';
 import { fromDecimal } from '../../services/core/decimal';
 import { attachmentUrl, resourceUrl } from '../../services/core/attachments';
@@ -93,16 +103,45 @@ builder.prismaObject('TreasuryRelation', {
     name: t.exposeString('name'),
     note: t.exposeString('note', { nullable: true }),
     contributorId: t.exposeID('contributorId', { nullable: true, description: 'Contributor this person also is.' }),
+    birthDate: t.exposeString('birthDate', { nullable: true, description: BIRTH_DATE_DESCRIPTION }),
+    birthdayReminders: t.field({ type: [ReminderRef], description: 'Reminders of its birthday.', resolve: (relation) => readReminders(relation.birthdayReminders) }),
+    emails: t.field({ type: 'JSON', description: '[{ label, address }]', resolve: (relation) => readEmails(relation.emails) }),
+    phones: t.field({ type: 'JSON', description: '[{ label, number }]', resolve: (relation) => readPhones(relation.phones) }),
     lineCount: t.relationCount('lines'),
     budgetCount: t.relationCount('budgets'),
   }),
 });
 
 const RelationInput = builder.inputType('TreasuryRelationInput', {
-  fields: (t) => ({ name: t.string({ required: true }), note: t.string(), contributorId: t.id() }),
+  fields: (t) => ({ name: t.string({ required: true }), note: t.string(), contributorId: t.id(), ...personDetailsInputFields(t) }),
 });
 
-labelObject('TreasuryContext', { description: 'Context of spending (not in a tree); a line without context is everyday spending.' });
+builder.prismaObject('TreasuryContext', {
+  description: 'Context of spending (not in a tree; a line without context is everyday spending): a kind of éphémérides « Sert de contexte au budget », whose label, color, image, position and archiving it has.',
+  fields: (t) => ({
+    id: t.exposeID('id'),
+    scheduleTypeId: t.exposeID('scheduleTypeId', { description: 'Kind of éphémérides it is.' }),
+    label: t.string({ select: { scheduleType: { select: { label: true } } }, resolve: (context) => context.scheduleType.label }),
+    color: t.string({ select: { scheduleType: { select: { color: true } } }, resolve: (context) => context.scheduleType.color }),
+    iconUrl: t.string({ nullable: true, description: 'Image of its kind (none: its initials on its color).', select: { scheduleType: { select: { iconId: true } } }, resolve: (context) => iconUrl(context.scheduleType.iconId) }),
+    position: t.int({ select: { scheduleType: { select: { position: true } } }, resolve: (context) => context.scheduleType.position }),
+    archived: t.boolean({ description: 'Its kind is archived.', select: { scheduleType: { select: { archivedAt: true } } }, resolve: (context) => context.scheduleType.archivedAt !== null }),
+    workspaceLabel: t.string({
+      nullable: true,
+      description: 'Workspace of a kind shared by another workspace; none: a kind of this one.',
+      select: { scheduleType: { select: { workspaceId: true, workspace: { select: { label: true } } } } },
+      resolve: (context) => (context.scheduleType.workspaceId === currentWorkspaceId() ? null : context.scheduleType.workspace.label),
+    }),
+  }),
+});
+
+const ContextEphemerisRef = builder.objectRef<ContextEphemeris & { schedule: WorkSchedule }>('TreasuryContextEphemeris').implement({
+  description: 'Éphéméride of the kind of a context: one of its periods (the lines dated on its days get the context proposed).',
+  fields: (t) => ({
+    contextId: t.exposeID('contextId'),
+    schedule: t.field({ type: WorkScheduleRef, description: 'The éphéméride (of another workspace for a shared context).', resolve: (item) => item.schedule }),
+  }),
+});
 
 builder.prismaObject('TreasuryBudget', {
   description: 'Budget of a month (possibly repeated) for a member (none: the app user), a context (none: everyday) and a category.',
@@ -175,17 +214,6 @@ const BudgetInput = builder.inputType('TreasuryBudgetInput', {
     amount: t.float({ required: true }),
     repeatEvery: t.int(),
     repeatUntil: t.string({ description: 'YYYY-MM.' }),
-  }),
-});
-
-builder.prismaObject('TreasuryContextPeriod', {
-  description: 'Period a context is planned for: it is proposed to the lines of the entries dated in it.',
-  fields: (t) => ({
-    id: t.exposeID('id'),
-    contextId: t.exposeID('contextId'),
-    startDate: t.expose('startDate', { type: 'Date' }),
-    endDate: t.expose('endDate', { type: 'Date' }),
-    note: t.exposeString('note', { nullable: true }),
   }),
 });
 
@@ -640,15 +668,6 @@ const LineInput = builder.inputType('TreasuryEntryLineInput', {
   }),
 });
 
-const ContextPeriodInput = builder.inputType('TreasuryContextPeriodInput', {
-  fields: (t) => ({
-    contextId: t.id({ required: true }),
-    startDate: t.field({ type: 'Date', required: true }),
-    endDate: t.field({ type: 'Date', required: true }),
-    note: t.string(),
-  }),
-});
-
 const EntryInput = builder.inputType('TreasuryEntryInput', {
   fields: (t) => ({
     accountId: t.id({ required: true }),
@@ -788,11 +807,13 @@ builder.queryFields((t) => ({
   }),
   treasuryContexts: t.prismaField({
     type: ['TreasuryContext'],
-    resolve: (query) => prisma.treasuryContext.findMany({ ...query, orderBy: BY_POSITION }),
+    description: 'Contexts of this workspace (its kinds « Sert de contexte au budget », and those shared by the other workspaces), in the order of their kinds.',
+    resolve: (query) => prisma.treasuryContext.findMany({ ...query, orderBy: BY_POSITION.map((order) => ({ scheduleType: order })) }),
   }),
-  treasuryContextPeriods: t.prismaField({
-    type: ['TreasuryContextPeriod'],
-    resolve: (query) => prisma.treasuryContextPeriod.findMany({ ...query, orderBy: [{ startDate: 'asc' }, { createdAt: 'asc' }] }),
+  treasuryContextEphemerides: t.field({
+    type: [ContextEphemerisRef],
+    description: 'Éphémérides of the kinds of the contexts (archived ones too): their periods.',
+    resolve: () => team.contextEphemerides(),
   }),
   overdueInvoices: t.prismaField({
     type: ['AccountingDocument'],
@@ -926,13 +947,18 @@ builder.mutationFields((t) => ({
   }),
   saveTreasuryRelation: t.id({
     description: 'Creates a relation (without id) or changes one.',
-    args: { id: t.arg.id(), input: t.arg({ type: RelationInput, required: true }) },
-    resolve: async (_root, { id, input }) => (await team.saveRelation(id ?? null, { name: input.name, note: input.note ?? null, contributorId: input.contributorId ?? null })).id,
+    args: {
+      id: t.arg.id(),
+      input: t.arg({ type: RelationInput, required: true }),
+      confirmLoss: t.arg.boolean({ description: `${CONFIRM_LOSS_DESCRIPTION} Its birthday moved or gone (birth date, contributor; slot conditions).` }),
+    },
+    resolve: async (_root, { id, input, confirmLoss }) =>
+      (await team.saveRelation(id ?? null, { ...input, note: input.note ?? null, contributorId: input.contributorId ?? null }, peopleSettler(confirmLoss))).id,
   }),
   deleteTreasuryRelation: t.boolean({
     description: "Deletes a relation: its budgets go with it, its lines become the app user's.",
-    args: { id: t.arg.id({ required: true }) },
-    resolve: (_root, { id }) => done(team.deleteRelation(id)),
+    args: { id: t.arg.id({ required: true }), confirmLoss: t.arg.boolean({ description: `${CONFIRM_LOSS_DESCRIPTION} Its birthday gone (slot conditions).` }) },
+    resolve: (_root, { id, confirmLoss }) => done(team.deleteRelation(id, peopleSettler(confirmLoss))),
   }),
   importTreasuryStatement: t.field({
     type: 'JSON',
@@ -946,23 +972,9 @@ builder.mutationFields((t) => ({
       }),
   }),
   saveTreasuryContext: t.id({
-    description: 'Creates a context (without id) or changes one.',
+    description: 'Creates a context (without id: a kind of éphémérides « Sert de contexte au budget ») or changes one (its kind, of this workspace).',
     args: { id: t.arg.id(), input: t.arg({ type: LabelColorInput, required: true }) },
     resolve: async (_root, { id, input }) => (await team.saveContext(id ?? null, input)).id,
-  }),
-  deleteTreasuryContext: t.boolean({
-    description: 'Deletes a context and its periods; its lines become everyday spending.',
-    args: { id: t.arg.id({ required: true }) },
-    resolve: (_root, { id }) => done(team.deleteContext(id)),
-  }),
-  saveTreasuryContextPeriod: t.id({
-    description: 'Plans a context between two days (without id), or changes a period. Lines already saved keep their context.',
-    args: { id: t.arg.id(), input: t.arg({ type: ContextPeriodInput, required: true }) },
-    resolve: async (_root, { id, input }) => (await team.saveContextPeriod(id ?? null, { ...input, note: input.note ?? null })).id,
-  }),
-  deleteTreasuryContextPeriod: t.boolean({
-    args: { id: t.arg.id({ required: true }) },
-    resolve: (_root, { id }) => done(team.deleteContextPeriod(id)),
   }),
   createDocumentStatus: t.id({
     args: {

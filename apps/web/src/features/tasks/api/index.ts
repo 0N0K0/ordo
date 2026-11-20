@@ -1,4 +1,5 @@
 import type { TaskInput } from '@ordo/shared';
+import type { PersonDetailsValues } from '../../../components/people/person-details';
 import { accountingQueryKey } from '../../accounting/api';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { moveToIndex, patchQuery, useInvalidatingMutation } from '../../../lib/mutation';
@@ -16,6 +17,8 @@ import type {
   TypedDocumentString,
 } from '../../../graphql/graphql';
 import { execute } from '../../../lib/graphql-client';
+import { withLossConfirmation } from '../../time/lib/confirm-loss';
+import { routinesKey } from '../../routines/api';
 
 export type Task = TaskFieldsFragment;
 export type TaskComment = TaskCommentFieldsFragment;
@@ -36,6 +39,14 @@ graphql(`
     avatarUrl
     isMe
     projectIds
+    birthDate
+    birthdayReminders {
+      before
+      at
+      days
+    }
+    emails
+    phones
   }
 `);
 
@@ -126,6 +137,7 @@ graphql(`
     reminders {
       before
       at
+      days
     }
   }
 `);
@@ -273,16 +285,16 @@ const DeleteTaskCommentDocument = graphql(`
 `);
 
 const CreateContributorDocument = graphql(`
-  mutation CreateContributor($input: ContributorInput!) {
-    createContributor(input: $input) {
+  mutation CreateContributor($input: ContributorInput!, $confirmLoss: Boolean) {
+    createContributor(input: $input, confirmLoss: $confirmLoss) {
       ...ContributorFields
     }
   }
 `);
 
 const UpdateContributorDocument = graphql(`
-  mutation UpdateContributor($id: ID!, $input: ContributorUpdateInput!) {
-    updateContributor(id: $id, input: $input) {
+  mutation UpdateContributor($id: ID!, $input: ContributorUpdateInput!, $confirmLoss: Boolean) {
+    updateContributor(id: $id, input: $input, confirmLoss: $confirmLoss) {
       ...ContributorFields
     }
   }
@@ -295,8 +307,8 @@ const SetProjectContributorsDocument = graphql(`
 `);
 
 const DeleteContributorDocument = graphql(`
-  mutation DeleteContributor($id: ID!) {
-    deleteContributor(id: $id)
+  mutation DeleteContributor($id: ID!, $confirmLoss: Boolean) {
+    deleteContributor(id: $id, confirmLoss: $confirmLoss)
   }
 `);
 
@@ -572,15 +584,23 @@ export function useTaskCommentMutations() {
  * @returns {object} Contributor mutations.
  */
 export function useContributorMutations() {
+  // Its birthday added, moved or gone (decision FQ): the occurrences of routines lost are confirmed first, as for a
+  // change of schedule, and the routines refreshed with the tasks (the birthdays and the tasks doable now are under them).
+  const people = { invalidate: [tasksQueryKey, routinesKey] };
   return {
-    create: useTasksMutation(async (input: { name: string; handle: string; avatar?: File | null; projectIds?: string[] }) => (await execute(CreateContributorDocument, { input })).createContributor),
-    update: useTasksMutation(
+    create: useInvalidatingMutation(
+      async (input: { name: string; handle: string; avatar?: File | null; projectIds?: string[] } & Partial<PersonDetailsValues>) =>
+        withLossConfirmation(async (confirmLoss) => (await execute(CreateContributorDocument, { input, confirmLoss })).createContributor),
+      people,
+    ),
+    update: useInvalidatingMutation(
       async (variables: { id: string; input: { name?: string; handle?: string; avatar?: File | null; removeAvatar?: boolean; projectIds?: string[] } }) =>
-        (await execute(UpdateContributorDocument, variables)).updateContributor,
+        withLossConfirmation(async (confirmLoss) => (await execute(UpdateContributorDocument, { ...variables, confirmLoss })).updateContributor),
+      people,
     ),
     // Members and relations (treasury) follow: a relation loses its contributor.
-    remove: useInvalidatingMutation(async (variables: { id: string }) => (await execute(DeleteContributorDocument, variables)).deleteContributor, {
-      invalidate: [tasksQueryKey, accountingQueryKey],
+    remove: useInvalidatingMutation(async (variables: { id: string }) => withLossConfirmation(async (confirmLoss) => (await execute(DeleteContributorDocument, { ...variables, confirmLoss })).deleteContributor), {
+      invalidate: [...people.invalidate, accountingQueryKey],
     }),
     setProjectContributors: useTasksMutation(async (variables: { projectId: string; contributorIds: string[] }) => (await execute(SetProjectContributorsDocument, variables)).setProjectContributors),
   };
@@ -646,6 +666,9 @@ const DoableTaskIdsDocument = graphql(`
   }
 `);
 
+/** Key of the tasks doable now: refreshed with what their slot conditions count (`SLOT_DEPENDENT_KEYS`, decision FQ). */
+export const doableTasksKey = [...tasksQueryKey, 'doable'] as const;
+
 /**
  * Open tasks that can be done now (their slot rule, the events of their people), refreshed every minute; asked only
  * when a filter needs it.
@@ -654,7 +677,7 @@ const DoableTaskIdsDocument = graphql(`
  */
 export function useDoableTaskIds(enabled: boolean) {
   const { data } = useQuery({
-    queryKey: [...tasksQueryKey, 'doable'],
+    queryKey: doableTasksKey,
     queryFn: async () => new Set((await execute(DoableTaskIdsDocument, { utcOffset: -new Date().getTimezoneOffset() })).doableTaskIds),
     enabled,
     refetchInterval: 60_000,

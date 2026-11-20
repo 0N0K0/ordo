@@ -134,7 +134,7 @@ export default defineConfig([
         },
         // An editor without getInputProps in a panel saved field by field: fieldProps (useFieldSave), not commit by hand.
         {
-          selector: "JSXOpeningElement[name.name=/^(MarkdownEditor|AddressFields|PhonesField|RichEditor|LazyRichEditor)$/] > JSXAttribute[name.name='onBlur'] CallExpression[callee.name='commit']",
+          selector: "JSXOpeningElement[name.name=/^(MarkdownEditor|AddressFields|ContactListField|RichEditor|LazyRichEditor)$/] > JSXAttribute[name.name='onBlur'] CallExpression[callee.name='commit']",
           message: 'Utiliser fieldProps(champ) de useFieldSave (lib/form) : valeur, changement et enregistrement en le quittant.',
         },
         // The icon of an item in its form: formIconProps (components/inputs/icon-field), the file and its removal as two
@@ -1099,6 +1099,37 @@ export default defineConfig([
           selector:
             "LogicalExpression:matches([left.name=/^(late|overdue|isLate|isOverdue)$/], [left.property.name=/^(late|overdue)$/], [left.callee.name=/^is\\w*(Overdue|Late)$/]) JSXAttribute[name.name=/^(color|c)$/][value.value='red'], ConditionalExpression[test.callee.name=/^is\\w*(Overdue|Late)$/] > Literal[value='red']",
           message: 'Utiliser LATE_COLOR (components/feedback/feedback-colors) : un retard en orange (décisions AI, CF, DC).',
+        },
+        {
+          // Lot 16: the créneaux of some schedules (the free time, the working hours).
+          selector: "CallExpression[callee.property.name='filter'] > ArrowFunctionExpression > UnaryExpression[operator='!'] > MemberExpression[property.name='ephemeris']",
+          message: 'Utiliser slotSchedules (@ordo/shared) : les créneaux, sans les éphémérides (décision FM).',
+        },
+        {
+          // Decision FR: the working hours count neither the éphémérides nor the archived créneaux (as the conditions).
+          selector: "CallExpression[callee.name='scheduleRules'] > CallExpression.arguments[callee.name='slotSchedules']",
+          message: 'Utiliser useWorkingHours (features/calendar/api) : les heures de travail, sans éphémérides ni créneaux archivés (décision FR).',
+        },
+        {
+          // Lot 16: the input of a schedule from its rule keeps its kind and nature.
+          selector: "ObjectExpression:has(> Property[key.name='label']):has(> Property[key.name='startDate']):has(> Property[key.name='typeId']):has(> SpreadElement[argument.name='next'])",
+          message: 'Utiliser ruleScheduleInput (features/calendar/api) : l’entrée d’un créneau depuis sa règle garde son type et sa nature (décision FM).',
+        },
+        {
+          // Lot 16: every reminder of an occurrence (before its start, at a time of its day or of some days before).
+          selector: "ArrayExpression:has(> SpreadElement > CallExpression[callee.name='remindersBefore']):has(> SpreadElement > CallExpression[callee.name='remindersAt'])",
+          message: 'Utiliser occurrenceReminders (@ordo/shared) : tous les rappels d’une occurrence, « N jours avant » compris (décision FO).',
+        },
+        {
+          // Lot 16: the details of a person (birth date, birthday reminders, email, phones) are one block.
+          selector: "JSXOpeningElement[name.name='BirthDateField']",
+          message: 'Utiliser PersonDetailsFields (components/people) : les détails d’une personne, les mêmes partout (décision FO).',
+        },
+        {
+          // Decision FQ: archiving a schedule, a kind or a person may make occurrences of routines disappear.
+          selector: "CallExpression[callee.name='useSetArchived'][arguments.0.value=/^(WORK_SCHEDULE|SCHEDULE_TYPE|CONTRIBUTOR|TREASURY_RELATION)$/]",
+          message:
+            'Utiliser useSlotSourceArchiving(kind) (features/calendar/api) : archiver un créneau, un type ou une personne confirme les occurrences de routines perdues et recharge ce qui en dépend (décision FQ ; un type : confirmLoss de useScheduleTypeItems).',
         },
       ],
     },

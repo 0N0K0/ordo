@@ -11,7 +11,7 @@ import { SaveStatus } from '../../../components/feedback/SaveStatus';
 import { useAppForm, useFieldSave } from '../../../lib/form';
 import { routinesKey, useRoutineMutations, useRoutinesData, type RoutineOccurrence } from '../../routines/api';
 import { useCachedItem } from '../../../lib/mutation';
-import { useWorkScheduleMutations, type CalendarEventScope } from '../api';
+import { ruleScheduleInput, useWorkScheduleMutations, type CalendarEventScope } from '../api';
 import { rangeProps } from '../../../components/inputs/date-range';
 import { ActionButton } from '../../../components/actions/ActionButton';
 
@@ -52,7 +52,7 @@ export function SlotEditForm({
             const change = { date: values.date, start: values.start, end: values.end, allDay: values.allDay };
             const next = changedScheduleSlot(saved.current.schedule, saved.current.slot, change, scope);
             const current = saved.current.schedule;
-            await update.mutateAsync({ id: current.id, input: { label: current.label, startDate: current.startDate, endDate: current.endDate, typeId: current.typeId ?? null, ...next } });
+            await update.mutateAsync({ id: current.id, input: ruleScheduleInput(current, next) });
             saved.current = { schedule: { ...current, ...next }, slot: change };
           },
     schema: scheduleSlotTimeSchema,

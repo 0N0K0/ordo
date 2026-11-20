@@ -1,4 +1,4 @@
-import { entrySeconds, parisInstant, previousOccurrence, remindersAt, remindersBefore, taskReminders, type PlannedReminder } from '@ordo/shared';
+import { entrySeconds, occurrenceReminders, parisInstant, previousOccurrence, taskReminders, type PlannedReminder } from '@ordo/shared';
 import type { ReactNode } from 'react';
 import { AlarmIcon, CalendarBlankIcon, CheckSquareIcon } from '@phosphor-icons/react';
 import type { EventOccurrence } from '../../calendar/api';
@@ -110,7 +110,7 @@ function occurrenceStart(occurrence: EventOccurrence): Date {
 
 /**
  * Rings the reminders of event occurrences that are due: minutes before their start, or at a time of the day of their
- * first day; a cancelled occurrence does not ring.
+ * first day or of some days before it; a cancelled occurrence does not ring.
  * @param {EventOccurrence[]} occurrences Occurrences of the next days.
  * @param {Date} now Current time.
  * @param {RingLink[]} links Calendar, workspace.
@@ -124,7 +124,7 @@ export function ringReminders(occurrences: EventOccurrence[], now: Date, links: 
     const body = [occurrence.allDay ? 'Journée entière' : fmt.dateTimeShort(start), occurrence.location].filter(Boolean).join(' · ');
     const key = taggedKey('event', occurrence.key);
     ringPlannedReminders(
-      [...remindersBefore(key, start, occurrence.reminders), ...remindersAt(key, occurrence.startDate, occurrence.reminders)],
+      occurrenceReminders(key, occurrence.startDate, start, occurrence.reminders),
       now,
       () => ({ icon: <CalendarBlankIcon />, title: occurrence.label, lines: [body], actions: links }),
       workspaceLabel,
@@ -137,8 +137,8 @@ export type RemindedTask = Pick<Task, 'id' | 'label' | 'closed' | 'archived' | '
 
 /**
  * Rings the reminders of the open tasks (not closed nor archived) that are due: at their times of the day, every day
- * from their « Ouverture » to their « Échéance » (the « Échéance » day only without « Ouverture »; none without it), those
- * they go by: their own, else those of their single sprint.
+ * from their « Ouverture » to their « Échéance » (the « Échéance » day only without « Ouverture »; none without it), or
+ * once some days before their « Échéance », those they go by: their own, else those of their single sprint.
  * @template {RemindedTask} T
  * @param {T[]} tasks Tasks.
  * @param {Date} now Current time.

@@ -13,6 +13,7 @@ import { categoryOptions, categoryTree } from '../tree/category-tree';
 import { treeSelectProps } from '../tree/tree-select';
 import { useSettingsItemLook, type SettingsListKind } from './settings-api';
 import { FormActions } from '../dialogs/FormActions';
+import type { LossConfirmation } from '../../lib/archive';
 
 /** Item of a settings list: a label, a color, an image, whether it is archived and, in a tree, a parent. */
 export interface SettingsItem {
@@ -67,6 +68,8 @@ export interface SettingsItemKind<C extends SettingsItem, E extends object = Rec
   create: (values: SettingsItemValues<E>) => Promise<string>;
   /** Saves an item edited. */
   update: (id: string, values: SettingsItemValues<E>) => Promise<unknown>;
+  /** Asks what archiving or restoring an item loses (the kinds of schedules: occurrences of routines, decision FQ). Optional. Default = never asked. */
+  confirmLoss?: LossConfirmation;
 }
 
 interface SettingsItemFormProps<C extends SettingsItem, E extends object> extends SettingsItemKind<C, E> {

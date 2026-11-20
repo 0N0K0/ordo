@@ -24,6 +24,7 @@ import { assertMethodFor } from './treasury-settings';
 import { assertAllExist, assertExists, deleteOrNotFound } from '../core/lookup';
 import { assertNotArchived, assertActive, refuseArchived } from '../core/archive';
 import { connectIds } from '../core/relations';
+import { assertContextsActive } from './treasury-contexts';
 import { decimalCents, fromDecimal, toDecimal } from '../core/decimal';
 import { toJson } from '../core/json';
 
@@ -170,7 +171,7 @@ async function assertNoNewArchived(entry: ReturnType<typeof treasuryEntrySchema.
   for (const [index, line] of entry.lines.entries()) {
     await assertNotArchived('project', line.projectId, { keep: projects, field: `lines.${index}.projectId` });
     await assertNotArchived('TREASURY_CATEGORY', line.categoryId, { keep: categories, field: `lines.${index}.categoryId` });
-    await assertNotArchived('TREASURY_CONTEXT', line.contextId, { keep: lines.map((item) => item.contextId), field: `lines.${index}.contextId` });
+    await assertContextsActive([line.contextId], { keep: lines.map((item) => item.contextId), field: `lines.${index}.contextId` });
     await assertNotArchived('TREASURY_RELATION', line.relationId, { keep: lines.map((item) => item.relationId), field: `lines.${index}.relationId` });
   }
   // Settling an archived document changes it: refused (an allocation it had stays).

@@ -1,4 +1,4 @@
-import { InlineActions } from '../actions/ActionsMenu';
+import { InlineActions, type RowMenuEntry } from '../actions/ActionsMenu';
 import { Group, Text, ThemeIcon } from '@mantine/core';
 import { ArchiveIcon, ArrowCounterClockwiseIcon, PencilSimpleIcon, PlusIcon, TagIcon, TrashIcon } from '@phosphor-icons/react';
 import { useEffect, type ReactNode } from 'react';
@@ -41,10 +41,14 @@ interface SettingsListProps<C extends SettingsItem, E extends object> extends Se
   renderBadges?: (item: C) => ReactNode;
   /** Deletion message, instead of the default one. Optional. */
   deleteMessage?: (item: C, path: string) => ReactNode;
+  /** Deletion that loses nothing (the opposite action undoes it): « Cette action est irréversible. » left out, and its toast instead of « « X » supprimé. ». Optional. Default = irreversible. */
+  reversibleDelete?: (item: C, path: string) => string;
   /** Key remembering the folded items of a tree in this browser. Optional. */
   storageKey?: string;
   /** Buttons of a row of the list of its own (export…), before the common ones. Optional. */
   renderActions?: (item: C) => ReactNode;
+  /** Entries of the « … » menu of a row of its own (a conversion…), before « Supprimer ». Optional. */
+  menuItems?: (item: C) => readonly RowMenuEntry[];
   /** Buttons of the header of the list of its own, before « Ajouter ». Optional. */
   headerActions?: ReactNode;
   /** Why an item cannot be deleted (the last calendar…); nothing: it can. Optional. */
@@ -90,17 +94,20 @@ export function SettingsList<C extends SettingsItem, E extends object = Record<s
   move,
   renderBadges,
   deleteMessage,
+  reversibleDelete,
   storageKey,
   renderActions,
+  menuItems,
   headerActions,
   undeletable,
   loading = false,
   withParent = true,
   canMove,
   adderRef,
+  confirmLoss,
 }: SettingsListProps<C, E>) {
   const reorder = useReorderSettingsItems();
-  const setArchived = useSetArchived(kind);
+  const setArchived = useSetArchived(kind, undefined, confirmLoss);
   const { shown, showArchived, toggle: archivedToggle } = useArchivedToggle(items);
   // The form of an item follows the list (a panel renders once): values changed elsewhere are taken.
   const liveItems = useLiveSource(items);
@@ -200,7 +207,8 @@ export function SettingsList<C extends SettingsItem, E extends object = Record<s
         </>
       ),
       run: () => remove(item.id),
-      done: `« ${path} » ${agreed('supprimé', feminine)}.`,
+      reversible: Boolean(reversibleDelete),
+      done: reversibleDelete?.(item, path) ?? `« ${path} » ${agreed('supprimé', feminine)}.`,
     });
   };
 
@@ -268,6 +276,7 @@ export function SettingsList<C extends SettingsItem, E extends object = Record<s
                     // In the « … » menu, never a button (decision DJ).
                     inMenu: true,
                   },
+                  ...(menuItems?.(category) ?? []),
                   {
                     label: 'Supprimer',
                     icon: <TrashIcon aria-hidden />,

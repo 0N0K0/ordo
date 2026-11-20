@@ -2,6 +2,9 @@ import * as archive from '../../services/core/archive';
 import { builder } from '../builder';
 import { done } from '../errors';
 import { ARCHIVED_DESCRIPTION } from '../label-inputs';
+import { CONFIRM_LOSS_DESCRIPTION } from '../occurrence-fields';
+import { archiveEdit } from '../../services/calendar/slot-conditions';
+import { settleScheduleChange } from '../../services/routines/routines';
 
 const ArchivableKindEnum = builder.enumType('ArchivableKind', {
   description: 'Kind of element archived or restored by `setArchived`: main elements of the features and every settings list (clients, projects, tasks and routines have their own mutations).',
@@ -52,7 +55,19 @@ for (const type of TYPES) {
 builder.mutationFields((t) => ({
   setArchived: t.boolean({
     description: 'Archives (hidden by default, read only) or restores elements of a kind, all at once.',
-    args: { kind: t.arg({ type: ArchivableKindEnum, required: true }), ids: t.arg.idList({ required: true }), archived: t.arg.boolean({ required: true }) },
-    resolve: (_root, { kind, ids, archived }) => done(archive.setArchived(kind, ids, archived)),
+    args: {
+      kind: t.arg({ type: ArchivableKindEnum, required: true }),
+      ids: t.arg.idList({ required: true }),
+      archived: t.arg.boolean({ required: true }),
+      // Schedules, kinds of schedules and people archived give no moment to the slot conditions (decision FQ).
+      confirmLoss: t.arg.boolean({ description: `${CONFIRM_LOSS_DESCRIPTION} Schedules, kinds of schedules, contributors and relations.` }),
+    },
+    resolve: (_root, { kind, ids, archived, confirmLoss }) =>
+      done(
+        archive.setArchived(kind, ids, archived, async (changing) => {
+          const edit = archiveEdit(kind, changing, archived);
+          if (edit) await settleScheduleChange(edit, confirmLoss ?? false);
+        }),
+      ),
   }),
 }));
