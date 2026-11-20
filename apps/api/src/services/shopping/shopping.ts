@@ -14,9 +14,6 @@ import {
   shoppingProductSchema,
   shoppingShares,
   type ShoppingStoreInput,
-  SHOPPING_LIST_LABEL_MAX,
-  ENTRY_LINE_LABEL_MAX,
-  clipText,
 } from '@ordo/shared';
 import { treeListService } from '../core/trees';
 import { createLabelService } from '../core/labels';
@@ -449,7 +446,7 @@ export async function duplicateList(id: string): Promise<ShoppingList> {
   refuseArchived(list);
   return prisma.shoppingList.create({
     data: {
-      label: copyName(list.label, SHOPPING_LIST_LABEL_MAX),
+      label: copyName(list.label),
       items: { create: list.items.map((item, position) => copyOf(item, item.productId, position)) },
     },
   });
@@ -497,7 +494,7 @@ export async function attachListEntry(id: string, entryId: string | null): Promi
         data: {
           entryId,
           position: start + index,
-          label: clipText(list.label, ENTRY_LINE_LABEL_MAX),
+          label: list.label,
           mode: percent ? 'PERCENT' : 'AMOUNT',
           value: toDecimal(percent ? Math.round((share.cents / total) * 1_000_000) / 10_000 : (Math.sign(amount) || -1) * fromCents(share.cents)),
           memberId: share.memberId,

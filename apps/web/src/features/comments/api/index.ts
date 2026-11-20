@@ -10,8 +10,8 @@ export type { CommentTarget };
 const commentsKey = ['comments'] as const;
 
 const CommentsDocument = graphql(`
-  query Comments($target: CommentTarget!, $id: String!) {
-    comments(target: $target, id: $id) {
+  query Comments($target: CommentTarget!, $id: String!, $occurrenceDate: Date) {
+    comments(target: $target, id: $id, occurrenceDate: $occurrenceDate) {
       id
       body
       createdAt
@@ -29,8 +29,8 @@ const CommentCountsDocument = graphql(`
 `);
 
 const AddCommentDocument = graphql(`
-  mutation AddComment($target: CommentTarget!, $id: String!, $body: String!) {
-    addComment(target: $target, id: $id, body: $body) {
+  mutation AddComment($target: CommentTarget!, $id: String!, $body: String!, $occurrenceDate: Date) {
+    addComment(target: $target, id: $id, body: $body, occurrenceDate: $occurrenceDate) {
       id
     }
   }
@@ -51,15 +51,16 @@ const DeleteCommentDocument = graphql(`
 `);
 
 /**
- * Comments of an item, oldest first.
+ * Comments of an item, oldest first; of one occurrence for a routine or an event (decision D19).
  * @param {CommentTarget} target Kind of item.
  * @param {string | null} id Item (Message-ID for a mail); none: nothing loaded.
+ * @param {string | null} [occurrenceDate] Occurrence of a routine or a recurring event (none: a one-off event). Optional.
  * @returns {UseQueryResult} Query state.
  */
-export function useComments(target: CommentTarget, id: string | null) {
+export function useComments(target: CommentTarget, id: string | null, occurrenceDate: string | null = null) {
   return useQuery({
-    queryKey: [...commentsKey, target, id],
-    queryFn: async () => (await execute(CommentsDocument, { target, id: id! })).comments,
+    queryKey: [...commentsKey, target, id, occurrenceDate],
+    queryFn: async () => (await execute(CommentsDocument, { target, id: id!, occurrenceDate })).comments,
     enabled: id !== null,
   });
 }
@@ -67,7 +68,7 @@ export function useComments(target: CommentTarget, id: string | null) {
 /**
  * Number of comments of items of a kind, by id (descriptions not counted).
  * @param {CommentTarget} target Kind of items.
- * @param {readonly string[]} ids Items.
+ * @param {readonly string[]} ids Items; for routines and events, occurrence keys (`occurrenceKey`, the id alone for a one-off event).
  * @returns {Map<string, number>} Counts.
  */
 export function useCommentCounts(target: CommentTarget, ids: readonly string[]): Map<string, number> {
@@ -89,7 +90,9 @@ export function useCommentCounts(target: CommentTarget, ids: readonly string[]):
 export function useCommentMutations() {
   const invalidate = [commentsKey];
   return {
-    add: useInvalidatingMutation((variables: { target: CommentTarget; id: string; body: string }) => execute(AddCommentDocument, variables), { invalidate }),
+    add: useInvalidatingMutation((variables: { target: CommentTarget; id: string; body: string; occurrenceDate?: string | null }) => execute(AddCommentDocument, variables), {
+      invalidate,
+    }),
     update: useInvalidatingMutation((variables: { id: string; body: string }) => execute(UpdateCommentDocument, variables), { invalidate }),
     remove: useInvalidatingMutation((id: string) => execute(DeleteCommentDocument, { id }), { invalidate }),
   };

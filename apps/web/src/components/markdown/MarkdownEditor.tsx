@@ -1,6 +1,6 @@
 import { IconAction } from '../actions/IconAction';
 import { Group, Loader, Paper, Tabs, Text, Textarea, UnstyledButton } from '@mantine/core';
-import { fileTooLarge, MAX_ATTACHMENT_BYTES } from '@ordo/shared';
+import { fileTooLarge, MARKDOWN_MAX, MAX_ATTACHMENT_BYTES } from '@ordo/shared';
 import {
   AtIcon,
   CheckSquareIcon,
@@ -405,6 +405,7 @@ export function MarkdownEditor({ value, onChange, suggestions, label, placeholde
               ref={textareaRef}
               id={inputId}
               value={value}
+              maxLength={MARKDOWN_MAX}
               onChange={(event) => {
                 onChange(event.currentTarget.value);
                 refreshToken(event.currentTarget);

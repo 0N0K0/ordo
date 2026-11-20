@@ -20,13 +20,11 @@ import {
   projectFactory,
   rule,
   taskFactory,
-  TIME_ZONE,
   timeEntryFactory,
 } from './fixtures/factories';
 import { addDays, DEFAULT_LABEL_COLOR, emptyTableFilter, formatDay, minutesToTime, parseDay, type Recurrence, weekdayOfDate } from '@ordo/shared';
 import { createAlarm } from '../src/services/tasks/alarms';
 import { createCalendarEvent, postponeCalendarEvent } from '../src/services/calendar/calendar-events';
-import { materializeTaskOccurrences, setTaskRecurrence } from '../src/services/tasks/task-recurrence';
 import { createView } from '../src/services/tasks/task-views';
 import { createTimeEntry } from '../src/services/tasks/time-entries';
 import { saveScheduleType, subscribeScheduleKind } from '../src/services/calendar/work-schedules';
@@ -69,7 +67,7 @@ const force = process.argv.includes('--force');
 if (!force && process.stdin.isTTY) {
   const ok = await confirm({
     message:
-      'Le premier espace professionnel et le premier espace personnel (créés s’ils manquent) vont être vidés de toutes leurs données (clients, projets, tâches, temps, alarmes, agenda, plages, documents comptables, trésorerie, bibliothèque, courses, routines…) puis remplis de données de démonstration ; la boîte mail de démo est recréée. Le compte, les boîtes mail et les autres espaces sont conservés. Continuer ?',
+      'Le premier espace professionnel et le premier espace personnel (créés s’ils manquent) vont être vidés de toutes leurs données (clients, projets, tâches, temps, alarmes, agenda, créneaux, documents comptables, trésorerie, bibliothèque, courses, routines…) puis remplis de données de démonstration ; la boîte mail de démo est recréée. Le compte, les boîtes mail et les autres espaces sont conservés. Continuer ?',
     default: false,
   });
   if (!ok) process.exit(0);
@@ -395,7 +393,7 @@ const recurring = async (event: {
   location?: string;
   projectId?: string | null;
   allDay?: boolean;
-  reminders?: number[];
+  reminders?: { before?: number; at?: string }[];
 }) =>
   (
     await prisma.calendarEvent.create({
@@ -408,9 +406,8 @@ const recurring = async (event: {
         startTime: event.allDay ? null : minutesToTime(event.from),
         endDate: parseDay(event.start),
         endTime: event.allDay ? null : minutesToTime(event.to),
-        timeZone: TIME_ZONE,
         recurrence: event.recurrence,
-        reminders: event.reminders ?? [10],
+        reminders: event.reminders ?? [{ before: 10 }],
         projectId: event.projectId ?? null,
         calendarId: calendarOf(event.categoryIds),
         categories: { connect: event.categoryIds.map((id) => ({ id })) },
@@ -463,7 +460,7 @@ await recurring({
   recurrence: rule({ frequency: 'MONTHLY', monthlyMode: 'WEEKDAY' }),
   categoryIds: [meetings],
   location: 'Salle Turing',
-  reminders: [30, 1440],
+  reminders: [{ before: 30 }, { before: 1440 }],
 });
 const sportEvent = await recurring({
   label: 'Sport',
@@ -473,7 +470,7 @@ const sportEvent = await recurring({
   recurrence: rule({ weekdays: [2, 4] }),
   categoryIds: [sport],
   location: 'Salle de sport',
-  reminders: [60],
+  reminders: [{ before: 60 }],
 });
 await recurring({
   label: 'Déclaration de TVA',
@@ -483,7 +480,7 @@ await recurring({
   allDay: true,
   recurrence: rule({ frequency: 'MONTHLY', monthlyMode: 'WEEKDAY', until: addDays(monday, 365) }),
   categoryIds: [admin],
-  reminders: [1440],
+  reminders: [{ before: 1440 }],
 });
 await recurring({
   label: 'Cours d’anglais',
@@ -526,8 +523,7 @@ for (const [title, offset, days, categoryId] of [
       allDay: true,
       startDate: parseDay(start),
       endDate: parseDay(addDays(start, days - 1)),
-      timeZone: TIME_ZONE,
-      reminders: [1440],
+      reminders: [{ before: 1440 }],
       calendarId: calendarOf([categoryId]),
       categories: { connect: [{ id: categoryId }] },
     },
@@ -543,8 +539,7 @@ await prisma.calendarEvent.create({
     startTime: '14:00',
     endDate: parseDay(addDays(monday, 3)),
     endTime: '16:00',
-    timeZone: TIME_ZONE,
-    reminders: [15],
+    reminders: [{ before: 15 }],
     calledOff: true,
     calendarId: workCalendar,
     categories: { connect: [{ id: meetings }] },
@@ -558,8 +553,7 @@ const postponed = await prisma.calendarEvent.create({
     startTime: '10:00',
     endDate: parseDay(addDays(monday, 1)),
     endTime: '11:00',
-    timeZone: TIME_ZONE,
-    reminders: [60],
+    reminders: [{ before: 60 }],
     calledOff: true,
     calendarId: workCalendar,
     categories: { connect: [{ id: admin }] },
@@ -573,8 +567,7 @@ await prisma.calendarEvent.create({
     startTime: '10:00',
     endDate: parseDay(addDays(monday, 9)),
     endTime: '11:00',
-    timeZone: TIME_ZONE,
-    reminders: [60],
+    reminders: [{ before: 60 }],
     postponedFromId: postponed.id,
     calendarId: workCalendar,
     categories: { connect: [{ id: admin }] },
@@ -606,32 +599,13 @@ await prisma.workSchedule.create({
   },
 });
 
-// --- Recurring tasks: weekly, every other week, monthly (limited), their occurrences around today ---------------
-const repeatable = await prisma.task.findMany({
-  where: { closedAt: null, archivedAt: null, parentId: null, startDate: { not: null }, project: { archivedAt: null } },
-  orderBy: { number: 'asc' },
-  take: 3,
-});
-for (const [index, task] of repeatable.entries()) {
-  const anchor = formatDay(task.startDate!);
-  const weekday = weekdayOfDate(anchor);
-  await setTaskRecurrence(task.id, [rule({ weekdays: [weekday] }), rule({ interval: 2, weekdays: [weekday] }), rule({ frequency: 'MONTHLY', monthlyMode: 'DAY', count: 6 })][index]);
-}
-await materializeTaskOccurrences(addDays(today, -28), addDays(today, 31));
-// Past occurrences are mostly done.
-const doneStatus = statuses.find((status) => status.category === 'DONE')!;
-for (const occurrence of await prisma.task.findMany({ where: { seriesId: { not: null }, occurrenceDate: { lt: parseDay(today) } } })) {
-  if (faker.datatype.boolean(0.8)) await prisma.task.update({ where: { id: occurrence.id }, data: { statusId: doneStatus.id, closedAt: localAt(formatDay(occurrence.occurrenceDate!), 17) } });
-}
-
 // --- Events with an address and travel times, with tasks; time spent on events; a postponed occurrence ------
 const eventBase = {
   description: null,
   links: [],
   allDay: false,
-  timeZone: TIME_ZONE,
   recurrence: null,
-  reminders: [30],
+  reminders: [{ before: 30 }],
   calendarId: workCalendar,
   contributorIds: [],
   categoryIds: [appointments],
@@ -672,7 +646,7 @@ await createCalendarEvent({
 if (firstRoot) {
   for (let date = addDays(monday, -14); date < today; date = addDays(date, 1)) {
     if (weekdayOfDate(date) > 5 || !faker.datatype.boolean(0.7)) continue;
-    await createTimeEntry({ projectId: firstRoot.id, event: { eventId: standUp, occurrenceDate: date }, description: 'Stand-up', startedAt: localAt(date, 9), duration: 15 * 60 });
+    await createTimeEntry({ projectId: firstRoot.id, events: [{ eventId: standUp, occurrenceDate: date }], description: 'Stand-up', startedAt: localAt(date, 9), duration: 15 * 60 });
   }
 }
 // The next sport session is moved to the day after (the occurrence is called off and a new event made).
@@ -688,7 +662,7 @@ await postponeCalendarEvent(sportEvent, sportDay, {
   projectId: null,
   calendarId: personalCalendar,
   categoryIds: [sport],
-  reminders: [60],
+  reminders: [{ before: 60 }],
 });
 
 // On-call duty: a kind of its own (color, display), every fourth Saturday.
@@ -759,7 +733,7 @@ await setTaskColumnDefaults({
   ],
   hiddenColumns: ['blocking', 'related', 'milestone', 'createdAt', 'updatedAt', 'type'],
 });
-await setWorkspaceNotifications(workspace.id, ['MAILS', 'ALARMS']);
+await setWorkspaceNotifications(workspace.id, ['MAILS']);
 
 // --- Task views (home page and a project) ------------------------------------------------------------------
 const condition = (id: string, field: string, operator: string, value: string | string[] | null = null) => ({ type: 'condition', id, field, operator, value });
@@ -815,7 +789,7 @@ const counts = {
   calendriers: await prisma.calendar.count(),
   'catégories d’agenda': await prisma.calendarCategory.count(),
   évènements: await prisma.calendarEvent.count(),
-  'plages de travail': await prisma.workSchedule.count(),
+  'créneaux de travail': await prisma.workSchedule.count(),
   'vues de tâches': await prisma.taskView.count(),
   'documents comptables': await prisma.accountingDocument.count({ where: { status: { not: 'TEMPLATE' } } }),
   'documents importés': await prisma.importedDocument.count(),

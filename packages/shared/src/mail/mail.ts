@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { END_AFTER_START, endsAfter, requiredText } from '../core/rules';
+import { END_AFTER_START, endsAfter, requiredText, shortTextSchema } from '../core/rules';
 import { daySchema } from '../dates/times';
 
 /** Orders of the mails of a folder; a search sorts on all but the size. */
@@ -31,30 +31,67 @@ export function mailSearchSortBy(sort: string | null | undefined): MailSearchSor
 /** Subject shown for a mail without one. */
 export const NO_SUBJECT = '(sans objet)';
 
-const hostSchema = z.string().trim().min(1, 'Le serveur est requis.').max(255);
+/** Most characters of a server name or a login of a mail server (a format, not a free text). */
+const SERVER_FIELD_MAX = 255;
+/** Most characters of a password of a mail server. */
+const SERVER_PASSWORD_MAX = 1000;
+/** Most characters of an HTML signature (rich text, out of the text sizes of decision DO). */
+const SIGNATURE_MAX = 100_000;
+/** Most characters of the path of a mail folder (a format). */
+const FOLDER_PATH_MAX = 500;
+/** Most characters of an id. */
+const ID_MAX = 100;
+
+const hostSchema = z.string().trim().min(1, 'Le serveur est requis.').max(SERVER_FIELD_MAX);
 const portSchema = z.number({ error: 'Port attendu.' }).int().min(1, 'Port invalide.').max(65_535, 'Port invalide.');
 
 /** Mail account settings. Passwords may be left empty on edition to keep the saved ones. */
 export const mailAccountFormSchema = z.object({
-  label: requiredText(80),
+  label: requiredText(),
   email: z.email({ error: 'Adresse email invalide.' }),
-  displayName: z.string().trim().max(120, '120 caractères maximum.'),
+  displayName: shortTextSchema,
   imapHost: hostSchema,
   imapPort: portSchema,
   imapSecure: z.boolean(),
-  imapUser: z.string().trim().min(1, 'L’identifiant est requis.').max(255),
-  imapPassword: z.string().max(1000),
+  imapUser: z.string().trim().min(1, 'L’identifiant est requis.').max(SERVER_FIELD_MAX),
+  imapPassword: z.string().max(SERVER_PASSWORD_MAX),
   smtpHost: hostSchema,
   smtpPort: portSchema,
   smtpSecure: z.boolean(),
-  smtpUser: z.string().trim().min(1, 'L’identifiant est requis.').max(255),
-  smtpPassword: z.string().max(1000),
+  smtpUser: z.string().trim().min(1, 'L’identifiant est requis.').max(SERVER_FIELD_MAX),
+  smtpPassword: z.string().max(SERVER_PASSWORD_MAX),
   saveSent: z.boolean(),
 });
 export type MailAccountFormValues = z.infer<typeof mailAccountFormSchema>;
 
+/** Servers of an account as saved: what its passwords were saved for. */
+export type MailServerSettings = Pick<MailAccountFormValues, 'imapHost' | 'imapPort' | 'imapUser' | 'imapSecure' | 'smtpHost' | 'smtpPort' | 'smtpUser' | 'smtpSecure'>;
+
+/** Error of a password to type again: its server changed. */
+export const PASSWORD_AGAIN = 'Saisissez à nouveau le mot de passe : le serveur, le port, l’identifiant ou le chiffrement a changé.';
+
+/**
+ * Passwords to type again: a saved password is only reused with the server it was saved for, so changing the server,
+ * port, login or encryption of a side requires typing its password again (otherwise it could be sent to another
+ * server). The same in the web (before saving) and the API.
+ * @param {MailAccountFormValues} values New settings.
+ * @param {MailServerSettings | null} saved Saved account (none: a new one).
+ * @returns {('imapPassword' | 'smtpPassword')[]} Password fields missing.
+ */
+export function passwordsToRetype(values: MailAccountFormValues, saved: MailServerSettings | null): ('imapPassword' | 'smtpPassword')[] {
+  if (!saved) return [];
+  const imapChanged = values.imapHost !== saved.imapHost || values.imapPort !== saved.imapPort || values.imapUser !== saved.imapUser || values.imapSecure !== saved.imapSecure;
+  const smtpChanged = values.smtpHost !== saved.smtpHost || values.smtpPort !== saved.smtpPort || values.smtpUser !== saved.smtpUser || values.smtpSecure !== saved.smtpSecure;
+  return [...(imapChanged && !values.imapPassword ? (['imapPassword'] as const) : []), ...(smtpChanged && !values.smtpPassword ? (['smtpPassword'] as const) : [])];
+}
+
+/** Name of a mail folder: a label (decision DO), without the characters IMAP refuses in it; the same in the web and the API. */
+export const mailFolderNameSchema = requiredText().refine((name) => !/[*%"\\]/.test(name), 'Caractères interdits : * % " \\');
+
 /** HTML signature (sanitized by the API). */
-export const signatureSchema = z.string().max(100_000, 'Signature trop longue.');
+export const signatureSchema = z.string().max(SIGNATURE_MAX, 'Signature trop longue.');
+/** Signature of an account as its editor holds it. */
+export const signatureFormSchema = z.object({ signature: signatureSchema });
 
 /** List of recipients: email addresses. */
 export const recipientsSchema = z.array(z.email({ error: 'Adresse email invalide.' })).max(100, '100 destinataires maximum.');
@@ -67,23 +104,23 @@ export const mailSearchCriteriaSchema = z
     /** The inboxes, every folder but the trash, junk, drafts and sent ones, or one folder (of one account). */
     scope: z.enum(['inbox', 'all', 'folder']),
     /** Folder path, with the "folder" scope. */
-    folder: z.string().max(500).nullable().default(null),
+    folder: z.string().max(FOLDER_PATH_MAX).nullable().default(null),
     state: z.enum(['all', 'todo', 'done']),
     /** Mails with any of these flags; empty: any mail. */
     labelIds: z.array(z.string()).max(50),
     unread: z.boolean(),
     /** Text in the subject, the addresses or the body. */
-    text: z.string().trim().max(200, '200 caractères maximum.'),
-    from: z.string().trim().max(200, '200 caractères maximum.').default(''),
-    to: z.string().trim().max(200, '200 caractères maximum.').default(''),
-    subject: z.string().trim().max(200, '200 caractères maximum.').default(''),
-    body: z.string().trim().max(200, '200 caractères maximum.').default(''),
+    text: shortTextSchema,
+    from: shortTextSchema.default(''),
+    to: shortTextSchema.default(''),
+    subject: shortTextSchema.default(''),
+    body: shortTextSchema.default(''),
     /** Dates included (YYYY-MM-DD). */
     since: daySchema().nullable().default(null),
     until: daySchema().nullable().default(null),
     attachments: z.boolean().default(false),
     /** Mails linked to this project (their copies in Ordo), found in the folders, the sent ones too. */
-    projectId: z.string().max(100).nullable().default(null),
+    projectId: z.string().max(ID_MAX).nullable().default(null),
   })
   .superRefine((criteria, context) => {
     if (criteria.scope === 'folder' && (!criteria.folder || criteria.accountIds.length !== 1)) {
@@ -94,7 +131,7 @@ export const mailSearchCriteriaSchema = z
 export type MailSearchCriteria = z.infer<typeof mailSearchCriteriaSchema>;
 
 /** Search folder: a label and its criteria, kept in Ordo. */
-export const mailSearchSchema = z.object({ label: requiredText(60) }).and(mailSearchCriteriaSchema);
+export const mailSearchSchema = z.object({ label: requiredText() }).and(mailSearchCriteriaSchema);
 export type MailSearchInput = z.input<typeof mailSearchSchema>;
 
 /** Criteria of a new search (every account, inboxes, to do). */

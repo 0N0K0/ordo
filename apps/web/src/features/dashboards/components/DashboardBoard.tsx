@@ -12,7 +12,7 @@ import { confirmDestructive } from '../../../components/dialogs/confirm-destruct
 import { openFormPanel } from '../../../components/panels/panels';
 import { Group, Paper, SimpleGrid, Stack, Text } from '@mantine/core';
 
-import { chartConfigSchema, chartLabelSchema, dashboardLabelSchema, defaultChartConfig, type ChartConfig, type ChartSource } from '@ordo/shared';
+import { chartLabelSchema, dashboardLabelSchema, type ChartSource } from '@ordo/shared';
 import {
   ArrowBendUpRightIcon,
   ArrowsHorizontalIcon,
@@ -20,7 +20,6 @@ import {
   ChartBarIcon,
   CheckSquareOffsetIcon,
   ReceiptIcon,
-  CopyIcon,
   FileImageIcon,
   FilePdfIcon,
   PencilSimpleIcon,
@@ -38,6 +37,9 @@ import { notifyError, ON_ERROR, onMutationError } from '../../../lib/notify';
 import { moveEntries } from '../../../components/actions/move-entries';
 import { useTaskContext, type TaskContext } from '../../tasks/hooks/use-task-context';
 import { dashboardsKey, useDashboardMutations, useDashboards, type Dashboard, type DashboardChart } from '../api';
+import { useQueryClient } from '@tanstack/react-query';
+import { duplicateRowsAction, rowMenuEntry } from '../../../components/data-table/selection/selection-actions';
+import { cachedItem } from '../../../lib/mutation';
 import { ARCHIVED_MESSAGE, archiveEntry, useSetArchived, useArchivedToggle } from '../../../lib/archive';
 import { ShowArchivedSwitch } from '../../../components/filters/ShowArchivedSwitch';
 import { ArchivedBadge } from '../../../components/feedback/ArchivedBadge';
@@ -49,7 +51,7 @@ import { chartTable, downloadChartCsv, downloadChartTablePdf } from '../lib/char
 import { describeChart, useChartData, type ChartScope } from '../lib/chart-data';
 import { ChartView } from './ChartView';
 import { TransferChartForm } from './TransferChartForm';
-import { countLabel, NEW_CHART_LABELS } from '../lib/aggregate';
+import { countLabel, parseConfig } from '../lib/aggregate';
 import * as fmt from '../../../lib/format';
 import { countOf, countWith } from '../../../lib/text';
 import { openLabelForm } from '../../../components/dialogs/open-label-form';
@@ -93,17 +95,6 @@ function drawnChart(element: () => HTMLElement | null): Promise<HTMLElement> {
   });
 }
 
-/** Title of a new chart of each source. */
-/**
- * Stored configuration of a chart, or the defaults when it no longer validates.
- * @param {unknown} config Stored configuration.
- * @returns {ChartConfig} Configuration.
- */
-function parseConfig(config: unknown): ChartConfig {
-  const result = chartConfigSchema.safeParse(config);
-  return result.success ? result.data : defaultChartConfig();
-}
-
 interface ChartCardProps {
   chart: DashboardChart;
   index: number;
@@ -113,7 +104,8 @@ interface ChartCardProps {
   /** Title of the dashboard, for the file names. */
   dashboardLabel: string;
   captures: Captures;
-  onEdit: () => void;
+  /** Opens the editor of a chart: this one (none given), or its copy. */
+  onEdit: (chart?: DashboardChart) => void;
   /** Its dashboard is archived: only its exports. Optional. Default = false. */
   readOnly?: boolean;
 }
@@ -130,6 +122,7 @@ function ChartCard({ chart, index, count, scope, context, dashboardLabel, captur
   const config = parseConfig(chart.config);
   const { data, isPending, error } = useChartData(config, scope, context);
   const { updateChart, duplicateChart, removeChart, moveChart } = useDashboardMutations();
+  const queryClient = useQueryClient();
   const view = useRef<HTMLDivElement>(null);
   const printView = useRef<HTMLDivElement>(null);
   // Drawn off screen at the size of an export while it is made.
@@ -244,7 +237,7 @@ function ChartCard({ chart, index, count, scope, context, dashboardLabel, captur
               ...(readOnly
                 ? []
                 : ([
-                    { label: 'Modifier', icon: <PencilSimpleIcon aria-hidden />, onClick: onEdit },
+                    { label: 'Modifier', icon: <PencilSimpleIcon aria-hidden />, onClick: () => onEdit() },
                     {
                       label: 'Renommer',
                       icon: <TextAaIcon aria-hidden />,
@@ -256,7 +249,17 @@ function ChartCard({ chart, index, count, scope, context, dashboardLabel, captur
                           onSubmit: (label) => updateChart.mutateAsync({ id: chart.id, input: { label, config, wide: chart.wide } }),
                         }),
                     },
-                    { label: 'Dupliquer', icon: <CopyIcon aria-hidden />, onClick: () => duplicateChart.mutate(chart.id, ON_ERROR) },
+                    // Saved at once, then its editor opens (decision D20).
+                    rowMenuEntry(
+                      duplicateRowsAction([chart], {
+                        duplicate: (source) => duplicateChart.mutateAsync(source.id),
+                        done: 'Diagramme dupliqué.',
+                        open: (id) => {
+                          const copy = cachedItem(queryClient, dashboardsKey, id, (dashboards: Dashboard[]) => dashboards.flatMap((dashboard) => dashboard.charts));
+                          if (copy) onEdit(copy);
+                        },
+                      }),
+                    ),
                     {
                       label: chart.wide ? 'Demi-largeur' : 'Pleine largeur',
                       icon: <ArrowsHorizontalIcon aria-hidden />,
@@ -386,28 +389,7 @@ export function DashboardBoard({ projectId, title }: DashboardBoardProps) {
     if (!context || !current) return;
     openFormPanel(
       chart ? 'Modifier le diagramme' : 'Nouveau diagramme',
-      (close) => (
-        <ChartEditor
-          dashboardId={current.id}
-          chart={chart}
-          initial={
-            chart
-              ? {
-                  label: chart.label,
-                  config: parseConfig(chart.config),
-                  wide: chart.wide,
-                }
-              : {
-                  label: NEW_CHART_LABELS[source],
-                  config: defaultChartConfig(source),
-                  wide: false,
-                }
-          }
-          scope={scope}
-          context={context}
-          onDone={close}
-        />
-      ),
+      (close) => <ChartEditor dashboardId={current.id} chart={chart} source={source} scope={scope} context={context} onDone={close} />,
       { size: 'lg' },
     );
   };
@@ -506,7 +488,7 @@ export function DashboardBoard({ projectId, title }: DashboardBoardProps) {
                 context={context}
                 dashboardLabel={`${title} — ${current.label}`}
                 captures={captures}
-                onEdit={() => openEditor(chart)}
+                onEdit={(edited = chart) => openEditor(edited)}
                 readOnly={current.archived}
               />
             ))}

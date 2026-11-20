@@ -112,34 +112,34 @@ Ouverts dans le panneau latéral (création, « Modifier ») ou dans le panneau 
 
 | Champ   | Détail                                      |
 | ------- | ------------------------------------------- |
-| « Nom » | requis, 100 caractères                      |
+| « Nom » | requis, 250 caractères                      |
 | Couleur | facultative (« Aucune »)                    |
 | Icône   | image facultative (logo, affiché en entier) |
 
-Bouton « Créer le client » ou « Enregistrer » ; toasts « Client créé. » / « Client modifié. ».
+Un nouveau client : bouton « Créer le client », toast « Client créé. ». Un client existant (son panneau, l’onglet « Nom, couleur et icône » de sa page) s’enregistre champ par champ (décision D22) : le nom en le quittant, la couleur dès qu’elle est choisie dans le nuancier (tapée : en la quittant), l’icône dès qu’elle est choisie ou retirée ; « Enregistrement… » / « Enregistré » en haut, sans bouton ; un client archivé est en lecture seule.
 
 ### Projet (« Nouveau projet », « Nouveau sous-projet », « Modifier le projet »)
 
 | Champ              | Détail                                                                                                                               |
 | ------------------ | ------------------------------------------------------------------------------------------------------------------------------------ |
-| « Libellé »        | requis, 120 caractères                                                                                                               |
+| « Libellé »        | requis, 250 caractères                                                                                                               |
 | « Projet parent »  | facultatif (« Aucun (projet racine) ») ; propose les projets actifs hors de son propre sous-arbre et laissant la place à ses niveaux |
 | « Client »         | PRO seulement, facultatif (« Sans client ») ; désactivé et « Hérité du projet parent. » quand un parent est choisi                   |
 | « Statut »         | facultatif (« Aucun »), avec création à la volée                                                                                     |
 | Couleur            | facultative                                                                                                                          |
 | « Catégories »     | plusieurs, avec création à la volée                                                                                                  |
 | « Début », « Fin » | dates facultatives ; la fin doit suivre le début                                                                                     |
-| « Description »    | Markdown, 5000 caractères                                                                                                            |
+| « Description »    | Markdown, 65 536 caractères                                                                                                          |
 | Icône              | image facultative                                                                                                                    |
 
-Défauts à la création : le client ou le parent d’où l’action est lancée. Bouton « Créer le projet » ou « Enregistrer » ; toasts « Projet créé. » / « Projet modifié. ».
+Défauts à la création : le client ou le parent d’où l’action est lancée. Un nouveau projet : bouton « Créer le projet », toast « Projet créé. ». Un projet existant (son panneau, l’onglet « Projet » de ses paramètres) s’enregistre champ par champ (décision D22) : chaque champ dès qu’il change (libellé et description en les quittant ; la couleur dès qu’elle est choisie dans le nuancier, tapée en la quittant ; seuls les champs changés sont envoyés : l’icône n’est pas renvoyée) ; « Enregistrement… » / « Enregistré » en haut, sans bouton ; un projet archivé est en lecture seule.
 
 ## Actions et confirmations
 
 - **Favori** : toast « « X » ajouté aux favoris. » / « retiré des favoris. » avec « Annuler ».
 - **Archiver / restaurer** : avec toast d’annulation (règle commune, voir [Archivage](../../business-rules/cross-cutting/archiving.md)). Un élément archivé est en lecture seule : ni « Modifier », ni favori, ni ajout de projet.
-- **Supprimer un client** (fenêtre « Supprimer le client ») : risque « Le client « X » sera supprimé définitivement. Pour le retirer de la liste sans perdre ses données, archivez-le plutôt. » ; s’il a des projets, choix « Que faire de ses N projets ? » : les supprimer ou « Les conserver, sans client » (par défaut). Toast « Client « X » supprimé. ».
-- **Supprimer un projet** (« Supprimer le projet ») : « Le projet « X » [et ses N sous-projets] sera supprimé / seront supprimés définitivement… archivez-le plutôt. ». Toast « Projet « X » supprimé. ».
+- **Supprimer un client** (fenêtre « Supprimer le client ») : risque « Le client « X » sera supprimé définitivement. Pour le retirer de la liste sans perdre ses données, archivez-le plutôt. » ; s’il a des projets, choix « Que faire de ses N projets ? » : les supprimer (alors « Leurs tâches ne sont pas supprimées : elles sortent des projets, sans numéro, jalon, sprints ni lien GitHub. ») ou « Les conserver, sans client » (par défaut). Toast « Client « X » supprimé. ».
+- **Supprimer un projet** (« Supprimer le projet ») : « Le projet « X » [et ses N sous-projets] sera supprimé / seront supprimés définitivement. Ses tâches ne sont pas supprimées : elles sortent du projet et perdent leur numéro, leur jalon, leurs sprints, leur lien GitHub et leurs liens avec les tâches restées dans un projet. Pour le retirer… archivez-le plutôt. ». Toast « Projet « X » supprimé. ».
 - Après la suppression de l’élément affiché, retour à l’accueil.
 
 ## Page « Paramètres »

@@ -249,3 +249,20 @@ export async function movePlace(id: string, parentId: string | null, index: numb
   }
   await placeTree.move(id, parentId, index);
 }
+
+/** Location of an item (event, routine, task): its text and the point of its place. */
+interface StoredLocation {
+  location: string | null;
+  locationLat: number | null;
+  locationLon: number | null;
+}
+
+/**
+ * Location of an item as stored: a point goes with a location, both coordinates or none.
+ * @param {StoredLocation} value Location checked by its schema.
+ * @returns {StoredLocation} Columns.
+ */
+export function storedLocation({ location, locationLat, locationLon }: StoredLocation): StoredLocation {
+  const located = Boolean(location) && locationLat !== null && locationLon !== null;
+  return { location, locationLat: located ? locationLat : null, locationLon: located ? locationLon : null };
+}

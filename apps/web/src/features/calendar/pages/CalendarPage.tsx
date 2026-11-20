@@ -34,14 +34,13 @@ import { useTaskLink } from '../../tasks/hooks/use-task-link';
 import { useTimeEntriesSince } from '../../time/api';
 import { useNow } from '../../../lib/use-now';
 import { useTimeEntryDialogs } from '../../time/hooks/use-time-dialogs';
-import { entryEventKey } from '../../time/lib/time-events';
+import { entryEventKeys } from '../../time/lib/time-events';
 import { entrySubject } from '../../time/lib/entry-subject';
 import {
   useCalendarCategories,
   useCalendarEventMutations,
   useCalendarEvents,
   useCalendars,
-  useMaterializeTaskOccurrences,
   useSubscribedCalendarEvents,
   useScheduleSources,
   type EventOccurrence,
@@ -117,8 +116,7 @@ const ALL_DAY_ROWS = 2;
  * planned working hours in the background (none on paused days); tracked times (timers) on demand;
  * cancelled events struck through.
  * Events and tasks move and stretch by drag and drop; selecting a period creates an event. In week and
- * day views, the all-day row is collapsed by default and expands across every day. The
- * occurrences of recurring tasks are created for the displayed period only.
+ * day views, the all-day row is collapsed by default and expands across every day.
  * @returns {JSX.Element} Page.
  */
 export function CalendarPage() {
@@ -153,7 +151,6 @@ export function CalendarPage() {
   const shownSubscriptions = subscriptions.filter((subscription) => !hidden.has(subscription.calendarId));
   // Calendars of other workspaces: read in their workspaces, only when one is shown.
   const subscribedEvents = useSubscribedCalendarEvents(shownSubscriptions.length > 0 ? range : null);
-  const materialize = useMaterializeTaskOccurrences();
   const { update } = useCalendarEventMutations();
   const updateTask = useUpdateTask();
   const openEvent = useEventForm(context);
@@ -186,13 +183,6 @@ export function CalendarPage() {
     calendarRef.current?.getApi().gotoDate(requestedDate);
     setParams({ date: null });
   }, [requestedDate, setParams]);
-
-  // Occurrences of recurring tasks exist once their period is displayed.
-  const materializeMutate = materialize.mutate;
-  useEffect(() => {
-    // A failure is shown above the calendar.
-    if (range) materializeMutate(range);
-  }, [range, materializeMutate]);
 
   useEffect(() => {
     calendarRef.current?.getApi().changeView(view);
@@ -295,9 +285,15 @@ export function CalendarPage() {
         const color = project?.color ?? 'var(--mantine-color-gray-6)';
         const stop = end > start ? end : new Date(start.getTime() + 60_000);
         let parts: [Date, Date][] = [[start, stop]];
-        const key = entryEventKey(entry);
-        const occurrence = key ? occurrenceByKey.get(key) : undefined;
-        if (occurrence && !occurrence.allDay) {
+        // Its events (several, decision D18): the time shows outside each of them, nothing of it beside an all-day one.
+        const occurrences = entryEventKeys(entry)
+          .map((key) => occurrenceByKey.get(key))
+          .filter((occurrence) => occurrence !== undefined);
+        for (const occurrence of occurrences) {
+          if (occurrence.allDay) {
+            parts = [];
+            break;
+          }
           const eventStart = new Date(occurrence.start);
           const eventEnd = new Date(occurrence.end);
           parts = parts.flatMap(
@@ -307,11 +303,12 @@ export function CalendarPage() {
                 [new Date(Math.max(from.getTime(), eventEnd.getTime())), to],
               ].filter(([partStart, partEnd]) => partEnd.getTime() - partStart.getTime() >= 60_000) as [Date, Date][],
           );
-        } else if (occurrence?.allDay) parts = [];
+        }
+        const outside = occurrences.length ? `Hors ${occurrences.map((occurrence) => `« ${occurrence.label} »`).join(', ')} · ` : '';
         parts.forEach(([partStart, partEnd], index) =>
           result.push({
             id: `time:${entry.id}:${index}`,
-            title: `${running ? '● ' : ''}${occurrence ? `Hors « ${occurrence.label} » · ` : ''}${entrySubject(entry, context)}${entry.description ? ` — ${entry.description}` : ''} (${formatDuration(entrySeconds(entry, minute * 60_000))})`,
+            title: `${running ? '● ' : ''}${outside}${entrySubject(entry, context)}${entry.description ? ` — ${entry.description}` : ''} (${formatDuration(entrySeconds(entry, minute * 60_000))})`,
             start: partStart,
             end: partEnd,
             editable: false,
@@ -511,12 +508,15 @@ export function CalendarPage() {
       // Manual order of the routines: those of a same window follow it.
       const order = manualOrder(routinesData?.routines ?? []);
       // A parent routine is done through its sub-routines: only they show.
-      const parents = new Set((routinesData?.routines ?? []).flatMap((routine) => (routine.parentId && !routine.archived ? [routine.parentId] : [])));
+      const parents = new Set((routinesData?.routines ?? []).flatMap((routine) => (routine.parentId && (!routine.archived || showArchived) ? [routine.parentId] : [])));
       type RoutineEvent = { block: RoutineBlock | null; event: EventInput };
       const events: RoutineEvent[] = [];
       for (const occurrence of routineOccurrences.data ?? []) {
         const routine = routineById.get(occurrence.routineId);
-        if (!routine || routine.archived || parents.has(routine.id)) continue;
+        // An archived routine: its occurrences before its archiving (decision D21), with the archived items.
+        if (!routine || (occurrence.archived && !showArchived) || parents.has(routine.id)) continue;
+        // Cancelled (decision D23) or archived: struck through or dimmed, read only.
+        const locked = occurrence.cancelled || occurrence.archived;
         const category = routine.categoryIds.map((id) => routineCategory.get(id)).find((item) => item?.color);
         const color = category?.color ?? (routine.projectId ? context.projectById.get(routine.projectId)?.color : null) ?? 'var(--mantine-color-gray-6)';
         const slots = occurrence.slots.length ? occurrence.slots : [{ index: 0, fromTime: null, dueTime: null, optional: false, done: false, windows: [] }];
@@ -555,14 +555,26 @@ export function CalendarPage() {
               backgroundColor: 'transparent',
               borderColor: color,
               textColor: 'var(--mantine-color-text)',
-              classNames: [classes.task, classes.routine, ...(slot.done ? [classes.closed] : []), ...(occurrence.movedFrom ? [classes.moved] : [])],
+              classNames: [
+                classes.task,
+                classes.routine,
+                ...(slot.done || occurrence.cancelled ? [classes.closed] : []),
+                ...(occurrence.movedFrom ? [classes.moved] : []),
+                ...(occurrence.archived ? [classes.archived] : []),
+              ],
               // Dragged to another day or hour: asks which occurrences change (its window moves by as much). Its
               // length is the time it takes, not its window: not stretched.
-              startEditable: !occurrence.slots.some((item) => item.done),
+              startEditable: !locked && !occurrence.slots.some((item) => item.done),
               durationEditable: false,
               extendedProps: {
                 kind: 'routine',
-                occurrence: { routine, date: occurrence.date, slot: { index: slot.index, fromTime: slot.fromTime, dueTime: slot.dueTime } } satisfies RoutineOccurrenceRef,
+                occurrence: {
+                  routine,
+                  date: occurrence.date,
+                  slot: { index: slot.index, fromTime: slot.fromTime, dueTime: slot.dueTime },
+                  cancelled: occurrence.cancelled,
+                  archived: occurrence.archived,
+                } satisfies RoutineOccurrenceRef,
                 movedFrom: occurrence.movedFrom || null,
               },
             },
@@ -648,7 +660,7 @@ export function CalendarPage() {
       const end = endParts.date === addDays(startParts.date, 1) && endParts.time === '00:00' ? '23:59' : endParts.time;
       if (!allDay && endParts.date !== startParts.date && end !== '23:59') {
         revert();
-        notifyError('Une plage s’arrête le jour où elle commence.');
+        notifyError('Un créneau s’arrête le jour où il commence.');
         return;
       }
       const change: ScheduleSlotTime = allDay ? { date: startParts.date, start: '00:00', end: '24:00', allDay: true } : { date: startParts.date, start: startParts.time, end, allDay: false };
@@ -783,9 +795,9 @@ export function CalendarPage() {
           </ActionButton>
           {/* A mode, not a button (decision CN). */}
           <StateSwitch
-            label="Modifier les plages"
+            label="Modifier les créneaux"
             showLabel
-            hint={editingSlots ? 'Revenir à l’affichage des plages' : 'Déplacer, étirer, changer ou supprimer les plages dans l’agenda'}
+            hint={editingSlots ? 'Revenir à l’affichage des créneaux' : 'Déplacer, étirer, changer ou supprimer les créneaux dans l’agenda'}
             checked={editingSlots}
             onChange={setEditingSlots}
           />
@@ -795,7 +807,7 @@ export function CalendarPage() {
         </Group>
       </Group>
 
-      {(events.error ?? materialize.error ?? subscribedEvents.error) && <ErrorAlert title="Agenda incomplet">{(events.error ?? materialize.error ?? subscribedEvents.error)?.message}</ErrorAlert>}
+      {(events.error ?? subscribedEvents.error) && <ErrorAlert title="Agenda incomplet">{(events.error ?? subscribedEvents.error)?.message}</ErrorAlert>}
       {/*
        * In the settings sidebar (?settings=1): first what the agenda shows and its export; then
        * the calendars, subscriptions, categories, kinds of slots and places.
@@ -821,7 +833,7 @@ export function CalendarPage() {
                 />
                 <HiddenChecklist
                   label={schedulesTitle(perso)}
-                  empty="Aucune plage."
+                  empty="Aucun créneau."
                   choices={scheduleChoices}
                   hidden={hiddenSchedules}
                   disabled={filters.workHours === false}

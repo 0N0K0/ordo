@@ -23,8 +23,8 @@ Fiche (`sheetSchema`) :
 
 | Champ         | Règle et message                                                                                            |
 | ------------- | ----------------------------------------------------------------------------------------------------------- |
-| `label`       | Requis (« Le libellé est requis. »), 100 caractères au plus (`SHEET_LABEL_MAX`).                            |
-| `note`        | 20 000 caractères au plus (« Note trop longue. ») ; vide enregistrée `null`.                                |
+| `label`       | Requis (« Le libellé est requis. »), 250 caractères au plus (`TEXT_MAX`, décision DO).                      |
+| `note`        | Texte multiligne, 4 000 caractères au plus (« 4 000 caractères maximum. ») ; vide enregistrée `null`.       |
 | `projectId`   | Projet actif (« Projet ») ; un projet archivé déjà en place est accepté.                                    |
 | `categoryIds` | 50 au plus ; doublons retirés ; existantes et non archivées, sauf celles déjà sur la fiche (« Catégorie »). |
 
@@ -32,11 +32,11 @@ Fiche (`sheetSchema`) :
 
 | Champ                      | Règle et message                                                                                                       |
 | -------------------------- | ---------------------------------------------------------------------------------------------------------------------- |
-| `label`                    | Requis, 200 caractères au plus.                                                                                        |
+| `label`                    | Requis, 250 caractères au plus.                                                                                        |
 | `productId`, `categoryId`  | Doivent exister (« Produit », « Catégorie ») ; non archivés, sauf ceux déjà sur l'élément.                             |
 | `quantity`                 | Nombre (« Nombre attendu. »), ≥ 0 (« Quantité positive attendue. »), ≤ 999 999 (« Quantité trop grande. »), ou `null`. |
-| `unit`                     | 50 caractères au plus (`UNIT_MAX`), vide = `null` ; unité archivée refusée si nouvelle.                                |
-| `note`                     | 500 caractères au plus (`ITEM_NOTE_MAX`), vide = `null`.                                                               |
+| `unit`                     | 250 caractères au plus (`unitSchema`), vide = `null` ; unité archivée refusée si nouvelle.                             |
+| `note`                     | Markdown, 65 536 caractères au plus (`itemNoteSchema`), vide = `null`.                                                 |
 | `consumable`               | Vrai par défaut (élément de fiche).                                                                                    |
 | `storeId`                  | Magasin non archivé (sauf déjà en place).                                                                              |
 | `url`                      | Lien `http(s)` (« Lien invalide (http ou https). ») ou vide.                                                           |
@@ -44,7 +44,7 @@ Fiche (`sheetSchema`) :
 | `memberIds`, `relationIds` | 50 au plus chacun ; personnes vérifiées (`assertPeople`).                                                              |
 | `optional`                 | Faux par défaut.                                                                                                       |
 
-Catégorie de fiches (`sheetCategorySchema`) : libellé requis, 60 caractères au plus, unique dans l'espace (« Une catégorie porte déjà ce libellé. ») ; couleur `#rrggbb` requise (« Couleur invalide (format #rrggbb). »).
+Catégorie de fiches (`sheetCategorySchema`) : libellé requis, 250 caractères au plus, unique dans l'espace (« Une catégorie porte déjà ce libellé. ») ; couleur `#rrggbb` requise (« Couleur invalide (format #rrggbb). »).
 
 Multiplicateur (`sheetMultiplierSchema`) : strictement positif (« Multiplicateur positif attendu. »), 999 au plus (« 999 au plus. »). Le web propose de 0,25 à 999 avec 2 décimales.
 
@@ -54,7 +54,7 @@ Source : `createSheet`, `updateSheet`, `duplicateSheet`, `deleteSheet`.
 
 - Créée en dernière de la liste ; ses éléments s'ajoutent ensuite un par un.
 - Fiche archivée : lecture seule (« Fiche » archivée refusée à la modification, à l'ajout, au changement et au retrait d'éléments, à la duplication, à l'usage). L'archivage passe par la mutation commune `setArchived` (type `SHEET`) : voir [Archivage](../cross-cutting/archiving.md).
-- Duplication : « … (copie) » (coupé pour tenir dans 100 caractères), mêmes note, projet, catégories, éléments (tous leurs champs, bénéficiaires compris, même ordre), en dernière de la liste ; les commentaires ne sont pas copiés.
+- Duplication : « … (copie) » (coupé pour tenir dans 250 caractères, `copyName`), mêmes note, projet, catégories, éléments (tous leurs champs, bénéficiaires compris, même ordre), en dernière de la liste ; les commentaires ne sont pas copiés.
 - Suppression : ses éléments (et leurs commentaires) et ses rattachements aux routines, évènements et tâches partent avec elle ; les listes d'achats et listes à cocher déjà faites gardent leurs éléments (leurs sources gardent le libellé de la fiche).
 - Requête `sheets(projectId?)` : toutes, ou celles d'un projet, dans l'ordre ; `usedBy` = nombre de rattachements.
 
@@ -79,7 +79,7 @@ Source : `sheetCategories = createLabelService('sheetCategory', …)` ; mutation
 Source : `addSheetToShoppingList`, `removeSheetFromShoppingList`, `fitForShopping`, `withSource`.
 
 - La liste doit être ouverte (non archivée), la fiche non archivée.
-- Chaque élément est multiplié (`timesSheet`, arrondi au millième) puis adapté aux limites des achats : libellé coupé à 120 caractères (`SHOPPING_LABEL_MAX`), note à 500, unité à 50, quantité plafonnée à 999 999.
+- Chaque élément est multiplié (`timesSheet`, arrondi au millième) puis adapté aux limites des achats : libellé et unité coupés à 250 caractères, note à 65 536 (textes enregistrés avant ces limites), quantité plafonnée à 999 999.
 - Clé d'addition (`productKey`) : le produit, sinon le libellé et l'unité normalisés (`nameKey` : sans casse, accents ni espaces en trop). Un élément de la liste **pas encore acheté** de même clé voit sa quantité augmentée et la part de la fiche notée dans ses sources (`sheetSources` : `[{ sheetId, label, quantity }]`) ; il ne reste facultatif que si toutes ses fiches le disent.
 - Sinon un nouvel élément est créé en dernier : avec un produit, ses champs (ceux de l'élément de fiche en priorité) ; sans produit, ceux de l'élément de fiche.
 - Renvoie le nombre d'éléments de la fiche.

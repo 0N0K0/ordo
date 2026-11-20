@@ -1,5 +1,5 @@
 import { formCallbacks } from '../../../lib/form';
-import { SegmentedControl, Select, Stack, Text, TextInput } from '@mantine/core';
+import { SegmentedControl, Select, Stack, Text } from '@mantine/core';
 import { STOCK_MOVEMENT_LABELS, type StockMovementKind } from '@ordo/shared';
 import { DatePickerInput } from '@mantine/dates';
 import { useState } from 'react';
@@ -7,6 +7,8 @@ import * as fmt from '../../../lib/format';
 import { useStockMutations, type StockItem } from '../api';
 import { FormActions } from '../../../components/dialogs/FormActions';
 import { QuantityInput } from '../../../components/inputs/QuantityInput';
+import { MarkdownEditor } from '../../../components/markdown/MarkdownEditor';
+import { NO_SUGGESTIONS } from '../../../components/markdown/remark-references';
 
 type Kind = Exclude<StockMovementKind, 'COUNT'>;
 
@@ -46,14 +48,14 @@ export function StockMoveForm({ item, kind: initial = 'CONSUMPTION', onDone }: {
         />
       )}
       {adding && item.perishable && !lotId && <DatePickerInput label="Date de péremption" placeholder="Aucune" clearable value={expiresAt} onChange={(value) => setExpiresAt(value || null)} />}
-      <TextInput label="Note" value={note} onChange={(event) => setNote(event.currentTarget.value)} />
+      <MarkdownEditor label="Note" value={note} onChange={setNote} suggestions={NO_SUGGESTIONS} minRows={2} />
       <FormActions
         onCancel={onDone}
         disabled={quantity <= 0}
         loading={move.isPending}
         onSubmit={() =>
           move.mutate(
-            { itemId: item.id, kind, quantity, lotId, expiresAt: adding ? expiresAt : null, note: note || null },
+            { itemId: item.id, kind, quantity, lotId, expiresAt: adding ? expiresAt : null, note: note.trim() ? note : null },
             formCallbacks(null, adding ? 'Ajouté au stock.' : 'Retiré du stock.', onDone),
           )
         }

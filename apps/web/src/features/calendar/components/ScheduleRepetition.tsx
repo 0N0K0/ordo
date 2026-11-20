@@ -132,7 +132,7 @@ function ScheduleRepetitionEditor({ draft, setDraft }: { draft: ScheduleRepetiti
       <ScheduleCases cases={draft.cases} onChange={(cases) => setDraft({ ...draft, cases })} start={start} />
       <Divider label="Exceptions (congés, horaires particuliers…)" labelPosition="left" />
       <Text size="xs" c="dimmed">
-        Pendant une exception, ses propres cas remplacent ceux de la plage ; sans cas, c’est une pause.
+        Pendant une exception, ses propres cas remplacent ceux du créneau ; sans cas, c’est une pause.
       </Text>
       {draft.exceptions.map((exception, index) => {
         const pause = exception.cases.length === 0;
@@ -160,7 +160,7 @@ function ScheduleRepetitionEditor({ draft, setDraft }: { draft: ScheduleRepetiti
               </Group>
               <Checkbox
                 size="xs"
-                label="Pause (aucune plage pendant cette période)"
+                label="Pause (aucun créneau pendant cette période)"
                 checked={pause}
                 onChange={(event) => setException(index, { cases: event.currentTarget.checked ? [] : [newScheduleCase(exception.from)] })}
               />

@@ -7,9 +7,9 @@ import { EmptyState } from '../../../components/feedback/EmptyState';
 
 import { itemSelectProps } from '../../../components/items/item-look';
 
-import { FileInput, Group, Select, Stack, Table, Text, TextInput } from '@mantine/core';
+import { FileInput, Group, Select, Stack, Table, Text, Textarea } from '@mantine/core';
 import { DatePickerInput } from '@mantine/dates';
-import { SENT_VIA_LABELS, type SendingChannel } from '@ordo/shared';
+import { PLAIN_TEXT_MAX, SENT_VIA_LABELS, type SendingChannel } from '@ordo/shared';
 import { BellRingingIcon, CheckIcon, CoinsIcon, FileArrowUpIcon, NotePencilIcon, PaperPlaneTiltIcon, PencilSimpleIcon } from '@phosphor-icons/react';
 import { useState } from 'react';
 import { localToday } from '../../../lib/dates';
@@ -67,7 +67,7 @@ function ReminderForm({ documentId, onDone }: { documentId: string; onDone: () =
   const [note, setNote] = useState('');
   return (
     <Stack gap="sm">
-      <TextInput label="Note" placeholder="Appel, courrier…" maxLength={500} value={note} onChange={(event) => setNote(event.currentTarget.value)} data-autofocus />
+      <Textarea label="Note" placeholder="Appel, courrier…" autosize minRows={2} maxLength={PLAIN_TEXT_MAX} value={note} onChange={(event) => setNote(event.currentTarget.value)} data-autofocus />
       <FormActions
         onCancel={onDone}
         submitLabel="Noter"

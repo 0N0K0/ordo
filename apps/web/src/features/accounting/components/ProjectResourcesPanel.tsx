@@ -6,11 +6,12 @@ import { EmptyState } from '../../../components/feedback/EmptyState';
 import { ListSkeleton } from '../../../components/feedback/Skeletons';
 import { confirmDestructive } from '../../../components/dialogs/confirm-destructive';
 import { openFormPanel } from '../../../components/panels/panels';
-import { Anchor, FileButton, Group, Paper, Stack, Text, TextInput, ThemeIcon } from '@mantine/core';
+import { Anchor, FileButton, Group, Paper, Stack, Text, Textarea, TextInput, ThemeIcon } from '@mantine/core';
 import { FigmaLogoIcon, FileIcon, GithubLogoIcon, GitlabLogoIcon, LinkIcon, PaperclipIcon, PencilSimpleIcon, TrashIcon, UploadSimpleIcon } from '@phosphor-icons/react';
 import { type ReactNode } from 'react';
 import { ON_ERROR, toastCallbacks } from '../../../lib/notify';
-import { formCallbacks, useAppForm } from '../../../lib/form';
+import { formCallbacks, useAppForm, useFieldSave } from '../../../lib/form';
+import { SaveStatus } from '../../../components/feedback/SaveStatus';
 import { useProjectResourceMutations, useProjectResources, type ProjectResource } from '../api/documents';
 import { FileLink } from '../../files/components/FileLink';
 import { FormActions } from '../../../components/dialogs/FormActions';
@@ -31,32 +32,44 @@ function linkIcon(url: string): ReactNode {
 }
 
 /**
- * Link form: label, address (links only) and note.
+ * Values of the form of a link or a file, as it is (a new link: empty).
+ * @param {ProjectResource} [resource] Resource, as the cache holds it. Optional.
+ * @returns {{ label: string, url: string, note: string }} Values.
+ */
+const resourceValues = (resource?: ProjectResource) => ({ label: resource?.label ?? '', url: resource?.kind === 'LINK' ? (resource.url ?? '') : '', note: resource?.note ?? '' });
+
+/**
+ * Link form: label, address (links only) and note. A new link is a form with « Ajouter »; an existing resource, its
+ * panel, saves each field on leaving it (decision D22, `useFieldSave`), the one of the cache followed.
  * @param {{ projectId: string, resource?: ProjectResource, onDone: () => void }} props Component props.
  * @returns {JSX.Element} Form.
  */
 function ResourceForm({ projectId, resource, onDone }: { projectId: string; resource?: ProjectResource; onDone: () => void }) {
   const { addLink, update } = useProjectResourceMutations();
+  const { data: resources } = useProjectResources(projectId);
   const isLink = !resource || resource.kind === 'LINK';
-  const form = useAppForm({
-    initialValues: { label: resource?.label ?? '', url: resource?.kind === 'LINK' ? (resource.url ?? '') : '', note: resource?.note ?? '' },
-    // A file has no address.
-    schema: isLink ? projectLinkSchema : projectLinkSchema.omit({ url: true }),
+  // A file has no address.
+  const schema = isLink ? projectLinkSchema : projectLinkSchema.omit({ url: true });
+  const base = useAppForm({ initialValues: resourceValues(resource), schema });
+  const current = resource && (resources?.find((item) => item.id === resource.id) ?? resource);
+  const { form, saving } = useFieldSave(base, {
+    save: resource ? (_changes, { label, url, note }) => update.mutateAsync({ id: resource.id, label, url: isLink ? url : null, note }) : null,
+    schema,
+    saved: current && resourceValues(current),
+    onBlur: ['label', 'url', 'note'],
   });
   return (
     <form
       noValidate
-      onSubmit={form.onSubmit(({ label, url, note }) => {
-        const callbacks = formCallbacks(form, resource ? 'Ressource modifiée.' : 'Lien ajouté.', onDone);
-        if (resource) update.mutate({ id: resource.id, label, url: isLink ? url : null, note }, callbacks);
-        else addLink.mutate({ projectId, label, url, note }, callbacks);
-      })}
+      // A new link only: an existing resource is saved field by field (Enter saves the text typed).
+      onSubmit={form.onSubmit(({ label, url, note }) => addLink.mutate({ projectId, label, url, note }, formCallbacks(form, 'Lien ajouté.', onDone)))}
     >
       <Stack gap="md">
-        <TextInput label="Libellé" required data-autofocus placeholder="Maquettes Figma, dépôt GitHub…" {...form.getInputProps('label')} />
+        {resource && <SaveStatus saving={saving} />}
+        <TextInput label="Libellé" required data-autofocus={resource ? undefined : true} placeholder="Maquettes Figma, dépôt GitHub…" {...form.getInputProps('label')} />
         {isLink && <TextInput label="Adresse" required placeholder="https://…" {...form.getInputProps('url')} />}
-        <TextInput label="Note" {...form.getInputProps('note')} />
-        <FormActions onCancel={onDone} submitLabel={resource ? 'Enregistrer' : 'Ajouter'} loading={addLink.isPending || update.isPending} />
+        <Textarea label="Note" autosize minRows={2} {...form.getInputProps('note')} />
+        {!resource && <FormActions onCancel={onDone} submitLabel="Ajouter" loading={addLink.isPending} />}
       </Stack>
     </form>
   );

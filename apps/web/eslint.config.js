@@ -4,6 +4,11 @@ import reactHooks from 'eslint-plugin-react-hooks';
 import reactRefresh from 'eslint-plugin-react-refresh';
 import tseslint from 'typescript-eslint';
 import { defineConfig, globalIgnores } from 'eslint/config';
+import { TEXT_SIZE_RULES } from '../../packages/shared/eslint-rules.js';
+
+// Detail panels saved field by field (decision D22, useFieldSave): every one of the app (D22 complete, lot 14d).
+const D22_PANELS =
+  '/^(TaskDetail|TaskLinks|TaskLinksEditor|RoutineForm|EventForm|RoutineOccurrenceForm|TimeEntryForm|AlarmForm|ShoppingForm|DeliveryForm|ListForm|SheetFields|SheetLinksForm|RecurringForm|ImportedDocumentForm|ResourceForm|ClientDetailsForm|ClientServiceForm|ClientContactForm|CatalogItemForm|CompanyForm|Editor|EntryForm|BudgetForm|PeriodForm|RelationForm|ProjectForm|ClientForm|MilestoneForm|SprintForm|ContributorForm|ChartEditor|MailAccountForm|MailSearchForm|SignatureForm|SettingsItemForm|ScheduleForm|SlotEditForm|LinkForm)$/';
 
 // Imports banned everywhere: Mantine pieces wrapped by a shared brick.
 const RESTRICTED_PATHS = [
@@ -57,6 +62,11 @@ const RESTRICTED_PATHS = [
     importNames: ['FILTER_OPERATORS'],
     message: 'Utiliser operatorsFor (components/filters/filter-meta) : les opérateurs propres d’un champ, sans « est vide » sur un champ obligatoire.',
   },
+  {
+    name: '@ordo/shared',
+    importNames: ['SLOT_CONDITION_FIELDS', 'SLOT_CONDITION_FIELD_OPERATORS'],
+    message: 'Condition de créneaux d’une tâche ou d’une routine : SlotConditionBuilder (features/calendar/components), un seul éditeur (décision DU).',
+  },
 ];
 
 // The same, Menu allowed: the genuinely special menus.
@@ -96,14 +106,74 @@ export default defineConfig([
       // Dates, numbers and amounts: one format per role, in lib/format.
       'no-restricted-syntax': [
         'error',
+        // Sizes of the texts: one maximum per kind (decision DO).
+        ...TEXT_SIZE_RULES,
+        // A markdown note or description typed in a cell: the shared markdown editor (decision DO).
+        {
+          selector: "JSXOpeningElement[name.name='EditableText']:has(JSXAttribute[name.name='value'] MemberExpression[property.name=/^(note|description)$/])",
+          message: 'Utiliser EditableMarkdown (components/data-table/cells/EditableCells) : une note ou une description markdown s’écrit dans l’éditeur markdown.',
+        },
         // Heavy libraries stay out of the start of the app: their components are loaded when first shown.
         {
           selector: "ImportDeclaration[importKind!='type'][source.value=/\\/(RichEditor|PlaceMap)$/]",
           message: 'Utiliser LazyRichEditor / LazyPlaceMap : l’éditeur et la carte sont chargés à la demande.',
         },
+        // Reminders of tasks, routines and events ring one way (decision D16): one brick claims, chimes and notifies.
+        {
+          selector: "CallExpression[callee.name='playChime']",
+          message: 'Utiliser ringPlannedReminders (features/alarms/components/ring) : les rappels des tâches, routines et évènements sonnent d’une seule façon.',
+        },
         {
           selector: "CallExpression[callee.name='lazy']",
           message: 'Utiliser lazyNamed (lib/lazy) : une seule façon de charger un composant à la demande.',
+        },
+        // Errors under a field of a form (an address, phones, lines): nestedErrors (lib/form), not filtered by hand.
+        {
+          selector: "CallExpression[callee.property.name='startsWith'] > Literal[value=/^[A-Za-z]+\\.$/]",
+          message: 'Utiliser nestedErrors (lib/form) : les erreurs sous un champ du formulaire (adresse, téléphones, lignes).',
+        },
+        // An editor without getInputProps in a panel saved field by field: fieldProps (useFieldSave), not commit by hand.
+        {
+          selector: "JSXOpeningElement[name.name=/^(MarkdownEditor|AddressFields|PhonesField|RichEditor|LazyRichEditor)$/] > JSXAttribute[name.name='onBlur'] CallExpression[callee.name='commit']",
+          message: 'Utiliser fieldProps(champ) de useFieldSave (lib/form) : valeur, changement et enregistrement en le quittant.',
+        },
+        // The icon of an item in its form: formIconProps (components/inputs/icon-field), the file and its removal as two
+        // fields of the form (saved together in a panel saved field by field), not a state of its own.
+        {
+          selector: "JSXOpeningElement[name.name='IconField'] > JSXAttribute[name.name=/^(value|onChange)$/]",
+          message: 'Utiliser formIconProps(form, champ du fichier, champ du retrait) (components/inputs/icon-field).',
+        },
+        // Detail panels saved field by field (decision D22, useFieldSave): no « Enregistrer » button in them (their creation
+        // form keeps « Ajouter » / « Créer… » / « Planifier »). Every detail panel of the app is here (D22 complete, lot 14d);
+        // the one deliberate « Enregistrer » is the numbering of the documents (NumberingSettings: setting a counter).
+        {
+          selector:
+            `FunctionDeclaration[id.name=${D22_PANELS}] JSXOpeningElement[name.name='FormActions']:matches(:not(:has(JSXAttribute[name.name='submitLabel'])), :has(JSXAttribute[name.name='submitLabel'] Literal[value=/^Enregistrer/]))`,
+          message: 'Panneau de détail enregistré champ par champ (décision D22) : useFieldSave (lib/form) et SaveStatus, pas de bouton « Enregistrer ».',
+        },
+        // A color in a detail panel: saved at once when picked, on leaving it when typed (commitProps, ColorField onCommit).
+        {
+          selector: `FunctionDeclaration[id.name=${D22_PANELS}] JSXOpeningElement[name.name='ColorField'] > JSXSpreadAttribute > CallExpression[callee.property.name='getInputProps']`,
+          message: 'Utiliser commitProps(champ) de useFieldSave (lib/form) : couleur choisie enregistrée aussitôt, tapée en la quittant.',
+        },
+        // A field of a detail panel saved on leaving it by hand, from its DOM value: useFieldSave (getInputProps, fieldProps),
+        // which also saves it when the panel closes while it is typed (decision FJ).
+        {
+          selector: `FunctionDeclaration[id.name=${D22_PANELS}] JSXAttribute[name.name='onBlur'] MemberExpression[object.property.name='currentTarget'][property.name='value']`,
+          message: 'Champ de panneau de détail : useFieldSave (lib/form), enregistré en le quittant et aussi à la fermeture du panneau (décision FJ).',
+        },
+        // One word and one behaviour to copy anything (decision D20): « Dupliquer », saved at once, then opened.
+        {
+          selector: "Literal[value=/\\bClon(er|é|ée|és|ées|age)\\b/i], TemplateElement[value.raw=/\\bClon(er|é|ée|és|ées|age)\\b/i], JSXText[value=/\\bClon(er|é|ée|és|ées|age)\\b/i]",
+          message: '« Cloner » n’existe plus (décision D20) : « Dupliquer », avec duplicateRowsAction / DuplicateButton.',
+        },
+        {
+          selector: "Literal[value='Dupliquer'], JSXText[value=/^\\s*Dupliquer\\s*$/]",
+          message: 'Utiliser duplicateRowsAction (components/data-table/selection/selection-actions) ou DuplicateButton (components/actions) : une seule action « Dupliquer » (décision D20).',
+        },
+        {
+          selector: "JSXAttribute[name.name=/^(copy|copyOf)$/]",
+          message: 'Pas de formulaire de copie (décision D20) : la copie est enregistrée tout de suite (duplicateRowsAction / DuplicateButton), puis son panneau s’ouvre.',
         },
         {
           selector: "NewExpression[callee.object.name='Intl'][callee.property.name=/^(DateTimeFormat|NumberFormat|RelativeTimeFormat)$/][arguments.length>0]",
@@ -200,6 +270,11 @@ export default defineConfig([
             'JSXText[value=/^\\s*(Archiver|Restaurer)\\s*$/], JSXOpeningElement[name.name=/^(IconAction|Tooltip|Button|ActionButton|ActionIcon)$/] JSXAttribute Literal[value=/^(Archiver|Restaurer)$/]',
           message: 'Utiliser archiveEntry(élément, mutation, id) (lib/archive) dans le menu « … » (ActionsMenu, RowActions, DetailHeader menu) : « Archiver » n’est jamais un bouton.',
         },
+        // Links of tasks and routines inside one project tree (decision DS).
+        {
+          selector: "BinaryExpression[operator=/^[!=]==$/][left.callee.property.name='rootOf'][right.callee.property.name='rootOf']",
+          message: 'Utiliser inProjectTree(context, projectId)(autreProjectId) (features/tasks/lib/task-links), ou linkableTasks / linkableRoutine.',
+        },
         // Destructive confirmations: confirmDestructive adds the sentence.
         {
           selector: 'Literal[value=/irréversible/], TemplateElement[value.raw=/irréversible/], JSXText[value=/irréversible/]',
@@ -275,6 +350,25 @@ export default defineConfig([
           selector: "CallExpression[callee.name='reverseAddress']",
           message: 'Utiliser pickedAddress(point) (features/geo/api) : l’adresse, sinon les coordonnées, une erreur en notification.',
         },
+        // Location of an item (event, routine, task): one reading of its point, one cell.
+        {
+          selector: "Property[key.name='lat'] > MemberExpression.value[property.name='locationLat']",
+          message: 'Utiliser addressOf(item) / locationOf(value) (features/geo/lib/location), et LocationCell (features/geo/components) dans un tableau.',
+        },
+        // Location of an item typed in place: one rule of saving (chosen, cleared, or free text on leaving the field).
+        {
+          selector: "LogicalExpression[operator='||'][left.property.name='point'][right.operator='!'][right.argument.callee.property.name='trim']",
+          message: 'Utiliser useLocationDraft(item, save) (features/geo/hooks/use-location-draft) : adresse choisie, texte vidé, ou texte libre en quittant le champ.',
+        },
+        // Links of an item (event, task, routine): one editor, one display, one input.
+        {
+          selector: "JSXElement[openingElement.name.name='AddItemButton'] > JSXText[value=/^\\s*Ajouter un lien\\s*$/], JSXAttribute[name.name='placeholder'][value.value='Libellé (facultatif)']",
+          message: 'Utiliser LinksField (components/inputs/LinksField) : les liens d’un évènement, d’une tâche ou d’une routine.',
+        },
+        {
+          selector: "CallExpression[callee.property.name='map'][callee.object.property.name='links']:has(JSXIdentifier[name='Anchor']), CallExpression[callee.property.name='map'] > ArrowFunctionExpression > ObjectExpression.body:has(> Property[key.name='url']):has(> Property[key.name='label'])",
+          message: 'Utiliser ItemLinks (components/items/ItemLinks) pour les afficher, linkInputs(links) (lib/links) pour les renvoyer.',
+        },
         // Tab of a page: unknown tabs fall back (usePageTab).
         {
           selector: "CallExpression[callee.property.name='get'][arguments.0.value='tab']",
@@ -312,7 +406,7 @@ export default defineConfig([
           message: 'Utiliser relationNoun(perso, many) (components/people/people-options) : « Relations » en pro, « Proches » en perso.',
         },
         {
-          selector: "ConditionalExpression[consequent.value='Plages'][alternate.value=/^(Plages|Horaires) de travail$/]",
+          selector: "ConditionalExpression[consequent.value='Créneaux'][alternate.value=/^(Créneaux|Plages|Horaires) de travail$/]",
           message: 'Utiliser schedulesTitle(perso) (features/calendar/lib/schedule-text).',
         },
         // Shared buttons and messages.
@@ -407,8 +501,8 @@ export default defineConfig([
           message: 'Utiliser FoldButton (components/actions/FoldButton) : un chevron qui tourne, « Développer / Réduire » (décision AE).',
         },
         {
-          selector: 'Literal[value=/^(Plages|Horaires) de travail$/], JSXText[value=/^\\s*(Plages|Horaires) de travail\\s*$/]',
-          message: 'Utiliser schedulesTitle(perso) (features/calendar/lib/schedule-text) : « Plages » en perso.',
+          selector: 'Literal[value=/^(Créneaux|Plages|Horaires) de travail$/], JSXText[value=/^\\s*(Créneaux|Plages|Horaires) de travail\\s*$/]',
+          message: 'Utiliser schedulesTitle(perso) (features/calendar/lib/schedule-text) : « Créneaux » en perso.',
         },
         {
           selector:
@@ -454,6 +548,17 @@ export default defineConfig([
           selector:
             "ObjectExpression:has(> Property[key.name='id'][value.value='root']) > Property[key.name='children'] > ArrayExpression[elements.length=1] > ObjectExpression:has(> Property[key.name='type'][value.value='condition'])",
           message: 'Utiliser conditionFilter(champ, opérateur, valeur) ou withinFilter(champ, période) (components/data-table/views/use-data-view).',
+        },
+        // Multi-select of a choices cell: one, saved once its list closes.
+        {
+          selector: "JSXOpeningElement[name.name='BatchMultiSelect']:has(> JSXSpreadAttribute[argument.name='stoppedCellCombobox'])",
+          message: 'Utiliser EditableMultiSelect, ou CellMultiSelect dans un StackedMultiCell (components/data-table/cells/EditableCells).',
+        },
+        // What a time is spent on besides its project (decision D18): one reading.
+        {
+          selector:
+            "LogicalExpression[operator='||']:has(MemberExpression[property.name='length'][object.property.name='routines']):has(MemberExpression[property.name='length'][object.property.name='taskIds'])",
+          message: 'Utiliser hasSubject(entry) ou TIME_SUBJECTS (features/time/lib/time-subjects).',
         },
         {
           selector: "TemplateLiteral:has(> MemberExpression[property.name=/^(routineId|sprintId)$/]):has(> TemplateElement[value.raw='|'])",
@@ -644,7 +749,7 @@ export default defineConfig([
         // What a time was spent on: one name (agenda, header timer, timer card).
         {
           selector: "LogicalExpression[operator='??'][right.value=/./] > MemberExpression.left[property.name='routineLabel'], LogicalExpression[operator='??'] > MemberExpression.right[property.name='routineLabel']",
-          message: 'Utiliser entrySubject(entry, context) (features/time/lib/entry-subject) : le projet, ou la routine.',
+          message: 'Utiliser entrySubject(entry, context) (features/time/lib/entry-subject) : le projet, ou la routine, l’évènement, la tâche.',
         },
         // A typed cell: Escape gives the draft up before the blur saves it.
         {
@@ -825,7 +930,7 @@ export default defineConfig([
           message: 'Utiliser readOnlyCells(columns, row) (components/data-table/table/data-table) : le texte de chaque colonne, la cellule d’une colonne commune.',
         },
         {
-          selector: "BinaryExpression[operator='<'][left.property.name='deadline'], BinaryExpression[operator='<'][left.name='deadline']",
+          selector: "BinaryExpression[operator='<'][left.property.name=/^(deadline|effectiveDeadline)$/], BinaryExpression[operator='<'][left.name=/^(deadline|effectiveDeadline)$/]",
           message: 'Utiliser isTaskOverdue(task, today) (features/tasks/lib/task-overdue) : une seule règle de retard (décision DD).',
         },
         {
@@ -1023,6 +1128,11 @@ export default defineConfig([
     // ActionsMenu wraps Menu.
     files: ['src/components/actions/ActionsMenu.tsx'],
     rules: { 'no-restricted-imports': ['error', { paths: RESTRICTED_PATHS_ACTIONS_MENU, patterns: [NO_FEATURES] }] },
+  },
+  {
+    // The one editor of the slot conditions of tasks and routines.
+    files: ['src/features/calendar/components/SlotConditionBuilder.tsx'],
+    rules: { 'no-restricted-imports': ['error', { paths: RESTRICTED_PATHS.filter((path) => !path.importNames.includes('SLOT_CONDITION_FIELDS')) }] },
   },
   {
     // Menus of their own: the tree of the saved places in an address field; the library, to be rewritten.

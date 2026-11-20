@@ -32,10 +32,10 @@ export function AvailabilityHint({ allDay, startDate, startTime, endDate, endTim
   // A pause is told only when no schedule works that day.
   const pause = slots.length ? undefined : plannedPauses(rules, startDate, startDate)[0];
   const message = pause
-    ? `Pendant une pause de vos plages de travail : ${pause.label || 'pause'}.`
+    ? `Pendant une pause de vos créneaux de travail : ${pause.label || 'pause'}.`
     : slots.length
-      ? `En dehors de vos plages de travail ce jour-là (${slots.map((slot) => `${slot.start}–${slot.end}`).join(', ')}).`
-      : 'Pas de plage de travail prévue ce jour-là.';
+      ? `En dehors de vos créneaux de travail ce jour-là (${slots.map((slot) => `${slot.start}–${slot.end}`).join(', ')}).`
+      : 'Pas de créneau de travail prévu ce jour-là.';
   return (
     <NoticeAlert kind="warning" py="xs">
       {message}

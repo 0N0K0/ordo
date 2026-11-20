@@ -12,13 +12,13 @@ Règles appliquées aux tableaux de bord et à leurs diagrammes : validation de 
 
 Source : `packages/shared/src/dashboards/dashboards.ts`, `packages/shared/src/core/rules.ts`.
 
-| Élément                                   | Règle                                                    | Messages                                                |
-| ----------------------------------------- | -------------------------------------------------------- | ------------------------------------------------------- |
-| Tableau (`dashboardLabelSchema`)          | Requis, rogné, 60 caractères max (`DASHBOARD_LABEL_MAX`) | « Le libellé est requis. », « 60 caractères maximum. »  |
-| Diagramme (`chartLabelSchema`)            | Requis, rogné, 120 caractères max (`CHART_LABEL_MAX`)    | « Le libellé est requis. », « 120 caractères maximum. » |
-| Libellé du jeu principal (`config.label`) | Facultatif, 60 max                                       | « 60 caractères maximum. »                              |
-| Jeu de données                            | Requis, 60 max                                           | « Nommez le jeu de données. »                           |
-| Comparaison                               | Requis, 60 max                                           | « Nommez la comparaison. »                              |
+| Élément                                   | Règle                                                       | Messages                                                |
+| ----------------------------------------- | ----------------------------------------------------------- | ------------------------------------------------------- |
+| Tableau (`dashboardLabelSchema`)          | Requis, rogné, 250 caractères max (`TEXT_MAX`, décision DO) | « Le libellé est requis. », « 250 caractères maximum. » |
+| Diagramme (`chartLabelSchema`)            | Requis, rogné, 250 caractères max                           | « Le libellé est requis. », « 250 caractères maximum. » |
+| Libellé du jeu principal (`config.label`) | Facultatif, 250 max                                         | « 250 caractères maximum. »                             |
+| Jeu de données                            | Requis, 250 max                                             | « Nommez le jeu de données. »                           |
+| Comparaison                               | Requis, 250 max                                             | « Nommez la comparaison. »                              |
 
 Les libellés de tableaux ne sont pas uniques : deux tableaux peuvent porter le même nom (voir [Nommage](../cross-cutting/naming.md)).
 
@@ -37,7 +37,7 @@ Source : `apps/api/src/services/dashboards/dashboards.ts`.
 - **Création, modification, duplication, suppression, déplacement** : le diagramme doit exister (« Diagramme introuvable. ») et son tableau ne pas être archivé (« Élément archivé… »). La création exige un tableau non archivé.
 - Le libellé et la configuration sont validés à chaque création et modification (`chartData` : `chartLabelSchema` + `chartConfigSchema`) ; la configuration est enregistrée **après** application des valeurs par défaut du schéma.
 - **Position** : un nouveau diagramme va à la fin du tableau. Le déplacement réordonne dans le tableau.
-- **Duplication** (`duplicateChart`) : copie du libellé suivi de « (copie) », coupé si besoin pour tenir dans 120 caractères (`copyName`), même configuration et même largeur, placée juste après l’original.
+- **Duplication** (`duplicateChart`) : copie du libellé suivi de « (copie) », coupé si besoin pour tenir dans 250 caractères (`copyName`), même configuration et même largeur, placée juste après l’original.
 - **Transfert** (`transferChart`) vers un autre tableau :
   - un tableau donné (non archivé) ; ou bien le premier tableau non archivé d’un projet (ou des tableaux généraux sans projet), **créé sous le nom « Tableau de bord »** s’il n’y en a pas ; le projet cible doit exister et ne pas être archivé ;
   - si la cible est le tableau actuel, rien ne change ;
@@ -62,7 +62,7 @@ Source : `packages/shared/src/dashboards/dashboards.ts`.
 | `cumulative`      | booléen                                                                                                                             | faux        |
 | `sprintId`        | sprint du burndown                                                                                                                  | null        |
 | `filter`          | filtre de tâches dans les termes de la table des tâches                                                                             | filtre vide |
-| `search`          | texte, 200 max                                                                                                                      | vide        |
+| `search`          | texte, 250 max (`searchTextSchema`)                                                                                                 | vide        |
 | `includeArchived` | tâches archivées incluses                                                                                                           | faux        |
 | `documents`       | `types` (vide : tous), `clientIds`, `statusIds`, `includeDrafts` (faux), `includeImported` (vrai), `creditNotesNegative` (vrai)     |             |
 | `treasury`        | `accountIds`, `categories` (chemins), `direction` `all                                                                              | in          | out` (`all`), `includeForecast` (faux) |     |
@@ -152,6 +152,6 @@ Source : `apps/web/src/features/dashboards/lib/**`.
 
 Source : `apps/api/src/services/dashboards/charts-pdf.ts`, route `POST /api/exports/charts.pdf` (`apps/api/src/routes/exports.ts`, erreur « Export PDF impossible. »).
 
-- Entrée : `title` (requis, 1 à 200), `subtitle` (500 max), `charts` de 1 à 40, chacun avec `title` (200 max), `description` (500 max) et `image` PNG en data URL (12 Mo max, sinon « Image PNG attendue. »).
+- Entrée : `title` (requis, 1 à 500), `subtitle` (500 max), `charts` de 1 à 40, chacun avec `title` (500 max), `description` (500 max) — 500 = `PRINTED_LABEL_MAX` (2 × `TEXT_MAX`) — et `image` PNG en data URL (12 Mo max, sinon « Image PNG attendue. »).
 - PDF A4 paysage dans le gabarit commun des exports (logo, date, numéros de page) : un diagramme par page, la première page portant aussi le titre de l’export ; la description en petit sous l’en-tête ; l’image ajustée à la place restante.
 - Le tableau de données en PDF passe par la route commune `table.pdf` ([Erreurs](../cross-cutting/errors.md) pour le format des messages).

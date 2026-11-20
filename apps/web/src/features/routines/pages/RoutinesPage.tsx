@@ -1,9 +1,9 @@
 import { PAGES, routineHistoryPath } from '../../../app/pages';
 import { readOnlyCells } from '../../../components/data-table/table/data-table';
 import { usePageTab } from '../../../components/tabs/use-page-tab';
-import { scheduleChoices } from '../../calendar/lib/schedule-choices';
+import { useSlotChoices } from '../../calendar/hooks/use-slot-sources';
 import { useSetParams, useSearchParam } from '../../../lib/search-params';
-import { mapById, byPosition } from '@ordo/shared';
+import { mapById, occurrenceKey } from '@ordo/shared';
 import { PageHeader } from '../../../components/page/PageHeader';
 import { ActionButton } from '../../../components/actions/ActionButton';
 import { EmptyState } from '../../../components/feedback/EmptyState';
@@ -22,7 +22,6 @@ import { useTaskContext } from '../../tasks/hooks/use-task-context';
 import { isDraftRoutine, useRoutineMutations, useRoutinesData, type Routine } from '../api';
 import { openRoutineForm } from '../lib/open-routine-form';
 import { openRoutineMove } from '../lib/open-routine-move';
-import { useWorkSchedules } from '../../calendar/api';
 import { useSlotRules, routineDoable } from '../../calendar/hooks/use-slot-rules';
 import { RoutineHistory } from '../components/RoutineHistory';
 import { RoutineSettings } from '../components/RoutineSettings';
@@ -33,9 +32,9 @@ import { routineColumns } from '../lib/routine-columns';
 import { routinesLabel } from '../lib/routine-cell-edit';
 import { AddRoutineRow, ChronoCell, StateCell } from '../components/routine-table-cells';
 import { RoutineDoneToggles } from '../components/DoneToggle';
-import { AssigneesCell, CategoriesCell, EstimateCell, ProjectCell, RepetitionCell, RepetitionText, RequiresCell, RoutineBeneficiariesCell, RoutineLabelCell } from '../components/routine-cells';
-import { BlocksCell, LocationCell, OpensOnCell, ParentRoutineCell, RemindersCell, SubRoutinesCell, TimeOfDayCell, TravelCell } from '../components/extra-cells';
-import { isDone, movableOccurrence, waitingFor } from '../lib/routine-format';
+import { AssigneesCell, CategoriesCell, EstimateCell, ProjectCell, RepetitionCell, RepetitionText, RoutineBeneficiariesCell, RoutineLabelCell, RoutineLinksCell } from '../components/routine-cells';
+import { BlocksCell, RoutineLocationCell, OpensOnCell, ParentRoutineCell, RemindersCell, SubRoutinesCell, TimeOfDayCell, TravelCell } from '../components/extra-cells';
+import { isDone, movableOccurrence, panelOccurrence, waitingFor } from '../lib/routine-format';
 import { usePostponeRoutine } from '../hooks/use-routine-move';
 import { useRoutineRowsActions, useRoutineSelectionActions } from '../components/RoutineBulkBar';
 import { rowMenuEntry } from '../../../components/data-table/selection/selection-actions';
@@ -83,16 +82,16 @@ export function RoutinesPanel({ projectId, projectIds }: { projectId?: string; p
   const routines = useMemo(() => data?.routines ?? [], [data]);
   const categories = useMemo(() => data?.routineCategories ?? [], [data]);
   const slotRules = useSlotRules();
-  const { data: schedules } = useWorkSchedules();
+  const slotChoices = useSlotChoices();
   const { data: running } = useRunningTimer();
-  const { move, patch } = useRoutineMutations();
+  const { move } = useRoutineMutations();
   const postpone = usePostponeRoutine();
   const selectionActions = useRoutineSelectionActions();
   const rowActionsOf = useRoutineRowsActions();
   // Without those being created (no comment yet): no count asked again for them.
   const comments = useCommentCounts(
     'ROUTINE',
-    useMemo(() => routines.filter((routine) => !isDraftRoutine(routine)).map((routine) => routine.id), [routines]),
+    useMemo(() => routines.filter((routine) => !isDraftRoutine(routine)).map((routine) => occurrenceKey(routine.id, panelOccurrence(routine))), [routines]),
   );
   const { choices: beneficiaryChoices } = useBeneficiaries();
   const byId = useMemo(() => mapById(routines), [routines]);
@@ -107,11 +106,11 @@ export function RoutinesPanel({ projectId, projectIds }: { projectId?: string; p
             context,
             doable,
             comments,
-            slotKinds: scheduleChoices(schedules).options,
+            slotKinds: slotChoices.all,
             beneficiaries: beneficiaryChoices,
           })
         : [],
-    [today, byId, categories, context, doable, comments, schedules, beneficiaryChoices],
+    [today, byId, categories, context, doable, comments, slotChoices, beneficiaryChoices],
   );
   // Of the project on a project page; in their manual order.
   const rows = useMemo(() => routines.filter((routine) => !projectIds || (routine.projectId && projectIds.has(routine.projectId))), [routines, projectIds]);
@@ -131,31 +130,18 @@ export function RoutinesPanel({ projectId, projectIds }: { projectId?: string; p
   const groupedByCategory = view.groupColumn?.id === 'categories';
 
   /**
-   * Saves a routine dragged to another place or level (before the routine that now follows it, under its new parent,
-   * or last at the top), or into another category.
+   * Saves a routine dragged to another place or level (before the routine that now follows it in the global manual
+   * order, under its new parent, as a task: a move works in a filtered view, its parent hidden), or into another
+   * category.
    * @param {RowMove} drop Drop.
    * @returns {void}
    */
   const handleMove = ({ key, beforeKey, parentKey, groupKey, fromGroupKey }: RowMove) => {
     const moved = byId.get(key);
-    if (!moved || isDraftRoutine(moved)) return;
+    if (!moved || isDraftRoutine(moved) || moved.archived) return;
     const categoryIds = groupedByCategory && groupKey !== undefined ? movedCategories(moved.categoryIds, fromGroupKey || null, groupKey || null) : null;
-    const parent = parentKey !== undefined ? parentKey : (moved.parentId ?? null);
     const before = beforeKey ? byId.get(beforeKey) : undefined;
-    if (before && before.id !== key && (before.parentId ?? null) === parent) {
-      move.mutate({ id: key, targetId: before.id, place: 'BEFORE', categoryIds }, ON_ERROR);
-      return;
-    }
-    if (parent) {
-      move.mutate({ id: key, targetId: parent, place: 'INSIDE', categoryIds }, ON_ERROR);
-      return;
-    }
-    const last = routines
-      .filter((routine) => routine.parentId === null && routine.id !== key)
-      .sort(byPosition)
-      .at(-1);
-    if (last) move.mutate({ id: key, targetId: last.id, place: 'AFTER', categoryIds }, ON_ERROR);
-    else if (categoryIds) patch.mutate({ id: key, input: { categoryIds } }, ON_ERROR);
+    move.mutate({ id: key, beforeId: before?.id ?? null, ...(parentKey !== undefined && { parentId: parentKey }), categoryIds }, ON_ERROR);
   };
 
   /**
@@ -191,18 +177,19 @@ export function RoutinesPanel({ projectId, projectIds }: { projectId?: string; p
       fromTime: <TimeOfDayCell routine={routine} field="fromTime" readOnly={readOnly} />,
       dueTime: <TimeOfDayCell routine={routine} field="dueTime" readOnly={readOnly} />,
       opensOn: <OpensOnCell routine={routine} readOnly={readOnly} />,
-      location: <LocationCell routine={routine} readOnly={readOnly} />,
+      location: <RoutineLocationCell routine={routine} readOnly={readOnly} />,
       travelBefore: <TravelCell routine={routine} field="travelBefore" readOnly={readOnly} />,
       travelAfter: <TravelCell routine={routine} field="travelAfter" readOnly={readOnly} />,
       alarms: <RemindersCell routine={routine} readOnly={readOnly} />,
-      blocks: <BlocksCell routine={routine} routines={routines} readOnly={readOnly} />,
+      blocks: <BlocksCell routine={routine} routines={routines} context={context} readOnly={readOnly} />,
       parent: <ParentRoutineCell routine={routine} routines={routines} readOnly={readOnly} />,
       subRoutines: <SubRoutinesCell routine={routine} routines={routines} readOnly={readOnly} />,
       trackedTime: <ChronoCell routine={routine} running={running} />,
       assignees: <AssigneesCell routine={routine} readOnly={readOnly} context={context} />,
       beneficiaries: <RoutineBeneficiariesCell routine={routine} readOnly={readOnly} />,
       categories: <CategoriesCell routine={routine} readOnly={readOnly} categories={categories} />,
-      requires: <RequiresCell routine={routine} readOnly={readOnly} routines={routines} />,
+      requires: <RoutineLinksCell kind="requires" routine={routine} readOnly={readOnly} routines={routines} context={context} />,
+      related: <RoutineLinksCell kind="related" routine={routine} readOnly={readOnly} routines={routines} context={context} />,
       project: <ProjectCell routine={routine} readOnly={readOnly} context={context} />,
       lastDoneAt: routine.lastDoneAt ? (
         <Text size="sm" className={classes.nowrap}>
@@ -260,6 +247,7 @@ export function RoutinesPanel({ projectId, projectIds }: { projectId?: string; p
       onMoveRow={handleMove}
       readOnly={isDraftRoutine}
       isArchived={(routine) => routine.archived}
+      isStruck={isDone}
       rowProps={(routine) => ({ className: classes.row, 'data-done': isDone(routine) || undefined })}
       cells={cells}
       actions={actions}

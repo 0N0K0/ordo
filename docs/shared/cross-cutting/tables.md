@@ -41,24 +41,25 @@ Opérateurs par type :
 
 ## `table-views.ts` — vues enregistrées
 
-| Export                                      | Rôle                                                                                                                                                         |
-| ------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| `VIEW_KINDS`                                | `TASKS`, `ROUTINES`, `SHOPPING_LISTS`, `TABLE` (tout autre tableau, nommé par sa clé).                                                                       |
-| `tableKeySchema`                            | Clé de tableau : `^[a-z0-9-]{1,64}$` (« Tableau invalide. »), ex. `time-log`, `treasury-entries`.                                                            |
-| `TableFilterGroup`                          | Filtre d'un tableau (`FilterGroupOf<string>`) : les champs sont les ids de colonnes ; seul le web connaît leur type et ignore les conditions inapplicables.  |
-| `tableFilterSchema`                         | Filtre racine : valeur texte 500 max, listes 200 éléments de 200 caractères max ; profondeur limitée (« Les groupes de filtres sont limités à 5 niveaux. »). |
-| `GROUP_PERIODS` / `GroupPeriod`             | Regroupement sur une date : `DAY`, `WEEK`, `MONTH`, `QUARTER`, `YEAR`.                                                                                       |
-| `tableViewConfigSchema` / `TableViewConfig` | Configuration d'une vue (tableau ci-dessous). Les champs invalides retombent sur leur défaut (`catch`) au lieu de refuser la vue.                            |
-| `emptyTableFilter()`                        | Groupe racine vide `{ id: 'root', combinator: 'and' }` (toutes les lignes).                                                                                  |
-| `tableViewConfig(config?)`                  | Configuration complète à partir de réglages partiels.                                                                                                        |
-| `VIEW_LABEL_MAX` / `viewLabelSchema`        | Libellé d'une vue : requis, 60 caractères max.                                                                                                               |
+| Export                                      | Rôle                                                                                                                                                                                    |
+| ------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `VIEW_KINDS`                                | `TASKS`, `ROUTINES`, `SHOPPING_LISTS`, `TABLE` (tout autre tableau, nommé par sa clé).                                                                                                  |
+| `tableKeySchema`                            | Clé de tableau : `^[a-z0-9-]{1,64}$` (« Tableau invalide. »), ex. `time-log`, `treasury-entries`.                                                                                       |
+| `TableFilterGroup`                          | Filtre d'un tableau (`FilterGroupOf<string>`) : les champs sont les ids de colonnes ; seul le web connaît leur type et ignore les conditions inapplicables.                             |
+| `searchTextSchema`                          | Texte cherché dans un tableau ou un graphique, tel que tapé (non rogné) : 250 caractères max (`TEXT_MAX`, « 250 caractères maximum. », décision DO), `''` par défaut.                   |
+| `tableFilterSchema`                         | Filtre racine : valeur texte 500 max, listes 200 éléments de 200 caractères max (bornes internes des vues) ; profondeur limitée (« Les groupes de filtres sont limités à 5 niveaux. »). |
+| `GROUP_PERIODS` / `GroupPeriod`             | Regroupement sur une date : `DAY`, `WEEK`, `MONTH`, `QUARTER`, `YEAR`.                                                                                                                  |
+| `tableViewConfigSchema` / `TableViewConfig` | Configuration d'une vue (tableau ci-dessous). Les champs invalides retombent sur leur défaut (`catch`) au lieu de refuser la vue.                                                       |
+| `emptyTableFilter()`                        | Groupe racine vide `{ id: 'root', combinator: 'and' }` (toutes les lignes).                                                                                                             |
+| `tableViewConfig(config?)`                  | Configuration complète à partir de réglages partiels.                                                                                                                                   |
+| `viewLabelSchema`                           | Libellé d'une vue : requis, 250 caractères max.                                                                                                                                         |
 
 Champs de `tableViewConfigSchema` :
 
 | Champ                                          | Défaut      | Rôle                                                                                           |
 | ---------------------------------------------- | ----------- | ---------------------------------------------------------------------------------------------- |
 | `filter`                                       | groupe vide | Filtre.                                                                                        |
-| `search`                                       | `''`        | Recherche, 200 max.                                                                            |
+| `search`                                       | `''`        | Recherche (`searchTextSchema`), 250 max.                                                       |
 | `sorting`                                      | `[]`        | Tris `{ id, desc }`, 30 max.                                                                   |
 | `groupBy`                                      | `null`      | Colonne de regroupement.                                                                       |
 | `groupPeriod`                                  | `MONTH`     | Période d'un regroupement sur une date.                                                        |
@@ -73,7 +74,8 @@ Champs de `tableViewConfigSchema` :
 
 | Export                                | Rôle                                                                                                                                                                                                                                                                                                                                  |
 | ------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `columnLayoutSchema` / `ColumnLayout` | `columnOrder` et `hiddenColumns` (100 ids de 64 caractères max), `columnSizing` (largeurs 40 à 1200 px). Les ids inconnus sont ignorés.                                                                                                                                                                                               |
+| `TABLE_KEY_MAX`                       | `64` : longueur d'une clé de tableau (id de colonne, champ, opérateur de filtre) ; une clé, pas un texte libre.                                                                                                                                                                                                                       |
+| `columnLayoutSchema` / `ColumnLayout` | `columnOrder` et `hiddenColumns` (100 ids de `TABLE_KEY_MAX` caractères max), `columnSizing` (largeurs 40 à 1200 px). Les ids inconnus sont ignorés.                                                                                                                                                                                  |
 | `tableSortSchema` / `TableSort`       | `{ id, desc }`.                                                                                                                                                                                                                                                                                                                       |
 | `legacyLabelColumn(tableKey)`         | Ancien id de la colonne libellé (`title` ou `name`) d'un tableau dont les vues peuvent encore le contenir (décision BI) : `tasks`, `routines`, `catalog`, `project-documents`, tous les `documents-*` → `title` ; `recurring-invoices`, `sheets`, `shopping-lists`, `shopping-list`, `shopping-base-list`, `work-schedules` → `name`. |
 | `LegacyFilterValues`                  | Anciennes valeurs de filtres de choix par colonne, avec leur nouvelle valeur.                                                                                                                                                                                                                                                         |

@@ -174,6 +174,19 @@ export async function attachAssignees(assignments: { projectId: string; contribu
 }
 
 /**
+ * People of an item (routine, event) that changed project follow it: those not attached to the new project yet,
+ * directly or through a parent, are attached to it (`attachAssignees`), as the assignees of a transferred task.
+ * Nothing when the project is unchanged or removed.
+ * @param {string | null} before Project of the item before the change.
+ * @param {string | null} after Project of the item after the change.
+ * @param {string[]} contributorIds Assignees (or contributors) of the item.
+ * @returns {Promise<void>}
+ */
+export async function followProject(before: string | null, after: string | null, contributorIds: string[]): Promise<void> {
+  if (after && after !== before) await attachAssignees([{ projectId: after, contributorIds }]);
+}
+
+/**
  * Checks that contributors may be chosen on an item of a project (routine, event…): "Moi", those attached to the
  * project or to one of its parents, and the ones already chosen (they stay). Anyone without project. An archived
  * contributor is not chosen anew.

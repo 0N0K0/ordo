@@ -55,8 +55,8 @@ export function RoutineMoveForm({ routineId, onDone }: { routineId: string; onDo
   const today = localToday();
   const [range] = useState(() => ({ from: addDays(today, -PAST_DAYS), to: addDays(today, NEXT_DAYS) }));
   const { data: allOccurrences } = useRoutineOccurrences(range);
-  // Those not ticked (a ticked one is not changed), late ones only when past.
-  const occurrences = (allOccurrences ?? []).filter((item) => item.routineId === routineId && !item.slots.some((slot) => slot.done));
+  // Those not ticked (a ticked one is not changed) nor cancelled (given back from the exceptions), late ones only when past.
+  const occurrences = (allOccurrences ?? []).filter((item) => item.routineId === routineId && !item.cancelled && !item.slots.some((slot) => slot.done));
   const movable = routine ? movableOccurrence(routine) : null;
   const [chosen, setChosen] = useState<string | null>(null);
   const date = chosen ?? movable;
@@ -181,7 +181,7 @@ export function RoutineMoveForm({ routineId, onDone }: { routineId: string; onDo
               onClick={() =>
                 confirmDestructive({
                   title: 'Annuler cette occurrence ?',
-                  risks: `L’occurrence du ${fmt.dayLong(date)} n’aura pas lieu : c’est une exception, les autres occurrences ne changent pas. Elle se rétablit depuis la liste des exceptions.`,
+                  risks: `L’occurrence du ${fmt.dayLong(date)} n’aura pas lieu : elle reste affichée, barrée, avec ses commentaires ; c’est une exception, les autres occurrences ne changent pas. Elle se rétablit depuis la liste des exceptions ou l’agenda.`,
                   confirmLabel: 'Annuler l’occurrence',
                   confirmIcon: <CalendarXIcon aria-hidden />,
                   run: () => deleteOccurrence.mutateAsync({ id: routine.id, date, scope: 'THIS' }).then(() => onDone()),

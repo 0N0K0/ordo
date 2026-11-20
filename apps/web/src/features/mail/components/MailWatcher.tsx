@@ -90,6 +90,7 @@ export function MailWatcher({ workspace }: MailWatcherProps) {
       // Another tab may have announced them already.
       const fresh = messages.filter((message) => !before.has(message.uid) && claim(`ordo.alarm.mail:${accountId}:${message.uid}`, 24 * 3600_000));
       if (fresh.length === 0) return;
+      // eslint-disable-next-line no-restricted-syntax -- a new mail, not a reminder.
       playChime();
       if (fresh.length > MAX_MAIL_TOASTS) {
         const title = `${fresh.length} nouveaux mails`;

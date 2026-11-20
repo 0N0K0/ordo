@@ -1,10 +1,11 @@
 import { unarchived } from '../../../lib/archive';
 import { plural } from '../../../lib/text';
-import { ArrowCounterClockwiseIcon, ArrowsLeftRightIcon, CheckCircleIcon, CopyIcon, TrashIcon } from '@phosphor-icons/react';
+import { ArrowCounterClockwiseIcon, ArrowsLeftRightIcon, CheckCircleIcon, TrashIcon } from '@phosphor-icons/react';
 import type { SelectionAction } from '../../../components/data-table/selection/SelectionBar';
-import { archiveRowsAction, switchRowsAction } from '../../../components/data-table/selection/selection-actions';
-import { useBulkTaskMutations, useSetTasksClosed, type Task } from '../api';
-import { CloneTasksDialog, DeleteTasksDialog, TransferTasksDialog } from './TaskDialogs';
+import { archiveRowsAction, duplicateRowsAction, outermost, switchRowsAction } from '../../../components/data-table/selection/selection-actions';
+import { useBulkTaskMutations, useDuplicateTask, useSetTasksClosed, type Task } from '../api';
+import { DeleteTasksDialog, TransferTasksDialog } from './TaskDialogs';
+import { useTaskLink } from '../hooks/use-task-link';
 import { openTasksDialog } from '../lib/open-tasks-dialog';
 import type { TaskContext } from '../hooks/use-task-context';
 import { useBulkUndo } from '../lib/bulk-undo';
@@ -13,7 +14,7 @@ import { tasksLabel } from '../lib/bulk-label';
 /** Actions on tasks that their columns cannot do. */
 interface TaskRowsActions {
   close: SelectionAction;
-  clone: SelectionAction;
+  duplicate: SelectionAction;
   transfer: SelectionAction;
   archive: SelectionAction;
   remove: SelectionAction;
@@ -21,7 +22,7 @@ interface TaskRowsActions {
 
 /**
  * Actions on tasks, the same on the tasks checked (bar of the table) and on one task (its menu): close (or reopen),
- * clone, transfer, archive, delete; each one undone from its toast when it can be. Archived tasks are read only: left
+ * duplicate, transfer, archive, delete; each one undone from its toast when it can be. Archived tasks are read only: left
  * out of all but archive/restore and delete.
  * @param {TaskContext | null} context Task context.
  * @returns {(tasks: Task[], onClear?: () => void) => TaskRowsActions} Actions of tasks, given how to clear the selection.
@@ -30,6 +31,8 @@ export function useTaskRowsActions(context: TaskContext | null) {
   const { archive } = useBulkTaskMutations();
   const setClosed = useSetTasksClosed();
   const undo = useBulkUndo();
+  const duplicateTask = useDuplicateTask();
+  const link = useTaskLink();
   return (tasks: Task[], onClear?: () => void): TaskRowsActions => {
     const ids = tasks.map((task) => task.id);
     const label = tasksLabel(ids.length);
@@ -57,7 +60,21 @@ export function useTaskRowsActions(context: TaskContext | null) {
         }),
         disabled: activeIds.length === 0,
       },
-      clone: { label: 'Cloner', icon: <CopyIcon aria-hidden />, disabled: activeIds.length === 0, onClick: () => open(several ? 'Cloner les tâches' : 'Cloner la tâche', CloneTasksDialog) },
+      // Each task at the top of the selection with its sub-tasks (a task under another one checked comes with it), at once (decision D20).
+      duplicate: duplicateRowsAction(
+        outermost(
+          active,
+          (task) => task.id,
+          (id) => context?.taskById.get(id)?.parentId,
+        ),
+        {
+          duplicate: (task) => duplicateTask.mutateAsync({ id: task.id, includeSubtasks: true }),
+          done: several ? `${tasksLabel(active.length)} ${plural(active.length, 'dupliquée')}.` : 'Tâche dupliquée.',
+          open: (copy) => link.open(copy.id),
+          loading: duplicateTask.isPending,
+          disabled: activeIds.length === 0,
+        },
+      ),
       transfer: {
         label: 'Transférer',
         icon: <ArrowsLeftRightIcon aria-hidden />,

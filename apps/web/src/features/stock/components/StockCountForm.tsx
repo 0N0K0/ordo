@@ -2,7 +2,7 @@ import { locationSelectProps } from '../hooks/use-location-select';
 import { formCallbacks } from '../../../lib/form';
 import { isUnderOrSelf } from '@ordo/shared';
 import { categoryPaths } from '../../../components/tree/category-tree';
-import { Select, Stack, Text, Textarea } from '@mantine/core';
+import { Select, Stack, Text } from '@mantine/core';
 import { useState } from 'react';
 import { DataTable } from '../../../components/data-table/table/DataTable';
 import type { DataColumn } from '../../../components/data-table/table/data-table';
@@ -14,6 +14,8 @@ import { countOf } from '../../../lib/text';
 import { FormActions } from '../../../components/dialogs/FormActions';
 import { QuantityInput } from '../../../components/inputs/QuantityInput';
 import { unarchived } from '../../../lib/archive';
+import { MarkdownEditor } from '../../../components/markdown/MarkdownEditor';
+import { NO_SUGGESTIONS } from '../../../components/markdown/remark-references';
 
 /**
  * Inventory: the items of a place (and of its sub-places), or of everything, counted one by one; only those counted
@@ -85,7 +87,7 @@ export function StockCountForm({ onDone }: { onDone: () => void }) {
           ),
         })}
       />
-      <Textarea label="Description" autosize minRows={1} value={note} onChange={(event) => setNote(event.currentTarget.value)} />
+      <MarkdownEditor label="Description" value={note} onChange={setNote} suggestions={NO_SUGGESTIONS} minRows={2} />
       <FormActions
         onCancel={onDone}
         submitLabel="Enregistrer l’inventaire"
@@ -93,7 +95,7 @@ export function StockCountForm({ onDone }: { onDone: () => void }) {
         loading={recordCount.isPending}
         onSubmit={() =>
           recordCount.mutate(
-            { locationId, note: note || null, lines: [...counts].map(([itemId, counted]) => ({ itemId, counted })) },
+            { locationId, note: note.trim() ? note : null, lines: [...counts].map(([itemId, counted]) => ({ itemId, counted })) },
             formCallbacks(null, `Inventaire enregistré (${countOf(counts.size, 'article')}).`, onDone),
           )
         }

@@ -1,7 +1,8 @@
 import { unarchived } from '../../../lib/archive';
 import { byPosition, subtreeOf } from '@ordo/shared';
 import { patchQuery, useInvalidatingMutation } from '../../../lib/mutation';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, type QueryKey } from '@tanstack/react-query';
+import { tasksQueryKey } from '../../tasks/api';
 import { graphql } from '../../../graphql';
 import type { ClientFieldsFragment, LabelFieldsFragment, ProjectFieldsFragment, ProjectStatusFieldsFragment, ProjectTreeQuery } from '../../../graphql/graphql';
 import { execute } from '../../../lib/graphql-client';
@@ -234,17 +235,20 @@ export function useProjectTree() {
  * @param {object} options Mutation options.
  * @param {(variables: TVariables) => Promise<TResult>} options.mutationFn Request.
  * @param {(workspace: ProjectTree, variables: TVariables) => ProjectTree} [options.optimistic] Immediate cache change. Optional.
+ * @param {readonly QueryKey[]} [options.also] Other queries refreshed too. Optional. Default = none.
  * @returns {UseMutationResult<TResult, Error, TVariables>} Mutation state.
  */
 function useProjectTreeMutation<TVariables, TResult>({
   mutationFn,
   optimistic,
+  also = [],
 }: {
   mutationFn: (variables: TVariables) => Promise<TResult>;
   optimistic?: (workspace: ProjectTree, variables: TVariables) => ProjectTree;
+  also?: readonly QueryKey[];
 }) {
   return useInvalidatingMutation(mutationFn, {
-    invalidate: [projectTreeQueryKey],
+    invalidate: [projectTreeQueryKey, ...also],
     optimistic: optimistic && ((queryClient, variables) => patchQuery<ProjectTree>(queryClient, projectTreeQueryKey, (workspace) => optimistic(workspace, variables))),
   });
 }
@@ -344,6 +348,8 @@ export function useSetClientArchived() {
 export function useDeleteClient() {
   return useProjectTreeMutation({
     mutationFn: async (variables: { id: string; deleteProjects: boolean }) => (await execute(DeleteClientDocument, variables)).deleteClient,
+    // Tasks of deleted projects leave them: the tasks are refreshed too.
+    also: [tasksQueryKey],
     optimistic: (workspace, { id, deleteProjects }) => ({
       ...workspace,
       clients: workspace.clients.filter((client) => client.id !== id),
@@ -444,12 +450,14 @@ export function useSetProjectArchived() {
 }
 
 /**
- * Deletes a project with its sub-projects.
+ * Deletes a project with its sub-projects; their tasks leave them.
  * @returns {UseMutationResult} Mutation state.
  */
 export function useDeleteProject() {
   return useProjectTreeMutation({
     mutationFn: async (variables: { id: string }) => (await execute(DeleteProjectDocument, variables)).deleteProject,
+    // Its tasks leave it: the tasks are refreshed too.
+    also: [tasksQueryKey],
     optimistic: (workspace, { id }) => {
       const removed = subtreeOf(workspace.projects, id);
       return { ...workspace, projects: workspace.projects.filter((project) => !removed.has(project.id)) };

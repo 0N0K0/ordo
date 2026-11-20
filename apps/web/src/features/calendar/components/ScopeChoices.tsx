@@ -5,7 +5,11 @@ import type { CalendarEventScope } from '../api';
 import { FormActions } from '../../../components/dialogs/FormActions';
 
 export interface ScopeQuestion {
-  action: 'update' | 'delete' | 'cancel' | 'restore';
+  /**
+   * What the answer does; `cancelOrDelete`: this occurrence is cancelled (it stays, struck through), it and the
+   * following ones are deleted (a routine, decision D23).
+   */
+  action: 'update' | 'delete' | 'cancel' | 'restore' | 'cancelOrDelete';
   /** Whether the occurrence alone can be changed (not when the repetition changed). */
   allowThis?: boolean;
   /** Whether it and the following ones can be changed. Optional. Default = true. */
@@ -14,6 +18,8 @@ export interface ScopeQuestion {
   allowAll?: boolean;
   /** Title instead of the one of a recurring event. Optional. */
   title?: string;
+  /** What else the change takes (times deleted with the occurrences…), after the question. Optional. */
+  note?: string;
 }
 
 /**
@@ -21,10 +27,33 @@ export interface ScopeQuestion {
  * @param {ScopeQuestion & { onAnswer: (scope: CalendarEventScope | null) => void }} props Question and answer handler.
  * @returns {JSX.Element} Choices.
  */
-export function ScopeChoices({ action, allowThis = true, allowFollowing = true, allowAll = true, onAnswer }: ScopeQuestion & { onAnswer: (scope: CalendarEventScope | null) => void }) {
+export function ScopeChoices({ action, allowThis = true, allowFollowing = true, allowAll = true, note, onAnswer }: ScopeQuestion & { onAnswer: (scope: CalendarEventScope | null) => void }) {
+  const mixed = action === 'cancelOrDelete';
   const remove = action === 'delete';
   // Each answer applies the change: filled, red for a deletion (decision CN).
   const icon = remove ? <TrashIcon aria-hidden /> : action === 'cancel' ? <ProhibitIcon aria-hidden /> : action === 'restore' ? <ArrowCounterClockwiseIcon aria-hidden /> : <CheckIcon aria-hidden />;
+  if (mixed) {
+    return (
+      <Stack gap="md">
+        <Text size="sm">
+          Annuler cette occurrence (elle reste dans l’agenda, barrée, et pourra être rétablie), ou supprimer celle-ci et les suivantes (définitif) ?{note && ` ${note}`}
+        </Text>
+        <Stack gap="xs">
+          {allowThis && (
+            <ActionButton icon={<ProhibitIcon aria-hidden />} onClick={() => onAnswer('THIS')}>
+              Annuler cette occurrence
+            </ActionButton>
+          )}
+          {allowFollowing && (
+            <ActionButton danger icon={<TrashIcon aria-hidden />} onClick={() => onAnswer('FOLLOWING')}>
+              Supprimer celle-ci et les suivantes
+            </ActionButton>
+          )}
+        </Stack>
+        <FormActions onCancel={() => onAnswer(null)} submitLabel={null} />
+      </Stack>
+    );
+  }
   return (
     <Stack gap="md">
       <Text size="sm">
@@ -36,6 +65,7 @@ export function ScopeChoices({ action, allowThis = true, allowFollowing = true, 
               ? 'Quelles occurrences rétablir ?'
               : 'À quelles occurrences appliquer la modification ?'}
         {!allowThis && ' La répétition a changé : elle ne peut pas s’appliquer à une seule occurrence.'}
+        {note && ` ${note}`}
       </Text>
       <Stack gap="xs">
         {allowThis && (

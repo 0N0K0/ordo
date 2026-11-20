@@ -27,7 +27,7 @@ function group(combinator: 'and' | 'or', children: TableFilterGroup['children'])
 
 /**
  * "My tasks" of a period, in the words of the task table: open tasks assigned to me or to nobody that are overdue
- * (past their "Date max"), in progress, or ending, starting, running or reaching their "Date max" during the period.
+ * (past their « Échéance »), in progress, or ending, starting, running or reaching their « Échéance » during the period.
  * @param {MyTasksPeriod} period Period.
  * @returns {TableFilterGroup} Filter.
  */

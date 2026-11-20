@@ -4,7 +4,7 @@ import { confirmDestructive } from '../../dialogs/confirm-destructive';
 import classes from './SelectionBar.module.css';
 import { ActionButton } from '../../actions/ActionButton';
 
-/** Action on the rows selected that a column cannot do (close, clone, archive, delete…). */
+/** Action on the rows selected that a column cannot do (close, duplicate, archive, delete…). */
 export interface SelectionAction {
   label: string;
   icon: ReactNode;

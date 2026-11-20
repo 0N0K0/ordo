@@ -9,7 +9,7 @@ import { useRunningTimer } from '../../time/api';
 import { useProjectTree } from '../../projects/api';
 import { useAlarmMutations, useAlarms, type Alarm } from '../api';
 import { unlockAudioOnGesture } from '../lib/alarm-sound';
-import { dueAlarms, ringAlarm, ringReminders, type RingLink } from './ring';
+import { dueAlarms, ringAlarm, ringReminders, ringTaskReminders, type RingLink } from './ring';
 import { ringRoutineReminders } from '../lib/ring-routines';
 import { ON_ERROR } from '../../../lib/notify';
 import { useSlotRules, routineDoable } from '../../calendar/hooks/use-slot-rules';
@@ -89,7 +89,7 @@ export function AlarmCenter() {
     };
 
     /**
-     * Checks every alarm against the current time and the running timer, and the event reminders.
+     * Checks every alarm against the current time and the running timer, and the reminders of events, routines and tasks.
      * @returns {void}
      */
     const tick = () => {
@@ -103,6 +103,11 @@ export function AlarmCenter() {
         (routine, slot) => latest.current.setDone.mutate({ id: routine.id, done: true, slot }, ON_ERROR),
         (routine, at) => latest.current.slotRules.nextAllowedAt(routineDoable(routine), at),
       );
+      const { tasksData: data, workspace: space } = latest.current;
+      ringTaskReminders(data?.tasks ?? [], now, (task) => {
+        const target = alarmTarget({ taskId: task.id, projectId: null }, () => task, (id) => space?.projects.find((item) => item.id === id));
+        return target ? [link(target.label, target.to)] : [];
+      });
       if (!list) return;
       const due = dueAlarms(list, entry, now, trackingSteps.current, (alarm, at) => mark.mutate({ id: alarm.id, at: at.toISOString() }));
       for (const { alarm, key } of due) ringAlarm(alarm, key, alarmLinks(alarm));

@@ -1,12 +1,12 @@
 import { z } from 'zod';
-import { endAfter, requiredText } from '../core/rules';
+import { endAfter, markdownSchema, optionalText, requiredText } from '../core/rules';
 import { daySchema } from '../dates/times';
 import { optionalColorSchema } from '../core/workspace';
 import { itemNoteSchema, quantitySchema as quantity, unitSchema } from './shopping';
 
 /** Place things are kept (Frigo, Congélateur…), in a tree. */
 export const stockLocationSchema = z.object({
-  label: requiredText(80),
+  label: requiredText(),
   color: optionalColorSchema,
   parentId: z.string().nullable(),
 });
@@ -15,7 +15,7 @@ export type StockLocationInput = z.infer<typeof stockLocationSchema>;
 /** Item of the stock: a reference followed in stock, or an item of its own. */
 export const stockItemSchema = z.object({
   productId: z.string().nullable(),
-  label: requiredText(200),
+  label: requiredText(),
   categoryId: z.string().nullable(),
   unit: unitSchema,
   locationId: z.string().nullable(),
@@ -60,7 +60,8 @@ export const stockMoveSchema = z
     lotId: z.string().nullable(),
     /** Date of a new lot. */
     expiresAt: daySchema().nullable(),
-    note: z.string().max(2000).nullable(),
+    /** Markdown. */
+    note: markdownSchema,
   })
   .refine((move) => move.kind === 'CORRECTION' || move.quantity > 0, { path: ['quantity'], message: 'Quantité positive attendue.' });
 export type StockMoveInput = z.infer<typeof stockMoveSchema>;
@@ -68,7 +69,8 @@ export type StockMoveInput = z.infer<typeof stockMoveSchema>;
 /** Inventory: the quantities counted (of a place, or of everything). */
 export const stockCountSchema = z.object({
   locationId: z.string().nullable(),
-  note: z.string().max(2000).nullable(),
+  /** Markdown. */
+  note: markdownSchema,
   lines: z
     .array(z.object({ itemId: z.string().min(1), counted: quantity }))
     .min(1, 'Comptez au moins un article.')
@@ -99,7 +101,7 @@ const url = z.union([z.literal(''), z.url({ protocol: /^https?$/, error: 'Lien i
 /** Remote order of a shopping list: where it is delivered. */
 export const shoppingOrderSchema = z.object({
   remote: z.boolean(),
-  deliveryAddress: z.string().trim().max(500).nullable(),
+  deliveryAddress: optionalText(),
   deliveryLat: z.number().nullable(),
   deliveryLon: z.number().nullable(),
 });
@@ -108,14 +110,14 @@ export type ShoppingOrderInput = z.infer<typeof shoppingOrderSchema>;
 /** Delivery of a remote order. */
 export const shoppingDeliverySchema = z
   .object({
-    label: z.string().trim().max(120, '120 caractères maximum.').nullable(),
+    label: optionalText(),
     trackingUrl: url,
     /** To pick up rather than delivered. */
     pickup: z.boolean(),
     windowFrom: daySchema().nullable(),
     windowTo: daySchema().nullable(),
     /** Where, when other than the delivery place of the order. */
-    address: z.string().trim().max(500).nullable(),
+    address: optionalText(),
     lat: z.number().nullable(),
     lon: z.number().nullable(),
     /** Items of the list it brings. */

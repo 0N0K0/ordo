@@ -4,37 +4,53 @@ import { openFormPanel } from '../../../components/panels/panels';
 import { entrySeconds, formatDuration } from '@ordo/shared';
 
 import type { TaskContext } from '../../tasks/hooks/use-task-context';
-import { useTimeMutations, type TimeEntry } from '../api';
+import { useQueryClient } from '@tanstack/react-query';
+import type { DuplicateOptions } from '../../../components/data-table/selection/selection-actions';
+import { cachedItem } from '../../../lib/mutation';
+import { timeQueryKey, useTimeMutations, type TimeEntry } from '../api';
 import { TimeEntryForm } from '../components/TimeEntryForm';
+import { parseEventKeys, entryEventKeys } from '../lib/time-events';
 
 /**
  * Dialogs of the tracked times: the form adding or editing one, and the confirmation of a deletion.
  * @param {TaskContext | null} context Task context.
  * @param {string} [defaultProjectId] Project of a new time. Optional.
- * @returns {{ openForm: (entry?: TimeEntry, options?: { copy?: boolean }) => void, duplicate: (entry: TimeEntry) => void, confirmDelete: (entry: TimeEntry) => void }} Openers.
+ * @returns {{ openForm: (entry?: TimeEntry) => void, duplicate: DuplicateOptions<TimeEntry, string>, confirmDelete: (entry: TimeEntry) => void }} Openers, and « Dupliquer ».
  */
 export function useTimeEntryDialogs(context: TaskContext | null, defaultProjectId?: string) {
-  const { remove } = useTimeMutations();
+  const { create, remove } = useTimeMutations();
+  const queryClient = useQueryClient();
 
   /**
    * Opens the time form.
-   * @param {TimeEntry} [entry] Entry to edit (or to copy). Optional.
-   * @param {{ copy?: boolean }} [options] The entry is copied into a new one. Optional.
+   * @param {TimeEntry} [entry] Entry to edit. Optional.
    * @returns {void}
    */
-  const openForm = (entry?: TimeEntry, { copy = false }: { copy?: boolean } = {}) => {
+  const openForm = (entry?: TimeEntry) => {
     if (!context) return;
-    openFormPanel(copy ? 'Dupliquer le temps' : entry ? 'Modifier le temps' : 'Ajouter un temps', (close) => (
-      <TimeEntryForm context={context} entry={entry} copy={copy} defaultProjectId={defaultProjectId} onDone={close} />
-    ));
+    openFormPanel(entry ? 'Temps' : 'Ajouter un temps', (close) => <TimeEntryForm context={context} entry={entry} defaultProjectId={defaultProjectId} onDone={close} />);
   };
 
-  /**
-   * Opens the time form on a copy of a time.
-   * @param {TimeEntry} entry Entry copied.
-   * @returns {void}
-   */
-  const duplicate = (entry: TimeEntry) => openForm(entry, { copy: true });
+  /** « Dupliquer » a time (decision D20): saved at once (not billed), then its form opens. */
+  const duplicate: DuplicateOptions<TimeEntry, string> = {
+    duplicate: async (entry) =>
+      (
+        await create.mutateAsync({
+          projectId: entry.projectId ?? null,
+          routineIds: entry.routines.map((routine) => routine.id),
+          taskIds: entry.taskIds,
+          description: entry.description ?? '',
+          startedAt: entry.startedAt,
+          duration: entrySeconds(entry),
+          events: parseEventKeys(entryEventKeys(entry)),
+        })
+      ).id,
+    done: 'Temps dupliqué.',
+    open: (id) => {
+      const copy = cachedItem(queryClient, timeQueryKey, id, (entries: TimeEntry[] | TimeEntry | null) => (Array.isArray(entries) ? entries : []));
+      if (copy) openForm(copy);
+    },
+  };
 
   /**
    * Asks for confirmation before deleting a time.

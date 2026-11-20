@@ -246,7 +246,7 @@ async function takeOut(tx: Tx, itemId: string, quantity: number, lotId: string |
 export async function moveStock(input: StockMoveInput): Promise<number> {
   const data = parseInput(stockMoveSchema, input);
   const item = await findOpenItem(data.itemId);
-  const source: MoveSource = { kind: data.kind, note: data.note?.trim() || null };
+  const source: MoveSource = { kind: data.kind, note: data.note };
   return prisma.$transaction(async (tx) => {
     if (data.quantity > 0 && (data.kind === 'PURCHASE' || data.kind === 'CORRECTION')) {
       await addIn(tx, item, data.quantity, data.expiresAt, data.lotId, source);
@@ -287,7 +287,7 @@ export async function recordCount(input: StockCountInput): Promise<StockCount> {
   );
   const byId = mapById(items);
   return prisma.$transaction(async (tx) => {
-    const count = await tx.stockCount.create({ data: { locationId: data.locationId, note: data.note?.trim() || null } });
+    const count = await tx.stockCount.create({ data: { locationId: data.locationId, note: data.note } });
     for (const line of data.lines) {
       const item = byId.get(line.itemId)!;
       const current = lotsQuantity(item.lots);

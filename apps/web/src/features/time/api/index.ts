@@ -7,8 +7,9 @@ import type { QueryClient } from '@tanstack/react-query';
 import type { RoutinesDataQuery, TasksDataQuery } from '../../../graphql/graphql';
 import { notifyWarning } from '../../../lib/notify';
 import { routinesKey } from '../../routines/api';
-import { useSlotRules, type SlotRules } from '../../calendar/hooks/use-slot-rules';
+import { routineDoable, useSlotRules, type SlotRules } from '../../calendar/hooks/use-slot-rules';
 import { tasksQueryKey } from '../../tasks/api';
+import type { CalendarEventScope } from '../../calendar/api';
 
 export type TimeEntry = TimeEntryFieldsFragment;
 
@@ -16,8 +17,10 @@ graphql(`
   fragment TimeEntryFields on TimeEntry {
     id
     projectId
-    routineId
-    routineLabel
+    routines {
+      id
+      label
+    }
     description
     startedAt
     endedAt
@@ -27,9 +30,11 @@ graphql(`
     taskIds
     documentId
     documentNumber
-    calendarEventId
-    calendarOccurrenceDate
-    calendarEventLabel
+    events {
+      eventId
+      occurrenceDate
+      label
+    }
   }
 `);
 
@@ -85,6 +90,33 @@ const UpdateTimeEntryDocument = graphql(`
   mutation UpdateTimeEntry($id: ID!, $input: TimeEntryUpdateInput!) {
     updateTimeEntry(id: $id, input: $input) {
       id
+    }
+  }
+`);
+
+const LostOnDeleteDocument = graphql(`
+  query LostOnDelete(
+    $taskIds: [ID!]
+    $routineIds: [ID!]
+    $withSubtree: Boolean
+    $eventId: ID
+    $scope: CalendarEventScope
+    $occurrenceDate: Date
+    $calendarId: ID
+    $routineOccurrence: RoutineOccurrenceGoneInput
+  ) {
+    lostOnDelete(
+      taskIds: $taskIds
+      routineIds: $routineIds
+      withSubtree: $withSubtree
+      eventId: $eventId
+      scope: $scope
+      occurrenceDate: $occurrenceDate
+      calendarId: $calendarId
+      routineOccurrence: $routineOccurrence
+    ) {
+      times
+      comments
     }
   }
 `);
@@ -145,58 +177,107 @@ function useTimeMutation<TVariables, TResult>(mutationFn: (variables: TVariables
   return useInvalidatingMutation(mutationFn, { invalidate: [timeQueryKey, tasksQueryKey] });
 }
 
+/** Calendar event (its occurrence for a recurring one) a time is spent on, as the API takes it. */
+export interface TimeEventLink {
+  eventId: string;
+  occurrenceDate: string | null;
+}
+
 export interface TimeEntryValues {
-  /** Project (null: none, for the time of a routine). */
+  /** Project (null: none, for a time with a task, a routine or an event). */
   projectId: string | null;
-  /** Routine the time is spent on. */
-  routineId?: string | null;
+  /** Routines the time is spent on (several, decision D18). */
+  routineIds?: string[];
   taskIds: string[];
   description: string | null;
   startedAt: string;
   /** Seconds. */
   duration: number;
-  /** Calendar event the time was spent on (null: none). */
-  event?: { eventId: string; occurrenceDate: string | null } | null;
+  /** Calendar events (occurrences) the time was spent on (several, decision D18). */
+  events?: TimeEventLink[];
 }
 
-/** Timer started: on a project (and some of its tasks), a routine, or an event occurrence. */
+/** Timer started: on a project, tasks, routines or event occurrences (at least one of them). */
 export interface TimerStartValues {
   projectId?: string | null;
-  routineId?: string | null;
+  routineIds?: string[];
   taskIds: string[];
   description?: string | null;
-  event?: { eventId: string; occurrenceDate: string | null } | null;
+  events?: TimeEventLink[];
+}
+
+/** Items about to be deleted (as their deletion takes them), whose times and comments may be deleted with them. */
+export interface LostOnDeleteQuery {
+  taskIds?: string[];
+  routineIds?: string[];
+  /** Their sub-tasks or sub-routines are deleted too. */
+  withSubtree?: boolean;
+  eventId?: string;
+  scope?: CalendarEventScope;
+  occurrenceDate?: string | null;
+  /** A calendar deleted with all its events. */
+  calendarId?: string;
+  /** An occurrence of a routine deleted (THIS), or it and the following ones (FOLLOWING). */
+  routineOccurrence?: { id: string; date: string; scope: CalendarEventScope };
+}
+
+/** What a deletion takes with it: times without project left with nothing attached, comments of what is deleted. */
+export interface LostOnDelete {
+  times: number;
+  comments: number;
 }
 
 /**
- * Warns when a timer starts on a routine or tasks out of their slots (their slot rule, else the default of the
- * workspace), or while an event keeps their assignees busy (but the event the timer is on): the timer runs all the
+ * What a deletion of tasks, routines, occurrences of a routine, an event (occurrences) or a calendar takes with it: the
+ * times without project, not billed, left with nothing attached (extra A of decision D17), and the comments of what is
+ * deleted (decision D19).
+ * @param {LostOnDeleteQuery} query Items about to be deleted.
+ * @returns {Promise<LostOnDelete>} Numbers.
+ */
+export async function fetchLostOnDelete(query: LostOnDeleteQuery): Promise<LostOnDelete> {
+  return (await execute(LostOnDeleteDocument, query)).lostOnDelete;
+}
+
+/**
+ * What a deletion takes with it (`fetchLostOnDelete`), for its confirmation.
+ * @param {LostOnDeleteQuery} query Items about to be deleted.
+ * @returns {UseQueryResult<LostOnDelete>} Query state.
+ */
+export function useLostOnDelete(query: LostOnDeleteQuery) {
+  return useQuery({ queryKey: [...timeQueryKey, 'lost', query], queryFn: () => fetchLostOnDelete(query) });
+}
+
+/**
+ * Warns when a timer starts on tasks out of the hours their slot condition allows (a routine: its moments are kept
+ * to them already), or while an event keeps their assignees busy (but the events the timer is on): the timer runs all the
  * same.
  * @param {QueryClient} queryClient Query cache (routines and tasks loaded).
  * @param {SlotRules} slotRules Slot rules of the workspace.
- * @param {{ routineId?: string | null, taskIds: string[], event?: { eventId: string } | null }} input Timer started.
+ * @param {TimerStartValues} input Timer started.
  * @returns {void}
  */
-function warnOutOfSlots(queryClient: QueryClient, slotRules: SlotRules, input: { routineId?: string | null; taskIds: string[]; event?: { eventId: string } | null }): void {
-  const routine = input.routineId ? queryClient.getQueryData<RoutinesDataQuery>(routinesKey)?.routines.find((item) => item.id === input.routineId) : undefined;
+function warnOutOfSlots(queryClient: QueryClient, slotRules: SlotRules, input: TimerStartValues): void {
+  const routineIds = input.routineIds ?? [];
+  const routines = queryClient.getQueryData<RoutinesDataQuery>(routinesKey)?.routines.filter((item) => routineIds.includes(item.id)) ?? [];
   const tasks = queryClient.getQueryData<TasksDataQuery>(tasksQueryKey)?.tasks.filter((task) => input.taskIds.includes(task.id)) ?? [];
+  const eventIds = new Set((input.events ?? []).map((event) => event.eventId));
   const items = [
-    ...(routine ? [{ label: routine.label, slotRule: null, assigneeIds: routine.assigneeIds, routineId: routine.id }] : []),
-    ...tasks.map((task) => ({ label: task.label, slotRule: task.slotRule, assigneeIds: task.assigneeIds, taskId: task.id })),
+    ...routines.map((routine) => ({ label: routine.label, ...routineDoable(routine) })),
+    ...tasks.map((task) => ({ label: task.label, slotCondition: task.slotCondition, assigneeIds: task.assigneeIds, taskId: task.id })),
   ];
   const lines = items.flatMap((item) => {
     const busy = slotRules.blocking(item);
-    // The event the timer is on keeps nobody from it.
-    const event = busy && (busy as { eventId?: string }).eventId !== input.event?.eventId ? busy : undefined;
+    // The events the timer is on keep nobody from it.
+    const event = busy && !eventIds.has((busy as { eventId?: string }).eventId ?? '') ? busy : undefined;
     if (event) return [`${item.label} : pendant « ${event.label} »`];
-    return slotRules.inSlots(item.slotRule) ? [] : [`${item.label} : ${(slotRules.describe(slotRules.ruleOf(item.slotRule)) ?? '').toLowerCase()}`];
+    return slotRules.inSlots(item.slotCondition) ? [] : [`${item.label} : ${(slotRules.describe(item.slotCondition) ?? '').toLowerCase()}`];
   });
   if (!lines.length) return;
   notifyWarning('Hors des moments prévus', `Le chrono tourne quand même. ${lines.join(' · ')}.`);
 }
 
 /**
- * Timer controls and time entry edits. Starting a timer out of the slots of its routine or tasks warns.
+ * Timer controls and time entry edits. Starting a timer out of the slots of its routines or tasks warns.
  * @returns {object} Mutations.
  */
 export function useTimeMutations() {

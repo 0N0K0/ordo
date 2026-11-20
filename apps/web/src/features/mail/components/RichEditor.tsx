@@ -1,5 +1,6 @@
 import { LabeledField } from '../../../components/inputs/LabeledField';
 
+import { Input } from '@mantine/core';
 import { getUploadImageExtension, Link, RichTextEditor } from '@mantine/tiptap';
 import Image from '@tiptap/extension-image';
 import TextAlign from '@tiptap/extension-text-align';
@@ -19,6 +20,10 @@ interface RichEditorProps {
   /** Shows the "HTML code" control (signatures). */
   sourceCode?: boolean;
   autoFocus?: boolean;
+  /** Error under the editor. Optional. */
+  error?: string;
+  /** The editor (its text, its HTML code, its toolbar) loses the focus (a value saved then). Optional. */
+  onBlur?: () => void;
 }
 
 /**
@@ -46,7 +51,7 @@ const UploadImage = getUploadImageExtension(Image, { onImageUpload: uploadImage,
  * @param {RichEditorProps} props Component props.
  * @returns {JSX.Element} Editor.
  */
-export function RichEditor({ value, onChange, label, minHeight = 200, sourceCode, autoFocus }: RichEditorProps) {
+export function RichEditor({ value, onChange, label, minHeight = 200, sourceCode, autoFocus, error, onBlur }: RichEditorProps) {
   const editor = useEditor({
     extensions: [
       StarterKit.configure({ link: false }),
@@ -69,7 +74,13 @@ export function RichEditor({ value, onChange, label, minHeight = 200, sourceCode
   }, [editor, value]);
 
   const field = (
-    <RichTextEditor editor={editor} onImageUpload={uploadImage} onImageUploadError={imageUploadError}>
+    <RichTextEditor
+      editor={editor}
+      onImageUpload={uploadImage}
+      onImageUploadError={imageUploadError}
+      // Left once the focus goes out of the whole editor, not from its text to its toolbar.
+      onBlur={(event) => onBlur && !event.currentTarget.contains(event.relatedTarget) && onBlur()}
+    >
       <RichTextEditor.Toolbar sticky stickyOffset={0}>
         <RichTextEditor.ControlsGroup>
           <RichTextEditor.Bold />
@@ -104,5 +115,16 @@ export function RichEditor({ value, onChange, label, minHeight = 200, sourceCode
       <RichTextEditor.Content style={{ minHeight }} />
     </RichTextEditor>
   );
-  return label ? <LabeledField label={label}>{field}</LabeledField> : field;
+  if (label)
+    return (
+      <LabeledField label={label} error={error}>
+        {field}
+      </LabeledField>
+    );
+  return (
+    <>
+      {field}
+      {error && <Input.Error>{error}</Input.Error>}
+    </>
+  );
 }

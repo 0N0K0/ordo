@@ -16,6 +16,8 @@ import { describeRecurrence } from '../../../components/recurrence/describe-recu
 
 import { treeOptions, type TreeOption } from '../../../components/tree/tree-select';
 import type { Routine } from '../api';
+import type { TaskContext } from '../../tasks/hooks/use-task-context';
+import { inProjectTree } from '../../tasks/lib/task-links';
 import * as fmt from '../../../lib/format';
 
 /** Rule of a new routine: every day. */
@@ -67,6 +69,20 @@ export function routineTreeOptions(routines: readonly Routine[], offered: (routi
       return routine !== undefined && offered(routine);
     },
   );
+}
+
+/**
+ * Routines a routine can be linked to (« Dépend de », « Bloque », « Relative à »), as the tasks: not itself, not
+ * archived, in its project tree (those without project with those without project); those already linked stay offered.
+ * @param {Pick<TaskContext, 'rootOf'>} context Task context (its project trees).
+ * @param {string | null} projectId Project of the routine.
+ * @param {string | null} selfId The routine (none: a new one).
+ * @param {readonly string[]} [linked] Routines linked already. Optional. Default = none.
+ * @returns {(other: Routine) => boolean} Whether a routine is offered.
+ */
+export function linkableRoutine(context: Pick<TaskContext, 'rootOf'>, projectId: string | null, selfId: string | null, linked: readonly string[] = []): (other: Routine) => boolean {
+  const inTree = inProjectTree(context, projectId);
+  return (other) => linked.includes(other.id) || (other.id !== selfId && !other.archived && inTree(other.projectId ?? null));
 }
 
 /**
@@ -138,6 +154,15 @@ export function describeRoutineCase(item: RoutineCase, start: string): string {
  * @returns {RoutineMove[]} Moves, by day of the rule.
  */
 export const movesOf = (routine: Routine): RoutineMove[] => (routine.moves as RoutineMove[] | null) ?? [];
+
+/**
+ * Occurrence of a routine open in its panel when none is chosen (decision D19: its comments are those of it): the
+ * current one, else the next one, else the first one (a routine whose repetition has ended).
+ * @param {Pick<Routine, 'currentDate' | 'nextDate' | 'firstDate'>} routine Routine.
+ * @returns {string | null} Day of the occurrence, null without any.
+ */
+export const panelOccurrence = (routine: Pick<Routine, 'currentDate' | 'nextDate' | 'firstDate'>): string | null =>
+  routine.currentDate || routine.nextDate || routine.firstDate || null;
 
 /**
  * Occurrence a move applies to: the current one while nothing of it is ticked, else the next one.

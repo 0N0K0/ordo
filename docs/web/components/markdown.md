@@ -14,6 +14,7 @@ Champ markdown à la GitHub (~17 fichiers : tâches, trésorerie, temps, factura
 
 Fonctionnement :
 
+- saisie limitée à `MARKDOWN_MAX` (65 536 caractères, `maxLength`, décision DO) ;
 - onglets « Écrire » / « Aperçu » (l'aperçu est un `MarkdownView` dont les cases restent cochables ; vide : « Rien à prévisualiser. ») ;
 - barre d'outils « Mise en forme » (onglet Écrire), table `COMMANDS` : « Titre » (`### `), « Gras » (Ctrl+B), « Italique » (Ctrl+I), « Citation », « Code » (Ctrl+E : en ligne, ou bloc si plusieurs lignes, fonction interne `codeCommand`), « Lien » (Ctrl+K), « Liste à puces », « Liste numérotée », « Liste de tâches », « Mentionner un contributeur » (insère « @ »), « Référencer une tâche » (insère « # ») ; les commandes s'annulent si la sélection est déjà mise en forme ;
 - « Joindre des fichiers » : fichiers choisis, glissés ou collés, envoyés (`uploadAttachment`) et insérés un par ligne (image affichée, autre fichier en lien) ; taille maximale `MAX_ATTACHMENT_BYTES` (message `fileTooLarge`), échecs en toast ; pied « Envoi de N fichiers… » pendant l'envoi ;

@@ -1,18 +1,18 @@
 import { sumOf } from '@ordo/shared';
-import { PDF_TABLE, PDF_TEXT, type PdfDoc, REPORT_MARGIN, reportHeadingSchema, type ReportFile, startReport, writeHeading } from './pdf-report';
+import { PDF_TABLE, PDF_TEXT, type PdfDoc, PRINTED_CELL_MAX, PRINTED_LABEL_MAX, REPORT_MARGIN, reportHeadingSchema, type ReportFile, startReport, writeHeading } from './pdf-report';
 import { z } from 'zod';
 import { parseInput } from '../../graphql/errors';
 
 /** Table printed as a PDF: the rows and columns the user sees, already formatted. */
 const tablePdfSchema = reportHeadingSchema.extend({
-  columns: z.array(z.string().max(80)).min(1).max(30),
+  columns: z.array(z.string().max(PRINTED_LABEL_MAX)).min(1).max(30),
   rows: z
     .array(
       z.object({
         /** Group heading, task (square marker), event (dot), or plain row of data. */
         kind: z.enum(['group', 'task', 'event', 'row']),
         depth: z.number().int().min(0).max(20).default(0),
-        cells: z.array(z.string().max(5000)).max(30),
+        cells: z.array(z.string().max(PRINTED_CELL_MAX)).max(30),
       }),
     )
     .max(10_000),

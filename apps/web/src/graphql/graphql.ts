@@ -175,7 +175,7 @@ export type CalendarCategoryInput = {
   parentId?: string | number | null | undefined;
 };
 
-/** Times are local to timeZone; all-day events have none. */
+/** Times are Paris times; all-day events have none. */
 export type CalendarEventInput = {
   allDay: boolean;
   /** Contributors the event is for; none: none. */
@@ -190,7 +190,7 @@ export type CalendarEventInput = {
   endDate: string;
   endTime?: string | null | undefined;
   label: string;
-  links: Array<CalendarLinkInput>;
+  links: Array<ItemLinkInput>;
   location?: string | null | undefined;
   /** Point of the location; none: unknown. */
   locationLat?: number | null | undefined;
@@ -199,15 +199,14 @@ export type CalendarEventInput = {
   recurrence?: unknown;
   /** Relations without contributor taking part; none: none. */
   relationIds?: Array<string | number> | null | undefined;
-  /** Minutes before the start. */
-  reminders: Array<number>;
+  /** Minutes before the start (24 hours at most) or a time of its first day, 10 at most. */
+  reminders: Array<ReminderInput>;
   /** Routines of a day of the occurrence it is about (its other days kept); none when omitted. */
   routineLinks?: Array<EventRoutineLinkInput> | null | undefined;
   startDate: string;
   startTime?: string | null | undefined;
   /** Tasks the event is about (none when omitted). */
   taskIds?: Array<string | number> | null | undefined;
-  timeZone: string;
   /** Travel time back, in minutes; none: 0. */
   travelAfter?: number | null | undefined;
   /** Travel time there, in minutes; none: 0. */
@@ -219,11 +218,6 @@ export type CalendarEventScope =
   | 'ALL'
   | 'FOLLOWING'
   | 'THIS';
-
-export type CalendarLinkInput = {
-  label: string;
-  url: string;
-};
 
 export type CatalogItemInput = {
   description?: string | null | undefined;
@@ -282,6 +276,12 @@ export type ClientUpdateInput = {
   icon?: File | null | undefined;
   name?: string | null | undefined;
   removeIcon?: boolean | null | undefined;
+};
+
+export type CommentSnapshotInput = {
+  body: string;
+  createdAt: string;
+  updatedAt: string;
 };
 
 /** Kind of item a comment goes on (tasks have their own comments). */
@@ -444,6 +444,11 @@ export type ImportedDocumentInput = {
   type: AccountingDocumentType;
 };
 
+export type ItemLinkInput = {
+  label: string;
+  url: string;
+};
+
 /** Label and color of an item of a simple list. */
 export type LabelColorInput = {
   color: string;
@@ -526,8 +531,6 @@ export type MilestoneUpdateInput = {
 
 /** Kind of notification a workspace can give while another one is open. */
 export type NotificationSource =
-  | 'ALARMS'
-  | 'CALENDAR'
   | 'MAILS';
 
 export type PlaceInput = {
@@ -591,10 +594,19 @@ export type RecurringInvoiceInput = {
   startDate: string;
 };
 
+export type ReminderInput = {
+  /** HH:MM. */
+  at?: string | null | undefined;
+  /** Minutes before, 0 to 1 440. */
+  before?: number | null | undefined;
+};
+
 /** Same changes for several routines (omitted fields unchanged; null clears estimate and projectId). */
 export type RoutineBulkChanges = {
   addAssigneeIds?: Array<string | number> | null | undefined;
   addCategoryIds?: Array<string | number> | null | undefined;
+  /** « Relative à » added (never to itself). */
+  addRelatedIds?: Array<string | number> | null | undefined;
   addRequiredIds?: Array<string | number> | null | undefined;
   /** Cases (with recurrence: its whole repetition); empty: its rule. */
   cases?: unknown;
@@ -606,12 +618,13 @@ export type RoutineBulkChanges = {
   fromTime?: string | null | undefined;
   /** Times of the day following its rule. */
   moments?: unknown;
-  /** « À partir du » of its rule; null: none. */
+  /** « Ouverture » of its rule; null: none. */
   opensOn?: unknown;
   projectId?: string | number | null | undefined;
   recurrence?: unknown;
   removeAssigneeIds?: Array<string | number> | null | undefined;
   removeCategoryIds?: Array<string | number> | null | undefined;
+  removeRelatedIds?: Array<string | number> | null | undefined;
   removeRequiredIds?: Array<string | number> | null | undefined;
   /** On or out of calendar schedules, following its rule; null: any time. */
   slotCondition?: unknown;
@@ -641,18 +654,22 @@ export type RoutineInput = {
   /** HH:MM. */
   fromTime?: string | null | undefined;
   label: string;
+  /** 20 at most, http or https; required, as relatedIds: an omitted field never wipes them. */
+  links: Array<ItemLinkInput>;
   location?: string | null | undefined;
   /** Point of the location; none: unknown. */
   locationLat?: number | null | undefined;
   locationLon?: number | null | undefined;
   /** Times of the day, [{ fromTime, dueTime, optional }]. */
   moments?: unknown;
-  /** « À partir du » of the occurrences of its rule: { mode: DAY | WEEKDAY | WEEK | BEFORE, … }; null: none. */
+  /** « Ouverture » of the occurrences of its rule: { mode: DAY | WEEKDAY | WEEK | BEFORE, … }; null: none. */
   opensOn?: unknown;
   parentId?: string | number | null | undefined;
   projectId?: string | number | null | undefined;
   recurrence: unknown;
-  reminders?: Array<number> | null | undefined;
+  /** « Relative à »: routines related to it (same project tree). */
+  relatedIds: Array<string | number>;
+  reminders?: Array<ReminderInput> | null | undefined;
   requiredIds: Array<string | number>;
   /** Following its rule: on or out of calendar schedules, in groups (and / or); null: any time. */
   slotCondition?: unknown;
@@ -661,6 +678,14 @@ export type RoutineInput = {
   travelAfter?: number | null | undefined;
   /** Travel time there, in minutes; none: 0. */
   travelBefore?: number | null | undefined;
+};
+
+export type RoutineOccurrenceGoneInput = {
+  /** Occurrence (its day now). */
+  date: string;
+  id: string | number;
+  /** THIS or FOLLOWING. */
+  scope: CalendarEventScope;
 };
 
 /** Changes of a routine (omitted fields unchanged). */
@@ -684,15 +709,16 @@ export type RoutinePatch = {
   locationLon?: number | null | undefined;
   /** Times of the day following its rule. */
   moments?: unknown;
-  /** « À partir du »: { mode: DAY | WEEKDAY | WEEK | BEFORE, … }; null: none. */
+  /** « Ouverture »: { mode: DAY | WEEKDAY | WEEK | BEFORE, … }; null: none. */
   opensOn?: unknown;
   /** Null: top level. */
   parentId?: string | number | null | undefined;
   /** Null: none. */
   projectId?: string | number | null | undefined;
   recurrence?: unknown;
-  /** Minutes before its moment. */
-  reminders?: Array<number> | null | undefined;
+  relatedIds?: Array<string | number> | null | undefined;
+  /** Minutes (24 hours at most) before the lowest date and time of an occurrence, or a time of its first day. */
+  reminders?: Array<ReminderInput> | null | undefined;
   requiredIds?: Array<string | number> | null | undefined;
   /** On or out of calendar schedules, following its rule; null: any time. */
   slotCondition?: unknown;
@@ -702,12 +728,6 @@ export type RoutinePatch = {
   /** Travel time there, in minutes; omitted: unchanged. */
   travelBefore?: number | null | undefined;
 };
-
-/** Where a routine is dropped, relative to another one. */
-export type RoutinePlace =
-  | 'AFTER'
-  | 'BEFORE'
-  | 'INSIDE';
 
 export type SaveMailDraftInput = {
   accountId: string | number;
@@ -960,14 +980,23 @@ export type TaskInput = {
   effort?: number | null | undefined;
   endDate?: string | null | undefined;
   label: string;
+  /** 20 at most, http or https; null: none. */
+  links?: Array<ItemLinkInput> | null | undefined;
+  /** Null: none (its point too). */
+  location?: string | null | undefined;
+  /** Point of the location; none: unknown. */
+  locationLat?: number | null | undefined;
+  locationLon?: number | null | undefined;
   milestoneId?: string | number | null | undefined;
   minDate?: string | null | undefined;
   parentId?: string | number | null | undefined;
   priorityId?: string | number | null | undefined;
   /** None: a task of no project (no number, sprint, milestone nor GitHub item). */
   projectId?: string | number | null | undefined;
-  /** Slots the task is done on or out of ({ mode, kinds }); null: the default of the workspace. */
-  slotRule?: unknown;
+  /** Reminders « À HH:MM » only, 10 at most; null: none. */
+  reminders?: Array<ReminderInput> | null | undefined;
+  /** On or out of calendar schedules, or on the free time, in groups (and / or); null: any time. */
+  slotCondition?: unknown;
   sprintIds?: Array<string | number> | null | undefined;
   startDate?: string | null | undefined;
   statusId?: string | number | null | undefined;
@@ -1006,12 +1035,21 @@ export type TaskUpdateInput = {
   effort?: number | null | undefined;
   endDate?: string | null | undefined;
   label?: string | null | undefined;
+  /** 20 at most, http or https; null: none. */
+  links?: Array<ItemLinkInput> | null | undefined;
+  /** Null: none (its point too). */
+  location?: string | null | undefined;
+  /** Point of the location; none: unknown. */
+  locationLat?: number | null | undefined;
+  locationLon?: number | null | undefined;
   milestoneId?: string | number | null | undefined;
   minDate?: string | null | undefined;
   parentId?: string | number | null | undefined;
   priorityId?: string | number | null | undefined;
-  /** Slots the task is done on or out of ({ mode, kinds }); null: the default of the workspace. */
-  slotRule?: unknown;
+  /** Reminders « À HH:MM » only, 10 at most; null: none. */
+  reminders?: Array<ReminderInput> | null | undefined;
+  /** On or out of calendar schedules, or on the free time, in groups (and / or); null: any time. */
+  slotCondition?: unknown;
   sprintIds?: Array<string | number> | null | undefined;
   startDate?: string | null | undefined;
   statusId?: string | number | null | undefined;
@@ -1035,14 +1073,14 @@ export type TaskViewUpdateInput = {
   label?: string | null | undefined;
 };
 
-/** A project, a routine (its project by default) or both. */
+/** At least a project, a task, a routine (the project of the first one by default) or an event. */
 export type TimeEntryInput = {
   description?: string | null | undefined;
   /** Seconds. */
   duration: number;
-  event?: TimeEventInput | null | undefined;
+  events?: Array<TimeEventInput> | null | undefined;
   projectId?: string | number | null | undefined;
-  routineId?: string | number | null | undefined;
+  routineIds?: Array<string | number> | null | undefined;
   startedAt: string;
   taskIds: Array<string | number>;
 };
@@ -1052,12 +1090,13 @@ export type TimeEntryUpdateInput = {
   description?: string | null | undefined;
   /** Seconds. */
   duration?: number | null | undefined;
-  /** Null: no event; omitted: unchanged. */
-  event?: TimeEventInput | null | undefined;
+  /** Omitted: unchanged. */
+  events?: Array<TimeEventInput> | null | undefined;
   projectId?: string | number | null | undefined;
-  /** Null: no routine; omitted: unchanged. */
-  routineId?: string | number | null | undefined;
+  /** Omitted: unchanged. */
+  routineIds?: Array<string | number> | null | undefined;
   startedAt?: string | null | undefined;
+  /** Omitted: unchanged. */
   taskIds?: Array<string | number> | null | undefined;
 };
 
@@ -1067,12 +1106,12 @@ export type TimeEventInput = {
   occurrenceDate?: string | null | undefined;
 };
 
-/** A project, a routine (its project by default) or both. */
+/** At least a project, a task, a routine (the project of the first one by default) or an event. */
 export type TimerInput = {
   description?: string | null | undefined;
-  event?: TimeEventInput | null | undefined;
+  events?: Array<TimeEventInput> | null | undefined;
   projectId?: string | number | null | undefined;
-  routineId?: string | number | null | undefined;
+  routineIds?: Array<string | number> | null | undefined;
   taskIds: Array<string | number>;
 };
 
@@ -1921,7 +1960,7 @@ export type CancelEmailChangeMutationVariables = Exact<{ [key: string]: never; }
 
 export type CancelEmailChangeMutation = { cancelEmailChange: { id: string, username: string, email: string, pendingEmail: string | null, contributorId: string | null } };
 
-export type CalendarEventOccurrenceFieldsFragment = { key: string, eventId: string, occurrenceDate: string | null, modified: boolean, label: string, description: string | null, location: string | null, allDay: boolean, startDate: string, startTime: string | null, endDate: string, endTime: string | null, timeZone: string, start: string, end: string, recurrence: unknown, seriesStartDate: string, reminders: Array<number>, travelBefore: number, travelAfter: number, projectId: string | null, calendarId: string, archived: boolean, contributorIds: Array<string>, relationIds: Array<string>, beneficiaryIds: Array<string>, beneficiaryRelationIds: Array<string>, categoryIds: Array<string>, taskIds: Array<string>, calledOff: boolean, trackedSeconds: number, links: Array<{ url: string, label: string }>, routineLinks: Array<{ routineId: string, date: string }>, postponedFrom: { eventId: string, date: string | null, label: string } | null, postponedTo: Array<{ eventId: string, label: string, startDate: string, startTime: string | null }> };
+export type CalendarEventOccurrenceFieldsFragment = { key: string, eventId: string, occurrenceDate: string | null, modified: boolean, label: string, description: string | null, location: string | null, allDay: boolean, startDate: string, startTime: string | null, endDate: string, endTime: string | null, start: string, end: string, recurrence: unknown, seriesStartDate: string, travelBefore: number, travelAfter: number, projectId: string | null, calendarId: string, archived: boolean, contributorIds: Array<string>, relationIds: Array<string>, beneficiaryIds: Array<string>, beneficiaryRelationIds: Array<string>, categoryIds: Array<string>, taskIds: Array<string>, calledOff: boolean, trackedSeconds: number, links: Array<{ url: string, label: string }>, reminders: Array<{ before: number | null, at: string | null }>, routineLinks: Array<{ routineId: string, date: string }>, postponedFrom: { eventId: string, date: string | null, label: string } | null, postponedTo: Array<{ eventId: string, label: string, startDate: string, startTime: string | null }> };
 
 export type WorkSchedulesQueryVariables = Exact<{ [key: string]: never; }>;
 
@@ -1931,12 +1970,17 @@ export type WorkSchedulesQuery = { workSchedules: Array<{ id: string, archived: 
 export type ForeignScheduleKindsQueryVariables = Exact<{ [key: string]: never; }>;
 
 
-export type ForeignScheduleKindsQuery = { foreignScheduleKinds: Array<{ workspaceId: string, workspaceLabel: string, typeId: string | null, label: string, color: string | null, sourceColor: string | null, dayDisplay: string, dayBar: boolean, monthDisplay: string, customized: boolean, scheduleCount: number, subscribed: boolean }> };
+export type ForeignScheduleKindsQuery = { foreignScheduleKinds: Array<{ workspaceId: string, workspaceLabel: string, typeId: string | null, label: string, color: string | null, sourceColor: string | null, dayDisplay: string, dayBar: boolean, monthDisplay: string, customized: boolean, scheduleCount: number, subscribed: boolean, archived: boolean }> };
 
 export type SubscribedWorkSchedulesQueryVariables = Exact<{ [key: string]: never; }>;
 
 
 export type SubscribedWorkSchedulesQuery = { subscribedWorkSchedules: Array<{ id: string, label: string, startDate: string, endDate: string | null, cases: unknown, exceptions: unknown, typeLabel: string | null, typeId: string | null, color: string | null, dayDisplay: string, dayBar: boolean, monthDisplay: string, workspaceId: string, workspaceLabel: string }> };
+
+export type OtherWorkspaceSchedulesQueryVariables = Exact<{ [key: string]: never; }>;
+
+
+export type OtherWorkspaceSchedulesQuery = { otherWorkspaceSchedules: Array<{ id: string, archived: boolean, label: string, startDate: string, endDate: string | null, cases: unknown, exceptions: unknown, typeId: string | null, workspaceId: string, workspaceLabel: string }> };
 
 export type CreateScheduleTypeMutationVariables = Exact<{
   input: ScheduleTypeInput;
@@ -1955,6 +1999,7 @@ export type UpdateScheduleTypeMutation = { updateScheduleType: { id: string } };
 
 export type DeleteScheduleTypeMutationVariables = Exact<{
   id: string | number;
+  confirmLoss?: boolean | null | undefined;
 }>;
 
 
@@ -1994,6 +2039,7 @@ export type UnsubscribeScheduleKindMutation = { unsubscribeScheduleKind: boolean
 
 export type CreateWorkScheduleMutationVariables = Exact<{
   input: WorkScheduleInput;
+  confirmLoss?: boolean | null | undefined;
 }>;
 
 
@@ -2002,6 +2048,7 @@ export type CreateWorkScheduleMutation = { createWorkSchedule: string };
 export type UpdateWorkScheduleMutationVariables = Exact<{
   id: string | number;
   input: WorkScheduleInput;
+  confirmLoss?: boolean | null | undefined;
 }>;
 
 
@@ -2009,6 +2056,7 @@ export type UpdateWorkScheduleMutation = { updateWorkSchedule: boolean };
 
 export type DeleteWorkScheduleMutationVariables = Exact<{
   id: string | number;
+  confirmLoss?: boolean | null | undefined;
 }>;
 
 
@@ -2044,7 +2092,7 @@ export type CalendarEventsQueryVariables = Exact<{
 }>;
 
 
-export type CalendarEventsQuery = { calendarEvents: Array<{ key: string, eventId: string, occurrenceDate: string | null, modified: boolean, label: string, description: string | null, location: string | null, allDay: boolean, startDate: string, startTime: string | null, endDate: string, endTime: string | null, timeZone: string, start: string, end: string, recurrence: unknown, seriesStartDate: string, reminders: Array<number>, travelBefore: number, travelAfter: number, projectId: string | null, calendarId: string, archived: boolean, contributorIds: Array<string>, relationIds: Array<string>, beneficiaryIds: Array<string>, beneficiaryRelationIds: Array<string>, categoryIds: Array<string>, taskIds: Array<string>, calledOff: boolean, trackedSeconds: number, links: Array<{ url: string, label: string }>, routineLinks: Array<{ routineId: string, date: string }>, postponedFrom: { eventId: string, date: string | null, label: string } | null, postponedTo: Array<{ eventId: string, label: string, startDate: string, startTime: string | null }> }>, calendars: Array<{ id: string, archived: boolean }> };
+export type CalendarEventsQuery = { calendarEvents: Array<{ key: string, eventId: string, occurrenceDate: string | null, modified: boolean, label: string, description: string | null, location: string | null, allDay: boolean, startDate: string, startTime: string | null, endDate: string, endTime: string | null, start: string, end: string, recurrence: unknown, seriesStartDate: string, travelBefore: number, travelAfter: number, projectId: string | null, calendarId: string, archived: boolean, contributorIds: Array<string>, relationIds: Array<string>, beneficiaryIds: Array<string>, beneficiaryRelationIds: Array<string>, categoryIds: Array<string>, taskIds: Array<string>, calledOff: boolean, trackedSeconds: number, links: Array<{ url: string, label: string }>, reminders: Array<{ before: number | null, at: string | null }>, routineLinks: Array<{ routineId: string, date: string }>, postponedFrom: { eventId: string, date: string | null, label: string } | null, postponedTo: Array<{ eventId: string, label: string, startDate: string, startTime: string | null }> }>, calendars: Array<{ id: string, archived: boolean }> };
 
 export type CalendarsQueryVariables = Exact<{ [key: string]: never; }>;
 
@@ -2062,7 +2110,7 @@ export type SubscribedCalendarEventsQueryVariables = Exact<{
 }>;
 
 
-export type SubscribedCalendarEventsQuery = { subscribedCalendarEvents: Array<{ key: string, eventId: string, occurrenceDate: string | null, modified: boolean, label: string, description: string | null, location: string | null, allDay: boolean, startDate: string, startTime: string | null, endDate: string, endTime: string | null, timeZone: string, start: string, end: string, recurrence: unknown, seriesStartDate: string, reminders: Array<number>, travelBefore: number, travelAfter: number, projectId: string | null, calendarId: string, archived: boolean, contributorIds: Array<string>, relationIds: Array<string>, beneficiaryIds: Array<string>, beneficiaryRelationIds: Array<string>, categoryIds: Array<string>, taskIds: Array<string>, calledOff: boolean, trackedSeconds: number, links: Array<{ url: string, label: string }>, routineLinks: Array<{ routineId: string, date: string }>, postponedFrom: { eventId: string, date: string | null, label: string } | null, postponedTo: Array<{ eventId: string, label: string, startDate: string, startTime: string | null }> }> };
+export type SubscribedCalendarEventsQuery = { subscribedCalendarEvents: Array<{ key: string, eventId: string, occurrenceDate: string | null, modified: boolean, label: string, description: string | null, location: string | null, allDay: boolean, startDate: string, startTime: string | null, endDate: string, endTime: string | null, start: string, end: string, recurrence: unknown, seriesStartDate: string, travelBefore: number, travelAfter: number, projectId: string | null, calendarId: string, archived: boolean, contributorIds: Array<string>, relationIds: Array<string>, beneficiaryIds: Array<string>, beneficiaryRelationIds: Array<string>, categoryIds: Array<string>, taskIds: Array<string>, calledOff: boolean, trackedSeconds: number, links: Array<{ url: string, label: string }>, reminders: Array<{ before: number | null, at: string | null }>, routineLinks: Array<{ routineId: string, date: string }>, postponedFrom: { eventId: string, date: string | null, label: string } | null, postponedTo: Array<{ eventId: string, label: string, startDate: string, startTime: string | null }> }> };
 
 export type CreateCalendarMutationVariables = Exact<{
   input: LabelColorInput;
@@ -2143,6 +2191,7 @@ export type UpdateCalendarEventMutationVariables = Exact<{
   input: CalendarEventInput;
   scope: CalendarEventScope;
   occurrenceDate?: string | null | undefined;
+  confirmLoss?: boolean | null | undefined;
 }>;
 
 
@@ -2157,17 +2206,10 @@ export type DeleteCalendarEventMutationVariables = Exact<{
 
 export type DeleteCalendarEventMutation = { deleteCalendarEvent: boolean };
 
-export type MaterializeTaskOccurrencesMutationVariables = Exact<{
-  from: string;
-  to: string;
-}>;
-
-
-export type MaterializeTaskOccurrencesMutation = { materializeTaskOccurrences: number };
-
 export type CommentsQueryVariables = Exact<{
   target: CommentTarget;
   id: string;
+  occurrenceDate?: string | null | undefined;
 }>;
 
 
@@ -2185,6 +2227,7 @@ export type AddCommentMutationVariables = Exact<{
   target: CommentTarget;
   id: string;
   body: string;
+  occurrenceDate?: string | null | undefined;
 }>;
 
 
@@ -3017,7 +3060,7 @@ export type DeleteProjectStatusMutation = { deleteProjectStatus: boolean };
 export type RoutinesDataQueryVariables = Exact<{ [key: string]: never; }>;
 
 
-export type RoutinesDataQuery = { routineCategories: Array<{ id: string, archived: boolean, label: string, color: string | null, iconUrl: string | null, parentId: string | null, position: number }>, routines: Array<{ id: string, label: string, description: string | null, categoryIds: Array<string>, parentId: string | null, startDate: string, recurrence: unknown, estimate: number | null, fromTime: string | null, dueTime: string | null, slotCondition: unknown, moments: unknown, reminders: Array<number>, cases: unknown, moves: unknown, done: boolean, windowFrom: string | null, windowTo: string | null, location: string | null, locationLat: number | null, locationLon: number | null, travelBefore: number, travelAfter: number, projectId: string | null, position: number, archived: boolean, assigneeIds: Array<string>, beneficiaryIds: Array<string>, beneficiaryRelationIds: Array<string>, requiredIds: Array<string>, currentDate: string | null, firstDate: string | null, nextDate: string | null, doneDates: Array<string>, lastDoneAt: string | null, trackedSeconds: number, opensOn: unknown, slots: Array<{ index: number, fromTime: string | null, dueTime: string | null, optional: boolean, done: boolean, windows: unknown }> }> };
+export type RoutinesDataQuery = { routineCategories: Array<{ id: string, archived: boolean, label: string, color: string | null, iconUrl: string | null, parentId: string | null, position: number }>, routines: Array<{ id: string, label: string, description: string | null, categoryIds: Array<string>, parentId: string | null, startDate: string, recurrence: unknown, estimate: number | null, fromTime: string | null, dueTime: string | null, slotCondition: unknown, moments: unknown, cases: unknown, moves: unknown, done: boolean, windowFrom: string | null, windowTo: string | null, location: string | null, locationLat: number | null, locationLon: number | null, travelBefore: number, travelAfter: number, projectId: string | null, position: number, archived: boolean, assigneeIds: Array<string>, beneficiaryIds: Array<string>, beneficiaryRelationIds: Array<string>, requiredIds: Array<string>, relatedIds: Array<string>, currentDate: string | null, firstDate: string | null, nextDate: string | null, doneDates: Array<string>, lastDoneAt: string | null, trackedSeconds: number, opensOn: unknown, reminders: Array<{ before: number | null, at: string | null }>, reminderOccurrences: Array<{ date: string, day: string, slots: Array<{ slot: number, at: string }> }>, slots: Array<{ index: number, fromTime: string | null, dueTime: string | null, optional: boolean, done: boolean, windows: unknown }>, links: Array<{ url: string, label: string }> }> };
 
 export type CreateRoutineCategoryMutationVariables = Exact<{
   input: RoutineCategoryInput;
@@ -3060,6 +3103,7 @@ export type CopySubRoutinesMutation = { copySubRoutines: number };
 
 export type CreateRoutineMutationVariables = Exact<{
   input: RoutineInput;
+  copyOf?: string | number | null | undefined;
 }>;
 
 
@@ -3069,23 +3113,25 @@ export type UpdateRoutineMutationVariables = Exact<{
   id: string | number;
   input: RoutineInput;
   restoring?: boolean | null | undefined;
+  confirmLoss?: boolean | null | undefined;
 }>;
 
 
-export type UpdateRoutineMutation = { updateRoutine: boolean };
+export type UpdateRoutineMutation = { updateRoutine: { removedLinks: number } };
 
 export type PatchRoutineMutationVariables = Exact<{
   id: string | number;
   input: RoutinePatch;
+  confirmLoss?: boolean | null | undefined;
 }>;
 
 
-export type PatchRoutineMutation = { patchRoutine: boolean };
+export type PatchRoutineMutation = { patchRoutine: { removedLinks: number } };
 
 export type MoveRoutineMutationVariables = Exact<{
   id: string | number;
-  targetId: string | number;
-  place: RoutinePlace;
+  beforeId?: string | number | null | undefined;
+  parentId?: string | number | null | undefined;
   categoryIds?: Array<string | number> | string | number | null | undefined;
 }>;
 
@@ -3095,10 +3141,11 @@ export type MoveRoutineMutation = { moveRoutine: boolean };
 export type BulkUpdateRoutinesMutationVariables = Exact<{
   ids: Array<string | number> | string | number;
   changes: RoutineBulkChanges;
+  confirmLoss?: boolean | null | undefined;
 }>;
 
 
-export type BulkUpdateRoutinesMutation = { bulkUpdateRoutines: number };
+export type BulkUpdateRoutinesMutation = { bulkUpdateRoutines: { removedLinks: number } };
 
 export type BulkSetRoutinesArchivedMutationVariables = Exact<{
   ids: Array<string | number> | string | number;
@@ -3118,6 +3165,7 @@ export type BulkSetRoutinesDoneMutation = { bulkSetRoutinesDone: number };
 
 export type BulkDeleteRoutinesMutationVariables = Exact<{
   ids: Array<string | number> | string | number;
+  deleteSubRoutines: boolean;
 }>;
 
 
@@ -3152,6 +3200,7 @@ export type ChangeRoutineOccurrenceMutationVariables = Exact<{
   slot: number;
   fromTime?: string | null | undefined;
   dueTime?: string | null | undefined;
+  confirmLoss?: boolean | null | undefined;
 }>;
 
 
@@ -3164,11 +3213,12 @@ export type DeleteRoutineOccurrenceMutationVariables = Exact<{
 }>;
 
 
-export type DeleteRoutineOccurrenceMutation = { deleteRoutineOccurrence: boolean };
+export type DeleteRoutineOccurrenceMutation = { deleteRoutineOccurrence: { archived: boolean, comments: Array<{ body: string, createdAt: string, updatedAt: string }> } };
 
 export type RemoveRoutineMoveMutationVariables = Exact<{
   id: string | number;
   from: string;
+  comments?: Array<CommentSnapshotInput> | CommentSnapshotInput | null | undefined;
 }>;
 
 
@@ -3188,7 +3238,7 @@ export type RoutineOccurrencesQueryVariables = Exact<{
 }>;
 
 
-export type RoutineOccurrencesQuery = { routineOccurrences: Array<{ routineId: string, date: string, startDate: string, shownDate: string, movedFrom: string | null, slots: Array<{ index: number, fromTime: string | null, dueTime: string | null, optional: boolean, done: boolean, windows: unknown }> }> };
+export type RoutineOccurrencesQuery = { routineOccurrences: Array<{ routineId: string, date: string, startDate: string, shownDate: string, movedFrom: string | null, cancelled: boolean, archived: boolean, slots: Array<{ index: number, fromTime: string | null, dueTime: string | null, optional: boolean, done: boolean, windows: unknown }> }> };
 
 export type SheetsQueryVariables = Exact<{
   projectId?: string | number | null | undefined;
@@ -3827,14 +3877,14 @@ export type MilestoneFieldsFragment = { id: string, archived: boolean, projectId
 
 export type TaskLabelFieldsFragment = { id: string, archived: boolean, label: string, color: string, iconUrl: string | null, position: number };
 
-export type TaskFieldsFragment = { id: string, number: number | null, label: string, description: string | null, projectId: string | null, statusId: string | null, priorityId: string | null, typeId: string | null, effort: number | null, startDate: string | null, endDate: string | null, parentId: string | null, milestoneId: string | null, sprintIds: Array<string>, deadline: string | null, minDate: string | null, position: number, archived: boolean, createdAt: string, updatedAt: string, assigneeIds: Array<string>, beneficiaryIds: Array<string>, beneficiaryRelationIds: Array<string>, tagIds: Array<string>, blockingIds: Array<string>, blockedByIds: Array<string>, relatedIds: Array<string>, commentCount: number, trackedSeconds: number, recurrence: unknown, seriesId: string | null, occurrenceDate: string | null, closed: boolean, closedAt: string | null, githubLinked: boolean, githubUrl: string | null, githubNumber: number | null, slotRule: unknown };
+export type TaskFieldsFragment = { id: string, number: number | null, label: string, description: string | null, projectId: string | null, statusId: string | null, priorityId: string | null, typeId: string | null, effort: number | null, startDate: string | null, endDate: string | null, parentId: string | null, milestoneId: string | null, sprintIds: Array<string>, deadline: string | null, minDate: string | null, effectiveDeadline: string | null, effectiveMinDate: string | null, deadlineFromSprint: boolean, minDateFromSprint: boolean, cancelled: boolean, position: number, archived: boolean, createdAt: string, updatedAt: string, assigneeIds: Array<string>, beneficiaryIds: Array<string>, beneficiaryRelationIds: Array<string>, tagIds: Array<string>, blockingIds: Array<string>, blockedByIds: Array<string>, relatedIds: Array<string>, commentCount: number, trackedSeconds: number, closed: boolean, closedAt: string | null, githubLinked: boolean, githubUrl: string | null, githubNumber: number | null, slotCondition: unknown, location: string | null, locationLat: number | null, locationLon: number | null, links: Array<{ url: string, label: string }>, reminders: Array<{ before: number | null, at: string | null }> };
 
 export type TaskCommentFieldsFragment = { id: string, body: string, createdAt: string, githubAuthor: string | null };
 
 export type TasksDataQueryVariables = Exact<{ [key: string]: never; }>;
 
 
-export type TasksDataQuery = { tasks: Array<{ id: string, number: number | null, label: string, description: string | null, projectId: string | null, statusId: string | null, priorityId: string | null, typeId: string | null, effort: number | null, startDate: string | null, endDate: string | null, parentId: string | null, milestoneId: string | null, sprintIds: Array<string>, deadline: string | null, minDate: string | null, position: number, archived: boolean, createdAt: string, updatedAt: string, assigneeIds: Array<string>, beneficiaryIds: Array<string>, beneficiaryRelationIds: Array<string>, tagIds: Array<string>, blockingIds: Array<string>, blockedByIds: Array<string>, relatedIds: Array<string>, commentCount: number, trackedSeconds: number, recurrence: unknown, seriesId: string | null, occurrenceDate: string | null, closed: boolean, closedAt: string | null, githubLinked: boolean, githubUrl: string | null, githubNumber: number | null, slotRule: unknown }>, contributors: Array<{ id: string, archived: boolean, name: string, handle: string, avatarUrl: string | null, isMe: boolean, projectIds: Array<string> }>, taskStatuses: Array<{ category: TaskStatusCategory, id: string, archived: boolean, label: string, color: string, iconUrl: string | null, position: number }>, taskPriorities: Array<{ id: string, archived: boolean, label: string, color: string, iconUrl: string | null, position: number }>, taskTypes: Array<{ id: string, archived: boolean, label: string, color: string, iconUrl: string | null, position: number }>, taskTags: Array<{ id: string, archived: boolean, label: string, color: string, iconUrl: string | null, position: number }>, milestones: Array<{ id: string, archived: boolean, projectId: string, label: string, description: string | null, dueDate: string | null, position: number }>, sprints: Array<{ id: string, archived: boolean, projectId: string, label: string, goal: string | null, startDate: string, endDate: string }> };
+export type TasksDataQuery = { tasks: Array<{ id: string, number: number | null, label: string, description: string | null, projectId: string | null, statusId: string | null, priorityId: string | null, typeId: string | null, effort: number | null, startDate: string | null, endDate: string | null, parentId: string | null, milestoneId: string | null, sprintIds: Array<string>, deadline: string | null, minDate: string | null, effectiveDeadline: string | null, effectiveMinDate: string | null, deadlineFromSprint: boolean, minDateFromSprint: boolean, cancelled: boolean, position: number, archived: boolean, createdAt: string, updatedAt: string, assigneeIds: Array<string>, beneficiaryIds: Array<string>, beneficiaryRelationIds: Array<string>, tagIds: Array<string>, blockingIds: Array<string>, blockedByIds: Array<string>, relatedIds: Array<string>, commentCount: number, trackedSeconds: number, closed: boolean, closedAt: string | null, githubLinked: boolean, githubUrl: string | null, githubNumber: number | null, slotCondition: unknown, location: string | null, locationLat: number | null, locationLon: number | null, links: Array<{ url: string, label: string }>, reminders: Array<{ before: number | null, at: string | null }> }>, contributors: Array<{ id: string, archived: boolean, name: string, handle: string, avatarUrl: string | null, isMe: boolean, projectIds: Array<string> }>, taskStatuses: Array<{ category: TaskStatusCategory, id: string, archived: boolean, label: string, color: string, iconUrl: string | null, position: number }>, taskPriorities: Array<{ id: string, archived: boolean, label: string, color: string, iconUrl: string | null, position: number }>, taskTypes: Array<{ id: string, archived: boolean, label: string, color: string, iconUrl: string | null, position: number }>, taskTags: Array<{ id: string, archived: boolean, label: string, color: string, iconUrl: string | null, position: number }>, milestones: Array<{ id: string, archived: boolean, projectId: string, label: string, description: string | null, dueDate: string | null, position: number }>, sprints: Array<{ id: string, archived: boolean, projectId: string, label: string, goal: string | null, startDate: string, endDate: string }> };
 
 export type TaskCommentsQueryVariables = Exact<{
   id: string | number;
@@ -3848,7 +3898,7 @@ export type CreateTaskMutationVariables = Exact<{
 }>;
 
 
-export type CreateTaskMutation = { createTask: { id: string, number: number | null, label: string, description: string | null, projectId: string | null, statusId: string | null, priorityId: string | null, typeId: string | null, effort: number | null, startDate: string | null, endDate: string | null, parentId: string | null, milestoneId: string | null, sprintIds: Array<string>, deadline: string | null, minDate: string | null, position: number, archived: boolean, createdAt: string, updatedAt: string, assigneeIds: Array<string>, beneficiaryIds: Array<string>, beneficiaryRelationIds: Array<string>, tagIds: Array<string>, blockingIds: Array<string>, blockedByIds: Array<string>, relatedIds: Array<string>, commentCount: number, trackedSeconds: number, recurrence: unknown, seriesId: string | null, occurrenceDate: string | null, closed: boolean, closedAt: string | null, githubLinked: boolean, githubUrl: string | null, githubNumber: number | null, slotRule: unknown } };
+export type CreateTaskMutation = { createTask: { id: string, number: number | null, label: string, description: string | null, projectId: string | null, statusId: string | null, priorityId: string | null, typeId: string | null, effort: number | null, startDate: string | null, endDate: string | null, parentId: string | null, milestoneId: string | null, sprintIds: Array<string>, deadline: string | null, minDate: string | null, effectiveDeadline: string | null, effectiveMinDate: string | null, deadlineFromSprint: boolean, minDateFromSprint: boolean, cancelled: boolean, position: number, archived: boolean, createdAt: string, updatedAt: string, assigneeIds: Array<string>, beneficiaryIds: Array<string>, beneficiaryRelationIds: Array<string>, tagIds: Array<string>, blockingIds: Array<string>, blockedByIds: Array<string>, relatedIds: Array<string>, commentCount: number, trackedSeconds: number, closed: boolean, closedAt: string | null, githubLinked: boolean, githubUrl: string | null, githubNumber: number | null, slotCondition: unknown, location: string | null, locationLat: number | null, locationLon: number | null, links: Array<{ url: string, label: string }>, reminders: Array<{ before: number | null, at: string | null }> } };
 
 export type UpdateTaskMutationVariables = Exact<{
   id: string | number;
@@ -3856,23 +3906,15 @@ export type UpdateTaskMutationVariables = Exact<{
 }>;
 
 
-export type UpdateTaskMutation = { updateTask: { id: string, number: number | null, label: string, description: string | null, projectId: string | null, statusId: string | null, priorityId: string | null, typeId: string | null, effort: number | null, startDate: string | null, endDate: string | null, parentId: string | null, milestoneId: string | null, sprintIds: Array<string>, deadline: string | null, minDate: string | null, position: number, archived: boolean, createdAt: string, updatedAt: string, assigneeIds: Array<string>, beneficiaryIds: Array<string>, beneficiaryRelationIds: Array<string>, tagIds: Array<string>, blockingIds: Array<string>, blockedByIds: Array<string>, relatedIds: Array<string>, commentCount: number, trackedSeconds: number, recurrence: unknown, seriesId: string | null, occurrenceDate: string | null, closed: boolean, closedAt: string | null, githubLinked: boolean, githubUrl: string | null, githubNumber: number | null, slotRule: unknown } };
+export type UpdateTaskMutation = { updateTask: { id: string, number: number | null, label: string, description: string | null, projectId: string | null, statusId: string | null, priorityId: string | null, typeId: string | null, effort: number | null, startDate: string | null, endDate: string | null, parentId: string | null, milestoneId: string | null, sprintIds: Array<string>, deadline: string | null, minDate: string | null, effectiveDeadline: string | null, effectiveMinDate: string | null, deadlineFromSprint: boolean, minDateFromSprint: boolean, cancelled: boolean, position: number, archived: boolean, createdAt: string, updatedAt: string, assigneeIds: Array<string>, beneficiaryIds: Array<string>, beneficiaryRelationIds: Array<string>, tagIds: Array<string>, blockingIds: Array<string>, blockedByIds: Array<string>, relatedIds: Array<string>, commentCount: number, trackedSeconds: number, closed: boolean, closedAt: string | null, githubLinked: boolean, githubUrl: string | null, githubNumber: number | null, slotCondition: unknown, location: string | null, locationLat: number | null, locationLon: number | null, links: Array<{ url: string, label: string }>, reminders: Array<{ before: number | null, at: string | null }> } };
 
-export type CloneTaskMutationVariables = Exact<{
+export type DuplicateTaskMutationVariables = Exact<{
   id: string | number;
   includeSubtasks: boolean;
 }>;
 
 
-export type CloneTaskMutation = { cloneTask: { id: string, number: number | null } };
-
-export type SetTaskRecurrenceMutationVariables = Exact<{
-  id: string | number;
-  recurrence?: unknown;
-}>;
-
-
-export type SetTaskRecurrenceMutation = { setTaskRecurrence: { id: string } };
+export type DuplicateTaskMutation = { duplicateTask: { id: string, number: number | null } };
 
 export type MoveTaskMutationVariables = Exact<{
   id: string | number;
@@ -4170,7 +4212,7 @@ export type DeleteSprintMutationVariables = Exact<{
 
 export type DeleteSprintMutation = { deleteSprint: boolean };
 
-export type TimeEntryFieldsFragment = { id: string, projectId: string | null, routineId: string | null, routineLabel: string | null, description: string | null, startedAt: string, endedAt: string | null, pausedAt: string | null, pausedSeconds: number, duration: number | null, taskIds: Array<string>, documentId: string | null, documentNumber: string | null, calendarEventId: string | null, calendarOccurrenceDate: string | null, calendarEventLabel: string | null };
+export type TimeEntryFieldsFragment = { id: string, projectId: string | null, description: string | null, startedAt: string, endedAt: string | null, pausedAt: string | null, pausedSeconds: number, duration: number | null, taskIds: Array<string>, documentId: string | null, documentNumber: string | null, routines: Array<{ id: string, label: string }>, events: Array<{ eventId: string, occurrenceDate: string | null, label: string }> };
 
 export type TimeEntriesQueryVariables = Exact<{
   projectId?: string | number | null | undefined;
@@ -4178,12 +4220,12 @@ export type TimeEntriesQueryVariables = Exact<{
 }>;
 
 
-export type TimeEntriesQuery = { timeEntries: Array<{ id: string, projectId: string | null, routineId: string | null, routineLabel: string | null, description: string | null, startedAt: string, endedAt: string | null, pausedAt: string | null, pausedSeconds: number, duration: number | null, taskIds: Array<string>, documentId: string | null, documentNumber: string | null, calendarEventId: string | null, calendarOccurrenceDate: string | null, calendarEventLabel: string | null }> };
+export type TimeEntriesQuery = { timeEntries: Array<{ id: string, projectId: string | null, description: string | null, startedAt: string, endedAt: string | null, pausedAt: string | null, pausedSeconds: number, duration: number | null, taskIds: Array<string>, documentId: string | null, documentNumber: string | null, routines: Array<{ id: string, label: string }>, events: Array<{ eventId: string, occurrenceDate: string | null, label: string }> }> };
 
 export type RunningTimeEntryQueryVariables = Exact<{ [key: string]: never; }>;
 
 
-export type RunningTimeEntryQuery = { runningTimeEntry: { id: string, projectId: string | null, routineId: string | null, routineLabel: string | null, description: string | null, startedAt: string, endedAt: string | null, pausedAt: string | null, pausedSeconds: number, duration: number | null, taskIds: Array<string>, documentId: string | null, documentNumber: string | null, calendarEventId: string | null, calendarOccurrenceDate: string | null, calendarEventLabel: string | null } | null };
+export type RunningTimeEntryQuery = { runningTimeEntry: { id: string, projectId: string | null, description: string | null, startedAt: string, endedAt: string | null, pausedAt: string | null, pausedSeconds: number, duration: number | null, taskIds: Array<string>, documentId: string | null, documentNumber: string | null, routines: Array<{ id: string, label: string }>, events: Array<{ eventId: string, occurrenceDate: string | null, label: string }> } | null };
 
 export type StartTimerMutationVariables = Exact<{
   input: TimerInput;
@@ -4218,6 +4260,20 @@ export type UpdateTimeEntryMutationVariables = Exact<{
 
 
 export type UpdateTimeEntryMutation = { updateTimeEntry: { id: string } };
+
+export type LostOnDeleteQueryVariables = Exact<{
+  taskIds?: Array<string | number> | string | number | null | undefined;
+  routineIds?: Array<string | number> | string | number | null | undefined;
+  withSubtree?: boolean | null | undefined;
+  eventId?: string | number | null | undefined;
+  scope?: CalendarEventScope | null | undefined;
+  occurrenceDate?: string | null | undefined;
+  calendarId?: string | number | null | undefined;
+  routineOccurrence?: RoutineOccurrenceGoneInput | null | undefined;
+}>;
+
+
+export type LostOnDeleteQuery = { lostOnDelete: { times: number, comments: number } };
 
 export type DeleteTimeEntryMutationVariables = Exact<{
   id: string | number;
@@ -4571,6 +4627,11 @@ export type ElsewhereAlarmsQueryVariables = Exact<{ [key: string]: never; }>;
 
 export type ElsewhereAlarmsQuery = { alarms: Array<{ id: string, label: string, note: string | null, type: AlarmType, startDate: string | null, time: string | null, frequency: AlarmFrequency, interval: number, weekdays: Array<number>, endDate: string | null, recurrence: unknown, minutes: number | null, projectId: string | null, taskId: string | null, enabled: boolean, lastFiredAt: string | null, createdAt: string, task: { id: string, number: number | null, label: string, projectId: string | null } | null, project: { id: string, label: string } | null }>, projects: Array<{ id: string, label: string }>, runningTimeEntry: { id: string, startedAt: string, endedAt: string | null, pausedAt: string | null, pausedSeconds: number, duration: number | null } | null };
 
+export type ElsewhereRemindersQueryVariables = Exact<{ [key: string]: never; }>;
+
+
+export type ElsewhereRemindersQuery = { tasks: Array<{ id: string, number: number | null, label: string, projectId: string | null, closed: boolean, archived: boolean, effectiveMinDate: string | null, effectiveDeadline: string | null, reminders: Array<{ before: number | null, at: string | null }> }>, routines: Array<{ id: string, label: string, archived: boolean, location: string | null, currentDate: string | null, reminders: Array<{ before: number | null, at: string | null }>, reminderOccurrences: Array<{ date: string, day: string, slots: Array<{ slot: number, at: string }> }>, slots: Array<{ index: number, fromTime: string | null, dueTime: string | null, optional: boolean, done: boolean, windows: unknown }> }> };
+
 export type ElsewhereMarkAlarmFiredMutationVariables = Exact<{
   id: string | number;
   at: string;
@@ -4888,12 +4949,14 @@ export const CalendarEventOccurrenceFieldsFragmentDoc = new TypedDocumentString(
   startTime
   endDate
   endTime
-  timeZone
   start
   end
   recurrence
   seriesStartDate
-  reminders
+  reminders {
+    before
+    at
+  }
   travelBefore
   travelAfter
   projectId
@@ -5136,6 +5199,11 @@ export const TaskFieldsFragmentDoc = new TypedDocumentString(`
   sprintIds
   deadline
   minDate
+  effectiveDeadline
+  effectiveMinDate
+  deadlineFromSprint
+  minDateFromSprint
+  cancelled
   position
   archived
   createdAt
@@ -5149,15 +5217,23 @@ export const TaskFieldsFragmentDoc = new TypedDocumentString(`
   relatedIds
   commentCount
   trackedSeconds
-  recurrence
-  seriesId
-  occurrenceDate
   closed
   closedAt
   githubLinked
   githubUrl
   githubNumber
-  slotRule
+  slotCondition
+  location
+  locationLat
+  locationLon
+  links {
+    url
+    label
+  }
+  reminders {
+    before
+    at
+  }
 }
     `, {"fragmentName":"TaskFields"}) as unknown as TypedDocumentString<TaskFieldsFragment, unknown>;
 export const TaskCommentFieldsFragmentDoc = new TypedDocumentString(`
@@ -5172,8 +5248,10 @@ export const TimeEntryFieldsFragmentDoc = new TypedDocumentString(`
     fragment TimeEntryFields on TimeEntry {
   id
   projectId
-  routineId
-  routineLabel
+  routines {
+    id
+    label
+  }
   description
   startedAt
   endedAt
@@ -5183,9 +5261,11 @@ export const TimeEntryFieldsFragmentDoc = new TypedDocumentString(`
   taskIds
   documentId
   documentNumber
-  calendarEventId
-  calendarOccurrenceDate
-  calendarEventLabel
+  events {
+    eventId
+    occurrenceDate
+    label
+  }
 }
     `, {"fragmentName":"TimeEntryFields"}) as unknown as TypedDocumentString<TimeEntryFieldsFragment, unknown>;
 export const TreasuryEntryDocumentFieldsFragmentDoc = new TypedDocumentString(`
@@ -6260,6 +6340,7 @@ export const ForeignScheduleKindsDocument = new TypedDocumentString(`
     customized
     scheduleCount
     subscribed
+    archived
   }
 }
     `) as unknown as TypedDocumentString<ForeignScheduleKindsQuery, ForeignScheduleKindsQueryVariables>;
@@ -6283,6 +6364,22 @@ export const SubscribedWorkSchedulesDocument = new TypedDocumentString(`
   }
 }
     `) as unknown as TypedDocumentString<SubscribedWorkSchedulesQuery, SubscribedWorkSchedulesQueryVariables>;
+export const OtherWorkspaceSchedulesDocument = new TypedDocumentString(`
+    query OtherWorkspaceSchedules {
+  otherWorkspaceSchedules {
+    id
+    archived
+    label
+    startDate
+    endDate
+    cases
+    exceptions
+    typeId
+    workspaceId
+    workspaceLabel
+  }
+}
+    `) as unknown as TypedDocumentString<OtherWorkspaceSchedulesQuery, OtherWorkspaceSchedulesQueryVariables>;
 export const CreateScheduleTypeDocument = new TypedDocumentString(`
     mutation CreateScheduleType($input: ScheduleTypeInput!) {
   createScheduleType(input: $input) {
@@ -6298,8 +6395,8 @@ export const UpdateScheduleTypeDocument = new TypedDocumentString(`
 }
     `) as unknown as TypedDocumentString<UpdateScheduleTypeMutation, UpdateScheduleTypeMutationVariables>;
 export const DeleteScheduleTypeDocument = new TypedDocumentString(`
-    mutation DeleteScheduleType($id: ID!) {
-  deleteScheduleType(id: $id)
+    mutation DeleteScheduleType($id: ID!, $confirmLoss: Boolean) {
+  deleteScheduleType(id: $id, confirmLoss: $confirmLoss)
 }
     `) as unknown as TypedDocumentString<DeleteScheduleTypeMutation, DeleteScheduleTypeMutationVariables>;
 export const SubscribeScheduleKindDocument = new TypedDocumentString(`
@@ -6329,18 +6426,18 @@ export const UnsubscribeScheduleKindDocument = new TypedDocumentString(`
 }
     `) as unknown as TypedDocumentString<UnsubscribeScheduleKindMutation, UnsubscribeScheduleKindMutationVariables>;
 export const CreateWorkScheduleDocument = new TypedDocumentString(`
-    mutation CreateWorkSchedule($input: WorkScheduleInput!) {
-  createWorkSchedule(input: $input)
+    mutation CreateWorkSchedule($input: WorkScheduleInput!, $confirmLoss: Boolean) {
+  createWorkSchedule(input: $input, confirmLoss: $confirmLoss)
 }
     `) as unknown as TypedDocumentString<CreateWorkScheduleMutation, CreateWorkScheduleMutationVariables>;
 export const UpdateWorkScheduleDocument = new TypedDocumentString(`
-    mutation UpdateWorkSchedule($id: ID!, $input: WorkScheduleInput!) {
-  updateWorkSchedule(id: $id, input: $input)
+    mutation UpdateWorkSchedule($id: ID!, $input: WorkScheduleInput!, $confirmLoss: Boolean) {
+  updateWorkSchedule(id: $id, input: $input, confirmLoss: $confirmLoss)
 }
     `) as unknown as TypedDocumentString<UpdateWorkScheduleMutation, UpdateWorkScheduleMutationVariables>;
 export const DeleteWorkScheduleDocument = new TypedDocumentString(`
-    mutation DeleteWorkSchedule($id: ID!) {
-  deleteWorkSchedule(id: $id)
+    mutation DeleteWorkSchedule($id: ID!, $confirmLoss: Boolean) {
+  deleteWorkSchedule(id: $id, confirmLoss: $confirmLoss)
 }
     `) as unknown as TypedDocumentString<DeleteWorkScheduleMutation, DeleteWorkScheduleMutationVariables>;
 export const SetCalendarEventCalledOffDocument = new TypedDocumentString(`
@@ -6398,12 +6495,14 @@ export const CalendarEventsDocument = new TypedDocumentString(`
   startTime
   endDate
   endTime
-  timeZone
   start
   end
   recurrence
   seriesStartDate
-  reminders
+  reminders {
+    before
+    at
+  }
   travelBefore
   travelAfter
   projectId
@@ -6494,12 +6593,14 @@ export const SubscribedCalendarEventsDocument = new TypedDocumentString(`
   startTime
   endDate
   endTime
-  timeZone
   start
   end
   recurrence
   seriesStartDate
-  reminders
+  reminders {
+    before
+    at
+  }
   travelBefore
   travelAfter
   projectId
@@ -6588,12 +6689,13 @@ export const CreateCalendarEventDocument = new TypedDocumentString(`
 }
     `) as unknown as TypedDocumentString<CreateCalendarEventMutation, CreateCalendarEventMutationVariables>;
 export const UpdateCalendarEventDocument = new TypedDocumentString(`
-    mutation UpdateCalendarEvent($id: ID!, $input: CalendarEventInput!, $scope: CalendarEventScope!, $occurrenceDate: Date) {
+    mutation UpdateCalendarEvent($id: ID!, $input: CalendarEventInput!, $scope: CalendarEventScope!, $occurrenceDate: Date, $confirmLoss: Boolean) {
   updateCalendarEvent(
     id: $id
     input: $input
     scope: $scope
     occurrenceDate: $occurrenceDate
+    confirmLoss: $confirmLoss
   )
 }
     `) as unknown as TypedDocumentString<UpdateCalendarEventMutation, UpdateCalendarEventMutationVariables>;
@@ -6602,14 +6704,9 @@ export const DeleteCalendarEventDocument = new TypedDocumentString(`
   deleteCalendarEvent(id: $id, scope: $scope, occurrenceDate: $occurrenceDate)
 }
     `) as unknown as TypedDocumentString<DeleteCalendarEventMutation, DeleteCalendarEventMutationVariables>;
-export const MaterializeTaskOccurrencesDocument = new TypedDocumentString(`
-    mutation MaterializeTaskOccurrences($from: Date!, $to: Date!) {
-  materializeTaskOccurrences(from: $from, to: $to)
-}
-    `) as unknown as TypedDocumentString<MaterializeTaskOccurrencesMutation, MaterializeTaskOccurrencesMutationVariables>;
 export const CommentsDocument = new TypedDocumentString(`
-    query Comments($target: CommentTarget!, $id: String!) {
-  comments(target: $target, id: $id) {
+    query Comments($target: CommentTarget!, $id: String!, $occurrenceDate: Date) {
+  comments(target: $target, id: $id, occurrenceDate: $occurrenceDate) {
     id
     body
     createdAt
@@ -6625,8 +6722,13 @@ export const CommentCountsDocument = new TypedDocumentString(`
 }
     `) as unknown as TypedDocumentString<CommentCountsQuery, CommentCountsQueryVariables>;
 export const AddCommentDocument = new TypedDocumentString(`
-    mutation AddComment($target: CommentTarget!, $id: String!, $body: String!) {
-  addComment(target: $target, id: $id, body: $body) {
+    mutation AddComment($target: CommentTarget!, $id: String!, $body: String!, $occurrenceDate: Date) {
+  addComment(
+    target: $target
+    id: $id
+    body: $body
+    occurrenceDate: $occurrenceDate
+  ) {
     id
   }
 }
@@ -7826,7 +7928,18 @@ export const RoutinesDataDocument = new TypedDocumentString(`
     dueTime
     slotCondition
     moments
-    reminders
+    reminders {
+      before
+      at
+    }
+    reminderOccurrences {
+      date
+      day
+      slots {
+        slot
+        at
+      }
+    }
     cases
     moves
     done
@@ -7843,6 +7956,10 @@ export const RoutinesDataDocument = new TypedDocumentString(`
     location
     locationLat
     locationLon
+    links {
+      url
+      label
+    }
     travelBefore
     travelAfter
     projectId
@@ -7852,6 +7969,7 @@ export const RoutinesDataDocument = new TypedDocumentString(`
     beneficiaryIds
     beneficiaryRelationIds
     requiredIds
+    relatedIds
     currentDate
     firstDate
     nextDate
@@ -7888,33 +8006,44 @@ export const CopySubRoutinesDocument = new TypedDocumentString(`
 }
     `) as unknown as TypedDocumentString<CopySubRoutinesMutation, CopySubRoutinesMutationVariables>;
 export const CreateRoutineDocument = new TypedDocumentString(`
-    mutation CreateRoutine($input: RoutineInput!) {
-  createRoutine(input: $input)
+    mutation CreateRoutine($input: RoutineInput!, $copyOf: ID) {
+  createRoutine(input: $input, copyOf: $copyOf)
 }
     `) as unknown as TypedDocumentString<CreateRoutineMutation, CreateRoutineMutationVariables>;
 export const UpdateRoutineDocument = new TypedDocumentString(`
-    mutation UpdateRoutine($id: ID!, $input: RoutineInput!, $restoring: Boolean) {
-  updateRoutine(id: $id, input: $input, restoring: $restoring)
+    mutation UpdateRoutine($id: ID!, $input: RoutineInput!, $restoring: Boolean, $confirmLoss: Boolean) {
+  updateRoutine(
+    id: $id
+    input: $input
+    restoring: $restoring
+    confirmLoss: $confirmLoss
+  ) {
+    removedLinks
+  }
 }
     `) as unknown as TypedDocumentString<UpdateRoutineMutation, UpdateRoutineMutationVariables>;
 export const PatchRoutineDocument = new TypedDocumentString(`
-    mutation PatchRoutine($id: ID!, $input: RoutinePatch!) {
-  patchRoutine(id: $id, input: $input)
+    mutation PatchRoutine($id: ID!, $input: RoutinePatch!, $confirmLoss: Boolean) {
+  patchRoutine(id: $id, input: $input, confirmLoss: $confirmLoss) {
+    removedLinks
+  }
 }
     `) as unknown as TypedDocumentString<PatchRoutineMutation, PatchRoutineMutationVariables>;
 export const MoveRoutineDocument = new TypedDocumentString(`
-    mutation MoveRoutine($id: ID!, $targetId: ID!, $place: RoutinePlace!, $categoryIds: [ID!]) {
+    mutation MoveRoutine($id: ID!, $beforeId: ID, $parentId: ID, $categoryIds: [ID!]) {
   moveRoutine(
     id: $id
-    targetId: $targetId
-    place: $place
+    beforeId: $beforeId
+    parentId: $parentId
     categoryIds: $categoryIds
   )
 }
     `) as unknown as TypedDocumentString<MoveRoutineMutation, MoveRoutineMutationVariables>;
 export const BulkUpdateRoutinesDocument = new TypedDocumentString(`
-    mutation BulkUpdateRoutines($ids: [ID!]!, $changes: RoutineBulkChanges!) {
-  bulkUpdateRoutines(ids: $ids, changes: $changes)
+    mutation BulkUpdateRoutines($ids: [ID!]!, $changes: RoutineBulkChanges!, $confirmLoss: Boolean) {
+  bulkUpdateRoutines(ids: $ids, changes: $changes, confirmLoss: $confirmLoss) {
+    removedLinks
+  }
 }
     `) as unknown as TypedDocumentString<BulkUpdateRoutinesMutation, BulkUpdateRoutinesMutationVariables>;
 export const BulkSetRoutinesArchivedDocument = new TypedDocumentString(`
@@ -7928,8 +8057,8 @@ export const BulkSetRoutinesDoneDocument = new TypedDocumentString(`
 }
     `) as unknown as TypedDocumentString<BulkSetRoutinesDoneMutation, BulkSetRoutinesDoneMutationVariables>;
 export const BulkDeleteRoutinesDocument = new TypedDocumentString(`
-    mutation BulkDeleteRoutines($ids: [ID!]!) {
-  bulkDeleteRoutines(ids: $ids)
+    mutation BulkDeleteRoutines($ids: [ID!]!, $deleteSubRoutines: Boolean!) {
+  bulkDeleteRoutines(ids: $ids, deleteSubRoutines: $deleteSubRoutines)
 }
     `) as unknown as TypedDocumentString<BulkDeleteRoutinesMutation, BulkDeleteRoutinesMutationVariables>;
 export const SetRoutineDoneDocument = new TypedDocumentString(`
@@ -7943,7 +8072,7 @@ export const MoveRoutineOccurrenceDocument = new TypedDocumentString(`
 }
     `) as unknown as TypedDocumentString<MoveRoutineOccurrenceMutation, MoveRoutineOccurrenceMutationVariables>;
 export const ChangeRoutineOccurrenceDocument = new TypedDocumentString(`
-    mutation ChangeRoutineOccurrence($id: ID!, $date: Date!, $scope: CalendarEventScope!, $to: Date!, $slot: Int!, $fromTime: String, $dueTime: String) {
+    mutation ChangeRoutineOccurrence($id: ID!, $date: Date!, $scope: CalendarEventScope!, $to: Date!, $slot: Int!, $fromTime: String, $dueTime: String, $confirmLoss: Boolean) {
   changeRoutineOccurrence(
     id: $id
     date: $date
@@ -7952,17 +8081,25 @@ export const ChangeRoutineOccurrenceDocument = new TypedDocumentString(`
     slot: $slot
     fromTime: $fromTime
     dueTime: $dueTime
+    confirmLoss: $confirmLoss
   )
 }
     `) as unknown as TypedDocumentString<ChangeRoutineOccurrenceMutation, ChangeRoutineOccurrenceMutationVariables>;
 export const DeleteRoutineOccurrenceDocument = new TypedDocumentString(`
     mutation DeleteRoutineOccurrence($id: ID!, $date: Date!, $scope: CalendarEventScope!) {
-  deleteRoutineOccurrence(id: $id, date: $date, scope: $scope)
+  deleteRoutineOccurrence(id: $id, date: $date, scope: $scope) {
+    archived
+    comments {
+      body
+      createdAt
+      updatedAt
+    }
+  }
 }
     `) as unknown as TypedDocumentString<DeleteRoutineOccurrenceMutation, DeleteRoutineOccurrenceMutationVariables>;
 export const RemoveRoutineMoveDocument = new TypedDocumentString(`
-    mutation RemoveRoutineMove($id: ID!, $from: Date!) {
-  removeRoutineMove(id: $id, from: $from)
+    mutation RemoveRoutineMove($id: ID!, $from: Date!, $comments: [CommentSnapshotInput!]) {
+  removeRoutineMove(id: $id, from: $from, comments: $comments)
 }
     `) as unknown as TypedDocumentString<RemoveRoutineMoveMutation, RemoveRoutineMoveMutationVariables>;
 export const RoutineChecksDocument = new TypedDocumentString(`
@@ -7985,6 +8122,8 @@ export const RoutineOccurrencesDocument = new TypedDocumentString(`
     startDate
     shownDate
     movedFrom
+    cancelled
+    archived
     slots {
       index
       fromTime
@@ -8812,6 +8951,11 @@ fragment TaskFields on Task {
   sprintIds
   deadline
   minDate
+  effectiveDeadline
+  effectiveMinDate
+  deadlineFromSprint
+  minDateFromSprint
+  cancelled
   position
   archived
   createdAt
@@ -8825,15 +8969,23 @@ fragment TaskFields on Task {
   relatedIds
   commentCount
   trackedSeconds
-  recurrence
-  seriesId
-  occurrenceDate
   closed
   closedAt
   githubLinked
   githubUrl
   githubNumber
-  slotRule
+  slotCondition
+  location
+  locationLat
+  locationLon
+  links {
+    url
+    label
+  }
+  reminders {
+    before
+    at
+  }
 }`) as unknown as TypedDocumentString<TasksDataQuery, TasksDataQueryVariables>;
 export const TaskCommentsDocument = new TypedDocumentString(`
     query TaskComments($id: ID!) {
@@ -8873,6 +9025,11 @@ export const CreateTaskDocument = new TypedDocumentString(`
   sprintIds
   deadline
   minDate
+  effectiveDeadline
+  effectiveMinDate
+  deadlineFromSprint
+  minDateFromSprint
+  cancelled
   position
   archived
   createdAt
@@ -8886,15 +9043,23 @@ export const CreateTaskDocument = new TypedDocumentString(`
   relatedIds
   commentCount
   trackedSeconds
-  recurrence
-  seriesId
-  occurrenceDate
   closed
   closedAt
   githubLinked
   githubUrl
   githubNumber
-  slotRule
+  slotCondition
+  location
+  locationLat
+  locationLon
+  links {
+    url
+    label
+  }
+  reminders {
+    before
+    at
+  }
 }`) as unknown as TypedDocumentString<CreateTaskMutation, CreateTaskMutationVariables>;
 export const UpdateTaskDocument = new TypedDocumentString(`
     mutation UpdateTask($id: ID!, $input: TaskUpdateInput!) {
@@ -8919,6 +9084,11 @@ export const UpdateTaskDocument = new TypedDocumentString(`
   sprintIds
   deadline
   minDate
+  effectiveDeadline
+  effectiveMinDate
+  deadlineFromSprint
+  minDateFromSprint
+  cancelled
   position
   archived
   createdAt
@@ -8932,31 +9102,32 @@ export const UpdateTaskDocument = new TypedDocumentString(`
   relatedIds
   commentCount
   trackedSeconds
-  recurrence
-  seriesId
-  occurrenceDate
   closed
   closedAt
   githubLinked
   githubUrl
   githubNumber
-  slotRule
+  slotCondition
+  location
+  locationLat
+  locationLon
+  links {
+    url
+    label
+  }
+  reminders {
+    before
+    at
+  }
 }`) as unknown as TypedDocumentString<UpdateTaskMutation, UpdateTaskMutationVariables>;
-export const CloneTaskDocument = new TypedDocumentString(`
-    mutation CloneTask($id: ID!, $includeSubtasks: Boolean!) {
-  cloneTask(id: $id, includeSubtasks: $includeSubtasks) {
+export const DuplicateTaskDocument = new TypedDocumentString(`
+    mutation DuplicateTask($id: ID!, $includeSubtasks: Boolean!) {
+  duplicateTask(id: $id, includeSubtasks: $includeSubtasks) {
     id
     number
   }
 }
-    `) as unknown as TypedDocumentString<CloneTaskMutation, CloneTaskMutationVariables>;
-export const SetTaskRecurrenceDocument = new TypedDocumentString(`
-    mutation SetTaskRecurrence($id: ID!, $recurrence: JSON) {
-  setTaskRecurrence(id: $id, recurrence: $recurrence) {
-    id
-  }
-}
-    `) as unknown as TypedDocumentString<SetTaskRecurrenceMutation, SetTaskRecurrenceMutationVariables>;
+    `) as unknown as TypedDocumentString<DuplicateTaskMutation, DuplicateTaskMutationVariables>;
 export const MoveTaskDocument = new TypedDocumentString(`
     mutation MoveTask($id: ID!, $beforeId: ID, $parentId: ID) {
   moveTask(id: $id, beforeId: $beforeId, parentId: $parentId)
@@ -9223,8 +9394,10 @@ export const TimeEntriesDocument = new TypedDocumentString(`
     fragment TimeEntryFields on TimeEntry {
   id
   projectId
-  routineId
-  routineLabel
+  routines {
+    id
+    label
+  }
   description
   startedAt
   endedAt
@@ -9234,9 +9407,11 @@ export const TimeEntriesDocument = new TypedDocumentString(`
   taskIds
   documentId
   documentNumber
-  calendarEventId
-  calendarOccurrenceDate
-  calendarEventLabel
+  events {
+    eventId
+    occurrenceDate
+    label
+  }
 }`) as unknown as TypedDocumentString<TimeEntriesQuery, TimeEntriesQueryVariables>;
 export const RunningTimeEntryDocument = new TypedDocumentString(`
     query RunningTimeEntry {
@@ -9247,8 +9422,10 @@ export const RunningTimeEntryDocument = new TypedDocumentString(`
     fragment TimeEntryFields on TimeEntry {
   id
   projectId
-  routineId
-  routineLabel
+  routines {
+    id
+    label
+  }
   description
   startedAt
   endedAt
@@ -9258,9 +9435,11 @@ export const RunningTimeEntryDocument = new TypedDocumentString(`
   taskIds
   documentId
   documentNumber
-  calendarEventId
-  calendarOccurrenceDate
-  calendarEventLabel
+  events {
+    eventId
+    occurrenceDate
+    label
+  }
 }`) as unknown as TypedDocumentString<RunningTimeEntryQuery, RunningTimeEntryQueryVariables>;
 export const StartTimerDocument = new TypedDocumentString(`
     mutation StartTimer($input: TimerInput!) {
@@ -9297,6 +9476,23 @@ export const UpdateTimeEntryDocument = new TypedDocumentString(`
   }
 }
     `) as unknown as TypedDocumentString<UpdateTimeEntryMutation, UpdateTimeEntryMutationVariables>;
+export const LostOnDeleteDocument = new TypedDocumentString(`
+    query LostOnDelete($taskIds: [ID!], $routineIds: [ID!], $withSubtree: Boolean, $eventId: ID, $scope: CalendarEventScope, $occurrenceDate: Date, $calendarId: ID, $routineOccurrence: RoutineOccurrenceGoneInput) {
+  lostOnDelete(
+    taskIds: $taskIds
+    routineIds: $routineIds
+    withSubtree: $withSubtree
+    eventId: $eventId
+    scope: $scope
+    occurrenceDate: $occurrenceDate
+    calendarId: $calendarId
+    routineOccurrence: $routineOccurrence
+  ) {
+    times
+    comments
+  }
+}
+    `) as unknown as TypedDocumentString<LostOnDeleteQuery, LostOnDeleteQueryVariables>;
 export const DeleteTimeEntryDocument = new TypedDocumentString(`
     mutation DeleteTimeEntry($id: ID!) {
   deleteTimeEntry(id: $id)
@@ -9937,6 +10133,51 @@ export const ElsewhereAlarmsDocument = new TypedDocumentString(`
   lastFiredAt
   createdAt
 }`) as unknown as TypedDocumentString<ElsewhereAlarmsQuery, ElsewhereAlarmsQueryVariables>;
+export const ElsewhereRemindersDocument = new TypedDocumentString(`
+    query ElsewhereReminders {
+  tasks {
+    id
+    number
+    label
+    projectId
+    closed
+    archived
+    effectiveMinDate
+    effectiveDeadline
+    reminders {
+      before
+      at
+    }
+  }
+  routines {
+    id
+    label
+    archived
+    location
+    currentDate
+    reminders {
+      before
+      at
+    }
+    reminderOccurrences {
+      date
+      day
+      slots {
+        slot
+        at
+      }
+    }
+    slots {
+      index
+      fromTime
+      dueTime
+      optional
+      done
+      windows
+    }
+  }
+}
+    `) as unknown as TypedDocumentString<ElsewhereRemindersQuery, ElsewhereRemindersQueryVariables>;
 export const ElsewhereMarkAlarmFiredDocument = new TypedDocumentString(`
     mutation ElsewhereMarkAlarmFired($id: ID!, $at: DateTime!) {
   markAlarmFired(id: $id, at: $at)

@@ -1,4 +1,4 @@
-import { useSyncExternalStore, type ReactNode } from 'react';
+import { createContext, useContext, useEffect, useRef, useSyncExternalStore, type ReactNode } from 'react';
 
 /** Width of a side panel: a form (md), or a wide one, as the panel of a task (lg). */
 export type PanelSize = 'md' | 'lg';
@@ -99,4 +99,43 @@ export function useOpenPanels(): OpenPanel[] {
     },
     () => opened,
   );
+}
+
+/**
+ * Saves what a panel's content holds and has not saved yet (a text being typed), before the panel closes; false when a
+ * field is invalid, so not saved (its error shown under it).
+ */
+export type PanelFlush = () => boolean;
+
+/** Registration of a flush with the side panel holding it (`SidePanel`); gives the unregistration. None outside a panel. */
+export const PanelFlushContext = createContext<((flush: PanelFlush) => () => void) | null>(null);
+
+/**
+ * Saves what the component holds and has not saved yet: before the side panel holding it closes by its close button,
+ * Escape or a click outside (it stays open once when the flush finds an invalid field, `SidePanel`), when the
+ * component goes away (its panel closed by its content or replaced, another page) and when the browser leaves the page
+ * (`pagehide`, as far as the browser lets the request go). `useFieldSave` and `useLocationDraft` use it: a text being
+ * typed is not lost.
+ * @param {PanelFlush} flush Flush (the last one given is called).
+ * @returns {void}
+ */
+export function usePanelFlush(flush: PanelFlush): void {
+  const register = useContext(PanelFlushContext);
+  const latest = useRef(flush);
+  useEffect(() => {
+    latest.current = flush;
+  });
+  useEffect(() => register?.(() => latest.current()), [register]);
+  useEffect(() => {
+    /**
+     * Saves what was not saved yet, without waiting (the component or the page going away).
+     * @returns {void}
+     */
+    const leave = () => void latest.current();
+    window.addEventListener('pagehide', leave);
+    return () => {
+      window.removeEventListener('pagehide', leave);
+      leave();
+    };
+  }, []);
 }

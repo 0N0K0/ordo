@@ -1,7 +1,7 @@
-import { dayIn } from '@ordo/shared';
+import { dayIn, PARIS_ZONE } from '@ordo/shared';
 
 /** Time zone of France: the one the API counts days and prints instants in. */
-export const PARIS = 'Europe/Paris';
+export const PARIS = PARIS_ZONE;
 
 /**
  * Today in France (Europe/Paris), whatever the time zone of the server: the day every « today » of the API counts

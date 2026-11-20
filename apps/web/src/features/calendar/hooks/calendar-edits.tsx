@@ -3,8 +3,10 @@ import { changedScheduleSlot, type ScheduleSlotTime, type WorkScheduleRule } fro
 import { notifyFailure, notifySuccess, notifyWithUndo, ON_ERROR, onMutationError, toastCallbacks } from '../../../lib/notify';
 import { useRoutineMutations, type Routine } from '../../routines/api';
 import * as fmt from '../../../lib/format';
-import { useWorkScheduleMutations } from '../api';
+import { useWorkScheduleMutations, type CalendarEventScope } from '../api';
 import { askScope } from '../lib/ask-scope';
+import { fetchLostOnDelete } from '../../time/api';
+import { scopeLostNote } from '../../time/lib/lost-on-delete';
 import { RoutineOccurrenceForm, SlotEditForm } from '../components/CalendarEditForms';
 
 /** Time of the day of a routine occurrence shown in the calendar. */
@@ -19,6 +21,10 @@ export interface RoutineOccurrenceRef {
   routine: Routine;
   date: string;
   slot: RoutineSlotTimes;
+  /** Cancelled (shown struck through, decision D23): only given back. Optional. Default = false. */
+  cancelled?: boolean;
+  /** Of an archived routine, before its archiving (decision D21): read only. Optional. Default = false. */
+  archived?: boolean;
 }
 
 /**
@@ -40,7 +46,7 @@ export function useCalendarEdits() {
    * @returns {Promise<void>}
    */
   const changeSlot = async (schedule: WorkScheduleRule, slot: ScheduleSlotTime, change: ScheduleSlotTime | null, revert?: () => void) => {
-    const scope = await askScope({ action: change ? 'update' : 'delete', title: change ? 'Modifier une plage récurrente' : 'Supprimer une plage récurrente' });
+    const scope = await askScope({ action: change ? 'update' : 'delete', title: change ? 'Modifier un créneau récurrent' : 'Supprimer un créneau récurrent' });
     if (!scope) return revert?.();
     let next: ReturnType<typeof changedScheduleSlot>;
     try {
@@ -52,7 +58,7 @@ export function useCalendarEdits() {
     update.mutate(
       { id: schedule.id, input: { label: schedule.label, startDate: schedule.startDate, endDate: schedule.endDate, typeId: schedule.typeId ?? null, ...next } },
       {
-        ...toastCallbacks(scope === 'THIS' ? 'Exception ajoutée à la plage pour ce jour.' : change ? 'Plage modifiée.' : 'Horaires retirés de la plage.'),
+        ...toastCallbacks(scope === 'THIS' ? 'Exception ajoutée au créneau pour ce jour.' : change ? 'Créneau modifié.' : 'Horaires retirés du créneau.'),
         onError: (error) => {
           onMutationError(error);
           revert?.();
@@ -86,22 +92,32 @@ export function useCalendarEdits() {
   };
 
   /**
-   * Deletes an occurrence of a routine, or it and the following ones.
+   * Cancels an occurrence of a routine (it stays shown struck through, with its comments: decision D23), or deletes it and
+   * the following ones, telling the comments deleted with them (decision D19); « Annuler » gives a single occurrence back.
    * @param {RoutineOccurrenceRef} occurrence Occurrence.
    * @param {string | null} movedFrom Day of the rule it was moved from, if any.
    * @returns {Promise<void>}
    */
   const removeRoutine = async (occurrence: RoutineOccurrenceRef, movedFrom: string | null) => {
     const { routine, date } = occurrence;
-    const scope = await askScope({ action: 'delete', title: 'Supprimer une occurrence de routine', allowFollowing: true, allowAll: false });
+    const [THIS, FOLLOWING] = await Promise.all((['THIS', 'FOLLOWING'] as const).map((scope) => fetchLostOnDelete({ routineOccurrence: { id: routine.id, date, scope } })));
+    // This one is cancelled (it stays, struck through), it and the following ones really disappear.
+    const scope = await askScope({
+      action: 'cancelOrDelete',
+      title: 'Annuler ou supprimer une occurrence de routine',
+      allowFollowing: true,
+      allowAll: false,
+      note: scopeLostNote({ THIS, FOLLOWING }),
+    });
     if (!scope) return;
     deleteOccurrence.mutate(
       { id: routine.id, date, scope },
       {
         onError: onMutationError,
-        onSuccess: (archived) => {
+        onSuccess: ({ archived, comments }) => {
           if (archived) notifySuccess(`Plus aucune occurrence : « ${routine.label} » est archivée.`);
-          else if (scope === 'THIS') notifyWithUndo(`Occurrence du ${fmt.dayLong(date)} supprimée.`, () => removeMove.mutate({ id: routine.id, from: movedFrom ?? date }, ON_ERROR));
+          // « Annuler » gives the occurrence back (it kept its comments).
+          else if (scope === 'THIS') notifyWithUndo(`Occurrence du ${fmt.dayLong(date)} annulée.`, () => removeMove.mutate({ id: routine.id, from: movedFrom ?? date, comments }, ON_ERROR));
           else notifySuccess(`« ${routine.label} » s’arrête avant le ${fmt.dayLong(date)}.`);
         },
       },
@@ -109,49 +125,58 @@ export function useCalendarEdits() {
   };
 
   /**
-   * Opens the form of a slot of a schedule.
+   * Opens the panel of a slot of a schedule, saved field by field (decision D22): asks first, once, which days its
+   * changes apply to (dismissed: it opens read only).
    * @param {WorkScheduleRule} schedule Schedule.
    * @param {string} label Label shown (its kind).
    * @param {ScheduleSlotTime} slot Slot.
-   * @returns {void}
+   * @returns {Promise<void>}
    */
-  const openSlot = (schedule: WorkScheduleRule, label: string, slot: ScheduleSlotTime) => {
-    // The scope question is a modal: this panel closes first.
-    openFormPanel(`Plage du ${fmt.dayLong(slot.date)}`, (close) => (
+  const openSlot = async (schedule: WorkScheduleRule, label: string, slot: ScheduleSlotTime) => {
+    // Dismissed: no scope, the panel opens read only.
+    const scope = await askScope({ action: 'update', title: 'Modifier un créneau récurrent', note: 'Les modifications faites dans le panneau, chacune enregistrée aussitôt, s’y appliqueront.' });
+    openFormPanel(`Créneau du ${fmt.dayLong(slot.date)}`, (close) => (
       <SlotEditForm
         label={label}
+        schedule={schedule}
         slot={slot}
+        scope={scope}
         onClose={close}
-        onSave={(change) => {
+        onDelete={(current, now) => {
           close();
-          void changeSlot(schedule, slot, change);
-        }}
-        onDelete={() => {
-          close();
-          void changeSlot(schedule, slot, null);
+          void changeSlot(current, now, null);
         }}
       />
     ));
   };
 
   /**
-   * Opens the form of an occurrence of a routine.
+   * Opens the panel of an occurrence of a routine, saved field by field (decision D22): asks first, once, which
+   * occurrences its changes apply to (dismissed: it opens read only); a cancelled occurrence, or one of an archived
+   * routine, opens without asking.
    * @param {RoutineOccurrenceRef} occurrence Occurrence.
    * @param {string | null} movedFrom Day of the rule it was moved from, if any.
-   * @returns {void}
+   * @returns {Promise<void>}
    */
-  const openRoutine = (occurrence: RoutineOccurrenceRef, movedFrom: string | null) => {
+  const openRoutine = async (occurrence: RoutineOccurrenceRef, movedFrom: string | null) => {
+    // Dismissed: no scope, the panel opens read only.
+    const scope: CalendarEventScope | null =
+      occurrence.cancelled || occurrence.archived
+        ? 'THIS'
+        : await askScope({ action: 'update', title: 'Modifier une routine', note: 'Les modifications faites dans le panneau, chacune enregistrée aussitôt, s’y appliqueront.' });
     openFormPanel(`« ${occurrence.routine.label} » du ${fmt.dayLong(occurrence.date)}`, (close) => (
       <RoutineOccurrenceForm
         occurrence={occurrence}
+        movedFrom={movedFrom}
+        scope={scope}
         onClose={close}
-        onSave={(to, times) => {
-          close();
-          void changeRoutine(occurrence, to, times);
-        }}
         onDelete={() => {
           close();
           void removeRoutine(occurrence, movedFrom);
+        }}
+        onRestore={() => {
+          close();
+          removeMove.mutate({ id: occurrence.routine.id, from: occurrence.date }, toastCallbacks(`Occurrence du ${fmt.dayLong(occurrence.date)} rétablie.`));
         }}
       />
     ));

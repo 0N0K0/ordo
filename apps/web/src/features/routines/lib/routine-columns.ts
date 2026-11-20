@@ -1,11 +1,11 @@
 import { beneficiaryKeys } from '../../beneficiaries/hooks/use-beneficiaries';
-import { ROUTINE_REPETITIONS, ROUTINE_STATES, conditionScheduleIds, formatDuration, readSlotCondition, type RoutineCase } from '@ordo/shared';
+import { ROUTINE_REPETITIONS, ROUTINE_STATES, conditionReferences, formatDuration, occurrenceKey, readSlotCondition, type RoutineCase } from '@ordo/shared';
 import { categoryOptions, categoryPaths, categoryTree } from '../../../components/tree/category-tree';
 import { withArchived, type DataColumn } from '../../../components/data-table/table/data-table';
 import * as fmt from '../../../lib/format';
 import { commentColumn } from '../../comments/lib/comment-column';
 import type { Routine } from '../api';
-import { isDone, routineTreeOptions, currentRoutineState, waitingFor } from './routine-format';
+import { isDone, panelOccurrence, routineTreeOptions, currentRoutineState, waitingFor } from './routine-format';
 import { opensWords, REPETITION_LABELS, routineFrequency, ROUTINE_STATE_LABELS, type RoutineEnv } from './routine-view';
 import { localDay } from '../../../lib/dates';
 import { LAST_RANK } from '../../../components/data-table/table/table-engine';
@@ -36,8 +36,8 @@ export function routineColumns(env: RoutineEnv): DataColumn<Routine>[] {
   const comments = env.comments ?? new Map<string, number>();
   const titles = (ids: string[]) => ids.map((id) => byId.get(id)?.label ?? '').filter(Boolean);
   const slotIds = (routine: Routine) => [
-    ...conditionScheduleIds(readSlotCondition(routine.slotCondition)),
-    ...((routine.cases as RoutineCase[] | null) ?? []).flatMap((item) => conditionScheduleIds(item.condition ?? null)),
+    ...conditionReferences(readSlotCondition(routine.slotCondition)),
+    ...((routine.cases as RoutineCase[] | null) ?? []).flatMap((item) => conditionReferences(item.condition ?? null)),
   ];
   const blockers = (routine: Routine) => routines.filter((other) => other.requiredIds.includes(routine.id)).map((other) => other.id);
   const state = (routine: Routine) => currentRoutineState(routine, env.today, env.doable(routine));
@@ -114,7 +114,7 @@ export function routineColumns(env: RoutineEnv): DataColumn<Routine>[] {
     },
     { id: 'fromTime', label: 'À partir de', size: 110, bulk: true, sortValue: (routine) => routine.fromTime ?? null, text: (routine) => routine.fromTime ?? '' },
     { id: 'dueTime', label: 'Avant', size: 110, bulk: true, sortValue: (routine) => routine.dueTime ?? null, text: (routine) => routine.dueTime ?? '' },
-    { id: 'opensOn', label: 'À partir du', size: 120, hiddenByDefault: true, bulk: true, text: (routine) => opensWords(routine) ?? '' },
+    { id: 'opensOn', label: 'Ouverture', size: 120, hiddenByDefault: true, bulk: true, text: (routine) => opensWords(routine) ?? '' },
     { id: 'location', label: 'Lieu', size: 200, hiddenByDefault: true, bulk: true, sortValue: (routine) => routine.location ?? null, text: (routine) => routine.location ?? '' },
     {
       id: 'travelBefore',
@@ -150,7 +150,7 @@ export function routineColumns(env: RoutineEnv): DataColumn<Routine>[] {
     },
     {
       id: 'slots',
-      label: 'Plages',
+      label: 'Créneaux',
       size: 180,
       hiddenByDefault: true,
       text: (routine) =>
@@ -228,6 +228,15 @@ export function routineColumns(env: RoutineEnv): DataColumn<Routine>[] {
       filter: { kind: 'choices', value: (routine) => routine.requiredIds, options: routineOptions },
     },
     {
+      id: 'related',
+      label: 'Relative à',
+      size: 180,
+      hiddenByDefault: true,
+      bulk: true,
+      text: (routine) => titles(routine.relatedIds).join(', '),
+      filter: { kind: 'choices', value: (routine) => routine.relatedIds, options: routineOptions },
+    },
+    {
       id: 'blocks',
       label: 'Bloque',
       size: 180,
@@ -275,7 +284,8 @@ export function routineColumns(env: RoutineEnv): DataColumn<Routine>[] {
     { id: 'doableNow', label: 'Faisable maintenant', size: 140, hiddenByDefault: true, text: (routine) => (env.doable(routine) ? 'Oui' : ''), filter: { kind: 'boolean', value: env.doable } },
     commentColumn<Routine>(
       comments,
-      (routine) => routine.id,
+      // The comments of the occurrence its panel opens on (decision D19).
+      (routine) => occurrenceKey(routine.id, panelOccurrence(routine)),
       (routine) => routine.description,
     ),
   ];

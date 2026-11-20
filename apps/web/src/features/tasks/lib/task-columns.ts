@@ -6,7 +6,8 @@ import {
   DEFAULT_HIDDEN_COLUMNS,
   formatDuration,
   ME,
-  readSlotRule,
+  conditionReferences,
+  readSlotCondition,
   TASK_COLUMNS,
   TASK_STATUS_CATEGORIES,
   TASK_STATUS_CATEGORY_LABELS,
@@ -39,9 +40,9 @@ interface TaskColumnExtras {
   shoppingTaskIds?: ReadonlySet<string>;
   /** Active alerts by task. */
   alarmCounts?: ReadonlyMap<string, number>;
-  /** Kinds of slots (calendar schedules). */
-  slotKinds?: ColumnChoice[];
-  /** Comments by calendar event (of the events listed). */
+  /** Calendar schedules a slot condition can name. */
+  slotSchedules?: ColumnChoice[];
+  /** Comments by occurrence of the events listed (their key, decision D19). */
   eventComments?: ReadonlyMap<string, number>;
 }
 
@@ -162,7 +163,7 @@ export function taskColumns(context: TaskContext, today: string, extras: TaskCol
    * @returns {number} Number.
    */
   const commentsOf = (row: TaskTableRow): number =>
-    row.kind === 'task' ? commentTotal(row.task.commentCount, row.task.description) : commentTotal(extras.eventComments?.get(row.event.eventId), row.event.description);
+    row.kind === 'task' ? commentTotal(row.task.commentCount, row.task.description) : commentTotal(extras.eventComments?.get(row.event.key), row.event.description);
   const filterOf = (id: TaskColumn): ColumnFilter<TaskTableRow> | false | undefined => {
     const task = (row: TaskTableRow) => (row.kind === 'task' ? row.task : null);
     switch (id) {
@@ -238,20 +239,20 @@ export function taskColumns(context: TaskContext, today: string, extras: TaskCol
       case 'endDate':
         return { kind: 'date', value: (row) => (row.kind === 'task' ? (row.task[id] ?? null) : id === 'startDate' ? row.event.startDate : row.event.endDate) };
       case 'deadline':
-      case 'minDate':
-        return { kind: 'date', value: (row) => (row.kind === 'task' && row.task[id] ? row.task[id] : null) };
+      case 'minDate': {
+        // The one it goes by: its own, else that of its single sprint.
+        const field = id === 'deadline' ? 'effectiveDeadline' : 'effectiveMinDate';
+        return { kind: 'date', value: (row) => (row.kind === 'task' && row.task[field] ? row.task[field] : null) };
+      }
       case 'createdAt':
       case 'updatedAt':
         return { kind: 'date', value: (row) => (row.kind === 'task' ? localDay(row.task[id]) : null) };
       case 'slots':
-        // Kinds of slots its rule names, during or out of.
+        // Schedules and kinds its condition names, on or out of them.
         return {
           kind: 'choices',
-          value: (row) => {
-            const rule = row.kind === 'task' ? readSlotRule(row.task.slotRule) : null;
-            return rule ? [...rule.inside, ...rule.outside] : [];
-          },
-          options: extras.slotKinds ?? [],
+          value: (row) => (row.kind === 'task' ? conditionReferences(readSlotCondition(row.task.slotCondition)) : []),
+          options: extras.slotSchedules ?? [],
         };
       case 'timer':
       case 'subtasks':

@@ -1,12 +1,12 @@
 import { Select, SimpleGrid, Stack, TextInput } from '@mantine/core';
-import { SlotRuleInput } from '../../calendar/components/SlotRuleInput';
+import { SlotConditionBuilder } from '../../calendar/components/SlotConditionBuilder';
 import { DatePickerInput } from '@mantine/dates';
-import { taskFormSchema, type TaskFormValues } from '@ordo/shared';
+import { readSlotCondition, taskFormSchema, type TaskFormValues } from '@ordo/shared';
 import { useTaskLink } from '../hooks/use-task-link';
 import { MarkdownEditor } from '../../../components/markdown/MarkdownEditor';
 import { useAppForm, formCallbacks } from '../../../lib/form';
 import { useCreateTask } from '../api';
-import { linkableTasks } from '../lib/task-links';
+import { inProjectTree, linkableTasks } from '../lib/task-links';
 import { AssigneesSelect, LabelSelect, ProjectSelect, TagsSelect, TaskSelect } from './task-ui';
 import { taskName, type TaskContext } from '../hooks/use-task-context';
 import { BatchMultiSelect } from '../../../components/inputs/BatchMultiSelect';
@@ -15,6 +15,10 @@ import { FormActions } from '../../../components/dialogs/FormActions';
 import { defaultStatusId } from '../lib/new-task-defaults';
 import { dateRangeProps, formRange } from '../../../components/inputs/date-range';
 import { EffortInput } from './EffortInput';
+import { TaskReminders } from './TaskReminders';
+import { EventLocation } from '../../geo/components/EventLocation';
+import { addressOf, locationOf } from '../../geo/lib/location';
+import { LinksField } from '../../../components/inputs/LinksField';
 
 interface TaskCreateFormProps {
   context: TaskContext;
@@ -56,7 +60,12 @@ export function TaskCreateForm({ context, defaults, onDone }: TaskCreateFormProp
       sprintIds: [],
       beneficiaryIds: [],
       beneficiaryRelationIds: [],
-      slotRule: null,
+      slotCondition: null,
+      location: '',
+      locationLat: null,
+      locationLon: null,
+      links: [],
+      reminders: [],
     },
     schema: taskFormSchema,
   });
@@ -90,12 +99,12 @@ export function TaskCreateForm({ context, defaults, onDone }: TaskCreateFormProp
             onChange={(projectId) => {
               form.setFieldValue('projectId', projectId ?? '');
               const currentParent = form.values.parentId ? context.taskById.get(form.values.parentId) : undefined;
-              if (currentParent && context.rootOf(currentParent.projectId) !== context.rootOf(projectId)) {
+              if (currentParent && !inProjectTree(context, projectId)(currentParent.projectId)) {
                 form.setFieldValue('parentId', null);
               }
               // The milestone must belong to the tree of the chosen project too.
               const milestone = form.values.milestoneId ? context.milestoneById.get(form.values.milestoneId) : undefined;
-              if (milestone && projectId && context.rootOf(milestone.projectId) !== context.rootOf(projectId)) {
+              if (milestone && projectId && !inProjectTree(context, projectId)(milestone.projectId)) {
                 form.setFieldValue('milestoneId', null);
               }
               // So must the sprints.
@@ -104,7 +113,7 @@ export function TaskCreateForm({ context, defaults, onDone }: TaskCreateFormProp
                   'sprintIds',
                   form.values.sprintIds.filter((id) => {
                     const sprint = context.sprintById.get(id);
-                    return sprint && context.rootOf(sprint.projectId) === context.rootOf(projectId);
+                    return sprint && inProjectTree(context, projectId)(sprint.projectId);
                   }),
                 );
               }
@@ -151,6 +160,8 @@ export function TaskCreateForm({ context, defaults, onDone }: TaskCreateFormProp
           error={form.errors.description as string | undefined}
           onSubmitShortcut={() => handleSubmit()}
         />
+        <EventLocation value={addressOf(form.values)} error={form.errors.location} onChange={(value) => form.setValues(locationOf(value))} />
+        <LinksField form={form} />
         <SimpleGrid cols={{ base: 1, sm: 3 }} spacing="md">
           <LabelSelect kind="status" labels={context.statuses} label="Statut" {...form.getInputProps('statusId')} />
           <LabelSelect kind="priority" labels={context.priorities} label="Priorité" {...form.getInputProps('priorityId')} />
@@ -171,14 +182,17 @@ export function TaskCreateForm({ context, defaults, onDone }: TaskCreateFormProp
           <EffortInput {...form.getInputProps('effort')} />
           <DatePickerInput label="Début" clearable placeholder="—" {...dates.start} />
           <DatePickerInput label="Fin" clearable placeholder="—" {...dates.end} />
-          <DatePickerInput label="Date min" clearable placeholder="—" {...doable.start} />
-          <DatePickerInput label="Date max" clearable placeholder="—" {...doable.end} />
+          <DatePickerInput label="Ouverture" clearable placeholder="—" {...doable.start} />
+          <DatePickerInput label="Échéance" clearable placeholder="—" {...doable.end} />
         </SimpleGrid>
-        <SlotRuleInput
-          value={form.values.slotRule ? { inside: form.values.slotRule.inside ?? [], outside: form.values.slotRule.outside ?? [] } : null}
-          onChange={(slotRule) => form.setFieldValue('slotRule', slotRule)}
-          error={form.errors['slotRule.outside'] as string | undefined}
+        <TaskReminders
+          value={form.values.reminders ?? []}
+          minDate={form.values.minDate}
+          deadline={form.values.deadline}
+          onChange={(reminders) => form.setFieldValue('reminders', reminders)}
+          error={form.errors.reminders as string | undefined}
         />
+        <SlotConditionBuilder item="task" value={readSlotCondition(form.values.slotCondition)} onChange={(slotCondition) => form.setFieldValue('slotCondition', slotCondition)} />
         <FormActions onCancel={onDone} submitLabel="Créer la tâche" loading={createTask.isPending} />
       </Stack>
     </form>

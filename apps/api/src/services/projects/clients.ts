@@ -8,6 +8,7 @@ import { deleteOrphanIcons, resolveIconUpdate, storeIcon } from '../core/icons';
 import { BY_POSITION, moveInList, nextPositionIn } from '../core/ordering';
 import { requirePro } from '../workspaces/workspaces';
 import { findOrNotFound } from '../core/lookup';
+import { releaseProjects } from './projects';
 
 /**
  * Loads a client or throws NOT_FOUND.
@@ -100,7 +101,8 @@ export async function setClientArchived(id: string, archived: boolean): Promise<
 }
 
 /**
- * Deletes a client; its projects are either deleted or moved to "no client".
+ * Deletes a client; its projects are either deleted (their tasks, their time and their alarms outlive them, `releaseProjects`) or moved to "no
+ * client".
  * @param {string} id Client id.
  * @param {boolean} deleteProjects Whether to delete the projects too.
  * @returns {Promise<void>}
@@ -114,6 +116,8 @@ export async function deleteClient(id: string, deleteProjects: boolean): Promise
   });
 
   if (deleteProjects) {
+    // Their tasks are not deleted: they leave the projects.
+    await releaseProjects(projects.map((project) => project.id));
     await prisma.$transaction([prisma.project.deleteMany({ where: { clientId: id } }), prisma.client.delete({ where: { id } })]);
     await deleteOrphanIcons([client.iconId, ...projects.map((project) => project.iconId)]);
     return;

@@ -1,12 +1,12 @@
 # Répétitions : règles, cas, durées
 
-L'éditeur commun des répétitions (évènements, plages, tâches, routines, alarmes, trésorerie, facturation) : une règle, ou plusieurs cas avec leur période ; durée de chaque occurrence ; pauses et dates supprimées ; résumé en mots. Source : `apps/web/src/components/recurrence/`. Le modèle (`Recurrence`, `RepetitionCase`, `Duration`, `ruleValues`, libellés des jours et mois) vient de `@ordo/shared` : voir [Partagé : dates](../../shared/cross-cutting/dates.md) et [Règles : dates](../../business-rules/cross-cutting/dates.md).
+L'éditeur commun des répétitions (évènements, créneaux, routines, alarmes, trésorerie, facturation) : une règle, ou plusieurs cas avec leur période ; durée de chaque occurrence ; pauses et dates supprimées ; résumé en mots. Source : `apps/web/src/components/recurrence/`. Le modèle (`Recurrence`, `RepetitionCase`, `Duration`, `ruleValues`, libellés des jours et mois) vient de `@ordo/shared` : voir [Partagé : dates](../../shared/cross-cutting/dates.md) et [Règles : dates](../../business-rules/cross-cutting/dates.md).
 
 ## Champ et modale
 
 ### `RepetitionField`
 
-Répétition de ce qu'affiche un panneau : son résumé (une ligne par élément décrit ; rien : « Ne se répète pas ») et un bouton « Modifier » (`secondary`, `xs`) qui ouvre tous les réglages dans une modale, sur un brouillon appliqué par « Appliquer » et abandonné par « Annuler ». Le même champ pour les évènements, plages, tâches, routines, alarmes, trésorerie et facturation. Props : `value`, `onChange`, `describe(value)` (lignes), `editor(draft, setDraft)`, `valid(draft)`, `label` (défaut « Répétition »), `description`, `error`, `required`, `editable` (défaut vrai).
+Répétition de ce qu'affiche un panneau : son résumé (une ligne par élément décrit ; rien : « Ne se répète pas ») et un bouton « Modifier » (`secondary`, `xs`) qui ouvre tous les réglages dans une modale, sur un brouillon appliqué par « Appliquer » et abandonné par « Annuler ». Le même champ pour les évènements, créneaux, routines, alarmes, trésorerie et facturation. Props : `value`, `onChange`, `describe(value)` (lignes), `editor(draft, setDraft)`, `valid(draft)`, `label` (défaut « Répétition »), `description`, `error`, `required`, `editable` (défaut vrai).
 
 ### `RepetitionModal`
 
@@ -25,13 +25,12 @@ Tous les réglages d'une répétition, selon ce que l'élément permet. Généri
 - `mode` / `onModeChange` : `'RULE'` (une règle), `'CASES'` (plusieurs cas) ou un mode propre (`RepetitionModeValue`) ;
 - `cases` / `onChange` : les cas (`RepetitionCase<T>` : `since`, `until`, `anchor`, `rule`, `times`) ; un seul en mode règle ;
 - `start` : premier jour de ce qui se répète (les rythmes comptent de lui) ;
-- `multiple` : cas proposés (tâches, routines, plages) ;
+- `multiple` : cas proposés (routines, créneaux) ;
 - `weekly` : jours de semaine et semaines paires / impaires proposés (défaut vrai) ;
 - `allowNone` : « Ne se répète pas » proposé (règle seule, défaut vrai) ;
 - `durations` : façons de durer plus d'un jour (`DurationUnit[]`) ;
 - `times` (`RepetitionTimes<T>`) : éditeur et résumé des horaires d'un cas ;
-- `modes` : autres modes (ex. une routine qui suit les plages de l'agenda), chacun avec `value`, `label`, `render` ;
-- `exceptions` : exceptions (occurrences déplacées ou modifiées), listées sous la règle ;
+- `modes` : autres modes (ex. une routine qui suit les créneaux de l'agenda), chacun avec `value`, `label`, `render` ;
 - `footer` : réglages sous tous les modes.
 
 Comportement : choix du mode en `SegmentedControl` (« Une règle », « Plusieurs cas », modes propres) quand il y en a plusieurs ; passer en cas garde la règle comme premier cas ; revenir à une règle garde le premier cas (sans période). En mode cas : cartes `CaseCard` réordonnables par glisser-déposer (`SortableArea`), pliables et retirables quand il y en a plusieurs ; texte « Chaque cas a sa période, ses jours et ses horaires ; un jour pris par plusieurs cas suit le premier (glissez-les pour les réordonner). » ; « Ajouter un cas » (nouveau cas : toutes les semaines depuis le premier jour, déplié). Composant interne `CaseFields` : période « Du » / « Au » (cas seulement, « Dès le début » / « Jusqu'à la fin », changer le début remet l'ancre à zéro), règle, durée, horaires.
@@ -45,7 +44,7 @@ Comportement : choix du mode en `SegmentedControl` (« Une règle », « Plusieu
 
 ### `RecurrenceEditor`
 
-Règle de répétition : fréquence (« Ne se répète pas », « Tous les jours », « Toutes les semaines », « Tous les mois », « Tous les ans »), intervalle « Tous les N jours / semaines / mois / ans » (1 à 999 ; masqué pour les semaines paires / impaires) ; en hebdomadaire : « Toutes les semaines / Semaines paires / Semaines impaires » et puces des jours ; en mensuel / annuel : « Un jour du mois » (1 à 31), « Un jour de semaine du mois » (rang + jour : « le 2e mardi ») et, en annuel, « Un jour d'une semaine » (jour + semaine 1 à 53) ; mois en annuel ; « Fin » : « Jamais », « À une date » (« Jusqu'au », pas avant le début), « Après un nombre de fois » (1 à 9999, 10 au départ) ; « Pauses » (périodes sans occurrence, « Ajouter une pause » ; texte « Aucune occurrence pendant une pause (congés…), la répétition reprend ensuite. ») ; dates supprimées (`DeletedDates`) ; exceptions ; résumé `describeRecurrence`. Les valeurs de jour et de mois sont pré-remplies depuis le premier jour (`withRuleValues`, `ruleValues`). Props : `value`, `onChange`, `start`, `withinPortal` (listes dans une popover), `weekly`, `allowNone`, `exceptions`.
+Règle de répétition : fréquence (« Ne se répète pas », « Tous les jours », « Toutes les semaines », « Tous les mois », « Tous les ans »), intervalle « Tous les N jours / semaines / mois / ans » (1 à 999 ; masqué pour les semaines paires / impaires) ; en hebdomadaire : « Toutes les semaines / Semaines paires / Semaines impaires » et puces des jours ; en mensuel / annuel : « Un jour du mois » (1 à 31), « Un jour de semaine du mois » (rang + jour : « le 2e mardi ») et, en annuel, « Un jour d'une semaine » (jour + semaine 1 à 53) ; mois en annuel ; « Fin » : « Jamais », « À une date » (« Jusqu'au », pas avant le début), « Après un nombre de fois » (1 à 9999, 10 au départ) ; « Pauses » (périodes sans occurrence, « Ajouter une pause » ; texte « Aucune occurrence pendant une pause (congés…), la répétition reprend ensuite. ») ; dates supprimées (`DeletedDates`) ; résumé `describeRecurrence`. Les valeurs de jour et de mois sont pré-remplies depuis le premier jour (`withRuleValues`, `ruleValues`). Props : `value`, `onChange`, `start`, `withinPortal` (listes dans une popover), `weekly`, `allowNone`.
 
 ### `DurationFields`
 
@@ -57,7 +56,7 @@ Un cas d'une répétition : « Cas 2 · son résumé », pliable quand il y en a
 
 ### `DeletedDates`
 
-Occurrences supprimées une à une d'une répétition, sous « Dates supprimées » : une puce par date (« 13 novembre 2026 × », infobulle « Rétablir cette date »), un clic la rétablit ; rien sans date. Props : `dates`, `onChange`. Utilisé aussi par les tâches.
+Occurrences supprimées une à une d'une répétition, sous « Dates supprimées » : une puce par date (« 13 novembre 2026 × », infobulle « Rétablir cette date »), un clic la rétablit ; rien sans date. Props : `dates`, `onChange`. Utilisé par `RecurrenceEditor`.
 
 ## Résumés (`describe-recurrence.ts`)
 

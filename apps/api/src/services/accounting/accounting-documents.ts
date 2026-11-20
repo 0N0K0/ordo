@@ -22,6 +22,7 @@ import {
   toCents,
   INVOICE_TYPES,
   isInvoice,
+  withoutBlankLines,
 } from '@ordo/shared';
 import { prisma } from '../../db';
 import { currentWorkspaceId } from '../../workspace-context';
@@ -221,6 +222,16 @@ function linesData(lines: AccountingLineInput[]): Prisma.AccountingLineUnchecked
 }
 
 /**
+ * Fields of a document checked, its blank lines dropped (`withoutBlankLines`: a line left as added is not saved).
+ * @param {AccountingDocumentInput} input Fields.
+ * @returns {ReturnType<typeof accountingDocumentInputSchema.parse>} Fields.
+ */
+function parseDocumentInput(input: AccountingDocumentInput) {
+  const fields = parseInput(accountingDocumentInputSchema, input);
+  return { ...fields, lines: withoutBlankLines(fields.lines) };
+}
+
+/**
  * Scalar data of validated document fields, with their totals.
  * @param {ReturnType<typeof accountingDocumentInputSchema.parse>} input Fields.
  * @returns {object} Prisma data.
@@ -296,7 +307,7 @@ export async function createDocument(
   extra: { sourceId?: string | null; importedSourceId?: string | null; recurringId?: string | null; status?: 'DRAFT' | 'TEMPLATE'; inherited?: boolean } = {},
 ): Promise<AccountingDocument> {
   requirePro('facturation');
-  const fields = parseInput(accountingDocumentInputSchema, input);
+  const fields = parseDocumentInput(input);
   await assertParties(fields, extra.inherited ? fields : null);
   await assertDeductions(fields.lines, fields.clientId);
   // A model of recurring invoices is dated when its invoices are made.
@@ -332,7 +343,7 @@ export async function updateDocument(id: string, input: AccountingDocumentInput)
   refuseArchived(document);
   // The model of a recurring invoice is read only with it.
   if (document.status === 'TEMPLATE') await assertNotArchived('RECURRING_INVOICE', (await prisma.recurringInvoice.findFirst({ where: { templateId: id }, select: { id: true } }))?.id);
-  const fields = parseInput(accountingDocumentInputSchema, input);
+  const fields = parseDocumentInput(input);
   await assertParties(fields, document);
   await assertDeductions(fields.lines, fields.clientId);
   if (document.status === 'DRAFT') await assertChronology(document.type, fields.issueDate, id);

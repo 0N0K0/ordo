@@ -70,7 +70,7 @@ export function ClientPage() {
           ]}
         >
           <SettingsTabPanel value="billing">
-            <ClientBillingSection clientId={client.id} />
+            <ClientBillingSection clientId={client.id} readOnly={client.archived} />
           </SettingsTabPanel>
           <SettingsTabPanel value="client">
             <ClientForm key={client.id} client={client} />

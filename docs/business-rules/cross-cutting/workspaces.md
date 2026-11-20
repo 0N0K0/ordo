@@ -30,13 +30,13 @@ La requête `currentWorkspaceId` rend l’espace retenu. Côté web, la fenêtre
 
 - **PRO** : facturation, clients, société, catalogue.
 - **PERSO** : ni facturation, ni clients, ni société. `requirePro(what)` refuse les actions correspondantes avec « Indisponible dans un espace personnel (<what>). ». Appels actuels : `clients` (création d’un client), `facturation` (documents comptables, documents importés, factures récurrentes, une action de `company.ts`), `société` (`company.ts`), `catalogue` (`catalog.ts`).
-- Les règles d’horaires de l’agenda diffèrent aussi selon le type (`services/calendar/slot-rules.ts`) : voir [Agenda](../activities/calendar.md).
+- Agenda : seul un espace PRO avertit d’un évènement hors des créneaux de travail ; la condition de créneaux des tâches et routines est la même dans les deux types (sans condition : n’importe quand), voir [Agenda](../activities/calendar.md).
 
 ## Création
 
 `createWorkspace({ label, kind })` :
 
-- `label` : requis, coupé, 60 caractères au plus (`workspaceLabelSchema`, `WORKSPACE_LABEL_MAX`) : « Le libellé est requis. », « 60 caractères maximum. ».
+- `label` : requis, coupé, 250 caractères au plus (`workspaceLabelSchema`, `TEXT_MAX`, décision DO) : « Le libellé est requis. », « 250 caractères maximum. ».
 - `kind` : `PRO` ou `PERSO`.
 - Le nouvel espace va à la fin du sélecteur.
 - Mise en place (`setUpWorkspace`), aussi rejouée à chaque modification :
@@ -63,7 +63,7 @@ La requête `currentWorkspaceId` rend l’espace retenu. Côté web, la fenêtre
 
 ## Notifications d’un espace fermé
 
-`setWorkspaceNotifications(id, sources)` : choix parmi `NOTIFICATION_SOURCES = ['ALARMS', 'CALENDAR', 'MAILS']` (alarmes, rappels d’agenda, nouveaux mails), doublons retirés. Ces notifications sont données par le navigateur tant qu’un **autre** espace est ouvert (voir [Espaces, fonctionnalités](../../features/cross-cutting/workspaces.md)).
+`setWorkspaceNotifications(id, sources)` : choix parmi `NOTIFICATION_SOURCES = ['MAILS']` (nouveaux mails), doublons retirés. Les alarmes et les rappels des tâches, routines et évènements ne sont plus un choix : ils sonnent quel que soit l'espace ouvert (décision EO ; migration `20261120090000_unified_reminders` : `ALARMS` et `CALENDAR` retirés des choix enregistrés et de l'énumération `NotificationSource`). Ces notifications sont données par le navigateur tant qu'un **autre** espace est ouvert (voir [Espaces, fonctionnalités](../../features/cross-cutting/workspaces.md)).
 
 ## Ordre
 

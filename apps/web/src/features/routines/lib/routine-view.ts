@@ -6,7 +6,7 @@ import { ruleOf } from './routine-format';
 import * as fmt from '../../../lib/format';
 
 /**
- * « À partir du » of the rule of a routine in words (« Le 15 du mois »); null without one.
+ * « Ouverture » of the rule of a routine in words (« Le 15 du mois »); null without one.
  * @param {Routine} routine Routine.
  * @returns {string | null} Words.
  */
@@ -44,7 +44,7 @@ export interface RoutineEnv {
   doable: (routine: Routine) => boolean;
   /** Comments by routine (its description counts as one more). Optional. */
   comments?: Map<string, number>;
-  /** Calendar schedules (the « Plages » filter), to filter on. Optional. */
+  /** Calendar schedules (the « Créneaux » filter), to filter on. Optional. */
   slotKinds?: { value: string; label: string }[];
   /** People routines can be for, to filter on. Optional. */
   beneficiaries?: { value: string; label: string }[];

@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { TABLE_KEY_MAX } from './table-layout';
 import { calendarStart, shiftCalendar } from '../dates/periods';
 import { addDays } from '../dates/days';
 import { isRealDay } from '../dates/times';
@@ -127,7 +128,7 @@ export function filterConditionSchemaFor<F extends string>(fields: Record<F, Fil
   return z
     .object({
       type: z.literal('condition'),
-      id: z.string().min(1).max(64),
+      id: z.string().min(1).max(TABLE_KEY_MAX),
       field: z.enum(Object.keys(fields) as [F, ...F[]]),
       operator: z.string(),
       value: z.union([z.string(), z.number(), z.array(z.string()), z.null()]).optional(),
@@ -180,7 +181,7 @@ export function filterGroupSchemaFor<F extends string>(condition: z.ZodType<Filt
   const group: z.ZodType<FilterGroupOf<F>> = z.lazy(() =>
     z.object({
       type: z.literal('group'),
-      id: z.string().min(1).max(64),
+      id: z.string().min(1).max(TABLE_KEY_MAX),
       combinator: z.enum(['and', 'or']),
       children: z.array(z.union([group, condition])).max(50),
     }),

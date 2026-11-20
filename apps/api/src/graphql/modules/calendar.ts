@@ -5,9 +5,13 @@ import * as categories from '../../services/calendar/calendar-categories';
 import * as calendars from '../../services/calendar/calendars';
 import * as events from '../../services/calendar/calendar-events';
 import * as schedules from '../../services/calendar/work-schedules';
+import { settleScheduleChange } from '../../services/routines/routines';
 import { BY_POSITION } from '../../services/core/ordering';
 import { builder } from '../builder';
 import { locatedInput, locationInputFields, TRAVEL_DESCRIPTIONS, travelInputFields } from '../located-fields';
+import { ItemLinkInput, ItemLinkRef } from '../link-fields';
+import { ReminderInput, ReminderRef } from '../reminder-fields';
+import { CONFIRM_LOSS_DESCRIPTION } from '../occurrence-fields';
 import { LabelColorInput, labelMutations, labelObject } from '../label-inputs';
 import { reloaded } from '../reload';
 import { unchecked } from '../unchecked';
@@ -56,10 +60,6 @@ export const EventScope = builder.enumType('CalendarEventScope', {
   values: EVENT_SCOPES,
 });
 
-const CalendarLink = builder.objectRef<events.CalendarLink>('CalendarLink').implement({
-  fields: (t) => ({ url: t.exposeString('url'), label: t.exposeString('label') }),
-});
-
 const PostponedFrom = builder.objectRef<NonNullable<events.EventOccurrence['postponedFrom']>>('CalendarPostponedFrom').implement({
   description: 'Event (and occurrence) a postponement replaces.',
   fields: (t) => ({
@@ -92,18 +92,17 @@ const EventOccurrence = builder.objectRef<events.EventOccurrence>('CalendarEvent
     location: t.exposeString('location', { nullable: true }),
     locationLat: t.exposeFloat('locationLat', { nullable: true }),
     locationLon: t.exposeFloat('locationLon', { nullable: true }),
-    links: t.field({ type: [CalendarLink], resolve: (occurrence) => occurrence.links }),
+    links: t.field({ type: [ItemLinkRef], resolve: (occurrence) => occurrence.links }),
     allDay: t.exposeBoolean('allDay'),
     startDate: t.exposeString('startDate'),
     startTime: t.exposeString('startTime', { nullable: true }),
     endDate: t.exposeString('endDate'),
     endTime: t.exposeString('endTime', { nullable: true }),
-    timeZone: t.exposeString('timeZone'),
     start: t.expose('start', { type: 'DateTime' }),
     end: t.expose('end', { type: 'DateTime' }),
     recurrence: t.field({ type: 'JSON', nullable: true, resolve: (occurrence) => occurrence.recurrence }),
     seriesStartDate: t.exposeString('seriesStartDate'),
-    reminders: t.exposeIntList('reminders'),
+    reminders: t.field({ type: [ReminderRef], description: 'Minutes before the start (all day: Paris midnight of its first day), or a time of its first day.', resolve: (occurrence) => occurrence.reminders }),
     travelBefore: t.exposeInt('travelBefore', { description: TRAVEL_DESCRIPTIONS.before }),
     travelAfter: t.exposeInt('travelAfter', { description: TRAVEL_DESCRIPTIONS.after }),
     projectId: t.exposeID('projectId', { nullable: true }),
@@ -194,9 +193,10 @@ const EventRoutineLinkInput = builder.inputType('EventRoutineLinkInput', {
 });
 
 const ForeignScheduleRef = builder.objectRef<schedules.ForeignSchedule>('ForeignWorkSchedule').implement({
-  description: 'Schedule of a kind of another workspace this one subscribes to, shown read only.',
+  description: 'Schedule of another workspace: of a kind this one subscribes to (shown read only), or one a slot condition can name.',
   fields: (t) => ({
     id: t.id({ resolve: (item) => item.rule.id }),
+    archived: t.exposeBoolean('archived'),
     label: t.string({ resolve: (item) => item.rule.label }),
     startDate: t.string({ resolve: (item) => item.rule.startDate }),
     endDate: t.string({ nullable: true, resolve: (item) => item.rule.endDate }),
@@ -228,6 +228,7 @@ const ForeignScheduleKindRef = builder.objectRef<schedules.ForeignScheduleKind>(
     customized: t.exposeBoolean('customized', { description: 'The subscription sets a color or a display of its own.' }),
     scheduleCount: t.exposeInt('scheduleCount'),
     subscribed: t.exposeBoolean('subscribed'),
+    archived: t.exposeBoolean('archived', { description: 'Kind archived in its workspace: no longer offered in a slot condition.' }),
   }),
 });
 
@@ -256,25 +257,20 @@ const scheduleInput = (input: typeof WorkScheduleInput.$inferInput) => ({
   exceptions: unchecked(input.exceptions),
 });
 
-const CalendarLinkInput = builder.inputType('CalendarLinkInput', {
-  fields: (t) => ({ url: t.string({ required: true }), label: t.string({ required: true }) }),
-});
-
 const CalendarEventInput = builder.inputType('CalendarEventInput', {
-  description: 'Times are local to timeZone; all-day events have none.',
+  description: 'Times are Paris times; all-day events have none.',
   fields: (t) => ({
     label: t.string({ required: true }),
     description: t.string(),
     ...locationInputFields(t),
-    links: t.field({ type: [CalendarLinkInput], required: true }),
+    links: t.field({ type: [ItemLinkInput], required: true }),
     allDay: t.boolean({ required: true }),
     startDate: t.field({ type: 'Date', required: true }),
     startTime: t.string(),
     endDate: t.field({ type: 'Date', required: true }),
     endTime: t.string(),
-    timeZone: t.string({ required: true }),
     recurrence: t.field({ type: 'JSON' }),
-    reminders: t.intList({ required: true, description: 'Minutes before the start.' }),
+    reminders: t.field({ type: [ReminderInput], required: true, description: 'Minutes before the start (24 hours at most) or a time of its first day, 10 at most.' }),
     ...travelInputFields(t, 'none: 0'),
     projectId: t.id(),
     calendarId: t.id({ description: 'Calendar; the first one of the workspace when omitted.' }),
@@ -358,6 +354,11 @@ builder.queryFields((t) => ({
     description: 'Schedules of the kinds of other workspaces this one shows (read only).',
     resolve: () => schedules.subscribedSchedules(),
   }),
+  otherWorkspaceSchedules: t.field({
+    type: [ForeignScheduleRef],
+    description: 'Every schedule of the other workspaces of the user (archived ones too), shown or not: what a slot condition can name.',
+    resolve: () => schedules.otherWorkspaceSchedules(),
+  }),
   workSchedules: t.prismaField({
     type: ['WorkSchedule'],
     resolve: (query) => prisma.workSchedule.findMany({ ...query, orderBy: [{ startDate: 'asc' }, { createdAt: 'asc' }] }),
@@ -428,8 +429,9 @@ builder.mutationFields((t) => ({
       input: t.arg({ type: CalendarEventInput, required: true }),
       scope: t.arg({ type: EventScope, required: true }),
       occurrenceDate: t.arg({ type: 'Date' }),
+      confirmLoss: t.arg.boolean({ description: CONFIRM_LOSS_DESCRIPTION }),
     },
-    resolve: async (_root, { id, input, scope, occurrenceDate }) => (await events.updateCalendarEvent(id, eventInput(input), scope, occurrenceDate)).id,
+    resolve: async (_root, { id, input, scope, occurrenceDate, confirmLoss }) => (await events.updateCalendarEvent(id, eventInput(input), scope, occurrenceDate, confirmLoss ?? false)).id,
   }),
   setCalendarEventCalledOff: t.boolean({
     description: 'Cancels an event, kept in the calendar struck through, or restores it; for a recurring one, the occurrence, it and the following ones, or the whole series.',
@@ -475,16 +477,19 @@ builder.mutationFields((t) => ({
     resolve: (_root, { workspaceId, typeId }) => done(schedules.unsubscribeScheduleKind(workspaceId, typeId ?? null)),
   }),
   createWorkSchedule: t.id({
-    args: { input: t.arg({ type: WorkScheduleInput, required: true }) },
-    resolve: async (_root, { input }) => (await schedules.createWorkSchedule(scheduleInput(input))).id,
+    description: 'Creates a schedule; the occurrences of routines it makes disappear (no moment left) lose their comments, once confirmed.',
+    args: { input: t.arg({ type: WorkScheduleInput, required: true }), confirmLoss: t.arg.boolean({ description: CONFIRM_LOSS_DESCRIPTION }) },
+    resolve: async (_root, { input, confirmLoss }) => (await schedules.createWorkSchedule(scheduleInput(input), (change) => settleScheduleChange(change, confirmLoss ?? false))).id,
   }),
   updateWorkSchedule: t.boolean({
-    args: { id: t.arg.id({ required: true }), input: t.arg({ type: WorkScheduleInput, required: true }) },
-    resolve: (_root, { id, input }) => done(schedules.updateWorkSchedule(id, scheduleInput(input))),
+    description: 'Changes a schedule; the occurrences of routines it makes disappear (no moment left) lose their comments, once confirmed.',
+    args: { id: t.arg.id({ required: true }), input: t.arg({ type: WorkScheduleInput, required: true }), confirmLoss: t.arg.boolean({ description: CONFIRM_LOSS_DESCRIPTION }) },
+    resolve: (_root, { id, input, confirmLoss }) => done(schedules.updateWorkSchedule(id, scheduleInput(input), (change) => settleScheduleChange(change, confirmLoss ?? false))),
   }),
   deleteWorkSchedule: t.boolean({
-    args: { id: t.arg.id({ required: true }) },
-    resolve: (_root, { id }) => done(schedules.deleteWorkSchedule(id)),
+    description: 'Deletes a schedule; the occurrences of routines it makes disappear (no moment left) lose their comments, once confirmed.',
+    args: { id: t.arg.id({ required: true }), confirmLoss: t.arg.boolean({ description: CONFIRM_LOSS_DESCRIPTION }) },
+    resolve: (_root, { id, confirmLoss }) => done(schedules.deleteWorkSchedule(id, (change) => settleScheduleChange(change, confirmLoss ?? false))),
   }),
   deleteCalendarEvent: t.boolean({
     args: { id: t.arg.id({ required: true }), scope: t.arg({ type: EventScope, required: true }), occurrenceDate: t.arg({ type: 'Date' }) },
@@ -493,4 +498,10 @@ builder.mutationFields((t) => ({
 }));
 
 // Display values are checked by the service.
-labelMutations('ScheduleType', schedules.scheduleTypes, { create: ScheduleTypeInput, update: ScheduleTypeInput }, { delete: 'Deletes a kind of time slots (its schedules stay, without kind).' });
+labelMutations(
+  'ScheduleType',
+  schedules.scheduleTypes,
+  { create: ScheduleTypeInput, update: ScheduleTypeInput },
+  { delete: 'Deletes a kind of time slots (its schedules stay, without kind); the occurrences of routines it makes disappear lose their comments, once confirmed.' },
+  (id, confirmLoss) => schedules.deleteScheduleType(id, (change) => settleScheduleChange(change, confirmLoss)),
+);

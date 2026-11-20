@@ -1,21 +1,20 @@
-import { scheduleChoices } from '../../calendar/lib/schedule-choices';
+import { useSlotChoices } from '../../calendar/hooks/use-slot-sources';
 import { ItemAvatar } from '../../../components/items/ItemAvatar';
 import { Text, UnstyledButton } from '@mantine/core';
 import { mapById, readSlotCondition, type RoutineCase, routineSchema } from '@ordo/shared';
-import { describeSlotCondition } from '../lib/slot-condition-text';
+import { describeSlotCondition } from '../../calendar/lib/slot-condition-text';
 import { useState, type ReactNode } from 'react';
 
 import { categoryOptions, categoryTree } from '../../../components/tree/category-tree';
 import { unarchivedOffered } from '../../../lib/archive';
 import { describeRecurrence } from '../../../components/recurrence/describe-recurrence';
 
-import { useWorkSchedules } from '../../calendar/api';
 import type { TaskContext } from '../../tasks/hooks/use-task-context';
 
 import { useRoutinesData, type Routine, type RoutineCategory } from '../api';
 import { routineCellLabel, routinesLabel, useRoutineCellEdit } from '../lib/routine-cell-edit';
 import { listDiff } from '../../../components/data-table/selection/bulk-edit';
-import { describeRoutineCase, routinePath, ruleOf, waitingFor } from '../lib/routine-format';
+import { describeRoutineCase, linkableRoutine, routinePath, ruleOf, waitingFor } from '../lib/routine-format';
 import { openRoutineForm } from '../lib/open-routine-form';
 import { RoutineRepetitionModal } from './RoutineSchedule';
 import { treeSelectProps } from '../../../components/tree/tree-select';
@@ -129,38 +128,35 @@ export function AssigneesCell({ routine, readOnly = false, context }: CellProps 
 }
 
 /**
- * "Dépend de" cell: the routines to do before this one, one under the other (those still to do for their current
- * occurrence marked with an hourglass); a click opens the multi-select of the other routines. On a column selection,
- * the change applies to every selected routine (never to itself).
- * @param {CellProps & { routines: Routine[] }} props Component props.
+ * Cell of the links of a routine with others, chosen in place among the routines of its project tree (as the tasks):
+ * « Dépend de », the routines to do before this one (those still to do for their current occurrence marked with an
+ * hourglass), or « Relative à », the routines related to it. On a column selection, the change applies to every
+ * selected routine (never to itself).
+ * @param {CellProps & { routines: Routine[], context: TaskContext, kind: 'requires' | 'related' }} props Component props.
  * @returns {JSX.Element} Cell.
  */
-export function RequiresCell({ routine, readOnly = false, routines }: CellProps & { routines: Routine[] }) {
-  const { apply, count } = useRoutineCellEdit(routine, 'requires');
+export function RoutineLinksCell({ routine, readOnly = false, routines, context, kind }: CellProps & { routines: Routine[]; context: TaskContext; kind: 'requires' | 'related' }) {
+  const { apply, count } = useRoutineCellEdit(routine, kind);
   const byId = mapById(routines);
-  const waiting = new Set(waitingFor(routine, byId).map((other) => other.id));
+  const waiting = new Set(kind === 'requires' ? waitingFor(routine, byId).map((other) => other.id) : []);
+  const ids = kind === 'requires' ? routine.requiredIds : routine.relatedIds;
   return (
     <EditableMultiSelect
-      label={routineCellLabel('Dépendances', routine, count)}
+      label={routineCellLabel(kind === 'requires' ? 'Dépendances' : 'Routines relatives', routine, count)}
       readOnly={readOnly}
-      items={routine.requiredIds.flatMap((id) => {
-        const required = byId.get(id);
-        return required
-          ? [
-              {
-                id,
-                label: routinePath(required, byId),
-                hint: waiting.has(id) ? `${routinePath(required, byId)} (pas encore faite)` : routinePath(required, byId),
-                icon: <DependencyIcon done={!waiting.has(id)} />,
-              },
-            ]
-          : [];
+      items={ids.flatMap((id) => {
+        const other = byId.get(id);
+        if (!other) return [];
+        const path = routinePath(other, byId);
+        return [kind === 'requires' ? { id, label: path, hint: waiting.has(id) ? `${path} (pas encore faite)` : path, icon: <DependencyIcon done={!waiting.has(id)} /> } : { id, label: path, hint: path }];
       })}
-      {...treeSelectProps(routineTreeOptions(routines, (other) => other.id !== routine.id && (!other.archived || routine.requiredIds.includes(other.id))))}
-      value={routine.requiredIds}
-      onSave={(requiredIds) => {
-        const { added, removed } = listDiff(routine.requiredIds, requiredIds);
-        apply({ requiredIds }, { addRequiredIds: added, removeRequiredIds: removed });
+      {...treeSelectProps(routineTreeOptions(routines, linkableRoutine(context, routine.projectId ?? null, routine.id, ids)))}
+      value={ids}
+      onSave={(next) => {
+        const { added, removed } = listDiff(ids, next);
+        if (kind === 'requires') apply({ requiredIds: next }, { addRequiredIds: added, removeRequiredIds: removed });
+        // Each routine of the selection gets (or loses) the same relations, never to itself: one bulk change, with « Annuler ».
+        else apply({ relatedIds: next }, { addRelatedIds: added, removeRelatedIds: removed });
       }}
     />
   );
@@ -190,13 +186,13 @@ export function ProjectCell({ routine, readOnly = false, context }: CellProps & 
  * @returns {JSX.Element} Text.
  */
 export function RepetitionText({ routine }: { routine: Routine }) {
-  const { data: schedules } = useWorkSchedules();
+  const { names } = useSlotChoices();
   const cases = routine.cases as RoutineCase[];
   const rule = ruleOf(routine);
   const text = cases.length
     ? cases.map((item) => describeRoutineCase(item, routine.startDate)).join(' ; ')
     : rule
-      ? [describeRecurrence(rule, routine.startDate), describeSlotCondition(readSlotCondition(routine.slotCondition), scheduleChoices(schedules).names)].filter(Boolean).join(' · ')
+      ? [describeRecurrence(rule, routine.startDate), describeSlotCondition(readSlotCondition(routine.slotCondition), names)].filter(Boolean).join(' · ')
       : '';
   return (
     <Text size="xs" c="dimmed" lineClamp={1} title={text} px={6}>
@@ -207,7 +203,7 @@ export function RepetitionText({ routine }: { routine: Routine }) {
 
 /**
  * "Quand" cell: where the routine stands today (its content); a click opens every setting of its repetition (one rule
- * or cases, moments, schedules, « à partir du ») in the common modal. On a selection, the repetition applies to every
+ * or cases, moments, schedules, « Ouverture ») in the common modal. On a selection, the repetition applies to every
  * routine selected.
  * @param {CellProps & { children: ReactNode }} props Component props.
  * @returns {JSX.Element} Cell.
@@ -229,7 +225,7 @@ export function RepetitionCell({ routine, readOnly = false, children }: CellProp
           header={
             count > 1 && (
               <Text size="sm" c="dimmed">
-                S’applique à {routinesLabel(count)} : chacune prend cette répétition entière (première fois, règle ou cas, moments, plages, « à partir du »).
+                S’applique à {routinesLabel(count)} : chacune prend cette répétition entière (première fois, règle ou cas, moments, créneaux, « Ouverture »).
               </Text>
             )
           }

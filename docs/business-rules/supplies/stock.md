@@ -15,7 +15,7 @@ Toutes les données sont propres à l'espace courant. Erreurs au format commun (
 Source : `stock.ts` (« Places »), `services/core/trees.ts`.
 
 - Arbre à ordre manuel : créé en dernier parmi ses frères ; changé de parent, il passe en dernier ; déplacement (`moveStockLocation`) sous un parent ou à la racine, à un index (dernier sans index).
-- Libellé requis, 80 caractères ; couleur facultative (`#rrggbb`).
+- Libellé requis, 250 caractères (décision DO) ; couleur facultative (`#rrggbb`).
 - Parent existant (« Emplacement parent introuvable. ») et ni lui-même ni un descendant (« Un emplacement ne peut pas être rangé sous lui-même. »). Rien de nouveau sous un emplacement archivé.
 - Un emplacement archivé ne se modifie ni ne se déplace, et n'est plus accepté comme nouveau choix (article, inventaire, achat, réglage d'une référence) ; il reste valable là où il est déjà.
 - Suppression : ses sous-emplacements remontent d'un niveau, ses articles et les références qui y allaient restent sans emplacement, ses inventaires aussi.
@@ -26,12 +26,12 @@ Source : `stock.ts` (« Items »), `stockItemSchema`, `newStockItemSchema`.
 
 | Champ                      | Règle                                                                                                                      |
 | -------------------------- | -------------------------------------------------------------------------------------------------------------------------- |
-| `label`                    | Requis, 200 caractères.                                                                                                    |
+| `label`                    | Requis, 250 caractères.                                                                                                    |
 | `productId`                | Référence (produit des achats) facultative : doit exister (« Produit introuvable. ») et ne pas être nouvellement archivée. |
 | `categoryId`               | Catégorie des achats, existante (« Catégorie introuvable. »), non nouvellement archivée.                                   |
-| `unit`                     | 50 caractères, vide → null ; unité archivée refusée si elle change.                                                        |
+| `unit`                     | 250 caractères, vide → null ; unité archivée refusée si elle change.                                                       |
 | `locationId`               | Emplacement existant (« Emplacement introuvable. »), non nouvellement archivé.                                             |
-| `note`                     | 500 caractères, espaces retirés, vide → null.                                                                              |
+| `note`                     | Markdown, 65 536 caractères (« Texte trop long. »), blanc → null.                                                          |
 | `perishable`               | Requis : géré par lots datés.                                                                                              |
 | `memberIds`, `relationIds` | 100 au plus chacun ; bénéficiaires (tout contributeur, toute relation, voir [Personnes](../cross-cutting/people.md)).      |
 | `quantity`, `expiresAt`    | Création seulement : quantité de départ (0 à 999 999) et date du premier lot.                                              |
@@ -71,7 +71,7 @@ Une quantité sort du lot donné (« Lot introuvable. » s'il n'est pas à l'art
 
 ### Mouvement à la main (`moveStock`)
 
-- `stockMoveSchema` : type parmi « Achat », « Consommation », « Perte », « Correction » (pas « Inventaire ») ; quantité non nulle (« Quantité non nulle attendue. »), entre −999 999 et 999 999, positive sauf pour une correction (« Quantité positive attendue. ») ; note 2000 caractères.
+- `stockMoveSchema` : type parmi « Achat », « Consommation », « Perte », « Correction » (pas « Inventaire ») ; quantité non nulle (« Quantité non nulle attendue. »), entre −999 999 et 999 999, positive sauf pour une correction (« Quantité positive attendue. ») ; note markdown de 65 536 caractères (`markdownSchema`, « Texte trop long. »), blanche → null, enregistrée telle qu'écrite.
 - Article archivé refusé.
 - Achat ou correction positive : entrée (lot donné, ou date `expiresAt`). Consommation, perte ou correction négative : sortie.
 - Rien n'a pu sortir : « Il n'y en a plus en stock. ».
@@ -85,7 +85,7 @@ Une quantité sort du lot donné (« Lot introuvable. » s'il n'est pas à l'art
 
 `recordStockCount` (`stockCountSchema`) :
 
-- Au moins une ligne (« Comptez au moins un article. »), 2000 au plus ; quantité comptée 0 à 999 999 ; note 2000 caractères.
+- Au moins une ligne (« Comptez au moins un article. »), 2000 au plus ; quantité comptée 0 à 999 999 ; note markdown de 65 536 caractères (`markdownSchema`, « Texte trop long. »), blanche → null, enregistrée telle qu'écrite.
 - Emplacement facultatif (aucun : tout le stock), existant et non archivé. L'API ne vérifie pas que les articles comptés sont dans cet emplacement (c'est l'interface qui les filtre).
 - Tous les articles doivent exister (« Article introuvable. ») et aucun n'être archivé.
 - Pour chaque ligne, l'écart compté − attendu :

@@ -29,7 +29,7 @@ function DefaultScheduleKind() {
   const [opened, setOpened] = useState(false);
   if (!defaultKind) return null;
   return (
-    <SettingsSection title="Plages sans type">
+    <SettingsSection title="Créneaux sans type">
       <Stack gap="xs">
         <Group gap="xs" wrap="nowrap">
           <ColorField
@@ -37,15 +37,15 @@ function DefaultScheduleKind() {
             size="xs"
             w={120}
             placeholder="Vert"
-            aria-label="Couleur des plages sans type"
+            aria-label="Couleur des créneaux sans type"
             defaultValue={defaultKind.color ?? ''}
-            onChangeEnd={(value) => saveDefaultKind.mutate({ ...defaultKind, ...readScheduleDisplay(defaultKind), color: value || null }, ON_ERROR)}
+            onCommit={(value) => saveDefaultKind.mutate({ ...defaultKind, ...readScheduleDisplay(defaultKind), color: value || null }, ON_ERROR)}
           />
           <TextInput
             key={defaultKind.label}
             size="xs"
             style={{ flex: 1 }}
-            aria-label="Libellé des plages sans type"
+            aria-label="Libellé des créneaux sans type"
             placeholder={DEFAULT_SCHEDULE_KIND_LABEL}
             defaultValue={defaultKind.label}
             rightSectionWidth={80}
@@ -58,7 +58,7 @@ function DefaultScheduleKind() {
               event.currentTarget.value.trim() !== defaultKind.label && saveDefaultKind.mutate({ ...defaultKind, ...readScheduleDisplay(defaultKind), label: event.currentTarget.value }, ON_ERROR)
             }
           />
-          <LookToggle label="Affichage dans l’agenda" ariaLabel="Affichage des plages sans type" opened={opened} onToggle={() => setOpened(!opened)} />
+          <LookToggle label="Affichage dans l’agenda" ariaLabel="Affichage des créneaux sans type" opened={opened} onToggle={() => setOpened(!opened)} />
         </Group>
         <LookPanel opened={opened}>
           <ScheduleLookEditor name={defaultKind.label} value={defaultKind} onChange={(display) => saveDefaultKind.mutate({ ...defaultKind, ...display }, ON_ERROR)} />
@@ -80,12 +80,12 @@ function ScheduleTypes() {
   return (
     <SettingsList
       {...kind}
-      title="Types de plages"
-      description="Pour distinguer vos plages (travail, garde des enfants, sport…) : chaque type a sa couleur et son affichage dans l’agenda."
+      title="Types de créneaux"
+      description="Pour distinguer vos créneaux (travail, garde des enfants, sport…) : chaque type a sa couleur et son affichage dans l’agenda."
       noun="le type"
       items={types ?? []}
       remove={(id) => removeType.mutateAsync(id)}
-      deleteMessage={(type) => <>Le type « {type.label} » sera supprimé ; ses plages restent, sans type.</>}
+      deleteMessage={(type) => <>Le type « {type.label} » sera supprimé ; ses créneaux restent, sans type.</>}
     />
   );
 }
@@ -103,8 +103,8 @@ function ForeignSchedules() {
   if (!kinds?.length) return null;
   return (
     <SettingsSection
-      title="Plages des autres espaces"
-      description="Abonné à un type de plage, cet espace affiche toutes ses plages (même celles ajoutées ensuite) dans son agenda, en lecture seule, avec la couleur et l’affichage du type ou ceux choisis ici."
+      title="Créneaux des autres espaces"
+      description="Abonné à un type de créneau, cet espace affiche tous ses créneaux (même ceux ajoutés ensuite) dans son agenda, en lecture seule, avec la couleur et l’affichage du type ou ceux choisis ici."
     >
       <ByWorkspace items={kinds} workspaceOf={(kind) => ({ id: kind.workspaceId, label: kind.workspaceLabel })}>
         {(kind) => {
@@ -117,7 +117,7 @@ function ForeignSchedules() {
                 label={kind.label}
                 color={kind.color ?? 'green'}
                 workspaceLabel={kind.workspaceLabel}
-                hint={`${countOf(kind.scheduleCount, 'plage')}${kind.customized ? ' · affichage personnalisé' : ''}`}
+                hint={`${countOf(kind.scheduleCount, 'créneau', 'créneaux')}${kind.customized ? ' · affichage personnalisé' : ''}`}
                 subscribed={kind.subscribed}
                 onChange={(subscribed) => (subscribed ? subscribe : unsubscribe).mutate(target, ON_ERROR)}
                 actions={
@@ -144,7 +144,7 @@ function ForeignSchedules() {
                       placeholder="Vert"
                       aria-label={`Couleur de « ${kind.label} » dans cet agenda`}
                       defaultValue={kind.color ?? ''}
-                      onChangeEnd={(value) => setLook.mutate({ ...target, input: { ...look, color: value || null } }, ON_ERROR)}
+                      onCommit={(value) => setLook.mutate({ ...target, input: { ...look, color: value || null } }, ON_ERROR)}
                     />
                   </Group>
                   <ScheduleLookEditor name={kind.label} value={kind} onChange={(display) => setLook.mutate({ ...target, input: { ...look, ...display } }, ON_ERROR)} />

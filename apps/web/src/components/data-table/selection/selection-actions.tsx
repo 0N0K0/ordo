@@ -265,17 +265,46 @@ export function archiveItemsAction<T extends { id: string; archived?: boolean | 
   });
 }
 
+/** What « Dupliquer » does with an item (decision D20): its copy, the toast, and the copy opened. */
+export interface DuplicateOptions<R, C> {
+  /** Saves the copy of an item at once (« … (copie) »), returning it (its id, or what opens it). */
+  duplicate: (row: R) => Promise<C>;
+  /** Success message. */
+  done: string;
+  /** Opens the detail panel (or page) of the copy, when a single item was copied. Optional. */
+  open?: (copy: C) => void;
+}
+
 /**
- * « Dupliquer » of the rows checked: each row copied.
+ * « Dupliquer » (decision D20), the one behaviour of every copy in the app: each item copied and saved at once (named
+ * « … (copie) », `copyName`), one after the other; then the toast, and the copy of a single item opens.
+ * @param {readonly R[]} rows Items copied.
+ * @param {DuplicateOptions<R, C>} options Copy, message, opening.
+ * @returns {Promise<boolean>} Every item copied.
+ */
+export async function duplicateItems<R, C>(rows: readonly R[], { duplicate, done, open }: DuplicateOptions<R, C>): Promise<boolean> {
+  let copy: C | undefined;
+  const copied = await forEachRow(
+    rows,
+    async (row) => {
+      copy = await duplicate(row);
+    },
+    done,
+  );
+  if (copied && rows.length === 1 && open && copy !== undefined) open(copy);
+  return copied;
+}
+
+/**
+ * « Dupliquer » of the rows checked, or of one item (its menu: `rowMenuEntry(duplicateRowsAction([item], …))`):
+ * `duplicateItems`. The one action of this role (eslint forbids another « Dupliquer » or « Cloner »).
  * @param {readonly R[]} rows Rows checked.
- * @param {{ duplicate: (row: R) => Promise<unknown>, done: string, label?: string, loading?: boolean }} options Copy of a row, success message, label of the button, copy running.
+ * @param {DuplicateOptions<R, C> & { loading?: boolean, disabled?: boolean }} options Copy, message, opening, copy running, unavailable.
  * @returns {SelectionAction} Action.
  */
-export function duplicateRowsAction<R>(
-  rows: readonly R[],
-  { duplicate, done, label = 'Dupliquer', loading }: { duplicate: (row: R) => Promise<unknown>; done: string; label?: string; loading?: boolean },
-): SelectionAction {
-  return { label, icon: <CopyIcon aria-hidden />, loading, onClick: () => void forEachRow(rows, duplicate, done) };
+export function duplicateRowsAction<R, C>(rows: readonly R[], { loading, disabled, ...options }: DuplicateOptions<R, C> & { loading?: boolean; disabled?: boolean }): SelectionAction {
+  // eslint-disable-next-line no-restricted-syntax -- the one « Dupliquer » action.
+  return { label: 'Dupliquer', icon: <CopyIcon aria-hidden />, loading, disabled, onClick: () => void duplicateItems(rows, options) };
 }
 
 /**

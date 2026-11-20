@@ -1,4 +1,4 @@
-import { mailAccountFormSchema, signatureSchema, type MailAccountFormValues } from '@ordo/shared';
+import { mailAccountFormSchema, PASSWORD_AGAIN, passwordsToRetype, signatureSchema, type MailAccountFormValues } from '@ordo/shared';
 import nodemailer from 'nodemailer';
 import { prisma } from '../../db';
 import type { MailAccount } from '../../generated/prisma/client';
@@ -55,19 +55,14 @@ export function findActiveAccount(id: string): Promise<MailAccount> {
 }
 
 /**
- * A saved password is only reused with the server it was saved for: changing the server, port, login or
- * encryption requires typing it again (otherwise it could be sent to another server).
+ * Refuses settings whose server changed without its password typed again (`passwordsToRetype`).
  * @param {MailAccountFormValues} values New settings.
  * @param {MailAccount | null} saved Saved account.
  * @returns {void}
  */
 function assertPasswordsForServers(values: MailAccountFormValues, saved: MailAccount | null): void {
-  if (!saved) return;
-  const message = 'Saisissez à nouveau le mot de passe : le serveur, le port, l’identifiant ou le chiffrement a changé.';
-  const imapChanged = values.imapHost !== saved.imapHost || values.imapPort !== saved.imapPort || values.imapUser !== saved.imapUser || values.imapSecure !== saved.imapSecure;
-  const smtpChanged = values.smtpHost !== saved.smtpHost || values.smtpPort !== saved.smtpPort || values.smtpUser !== saved.smtpUser || values.smtpSecure !== saved.smtpSecure;
-  if (imapChanged && !values.imapPassword) throw fieldError('imapPassword', message);
-  if (smtpChanged && !values.smtpPassword) throw fieldError('smtpPassword', message);
+  const [missing] = passwordsToRetype(values, saved);
+  if (missing) throw fieldError(missing, PASSWORD_AGAIN);
 }
 
 /**

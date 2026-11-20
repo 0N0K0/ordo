@@ -83,8 +83,8 @@ Classes partagées par la page et les listes : `page`, `grid`, `gridInner`, `col
 
 ### `components/MailFolders.tsx`
 
-- `AccountFolders({ account, selected, onSelect, onDropped })` : entrée d’une boîte dans la navigation et l’arbre de ses dossiers (pliage retenu par `useFoldedIds('ordo.mail.collapsed.<id>')`, profondeur en retrait, icône par usage spécial, `MailCountBadges` compacts, menu « Nouveau sous-dossier / Déplacer vers… / Renommer / Supprimer », « Nouveau dossier »). Cible de dépôt pour les mails (`useDndMonitor` → `move`) et pour les dossiers (sur un dossier : sous-dossier ; sur la boîte : premier niveau). `onSelect` reçoit `{ accountId, folder }` ; `onDropped` reçoit les mails déposés. Utilisé par `MailPage`.
-- Internes : `FOLDER_ICONS` (icône par usage spécial), `FOLDER_NAME` (`requiredText(255)` côté web ; l’API limite à 100), `SelectedFolder`, `AccountFoldersProps`, `placeFolder`, `askMove` (panneau « Déplacer « X » », alternative clavier au glisser), `within`, `accepts`, `hidden`, `askCreate`, `askRename`, `askDelete`.
+- `AccountFolders({ account, selected, onSelect, onDropped })` : entrée d’une boîte dans la navigation et l’arbre de ses dossiers (pliage retenu par `useFoldedIds('ordo.mail.collapsed.<id>')`, profondeur en retrait, icône par usage spécial, `MailCountBadges` compacts, menu « Nouveau sous-dossier / Déplacer vers… / Renommer / Supprimer », « Nouveau dossier » ; nom contrôlé par `mailFolderNameSchema`, partagé avec l’API). Cible de dépôt pour les mails (`useDndMonitor` → `move`) et pour les dossiers (sur un dossier : sous-dossier ; sur la boîte : premier niveau). `onSelect` reçoit `{ accountId, folder }` ; `onDropped` reçoit les mails déposés. Utilisé par `MailPage`.
+- Internes : `FOLDER_ICONS` (icône par usage spécial), `SelectedFolder`, `AccountFoldersProps`, `placeFolder`, `askMove` (panneau « Déplacer « X » », alternative clavier au glisser), `within`, `accepts`, `hidden`, `askCreate`, `askRename`, `askDelete`.
 - `FolderDnd({ accountId, folder, draggable, children })` (interne) : rend une ligne de dossier à la fois source de glisser (sauf dossier spécial) et cible de dépôt ; `FolderDndProps` = `ref` et `style`.
 
 ### `components/AdvancedSearchPanel.tsx`
@@ -99,12 +99,12 @@ Classes partagées par la page et les listes : `page`, `grid`, `gridInner`, `col
 
 ### `components/MailAccountForm.tsx`
 
-- `MailAccountForm({ account?, onDone })` : formulaire d’une boîte (schéma `mailAccountFormSchema`), hébergeurs préremplis, « Mêmes identifiants que pour la réception » (recopie IMAP → SMTP et renvoie les erreurs SMTP sur les champs IMAP), « Tester la connexion ». Utilisé par `MailAccountsManager`.
-- Interne : `PRESETS` (Gmail, Outlook / Microsoft 365, OVHcloud, Infomaniak, Gandi, IONOS : serveurs, ports, SSL, `saveSent`), `toInput`, `showError`, `applyPreset`.
+- `MailAccountForm({ account?, onDone })` : formulaire d’une nouvelle boîte (« Ajouter ») ou panneau d’une boîte existante enregistré champ par champ (décision D22, `useFieldSave`, la boîte entière à chaque fois par `update`, `SaveStatus` ; la boîte du cache `useMailAccounts` suivie) ; schéma `mailAccountFormSchema`, hébergeurs préremplis, « Mêmes identifiants que pour la réception » (recopie IMAP → SMTP et renvoie les erreurs SMTP sur les champs IMAP), « Tester la connexion ». La connexion (`CONNECTION`) s’enregistre ensemble en quittant l’un de ses champs (`connectionProps` ; un interrupteur dès qu’il change), après `passwordsToRetype` (partagé, dans `check` de `useFieldSave`, donc aussi à la fermeture du panneau) : un serveur changé sans son mot de passe met `PASSWORD_AGAIN` sous le mot de passe et n’enregistre rien ; Entrée enregistre les textes. Utilisé par `MailAccountsManager`.
+- Internes : `PRESETS` (Gmail, Outlook / Microsoft 365, OVHcloud, Infomaniak, Gandi, IONOS : serveurs, ports, SSL, `saveSent`), `CONNECTION`, `accountValues(account?)`, `toInput(values, sameLogin)`, `saveConnection`, `connectionProps`, `showError`, `applyPreset`.
 
 ### `components/MailAccountsManager.tsx`
 
-- `MailAccountsManager()` : section de paramètres « Boîtes mail » : liste (avec archivées sur demande), « Ajouter », « Signature », « Modifier », archiver / restaurer (`archiveEntry`, `useSetArchived('MAIL_ACCOUNT')`), « Retirer » (confirmation). Les formulaires s’ouvrent en fenêtre `xl`. Utilisé par `MailPage` (paramètres et page sans boîte).
+- `MailAccountsManager()` : section de paramètres « Boîtes mail » : liste (avec archivées sur demande), « Ajouter », « Signature », « Modifier », archiver / restaurer (`archiveEntry`, `useSetArchived('MAIL_ACCOUNT')`), « Retirer » (confirmation). Les formulaires (nouvelle boîte, modification, signature) s’ouvrent dans le panneau latéral large (`openFormPanel`, `lg`). Utilisé par `MailPage` (paramètres et page sans boîte).
 
 ### `components/MailBody.tsx` et `MailBody.module.css`
 
@@ -173,7 +173,7 @@ Classes partagées par la page et les listes : `page`, `grid`, `gridInner`, `col
 
 ### `components/MailSearchForm.tsx`
 
-- `MailSearchForm({ search?, initial?, onDone })` : formulaire d’un dossier de recherche (schéma `mailSearchSchema`) ; libellé par défaut « À traiter » (nouveau) ou « Recherche » (recherche avancée enregistrée) ; `onDone(id?)` reçoit l’id d’un nouveau dossier. Utilisé par `openSearchForm`.
+- `MailSearchForm({ search?, initial?, onDone })` : formulaire d’un nouveau dossier de recherche (« Créer » ; libellé par défaut « À traiter », ou « Recherche » pour une recherche avancée enregistrée ; `onDone(id?)` reçoit l’id du nouveau dossier) ou panneau d’un dossier existant enregistré champ par champ (décision D22, `useFieldSave`, le dossier entier par `update`, textes en les quittant, `SaveStatus` ; le dossier du cache `useMailSearches` suivi) ; schéma `mailSearchSchema`. Interne : `searchValues(search)`. Utilisé par `openSearchForm`.
 
 ### `components/MailWatcher.tsx`
 
@@ -192,7 +192,7 @@ Classes partagées par la page et les listes : `page`, `grid`, `gridInner`, `col
 
 ### `components/RichEditor.tsx`
 
-- `RichEditor({ value, onChange, label?, minHeight?, sourceCode?, autoFocus? })` : éditeur Tiptap (Mantine) produisant du HTML : mise en forme, titres, citation, listes, liens, alignement, images envoyées (bouton, dépôt, collage) et redimensionnables, annuler / rétablir, code HTML si `sourceCode`. Le contenu suit `value` quand il change de l’extérieur. Utilisé par `MailComposer`, `SignatureForm`.
+- `RichEditor({ value, onChange, label?, minHeight?, sourceCode?, autoFocus?, error?, onBlur? })` : éditeur Tiptap (Mantine) produisant du HTML : mise en forme, titres, citation, listes, liens, alignement, images envoyées (bouton, dépôt, collage) et redimensionnables, annuler / rétablir, code HTML si `sourceCode`. Le contenu suit `value` quand il change de l’extérieur. `error` : erreur dessous ; `onBlur` : le focus sort de tout l’éditeur (pas de son texte vers sa barre d’outils), pour un enregistrement en le quittant (`fieldProps` de `useFieldSave` ; règle eslint : pas de `onBlur={() => commit(…)}`). Utilisé par `MailComposer`, `SignatureForm`.
 - Internes : `uploadImage` (via `uploadAttachment`), `imageUploadError` (« Image non envoyée. »), `UploadImage` (extension image avec envoi).
 
 ### `components/ScheduledMailsList.tsx`
@@ -201,7 +201,7 @@ Classes partagées par la page et les listes : `page`, `grid`, `gridInner`, `col
 
 ### `components/SignatureForm.tsx`
 
-- `SignatureForm({ account, onDone })` : signature HTML d’une boîte (`RichEditor` avec code HTML) ; un `<p></p>` vide est envoyé comme vide. Utilisé par `MailAccountsManager`.
+- `SignatureForm({ account })` : signature HTML d’une boîte (`LazyRichEditor` avec code HTML), enregistrée en quittant l’éditeur (décision D22, `useFieldSave` sur `signatureFormSchema`, `fieldProps('signature')`, `SaveStatus`, sans bouton ; la boîte du cache suivie) ; un `<p></p>` vide est envoyé comme vide. Utilisé par `MailAccountsManager`.
 
 ## hooks
 

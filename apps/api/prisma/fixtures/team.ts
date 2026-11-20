@@ -1,4 +1,4 @@
-import { createEntry, EMPTY_ENTRY, relativeDay, TIME_ZONE, treasuryCategoryIds } from './factories';
+import { createEntry, EMPTY_ENTRY, relativeDay, treasuryCategoryIds } from './factories';
 import { addDays, monthOfDay, shiftMonth } from '@ordo/shared';
 import { prisma } from '../../src/db';
 import type { Contributor } from '../../src/generated/prisma/client';
@@ -88,9 +88,8 @@ export async function seedTeam({ contributors, today, monday }: { contributors: 
     startTime: '12:30',
     endDate: addDays(monday, 3),
     endTime: '14:00',
-    timeZone: TIME_ZONE,
     recurrence: null,
-    reminders: [30],
+    reminders: [{ before: 30 }],
     projectId: null,
     contributorIds: [],
     relationIds: [friend.id],

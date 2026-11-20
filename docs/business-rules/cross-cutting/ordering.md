@@ -22,18 +22,20 @@ Un élément créé va **en fin** de sa liste : `nextPositionIn(model, where)` d
 
 - `moveInList(model, id, index, where, tx?)` : déplace un élément à un index parmi ses frères (`where`) ; toutes les positions des frères sont réécrites (chacun reçoit son index), en une transaction.
 - `saveSiblingOrder(orderedIds, id, index, save)` et `moveInOrder` : même chose à partir d'une liste d'ids déjà chargée ; l'index est borné à la liste (`movedTo`).
+- `moveBefore(model, id, beforeId, what, also?)` : ordre global d'un modèle (tâches, routines, décision DT) ; place l'élément juste avant un autre (`null` : à la fin ; voisin inconnu : « X introuvable. »), en ne réécrivant que les positions qui changent, dans une transaction avec les autres écritures données (changement de parent). Placer « avant tel élément » fonctionne aussi dans une vue filtrée.
 - `reorder(kind, ids)` : remet tous les éléments d'une liste de réglages plate dans l'ordre donné, tout ou rien (transaction).
 - Espaces : `moveWorkspace(id, index)` (« Espace introuvable. »).
 
 ## Arbres
 
-Arbres de réglages (`treeListService`) : catégories de routines, de courses, de trésorerie, d'agenda, emplacements de stock, lieux ; et arbres métier propres (projets, tâches, routines parentes, dossiers de la bibliothèque).
+Arbres de réglages (`treeListService`) : catégories de routines, de courses, de trésorerie, d'agenda, emplacements de stock, lieux ; et arbres métier propres (projets, tâches, routines parentes, dossiers de la bibliothèque). Les tâches et les routines ont un seul ordre global (pas d'ordre parmi les frères) ; l'arbre affiché range les frères dans cet ordre.
 
 - Le parent doit exister (« X parente introuvable. » selon le message du domaine) et ne peut pas être l'élément ni un de ses descendants (message de boucle du domaine, ex. « Une zone ne peut pas être dans elle-même. ») : `assertTreeParent`, via `isUnderOrSelf`.
 - Un parent archivé ne reçoit pas de nouvel enfant (les enfants existants restent).
 - `move(id, parentId, index)` : change de parent (si différent), puis place à l'index parmi les nouveaux frères ; sans index, l'élément reste en dernier.
-- Glisser-déposer : position relative `BEFORE`, `AFTER` ou `INSIDE` (`TREE_PLACES`).
-- Supprimer un élément d'arbre de réglages fait **remonter ses enfants** d'un niveau, sous son parent (`deleteTreeNode`). Exceptions : un lieu supprime ses zones (cascade de la base) ; un projet supprime tout son sous-arbre ; une tâche supprime ou remonte ses sous-tâches selon le choix (voir [Tâches](../activities/tasks.md)).
+- Glisser-déposer d'un arbre de réglages ou de projets : position relative `BEFORE`, `AFTER` ou `INSIDE` (`TreePlace` du web).
+- Supprimer un élément d'arbre de réglages fait **remonter ses enfants** d'un niveau, sous son parent (`deleteTreeNode`). Exceptions : un lieu supprime ses zones (cascade de la base) ; un projet supprime tout son sous-arbre ; une tâche et une routine suppriment ou remontent leurs sous-éléments selon le choix (`deleteTreeItems`, voir [Tâches](../activities/tasks.md), [Routines](../activities/routines.md)).
+- Sélection dans un arbre (tâches, routines) : seuls les éléments du haut sont traités, un élément sous un autre sélectionné le suit (`topmostIds`).
 - Projets : profondeur maximale `MAX_PROJECT_DEPTH` = 5 niveaux.
 - Lieux : un lieu de premier niveau (avec adresse) ne devient jamais une zone et inversement (« Un lieu garde son adresse : il ne peut pas devenir une zone. », « Une zone n’a pas d’adresse : elle ne peut pas devenir un lieu. »).
 - Chemin affiché : « Maison › Étage › Chambre » (`pathOf`, séparateur `LEVEL`).

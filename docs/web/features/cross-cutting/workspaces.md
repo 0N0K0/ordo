@@ -9,7 +9,7 @@ Tous les fichiers de `apps/web/src/features/workspaces/` : requête des espaces,
 | Export                                | Rôle                                                                                                                                                                                                                                       |
 | ------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
 | `Workspace`                           | Type d’un espace de la requête `Workspaces` (`id`, `label`, `kind`, `position`, `notifyElsewhere`, `weekStart`, `weekEnd`).                                                                                                                |
-| `NotificationSource`, `WorkspaceKind` | Types GraphQL réexportés (`ALARMS` / `CALENDAR` / `MAILS`, `PRO` / `PERSO`).                                                                                                                                                               |
+| `NotificationSource`, `WorkspaceKind` | Types GraphQL réexportés (`MAILS`, `PRO` / `PERSO`).                                                                                                                                                               |
 | `workspacesQueryKey`                  | Clé `['workspaces']` ; lue aussi par `lib/week.ts` (semaine de l’espace actif).                                                                                                                                                            |
 | `useWorkspaces()`                     | Requête `Workspaces` + `currentWorkspaceId`, `staleTime: Infinity` ; à la réception, appelle `rememberWorkspace(currentWorkspaceId)` pour épingler les requêtes de l’onglet.                                                               |
 | `useActiveWorkspace()`                | `{ workspace, perso }` : l’espace affiché et s’il est personnel. Utilisé par toutes les vues qui diffèrent en PERSO (barre latérale, formulaires de projet, accueil, agenda, trésorerie, achats, tableaux de bord, bénéficiaires…).        |
@@ -19,11 +19,11 @@ Tous les fichiers de `apps/web/src/features/workspaces/` : requête des espaces,
 
 ### `components/ElsewhereNotifier.tsx`
 
-- `ElsewhereNotifier()` : ne rend rien de visible ; monte un `ElsewhereWorkspace` (interne) par autre espace dont `notifyElsewhere` n’est pas vide. Monté dans `app/layout/AppLayout.tsx`.
+- `ElsewhereNotifier()` : ne rend rien de visible ; monte un `ElsewhereWorkspace` (interne) par autre espace (tous : alarmes et rappels sonnent quel que soit l'espace ouvert, décision EO). Monté dans `app/layout/AppLayout.tsx`.
 - `ElsewhereWorkspace({ workspace })` (interne) : pour un espace fermé, via `executeIn(id, …)` (requêtes dans un autre espace) :
-  - `ALARMS` : requête `ElsewhereAlarms` (alarmes avec tâche et projet, projets, chrono en cours) toutes les 60 s (`ALARMS_MS`) ; `dueAlarms` / `ringAlarm` (de `features/alarms/components/ring`) toutes les 15 s (`TICK_MS`) ; `ElsewhereMarkAlarmFired` marque l’occurrence sonnée ; liens via `alarmTarget`.
-  - `CALENDAR` : `fetchCalendarEvents` de J-1 à J+8 toutes les 5 min (`CALENDAR_MS`) ; `ringReminders`.
-  - `MAILS` : rend `MailWatcher` (de `features/mail`) pour cet espace.
+  - toujours, requête `ElsewhereAlarms` (alarmes avec tâche et projet, projets, chrono en cours) toutes les 60 s (`ALARMS_MS`) ; `dueAlarms` / `ringAlarm` (de `features/alarms/components/ring`) toutes les 15 s (`TICK_MS`) ; `ElsewhereMarkAlarmFired` marque l'occurrence sonnée ; liens via `alarmTarget` ;
+  - toujours, `fetchCalendarEvents` de J-1 à J+8 et requête `ElsewhereReminders` (tâches et routines avec leurs rappels, `reminderOccurrences`, moments) toutes les 5 min (`CALENDAR_MS`) ; `ringReminders`, `ringTaskReminders` (liens `alarmTarget`), `ringRoutineReminders` (sans report ni « Marquer comme faite ») ;
+  - `MAILS` choisi : rend `MailWatcher` (de `features/mail`) pour cet espace.
   - Chaque lien de notification appelle `switchWorkspace(id, path)`.
 
 ### `components/WorkspaceGate.tsx`
@@ -36,7 +36,7 @@ Tous les fichiers de `apps/web/src/features/workspaces/` : requête des espaces,
 
 ### `components/WorkspacesManager.tsx`
 
-- `WorkspacesManager()` : `SettingsGrid` avec la section « Espaces » (une ligne par espace) et « Nouvel espace » (libellé limité à `WORKSPACE_LABEL_MAX`, type par défaut `PERSO`, toast « Espace créé. »). Utilisé par `SettingsPage` (onglet `workspaces`) et le panneau ouvert depuis le sélecteur.
+- `WorkspacesManager()` : `SettingsGrid` avec la section « Espaces » (une ligne par espace) et « Nouvel espace » (libellé limité à `TEXT_MAX`, type par défaut `PERSO`, toast « Espace créé. »). Utilisé par `SettingsPage` (onglet `workspaces`) et le panneau ouvert depuis le sélecteur.
 - `WorkspaceRow({ workspace, index, count, current, fallbackId })` (interne) : type (`SegmentedControl`), menu `InlineActions` (« Renommer » via `openLabelForm` + `workspaceLabelSchema`, `moveEntries`, « Ouvrir »), `RemoveButton` + `confirmDestructive` (bascule sur `fallbackId` si l’espace ouvert est supprimé), puces des notifications (`Chip.Group`), semaine (deux `Select` sur `WEEKDAY_LABELS`, `readWeek`, `weekLength`).
 - Constantes internes : `KINDS`, `SOURCES`, `WEEKDAYS`.
 

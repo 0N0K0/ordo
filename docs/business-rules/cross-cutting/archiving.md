@@ -35,12 +35,12 @@ Toute modification d'un élément archivé, ou d'un sous-élément d'un élémen
 Décisions AA et DA : une valeur archivée ne peut plus être **nouvellement** choisie, mais les valeurs déjà présentes restent valides.
 
 - `assertNotArchived(target, id, { keep, field })`, `assertNoneArchived(target, ids, { keep, field })`, `activeIds(model, ids, what, { keep, field, missingField })` : les ids de `keep` (valeurs actuelles du champ) sont acceptés même archivés ; l'erreur s'affiche sous `field`.
-- S'applique partout : catégories, statuts, priorités, types, étiquettes, agendas, plages, contributeurs (assignés, bénéficiaires), relations, projets et clients archivés, routines préalables, parents d'arbre, etc.
+- S'applique partout : catégories, statuts, priorités, types, étiquettes, agendas, créneaux, contributeurs (assignés, bénéficiaires), relations, projets et clients archivés, routines préalables, parents d'arbre, etc.
 - Annuler une action (« undo ») qui rend des valeurs anciennes accepte les valeurs archivées (paramètre `restoring` de certains services, ex. routines).
 
 ## Cascades
 
-Les clients, projets et tâches utilisent un indicateur `archivedByCascade` pour distinguer un élément archivé avec son parent d'un élément archivé seul.
+Les clients, projets, tâches et routines utilisent un indicateur `archivedByCascade` pour distinguer un élément archivé avec son parent d'un élément archivé seul.
 
 ### Client
 
@@ -55,12 +55,17 @@ Les clients, projets et tâches utilisent un indicateur `archivedByCascade` pour
 
 ### Tâche
 
-- Même mécanique que les projets (`cascadeArchive`) : sous-tâches actives archivées avec la tâche, restauration des sous-tâches archivées avec elle et des ancêtres archivés seuls.
+- Même mécanique que les projets (`archiveTree`, sur `cascadeArchive`) : sous-tâches actives archivées avec la tâche, restauration des sous-tâches archivées avec elle et des ancêtres archivés seuls.
 
 ### Routine
 
 - Archivage groupé `bulkSetRoutinesArchived(ids, archived)` : chaque id doit exister, un id répété compte une fois, la date des déjà archivées est gardée.
-- Une routine archivée n'a plus d'occurrence due (rien n'est calculé).
+- Même mécanique que les tâches (`archiveTree`, décision DQ) : archiver une routine archive ses sous-routines actives, la restaurer restaure celles archivées avec elle et ses parentes archivées seules. Une routine sélectionnée sous une autre sélectionnée suit celle-ci (`topmostIds`).
+- Une routine archivée n'a plus d'occurrence due ni à venir ; ses occurrences ouvertes avant le jour de l'archivage restent, archivées, en lecture seule, même dues ce jour-là ou après (aucune qui s'ouvre à partir de ce jour) ; la restaurer remet tout comme avant (décision D21, `archivedOn`). Archivée parce qu'une suppression « celle-ci et les suivantes » ne lui laisse rien, elle l'est avec ses sous-routines.
+
+### Évènement
+
+- `setArchived(CALENDAR_EVENT)` archive toute la série ; comme une routine (décision D21), seules ses occurrences commencées avant le jour de l'archivage restent, archivées, même finies ce jour-là ou après ; aucune qui commence ensuite. Restauré, il retrouve toutes ses occurrences.
 - Les modifications groupées sont refusées si la sélection contient une routine archivée.
 
 ## Effets de l'archivage ailleurs

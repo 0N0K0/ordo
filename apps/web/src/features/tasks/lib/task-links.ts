@@ -5,6 +5,18 @@ import type { TaskContext } from '../hooks/use-task-context';
 import { unarchived } from '../../../lib/archive';
 
 /**
+ * Whether an element (task, routine) of a project is in the project tree of another one: tasks and routines are only
+ * linked inside the same tree (those without project with those without project).
+ * @param {Pick<TaskContext, 'rootOf'>} context Task context (its project trees).
+ * @param {string | null} projectId Project of the element linked from (none: the elements of no project).
+ * @returns {(otherProjectId: string | null) => boolean} Whether an element of a project is in its tree.
+ */
+export function inProjectTree(context: Pick<TaskContext, 'rootOf'>, projectId: string | null): (otherProjectId: string | null) => boolean {
+  const root = context.rootOf(projectId);
+  return (otherProjectId) => context.rootOf(otherProjectId) === root;
+}
+
+/**
  * Tasks that can be linked to a task (parent, blocks, related): same project tree, not itself.
  * @param {TaskContext} context Task context.
  * @param {string | null} projectId Project of the task (none: the tasks of no project).
@@ -13,8 +25,8 @@ import { unarchived } from '../../../lib/archive';
  * @returns {Task[]} Candidates.
  */
 export function linkableTasks(context: TaskContext, projectId: string | null, taskId: string | null, extra?: (candidate: Task) => boolean): Task[] {
-  const root = context.rootOf(projectId);
-  return unarchived(context.tasks).filter((candidate) => candidate.id !== taskId && context.rootOf(candidate.projectId) === root && (!extra || extra(candidate)));
+  const inTree = inProjectTree(context, projectId);
+  return unarchived(context.tasks).filter((candidate) => candidate.id !== taskId && inTree(candidate.projectId) && (!extra || extra(candidate)));
 }
 
 /**

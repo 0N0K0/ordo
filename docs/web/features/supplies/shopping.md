@@ -52,7 +52,7 @@ Fonctions internes : `useShoppingMutation` (mutation qui invalide `shoppingKey`)
 
 ### `pages/ShoppingListPage.tsx`
 
-- `ShoppingListPage()` : page `/shopping/:id`. Charge listes, données, contexte des tâches, stock par référence (`useProductStock`) ; construit les colonnes (`itemColumns` + `optionalColumn` + « Acheté », « En stock », « Livraison », « Fiches », commentaires), la vue `shopping-list` (vues `LIST_VIEWS`, colonne de lot « Acheté »), l'en-tête `DetailHeader`, la barre `DataViewBar` (ajout depuis les références / hors références / une fiche via `SheetPicker`, « Commande à distance » → `OrderPanel`, « Mode collecte » → `StoreMode`, `ListActionsMenu`), le tableau `ShoppingTable` (bascule « Acheté » qui appelle `useStockProposal` après achat, actions de ligne, actions de sélection « Ajouter au stock… » et « Retirer de la liste »), le total estimé et les commentaires. Gère les états chargement (`TableSkeleton`), introuvable (`DetailNotFound`), vide (`EmptyState`), clos / archivé (lecture seule).
+- `ShoppingListPage()` : page `/shopping/:id`. Charge listes, données, contexte des tâches, stock par référence (`useProductStock`) ; construit les colonnes (`itemColumns` + `optionalColumn` + « Acheté », « En stock », « Livraison », « Fiches », commentaires), la vue `shopping-list` (vues `LIST_VIEWS`, colonne de lot « Acheté »), l'en-tête `DetailHeader`, la barre `DataViewBar` (ajout depuis les références / hors références / une fiche via `SheetPicker`, « Commande à distance » → `OrderPanel`, « Mode collecte » → `StoreMode`, `ListActionsMenu`), le tableau `ShoppingTable` (bascule « Acheté » qui appelle `useStockProposal` après achat, actions de ligne, actions de sélection « Ajouter au stock… » et « Retirer de la liste »), le total estimé et les commentaires. Gère les états chargement (`TableSkeleton`), introuvable (`DetailNotFound`), vide (`EmptyState`), clos / archivé (lecture seule ; « Voir » ouvre un élément en lecture seule).
 - Internes : `listSheets(items)` (fiches d'origine des éléments, chacune une fois), `LIST_VIEWS` (« Tout », « À acheter »), `deliveryName` (nom affiché d'une livraison), `assignDelivery(moved, deliveryId)` (met des éléments dans une livraison en enregistrant les livraisons qu'ils quittent et rejoignent), `bulkDelivery` (cellule « Livraison » en lot).
 
 ## components
@@ -98,9 +98,9 @@ Interfaces internes : `UnitCellProps`, `StoreCellProps`, `PeopleCellProps`, `Con
 
 ### `components/ShoppingForm.tsx`
 
-- `ShoppingForm({ target, onDone })` : formulaire d'un produit (`target.kind === 'product'`, avec `baseListId`, `product?`) ou d'un élément (`kind: 'item'`, `listId`, `item?`) : libellé, référence (produit), catégorie (`ShoppingCategoryField`), magasin (`CreatableSelect` + `itemCreator`), quantité, unité (`UnitField`), prix, périssable + mode + date, bénéficiaires (`PeopleField`), lien, description (`MarkdownEditor`), « Manque » (produit). Schéma `shoppingProductSchema` ou `shoppingItemSchema`. Commentaires sous le formulaire. Utilisé par `openShoppingForm`.
+- `ShoppingForm({ target, onDone })` : formulaire d'un produit (`target.kind === 'product'`, avec `baseListId`, `product?`) ou d'un élément (`kind: 'item'`, `listId`, `item?`) : libellé, référence (produit), catégorie (`ShoppingCategoryField`), magasin (`CreatableSelect` + `itemCreator`), quantité, unité (`UnitField`), prix, périssable + mode + date, bénéficiaires (`PeopleField`), lien, description (`MarkdownEditor`), « Manque » (produit). Schéma `shoppingProductSchema` ou `shoppingItemSchema`. Nouveau : formulaire « Ajouter » (`createProduct` / `addItem`, `formCallbacks`). Existant : panneau enregistré champ par champ (décision D22, `useFieldSave` : libellé, quantité, prix, lien et description en les quittant, le reste dès qu'il change ; `SaveStatus` en tête ; `updateProduct` / `updateItem` avec toutes les valeurs) ; le produit du cache (`useShoppingData`) ou l'élément du cache (sa liste suivie par `useCachedItem` sur les listes) est suivi ; produit archivé ou élément d'une liste close ou archivée (`listClosed`, aussi ailleurs, le panneau ouvert : ceux du cache) : lecture seule (`Fieldset` désactivé, commentaires aussi). Commentaires sous le formulaire. Utilisé par `openShoppingForm`.
 - `ShoppingFormProps` (interface) : `target`, `onDone`. Utilisé par `open-shopping-form.tsx`.
-- Interne : `FormValues`.
+- Internes : `FormValues`, `ON_BLUR`, `shoppingFormValues(target, current?)` (valeurs d'un produit ou d'un élément).
 
 ### `components/ProductFields.tsx`
 
@@ -134,7 +134,7 @@ Champs de formulaire partagés par les achats et le stock.
 - `ListActionsMenu({ list, grouping, header?, onDeleted? })` : menu des actions d'une liste (`ActionsMenu`, variante bordée dans l'en-tête de la page). Utilisé par `ShoppingPage` et `ShoppingListPage`.
 - Internes :
   - `useListActions(list, grouping, onDeleted?)` : entrées du menu (renommer, rattacher / détacher un mouvement, dupliquer, copier en texte, PDF, clôturer / rouvrir, archiver, supprimer ; réduites pour une liste archivée) ;
-  - `ListForm({ list, onDone })` : formulaire « Modifier la liste » (libellé, tâches) ;
+  - `ListForm({ list })` : panneau « Modifier la liste » (libellé, tâches), enregistré champ par champ (décision D22, `useFieldSave`, libellé en le quittant, `SaveStatus`) par `updateList` ; la liste du cache (`useShoppingLists`) est suivie ;
   - `EntryPicker({ list, onDone })` : recherche d'un mouvement de trésorerie (`useTreasuryEntrySearch`, saisie retardée de 250 ms) et rattachement ;
   - `ListActionsMenuProps`, `listSchema`.
 
@@ -148,7 +148,7 @@ Champs de formulaire partagés par les achats et le stock.
 - `OrderPanel({ listId })` : panneau « Commande à distance » ; relit la liste à chaque changement et affiche `OrderFields`. Utilisé par `ShoppingListPage`.
 - Internes :
   - `OrderFields({ list })` : interrupteur, lieu de livraison (`AddressInput`, enregistré au choix d'une adresse proposée ou au texte vidé), liste des livraisons (réception, modification, suppression confirmée) ;
-  - `DeliveryForm({ list, delivery?, onDone })` : formulaire d'une livraison (`shoppingDeliverySchema`) ; ses dates sont liées à `windowFrom` / `windowTo` par `formRange`.
+  - `DeliveryForm({ list, delivery?, onDone })` : formulaire d'une nouvelle livraison (« Ajouter », `createDelivery`) ou panneau d'une livraison existante enregistré champ par champ (décision D22, `useFieldSave` : libellé et suivi en les quittant, le lieu par `useLocationDraft` — choisi, vidé ou quitté —, le reste dès qu'il change ; `SaveStatus` ; `updateDelivery`), la livraison et la liste du cache suivies (`useShoppingLists`) ; schéma `shoppingDeliverySchema` ; ses dates sont liées à `windowFrom` / `windowTo` par `formRange`. Internes : `DeliveryValues`, `ON_BLUR`, `deliveryValues(list, delivery?)`.
 
 ### `components/ShoppingSettings.tsx`
 
@@ -282,7 +282,7 @@ Clés de conservation (filtres, regroupement, cellule). (partagé)
 
 ### `lib/open-shopping-form.tsx`
 
-- `openShoppingForm(target)` : ouvre `ShoppingForm` avec le bon titre (« Nouveau produit », « Modifier le produit », « Élément hors références », « Modifier l'élément »). Utilisé par `BaseList`, `ShoppingListPage`.
+- `openShoppingForm(target, readOnly?)` : ouvre `ShoppingForm` avec le bon titre (« Nouveau produit », « Modifier le produit », « Élément hors références », « Modifier l'élément », « Élément » quand `readOnly` : liste close ou archivée ; le panneau suit sa liste). Utilisé par `BaseList`, `ShoppingListPage`.
 
 ### `lib/open-move-products.tsx`
 

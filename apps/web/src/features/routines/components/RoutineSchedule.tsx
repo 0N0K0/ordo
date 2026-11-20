@@ -1,7 +1,7 @@
-import { ROUTINE_REMINDERS } from '../../../components/inputs/reminder-presets';
+import type { Reminder } from '@ordo/shared';
 import { LabeledField } from '../../../components/inputs/LabeledField';
 import { AddItemButton } from '../../../components/actions/AddItemButton';
-import { scheduleChoices } from '../../calendar/lib/schedule-choices';
+import { useSlotChoices } from '../../calendar/hooks/use-slot-sources';
 import { TravelField } from '../../geo/components/TravelField';
 import { Checkbox, Group, SimpleGrid, Stack, Text } from '@mantine/core';
 import { DatePickerInput } from '@mantine/dates';
@@ -25,13 +25,14 @@ import { RepetitionField, RepetitionModal } from '../../../components/recurrence
 import { describeCase } from '../../../components/recurrence/describe-recurrence';
 import * as fmt from '../../../lib/format';
 import { localToday } from '../../../lib/dates';
-import { useWorkSchedules } from '../../calendar/api';
 import { EventLocation } from '../../geo/components/EventLocation';
+import { addressOf } from '../../geo/lib/location';
+import { useFormLocation } from '../../geo/hooks/use-location-draft';
 import { TravelCalculator } from '../../geo/components/TravelCalculator';
 import { OpensOnInput } from './OpensOnInput';
 import { opensText } from '../lib/opens-format';
-import { SlotConditionBuilder } from './SlotConditionBuilder';
-import { describeSlotCondition } from '../lib/slot-condition-text';
+import { SlotConditionBuilder } from '../../calendar/components/SlotConditionBuilder';
+import { describeSlotCondition } from '../../calendar/lib/slot-condition-text';
 import { DAILY, ruleOf, windowText } from '../lib/routine-format';
 import type { Routine } from '../api';
 import { RemindersSelect } from '../../../components/inputs/RemindersSelect';
@@ -48,7 +49,7 @@ interface RoutineScheduleValues {
   /** Times of the day following its rule. */
   moments: RoutineSlot[];
   opensOn: RoutineOpens | null;
-  reminders: number[];
+  reminders: Reminder[];
   estimate: number | null;
   location: string;
   locationLat: number | null;
@@ -57,10 +58,10 @@ interface RoutineScheduleValues {
   travelAfter: number;
 }
 
-/** How a routine repeats, as edited: its first day, its mode, rule, cases, schedules, moments and « à partir du ». */
+/** How a routine repeats, as edited: its first day, its mode, rule, cases, schedules, moments and « Ouverture ». */
 type RoutineRepetitionValue = Pick<RoutineScheduleValues, 'startDate' | 'recurrence' | 'cases' | 'slotCondition' | 'moments' | 'opensOn'> & { mode: RepetitionModeValue };
 
-/** Times of a rule or a case of a routine: its moments, its condition on calendar schedules, its « à partir du ». */
+/** Times of a rule or a case of a routine: its moments, its condition on calendar schedules, its « Ouverture ». */
 interface RoutineTimes {
   moments: RoutineSlot[];
   condition: SlotCondition | null;
@@ -96,7 +97,7 @@ function MomentsEditor({ moments, onChange, index, allowEmpty = false }: { momen
       ))}
       {allowEmpty && !moments.length && (
         <Text size="xs" c="dimmed">
-          Aucun : chaque horaire des plages choisies est un moment.
+          Aucun : chaque horaire des créneaux choisis est un moment.
         </Text>
       )}
       <AddItemButton onClick={() => onChange([...moments, ANY_TIME])}>Ajouter un moment</AddItemButton>
@@ -120,7 +121,7 @@ const routineTimes = (names: Map<string, string>): RepetitionTimes<RoutineTimes>
   render: (times, onChange, index, rule) => (
     <Stack gap="sm">
       <MomentsEditor moments={times.moments} onChange={(moments) => onChange({ ...times, moments })} index={index} />
-      <SlotConditionBuilder value={times.condition} onChange={(condition) => onChange({ ...times, condition })} />
+      <SlotConditionBuilder item="routine" value={times.condition} onChange={(condition) => onChange({ ...times, condition })} />
       <OpensOnInput frequency={rule?.frequency ?? 'DAILY'} value={times.opens} onChange={(opens) => onChange({ ...times, opens })} />
     </Stack>
   ),
@@ -151,10 +152,10 @@ function editedCases(value: RoutineRepetitionValue): RepetitionCase<RoutineTimes
 }
 
 /**
- * « À partir du » kept while it fits the frequency of its rule (dropped when the repetition changed).
- * @param {RoutineOpens | null} opens « À partir du ».
+ * « Ouverture » kept while it fits the frequency of its rule (dropped when the repetition changed).
+ * @param {RoutineOpens | null} opens « Ouverture ».
  * @param {Recurrence | null} rule Rule.
- * @returns {RoutineOpens | null} « À partir du ».
+ * @returns {RoutineOpens | null} « Ouverture ».
  */
 const fittingOpens = (opens: RoutineOpens | null, rule: Recurrence | null) => (opens && rule && opensFits(opens, rule.frequency) ? opens : null);
 
@@ -189,7 +190,7 @@ function withEditedCases(value: RoutineRepetitionValue, cases: RepetitionCase<Ro
 
 /**
  * Every repetition setting of a routine, in the common modal: its first day, then one rule or cases, each with its
- * moments and its condition on calendar schedules; its « à partir du ».
+ * moments and its condition on calendar schedules; its « Ouverture ».
  * @param {{ draft: RoutineRepetitionValue, setDraft: (value: RoutineRepetitionValue) => void, names: Map<string, string> }} props Draft, its change, names of the schedules.
  * @returns {JSX.Element} Settings.
  */
@@ -213,7 +214,7 @@ function RoutineRepetitionEditor({ draft, setDraft, names }: { draft: RoutineRep
                 : [],
             moments: mode === 'CASES' ? [] : (draft.cases[0]?.slots ?? (draft.moments.length ? draft.moments : [ANY_TIME])),
             slotCondition: mode === 'CASES' ? null : (draft.cases[0]?.condition ?? draft.slotCondition),
-            // Its « à partir du » goes to the first case, and back.
+            // Its « Ouverture » goes to the first case, and back.
             opensOn: mode === 'CASES' ? null : draft.cases.length ? fittingOpens(readOpens(draft.cases[0]?.opens), draft.cases[0]?.recurrence ?? null) : draft.opensOn,
           })
         }
@@ -289,8 +290,7 @@ export function RoutineRepetitionModal({
   onApply: (repetition: RoutineRepetition) => void;
   header?: ReactNode;
 }) {
-  const { data: schedules } = useWorkSchedules();
-  const names = scheduleChoices(schedules).names;
+  const { names } = useSlotChoices();
   const [draft, setDraft] = useState<RoutineRepetitionValue>(() => routineRepetitionValue(routine));
   return (
     <RepetitionModal<RoutineRepetitionValue>
@@ -320,6 +320,11 @@ interface RoutineScheduleProps {
   values: RoutineScheduleValues;
   errors: Record<string, ReactNode>;
   onChange: (changes: Partial<RoutineScheduleValues>) => void;
+  /**
+   * Saves fields typed now, in a panel saved field by field (`useFieldSave`): the place once chosen, cleared or left,
+   * a travel time once left. Optional.
+   */
+  onCommit?: (fields: (keyof RoutineScheduleValues & string)[]) => void;
 }
 
 /**
@@ -329,13 +334,14 @@ interface RoutineScheduleProps {
  * @param {RoutineScheduleProps} props Component props.
  * @returns {JSX.Element} Fields.
  */
-export function RoutineSchedule({ values, errors, onChange }: RoutineScheduleProps) {
-  const { data: schedules } = useWorkSchedules();
-  const names = scheduleChoices(schedules).names;
+export function RoutineSchedule({ values, errors, onChange, onCommit }: RoutineScheduleProps) {
+  const { names } = useSlotChoices();
   const mode: RepetitionModeValue = values.cases.length ? 'CASES' : 'RULE';
   const single = mode === 'RULE' && values.moments.length <= 1 ? (values.moments[0] ?? ANY_TIME) : null;
   const { leaveAt, backAt } = routineSchedule({ ...values, fromTime: single?.fromTime ?? null, dueTime: single?.dueTime ?? null });
-  const point = values.locationLat !== null && values.locationLon !== null ? { lat: values.locationLat, lon: values.locationLon } : null;
+  const address = addressOf(values);
+  // Put in the form (and saved, field by field) once chosen, cleared or left.
+  const place = useFormLocation(values, onChange, onCommit);
   const timed = mode !== 'RULE' || Boolean(values.slotCondition) || values.moments.some((moment) => moment.fromTime || moment.dueTime);
   return (
     <Stack gap="sm">
@@ -358,18 +364,17 @@ export function RoutineSchedule({ values, errors, onChange }: RoutineSchedulePro
         describe={(value) => describeRepetition(value, names)}
         editor={(draft, setDraft) => <RoutineRepetitionEditor draft={draft} setDraft={setDraft} names={names} />}
       />
-      <EventLocation
-        value={{ text: values.location, point }}
-        error={errors.location}
-        onChange={(value) => onChange({ location: value.text, locationLat: value.point?.lat ?? null, locationLon: value.point?.lon ?? null })}
-      />
+      <EventLocation value={place.value} error={errors.location} onChange={place.onChange} onBlur={place.leave} />
       <SimpleGrid cols={{ base: 1, xs: 3 }} spacing="sm">
-        <TravelField way="before" description="Pour y aller" value={values.travelBefore} onChange={(value) => onChange({ travelBefore: Number(value) || 0 })} error={errors.travelBefore} />
-        <TravelField way="after" description="Pour en revenir" value={values.travelAfter} onChange={(value) => onChange({ travelAfter: Number(value) || 0 })} error={errors.travelAfter} />
+        <TravelField way="before" description="Pour y aller" value={values.travelBefore} onChange={(value) => onChange({ travelBefore: Number(value) || 0 })} onBlur={() => onCommit?.(['travelBefore'])} error={errors.travelBefore} />
+        <TravelField way="after" description="Pour en revenir" value={values.travelAfter} onChange={(value) => onChange({ travelAfter: Number(value) || 0 })} onBlur={() => onCommit?.(['travelAfter'])} error={errors.travelAfter} />
         <Stack justify="flex-end">
           <TravelCalculator
-            eventPoint={point}
-            onResult={({ before, after }) => onChange({ ...(before !== undefined && { travelBefore: before }), ...(after !== undefined && { travelAfter: after }) })}
+            eventPoint={address.point}
+            onResult={({ before, after }) => {
+              onChange({ ...(before !== undefined && { travelBefore: before }), ...(after !== undefined && { travelAfter: after }) });
+              onCommit?.(['travelBefore', 'travelAfter']);
+            }}
           />
         </Stack>
       </SimpleGrid>
@@ -377,13 +382,12 @@ export function RoutineSchedule({ values, errors, onChange }: RoutineSchedulePro
         label="Rappels"
         description={
           timed
-            ? 'Avant l’heure de départ (sinon le début, sinon l’heure maximale), les jours où elle est à faire, tant qu’elle n’est pas cochée.'
-            : 'Donnez-lui un horaire ou une plage pour recevoir des rappels.'
+            ? 'Avant son premier jour (« Ouverture ») à l’heure « dès » de chaque moment non coché (sinon son heure maximale), 24 h au plus ; ou à une heure de ce jour.'
+            : 'À une heure de son premier jour (« Ouverture ») : donnez-lui un horaire ou un créneau pour des rappels avant ses moments.'
         }
         leftSection={<BellIcon aria-hidden />}
         emptyLabel="Aucun"
-        disabled={!timed}
-        presets={ROUTINE_REMINDERS}
+        kinds={timed ? ['before', 'at'] : ['at']}
         value={values.reminders}
         onChange={(reminders) => onChange({ reminders })}
         clearable

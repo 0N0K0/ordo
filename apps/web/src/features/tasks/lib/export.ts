@@ -57,11 +57,13 @@ export function taskCell(task: Task, column: TaskColumn, context: TaskContext): 
     case 'endDate':
       return task.endDate ? printedDay(task.endDate) : '';
     case 'deadline':
-      return task.deadline ? printedDay(task.deadline) : '';
+      return task.effectiveDeadline ? printedDay(task.effectiveDeadline) : '';
     case 'minDate':
-      return task.minDate ? fmt.exportDay(task.minDate) : '';
+      return task.effectiveMinDate ? fmt.exportDay(task.effectiveMinDate) : '';
     case 'slots':
       return '';
+    case 'location':
+      return task.location ?? '';
     case 'timer':
       return '';
     case 'subtasks':
@@ -142,6 +144,8 @@ export function eventCell(event: EventOccurrence, column: TaskColumn, context: T
       return eventWhen(event, 'start', true);
     case 'endDate':
       return eventWhen(event, 'end', true);
+    case 'location':
+      return event.location ?? '';
     default:
       return '';
   }

@@ -1,28 +1,25 @@
 import { normalize } from '../core/text';
 import { z } from 'zod';
-import { endAfter, personNameSchema, requiredText } from '../core/rules';
+import { endAfter, markdownTextSchema, optionalText, personNameSchema, requiredText } from '../core/rules';
+import { locationPointFields } from '../core/geo';
+import { itemLinksSchema, type ItemLink } from '../core/links';
 import { dateSchema } from '../core/workspace';
-import { slotRuleSchema, type SlotRule } from '../calendar/slot-rules';
+import { slotConditionSchema, type SlotCondition } from '../calendar/slot-conditions';
 import { endDaySchema, startDaySchema } from '../dates/times';
+import { taskRemindersSchema, type ReminderFields } from '../dates/reminders';
 
-/** Longest label of a task. */
-export const TASK_LABEL_MAX = 256;
-
-export const taskLabelSchema = requiredText(TASK_LABEL_MAX);
-
-/** Markdown text (description, comment); empty becomes null. */
-export const markdownSchema = z
-  .string()
-  .max(65_536, 'Texte trop long.')
-  .transform((value) => (value.trim() ? value : null))
-  .nullable();
+export const taskLabelSchema = requiredText();
 
 export const effortSchema = z.number({ error: 'Nombre attendu.' }).min(0, 'L’effort ne peut pas être négatif.').max(1_000_000, 'Valeur trop grande.').nullable();
+/** Effort as a number input holds it (empty: none), checked as `effortSchema`. */
+export const effortFieldSchema = z
+  .union([z.number(), z.literal('')])
+  .transform((value) => (value === '' ? null : value))
+  .pipe(effortSchema);
+/** Effort of a task alone, saved on leaving it in the task panel (decision D22). */
+export const effortFormSchema = z.object({ effort: effortFieldSchema });
 
-export const commentBodySchema = z
-  .string()
-  .max(65_536, 'Texte trop long.')
-  .refine((value) => value.trim().length > 0, 'Le commentaire est vide.');
+export const commentBodySchema = markdownTextSchema.refine((value) => value.trim().length > 0, 'Le commentaire est vide.');
 
 /** Most characters of a mention handle (as GitHub logins). */
 // eslint-disable-next-line no-restricted-syntax -- the maximum itself.
@@ -69,14 +66,11 @@ export const taskFormSchema = z
     typeId: z.string().nullable(),
     assigneeIds: z.array(z.string()),
     tagIds: z.array(z.string()),
-    effort: z
-      .union([z.number(), z.literal('')])
-      .transform((value) => (value === '' ? null : value))
-      .pipe(effortSchema),
+    effort: effortFieldSchema,
     startDate: dateSchema,
     endDate: dateSchema,
     deadline: dateSchema,
-    /** « Date min »: not to be done before. */
+    /** « Ouverture »: not to be done before. */
     minDate: dateSchema,
     parentId: z.string().nullable(),
     milestoneId: z.string().nullable(),
@@ -84,17 +78,21 @@ export const taskFormSchema = z
     /** « Bénéficiaires »: contributors and relations the task is for. */
     beneficiaryIds: z.array(z.string()).default([]),
     beneficiaryRelationIds: z.array(z.string()).default([]),
-    /** Slots it is done on or out of; null: the default of the workspace. */
-    slotRule: slotRuleSchema.nullable().default(null),
+    /** On or out of calendar schedules, or on the free time, in groups (and / or); null: any time. */
+    slotCondition: slotConditionSchema.nullable().default(null),
+    /** Where it is done: free text, and its point when chosen from the map or a search (decision D6, no travel time). */
+    location: optionalText().default(null),
+    ...locationPointFields,
+    /** Links, as those of the events (decision D5). */
+    links: itemLinksSchema.default([]),
+    /** Reminders « À HH:MM » (Paris time), rung every day from « Ouverture » to « Échéance » (decision D16). */
+    reminders: taskRemindersSchema.default([]),
   })
   .refine(...endAfter('startDate', 'endDate'))
   .refine(...endAfter('minDate', 'deadline'));
 export type TaskFormValues = z.input<typeof taskFormSchema>;
 
-/** Longest label of a milestone. */
-export const MILESTONE_LABEL_MAX = 120;
-
-export const milestoneLabelSchema = requiredText(MILESTONE_LABEL_MAX);
+export const milestoneLabelSchema = requiredText();
 
 export const milestoneFormSchema = z.object({
   label: milestoneLabelSchema,
@@ -103,10 +101,7 @@ export const milestoneFormSchema = z.object({
 });
 export type MilestoneFormValues = z.input<typeof milestoneFormSchema>;
 
-/** Longest label of a sprint. */
-export const SPRINT_LABEL_MAX = 120;
-
-export const sprintLabelSchema = requiredText(SPRINT_LABEL_MAX);
+export const sprintLabelSchema = requiredText();
 
 /**
  * Schema of a sprint: its label, its days (the end not before the start) and its goal.
@@ -134,7 +129,7 @@ export interface TaskInput {
   startDate?: string | null;
   endDate?: string | null;
   deadline?: string | null;
-  /** « Date min »: not to be done before. */
+  /** « Ouverture »: not to be done before. */
   minDate?: string | null;
   parentId?: string | null;
   milestoneId?: string | null;
@@ -142,6 +137,54 @@ export interface TaskInput {
   /** « Bénéficiaires »: contributors and relations the task is for. */
   beneficiaryIds?: string[] | null;
   beneficiaryRelationIds?: string[] | null;
-  /** Slots the task is done on or out of; null: the default of the workspace. */
-  slotRule?: SlotRule | null;
+  /** On or out of calendar schedules, or on the free time, in groups (and / or); null: any time. */
+  slotCondition?: SlotCondition | null;
+  /** Where it is done (null: nowhere, its point too), and its point when chosen from the map or a search. */
+  location?: string | null;
+  locationLat?: number | null;
+  locationLon?: number | null;
+  /** Links (null: none). */
+  links?: ItemLink[] | null;
+  /** Reminders « À HH:MM » (null: none); they ring only with an « Échéance ». */
+  reminders?: ReminderFields[] | null;
+}
+
+/** Own « Ouverture » / « Échéance » of a task, and the sprints it is planned in (YYYY-MM-DD). */
+export interface TaskOwnDates {
+  minDate: string | null;
+  deadline: string | null;
+  sprintIds: readonly string[];
+}
+
+/** Days of a sprint a task may take its dates from. */
+export interface SprintDays {
+  startDate: string;
+  endDate: string;
+}
+
+/** « Ouverture » / « Échéance » a task goes by, and whether each comes from its sprint. */
+export interface TaskDueDates {
+  minDate: string | null;
+  deadline: string | null;
+  minDateFromSprint: boolean;
+  deadlineFromSprint: boolean;
+}
+
+/**
+ * « Ouverture » and « Échéance » a task goes by: its own; without one, that of its sprint when it is in exactly one
+ * (its start, its end; several sprints: none taken). A date typed on the task wins.
+ * @param {TaskOwnDates} task Task.
+ * @param {(id: string) => SprintDays | null | undefined} sprintOf Sprint by id.
+ * @returns {TaskDueDates} Dates.
+ */
+export function taskDueDates(task: TaskOwnDates, sprintOf: (id: string) => SprintDays | null | undefined): TaskDueDates {
+  const sprint = task.sprintIds.length === 1 ? sprintOf(task.sprintIds[0]) : null;
+  const minDateFromSprint = task.minDate === null && Boolean(sprint);
+  const deadlineFromSprint = task.deadline === null && Boolean(sprint);
+  return {
+    minDate: minDateFromSprint ? sprint!.startDate : task.minDate,
+    deadline: deadlineFromSprint ? sprint!.endDate : task.deadline,
+    minDateFromSprint,
+    deadlineFromSprint,
+  };
 }

@@ -1,19 +1,20 @@
 import { dayInMonth, daysInMonth } from '../dates/months';
 import { minutesToTime, timeToMinutes } from '../dates/times';
-import { slotRuleSchema } from '../calendar/slot-rules';
 import { z } from 'zod';
-import { endAfter, requiredText } from '../core/rules';
+import { endAfter, markdownSchema, optionalText, requiredText } from '../core/rules';
 import { locatedFields } from '../core/geo';
+import { itemLinksSchema } from '../core/links';
 import { addDays, daysBetween, weekdayOfDate, monthOfYear, yearOfDay } from '../dates/days';
 import { occurrenceDates, recurrenceSchema, type Recurrence, type Span } from '../dates/recurrence';
 import { caseSpans } from '../dates/repetition';
 import { timeOfDaySchema, daySchema, startDaySchema } from '../dates/times';
-import { slotConditionSchema, type SlotCondition } from './routine-times';
+import { remindersSchema } from '../dates/reminders';
+import { slotConditionSchema, type SlotCondition } from '../calendar/slot-conditions';
 import { optionalColorSchema } from '../core/workspace';
 
 /** Category of routines, in a tree. */
 export const routineCategorySchema = z.object({
-  label: requiredText(100),
+  label: requiredText(),
   color: optionalColorSchema,
   parentId: z.string().nullable(),
 });
@@ -42,7 +43,7 @@ const monthNumber = z.number().int().min(1).max(12);
 const weekdayNumber = z.number().int().min(1).max(7);
 
 /**
- * « À partir du »: day an occurrence can be done from, before its due day. A day number (the 15th, the 15th of March),
+ * « Ouverture »: day an occurrence can be done from, before its due day. A day number (the 15th, the 15th of March),
  * a weekday of the month (the 2nd Tuesday, the last Friday of March), the weekday of a week (the Monday of the 3rd week
  * of the month, of the ISO week 12 of the year), all in its period (its month, its year: the one before when that day
  * comes after its due day); or some days before its due day.
@@ -61,9 +62,9 @@ export type RoutineOpens = z.infer<typeof routineOpensSchema>;
 export type RoutineOpensMode = RoutineOpens['mode'];
 
 /**
- * « À partir du » as saved: an object, or the former "DD" (monthly) and "MM-DD" (yearly); null when none or invalid.
+ * « Ouverture » as saved: an object, or the former "DD" (monthly) and "MM-DD" (yearly); null when none or invalid.
  * @param {unknown} value Saved value.
- * @returns {RoutineOpens | null} « À partir du ».
+ * @returns {RoutineOpens | null} « Ouverture ».
  */
 export function readOpens(value: unknown): RoutineOpens | null {
   if (typeof value === 'string') {
@@ -76,9 +77,9 @@ export function readOpens(value: unknown): RoutineOpens | null {
 }
 
 /**
- * Whether an « à partir du » fits a frequency: some days before always; a day of the period for a monthly (without
+ * Whether an « Ouverture » fits a frequency: some days before always; a day of the period for a monthly (without
  * month, a week of the month) or a yearly one (with its month, an ISO week).
- * @param {RoutineOpens} opens « À partir du ».
+ * @param {RoutineOpens} opens « Ouverture ».
  * @param {Recurrence['frequency']} frequency Frequency of its rule.
  * @returns {boolean} It fits.
  */
@@ -89,7 +90,7 @@ export function opensFits(opens: RoutineOpens, frequency: Recurrence['frequency'
   return false;
 }
 
-const OPENS_MISFIT = 'Ce « à partir du » ne vaut pas pour cette répétition : un jour du mois (mensuelle), de l’année (annuelle), ou des jours avant.';
+const OPENS_MISFIT = 'Cette ouverture ne vaut pas pour cette répétition : un jour du mois (mensuelle), de l’année (annuelle), ou des jours avant.';
 
 /** A case of a routine: on which days (a repetition, as the events'), and its times of the day. */
 export const routineCaseSchema = z
@@ -102,7 +103,7 @@ export const routineCaseSchema = z
     condition: slotConditionSchema.nullable().default(null),
     recurrence: recurrenceSchema,
     slots: z.array(routineSlotSchema).min(1, 'Ajoutez au moins un moment.').max(10, '10 moments au plus.'),
-    /** « À partir du » of its occurrences (none: from their first day). */
+    /** « Ouverture » of its occurrences (none: from their first day). */
     opens: routineOpensSchema.nullable().default(null),
   })
   .refine((item) => item.slots.some((slot) => !slot.optional), { path: ['slots'], message: 'Au moins un moment doit être obligatoire.' })
@@ -110,18 +111,11 @@ export const routineCaseSchema = z
 export type RoutineCase = z.infer<typeof routineCaseSchema>;
 export type RoutineCaseInput = z.input<typeof routineCaseSchema>;
 
-/** Longest label of a routine. */
-export const ROUTINE_LABEL_MAX = 200;
-
 /** Routine fields, as saved. */
 export const routineSchema = z
   .object({
-    label: requiredText(ROUTINE_LABEL_MAX),
-    description: z
-      .string()
-      .max(4000, '4 000 caractères maximum.')
-      .transform((value) => (value.trim() ? value.trim() : null))
-      .nullable(),
+    label: requiredText(),
+    description: markdownSchema,
     /** Categories it is shown in. */
     categoryIds: z.array(z.string()).max(100),
     parentId: z.string().nullable(),
@@ -149,27 +143,14 @@ export const routineSchema = z
     slotCondition: slotConditionSchema.nullable().default(null),
     /** Times of the day following its rule. */
     moments: z.array(routineSlotSchema).max(10, '10 moments au plus.').default([]),
-    /** Alerts, in minutes before its moment (when to leave, else its start, else its latest time). */
-    reminders: z
-      .array(
-        z
-          .number()
-          .int()
-          .min(0)
-          .max(24 * 60),
-      )
-      .max(10, '10 rappels maximum.')
-      .default([]),
+    /** Reminders (decision D16): minutes before each time of the day from its first day (« Ouverture », « dès »), or a time of that day. */
+    reminders: remindersSchema.default([]),
     /** Where it is done: free text, and its point when chosen from the map or a search. */
-    location: z
-      .string()
-      .trim()
-      .max(500, '500 caractères maximum.')
-      .transform((value) => value || null)
-      .nullable()
-      .default(null),
+    location: optionalText().default(null),
     /** Point of the place, and travel time to it and back from it, in minutes. */
     ...locatedFields,
+    /** Links, as those of the events (decision D5); required, as `relatedIds`: an omitted field never wipes them. */
+    links: itemLinksSchema,
     projectId: z.string().nullable(),
     assigneeIds: z.array(z.string()).max(100),
     /** « Bénéficiaires »: whom the routine is for (contributors, relations). */
@@ -177,10 +158,10 @@ export const routineSchema = z
     beneficiaryRelationIds: z.array(z.string()).max(100).default([]),
     /** Routines to do before this one. */
     requiredIds: z.array(z.string()).max(100),
-    /** « À partir du » of the occurrences of its rule (its cases have theirs); null: from their first day. */
+    /** « Relative à »: routines related to this one (both ways), in its project tree. */
+    relatedIds: z.array(z.string()).max(100),
+    /** « Ouverture » of the occurrences of its rule (its cases have theirs); null: from their first day. */
     opensOn: routineOpensSchema.nullable().default(null),
-    /** Slots (by kind) it is done on or out of; null: the default of the workspace. */
-    slotRule: slotRuleSchema.nullable().default(null),
   })
   .refine(...endAfter('fromTime', 'dueTime', true))
   .refine((routine) => !routine.moments.length || routine.moments.some((moment) => !moment.optional), { path: ['moments'], message: 'Au moins un moment doit être obligatoire.' })
@@ -188,8 +169,8 @@ export const routineSchema = z
 export type RoutineInput = z.input<typeof routineSchema>;
 
 /**
- * Day of a month an « à partir du » points to (its month for a yearly one).
- * @param {Extract<RoutineOpens, { mode: 'DAY' | 'WEEKDAY' | 'WEEK' }>} opens « À partir du ».
+ * Day of a month an « Ouverture » points to (its month for a yearly one).
+ * @param {Extract<RoutineOpens, { mode: 'DAY' | 'WEEKDAY' | 'WEEK' }>} opens « Ouverture ».
  * @param {number} year Year.
  * @param {number} month Month (1-12).
  * @returns {string} YYYY-MM-DD.
@@ -220,10 +201,10 @@ function isoWeekDate(year: number, week: number, weekday: number): string {
 }
 
 /**
- * Day an occurrence can be done from: its « à partir du » in its period (its month, its year; the one before when
- * that day comes after its due day), or some days before its due day; its due day without « à partir du ».
+ * Day an occurrence can be done from: its « Ouverture » in its period (its month, its year; the one before when
+ * that day comes after its due day), or some days before its due day; its due day without « Ouverture ».
  * @param {string} due Due day (YYYY-MM-DD).
- * @param {RoutineOpens | null} opens « À partir du ».
+ * @param {RoutineOpens | null} opens « Ouverture ».
  * @param {Recurrence['frequency']} frequency Frequency of its rule.
  * @returns {string} YYYY-MM-DD.
  */
@@ -248,7 +229,7 @@ export function routineOpenDate(due: string, opens: RoutineOpens | null, frequen
 
 /**
  * Days at most between the day an occurrence can be done from and its due day.
- * @param {RoutineOpens | null} opens « À partir du ».
+ * @param {RoutineOpens | null} opens « Ouverture ».
  * @returns {number} Days.
  */
 export const opensReach = (opens: RoutineOpens | null): number => (!opens ? 0 : opens.mode === 'BEFORE' ? opens.days : 400);
@@ -265,13 +246,13 @@ const PERIOD_DAYS: Record<Recurrence['frequency'], number> = { DAILY: 1, WEEKLY:
  * @param {Recurrence} rule Rule.
  * @param {string} start First date.
  * @param {string} today Today.
- * @param {RoutineOpens | null} [opensOn] Day an occurrence can be done from (« à partir du »): the next one is the current one
+ * @param {RoutineOpens | null} [opensOn] Day an occurrence can be done from (« Ouverture »): the next one is the current one
  * from then. Optional. Default = null.
  * @returns {{ current: string | null, next: string | null }} Dates (null: none, before the start or once the rule has ended).
  */
 export function routineOccurrences(rule: Recurrence, start: string, today: string, opensOn: RoutineOpens | null = null): { current: string | null; next: string | null } {
   if (opensOn) {
-    // The next occurrence is the current one as soon as it can be done (from its « à partir du »).
+    // The next occurrence is the current one as soon as it can be done (from its « Ouverture »).
     const found = routineOccurrences(rule, start, today);
     if (found.next && today >= routineOpenDate(found.next, opensOn, rule.frequency)) return { current: found.next, next: routineOccurrences(rule, start, found.next).next };
     return found;
@@ -338,13 +319,13 @@ export function routineSchedule(routine: { fromTime: string | null; dueTime: str
 }
 
 /**
- * Moment the alerts of a routine count from, on a day: when to leave (its way there), else the start of its window,
- * else its latest time.
- * @param {{ fromTime: string | null, dueTime: string | null, estimate: number | null, travelBefore: number, travelAfter: number }} routine Routine and its window that day.
- * @returns {string | null} HH:MM, null without any time.
+ * Time of the day the reminders of a time of the day of a routine count from, on the first day of its occurrence (« à
+ * partir du »): its start (« dès »), else its latest time (decision D16, no longer when to leave).
+ * @param {{ fromTime: string | null, dueTime: string | null }} slot Time of the day.
+ * @returns {string | null} HH:MM, null without any time (no reminder).
  */
-export function routineAlertTime(routine: { fromTime: string | null; dueTime: string | null; estimate: number | null; travelBefore: number; travelAfter: number }): string | null {
-  return routineSchedule(routine).leaveAt ?? routine.fromTime ?? routine.dueTime;
+export function routineReminderTime(slot: { fromTime: string | null; dueTime: string | null }): string | null {
+  return slot.fromTime ?? slot.dueTime;
 }
 
 /**
@@ -490,6 +471,9 @@ export interface RoutineBulkChanges {
   removeAssigneeIds?: string[];
   addRequiredIds?: string[];
   removeRequiredIds?: string[];
+  /** « Relative à »: routines added to and removed from the relations of each (never itself). */
+  addRelatedIds?: string[];
+  removeRelatedIds?: string[];
   /** Minutes. */
   estimate?: number | null;
   projectId?: string | null;
@@ -498,7 +482,7 @@ export interface RoutineBulkChanges {
   dueTime?: string | null;
   startDate?: string;
   recurrence?: Recurrence;
-  /** Whole repetition (with recurrence): its cases (empty: its rule), moments, condition and « à partir du ». */
+  /** Whole repetition (with recurrence): its cases (empty: its rule), moments, condition and « Ouverture ». */
   cases?: RoutineCaseInput[];
   moments?: RoutineSlot[];
   slotCondition?: SlotCondition | null;

@@ -6,6 +6,9 @@ import { SettingsList } from '../../../components/settings/SettingsList';
 import type { SettingsItemValues } from '../../../components/settings/SettingsItemForm';
 import { useFillHeight } from '../../../lib/fill-height';
 import { AddressInput } from './AddressInput';
+import { useLocationDraft } from '../hooks/use-location-draft';
+import { addressOf } from '../lib/location';
+import type { UseFormReturnType } from '@mantine/form';
 import { pickedAddress, usePlaceMutations, usePlaces, type Place } from '../api';
 import { LazyPlaceMap } from './LazyPlaceMap';
 import classes from './PlacesManager.module.css';
@@ -15,6 +18,37 @@ interface PlaceAddressValues {
   address: string;
   lat: number | null;
   lon: number | null;
+}
+
+/** Fields of the address of a place, saved together. */
+const ADDRESS_FIELDS = ['address', 'lat', 'lon'] as const;
+
+/**
+ * Address of a place in its form (`useLocationDraft`, as every location typed in place): put in the form, and saved
+ * at once on an existing place, when a proposed address is chosen or the map clicked, when cleared, or on leaving the
+ * field for a free text.
+ * @param {{ form: UseFormReturnType<SettingsItemValues<PlaceAddressValues>>, commit: (fields: readonly (keyof PlaceAddressValues)[]) => void }} props Form and save now.
+ * @returns {JSX.Element} Field.
+ */
+function PlaceAddress({ form, commit }: { form: UseFormReturnType<SettingsItemValues<PlaceAddressValues>>; commit: (fields: readonly (keyof PlaceAddressValues)[]) => void }) {
+  const values = form.getValues();
+  const location = useLocationDraft({ location: values.address || null, locationLat: values.lat, locationLon: values.lon }, (change) => {
+    const { text, point } = addressOf(change);
+    form.setValues({ address: text, lat: point?.lat ?? null, lon: point?.lon ?? null });
+    commit(ADDRESS_FIELDS);
+  });
+  return (
+    <AddressInput
+      label="Adresse"
+      required
+      placeholder="Adresse, ou un clic sur la carte"
+      withPlaces={false}
+      error={form.errors.address}
+      value={location.value}
+      onChange={location.onChange}
+      onBlur={location.leave}
+    />
+  );
 }
 
 /**
@@ -83,22 +117,9 @@ export function PlacesManager() {
             adderRef={adderRef}
             extra={{
               initial: (place) => ({ address: place && !place.parentId ? place.address : '', lat: place && !place.parentId ? place.lat : null, lon: place && !place.parentId ? place.lon : null }),
-              render: (form) => {
-                const values = form.getValues();
-                // A zone has no address: the one of its place.
-                if (values.parentId) return null;
-                return (
-                  <AddressInput
-                    label="Adresse"
-                    required
-                    placeholder="Adresse, ou un clic sur la carte"
-                    withPlaces={false}
-                    error={form.errors.address}
-                    value={{ text: values.address, point: values.lat !== null && values.lon !== null ? { lat: values.lat, lon: values.lon } : null }}
-                    onChange={(next) => form.setValues({ address: next.text, lat: next.point?.lat ?? null, lon: next.point?.lon ?? null })}
-                  />
-                );
-              },
+              onBlur: [...ADDRESS_FIELDS],
+              // A zone has no address: the one of its place.
+              render: (form, _place, commit) => (form.getValues().parentId ? null : <PlaceAddress form={form} commit={commit} />),
             }}
             create={async (values) => createdId(await save.mutateAsync({ id: null, input: input(values) }))}
             update={(id, values) => save.mutateAsync({ id, input: input(values) })}
@@ -115,8 +136,8 @@ export function PlacesManager() {
             }
             deleteMessage={(place, path) => (
               <>
-                {place.parentId ? 'La zone' : 'Le lieu'} « {path} » sera {agreed('supprimé', Boolean(place.parentId))} définitivement avec ses zones ; les évènements et routines gardent leur lieu en
-                texte ; il ne sera plus proposé.
+                {place.parentId ? 'La zone' : 'Le lieu'} « {path} » sera {agreed('supprimé', Boolean(place.parentId))} définitivement avec ses zones ; les évènements, routines et tâches gardent leur
+                lieu en texte ; il ne sera plus proposé.
               </>
             )}
           />

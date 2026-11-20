@@ -1,3 +1,4 @@
+import { TEXT_MAX } from './rules';
 /** Order of names in French: case and accents aside, numbers by their value (« 2 » before « 10 »). */
 export const collator = new Intl.Collator('fr', { sensitivity: 'base', numeric: true });
 
@@ -60,10 +61,10 @@ export function fileName(label: string, extension: string): string {
 /**
  * Text cut to a length, so that it passes its rule (a title from elsewhere: GitHub, an old sheet…): trimmed, then cut.
  * @param {string} text Text.
- * @param {number} max Most characters.
+ * @param {number} [max] Most characters. Optional. Default = `TEXT_MAX` (decision DO).
  * @returns {string} Cut text.
  */
-export function clipText(text: string, max: number): string {
+export function clipText(text: string, max: number = TEXT_MAX): string {
   // eslint-disable-next-line no-restricted-syntax -- clipText itself.
   return text.trim().slice(0, max).trimEnd();
 }
@@ -72,15 +73,29 @@ export function clipText(text: string, max: number): string {
 const COPY_SUFFIX = ' (copie)';
 
 /**
- * Name of a copy: « Nom (copie) »; with a length, the name is cut so that the suffix stays.
+ * Name made of a name between fixed words (« Report de l’évènement « X » »), the name cut so that the whole stays
+ * within `TEXT_MAX` (decision DO) and the fixed words stay whole.
+ * @param {string} before Words before the name.
+ * @param {string} name Name.
+ * @param {string} [after] Words after the name. Optional. Default = ''.
+ * @returns {string} Name, at most `TEXT_MAX` characters.
+ */
+export function fitName(before: string, name: string, after = ''): string {
+  const room = TEXT_MAX - before.length - after.length;
+  if (name.length <= room) return `${before}${name}${after}`;
+  // Fixed words too long by themselves: the whole is cut.
+  if (room <= 0) return clipText(`${before}${name}${after}`);
+  // eslint-disable-next-line no-restricted-syntax -- a name cut so that its fixed words stay.
+  return `${before}${name.slice(0, room).trimEnd()}${after}`;
+}
+
+/**
+ * Name of a copy: « Nom (copie) », the name cut so that the suffix stays within `TEXT_MAX` (decision DO).
  * @param {string} name Name of the original.
- * @param {number} [max] Longest name. Optional.
  * @returns {string} Name of the copy.
  */
-export function copyName(name: string, max?: number): string {
-  if (max === undefined || name.length + COPY_SUFFIX.length <= max) return `${name}${COPY_SUFFIX}`;
-  // eslint-disable-next-line no-restricted-syntax -- the name of a copy, cut so that its suffix stays.
-  return `${name.slice(0, Math.max(0, max - COPY_SUFFIX.length)).trimEnd()}${COPY_SUFFIX}`;
+export function copyName(name: string): string {
+  return fitName('', name, COPY_SUFFIX);
 }
 
 /**

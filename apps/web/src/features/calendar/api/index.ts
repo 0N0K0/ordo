@@ -1,4 +1,5 @@
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useQuery, type QueryKey } from '@tanstack/react-query';
+import { tasksQueryKey } from '../../tasks/api';
 import { useInvalidatingMutation } from '../../../lib/mutation';
 import { graphql } from '../../../graphql';
 import { readScheduleCases, readScheduleExceptions, type ScheduleDisplay, type ScheduleSubscriptionLook, type WorkScheduleInput, type WorkScheduleRule } from '@ordo/shared';
@@ -12,7 +13,8 @@ import type {
   WorkSchedulesQuery,
 } from '../../../graphql/graphql';
 import { execute, executeIn } from '../../../lib/graphql-client';
-import { tasksQueryKey } from '../../tasks/api';
+import { withLossConfirmation } from '../../time/lib/confirm-loss';
+import { routinesKey } from '../../routines/api';
 import { archivedIds, unarchived } from '../../../lib/archive';
 
 export type EventOccurrence = CalendarEventOccurrenceFieldsFragment;
@@ -38,12 +40,14 @@ graphql(`
     startTime
     endDate
     endTime
-    timeZone
     start
     end
     recurrence
     seriesStartDate
-    reminders
+    reminders {
+      before
+      at
+    }
     travelBefore
     travelAfter
     projectId
@@ -123,6 +127,7 @@ const ForeignScheduleKindsDocument = graphql(`
       customized
       scheduleCount
       subscribed
+      archived
     }
   }
 `);
@@ -148,6 +153,23 @@ const SubscribedSchedulesDocument = graphql(`
   }
 `);
 
+const OtherWorkspaceSchedulesDocument = graphql(`
+  query OtherWorkspaceSchedules {
+    otherWorkspaceSchedules {
+      id
+      archived
+      label
+      startDate
+      endDate
+      cases
+      exceptions
+      typeId
+      workspaceId
+      workspaceLabel
+    }
+  }
+`);
+
 const CreateScheduleTypeDocument = graphql(`
   mutation CreateScheduleType($input: ScheduleTypeInput!) {
     createScheduleType(input: $input) {
@@ -165,8 +187,8 @@ const UpdateScheduleTypeDocument = graphql(`
 `);
 
 const DeleteScheduleTypeDocument = graphql(`
-  mutation DeleteScheduleType($id: ID!) {
-    deleteScheduleType(id: $id)
+  mutation DeleteScheduleType($id: ID!, $confirmLoss: Boolean) {
+    deleteScheduleType(id: $id, confirmLoss: $confirmLoss)
   }
 `);
 
@@ -197,20 +219,20 @@ const UnsubscribeScheduleKindDocument = graphql(`
 `);
 
 const CreateWorkScheduleDocument = graphql(`
-  mutation CreateWorkSchedule($input: WorkScheduleInput!) {
-    createWorkSchedule(input: $input)
+  mutation CreateWorkSchedule($input: WorkScheduleInput!, $confirmLoss: Boolean) {
+    createWorkSchedule(input: $input, confirmLoss: $confirmLoss)
   }
 `);
 
 const UpdateWorkScheduleDocument = graphql(`
-  mutation UpdateWorkSchedule($id: ID!, $input: WorkScheduleInput!) {
-    updateWorkSchedule(id: $id, input: $input)
+  mutation UpdateWorkSchedule($id: ID!, $input: WorkScheduleInput!, $confirmLoss: Boolean) {
+    updateWorkSchedule(id: $id, input: $input, confirmLoss: $confirmLoss)
   }
 `);
 
 const DeleteWorkScheduleDocument = graphql(`
-  mutation DeleteWorkSchedule($id: ID!) {
-    deleteWorkSchedule(id: $id)
+  mutation DeleteWorkSchedule($id: ID!, $confirmLoss: Boolean) {
+    deleteWorkSchedule(id: $id, confirmLoss: $confirmLoss)
   }
 `);
 
@@ -369,20 +391,14 @@ const CreateCalendarEventDocument = graphql(`
 `);
 
 const UpdateCalendarEventDocument = graphql(`
-  mutation UpdateCalendarEvent($id: ID!, $input: CalendarEventInput!, $scope: CalendarEventScope!, $occurrenceDate: Date) {
-    updateCalendarEvent(id: $id, input: $input, scope: $scope, occurrenceDate: $occurrenceDate)
+  mutation UpdateCalendarEvent($id: ID!, $input: CalendarEventInput!, $scope: CalendarEventScope!, $occurrenceDate: Date, $confirmLoss: Boolean) {
+    updateCalendarEvent(id: $id, input: $input, scope: $scope, occurrenceDate: $occurrenceDate, confirmLoss: $confirmLoss)
   }
 `);
 
 const DeleteCalendarEventDocument = graphql(`
   mutation DeleteCalendarEvent($id: ID!, $scope: CalendarEventScope!, $occurrenceDate: Date) {
     deleteCalendarEvent(id: $id, scope: $scope, occurrenceDate: $occurrenceDate)
-  }
-`);
-
-const MaterializeTaskOccurrencesDocument = graphql(`
-  mutation MaterializeTaskOccurrences($from: Date!, $to: Date!) {
-    materializeTaskOccurrences(from: $from, to: $to)
   }
 `);
 
@@ -487,10 +503,11 @@ export function useSubscribedCalendarEvents(range: { from: string; to: string } 
 /**
  * Mutation refreshing the calendar once done.
  * @param {(variables: TVariables) => Promise<TResult>} mutationFn Request.
+ * @param {readonly QueryKey[]} [also] Other queries refreshed too. Optional. Default = none.
  * @returns {UseMutationResult} Mutation state.
  */
-function useCalendarMutation<TVariables, TResult>(mutationFn: (variables: TVariables) => Promise<TResult>) {
-  return useInvalidatingMutation(mutationFn, { invalidate: [calendarQueryKey] });
+function useCalendarMutation<TVariables, TResult>(mutationFn: (variables: TVariables) => Promise<TResult>, also: readonly QueryKey[] = []) {
+  return useInvalidatingMutation(mutationFn, { invalidate: [calendarQueryKey, ...also] });
 }
 
 /**
@@ -531,7 +548,9 @@ export function useCalendarEventMutations() {
     create: useCalendarMutation(async (input: CalendarEventInput) => (await execute(CreateCalendarEventDocument, { input })).createCalendarEvent),
     update: useCalendarMutation(
       async (variables: { id: string; input: CalendarEventInput; scope: CalendarEventScope; occurrenceDate: string | null }) =>
-        (await execute(UpdateCalendarEventDocument, variables)).updateCalendarEvent,
+        withLossConfirmation(async (confirmLoss) => (await execute(UpdateCalendarEventDocument, { ...variables, confirmLoss })).updateCalendarEvent),
+      // A change of project attaches the contributors to it: the contributors (task data) are refreshed too.
+      [tasksQueryKey],
     ),
     remove: useCalendarMutation(
       async (variables: { id: string; scope: CalendarEventScope; occurrenceDate: string | null }) => (await execute(DeleteCalendarEventDocument, variables)).deleteCalendarEvent,
@@ -539,7 +558,9 @@ export function useCalendarEventMutations() {
     setCalledOff: useCalendarMutation(
       async (variables: { id: string; scope: CalendarEventScope; occurrenceDate: string | null; calledOff: boolean }) => (await execute(SetCalledOffDocument, variables)).setCalendarEventCalledOff,
     ),
-    postpone: useCalendarMutation(async (variables: { id: string; occurrenceDate: string | null; input: CalendarEventInput }) => (await execute(PostponeDocument, variables)).postponeCalendarEvent),
+    postpone: useCalendarMutation(async (variables: { id: string; occurrenceDate: string | null; input: CalendarEventInput }) => (await execute(PostponeDocument, variables)).postponeCalendarEvent,
+      [tasksQueryKey],
+    ),
   };
 }
 
@@ -584,6 +605,15 @@ export function useSubscribedSchedules() {
 }
 
 /**
+ * Every schedule of the other workspaces of the user (archived ones too), shown here or not: what a slot condition can
+ * name of them.
+ * @returns {UseQueryResult} Query state.
+ */
+export function useOtherWorkspaceSchedules() {
+  return useQuery({ queryKey: [...calendarQueryKey, 'other-workspace-schedules'], queryFn: async () => (await execute(OtherWorkspaceSchedulesDocument)).otherWorkspaceSchedules });
+}
+
+/**
  * What the slots of the agenda are drawn from: the schedules of the workspace, those shown from the other workspaces,
  * the kinds of slots and the kind of the schedules without any (undefined while loading).
  * @returns {{ schedules: object[] | undefined, foreign: object[] | undefined, types: object[] | undefined, defaultKind: object | undefined }} Sources.
@@ -602,14 +632,25 @@ export function useScheduleSources() {
  */
 export function useWorkScheduleMutations() {
   return {
-    create: useCalendarMutation(async (input: WorkScheduleInput) => (await execute(CreateWorkScheduleDocument, { input } as never)).createWorkSchedule),
-    update: useCalendarMutation(async (variables: { id: string; input: WorkScheduleInput }) => (await execute(UpdateWorkScheduleDocument, variables as never)).updateWorkSchedule),
-    remove: useCalendarMutation(async (id: string) => (await execute(DeleteWorkScheduleDocument, { id })).deleteWorkSchedule),
+    // The occurrences of routines a change makes disappear (no moment left) are confirmed first, with what they lose.
+    create: useCalendarMutation(
+      async (input: WorkScheduleInput) => withLossConfirmation(async (confirmLoss) => (await execute(CreateWorkScheduleDocument, { input, confirmLoss } as never)).createWorkSchedule),
+      [routinesKey],
+    ),
+    update: useCalendarMutation(
+      async (variables: { id: string; input: WorkScheduleInput }) =>
+        withLossConfirmation(async (confirmLoss) => (await execute(UpdateWorkScheduleDocument, { ...variables, confirmLoss } as never)).updateWorkSchedule),
+      [routinesKey],
+    ),
+    remove: useCalendarMutation(async (id: string) => withLossConfirmation(async (confirmLoss) => (await execute(DeleteWorkScheduleDocument, { id, confirmLoss })).deleteWorkSchedule), [routinesKey]),
     createType: useCalendarMutation(async (input: { label: string; color: string } & ScheduleDisplay) => (await execute(CreateScheduleTypeDocument, { input })).createScheduleType),
     updateType: useCalendarMutation(
       async (variables: { id: string; input: { label: string; color: string } & ScheduleDisplay }) => (await execute(UpdateScheduleTypeDocument, variables)).updateScheduleType,
     ),
-    removeType: useCalendarMutation(async (id: string) => (await execute(DeleteScheduleTypeDocument, { id })).deleteScheduleType),
+    removeType: useCalendarMutation(
+      async (id: string) => withLossConfirmation(async (confirmLoss) => (await execute(DeleteScheduleTypeDocument, { id, confirmLoss })).deleteScheduleType),
+      [routinesKey],
+    ),
     subscribe: useCalendarMutation(async (kind: { workspaceId: string; typeId: string | null }) => (await execute(SubscribeScheduleKindDocument, kind)).subscribeScheduleKind),
     saveDefaultKind: useCalendarMutation(
       async (input: { label: string; color: string | null } & ScheduleDisplay) => (await execute(SaveDefaultScheduleKindDocument, { input })).saveDefaultScheduleKind,
@@ -639,21 +680,6 @@ export function scheduleRules(
     exceptions: readScheduleExceptions(schedule.exceptions),
     typeId: schedule.typeId ?? null,
   }));
-}
-
-/**
- * Creates the occurrences of recurring tasks in the displayed period, then refreshes the tasks when some
- * were created.
- * @returns {UseMutationResult} Mutation state.
- */
-export function useMaterializeTaskOccurrences() {
-  const queryClient = useQueryClient();
-  return useMutation({
-    mutationFn: async (range: { from: string; to: string }) => (await execute(MaterializeTaskOccurrencesDocument, range)).materializeTaskOccurrences,
-    onSuccess: (created) => {
-      if (created > 0) void queryClient.invalidateQueries({ queryKey: tasksQueryKey });
-    },
-  });
 }
 
 /**

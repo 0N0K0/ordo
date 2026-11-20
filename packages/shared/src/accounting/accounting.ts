@@ -1,15 +1,24 @@
 import { z } from 'zod';
-import { optionalText, PERSON_NAME_MAX, personNameSchema, requiredText } from '../core/rules';
+import { legalTextSchema, optionalLegalText, optionalText, personNameSchema, plainTextSchema, requiredText, shortTextSchema } from '../core/rules';
 import { twoDigits } from '../core/numbers';
+
+/** Most characters of a postal code (a format, not a free text). */
+const POSTAL_CODE_MAX = 20;
+/** Most characters of a phone number (a format). */
+const PHONE_MAX = 30;
+/** Most characters of a VAT number (a format). */
+const VAT_NUMBER_MAX = 20;
+/** Most characters of an activity code (NAF / APE, a format). */
+const ACTIVITY_CODE_MAX = 20;
 
 /** Postal address, in the order of international postal conventions (ISO 19160 / UPU). */
 const addressSchema = z.object({
   /** Street lines: number and street, building, floor, PO box… */
-  lines: z.array(z.string().trim().max(120, '120 caractères maximum.')).max(4),
-  postalCode: z.string().trim().max(20),
-  city: z.string().trim().max(100),
+  lines: z.array(shortTextSchema).max(4),
+  postalCode: z.string().trim().max(POSTAL_CODE_MAX),
+  city: shortTextSchema,
   /** Region, state or province, when the country uses it. */
-  region: z.string().trim().max(100),
+  region: shortTextSchema,
   /** ISO 3166-1 alpha-2 code. */
   country: z.string().regex(/^[A-Z]{2}$/, 'Pays invalide.'),
 });
@@ -48,8 +57,8 @@ export function addressLines(address: Address, countryName: (code: string) => st
 }
 
 const phoneSchema = z.object({
-  label: z.string().trim().max(40),
-  number: z.string().trim().min(3, 'Numéro invalide.').max(30, 'Numéro invalide.'),
+  label: shortTextSchema,
+  number: z.string().trim().min(3, 'Numéro invalide.').max(PHONE_MAX, 'Numéro invalide.'),
 });
 const phonesSchema = z.array(phoneSchema).max(10);
 export type Phone = z.infer<typeof phoneSchema>;
@@ -111,21 +120,21 @@ export const CLIENT_KINDS = ['COMPANY', 'INDIVIDUAL'] as const;
 /** Client details used on accounting documents. */
 export const clientDetailsSchema = z.object({
   kind: z.enum(CLIENT_KINDS),
-  firstName: optionalText(PERSON_NAME_MAX),
-  lastName: optionalText(PERSON_NAME_MAX),
+  firstName: optionalText(),
+  lastName: optionalText(),
   address: addressSchema.nullable(),
   email: emailSchema,
   phones: phonesSchema,
   website: websiteSchema,
-  vatNumber: optionalText(20),
+  vatNumber: optionalText(VAT_NUMBER_MAX),
   siren: sirenSchema,
   siret: siretSchema,
-  activityCode: optionalText(20),
+  activityCode: optionalText(ACTIVITY_CODE_MAX),
 });
 export type ClientDetailsInput = z.input<typeof clientDetailsSchema>;
 
 export const clientServiceSchema = z.object({
-  label: requiredText(120),
+  label: requiredText(),
   address: addressSchema.nullable(),
   email: emailSchema,
   phones: phonesSchema,
@@ -134,10 +143,10 @@ export type ClientServiceInput = z.input<typeof clientServiceSchema>;
 
 export const clientContactSchema = z.object({
   serviceId: z.string().nullable(),
-  firstName: requiredText(PERSON_NAME_MAX, 'Le prénom est requis.'),
+  firstName: requiredText('Le prénom est requis.'),
   lastName: personNameSchema,
   email: emailSchema,
-  jobTitle: optionalText(120),
+  jobTitle: optionalText(),
   phones: phonesSchema,
 });
 export type ClientContactInput = z.input<typeof clientContactSchema>;
@@ -153,23 +162,23 @@ export function contactName(contact: { firstName: string; lastName: string }): s
 
 /** The user's business. */
 export const companyProfileSchema = z.object({
-  name: requiredText(PERSON_NAME_MAX, 'Le nom de la société est requis.'),
-  contact: optionalText(120),
-  legalForm: optionalText(80),
-  capital: optionalText(40),
-  registration: optionalText(120),
+  name: requiredText('Le nom de la société est requis.'),
+  contact: optionalText(),
+  legalForm: optionalText(),
+  capital: optionalText(),
+  registration: optionalLegalText(),
   siren: sirenSchema,
   siret: siretSchema,
-  activityCode: optionalText(20),
-  vatNumber: optionalText(20),
+  activityCode: optionalText(ACTIVITY_CODE_MAX),
+  vatNumber: optionalText(VAT_NUMBER_MAX),
   vatApplicable: z.boolean(),
-  vatExemptionText: z.string().trim().min(1, 'La mention est requise.').max(300),
+  vatExemptionText: legalTextSchema.min(1, 'La mention est requise.'),
   address: addressSchema.nullable(),
   email: emailSchema,
-  phone: optionalText(30),
+  phone: optionalText(PHONE_MAX),
   website: websiteSchema,
-  bankName: optionalText(120),
-  accountHolder: optionalText(120),
+  bankName: optionalText(),
+  accountHolder: optionalText(),
   iban: z
     .string()
     .transform((value) => value.replace(/\s/g, '').toUpperCase())
@@ -182,12 +191,12 @@ export const companyProfileSchema = z.object({
     .refine((value) => value === '' || /^[A-Z]{6}[A-Z0-9]{2}([A-Z0-9]{3})?$/.test(value), 'BIC invalide (8 ou 11 caractères).')
     .transform((value) => value || null)
     .nullable(),
-  paymentTerms: z.string().trim().max(1000),
+  paymentTerms: legalTextSchema,
   paymentDays: z.number().int().min(0, 'Au moins 0.').max(365, '365 maximum.'),
-  paymentMethods: z.string().trim().max(500),
-  lateInterest: z.string().trim().max(1000),
-  otherMentions: z.string().trim().max(2000),
-  referenceLabel: z.string().trim().min(1, 'Le libellé est requis.').max(60),
+  paymentMethods: shortTextSchema,
+  lateInterest: legalTextSchema,
+  otherMentions: plainTextSchema,
+  referenceLabel: requiredText(),
   quoteValidityDays: z.number().int().min(1, 'Au moins 1 jour.').max(365, '365 maximum.'),
 });
 export type CompanyProfileInput = z.input<typeof companyProfileSchema>;

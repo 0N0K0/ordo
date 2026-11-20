@@ -1,13 +1,13 @@
-import { ROUTINE_REMINDERS } from '../../../components/inputs/reminder-presets';
+import { normalizedReminders, reminderKey, reminderOfKey } from '@ordo/shared';
+import { reminderLabel } from '../../../components/inputs/reminder-presets';
 
 import { cellPicker } from '../../../components/data-table/cells/cell-field';
 import { Badge, Select, Stack, Text } from '@mantine/core';
 import { BellIcon } from '@phosphor-icons/react';
-import { useState } from 'react';
 
 import { treeSelectProps } from '../../../components/tree/tree-select';
 import { ON_ERROR } from '../../../lib/notify';
-import { AddressInput, type AddressValue } from '../../geo/components/AddressInput';
+import { LocationCell } from '../../geo/components/LocationCell';
 import { useRoutineMutations, type Routine } from '../api';
 import { routineCellLabel, useRoutineCellEdit } from '../lib/routine-cell-edit';
 import { applyDiff, listDiff } from '../../../components/data-table/selection/bulk-edit';
@@ -18,7 +18,8 @@ import { OpensOnInput } from './OpensOnInput';
 import { opensText } from '../lib/opens-format';
 import { opensFits, readOpens, subtreeOf } from '@ordo/shared';
 import * as fmt from '../../../lib/format';
-import { routineTreeOptions, ruleOf } from '../lib/routine-format';
+import { linkableRoutine, routineTreeOptions, ruleOf } from '../lib/routine-format';
+import type { TaskContext } from '../../tasks/hooks/use-task-context';
 import { RemindersSelect } from '../../../components/inputs/RemindersSelect';
 import { ChildrenCell } from '../../../components/data-table/cells/ChildrenCell';
 import { unarchived } from '../../../lib/archive';
@@ -83,7 +84,7 @@ export function TimeOfDayCell({ routine, field, readOnly = false }: { routine: R
   if (!ownTimes) {
     return (
       <Text size="xs" c="dimmed">
-        {routine.slotCondition ? 'Selon les plages' : (routine.cases as unknown[] | null)?.length ? 'Selon les cas' : 'Plusieurs moments'}
+        {routine.slotCondition ? 'Selon les créneaux' : (routine.cases as unknown[] | null)?.length ? 'Selon les cas' : 'Plusieurs moments'}
       </Text>
     );
   }
@@ -99,29 +100,13 @@ export function TimeOfDayCell({ routine, field, readOnly = false }: { routine: R
 }
 
 /**
- * Place cell: an address chosen in place (with its point on the map), or none.
+ * Location cell of a routine (`LocationCell`), on the selection of its table.
  * @param {{ routine: Routine, readOnly?: boolean }} props Component props (read only: archived or being created).
  * @returns {JSX.Element} Cell.
  */
-export function LocationCell({ routine, readOnly = false }: { routine: Routine; readOnly?: boolean }) {
+export function RoutineLocationCell({ routine, readOnly = false }: { routine: Routine; readOnly?: boolean }) {
   const { apply, count } = useRoutineCellEdit(routine, 'location');
-  const [draft, setDraft] = useState<AddressValue | null>(null);
-  const current: AddressValue = { text: routine.location ?? '', point: routine.locationLat != null && routine.locationLon != null ? { lat: routine.locationLat, lon: routine.locationLon } : null };
-  return (
-    <EditablePopoverCell width={360} empty={!routine.location} truncate readOnly={readOnly} onClose={() => setDraft(null)} target={routine.location || '—'}>
-      <AddressInput
-        aria-label={routineCellLabel('Lieu', routine, count)}
-        placeholder="Adresse ou lieu enregistré"
-        withinPortal={false}
-        value={draft ?? current}
-        onChange={(value) => {
-          setDraft(value);
-          // Saved once a proposed address is chosen, or when the text is cleared.
-          if (value.point || !value.text.trim()) apply({ location: value.text.trim() || null, locationLat: value.point?.lat ?? null, locationLon: value.point?.lon ?? null });
-        }}
-      />
-    </EditablePopoverCell>
-  );
+  return <LocationCell item={routine} label={routineCellLabel('Lieu', routine, count)} readOnly={readOnly} count={count} onSave={(change) => apply(change)} />;
 }
 
 /**
@@ -147,13 +132,12 @@ export function TravelCell({ routine, field, readOnly = false }: { routine: Rout
 }
 
 /**
- * Alerts cell: a bell with the alerts before its moment, chosen in place.
+ * Reminders cell: a bell with the number of its reminders, chosen in place.
  * @param {{ routine: Routine, readOnly?: boolean }} props Component props (read only: archived or being created).
  * @returns {JSX.Element} Cell.
  */
 export function RemindersCell({ routine, readOnly = false }: { routine: Routine; readOnly?: boolean }) {
   const { apply, count } = useRoutineCellEdit(routine, 'alarms');
-  const labels = new Map(ROUTINE_REMINDERS.map((preset) => [preset.value, preset.label]));
   return (
     <EditablePopoverCell
       width={280}
@@ -176,20 +160,17 @@ export function RemindersCell({ routine, readOnly = false }: { routine: Routine;
       <Stack gap="xs">
         <RemindersSelect
           label="Rappels"
-          presets={ROUTINE_REMINDERS}
           value={routine.reminders}
           // On a selection, those added here are added to each routine, those removed here removed.
           onChange={(values) =>
             apply((target) => ({
-              reminders: applyDiff(target.reminders.map(String), routine.reminders.map(String), values.map(String))
-                .map(Number)
-                .sort((a, b) => a - b),
+              reminders: normalizedReminders(applyDiff(target.reminders.map(reminderKey), routine.reminders.map(reminderKey), values.map(reminderKey)).flatMap((key) => reminderOfKey(key) ?? [])),
             }))
           }
           comboboxProps={{ withinPortal: false }}
         />
         <Text size="xs" c="dimmed">
-          {routine.reminders.map((minutes) => labels.get(minutes) ?? `${minutes} min avant`).join(', ') || 'Aucun rappel.'}
+          {routine.reminders.map((reminder) => reminderLabel(reminder)).join(', ') || 'Aucun rappel.'}
         </Text>
       </Stack>
     </EditablePopoverCell>
@@ -197,7 +178,7 @@ export function RemindersCell({ routine, readOnly = false }: { routine: Routine;
 }
 
 /**
- * « À partir du » cell: the day each occurrence of its rule can be done from (its cases have theirs, in its repetition).
+ * « Ouverture » cell: the day each occurrence of its rule can be done from (its cases have theirs, in its repetition).
  * @param {{ routine: Routine, readOnly?: boolean }} props Component props (read only: archived or being created).
  * @returns {JSX.Element} Cell.
  */
@@ -226,18 +207,18 @@ export function OpensOnCell({ routine, readOnly = false }: { routine: Routine; r
 }
 
 /**
- * « Bloque » cell: the routines waiting for this one, chosen in place (they then depend on it).
- * @param {{ routine: Routine, routines: Routine[], readOnly?: boolean }} props Component props (read only: archived or being created).
+ * « Bloque » cell: the routines waiting for this one, chosen in place among those of its project tree (they then depend on it).
+ * @param {{ routine: Routine, routines: Routine[], context: TaskContext, readOnly?: boolean }} props Component props (read only: archived or being created).
  * @returns {JSX.Element} Cell.
  */
-export function BlocksCell({ routine, routines, readOnly = false }: { routine: Routine; routines: Routine[]; readOnly?: boolean }) {
+export function BlocksCell({ routine, routines, context, readOnly = false }: { routine: Routine; routines: Routine[]; context: TaskContext; readOnly?: boolean }) {
   const { patch } = useRoutineMutations();
   const { targets, count } = useRoutineCellEdit(routine, 'blocks');
   const waiting = routines.filter((other) => other.requiredIds.includes(routine.id)).map((other) => other.id);
   return (
     <EditableMultiSelect
       label={routineCellLabel('Routines en attente', routine, count)}
-      {...treeSelectProps(routineTreeOptions(routines, (other) => other.id !== routine.id && (!other.archived || waiting.includes(other.id))))}
+      {...treeSelectProps(routineTreeOptions(routines, linkableRoutine(context, routine.projectId ?? null, routine.id, waiting)))}
       value={waiting}
       readOnly={readOnly}
       onSave={(next) => {

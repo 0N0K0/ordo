@@ -17,11 +17,6 @@
       opacity: var(--onoko-muted-opacity);
     }
 
-    &[data-done] input[aria-label^='Libellé'] {
-      /* Typographie */
-      text-decoration: line-through;
-    }
-
     /* Animation */
     transition:
       background-color var(--onoko-transition),

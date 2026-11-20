@@ -24,7 +24,7 @@ export function TaskSettings() {
       <SettingsList
         {...statuses}
         title="Statuts de tâche"
-        description="La catégorie donne son sens au statut quel que soit son libellé (filtres, tâches « en cours » de l’accueil). C’est l’état ouvert / fermé de la tâche, et non son statut, qui dit si elle est terminée."
+        description="La catégorie donne son sens au statut quel que soit son libellé (filtres, tâches « en cours » de l’accueil). C’est l’état ouvert / fermé de la tâche qui dit si elle est terminée ; seul un statut « Annulé » la ferme (et la barre), le quitter la rouvre."
         noun="le statut"
         usageNoun={{ one: 'de la tâche', many: 'tâches' }}
         items={data?.taskStatuses ?? []}

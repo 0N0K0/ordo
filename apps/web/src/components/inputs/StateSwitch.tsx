@@ -4,7 +4,7 @@ import classes from './StateSwitch.module.css';
 import { ActionTooltip } from '../actions/ActionTooltip';
 
 interface StateSwitchProps {
-  /** What it tells when on (« Lait manque », « Favori », « Traité ») or the mode it turns on (« Modifier les plages »): its name. */
+  /** What it tells when on (« Lait manque », « Favori », « Traité ») or the mode it turns on (« Modifier les créneaux »): its name. */
   label: string;
   /** The name shown beside the switch, not only read by screen readers. Optional. Default = false (hidden). */
   showLabel?: boolean;

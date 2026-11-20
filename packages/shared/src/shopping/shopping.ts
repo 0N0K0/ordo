@@ -1,6 +1,6 @@
 import { round2, toCents } from '../accounting/accounting-documents';
 import { z } from 'zod';
-import { requiredText, optionalText } from '../core/rules';
+import { markdownSchema, optionalText, requiredText } from '../core/rules';
 import { nameKey } from '../core/text';
 import { joinedKey } from '../core/collections';
 import { dateSchema, optionalColorSchema, type LabelFormValues } from '../core/workspace';
@@ -10,19 +10,12 @@ const linkSchema = z
   .transform((value) => value || null)
   .nullable();
 
-/** Most characters of the unit of a product (sheet, stock or shopping item), as a unit of the settings. */
-export const UNIT_MAX = 50;
-/** Most characters of the note of a product (sheet, stock or shopping item). */
-export const ITEM_NOTE_MAX = 500;
-/** Most characters of the label of a shopping product or item. */
-export const SHOPPING_LABEL_MAX = 120;
-
 /** Quantity of a product (sheet, stock or shopping item): 0 or more. */
 export const quantitySchema = z.number({ error: 'Nombre attendu.' }).min(0, 'Quantité positive attendue.').max(999_999, 'Quantité trop grande.');
 /** Unit of a product (sheet, stock or shopping item): may be left empty (null). */
-export const unitSchema = optionalText(UNIT_MAX);
+export const unitSchema = optionalText();
 /** Note of a product (sheet, stock or shopping item, markdown): may be left empty (null). */
-export const itemNoteSchema = optionalText(ITEM_NOTE_MAX);
+export const itemNoteSchema = markdownSchema;
 const priceSchema = z.number({ error: 'Montant attendu.' }).min(0, 'Le prix ne peut pas être négatif.').max(9_999_999, 'Prix trop grand.').nullable();
 
 /** Store, storage mode or unit: a label and a color (labelFormSchema). */
@@ -30,7 +23,7 @@ export type ShoppingStoreInput = LabelFormValues;
 
 /** Category of products, in a tree. */
 export const shoppingCategorySchema = z.object({
-  label: requiredText(100),
+  label: requiredText(),
   color: optionalColorSchema,
   parentId: z.string().nullable(),
   /** Base lists it is offered in (none: all; a sub-category without any takes those of its parent). */
@@ -40,7 +33,7 @@ export type ShoppingCategoryInput = z.input<typeof shoppingCategorySchema>;
 
 /** Fields shared by a product of the base list and an item of a list. */
 const shoppingFields = {
-  label: requiredText(SHOPPING_LABEL_MAX),
+  label: requiredText(),
   categoryId: z.string().nullable(),
   storeId: z.string().nullable(),
   url: linkSchema,
@@ -68,12 +61,9 @@ export const shoppingItemSchema = z.object({ ...shoppingFields, optional: z.bool
 export type ShoppingItemInput = z.input<typeof shoppingItemSchema>;
 
 /** Base list ("liste type"): its label. */
-export const shoppingBaseListLabelSchema = requiredText(80);
+export const shoppingBaseListLabelSchema = requiredText();
 
-/** Longest label of a shopping list. */
-export const SHOPPING_LIST_LABEL_MAX = 120;
-
-export const shoppingListLabelSchema = requiredText(SHOPPING_LIST_LABEL_MAX);
+export const shoppingListLabelSchema = requiredText();
 
 /** Label and tasks of a shopping list, as its forms edit them. */
 export const shoppingListFormSchema = z.object({ label: shoppingListLabelSchema, taskIds: z.array(z.string()) });

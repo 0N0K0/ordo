@@ -12,7 +12,7 @@ Source : `apps/api/src/services/projects/clients.ts`.
 
 | Champ      | Règle                                                                                                          | Message                                                                                       |
 | ---------- | -------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------- |
-| `name`     | requis, coupé (trim), 100 caractères au plus (`personNameSchema`, `PERSON_NAME_MAX`)                           | « Le nom est requis. », « 100 caractères maximum. »                                           |
+| `name`     | requis, coupé (trim), 250 caractères au plus (`personNameSchema`, `TEXT_MAX`, décision DO)                     | « Le nom est requis. », « 250 caractères maximum. »                                           |
 | `color`    | facultative, format `#rrggbb` (mise en minuscules) ; une chaîne vide efface la couleur (`optionalColorSchema`) | « Couleur invalide (format #rrggbb). »                                                        |
 | `icon`     | facultative, image de 1 Mo au plus, JPG, PNG, WebP ou SVG (`MAX_ICON_BYTES`, `ICON_MIME_TYPES`)                | « Image trop lourde (1 Mo maximum). », « Format non pris en charge (JPG, PNG, WebP ou SVG). » |
 | `favorite` | booléen, modifiable même sur un client archivé (pas de contrôle d’archive dans `setClientFavorite`)            | —                                                                                             |
@@ -58,8 +58,8 @@ Source : `apps/api/src/services/projects/projects.ts`.
 
 | Champ                  | Règle                                                                                                                                         | Message                                                 |
 | ---------------------- | --------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------- |
-| `label`                | requis, coupé, 120 caractères au plus (`projectLabelSchema`) ; non unique                                                                     | « Le libellé est requis. », « 120 caractères maximum. » |
-| `description`          | facultative, coupée, 5000 caractères au plus ; vide devient `null` (`descriptionSchema`)                                                      | « 5000 caractères maximum. »                            |
+| `label`                | requis, coupé, 250 caractères au plus (`projectLabelSchema`) ; non unique                                                                     | « Le libellé est requis. », « 250 caractères maximum. » |
+| `description`          | facultative, markdown, 65 536 caractères au plus ; blanche devient `null` (`descriptionSchema` = `markdownSchema`)                            | « Texte trop long. »                                    |
 | `startDate`, `endDate` | jours `YYYY-MM-DD` facultatifs (`dateSchema`) ; la fin doit suivre le début (`assertDateRange`, comparée aux dates actuelles en modification) | « La fin doit suivre le début. »                        |
 | `color`                | comme pour un client                                                                                                                          | « Couleur invalide (format #rrggbb). »                  |
 | `statusId`             | un statut de projet existant et non archivé ; le statut actuel reste accepté même archivé                                                     | « Élément archivé : restaurez-le pour le modifier. »    |
@@ -103,13 +103,19 @@ Source : `apps/api/src/services/projects/projects.ts`.
 
 ### Suppression
 
-`deleteProject(id)` supprime le projet et tout son sous-arbre (cascade `ON DELETE` de la relation parent). Les icônes orphelines sont supprimées. Les éléments rattachés (tâches, temps, documents…) suivent les relations du schéma Prisma (voir les pages des domaines concernés).
+`deleteProject(id)` supprime le projet et tout son sous-arbre (cascade `ON DELETE` de la relation parent). Les icônes orphelines sont supprimées. Avant, ce qui lui survit en sort (`releaseProjects`, décision DP) : ses tâches (`releaseProjectTasks`, voir [Tâches](../activities/tasks.md#projet-supprimé)) et ses temps, sans projet (`releaseProjectTime`, décision D17 : seuls ceux qui ne gardent ni tâche, ni routine, ni évènement et ne sont pas facturés sont supprimés ; un temps facturé est toujours gardé). Le reste suit les relations du schéma Prisma :
+
+| Avec le projet                                                                                                                                                                                                  | Sans projet (`SetNull`)                                                                                                                                                                                                                                                  |
+| --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| Supprimés : jalons, sprints, lien GitHub, vues de tâches, tableaux de bord, temps passés sans tâche, ni routine, ni évènement, non facturés (supprimés avant par l'API : un temps a au moins un rattachement), copies de mails (`MailMessage`), ressources | Gardés sans projet : tâches (sorties avant par l'API), temps passés (sortis avant par l'API, avec leurs tâches, routines et évènements ; les facturés même sans rien), alarmes (avec leur tâche), routines, évènements, documents comptables, documents importés, mouvements et lignes de trésorerie, fiches |
+
+L'interface explique, dans la confirmation, que les tâches ne sont pas supprimées mais sortent du projet. Supprimer un client avec ses projets (`deleteClient(id, true)`) fait de même (`releaseProjects`).
 
 ## Statuts et catégories de projet
 
 Sources : `services/projects/project-statuses.ts`, `services/projects/project-categories.ts`, service générique `services/core/labels.ts` (`createLabelService`).
 
-- Champs : `label` requis, 50 caractères au plus (`labelTextSchema`, `LABEL_MAX`) ; `color` requise au format `#rrggbb` (`labelFormSchema`). Image facultative via la mutation commune des listes de paramètres (`services/core/settings-lists.ts`).
+- Champs : `label` requis, 250 caractères au plus (`labelTextSchema`, `TEXT_MAX`) ; `color` requise au format `#rrggbb` (`labelFormSchema`). Image facultative via la mutation commune des listes de paramètres (`services/core/settings-lists.ts`).
 - Libellé unique dans l’espace (contrainte en base) : « Un statut porte déjà ce libellé. », « Une catégorie porte déjà ce libellé. » (CONFLICT).
 - Introuvable : « Statut introuvable. », « Catégorie introuvable. ».
 - Un élément archivé n’est pas modifié ; il n’est plus choisi sur un nouveau projet, mais reste sur les projets qui l’ont.
@@ -121,12 +127,12 @@ Sources : `services/projects/project-statuses.ts`, `services/projects/project-ca
 
 Source : `services/projects/project-resources.ts`. Une ressource est un fichier téléversé (`FILE`) ou un lien (`LINK`).
 
-| Champ        | Règle                                                     | Message                                                                 |
-| ------------ | --------------------------------------------------------- | ----------------------------------------------------------------------- |
-| `label`      | requis, 200 caractères au plus                            | « Le libellé est requis. », « 200 caractères maximum. »                 |
-| `url` (lien) | URL `http` ou `https`                                     | « Lien invalide (http ou https). »                                      |
-| `note`       | facultative, 1000 caractères au plus, vide devient `null` | « 1000 caractères maximum. »                                            |
-| fichier      | non vide, 10 Mo au plus (`MAX_ATTACHMENT_BYTES`)          | « Ce fichier est vide. », « « x.pdf » est trop lourd (10 Mo maximum). » |
+| Champ        | Règle                                                                        | Message                                                                 |
+| ------------ | ---------------------------------------------------------------------------- | ----------------------------------------------------------------------- |
+| `label`      | requis, 250 caractères au plus                                               | « Le libellé est requis. », « 250 caractères maximum. »                 |
+| `url` (lien) | URL `http` ou `https`                                                        | « Lien invalide (http ou https). »                                      |
+| `note`       | facultative, texte multiligne, 4 000 caractères au plus, vide devient `null` | « 4 000 caractères maximum. »                                           |
+| fichier      | non vide, 10 Mo au plus (`MAX_ATTACHMENT_BYTES`)                             | « Ce fichier est vide. », « « x.pdf » est trop lourd (10 Mo maximum). » |
 
 - Ajout (`addProjectLink`, `addProjectFiles`) : le projet doit exister et ne pas être archivé ; chaque ressource va en fin de liste. Le libellé d’un fichier est son nom.
 - Modification (`updateProjectResource`) : renomme et change la note ; pour un lien, change aussi l’adresse. Une note ou une adresse omise est conservée, `null` efface la note.
@@ -143,7 +149,7 @@ Source : `services/projects/contributors.ts`. Vue d’ensemble des personnes dan
 
 | Champ         | Règle                                                                                                                                                                                   | Message                                                                                                                                                                             |
 | ------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `name`        | requis, 100 caractères au plus                                                                                                                                                          | « Le nom est requis. »                                                                                                                                                              |
+| `name`        | requis, 250 caractères au plus                                                                                                                                                          | « Le nom est requis. »                                                                                                                                                              |
 | `handle`      | identifiant de mention : coupé, mis en minuscules, 2 à 39 caractères, lettres, chiffres, « - » et « _ », ni « - » ni « _ » au début ou à la fin (`handleSchema`) ; unique dans l’espace | « Au moins 2 caractères. », « 39 caractères maximum. », « Lettres, chiffres, « - » et « _ » ; ni au début ni à la fin pour « - » et « _ ». », « Cet identifiant est déjà utilisé. » |
 | `avatar`      | image, mêmes règles que les icônes                                                                                                                                                      | idem                                                                                                                                                                                |
 | `projectIds`  | projets auxquels il est rattaché directement : existants et non archivés (ceux déjà rattachés restent acceptés)                                                                         | « Élément archivé… »                                                                                                                                                                |
@@ -168,6 +174,7 @@ Source : `services/projects/contributors.ts`. Vue d’ensemble des personnes dan
 
 - `setProjectContributors(projectId, ids)` : remplace les contributeurs rattachés directement à un projet non archivé. Un contributeur archivé n’est pas rattaché à nouveau (ceux déjà rattachés restent). Les tâches gardent leurs assignés.
 - `attachAssignees` : quand une tâche d’un projet reçoit un assigné qui n’est rattaché ni au projet ni à l’un de ses parents, il est rattaché automatiquement au projet. Exclus : « Moi » (utilisateur), les contributeurs archivés.
+- `followProject(before, after, contributorIds)` : une routine ou un évènement qui change de projet y fait rattacher ses assignés ou contributeurs (`attachAssignees`) ; rien si le projet ne change pas ou est retiré (décision DP).
 - `assertProjectContributors` : sur un élément d’un projet (routine, évènement…), seuls peuvent être **ajoutés** « Moi », les contributeurs rattachés au projet ou à l’un de ses ancêtres ; ceux déjà choisis restent. Sans projet, aucune restriction. Message : « Seuls les contributeurs du projet peuvent être choisis. ». Un contributeur archivé n’est pas ajouté, sauf lors d’une annulation qui restaure les anciens (`restoring`).
 
 ## Requêtes exposées

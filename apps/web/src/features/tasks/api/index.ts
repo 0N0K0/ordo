@@ -92,6 +92,11 @@ graphql(`
     sprintIds
     deadline
     minDate
+    effectiveDeadline
+    effectiveMinDate
+    deadlineFromSprint
+    minDateFromSprint
+    cancelled
     position
     archived
     createdAt
@@ -105,15 +110,23 @@ graphql(`
     relatedIds
     commentCount
     trackedSeconds
-    recurrence
-    seriesId
-    occurrenceDate
     closed
     closedAt
     githubLinked
     githubUrl
     githubNumber
-    slotRule
+    slotCondition
+    location
+    locationLat
+    locationLon
+    links {
+      url
+      label
+    }
+    reminders {
+      before
+      at
+    }
   }
 `);
 
@@ -198,30 +211,14 @@ const UpdateTaskDocument = graphql(`
   }
 `);
 
-const CloneTaskDocument = graphql(`
-  mutation CloneTask($id: ID!, $includeSubtasks: Boolean!) {
-    cloneTask(id: $id, includeSubtasks: $includeSubtasks) {
+const DuplicateTaskDocument = graphql(`
+  mutation DuplicateTask($id: ID!, $includeSubtasks: Boolean!) {
+    duplicateTask(id: $id, includeSubtasks: $includeSubtasks) {
       id
       number
     }
   }
 `);
-
-const SetTaskRecurrenceDocument = graphql(`
-  mutation SetTaskRecurrence($id: ID!, $recurrence: JSON) {
-    setTaskRecurrence(id: $id, recurrence: $recurrence) {
-      id
-    }
-  }
-`);
-
-/**
- * Makes a task recurring, changes its repetition, or stops it (null).
- * @returns {UseMutationResult} Mutation state.
- */
-export function useSetTaskRecurrence() {
-  return useTasksMutation(async (variables: { id: string; recurrence: unknown }) => (await execute(SetTaskRecurrenceDocument, variables)).setTaskRecurrence);
-}
 
 const MoveTaskDocument = graphql(`
   mutation MoveTask($id: ID!, $beforeId: ID, $parentId: ID) {
@@ -471,6 +468,9 @@ function useTasksMutation<TVariables, TResult>(mutationFn: (variables: TVariable
 /** Fields of a task sent on a creation or an update (the shared input of the API). */
 export type TaskInputValues = TaskInput;
 
+/** Saves a change of a task now, from its panel (a section edited in place: its description, its links). */
+export type TaskSave = (input: Omit<TaskInputValues, 'projectId'>) => Promise<unknown>;
+
 /**
  * Creates a task.
  * @returns {UseMutationResult} Mutation state.
@@ -506,11 +506,11 @@ export function useSetTasksClosed() {
 }
 
 /**
- * Clones a task, optionally with its sub-tasks.
- * @returns {UseMutationResult} Mutation state, with the clone number.
+ * Duplicates a task (« … (copie) », decision D20), optionally with its sub-tasks.
+ * @returns {UseMutationResult} Mutation state, with the id and number of the copy.
  */
-export function useCloneTask() {
-  return useTasksMutation(async (variables: { id: string; includeSubtasks: boolean }) => (await execute(CloneTaskDocument, variables)).cloneTask);
+export function useDuplicateTask() {
+  return useTasksMutation(async (variables: { id: string; includeSubtasks: boolean }) => (await execute(DuplicateTaskDocument, variables)).duplicateTask);
 }
 
 /**

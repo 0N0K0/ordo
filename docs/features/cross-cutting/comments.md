@@ -9,10 +9,10 @@ Règles appliquées par l’API : [Règles métier — Commentaires](../../busin
 | Élément                                                         | Où                                                                                                                                                                       |
 | --------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
 | Tâche                                                           | Panneau de la tâche, section « Commentaires » ([Tâches](../activities/tasks.md)).                                                                                        |
-| Routine                                                         | Formulaire de la routine ([Routines](../activities/routines.md)).                                                                                                        |
-| Évènement                                                       | Formulaire de l’évènement ([Agenda](../activities/calendar.md)).                                                                                                         |
-| Plages de travail (horaire)                                     | Gestion des plages ([Agenda](../activities/calendar.md)).                                                                                                                |
-| Temps passé                                                     | Formulaire « Modifier le temps » ([Temps passé](../activities/time.md)).                                                                                                 |
+| Routine                                                         | Formulaire de la routine : ceux de l’occurrence ouverte, « Commentaires du 12 nov. 2026 » ([Routines](../activities/routines.md)).                                       |
+| Évènement                                                       | Formulaire de l’évènement : ceux de l’occurrence ouverte (« Commentaires du … » pour un récurrent) ([Agenda](../activities/calendar.md)).                                |
+| Créneaux de travail (horaire)                                     | Gestion des créneaux ([Agenda](../activities/calendar.md)).                                                                                                                |
+| Temps passé                                                     | Panneau « Temps » ([Temps passé](../activities/time.md)).                                                                                                 |
 | Liste d’achats, produit, article d’une liste                    | Pages et formulaires des achats ([Achats](../supplies/shopping.md)).                                                                                                     |
 | Élément d’une fiche                                             | Page d’une fiche ([Fiches](../supplies/sheets.md)).                                                                                                                      |
 | Article du stock                                                | Tableau du stock ([Inventaire](../supplies/stock.md)).                                                                                                                   |
@@ -22,6 +22,8 @@ Règles appliquées par l’API : [Règles métier — Commentaires](../../busin
 | Mail                                                            | Lecteur de mails ([Mails](../resources/mail.md)).                                                                                                                        |
 
 Le titre par défaut du fil est « Commentaires » (`Comments`, propriété `title`).
+
+Une routine et un évènement récurrent ont des commentaires **par occurrence** (décision D19) : le panneau montre ceux de l’occurrence qu’il ouvre. Pour un évènement, l’occurrence cliquée ; pour une routine ouverte depuis l’agenda (« Ouvrir la routine »), l’occurrence cliquée ; sinon l’occurrence en cours, à défaut la suivante, à défaut la première. Un évènement unique a une seule occurrence.
 
 ## Le fil de commentaires
 
@@ -37,17 +39,20 @@ Un commentaire vide est refusé : « Le commentaire est vide. ».
 
 ## Colonne « Commentaires »
 
-Dans les tableaux (tâches, temps, routines, achats, stock, documents, trésorerie, bibliothèque, fiches, plages de travail, catalogue) :
+Dans les tableaux (tâches, temps, routines, achats, stock, documents, trésorerie, bibliothèque, fiches, créneaux de travail, catalogue) :
 
-- nombre de commentaires de la ligne, **la description remplie comptant pour un** (décision CJ), avec une icône de bulle ; rien quand il n’y en a aucun ;
+- nombre de commentaires de la ligne, **la description remplie comptant pour un** (décision CJ), avec une icône de bulle ; rien quand il n’y en a aucun ; pour une routine, ceux de l’occurrence que son panneau ouvre ; pour un évènement du tableau des tâches, ceux de son occurrence ;
 - triable et filtrable comme un nombre ; masquée par défaut dans les tableaux qui utilisent `commentColumn` (la colonne des tâches suit les colonnes par défaut des tâches) ;
 - un filtre « A des commentaires » existe dans le tableau des tâches.
 
 ## Suppression
 
 - Supprimer un élément supprime ses commentaires.
+- Supprimer une occurrence d’un évènement ou d’une routine (ou elle et les suivantes) supprime ses commentaires ; la confirmation en donne le nombre (« 3 commentaires seront aussi supprimés. », ou « Commentaires supprimés avec : cette occurrence 1, celle-ci et les suivantes 2… » dans la question de portée). La suppression de routines ou d’un calendrier le dit aussi.
+- Reporter une occurrence d’évènement emmène ses commentaires vers le report.
+- Les commentaires écrits avant qu’ils portent sur une occurrence sont placés par l’application à la première lecture (voir [Règles des commentaires](../../business-rules/cross-cutting/comments.md)).
 - Supprimer une tâche supprime ses commentaires (dit dans la confirmation : « … et ses commentaires seront supprimés définitivement »).
-- Cloner une tâche ne copie pas ses commentaires.
+- Dupliquer une tâche ne copie pas ses commentaires.
 
 ## Espace PRO / PERSO
 

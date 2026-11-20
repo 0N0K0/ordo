@@ -7,7 +7,7 @@ import { ActionButton } from '../../../components/actions/ActionButton';
 import { DataTable } from '../../../components/data-table/table/DataTable';
 import { applyDiff, bulkCellLabels, bulkSaver } from '../../../components/data-table/selection/bulk-edit';
 import { withArchived, type DataColumn } from '../../../components/data-table/table/data-table';
-import { EditableCheck, EditableMultiSelect, EditableSelect, EditableText } from '../../../components/data-table/cells/EditableCells';
+import { EditableCheck, EditableMultiSelect, EditableSelect, EditableText, EditableMarkdown } from '../../../components/data-table/cells/EditableCells';
 import { RowActions } from '../../../components/data-table/cells/RowActions';
 import { StackedValues } from '../../../components/data-table/cells/StackedValues';
 import { useDataView } from '../../../components/data-table/views/use-data-view';
@@ -318,7 +318,7 @@ export function StockTable() {
           perishable: (
             <EditableCheck value={item.perishable} label={cellLabelOf('perishable', item, 'Périssable')} readOnly={readOnly} onSave={(perishable) => bulk('perishable')(item, { perishable })} />
           ),
-          note: <EditableText value={item.note ?? null} label={cellLabelOf('note', item, 'Description')} nullable readOnly={readOnly} onSave={(note) => bulk('note')(item, { note })} />,
+          note: <EditableMarkdown value={item.note ?? null} label={cellLabelOf('note', item, 'Description')} readOnly={readOnly} onSave={(note) => bulk('note')(item, { note })} />,
         };
       }}
       actions={(item) => (

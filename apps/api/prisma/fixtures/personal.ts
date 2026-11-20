@@ -1,5 +1,5 @@
 import { fakerFR as faker } from '@faker-js/faker';
-import { addDays, DEFAULT_LABEL_COLOR, emptyTableFilter, formatDay, monthOfDay, occurrenceDates, parseDay, type Recurrence } from '@ordo/shared';
+import { addDays, DEFAULT_LABEL_COLOR, emptyTableFilter, monthOfDay, occurrenceDates, parseDay, type Recurrence } from '@ordo/shared';
 import { prisma } from '../../src/db';
 import type { Prisma } from '../../src/generated/prisma/client';
 import { createAlarm } from '../../src/services/tasks/alarms';
@@ -20,7 +20,6 @@ import {
   setItemPurchased,
   setListClosed,
 } from '../../src/services/shopping/shopping';
-import { materializeTaskOccurrences, setTaskRecurrence } from '../../src/services/tasks/task-recurrence';
 import { createView } from '../../src/services/tasks/task-views';
 import { createTimeEntry } from '../../src/services/tasks/time-entries';
 import { createAccount, realizeForecast } from '../../src/services/treasury/treasury';
@@ -30,7 +29,7 @@ import { addMember, saveContext, saveContextPeriod, saveRelation } from '../../s
 import { saveDefaultScheduleKind, saveScheduleType, subscribeScheduleKind } from '../../src/services/calendar/work-schedules';
 import { ensureMeContributor, meContributorId, setWorkspaceNotifications } from '../../src/services/workspaces/workspaces';
 import { enterWorkspace, type WorkspaceScope } from '../../src/workspace-context';
-import { calendarCategory, chart, createEntry, EMPTY_ARTICLE, EMPTY_ENTRY, localAt, projectFactory, relativeDay, rule, taskFactory, TIME_ZONE, treasuryCategoryMaker } from './factories';
+import { calendarCategory, chart, createEntry, EMPTY_ARTICLE, EMPTY_ENTRY, localAt, projectFactory, relativeDay, rule, taskFactory, treasuryCategoryMaker } from './factories';
 import { initialsIcon } from './images';
 import { pdfFile } from './mail';
 import { rebuildStatusHistory } from './history';
@@ -141,15 +140,8 @@ export async function seedPersonal({
   await task(holidays.id, 'Renouveler les passeports', dropped);
   await task(garden.id, 'Tailler la haie', todo, { startDate: date(day(3)) });
   const birthday = await task(papers.id, 'Préparer l’anniversaire de Tom', doing, { deadline: date(day(9)), priorityId: urgent.id });
-  // Recurring: the bins every week, the canteen every month.
   const bins = await task(garden.id, 'Sortir les poubelles', todo, { startDate: date(addDays(monday, 1)), endDate: null, deadline: null });
-  const canteen = await task(papers.id, 'Payer la cantine', todo, { startDate: date(addDays(monday, 3)), endDate: null, deadline: null });
-  await setTaskRecurrence(bins.id, rule({ weekdays: [2] }));
-  await setTaskRecurrence(canteen.id, rule({ frequency: 'MONTHLY', monthlyMode: 'DAY' }));
-  await materializeTaskOccurrences(day(-21), day(30));
-  for (const occurrence of await prisma.task.findMany({ where: { seriesId: { not: null }, occurrenceDate: { lt: date(today) } } })) {
-    await prisma.task.update({ where: { id: occurrence.id }, data: { statusId: done.id, closedAt: localAt(formatDay(occurrence.occurrenceDate!), 19) } });
-  }
+  await task(papers.id, 'Payer la cantine', todo, { startDate: date(addDays(monday, 3)), endDate: null, deadline: null });
   await rebuildStatusHistory(todo.id, doing.id);
   if (meId)
     await createView({
@@ -175,9 +167,8 @@ export async function seedPersonal({
     location: null,
     links: [],
     allDay: false,
-    timeZone: TIME_ZONE,
     recurrence: null,
-    reminders: [30],
+    reminders: [{ before: 30 }],
     projectId: null,
     calendarId: family.id,
     contributorIds: [],
@@ -210,7 +201,7 @@ export async function seedPersonal({
     endDate: day(9),
     endTime: null,
     recurrence: rule({ frequency: 'YEARLY' }),
-    reminders: [1440 * 7],
+    reminders: [{ at: '18:00' }],
     categoryIds: [kids],
     taskIds: [birthday.id],
   });
@@ -239,7 +230,7 @@ export async function seedPersonal({
     endTime: '18:00',
     contributorIds: [tom.id],
     categoryIds: [health],
-    reminders: [60, 1440],
+    reminders: [{ before: 60 }, { before: 1440 }],
   });
   await createCalendarEvent({
     ...event,
@@ -402,7 +393,7 @@ export async function seedPersonal({
   const kidsCategory = (await createRoutineCategory({ label: 'Enfants', color: '#7950f2', parentId: null })).id;
   const healthCategory = (await createRoutineCategory({ label: 'Santé', color: '#fa5252', parentId: null })).id;
   const routine = (label: string, recurrence: Recurrence, changes: Partial<Parameters<typeof createRoutine>[0]>) =>
-    createRoutine({ label, description: null, categoryIds: [], parentId: null, startDate: day(-35), recurrence, estimate: null, projectId: null, assigneeIds: [], requiredIds: [], ...changes });
+    createRoutine({ label, description: null, categoryIds: [], parentId: null, startDate: day(-35), recurrence, estimate: null, projectId: null, assigneeIds: [], requiredIds: [], relatedIds: [], links: [], ...changes });
   await routine('Se brosser les dents', rule({}), {
     categoryIds: [healthCategory],
     estimate: 3,
@@ -431,7 +422,7 @@ export async function seedPersonal({
     locationLat: school.lat,
     locationLon: school.lon,
     travelBefore: 15,
-    reminders: [20],
+    reminders: [{ before: 20 }],
   });
   const homework = await routine('Devoirs', rule({ weekdays: [1, 2, 4] }), { categoryIds: [kidsCategory], fromTime: '17:30', dueTime: '19:00', estimate: 45, assigneeIds: [lea.id, tom.id] });
   await routine('Préparer les cartables', rule({ weekdays: [1, 2, 3, 4, 7] }), { categoryIds: [kidsCategory], fromTime: '20:00', dueTime: '21:00', estimate: 10, requiredIds: [homework.id] });
@@ -448,11 +439,11 @@ export async function seedPersonal({
     locationLon: home.lon,
     projectId: garden.id,
   });
-  await routine('Vitamine D', rule({ frequency: 'MONTHLY', monthlyMode: 'DAY' }), { categoryIds: [healthCategory], dueTime: '09:00', reminders: [0] });
+  await routine('Vitamine D', rule({ frequency: 'MONTHLY', monthlyMode: 'DAY' }), { categoryIds: [healthCategory], dueTime: '09:00', reminders: [{ before: 0 }] });
   const checks = await tickRoutines(today);
   const gardenRoutine = await prisma.routine.findFirst({ where: { label: 'Arroser le jardin' } });
   for (const check of checks.filter((item) => item.routineId === gardenRoutine?.id).slice(0, 6)) {
-    await createTimeEntry({ routineId: check.routineId, projectId: garden.id, startedAt: new Date(check.doneAt.getTime() - 10 * 60_000), duration: 10 * 60 });
+    await createTimeEntry({ routineIds: [check.routineId], projectId: garden.id, startedAt: new Date(check.doneAt.getTime() - 10 * 60_000), duration: 10 * 60 });
   }
 
   // --- Tracked time on the projects ------------------------------------------------------------------------
@@ -494,13 +485,13 @@ export async function seedPersonal({
   await createAlarm({ ...alarm, label: 'Sortir les poubelles', type: 'REMINDER', frequency: 'WEEKLY', weekdays: [2], startDate: monday, time: '20:30', taskId: bins.id, projectId: garden.id });
   await createAlarm({ ...alarm, label: 'Acheter le cadeau de Tom', type: 'REMINDER', frequency: 'ONCE', startDate: day(5), time: '12:00', taskId: birthday.id, projectId: papers.id });
   await createAlarm({ ...alarm, label: 'Relevé des compteurs', type: 'REMINDER', frequency: 'MONTHLY', startDate: day(-20), time: '18:00' });
-  await setWorkspaceNotifications(workspace.id, ['ALARMS', 'CALENDAR']);
+  await setWorkspaceNotifications(workspace.id, []);
 
   console.log('Fixtures de l’espace personnel :', {
     projets: await prisma.project.count(),
     tâches: await prisma.task.count(),
     évènements: await prisma.calendarEvent.count(),
-    plages: await prisma.workSchedule.count(),
+    créneaux: await prisma.workSchedule.count(),
     'mouvements de trésorerie': await prisma.treasuryEntry.count(),
     'produits de courses': await prisma.shoppingProduct.count(),
     routines: await prisma.routine.count(),

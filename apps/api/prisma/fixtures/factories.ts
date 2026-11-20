@@ -244,9 +244,9 @@ export const timeEntryFactory = Factory.define<Prisma.TimeEntryUncheckedCreateIn
   };
 });
 
-/** Time zone of the fixtures' events (the machine's). */
+/** Time zone of the machine, for the fixtures' days. */
 // eslint-disable-next-line no-restricted-syntax -- TIME_ZONE itself.
-export const TIME_ZONE = Intl.DateTimeFormat().resolvedOptions().timeZone;
+const TIME_ZONE = Intl.DateTimeFormat().resolvedOptions().timeZone;
 
 const EVENT_LABELS = [
   'Rendez-vous client',
@@ -295,8 +295,7 @@ export const calendarEventFactory = Factory.define<Prisma.CalendarEventUnchecked
     startTime: minutesToTime(start),
     endDate: date,
     endTime: minutesToTime(end),
-    timeZone: TIME_ZONE,
-    reminders: faker.helpers.arrayElement([[], [15], [10], [30, 1440]]),
+    reminders: faker.helpers.arrayElement([[], [15], [10], [30, 1440]]).map((before) => ({ before })),
     calendarId: '',
   };
 });

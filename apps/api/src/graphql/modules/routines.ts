@@ -1,12 +1,17 @@
-import { parseOptionalDay, readSlotRule, sumOf, TREE_PLACES } from '@ordo/shared';
-import { daysBetween, formatDay, parseDay, readOpens, type RoutineInput, type RoutineMoveTimes } from '@ordo/shared';
+import { parseOptionalDay, sumOf } from '@ordo/shared';
+import { addDays, daysBetween, formatDay, parseDay, readOpens, readReminders, type RoutineInput, type RoutineMoveTimes } from '@ordo/shared';
 import { prisma } from '../../db';
 import { clientError, done } from '../errors';
 import * as routines from '../../services/routines/routines';
 import type { Context } from '../context';
 import { BY_POSITION } from '../../services/core/ordering';
+import { RemovedLinksResult, removedLinks } from '../removed-links';
 import { builder, type InputFields } from '../builder';
 import { locatedChanges, locatedInput, locationInputFields, TRAVEL_DESCRIPTIONS, travelInputFields } from '../located-fields';
+import { ItemLinkInput, ItemLinkRef } from '../link-fields';
+import { ReminderInput, ReminderRef } from '../reminder-fields';
+import { CommentSnapshotInput, CommentSnapshotRef, CONFIRM_LOSS_DESCRIPTION } from '../occurrence-fields';
+import { readLinks } from '../../services/core/links';
 import { relationIds } from '../relation-fields';
 import { EventScope } from './calendar';
 import { parisToday } from '../../today';
@@ -87,6 +92,22 @@ const RoutineSlotRef = builder.objectRef<SlotState>('RoutineSlot').implement({
   }),
 });
 
+const RoutineReminderSlotRef = builder.objectRef<routines.RoutineReminderOccurrence['slots'][number]>('RoutineReminderSlot').implement({
+  fields: (t) => ({
+    slot: t.exposeInt('slot', { description: 'Index of its time of the day.' }),
+    at: t.field({ type: 'DateTime', description: 'First day of the occurrence at the start of the time of the day.', resolve: (slot) => slot.at }),
+  }),
+});
+
+const RoutineReminderOccurrenceRef = builder.objectRef<routines.RoutineReminderOccurrence>('RoutineReminderOccurrence').implement({
+  description: 'Occurrence of a routine its reminders ring for (Paris time).',
+  fields: (t) => ({
+    date: t.field({ type: 'Date', description: 'Due day of the occurrence.', resolve: (occurrence) => parseDay(occurrence.date) }),
+    day: t.field({ type: 'Date', description: 'Its first day (« Ouverture »): the day of its reminders « À HH:MM ».', resolve: (occurrence) => parseDay(occurrence.day) }),
+    slots: t.field({ type: [RoutineReminderSlotRef], description: 'Its times of the day not ticked, with the moment its reminders « N min avant » count from.', resolve: (occurrence) => occurrence.slots }),
+  }),
+});
+
 /** Checks loaded to know the times ticked today. */
 const TODAY_CHECKS = { checks: { orderBy: { date: 'desc' }, take: 20, select: { date: true, slot: true } } } as const;
 
@@ -118,18 +139,22 @@ builder.prismaObject('Routine', {
       resolve: (routine) => routines.storedCondition(routine),
     }),
     moments: t.field({ type: 'JSON', description: 'Times of the day following its rule or its schedules, [{ fromTime, dueTime, optional }].', resolve: (routine) => routines.storedMoments(routine) }),
-    reminders: t.exposeIntList('reminders', { description: 'Alerts, in minutes before its moment (when to leave, else its start, else its latest time).' }),
+    reminders: t.field({
+      type: [ReminderRef],
+      description: 'Reminders: minutes (24 hours at most) before the first day (« Ouverture ») of an occurrence at the start of each time of the day (« dès »), or a time of that day.',
+      resolve: (routine) => readReminders(routine.reminders),
+    }),
+    reminderOccurrences: t.field({
+      type: [RoutineReminderOccurrenceRef],
+      description: 'Occurrences its reminders ring for: its current one while not done and its next one.',
+      select: { ...TIMING, ...TODAY_CHECKS, reminders: true },
+      resolve: async (routine, _args, ctx) => (readReminders(routine.reminders).length ? routines.reminderOccurrences(routine, await slotsOf(ctx)) : []),
+    }),
     opensOn: t.field({
       type: 'JSON',
       nullable: true,
-      description: '« À partir du » of the occurrences of its rule: { mode: DAY | WEEKDAY | WEEK | BEFORE, … }; null: from their first day.',
+      description: '« Ouverture » of the occurrences of its rule: { mode: DAY | WEEKDAY | WEEK | BEFORE, … }; null: from their first day.',
       resolve: (routine) => readOpens(routine.opensOn),
-    }),
-    slotRule: t.field({
-      type: 'JSON',
-      nullable: true,
-      description: 'Slots it is done on or out of ({ mode, kinds }); null: the workspace default.',
-      resolve: (routine) => readSlotRule(routine.slotRule),
     }),
     windowFrom: t.string({
       nullable: true,
@@ -147,9 +172,10 @@ builder.prismaObject('Routine', {
     location: t.exposeString('location', { nullable: true }),
     locationLat: t.exposeFloat('locationLat', { nullable: true }),
     locationLon: t.exposeFloat('locationLon', { nullable: true }),
+    links: t.field({ type: [ItemLinkRef], description: 'Links, as those of the events.', resolve: (routine) => readLinks(routine.links) }),
     travelBefore: t.exposeInt('travelBefore', { description: TRAVEL_DESCRIPTIONS.before }),
     travelAfter: t.exposeInt('travelAfter', { description: TRAVEL_DESCRIPTIONS.after }),
-    position: t.exposeInt('position'),
+    position: t.exposeInt('position', { description: 'Global manual order of every routine (not among siblings).' }),
     assigneeIds: t.idList(relationIds('assignees')),
     beneficiaryIds: t.idList(relationIds('beneficiaries', '« Bénéficiaires »: contributors it is for.')),
     beneficiaryRelationIds: t.idList(relationIds('beneficiaryRelations', '« Bénéficiaires »: relations it is for.')),
@@ -157,6 +183,11 @@ builder.prismaObject('Routine', {
       description: 'Routines to do before this one.',
       select: { requires: { select: { requiredId: true } } },
       resolve: (routine) => routine.requires.map((dependency) => dependency.requiredId),
+    }),
+    relatedIds: t.idList({
+      description: '« Relative à »: routines related to this one (both ways).',
+      select: { relationsA: { select: { routineBId: true } }, relationsB: { select: { routineAId: true } } },
+      resolve: (routine) => [...routine.relationsA.map((link) => link.routineBId), ...routine.relationsB.map((link) => link.routineAId)],
     }),
     currentDate: t.field({
       type: 'Date',
@@ -215,14 +246,13 @@ builder.prismaObject('Routine', {
       resolve: (routine) => routine.checks[0]?.doneAt ?? null,
     }),
     trackedSeconds: t.int({
-      description: 'Time tracked on it, finished entries only.',
-      select: { timeEntries: { select: { duration: true } } },
-      resolve: (routine) => sumOf(routine.timeEntries, (entry) => entry.duration ?? 0),
+      description: 'Time tracked on it, finished entries only; a time on several routines is shared equally between them.',
+      select: { timeEntries: { where: { duration: { not: null } }, select: { duration: true, _count: { select: { routines: true } } } } },
+      resolve: (routine) => Math.round(sumOf(routine.timeEntries, (entry) => (entry.duration ?? 0) / Math.max(1, entry._count.routines))),
     }),
   }),
 });
 
-const RoutinePlaceEnum = builder.enumType('RoutinePlace', { values: TREE_PLACES, description: 'Where a routine is dropped, relative to another one.' });
 
 const CategoryInput = builder.inputType('RoutineCategoryInput', {
   fields: (t) => ({ label: t.string({ required: true }), color: t.string(), parentId: t.id() }),
@@ -241,16 +271,18 @@ const RoutineInputType = builder.inputType('RoutineInput', {
     slotCondition: t.field({ type: 'JSON', description: 'Following its rule: on or out of calendar schedules, in groups (and / or); null: any time.' }),
     moments: t.field({ type: 'JSON', description: 'Times of the day, [{ fromTime, dueTime, optional }].' }),
     cases: t.field({ type: 'JSON', description: 'Cases (days and times of the day); empty: the repetition.' }),
-    reminders: t.intList(),
-    opensOn: t.field({ type: 'JSON', description: '« À partir du » of the occurrences of its rule: { mode: DAY | WEEKDAY | WEEK | BEFORE, … }; null: none.' }),
+    reminders: t.field({ type: [ReminderInput] }),
+    opensOn: t.field({ type: 'JSON', description: '« Ouverture » of the occurrences of its rule: { mode: DAY | WEEKDAY | WEEK | BEFORE, … }; null: none.' }),
     dueTime: t.string({ description: 'HH:MM.' }),
     ...locationInputFields(t),
+    links: t.field({ type: [ItemLinkInput], required: true, description: '20 at most, http or https; required, as relatedIds: an omitted field never wipes them.' }),
     ...travelInputFields(t, 'none: 0'),
     projectId: t.id(),
     assigneeIds: t.idList({ required: true }),
     beneficiaryIds: t.idList({ description: 'Contributors it is for; none: none.' }),
     beneficiaryRelationIds: t.idList({ description: 'Relations it is for; none: none.' }),
     requiredIds: t.idList({ required: true }),
+    relatedIds: t.idList({ required: true, description: '« Relative à »: routines related to it (same project tree).' }),
   }),
 });
 
@@ -280,11 +312,12 @@ const RoutinePatch = builder.inputType('RoutinePatch', {
     beneficiaryIds: t.idList(),
     beneficiaryRelationIds: t.idList(),
     requiredIds: t.idList(),
+    relatedIds: t.idList(),
     projectId: t.id({ description: 'Null: none.' }),
     ...locationInputFields(t, 'Null: none (its point too).'),
     ...travelInputFields(t, 'omitted: unchanged'),
-    reminders: t.intList({ description: 'Minutes before its moment.' }),
-    opensOn: t.field({ type: 'JSON', description: '« À partir du »: { mode: DAY | WEEKDAY | WEEK | BEFORE, … }; null: none.' }),
+    reminders: t.field({ type: [ReminderInput], description: 'Minutes (24 hours at most) before the lowest date and time of an occurrence, or a time of its first day.' }),
+    opensOn: t.field({ type: 'JSON', description: '« Ouverture »: { mode: DAY | WEEKDAY | WEEK | BEFORE, … }; null: none.' }),
     ...repetitionChangeFields(t),
   }),
 });
@@ -298,10 +331,12 @@ const RoutineBulkChangesInput = builder.inputType('RoutineBulkChanges', {
     removeAssigneeIds: t.idList(),
     addRequiredIds: t.idList(),
     removeRequiredIds: t.idList(),
+    addRelatedIds: t.idList({ description: '« Relative à » added (never to itself).' }),
+    removeRelatedIds: t.idList(),
     estimate: t.int({ description: 'Minutes.' }),
     projectId: t.id(),
     ...repetitionChangeFields(t),
-    opensOn: t.field({ type: 'JSON', description: '« À partir du » of its rule; null: none.' }),
+    opensOn: t.field({ type: 'JSON', description: '« Ouverture » of its rule; null: none.' }),
   }),
 });
 
@@ -334,15 +369,16 @@ const routineInput = (input: typeof RoutineInputType.$inferInput): RoutineInput 
   moments: (input.moments ?? []) as RoutineInput['moments'],
   reminders: input.reminders ?? [],
   opensOn: (input.opensOn ?? null) as RoutineInput['opensOn'],
-  slotRule: null,
   cases: (input.cases ?? []) as RoutineInput['cases'],
   dueTime: input.dueTime ?? null,
   ...locatedInput(input),
+  links: input.links,
   projectId: idOrNull(input.projectId),
   assigneeIds: input.assigneeIds,
   beneficiaryIds: input.beneficiaryIds ?? [],
   beneficiaryRelationIds: input.beneficiaryRelationIds ?? [],
   requiredIds: input.requiredIds,
+  relatedIds: input.relatedIds,
 });
 
 /** Occurrence of a routine on a day, with its times of the day. */
@@ -354,6 +390,10 @@ interface OccurrenceState {
   /** Day it shows on: its due day once past, today while it runs, its first day before. */
   shownDate: string;
   movedFrom: string | null;
+  /** Cancelled (an exception without a day): shown struck through (decision D23). */
+  cancelled: boolean;
+  /** Of an archived routine: an occurrence before its archiving, read only (decision D21). */
+  archived: boolean;
   slots: SlotState[];
 }
 
@@ -365,6 +405,8 @@ const RoutineOccurrenceRef = builder.objectRef<OccurrenceState>('RoutineOccurren
     startDate: t.field({ type: 'Date', description: 'First day it can be done.', resolve: (occurrence) => parseDay(occurrence.startDate) }),
     shownDate: t.field({ type: 'Date', description: 'Day it shows on: its due day once past, today while it runs, its first day before.', resolve: (occurrence) => parseDay(occurrence.shownDate) }),
     movedFrom: t.field({ type: 'Date', nullable: true, description: 'Day of the rule it was moved from (an exception).', resolve: (occurrence) => parseOptionalDay(occurrence.movedFrom) }),
+    cancelled: t.exposeBoolean('cancelled', { description: 'Cancelled (an exception without a day): shown struck through, read only, given back by removing its exception.' }),
+    archived: t.exposeBoolean('archived', { description: 'Of an archived routine (an occurrence due before the day it was archived): read only.' }),
     slots: t.field({ type: [RoutineSlotRef], resolve: (occurrence) => occurrence.slots }),
   }),
 });
@@ -406,12 +448,14 @@ builder.queryFields((t) => ({
   }),
   routineOccurrences: t.field({
     type: [RoutineOccurrenceRef],
-    description: `Occurrences of the routines not archived in a period (both days included, ${OCCURRENCE_DAYS} days at most), with their times of the day ticked.`,
+    description: `Occurrences of the routines in a period (both days included, ${OCCURRENCE_DAYS} days at most), with their times of the day ticked: the cancelled ones too (flagged), and those of the archived routines due before their archiving (flagged).`,
     args: { from: t.arg({ type: 'Date', required: true }), to: t.arg({ type: 'Date', required: true }) },
     resolve: async (_root, { from, to }, ctx) => {
       if (to < from || daysBetween(from, to) >= OCCURRENCE_DAYS) throw clientError('BAD_USER_INPUT', `Période de ${OCCURRENCE_DAYS} jours au plus.`);
       const list = await prisma.routine.findMany({
-        where: { archivedAt: null },
+        // Archived ones: their occurrences started before their archiving (decision D21), which may be due up to a year
+        // and a little after it (« Ouverture » up to 366 days before).
+        where: { OR: [{ archivedAt: null }, { archivedAt: { gte: parseDay(addDays(from, -400)) } }] },
         select: { ...TIMING, checks: { where: { date: { gte: parseDay(from), lte: parseDay(to) } }, select: { date: true, slot: true } } },
       });
       const context = await slotsOf(ctx);
@@ -419,12 +463,14 @@ builder.queryFields((t) => ({
       return list.flatMap((routine) => {
         const moves = routines.storedMoves(routine.moves);
         const ticked = new Set(routine.checks.map((check) => `${formatDay(check.date)}/${check.slot}`));
-        return routines.occurrenceSpansBetween(routine, from, to, context).map(({ start, end: date }) => ({
+        return routines.occurrenceSpansBetween(routine, from, to, context, true).map(({ start, end: date, cancelled = false }) => ({
           routineId: routine.id,
           date,
           startDate: start,
           shownDate: routines.shownDay({ start, end: date }, today),
           movedFrom: moves.find((move) => move.to === date && move.from !== date)?.from ?? null,
+          cancelled,
+          archived: routine.archivedAt !== null,
           slots: routines.slotsOf(routine, date, context).map((slot, index) => ({ index, ...slot, done: ticked.has(`${date}/${index}`) })),
         }));
       });
@@ -443,6 +489,14 @@ builder.queryFields((t) => ({
       }),
   }),
 }));
+
+/** What deleting an occurrence of a routine did. */
+const RoutineOccurrenceDeletionRef = builder.objectRef<routines.RoutineOccurrenceDeletion>('RoutineOccurrenceDeletion').implement({
+  fields: (t) => ({
+    archived: t.exposeBoolean('archived', { description: 'No occurrence left: the routine was archived.' }),
+    comments: t.field({ type: [CommentSnapshotRef], description: 'Comments deleted with this occurrence alone (THIS), for an undo.', resolve: (deletion) => deletion.comments }),
+  }),
+});
 
 builder.mutationFields((t) => ({
   createRoutineCategory: t.id({
@@ -463,26 +517,33 @@ builder.mutationFields((t) => ({
     resolve: (_root, { id }) => done(routines.deleteCategory(id)),
   }),
   createRoutine: t.id({
-    args: { input: t.arg({ type: RoutineInputType, required: true }) },
-    resolve: async (_root, { input }) => (await routines.createRoutine(routineInput(input))).id,
+    description: 'Creates a routine; a copy (copyOf) leaves out the former links of the routine copied out of its project tree.',
+    args: { input: t.arg({ type: RoutineInputType, required: true }), copyOf: t.arg.id({ description: 'Routine the new one is a copy of.' }) },
+    resolve: async (_root, { input, copyOf }) => (await routines.createRoutine(routineInput(input), idOrNull(copyOf))).id,
   }),
   copySubRoutines: t.int({
     description: 'Copies the sub-routines of a routine under its copy (theirs too); returns how many were copied.',
     args: { fromId: t.arg.id({ required: true }), toId: t.arg.id({ required: true }) },
     resolve: (_root, { fromId, toId }) => routines.copySubRoutines(fromId, toId),
   }),
-  updateRoutine: t.boolean({
+  updateRoutine: t.field({
+    type: RemovedLinksResult,
+    description: 'Saves a routine; moved to another project tree, it loses its links out of it (told back).',
     args: {
       id: t.arg.id({ required: true }),
       input: t.arg({ type: RoutineInputType, required: true }),
       restoring: t.arg.boolean({ description: 'Undo: archived values given back are accepted (only that check is skipped).' }),
+      confirmLoss: t.arg.boolean({ description: CONFIRM_LOSS_DESCRIPTION }),
     },
-    resolve: (_root, { id, input, restoring }) => done(routines.updateRoutine(id, routineInput(input), restoring ?? false)),
+    resolve: (_root, { id, input, restoring, confirmLoss }) =>
+      // An undo puts back what was there: nothing asked.
+      removedLinks(routines.updateRoutine(id, routineInput(input), { restoring: restoring ?? false, confirmLoss: restoring ? undefined : (confirmLoss ?? false) })),
   }),
-  patchRoutine: t.boolean({
-    description: 'Changes some fields of a routine (inline edits).',
-    args: { id: t.arg.id({ required: true }), input: t.arg({ type: RoutinePatch, required: true }) },
-    resolve: async (_root, { id, input }) => {
+  patchRoutine: t.field({
+    type: RemovedLinksResult,
+    description: 'Changes some fields of a routine (inline edits); moved to another project tree, it loses its links out of it (told back).',
+    args: { id: t.arg.id({ required: true }), input: t.arg({ type: RoutinePatch, required: true }), confirmLoss: t.arg.boolean({ description: CONFIRM_LOSS_DESCRIPTION }) },
+    resolve: async (_root, { id, input, confirmLoss }) => {
       const changes: Partial<RoutineInput> = {};
       if (input.label !== undefined && input.label !== null) changes.label = input.label;
       if (input.categoryIds) changes.categoryIds = input.categoryIds;
@@ -492,6 +553,7 @@ builder.mutationFields((t) => ({
       if (input.beneficiaryIds) changes.beneficiaryIds = input.beneficiaryIds;
       if (input.beneficiaryRelationIds) changes.beneficiaryRelationIds = input.beneficiaryRelationIds;
       if (input.requiredIds) changes.requiredIds = input.requiredIds;
+      if (input.relatedIds) changes.relatedIds = input.relatedIds;
       if (input.projectId !== undefined) changes.projectId = idOrNull(input.projectId);
       Object.assign(changes, locatedChanges(input));
       if (input.reminders) changes.reminders = input.reminders;
@@ -511,31 +573,30 @@ builder.mutationFields((t) => ({
       if (input.cases !== undefined && input.cases !== null) changes.cases = input.cases as RoutineInput['cases'];
       if (input.moments !== undefined && input.moments !== null) changes.moments = input.moments as RoutineInput['moments'];
       if (input.slotCondition !== undefined) changes.slotCondition = (input.slotCondition ?? null) as RoutineInput['slotCondition'];
-      return done(routines.patchRoutine(id, changes));
+      return removedLinks(routines.patchRoutine(id, changes, { confirmLoss: confirmLoss ?? false }));
     },
   }),
   moveRoutine: t.boolean({
-    description: 'Moves a routine before or after another one (same parent), or last under it; categoryIds, when given, become its categories.',
-    args: {
-      id: t.arg.id({ required: true }),
-      targetId: t.arg.id({ required: true }),
-      place: t.arg({ type: RoutinePlaceEnum, required: true }),
-      categoryIds: t.arg.idList(),
-    },
-    resolve: (_root, { id, targetId, place, categoryIds }) => done(routines.moveRoutine(id, targetId, place, categoryIds || null)),
+    description:
+      'Places a routine before another one in the global manual order (at the end when beforeId is null), and under parentId when given (null: top level; omitted: parent unchanged); categoryIds, when given, become its categories.',
+    args: { id: t.arg.id({ required: true }), beforeId: t.arg.id(), parentId: t.arg.id(), categoryIds: t.arg.idList() },
+    resolve: (_root, { id, beforeId, parentId, categoryIds }) => done(routines.moveRoutine(id, beforeId ?? null, parentId, categoryIds || null)),
   }),
-  bulkUpdateRoutines: t.int({
-    description: 'Applies the same changes to several routines; returns how many changed.',
-    args: { ids: t.arg.idList({ required: true }), changes: t.arg({ type: RoutineBulkChangesInput, required: true }) },
-    resolve: (_root, { ids, changes }) => {
+  bulkUpdateRoutines: t.field({
+    type: RemovedLinksResult,
+    description: 'Applies the same changes to several routines; those moved to another project tree lose their links out of it (told back).',
+    args: { ids: t.arg.idList({ required: true }), changes: t.arg({ type: RoutineBulkChangesInput, required: true }), confirmLoss: t.arg.boolean({ description: CONFIRM_LOSS_DESCRIPTION }) },
+    resolve: (_root, { ids, changes, confirmLoss }) => {
       const list = (value: string[] | null | undefined) => value ?? undefined;
-      return routines.bulkUpdateRoutines(ids, {
+      return removedLinks(routines.bulkUpdateRoutines(ids, {
         addCategoryIds: list(changes.addCategoryIds),
         removeCategoryIds: list(changes.removeCategoryIds),
         addAssigneeIds: list(changes.addAssigneeIds),
         removeAssigneeIds: list(changes.removeAssigneeIds),
         addRequiredIds: list(changes.addRequiredIds),
         removeRequiredIds: list(changes.removeRequiredIds),
+        addRelatedIds: list(changes.addRelatedIds),
+        removeRelatedIds: list(changes.removeRelatedIds),
         estimate: changes.estimate,
         projectId: changes.projectId === undefined ? undefined : idOrNull(changes.projectId),
         fromTime: changes.fromTime,
@@ -546,10 +607,11 @@ builder.mutationFields((t) => ({
         moments: changes.moments ?? undefined,
         slotCondition: changes.slotCondition === undefined ? undefined : (changes.slotCondition ?? null),
         opensOn: changes.opensOn === undefined ? undefined : (changes.opensOn ?? null),
-      });
+      }, confirmLoss ?? false));
     },
   }),
   bulkSetRoutinesArchived: t.int({
+    description: 'Archiving cascades to sub-routines; restoring restores those archived along and the archived parents. Returns how many of those given changed.',
     args: { ids: t.arg.idList({ required: true }), archived: t.arg.boolean({ required: true }) },
     resolve: (_root, { ids, archived }) => routines.bulkSetRoutinesArchived(ids, archived),
   }),
@@ -559,8 +621,12 @@ builder.mutationFields((t) => ({
     resolve: (_root, { ids, done }) => routines.bulkSetRoutinesDone(ids, done),
   }),
   bulkDeleteRoutines: t.int({
-    args: { ids: t.arg.idList({ required: true }) },
-    resolve: (_root, { ids }) => routines.bulkDeleteRoutines(ids),
+    description: 'Deletes routines with their sub-routines, or alone (their sub-routines move up a level); returns how many of those given were deleted.',
+    args: {
+      ids: t.arg.idList({ required: true }),
+      deleteSubRoutines: t.arg.boolean({ required: true, description: 'false moves unselected sub-routines up.' }),
+    },
+    resolve: (_root, { ids, deleteSubRoutines }) => routines.bulkDeleteRoutines(ids, deleteSubRoutines),
   }),
   moveRoutineOccurrence: t.boolean({
     description:
@@ -578,11 +644,15 @@ builder.mutationFields((t) => ({
       slot: t.arg.int({ required: true }),
       fromTime: t.arg.string(),
       dueTime: t.arg.string(),
+      confirmLoss: t.arg.boolean({ description: CONFIRM_LOSS_DESCRIPTION }),
     },
-    resolve: (_root, { id, date, scope, to, slot, fromTime, dueTime }) => done(routines.changeRoutineOccurrence(id, date, scope, to, slot, { fromTime: fromTime ?? null, dueTime: dueTime ?? null })),
+    resolve: (_root, { id, date, scope, to, slot, fromTime, dueTime, confirmLoss }) =>
+      done(routines.changeRoutineOccurrence(id, date, scope, to, slot, { fromTime: fromTime ?? null, dueTime: dueTime ?? null }, confirmLoss ?? false)),
   }),
-  deleteRoutineOccurrence: t.boolean({
-    description: 'Deletes an occurrence (THIS: an exception) or it and the following ones (FOLLOWING); true when the routine was archived (nothing left).',
+  deleteRoutineOccurrence: t.field({
+    type: RoutineOccurrenceDeletionRef,
+    description:
+      'Deletes an occurrence (THIS: an exception) or it and the following ones (FOLLOWING), with their comments; tells whether the routine was archived (nothing left) and gives the comments deleted with THIS, for an undo.',
     args: { id: t.arg.id({ required: true }), date: t.arg({ type: 'Date', required: true }), scope: t.arg({ type: EventScope, required: true }) },
     resolve: async (_root, { id, date, scope }) => {
       if (scope === 'ALL') throw clientError('BAD_USER_INPUT', 'Archivez ou supprimez la routine elle-même.');
@@ -590,9 +660,13 @@ builder.mutationFields((t) => ({
     },
   }),
   removeRoutineMove: t.boolean({
-    description: 'Removes an exception: the occurrence goes back to its own day.',
-    args: { id: t.arg.id({ required: true }), from: t.arg({ type: 'Date', required: true }) },
-    resolve: (_root, { id, from }) => done(routines.removeRoutineMove(id, from)),
+    description: 'Removes an exception: the occurrence goes back to its own day; after its deletion (undo), with the comments deleted with it.',
+    args: {
+      id: t.arg.id({ required: true }),
+      from: t.arg({ type: 'Date', required: true }),
+      comments: t.arg({ type: [CommentSnapshotInput], description: 'Comments deleted with the occurrence, given back on it.' }),
+    },
+    resolve: (_root, { id, from, comments }) => done(routines.removeRoutineMove(id, from, comments ?? [])),
   }),
   setRoutineDone: t.field({
     type: 'Date',
