@@ -179,7 +179,7 @@ Internes : `CATEGORY_LABELS`, `taskDay`, `groupKeys` (valeurs de chaque champ), 
 | Export                                                                     | Rôle                                                                                                                                             |
 | -------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------ |
 | `documentChartData(documents, imported, config, context, projects, today)` | Données d’un diagramme de facturation.                                                                                                           |
-| `treasuryChartData(input)`                                                 | Données d’un diagramme de trésorerie (mouvements réels et attendus, ventilation, compensation des liés) ; délègue le solde à `balanceChartData`. |
+| `treasuryChartData(input)`                                                 | Données d’un diagramme de trésorerie (mouvements réels et attendus, ventilation, compensation des liés ; contexte proposé des attendus et du non réparti par `contextPlanner` sur `ephemerides`, lot 16) ; délègue le solde à `balanceChartData`. |
 
 Internes : `TYPE_ORDER`, `TYPE_COLORS`, `PROJECTION_KINDS`, `interface ChartDocument`, `paymentKeys`, `chartDocuments` (filtres et portée), `interface ChartMovement`, `balanceChartData` (solde par tranche, Réel / Prévu).
 

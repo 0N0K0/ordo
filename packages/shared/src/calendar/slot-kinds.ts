@@ -31,10 +31,13 @@ export function foreignSlotKindWorkspace(kind: string): string | null {
 }
 
 /**
- * Kind of a schedule, as a slot condition names it: of this workspace (no workspace given), or of another one.
- * @param {{ typeId?: string | null }} schedule Schedule.
+ * Kind of a schedule, as a slot condition names it: of this workspace (no workspace given), or of another one. An
+ * éphéméride without kind has none (the default kind is the working hours, créneaux only, lot 16).
+ * @param {{ typeId?: string | null, ephemeris?: boolean }} schedule Schedule.
  * @param {string | null} [workspaceId] Workspace of a schedule of another workspace. Optional. Default = this one.
- * @returns {string} Reference.
+ * @returns {string | null} Reference, or none.
  */
-export const scheduleSlotKind = (schedule: { typeId?: string | null }, workspaceId: string | null = null) =>
-  workspaceId ? foreignSlotKind(workspaceId, schedule.typeId) : ownSlotKind(schedule.typeId);
+export function scheduleSlotKind(schedule: { typeId?: string | null; ephemeris?: boolean }, workspaceId: string | null = null): string | null {
+  if (!schedule.typeId && schedule.ephemeris) return null;
+  return workspaceId ? foreignSlotKind(workspaceId, schedule.typeId) : ownSlotKind(schedule.typeId);
+}

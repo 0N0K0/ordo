@@ -225,17 +225,19 @@ Source : `treasury-team.ts`, schéma `treasuryRelationSchema`.
 - Liste : par nom ; `lineCount`, `budgetCount`.
 - Archivage : type `TREASURY_RELATION`.
 
-## Contextes et périodes planifiées
+## Contextes et leurs périodes (éphémérides)
 
-Source : `treasury-team.ts`, schémas `treasuryContextSchema`, `treasuryContextPeriodSchema`, `plannedContext`.
+Source : `treasury-team.ts` (`saveContext`, `contextEphemerides`), `treasury-contexts.ts`, schéma `treasuryContextSchema`, `contextPlanner` ; lot 16, décision FM.
 
-- Contexte : `label` requis (250 caractères), `color` requise. Pas d’arbre. Une ligne sans contexte est du « Quotidien » (`EVERYDAY_CONTEXT`).
-- Libellé unique dans l’espace : « Un contexte porte déjà ce libellé. » Modification refusée s’il est archivé. Création en dernière position.
-- Suppression : ses périodes sont supprimées, les lignes qui l’avaient n’ont plus de contexte (`SetNull`) ; ses budgets sont aussi supprimés (`TreasuryBudget.context` en `onDelete: Cascade`, non signalé dans le message de l’interface).
-- Période : `contextId` requis (« Le contexte est requis. »), `startDate` et `endDate` (jours inclus, la fin suit le début : « La fin doit suivre le début. »), `note` (markdown, 65 536).
-- Une période fait partie de son contexte : on ne peut ni en ajouter, ni en modifier, ni en supprimer pour un contexte archivé.
-- Contexte proposé un jour (`plannedContext`) : celui d’une période qui contient ce jour ; si plusieurs se chevauchent, celle qui commence le plus tard ; sinon aucun (« Quotidien »). Côté web, les contextes archivés ne sont pas proposés.
-- Changer ou supprimer une période ne modifie pas les lignes déjà enregistrées.
+- Un contexte **est** un type d’éphémérides de l’agenda dont « Sert de contexte au budget » est coché (`ScheduleType.budgetContext`, voir [Agenda](../activities/calendar.md#éphémérides-lot-16-décision-fm)) : son libellé, sa couleur, son image, sa position et son archivage sont ceux du type. Ses éphémérides en sont les périodes ; les « périodes planifiées » d’avant n’existent plus. Pas d’arbre. Une ligne sans contexte est du « Quotidien » (`EVERYDAY_CONTEXT`).
+- Lignes et budgets nomment une ligne `TreasuryContext` de leur espace, liée au type (`scheduleTypeId`, une seule par espace et par type) : il y en a une dans l’espace du type, et une dans chaque espace de l’utilisateur quand « Partagé entre espaces » est coché (`sharedContext` ; même accès que les conditions de créneaux qui citent un autre espace, voir l’entrée multi-utilisateur de [Écarts](../../discrepancies.md)). Un nouvel espace reçoit les contextes partagés (`addSharedContexts`). Ces lignes suivent le type à chaque enregistrement (`syncKindContexts`).
+- Retirer « Sert de contexte au budget » ou « Partagé entre espaces » est refusé tant qu’une ligne ou un budget d’un espace qui perdrait le contexte l’a : « Ce contexte a N lignes et N budgets dans l’espace « X » : il le reste (archivez plutôt le type). » (`assertKindContextsKept`).
+- Création depuis la trésorerie (`saveTreasuryContext` sans id, depuis la liste « Contextes » ou un champ de ligne) : un type d’éphémérides avec « Sert de contexte au budget », `label` requis (250 caractères), `color` requise, affichage par défaut ; libellé unique parmi les types de l’espace : « Un type porte déjà ce libellé. ». Modification (`saveTreasuryContext` avec id) : celle du type, refusée pour un contexte partagé par un autre espace (« Ce contexte est partagé par un autre espace : modifiez-le dans son agenda. ») et pour un type archivé.
+- Un contexte archivé (son type) n’est plus choisi, celui déjà sur la ligne ou le budget reste (« Élément archivé », `assertContextsActive`) ; un contexte inconnu de l’espace : « Contexte » introuvable.
+- Suppression : celle du type (liste « Contextes » ou réglages de l’agenda) : ses éphémérides restent, sans type ; les lignes qui avaient le contexte n’en ont plus (`SetNull`), ses budgets sont supprimés (`TreasuryBudget.context` en `onDelete: Cascade`), dans tous les espaces s’il était partagé.
+- Contexte proposé un jour (`contextPlanner`) : celui d’un éphéméride de contexte qui a des horaires ce jour-là (journée entière ou heures, répétition et exceptions comprises, éphémérides archivés compris) ; si plusieurs, celui qui commence le plus tard (`startDate`) ; sinon aucun (« Quotidien »). Côté web, les contextes archivés ne sont pas proposés.
+- Changer ou supprimer un éphéméride ne modifie pas les lignes déjà enregistrées.
+- Migration `20261120180000_ephemerides` (données modifiées) : chaque contexte est devenu un type d’éphémérides « Sert de contexte au budget » de son espace (son libellé, suivi de « (contexte) » si un type de l’espace l’avait déjà ; sa couleur, son image, son archivage, placé après les types existants), la ligne du contexte (même id) liée à ce type ; chaque période planifiée est devenue un éphéméride journée entière de ce type, tous les jours de son premier à son dernier, au libellé du contexte, sa note devenant le premier commentaire de l’éphéméride ; les contextes sans période sont des types sans éphéméride ; la table des périodes est supprimée.
 
 ## Budgets
 
@@ -263,9 +265,9 @@ Source : `apps/api/src/services/treasury/treasury-budgets.ts`, schéma `treasury
 - Budgets pris : non archivés, de premier mois au plus `to`. Plusieurs budgets de même clé (mois, bénéficiaire, contexte, catégorie) s’additionnent.
 - Mouvements pris : réels datés dans la période ; réels hors période ayant des lignes datées dans la période (carte à débit différé) ; prévisions datées au plus la fin de la période (répétées : leurs occurrences dans la période ; simples : seulement si elles sont dans la période). Les mouvements archivés comptent.
 - Chaque ligne d’un mouvement compte pour sa relation, sinon son membre, sinon l’utilisateur, dans son contexte et sa catégorie, au mois de sa date propre (mouvement réel seulement) ou du mouvement. **Les lignes de prêt ne comptent pas** (ce n’est pas une dépense).
-- Le non réparti, ou le mouvement entier sans lignes, compte pour l’utilisateur, dans le contexte planifié ce jour-là, et dans la catégorie du mouvement (aucune pour le non réparti d’un mouvement décomposé).
+- Le non réparti, ou le mouvement entier sans lignes, compte pour l’utilisateur, dans le contexte proposé ce jour-là (ses éphémérides, `contextPlanner`), et dans la catégorie du mouvement (aucune pour le non réparti d’un mouvement décomposé).
 - Une part va au budget de son mois, bénéficiaire et contexte pour sa catégorie, ou pour la catégorie parente la plus proche qui en a un. Sans budget, elle est « hors budget » (`budgeted: false`), sous sa propre clé.
-- Ce qui est attendu des factures et avoirs (lignes du prévisionnel hors `FORECAST` / `ACTUAL`, à partir d’aujourd’hui) compte en prévu pour l’utilisateur, dans le contexte planifié ce jour-là, dans la catégorie des factures (montant positif) ou des avoirs (négatif) réglée dans les paramètres. Seulement si aujourd’hui est au plus la fin de la période.
+- Ce qui est attendu des factures et avoirs (lignes du prévisionnel hors `FORECAST` / `ACTUAL`, à partir d’aujourd’hui) compte en prévu pour l’utilisateur, dans le contexte proposé ce jour-là (ses éphémérides, `contextPlanner`), dans la catégorie des factures (montant positif) ou des avoirs (négatif) réglée dans les paramètres. Seulement si aujourd’hui est au plus la fin de la période.
 - Lignes renvoyées : `budget` (positif), `actual` et `forecast` (sommes signées), triées par mois puis budgets avant hors budget. Les budgets archivés ne comptent pas : leurs mouvements sont hors budget.
 - Côté web, ce qui est « utilisé » se lit dans le sens de la catégorie (sorties en positif pour une catégorie de sortie).
 

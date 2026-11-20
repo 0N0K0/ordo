@@ -1100,6 +1100,16 @@ export default defineConfig([
             "LogicalExpression:matches([left.name=/^(late|overdue|isLate|isOverdue)$/], [left.property.name=/^(late|overdue)$/], [left.callee.name=/^is\\w*(Overdue|Late)$/]) JSXAttribute[name.name=/^(color|c)$/][value.value='red'], ConditionalExpression[test.callee.name=/^is\\w*(Overdue|Late)$/] > Literal[value='red']",
           message: 'Utiliser LATE_COLOR (components/feedback/feedback-colors) : un retard en orange (décisions AI, CF, DC).',
         },
+        {
+          // Lot 16: the créneaux of some schedules (the free time, the working hours).
+          selector: "CallExpression[callee.property.name='filter'] > ArrowFunctionExpression > UnaryExpression[operator='!'] > MemberExpression[property.name='ephemeris']",
+          message: 'Utiliser slotSchedules (@ordo/shared) : les créneaux, sans les éphémérides (décision FM).',
+        },
+        {
+          // Lot 16: the input of a schedule from its rule keeps its kind and nature.
+          selector: "ObjectExpression:has(> Property[key.name='label']):has(> Property[key.name='startDate']):has(> Property[key.name='typeId']):has(> SpreadElement[argument.name='next'])",
+          message: 'Utiliser ruleScheduleInput (features/calendar/api) : l’entrée d’un créneau depuis sa règle garde son type et sa nature (décision FM).',
+        },
       ],
     },
   },

@@ -1,20 +1,20 @@
 import {
-  parseDay,
-  treasuryContextPeriodSchema,
+  DEFAULT_SCHEDULE_DISPLAY,
   treasuryContextSchema,
   treasuryRelationSchema,
+  type ContextEphemeris,
   type TreasuryContextInput,
-  type TreasuryContextPeriodInput,
   type TreasuryRelationInput,
   personNameSchema,
 } from '@ordo/shared';
-import { prisma } from '../../db';
-import { Prisma, type Contributor, type TreasuryContext, type TreasuryContextPeriod, type TreasuryRelation } from '../../generated/prisma/client';
-import { clientError, fieldError, isUniqueConflict, orNotFound, parseField, parseInput, rethrowUnique } from '../../graphql/errors';
+import { prisma, unscopedPrisma } from '../../db';
+import { Prisma, type Contributor, type TreasuryContext, type TreasuryRelation, type WorkSchedule } from '../../generated/prisma/client';
+import { scheduleRule, scheduleTypes } from '../calendar/work-schedules';
+import { currentWorkspaceId } from '../../workspace-context';
+import { clientError, fieldError, isUniqueConflict, orNotFound, parseField, parseInput } from '../../graphql/errors';
 import { createContributor, freeHandle } from '../projects/contributors';
 import { assertExists, deleteOrNotFound } from '../core/lookup';
-import { assertNotArchived, assertActive } from '../core/archive';
-import { nextPositionIn } from '../core/ordering';
+import { assertActive } from '../core/archive';
 
 /** Members of the team (professional workspace) or household (personal one): "Moi", then the others. */
 const memberWhere = { OR: [{ teamMember: true }, { userId: { not: null } }] } satisfies Prisma.ContributorWhereInput;
@@ -67,58 +67,36 @@ export async function removeMember(contributorId: string): Promise<void> {
 }
 
 /**
- * Saves a context.
+ * Saves a context (lot 16: a kind of éphémérides « Sert de contexte au budget »): a new one is such a kind, created
+ * with this label and color (default display); a context changed changes its kind, one of this workspace only (a
+ * context shared by another workspace is changed there).
  * @param {string | null} id Context to change, or null to create one.
- * @param {TreasuryContextInput} input Name and color.
- * @returns {Promise<TreasuryContext>} Context.
+ * @param {TreasuryContextInput} input Label and color.
+ * @returns {Promise<TreasuryContext>} Context of this workspace.
  */
 export async function saveContext(id: string | null, input: TreasuryContextInput): Promise<TreasuryContext> {
   const data = parseInput(treasuryContextSchema, input);
-  await assertActive(prisma.treasuryContext, id, 'Contexte');
-  try {
-    return await prisma.$transaction(async (tx) => {
-      if (id) return tx.treasuryContext.update({ where: { id }, data });
-      return tx.treasuryContext.create({ data: { ...data, position: await nextPositionIn('treasuryContext', {}, tx) } });
-    });
-  } catch (error) {
-    rethrowUnique(error, 'Un contexte porte déjà ce libellé.');
+  if (!id) {
+    const type = await scheduleTypes.create({ ...data, ...DEFAULT_SCHEDULE_DISPLAY, ephemeris: true, budgetContext: true, sharedContext: false });
+    return prisma.treasuryContext.findFirstOrThrow({ where: { scheduleTypeId: type.id } });
   }
+  const context = await orNotFound(prisma.treasuryContext.findUnique({ where: { id }, include: { scheduleType: { select: { workspaceId: true } } } }), 'Contexte');
+  if (context.scheduleType.workspaceId !== currentWorkspaceId()) throw clientError('BAD_USER_INPUT', 'Ce contexte est partagé par un autre espace : modifiez-le dans son agenda.');
+  await scheduleTypes.update(context.scheduleTypeId, data);
+  return context;
 }
 
 /**
- * Deletes a context: its periods go with it, the lines that had it keep no context.
- * @param {string} id Context.
- * @returns {Promise<void>}
+ * Éphémérides of the contexts of this workspace (those of their kinds, of other workspaces too for a shared one,
+ * archived ones included): the periods of the contexts, what `contextPlanner` proposes from.
+ * @returns {Promise<(ContextEphemeris & { schedule: WorkSchedule })[]>} Éphémérides (rule and row), with their context here.
  */
-export async function deleteContext(id: string): Promise<void> {
-  await deleteOrNotFound(prisma.treasuryContext, id, 'Contexte');
-}
-
-/**
- * Saves a planned period of a context. The lines already saved keep their context.
- * @param {string | null} id Period to change, or null to create one.
- * @param {TreasuryContextPeriodInput} input Context, first and last days, note.
- * @returns {Promise<TreasuryContextPeriod>} Period.
- */
-export async function saveContextPeriod(id: string | null, input: TreasuryContextPeriodInput): Promise<TreasuryContextPeriod> {
-  const data = parseInput(treasuryContextPeriodSchema, input);
-  // A period is part of its context: none added to, nor taken from, an archived one.
-  await assertActive(prisma.treasuryContext, data.contextId, 'Contexte', { field: 'contextId' });
-  const fields = { contextId: data.contextId, startDate: parseDay(data.startDate), endDate: parseDay(data.endDate), note: data.note };
-  if (!id) return prisma.treasuryContextPeriod.create({ data: fields });
-  const previous = await orNotFound(prisma.treasuryContextPeriod.findUnique({ where: { id }, select: { contextId: true } }), 'Période');
-  await assertNotArchived('TREASURY_CONTEXT', previous.contextId);
-  return prisma.treasuryContextPeriod.update({ where: { id }, data: fields });
-}
-
-/**
- * Deletes a planned period. The lines already saved keep their context.
- * @param {string} id Period.
- * @returns {Promise<void>}
- */
-export async function deleteContextPeriod(id: string): Promise<void> {
-  await assertNotArchived('TREASURY_CONTEXT', (await prisma.treasuryContextPeriod.findUnique({ where: { id }, select: { contextId: true } }))?.contextId);
-  await deleteOrNotFound(prisma.treasuryContextPeriod, id, 'Période');
+export async function contextEphemerides(): Promise<(ContextEphemeris & { schedule: WorkSchedule })[]> {
+  const contexts = await prisma.treasuryContext.findMany({ select: { id: true, scheduleTypeId: true } });
+  if (!contexts.length) return [];
+  const contextOf = new Map(contexts.map((context) => [context.scheduleTypeId, context.id]));
+  const schedules = await unscopedPrisma.workSchedule.findMany({ where: { typeId: { in: [...contextOf.keys()] }, ephemeris: true }, orderBy: [{ startDate: 'asc' }, { createdAt: 'asc' }] });
+  return schedules.map((schedule) => ({ contextId: contextOf.get(schedule.typeId!)!, rule: scheduleRule(schedule), schedule }));
 }
 
 /**

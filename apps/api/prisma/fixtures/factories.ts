@@ -1,4 +1,4 @@
-import { addDays, chartConfigSchema, DAY_MS, DEFAULT_RECURRENCE, emptyTableFilter, minutesToTime, parseDay, type Recurrence, twoDigits } from '@ordo/shared';
+import { addDays, chartConfigSchema, DAY_MS, DEFAULT_RECURRENCE, emptyTableFilter, minutesToTime, parseDay, type Recurrence, twoDigits, wholeDaysCase } from '@ordo/shared';
 import type { z } from 'zod';
 import { fakerFR as faker } from '@faker-js/faker';
 import { Factory } from 'fishery';
@@ -7,6 +7,7 @@ import { resolveCalendarId } from '../../src/services/calendar/calendars';
 import { createEntry as saveEntry } from '../../src/services/treasury/treasury';
 import { createCategory as createTreasuryCategory } from '../../src/services/treasury/treasury-settings';
 import { toJson } from '../../src/services/core/json';
+import { createWorkSchedule } from '../../src/services/calendar/work-schedules';
 import type { CalendarEvent, Client, Contributor, Milestone, Prisma, Project, Task, TaskComment, TimeEntry } from '../../src/generated/prisma/client';
 
 /** Shade 6 of the Mantine colors, as offered by the app's color pickers. */
@@ -354,3 +355,17 @@ export const calendarCategory = async (label: string, color: string, parentId: s
 export const clientRootProject = (projects: readonly Project[], clientId: string, activeOnly = false): Project | null =>
   // eslint-disable-next-line no-restricted-syntax -- the helper itself.
   projects.find((project) => project.clientId === clientId && project.parentId === null && !(activeOnly && project.archivedAt)) ?? null;
+
+/**
+ * Period of a context of the treasury: a whole-day éphéméride of its kind (lot 16), every day from the first to the
+ * last.
+ * @param {string} contextId Context.
+ * @param {string} startDate First day.
+ * @param {string} endDate Last day.
+ * @param {string} label Label of the éphéméride.
+ * @returns {Promise<void>}
+ */
+export async function contextPeriod(contextId: string, startDate: string, endDate: string, label: string): Promise<void> {
+  const { scheduleTypeId } = await prisma.treasuryContext.findUniqueOrThrow({ where: { id: contextId }, select: { scheduleTypeId: true } });
+  await createWorkSchedule({ label, startDate, endDate, cases: [wholeDaysCase()], exceptions: [], typeId: scheduleTypeId, ephemeris: true });
+}

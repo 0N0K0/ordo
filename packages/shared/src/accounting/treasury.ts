@@ -2,13 +2,14 @@ import { formatMoney, percentOf, round2, toCents } from './accounting-documents'
 import { mapById, sumOf } from '../core/collections';
 import { clipText, escapeText } from '../core/text';
 import { z } from 'zod';
-import { END_AFTER_START, endAfter, endsAfter, markdownSchema, optionalPlainText, optionalText, personNameSchema, requiredText } from '../core/rules';
+import { END_AFTER_START, endsAfter, markdownSchema, optionalPlainText, optionalText, personNameSchema, requiredText } from '../core/rules';
 import { monthFromIndex, monthIndex } from '../dates/months';
 import { printedDay } from '../dates/days';
 import { recurrenceSchema } from '../dates/recurrence';
 import { daySchema, isRealDay } from '../dates/times';
 import { colorSchema, optionalColorSchema } from '../core/workspace';
 import { twoDigits } from '../core/numbers';
+import { plannedSlots, type WorkScheduleRule } from '../calendar/work-schedules';
 
 /** Documents a tracking status applies to: quotes or invoices. */
 export const DOCUMENT_STATUS_SCOPES = ['QUOTE', 'INVOICE'] as const;
@@ -168,26 +169,31 @@ export const treasuryContextSchema = z.object({
 export const EVERYDAY_CONTEXT = 'Quotidien';
 export type TreasuryContextInput = z.input<typeof treasuryContextSchema>;
 
-/** Period a context is planned for (days included). */
-export const treasuryContextPeriodSchema = z
-  .object({
-    contextId: z.string().min(1, 'Le contexte est requis.'),
-    startDate: daySchema(),
-    endDate: daySchema(),
-    note: markdownSchema,
-  })
-  .refine(...endAfter('startDate', 'endDate'));
-export type TreasuryContextPeriodInput = z.input<typeof treasuryContextPeriodSchema>;
+/** Éphéméride of a kind that is a context of the budget (lot 16): one of the periods of that context. */
+export interface ContextEphemeris {
+  contextId: string;
+  rule: WorkScheduleRule;
+}
 
 /**
- * Context proposed on a day: the one planned then (the period started last wins when several overlap), or none
- * (everyday spending).
- * @param {readonly { contextId: string, startDate: string, endDate: string }[]} periods Planned periods.
- * @param {string} date Day.
- * @returns {string | null} Context id.
+ * Context proposed on a day, from the éphémérides of the contexts (they replace the planned periods, lot 16): that of
+ * an éphéméride with slots that day (whole day or hours), the one starting last when several have, or none (everyday
+ * spending). The answer of each day is kept.
+ * @param {readonly ContextEphemeris[]} ephemerides Éphémérides of the contexts.
+ * @returns {(date: string) => string | null} Context id of a day.
  */
-export function plannedContext(periods: readonly { contextId: string; startDate: string; endDate: string }[], date: string): string | null {
-  return periods.filter((period) => period.startDate <= date && date <= period.endDate).sort((a, b) => b.startDate.localeCompare(a.startDate))[0]?.contextId ?? null;
+export function contextPlanner(ephemerides: readonly ContextEphemeris[]): (date: string) => string | null {
+  const byDay = new Map<string, string | null>();
+  return (date) => {
+    if (!byDay.has(date))
+      byDay.set(
+        date,
+        ephemerides
+          .filter(({ rule }) => rule.startDate <= date && (!rule.endDate || date <= rule.endDate) && plannedSlots([rule], date, date).length > 0)
+          .sort((a, b) => b.rule.startDate.localeCompare(a.rule.startDate))[0]?.contextId ?? null,
+      );
+    return byDay.get(date) ?? null;
+  };
 }
 
 const monthSchema = z.string().regex(/^\d{4}-\d{2}$/, 'Mois invalide.');

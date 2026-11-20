@@ -32,8 +32,10 @@ Documents GraphQL (fragment `CalendarEventOccurrenceFields`, requêtes `WorkSche
 | `useOtherWorkspaceSchedules()`                                     | Tous les créneaux des autres espaces de l’utilisateur, archivés compris (`otherWorkspaceSchedules`), abonné ou non                                                      | `useSlotSources`                                                                  |
 | `useSubscribedSchedules()`                                         | Créneaux des types abonnés                                                                                                                                                   | `useScheduleSources`, routines                                                    |
 | `useScheduleSources()`                                             | `{ schedules, foreign, types, defaultKind }` (undefined pendant le chargement)                                                                                             | `CalendarPage`, `RoutineDayAgenda`                                                |
-| `useWorkScheduleMutations()`                                       | `create`, `update`, `remove` des créneaux (dans `withLossConfirmation` : occurrences de routines qui disparaissent confirmées ; les routines rechargées) ; `createType`, `updateType`, `removeType` ; `subscribe`, `unsubscribe`, `setLook` des abonnements ; `saveDefaultKind`             | gestionnaires, `calendar-edits`, `use-settings-items`                             |
+| `useWorkScheduleMutations()`                                       | `create`, `update`, `remove` des créneaux (dans `withLossConfirmation` : occurrences de routines qui disparaissent confirmées ; les routines rechargées) ; `setEphemeris`, `setTypeEphemeris` (conversions, lot 16, même confirmation) ; `createType`, `updateType`, `removeType` (`ScheduleTypeFields`, la trésorerie rechargée : un type peut être un contexte) ; `subscribe`, `unsubscribe`, `setLook` des abonnements ; `saveDefaultKind`             | gestionnaires, `calendar-edits`, `use-settings-items`                             |
 | `scheduleRules(schedules)`                                         | Créneaux (de l’espace ou abonnés) en `WorkScheduleRule` (cas et exceptions validés, invalides ignorés)                                                                      | `AvailabilityHint`, `useSlotRules`, `calendar-events.ts`, `PlannedTime` (temps)   |
+| `ruleScheduleInput(rule, change)`                                  | Entrée d’un créneau depuis sa règle et de nouveaux cas/exceptions, type et nature gardés (garde eslint, décision FM)                                                       | `calendar-edits`, `CalendarEditForms`                                             |
+| `ScheduleTypeFields` (type)                                        | Champs enregistrés d’un type : libellé, couleur, affichage, `ephemeris`, `budgetContext`, `sharedContext`                                                                  | `use-settings-items`                                                              |
 | `calendarIcsUrl(calendarId)`                                       | Adresse `/api/exports/calendar.ics[?calendar=…]`                                                                                                                           | `CalendarsManager`, `CalendarsIcsButton`                                          |
 
 Interne : `fetchCategories`, `occurrencesOf(data, includeArchived)` (filtre des archivées via `archivedIds`/`unarchived`), `useCalendarMutation`.
@@ -73,7 +75,7 @@ Classes de la page et de FullCalendar : `fill` (semaine/jour pleine hauteur), `c
 
 ### `components/AvailabilityHint.tsx`
 
-`AvailabilityHint({ allDay, startDate, startTime, endDate, endTime })` : avertissement (`NoticeAlert`) quand un évènement à heures d’un jour sort des créneaux de l’espace (PRO seulement) ; utilise `plannedSlots`, `withinSlots`, `plannedPauses`. Utilisé par `EventForm`, `PostponeForm`.
+`AvailabilityHint({ allDay, startDate, startTime, endDate, endTime })` : avertissement (`NoticeAlert`) quand un évènement à heures d’un jour sort des créneaux de l’espace (PRO seulement ; éphémérides exclues par `slotSchedules`, lot 16) ; utilise `plannedSlots`, `withinSlots`, `plannedPauses`. Utilisé par `EventForm`, `PostponeForm`.
 
 ### `components/ScopeChoices.tsx`
 
@@ -130,10 +132,10 @@ Utilisés par `ScheduleSettings`.
 
 ### `components/ScheduleSettings.tsx`
 
-- `ScheduleSettings()` : `DefaultScheduleKind` + `ScheduleTypes` + `ForeignSchedules`. Utilisé par `CalendarPage`.
+- `ScheduleSettings()` : `DefaultScheduleKind` + `ScheduleTypes` (créneaux) + `ScheduleTypes` (éphémérides, lot 16) + `ForeignSchedules`. Utilisé par `CalendarPage`.
 - Interne `DefaultScheduleKind()` : couleur (`ColorField` non contrôlé, enregistrée par `onCommit`), libellé (badge « Par défaut »), affichage des créneaux sans type (`saveDefaultKind`).
-- Interne `ScheduleTypes()` : `SettingsList` des types (`useScheduleTypeItems`, `removeType`).
-- Interne `ForeignSchedules()` : abonnements aux types des autres espaces (`ByWorkspace`, `SubscriptionRow`, `LookToggle`/`LookPanel`, `setLook`, « Reprendre ceux du type ») ; rien sans autre espace ayant des créneaux.
+- Interne `ScheduleTypes({ ephemeris })` : `SettingsList` des types d’une nature (`useScheduleTypeItems({ ephemeris })`, `removeType`), badge « Contexte du budget », menu « Convertir en … » (`SettingsList.menuItems`, `useScheduleConversion().type`), message de suppression d’un contexte du budget.
+- Interne `ForeignSchedules()` : abonnements aux types des autres espaces (`ByWorkspace`, `SubscriptionRow`, `LookToggle`/`LookPanel`, `setLook`, « Reprendre ceux du type ») ; nombre de créneaux ou d’éphémérides ; rien sans autre espace ayant des créneaux.
 
 ### `components/ScheduleRepetition.tsx`
 
@@ -145,9 +147,9 @@ Utilisés par `ScheduleSettings`.
 
 ### `components/WorkSchedulesManager.tsx`
 
-- `WorkSchedulesManager()` : gestionnaire des créneaux (panneau ouvert par `CalendarPage`) : `SectionHeader` (description PRO/PERSO), « Nouveaux créneaux », `DataTable` (`useDataView` clé `work-schedules`, colonnes `label`, `type`, `start`, `end`, `hours`, `state`, `commentColumn`), cellules éditables (`EditableText`, `EditableSelect`, `EditableDate`, `followBounds` décision Q), édition groupée (`bulkSaver`, `bulkCellLabels`), sélection (`archiveRowsAction`, `deleteItemsAction`), `RowActions` (modifier, dupliquer, archiver `archiveEntry`, supprimer). Lignes archivées en lecture seule (`readOnlyCells`).
+- `WorkSchedulesManager({ ephemeris? })` : gestionnaire des créneaux, ou des éphémérides (lot 16 : mêmes tableau et formulaire, les schedules et types de cette nature ; mots par l’interne `wordsOf(ephemeris, perso)` ; sans type « Sans type », gris `EPHEMERIS_COLOR`) (panneau ouvert par `openSchedulesManager`) : `SectionHeader` (description PRO/PERSO/éphémérides), « Nouveaux créneaux » / « Nouvel éphéméride », `DataTable` (`useDataView` clé `work-schedules` ou `ephemerides`, colonnes `label`, `type`, `start`, `end`, `hours`, `state`, `commentColumn`), cellules éditables (`EditableText`, `EditableSelect`, `EditableDate`, `followBounds` décision Q), édition groupée (`bulkSaver`, `bulkCellLabels`), sélection (`archiveRowsAction`, `deleteItemsAction`), `RowActions` (modifier, dupliquer, convertir `useScheduleConversion().schedule`, archiver `archiveEntry`, supprimer). Lignes archivées en lecture seule (`readOnlyCells`).
 - Interne `scheduleInputOf(schedule)` : entrée d’un créneau tel qu’il est (valeurs de son formulaire, cellules et copie). Interne `duplicateSchedule` : « Dupliquer » (copie « … (copie) » avec ses dates, cas et type, sans exceptions, enregistrée puis ouverte, décision D20).
-- Interne `ScheduleForm({ schedule?, onDone })` : formulaire de nouveaux créneaux (« Créer ») ou panneau d’un créneau existant enregistré champ par champ (décision D22, `useFieldSave`, le créneau entier par `update`, qui confirme les occurrences de routines perdues — `withLossConfirmation`, refusée : remis sans toast —, libellé en le quittant, `SaveStatus` ; le créneau du cache `useWorkSchedules` suivi ; archivé : lecture seule) (`workScheduleSchema`) : libellé, type (`CreatableSelect` + `itemCreator`), `ScheduleRepetition`, `Comments` (`SCHEDULE`).
+- Interne `ScheduleForm({ schedule?, ephemeris, onDone })` : formulaire de nouveaux créneaux ou d’un nouvel éphéméride (« Créer » ; un éphéméride : aujourd’hui, `wholeDaysCase`) ou panneau d’un créneau existant enregistré champ par champ (décision D22, `useFieldSave`, le créneau entier par `update`, qui confirme les occurrences de routines perdues — `withLossConfirmation`, refusée : remis sans toast —, libellé en le quittant, `SaveStatus` ; le créneau du cache `useWorkSchedules` suivi ; archivé : lecture seule) (`workScheduleSchema`) : libellé, type (`CreatableSelect` + `itemCreator`), `ScheduleRepetition`, `Comments` (`SCHEDULE`).
 - Interne `scheduleState(schedule, today)` : `CURRENT`/`UPCOMING`/`PAST` (`periodState`).
 - Interne `ScheduleHours({ schedule })` : une ligne par cas.
 - Constantes et types internes : `ScheduleValues`, `ScheduleState`, `PERIOD_OF`, `STATE_OF`, `STATE_LABELS`, `STATE_COLORS`, `STATE_ORDER`, `ScheduleRow`, `NO_KIND` = `none`.
@@ -172,12 +174,16 @@ Utilisés par `ScheduleSettings`.
   - `openSlot(schedule, label, slot)` : demande d’abord la portée (« Modifier un créneau récurrent » ; fermée sans choix : `scope` `null`, panneau en lecture seule), puis panneau `SlotEditForm` (décision D22) ; sa suppression passe par `changeSlot(…, null)` ;
   - `openRoutine(occurrence, movedFrom)` : demande d’abord la portée (« Modifier une routine », sauf occurrence annulée ou d’une routine archivée ; fermée sans choix : `scope` `null`, panneau en lecture seule), puis panneau `RoutineOccurrenceForm` avec elle et `movedFrom` (décision D22) ; « Rétablir » retire l’exception (`removeMove`). `RoutineOccurrenceRef` porte `cancelled` et `archived` (occurrences annulées barrées et non déplaçables ; d’une routine archivée estompées, avec « Afficher les archivés »).
   - Interne `removeRoutine(occurrence, movedFrom)` : portée (`THIS`/`FOLLOWING`), `deleteOccurrence`, annulation via `removeMove` avec les commentaires supprimés (`comments`, décision EV).
-- Type interne `RoutineSlotTimes`. Utilisé par `CalendarPage`.
+- Type interne `RoutineSlotTimes`. Utilisé par `openSchedulesManager`.
+
+### `hooks/use-schedule-conversion.tsx`
+
+`useScheduleConversion()` (lot 16) : `schedule(schedule, type?)` et `type(type, count)`, entrées « Convertir en éphéméride » / « Convertir en créneau » et « Convertir en type d’éphémérides » / « Convertir en type de créneaux » (`ArrowsLeftRightIcon`) : `confirmDestructive({ reversible: true })` qui dit ce qui change (temps libre, heures de travail, type quitté), puis `setEphemeris` / `setTypeEphemeris` (occurrences perdues confirmées par `withLossConfirmation`) ; désactivées une fois archivé, et pour un contexte du budget vers les créneaux. Utilisé par `WorkSchedulesManager`, `ScheduleSettings`.
 
 ### `hooks/use-settings-items.tsx`
 
 - `useCalendarCategoryItems()` : `SettingsItemKind` des catégories (`CALENDAR_CATEGORY`, couleur requise, `calendarCategoryFormSchema`, `itemMutations` + `treeItemInput`). Utilisé par `CalendarCategoriesManager`, `EventForm` (création depuis la liste).
-- `useScheduleTypeItems()` : `SettingsItemKind` des types (`SCHEDULE_TYPE`, `labelFormSchema`, champ supplémentaire `ScheduleLookEditor`, initial `DEFAULT_SCHEDULE_DISPLAY`). Utilisé par `ScheduleSettings`, `ScheduleForm`.
+- `useScheduleTypeItems({ ephemeris?, budgetContext? })` : `SettingsItemKind<ScheduleType, ScheduleTypeExtra>` des types (`SCHEDULE_TYPE`, `labelFormSchema`, champs supplémentaires `ScheduleLookEditor` et, pour un type d’éphémérides, « Sert de contexte au budget » / « Partagé entre espaces » ; initial `DEFAULT_SCHEDULE_DISPLAY` et la nature demandée). `ScheduleTypeExtra` : affichage + `ephemeris`, `budgetContext`, `sharedContext`. Utilisé par `ScheduleSettings`, `ScheduleForm`, `Contexts` (trésorerie).
 
 ### `hooks/use-slot-rules.ts`
 
@@ -207,9 +213,15 @@ Utilisés par `ScheduleSettings`.
 - `occurrenceSpan(occurrence)` : début/fin FullCalendar (fin exclusive en journée entière). Utilisé par `CalendarPage`, `RoutineDayAgenda`.
 - `isArchivedOccurrence(occurrence, archivedCalendarIds)` : archivée par son évènement ou son calendrier.
 - `scheduleLayerLabel(label, type, workspace?)` : « Libellé (Type) · Espace ». Utilisé ici et par `use-agenda-layers` (routines).
-- `scheduleSources(own, foreign, types, defaultKind)` : créneaux de l’espace puis abonnés, avec règle, couleur, libellé, `foreign`, affichage. Utilisé par `CalendarPage`, `RoutineDayAgenda`.
-- `slotBarLook({ color, foreign })` : apparence du bandeau d’un créneau. Utilisé par `CalendarPage`, `RoutineDayAgenda`.
+- `scheduleSources(own, foreign, types, defaultKind)` : créneaux de l’espace puis abonnés, avec règle, couleur, libellé, `foreign`, `ephemeris`, affichage (un éphéméride sans type : « Éphéméride », `EPHEMERIS_COLOR`). Utilisé par `CalendarPage`, `RoutineDayAgenda`.
+- `slotBarLook({ color, foreign, ephemeris? })` : apparence du bandeau d’un créneau. Utilisé par `CalendarPage`, `RoutineDayAgenda`.
+- `slotLookClasses({ foreign, ephemeris? })` : classes d’un créneau à part (hachures `subscribedSlot` d’un autre espace, pointillés `ephemeris` et italique `ephemerisBar` d’un éphéméride). Utilisé par `slotBarLook`, `CalendarPage`, `RoutineDayAgenda`.
+- `EPHEMERIS_COLOR` : gris des éphémérides sans type. Utilisé ici et par `WorkSchedulesManager`.
 - Types internes `ForeignSchedule`, `DefaultKind`, `ScheduleSource`.
+
+### `lib/open-schedules.tsx`
+
+`openSchedulesManager(ephemeris, perso)` : ouvre `WorkSchedulesManager` (créneaux ou éphémérides) dans le panneau latéral, taille large. Utilisé par `CalendarPage` (« Créneaux… », « Éphémérides ») et `Contexts` (trésorerie, « Périodes »).
 
 ### `lib/calendar-pdf.ts`
 
@@ -244,7 +256,8 @@ Utilisés par `ScheduleSettings`.
 
 ### `lib/schedule-text.ts`
 
-- `schedulesTitle(perso)` : « Créneaux » / « Créneaux de travail » (brique imposée par une règle eslint). Utilisé par `CalendarPage`, `WorkSchedulesManager`, `PlannedTime` (temps).
+- `schedulesTitle(perso)` : « Créneaux » / « Créneaux de travail » (brique imposée par une règle eslint). Utilisé par `CalendarPage`, `WorkSchedulesManager`, `PlannedTime` (temps), `openSchedulesManager`.
+- `EPHEMERIDES_TITLE` : « Éphémérides ». Utilisé par `CalendarPage`, `WorkSchedulesManager`, `openSchedulesManager`.
 - `describeScheduleTimes(times)` : « journée entière », « 09:00–12:30, 14:00–18:00 ».
 - `defaultScheduleTimes()` : 09:00–17:00.
 - `newScheduleCase(start)` : lundi–vendredi 09:00–17:00.
@@ -255,7 +268,7 @@ Utilisés par `ScheduleSettings`.
 
 - `SlotSources` (interface) : créneaux, types et type par défaut de l’espace, créneaux et types des autres espaces.
 - `SlotChoices` (interface) : options par champ (`schedules`, `kinds`, `freeTime`), `all` (créneaux et types, colonne « Créneaux » des tableaux) et `names` (nom de chaque créneau et type, archivés compris).
-- `slotChoices(sources, keep?)` : ce qu’une condition propose (archivés exclus sauf gardés) ; créneaux et types des autres espaces nommés avec leur espace (`inWorkspace`) ; le type par défaut de l’espace d’abord. Remplace `scheduleChoices`.
+- `slotChoices(sources, keep?)` : ce qu’une condition propose (archivés exclus sauf gardés) ; créneaux et types des autres espaces nommés avec leur espace (`inWorkspace`) ; le type par défaut de l’espace d’abord ; éphémérides et types d’éphémérides suivis de « (éphéméride) » (interne `ephemerisLabel`), le temps libre ne proposant que des créneaux (`slotSchedules`). Remplace `scheduleChoices`.
 
 ### `lib/slot-condition-text.ts`
 

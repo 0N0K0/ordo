@@ -28,7 +28,6 @@ export const SETTINGS_LISTS = {
   CALENDAR_CATEGORY: 'calendarCategory',
   SCHEDULE_TYPE: 'scheduleType',
   TREASURY_ACCOUNT: 'treasuryAccount',
-  TREASURY_CONTEXT: 'treasuryContext',
   TREASURY_PAYMENT_METHOD: 'treasuryPaymentMethod',
   TREASURY_COUNTERPARTY: 'treasuryCounterparty',
   TREASURY_CATEGORY: 'treasuryCategory',

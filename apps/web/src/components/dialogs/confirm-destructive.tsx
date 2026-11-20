@@ -21,6 +21,8 @@ interface ConfirmDestructiveOptions {
   done?: string;
   /** What follows a refusal (Cancel, Escape, a click outside). Optional. */
   onCancel?: () => void;
+  /** The opposite action undoes it (a conversion): « Cette action est irréversible. » left out. Optional. Default = irreversible. */
+  reversible?: boolean;
 }
 
 /**
@@ -29,13 +31,13 @@ interface ConfirmDestructiveOptions {
  * @param {ConfirmDestructiveOptions} options Dialog.
  * @returns {void}
  */
-export function confirmDestructive({ title, risks, confirmLabel, confirmIcon, onConfirm, run, done, onCancel }: ConfirmDestructiveOptions): void {
+export function confirmDestructive({ title, risks, confirmLabel, confirmIcon, onConfirm, run, done, onCancel, reversible }: ConfirmDestructiveOptions): void {
   let confirmed = false;
   openModal(
     title,
     (close) => (
     <Stack gap="md">
-      <DestructiveRisks>{risks}</DestructiveRisks>
+      <DestructiveRisks reversible={reversible}>{risks}</DestructiveRisks>
       <DestructiveActions
         confirmLabel={confirmLabel}
         confirmIcon={confirmIcon}

@@ -114,8 +114,10 @@ export const workScheduleSchema = z
     endDate: daySchema().nullable(),
     cases: z.array(scheduleRepetitionCaseSchema).min(1, 'Ajoutez au moins un cas.').max(20, '20 cas au plus.'),
     exceptions: z.array(scheduleExceptionSchema).max(200, '200 exceptions au plus.'),
-    /** Kind of time it plans; none: working hours. */
+    /** Kind of time it plans; none: working hours (or, an éphéméride, no kind). */
     typeId: z.string().nullish(),
+    /** An éphéméride, not a créneau (lot 16): with a kind, that of the kind (set by the API). */
+    ephemeris: z.boolean().default(false),
   })
   .superRefine((schedule, context) => {
     if (!endsAfter(schedule.startDate, schedule.endDate)) context.addIssue({ code: 'custom', path: ['endDate'], message: END_AFTER_START });
@@ -130,9 +132,29 @@ export interface WorkScheduleRule {
   endDate: string | null;
   cases: readonly ScheduleCase[];
   exceptions: readonly ScheduleException[];
-  /** Kind of time it plans; none: working hours. */
+  /** Kind of time it plans; none: working hours (or, an éphéméride, no kind). */
   typeId?: string | null;
+  /** An éphéméride (holidays, birthday…), not a créneau: never in the free time, the working hours nor the planned time. */
+  ephemeris?: boolean;
 }
+
+/**
+ * Case of every day, the whole day: that of a new éphéméride (holidays: every day of its period, lot 16).
+ * @returns {ScheduleCase} Case.
+ */
+export const wholeDaysCase = (): ScheduleCase => ({ since: null, until: null, anchor: null, rule: { ...DEFAULT_RECURRENCE, frequency: 'DAILY' }, times: { allDay: true, ranges: [] } });
+
+/** Name of an éphéméride without kind (it has no default kind, unlike the créneaux: « Travail »). */
+export const UNTYPED_EPHEMERIS_LABEL = 'Éphéméride';
+
+/**
+ * The créneaux of some schedules, their éphémérides left out: what the free time, the working hours (the hint of an
+ * event out of them, the planned time) count (lot 16).
+ * @template T
+ * @param {readonly T[]} schedules Schedules.
+ * @returns {T[]} Créneaux.
+ */
+export const slotSchedules = <T extends { ephemeris?: boolean | null }>(schedules: readonly T[]): T[] => schedules.filter((schedule) => !schedule.ephemeris);
 
 /** Planned time slot on a date. */
 export interface PlannedSlot {
@@ -459,12 +481,33 @@ const scheduleDisplayFields = {
   monthDisplay: z.enum(SCHEDULE_MONTH_DISPLAYS),
 };
 
-/** Kind of time slots ("Travail", "Garde des enfants"…), with its color and how its slots show. */
+/**
+ * Kind of time slots ("Travail", "Garde des enfants"…), with its color and how its slots show; a kind of éphémérides
+ * (set at its creation, changed by a conversion, lot 16) may be a context of the budget, shared or not
+ * (`scheduleTypeContextError`).
+ */
 export const scheduleTypeSchema = z.object({
   label: requiredText(),
   color: colorSchema,
   ...scheduleDisplayFields,
+  ephemeris: z.boolean().default(false),
+  /** Its éphémérides are the periods of a context of the treasury (the kind is the context). */
+  budgetContext: z.boolean().default(false),
+  /** A context in every workspace of the user. */
+  sharedContext: z.boolean().default(false),
 });
+
+/**
+ * What refuses the budget fields of a kind: a kind of créneaux is never a context; « Partagé entre espaces » needs
+ * « Sert de contexte au budget ».
+ * @param {{ ephemeris: boolean, budgetContext: boolean, sharedContext: boolean }} type Kind as it would be saved.
+ * @returns {{ field: 'budgetContext' | 'sharedContext', message: string } | null} Error, or none.
+ */
+export function scheduleTypeContextError(type: { ephemeris: boolean; budgetContext: boolean; sharedContext: boolean }): { field: 'budgetContext' | 'sharedContext'; message: string } | null {
+  if (type.budgetContext && !type.ephemeris) return { field: 'budgetContext', message: 'Seul un type d’éphémérides sert de contexte au budget.' };
+  if (type.sharedContext && !type.budgetContext) return { field: 'sharedContext', message: 'Seul un contexte du budget se partage entre espaces.' };
+  return null;
+}
 
 /** Label of the schedules without kind, unless the workspace labels them. */
 export const DEFAULT_SCHEDULE_KIND_LABEL = 'Travail';

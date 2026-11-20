@@ -51,14 +51,15 @@ const IRREVERSIBLE = 'Cette action est irréversible.';
 
 /**
  * Risks of a destructive dialog, the same everywhere: what the action does and loses, then « Cette action est
- * irréversible. ».
- * @param {{ children: ReactNode }} props Component props: the risks (a sentence, or more).
+ * irréversible. » (unless it can be undone by the opposite action: a conversion, lot 16).
+ * @param {{ children: ReactNode, reversible?: boolean }} props Component props: the risks (a sentence, or more), and whether the opposite action undoes it.
  * @returns {JSX.Element} Text.
  */
-export function DestructiveRisks({ children }: { children: ReactNode }) {
+export function DestructiveRisks({ children, reversible = false }: { children: ReactNode; reversible?: boolean }) {
   return (
     <Text size="sm" component="div">
-      {children} {IRREVERSIBLE}
+      {children}
+      {!reversible && ` ${IRREVERSIBLE}`}
     </Text>
   );
 }

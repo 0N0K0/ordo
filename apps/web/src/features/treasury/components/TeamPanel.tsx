@@ -1,20 +1,17 @@
 import { IconAction } from '../../../components/actions/IconAction';
-import { NO_SUGGESTIONS, NO_TARGETS } from '../../../components/markdown/remark-references';
+import { NO_TARGETS } from '../../../components/markdown/remark-references';
 import { ColorField } from '../../../components/inputs/ColorField';
 import { openFormPanel } from '../../../components/panels/panels';
 import { ActionButton } from '../../../components/actions/ActionButton';
 import { PersonRow } from '../../../components/people/people-rows';
-import { itemSelectProps } from '../../../components/items/item-look';
 import { ItemAvatar } from '../../../components/items/ItemAvatar';
-import { createdId } from '../../../components/settings/settings-api';
 import { SettingsList } from '../../../components/settings/SettingsList';
 import { EmptyState } from '../../../components/feedback/EmptyState';
 import { confirmDestructive } from '../../../components/dialogs/confirm-destructive';
 
 import { Badge, Fieldset, Group, Select, SimpleGrid, Stack, Table, Text, Textarea, TextInput } from '@mantine/core';
-import { DatePickerInput } from '@mantine/dates';
-import { mapById, EVERYDAY_CONTEXT, treasuryContextPeriodSchema, treasuryContextSchema, treasuryRelationSchema, agreed } from '@ordo/shared';
-import { CalendarBlankIcon, PencilSimpleIcon, PlusIcon, TrashIcon, UserMinusIcon } from '@phosphor-icons/react';
+import { mapById, EVERYDAY_CONTEXT, treasuryContextSchema, treasuryRelationSchema, agreed } from '@ordo/shared';
+import { CalendarStarIcon, PencilSimpleIcon, PlusIcon, TrashIcon, UserMinusIcon } from '@phosphor-icons/react';
 import { ArchivedBadge } from '../../../components/feedback/ArchivedBadge';
 import { ShowArchivedSwitch } from '../../../components/filters/ShowArchivedSwitch';
 import { archiveEntry, unarchived, useSetArchived, useArchivedToggle } from '../../../lib/archive';
@@ -25,15 +22,17 @@ import { toastCallbacks } from '../../../lib/notify';
 import { useTaskContext } from '../../tasks/hooks/use-task-context';
 import { useColorSwatches } from '../../../lib/use-color-swatches';
 import { useActiveWorkspace } from '../../workspaces/api';
-import { treasuryKey, useTreasurySettings, useTreasuryTeamMutations, type TreasuryContext, type TreasuryContextPeriod, type TreasuryRelation } from '../api';
+import { treasuryKey, useTreasurySettings, useTreasuryTeamMutations, type TreasuryRelation } from '../api';
 import * as fmt from '../../../lib/format';
-import { MarkdownEditor } from '../../../components/markdown/MarkdownEditor';
 import { MarkdownView } from '../../../components/markdown/MarkdownView';
 import { countOf } from '../../../lib/text';
 import { FormActions } from '../../../components/dialogs/FormActions';
 import { SettingsSection } from '../../../components/settings/SettingsSection';
 import { InlineActions } from '../../../components/actions/ActionsMenu';
-import { dateRangeProps, formRange } from '../../../components/inputs/date-range';
+import { useScheduleTypes, useWorkScheduleMutations } from '../../calendar/api';
+import { useScheduleTypeItems } from '../../calendar/hooks/use-settings-items';
+import { openSchedulesManager } from '../../calendar/lib/open-schedules';
+import { inWorkspace } from '../../calendar/lib/layer-label';
 import { personOptionRenderer } from '../../../components/people/person-option';
 import { relationWords } from '../../../components/people/people-options';
 
@@ -185,176 +184,66 @@ export function ContextForm({ label = '', onDone }: { label?: string; onDone: (c
   );
 }
 
-/** Values of a planned period. */
-type PeriodValues = { contextId: string; startDate: string; endDate: string; note: string | null };
-
 /**
- * Values of a planned period (a new one: the first context, no days).
- * @param {TreasuryContextPeriod | undefined} period Period, as the cache holds it.
- * @param {TreasuryContext[]} contexts Contexts.
- * @returns {PeriodValues} Values.
- */
-const periodValues = (period: TreasuryContextPeriod | undefined, contexts: TreasuryContext[]): PeriodValues => ({
-  contextId: period?.contextId ?? unarchived(contexts)[0]?.id ?? '',
-  startDate: period ? period.startDate : '',
-  endDate: period ? period.endDate : '',
-  note: period?.note ?? null,
-});
-
-/**
- * Planned period form: context, first and last days, note. A new period is a form with « Planifier »; an existing one,
- * its panel, saves each field as soon as it changes (the note on leaving it, decision D22, `useFieldSave`), the one of
- * the cache followed; read only while its context is archived.
- * @param {{ period?: TreasuryContextPeriod, contexts: TreasuryContext[], onDone: () => void }} props Component props.
- * @returns {JSX.Element} Form.
- */
-function PeriodForm({ period, contexts, onDone }: { period?: TreasuryContextPeriod; contexts: TreasuryContext[]; onDone: () => void }) {
-  const { saveContextPeriod } = useTreasuryTeamMutations();
-  const { data: settings } = useTreasurySettings();
-  const base = useAppForm<PeriodValues>({ initialValues: periodValues(period, contexts), schema: treasuryContextPeriodSchema });
-  const current = period && (settings?.treasuryContextPeriods.find((item) => item.id === period.id) ?? period);
-  const readOnly = Boolean(current && (settings?.treasuryContexts ?? contexts).find((item) => item.id === current.contextId)?.archived);
-  const { form, saving, fieldProps } = useFieldSave(base, {
-    save: period ? (_changes, input) => saveContextPeriod.mutateAsync({ id: period.id, input: { ...input, note: input.note || null } }) : null,
-    schema: treasuryContextPeriodSchema,
-    saved: current && periodValues(current, contexts),
-    onBlur: ['note'],
-    readOnly,
-  });
-  const days = dateRangeProps(formRange(form, 'startDate', 'endDate'));
-  return (
-    // A new period only: an existing one is saved field by field.
-    <form noValidate onSubmit={form.onSubmit((input) => saveContextPeriod.mutate({ id: null, input: { ...input, note: input.note || null } }, formCallbacks(form, 'Période planifiée.', onDone)))}>
-      <Fieldset variant="unstyled" disabled={readOnly} p={0} m={0}>
-        <Stack gap="sm">
-          {period && !readOnly && <SaveStatus saving={saving} />}
-          <Select label="Contexte" required allowDeselect={false} {...itemSelectProps(contexts, form.values.contextId, undefined, period?.contextId)} {...form.getInputProps('contextId')} />
-          <SimpleGrid cols={2} spacing="sm">
-            <DatePickerInput label="Du" required {...days.start} />
-            <DatePickerInput label="Au" required {...days.end} />
-          </SimpleGrid>
-          <MarkdownEditor label="Description" {...fieldProps('note')} value={form.values.note ?? ''} suggestions={NO_SUGGESTIONS} minRows={2} />
-          {!period && <FormActions onCancel={onDone} submitLabel="Planifier" loading={saveContextPeriod.isPending} />}
-        </Stack>
-      </Fieldset>
-    </form>
-  );
-}
-
-/**
- * Contexts of spending (not in a tree; a line without context is everyday spending) and the periods they are
- * planned for: the lines of the entries dated in a period get its context proposed. The periods of an archived context
- * are hidden (and read only) unless the archived ones are shown.
+ * Contexts of spending (not in a tree; a line without context is everyday spending): the kinds of éphémérides of the
+ * calendar « Sert de contexte au budget » (lot 16), the same settings list as in the calendar (label, color, image,
+ * display, budget fields), their éphémérides their periods (« Périodes » opens them). Those shared by another workspace
+ * are listed apart, read only (changed in that workspace).
  * @returns {JSX.Element} Sections.
  */
 function Contexts() {
   const { data: settings } = useTreasurySettings();
-  const { saveContext, deleteContext, deleteContextPeriod } = useTreasuryTeamMutations();
-  const contexts = settings?.treasuryContexts ?? [];
-  const contextById = mapById(contexts);
-  const archivedPeriod = (period: TreasuryContextPeriod) => Boolean(contextById.get(period.contextId)?.archived);
-  const { shown: periods, toggle: periodsToggle } = useArchivedToggle(settings?.treasuryContextPeriods ?? [], archivedPeriod);
-  /**
-   * Opens the form of a new or changed period.
-   * @param {TreasuryContextPeriod} [period] Period changed. Optional.
-   * @returns {void}
-   */
-  const openPeriod = (period?: TreasuryContextPeriod) =>
-    openFormPanel(period ? 'Modifier la période' : 'Planifier un contexte', (close) => <PeriodForm period={period} contexts={contexts} onDone={close} />);
-
+  const { data: types } = useScheduleTypes();
+  const { removeType } = useWorkScheduleMutations();
+  const kind = useScheduleTypeItems({ ephemeris: true, budgetContext: true });
+  const { perso } = useActiveWorkspace();
+  const shared = (settings?.treasuryContexts ?? []).filter((context) => context.workspaceLabel);
   return (
     <>
       <SettingsList
-        kind="TREASURY_CONTEXT"
+        {...kind}
         title="Contextes"
-        description={`Une même dépense ne compte pas pareil en vacances ou au quotidien. Une ligne sans contexte est du « ${EVERYDAY_CONTEXT} ».`}
+        description={`Une même dépense ne compte pas pareil en vacances ou au quotidien. Une ligne sans contexte est du « ${EVERYDAY_CONTEXT} ». Chaque contexte est un type d’éphémérides de l’agenda : les lignes des mouvements datés pendant l’un de ses éphémérides prennent ce contexte (modifiable).`}
         noun="le contexte"
-        items={contexts}
-        schema={treasuryContextSchema}
-        create={async (values) => createdId(await saveContext.mutateAsync({ id: null, input: { label: values.label, color: values.color } }))}
-        update={(id, values) => saveContext.mutateAsync({ id, input: { label: values.label, color: values.color } })}
-        remove={(id) => deleteContext.mutateAsync(id)}
+        items={(types ?? []).filter((type) => type.budgetContext)}
+        headerActions={
+          <ActionButton priority="secondary" icon={<CalendarStarIcon aria-hidden />} hint="Les éphémérides, périodes des contextes" onClick={() => openSchedulesManager(true, perso)}>
+            Périodes
+          </ActionButton>
+        }
+        remove={(id) => removeType.mutateAsync(id)}
         deleteMessage={(item) => (
           <>
-            « {item.label} » sera supprimé définitivement avec ses périodes planifiées. Les lignes qui l’avaient deviendront du « {EVERYDAY_CONTEXT} ».
+            « {item.label} » sera supprimé définitivement, avec son type d’éphémérides (ses éphémérides restent, sans type). Les lignes qui l’avaient deviendront du « {EVERYDAY_CONTEXT} » et ses budgets
+            seront supprimés.
           </>
         )}
       />
-
-      <SettingsSection
-        title="Contextes planifiés"
-        actions={
-          <>
-            <ShowArchivedSwitch {...periodsToggle} label="Afficher les archivées" />
-            <ActionButton priority="secondary" size="xs" icon={<PlusIcon aria-hidden />} disabled={!unarchived(contexts).length} onClick={() => openPeriod()}>
-              Nouvelle période
-            </ActionButton>
-          </>
-        }
-        description="Les lignes des mouvements datés dans une période prennent son contexte (modifiable). Changer une période ne modifie pas les lignes déjà enregistrées."
-      >
-        {periods.length === 0 ? (
-          <EmptyState compact icon={<CalendarBlankIcon aria-hidden />} message={contexts.length ? 'Aucune période planifiée.' : 'Créez d’abord un contexte.'} />
-        ) : (
+      {shared.length > 0 && (
+        <SettingsSection title="Contextes partagés par d’autres espaces" description="Ils se modifient dans l’agenda de leur espace.">
           <Table verticalSpacing={4}>
             <Table.Tbody>
-              {periods.map((period) => {
-                const item = contextById.get(period.contextId);
-                return (
-                  <Table.Tr key={period.id}>
-                    <Table.Td>
-                      <Group gap="xs" wrap="nowrap">
-                        {item && <ItemAvatar name={item.label} iconUrl={item.iconUrl} color={item.color} />}
-                        <Text size="sm">{item?.label}</Text>
-                        {item?.archived && <ArchivedBadge size="xs" />}
-                      </Group>
-                      {period.note && (
-                        <Text size="xs" c="dimmed">
-                          {period.note}
-                        </Text>
-                      )}
-                    </Table.Td>
-                    <Table.Td>
-                      <Text size="sm">
-                        {fmt.day(period.startDate)} → {fmt.day(period.endDate)}
-                      </Text>
-                    </Table.Td>
-                    <Table.Td w={1}>
-                      {/* A period is part of its context: read only while it is archived. */}
-                      {!item?.archived && (
-                        <InlineActions
-                          name={`${item?.label ?? ''} du ${fmt.day(period.startDate)}`}
-                          items={[
-                            { label: 'Modifier', icon: <PencilSimpleIcon aria-hidden />, onClick: () => openPeriod(period) },
-                            {
-                              label: 'Supprimer',
-                              icon: <TrashIcon aria-hidden />,
-                              danger: true,
-                              onClick: () =>
-                                confirmDestructive({
-                                  title: 'Supprimer la période',
-                                  risks: `La période « ${item?.label ?? ''} » du ${fmt.day(period.startDate)} au ${fmt.day(period.endDate)} sera supprimée. Les lignes déjà enregistrées gardent leur contexte.`,
-                                  run: () => deleteContextPeriod.mutateAsync(period.id),
-                                  done: 'Période supprimée.',
-                                }),
-                            },
-                          ]}
-                        />
-                      )}
-                    </Table.Td>
-                  </Table.Tr>
-                );
-              })}
+              {shared.map((context) => (
+                <Table.Tr key={context.id}>
+                  <Table.Td>
+                    <Group gap="xs" wrap="nowrap">
+                      <ItemAvatar name={context.label} iconUrl={context.iconUrl} color={context.color} />
+                      <Text size="sm">{inWorkspace(context.label, context.workspaceLabel ?? undefined)}</Text>
+                      {context.archived && <ArchivedBadge size="xs" />}
+                    </Group>
+                  </Table.Td>
+                </Table.Tr>
+              ))}
             </Table.Tbody>
           </Table>
-        )}
-      </SettingsSection>
+        </SettingsSection>
+      )}
     </>
   );
 }
 
 /**
- * Contexts and their planned periods, one under the other (they are in the settings sidebar; the team or household
+ * Contexts (and their periods, the éphémérides of their kinds), one under the other (they are in the settings sidebar; the team or household
  * is in the settings, with the contributors).
  * @returns {JSX.Element} Sections.
  */

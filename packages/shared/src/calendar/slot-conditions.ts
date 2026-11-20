@@ -1,6 +1,6 @@
 import { filterConditionSchemaFor, filterGroupSchemaFor, type FilterConditionOf, type FilterGroupOf } from '../tables/filters';
 import { addDays } from '../dates/days';
-import { plannedSlots, type PlannedSlot, type WorkScheduleRule } from './work-schedules';
+import { plannedSlots, slotSchedules, type PlannedSlot, type WorkScheduleRule } from './work-schedules';
 import { scheduleSlotKind } from './slot-kinds';
 
 /**
@@ -248,13 +248,14 @@ export interface ForeignScheduleRule {
 /**
  * Slots of some schedules on a day, the slots of each day computed when first asked: what conditions on calendar
  * schedules are evaluated on, for tasks and routines alike. The schedules of the other workspaces only count where a
- * condition names them (or their kinds), never in the free time.
+ * condition names them (or their kinds), never in the free time; nor do the éphémérides of the workspace.
  * @param {readonly WorkScheduleRule[]} rules Schedules of the workspace.
  * @param {readonly ForeignScheduleRule[]} [foreign] Schedules of the other workspaces of the user. Optional. Default = none.
  * @returns {SlotsOn} Slots of some schedules on a day.
  */
 export function scheduleSlotsOn(rules: readonly WorkScheduleRule[], foreign: readonly ForeignScheduleRule[] = []): SlotsOn {
-  const own = new Set(rules.map((rule) => rule.id));
+  // The free time: out of the créneaux of the workspace, its éphémérides left out (lot 16).
+  const own = new Set(slotSchedules(rules).map((rule) => rule.id));
   const kindOf = new Map([...rules.map((rule) => [rule.id, scheduleSlotKind(rule)] as const), ...foreign.map(({ workspaceId, rule }) => [rule.id, scheduleSlotKind(rule, workspaceId)] as const)]);
   const all = [...rules, ...foreign.map(({ rule }) => rule)];
   const byDay = new Map<string, PlannedSlot[]>();

@@ -18,7 +18,8 @@ Options :
 - `onConfirm` : l'action, une fois confirmée ;
 - `run` : l'action en promesse (`mutateAsync`) ; son échec va dans un toast d'erreur (`onMutationError`) ;
 - `done` : message de succès de `run` (« Alarme supprimée. »), sinon pas de toast ;
-- `onCancel` : ce qui suit un refus (« Annuler », Échap, clic à côté), par exemple pour une confirmation attendue en promesse (`withLossConfirmation`).
+- `onCancel` : ce qui suit un refus (« Annuler », Échap, clic à côté), par exemple pour une confirmation attendue en promesse (`withLossConfirmation`) ;
+- `reversible` : l'action inverse la défait (une conversion entre créneau et éphéméride, lot 16) : « Cette action est irréversible. » n'est pas ajoutée.
 
 `confirmedDestructive(options)` : la même modale attendue en promesse (`title`, `risks`, `confirmLabel`, `confirmIcon`) : résolue une fois confirmée, refusée par `ActionDeclined` (silencieux dans les toasts d'erreur). Utilisée par `withLossConfirmation` et la catégorie d'un statut de tâche (`useTaskStatusItems`).
 
@@ -28,7 +29,7 @@ La modale se ferme avant l'action. eslint interdit d'écrire « irréversible »
 
 - `DestructiveActions` : boutons de tout dialogue destructif, en bas à droite : confirmation (rouge plein, `data-autofocus`) puis « Annuler » (`secondary`). Props : `onConfirm`, `onCancel`, `loading`, `confirmLabel` (défaut « Supprimer »), `confirmIcon`. Utilisé par `confirmDestructive` et par les dialogues destructifs à options (agenda, tâches, projets).
 - `DeleteButton` : bouton « Supprimer » d'un formulaire (corbeille, rouge plein, décision CN), à placer dans la zone `danger` de `FormActions` ; la suppression passe par `confirmDestructive`. Props : `onClick`, `loading`, `children` (défaut « Supprimer »).
-- `DestructiveRisks` : texte des risques suivi de « Cette action est irréversible. » (constante interne `IRREVERSIBLE`, le seul endroit où la phrase est écrite).
+- `DestructiveRisks({ children, reversible? })` : texte des risques suivi de « Cette action est irréversible. » (constante interne `IRREVERSIBLE`, le seul endroit où la phrase est écrite), sauf `reversible`.
 - `CascadeChoice` : choix, lors d'une suppression, pour ce qui dépend de l'élément (sous-tâches, sous-projets) : garder (`'detach'`, libellé `keepLabel`) ou « Les supprimer aussi, définitivement » (`'delete'`, en rouge). Props : `label`, `keepLabel`, `value`, `onChange`. Utilisé par les tâches et les projets.
 
 ## `FormActions.tsx`

@@ -1,7 +1,8 @@
 import { calendarCategoryFormSchema, DEFAULT_SCHEDULE_DISPLAY, labelFormSchema, readScheduleDisplay, type ScheduleDisplay } from '@ordo/shared';
 import { itemMutations, treeItemInput, type TreeItemValues } from '../../../components/settings/settings-api';
 import type { SettingsItemKind } from '../../../components/settings/SettingsItemForm';
-import { useCalendarCategoryMutations, useWorkScheduleMutations, type CalendarCategory, type ScheduleType } from '../api';
+import { Checkbox, Stack, Switch } from '@mantine/core';
+import { useCalendarCategoryMutations, useWorkScheduleMutations, type CalendarCategory, type ScheduleType, type ScheduleTypeFields } from '../api';
 import { ScheduleLookEditor } from '../components/ScheduleLookEditor';
 
 /**
@@ -19,25 +20,67 @@ export function useCalendarCategoryItems(): SettingsItemKind<CalendarCategory> {
   };
 }
 
+/** Fields of the form of a kind beyond its label and color: its display, and the budget fields of a kind of éphémérides. */
+export type ScheduleTypeExtra = ScheduleDisplay & { ephemeris: boolean; budgetContext: boolean; sharedContext: boolean };
+
 /**
  * Kinds of time slots, for their settings list and their form (a creation from a select too): label, color, image and
- * display in the calendar.
- * @returns {SettingsItemKind<ScheduleType, ScheduleDisplay>} List and form.
+ * display in the calendar; a kind of éphémérides (lot 16) also « Sert de contexte au budget » and, then, « Partagé
+ * entre espaces ». The nature of a new kind is the one asked (a conversion changes it afterwards).
+ * @param {{ ephemeris?: boolean, budgetContext?: boolean }} [options] Nature of a new kind, and a new kind of éphémérides as a context. Optional. Default = créneaux.
+ * @returns {SettingsItemKind<ScheduleType, ScheduleTypeExtra>} List and form.
  */
-export function useScheduleTypeItems(): SettingsItemKind<ScheduleType, ScheduleDisplay> {
+export function useScheduleTypeItems({ ephemeris = false, budgetContext = false }: { ephemeris?: boolean; budgetContext?: boolean } = {}): SettingsItemKind<ScheduleType, ScheduleTypeExtra> {
   const { createType, updateType } = useWorkScheduleMutations();
   /**
-   * Input of a kind from the form values.
-   * @param {{ label: string, color: string } & ScheduleDisplay} values Values.
-   * @returns {{ label: string, color: string } & ScheduleDisplay} Input.
+   * Input of a kind from the form values (a kind of créneaux is no context).
+   * @param {{ label: string, color: string } & ScheduleTypeExtra} values Values.
+   * @returns {ScheduleTypeFields} Input.
    */
-  const input = (values: { label: string; color: string } & ScheduleDisplay) => ({ label: values.label, color: values.color, ...readScheduleDisplay(values) });
+  const input = (values: { label: string; color: string } & ScheduleTypeExtra): ScheduleTypeFields => ({
+    label: values.label,
+    color: values.color,
+    ...readScheduleDisplay(values),
+    ephemeris: values.ephemeris,
+    budgetContext: values.ephemeris && values.budgetContext,
+    sharedContext: values.ephemeris && values.budgetContext && values.sharedContext,
+  });
   return {
     kind: 'SCHEDULE_TYPE',
     schema: labelFormSchema,
     extra: {
-      initial: (type) => (type ? readScheduleDisplay(type) : DEFAULT_SCHEDULE_DISPLAY),
-      render: (form) => <ScheduleLookEditor name={form.getValues().label} value={form.getValues()} onChange={(display) => form.setValues(display)} />,
+      initial: (type) => ({
+        ...(type ? readScheduleDisplay(type) : DEFAULT_SCHEDULE_DISPLAY),
+        ephemeris: type ? type.ephemeris : ephemeris,
+        budgetContext: type ? type.budgetContext : budgetContext,
+        sharedContext: type?.sharedContext ?? false,
+      }),
+      render: (form) => {
+        const values = form.getValues();
+        return (
+          <>
+            <ScheduleLookEditor name={values.label} value={values} onChange={(display) => form.setValues(display)} />
+            {values.ephemeris && (
+              <Stack gap={6}>
+                <Switch
+                  label="Sert de contexte au budget"
+                  description="Le type est un contexte de la trésorerie ; ses éphémérides en sont les périodes (les lignes datées ces jours-là le reçoivent)."
+                  checked={values.budgetContext}
+                  onChange={(event) => form.setValues({ budgetContext: event.currentTarget.checked, ...(!event.currentTarget.checked && { sharedContext: false }) })}
+                />
+                {values.budgetContext && (
+                  <Checkbox
+                    label="Partagé entre espaces"
+                    description="Contexte dans tous vos espaces, pas seulement dans celui-ci."
+                    checked={values.sharedContext}
+                    onChange={(event) => form.setValues({ sharedContext: event.currentTarget.checked })}
+                  />
+                )}
+              </Stack>
+            )}
+          </>
+        );
+      },
     },
     ...itemMutations({ create: createType, update: updateType }, input),
   };

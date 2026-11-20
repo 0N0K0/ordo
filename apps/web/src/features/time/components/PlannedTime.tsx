@@ -1,5 +1,5 @@
 import { Group, Progress, SimpleGrid, Stack, Text, Tooltip } from '@mantine/core';
-import { addDays, daysBetween, entrySeconds, formatDuration, plannedSlots, slotMinutes, weekRange } from '@ordo/shared';
+import { addDays, daysBetween, entrySeconds, formatDuration, plannedSlots, slotMinutes, slotSchedules, weekRange } from '@ordo/shared';
 import { useMemo } from 'react';
 import { localMidnight, localParts, localToday } from '../../../lib/dates';
 import { scheduleRules, useWorkSchedules } from '../../calendar/api';
@@ -52,7 +52,8 @@ export function PlannedTime() {
 
   const days = useMemo(() => {
     if (!schedules) return [];
-    const slots = plannedSlots(scheduleRules(schedules), monday, sunday);
+    // The créneaux only: an éphéméride is no planned work (lot 16).
+    const slots = plannedSlots(scheduleRules(slotSchedules(schedules)), monday, sunday);
     const trackedByDay = new Map<string, number>();
     for (const entry of entries.data ?? []) {
       const day = localParts(entry.startedAt).date;

@@ -5,13 +5,14 @@ import { Badge, Group, Stack, Text, TextInput } from '@mantine/core';
 import { SettingsSection } from '../../../components/settings/SettingsSection';
 import { ByWorkspace } from './ByWorkspace';
 
-import { DEFAULT_SCHEDULE_KIND_LABEL, foreignSlotKind, readScheduleDisplay } from '@ordo/shared';
+import { DEFAULT_SCHEDULE_KIND_LABEL, EVERYDAY_CONTEXT, foreignSlotKind, readScheduleDisplay } from '@ordo/shared';
 import { SettingsList } from '../../../components/settings/SettingsList';
 import { ArrowCounterClockwiseIcon } from '@phosphor-icons/react';
 import { useState } from 'react';
 import { ON_ERROR } from '../../../lib/notify';
 
-import { useDefaultScheduleKind, useForeignScheduleKinds, useScheduleTypes, useWorkScheduleMutations } from '../api';
+import { useDefaultScheduleKind, useForeignScheduleKinds, useScheduleTypes, useWorkScheduleMutations, useWorkSchedules } from '../api';
+import { useScheduleConversion } from '../hooks/use-schedule-conversion';
 import { ScheduleLookEditor } from './ScheduleLookEditor';
 import { LookPanel, LookToggle } from './LookToggle';
 import { SubscriptionRow } from './SubscriptionRow';
@@ -69,23 +70,46 @@ function DefaultScheduleKind() {
 }
 
 /**
- * Kinds of time slots ("Travail", "Garde des enfants"…), as every settings list: label, color, image and display in the
- * calendar, reordered by drag and drop.
+ * Kinds of time slots ("Travail", "Garde des enfants"…) or of éphémérides (holidays, school holidays, birthdays…, lot
+ * 16), as every settings list: label, color, image and display in the calendar, reordered by drag and drop; a kind of
+ * éphémérides may serve as a context of the budget (shared between workspaces or not). « Convertir » turns a whole
+ * kind into the other nature, its schedules with it.
+ * @param {{ ephemeris: boolean }} props Component props: the kinds of éphémérides, or of créneaux.
  * @returns {JSX.Element} Section.
  */
-function ScheduleTypes() {
+function ScheduleTypes({ ephemeris }: { ephemeris: boolean }) {
   const { data: types } = useScheduleTypes();
+  const { data: schedules } = useWorkSchedules();
   const { removeType } = useWorkScheduleMutations();
-  const kind = useScheduleTypeItems();
+  const kind = useScheduleTypeItems({ ephemeris });
+  const convert = useScheduleConversion();
+  const count = (typeId: string) => (schedules ?? []).filter((schedule) => schedule.typeId === typeId).length;
   return (
     <SettingsList
       {...kind}
-      title="Types de créneaux"
-      description="Pour distinguer vos créneaux (travail, garde des enfants, sport…) : chaque type a sa couleur et son affichage dans l’agenda."
+      title={ephemeris ? 'Types d’éphémérides' : 'Types de créneaux'}
+      description={
+        ephemeris
+          ? 'Pour distinguer vos éphémérides (vacances, jours fériés, anniversaires…) : chaque type a sa couleur et son affichage dans l’agenda ; il peut servir de contexte au budget.'
+          : 'Pour distinguer vos créneaux (travail, garde des enfants, sport…) : chaque type a sa couleur et son affichage dans l’agenda.'
+      }
       noun="le type"
-      items={types ?? []}
+      items={(types ?? []).filter((type) => type.ephemeris === ephemeris)}
+      renderBadges={(type) =>
+        type.budgetContext && (
+          <Badge size="xs" variant="light">
+            {type.sharedContext ? 'Contexte du budget, partagé' : 'Contexte du budget'}
+          </Badge>
+        )
+      }
+      menuItems={(type) => [convert.type(type, count(type.id))]}
       remove={(id) => removeType.mutateAsync(id)}
-      deleteMessage={(type) => <>Le type « {type.label} » sera supprimé ; ses créneaux restent, sans type.</>}
+      deleteMessage={(type) => (
+        <>
+          Le type « {type.label} » sera supprimé ; {ephemeris ? 'ses éphémérides restent, sans type' : 'ses créneaux restent, sans type'}.
+          {type.budgetContext && <> Il cesse d’être un contexte du budget : les lignes qui l’avaient deviennent du « {EVERYDAY_CONTEXT} », ses budgets sont supprimés.</>}
+        </>
+      )}
     />
   );
 }
@@ -117,7 +141,7 @@ function ForeignSchedules() {
                 label={kind.label}
                 color={kind.color ?? 'green'}
                 workspaceLabel={kind.workspaceLabel}
-                hint={`${countOf(kind.scheduleCount, 'créneau', 'créneaux')}${kind.customized ? ' · affichage personnalisé' : ''}`}
+                hint={`${kind.ephemeris ? countOf(kind.scheduleCount, 'éphéméride') : countOf(kind.scheduleCount, 'créneau', 'créneaux')}${kind.customized ? ' · affichage personnalisé' : ''}`}
                 subscribed={kind.subscribed}
                 onChange={(subscribed) => (subscribed ? subscribe : unsubscribe).mutate(target, ON_ERROR)}
                 actions={
@@ -171,14 +195,15 @@ function ForeignSchedules() {
 
 /**
  * Settings of the time slots, apart from the slots themselves: their kinds (and the default kind) with their color
- * and display, and the subscriptions to kinds of other workspaces.
+ * and display, the kinds of éphémérides beside them (lot 16), and the subscriptions to kinds of other workspaces.
  * @returns {JSX.Element} Settings.
  */
 export function ScheduleSettings() {
   return (
     <Stack gap="md">
       <DefaultScheduleKind />
-      <ScheduleTypes />
+      <ScheduleTypes ephemeris={false} />
+      <ScheduleTypes ephemeris />
       <ForeignSchedules />
     </Stack>
   );

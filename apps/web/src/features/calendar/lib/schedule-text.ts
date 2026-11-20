@@ -10,6 +10,9 @@ import * as fmt from '../../../lib/format';
 // eslint-disable-next-line no-restricted-syntax -- the brick the rule points to.
 export const schedulesTitle = (perso: boolean): string => (perso ? 'Créneaux' : 'Créneaux de travail');
 
+/** Title of the éphémérides (holidays, birthdays…, lot 16), apart from the créneaux. */
+export const EPHEMERIDES_TITLE = 'Éphémérides';
+
 /**
  * Hours of a case in words: "journée entière", "09:00–12:30, 14:00–18:00".
  * @param {ScheduleTimes} times Hours.

@@ -44,6 +44,7 @@ La requête `currentWorkspaceId` rend l’espace retenu. Côté web, la fenêtre
   - un agenda par défaut (`resolveCalendarId`) ;
   - pour un espace PRO : un statut de suivi pour chaque catégorie de suivi des documents, ceux déjà présents conservés (`ensureDocumentStatuses`) ;
   - si l’espace n’a aucune unité d’achat : les unités usuelles (`DEFAULT_SHOPPING_UNITS`).
+- À la création seulement : les contextes du budget partagés par les autres espaces y deviennent des contextes (`addSharedContexts`, lot 16, voir [Trésorerie](../finances/treasury.md#contextes-et-leurs-périodes-éphémérides)).
 
 ## Modification
 

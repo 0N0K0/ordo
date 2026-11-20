@@ -1,20 +1,28 @@
-import { DEFAULT_SCHEDULE_KIND_LABEL, foreignSlotKind, ownSlotKind } from '@ordo/shared';
+import { DEFAULT_SCHEDULE_KIND_LABEL, foreignSlotKind, ownSlotKind, slotSchedules } from '@ordo/shared';
 import { unarchived } from '../../../lib/archive';
 import { inWorkspace } from './layer-label';
 
 /** What a slot condition can name: the schedules and kinds of the workspace and of the other workspaces of the user. */
 export interface SlotSources {
   /** Schedules of the workspace (none while loading). Optional. */
-  schedules?: readonly { id: string; label: string; archived?: boolean }[];
+  schedules?: readonly { id: string; label: string; archived?: boolean; ephemeris?: boolean }[];
   /** Kinds of schedules of the workspace. Optional. */
-  types?: readonly { id: string; label: string; archived?: boolean }[];
+  types?: readonly { id: string; label: string; archived?: boolean; ephemeris?: boolean }[];
   /** Kind of its schedules without kind. Optional. */
   defaultKind?: { label: string } | null;
   /** Schedules of the other workspaces. Optional. */
-  foreignSchedules?: readonly { id: string; label: string; archived: boolean; workspaceLabel: string }[];
+  foreignSchedules?: readonly { id: string; label: string; archived: boolean; workspaceLabel: string; ephemeris?: boolean }[];
   /** Kinds of schedules of the other workspaces (their schedules without kind among them). Optional. */
-  foreignKinds?: readonly { workspaceId: string; workspaceLabel: string; typeId?: string | null; label: string; archived: boolean }[];
+  foreignKinds?: readonly { workspaceId: string; workspaceLabel: string; typeId?: string | null; label: string; archived: boolean; ephemeris?: boolean }[];
 }
+
+/**
+ * Name of a schedule or a kind in a slot condition: an éphéméride (or a kind of them, lot 16) told as one.
+ * @param {string} label Label.
+ * @param {boolean | null | undefined} ephemeris An éphéméride, or a kind of them.
+ * @returns {string} « Vacances (éphéméride) », or the label.
+ */
+const ephemerisLabel = (label: string, ephemeris: boolean | null | undefined) => (ephemeris ? `${label} (éphéméride)` : label);
 
 /** Option of a select. */
 interface Choice {
@@ -28,7 +36,7 @@ export interface SlotChoices {
   schedules: Choice[];
   /** Kinds (« Type de créneau »): of the workspace (its schedules without kind first), then of the other ones. */
   kinds: Choice[];
-  /** Schedules kept out of the free time: those of the workspace. */
+  /** Schedules kept out of the free time: the créneaux of the workspace (its éphémérides never are in it). */
   freeTime: Choice[];
   /** Schedules and kinds together (the « Créneaux » column of the tables). */
   all: Choice[];
@@ -44,12 +52,20 @@ export interface SlotChoices {
  * @returns {SlotChoices} Choices.
  */
 export function slotChoices(sources: SlotSources, keep: readonly string[] = []): SlotChoices {
-  const ownSchedules = (sources.schedules ?? []).map((schedule) => ({ id: schedule.id, label: schedule.label, archived: schedule.archived }));
-  const foreignSchedules = (sources.foreignSchedules ?? []).map((schedule) => ({ id: schedule.id, label: inWorkspace(schedule.label, schedule.workspaceLabel), archived: schedule.archived }));
+  const ownSchedules = (sources.schedules ?? []).map((schedule) => ({ id: schedule.id, label: ephemerisLabel(schedule.label, schedule.ephemeris), archived: schedule.archived, ephemeris: schedule.ephemeris }));
+  const foreignSchedules = (sources.foreignSchedules ?? []).map((schedule) => ({
+    id: schedule.id,
+    label: inWorkspace(ephemerisLabel(schedule.label, schedule.ephemeris), schedule.workspaceLabel),
+    archived: schedule.archived,
+  }));
   const kinds = [
     { id: ownSlotKind(null), label: sources.defaultKind?.label || DEFAULT_SCHEDULE_KIND_LABEL, archived: false },
-    ...(sources.types ?? []).map((type) => ({ id: ownSlotKind(type.id), label: type.label, archived: type.archived })),
-    ...(sources.foreignKinds ?? []).map((kind) => ({ id: foreignSlotKind(kind.workspaceId, kind.typeId), label: inWorkspace(kind.label, kind.workspaceLabel), archived: kind.archived })),
+    ...(sources.types ?? []).map((type) => ({ id: ownSlotKind(type.id), label: ephemerisLabel(type.label, type.ephemeris), archived: type.archived })),
+    ...(sources.foreignKinds ?? []).map((kind) => ({
+      id: foreignSlotKind(kind.workspaceId, kind.typeId),
+      label: inWorkspace(ephemerisLabel(kind.label, kind.ephemeris), kind.workspaceLabel),
+      archived: kind.archived,
+    })),
   ];
   /**
    * Options of some items, the archived ones left out but those kept.
@@ -62,7 +78,7 @@ export function slotChoices(sources: SlotSources, keep: readonly string[] = []):
   return {
     schedules,
     kinds: kindChoices,
-    freeTime: offered(ownSchedules),
+    freeTime: offered(slotSchedules(ownSchedules)),
     all: [...schedules, ...kindChoices],
     names: new Map([...ownSchedules, ...foreignSchedules, ...kinds].map((item) => [item.id, item.label])),
   };

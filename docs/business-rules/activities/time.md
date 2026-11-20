@@ -149,4 +149,4 @@ Les alarmes « pas de chrono » et « durée de chrono » (`NOT_TRACKING`, `TRAC
 
 ## Espace PRO / PERSO
 
-Les règles sont les mêmes. Côté web, la comparaison « Prévu et réalisé » avec les heures de travail n’est montrée qu’en espace PRO (en PERSO, les créneaux ne sont pas des heures de travail).
+Les règles sont les mêmes. Côté web, la comparaison « Prévu et réalisé » avec les heures de travail n’est montrée qu’en espace PRO (en PERSO, les créneaux ne sont pas des heures de travail) ; les éphémérides n’y comptent jamais (lot 16, `slotSchedules`).

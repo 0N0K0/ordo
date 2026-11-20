@@ -16,6 +16,7 @@ import { execute } from '../../../lib/graphql-client';
 import { accountingQueryKey } from '../../accounting/api';
 import { tasksQueryKey } from '../../tasks/api';
 import { projectTreeQueryKey } from '../../projects/api';
+import { calendarQueryKey } from '../../calendar/api';
 
 export type TreasuryAccount = TreasuryAccountsQuery['treasuryAccounts'][number];
 export type TreasuryEntry = TreasuryEntriesQuery['treasuryEntries'][number];
@@ -40,7 +41,8 @@ export function counterpartyItems(counterparties: readonly TreasuryCounterparty[
 export type TreasuryMember = TreasurySettingsQuery['treasuryMembers'][number];
 export type TreasuryContext = TreasurySettingsQuery['treasuryContexts'][number];
 export type TreasuryRelation = TreasurySettingsQuery['treasuryRelations'][number];
-export type TreasuryContextPeriod = TreasurySettingsQuery['treasuryContextPeriods'][number];
+/** Éphéméride of the kind of a context: one of its periods (lot 16). */
+export type TreasuryContextEphemeris = TreasurySettingsQuery['treasuryContextEphemerides'][number];
 export type TreasuryEntryLine = TreasuryEntry['lines'][number];
 export type EntryDocument = TreasuryDocumentOptionsQuery['treasuryDocumentOptions'][number];
 
@@ -255,11 +257,13 @@ const SettingsDocument = graphql(`
     }
     treasuryContexts {
       id
+      scheduleTypeId
       archived
       label
       color
       iconUrl
       position
+      workspaceLabel
     }
     treasuryRelations {
       id
@@ -270,12 +274,16 @@ const SettingsDocument = graphql(`
       lineCount
       budgetCount
     }
-    treasuryContextPeriods {
-      id
+    treasuryContextEphemerides {
       contextId
-      startDate
-      endDate
-      note
+      schedule {
+        id
+        label
+        startDate
+        endDate
+        cases
+        exceptions
+      }
     }
   }
 `);
@@ -563,27 +571,9 @@ const SaveContext = graphql(`
   }
 `);
 
-const DeleteContext = graphql(`
-  mutation DeleteTreasuryContext($id: ID!) {
-    deleteTreasuryContext(id: $id)
-  }
-`);
-
-const SaveContextPeriod = graphql(`
-  mutation SaveTreasuryContextPeriod($id: ID, $input: TreasuryContextPeriodInput!) {
-    saveTreasuryContextPeriod(id: $id, input: $input)
-  }
-`);
-
-const DeleteContextPeriod = graphql(`
-  mutation DeleteTreasuryContextPeriod($id: ID!) {
-    deleteTreasuryContextPeriod(id: $id)
-  }
-`);
-
 /**
- * Members of the team or household, relations, contexts and their planned periods. A member is a contributor: adding one
- * also refreshes the contributors of the tasks and projects.
+ * Members of the team or household, relations, contexts (a new one is a kind of éphémérides of the calendar, lot 16).
+ * A member is a contributor: adding one also refreshes the contributors of the tasks and projects.
  * @returns {object} Mutations.
  */
 export function useTreasuryTeamMutations() {
@@ -595,13 +585,9 @@ export function useTreasuryTeamMutations() {
       async (variables: { id: string | null; input: { name: string; note: string | null; contributorId: string | null } }) => (await execute(SaveRelation, variables)).saveTreasuryRelation,
     ),
     deleteRelation: useTreasuryMutation(async (id: string) => (await execute(DeleteRelation, { id })).deleteTreasuryRelation),
-    saveContext: useTreasuryMutation(async (variables: { id: string | null; input: { label: string; color: string } }) => (await execute(SaveContext, variables)).saveTreasuryContext),
-    deleteContext: useTreasuryMutation(async (id: string) => (await execute(DeleteContext, { id })).deleteTreasuryContext),
-    saveContextPeriod: useTreasuryMutation(
-      async (variables: { id: string | null; input: { contextId: string; startDate: string; endDate: string; note: string | null } }) =>
-        (await execute(SaveContextPeriod, variables)).saveTreasuryContextPeriod,
-    ),
-    deleteContextPeriod: useTreasuryMutation(async (id: string) => (await execute(DeleteContextPeriod, { id })).deleteTreasuryContextPeriod),
+    saveContext: useInvalidatingMutation(async (variables: { id: string | null; input: { label: string; color: string } }) => (await execute(SaveContext, variables)).saveTreasuryContext, {
+      invalidate: [treasuryKey, calendarQueryKey],
+    }),
   };
 }
 

@@ -8,7 +8,7 @@ import {
   occurrenceDates,
   parseDay,
   parseOptionalDay,
-  plannedContext,
+  contextPlanner,
   splitAmounts,
   type TreasuryBudgetInput,
   treasuryBudgetSchema,
@@ -18,6 +18,8 @@ import { invoiceCategories } from '../accounting/company';
 import { parisToday } from '../../today';
 import type { TreasuryBudget } from '../../generated/prisma/client';
 import { parseInput } from '../../graphql/errors';
+import { assertContextsActive } from './treasury-contexts';
+import { contextEphemerides } from './treasury-team';
 import { storedRecurrence } from '../calendar/calendar-events';
 import { treasuryProjection } from './treasury';
 import { assertExists, deleteOrNotFound } from '../core/lookup';
@@ -58,7 +60,7 @@ async function budgetData(input: TreasuryBudgetInput, previous: TreasuryBudget |
   await assertActive(prisma.treasuryCategory, budget.categoryId, 'Catégorie', { keep: previous?.categoryId, field: 'categoryId' });
   await assertExists(prisma.contributor, budget.memberId, 'Membre');
   await assertActive(prisma.treasuryRelation, budget.relationId, 'Relation', { keep: previous?.relationId, field: 'relationId' });
-  await assertActive(prisma.treasuryContext, budget.contextId, 'Contexte', { keep: previous?.contextId, field: 'contextId' });
+  await assertContextsActive([budget.contextId], { keep: previous?.contextId, field: 'contextId' });
   return {
     month: parseDay(`${budget.month}-01`),
     memberId: budget.relationId ? null : budget.memberId,
@@ -112,13 +114,14 @@ export async function deleteBudget(id: string): Promise<void> {
  */
 export async function budgetReport(from: string, to: string, meId: string | null, today: string = parisToday()): Promise<BudgetReportRow[]> {
   const me = meId ?? 'me';
-  const [budgets, categories, periods] = await Promise.all([
+  const [budgets, categories, ephemerides] = await Promise.all([
     prisma.treasuryBudget.findMany({ where: { archivedAt: null, month: { lte: parseDay(`${to}-01`) } } }),
     prisma.treasuryCategory.findMany({ select: { id: true, parentId: true } }),
-    prisma.treasuryContextPeriod.findMany(),
+    contextEphemerides(),
   ]);
   const parentOf = new Map(categories.map((category) => [category.id, category.parentId]));
-  const planned = periods.map((period) => ({ contextId: period.contextId, startDate: formatDay(period.startDate), endDate: formatDay(period.endDate) }));
+  // The context of a day: that of its éphémérides (lot 16).
+  const planned = contextPlanner(ephemerides);
   const keyOf = (month: string, key: Key) => joinedKey(month, key.memberId, key.relationId, key.contextId, key.categoryId);
   /**
    * Who a budget or a line is for: its relation, or its member (the app user when none).
@@ -194,7 +197,7 @@ export async function budgetReport(from: string, to: string, meId: string | null
           !line.loan && add(line.date && kind === 'actual' ? formatDay(line.date) : day, { ...whom(line), contextId: line.contextId, categoryId: line.categoryId }, amounts[index], kind),
       );
       // What the lines leave, or the whole entry: the app user's, in the context planned that day.
-      add(day, { memberId: me, relationId: null, contextId: plannedContext(planned, day), categoryId: lines.length ? null : entry.categoryId }, remainder, kind);
+      add(day, { memberId: me, relationId: null, contextId: planned(day), categoryId: lines.length ? null : entry.categoryId }, remainder, kind);
     }
   }
   // What is expected of the invoices (due on final and imported ones, coming recurring ones) and credit notes, in
@@ -205,7 +208,7 @@ export async function budgetReport(from: string, to: string, meId: string | null
     for (const item of items) {
       if (item.kind === 'FORECAST' || item.kind === 'ACTUAL') continue;
       const categoryId = item.amount < 0 ? company.creditNoteCategoryId : company.invoiceCategoryId;
-      add(item.date, { memberId: me, relationId: null, contextId: plannedContext(planned, item.date), categoryId }, item.amount, 'forecast');
+      add(item.date, { memberId: me, relationId: null, contextId: planned(item.date), categoryId }, item.amount, 'forecast');
     }
   }
   return [...rows.values()].sort((a, b) => a.month.localeCompare(b.month) || Number(b.budgeted) - Number(a.budgeted));

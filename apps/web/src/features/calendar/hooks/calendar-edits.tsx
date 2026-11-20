@@ -3,7 +3,7 @@ import { changedScheduleSlot, type ScheduleSlotTime, type WorkScheduleRule } fro
 import { notifyFailure, notifySuccess, notifyWithUndo, ON_ERROR, onMutationError, toastCallbacks } from '../../../lib/notify';
 import { useRoutineMutations, type Routine } from '../../routines/api';
 import * as fmt from '../../../lib/format';
-import { useWorkScheduleMutations, type CalendarEventScope } from '../api';
+import { ruleScheduleInput, useWorkScheduleMutations, type CalendarEventScope } from '../api';
 import { askScope } from '../lib/ask-scope';
 import { fetchLostOnDelete } from '../../time/api';
 import { scopeLostNote } from '../../time/lib/lost-on-delete';
@@ -56,7 +56,7 @@ export function useCalendarEdits() {
       return revert?.();
     }
     update.mutate(
-      { id: schedule.id, input: { label: schedule.label, startDate: schedule.startDate, endDate: schedule.endDate, typeId: schedule.typeId ?? null, ...next } },
+      { id: schedule.id, input: ruleScheduleInput(schedule, next) },
       {
         ...toastCallbacks(scope === 'THIS' ? 'Exception ajoutée au créneau pour ce jour.' : change ? 'Créneau modifié.' : 'Horaires retirés du créneau.'),
         onError: (error) => {

@@ -1,4 +1,4 @@
-import { InlineActions } from '../actions/ActionsMenu';
+import { InlineActions, type RowMenuEntry } from '../actions/ActionsMenu';
 import { Group, Text, ThemeIcon } from '@mantine/core';
 import { ArchiveIcon, ArrowCounterClockwiseIcon, PencilSimpleIcon, PlusIcon, TagIcon, TrashIcon } from '@phosphor-icons/react';
 import { useEffect, type ReactNode } from 'react';
@@ -45,6 +45,8 @@ interface SettingsListProps<C extends SettingsItem, E extends object> extends Se
   storageKey?: string;
   /** Buttons of a row of the list of its own (export…), before the common ones. Optional. */
   renderActions?: (item: C) => ReactNode;
+  /** Entries of the « … » menu of a row of its own (a conversion…), before « Supprimer ». Optional. */
+  menuItems?: (item: C) => readonly RowMenuEntry[];
   /** Buttons of the header of the list of its own, before « Ajouter ». Optional. */
   headerActions?: ReactNode;
   /** Why an item cannot be deleted (the last calendar…); nothing: it can. Optional. */
@@ -92,6 +94,7 @@ export function SettingsList<C extends SettingsItem, E extends object = Record<s
   deleteMessage,
   storageKey,
   renderActions,
+  menuItems,
   headerActions,
   undeletable,
   loading = false,
@@ -268,6 +271,7 @@ export function SettingsList<C extends SettingsItem, E extends object = Record<s
                     // In the « … » menu, never a button (decision DJ).
                     inMenu: true,
                   },
+                  ...(menuItems?.(category) ?? []),
                   {
                     label: 'Supprimer',
                     icon: <TrashIcon aria-hidden />,

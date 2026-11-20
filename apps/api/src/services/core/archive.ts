@@ -137,7 +137,7 @@ export async function assertNoneArchived(target: ArchivableKind | ArchivableMode
  * @param {ChosenOptions['keep']} keep Values already there. Optional.
  * @returns {Set<string>} Their ids.
  */
-function keptIds(keep: ChosenOptions['keep']): Set<string> {
+export function keptIds(keep: ChosenOptions['keep']): Set<string> {
   return new Set((typeof keep === 'string' ? [keep] : (keep ?? [])).filter((id): id is string => Boolean(id)));
 }
 

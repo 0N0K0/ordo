@@ -6,8 +6,18 @@ import { ItemAvatar } from '../../../components/items/ItemAvatar';
 import * as fmt from '../../../lib/format';
 import { EmptyState } from '../../../components/feedback/EmptyState';
 import { Badge, Fieldset, Group, Stack, Text, TextInput, Tooltip } from '@mantine/core';
-import { mapById, DEFAULT_SCHEDULE_KIND_LABEL, readScheduleCases, readScheduleExceptions, type ScheduleCase, type ScheduleException, type WorkScheduleInput, workScheduleSchema } from '@ordo/shared';
-import { ClockIcon, PencilSimpleIcon, PlusIcon } from '@phosphor-icons/react';
+import {
+  mapById,
+  DEFAULT_SCHEDULE_KIND_LABEL,
+  readScheduleCases,
+  readScheduleExceptions,
+  type ScheduleCase,
+  type ScheduleException,
+  type WorkScheduleInput,
+  wholeDaysCase,
+  workScheduleSchema,
+} from '@ordo/shared';
+import { CalendarStarIcon, ClockIcon, PencilSimpleIcon, PlusIcon } from '@phosphor-icons/react';
 import { useQueryClient } from '@tanstack/react-query';
 import { cachedItem } from '../../../lib/mutation';
 import type { WorkSchedulesQuery } from '../../../graphql/graphql';
@@ -29,7 +39,9 @@ import { calendarQueryKey, useDefaultScheduleKind, useScheduleTypes, useWorkSche
 import { archiveEntry, useSetArchived } from '../../../lib/archive';
 import { ArchivedBadge } from '../../../components/feedback/ArchivedBadge';
 import { ScheduleRepetition } from './ScheduleRepetition';
-import { describeScheduleCase, exceptionPeriod, newScheduleCase, schedulesTitle } from '../lib/schedule-text';
+import { describeScheduleCase, EPHEMERIDES_TITLE, exceptionPeriod, newScheduleCase, schedulesTitle } from '../lib/schedule-text';
+import { EPHEMERIS_COLOR } from '../lib/calendar-events';
+import { useScheduleConversion } from '../hooks/use-schedule-conversion';
 import { Comments } from '../../comments/components/Comments';
 import { useCommentCounts } from '../../comments/api';
 import { commentColumn } from '../../comments/lib/comment-column';
@@ -48,6 +60,7 @@ interface ScheduleValues extends Record<string, unknown> {
   cases: ScheduleCase[];
   exceptions: ScheduleException[];
   typeId: string | null;
+  ephemeris: boolean;
 }
 
 /**
@@ -63,27 +76,47 @@ const scheduleInputOf = (schedule: WorkSchedule): ScheduleValues => ({
   cases: readScheduleCases(schedule.cases, schedule.startDate),
   exceptions: readScheduleExceptions(schedule.exceptions),
   typeId: schedule.typeId ?? null,
+  ephemeris: schedule.ephemeris,
 });
+
+/**
+ * Words of the schedules of a nature (lot 16): créneaux, or éphémérides.
+ * @param {boolean} ephemeris Éphémérides.
+ * @param {boolean} perso Personal workspace (its créneaux are not « de travail »).
+ * @returns {object} Words.
+ */
+const wordsOf = (ephemeris: boolean, perso: boolean) =>
+  ephemeris
+    ? { title: EPHEMERIDES_TITLE, one: 'éphéméride', many: 'éphémérides', type: 'Éphéméride', create: 'Nouvel éphéméride', created: 'Éphéméride créé.', copied: 'Éphéméride dupliqué.', empty: 'Aucun éphéméride.', newType: 'Nouveau type d’éphémérides' }
+    : { title: schedulesTitle(perso), one: 'créneau', many: 'créneaux', type: 'Créneau', create: 'Nouveaux créneaux', created: 'Créneaux créés.', copied: 'Créneaux dupliqués.', empty: 'Aucun créneau.', newType: 'Nouveau type de créneau' };
 
 /**
  * Schedule form: label, kind, period, its cases (days and hours), and exceptions (a period with cases of its own,
  * edited the same way, or none: a pause). Rhythms ("every n weeks"…) are offered only when the period is long enough.
  * New schedules are created by its button; an existing one is saved field by field (decision D22, the whole schedule
  * each time; occurrences of routines a change makes disappear confirmed first, declined: put back), read only once
- * archived.
- * @param {{ schedule?: WorkSchedule, onDone: () => void }} props Component props.
+ * archived. An éphéméride (lot 16) is the same form, its kinds those of éphémérides; a new one lasts today, the whole
+ * day.
+ * @param {{ schedule?: WorkSchedule, ephemeris: boolean, onDone: () => void }} props Component props.
  * @returns {JSX.Element} Form.
  */
-function ScheduleForm({ schedule, onDone }: { schedule?: WorkSchedule; onDone: () => void }) {
+function ScheduleForm({ schedule, ephemeris, onDone }: { schedule?: WorkSchedule; ephemeris: boolean; onDone: () => void }) {
   const { create, update } = useWorkScheduleMutations();
-  const typeItems = useScheduleTypeItems();
-  const { data: types } = useScheduleTypes();
+  const typeItems = useScheduleTypeItems({ ephemeris });
+  const { data: allTypes } = useScheduleTypes();
+  const types = (allTypes ?? []).filter((type) => type.ephemeris === ephemeris);
   const { data: defaultKind } = useDefaultScheduleKind();
+  const { perso } = useActiveWorkspace();
+  const words = wordsOf(ephemeris, perso);
   const { data: schedules } = useWorkSchedules();
   const current = schedule && (schedules?.find((item) => item.id === schedule.id) ?? schedule);
   const readOnly = Boolean(current?.archived);
   const base = useAppForm<ScheduleValues>({
-    initialValues: schedule ? scheduleInputOf(schedule) : { label: 'Semaine type', startDate: localToday(), endDate: null, cases: [newScheduleCase(localToday())], exceptions: [], typeId: null },
+    initialValues: schedule
+      ? scheduleInputOf(schedule)
+      : ephemeris
+        ? { label: '', startDate: localToday(), endDate: localToday(), cases: [wholeDaysCase()], exceptions: [], typeId: null, ephemeris: true }
+        : { label: 'Semaine type', startDate: localToday(), endDate: null, cases: [newScheduleCase(localToday())], exceptions: [], typeId: null, ephemeris: false },
     schema: workScheduleSchema,
   });
   const { form, saving } = useFieldSave(base, {
@@ -100,7 +133,7 @@ function ScheduleForm({ schedule, onDone }: { schedule?: WorkSchedule; onDone: (
         noValidate
         // A new schedule only: an existing one is saved field by field (Enter saves the text typed).
         onSubmit={form.onSubmit(
-          (input) => create.mutate(input, formCallbacks(form, 'Créneaux créés.', onDone)),
+          (input) => create.mutate(input, formCallbacks(form, words.created, onDone)),
           // An error on a field without input (a case, an exception…) is told.
           (errors) => {
             const message = Object.values(errors).find(Boolean);
@@ -112,14 +145,14 @@ function ScheduleForm({ schedule, onDone }: { schedule?: WorkSchedule; onDone: (
           <Stack gap="md">
             {schedule && !readOnly && <SaveStatus saving={saving} />}
             <Group grow align="flex-start">
-              <TextInput label="Libellé" required data-autofocus {...form.getInputProps('label')} />
+              <TextInput label="Libellé" required data-autofocus placeholder={ephemeris ? 'Vacances, Noël, Anniversaire de Léa…' : undefined} {...form.getInputProps('label')} />
               <CreatableSelect
                 label="Type"
-                placeholder={defaultKind?.label ?? DEFAULT_SCHEDULE_KIND_LABEL}
+                placeholder={ephemeris ? NO_KIND_LABEL : (defaultKind?.label ?? DEFAULT_SCHEDULE_KIND_LABEL)}
                 clearable
                 searchable
-                onCreate={itemCreator('Nouveau type de créneau', typeItems)}
-                {...itemSelectProps(types ?? [], form.values.typeId, undefined, schedule?.typeId)}
+                onCreate={itemCreator(words.newType, typeItems)}
+                {...itemSelectProps(types, form.values.typeId, undefined, schedule?.typeId)}
                 {...form.getInputProps('typeId')}
               />
             </Group>
@@ -150,6 +183,8 @@ const STATE_ORDER: Record<ScheduleState, number> = { CURRENT: 0, UPCOMING: 1, PA
 type ScheduleRow = { schedule: WorkSchedule; state: ScheduleState; exceptions: ReturnType<typeof readScheduleExceptions> };
 /** Kind filter value of the schedules without kind. */
 const NO_KIND = 'none';
+/** Kind of the éphémérides without kind (there is no default kind of éphémérides). */
+const NO_KIND_LABEL = 'Sans type';
 
 /**
  * State of a schedule on a day: current, upcoming or past.
@@ -175,16 +210,22 @@ function ScheduleHours({ schedule }: { schedule: { cases: unknown; startDate: st
 }
 
 /**
- * Planned time slots: the schedules in a table to search, filter (kind, state) and sort; create, edit, archive,
- * restore, delete. Archived ones (hidden unless the view includes them) are read only, still followed by the routines
- * using them.
+ * Planned time slots: the schedules in a table to search, filter (kind, state) and sort; create, edit, « Dupliquer »,
+ * convert (lot 16), archive, restore, delete. Archived ones (hidden unless the view includes them) are read only,
+ * still followed by the routines using them.
  * Their kinds and the subscriptions are in the settings of the calendar. They show in the calendar; in a
- * professional workspace, they are the working hours (compared with the timers, events outside them told).
+ * professional workspace, they are the working hours (compared with the timers, events outside them told). The
+ * éphémérides (lot 16: holidays, birthdays…) are the same table apart, of their own kinds, out of the free time and
+ * of the working hours.
+ * @param {{ ephemeris?: boolean }} [props] Component props: the éphémérides instead of the créneaux. Optional.
  * @returns {JSX.Element} Manager.
  */
-export function WorkSchedulesManager() {
-  const { data: schedules } = useWorkSchedules();
-  const { data: types } = useScheduleTypes();
+export function WorkSchedulesManager({ ephemeris = false }: { ephemeris?: boolean }) {
+  const { data: allSchedules } = useWorkSchedules();
+  const schedules = allSchedules?.filter((schedule) => schedule.ephemeris === ephemeris);
+  const { data: allTypes } = useScheduleTypes();
+  const types = allTypes?.filter((type) => type.ephemeris === ephemeris);
+  const convert = useScheduleConversion();
   const { data: defaultKind } = useDefaultScheduleKind();
   const { create, remove, update } = useWorkScheduleMutations();
   const queryClient = useQueryClient();
@@ -208,18 +249,19 @@ export function WorkSchedulesManager() {
     update.mutate({ id: schedule.id, input }, ON_ERROR);
   };
   const { perso } = useActiveWorkspace();
+  const words = wordsOf(ephemeris, perso);
   /**
    * Opens the form of a schedule in a side panel: a new one, or one to edit.
    * @param {{ schedule?: WorkSchedule }} [target] Schedule to edit. Optional. Default = a new one.
    * @returns {void}
    */
   const openForm = ({ schedule }: { schedule?: WorkSchedule } = {}) => {
-    openFormPanel(schedule ? `Modifier « ${schedule.label} »` : 'Nouveaux créneaux', (close) => <ScheduleForm schedule={schedule} onDone={close} />, 'lg');
+    openFormPanel(schedule ? `Modifier « ${schedule.label} »` : words.create, (close) => <ScheduleForm schedule={schedule} ephemeris={schedule?.ephemeris ?? ephemeris} onDone={close} />, 'lg');
   };
   /** « Dupliquer » a schedule (decision D20): saved at once with its dates, cases and type, without its exceptions, then its form opens. */
   const duplicateSchedule: DuplicateOptions<WorkSchedule, string> = {
     duplicate: (schedule) => create.mutateAsync({ ...scheduleInputOf(schedule), label: copyName(schedule.label), exceptions: [] }),
-    done: 'Créneaux dupliqués.',
+    done: words.copied,
     open: (id) => {
       const copy = cachedItem(queryClient, [...calendarQueryKey, 'work-schedules'], id, (data: WorkSchedulesQuery) => data.workSchedules);
       if (copy) openForm({ schedule: copy });
@@ -233,17 +275,19 @@ export function WorkSchedulesManager() {
    */
   const deleteSchedules = (rows: ScheduleRow[], clear?: () => void) =>
     deleteItemsAction(rows, {
-      noun: 'créneau',
-      many: 'créneaux',
-      the: 'le créneau',
+      noun: words.one,
+      many: words.many,
+      the: `l${ephemeris ? '’' : 'e '}${words.one}`,
       label: ({ schedule }) => schedule.label,
       risks: (subject, one) =>
-        `${subject} et ${one ? 'ses' : 'leurs'} exceptions seront supprimés définitivement${perso ? '' : ` : ${one ? 'il ne comptera' : 'ils ne compteront'} plus dans le temps prévu`}. Les autres espaces abonnés ne ${one ? 'le' : 'les'} verront plus. Les évènements ne sont pas touchés.`,
+        `${subject} et ${one ? 'ses' : 'leurs'} exceptions seront supprimés définitivement${perso || ephemeris ? '' : ` : ${one ? 'il ne comptera' : 'ils ne compteront'} plus dans le temps prévu`}. Les autres espaces abonnés ne ${one ? 'le' : 'les'} verront plus. Les évènements ne sont pas touchés.`,
       remove: ({ schedule }) => remove.mutateAsync(schedule.id),
       clear,
     });
-  const typeById = mapById(types ?? []);
-  const defaultLabel = defaultKind?.label ?? DEFAULT_SCHEDULE_KIND_LABEL;
+  const typeById = mapById(allTypes ?? []);
+  // Without kind: the working hours for the créneaux, no kind for the éphémérides.
+  const defaultLabel = ephemeris ? NO_KIND_LABEL : (defaultKind?.label ?? DEFAULT_SCHEDULE_KIND_LABEL);
+  const defaultColor = ephemeris ? EPHEMERIS_COLOR : (defaultKind?.color ?? null);
   const today = localToday();
   const kindLabel = (schedule: WorkSchedule) => (schedule.typeId ? (typeById.get(schedule.typeId)?.label ?? '') : defaultLabel);
   const scheduleComments = useCommentCounts(
@@ -309,12 +353,12 @@ export function WorkSchedulesManager() {
   ];
   const rows = (schedules ?? []).map((schedule) => ({ schedule, state: scheduleState(schedule, today), exceptions: readScheduleExceptions(schedule.exceptions) }));
   const view = useDataView({
-    tableKey: 'work-schedules',
+    tableKey: ephemeris ? 'ephemerides' : 'work-schedules',
     getKey: ({ schedule }) => schedule.id,
     columns,
     rows,
     archived: ({ schedule }) => schedule.archived,
-    title: schedulesTitle(perso),
+    title: words.title,
     first: [{ label: 'Toutes', config: { sorting: [{ id: 'start', desc: true }] } }],
   });
   const cellLabelOf = bulkCellLabels(view, (row) => row.schedule.label);
@@ -324,29 +368,31 @@ export function WorkSchedulesManager() {
     <Stack gap="md">
       <SectionHeader
         description={
-          perso
-            ? 'Vos créneaux prévus, affichées dans l’agenda. Leurs types et leur affichage sont dans les paramètres de l’agenda.'
-            : 'Vos créneaux de travail prévus : affichées dans l’agenda, comparées au temps chronométré, et signalées quand un évènement tombe en dehors.'
+          ephemeris
+            ? 'Vacances, jours fériés, anniversaires… : affichés dans l’agenda, ils comptent dans les conditions de créneaux qui les citent, jamais dans le temps libre ni les heures de travail. Leurs types (dont les contextes du budget) sont dans les paramètres de l’agenda.'
+            : perso
+              ? 'Vos créneaux prévus, affichées dans l’agenda. Leurs types et leur affichage sont dans les paramètres de l’agenda.'
+              : 'Vos créneaux de travail prévus : affichées dans l’agenda, comparées au temps chronométré, et signalées quand un évènement tombe en dehors.'
         }
         actions={
           <ActionButton icon={<PlusIcon aria-hidden />} onClick={() => openForm()}>
-            Nouveaux créneaux
+            {words.create}
           </ActionButton>
         }
       />
       {!schedules?.length ? (
-        <EmptyState icon={<ClockIcon aria-hidden />} message="Aucun créneau." />
+        <EmptyState icon={ephemeris ? <CalendarStarIcon aria-hidden /> : <ClockIcon aria-hidden />} message={words.empty} />
       ) : (
         <DataTable
           view={view}
           bar={{ searchLabel: 'Rechercher (libellé, type, exception)…' }}
-          selectionLabel={(count) => selectedLabel(count, ['créneau', 'créneaux'], false)}
+          selectionLabel={(count) => selectedLabel(count, [words.one, words.many], false)}
           isArchived={({ schedule }) => schedule.archived}
           selectionActions={(rows, clear) => [
             archiveRowsAction({
               archived: rows.every(({ schedule }) => schedule.archived),
               apply: (archived) => setArchived.mutateAsync({ ids: rows.map(({ schedule }) => schedule.id), archived }),
-              label: countOf(rows.length, 'créneau', 'créneaux'),
+              label: countOf(rows.length, words.one, words.many),
               count: rows.length,
               loading: setArchived.isPending,
               clear,
@@ -359,7 +405,7 @@ export function WorkSchedulesManager() {
           cells={(row) => {
             const { schedule, state: rowState, exceptions } = row;
             const type = schedule.typeId ? typeById.get(schedule.typeId) : undefined;
-            const color = type?.color ?? defaultKind?.color ?? 'var(--mantine-color-green-6)';
+            const color = type?.color ?? defaultColor ?? 'var(--mantine-color-green-6)';
             const typeLabel = type?.label ?? defaultLabel;
             // Archived: read only.
             if (schedule.archived) {
@@ -394,7 +440,7 @@ export function WorkSchedulesManager() {
                   value={schedule.typeId ?? NO_KIND}
                   label={cellLabelOf('type', row, 'Type')}
                   leftSection={<ItemAvatar name={typeLabel} iconUrl={type?.iconUrl} color={color} />}
-                  {...listSelectProps([{ id: NO_KIND, label: defaultLabel, color: defaultKind?.color ?? null, archived: false }, ...(types ?? [])], undefined, schedule.typeId)}
+                  {...listSelectProps([{ id: NO_KIND, label: defaultLabel, color: defaultColor, archived: false }, ...(types ?? [])], undefined, schedule.typeId)}
                   onSave={(typeId) => typeId && bulk('type')(row, { typeId: typeId === NO_KIND ? null : typeId })}
                 />
               ),
@@ -459,7 +505,8 @@ export function WorkSchedulesManager() {
                 primary={!schedule.archived && { label: 'Modifier', icon: <PencilSimpleIcon aria-hidden />, onClick: () => openForm({ schedule }) }}
                 items={[
                   !schedule.archived && rowMenuEntry(duplicateRowsAction([schedule], duplicateSchedule)),
-                  archiveEntry({ archived: schedule.archived, type: 'Créneau', label: schedule.label }, setArchived, schedule.id),
+                  !schedule.archived && convert.schedule(schedule, schedule.typeId ? typeById.get(schedule.typeId) : undefined),
+                  archiveEntry({ archived: schedule.archived, type: words.type, label: schedule.label }, setArchived, schedule.id),
                   rowMenuEntry(deleteSchedules([row])),
                 ]}
               />

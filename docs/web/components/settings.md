@@ -67,6 +67,7 @@ Props (en plus du `SettingsItemKind`) :
 | `renderBadges?`, `renderActions?`, `headerActions?` | Badges après le nom, boutons propres d’une ligne (export…), boutons de l’en-tête avant « Ajouter ».                                           |
 | `deleteMessage?(item, path)`                        | Message de suppression à la place du message par défaut.                                                                                      |
 | `storageKey?`                                       | Clé des plis mémorisés.                                                                                                                       |
+| `menuItems?(item)`                                  | Entrées propres du menu « … » d’une ligne (une conversion…), avant « Supprimer » (`RowMenuEntry[]`).                                         |
 | `undeletable?(item)`                                | Raison pour laquelle un élément ne peut pas être supprimé (« le dernier agenda »…) : « Supprimer » désactivé avec cette raison en infobulle.  |
 | `loading?`                                          | Squelette (`ListSkeleton`, 3 lignes).                                                                                                         |
 | `withParent?`, `canMove?(item, parentId)`           | Choix du parent dans le formulaire ; dépôts permis.                                                                                           |

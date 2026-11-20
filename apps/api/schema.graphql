@@ -305,7 +305,6 @@ enum ArchivableKind {
   TREASURY_ACCOUNT
   TREASURY_BUDGET
   TREASURY_CATEGORY
-  TREASURY_CONTEXT
   TREASURY_COUNTERPARTY
   TREASURY_ENTRY
   TREASURY_PAYMENT_METHOD
@@ -999,6 +998,9 @@ type ForeignScheduleKind {
   customized: Boolean!
   dayBar: Boolean!
   dayDisplay: String!
+
+  """A kind of éphémérides."""
+  ephemeris: Boolean!
   label: String!
   monthDisplay: String!
   scheduleCount: Int!
@@ -1025,13 +1027,18 @@ type ForeignWorkSchedule {
   dayBar: Boolean!
   dayDisplay: String!
   endDate: String
+
+  """An éphéméride, not a créneau."""
+  ephemeris: Boolean!
   exceptions: JSON!
   id: ID!
   label: String!
   monthDisplay: String!
   startDate: String!
 
-  """Kind in its workspace; none: its working hours."""
+  """
+  Kind in its workspace; none: its working hours (or, an éphéméride, no kind).
+  """
   typeId: ID
   typeLabel: String
   workspaceId: ID!
@@ -1898,10 +1905,6 @@ type Mutation {
   """Deletes a budget and its repetitions."""
   deleteTreasuryBudget(id: ID!): Boolean!
   deleteTreasuryCategory(id: ID!): Boolean!
-
-  """Deletes a context and its periods; its lines become everyday spending."""
-  deleteTreasuryContext(id: ID!): Boolean!
-  deleteTreasuryContextPeriod(id: ID!): Boolean!
   deleteTreasuryCounterparty(id: ID!): Boolean!
   deleteTreasuryEntry(id: ID!): Boolean!
   deleteTreasuryPaymentMethod(id: ID!): Boolean!
@@ -2152,13 +2155,10 @@ type Mutation {
   """Creates a budget (without id), or changes one and its repetitions."""
   saveTreasuryBudget(id: ID, input: TreasuryBudgetInput!): ID!
 
-  """Creates a context (without id) or changes one."""
+  """
+  Creates a context (without id: a kind of éphémérides « Sert de contexte au budget ») or changes one (its kind, of this workspace).
+  """
   saveTreasuryContext(id: ID, input: LabelColorInput!): ID!
-
-  """
-  Plans a context between two days (without id), or changes a period. Lines already saved keep their context.
-  """
-  saveTreasuryContextPeriod(id: ID, input: TreasuryContextPeriodInput!): ID!
 
   """Creates a relation (without id) or changes one."""
   saveTreasuryRelation(id: ID, input: TreasuryRelationInput!): ID!
@@ -2255,6 +2255,18 @@ type Mutation {
   setScheduleSubscriptionLook(input: ScheduleSubscriptionLookInput!, typeId: ID, workspaceId: ID!): Boolean!
 
   """
+  Turns a whole kind (its schedules with it, ids kept) into a kind of éphémérides or back into a kind of créneaux; the occurrences of routines it makes disappear lose their comments, once confirmed.
+  """
+  setScheduleTypeEphemeris(
+    """
+    Occurrences made to disappear with their comments or times are confirmed: false (default) refuses with CONFIRMATION_REQUIRED and extension lost { times, comments } when there are some; true deletes them.
+    """
+    confirmLoss: Boolean
+    ephemeris: Boolean!
+    id: ID!
+  ): Boolean!
+
+  """
   Changes the color and / or the image of an item of a settings list; gives the URL of its image.
   """
   setSettingsItemLook(id: ID!, input: SettingsItemLookInput!, kind: SettingsListKind!): String
@@ -2282,6 +2294,18 @@ type Mutation {
   """
   setTasksClosed(closed: Boolean!, ids: [ID!]!): Boolean!
   setTimerPaused(paused: Boolean!): TimeEntry!
+
+  """
+  Turns a schedule into an éphéméride or back into a créneau (its id kept; a kind of the other nature left); the occurrences of routines it makes disappear lose their comments, once confirmed.
+  """
+  setWorkScheduleEphemeris(
+    """
+    Occurrences made to disappear with their comments or times are confirmed: false (default) refuses with CONFIRMATION_REQUIRED and extension lost { times, comments } when there are some; true deletes them.
+    """
+    confirmLoss: Boolean
+    ephemeris: Boolean!
+    id: ID!
+  ): Boolean!
 
   """
   Chooses the notifications a workspace still gives while another one is open.
@@ -2935,7 +2959,15 @@ type Query {
   treasuryBudgetReport(from: String!, to: String!): [TreasuryBudgetReportRow!]!
   treasuryBudgets: [TreasuryBudget!]!
   treasuryCategories: [TreasuryCategory!]!
-  treasuryContextPeriods: [TreasuryContextPeriod!]!
+
+  """
+  Éphémérides of the kinds of the contexts (archived ones too): their periods.
+  """
+  treasuryContextEphemerides: [TreasuryContextEphemeris!]!
+
+  """
+  Contexts of this workspace (its kinds « Sert de contexte au budget », and those shared by the other workspaces), in the order of their kinds.
+  """
   treasuryContexts: [TreasuryContext!]!
   treasuryCounterparties: [TreasuryCounterparty!]!
 
@@ -3480,6 +3512,11 @@ Kind of time slots ("Travail", "Garde des enfants"…), with its color in the ca
 type ScheduleType {
   """Archived: hidden by default, read only."""
   archived: Boolean!
+
+  """
+  Éphémérides only: a context of the treasury, its éphémérides its periods.
+  """
+  budgetContext: Boolean!
   color: String!
 
   """A bar at the top of the week and the day on each day with slots."""
@@ -3490,6 +3527,9 @@ type ScheduleType {
   """
   dayDisplay: String!
 
+  """A kind of éphémérides (holidays, birthdays…), not of créneaux."""
+  ephemeris: Boolean!
+
   """Image shown as its avatar (none: its initials on its color)."""
   iconUrl: String
   id: ID!
@@ -3498,14 +3538,27 @@ type ScheduleType {
   """Its days in the month: BACKGROUND, BORDER or NONE."""
   monthDisplay: String!
   position: Int!
+
+  """A context in every workspace of the user."""
+  sharedContext: Boolean!
 }
 
 input ScheduleTypeInput {
+  """Éphémérides only: « Sert de contexte au budget »."""
+  budgetContext: Boolean
   color: String!
   dayBar: Boolean!
   dayDisplay: String!
+
+  """
+  A kind of éphémérides; set at its creation only (a conversion changes it).
+  """
+  ephemeris: Boolean
   label: String!
   monthDisplay: String!
+
+  """Budget context only: « Partagé entre espaces »."""
+  sharedContext: Boolean
 }
 
 """Mail waiting to be sent at its time (or failed)."""
@@ -3577,7 +3630,6 @@ enum SettingsListKind {
   TASK_TYPE
   TREASURY_ACCOUNT
   TREASURY_CATEGORY
-  TREASURY_CONTEXT
   TREASURY_COUNTERPARTY
   TREASURY_PAYMENT_METHOD
 }
@@ -4685,36 +4737,36 @@ input TreasuryCategoryInput {
 }
 
 """
-Context of spending (not in a tree); a line without context is everyday spending.
+Context of spending (not in a tree; a line without context is everyday spending): a kind of éphémérides « Sert de contexte au budget », whose label, color, image, position and archiving it has.
 """
 type TreasuryContext {
-  """Archived: hidden by default, read only."""
+  """Its kind is archived."""
   archived: Boolean!
   color: String!
 
-  """Image shown as its avatar (none: its initials on its color)."""
+  """Image of its kind (none: its initials on its color)."""
   iconUrl: String
   id: ID!
   label: String!
   position: Int!
+
+  """Kind of éphémérides it is."""
+  scheduleTypeId: ID!
+
+  """
+  Workspace of a kind shared by another workspace; none: a kind of this one.
+  """
+  workspaceLabel: String
 }
 
 """
-Period a context is planned for: it is proposed to the lines of the entries dated in it.
+Éphéméride of the kind of a context: one of its periods (the lines dated on its days get the context proposed).
 """
-type TreasuryContextPeriod {
+type TreasuryContextEphemeris {
   contextId: ID!
-  endDate: Date!
-  id: ID!
-  note: String
-  startDate: Date!
-}
 
-input TreasuryContextPeriodInput {
-  contextId: ID!
-  endDate: Date!
-  note: String
-  startDate: Date!
+  """The éphéméride (of another workspace for a shared context)."""
+  schedule: WorkSchedule!
 }
 
 type TreasuryCounterparty {
@@ -5051,13 +5103,18 @@ type WorkSchedule {
   cases: JSON!
   endDate: Date
 
+  """An éphéméride, not a créneau (that of its kind when it has one)."""
+  ephemeris: Boolean!
+
   """Exceptions: { from, to, label, cases }."""
   exceptions: JSON!
   id: ID!
   label: String!
   startDate: Date!
 
-  """Kind of time it plans; none: working hours."""
+  """
+  Kind of time it plans; none: working hours (or, an éphéméride, no kind).
+  """
   typeId: ID
 }
 
@@ -5066,12 +5123,19 @@ input WorkScheduleInput {
   cases: JSON!
   endDate: Date
 
+  """
+  Without kind: an éphéméride, not a créneau (with one: that of its kind).
+  """
+  ephemeris: Boolean
+
   """Exceptions: { from, to, label, cases }."""
   exceptions: JSON!
   label: String!
   startDate: Date!
 
-  """Kind of time it plans; none: working hours."""
+  """
+  Kind of time it plans; none: working hours (or, an éphéméride, no kind).
+  """
   typeId: ID
 }
 

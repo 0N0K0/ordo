@@ -13,6 +13,7 @@ import { DIMENSION_LABELS, measureLabel, periodLabel, periodRange, type ChartDat
 import { sprintTaskKey, useSprintTaskStatuses } from '../api';
 import { datasetParts, mergeDatasets } from './datasets';
 import { documentChartData, treasuryChartData } from './finance-records';
+import { settingsContextEphemerides } from '../../treasury/lib/lines';
 import { taskChartData, type SprintView } from './task-records';
 
 const BUCKET_LABELS: Record<ChartConfig['bucket'], string> = {
@@ -176,7 +177,7 @@ export function useChartData(config: ChartConfig, scope: ChartScope, context: Ta
           members: treasurySettings.data.treasuryMembers,
           relations: treasurySettings.data.treasuryRelations,
           contexts: treasurySettings.data.treasuryContexts,
-          periods: treasurySettings.data.treasuryContextPeriods,
+          ephemerides: settingsContextEphemerides(treasurySettings.data, true),
           projection: projection.data ?? null,
           accounts: accounts.data,
           config: partConfig,

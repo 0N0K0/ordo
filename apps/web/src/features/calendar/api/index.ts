@@ -15,11 +15,14 @@ import type {
 import { execute, executeIn } from '../../../lib/graphql-client';
 import { withLossConfirmation } from '../../time/lib/confirm-loss';
 import { routinesKey } from '../../routines/api';
+import { treasuryKey } from '../../treasury/api';
 import { archivedIds, unarchived } from '../../../lib/archive';
 
 export type EventOccurrence = CalendarEventOccurrenceFieldsFragment;
 export type WorkSchedule = WorkSchedulesQuery['workSchedules'][number];
 export type ScheduleType = WorkSchedulesQuery['scheduleTypes'][number];
+/** Fields of a kind saved: label, color, display; nature (at its creation) and budget fields (lot 16). */
+export type ScheduleTypeFields = { label: string; color: string } & ScheduleDisplay & { ephemeris?: boolean; budgetContext?: boolean; sharedContext?: boolean };
 export type { CalendarEventInput, CalendarEventScope };
 
 graphql(`
@@ -88,6 +91,7 @@ const WorkSchedulesDocument = graphql(`
       startDate
       endDate
       typeId
+      ephemeris
       cases
       exceptions
     }
@@ -100,6 +104,9 @@ const WorkSchedulesDocument = graphql(`
       dayDisplay
       dayBar
       monthDisplay
+      ephemeris
+      budgetContext
+      sharedContext
       position
     }
     defaultScheduleKind {
@@ -128,6 +135,7 @@ const ForeignScheduleKindsDocument = graphql(`
       scheduleCount
       subscribed
       archived
+      ephemeris
     }
   }
 `);
@@ -143,6 +151,7 @@ const SubscribedSchedulesDocument = graphql(`
       exceptions
       typeLabel
       typeId
+      ephemeris
       color
       dayDisplay
       dayBar
@@ -164,6 +173,7 @@ const OtherWorkspaceSchedulesDocument = graphql(`
       cases
       exceptions
       typeId
+      ephemeris
       workspaceId
       workspaceLabel
     }
@@ -227,6 +237,18 @@ const CreateWorkScheduleDocument = graphql(`
 const UpdateWorkScheduleDocument = graphql(`
   mutation UpdateWorkSchedule($id: ID!, $input: WorkScheduleInput!, $confirmLoss: Boolean) {
     updateWorkSchedule(id: $id, input: $input, confirmLoss: $confirmLoss)
+  }
+`);
+
+const SetWorkScheduleEphemerisDocument = graphql(`
+  mutation SetWorkScheduleEphemeris($id: ID!, $ephemeris: Boolean!, $confirmLoss: Boolean) {
+    setWorkScheduleEphemeris(id: $id, ephemeris: $ephemeris, confirmLoss: $confirmLoss)
+  }
+`);
+
+const SetScheduleTypeEphemerisDocument = graphql(`
+  mutation SetScheduleTypeEphemeris($id: ID!, $ephemeris: Boolean!, $confirmLoss: Boolean) {
+    setScheduleTypeEphemeris(id: $id, ephemeris: $ephemeris, confirmLoss: $confirmLoss)
   }
 `);
 
@@ -643,13 +665,23 @@ export function useWorkScheduleMutations() {
       [routinesKey],
     ),
     remove: useCalendarMutation(async (id: string) => withLossConfirmation(async (confirmLoss) => (await execute(DeleteWorkScheduleDocument, { id, confirmLoss })).deleteWorkSchedule), [routinesKey]),
-    createType: useCalendarMutation(async (input: { label: string; color: string } & ScheduleDisplay) => (await execute(CreateScheduleTypeDocument, { input })).createScheduleType),
-    updateType: useCalendarMutation(
-      async (variables: { id: string; input: { label: string; color: string } & ScheduleDisplay }) => (await execute(UpdateScheduleTypeDocument, variables)).updateScheduleType,
-    ),
+    // A kind of éphémérides may be a context of the treasury (lot 16): its contexts follow it.
+    createType: useCalendarMutation(async (input: ScheduleTypeFields) => (await execute(CreateScheduleTypeDocument, { input })).createScheduleType, [treasuryKey]),
+    updateType: useCalendarMutation(async (variables: { id: string; input: ScheduleTypeFields }) => (await execute(UpdateScheduleTypeDocument, variables)).updateScheduleType, [treasuryKey]),
     removeType: useCalendarMutation(
       async (id: string) => withLossConfirmation(async (confirmLoss) => (await execute(DeleteScheduleTypeDocument, { id, confirmLoss })).deleteScheduleType),
-      [routinesKey],
+      [routinesKey, treasuryKey],
+    ),
+    // « Convertir en éphéméride(s) » / « Convertir en créneau(x) » (lot 16): ids kept; occurrences of routines lost confirmed first.
+    setEphemeris: useCalendarMutation(
+      async (variables: { id: string; ephemeris: boolean }) =>
+        withLossConfirmation(async (confirmLoss) => (await execute(SetWorkScheduleEphemerisDocument, { ...variables, confirmLoss })).setWorkScheduleEphemeris),
+      [routinesKey, treasuryKey],
+    ),
+    setTypeEphemeris: useCalendarMutation(
+      async (variables: { id: string; ephemeris: boolean }) =>
+        withLossConfirmation(async (confirmLoss) => (await execute(SetScheduleTypeEphemerisDocument, { ...variables, confirmLoss })).setScheduleTypeEphemeris),
+      [routinesKey, treasuryKey],
     ),
     subscribe: useCalendarMutation(async (kind: { workspaceId: string; typeId: string | null }) => (await execute(SubscribeScheduleKindDocument, kind)).subscribeScheduleKind),
     saveDefaultKind: useCalendarMutation(
@@ -669,7 +701,7 @@ export function useWorkScheduleMutations() {
  * @returns {import('@ordo/shared').WorkScheduleRule[]} Rules.
  */
 export function scheduleRules(
-  schedules: readonly { id: string; label: string; startDate: string; endDate?: string | null; cases: unknown; exceptions: unknown; typeId?: string | null }[],
+  schedules: readonly { id: string; label: string; startDate: string; endDate?: string | null; cases: unknown; exceptions: unknown; typeId?: string | null; ephemeris?: boolean | null }[],
 ): WorkScheduleRule[] {
   return schedules.map((schedule) => ({
     id: schedule.id,
@@ -679,8 +711,25 @@ export function scheduleRules(
     cases: readScheduleCases(schedule.cases, schedule.startDate),
     exceptions: readScheduleExceptions(schedule.exceptions),
     typeId: schedule.typeId ?? null,
+    ephemeris: schedule.ephemeris ?? false,
   }));
 }
+
+/**
+ * Input of a schedule from its rule and a change of its cases and exceptions (an hour moved in the calendar): its
+ * kind and nature kept.
+ * @param {WorkScheduleRule} rule Schedule.
+ * @param {Pick<WorkScheduleInput, 'cases' | 'exceptions'>} change New cases and exceptions.
+ * @returns {WorkScheduleInput} Input.
+ */
+export const ruleScheduleInput = (rule: WorkScheduleRule, change: Pick<WorkScheduleInput, 'cases' | 'exceptions'>): WorkScheduleInput => ({
+  label: rule.label,
+  startDate: rule.startDate,
+  endDate: rule.endDate,
+  typeId: rule.typeId ?? null,
+  ephemeris: rule.ephemeris ?? false,
+  ...change,
+});
 
 /**
  * Address of the iCalendar file of a calendar of the workspace, or of all of them (downloaded with the session).

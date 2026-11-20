@@ -1,4 +1,5 @@
-import { type TreasuryLineMode, LEVEL, plannedContext, round2 } from '@ordo/shared';
+import { type ContextEphemeris, type TreasuryLineMode, LEVEL, contextPlanner, round2 } from '@ordo/shared';
+import { scheduleRules } from '../../calendar/api';
 import { archivedIds } from '../../../lib/archive';
 import type { TreasurySettings } from '../api';
 import * as fmt from '../../../lib/format';
@@ -109,17 +110,26 @@ export type LinkCandidate = LineLink & { accountLabel: string };
 export const linkKey = (link: Pick<LineLink, 'kind' | 'id'>) => taggedKey(link.kind, link.id);
 
 /**
- * Context planned on a day, proposed to a new line (an archived context is not proposed any more).
- * @param {TreasurySettings | undefined} settings Settings of the treasury (contexts and their periods).
+ * Context planned on a day, proposed to a new line: that of the éphémérides of the contexts (lot 16, `contextPlanner`;
+ * an archived context is not proposed any more).
+ * @param {TreasurySettings | undefined} settings Settings of the treasury (contexts and their éphémérides).
  * @param {string} date Day of the entry.
  * @returns {string | null} Context, none for everyday spending.
  */
 export function plannedLineContext(settings: TreasurySettings | undefined, date: string): string | null {
-  const archived = archivedIds(settings?.treasuryContexts ?? []);
-  const periods = (settings?.treasuryContextPeriods ?? [])
-    .filter((period) => !archived.has(period.contextId))
-    .map((period) => ({ contextId: period.contextId, startDate: period.startDate, endDate: period.endDate }));
-  return plannedContext(periods, date);
+  return contextPlanner(settingsContextEphemerides(settings))(date);
+}
+
+/**
+ * Éphémérides of the contexts, as `contextPlanner` reads them: those of the archived contexts left out unless asked.
+ * @param {TreasurySettings | undefined} settings Settings of the treasury (contexts and their éphémérides).
+ * @param {boolean} [withArchived] Those of the archived contexts too. Optional. Default = left out.
+ * @returns {ContextEphemeris[]} Éphémérides.
+ */
+export function settingsContextEphemerides(settings: TreasurySettings | undefined, withArchived = false): ContextEphemeris[] {
+  const archived = withArchived ? new Set<string>() : archivedIds(settings?.treasuryContexts ?? []);
+  const ephemerides = (settings?.treasuryContextEphemerides ?? []).filter((item) => !archived.has(item.contextId));
+  return scheduleRules(ephemerides.map((item) => item.schedule)).map((rule, index) => ({ contextId: ephemerides[index].contextId, rule }));
 }
 
 /**

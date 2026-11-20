@@ -1,10 +1,10 @@
-import { createEntry, EMPTY_ENTRY, relativeDay, treasuryCategoryIds } from './factories';
+import { contextPeriod, createEntry, EMPTY_ENTRY, relativeDay, treasuryCategoryIds } from './factories';
 import { addDays, monthOfDay, shiftMonth } from '@ordo/shared';
 import { prisma } from '../../src/db';
 import type { Contributor } from '../../src/generated/prisma/client';
 import { createCalendarEvent } from '../../src/services/calendar/calendar-events';
 import { saveBudget } from '../../src/services/treasury/treasury-budgets';
-import { addMember, saveContext, saveContextPeriod, saveRelation } from '../../src/services/treasury/treasury-team';
+import { addMember, saveContext, saveRelation } from '../../src/services/treasury/treasury-team';
 
 /** What the team fixtures made, for the shopping ones. */
 export interface SeededTeam {
@@ -46,9 +46,9 @@ export async function seedTeam({ contributors, today, monday }: { contributors: 
   ] as const) {
     contextIds.set(label, (await saveContext(null, { label, color })).id);
   }
-  await saveContextPeriod(null, { contextId: contextIds.get('Salon')!, startDate: addDays(monday, 10), endDate: addDays(monday, 12), note: 'Salon professionnel' });
-  await saveContextPeriod(null, { contextId: contextIds.get('Séminaire')!, startDate: addDays(monday, -9), endDate: addDays(monday, -8), note: 'Séminaire d’équipe' });
-  await saveContextPeriod(null, { contextId: contextIds.get('Déplacement')!, startDate: day(-96), endDate: day(-95), note: 'Rendez-vous client à Paris' });
+  await contextPeriod(contextIds.get('Salon')!, addDays(monday, 10), addDays(monday, 12), 'Salon professionnel');
+  await contextPeriod(contextIds.get('Séminaire')!, addDays(monday, -9), addDays(monday, -8), 'Séminaire d’équipe');
+  await contextPeriod(contextIds.get('Déplacement')!, day(-96), day(-95), 'Rendez-vous client à Paris');
 
   // --- Budgets ---------------------------------------------------------------------------------------
   const account = await prisma.treasuryAccount.findFirst({ where: { label: 'Compte courant pro' } });

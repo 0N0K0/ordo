@@ -143,7 +143,6 @@ export type ArchivableKind =
   | 'TREASURY_ACCOUNT'
   | 'TREASURY_BUDGET'
   | 'TREASURY_CATEGORY'
-  | 'TREASURY_CONTEXT'
   | 'TREASURY_COUNTERPARTY'
   | 'TREASURY_ENTRY'
   | 'TREASURY_PAYMENT_METHOD'
@@ -754,11 +753,17 @@ export type ScheduleSubscriptionLookInput = {
 };
 
 export type ScheduleTypeInput = {
+  /** Éphémérides only: « Sert de contexte au budget ». */
+  budgetContext?: boolean | null | undefined;
   color: string;
   dayBar: boolean;
   dayDisplay: string;
+  /** A kind of éphémérides; set at its creation only (a conversion changes it). */
+  ephemeris?: boolean | null | undefined;
   label: string;
   monthDisplay: string;
+  /** Budget context only: « Partagé entre espaces ». */
+  sharedContext?: boolean | null | undefined;
 };
 
 export type SendMailInput = {
@@ -811,7 +816,6 @@ export type SettingsListKind =
   | 'TASK_TYPE'
   | 'TREASURY_ACCOUNT'
   | 'TREASURY_CATEGORY'
-  | 'TREASURY_CONTEXT'
   | 'TREASURY_COUNTERPARTY'
   | 'TREASURY_PAYMENT_METHOD';
 
@@ -1153,13 +1157,6 @@ export type TreasuryCategoryInput = {
   parentId?: string | number | null | undefined;
 };
 
-export type TreasuryContextPeriodInput = {
-  contextId: string | number;
-  endDate: string;
-  note?: string | null | undefined;
-  startDate: string;
-};
-
 export type TreasuryCounterpartyInput = {
   name: string;
   note?: string | null | undefined;
@@ -1257,11 +1254,13 @@ export type WorkScheduleInput = {
   /** Cases (shared schedule case shape). */
   cases: unknown;
   endDate?: string | null | undefined;
+  /** Without kind: an éphéméride, not a créneau (with one: that of its kind). */
+  ephemeris?: boolean | null | undefined;
   /** Exceptions: { from, to, label, cases }. */
   exceptions: unknown;
   label: string;
   startDate: string;
-  /** Kind of time it plans; none: working hours. */
+  /** Kind of time it plans; none: working hours (or, an éphéméride, no kind). */
   typeId?: string | number | null | undefined;
 };
 
@@ -1965,22 +1964,22 @@ export type CalendarEventOccurrenceFieldsFragment = { key: string, eventId: stri
 export type WorkSchedulesQueryVariables = Exact<{ [key: string]: never; }>;
 
 
-export type WorkSchedulesQuery = { workSchedules: Array<{ id: string, archived: boolean, label: string, startDate: string, endDate: string | null, typeId: string | null, cases: unknown, exceptions: unknown }>, scheduleTypes: Array<{ id: string, archived: boolean, label: string, color: string, iconUrl: string | null, dayDisplay: string, dayBar: boolean, monthDisplay: string, position: number }>, defaultScheduleKind: { label: string, color: string | null, dayDisplay: string, dayBar: boolean, monthDisplay: string } };
+export type WorkSchedulesQuery = { workSchedules: Array<{ id: string, archived: boolean, label: string, startDate: string, endDate: string | null, typeId: string | null, ephemeris: boolean, cases: unknown, exceptions: unknown }>, scheduleTypes: Array<{ id: string, archived: boolean, label: string, color: string, iconUrl: string | null, dayDisplay: string, dayBar: boolean, monthDisplay: string, ephemeris: boolean, budgetContext: boolean, sharedContext: boolean, position: number }>, defaultScheduleKind: { label: string, color: string | null, dayDisplay: string, dayBar: boolean, monthDisplay: string } };
 
 export type ForeignScheduleKindsQueryVariables = Exact<{ [key: string]: never; }>;
 
 
-export type ForeignScheduleKindsQuery = { foreignScheduleKinds: Array<{ workspaceId: string, workspaceLabel: string, typeId: string | null, label: string, color: string | null, sourceColor: string | null, dayDisplay: string, dayBar: boolean, monthDisplay: string, customized: boolean, scheduleCount: number, subscribed: boolean, archived: boolean }> };
+export type ForeignScheduleKindsQuery = { foreignScheduleKinds: Array<{ workspaceId: string, workspaceLabel: string, typeId: string | null, label: string, color: string | null, sourceColor: string | null, dayDisplay: string, dayBar: boolean, monthDisplay: string, customized: boolean, scheduleCount: number, subscribed: boolean, archived: boolean, ephemeris: boolean }> };
 
 export type SubscribedWorkSchedulesQueryVariables = Exact<{ [key: string]: never; }>;
 
 
-export type SubscribedWorkSchedulesQuery = { subscribedWorkSchedules: Array<{ id: string, label: string, startDate: string, endDate: string | null, cases: unknown, exceptions: unknown, typeLabel: string | null, typeId: string | null, color: string | null, dayDisplay: string, dayBar: boolean, monthDisplay: string, workspaceId: string, workspaceLabel: string }> };
+export type SubscribedWorkSchedulesQuery = { subscribedWorkSchedules: Array<{ id: string, label: string, startDate: string, endDate: string | null, cases: unknown, exceptions: unknown, typeLabel: string | null, typeId: string | null, ephemeris: boolean, color: string | null, dayDisplay: string, dayBar: boolean, monthDisplay: string, workspaceId: string, workspaceLabel: string }> };
 
 export type OtherWorkspaceSchedulesQueryVariables = Exact<{ [key: string]: never; }>;
 
 
-export type OtherWorkspaceSchedulesQuery = { otherWorkspaceSchedules: Array<{ id: string, archived: boolean, label: string, startDate: string, endDate: string | null, cases: unknown, exceptions: unknown, typeId: string | null, workspaceId: string, workspaceLabel: string }> };
+export type OtherWorkspaceSchedulesQuery = { otherWorkspaceSchedules: Array<{ id: string, archived: boolean, label: string, startDate: string, endDate: string | null, cases: unknown, exceptions: unknown, typeId: string | null, ephemeris: boolean, workspaceId: string, workspaceLabel: string }> };
 
 export type CreateScheduleTypeMutationVariables = Exact<{
   input: ScheduleTypeInput;
@@ -2053,6 +2052,24 @@ export type UpdateWorkScheduleMutationVariables = Exact<{
 
 
 export type UpdateWorkScheduleMutation = { updateWorkSchedule: boolean };
+
+export type SetWorkScheduleEphemerisMutationVariables = Exact<{
+  id: string | number;
+  ephemeris: boolean;
+  confirmLoss?: boolean | null | undefined;
+}>;
+
+
+export type SetWorkScheduleEphemerisMutation = { setWorkScheduleEphemeris: boolean };
+
+export type SetScheduleTypeEphemerisMutationVariables = Exact<{
+  id: string | number;
+  ephemeris: boolean;
+  confirmLoss?: boolean | null | undefined;
+}>;
+
+
+export type SetScheduleTypeEphemerisMutation = { setScheduleTypeEphemeris: boolean };
 
 export type DeleteWorkScheduleMutationVariables = Exact<{
   id: string | number;
@@ -4338,7 +4355,7 @@ export type TreasuryProjectionQuery = { treasuryProjection: { balance: number, s
 export type TreasurySettingsQueryVariables = Exact<{ [key: string]: never; }>;
 
 
-export type TreasurySettingsQuery = { treasuryCategories: Array<{ id: string, archived: boolean, label: string, color: string | null, iconUrl: string | null, direction: TreasuryDirection, parentId: string | null, position: number, entryCount: number }>, treasuryPaymentMethods: Array<{ id: string, archived: boolean, label: string, color: string | null, iconUrl: string | null, position: number, incoming: boolean, outgoing: boolean, entryCount: number }>, treasuryCounterparties: Array<{ id: string, name: string, color: string | null, iconUrl: string | null, position: number, note: string | null, archived: boolean, entryCount: number }>, treasuryMembers: Array<{ id: string, name: string, handle: string, avatarUrl: string | null, isMe: boolean }>, treasuryContexts: Array<{ id: string, archived: boolean, label: string, color: string, iconUrl: string | null, position: number }>, treasuryRelations: Array<{ id: string, archived: boolean, name: string, note: string | null, contributorId: string | null, lineCount: number, budgetCount: number }>, treasuryContextPeriods: Array<{ id: string, contextId: string, startDate: string, endDate: string, note: string | null }> };
+export type TreasurySettingsQuery = { treasuryCategories: Array<{ id: string, archived: boolean, label: string, color: string | null, iconUrl: string | null, direction: TreasuryDirection, parentId: string | null, position: number, entryCount: number }>, treasuryPaymentMethods: Array<{ id: string, archived: boolean, label: string, color: string | null, iconUrl: string | null, position: number, incoming: boolean, outgoing: boolean, entryCount: number }>, treasuryCounterparties: Array<{ id: string, name: string, color: string | null, iconUrl: string | null, position: number, note: string | null, archived: boolean, entryCount: number }>, treasuryMembers: Array<{ id: string, name: string, handle: string, avatarUrl: string | null, isMe: boolean }>, treasuryContexts: Array<{ id: string, scheduleTypeId: string, archived: boolean, label: string, color: string, iconUrl: string | null, position: number, workspaceLabel: string | null }>, treasuryRelations: Array<{ id: string, archived: boolean, name: string, note: string | null, contributorId: string | null, lineCount: number, budgetCount: number }>, treasuryContextEphemerides: Array<{ contextId: string, schedule: { id: string, label: string, startDate: string, endDate: string | null, cases: unknown, exceptions: unknown } }> };
 
 export type TreasuryEntrySearchQueryVariables = Exact<{
   text: string;
@@ -4526,28 +4543,6 @@ export type SaveTreasuryContextMutationVariables = Exact<{
 
 
 export type SaveTreasuryContextMutation = { saveTreasuryContext: string };
-
-export type DeleteTreasuryContextMutationVariables = Exact<{
-  id: string | number;
-}>;
-
-
-export type DeleteTreasuryContextMutation = { deleteTreasuryContext: boolean };
-
-export type SaveTreasuryContextPeriodMutationVariables = Exact<{
-  id?: string | number | null | undefined;
-  input: TreasuryContextPeriodInput;
-}>;
-
-
-export type SaveTreasuryContextPeriodMutation = { saveTreasuryContextPeriod: string };
-
-export type DeleteTreasuryContextPeriodMutationVariables = Exact<{
-  id: string | number;
-}>;
-
-
-export type DeleteTreasuryContextPeriodMutation = { deleteTreasuryContextPeriod: boolean };
 
 export type TreasuryBudgetsQueryVariables = Exact<{
   from: string;
@@ -6318,6 +6313,7 @@ export const WorkSchedulesDocument = new TypedDocumentString(`
     startDate
     endDate
     typeId
+    ephemeris
     cases
     exceptions
   }
@@ -6330,6 +6326,9 @@ export const WorkSchedulesDocument = new TypedDocumentString(`
     dayDisplay
     dayBar
     monthDisplay
+    ephemeris
+    budgetContext
+    sharedContext
     position
   }
   defaultScheduleKind {
@@ -6357,6 +6356,7 @@ export const ForeignScheduleKindsDocument = new TypedDocumentString(`
     scheduleCount
     subscribed
     archived
+    ephemeris
   }
 }
     `) as unknown as TypedDocumentString<ForeignScheduleKindsQuery, ForeignScheduleKindsQueryVariables>;
@@ -6371,6 +6371,7 @@ export const SubscribedWorkSchedulesDocument = new TypedDocumentString(`
     exceptions
     typeLabel
     typeId
+    ephemeris
     color
     dayDisplay
     dayBar
@@ -6391,6 +6392,7 @@ export const OtherWorkspaceSchedulesDocument = new TypedDocumentString(`
     cases
     exceptions
     typeId
+    ephemeris
     workspaceId
     workspaceLabel
   }
@@ -6451,6 +6453,24 @@ export const UpdateWorkScheduleDocument = new TypedDocumentString(`
   updateWorkSchedule(id: $id, input: $input, confirmLoss: $confirmLoss)
 }
     `) as unknown as TypedDocumentString<UpdateWorkScheduleMutation, UpdateWorkScheduleMutationVariables>;
+export const SetWorkScheduleEphemerisDocument = new TypedDocumentString(`
+    mutation SetWorkScheduleEphemeris($id: ID!, $ephemeris: Boolean!, $confirmLoss: Boolean) {
+  setWorkScheduleEphemeris(
+    id: $id
+    ephemeris: $ephemeris
+    confirmLoss: $confirmLoss
+  )
+}
+    `) as unknown as TypedDocumentString<SetWorkScheduleEphemerisMutation, SetWorkScheduleEphemerisMutationVariables>;
+export const SetScheduleTypeEphemerisDocument = new TypedDocumentString(`
+    mutation SetScheduleTypeEphemeris($id: ID!, $ephemeris: Boolean!, $confirmLoss: Boolean) {
+  setScheduleTypeEphemeris(
+    id: $id
+    ephemeris: $ephemeris
+    confirmLoss: $confirmLoss
+  )
+}
+    `) as unknown as TypedDocumentString<SetScheduleTypeEphemerisMutation, SetScheduleTypeEphemerisMutationVariables>;
 export const DeleteWorkScheduleDocument = new TypedDocumentString(`
     mutation DeleteWorkSchedule($id: ID!, $confirmLoss: Boolean) {
   deleteWorkSchedule(id: $id, confirmLoss: $confirmLoss)
@@ -9813,11 +9833,13 @@ export const TreasurySettingsDocument = new TypedDocumentString(`
   }
   treasuryContexts {
     id
+    scheduleTypeId
     archived
     label
     color
     iconUrl
     position
+    workspaceLabel
   }
   treasuryRelations {
     id
@@ -9828,12 +9850,16 @@ export const TreasurySettingsDocument = new TypedDocumentString(`
     lineCount
     budgetCount
   }
-  treasuryContextPeriods {
-    id
+  treasuryContextEphemerides {
     contextId
-    startDate
-    endDate
-    note
+    schedule {
+      id
+      label
+      startDate
+      endDate
+      cases
+      exceptions
+    }
   }
 }
     `) as unknown as TypedDocumentString<TreasurySettingsQuery, TreasurySettingsQueryVariables>;
@@ -9986,21 +10012,6 @@ export const SaveTreasuryContextDocument = new TypedDocumentString(`
   saveTreasuryContext(id: $id, input: $input)
 }
     `) as unknown as TypedDocumentString<SaveTreasuryContextMutation, SaveTreasuryContextMutationVariables>;
-export const DeleteTreasuryContextDocument = new TypedDocumentString(`
-    mutation DeleteTreasuryContext($id: ID!) {
-  deleteTreasuryContext(id: $id)
-}
-    `) as unknown as TypedDocumentString<DeleteTreasuryContextMutation, DeleteTreasuryContextMutationVariables>;
-export const SaveTreasuryContextPeriodDocument = new TypedDocumentString(`
-    mutation SaveTreasuryContextPeriod($id: ID, $input: TreasuryContextPeriodInput!) {
-  saveTreasuryContextPeriod(id: $id, input: $input)
-}
-    `) as unknown as TypedDocumentString<SaveTreasuryContextPeriodMutation, SaveTreasuryContextPeriodMutationVariables>;
-export const DeleteTreasuryContextPeriodDocument = new TypedDocumentString(`
-    mutation DeleteTreasuryContextPeriod($id: ID!) {
-  deleteTreasuryContextPeriod(id: $id)
-}
-    `) as unknown as TypedDocumentString<DeleteTreasuryContextPeriodMutation, DeleteTreasuryContextPeriodMutationVariables>;
 export const TreasuryBudgetsDocument = new TypedDocumentString(`
     query TreasuryBudgets($from: String!, $to: String!) {
   treasuryBudgets {
