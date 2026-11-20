@@ -98,6 +98,11 @@ interface DataTableProps<R> extends Omit<TableProps, 'children'> {
    * (its manual order).
    */
   onMoveRow?: (move: RowMove) => void;
+  /**
+   * With `onMoveRow`, the place chosen by hand is still kept in the view (its manual order, as without it):
+   * `onMoveRow` is only told of a change of group. Optional. Default = false.
+   */
+  orderInView?: boolean;
   /** Row adding one, at the end of the table (group null) and of each group. Optional. */
   addRow?: (group: RowGroup<R> | null) => ReactNode;
   /** The row is open in the side panel (highlighted). Optional. */
@@ -326,6 +331,7 @@ export function DataTable<R>({
   selectionLabel = (count) => selectedLabel(count),
   parentKey,
   onMoveRow,
+  orderInView = false,
   addRow,
   isActive,
   isArchived,
@@ -352,6 +358,8 @@ export function DataTable<R>({
   // A tree unless shown flat (an option of the view).
   const tree = Boolean(parentKey) && !view.config?.flat;
   const treeKey = tree ? parentKey : undefined;
+  // The place chosen by hand is saved in the view (no own saving, or only of the group).
+  const viewOrder = !onMoveRow || orderInView;
   const rank = useMemo(() => new Map((view.config?.manualOrder ?? []).map((key, index) => [key, index])), [view.config?.manualOrder]);
   /**
    * Rows in the order chosen by hand (without sort and without own saving), else as they are.
@@ -359,7 +367,7 @@ export function DataTable<R>({
    * @returns {R[]} Rows.
    */
   const inOrder = (rows: R[]) =>
-    manual && !onMoveRow && rank.size
+    manual && viewOrder && rank.size
       ? rows
           .map((row, index) => ({ row, index, at: rank.get(getKey(row)) ?? LAST_RANK }))
           .sort((a, b) => a.at - b.at || a.index - b.index)
@@ -514,23 +522,29 @@ export function DataTable<R>({
     );
     const reparented = projection.parentId !== original.parentId;
     if (!reparented && over.id === activeId) return;
-    if (!onMoveRow) {
-      // Saved in the view: the rows hidden by the filters keep their place after.
-      const keys = [...new Set(moved.map((item) => keyOf(item.id)))];
-      const others = (view.config?.manualOrder ?? []).filter((key) => !keys.includes(key));
-      view.change((current) => ({ ...current, manualOrder: [...keys, ...others] }));
-      return;
-    }
-    // Placed before the row now following it; the parent only changes when the level changed (a sub-row shown alone
-    // by a filter keeps its hidden parent).
     const index = moved.findIndex((item) => item.id === activeId);
     const next = moved[index + 1];
     const groupKey = groupOfRow.get(overId);
+    const changedGroup = groupKey !== undefined && groupKey !== groupOfRow.get(activeId);
+    if (viewOrder) {
+      // Saved in the view (when shown without sort): the rows hidden by the filters keep their place after.
+      if (manual) {
+        const keys = [...new Set(moved.map((item) => keyOf(item.id)))];
+        const others = (view.config?.manualOrder ?? []).filter((key) => !keys.includes(key));
+        view.change((current) => ({ ...current, manualOrder: [...keys, ...others] }));
+      }
+      // Its own saving only told of the new group.
+      if (onMoveRow && changedGroup) onMoveRow({ key: keyOf(activeId), beforeKey: next ? keyOf(next.id) : null, groupKey, fromGroupKey: groupOfRow.get(activeId) });
+      return;
+    }
+    if (!onMoveRow) return;
+    // Placed before the row now following it; the parent only changes when the level changed (a sub-row shown alone
+    // by a filter keeps its hidden parent).
     onMoveRow({
       key: keyOf(activeId),
       beforeKey: next ? keyOf(next.id) : null,
       ...(reparented && { parentKey: projection.parentId ? keyOf(projection.parentId) : null }),
-      ...(groupKey !== undefined && groupKey !== groupOfRow.get(activeId) && { groupKey, fromGroupKey: groupOfRow.get(activeId) }),
+      ...(changedGroup && { groupKey, fromGroupKey: groupOfRow.get(activeId) }),
     });
     // The new parent opens to show its new sub-row.
     if (projection.parentId) {

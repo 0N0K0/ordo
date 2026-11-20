@@ -55,7 +55,7 @@ Chaque tableau (`tableKey`, et éventuellement un projet) a ses vues : des ongle
 ### Tris et ordre manuel
 
 - Les tris s’appliquent par priorité ; les valeurs vides vont en dernier ; à égalité, l’ordre d’origine est gardé.
-- Sans tri, l’ordre est l’ordre manuel : les lignes se glissent par leur poignée. Sans `onMoveRow`, l’ordre est enregistré dans la vue (`manualOrder` ; les lignes cachées par les filtres gardent leur place après) ; avec `onMoveRow`, la feature enregistre elle-même (position, parent, groupe).
+- Sans tri, l’ordre est l’ordre manuel : les lignes se glissent par leur poignée. Sans `onMoveRow`, l’ordre est enregistré dans la vue (`manualOrder` ; les lignes cachées par les filtres gardent leur place après) ; avec `onMoveRow`, la feature enregistre elle-même (position, parent, groupe), sauf avec `orderInView` : l'ordre reste dans la vue et `onMoveRow` n'est appelé que pour un changement de groupe (utilisé par `ShoppingTable`).
 - Panneau « Trier » : niveaux « Trier par » / « puis », sens ↑ / ↓, « Monter » / « Descendre », « Ajouter un tri », « Revenir à l’ordre manuel ».
 
 ### Regroupement
@@ -159,6 +159,7 @@ Props de `DataTable` (en plus de celles de `Table` Mantine) :
 | `selectionActions?(rows, clear)`, `selectionLabel?(count)` | Actions de la `SelectionBar` sur les lignes cochées, et leur libellé (défaut « N lignes sélectionnées »).                                                                           |
 | `parentKey?(row)`                                          | Arbre de lignes.                                                                                                                                                                    |
 | `onMoveRow?(move)`                                         | Enregistre un déplacement manuel.                                                                                                                                                   |
+| `orderInView?`                                             | Avec `onMoveRow`, l'ordre manuel reste enregistré dans la vue (`manualOrder`) ; `onMoveRow` n'est appelé que pour un changement de groupe. Défaut `false`. Utilisé par `shopping`.   |
 | `addRow?(group)`                                           | Ligne d’ajout de chaque groupe, et en fin de tableau (`null`) quand il n’est pas groupé ou qu’il est groupé en arbre sans groupe « sans » affiché.                                     |
 | `isActive?`, `isArchived?`, `isDone?`, `isStruck?`, `readOnly?` | Ligne ouverte dans le panneau (surlignée), archivée ou terminée (atténuée, `--onoko-muted-opacity`, règle eslint), au libellé barré (`data-struck` : routine faite, tâche annulée ; le champ « Libellé… » de la ligne), en lecture seule (ni glisser, ni case, ni sélection de cellule). |
 | `loading?`                                                 | Squelette (`TableSkeleton`) à la place du tableau (aussi tant que les vues chargent).                                                                                               |

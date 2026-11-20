@@ -1,7 +1,7 @@
 import {
   byPosition,
   childrenByParent,
-  DEFAULT_RECURRENCE,
+  DAILY_RECURRENCE,
   mapById,
   pathOf,
   type Recurrence,
@@ -20,8 +20,8 @@ import type { TaskContext } from '../../tasks/hooks/use-task-context';
 import { inProjectTree } from '../../tasks/lib/task-links';
 import * as fmt from '../../../lib/format';
 
-/** Rule of a new routine: every day. */
-export const DAILY: Recurrence = { ...DEFAULT_RECURRENCE, frequency: 'DAILY' };
+/** Rule of a new routine: every day (`DAILY_RECURRENCE`, also that of a task turned into a routine). */
+export const DAILY: Recurrence = DAILY_RECURRENCE;
 
 /**
  * Stored rule of a routine, or null when invalid.

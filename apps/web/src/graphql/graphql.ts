@@ -3101,6 +3101,22 @@ export type CopySubRoutinesMutationVariables = Exact<{
 
 export type CopySubRoutinesMutation = { copySubRoutines: number };
 
+export type ConvertTaskToRoutineMutationVariables = Exact<{
+  id: string | number;
+  confirm?: boolean | null | undefined;
+}>;
+
+
+export type ConvertTaskToRoutineMutation = { convertTaskToRoutine: string };
+
+export type ConvertRoutineToTaskMutationVariables = Exact<{
+  id: string | number;
+  confirm?: boolean | null | undefined;
+}>;
+
+
+export type ConvertRoutineToTaskMutation = { convertRoutineToTask: string };
+
 export type CreateRoutineMutationVariables = Exact<{
   input: RoutineInput;
   copyOf?: string | number | null | undefined;
@@ -8005,6 +8021,16 @@ export const CopySubRoutinesDocument = new TypedDocumentString(`
   copySubRoutines(fromId: $fromId, toId: $toId)
 }
     `) as unknown as TypedDocumentString<CopySubRoutinesMutation, CopySubRoutinesMutationVariables>;
+export const ConvertTaskToRoutineDocument = new TypedDocumentString(`
+    mutation ConvertTaskToRoutine($id: ID!, $confirm: Boolean) {
+  convertTaskToRoutine(id: $id, confirm: $confirm)
+}
+    `) as unknown as TypedDocumentString<ConvertTaskToRoutineMutation, ConvertTaskToRoutineMutationVariables>;
+export const ConvertRoutineToTaskDocument = new TypedDocumentString(`
+    mutation ConvertRoutineToTask($id: ID!, $confirm: Boolean) {
+  convertRoutineToTask(id: $id, confirm: $confirm)
+}
+    `) as unknown as TypedDocumentString<ConvertRoutineToTaskMutation, ConvertRoutineToTaskMutationVariables>;
 export const CreateRoutineDocument = new TypedDocumentString(`
     mutation CreateRoutine($input: RoutineInput!, $copyOf: ID) {
   createRoutine(input: $input, copyOf: $copyOf)

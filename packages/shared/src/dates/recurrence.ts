@@ -161,6 +161,9 @@ export const DEFAULT_RECURRENCE: Recurrence = {
   pauses: [],
 };
 
+/** Every day: the rule of a new routine (and of a task turned into a routine, lot 15). */
+export const DAILY_RECURRENCE: Recurrence = { ...DEFAULT_RECURRENCE, frequency: 'DAILY' };
+
 /**
  * ISO week number of a date (1 to 53; the week of January 4th is the first one).
  * @param {Date} date UTC date.

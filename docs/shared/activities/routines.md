@@ -65,6 +65,17 @@ Champs de `routineSchema` :
 
 Internes : `ROUTINE_ANCHORS`, `timeOfDay`, `dayNumber`, `monthNumber`, `weekdayNumber`, `routineOpensSchema`, `OPENS_MISFIT`, `opensInMonth`, `isoWeekDate`, `PERIOD_DAYS`, `movesAway`, `MOVED_SCAN`.
 
+## `conversion.ts` — transformer une tâche en routine et inversement
+
+Lot 15 (décision FL) : ce que l'API compte comme perdu dans l'extension `lost` de son `CONFIRMATION_REQUIRED`, et que le web liste dans la confirmation (`conversionDialog`).
+
+| Export                    | Rôle                                                                                                                                                                                                                                                                                                                                                                       |
+| ------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `CONVERSION_LOSSES`       | Sortes perdues, dans l'ordre de la liste : tâche → routine `number`, `status`, `priority`, `type`, `tags`, `milestone`, `sprints`, `github`, `effort`, `dates`, `taskLinks`, `shoppingLists`, `alarms`, `events` ; les deux `parent` ; routine → tâche `repetition`, `checks`, `beforeReminders`, `routineLinks`, `categories`, `estimate`, `travel`, `comments`, `checklists` (`events` et `checklists` servent dans les deux sens). |
+| `ConversionLossKind`      | Une de ces sortes.                                                                                                                                                                                                                                                                                                                                                         |
+| `ConversionLoss`          | Ce qui est perdu, par sorte (un nombre ; 1 pour une valeur seule) ; une sorte absente ne perd rien.                                                                                                                                                                                                                                                                       |
+| `conversionLoss(counts)`  | La même chose sans les sortes à zéro.                                                                                                                                                                                                                                                                                                                                      |
+
 ## `routine-views.ts` — constantes des vues
 
 | Export                | Rôle                                                                                            |

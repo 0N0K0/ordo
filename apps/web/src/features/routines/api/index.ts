@@ -13,13 +13,16 @@ import {
   type RoutineSlot,
   type SlotCondition,
 } from '@ordo/shared';
-import { useQuery, type QueryKey } from '@tanstack/react-query';
+import { useQuery, type QueryClient, type QueryKey } from '@tanstack/react-query';
 import { tasksQueryKey } from '../../tasks/api';
 import { moveInTree } from '../../../components/tree/category-tree';
 import { graphql } from '../../../graphql';
 import type { CalendarEventScope, DeleteRoutineOccurrenceMutation, RoutineChecksQuery, RoutineOccurrencesQuery, RoutinesDataQuery } from '../../../graphql/graphql';
 import { execute } from '../../../lib/graphql-client';
 import { withLossConfirmation } from '../../time/lib/confirm-loss';
+import { timeQueryKey } from '../../time/api';
+import { conversionDialog } from '../lib/conversion-loss';
+import type { ConversionLoss } from '@ordo/shared';
 
 export type RoutineCategory = RoutinesDataQuery['routineCategories'][number];
 export type Routine = RoutinesDataQuery['routines'][number];
@@ -130,6 +133,18 @@ const DeleteCategoryDocument = graphql(`
 const CopySubRoutinesDocument = graphql(`
   mutation CopySubRoutines($fromId: ID!, $toId: ID!) {
     copySubRoutines(fromId: $fromId, toId: $toId)
+  }
+`);
+
+const ConvertTaskToRoutineDocument = graphql(`
+  mutation ConvertTaskToRoutine($id: ID!, $confirm: Boolean) {
+    convertTaskToRoutine(id: $id, confirm: $confirm)
+  }
+`);
+
+const ConvertRoutineToTaskDocument = graphql(`
+  mutation ConvertRoutineToTask($id: ID!, $confirm: Boolean) {
+    convertRoutineToTask(id: $id, confirm: $confirm)
   }
 `);
 
@@ -307,6 +322,18 @@ export function useRoutineOccurrences(range: { from: string; to: string } | null
  */
 export function useRoutinesData() {
   return useQuery({ queryKey: routinesKey, queryFn: () => execute(RoutinesDataDocument), refetchOnWindowFocus: true });
+}
+
+/**
+ * A routine as the routines read now (fetched again, from wherever the routines are not loaded): one just created
+ * elsewhere, to open its panel.
+ * @param {QueryClient} queryClient Query client.
+ * @param {string} id Routine.
+ * @returns {Promise<Routine | undefined>} Routine, none when not found.
+ */
+export async function fetchRoutine(queryClient: QueryClient, id: string): Promise<Routine | undefined> {
+  const data = await queryClient.fetchQuery({ queryKey: routinesKey, queryFn: () => execute(RoutinesDataDocument), staleTime: 0 });
+  return data.routines.find((routine) => routine.id === id);
 }
 
 /**
@@ -574,6 +601,29 @@ export function useRoutineMutations() {
     update: useRoutineMutation(async (variables: { id: string; input: RoutineInput }) => withLossConfirmation(async (confirmLoss) => (await execute(UpdateRoutineDocument, { ...variables, confirmLoss })).updateRoutine), undefined, [tasksQueryKey]),
     /** Copies the sub-routines of a routine under its copy (theirs too). */
     copySubRoutines: useRoutineMutation(async (variables: { fromId: string; toId: string }) => (await execute(CopySubRoutinesDocument, variables)).copySubRoutines),
+    /**
+     * Turns a task into a routine (lot 15), once what it loses is confirmed (`conversionDialog`); gives the routine id.
+     * The tasks and the times are refreshed too (the task is gone, its times are the routine's).
+     */
+    convertTask: useRoutineMutation(
+      async (id: string) =>
+        withLossConfirmation(
+          async (confirm) => (await execute(ConvertTaskToRoutineDocument, { id, confirm })).convertTaskToRoutine,
+          (lost: ConversionLoss) => conversionDialog('TASK_TO_ROUTINE', lost),
+        ),
+      undefined,
+      [tasksQueryKey, timeQueryKey],
+    ),
+    /** Turns a routine into a task (lot 15), once what it loses is confirmed; gives the task id. */
+    convertToTask: useRoutineMutation(
+      async (id: string) =>
+        withLossConfirmation(
+          async (confirm) => (await execute(ConvertRoutineToTaskDocument, { id, confirm })).convertRoutineToTask,
+          (lost: ConversionLoss) => conversionDialog('ROUTINE_TO_TASK', lost),
+        ),
+      undefined,
+      [tasksQueryKey, timeQueryKey],
+    ),
     patch: useRoutineMutation(
       async (variables: { id: string; input: RoutinePatchValues }) => withLossConfirmation(async (confirmLoss) => (await execute(PatchRoutineDocument, { ...variables, confirmLoss })).patchRoutine),
       (data, { id, input }) => patchRoutine(data, id, (routine) => ({ ...routine, ...input })),

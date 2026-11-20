@@ -3,25 +3,38 @@ import { GraphQLRequestError } from '../../../lib/graphql-client';
 import type { LostOnDelete } from '../api';
 import { lostOnDeleteText } from './lost-on-delete';
 
+/** Destructive confirmation of a change the API refused unconfirmed (`confirmedDestructive`'s dialog). */
+export type LossDialog = Parameters<typeof confirmedDestructive>[0];
+
 /**
- * Runs a change that may make occurrences of an event series or of a routine disappear (decision EW): first
- * unconfirmed; when the API answers CONFIRMATION_REQUIRED, asks for the loss of their comments and times (the
- * destructive confirmation, its numbers as in a deletion), then runs it again confirmed. Declined: `ActionDeclined`
- * (silent in the error toasts; the caller puts back what it showed).
- * @param {(confirmLoss: boolean) => Promise<T>} run The change, with or without the confirmation.
+ * Question of a change that makes occurrences disappear: the loss of their comments and times, numbered as in a
+ * deletion.
+ * @param {LostOnDelete} lost Numbers.
+ * @returns {LossDialog} Dialog.
+ */
+const occurrencesLost = (lost: LostOnDelete): LossDialog => ({
+  title: 'Occurrences supprimées',
+  risks: `Ce changement fait disparaître des occurrences qui ne reviendront pas. ${lostOnDeleteText(lost)}`,
+  confirmLabel: 'Supprimer et enregistrer',
+});
+
+/**
+ * Runs a change that the API refuses with CONFIRMATION_REQUIRED while what it loses is not confirmed (decision EW:
+ * occurrences of an event series or of a routine made to disappear; lot 15: a task turned into a routine and back):
+ * first unconfirmed; when refused, asks with the destructive confirmation, made from the extension `lost` of the
+ * answer, then runs it again confirmed. Declined: `ActionDeclined` (silent in the error toasts; the caller puts back
+ * what it showed).
+ * @param {(confirm: boolean) => Promise<T>} run The change, with or without the confirmation.
+ * @param {(lost: L) => LossDialog} [dialog] Question, from what is lost. Optional. Default = occurrences lost (`{ times, comments }`).
  * @returns {Promise<T>} Its result.
  */
-export async function withLossConfirmation<T>(run: (confirmLoss: boolean) => Promise<T>): Promise<T> {
+export async function withLossConfirmation<T, L = LostOnDelete>(run: (confirm: boolean) => Promise<T>, dialog?: (lost: L) => LossDialog): Promise<T> {
   try {
     return await run(false);
   } catch (error) {
     if (!(error instanceof GraphQLRequestError) || error.code !== 'CONFIRMATION_REQUIRED') throw error;
-    const lost = (error.extensions.lost ?? { times: 0, comments: 0 }) as LostOnDelete;
-    await confirmedDestructive({
-      title: 'Occurrences supprimées',
-      risks: `Ce changement fait disparaître des occurrences qui ne reviendront pas. ${lostOnDeleteText(lost)}`,
-      confirmLabel: 'Supprimer et enregistrer',
-    });
+    const { lost } = error.extensions;
+    await confirmedDestructive(dialog ? dialog((lost ?? {}) as L) : occurrencesLost((lost ?? { times: 0, comments: 0 }) as LostOnDelete));
     return run(true);
   }
 }

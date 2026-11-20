@@ -258,7 +258,7 @@ export function ShoppingListPage() {
       <DataViewBar
         view={view}
         searchLabel="Rechercher un produit"
-        manualText="Sans tri : l’ordre de la liste."
+        manualText="Sans tri : l’ordre choisi à la main (glissez les éléments), sinon celui de la liste."
         actions={
           <Group gap="sm" ml="auto" wrap="wrap">
             {!closed && (

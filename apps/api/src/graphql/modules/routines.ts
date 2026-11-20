@@ -3,6 +3,7 @@ import { addDays, daysBetween, formatDay, parseDay, readOpens, readReminders, ty
 import { prisma } from '../../db';
 import { clientError, done } from '../errors';
 import * as routines from '../../services/routines/routines';
+import { convertRoutineToTask, convertTaskToRoutine } from '../../services/routines/conversion';
 import type { Context } from '../context';
 import { BY_POSITION } from '../../services/core/ordering';
 import { RemovedLinksResult, removedLinks } from '../removed-links';
@@ -520,6 +521,18 @@ builder.mutationFields((t) => ({
     description: 'Creates a routine; a copy (copyOf) leaves out the former links of the routine copied out of its project tree.',
     args: { input: t.arg({ type: RoutineInputType, required: true }), copyOf: t.arg.id({ description: 'Routine the new one is a copy of.' }) },
     resolve: async (_root, { input, copyOf }) => (await routines.createRoutine(routineInput(input), idOrNull(copyOf))).id,
+  }),
+  convertTaskToRoutine: t.id({
+    description:
+      'Turns a task (not archived, without sub-tasks) into a routine repeated every day (lot 15): the task is deleted, what both have moves to the routine; returns the routine id. Unconfirmed: CONFIRMATION_REQUIRED, extension `lost` (what is lost, by kind), nothing changed.',
+    args: { id: t.arg.id({ required: true }), confirm: t.arg.boolean({ description: 'What is lost is confirmed.' }) },
+    resolve: (_root, { id, confirm }) => convertTaskToRoutine(id, confirm ?? false),
+  }),
+  convertRoutineToTask: t.id({
+    description:
+      'Turns a routine (not archived, without sub-routines) into a task, dated by its current occurrence (lot 15): the routine is deleted, what both have moves to the task; returns the task id. Unconfirmed: CONFIRMATION_REQUIRED, extension `lost` (what is lost, by kind), nothing changed.',
+    args: { id: t.arg.id({ required: true }), confirm: t.arg.boolean({ description: 'What is lost is confirmed.' }) },
+    resolve: (_root, { id, confirm }) => convertRoutineToTask(id, confirm ?? false),
   }),
   copySubRoutines: t.int({
     description: 'Copies the sub-routines of a routine under its copy (theirs too); returns how many were copied.',
