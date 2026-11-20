@@ -4,6 +4,7 @@ import {
   formatDay,
   formatOptionalDay,
   fromLegacySchedule,
+  normalizedReminders,
   parseDay,
   parseOptionalDay,
   readScheduleDisplay,
@@ -104,6 +105,8 @@ async function scheduleData(input: WorkScheduleInput, currentTypeId: string | nu
     endDate: parseOptionalDay(schedule.endDate),
     cases: toJson(schedule.cases),
     exceptions: toJson([...schedule.exceptions].sort((a, b) => a.from.localeCompare(b.from))),
+    // Omitted: left unchanged (a change of its hours from the calendar).
+    ...(schedule.reminders && { reminders: toJson(normalizedReminders(schedule.reminders)) }),
     intervalWeeks: 1,
     slots: [],
     pauses: [],

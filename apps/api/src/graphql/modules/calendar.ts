@@ -1,5 +1,5 @@
 import { done } from '../errors';
-import { EVENT_SCOPES } from '@ordo/shared';
+import { EVENT_SCOPES, readReminders } from '@ordo/shared';
 import { prisma } from '../../db';
 import * as categories from '../../services/calendar/calendar-categories';
 import * as calendars from '../../services/calendar/calendars';
@@ -11,6 +11,8 @@ import { builder } from '../builder';
 import { locatedInput, locationInputFields, TRAVEL_DESCRIPTIONS, travelInputFields } from '../located-fields';
 import { ItemLinkInput, ItemLinkRef } from '../link-fields';
 import { ReminderInput, ReminderRef } from '../reminder-fields';
+import { BIRTH_DATE_DESCRIPTION } from '../person-fields';
+import * as birthdays from '../../services/calendar/birthdays';
 import { CONFIRM_LOSS_DESCRIPTION } from '../occurrence-fields';
 import { LabelColorInput, labelMutations, labelObject } from '../label-inputs';
 import { reloaded } from '../reload';
@@ -133,6 +135,11 @@ export const WorkScheduleRef = builder.prismaObject('WorkSchedule', {
     exceptions: t.field({ type: 'JSON', description: 'Exceptions: { from, to, label, cases }.', resolve: (schedule) => schedules.scheduleRule(schedule).exceptions }),
     typeId: t.exposeID('typeId', { nullable: true, description: 'Kind of time it plans; none: working hours (or, an éphéméride, no kind).' }),
     ephemeris: t.exposeBoolean('ephemeris', { description: 'An éphéméride, not a créneau (that of its kind when it has one).' }),
+    reminders: t.field({
+      type: [ReminderRef],
+      description: 'Reminders of an éphéméride, counted from the first day of each run of consecutive days it has (a créneau rings none).',
+      resolve: (schedule) => readReminders(schedule.reminders),
+    }),
   }),
 });
 
@@ -251,6 +258,7 @@ const WorkScheduleInput = builder.inputType('WorkScheduleInput', {
     exceptions: t.field({ type: 'JSON', required: true, description: 'Exceptions: { from, to, label, cases }.' }),
     typeId: t.id({ description: 'Kind of time it plans; none: working hours (or, an éphéméride, no kind).' }),
     ephemeris: t.boolean({ description: 'Without kind: an éphéméride, not a créneau (with one: that of its kind).' }),
+    reminders: t.field({ type: [ReminderInput], description: 'Reminders of an éphéméride, 10 at most; omitted: left unchanged.' }),
   }),
 });
 
@@ -264,6 +272,7 @@ const scheduleInput = (input: typeof WorkScheduleInput.$inferInput) => ({
   endDate: input.endDate ?? null,
   typeId: input.typeId ?? null,
   ephemeris: input.ephemeris ?? false,
+  reminders: input.reminders ?? undefined,
   // Validated by the service.
   cases: unchecked(input.cases),
   exceptions: unchecked(input.exceptions),
@@ -321,7 +330,24 @@ const eventInput = (input: typeof CalendarEventInput.$inferInput) => ({
   beneficiaryRelationIds: input.beneficiaryRelationIds ?? [],
 });
 
+const BirthdayRef = builder.objectRef<birthdays.PersonBirthday>('Birthday').implement({
+  description: 'Birthday of a contributor or a relation (lot 16): a whole-day éphéméride derived from its birth date, every year, not stored.',
+  fields: (t) => ({
+    id: t.exposeID('id', { description: '`contributor:<id>` or `relation:<id>`.' }),
+    contributorId: t.exposeID('contributorId', { nullable: true, description: 'Contributor it is of (also set for a relation that is a contributor).' }),
+    relationId: t.exposeID('relationId', { nullable: true, description: 'Relation it is of.' }),
+    name: t.exposeString('name'),
+    birthDate: t.exposeString('birthDate', { description: BIRTH_DATE_DESCRIPTION }),
+    reminders: t.field({ type: [ReminderRef], description: 'Reminders « À HH:MM » or « N jours avant, à HH:MM » of the birthday.', resolve: (birthday) => birthday.reminders }),
+  }),
+});
+
 builder.queryFields((t) => ({
+  birthdays: t.field({
+    type: [BirthdayRef],
+    description: 'Birthdays of the people of the workspace (contributors and relations with a birth date, not archived), by name.',
+    resolve: () => birthdays.birthdays(),
+  }),
   calendars: t.prismaField({
     type: ['Calendar'],
     description: 'Calendars of the workspace, in their order.',

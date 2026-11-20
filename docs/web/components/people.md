@@ -39,3 +39,10 @@ Valeurs des sélections qui mélangent les sortes de personnes : `« c:<id> »` 
 ## `person-option.tsx`
 
 `personOptionRenderer(byId, { handle })` : rendu (`renderOption`) des options d'une sélection de personnes : avatar, libellé, « @handle » (sauf `handle: false`). Imposé par eslint (un `PersonOption` dans un `renderOption` écrit à la main est interdit). Utilisé par les tâches et la trésorerie.
+
+## Détails d'une personne (lot 16, décision FO)
+
+- `BirthDateField({ value, onChange, onBlur?, error? })` (`BirthDateField.tsx`) : « Date de naissance » : jour, mois (`monthOptions`), année facultative (« L’année est facultative : connue, l’âge s’affiche. ») ; la valeur (`YYYY-MM-DD` ou `--MM-DD`) n'existe qu'avec le jour et le mois ; les parties tapées sont gardées, une valeur changée ailleurs les remplace.
+- `PersonDetailsFields(props)` (`PersonDetailsFields.tsx`) : les détails d'un contributeur ou d'une relation, les mêmes dans les deux panneaux : date de naissance, « Rappels d’anniversaire » (`RemindersSelect`, `at` et `days`, désactivé sans date de naissance), « Adresse mail », téléphones (`PhonesField`). `ContributorForm`, `RelationForm`.
+- `person-details.ts` : `PersonDetailsValues` (type des valeurs), `NO_PERSON_DETAILS_VALUES` (une nouvelle personne), `PERSON_DETAILS_ON_BLUR` (champs enregistrés en les quittant : date, adresse, téléphones ; les rappels dès qu'ils changent), `personDetailsValues(person)` (valeurs depuis le cache), `personDetailsProps(form, fieldProps)` (props de `PersonDetailsFields` depuis `useFieldSave`).
+

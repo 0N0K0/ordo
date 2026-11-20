@@ -23,7 +23,8 @@ import { unchecked } from '../unchecked';
 import { locationInputFields } from '../located-fields';
 import { ItemLinkInput, ItemLinkRef } from '../link-fields';
 import { ReminderInput, ReminderRef } from '../reminder-fields';
-import { readReminders } from '@ordo/shared';
+import { readPhones, readReminders } from '@ordo/shared';
+import { BIRTH_DATE_DESCRIPTION, personDetailsInputFields } from '../person-fields';
 import { readLinks } from '../../services/core/links';
 
 builder.prismaObject('Contributor', {
@@ -42,6 +43,10 @@ builder.prismaObject('Contributor', {
       resolve: (contributor) => isMember(contributor),
     }),
     projectIds: t.idList(relationIds('projects', 'Projects the contributor is directly attached to; their sub-projects inherit it.')),
+    birthDate: t.exposeString('birthDate', { nullable: true, description: BIRTH_DATE_DESCRIPTION }),
+    birthdayReminders: t.field({ type: [ReminderRef], description: 'Reminders of its birthday.', resolve: (contributor) => readReminders(contributor.birthdayReminders) }),
+    email: t.exposeString('email', { nullable: true }),
+    phones: t.field({ type: 'JSON', description: '[{ label, number }]', resolve: (contributor) => readPhones(contributor.phones) }),
   }),
 });
 
@@ -310,6 +315,7 @@ const ContributorInput = builder.inputType('ContributorInput', {
     projectIds: t.idList({ description: 'Projects the contributor is directly attached to.' }),
     handle: t.string({ required: true }),
     avatar: t.field({ type: 'File' }),
+    ...personDetailsInputFields(t),
   }),
 });
 
@@ -320,6 +326,7 @@ const ContributorUpdateInput = builder.inputType('ContributorUpdateInput', {
     handle: t.string(),
     avatar: t.field({ type: 'File' }),
     removeAvatar: t.boolean(),
+    ...personDetailsInputFields(t),
   }),
 });
 

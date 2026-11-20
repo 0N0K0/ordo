@@ -309,13 +309,7 @@ Utilisés par `ClientBillingSection`.
 
 | Export                                               | Rôle                                                                                                                         |
 | ---------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------- |
-| `AddressFields({ legend, value, onChange, errors, onBlur? })` | Adresse postale : jusqu’à 4 lignes, code postal, ville, région, pays (`COUNTRY_OPTIONS`). `onBlur` : un champ quitté, une ligne retirée, un pays choisi (l’adresse est alors enregistrée, décision D22). `CompanyForm`, `ClientPartyForms`. |
-
-### `components/PhonesField.tsx`
-
-| Export                             | Rôle                                                                           |
-| ---------------------------------- | ------------------------------------------------------------------------------ |
-| `PhonesField({ value, onChange, errors?, onBlur? })` | Liste de téléphones (libellé et numéro), ajout et retrait ; l’erreur de chacun sous lui (`errors`, chemins `N.number`) ; `onBlur` : un champ quitté, un numéro retiré (enregistrés alors, décision D22). `ClientPartyForms`. |
+| `AddressFields({ legend, value, onChange, errors, onBlur? })` | Adresse postale : jusqu’à 4 lignes, code postal, ville, région, pays (`COUNTRY_OPTIONS`). `onBlur` : un champ quitté, une ligne retirée, un pays choisi (l’adresse est alors enregistrée, décision D22). `CompanyForm`, `ClientPartyForms`. Les téléphones : `PhonesField` (`components/inputs`, voir [Champs](../../components/inputs.md#phonesfield)). |
 
 ### `components/ProjectBillingPanel.tsx`
 

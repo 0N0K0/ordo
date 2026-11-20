@@ -9,6 +9,8 @@ import {
   lineCents,
   monthOfDate,
   parseDay,
+  readPhones,
+  readReminders,
   REMINDER_DELAY_DAYS,
   TREASURY_DIRECTIONS,
   TREASURY_ENTRY_STATUSES,
@@ -28,6 +30,8 @@ import * as statements from '../../services/treasury/treasury-import';
 import * as loans from '../../services/treasury/treasury-loans';
 import * as team from '../../services/treasury/treasury-team';
 import { meContributorId } from '../../services/workspaces/workspaces';
+import { ReminderRef } from '../reminder-fields';
+import { BIRTH_DATE_DESCRIPTION, personDetailsInputFields } from '../person-fields';
 import { currentWorkspace, currentWorkspaceId } from '../../workspace-context';
 import { iconUrl } from '../../services/core/icons';
 import type { ContextEphemeris } from '@ordo/shared';
@@ -96,13 +100,17 @@ builder.prismaObject('TreasuryRelation', {
     name: t.exposeString('name'),
     note: t.exposeString('note', { nullable: true }),
     contributorId: t.exposeID('contributorId', { nullable: true, description: 'Contributor this person also is.' }),
+    birthDate: t.exposeString('birthDate', { nullable: true, description: BIRTH_DATE_DESCRIPTION }),
+    birthdayReminders: t.field({ type: [ReminderRef], description: 'Reminders of its birthday.', resolve: (relation) => readReminders(relation.birthdayReminders) }),
+    email: t.exposeString('email', { nullable: true }),
+    phones: t.field({ type: 'JSON', description: '[{ label, number }]', resolve: (relation) => readPhones(relation.phones) }),
     lineCount: t.relationCount('lines'),
     budgetCount: t.relationCount('budgets'),
   }),
 });
 
 const RelationInput = builder.inputType('TreasuryRelationInput', {
-  fields: (t) => ({ name: t.string({ required: true }), note: t.string(), contributorId: t.id() }),
+  fields: (t) => ({ name: t.string({ required: true }), note: t.string(), contributorId: t.id(), ...personDetailsInputFields(t) }),
 });
 
 builder.prismaObject('TreasuryContext', {
@@ -937,7 +945,7 @@ builder.mutationFields((t) => ({
   saveTreasuryRelation: t.id({
     description: 'Creates a relation (without id) or changes one.',
     args: { id: t.arg.id(), input: t.arg({ type: RelationInput, required: true }) },
-    resolve: async (_root, { id, input }) => (await team.saveRelation(id ?? null, { name: input.name, note: input.note ?? null, contributorId: input.contributorId ?? null })).id,
+    resolve: async (_root, { id, input }) => (await team.saveRelation(id ?? null, { ...input, note: input.note ?? null, contributorId: input.contributorId ?? null })).id,
   }),
   deleteTreasuryRelation: t.boolean({
     description: "Deletes a relation: its budgets go with it, its lines become the app user's.",

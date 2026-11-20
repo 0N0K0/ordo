@@ -56,6 +56,7 @@ const RoutinesDataDocument = graphql(`
       reminders {
         before
         at
+        days
       }
       reminderOccurrences {
         date

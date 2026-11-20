@@ -1110,6 +1110,16 @@ export default defineConfig([
           selector: "ObjectExpression:has(> Property[key.name='label']):has(> Property[key.name='startDate']):has(> Property[key.name='typeId']):has(> SpreadElement[argument.name='next'])",
           message: 'Utiliser ruleScheduleInput (features/calendar/api) : l’entrée d’un créneau depuis sa règle garde son type et sa nature (décision FM).',
         },
+        {
+          // Lot 16: every reminder of an occurrence (before its start, at a time of its day or of some days before).
+          selector: "ArrayExpression:has(> SpreadElement > CallExpression[callee.name='remindersBefore']):has(> SpreadElement > CallExpression[callee.name='remindersAt'])",
+          message: 'Utiliser occurrenceReminders (@ordo/shared) : tous les rappels d’une occurrence, « N jours avant » compris (décision FO).',
+        },
+        {
+          // Lot 16: the details of a person (birth date, birthday reminders, email, phones) are one block.
+          selector: "JSXOpeningElement[name.name='BirthDateField']",
+          message: 'Utiliser PersonDetailsFields (components/people) : les détails d’une personne, les mêmes partout (décision FO).',
+        },
       ],
     },
   },

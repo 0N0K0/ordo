@@ -1,9 +1,9 @@
-import { LabeledField } from '../../../components/inputs/LabeledField';
-import { AddItemButton } from '../../../components/actions/AddItemButton';
+import { LabeledField } from './LabeledField';
+import { AddItemButton } from '../actions/AddItemButton';
 import { Group, TextInput } from '@mantine/core';
 import type { Phone } from '@ordo/shared';
 import { PhoneIcon } from '@phosphor-icons/react';
-import { RemoveButton } from '../../../components/actions/RemoveButton';
+import { RemoveButton } from '../actions/RemoveButton';
 
 interface PhonesFieldProps {
   value: Phone[];

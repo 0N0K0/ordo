@@ -4,6 +4,7 @@ import { useInvalidatingMutation } from '../../../lib/mutation';
 import { graphql } from '../../../graphql';
 import { readScheduleCases, readScheduleExceptions, type ScheduleDisplay, type ScheduleSubscriptionLook, type WorkScheduleInput, type WorkScheduleRule } from '@ordo/shared';
 import type {
+  BirthdaysQuery,
   CalendarEventInput,
   CalendarEventOccurrenceFieldsFragment,
   CalendarEventScope,
@@ -50,6 +51,7 @@ graphql(`
     reminders {
       before
       at
+      days
     }
     travelBefore
     travelAfter
@@ -94,6 +96,11 @@ const WorkSchedulesDocument = graphql(`
       ephemeris
       cases
       exceptions
+      reminders {
+        before
+        at
+        days
+      }
     }
     scheduleTypes {
       id
@@ -584,6 +591,40 @@ export function useCalendarEventMutations() {
       [tasksQueryKey],
     ),
   };
+}
+
+const BirthdaysDocument = graphql(`
+  query Birthdays {
+    birthdays {
+      id
+      contributorId
+      relationId
+      name
+      birthDate
+      reminders {
+        before
+        at
+        days
+      }
+    }
+  }
+`);
+
+/** Birthday of a person (lot 16): derived from its birth date by the API. */
+export type PersonBirthday = BirthdaysQuery['birthdays'][number];
+
+/**
+ * Key of the birthdays: under the tasks (a contributor changed or archived reloads them); a relation changed or
+ * archived reloads them too (`saveRelation`, its archiving).
+ */
+export const birthdaysQueryKey = [...tasksQueryKey, 'birthdays'] as const;
+
+/**
+ * Birthdays of the people of the workspace (contributors and relations with a birth date, not archived, lot 16).
+ * @returns {UseQueryResult} Query state.
+ */
+export function useBirthdays() {
+  return useQuery({ queryKey: birthdaysQueryKey, queryFn: async () => (await execute(BirthdaysDocument)).birthdays });
 }
 
 /**

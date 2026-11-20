@@ -8,6 +8,7 @@ import { caseSpanOn, caseSpans, repetitionCaseSchema, type RepetitionCase } from
 import { colorSchema } from '../core/workspace';
 import { timeOfDaySchema, daySchema } from '../dates/times';
 import { dayOfMonthOf, daysInMonth, monthIndex, shiftMonth } from '../dates/months';
+import { remindersSchema } from '../dates/reminders';
 
 /** Hours of a day of a case, in local time. */
 const timeRangeSchema = z.object({ start: timeOfDaySchema, end: timeOfDaySchema }).refine(...endAfter('start', 'end', true));
@@ -118,6 +119,8 @@ export const workScheduleSchema = z
     typeId: z.string().nullish(),
     /** An éphéméride, not a créneau (lot 16): with a kind, that of the kind (set by the API). */
     ephemeris: z.boolean().default(false),
+    /** Reminders of an éphéméride (lot 16, decision FO), every kind; omitted: left unchanged. A créneau rings none. */
+    reminders: remindersSchema.optional(),
   })
   .superRefine((schedule, context) => {
     if (!endsAfter(schedule.startDate, schedule.endDate)) context.addIssue({ code: 'custom', path: ['endDate'], message: END_AFTER_START });
@@ -329,6 +332,33 @@ export function plannedSlots(schedules: readonly WorkScheduleRule[], from: strin
     }
   }
   return result.sort((a, b) => a.date.localeCompare(b.date) || a.start.localeCompare(b.start));
+}
+
+/** Start of a run of consecutive days of a schedule: its first day and the start of its first slot (00:00 all day). */
+export interface ScheduleRun {
+  day: string;
+  start: string;
+}
+
+/**
+ * Runs of consecutive days of a schedule starting between two dates (included): what the reminders of an éphéméride
+ * count from (lot 16, decision FO), each run its first day and the start of its first slot that day.
+ * @param {WorkScheduleRule} schedule Schedule.
+ * @param {string} from First date.
+ * @param {string} to Last date.
+ * @returns {ScheduleRun[]} Runs, by day.
+ */
+export function scheduleRuns(schedule: WorkScheduleRule, from: string, to: string): ScheduleRun[] {
+  // The day before tells whether a run goes on from before `from`.
+  const slots = plannedSlots([schedule], addDays(from, -1), to);
+  const days = new Set(slots.map((slot) => slot.date));
+  const runs: ScheduleRun[] = [];
+  for (const slot of slots) {
+    if (slot.date < from || days.has(addDays(slot.date, -1)) || runs.at(-1)?.day === slot.date) continue;
+    // Slots are by start: the first one of the day.
+    runs.push({ day: slot.date, start: slot.start });
+  }
+  return runs;
 }
 
 /**

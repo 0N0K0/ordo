@@ -51,7 +51,7 @@ Source : `apps/api/src/services/calendar/calendar-events.ts`, schéma `calendarE
 | `startTime`, `endTime`                                                      | `HH:MM`, requis si non journée entière                                                   | « L’heure de début est requise. », « L’heure de fin est requise. », « Heure attendue (HH:MM). » |
 | Fin / début                                                                 | La fin (date + heure) doit suivre le début                                               | « La fin doit suivre le début. »                                                                |
 | `recurrence`                                                                | Règle commune (voir [Dates](../cross-cutting/dates.md)) ; sa fin ne précède pas le début | « La fin de la répétition doit suivre le début. »                                               |
-| `reminders`                                                                 | 10 max, de types mêlés (décision D16, `remindersSchema`) : `{ before }` minutes avant le début, 0 à 1 440 (24 heures), ou `{ at }` heure `HH:MM` du premier jour ; dédoublonnés et triés à l’enregistrement (`normalizedReminders`). Les rappels enregistrés avant sont devenus des `{ before }`, ceux de plus de 24 heures retirés (migration `20261120090000_unified_reminders`) | « 10 rappels maximum. », « 24 heures maximum. », « Heure attendue (HH:MM). »                     |
+| `reminders`                                                                 | 10 max, de types mêlés (décision D16, `remindersSchema`) : `{ before }` minutes avant le début, 0 à 1 440 (24 heures), `{ at }` heure `HH:MM` du premier jour, ou `{ at, days }` cette heure N jours avant (1 à 30, lot 16, décision FO) ; dédoublonnés et triés à l’enregistrement (`normalizedReminders`). Les rappels enregistrés avant sont devenus des `{ before }`, ceux de plus de 24 heures retirés (migration `20261120090000_unified_reminders`) |  « 10 rappels maximum. », « 24 heures maximum. », « 30 jours maximum. », « Heure attendue (HH:MM). »                  |
 | `travelBefore`, `travelAfter`                                               | Entiers 0 à 1 440                                                                        | « Durée positive attendue. », « 24 h maximum. »                                                 |
 | `contributorIds`, `relationIds`, `beneficiaryIds`, `beneficiaryRelationIds` | 200 max chacun                                                                           | —                                                                                               |
 | `categoryIds`                                                               | 50 max                                                                                   | —                                                                                               |
@@ -202,6 +202,7 @@ Source : `apps/api/src/services/calendar/work-schedules.ts` (`setWorkScheduleEph
 - Conversion (`setWorkScheduleEphemeris(id, ephemeris, confirmLoss)`) : un créneau devient éphéméride ou l’inverse, son id gardé ; refusée s’il est archivé ; sans effet s’il a déjà cette nature. Un créneau d’un type de l’autre nature **quitte son type** (il devient sans type) : un type n’est jamais mixte. Les occurrences de routines que la conversion fait disparaître passent par `confirmLoss` (`settleScheduleChange`), comme une modification.
 - Conversion d’un type entier (`setScheduleTypeEphemeris(id, ephemeris, confirmLoss)`) : le type et tous ses créneaux changent de nature, ids gardés ; refusée s’il est archivé, et vers les créneaux tant qu’il sert de contexte au budget (« Ce type sert de contexte au budget : retirez d’abord « Sert de contexte au budget ». ») ; même `confirmLoss`.
 - Une nouvelle éphéméride (web) dure la journée du jour, journée entière, tous les jours de sa période (`wholeDaysCase`).
+- Rappels (lot 16, décision FO) : une éphéméride a des rappels (`reminders`, `remindersSchema` : « Au début », « N min avant », « À HH:MM », « N jours avant, à HH:MM », 10 au plus), comptés depuis le premier jour de chaque suite de jours consécutifs qu'elle couvre (voir [Alarmes](alarms.md#rappels-des-tâches-routines-et-évènements)). Omis à l'enregistrement : inchangés (un horaire changé depuis l'agenda les garde). Un créneau n'en sonne aucun ; une conversion les garde.
 
 ### Type par défaut (créneaux sans type)
 
@@ -216,6 +217,16 @@ Source : `apps/api/src/services/calendar/work-schedules.ts` (`setWorkScheduleEph
 - `otherWorkspaceSchedules` : tous les créneaux des autres espaces (archivés compris, avec `archived`), abonné ou non : ce qu’une condition de créneaux peut en citer. `foreignScheduleKinds` donne aussi `archived` pour chaque type.
 - `setScheduleSubscriptionLook` : couleur et affichage propres (chaque champ nul : celui du type) ; « Abonnement » introuvable si non abonné.
 - Suppression du type source ou de l’espace source : l’abonnement disparaît (cascade).
+
+
+## Anniversaires (lot 16)
+
+Source : `apps/api/src/services/calendar/birthdays.ts` (requête `birthdays`), `packages/shared/src/people/birthdays.ts`. Décision FO.
+
+- Un anniversaire découle de la date de naissance d'un contributeur (membre compris) ou d'une relation : il n'est pas enregistré (pas de `WorkSchedule`), il est calculé à la lecture, donc toujours à jour. Règles de la date et des rappels : [Personnes](../cross-cutting/people.md#coordonnées-date-de-naissance-anniversaire).
+- Affiché comme une éphéméride sans type, journée entière, gris et pointillé, avec l'affichage par défaut : dans la semaine et le jour, une barre « Anniversaire de Paul — 40 ans » (l'âge quand l'année est connue) et le jour en fond ; dans le mois, le jour en fond. Masqué avec les créneaux et éphémérides (« Créneaux et éphémérides » des filtres). Un clic sur la barre ouvre le panneau de la personne (la relation, sinon le contributeur).
+- Personnes archivées : pas d'anniversaire. Autres espaces : non affiché (aucun abonnement ne montre les éphémérides sans type), mais ses rappels sonnent quel que soit l'espace ouvert.
+- Non citable par une condition de créneaux, et non compté dans les contextes du budget (point ouvert, [Écarts](../../discrepancies.md)).
 
 ## Condition de créneaux des tâches et routines
 
@@ -238,7 +249,7 @@ Source : `apps/api/src/services/calendar/calendar-ics.ts`, route `GET /api/expor
 
 - Un calendrier (doit exister : « Calendrier ») ou tous ceux de l’espace ; évènements archivés exclus, et calendriers archivés exclus du fichier global. Nom : le calendrier, ou « Agenda » ; fichier `<nom>.ics`.
 - `VCALENDAR` 2.0, `PRODID:-//Ordo//Agenda//FR`, `METHOD:PUBLISH`, `X-WR-CALNAME`.
-- Chaque évènement : `UID` `<id>@ordo`, `SUMMARY`, `DESCRIPTION` (description + liens « libellé: url »), `LOCATION`, `URL` (premier lien), `DTSTART`/`DTEND` (date pour une journée entière, fin exclusive ; sinon heure de Paris avec `TZID=Europe/Paris`, toujours, décision D7), `STATUS` `CANCELLED` ou `CONFIRMED`, `CATEGORIES`, `X-APPLE-TRAVEL-DURATION` (trajet aller seulement), un `VALARM` par rappel, relatif au début (`TRIGGER:-PT<n>M` ; un « À HH:MM » devient l’écart à l’heure de début, `TRIGGER:PT<n>M` s’il est après, `minutesBeforeStart`).
+- Chaque évènement : `UID` `<id>@ordo`, `SUMMARY`, `DESCRIPTION` (description + liens « libellé: url »), `LOCATION`, `URL` (premier lien), `DTSTART`/`DTEND` (date pour une journée entière, fin exclusive ; sinon heure de Paris avec `TZID=Europe/Paris`, toujours, décision D7), `STATUS` `CANCELLED` ou `CONFIRMED`, `CATEGORIES`, `X-APPLE-TRAVEL-DURATION` (trajet aller seulement), un `VALARM` par rappel, relatif au début (`TRIGGER:-PT<n>M` ; un « À HH:MM » devient l’écart à l’heure de début, `TRIGGER:PT<n>M` s’il est après, un « N jours avant » compte ses jours en plus, `minutesBeforeStart`).
 - Répétition : `RRULE` (FREQ, INTERVAL, BYDAY/WKST, BYMONTHDAY, BYMONTH, BYWEEKNO selon le mode) ; un nombre d’occurrences est converti en `UNTIL` à la dernière occurrence (Ordo ne compte pas les dates exclues ni en pause) ; `UNTIL` en UTC (fin du dernier jour à Paris) quand il y a une heure. Les mois sans le jour (31 → 30 avril) sont ajoutés en `RDATE`. `EXDATE` : dates exclues, dates des pauses et occurrences supprimées, jusqu’à 10 ans pour une série sans fin.
 - Occurrences modifiées : un `VEVENT` de même `UID` avec `RECURRENCE-ID`.
 - Texte échappé (`\`, `;`, `,`, sauts de ligne), lignes pliées à 75 octets sans couper un caractère UTF-8, fins de ligne CRLF.
@@ -253,4 +264,4 @@ Source : `apps/api/src/services/calendar/calendar-pdf.ts`, route `POST /api/expo
 
 ## Rappels d’évènements
 
-Les rappels (« Au début », minutes avant le début, 24 heures au plus, ou « À HH:MM » le premier jour ; le début d’une journée entière est minuit de Paris du premier jour) sont sonnés par le navigateur, quel que soit l’espace ouvert, sauf pour une occurrence annulée : voir [Règles des alarmes](alarms.md#rappels-des-tâches-routines-et-évènements).
+Les rappels (« Au début », minutes avant le début, 24 heures au plus, « À HH:MM » le premier jour, ou « N jours avant, à HH:MM », 30 jours au plus ; le début d’une journée entière est minuit de Paris du premier jour) sont sonnés par le navigateur, quel que soit l’espace ouvert, sauf pour une occurrence annulée : voir [Règles des alarmes](alarms.md#rappels-des-tâches-routines-et-évènements).

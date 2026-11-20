@@ -382,12 +382,12 @@ export function RoutineSchedule({ values, errors, onChange, onCommit }: RoutineS
         label="Rappels"
         description={
           timed
-            ? 'Avant son premier jour (« Ouverture ») à l’heure « dès » de chaque moment non coché (sinon son heure maximale), 24 h au plus ; ou à une heure de ce jour.'
-            : 'À une heure de son premier jour (« Ouverture ») : donnez-lui un horaire ou un créneau pour des rappels avant ses moments.'
+            ? 'Avant son premier jour (« Ouverture ») à l’heure « dès » de chaque moment non coché (sinon son heure maximale), 24 h au plus ; ou à une heure de ce jour ou de quelques jours avant.'
+            : 'À une heure de son premier jour (« Ouverture ») ou de quelques jours avant : donnez-lui un horaire ou un créneau pour des rappels avant ses moments.'
         }
         leftSection={<BellIcon aria-hidden />}
         emptyLabel="Aucun"
-        kinds={timed ? ['before', 'at'] : ['at']}
+        kinds={timed ? ['before', 'at', 'days'] : ['at', 'days']}
         value={values.reminders}
         onChange={(reminders) => onChange({ reminders })}
         clearable

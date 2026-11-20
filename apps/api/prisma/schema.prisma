@@ -459,6 +459,14 @@ model Contributor {
   user                  User?               @relation(fields: [userId], references: [id], onDelete: SetNull)
   /// GitHub login: assignees are synchronized with the GitHub boards through it.
   githubLogin           String?
+  /// Birth date: YYYY-MM-DD, or --MM-DD when the year is not known (lot 16). Its birthday is a whole-day éphéméride
+  /// derived at read time.
+  birthDate             String?
+  /// Reminders of its birthday: [{ before: null, at: "HH:MM", days }] (on the day or some days before).
+  birthdayReminders     Json                @default("[]")
+  email                 String?
+  /// [{ label, number }]
+  phones                Json                @default("[]")
   /// Member of the team (professional workspace) or household (personal one): treasury entries are split
   /// between members. The app user ("Moi") always is one.
   teamMember            Boolean             @default(false)
@@ -1635,6 +1643,9 @@ model WorkSchedule {
   cases         Json          @default("[]")
   /// Periods with cases of their own instead of the general ones (none: a pause), dates included.
   exceptions    Json          @default("[]")
+  /// Reminders of an éphéméride (lot 16), [{ before, at, days }] as those of the events; a créneau has none (kept
+  /// without ringing when an éphéméride becomes one).
+  reminders     Json          @default("[]")
   /// Archived: hidden by default and read only until restored.
   archivedAt    DateTime?
   createdAt     DateTime      @default(now())
@@ -2175,6 +2186,14 @@ model TreasuryRelation {
   id                    String              @id @default(cuid())
   name                  String
   note                  String?
+  /// Birth date: YYYY-MM-DD, or --MM-DD when the year is not known (lot 16). Its birthday is a whole-day éphéméride
+  /// derived at read time.
+  birthDate             String?
+  /// Reminders of its birthday: [{ before: null, at: "HH:MM", days }] (on the day or some days before).
+  birthdayReminders     Json                @default("[]")
+  email                 String?
+  /// [{ label, number }]
+  phones                Json                @default("[]")
   /// Contributor this person also is (on projects, tasks…), if any.
   contributorId         String?
   contributor           Contributor?        @relation(fields: [contributorId], references: [id], onDelete: SetNull)

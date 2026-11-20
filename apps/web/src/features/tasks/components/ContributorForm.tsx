@@ -14,6 +14,8 @@ import { useTaskContext } from '../hooks/use-task-context';
 import { BatchMultiSelect } from '../../../components/inputs/BatchMultiSelect';
 import { FormActions } from '../../../components/dialogs/FormActions';
 import { SaveStatus } from '../../../components/feedback/SaveStatus';
+import { PersonDetailsFields } from '../../../components/people/PersonDetailsFields';
+import { NO_PERSON_DETAILS_VALUES, PERSON_DETAILS_ON_BLUR, personDetailsProps, personDetailsValues } from '../../../components/people/person-details';
 
 interface ContributorFormProps {
   contributor?: Contributor;
@@ -32,11 +34,19 @@ type ContributorValues = ContributorFormValues & { projectIds: string[]; avatar:
  * @returns {ContributorValues} Values.
  */
 function contributorValues(contributor?: Contributor, defaultProjectIds: string[] = []): ContributorValues {
-  return { name: contributor?.name ?? '', handle: contributor?.handle ?? '', projectIds: contributor?.projectIds ?? defaultProjectIds, avatar: null, removeAvatar: false };
+  return {
+    name: contributor?.name ?? '',
+    handle: contributor?.handle ?? '',
+    ...(contributor ? personDetailsValues(contributor) : NO_PERSON_DETAILS_VALUES),
+    projectIds: contributor?.projectIds ?? defaultProjectIds,
+    avatar: null,
+    removeAvatar: false,
+  };
 }
 
 /**
- * Contributor form (name, mention handle, avatar, projects), in the side panel: a new contributor, added by its button;
+ * Contributor form (name, mention handle, avatar, projects, and its details: birth date, birthday reminders, email,
+ * phones, lot 16), in the side panel: a new contributor, added by its button;
  * an existing one, saved field by field (decision D22), read only once archived.
  * @param {ContributorFormProps} props Component props.
  * @param {Contributor} [props.contributor] Contributor to edit. Optional.
@@ -53,17 +63,19 @@ export function ContributorForm({ contributor, defaultProjectIds = [], onDone }:
   // The handle follows the name until it is edited by hand.
   const [handleTouched, setHandleTouched] = useState(Boolean(contributor));
   const base = useAppForm<ContributorValues>({ initialValues: contributorValues(contributor, defaultProjectIds), schema: contributorFormSchema });
-  const { form, saving } = useFieldSave(base, {
+  const { form, saving, fieldProps } = useFieldSave(base, {
     // Only the fields changed: the avatar is not sent again.
     save: contributor ? (changes) => update.mutateAsync({ id: contributor.id, input: changes }) : null,
     schema: contributorFormSchema,
     saved: current && contributorValues(current),
-    onBlur: ['name', 'handle'],
+    onBlur: ['name', 'handle', ...PERSON_DETAILS_ON_BLUR],
     readOnly,
   });
 
   // A new contributor only: an existing one is saved field by field (Enter saves the text typed).
-  const handleSubmit = form.onSubmit(({ name, handle, avatar, projectIds }) => create.mutate({ name, handle, avatar, projectIds }, formCallbacks(form, 'Contributeur ajouté.', onDone)));
+  const handleSubmit = form.onSubmit(({ name, handle, avatar, projectIds, birthDate, birthdayReminders, email, phones }) =>
+    create.mutate({ name, handle, avatar, projectIds, birthDate, birthdayReminders, email, phones }, formCallbacks(form, 'Contributeur ajouté.', onDone)),
+  );
 
   return (
     <form onSubmit={handleSubmit} noValidate>
@@ -93,6 +105,7 @@ export function ContributorForm({ contributor, defaultProjectIds = [], onDone }:
             }}
           />
           <IconField {...formIconProps(form, 'avatar', 'removeAvatar')} currentUrl={current?.avatarUrl ?? null} name={form.values.name} />
+          <PersonDetailsFields {...personDetailsProps(form, fieldProps)} />
           {/* The app user belongs to every project. */}
           {!contributor?.isMe && (
             <BatchMultiSelect

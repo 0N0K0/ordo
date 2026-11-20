@@ -47,6 +47,7 @@ import {
   withMovedTimes,
   joinedKey,
   normalizedReminders,
+  REMINDER_LOOKAHEAD_DAYS,
   readReminders,
   parisInstant,
   routineReminderTime,
@@ -488,14 +489,25 @@ export interface RoutineReminderOccurrence {
  * Occurrences the reminders of a routine ring for: its current one while not done and its next one (a reminder up to 24
  * hours before may ring before it opens), each with its first day (« Ouverture ») and, for each time of the day not
  * ticked, its first day at the start of the time (« dès », else its latest time; a time without any hour has none).
+ * With reminders « N jours avant » (`ahead` days at most), also the later occurrences that open within those days.
  * An archived routine has none (no occurrence).
  * @param {RoutineTiming & { checks: { date: Date, slot: number }[] }} routine Routine with its latest checks.
  * @param {ScheduleContext} [schedules] Schedules. Optional. Default = none.
+ * @param {number} [ahead] Most days before of its reminders « N jours avant ». Optional. Default = 0.
  * @returns {RoutineReminderOccurrence[]} Occurrences.
  */
-export function reminderOccurrences(routine: RoutineTiming & { checks: { date: Date; slot: number }[] }, schedules: ScheduleContext = NO_SCHEDULES): RoutineReminderOccurrence[] {
+export function reminderOccurrences(routine: RoutineTiming & { checks: { date: Date; slot: number }[] }, schedules: ScheduleContext = NO_SCHEDULES, ahead = 0): RoutineReminderOccurrence[] {
   const { current, next } = occurrencesOf(routine, undefined, schedules);
-  return [current, next].flatMap((due) => {
+  const today = parisToday();
+  const last = addDays(today, ahead);
+  // Later occurrences opening within the days of the reminders « N jours avant ».
+  const later =
+    ahead > 0 && next
+      ? occurrenceSpansBetween(routine, addDays(next, 1), addDays(last, REMINDER_LOOKAHEAD_DAYS), schedules)
+          .filter((span) => span.start <= last)
+          .map((span) => span.end)
+      : [];
+  return [current, next, ...later].flatMap((due) => {
     if (!due) return [];
     const ticked = new Set(due === current ? routine.checks.filter((check) => formatDay(check.date) === due).map((check) => check.slot) : []);
     const slots = slotsOf(routine, due, schedules);

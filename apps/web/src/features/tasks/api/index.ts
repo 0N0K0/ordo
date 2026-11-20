@@ -1,4 +1,5 @@
 import type { TaskInput } from '@ordo/shared';
+import type { PersonDetailsValues } from '../../../components/people/person-details';
 import { accountingQueryKey } from '../../accounting/api';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { moveToIndex, patchQuery, useInvalidatingMutation } from '../../../lib/mutation';
@@ -36,6 +37,14 @@ graphql(`
     avatarUrl
     isMe
     projectIds
+    birthDate
+    birthdayReminders {
+      before
+      at
+      days
+    }
+    email
+    phones
   }
 `);
 
@@ -126,6 +135,7 @@ graphql(`
     reminders {
       before
       at
+      days
     }
   }
 `);
@@ -573,7 +583,9 @@ export function useTaskCommentMutations() {
  */
 export function useContributorMutations() {
   return {
-    create: useTasksMutation(async (input: { name: string; handle: string; avatar?: File | null; projectIds?: string[] }) => (await execute(CreateContributorDocument, { input })).createContributor),
+    create: useTasksMutation(
+      async (input: { name: string; handle: string; avatar?: File | null; projectIds?: string[] } & Partial<PersonDetailsValues>) => (await execute(CreateContributorDocument, { input })).createContributor,
+    ),
     update: useTasksMutation(
       async (variables: { id: string; input: { name?: string; handle?: string; avatar?: File | null; removeAvatar?: boolean; projectIds?: string[] } }) =>
         (await execute(UpdateContributorDocument, variables)).updateContributor,

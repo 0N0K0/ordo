@@ -1,5 +1,5 @@
 import { parseOptionalDay, sumOf } from '@ordo/shared';
-import { addDays, daysBetween, formatDay, parseDay, readOpens, readReminders, type RoutineInput, type RoutineMoveTimes } from '@ordo/shared';
+import { addDays, daysBetween, formatDay, parseDay, readOpens, readReminders, reminderDaysAhead, type RoutineInput, type RoutineMoveTimes } from '@ordo/shared';
 import { prisma } from '../../db';
 import { clientError, done } from '../errors';
 import * as routines from '../../services/routines/routines';
@@ -142,14 +142,17 @@ builder.prismaObject('Routine', {
     moments: t.field({ type: 'JSON', description: 'Times of the day following its rule or its schedules, [{ fromTime, dueTime, optional }].', resolve: (routine) => routines.storedMoments(routine) }),
     reminders: t.field({
       type: [ReminderRef],
-      description: 'Reminders: minutes (24 hours at most) before the first day (« Ouverture ») of an occurrence at the start of each time of the day (« dès »), or a time of that day.',
+      description: 'Reminders: minutes (24 hours at most) before the first day (« Ouverture ») of an occurrence at the start of each time of the day (« dès »), or a time of that day or of some days before it.',
       resolve: (routine) => readReminders(routine.reminders),
     }),
     reminderOccurrences: t.field({
       type: [RoutineReminderOccurrenceRef],
-      description: 'Occurrences its reminders ring for: its current one while not done and its next one.',
+      description: 'Occurrences its reminders ring for: its current one while not done and its next one, and those opening within the days of its reminders « N jours avant ».',
       select: { ...TIMING, ...TODAY_CHECKS, reminders: true },
-      resolve: async (routine, _args, ctx) => (readReminders(routine.reminders).length ? routines.reminderOccurrences(routine, await slotsOf(ctx)) : []),
+      resolve: async (routine, _args, ctx) => {
+        const reminders = readReminders(routine.reminders);
+        return reminders.length ? routines.reminderOccurrences(routine, await slotsOf(ctx), reminderDaysAhead(reminders)) : [];
+      },
     }),
     opensOn: t.field({
       type: 'JSON',

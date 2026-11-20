@@ -1,7 +1,7 @@
 import { Fieldset, SegmentedControl, Select, SimpleGrid, Stack, Text, TextInput } from '@mantine/core';
 import { clientContactSchema, clientDetailsSchema, clientServiceSchema, type Address, type Phone } from '@ordo/shared';
 import { AddressFields } from './AddressFields';
-import { PhonesField } from './PhonesField';
+import { PhonesField } from '../../../components/inputs/PhonesField';
 import { useAppForm, useFieldSave, formCallbacks, nestedErrors } from '../../../lib/form';
 import { SaveStatus } from '../../../components/feedback/SaveStatus';
 

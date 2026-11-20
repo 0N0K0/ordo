@@ -7,6 +7,7 @@ import { dateSchema } from '../core/workspace';
 import { slotConditionSchema, type SlotCondition } from '../calendar/slot-conditions';
 import { endDaySchema, startDaySchema } from '../dates/times';
 import { taskRemindersSchema, type ReminderFields } from '../dates/reminders';
+import { personDetailsShape } from '../people/person-details';
 
 export const taskLabelSchema = requiredText();
 
@@ -49,9 +50,11 @@ export function suggestHandle(name: string): string {
   );
 }
 
+/** A contributor: name, mention handle and its details (birth date, birthday reminders, email, phones; lot 16). */
 export const contributorFormSchema = z.object({
   name: personNameSchema,
   handle: handleSchema,
+  ...personDetailsShape,
 });
 export type ContributorFormValues = z.input<typeof contributorFormSchema>;
 

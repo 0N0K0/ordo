@@ -10,6 +10,7 @@ import { daySchema, isRealDay } from '../dates/times';
 import { colorSchema, optionalColorSchema } from '../core/workspace';
 import { twoDigits } from '../core/numbers';
 import { plannedSlots, type WorkScheduleRule } from '../calendar/work-schedules';
+import { personDetailsChangesSchema } from '../people/person-details';
 
 /** Documents a tracking status applies to: quotes or invoices. */
 export const DOCUMENT_STATUS_SCOPES = ['QUOTE', 'INVOICE'] as const;
@@ -156,6 +157,8 @@ export const treasuryRelationSchema = z.object({
   note: optionalPlainText(),
   /** Contributor this person also is, if any (not a member). */
   contributorId: z.string().nullish(),
+  /** Birth date, birthday reminders, email, phones (lot 16); omitted: left unchanged (none for a new one). */
+  ...personDetailsChangesSchema.shape,
 });
 export type TreasuryRelationInput = z.input<typeof treasuryRelationSchema>;
 

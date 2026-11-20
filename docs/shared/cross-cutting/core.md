@@ -170,3 +170,21 @@ zxcvbn et ses dictionnaires pèsent environ 1,3 Mo : ce fichier n'est pas dans `
 | `sumOf(items, valueOf)`               | Somme (0 pour une liste vide).                                                                           |
 | `movedTo(others, moved, index)`       | Liste avec un élément inséré à un index borné (réordonnancement).                                        |
 | `joinedKey(...parts)`                 | Clé composite « a\|b » (partie absente : vide).                                                          |
+
+## `people/` — personnes : coordonnées, dates de naissance, anniversaires
+
+Lot 16 (décision FO). Règles : [Personnes](../../business-rules/cross-cutting/people.md#coordonnées-date-de-naissance-anniversaire).
+
+| Export (fichier)                                              | Rôle                                                                                                                                                         |
+| ------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `PHONE_MAX`, `phoneSchema`, `Phone`, `phonesSchema` (`contact.ts`) | Téléphone `{ label, number }` (« Numéro invalide. », 3 à 30 caractères), 10 au plus : clients, services, contacts, contributeurs, relations.             |
+| `optionalEmailSchema` (`contact.ts`)                          | Adresse mail facultative (« Adresse email invalide. », vide → `null`) ; `emailSchema` (`core/auth.ts`) reste celle, requise, du compte.                     |
+| `readPhones(value)` (`contact.ts`)                            | Téléphones d'un JSON stocké (les invalides écartés).                                                                                                          |
+| `BirthDate`, `BIRTH_YEAR_MIN` (`birthdays.ts`)                | Date de naissance lue : `{ month, day, year \| null }`, année 1900 au plus tôt.                                                                               |
+| `readBirthDate(value)` / `birthDateText(birth)` (`birthdays.ts`) | Lecture et écriture du texte stocké `YYYY-MM-DD`, ou `--MM-DD` sans année (forme ISO 8601 / vCard) ; null pour un jour que le mois n'a pas.              |
+| `birthDateSchema` (`birthdays.ts`)                            | Date de naissance facultative (vide → `null`) : « Date de naissance invalide. », « La date de naissance ne peut pas être à venir. ».                      |
+| `birthdayIn(birth, year)` (`birthdays.ts`)                    | Anniversaire d'une année (un 29 février : le 28 les années qui n'en ont pas).                                                                               |
+| `ageOn(birth, day)` / `Birthday` / `birthdaysBetween(birth, from, to)` (`birthdays.ts`) | Âge un jour (null sans année) ; anniversaires d'une période avec l'âge (aucun avant la naissance ni le jour même).                 |
+| `birthdayLabel(name, age)` (`birthdays.ts`)                   | « Anniversaire de Paul — 40 ans » (sans âge sans année) : agenda et rappels.                                                                                 |
+| `personDetailsShape`, `personDetailsSchema`, `PersonDetailsInput`, `personDetailsChangesSchema` (`person-details.ts`) | Détails d'un contributeur ou d'une relation : `birthDate`, `birthdayReminders` (`birthdayRemindersSchema`), `email`, `phones` ; repris par `contributorFormSchema` et `treasuryRelationSchema` (ce dernier en facultatif : omis, inchangé). |
+

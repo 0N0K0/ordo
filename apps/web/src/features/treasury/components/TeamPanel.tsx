@@ -1,7 +1,6 @@
 import { IconAction } from '../../../components/actions/IconAction';
 import { NO_TARGETS } from '../../../components/markdown/remark-references';
 import { ColorField } from '../../../components/inputs/ColorField';
-import { openFormPanel } from '../../../components/panels/panels';
 import { ActionButton } from '../../../components/actions/ActionButton';
 import { PersonRow } from '../../../components/people/people-rows';
 import { ItemAvatar } from '../../../components/items/ItemAvatar';
@@ -29,12 +28,15 @@ import { countOf } from '../../../lib/text';
 import { FormActions } from '../../../components/dialogs/FormActions';
 import { SettingsSection } from '../../../components/settings/SettingsSection';
 import { InlineActions } from '../../../components/actions/ActionsMenu';
-import { useScheduleTypes } from '../../calendar/api';
+import { birthdaysQueryKey, useScheduleTypes } from '../../calendar/api';
 import { useScheduleTypeItems } from '../../calendar/hooks/use-settings-items';
 import { openSchedulesManager } from '../../calendar/lib/open-schedules';
 import { inWorkspace } from '../../calendar/lib/layer-label';
 import { personOptionRenderer } from '../../../components/people/person-option';
 import { relationWords } from '../../../components/people/people-options';
+import { openRelationForm } from '../lib/open-relation';
+import { PersonDetailsFields } from '../../../components/people/PersonDetailsFields';
+import { NO_PERSON_DETAILS_VALUES, PERSON_DETAILS_ON_BLUR, personDetailsProps, personDetailsValues, type PersonDetailsValues } from '../../../components/people/person-details';
 
 /**
  * Members of the team (professional workspace) or household (personal one): "Moi" always is one; a member is a
@@ -265,8 +267,8 @@ export function TeamPanel() {
   );
 }
 
-/** Values of a relation. */
-type RelationValues = { name: string; note: string | null; contributorId: string | null };
+/** Values of a relation: its fields and its details (lot 16). */
+type RelationValues = { name: string; note: string | null; contributorId: string | null } & PersonDetailsValues;
 
 /**
  * Values of a relation (a new one: the name typed).
@@ -278,6 +280,7 @@ const relationValues = (relation: TreasuryRelation | undefined, name: string): R
   name: relation?.name ?? name,
   note: relation?.note ?? null,
   contributorId: relation?.contributorId ?? null,
+  ...(relation ? personDetailsValues(relation) : NO_PERSON_DETAILS_VALUES),
 });
 
 /**
@@ -285,10 +288,10 @@ const relationValues = (relation: TreasuryRelation | undefined, name: string): R
  * @param {RelationValues} input Values.
  * @returns {RelationValues} Input.
  */
-const relationInput = (input: RelationValues): RelationValues => ({ name: input.name, note: input.note || null, contributorId: input.contributorId ?? null });
+const relationInput = (input: RelationValues): RelationValues => ({ ...input, note: input.note || null, contributorId: input.contributorId ?? null, email: input.email || null });
 
 /**
- * Relation form: name and note. A new relation is a form with « Ajouter »; an existing one, its panel, saves each field
+ * Relation form: name, contributor, note, and its details (birth date, birthday reminders, email, phones, lot 16). A new relation is a form with « Ajouter »; an existing one, its panel, saves each field
  * as soon as it changes (texts on leaving them, decision D22, `useFieldSave`), the one of the cache followed; archived,
  * it is read only.
  * @param {{ relation?: TreasuryRelation, name?: string, onDone: (createdId?: string) => void }} props Component props (the name typed in a select, for a new one); the form closes with the id of the relation created.
@@ -302,11 +305,11 @@ export function RelationForm({ relation, name = '', onDone }: { relation?: Treas
   const base = useAppForm<RelationValues>({ initialValues: relationValues(relation, name), schema: treasuryRelationSchema });
   const current = relation && (settings?.treasuryRelations.find((item) => item.id === relation.id) ?? relation);
   const readOnly = Boolean(current?.archived);
-  const { form, saving, commit } = useFieldSave(base, {
+  const { form, saving, commit, fieldProps } = useFieldSave(base, {
     save: relation ? (_changes, input) => saveRelation.mutateAsync({ id: relation.id, input: relationInput(input) }) : null,
     schema: treasuryRelationSchema,
     saved: current && relationValues(current, ''),
-    onBlur: ['name', 'note'],
+    onBlur: ['name', 'note', ...PERSON_DETAILS_ON_BLUR],
     readOnly,
   });
   // Contributors that are no member nor another relation already.
@@ -345,6 +348,7 @@ export function RelationForm({ relation, name = '', onDone }: { relation?: Treas
             }}
           />
           <Textarea label="Description" placeholder="Facultative" autosize minRows={2} {...form.getInputProps('note')} value={form.values.note ?? ''} />
+          <PersonDetailsFields {...personDetailsProps(form, fieldProps)} />
           {!relation && <FormActions onCancel={() => onDone()} submitLabel="Ajouter" loading={saveRelation.isPending} />}
         </Stack>
       </Fieldset>
@@ -361,14 +365,15 @@ export function RelationForm({ relation, name = '', onDone }: { relation?: Treas
 export function TeamRelations() {
   const { data: settings } = useTreasurySettings();
   const { deleteRelation } = useTreasuryTeamMutations();
-  const setArchived = useSetArchived('TREASURY_RELATION', [treasuryKey]);
-  const words = relationWords(useActiveWorkspace().perso);
+  const setArchived = useSetArchived('TREASURY_RELATION', [treasuryKey, birthdaysQueryKey]);
+  const { perso } = useActiveWorkspace();
+  const words = relationWords(perso);
   /**
    * Opens the form of a new or changed relation.
    * @param {TreasuryRelation} [relation] Relation changed. Optional.
    * @returns {void}
    */
-  const openRelation = (relation?: TreasuryRelation) => openFormPanel(relation ? `Modifier ${words.the}` : words.new, (close) => <RelationForm relation={relation} onDone={close} />);
+  const openRelation = (relation?: TreasuryRelation) => openRelationForm(relation, perso);
   const { context } = useTaskContext();
   const contributorName = new Map((context?.contributors ?? []).map((contributor) => [contributor.id, contributor.name]));
   const { shown: relations, toggle: relationsToggle } = useArchivedToggle(settings?.treasuryRelations ?? []);

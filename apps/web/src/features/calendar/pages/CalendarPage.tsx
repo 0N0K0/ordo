@@ -37,6 +37,7 @@ import { useTimeEntryDialogs } from '../../time/hooks/use-time-dialogs';
 import { entryEventKeys } from '../../time/lib/time-events';
 import { entrySubject } from '../../time/lib/entry-subject';
 import {
+  useBirthdays,
   useCalendarCategories,
   useCalendarEventMutations,
   useCalendarEvents,
@@ -52,7 +53,8 @@ import { EPHEMERIDES_TITLE, schedulesTitle } from '../lib/schedule-text';
 import classes from './CalendarPage.module.css';
 import { downloadCalendarPdf, pdfItems } from '../lib/calendar-pdf';
 import { occurrenceInput } from '../lib/event-input';
-import { isArchivedOccurrence, occurrenceSpan, scheduleSources, slotBarLook, slotLookClasses } from '../lib/calendar-events';
+import { birthdayEvents, isArchivedOccurrence, occurrenceSpan, scheduleSources, slotBarLook, slotLookClasses } from '../lib/calendar-events';
+import { usePersonOpener } from '../hooks/use-person-opener';
 import { ShowArchivedSwitch } from '../../../components/filters/ShowArchivedSwitch';
 import { placeRoutineBlocks, type RoutineBlock } from '../lib/routine-layout';
 import { manualOrder } from '../../routines/lib/routine-format';
@@ -157,6 +159,8 @@ export function CalendarPage() {
   const navigate = useNavigate();
   const taskLink = useTaskLink();
   const { schedules, types: scheduleTypes, defaultKind, foreign: foreignSchedules } = useScheduleSources();
+  const { data: birthdays } = useBirthdays();
+  const openPerson = usePersonOpener();
   const { perso } = useActiveWorkspace();
   // Tracked times of the displayed period (from its first day, local midnight).
   const showTimers = filters.timers === true;
@@ -458,6 +462,8 @@ export function CalendarPage() {
         }
       }
     }
+    // Birthdays (lot 16): whole-day éphémérides of the people, with the planned slots.
+    if (range && birthdays && filters.workHours !== false) result.push(...birthdayEvents(birthdays, range.from, range.to, view === 'dayGridMonth'));
     if (filters.tasks) {
       const today = localToday();
       for (const task of context.tasks) {
@@ -635,6 +641,7 @@ export function CalendarPage() {
     scheduleTypes,
     defaultKind,
     foreignSchedules,
+    birthdays,
     view,
     showTimers,
     timeEntries.data,
@@ -973,6 +980,8 @@ export function CalendarPage() {
             info.jsEvent.preventDefault();
             // A bar of planned slots opens nothing.
             if (info.event.extendedProps.kind === 'slot') return;
+            // A birthday opens its person (lot 16).
+            if (info.event.extendedProps.kind === 'birthday') return openPerson(info.event.extendedProps.birthday);
             if (info.event.extendedProps.kind === 'editSlot') edits.openSlot(info.event.extendedProps.schedule, info.event.extendedProps.label, info.event.extendedProps.slot);
             else if (info.event.extendedProps.kind === 'task') navigate(taskLink.to(info.event.extendedProps.task.id));
             else if (info.event.extendedProps.kind === 'routine' || info.event.extendedProps.kind === 'routineTravel')

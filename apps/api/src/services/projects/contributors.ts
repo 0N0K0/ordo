@@ -7,6 +7,7 @@ import { deleteOrphanIcons, resolveIconUpdate, storeIcon } from '../core/icons';
 import { activeIds, assertActive, assertNoneArchived, findActive } from '../core/archive';
 import { lineageIds } from '../core/trees';
 import { connectIds } from '../core/relations';
+import { personDetailsData, type PersonDetailsFields } from '../core/person-details';
 
 /**
  * Handle free in the workspace for a new contributor, made from a name (suggestHandle: letters, digits and « - »,
@@ -42,8 +43,8 @@ export async function freeHandle(name: string, { fallback = 'membre', suffix }: 
  * @param {string[] | null} [input.projectIds] Projects the contributor is attached to. Optional.
  * @returns {Promise<Contributor>} Created contributor.
  */
-export async function createContributor(input: { name: string; handle: string; avatar?: File | null; projectIds?: string[] | null }): Promise<Contributor> {
-  const data = parseInput(z.object({ name: personNameSchema, handle: handleSchema }), input);
+export async function createContributor(input: { name: string; handle: string; avatar?: File | null; projectIds?: string[] | null } & PersonDetailsFields): Promise<Contributor> {
+  const data = { ...parseInput(z.object({ name: personNameSchema, handle: handleSchema }), input), ...personDetailsData(input) };
   if (input.projectIds?.length) await assertProjects(input.projectIds);
   const iconId = input.avatar ? await storeIcon(input.avatar) : null;
   try {
@@ -65,6 +66,7 @@ export async function createContributor(input: { name: string; handle: string; a
  * @param {File | null} [input.avatar] New avatar. Optional.
  * @param {boolean | null} [input.removeAvatar] Removes the avatar. Optional.
  * @param {string[] | null} [input.projectIds] Projects the contributor is directly attached to. Optional.
+ * @param {string | null} [input.birthDate] Birth date (`YYYY-MM-DD` or `--MM-DD`), with the other details (lot 16). Optional.
  * @returns {Promise<Contributor>} Updated contributor.
  */
 export async function updateContributor(
@@ -75,7 +77,7 @@ export async function updateContributor(
     avatar?: File | null;
     removeAvatar?: boolean | null;
     projectIds?: string[] | null;
-  },
+  } & PersonDetailsFields,
 ): Promise<Contributor> {
   // Read only when archived.
   const contributor = await findActive(prisma.contributor, id, 'Contributeur');
@@ -84,11 +86,12 @@ export async function updateContributor(
     name: input.name ?? undefined,
     handle: input.handle ?? undefined,
   });
+  const details = personDetailsData(input);
   const iconId = await resolveIconUpdate(contributor.iconId, { icon: input.avatar, removeIcon: input.removeAvatar });
   try {
     const updated = await prisma.contributor.update({
       where: { id },
-      data: { ...data, iconId, ...(input.projectIds && { projects: { set: connectIds(input.projectIds) } }) },
+      data: { ...data, ...details, iconId, ...(input.projectIds && { projects: { set: connectIds(input.projectIds) } }) },
     });
     if (iconId !== undefined) await deleteOrphanIcons([contributor.iconId]);
     return updated;

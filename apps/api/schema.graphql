@@ -322,6 +322,29 @@ type Attachment {
   url: String!
 }
 
+"""
+Birthday of a contributor or a relation (lot 16): a whole-day éphéméride derived from its birth date, every year, not stored.
+"""
+type Birthday {
+  """
+  Birth date: YYYY-MM-DD, or --MM-DD when the year is not known. Its birthday shows in the calendar (query birthdays).
+  """
+  birthDate: String!
+
+  """Contributor it is of (also set for a relation that is a contributor)."""
+  contributorId: ID
+
+  """`contributor:<id>` or `relation:<id>`."""
+  id: ID!
+  name: String!
+
+  """Relation it is of."""
+  relationId: ID
+
+  """Reminders « À HH:MM » or « N jours avant, à HH:MM » of the birthday."""
+  reminders: [Reminder!]!
+}
+
 """Omitted fields are left unchanged; null clears a field."""
 input BulkTaskInput {
   addAssigneeIds: [ID!]
@@ -795,12 +818,24 @@ type Contributor {
   """Archived: hidden by default, read only."""
   archived: Boolean!
   avatarUrl: String
+
+  """
+  Birth date: YYYY-MM-DD, or --MM-DD when the year is not known. Its birthday shows in the calendar (query birthdays).
+  """
+  birthDate: String
+
+  """Reminders of its birthday."""
+  birthdayReminders: [Reminder!]!
+  email: String
   handle: String!
   id: ID!
 
   """Whether this contributor is the app user."""
   isMe: Boolean!
   name: String!
+
+  """[{ label, number }]"""
+  phones: JSON!
 
   """
   Projects the contributor is directly attached to; their sub-projects inherit it.
@@ -815,8 +850,24 @@ type Contributor {
 
 input ContributorInput {
   avatar: File
+
+  """
+  Birth date: YYYY-MM-DD, or --MM-DD when the year is not known. Its birthday shows in the calendar (query birthdays). Empty: none.
+  """
+  birthDate: String
+
+  """
+  Reminders of its birthday « À HH:MM » or « N jours avant, à HH:MM », 10 at most.
+  """
+  birthdayReminders: [ReminderInput!]
+
+  """Email address; empty: none."""
+  email: String
   handle: String!
   name: String!
+
+  """[{ label, number }], 10 at most."""
+  phones: JSON
 
   """Projects the contributor is directly attached to."""
   projectIds: [ID!]
@@ -824,8 +875,24 @@ input ContributorInput {
 
 input ContributorUpdateInput {
   avatar: File
+
+  """
+  Birth date: YYYY-MM-DD, or --MM-DD when the year is not known. Its birthday shows in the calendar (query birthdays). Empty: none.
+  """
+  birthDate: String
+
+  """
+  Reminders of its birthday « À HH:MM » or « N jours avant, à HH:MM », 10 at most.
+  """
+  birthdayReminders: [ReminderInput!]
+
+  """Email address; empty: none."""
+  email: String
   handle: String
   name: String
+
+  """[{ label, number }], 10 at most."""
+  phones: JSON
 
   """Projects the contributor is directly attached to."""
   projectIds: [ID!]
@@ -2620,6 +2687,11 @@ type Query {
   """
   accountingDocuments(clientId: ID, projectId: ID): [AccountingDocument!]!
   alarms: [Alarm!]!
+
+  """
+  Birthdays of the people of the workspace (contributors and relations with a birth date, not archived), by name.
+  """
+  birthdays: [Birthday!]!
   calendarCategories: [CalendarCategory!]!
 
   """Occurrences of the events overlapping a period (dates included)."""
@@ -3026,14 +3098,19 @@ input RecurringInvoiceInput {
 }
 
 """
-Reminder of a task, a routine or an event: minutes before a moment (0: at the start), or a time of the day of its day (Paris time). One of the two is null.
+Reminder of a task, a routine, an event, an éphéméride or a birthday: minutes before a moment (0: at the start), or a time of the day of its day or of `days` days before it (Paris time). One of before and at is null.
 """
 type Reminder {
-  """HH:MM on the day of the item (Paris time)."""
+  """HH:MM on the day of the item, or `days` days before it (Paris time)."""
   at: String
 
-  """Minutes before, 0 to 1 440 (events and routines)."""
+  """Minutes before, 0 to 1 440 (events, routines, éphémérides)."""
   before: Int
+
+  """
+  Days before the day of the item, 1 to 30, with `at` (« N jours avant, à HH:MM »); null: its day.
+  """
+  days: Int
 }
 
 input ReminderInput {
@@ -3042,6 +3119,9 @@ input ReminderInput {
 
   """Minutes before, 0 to 1 440."""
   before: Int
+
+  """Days before, 1 to 30, with `at`."""
+  days: Int
 }
 
 type ReminderResult {
@@ -3145,12 +3225,12 @@ type Routine {
   relatedIds: [ID!]!
 
   """
-  Occurrences its reminders ring for: its current one while not done and its next one.
+  Occurrences its reminders ring for: its current one while not done and its next one, and those opening within the days of its reminders « N jours avant ».
   """
   reminderOccurrences: [RoutineReminderOccurrence!]!
 
   """
-  Reminders: minutes (24 hours at most) before the first day (« Ouverture ») of an occurrence at the start of each time of the day (« dès »), or a time of that day.
+  Reminders: minutes (24 hours at most) before the first day (« Ouverture ») of an occurrence at the start of each time of the day (« dès »), or a time of that day or of some days before it.
   """
   reminders: [Reminder!]!
 
@@ -5033,20 +5113,47 @@ Person out of the team or household (friend, family, partner…) lines and budge
 type TreasuryRelation {
   """Archived: hidden by default, read only."""
   archived: Boolean!
+
+  """
+  Birth date: YYYY-MM-DD, or --MM-DD when the year is not known. Its birthday shows in the calendar (query birthdays).
+  """
+  birthDate: String
+
+  """Reminders of its birthday."""
+  birthdayReminders: [Reminder!]!
   budgetCount: Int!
 
   """Contributor this person also is."""
   contributorId: ID
+  email: String
   id: ID!
   lineCount: Int!
   name: String!
   note: String
+
+  """[{ label, number }]"""
+  phones: JSON!
 }
 
 input TreasuryRelationInput {
+  """
+  Birth date: YYYY-MM-DD, or --MM-DD when the year is not known. Its birthday shows in the calendar (query birthdays). Empty: none.
+  """
+  birthDate: String
+
+  """
+  Reminders of its birthday « À HH:MM » or « N jours avant, à HH:MM », 10 at most.
+  """
+  birthdayReminders: [ReminderInput!]
   contributorId: ID
+
+  """Email address; empty: none."""
+  email: String
   name: String!
   note: String
+
+  """[{ label, number }], 10 at most."""
+  phones: JSON
 }
 
 """Loans with a relation, both ways."""
@@ -5110,6 +5217,11 @@ type WorkSchedule {
   exceptions: JSON!
   id: ID!
   label: String!
+
+  """
+  Reminders of an éphéméride, counted from the first day of each run of consecutive days it has (a créneau rings none).
+  """
+  reminders: [Reminder!]!
   startDate: Date!
 
   """
@@ -5131,6 +5243,9 @@ input WorkScheduleInput {
   """Exceptions: { from, to, label, cases }."""
   exceptions: JSON!
   label: String!
+
+  """Reminders of an éphéméride, 10 at most; omitted: left unchanged."""
+  reminders: [ReminderInput!]
   startDate: Date!
 
   """

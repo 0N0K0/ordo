@@ -1,6 +1,6 @@
 import type { EventInput } from '@fullcalendar/core';
-import { addDays, DEFAULT_SCHEDULE_DISPLAY, mapById, readScheduleDisplay, type ScheduleDisplay, UNTYPED_EPHEMERIS_LABEL, type WorkScheduleRule } from '@ordo/shared';
-import { scheduleRules, type ScheduleType, type useDefaultScheduleKind, type useSubscribedSchedules, type WorkSchedule } from '../api';
+import { addDays, birthdayLabel, birthdaysBetween, DEFAULT_SCHEDULE_DISPLAY, mapById, readBirthDate, readScheduleDisplay, type ScheduleDisplay, UNTYPED_EPHEMERIS_LABEL, type WorkScheduleRule } from '@ordo/shared';
+import { scheduleRules, type PersonBirthday, type ScheduleType, type useDefaultScheduleKind, type useSubscribedSchedules, type WorkSchedule } from '../api';
 import classes from '../pages/CalendarPage.module.css';
 import { inWorkspace } from './layer-label';
 
@@ -120,4 +120,43 @@ export function slotBarLook({ color, foreign, ephemeris = false }: { color: stri
  */
 export function slotLookClasses({ foreign, ephemeris = false }: { foreign: boolean; ephemeris?: boolean }): string[] {
   return [...(foreign ? [classes.subscribedSlot] : []), ...(ephemeris ? [classes.ephemeris, classes.ephemerisBar] : [])];
+}
+
+/**
+ * Birthdays of a period as the calendar shows them (lot 16): whole-day éphémérides without kind (gray, dotted), as an
+ * éphéméride is shown by default: in the week and the day a bar « Anniversaire de Paul — 40 ans » (opening the person)
+ * and the day in the background; in the month, the day in the background.
+ * @param {readonly PersonBirthday[]} birthdays Birthdays of the workspace.
+ * @param {string} from First day shown.
+ * @param {string} to Last day shown.
+ * @param {boolean} month Month view.
+ * @returns {EventInput[]} Events.
+ */
+export function birthdayEvents(birthdays: readonly PersonBirthday[], from: string, to: string, month: boolean): EventInput[] {
+  return birthdays.flatMap((birthday) => {
+    const birth = readBirthDate(birthday.birthDate);
+    if (!birth) return [];
+    return birthdaysBetween(birth, from, to).flatMap(({ date, age }) => {
+      const day = { start: date, end: addDays(date, 1), allDay: true };
+      const background: EventInput = {
+        ...day,
+        id: `birthday-day:${birthday.id}:${date}`,
+        display: 'background',
+        backgroundColor: EPHEMERIS_COLOR,
+        classNames: [classes.typedSlot, ...slotLookClasses({ foreign: false, ephemeris: true })],
+      };
+      if (month) return [background];
+      return [
+        {
+          ...day,
+          id: `birthday:${birthday.id}:${date}`,
+          title: birthdayLabel(birthday.name, age),
+          editable: false,
+          extendedProps: { kind: 'birthday', birthday },
+          ...slotBarLook({ color: EPHEMERIS_COLOR, foreign: false, ephemeris: true }),
+        },
+        { ...background, start: `${date}T00:00:00`, end: `${addDays(date, 1)}T00:00:00`, allDay: false, id: `birthday-whole:${birthday.id}:${date}` },
+      ];
+    });
+  });
 }

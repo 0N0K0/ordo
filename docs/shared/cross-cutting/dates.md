@@ -46,30 +46,37 @@ Principe : un jour de calendrier est une chaîne `YYYY-MM-DD` (un mois `YYYY-MM`
 
 ## `reminders.ts` — rappels
 
-Les rappels des tâches, routines et évènements, un seul fonctionnement (décision D16, voir [Alarmes](../../business-rules/activities/alarms.md#rappels-des-tâches-routines-et-évènements)).
+Les rappels des tâches, routines, évènements, éphémérides et anniversaires, un seul fonctionnement (décision D16, lot 16, décision FO, voir [Alarmes](../../business-rules/activities/alarms.md#rappels-des-tâches-routines-et-évènements)).
 
 | Export                                     | Rôle                                                                                                                                      |
 | ------------------------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------- |
 | `PARIS_ZONE`                               | `'Europe/Paris'` : fuseau des heures d'Ordo (l'API le reprend en `PARIS`).                                                                |
 | `REMINDERS_MAX`                            | 10 rappels au plus par élément.                                                                                                           |
 | `REMINDER_MINUTES_MAX`                     | 1 440 : un rappel « avant » 24 heures au plus.                                                                                            |
-| `REMINDER_KINDS` / `ReminderKind`          | `before` (« Au début », « N min avant »), `at` (« À HH:MM le jour J »).                                                                  |
-| `Reminder` (type)                          | `{ before: N, at: null }` ou `{ before: null, at: 'HH:MM' }`.                                                                            |
-| `ReminderValue`, `ReminderFields` (types)  | Rappel tel que GraphQL le donne (les deux clés, l'une `null`) ou le prend (clés facultatives).                                             |
-| `reminderSchema`                           | Un rappel : exactement un de `before` (0 à 1 440, « Au moins 0 minute. », « 24 heures maximum. ») et `at` (`timeOfDaySchema`), sinon « Un rappel est « N min avant » ou « à HH:MM ». » ; donne un `Reminder`. |
-| `remindersSchema`                          | 10 rappels au plus (« 10 rappels maximum. »), de types mêlés : évènements et routines.                                                    |
-| `taskRemindersSchema`                      | Les mêmes, « À HH:MM » seulement (« Une tâche n’a que des rappels à une heure précise. ») : tâches.                                       |
-| `reminderKey(reminder)` / `reminderOfKey(key)` | Clé `before:15` / `at:08:00` (choix de l'éditeur, clés de sonnerie) et son rappel (null si ce n'en est pas une).                       |
-| `normalizedReminders(reminders)`           | Sans doublons, les « avant » du plus tôt au plus tard (le plus grand nombre de minutes d'abord), puis les heures : ce qui est enregistré. |
+| `REMINDER_DAYS_MAX`                        | 30 : un rappel « N jours avant, à HH:MM » 30 jours au plus (décision FO).                                                                 |
+| `REMINDER_KINDS` / `ReminderKind`          | `before` (« Au début », « N min avant »), `at` (« À HH:MM le jour J »), `days` (« N jours avant, à HH:MM »).                              |
+| `Reminder` (type)                          | `{ before: N, at: null, days: null }` ou `{ before: null, at: 'HH:MM', days: N \| null }`.                                               |
+| `ReminderValue`, `ReminderFields` (types)  | Rappel tel que GraphQL le donne (`before` et `at`, l'un `null` ; `days` avec `at`) ou le prend (clés facultatives).                       |
+| `reminderSchema`                           | Un rappel : exactement un de `before` (0 à 1 440, « Au moins 0 minute. », « 24 heures maximum. ») et `at` (`timeOfDaySchema`), sinon « Un rappel est « N min avant », « à HH:MM » ou « N jours avant, à HH:MM ». » ; `days` (1 à 30, « Au moins 1 jour. », « 30 jours maximum. ») seulement avec `at` (« Un rappel « N jours avant » a une heure (HH:MM). ») ; donne un `Reminder`. |
+| `remindersSchema`                          | 10 rappels au plus (« 10 rappels maximum. »), de types mêlés : évènements, routines, éphémérides.                                         |
+| `taskRemindersSchema`                      | Les mêmes, à une heure seulement (« À HH:MM », « N jours avant ») (« Une tâche n’a que des rappels à une heure précise. ») : tâches.      |
+| `birthdayRemindersSchema`                  | Les mêmes pour un anniversaire (« Un anniversaire n’a que des rappels à une heure précise. »).                                           |
+| `reminderKindOf(reminder)`                 | Sorte d'un rappel (`before`, `at`, `days`).                                                                                               |
+| `reminderKey(reminder)` / `reminderOfKey(key)` | Clé `before:15` / `at:08:00` / `days:3:08:00` (choix de l'éditeur, clés de sonnerie) et son rappel (null si ce n'en est pas une).     |
+| `normalizedReminders(reminders)`           | Sans doublons, dans l'ordre où ils sonnent : les « jours avant » (le plus de jours d'abord, puis par heure), les « avant » (le plus grand nombre de minutes d'abord), puis les heures du jour : ce qui est enregistré. |
 | `readReminders(value)`                     | Rappels d'un JSON stocké ou reçu (les invalides écartés).                                                                                 |
 | `parisInstant(day, time = '00:00')`        | Instant d'un jour et d'une heure de Paris (`zonedInstant`).                                                                               |
-| `minutesBeforeStart(reminder, startTime)`  | Minutes d'un rappel avant le début (négatif après), pour un `VALARM` relatif.                                                             |
+| `minutesBeforeStart(reminder, startTime)`  | Minutes d'un rappel avant le début (négatif après ; un « N jours avant » compte ses jours), pour un `VALARM` relatif.                     |
 | `PlannedReminder` (type)                   | Rappel à sonner : `key`, `at`.                                                                                                            |
 | `remindersBefore(key, moment, reminders)`  | Les « avant » d'un moment, clé `<clé>:before:<minutes>`.                                                                                 |
-| `remindersAt(key, day, reminders)`         | Les « À HH:MM » d'un jour de Paris, clé `<clé>:at:<HH:MM>`.                                                                              |
+| `remindersAt(key, day, reminders, onDay = true)` | Les « À HH:MM » d'un jour de Paris (clé `<clé>:at:<HH:MM>`) et les « N jours avant » de ce jour (clé `<clé>:days:<N>:<HH:MM>`) ; `onDay` faux : ces derniers seulement. |
+| `occurrenceReminders(key, day, start, reminders)` | Tous les rappels d'une occurrence (évènement, suite de jours d'une éphéméride) : « avant » son début, « À HH:MM » et « N jours avant » son premier jour. |
+| `REMINDER_LOOKAHEAD_DAYS`                  | 31 : jours à regarder devant pour les « N jours avant » (occurrences, éphémérides, anniversaires chargés).                                |
+| `reminderDayRange(now, ahead?)`            | Jours dont les rappels peuvent sonner : d'hier (Paris) à `ahead` jours (défaut `REMINDER_LOOKAHEAD_DAYS`).                               |
+| `reminderDaysAhead(reminders)`             | Le plus de jours d'un « N jours avant » parmi des rappels (0 sans).                                                                       |
 | `TaskReminderDays` (type)                  | « Ouverture » et « Échéance » d'une tâche.                                                                                                 |
 | `taskRemindsOn(task, day)`                 | Vrai les jours de l’ouverture à l’échéance (le jour de l’échéance sans ouverture ou avec une ouverture après elle) ; jamais sans échéance. |
-| `taskReminders(key, task, now)`            | « À HH:MM » d'une tâche la veille et le jour de Paris de `now`, clé `<clé>:<jour>:at:<HH:MM>`.                                           |
+| `taskReminders(key, task, now)`            | « À HH:MM » d'une tâche la veille et le jour de Paris de `now` (clé `<clé>:<jour>:at:<HH:MM>`) et ses « N jours avant » son échéance, une fois (clé `<clé>:<échéance>:days:<N>:<HH:MM>`). |
 
 ## `weeks.ts` — semaine de l'espace
 

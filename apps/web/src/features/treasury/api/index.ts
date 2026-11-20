@@ -1,3 +1,4 @@
+import type { PersonDetailsValues } from '../../../components/people/person-details';
 import { useQuery } from '@tanstack/react-query';
 import { useInvalidatingMutation } from '../../../lib/mutation';
 import type { TreasuryCategoryInput, TreasuryCounterpartyInput, TreasuryEntryInput, TreasuryPaymentMethodInput } from '@ordo/shared';
@@ -16,7 +17,7 @@ import { execute } from '../../../lib/graphql-client';
 import { accountingQueryKey } from '../../accounting/api';
 import { tasksQueryKey } from '../../tasks/api';
 import { projectTreeQueryKey } from '../../projects/api';
-import { calendarQueryKey } from '../../calendar/api';
+import { birthdaysQueryKey, calendarQueryKey } from '../../calendar/api';
 
 export type TreasuryAccount = TreasuryAccountsQuery['treasuryAccounts'][number];
 export type TreasuryEntry = TreasuryEntriesQuery['treasuryEntries'][number];
@@ -271,6 +272,14 @@ const SettingsDocument = graphql(`
       name
       note
       contributorId
+      birthDate
+      birthdayReminders {
+        before
+        at
+        days
+      }
+      email
+      phones
       lineCount
       budgetCount
     }
@@ -449,8 +458,11 @@ export function useInvoiceTreasuryCategories() {
  * @returns {UseQueryResult} Query state.
  */
 export function useTreasurySettings() {
-  return useQuery({ queryKey: treasurySettingsKey, queryFn: () => execute(SettingsDocument) });
+  return useQuery(treasurySettingsQuery);
 }
+
+/** Query of the treasury settings (also fetched on demand: a relation opened from its birthday). */
+export const treasurySettingsQuery = { queryKey: treasurySettingsKey, queryFn: () => execute(SettingsDocument) };
 
 /**
  * Documents of the app that can support an entry: the library, then the documents of the projects.
@@ -581,8 +593,10 @@ export function useTreasuryTeamMutations() {
   return {
     addMember: useInvalidatingMutation(async (variables: { contributorId?: string; name?: string }) => (await execute(AddMember, variables)).addTreasuryMember, contributorsChanged),
     removeMember: useInvalidatingMutation(async (contributorId: string) => (await execute(RemoveMember, { contributorId })).removeTreasuryMember, contributorsChanged),
-    saveRelation: useTreasuryMutation(
-      async (variables: { id: string | null; input: { name: string; note: string | null; contributorId: string | null } }) => (await execute(SaveRelation, variables)).saveTreasuryRelation,
+    // Its birthday follows (lot 16).
+    saveRelation: useInvalidatingMutation(
+      async (variables: { id: string | null; input: { name: string; note: string | null; contributorId: string | null } & PersonDetailsValues }) => (await execute(SaveRelation, variables)).saveTreasuryRelation,
+      { invalidate: [accountingQueryKey, birthdaysQueryKey] },
     ),
     deleteRelation: useTreasuryMutation(async (id: string) => (await execute(DeleteRelation, { id })).deleteTreasuryRelation),
     saveContext: useInvalidatingMutation(async (variables: { id: string | null; input: { label: string; color: string } }) => (await execute(SaveContext, variables)).saveTreasuryContext, {

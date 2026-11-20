@@ -1,6 +1,6 @@
 # Personnes : contributeurs, « Moi », membres, relations, assignés, bénéficiaires
 
-Qui peut être choisi où : profil « Moi », contributeurs et leurs projets, membres de l'équipe ou du foyer, relations, assignés et bénéficiaires. Sources : `apps/api/src/services/projects/contributors.ts`, `apps/api/src/services/core/beneficiaries.ts`, `apps/api/src/services/shopping/people.ts`, `apps/api/src/services/treasury/treasury-team.ts`, `apps/api/src/services/workspaces/workspaces.ts`, `packages/shared/src/tasks/tasks.ts`, `packages/shared/src/accounting/treasury.ts`, `packages/shared/src/calendar/event-busy.ts`.
+Qui peut être choisi où : profil « Moi », contributeurs et leurs projets, membres de l'équipe ou du foyer, relations, assignés et bénéficiaires. Sources : `apps/api/src/services/projects/contributors.ts`, `apps/api/src/services/core/person-details.ts`, `apps/api/src/services/calendar/birthdays.ts`, `packages/shared/src/people/**`, `apps/api/src/services/core/beneficiaries.ts`, `apps/api/src/services/shopping/people.ts`, `apps/api/src/services/treasury/treasury-team.ts`, `apps/api/src/services/workspaces/workspaces.ts`, `packages/shared/src/tasks/tasks.ts`, `packages/shared/src/accounting/treasury.ts`, `packages/shared/src/calendar/event-busy.ts`.
 
 Voir aussi : [Espaces et accès](workspaces-and-access.md), [Archivage](archiving.md), [Nommage](naming.md), [Trésorerie](../finances/treasury.md).
 
@@ -8,7 +8,7 @@ Voir aussi : [Espaces et accès](workspaces-and-access.md), [Archivage](archivin
 
 | Sorte                  | Modèle                                            | Rôle                                                                                                                                                             |
 | ---------------------- | ------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Contributeur           | `Contributor`                                     | Personne qui peut être assignée, participer, être mentionnée (`@handle`). Nom (250 max), identifiant de mention unique dans l'espace, avatar, projets rattachés. |
+| Contributeur           | `Contributor`                                     | Personne qui peut être assignée, participer, être mentionnée (`@handle`). Nom (250 max), identifiant de mention unique dans l'espace, avatar, projets rattachés, coordonnées et date de naissance. |
 | « Moi »                | `Contributor` avec `userId`                       | Profil contributeur de l'utilisateur dans chaque espace.                                                                                                         |
 | Membre                 | `Contributor` avec `teamMember` (ou « Moi »)      | Membre de l'équipe (espace PRO) ou du foyer (espace PERSO) : ventilation des dépenses, budgets, « Pour » des courses.                                            |
 | Relation               | `TreasuryRelation`                                | Personne hors équipe ou foyer (ami, famille, partenaire…) : lignes de trésorerie, budgets, prêts, bénéficiaires. Peut être aussi un contributeur (non membre).   |
@@ -67,3 +67,15 @@ Règle unique (2026-11-18) pour les assignés des tâches et des routines et les
 - Peut être liée à un contributeur qui n'est pas membre (« Ce contributeur est membre : il n’est pas une relation. ») ; un contributeur au plus une fois (« Ce contributeur est déjà une relation. »).
 - Une ligne ou un budget est pour un membre **ou** une relation, pas les deux (« Un membre ou une relation, pas les deux. ») ; un prêt se fait avec une relation (« Un prêt se fait avec une relation. »).
 - Archivable (`TREASURY_RELATION`) ; commentable.
+
+## Coordonnées, date de naissance, anniversaire
+
+Lot 16 (décision FO). Sources : `packages/shared/src/people/**`, `apps/api/src/services/core/person-details.ts`, `apps/api/src/services/calendar/birthdays.ts`.
+
+- Les contributeurs (donc les membres de l'équipe ou du foyer, « Moi » compris) et les relations ont une **date de naissance** (facultative ; l'année aussi), des **rappels d'anniversaire**, une **adresse mail** et des **téléphones**, de la même forme que ceux des clients et de leurs contacts (une adresse, `email` ; des téléphones `[{ label, number }]`, 10 au plus).
+- Date de naissance : stockée en texte `YYYY-MM-DD`, ou `--MM-DD` quand l'année n'est pas connue (forme ISO 8601 / vCard). Refusée : un jour que le mois n'a pas (le 29 février sans année est admis), une année avant 1900 (« Date de naissance invalide. »), une date à venir (« La date de naissance ne peut pas être à venir. »). Vide : aucune.
+- Adresse mail : « Adresse email invalide. » ; téléphone : « Numéro invalide. » (3 à 30 caractères).
+- Rappels d'anniversaire : « À HH:MM » le jour même ou « N jours avant, à HH:MM » (1 à 30 jours), 10 au plus (« Un anniversaire n’a que des rappels à une heure précise. ») ; gardés quand la date de naissance est retirée, sans sonner.
+- Modifications : un champ omis reste tel quel (contributeur et relation) ; un contributeur ou une relation archivé n'est pas modifiable (règle commune).
+- **Anniversaire** : il découle de la date de naissance, calculé à la lecture (`birthdays`, aucune ligne enregistrée) : une éphéméride d'une journée entière chaque année, le jour et le mois de la naissance (un 29 février : le 28 les autres années), jamais avant la naissance ni le jour même. Nommé « Anniversaire de Paul — 40 ans », l'âge seulement quand l'année est connue. Une personne archivée n'a pas d'anniversaire ; une relation qui est aussi un contributeur avec une date de naissance n'en a pas d'autre que celui du contributeur.
+- L'anniversaire n'est **pas** citable par une condition de créneaux (point ouvert, voir [Écarts](../../discrepancies.md)) ; il n'apparaît que dans l'agenda de son espace (comme une éphéméride sans type, qu'aucun abonnement ne montre ailleurs) ; ses rappels sonnent quel que soit l'espace ouvert (décision EO). Voir [Agenda](../activities/calendar.md#anniversaires-lot-16) et [Alarmes](../activities/alarms.md#rappels-des-tâches-routines-et-évènements).

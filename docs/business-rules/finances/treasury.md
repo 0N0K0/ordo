@@ -217,7 +217,7 @@ Source : `apps/api/src/services/treasury/treasury-team.ts`.
 
 Source : `treasury-team.ts`, schéma `treasuryRelationSchema`.
 
-- Personne hors de l’équipe ou du foyer (amis, famille, partenaires…) pour qui une ligne ou un budget peut être. Champs : `name` (nom de personne), `note` (texte multiligne, 4 000), `contributorId` facultatif.
+- Personne hors de l’équipe ou du foyer (amis, famille, partenaires…) pour qui une ligne ou un budget peut être. Champs : `name` (nom de personne), `note` (texte multiligne, 4 000), `contributorId` facultatif, et ses coordonnées et sa date de naissance (lot 16, omis : inchangés ; voir [Personnes](../cross-cutting/people.md#coordonnées-date-de-naissance-anniversaire)).
 - Le contributeur lié ne peut pas être membre : « Ce contributeur est membre : il n’est pas une relation. »
 - Unicité dans l’espace : le nom (« Une relation porte déjà ce nom. ») et le contributeur (« Ce contributeur est déjà une relation. »).
 - Modification refusée si elle est archivée.

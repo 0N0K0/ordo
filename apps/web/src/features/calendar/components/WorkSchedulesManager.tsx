@@ -9,15 +9,18 @@ import { Badge, Fieldset, Group, Stack, Text, TextInput, Tooltip } from '@mantin
 import {
   mapById,
   DEFAULT_SCHEDULE_KIND_LABEL,
+  readReminders,
   readScheduleCases,
   readScheduleExceptions,
+  type ReminderFields,
   type ScheduleCase,
   type ScheduleException,
   type WorkScheduleInput,
   wholeDaysCase,
   workScheduleSchema,
 } from '@ordo/shared';
-import { CalendarStarIcon, ClockIcon, PencilSimpleIcon, PlusIcon } from '@phosphor-icons/react';
+import { BellIcon, CalendarStarIcon, ClockIcon, PencilSimpleIcon, PlusIcon } from '@phosphor-icons/react';
+import { RemindersSelect } from '../../../components/inputs/RemindersSelect';
 import { useQueryClient } from '@tanstack/react-query';
 import { cachedItem } from '../../../lib/mutation';
 import type { WorkSchedulesQuery } from '../../../graphql/graphql';
@@ -61,6 +64,8 @@ interface ScheduleValues extends Record<string, unknown> {
   exceptions: ScheduleException[];
   typeId: string | null;
   ephemeris: boolean;
+  /** Reminders of an éphéméride (lot 16); a créneau has none (those kept from an éphéméride stay). */
+  reminders: ReminderFields[];
 }
 
 /**
@@ -77,6 +82,7 @@ const scheduleInputOf = (schedule: WorkSchedule): ScheduleValues => ({
   exceptions: readScheduleExceptions(schedule.exceptions),
   typeId: schedule.typeId ?? null,
   ephemeris: schedule.ephemeris,
+  reminders: readReminders(schedule.reminders),
 });
 
 /**
@@ -95,8 +101,8 @@ const wordsOf = (ephemeris: boolean, perso: boolean) =>
  * edited the same way, or none: a pause). Rhythms ("every n weeks"…) are offered only when the period is long enough.
  * New schedules are created by its button; an existing one is saved field by field (decision D22, the whole schedule
  * each time; occurrences of routines a change makes disappear confirmed first, declined: put back), read only once
- * archived. An éphéméride (lot 16) is the same form, its kinds those of éphémérides; a new one lasts today, the whole
- * day.
+ * archived. An éphéméride (lot 16) is the same form, its kinds those of éphémérides, with its reminders; a new one
+ * lasts today, the whole day.
  * @param {{ schedule?: WorkSchedule, ephemeris: boolean, onDone: () => void }} props Component props.
  * @returns {JSX.Element} Form.
  */
@@ -115,8 +121,8 @@ function ScheduleForm({ schedule, ephemeris, onDone }: { schedule?: WorkSchedule
     initialValues: schedule
       ? scheduleInputOf(schedule)
       : ephemeris
-        ? { label: '', startDate: localToday(), endDate: localToday(), cases: [wholeDaysCase()], exceptions: [], typeId: null, ephemeris: true }
-        : { label: 'Semaine type', startDate: localToday(), endDate: null, cases: [newScheduleCase(localToday())], exceptions: [], typeId: null, ephemeris: false },
+        ? { label: '', startDate: localToday(), endDate: localToday(), cases: [wholeDaysCase()], exceptions: [], typeId: null, ephemeris: true, reminders: [] }
+        : { label: 'Semaine type', startDate: localToday(), endDate: null, cases: [newScheduleCase(localToday())], exceptions: [], typeId: null, ephemeris: false, reminders: [] },
     schema: workScheduleSchema,
   });
   const { form, saving } = useFieldSave(base, {
@@ -161,6 +167,18 @@ function ScheduleForm({ schedule, ephemeris, onDone }: { schedule?: WorkSchedule
               value={{ startDate: values.startDate, endDate: values.endDate, cases: values.cases, exceptions: values.exceptions }}
               onChange={(repetition) => form.setValues({ ...repetition })}
             />
+            {ephemeris && (
+              <RemindersSelect
+                label="Rappels"
+                description="Comptés depuis le premier jour de chaque suite de jours qu’elle couvre (minuit pour une journée entière) : avant son début, 24 h au plus ; ou à une heure de ce jour ou de quelques jours avant."
+                leftSection={<BellIcon aria-hidden />}
+                emptyLabel="Aucun"
+                value={values.reminders}
+                onChange={(reminders) => form.setFieldValue('reminders', reminders)}
+                clearable
+                error={form.errors.reminders as string | undefined}
+              />
+            )}
             {!schedule && <FormActions onCancel={onDone} submitLabel="Créer" loading={create.isPending} />}
           </Stack>
         </Fieldset>

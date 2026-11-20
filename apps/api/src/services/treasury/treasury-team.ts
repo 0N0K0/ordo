@@ -13,6 +13,7 @@ import { scheduleRule, scheduleTypes } from '../calendar/work-schedules';
 import { currentWorkspaceId } from '../../workspace-context';
 import { clientError, fieldError, isUniqueConflict, orNotFound, parseField, parseInput } from '../../graphql/errors';
 import { createContributor, freeHandle } from '../projects/contributors';
+import { personDetailsData, type PersonDetailsFields } from '../core/person-details';
 import { assertExists, deleteOrNotFound } from '../core/lookup';
 import { assertActive } from '../core/archive';
 
@@ -103,11 +104,11 @@ export async function contextEphemerides(): Promise<(ContextEphemeris & { schedu
  * Saves a relation: a person out of the team or household (friend, family, partner…) lines and budgets can be for,
  * possibly a contributor too (not a member).
  * @param {string | null} id Relation to change, or null to create one.
- * @param {TreasuryRelationInput} input Name and note.
+ * @param {TreasuryRelationInput} input Name, note, contributor, and its details (birth date, birthday reminders, email, phones: omitted, left unchanged).
  * @returns {Promise<TreasuryRelation>} Relation.
  */
-export async function saveRelation(id: string | null, input: TreasuryRelationInput): Promise<TreasuryRelation> {
-  const parsed = parseInput(treasuryRelationSchema, input);
+export async function saveRelation(id: string | null, input: Pick<TreasuryRelationInput, 'name' | 'note' | 'contributorId'> & PersonDetailsFields): Promise<TreasuryRelation> {
+  const parsed = parseInput(treasuryRelationSchema.pick({ name: true, note: true, contributorId: true }), input);
   await assertActive(prisma.treasuryRelation, id, 'Relation');
   if (parsed.contributorId) {
     const contributor = await orNotFound(prisma.contributor.findUnique({ where: { id: parsed.contributorId }, select: { teamMember: true, userId: true } }), 'Contributeur');
@@ -116,7 +117,7 @@ export async function saveRelation(id: string | null, input: TreasuryRelationInp
       throw fieldError('contributorId', message);
     }
   }
-  const data = { name: parsed.name, note: parsed.note, contributorId: parsed.contributorId ?? null };
+  const data = { name: parsed.name, note: parsed.note, contributorId: parsed.contributorId ?? null, ...personDetailsData(input) };
   try {
     return id ? await prisma.treasuryRelation.update({ where: { id }, data }) : await prisma.treasuryRelation.create({ data });
   } catch (error) {
