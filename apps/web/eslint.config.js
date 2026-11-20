@@ -118,6 +118,14 @@ export default defineConfig([
           selector: "ImportDeclaration[importKind!='type'][source.value=/\\/(RichEditor|PlaceMap)$/]",
           message: 'Utiliser LazyRichEditor / LazyPlaceMap : l’éditeur et la carte sont chargés à la demande.',
         },
+        // A query key exported from a module and built from another key: in lib/query-keys, a module without imports
+        // (the feature api modules import each other in cycles: a key derived at their top may read one not yet set).
+        {
+          selector: ['', ' > TSAsExpression', ' > TSSatisfiesExpression']
+            .map((cast) => `Program > ExportNamedDeclaration > VariableDeclaration > VariableDeclarator[id.name=/(Key|KEYS)$/]${cast} > ArrayExpression Identifier`)
+            .join(', '),
+          message: 'Déclarer cette clé dans lib/query-keys : une clé dérivée d’une autre, en tête d’un module api, peut lire une clé pas encore définie (imports en cycle).',
+        },
         // Reminders of tasks, routines and events ring one way (decision D16): one brick claims, chimes and notifies.
         {
           selector: "CallExpression[callee.name='playChime']",
@@ -1150,6 +1158,11 @@ export default defineConfig([
         },
       ],
     },
+  },
+  {
+    // The one place where shared query keys are built from one another (no imports, so no cycle).
+    files: ['src/lib/query-keys.ts'],
+    rules: { 'no-restricted-syntax': 'off' },
   },
   {
     files: ['src/components/**/*.{ts,tsx}', 'src/lib/**/*.{ts,tsx}'],

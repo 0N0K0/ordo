@@ -1,3 +1,4 @@
+import { tasksQueryKey, doableTasksKey } from '../../../lib/query-keys';
 import type { TaskInput } from '@ordo/shared';
 import type { PersonDetailsValues } from '../../../components/people/person-details';
 import { accountingQueryKey } from '../../accounting/api';
@@ -446,7 +447,7 @@ export function useSetTaskColumnDefaults() {
   });
 }
 
-export const tasksQueryKey = ['tasks'] as const;
+export { tasksQueryKey };
 
 /**
  * Tasks, contributors, statuses, priorities and types.
@@ -666,8 +667,7 @@ const DoableTaskIdsDocument = graphql(`
   }
 `);
 
-/** Key of the tasks doable now: refreshed with what their slot conditions count (`SLOT_DEPENDENT_KEYS`, decision FQ). */
-export const doableTasksKey = [...tasksQueryKey, 'doable'] as const;
+export { doableTasksKey };
 
 /**
  * Open tasks that can be done now (their slot rule, the events of their people), refreshed every minute; asked only

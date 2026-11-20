@@ -1,3 +1,4 @@
+import { treasuryKey, treasurySettingsKey } from '../../../lib/query-keys';
 import type { PersonDetailsValues } from '../../../components/people/person-details';
 import { useQuery } from '@tanstack/react-query';
 import { useInvalidatingMutation } from '../../../lib/mutation';
@@ -48,10 +49,7 @@ export type TreasuryContextEphemeris = TreasurySettingsQuery['treasuryContextEph
 export type TreasuryEntryLine = TreasuryEntry['lines'][number];
 export type EntryDocument = TreasuryDocumentOptionsQuery['treasuryDocumentOptions'][number];
 
-// Under the accounting key: payments change documents, and documents change the forecast.
-export const treasuryKey = [...accountingQueryKey, 'treasury'];
-/** Key of the treasury settings (team, relations, contexts…). */
-export const treasurySettingsKey = [...treasuryKey, 'settings'];
+export { treasuryKey, treasurySettingsKey };
 
 graphql(`
   fragment TreasuryEntryFields on TreasuryEntry {
