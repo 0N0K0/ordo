@@ -1,3 +1,4 @@
+import { timeQueryKey } from '../../../lib/query-keys';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useInvalidatingMutation } from '../../../lib/mutation';
 import { graphql } from '../../../graphql';
@@ -127,7 +128,7 @@ const DeleteTimeEntryDocument = graphql(`
   }
 `);
 
-export const timeQueryKey = ['time'] as const;
+export { timeQueryKey };
 
 /**
  * Time entries of a project and its sub-projects, latest first.

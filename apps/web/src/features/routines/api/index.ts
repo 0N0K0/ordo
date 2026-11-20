@@ -1,3 +1,4 @@
+import { routinesKey } from '../../../lib/query-keys';
 import { linkInputs } from '../../../lib/links';
 import { ancestorsOf, byPosition, changedList, mapById, movedTo, readReminders, subtreeOf } from '@ordo/shared';
 import type { Reminder, RoutineBulkChanges } from '@ordo/shared';
@@ -27,7 +28,7 @@ import type { ConversionLoss } from '@ordo/shared';
 export type RoutineCategory = RoutinesDataQuery['routineCategories'][number];
 export type Routine = RoutinesDataQuery['routines'][number];
 
-export const routinesKey = ['routines'] as const;
+export { routinesKey };
 
 const RoutinesDataDocument = graphql(`
   query RoutinesData {
