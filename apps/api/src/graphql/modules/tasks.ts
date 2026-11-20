@@ -23,7 +23,7 @@ import { unchecked } from '../unchecked';
 import { locationInputFields } from '../located-fields';
 import { ItemLinkInput, ItemLinkRef } from '../link-fields';
 import { ReminderInput, ReminderRef } from '../reminder-fields';
-import { readPhones, readReminders } from '@ordo/shared';
+import { readEmails, readPhones, readReminders } from '@ordo/shared';
 import { BIRTH_DATE_DESCRIPTION, personDetailsInputFields } from '../person-fields';
 import { readLinks } from '../../services/core/links';
 
@@ -45,7 +45,7 @@ builder.prismaObject('Contributor', {
     projectIds: t.idList(relationIds('projects', 'Projects the contributor is directly attached to; their sub-projects inherit it.')),
     birthDate: t.exposeString('birthDate', { nullable: true, description: BIRTH_DATE_DESCRIPTION }),
     birthdayReminders: t.field({ type: [ReminderRef], description: 'Reminders of its birthday.', resolve: (contributor) => readReminders(contributor.birthdayReminders) }),
-    email: t.exposeString('email', { nullable: true }),
+    emails: t.field({ type: 'JSON', description: '[{ label, address }]', resolve: (contributor) => readEmails(contributor.emails) }),
     phones: t.field({ type: 'JSON', description: '[{ label, number }]', resolve: (contributor) => readPhones(contributor.phones) }),
   }),
 });

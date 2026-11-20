@@ -134,7 +134,7 @@ export default defineConfig([
         },
         // An editor without getInputProps in a panel saved field by field: fieldProps (useFieldSave), not commit by hand.
         {
-          selector: "JSXOpeningElement[name.name=/^(MarkdownEditor|AddressFields|PhonesField|RichEditor|LazyRichEditor)$/] > JSXAttribute[name.name='onBlur'] CallExpression[callee.name='commit']",
+          selector: "JSXOpeningElement[name.name=/^(MarkdownEditor|AddressFields|ContactListField|RichEditor|LazyRichEditor)$/] > JSXAttribute[name.name='onBlur'] CallExpression[callee.name='commit']",
           message: 'Utiliser fieldProps(champ) de useFieldSave (lib/form) : valeur, changement et enregistrement en le quittant.',
         },
         // The icon of an item in its form: formIconProps (components/inputs/icon-field), the file and its removal as two

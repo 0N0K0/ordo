@@ -7,14 +7,15 @@ import { toJson } from './json';
 export interface PersonDetailsFields {
   birthDate?: string | null;
   birthdayReminders?: ReminderFields[] | null;
-  email?: string | null;
+  /** [{ label, address }], checked here. */
+  emails?: unknown;
   /** [{ label, number }], checked here. */
   phones?: unknown;
 }
 
 /**
  * Details of a contributor or a relation (lot 16) as Prisma stores them, from what is sent: birth date (`YYYY-MM-DD`
- * or `--MM-DD`), birthday reminders sorted and without duplicates, email, phones. Omitted fields are left out (left
+ * or `--MM-DD`), birthday reminders sorted and without duplicates, email addresses, phones. Omitted fields are left out (left
  * unchanged); a null list is empty.
  * @param {PersonDetailsFields} input Details sent.
  * @returns {object} Prisma data.
@@ -22,13 +23,13 @@ export interface PersonDetailsFields {
 export function personDetailsData(input: PersonDetailsFields) {
   const parsed: z.output<typeof personDetailsChangesSchema> = parseInput(personDetailsChangesSchema, {
     birthDate: input.birthDate,
-    email: input.email,
+    emails: input.emails === null ? [] : input.emails,
     birthdayReminders: input.birthdayReminders === null ? [] : input.birthdayReminders,
     phones: input.phones === null ? [] : input.phones,
   });
   return {
     ...(parsed.birthDate !== undefined && { birthDate: parsed.birthDate }),
-    ...(parsed.email !== undefined && { email: parsed.email }),
+    ...(parsed.emails && { emails: toJson(parsed.emails) }),
     ...(parsed.birthdayReminders && { birthdayReminders: toJson(normalizedReminders(parsed.birthdayReminders)) }),
     ...(parsed.phones && { phones: toJson(parsed.phones) }),
   };

@@ -50,7 +50,7 @@ export function suggestHandle(name: string): string {
   );
 }
 
-/** A contributor: name, mention handle and its details (birth date, birthday reminders, email, phones; lot 16). */
+/** A contributor: name, mention handle and its details (birth date, birthday reminders, email addresses, phones; lot 16). */
 export const contributorFormSchema = z.object({
   name: personNameSchema,
   handle: handleSchema,

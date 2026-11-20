@@ -1,7 +1,8 @@
 import { filterConditionSchemaFor, filterGroupSchemaFor, type FilterConditionOf, type FilterGroupOf } from '../tables/filters';
 import { addDays } from '../dates/days';
 import { plannedSlots, slotSchedules, type PlannedSlot, type WorkScheduleRule } from './work-schedules';
-import { scheduleSlotKind } from './slot-kinds';
+import { BIRTHDAY_SLOT_KIND, birthdaySlotId, birthdaySlotPerson, scheduleSlotKind } from './slot-kinds';
+import { birthdaysBetween, readBirthDate } from '../people/birthdays';
 
 /**
  * Fields of the conditions on calendar schedules: some schedules (on or out of them), some kinds of schedules (on or
@@ -72,6 +73,14 @@ export const conditionKinds = (node: SlotCondition | SlotConditionItem | null | 
  * @returns {string[]} Schedule ids and kinds.
  */
 export const conditionReferences = (node: SlotCondition | SlotConditionItem | null | undefined): string[] => conditionValues(node, ['schedules', 'kinds', 'freeTime']);
+
+/**
+ * Whether a condition names birthdays: that of a person (`birthdaySlotId`) or all of them (`BIRTHDAY_SLOT_KIND`).
+ * @param {SlotCondition | SlotConditionItem | null | undefined} node Condition.
+ * @returns {boolean} It names some.
+ */
+export const conditionCitesBirthdays = (node: SlotCondition | SlotConditionItem | null | undefined): boolean =>
+  conditionKinds(node).includes(BIRTHDAY_SLOT_KIND) || conditionScheduleIds(node).some((id) => birthdaySlotPerson(id) !== null);
 
 /**
  * Whether a condition limits the hours (it has a condition on some schedules, some kinds or on the free time).
@@ -245,24 +254,43 @@ export interface ForeignScheduleRule {
   rule: WorkScheduleRule;
 }
 
+/** Birthday of a person, as slot conditions count it (lot 16c): its id (`personBirthdayId`) and the birth date. */
+export interface BirthdaySource {
+  /** `contributor:<id>` or `relation:<id>`. */
+  id: string;
+  /** YYYY-MM-DD, or --MM-DD without year. */
+  birthDate: string;
+}
+
 /**
  * Slots of some schedules on a day, the slots of each day computed when first asked: what conditions on calendar
  * schedules are evaluated on, for tasks and routines alike. The schedules of the other workspaces only count where a
- * condition names them (or their kinds), never in the free time; nor do the éphémérides of the workspace.
+ * condition names them (or their kinds), never in the free time; nor do the éphémérides of the workspace, nor the
+ * birthdays (whole days, named by `birthdaySlotId` or all of them by `BIRTHDAY_SLOT_KIND`, lot 16c).
  * @param {readonly WorkScheduleRule[]} rules Schedules of the workspace.
  * @param {readonly ForeignScheduleRule[]} [foreign] Schedules of the other workspaces of the user. Optional. Default = none.
+ * @param {readonly BirthdaySource[]} [birthdays] Birthdays of the people of the workspace. Optional. Default = none.
  * @returns {SlotsOn} Slots of some schedules on a day.
  */
-export function scheduleSlotsOn(rules: readonly WorkScheduleRule[], foreign: readonly ForeignScheduleRule[] = []): SlotsOn {
+export function scheduleSlotsOn(rules: readonly WorkScheduleRule[], foreign: readonly ForeignScheduleRule[] = [], birthdays: readonly BirthdaySource[] = []): SlotsOn {
   // The free time: out of the créneaux of the workspace, its éphémérides left out (lot 16).
   const own = new Set(slotSchedules(rules).map((rule) => rule.id));
-  const kindOf = new Map([...rules.map((rule) => [rule.id, scheduleSlotKind(rule)] as const), ...foreign.map(({ workspaceId, rule }) => [rule.id, scheduleSlotKind(rule, workspaceId)] as const)]);
+  const kindOf = new Map<string, string | null>([...rules.map((rule) => [rule.id, scheduleSlotKind(rule)] as const), ...foreign.map(({ workspaceId, rule }) => [rule.id, scheduleSlotKind(rule, workspaceId)] as const)]);
   const all = [...rules, ...foreign.map(({ rule }) => rule)];
+  // Birthdays: a whole day each year, of the kind of every birthday.
+  const births = birthdays.flatMap((birthday) => {
+    const birth = readBirthDate(birthday.birthDate);
+    return birth ? [{ scheduleId: birthdaySlotId(birthday.id), birth }] : [];
+  });
+  for (const { scheduleId } of births) kindOf.set(scheduleId, BIRTHDAY_SLOT_KIND);
   const byDay = new Map<string, PlannedSlot[]>();
   return ({ ids = [], kinds = [] }, date) => {
     if (!ids.length && !kinds.length) return [];
     let slots = byDay.get(date);
-    if (!slots) byDay.set(date, (slots = plannedSlots(all, date, date)));
+    if (!slots) {
+      const birthdaySlots = births.filter(({ birth }) => birthdaysBetween(birth, date, date).length).map(({ scheduleId }) => ({ date, start: '00:00', end: '24:00', allDay: true, scheduleId }));
+      byDay.set(date, (slots = [...plannedSlots(all, date, date), ...birthdaySlots]));
+    }
     // Every schedule of the workspace (the free time), those named, or those of the kinds named.
     const every = ids.includes(ALL_SCHEDULES);
     return slots.filter((slot) => (every && own.has(slot.scheduleId)) || ids.includes(slot.scheduleId) || kinds.includes(kindOf.get(slot.scheduleId) ?? ''));

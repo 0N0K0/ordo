@@ -157,7 +157,7 @@ export const treasuryRelationSchema = z.object({
   note: optionalPlainText(),
   /** Contributor this person also is, if any (not a member). */
   contributorId: z.string().nullish(),
-  /** Birth date, birthday reminders, email, phones (lot 16); omitted: left unchanged (none for a new one). */
+  /** Birth date, birthday reminders, email addresses, phones (lot 16); omitted: left unchanged (none for a new one). */
   ...personDetailsChangesSchema.shape,
 });
 export type TreasuryRelationInput = z.input<typeof treasuryRelationSchema>;

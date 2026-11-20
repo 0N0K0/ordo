@@ -123,9 +123,9 @@ export function slotLookClasses({ foreign, ephemeris = false }: { foreign: boole
 }
 
 /**
- * Birthdays of a period as the calendar shows them (lot 16): whole-day éphémérides without kind (gray, dotted), as an
- * éphéméride is shown by default: in the week and the day a bar « Anniversaire de Paul — 40 ans » (opening the person)
- * and the day in the background; in the month, the day in the background.
+ * Birthdays of a period as the calendar shows them (lot 16): whole-day éphémérides without kind (gray, dotted), a bar
+ * « Anniversaire de Paul — 40 ans » (opening the person) and the day in the background, in every view, the month too
+ * (lot 16c: unlike the other éphémérides, whose month shows the background only).
  * @param {readonly PersonBirthday[]} birthdays Birthdays of the workspace.
  * @param {string} from First day shown.
  * @param {string} to Last day shown.
@@ -145,18 +145,17 @@ export function birthdayEvents(birthdays: readonly PersonBirthday[], from: strin
         backgroundColor: EPHEMERIS_COLOR,
         classNames: [classes.typedSlot, ...slotLookClasses({ foreign: false, ephemeris: true })],
       };
-      if (month) return [background];
-      return [
-        {
-          ...day,
-          id: `birthday:${birthday.id}:${date}`,
-          title: birthdayLabel(birthday.name, age),
-          editable: false,
-          extendedProps: { kind: 'birthday', birthday },
-          ...slotBarLook({ color: EPHEMERIS_COLOR, foreign: false, ephemeris: true }),
-        },
-        { ...background, start: `${date}T00:00:00`, end: `${addDays(date, 1)}T00:00:00`, allDay: false, id: `birthday-whole:${birthday.id}:${date}` },
-      ];
+      const bar: EventInput = {
+        ...day,
+        id: `birthday:${birthday.id}:${date}`,
+        title: birthdayLabel(birthday.name, age),
+        editable: false,
+        extendedProps: { kind: 'birthday', birthday },
+        ...slotBarLook({ color: EPHEMERIS_COLOR, foreign: false, ephemeris: true }),
+      };
+      // The week and the day: the hours of the day in the background too.
+      if (month) return [background, bar];
+      return [bar, { ...background, start: `${date}T00:00:00`, end: `${addDays(date, 1)}T00:00:00`, allDay: false, id: `birthday-whole:${birthday.id}:${date}` }];
     });
   });
 }

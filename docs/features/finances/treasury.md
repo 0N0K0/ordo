@@ -9,7 +9,7 @@ Ce que l’utilisateur peut faire dans la trésorerie : comptes bancaires, mouve
 - Différences PRO / PERSO :
   - en PERSO, pas de facturation : le formulaire de mouvement ne propose pas « Factures réglées » / « Avoirs remboursés », et les paramètres n’ont pas la section « Factures et avoirs » ;
   - l’ensemble des membres s’appelle « Équipe » en PRO et « Foyer » en PERSO ;
-  - le panneau d’une relation a aussi « Date de naissance » (jour, mois, année facultative), « Rappels d’anniversaire », « Adresse mail » et « Téléphones » (lot 16, comme ceux d’un contributeur ; son anniversaire s’affiche dans l’agenda) ;
+  - le panneau d’une relation a aussi « Date de naissance » (jour, mois, année facultative), « Rappels d’anniversaire », « Adresses mail » (plusieurs, lot 16c) et « Téléphones » (lot 16, comme ceux d’un contributeur ; son anniversaire s’affiche dans l’agenda) ;
   - les personnes hors équipe s’appellent « Relations » en PRO (féminin : « la relation », « Nouvelle relation ») et « Proches » en PERSO (« le proche », « Nouveau proche »).
 
 ## Page Trésorerie

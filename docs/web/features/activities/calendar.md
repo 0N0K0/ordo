@@ -200,7 +200,7 @@ Utilisés par `ScheduleSettings`.
 
 ### `hooks/use-slot-sources.ts`
 
-- `useSlotSources()` : ce qu’une condition de créneaux cite et sur quoi elle s’évalue : créneaux, types et type par défaut de l’espace (`useWorkSchedules`, `useScheduleTypes`, `useDefaultScheduleKind`), créneaux et types des autres espaces (`useOtherWorkspaceSchedules`, `useForeignScheduleKinds`). Utilisé par `useSlotRules`.
+- `useSlotSources()` : ce qu’une condition de créneaux cite et sur quoi elle s’évalue : créneaux, types et type par défaut de l’espace (`useWorkSchedules`, `useScheduleTypes`, `useDefaultScheduleKind`), créneaux et types des autres espaces (`useOtherWorkspaceSchedules`, `useForeignScheduleKinds`), anniversaires des personnes de l’espace (`useBirthdays`, lot 16c). Utilisé par `useSlotRules` (qui les passe à `scheduleSlotsOn`).
 - `useSlotChoices(keep?)` : `slotChoices` sur ces sources. Utilisé par `SlotConditionBuilder`, les routines (`routine-cells`, `RoutinesPage`, `RoutineSchedule`) et `use-task-columns` (tâches).
 
 ## lib
@@ -222,7 +222,7 @@ Utilisés par `ScheduleSettings`.
 - `slotBarLook({ color, foreign, ephemeris? })` : apparence du bandeau d’un créneau. Utilisé par `CalendarPage`, `RoutineDayAgenda`.
 - `slotLookClasses({ foreign, ephemeris? })` : classes d’un créneau à part (hachures `subscribedSlot` d’un autre espace, pointillés `ephemeris` et italique `ephemerisBar` d’une éphéméride). Utilisé par `slotBarLook`, `CalendarPage`, `RoutineDayAgenda`.
 - `EPHEMERIS_COLOR` : gris des éphémérides sans type. Utilisé ici et par `WorkSchedulesManager`.
-- `birthdayEvents(birthdays, from, to, month)` (lot 16) : anniversaires d’une période en `EventInput` : barre `kind: 'birthday'` (« Anniversaire de Paul — 40 ans », `slotBarLook` gris pointillé, ouvre la personne) et fond du jour (semaine, jour) ; fond seulement dans le mois. Utilisé par `CalendarPage`.
+- `birthdayEvents(birthdays, from, to, month)` (lot 16) : anniversaires d’une période en `EventInput` : barre `kind: 'birthday'` (« Anniversaire de Paul — 40 ans », `slotBarLook` gris pointillé, ouvre la personne) et fond du jour (semaine, jour) ; barre et fond du jour dans le mois aussi (lot 16c, décision FP). Utilisé par `CalendarPage`.
 - Types internes `ForeignSchedule`, `DefaultKind`, `ScheduleSource`.
 
 ### `lib/open-schedules.tsx`
@@ -274,14 +274,14 @@ Utilisés par `ScheduleSettings`.
 
 - `SlotSources` (interface) : créneaux, types et type par défaut de l’espace, créneaux et types des autres espaces.
 - `SlotChoices` (interface) : options par champ (`schedules`, `kinds`, `freeTime`), `all` (créneaux et types, colonne « Créneaux » des tableaux) et `names` (nom de chaque créneau et type, archivés compris).
-- `slotChoices(sources, keep?)` : ce qu’une condition propose (archivés exclus sauf gardés) ; créneaux et types des autres espaces nommés avec leur espace (`inWorkspace`) ; le type par défaut de l’espace d’abord ; éphémérides et types d’éphémérides suivis de « (éphéméride) » (interne `ephemerisLabel`), le temps libre ne proposant que des créneaux (`slotSchedules`). Remplace `scheduleChoices`.
+- `slotChoices(sources, keep?)` : ce qu’une condition propose (archivés exclus sauf gardés) ; créneaux et types des autres espaces nommés avec leur espace (`inWorkspace`) ; le type par défaut de l’espace d’abord ; éphémérides et types d’éphémérides suivis de « (éphéméride) » (interne `ephemerisLabel`), le temps libre ne proposant que des créneaux (`slotSchedules`) ; anniversaires de l’espace parmi les créneaux (« Anniversaire de Paul (éphéméride) », `birthdaySlotId`) et « Anniversaires (éphéméride) » parmi les types (`BIRTHDAY_SLOT_KIND`, lot 16c). Remplace `scheduleChoices`.
 
 ### `lib/slot-condition-text.ts`
 
 | Export                                        | Rôle                                                                                                                                                       |
 | --------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `emptySlotCondition()`                        | Groupe ET vide.                                                                                                                                            |
-| `describeSlotCondition(node, names, nested?)` | Condition en clair (« sur « Déjeuner » ou « Dîner » », « sur le type « Sport · Perso » », « hors des types … », « hors de tous les créneaux sauf … »), groupes entre parenthèses ; « créneau supprimé » ou « type supprimé » si inconnu. |
+| `describeSlotCondition(node, names, nested?)` | Condition en clair (« sur « Déjeuner » ou « Dîner » », « sur le type « Sport · Perso » », « hors des types … », « hors de tous les créneaux sauf … »), groupes entre parenthèses ; « créneau supprimé » ou « type supprimé » si inconnu, « anniversaire retiré » pour l’anniversaire d’une personne qui n’en a plus (archivée, supprimée). |
 
 Déplacé de `features/routines/lib` : utilisé par `SlotConditionBuilder`, `useSlotRules` et les routines.
 

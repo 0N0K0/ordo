@@ -86,11 +86,12 @@ export function useSlotRules(): SlotRules {
   const meId = context?.meId ?? null;
 
   return useMemo(() => {
-    // The schedules of the workspace and of the other ones, archived ones too (as the API).
+    // The schedules of the workspace and of the other ones, archived ones too, and the birthdays (as the API).
     const foreign = sources.foreignSchedules ?? [];
     const slotsOn = scheduleSlotsOn(
       scheduleRules(sources.schedules ?? []),
       scheduleRules(foreign).map((rule, index) => ({ workspaceId: foreign[index].workspaceId, rule })),
+      sources.birthdays ?? [],
     );
     const { names } = slotChoices(sources);
     /**

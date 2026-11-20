@@ -1,9 +1,12 @@
-import { readBirthDate, readReminders, type Reminder } from '@ordo/shared';
+import { personBirthdayId, readBirthDate, readReminders, type Reminder } from '@ordo/shared';
 import { prisma } from '../../db';
 
-/** Birthday of a person (lot 16, decision FO): derived from its birth date at read time, no row of its own. */
+/**
+ * Birthday of a person (lot 16, decision FO): derived from its birth date at read time, no row of its own. Slot
+ * conditions name it by `birthdaySlotId(id)` (lot 16c, decision FP).
+ */
 export interface PersonBirthday {
-  /** `contributor:<id>` or `relation:<id>`. */
+  /** `contributor:<id>` or `relation:<id>` (`personBirthdayId`). */
   id: string;
   contributorId: string | null;
   relationId: string | null;
@@ -35,9 +38,9 @@ export async function birthdays(): Promise<PersonBirthday[]> {
   const own = valid(contributors);
   const withBirthday = new Set(own.map((contributor) => contributor.id));
   return [
-    ...own.map((contributor) => ({ id: `contributor:${contributor.id}`, contributorId: contributor.id, relationId: null, name: contributor.name, birthDate: contributor.birthDate, reminders: readReminders(contributor.birthdayReminders) })),
+    ...own.map((contributor) => ({ id: personBirthdayId('contributor', contributor.id), contributorId: contributor.id, relationId: null, name: contributor.name, birthDate: contributor.birthDate, reminders: readReminders(contributor.birthdayReminders) })),
     ...valid(relations)
       .filter((relation) => !relation.contributorId || !withBirthday.has(relation.contributorId))
-      .map((relation) => ({ id: `relation:${relation.id}`, contributorId: relation.contributorId, relationId: relation.id, name: relation.name, birthDate: relation.birthDate, reminders: readReminders(relation.birthdayReminders) })),
+      .map((relation) => ({ id: personBirthdayId('relation', relation.id), contributorId: relation.contributorId, relationId: relation.id, name: relation.name, birthDate: relation.birthDate, reminders: readReminders(relation.birthdayReminders) })),
   ].sort((a, b) => a.name.localeCompare(b.name, 'fr'));
 }

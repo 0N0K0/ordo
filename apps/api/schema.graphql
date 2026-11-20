@@ -826,7 +826,9 @@ type Contributor {
 
   """Reminders of its birthday."""
   birthdayReminders: [Reminder!]!
-  email: String
+
+  """[{ label, address }]"""
+  emails: JSON!
   handle: String!
   id: ID!
 
@@ -861,8 +863,8 @@ input ContributorInput {
   """
   birthdayReminders: [ReminderInput!]
 
-  """Email address; empty: none."""
-  email: String
+  """[{ label, address }]: email addresses, 10 at most."""
+  emails: JSON
   handle: String!
   name: String!
 
@@ -886,8 +888,8 @@ input ContributorUpdateInput {
   """
   birthdayReminders: [ReminderInput!]
 
-  """Email address; empty: none."""
-  email: String
+  """[{ label, address }]: email addresses, 10 at most."""
+  emails: JSON
   handle: String
   name: String
 
@@ -5125,7 +5127,9 @@ type TreasuryRelation {
 
   """Contributor this person also is."""
   contributorId: ID
-  email: String
+
+  """[{ label, address }]"""
+  emails: JSON!
   id: ID!
   lineCount: Int!
   name: String!
@@ -5147,8 +5151,8 @@ input TreasuryRelationInput {
   birthdayReminders: [ReminderInput!]
   contributorId: ID
 
-  """Email address; empty: none."""
-  email: String
+  """[{ label, address }]: email addresses, 10 at most."""
+  emails: JSON
   name: String!
   note: String
 

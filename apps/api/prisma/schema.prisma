@@ -464,7 +464,8 @@ model Contributor {
   birthDate             String?
   /// Reminders of its birthday: [{ before: null, at: "HH:MM", days }] (on the day or some days before).
   birthdayReminders     Json                @default("[]")
-  email                 String?
+  /// [{ label, address }]: several email addresses (lot 16c).
+  emails                Json                @default("[]")
   /// [{ label, number }]
   phones                Json                @default("[]")
   /// Member of the team (professional workspace) or household (personal one): treasury entries are split
@@ -2191,7 +2192,8 @@ model TreasuryRelation {
   birthDate             String?
   /// Reminders of its birthday: [{ before: null, at: "HH:MM", days }] (on the day or some days before).
   birthdayReminders     Json                @default("[]")
-  email                 String?
+  /// [{ label, address }]: several email addresses (lot 16c).
+  emails                Json                @default("[]")
   /// [{ label, number }]
   phones                Json                @default("[]")
   /// Contributor this person also is (on projects, tasks…), if any.

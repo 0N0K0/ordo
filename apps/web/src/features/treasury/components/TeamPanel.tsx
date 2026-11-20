@@ -288,10 +288,10 @@ const relationValues = (relation: TreasuryRelation | undefined, name: string): R
  * @param {RelationValues} input Values.
  * @returns {RelationValues} Input.
  */
-const relationInput = (input: RelationValues): RelationValues => ({ ...input, note: input.note || null, contributorId: input.contributorId ?? null, email: input.email || null });
+const relationInput = (input: RelationValues): RelationValues => ({ ...input, note: input.note || null, contributorId: input.contributorId ?? null });
 
 /**
- * Relation form: name, contributor, note, and its details (birth date, birthday reminders, email, phones, lot 16). A new relation is a form with « Ajouter »; an existing one, its panel, saves each field
+ * Relation form: name, contributor, note, and its details (birth date, birthday reminders, email addresses, phones, lot 16). A new relation is a form with « Ajouter »; an existing one, its panel, saves each field
  * as soon as it changes (texts on leaving them, decision D22, `useFieldSave`), the one of the cache followed; archived,
  * it is read only.
  * @param {{ relation?: TreasuryRelation, name?: string, onDone: (createdId?: string) => void }} props Component props (the name typed in a select, for a new one); the form closes with the id of the relation created.

@@ -45,8 +45,8 @@ function contributorValues(contributor?: Contributor, defaultProjectIds: string[
 }
 
 /**
- * Contributor form (name, mention handle, avatar, projects, and its details: birth date, birthday reminders, email,
- * phones, lot 16), in the side panel: a new contributor, added by its button;
+ * Contributor form (name, mention handle, avatar, projects, and its details: birth date, birthday reminders, email
+ * addresses, phones, lot 16), in the side panel: a new contributor, added by its button;
  * an existing one, saved field by field (decision D22), read only once archived.
  * @param {ContributorFormProps} props Component props.
  * @param {Contributor} [props.contributor] Contributor to edit. Optional.
@@ -73,8 +73,8 @@ export function ContributorForm({ contributor, defaultProjectIds = [], onDone }:
   });
 
   // A new contributor only: an existing one is saved field by field (Enter saves the text typed).
-  const handleSubmit = form.onSubmit(({ name, handle, avatar, projectIds, birthDate, birthdayReminders, email, phones }) =>
-    create.mutate({ name, handle, avatar, projectIds, birthDate, birthdayReminders, email, phones }, formCallbacks(form, 'Contributeur ajouté.', onDone)),
+  const handleSubmit = form.onSubmit(({ name, handle, avatar, projectIds, birthDate, birthdayReminders, emails, phones }) =>
+    create.mutate({ name, handle, avatar, projectIds, birthDate, birthdayReminders, emails, phones }, formCallbacks(form, 'Contributeur ajouté.', onDone)),
   );
 
   return (

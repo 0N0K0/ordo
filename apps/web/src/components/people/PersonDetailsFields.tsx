@@ -1,7 +1,7 @@
-import { SimpleGrid, Stack, TextInput, type TextInputProps } from '@mantine/core';
-import type { Phone, Reminder, ReminderFields } from '@ordo/shared';
-import { BellIcon, EnvelopeSimpleIcon } from '@phosphor-icons/react';
-import { PhonesField } from '../inputs/PhonesField';
+import { SimpleGrid, Stack } from '@mantine/core';
+import type { LabelledEmail, Phone, Reminder, ReminderFields } from '@ordo/shared';
+import { BellIcon } from '@phosphor-icons/react';
+import { ContactListField } from '../inputs/ContactListField';
 import { RemindersSelect } from '../inputs/RemindersSelect';
 import { BirthDateField } from './BirthDateField';
 
@@ -16,11 +16,12 @@ interface PersonDetailsFieldsProps {
   birthDate: FieldBinding<string | null>;
   /** Reminders of the birthday, saved as soon as they change. */
   birthdayReminders: { value: readonly ReminderFields[]; onChange: (reminders: Reminder[]) => void };
-  /** Input props of the email (`getInputProps`). */
-  email: TextInputProps;
+  emails: FieldBinding<LabelledEmail[]>;
   phones: FieldBinding<Phone[]>;
   /** Errors of the form, by path. */
   errors: Record<string, unknown>;
+  /** Errors of the email addresses, by path inside the list (`nestedErrors`). */
+  emailErrors: Record<string, string | undefined>;
   /** Errors of the phones, by path inside the list (`nestedErrors`). */
   phoneErrors: Record<string, string | undefined>;
 }
@@ -28,11 +29,12 @@ interface PersonDetailsFieldsProps {
 /**
  * Details of a contributor (member of the team or household included) or of a relation (lot 16), the same in both
  * panels: birth date (year optional) and the reminders of its birthday (« À HH:MM » or « N jours avant, à HH:MM »,
- * disabled without birth date), email, phones (the field of the clients and their contacts).
+ * disabled without birth date), email addresses (several, lot 16c) and phones, the same labelled list field
+ * (`ContactListField`, the one of the phones of the clients and their contacts).
  * @param {PersonDetailsFieldsProps} props Component props.
  * @returns {JSX.Element} Fields.
  */
-export function PersonDetailsFields({ birthDate, birthdayReminders, email, phones, errors, phoneErrors }: PersonDetailsFieldsProps) {
+export function PersonDetailsFields({ birthDate, birthdayReminders, emails, phones, errors, emailErrors, phoneErrors }: PersonDetailsFieldsProps) {
   return (
     <Stack gap="md">
       <SimpleGrid cols={{ base: 1, sm: 2 }} spacing="sm">
@@ -51,8 +53,8 @@ export function PersonDetailsFields({ birthDate, birthdayReminders, email, phone
           error={errors.birthdayReminders as string | undefined}
         />
       </SimpleGrid>
-      <TextInput label="Adresse mail" type="email" leftSection={<EnvelopeSimpleIcon aria-hidden />} {...email} value={(email.value as string | null) ?? ''} />
-      <PhonesField {...phones} errors={phoneErrors} />
+      <ContactListField kind="emails" {...emails} errors={emailErrors} />
+      <ContactListField kind="phones" {...phones} errors={phoneErrors} />
     </Stack>
   );
 }

@@ -43,7 +43,7 @@ graphql(`
       at
       days
     }
-    email
+    emails
     phones
   }
 `);

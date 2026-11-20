@@ -338,8 +338,8 @@ export type ContributorInput = {
   birthDate?: string | null | undefined;
   /** Reminders of its birthday « À HH:MM » or « N jours avant, à HH:MM », 10 at most. */
   birthdayReminders?: Array<ReminderInput> | null | undefined;
-  /** Email address; empty: none. */
-  email?: string | null | undefined;
+  /** [{ label, address }]: email addresses, 10 at most. */
+  emails?: unknown;
   handle: string;
   name: string;
   /** [{ label, number }], 10 at most. */
@@ -354,8 +354,8 @@ export type ContributorUpdateInput = {
   birthDate?: string | null | undefined;
   /** Reminders of its birthday « À HH:MM » or « N jours avant, à HH:MM », 10 at most. */
   birthdayReminders?: Array<ReminderInput> | null | undefined;
-  /** Email address; empty: none. */
-  email?: string | null | undefined;
+  /** [{ label, address }]: email addresses, 10 at most. */
+  emails?: unknown;
   handle?: string | null | undefined;
   name?: string | null | undefined;
   /** [{ label, number }], 10 at most. */
@@ -1251,8 +1251,8 @@ export type TreasuryRelationInput = {
   /** Reminders of its birthday « À HH:MM » or « N jours avant, à HH:MM », 10 at most. */
   birthdayReminders?: Array<ReminderInput> | null | undefined;
   contributorId?: string | number | null | undefined;
-  /** Email address; empty: none. */
-  email?: string | null | undefined;
+  /** [{ label, address }]: email addresses, 10 at most. */
+  emails?: unknown;
   name: string;
   note?: string | null | undefined;
   /** [{ label, number }], 10 at most. */
@@ -3935,7 +3935,7 @@ export type SetShoppingDeliveryReceivedMutationVariables = Exact<{
 
 export type SetShoppingDeliveryReceivedMutation = { setShoppingDeliveryReceived: Array<string> };
 
-export type ContributorFieldsFragment = { id: string, archived: boolean, name: string, handle: string, avatarUrl: string | null, isMe: boolean, projectIds: Array<string>, birthDate: string | null, email: string | null, phones: unknown, birthdayReminders: Array<{ before: number | null, at: string | null, days: number | null }> };
+export type ContributorFieldsFragment = { id: string, archived: boolean, name: string, handle: string, avatarUrl: string | null, isMe: boolean, projectIds: Array<string>, birthDate: string | null, emails: unknown, phones: unknown, birthdayReminders: Array<{ before: number | null, at: string | null, days: number | null }> };
 
 export type SprintFieldsFragment = { id: string, archived: boolean, projectId: string, label: string, goal: string | null, startDate: string, endDate: string };
 
@@ -3950,7 +3950,7 @@ export type TaskCommentFieldsFragment = { id: string, body: string, createdAt: s
 export type TasksDataQueryVariables = Exact<{ [key: string]: never; }>;
 
 
-export type TasksDataQuery = { tasks: Array<{ id: string, number: number | null, label: string, description: string | null, projectId: string | null, statusId: string | null, priorityId: string | null, typeId: string | null, effort: number | null, startDate: string | null, endDate: string | null, parentId: string | null, milestoneId: string | null, sprintIds: Array<string>, deadline: string | null, minDate: string | null, effectiveDeadline: string | null, effectiveMinDate: string | null, deadlineFromSprint: boolean, minDateFromSprint: boolean, cancelled: boolean, position: number, archived: boolean, createdAt: string, updatedAt: string, assigneeIds: Array<string>, beneficiaryIds: Array<string>, beneficiaryRelationIds: Array<string>, tagIds: Array<string>, blockingIds: Array<string>, blockedByIds: Array<string>, relatedIds: Array<string>, commentCount: number, trackedSeconds: number, closed: boolean, closedAt: string | null, githubLinked: boolean, githubUrl: string | null, githubNumber: number | null, slotCondition: unknown, location: string | null, locationLat: number | null, locationLon: number | null, links: Array<{ url: string, label: string }>, reminders: Array<{ before: number | null, at: string | null, days: number | null }> }>, contributors: Array<{ id: string, archived: boolean, name: string, handle: string, avatarUrl: string | null, isMe: boolean, projectIds: Array<string>, birthDate: string | null, email: string | null, phones: unknown, birthdayReminders: Array<{ before: number | null, at: string | null, days: number | null }> }>, taskStatuses: Array<{ category: TaskStatusCategory, id: string, archived: boolean, label: string, color: string, iconUrl: string | null, position: number }>, taskPriorities: Array<{ id: string, archived: boolean, label: string, color: string, iconUrl: string | null, position: number }>, taskTypes: Array<{ id: string, archived: boolean, label: string, color: string, iconUrl: string | null, position: number }>, taskTags: Array<{ id: string, archived: boolean, label: string, color: string, iconUrl: string | null, position: number }>, milestones: Array<{ id: string, archived: boolean, projectId: string, label: string, description: string | null, dueDate: string | null, position: number }>, sprints: Array<{ id: string, archived: boolean, projectId: string, label: string, goal: string | null, startDate: string, endDate: string }> };
+export type TasksDataQuery = { tasks: Array<{ id: string, number: number | null, label: string, description: string | null, projectId: string | null, statusId: string | null, priorityId: string | null, typeId: string | null, effort: number | null, startDate: string | null, endDate: string | null, parentId: string | null, milestoneId: string | null, sprintIds: Array<string>, deadline: string | null, minDate: string | null, effectiveDeadline: string | null, effectiveMinDate: string | null, deadlineFromSprint: boolean, minDateFromSprint: boolean, cancelled: boolean, position: number, archived: boolean, createdAt: string, updatedAt: string, assigneeIds: Array<string>, beneficiaryIds: Array<string>, beneficiaryRelationIds: Array<string>, tagIds: Array<string>, blockingIds: Array<string>, blockedByIds: Array<string>, relatedIds: Array<string>, commentCount: number, trackedSeconds: number, closed: boolean, closedAt: string | null, githubLinked: boolean, githubUrl: string | null, githubNumber: number | null, slotCondition: unknown, location: string | null, locationLat: number | null, locationLon: number | null, links: Array<{ url: string, label: string }>, reminders: Array<{ before: number | null, at: string | null, days: number | null }> }>, contributors: Array<{ id: string, archived: boolean, name: string, handle: string, avatarUrl: string | null, isMe: boolean, projectIds: Array<string>, birthDate: string | null, emails: unknown, phones: unknown, birthdayReminders: Array<{ before: number | null, at: string | null, days: number | null }> }>, taskStatuses: Array<{ category: TaskStatusCategory, id: string, archived: boolean, label: string, color: string, iconUrl: string | null, position: number }>, taskPriorities: Array<{ id: string, archived: boolean, label: string, color: string, iconUrl: string | null, position: number }>, taskTypes: Array<{ id: string, archived: boolean, label: string, color: string, iconUrl: string | null, position: number }>, taskTags: Array<{ id: string, archived: boolean, label: string, color: string, iconUrl: string | null, position: number }>, milestones: Array<{ id: string, archived: boolean, projectId: string, label: string, description: string | null, dueDate: string | null, position: number }>, sprints: Array<{ id: string, archived: boolean, projectId: string, label: string, goal: string | null, startDate: string, endDate: string }> };
 
 export type TaskCommentsQueryVariables = Exact<{
   id: string | number;
@@ -4051,7 +4051,7 @@ export type CreateContributorMutationVariables = Exact<{
 }>;
 
 
-export type CreateContributorMutation = { createContributor: { id: string, archived: boolean, name: string, handle: string, avatarUrl: string | null, isMe: boolean, projectIds: Array<string>, birthDate: string | null, email: string | null, phones: unknown, birthdayReminders: Array<{ before: number | null, at: string | null, days: number | null }> } };
+export type CreateContributorMutation = { createContributor: { id: string, archived: boolean, name: string, handle: string, avatarUrl: string | null, isMe: boolean, projectIds: Array<string>, birthDate: string | null, emails: unknown, phones: unknown, birthdayReminders: Array<{ before: number | null, at: string | null, days: number | null }> } };
 
 export type UpdateContributorMutationVariables = Exact<{
   id: string | number;
@@ -4059,7 +4059,7 @@ export type UpdateContributorMutationVariables = Exact<{
 }>;
 
 
-export type UpdateContributorMutation = { updateContributor: { id: string, archived: boolean, name: string, handle: string, avatarUrl: string | null, isMe: boolean, projectIds: Array<string>, birthDate: string | null, email: string | null, phones: unknown, birthdayReminders: Array<{ before: number | null, at: string | null, days: number | null }> } };
+export type UpdateContributorMutation = { updateContributor: { id: string, archived: boolean, name: string, handle: string, avatarUrl: string | null, isMe: boolean, projectIds: Array<string>, birthDate: string | null, emails: unknown, phones: unknown, birthdayReminders: Array<{ before: number | null, at: string | null, days: number | null }> } };
 
 export type SetProjectContributorsMutationVariables = Exact<{
   projectId: string | number;
@@ -4388,7 +4388,7 @@ export type TreasuryProjectionQuery = { treasuryProjection: { balance: number, s
 export type TreasurySettingsQueryVariables = Exact<{ [key: string]: never; }>;
 
 
-export type TreasurySettingsQuery = { treasuryCategories: Array<{ id: string, archived: boolean, label: string, color: string | null, iconUrl: string | null, direction: TreasuryDirection, parentId: string | null, position: number, entryCount: number }>, treasuryPaymentMethods: Array<{ id: string, archived: boolean, label: string, color: string | null, iconUrl: string | null, position: number, incoming: boolean, outgoing: boolean, entryCount: number }>, treasuryCounterparties: Array<{ id: string, name: string, color: string | null, iconUrl: string | null, position: number, note: string | null, archived: boolean, entryCount: number }>, treasuryMembers: Array<{ id: string, name: string, handle: string, avatarUrl: string | null, isMe: boolean }>, treasuryContexts: Array<{ id: string, scheduleTypeId: string, archived: boolean, label: string, color: string, iconUrl: string | null, position: number, workspaceLabel: string | null }>, treasuryRelations: Array<{ id: string, archived: boolean, name: string, note: string | null, contributorId: string | null, birthDate: string | null, email: string | null, phones: unknown, lineCount: number, budgetCount: number, birthdayReminders: Array<{ before: number | null, at: string | null, days: number | null }> }>, treasuryContextEphemerides: Array<{ contextId: string, schedule: { id: string, label: string, startDate: string, endDate: string | null, cases: unknown, exceptions: unknown } }> };
+export type TreasurySettingsQuery = { treasuryCategories: Array<{ id: string, archived: boolean, label: string, color: string | null, iconUrl: string | null, direction: TreasuryDirection, parentId: string | null, position: number, entryCount: number }>, treasuryPaymentMethods: Array<{ id: string, archived: boolean, label: string, color: string | null, iconUrl: string | null, position: number, incoming: boolean, outgoing: boolean, entryCount: number }>, treasuryCounterparties: Array<{ id: string, name: string, color: string | null, iconUrl: string | null, position: number, note: string | null, archived: boolean, entryCount: number }>, treasuryMembers: Array<{ id: string, name: string, handle: string, avatarUrl: string | null, isMe: boolean }>, treasuryContexts: Array<{ id: string, scheduleTypeId: string, archived: boolean, label: string, color: string, iconUrl: string | null, position: number, workspaceLabel: string | null }>, treasuryRelations: Array<{ id: string, archived: boolean, name: string, note: string | null, contributorId: string | null, birthDate: string | null, emails: unknown, phones: unknown, lineCount: number, budgetCount: number, birthdayReminders: Array<{ before: number | null, at: string | null, days: number | null }> }>, treasuryContextEphemerides: Array<{ contextId: string, schedule: { id: string, label: string, startDate: string, endDate: string | null, cases: unknown, exceptions: unknown } }> };
 
 export type TreasuryEntrySearchQueryVariables = Exact<{
   text: string;
@@ -5198,7 +5198,7 @@ export const ContributorFieldsFragmentDoc = new TypedDocumentString(`
     at
     days
   }
-  email
+  emails
   phones
 }
     `, {"fragmentName":"ContributorFields"}) as unknown as TypedDocumentString<ContributorFieldsFragment, unknown>;
@@ -9026,7 +9026,7 @@ export const TasksDataDocument = new TypedDocumentString(`
     at
     days
   }
-  email
+  emails
   phones
 }
 fragment SprintFields on Sprint {
@@ -9326,7 +9326,7 @@ export const CreateContributorDocument = new TypedDocumentString(`
     at
     days
   }
-  email
+  emails
   phones
 }`) as unknown as TypedDocumentString<CreateContributorMutation, CreateContributorMutationVariables>;
 export const UpdateContributorDocument = new TypedDocumentString(`
@@ -9349,7 +9349,7 @@ export const UpdateContributorDocument = new TypedDocumentString(`
     at
     days
   }
-  email
+  emails
   phones
 }`) as unknown as TypedDocumentString<UpdateContributorMutation, UpdateContributorMutationVariables>;
 export const SetProjectContributorsDocument = new TypedDocumentString(`
@@ -9947,7 +9947,7 @@ export const TreasurySettingsDocument = new TypedDocumentString(`
       at
       days
     }
-    email
+    emails
     phones
     lineCount
     budgetCount

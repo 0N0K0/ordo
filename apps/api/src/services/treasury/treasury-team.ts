@@ -104,7 +104,7 @@ export async function contextEphemerides(): Promise<(ContextEphemeris & { schedu
  * Saves a relation: a person out of the team or household (friend, family, partner…) lines and budgets can be for,
  * possibly a contributor too (not a member).
  * @param {string | null} id Relation to change, or null to create one.
- * @param {TreasuryRelationInput} input Name, note, contributor, and its details (birth date, birthday reminders, email, phones: omitted, left unchanged).
+ * @param {TreasuryRelationInput} input Name, note, contributor, and its details (birth date, birthday reminders, email addresses, phones: omitted, left unchanged).
  * @returns {Promise<TreasuryRelation>} Relation.
  */
 export async function saveRelation(id: string | null, input: Pick<TreasuryRelationInput, 'name' | 'note' | 'contributorId'> & PersonDetailsFields): Promise<TreasuryRelation> {

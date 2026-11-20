@@ -61,9 +61,9 @@ Une valeur gardée d'avant hors des préréglages reste affichée (`reminderLabe
 - `REMINDER_DAY` : « le jour J ».
 - `reminderLabel(reminder, day?)` : « Au début », le préréglage, sinon la durée (« 24 h 00 avant ») ; « À 08:00 le jour J » (`day` vide : « À 08:00 ») ; « 3 jours avant, à 08:00 ».
 
-### `PhonesField`
+### `ContactListField`
 
-`PhonesField({ value, onChange, errors?, onBlur? })` : liste de téléphones (libellé et numéro), ajout et retrait ; l’erreur de chacun sous lui (`errors`, chemins `N.number`) ; `onBlur` : un champ quitté, un numéro retiré (enregistrés alors, décision D22). Déplacé de `features/accounting` (lot 16) : clients (`ClientPartyForms`), contributeurs et relations (`PersonDetailsFields`).
+`ContactListField({ kind, value, onChange, errors?, onBlur? })` : liste à libellés pour joindre une personne ou une organisation, la même pour chaque sorte (décision FP, lot 16c ; ex-`PhonesField`) : `kind="phones"` « Téléphones » (libellé et numéro, « Ajouter un numéro ») ou `kind="emails"` « Adresses mail » (libellé et adresse, « Ajouter une adresse »), ajout et retrait ; l’erreur de chacun sous lui (`errors`, chemins `N.label`, `N.number` ou `N.address`) ; `onBlur` : un champ quitté, une entrée retirée (enregistrés alors, décision D22). Téléphones : clients, services et contacts (`ClientPartyForms`), contributeurs et relations ; adresses mail : contributeurs et relations (`PersonDetailsFields`).
 
 ## Couleur, icône, liens, groupe de contrôles
 
