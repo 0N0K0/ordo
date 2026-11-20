@@ -5,7 +5,7 @@ import { EmptyState } from '../../../components/feedback/EmptyState';
 
 import { Group, Stack, Switch, Text } from '@mantine/core';
 import { offsetLinkedMovements } from '@ordo/shared';
-import { ArrowsLeftRightIcon, ArrowsSplitIcon, CopyIcon, FileCsvIcon, FilePdfIcon, PencilSimpleIcon } from '@phosphor-icons/react';
+import { ArrowsLeftRightIcon, ArrowsSplitIcon, FileCsvIcon, FilePdfIcon, PencilSimpleIcon } from '@phosphor-icons/react';
 import { useMemo, useState } from 'react';
 import { DataTable } from '../../../components/data-table/table/DataTable';
 import { EditableDate, EditableText } from '../../../components/data-table/cells/EditableCells';
@@ -14,12 +14,12 @@ import { bulkCellLabels, type BulkChange, bulkSaver } from '../../../components/
 import { useDataView, type FirstTableView, withinFilter } from '../../../components/data-table/views/use-data-view';
 import { ROW_ACTIONS_WIDTH, RowActions } from '../../../components/data-table/cells/RowActions';
 import { readOnlyCells, type DataColumn } from '../../../components/data-table/table/data-table';
-import { archiveItemsAction, rowMenuEntry } from '../../../components/data-table/selection/selection-actions';
+import { archiveItemsAction, duplicateRowsAction, rowMenuEntry, type DuplicateOptions } from '../../../components/data-table/selection/selection-actions';
 import { ArchivedBadge } from '../../../components/feedback/ArchivedBadge';
 import { archiveEntry, useSetArchived, unarchived } from '../../../lib/archive';
 import { selectedLabel } from '../../../components/data-table/selection/selection-label';
 
-import { treasuryKey, useTreasuryEntries, type TreasuryAccount, type TreasuryEntry } from '../api';
+import { treasuryKey, useTreasuryEntries, type ForecastEntry, type TreasuryAccount, type TreasuryEntry } from '../api';
 import { DetailsToggle, SettledCell } from './entry-cells';
 import { useEntryEnv, type EntryEnv } from '../lib/entry-env';
 import { entryFieldCells, entryFieldColumns } from '../lib/entry-columns';
@@ -57,8 +57,8 @@ function periodTotals(entries: TreasuryEntry[]) {
 interface EntriesPanelProps {
   accounts: TreasuryAccount[];
   onEdit: (entry: TreasuryEntry) => void;
-  /** Copies an entry into a new one. */
-  onDuplicate: (entry: TreasuryEntry) => void;
+  /** « Dupliquer » of an entry (`useEntryDuplicate`). */
+  onDuplicate: DuplicateOptions<TreasuryEntry | ForecastEntry, string>;
 }
 
 /** Width of the actions column. */
@@ -251,7 +251,7 @@ export function EntriesPanel({ accounts, onEdit, onDuplicate }: EntriesPanelProp
             name={entry.label}
             primary={!entry.archived && { label: 'Modifier', icon: <PencilSimpleIcon aria-hidden />, onClick: () => onEdit(entry) }}
             items={[
-              !entry.archived && { label: 'Dupliquer', icon: <CopyIcon aria-hidden />, onClick: () => onDuplicate(entry) },
+              !entry.archived && rowMenuEntry(duplicateRowsAction([entry], onDuplicate)),
               // An entry not split yet: its split opens under it, where its lines are added.
               !entry.archived && entry.lines.length === 0 && !expanded.has(entry.id) && { label: 'Répartir', icon: <ArrowsSplitIcon aria-hidden />, onClick: () => toggle(entry.id) },
               archiveEntry({ archived: entry.archived, type: 'Mouvement', label: entry.label }, setArchived, entry.id),

@@ -697,6 +697,21 @@ type CommentCount {
   id: ID!
 }
 
+"""
+Comment deleted with an occurrence (its text and dates), to give it back on undo.
+"""
+type CommentSnapshot {
+  body: String!
+  createdAt: DateTime!
+  updatedAt: DateTime!
+}
+
+input CommentSnapshotInput {
+  body: String!
+  createdAt: DateTime!
+  updatedAt: DateTime!
+}
+
 """Kind of item a comment goes on (tasks have their own comments)."""
 enum CommentTarget {
   BUDGET
@@ -1627,7 +1642,15 @@ type Mutation {
   """
   Applies the same changes to several routines; those moved to another project tree lose their links out of it (told back).
   """
-  bulkUpdateRoutines(changes: RoutineBulkChanges!, ids: [ID!]!): RemovedLinksResult!
+  bulkUpdateRoutines(
+    changes: RoutineBulkChanges!
+
+    """
+    Occurrences made to disappear with their comments or times are confirmed: false (default) refuses with CONFIRMATION_REQUIRED and extension lost { times, comments } when there are some; true deletes them.
+    """
+    confirmLoss: Boolean
+    ids: [ID!]!
+  ): RemovedLinksResult!
   bulkUpdateTasks(
     changes: BulkTaskInput!
     ids: [ID!]!
@@ -1648,9 +1671,20 @@ type Mutation {
   """
   Changes the day and the times of one time of the day of an occurrence: this one (an exception), it and the following ones, or all.
   """
-  changeRoutineOccurrence(date: Date!, dueTime: String, fromTime: String, id: ID!, scope: CalendarEventScope!, slot: Int!, to: Date!): Boolean!
+  changeRoutineOccurrence(
+    """
+    Occurrences made to disappear with their comments or times are confirmed: false (default) refuses with CONFIRMATION_REQUIRED and extension lost { times, comments } when there are some; true deletes them.
+    """
+    confirmLoss: Boolean
+    date: Date!
+    dueTime: String
+    fromTime: String
+    id: ID!
+    scope: CalendarEventScope!
+    slot: Int!
+    to: Date!
+  ): Boolean!
   changeUsername(currentPassword: String!, username: String!): User!
-  cloneTask(id: ID!, includeSubtasks: Boolean!): Task!
 
   """Works without a session: the link may be opened on another device."""
   confirmEmailChange(token: String!): Boolean!
@@ -1789,9 +1823,9 @@ type Mutation {
   deleteRoutineCategory(id: ID!): Boolean!
 
   """
-  Deletes an occurrence (THIS: an exception) or it and the following ones (FOLLOWING); true when the routine was archived (nothing left).
+  Deletes an occurrence (THIS: an exception) or it and the following ones (FOLLOWING), with their comments; tells whether the routine was archived (nothing left) and gives the comments deleted with THIS, for an undo.
   """
-  deleteRoutineOccurrence(date: Date!, id: ID!, scope: CalendarEventScope!): Boolean!
+  deleteRoutineOccurrence(date: Date!, id: ID!, scope: CalendarEventScope!): RoutineOccurrenceDeletion!
 
   """Deletes a kind of time slots (its schedules stay, without kind)."""
   deleteScheduleType(id: ID!): Boolean!
@@ -1853,6 +1887,11 @@ type Mutation {
   """
   duplicateShoppingItem(id: ID!): ID!
   duplicateShoppingList(id: ID!): ID!
+
+  """
+  Duplicates a task, named « … (copie) » (decision D20), with its sub-tasks when asked; not its comments.
+  """
+  duplicateTask(id: ID!, includeSubtasks: Boolean!): Task!
   duplicateTaskView(id: ID!, label: String!): TaskView!
 
   """Makes a draft final; returns its number."""
@@ -1975,7 +2014,14 @@ type Mutation {
   """
   Changes some fields of a routine (inline edits); moved to another project tree, it loses its links out of it (told back).
   """
-  patchRoutine(id: ID!, input: RoutinePatch!): RemovedLinksResult!
+  patchRoutine(
+    """
+    Occurrences made to disappear with their comments or times are confirmed: false (default) refuses with CONFIRMATION_REQUIRED and extension lost { times, comments } when there are some; true deletes them.
+    """
+    confirmLoss: Boolean
+    id: ID!
+    input: RoutinePatch!
+  ): RemovedLinksResult!
 
   """
   Cancels an event (or one occurrence) and creates its postponement, linked to it.
@@ -1989,8 +2035,15 @@ type Mutation {
   removeAccountingAttachment(attachmentId: ID!): Boolean!
   removeGithubToken: Boolean!
 
-  """Removes an exception: the occurrence goes back to its own day."""
-  removeRoutineMove(from: Date!, id: ID!): Boolean!
+  """
+  Removes an exception: the occurrence goes back to its own day; after its deletion (undo), with the comments deleted with it.
+  """
+  removeRoutineMove(
+    """Comments deleted with the occurrence, given back on it."""
+    comments: [CommentSnapshotInput!]
+    from: Date!
+    id: ID!
+  ): Boolean!
   removeSheetFromShoppingList(listId: ID!, sheetId: ID!): Boolean!
   removeSignedQuote(id: ID!): Boolean!
   removeTaskBlock(blockedId: ID!, blockerId: ID!): Boolean!
@@ -2230,7 +2283,16 @@ type Mutation {
   """
   Changes an event; for a recurring one, the occurrence, it and the following ones, or the whole series.
   """
-  updateCalendarEvent(id: ID!, input: CalendarEventInput!, occurrenceDate: Date, scope: CalendarEventScope!): ID!
+  updateCalendarEvent(
+    """
+    Occurrences made to disappear with their comments or times are confirmed: false (default) refuses with CONFIRMATION_REQUIRED and extension lost { times, comments } when there are some; true deletes them.
+    """
+    confirmLoss: Boolean
+    id: ID!
+    input: CalendarEventInput!
+    occurrenceDate: Date
+    scope: CalendarEventScope!
+  ): ID!
   updateCatalogItem(id: ID!, input: CatalogItemInput!): Boolean!
   updateChecklistItem(id: ID!, input: SheetItemInput!): Boolean!
   updateClient(id: ID!, input: ClientUpdateInput!): Client!
@@ -2258,6 +2320,10 @@ type Mutation {
   Saves a routine; moved to another project tree, it loses its links out of it (told back).
   """
   updateRoutine(
+    """
+    Occurrences made to disappear with their comments or times are confirmed: false (default) refuses with CONFIRMATION_REQUIRED and extension lost { times, comments } when there are some; true deletes them.
+    """
+    confirmLoss: Boolean
     id: ID!
     input: RoutineInput!
 
@@ -2972,7 +3038,7 @@ type Routine {
   nextDate: Date
 
   """
-  « À partir du » of the occurrences of its rule: { mode: DAY | WEEKDAY | WEEK | BEFORE, … }; null: from their first day.
+  « Ouverture » of the occurrences of its rule: { mode: DAY | WEEKDAY | WEEK | BEFORE, … }; null: from their first day.
   """
   opensOn: JSON
   parentId: ID
@@ -2995,7 +3061,7 @@ type Routine {
   reminderOccurrences: [RoutineReminderOccurrence!]!
 
   """
-  Reminders: minutes (24 hours at most) before the first day (« à partir du ») of an occurrence at the start of each time of the day (« dès »), or a time of that day.
+  Reminders: minutes (24 hours at most) before the first day (« Ouverture ») of an occurrence at the start of each time of the day (« dès »), or a time of that day.
   """
   reminders: [Reminder!]!
 
@@ -3058,7 +3124,7 @@ input RoutineBulkChanges {
   """Times of the day following its rule."""
   moments: JSON
 
-  """« À partir du » of its rule; null: none."""
+  """« Ouverture » of its rule; null: none."""
   opensOn: JSON
   projectId: ID
   recurrence: JSON
@@ -3150,7 +3216,7 @@ input RoutineInput {
   moments: JSON
 
   """
-  « À partir du » of the occurrences of its rule: { mode: DAY | WEEKDAY | WEEK | BEFORE, … }; null: none.
+  « Ouverture » of the occurrences of its rule: { mode: DAY | WEEKDAY | WEEK | BEFORE, … }; null: none.
   """
   opensOn: JSON
   parentId: ID
@@ -3194,6 +3260,14 @@ type RoutineOccurrence {
   startDate: Date!
 }
 
+type RoutineOccurrenceDeletion {
+  """No occurrence left: the routine was archived."""
+  archived: Boolean!
+
+  """Comments deleted with this occurrence alone (THIS), for an undo."""
+  comments: [CommentSnapshot!]!
+}
+
 input RoutineOccurrenceGoneInput {
   """Occurrence (its day now)."""
   date: Date!
@@ -3231,9 +3305,7 @@ input RoutinePatch {
   """Times of the day following its rule."""
   moments: JSON
 
-  """
-  « À partir du »: { mode: DAY | WEEKDAY | WEEK | BEFORE, … }; null: none.
-  """
+  """« Ouverture »: { mode: DAY | WEEKDAY | WEEK | BEFORE, … }; null: none."""
   opensOn: JSON
 
   """Null: top level."""
@@ -3266,7 +3338,7 @@ type RoutineReminderOccurrence {
   """Due day of the occurrence."""
   date: Date!
 
-  """Its first day (« à partir du »): the day of its reminders « À HH:MM »."""
+  """Its first day (« Ouverture »): the day of its reminders « À HH:MM »."""
   day: Date!
 
   """
@@ -4011,7 +4083,9 @@ type Task {
   comments: [TaskComment!]!
   createdAt: DateTime!
 
-  """Latest acceptable date ("Date max"): an open task past it is overdue."""
+  """
+  Latest acceptable date (« Échéance »): an open task past it is overdue.
+  """
   deadline: Date
   description: String
   effort: Float
@@ -4037,7 +4111,7 @@ type Task {
   locationLon: Float
   milestoneId: ID
 
-  """Earliest acceptable date ("Date min"): not to be done before."""
+  """Earliest acceptable date (« Ouverture »): not to be done before."""
   minDate: Date
 
   """
@@ -4053,7 +4127,7 @@ type Task {
   relatedIds: [ID!]!
 
   """
-  Reminders « À HH:MM » (Paris time), rung every day from « Date min » to « Date max » (its day only without « Date min »; never without « Date max »).
+  Reminders « À HH:MM » (Paris time), rung every day from « Ouverture » to « Échéance » (its day only without « Ouverture »; never without « Échéance »).
   """
   reminders: [Reminder!]!
 

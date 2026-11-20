@@ -14,9 +14,9 @@ Corrigés par le commit `5e1bc2de`.
 L’API accepte ce que l’interface empêche.
 
 - **Liste de courses clôturée :** lecture seule dans l’interface ; l’API ne refuse les changements que si la liste est archivée. Voir [Achats](features/supplies/shopping.md) et [Règles des achats](business-rules/supplies/shopping.md).
-- **Copie d’une tâche archivée :** `cloneTask` ne refuse pas une source archivée ; l’interface ne propose la copie que sur les tâches non archivées. Voir [Règles des tâches](business-rules/activities/tasks.md).
+- **Copie d’une tâche archivée :** `duplicateTask` ne refuse pas une source archivée ; l’interface ne propose la copie que sur les tâches non archivées. Voir [Règles des tâches](business-rules/activities/tasks.md).
 - **Déplacement d’un projet archivé :** `moveProject` l’accepte ; l’interface ne le propose pas. Voir [Règles des projets](business-rules/cross-cutting/projects.md).
-- **Dates min / max d’une tâche :** l’ordre « Date min » / « Date max » n’est vérifié que par le formulaire (`taskFormSchema`) ; l’API (`assertDateRange`) ne vérifie que début / fin. Voir [Règles des tâches](business-rules/activities/tasks.md).
+- **Ouverture et échéance d’une tâche :** l’ordre « Ouverture » / « Échéance » n’est vérifié que par le formulaire (`taskFormSchema`) ; l’API (`assertDateRange`) ne vérifie que début / fin. Voir [Règles des tâches](business-rules/activities/tasks.md).
 - **Inventaire :** l’API ne vérifie pas que les articles comptés sont dans l’emplacement choisi ; seule l’interface les filtre. Voir [Règles du stock](business-rules/supplies/stock.md).
 
 ## Archivage incomplet
@@ -34,7 +34,6 @@ L’API accepte ce que l’interface empêche.
 
 ## Comportements à confirmer
 
-- **Commentaires d’occurrences disparues (D19) :** une règle d’évènement ou de routine changée sans décalage (« toute la série », « celle-ci et les suivantes ») laisse les commentaires et les temps des occurrences qui n’existent plus à leur date : ils ne s’affichent plus, et aucune confirmation ne le dit (la modification n’en a pas). Voir [Règles des commentaires](business-rules/cross-cutting/comments.md).
 - **Sens d’une catégorie de trésorerie :** le changement de sens n’est refusé que si des mouvements utilisent la catégorie ; les lignes de répartition ne sont pas vérifiées. Voir [Règles de la trésorerie](business-rules/finances/treasury.md).
 - **Suppression d’un contexte de trésorerie :** ses budgets sont supprimés aussi (`onDelete: Cascade`), mais la confirmation de l’interface ne le dit pas. Voir [Règles de la trésorerie](business-rules/finances/treasury.md).
 - **Décocher un achat :** retire aussi du stock ce qui avait été ajouté à la main par « Ajouter au stock ». Voir [Règles du stock](business-rules/supplies/stock.md).

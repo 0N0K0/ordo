@@ -11,7 +11,7 @@ import { Badge, Group, Progress, SegmentedControl, Select, SimpleGrid, Stack, Te
 import { SettingsSection } from '../../../components/settings/SettingsSection';
 import { MonthPickerInput } from '@mantine/dates';
 import { EVERYDAY_CONTEXT, joinedKey, treasuryBudgetSchema } from '@ordo/shared';
-import { ChartPieSliceIcon, CopyIcon, PencilSimpleIcon, PlusIcon, WarningIcon } from '@phosphor-icons/react';
+import { ChartPieSliceIcon, PencilSimpleIcon, PlusIcon, WarningIcon } from '@phosphor-icons/react';
 import { ArchivedBadge } from '../../../components/feedback/ArchivedBadge';
 import { archiveEntry, unarchived, useSetArchived } from '../../../lib/archive';
 import { useState, type ReactNode } from 'react';
@@ -34,7 +34,9 @@ import { Comments } from '../../comments/components/Comments';
 import { useCommentCounts } from '../../comments/api';
 import { commentColumn } from '../../comments/lib/comment-column';
 import { CreatableSelect } from '../../../components/inputs/CreatableSelect';
-import { archiveItemsAction, deleteItemsAction, rowMenuEntry } from '../../../components/data-table/selection/selection-actions';
+import { archiveItemsAction, deleteItemsAction, duplicateRowsAction, rowMenuEntry } from '../../../components/data-table/selection/selection-actions';
+import { useQueryClient } from '@tanstack/react-query';
+import { cachedItem } from '../../../lib/mutation';
 import { selectedLabel } from '../../../components/data-table/selection/selection-label';
 import { FormActions } from '../../../components/dialogs/FormActions';
 import { meName, personName, relationNoun } from '../../../components/people/people-options';
@@ -278,8 +280,8 @@ function BudgetForm({ budget, defaults, onDone }: { budget?: TreasuryBudget; def
   );
 }
 
-// A copy is a new budget with the values of another one.
-type Dialog = { budget?: TreasuryBudget; defaults?: Partial<BudgetValues>; copy?: boolean };
+// A budget changed, or the values of a new one.
+type Dialog = { budget?: TreasuryBudget; defaults?: Partial<BudgetValues> };
 
 /**
  * Budgets: those of a month compared with its actual and forecast movements (what is spent, or received, and what
@@ -295,6 +297,7 @@ export function BudgetsPanel() {
   const { data, isPending } = useTreasuryBudgets(month, month);
   const { data: settings } = useTreasurySettings();
   const { remove, save } = useTreasuryBudgetMutations();
+  const queryClient = useQueryClient();
   /**
    * « Supprimer » of budgets, on a row as on a selection.
    * @param {TreasuryBudget[]} rows Budgets.
@@ -344,12 +347,12 @@ export function BudgetsPanel() {
   const budgeted = rows.filter((row) => row.budgeted);
   const outside = rows.filter((row) => !row.budgeted);
   /**
-   * Opens the form of a new, changed or copied budget.
+   * Opens the form of a new or changed budget.
    * @param {Dialog} dialog Budget changed, or the values of a new one.
    * @returns {void}
    */
   const openBudget = (dialog: Dialog) =>
-    openFormPanel(dialog.budget ? 'Modifier le budget' : dialog.copy ? 'Dupliquer le budget' : 'Nouveau budget', (close) => (
+    openFormPanel(dialog.budget ? 'Modifier le budget' : 'Nouveau budget', (close) => (
       <BudgetForm budget={dialog.budget} defaults={dialog.defaults} onDone={close} />
     ));
 
@@ -839,16 +842,18 @@ export function BudgetsPanel() {
                   about="le budget"
                   primary={budget.archived ? undefined : { label: 'Modifier (et ses répétitions)', icon: <PencilSimpleIcon aria-hidden />, onClick: () => openBudget({ budget }) }}
                   items={[
-                    !budget.archived && {
-                      label: 'Dupliquer',
-                      icon: <CopyIcon aria-hidden />,
-                      onClick: () =>
-                        // A new budget with its values, to change (month, category…) before it is saved.
-                        openBudget({
-                          copy: true,
-                          defaults: budgetValues(budget),
+                    // A new budget with its values, saved at once, then its form opens (decision D20).
+                    !budget.archived &&
+                      rowMenuEntry(
+                        duplicateRowsAction([budget], {
+                          duplicate: (source) => save.mutateAsync({ id: null, input: budgetValues(source) }),
+                          done: 'Budget dupliqué.',
+                          open: (id) => {
+                            const copy = cachedItem(queryClient, treasuryKey, id, (budgets: { treasuryBudgets?: TreasuryBudget[] }) => budgets?.treasuryBudgets);
+                            if (copy) openBudget({ budget: copy });
+                          },
                         }),
-                    },
+                      ),
                     archiveItem,
                     rowMenuEntry(deleteBudgets([budget])),
                   ]}

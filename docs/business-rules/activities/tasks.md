@@ -18,12 +18,12 @@ Voir aussi : [Temps passé](time.md), [Commentaires](../cross-cutting/comments.m
 | `beneficiaryIds`, `beneficiaryRelationIds` | « Bénéficiaires » : contributeurs et relations pour qui est la tâche.                                                                                                                              |
 | `effort`                                   | Nombre ≥ 0 et ≤ 1 000 000, ou vide (`effortSchema`). Messages : « Nombre attendu. », « L’effort ne peut pas être négatif. », « Valeur trop grande. ». Pas d’unité imposée.                         |
 | `startDate`, `endDate`                     | Jours (YYYY-MM-DD) ; la fin ne précède pas le début.                                                                                                                                               |
-| `minDate`                                  | « Date min » : la tâche n’est pas à faire avant.                                                                                                                                                   |
-| `deadline`                                 | « Date max » : au-delà, une tâche ouverte est en retard.                                                                                                                                           |
+| `minDate`                                  | « Ouverture » : la tâche n’est pas à faire avant.                                                                                                                                                   |
+| `deadline`                                 | « Échéance » : au-delà, une tâche ouverte est en retard.                                                                                                                                           |
 | `slotCondition`                            | Condition de créneaux, la même que celle des routines (décision D9) : groupes ET / OU sur des créneaux nommés, des types de créneaux (de cet espace ou d’un autre espace de l’utilisateur) et le temps libre ; `null` = n’importe quand (décision D10). Validée par `slotConditionSchema` (voir [Agenda](calendar.md)). |
 | `location`, `locationLat`, `locationLon`   | Lieu (décision D6), le champ des évènements et des routines : texte libre facultatif, 250 caractères au plus (`optionalText`, vide → `null`), et son point quand il est choisi sur la carte ou dans une recherche (voir [Lieux](../cross-cutting/geo.md#durées-saisies-sur-un-élément)). Ni trajet, ni heure de départ ou de retour : une tâche n’a pas d’heures. Un point va avec un lieu, ses deux coordonnées ou aucune (`storedLocation`). |
 | `links`                                    | Liens (décision D5), ceux des évènements : 20 au plus (« 20 liens maximum. »), adresse http ou https (« Lien invalide (http ou https). »), libellé facultatif de 250 caractères (`itemLinksSchema`). Aucun par défaut. |
-| `reminders`                                | Rappels (décision D16) : seulement « À HH:MM » (`{ at }`, heure de Paris ; « Une tâche n’a que des rappels à une heure précise. »), 10 au plus (« 10 rappels maximum. », « Heure attendue (HH:MM). », `taskRemindersSchema`), dédoublonnés et triés (`normalizedReminders`) ; sonnés chaque jour de la « Date min » à la « Date max », le jour de la « Date max » seulement sans « Date min », jamais sans « Date max » (Q2 : pas de limite de 24 heures). Aucun par défaut. Voir [Alarmes](alarms.md#rappels-des-tâches-routines-et-évènements). |
+| `reminders`                                | Rappels (décision D16) : seulement « À HH:MM » (`{ at }`, heure de Paris ; « Une tâche n’a que des rappels à une heure précise. »), 10 au plus (« 10 rappels maximum. », « Heure attendue (HH:MM). », `taskRemindersSchema`), dédoublonnés et triés (`normalizedReminders`) ; sonnés chaque jour de l’ouverture à l’échéance, le jour de l’échéance seulement sans ouverture, jamais sans échéance (Q2 : pas de limite de 24 heures). Aucun par défaut. Voir [Alarmes](alarms.md#rappels-des-tâches-routines-et-évènements). |
 | `parentId`                                 | Tâche parente (sous-tâches).                                                                                                                                                                       |
 | `milestoneId`                              | Un jalon.                                                                                                                                                                                          |
 | `sprintIds`                                | Plusieurs sprints (une tâche peut s’étaler sur plusieurs).                                                                                                                                         |
@@ -66,7 +66,7 @@ Source : `updateTask`.
 - Un lieu donné remplace aussi son point (`null` : aucun) ; `links: null` retire tous les liens ; `reminders: null` retire tous les rappels.
 - Les valeurs archivées que la tâche a **déjà** restent valides ; seules les valeurs archivées **nouvellement** données sont refusées.
 - La période de dates reste valide en tenant compte des dates actuelles (`assertDateRange`) : « La fin doit suivre le début. » sous `endDate`.
-- Le schéma partagé du formulaire (`taskFormSchema`) refuse aussi une « Date max » avant la « Date min » (même message, sous `deadline`). Côté API, seule la paire début / fin est vérifiée par `assertDateRange` ; la paire « Date min » / « Date max » n’est vérifiée que par le formulaire.
+- Le schéma partagé du formulaire (`taskFormSchema`) refuse aussi une échéance avant l’ouverture (même message, sous `deadline`). Côté API, seule la paire début / fin est vérifiée par `assertDateRange` ; la paire « Ouverture » / « Échéance » n’est vérifiée que par le formulaire.
 
 ## Numérotation
 
@@ -196,8 +196,8 @@ Source : `assertProjectContributors` (`services/projects/contributors.ts`), `ass
 ## Dates et retard
 
 - Début / fin : créneau valide (« La fin doit suivre le début. »).
-- « Date min » / « Date max » : créneau valide dans le formulaire partagé.
-- **En retard** (décision DD, `isTaskOverdue` côté web) : « Date max » passée (strictement avant aujourd’hui) et tâche non fermée. La même règle partout (tableau, panneau, accueil, agenda).
+- « Ouverture » / « Échéance » : créneau valide dans le formulaire partagé.
+- **En retard** (décision DD, `isTaskOverdue` côté web) : « Échéance » passée (strictement avant aujourd’hui) et tâche non fermée. La même règle partout (tableau, panneau, accueil, agenda).
 - Un jalon est « en retard » quand son échéance est passée et qu’il reste des tâches non fermées ; un sprint quand sa fin est passée avec des tâches non fermées (calculs web, voir [Fonctionnalités](../../features/activities/tasks.md)).
 
 ## Tâches faisables maintenant
@@ -254,20 +254,20 @@ Source : `releaseProjectTasks` (par `releaseProjects`), appelé par `deleteProje
 - Ses alarmes restent, sans projet, avec leur tâche (`Alarm.projectId` en `onDelete: SetNull`) ; ses temps restent, sans projet (`releaseProjectTime`, `TimeEntry.projectId` en `onDelete: SetNull`), avec leurs tâches, leurs routines et leurs évènements (décision D17).
 - Ce qui reste supprimé avec le projet : ses temps passés sans tâche, ni routine, ni évènement (un temps a au moins un rattachement), sauf les temps facturés, gardés même sans rien de rattaché ; ses jalons et sprints.
 
-## Clonage
+## Duplication
 
-Source : `cloneTask`.
+Source : `duplicateTask` (décision D20 : « Dupliquer », la copie enregistrée tout de suite puis ouverte ; l’ancienne mutation `cloneTask` est renommée).
 
-- Copie tous les champs (libellé, description, projet, statut, priorité, type, effort, dates, « Date min »/« Date max », rappels, lieu et son point, liens, parent, jalon, sprints), les assignés, bénéficiaires, étiquettes et les liens de blocage et de relation de sa propre arborescence de projets (un ancien lien hors d’elle, gardé tant que la tâche ne change pas d’arborescence, n’est pas copié). **Pas** les commentaires, ni l’état fermé, ni la condition de créneaux, ni le lien GitHub.
-- Le clone est placé sous le même parent, à la fin de l’ordre manuel ; il reçoit un nouveau numéro (base).
-- Avec `includeSubtasks`, le sous-arbre est copié niveau par niveau sous le clone (les sous-tâches copiées gardent assignés, bénéficiaires, étiquettes et sprints, pas leurs liens de blocage ou de relation).
-- La tâche source peut être archivée (aucune vérification d’archivage) ; l’interface ne propose le clonage que sur les tâches non archivées.
+- Copie tous les champs (libellé, description, projet, statut, priorité, type, effort, dates, « Ouverture » / « Échéance », rappels, lieu et son point, liens, parent, jalon, sprints), les assignés, bénéficiaires, étiquettes et les liens de blocage et de relation de sa propre arborescence de projets (un ancien lien hors d’elle, gardé tant que la tâche ne change pas d’arborescence, n’est pas copié). **Pas** les commentaires, ni l’état fermé, ni la condition de créneaux, ni le lien GitHub.
+- La copie s’appelle « … (copie) » (`copyName`, 250 caractères au plus) ; elle est placée sous le même parent, à la fin de l’ordre manuel ; elle reçoit un nouveau numéro (base).
+- Avec `includeSubtasks`, le sous-arbre est copié niveau par niveau sous la copie (les sous-tâches copiées gardent leur libellé, assignés, bénéficiaires, étiquettes et sprints, pas leurs liens de blocage ou de relation).
+- La tâche source peut être archivée (aucune vérification d’archivage) ; l’interface ne propose la duplication que sur les tâches non archivées.
 
 ## Modification en masse
 
 Source : `bulkUpdateTasks`.
 
-- Champs : statut, priorité, type, jalon, effort, dates (début, fin, « Date min », « Date max »), ajout / retrait d’assignés, d’étiquettes, de sprints. Omis = inchangé, `null` = vidé.
+- Champs : statut, priorité, type, jalon, effort, dates (début, fin, « Ouverture », « Échéance »), ajout / retrait d’assignés, d’étiquettes, de sprints. Omis = inchangé, `null` = vidé.
 - Au moins une tâche, toutes existantes, aucune archivée (sauf annulation).
 - Valeurs archivées : refusées si nouvelles ; celles que l’une des tâches a déjà restent valides pour toutes.
 - Pour chaque tâche : assignés ajoutés parmi les contributeurs de son projet, jalon et sprints de son arborescence, créneau de dates valide.

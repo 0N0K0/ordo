@@ -53,7 +53,7 @@ Le même tableau (`TaskBoard`) sert à la page et à l’onglet d’un projet. C
 | « Étiquettes »                                 | Plusieurs.                                                                                                                                                                                                                                                                                                                                                                                         |
 | « Effort »                                     | Nombre (validé à la sortie du champ ou Entrée).                                                                                                                                                                                                                                                                                                                                                    |
 | « Temps passé »                                | Lien vers les temps de la tâche (`/time?task=<id>`). Total en pied.                                                                                                                                                                                                                                                                                                                                |
-| « Début », « Fin », « Date min », « Date max » | Sélecteurs de date ; la « Date max » s’affiche en couleur de retard quand la tâche est en retard.                                                                                                                                                                                                                                                                                                  |
+| « Début », « Fin », « Ouverture », « Échéance » | Sélecteurs de date ; l’échéance s’affiche en couleur de retard quand la tâche est en retard.                                                                                                                                                                                                                                                                                                  |
 | « Créneaux »                                     | Condition de créneaux en mots (« N’importe quand » sans condition), modifiée dans une bulle (même éditeur que les routines).                                                                                                                                                                                                                                                                                                 |
 | « Lieu »                                         | Adresse ou lieu enregistré choisi dans une bulle (comme les routines : enregistré au choix d’une adresse proposée, quand le texte est vidé, ou pour un texte libre en quittant la cellule) ; lieu des évènements affiché en lecture.                                                                                                                                                                                                                                     |
 | « Chrono »                                     | Démarre le chrono sur la tâche, ou l’arrête s’il tourne sur elle.                                                                                                                                                                                                                                                                                                                                  |
@@ -86,7 +86,7 @@ Chaque colonne filtrable a son filtre (voir [Filtres](../../web/components/filte
 
 ### Groupes
 
-Grouper par : état, projet (en arbre), statut, priorité, type, assignés, bénéficiaires, étiquettes, tâche parente, jalon, sprint, « Dépend de », « Bloque », « Relative à », et par mois de « Début », « Fin », « Date min », « Date max ». Non groupables : créneaux, chrono, sous-tâches, avancement, alarmes, achats, commentaires.
+Grouper par : état, projet (en arbre), statut, priorité, type, assignés, bénéficiaires, étiquettes, tâche parente, jalon, sprint, « Dépend de », « Bloque », « Relative à », et par mois de « Début », « Fin », « Ouverture », « Échéance ». Non groupables : créneaux, chrono, sous-tâches, avancement, alarmes, achats, commentaires.
 
 ### Modifier
 
@@ -111,11 +111,11 @@ Grouper par : état, projet (en arbre), statut, priorité, type, assignés, bén
 
 - « Ouvrir » (panneau latéral).
 - « Ajouter une sous-tâche » (pas sur une tâche archivée).
-- « Cloner », « Transférer », « Archiver », « Supprimer » ; sur une tâche archivée : « Restaurer », « Supprimer ».
+- « Dupliquer », « Transférer », « Archiver », « Supprimer » ; sur une tâche archivée : « Restaurer », « Supprimer ».
 
 ### Actions sur les tâches cochées
 
-Barre de sélection (« 3 tâches sélectionnées ») : « Fermer » / « Rouvrir », « Cloner », « Transférer », « Archiver » / « Restaurer », « Supprimer ». Les tâches archivées ne sont prises que par l’archivage et la suppression. Chaque action est annulable depuis son toast quand c’est possible.
+Barre de sélection (« 3 tâches sélectionnées ») : « Fermer » / « Rouvrir », « Dupliquer », « Transférer », « Archiver » / « Restaurer », « Supprimer ». Les tâches archivées ne sont prises que par l’archivage et la suppression. Chaque action est annulable depuis son toast quand c’est possible.
 
 ### Évènements dans le tableau
 
@@ -133,7 +133,7 @@ Ouvert dans le panneau latéral (titre « Nouvelle tâche » ou « Nouvelle sous
 | « Jalon »                                                  | Désactivé sans projet.                                                                                                                                                         |
 | « Sprints »                                                | Désactivé sans projet.                                                                                                                                                         |
 | « Description »                                            | Markdown, `#` et `@` proposent tâches et contributeurs ; Ctrl/Cmd + Entrée envoie.                                                                                             |
-| « Rappels »                                                | « À HH:MM » seulement, comme dans le panneau ; désactivé sans « Date max ». |
+| « Rappels »                                                | « À HH:MM » seulement, comme dans le panneau ; désactivé sans échéance. |
 | « Lieu »                                                   | Facultatif, le champ des évènements et des routines : texte libre (salle, visio…), lieu enregistré ou adresse proposée, montrée sur une carte où un clic la déplace. Ni trajet ni heure.|
 | « Liens »                                                  | Comme ceux des évènements : adresse (http/https) + libellé facultatif, « Ajouter un lien », « Retirer » ; 20 au plus.                                                          |
 | « Statut »                                                 | Premier statut « À faire » non archivé par défaut ; un statut, une priorité ou un type tapé et inexistant peut être créé.                                                      |
@@ -141,7 +141,7 @@ Ouvert dans le panneau latéral (titre « Nouvelle tâche » ou « Nouvelle sous
 | « Assignés »                                               | Contributeurs du projet.                                                                                                                                                       |
 | « Étiquettes »                                             | Une étiquette tapée peut être créée.                                                                                                                                           |
 | « Bénéficiaires »                                          | Contributeurs et relations.                                                                                                                                                    |
-| « Effort », « Début », « Fin », « Date min », « Date max » | Facultatifs ; la fin ne précède pas le début, la « Date max » ne précède pas la « Date min ».                                                                                  |
+| « Effort », « Début », « Fin », « Ouverture », « Échéance » | Facultatifs ; la fin ne précède pas le début, l’échéance ne précède pas l’ouverture.                                                                                  |
 | « Créneaux de l’agenda »                                     | Condition facultative, comme une routine : « Créneau » (« sur l’un des créneaux », « hors des créneaux »), « Type de créneau » (« sur l’un des types », « hors des types » : tous les créneaux de ces types, même ajoutés ensuite ; un type qui n’a encore aucun créneau ne permet aucun moment : la tâche ou la routine n’est jamais faisable tant qu’un créneau de ce type n’existe pas) et « Temps libre » (« hors de tous les créneaux », « hors de tous les créneaux sauf » certains de l’espace), créneaux et types de cet espace ou de vos autres espaces, en groupes ET / OU ; « Aucune condition : à n’importe quelle heure. » ; texte « La tâche n’est faisable que sur les heures que la condition permet. ».                                                                                                                                          |
 
 Bouton « Créer la tâche ». Toast « Tâche #12 créée. » (« Tâche « Libellé » créée. » sans projet). La tâche créée s’ouvre dans le panneau.
@@ -154,7 +154,7 @@ En-tête :
 
 - libellé et numéro, badge GitHub (« GitHub #12 », lien vers l’issue, ou « Brouillon GitHub »), badge « Archivée » ;
 - boutons « Fermer la tâche » / « Rouvrir » et « Renommer » (formulaire « Renommer la tâche ») ;
-- menu : « Cloner », « Transférer », « Archiver » / « Restaurer », « Supprimer » ;
+- menu : « Dupliquer », « Transférer », « Archiver » / « Restaurer », « Supprimer » ;
 - icône d’état et lien vers le projet (ou « Sans projet »).
 
 Colonne principale :
@@ -169,19 +169,19 @@ Colonne de propriétés (chaque champ enregistré dès qu’il change) :
 - « Projet » (changement = transfert ; confirmation « Changer de projet » si la tâche quitte son arborescence et a des liens : elle prend le numéro suivant du projet, ou perd son numéro et son lien GitHub hors projet) ;
 - « Statut », « Priorité », « Type », « Assignés », « Étiquettes », « Bénéficiaires », « Effort » ;
 - « Temps passé » et bouton « Démarrer le chrono » (ou commandes du chrono s’il tourne sur la tâche) ;
-- « Début », « Fin », « Date min » (« Avant, la tâche n’est pas à faire. »), « Date max » (« Au-delà, la tâche ouverte est en retard. », suivi de « En retard. » en rouge si c’est le cas) ;
+- « Début », « Fin », « Ouverture » (« Avant, la tâche n’est pas à faire. »), « Échéance » (« Au-delà, la tâche ouverte est en retard. », suivi de « En retard. » en rouge si c’est le cas) ;
 - « Tâche parente », « Jalon », « Sprints », créneaux ;
-- « Rappels » : « À HH:MM » seulement (pas d’« avant » : une tâche n’a pas d’heures), toutes les demi-heures ou une heure tapée (« 8:15 », « 8h15 », « 8 ») ; une saisie qui n’est pas une heure affiche « Heure attendue (HH:MM). » sous le champ, 10 au plus ; aide « Chaque jour de la « Date min » à la « Date max », à ces heures. » (« Le jour de la « Date max », à ces heures. » sans « Date min ») ; désactivé sans « Date max » (« Donnez-lui une « Date max » pour recevoir des rappels. ») ;
+- « Rappels » : « À HH:MM » seulement (pas d’« avant » : une tâche n’a pas d’heures), toutes les demi-heures ou une heure tapée (« 8:15 », « 8h15 », « 8 ») ; une saisie qui n’est pas une heure affiche « Heure attendue (HH:MM). » sous le champ, 10 au plus ; aide « Chaque jour de l’ouverture à l’échéance, à ces heures. » (« Le jour de l’échéance, à ces heures. » sans ouverture) ; désactivé sans échéance (« Donnez-lui une échéance pour recevoir des rappels. ») ;
 - « Lieu » : enregistré au choix d’une adresse proposée ou d’un clic sur la carte, quand le texte est vidé, ou à la sortie du champ pour un texte libre ;
 - « Bloque », « Dépend de », « Relative à » : listes avec « Retirer » et « Ajouter une tâche » ;
 - alarmes de la tâche ([Alarmes](alarms.md)), listes d’achats ([Achats](../supplies/shopping.md)), fiches ([Fiches](../supplies/sheets.md)).
 
 Une tâche archivée : tous les champs désactivés, pas de bouton, commentaires en lecture seule ; « Restaurer » dans le menu.
 
-## Fermer, cloner, transférer, archiver, supprimer
+## Fermer, dupliquer, transférer, archiver, supprimer
 
 - **Fermer / Rouvrir** : toast « 2 tâches fermées. » / « rouvertes. », annulable. Une tâche fermée est barrée de violet, ne bloque plus, n’est plus en retard.
-- **Cloner** (fenêtre « Cloner la tâche » / « Cloner les tâches ») : « tous les champs, les assignés et les liens sont copiés ; les commentaires ne le sont pas » (le lieu, les liens (URL) et les rappels compris) (un ancien lien hors de l’arborescence de projets de la tâche n’est pas copié) ; les sous-tâches sont clonées sous le clone. Toast « Tâche #12 clonée en #13. » ; un clone unique s’ouvre.
+- **Dupliquer** (décision D20) : sans fenêtre, chaque tâche du haut de la sélection est copiée tout de suite, nommée « … (copie) » : tous les champs, les assignés et les liens (le lieu, les liens (URL) et les rappels compris ; un ancien lien hors de l’arborescence de projets de la tâche n’est pas copié), pas les commentaires ; ses sous-tâches sont copiées sous la copie (leurs libellés gardés). Toast « Tâche dupliquée. » (« 3 tâches dupliquées. ») ; la copie d’une tâche seule s’ouvre dans le panneau.
 - **Transférer** (panneau « Transférer la tâche » / « Transférer les tâches ») : « Projet de destination » ou case « Sans projet » (perte du numéro, du jalon, des sprints et du lien GitHub). Avertissement si le projet est dans une autre arborescence. Toast « Tâche #12 transférée. » ; annulable s’il n’a retiré aucun lien, sinon il indique « 2 liens retirés. ».
 - **Archiver / Restaurer** : en cascade sur les sous-tâches ; annulable.
 - **Supprimer** (fenêtre de confirmation destructive) : « La tâche « #12 Libellé » et ses commentaires seront supprimés définitivement. Pour la retirer des listes sans perdre ses données, archivez-la plutôt. », suivi s'il y en a de « 2 temps sans projet, qui ne portent sur rien d’autre, seront aussi supprimés (les temps facturés sont gardés). » (selon le choix pour les sous-tâches). Avec des sous-tâches : choix « Les conserver (elles remontent d’un niveau) » ou les supprimer. Le panneau de la tâche supprimée se ferme.
@@ -230,7 +230,7 @@ Règles : [Personnes](../../business-rules/cross-cutting/people.md).
 
 - **Archivée** : lecture seule partout, cachée sauf « Afficher les archivées ».
 - **Bloquée** : cadenas rouge, « Bloquée : dépend d’au moins une tâche encore ouverte ».
-- **En retard** : « Date max » en couleur de retard (tableau, panneau, accueil, agenda).
+- **En retard** : « Échéance » en couleur de retard (tableau, panneau, accueil, agenda).
 - **Sans projet** : pas de numéro (nommée « « Libellé » » dans les messages), ni jalon, ni sprint, ni GitHub.
 
 ## Espace PRO / PERSO

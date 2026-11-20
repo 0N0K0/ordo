@@ -17,6 +17,11 @@ Ces briques sont imposées par les règles eslint (voir [Conventions](../app.md#
 | Plier une ligne (bouton icône)                           | `FoldButton`    |
 | Plier une section (toute la ligne cliquable)             | `FoldHeading`   |
 | Rangée d'actions sans titre, à droite                    | `ActionsRow`    |
+| « Dupliquer » dans un formulaire ou une barre d'outils    | `DuplicateButton` |
+
+## `DuplicateButton.tsx`
+
+`DuplicateButton({ item, duplicate, done, open?, hint?, iconOnly?, size? })` : bouton « Dupliquer » (décision D20) : la copie est enregistrée tout de suite (`duplicateItems` de `selection-actions`), annoncée par un toast, puis ouverte ; le bouton attend pendant ce temps (`useAsyncAction`). `iconOnly` : icône seule (`IconAction`) avec son infobulle. Les menus et les sélections prennent `duplicateRowsAction`. eslint interdit « Dupliquer » écrit ailleurs, « Cloner » et les formulaires de copie (attributs `copy` / `copyOf`). Utilisé par `EventForm` et `DocumentEditor`.
 
 ## `ActionButton.tsx`
 

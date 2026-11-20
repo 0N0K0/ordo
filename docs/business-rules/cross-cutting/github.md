@@ -48,13 +48,13 @@ Source : `links-admin.ts`, `client.ts`.
 - Le projet doit exister et ne pas être archivé.
 - **Un seul tableau par arbre de projets** : si un ancêtre ou un descendant est déjà lié, « « <projet> » est déjà lié à un tableau GitHub : un projet et ses sous-projets partagent un seul tableau. ».
 - Un tableau ne se lie qu’à un projet : « Ce tableau est déjà lié au projet « <projet> ». ».
-- Chaque champ choisi doit être un champ du tableau du bon type, sinon « Le champ choisi pour <le statut | la priorité | le sprint | le début | la fin | l’effort | la date max | le temps passé | le type> n’est pas un champ adapté du tableau. » :
+- Chaque champ choisi doit être un champ du tableau du bon type, sinon « Le champ choisi pour <le statut | la priorité | le sprint | le début | la fin | l’effort | l’échéance | le temps passé | le type> n’est pas un champ adapté du tableau. » :
 
 | Champ Ordo                              | Type de champ GitHub |
 | --------------------------------------- | -------------------- |
 | statut, priorité, type (source `FIELD`) | `SINGLE_SELECT`      |
 | sprint                                  | `ITERATION`          |
-| début, fin, date max                    | `DATE`               |
+| début, fin, échéance                    | `DATE`               |
 | effort, temps passé                     | `NUMBER`             |
 
 - Type : `typeSource` vaut `FIELD` (un champ du tableau), `ISSUE_TYPE` (types d’issue de l’organisation) ou `null` (non synchronisé). `FIELD` sans champ : « Choisissez le champ du tableau qui porte le type. ». `ISSUE_TYPE` sans types d’issue : « Ce tableau n’appartient pas à une organisation ayant des types d’issue : choisissez un champ du tableau pour le type. ».
@@ -97,7 +97,7 @@ Les tâches du projet lié **et de ses sous-projets** ; les items du tableau (is
 
 ### Champs synchronisés
 
-Toujours : titre, description (corps). Pour les **issues** seulement : ouverture / fermeture, étiquettes (si `syncLabels`), parent (sous-issues), jalon, « bloquée par », « relative à ». Selon les champs choisis : statut, priorité, type, itération (sprint), début, fin, date max, effort. Assignés si `syncAssignees`. Temps passé : Ordo → GitHub uniquement.
+Toujours : titre, description (corps). Pour les **issues** seulement : ouverture / fermeture, étiquettes (si `syncLabels`), parent (sous-issues), jalon, « bloquée par », « relative à ». Selon les champs choisis : statut, priorité, type, itération (sprint), début, fin, échéance, effort. Assignés si `syncAssignees`. Temps passé : Ordo → GitHub uniquement.
 
 Un champ d’issue de l’organisation n’a pas de valeur sur un brouillon : il est ignoré pour les brouillons. Le type par `ISSUE_TYPE` ne concerne que les issues.
 

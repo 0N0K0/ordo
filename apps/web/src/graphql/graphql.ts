@@ -278,6 +278,12 @@ export type ClientUpdateInput = {
   removeIcon?: boolean | null | undefined;
 };
 
+export type CommentSnapshotInput = {
+  body: string;
+  createdAt: string;
+  updatedAt: string;
+};
+
 /** Kind of item a comment goes on (tasks have their own comments). */
 export type CommentTarget =
   | 'BUDGET'
@@ -610,7 +616,7 @@ export type RoutineBulkChanges = {
   fromTime?: string | null | undefined;
   /** Times of the day following its rule. */
   moments?: unknown;
-  /** « À partir du » of its rule; null: none. */
+  /** « Ouverture » of its rule; null: none. */
   opensOn?: unknown;
   projectId?: string | number | null | undefined;
   recurrence?: unknown;
@@ -653,7 +659,7 @@ export type RoutineInput = {
   locationLon?: number | null | undefined;
   /** Times of the day, [{ fromTime, dueTime, optional }]. */
   moments?: unknown;
-  /** « À partir du » of the occurrences of its rule: { mode: DAY | WEEKDAY | WEEK | BEFORE, … }; null: none. */
+  /** « Ouverture » of the occurrences of its rule: { mode: DAY | WEEKDAY | WEEK | BEFORE, … }; null: none. */
   opensOn?: unknown;
   parentId?: string | number | null | undefined;
   projectId?: string | number | null | undefined;
@@ -700,7 +706,7 @@ export type RoutinePatch = {
   locationLon?: number | null | undefined;
   /** Times of the day following its rule. */
   moments?: unknown;
-  /** « À partir du »: { mode: DAY | WEEKDAY | WEEK | BEFORE, … }; null: none. */
+  /** « Ouverture »: { mode: DAY | WEEKDAY | WEEK | BEFORE, … }; null: none. */
   opensOn?: unknown;
   /** Null: top level. */
   parentId?: string | number | null | undefined;
@@ -2178,6 +2184,7 @@ export type UpdateCalendarEventMutationVariables = Exact<{
   input: CalendarEventInput;
   scope: CalendarEventScope;
   occurrenceDate?: string | null | undefined;
+  confirmLoss?: boolean | null | undefined;
 }>;
 
 
@@ -3099,6 +3106,7 @@ export type UpdateRoutineMutationVariables = Exact<{
   id: string | number;
   input: RoutineInput;
   restoring?: boolean | null | undefined;
+  confirmLoss?: boolean | null | undefined;
 }>;
 
 
@@ -3107,6 +3115,7 @@ export type UpdateRoutineMutation = { updateRoutine: { removedLinks: number } };
 export type PatchRoutineMutationVariables = Exact<{
   id: string | number;
   input: RoutinePatch;
+  confirmLoss?: boolean | null | undefined;
 }>;
 
 
@@ -3125,6 +3134,7 @@ export type MoveRoutineMutation = { moveRoutine: boolean };
 export type BulkUpdateRoutinesMutationVariables = Exact<{
   ids: Array<string | number> | string | number;
   changes: RoutineBulkChanges;
+  confirmLoss?: boolean | null | undefined;
 }>;
 
 
@@ -3183,6 +3193,7 @@ export type ChangeRoutineOccurrenceMutationVariables = Exact<{
   slot: number;
   fromTime?: string | null | undefined;
   dueTime?: string | null | undefined;
+  confirmLoss?: boolean | null | undefined;
 }>;
 
 
@@ -3195,11 +3206,12 @@ export type DeleteRoutineOccurrenceMutationVariables = Exact<{
 }>;
 
 
-export type DeleteRoutineOccurrenceMutation = { deleteRoutineOccurrence: boolean };
+export type DeleteRoutineOccurrenceMutation = { deleteRoutineOccurrence: { archived: boolean, comments: Array<{ body: string, createdAt: string, updatedAt: string }> } };
 
 export type RemoveRoutineMoveMutationVariables = Exact<{
   id: string | number;
   from: string;
+  comments?: Array<CommentSnapshotInput> | CommentSnapshotInput | null | undefined;
 }>;
 
 
@@ -3889,13 +3901,13 @@ export type UpdateTaskMutationVariables = Exact<{
 
 export type UpdateTaskMutation = { updateTask: { id: string, number: number | null, label: string, description: string | null, projectId: string | null, statusId: string | null, priorityId: string | null, typeId: string | null, effort: number | null, startDate: string | null, endDate: string | null, parentId: string | null, milestoneId: string | null, sprintIds: Array<string>, deadline: string | null, minDate: string | null, position: number, archived: boolean, createdAt: string, updatedAt: string, assigneeIds: Array<string>, beneficiaryIds: Array<string>, beneficiaryRelationIds: Array<string>, tagIds: Array<string>, blockingIds: Array<string>, blockedByIds: Array<string>, relatedIds: Array<string>, commentCount: number, trackedSeconds: number, closed: boolean, closedAt: string | null, githubLinked: boolean, githubUrl: string | null, githubNumber: number | null, slotCondition: unknown, location: string | null, locationLat: number | null, locationLon: number | null, links: Array<{ url: string, label: string }>, reminders: Array<{ before: number | null, at: string | null }> } };
 
-export type CloneTaskMutationVariables = Exact<{
+export type DuplicateTaskMutationVariables = Exact<{
   id: string | number;
   includeSubtasks: boolean;
 }>;
 
 
-export type CloneTaskMutation = { cloneTask: { id: string, number: number | null } };
+export type DuplicateTaskMutation = { duplicateTask: { id: string, number: number | null } };
 
 export type MoveTaskMutationVariables = Exact<{
   id: string | number;
@@ -6665,12 +6677,13 @@ export const CreateCalendarEventDocument = new TypedDocumentString(`
 }
     `) as unknown as TypedDocumentString<CreateCalendarEventMutation, CreateCalendarEventMutationVariables>;
 export const UpdateCalendarEventDocument = new TypedDocumentString(`
-    mutation UpdateCalendarEvent($id: ID!, $input: CalendarEventInput!, $scope: CalendarEventScope!, $occurrenceDate: Date) {
+    mutation UpdateCalendarEvent($id: ID!, $input: CalendarEventInput!, $scope: CalendarEventScope!, $occurrenceDate: Date, $confirmLoss: Boolean) {
   updateCalendarEvent(
     id: $id
     input: $input
     scope: $scope
     occurrenceDate: $occurrenceDate
+    confirmLoss: $confirmLoss
   )
 }
     `) as unknown as TypedDocumentString<UpdateCalendarEventMutation, UpdateCalendarEventMutationVariables>;
@@ -7986,15 +7999,20 @@ export const CreateRoutineDocument = new TypedDocumentString(`
 }
     `) as unknown as TypedDocumentString<CreateRoutineMutation, CreateRoutineMutationVariables>;
 export const UpdateRoutineDocument = new TypedDocumentString(`
-    mutation UpdateRoutine($id: ID!, $input: RoutineInput!, $restoring: Boolean) {
-  updateRoutine(id: $id, input: $input, restoring: $restoring) {
+    mutation UpdateRoutine($id: ID!, $input: RoutineInput!, $restoring: Boolean, $confirmLoss: Boolean) {
+  updateRoutine(
+    id: $id
+    input: $input
+    restoring: $restoring
+    confirmLoss: $confirmLoss
+  ) {
     removedLinks
   }
 }
     `) as unknown as TypedDocumentString<UpdateRoutineMutation, UpdateRoutineMutationVariables>;
 export const PatchRoutineDocument = new TypedDocumentString(`
-    mutation PatchRoutine($id: ID!, $input: RoutinePatch!) {
-  patchRoutine(id: $id, input: $input) {
+    mutation PatchRoutine($id: ID!, $input: RoutinePatch!, $confirmLoss: Boolean) {
+  patchRoutine(id: $id, input: $input, confirmLoss: $confirmLoss) {
     removedLinks
   }
 }
@@ -8010,8 +8028,8 @@ export const MoveRoutineDocument = new TypedDocumentString(`
 }
     `) as unknown as TypedDocumentString<MoveRoutineMutation, MoveRoutineMutationVariables>;
 export const BulkUpdateRoutinesDocument = new TypedDocumentString(`
-    mutation BulkUpdateRoutines($ids: [ID!]!, $changes: RoutineBulkChanges!) {
-  bulkUpdateRoutines(ids: $ids, changes: $changes) {
+    mutation BulkUpdateRoutines($ids: [ID!]!, $changes: RoutineBulkChanges!, $confirmLoss: Boolean) {
+  bulkUpdateRoutines(ids: $ids, changes: $changes, confirmLoss: $confirmLoss) {
     removedLinks
   }
 }
@@ -8042,7 +8060,7 @@ export const MoveRoutineOccurrenceDocument = new TypedDocumentString(`
 }
     `) as unknown as TypedDocumentString<MoveRoutineOccurrenceMutation, MoveRoutineOccurrenceMutationVariables>;
 export const ChangeRoutineOccurrenceDocument = new TypedDocumentString(`
-    mutation ChangeRoutineOccurrence($id: ID!, $date: Date!, $scope: CalendarEventScope!, $to: Date!, $slot: Int!, $fromTime: String, $dueTime: String) {
+    mutation ChangeRoutineOccurrence($id: ID!, $date: Date!, $scope: CalendarEventScope!, $to: Date!, $slot: Int!, $fromTime: String, $dueTime: String, $confirmLoss: Boolean) {
   changeRoutineOccurrence(
     id: $id
     date: $date
@@ -8051,17 +8069,25 @@ export const ChangeRoutineOccurrenceDocument = new TypedDocumentString(`
     slot: $slot
     fromTime: $fromTime
     dueTime: $dueTime
+    confirmLoss: $confirmLoss
   )
 }
     `) as unknown as TypedDocumentString<ChangeRoutineOccurrenceMutation, ChangeRoutineOccurrenceMutationVariables>;
 export const DeleteRoutineOccurrenceDocument = new TypedDocumentString(`
     mutation DeleteRoutineOccurrence($id: ID!, $date: Date!, $scope: CalendarEventScope!) {
-  deleteRoutineOccurrence(id: $id, date: $date, scope: $scope)
+  deleteRoutineOccurrence(id: $id, date: $date, scope: $scope) {
+    archived
+    comments {
+      body
+      createdAt
+      updatedAt
+    }
+  }
 }
     `) as unknown as TypedDocumentString<DeleteRoutineOccurrenceMutation, DeleteRoutineOccurrenceMutationVariables>;
 export const RemoveRoutineMoveDocument = new TypedDocumentString(`
-    mutation RemoveRoutineMove($id: ID!, $from: Date!) {
-  removeRoutineMove(id: $id, from: $from)
+    mutation RemoveRoutineMove($id: ID!, $from: Date!, $comments: [CommentSnapshotInput!]) {
+  removeRoutineMove(id: $id, from: $from, comments: $comments)
 }
     `) as unknown as TypedDocumentString<RemoveRoutineMoveMutation, RemoveRoutineMoveMutationVariables>;
 export const RoutineChecksDocument = new TypedDocumentString(`
@@ -9065,14 +9091,14 @@ export const UpdateTaskDocument = new TypedDocumentString(`
     at
   }
 }`) as unknown as TypedDocumentString<UpdateTaskMutation, UpdateTaskMutationVariables>;
-export const CloneTaskDocument = new TypedDocumentString(`
-    mutation CloneTask($id: ID!, $includeSubtasks: Boolean!) {
-  cloneTask(id: $id, includeSubtasks: $includeSubtasks) {
+export const DuplicateTaskDocument = new TypedDocumentString(`
+    mutation DuplicateTask($id: ID!, $includeSubtasks: Boolean!) {
+  duplicateTask(id: $id, includeSubtasks: $includeSubtasks) {
     id
     number
   }
 }
-    `) as unknown as TypedDocumentString<CloneTaskMutation, CloneTaskMutationVariables>;
+    `) as unknown as TypedDocumentString<DuplicateTaskMutation, DuplicateTaskMutationVariables>;
 export const MoveTaskDocument = new TypedDocumentString(`
     mutation MoveTask($id: ID!, $beforeId: ID, $parentId: ID) {
   moveTask(id: $id, beforeId: $beforeId, parentId: $parentId)

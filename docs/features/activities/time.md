@@ -75,7 +75,7 @@ Colonnes :
 
 ## Formulaire d’un temps
 
-Panneau « Ajouter un temps », « Modifier le temps » ou « Dupliquer le temps » (`TimeEntryForm`) :
+Panneau « Ajouter un temps » ou « Modifier le temps » (`TimeEntryForm`) :
 
 | Champ           | Détail                                                                                                                                                                                                                                       |
 | --------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -88,7 +88,7 @@ Panneau « Ajouter un temps », « Modifier le temps » ou « Dupliquer le temps
 | « Évènements »  | Plusieurs (décision D18), parmi les évènements du jour choisi (« 09:00–10:00 · Titre », « Journée · Titre », « (annulé) ») : « Le temps passé sur des évènements de l’agenda : seule la part hors de ces évènements y apparaît. » (avec plusieurs : « … ; il est réparti à parts égales entre les 2 évènements. ») ; « Aucun évènement ce jour-là » s’il n’y en a pas. |
 | « Description » | Markdown (« Ce que vous avez fait… »).                                                                                                                                                                                                       |
 
-Boutons « Ajouter » / « Enregistrer ». Toasts « Temps ajouté. », « Temps modifié. », « Temps dupliqué. ». En modification, les commentaires du temps s’affichent sous le formulaire ([Commentaires](../cross-cutting/comments.md)).
+Boutons « Ajouter » / « Enregistrer ». Toasts « Temps ajouté. », « Temps modifié. ». « Dupliquer » (décision D20) enregistre tout de suite une copie (mêmes projet, tâches, routines, évènements, description, début et durée ; jamais facturée), « Temps dupliqué. », puis ouvre « Modifier le temps » sur elle. En modification, les commentaires du temps s’affichent sous le formulaire ([Commentaires](../cross-cutting/comments.md)).
 
 Suppression d’un temps : confirmation « Supprimer le temps » : « Ce temps (1 h 30) sera supprimé définitivement et retiré du temps passé de ses tâches. ». Toast « Temps supprimé. ».
 

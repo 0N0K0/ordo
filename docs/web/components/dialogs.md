@@ -17,7 +17,8 @@ Options :
 - `confirmLabel` (défaut « Supprimer »), `confirmIcon` (défaut corbeille) ;
 - `onConfirm` : l'action, une fois confirmée ;
 - `run` : l'action en promesse (`mutateAsync`) ; son échec va dans un toast d'erreur (`onMutationError`) ;
-- `done` : message de succès de `run` (« Alarme supprimée. »), sinon pas de toast.
+- `done` : message de succès de `run` (« Alarme supprimée. »), sinon pas de toast ;
+- `onCancel` : ce qui suit un refus (« Annuler », Échap, clic à côté), par exemple pour une confirmation attendue en promesse (`withLossConfirmation`).
 
 La modale se ferme avant l'action. eslint interdit d'écrire « irréversible » ailleurs et d'appeler `notifySuccess` dans `onConfirm` (utiliser `run` + `done`).
 

@@ -154,15 +154,15 @@ export function remindersAt(key: string, day: string, reminders: readonly Remind
   return reminders.flatMap((reminder) => (reminder.at !== null ? [{ key: `${key}:${reminderKey(reminder)}`, at: parisInstant(day, reminder.at) }] : []));
 }
 
-/** Days of a task its reminders ring on: « Date min » and « Date max » (YYYY-MM-DD). */
+/** Days of a task its reminders ring on: « Ouverture » and « Échéance » (YYYY-MM-DD). */
 export interface TaskReminderDays {
   minDate?: string | null;
   deadline?: string | null;
 }
 
 /**
- * Whether the reminders of a task ring on a day: every day from its « Date min » to its « Date max », the « Date max »
- * day only without « Date min », never without « Date max ».
+ * Whether the reminders of a task ring on a day: every day from its « Ouverture » to its « Échéance », the « Échéance »
+ * day only without « Ouverture », never without « Échéance ».
  * @param {TaskReminderDays} task Task.
  * @param {string} day Day.
  * @returns {boolean} Rings that day.

@@ -76,13 +76,13 @@ Choisir un statut de catégorie « Envoyé » ouvre le panneau « Envoi de … �
 Actions d’une ligne d’Ordo :
 
 - action principale « Enregistrer un paiement » (facture) ou « Enregistrer un remboursement » (avoir) quand il reste un solde ;
-- « Dupliquer en brouillon » (puis ouverture de la copie) ;
+- « Dupliquer » (copie en brouillon enregistrée tout de suite, « Document dupliqué en brouillon. », puis ouverture de la copie ; décision D20) ;
 - « Télécharger le PDF » (définitifs seulement) ;
 - « Archiver » / « Restaurer ».
 
 Actions d’une ligne importée : « Voir le fichier », « Télécharger le fichier », « Facture d’acompte » (devis non archivé ; grisé avec « Rattachez le devis à un client pour facturer un acompte » sans client), « Modifier », « Archiver » / « Restaurer », « Supprimer » (confirmation : le document et son fichier sont supprimés définitivement).
 
-Actions sur une sélection : archiver / restaurer, « Dupliquer en brouillon » (documents d’Ordo non archivés), « Supprimer » (documents importés seulement ; les documents d’Ordo sélectionnés ne sont pas supprimés).
+Actions sur une sélection : archiver / restaurer, « Dupliquer » (en brouillon ; documents d’Ordo non archivés ; un seul : la copie s’ouvre), « Supprimer » (documents importés seulement ; les documents d’Ordo sélectionnés ne sont pas supprimés).
 
 États vides : « Aucun devis. », « Aucune facture. », « Aucune facture d’acompte. », « Aucun avoir. », « Aucun document à envoyer ni à déposer. », « Aucun document comptable. ». Les documents archivés sont masqués tant que « Afficher les archivés » n’est pas activé.
 

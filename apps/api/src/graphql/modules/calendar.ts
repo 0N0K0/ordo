@@ -10,6 +10,7 @@ import { builder } from '../builder';
 import { locatedInput, locationInputFields, TRAVEL_DESCRIPTIONS, travelInputFields } from '../located-fields';
 import { ItemLinkInput, ItemLinkRef } from '../link-fields';
 import { ReminderInput, ReminderRef } from '../reminder-fields';
+import { CONFIRM_LOSS_DESCRIPTION } from '../occurrence-fields';
 import { LabelColorInput, labelMutations, labelObject } from '../label-inputs';
 import { reloaded } from '../reload';
 import { unchecked } from '../unchecked';
@@ -427,8 +428,9 @@ builder.mutationFields((t) => ({
       input: t.arg({ type: CalendarEventInput, required: true }),
       scope: t.arg({ type: EventScope, required: true }),
       occurrenceDate: t.arg({ type: 'Date' }),
+      confirmLoss: t.arg.boolean({ description: CONFIRM_LOSS_DESCRIPTION }),
     },
-    resolve: async (_root, { id, input, scope, occurrenceDate }) => (await events.updateCalendarEvent(id, eventInput(input), scope, occurrenceDate)).id,
+    resolve: async (_root, { id, input, scope, occurrenceDate, confirmLoss }) => (await events.updateCalendarEvent(id, eventInput(input), scope, occurrenceDate, confirmLoss ?? false)).id,
   }),
   setCalendarEventCalledOff: t.boolean({
     description: 'Cancels an event, kept in the calendar struck through, or restores it; for a recurring one, the occurrence, it and the following ones, or the whole series.',

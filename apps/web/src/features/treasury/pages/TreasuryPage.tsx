@@ -11,14 +11,14 @@ import { ActionButton } from '../../../components/actions/ActionButton';
 import { EmptyState } from '../../../components/feedback/EmptyState';
 import { BlockSkeleton, DetailSkeleton } from '../../../components/feedback/Skeletons';
 
-import { useEntryCellSave } from '../lib/entry-values';
+import { useEntryCellSave, useEntryDuplicate } from '../lib/entry-values';
 
 import { SettingsSection } from '../../../components/settings/SettingsSection';
 import { Anchor, Badge, Button, Group, Popover, SegmentedControl, SimpleGrid, Stack, Text } from '@mantine/core';
 import { AreaChart } from '@mantine/charts';
 import { DatePickerInput, MonthPicker, YearPicker } from '@mantine/dates';
 import { addDays, CALENDAR_SCALE_OPTIONS, mapById, calendarEnd, type CalendarScale, calendarStart, shiftCalendar, sumOf } from '@ordo/shared';
-import { ArrowsSplitIcon, BankIcon, CalendarPlusIcon, CheckIcon, CopyIcon, PencilSimpleIcon, PlusIcon } from '@phosphor-icons/react';
+import { ArrowsSplitIcon, BankIcon, CalendarPlusIcon, CheckIcon, PencilSimpleIcon, PlusIcon } from '@phosphor-icons/react';
 import { ArchivedBadge } from '../../../components/feedback/ArchivedBadge';
 import { archiveEntry, useSetArchived, unarchived } from '../../../lib/archive';
 import { useState } from 'react';
@@ -58,7 +58,7 @@ import { LoansPanel } from '../components/LoansPanel';
 import { PageTabs } from '../../../components/tabs/PageTabs';
 import { PageSettings } from '../../../app/layout/PageSettings';
 import * as fmt from '../../../lib/format';
-import { archiveItemsAction, rowMenuEntry } from '../../../components/data-table/selection/selection-actions';
+import { archiveItemsAction, duplicateRowsAction, rowMenuEntry } from '../../../components/data-table/selection/selection-actions';
 import { selectedLabel } from '../../../components/data-table/selection/selection-label';
 import { AmountInput } from '../../../components/inputs/AmountInput';
 import { FormActions } from '../../../components/dialogs/FormActions';
@@ -182,7 +182,7 @@ function AmountTile({ label, value, hint, color }: { label: string; value: numbe
   return <StatTile label={label} value={fmt.money(value)} hint={hint} valueColor={color ?? (value < 0 ? 'red' : undefined)} />;
 }
 
-type Dialog = { kind: 'entry'; entry?: TreasuryEntry | ForecastEntry; status?: 'ACTUAL' | 'FORECAST'; copy?: boolean } | { kind: 'realize'; item: ProjectionItem } | null;
+type Dialog = { kind: 'entry'; entry?: TreasuryEntry | ForecastEntry; status?: 'ACTUAL' | 'FORECAST' } | { kind: 'realize'; item: ProjectionItem } | null;
 
 /** Tabs of the treasury page. */
 const TREASURY_TABS = ['forecast', 'entries', 'budgets', 'loans'] as const;
@@ -273,7 +273,7 @@ export function TreasuryPage() {
         return entry ? changeOf(change, entry) : {};
       });
   /**
-   * Opens the form of an entry (new, changed, copied) or the realization of a forecast.
+   * Opens the form of an entry (new or changed) or the realization of a forecast.
    * @param {NonNullable<Dialog>} dialog Form.
    * @returns {void}
    */
@@ -281,19 +281,18 @@ export function TreasuryPage() {
     openFormPanel(
       dialog.kind === 'realize'
         ? 'Réaliser la prévision'
-        : dialog.entry && dialog.copy
-          ? dialog.entry.status === 'FORECAST'
-            ? 'Dupliquer la prévision'
-            : 'Dupliquer le mouvement'
-          : dialog.entry
-            ? 'Modifier le mouvement'
-            : dialog.status === 'FORECAST'
-              ? 'Nouvelle prévision'
-              : 'Nouveau mouvement',
-      (close) => (dialog.kind === 'entry' ? <EntryForm entry={dialog.entry} status={dialog.status} copy={dialog.copy} onDone={close} /> : <RealizeForm item={dialog.item} onDone={close} />),
+        : dialog.entry
+          ? 'Modifier le mouvement'
+          : dialog.status === 'FORECAST'
+            ? 'Nouvelle prévision'
+            : 'Nouveau mouvement',
+      (close) => (dialog.kind === 'entry' ? <EntryForm entry={dialog.entry} status={dialog.status} onDone={close} /> : <RealizeForm item={dialog.item} onDone={close} />),
       // An entry has a table of lines (its split).
       dialog.kind === 'entry' ? 'lg' : 'md',
     );
+
+  // « Dupliquer » of an entry or a forecast: saved at once, then its form opens (decision D20).
+  const duplicateEntry = useEntryDuplicate((entry) => openDialog({ kind: 'entry', entry }));
 
   if (accountsPending) return <DetailSkeleton />;
 
@@ -599,11 +598,7 @@ export function TreasuryPage() {
                   }
                   items={[
                     forecast && !entry.archived && { label: 'Modifier la prévision', icon: <PencilSimpleIcon aria-hidden />, onClick: () => openDialog({ kind: 'entry', entry }) },
-                    !entry.archived && {
-                      label: forecast ? 'Dupliquer la prévision' : 'Dupliquer le mouvement',
-                      icon: <CopyIcon aria-hidden />,
-                      onClick: () => openDialog({ kind: 'entry', entry, copy: true }),
-                    },
+                    !entry.archived && rowMenuEntry(duplicateRowsAction([entry], duplicateEntry)),
                     // An entry not split yet: its split opens under it, where its lines are added.
                     !entry.archived &&
                       entry.lines.length === 0 &&
@@ -618,7 +613,7 @@ export function TreasuryPage() {
         </PageTabs.Panel>
 
         <PageTabs.Panel value="entries">
-          <EntriesPanel accounts={accounts} onEdit={(entry) => openDialog({ kind: 'entry', entry })} onDuplicate={(entry) => openDialog({ kind: 'entry', entry, copy: true })} />
+          <EntriesPanel accounts={accounts} onEdit={(entry) => openDialog({ kind: 'entry', entry })} onDuplicate={duplicateEntry} />
         </PageTabs.Panel>
 
         <PageTabs.Panel value="budgets">

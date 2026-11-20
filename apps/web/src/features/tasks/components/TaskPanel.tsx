@@ -333,9 +333,9 @@ function TaskDetail({ task, context }: TaskDetailProps) {
                 <DatePickerInput label="Début" clearable placeholder="—" {...dates.start} />
                 <DatePickerInput label="Fin" clearable placeholder="—" {...dates.end} />
               </Group>
-              <DatePickerInput label="Date min" description="Avant, la tâche n’est pas à faire." clearable placeholder="—" {...doable.start} />
+              <DatePickerInput label="Ouverture" description="Avant, la tâche n’est pas à faire." clearable placeholder="—" {...doable.start} />
               <DatePickerInput
-                label="Date max"
+                label="Échéance"
                 description={
                   <>
                     Au-delà, la tâche ouverte est en retard.

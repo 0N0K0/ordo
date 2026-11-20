@@ -66,7 +66,7 @@ export const taskFormSchema = z
     startDate: dateSchema,
     endDate: dateSchema,
     deadline: dateSchema,
-    /** « Date min »: not to be done before. */
+    /** « Ouverture »: not to be done before. */
     minDate: dateSchema,
     parentId: z.string().nullable(),
     milestoneId: z.string().nullable(),
@@ -81,7 +81,7 @@ export const taskFormSchema = z
     ...locationPointFields,
     /** Links, as those of the events (decision D5). */
     links: itemLinksSchema.default([]),
-    /** Reminders « À HH:MM » (Paris time), rung every day from « Date min » to « Date max » (decision D16). */
+    /** Reminders « À HH:MM » (Paris time), rung every day from « Ouverture » to « Échéance » (decision D16). */
     reminders: taskRemindersSchema.default([]),
   })
   .refine(...endAfter('startDate', 'endDate'))
@@ -125,7 +125,7 @@ export interface TaskInput {
   startDate?: string | null;
   endDate?: string | null;
   deadline?: string | null;
-  /** « Date min »: not to be done before. */
+  /** « Ouverture »: not to be done before. */
   minDate?: string | null;
   parentId?: string | null;
   milestoneId?: string | null;
@@ -141,6 +141,6 @@ export interface TaskInput {
   locationLon?: number | null;
   /** Links (null: none). */
   links?: ItemLink[] | null;
-  /** Reminders « À HH:MM » (null: none); they ring only with a « Date max ». */
+  /** Reminders « À HH:MM » (null: none); they ring only with an « Échéance ». */
   reminders?: ReminderFields[] | null;
 }

@@ -123,6 +123,19 @@ export default defineConfig([
           selector: "CallExpression[callee.name='lazy']",
           message: 'Utiliser lazyNamed (lib/lazy) : une seule façon de charger un composant à la demande.',
         },
+        // One word and one behaviour to copy anything (decision D20): « Dupliquer », saved at once, then opened.
+        {
+          selector: "Literal[value=/\\bClon(er|é|ée|és|ées|age)\\b/i], TemplateElement[value.raw=/\\bClon(er|é|ée|és|ées|age)\\b/i], JSXText[value=/\\bClon(er|é|ée|és|ées|age)\\b/i]",
+          message: '« Cloner » n’existe plus (décision D20) : « Dupliquer », avec duplicateRowsAction / DuplicateButton.',
+        },
+        {
+          selector: "Literal[value='Dupliquer'], JSXText[value=/^\\s*Dupliquer\\s*$/]",
+          message: 'Utiliser duplicateRowsAction (components/data-table/selection/selection-actions) ou DuplicateButton (components/actions) : une seule action « Dupliquer » (décision D20).',
+        },
+        {
+          selector: "JSXAttribute[name.name=/^(copy|copyOf)$/]",
+          message: 'Pas de formulaire de copie (décision D20) : la copie est enregistrée tout de suite (duplicateRowsAction / DuplicateButton), puis son panneau s’ouvre.',
+        },
         {
           selector: "NewExpression[callee.object.name='Intl'][callee.property.name=/^(DateTimeFormat|NumberFormat|RelativeTimeFormat)$/][arguments.length>0]",
           message: 'Utiliser lib/format (fmt.day, fmt.time, fmt.money, fmt.fromNow…) : un format par rôle.',

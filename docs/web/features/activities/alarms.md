@@ -57,7 +57,7 @@ Interne : `occurrenceStart(occurrence)` (instant, ou minuit de Paris du premier 
 
 ### `components/AlarmForm.tsx`
 
-- `AlarmForm({ context, alarm?, copy?, defaults?, onDone })` : formulaire (`useAppForm` + `alarmInputSchema`) : libellé, type (`SegmentedControl` + aide), minutes de chrono (`optionalNumberProps`) ou `RepetitionField` + `RuleEditor` (date, heure, répétition ; résumé `describeAlarmTiming`), `ProjectSelect` / `TaskSelect` (tâches `timeTasks`), description, « Active ». À l’envoi : `legacyFields(recurrence)` ajouté, `minutes` vidé hors chrono ; `formCallbacks` (« Alarme créée. », « Alarme modifiée. », « Alarme dupliquée. »). Copie : `copyName`.
+- `AlarmForm({ context, alarm?, defaults?, onDone })` : formulaire (`useAppForm` + `alarmInputSchema`) : libellé, type (`SegmentedControl` + aide), minutes de chrono (`optionalNumberProps`) ou `RepetitionField` + `RuleEditor` (date, heure, répétition ; résumé `describeAlarmTiming`), `ProjectSelect` / `TaskSelect` (tâches `timeTasks`), description, « Active ». À l’envoi : `legacyFields(recurrence)` ajouté, `minutes` vidé hors chrono ; `formCallbacks` (« Alarme créée. », « Alarme modifiée. »). Plus de mode copie (décision D20) : « Dupliquer » de `AlarmList` (`duplicateRowsAction`) enregistre la copie (`toAlarmInput` + `copyName`), puis ouvre le formulaire sur elle (`cachedItem`, `alarmsQueryKey`, exporté).
 - `AlarmDefaults` (interface) : `label`, `projectId`, `taskId` d’une nouvelle alarme.
 - Internes : `TYPES` (libellés des types), `TYPE_HELP` (aides), `AlarmFormValues`, `AlarmFormProps`.
 - Utilisé par `useAlarmForm`.
@@ -74,8 +74,8 @@ Interne : `occurrenceStart(occurrence)` (instant, ou minuit de Paris du premier 
 
 ### `hooks/use-alarm-form.tsx`
 
-- `AlarmFormOpener` (type) : `(alarm?, { copy?, defaults? }) => void`.
-- `useAlarmForm(context)` : ouvre `AlarmForm` dans `openFormPanel` (« Nouvelle alarme », « Modifier l’alarme », « Dupliquer l’alarme ») ; sans contexte : rien. Utilisé par `AlarmsPage`, `TaskAlarms`, `AlarmsCell` (`extra-cells`, tâches), `ChronoCard` (accueil), `QuickActions` (app).
+- `AlarmFormOpener` (type) : `(alarm?, { defaults? }) => void`.
+- `useAlarmForm(context)` : ouvre `AlarmForm` dans `openFormPanel` (« Nouvelle alarme », « Modifier l’alarme ») ; sans contexte : rien. Utilisé par `AlarmsPage`, `TaskAlarms`, `AlarmsCell` (`extra-cells`, tâches), `ChronoCard` (accueil), `QuickActions` (app).
 
 ## lib
 

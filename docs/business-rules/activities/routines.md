@@ -1,6 +1,6 @@
 # Règles des routines
 
-Règles appliquées par l'API et le code partagé aux routines : validation, calcul des occurrences (règle, cas, « à partir du », créneaux), états, coches, exceptions (déplacements), historique, ordre, archivage et suppression. Sources : `apps/api/src/services/routines/routines.ts`, `apps/api/src/graphql/modules/routines.ts`, `packages/shared/src/routines/` (`routines.ts`, `routine-views.ts`), `packages/shared/src/calendar/slot-conditions.ts`. L'usage côté écran est dans [Routines](../../features/activities/routines.md).
+Règles appliquées par l'API et le code partagé aux routines : validation, calcul des occurrences (règle, cas, « Ouverture », créneaux), états, coches, exceptions (déplacements), historique, ordre, archivage et suppression. Sources : `apps/api/src/services/routines/routines.ts`, `apps/api/src/graphql/modules/routines.ts`, `packages/shared/src/routines/` (`routines.ts`, `routine-views.ts`), `packages/shared/src/calendar/slot-conditions.ts`. L'usage côté écran est dans [Routines](../../features/activities/routines.md).
 
 ## Modèle
 
@@ -14,7 +14,7 @@ Champs d'une routine qui comptent pour les occurrences :
 | `recurrence`    | Règle de répétition commune aux évènements, alarmes et créneaux (voir [Dates](../cross-cutting/dates.md)).                                      |
 | `moments`       | Moments de la journée de la règle : `[{ fromTime, dueTime, optional }]`.                                                                      |
 | `slotCondition` | Condition sur les créneaux de l'agenda (groupe ET / OU), suivant la règle.                                                                      |
-| `opensOn`       | « À partir du » des occurrences de la règle.                                                                                                  |
+| `opensOn`       | « Ouverture » des occurrences de la règle.                                                                                                  |
 | `cases`         | Cas (chacun : `from`, `until`, `recurrence`, `slots`, `condition`, `opens`) ; non vide, ils remplacent la règle, ses moments et sa condition. |
 | `moves`         | Exceptions : `[{ from, to, times }]` (jours `YYYY-MM-DD`).                                                                                    |
 | `archivedAt`    | Archivée : plus aucune occurrence. `archivedByCascade` : archivée avec sa routine parente.                                                    |
@@ -35,13 +35,13 @@ Source : `packages/shared/src/routines/routines.ts`, `apps/api/src/services/rout
 | `estimate`                                                                             | Entier, 1 minute (« Au moins 1 minute. ») à 24 heures (« 24 heures maximum. »), ou `null`.                                                                                                                                                                           |
 | `fromTime`, `dueTime`                                                                  | `HH:MM` (« Heure attendue (HH:MM). ») ou `null` ; la fin doit suivre strictement le début (« La fin doit suivre le début. »).                                                                                                                                        |
 | `moments`                                                                              | 10 au plus (« 10 moments au plus. ») ; chacun : fin après début ; s'il y en a, au moins un obligatoire (« Au moins un moment doit être obligatoire. »).                                                                                                              |
-| `cases`                                                                                | 20 au plus (« 20 cas au plus. ») ; chaque cas : 1 à 10 moments (« Ajoutez au moins un moment. », « 10 moments au plus. »), au moins un obligatoire, « à partir du » compatible.                                                                                      |
+| `cases`                                                                                | 20 au plus (« 20 cas au plus. ») ; chaque cas : 1 à 10 moments (« Ajoutez au moins un moment. », « 10 moments au plus. »), au moins un obligatoire, « Ouverture » compatible.                                                                                      |
 | `slotCondition`                                                                        | Groupe de conditions ; champs `schedules` (créneaux) et `kinds` (types de créneaux) avec `in` / `notIn`, champ `freeTime` avec `isEmpty` / `notIn` (sinon « Sur ou hors des créneaux. ») ; créneaux et types de cet espace ou d'un autre espace de l'utilisateur ; chacun doit exister (« Créneau », « Type de créneau », « Espace ») et ne pas être archivé, sauf s'il était déjà dans une condition de la routine (`assertConditionSchedules`, commun avec les tâches, voir [Agenda](calendar.md#condition-de-créneaux-des-tâches-et-routines)).                                                                          |
 | `reminders`                                                                            | Rappels (décision D16, `remindersSchema`) : 10 au plus (« 10 rappels maximum. »), de types mêlés : `{ before }` minutes de 0 à 1 440 (« 24 heures maximum. »), `{ at }` heure `HH:MM` ; doublons retirés, triés.                                                                                                                                                                                |
 | `location`                                                                             | 250 caractères au plus (« 250 caractères maximum. ») ; sans lieu, ou sans ses deux coordonnées, le point est effacé (`storedLocation`, commun avec les évènements et les tâches).                                                                                                                                                                               |
 | `links`                                                                                | Liens (décision D5), ceux des évènements : 20 au plus (« 20 liens maximum. »), adresse http ou https (« Lien invalide (http ou https). »), libellé facultatif de 250 caractères (`itemLinksSchema`) ; requis dans l’entrée comme `relatedIds` (`[]` pour aucun) : une entrée qui les omet est refusée au lieu de les effacer (décision EE). |
 | `travelBefore`, `travelAfter`                                                          | Minutes de trajet (schéma géo commun), 0 par défaut.                                                                                                                                                                                                                 |
-| `opensOn`                                                                              | Refusé avec des cas, ou s'il ne convient pas à la fréquence : « Ce « à partir du » ne vaut pas pour cette répétition : un jour du mois (mensuelle), de l'année (annuelle), ou des jours avant. » Mode `BEFORE` : 1 (« Au moins 1. ») à 366 (« 366 maximum. ») jours. |
+| `opensOn`                                                                              | Refusée avec des cas, ou si elle ne convient pas à la fréquence : « Cette ouverture ne vaut pas pour cette répétition : un jour du mois (mensuelle), de l'année (annuelle), ou des jours avant. » Mode `BEFORE` : 1 (« Au moins 1. ») à 366 (« 366 maximum. ») jours. |
 | `assigneeIds`, `beneficiaryIds`, `beneficiaryRelationIds`, `requiredIds`, `relatedIds` | 100 au plus chacun, doublons retirés.                                                                                                                                                                                                                                |
 
 Références vérifiées par `parseRoutine` :
@@ -80,18 +80,18 @@ Source : `apps/api/src/services/routines/routines.ts` (`ruleSpans`, `occurrences
 
 ### Occurrence
 
-Une occurrence va de son premier jour (son « à partir du ») à son jour d'échéance (son dernier jour). Elle est identifiée par son jour d'échéance.
+Une occurrence va de son premier jour (son ouverture) à son jour d'échéance (son dernier jour). Elle est identifiée par son jour d'échéance.
 
 - Source : les cas s'il y en a, sinon la règle (`storedRule`). Une routine enregistrée avec des créneaux suivis avant les conditions (`scheduleIds` sans `slotCondition`) se répète chaque jour.
 - Un cas compte à partir de son `from` (jamais avant la première fois de la routine) jusqu'à son `until`. Un jour dû par plusieurs cas suit le premier cas (`routineCaseOn`).
 - Rien avant `startDate`. Une routine archivée n'a aucune occurrence.
 
-### « À partir du » (`routineOpenDate`)
+### « Ouverture » (`routineOpenDate`)
 
 - `BEFORE` : `days` jours avant l'échéance ; valable pour toute fréquence.
 - `DAY` (le n du mois, ou d'un mois pour une règle annuelle), `WEEKDAY` (le 1er à 4e ou dernier jour de semaine du mois), `WEEK` (un jour de semaine de la semaine 1 à 6 du mois, semaines du lundi, la première étant celle du 1er ; en annuel, semaine ISO 1 à 53) : seulement pour une règle mensuelle (sans mois) ou annuelle (avec mois, ou semaine ISO) (`opensFits`).
 - Le jour est pris dans la période de l'échéance ; s'il tombe après l'échéance, celui de la période précédente.
-- Sans « à partir du » (ou s'il ne convient pas), l'occurrence s'ouvre le jour de son échéance.
+- Sans ouverture (ou si elle ne convient pas), l'occurrence s'ouvre le jour de son échéance.
 
 ### Créneaux de l'agenda (`conditionWindows`, `windowsAllowed`)
 
@@ -127,7 +127,7 @@ Source : `packages/shared/src/routines/routines.ts`, `ROUTINE_STATES`.
 | `upcoming` (« À venir ») | Pas d'occurrence en cours. Le web y range aussi une routine due dont un évènement occupe les assignés maintenant.        |
 | `done` (« Faite »)       | Occurrence en cours faite.                                                                                               |
 | `late` (« En retard »)   | Occurrence en cours non faite, échéance avant aujourd'hui.                                                               |
-| `due` (« À faire »)      | Occurrence en cours non faite, échéance aujourd'hui (ou plus tard, pendant son « à partir du »).                         |
+| `due` (« À faire »)      | Occurrence en cours non faite, échéance aujourd'hui (ou plus tard, pendant son ouverture).                         |
 
 `done` (champ GraphQL) : il y a une occurrence en cours, elle a au moins un moment, et chaque moment est coché ou facultatif.
 
@@ -138,7 +138,7 @@ Source : `packages/shared/src/routines/routines.ts`, `ROUTINE_STATES`.
 - Avec une heure limite : départ = limite − (trajet aller + temps estimé) ; retour = limite + trajet retour.
 - Avec une heure de début seulement : départ = début − trajet aller ; retour = début + temps estimé + trajet retour.
 - Les heures restent dans la journée (modulo 24 h).
-- Rappels (décision D16) : un « avant » (« Au début », « N min avant ») compte depuis le premier jour de l'occurrence (« à partir du ») à l'heure « dès » de chaque moment non coché, sinon son heure maximale (`routineReminderTime`) ; plus depuis l'heure de départ ; un moment sans aucune heure n'en a pas. Un « À HH:MM » sonne une fois par occurrence, à cette heure de son premier jour. `reminderOccurrences` (champ GraphQL `reminderOccurrences` : `date`, `day`, `slots { slot, at }`, heure de Paris) donne l'occurrence en cours tant qu'elle n'est pas faite et la suivante ; aucune pour une routine archivée. Voir [Alarmes](alarms.md#rappels-des-tâches-routines-et-évènements).
+- Rappels (décision D16) : un « avant » (« Au début », « N min avant ») compte depuis le premier jour de l'occurrence (« Ouverture ») à l'heure « dès » de chaque moment non coché, sinon son heure maximale (`routineReminderTime`) ; plus depuis l'heure de départ ; un moment sans aucune heure n'en a pas. Un « À HH:MM » sonne une fois par occurrence, à cette heure de son premier jour. `reminderOccurrences` (champ GraphQL `reminderOccurrences` : `date`, `day`, `slots { slot, at }`, heure de Paris) donne l'occurrence en cours tant qu'elle n'est pas faite et la suivante ; aucune pour une routine archivée. Voir [Alarmes](alarms.md#rappels-des-tâches-routines-et-évènements).
 
 ## Coches et historique
 
@@ -165,7 +165,7 @@ Source : `moveRoutineOccurrence`, `removeRoutineMove`, `changeRoutineOccurrence`
 - Pas avant la première fois : « La routine n'a pas encore commencé ce jour-là. » (champ `to`).
 - Routine archivée : refusée.
 - Redéplacer une occurrence déjà déplacée modifie son exception ; la remettre à son jour avec ses horaires supprime l'exception. Seuls les horaires qui diffèrent de la règle sont gardés.
-- `removeRoutineMove` : supprime l'exception, l'occurrence revient à son jour.
+- `removeRoutineMove(id, from, comments?)` : supprime l'exception, l'occurrence revient à son jour ; après une annulation (« Annuler » du toast), les commentaires supprimés avec elle lui sont rendus (`comments`, texte vérifié à nouveau, dates d'origine ; décision EV).
 - Les commentaires d'une occurrence déplacée la suivent (vers son nouveau jour, et retour quand l'exception est retirée ; décision D19). Depuis l'agenda, `FOLLOWING` et `ALL` ne déplacent que ceux de l'occurrence changée.
 
 Depuis l'agenda (`changeRoutineOccurrence`, portée `THIS` / `FOLLOWING` / `ALL`) :
@@ -176,13 +176,15 @@ Depuis l'agenda (`changeRoutineOccurrence`, portée `THIS` / `FOLLOWING` / `ALL`
 - Les exceptions des occurrences changées sont retirées (toutes pour `ALL` avec un décalage, celles à partir de l'occurrence pour `FOLLOWING`).
 - Sans règle : « Cette routine n'a pas de répétition. » ; cas introuvable : « Occurrence introuvable. ».
 
+Occurrences qui disparaissent (décision EW) : un changement de la règle (formulaire `updateRoutine`, cellule `patchRoutine`, modification en masse `bulkUpdateRoutines`, `changeRoutineOccurrence` en `FOLLOWING` / `ALL`) qui retire des occurrences actuelles (jours d'une occurrence avant le changement et plus après, `occurrencesBetween`) supprime leurs commentaires ; l'occurrence changée depuis l'agenda garde les siens (ils la suivent). Sans `confirmLoss: true`, rien n'est changé : `CONFIRMATION_REQUIRED`, extension `lost` (`{ times: 0, comments }` : les temps d'une routine ne sont pas sur ses occurrences), une seule fois pour toute une sélection. Un retour arrière (`restoring`) et les changements internes (copie, suppression d'occurrences) ne demandent rien.
+
 Annulation depuis l'agenda (`deleteRoutineOccurrence`) :
 
 - `THIS` : exception sans nouveau jour.
-- `FOLLOWING` : les règles (ou cas) s'arrêtent avant ; les cas sans occurrence avant sont retirés ; s'il ne reste rien, la routine est archivée (la mutation renvoie `true`).
+- `FOLLOWING` : les règles (ou cas) s'arrêtent avant ; les cas sans occurrence avant sont retirés ; s'il ne reste rien, la routine est archivée (la mutation renvoie `archived: true`).
 - `ALL` refusé : « Archivez ou supprimez la routine elle-même. »
 - Les coches passées restent dans l'historique.
-- Les commentaires des occurrences supprimées (celle-ci, ou à partir d'elle) sont supprimés (décision D19) ; « Annuler » (retrait de l'exception) ne les rend pas. La question de portée en donne le nombre pour chaque choix (`lostOnDelete`, `routineOccurrence`).
+- Les commentaires des occurrences supprimées (celle-ci, ou à partir d'elle) sont supprimés (décision D19). La question de portée en donne le nombre pour chaque choix (`lostOnDelete`, `routineOccurrence`). Pour `THIS`, la mutation les renvoie (`comments` : texte et dates) et « Annuler » (retrait de l'exception) les rend à l'occurrence (décision EV). Une occurrence déjà déplacée revient à son jour de règle, pas au jour où elle avait été déplacée.
 
 ## Modifications en masse
 
@@ -199,7 +201,7 @@ Source : `bulkUpdateRoutines`, `patchRoutine` (GraphQL).
 
 Source : `moveRoutine`, `createRoutine`, `copySubRoutines`, `bulkDeleteRoutines` ; [Ordre](../cross-cutting/ordering.md).
 
-- Copie d'une routine (« Dupliquer », formulaire ou sélection) : `createRoutine(input, copyOf)`, avec ses liens et son lieu ; une nouvelle sous-routine ne reprend pas les liens de sa parente ; les anciens liens de la routine copiée hors de l'arborescence de projets de la copie (gardés par elle tant qu'elle ne bouge pas) sont laissés de côté par l'API au lieu d'être refusés ; un autre lien hors de l'arborescence reste refusé.
+- Copie d'une routine (« Dupliquer », menu ou sélection, enregistrée tout de suite puis ouverte, décision D20) : `createRoutine(input, copyOf)`, libellé « … (copie) », avec ses liens et son lieu ; une nouvelle sous-routine ne reprend pas les liens de sa parente ; les anciens liens de la routine copiée hors de l'arborescence de projets de la copie (gardés par elle tant qu'elle ne bouge pas) sont laissés de côté par l'API au lieu d'être refusés ; un autre lien hors de l'arborescence reste refusé.
 
 - Un seul ordre manuel global pour toutes les routines (`position`), comme les tâches (décision DT) : créée, une routine va à la fin de cet ordre. L'ordre affiché reste l'arbre (chaque routine sous sa parente), les sœurs dans l'ordre global.
 - `moveRoutine(id, beforeId, parentId?, categoryIds?)` : place la routine juste avant `beforeId` dans l'ordre global (`null` : à la fin ; voisine inconnue : « Routine introuvable. ») ; `parentId` donné change aussi de parente (vérifiée comme à l'enregistrement : existante, non archivée, pas sous elle-même), `null` : premier niveau, omis : inchangée. Placer « avant telle routine » fonctionne aussi dans une vue filtrée où la parente est masquée. Une routine archivée ne se déplace pas. Les catégories peuvent changer avec le déplacement. Seules les lignes dont la position change sont écrites.

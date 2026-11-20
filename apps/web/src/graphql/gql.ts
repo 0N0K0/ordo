@@ -141,7 +141,7 @@ type Documents = {
     "\n  mutation DeleteCalendarCategory($id: ID!) {\n    deleteCalendarCategory(id: $id)\n  }\n": typeof types.DeleteCalendarCategoryDocument,
     "\n  mutation MoveCalendarCategory($id: ID!, $index: Int!, $parentId: ID) {\n    moveCalendarCategory(id: $id, index: $index, parentId: $parentId)\n  }\n": typeof types.MoveCalendarCategoryDocument,
     "\n  mutation CreateCalendarEvent($input: CalendarEventInput!) {\n    createCalendarEvent(input: $input)\n  }\n": typeof types.CreateCalendarEventDocument,
-    "\n  mutation UpdateCalendarEvent($id: ID!, $input: CalendarEventInput!, $scope: CalendarEventScope!, $occurrenceDate: Date) {\n    updateCalendarEvent(id: $id, input: $input, scope: $scope, occurrenceDate: $occurrenceDate)\n  }\n": typeof types.UpdateCalendarEventDocument,
+    "\n  mutation UpdateCalendarEvent($id: ID!, $input: CalendarEventInput!, $scope: CalendarEventScope!, $occurrenceDate: Date, $confirmLoss: Boolean) {\n    updateCalendarEvent(id: $id, input: $input, scope: $scope, occurrenceDate: $occurrenceDate, confirmLoss: $confirmLoss)\n  }\n": typeof types.UpdateCalendarEventDocument,
     "\n  mutation DeleteCalendarEvent($id: ID!, $scope: CalendarEventScope!, $occurrenceDate: Date) {\n    deleteCalendarEvent(id: $id, scope: $scope, occurrenceDate: $occurrenceDate)\n  }\n": typeof types.DeleteCalendarEventDocument,
     "\n  query Comments($target: CommentTarget!, $id: String!, $occurrenceDate: Date) {\n    comments(target: $target, id: $id, occurrenceDate: $occurrenceDate) {\n      id\n      body\n      createdAt\n    }\n  }\n": typeof types.CommentsDocument,
     "\n  query CommentCounts($target: CommentTarget!, $ids: [String!]!) {\n    commentCounts(target: $target, ids: $ids) {\n      id\n      count\n    }\n  }\n": typeof types.CommentCountsDocument,
@@ -266,18 +266,18 @@ type Documents = {
     "\n  mutation DeleteRoutineCategory($id: ID!) {\n    deleteRoutineCategory(id: $id)\n  }\n": typeof types.DeleteRoutineCategoryDocument,
     "\n  mutation CopySubRoutines($fromId: ID!, $toId: ID!) {\n    copySubRoutines(fromId: $fromId, toId: $toId)\n  }\n": typeof types.CopySubRoutinesDocument,
     "\n  mutation CreateRoutine($input: RoutineInput!, $copyOf: ID) {\n    createRoutine(input: $input, copyOf: $copyOf)\n  }\n": typeof types.CreateRoutineDocument,
-    "\n  mutation UpdateRoutine($id: ID!, $input: RoutineInput!, $restoring: Boolean) {\n    updateRoutine(id: $id, input: $input, restoring: $restoring) {\n      removedLinks\n    }\n  }\n": typeof types.UpdateRoutineDocument,
-    "\n  mutation PatchRoutine($id: ID!, $input: RoutinePatch!) {\n    patchRoutine(id: $id, input: $input) {\n      removedLinks\n    }\n  }\n": typeof types.PatchRoutineDocument,
+    "\n  mutation UpdateRoutine($id: ID!, $input: RoutineInput!, $restoring: Boolean, $confirmLoss: Boolean) {\n    updateRoutine(id: $id, input: $input, restoring: $restoring, confirmLoss: $confirmLoss) {\n      removedLinks\n    }\n  }\n": typeof types.UpdateRoutineDocument,
+    "\n  mutation PatchRoutine($id: ID!, $input: RoutinePatch!, $confirmLoss: Boolean) {\n    patchRoutine(id: $id, input: $input, confirmLoss: $confirmLoss) {\n      removedLinks\n    }\n  }\n": typeof types.PatchRoutineDocument,
     "\n  mutation MoveRoutine($id: ID!, $beforeId: ID, $parentId: ID, $categoryIds: [ID!]) {\n    moveRoutine(id: $id, beforeId: $beforeId, parentId: $parentId, categoryIds: $categoryIds)\n  }\n": typeof types.MoveRoutineDocument,
-    "\n  mutation BulkUpdateRoutines($ids: [ID!]!, $changes: RoutineBulkChanges!) {\n    bulkUpdateRoutines(ids: $ids, changes: $changes) {\n      removedLinks\n    }\n  }\n": typeof types.BulkUpdateRoutinesDocument,
+    "\n  mutation BulkUpdateRoutines($ids: [ID!]!, $changes: RoutineBulkChanges!, $confirmLoss: Boolean) {\n    bulkUpdateRoutines(ids: $ids, changes: $changes, confirmLoss: $confirmLoss) {\n      removedLinks\n    }\n  }\n": typeof types.BulkUpdateRoutinesDocument,
     "\n  mutation BulkSetRoutinesArchived($ids: [ID!]!, $archived: Boolean!) {\n    bulkSetRoutinesArchived(ids: $ids, archived: $archived)\n  }\n": typeof types.BulkSetRoutinesArchivedDocument,
     "\n  mutation BulkSetRoutinesDone($ids: [ID!]!, $done: Boolean!) {\n    bulkSetRoutinesDone(ids: $ids, done: $done)\n  }\n": typeof types.BulkSetRoutinesDoneDocument,
     "\n  mutation BulkDeleteRoutines($ids: [ID!]!, $deleteSubRoutines: Boolean!) {\n    bulkDeleteRoutines(ids: $ids, deleteSubRoutines: $deleteSubRoutines)\n  }\n": typeof types.BulkDeleteRoutinesDocument,
     "\n  mutation SetRoutineDone($id: ID!, $done: Boolean!, $date: Date, $slot: Int, $doneAt: DateTime) {\n    setRoutineDone(id: $id, done: $done, date: $date, slot: $slot, doneAt: $doneAt)\n  }\n": typeof types.SetRoutineDoneDocument,
     "\n  mutation MoveRoutineOccurrence($id: ID!, $date: Date!, $to: Date!, $times: JSON) {\n    moveRoutineOccurrence(id: $id, date: $date, to: $to, times: $times)\n  }\n": typeof types.MoveRoutineOccurrenceDocument,
-    "\n  mutation ChangeRoutineOccurrence($id: ID!, $date: Date!, $scope: CalendarEventScope!, $to: Date!, $slot: Int!, $fromTime: String, $dueTime: String) {\n    changeRoutineOccurrence(id: $id, date: $date, scope: $scope, to: $to, slot: $slot, fromTime: $fromTime, dueTime: $dueTime)\n  }\n": typeof types.ChangeRoutineOccurrenceDocument,
-    "\n  mutation DeleteRoutineOccurrence($id: ID!, $date: Date!, $scope: CalendarEventScope!) {\n    deleteRoutineOccurrence(id: $id, date: $date, scope: $scope)\n  }\n": typeof types.DeleteRoutineOccurrenceDocument,
-    "\n  mutation RemoveRoutineMove($id: ID!, $from: Date!) {\n    removeRoutineMove(id: $id, from: $from)\n  }\n": typeof types.RemoveRoutineMoveDocument,
+    "\n  mutation ChangeRoutineOccurrence($id: ID!, $date: Date!, $scope: CalendarEventScope!, $to: Date!, $slot: Int!, $fromTime: String, $dueTime: String, $confirmLoss: Boolean) {\n    changeRoutineOccurrence(id: $id, date: $date, scope: $scope, to: $to, slot: $slot, fromTime: $fromTime, dueTime: $dueTime, confirmLoss: $confirmLoss)\n  }\n": typeof types.ChangeRoutineOccurrenceDocument,
+    "\n  mutation DeleteRoutineOccurrence($id: ID!, $date: Date!, $scope: CalendarEventScope!) {\n    deleteRoutineOccurrence(id: $id, date: $date, scope: $scope) {\n      archived\n      comments {\n        body\n        createdAt\n        updatedAt\n      }\n    }\n  }\n": typeof types.DeleteRoutineOccurrenceDocument,
+    "\n  mutation RemoveRoutineMove($id: ID!, $from: Date!, $comments: [CommentSnapshotInput!]) {\n    removeRoutineMove(id: $id, from: $from, comments: $comments)\n  }\n": typeof types.RemoveRoutineMoveDocument,
     "\n  query RoutineChecks($from: Date!, $to: Date!) {\n    routineChecks(from: $from, to: $to) {\n      routineId\n      date\n      slot\n      doneAt\n      fromTime\n      dueTime\n    }\n  }\n": typeof types.RoutineChecksDocument,
     "\n  query RoutineOccurrences($from: Date!, $to: Date!) {\n    routineOccurrences(from: $from, to: $to) {\n      routineId\n      date\n      startDate\n      shownDate\n      movedFrom\n      slots {\n        index\n        fromTime\n        dueTime\n        optional\n        done\n        windows\n      }\n    }\n  }\n": typeof types.RoutineOccurrencesDocument,
     "\n  query Sheets($projectId: ID) {\n    sheets(projectId: $projectId) {\n      id\n      archived\n      label\n      note\n      projectId\n      categoryIds\n      position\n      createdAt\n      updatedAt\n      usedBy\n      items {\n        id\n        productId\n        label\n        categoryId\n        quantity\n        unit\n        note\n        consumable\n        storeId\n        url\n        perishable\n        storageId\n        memberIds\n        relationIds\n        optional\n        position\n      }\n    }\n  }\n": typeof types.SheetsDocument,
@@ -374,7 +374,7 @@ type Documents = {
     "\n  query TaskComments($id: ID!) {\n    task(id: $id) {\n      id\n      comments {\n        ...TaskCommentFields\n      }\n    }\n  }\n": typeof types.TaskCommentsDocument,
     "\n  mutation CreateTask($input: TaskInput!) {\n    createTask(input: $input) {\n      ...TaskFields\n    }\n  }\n": typeof types.CreateTaskDocument,
     "\n  mutation UpdateTask($id: ID!, $input: TaskUpdateInput!) {\n    updateTask(id: $id, input: $input) {\n      ...TaskFields\n    }\n  }\n": typeof types.UpdateTaskDocument,
-    "\n  mutation CloneTask($id: ID!, $includeSubtasks: Boolean!) {\n    cloneTask(id: $id, includeSubtasks: $includeSubtasks) {\n      id\n      number\n    }\n  }\n": typeof types.CloneTaskDocument,
+    "\n  mutation DuplicateTask($id: ID!, $includeSubtasks: Boolean!) {\n    duplicateTask(id: $id, includeSubtasks: $includeSubtasks) {\n      id\n      number\n    }\n  }\n": typeof types.DuplicateTaskDocument,
     "\n  mutation MoveTask($id: ID!, $beforeId: ID, $parentId: ID) {\n    moveTask(id: $id, beforeId: $beforeId, parentId: $parentId)\n  }\n": typeof types.MoveTaskDocument,
     "\n  mutation AddTaskBlock($blockerId: ID!, $blockedId: ID!) {\n    addTaskBlock(blockerId: $blockerId, blockedId: $blockedId)\n  }\n": typeof types.AddTaskBlockDocument,
     "\n  mutation RemoveTaskBlock($blockerId: ID!, $blockedId: ID!) {\n    removeTaskBlock(blockerId: $blockerId, blockedId: $blockedId)\n  }\n": typeof types.RemoveTaskBlockDocument,
@@ -604,7 +604,7 @@ const documents: Documents = {
     "\n  mutation DeleteCalendarCategory($id: ID!) {\n    deleteCalendarCategory(id: $id)\n  }\n": types.DeleteCalendarCategoryDocument,
     "\n  mutation MoveCalendarCategory($id: ID!, $index: Int!, $parentId: ID) {\n    moveCalendarCategory(id: $id, index: $index, parentId: $parentId)\n  }\n": types.MoveCalendarCategoryDocument,
     "\n  mutation CreateCalendarEvent($input: CalendarEventInput!) {\n    createCalendarEvent(input: $input)\n  }\n": types.CreateCalendarEventDocument,
-    "\n  mutation UpdateCalendarEvent($id: ID!, $input: CalendarEventInput!, $scope: CalendarEventScope!, $occurrenceDate: Date) {\n    updateCalendarEvent(id: $id, input: $input, scope: $scope, occurrenceDate: $occurrenceDate)\n  }\n": types.UpdateCalendarEventDocument,
+    "\n  mutation UpdateCalendarEvent($id: ID!, $input: CalendarEventInput!, $scope: CalendarEventScope!, $occurrenceDate: Date, $confirmLoss: Boolean) {\n    updateCalendarEvent(id: $id, input: $input, scope: $scope, occurrenceDate: $occurrenceDate, confirmLoss: $confirmLoss)\n  }\n": types.UpdateCalendarEventDocument,
     "\n  mutation DeleteCalendarEvent($id: ID!, $scope: CalendarEventScope!, $occurrenceDate: Date) {\n    deleteCalendarEvent(id: $id, scope: $scope, occurrenceDate: $occurrenceDate)\n  }\n": types.DeleteCalendarEventDocument,
     "\n  query Comments($target: CommentTarget!, $id: String!, $occurrenceDate: Date) {\n    comments(target: $target, id: $id, occurrenceDate: $occurrenceDate) {\n      id\n      body\n      createdAt\n    }\n  }\n": types.CommentsDocument,
     "\n  query CommentCounts($target: CommentTarget!, $ids: [String!]!) {\n    commentCounts(target: $target, ids: $ids) {\n      id\n      count\n    }\n  }\n": types.CommentCountsDocument,
@@ -729,18 +729,18 @@ const documents: Documents = {
     "\n  mutation DeleteRoutineCategory($id: ID!) {\n    deleteRoutineCategory(id: $id)\n  }\n": types.DeleteRoutineCategoryDocument,
     "\n  mutation CopySubRoutines($fromId: ID!, $toId: ID!) {\n    copySubRoutines(fromId: $fromId, toId: $toId)\n  }\n": types.CopySubRoutinesDocument,
     "\n  mutation CreateRoutine($input: RoutineInput!, $copyOf: ID) {\n    createRoutine(input: $input, copyOf: $copyOf)\n  }\n": types.CreateRoutineDocument,
-    "\n  mutation UpdateRoutine($id: ID!, $input: RoutineInput!, $restoring: Boolean) {\n    updateRoutine(id: $id, input: $input, restoring: $restoring) {\n      removedLinks\n    }\n  }\n": types.UpdateRoutineDocument,
-    "\n  mutation PatchRoutine($id: ID!, $input: RoutinePatch!) {\n    patchRoutine(id: $id, input: $input) {\n      removedLinks\n    }\n  }\n": types.PatchRoutineDocument,
+    "\n  mutation UpdateRoutine($id: ID!, $input: RoutineInput!, $restoring: Boolean, $confirmLoss: Boolean) {\n    updateRoutine(id: $id, input: $input, restoring: $restoring, confirmLoss: $confirmLoss) {\n      removedLinks\n    }\n  }\n": types.UpdateRoutineDocument,
+    "\n  mutation PatchRoutine($id: ID!, $input: RoutinePatch!, $confirmLoss: Boolean) {\n    patchRoutine(id: $id, input: $input, confirmLoss: $confirmLoss) {\n      removedLinks\n    }\n  }\n": types.PatchRoutineDocument,
     "\n  mutation MoveRoutine($id: ID!, $beforeId: ID, $parentId: ID, $categoryIds: [ID!]) {\n    moveRoutine(id: $id, beforeId: $beforeId, parentId: $parentId, categoryIds: $categoryIds)\n  }\n": types.MoveRoutineDocument,
-    "\n  mutation BulkUpdateRoutines($ids: [ID!]!, $changes: RoutineBulkChanges!) {\n    bulkUpdateRoutines(ids: $ids, changes: $changes) {\n      removedLinks\n    }\n  }\n": types.BulkUpdateRoutinesDocument,
+    "\n  mutation BulkUpdateRoutines($ids: [ID!]!, $changes: RoutineBulkChanges!, $confirmLoss: Boolean) {\n    bulkUpdateRoutines(ids: $ids, changes: $changes, confirmLoss: $confirmLoss) {\n      removedLinks\n    }\n  }\n": types.BulkUpdateRoutinesDocument,
     "\n  mutation BulkSetRoutinesArchived($ids: [ID!]!, $archived: Boolean!) {\n    bulkSetRoutinesArchived(ids: $ids, archived: $archived)\n  }\n": types.BulkSetRoutinesArchivedDocument,
     "\n  mutation BulkSetRoutinesDone($ids: [ID!]!, $done: Boolean!) {\n    bulkSetRoutinesDone(ids: $ids, done: $done)\n  }\n": types.BulkSetRoutinesDoneDocument,
     "\n  mutation BulkDeleteRoutines($ids: [ID!]!, $deleteSubRoutines: Boolean!) {\n    bulkDeleteRoutines(ids: $ids, deleteSubRoutines: $deleteSubRoutines)\n  }\n": types.BulkDeleteRoutinesDocument,
     "\n  mutation SetRoutineDone($id: ID!, $done: Boolean!, $date: Date, $slot: Int, $doneAt: DateTime) {\n    setRoutineDone(id: $id, done: $done, date: $date, slot: $slot, doneAt: $doneAt)\n  }\n": types.SetRoutineDoneDocument,
     "\n  mutation MoveRoutineOccurrence($id: ID!, $date: Date!, $to: Date!, $times: JSON) {\n    moveRoutineOccurrence(id: $id, date: $date, to: $to, times: $times)\n  }\n": types.MoveRoutineOccurrenceDocument,
-    "\n  mutation ChangeRoutineOccurrence($id: ID!, $date: Date!, $scope: CalendarEventScope!, $to: Date!, $slot: Int!, $fromTime: String, $dueTime: String) {\n    changeRoutineOccurrence(id: $id, date: $date, scope: $scope, to: $to, slot: $slot, fromTime: $fromTime, dueTime: $dueTime)\n  }\n": types.ChangeRoutineOccurrenceDocument,
-    "\n  mutation DeleteRoutineOccurrence($id: ID!, $date: Date!, $scope: CalendarEventScope!) {\n    deleteRoutineOccurrence(id: $id, date: $date, scope: $scope)\n  }\n": types.DeleteRoutineOccurrenceDocument,
-    "\n  mutation RemoveRoutineMove($id: ID!, $from: Date!) {\n    removeRoutineMove(id: $id, from: $from)\n  }\n": types.RemoveRoutineMoveDocument,
+    "\n  mutation ChangeRoutineOccurrence($id: ID!, $date: Date!, $scope: CalendarEventScope!, $to: Date!, $slot: Int!, $fromTime: String, $dueTime: String, $confirmLoss: Boolean) {\n    changeRoutineOccurrence(id: $id, date: $date, scope: $scope, to: $to, slot: $slot, fromTime: $fromTime, dueTime: $dueTime, confirmLoss: $confirmLoss)\n  }\n": types.ChangeRoutineOccurrenceDocument,
+    "\n  mutation DeleteRoutineOccurrence($id: ID!, $date: Date!, $scope: CalendarEventScope!) {\n    deleteRoutineOccurrence(id: $id, date: $date, scope: $scope) {\n      archived\n      comments {\n        body\n        createdAt\n        updatedAt\n      }\n    }\n  }\n": types.DeleteRoutineOccurrenceDocument,
+    "\n  mutation RemoveRoutineMove($id: ID!, $from: Date!, $comments: [CommentSnapshotInput!]) {\n    removeRoutineMove(id: $id, from: $from, comments: $comments)\n  }\n": types.RemoveRoutineMoveDocument,
     "\n  query RoutineChecks($from: Date!, $to: Date!) {\n    routineChecks(from: $from, to: $to) {\n      routineId\n      date\n      slot\n      doneAt\n      fromTime\n      dueTime\n    }\n  }\n": types.RoutineChecksDocument,
     "\n  query RoutineOccurrences($from: Date!, $to: Date!) {\n    routineOccurrences(from: $from, to: $to) {\n      routineId\n      date\n      startDate\n      shownDate\n      movedFrom\n      slots {\n        index\n        fromTime\n        dueTime\n        optional\n        done\n        windows\n      }\n    }\n  }\n": types.RoutineOccurrencesDocument,
     "\n  query Sheets($projectId: ID) {\n    sheets(projectId: $projectId) {\n      id\n      archived\n      label\n      note\n      projectId\n      categoryIds\n      position\n      createdAt\n      updatedAt\n      usedBy\n      items {\n        id\n        productId\n        label\n        categoryId\n        quantity\n        unit\n        note\n        consumable\n        storeId\n        url\n        perishable\n        storageId\n        memberIds\n        relationIds\n        optional\n        position\n      }\n    }\n  }\n": types.SheetsDocument,
@@ -837,7 +837,7 @@ const documents: Documents = {
     "\n  query TaskComments($id: ID!) {\n    task(id: $id) {\n      id\n      comments {\n        ...TaskCommentFields\n      }\n    }\n  }\n": types.TaskCommentsDocument,
     "\n  mutation CreateTask($input: TaskInput!) {\n    createTask(input: $input) {\n      ...TaskFields\n    }\n  }\n": types.CreateTaskDocument,
     "\n  mutation UpdateTask($id: ID!, $input: TaskUpdateInput!) {\n    updateTask(id: $id, input: $input) {\n      ...TaskFields\n    }\n  }\n": types.UpdateTaskDocument,
-    "\n  mutation CloneTask($id: ID!, $includeSubtasks: Boolean!) {\n    cloneTask(id: $id, includeSubtasks: $includeSubtasks) {\n      id\n      number\n    }\n  }\n": types.CloneTaskDocument,
+    "\n  mutation DuplicateTask($id: ID!, $includeSubtasks: Boolean!) {\n    duplicateTask(id: $id, includeSubtasks: $includeSubtasks) {\n      id\n      number\n    }\n  }\n": types.DuplicateTaskDocument,
     "\n  mutation MoveTask($id: ID!, $beforeId: ID, $parentId: ID) {\n    moveTask(id: $id, beforeId: $beforeId, parentId: $parentId)\n  }\n": types.MoveTaskDocument,
     "\n  mutation AddTaskBlock($blockerId: ID!, $blockedId: ID!) {\n    addTaskBlock(blockerId: $blockerId, blockedId: $blockedId)\n  }\n": types.AddTaskBlockDocument,
     "\n  mutation RemoveTaskBlock($blockerId: ID!, $blockedId: ID!) {\n    removeTaskBlock(blockerId: $blockerId, blockedId: $blockedId)\n  }\n": types.RemoveTaskBlockDocument,
@@ -1448,7 +1448,7 @@ export function graphql(source: "\n  mutation CreateCalendarEvent($input: Calend
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */
-export function graphql(source: "\n  mutation UpdateCalendarEvent($id: ID!, $input: CalendarEventInput!, $scope: CalendarEventScope!, $occurrenceDate: Date) {\n    updateCalendarEvent(id: $id, input: $input, scope: $scope, occurrenceDate: $occurrenceDate)\n  }\n"): typeof import('./graphql').UpdateCalendarEventDocument;
+export function graphql(source: "\n  mutation UpdateCalendarEvent($id: ID!, $input: CalendarEventInput!, $scope: CalendarEventScope!, $occurrenceDate: Date, $confirmLoss: Boolean) {\n    updateCalendarEvent(id: $id, input: $input, scope: $scope, occurrenceDate: $occurrenceDate, confirmLoss: $confirmLoss)\n  }\n"): typeof import('./graphql').UpdateCalendarEventDocument;
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */
@@ -1948,11 +1948,11 @@ export function graphql(source: "\n  mutation CreateRoutine($input: RoutineInput
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */
-export function graphql(source: "\n  mutation UpdateRoutine($id: ID!, $input: RoutineInput!, $restoring: Boolean) {\n    updateRoutine(id: $id, input: $input, restoring: $restoring) {\n      removedLinks\n    }\n  }\n"): typeof import('./graphql').UpdateRoutineDocument;
+export function graphql(source: "\n  mutation UpdateRoutine($id: ID!, $input: RoutineInput!, $restoring: Boolean, $confirmLoss: Boolean) {\n    updateRoutine(id: $id, input: $input, restoring: $restoring, confirmLoss: $confirmLoss) {\n      removedLinks\n    }\n  }\n"): typeof import('./graphql').UpdateRoutineDocument;
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */
-export function graphql(source: "\n  mutation PatchRoutine($id: ID!, $input: RoutinePatch!) {\n    patchRoutine(id: $id, input: $input) {\n      removedLinks\n    }\n  }\n"): typeof import('./graphql').PatchRoutineDocument;
+export function graphql(source: "\n  mutation PatchRoutine($id: ID!, $input: RoutinePatch!, $confirmLoss: Boolean) {\n    patchRoutine(id: $id, input: $input, confirmLoss: $confirmLoss) {\n      removedLinks\n    }\n  }\n"): typeof import('./graphql').PatchRoutineDocument;
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */
@@ -1960,7 +1960,7 @@ export function graphql(source: "\n  mutation MoveRoutine($id: ID!, $beforeId: I
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */
-export function graphql(source: "\n  mutation BulkUpdateRoutines($ids: [ID!]!, $changes: RoutineBulkChanges!) {\n    bulkUpdateRoutines(ids: $ids, changes: $changes) {\n      removedLinks\n    }\n  }\n"): typeof import('./graphql').BulkUpdateRoutinesDocument;
+export function graphql(source: "\n  mutation BulkUpdateRoutines($ids: [ID!]!, $changes: RoutineBulkChanges!, $confirmLoss: Boolean) {\n    bulkUpdateRoutines(ids: $ids, changes: $changes, confirmLoss: $confirmLoss) {\n      removedLinks\n    }\n  }\n"): typeof import('./graphql').BulkUpdateRoutinesDocument;
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */
@@ -1984,15 +1984,15 @@ export function graphql(source: "\n  mutation MoveRoutineOccurrence($id: ID!, $d
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */
-export function graphql(source: "\n  mutation ChangeRoutineOccurrence($id: ID!, $date: Date!, $scope: CalendarEventScope!, $to: Date!, $slot: Int!, $fromTime: String, $dueTime: String) {\n    changeRoutineOccurrence(id: $id, date: $date, scope: $scope, to: $to, slot: $slot, fromTime: $fromTime, dueTime: $dueTime)\n  }\n"): typeof import('./graphql').ChangeRoutineOccurrenceDocument;
+export function graphql(source: "\n  mutation ChangeRoutineOccurrence($id: ID!, $date: Date!, $scope: CalendarEventScope!, $to: Date!, $slot: Int!, $fromTime: String, $dueTime: String, $confirmLoss: Boolean) {\n    changeRoutineOccurrence(id: $id, date: $date, scope: $scope, to: $to, slot: $slot, fromTime: $fromTime, dueTime: $dueTime, confirmLoss: $confirmLoss)\n  }\n"): typeof import('./graphql').ChangeRoutineOccurrenceDocument;
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */
-export function graphql(source: "\n  mutation DeleteRoutineOccurrence($id: ID!, $date: Date!, $scope: CalendarEventScope!) {\n    deleteRoutineOccurrence(id: $id, date: $date, scope: $scope)\n  }\n"): typeof import('./graphql').DeleteRoutineOccurrenceDocument;
+export function graphql(source: "\n  mutation DeleteRoutineOccurrence($id: ID!, $date: Date!, $scope: CalendarEventScope!) {\n    deleteRoutineOccurrence(id: $id, date: $date, scope: $scope) {\n      archived\n      comments {\n        body\n        createdAt\n        updatedAt\n      }\n    }\n  }\n"): typeof import('./graphql').DeleteRoutineOccurrenceDocument;
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */
-export function graphql(source: "\n  mutation RemoveRoutineMove($id: ID!, $from: Date!) {\n    removeRoutineMove(id: $id, from: $from)\n  }\n"): typeof import('./graphql').RemoveRoutineMoveDocument;
+export function graphql(source: "\n  mutation RemoveRoutineMove($id: ID!, $from: Date!, $comments: [CommentSnapshotInput!]) {\n    removeRoutineMove(id: $id, from: $from, comments: $comments)\n  }\n"): typeof import('./graphql').RemoveRoutineMoveDocument;
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */
@@ -2380,7 +2380,7 @@ export function graphql(source: "\n  mutation UpdateTask($id: ID!, $input: TaskU
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */
-export function graphql(source: "\n  mutation CloneTask($id: ID!, $includeSubtasks: Boolean!) {\n    cloneTask(id: $id, includeSubtasks: $includeSubtasks) {\n      id\n      number\n    }\n  }\n"): typeof import('./graphql').CloneTaskDocument;
+export function graphql(source: "\n  mutation DuplicateTask($id: ID!, $includeSubtasks: Boolean!) {\n    duplicateTask(id: $id, includeSubtasks: $includeSubtasks) {\n      id\n      number\n    }\n  }\n"): typeof import('./graphql').DuplicateTaskDocument;
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */

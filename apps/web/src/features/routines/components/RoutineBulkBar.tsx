@@ -6,7 +6,11 @@ import type { SelectionAction } from '../../../components/data-table/selection/S
 import { duplicateRowsAction, archiveRowsAction, outermost, switchRowsAction } from '../../../components/data-table/selection/selection-actions';
 import { openModal } from '../../../components/panels/open-modal';
 import { DeleteRoutinesDialog } from './DeleteRoutinesDialog';
-import { routineInputOf, useRoutineMutations, useRoutinesData, type Routine } from '../api';
+import { routineInputOf, routinesKey, useRoutineMutations, useRoutinesData, type Routine } from '../api';
+import type { RoutinesDataQuery } from '../../../graphql/graphql';
+import { useQueryClient } from '@tanstack/react-query';
+import { cachedItem } from '../../../lib/mutation';
+import { openRoutineForm } from '../lib/open-routine-form';
 import { routinesLabel } from '../lib/routine-cell-edit';
 import { isDone, movableOccurrence } from '../lib/routine-format';
 import { usePostponeRoutine } from '../hooks/use-routine-move';
@@ -31,6 +35,7 @@ interface RoutineRowsActions {
 export function useRoutineRowsActions() {
   const { bulkArchive, bulkDone, create, copySubRoutines } = useRoutineMutations();
   const { data } = useRoutinesData();
+  const queryClient = useQueryClient();
   const postpone = usePostponeRoutine();
   return (routines: Routine[], onClear: () => void = () => undefined): RoutineRowsActions => {
     const ids = routines.map((routine) => routine.id);
@@ -77,8 +82,14 @@ export function useRoutineRowsActions() {
               // The API leaves out its former links out of its project tree.
               const copyId = await create.mutateAsync({ ...routineInputOf(routine), label: copyName(routine.label), copyOf: routine.id });
               if ((data?.routines ?? []).some((item) => item.parentId === routine.id)) await copySubRoutines.mutateAsync({ fromId: routine.id, toId: copyId });
+              return copyId;
             },
-            done: `${activeLabel} ${plural(activeIds.length, 'dupliquée')}.`,
+            done: activeIds.length > 1 ? `${activeLabel} ${plural(activeIds.length, 'dupliquée')}.` : 'Routine dupliquée.',
+            // Its panel, once the routines are refreshed with it.
+            open: (copyId) => {
+              const copy = cachedItem(queryClient, routinesKey, copyId, (routinesData: RoutinesDataQuery) => routinesData.routines);
+              if (copy) openRoutineForm({ routine: copy });
+            },
             loading: create.isPending || copySubRoutines.isPending,
           },
         ),

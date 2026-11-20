@@ -5,13 +5,14 @@ import { confirmDestructive } from '../../../components/dialogs/confirm-destruct
 import { Stack, Text, TextInput, UnstyledButton } from '@mantine/core';
 import { useDebouncedValue } from '@mantine/hooks';
 import { byPosition, shoppingListFormSchema } from '@ordo/shared';
-import { ArrowCounterClockwiseIcon, BankIcon, CheckCircleIcon, CopyIcon, FilePdfIcon, PencilSimpleIcon, TextAlignLeftIcon, TrashIcon } from '@phosphor-icons/react';
+import { ArrowCounterClockwiseIcon, BankIcon, CheckCircleIcon, FilePdfIcon, PencilSimpleIcon, TextAlignLeftIcon, TrashIcon } from '@phosphor-icons/react';
 import { useState } from 'react';
 import { useNavigate } from 'react-router';
 import { z } from 'zod';
 import { BatchMultiSelect } from '../../../components/inputs/BatchMultiSelect';
 import { ActionsMenu, type RowMenuEntry } from '../../../components/actions/ActionsMenu';
 import { useAppForm, formCallbacks } from '../../../lib/form';
+import { duplicateRowsAction, rowMenuEntry } from '../../../components/data-table/selection/selection-actions';
 import { notifyError, notifySuccess, onMutationError, toastCallbacks } from '../../../lib/notify';
 import { archiveEntry, useSetArchived } from '../../../lib/archive';
 import { useTaskContext } from '../../tasks/hooks/use-task-context';
@@ -172,15 +173,8 @@ function useListActions(list: ShoppingList, grouping: ShoppingGrouping, onDelete
           icon: <BankIcon aria-hidden />,
           onClick: () => openFormPanel('Rattacher à un mouvement de trésorerie', (close) => <EntryPicker list={list} onDone={close} />),
         },
-    {
-      label: 'Dupliquer',
-      icon: <CopyIcon aria-hidden />,
-      onClick: () =>
-        mutations.duplicateList.mutate(
-          { id: list.id },
-          formCallbacks(null, 'Liste dupliquée.', (copyId: string) => navigate(shoppingListPath(copyId))),
-        ),
-    },
+    // Saved at once, then its page opens (decision D20).
+    rowMenuEntry(duplicateRowsAction([list], { duplicate: (source) => mutations.duplicateList.mutateAsync({ id: source.id }), done: 'Liste dupliquée.', open: (copyId) => void navigate(shoppingListPath(copyId)) })),
     'divider',
     ...exports,
     'divider',

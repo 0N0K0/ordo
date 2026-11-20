@@ -37,7 +37,7 @@ Hooks et constantes exportés :
 | `useCreateTask()`             | Mutation `createTask`.                                                                                                                          |
 | `useUpdateTask()`             | Mutation `updateTask` (`{ id, input }`, sans projet : le projet change par transfert).                                                          |
 | `useSetTasksClosed()`         | Mutation `setTasksClosed` ; met à jour `closed` dans le cache tout de suite (optimiste).                                                        |
-| `useCloneTask()`              | Mutation `cloneTask` ; renvoie `id` et `number` du clone.                                                                                       |
+| `useDuplicateTask()`          | Mutation `duplicateTask` (décision D20, « … (copie) ») ; renvoie `id` et `number` de la copie.                                                                                       |
 | `useMoveTask()`               | Mutation `moveTask` (`id`, `beforeId`, `parentId?`) ; réordonne le cache tout de suite.                                                         |
 | `useTaskBlock()`              | Ajoute (`add: true`) ou retire un lien « bloque ».                                                                                              |
 | `useTaskRelation()`           | Ajoute ou retire un lien « relative à ».                                                                                                        |
@@ -89,7 +89,7 @@ Interne : `LabelDocuments` (documents CRUD par type de libellé), `useTasksMutat
 
 ### `components/TaskReminders.tsx`
 
-- `TaskReminders({ value, minDate, deadline, onChange, error?, disabled? })` : « Rappels » d'une tâche (décision D16), dans « Nouvelle tâche » (`TaskCreateForm`) et le panneau (`TaskDetail`, enregistré à chaque changement) : `RemindersSelect` en « À HH:MM » seulement (`kinds={['at']}`, `day` vide), aide selon « Date min » / « Date max », désactivé sans « Date max ».
+- `TaskReminders({ value, minDate, deadline, onChange, error?, disabled? })` : « Rappels » d'une tâche (décision D16), dans « Nouvelle tâche » (`TaskCreateForm`) et le panneau (`TaskDetail`, enregistré à chaque changement) : `RemindersSelect` en « À HH:MM » seulement (`kinds={['at']}`, `day` vide), aide selon « Ouverture » / « Échéance », désactivé sans échéance.
 
 ### `components/TaskLocation.tsx`
 
@@ -103,13 +103,12 @@ Dialogues sur une ou plusieurs tâches (props `TasksDialogProps`), ouverts par `
 | --------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
 | `DeleteTasksDialog`   | Confirmation destructive ; choix pour les sous-tâches (`CascadeChoice` : remonter ou supprimer) ; temps sans projet supprimés avec elles (`LostOnDeleteRisk`, selon le choix) ; ferme le panneau si la tâche ouverte est supprimée. |
 | `TransferTasksDialog` | Projet de destination ou « Sans projet » ; avertissement de sortie d’arborescence ; annulation (`useBulkUndo().transfer`) seulement sans lien retiré. Interne : `movedLevels`. |
-| `CloneTasksDialog`    | Clone chaque tâche du haut de la sélection avec ses sous-tâches (`outermost`) ; ouvre un clone unique.                                                                         |
 
 ### `components/BulkBar.tsx`
 
 | Nom                                | Rôle                                                                                                                                                                                                                                                                                                                                                             |
 | ---------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `useTaskRowsActions(context)`      | Fabrique des actions sur des tâches (barre de sélection et menu d’une tâche) : `close` (fermer / rouvrir, `switchRowsAction`), `clone`, `transfer`, `archive` (`archiveRowsAction`), `remove` ; chacune annulable depuis son toast si possible ; les tâches archivées ne sont prises que par l’archivage et la suppression. Interface interne `TaskRowsActions`. |
+| `useTaskRowsActions(context)`      | Fabrique des actions sur des tâches (barre de sélection et menu d’une tâche) : `close` (fermer / rouvrir, `switchRowsAction`), `duplicate` (`duplicateRowsAction` sur `outermost`, avec sous-tâches, copie unique ouverte), `transfer`, `archive` (`archiveRowsAction`), `remove` ; chacune annulable depuis son toast si possible ; les tâches archivées ne sont prises que par l’archivage et la suppression. Interface interne `TaskRowsActions`. |
 | `useTaskSelectionActions(context)` | Les mêmes actions en liste, pour la barre de sélection du tableau (`TaskBoard`).                                                                                                                                                                                                                                                                                 |
 
 ### `components/inline-cells.tsx`
@@ -126,7 +125,7 @@ Cellules modifiables en place des tâches (toutes en lecture seule sur une tâch
 | `AssigneesCell({ task, context })`          | Assignés ; sur une sélection, les contributeurs communs à tous les projets. Enveloppe `context-cells.AssigneesCell`.                    |
 | `BlockedByCell({ task, context })`          | « Dépend de » : ajoute / retire des blocages sur chaque tâche visée ; icône `DependencyIcon`.                                           |
 | `EffortCell({ task })`                      | Effort (`EditableNumber`).                                                                                                              |
-| `DateCell({ task, column, alert? })`        | « Début », « Fin », « Date min », « Date max » ; garde la période valide pour une seule tâche ; `alert` : couleur de retard.              |
+| `DateCell({ task, column, alert? })`        | « Début », « Fin », « Ouverture », « Échéance » ; garde la période valide pour une seule tâche ; `alert` : couleur de retard.              |
 | `TaskBeneficiariesCell({ task })`           | Bénéficiaires (`BeneficiariesCell`, `beneficiariesDiff`).                                                                               |
 | `TaskLinksCell({ task, context, kind })`    | « Bloque » ou « Relative à ».                                                                                                           |
 | `ParentCell({ task, context })`             | Tâche parente (pas elle-même ni ses sous-tâches).                                                                                       |
@@ -282,7 +281,7 @@ Internes : `NO_PROJECT_LABEL` (« Sans projet »), `NO_PROJECT_NODE`.
 
 ### `hooks/use-task-actions.tsx`
 
-- `useTaskActions(context)` : `{ menu(task), create(defaults?) }` : entrées du menu d’une tâche (« Cloner », « Transférer », « Archiver », « Supprimer » ; « Restaurer », « Supprimer » si archivée) et ouverture du formulaire de création dans le panneau (« Nouvelle tâche » / « Nouvelle sous-tâche »). Utilisé par `TaskBoard`, `TaskPanel`, le menu « Ajouter » de l’en-tête.
+- `useTaskActions(context)` : `{ menu(task), create(defaults?) }` : entrées du menu d’une tâche (« Dupliquer », « Transférer », « Archiver », « Supprimer » ; « Restaurer », « Supprimer » si archivée) et ouverture du formulaire de création dans le panneau (« Nouvelle tâche » / « Nouvelle sous-tâche »). Utilisé par `TaskBoard`, `TaskPanel`, le menu « Ajouter » de l’en-tête.
 
 ### `hooks/use-task-columns.ts`
 
@@ -367,11 +366,11 @@ Internes : `TaskColumnExtras`, `STATUS_CATEGORY_ORDER`, `STATUS_CATEGORY_LABELS`
 
 ### `lib/task-overdue.ts`
 
-- `isTaskOverdue(task, today)` : « Date max » passée et tâche non fermée (décision DD) ; la seule implémentation (règle eslint).
+- `isTaskOverdue(task, today)` : « Échéance » passée et tâche non fermée (décision DD) ; la seule implémentation (règle eslint).
 
 ### `lib/my-tasks.ts`
 
-- `myTasksFilter(period)` : filtre « Mes tâches » d’une période (`'today' | 'tomorrow' | 'week'`) : tâches ouvertes assignées à moi ou à personne, en retard, en cours, ou qui commencent, finissent, atteignent leur « Date max » ou se déroulent pendant la période. Utilisé par l’accueil (`home-data.ts`). Internes : `condition`, `group`.
+- `myTasksFilter(period)` : filtre « Mes tâches » d’une période (`'today' | 'tomorrow' | 'week'`) : tâches ouvertes assignées à moi ou à personne, en retard, en cours, ou qui commencent, finissent, atteignent leur échéance ou se déroulent pendant la période. Utilisé par l’accueil (`home-data.ts`). Internes : `condition`, `group`.
 
 ### `lib/event-format.ts`
 

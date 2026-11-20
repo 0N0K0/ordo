@@ -14,6 +14,7 @@ Requêtes et mutations GraphQL des routines (TanStack Query).
 | `Routine`                                | Type d'une routine telle que la charge `RoutinesData` (occurrences, moments, coches, état calculés par l'API).                                                                            |
 | `routinesKey`                            | Clé de cache `['routines']` ; préfixe aussi des coches et occurrences. Utilisée par `features/time/api` pour rafraîchir.                                                                  |
 | `RoutineCheck`                           | Type d'une coche (`routineChecks`).                                                                                                                                                       |
+| `CommentSnapshot`                        | Commentaire supprimé avec une occurrence (texte, dates), rendu par « Annuler » (`removeMove`, décision EV). |
 | `useRoutineChecks(from, to)`             | Coches d'une période (historique).                                                                                                                                                        |
 | `RoutineOccurrence`                      | Type d'une occurrence (`routineOccurrences`).                                                                                                                                             |
 | `useRoutineOccurrences(range, enabled?)` | Occurrences des routines non archivées d'une période (100 jours au plus) ; `range` `null` : rien chargé. Utilisée par l'historique, le formulaire de report, `CalendarPage`, `EventForm`. |
@@ -37,7 +38,7 @@ Mutations de `useRoutineMutations()` (toutes invalident `routinesKey` en arrièr
 | `patch`                                                                | `patchRoutine` (renvoie `removedLinks`)                     | fusionne les champs                             |
 | `move`                                                                 | `moveRoutine`                                               | `moveInCache`                                   |
 | `setDone`                                                              | `setRoutineDone`                                            | `withSlotsDone` (occurrence en cours seulement) |
-| `moveOccurrence`, `changeOccurrence`, `deleteOccurrence`, `removeMove` | exceptions                                                  | —                                               |
+| `moveOccurrence`, `changeOccurrence`, `deleteOccurrence`, `removeMove` | exceptions ; `deleteOccurrence` renvoie `{ archived, comments }`, `removeMove` rend ces `comments` (EV) ; `update`, `patch`, `bulkUpdate`, `changeOccurrence` passent par `withLossConfirmation` (EW) | —                                               |
 | `bulkUpdate`                                                           | `bulkUpdateRoutines` (renvoie `removedLinks`)               | `withBulkChanges`                               |
 | `bulkArchive`                                                          | `bulkSetRoutinesArchived`                                   | `archiveInCache` (sous-routines, parentes)      |
 | `bulkDone`                                                             | `bulkSetRoutinesDone`                                       | tous les moments                                |
@@ -63,8 +64,8 @@ Internes : `ROUTINE_VIEWS`, `movedCategories(categoryIds, from, to)` (catégorie
 
 | Export               | Rôle                                                                                                                                                                                                                                                                                                                                                                                                                                        |
 | -------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `RoutineFormProps`   | `routine?`, `copy?`, `parent?`, `categoryId?`, `projectId?`, `onDone`.                                                                                                                                                                                                                                                                                                                                                                      |
-| `RoutineForm(props)` | Formulaire complet (panneau latéral) : libellé, description markdown, liens (`LinksField` ; ceux de la routine copiée, aucun pour une nouvelle sous-routine), « Quand » (`RoutineSchedule`), fiches (`SheetsSection`), commentaires de l'occurrence (interne `RoutineComments` : prop `occurrenceDate` donnée par l'agenda, sinon `panelOccurrence` ; titre « Commentaires du … »), projet, catégories (création en ligne), assignés, bénéficiaires, temps, parente, « Dépend de » et « Relative à » (`linkableRoutine` : même arborescence de projets). Valeurs par défaut reprises de la parente ; copie avec ses sous-routines (`copySubRoutines`), sans ses anciens liens hors de son arborescence (`copiedLinks`). Enregistrée dans une autre arborescence : toast « Routine modifiée. » suivi de `removedLinksNote`. Validé par `routineSchema`. |
+| `RoutineFormProps`   | `routine?`, `parent?`, `categoryId?`, `projectId?`, `onDone`.                                                                                                                                                                                                                                                                                                                                                                      |
+| `RoutineForm(props)` | Formulaire complet (panneau latéral) : libellé, description markdown, liens (`LinksField` ; aucun pour une nouvelle sous-routine), « Quand » (`RoutineSchedule`), fiches (`SheetsSection`), commentaires de l'occurrence (interne `RoutineComments` : prop `occurrenceDate` donnée par l'agenda, sinon `panelOccurrence` ; titre « Commentaires du … »), projet, catégories (création en ligne), assignés, bénéficiaires, temps, parente, « Dépend de » et « Relative à » (`linkableRoutine` : même arborescence de projets). Valeurs par défaut reprises de la parente. Plus de mode copie (décision D20). Enregistrée dans une autre arborescence : toast « Routine modifiée. » suivi de `removedLinksNote`. Validé par `routineSchema`. |
 
 Interne : `RoutineFormValues`.
 
@@ -75,13 +76,13 @@ Interne : `RoutineFormValues`.
 | `RoutineRepetitionModal({ routine, opened, onClose, onApply, header? })` | Fenêtre « Répétition et moments de « … » » hors formulaire (cellule « Échéance ») ; `onApply` reçoit la répétition entière. Utilisée par `RepetitionCell`.                                                                                   |
 | `RoutineSchedule({ values, errors, onChange })`                          | Bloc « Quand » du formulaire : `RepetitionField` (résumé et fenêtre), lieu (`EventLocation`), trajets (`TravelField`, `TravelCalculator`), rappels (`RemindersSelect`, désactivés sans horaire), ligne départ / retour. |
 
-Internes : `RoutineScheduleValues`, `RoutineRepetitionValue`, `RoutineTimes`, `ANY_TIME`, `MomentsEditor` (moments avec « Facultatif »), `describeMoments`, `routineTimes(names)` (moments, condition et « à partir du » pour l'éditeur commun), `editedCases`, `fittingOpens`, `withEditedCases`, `RoutineRepetitionEditor` (première fois et `RepetitionEditor` en mode règle ou cas), `describeRepetition`, `routineRepetitionValue`, `validRepetition`.
+Internes : `RoutineScheduleValues`, `RoutineRepetitionValue`, `RoutineTimes`, `ANY_TIME`, `MomentsEditor` (moments avec « Facultatif »), `describeMoments`, `routineTimes(names)` (moments, condition et « Ouverture » pour l'éditeur commun), `editedCases`, `fittingOpens`, `withEditedCases`, `RoutineRepetitionEditor` (première fois et `RepetitionEditor` en mode règle ou cas), `describeRepetition`, `routineRepetitionValue`, `validRepetition`.
 
 ### `components/OpensOnInput.tsx`
 
 | Export                                                 | Rôle                                                                                                                                                           |
 | ------------------------------------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `OpensOnInput({ frequency, value, onChange, error? })` | Champ « À partir du » : modes selon la fréquence, jour, position, jour de semaine, mois, semaine, jours avant. Utilisé par `RoutineSchedule` et `OpensOnCell`. |
+| `OpensOnInput({ frequency, value, onChange, error? })` | Champ « Ouverture » : modes selon la fréquence, jour, position, jour de semaine, mois, semaine, jours avant. Utilisé par `RoutineSchedule` et `OpensOnCell`. |
 
 Internes : `NONE`, `modeOptions(frequency)`, `firstValue(mode, frequency)`.
 
@@ -129,7 +130,7 @@ Interne : `DoneToggle` (`StateSwitch` vert avec coche).
 
 | Export                         | Rôle                                                                                                                                                                                                                                                         |
 | ------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| `useRoutineRowsActions()`      | Actions d'une ou plusieurs routines : `done` (cocher / décocher), `postpone`, `duplicate` (avec sous-routines, `outermost` ; liens hors de l'arborescence non copiés, `copiedLinks`), `archive`, `remove` (ouvre `DeleteRoutinesDialog` dans une fenêtre). Les archivées sont exclues sauf pour archiver / supprimer. |
+| `useRoutineRowsActions()`      | Actions d'une ou plusieurs routines : `done` (cocher / décocher), `postpone`, `duplicate` (`duplicateRowsAction` : enregistrée tout de suite, « … (copie) », avec sous-routines, `outermost` ; liens hors de l'arborescence laissés de côté par l'API, `copyOf` ; la copie d'une seule routine s'ouvre, `cachedItem`), `archive`, `remove` (ouvre `DeleteRoutinesDialog` dans une fenêtre). Les archivées sont exclues sauf pour archiver / supprimer. |
 | `useRoutineSelectionActions()` | Liste de ces actions pour la barre de sélection.                                                                                                                                                                                                             |
 
 Interne : `RoutineRowsActions`.
@@ -168,7 +169,7 @@ Interne : `CellProps`.
 | `RoutineLocationCell` | Lieu : `LocationCell` (features/geo) sur la sélection du tableau (`useRoutineCellEdit`).                           |
 | `TravelCell`        | Trajet aller / retour.                                                                                                |
 | `RemindersCell`     | Rappels (badge cloche, `RemindersSelect`, libellés `reminderLabel`), différence appliquée à chaque routine sélectionnée.                        |
-| `OpensOnCell`       | « À partir du » (pas pour une routine à cas) ; en masse, seulement aux routines dont la fréquence convient.           |
+| `OpensOnCell`       | « Ouverture » (pas pour une routine à cas) ; en masse, seulement aux routines dont la fréquence convient.           |
 | `BlocksCell`        | Routines qui attendent celle-ci (de son arborescence, `linkableRoutine`) ; patch des dépendances des autres routines. |
 
 Interne : `hasOwnTimes(routine)`.
@@ -236,7 +237,6 @@ Interne : `MovedTimes`.
 | `routinePath(routine, byId)`                           | « Linge › Étendre ».                                                                                                                                                                      |
 | `waitingFor(routine, byId)`                            | Routines requises encore à faire.                                                                                                                                                         |
 | `linkableRoutine(context, projectId, selfId, linked?)` | Routines proposées pour un lien (« Dépend de », « Bloque », « Relative à ») : pas elle-même, non archivées, de son arborescence de projets (`inProjectTree`) ; celles déjà liées restent. |
-| `copiedLinks(routine, context, byId)`                  | Liens d'une copie (« Dépend de », « Relative à ») gardés à son arborescence de projets : un ancien lien hors d'elle n'est pas copié (inchangés tant que les projets chargent). Utilisé par `RoutineForm` (valeurs de départ d'une copie, pour ne pas montrer des liens qui ne seront pas copiés) ; la règle elle-même est appliquée par l'API (`createRoutine(input, copyOf)`), seule utilisée par `useRoutineRowsActions` (« Dupliquer »). |
 | `windowOf(routine)`                                    | `{ fromTime: windowFrom, dueTime: windowTo }`.                                                                                                                                            |
 | `scheduleOf(routine)`                                  | Départ / retour (`routineSchedule`).                                                                                                                                                      |
 | `windowText(window)`                                   | « 8:20–8:30 », « avant 8:30 », « dès 16:30 », fenêtres jointes par « ou ». Utilisé aussi par les alarmes et l'accueil.                                                                    |
@@ -251,7 +251,7 @@ Interne : `MovedTimes`.
 
 | Export                      | Rôle                                                                                                                               |
 | --------------------------- | ---------------------------------------------------------------------------------------------------------------------------------- |
-| `opensWords(routine)`       | « À partir du » de la règle en clair, capitalisé.                                                                                  |
+| `opensWords(routine)`       | « Ouverture » de la règle en clair, capitalisé.                                                                                  |
 | `ROUTINE_STATE_LABELS`      | « En retard », « À faire », « À venir », « Faite ».                                                                                |
 | `REPETITION_LABELS`         | « Chaque jour » … « Selon un planning ».                                                                                           |
 | `routineFrequency(routine)` | Fréquence (quotidienne par défaut).                                                                                                |

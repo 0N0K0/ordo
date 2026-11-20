@@ -2,12 +2,16 @@ import { InlineActions } from '../../../components/actions/ActionsMenu';
 import { confirmDestructive } from '../../../components/dialogs/confirm-destructive';
 import { StateSwitch } from '../../../components/inputs/StateSwitch';
 import { Anchor, Badge, Group, Paper, Stack, Text } from '@mantine/core';
-import { CopyIcon, PencilSimpleIcon, TrashIcon } from '@phosphor-icons/react';
+import { PencilSimpleIcon, TrashIcon } from '@phosphor-icons/react';
+import { useQueryClient } from '@tanstack/react-query';
+import { duplicateRowsAction, rowMenuEntry } from '../../../components/data-table/selection/selection-actions';
+import { cachedItem } from '../../../lib/mutation';
+import { copyName } from '../../../lib/text';
 import { Link } from 'react-router';
 import { ON_ERROR } from '../../../lib/notify';
 import type { TaskContext } from '../../tasks/hooks/use-task-context';
 import { alarmTarget, describeAlarm, nextRing } from '../lib/alarm-labels';
-import { useAlarmMutations, type Alarm } from '../api';
+import { alarmsQueryKey, useAlarmMutations, type Alarm } from '../api';
 import type { AlarmFormOpener } from '../hooks/use-alarm-form';
 import * as fmt from '../../../lib/format';
 
@@ -31,7 +35,8 @@ interface AlarmListProps {
 }
 
 /**
- * Alarms, one card each: title, schedule, next ring, task or project, note; on / off, edit, copy, delete.
+ * Alarms, one card each: title, schedule, next ring, task or project, note; on / off, edit, duplicate (saved at once,
+ * then its form opens: decision D20), delete.
  * @param {AlarmListProps} props Component props.
  * @param {Alarm[]} props.alarms Alarms.
  * @param {TaskContext} props.context Task context.
@@ -40,7 +45,8 @@ interface AlarmListProps {
  * @returns {JSX.Element} List.
  */
 export function AlarmList({ alarms, context, openForm, showTarget = true }: AlarmListProps) {
-  const { update, remove } = useAlarmMutations();
+  const { create, update, remove } = useAlarmMutations();
+  const queryClient = useQueryClient();
   const now = new Date();
 
   /**
@@ -107,7 +113,16 @@ export function AlarmList({ alarms, context, openForm, showTarget = true }: Alar
                   name={alarm.label}
                   items={[
                     { label: 'Modifier', icon: <PencilSimpleIcon aria-hidden />, onClick: () => openForm(alarm) },
-                    { label: 'Dupliquer', icon: <CopyIcon aria-hidden />, onClick: () => openForm(alarm, { copy: true }) },
+                    rowMenuEntry(
+                      duplicateRowsAction([alarm], {
+                        duplicate: async (source) => (await create.mutateAsync(toAlarmInput(source, { label: copyName(source.label) }))).id,
+                        done: 'Alarme dupliquée.',
+                        open: (id) => {
+                          const copy = cachedItem(queryClient, alarmsQueryKey, id, (list: Alarm[]) => list);
+                          if (copy) openForm(copy);
+                        },
+                      }),
+                    ),
                     { label: 'Supprimer', icon: <TrashIcon aria-hidden />, danger: true, onClick: () => confirmDelete(alarm) },
                   ]}
                 />

@@ -206,7 +206,7 @@ function LinkForm({ projectId, board, initial, context, onDone }: LinkFormProps)
         />
         <Select label="Début" placeholder="Non synchronisé" clearable data={fieldsOf('DATE')} value={values.startFieldId} onChange={(startFieldId) => change({ startFieldId })} />
         <Select label="Fin" placeholder="Non synchronisée" clearable data={fieldsOf('DATE')} value={values.endFieldId} onChange={(endFieldId) => change({ endFieldId })} />
-        <Select label="Date max" placeholder="Non synchronisée" clearable data={fieldsOf('DATE')} value={values.deadlineFieldId} onChange={(deadlineFieldId) => change({ deadlineFieldId })} />
+        <Select label="Échéance" placeholder="Non synchronisée" clearable data={fieldsOf('DATE')} value={values.deadlineFieldId} onChange={(deadlineFieldId) => change({ deadlineFieldId })} />
         <Select label="Effort" placeholder="Non synchronisé" clearable data={fieldsOf('NUMBER')} value={values.effortFieldId} onChange={(effortFieldId) => change({ effortFieldId })} />
         <Select
           label="Temps passé"

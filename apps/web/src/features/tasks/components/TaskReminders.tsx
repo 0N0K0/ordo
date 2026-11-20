@@ -5,7 +5,7 @@ import { RemindersSelect } from '../../../components/inputs/RemindersSelect';
 interface TaskRemindersProps {
   /** Reminders chosen (« À HH:MM » only). */
   value: readonly ReminderFields[];
-  /** « Date min » and « Date max » of the task (YYYY-MM-DD). */
+  /** « Ouverture » and « Échéance » of the task (YYYY-MM-DD). */
   minDate: string | null | undefined;
   deadline: string | null | undefined;
   onChange: (reminders: Reminder[]) => void;
@@ -15,7 +15,7 @@ interface TaskRemindersProps {
 
 /**
  * « Rappels » of a task, in its creation form and its panel (decision D16): times of the day, rung every day from its
- * « Date min » to its « Date max » (the « Date max » day only without « Date min »); disabled without « Date max ».
+ * « Ouverture » to its « Échéance » (the « Échéance » day only without « Ouverture »); disabled without « Échéance ».
  * @param {TaskRemindersProps} props Component props.
  * @returns {JSX.Element} Field.
  */
@@ -27,10 +27,10 @@ export function TaskReminders({ value, minDate, deadline, onChange, error, disab
       label="Rappels"
       description={
         !deadline
-          ? 'Donnez-lui une « Date max » pour recevoir des rappels.'
+          ? 'Donnez-lui une échéance pour recevoir des rappels.'
           : minDate
-            ? 'Chaque jour de la « Date min » à la « Date max », à ces heures.'
-            : 'Le jour de la « Date max », à ces heures.'
+            ? 'Chaque jour de l’ouverture à l’échéance, à ces heures.'
+            : 'Le jour de l’échéance, à ces heures.'
       }
       leftSection={<BellIcon aria-hidden />}
       emptyLabel="Aucun"

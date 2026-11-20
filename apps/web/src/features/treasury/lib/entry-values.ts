@@ -1,7 +1,11 @@
 import { localToday } from '../../../lib/dates';
 import { ON_ERROR } from '../../../lib/notify';
 import type { Recurrence, TreasuryAllocationInput } from '@ordo/shared';
-import { useTreasuryMutations, type ForecastEntry, type TreasuryEntry } from '../api';
+import { useQueryClient } from '@tanstack/react-query';
+import type { DuplicateOptions } from '../../../components/data-table/selection/selection-actions';
+import { cachedItem } from '../../../lib/mutation';
+import { copyName } from '../../../lib/text';
+import { treasuryKey, useTreasuryMutations, type ForecastEntry, type TreasuryEntry } from '../api';
 import { newSplitLine, type LineLink, type LineValues } from './lines';
 import { directionOf } from '@ordo/shared';
 
@@ -153,4 +157,24 @@ export function useEntryCellSave() {
   const { updateEntry } = useTreasuryMutations();
   return (entry: TreasuryEntry | ForecastEntry, change: Partial<EntryValues>) =>
     updateEntry.mutate({ id: entry.id, input: entryPayload({ ...entryValues(entry, { status: entry.status, copy: false, accountId: entry.accountId }), ...change }) as never }, ON_ERROR);
+}
+
+/**
+ * « Dupliquer » of an entry or a forecast (decision D20): its copy saved at once, « … (copie) », settling no document
+ * (the original already does) and with lines of its own, then its form opens.
+ * @param {(entry: TreasuryEntry | ForecastEntry) => void} open Opens the form of the copy.
+ * @returns {DuplicateOptions<TreasuryEntry | ForecastEntry, string>} « Dupliquer ».
+ */
+export function useEntryDuplicate(open: (entry: TreasuryEntry | ForecastEntry) => void): DuplicateOptions<TreasuryEntry | ForecastEntry, string> {
+  const { createEntry } = useTreasuryMutations();
+  const queryClient = useQueryClient();
+  return {
+    duplicate: (entry) =>
+      createEntry.mutateAsync(entryPayload({ ...entryValues(entry, { status: entry.status, copy: true, accountId: entry.accountId }), label: copyName(entry.label) }) as never),
+    done: 'Mouvement dupliqué.',
+    open: (id) => {
+      const copy = cachedItem(queryClient, treasuryKey, id, (data: unknown) => (Array.isArray(data) ? (data as (TreasuryEntry | ForecastEntry)[]) : undefined));
+      if (copy) open(copy);
+    },
+  };
 }

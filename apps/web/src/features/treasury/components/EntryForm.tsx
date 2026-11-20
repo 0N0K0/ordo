@@ -89,8 +89,6 @@ interface EntryFormProps {
   entry?: TreasuryEntry | ForecastEntry;
   /** New entry: actual or forecast. */
   status?: 'ACTUAL' | 'FORECAST';
-  /** The entry is copied into a new one (its settlements of documents left out). */
-  copy?: boolean;
   onDone: () => void;
 }
 
@@ -101,7 +99,7 @@ interface EntryFormProps {
  * @param {EntryFormProps} props Component props.
  * @returns {JSX.Element} Form.
  */
-export function EntryForm({ entry, status = 'ACTUAL', copy = false, onDone }: EntryFormProps) {
+export function EntryForm({ entry, status = 'ACTUAL', onDone }: EntryFormProps) {
   const { data: accounts } = useTreasuryAccounts();
   const { data: settings } = useTreasurySettings();
   const { data: documentOptions } = useTreasuryDocumentOptions();
@@ -114,7 +112,7 @@ export function EntryForm({ entry, status = 'ACTUAL', copy = false, onDone }: En
   const { createEntry, updateEntry } = useTreasuryMutations();
   const open = unarchived(accounts ?? [], entry?.accountId);
   const form = useAppForm<EntryValues>({
-    initialValues: entryValues(entry, { status, copy, accountId: open[0]?.id ?? '' }),
+    initialValues: entryValues(entry, { status, copy: false, accountId: open[0]?.id ?? '' }),
     schema: treasuryEntrySchema,
   });
   const values = form.values;
@@ -169,8 +167,8 @@ export function EntryForm({ entry, status = 'ACTUAL', copy = false, onDone }: En
 
   const handleSubmit = form.onSubmit((input) => {
     const payload = entryPayload(input);
-    const callbacks = formCallbacks(form, copy ? 'Mouvement dupliqué.' : entry ? 'Mouvement modifié.' : 'Mouvement ajouté.', onDone);
-    if (entry && !copy) updateEntry.mutate({ id: entry.id, input: payload }, callbacks);
+    const callbacks = formCallbacks(form, entry ? 'Mouvement modifié.' : 'Mouvement ajouté.', onDone);
+    if (entry) updateEntry.mutate({ id: entry.id, input: payload }, callbacks);
     else createEntry.mutate(payload, callbacks);
   });
 
@@ -390,7 +388,7 @@ export function EntryForm({ entry, status = 'ACTUAL', copy = false, onDone }: En
           <FormActions onCancel={onDone} loading={createEntry.isPending || updateEntry.isPending} />
         </Stack>
       </form>
-      {entry && !copy && 'id' in entry && <Comments target="TREASURY_ENTRY" id={entry!.id} readOnly={entry!.archived} />}
+      {entry && 'id' in entry && <Comments target="TREASURY_ENTRY" id={entry!.id} readOnly={entry!.archived} />}
     </Stack>
   );
 }

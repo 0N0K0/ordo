@@ -67,8 +67,8 @@ Une catégorie, un moyen de paiement, un tiers, une relation ou un contexte cré
 ### Actions du prévisionnel
 
 - Recherche « Rechercher (libellé, tiers) », vues, filtres, tris, groupements, colonnes, export : comme toutes les tables (voir [Tables de données](../../web/components/data-table.md)).
-- Ligne d’une prévision : action principale « Réaliser » ; menu « Modifier la prévision », « Dupliquer la prévision », « Archiver » / « Restaurer », « Supprimer ».
-- Ligne d’un mouvement réel à venir : action principale « Modifier le mouvement » ; menu « Dupliquer le mouvement », « Archiver » / « Restaurer », « Supprimer ».
+- Ligne d’une prévision : action principale « Réaliser » ; menu « Modifier la prévision », « Dupliquer », « Archiver » / « Restaurer », « Supprimer ».
+- Ligne d’un mouvement réel à venir : action principale « Modifier le mouvement » ; menu « Dupliquer », « Archiver » / « Restaurer », « Supprimer ».
 - Factures, avoirs, importés, récurrentes : pas d’action de ligne (le libellé mène au document).
 - Sélection (« N prévisions ») : « Archiver » et « Supprimer » sur les prévisions saisies seulement ; si des factures à venir sont sélectionnées, la confirmation précise « (les factures à venir sélectionnées ne le sont pas) ».
 - Édition en place et en masse : une modification appliquée à la sélection d’une colonne enregistre chaque prévision une seule fois (une prévision répétée apparaît sur plusieurs lignes) ; une prévision répétée ne se déplace que par sa règle (son formulaire), pas par la cellule de date.
@@ -142,7 +142,7 @@ En masse, une modification qui ne convient pas à un mouvement (décomposé, ou 
 
 ## Formulaire de mouvement
 
-Ouvert dans le panneau latéral (large) : « Nouveau mouvement », « Nouvelle prévision », « Modifier le mouvement », « Dupliquer le mouvement », « Dupliquer la prévision ».
+Ouvert dans le panneau latéral (large) : « Nouveau mouvement », « Nouvelle prévision », « Modifier le mouvement ».
 
 | Champ                                              | Règle d’interface                                                                                                                                                                                                                           |
 | -------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -168,9 +168,9 @@ Comportements :
 - Documents proposés : factures validées (entrée) ou avoirs (sortie), Ordo ou importés, non archivés et encore dus, ou déjà réglés par ce mouvement ; libellé « N° — client (reste X) ».
 - Choisir un document propose comme montant réglé le reste dû (dans la limite du montant restant à affecter) ; un mouvement sans montant prend ce montant ; un mouvement sans libellé prend « Règlement [document] » / « Remboursement [document] ».
 - La répartition ne se modifie pas dans le formulaire (voir [Répartition dépliée](#répartition-dépliée)) : les lignes d’un mouvement décomposé sont gardées telles quelles à l’enregistrement. Texte, décomposé : « Décomposé : catégorie, projet, pièces justificatives et liens se précisent sur chaque ligne de sa répartition, dépliée sous le mouvement dans le tableau (« détails »). » ; sinon : « La répartition par membre, catégorie et contexte se fait dans le tableau, une fois le mouvement enregistré : action « Répartir » de sa ligne. ». Une erreur de l’enregistrement sur une ligne s’affiche en alerte « Répartition : … ».
-- Dupliquer : copie sans les documents réglés et sans les identifiants de lignes.
-- En modification (pas en copie), les commentaires du mouvement s’affichent sous le formulaire (lecture seule s’il est archivé).
-- Toasts : « Mouvement ajouté. », « Mouvement modifié. », « Mouvement dupliqué. ».
+- « Dupliquer » (décision D20, menu d’une ligne) : la copie, « … (copie) », est enregistrée tout de suite, sans les documents réglés et avec ses propres lignes (« Mouvement dupliqué. »), puis son formulaire s’ouvre.
+- En modification, les commentaires du mouvement s’affichent sous le formulaire (lecture seule s’il est archivé).
+- Toasts : « Mouvement ajouté. », « Mouvement modifié. ».
 
 ## Onglet « Budgets »
 
@@ -182,7 +182,7 @@ Comportements :
 
 ### Formulaire de budget
 
-« Nouveau budget », « Modifier le budget », « Dupliquer le budget » :
+« Nouveau budget », « Modifier le budget » (« Dupliquer » d’un budget l’enregistre tout de suite avec les mêmes valeurs, « Budget dupliqué. », puis ouvre « Modifier le budget » sur la copie, décision D20) :
 
 - « Mois » / « À partir de » (requis), « Sorties prévues » / « Entrées prévues » (requis, positif, préfixe − / +) ;
 - sens « Sorties » / « Entrées » (déduit de la catégorie, défaut sorties ; changer de sens vide une catégorie de l’autre sens) ;

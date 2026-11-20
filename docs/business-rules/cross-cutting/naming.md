@@ -15,6 +15,8 @@ Voir aussi : [core](../../shared/cross-cutting/core.md), [Erreurs](errors.md), [
 ## Mots employés
 
 - Décision DZ : un horaire prévu de l'agenda (`WorkSchedule`) s'appelle partout « créneau » (« un créneau », « Créneaux de travail » en PRO, « Créneaux » en PERSO, « Type de créneau ») ; l'ancien mot (voir décision DZ) n'est plus employé, ni dans l'interface, ni dans les messages de l'API, ni dans la documentation.
+- « Ouverture » et « Échéance » : les deux jours qui bornent une tâche (`minDate`, `deadline`) s'appellent « Ouverture » et « Échéance » (« l'ouverture », « l'échéance », au féminin ; « date d'ouverture » quand un groupe nominal se lit mieux) ; le jour dès lequel une occurrence de routine peut être faite (`opensOn`, son premier jour) s'appelle aussi « Ouverture ». Les anciens libellés « Date min » / « Date max » (tâches) et « À partir du » (tâches et routines) ne sont plus employés, ni dans l'interface, ni dans les messages de l'API, ni dans la documentation (« à partir du » reste dans les phrases ordinaires et pour les dates de début d'une alarme, d'un créneau, d'une recherche de mails ou d'une livraison).
+- Décision D20 (EZ) : copier un élément se dit partout « Dupliquer » (la copie, « … (copie) », est enregistrée tout de suite puis ouverte) ; « Cloner » n'est plus employé.
 - Les heures d'un créneau un jour donné sont ses « horaires » (« Créneau du 12 novembre » dans le formulaire du jour, « Horaires retirés du créneau. ») ; un intervalle de dates qui n'est pas un créneau est une « période ».
 
 ## Longueurs maximales
@@ -76,7 +78,7 @@ Décision CB : deux noms sont le même nom s'ils ont la même clé `nameKey` : e
 
 ## Copies
 
-`copyName(name)` : « Nom (copie) », le nom coupé si nécessaire pour garder le suffixe dans les 250 caractères. Utilisé pour dupliquer un graphique, une liste de courses, une fiche, une routine, une alarme, un évènement, une vue, un créneau.
+`copyName(name)` : « Nom (copie) », le nom coupé si nécessaire pour garder le suffixe dans les 250 caractères. Utilisé par « Dupliquer » (décision D20) : un graphique, une liste de courses, une fiche, une tâche, une routine, une alarme, un évènement, une vue, un créneau, un mouvement ou une prévision de trésorerie.
 
 ## Textes venus d'ailleurs
 

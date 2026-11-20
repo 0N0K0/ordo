@@ -178,7 +178,7 @@ export function RemindersCell({ routine, readOnly = false }: { routine: Routine;
 }
 
 /**
- * « À partir du » cell: the day each occurrence of its rule can be done from (its cases have theirs, in its repetition).
+ * « Ouverture » cell: the day each occurrence of its rule can be done from (its cases have theirs, in its repetition).
  * @param {{ routine: Routine, readOnly?: boolean }} props Component props (read only: archived or being created).
  * @returns {JSX.Element} Cell.
  */

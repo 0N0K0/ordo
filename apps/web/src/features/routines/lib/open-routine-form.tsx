@@ -9,7 +9,7 @@ import { RoutineForm, type RoutineFormProps } from '../components/RoutineForm';
 export function openRoutineForm(props: Omit<RoutineFormProps, 'onDone'> = {}): void {
   // As wide as the task panel, laid out the same.
   openFormPanel(
-    props.routine ? (props.copy ? 'Dupliquer la routine' : 'Modifier la routine') : props.parent ? `Nouvelle sous-routine de « ${props.parent.label} »` : 'Nouvelle routine',
+    props.routine ? 'Modifier la routine' : props.parent ? `Nouvelle sous-routine de « ${props.parent.label} »` : 'Nouvelle routine',
     (close) => <RoutineForm {...props} onDone={close} />,
     'lg',
   );

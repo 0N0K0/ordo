@@ -43,7 +43,7 @@ const monthNumber = z.number().int().min(1).max(12);
 const weekdayNumber = z.number().int().min(1).max(7);
 
 /**
- * « À partir du »: day an occurrence can be done from, before its due day. A day number (the 15th, the 15th of March),
+ * « Ouverture »: day an occurrence can be done from, before its due day. A day number (the 15th, the 15th of March),
  * a weekday of the month (the 2nd Tuesday, the last Friday of March), the weekday of a week (the Monday of the 3rd week
  * of the month, of the ISO week 12 of the year), all in its period (its month, its year: the one before when that day
  * comes after its due day); or some days before its due day.
@@ -62,9 +62,9 @@ export type RoutineOpens = z.infer<typeof routineOpensSchema>;
 export type RoutineOpensMode = RoutineOpens['mode'];
 
 /**
- * « À partir du » as saved: an object, or the former "DD" (monthly) and "MM-DD" (yearly); null when none or invalid.
+ * « Ouverture » as saved: an object, or the former "DD" (monthly) and "MM-DD" (yearly); null when none or invalid.
  * @param {unknown} value Saved value.
- * @returns {RoutineOpens | null} « À partir du ».
+ * @returns {RoutineOpens | null} « Ouverture ».
  */
 export function readOpens(value: unknown): RoutineOpens | null {
   if (typeof value === 'string') {
@@ -77,9 +77,9 @@ export function readOpens(value: unknown): RoutineOpens | null {
 }
 
 /**
- * Whether an « à partir du » fits a frequency: some days before always; a day of the period for a monthly (without
+ * Whether an « Ouverture » fits a frequency: some days before always; a day of the period for a monthly (without
  * month, a week of the month) or a yearly one (with its month, an ISO week).
- * @param {RoutineOpens} opens « À partir du ».
+ * @param {RoutineOpens} opens « Ouverture ».
  * @param {Recurrence['frequency']} frequency Frequency of its rule.
  * @returns {boolean} It fits.
  */
@@ -90,7 +90,7 @@ export function opensFits(opens: RoutineOpens, frequency: Recurrence['frequency'
   return false;
 }
 
-const OPENS_MISFIT = 'Ce « à partir du » ne vaut pas pour cette répétition : un jour du mois (mensuelle), de l’année (annuelle), ou des jours avant.';
+const OPENS_MISFIT = 'Cette ouverture ne vaut pas pour cette répétition : un jour du mois (mensuelle), de l’année (annuelle), ou des jours avant.';
 
 /** A case of a routine: on which days (a repetition, as the events'), and its times of the day. */
 export const routineCaseSchema = z
@@ -103,7 +103,7 @@ export const routineCaseSchema = z
     condition: slotConditionSchema.nullable().default(null),
     recurrence: recurrenceSchema,
     slots: z.array(routineSlotSchema).min(1, 'Ajoutez au moins un moment.').max(10, '10 moments au plus.'),
-    /** « À partir du » of its occurrences (none: from their first day). */
+    /** « Ouverture » of its occurrences (none: from their first day). */
     opens: routineOpensSchema.nullable().default(null),
   })
   .refine((item) => item.slots.some((slot) => !slot.optional), { path: ['slots'], message: 'Au moins un moment doit être obligatoire.' })
@@ -143,7 +143,7 @@ export const routineSchema = z
     slotCondition: slotConditionSchema.nullable().default(null),
     /** Times of the day following its rule. */
     moments: z.array(routineSlotSchema).max(10, '10 moments au plus.').default([]),
-    /** Reminders (decision D16): minutes before each time of the day from its first day (« à partir du », « dès »), or a time of that day. */
+    /** Reminders (decision D16): minutes before each time of the day from its first day (« Ouverture », « dès »), or a time of that day. */
     reminders: remindersSchema.default([]),
     /** Where it is done: free text, and its point when chosen from the map or a search. */
     location: optionalText().default(null),
@@ -160,7 +160,7 @@ export const routineSchema = z
     requiredIds: z.array(z.string()).max(100),
     /** « Relative à »: routines related to this one (both ways), in its project tree. */
     relatedIds: z.array(z.string()).max(100),
-    /** « À partir du » of the occurrences of its rule (its cases have theirs); null: from their first day. */
+    /** « Ouverture » of the occurrences of its rule (its cases have theirs); null: from their first day. */
     opensOn: routineOpensSchema.nullable().default(null),
   })
   .refine(...endAfter('fromTime', 'dueTime', true))
@@ -169,8 +169,8 @@ export const routineSchema = z
 export type RoutineInput = z.input<typeof routineSchema>;
 
 /**
- * Day of a month an « à partir du » points to (its month for a yearly one).
- * @param {Extract<RoutineOpens, { mode: 'DAY' | 'WEEKDAY' | 'WEEK' }>} opens « À partir du ».
+ * Day of a month an « Ouverture » points to (its month for a yearly one).
+ * @param {Extract<RoutineOpens, { mode: 'DAY' | 'WEEKDAY' | 'WEEK' }>} opens « Ouverture ».
  * @param {number} year Year.
  * @param {number} month Month (1-12).
  * @returns {string} YYYY-MM-DD.
@@ -201,10 +201,10 @@ function isoWeekDate(year: number, week: number, weekday: number): string {
 }
 
 /**
- * Day an occurrence can be done from: its « à partir du » in its period (its month, its year; the one before when
- * that day comes after its due day), or some days before its due day; its due day without « à partir du ».
+ * Day an occurrence can be done from: its « Ouverture » in its period (its month, its year; the one before when
+ * that day comes after its due day), or some days before its due day; its due day without « Ouverture ».
  * @param {string} due Due day (YYYY-MM-DD).
- * @param {RoutineOpens | null} opens « À partir du ».
+ * @param {RoutineOpens | null} opens « Ouverture ».
  * @param {Recurrence['frequency']} frequency Frequency of its rule.
  * @returns {string} YYYY-MM-DD.
  */
@@ -229,7 +229,7 @@ export function routineOpenDate(due: string, opens: RoutineOpens | null, frequen
 
 /**
  * Days at most between the day an occurrence can be done from and its due day.
- * @param {RoutineOpens | null} opens « À partir du ».
+ * @param {RoutineOpens | null} opens « Ouverture ».
  * @returns {number} Days.
  */
 export const opensReach = (opens: RoutineOpens | null): number => (!opens ? 0 : opens.mode === 'BEFORE' ? opens.days : 400);
@@ -246,13 +246,13 @@ const PERIOD_DAYS: Record<Recurrence['frequency'], number> = { DAILY: 1, WEEKLY:
  * @param {Recurrence} rule Rule.
  * @param {string} start First date.
  * @param {string} today Today.
- * @param {RoutineOpens | null} [opensOn] Day an occurrence can be done from (« à partir du »): the next one is the current one
+ * @param {RoutineOpens | null} [opensOn] Day an occurrence can be done from (« Ouverture »): the next one is the current one
  * from then. Optional. Default = null.
  * @returns {{ current: string | null, next: string | null }} Dates (null: none, before the start or once the rule has ended).
  */
 export function routineOccurrences(rule: Recurrence, start: string, today: string, opensOn: RoutineOpens | null = null): { current: string | null; next: string | null } {
   if (opensOn) {
-    // The next occurrence is the current one as soon as it can be done (from its « à partir du »).
+    // The next occurrence is the current one as soon as it can be done (from its « Ouverture »).
     const found = routineOccurrences(rule, start, today);
     if (found.next && today >= routineOpenDate(found.next, opensOn, rule.frequency)) return { current: found.next, next: routineOccurrences(rule, start, found.next).next };
     return found;
@@ -479,7 +479,7 @@ export interface RoutineBulkChanges {
   dueTime?: string | null;
   startDate?: string;
   recurrence?: Recurrence;
-  /** Whole repetition (with recurrence): its cases (empty: its rule), moments, condition and « à partir du ». */
+  /** Whole repetition (with recurrence): its cases (empty: its rule), moments, condition and « Ouverture ». */
   cases?: RoutineCaseInput[];
   moments?: RoutineSlot[];
   slotCondition?: SlotCondition | null;

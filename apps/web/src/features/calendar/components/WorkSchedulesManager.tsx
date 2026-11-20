@@ -16,7 +16,10 @@ import {
   type WorkScheduleInput,
   workScheduleSchema,
 } from '@ordo/shared';
-import { CopyIcon, ClockIcon, PencilSimpleIcon, PlusIcon } from '@phosphor-icons/react';
+import { ClockIcon, PencilSimpleIcon, PlusIcon } from '@phosphor-icons/react';
+import { useQueryClient } from '@tanstack/react-query';
+import { cachedItem } from '../../../lib/mutation';
+import type { WorkSchedulesQuery } from '../../../graphql/graphql';
 import { DataTable } from '../../../components/data-table/table/DataTable';
 import { bulkCellLabels, bulkSaver } from '../../../components/data-table/selection/bulk-edit';
 import { EditableDate, EditableSelect, EditableText } from '../../../components/data-table/cells/EditableCells';
@@ -39,7 +42,7 @@ import { Comments } from '../../comments/components/Comments';
 import { useCommentCounts } from '../../comments/api';
 import { commentColumn } from '../../comments/lib/comment-column';
 import { CreatableSelect } from '../../../components/inputs/CreatableSelect';
-import { archiveRowsAction, deleteItemsAction, rowMenuEntry } from '../../../components/data-table/selection/selection-actions';
+import { archiveRowsAction, deleteItemsAction, duplicateRowsAction, rowMenuEntry, type DuplicateOptions } from '../../../components/data-table/selection/selection-actions';
 import { selectedLabel } from '../../../components/data-table/selection/selection-label';
 import { useScheduleTypeItems } from '../hooks/use-settings-items';
 import { itemCreator } from '../../../components/settings/create-settings-item';
@@ -56,26 +59,38 @@ interface ScheduleValues extends Record<string, unknown> {
 }
 
 /**
+ * Input of a schedule as it is saved (its hours and exceptions kept): the base of a change in its cells or of a copy.
+ * @param {WorkSchedule} schedule Schedule.
+ * @returns {WorkScheduleInput} Input.
+ */
+const scheduleInputOf = (schedule: WorkSchedule): WorkScheduleInput => ({
+  label: schedule.label,
+  startDate: schedule.startDate,
+  endDate: schedule.endDate || null,
+  cases: readScheduleCases(schedule.cases, schedule.startDate),
+  exceptions: readScheduleExceptions(schedule.exceptions),
+  typeId: schedule.typeId ?? null,
+});
+
+/**
  * Schedule form: label, kind, period, its cases (days and hours), and exceptions (a period with cases of its own,
  * edited the same way, or none: a pause). Rhythms ("every n weeks"…) are offered only when the period is long enough.
- * A copy starts with the cases and the kind of its schedule, without dates nor exceptions, saved as a new one.
- * @param {{ schedule?: WorkSchedule, copyOf?: WorkSchedule, onDone: () => void }} props Component props.
+ * @param {{ schedule?: WorkSchedule, onDone: () => void }} props Component props.
  * @returns {JSX.Element} Form.
  */
-function ScheduleForm({ schedule, copyOf, onDone }: { schedule?: WorkSchedule; copyOf?: WorkSchedule; onDone: () => void }) {
+function ScheduleForm({ schedule, onDone }: { schedule?: WorkSchedule; onDone: () => void }) {
   const { create, update } = useWorkScheduleMutations();
   const typeItems = useScheduleTypeItems();
   const { data: types } = useScheduleTypes();
   const { data: defaultKind } = useDefaultScheduleKind();
   const form = useAppForm<ScheduleValues>({
     initialValues: {
-      label: schedule?.label ?? (copyOf ? copyName(copyOf.label) : 'Semaine type'),
-      // A copy has no dates: to choose.
-      startDate: schedule ? schedule.startDate : copyOf ? '' : localToday(),
+      label: schedule?.label ?? 'Semaine type',
+      startDate: schedule ? schedule.startDate : localToday(),
       endDate: schedule?.endDate ? schedule.endDate : null,
-      cases: schedule ? readScheduleCases(schedule.cases, schedule.startDate) : copyOf ? readScheduleCases(copyOf.cases, copyOf.startDate) : [newScheduleCase(localToday())],
+      cases: schedule ? readScheduleCases(schedule.cases, schedule.startDate) : [newScheduleCase(localToday())],
       exceptions: schedule ? readScheduleExceptions(schedule.exceptions) : [],
-      typeId: schedule?.typeId ?? copyOf?.typeId ?? null,
+      typeId: schedule?.typeId ?? null,
     },
     schema: workScheduleSchema,
   });
@@ -98,11 +113,6 @@ function ScheduleForm({ schedule, copyOf, onDone }: { schedule?: WorkSchedule; c
         )}
       >
         <Stack gap="md">
-          {copyOf && (
-            <Text size="sm" c="dimmed">
-              Copie de « {copyOf.label} », sans ses dates ni ses exceptions : choisissez ses dates.
-            </Text>
-          )}
           <Group grow align="flex-start">
             <TextInput label="Libellé" required data-autofocus {...form.getInputProps('label')} />
             <CreatableSelect
@@ -178,7 +188,8 @@ export function WorkSchedulesManager() {
   const { data: schedules } = useWorkSchedules();
   const { data: types } = useScheduleTypes();
   const { data: defaultKind } = useDefaultScheduleKind();
-  const { remove, update } = useWorkScheduleMutations();
+  const { create, remove, update } = useWorkScheduleMutations();
+  const queryClient = useQueryClient();
   const setArchived = useSetArchived('WORK_SCHEDULE', [calendarQueryKey]);
 
   /**
@@ -190,15 +201,7 @@ export function WorkSchedulesManager() {
   const saveSchedule = (schedule: WorkSchedule, change: Partial<WorkScheduleInput>) => {
     // Archived: read only (a bulk change skips it).
     if (schedule.archived) return;
-    const input = {
-      label: schedule.label,
-      startDate: schedule.startDate,
-      endDate: schedule.endDate || null,
-      cases: readScheduleCases(schedule.cases, schedule.startDate),
-      exceptions: readScheduleExceptions(schedule.exceptions),
-      typeId: schedule.typeId ?? null,
-      ...change,
-    };
+    const input = { ...scheduleInputOf(schedule), ...change };
     const result = workScheduleSchema.safeParse(input);
     if (!result.success) {
       notifyError(`${result.error.issues[0]?.message ?? 'Valeur invalide.'} Rien n’a été modifié.`);
@@ -208,16 +211,21 @@ export function WorkSchedulesManager() {
   };
   const { perso } = useActiveWorkspace();
   /**
-   * Opens the form of a schedule in a side panel: a new one, a copy, or one to edit.
-   * @param {{ schedule?: WorkSchedule, copyOf?: WorkSchedule }} [target] Schedule to edit or to copy. Optional. Default = a new one.
+   * Opens the form of a schedule in a side panel: a new one, or one to edit.
+   * @param {{ schedule?: WorkSchedule }} [target] Schedule to edit. Optional. Default = a new one.
    * @returns {void}
    */
-  const openForm = ({ schedule, copyOf }: { schedule?: WorkSchedule; copyOf?: WorkSchedule } = {}) => {
-    openFormPanel(
-      schedule ? `Modifier « ${schedule.label} »` : copyOf ? `Dupliquer « ${copyOf.label} »` : 'Nouveaux créneaux',
-      (close) => <ScheduleForm schedule={schedule} copyOf={copyOf} onDone={close} />,
-      'lg',
-    );
+  const openForm = ({ schedule }: { schedule?: WorkSchedule } = {}) => {
+    openFormPanel(schedule ? `Modifier « ${schedule.label} »` : 'Nouveaux créneaux', (close) => <ScheduleForm schedule={schedule} onDone={close} />, 'lg');
+  };
+  /** « Dupliquer » a schedule (decision D20): saved at once with its dates, cases and type, without its exceptions, then its form opens. */
+  const duplicateSchedule: DuplicateOptions<WorkSchedule, string> = {
+    duplicate: (schedule) => create.mutateAsync({ ...scheduleInputOf(schedule), label: copyName(schedule.label), exceptions: [] }),
+    done: 'Créneaux dupliqués.',
+    open: (id) => {
+      const copy = cachedItem(queryClient, [...calendarQueryKey, 'work-schedules'], id, (data: WorkSchedulesQuery) => data.workSchedules);
+      if (copy) openForm({ schedule: copy });
+    },
   };
   /**
    * « Supprimer » of schedules, on a row as on a selection.
@@ -452,7 +460,7 @@ export function WorkSchedulesManager() {
                 name={schedule.label}
                 primary={!schedule.archived && { label: 'Modifier', icon: <PencilSimpleIcon aria-hidden />, onClick: () => openForm({ schedule }) }}
                 items={[
-                  !schedule.archived && { label: 'Dupliquer (sans dates ni exceptions)', icon: <CopyIcon aria-hidden />, onClick: () => openForm({ copyOf: schedule }) },
+                  !schedule.archived && rowMenuEntry(duplicateRowsAction([schedule], duplicateSchedule)),
                   archiveEntry({ archived: schedule.archived, type: 'Créneau', label: schedule.label }, setArchived, schedule.id),
                   rowMenuEntry(deleteSchedules([row])),
                 ]}

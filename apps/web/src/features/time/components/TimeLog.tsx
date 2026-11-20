@@ -4,7 +4,7 @@ import { localDay } from '../../../lib/dates';
 import { EmptyState } from '../../../components/feedback/EmptyState';
 import { Badge, Text } from '@mantine/core';
 import { entrySeconds, formatDuration, lineageOf, sumOf, round2 } from '@ordo/shared';
-import { ClockIcon, CopyIcon, PencilSimpleIcon, TrashIcon } from '@phosphor-icons/react';
+import { ClockIcon, PencilSimpleIcon, TrashIcon } from '@phosphor-icons/react';
 import type { ReactNode } from 'react';
 import { Link } from 'react-router';
 import { DataTable } from '../../../components/data-table/table/DataTable';
@@ -25,7 +25,7 @@ import { commentColumn } from '../../comments/lib/comment-column';
 import { useRoutinesData } from '../../routines/api';
 import { routineTreeOptions } from '../../routines/lib/routine-format';
 import type { TreeOption } from '../../../components/tree/tree-select';
-import { deleteRowsAction } from '../../../components/data-table/selection/selection-actions';
+import { deleteRowsAction, duplicateRowsAction, rowMenuEntry, type DuplicateOptions } from '../../../components/data-table/selection/selection-actions';
 import { selectedLabel } from '../../../components/data-table/selection/selection-label';
 import { TimeDayCell, TimeDurationCell, TimeEventsCell, TimeRoutinesCell, TimeStartCell, TimeTasksCell } from './time-cells';
 import { hasSubject } from '../lib/time-subjects';
@@ -203,7 +203,8 @@ interface TimeLogProps {
   projectId: string | null;
   emptyMessage: string;
   onEdit: (entry: TimeEntry) => void;
-  onDuplicate: (entry: TimeEntry) => void;
+  /** « Dupliquer » of a time (`useTimeEntryDialogs`). */
+  onDuplicate: DuplicateOptions<TimeEntry, string>;
   onDelete: (entry: TimeEntry) => void;
   /** Buttons after the tabs of the views (add a time, start a timer). Optional. */
   actions?: ReactNode;
@@ -347,7 +348,7 @@ export function TimeLog({ entries, context, projectId, emptyMessage, onEdit, onD
             about="ce temps"
             primary={!entry.documentNumber && { label: 'Modifier', icon: <PencilSimpleIcon aria-hidden />, onClick: () => onEdit(entry) }}
             items={[
-              { label: 'Dupliquer', icon: <CopyIcon aria-hidden />, onClick: () => onDuplicate(entry) },
+              rowMenuEntry(duplicateRowsAction([entry], onDuplicate)),
               !entry.documentNumber && { label: 'Supprimer', icon: <TrashIcon aria-hidden />, danger: true, onClick: () => onDelete(entry) },
             ]}
           />

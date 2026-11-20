@@ -1,5 +1,5 @@
 import { readReminders, type Reminder } from '@ordo/shared';
-import { copyName, removedLinksNote } from '../../../lib/text';
+import { removedLinksNote } from '../../../lib/text';
 import { NO_SUGGESTIONS } from '../../../components/markdown/remark-references';
 import { Divider, Grid, NumberInput, Select, Stack, TextInput } from '@mantine/core';
 import {
@@ -14,18 +14,16 @@ import {
   type RoutineSlot,
   type SlotCondition,
   subtreeOf,
-  mapById,
 } from '@ordo/shared';
 import { BatchMultiSelect } from '../../../components/inputs/BatchMultiSelect';
 import { categoryOptions } from '../../../components/tree/category-tree';
 import { unarchived, unarchivedOffered } from '../../../lib/archive';
 import { localToday } from '../../../lib/dates';
 import { useAppForm, formCallbacks } from '../../../lib/form';
-import { ON_ERROR } from '../../../lib/notify';
 import { AssigneesSelect, ProjectSelect } from '../../tasks/components/task-ui';
 import { useTaskContext } from '../../tasks/hooks/use-task-context';
 import { useRoutineMutations, useRoutinesData, type Routine } from '../api';
-import { copiedLinks, DAILY, linkableRoutine, panelOccurrence, routineTreeOptions, ruleOf } from '../lib/routine-format';
+import { DAILY, linkableRoutine, panelOccurrence, routineTreeOptions, ruleOf } from '../lib/routine-format';
 import * as fmt from '../../../lib/format';
 import { RoutineSchedule } from './RoutineSchedule';
 import { treeSelectProps } from '../../../components/tree/tree-select';
@@ -73,8 +71,6 @@ interface RoutineFormValues extends Record<string, unknown> {
 export interface RoutineFormProps {
   /** Routine edited. */
   routine?: Routine;
-  /** The routine is copied into a new one (its ticks and tracked time are not). */
-  copy?: boolean;
   /** Parent of a new sub-routine (its category, rule and assignees are taken by default). */
   parent?: Routine;
   /** Category of a new routine. */
@@ -87,22 +83,22 @@ export interface RoutineFormProps {
 }
 
 /**
- * Routine, laid out as the task panel: title; description and when it comes (first date, repetition, « à partir du »)
+ * Routine, laid out as the task panel: title; description and when it comes (first date, repetition, « Ouverture »)
  * on the left; project, categories, assignees, beneficiaries, time to spend, slots, parent routine, the routines it
  * depends on and those it is related to (of its project tree, as the tasks) on the right.
  * @param {RoutineFormProps} props Component props.
  * @returns {JSX.Element} Form.
  */
-export function RoutineForm({ routine, copy = false, parent, categoryId = null, projectId = null, occurrenceDate = null, onDone }: RoutineFormProps) {
+export function RoutineForm({ routine, parent, categoryId = null, projectId = null, occurrenceDate = null, onDone }: RoutineFormProps) {
   const { data } = useRoutinesData();
   const { context } = useTaskContext();
-  const { create, update, copySubRoutines } = useRoutineMutations();
+  const { create, update } = useRoutineMutations();
   const categoryItems = useRoutineCategoryItems();
   const routines = data?.routines ?? [];
   const source = routine ?? parent;
   const form = useAppForm<RoutineFormValues>({
     initialValues: {
-      label: routine ? (copy ? copyName(routine.label) : routine.label) : '',
+      label: routine?.label ?? '',
       description: routine?.description ?? '',
       categoryIds: routine ? routine.categoryIds : (parent?.categoryIds ?? (categoryId ? [categoryId] : [])),
       parentId: routine ? routine.parentId : (parent?.id ?? null),
@@ -124,8 +120,8 @@ export function RoutineForm({ routine, copy = false, parent, categoryId = null, 
       travelAfter: routine?.travelAfter ?? 0,
       projectId: routine ? routine.projectId : (parent?.projectId ?? projectId),
       assigneeIds: routine?.assigneeIds ?? parent?.assigneeIds ?? [],
-      // A copy leaves out the former links out of its project tree (shown here; the API leaves them out in any case).
-      ...(routine && copy ? copiedLinks(routine, context, mapById(routines)) : { requiredIds: routine?.requiredIds ?? [], relatedIds: routine?.relatedIds ?? [] }),
+      requiredIds: routine?.requiredIds ?? [],
+      relatedIds: routine?.relatedIds ?? [],
       beneficiaryIds: routine?.beneficiaryIds ?? parent?.beneficiaryIds ?? [],
       beneficiaryRelationIds: routine?.beneficiaryRelationIds ?? parent?.beneficiaryRelationIds ?? [],
       opensOn: readOpens(routine?.opensOn),
@@ -133,7 +129,7 @@ export function RoutineForm({ routine, copy = false, parent, categoryId = null, 
     schema: routineSchema,
   });
   // Neither the routine nor its sub-routines can be its parent; it cannot depend on itself.
-  const excluded = routine && !copy ? subtreeOf(routines, routine.id) : new Set<string>();
+  const excluded = routine ? subtreeOf(routines, routine.id) : new Set<string>();
   /**
    * Options of a select of routines, in tree order under their parent routine (greyed out when not offered).
    * @param {(item: Routine) => boolean} filter Routines offered (active ones only).
@@ -141,29 +137,21 @@ export function RoutineForm({ routine, copy = false, parent, categoryId = null, 
    */
   const routineOptions = (filter: (item: Routine) => boolean) => routineTreeOptions(routines, (item) => !item.archived && filter(item));
   /**
-   * Options of a link with other routines (« Dépend de », « Relative à »): those of its project tree, not itself (a
-   * copy may link to it); those linked already stay.
+   * Options of a link with other routines (« Dépend de », « Relative à »): those of its project tree, not itself;
+   * those linked already stay.
    * @param {string[]} linked Routines linked already.
    * @returns {TreeOption[]} Options.
    */
   const linkOptions = (linked: string[]) =>
-    routineTreeOptions(routines, context ? linkableRoutine(context, form.values.projectId, copy ? null : (routine?.id ?? null), linked) : () => false);
+    routineTreeOptions(routines, context ? linkableRoutine(context, form.values.projectId, routine?.id ?? null, linked) : () => false);
 
   const handleSubmit = form.onSubmit((values) => {
-    // « À partir du » of its rule (its cases have theirs): dropped when it no longer fits the repetition.
+    // « Ouverture » of its rule (its cases have theirs): dropped when it no longer fits the repetition.
     const opensOn = values.opensOn && !values.cases.length && opensFits(values.opensOn, values.recurrence.frequency) ? values.opensOn : null;
     const input = { ...values, description: values.description || null, opensOn };
     // Moved to another project tree: the links left out of it are removed, and told (as for a task transferred).
-    if (routine && !copy) update.mutate({ id: routine.id, input }, formCallbacks(form, ({ removedLinks }) => `Routine modifiée.${removedLinksNote(removedLinks)}`, onDone));
-    else
-      create.mutate(
-        { ...input, copyOf: copy && routine ? routine.id : null },
-        formCallbacks(form, copy ? 'Routine dupliquée.' : 'Routine créée.', (created) => {
-          // A copy takes the sub-routines of the routine with it, under itself.
-          if (copy && routine && routines.some((item) => item.parentId === routine.id)) copySubRoutines.mutate({ fromId: routine.id, toId: created }, ON_ERROR);
-          onDone();
-        }),
-      );
+    if (routine) update.mutate({ id: routine.id, input }, formCallbacks(form, ({ removedLinks }) => `Routine modifiée.${removedLinksNote(removedLinks)}`, onDone));
+    else create.mutate(input, formCallbacks(form, 'Routine créée.', onDone));
   });
 
   return (
@@ -185,8 +173,8 @@ export function RoutineForm({ routine, copy = false, parent, categoryId = null, 
               <SubSection title="Quand" gap="md">
                 <RoutineSchedule values={form.values} errors={form.errors} onChange={(changes) => form.setValues(changes)} />
               </SubSection>
-              {routine && !copy && <SheetsSection owner={{ routineId: routine.id }} occurrenceDate={routine.currentDate || null} label={routine.label} />}
-              {routine && !copy && <RoutineComments routine={routine} occurrenceDate={occurrenceDate ?? panelOccurrence(routine)} />}
+              {routine && <SheetsSection owner={{ routineId: routine.id }} occurrenceDate={routine.currentDate || null} label={routine.label} />}
+              {routine && <RoutineComments routine={routine} occurrenceDate={occurrenceDate ?? panelOccurrence(routine)} />}
             </Stack>
           </Grid.Col>
           <Grid.Col span={{ base: 12, md: 4 }}>
@@ -250,7 +238,7 @@ export function RoutineForm({ routine, copy = false, parent, categoryId = null, 
             </Stack>
           </Grid.Col>
         </Grid>
-        <FormActions onCancel={onDone} submitLabel={routine && !copy ? 'Enregistrer' : 'Créer'} loading={create.isPending || update.isPending} />
+        <FormActions onCancel={onDone} submitLabel={routine ? 'Enregistrer' : 'Créer'} loading={create.isPending || update.isPending} />
       </Stack>
     </form>
   );

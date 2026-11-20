@@ -52,7 +52,7 @@ Dans les tableaux (tâches, temps, routines, achats, stock, documents, trésorer
 - Reporter une occurrence d’évènement emmène ses commentaires vers le report.
 - Les commentaires écrits avant qu’ils portent sur une occurrence sont placés par l’application à la première lecture (voir [Règles des commentaires](../../business-rules/cross-cutting/comments.md)).
 - Supprimer une tâche supprime ses commentaires (dit dans la confirmation : « … et ses commentaires seront supprimés définitivement »).
-- Cloner une tâche ne copie pas ses commentaires.
+- Dupliquer une tâche ne copie pas ses commentaires.
 
 ## Espace PRO / PERSO
 

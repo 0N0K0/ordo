@@ -1,4 +1,3 @@
-import { copyName } from '../../../lib/text';
 import { NumberInput, SegmentedControl, SimpleGrid, Stack, Switch, Text, Textarea, TextInput } from '@mantine/core';
 import { DatePickerInput, TimePicker } from '@mantine/dates';
 import { alarmInputSchema, alarmRule, type AlarmType, type Recurrence } from '@ordo/shared';
@@ -50,8 +49,6 @@ export interface AlarmDefaults {
 interface AlarmFormProps {
   context: TaskContext;
   alarm?: Alarm;
-  /** The alarm is copied into a new one. */
-  copy?: boolean;
   /** Values of a new alarm. */
   defaults?: AlarmDefaults;
   onDone: () => void;
@@ -63,11 +60,11 @@ interface AlarmFormProps {
  * @param {AlarmFormProps} props Component props.
  * @returns {JSX.Element} Form.
  */
-export function AlarmForm({ context, alarm, copy = false, defaults, onDone }: AlarmFormProps) {
+export function AlarmForm({ context, alarm, defaults, onDone }: AlarmFormProps) {
   const { create, update } = useAlarmMutations();
   const form = useAppForm<AlarmFormValues>({
     initialValues: {
-      label: alarm ? (copy ? copyName(alarm.label) : alarm.label) : (defaults?.label ?? ''),
+      label: alarm ? alarm.label : (defaults?.label ?? ''),
       note: alarm?.note ?? '',
       type: alarm?.type ?? 'REMINDER',
       startDate: alarm?.startDate ?? localToday(),
@@ -85,8 +82,8 @@ export function AlarmForm({ context, alarm, copy = false, defaults, onDone }: Al
 
   const handleSubmit = form.onSubmit((values) => {
     const input: AlarmInput = { ...values, ...legacyFields(values.recurrence), note: values.note || null, minutes: tracking ? values.minutes : null };
-    const callbacks = formCallbacks(form, copy ? 'Alarme dupliquée.' : alarm ? 'Alarme modifiée.' : 'Alarme créée.', onDone);
-    if (alarm && !copy) update.mutate({ id: alarm.id, input }, callbacks);
+    const callbacks = formCallbacks(form, alarm ? 'Alarme modifiée.' : 'Alarme créée.', onDone);
+    if (alarm) update.mutate({ id: alarm.id, input }, callbacks);
     else create.mutate(input, callbacks);
   });
 
@@ -152,7 +149,7 @@ export function AlarmForm({ context, alarm, copy = false, defaults, onDone }: Al
         </SimpleGrid>
         <Textarea label="Description" autosize minRows={2} maxRows={8} {...form.getInputProps('note')} />
         <Switch label="Active" {...form.getInputProps('enabled', { type: 'checkbox' })} />
-        <FormActions onCancel={onDone} submitLabel={alarm && !copy ? 'Enregistrer' : 'Créer l’alarme'} loading={create.isPending || update.isPending} />
+        <FormActions onCancel={onDone} submitLabel={alarm ? 'Enregistrer' : 'Créer l’alarme'} loading={create.isPending || update.isPending} />
       </Stack>
     </form>
   );

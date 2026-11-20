@@ -1,6 +1,7 @@
 import { openFile } from '../../files/lib/open-file';
 import { FileBadge } from '../../../components/items/FileBadge';
 import { IconAction } from '../../../components/actions/IconAction';
+import { DuplicateButton } from '../../../components/actions/DuplicateButton';
 import { DetailNotFound } from '../../../components/feedback/DetailNotFound';
 import { ArchivedNotice } from '../../../components/feedback/ArchivedNotice';
 import { NoticeAlert } from '../../../components/feedback/NoticeAlert';
@@ -37,7 +38,6 @@ import {
 import {
   ArrowsClockwiseIcon,
   ClockIcon,
-  CopyIcon,
   DownloadSimpleIcon,
   EyeIcon,
   FileArrowDownIcon,
@@ -455,14 +455,15 @@ function Editor({ document }: { document: AccountingDocument }) {
               </ActionButton>
             )}
             {!isTemplate && !archived && (
-              <IconAction
-                label="Dupliquer"
-                hint="Dupliquer en brouillon"
+              <DuplicateButton
+                iconOnly
                 size="lg"
-                onClick={() => mutations.duplicate.mutate({ id: document.id, issueDate: localToday() }, { onSuccess: (id) => void navigate(documentPath(id)), onError: onMutationError })}
-              >
-                <CopyIcon aria-hidden />
-              </IconAction>
+                item={document}
+                hint="Copie en brouillon, datée d’aujourd’hui"
+                duplicate={(source) => mutations.duplicate.mutateAsync({ id: source.id, issueDate: localToday() })}
+                done="Document dupliqué en brouillon."
+                open={(id) => void navigate(documentPath(id))}
+              />
             )}
           </>
         }

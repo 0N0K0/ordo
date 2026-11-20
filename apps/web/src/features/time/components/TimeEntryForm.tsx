@@ -19,8 +19,6 @@ interface TimeEntryFormProps {
   entry?: TimeEntry;
   /** Project of a new entry. */
   defaultProjectId?: string;
-  /** The entry is copied into a new one (not billed). */
-  copy?: boolean;
   onDone: () => void;
 }
 
@@ -30,7 +28,7 @@ interface TimeEntryFormProps {
  * @param {TimeEntryFormProps} props Component props.
  * @returns {JSX.Element} Form.
  */
-export function TimeEntryForm({ context, entry, defaultProjectId, copy = false, onDone }: TimeEntryFormProps) {
+export function TimeEntryForm({ context, entry, defaultProjectId, onDone }: TimeEntryFormProps) {
   const { create, update } = useTimeMutations();
   const parts = entry ? localParts(entry.startedAt) : null;
   const initial = parts ? { date: parts.date, start: parts.time } : { date: localToday(), start: '09:00' };
@@ -60,8 +58,8 @@ export function TimeEntryForm({ context, entry, defaultProjectId, copy = false, 
       duration: parseDuration(values.duration)!,
       events: parseEventKeys(values.events),
     };
-    const callbacks = formCallbacks(form, copy ? 'Temps dupliqué.' : entry ? 'Temps modifié.' : 'Temps ajouté.', onDone);
-    if (entry && !copy) update.mutate({ id: entry.id, input }, callbacks);
+    const callbacks = formCallbacks(form, entry ? 'Temps modifié.' : 'Temps ajouté.', onDone);
+    if (entry) update.mutate({ id: entry.id, input }, callbacks);
     else create.mutate(input, callbacks);
   });
 
@@ -104,10 +102,10 @@ export function TimeEntryForm({ context, entry, defaultProjectId, copy = false, 
             suggestions={context.suggestionsFor(form.values.projectId || null)}
             minRows={3}
           />
-          <FormActions onCancel={onDone} submitLabel={entry && !copy ? 'Enregistrer' : 'Ajouter'} loading={create.isPending || update.isPending} />
+          <FormActions onCancel={onDone} submitLabel={entry ? 'Enregistrer' : 'Ajouter'} loading={create.isPending || update.isPending} />
         </Stack>
       </form>
-      {entry && !copy && <Comments target="TIME_ENTRY" id={entry!.id} projectId={entry!.projectId ?? null} />}
+      {entry && <Comments target="TIME_ENTRY" id={entry!.id} projectId={entry!.projectId ?? null} />}
     </Stack>
   );
 }

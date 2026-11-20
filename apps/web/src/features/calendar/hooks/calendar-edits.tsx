@@ -88,7 +88,8 @@ export function useCalendarEdits() {
   };
 
   /**
-   * Deletes an occurrence of a routine, or it and the following ones, telling the comments deleted with them (decision D19).
+   * Deletes an occurrence of a routine, or it and the following ones, telling the comments deleted with them (decision D19);
+   * « Annuler » gives a single occurrence back with its comments.
    * @param {RoutineOccurrenceRef} occurrence Occurrence.
    * @param {string | null} movedFrom Day of the rule it was moved from, if any.
    * @returns {Promise<void>}
@@ -102,9 +103,10 @@ export function useCalendarEdits() {
       { id: routine.id, date, scope },
       {
         onError: onMutationError,
-        onSuccess: (archived) => {
+        onSuccess: ({ archived, comments }) => {
           if (archived) notifySuccess(`Plus aucune occurrence : « ${routine.label} » est archivée.`);
-          else if (scope === 'THIS') notifyWithUndo(`Occurrence du ${fmt.dayLong(date)} supprimée.`, () => removeMove.mutate({ id: routine.id, from: movedFrom ?? date }, ON_ERROR));
+          // « Annuler » gives the occurrence back with its comments.
+          else if (scope === 'THIS') notifyWithUndo(`Occurrence du ${fmt.dayLong(date)} supprimée.`, () => removeMove.mutate({ id: routine.id, from: movedFrom ?? date, comments }, ON_ERROR));
           else notifySuccess(`« ${routine.label} » s’arrête avant le ${fmt.dayLong(date)}.`);
         },
       },

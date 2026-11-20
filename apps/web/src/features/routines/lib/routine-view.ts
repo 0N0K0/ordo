@@ -6,7 +6,7 @@ import { ruleOf } from './routine-format';
 import * as fmt from '../../../lib/format';
 
 /**
- * « À partir du » of the rule of a routine in words (« Le 15 du mois »); null without one.
+ * « Ouverture » of the rule of a routine in words (« Le 15 du mois »); null without one.
  * @param {Routine} routine Routine.
  * @returns {string | null} Words.
  */

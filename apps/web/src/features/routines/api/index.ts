@@ -17,8 +17,9 @@ import { useQuery, type QueryKey } from '@tanstack/react-query';
 import { tasksQueryKey } from '../../tasks/api';
 import { moveInTree } from '../../../components/tree/category-tree';
 import { graphql } from '../../../graphql';
-import type { CalendarEventScope, RoutineChecksQuery, RoutineOccurrencesQuery, RoutinesDataQuery } from '../../../graphql/graphql';
+import type { CalendarEventScope, DeleteRoutineOccurrenceMutation, RoutineChecksQuery, RoutineOccurrencesQuery, RoutinesDataQuery } from '../../../graphql/graphql';
 import { execute } from '../../../lib/graphql-client';
+import { withLossConfirmation } from '../../time/lib/confirm-loss';
 
 export type RoutineCategory = RoutinesDataQuery['routineCategories'][number];
 export type Routine = RoutinesDataQuery['routines'][number];
@@ -139,16 +140,16 @@ const CreateRoutineDocument = graphql(`
 `);
 
 const UpdateRoutineDocument = graphql(`
-  mutation UpdateRoutine($id: ID!, $input: RoutineInput!, $restoring: Boolean) {
-    updateRoutine(id: $id, input: $input, restoring: $restoring) {
+  mutation UpdateRoutine($id: ID!, $input: RoutineInput!, $restoring: Boolean, $confirmLoss: Boolean) {
+    updateRoutine(id: $id, input: $input, restoring: $restoring, confirmLoss: $confirmLoss) {
       removedLinks
     }
   }
 `);
 
 const PatchRoutineDocument = graphql(`
-  mutation PatchRoutine($id: ID!, $input: RoutinePatch!) {
-    patchRoutine(id: $id, input: $input) {
+  mutation PatchRoutine($id: ID!, $input: RoutinePatch!, $confirmLoss: Boolean) {
+    patchRoutine(id: $id, input: $input, confirmLoss: $confirmLoss) {
       removedLinks
     }
   }
@@ -161,8 +162,8 @@ const MoveRoutineDocument = graphql(`
 `);
 
 const BulkUpdateRoutinesDocument = graphql(`
-  mutation BulkUpdateRoutines($ids: [ID!]!, $changes: RoutineBulkChanges!) {
-    bulkUpdateRoutines(ids: $ids, changes: $changes) {
+  mutation BulkUpdateRoutines($ids: [ID!]!, $changes: RoutineBulkChanges!, $confirmLoss: Boolean) {
+    bulkUpdateRoutines(ids: $ids, changes: $changes, confirmLoss: $confirmLoss) {
       removedLinks
     }
   }
@@ -199,20 +200,27 @@ const MoveRoutineOccurrenceDocument = graphql(`
 `);
 
 const ChangeRoutineOccurrenceDocument = graphql(`
-  mutation ChangeRoutineOccurrence($id: ID!, $date: Date!, $scope: CalendarEventScope!, $to: Date!, $slot: Int!, $fromTime: String, $dueTime: String) {
-    changeRoutineOccurrence(id: $id, date: $date, scope: $scope, to: $to, slot: $slot, fromTime: $fromTime, dueTime: $dueTime)
+  mutation ChangeRoutineOccurrence($id: ID!, $date: Date!, $scope: CalendarEventScope!, $to: Date!, $slot: Int!, $fromTime: String, $dueTime: String, $confirmLoss: Boolean) {
+    changeRoutineOccurrence(id: $id, date: $date, scope: $scope, to: $to, slot: $slot, fromTime: $fromTime, dueTime: $dueTime, confirmLoss: $confirmLoss)
   }
 `);
 
 const DeleteRoutineOccurrenceDocument = graphql(`
   mutation DeleteRoutineOccurrence($id: ID!, $date: Date!, $scope: CalendarEventScope!) {
-    deleteRoutineOccurrence(id: $id, date: $date, scope: $scope)
+    deleteRoutineOccurrence(id: $id, date: $date, scope: $scope) {
+      archived
+      comments {
+        body
+        createdAt
+        updatedAt
+      }
+    }
   }
 `);
 
 const RemoveRoutineMoveDocument = graphql(`
-  mutation RemoveRoutineMove($id: ID!, $from: Date!) {
-    removeRoutineMove(id: $id, from: $from)
+  mutation RemoveRoutineMove($id: ID!, $from: Date!, $comments: [CommentSnapshotInput!]) {
+    removeRoutineMove(id: $id, from: $from, comments: $comments)
   }
 `);
 
@@ -230,6 +238,9 @@ const RoutineChecksDocument = graphql(`
 `);
 
 export type RoutineCheck = RoutineChecksQuery['routineChecks'][number];
+
+/** Comment deleted with an occurrence, given back by « Annuler » (decision D19). */
+export type CommentSnapshot = DeleteRoutineOccurrenceMutation['deleteRoutineOccurrence']['comments'][number];
 
 /**
  * Times of the day ticked in a period.
@@ -556,11 +567,11 @@ export function useRoutineMutations() {
       (data, input) => ({ ...data, routines: [...data.routines, draftRoutine(input, data.routines)] }),
     ),
     // A change of project attaches the assignees to it: the contributors (task data) are refreshed too.
-    update: useRoutineMutation(async (variables: { id: string; input: RoutineInput }) => (await execute(UpdateRoutineDocument, variables)).updateRoutine, undefined, [tasksQueryKey]),
+    update: useRoutineMutation(async (variables: { id: string; input: RoutineInput }) => withLossConfirmation(async (confirmLoss) => (await execute(UpdateRoutineDocument, { ...variables, confirmLoss })).updateRoutine), undefined, [tasksQueryKey]),
     /** Copies the sub-routines of a routine under its copy (theirs too). */
     copySubRoutines: useRoutineMutation(async (variables: { fromId: string; toId: string }) => (await execute(CopySubRoutinesDocument, variables)).copySubRoutines),
     patch: useRoutineMutation(
-      async (variables: { id: string; input: RoutinePatchValues }) => (await execute(PatchRoutineDocument, variables)).patchRoutine,
+      async (variables: { id: string; input: RoutinePatchValues }) => withLossConfirmation(async (confirmLoss) => (await execute(PatchRoutineDocument, { ...variables, confirmLoss })).patchRoutine),
       (data, { id, input }) => patchRoutine(data, id, (routine) => ({ ...routine, ...input })),
       [tasksQueryKey],
     ),
@@ -574,14 +585,17 @@ export function useRoutineMutations() {
     ),
     changeOccurrence: useRoutineMutation(
       async (variables: { id: string; date: string; scope: CalendarEventScope; to: string; slot: number; fromTime: string | null; dueTime: string | null }) =>
-        (await execute(ChangeRoutineOccurrenceDocument, variables as never)).changeRoutineOccurrence,
+        withLossConfirmation(async (confirmLoss) => (await execute(ChangeRoutineOccurrenceDocument, { ...variables, confirmLoss } as never)).changeRoutineOccurrence),
     ),
     deleteOccurrence: useRoutineMutation(
       async (variables: { id: string; date: string; scope: CalendarEventScope }) => (await execute(DeleteRoutineOccurrenceDocument, variables as never)).deleteRoutineOccurrence,
     ),
-    removeMove: useRoutineMutation(async (variables: { id: string; from: string }) => (await execute(RemoveRoutineMoveDocument, variables)).removeRoutineMove),
+    removeMove: useRoutineMutation(
+      async (variables: { id: string; from: string; comments?: CommentSnapshot[] }) => (await execute(RemoveRoutineMoveDocument, variables as never)).removeRoutineMove,
+    ),
     bulkUpdate: useRoutineMutation(
-      async (variables: { ids: string[]; changes: RoutineBulkChanges }) => (await execute(BulkUpdateRoutinesDocument, variables)).bulkUpdateRoutines,
+      async (variables: { ids: string[]; changes: RoutineBulkChanges }) =>
+        withLossConfirmation(async (confirmLoss) => (await execute(BulkUpdateRoutinesDocument, { ...variables, confirmLoss })).bulkUpdateRoutines),
       (data, { ids, changes }) => ({ ...data, routines: data.routines.map((routine) => (ids.includes(routine.id) ? withBulkChanges(routine, changes) : routine)) }),
       [tasksQueryKey],
     ),

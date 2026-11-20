@@ -66,3 +66,20 @@ export function moveToIndex<T extends { id: string }>(list: readonly T[], id: st
     index,
   );
 }
+
+/**
+ * Item by id in the queries of a key (the key and those it prefixes), as the cache holds them now: a copy just saved,
+ * once its mutation refreshed them (decision D20 opens it).
+ * @param {QueryClient} queryClient Query client.
+ * @param {QueryKey} queryKey Queries (a prefix).
+ * @param {string} id Item.
+ * @param {(data: D) => readonly T[] | undefined} items Items of the data of a query.
+ * @returns {T | undefined} Item, none when not (yet) loaded.
+ */
+export function cachedItem<D, T extends { id: string }>(queryClient: QueryClient, queryKey: QueryKey, id: string, items: (data: D) => readonly T[] | undefined): T | undefined {
+  for (const [, data] of queryClient.getQueriesData<D>({ queryKey })) {
+    const found = data === undefined ? undefined : items(data)?.find((item) => item.id === id);
+    if (found) return found;
+  }
+  return undefined;
+}

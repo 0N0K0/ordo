@@ -5,7 +5,7 @@ import { listSelectProps } from '../../../components/items/item-look';
 import { PAGES, sheetPath } from '../../../app/pages';
 import { Paper, SimpleGrid, Stack, Text, Textarea, TextInput } from '@mantine/core';
 import { BatchMultiSelect } from '../../../components/inputs/BatchMultiSelect';
-import { ClipboardTextIcon, CookingPotIcon, CopyIcon, ListPlusIcon, PlusIcon, TrashIcon } from '@phosphor-icons/react';
+import { ClipboardTextIcon, CookingPotIcon, ListPlusIcon, PlusIcon, TrashIcon } from '@phosphor-icons/react';
 import { useState, type ReactNode } from 'react';
 import { useNavigate, useParams } from 'react-router';
 import { ActionButton } from '../../../components/actions/ActionButton';
@@ -36,7 +36,7 @@ import { itemGroupFields, sheetInput, sheetItemInput } from '../lib/sheet-format
 import { AddRowField } from '../../../components/data-table/cells/AddRowField';
 import type { RowGroup } from '../../../components/data-table/table/table-engine';
 import { SheetsSettings } from '../components/SheetsSettings';
-import { deleteRowsAction, rowMenuEntry } from '../../../components/data-table/selection/selection-actions';
+import { deleteRowsAction, duplicateRowsAction, rowMenuEntry } from '../../../components/data-table/selection/selection-actions';
 import { selectedLabel } from '../../../components/data-table/selection/selection-label';
 import { optionalColumn, sheetShoppingColumns } from '../../shopping/lib/shopping-columns';
 import { CategoryCell, ConservationCell, PeopleCell, StoreCell, UnitCell } from '../../shopping/components/shopping-cells';
@@ -284,15 +284,9 @@ export function SheetPage() {
         menu={{
           name: sheet.label,
           items: [
-            !sheet.archived && {
-              label: 'Dupliquer',
-              icon: <CopyIcon aria-hidden />,
-              onClick: () =>
-                mutations.duplicate.mutate(
-                  sheet.id,
-                  formCallbacks(null, 'Fiche dupliquée.', (copy) => navigate(sheetPath(copy))),
-                ),
-            },
+            // Saved at once, then its page opens (decision D20).
+            !sheet.archived &&
+              rowMenuEntry(duplicateRowsAction([sheet], { duplicate: (source) => mutations.duplicate.mutateAsync(source.id), done: 'Fiche dupliquée.', open: (copy) => void navigate(sheetPath(copy)) })),
             archiveEntry({ archived: sheet.archived, type: 'Fiche', label: sheet.label, feminine: true }, setArchived, sheet.id),
             remove,
           ],

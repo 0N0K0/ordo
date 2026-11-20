@@ -15,7 +15,7 @@ Voir aussi : [Règles : tâches](../../business-rules/activities/tasks.md), [Rè
 | `handleSchema`                                    | Identifiant de mention `@` : `trim`, minuscules, 2 à 39 caractères, lettres, chiffres, « - » et « _ », ni « - » ni « _ » au début ou à la fin.                                                  |
 | `suggestHandle(name)`                             | Propose un identifiant depuis un nom (« Noémie Koelblen » → « noemie-koelblen »).                                                                                                               |
 | `contributorFormSchema` / `ContributorFormValues` | Contributeur : `name` (nom de personne), `handle`.                                                                                                                                              |
-| `taskFormSchema` / `TaskFormValues`               | Formulaire de tâche (tableau ci-dessous). Règles : fin après début (`startDate` / `endDate`) et échéance après date min (`minDate` / `deadline`).                                               |
+| `taskFormSchema` / `TaskFormValues`               | Formulaire de tâche (tableau ci-dessous). Règles : fin après début (`startDate` / `endDate`) et échéance après l’ouverture (`minDate` / `deadline`).                                               |
 | `milestoneLabelSchema`                            | Libellé de jalon : requis, 250 max.                                                                                                                                                             |
 | `milestoneFormSchema` / `MilestoneFormValues`     | Jalon : `label`, `dueDate` (facultatif), `description`.                                                                                                                                         |
 | `sprintLabelSchema`                               | Libellé de sprint : requis, 250 max.                                                                                                                                                            |
@@ -33,7 +33,7 @@ Champs de `taskFormSchema` :
 | `statusId`, `priorityId`, `typeId`            | Facultatifs.                                                                                                  |
 | `assigneeIds`, `tagIds`, `sprintIds`          | Listes d'ids.                                                                                                 |
 | `effort`                                      | `''` devient `null`, puis `effortSchema`.                                                                     |
-| `startDate`, `endDate`, `deadline`, `minDate` | Jours facultatifs ; « Date min » : pas avant ce jour.                                                         |
+| `startDate`, `endDate`, `deadline`, `minDate` | Jours facultatifs ; « Ouverture » : pas avant ce jour.                                                         |
 | `parentId`, `milestoneId`                     | Facultatifs.                                                                                                  |
 | `beneficiaryIds`, `beneficiaryRelationIds`    | « Bénéficiaires » : contributeurs et relations pour qui est la tâche.                                         |
 | `slotCondition`                               | Condition de créneaux, celle des routines (voir [calendar](calendar.md)) ; `null` : n'importe quand.            |

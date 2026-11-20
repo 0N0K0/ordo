@@ -16,13 +16,15 @@ export function pinWorkspace(id: string | null): void {
 
 interface GraphQLErrorPayload {
   message: string;
-  extensions?: { code?: string; fields?: Record<string, string> };
+  extensions?: { code?: string; fields?: Record<string, string> } & Record<string, unknown>;
 }
 
 /** Error returned by the API, with its code and per-field messages. */
 export class GraphQLRequestError extends Error {
   readonly code: string;
   readonly fields: Record<string, string>;
+  /** Other extensions of the error (`lost` of CONFIRMATION_REQUIRED…). */
+  readonly extensions: Record<string, unknown>;
 
   /**
    * @param {GraphQLErrorPayload} payload First error of the GraphQL response.
@@ -32,6 +34,7 @@ export class GraphQLRequestError extends Error {
     this.name = 'GraphQLRequestError';
     this.code = payload.extensions?.code ?? 'INTERNAL_SERVER_ERROR';
     this.fields = payload.extensions?.fields ?? {};
+    this.extensions = payload.extensions ?? {};
   }
 }
 

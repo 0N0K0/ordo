@@ -189,14 +189,41 @@ export async function commentsLostOnDelete(gone: GoneComments): Promise<number> 
   return any.length ? prisma.comment.count({ where: { OR: any } }) : 0;
 }
 
+/** A comment deleted with its occurrence, as « Annuler » gives it back: its text and its dates. */
+export interface CommentSnapshot {
+  body: string;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
 /**
  * Deletes the comments of occurrences deleted (those of whole items go with them, `onDelete: Cascade`).
  * @param {GoneComments} gone Occurrences deleted.
+ * @returns {Promise<CommentSnapshot[]>} Comments deleted, oldest first (for an undo).
+ */
+export async function deleteGoneComments(gone: GoneComments): Promise<CommentSnapshot[]> {
+  const any = goneCommentsWhere(gone);
+  if (!any.length) return [];
+  const deleted = await prisma.comment.findMany({ where: { OR: any }, select: { body: true, createdAt: true, updatedAt: true }, orderBy: { createdAt: 'asc' } });
+  await prisma.comment.deleteMany({ where: { OR: any } });
+  return deleted;
+}
+
+/**
+ * Gives back the comments of an occurrence deleted then restored (« Annuler »): on that occurrence, with their text
+ * (checked again) and dates.
+ * @param {OccurrenceTarget} target Kind of item.
+ * @param {string} id Item.
+ * @param {string} occurrenceDate Occurrence restored (YYYY-MM-DD).
+ * @param {readonly CommentSnapshot[]} comments Comments deleted with it.
  * @returns {Promise<void>}
  */
-export async function deleteGoneComments(gone: GoneComments): Promise<void> {
-  const any = goneCommentsWhere(gone);
-  if (any.length) await prisma.comment.deleteMany({ where: { OR: any } });
+export async function restoreComments(target: OccurrenceTarget, id: string, occurrenceDate: string, comments: readonly CommentSnapshot[]): Promise<void> {
+  if (!comments.length) return;
+  const day = parseOptionalDay(parseField('occurrenceDate', daySchema(), occurrenceDate));
+  await prisma.comment.createMany({
+    data: comments.map((comment) => ({ body: commentBody(comment.body), createdAt: comment.createdAt, updatedAt: comment.updatedAt, [COMMENT_TARGETS[target]]: id, occurrenceDate: day })),
+  });
 }
 
 /**

@@ -323,13 +323,13 @@ interface DateCellProps {
   alert?: boolean;
 }
 
-const DATE_LABELS = { startDate: 'Début', endDate: 'Fin', deadline: 'Date max', minDate: 'Date min' } as const;
+const DATE_LABELS = { startDate: 'Début', endDate: 'Fin', deadline: 'Échéance', minDate: 'Ouverture' } as const;
 
 /** Period each date column bounds: its start and end columns. */
 const DATE_RANGES = { startDate: ['startDate', 'endDate'], endDate: ['startDate', 'endDate'], minDate: ['minDate', 'deadline'], deadline: ['minDate', 'deadline'] } as const;
 
 /**
- * Start, end or "Date max" cell: date picker.
+ * Start, end or « Échéance » cell: date picker.
  * @param {DateCellProps} props Component props.
  * @returns {JSX.Element} Cell.
  */

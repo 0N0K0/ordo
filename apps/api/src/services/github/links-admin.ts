@@ -80,7 +80,7 @@ export async function saveGithubLink(projectId: string, input: GithubLinkInput):
   check(input.startFieldId, ['DATE'], 'le début');
   check(input.endFieldId, ['DATE'], 'la fin');
   check(input.effortFieldId, ['NUMBER'], 'l’effort');
-  check(input.deadlineFieldId, ['DATE'], 'la date max');
+  check(input.deadlineFieldId, ['DATE'], 'l’échéance');
   check(input.timeSpentFieldId, ['NUMBER'], 'le temps passé');
   const typeField = input.typeSource === 'FIELD' ? check(input.typeFieldId, ['SINGLE_SELECT'], 'le type') : null;
   if (input.typeSource === 'FIELD' && !typeField) throw clientError('BAD_USER_INPUT', 'Choisissez le champ du tableau qui porte le type.');

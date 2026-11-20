@@ -7,7 +7,7 @@ Fonctions et hooks transverses de l'application web : client GraphQL, mutations,
 ### `graphql-client.ts`
 
 - `pinWorkspace(id)` : épingle les requêtes de cet onglet à un espace (en-tête `x-ordo-workspace`) ; `null` : suivre le cookie. Le cookie est partagé entre onglets, l'épinglage garde chaque onglet dans son espace. Appelé par `features/workspaces`.
-- `GraphQLRequestError` (classe) : erreur de l'API, avec `code` (défaut `INTERNAL_SERVER_ERROR`) et `fields` (messages par champ, lus par `showFormError`).
+- `GraphQLRequestError` (classe) : erreur de l'API, avec `code` (défaut `INTERNAL_SERVER_ERROR`), `fields` (messages par champ, lus par `showFormError`) et `extensions` (les autres, par exemple `lost` de `CONFIRMATION_REQUIRED`).
 - `execute(document, variables?)` : lance une opération GraphQL typée (générée par codegen) sur `/api/graphql`, cookie de session compris, dans l'espace de l'onglet. Des `File` dans les variables envoient une requête multipart (spécification GraphQL multipart, fonctions internes `extractFiles`, `buildBody`).
 - `executeIn(workspace, document, variables?)` : la même dans un autre espace (notifications d'un autre espace : mails, agenda).
 - Erreurs : serveur injoignable → « Le serveur est injoignable. » (code `NETWORK_ERROR`) ; première erreur GraphQL relancée ; réponse vide ou en erreur → « Une erreur inattendue est survenue. ». Fonction interne `request`.
@@ -33,6 +33,7 @@ Fraîcheur des données :
 
 - `useInvalidatingMutation(mutationFn, { invalidate, optimistic, background })` : mutation de l'application : la requête, puis les requêtes dont la clé commence par `invalidate` rafraîchies ; `optimistic(queryClient, variables)` change les données affichées tout de suite (requêtes annulées puis remises comme avant en cas d'erreur) ; `background` : la mutation n'attend pas le rechargement. Sous toutes les mutations de l'application ; imposée par eslint (`invalidateQueries` dans `onSuccess` interdit).
 - `patchQuery(queryClient, queryKey, patch)` : change en place les données d'une requête chargée (changement optimiste).
+- `cachedItem(queryClient, queryKey, id, items)` : élément d'un identifiant dans les requêtes d'une clé (et celles qu'elle préfixe), tel que le cache le tient : une copie qui vient d'être enregistrée, une fois sa mutation rafraîchie, pour l'ouvrir (décision D20).
 - `moveToIndex(list, id, index)` : liste avec un élément déplacé à un indice (ordre optimiste d'un glisser-déposer), borné comme le serveur (`movedTo` partagé) ; `null` si l'élément n'y est pas. Voir [Ordre](../business-rules/cross-cutting/ordering.md).
 
 ### `search-params.ts`
@@ -64,7 +65,8 @@ Toasts (en haut à droite, `Notifications` de `main.tsx`) : une erreur reste jus
 - `onMutationError(error)` : le gestionnaire de tout `onError` (→ `notifyFailure`).
 - `ON_ERROR` : `{ onError: onMutationError }`, options d'une mutation sans toast de succès.
 - `toastCallbacks(message)` : `onSuccess` (toast) et `onError` d'une mutation sans formulaire.
-- `notifyFailure(error, fallback?)` : échec d'une action quelconque en toast d'erreur : son message, ou « Une erreur inattendue est survenue. » ; une session expirée (`UNAUTHENTICATED`) reste silencieuse (retour à la connexion).
+- `notifyFailure(error, fallback?)` : échec d'une action quelconque en toast d'erreur : son message, ou « Une erreur inattendue est survenue. » ; une session expirée (`UNAUTHENTICATED`) reste silencieuse (retour à la connexion), une action refusée à sa confirmation (`ActionDeclined`) aussi.
+- `ActionDeclined` (classe) : erreur d'une action que l'utilisateur a refusée à sa confirmation (« Action annulée. ») ; elle s'arrête sans toast. Lancée par `withLossConfirmation`.
 - `notifyWithUndo(message, onUndo)` : succès avec bouton « Annuler » (8 s).
 - Interne : `toastBody` (lignes de texte et boutons `tertiary`).
 

@@ -57,10 +57,10 @@ interface RoutineScheduleValues {
   travelAfter: number;
 }
 
-/** How a routine repeats, as edited: its first day, its mode, rule, cases, schedules, moments and « à partir du ». */
+/** How a routine repeats, as edited: its first day, its mode, rule, cases, schedules, moments and « Ouverture ». */
 type RoutineRepetitionValue = Pick<RoutineScheduleValues, 'startDate' | 'recurrence' | 'cases' | 'slotCondition' | 'moments' | 'opensOn'> & { mode: RepetitionModeValue };
 
-/** Times of a rule or a case of a routine: its moments, its condition on calendar schedules, its « à partir du ». */
+/** Times of a rule or a case of a routine: its moments, its condition on calendar schedules, its « Ouverture ». */
 interface RoutineTimes {
   moments: RoutineSlot[];
   condition: SlotCondition | null;
@@ -151,10 +151,10 @@ function editedCases(value: RoutineRepetitionValue): RepetitionCase<RoutineTimes
 }
 
 /**
- * « À partir du » kept while it fits the frequency of its rule (dropped when the repetition changed).
- * @param {RoutineOpens | null} opens « À partir du ».
+ * « Ouverture » kept while it fits the frequency of its rule (dropped when the repetition changed).
+ * @param {RoutineOpens | null} opens « Ouverture ».
  * @param {Recurrence | null} rule Rule.
- * @returns {RoutineOpens | null} « À partir du ».
+ * @returns {RoutineOpens | null} « Ouverture ».
  */
 const fittingOpens = (opens: RoutineOpens | null, rule: Recurrence | null) => (opens && rule && opensFits(opens, rule.frequency) ? opens : null);
 
@@ -189,7 +189,7 @@ function withEditedCases(value: RoutineRepetitionValue, cases: RepetitionCase<Ro
 
 /**
  * Every repetition setting of a routine, in the common modal: its first day, then one rule or cases, each with its
- * moments and its condition on calendar schedules; its « à partir du ».
+ * moments and its condition on calendar schedules; its « Ouverture ».
  * @param {{ draft: RoutineRepetitionValue, setDraft: (value: RoutineRepetitionValue) => void, names: Map<string, string> }} props Draft, its change, names of the schedules.
  * @returns {JSX.Element} Settings.
  */
@@ -213,7 +213,7 @@ function RoutineRepetitionEditor({ draft, setDraft, names }: { draft: RoutineRep
                 : [],
             moments: mode === 'CASES' ? [] : (draft.cases[0]?.slots ?? (draft.moments.length ? draft.moments : [ANY_TIME])),
             slotCondition: mode === 'CASES' ? null : (draft.cases[0]?.condition ?? draft.slotCondition),
-            // Its « à partir du » goes to the first case, and back.
+            // Its « Ouverture » goes to the first case, and back.
             opensOn: mode === 'CASES' ? null : draft.cases.length ? fittingOpens(readOpens(draft.cases[0]?.opens), draft.cases[0]?.recurrence ?? null) : draft.opensOn,
           })
         }
@@ -371,8 +371,8 @@ export function RoutineSchedule({ values, errors, onChange }: RoutineSchedulePro
         label="Rappels"
         description={
           timed
-            ? 'Avant son premier jour (« à partir du ») à l’heure « dès » de chaque moment non coché (sinon son heure maximale), 24 h au plus ; ou à une heure de ce jour.'
-            : 'À une heure de son premier jour (« à partir du ») : donnez-lui un horaire ou un créneau pour des rappels avant ses moments.'
+            ? 'Avant son premier jour (« Ouverture ») à l’heure « dès » de chaque moment non coché (sinon son heure maximale), 24 h au plus ; ou à une heure de ce jour.'
+            : 'À une heure de son premier jour (« Ouverture ») : donnez-lui un horaire ou un créneau pour des rappels avant ses moments.'
         }
         leftSection={<BellIcon aria-hidden />}
         emptyLabel="Aucun"

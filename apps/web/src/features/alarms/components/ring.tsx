@@ -137,7 +137,7 @@ export type RemindedTask = Pick<Task, 'id' | 'label' | 'closed' | 'archived' | '
 
 /**
  * Rings the reminders of the open tasks (not closed nor archived) that are due: at their times of the day, every day
- * from their « Date min » to their « Date max » (the « Date max » day only without « Date min »; none without it).
+ * from their « Ouverture » to their « Échéance » (the « Échéance » day only without « Ouverture »; none without it).
  * @template {RemindedTask} T
  * @param {T[]} tasks Tasks.
  * @param {Date} now Current time.
@@ -151,7 +151,7 @@ export function ringTaskReminders<T extends RemindedTask>(tasks: T[], now: Date,
     ringPlannedReminders(taskReminders(taggedKey('task', task.id), task, now), now, () => ({
       icon: <CheckSquareIcon />,
       title: task.label,
-      lines: [task.deadline && `Date max : ${fmt.day(task.deadline)}`],
+      lines: [task.deadline && `Échéance : ${fmt.day(task.deadline)}`],
       actions: links(task),
     }), workspaceLabel);
   }

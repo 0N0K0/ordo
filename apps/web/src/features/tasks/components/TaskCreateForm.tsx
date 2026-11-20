@@ -182,8 +182,8 @@ export function TaskCreateForm({ context, defaults, onDone }: TaskCreateFormProp
           <EffortInput {...form.getInputProps('effort')} />
           <DatePickerInput label="Début" clearable placeholder="—" {...dates.start} />
           <DatePickerInput label="Fin" clearable placeholder="—" {...dates.end} />
-          <DatePickerInput label="Date min" clearable placeholder="—" {...doable.start} />
-          <DatePickerInput label="Date max" clearable placeholder="—" {...doable.end} />
+          <DatePickerInput label="Ouverture" clearable placeholder="—" {...doable.start} />
+          <DatePickerInput label="Échéance" clearable placeholder="—" {...doable.end} />
         </SimpleGrid>
         <TaskReminders
           value={form.values.reminders ?? []}

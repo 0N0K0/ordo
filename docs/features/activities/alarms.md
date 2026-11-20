@@ -33,7 +33,7 @@ Route `PAGES.alarms.path` = `/alarms`, composant `AlarmsPage`. Contenu centré, 
 
 ## Formulaire d’alarme
 
-Panneau latéral « Nouvelle alarme », « Modifier l’alarme » ou « Dupliquer l’alarme ». Ouvert depuis la page, la section « Alarmes » d’une tâche, la cellule « Alarmes » du tableau des tâches, la carte « Chrono et alarmes » de l’accueil, et les actions rapides « Ajouter › Alarme ».
+Panneau latéral « Nouvelle alarme » ou « Modifier l’alarme ». Ouvert depuis la page, la section « Alarmes » d’une tâche, la cellule « Alarmes » du tableau des tâches, la carte « Chrono et alarmes » de l’accueil, et les actions rapides « Ajouter › Alarme ».
 
 | Champ                              | Détail                                                                                                                                                                                              |
 | ---------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -46,7 +46,7 @@ Panneau latéral « Nouvelle alarme », « Modifier l’alarme » ou « Duplique
 | « Description »                    | Texte multiligne, 4 000 caractères                                                                                                                                                                  |
 | « Active »                         | Activée par défaut                                                                                                                                                                                  |
 
-Boutons « Créer l’alarme » / « Enregistrer ». Toasts « Alarme créée. », « Alarme modifiée. », « Alarme dupliquée. ». Une copie reprend tout, avec le suffixe de copie dans le libellé.
+Boutons « Créer l’alarme » / « Enregistrer ». Toasts « Alarme créée. », « Alarme modifiée. ». « Dupliquer » (décision D20) enregistre tout de suite une copie qui reprend tout, avec le suffixe de copie dans le libellé (« Alarme dupliquée. »), puis ouvre « Modifier l’alarme » sur elle.
 
 Modifier la programmation d’une alarme repart de zéro : les occurrences déjà passées ne sonnent pas.
 
@@ -75,8 +75,8 @@ Une sonnerie = un carillon de trois notes (si l’onglet a déjà reçu un clic 
 Les rappels (« Rappels », 10 au plus, de types mêlés : « Au début », « N min avant », « À HH:MM le jour J ») fonctionnent de la même façon pour les trois (décision D16), en heure de Paris, au plus 6 heures en retard, quel que soit l’espace ouvert ; ils sont à côté des alarmes, qui restent.
 
 - Évènements : « Au début », minutes avant le début (24 heures au plus ; journée entière : minuit du premier jour), ou à une heure du premier jour ; les occurrences d’hier à J+8 sont rechargées toutes les 5 minutes ; une occurrence annulée ne sonne pas. Toast : libellé, « Journée entière » ou date et heure, lieu ; lien « Voir l’agenda ».
-- Routines : « Au début » ou minutes avant le premier jour de l’occurrence (« à partir du ») à l’heure « dès » de chaque moment non coché (sinon son heure maximale), 24 heures au plus, ou à une heure de ce jour (une fois par occurrence), pour l’occurrence en cours tant qu’elle n’est pas faite et pour la suivante ; pendant un évènement qui occupe ses assignés, le rappel attend le prochain moment libre. Toast : libellé, horaires du moment et lieu ; actions « Marquer comme faite » (occurrence en cours) et « Voir les routines ». Voir [Routines](routines.md).
-- Tâches : « À HH:MM » seulement, à une ou plusieurs heures du jour, chaque jour de la « Date min » à la « Date max » (le jour de la « Date max » seulement sans « Date min ») ; aucun sans « Date max » ; une tâche fermée ou archivée ne sonne pas. Toast : libellé, « Date max » ; lien vers la tâche. Voir [Tâches](tasks.md).
+- Routines : « Au début » ou minutes avant le premier jour de l’occurrence (« Ouverture ») à l’heure « dès » de chaque moment non coché (sinon son heure maximale), 24 heures au plus, ou à une heure de ce jour (une fois par occurrence), pour l’occurrence en cours tant qu’elle n’est pas faite et pour la suivante ; pendant un évènement qui occupe ses assignés, le rappel attend le prochain moment libre. Toast : libellé, horaires du moment et lieu ; actions « Marquer comme faite » (occurrence en cours) et « Voir les routines ». Voir [Routines](routines.md).
+- Tâches : « À HH:MM » seulement, à une ou plusieurs heures du jour, chaque jour de l’ouverture à l’échéance (le jour de l’échéance seulement sans ouverture) ; aucun sans échéance ; une tâche fermée ou archivée ne sonne pas. Toast : libellé, « Échéance » ; lien vers la tâche. Voir [Tâches](tasks.md).
 
 ### Plusieurs onglets
 

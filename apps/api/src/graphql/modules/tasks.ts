@@ -176,8 +176,8 @@ builder.prismaObject('Task', {
     effort: t.exposeFloat('effort', { nullable: true }),
     startDate: t.expose('startDate', { type: 'Date', nullable: true }),
     endDate: t.expose('endDate', { type: 'Date', nullable: true }),
-    deadline: t.expose('deadline', { type: 'Date', nullable: true, description: 'Latest acceptable date ("Date max"): an open task past it is overdue.' }),
-    minDate: t.expose('minDate', { type: 'Date', nullable: true, description: 'Earliest acceptable date ("Date min"): not to be done before.' }),
+    deadline: t.expose('deadline', { type: 'Date', nullable: true, description: 'Latest acceptable date (« Échéance »): an open task past it is overdue.' }),
+    minDate: t.expose('minDate', { type: 'Date', nullable: true, description: 'Earliest acceptable date (« Ouverture »): not to be done before.' }),
     slotCondition: t.field({
       type: 'JSON',
       nullable: true,
@@ -190,7 +190,7 @@ builder.prismaObject('Task', {
     links: t.field({ type: [ItemLinkRef], description: 'Links, as those of the events.', resolve: (task) => readLinks(task.links) }),
     reminders: t.field({
       type: [ReminderRef],
-      description: 'Reminders « À HH:MM » (Paris time), rung every day from « Date min » to « Date max » (its day only without « Date min »; never without « Date max »).',
+      description: 'Reminders « À HH:MM » (Paris time), rung every day from « Ouverture » to « Échéance » (its day only without « Ouverture »; never without « Échéance »).',
       resolve: (task) => readReminders(task.reminders),
     }),
     parentId: t.exposeID('parentId', { nullable: true }),
@@ -449,10 +449,11 @@ builder.mutationFields((t) => ({
     args: { id: t.arg.id({ required: true }), input: t.arg({ type: TaskUpdateInput, required: true }) },
     resolve: async (query, _root, { id, input }) => reloaded(prisma.task, query, tasks.updateTask(id, input)),
   }),
-  cloneTask: t.prismaField({
+  duplicateTask: t.prismaField({
     type: 'Task',
+    description: 'Duplicates a task, named « … (copie) » (decision D20), with its sub-tasks when asked; not its comments.',
     args: { id: t.arg.id({ required: true }), includeSubtasks: t.arg.boolean({ required: true }) },
-    resolve: async (query, _root, { id, includeSubtasks }) => reloaded(prisma.task, query, tasks.cloneTask(id, includeSubtasks)),
+    resolve: async (query, _root, { id, includeSubtasks }) => reloaded(prisma.task, query, tasks.duplicateTask(id, includeSubtasks)),
   }),
   moveTask: t.boolean({
     description: 'Places a task before another one in the manual order (at the end when beforeId is null), and under ' + 'parentId when given (null: top-level task; omitted: parent unchanged).',

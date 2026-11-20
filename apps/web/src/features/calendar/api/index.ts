@@ -13,6 +13,7 @@ import type {
   WorkSchedulesQuery,
 } from '../../../graphql/graphql';
 import { execute, executeIn } from '../../../lib/graphql-client';
+import { withLossConfirmation } from '../../time/lib/confirm-loss';
 import { archivedIds, unarchived } from '../../../lib/archive';
 
 export type EventOccurrence = CalendarEventOccurrenceFieldsFragment;
@@ -389,8 +390,8 @@ const CreateCalendarEventDocument = graphql(`
 `);
 
 const UpdateCalendarEventDocument = graphql(`
-  mutation UpdateCalendarEvent($id: ID!, $input: CalendarEventInput!, $scope: CalendarEventScope!, $occurrenceDate: Date) {
-    updateCalendarEvent(id: $id, input: $input, scope: $scope, occurrenceDate: $occurrenceDate)
+  mutation UpdateCalendarEvent($id: ID!, $input: CalendarEventInput!, $scope: CalendarEventScope!, $occurrenceDate: Date, $confirmLoss: Boolean) {
+    updateCalendarEvent(id: $id, input: $input, scope: $scope, occurrenceDate: $occurrenceDate, confirmLoss: $confirmLoss)
   }
 `);
 
@@ -546,7 +547,7 @@ export function useCalendarEventMutations() {
     create: useCalendarMutation(async (input: CalendarEventInput) => (await execute(CreateCalendarEventDocument, { input })).createCalendarEvent),
     update: useCalendarMutation(
       async (variables: { id: string; input: CalendarEventInput; scope: CalendarEventScope; occurrenceDate: string | null }) =>
-        (await execute(UpdateCalendarEventDocument, variables)).updateCalendarEvent,
+        withLossConfirmation(async (confirmLoss) => (await execute(UpdateCalendarEventDocument, { ...variables, confirmLoss })).updateCalendarEvent),
       // A change of project attaches the contributors to it: the contributors (task data) are refreshed too.
       [tasksQueryKey],
     ),

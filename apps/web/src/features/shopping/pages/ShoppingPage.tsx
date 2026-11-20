@@ -9,7 +9,7 @@ import { Badge, Group, Stack } from '@mantine/core';
 
 import { ArrowCounterClockwiseIcon, ArrowSquareInIcon, BasketIcon, CheckCircleIcon, ListChecksIcon, PlusIcon } from '@phosphor-icons/react';
 import { useMemo } from 'react';
-import { Link } from 'react-router';
+import { Link, useNavigate } from 'react-router';
 import { PageTabs } from '../../../components/tabs/PageTabs';
 import { ON_ERROR } from '../../../lib/notify';
 import { type TaskContext, taskNumbered, useTaskContext } from '../../tasks/hooks/use-task-context';
@@ -244,6 +244,7 @@ export function ListsPanel({ projectId, projectIds }: { projectId?: string; proj
   const { data: shopping } = useShoppingData();
   const { context } = useTaskContext();
   const { updateList, duplicateList, setClosed, deleteList } = useShoppingMutations();
+  const navigate = useNavigate();
   const setArchived = useSetArchived('SHOPPING_LIST', [shoppingKey]);
   const { grouping } = useShoppingGrouping('list');
   const closedOf = (list: ShoppingList) => listClosed(list, context);
@@ -338,7 +339,11 @@ export function ListsPanel({ projectId, projectIds }: { projectId?: string; proj
         const changes: SelectionAction[] = checked.some((list) => list.archived)
           ? []
           : [
-              duplicateRowsAction(checked, { duplicate: (list) => duplicateList.mutateAsync({ id: list.id }), done: `${countOf(checked.length, 'liste')} ${plural(checked.length, 'dupliquée')}.` }),
+              duplicateRowsAction(checked, {
+                duplicate: (list) => duplicateList.mutateAsync({ id: list.id }),
+                done: checked.length > 1 ? `${countOf(checked.length, 'liste')} ${plural(checked.length, 'dupliquée')}.` : 'Liste dupliquée.',
+                open: (copyId) => void navigate(shoppingListPath(copyId)),
+              }),
               allClosed
                 ? {
                     label: 'Rouvrir',

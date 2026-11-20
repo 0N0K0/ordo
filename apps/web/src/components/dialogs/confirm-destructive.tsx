@@ -19,6 +19,8 @@ interface ConfirmDestructiveOptions {
   run?: () => Promise<unknown>;
   /** Success message of `run` (« Alarme supprimée. »). Optional. Default = no toast. */
   done?: string;
+  /** What follows a refusal (Cancel, Escape, a click outside). Optional. */
+  onCancel?: () => void;
 }
 
 /**
@@ -27,8 +29,11 @@ interface ConfirmDestructiveOptions {
  * @param {ConfirmDestructiveOptions} options Dialog.
  * @returns {void}
  */
-export function confirmDestructive({ title, risks, confirmLabel, confirmIcon, onConfirm, run, done }: ConfirmDestructiveOptions): void {
-  openModal(title, (close) => (
+export function confirmDestructive({ title, risks, confirmLabel, confirmIcon, onConfirm, run, done, onCancel }: ConfirmDestructiveOptions): void {
+  let confirmed = false;
+  openModal(
+    title,
+    (close) => (
     <Stack gap="md">
       <DestructiveRisks>{risks}</DestructiveRisks>
       <DestructiveActions
@@ -36,11 +41,14 @@ export function confirmDestructive({ title, risks, confirmLabel, confirmIcon, on
         confirmIcon={confirmIcon}
         onCancel={close}
         onConfirm={() => {
+          confirmed = true;
           close();
           onConfirm?.();
           run?.().then(() => done && notifySuccess(done), onMutationError);
         }}
       />
     </Stack>
-  ));
+    ),
+    { onClose: () => !confirmed && onCancel?.() },
+  );
 }

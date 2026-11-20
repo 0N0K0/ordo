@@ -621,12 +621,12 @@ model Task {
   effort               Float?
   startDate            DateTime?          @db.Date
   endDate              DateTime?          @db.Date
-  /// Latest acceptable date ("Date max"): an open task past it is overdue.
-  /// Earliest acceptable date (« Date min »): the task is not to be done before it.
+  /// Latest acceptable date (« Échéance »): an open task past it is overdue.
+  /// Earliest acceptable date (« Ouverture »): the task is not to be done before it.
   minDate              DateTime?          @db.Date
   deadline             DateTime?          @db.Date
-  /// Reminders [{ before: null, at: "HH:MM" }] (Paris time), 10 at most: rung every day from « Date min » to « Date
-  /// max » (the « Date max » day only without « Date min »; never without « Date max »).
+  /// Reminders [{ before: null, at: "HH:MM" }] (Paris time), 10 at most: rung every day from « Ouverture » to
+  /// « Échéance » (the « Échéance » day only without « Ouverture »; never without « Échéance »).
   reminders            Json               @default("[]")
   /// Parent task, possibly in another project of the same tree.
   parentId             String?
@@ -3132,9 +3132,9 @@ model Routine {
   /// it, scheduleIds / excludedScheduleIds).
   slotCondition        Json?
   /// Reminders, 10 at most: [{ before: minutes (24 hours at most), at: null }] before the first day of an occurrence
-  /// (« à partir du ») at the start of each time of the day (« dès »), or [{ before: null, at: "HH:MM" }] on that day.
+  /// (« Ouverture ») at the start of each time of the day (« dès »), or [{ before: null, at: "HH:MM" }] on that day.
   reminders            Json                   @default("[]")
-  /// « À partir du » of the occurrences of its rule: { mode: DAY, day, month } | { mode: WEEKDAY, position, weekday,
+  /// « Ouverture » of the occurrences of its rule: { mode: DAY, day, month } | { mode: WEEKDAY, position, weekday,
   /// month } | { mode: WEEK, week, weekday } | { mode: BEFORE, days }; null: from their first day.
   opensOn              Json?
   /// Where it is done: free text, and its point when chosen from the map or a search.

@@ -114,7 +114,7 @@ export function routineColumns(env: RoutineEnv): DataColumn<Routine>[] {
     },
     { id: 'fromTime', label: 'À partir de', size: 110, bulk: true, sortValue: (routine) => routine.fromTime ?? null, text: (routine) => routine.fromTime ?? '' },
     { id: 'dueTime', label: 'Avant', size: 110, bulk: true, sortValue: (routine) => routine.dueTime ?? null, text: (routine) => routine.dueTime ?? '' },
-    { id: 'opensOn', label: 'À partir du', size: 120, hiddenByDefault: true, bulk: true, text: (routine) => opensWords(routine) ?? '' },
+    { id: 'opensOn', label: 'Ouverture', size: 120, hiddenByDefault: true, bulk: true, text: (routine) => opensWords(routine) ?? '' },
     { id: 'location', label: 'Lieu', size: 200, hiddenByDefault: true, bulk: true, sortValue: (routine) => routine.location ?? null, text: (routine) => routine.location ?? '' },
     {
       id: 'travelBefore',

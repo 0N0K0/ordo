@@ -62,7 +62,7 @@ Classes de la page et de FullCalendar : `fill` (semaine/jour pleine hauteur), `c
 
 ### `components/EventForm.tsx`
 
-- `EventForm({ context, occurrence?, defaults?, onDone, onDuplicate? })` : formulaire d’évènement (création, modification d’une occurrence ; commentaires de l’occurrence, `Comments` avec `occurrenceDate`, décision D19), `useAppForm` + `calendarEventInputSchema`. Champs : libellé, `EventRepetition`, `TravelField` ×2 + `TravelCalculator` (geo), `AvailabilityHint`, `EventLocation` (geo, `addressOf` / `locationOf`), liens (`LinksField`), calendrier (`itemSelectProps`), `ProjectSelect`, `AssigneesSelect`, `BeneficiariesSelect`, relations (`BatchMultiSelect`, `relationNoun`), catégories (`treeSelectProps` + `categoryOptions`, création `itemCreator`), tâches (`timeTaskOptions`/`timeTasks`, `sharePeople`), routines (`useRoutineOccurrences`, `routineLinkKey`/`routineLinkOf`), `RemindersSelect` (préréglages communs, aide selon la journée entière), `MarkdownEditor`. Sections `SheetsSection`, `Comments`. Actions : enregistrer (`chooseScope`, `allowThis` faux si la règle change), supprimer (`askScope` ou `confirmDestructive`), dupliquer, annuler/rétablir (`setCalledOff`), reporter (`PostponePanel`), démarrer le chrono (`useStartTimer`, sur `events: [occurrence]`), supprimer (temps sans projet emportés : `LostOnDeleteRisk` pour un évènement simple, `fetchTimeLost` des trois portées dans la `note` d’`askScope` pour un récurrent), archiver (`archiveEntry`, `useSetArchived('CALENDAR_EVENT')`). Lecture seule si l’évènement ou son calendrier est archivé (`ArchivedNotice`). Utilisé par `useEventForm`.
+- `EventForm({ context, occurrence?, defaults?, onDone, onDuplicated? })` : formulaire d’évènement (création, modification d’une occurrence ; commentaires de l’occurrence, `Comments` avec `occurrenceDate`, décision D19), `useAppForm` + `calendarEventInputSchema`. Champs : libellé, `EventRepetition`, `TravelField` ×2 + `TravelCalculator` (geo), `AvailabilityHint`, `EventLocation` (geo, `addressOf` / `locationOf`), liens (`LinksField`), calendrier (`itemSelectProps`), `ProjectSelect`, `AssigneesSelect`, `BeneficiariesSelect`, relations (`BatchMultiSelect`, `relationNoun`), catégories (`treeSelectProps` + `categoryOptions`, création `itemCreator`), tâches (`timeTaskOptions`/`timeTasks`, `sharePeople`), routines (`useRoutineOccurrences`, `routineLinkKey`/`routineLinkOf`), `RemindersSelect` (préréglages communs, aide selon la journée entière), `MarkdownEditor`. Sections `SheetsSection`, `Comments`. Actions : enregistrer (`chooseScope`, `allowThis` faux si la règle change), supprimer (`askScope` ou `confirmDestructive`), dupliquer (`DuplicateButton` : la copie, champs du formulaire et `copyName`, enregistrée tout de suite par `create`, puis `onDuplicated(id, fields)` ; décision D20), annuler/rétablir (`setCalledOff`), reporter (`PostponePanel`), démarrer le chrono (`useStartTimer`, sur `events: [occurrence]`), supprimer (temps sans projet emportés : `LostOnDeleteRisk` pour un évènement simple, `fetchTimeLost` des trois portées dans la `note` d’`askScope` pour un récurrent), archiver (`archiveEntry`, `useSetArchived('CALENDAR_EVENT')`). Lecture seule si l’évènement ou son calendrier est archivé (`ArchivedNotice`). Utilisé par `useEventForm`.
 - Interne `PostponeForm({ fields, label, loading, onCancel, onConfirm })` : nouvelle date et libellé d’un report (« Report de l’évènement « X » » tenu en `TEXT_MAX` par `fitName`, saisie limitée à `TEXT_MAX`), durée conservée, lendemain par défaut.
 - Interne `PostponePanel({ fields, occurrence, onCancel, onDone })` : `PostponeForm` + mutation `postpone`.
 - Type interne `FormValues`.
@@ -146,7 +146,8 @@ Utilisés par `ScheduleSettings`.
 ### `components/WorkSchedulesManager.tsx`
 
 - `WorkSchedulesManager()` : gestionnaire des créneaux (panneau ouvert par `CalendarPage`) : `SectionHeader` (description PRO/PERSO), « Nouveaux créneaux », `DataTable` (`useDataView` clé `work-schedules`, colonnes `label`, `type`, `start`, `end`, `hours`, `state`, `commentColumn`), cellules éditables (`EditableText`, `EditableSelect`, `EditableDate`, `followBounds` décision Q), édition groupée (`bulkSaver`, `bulkCellLabels`), sélection (`archiveRowsAction`, `deleteItemsAction`), `RowActions` (modifier, dupliquer, archiver `archiveEntry`, supprimer). Lignes archivées en lecture seule (`readOnlyCells`).
-- Interne `ScheduleForm({ schedule?, copyOf?, onDone })` : formulaire (`workScheduleSchema`) : libellé, type (`CreatableSelect` + `itemCreator`), `ScheduleRepetition`, `Comments` (`SCHEDULE`).
+- Interne `scheduleInputOf(schedule)` : entrée d’un créneau tel qu’il est (cellules et copie). Interne `duplicateSchedule` : « Dupliquer » (copie « … (copie) » avec ses dates, cas et type, sans exceptions, enregistrée puis ouverte, décision D20).
+- Interne `ScheduleForm({ schedule?, onDone })` : formulaire (`workScheduleSchema`) : libellé, type (`CreatableSelect` + `itemCreator`), `ScheduleRepetition`, `Comments` (`SCHEDULE`).
 - Interne `scheduleState(schedule, today)` : `CURRENT`/`UPCOMING`/`PAST` (`periodState`).
 - Interne `ScheduleHours({ schedule })` : une ligne par cas.
 - Constantes et types internes : `ScheduleValues`, `ScheduleState`, `PERIOD_OF`, `STATE_OF`, `STATE_LABELS`, `STATE_COLORS`, `STATE_ORDER`, `ScheduleRow`, `NO_KIND` = `none`.
@@ -160,7 +161,7 @@ Utilisés par `ScheduleSettings`.
 
 ### `hooks/use-event-form.tsx`
 
-`useEventForm(context)` : renvoie `open({ occurrence?, defaults?, copy? })` qui ouvre `EventForm` dans `openFormPanel` (taille `lg`) ; « Dupliquer » ferme et rouvre une copie. Sans contexte : rien. Utilisé par `CalendarPage`, `QuickActions` (app), `event-cells` (tâches).
+`useEventForm(context)` : renvoie `open({ occurrence?, defaults? })` qui ouvre `EventForm` dans `openFormPanel` (taille `lg`) ; « Dupliquer » ferme le formulaire et ouvre celui de la copie enregistrée (son occurrence lue par `fetchCalendarEvents` sur ses jours). Sans contexte : rien. Utilisé par `CalendarPage`, `QuickActions` (app), `event-cells` (tâches).
 
 ### `hooks/calendar-edits.tsx`
 
@@ -170,7 +171,7 @@ Utilisés par `ScheduleSettings`.
   - `changeRoutine(occurrence, to, times, revert?)` : portée puis `changeOccurrence` (routines) ;
   - `openSlot(schedule, label, slot)` : panneau `SlotEditForm` ;
   - `openRoutine(occurrence, movedFrom)` : panneau `RoutineOccurrenceForm`.
-  - Interne `removeRoutine(occurrence, movedFrom)` : portée (`THIS`/`FOLLOWING`), `deleteOccurrence`, annulation via `removeMove`.
+  - Interne `removeRoutine(occurrence, movedFrom)` : portée (`THIS`/`FOLLOWING`), `deleteOccurrence`, annulation via `removeMove` avec les commentaires supprimés (`comments`, décision EV).
 - Type interne `RoutineSlotTimes`. Utilisé par `CalendarPage`.
 
 ### `hooks/use-settings-items.tsx`

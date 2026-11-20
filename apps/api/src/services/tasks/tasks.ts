@@ -1,4 +1,4 @@
-import { dateSchema, effortSchema, groupBy, itemLinksSchema, normalizedReminders, readReminders, taskRemindersSchema, locationPointFields, markdownSchema, optionalText, parseOptionalDay, reaches, readSlotCondition, slotConditionSchema, type TaskInput as SharedTaskInput, taskLabelSchema } from '@ordo/shared';
+import { copyName, dateSchema, effortSchema, groupBy, itemLinksSchema, normalizedReminders, readReminders, taskRemindersSchema, locationPointFields, markdownSchema, optionalText, parseOptionalDay, reaches, readSlotCondition, slotConditionSchema, type TaskInput as SharedTaskInput, taskLabelSchema } from '@ordo/shared';
 import { z } from 'zod';
 import { prisma } from '../../db';
 import { assertBeneficiaries } from '../core/beneficiaries';
@@ -421,13 +421,13 @@ const CLONED_LINKS = {
 } as const;
 
 /**
- * Clones a task (every field, assignees and links, but not comments), optionally with its sub-tasks. A former link out
- * of its project tree (kept until it moves) is not copied.
+ * Duplicates a task (decision D20: every field, assignees and links, but not comments), named « … (copie) », optionally
+ * with its sub-tasks (their labels kept). A former link out of its project tree (kept until it moves) is not copied.
  * @param {string} id Task id.
- * @param {boolean} includeSubtasks Whether to clone the sub-tree too.
- * @returns {Promise<Task>} Clone of the task.
+ * @param {boolean} includeSubtasks Whether to copy the sub-tree too.
+ * @returns {Promise<Task>} Copy of the task.
  */
-export async function cloneTask(id: string, includeSubtasks: boolean): Promise<Task> {
+export async function duplicateTask(id: string, includeSubtasks: boolean): Promise<Task> {
   const include = {
     ...CLONED_LINKS,
     blocking: true,
@@ -445,11 +445,13 @@ export async function cloneTask(id: string, includeSubtasks: boolean): Promise<T
 
     /**
      * Copies one task under a parent.
+     * @param {string} label Label of the copy.
      * @param {object} task Source task with assignees.
      * @param {string | null} parentId Parent of the copy.
      * @returns {Promise<Task>} Copy.
      */
     const copy = (
+      label: string,
       task: Prisma.TaskGetPayload<{
         include: {
           assignees: { select: { id: true } };
@@ -463,7 +465,7 @@ export async function cloneTask(id: string, includeSubtasks: boolean): Promise<T
     ) =>
       tx.task.create({
         data: {
-          label: task.label,
+          label,
           description: task.description,
           projectId: task.projectId,
           statusId: task.statusId,
@@ -490,8 +492,8 @@ export async function cloneTask(id: string, includeSubtasks: boolean): Promise<T
         },
       });
 
-    const clone = await copy(source, source.parentId);
-    // Former links out of its project tree (kept until it moves) are not copied: the clone obeys the rule.
+    const clone = await copy(copyName(source.label), source, source.parentId);
+    // Former links out of its project tree (kept until it moves) are not copied: the copy obeys the rule.
     const blocking = source.blocking.map((link) => link.blockedId).filter(inTree);
     const blockedBy = source.blockedBy.map((link) => link.blockerId).filter(inTree);
     await tx.taskBlock.createMany({
@@ -512,7 +514,7 @@ export async function cloneTask(id: string, includeSubtasks: boolean): Promise<T
           include: CLONED_LINKS,
         });
         for (const child of children) {
-          const childClone = await copy(child, cloneId);
+          const childClone = await copy(child.label, child, cloneId);
           queue.push({ sourceId: child.id, cloneId: childClone.id });
         }
       }
@@ -680,7 +682,7 @@ interface BulkTaskChanges {
   startDate?: string | null;
   endDate?: string | null;
   deadline?: string | null;
-  /** « Date min »: not to be done before. */
+  /** « Ouverture »: not to be done before. */
   minDate?: string | null;
   addAssigneeIds?: string[] | null;
   removeAssigneeIds?: string[] | null;

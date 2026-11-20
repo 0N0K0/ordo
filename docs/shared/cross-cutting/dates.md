@@ -67,8 +67,8 @@ Les rappels des tâches, routines et évènements, un seul fonctionnement (déci
 | `PlannedReminder` (type)                   | Rappel à sonner : `key`, `at`.                                                                                                            |
 | `remindersBefore(key, moment, reminders)`  | Les « avant » d'un moment, clé `<clé>:before:<minutes>`.                                                                                 |
 | `remindersAt(key, day, reminders)`         | Les « À HH:MM » d'un jour de Paris, clé `<clé>:at:<HH:MM>`.                                                                              |
-| `TaskReminderDays` (type)                  | « Date min » et « Date max » d'une tâche.                                                                                                 |
-| `taskRemindsOn(task, day)`                 | Vrai les jours de la « Date min » à la « Date max » (le jour de la « Date max » sans « Date min » ou avec une « Date min » après elle) ; jamais sans « Date max ». |
+| `TaskReminderDays` (type)                  | « Ouverture » et « Échéance » d'une tâche.                                                                                                 |
+| `taskRemindsOn(task, day)`                 | Vrai les jours de l’ouverture à l’échéance (le jour de l’échéance sans ouverture ou avec une ouverture après elle) ; jamais sans échéance. |
 | `taskReminders(key, task, now)`            | « À HH:MM » d'une tâche la veille et le jour de Paris de `now`, clé `<clé>:<jour>:at:<HH:MM>`.                                           |
 
 ## `weeks.ts` — semaine de l'espace

@@ -37,7 +37,7 @@ import { assertActive, assertNotArchived, activeIds, refuseArchived } from '../c
 import { connectIds } from '../core/relations';
 import { releaseSubjectTime, type GoneOccurrences } from '../tasks/time-entries';
 import { toJson } from '../core/json';
-import { remapOccurrenceRows } from '../core/occurrence-rows';
+import { remapOccurrenceRows, settleLostOccurrences } from '../core/occurrence-rows';
 import { deleteGoneComments, placeLegacyComments } from '../core/comments';
 import { readLinks } from '../core/links';
 import { storedLocation } from '../core/geo';
@@ -430,11 +430,12 @@ async function endSeriesBefore(event: CalendarEvent, rule: Recurrence, date: str
  * @param {CalendarEventInput} input New fields (dates of the occurrence).
  * @param {EventScope} scope Scope.
  * @param {string | null} [occurrenceDate] Occurrence changed. Optional for a one-off event.
+ * @param {boolean} [confirmLoss] Occurrences made to disappear, with comments or times, confirmed (`settleLostOccurrences`). Optional.
  * @returns {Promise<CalendarEvent>} Updated (or new, after a split) event.
  */
-export async function updateCalendarEvent(id: string, input: CalendarEventInput, scope: EventScope, occurrenceDate?: string | null): Promise<CalendarEvent> {
+export async function updateCalendarEvent(id: string, input: CalendarEventInput, scope: EventScope, occurrenceDate?: string | null, confirmLoss?: boolean): Promise<CalendarEvent> {
   const before = (await findEvent(id)).projectId;
-  const updated = await updateEventFields(id, input, scope, occurrenceDate);
+  const updated = await updateEventFields(id, input, scope, occurrenceDate, confirmLoss);
   const fields = parseInput(calendarEventInputSchema, input);
   // A new project (not for one occurrence: it keeps the one of its series): the contributors follow the event into it.
   await followProject(before, updated.projectId, fields.contributorIds);
@@ -449,9 +450,10 @@ export async function updateCalendarEvent(id: string, input: CalendarEventInput,
  * @param {CalendarEventInput} input Fields.
  * @param {EventScope} scope Occurrences changed.
  * @param {string | null} [occurrenceDate] Occurrence edited. Optional.
+ * @param {boolean} [confirmLoss] Occurrences made to disappear confirmed (`settleLostOccurrences`). Optional.
  * @returns {Promise<CalendarEvent>} Event the occurrence belongs to.
  */
-async function updateEventFields(id: string, input: CalendarEventInput, scope: EventScope, occurrenceDate?: string | null): Promise<CalendarEvent> {
+async function updateEventFields(id: string, input: CalendarEventInput, scope: EventScope, occurrenceDate?: string | null, confirmLoss?: boolean): Promise<CalendarEvent> {
   const event = await findEvent(id);
   await assertEventWritable(event);
   // Comments written before they were on occurrences: placed before the occurrences change.
@@ -501,6 +503,19 @@ async function updateEventFields(id: string, input: CalendarEventInput, scope: E
     const shift = daysBetween(occurrence.date, fields.startDate);
     const startDate = addDays(seriesStart, shift);
     const endDate = addDays(startDate, daysBetween(fields.startDate, fields.endDate));
+    // Occurrences that no longer exist once moved (another rule, no longer repeating): their comments and times go.
+    const moved = movedOccurrence(seriesStart, shift, Boolean(fields.recurrence));
+    await settleLostOccurrences(
+      'eventId',
+      id,
+      (day) => {
+        if (!occursOn(occurrence.rule, seriesStart, day)) return false;
+        const after = moved(day);
+        if (after === null) return false;
+        return !fields.recurrence || !occursOn(fields.recurrence, startDate, after ?? day);
+      },
+      confirmLoss,
+    );
     return prisma.$transaction(async (tx) => {
       if (shift !== 0) await tx.calendarEventException.deleteMany({ where: { eventId: id } });
       await remapOccurrenceRows('eventId', id, movedOccurrence(seriesStart, shift, Boolean(fields.recurrence)), { client: tx });
@@ -518,12 +533,20 @@ async function updateEventFields(id: string, input: CalendarEventInput, scope: E
   }
 
   // FOLLOWING: the series ends before the occurrence, a new one starts with the changes.
+  let rule = fields.recurrence;
+  if (rule && rule.count !== null && occurrence.rule.count === rule.count) {
+    rule = { ...rule, count: Math.max(1, rule.count - occurrencesBefore(occurrence.rule, seriesStart, occurrence.date)) };
+  }
+  const shift = daysBetween(occurrence.date, fields.startDate);
+  // Following occurrences that the new series does not have once moved: their comments and times go.
+  await settleLostOccurrences(
+    'eventId',
+    id,
+    (day) => day >= occurrence.date && occursOn(occurrence.rule, seriesStart, day) && (rule ? !occursOn(rule, fields.startDate, addDays(day, shift)) : day !== occurrence.date),
+    confirmLoss,
+  );
   return prisma.$transaction(async (tx) => {
     await endSeriesBefore(event, occurrence.rule, occurrence.date, tx);
-    let rule = fields.recurrence;
-    if (rule && rule.count !== null && occurrence.rule.count === rule.count) {
-      rule = { ...rule, count: Math.max(1, rule.count - occurrencesBefore(occurrence.rule, seriesStart, occurrence.date)) };
-    }
     const created = await tx.calendarEvent.create({
       data: {
         ...eventData(fields),
@@ -532,11 +555,19 @@ async function updateEventFields(id: string, input: CalendarEventInput, scope: E
       },
     });
     // The comments and times of the following occurrences go to the new series, moved as the occurrence was.
-    const shift = daysBetween(occurrence.date, fields.startDate);
     await remapOccurrenceRows('eventId', id, movedOccurrence(occurrence.date, shift, Boolean(rule)), { to: created.id, client: tx });
     return created;
   });
 }
+
+/**
+ * Whether a day is an occurrence of a rule (its excluded dates left out).
+ * @param {Recurrence} rule Rule.
+ * @param {string} start First day of the series.
+ * @param {string} day Day.
+ * @returns {boolean} An occurrence.
+ */
+const occursOn = (rule: Recurrence, start: string, day: string): boolean => occurrenceDates(rule, start, day, day).includes(day);
 
 /**
  * Day of the occurrences of a series from a date once moved (a series moved, or split from that date): as many days

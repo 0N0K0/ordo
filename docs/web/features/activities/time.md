@@ -38,7 +38,7 @@ Internes : `useTimeMutation` (mutation invalidante), `warnOutOfSlots(queryClient
 
 ### `components/TimeLog.tsx`
 
-- `TimeLog({ entries, context, projectId, emptyMessage, onEdit, onDuplicate, onDelete, actions? })` : tableau des temps (`DataTable`, `tableKey: 'time-log'`, vues `TIME_VIEWS` « Cette semaine », « Ce mois-ci », « Tous »), groupé par jour avec totaux, édition en place et en masse (`bulkSaver`, `bulkCellLabels`), total et non facturé dans la barre, suppression des temps sélectionnés (sauf facturés), menu « Modifier » / « Dupliquer » / « Supprimer ». Utilisé par `TimePage` et `ProjectTimePanel`.
+- `TimeLog({ entries, context, projectId, emptyMessage, onEdit, onDuplicate, onDelete, actions? })` : tableau des temps (`DataTable`, `tableKey: 'time-log'`, vues `TIME_VIEWS` « Cette semaine », « Ce mois-ci », « Tous »), groupé par jour avec totaux, édition en place et en masse (`bulkSaver`, `bulkCellLabels`), total et non facturé dans la barre, suppression des temps sélectionnés (sauf facturés), menu « Modifier » / « Dupliquer » (`duplicateRowsAction` avec `onDuplicate`) / « Supprimer ». Utilisé par `TimePage` et `ProjectTimePanel`.
   - Interne `editable(entry)` : terminé et pas sur une facture validée.
 - Internes du fichier : `finishedSeconds(entries)` (somme des temps terminés), `events(entries)` (évènements des temps, options du filtre), `labelsText(items)` (libellés des routines ou évènements d’un temps), `billedText(entry)` (« Facturé : F-… » ou « Brouillon »), `TIME_VIEWS`, `timeColumns(context, comments, routines, entries)` (colonnes « Date », « Mois », « Heure de début », « Heure de fin », « Durée », « Projet », « Routines », « Tâches », « Évènements », « Facture », « Commentaires » ; routines et évènements en filtre `choices`, groupables). La cellule « Projet » ne se vide que si le temps garde une routine, une tâche ou un évènement (`hasSubject`).
 
@@ -59,7 +59,7 @@ Les trois cellules de sujets passent par l’interne `TimeSubjectCell({ kind, en
 
 ### `components/TimeEntryForm.tsx`
 
-- `TimeEntryForm({ context, entry?, defaultProjectId?, copy?, onDone })` : formulaire d’un temps (ajout, modification, duplication avec `copy`) : projet (facultatif avec une tâche, une routine ou un évènement, décision D17 ; le changer vide routines et tâches), jour, début, durée, routines, tâches et évènements du jour (`TimeSubjectsFields`, valeurs `routineIds`, `taskIds`, `events` du formulaire), description ; schéma `timeEntryFormSchema` ; en modification, commentaires du temps (`Comments` cible `TIME_ENTRY`). Ouvert par `useTimeEntryDialogs`.
+- `TimeEntryForm({ context, entry?, defaultProjectId?, onDone })` : formulaire d’un temps (ajout, modification) : projet (facultatif avec une tâche, une routine ou un évènement, décision D17 ; le changer vide routines et tâches), jour, début, durée, routines, tâches et évènements du jour (`TimeSubjectsFields`, valeurs `routineIds`, `taskIds`, `events` du formulaire), description ; schéma `timeEntryFormSchema` ; en modification, commentaires du temps (`Comments` cible `TIME_ENTRY`). Ouvert par `useTimeEntryDialogs`.
 
 ### `components/TimeLogActions.tsx`
 
@@ -130,6 +130,7 @@ Classes `running` (bloc du chrono dans l’en-tête), `summary` (bouton sujet + 
 ### `lib/lost-on-delete.ts`
 
 - `lostOnDeleteText(lost)` : les deux phrases ci-dessus (vide sans rien).
+- `withLossConfirmation(run)` (`lib/confirm-loss.tsx`, décision EW) : lance un changement de règle d'évènement ou de routine sans confirmation (`run(false)`) ; si l'API répond `CONFIRMATION_REQUIRED`, demande « Occurrences supprimées » (« Ce changement fait disparaître des occurrences qui ne reviendront pas. » puis `lostOnDeleteText(lost)`, bouton « Supprimer et enregistrer ») et relance confirmé (`run(true)`) ; refusé : `ActionDeclined`. Utilisé par les mutations `update` des évènements et `update`, `patch`, `bulkUpdate`, `changeOccurrence` des routines.
 - `scopeLostNote(lost)` : note de la question de portée d’une suppression : « Temps sans projet supprimés avec : cette occurrence 1, celle-ci et les suivantes 2, toutes 3 (les temps facturés sont gardés). Commentaires supprimés avec : cette occurrence 1, … » (seulement les choix proposés ; rien sans aucun). Utilisé par `EventForm` et `useCalendarEdits`.
 
 ## hooks/
@@ -147,7 +148,7 @@ Classes `running` (bloc du chrono dans l’en-tête), `summary` (bouton sujet + 
 
 ### `hooks/use-time-dialogs.tsx`
 
-- `useTimeEntryDialogs(context, defaultProjectId?)` : `{ openForm(entry?, { copy? }), duplicate(entry), confirmDelete(entry) }` : formulaire d’un temps dans le panneau, et confirmation de suppression. Utilisé par `TimePage`, `ProjectTimePanel`, l’agenda.
+- `useTimeEntryDialogs(context, defaultProjectId?)` : `{ openForm(entry?), duplicate, confirmDelete(entry) }` : formulaire d’un temps dans le panneau, « Dupliquer » (`DuplicateOptions` de `duplicateRowsAction`, décision D20 : copie enregistrée tout de suite, jamais facturée, puis son formulaire ouvert via `cachedItem`) et confirmation de suppression. Utilisé par `TimePage`, `ProjectTimePanel`, l’agenda.
 
 ## lib/
 

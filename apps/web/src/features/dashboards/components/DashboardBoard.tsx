@@ -20,7 +20,6 @@ import {
   ChartBarIcon,
   CheckSquareOffsetIcon,
   ReceiptIcon,
-  CopyIcon,
   FileImageIcon,
   FilePdfIcon,
   PencilSimpleIcon,
@@ -38,6 +37,9 @@ import { notifyError, ON_ERROR, onMutationError } from '../../../lib/notify';
 import { moveEntries } from '../../../components/actions/move-entries';
 import { useTaskContext, type TaskContext } from '../../tasks/hooks/use-task-context';
 import { dashboardsKey, useDashboardMutations, useDashboards, type Dashboard, type DashboardChart } from '../api';
+import { useQueryClient } from '@tanstack/react-query';
+import { duplicateRowsAction, rowMenuEntry } from '../../../components/data-table/selection/selection-actions';
+import { cachedItem } from '../../../lib/mutation';
 import { ARCHIVED_MESSAGE, archiveEntry, useSetArchived, useArchivedToggle } from '../../../lib/archive';
 import { ShowArchivedSwitch } from '../../../components/filters/ShowArchivedSwitch';
 import { ArchivedBadge } from '../../../components/feedback/ArchivedBadge';
@@ -113,7 +115,8 @@ interface ChartCardProps {
   /** Title of the dashboard, for the file names. */
   dashboardLabel: string;
   captures: Captures;
-  onEdit: () => void;
+  /** Opens the editor of a chart: this one (none given), or its copy. */
+  onEdit: (chart?: DashboardChart) => void;
   /** Its dashboard is archived: only its exports. Optional. Default = false. */
   readOnly?: boolean;
 }
@@ -130,6 +133,7 @@ function ChartCard({ chart, index, count, scope, context, dashboardLabel, captur
   const config = parseConfig(chart.config);
   const { data, isPending, error } = useChartData(config, scope, context);
   const { updateChart, duplicateChart, removeChart, moveChart } = useDashboardMutations();
+  const queryClient = useQueryClient();
   const view = useRef<HTMLDivElement>(null);
   const printView = useRef<HTMLDivElement>(null);
   // Drawn off screen at the size of an export while it is made.
@@ -244,7 +248,7 @@ function ChartCard({ chart, index, count, scope, context, dashboardLabel, captur
               ...(readOnly
                 ? []
                 : ([
-                    { label: 'Modifier', icon: <PencilSimpleIcon aria-hidden />, onClick: onEdit },
+                    { label: 'Modifier', icon: <PencilSimpleIcon aria-hidden />, onClick: () => onEdit() },
                     {
                       label: 'Renommer',
                       icon: <TextAaIcon aria-hidden />,
@@ -256,7 +260,17 @@ function ChartCard({ chart, index, count, scope, context, dashboardLabel, captur
                           onSubmit: (label) => updateChart.mutateAsync({ id: chart.id, input: { label, config, wide: chart.wide } }),
                         }),
                     },
-                    { label: 'Dupliquer', icon: <CopyIcon aria-hidden />, onClick: () => duplicateChart.mutate(chart.id, ON_ERROR) },
+                    // Saved at once, then its editor opens (decision D20).
+                    rowMenuEntry(
+                      duplicateRowsAction([chart], {
+                        duplicate: (source) => duplicateChart.mutateAsync(source.id),
+                        done: 'Diagramme dupliqué.',
+                        open: (id) => {
+                          const copy = cachedItem(queryClient, dashboardsKey, id, (dashboards: Dashboard[]) => dashboards.flatMap((dashboard) => dashboard.charts));
+                          if (copy) onEdit(copy);
+                        },
+                      }),
+                    ),
                     {
                       label: chart.wide ? 'Demi-largeur' : 'Pleine largeur',
                       icon: <ArrowsHorizontalIcon aria-hidden />,
@@ -506,7 +520,7 @@ export function DashboardBoard({ projectId, title }: DashboardBoardProps) {
                 context={context}
                 dashboardLabel={`${title} — ${current.label}`}
                 captures={captures}
-                onEdit={() => openEditor(chart)}
+                onEdit={(edited = chart) => openEditor(edited)}
                 readOnly={current.archived}
               />
             ))}

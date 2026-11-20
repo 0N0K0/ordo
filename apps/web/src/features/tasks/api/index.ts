@@ -206,9 +206,9 @@ const UpdateTaskDocument = graphql(`
   }
 `);
 
-const CloneTaskDocument = graphql(`
-  mutation CloneTask($id: ID!, $includeSubtasks: Boolean!) {
-    cloneTask(id: $id, includeSubtasks: $includeSubtasks) {
+const DuplicateTaskDocument = graphql(`
+  mutation DuplicateTask($id: ID!, $includeSubtasks: Boolean!) {
+    duplicateTask(id: $id, includeSubtasks: $includeSubtasks) {
       id
       number
     }
@@ -498,11 +498,11 @@ export function useSetTasksClosed() {
 }
 
 /**
- * Clones a task, optionally with its sub-tasks.
- * @returns {UseMutationResult} Mutation state, with the clone number.
+ * Duplicates a task (« … (copie) », decision D20), optionally with its sub-tasks.
+ * @returns {UseMutationResult} Mutation state, with the id and number of the copy.
  */
-export function useCloneTask() {
-  return useTasksMutation(async (variables: { id: string; includeSubtasks: boolean }) => (await execute(CloneTaskDocument, variables)).cloneTask);
+export function useDuplicateTask() {
+  return useTasksMutation(async (variables: { id: string; includeSubtasks: boolean }) => (await execute(DuplicateTaskDocument, variables)).duplicateTask);
 }
 
 /**

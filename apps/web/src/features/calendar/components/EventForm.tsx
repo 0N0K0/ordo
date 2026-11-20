@@ -12,7 +12,7 @@ import { itemSelectProps } from '../../../components/items/item-look';
 import { Alert, Anchor, Fieldset, Group, Select, SimpleGrid, Stack, Text, TextInput } from '@mantine/core';
 import { DatePickerInput, TimePicker } from '@mantine/dates';
 import { addDays, mapById, type CalendarEventInput, calendarEventInputSchema, daysBetween, formatDuration, type Recurrence, sharePeople, TEXT_MAX } from '@ordo/shared';
-import { ArrowArcRightIcon, ArrowCounterClockwiseIcon, CalendarXIcon, CopyIcon, PlayIcon, XIcon } from '@phosphor-icons/react';
+import { ArrowArcRightIcon, ArrowCounterClockwiseIcon, CalendarXIcon, PlayIcon, XIcon } from '@phosphor-icons/react';
 import { Link } from 'react-router';
 import { useState } from 'react';
 import { MarkdownEditor } from '../../../components/markdown/MarkdownEditor';
@@ -53,6 +53,7 @@ import { RemindersSelect } from '../../../components/inputs/RemindersSelect';
 import { ActionsMenu } from '../../../components/actions/ActionsMenu';
 import { calendarPath } from '../../../app/pages';
 import { ActionButton } from '../../../components/actions/ActionButton';
+import { DuplicateButton } from '../../../components/actions/DuplicateButton';
 
 type FormValues = CalendarEventInput & Record<string, unknown>;
 
@@ -128,8 +129,8 @@ interface EventFormProps {
   /** Fields of a new event (dates selected in the calendar…). */
   defaults?: Partial<CalendarEventInput>;
   onDone: () => void;
-  /** Duplicates the event: the fields of its copy (not saved yet). */
-  onDuplicate?: (fields: CalendarEventInput) => void;
+  /** Opens the copy of the event once saved (« Dupliquer », decision D20): its id and fields. Optional: no « Dupliquer ». */
+  onDuplicated?: (id: string, fields: CalendarEventInput) => void;
 }
 
 /**
@@ -142,7 +143,7 @@ interface EventFormProps {
  * @param {EventFormProps} props Component props.
  * @returns {JSX.Element} Form.
  */
-export function EventForm({ context, occurrence, defaults, onDone, onDuplicate }: EventFormProps) {
+export function EventForm({ context, occurrence, defaults, onDone, onDuplicated }: EventFormProps) {
   const categoryItems = useCalendarCategoryItems();
   const { create, update, remove, setCalledOff } = useCalendarEventMutations();
   const { startTimer, isPending: timerStarting, hint: timerHint } = useStartTimer();
@@ -542,18 +543,15 @@ export function EventForm({ context, occurrence, defaults, onDone, onDuplicate }
               occurrence && (
                 <>
                   <DeleteButton onClick={() => void handleDelete()} loading={remove.isPending} />
-                  {onDuplicate && (
-                    <ActionButton
-                      priority="secondary"
-                      hint={recurring ? 'Copie de cette occurrence, en évènement unique, à enregistrer' : 'Copie de l’évènement, à enregistrer'}
-                      icon={<CopyIcon aria-hidden />}
-                      onClick={() =>
-                        // Its fields as they are in the form; an occurrence of a series becomes a one-off event.
-                        onDuplicate({ ...values, label: copyName(values.label), recurrence: recurring ? null : (values.recurrence ?? null) })
-                      }
-                    >
-                      Dupliquer
-                    </ActionButton>
+                  {onDuplicated && (
+                    <DuplicateButton
+                      // Its fields as they are in the form; an occurrence of a series becomes a one-off event.
+                      item={{ ...values, label: copyName(values.label), recurrence: recurring ? null : (values.recurrence ?? null) }}
+                      hint={recurring ? 'Copie de cette occurrence, en évènement unique' : 'Copie de l’évènement'}
+                      duplicate={async (fields: CalendarEventInput) => ({ id: await create.mutateAsync(fields), fields })}
+                      done="Évènement dupliqué."
+                      open={({ id, fields }) => onDuplicated(id, fields)}
+                    />
                   )}
                   {occurrence.calledOff ? (
                     <ActionButton priority="secondary" icon={<ArrowCounterClockwiseIcon aria-hidden />} onClick={() => void handleCalledOff(false)} loading={setCalledOff.isPending}>

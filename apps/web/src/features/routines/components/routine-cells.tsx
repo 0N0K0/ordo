@@ -203,7 +203,7 @@ export function RepetitionText({ routine }: { routine: Routine }) {
 
 /**
  * "Quand" cell: where the routine stands today (its content); a click opens every setting of its repetition (one rule
- * or cases, moments, schedules, « à partir du ») in the common modal. On a selection, the repetition applies to every
+ * or cases, moments, schedules, « Ouverture ») in the common modal. On a selection, the repetition applies to every
  * routine selected.
  * @param {CellProps & { children: ReactNode }} props Component props.
  * @returns {JSX.Element} Cell.
@@ -225,7 +225,7 @@ export function RepetitionCell({ routine, readOnly = false, children }: CellProp
           header={
             count > 1 && (
               <Text size="sm" c="dimmed">
-                S’applique à {routinesLabel(count)} : chacune prend cette répétition entière (première fois, règle ou cas, moments, créneaux, « à partir du »).
+                S’applique à {routinesLabel(count)} : chacune prend cette répétition entière (première fois, règle ou cas, moments, créneaux, « Ouverture »).
               </Text>
             )
           }

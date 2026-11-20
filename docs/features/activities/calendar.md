@@ -92,7 +92,7 @@ Section « Exporter » :
 
 ## Formulaire d’évènement
 
-Ouvert dans le panneau latéral (large) : « Nouvel évènement », « Évènement » (existant) ou « Copie de l’évènement ». Accessible depuis l’agenda, les actions rapides « Ajouter › Évènement » (pré-rempli avec le projet ouvert), les cellules d’évènements des tâches.
+Ouvert dans le panneau latéral (large) : « Nouvel évènement » ou « Évènement » (existant, une copie qui vient d’être enregistrée comprise). Accessible depuis l’agenda, les actions rapides « Ajouter › Évènement » (pré-rempli avec le projet ouvert), les cellules d’évènements des tâches.
 
 ### Champs
 
@@ -125,7 +125,7 @@ Pour un récurrent : « Projet, contributeurs, catégories, tâches et rappels s
 - Fiches (checklists par occurrence, voir [Fiches](../supplies/sheets.md)) et commentaires de l’occurrence (« Commentaires du 12 nov. 2026 » pour un récurrent, décision D19, voir [Commentaires](../cross-cutting/comments.md)).
 - « Enregistrer » (récurrent : choix de la portée ; si la répétition a changé, « Cette occurrence » n’est pas proposée).
 - « Supprimer » : confirmation « Supprimer l’évènement » (« … sera supprimé définitivement. », suivi s'il y en a de « 2 temps sans projet, qui ne portent sur rien d’autre, seront aussi supprimés (les temps facturés sont gardés). ») ou, pour un récurrent, choix de la portée (« La suppression est définitive. », suivi s'il y en a de « Temps sans projet supprimés avec : cette occurrence 1, celle-ci et les suivantes 2, toutes 3 (les temps facturés sont gardés). » et de « Commentaires supprimés avec : cette occurrence 1, celle-ci et les suivantes 2, toutes 3. »). Pour un évènement unique, « 3 commentaires seront aussi supprimés. » suit la phrase des temps.
-- « Dupliquer » : ouvre une copie non enregistrée (suffixe de copie ajouté au libellé, `copyName`) ; une occurrence d’une série devient un évènement unique.
+- « Dupliquer » (décision D20) : la copie est enregistrée tout de suite avec les champs du formulaire (suffixe de copie ajouté au libellé, `copyName`), toast « Évènement dupliqué. », puis la copie s’ouvre à la place ; une occurrence d’une série devient un évènement unique.
 - « Annuler l’évènement » : reste barré dans l’agenda ; « Rétablir » l’inverse. Portée demandée pour un récurrent.
 - « Reporter » : panneau « Reporter l’évènement » avec « Libellé » (par défaut « Report de l’évènement « X » », le nom coupé pour tenir en 250 caractères, `fitName`), « Nouvelle date » (lendemain par défaut), « Début », « Fin » ; l’évènement garde sa durée ; la date initiale est annulée et un nouvel évènement unique, lié, est créé ; les commentaires et les temps de l’occurrence passent au report. Toast « Évènement reporté. ».
 - Menu « … » : archiver / restaurer (toute la série).
@@ -156,11 +156,11 @@ Tableau de données commun ([Tableau de données](../../web/components/data-tabl
 | « État »     | — (« En cours », « À venir », « Passée » — libellés de `PERIOD_STATES`) | Filtre, tri, groupement           |
 | Commentaires | —                                                                       | —                                 |
 
-Actions : « Nouveaux créneaux » ; par ligne « Modifier », « Dupliquer (sans dates ni exceptions) », archiver/restaurer, « Supprimer » ; sur une sélection : archiver/restaurer, supprimer (édition groupée des colonnes éditables). Les créneaux archivés sont en lecture seule (toujours suivis par les routines qui les utilisent). Suppression : le créneau et ses exceptions sont supprimés définitivement (PRO : « il ne comptera plus dans le temps prévu »), les espaces abonnés ne le voient plus, les évènements ne sont pas touchés. État vide : « Aucun créneau. ».
+Actions : « Nouveaux créneaux » ; par ligne « Modifier », « Dupliquer », archiver/restaurer, « Supprimer » ; sur une sélection : archiver/restaurer, supprimer (édition groupée des colonnes éditables). Les créneaux archivés sont en lecture seule (toujours suivis par les routines qui les utilisent). Suppression : le créneau et ses exceptions sont supprimés définitivement (PRO : « il ne comptera plus dans le temps prévu »), les espaces abonnés ne le voient plus, les évènements ne sont pas touchés. État vide : « Aucun créneau. ».
 
 ### Formulaire de créneaux
 
-« Nouveaux créneaux », « Modifier « X » », « Dupliquer « X » » :
+« Nouveaux créneaux », « Modifier « X » » :
 
 - « Libellé » (requis, 250 caractères ; « Semaine type » par défaut) ;
 - « Type » (vide : créneaux sans type, création possible « Nouveau type de créneau ») ;
@@ -168,7 +168,7 @@ Actions : « Nouveaux créneaux » ; par ligne « Modifier », « Dupliquer (san
 - « Exceptions (congés, horaires particuliers…) » : « Du », « Au », « Motif », case « Pause (aucun créneau pendant cette période) », sinon ses propres cas ; « Ajouter une exception » (aujourd’hui, « Congés », pause) ;
 - commentaires (créneau existante).
 
-Une copie reprend les cas et le type, sans dates ni exceptions (« choisissez ses dates »). Toasts « Créneaux créés. » / « Créneaux modifiés. » ; une erreur sur un champ sans saisie est annoncée par un toast.
+« Dupliquer » (décision D20) : la copie, « … (copie) », est enregistrée tout de suite avec les dates, les cas et le type, sans les exceptions (toast « Créneaux dupliqués. »), puis « Modifier « … (copie) » » s’ouvre pour changer ses dates. Toasts « Créneaux créés. » / « Créneaux modifiés. » ; une erreur sur un champ sans saisie est annoncée par un toast.
 
 ### Formulaire d’un créneau dans l’agenda (mode « Modifier les créneaux »)
 

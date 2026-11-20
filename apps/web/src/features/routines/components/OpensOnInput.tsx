@@ -10,11 +10,11 @@ interface OpensOnInputProps {
   error?: string;
 }
 
-/** No « à partir du ». */
+/** No « Ouverture ». */
 const NONE = 'NONE';
 
 /**
- * Modes of « à partir du » a frequency offers: a day of the period for a monthly or yearly one, days before always.
+ * Modes of « Ouverture » a frequency offers: a day of the period for a monthly or yearly one, days before always.
  * @param {Recurrence['frequency']} frequency Frequency.
  * @returns {{ value: string, label: string }[]} Options.
  */
@@ -49,7 +49,7 @@ function firstValue(mode: RoutineOpensMode, frequency: Recurrence['frequency']):
 }
 
 /**
- * « À partir du »: day each occurrence can be done from, before its due day: a day number, a weekday of the month (the
+ * « Ouverture »: day each occurrence can be done from, before its due day: a day number, a weekday of the month (the
  * 2nd Tuesday), the weekday of a week (of the month, or ISO week of the year), in its period (a monthly or yearly
  * rule), or some days before its due day; none: from its first day.
  * @param {OpensOnInputProps} props Component props.
@@ -80,7 +80,7 @@ export function OpensOnInput({ frequency, value, onChange, error }: OpensOnInput
   return (
     <Stack gap="xs">
       <Select
-        label="À partir du"
+        label="Ouverture"
         description="Facultatif : chaque occurrence est à faire dès ce jour, jusqu’à son échéance."
         data={options}
         value={mode}

@@ -11,7 +11,7 @@ export type RemindedRoutine = Pick<Routine, 'id' | 'label' | 'archived' | 'locat
 /**
  * Rings the reminders of the routines (decision D16), for the occurrences the API gives (`reminderOccurrences`: the
  * current one while not done, and the next one): each « N min avant » before each time of the day not ticked (its first
- * day, « à partir du », at its « dès »), each « À HH:MM » once per occurrence, on its first day. Missed ones, within a
+ * day, « Ouverture », at its « dès »), each « À HH:MM » once per occurrence, on its first day. Missed ones, within a
  * few hours, ring on opening. An archived routine has none. The toast offers to tick the routine (its current
  * occurrence). Out of the slots of the routine (its slot rule), a reminder waits for the next moment they allow.
  * @template {RemindedRoutine} R
