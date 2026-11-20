@@ -76,7 +76,7 @@ Interne : `LabelDocuments` (documents CRUD par type de libellé), `useTasksMutat
 
 - `TaskPanel()` : panneau latéral (`SidePanel`) de la tâche de l’URL (`?task=`), par-dessus toute page ; squelette pendant le chargement, `DetailNotFound` si introuvable. Monté par `app/layout/AppLayout.tsx`.
 - Internes :
-  - `TaskDetail({ task, context })` : en-tête (badges GitHub / archivée, « Fermer la tâche » / « Rouvrir », « Renommer » via `openLabelForm`, menu `useTaskActions`), description (`MarkdownView` / `MarkdownEditor`), liens (`TaskLinks`), lieu (`TaskLocation`, dans la colonne de propriétés), sous-tâches, commentaires (`TaskComments`), colonne de propriétés (projet → transfert avec confirmation, libellés, assignés, étiquettes, bénéficiaires, effort, `TaskTime`, dates, parent, jalon, sprints, `SlotRuleInput`, liens, `TaskAlarms`, `TaskShopping`, `SheetsSection`). `Fieldset` désactivé sur une tâche archivée.
+  - `TaskDetail({ task, context })` : en-tête (badges GitHub / archivée, « Fermer la tâche » / « Rouvrir », « Renommer » via `openLabelForm`, menu `useTaskActions`), description (`MarkdownView` / `MarkdownEditor`), liens (`TaskLinks`), lieu (`TaskLocation`) et rappels (`TaskReminders`), dans la colonne de propriétés, sous-tâches, commentaires (`TaskComments`), colonne de propriétés (projet → transfert avec confirmation, libellés, assignés, étiquettes, bénéficiaires, effort, `TaskTime`, dates, parent, jalon, sprints, `SlotRuleInput`, liens, `TaskAlarms`, `TaskShopping`, `SheetsSection`). `Fieldset` désactivé sur une tâche archivée.
   - `LinkList({ label, tasks, candidates, context, onAdd, onRemove })` : liste « Bloque » / « Dépend de » / « Relative à » avec « Retirer » et « Ajouter une tâche » (`TaskSelect`).
 
 ### `components/TaskCreateForm.tsx`
@@ -86,6 +86,10 @@ Interne : `LabelDocuments` (documents CRUD par type de libellé), `useTasksMutat
 ### `components/TaskLinks.tsx`
 
 - `TaskLinks({ task, locked })` : section « Liens » du panneau : `ItemLinks` (« Aucun lien. » sinon), crayon « Modifier les liens » (sauf archivée). Interne : `TaskLinksEditor({ task, onClose })`, `LinksField` sur `linksFormSchema`, enregistré par `updateTask` (`{ links }`), erreurs sous les champs.
+
+### `components/TaskReminders.tsx`
+
+- `TaskReminders({ value, minDate, deadline, onChange, error?, disabled? })` : « Rappels » d'une tâche (décision D16), dans « Nouvelle tâche » (`TaskCreateForm`) et le panneau (`TaskDetail`, enregistré à chaque changement) : `RemindersSelect` en « À HH:MM » seulement (`kinds={['at']}`, `day` vide), aide selon « Date min » / « Date max », désactivé sans « Date max ».
 
 ### `components/TaskLocation.tsx`
 

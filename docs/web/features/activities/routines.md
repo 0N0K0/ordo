@@ -73,7 +73,7 @@ Interne : `RoutineFormValues`.
 | Export                                                                   | Rôle                                                                                                                                                                                                                                         |
 | ------------------------------------------------------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `RoutineRepetitionModal({ routine, opened, onClose, onApply, header? })` | Fenêtre « Répétition et moments de « … » » hors formulaire (cellule « Échéance ») ; `onApply` reçoit la répétition entière. Utilisée par `RepetitionCell`.                                                                                   |
-| `RoutineSchedule({ values, errors, onChange })`                          | Bloc « Quand » du formulaire : `RepetitionField` (résumé et fenêtre), lieu (`EventLocation`), trajets (`TravelField`, `TravelCalculator`), rappels (`RemindersSelect`, `ROUTINE_REMINDERS`, désactivés sans horaire), ligne départ / retour. |
+| `RoutineSchedule({ values, errors, onChange })`                          | Bloc « Quand » du formulaire : `RepetitionField` (résumé et fenêtre), lieu (`EventLocation`), trajets (`TravelField`, `TravelCalculator`), rappels (`RemindersSelect`, désactivés sans horaire), ligne départ / retour. |
 
 Internes : `RoutineScheduleValues`, `RoutineRepetitionValue`, `RoutineTimes`, `ANY_TIME`, `MomentsEditor` (moments avec « Facultatif »), `describeMoments`, `routineTimes(names)` (moments, condition et « à partir du » pour l'éditeur commun), `editedCases`, `fittingOpens`, `withEditedCases`, `RoutineRepetitionEditor` (première fois et `RepetitionEditor` en mode règle ou cas), `describeRepetition`, `routineRepetitionValue`, `validRepetition`.
 
@@ -167,7 +167,7 @@ Interne : `CellProps`.
 | `TimeOfDayCell`     | « À partir de » / « Avant », seulement pour une routine à un seul moment propre.                                      |
 | `RoutineLocationCell` | Lieu : `LocationCell` (features/geo) sur la sélection du tableau (`useRoutineCellEdit`).                           |
 | `TravelCell`        | Trajet aller / retour.                                                                                                |
-| `RemindersCell`     | Rappels (badge cloche, `RemindersSelect`), différence appliquée à chaque routine sélectionnée.                        |
+| `RemindersCell`     | Rappels (badge cloche, `RemindersSelect`, libellés `reminderLabel`), différence appliquée à chaque routine sélectionnée.                        |
 | `OpensOnCell`       | « À partir du » (pas pour une routine à cas) ; en masse, seulement aux routines dont la fréquence convient.           |
 | `BlocksCell`        | Routines qui attendent celle-ci (de son arborescence, `linkableRoutine`) ; patch des dépendances des autres routines. |
 

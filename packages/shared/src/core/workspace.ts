@@ -39,8 +39,8 @@ export type ProjectLinkInput = z.input<typeof projectLinkSchema>;
 /** Kinds of workspace: professional (invoicing, clients, company) or personal. */
 export const WORKSPACE_KINDS = ['PRO', 'PERSO'] as const;
 
-/** Kinds of notification a workspace can give while another one is open. */
-export const NOTIFICATION_SOURCES = ['ALARMS', 'CALENDAR', 'MAILS'] as const;
+/** Kinds of notification a workspace can give while another one is open (alarms and reminders ring in every workspace). */
+export const NOTIFICATION_SOURCES = ['MAILS'] as const;
 
 /** Kinds of resource of a project: an uploaded file or a link. */
 export const PROJECT_RESOURCE_KINDS = ['FILE', 'LINK'] as const;

@@ -9,6 +9,7 @@ import { BY_POSITION } from '../../services/core/ordering';
 import { builder } from '../builder';
 import { locatedInput, locationInputFields, TRAVEL_DESCRIPTIONS, travelInputFields } from '../located-fields';
 import { ItemLinkInput, ItemLinkRef } from '../link-fields';
+import { ReminderInput, ReminderRef } from '../reminder-fields';
 import { LabelColorInput, labelMutations, labelObject } from '../label-inputs';
 import { reloaded } from '../reload';
 import { unchecked } from '../unchecked';
@@ -99,7 +100,7 @@ const EventOccurrence = builder.objectRef<events.EventOccurrence>('CalendarEvent
     end: t.expose('end', { type: 'DateTime' }),
     recurrence: t.field({ type: 'JSON', nullable: true, resolve: (occurrence) => occurrence.recurrence }),
     seriesStartDate: t.exposeString('seriesStartDate'),
-    reminders: t.exposeIntList('reminders'),
+    reminders: t.field({ type: [ReminderRef], description: 'Minutes before the start (all day: Paris midnight of its first day), or a time of its first day.', resolve: (occurrence) => occurrence.reminders }),
     travelBefore: t.exposeInt('travelBefore', { description: TRAVEL_DESCRIPTIONS.before }),
     travelAfter: t.exposeInt('travelAfter', { description: TRAVEL_DESCRIPTIONS.after }),
     projectId: t.exposeID('projectId', { nullable: true }),
@@ -267,7 +268,7 @@ const CalendarEventInput = builder.inputType('CalendarEventInput', {
     endDate: t.field({ type: 'Date', required: true }),
     endTime: t.string(),
     recurrence: t.field({ type: 'JSON' }),
-    reminders: t.intList({ required: true, description: 'Minutes before the start.' }),
+    reminders: t.field({ type: [ReminderInput], required: true, description: 'Minutes before the start (24 hours at most) or a time of its first day, 10 at most.' }),
     ...travelInputFields(t, 'none: 0'),
     projectId: t.id(),
     calendarId: t.id({ description: 'Calendar; the first one of the workspace when omitted.' }),

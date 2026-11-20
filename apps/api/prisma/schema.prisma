@@ -134,10 +134,8 @@ model Workspace {
   shoppingDeliveries        ShoppingDelivery[]
 }
 
-/// Kind of notification a workspace can give while another one is open.
+/// Kind of notification a workspace can give while another one is open (its alarms and reminders always ring).
 enum NotificationSource {
-  ALARMS
-  CALENDAR
   MAILS
 }
 
@@ -627,6 +625,9 @@ model Task {
   /// Earliest acceptable date (« Date min »): the task is not to be done before it.
   minDate              DateTime?          @db.Date
   deadline             DateTime?          @db.Date
+  /// Reminders [{ before: null, at: "HH:MM" }] (Paris time), 10 at most: rung every day from « Date min » to « Date
+  /// max » (the « Date max » day only without « Date min »; never without « Date max »).
+  reminders            Json               @default("[]")
   /// Parent task, possibly in another project of the same tree.
   parentId             String?
   parent               Task?              @relation("TaskTree", fields: [parentId], references: [id], onDelete: SetNull)
@@ -1445,8 +1446,9 @@ model CalendarEvent {
   endTime              String?
   /// Repetition (see the shared recurrence rule), null for a one-off event.
   recurrence           Json?
-  /// Reminders, in minutes before the start.
-  reminders            Int[]
+  /// Reminders, 10 at most: [{ before: minutes (24 hours at most), at: null }] before the start, or [{ before: null,
+  /// at: "HH:MM" }] on the day of the start (Paris time).
+  reminders            Json                     @default("[]")
   /// Travel time to the event and back from it, in minutes (timed events).
   travelBefore         Int                      @default(0)
   travelAfter          Int                      @default(0)
@@ -3126,8 +3128,9 @@ model Routine {
   /// On or out of calendar schedules, in groups (and / or), following its rule; none: any time (or, saved before
   /// it, scheduleIds / excludedScheduleIds).
   slotCondition        Json?
-  /// Alerts, in minutes before its moment (when to leave, else its start, else its latest time), on the days it is due.
-  reminders            Int[]                  @default([])
+  /// Reminders, 10 at most: [{ before: minutes (24 hours at most), at: null }] before the first day of an occurrence
+  /// (« à partir du ») at the start of each time of the day (« dès »), or [{ before: null, at: "HH:MM" }] on that day.
+  reminders            Json                   @default("[]")
   /// « À partir du » of the occurrences of its rule: { mode: DAY, day, month } | { mode: WEEKDAY, position, weekday,
   /// month } | { mode: WEEK, week, weekday } | { mode: BEFORE, days }; null: from their first day.
   opensOn              Json?

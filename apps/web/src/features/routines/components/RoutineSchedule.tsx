@@ -1,4 +1,4 @@
-import { ROUTINE_REMINDERS } from '../../../components/inputs/reminder-presets';
+import type { Reminder } from '@ordo/shared';
 import { LabeledField } from '../../../components/inputs/LabeledField';
 import { AddItemButton } from '../../../components/actions/AddItemButton';
 import { useSlotChoices } from '../../calendar/hooks/use-slot-sources';
@@ -48,7 +48,7 @@ interface RoutineScheduleValues {
   /** Times of the day following its rule. */
   moments: RoutineSlot[];
   opensOn: RoutineOpens | null;
-  reminders: number[];
+  reminders: Reminder[];
   estimate: number | null;
   location: string;
   locationLat: number | null;
@@ -371,13 +371,12 @@ export function RoutineSchedule({ values, errors, onChange }: RoutineSchedulePro
         label="Rappels"
         description={
           timed
-            ? 'Avant l’heure de départ (sinon le début, sinon l’heure maximale), les jours où elle est à faire, tant qu’elle n’est pas cochée.'
-            : 'Donnez-lui un horaire ou un créneau pour recevoir des rappels.'
+            ? 'Avant son premier jour (« à partir du ») à l’heure « dès » de chaque moment non coché (sinon son heure maximale), 24 h au plus ; ou à une heure de ce jour.'
+            : 'À une heure de son premier jour (« à partir du ») : donnez-lui un horaire ou un créneau pour des rappels avant ses moments.'
         }
         leftSection={<BellIcon aria-hidden />}
         emptyLabel="Aucun"
-        disabled={!timed}
-        presets={ROUTINE_REMINDERS}
+        kinds={timed ? ['before', 'at'] : ['at']}
         value={values.reminders}
         onChange={(reminders) => onChange({ reminders })}
         clearable

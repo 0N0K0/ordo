@@ -30,27 +30,30 @@ Fragment `AlarmFields`, requête `Alarms`, mutations `CreateAlarm`, `UpdateAlarm
 
 ### `components/AlarmCenter.tsx`
 
-`AlarmCenter()` : composant sans rendu monté dans `AppLayout` (app) : fait sonner, dans l’espace ouvert, les alarmes, les rappels d’évènements et les alertes de routines.
+`AlarmCenter()` : composant sans rendu monté dans `AppLayout` (app) : fait sonner, dans l’espace ouvert, les alarmes et les rappels des évènements, des routines et des tâches.
 
 - Données : `useAlarms`, `useRunningTimer` (temps), `useTasksData` (tâches), `useProjectTree` (projets), `useRoutinesData` + `useRoutineMutations().setDone` (routines), `useSlotRules` (agenda).
 - Occurrences d’évènements d’hier à J+8 rechargées toutes les 5 minutes (`fetchCalendarEvents`), gardées dans une ref.
 - `unlockAudioOnGesture()` au montage.
-- Vérification toutes les `TICK_MS` = 15 s : `ringReminders` (lien « Voir l’agenda »), `ringRoutineReminders` (lien « Voir les routines », « Marquer comme faite », report via `slotRules.nextAllowedAt(routineDoable(routine), at)`), puis `dueAlarms` + `ringAlarm` (liens `alarmTarget`, `markFired`).
+- Vérification toutes les `TICK_MS` = 15 s : `ringReminders` (lien « Voir l’agenda »), `ringRoutineReminders` (lien « Voir les routines », « Marquer comme faite », report via `slotRules.nextAllowedAt(routineDoable(routine), at)`), `ringTaskReminders` (lien vers la tâche, `alarmTarget`), puis `dueAlarms` + `ringAlarm` (liens `alarmTarget`, `markFired`).
 - Les liens des toasts naviguent avec `useNavigate` (les toasts sont hors du routeur). Valeurs les plus récentes lues par une ref `latest`. Paliers des alarmes de chrono : ref `trackingSteps`.
 
 ### `components/ring.tsx`
 
 | Export                                                      | Rôle                                                                                                                                         | Utilisé par                                       |
 | ----------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------- |
-| `MAX_DELAY_MS`                                              | 6 h : au-delà, une occurrence manquée ne sonne plus                                                                                          | ici, `ring-routines.tsx`                          |
+| `MAX_DELAY_MS`                                              | 6 h : au-delà, une occurrence manquée ne sonne plus                                                                                          | ici                                               |
 | `RingLink` (type)                                           | Lien d’un toast (`NotifyAction`)                                                                                                             | `AlarmCenter`, `ElsewhereNotifier`, `MailWatcher` |
-| `claim(key, ttlMs = 10 min)`                                | Réserve une occurrence pour cet onglet dans `localStorage` (premier arrivé), nettoie les clés `ordo.alarm.*` expirées ; sans stockage : vrai | ici, `ring-routines.tsx`, `MailWatcher`           |
-| `systemNotification(title, body, tag)`                      | Notification système si autorisée                                                                                                            | ici, `ring-routines.tsx`, `MailWatcher`           |
+| `claim(key, ttlMs = 10 min)`                                | Réserve une occurrence pour cet onglet dans `localStorage` (premier arrivé), nettoie les clés `ordo.alarm.*` expirées ; sans stockage : vrai | ici, `MailWatcher`                                |
+| `systemNotification(title, body, tag)`                      | Notification système si autorisée                                                                                                            | ici, `MailWatcher`                                |
 | `ringAlarm(alarm, key, links, workspaceLabel?)`             | Carillon + notification + toast `notifyInfo` d’une alarme (« Espace « X » » si autre espace)                                                 | `AlarmCenter`, `ElsewhereNotifier`                |
-| `ringReminders(occurrences, now, links, workspaceLabel?)`   | Sonne les rappels d’évènements dus (≤ 6 h de retard), clé `ordo.alarm.event:<clé>:<minutes>`                                                 | `AlarmCenter`, `ElsewhereNotifier`                |
+| `ReminderToast` (type)                                      | Ce que montre le toast d’un rappel : `icon`, `title`, `lines`, `actions`                                                                     | ici, `ring-routines.tsx`                          |
+| `ringPlannedReminders(planned, now, toast, workspaceLabel?)` | La seule sonnerie des rappels (générique : `toast` reçoit le rappel planifié tel que donné) (décision D16) : chaque rappel dû (≤ 6 h de retard) réservé une fois (`claim` 7 h, clé `ordo.alarm.<clé>`), carillon, notification système, toast `notifyInfo` (`id` = clé ; « Espace « X » » si autre espace). Règle eslint : `playChime()` appelé ailleurs renvoie vers elle (exceptions commentées : `ringAlarm`, `MailWatcher`) | `ringReminders`, `ringTaskReminders`, `ringRoutineReminders` |
+| `ringReminders(occurrences, now, links, workspaceLabel?)`   | Rappels d’évènements (`remindersBefore` depuis le début, `remindersAt` le premier jour ; clé `event:<clé>:before:<minutes>` / `…:at:<HH:MM>`), sauf occurrences annulées                                             | `AlarmCenter`, `ElsewhereNotifier`                |
+| `RemindedTask` (type), `ringTaskReminders(tasks, now, links, workspaceLabel?)` | Rappels « À HH:MM » des tâches ouvertes non archivées (`taskReminders`, clé `task:<id>:<jour>:at:<HH:MM>`) ; type minimal, celui des tâches d'un autre espace aussi | `AlarmCenter`, `ElsewhereNotifier` |
 | `dueAlarms(alarms, running, now, trackingSteps, markFired)` | Alarmes à sonner maintenant, avec leur clé d’occurrence ; enregistre les occurrences planifiées comme sonnées                                | `AlarmCenter`, `ElsewhereNotifier`                |
 
-Interne : `occurrenceStart(occurrence)` (instant, ou minuit local du premier jour en journée entière).
+Interne : `occurrenceStart(occurrence)` (instant, ou minuit de Paris du premier jour en journée entière, `parisInstant`).
 
 ### `components/AlarmForm.tsx`
 
@@ -94,9 +97,9 @@ Interface interne `AlarmTarget`.
 ### `lib/alarm-sound.ts`
 
 - `unlockAudioOnGesture()` : crée/reprend l’`AudioContext` au premier `pointerdown` ou `keydown` ; renvoie le nettoyage. Utilisé par `AlarmCenter`.
-- `playChime()` : carillon de trois notes (880, 1 175, 1 568 Hz) en Web Audio, silencieux tant que l’audio n’est pas débloqué. Utilisé par `ring.tsx`, `ring-routines.tsx`, `MailWatcher` (mails).
+- `playChime()` : carillon de trois notes (880, 1 175, 1 568 Hz) en Web Audio, silencieux tant que l’audio n’est pas débloqué. Utilisé par `ring.tsx` (`ringAlarm`, `ringPlannedReminders`) et `MailWatcher` (mails).
 - Variable de module `audio` (contexte partagé).
 
 ### `lib/ring-routines.tsx`
 
-`ringRoutineReminders(routines, now, links, markDone, defer?)` : alertes des routines du jour non faites, par heure du jour non cochée et par rappel, au moment `routineAlertTime` moins les minutes, reportées par `defer` hors des créneaux permis, ≤ `MAX_DELAY_MS` de retard ; réserve la clé `ordo.alarm.routine:<id>:<jour>:<heure du jour>:<minutes>` (`claim`, 7 h), carillon, notification système et toast `notifyInfo` (« Partir à HH:MM », fenêtre `windowText`, lieu ; actions « Marquer comme faite » + liens). Utilise `isDone` (routines), `localInstant`, `localToday`. Utilisé par `AlarmCenter`.
+`RemindedRoutine` (type minimal, routines d'un autre espace aussi) ; `ringRoutineReminders(routines, now, links, markDone?, defer?, workspaceLabel?)` : rappels des routines non archivées, pour chaque occurrence donnée par l'API (`reminderOccurrences` : en cours non faite, et suivante) : les « avant » pour chaque moment non coché (`remindersBefore`, clé `routine:<id>:<échéance>:<moment>:before:<minutes>`), les « À HH:MM » une fois, le premier jour (`remindersAt`, clé `routine:<id>:<échéance>:at:<HH:MM>`), reportés par `defer` hors des créneaux permis ; sonne par `ringPlannedReminders` (horaires `windowText` et lieu ; « Marquer comme faite », pour l'occurrence en cours et avec `markDone`, + liens). Utilisé par `AlarmCenter`, `ElsewhereNotifier` (sans `markDone` ni `defer`).

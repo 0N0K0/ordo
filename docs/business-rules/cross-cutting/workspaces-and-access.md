@@ -17,7 +17,7 @@ Voir aussi : [Personnes](people.md), [Erreurs](errors.md), [Tâches de fond](bac
 
 - Création : en dernier du sélecteur ; mise en place (`setUpWorkspace`) : un profil « Moi » pour chaque utilisateur, un premier agenda, les statuts de suivi des documents (PRO), les unités de courses par défaut (« pièce », « kg »…) si l'espace n'en a pas.
 - La mise en place est rejouée à chaque modification de l'espace (elle complète sans dupliquer).
-- Réglages de l'espace : notifications données quand un autre espace est ouvert (`ALARMS`, `CALENDAR`, `MAILS`), semaine (premier et dernier jours), colonnes de départ des vues de tâches, créneaux sans type (libellé, couleur, affichage).
+- Réglages de l'espace : notifications données quand un autre espace est ouvert (`MAILS` ; alarmes et rappels sonnent toujours, décision EO), semaine (premier et dernier jours), colonnes de départ des vues de tâches, créneaux sans type (libellé, couleur, affichage).
 - Ordre : glisser-déposer dans le sélecteur (`moveWorkspace`).
 - Suppression : supprime l'espace et **tout son contenu** ; le dernier espace ne peut pas être supprimé (« Le dernier espace ne peut pas être supprimé. »). Les mouvements de trésorerie, leurs règlements et les documents comptables sont supprimés d'abord (ils bloquent la cascade), puis la cascade de la base emporte le reste.
 - S'il n'existe aucun espace, un espace « Pro » (PRO) est créé à la première requête.
@@ -33,7 +33,7 @@ Voir aussi : [Personnes](people.md), [Erreurs](errors.md), [Tâches de fond](bac
 
 - **Agendas** : un espace peut afficher en lecture seule un agenda d'un autre espace (abonnement, `CalendarSubscription`, unique par agenda) ; on ne s'abonne pas à son propre agenda (« Ce calendrier appartient déjà à cet espace. »).
 - **Créneaux** : un espace peut afficher en lecture seule un type de créneaux d'un autre espace, ou ses créneaux sans type (`WorkScheduleSubscription`) ; pas ses propres créneaux (« Ces créneaux appartiennent déjà à cet espace. ») ; couleur et affichage réglables côté abonné. Une condition de créneaux de tâche ou de routine peut citer les créneaux et types d'un autre espace, abonné ou non ; elle note un tel type `ws:<espace>:<type | default>` (comme les abonnements).
-- **Notifications d'ailleurs** : le web interroge les espaces non ouverts qui l'ont choisi (alarmes, rappels d'agenda, nouveaux mails) et affiche leurs notifications avec un lien vers l'espace (`ElsewhereNotifier`).
+- **Notifications d'ailleurs** : le web interroge les espaces non ouverts (toujours leurs alarmes et les rappels de leurs tâches, routines et évènements ; leurs nouveaux mails s'ils l'ont choisi) et affiche leurs notifications avec un lien vers l'espace (`ElsewhereNotifier`).
 - Supprimer l'espace source supprime ses abonnements (cascade).
 
 ## Compte et utilisateurs

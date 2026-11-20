@@ -134,7 +134,7 @@ Source : `assertNotInvoiced` (`time-entries.ts`), `assertBillableTime` (`account
 Source : requêtes `timeEntries`, `runningTimeEntry`.
 
 - `timeEntries(projectId?, routineId?, since?)` : les temps du projet **et de ses sous-projets**, ou ceux qui portent sur une routine, ou tous ; éventuellement depuis un moment ; du plus récent au plus ancien.
-- `timeLostOnDelete(taskIds?, routineIds?, withSubtree?, eventId?, scope?, occurrenceDate?)` : nombre de temps qu’une suppression de tâches, de routines ou d’un évènement supprimera avec eux (voir plus haut).
+- `timeLostOnDelete(taskIds?, routineIds?, withSubtree?, eventId?, scope?, occurrenceDate?, calendarId?)` : nombre de temps qu’une suppression de tâches, de routines, d’un évènement ou d’un calendrier (tous ses évènements, `calendarEventsGone`) supprimera avec eux (voir plus haut).
 - `runningTimeEntry` : le chrono en cours, ou `null`.
 
 ## Commentaires d’un temps

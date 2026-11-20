@@ -14,6 +14,7 @@ import { ON_ERROR } from '../../../lib/notify';
 import { calendarIcsUrl, useCalendarMutations, useCalendars, useSubscribableCalendars } from '../api';
 import { SettingsSection } from '../../../components/settings/SettingsSection';
 import { SubscriptionRow } from './SubscriptionRow';
+import { TimeLostRisk } from '../../time/components/TimeLostRisk';
 
 /**
  * Calendars of the workspace, as every settings list: added, edited (label, color, image), reordered by drag and drop,
@@ -43,8 +44,8 @@ function OwnCalendars() {
       undeletable={() => (calendars.length === 1 ? 'Le dernier calendrier ne peut pas être supprimé' : null)}
       deleteMessage={(calendar) => (
         <>
-          Le calendrier « {calendar.label} » sera supprimé définitivement avec tous ses évènements (récurrents compris). Les temps suivis sur ces évènements sont conservés, sans eux, sauf ceux sans projet qui ne portent sur rien d’autre (les temps facturés sont toujours gardés). Les autres
-          espaces abonnés ne le verront plus.
+          Le calendrier « {calendar.label} » sera supprimé définitivement avec tous ses évènements (récurrents compris). Les temps suivis sur ces évènements sont conservés, sans eux.
+          <TimeLostRisk query={{ calendarId: calendar.id }} /> Les autres espaces abonnés ne le verront plus.
         </>
       )}
     />

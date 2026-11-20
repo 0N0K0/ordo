@@ -39,6 +39,7 @@ Champs de `taskFormSchema` :
 | `slotCondition`                               | Condition de créneaux, celle des routines (voir [calendar](calendar.md)) ; `null` : n'importe quand.            |
 | `location`                                    | Lieu (décision D6) : texte, 250 max, vide devient `null` ; avec `locationPointFields` (son point, sans trajet). |
 | `links`                                       | Liens (décision D5) : `itemLinksSchema` (voir [core](../cross-cutting/core.md)), `[]` par défaut.               |
+| `reminders`                                   | Rappels (décision D16) : `taskRemindersSchema` (voir [dates](../cross-cutting/dates.md)), « À HH:MM » seulement, `[]` par défaut. |
 
 ## `task-columns.ts` — colonnes, statuts, regroupements
 

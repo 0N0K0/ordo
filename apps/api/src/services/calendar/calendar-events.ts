@@ -20,6 +20,9 @@ import {
   sumOf,
   zonedInstant,
   occurrenceKey,
+  normalizedReminders,
+  readReminders,
+  type Reminder,
 } from '@ordo/shared';
 import { prisma } from '../../db';
 import { PARIS } from '../../today';
@@ -64,7 +67,7 @@ export interface EventOccurrence {
   recurrence: Recurrence | null;
   /** First date of the series. */
   seriesStartDate: string;
-  reminders: number[];
+  reminders: Reminder[];
   /** Travel time to the event and back from it, in minutes. */
   travelBefore: number;
   travelAfter: number;
@@ -321,7 +324,7 @@ function eventData(event: Awaited<ReturnType<typeof parseEvent>>) {
     endDate: parseDay(event.endDate),
     endTime: event.endTime,
     recurrence: event.recurrence ? toJson(event.recurrence) : undefined,
-    reminders: [...new Set(event.reminders)].sort((a, b) => a - b),
+    reminders: toJson(normalizedReminders(event.reminders)),
     travelBefore: event.travelBefore,
     travelAfter: event.travelAfter,
     projectId: event.projectId,
@@ -569,7 +572,7 @@ export function toOccurrence(event: EventWithRelations, date: string | null, cha
     end: allDay ? parseDay(addDays(endDate, 1)) : instant(endDate, endTime),
     recurrence: storedRecurrence(event.recurrence),
     seriesStartDate: seriesStart,
-    reminders: event.reminders,
+    reminders: readReminders(event.reminders),
     travelBefore: change?.travelBefore ?? event.travelBefore,
     travelAfter: change?.travelAfter ?? event.travelAfter,
     projectId: event.projectId,
@@ -675,7 +678,7 @@ function seriesInput(event: EventWithRelations, date: string): CalendarEventInpu
     endDate: addDays(date, span),
     endTime: event.endTime,
     recurrence: storedRecurrence(event.recurrence),
-    reminders: event.reminders,
+    reminders: readReminders(event.reminders),
     travelBefore: event.travelBefore,
     travelAfter: event.travelAfter,
     projectId: event.projectId,

@@ -63,7 +63,7 @@ La requête `currentWorkspaceId` rend l’espace retenu. Côté web, la fenêtre
 
 ## Notifications d’un espace fermé
 
-`setWorkspaceNotifications(id, sources)` : choix parmi `NOTIFICATION_SOURCES = ['ALARMS', 'CALENDAR', 'MAILS']` (alarmes, rappels d’agenda, nouveaux mails), doublons retirés. Ces notifications sont données par le navigateur tant qu’un **autre** espace est ouvert (voir [Espaces, fonctionnalités](../../features/cross-cutting/workspaces.md)).
+`setWorkspaceNotifications(id, sources)` : choix parmi `NOTIFICATION_SOURCES = ['MAILS']` (nouveaux mails), doublons retirés. Les alarmes et les rappels des tâches, routines et évènements ne sont plus un choix : ils sonnent quel que soit l'espace ouvert (décision EO ; migration `20261120090000_unified_reminders` : `ALARMS` et `CALENDAR` retirés des choix enregistrés et de l'énumération `NotificationSource`). Ces notifications sont données par le navigateur tant qu'un **autre** espace est ouvert (voir [Espaces, fonctionnalités](../../features/cross-cutting/workspaces.md)).
 
 ## Ordre
 

@@ -1,4 +1,5 @@
-import { ROUTINE_REMINDERS } from '../../../components/inputs/reminder-presets';
+import { normalizedReminders, reminderKey, reminderOfKey } from '@ordo/shared';
+import { reminderLabel } from '../../../components/inputs/reminder-presets';
 
 import { cellPicker } from '../../../components/data-table/cells/cell-field';
 import { Badge, Select, Stack, Text } from '@mantine/core';
@@ -131,13 +132,12 @@ export function TravelCell({ routine, field, readOnly = false }: { routine: Rout
 }
 
 /**
- * Alerts cell: a bell with the alerts before its moment, chosen in place.
+ * Reminders cell: a bell with the number of its reminders, chosen in place.
  * @param {{ routine: Routine, readOnly?: boolean }} props Component props (read only: archived or being created).
  * @returns {JSX.Element} Cell.
  */
 export function RemindersCell({ routine, readOnly = false }: { routine: Routine; readOnly?: boolean }) {
   const { apply, count } = useRoutineCellEdit(routine, 'alarms');
-  const labels = new Map(ROUTINE_REMINDERS.map((preset) => [preset.value, preset.label]));
   return (
     <EditablePopoverCell
       width={280}
@@ -160,20 +160,17 @@ export function RemindersCell({ routine, readOnly = false }: { routine: Routine;
       <Stack gap="xs">
         <RemindersSelect
           label="Rappels"
-          presets={ROUTINE_REMINDERS}
           value={routine.reminders}
           // On a selection, those added here are added to each routine, those removed here removed.
           onChange={(values) =>
             apply((target) => ({
-              reminders: applyDiff(target.reminders.map(String), routine.reminders.map(String), values.map(String))
-                .map(Number)
-                .sort((a, b) => a - b),
+              reminders: normalizedReminders(applyDiff(target.reminders.map(reminderKey), routine.reminders.map(reminderKey), values.map(reminderKey)).flatMap((key) => reminderOfKey(key) ?? [])),
             }))
           }
           comboboxProps={{ withinPortal: false }}
         />
         <Text size="xs" c="dimmed">
-          {routine.reminders.map((minutes) => labels.get(minutes) ?? `${minutes} min avant`).join(', ') || 'Aucun rappel.'}
+          {routine.reminders.map((reminder) => reminderLabel(reminder)).join(', ') || 'Aucun rappel.'}
         </Text>
       </Stack>
     </EditablePopoverCell>

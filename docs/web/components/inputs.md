@@ -1,6 +1,6 @@
 # Champs de saisie communs
 
-Champs de formulaire partagés : montants, quantités, couleurs, icônes, sélections multiples, sélections avec création à la volée, périodes, rappels, interrupteurs. Source : `apps/web/src/components/inputs/`. Les règles de validation des formulaires (au blur puis à chaque changement) sont dans `lib/form` (voir [lib](../lib.md#formts)).
+Champs de formulaire partagés : montants, quantités, couleurs, icônes, sélections multiples, sélections avec création à la volée, périodes, rappels (tâches, routines, évènements), interrupteurs. Source : `apps/web/src/components/inputs/`. Les règles de validation des formulaires (au blur puis à chaque changement) sont dans `lib/form` (voir [lib](../lib.md#formts)).
 
 ## Nombres et montants
 
@@ -44,13 +44,20 @@ Props : celles de `MultiSelect` (`value` / `onChange` = la valeur enregistrée),
 
 ### `RemindersSelect`
 
-Rappels (ou alertes) avant un moment, choisis parmi des préréglages (`BatchMultiSelect`). Props : `presets`, `value` (minutes), `onChange` (trié du plus tôt au plus tard), `emptyLabel` (placeholder sans rappel). Utilisé par l'agenda et les routines.
+« Rappels » d'une tâche, d'une routine ou d'un évènement, le seul éditeur des trois (décision D16), sur `BatchMultiSelect`, 10 au plus (`REMINDERS_MAX`), de types mêlés, en deux groupes :
+
+- « Avant » (`kinds` contient `before`) : « Au début » et « N min avant », parmi `REMINDER_PRESETS` ;
+- « À une heure, le jour J » (`kinds` contient `at`) : toutes les demi-heures (`REMINDER_TIME_PRESETS`), ou une heure tapée (« 8:15 », « 8h15 », « 8 », création à la volée) ; une saisie qui n'est pas une heure affiche « Heure attendue (HH:MM). » **sous le champ** (erreur du champ, jusqu'au changement suivant ; décision EP).
+
+Une valeur gardée d'avant hors des préréglages reste affichée (`reminderLabel`). Props : `kinds` (défaut : les deux), `value` (rappels du formulaire ou de GraphQL, lus par `readReminders`), `onChange` (`Reminder[]` dans l'ordre enregistré, `normalizedReminders`), `day` (jour des heures dans les libellés, « le jour J » par défaut, vide pour une tâche), `emptyLabel`, et les props du `MultiSelect` (`error` passée sous le champ). Choix encodés par `reminderKey` / `reminderOfKey`. Utilisé par l'agenda (`EventForm`), les routines (`RoutineSchedule` : seulement `at` sans horaire ni créneau ; `RemindersCell`) et les tâches (`TaskReminders`, `at` seulement). Interne : `typedTime`, `TYPED_TIME_ERROR`.
 
 ### `reminder-presets.ts`
 
-- `EVENT_REMINDERS` : rappels d'un évènement, en minutes avant le début : « Au début », 5, 10, 15, 30 min, 1 h, 2 h, « 6 h avant (la veille à 18 h pour une journée entière) », 1 jour, 2 jours, 1 semaine.
-- `ROUTINE_REMINDERS` : alertes d'une routine : « À l'heure », puis 5 min à 2 h avant.
-- Constante interne `SHORT_REMINDERS` (5 min à 2 h).
+- `ReminderPreset` (type) : `{ value, label }`.
+- `REMINDER_PRESETS` : rappels « avant » d'un évènement ou d'une routine, en minutes : « Au début », 5, 10, 15, 30 min, 1 h, 2 h, 6 h (24 heures au plus : plus de « 1 jour avant », « 2 jours avant », « 1 semaine avant » ; remplace `EVENT_REMINDERS` et `ROUTINE_REMINDERS`).
+- `REMINDER_TIME_PRESETS` : heures `00:00` à `23:30`, toutes les demi-heures (« À HH:MM »).
+- `REMINDER_DAY` : « le jour J ».
+- `reminderLabel(reminder, day?)` : « Au début », le préréglage, sinon la durée (« 24 h 00 avant ») ; « À 08:00 le jour J » (`day` vide : « À 08:00 »).
 
 ## Couleur, icône, liens, groupe de contrôles
 

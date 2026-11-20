@@ -95,8 +95,8 @@ const UpdateTimeEntryDocument = graphql(`
 `);
 
 const TimeLostOnDeleteDocument = graphql(`
-  query TimeLostOnDelete($taskIds: [ID!], $routineIds: [ID!], $withSubtree: Boolean, $eventId: ID, $scope: CalendarEventScope, $occurrenceDate: Date) {
-    timeLostOnDelete(taskIds: $taskIds, routineIds: $routineIds, withSubtree: $withSubtree, eventId: $eventId, scope: $scope, occurrenceDate: $occurrenceDate)
+  query TimeLostOnDelete($taskIds: [ID!], $routineIds: [ID!], $withSubtree: Boolean, $eventId: ID, $scope: CalendarEventScope, $occurrenceDate: Date, $calendarId: ID) {
+    timeLostOnDelete(taskIds: $taskIds, routineIds: $routineIds, withSubtree: $withSubtree, eventId: $eventId, scope: $scope, occurrenceDate: $occurrenceDate, calendarId: $calendarId)
   }
 `);
 
@@ -194,10 +194,12 @@ export interface TimeLostQuery {
   eventId?: string;
   scope?: CalendarEventScope;
   occurrenceDate?: string | null;
+  /** A calendar deleted with all its events. */
+  calendarId?: string;
 }
 
 /**
- * Number of times deleted with tasks, routines or an event (occurrences): those without project, not billed, left
+ * Number of times deleted with tasks, routines, an event (occurrences) or a calendar: those without project, not billed, left
  * with nothing attached (extra A of decision D17).
  * @param {TimeLostQuery} query Items about to be deleted.
  * @returns {Promise<number>} Number of times.

@@ -43,6 +43,7 @@ import { DetailHeader } from '../../../components/page/DetailHeader';
 import { EffortInput } from './EffortInput';
 import { TaskLinks } from './TaskLinks';
 import { TaskLocation } from './TaskLocation';
+import { TaskReminders } from './TaskReminders';
 import { DetailNotFound } from '../../../components/feedback/DetailNotFound';
 import { ActionButton } from '../../../components/actions/ActionButton';
 import { RemoveButton } from '../../../components/actions/RemoveButton';
@@ -350,6 +351,7 @@ function TaskDetail({ task, context }: TaskDetailProps) {
                 placeholder="—"
                 {...doable.end}
               />
+              <TaskReminders value={task.reminders} minDate={task.minDate} deadline={task.deadline} disabled={locked} onChange={(reminders) => save({ reminders })} />
               <TaskSelect
                 context={context}
                 labelOf={(candidate) => context.taskLabel(candidate, task.projectId)}

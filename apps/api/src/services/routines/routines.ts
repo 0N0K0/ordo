@@ -44,6 +44,10 @@ import {
   withMove,
   withMovedTimes,
   joinedKey,
+  normalizedReminders,
+  readReminders,
+  parisInstant,
+  routineReminderTime,
 } from '@ordo/shared';
 import { z } from 'zod';
 import { deleteTreeItems, topmostIds, treeListService } from '../core/trees';
@@ -402,6 +406,47 @@ export function slotsOf(routine: RoutineTiming, occurrence: string | null, sched
   return remember(routine, schedules, `slots|${occurrence}`, () => slotsOn(routine, occurrence, schedules));
 }
 
+/** Occurrence of a routine its reminders ring for (decision D16). */
+export interface RoutineReminderOccurrence {
+  /** Due day of the occurrence. */
+  date: string;
+  /** Its first day (« à partir du »): the day of its reminders « À HH:MM ». */
+  day: string;
+  /** Its times of the day not ticked, with the moment its reminders « N min avant » count from (Paris time). */
+  slots: { slot: number; at: Date }[];
+}
+
+/**
+ * Occurrences the reminders of a routine ring for: its current one while not done and its next one (a reminder up to 24
+ * hours before may ring before it opens), each with its first day (« à partir du ») and, for each time of the day not
+ * ticked, its first day at the start of the time (« dès », else its latest time; a time without any hour has none).
+ * An archived routine has none (no occurrence).
+ * @param {RoutineTiming & { checks: { date: Date, slot: number }[] }} routine Routine with its latest checks.
+ * @param {ScheduleContext} [schedules] Schedules. Optional. Default = none.
+ * @returns {RoutineReminderOccurrence[]} Occurrences.
+ */
+export function reminderOccurrences(routine: RoutineTiming & { checks: { date: Date; slot: number }[] }, schedules: ScheduleContext = NO_SCHEDULES): RoutineReminderOccurrence[] {
+  const { current, next } = occurrencesOf(routine, undefined, schedules);
+  return [current, next].flatMap((due) => {
+    if (!due) return [];
+    const ticked = new Set(due === current ? routine.checks.filter((check) => formatDay(check.date) === due).map((check) => check.slot) : []);
+    const slots = slotsOf(routine, due, schedules);
+    // A done occurrence (every required time ticked) rings no more.
+    if (slots.every((slot, index) => ticked.has(index) || slot.optional)) return [];
+    const day = occurrenceSpansBetween(routine, due, due, schedules).find((span) => span.end === due)?.start ?? due;
+    return [
+      {
+        date: due,
+        day,
+        slots: slots.flatMap((slot, index) => {
+          const time = routineReminderTime(slot);
+          return ticked.has(index) || !time ? [] : [{ slot: index, at: parisInstant(day, time) }];
+        }),
+      },
+    ];
+  });
+}
+
 /**
  * Times of the day of a routine on an occurrence, computed.
  * @param {RoutineTiming} routine Routine.
@@ -633,7 +678,7 @@ const scalars = (data: ReturnType<typeof routineSchema.parse>) => ({
   excludedScheduleIds: data.excludedScheduleIds,
   moments: data.moments,
   slotCondition: data.slotCondition ? toJson(data.slotCondition) : Prisma.DbNull,
-  reminders: [...new Set(data.reminders)].sort((a, b) => a - b),
+  reminders: toJson(normalizedReminders(data.reminders)),
   opensOn: data.opensOn ?? Prisma.DbNull,
   cases: toJson(data.cases),
   ...storedLocation(data),
@@ -799,7 +844,7 @@ async function inputOf(id: string): Promise<RoutineInput> {
     excludedScheduleIds: [],
     slotCondition: storedCondition(routine),
     moments: storedMoments(routine),
-    reminders: routine.reminders,
+    reminders: readReminders(routine.reminders),
     opensOn: readOpens(routine.opensOn),
     cases: storedCases(routine.cases),
     location: routine.location,

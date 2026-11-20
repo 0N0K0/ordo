@@ -23,6 +23,7 @@ Voir aussi : [Temps passé](time.md), [Commentaires](../cross-cutting/comments.m
 | `slotCondition`                            | Condition de créneaux, la même que celle des routines (décision D9) : groupes ET / OU sur des créneaux nommés, des types de créneaux (de cet espace ou d’un autre espace de l’utilisateur) et le temps libre ; `null` = n’importe quand (décision D10). Validée par `slotConditionSchema` (voir [Agenda](calendar.md)). |
 | `location`, `locationLat`, `locationLon`   | Lieu (décision D6), le champ des évènements et des routines : texte libre facultatif, 250 caractères au plus (`optionalText`, vide → `null`), et son point quand il est choisi sur la carte ou dans une recherche (voir [Lieux](../cross-cutting/geo.md#durées-saisies-sur-un-élément)). Ni trajet, ni heure de départ ou de retour : une tâche n’a pas d’heures. Un point va avec un lieu, ses deux coordonnées ou aucune (`storedLocation`). |
 | `links`                                    | Liens (décision D5), ceux des évènements : 20 au plus (« 20 liens maximum. »), adresse http ou https (« Lien invalide (http ou https). »), libellé facultatif de 250 caractères (`itemLinksSchema`). Aucun par défaut. |
+| `reminders`                                | Rappels (décision D16) : seulement « À HH:MM » (`{ at }`, heure de Paris ; « Une tâche n’a que des rappels à une heure précise. »), 10 au plus (« 10 rappels maximum. », « Heure attendue (HH:MM). », `taskRemindersSchema`), dédoublonnés et triés (`normalizedReminders`) ; sonnés chaque jour de la « Date min » à la « Date max », le jour de la « Date max » seulement sans « Date min », jamais sans « Date max » (Q2 : pas de limite de 24 heures). Aucun par défaut. Voir [Alarmes](alarms.md#rappels-des-tâches-routines-et-évènements). |
 | `parentId`                                 | Tâche parente (sous-tâches).                                                                                                                                                                       |
 | `milestoneId`                              | Un jalon.                                                                                                                                                                                          |
 | `sprintIds`                                | Plusieurs sprints (une tâche peut s’étaler sur plusieurs).                                                                                                                                         |
@@ -62,7 +63,7 @@ Source : `updateTask`.
 
 - Une tâche archivée n’est pas modifiable (« Élément archivé : restaurez-le pour le modifier. ») : la restaurer d’abord.
 - Champ omis = inchangé, `null` = vidé.
-- Un lieu donné remplace aussi son point (`null` : aucun) ; `links: null` retire tous les liens.
+- Un lieu donné remplace aussi son point (`null` : aucun) ; `links: null` retire tous les liens ; `reminders: null` retire tous les rappels.
 - Les valeurs archivées que la tâche a **déjà** restent valides ; seules les valeurs archivées **nouvellement** données sont refusées.
 - La période de dates reste valide en tenant compte des dates actuelles (`assertDateRange`) : « La fin doit suivre le début. » sous `endDate`.
 - Le schéma partagé du formulaire (`taskFormSchema`) refuse aussi une « Date max » avant la « Date min » (même message, sous `deadline`). Côté API, seule la paire début / fin est vérifiée par `assertDateRange` ; la paire « Date min » / « Date max » n’est vérifiée que par le formulaire.
@@ -257,7 +258,7 @@ Source : `releaseProjectTasks` (par `releaseProjects`), appelé par `deleteProje
 
 Source : `cloneTask`.
 
-- Copie tous les champs (libellé, description, projet, statut, priorité, type, effort, dates, « Date min »/« Date max », lieu et son point, liens, parent, jalon, sprints), les assignés, bénéficiaires, étiquettes et les liens de blocage et de relation de sa propre arborescence de projets (un ancien lien hors d’elle, gardé tant que la tâche ne change pas d’arborescence, n’est pas copié). **Pas** les commentaires, ni l’état fermé, ni la condition de créneaux, ni le lien GitHub.
+- Copie tous les champs (libellé, description, projet, statut, priorité, type, effort, dates, « Date min »/« Date max », rappels, lieu et son point, liens, parent, jalon, sprints), les assignés, bénéficiaires, étiquettes et les liens de blocage et de relation de sa propre arborescence de projets (un ancien lien hors d’elle, gardé tant que la tâche ne change pas d’arborescence, n’est pas copié). **Pas** les commentaires, ni l’état fermé, ni la condition de créneaux, ni le lien GitHub.
 - Le clone est placé sous le même parent, à la fin de l’ordre manuel ; il reçoit un nouveau numéro (base).
 - Avec `includeSubtasks`, le sous-arbre est copié niveau par niveau sous le clone (les sous-tâches copiées gardent assignés, bénéficiaires, étiquettes et sprints, pas leurs liens de blocage ou de relation).
 - La tâche source peut être archivée (aucune vérification d’archivage) ; l’interface ne propose le clonage que sur les tâches non archivées.

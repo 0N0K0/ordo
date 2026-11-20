@@ -8,6 +8,7 @@ import { addDays, daysBetween, weekdayOfDate, monthOfYear, yearOfDay } from '../
 import { occurrenceDates, recurrenceSchema, type Recurrence, type Span } from '../dates/recurrence';
 import { caseSpans } from '../dates/repetition';
 import { timeOfDaySchema, daySchema, startDaySchema } from '../dates/times';
+import { remindersSchema } from '../dates/reminders';
 import { slotConditionSchema, type SlotCondition } from '../calendar/slot-conditions';
 import { optionalColorSchema } from '../core/workspace';
 
@@ -142,17 +143,8 @@ export const routineSchema = z
     slotCondition: slotConditionSchema.nullable().default(null),
     /** Times of the day following its rule. */
     moments: z.array(routineSlotSchema).max(10, '10 moments au plus.').default([]),
-    /** Alerts, in minutes before its moment (when to leave, else its start, else its latest time). */
-    reminders: z
-      .array(
-        z
-          .number()
-          .int()
-          .min(0)
-          .max(24 * 60),
-      )
-      .max(10, '10 rappels maximum.')
-      .default([]),
+    /** Reminders (decision D16): minutes before each time of the day from its first day (« à partir du », « dès »), or a time of that day. */
+    reminders: remindersSchema.default([]),
     /** Where it is done: free text, and its point when chosen from the map or a search. */
     location: optionalText().default(null),
     /** Point of the place, and travel time to it and back from it, in minutes. */
@@ -327,13 +319,13 @@ export function routineSchedule(routine: { fromTime: string | null; dueTime: str
 }
 
 /**
- * Moment the alerts of a routine count from, on a day: when to leave (its way there), else the start of its window,
- * else its latest time.
- * @param {{ fromTime: string | null, dueTime: string | null, estimate: number | null, travelBefore: number, travelAfter: number }} routine Routine and its window that day.
- * @returns {string | null} HH:MM, null without any time.
+ * Time of the day the reminders of a time of the day of a routine count from, on the first day of its occurrence (« à
+ * partir du »): its start (« dès »), else its latest time (decision D16, no longer when to leave).
+ * @param {{ fromTime: string | null, dueTime: string | null }} slot Time of the day.
+ * @returns {string | null} HH:MM, null without any time (no reminder).
  */
-export function routineAlertTime(routine: { fromTime: string | null; dueTime: string | null; estimate: number | null; travelBefore: number; travelAfter: number }): string | null {
-  return routineSchedule(routine).leaveAt ?? routine.fromTime ?? routine.dueTime;
+export function routineReminderTime(slot: { fromTime: string | null; dueTime: string | null }): string | null {
+  return slot.fromTime ?? slot.dueTime;
 }
 
 /**

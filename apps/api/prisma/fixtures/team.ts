@@ -89,7 +89,7 @@ export async function seedTeam({ contributors, today, monday }: { contributors: 
     endDate: addDays(monday, 3),
     endTime: '14:00',
     recurrence: null,
-    reminders: [30],
+    reminders: [{ before: 30 }],
     projectId: null,
     contributorIds: [],
     relationIds: [friend.id],

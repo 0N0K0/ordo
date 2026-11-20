@@ -404,8 +404,10 @@ input CalendarEventInput {
   """Relations without contributor taking part; none: none."""
   relationIds: [ID!]
 
-  """Minutes before the start."""
-  reminders: [Int!]!
+  """
+  Minutes before the start (24 hours at most) or a time of its first day, 10 at most.
+  """
+  reminders: [ReminderInput!]!
 
   """
   Routines of a day of the occurrence it is about (its other days kept); none when omitted.
@@ -462,7 +464,11 @@ type CalendarEventOccurrence {
 
   """Relations without contributor taking part."""
   relationIds: [ID!]!
-  reminders: [Int!]!
+
+  """
+  Minutes before the start (all day: Paris midnight of its first day), or a time of its first day.
+  """
+  reminders: [Reminder!]!
 
   """Routines of a day of the occurrence it is about."""
   routineLinks: [EventRoutineLink!]!
@@ -2291,8 +2297,6 @@ type Mutation {
 
 """Kind of notification a workspace can give while another one is open."""
 enum NotificationSource {
-  ALARMS
-  CALENDAR
   MAILS
 }
 
@@ -2742,9 +2746,11 @@ type Query {
   timeEntries(projectId: ID, routineId: ID, since: DateTime): [TimeEntry!]!
 
   """
-  Number of times deleted with tasks, routines or an event (occurrences) about to be deleted: those without project, not billed, left with nothing attached.
+  Number of times deleted with tasks, routines, an event (occurrences) or a calendar about to be deleted: those without project, not billed, left with nothing attached.
   """
   timeLostOnDelete(
+    """Calendar deleted with all its events."""
+    calendarId: ID
     eventId: ID
     occurrenceDate: Date
     routineIds: [ID!]
@@ -2826,6 +2832,25 @@ input RecurringInvoiceInput {
   label: String!
   recurrence: JSON!
   startDate: Date!
+}
+
+"""
+Reminder of a task, a routine or an event: minutes before a moment (0: at the start), or a time of the day of its day (Paris time). One of the two is null.
+"""
+type Reminder {
+  """HH:MM on the day of the item (Paris time)."""
+  at: String
+
+  """Minutes before, 0 to 1 440 (events and routines)."""
+  before: Int
+}
+
+input ReminderInput {
+  """HH:MM."""
+  at: String
+
+  """Minutes before, 0 to 1 440."""
+  before: Int
 }
 
 type ReminderResult {
@@ -2929,9 +2954,14 @@ type Routine {
   relatedIds: [ID!]!
 
   """
-  Alerts, in minutes before its moment (when to leave, else its start, else its latest time).
+  Occurrences its reminders ring for: its current one while not done and its next one.
   """
-  reminders: [Int!]!
+  reminderOccurrences: [RoutineReminderOccurrence!]!
+
+  """
+  Reminders: minutes (24 hours at most) before the first day (« à partir du ») of an occurrence at the start of each time of the day (« dès »), or a time of that day.
+  """
+  reminders: [Reminder!]!
 
   """Routines to do before this one."""
   requiredIds: [ID!]!
@@ -3093,7 +3123,7 @@ input RoutineInput {
 
   """« Relative à »: routines related to it (same project tree)."""
   relatedIds: [ID!]!
-  reminders: [Int!]
+  reminders: [ReminderInput!]
   requiredIds: [ID!]!
 
   """
@@ -3169,8 +3199,10 @@ input RoutinePatch {
   recurrence: JSON
   relatedIds: [ID!]
 
-  """Minutes before its moment."""
-  reminders: [Int!]
+  """
+  Minutes (24 hours at most) before the lowest date and time of an occurrence, or a time of its first day.
+  """
+  reminders: [ReminderInput!]
   requiredIds: [ID!]
 
   """On or out of calendar schedules, following its rule; null: any time."""
@@ -3182,6 +3214,28 @@ input RoutinePatch {
 
   """Travel time there, in minutes; omitted: unchanged."""
   travelBefore: Int
+}
+
+"""Occurrence of a routine its reminders ring for (Paris time)."""
+type RoutineReminderOccurrence {
+  """Due day of the occurrence."""
+  date: Date!
+
+  """Its first day (« à partir du »): the day of its reminders « À HH:MM »."""
+  day: Date!
+
+  """
+  Its times of the day not ticked, with the moment its reminders « N min avant » count from.
+  """
+  slots: [RoutineReminderSlot!]!
+}
+
+type RoutineReminderSlot {
+  """First day of the occurrence at the start of the time of the day."""
+  at: DateTime!
+
+  """Index of its time of the day."""
+  slot: Int!
 }
 
 """Time of the day of an occurrence of a routine."""
@@ -3954,6 +4008,11 @@ type Task {
   relatedIds: [ID!]!
 
   """
+  Reminders « À HH:MM » (Paris time), rung every day from « Date min » to « Date max » (its day only without « Date min »; never without « Date max »).
+  """
+  reminders: [Reminder!]!
+
+  """
   On or out of calendar schedules, or on the free time, in groups combined with and / or (as a routine); null: any time.
   """
   slotCondition: JSON
@@ -4015,6 +4074,9 @@ input TaskInput {
   None: a task of no project (no number, sprint, milestone nor GitHub item).
   """
   projectId: ID
+
+  """Reminders « À HH:MM » only, 10 at most; null: none."""
+  reminders: [ReminderInput!]
 
   """
   On or out of calendar schedules, or on the free time, in groups (and / or); null: any time.
@@ -4126,6 +4188,9 @@ input TaskUpdateInput {
   minDate: Date
   parentId: ID
   priorityId: ID
+
+  """Reminders « À HH:MM » only, 10 at most; null: none."""
+  reminders: [ReminderInput!]
 
   """
   On or out of calendar schedules, or on the free time, in groups (and / or); null: any time.

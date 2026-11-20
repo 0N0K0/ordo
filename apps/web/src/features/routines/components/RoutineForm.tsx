@@ -1,3 +1,4 @@
+import { readReminders, type Reminder } from '@ordo/shared';
 import { copyName, removedLinksNote } from '../../../lib/text';
 import { NO_SUGGESTIONS } from '../../../components/markdown/remark-references';
 import { Divider, Grid, NumberInput, Select, Stack, TextInput } from '@mantine/core';
@@ -51,7 +52,7 @@ interface RoutineFormValues extends Record<string, unknown> {
   dueTime: string | null;
   slotCondition: SlotCondition | null;
   moments: RoutineSlot[];
-  reminders: number[];
+  reminders: Reminder[];
   cases: RoutineCase[];
   location: string;
   locationLat: number | null;
@@ -108,7 +109,7 @@ export function RoutineForm({ routine, copy = false, parent, categoryId = null, 
       fromTime: routine?.fromTime ?? null,
       slotCondition: readSlotCondition(source?.slotCondition),
       moments: (source?.moments as RoutineSlot[] | undefined) ?? [{ fromTime: null, dueTime: null, optional: false }],
-      reminders: routine?.reminders ?? [],
+      reminders: readReminders(routine?.reminders),
       cases: (source?.cases as RoutineCase[] | undefined) ?? [],
       dueTime: routine?.dueTime ?? null,
       location: routine?.location ?? '',

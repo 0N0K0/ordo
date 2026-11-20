@@ -86,9 +86,18 @@ export async function deleteCalendar(id: string): Promise<void> {
   await findCalendar(id);
   if ((await prisma.calendar.count()) <= 1) throw clientError('BAD_USER_INPUT', 'Le dernier calendrier ne peut pas être supprimé.');
   // The times its events leave with nothing attached go with them (extra A of decision D17, billed ones kept).
-  const events = await prisma.calendarEvent.findMany({ where: { calendarId: id }, select: { id: true } });
-  await releaseSubjectTime({ events: events.map((event) => ({ eventId: event.id })) });
+  await releaseSubjectTime({ events: await calendarEventsGone(id) });
   await prisma.calendar.delete({ where: { id } });
+}
+
+/**
+ * Events deleted with a calendar (all of them, whole series), as the time entries count them.
+ * @param {string} id Calendar.
+ * @returns {Promise<{ eventId: string }[]>} Events.
+ */
+export async function calendarEventsGone(id: string): Promise<{ eventId: string }[]> {
+  const events = await prisma.calendarEvent.findMany({ where: { calendarId: id }, select: { id: true } });
+  return events.map((event) => ({ eventId: event.id }));
 }
 
 /**

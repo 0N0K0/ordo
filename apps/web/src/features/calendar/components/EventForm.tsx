@@ -37,7 +37,6 @@ import { askScope, chooseScope } from '../lib/ask-scope';
 import { AvailabilityHint } from './AvailabilityHint';
 import { categoryOptions } from '../../../components/tree/category-tree';
 import { occurrenceInput, routineLinkKey, routineLinkOf } from '../lib/event-input';
-import { EVENT_REMINDERS } from '../../../components/inputs/reminder-presets';
 import { BatchMultiSelect } from '../../../components/inputs/BatchMultiSelect';
 import { treeSelectProps } from '../../../components/tree/tree-select';
 import * as fmt from '../../../lib/format';
@@ -198,7 +197,7 @@ export function EventForm({ context, occurrence, defaults, onDone, onDuplicate }
         endDate: today,
         endTime: '10:00',
         recurrence: null,
-        reminders: [15],
+        reminders: [{ before: 15, at: null }],
         travelBefore: 0,
         travelAfter: 0,
         projectId: null,
@@ -468,7 +467,11 @@ export function EventForm({ context, occurrence, defaults, onDone, onDuplicate }
                 onChange={(keys) => form.setFieldValue('routineLinks', keys.map(routineLinkOf))}
                 error={form.errors.routineLinks as string | undefined}
               />
-              <RemindersSelect label="Rappels" emptyLabel="Aucun" presets={EVENT_REMINDERS} value={values.reminders} onChange={(reminders) => form.setFieldValue('reminders', reminders)} clearable />
+              <RemindersSelect
+                label="Rappels"
+                description={values.allDay ? 'Avant minuit le premier jour (« 6 h avant » : la veille à 18 h), 24 h au plus.' : 'Avant le début, 24 h au plus.'}
+                emptyLabel="Aucun"
+                value={values.reminders} onChange={(reminders) => form.setFieldValue('reminders', reminders)} clearable />
             </SimpleGrid>
             {recurring && (
               <Text size="xs" c="dimmed">

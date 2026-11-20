@@ -393,7 +393,7 @@ const recurring = async (event: {
   location?: string;
   projectId?: string | null;
   allDay?: boolean;
-  reminders?: number[];
+  reminders?: { before?: number; at?: string }[];
 }) =>
   (
     await prisma.calendarEvent.create({
@@ -407,7 +407,7 @@ const recurring = async (event: {
         endDate: parseDay(event.start),
         endTime: event.allDay ? null : minutesToTime(event.to),
         recurrence: event.recurrence,
-        reminders: event.reminders ?? [10],
+        reminders: event.reminders ?? [{ before: 10 }],
         projectId: event.projectId ?? null,
         calendarId: calendarOf(event.categoryIds),
         categories: { connect: event.categoryIds.map((id) => ({ id })) },
@@ -460,7 +460,7 @@ await recurring({
   recurrence: rule({ frequency: 'MONTHLY', monthlyMode: 'WEEKDAY' }),
   categoryIds: [meetings],
   location: 'Salle Turing',
-  reminders: [30, 1440],
+  reminders: [{ before: 30 }, { before: 1440 }],
 });
 const sportEvent = await recurring({
   label: 'Sport',
@@ -470,7 +470,7 @@ const sportEvent = await recurring({
   recurrence: rule({ weekdays: [2, 4] }),
   categoryIds: [sport],
   location: 'Salle de sport',
-  reminders: [60],
+  reminders: [{ before: 60 }],
 });
 await recurring({
   label: 'Déclaration de TVA',
@@ -480,7 +480,7 @@ await recurring({
   allDay: true,
   recurrence: rule({ frequency: 'MONTHLY', monthlyMode: 'WEEKDAY', until: addDays(monday, 365) }),
   categoryIds: [admin],
-  reminders: [1440],
+  reminders: [{ before: 1440 }],
 });
 await recurring({
   label: 'Cours d’anglais',
@@ -523,7 +523,7 @@ for (const [title, offset, days, categoryId] of [
       allDay: true,
       startDate: parseDay(start),
       endDate: parseDay(addDays(start, days - 1)),
-      reminders: [1440],
+      reminders: [{ before: 1440 }],
       calendarId: calendarOf([categoryId]),
       categories: { connect: [{ id: categoryId }] },
     },
@@ -539,7 +539,7 @@ await prisma.calendarEvent.create({
     startTime: '14:00',
     endDate: parseDay(addDays(monday, 3)),
     endTime: '16:00',
-    reminders: [15],
+    reminders: [{ before: 15 }],
     calledOff: true,
     calendarId: workCalendar,
     categories: { connect: [{ id: meetings }] },
@@ -553,7 +553,7 @@ const postponed = await prisma.calendarEvent.create({
     startTime: '10:00',
     endDate: parseDay(addDays(monday, 1)),
     endTime: '11:00',
-    reminders: [60],
+    reminders: [{ before: 60 }],
     calledOff: true,
     calendarId: workCalendar,
     categories: { connect: [{ id: admin }] },
@@ -567,7 +567,7 @@ await prisma.calendarEvent.create({
     startTime: '10:00',
     endDate: parseDay(addDays(monday, 9)),
     endTime: '11:00',
-    reminders: [60],
+    reminders: [{ before: 60 }],
     postponedFromId: postponed.id,
     calendarId: workCalendar,
     categories: { connect: [{ id: admin }] },
@@ -605,7 +605,7 @@ const eventBase = {
   links: [],
   allDay: false,
   recurrence: null,
-  reminders: [30],
+  reminders: [{ before: 30 }],
   calendarId: workCalendar,
   contributorIds: [],
   categoryIds: [appointments],
@@ -662,7 +662,7 @@ await postponeCalendarEvent(sportEvent, sportDay, {
   projectId: null,
   calendarId: personalCalendar,
   categoryIds: [sport],
-  reminders: [60],
+  reminders: [{ before: 60 }],
 });
 
 // On-call duty: a kind of its own (color, display), every fourth Saturday.
@@ -733,7 +733,7 @@ await setTaskColumnDefaults({
   ],
   hiddenColumns: ['blocking', 'related', 'milestone', 'createdAt', 'updatedAt', 'type'],
 });
-await setWorkspaceNotifications(workspace.id, ['MAILS', 'ALARMS']);
+await setWorkspaceNotifications(workspace.id, ['MAILS']);
 
 // --- Task views (home page and a project) ------------------------------------------------------------------
 const condition = (id: string, field: string, operator: string, value: string | string[] | null = null) => ({ type: 'condition', id, field, operator, value });

@@ -7,6 +7,7 @@ import { builder, type InputFields } from '../builder';
 import { relationIds } from '../relation-fields';
 import { deletedTreeIds, subtreeIds } from '../../services/core/trees';
 import { goneOccurrences } from '../../services/calendar/calendar-events';
+import { calendarEventsGone } from '../../services/calendar/calendars';
 import { EventScope } from './calendar';
 import { reloaded } from '../reload';
 
@@ -178,7 +179,7 @@ builder.queryFields((t) => ({
     },
   }),
   timeLostOnDelete: t.int({
-    description: 'Number of times deleted with tasks, routines or an event (occurrences) about to be deleted: those without project, not billed, left with nothing attached.',
+    description: 'Number of times deleted with tasks, routines, an event (occurrences) or a calendar about to be deleted: those without project, not billed, left with nothing attached.',
     args: {
       taskIds: t.arg.idList(),
       routineIds: t.arg.idList(),
@@ -186,13 +187,14 @@ builder.queryFields((t) => ({
       eventId: t.arg.id(),
       scope: t.arg({ type: EventScope }),
       occurrenceDate: t.arg({ type: 'Date' }),
+      calendarId: t.arg.id({ description: 'Calendar deleted with all its events.' }),
     },
-    resolve: async (_root, { taskIds, routineIds, withSubtree, eventId, scope, occurrenceDate }) =>
+    resolve: async (_root, { taskIds, routineIds, withSubtree, eventId, scope, occurrenceDate, calendarId }) =>
       (
         await timeEntries.timeLeftEmpty({
           taskIds: await deletedTreeIds('task', taskIds ?? [], withSubtree ?? false),
           routineIds: await deletedTreeIds('routine', routineIds ?? [], withSubtree ?? false),
-          events: eventId ? [await goneOccurrences(eventId, scope ?? 'ALL', occurrenceDate)] : [],
+          events: [...(eventId ? [await goneOccurrences(eventId, scope ?? 'ALL', occurrenceDate)] : []), ...(calendarId ? await calendarEventsGone(calendarId) : [])],
         })
       ).length,
   }),

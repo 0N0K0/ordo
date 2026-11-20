@@ -12,7 +12,7 @@ function timeLostText(count: number): string {
 }
 
 /**
- * Risk of the deletion of tasks, routines or an event: the times without project left with nothing attached are
+ * Risk of the deletion of tasks, routines, an event or a calendar: the times without project left with nothing attached are
  * deleted with them (extra A of decision D17); nothing shown when there is none.
  * @param {{ query: TimeLostQuery }} props Component props: the items deleted, as their deletion takes them.
  * @returns {JSX.Element | null} Sentence, after a space.

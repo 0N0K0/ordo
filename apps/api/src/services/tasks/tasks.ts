@@ -1,4 +1,4 @@
-import { dateSchema, effortSchema, groupBy, itemLinksSchema, locationPointFields, markdownSchema, optionalText, parseOptionalDay, reaches, readSlotCondition, slotConditionSchema, type TaskInput as SharedTaskInput, taskLabelSchema } from '@ordo/shared';
+import { dateSchema, effortSchema, groupBy, itemLinksSchema, normalizedReminders, readReminders, taskRemindersSchema, locationPointFields, markdownSchema, optionalText, parseOptionalDay, reaches, readSlotCondition, slotConditionSchema, type TaskInput as SharedTaskInput, taskLabelSchema } from '@ordo/shared';
 import { z } from 'zod';
 import { prisma } from '../../db';
 import { assertBeneficiaries } from '../core/beneficiaries';
@@ -179,6 +179,7 @@ const detailsSchema = z.object({
   location: optionalText().optional(),
   ...locationPointFields,
   links: itemLinksSchema.nullable().optional(),
+  reminders: taskRemindersSchema.nullable().optional(),
 });
 
 /**
@@ -201,6 +202,7 @@ function parseDetails(input: TaskInput, current?: { startDate: Date | null; endD
     locationLat: input.locationLat ?? null,
     locationLon: input.locationLon ?? null,
     links: input.links,
+    reminders: input.reminders,
   });
   assertDateRange(details, current);
   return {
@@ -216,6 +218,7 @@ function parseDetails(input: TaskInput, current?: { startDate: Date | null; endD
     // A location changed replaces its point too (none: unknown).
     ...(details.location !== undefined && storedLocation({ location: details.location, locationLat: details.locationLat, locationLon: details.locationLon })),
     links: details.links === undefined ? undefined : toJson(details.links ?? []),
+    reminders: details.reminders === undefined ? undefined : toJson(normalizedReminders(details.reminders ?? [])),
   };
 }
 
@@ -475,6 +478,7 @@ export async function cloneTask(id: string, includeSubtasks: boolean): Promise<T
           locationLat: task.locationLat,
           locationLon: task.locationLon,
           links: toJson(readLinks(task.links)),
+          reminders: toJson(readReminders(task.reminders)),
           parentId,
           milestoneId: task.milestoneId,
           sprints: { connect: task.sprints },

@@ -1,6 +1,6 @@
 # Règles des alarmes
 
-Règles des alarmes (validation, programmation, occurrences, sonneries) et des rappels d’évènements et alertes de routines sonnés par le navigateur. Sources : `apps/api/src/services/tasks/alarms.ts`, `apps/api/src/graphql/modules/time.ts`, `packages/shared/src/tasks/time.ts` (section Alarms), et la logique de sonnerie côté web `apps/web/src/features/alarms/components/ring.tsx`, `lib/ring-routines.tsx`. Fonctionnalités : [Alarmes](../../features/activities/alarms.md).
+Règles des alarmes (validation, programmation, occurrences, sonneries) et des rappels des tâches, routines et évènements sonnés par le navigateur. Sources : `apps/api/src/services/tasks/alarms.ts`, `apps/api/src/graphql/modules/time.ts`, `packages/shared/src/tasks/time.ts` (section Alarms), `packages/shared/src/dates/reminders.ts` (rappels), et la logique de sonnerie côté web `apps/web/src/features/alarms/components/ring.tsx`, `lib/ring-routines.tsx`. Fonctionnalités : [Alarmes](../../features/activities/alarms.md).
 
 ## Modèle
 
@@ -51,7 +51,7 @@ Source : `packages/shared/src/tasks/time.ts`.
 
 ## Quand une alarme sonne (`dueAlarms`)
 
-Vérification toutes les 15 secondes dans l’onglet ouvert (`AlarmCenter`) ; pour les autres espaces, les alarmes sont rechargées chaque minute (`ElsewhereNotifier`).
+Vérification toutes les 15 secondes dans l’onglet ouvert (`AlarmCenter`) ; les alarmes des autres espaces sonnent aussi, rechargées chaque minute (`ElsewhereNotifier`, décision EO).
 
 - Inactive : jamais.
 - `REMINDER` et `NOT_TRACKING` : l’occurrence précédente (`previousOccurrence`) sonne si elle est postérieure à `lastFiredAt` (à défaut `createdAt`) et date de 6 heures au plus (`MAX_DELAY_MS`). Elle est d’abord enregistrée comme sonnée (`markAlarmFired`) ; `NOT_TRACKING` ne sonne pas si un chrono tourne (en pause compris), mais l’occurrence est quand même consommée.
@@ -60,24 +60,27 @@ Vérification toutes les 15 secondes dans l’onglet ouvert (`AlarmCenter`) ; po
 
 ## Un seul onglet sonne (`claim`)
 
-- Chaque occurrence a une clé (`ordo.alarm.<alarme>:<instant>`, `…:<chrono>:<palier>`, `ordo.alarm.event:<occurrence>:<minutes>`, `ordo.alarm.routine:<routine>:<jour>:<heure du jour>:<minutes>`), réclamée dans `localStorage` avec une expiration (10 minutes pour les alarmes ; 7 heures pour les rappels et alertes).
+- Chaque occurrence a une clé (`ordo.alarm.<alarme>:<instant>`, `…:<chrono>:<palier>`, `ordo.alarm.event:<occurrence>:before:<minutes>` ou `…:at:<HH:MM>`, `ordo.alarm.routine:<routine>:<échéance>:<moment>:before:<minutes>` ou `ordo.alarm.routine:<routine>:<échéance>:at:<HH:MM>`, `ordo.alarm.task:<tâche>:<jour>:at:<HH:MM>`), réclamée dans `localStorage` avec une expiration (10 minutes pour les alarmes ; 7 heures pour les rappels).
 - Un autre onglet (de n’importe quel espace) ou le même avant rechargement qui l’a déjà réclamée gagne ; les réclamations expirées sont nettoyées au passage. Sans stockage disponible, l’onglet sonne quand même.
 
-## Rappels d’évènements
+## Rappels des tâches, routines et évènements
 
-- Occurrences d’hier à J+8 (non archivées, calendriers non archivés), rechargées toutes les 5 minutes.
-- Chaque rappel sonne à « début − minutes » ; début d’une journée entière = minuit local du premier jour (« 6 h avant » = la veille à 18 h). Au plus 6 heures de retard.
-- Les occurrences annulées ne sont pas filtrées par la sonnerie (`ringReminders` ne teste pas `calledOff`).
-- Voir aussi les rappels exportés en `VALARM` dans [Règles de l’agenda](calendar.md#export-icalendar).
+Un seul fonctionnement pour les trois (décision D16) : schéma partagé (`packages/shared/src/dates/reminders.ts`), 10 rappels au plus par élément (« 10 rappels maximum. »), de types mêlés, dédoublonnés et triés à l’enregistrement (`normalizedReminders` : les « avant » du plus tôt au plus tard, puis les heures), stockés en JSON (`[{ before, at }]`, l’un des deux à `null`), heures de **Paris** (`parisInstant`, décision D7), sonnés par une seule brique du navigateur (`ringPlannedReminders`, `apps/web/src/features/alarms/components/ring.tsx`) : chaque rappel dû sonne une fois, au plus 6 heures en retard (`MAX_DELAY_MS`), carillon, notification système et toast. Il n’y a pas de tâche de fond de l’API pour les rappels : ils sonnent tant qu’Ordo est ouvert, **quel que soit l’espace ouvert** (décision EO, voir [Tâches de fond](../cross-cutting/background-jobs.md)).
 
-## Alertes de routines
+Trois types de rappel (`reminderSchema` : exactement un de `before` et `at`, sinon « Un rappel est « N min avant » ou « à HH:MM ». ») :
 
-Source : `apps/web/src/features/alarms/lib/ring-routines.tsx`.
+| Type                    | Valeur                        | Évènement                                          | Routine                                                                                                        | Tâche                                                                                         |
+| ----------------------- | ----------------------------- | -------------------------------------------------- | -------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------- |
+| « Au début »            | `{ before: 0 }`               | À son début                                        | Le premier jour de l’occurrence (« à partir du ») à l’heure « dès » de chaque moment non coché, sinon son heure maximale | Non                                                                                           |
+| « N min avant »         | `{ before: N }`, 1 à 1 440    | N minutes avant son début (24 heures au plus)      | N minutes avant ce même moment, pour chaque moment non coché                                                    | Non (« Une tâche n’a que des rappels à une heure précise. »)                                   |
+| « À HH:MM le jour J »   | `{ at: 'HH:MM' }`             | À cette heure, le premier jour de l’occurrence     | À cette heure, le premier jour de l’occurrence (« à partir du »), **une fois par occurrence**                   | À cette heure, chaque jour de la « Date min » à la « Date max » (le jour de la « Date max » sans « Date min ») |
 
-- Seulement les routines non archivées, dont l’occurrence courante est aujourd’hui, pas encore faites, avec des rappels.
-- Chaque heure du jour non cochée (ou l’unique de la routine) a son moment (`routineAlertTime` : heure de départ, sinon début de la fenêtre, sinon heure limite) ; chaque rappel sonne à « moment − minutes », au plus 6 heures en retard.
-- Pendant un évènement occupant ses assignés, l’alerte est reportée au prochain moment libre (`nextAllowedAt`, 14 jours d’horizon) ; aucun : pas d’alerte. Sa condition de créneaux garde déjà ses moments aux heures permises ; le défaut de l’espace ne joue plus (décision D10).
-- Action « Marquer comme faite » : coche cette heure du jour de la routine. Voir [Règles des routines](routines.md).
+- Le début d’une journée entière est minuit (Paris) de son premier jour.
+- Ne sonnent pas : une occurrence d’évènement annulée (`calledOff`), un évènement ou un calendrier archivé ; une routine archivée, un moment coché (pour les « avant »), une occurrence faite ; une tâche fermée ou archivée, ou sans « Date max » (Q2 : champ désactivé ; les rappels restent enregistrés sans sonner). Un moment de routine sans aucune heure n’a pas de rappel « avant » ; les rappels « À HH:MM » d’une routine sans horaire sonnent quand même.
+- Évènements : occurrences d’hier à J+8 (non archivées, calendriers non archivés), rechargées toutes les 5 minutes. Les rappels sont exportés en `VALARM` relatifs au début (voir [Règles de l’agenda](calendar.md#export-icalendar)).
+- Routines : l’API donne, pour chaque routine qui a des rappels, les occurrences où ils sonnent (`reminderOccurrences`, `services/routines/routines.ts`) : l’occurrence en cours tant qu’elle n’est pas faite et la suivante (un rappel jusqu’à 24 heures avant peut sonner avant qu’elle s’ouvre), chacune avec son premier jour et, pour chaque moment non coché, l’instant d’où comptent les « avant ». Pendant un évènement occupant ses assignés, le rappel est reporté au prochain moment libre (`nextAllowedAt`, 14 jours d’horizon ; espace ouvert seulement) ; aucun : pas de rappel. Action « Marquer comme faite » (occurrence en cours, espace ouvert seulement) : coche le moment (le premier non coché pour un « À HH:MM »). Voir [Règles des routines](routines.md).
+- Tâches : rappels du jour et de la veille (un rappel de 23 h 30 peut encore sonner après minuit) des tâches ouvertes et non archivées (`taskReminders`, `taskRemindsOn`). Une « Date min » après la « Date max » (possible par l’API seule) compte comme absente. Toast : libellé, « Date max », lien vers la tâche.
+- Les rappels sont **à côté** des alarmes, qui restent telles quelles (objets à part, avec leur propre répétition, sur une tâche ou un projet, et les alarmes de chrono). Une alarme `REMINDER` sur une tâche peut faire le même office qu’un rappel de tâche ; rien ne les relie.
 
 ## Sonnerie
 
@@ -85,6 +88,6 @@ Source : `apps/web/src/features/alarms/lib/ring-routines.tsx`.
 - Notification système seulement si l’autorisation est accordée ; une par clé (`tag`).
 - Toast d’information persistant (voir [Notifications](../../web/lib.md)).
 
-## Notifications des autres espaces
+## Alarmes et rappels des autres espaces
 
-Sources : `NOTIFICATION_SOURCES` (`packages/shared/src/core/workspace.ts` : `ALARMS`, `CALENDAR`, `MAILS`), `apps/api/src/services/workspaces/workspaces.ts`. Chaque espace choisit ce qu’il signale quand un autre est ouvert ; les sonneries suivent les mêmes règles, la sonnerie étant enregistrée dans l’espace de l’alarme. Voir [Espaces et accès](../cross-cutting/workspaces-and-access.md).
+Les alarmes et les rappels des tâches, routines et évènements de **tous** les espaces de l’utilisateur sonnent quel que soit l’espace ouvert (décision EO, `ElsewhereNotifier`) : ce n’est plus un choix de l’espace. Les sonneries suivent les mêmes règles, la sonnerie d’une alarme étant enregistrée dans l’espace de l’alarme ; le toast indique « Espace « X » ». Seuls les nouveaux mails restent un choix (`NOTIFICATION_SOURCES = ['MAILS']`, `packages/shared/src/core/workspace.ts` ; `apps/api/src/services/workspaces/workspaces.ts`). Voir [Espaces et accès](../cross-cutting/workspaces-and-access.md).

@@ -6,6 +6,7 @@ import { itemLinksSchema, type ItemLink } from '../core/links';
 import { dateSchema } from '../core/workspace';
 import { slotConditionSchema, type SlotCondition } from '../calendar/slot-conditions';
 import { endDaySchema, startDaySchema } from '../dates/times';
+import { taskRemindersSchema, type ReminderFields } from '../dates/reminders';
 
 export const taskLabelSchema = requiredText();
 
@@ -80,6 +81,8 @@ export const taskFormSchema = z
     ...locationPointFields,
     /** Links, as those of the events (decision D5). */
     links: itemLinksSchema.default([]),
+    /** Reminders « À HH:MM » (Paris time), rung every day from « Date min » to « Date max » (decision D16). */
+    reminders: taskRemindersSchema.default([]),
   })
   .refine(...endAfter('startDate', 'endDate'))
   .refine(...endAfter('minDate', 'deadline'));
@@ -138,4 +141,6 @@ export interface TaskInput {
   locationLon?: number | null;
   /** Links (null: none). */
   links?: ItemLink[] | null;
+  /** Reminders « À HH:MM » (null: none); they ring only with a « Date max ». */
+  reminders?: ReminderFields[] | null;
 }

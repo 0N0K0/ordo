@@ -166,7 +166,7 @@ export async function updateWorkspace(id: string, input: { label: string; kind: 
 /**
  * Chooses the notifications a workspace still gives while another one is open.
  * @param {string} id Workspace.
- * @param {NotificationSource[]} sources Alarms, calendar reminders, new mails.
+ * @param {NotificationSource[]} sources New mails (alarms and reminders always ring).
  * @returns {Promise<Workspace>} Workspace.
  */
 export async function setWorkspaceNotifications(id: string, sources: NotificationSource[]): Promise<Workspace> {

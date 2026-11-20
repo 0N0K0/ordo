@@ -23,11 +23,8 @@ const KINDS = [
   { value: 'PERSO', label: 'Perso' },
 ];
 
-const SOURCES: { value: NotificationSource; label: string }[] = [
-  { value: 'ALARMS', label: 'Alarmes' },
-  { value: 'CALENDAR', label: 'Rappels d’agenda' },
-  { value: 'MAILS', label: 'Nouveaux mails' },
-];
+// Alarms and reminders ring whatever workspace is open: only the new mails are a choice.
+const SOURCES: { value: NotificationSource; label: string }[] = [{ value: 'MAILS', label: 'Nouveaux mails' }];
 
 const WEEKDAYS = WEEKDAY_LABELS.map((label, index) => ({ value: String(index + 1), label }));
 
@@ -110,7 +107,7 @@ function WorkspaceRow({ workspace, index, count, current, fallbackId }: Workspac
       </Group>
       <Group gap="xs" pl={28}>
         <Text size="xs" c="dimmed">
-          Notifier quand un autre espace est ouvert :
+          Quand un autre espace est ouvert (alarmes et rappels sonnent toujours), notifier aussi :
         </Text>
         <Chip.Group multiple value={workspace.notifyElsewhere} onChange={(sources) => setNotifications.mutate({ id: workspace.id, sources: sources as NotificationSource[] }, ON_ERROR)}>
           {SOURCES.map((source) => (

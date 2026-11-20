@@ -15,6 +15,7 @@ import { FormActions } from '../../../components/dialogs/FormActions';
 import { defaultStatusId } from '../lib/new-task-defaults';
 import { dateRangeProps, formRange } from '../../../components/inputs/date-range';
 import { EffortInput } from './EffortInput';
+import { TaskReminders } from './TaskReminders';
 import { EventLocation } from '../../geo/components/EventLocation';
 import { addressOf, locationOf } from '../../geo/lib/location';
 import { LinksField } from '../../../components/inputs/LinksField';
@@ -64,6 +65,7 @@ export function TaskCreateForm({ context, defaults, onDone }: TaskCreateFormProp
       locationLat: null,
       locationLon: null,
       links: [],
+      reminders: [],
     },
     schema: taskFormSchema,
   });
@@ -183,6 +185,13 @@ export function TaskCreateForm({ context, defaults, onDone }: TaskCreateFormProp
           <DatePickerInput label="Date min" clearable placeholder="—" {...doable.start} />
           <DatePickerInput label="Date max" clearable placeholder="—" {...doable.end} />
         </SimpleGrid>
+        <TaskReminders
+          value={form.values.reminders ?? []}
+          minDate={form.values.minDate}
+          deadline={form.values.deadline}
+          onChange={(reminders) => form.setFieldValue('reminders', reminders)}
+          error={form.errors.reminders as string | undefined}
+        />
         <SlotConditionBuilder item="task" value={readSlotCondition(form.values.slotCondition)} onChange={(slotCondition) => form.setFieldValue('slotCondition', slotCondition)} />
         <FormActions onCancel={onDone} submitLabel="Créer la tâche" loading={createTask.isPending} />
       </Stack>

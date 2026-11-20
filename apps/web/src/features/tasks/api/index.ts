@@ -118,6 +118,10 @@ graphql(`
       url
       label
     }
+    reminders {
+      before
+      at
+    }
   }
 `);
 

@@ -1,11 +1,13 @@
-import { entrySeconds, previousOccurrence } from '@ordo/shared';
-import { AlarmIcon, CalendarBlankIcon } from '@phosphor-icons/react';
+import { entrySeconds, parisInstant, previousOccurrence, remindersAt, remindersBefore, taskReminders, type PlannedReminder } from '@ordo/shared';
+import type { ReactNode } from 'react';
+import { AlarmIcon, CalendarBlankIcon, CheckSquareIcon } from '@phosphor-icons/react';
 import type { EventOccurrence } from '../../calendar/api';
 import type { Alarm } from '../api';
+import type { Task } from '../../tasks/api';
 import { playChime } from '../lib/alarm-sound';
-import { localInstant } from '../../../lib/dates';
 import * as fmt from '../../../lib/format';
 import { notifyInfo, type NotifyAction } from '../../../lib/notify';
+import { taggedKey } from '../../../lib/tagged-key';
 
 /** Alarms missed by more than this (app closed) do not ring any more. */
 export const MAX_DELAY_MS = 6 * 3600_000;
@@ -57,22 +59,58 @@ export function systemNotification(title: string, body: string | undefined, tag:
  */
 export function ringAlarm(alarm: Pick<Alarm, 'label' | 'note'>, key: string, links: RingLink[], workspaceLabel?: string): void {
   if (!claim(`ordo.alarm.${key}`)) return;
+  // eslint-disable-next-line no-restricted-syntax -- an alarm (not a reminder) rings here.
   playChime();
   systemNotification(alarm.label, [workspaceLabel, alarm.note].filter(Boolean).join(' · ') || undefined, key);
   notifyInfo({ icon: <AlarmIcon />, title: alarm.label, lines: [workspaceLabel && `Espace « ${workspaceLabel} »`, alarm.note], actions: links });
 }
 
+/** What the toast of a reminder shows. */
+export interface ReminderToast {
+  icon: ReactNode;
+  title: string;
+  /** Lines under the title (empty ones left out). */
+  lines: (string | null | undefined | false)[];
+  actions: RingLink[];
+}
+
 /**
- * Start of an event occurrence: its instant, or local midnight of its first day when all day.
+ * Rings the reminders that are due (missed by less than a few hours): the one way tasks, routines and events ring
+ * (decision D16). Each key rings once across tabs (`claim`); chime, system notification and an information toast.
+ * @template {PlannedReminder} P
+ * @param {P[]} planned Reminders (keys without the `ordo.alarm.` prefix).
+ * @param {Date} now Current time.
+ * @param {(reminder: P) => ReminderToast} toast Toast of a reminder.
+ * @param {string} [workspaceLabel] Workspace, when not the one open. Optional.
+ * @returns {void}
+ */
+export function ringPlannedReminders<P extends PlannedReminder>(planned: P[], now: Date, toast: (reminder: P) => ReminderToast, workspaceLabel?: string): void {
+  for (const reminder of planned) {
+    const at = reminder.at.getTime();
+    if (now.getTime() < at || now.getTime() - at > MAX_DELAY_MS) continue;
+    const key = `ordo.alarm.${reminder.key}`;
+    if (!claim(key, MAX_DELAY_MS + 3600_000)) continue;
+    // eslint-disable-next-line no-restricted-syntax -- ringPlannedReminders itself.
+    playChime();
+    const { icon, title, lines, actions } = toast(reminder);
+    const shown = [workspaceLabel && `Espace « ${workspaceLabel} »`, ...lines].filter((line): line is string => Boolean(line));
+    systemNotification(title, shown.join(' · ') || undefined, key);
+    notifyInfo({ id: key, icon, title, lines: shown, actions });
+  }
+}
+
+/**
+ * Start of an event occurrence: its instant, or Paris midnight of its first day when all day.
  * @param {EventOccurrence} occurrence Occurrence.
  * @returns {Date} Start.
  */
 function occurrenceStart(occurrence: EventOccurrence): Date {
-  return occurrence.allDay ? localInstant(occurrence.startDate) : new Date(occurrence.start);
+  return occurrence.allDay ? parisInstant(occurrence.startDate) : new Date(occurrence.start);
 }
 
 /**
- * Rings the reminders of event occurrences that are due (missed by less than a few hours).
+ * Rings the reminders of event occurrences that are due: minutes before their start, or at a time of the day of their
+ * first day; a cancelled occurrence does not ring.
  * @param {EventOccurrence[]} occurrences Occurrences of the next days.
  * @param {Date} now Current time.
  * @param {RingLink[]} links Calendar, workspace.
@@ -81,18 +119,41 @@ function occurrenceStart(occurrence: EventOccurrence): Date {
  */
 export function ringReminders(occurrences: EventOccurrence[], now: Date, links: RingLink[], workspaceLabel?: string): void {
   for (const occurrence of occurrences) {
+    if (occurrence.calledOff) continue;
     const start = occurrenceStart(occurrence);
-    for (const minutes of occurrence.reminders) {
-      const at = start.getTime() - minutes * 60_000;
-      if (now.getTime() < at || now.getTime() - at > MAX_DELAY_MS) continue;
-      const key = `ordo.alarm.event:${occurrence.key}:${minutes}`;
-      if (!claim(key, MAX_DELAY_MS + 3600_000)) continue;
-      playChime();
-      const when = occurrence.allDay ? 'Journée entière' : fmt.dateTimeShort(start);
-      const body = [when, occurrence.location].filter(Boolean).join(' · ');
-      systemNotification(occurrence.label, [workspaceLabel, body].filter(Boolean).join(' · '), key);
-      notifyInfo({ icon: <CalendarBlankIcon />, title: occurrence.label, lines: [workspaceLabel && `Espace « ${workspaceLabel} »`, body], actions: links });
-    }
+    const body = [occurrence.allDay ? 'Journée entière' : fmt.dateTimeShort(start), occurrence.location].filter(Boolean).join(' · ');
+    const key = taggedKey('event', occurrence.key);
+    ringPlannedReminders(
+      [...remindersBefore(key, start, occurrence.reminders), ...remindersAt(key, occurrence.startDate, occurrence.reminders)],
+      now,
+      () => ({ icon: <CalendarBlankIcon />, title: occurrence.label, lines: [body], actions: links }),
+      workspaceLabel,
+    );
+  }
+}
+
+/** What the reminders of a task are rung from (a task of the open workspace or of another one). */
+export type RemindedTask = Pick<Task, 'id' | 'label' | 'closed' | 'archived' | 'minDate' | 'deadline' | 'reminders'>;
+
+/**
+ * Rings the reminders of the open tasks (not closed nor archived) that are due: at their times of the day, every day
+ * from their « Date min » to their « Date max » (the « Date max » day only without « Date min »; none without it).
+ * @template {RemindedTask} T
+ * @param {T[]} tasks Tasks.
+ * @param {Date} now Current time.
+ * @param {(task: T) => RingLink[]} links Links of a task (its page).
+ * @param {string} [workspaceLabel] Workspace, when not the one open. Optional.
+ * @returns {void}
+ */
+export function ringTaskReminders<T extends RemindedTask>(tasks: T[], now: Date, links: (task: T) => RingLink[], workspaceLabel?: string): void {
+  for (const task of tasks) {
+    if (task.closed || task.archived || !task.reminders.length) continue;
+    ringPlannedReminders(taskReminders(taggedKey('task', task.id), task, now), now, () => ({
+      icon: <CheckSquareIcon />,
+      title: task.label,
+      lines: [task.deadline && `Date max : ${fmt.day(task.deadline)}`],
+      actions: links(task),
+    }), workspaceLabel);
   }
 }
 

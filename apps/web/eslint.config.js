@@ -114,6 +114,11 @@ export default defineConfig([
           selector: "ImportDeclaration[importKind!='type'][source.value=/\\/(RichEditor|PlaceMap)$/]",
           message: 'Utiliser LazyRichEditor / LazyPlaceMap : l’éditeur et la carte sont chargés à la demande.',
         },
+        // Reminders of tasks, routines and events ring one way (decision D16): one brick claims, chimes and notifies.
+        {
+          selector: "CallExpression[callee.name='playChime']",
+          message: 'Utiliser ringPlannedReminders (features/alarms/components/ring) : les rappels des tâches, routines et évènements sonnent d’une seule façon.',
+        },
         {
           selector: "CallExpression[callee.name='lazy']",
           message: 'Utiliser lazyNamed (lib/lazy) : une seule façon de charger un composant à la demande.',

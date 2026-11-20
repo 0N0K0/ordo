@@ -1,4 +1,4 @@
-import { addDays, dayOfMonthOf, fileName, formatDay, occurrenceDates, type ItemLink, type Recurrence, ruleValues, weekdayOfDate, zonedInstant } from '@ordo/shared';
+import { addDays, dayOfMonthOf, fileName, formatDay, minutesBeforeStart, readReminders, occurrenceDates, type ItemLink, type Recurrence, ruleValues, weekdayOfDate, zonedInstant } from '@ordo/shared';
 import { prisma } from '../../db';
 import { orNotFound } from '../../graphql/errors';
 import { occurrenceInclude, storedRecurrence, toOccurrence, type EventWithRelations } from './calendar-events';
@@ -145,13 +145,17 @@ function travel(minutes: number): string[] {
 }
 
 /**
- * Alarms of an event: one per reminder.
- * @param {number[]} reminders Minutes before the start.
+ * Alarms of an event: one per reminder, relative to its start (a time of its day too: before or after the start).
+ * @param {unknown} stored Reminders as stored.
  * @param {string} summary Title.
+ * @param {string | null} startTime Time of the start (null: all day, from midnight).
  * @returns {string[]} Content lines.
  */
-function alarms(reminders: number[], summary: string): string[] {
-  return reminders.flatMap((minutes) => ['BEGIN:VALARM', 'ACTION:DISPLAY', `DESCRIPTION:${text(summary)}`, `TRIGGER:-PT${minutes}M`, 'END:VALARM']);
+function alarms(stored: unknown, summary: string, startTime: string | null): string[] {
+  return readReminders(stored).flatMap((reminder) => {
+    const minutes = minutesBeforeStart(reminder, startTime ?? '00:00');
+    return ['BEGIN:VALARM', 'ACTION:DISPLAY', `DESCRIPTION:${text(summary)}`, `TRIGGER:${minutes >= 0 ? '-' : ''}PT${Math.abs(minutes)}M`, 'END:VALARM'];
+  });
 }
 
 type ExportedEvent = Omit<EventWithRelations, 'categories'> & { categories: { id: string; label: string }[] };
@@ -226,7 +230,7 @@ function eventLines(event: ExportedEvent, stamp: Date): string[] {
     );
     for (const date of excluded) series.push(moment('EXDATE', date, time));
   }
-  series.push(...travel(event.allDay ? 0 : event.travelBefore), ...alarms(event.reminders, event.label), 'END:VEVENT');
+  series.push(...travel(event.allDay ? 0 : event.travelBefore), ...alarms(event.reminders, event.label, event.allDay ? null : event.startTime), 'END:VEVENT');
 
   // Occurrences changed on their own: the same event at its original date (RECURRENCE-ID), as the app shows them.
   const changed = rule
@@ -242,7 +246,7 @@ function eventLines(event: ExportedEvent, stamp: Date): string[] {
             moment('RECURRENCE-ID', date, event.allDay ? null : event.startTime),
             ...body(occurrence),
             ...travel(occurrence.allDay ? 0 : occurrence.travelBefore),
-            ...alarms(event.reminders, occurrence.label),
+            ...alarms(event.reminders, occurrence.label, occurrence.allDay ? null : occurrence.startTime),
             'END:VEVENT',
           ];
         })

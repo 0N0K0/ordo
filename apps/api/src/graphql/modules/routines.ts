@@ -1,5 +1,5 @@
 import { parseOptionalDay, sumOf } from '@ordo/shared';
-import { daysBetween, formatDay, parseDay, readOpens, type RoutineInput, type RoutineMoveTimes } from '@ordo/shared';
+import { daysBetween, formatDay, parseDay, readOpens, readReminders, type RoutineInput, type RoutineMoveTimes } from '@ordo/shared';
 import { prisma } from '../../db';
 import { clientError, done } from '../errors';
 import * as routines from '../../services/routines/routines';
@@ -9,6 +9,7 @@ import { RemovedLinksResult, removedLinks } from '../removed-links';
 import { builder, type InputFields } from '../builder';
 import { locatedChanges, locatedInput, locationInputFields, TRAVEL_DESCRIPTIONS, travelInputFields } from '../located-fields';
 import { ItemLinkInput, ItemLinkRef } from '../link-fields';
+import { ReminderInput, ReminderRef } from '../reminder-fields';
 import { readLinks } from '../../services/core/links';
 import { relationIds } from '../relation-fields';
 import { EventScope } from './calendar';
@@ -90,6 +91,22 @@ const RoutineSlotRef = builder.objectRef<SlotState>('RoutineSlot').implement({
   }),
 });
 
+const RoutineReminderSlotRef = builder.objectRef<routines.RoutineReminderOccurrence['slots'][number]>('RoutineReminderSlot').implement({
+  fields: (t) => ({
+    slot: t.exposeInt('slot', { description: 'Index of its time of the day.' }),
+    at: t.field({ type: 'DateTime', description: 'First day of the occurrence at the start of the time of the day.', resolve: (slot) => slot.at }),
+  }),
+});
+
+const RoutineReminderOccurrenceRef = builder.objectRef<routines.RoutineReminderOccurrence>('RoutineReminderOccurrence').implement({
+  description: 'Occurrence of a routine its reminders ring for (Paris time).',
+  fields: (t) => ({
+    date: t.field({ type: 'Date', description: 'Due day of the occurrence.', resolve: (occurrence) => parseDay(occurrence.date) }),
+    day: t.field({ type: 'Date', description: 'Its first day (« à partir du »): the day of its reminders « À HH:MM ».', resolve: (occurrence) => parseDay(occurrence.day) }),
+    slots: t.field({ type: [RoutineReminderSlotRef], description: 'Its times of the day not ticked, with the moment its reminders « N min avant » count from.', resolve: (occurrence) => occurrence.slots }),
+  }),
+});
+
 /** Checks loaded to know the times ticked today. */
 const TODAY_CHECKS = { checks: { orderBy: { date: 'desc' }, take: 20, select: { date: true, slot: true } } } as const;
 
@@ -121,7 +138,17 @@ builder.prismaObject('Routine', {
       resolve: (routine) => routines.storedCondition(routine),
     }),
     moments: t.field({ type: 'JSON', description: 'Times of the day following its rule or its schedules, [{ fromTime, dueTime, optional }].', resolve: (routine) => routines.storedMoments(routine) }),
-    reminders: t.exposeIntList('reminders', { description: 'Alerts, in minutes before its moment (when to leave, else its start, else its latest time).' }),
+    reminders: t.field({
+      type: [ReminderRef],
+      description: 'Reminders: minutes (24 hours at most) before the first day (« à partir du ») of an occurrence at the start of each time of the day (« dès »), or a time of that day.',
+      resolve: (routine) => readReminders(routine.reminders),
+    }),
+    reminderOccurrences: t.field({
+      type: [RoutineReminderOccurrenceRef],
+      description: 'Occurrences its reminders ring for: its current one while not done and its next one.',
+      select: { ...TIMING, ...TODAY_CHECKS, reminders: true },
+      resolve: async (routine, _args, ctx) => (readReminders(routine.reminders).length ? routines.reminderOccurrences(routine, await slotsOf(ctx)) : []),
+    }),
     opensOn: t.field({
       type: 'JSON',
       nullable: true,
@@ -243,7 +270,7 @@ const RoutineInputType = builder.inputType('RoutineInput', {
     slotCondition: t.field({ type: 'JSON', description: 'Following its rule: on or out of calendar schedules, in groups (and / or); null: any time.' }),
     moments: t.field({ type: 'JSON', description: 'Times of the day, [{ fromTime, dueTime, optional }].' }),
     cases: t.field({ type: 'JSON', description: 'Cases (days and times of the day); empty: the repetition.' }),
-    reminders: t.intList(),
+    reminders: t.field({ type: [ReminderInput] }),
     opensOn: t.field({ type: 'JSON', description: '« À partir du » of the occurrences of its rule: { mode: DAY | WEEKDAY | WEEK | BEFORE, … }; null: none.' }),
     dueTime: t.string({ description: 'HH:MM.' }),
     ...locationInputFields(t),
@@ -288,7 +315,7 @@ const RoutinePatch = builder.inputType('RoutinePatch', {
     projectId: t.id({ description: 'Null: none.' }),
     ...locationInputFields(t, 'Null: none (its point too).'),
     ...travelInputFields(t, 'omitted: unchanged'),
-    reminders: t.intList({ description: 'Minutes before its moment.' }),
+    reminders: t.field({ type: [ReminderInput], description: 'Minutes (24 hours at most) before the lowest date and time of an occurrence, or a time of its first day.' }),
     opensOn: t.field({ type: 'JSON', description: '« À partir du »: { mode: DAY | WEEKDAY | WEEK | BEFORE, … }; null: none.' }),
     ...repetitionChangeFields(t),
   }),

@@ -21,7 +21,7 @@ Documents GraphQL du temps (fragment `TimeEntryFields` avec `routines { id label
 | `TimerStartValues` (interface)         | Démarrage d’un chrono : `projectId?`, `routineIds?`, `taskIds`, `description?`, `events?`. |
 | `TimeEventLink` (interface)            | Évènement d’un temps envoyé : `{ eventId, occurrenceDate }`. |
 | `TimeLostQuery` (interface)            | Éléments sur le point d’être supprimés : `taskIds?`, `routineIds?`, `withSubtree?`, `eventId?`, `scope?`, `occurrenceDate?`. |
-| `fetchTimeLost(query)`                 | Nombre de temps sans projet qu’une suppression emporte (requête `timeLostOnDelete`). Utilisé par `EventForm` (les trois portées d’un récurrent). |
+| `fetchTimeLost(query)`                 | Nombre de temps sans projet qu’une suppression emporte (requête `timeLostOnDelete` ; `TimeLostQuery` : tâches, routines, évènement, ou `calendarId`). Utilisé par `EventForm` (les trois portées d’un récurrent). |
 | `useTimeLost(query)`                   | Le même nombre en requête React Query. Utilisé par `TimeLostRisk`. |
 | `useTimeMutations()`                   | `{ start, setPaused, stop, create, update, remove }` ; toutes invalident `['time']` et `['tasks']` (temps passé des tâches). `start` avertit ensuite si le chrono est hors des créneaux (`warnOutOfSlots`). |
 
@@ -124,7 +124,7 @@ Classes `running` (bloc du chrono dans l’en-tête), `summary` (bouton sujet + 
 
 ### `components/TimeLostRisk.tsx`
 
-- `TimeLostRisk({ query })` : phrase de la confirmation d’une suppression de tâches, de routines ou d’un évènement : « 2 temps sans projet, qui ne portent sur rien d’autre, seront aussi supprimés (les temps facturés sont gardés). » (`useTimeLost` ; rien sans aucun). Utilisé par `DeleteTasksDialog`, `DeleteRoutinesDialog`, `EventForm`.
+- `TimeLostRisk({ query })` : phrase de la confirmation d’une suppression de tâches, de routines, d’un évènement ou d’un calendrier : « 2 temps sans projet, qui ne portent sur rien d’autre, seront aussi supprimés (les temps facturés sont gardés). » (`useTimeLost` ; rien sans aucun). Utilisé par `DeleteTasksDialog`, `DeleteRoutinesDialog`, `EventForm`, `CalendarsManager`.
 - Interne : `timeLostText(count)`.
 
 ## hooks/

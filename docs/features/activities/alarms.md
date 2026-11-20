@@ -1,6 +1,6 @@
 # Alarmes
 
-Ce que l’utilisateur peut faire avec les alarmes : la page `/alarms` (« Alarmes »), les alarmes d’une tâche, et ce qui sonne pendant qu’Ordo est ouvert (alarmes, rappels d’évènements, alertes de routines), y compris pour les autres espaces. Code : `apps/web/src/features/alarms/**` (voir [Code web des alarmes](../../web/features/activities/alarms.md)) ; règles : [Règles des alarmes](../../business-rules/activities/alarms.md).
+Ce que l’utilisateur peut faire avec les alarmes : la page `/alarms` (« Alarmes »), les alarmes d’une tâche, et ce qui sonne pendant qu’Ordo est ouvert (alarmes, rappels des tâches, des routines et des évènements), y compris pour les autres espaces. Code : `apps/web/src/features/alarms/**` (voir [Code web des alarmes](../../web/features/activities/alarms.md)) ; règles : [Règles des alarmes](../../business-rules/activities/alarms.md).
 
 ## Types d’alarmes
 
@@ -70,10 +70,13 @@ Une sonnerie = un carillon de trois notes (si l’onglet a déjà reçu un clic 
 - `TRACKING_DURATION` : à chaque multiple de la durée du chrono en cours (hors pause). Les paliers déjà franchis à la première vérification ne sonnent pas.
 - Toast : icône d’alarme, libellé, note, lien vers la tâche (« Projet #12 Libellé ») ou le projet.
 
-### Rappels d’évènements et alertes de routines
+### Rappels des tâches, des routines et des évènements
 
-- Rappels d’évènements : les occurrences d’hier à J+8 sont rechargées toutes les 5 minutes ; chaque rappel sonne à « début − minutes » (journée entière : minuit local du premier jour), au plus 6 heures en retard. Toast : libellé, « Journée entière » ou date et heure, lieu ; lien « Voir l’agenda ».
-- Alertes de routines : pour les routines du jour non cochées, chaque heure du jour non cochée sonne à ses minutes avant son moment (heure de départ, sinon début de sa fenêtre, sinon son heure limite), au plus 6 heures en retard ; pendant un évènement qui occupe ses assignés, l’alerte attend le prochain moment libre. Toast : libellé, « Partir à HH:MM » le cas échéant, fenêtre et lieu ; actions « Marquer comme faite » et « Voir les routines ». Voir [Routines](routines.md).
+Les rappels (« Rappels », 10 au plus, de types mêlés : « Au début », « N min avant », « À HH:MM le jour J ») fonctionnent de la même façon pour les trois (décision D16), en heure de Paris, au plus 6 heures en retard, quel que soit l’espace ouvert ; ils sont à côté des alarmes, qui restent.
+
+- Évènements : « Au début », minutes avant le début (24 heures au plus ; journée entière : minuit du premier jour), ou à une heure du premier jour ; les occurrences d’hier à J+8 sont rechargées toutes les 5 minutes ; une occurrence annulée ne sonne pas. Toast : libellé, « Journée entière » ou date et heure, lieu ; lien « Voir l’agenda ».
+- Routines : « Au début » ou minutes avant le premier jour de l’occurrence (« à partir du ») à l’heure « dès » de chaque moment non coché (sinon son heure maximale), 24 heures au plus, ou à une heure de ce jour (une fois par occurrence), pour l’occurrence en cours tant qu’elle n’est pas faite et pour la suivante ; pendant un évènement qui occupe ses assignés, le rappel attend le prochain moment libre. Toast : libellé, horaires du moment et lieu ; actions « Marquer comme faite » (occurrence en cours) et « Voir les routines ». Voir [Routines](routines.md).
+- Tâches : « À HH:MM » seulement, à une ou plusieurs heures du jour, chaque jour de la « Date min » à la « Date max » (le jour de la « Date max » seulement sans « Date min ») ; aucun sans « Date max » ; une tâche fermée ou archivée ne sonne pas. Toast : libellé, « Date max » ; lien vers la tâche. Voir [Tâches](tasks.md).
 
 ### Plusieurs onglets
 
@@ -81,7 +84,7 @@ Une occurrence n’est sonnée que par un seul onglet (de n’importe quel espac
 
 ### Notifications des autres espaces
 
-Pour chaque autre espace, selon son réglage « notifications quand un autre espace est ouvert » (alarmes, agenda, mails — voir [Espaces](../cross-cutting/workspaces.md)), le composant `ElsewhereNotifier` vérifie ses alarmes (rechargées chaque minute), ses rappels d’évènements (toutes les 5 minutes) et ses nouveaux mails. Le toast indique « Espace « X » » et ses liens ouvrent cet espace.
+Pour chaque autre espace, le composant `ElsewhereNotifier` fait toujours sonner ses alarmes (rechargées chaque minute) et les rappels de ses évènements, tâches et routines (rechargés toutes les 5 minutes), sans choix de l’espace (décision EO) ; ses nouveaux mails selon son réglage « Nouveaux mails » (voir [Espaces](../cross-cutting/workspaces.md)). Les rappels d’une routine d’un autre espace n’attendent pas un moment libre et ne proposent pas « Marquer comme faite ». Le toast indique « Espace « X » » et ses liens ouvrent cet espace.
 
 ## Différences PRO / PERSO
 

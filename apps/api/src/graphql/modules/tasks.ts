@@ -21,6 +21,8 @@ import { reloaded } from '../reload';
 import { unchecked } from '../unchecked';
 import { locationInputFields } from '../located-fields';
 import { ItemLinkInput, ItemLinkRef } from '../link-fields';
+import { ReminderInput, ReminderRef } from '../reminder-fields';
+import { readReminders } from '@ordo/shared';
 import { readLinks } from '../../services/core/links';
 
 builder.prismaObject('Contributor', {
@@ -186,6 +188,11 @@ builder.prismaObject('Task', {
     locationLat: t.exposeFloat('locationLat', { nullable: true, description: 'Point of the location; none: unknown.' }),
     locationLon: t.exposeFloat('locationLon', { nullable: true }),
     links: t.field({ type: [ItemLinkRef], description: 'Links, as those of the events.', resolve: (task) => readLinks(task.links) }),
+    reminders: t.field({
+      type: [ReminderRef],
+      description: 'Reminders « À HH:MM » (Paris time), rung every day from « Date min » to « Date max » (its day only without « Date min »; never without « Date max »).',
+      resolve: (task) => readReminders(task.reminders),
+    }),
     parentId: t.exposeID('parentId', { nullable: true }),
     milestoneId: t.exposeID('milestoneId', { nullable: true }),
     sprintIds: t.idList(relationIds('sprints', 'Sprints the task is planned in.')),
@@ -259,6 +266,7 @@ const taskFields = (t: InputFields) => ({
   slotCondition: t.field({ type: 'JSON', description: 'On or out of calendar schedules, or on the free time, in groups (and / or); null: any time.' }),
   ...locationInputFields(t, 'Null: none (its point too).'),
   links: t.field({ type: [ItemLinkInput], description: '20 at most, http or https; null: none.' }),
+  reminders: t.field({ type: [ReminderInput], description: 'Reminders « À HH:MM » only, 10 at most; null: none.' }),
 });
 
 const TaskInput = builder.inputType('TaskInput', {

@@ -295,7 +295,7 @@ export const calendarEventFactory = Factory.define<Prisma.CalendarEventUnchecked
     startTime: minutesToTime(start),
     endDate: date,
     endTime: minutesToTime(end),
-    reminders: faker.helpers.arrayElement([[], [15], [10], [30, 1440]]),
+    reminders: faker.helpers.arrayElement([[], [15], [10], [30, 1440]]).map((before) => ({ before })),
     calendarId: '',
   };
 });

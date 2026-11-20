@@ -42,7 +42,10 @@ graphql(`
     end
     recurrence
     seriesStartDate
-    reminders
+    reminders {
+      before
+      at
+    }
     travelBefore
     travelAfter
     projectId

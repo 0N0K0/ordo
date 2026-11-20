@@ -30,6 +30,7 @@ export * from './tables/table-layout';
 export * from './tables/table-views';
 export * from './dates/weeks';
 export * from './dates/times';
+export * from './dates/reminders';
 export * from './dates/months';
 export * from './calendar/event-busy';
 export * from './tables/aggregates';

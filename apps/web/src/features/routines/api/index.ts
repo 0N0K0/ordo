@@ -1,6 +1,6 @@
 import { linkInputs } from '../../../lib/links';
-import { ancestorsOf, byPosition, changedList, mapById, movedTo, subtreeOf } from '@ordo/shared';
-import type { RoutineBulkChanges } from '@ordo/shared';
+import { ancestorsOf, byPosition, changedList, mapById, movedTo, readReminders, subtreeOf } from '@ordo/shared';
+import type { Reminder, RoutineBulkChanges } from '@ordo/shared';
 import { patchQuery, useInvalidatingMutation } from '../../../lib/mutation';
 import {
   readSlotCondition,
@@ -49,7 +49,18 @@ const RoutinesDataDocument = graphql(`
       dueTime
       slotCondition
       moments
-      reminders
+      reminders {
+        before
+        at
+      }
+      reminderOccurrences {
+        date
+        day
+        slots {
+          slot
+          at
+        }
+      }
       cases
       moves
       done
@@ -332,7 +343,8 @@ function draftRoutine(input: RoutineInput, routines: readonly Routine[]): Routin
     dueTime: input.dueTime ?? null,
     slotCondition: input.slotCondition ?? null,
     moments: input.moments ?? [],
-    reminders: input.reminders ?? [],
+    reminders: readReminders(input.reminders),
+    reminderOccurrences: [],
     cases: input.cases ?? [],
     moves: [],
     done: false,
@@ -456,7 +468,7 @@ export interface RoutinePatchValues {
   locationLon?: number | null;
   travelBefore?: number;
   travelAfter?: number;
-  reminders?: number[];
+  reminders?: Reminder[];
   opensOn?: RoutineOpens | null;
   fromTime?: string | null;
   dueTime?: string | null;
