@@ -53,6 +53,21 @@ export const sheetMultiplierSchema = z.number().positive('Multiplicateur positif
 /** Sheet of a routine, an event or a task, times a multiplier. */
 export const sheetLinkSchema = z.object({ sheetId: z.string().min(1), multiplier: sheetMultiplierSchema });
 export type SheetLinkInput = z.infer<typeof sheetLinkSchema>;
+/**
+ * Sheets of a routine, an event or a task as their panel edits them (decision D22): a multiplier emptied is not
+ * positive (« Multiplicateur positif attendu. »).
+ */
+export const sheetLinksFormSchema = z.object({
+  links: z.array(
+    z.object({
+      sheetId: z.string().min(1),
+      multiplier: z
+        .union([z.number(), z.literal('')])
+        .transform((value) => (value === '' ? 0 : value))
+        .pipe(sheetMultiplierSchema),
+    }),
+  ),
+});
 
 /** Item of a checklist added by hand, or changed. */
 export const checklistItemSchema = sheetItemSchema;

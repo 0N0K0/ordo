@@ -386,7 +386,7 @@ export function ShoppingListPage() {
               name={item.label}
               primary={
                 closed
-                  ? { label: 'Voir', icon: <EyeIcon aria-hidden />, onClick: () => openShoppingForm({ kind: 'item', listId: list.id, item, readOnly: true }) }
+                  ? { label: 'Voir', icon: <EyeIcon aria-hidden />, onClick: () => openShoppingForm({ kind: 'item', listId: list.id, item }, true) }
                   : { label: 'Modifier', icon: <PencilSimpleIcon aria-hidden />, onClick: () => openShoppingForm({ kind: 'item', listId: list.id, item }) }
               }
               items={[

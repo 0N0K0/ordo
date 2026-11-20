@@ -9,7 +9,7 @@ import { openRoutineForm } from '../../routines/lib/open-routine-form';
 import type { RoutineOccurrenceRef } from '../hooks/calendar-edits';
 import { SaveStatus } from '../../../components/feedback/SaveStatus';
 import { useAppForm, useFieldSave } from '../../../lib/form';
-import { routinesKey, useRoutineMutations, type RoutineOccurrence } from '../../routines/api';
+import { routinesKey, useRoutineMutations, useRoutinesData, type RoutineOccurrence } from '../../routines/api';
 import { useCachedItem } from '../../../lib/mutation';
 import { useWorkScheduleMutations, type CalendarEventScope } from '../api';
 import { rangeProps } from '../../../components/inputs/date-range';
@@ -122,7 +122,8 @@ interface OccurrenceValues extends Record<string, unknown> {
  * saved as soon as it changes (decision D22) for the occurrences chosen when the panel opened (`scope`: this one, an
  * exception; it and the following ones; all; null: none chosen, read only); or cancelling it; or opening the routine.
  * The occurrence of the cache is followed (moved or changed elsewhere). A cancelled occurrence is only given back
- * (« Rétablir »); one of an archived routine is read only.
+ * (« Rétablir »); one of an archived routine is read only, also when the routine is archived elsewhere while the panel
+ * is open.
  * @param {{ occurrence: RoutineOccurrenceRef, movedFrom: string | null, scope: CalendarEventScope | null, onDelete: () => void, onRestore: () => void, onClose: () => void }} props Component props.
  * @returns {JSX.Element} Panel.
  */
@@ -153,6 +154,10 @@ export function RoutineOccurrenceForm({
     (item: RoutineOccurrence) => item.routineId === occurrence.routine.id && (item.movedFrom || item.date) === ruleDay,
   );
   const currentSlot = current?.slots.find((slot) => slot.index === occurrence.slot.index);
+  // Its routine as the cache holds it: archived elsewhere while open, it turns read only (a coming occurrence leaves the
+  // cache of the occurrences then, the opened copy would stay editable).
+  const { data: routines } = useRoutinesData();
+  const archived = occurrence.archived || Boolean(routines?.routines.find((routine) => routine.id === occurrence.routine.id)?.archived);
   const base = useAppForm<OccurrenceValues>({
     initialValues: { date: occurrence.date, fromTime: occurrence.slot.fromTime, dueTime: occurrence.slot.dueTime, optional: false },
     schema: routineSlotSchema,
@@ -160,7 +165,7 @@ export function RoutineOccurrenceForm({
   const reading = scope === null;
   const { form, saving } = useFieldSave(base, {
     save:
-      occurrence.cancelled || occurrence.archived || scope === null
+      occurrence.cancelled || archived || scope === null
         ? null
         : async (_changes, values) => {
             await changeOccurrence.mutateAsync({
@@ -200,12 +205,12 @@ export function RoutineOccurrenceForm({
       Ouvrir la routine
     </ActionButton>
   );
-  if (occurrence.cancelled || occurrence.archived) {
+  if (occurrence.cancelled || archived) {
     return (
       <Stack gap="md">
         <Text size="sm">
-          {occurrence.archived
-            ? 'La routine est archivée : cette occurrence passée est en lecture seule. Restaurez la routine pour la modifier.'
+          {archived
+            ? 'La routine est archivée : cette occurrence est en lecture seule. Restaurez la routine pour la modifier.'
             : 'Cette occurrence est annulée : elle reste affichée, barrée, avec ses commentaires.'}
         </Text>
         <Group justify="space-between" gap="sm">
@@ -214,7 +219,7 @@ export function RoutineOccurrenceForm({
             <ActionButton priority="secondary" icon={<XIcon aria-hidden />} onClick={onClose}>
               Fermer
             </ActionButton>
-            {!occurrence.archived && (
+            {!archived && (
               <ActionButton icon={<ArrowCounterClockwiseIcon aria-hidden />} onClick={onRestore}>
                 Rétablir
               </ActionButton>

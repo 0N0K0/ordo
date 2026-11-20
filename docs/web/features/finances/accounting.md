@@ -288,7 +288,7 @@ Les deux sont utilisés par `DocumentsTable`.
 
 | Élément                                       | Rôle                                                                                                                                                                                 |
 | --------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| `ClientBillingSection({ clientId, readOnly? })` (export) | Section « Facturation » d’un client : carte du client, contacts sans service, cartes des services ; boutons « Coordonnées », « Nouveau service », « Nouveau contact ». `readOnly` (client archivé) : panneaux en lecture seule (« Voir »), ni ajout ni suppression. `ClientPage`. |
+| `ClientBillingSection({ clientId, readOnly? })` (export) | Section « Facturation » d’un client : carte du client, contacts sans service, cartes des services ; boutons « Coordonnées », « Nouveau service », « Nouveau contact ». `readOnly` (client archivé) : panneaux en lecture seule (« Voir »), ni ajout ni suppression ; donné aux panneaux comme source suivie (`useLiveSource`, interface interne `RowReadOnly` de `ContactRow` / `ServiceCard`) : un panneau ouvert passe en lecture seule quand le client est archivé ailleurs. `ClientPage`. |
 | `ContactInfo`                                 | Adresse (`addressLines`, `countryName`), email, téléphones, site (lien seulement en http(s)).                                                                                        |
 | `ContactRow`                                  | Un contact, modifier ou supprimer (confirmation).                                                                                                                                    |
 | `ServiceCard`                                 | Un service et ses contacts ; ajouter un contact, modifier, supprimer.                                                                                                                |
@@ -301,7 +301,7 @@ Les deux sont utilisés par `DocumentsTable`.
 | `ClientServiceForm({ clientId, service, onDone, readOnly? })` (export)          | Service (`clientServiceSchema`) ; nouveau : « Ajouter » ; existant : enregistré champ par champ (même façon).                                                              |
 | `ClientContactForm({ client, contact, serviceId, onDone, readOnly? })` (export) | Contact (`clientContactSchema`), service facultatif ; nouveau : « Ajouter » ; existant : enregistré champ par champ (le service dès qu’il change).                                          |
 | `detailsValues(client)`, `serviceValues(service?)`, `contactValues(contact?, serviceId?)` | Valeurs des formulaires (aussi `saved`). |
-| `DetailsValues`, `ServiceValues`, `ContactValues`, `PartyPanelProps`                    | Valeurs des formulaires ; `readOnly` (client archivé).                                                                      |
+| `DetailsValues`, `ServiceValues`, `ContactValues`, `PartyPanelProps`                    | Valeurs des formulaires ; `readOnly` (client archivé) : `LiveSource<boolean>` lue par `useLiveValue`, suivie le panneau ouvert.                                                                      |
 
 Utilisés par `ClientBillingSection`.
 

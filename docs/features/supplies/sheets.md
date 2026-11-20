@@ -92,7 +92,7 @@ Voir [Achats](shopping.md).
 Dans le formulaire d'une routine, d'une occurrence d'évènement et le panneau d'une tâche, la section « Fiches » :
 
 - « Chaque occurrence a sa liste à cocher, faite de ces fiches à son ouverture (modifiable ensuite). »
-- Une ligne par fiche : choix de la fiche, multiplicateur (« Fois »), « Retirer » ; « Ajouter une fiche » (désactivé s'il n'en reste aucune à ajouter). Enregistré à chaque changement. Les fiches archivées ne sont plus proposées (celles déjà attachées restent).
+- Une ligne par fiche : choix de la fiche, multiplicateur (« Fois »), « Retirer » ; « Ajouter une fiche » (désactivé s'il n'en reste aucune à ajouter). Enregistré à chaque changement : une fiche choisie, ajoutée ou retirée aussitôt, un multiplicateur en quittant son champ (ou en fermant le panneau pendant sa saisie) ; vidé ou nul, il n'est pas enregistré, « Multiplicateur positif attendu. » dessous. Les fiches archivées ne sont plus proposées (celles déjà attachées restent).
 - Bouton « Liste à cocher » (tâche) ou « Liste à cocher du 10 nov. 2026 » (occurrence en cours de la routine, occurrence de l'évènement) : ouvre la liste dans le panneau latéral (`lg`), titre « Liste à cocher · … · … ».
 
 ## Liste à cocher

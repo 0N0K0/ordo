@@ -1,7 +1,7 @@
 import { NO_SUGGESTIONS } from '../../../components/markdown/remark-references';
 import { DatePickerInput } from '@mantine/dates';
 import { PeopleField } from './PeopleField';
-import { sheetSourceText } from '../lib/shopping-format';
+import { listClosed, sheetSourceText } from '../lib/shopping-format';
 import { itemSelectProps } from '../../../components/items/item-look';
 import { Anchor, Checkbox, Fieldset, Select, SimpleGrid, Stack, Text, TextInput } from '@mantine/core';
 import { Link } from 'react-router';
@@ -43,10 +43,10 @@ type FormValues = Omit<ShoppingProductInput, 'quantity' | 'unitPrice' | 'url' | 
 
 export interface ShoppingFormProps {
   /**
-   * Product of a base list, or item of a list (edited when given); `readOnly`: the item of a closed or archived list,
-   * opened read only (a product of a base list stays editable).
+   * Product of a base list, or item of a list (edited when given). The item of a closed or archived list is read only,
+   * the list of the cache followed (a product of a base list stays editable).
    */
-  target: { kind: 'product'; baseListId: string; product?: ShoppingProduct } | { kind: 'item'; listId: string; item?: ShoppingItem; readOnly?: boolean };
+  target: { kind: 'product'; baseListId: string; product?: ShoppingProduct } | { kind: 'item'; listId: string; item?: ShoppingItem };
   onDone: () => void;
 }
 
@@ -110,12 +110,13 @@ export function ShoppingForm({ target, onDone }: ShoppingFormProps) {
     initialValues: shoppingFormValues(target, edited),
     schema,
   });
-  // The product or item of the cache, followed (a cell, another tab).
-  const cachedListItem = useCachedItem(
+  // The product, or the item and its list, of the cache, followed (a cell, another tab, the list closed or archived).
+  const cachedList = useCachedItem(
     [...shoppingKey, 'lists'],
-    (lists: ShoppingList[]) => lists.flatMap((list) => list.items),
-    (item: ShoppingItem) => target.kind === 'item' && item.id === target.item?.id,
+    (lists: ShoppingList[]) => lists,
+    (list: ShoppingList) => target.kind === 'item' && list.id === target.listId,
   );
+  const cachedListItem = target.kind === 'item' ? cachedList?.items.find((item) => item.id === target.item?.id) : undefined;
   const current =
     target.kind === 'product' ? target.product && (data?.shoppingProducts.find((product) => product.id === target.product?.id) ?? target.product) : target.item && (cachedListItem ?? target.item);
 
@@ -133,8 +134,8 @@ export function ShoppingForm({ target, onDone }: ShoppingFormProps) {
       });
     return mutations.updateItem.mutateAsync({ id: target.item!.id, input: itemInput(values) });
   };
-  // An archived product (elsewhere too, the panel open), an item of a closed or archived list: read only (its comments too).
-  const readOnly = target.kind === 'product' ? Boolean((current as ShoppingProduct | undefined)?.archived) : Boolean(target.readOnly);
+  // An archived product, an item of a closed or archived list (elsewhere too, the panel open): read only (its comments too).
+  const readOnly = target.kind === 'product' ? Boolean((current as ShoppingProduct | undefined)?.archived) : Boolean(cachedList && (listClosed(cachedList, context) || cachedList.archived));
   const { form, saving, fieldProps } = useFieldSave(base, {
     save: edited ? save : null,
     schema,

@@ -8,6 +8,7 @@ import { SaveStatus } from '../../../components/feedback/SaveStatus';
 import { useClientBilling, useClientPartyMutations, type ClientBilling, type ClientContact, type ClientService } from '../api';
 import { FormActions } from '../../../components/dialogs/FormActions';
 import { CLIENT_KIND_LABELS } from '../lib/labels';
+import { useLiveValue, type LiveSource } from '../../../lib/live-value';
 
 interface DetailsValues extends Record<string, unknown> {
   kind: 'COMPANY' | 'INDIVIDUAL';
@@ -47,8 +48,8 @@ const DETAILS_ON_BLUR = ['firstName', 'lastName', 'address', 'email', 'phones', 
 
 /** Props of the panels of a client's details, services and contacts. */
 interface PartyPanelProps {
-  /** Archived client: read only. Optional. Default = false. */
-  readOnly?: boolean;
+  /** Archived client: read only, followed while the panel is open (archived elsewhere). Optional. Default = not read only. */
+  readOnly?: LiveSource<boolean>;
 }
 
 /**
@@ -58,7 +59,8 @@ interface PartyPanelProps {
  * @param {{ client: ClientBilling } & PartyPanelProps} props Component props.
  * @returns {JSX.Element} Panel.
  */
-export function ClientDetailsForm({ client, readOnly = false }: { client: ClientBilling } & PartyPanelProps) {
+export function ClientDetailsForm({ client, readOnly: readOnlySource }: { client: ClientBilling } & PartyPanelProps) {
+  const readOnly = useLiveValue(readOnlySource) ?? false;
   const { updateDetails } = useClientPartyMutations();
   const { data: cached } = useClientBilling(client.id);
   const base = useAppForm<DetailsValues>({ initialValues: detailsValues(client), schema: clientDetailsSchema });
@@ -133,7 +135,8 @@ const serviceValues = (service?: ClientService): ServiceValues => ({
  * @param {{ clientId: string, service?: ClientService, onDone: () => void } & PartyPanelProps} props Component props.
  * @returns {JSX.Element} Form.
  */
-export function ClientServiceForm({ clientId, service, onDone, readOnly = false }: { clientId: string; service?: ClientService; onDone: () => void } & PartyPanelProps) {
+export function ClientServiceForm({ clientId, service, onDone, readOnly: readOnlySource }: { clientId: string; service?: ClientService; onDone: () => void } & PartyPanelProps) {
+  const readOnly = useLiveValue(readOnlySource) ?? false;
   const { createService, updateService } = useClientPartyMutations();
   const { data: client } = useClientBilling(clientId);
   const base = useAppForm<ServiceValues>({ initialValues: serviceValues(service), schema: clientServiceSchema });
@@ -198,8 +201,9 @@ export function ClientContactForm({
   contact,
   serviceId,
   onDone,
-  readOnly = false,
+  readOnly: readOnlySource,
 }: { client: ClientBilling; contact?: ClientContact; serviceId?: string | null; onDone: () => void } & PartyPanelProps) {
+  const readOnly = useLiveValue(readOnlySource) ?? false;
   const { createContact, updateContact } = useClientPartyMutations();
   const { data: cached } = useClientBilling(client.id);
   const base = useAppForm<ContactValues>({ initialValues: contactValues(contact, serviceId), schema: clientContactSchema });

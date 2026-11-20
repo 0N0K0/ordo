@@ -73,7 +73,8 @@ Interne : `ItemChange`, `saveItem(item, change)` (coche par `setChecked`, sinon 
 
 | Export                       | Rôle                                                                                                                                                                                           |
 | ---------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `SheetLinksField({ owner })` | Fiches attachées avec leur multiplicateur, enregistrées à chaque changement (`setLinks`) ; fiches archivées non proposées sauf déjà attachées ; « Ajouter une fiche » prend la première libre. |
+| `SheetLinksField({ owner })` | Fiches attachées avec leur multiplicateur, une fois chargées (`useSheetLinks`) : rend `SheetLinksForm`. |
+| `SheetLinksForm({ owner, links })` (interne) | Enregistré champ par champ (décision D22, `useFieldSave` sur `sheetLinksFormSchema`, `setLinks` avec toutes les fiches) : fiche choisie, ajoutée ou retirée aussitôt (`commit`), multiplicateur en le quittant (`getInputProps`, erreur dessous) et à la fermeture du panneau (décision FJ) ; fiches du cache suivies (`saved`) ; fiches archivées non proposées sauf déjà attachées ; « Ajouter une fiche » prend la première libre. Dans la garde eslint D22 (`D22_PANELS`). Types internes `LinkValue`, `LinksValues`. |
 
 ### `components/SheetPicker.tsx`
 
