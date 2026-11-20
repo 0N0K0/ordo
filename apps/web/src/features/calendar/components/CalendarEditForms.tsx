@@ -3,69 +3,111 @@ import { ArrowCounterClockwiseIcon, ArrowSquareOutIcon, XIcon } from '@phosphor-
 import { DeleteButton } from '../../../components/dialogs/DestructiveActions';
 import { Fieldset, Group, Stack, Text, Switch } from '@mantine/core';
 import { DatePickerInput, TimePicker } from '@mantine/dates';
-import { routineSlotSchema, type ScheduleSlotTime } from '@ordo/shared';
-import { useEffect, useRef, useState } from 'react';
+import { changedScheduleSlot, routineSlotSchema, scheduleSlotTimeSchema, type ScheduleSlotTime, type WorkScheduleRule } from '@ordo/shared';
+import { useEffect, useRef } from 'react';
 import { openRoutineForm } from '../../routines/lib/open-routine-form';
 import type { RoutineOccurrenceRef } from '../hooks/calendar-edits';
-import { FormActions } from '../../../components/dialogs/FormActions';
 import { SaveStatus } from '../../../components/feedback/SaveStatus';
 import { useAppForm, useFieldSave } from '../../../lib/form';
 import { routinesKey, useRoutineMutations, type RoutineOccurrence } from '../../routines/api';
 import { useCachedItem } from '../../../lib/mutation';
-import type { CalendarEventScope } from '../api';
+import { useWorkScheduleMutations, type CalendarEventScope } from '../api';
 import { rangeProps } from '../../../components/inputs/date-range';
 import { ActionButton } from '../../../components/actions/ActionButton';
 
 /**
- * Form changing a slot of a schedule from the calendar: its day and hours (or the whole day); or deleting it.
- * @param {{ label: string, slot: ScheduleSlotTime, onSave: (change: ScheduleSlotTime) => void, onDelete: () => void, onClose: () => void }} props Component props.
- * @returns {JSX.Element} Form.
+ * Panel of a slot of a schedule from the calendar: its day and hours (or the whole day), each saved as soon as it
+ * changes (decision D22) for the days chosen when the panel opened (`scope`: this day, an exception; it and the
+ * following ones; all; null: none chosen, read only); occurrences of routines a change makes disappear confirmed first
+ * (declined: put back); or deleting it (its own question).
+ * @param {{ label: string, schedule: WorkScheduleRule, slot: ScheduleSlotTime, scope: CalendarEventScope | null, onDelete: (schedule: WorkScheduleRule, slot: ScheduleSlotTime) => void, onClose: () => void }} props Component props.
+ * @returns {JSX.Element} Panel.
  */
 export function SlotEditForm({
   label,
+  schedule,
   slot,
-  onSave,
+  scope,
   onDelete,
   onClose,
 }: {
   label: string;
+  schedule: WorkScheduleRule;
   slot: ScheduleSlotTime;
-  onSave: (change: ScheduleSlotTime) => void;
-  onDelete: () => void;
+  scope: CalendarEventScope | null;
+  /** Deletes the slot as it is now, in its schedule as it is now. */
+  onDelete: (schedule: WorkScheduleRule, slot: ScheduleSlotTime) => void;
   onClose: () => void;
 }) {
-  const [value, setValue] = useState(slot);
-  const invalid = !value.allDay && (!value.start || !value.end || value.end <= value.start);
-  const hours = rangeProps({ value: [value.start, value.end], onChange: ([start, end]) => setValue({ ...value, start, end }) }, true);
+  const { update } = useWorkScheduleMutations();
+  // The schedule and the slot as saved: a save changes the slot where the previous one put it.
+  const saved = useRef({ schedule, slot });
+  const base = useAppForm<ScheduleSlotTime & Record<string, unknown>>({ initialValues: { ...slot }, schema: scheduleSlotTimeSchema });
+  const reading = scope === null;
+  const { form, saving } = useFieldSave(base, {
+    save:
+      scope === null
+        ? null
+        : async (_changes, values) => {
+            const change = { date: values.date, start: values.start, end: values.end, allDay: values.allDay };
+            const next = changedScheduleSlot(saved.current.schedule, saved.current.slot, change, scope);
+            const current = saved.current.schedule;
+            await update.mutateAsync({ id: current.id, input: { label: current.label, startDate: current.startDate, endDate: current.endDate, typeId: current.typeId ?? null, ...next } });
+            saved.current = { schedule: { ...current, ...next }, slot: change };
+          },
+    schema: scheduleSlotTimeSchema,
+  });
+  const values = form.values;
+  const hours = rangeProps({ value: [values.start, values.end], onChange: ([start, end]) => form.setValues({ start, end }), errors: [undefined, form.errors.end] }, true);
   return (
-    <form
-      noValidate
-      onSubmit={(event) => {
-        event.preventDefault();
-        if (!invalid) onSave(value);
-      }}
-    >
-      <Stack gap="md">
-        <Text size="sm" c="dimmed">
-          {label}
-        </Text>
-        <DatePickerInput label="Jour" required valueFormat={PICKER_FORMATS.weekday} value={value.date} onChange={(date) => date && setValue({ ...value, date: date })} data-autofocus />
-        <Switch
-          label="Journée entière"
-          checked={value.allDay}
-          onChange={(event) => setValue(event.currentTarget.checked ? { ...value, allDay: true, start: '00:00', end: '24:00' } : { ...value, allDay: false, start: '09:00', end: '17:00' })}
-        />
-        {!value.allDay && (
-          <Group gap="sm" grow>
-            <TimePicker label="Début" required {...hours.start} />
-            <TimePicker label="Fin" required {...hours.end} />
-          </Group>
-        )}
-        <FormActions onCancel={onClose} submitLabel="Enregistrer…" disabled={invalid} danger={<DeleteButton onClick={onDelete} />} />
-      </Stack>
-    </form>
+    <Stack gap="md">
+      {!reading && <SaveStatus saving={saving} />}
+      <Text size="sm" c="dimmed">
+        {label}
+      </Text>
+      <Text size="sm" c="dimmed">
+        {scope === null ? SLOT_READING_NOTE : SLOT_SCOPE_NOTES[scope]}
+      </Text>
+      <Fieldset variant="unstyled" disabled={reading} p={0} m={0}>
+        <Stack gap="md">
+          <DatePickerInput label="Jour" required valueFormat={PICKER_FORMATS.weekday} {...form.getInputProps('date')} onChange={(date) => date && form.setFieldValue('date', date)} data-autofocus />
+          <Switch
+            label="Journée entière"
+            checked={values.allDay}
+            onChange={(event) => form.setValues(event.currentTarget.checked ? { allDay: true, start: '00:00', end: '24:00' } : { allDay: false, start: '09:00', end: '17:00' })}
+          />
+          {!values.allDay && (
+            <Group gap="sm" grow>
+              <TimePicker label="Début" required {...hours.start} />
+              <TimePicker label="Fin" required {...hours.end} />
+            </Group>
+          )}
+        </Stack>
+      </Fieldset>
+      {reading ? (
+        <Group justify="flex-end">
+          <ActionButton priority="secondary" icon={<XIcon aria-hidden />} onClick={onClose}>
+            Fermer
+          </ActionButton>
+        </Group>
+      ) : (
+        <Group gap={4}>
+          <DeleteButton onClick={() => onDelete(saved.current.schedule, saved.current.slot)} />
+        </Group>
+      )}
+    </Stack>
   );
 }
+
+/** Panel of a slot opened without choosing which days its changes apply to: read only. */
+const SLOT_READING_NOTE = 'Lecture seule : aucune portée n’a été choisie à l’ouverture. Fermez le panneau et rouvrez-le pour modifier le créneau.';
+
+/** What the changes of the panel of a slot apply to, by the scope chosen when it opened. */
+const SLOT_SCOPE_NOTES: Record<CalendarEventScope, string> = {
+  THIS: 'Ce jour seulement : c’est une exception, les autres jours du créneau ne changent pas.',
+  FOLLOWING: 'Ce jour et les suivants.',
+  ALL: 'Tous les jours de ces horaires.',
+};
 
 /** Day and times of one time of the day of a routine occurrence, as its panel edits them. */
 interface OccurrenceValues extends Record<string, unknown> {
@@ -121,7 +163,15 @@ export function RoutineOccurrenceForm({
       occurrence.cancelled || occurrence.archived || scope === null
         ? null
         : async (_changes, values) => {
-            await changeOccurrence.mutateAsync({ id: occurrence.routine.id, date: day.current, scope, to: values.date, slot: occurrence.slot.index, fromTime: values.fromTime, dueTime: values.dueTime });
+            await changeOccurrence.mutateAsync({
+              id: occurrence.routine.id,
+              date: day.current,
+              scope,
+              to: values.date,
+              slot: occurrence.slot.index,
+              fromTime: values.fromTime,
+              dueTime: values.dueTime,
+            });
             day.current = values.date;
           },
     schema: routineSlotSchema,
@@ -182,7 +232,14 @@ export function RoutineOccurrenceForm({
       </Text>
       <Fieldset variant="unstyled" disabled={reading} p={0} m={0}>
         <Stack gap="md">
-          <DatePickerInput label="Jour" required valueFormat={PICKER_FORMATS.weekday} minDate={occurrence.routine.startDate} {...form.getInputProps('date')} onChange={(value) => value && form.setFieldValue('date', value)} />
+          <DatePickerInput
+            label="Jour"
+            required
+            valueFormat={PICKER_FORMATS.weekday}
+            minDate={occurrence.routine.startDate}
+            {...form.getInputProps('date')}
+            onChange={(value) => value && form.setFieldValue('date', value)}
+          />
           <Group gap="sm" grow>
             <TimePicker label="À partir de" {...hours.start} />
             <TimePicker label="Avant" {...hours.end} error={form.errors.dueTime ?? hours.end.error} />

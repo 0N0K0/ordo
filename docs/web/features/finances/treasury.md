@@ -258,10 +258,10 @@ Définitions de listes de paramètres et créateurs à la volée.
 
 | Export                            | Rôle                                                                                                                                   |
 | --------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------- |
-| `useAccountItems()`               | Comptes (`TREASURY_ACCOUNT`) : couleur facultative, champs « Solde d’ouverture » et « Au ».                                            |
+| `useAccountItems()`               | Comptes (`TREASURY_ACCOUNT`) : couleur facultative, champs « Solde d’ouverture » (enregistré en le quittant : `extra.onBlur`) et « Au ». |
 | `useCategoryItems(direction)`     | Catégories d’un sens (`TREASURY_CATEGORY`), sens fixé par la liste.                                                                    |
 | `useMethodItems()`                | Moyens de paiement (`TREASURY_PAYMENT_METHOD`) : cases « Pour les entrées » / « Pour les sorties ».                                    |
-| `useCounterpartyItems()`          | Tiers (`TREASURY_COUNTERPARTY`) : champ « Nom », description.                                                                          |
+| `useCounterpartyItems()`          | Tiers (`TREASURY_COUNTERPARTY`) : champ « Nom », description (enregistrée en la quittant : `extra.onBlur`).                            |
 | `useCategoryCreators(categories)` | Créateurs de catégorie par sens pour un `CreatableSelect` (« Nouvelle catégorie », parent parmi les catégories non archivées du sens). |
 | `useEntryCreators(direction)`     | Créateurs de moyen de paiement (servant le sens) et de tiers.                                                                          |
 

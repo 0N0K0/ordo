@@ -9,7 +9,7 @@ import { TaskProgress } from './TaskProgress';
 import { EmptyState } from '../../../components/feedback/EmptyState';
 
 import { openFormPanel } from '../../../components/panels/panels';
-import { Group, Paper, SegmentedControl, Stack, TextInput } from '@mantine/core';
+import { Fieldset, Group, Paper, SegmentedControl, Stack, TextInput } from '@mantine/core';
 import { SortableArea } from '../../../components/dnd/sortable';
 import { useSortableItem } from '../../../components/dnd/use-sortable-item';
 import { DatePickerInput } from '@mantine/dates';
@@ -21,13 +21,15 @@ import { useSetArchived, useArchivedToggle, unarchived } from '../../../lib/arch
 import { ShowArchivedSwitch } from '../../../components/filters/ShowArchivedSwitch';
 
 import { MarkdownEditor } from '../../../components/markdown/MarkdownEditor';
+import { NO_SUGGESTIONS } from '../../../components/markdown/remark-references';
 
 import { localToday } from '../../../lib/dates';
-import { useAppForm, formCallbacks } from '../../../lib/form';
+import { useAppForm, formCallbacks, useFieldSave } from '../../../lib/form';
+import { SaveStatus } from '../../../components/feedback/SaveStatus';
 import { ON_ERROR } from '../../../lib/notify';
 import { useMilestoneMutations, type Milestone } from '../api';
 import { MILESTONE_ORDER_OPTIONS, useMilestoneOrder, type MilestoneOrder } from '../lib/milestone-order';
-import { useTaskContext, type TaskContext } from '../hooks/use-task-context';
+import { useTaskContext } from '../hooks/use-task-context';
 import * as fmt from '../../../lib/format';
 
 import { FormActions } from '../../../components/dialogs/FormActions';
@@ -35,48 +37,63 @@ import { FormActions } from '../../../components/dialogs/FormActions';
 interface MilestoneFormProps {
   projectId: string;
   milestone?: Milestone;
-  context: TaskContext;
   onDone: () => void;
 }
 
 /**
- * Milestone creation / edition form, in the side panel.
+ * Values of the form of a milestone (or of a new one).
+ * @param {Milestone} [milestone] Milestone. Optional.
+ * @returns {MilestoneFormValues} Values.
+ */
+const milestoneValues = (milestone?: Milestone): MilestoneFormValues => ({
+  label: milestone?.label ?? '',
+  dueDate: milestone?.dueDate ?? null,
+  description: milestone?.description ?? '',
+});
+
+/**
+ * Milestone form, in the side panel: a new milestone, created by its button; an existing one, saved field by field
+ * (decision D22), read only once archived or in an archived project.
  * @param {MilestoneFormProps} props Component props.
  * @returns {JSX.Element} Form.
  */
-function MilestoneForm({ projectId, milestone, context, onDone }: MilestoneFormProps) {
+function MilestoneForm({ projectId, milestone, onDone }: MilestoneFormProps) {
+  const { context } = useTaskContext();
   const { create, update } = useMilestoneMutations();
-  const form = useAppForm<MilestoneFormValues>({
-    initialValues: {
-      label: milestone?.label ?? '',
-      dueDate: milestone?.dueDate ?? null,
-      description: milestone?.description ?? '',
-    },
+  const current = milestone && (context?.milestones.find((item) => item.id === milestone.id) ?? milestone);
+  const readOnly = Boolean(current?.archived || context?.projectById.get(projectId)?.archived);
+  const base = useAppForm<MilestoneFormValues>({ initialValues: milestoneValues(milestone), schema: milestoneFormSchema });
+  const { form, saving, commit, fieldProps } = useFieldSave(base, {
+    save: milestone ? (changes) => update.mutateAsync({ id: milestone.id, input: { ...changes, ...(changes.description !== undefined && { description: changes.description || null }) } }) : null,
     schema: milestoneFormSchema,
+    saved: current && milestoneValues(current),
+    onBlur: ['label', 'description'],
+    readOnly,
   });
 
+  // A new milestone only: an existing one is saved field by field (Enter saves the text typed).
   const handleSubmit = form.onSubmit((values) => {
-    const input = { label: values.label, dueDate: values.dueDate, description: values.description || null };
-    const callbacks = formCallbacks(form, milestone ? 'Jalon modifié.' : 'Jalon créé.', onDone);
-    if (milestone) update.mutate({ id: milestone.id, input }, callbacks);
-    else create.mutate({ ...input, projectId }, callbacks);
+    create.mutate({ label: values.label, dueDate: values.dueDate, description: values.description || null, projectId }, formCallbacks(form, 'Jalon créé.', onDone));
   });
 
   return (
     <form onSubmit={handleSubmit} noValidate>
-      <Stack gap="md">
-        <TextInput label="Libellé" required data-autofocus {...form.getInputProps('label')} />
-        <DatePickerInput label="Échéance" clearable placeholder="—" {...form.getInputProps('dueDate')} />
-        <MarkdownEditor
-          label="Description"
-          value={form.values.description}
-          onChange={(description) => form.setFieldValue('description', description)}
-          suggestions={context.suggestionsFor(milestone?.projectId ?? projectId)}
-          minRows={4}
-          onSubmitShortcut={() => handleSubmit()}
-        />
-        <FormActions onCancel={onDone} submitLabel={milestone ? 'Enregistrer' : 'Créer le jalon'} loading={create.isPending || update.isPending} />
-      </Stack>
+      <Fieldset variant="unstyled" disabled={readOnly} p={0} m={0}>
+        <Stack gap="md">
+          {milestone && !readOnly && <SaveStatus saving={saving} />}
+          <TextInput label="Libellé" required data-autofocus {...form.getInputProps('label')} />
+          <DatePickerInput label="Échéance" clearable placeholder="—" {...form.getInputProps('dueDate')} />
+          <MarkdownEditor
+            label="Description"
+            {...fieldProps('description')}
+            error={form.errors.description as string | undefined}
+            suggestions={context?.suggestionsFor(milestone?.projectId ?? projectId) ?? NO_SUGGESTIONS}
+            minRows={4}
+            onSubmitShortcut={() => (milestone ? commit(['description']) : handleSubmit())}
+          />
+          {!milestone && <FormActions onCancel={onDone} submitLabel="Créer le jalon" loading={create.isPending} />}
+        </Stack>
+      </Fieldset>
     </form>
   );
 }
@@ -131,7 +148,7 @@ export function MilestonesPanel({ projectId }: { projectId: string }) {
    * @returns {void}
    */
   const openForm = (milestone?: Milestone) => {
-    openFormPanel(milestone ? 'Modifier le jalon' : 'Nouveau jalon', (close) => <MilestoneForm projectId={projectId} milestone={milestone} context={context} onDone={close} />);
+    openFormPanel(milestone ? 'Modifier le jalon' : 'Nouveau jalon', (close) => <MilestoneForm projectId={projectId} milestone={milestone} onDone={close} />);
   };
 
   /**

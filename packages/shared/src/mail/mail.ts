@@ -64,11 +64,34 @@ export const mailAccountFormSchema = z.object({
 });
 export type MailAccountFormValues = z.infer<typeof mailAccountFormSchema>;
 
+/** Servers of an account as saved: what its passwords were saved for. */
+export type MailServerSettings = Pick<MailAccountFormValues, 'imapHost' | 'imapPort' | 'imapUser' | 'imapSecure' | 'smtpHost' | 'smtpPort' | 'smtpUser' | 'smtpSecure'>;
+
+/** Error of a password to type again: its server changed. */
+export const PASSWORD_AGAIN = 'Saisissez à nouveau le mot de passe : le serveur, le port, l’identifiant ou le chiffrement a changé.';
+
+/**
+ * Passwords to type again: a saved password is only reused with the server it was saved for, so changing the server,
+ * port, login or encryption of a side requires typing its password again (otherwise it could be sent to another
+ * server). The same in the web (before saving) and the API.
+ * @param {MailAccountFormValues} values New settings.
+ * @param {MailServerSettings | null} saved Saved account (none: a new one).
+ * @returns {('imapPassword' | 'smtpPassword')[]} Password fields missing.
+ */
+export function passwordsToRetype(values: MailAccountFormValues, saved: MailServerSettings | null): ('imapPassword' | 'smtpPassword')[] {
+  if (!saved) return [];
+  const imapChanged = values.imapHost !== saved.imapHost || values.imapPort !== saved.imapPort || values.imapUser !== saved.imapUser || values.imapSecure !== saved.imapSecure;
+  const smtpChanged = values.smtpHost !== saved.smtpHost || values.smtpPort !== saved.smtpPort || values.smtpUser !== saved.smtpUser || values.smtpSecure !== saved.smtpSecure;
+  return [...(imapChanged && !values.imapPassword ? (['imapPassword'] as const) : []), ...(smtpChanged && !values.smtpPassword ? (['smtpPassword'] as const) : [])];
+}
+
 /** Name of a mail folder: a label (decision DO), without the characters IMAP refuses in it; the same in the web and the API. */
 export const mailFolderNameSchema = requiredText().refine((name) => !/[*%"\\]/.test(name), 'Caractères interdits : * % " \\');
 
 /** HTML signature (sanitized by the API). */
 export const signatureSchema = z.string().max(SIGNATURE_MAX, 'Signature trop longue.');
+/** Signature of an account as its editor holds it. */
+export const signatureFormSchema = z.object({ signature: signatureSchema });
 
 /** List of recipients: email addresses. */
 export const recipientsSchema = z.array(z.email({ error: 'Adresse email invalide.' })).max(100, '100 destinataires maximum.');

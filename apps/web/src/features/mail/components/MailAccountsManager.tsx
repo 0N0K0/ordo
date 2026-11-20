@@ -102,7 +102,7 @@ export function MailAccountsManager() {
                   !account.archived && {
                     label: 'Signature',
                     icon: <SignatureIcon aria-hidden />,
-                    onClick: () => open(`Signature — ${account.label}`, (close) => <SignatureForm account={account} onDone={close} />),
+                    onClick: () => open(`Signature — ${account.label}`, () => <SignatureForm account={account} />),
                   },
                   !account.archived && {
                     label: 'Modifier',

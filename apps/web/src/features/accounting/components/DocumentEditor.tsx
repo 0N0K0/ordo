@@ -33,6 +33,7 @@ import {
   toCents,
   sumOf,
   isInvoice,
+  withoutBlankLines,
 } from '@ordo/shared';
 
 import {
@@ -192,6 +193,8 @@ function Editor({ document }: { document: AccountingDocument }) {
     saved: documentValues(document),
     onBlur: ON_BLUR,
     readOnly: locked,
+    // A blank line is ignored: not saved, it blocks nothing (a started line in error holds the lines).
+    toSaved: (input) => ({ ...input, lines: withoutBlankLines(input.lines) }),
   });
   const values = form.values;
   const service = dateRangeProps(formRange(form, 'serviceStart', 'serviceEnd'));

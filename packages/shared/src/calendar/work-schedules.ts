@@ -508,6 +508,11 @@ export interface ScheduleSlotTime {
   allDay: boolean;
 }
 
+/** Day and hours of a slot changed from the calendar (its panel): the end after the start, but for the whole day. */
+export const scheduleSlotTimeSchema = z
+  .object({ date: daySchema(), start: z.string(), end: z.string(), allDay: z.boolean() })
+  .refine((slot) => slot.allDay || endsAfter(slot.start, slot.end, true), { path: ['end'], message: END_AFTER_START });
+
 /** Which slots a change of a slot applies to: that day only (an exception), it and the following ones, or all. */
 type ScheduleSlotScope = 'THIS' | 'FOLLOWING' | 'ALL';
 

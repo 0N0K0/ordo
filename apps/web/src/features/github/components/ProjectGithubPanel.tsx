@@ -11,7 +11,9 @@ import { ArrowsClockwiseIcon, GithubLogoIcon, LinkBreakIcon, PencilSimpleIcon, M
 import { useState } from 'react';
 import { Link } from 'react-router';
 import { toastCallbacks } from '../../../lib/notify';
-import { formCallbacks } from '../../../lib/form';
+import { formCallbacks, useAppForm, useFieldSave } from '../../../lib/form';
+import { SaveStatus } from '../../../components/feedback/SaveStatus';
+import { githubLinkFormSchema } from '@ordo/shared';
 import { useTaskContext, type TaskContext } from '../../tasks/hooks/use-task-context';
 import { useGithubBoard, useGithubLink, useGithubLogin, useGithubMutations, type GithubBoard, type GithubLink, type LinkValues } from '../api';
 import * as fmt from '../../../lib/format';
@@ -97,20 +99,31 @@ interface LinkFormProps {
   projectId: string;
   board: GithubBoard;
   initial: LinkValues;
+  /** Settings of the existing link as the cache holds them; none: a new link. */
+  saved?: LinkValues;
   context: TaskContext;
+  /** Called once a new link is saved, or its form cancelled. */
   onDone: () => void;
 }
 
 /**
  * Settings of a link: fields of the board for each Ordo field, options for each status and priority, where
- * new tasks go, tasks already there, sync on or off.
+ * new tasks go, tasks already there, sync on or off. A new link is saved by its button; an existing one field by
+ * field (decision D22: each choice at once, the repository on leaving it).
  * @param {LinkFormProps} props Component props.
  * @returns {JSX.Element} Form.
  */
-function LinkForm({ projectId, board, initial, context, onDone }: LinkFormProps) {
+function LinkForm({ projectId, board, initial, saved, context, onDone }: LinkFormProps) {
   const { saveLink } = useGithubMutations();
-  const [values, setValues] = useState<LinkValues>(initial);
-  const change = (changes: Partial<LinkValues>) => setValues((current) => ({ ...current, ...changes }));
+  const base = useAppForm<LinkValues>({ initialValues: initial, schema: githubLinkFormSchema });
+  const { form, saving } = useFieldSave(base, {
+    save: saved ? (_changes, input) => saveLink.mutateAsync({ projectId, input }) : null,
+    schema: githubLinkFormSchema,
+    saved,
+    onBlur: ['repositoryName'],
+  });
+  const values = form.values;
+  const change = (changes: Partial<LinkValues>) => form.setValues(changes);
   // Issue fields of the organization: values on the issues only (drafts have none).
   const fieldsOf = (type: string) =>
     board.fields.filter((field) => field.dataType === type).map((field) => ({ value: field.id, label: field.issueField ? `${field.name} (champ d’issue)` : field.name }));
@@ -160,6 +173,7 @@ function LinkForm({ projectId, board, initial, context, onDone }: LinkFormProps)
 
   return (
     <Stack gap="md">
+      {saved && <SaveStatus saving={saving} />}
       <Text size="sm">
         Tableau{' '}
         <Anchor href={board.url} {...EXTERNAL_LINK} size="sm" fw={600}>
@@ -250,58 +264,64 @@ function LinkForm({ projectId, board, initial, context, onDone }: LinkFormProps)
         label="Dépôt des nouvelles tâches"
         description="Les tâches créées dans Ordo deviennent des issues de ce dépôt (compte/dépôt) ; vide : des brouillons du tableau."
         placeholder="compte/dépôt"
+        {...form.getInputProps('repositoryName')}
         value={values.repositoryName ?? ''}
-        onChange={(event) => change({ repositoryName: event.currentTarget.value || null })}
+        onChange={(event) => form.setFieldValue('repositoryName', event.currentTarget.value || null)}
       />
       <Switch label="Envoyer aussi les tâches qui existaient avant la liaison" checked={values.pushExisting} onChange={(event) => change({ pushExisting: event.currentTarget.checked })} />
       <Switch label="Synchronisation automatique (toutes les 10 minutes)" checked={values.enabled} onChange={(event) => change({ enabled: event.currentTarget.checked })} />
-      <FormActions
-        onCancel={onDone}
-        loading={saveLink.isPending}
-        onSubmit={() => saveLink.mutate({ projectId, input: values }, formCallbacks(null, 'Liaison enregistrée. Lancez une synchronisation pour échanger les tâches.', onDone))}
-      />
+      {!saved && (
+        <FormActions
+          onCancel={onDone}
+          submitLabel="Lier"
+          loading={saveLink.isPending}
+          onSubmit={() =>
+            !form.validate().hasErrors &&
+            saveLink.mutate({ projectId, input: form.getValues() }, formCallbacks(form, 'Liaison enregistrée. Lancez une synchronisation pour échanger les tâches.', onDone))
+          }
+        />
+      )}
     </Stack>
   );
 }
 
 /**
- * Settings of an existing link, once its board is loaded again.
- * @param {{ link: GithubLink, context: TaskContext, onDone: () => void }} props Link, task context, close callback.
+ * Settings of a link as its form holds them.
+ * @param {GithubLink} link Link.
+ * @returns {LinkValues} Settings.
+ */
+const linkValues = (link: GithubLink): LinkValues => ({
+  url: link.url,
+  statusFieldId: link.statusFieldId ?? null,
+  priorityFieldId: link.priorityFieldId ?? null,
+  iterationFieldId: link.iterationFieldId ?? null,
+  startFieldId: link.startFieldId ?? null,
+  endFieldId: link.endFieldId ?? null,
+  effortFieldId: link.effortFieldId ?? null,
+  deadlineFieldId: link.deadlineFieldId ?? null,
+  timeSpentFieldId: link.timeSpentFieldId ?? null,
+  typeSource: link.typeSource === 'FIELD' || link.typeSource === 'ISSUE_TYPE' ? link.typeSource : null,
+  typeFieldId: link.typeFieldId ?? null,
+  statusOptions: (link.statusOptions as Record<string, string>) ?? {},
+  priorityOptions: (link.priorityOptions as Record<string, string>) ?? {},
+  typeOptions: (link.typeOptions as Record<string, string>) ?? {},
+  syncAssignees: link.syncAssignees,
+  syncLabels: link.syncLabels,
+  repositoryName: link.repositoryName ?? null,
+  pushExisting: link.pushExisting,
+  enabled: link.enabled,
+});
+
+/**
+ * Settings of an existing link, once its board is loaded again: saved field by field.
+ * @param {{ link: GithubLink, context: TaskContext }} props Link (as the cache holds it), task context.
  * @returns {JSX.Element} Form.
  */
-function EditLink({ link, context, onDone }: { link: GithubLink; context: TaskContext; onDone: () => void }) {
+function EditLink({ link, context }: { link: GithubLink; context: TaskContext }) {
   const board = useGithubBoard(link.url);
   if (board.error) return <ErrorAlert>{board.error.message}</ErrorAlert>;
   if (!board.data) return <FormSkeleton fields={4} />;
-  return (
-    <LinkForm
-      projectId={link.projectId}
-      board={board.data}
-      context={context}
-      onDone={onDone}
-      initial={{
-        url: link.url,
-        statusFieldId: link.statusFieldId ?? null,
-        priorityFieldId: link.priorityFieldId ?? null,
-        iterationFieldId: link.iterationFieldId ?? null,
-        startFieldId: link.startFieldId ?? null,
-        endFieldId: link.endFieldId ?? null,
-        effortFieldId: link.effortFieldId ?? null,
-        deadlineFieldId: link.deadlineFieldId ?? null,
-        timeSpentFieldId: link.timeSpentFieldId ?? null,
-        typeSource: link.typeSource === 'FIELD' || link.typeSource === 'ISSUE_TYPE' ? link.typeSource : null,
-        typeFieldId: link.typeFieldId ?? null,
-        statusOptions: (link.statusOptions as Record<string, string>) ?? {},
-        priorityOptions: (link.priorityOptions as Record<string, string>) ?? {},
-        typeOptions: (link.typeOptions as Record<string, string>) ?? {},
-        syncAssignees: link.syncAssignees,
-        syncLabels: link.syncLabels,
-        repositoryName: link.repositoryName ?? null,
-        pushExisting: link.pushExisting,
-        enabled: link.enabled,
-      }}
-    />
-  );
+  return <LinkForm projectId={link.projectId} board={board.data} context={context} onDone={() => undefined} initial={linkValues(link)} saved={linkValues(link)} />;
 }
 
 /**
@@ -444,7 +464,7 @@ export function ProjectGithubPanel({ projectId }: { projectId: string }) {
       </Paper>
       {editing && (
         <Paper withBorder radius="md" p="lg">
-          <EditLink link={link} context={context} onDone={() => setEditing(false)} />
+          <EditLink link={link} context={context} />
         </Paper>
       )}
       <Text size="xs" c="dimmed">

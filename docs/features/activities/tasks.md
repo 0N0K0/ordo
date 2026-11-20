@@ -207,7 +207,7 @@ Paramètres d’un projet › « Jalons » :
 - Ordre au choix « Échéance », « Libellé », « Manuel » (retenu dans ce navigateur) ; en ordre manuel, les cartes se glissent par leur poignée.
 - Carte : titre, badge « Archivé », badge rouge « 3 tâches non terminées » si l’échéance est passée, « Échéance : … » ou « Sans échéance », avancement des tâches, description (cases cochables).
 - Menu : « Modifier » (pas archivé ni projet archivé), « Archiver » / « Restaurer », « Supprimer » (« Le jalon « V2 » sera supprimé définitivement et retiré des 3 tâches qui l’utilisent. Les tâches ne sont pas supprimées. »).
-- « Nouveau jalon » (panneau) : « Libellé » requis, « Échéance », « Description ». Toasts « Jalon créé. », « Jalon modifié. », « Jalon supprimé. ».
+- « Nouveau jalon » (panneau) : « Libellé » requis, « Échéance », « Description » ; bouton « Créer le jalon ». « Modifier le jalon » : panneau enregistré champ par champ (décision D22 : l’échéance dès qu’elle change, le libellé et la description en les quittant, « Enregistrement… » / « Enregistré », sans bouton). Toasts « Jalon créé. », « Jalon supprimé. ».
 - « Afficher les archivés ». Vide : « Aucun jalon pour ce projet. ».
 
 ## Sprints d’un projet
@@ -216,14 +216,14 @@ Paramètres d’un projet › « Sprints » :
 
 - « Les sprints sont utilisables par les tâches du projet et de ses sous-projets. ».
 - Carte : titre, état (« À venir », « En cours », « Passée », `PERIOD_STATES`), badge rouge des tâches non terminées si la fin est passée, « Du … au … », avancement en tâches et en effort (« · effort 3/8 », effort des tâches sans sous-tâches), objectif.
-- « Nouveau sprint » : propose « Sprint n », commençant le lendemain du dernier sprint (ou aujourd’hui si le dernier est passé), pour la même durée (14 jours sans sprint précédent). Champs : « Libellé », « Début », « Fin » (requis), « Objectif ».
+- « Nouveau sprint » : propose « Sprint n », commençant le lendemain du dernier sprint (ou aujourd’hui si le dernier est passé), pour la même durée (14 jours sans sprint précédent). Champs : « Libellé », « Début », « Fin » (requis), « Objectif » ; bouton « Créer le sprint ». « Modifier le sprint » : panneau enregistré champ par champ (décision D22 : les dates dès qu’elles changent, le libellé et l’objectif en les quittant, sans bouton).
 - Menu identique aux jalons. Vide : « Aucun sprint pour ce projet. ».
 
 ## Contributeurs
 
 - Paramètres d’un projet › « Contributeurs » : les contributeurs du projet (rattachés directement, hérités d’un projet parent avec le badge « Via … », « Moi » avec « Tous les projets »), le nombre de leurs tâches dans le projet ; « Ajouter un contributeur existant », « Nouveau contributeur », « Retirer du projet (ses tâches restent assignées) ». Seuls ces contributeurs sont proposés comme assignés des tâches du projet.
 - « Paramètres » (`/settings`) › onglet « Équipe et contributeurs » (PRO) / « Foyer et contributeurs » (PERSO), section « Contributeurs » (`ContributorsManager`) : tous les contributeurs, badges « Moi », « Membre », « Relation » (PRO) / « Proche » (PERSO), « Archivé » ; « Modifier », « Archiver », « Supprimer » (pas pour « Moi »).
-- Formulaire : « Nom », « Identifiant de mention » (proposé depuis le nom, `@identifiant`), image, « Projets » (hérités par les sous-projets ; pas pour « Moi »).
+- Formulaire : « Nom », « Identifiant de mention » (proposé depuis le nom, `@identifiant`), image, « Projets » (hérités par les sous-projets ; pas pour « Moi »). Nouveau : bouton « Ajouter », toast « Contributeur ajouté. ». Existant : panneau enregistré champ par champ (décision D22 : nom et identifiant en les quittant, image et projets dès qu’ils changent, sans bouton) ; archivé : lecture seule.
 
 Règles : [Personnes](../../business-rules/cross-cutting/people.md).
 

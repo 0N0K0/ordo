@@ -1,5 +1,8 @@
+import { z } from 'zod';
+
 /** Settings of the link of a project with a GitHub board: the fields synced, their options, what is pushed. */
-export interface GithubLinkInput {
+// A type (not an interface): a form's values (`useAppForm`) are a record.
+export type GithubLinkInput = {
   url: string;
   statusFieldId: string | null;
   priorityFieldId: string | null;
@@ -23,4 +26,15 @@ export interface GithubLinkInput {
   repositoryName: string | null;
   pushExisting: boolean;
   enabled: boolean;
-}
+};
+
+/** Error under the repository of a link not written « compte/dépôt ». */
+export const REPOSITORY_FORMAT_ERROR = 'Forme attendue : compte/dépôt.';
+
+/** Settings of a link as its form checks them: a repository written « compte/dépôt » (the rest is chosen from the board). */
+export const githubLinkFormSchema = z.object({
+  repositoryName: z
+    .string()
+    .nullable()
+    .refine((name) => !name?.trim() || /^[^/\s]+\/[^/\s]+$/.test(name.trim()), REPOSITORY_FORMAT_ERROR),
+});

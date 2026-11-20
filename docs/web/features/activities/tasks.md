@@ -224,12 +224,12 @@ Internes : `NEW_LABEL_TITLES`, `useLabelCreator(kind)` (ouvre le formulaire du l
 ### `components/MilestonesPanel.tsx`
 
 - `MilestonesPanel({ projectId })` : jalons d’un projet (paramètres du projet) : ordre (`SegmentedControl`, `useMilestoneOrder`), glisser-déposer en ordre manuel (`SortableArea`), archivés (`useArchivedToggle`), cartes `PlanCard`, création / modification / suppression.
-- Internes : `MilestoneForm({ projectId, milestone?, context, onDone })` (schéma `milestoneFormSchema`), `SortableMilestone({ milestone, sortable, children })` (carte avec poignée `DragHandle`).
+- Internes : `MilestoneForm({ projectId, milestone?, onDone })` (schéma `milestoneFormSchema` ; nouveau : « Créer le jalon » ; existant : enregistré champ par champ, décision D22, `useFieldSave` — libellé et description en les quittant, la description par `fieldProps` —, seuls les champs changés envoyés, `SaveStatus` ; le jalon de `useTaskContext` suivi ; archivé ou projet archivé : lecture seule), `milestoneValues(milestone?)` (valeurs du formulaire), `SortableMilestone({ milestone, sortable, children })` (carte avec poignée `DragHandle`).
 
 ### `components/SprintsPanel.tsx`
 
 - `SprintsPanel({ projectId })` : sprints d’un projet : état (`periodState`), avancement en tâches et en effort (`leafEffort`), cartes `PlanCard`, archivés, valeurs proposées pour un nouveau sprint (suite du dernier, même durée).
-- Interne : `SprintForm({ projectId, sprint?, defaults, context, onDone })` (schéma `sprintFormSchema`).
+- Internes : `SprintForm({ projectId, sprint?, defaults, onDone })` (schéma `sprintFormSchema` ; nouveau : « Créer le sprint » ; existant : enregistré champ par champ, décision D22, `useFieldSave`, le sprint entier à chaque champ — libellé et objectif en les quittant —, `SaveStatus` ; le sprint de `useTaskContext` suivi ; archivé ou projet archivé : lecture seule), `sprintValues(sprint)`, `sprintInput(values)`.
 
 ### `components/PlanCard.tsx`
 
@@ -245,7 +245,7 @@ Internes : `NEW_LABEL_TITLES`, `useLabelCreator(kind)` (ouvre le formulaire du l
 
 ### `components/ContributorForm.tsx`
 
-- `ContributorForm({ contributor?, defaultProjectIds?, onDone })` : formulaire d’un contributeur (nom, identifiant proposé par `suggestHandle` tant qu’il n’est pas touché, image `IconField`, projets ; pas de projets pour « Moi »). Ouvert par `useContributorForm`.
+- `ContributorForm({ contributor?, defaultProjectIds?, onDone })` : formulaire d’un nouveau contributeur (« Ajouter » ; identifiant proposé par `suggestHandle` tant qu’il n’est pas touché) ou panneau d’un contributeur existant enregistré champ par champ (décision D22, `useFieldSave` : nom et identifiant en les quittant, image et projets dès qu’ils changent, seuls les champs changés envoyés ; `SaveStatus` ; le contributeur de `useTaskContext` suivi ; archivé : lecture seule) : nom, identifiant, image (`IconField`, `formIconProps` : `avatar` / `removeAvatar`), projets (valeur du formulaire ; pas de projets pour « Moi »). Ouvert par `useContributorForm`.
 
 ### `components/TaskTable.module.css`
 

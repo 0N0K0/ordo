@@ -39,7 +39,8 @@ const newId = (prefix: string) => `${prefix}${Date.now().toString(36)}${++datase
 
 interface DatasetsEditorProps {
   config: ChartConfig;
-  change: (changes: Partial<ChartConfig>) => void;
+  /** Changes the configuration; `typing`: a text being typed, saved on leaving it (an empty change saves it). */
+  change: (changes: Partial<ChartConfig>, typing?: boolean) => void;
   context: TaskContext;
 }
 
@@ -61,9 +62,11 @@ export function DatasetsEditor({ config, change, context }: DatasetsEditorProps)
    * Changes a data set.
    * @param {number} index Position.
    * @param {Partial<ChartDataset>} changes Changes.
+   * @param {boolean} [typing=false] A text being typed. Optional. Default = false.
    * @returns {void}
    */
-  const setDataset = (index: number, changes: Partial<ChartDataset>) => change({ datasets: config.datasets.map((dataset, position) => (position === index ? { ...dataset, ...changes } : dataset)) });
+  const setDataset = (index: number, changes: Partial<ChartDataset>, typing = false) =>
+    change({ datasets: config.datasets.map((dataset, position) => (position === index ? { ...dataset, ...changes } : dataset)) }, typing);
 
   /**
    * Adds a data set: a copy of the main one (to narrow its filter), or a new one of a source.
@@ -120,10 +123,11 @@ export function DatasetsEditor({ config, change, context }: DatasetsEditorProps)
    * Changes a comparison.
    * @param {number} index Position.
    * @param {Partial<ChartComparison>} changes Changes.
+   * @param {boolean} [typing=false] A text being typed. Optional. Default = false.
    * @returns {void}
    */
-  const setComparison = (index: number, changes: Partial<ChartComparison>) =>
-    change({ comparisons: config.comparisons.map((comparison, position) => (position === index ? { ...comparison, ...changes } : comparison)) });
+  const setComparison = (index: number, changes: Partial<ChartComparison>, typing = false) =>
+    change({ comparisons: config.comparisons.map((comparison, position) => (position === index ? { ...comparison, ...changes } : comparison)) }, typing);
 
   const several = config.datasets.length > 0;
 
@@ -135,7 +139,8 @@ export function DatasetsEditor({ config, change, context }: DatasetsEditorProps)
           description="Le jeu défini par les champs et filtres principaux."
           value={config.label}
           placeholder={MEASURE_LABELS[config.measure]}
-          onChange={(event) => change({ label: event.currentTarget.value })}
+          onChange={(event) => change({ label: event.currentTarget.value }, true)}
+          onBlur={() => change({})}
         />
       )}
       {several && (
@@ -158,7 +163,7 @@ export function DatasetsEditor({ config, change, context }: DatasetsEditorProps)
                 </Group>
                 <Accordion.Panel>
                   <Stack gap="sm">
-                    <TextInput label="Libellé" required value={dataset.label} onChange={(event) => setDataset(index, { label: event.currentTarget.value })} />
+                    <TextInput label="Libellé" required value={dataset.label} onChange={(event) => setDataset(index, { label: event.currentTarget.value }, true)} onBlur={() => change({})} />
                     <SegmentedControl
                       fullWidth
                       data={(Object.keys(SOURCE_LABELS) as ChartSource[])
@@ -216,7 +221,7 @@ export function DatasetsEditor({ config, change, context }: DatasetsEditorProps)
                       value={dataset.series}
                       onChange={(series) => setDataset(index, { series: (series as ChartDataset['series']) ?? null })}
                     />
-                    <SourceFilters source={dataset.source} config={dataset} context={context} change={(changes) => setDataset(index, changes)} />
+                    <SourceFilters source={dataset.source} config={dataset} context={context} change={(changes, typing) => setDataset(index, changes, typing)} />
                   </Stack>
                 </Accordion.Panel>
               </Accordion.Item>
@@ -241,7 +246,13 @@ export function DatasetsEditor({ config, change, context }: DatasetsEditorProps)
           <Paper key={comparison.id} withBorder radius="md" p="sm">
             <Stack gap="xs">
               <Group gap="xs" wrap="nowrap" align="flex-end">
-                <TextInput label="Comparaison" style={{ flex: 1 }} value={comparison.label} onChange={(event) => setComparison(index, { label: event.currentTarget.value })} />
+                <TextInput
+                  label="Comparaison"
+                  style={{ flex: 1 }}
+                  value={comparison.label}
+                  onChange={(event) => setComparison(index, { label: event.currentTarget.value }, true)}
+                  onBlur={() => change({})}
+                />
                 <RemoveButton label="Retirer" size="lg" item={comparison.label} onClick={() => change({ comparisons: config.comparisons.filter((other) => other.id !== comparison.id) })} />
               </Group>
               <SegmentedControl

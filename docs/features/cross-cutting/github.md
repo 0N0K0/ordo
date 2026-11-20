@@ -36,7 +36,7 @@ Section « GitHub » du panneau des paramètres d’un projet. Composant `Projec
 
 1. « Adresse du tableau » (`https://github.com/users/compte/projects/1` ou `/orgs/…`), bouton « Charger ». Une erreur s’affiche sous le champ.
 2. Le formulaire de réglages s’affiche, prérempli par devinette (voir plus bas).
-3. Enregistrer : toast « Liaison enregistrée. Lancez une synchronisation pour échanger les tâches. ».
+3. « Lier » : toast « Liaison enregistrée. Lancez une synchronisation pour échanger les tâches. ».
 
 ### Formulaire de réglages
 
@@ -48,7 +48,7 @@ Section « GitHub » du panneau des paramètres d’un projet. Composant `Projec
 - « Dépôt des nouvelles tâches » (« compte/dépôt ») : « Les tâches créées dans Ordo deviennent des issues de ce dépôt (compte/dépôt) ; vide : des brouillons du tableau. ».
 - « Envoyer aussi les tâches qui existaient avant la liaison » (non par défaut).
 - « Synchronisation automatique (toutes les 10 minutes) » (oui par défaut).
-- Boutons « Annuler » et « Enregistrer ».
+- Nouvelle liaison : boutons « Annuler » et « Lier ». Liaison existante (« Réglages ») : enregistrée champ par champ (décision D22) : chaque choix dès qu’il change, le dépôt en le quittant (« Forme attendue : compte/dépôt. » dessous s’il n’est pas écrit ainsi), « Enregistrement… » / « Enregistré » en haut, sans bouton ; « Réglages » referme le formulaire.
 
 **Devinette initiale** : statut = champ à choix unique nommé « Status » ou « Statut » ; priorité = nom contenant « priorit » ; type = types d’issue de l’organisation s’il y en a, sinon un champ « Type » ; itération = premier champ d’itération ; début, fin, échéance, effort, temps passé par leur nom (anglais ou français). Options devinées par nom identique ou nom anglais usuel (« À faire » ↔ « Todo », « To do », « Backlog » ; « En cours » ↔ « In progress », « Doing » ; « En revue » ↔ « In review » ; « Terminé » ↔ « Done », « Closed » ; « Annulé » ↔ « Cancelled », « Won't do » ; priorités « Urgente », « Haute », « Moyenne », « Basse » ↔ « P0 »…« P3 », « Urgent », « High », « Medium », « Low »…). Assignés et étiquettes activés, synchronisation automatique activée.
 

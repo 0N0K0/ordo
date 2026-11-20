@@ -38,6 +38,25 @@ const accountingLineSchema = z.object({
 });
 export type AccountingLineInput = z.infer<typeof accountingLineSchema>;
 
+/**
+ * Line left as it was added: no label, description, price, discount nor deduction, a quantity of 1 (its kind, unit
+ * and VAT rate are only defaults). Ignored: not saved, it blocks nothing (no error on its label).
+ * @param {AccountingLineInput} line Line.
+ * @returns {boolean} Whether it is blank.
+ */
+export function isBlankLine(line: Pick<AccountingLineInput, 'label' | 'description' | 'quantity' | 'unitPrice' | 'discountValue' | 'deductedDocumentId'>): boolean {
+  return !line.label.trim() && !line.description?.trim() && line.quantity === 1 && line.unitPrice === 0 && !line.discountValue && !line.deductedDocumentId;
+}
+
+/**
+ * Lines of a document as saved: the blank ones dropped (`isBlankLine`).
+ * @param {T[]} lines Lines.
+ * @returns {T[]} Lines saved.
+ */
+export function withoutBlankLines<T extends AccountingLineInput>(lines: readonly T[]): T[] {
+  return lines.filter((line) => !isBlankLine(line));
+}
+
 /** Editable fields of a draft document. */
 export const accountingDocumentInputSchema = z
   .object({
@@ -81,7 +100,8 @@ export const accountingDocumentInputSchema = z
       context.addIssue({ code: 'custom', path: ['globalDiscountValue'], message: '100 % maximum.' });
     }
     document.lines.forEach((line, index) => {
-      if (line.kind !== 'TEXT' && !line.label.trim()) {
+      // A blank line is ignored (dropped when saved).
+      if (line.kind !== 'TEXT' && !line.label.trim() && !isBlankLine(line)) {
         context.addIssue({ code: 'custom', path: ['lines', index, 'label'], message: 'Le libellé est requis.' });
       }
       if (line.discountType === 'PERCENT' && (line.discountValue ?? 0) > 100) {

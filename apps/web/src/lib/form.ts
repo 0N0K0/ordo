@@ -116,6 +116,11 @@ export interface FieldSaveOptions<Values> {
   readOnly?: boolean;
   /** Called with what a save returned (a toast of links removed…). Optional. */
   onSaved?: (result: unknown, changes: Partial<Values>) => void;
+  /**
+   * Values as they are saved, from those of the form (a blank line dropped): compared with those saved and sent; the
+   * form keeps what was typed (its errors found on it). Optional. Default = the values as they are.
+   */
+  toSaved?: (values: Values) => Values;
 }
 
 /** What `useFieldSave` gives: the form, whether a save runs, and the save of fields now. */
@@ -184,7 +189,7 @@ function fieldErrors(schema: Schema, values: Record<string, unknown>, fields: re
  *   a field saved on leaving it (`fieldProps`: a description, an address, phones).
  */
 export function useFieldSave<Values extends Record<string, unknown>>(base: UseFormReturnType<Values>, options: FieldSaveOptions<Values>): FieldSave<Values> {
-  const { save, schema, saved, onBlur = [], readOnly = false, onSaved } = options;
+  const { save, schema, saved, onBlur = [], readOnly = false, onSaved, toSaved = (values: Values) => values } = options;
   const live = save !== null && !readOnly;
   // Values as saved (or being saved), and the last values of the cache seen.
   const savedValues = useRef<Values | null>(null);
@@ -244,7 +249,8 @@ export function useFieldSave<Values extends Record<string, unknown>>(base: UseFo
     const errors = fieldErrors(schema, values, fields);
     base.setErrors((current) => ({ ...Object.fromEntries(Object.entries(current).filter(([path]) => !fields.includes(fieldOf(path)))), ...errors }));
     if (Object.keys(errors).length) return;
-    const changes = Object.fromEntries(fields.filter((field) => !sameValue(values[field], previous[field])).map((field) => [field, values[field]])) as Partial<Values>;
+    const toSave = toSaved(values);
+    const changes = Object.fromEntries(fields.filter((field) => !sameValue(toSave[field], previous[field])).map((field) => [field, toSave[field]])) as Partial<Values>;
     const changed = Object.keys(changes);
     if (!changed.length) return;
     const next = { ...previous, ...changes } as Values;

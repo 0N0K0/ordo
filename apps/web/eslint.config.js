@@ -130,14 +130,21 @@ export default defineConfig([
         },
         // An editor without getInputProps in a panel saved field by field: fieldProps (useFieldSave), not commit by hand.
         {
-          selector: "JSXOpeningElement[name.name=/^(MarkdownEditor|AddressFields|PhonesField)$/] > JSXAttribute[name.name='onBlur'] CallExpression[callee.name='commit']",
+          selector: "JSXOpeningElement[name.name=/^(MarkdownEditor|AddressFields|PhonesField|RichEditor|LazyRichEditor)$/] > JSXAttribute[name.name='onBlur'] CallExpression[callee.name='commit']",
           message: 'Utiliser fieldProps(champ) de useFieldSave (lib/form) : valeur, changement et enregistrement en le quittant.',
         },
+        // The icon of an item in its form: formIconProps (components/inputs/icon-field), the file and its removal as two
+        // fields of the form (saved together in a panel saved field by field), not a state of its own.
+        {
+          selector: "JSXOpeningElement[name.name='IconField'] > JSXAttribute[name.name=/^(value|onChange)$/]",
+          message: 'Utiliser formIconProps(form, champ du fichier, champ du retrait) (components/inputs/icon-field).',
+        },
         // Detail panels saved field by field (decision D22, useFieldSave): no « Enregistrer » button in them (their creation
-        // form keeps « Créer… »). Each converted panel adds its component here (lot 14d next).
+        // form keeps « Ajouter » / « Créer… » / « Planifier »). Every detail panel of the app is here (D22 complete, lot 14d);
+        // the one deliberate « Enregistrer » is the numbering of the documents (NumberingSettings: setting a counter).
         {
           selector:
-            "FunctionDeclaration[id.name=/^(TaskDetail|TaskLinks|TaskLinksEditor|RoutineForm|EventForm|RoutineOccurrenceForm|TimeEntryForm|AlarmForm|ShoppingForm|DeliveryForm|ListForm|SheetFields|RecurringForm|ImportedDocumentForm|ResourceForm|ClientDetailsForm|ClientServiceForm|ClientContactForm|CatalogItemForm|CompanyForm|Editor|EntryForm|BudgetForm|PeriodForm|RelationForm)$/] JSXOpeningElement[name.name='FormActions']:matches(:not(:has(JSXAttribute[name.name='submitLabel'])), :has(JSXAttribute[name.name='submitLabel'] Literal[value=/^Enregistrer/]))",
+            "FunctionDeclaration[id.name=/^(TaskDetail|TaskLinks|TaskLinksEditor|RoutineForm|EventForm|RoutineOccurrenceForm|TimeEntryForm|AlarmForm|ShoppingForm|DeliveryForm|ListForm|SheetFields|RecurringForm|ImportedDocumentForm|ResourceForm|ClientDetailsForm|ClientServiceForm|ClientContactForm|CatalogItemForm|CompanyForm|Editor|EntryForm|BudgetForm|PeriodForm|RelationForm|ProjectForm|ClientForm|MilestoneForm|SprintForm|ContributorForm|ChartEditor|MailAccountForm|MailSearchForm|SignatureForm|SettingsItemForm|ScheduleForm|SlotEditForm|LinkForm)$/] JSXOpeningElement[name.name='FormActions']:matches(:not(:has(JSXAttribute[name.name='submitLabel'])), :has(JSXAttribute[name.name='submitLabel'] Literal[value=/^Enregistrer/]))",
           message: 'Panneau de détail enregistré champ par champ (décision D22) : useFieldSave (lib/form) et SaveStatus, pas de bouton « Enregistrer ».',
         },
         // One word and one behaviour to copy anything (decision D20): « Dupliquer », saved at once, then opened.

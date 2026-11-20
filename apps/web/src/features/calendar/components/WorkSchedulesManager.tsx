@@ -5,17 +5,8 @@ import { ActionButton } from '../../../components/actions/ActionButton';
 import { ItemAvatar } from '../../../components/items/ItemAvatar';
 import * as fmt from '../../../lib/format';
 import { EmptyState } from '../../../components/feedback/EmptyState';
-import { Badge, Group, Stack, Text, TextInput, Tooltip } from '@mantine/core';
-import {
-  mapById,
-  DEFAULT_SCHEDULE_KIND_LABEL,
-  readScheduleCases,
-  readScheduleExceptions,
-  type ScheduleCase,
-  type ScheduleException,
-  type WorkScheduleInput,
-  workScheduleSchema,
-} from '@ordo/shared';
+import { Badge, Fieldset, Group, Stack, Text, TextInput, Tooltip } from '@mantine/core';
+import { mapById, DEFAULT_SCHEDULE_KIND_LABEL, readScheduleCases, readScheduleExceptions, type ScheduleCase, type ScheduleException, type WorkScheduleInput, workScheduleSchema } from '@ordo/shared';
 import { ClockIcon, PencilSimpleIcon, PlusIcon } from '@phosphor-icons/react';
 import { useQueryClient } from '@tanstack/react-query';
 import { cachedItem } from '../../../lib/mutation';
@@ -27,7 +18,8 @@ import { useDataView } from '../../../components/data-table/views/use-data-view'
 import { RowActions } from '../../../components/data-table/cells/RowActions';
 import { type DataColumn, readOnlyCells } from '../../../components/data-table/table/data-table';
 import { localToday } from '../../../lib/dates';
-import { useAppForm, formCallbacks } from '../../../lib/form';
+import { useAppForm, formCallbacks, useFieldSave } from '../../../lib/form';
+import { SaveStatus } from '../../../components/feedback/SaveStatus';
 import { notifyError, ON_ERROR } from '../../../lib/notify';
 
 import { openFormPanel } from '../../../components/panels/panels';
@@ -59,11 +51,12 @@ interface ScheduleValues extends Record<string, unknown> {
 }
 
 /**
- * Input of a schedule as it is saved (its hours and exceptions kept): the base of a change in its cells or of a copy.
+ * Input of a schedule as it is saved (its hours and exceptions kept): the values of its form, the base of a change in
+ * its cells or of a copy.
  * @param {WorkSchedule} schedule Schedule.
- * @returns {WorkScheduleInput} Input.
+ * @returns {ScheduleValues} Input.
  */
-const scheduleInputOf = (schedule: WorkSchedule): WorkScheduleInput => ({
+const scheduleInputOf = (schedule: WorkSchedule): ScheduleValues => ({
   label: schedule.label,
   startDate: schedule.startDate,
   endDate: schedule.endDate || null,
@@ -75,6 +68,9 @@ const scheduleInputOf = (schedule: WorkSchedule): WorkScheduleInput => ({
 /**
  * Schedule form: label, kind, period, its cases (days and hours), and exceptions (a period with cases of its own,
  * edited the same way, or none: a pause). Rhythms ("every n weeks"…) are offered only when the period is long enough.
+ * New schedules are created by its button; an existing one is saved field by field (decision D22, the whole schedule
+ * each time; occurrences of routines a change makes disappear confirmed first, declined: put back), read only once
+ * archived.
  * @param {{ schedule?: WorkSchedule, onDone: () => void }} props Component props.
  * @returns {JSX.Element} Form.
  */
@@ -83,28 +79,28 @@ function ScheduleForm({ schedule, onDone }: { schedule?: WorkSchedule; onDone: (
   const typeItems = useScheduleTypeItems();
   const { data: types } = useScheduleTypes();
   const { data: defaultKind } = useDefaultScheduleKind();
-  const form = useAppForm<ScheduleValues>({
-    initialValues: {
-      label: schedule?.label ?? 'Semaine type',
-      startDate: schedule ? schedule.startDate : localToday(),
-      endDate: schedule?.endDate ? schedule.endDate : null,
-      cases: schedule ? readScheduleCases(schedule.cases, schedule.startDate) : [newScheduleCase(localToday())],
-      exceptions: schedule ? readScheduleExceptions(schedule.exceptions) : [],
-      typeId: schedule?.typeId ?? null,
-    },
+  const { data: schedules } = useWorkSchedules();
+  const current = schedule && (schedules?.find((item) => item.id === schedule.id) ?? schedule);
+  const readOnly = Boolean(current?.archived);
+  const base = useAppForm<ScheduleValues>({
+    initialValues: schedule ? scheduleInputOf(schedule) : { label: 'Semaine type', startDate: localToday(), endDate: null, cases: [newScheduleCase(localToday())], exceptions: [], typeId: null },
     schema: workScheduleSchema,
+  });
+  const { form, saving } = useFieldSave(base, {
+    save: schedule ? (_changes, input) => update.mutateAsync({ id: schedule.id, input }) : null,
+    schema: workScheduleSchema,
+    saved: current && scheduleInputOf(current),
+    onBlur: ['label'],
+    readOnly,
   });
   const values = form.values;
   return (
     <Stack gap="lg">
       <form
         noValidate
+        // A new schedule only: an existing one is saved field by field (Enter saves the text typed).
         onSubmit={form.onSubmit(
-          (input) => {
-            const callbacks = formCallbacks(form, schedule ? 'Créneaux modifiés.' : 'Créneaux créés.', onDone);
-            if (schedule) update.mutate({ id: schedule.id, input }, callbacks);
-            else create.mutate(input, callbacks);
-          },
+          (input) => create.mutate(input, formCallbacks(form, 'Créneaux créés.', onDone)),
           // An error on a field without input (a case, an exception…) is told.
           (errors) => {
             const message = Object.values(errors).find(Boolean);
@@ -112,27 +108,29 @@ function ScheduleForm({ schedule, onDone }: { schedule?: WorkSchedule; onDone: (
           },
         )}
       >
-        <Stack gap="md">
-          <Group grow align="flex-start">
-            <TextInput label="Libellé" required data-autofocus {...form.getInputProps('label')} />
-            <CreatableSelect
-              label="Type"
-              placeholder={defaultKind?.label ?? DEFAULT_SCHEDULE_KIND_LABEL}
-              clearable
-              searchable
-              onCreate={itemCreator('Nouveau type de créneau', typeItems)}
-              {...itemSelectProps(types ?? [], form.values.typeId, undefined, schedule?.typeId)}
-              {...form.getInputProps('typeId')}
+        <Fieldset variant="unstyled" disabled={readOnly} p={0} m={0}>
+          <Stack gap="md">
+            {schedule && !readOnly && <SaveStatus saving={saving} />}
+            <Group grow align="flex-start">
+              <TextInput label="Libellé" required data-autofocus {...form.getInputProps('label')} />
+              <CreatableSelect
+                label="Type"
+                placeholder={defaultKind?.label ?? DEFAULT_SCHEDULE_KIND_LABEL}
+                clearable
+                searchable
+                onCreate={itemCreator('Nouveau type de créneau', typeItems)}
+                {...itemSelectProps(types ?? [], form.values.typeId, undefined, schedule?.typeId)}
+                {...form.getInputProps('typeId')}
+              />
+            </Group>
+            <ScheduleRepetition
+              error={(form.errors.startDate ?? form.errors.endDate ?? form.errors.cases ?? form.errors.exceptions) as string | undefined}
+              value={{ startDate: values.startDate, endDate: values.endDate, cases: values.cases, exceptions: values.exceptions }}
+              onChange={(repetition) => form.setValues({ ...repetition })}
             />
-          </Group>
-          <ScheduleRepetition
-            error={(form.errors.startDate ?? form.errors.endDate ?? form.errors.cases ?? form.errors.exceptions) as string | undefined}
-            value={{ startDate: values.startDate, endDate: values.endDate, cases: values.cases, exceptions: values.exceptions }}
-            onChange={(repetition) => form.setValues({ ...repetition })}
-          />
-
-          <FormActions onCancel={onDone} loading={create.isPending || update.isPending} />
-        </Stack>
+            {!schedule && <FormActions onCancel={onDone} submitLabel="Créer" loading={create.isPending} />}
+          </Stack>
+        </Fieldset>
       </form>
       {schedule && <Comments target="SCHEDULE" id={schedule.id} readOnly={schedule.archived} />}
     </Stack>

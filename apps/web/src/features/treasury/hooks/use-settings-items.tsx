@@ -44,6 +44,7 @@ export function useAccountItems(): SettingsItemKind<TreasuryAccount, AccountExtr
         openingBalance: account?.openingBalance ?? 0,
         openingDate: account ? account.openingDate : localToday(),
       }),
+      onBlur: ['openingBalance'],
       render: (form) => (
         <>
           <SimpleGrid cols={2} spacing="sm">
@@ -134,6 +135,7 @@ export function useCounterpartyItems(): SettingsItemKind<TreasuryCounterpartyIte
     schema: COUNTERPARTY_FORM_SCHEMA,
     extra: {
       initial: (counterparty) => ({ note: counterparty?.note ?? '' }),
+      onBlur: ['note'],
       render: (form) => <Textarea label="Description" autosize minRows={2} {...form.getInputProps('note')} />,
     },
     ...itemMutations({ create: createCounterparty, update: updateCounterparty }, input),

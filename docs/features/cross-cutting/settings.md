@@ -15,7 +15,7 @@ Où se règle quoi : le panneau de paramètres de chaque page (barre latérale d
 La plupart des sections sont des listes de paramètres (statuts, catégories, étiquettes…), qui se comportent toutes de la même façon :
 
 - Chaque élément montre son avatar (image, ou initiales sur sa couleur), son nom et son nombre d’utilisations.
-- « Ajouter » ouvre le formulaire dans le panneau latéral (nom, couleur, image, parent pour une arborescence, champs propres à la liste) ; « Modifier » idem.
+- « Ajouter » ouvre le formulaire dans le panneau latéral (nom, couleur, image, parent pour une arborescence, champs propres à la liste ; bouton « Créer », toast « Ajout enregistré. ») ; « Modifier » ouvre le même panneau, enregistré champ par champ (décision D22) : chaque champ dès qu’il change (nom, couleur, textes et nombres en les quittant ; adresse d’un lieu dès qu’elle est choisie, effacée ou quittée), « Enregistrement… » / « Enregistré » en haut, sans bouton. Une confirmation demandée par la liste (catégorie d’un statut de tâche qui ferme ou rouvre ses tâches) passe avant l’enregistrement ; refusée, le champ revient à sa valeur.
 - Réordonner par glisser-déposer ; dans une arborescence, glisser un élément sur un autre l’y range ; menu « Ajouter un sous-élément ».
 - « Archiver » / « Restaurer » (avec annulation) ; les archivés sont masqués derrière « Afficher les archivés », en lecture seule.
 - « Supprimer » (dans le menu « … ») après confirmation : « « X » sera supprimé définitivement et retiré des N … qui l’utilisent. » ; dans une arborescence : « Ses sous-éléments remonteront d’un niveau. »

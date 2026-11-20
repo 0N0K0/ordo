@@ -73,7 +73,7 @@ Utilisé par `EventLocation`, `LocationCell`, `PlacesManager`, `TravelCalculator
 
 ### `components/PlacesManager.tsx` (+ `PlacesManager.module.css`)
 
-`PlacesManager()` : onglet « Lieux » de `SettingsPage` : carte (clic = nouveau lieu prérempli via `adderRef`) et `SettingsList` de type `PLACE` en arbre (`nested`, couleur facultative, `placeSchema`, champ d’adresse en plus par `extra`, `canMove` : un lieu reste à la racine, une zone sous un lieu, message de suppression). Hauteur par `useFillHeight(400)`. Internes : `PlaceAddressValues`, `pick`, `input` (entrée d’un lieu ou d’une zone), `points`.
+`PlacesManager()` : onglet « Lieux » de `SettingsPage` : carte (clic = nouveau lieu prérempli via `adderRef`) et `SettingsList` de type `PLACE` en arbre (`nested`, couleur facultative, `placeSchema`, champ d’adresse en plus par `extra` (`PlaceAddress`, interne : `AddressInput` sur `useLocationDraft`, l’adresse mise dans le formulaire et enregistrée ensemble — `ADDRESS_FIELDS`, `extra.onBlur` et `commit` — dès qu’elle est choisie ou effacée, ou en quittant un texte libre, sur un lieu existant), `canMove` : un lieu reste à la racine, une zone sous un lieu, message de suppression). Hauteur par `useFillHeight(400)`. Internes : `PlaceAddressValues`, `pick`, `input` (entrée d’un lieu ou d’une zone), `points`.
 
 ### `components/TravelCalculator.tsx`
 

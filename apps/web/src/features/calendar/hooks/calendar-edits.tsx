@@ -102,7 +102,13 @@ export function useCalendarEdits() {
     const { routine, date } = occurrence;
     const [THIS, FOLLOWING] = await Promise.all((['THIS', 'FOLLOWING'] as const).map((scope) => fetchLostOnDelete({ routineOccurrence: { id: routine.id, date, scope } })));
     // This one is cancelled (it stays, struck through), it and the following ones really disappear.
-    const scope = await askScope({ action: 'cancelOrDelete', title: 'Annuler ou supprimer une occurrence de routine', allowFollowing: true, allowAll: false, note: scopeLostNote({ THIS, FOLLOWING }) });
+    const scope = await askScope({
+      action: 'cancelOrDelete',
+      title: 'Annuler ou supprimer une occurrence de routine',
+      allowFollowing: true,
+      allowAll: false,
+      note: scopeLostNote({ THIS, FOLLOWING }),
+    });
     if (!scope) return;
     deleteOccurrence.mutate(
       { id: routine.id, date, scope },
@@ -119,26 +125,26 @@ export function useCalendarEdits() {
   };
 
   /**
-   * Opens the form of a slot of a schedule.
+   * Opens the panel of a slot of a schedule, saved field by field (decision D22): asks first, once, which days its
+   * changes apply to (dismissed: it opens read only).
    * @param {WorkScheduleRule} schedule Schedule.
    * @param {string} label Label shown (its kind).
    * @param {ScheduleSlotTime} slot Slot.
-   * @returns {void}
+   * @returns {Promise<void>}
    */
-  const openSlot = (schedule: WorkScheduleRule, label: string, slot: ScheduleSlotTime) => {
-    // The scope question is a modal: this panel closes first.
+  const openSlot = async (schedule: WorkScheduleRule, label: string, slot: ScheduleSlotTime) => {
+    // Dismissed: no scope, the panel opens read only.
+    const scope = await askScope({ action: 'update', title: 'Modifier un créneau récurrent', note: 'Les modifications faites dans le panneau, chacune enregistrée aussitôt, s’y appliqueront.' });
     openFormPanel(`Créneau du ${fmt.dayLong(slot.date)}`, (close) => (
       <SlotEditForm
         label={label}
+        schedule={schedule}
         slot={slot}
+        scope={scope}
         onClose={close}
-        onSave={(change) => {
+        onDelete={(current, now) => {
           close();
-          void changeSlot(schedule, slot, change);
-        }}
-        onDelete={() => {
-          close();
-          void changeSlot(schedule, slot, null);
+          void changeSlot(current, now, null);
         }}
       />
     ));

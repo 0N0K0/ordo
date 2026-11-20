@@ -12,7 +12,7 @@ import { confirmDestructive } from '../../../components/dialogs/confirm-destruct
 import { openFormPanel } from '../../../components/panels/panels';
 import { Group, Paper, SimpleGrid, Stack, Text } from '@mantine/core';
 
-import { chartConfigSchema, chartLabelSchema, dashboardLabelSchema, defaultChartConfig, type ChartConfig, type ChartSource } from '@ordo/shared';
+import { chartLabelSchema, dashboardLabelSchema, type ChartSource } from '@ordo/shared';
 import {
   ArrowBendUpRightIcon,
   ArrowsHorizontalIcon,
@@ -51,7 +51,7 @@ import { chartTable, downloadChartCsv, downloadChartTablePdf } from '../lib/char
 import { describeChart, useChartData, type ChartScope } from '../lib/chart-data';
 import { ChartView } from './ChartView';
 import { TransferChartForm } from './TransferChartForm';
-import { countLabel, NEW_CHART_LABELS } from '../lib/aggregate';
+import { countLabel, parseConfig } from '../lib/aggregate';
 import * as fmt from '../../../lib/format';
 import { countOf, countWith } from '../../../lib/text';
 import { openLabelForm } from '../../../components/dialogs/open-label-form';
@@ -93,17 +93,6 @@ function drawnChart(element: () => HTMLElement | null): Promise<HTMLElement> {
     };
     requestAnimationFrame(check);
   });
-}
-
-/** Title of a new chart of each source. */
-/**
- * Stored configuration of a chart, or the defaults when it no longer validates.
- * @param {unknown} config Stored configuration.
- * @returns {ChartConfig} Configuration.
- */
-function parseConfig(config: unknown): ChartConfig {
-  const result = chartConfigSchema.safeParse(config);
-  return result.success ? result.data : defaultChartConfig();
 }
 
 interface ChartCardProps {
@@ -400,28 +389,7 @@ export function DashboardBoard({ projectId, title }: DashboardBoardProps) {
     if (!context || !current) return;
     openFormPanel(
       chart ? 'Modifier le diagramme' : 'Nouveau diagramme',
-      (close) => (
-        <ChartEditor
-          dashboardId={current.id}
-          chart={chart}
-          initial={
-            chart
-              ? {
-                  label: chart.label,
-                  config: parseConfig(chart.config),
-                  wide: chart.wide,
-                }
-              : {
-                  label: NEW_CHART_LABELS[source],
-                  config: defaultChartConfig(source),
-                  wide: false,
-                }
-          }
-          scope={scope}
-          context={context}
-          onDone={close}
-        />
-      ),
+      (close) => <ChartEditor dashboardId={current.id} chart={chart} source={source} scope={scope} context={context} onDone={close} />,
       { size: 'lg' },
     );
   };

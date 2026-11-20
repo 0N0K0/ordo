@@ -3,28 +3,47 @@ import { Divider, SegmentedControl, SimpleGrid, Stack, Switch, Text, TextInput }
 import { listSelectProps } from '../../../components/items/item-look';
 import { DatePickerInput } from '@mantine/dates';
 import { EMPTY_MAIL_SEARCH, mailSearchSchema, type MailSearchCriteria, type MailSearchInput } from '@ordo/shared';
-import { useAppForm, formCallbacks } from '../../../lib/form';
-import { useMailAccounts, useMailLabels, useMailSearchMutations, type MailSearch } from '../api';
+import { useAppForm, formCallbacks, useFieldSave } from '../../../lib/form';
+import { SaveStatus } from '../../../components/feedback/SaveStatus';
+import { useMailAccounts, useMailLabels, useMailSearches, useMailSearchMutations, type MailSearch } from '../api';
 import { BatchMultiSelect } from '../../../components/inputs/BatchMultiSelect';
 import { FormActions } from '../../../components/dialogs/FormActions';
 import { unarchived } from '../../../lib/archive';
 import { dateRangeProps, formRange } from '../../../components/inputs/date-range';
 import { accountLabel } from '../lib/mail-format';
 
+type SearchValues = MailSearchCriteria & { label: string } & Record<string, unknown>;
+
+/**
+ * Values of the form of a search folder.
+ * @param {MailSearch} search Search folder.
+ * @returns {SearchValues} Values.
+ */
+const searchValues = (search: MailSearch): SearchValues => ({ ...EMPTY_MAIL_SEARCH, ...(search.criteria as Partial<MailSearchCriteria>), label: search.label });
+
 /**
  * Search folder: label, accounts, folders looked into, done state, flags, unread only, text. Kept in Ordo, it is
- * not created on the mail server.
+ * not created on the mail server. A new one is created by its button; an existing one is saved field by field
+ * (decision D22, the whole folder each time).
  * @param {{ search?: MailSearch, initial?: MailSearchCriteria, onDone: (id?: string) => void }} props Search edited (none: new), criteria of a new one, and close (given the new id).
  * @returns {JSX.Element} Form.
  */
 export function MailSearchForm({ search, initial, onDone }: { search?: MailSearch; initial?: MailSearchCriteria; onDone: (id?: string) => void }) {
   const { data: accounts } = useMailAccounts();
   const { data: labels } = useMailLabels();
+  const { data: searches } = useMailSearches();
   const { create, update } = useMailSearchMutations();
+  const current = search && (searches?.find((item) => item.id === search.id) ?? search);
   const criteria: MailSearchCriteria = { ...EMPTY_MAIL_SEARCH, ...(search ? (search.criteria as Partial<MailSearchCriteria>) : (initial ?? { state: 'todo' })) };
-  const form = useAppForm<MailSearchCriteria & { label: string } & Record<string, unknown>>({
-    initialValues: { ...criteria, label: search?.label ?? (initial ? 'Recherche' : 'À traiter') },
+  const base = useAppForm<SearchValues>({
+    initialValues: search ? searchValues(search) : { ...criteria, label: initial ? 'Recherche' : 'À traiter' },
     schema: mailSearchSchema,
+  });
+  const { form, saving } = useFieldSave(base, {
+    save: search ? (_changes, input) => update.mutateAsync({ id: search.id, input: input as MailSearchInput }) : null,
+    schema: mailSearchSchema,
+    saved: current && searchValues(current),
+    onBlur: ['label', 'text', 'from', 'to', 'subject', 'body'],
   });
   const values = form.values;
   const received = dateRangeProps(formRange(form, 'since', 'until'));
@@ -32,21 +51,16 @@ export function MailSearchForm({ search, initial, onDone }: { search?: MailSearc
   return (
     <form
       noValidate
-      onSubmit={form.onSubmit((input) => {
-        if (search) {
-          update.mutate(
-            { id: search.id, input: input as MailSearchInput },
-            formCallbacks(form, 'Dossier de recherche modifié.', () => onDone()),
-          );
-        } else {
-          create.mutate(
-            input as MailSearchInput,
-            formCallbacks(form, 'Dossier de recherche créé.', (id: string) => onDone(id)),
-          );
-        }
-      })}
+      // A new folder only: an existing one is saved field by field (Enter saves the text typed).
+      onSubmit={form.onSubmit((input) =>
+        create.mutate(
+          input as MailSearchInput,
+          formCallbacks(form, 'Dossier de recherche créé.', (id: string) => onDone(id)),
+        ),
+      )}
     >
       <Stack gap="md">
+        {search && <SaveStatus saving={saving} />}
         <Text size="sm" c="dimmed">
           Un dossier de recherche rassemble les mails qui répondent à ses critères, dans une ou plusieurs boîtes. Il n’existe que dans Ordo : rien n’est créé sur le serveur.
         </Text>
@@ -100,7 +114,7 @@ export function MailSearchForm({ search, initial, onDone }: { search?: MailSearc
           <DatePickerInput label="Jusqu’au" clearable placeholder="—" {...received.end} />
         </SimpleGrid>
         <Switch label="Avec pièce jointe" {...form.getInputProps('attachments', { type: 'checkbox' })} />
-        <FormActions onCancel={() => onDone()} loading={create.isPending || update.isPending} />
+        {!search && <FormActions onCancel={() => onDone()} submitLabel="Créer" loading={create.isPending} />}
       </Stack>
     </form>
   );

@@ -1,4 +1,4 @@
-import { dayPart } from '@ordo/shared';
+import { dayPart, REPOSITORY_FORMAT_ERROR } from '@ordo/shared';
 import { env } from '../../env';
 import { clientError, fieldError } from '../../graphql/errors';
 import { githubRequest, githubRestPost } from './client';
@@ -320,7 +320,7 @@ export async function boardItems(token: string, board: Board): Promise<RemoteIte
  */
 export async function repositoryByName(token: string, nameWithOwner: string): Promise<{ id: string; nameWithOwner: string }> {
   const [owner, name] = nameWithOwner.trim().split('/');
-  if (!owner || !name) throw fieldError('repositoryName', 'Dépôt attendu sous la forme compte/dépôt.', 'Forme attendue : compte/dépôt.');
+  if (!owner || !name) throw fieldError('repositoryName', 'Dépôt attendu sous la forme compte/dépôt.', REPOSITORY_FORMAT_ERROR);
   const data = await githubRequest<{ repository: { id: string; nameWithOwner: string } | null }>(
     token,
     'query OrdoRepository($owner: String!, $name: String!) { repository(owner: $owner, name: $name) { id nameWithOwner } }',

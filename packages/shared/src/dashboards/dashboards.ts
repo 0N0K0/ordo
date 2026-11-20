@@ -240,6 +240,14 @@ export type ChartConfig = z.infer<typeof chartConfigSchema>;
 export const chartLabelSchema = requiredText();
 export const dashboardLabelSchema = requiredText();
 
+/** Chart of a dashboard as its editor holds it: title, configuration, full width. */
+export const chartFormSchema = z.object({
+  label: chartLabelSchema,
+  config: chartConfigSchema,
+  wide: z.boolean(),
+});
+export type ChartFormValues = z.input<typeof chartFormSchema>;
+
 /**
  * Configuration of a new chart of a source: tasks created per week, invoiced revenue per month, or money in
  * and out per month.

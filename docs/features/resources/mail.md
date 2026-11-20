@@ -262,7 +262,7 @@ Formulaire (panneau latéral « Nouveau dossier de recherche » / « Modifier le
 - « Mails » : « À traiter » (défaut), « Traités », « Tous ».
 - « Drapeaux » (« Les mails ayant l’un de ces drapeaux. »), « Non lus seulement », « Texte » (« Dans l’objet, les adresses ou le corps. »).
 - « Critères avancés » : « De », « À », « Objet », « Corps », « Reçu à partir du », « Jusqu’au », « Avec pièce jointe ».
-- Toasts « Dossier de recherche créé. » (le nouveau dossier s’ouvre) / « Dossier de recherche modifié. ».
+- Nouveau dossier : bouton « Créer », toast « Dossier de recherche créé. » (le nouveau dossier s’ouvre). Dossier existant : enregistré champ par champ (décision D22 : chaque choix dès qu’il change, les textes en les quittant ; « Enregistrement… » / « Enregistré », sans bouton).
 
 Suppression : confirmation « Le dossier de recherche « X » sera supprimé définitivement. Les mails qu’il montre ne sont pas touchés. », toast « Dossier de recherche supprimé. ».
 
@@ -304,24 +304,24 @@ Une boîte archivée n’est plus lue ni surveillée, disparaît de la page Mail
 
 ### Formulaire d’une boîte (fenêtre « Nouvelle boîte mail » / « Modifier — X »)
 
-| Champ                                              | Détail                                                                                                        |
-| -------------------------------------------------- | ------------------------------------------------------------------------------------------------------------- |
-| « Libellé dans Ordo »                              | Requis, ex. « Pro, Perso… ».                                                                                  |
-| « Hébergeur »                                      | Facultatif, « préremplit les serveurs » : Gmail, Outlook / Microsoft 365, OVHcloud, Infomaniak, Gandi, IONOS. |
-| « Adresse email »                                  | Requise ; recopiée dans l’identifiant IMAP tant que celui-ci est vide ou égal à l’adresse.                    |
-| « Nom d’expéditeur »                               | Facultatif (« Prénom Nom »).                                                                                  |
-| « Réception (IMAP) »                               | « Serveur », « Port » (993 par défaut), « SSL/TLS » (activé), « Identifiant », « Mot de passe ».              |
-| « Envoi (SMTP) »                                   | « Serveur », « Port » (465 par défaut), « SSL/TLS » (« Désactivé : STARTTLS (port 587) »).                    |
-| « Mêmes identifiants que pour la réception »       | Cochée par défaut (ou si les identifiants sont égaux) ; décochée, montre identifiant et mot de passe SMTP.    |
-| « Enregistrer les mails envoyés dans « Envoyés » » | Activé par défaut ; « À désactiver pour Gmail et Outlook, qui le font déjà. ».                                |
+| Champ                                              | Détail                                                                                                              |
+| -------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------- |
+| « Libellé dans Ordo »                              | Requis, ex. « Pro, Perso… ».                                                                                        |
+| « Hébergeur »                                      | Facultatif, « préremplit les serveurs » : Gmail, Outlook / Microsoft 365, OVHcloud, Infomaniak, Gandi, IONOS.       |
+| « Adresse email »                                  | Requise ; pour une nouvelle boîte, recopiée dans l’identifiant IMAP tant que celui-ci est vide ou égal à l’adresse. |
+| « Nom d’expéditeur »                               | Facultatif (« Prénom Nom »).                                                                                        |
+| « Réception (IMAP) »                               | « Serveur », « Port » (993 par défaut), « SSL/TLS » (activé), « Identifiant », « Mot de passe ».                    |
+| « Envoi (SMTP) »                                   | « Serveur », « Port » (465 par défaut), « SSL/TLS » (« Désactivé : STARTTLS (port 587) »).                          |
+| « Mêmes identifiants que pour la réception »       | Cochée par défaut (ou si les identifiants sont égaux) ; décochée, montre identifiant et mot de passe SMTP.          |
+| « Enregistrer les mails envoyés dans « Envoyés » » | Activé par défaut ; « À désactiver pour Gmail et Outlook, qui le font déjà. ».                                      |
 
 - Mot de passe : « Pour Gmail ou Outlook : un mot de passe d’application. » ; en modification, vide = inchangé (« Inchangé (à ressaisir si le serveur change) »).
 - « Tester la connexion » : se connecte aux deux serveurs ; succès : « Connexion réussie à la réception et à l’envoi. ».
-- « Ajouter » / « Enregistrer », toasts « Boîte mail ajoutée. » / « Boîte mail modifiée. ».
+- Nouvelle boîte : bouton « Ajouter », toast « Boîte mail ajoutée. ». Boîte existante : enregistrée champ par champ (décision D22), « Enregistrement… » / « Enregistré » en haut, sans bouton : libellé, adresse et nom d’expéditeur en les quittant, « Enregistrer les mails envoyés » dès qu’il change ; la connexion (serveurs, ports, chiffrement, identifiants, mots de passe, « Mêmes identifiants », hébergeur choisi) ensemble, en quittant l’un de ses champs (un interrupteur : dès qu’il change), une fois le mot de passe ressaisi quand un serveur a changé : d’ici là, l’erreur « Saisissez à nouveau le mot de passe : le serveur, le port, l’identifiant ou le chiffrement a changé. » reste sous le mot de passe (celui de la réception avec « Mêmes identifiants ») et rien de la connexion n’est enregistré.
 
 ### Signature (fenêtre « Signature — X »)
 
-Texte « Ajoutée aux nouveaux mails de \<adresse\>. Le bouton « `</>` » de la barre d’outils permet de coller ou de modifier le code HTML ; les images envoyées depuis l’éditeur sont intégrées aux mails. », éditeur riche avec édition du code HTML. Toast « Signature enregistrée. ». Une signature vide est retirée.
+Texte « Ajoutée aux nouveaux mails de \<adresse\>. Le bouton « `</>` » de la barre d’outils permet de coller ou de modifier le code HTML ; les images envoyées depuis l’éditeur sont intégrées aux mails. », éditeur riche avec édition du code HTML, enregistré en quittant l’éditeur (décision D22 : « Enregistrement… » / « Enregistré » en haut, sans bouton ; erreur « Signature trop longue. » dessous). Une signature vide est retirée.
 
 ### « Drapeaux »
 

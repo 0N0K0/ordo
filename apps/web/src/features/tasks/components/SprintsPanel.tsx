@@ -10,7 +10,7 @@ import { TaskProgress } from './TaskProgress';
 import { EmptyState } from '../../../components/feedback/EmptyState';
 
 import { openFormPanel } from '../../../components/panels/panels';
-import { Badge, Paper, SimpleGrid, Stack, TextInput } from '@mantine/core';
+import { Badge, Fieldset, Paper, SimpleGrid, Stack, TextInput } from '@mantine/core';
 import { DatePickerInput } from '@mantine/dates';
 import { addDays, daysBetween, sprintFormSchema, type SprintFormValues, sumOf } from '@ordo/shared';
 import { PlusIcon, TimerIcon } from '@phosphor-icons/react';
@@ -21,10 +21,12 @@ import { ShowArchivedSwitch } from '../../../components/filters/ShowArchivedSwit
 import { MarkdownEditor } from '../../../components/markdown/MarkdownEditor';
 
 import { localToday } from '../../../lib/dates';
-import { useAppForm, formCallbacks } from '../../../lib/form';
+import { useAppForm, formCallbacks, useFieldSave } from '../../../lib/form';
+import { SaveStatus } from '../../../components/feedback/SaveStatus';
 import { ON_ERROR } from '../../../lib/notify';
 import { useSprintMutations, type Sprint } from '../api';
-import { useTaskContext, type TaskContext } from '../hooks/use-task-context';
+import { NO_SUGGESTIONS } from '../../../components/markdown/remark-references';
+import { useTaskContext } from '../hooks/use-task-context';
 import * as fmt from '../../../lib/format';
 
 import { FormActions } from '../../../components/dialogs/FormActions';
@@ -35,49 +37,69 @@ interface SprintFormProps {
   sprint?: Sprint;
   /** Proposed dates and name of a new sprint. */
   defaults: SprintFormValues;
-  context: TaskContext;
   onDone: () => void;
 }
 
 /**
- * Sprint creation / edition form, in the side panel.
+ * Values of the form of a sprint.
+ * @param {Sprint} sprint Sprint.
+ * @returns {SprintFormValues} Values.
+ */
+const sprintValues = (sprint: Sprint): SprintFormValues => ({ label: sprint.label, startDate: sprint.startDate, endDate: sprint.endDate, goal: sprint.goal ?? '' });
+
+/**
+ * Input of the API for the values of a sprint.
+ * @param {SprintFormValues} values Values.
+ * @returns {object} Input.
+ */
+const sprintInput = (values: SprintFormValues) => ({ label: values.label, startDate: values.startDate, endDate: values.endDate, goal: values.goal || null });
+
+/**
+ * Sprint form, in the side panel: a new sprint, created by its button; an existing one, saved field by field (decision
+ * D22, the whole sprint each time), read only once archived or in an archived project.
  * @param {SprintFormProps} props Component props.
  * @returns {JSX.Element} Form.
  */
-function SprintForm({ projectId, sprint, defaults, context, onDone }: SprintFormProps) {
+function SprintForm({ projectId, sprint, defaults, onDone }: SprintFormProps) {
+  const { context } = useTaskContext();
   const { create, update } = useSprintMutations();
-  const form = useAppForm<SprintFormValues>({
-    initialValues: sprint ? { label: sprint.label, startDate: sprint.startDate, endDate: sprint.endDate, goal: sprint.goal ?? '' } : defaults,
+  const current = sprint && (context?.sprints.find((item) => item.id === sprint.id) ?? sprint);
+  const readOnly = Boolean(current?.archived || context?.projectById.get(projectId)?.archived);
+  const base = useAppForm<SprintFormValues>({ initialValues: sprint ? sprintValues(sprint) : defaults, schema: sprintFormSchema });
+  const { form, saving, commit, fieldProps } = useFieldSave(base, {
+    save: sprint ? (_changes, values) => update.mutateAsync({ id: sprint.id, input: sprintInput(values) }) : null,
     schema: sprintFormSchema,
+    saved: current && sprintValues(current),
+    onBlur: ['label', 'goal'],
+    readOnly,
   });
   const period = dateRangeProps(formRange(form, 'startDate', 'endDate'));
 
-  const handleSubmit = form.onSubmit((values) => {
-    const input = { label: values.label, startDate: values.startDate, endDate: values.endDate, goal: values.goal || null };
-    const callbacks = formCallbacks(form, sprint ? 'Sprint modifié.' : 'Sprint créé.', onDone);
-    if (sprint) update.mutate({ id: sprint.id, input }, callbacks);
-    else create.mutate({ projectId, input }, callbacks);
-  });
+  // A new sprint only: an existing one is saved field by field (Enter saves the text typed).
+  const handleSubmit = form.onSubmit((values) => create.mutate({ projectId, input: sprintInput(values) }, formCallbacks(form, 'Sprint créé.', onDone)));
 
   return (
     <form onSubmit={handleSubmit} noValidate>
-      <Stack gap="md">
-        <TextInput label="Libellé" required data-autofocus {...form.getInputProps('label')} />
-        {/* By the width of the settings sidebar, not the window's. */}
-        <SimpleGrid type="container" cols={{ base: 1, '520px': 2 }} spacing="sm">
-          <DatePickerInput label="Début" required {...period.start} />
-          <DatePickerInput label="Fin" required {...period.end} />
-        </SimpleGrid>
-        <MarkdownEditor
-          label="Objectif"
-          value={form.values.goal}
-          onChange={(goal) => form.setFieldValue('goal', goal)}
-          suggestions={context.suggestionsFor(sprint?.projectId ?? projectId)}
-          minRows={3}
-          onSubmitShortcut={() => handleSubmit()}
-        />
-        <FormActions onCancel={onDone} submitLabel={sprint ? 'Enregistrer' : 'Créer le sprint'} loading={create.isPending || update.isPending} />
-      </Stack>
+      <Fieldset variant="unstyled" disabled={readOnly} p={0} m={0}>
+        <Stack gap="md">
+          {sprint && !readOnly && <SaveStatus saving={saving} />}
+          <TextInput label="Libellé" required data-autofocus {...form.getInputProps('label')} />
+          {/* By the width of the settings sidebar, not the window's. */}
+          <SimpleGrid type="container" cols={{ base: 1, '520px': 2 }} spacing="sm">
+            <DatePickerInput label="Début" required {...period.start} />
+            <DatePickerInput label="Fin" required {...period.end} />
+          </SimpleGrid>
+          <MarkdownEditor
+            label="Objectif"
+            {...fieldProps('goal')}
+            error={form.errors.goal as string | undefined}
+            suggestions={context?.suggestionsFor(sprint?.projectId ?? projectId) ?? NO_SUGGESTIONS}
+            minRows={3}
+            onSubmitShortcut={() => (sprint ? commit(['goal']) : handleSubmit())}
+          />
+          {!sprint && <FormActions onCancel={onDone} submitLabel="Créer le sprint" loading={create.isPending} />}
+        </Stack>
+      </Fieldset>
     </form>
   );
 }
@@ -110,7 +132,7 @@ export function SprintsPanel({ projectId }: { projectId: string }) {
     const length = last ? daysBetween(last.startDate, last.endDate) : 13;
     const start = last && last.endDate >= today ? addDays(last.endDate, 1) : today;
     const defaults = { label: `Sprint ${sprints.length + 1}`, startDate: start, endDate: addDays(start, length), goal: '' };
-    openFormPanel(sprint ? 'Modifier le sprint' : 'Nouveau sprint', (close) => <SprintForm projectId={projectId} sprint={sprint} defaults={defaults} context={context} onDone={close} />);
+    openFormPanel(sprint ? 'Modifier le sprint' : 'Nouveau sprint', (close) => <SprintForm projectId={projectId} sprint={sprint} defaults={defaults} onDone={close} />);
   };
 
   /**

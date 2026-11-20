@@ -61,6 +61,8 @@ Une ligne (`accountingLineSchema`) :
 - remise : valeur ≥ 0 (« La remise ne peut pas être négative. »), au plus 100 en % ;
 - `deductedDocumentId` : seulement gardé sur une déduction (`linesData`).
 
+Une ligne **vierge**, laissée telle qu’ajoutée (sans libellé, description, prix, remise ni déduction, quantité 1 ; son type, son unité et sa TVA ne sont que des défauts : `isBlankLine`), est ignorée : pas d’erreur « Le libellé est requis. », elle n’est pas enregistrée (retirée par le web avant l’envoi et par l’API à la création et à la modification, `withoutBlankLines`) et ne retient pas les autres lignes. Une ligne commencée mais invalide garde son erreur dessous et retient l’enregistrement des lignes.
+
 Stockage : quantité 3 décimales, prix et remises 4 décimales, taux 2 décimales, totaux 2 décimales ; la devise est `EUR` par défaut (schéma Prisma).
 
 ## Lignes et totaux

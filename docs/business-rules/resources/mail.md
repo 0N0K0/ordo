@@ -43,7 +43,7 @@ Source : `apps/api/src/services/mail/accounts.ts`, `secret.ts`, schéma `mailAcc
 | `saveSent`                     | Booléen.                                                                                  |
 
 - En modification, un mot de passe vide garde celui enregistré.
-- **Mot de passe lié au serveur** : si l’hôte, le port, l’identifiant ou le chiffrement IMAP (resp. SMTP) change, le mot de passe correspondant doit être ressaisi, sinon erreur sur le champ : « Saisissez à nouveau le mot de passe : le serveur, le port, l’identifiant ou le chiffrement a changé. ». But : ne jamais envoyer un mot de passe enregistré à un autre serveur. La même règle s’applique au test de connexion d’une boîte existante.
+- **Mot de passe lié au serveur** : si l’hôte, le port, l’identifiant ou le chiffrement IMAP (resp. SMTP) change, le mot de passe correspondant doit être ressaisi, sinon erreur sur le champ : « Saisissez à nouveau le mot de passe : le serveur, le port, l’identifiant ou le chiffrement a changé. ». But : ne jamais envoyer un mot de passe enregistré à un autre serveur. La même règle s’applique au test de connexion d’une boîte existante, et le panneau d’une boîte existante la vérifie avant d’enregistrer sa connexion (`passwordsToRetype`, partagé avec l’API).
 - Les mots de passe ne sont jamais renvoyés par l’API (`MailAccount` ne les expose pas).
 
 ### Chiffrement des mots de passe

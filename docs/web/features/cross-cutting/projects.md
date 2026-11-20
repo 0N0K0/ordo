@@ -39,7 +39,7 @@ Internes : `useProjectTreeMutation` (mutation invalidant l’arbre, et les requ�
 
 ### `components/ClientForm.tsx`
 
-`ClientForm({ client?, onDone? })` : formulaire de création ou modification d’un client (« Nom », `ColorField`, `IconField` en mode `contain`) avec `clientFormSchema` ; sans `onDone` (panneau des paramètres de la page), pas de bouton « Annuler ». Utilisé par `useEntityActions.openClientForm` et `ClientPage`.
+`ClientForm({ client?, onDone? })` : formulaire de création d’un client (« Créer le client ») ou panneau d’un client existant enregistré champ par champ (décision D22, `useFieldSave` : nom et couleur en les quittant, seuls les champs changés envoyés à `useUpdateClient`, `SaveStatus` ; le client du cache `useProjectTree` suivi ; archivé : lecture seule) : « Nom », `ColorField`, `IconField` en mode `contain` (`formIconProps` : fichier `icon` et retrait `removeIcon`, valeurs du formulaire), `clientFormSchema` ; sans `onDone` (panneau des paramètres de la page), pas de bouton « Annuler ». Utilisé par `useEntityActions.openClientForm` et `ClientPage`.
 
 ### `components/ClientSelect.tsx`
 
@@ -86,7 +86,7 @@ Pastilles du menu, chacune son composant pour que le chrono ne rafraîchisse que
 
 ### `components/ProjectForm.tsx`
 
-`ProjectForm({ project?, defaults?, onDone? })` : formulaire de création ou modification d’un projet (`projectFormSchema`) : libellé, projet parent (`treeSelectProps(projectOptions(...))` limité aux projets actifs hors du sous-arbre et laissant la place à sa hauteur), client (masqué en PERSO, hérité et désactivé avec un parent), `StatusInput`, couleur, `CategoriesInput`, période (`dateRangeProps` / `formRange`), description, icône. À l’envoi, le client d’un sous-projet est celui du parent. Utilisé par `useEntityActions.openProjectForm` et le panneau des paramètres de `ProjectPage`.
+`ProjectForm({ project?, defaults?, onDone? })` : formulaire de création ou modification d’un projet (`projectFormSchema`) : libellé, projet parent (`treeSelectProps(projectOptions(...))` limité aux projets actifs hors du sous-arbre et laissant la place à sa hauteur), client (masqué en PERSO, hérité et désactivé avec un parent), `StatusInput`, couleur, `CategoriesInput`, période (`dateRangeProps` / `formRange`), description, icône (`formIconProps`). Un nouveau projet : « Créer le projet » ; à l’envoi, le client d’un sous-projet est celui du parent. Un projet existant : panneau enregistré champ par champ (décision D22, `useFieldSave` : libellé, couleur et description en les quittant ; seuls les champs changés envoyés à `useUpdateProject` ; `SaveStatus` ; le projet du cache suivi ; archivé : lecture seule). Utilisé par `useEntityActions.openProjectForm` et le panneau des paramètres de `ProjectPage`.
 
 ### `components/ProjectList.tsx` (+ `ProjectList.module.css`)
 
