@@ -1,3 +1,4 @@
+import { accountingQueryKey } from '../../../lib/query-keys';
 import { useQuery } from '@tanstack/react-query';
 import { useInvalidatingMutation } from '../../../lib/mutation';
 import { graphql } from '../../../graphql';
@@ -179,7 +180,7 @@ const DeleteClientContactDocument = graphql(`
   }
 `);
 
-export const accountingQueryKey = ['accounting'] as const;
+export { accountingQueryKey };
 
 /**
  * The user's business profile.

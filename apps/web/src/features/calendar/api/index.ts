@@ -1,5 +1,5 @@
+import { calendarQueryKey, SLOT_DEPENDENT_KEYS, birthdaysQueryKey, tasksQueryKey } from '../../../lib/query-keys';
 import { useQuery, type QueryKey } from '@tanstack/react-query';
-import { doableTasksKey, tasksQueryKey } from '../../tasks/api';
 import { useInvalidatingMutation } from '../../../lib/mutation';
 import { graphql } from '../../../graphql';
 import { countedSchedules, readScheduleCases, readScheduleExceptions, slotSchedules, type ScheduleDisplay, type ScheduleSubscriptionLook, type WorkScheduleInput, type WorkScheduleRule } from '@ordo/shared';
@@ -15,7 +15,6 @@ import type {
 } from '../../../graphql/graphql';
 import { execute, executeIn } from '../../../lib/graphql-client';
 import { withLossConfirmation } from '../../time/lib/confirm-loss';
-import { routinesKey } from '../../routines/api';
 import { treasuryKey } from '../../treasury/api';
 import { archivedIds, unarchived, useSetArchived } from '../../../lib/archive';
 
@@ -431,14 +430,7 @@ const DeleteCalendarEventDocument = graphql(`
   }
 `);
 
-/** Root key of the calendar queries (events, calendars, categories, schedules). */
-export const calendarQueryKey = ['calendar'] as const;
-
-/**
- * What the sources of the slot conditions (schedules, kinds, birthdays) change, refreshed with them (decision FQ): the
- * routines (their occurrences come from the API) and the tasks doable now.
- */
-export const SLOT_DEPENDENT_KEYS: readonly QueryKey[] = [routinesKey, doableTasksKey];
+export { calendarQueryKey, SLOT_DEPENDENT_KEYS };
 
 export type CalendarCategory = Awaited<ReturnType<typeof fetchCategories>>[number];
 
@@ -621,11 +613,7 @@ const BirthdaysDocument = graphql(`
 /** Birthday of a person (lot 16): derived from its birth date by the API. */
 export type PersonBirthday = BirthdaysQuery['birthdays'][number];
 
-/**
- * Key of the birthdays: under the tasks (a contributor changed or archived reloads them); a relation changed or
- * archived reloads them too (`saveRelation`, its archiving).
- */
-export const birthdaysQueryKey = [...tasksQueryKey, 'birthdays'] as const;
+export { birthdaysQueryKey };
 
 /**
  * Birthdays of the people of the workspace (contributors and relations with a birth date, lot 16), those of archived

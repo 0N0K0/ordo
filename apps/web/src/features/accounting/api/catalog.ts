@@ -4,7 +4,7 @@ import type { CatalogItemInput } from '@ordo/shared';
 import { graphql } from '../../../graphql';
 import type { CatalogItemsQuery } from '../../../graphql/graphql';
 import { execute } from '../../../lib/graphql-client';
-import { accountingQueryKey } from './index';
+import { accountingQueryKey } from '../../../lib/query-keys';
 
 export type CatalogItem = CatalogItemsQuery['catalogItems'][number];
 
