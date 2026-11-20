@@ -41,7 +41,6 @@ import {
   DownloadSimpleIcon,
   EyeIcon,
   FileArrowDownIcon,
-  FloppyDiskIcon,
   HandCoinsIcon,
   LinkBreakIcon,
   PaperPlaneTiltIcon,
@@ -51,10 +50,11 @@ import {
   TrashIcon,
   UploadSimpleIcon,
 } from '@phosphor-icons/react';
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { Link, useNavigate } from 'react-router';
 import { localToday } from '../../../lib/dates';
-import { showFormError, useAppForm } from '../../../lib/form';
+import { useAppForm, useFieldSave } from '../../../lib/form';
+import { SaveStatus } from '../../../components/feedback/SaveStatus';
 import { notifySuccess, onMutationError, toastCallbacks, ON_ERROR } from '../../../lib/notify';
 import { confirmRemoveAttachment } from '../lib/remove-attachment';
 import { useMailComposer } from '../../mail/hooks/use-mail-composer';
@@ -137,7 +137,31 @@ function documentValues(document: AccountingDocument): FormValues {
 }
 
 /**
- * Editor of a loaded document.
+ * Fields of a document saved on leaving them (decision D22): texts, the lines, the discount and the deposit (the
+ * others are saved as soon as they change).
+ */
+const ON_BLUR = [
+  'label',
+  'referenceLabel',
+  'referenceValue',
+  'introduction',
+  'conclusion',
+  'billingSchedule',
+  'paymentTerms',
+  'paymentMethods',
+  'lateInterest',
+  'otherMentions',
+  'lines',
+  'depositType',
+  'depositValue',
+  'globalDiscountType',
+  'globalDiscountValue',
+] as const;
+
+/**
+ * Editor of a loaded document. A draft or a model saves each field as soon as it changes (texts, lines, discount and
+ * deposit on leaving them, decision D22, `useFieldSave`): the whole document each time, its totals recomputed by the
+ * API. A final or archived document is read only.
  * @param {{ document: AccountingDocument }} props Component props.
  * @returns {JSX.Element} Editor.
  */
@@ -145,10 +169,7 @@ function Editor({ document }: { document: AccountingDocument }) {
   const navigate = useNavigate();
   const { data: workspace } = useProjectTree();
   const mutations = useDocumentMutations();
-  const form = useAppForm<FormValues>({ initialValues: documentValues(document), schema: accountingDocumentInputSchema });
-  const values = form.values;
-  const service = dateRangeProps(formRange(form, 'serviceStart', 'serviceEnd'));
-  const { data: client } = useClientBilling(values.clientId);
+  const base = useAppForm<FormValues>({ initialValues: documentValues(document), schema: accountingDocumentInputSchema });
   const [finalView, setFinalView] = useState<'preview' | 'details'>('preview');
   const { data: latestDate } = useLatestDocumentDate(document.type, document.id, document.status === 'DRAFT');
   const { data: company } = useCompanyProfile();
@@ -164,6 +185,17 @@ function Editor({ document }: { document: AccountingDocument }) {
   const archivedRecurring = isTemplate && Boolean(recurringInvoices?.find((item) => item.templateId === document.id)?.archived);
   const archived = document.archived || archivedRecurring;
   const locked = readOnly || archived;
+  // The whole document each time (its lines are all replaced, its totals recomputed by the API).
+  const { form, saving, commit, settled } = useFieldSave(base, {
+    save: (_changes, input) => mutations.update.mutateAsync({ id: document.id, input }),
+    schema: accountingDocumentInputSchema,
+    saved: documentValues(document),
+    onBlur: ON_BLUR,
+    readOnly: locked,
+  });
+  const values = form.values;
+  const service = dateRangeProps(formRange(form, 'serviceStart', 'serviceEnd'));
+  const { data: client } = useClientBilling(values.clientId);
   const setArchived = useSetArchived('ACCOUNTING_DOCUMENT', [accountingQueryKey]);
   const isQuote = document.type === 'QUOTE';
   // Fully paid final invoice: it can be printed receipted.
@@ -176,37 +208,8 @@ function Editor({ document }: { document: AccountingDocument }) {
     vatApplicable: values.vatApplicable,
   });
   const currency = document.currency;
-  const dirty = form.isDirty();
-
-  // Leaving with unsaved changes asks for confirmation.
-  useEffect(() => {
-    if (!dirty || locked) return;
-    const warn = (event: BeforeUnloadEvent) => event.preventDefault();
-    window.addEventListener('beforeunload', warn);
-    return () => window.removeEventListener('beforeunload', warn);
-  }, [dirty, locked]);
-
   /**
-   * Saves the draft.
-   * @param {() => void} [then] Called once saved. Optional.
-   * @returns {void}
-   */
-  const save = (then?: () => void) => {
-    const result = form.validate();
-    if (result.hasErrors) return;
-    // A promise: it settles even if the editor is replaced meanwhile (the document is reloaded).
-    mutations.update
-      .mutateAsync({ id: document.id, input: values })
-      .then(() => {
-        form.resetDirty();
-        if (then) then();
-        else notifySuccess(isTemplate ? 'Modèle enregistré.' : 'Brouillon enregistré.');
-      })
-      .catch((error: Error) => showFormError(form, error));
-  };
-
-  /**
-   * Asks for confirmation, then makes the draft final (saved first).
+   * Asks for confirmation, then makes the draft final (once its saves are done).
    * @returns {void}
    */
   const confirmFinalize = () => {
@@ -222,13 +225,10 @@ function Editor({ document }: { document: AccountingDocument }) {
           submitIcon={<SealCheckIcon aria-hidden />}
           onSubmit={() => {
             close();
-            save(
-              () =>
-                void mutations.finalize
-                  .mutateAsync(document.id)
-                  .then((number) => notifySuccess(`Document validé : ${number}.`))
-                  .catch(onMutationError),
-            );
+            void settled()
+              .then(() => mutations.finalize.mutateAsync(document.id))
+              .then((number) => notifySuccess(`Document validé : ${number}.`))
+              .catch(onMutationError);
           }}
         />
       </Stack>
@@ -249,14 +249,10 @@ function Editor({ document }: { document: AccountingDocument }) {
   };
 
   /**
-   * Shows the PDF; a draft with changes is saved first, so that the preview shows them.
+   * Shows the PDF, once the saves of a draft are done (the preview shows them).
    * @returns {void}
    */
-  const preview = () => {
-    const title = documentTitle(document);
-    if (dirty && !readOnly) save(() => openPdfPreview(document.id, title));
-    else openPdfPreview(document.id, title);
-  };
+  const preview = () => void settled().then(() => openPdfPreview(document.id, documentTitle(document)));
 
   /**
    * Opens a mail to the client (contact, else service, else client address) with the PDF: the document and
@@ -320,13 +316,15 @@ function Editor({ document }: { document: AccountingDocument }) {
           onAdd={(lines: AccountingLineInput[], time, period) => {
             close();
             setTimeSeconds((current) => new Map([...current, ...time.map((entry) => [entry.id, entry.seconds] as const)]));
-            form.setValues({
+            // Saved together: the lines with the time they bill.
+            base.setValues({
               lines: [...values.lines, ...lines],
               timeEntryIds: [...billedIds, ...time.map((entry) => entry.id)],
               serviceStart: values.serviceStart ?? period.start,
               serviceEnd: values.serviceEnd ?? period.end,
             });
-            notifySuccess(`${countOf(lines.length, 'ligne')} ${plural(lines.length, 'ajoutée')} : enregistrez le brouillon.`);
+            commit(['lines', 'timeEntryIds', 'serviceStart', 'serviceEnd']);
+            notifySuccess(`${countOf(lines.length, 'ligne')} ${plural(lines.length, 'ajoutée')}.`);
           }}
         />
       ),
@@ -396,15 +394,7 @@ function Editor({ document }: { document: AccountingDocument }) {
                 Aperçu
               </ActionButton>
             )}
-            <IconAction
-              label="Télécharger le PDF"
-              hint={dirty && !readOnly ? 'Télécharger le PDF (dernière version enregistrée)' : undefined}
-              component="a"
-              href={pdfUrl(document.id, true)}
-              download
-              variant="light"
-              size="lg"
-            >
+            <IconAction label="Télécharger le PDF" component="a" href={pdfUrl(document.id, true)} download variant="light" size="lg">
               <DownloadSimpleIcon aria-hidden />
             </IconAction>
             {receiptable && (
@@ -415,11 +405,6 @@ function Editor({ document }: { document: AccountingDocument }) {
             {readOnly && !archived && (
               <ActionButton icon={<PaperPlaneTiltIcon aria-hidden />} onClick={() => openDocumentMail()} loading={preparingMail}>
                 Envoyer
-              </ActionButton>
-            )}
-            {!locked && (
-              <ActionButton priority="secondary" icon={<FloppyDiskIcon aria-hidden />} onClick={() => save()} loading={mutations.update.isPending} disabled={!dirty}>
-                Enregistrer
               </ActionButton>
             )}
             {document.status === 'DRAFT' && (
@@ -505,6 +490,7 @@ function Editor({ document }: { document: AccountingDocument }) {
             </Paper>
           ) : (
             <Stack gap="md">
+              {!locked && <SaveStatus saving={saving} />}
               <SettingsSection title="Client et dates">
                 <SimpleGrid cols={{ base: 1, sm: 2 }} spacing="sm">
                   <ClientSelect
@@ -567,6 +553,7 @@ function Editor({ document }: { document: AccountingDocument }) {
                   lines={values.lines}
                   totals={totals.lines}
                   onChange={(lines) => form.setFieldValue('lines', lines)}
+                  onCommit={() => commit(['lines'])}
                   readOnly={locked}
                   vatApplicable={values.vatApplicable}
                   currency={currency}
@@ -585,7 +572,10 @@ function Editor({ document }: { document: AccountingDocument }) {
                           lines={values.lines}
                           currency={currency}
                           vatApplicable={values.vatApplicable}
-                          onAdd={(added) => form.setFieldValue('lines', [...values.lines, ...added])}
+                          onAdd={(added) => {
+                            form.setFieldValue('lines', [...values.lines, ...added]);
+                            commit(['lines']);
+                          }}
                         />
                       )}
                     </>
@@ -595,7 +585,7 @@ function Editor({ document }: { document: AccountingDocument }) {
                   <Group gap="xs" justify="space-between">
                     <Text size="xs" c="dimmed">
                       <ClockIcon aria-hidden /> {billedIds.length} temps {plural(billedIds.length, 'facturé')} ({formatDuration(sumOf(billedIds, (id) => timeSeconds.get(id) ?? 0))}) : ils sont marqués
-                      facturés {readOnly ? 'par ce document' : 'à l’enregistrement'}.
+                      facturés par ce document.
                     </Text>
                     {canBillTime && (
                       <ActionButton priority="tertiary" icon={<LinkBreakIcon aria-hidden />} onClick={() => form.setFieldValue('timeEntryIds', [])}>
@@ -626,10 +616,11 @@ function Editor({ document }: { document: AccountingDocument }) {
                     data={PAYMENT_TERMS_PRESETS}
                     {...form.getInputProps('paymentTerms')}
                     onChange={(paymentTerms) => {
-                      // The terms give the due date of an invoice.
+                      // The terms give the due date of an invoice (saved with them, on leaving them).
                       const dueDate = isQuote ? null : dueDateForTerms(paymentTerms, values.issueDate);
-                      form.setValues({ paymentTerms, ...(dueDate && { dueDate }) });
+                      base.setValues({ paymentTerms, ...(dueDate && { dueDate }) });
                     }}
+                    onBlur={() => commit(['paymentTerms', 'dueDate'])}
                   />
                 )}
                 <Autocomplete label="Mode de règlement" placeholder="Virement bancaire" readOnly={locked} data={PAYMENT_METHOD_PRESETS} {...form.getInputProps('paymentMethods')} />
@@ -649,7 +640,12 @@ function Editor({ document }: { document: AccountingDocument }) {
                     type={values.depositType ?? null}
                     currency={currency}
                     typeLabel="Type d’acompte"
-                    onChange={({ value, type }) => form.setValues({ depositValue: value, depositType: type })}
+                    // The amount saved on leaving it, the type as soon as it changes.
+                    onChange={({ value, type }) => {
+                      form.setValues({ depositValue: value, depositType: type });
+                      if (value === values.depositValue) commit(['depositValue', 'depositType']);
+                    }}
+                    onBlur={() => commit(['depositValue', 'depositType'])}
                   />
                 )}
                 {document.type !== 'CREDIT_NOTE' && (
@@ -683,7 +679,12 @@ function Editor({ document }: { document: AccountingDocument }) {
                   type={values.globalDiscountType ?? null}
                   currency={currency}
                   typeLabel="Type de remise générale"
-                  onChange={({ value, type }) => form.setValues({ globalDiscountValue: value, globalDiscountType: type })}
+                  // The amount saved on leaving it, the type as soon as it changes.
+                  onChange={({ value, type }) => {
+                    form.setValues({ globalDiscountValue: value, globalDiscountType: type });
+                    if (value === values.globalDiscountValue) commit(['globalDiscountValue', 'globalDiscountType']);
+                  }}
+                  onBlur={() => commit(['globalDiscountValue', 'globalDiscountType'])}
                 />
               )}
               <Table withRowBorders={false} verticalSpacing={4}>
@@ -798,7 +799,7 @@ function AttachmentsSection({ document, readOnly = false }: { document: Accounti
 }
 
 /**
- * Accounting document page: editable draft (or recurring model), read-only final document with the
+ * Accounting document page: draft (or recurring model) saved field by field, read-only final document with the
  * documents that can be created from it.
  * @param {{ id: string }} props Document id.
  * @returns {JSX.Element} Page.

@@ -11,7 +11,7 @@ import { SettingsList } from '../../../components/settings/SettingsList';
 import { EmptyState } from '../../../components/feedback/EmptyState';
 import { confirmDestructive } from '../../../components/dialogs/confirm-destructive';
 
-import { Badge, Group, Select, SimpleGrid, Stack, Table, Text, Textarea, TextInput } from '@mantine/core';
+import { Badge, Fieldset, Group, Select, SimpleGrid, Stack, Table, Text, Textarea, TextInput } from '@mantine/core';
 import { DatePickerInput } from '@mantine/dates';
 import { mapById, EVERYDAY_CONTEXT, treasuryContextPeriodSchema, treasuryContextSchema, treasuryRelationSchema, agreed } from '@ordo/shared';
 import { CalendarBlankIcon, PencilSimpleIcon, PlusIcon, TrashIcon, UserMinusIcon } from '@phosphor-icons/react';
@@ -19,7 +19,8 @@ import { ArchivedBadge } from '../../../components/feedback/ArchivedBadge';
 import { ShowArchivedSwitch } from '../../../components/filters/ShowArchivedSwitch';
 import { archiveEntry, unarchived, useSetArchived, useArchivedToggle } from '../../../lib/archive';
 import { useState } from 'react';
-import { useAppForm, formCallbacks } from '../../../lib/form';
+import { useAppForm, useFieldSave, formCallbacks } from '../../../lib/form';
+import { SaveStatus } from '../../../components/feedback/SaveStatus';
 import { toastCallbacks } from '../../../lib/notify';
 import { useTaskContext } from '../../tasks/hooks/use-task-context';
 import { useColorSwatches } from '../../../lib/use-color-swatches';
@@ -157,66 +158,85 @@ export function TeamMembers() {
 }
 
 /**
- * Context form: label and color.
- * @param {{ context?: TreasuryContext, label?: string, onDone: (createdId?: string) => void }} props Component props (the label typed in a select, for a new one); the form closes with the id of the context created.
+ * New context, from a select of a line: label and color (a context is changed in the list of the contexts).
+ * @param {{ label?: string, onDone: (createdId?: string) => void }} props Component props (the label typed in the select); the form closes with the id of the context created.
  * @returns {JSX.Element} Form.
  */
-export function ContextForm({ context, label = '', onDone }: { context?: TreasuryContext; label?: string; onDone: (createdId?: string) => void }) {
+export function ContextForm({ label = '', onDone }: { label?: string; onDone: (createdId?: string) => void }) {
   const { saveContext } = useTreasuryTeamMutations();
   const swatches = useColorSwatches();
-  const form = useAppForm<{ label: string; color: string }>({ initialValues: { label: context?.label ?? label, color: context?.color ?? swatches[0] }, schema: treasuryContextSchema });
+  const form = useAppForm<{ label: string; color: string }>({ initialValues: { label, color: swatches[0] }, schema: treasuryContextSchema });
   return (
     <form
       noValidate
       onSubmit={form.onSubmit((input) =>
         saveContext.mutate(
-          { id: context?.id ?? null, input },
-          formCallbacks(form, context ? 'Contexte modifié.' : 'Contexte créé.', (id: string) => onDone(context ? undefined : id)),
+          { id: null, input },
+          formCallbacks(form, 'Contexte créé.', (id: string) => onDone(id)),
         ),
       )}
     >
       <Stack gap="sm">
         <TextInput label="Libellé" required data-autofocus placeholder="Vacances, Rentrée…" {...form.getInputProps('label')} />
         <ColorField required {...form.getInputProps('color')} />
-        <FormActions onCancel={() => onDone()} loading={saveContext.isPending} />
+        <FormActions onCancel={() => onDone()} submitLabel="Créer" loading={saveContext.isPending} />
       </Stack>
     </form>
   );
 }
 
+/** Values of a planned period. */
+type PeriodValues = { contextId: string; startDate: string; endDate: string; note: string | null };
+
 /**
- * Planned period form: context, first and last days, note.
+ * Values of a planned period (a new one: the first context, no days).
+ * @param {TreasuryContextPeriod | undefined} period Period, as the cache holds it.
+ * @param {TreasuryContext[]} contexts Contexts.
+ * @returns {PeriodValues} Values.
+ */
+const periodValues = (period: TreasuryContextPeriod | undefined, contexts: TreasuryContext[]): PeriodValues => ({
+  contextId: period?.contextId ?? unarchived(contexts)[0]?.id ?? '',
+  startDate: period ? period.startDate : '',
+  endDate: period ? period.endDate : '',
+  note: period?.note ?? null,
+});
+
+/**
+ * Planned period form: context, first and last days, note. A new period is a form with « Planifier »; an existing one,
+ * its panel, saves each field as soon as it changes (the note on leaving it, decision D22, `useFieldSave`), the one of
+ * the cache followed; read only while its context is archived.
  * @param {{ period?: TreasuryContextPeriod, contexts: TreasuryContext[], onDone: () => void }} props Component props.
  * @returns {JSX.Element} Form.
  */
 function PeriodForm({ period, contexts, onDone }: { period?: TreasuryContextPeriod; contexts: TreasuryContext[]; onDone: () => void }) {
   const { saveContextPeriod } = useTreasuryTeamMutations();
-  const form = useAppForm<{ contextId: string; startDate: string; endDate: string; note: string | null }>({
-    initialValues: {
-      contextId: period?.contextId ?? unarchived(contexts)[0]?.id ?? '',
-      startDate: period ? period.startDate : '',
-      endDate: period ? period.endDate : '',
-      note: period?.note ?? null,
-    },
+  const { data: settings } = useTreasurySettings();
+  const base = useAppForm<PeriodValues>({ initialValues: periodValues(period, contexts), schema: treasuryContextPeriodSchema });
+  const current = period && (settings?.treasuryContextPeriods.find((item) => item.id === period.id) ?? period);
+  const readOnly = Boolean(current && (settings?.treasuryContexts ?? contexts).find((item) => item.id === current.contextId)?.archived);
+  const { form, saving, fieldProps } = useFieldSave(base, {
+    save: period ? (_changes, input) => saveContextPeriod.mutateAsync({ id: period.id, input: { ...input, note: input.note || null } }) : null,
     schema: treasuryContextPeriodSchema,
+    saved: current && periodValues(current, contexts),
+    onBlur: ['note'],
+    readOnly,
   });
   const days = dateRangeProps(formRange(form, 'startDate', 'endDate'));
   return (
-    <form
-      noValidate
-      onSubmit={form.onSubmit((input) =>
-        saveContextPeriod.mutate({ id: period?.id ?? null, input: { ...input, note: input.note || null } }, formCallbacks(form, period ? 'Période modifiée.' : 'Période planifiée.', onDone)),
-      )}
-    >
-      <Stack gap="sm">
-        <Select label="Contexte" required allowDeselect={false} {...itemSelectProps(contexts, form.values.contextId, undefined, period?.contextId)} {...form.getInputProps('contextId')} />
-        <SimpleGrid cols={2} spacing="sm">
-          <DatePickerInput label="Du" required {...days.start} />
-          <DatePickerInput label="Au" required {...days.end} />
-        </SimpleGrid>
-        <MarkdownEditor label="Description" value={form.values.note ?? ''} onChange={(note) => form.setFieldValue('note', note)} suggestions={NO_SUGGESTIONS} minRows={2} />
-        <FormActions onCancel={onDone} loading={saveContextPeriod.isPending} />
-      </Stack>
+    // A new period only: an existing one is saved field by field.
+    <form noValidate onSubmit={form.onSubmit((input) => saveContextPeriod.mutate({ id: null, input: { ...input, note: input.note || null } }, formCallbacks(form, 'Période planifiée.', onDone)))}>
+      <Fieldset variant="unstyled" disabled={readOnly} p={0} m={0}>
+        <Stack gap="sm">
+          {period && !readOnly && <SaveStatus saving={saving} />}
+          <Select label="Contexte" required allowDeselect={false} {...itemSelectProps(contexts, form.values.contextId, undefined, period?.contextId)} {...form.getInputProps('contextId')} />
+          <SimpleGrid cols={2} spacing="sm">
+            <DatePickerInput label="Du" required {...days.start} />
+            <DatePickerInput label="Au" required {...days.end} />
+          </SimpleGrid>
+          <MarkdownEditor label="Description" {...fieldProps('note')} value={form.values.note ?? ''} suggestions={NO_SUGGESTIONS} minRows={2} />
+          {!period && <FormActions onCancel={onDone} submitLabel="Planifier" loading={saveContextPeriod.isPending} />}
+        </Stack>
+      </Fieldset>
     </form>
   );
 }
@@ -346,8 +366,32 @@ export function TeamPanel() {
   );
 }
 
+/** Values of a relation. */
+type RelationValues = { name: string; note: string | null; contributorId: string | null };
+
 /**
- * Relation form: name and note.
+ * Values of a relation (a new one: the name typed).
+ * @param {TreasuryRelation | undefined} relation Relation, as the cache holds it.
+ * @param {string} name Name of a new one.
+ * @returns {RelationValues} Values.
+ */
+const relationValues = (relation: TreasuryRelation | undefined, name: string): RelationValues => ({
+  name: relation?.name ?? name,
+  note: relation?.note ?? null,
+  contributorId: relation?.contributorId ?? null,
+});
+
+/**
+ * Input of a relation from its values: blanks are none.
+ * @param {RelationValues} input Values.
+ * @returns {RelationValues} Input.
+ */
+const relationInput = (input: RelationValues): RelationValues => ({ name: input.name, note: input.note || null, contributorId: input.contributorId ?? null });
+
+/**
+ * Relation form: name and note. A new relation is a form with « Ajouter »; an existing one, its panel, saves each field
+ * as soon as it changes (texts on leaving them, decision D22, `useFieldSave`), the one of the cache followed; archived,
+ * it is read only.
  * @param {{ relation?: TreasuryRelation, name?: string, onDone: (createdId?: string) => void }} props Component props (the name typed in a select, for a new one); the form closes with the id of the relation created.
  * @returns {JSX.Element} Form.
  */
@@ -356,9 +400,15 @@ export function RelationForm({ relation, name = '', onDone }: { relation?: Treas
   const { data: settings } = useTreasurySettings();
   const { context } = useTaskContext();
   const words = relationWords(useActiveWorkspace().perso);
-  const form = useAppForm<{ name: string; note: string | null; contributorId: string | null }>({
-    initialValues: { name: relation?.name ?? name, note: relation?.note ?? null, contributorId: relation?.contributorId ?? null },
+  const base = useAppForm<RelationValues>({ initialValues: relationValues(relation, name), schema: treasuryRelationSchema });
+  const current = relation && (settings?.treasuryRelations.find((item) => item.id === relation.id) ?? relation);
+  const readOnly = Boolean(current?.archived);
+  const { form, saving, commit } = useFieldSave(base, {
+    save: relation ? (_changes, input) => saveRelation.mutateAsync({ id: relation.id, input: relationInput(input) }) : null,
     schema: treasuryRelationSchema,
+    saved: current && relationValues(current, ''),
+    onBlur: ['name', 'note'],
+    readOnly,
   });
   // Contributors that are no member nor another relation already.
   const members = new Set((settings?.treasuryMembers ?? []).map((member) => member.id));
@@ -366,34 +416,39 @@ export function RelationForm({ relation, name = '', onDone }: { relation?: Treas
   // Archived contributors are not offered (the current one stays).
   const contributors = unarchived(context?.contributors ?? [], form.values.contributorId).filter((contributor) => !members.has(contributor.id) && !taken.has(contributor.id));
   return (
+    // A new relation only: an existing one is saved field by field (Enter saves the text typed).
     <form
       noValidate
       onSubmit={form.onSubmit((input) =>
         saveRelation.mutate(
-          { id: relation?.id ?? null, input: { name: input.name, note: input.note || null, contributorId: input.contributorId ?? null } },
-          formCallbacks(form, `${words.noun} ${agreed(relation ? 'modifié' : 'ajouté', words.feminine)}.`, (id: string) => onDone(relation ? undefined : id)),
+          { id: null, input: relationInput(input) },
+          formCallbacks(form, `${words.noun} ${agreed('ajouté', words.feminine)}.`, (id: string) => onDone(id)),
         ),
       )}
     >
-      <Stack gap="sm">
-        <TextInput label="Nom" required data-autofocus placeholder="Paul, Mamie, Association du quartier…" {...form.getInputProps('name')} />
-        <Select
-          label="Contributeur"
-          description="Si cette personne intervient aussi sur des projets ou des tâches."
-          placeholder="Aucun"
-          clearable
-          searchable
-          data={contributors.map((item) => ({ value: item.id, label: item.name }))}
-          {...form.getInputProps('contributorId')}
-          onChange={(contributorId) => {
-            const chosen = contributors.find((contributor) => contributor.id === contributorId);
-            // Without a name yet, it takes the contributor's.
-            form.setValues({ contributorId, ...(chosen && !form.values.name.trim() ? { name: chosen.name } : {}) });
-          }}
-        />
-        <Textarea label="Description" placeholder="Facultative" autosize minRows={2} {...form.getInputProps('note')} value={form.values.note ?? ''} />
-        <FormActions onCancel={() => onDone()} loading={saveRelation.isPending} />
-      </Stack>
+      <Fieldset variant="unstyled" disabled={readOnly} p={0} m={0}>
+        <Stack gap="sm">
+          {relation && !readOnly && <SaveStatus saving={saving} />}
+          <TextInput label="Nom" required data-autofocus={relation ? undefined : true} placeholder="Paul, Mamie, Association du quartier…" {...form.getInputProps('name')} />
+          <Select
+            label="Contributeur"
+            description="Si cette personne intervient aussi sur des projets ou des tâches."
+            placeholder="Aucun"
+            clearable
+            searchable
+            data={contributors.map((item) => ({ value: item.id, label: item.name }))}
+            {...form.getInputProps('contributorId')}
+            onChange={(contributorId) => {
+              const chosen = contributors.find((contributor) => contributor.id === contributorId);
+              // Without a name yet, it takes the contributor's (saved with it).
+              base.setValues({ contributorId, ...(chosen && !form.values.name.trim() ? { name: chosen.name } : {}) });
+              commit(['contributorId', 'name']);
+            }}
+          />
+          <Textarea label="Description" placeholder="Facultative" autosize minRows={2} {...form.getInputProps('note')} value={form.values.note ?? ''} />
+          {!relation && <FormActions onCancel={() => onDone()} submitLabel="Ajouter" loading={saveRelation.isPending} />}
+        </Stack>
+      </Fieldset>
     </form>
   );
 }

@@ -142,7 +142,7 @@ En masse, une modification qui ne convient pas à un mouvement (décomposé, ou 
 
 ## Formulaire de mouvement
 
-Ouvert dans le panneau latéral (large) : « Nouveau mouvement », « Nouvelle prévision », « Modifier le mouvement ».
+Ouvert dans le panneau latéral (large) : « Nouveau mouvement », « Nouvelle prévision » (formulaire, bouton « Ajouter »), « Modifier le mouvement » (panneau enregistré champ par champ, décision D22 : chaque champ dès qu’il change, « Libellé », « Montant », « Description », « Lien » et le montant réglé d’un document en les quittant ; les champs qui vont ensemble le sont ensemble : changer « Réel » / « Prévu » ou le sens avec ce qu’il vide, choisir un document avec le montant et le libellé qu’il donne, retirer un document ; « Enregistrement… » puis « Enregistré » en haut, sans bouton ; un champ invalide garde son erreur dessous et n’est pas enregistré, un échec le remet comme il était, dans un toast d’erreur ; le mouvement entier est enregistré chaque fois, avec sa répartition telle que le tableau l’a laissée, et un champ changé ailleurs, une cellule ou la répartition, est repris sauf pendant sa saisie). Un mouvement archivé s’ouvre en lecture seule.
 
 | Champ                                              | Règle d’interface                                                                                                                                                                                                                           |
 | -------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -167,10 +167,10 @@ Comportements :
 
 - Documents proposés : factures validées (entrée) ou avoirs (sortie), Ordo ou importés, non archivés et encore dus, ou déjà réglés par ce mouvement ; libellé « N° — client (reste X) ».
 - Choisir un document propose comme montant réglé le reste dû (dans la limite du montant restant à affecter) ; un mouvement sans montant prend ce montant ; un mouvement sans libellé prend « Règlement [document] » / « Remboursement [document] ».
-- La répartition ne se modifie pas dans le formulaire (voir [Répartition dépliée](#répartition-dépliée)) : les lignes d’un mouvement décomposé sont gardées telles quelles à l’enregistrement. Texte, décomposé : « Décomposé : catégorie, projet, pièces justificatives et liens se précisent sur chaque ligne de sa répartition, dépliée sous le mouvement dans le tableau (« détails »). » ; sinon : « La répartition par membre, catégorie et contexte se fait dans le tableau, une fois le mouvement enregistré : action « Répartir » de sa ligne. ». Une erreur de l’enregistrement sur une ligne s’affiche en alerte « Répartition : … ».
+- La répartition ne se modifie pas dans le formulaire (voir [Répartition dépliée](#répartition-dépliée)) : les lignes d’un mouvement décomposé sont gardées telles quelles à chaque enregistrement. Texte, décomposé : « Décomposé : catégorie, projet, pièces justificatives et liens se précisent sur chaque ligne de sa répartition, dépliée sous le mouvement dans le tableau (« détails »). » ; sinon : « La répartition par membre, catégorie et contexte se fait dans le tableau, une fois le mouvement enregistré : action « Répartir » de sa ligne. ». Une erreur de l’enregistrement sur une ligne s’affiche en alerte « Répartition : … ».
 - « Dupliquer » (décision D20, menu d’une ligne) : la copie, « … (copie) », est enregistrée tout de suite, sans les documents réglés et avec ses propres lignes (« Mouvement dupliqué. »), puis son formulaire s’ouvre.
 - En modification, les commentaires du mouvement s’affichent sous le formulaire (lecture seule s’il est archivé).
-- Toasts : « Mouvement ajouté. », « Mouvement modifié. ».
+- Toast : « Mouvement ajouté. » (création).
 
 ## Onglet « Budgets »
 
@@ -182,14 +182,14 @@ Comportements :
 
 ### Formulaire de budget
 
-« Nouveau budget », « Modifier le budget » (« Dupliquer » d’un budget l’enregistre tout de suite avec les mêmes valeurs, « Budget dupliqué. », puis ouvre « Modifier le budget » sur la copie, décision D20) :
+« Nouveau budget » (formulaire, bouton « Créer »), « Modifier le budget » (panneau enregistré champ par champ, décision D22 : chaque champ dès qu’il change, le montant et « Tous les » en les quittant, « Enregistrement… » / « Enregistré », sans bouton ; changer de sens vide la catégorie, à choisir de nouveau avant d’enregistrer ; archivé, en lecture seule ; « Dupliquer » d’un budget l’enregistre tout de suite avec les mêmes valeurs, « Budget dupliqué. », puis ouvre « Modifier le budget » sur la copie, décision D20) :
 
 - « Mois » / « À partir de » (requis), « Sorties prévues » / « Entrées prévues » (requis, positif, préfixe − / +) ;
 - sens « Sorties » / « Entrées » (déduit de la catégorie, défaut sorties ; changer de sens vide une catégorie de l’autre sens) ;
 - « Catégorie » (requise, création à la volée ; « Le budget couvre aussi ses sous-catégories qui n’ont pas le leur. ») ;
 - « Bénéficiaire » (vide : « Moi ») et « Contexte » (vide : « Quotidien ») ;
 - « Répétition » : « Ce mois seulement », « Tous les X mois » (champ « Tous les » 1 à 24 mois), « Tous les ans » ; défaut d’un nouveau budget : tous les mois ; « Jusqu’à » (vide : « Sans fin ») ;
-- commentaires du budget en modification. Toasts « Budget créé. » / « Budget modifié. ».
+- commentaires du budget en modification. Toast « Budget créé. » (création).
 
 ## Onglet « Prêts »
 
@@ -219,7 +219,7 @@ Barre « Paramètres de la trésorerie », sections une sous l’autre (listes d
 
 - « Comptes » : « Vos comptes en banque, avec le solde du relevé à une date : les mouvements et le prévisionnel partent de là. » Champs : libellé (« Compte courant, livret… »), couleur facultative, image, « Solde d’ouverture », « Au » (requis, défaut aujourd’hui ; « Le solde du relevé à cette date : seuls les mouvements suivants sont comptés. »). Badges : solde du jour et « X au JJ/MM ». Suppression impossible avec des mouvements : « A des mouvements : archivez-le ».
 - « Contextes » : « Une même dépense ne compte pas pareil en vacances ou au quotidien. Une ligne sans contexte est du « Quotidien ». » Libellé (« Vacances, Rentrée… ») et couleur requise. Suppression : « … sera supprimé définitivement avec ses périodes planifiées. Les lignes qui l’avaient deviendront du « Quotidien ». »
-- « Contextes planifiés » : périodes (contexte, « Du », « Au », description) ; « Nouvelle période » (désactivé sans contexte actif), « Modifier », « Supprimer » (confirmation ; « Les lignes déjà enregistrées gardent leur contexte. »). Interrupteur « Afficher les archivées » (périodes des contextes archivés, en lecture seule). Vide : « Aucune période planifiée. » / « Créez d’abord un contexte. ». Toasts « Période planifiée. » / « Période modifiée. ».
+- « Contextes planifiés » : périodes (contexte, « Du », « Au », description) ; « Nouvelle période » (désactivé sans contexte actif), « Modifier », « Supprimer » (confirmation ; « Les lignes déjà enregistrées gardent leur contexte. »). Interrupteur « Afficher les archivées » (périodes des contextes archivés, en lecture seule). Vide : « Aucune période planifiée. » / « Créez d’abord un contexte. ». « Nouvelle période » : formulaire, bouton « Planifier », toast « Période planifiée. » ; « Modifier » : panneau enregistré champ par champ (la description en la quittant, décision D22), en lecture seule si son contexte est archivé. Un contexte créé depuis la répartition d’un mouvement : formulaire « Nouveau contexte », bouton « Créer » (un contexte se modifie dans sa liste).
 - « Catégories d’entrées » et « Catégories de sorties » : arborescence (glisser une catégorie sur une autre pour l’y ranger ; une sous-catégorie sans couleur prend celle de sa parente), nombre de mouvements par catégorie.
 - « Factures et avoirs » (PRO) : « Règlements des factures » (catégorie d’entrée) et « Remboursements des avoirs » (catégorie de sortie), vide : « Aucune (hors budget) ». Toast « Catégorie enregistrée. ».
 - « Moyens de paiement » : libellé (« Virement, carte, chèque… »), « Pour les entrées », « Pour les sorties » (les deux cochés par défaut) ; badges « Entrées » / « Sorties ».
@@ -230,7 +230,7 @@ Barre « Paramètres de la trésorerie », sections une sous l’autre (listes d
 Dans l’onglet « contributors » de la page Paramètres (`features/projects/pages/SettingsPage.tsx`) :
 
 - « Équipe » / « Foyer » : membres (« Moi » toujours, badge « Moi ») ; ajout d’un contributeur existant ou d’un nouveau membre par son nom (crée le contributeur) ; « Retirer » (reste contributeur, toast « X n’est plus membre. ») ; « Archiver » ; interrupteur des archivés.
-- « Relations » / « Proches » : nom (« Paul, Mamie, Association du quartier… »), contributeur lié facultatif (non membre, pas déjà relation ; donne son nom si vide), « Description » (zone de texte multiligne, 4 000 caractères) ; badge « Contributeur » ; usages (« N lignes, M budgets ») ; « Modifier », « Archiver », « Supprimer » (« Ses budgets aussi. Ses lignes vous seront attribuées. »).
+- « Relations » / « Proches » : nom (« Paul, Mamie, Association du quartier… »), contributeur lié facultatif (non membre, pas déjà relation ; donne son nom si vide), « Description » (zone de texte multiligne, 4 000 caractères) ; badge « Contributeur » ; usages (« N lignes, M budgets ») ; « Modifier », « Archiver », « Supprimer » (« Ses budgets aussi. Ses lignes vous seront attribuées. »). Nouvelle relation : formulaire, bouton « Ajouter » ; « Modifier » : panneau enregistré champ par champ (nom et description en les quittant ; le contributeur choisi avec le nom qu’il donne, décision D22).
 
 ## Ailleurs dans l’app
 

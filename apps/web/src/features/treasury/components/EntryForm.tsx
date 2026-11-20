@@ -4,15 +4,17 @@ import { unarchived } from '../../../lib/archive';
 import { NO_SUGGESTIONS } from '../../../components/markdown/remark-references';
 
 import { itemSelectProps } from '../../../components/items/item-look';
-import { Divider, Group, SegmentedControl, Select, SimpleGrid, Stack, Text, TextInput } from '@mantine/core';
+import { Divider, Fieldset, Group, SegmentedControl, Select, SimpleGrid, Stack, Text, TextInput } from '@mantine/core';
 import { DatePickerInput } from '@mantine/dates';
 import { treasuryEntrySchema, type TreasuryAllocationInput, sumOf } from '@ordo/shared';
 
 import { useState } from 'react';
-import { useAppForm, formCallbacks } from '../../../lib/form';
+import { useAppForm, useFieldSave, formCallbacks, nestedErrors } from '../../../lib/form';
+import { useCachedItem } from '../../../lib/mutation';
+import { SaveStatus } from '../../../components/feedback/SaveStatus';
 import { useAccountingDocuments, useImportedDocuments } from '../../accounting/api/documents';
 import { useProjectTree } from '../../projects/api';
-import { useTreasuryAccounts, useTreasuryDocumentOptions, useTreasuryMutations, useTreasurySettings, type ForecastEntry, type TreasuryEntry } from '../api';
+import { treasuryKey, useTreasuryAccounts, useTreasuryDocumentOptions, useTreasuryMutations, useTreasurySettings, type ForecastEntry, type TreasuryEntry } from '../api';
 import { categoryOptions } from '../lib/categories';
 import { DIRECTION_OPTIONS } from '../lib/direction';
 import type { LineLink } from '../lib/lines';
@@ -85,6 +87,16 @@ interface LinkedSummary {
  */
 const entryLink = (entry: LinkedSummary): LineLink => ({ kind: 'entry', id: entry.id, entryLabel: entry.label, date: entry.date, label: null, amount: entry.amount });
 
+/** Fields of an entry saved on leaving them, in its panel (decision D22): texts and amounts. */
+const ON_BLUR = ['label', 'amount', 'note', 'url', 'allocations'] as const;
+
+/**
+ * Entries of the data of a treasury query (the lists of entries and forecasts).
+ * @param {unknown} data Data of a query.
+ * @returns {readonly (TreasuryEntry | ForecastEntry)[] | undefined} Entries, none for another query.
+ */
+const entriesOf = (data: unknown) => (Array.isArray(data) ? (data as (TreasuryEntry | ForecastEntry)[]) : undefined);
+
 interface EntryFormProps {
   entry?: TreasuryEntry | ForecastEntry;
   /** New entry: actual or forecast. */
@@ -95,7 +107,10 @@ interface EntryFormProps {
 /**
  * Treasury entry: account, execution and value dates, label, money in or out, payer or payee (client or
  * counterparty), category and method of its direction, project, description and linked entries; a forecast may repeat,
- * an actual entry settles invoices (money in) or refunds credit notes (money out), Ordo or imported.
+ * an actual entry settles invoices (money in) or refunds credit notes (money out), Ordo or imported. A new entry is a
+ * form with « Ajouter »; an existing one, its panel, saves each field as soon as it changes (texts, amounts and the
+ * settled documents on leaving them, decision D22, `useFieldSave`): the whole entry each time, its split (edited in the
+ * table only) as the cache holds it. Archived, it is read only.
  * @param {EntryFormProps} props Component props.
  * @returns {JSX.Element} Form.
  */
@@ -111,14 +126,35 @@ export function EntryForm({ entry, status = 'ACTUAL', onDone }: EntryFormProps) 
   const { data: imported } = useImportedDocuments();
   const { createEntry, updateEntry } = useTreasuryMutations();
   const open = unarchived(accounts ?? [], entry?.accountId);
-  const form = useAppForm<EntryValues>({
+  const base = useAppForm<EntryValues>({
     initialValues: entryValues(entry, { status, copy: false, accountId: open[0]?.id ?? '' }),
     schema: treasuryEntrySchema,
   });
+  // The entry of the cache, followed (a cell, its split in the table, another tab).
+  const cached = useCachedItem(treasuryKey, entriesOf, (item: TreasuryEntry | ForecastEntry) => item.id === entry?.id);
+  const current = entry && (cached ?? entry);
+  const readOnly = Boolean(current?.archived);
+  const { form, saving, commit, fieldProps } = useFieldSave(base, {
+    save: entry ? (_changes, input) => updateEntry.mutateAsync({ id: entry.id, input: entryPayload(input) }) : null,
+    schema: treasuryEntrySchema,
+    saved: current && entryValues(current, { status: current.status, copy: false, accountId: current.accountId }),
+    onBlur: ON_BLUR,
+    readOnly,
+  });
   const values = form.values;
+
+  /**
+   * Changes fields that go together, then saves them at once (those saved on leaving them too).
+   * @param {Partial<EntryValues>} changes Changes.
+   * @returns {void}
+   */
+  const changeTogether = (changes: Partial<EntryValues>) => {
+    base.setValues(changes);
+    commit(Object.keys(changes) as (keyof EntryValues & string)[]);
+  };
   // Split: the category, project, documents and links are on the lines.
   const split = values.lines.length > 0;
-  const linesError = Object.entries(form.errors).find(([field]) => field === 'lines' || field.startsWith('lines.'))?.[1];
+  const linesError = form.errors.lines ?? Object.values(nestedErrors(form.errors, 'lines'))[0];
   const incoming = values.direction === 'IN';
   const forecast = values.status === 'FORECAST';
   // Key of the payer select: "client:<id>" or "tiers:<id>".
@@ -165,230 +201,237 @@ export function EntryForm({ entry, status = 'ACTUAL', onDone }: EntryFormProps) 
   const allocated = sumOf(values.allocations, (allocation) => allocation.amount);
   const keyOf = (allocation: TreasuryAllocationInput) => allocationKey(allocation);
 
-  const handleSubmit = form.onSubmit((input) => {
-    const payload = entryPayload(input);
-    const callbacks = formCallbacks(form, entry ? 'Mouvement modifié.' : 'Mouvement ajouté.', onDone);
-    if (entry) updateEntry.mutate({ id: entry.id, input: payload }, callbacks);
-    else createEntry.mutate(payload, callbacks);
-  });
+  // A new entry only: an existing one is saved field by field (Enter saves the text typed).
+  const handleSubmit = form.onSubmit((input) => createEntry.mutate(entryPayload(input), formCallbacks(form, 'Mouvement ajouté.', onDone)));
 
   return (
     <Stack gap="lg">
       <form onSubmit={handleSubmit} noValidate>
-        <Stack gap="sm">
-          <SegmentedControl
-            data={[
-              { value: 'ACTUAL', label: 'Réel' },
-              { value: 'FORECAST', label: 'Prévu' },
-            ]}
-            value={values.status}
-            // Only a forecast repeats, only an actual entry settles documents.
-            onChange={(value) => form.setValues({ status: value as EntryValues['status'], recurrence: null, allocations: [] })}
-          />
-          <SimpleGrid cols={{ base: 1, sm: 2 }} spacing="sm">
-            <Select label="Compte" required {...itemSelectProps(open, values.accountId)} allowDeselect={false} {...form.getInputProps('accountId')} />
-            <DatePickerInput
-              label={forecast ? 'Date d’exécution prévue' : 'Date d’exécution'}
-              required
-              {...form.getInputProps('date')}
-              // The value date follows the execution date until it is changed apart (or when it is empty).
-              onChange={(date) => form.setValues({ date: date ?? '', ...(!values.valueDate || values.valueDate === values.date ? { valueDate: date } : {}) })}
-            />
-          </SimpleGrid>
-          <DatePickerInput
-            label="Date de valeur"
-            description="Celle du relevé bancaire, pour information : le solde suit la date d’exécution. Vide, c’est la date d’exécution."
-            clearable
-            placeholder={values.date ? 'Date d’exécution' : '—'}
-            {...form.getInputProps('valueDate')}
-          />
-          <TextInput label="Libellé" required data-autofocus {...form.getInputProps('label')} />
-          <Group gap="sm" align="flex-end" wrap="nowrap">
+        <Fieldset variant="unstyled" disabled={readOnly} p={0} m={0}>
+          <Stack gap="sm">
+            {entry && !readOnly && <SaveStatus saving={saving} />}
             <SegmentedControl
-              aria-label="Sens"
-              data={DIRECTION_OPTIONS}
-              value={values.direction}
-              // Changing the direction changes which documents can be settled, and the categories and methods.
-              onChange={(direction) => {
-                const method = settings?.treasuryPaymentMethods.find((item) => item.id === values.methodId);
-                form.setValues({
-                  direction: direction as EntryValues['direction'],
-                  allocations: [],
-                  categoryId: null,
-                  lines: values.lines.map((line) => ({ ...line, categoryId: null })),
-                  methodId: method && (direction === 'IN' ? method.incoming : method.outgoing) ? method.id : null,
-                });
-              }}
+              data={[
+                { value: 'ACTUAL', label: 'Réel' },
+                { value: 'FORECAST', label: 'Prévu' },
+              ]}
+              value={values.status}
+              // Only a forecast repeats, only an actual entry settles documents.
+              onChange={(value) => changeTogether({ status: value as EntryValues['status'], recurrence: null, allocations: [] })}
             />
-            <AmountInput label="Montant" required min={0} style={{ flex: 1 }} {...form.getInputProps('amount')} />
-          </Group>
-          <SimpleGrid cols={{ base: 1, sm: 2 }} spacing="sm">
-            {!split && (
-              <CreatableSelect
-                label="Catégorie"
-                clearable
-                searchable
-                onCreate={createCategory[values.direction]}
-                placeholder={categories.some((category) => category.direction === values.direction) ? '—' : 'Aucune : tapez un libellé pour la créer'}
-                {...treeSelectProps(categoryOptions(categories, values.direction, undefined, values.categoryId))}
-                {...form.getInputProps('categoryId')}
+            <SimpleGrid cols={{ base: 1, sm: 2 }} spacing="sm">
+              <Select label="Compte" required {...itemSelectProps(open, values.accountId)} allowDeselect={false} {...form.getInputProps('accountId')} />
+              <DatePickerInput
+                label={forecast ? 'Date d’exécution prévue' : 'Date d’exécution'}
+                required
+                {...form.getInputProps('date')}
+                // The value date follows the execution date until it is changed apart (or when it is empty).
+                onChange={(date) => form.setValues({ date: date ?? '', ...(!values.valueDate || values.valueDate === values.date ? { valueDate: date } : {}) })}
               />
-            )}
-            <CreatableSelect
-              label="Moyen de paiement"
+            </SimpleGrid>
+            <DatePickerInput
+              label="Date de valeur"
+              description="Celle du relevé bancaire, pour information : le solde suit la date d’exécution. Vide, c’est la date d’exécution."
               clearable
-              onCreate={create.method}
-              placeholder={methods.length ? '—' : 'Aucun : tapez un libellé pour le créer'}
-              {...itemSelectProps(methods, values.methodId)}
-              {...form.getInputProps('methodId')}
+              placeholder={values.date ? 'Date d’exécution' : '—'}
+              {...form.getInputProps('valueDate')}
             />
-          </SimpleGrid>
-          <CreatableSelect
-            label={incoming ? 'Émetteur' : 'Destinataire'}
-            onCreate={async (name) => {
-              const id = await create.counterparty(name);
-              return id && taggedKey('tiers', id);
-            }}
-            clearable
-            searchable
-            placeholder="Client ou tiers"
-            nothingFoundMessage="Aucun client ni tiers"
-            data={payers}
-            value={payer}
-            onChange={(key) => form.setValues(payerOfKey(key))}
-            error={form.errors.clientId ?? form.errors.counterpartyId}
-          />
-          {!split && <Select label="Projet" clearable searchable {...treeSelectProps(projectChoices)} {...form.getInputProps('projectId')} />}
-          <MarkdownEditor label="Description" value={form.values.note ?? ''} onChange={(note) => form.setFieldValue('note', note)} suggestions={NO_SUGGESTIONS} minRows={2} />
-          <TextInput label="Lien" placeholder="https://… (une commande en ligne, par exemple)" type="url" {...form.getInputProps('url')} />
-
-          {split ? (
-            <Text size="xs" c="dimmed">
-              Décomposé : catégorie, projet, pièces justificatives et liens se précisent sur chaque ligne de sa répartition, dépliée sous le mouvement dans le tableau (« détails »).
-            </Text>
-          ) : (
-            <>
-              <SupportingDocumentsSelect
-                data={documentData}
-                value={values}
-                onChange={(documents) => form.setValues({ ...documents })}
-                error={(form.errors.libraryDocumentIds ?? form.errors.projectResourceIds) as string | undefined}
+            <TextInput label="Libellé" required data-autofocus={entry ? undefined : true} {...form.getInputProps('label')} />
+            <Group gap="sm" align="flex-end" wrap="nowrap">
+              <SegmentedControl
+                aria-label="Sens"
+                data={DIRECTION_OPTIONS}
+                value={values.direction}
+                // Changing the direction changes which documents can be settled, and the categories and methods.
+                onChange={(direction) => {
+                  const method = settings?.treasuryPaymentMethods.find((item) => item.id === values.methodId);
+                  changeTogether({
+                    direction: direction as EntryValues['direction'],
+                    allocations: [],
+                    categoryId: null,
+                    lines: values.lines.map((line) => ({ ...line, categoryId: null })),
+                    methodId: method && (direction === 'IN' ? method.incoming : method.outgoing) ? method.id : null,
+                  });
+                }}
               />
+              <AmountInput label="Montant" required min={0} style={{ flex: 1 }} {...form.getInputProps('amount')} />
+            </Group>
+            <SimpleGrid cols={{ base: 1, sm: 2 }} spacing="sm">
+              {!split && (
+                <CreatableSelect
+                  label="Catégorie"
+                  clearable
+                  searchable
+                  onCreate={createCategory[values.direction]}
+                  placeholder={categories.some((category) => category.direction === values.direction) ? '—' : 'Aucune : tapez un libellé pour la créer'}
+                  {...treeSelectProps(categoryOptions(categories, values.direction, undefined, values.categoryId))}
+                  {...form.getInputProps('categoryId')}
+                />
+              )}
+              <CreatableSelect
+                label="Moyen de paiement"
+                clearable
+                onCreate={create.method}
+                placeholder={methods.length ? '—' : 'Aucun : tapez un libellé pour le créer'}
+                {...itemSelectProps(methods, values.methodId)}
+                {...form.getInputProps('methodId')}
+              />
+            </SimpleGrid>
+            <CreatableSelect
+              label={incoming ? 'Émetteur' : 'Destinataire'}
+              onCreate={async (name) => {
+                const id = await create.counterparty(name);
+                return id && taggedKey('tiers', id);
+              }}
+              clearable
+              searchable
+              placeholder="Client ou tiers"
+              nothingFoundMessage="Aucun client ni tiers"
+              data={payers}
+              value={payer}
+              onChange={(key) => form.setValues(payerOfKey(key))}
+              error={form.errors.clientId ?? form.errors.counterpartyId}
+            />
+            {!split && <Select label="Projet" clearable searchable {...treeSelectProps(projectChoices)} {...form.getInputProps('projectId')} />}
+            <MarkdownEditor label="Description" {...fieldProps('note')} suggestions={NO_SUGGESTIONS} minRows={2} />
+            <TextInput label="Lien" placeholder="https://… (une commande en ligne, par exemple)" type="url" {...form.getInputProps('url')} />
 
-              <Divider label="Mouvements liés" labelPosition="left" />
+            {split ? (
               <Text size="xs" c="dimmed">
-                Une entrée et une sortie liées sur une même période se compensent dans les graphiques d’entrées et de sorties (remboursement de frais, virement entre comptes…).
+                Décomposé : catégorie, projet, pièces justificatives et liens se précisent sur chaque ligne de sa répartition, dépliée sous le mouvement dans le tableau (« détails »).
               </Text>
-              {linked.length > 0 && (
-                <Group gap={6}>
-                  {linked.map((item) => (
-                    <LinkBadge
-                      key={item.id}
-                      link={entryLink(item)}
-                      onUnlink={() => {
-                        setLinked((current) => current.filter((other) => other.id !== item.id));
-                        form.setFieldValue(
-                          'linkedEntryIds',
-                          values.linkedEntryIds.filter((id) => id !== item.id),
-                        );
+            ) : (
+              <>
+                <SupportingDocumentsSelect
+                  data={documentData}
+                  value={values}
+                  onChange={(documents) => form.setValues({ ...documents })}
+                  error={(form.errors.libraryDocumentIds ?? form.errors.projectResourceIds) as string | undefined}
+                />
+
+                <Divider label="Mouvements liés" labelPosition="left" />
+                <Text size="xs" c="dimmed">
+                  Une entrée et une sortie liées sur une même période se compensent dans les graphiques d’entrées et de sorties (remboursement de frais, virement entre comptes…).
+                </Text>
+                {linked.length > 0 && (
+                  <Group gap={6}>
+                    {linked.map((item) => (
+                      <LinkBadge
+                        key={item.id}
+                        link={entryLink(item)}
+                        onUnlink={() => {
+                          setLinked((current) => current.filter((other) => other.id !== item.id));
+                          form.setFieldValue(
+                            'linkedEntryIds',
+                            values.linkedEntryIds.filter((id) => id !== item.id),
+                          );
+                        }}
+                      />
+                    ))}
+                  </Group>
+                )}
+                {/* Entries only: a split one is linked through its lines. */}
+                <EntryLinkSelect
+                  aria-label="Lier un mouvement"
+                  entryId={entry?.id ?? null}
+                  links={values.linkedEntryIds.map((id) => ({ kind: 'entry' as const, id }))}
+                  lines={false}
+                  withAccount
+                  onLink={(link) => {
+                    setLinked((current) => [...current, { id: link.id, date: link.date, label: link.entryLabel, amount: link.amount }]);
+                    form.setFieldValue('linkedEntryIds', [...values.linkedEntryIds, link.id]);
+                  }}
+                  error={form.errors.linkedEntryIds}
+                />
+                {(entry?.linkedByLines ?? []).length > 0 && (
+                  <Group gap={6}>
+                    {(entry?.linkedByLines ?? []).map((line) => (
+                      <LinkBadge key={line.id} variant="outline" link={{ kind: 'line', id: line.id, entryLabel: line.entryLabel, date: line.date, label: line.label ?? null, amount: line.amount }} />
+                    ))}
+                  </Group>
+                )}
+              </>
+            )}
+
+            {forecast && (
+              <>
+                <RuleField weekly={false} value={values.recurrence} onChange={(rule) => form.setFieldValue('recurrence', rule)} start={values.date} />
+              </>
+            )}
+
+            {!forecast && !perso && (
+              <>
+                <Divider label={incoming ? 'Factures réglées' : 'Avoirs remboursés'} labelPosition="left" />
+                {values.allocations.map((allocation, index) => (
+                  <Group key={index} gap="xs" align="flex-end" wrap="nowrap">
+                    <Select
+                      aria-label={`Document ${index + 1}`}
+                      placeholder="Document"
+                      searchable
+                      style={{ flex: 1 }}
+                      data={settleable.filter((option) => option.value === keyOf(allocation) || !values.allocations.some((other) => keyOf(other) === option.value))}
+                      value={keyOf(allocation)}
+                      error={form.errors[`allocations.${index}`]}
+                      onChange={(key) => {
+                        const option = settleable.find((item) => item.value === key);
+                        const amount = option ? Math.min(option.balance, Math.max(0, values.amount - allocated + allocation.amount)) || option.balance : allocation.amount;
+                        // An empty entry takes the amount and the name of the document it settles (saved with it).
+                        changeTogether({
+                          allocations: values.allocations.map((item, position) => (position === index ? { ...allocationOfKey(key), amount } : item)),
+                          ...(option && !values.amount && { amount: allocated - allocation.amount + amount }),
+                          ...(option && !values.label.trim() && { label: `${incoming ? 'Règlement' : 'Remboursement'} ${option.name}` }),
+                        });
                       }}
                     />
-                  ))}
-                </Group>
-              )}
-              {/* Entries only: a split one is linked through its lines. */}
-              <EntryLinkSelect
-                aria-label="Lier un mouvement"
-                entryId={entry?.id ?? null}
-                links={values.linkedEntryIds.map((id) => ({ kind: 'entry' as const, id }))}
-                lines={false}
-                withAccount
-                onLink={(link) => {
-                  setLinked((current) => [...current, { id: link.id, date: link.date, label: link.entryLabel, amount: link.amount }]);
-                  form.setFieldValue('linkedEntryIds', [...values.linkedEntryIds, link.id]);
-                }}
-                error={form.errors.linkedEntryIds}
-              />
-              {(entry?.linkedByLines ?? []).length > 0 && (
-                <Group gap={6}>
-                  {(entry?.linkedByLines ?? []).map((line) => (
-                    <LinkBadge key={line.id} variant="outline" link={{ kind: 'line', id: line.id, entryLabel: line.entryLabel, date: line.date, label: line.label ?? null, amount: line.amount }} />
-                  ))}
-                </Group>
-              )}
-            </>
-          )}
-
-          {forecast && (
-            <>
-              <RuleField weekly={false} value={values.recurrence} onChange={(rule) => form.setFieldValue('recurrence', rule)} start={values.date} />
-            </>
-          )}
-
-          {!forecast && !perso && (
-            <>
-              <Divider label={incoming ? 'Factures réglées' : 'Avoirs remboursés'} labelPosition="left" />
-              {values.allocations.map((allocation, index) => (
-                <Group key={index} gap="xs" align="flex-end" wrap="nowrap">
-                  <Select
-                    aria-label={`Document ${index + 1}`}
-                    placeholder="Document"
-                    searchable
-                    style={{ flex: 1 }}
-                    data={settleable.filter((option) => option.value === keyOf(allocation) || !values.allocations.some((other) => keyOf(other) === option.value))}
-                    value={keyOf(allocation)}
-                    error={form.errors[`allocations.${index}`]}
-                    onChange={(key) => {
-                      const option = settleable.find((item) => item.value === key);
-                      const amount = option ? Math.min(option.balance, Math.max(0, values.amount - allocated + allocation.amount)) || option.balance : allocation.amount;
-                      form.setFieldValue(`allocations.${index}`, {
-                        ...allocationOfKey(key),
-                        amount,
-                      });
-                      // An empty entry takes the amount and the name of the document it settles.
-                      if (option && !values.amount) form.setFieldValue('amount', allocated - allocation.amount + amount);
-                      if (option && !values.label.trim()) form.setFieldValue('label', `${incoming ? 'Règlement' : 'Remboursement'} ${option.name}`);
-                    }}
-                  />
-                  <AmountInput
-                    aria-label={`Montant réglé ${index + 1}`}
-                    w={130}
-                    min={0}
-                    value={allocation.amount}
-                    onChange={(value) => form.setFieldValue(`allocations.${index}.amount`, typeof value === 'number' ? value : 0)}
-                  />
-                  <RemoveButton label="Retirer" size="lg" aria-label={`Retirer le document ${index + 1}`} onClick={() => form.removeListItem('allocations', index)} />
-                </Group>
-              ))}
-              {form.errors.allocations && (
-                <Text size="xs" c="red">
-                  {form.errors.allocations}
-                </Text>
-              )}
-              <Group justify="space-between">
-                <AddItemButton disabled={settleable.length === values.allocations.length} onClick={() => form.insertListItem('allocations', { documentId: null, importedDocumentId: null, amount: 0 })}>
-                  {incoming ? 'Régler une facture' : 'Rembourser un avoir'}
-                </AddItemButton>
-                {values.allocations.length > 0 && (
-                  <Text size="xs" c="dimmed">
-                    {fmt.money(allocated)} affectés sur {fmt.money(values.amount)}
+                    <AmountInput
+                      aria-label={`Montant réglé ${index + 1}`}
+                      w={130}
+                      min={0}
+                      value={allocation.amount}
+                      onChange={(value) => form.setFieldValue(`allocations.${index}.amount`, typeof value === 'number' ? value : 0)}
+                      onBlur={() => commit(['allocations'])}
+                    />
+                    <RemoveButton
+                      label="Retirer"
+                      size="lg"
+                      aria-label={`Retirer le document ${index + 1}`}
+                      onClick={() => changeTogether({ allocations: values.allocations.filter((_, position) => position !== index) })}
+                    />
+                  </Group>
+                ))}
+                {form.errors.allocations && (
+                  <Text size="xs" c="red">
+                    {form.errors.allocations}
                   </Text>
                 )}
-              </Group>
-            </>
-          )}
+                <Group justify="space-between">
+                  <AddItemButton
+                    disabled={settleable.length === values.allocations.length}
+                    onClick={() => form.insertListItem('allocations', { documentId: null, importedDocumentId: null, amount: 0 })}
+                  >
+                    {incoming ? 'Régler une facture' : 'Rembourser un avoir'}
+                  </AddItemButton>
+                  {values.allocations.length > 0 && (
+                    <Text size="xs" c="dimmed">
+                      {fmt.money(allocated)} affectés sur {fmt.money(values.amount)}
+                    </Text>
+                  )}
+                </Group>
+              </>
+            )}
 
-          {!split && (
-            <Text size="xs" c="dimmed">
-              La répartition par membre, catégorie et contexte se fait dans le tableau, une fois le mouvement enregistré : action « Répartir » de sa ligne.
-            </Text>
-          )}
-          {/* The split is not edited here: what the save refuses of it is told. */}
-          {linesError && <ErrorAlert>{`Répartition : ${linesError}`}</ErrorAlert>}
-          <FormActions onCancel={onDone} loading={createEntry.isPending || updateEntry.isPending} />
-        </Stack>
+            {!split && (
+              <Text size="xs" c="dimmed">
+                La répartition par membre, catégorie et contexte se fait dans le tableau, une fois le mouvement enregistré : action « Répartir » de sa ligne.
+              </Text>
+            )}
+            {/* The split is not edited here: what the save refuses of it is told. */}
+            {linesError && <ErrorAlert>{`Répartition : ${linesError}`}</ErrorAlert>}
+            {!entry && <FormActions onCancel={onDone} submitLabel="Ajouter" loading={createEntry.isPending} />}
+          </Stack>
+        </Fieldset>
       </form>
-      {entry && 'id' in entry && <Comments target="TREASURY_ENTRY" id={entry!.id} readOnly={entry!.archived} />}
+      {entry && 'id' in entry && <Comments target="TREASURY_ENTRY" id={entry!.id} readOnly={readOnly} />}
     </Stack>
   );
 }

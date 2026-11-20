@@ -52,6 +52,22 @@ export function showFormError<Values>(form: UseFormReturnType<Values>, error: un
   notifyFailure(error);
 }
 
+/**
+ * Errors under a field of a form, by path inside it (`address.city` → `city`): for an editor of a whole object or list
+ * (an address, phones).
+ * @param {Record<string, unknown>} errors Errors of the form.
+ * @param {string} field Field.
+ * @returns {Record<string, string>} Errors of the field.
+ */
+export function nestedErrors(errors: Record<string, unknown>, field: string): Record<string, string> {
+  const prefix = `${field}.`;
+  return Object.fromEntries(
+    Object.entries(errors)
+      .filter(([key]) => key.startsWith(prefix))
+      .map(([key, message]) => [key.slice(prefix.length), String(message)]),
+  );
+}
+
 /** What follows the toast of `formCallbacks`, besides closing the form. */
 interface FormCallbackOptions<T> {
   /** Called after `onDone` with what the mutation returned (opens the item created…). Optional. */
@@ -108,15 +124,22 @@ export interface FieldSave<Values> {
   saving: boolean;
   /** Checks and saves fields now (no-op on a new item or read only). */
   commit: (fields: readonly (keyof Values & string)[]) => void;
+  /** Settles once the saves asked so far are done, failed ones included (before an action on the item as saved: a preview, a validation). */
+  settled: () => Promise<void>;
+  /**
+   * Binding of an editor without `getInputProps` (a description, an address, phones) to a field saved on leaving it:
+   * its value, its change, and its save when it is left.
+   */
+  fieldProps: <K extends keyof Values & string>(field: K) => { value: Values[K]; onChange: (value: Values[K]) => void; onBlur: () => void };
 }
 
 /**
- * Same value, compared as JSON (lists, objects).
+ * Same value, compared as JSON (lists, objects); a file chosen by itself (two files have the same JSON).
  * @param {unknown} a Value.
  * @param {unknown} b Value.
  * @returns {boolean} Whether they are the same.
  */
-const sameValue = (a: unknown, b: unknown): boolean => a === b || JSON.stringify(a ?? null) === JSON.stringify(b ?? null);
+const sameValue = (a: unknown, b: unknown): boolean => a === b || (!(a instanceof Blob) && !(b instanceof Blob) && JSON.stringify(a ?? null) === JSON.stringify(b ?? null));
 
 /**
  * Field of a path of the form: its first segment (`links.0.url` → `links`).
@@ -155,8 +178,10 @@ function fieldErrors(schema: Schema, values: Record<string, unknown>, fields: re
  * form is returned as it is: a form saved by its button.
  * @param {UseFormReturnType<Values>} base Form of the item (`useAppForm`).
  * @param {FieldSaveOptions<Values>} options How it is saved.
- * @returns {FieldSave<Values>} Form to bind the fields to, whether a save is running (`SaveStatus`), and the save of
- *   fields now (those saved on leaving them, by an editor without `getInputProps`: a description, a place).
+ * @returns {FieldSave<Values>} Form to bind the fields to, whether a save is running (`SaveStatus`), the save of
+ *   fields now (those saved on leaving them, by an editor without `getInputProps`: a place), the end of the saves
+ *   asked (`settled`, before an action on the item as saved), and the binding of an editor without `getInputProps` to
+ *   a field saved on leaving it (`fieldProps`: a description, an address, phones).
  */
 export function useFieldSave<Values extends Record<string, unknown>>(base: UseFormReturnType<Values>, options: FieldSaveOptions<Values>): FieldSave<Values> {
   const { save, schema, saved, onBlur = [], readOnly = false, onSaved } = options;
@@ -188,7 +213,25 @@ export function useFieldSave<Values extends Record<string, unknown>>(base: UseFo
     if (Object.keys(adopted).length) base.setValues(adopted as Partial<Values>);
   });
 
-  if (!live) return { form: base, saving: pending > 0, commit: () => undefined };
+  /**
+   * Settles once the saves asked so far are done (they never reject: a failure is shown, the field put back).
+   * @returns {Promise<void>} Settled.
+   */
+  const settled = () => queue.current;
+
+  if (!live) {
+    /**
+     * Binding of an editor to a field of the form saved by its button (nothing saved on leaving it).
+     * @param {string} field Field.
+     * @returns {{ value: unknown, onChange: (value: unknown) => void, onBlur: () => void }} Binding.
+     */
+    const formFieldProps: FieldSave<Values>['fieldProps'] = (field) => ({
+      value: base.getValues()[field],
+      onChange: (value) => base.setFieldValue(field, value as never),
+      onBlur: () => undefined,
+    });
+    return { form: base, saving: pending > 0, commit: () => undefined, settled, fieldProps: formFieldProps };
+  }
 
   /**
    * Saves fields once checked, when they changed.
@@ -265,6 +308,15 @@ export function useFieldSave<Values extends Record<string, unknown>>(base: UseFo
       commit(onBlur);
     },
   };
-  return { form, saving: pending > 0, commit };
+  /**
+   * Binding of an editor to a field, saved on leaving it.
+   * @param {string} field Field.
+   * @returns {{ value: unknown, onChange: (value: unknown) => void, onBlur: () => void }} Binding.
+   */
+  const fieldProps: FieldSave<Values>['fieldProps'] = (field) => ({
+    value: base.getValues()[field],
+    onChange: (value) => form.setFieldValue(field, value as never),
+    onBlur: () => commit([field]),
+  });
+  return { form, saving: pending > 0, commit, settled, fieldProps };
 }
-

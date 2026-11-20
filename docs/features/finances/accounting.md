@@ -100,7 +100,7 @@ Tableau « Factures récurrentes » :
 | « Émises »     | Nombre de factures émises, masquée par défaut.                                                                |
 | « Montant »    | Total TTC du modèle.                                                                                          |
 
-Actions : « Modifier la planification » (panneau « Facture récurrente »), « Ouvrir le modèle », « Archiver » / « Restaurer », « Supprimer » (confirmation : « … et son modèle seront supprimés définitivement ; les factures déjà émises sont conservées. »). Une récurrente archivée est en lecture seule et n’émet plus rien.
+Actions : « Modifier la planification » (panneau « Facture récurrente », enregistré champ par champ, voir [Factures récurrentes](#factures-récurrentes)), « Ouvrir le modèle », « Archiver » / « Restaurer », « Supprimer » (confirmation : « … et son modèle seront supprimés définitivement ; les factures déjà émises sont conservées. »). Une récurrente archivée est en lecture seule et n’émet plus rien.
 
 État vide : « Aucune facture récurrente. Ouvrez une facture et choisissez « Rendre récurrente ». »
 
@@ -108,7 +108,7 @@ Actions : « Modifier la planification » (panneau « Facture récurrente »), �
 
 Tableau des articles : « Article » (libellé modifiable, badge « Débours », description en aperçu), « Nature » (« Prestation » / « Débours », masquée par défaut), « Unité », « Prix HT », « TVA » (vide pour un débours), commentaires. Libellé, nature, unité, prix et TVA se modifient en place et en lot.
 
-- « Nouvel article » / « Modifier » ouvrent le formulaire : nature (« Produit ou service » / « Débours » ; un débours passe à TVA 0 et unité forfait), « Libellé » (obligatoire), « Description » (markdown, reprise dans la ligne), « Unité » (heure par défaut), « Prix unitaire HT », « TVA » (20 %, ou 0 % si la société n’applique pas la TVA). Les commentaires de l’article sont sous le formulaire.
+- « Nouvel article » ouvre le formulaire (bouton « Ajouter », toast « Article ajouté au catalogue. ») ; « Modifier » ouvre le panneau de l’article, enregistré champ par champ : chaque champ dès qu’il change (« Libellé », « Description » et « Prix unitaire HT » en les quittant), « Enregistrement… » puis « Enregistré » en haut, sans bouton (décision D22) ; un champ invalide garde son erreur dessous et n’est pas enregistré, un échec le remet comme il était, dans un toast d’erreur ; un article archivé s’ouvre en lecture seule. Champs : nature (« Produit ou service » / « Débours » ; un débours passe à TVA 0 et unité forfait), « Libellé » (obligatoire), « Description » (markdown, reprise dans la ligne), « Unité » (heure par défaut), « Prix unitaire HT », « TVA » (20 %, ou 0 % si la société n’applique pas la TVA). Les commentaires de l’article sont sous le formulaire.
 - « Archiver » : l’article n’est plus proposé et passe en lecture seule. « Afficher les archivés » les montre.
 - « Supprimer » : confirmation (« … sera supprimé du catalogue. Les documents qui l’utilisent gardent leurs lignes. Pour seulement ne plus le proposer, archivez-le. »).
 - État vide : « Catalogue vide. Ajoutez vos prestations (journée, heure, forfait…) avec leur prix et leur TVA : vous les ajouterez aux documents en un clic. »
@@ -134,11 +134,10 @@ Boutons selon l’état :
 
 | Bouton                              | Quand                                                                                                                    |
 | ----------------------------------- | ------------------------------------------------------------------------------------------------------------------------ |
-| « Aperçu »                          | Brouillon ou modèle : enregistre d’abord les changements, puis ouvre le PDF dans une fenêtre.                            |
-| « Télécharger le PDF » (icône)      | Toujours ; pour un brouillon modifié : « dernière version enregistrée ».                                                 |
+| « Aperçu »                          | Brouillon ou modèle : attend la fin des enregistrements en cours, puis ouvre le PDF dans une fenêtre.                    |
+| « Télécharger le PDF » (icône)      | Toujours (la version enregistrée).                                                                                       |
 | « Facture acquittée »               | Facture ou acompte définitif entièrement payé : PDF portant « acquittée » et ses règlements.                             |
 | « Envoyer »                         | Définitif non archivé : ouvre un mail préparé (voir [Envoi par mail](#envoi-par-mail)).                                  |
-| « Enregistrer »                     | Brouillon ou modèle non archivé, actif seulement s’il y a des changements.                                               |
 | « Valider »                         | Brouillon non archivé (voir [Validation](#validation)).                                                                  |
 | « Supprimer le brouillon »          | Brouillon : confirmation « Ce brouillon sera supprimé définitivement avec ses pièces jointes. », puis retour à la liste. |
 | « Facture d’acompte », « Facturer » | Devis définitif non archivé.                                                                                             |
@@ -146,7 +145,7 @@ Boutons selon l’état :
 | « Rendre récurrente »               | Facture (pas un modèle), non archivée.                                                                                   |
 | « Dupliquer » (icône)               | Tout document non archivé sauf un modèle : copie en brouillon datée d’aujourd’hui, puis ouverture.                       |
 
-Quitter la page avec des changements non enregistrés demande confirmation (alerte du navigateur).
+Un brouillon ou un modèle non archivé s’enregistre champ par champ (décision D22), sans bouton « Enregistrer » : « Enregistrement… » puis « Enregistré » en haut de la colonne principale. Les choix (client, projet, service, contact, dates, interrupteurs, temps facturé ou détaché) sont enregistrés dès qu’ils changent ; les textes, les lignes, la remise générale et l’acompte en les quittant (une ligne en la quittant, ou dès qu’elle est déplacée, retirée, ajoutée depuis le catalogue, le temps passé ou un acompte déduit ; une ligne vide attend d’être remplie) ; les conditions de règlement avec l’échéance qu’elles donnent, en les quittant. Le document entier est enregistré chaque fois : ses lignes sont remplacées et ses totaux recalculés par l’API. Un champ invalide garde son erreur dessous et n’est pas enregistré (une ligne invalide retient les lignes) ; un échec le remet comme il était, dans un toast d’erreur ; un champ changé ailleurs est repris, sauf pendant sa saisie. Il n’y a plus rien à confirmer en quittant la page.
 
 ### Bandeaux
 
@@ -176,7 +175,7 @@ Lignes (voir aussi [Règles de calcul](../../business-rules/finances/accounting.
 - ajout : « Ajouter un article », « Ajouter un débours », « Ajouter un texte », « Depuis le catalogue… » (articles non archivés), « Temps passé » (facture brouillon), « Déduire un acompte » (factures, quand le client a des acomptes à déduire) ;
 - état vide : « Aucune ligne. ».
 
-Temps facturé : « N temps facturés (durée) : ils sont marqués facturés à l’enregistrement » (ou « par ce document »), et « Détacher le temps » sur un brouillon.
+Temps facturé : « N temps facturés (durée) : ils sont marqués facturés par ce document », et « Détacher le temps » sur un brouillon.
 
 Section « Conditions et mentions » :
 
@@ -216,7 +215,7 @@ Bouton « Temps passé » (facture brouillon non archivée) : panneau « Facture
 - « Projet » (projets du client, archivés compris), « Du », « Au » (préremplis par la période de prestation).
 - Tableau des temps terminés non encore facturés : « Jour », « Temps » (tâches et description ; vide pour un temps qui n'a ni l'un ni l'autre), « Durée » ; cases à cocher.
 - « Tarif du catalogue » (articles à l’heure ou à la journée), « Libellé des lignes » (« Prestation »), « Une ligne » : « En tout », « Par jour », « Par tâche », « Par temps » ; « Facturé à » : « L’heure » / « La journée » ; prix HT ; « Heures par jour » (7) ou « Arrondir au quart d’heure supérieur » ; « TVA ».
-- Résumé « N temps, durée → N lignes, montant HT » ; « Ajouter les lignes ». La période de prestation est complétée si elle était vide ; toast « N lignes ajoutées : enregistrez le brouillon. ».
+- Résumé « N temps, durée → N lignes, montant HT » ; « Ajouter les lignes ». La période de prestation est complétée si elle était vide ; les lignes, le temps et la période sont enregistrés ensemble ; toast « N lignes ajoutées. ».
 - États vides : « Choisissez le projet dont le temps est facturé. », « Aucun temps à facturer sur ce projet … : tout le temps terminé est déjà facturé. ».
 
 ### Déduire un acompte
@@ -279,11 +278,11 @@ Onglet « À relancer » : factures et acomptes définitifs envoyés depuis 15 j
 
 ## Factures récurrentes
 
-« Rendre récurrente » (facture) ouvre « Rendre la facture récurrente » : « Libellé » (obligatoire), « Première facture le », répétition (sans hebdomadaire ; mensuelle par défaut), « Valider automatiquement » (« Les factures sont numérotées dès leur création ; sinon, elles sont créées en brouillon à vérifier. »), « Active ». La facture est copiée comme modèle (toast « Facture récurrente créée : la facture a été copiée comme modèle. »). Le modèle s’ouvre depuis la liste et se modifie comme un brouillon. Les factures dues sont émises aussitôt, puis chaque heure (voir [Tâches de fond](../../business-rules/cross-cutting/background-jobs.md)).
+« Rendre récurrente » (facture) ouvre « Rendre la facture récurrente » : « Libellé » (obligatoire), « Première facture le », répétition (sans hebdomadaire ; mensuelle par défaut), « Valider automatiquement » (« Les factures sont numérotées dès leur création ; sinon, elles sont créées en brouillon à vérifier. »), « Active ». La facture est copiée comme modèle (bouton « Créer », toast « Facture récurrente créée : la facture a été copiée comme modèle. »). « Modifier la planification » ouvre le panneau « Facture récurrente », mêmes champs, enregistré champ par champ : chaque champ dès qu’il change (« Libellé » en le quittant), « Enregistrement… » puis « Enregistré » en haut, sans bouton (décision D22) ; un champ invalide garde son erreur dessous et n’est pas enregistré, un échec le remet comme il était, dans un toast d’erreur ; archivée, elle s’ouvre en lecture seule. Le modèle s’ouvre depuis la liste et se modifie comme un brouillon. Les factures dues sont émises aussitôt, puis chaque heure (voir [Tâches de fond](../../business-rules/cross-cutting/background-jobs.md)).
 
 ## Documents importés
 
-Pour garder la trace de devis et factures émis hors d’Ordo. Panneau « Importer un devis ou une facture » (ou « Document importé … » en modification) :
+Pour garder la trace de devis et factures émis hors d’Ordo. Panneau « Importer un devis ou une facture » (bouton « Importer », toast « Document importé. »), ou « Document importé … » pour un document importé existant, enregistré champ par champ : chaque champ dès qu’il change (« Numéro », « Objet », « Ou nom du client », les totaux et « Description » en les quittant ; « Total HT » et « TVA » avec le TTC recalculé ; un fichier choisi est envoyé aussitôt), « Enregistrement… » puis « Enregistré » en haut, sans bouton (décision D22) ; un champ invalide garde son erreur dessous et n’est pas enregistré, un échec le remet comme il était, dans un toast d’erreur ; archivé, en lecture seule. Champs :
 
 - « Type » (facture par défaut), « Numéro » (obligatoire), « Objet », « Date » (obligatoire), « Valable jusqu’au » / « Échéance », « Devise » (EUR, CHF, USD, GBP, CAD) ;
 - « Client » (client d’Ordo) puis « Projet », ou « Ou nom du client » s’il n’est pas dans Ordo ;
@@ -316,11 +315,11 @@ Paramètres « Ma société » (« Imprimée sur les devis, factures et avoirs. 
 - « Banque (RIB) » : « Titulaire du compte », « Banque », « IBAN », « BIC ».
 - « Conditions et mentions par défaut » (reprises dans chaque nouveau document) : « Échéance des factures » (jours), « Validité des devis » (jours), « Libellé de la référence client », « Conditions de règlement », « Mode de règlement », « Intérêts de retard », « Autres mentions ».
 
-Toast : « Profil de la société enregistré. ».
+Le profil s’enregistre champ par champ : chaque champ dès qu’il change (textes, nombres et adresse en les quittant), « Enregistrement… » puis « Enregistré » en haut, sans bouton (décision D22) ; un champ invalide garde son erreur dessous et n’est pas enregistré, un échec le remet comme il était, dans un toast d’erreur ; un champ changé ailleurs est repris. Le logo s’enregistre à part (« Logo enregistré. »).
 
 ## Numérotation
 
-Section « Numérotation » sous « Ma société » : pour une année (précédente, courante, suivante), le « Prochain numéro » de chaque type (Devis D, Facture F, Facture d’acompte FA, Avoir A) avec l’« Aperçu » du numéro (« F2600042 ») et « Enregistrer ». Le minimum est le numéro qui suit le dernier attribué. Toast « Numérotation enregistrée. ».
+Section « Numérotation » sous « Ma société » : pour une année (précédente, courante, suivante), le « Prochain numéro » de chaque type (Devis D, Facture F, Facture d’acompte FA, Avoir A) avec l’« Aperçu » du numéro (« F2600042 ») et « Enregistrer » (gardé : changer un compteur est une action, pas un champ du profil). Le minimum est le numéro qui suit le dernier attribué. Toast « Numérotation enregistrée. ».
 
 ## Export ZIP
 
@@ -342,8 +341,11 @@ Sur la fiche d’un client (onglet de paramètres « billing ») :
 - carte du client : nom (ou prénom et nom d’un particulier), badge « Professionnel » / « Particulier », adresse, email, téléphones, site, identifiants ; « Adresse de facturation à renseigner avant d’éditer des factures. » sans adresse ;
 - « Contacts » sans service, puis une carte par service avec ses contacts ;
 - boutons « Coordonnées », « Nouveau service », « Nouveau contact » ; par service : « Ajouter un contact », « Modifier », « Supprimer » (« ses contacts restent rattachés au client ») ; par contact : « Modifier », « Supprimer ».
+- client archivé : lecture seule ; « Coordonnées » ouvre ses coordonnées en lecture seule, « Voir » un service (panneau « Service ») ou un contact (panneau « Contact »), sans ajout ni suppression.
 
-Formulaires :
+Un nouveau service ou contact est un formulaire avec « Ajouter » (« Service ajouté. », « Contact ajouté. »). Les coordonnées, un service ou un contact existants s’enregistrent champ par champ : chaque champ dès qu’il change (textes, adresse et téléphones en les quittant ; un téléphone ou une ligne d’adresse retiré, un pays choisi, aussitôt ; l’erreur d’un téléphone sous son numéro), « Enregistrement… » puis « Enregistré » en haut, sans bouton (décision D22) ; un champ invalide garde son erreur dessous et n’est pas enregistré, un échec le remet comme il était, dans un toast d’erreur.
+
+Panneaux :
 
 - « Coordonnées de facturation » : type (« Professionnel » / « Particulier »), « Prénom » et « Nom » (particulier), « Adresse de facturation », « Email », « Site internet » (professionnel), « Téléphones » (libellé et numéro), « Numéro de TVA », « Code d’activité », « SIREN », « SIRET » (professionnel).
 - Service : « Libellé du service » (obligatoire), adresse, email, téléphones.
@@ -354,7 +356,7 @@ La fiche client montre aussi le tableau « Documents comptables » du client et 
 ## Projets
 
 - Onglet facturation : tableau « Documents comptables » du projet et « Nouveau document » (désactivé sans client : « Rattachez le projet à un client pour lui établir des documents. »).
-- Onglet ressources : fichiers et liens du projet (« Ajouter des fichiers », « Ajouter un lien » avec « Libellé », « Adresse », « Note » multiligne de 4 000 caractères), monter / descendre, « Modifier », « Supprimer » ; « Aucun document ni lien. ».
+- Onglet ressources : fichiers et liens du projet (« Ajouter des fichiers », « Ajouter un lien » avec « Libellé », « Adresse », « Note » multiligne de 4 000 caractères, bouton « Ajouter »), monter / descendre, « Modifier » (panneau enregistré champ par champ, chaque champ en le quittant, décision D22), « Supprimer » ; « Aucun document ni lien. ».
 
 ## Ailleurs dans l’application
 

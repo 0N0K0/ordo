@@ -84,7 +84,7 @@ export function TimeEntryForm({ context, entry, defaultProjectId, onDone }: Time
     (entries: TimeEntry[] | TimeEntry | null) => (Array.isArray(entries) ? entries : []),
     (item: TimeEntry) => item.id === entry?.id,
   );
-  const { form, saving, commit } = useFieldSave(base, {
+  const { form, saving, fieldProps } = useFieldSave(base, {
     save: entry ? (_changes, values) => update.mutateAsync({ id: entry.id, input: entryInput(values) }) : null,
     schema: timeEntryFormSchema,
     saved: entry && timeEntryFormValues(current ?? entry),
@@ -123,15 +123,7 @@ export function TimeEntryForm({ context, entry, defaultProjectId, onDone }: Time
             onChange={(change) => form.setValues(change)}
             errors={{ routineIds: form.errors.routineIds, taskIds: form.errors.taskIds, events: form.errors.events }}
           />
-          <MarkdownEditor
-            label="Description"
-            placeholder="Ce que vous avez fait…"
-            value={form.values.description}
-            onChange={(description) => form.setFieldValue('description', description)}
-            onBlur={() => commit(['description'])}
-            suggestions={context.suggestionsFor(form.values.projectId || null)}
-            minRows={3}
-          />
+          <MarkdownEditor label="Description" placeholder="Ce que vous avez fait…" {...fieldProps('description')} suggestions={context.suggestionsFor(form.values.projectId || null)} minRows={3} />
           {!entry && <FormActions onCancel={onDone} submitLabel="Ajouter" loading={create.isPending} />}
         </Stack>
       </form>

@@ -26,12 +26,10 @@ interface TaskDescriptionProps {
 function TaskDescriptionEditor({ task, context, save, onClose }: Omit<TaskDescriptionProps, 'locked'> & { onClose: () => void }) {
   const value = { description: task.description ?? '' };
   const base = useAppForm<DescriptionFormValues>({ initialValues: value, schema: descriptionFormSchema });
-  const { form, commit } = useFieldSave(base, { save: ({ description }) => save({ description: description || null }), schema: descriptionFormSchema, saved: value, onBlur: ['description'] });
+  const { form, commit, fieldProps } = useFieldSave(base, { save: ({ description }) => save({ description: description || null }), schema: descriptionFormSchema, saved: value, onBlur: ['description'] });
   return (
     <MarkdownEditor
-      value={form.values.description}
-      onChange={(description) => form.setFieldValue('description', description)}
-      onBlur={() => commit(['description'])}
+      {...fieldProps('description')}
       onSubmitShortcut={() => {
         commit(['description']);
         onClose();
@@ -52,11 +50,7 @@ function TaskDescriptionEditor({ task, context, save, onClose }: Omit<TaskDescri
 export function TaskDescription({ task, context, locked, save }: TaskDescriptionProps) {
   const [editing, setEditing] = useState(false);
   return (
-    <SubSection
-      title="Description"
-      gap="xs"
-      action={!locked && <EditToggle editing={editing} onChange={setEditing} what="la description" />}
-    >
+    <SubSection title="Description" gap="xs" action={!locked && <EditToggle editing={editing} onChange={setEditing} what="la description" />}>
       {editing && !locked ? (
         <TaskDescriptionEditor task={task} context={context} save={save} onClose={() => setEditing(false)} />
       ) : (

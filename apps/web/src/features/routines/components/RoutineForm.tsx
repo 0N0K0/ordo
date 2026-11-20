@@ -186,7 +186,7 @@ export function RoutineForm({ routine, parent, categoryId = null, projectId = nu
   });
   // An existing routine: each field saved as soon as it changes (decision D22), the routine of the cache followed.
   const current = routine && (routines.find((item) => item.id === routine.id) ?? routine);
-  const { form, saving, commit } = useFieldSave(base, {
+  const { form, saving, commit, fieldProps } = useFieldSave(base, {
     save: routine ? (_changes, values) => update.mutateAsync({ id: routine.id, input: formInput(values) }) : null,
     schema: routineSchema,
     saved: current && routineFormValues(current),
@@ -212,8 +212,7 @@ export function RoutineForm({ routine, parent, categoryId = null, projectId = nu
    * @param {string[]} linked Routines linked already.
    * @returns {TreeOption[]} Options.
    */
-  const linkOptions = (linked: string[]) =>
-    routineTreeOptions(routines, context ? linkableRoutine(context, form.values.projectId, routine?.id ?? null, linked) : () => false);
+  const linkOptions = (linked: string[]) => routineTreeOptions(routines, context ? linkableRoutine(context, form.values.projectId, routine?.id ?? null, linked) : () => false);
 
   // A new routine only: an existing one is saved field by field (Enter saves the text typed).
   const handleSubmit = form.onSubmit((values) => create.mutate(formInput(values), formCallbacks(form, 'Routine créée.', onDone)));
@@ -227,14 +226,7 @@ export function RoutineForm({ routine, parent, categoryId = null, projectId = nu
         <Grid gap="xl">
           <Grid.Col span={{ base: 12, md: 8 }}>
             <Stack gap="md">
-              <MarkdownEditor
-                label="Description"
-                value={form.values.description}
-                onChange={(description) => form.setFieldValue('description', description)}
-                onBlur={() => commit(['description'])}
-                suggestions={context?.suggestionsFor(form.values.projectId) ?? NO_SUGGESTIONS}
-                minRows={3}
-              />
+              <MarkdownEditor label="Description" {...fieldProps('description')} suggestions={context?.suggestionsFor(form.values.projectId) ?? NO_SUGGESTIONS} minRows={3} />
               <LinksField form={form} onRemoved={() => commit(['links'])} />
               <SubSection title="Quand" gap="md">
                 <RoutineSchedule values={form.values} errors={form.errors} onChange={(changes) => form.setValues(changes)} onCommit={commit} />
@@ -319,13 +311,6 @@ export function RoutineForm({ routine, parent, categoryId = null, projectId = nu
 function RoutineComments({ routine, occurrenceDate }: { routine: Routine; occurrenceDate: string | null }) {
   if (!occurrenceDate) return null;
   return (
-    <Comments
-      target="ROUTINE"
-      id={routine.id}
-      occurrenceDate={occurrenceDate}
-      title={`Commentaires du ${fmt.day(occurrenceDate)}`}
-      projectId={routine.projectId ?? null}
-      readOnly={routine.archived}
-    />
+    <Comments target="ROUTINE" id={routine.id} occurrenceDate={occurrenceDate} title={`Commentaires du ${fmt.day(occurrenceDate)}`} projectId={routine.projectId ?? null} readOnly={routine.archived} />
   );
 }

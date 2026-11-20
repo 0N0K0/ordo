@@ -175,7 +175,7 @@ Internes : `labelOf`, `sortItems`, `buildForest`, `filterForest`, `filterSection
 
 ### `pages/ClientPage.tsx`
 
-`ClientPage()` : route `/clients/:id` (dans `ProOnly`). En-tête, `PageSettings` « Paramètres du client » (onglets `billing` → `ClientBillingSection`, `client` → `ClientForm`, via `useSettingsTab`), section « Projets » (`ProjectList` ou `EmptyState`), `ProjectBillingPanel` du client et de ses projets. Constante interne `SETTINGS_TABS`.
+`ClientPage()` : route `/clients/:id` (dans `ProOnly`). En-tête, `PageSettings` « Paramètres du client » (onglets `billing` → `ClientBillingSection`, en lecture seule si le client est archivé, `client` → `ClientForm`, via `useSettingsTab`), section « Projets » (`ProjectList` ou `EmptyState`), `ProjectBillingPanel` du client et de ses projets. Constante interne `SETTINGS_TABS`.
 
 ### `pages/ProjectPage.tsx`
 

@@ -85,7 +85,7 @@ Panneau latéral « Nouveau produit » / « Modifier le produit » / « Élémen
 | « Description »          | Markdown, 65 536 caractères.                                                                                    |
 | « Manque »               | Produit seulement ; coché par défaut pour un nouveau produit (« Il sera mis sur la prochaine liste générée. »). |
 
-Un élément venu de fiches affiche « Vient de la fiche … » avec leur part. Les commentaires du produit ou de l'élément s'affichent sous le formulaire. Un nouveau produit ou élément : bouton « Ajouter », toast « Ajouté. ». Un produit ou un élément existant s'enregistre champ par champ (décision D22) : chaque champ dès qu'il change (« Label », « Quantité », « Prix unitaire estimé », « Lien vers le produit » et « Description » en les quittant), sans bouton « Enregistrer » ; « Enregistrement… » puis « Enregistré » en haut du panneau ; un champ invalide garde son erreur dessous et n'est pas enregistré, un échec le remet comme il était, dans un toast d'erreur ; un champ changé ailleurs (une cellule, un autre onglet) est repris, sauf pendant sa saisie. Un produit archivé s'ouvre en lecture seule.
+Un élément venu de fiches affiche « Vient de la fiche … » avec leur part. Les commentaires du produit ou de l'élément s'affichent sous le formulaire. Un nouveau produit ou élément : bouton « Ajouter », toast « Ajouté. ». Un produit ou un élément existant s'enregistre champ par champ (décision D22) : chaque champ dès qu'il change (« Label », « Quantité », « Prix unitaire estimé », « Lien vers le produit » et « Description » en les quittant), sans bouton « Enregistrer » ; « Enregistrement… » puis « Enregistré » en haut du panneau ; un champ invalide garde son erreur dessous et n'est pas enregistré, un échec le remet comme il était, dans un toast d'erreur ; un champ changé ailleurs (une cellule, un autre onglet) est repris, sauf pendant sa saisie. Un produit archivé s'ouvre en lecture seule, comme un élément d'une liste close ou archivée (action « Voir », panneau « Élément », commentaires en lecture seule) ; un produit d'une référence reste modifiable.
 
 ### Déplacer des produits
 
@@ -148,7 +148,7 @@ Panneau « Ajouter des produits des références » (`ProductPicker`) : recherch
 
 ### Actions d'un élément
 
-- « Modifier » (formulaire, liste non close).
+- « Modifier » (panneau de l'élément, liste non close) ; liste close ou archivée : « Voir » (même panneau, en lecture seule).
 - « Ajouter à « Référence » » pour chaque référence (élément hors références, liste non close) : crée le produit dans la référence et lie l'élément. Toast « Ajouté à « X ». ».
 - « Ajouter avec une autre date » (élément périssable) : ajoute la même ligne, non achetée, sans date (« Le même produit, acheté avec une autre date de péremption »). Toast « Ligne ajoutée : indiquez sa date. ».
 - « Ajouter au stock… » : panneau « Ajouter au stock ».

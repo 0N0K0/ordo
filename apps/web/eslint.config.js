@@ -123,11 +123,21 @@ export default defineConfig([
           selector: "CallExpression[callee.name='lazy']",
           message: 'Utiliser lazyNamed (lib/lazy) : une seule façon de charger un composant à la demande.',
         },
+        // Errors under a field of a form (an address, phones, lines): nestedErrors (lib/form), not filtered by hand.
+        {
+          selector: "CallExpression[callee.property.name='startsWith'] > Literal[value=/^[A-Za-z]+\\.$/]",
+          message: 'Utiliser nestedErrors (lib/form) : les erreurs sous un champ du formulaire (adresse, téléphones, lignes).',
+        },
+        // An editor without getInputProps in a panel saved field by field: fieldProps (useFieldSave), not commit by hand.
+        {
+          selector: "JSXOpeningElement[name.name=/^(MarkdownEditor|AddressFields|PhonesField)$/] > JSXAttribute[name.name='onBlur'] CallExpression[callee.name='commit']",
+          message: 'Utiliser fieldProps(champ) de useFieldSave (lib/form) : valeur, changement et enregistrement en le quittant.',
+        },
         // Detail panels saved field by field (decision D22, useFieldSave): no « Enregistrer » button in them (their creation
-        // form keeps « Créer… »). Each converted panel adds its component here (lots 14c–14d).
+        // form keeps « Créer… »). Each converted panel adds its component here (lot 14d next).
         {
           selector:
-            "FunctionDeclaration[id.name=/^(TaskDetail|TaskLinks|TaskLinksEditor|RoutineForm|EventForm|RoutineOccurrenceForm|TimeEntryForm|AlarmForm|ShoppingForm|DeliveryForm|ListForm|SheetFields)$/] JSXOpeningElement[name.name='FormActions']:matches(:not(:has(JSXAttribute[name.name='submitLabel'])), :has(JSXAttribute[name.name='submitLabel'] Literal[value=/^Enregistrer/]))",
+            "FunctionDeclaration[id.name=/^(TaskDetail|TaskLinks|TaskLinksEditor|RoutineForm|EventForm|RoutineOccurrenceForm|TimeEntryForm|AlarmForm|ShoppingForm|DeliveryForm|ListForm|SheetFields|RecurringForm|ImportedDocumentForm|ResourceForm|ClientDetailsForm|ClientServiceForm|ClientContactForm|CatalogItemForm|CompanyForm|Editor|EntryForm|BudgetForm|PeriodForm|RelationForm)$/] JSXOpeningElement[name.name='FormActions']:matches(:not(:has(JSXAttribute[name.name='submitLabel'])), :has(JSXAttribute[name.name='submitLabel'] Literal[value=/^Enregistrer/]))",
           message: 'Panneau de détail enregistré champ par champ (décision D22) : useFieldSave (lib/form) et SaveStatus, pas de bouton « Enregistrer ».',
         },
         // One word and one behaviour to copy anything (decision D20): « Dupliquer », saved at once, then opened.

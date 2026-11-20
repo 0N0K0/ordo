@@ -42,8 +42,11 @@ type FormValues = Omit<ShoppingProductInput, 'quantity' | 'unitPrice' | 'url' | 
 };
 
 export interface ShoppingFormProps {
-  /** Product of a base list, or item of a list (edited when given). */
-  target: { kind: 'product'; baseListId: string; product?: ShoppingProduct } | { kind: 'item'; listId: string; item?: ShoppingItem };
+  /**
+   * Product of a base list, or item of a list (edited when given); `readOnly`: the item of a closed or archived list,
+   * opened read only (a product of a base list stays editable).
+   */
+  target: { kind: 'product'; baseListId: string; product?: ShoppingProduct } | { kind: 'item'; listId: string; item?: ShoppingItem; readOnly?: boolean };
   onDone: () => void;
 }
 
@@ -90,7 +93,7 @@ const itemInput = (values: FormValues): Omit<FormValues, 'missing' | 'baseListId
  * Product of a base list or item of a list: name, category, store, quantity and unit, unit price, link, description and
  * the people it is for; a product is also marked missing or not. A new one is a form with « Ajouter »; an existing one,
  * its panel, saves each field as soon as it changes (texts and numbers on leaving them, decision D22, `useFieldSave`),
- * the one of the cache followed. An archived product is read only.
+ * the one of the cache followed. An archived product, an item of a closed or archived list are read only.
  * @param {ShoppingFormProps} props Component props.
  * @returns {JSX.Element} Form.
  */
@@ -130,9 +133,9 @@ export function ShoppingForm({ target, onDone }: ShoppingFormProps) {
       });
     return mutations.updateItem.mutateAsync({ id: target.item!.id, input: itemInput(values) });
   };
-  // An archived product: read only (its comments too).
-  const readOnly = target.kind === 'product' && Boolean(target.product?.archived);
-  const { form, saving, commit } = useFieldSave(base, {
+  // An archived product, an item of a closed or archived list: read only (its comments too).
+  const readOnly = target.kind === 'product' ? Boolean(target.product?.archived) : Boolean(target.readOnly);
+  const { form, saving, fieldProps } = useFieldSave(base, {
     save: edited ? save : null,
     schema,
     saved: current && shoppingFormValues(target, current),
@@ -221,21 +224,14 @@ export function ShoppingForm({ target, onDone }: ShoppingFormProps) {
               description={`Contributeurs et ${relationNoun(perso, true).toLowerCase()} concernés : la répartition d’un mouvement de trésorerie qui paie la liste.`}
             />
             <TextInput label="Lien vers le produit" placeholder="https://…" type="url" {...form.getInputProps('url')} />
-            <MarkdownEditor
-              label="Description"
-              value={form.values.note}
-              onChange={(note) => form.setFieldValue('note', note)}
-              onBlur={() => commit(['note'])}
-              suggestions={context?.suggestionsFor(null) ?? NO_SUGGESTIONS}
-              minRows={2}
-            />
+            <MarkdownEditor label="Description" {...fieldProps('note')} suggestions={context?.suggestionsFor(null) ?? NO_SUGGESTIONS} minRows={2} />
             {target.kind === 'product' && <Checkbox label="Manque" description="Il sera mis sur la prochaine liste générée." {...form.getInputProps('missing', { type: 'checkbox' })} />}
             {!edited && <FormActions onCancel={onDone} submitLabel="Ajouter" loading={pending} />}
           </Stack>
         </Fieldset>
       </form>
       {target.kind === 'product' && target.product && <Comments target="SHOPPING_PRODUCT" id={target.product.id} readOnly={target.product.archived} />}
-      {target.kind === 'item' && target.item && <Comments target="SHOPPING_ITEM" id={target.item.id} />}
+      {target.kind === 'item' && target.item && <Comments target="SHOPPING_ITEM" id={target.item.id} readOnly={readOnly} />}
     </Stack>
   );
 }

@@ -7,7 +7,7 @@ import { confirmDestructive } from '../../../components/dialogs/confirm-destruct
 import { openFormPanel } from '../../../components/panels/panels';
 import { Anchor, Badge, Group, SimpleGrid, Stack, Text } from '@mantine/core';
 import { addressLines, contactName, hasAddress, type Address, type Phone } from '@ordo/shared';
-import { PencilSimpleIcon, PlusIcon, TrashIcon, UserPlusIcon } from '@phosphor-icons/react';
+import { EyeIcon, PencilSimpleIcon, PlusIcon, TrashIcon, UserPlusIcon } from '@phosphor-icons/react';
 import { countryName } from '../lib/countries';
 
 import { useClientBilling, useClientPartyMutations, type ClientBilling, type ClientContact, type ClientService } from '../api';
@@ -57,10 +57,10 @@ function ContactInfo({ address, email, phones, website }: { address: unknown; em
 
 /**
  * One contact person.
- * @param {{ client: ClientBilling, contact: ClientContact }} props Component props.
+ * @param {{ client: ClientBilling, contact: ClientContact, readOnly: boolean }} props Component props (`readOnly`: archived client).
  * @returns {JSX.Element} Contact.
  */
-function ContactRow({ client, contact }: { client: ClientBilling; contact: ClientContact }) {
+function ContactRow({ client, contact, readOnly }: { client: ClientBilling; contact: ClientContact; readOnly: boolean }) {
   const { deleteContact } = useClientPartyMutations();
   const name = contactName(contact);
   return (
@@ -81,11 +81,11 @@ function ContactRow({ client, contact }: { client: ClientBilling; contact: Clien
         name={name}
         items={[
           {
-            label: 'Modifier',
-            icon: <PencilSimpleIcon aria-hidden />,
-            onClick: () => openFormPanel('Modifier le contact', (close) => <ClientContactForm client={client} contact={contact} onDone={close} />),
+            label: readOnly ? 'Voir' : 'Modifier',
+            icon: readOnly ? <EyeIcon aria-hidden /> : <PencilSimpleIcon aria-hidden />,
+            onClick: () => openFormPanel(readOnly ? 'Contact' : 'Modifier le contact', (close) => <ClientContactForm client={client} contact={contact} onDone={close} readOnly={readOnly} />),
           },
-          {
+          !readOnly && {
             label: 'Supprimer',
             icon: <TrashIcon aria-hidden />,
             danger: true,
@@ -100,10 +100,10 @@ function ContactRow({ client, contact }: { client: ClientBilling; contact: Clien
 
 /**
  * One service with its contacts.
- * @param {{ client: ClientBilling, service: ClientService }} props Component props.
+ * @param {{ client: ClientBilling, service: ClientService, readOnly: boolean }} props Component props (`readOnly`: archived client).
  * @returns {JSX.Element} Service.
  */
-function ServiceCard({ client, service }: { client: ClientBilling; service: ClientService }) {
+function ServiceCard({ client, service, readOnly }: { client: ClientBilling; service: ClientService; readOnly: boolean }) {
   const { deleteService } = useClientPartyMutations();
   const contacts = client.contacts.filter((contact) => contact.serviceId === service.id);
   return (
@@ -113,17 +113,17 @@ function ServiceCard({ client, service }: { client: ClientBilling; service: Clie
         <InlineActions
           name={service.label}
           items={[
-            {
+            !readOnly && {
               label: 'Ajouter un contact',
               icon: <UserPlusIcon aria-hidden />,
               onClick: () => openFormPanel('Nouveau contact', (close) => <ClientContactForm client={client} serviceId={service.id} onDone={close} />),
             },
             {
-              label: 'Modifier',
-              icon: <PencilSimpleIcon aria-hidden />,
-              onClick: () => openFormPanel('Modifier le service', (close) => <ClientServiceForm clientId={client.id} service={service} onDone={close} />),
+              label: readOnly ? 'Voir' : 'Modifier',
+              icon: readOnly ? <EyeIcon aria-hidden /> : <PencilSimpleIcon aria-hidden />,
+              onClick: () => openFormPanel(readOnly ? 'Service' : 'Modifier le service', (close) => <ClientServiceForm clientId={client.id} service={service} onDone={close} readOnly={readOnly} />),
             },
-            {
+            !readOnly && {
               label: 'Supprimer',
               icon: <TrashIcon aria-hidden />,
               danger: true,
@@ -141,7 +141,7 @@ function ServiceCard({ client, service }: { client: ClientBilling; service: Clie
     >
       <ContactInfo address={service.address} email={service.email} phones={service.phones} />
       {contacts.map((contact) => (
-        <ContactRow key={contact.id} client={client} contact={contact} />
+        <ContactRow key={contact.id} client={client} contact={contact} readOnly={readOnly} />
       ))}
     </SettingsSection>
   );
@@ -149,11 +149,11 @@ function ServiceCard({ client, service }: { client: ClientBilling; service: Clie
 
 /**
  * Billing section of a client page: details (professional or individual, address, identifiers), services
- * and contacts.
- * @param {{ clientId: string }} props Component props.
+ * and contacts. Archived client: read only (the panels open read only, nothing is added or removed).
+ * @param {{ clientId: string, readOnly?: boolean }} props Component props.
  * @returns {JSX.Element} Section.
  */
-export function ClientBillingSection({ clientId }: { clientId: string }) {
+export function ClientBillingSection({ clientId, readOnly = false }: { clientId: string; readOnly?: boolean }) {
   const { data: client, isPending } = useClientBilling(clientId);
   if (isPending) return <ListSkeleton items={3} lines={2} />;
   if (!client) return null;
@@ -176,26 +176,30 @@ export function ClientBillingSection({ clientId }: { clientId: string }) {
               priority="secondary"
               size="xs"
               icon={<PencilSimpleIcon aria-hidden />}
-              onClick={() => openFormPanel('Coordonnées de facturation', (close) => <ClientDetailsForm client={client} onDone={close} />)}
+              onClick={() => openFormPanel('Coordonnées de facturation', () => <ClientDetailsForm client={client} readOnly={readOnly} />)}
             >
               Coordonnées
             </ActionButton>
-            <ActionButton
-              priority="secondary"
-              size="xs"
-              icon={<PlusIcon aria-hidden />}
-              onClick={() => openFormPanel('Nouveau service', (close) => <ClientServiceForm clientId={client.id} onDone={close} />)}
-            >
-              Nouveau service
-            </ActionButton>
-            <ActionButton
-              priority="secondary"
-              size="xs"
-              icon={<UserPlusIcon aria-hidden />}
-              onClick={() => openFormPanel('Nouveau contact', (close) => <ClientContactForm client={client} onDone={close} />)}
-            >
-              Nouveau contact
-            </ActionButton>
+            {!readOnly && (
+              <>
+                <ActionButton
+                  priority="secondary"
+                  size="xs"
+                  icon={<PlusIcon aria-hidden />}
+                  onClick={() => openFormPanel('Nouveau service', (close) => <ClientServiceForm clientId={client.id} onDone={close} />)}
+                >
+                  Nouveau service
+                </ActionButton>
+                <ActionButton
+                  priority="secondary"
+                  size="xs"
+                  icon={<UserPlusIcon aria-hidden />}
+                  onClick={() => openFormPanel('Nouveau contact', (close) => <ClientContactForm client={client} onDone={close} />)}
+                >
+                  Nouveau contact
+                </ActionButton>
+              </>
+            )}
           </>
         }
       />
@@ -226,12 +230,12 @@ export function ClientBillingSection({ clientId }: { clientId: string }) {
         {looseContacts.length > 0 && (
           <SettingsSection title="Contacts">
             {looseContacts.map((contact) => (
-              <ContactRow key={contact.id} client={client} contact={contact} />
+              <ContactRow key={contact.id} client={client} contact={contact} readOnly={readOnly} />
             ))}
           </SettingsSection>
         )}
         {client.services.map((service) => (
-          <ServiceCard key={service.id} client={client} service={service} />
+          <ServiceCard key={service.id} client={client} service={service} readOnly={readOnly} />
         ))}
       </SimpleGrid>
     </Stack>
