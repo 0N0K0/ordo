@@ -23,7 +23,7 @@ import { useVirtualizer } from '@tanstack/react-virtual';
 
 import { ColumnHeaderMenu, type ColumnMove } from '../toolbar/ColumnHeaderMenu';
 import { clampWidth, columnOrder, MAX_WIDTH, MIN_WIDTH, toggleSort, withOrder, withVisibility, type ShownColumn, type TreeGroup } from './data-table';
-import { columnFilter, LAST_RANK } from './table-engine';
+import { columnFilter, LAST_RANK, NO_VALUE_LABEL } from './table-engine';
 import { DataViewBar, type DataViewBarProps } from '../toolbar/DataViewBar';
 import { GroupHeaderRow } from './GroupHeaderRow';
 import { NoMatch } from './NoMatch';
@@ -116,8 +116,6 @@ interface DataTableProps<R> extends Omit<TableProps, 'children'> {
   toolbar?: boolean;
   /** Height of its scrolling area at most, in place of the room of the page (a table in a form). Optional. */
   maxHeight?: number | string;
-  /** Groups of its own (a tree: categories…), used when the view does not group by a column. Optional. */
-  groupTree?: GroupTree<R>;
 }
 
 /** Props given to each row of the body: its index and its measure (the rows shown are those in view). */
@@ -146,15 +144,13 @@ type Item<R> =
   | { kind: 'group'; id: string; level: number; color: string | null; group: RowGroup<R>; own: R[]; children: Item<R>[] }
   | { kind: 'row'; id: string; key: string; level: number; row: R; children: Item<R>[] };
 
-/** Groups of its own a table puts its rows in (when the view does not group them by a column). */
-export interface GroupTree<R> {
+/** Tree of groups the rows are put in when the view groups them by a column with a `groupTree`. */
+interface GroupTree<R> {
   groups: readonly TreeGroup[];
   /** Groups of a row (several: shown in each; none: the group without, last). */
   groupOf: (row: R) => readonly string[];
   /** Name of the group without. */
   noneLabel: string;
-  /** The groups without rows show too (they always do while a row is dragged). Optional. Default = false. */
-  showEmpty?: boolean;
 }
 
 /** Key of the group without. */
@@ -246,15 +242,14 @@ function treeOf<R>(rows: R[], getKey: (row: R) => string, parentKey: ((row: R) =
 
 /**
  * Rows in a tree of groups: each group with its own rows (as a tree) then its sub-groups, the group without last; the
- * groups without rows left out unless asked.
+ * groups without rows always left out (also while a row is dragged: a row is dropped on a group that has some).
  * @param {R[]} rows Rows, in order.
  * @param {GroupTree<R>} tree Groups.
  * @param {(row: R) => string} getKey Key of a row.
  * @param {((row: R) => string | null) | undefined} parentKey Parent of a row (none: flat).
- * @param {boolean} showAll The groups without rows show.
  * @returns {Item<R>[]} Items.
  */
-function groupTreeOf<R>(rows: R[], tree: GroupTree<R>, getKey: (row: R) => string, parentKey: ((row: R) => string | null) | undefined, showAll: boolean): Item<R>[] {
+function groupTreeOf<R>(rows: R[], tree: GroupTree<R>, getKey: (row: R) => string, parentKey: ((row: R) => string | null) | undefined): Item<R>[] {
   const known = new Set(tree.groups.map((group) => group.key));
   const byGroup = new Map<string, R[]>();
   for (const row of rows) {
@@ -276,7 +271,7 @@ function groupTreeOf<R>(rows: R[], tree: GroupTree<R>, getKey: (row: R) => strin
     const own = byGroup.get(group.key) ?? [];
     const subs = (children.get(group.key) ?? []).flatMap((child) => make(child, level + 1) ?? []);
     const all = [...own, ...subs.flatMap((sub) => (sub.kind === 'group' ? sub.group.rows : []))];
-    if (!all.length && !showAll) return null;
+    if (!all.length) return null;
     return {
       kind: 'group',
       id: `${GROUP_PREFIX}${group.key}`,
@@ -289,7 +284,7 @@ function groupTreeOf<R>(rows: R[], tree: GroupTree<R>, getKey: (row: R) => strin
   };
   const roots = (children.get(null) ?? []).flatMap((group) => make(group, 0) ?? []);
   const none = byGroup.get(NO_GROUP) ?? [];
-  if (none.length || showAll) {
+  if (none.length) {
     roots.push({
       kind: 'group',
       id: `${GROUP_PREFIX}${NO_GROUP}`,
@@ -340,7 +335,6 @@ export function DataTable<R>({
   loading = false,
   toolbar = true,
   maxHeight: ownHeight,
-  groupTree,
   className,
   style,
   ...tableProps
@@ -374,15 +368,13 @@ export function DataTable<R>({
   // Check boxes of the rows, to act on several (a table without its own leading cell).
   const checks = view.rowSelection;
   const bulkTable = useMemo(() => ({ selection: view.selection, keyOf: getKey as (row: unknown) => string, rows: view.rows as readonly unknown[] }), [view.selection, getKey, view.rows]);
-  const rowDrag = onMoveRow ? manual || Boolean(view.groupColumn || groupTree) : draggable;
+  const rowDrag = onMoveRow ? manual || Boolean(view.groupColumn) : draggable;
   const leadWidth = (rowDrag || tree ? HANDLE_WIDTH : 0) + (checks ? ROW_CHECK_WIDTH : 0);
   const hasLead = leadWidth > 0;
   const before = (hasLead ? 1 : 0) + (leading ? 1 : 0);
   const span = shown.length + 1 + before;
   const sensors = useDragSensors('sortable');
 
-  // The empty groups show while a row is dragged (to drop it there).
-  const dragging = drag !== null && !drag.activeId.startsWith(COLUMN_PREFIX);
   const items = useMemo((): Item<R>[] => {
     const tree = view.groupColumn?.groupTree;
     if (view.groupColumn && tree) {
@@ -398,7 +390,7 @@ export function DataTable<R>({
         }
         return [];
       };
-      return groupTreeOf(inOrder(view.rows), { groups: tree, groupOf, noneLabel: 'Sans valeur' }, getKey, treeKey, dragging);
+      return groupTreeOf(inOrder(view.rows), { groups: tree, groupOf, noneLabel: view.groupColumn.groupNoneLabel ?? NO_VALUE_LABEL }, getKey, treeKey);
     }
     if (view.groupColumn) {
       return view.groups.map((group) => ({
@@ -411,10 +403,9 @@ export function DataTable<R>({
         children: treeOf(inOrder(group.rows), getKey, treeKey, 1),
       }));
     }
-    if (groupTree) return groupTreeOf(inOrder(view.rows), groupTree, getKey, treeKey, Boolean(groupTree.showEmpty) || dragging);
     return treeOf(inOrder(view.rows), getKey, treeKey);
     // inOrder reads the manual order (rank) and the sort: both in its deps through them.
-  }, [view.rows, view.groups, view.groupColumn, getKey, treeKey, rank, manual, onMoveRow, groupTree, dragging]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [view.rows, view.groups, view.groupColumn, getKey, treeKey, rank, manual, onMoveRow]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const columns = useMemo(() => {
     const helper = createColumnHelper<typeof features, Item<R>>();
@@ -730,8 +721,8 @@ export function DataTable<R>({
     }
   }
   closeTo(0);
-  // The end of the table adds one without group (when the group without is not shown).
-  if (!view.groupColumn && !(groupTree && visibleRows.some((row) => row.id === `${GROUP_PREFIX}${NO_GROUP}`))) {
+  // The end of the table adds one without group: not grouped, or grouped as a tree without the group without shown.
+  if (!view.groupColumn || (view.groupColumn.groupTree && !visibleRows.some((row) => row.id === `${GROUP_PREFIX}${NO_GROUP}`))) {
     const add = addRowOf(null);
     if (add) entries.push(add);
   }

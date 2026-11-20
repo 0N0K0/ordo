@@ -133,13 +133,18 @@ export function categoriesForBaseList(categories: readonly ShoppingCategory[], b
 /** Way products and items are grouped: category, store, way of keeping, or the people they are for. */
 export type ShoppingGrouping = 'category' | 'store' | 'storage' | 'people';
 
-/** Groupings offered, with their name. */
-export const SHOPPING_GROUPINGS: { value: ShoppingGrouping; label: string }[] = [
-  { value: 'category', label: 'Catégorie' },
-  { value: 'store', label: 'Magasin' },
-  { value: 'storage', label: 'Conservation' },
-  { value: 'people', label: 'Bénéficiaire' },
-];
+/** Column of a shopping table each grouping is made by (the view groups by it, as any table). */
+const GROUPING_COLUMNS: Record<ShoppingGrouping, string> = { category: 'category', store: 'store', storage: 'conservation', people: 'people' };
+
+/**
+ * Grouping of a shopping table grouped by a column: its category, store, way of keeping or people; null for another
+ * column or none (a row dropped or added in a group then changes nothing of its place).
+ * @param {string | null | undefined} columnId Column the view groups by.
+ * @returns {ShoppingGrouping | null} Grouping.
+ */
+export function groupingOfColumn(columnId: string | null | undefined): ShoppingGrouping | null {
+  return (Object.keys(GROUPING_COLUMNS) as ShoppingGrouping[]).find((grouping) => GROUPING_COLUMNS[grouping] === columnId) ?? null;
+}
 
 /** Name of the group of the rows without one, by grouping. */
 export const NO_GROUP_NAME: Record<ShoppingGrouping, string> = {
@@ -147,14 +152,6 @@ export const NO_GROUP_NAME: Record<ShoppingGrouping, string> = {
   store: 'Sans magasin',
   storage: 'Non périssable ou sans mode',
   people: 'Personne en particulier',
-};
-
-/** Label of the switch showing the empty groups, by grouping. */
-export const EMPTY_GROUPS_LABEL: Record<ShoppingGrouping, string> = {
-  category: 'Catégories vides',
-  store: 'Magasins vides',
-  storage: 'Modes vides',
-  people: 'Bénéficiaires sans achat',
 };
 
 /**
@@ -261,14 +258,12 @@ export const NO_GROUP = 'none';
  * @param {T[]} items Products or items, in their order.
  * @param {ShoppingGrouping} grouping Grouping.
  * @param {ShoppingGroupLabels} labels Names of the groups.
- * @param {boolean} [showEmpty=false] Also the empty categories or stores (to drop something in them). Optional.
  * @returns {ShoppingRow<T>[]} Rows.
  */
 export function shoppingRows<T extends Pick<ShoppingFields, 'categoryId' | 'storeId' | 'storageId' | 'perishable' | 'memberIds' | 'relationIds'>>(
   items: T[],
   grouping: ShoppingGrouping,
   labels: ShoppingGroupLabels,
-  showEmpty = false,
 ): ShoppingRow<T>[] {
   const groups =
     grouping === 'category'
@@ -301,13 +296,13 @@ export function shoppingRows<T extends Pick<ShoppingFields, 'categoryId' | 'stor
   const rows: ShoppingRow<T>[] = [];
   for (const group of groups) {
     const subtree = inSubtree.get(group.id) ?? [];
-    if (!showEmpty && subtree.length === 0) continue;
+    if (subtree.length === 0) continue;
     const parents = chain(group.id).slice(0, -1);
     rows.push({ kind: 'group', id: group.id, label: group.label, color: group.color, depth: group.depth, parents, items: subtree });
     for (const item of items) if (keysOf.get(item)?.includes(group.id)) rows.push({ kind: 'item', item, depth: group.depth + 1, groupId: group.id, parents: [...parents, group.id] });
   }
   const others = items.filter((item) => !keysOf.get(item)?.length);
-  if (others.length || showEmpty) {
+  if (others.length) {
     rows.push({ kind: 'group', id: null, label: NO_GROUP_NAME[grouping], color: null, depth: 0, parents: [], items: others });
     for (const item of others) rows.push({ kind: 'item', item, depth: 1, groupId: null, parents: [NO_GROUP] });
   }

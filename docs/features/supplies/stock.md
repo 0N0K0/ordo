@@ -27,7 +27,7 @@ Table des articles (`StockTable`), comme toutes les tables (vues, filtres, tris,
 - Colonnes :
   - « Article » (modifiable sur place ; badge « Archivé » ; si l'article a plusieurs lots, un repli « lots » montre le tableau de ses lots sous la ligne) ;
   - « Emplacement » (modifiable, arbre des emplacements) ;
-  - « Catégorie » (catégorie des achats, modifiable) ;
+  - « Catégorie » (catégorie des achats, modifiable ; groupée, en arbre des catégories avec « Sans catégorie ») ;
   - « Quantité » (somme des lots, grisée à 0) ;
   - « Unité » (modifiable, unités des achats) ;
   - « Date de péremption » : la première date des lots, en badge rouge si dépassée, orange avec un signe d'alerte à 3 jours ou moins, gris sinon ;
