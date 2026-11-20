@@ -43,7 +43,7 @@ export function ClientForm({ client, onDone }: ClientFormProps) {
   const current = client && (workspace?.clients.find((item) => item.id === client.id) ?? client);
   const readOnly = Boolean(current?.archived);
   const base = useAppForm<ClientValues>({ initialValues: clientValues(client), schema: clientFormSchema });
-  const { form, saving } = useFieldSave(base, {
+  const { form, saving, commitProps } = useFieldSave(base, {
     // Only the fields changed: the icon is not sent again.
     save: client ? (changes) => updateClient.mutateAsync({ id: client.id, input: { ...changes, color: changes.color === undefined ? undefined : changes.color || null } }) : null,
     schema: clientFormSchema,
@@ -63,7 +63,7 @@ export function ClientForm({ client, onDone }: ClientFormProps) {
         <Stack gap="md">
           {client && !readOnly && <SaveStatus saving={saving} />}
           <TextInput label="Nom" required data-autofocus={onDone ? true : undefined} {...form.getInputProps('name')} />
-          <ColorField placeholder="Aucune" {...form.getInputProps('color')} />
+          <ColorField placeholder="Aucune" {...commitProps('color')} />
           <IconField
             {...formIconProps(form, 'icon', 'removeIcon')}
             currentUrl={current?.iconUrl ?? null}

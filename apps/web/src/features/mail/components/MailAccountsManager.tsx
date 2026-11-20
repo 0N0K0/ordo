@@ -1,6 +1,6 @@
 import { InlineActions } from '../../../components/actions/ActionsMenu';
 import { EmptyState } from '../../../components/feedback/EmptyState';
-import { openModal } from '../../../components/panels/open-modal';
+import { openFormPanel } from '../../../components/panels/panels';
 import { ListSkeleton } from '../../../components/feedback/Skeletons';
 import { confirmDestructive } from '../../../components/dialogs/confirm-destructive';
 import { Group, Stack, Text, ThemeIcon } from '@mantine/core';
@@ -19,7 +19,7 @@ import { ActionButton } from '../../../components/actions/ActionButton';
 import { accountLabel } from '../lib/mail-format';
 
 /**
- * Settings of the mail accounts: add, edit, signature, archive (not read nor synchronised anymore, hidden until
+ * Settings of the mail accounts: add, edit, signature (each in the side panel), archive (not read nor synchronised anymore, hidden until
  * « Afficher les archivées », read only) or restore, remove.
  * @returns {JSX.Element} Manager.
  */
@@ -30,13 +30,13 @@ export function MailAccountsManager() {
   const { shown, toggle: archivedToggle } = useArchivedToggle(accounts ?? []);
 
   /**
-   * Opens a modal whose content receives a close callback.
+   * Opens a form of the accounts in the side panel (wide: servers side by side), given its closing.
    * @param {string} title Title.
    * @param {(close: () => void) => JSX.Element} render Content.
    * @returns {void}
    */
   const open = (title: string, render: (close: () => void) => React.ReactNode) => {
-    openModal(title, render, { size: 'xl' });
+    openFormPanel(title, render, 'lg');
   };
 
   /**

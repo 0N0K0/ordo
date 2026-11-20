@@ -131,7 +131,7 @@ Utilisés par `ScheduleSettings`.
 ### `components/ScheduleSettings.tsx`
 
 - `ScheduleSettings()` : `DefaultScheduleKind` + `ScheduleTypes` + `ForeignSchedules`. Utilisé par `CalendarPage`.
-- Interne `DefaultScheduleKind()` : couleur (`ColorField`), libellé (badge « Par défaut »), affichage des créneaux sans type (`saveDefaultKind`).
+- Interne `DefaultScheduleKind()` : couleur (`ColorField` non contrôlé, enregistrée par `onCommit`), libellé (badge « Par défaut »), affichage des créneaux sans type (`saveDefaultKind`).
 - Interne `ScheduleTypes()` : `SettingsList` des types (`useScheduleTypeItems`, `removeType`).
 - Interne `ForeignSchedules()` : abonnements aux types des autres espaces (`ByWorkspace`, `SubscriptionRow`, `LookToggle`/`LookPanel`, `setLook`, « Reprendre ceux du type ») ; rien sans autre espace ayant des créneaux.
 

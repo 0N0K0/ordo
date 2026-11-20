@@ -42,7 +42,6 @@ L’API accepte ce que l’interface empêche.
 - **Alarme de durée du chrono :** elle compte tout chrono en cours, sans vérifier qu’il porte sur sa tâche ou son projet. Voir [Règles des alarmes](business-rules/activities/alarms.md).
 - **PDF des documents :** la forme juridique, le capital et l’immatriculation du profil de la société ne sont pas imprimés, alors que les réglages « Ma société » les présentent comme imprimés et que le commentaire du pied de page parle d’« identité légale ». Voir [Règles de la facturation](business-rules/finances/accounting.md) et [Réglages](features/cross-cutting/settings.md).
 - **Message du tableau des tâches vide :** « Créez d’abord un projet : chaque tâche appartient à un projet. », alors que des tâches sans projet existent. Voir [Tâches](features/activities/tasks.md).
-- **Boîte mail et signature dans une fenêtre :** « Nouvelle boîte mail », « Modifier — X » et « Signature — X » s’ouvrent dans une modale (`openModal` de `MailAccountsManager`), alors que les formulaires vont dans le panneau latéral et les modales ne servent qu’aux confirmations ; enregistrés champ par champ depuis le lot 14d, un texte en cours de saisie est perdu si la fenêtre est fermée par Échap sans le quitter. Voir [Mails](features/resources/mail.md#paramètres-des-mails).
 
 ## Documentation à mettre à jour ou à compléter
 

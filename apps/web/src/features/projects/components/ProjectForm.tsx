@@ -90,7 +90,7 @@ export function ProjectForm({ project, defaults, onDone }: ProjectFormProps) {
     initialValues: projectValues(project, defaults),
     schema: projectFormSchema,
   });
-  const { form, saving } = useFieldSave(base, {
+  const { form, saving, commitProps } = useFieldSave(base, {
     // Only the fields changed: the icon is not sent again, the client of a sub-project stays its parent's.
     save: project
       ? (changes) =>
@@ -161,7 +161,7 @@ export function ProjectForm({ project, defaults, onDone }: ProjectFormProps) {
               onChange={(value) => form.setFieldValue('statusId', value)}
               error={form.errors.statusId as string | undefined}
             />
-            <ColorField placeholder="Aucune" {...form.getInputProps('color')} />
+            <ColorField placeholder="Aucune" {...commitProps('color')} />
           </SimpleGrid>
           <CategoriesInput
             categories={workspace?.projectCategories ?? []}

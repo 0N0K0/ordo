@@ -136,6 +136,11 @@ export interface FieldSave<Values> {
    * its value, its change, and its save when it is left.
    */
   fieldProps: <K extends keyof Values & string>(field: K) => { value: Values[K]; onChange: (value: Values[K]) => void; onBlur: () => void };
+  /**
+   * Binding of a field that tells when its value is chosen (`onCommit`: a color picked at once, typed on leaving it,
+   * `ColorField`): its input props, saved on `onCommit` only, whatever `onBlur` lists.
+   */
+  commitProps: (field: keyof Values & string) => ReturnType<UseFormReturnType<Values>['getInputProps']> & { onCommit: () => void };
 }
 
 /**
@@ -186,7 +191,8 @@ function fieldErrors(schema: Schema, values: Record<string, unknown>, fields: re
  * @returns {FieldSave<Values>} Form to bind the fields to, whether a save is running (`SaveStatus`), the save of
  *   fields now (those saved on leaving them, by an editor without `getInputProps`: a place), the end of the saves
  *   asked (`settled`, before an action on the item as saved), and the binding of an editor without `getInputProps` to
- *   a field saved on leaving it (`fieldProps`: a description, an address, phones).
+ *   a field saved on leaving it (`fieldProps`: a description, an address, phones), and of a field saved when it
+ *   tells its value is chosen (`commitProps`: a color).
  */
 export function useFieldSave<Values extends Record<string, unknown>>(base: UseFormReturnType<Values>, options: FieldSaveOptions<Values>): FieldSave<Values> {
   const { save, schema, saved, onBlur = [], readOnly = false, onSaved, toSaved = (values: Values) => values } = options;
@@ -235,7 +241,7 @@ export function useFieldSave<Values extends Record<string, unknown>>(base: UseFo
       onChange: (value) => base.setFieldValue(field, value as never),
       onBlur: () => undefined,
     });
-    return { form: base, saving: pending > 0, commit: () => undefined, settled, fieldProps: formFieldProps };
+    return { form: base, saving: pending > 0, commit: () => undefined, settled, fieldProps: formFieldProps, commitProps: (field) => ({ ...base.getInputProps(field), onCommit: () => undefined }) };
   }
 
   /**
@@ -324,5 +330,11 @@ export function useFieldSave<Values extends Record<string, unknown>>(base: UseFo
     onChange: (value) => form.setFieldValue(field, value as never),
     onBlur: () => commit([field]),
   });
-  return { form, saving: pending > 0, commit, settled, fieldProps };
+  /**
+   * Binding of a field saved when it tells its value is chosen (a color: picked, or typed then left).
+   * @param {string} field Field.
+   * @returns {object} Input props and `onCommit`.
+   */
+  const commitProps: FieldSave<Values>['commitProps'] = (field) => ({ ...base.getInputProps(field), onCommit: () => commit([field]) });
+  return { form, saving: pending > 0, commit, settled, fieldProps, commitProps };
 }

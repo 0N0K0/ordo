@@ -39,7 +39,7 @@ function DefaultScheduleKind() {
             placeholder="Vert"
             aria-label="Couleur des créneaux sans type"
             defaultValue={defaultKind.color ?? ''}
-            onChangeEnd={(value) => saveDefaultKind.mutate({ ...defaultKind, ...readScheduleDisplay(defaultKind), color: value || null }, ON_ERROR)}
+            onCommit={(value) => saveDefaultKind.mutate({ ...defaultKind, ...readScheduleDisplay(defaultKind), color: value || null }, ON_ERROR)}
           />
           <TextInput
             key={defaultKind.label}
@@ -144,7 +144,7 @@ function ForeignSchedules() {
                       placeholder="Vert"
                       aria-label={`Couleur de « ${kind.label} » dans cet agenda`}
                       defaultValue={kind.color ?? ''}
-                      onChangeEnd={(value) => setLook.mutate({ ...target, input: { ...look, color: value || null } }, ON_ERROR)}
+                      onCommit={(value) => setLook.mutate({ ...target, input: { ...look, color: value || null } }, ON_ERROR)}
                     />
                   </Group>
                   <ScheduleLookEditor name={kind.label} value={kind} onChange={(display) => setLook.mutate({ ...target, input: { ...look, ...display } }, ON_ERROR)} />

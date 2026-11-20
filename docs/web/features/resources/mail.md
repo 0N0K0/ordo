@@ -104,7 +104,7 @@ Classes partagées par la page et les listes : `page`, `grid`, `gridInner`, `col
 
 ### `components/MailAccountsManager.tsx`
 
-- `MailAccountsManager()` : section de paramètres « Boîtes mail » : liste (avec archivées sur demande), « Ajouter », « Signature », « Modifier », archiver / restaurer (`archiveEntry`, `useSetArchived('MAIL_ACCOUNT')`), « Retirer » (confirmation). Les formulaires s’ouvrent en fenêtre `xl`. Utilisé par `MailPage` (paramètres et page sans boîte).
+- `MailAccountsManager()` : section de paramètres « Boîtes mail » : liste (avec archivées sur demande), « Ajouter », « Signature », « Modifier », archiver / restaurer (`archiveEntry`, `useSetArchived('MAIL_ACCOUNT')`), « Retirer » (confirmation). Les formulaires (nouvelle boîte, modification, signature) s’ouvrent dans le panneau latéral large (`openFormPanel`, `lg`). Utilisé par `MailPage` (paramètres et page sans boîte).
 
 ### `components/MailBody.tsx` et `MailBody.module.css`
 

@@ -6,6 +6,10 @@ import tseslint from 'typescript-eslint';
 import { defineConfig, globalIgnores } from 'eslint/config';
 import { TEXT_SIZE_RULES } from '../../packages/shared/eslint-rules.js';
 
+// Detail panels saved field by field (decision D22, useFieldSave): every one of the app (D22 complete, lot 14d).
+const D22_PANELS =
+  '/^(TaskDetail|TaskLinks|TaskLinksEditor|RoutineForm|EventForm|RoutineOccurrenceForm|TimeEntryForm|AlarmForm|ShoppingForm|DeliveryForm|ListForm|SheetFields|RecurringForm|ImportedDocumentForm|ResourceForm|ClientDetailsForm|ClientServiceForm|ClientContactForm|CatalogItemForm|CompanyForm|Editor|EntryForm|BudgetForm|PeriodForm|RelationForm|ProjectForm|ClientForm|MilestoneForm|SprintForm|ContributorForm|ChartEditor|MailAccountForm|MailSearchForm|SignatureForm|SettingsItemForm|ScheduleForm|SlotEditForm|LinkForm)$/';
+
 // Imports banned everywhere: Mantine pieces wrapped by a shared brick.
 const RESTRICTED_PATHS = [
   {
@@ -144,8 +148,13 @@ export default defineConfig([
         // the one deliberate « Enregistrer » is the numbering of the documents (NumberingSettings: setting a counter).
         {
           selector:
-            "FunctionDeclaration[id.name=/^(TaskDetail|TaskLinks|TaskLinksEditor|RoutineForm|EventForm|RoutineOccurrenceForm|TimeEntryForm|AlarmForm|ShoppingForm|DeliveryForm|ListForm|SheetFields|RecurringForm|ImportedDocumentForm|ResourceForm|ClientDetailsForm|ClientServiceForm|ClientContactForm|CatalogItemForm|CompanyForm|Editor|EntryForm|BudgetForm|PeriodForm|RelationForm|ProjectForm|ClientForm|MilestoneForm|SprintForm|ContributorForm|ChartEditor|MailAccountForm|MailSearchForm|SignatureForm|SettingsItemForm|ScheduleForm|SlotEditForm|LinkForm)$/] JSXOpeningElement[name.name='FormActions']:matches(:not(:has(JSXAttribute[name.name='submitLabel'])), :has(JSXAttribute[name.name='submitLabel'] Literal[value=/^Enregistrer/]))",
+            `FunctionDeclaration[id.name=${D22_PANELS}] JSXOpeningElement[name.name='FormActions']:matches(:not(:has(JSXAttribute[name.name='submitLabel'])), :has(JSXAttribute[name.name='submitLabel'] Literal[value=/^Enregistrer/]))`,
           message: 'Panneau de détail enregistré champ par champ (décision D22) : useFieldSave (lib/form) et SaveStatus, pas de bouton « Enregistrer ».',
+        },
+        // A color in a detail panel: saved at once when picked, on leaving it when typed (commitProps, ColorField onCommit).
+        {
+          selector: `FunctionDeclaration[id.name=${D22_PANELS}] JSXOpeningElement[name.name='ColorField'] > JSXSpreadAttribute > CallExpression[callee.property.name='getInputProps']`,
+          message: 'Utiliser commitProps(champ) de useFieldSave (lib/form) : couleur choisie enregistrée aussitôt, tapée en la quittant.',
         },
         // One word and one behaviour to copy anything (decision D20): « Dupliquer », saved at once, then opened.
         {

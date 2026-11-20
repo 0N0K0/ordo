@@ -6,6 +6,7 @@ import { IconField } from '../inputs/IconField';
 import { formIconProps } from '../inputs/icon-field';
 import { useColorSwatches } from '../../lib/use-color-swatches';
 import { useAppForm, formCallbacks, useFieldSave } from '../../lib/form';
+import { useLiveValue, type LiveSource } from '../../lib/live-value';
 import { SaveStatus } from '../feedback/SaveStatus';
 import { useAsyncAction } from '../../lib/use-async-action';
 import { categoryOptions, categoryTree } from '../tree/category-tree';
@@ -75,6 +76,11 @@ interface SettingsItemFormProps<C extends SettingsItem, E extends object> extend
   parentId?: string | null;
   /** Items of the tree, for the choice of the parent; none: a flat list. Optional. */
   tree?: readonly C[];
+  /**
+   * Items of the list as it holds them now (`useLiveSource`): the item edited and the tree followed, values changed
+   * elsewhere taken (`saved` of `useFieldSave`). Optional. Default = the item and the tree given.
+   */
+  liveItems?: LiveSource<readonly C[]>;
   /** The parent is chosen in the form (else only by drag and drop). Optional. Default = true. */
   withParent?: boolean;
   /** Starting values of a new item (an address picked on a map…). Optional. */
@@ -87,19 +93,21 @@ interface SettingsItemFormProps<C extends SettingsItem, E extends object> extend
  * Form of an item of a settings list (every list, flat or tree): its name, color, image (shown as its avatar, its
  * initials on its color without one), parent in a tree, and the fields of its list. A new item is created by its
  * button; an existing one is saved field by field (decision D22): the color and the image through the look of every
- * list, the other fields by the list (a confirmation it asks, declined, puts the field back).
+ * list, the other fields by the list (a confirmation it asks, declined, puts the field back), the item of the list
+ * followed (`liveItems`); the color at once when picked, on leaving it when typed (`commitProps`).
  * @param {SettingsItemFormProps<C, E>} props Component props.
  * @returns {JSX.Element} Form.
  */
 export function SettingsItemForm<C extends SettingsItem, E extends object = Record<string, never>>({
   kind,
-  item,
+  item: openedItem,
   parentId = null,
-  tree,
+  tree: openedTree,
+  liveItems,
   withParent = true,
   initial,
   withColor = true,
-  colorRequired = !tree,
+  colorRequired = !openedTree,
   labelPlaceholder,
   labelField = 'Libellé',
   schema,
@@ -109,20 +117,28 @@ export function SettingsItemForm<C extends SettingsItem, E extends object = Reco
   onDone,
 }: SettingsItemFormProps<C, E>) {
   const swatches = useColorSwatches();
+  const live = useLiveValue(liveItems);
+  // The item and the tree as the list holds them now (the copy opened when it is no longer there).
+  const item = openedItem && (live?.find((other) => other.id === openedItem.id) ?? openedItem);
+  const tree = openedTree && (live ?? openedTree);
   const look = useSettingsItemLook();
   const parentColor = tree && parentId ? categoryTree(tree).find((placed) => placed.category.id === parentId)?.color : null;
-  const base = useAppForm<FormValues<E>>({
-    initialValues: {
-      label: item?.label ?? '',
-      color: item ? (item.color ?? '') : withColor && (colorRequired || !parentColor) ? (parentColor ?? swatches[0]) : '',
-      parentId: item ? (item.parentId ?? null) : parentId,
-      ...(extra?.initial(item) ?? ({} as E)),
-      ...(!item && initial),
+  /**
+   * Values of the form for an item (its image neither chosen nor removed), or for a new one.
+   * @param {C} [of] Item. Optional.
+   * @returns {FormValues<E>} Values.
+   */
+  const valuesOf = (of?: C): FormValues<E> =>
+    ({
+      label: of?.label ?? '',
+      color: of ? (of.color ?? '') : withColor && (colorRequired || !parentColor) ? (parentColor ?? swatches[0]) : '',
+      parentId: of ? (of.parentId ?? null) : parentId,
+      ...(extra?.initial(of) ?? ({} as E)),
+      ...(!of && initial),
       icon: null,
       removeIcon: false,
-    } as FormValues<E>,
-    schema,
-  });
+    }) as FormValues<E>;
+  const base = useAppForm<FormValues<E>>({ initialValues: valuesOf(item), schema });
 
   /**
    * Saves the look of an item (its image, and a color the list does not save itself), through the look of every list.
@@ -140,7 +156,7 @@ export function SettingsItemForm<C extends SettingsItem, E extends object = Reco
    */
   const itemValues = (values: FormValues<E>) => Object.fromEntries(Object.entries(values).filter(([key]) => key !== 'icon' && key !== 'removeIcon')) as SettingsItemValues<E>;
 
-  const { form, saving, commit } = useFieldSave(base, {
+  const { form, saving, commit, commitProps } = useFieldSave(base, {
     save: item
       ? async (changes, values) => {
           const fields = Object.keys(changes);
@@ -149,6 +165,7 @@ export function SettingsItemForm<C extends SettingsItem, E extends object = Reco
         }
       : null,
     schema,
+    saved: item && valuesOf(item),
     onBlur: ['label', 'color', ...(extra?.onBlur ?? [])] as (keyof FormValues<E> & string)[],
   });
 
@@ -170,7 +187,7 @@ export function SettingsItemForm<C extends SettingsItem, E extends object = Reco
       <Stack gap="md">
         {item && <SaveStatus saving={saving} />}
         <TextInput label={labelField} required placeholder={labelPlaceholder} data-autofocus {...form.getInputProps('label')} />
-        {withColor && <ColorField required={colorRequired} description={colorRequired ? undefined : 'Vide : celle de son parent.'} {...form.getInputProps('color')} />}
+        {withColor && <ColorField required={colorRequired} description={colorRequired ? undefined : 'Vide : celle de son parent.'} {...commitProps('color')} />}
         <IconField {...formIconProps(form, 'icon', 'removeIcon')} currentUrl={item?.iconUrl ?? null} name={values.label} color={withColor ? values.color || parentColor : null} />
         {tree && withParent && (
           <Select label="Parent" placeholder="Aucun (premier niveau)" clearable searchable {...treeSelectProps(categoryOptions(tree, item?.id))} {...form.getInputProps('parentId')} />

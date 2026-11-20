@@ -297,6 +297,7 @@ Description : « Lues en direct sur le serveur (IMAP) et utilisées pour l’env
 - « Afficher les archivées », « Ajouter ».
 - Chaque boîte : libellé, badge « Archivée », « Nom \<adresse\> » et « · signature » si elle en a une.
 - Actions : « Signature », « Modifier » (pas sur une boîte archivée), « Archiver » / « Restaurer », « Retirer ».
+- « Ajouter » (« Nouvelle boîte mail »), « Modifier » (« Modifier — X ») et « Signature » (« Signature — X ») s’ouvrent dans le panneau latéral, large.
 - « Retirer la boîte mail » : confirmation « \<adresse\> ne sera plus lue ni utilisée par Ordo, et ses réglages (mots de passe, signature) seront supprimés. Les mails restent sur le serveur, et ceux rattachés à des projets restent dans Ordo. », bouton « Retirer », toast « Boîte mail retirée. ».
 - Vide : « Aucune boîte mail configurée. ».
 
