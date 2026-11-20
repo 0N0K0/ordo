@@ -1,4 +1,4 @@
-import { formatOptionalDay, parseOptionalDay } from '@ordo/shared';
+import { formatOptionalDay, parseOptionalDay, sumOf } from '@ordo/shared';
 import { prisma } from '../../db';
 import { clientError } from '../../graphql/errors';
 import { releaseSubjectTime, timeLeftEmpty } from '../tasks/time-entries';
@@ -110,7 +110,7 @@ export async function lostOccurrences(owner: OccurrenceOwner, id: string, gone: 
  * @returns {void}
  */
 export function assertLossConfirmed(losses: readonly Pick<LostOccurrences, 'times' | 'comments'>[], confirmLoss?: boolean): void {
-  const lost = { times: losses.reduce((sum, item) => sum + item.times, 0), comments: losses.reduce((sum, item) => sum + item.comments, 0) };
+  const lost = { times: sumOf(losses, (item) => item.times), comments: sumOf(losses, (item) => item.comments) };
   if (confirmLoss === false && (lost.times || lost.comments)) {
     throw clientError('CONFIRMATION_REQUIRED', 'Ce changement fait disparaître des occurrences qui ont des commentaires ou des temps : confirmez pour continuer.', { lost });
   }
