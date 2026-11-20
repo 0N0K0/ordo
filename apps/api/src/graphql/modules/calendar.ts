@@ -498,4 +498,10 @@ builder.mutationFields((t) => ({
 }));
 
 // Display values are checked by the service.
-labelMutations('ScheduleType', schedules.scheduleTypes, { create: ScheduleTypeInput, update: ScheduleTypeInput }, { delete: 'Deletes a kind of time slots (its schedules stay, without kind).' });
+labelMutations(
+  'ScheduleType',
+  schedules.scheduleTypes,
+  { create: ScheduleTypeInput, update: ScheduleTypeInput },
+  { delete: 'Deletes a kind of time slots (its schedules stay, without kind); the occurrences of routines it makes disappear lose their comments, once confirmed.' },
+  (id, confirmLoss) => schedules.deleteScheduleType(id, (change) => settleScheduleChange(change, confirmLoss)),
+);

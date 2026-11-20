@@ -114,7 +114,7 @@ Interne : `historyItems(occurrences, checks, byId)` (moments prévus du jour, tr
 | ------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `HistoryItem`                                           | Moment de l'historique : routine, jour, index, horaires, `planned`, `optional`, `movedFrom`, `check`.                                                                     |
 | `AgendaLayers`                                          | `{ scheduleIds, calendarIds }` affichés avec les routines.                                                                                                                |
-| `RoutineDayAgenda({ day, today, items, byId, layers })` | Agenda FullCalendar d'un jour : horaires des créneaux en fond, évènements des calendriers (non archivés), moments des routines colorés par état ; un clic ouvre `TickForm`. |
+| `RoutineDayAgenda({ day, today, items, byId, layers })` | Agenda FullCalendar d'un jour : horaires des créneaux en fond, évènements des calendriers (non archivés), moments des routines colorés par état ; un clic ouvre `TickForm`, sauf pour une routine archivée (estompée, « (archivée) », lecture seule : décision D21). |
 
 Internes : `ItemState`, `STATES` (couleur et texte), `historyItemState`, `proposedTime`, `TickForm` (cocher après coup à une heure, changer l'heure, décocher, avec annulation).
 

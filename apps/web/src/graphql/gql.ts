@@ -116,7 +116,7 @@ type Documents = {
     "\n  query OtherWorkspaceSchedules {\n    otherWorkspaceSchedules {\n      id\n      archived\n      label\n      startDate\n      endDate\n      cases\n      exceptions\n      typeId\n      workspaceId\n      workspaceLabel\n    }\n  }\n": typeof types.OtherWorkspaceSchedulesDocument,
     "\n  mutation CreateScheduleType($input: ScheduleTypeInput!) {\n    createScheduleType(input: $input) {\n      id\n    }\n  }\n": typeof types.CreateScheduleTypeDocument,
     "\n  mutation UpdateScheduleType($id: ID!, $input: ScheduleTypeInput!) {\n    updateScheduleType(id: $id, input: $input) {\n      id\n    }\n  }\n": typeof types.UpdateScheduleTypeDocument,
-    "\n  mutation DeleteScheduleType($id: ID!) {\n    deleteScheduleType(id: $id)\n  }\n": typeof types.DeleteScheduleTypeDocument,
+    "\n  mutation DeleteScheduleType($id: ID!, $confirmLoss: Boolean) {\n    deleteScheduleType(id: $id, confirmLoss: $confirmLoss)\n  }\n": typeof types.DeleteScheduleTypeDocument,
     "\n  mutation SubscribeScheduleKind($workspaceId: ID!, $typeId: ID) {\n    subscribeScheduleKind(workspaceId: $workspaceId, typeId: $typeId)\n  }\n": typeof types.SubscribeScheduleKindDocument,
     "\n  mutation SaveDefaultScheduleKind($input: DefaultScheduleKindInput!) {\n    saveDefaultScheduleKind(input: $input) {\n      label\n    }\n  }\n": typeof types.SaveDefaultScheduleKindDocument,
     "\n  mutation SetScheduleSubscriptionLook($workspaceId: ID!, $typeId: ID, $input: ScheduleSubscriptionLookInput!) {\n    setScheduleSubscriptionLook(workspaceId: $workspaceId, typeId: $typeId, input: $input)\n  }\n": typeof types.SetScheduleSubscriptionLookDocument,
@@ -579,7 +579,7 @@ const documents: Documents = {
     "\n  query OtherWorkspaceSchedules {\n    otherWorkspaceSchedules {\n      id\n      archived\n      label\n      startDate\n      endDate\n      cases\n      exceptions\n      typeId\n      workspaceId\n      workspaceLabel\n    }\n  }\n": types.OtherWorkspaceSchedulesDocument,
     "\n  mutation CreateScheduleType($input: ScheduleTypeInput!) {\n    createScheduleType(input: $input) {\n      id\n    }\n  }\n": types.CreateScheduleTypeDocument,
     "\n  mutation UpdateScheduleType($id: ID!, $input: ScheduleTypeInput!) {\n    updateScheduleType(id: $id, input: $input) {\n      id\n    }\n  }\n": types.UpdateScheduleTypeDocument,
-    "\n  mutation DeleteScheduleType($id: ID!) {\n    deleteScheduleType(id: $id)\n  }\n": types.DeleteScheduleTypeDocument,
+    "\n  mutation DeleteScheduleType($id: ID!, $confirmLoss: Boolean) {\n    deleteScheduleType(id: $id, confirmLoss: $confirmLoss)\n  }\n": types.DeleteScheduleTypeDocument,
     "\n  mutation SubscribeScheduleKind($workspaceId: ID!, $typeId: ID) {\n    subscribeScheduleKind(workspaceId: $workspaceId, typeId: $typeId)\n  }\n": types.SubscribeScheduleKindDocument,
     "\n  mutation SaveDefaultScheduleKind($input: DefaultScheduleKindInput!) {\n    saveDefaultScheduleKind(input: $input) {\n      label\n    }\n  }\n": types.SaveDefaultScheduleKindDocument,
     "\n  mutation SetScheduleSubscriptionLook($workspaceId: ID!, $typeId: ID, $input: ScheduleSubscriptionLookInput!) {\n    setScheduleSubscriptionLook(workspaceId: $workspaceId, typeId: $typeId, input: $input)\n  }\n": types.SetScheduleSubscriptionLookDocument,
@@ -1348,7 +1348,7 @@ export function graphql(source: "\n  mutation UpdateScheduleType($id: ID!, $inpu
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */
-export function graphql(source: "\n  mutation DeleteScheduleType($id: ID!) {\n    deleteScheduleType(id: $id)\n  }\n"): typeof import('./graphql').DeleteScheduleTypeDocument;
+export function graphql(source: "\n  mutation DeleteScheduleType($id: ID!, $confirmLoss: Boolean) {\n    deleteScheduleType(id: $id, confirmLoss: $confirmLoss)\n  }\n"): typeof import('./graphql').DeleteScheduleTypeDocument;
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */

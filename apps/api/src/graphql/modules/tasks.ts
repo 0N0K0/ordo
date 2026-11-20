@@ -9,7 +9,8 @@ import { iconUrl } from '../../services/core/icons';
 import { taskPriorities, taskStatuses, taskTags, taskTypes } from '../../services/tasks/task-labels';
 import * as taskViews from '../../services/tasks/task-views';
 import * as tasks from '../../services/tasks/tasks';
-import { formatDay, formatOptionalDay, parseOptionalDay, readSlotCondition, sumOf, TASK_STATUS_CATEGORIES, taskDueDates, VIEW_KINDS } from '@ordo/shared';
+import { parseOptionalDay, readSlotCondition, sumOf, TASK_STATUS_CATEGORIES, VIEW_KINDS } from '@ordo/shared';
+import { DUE_DATES_SELECT as DUE_SELECT, storedDueDates as dueDatesOf } from '../../services/tasks/due-dates';
 import * as workspaces from '../../services/workspaces/workspaces';
 import { BY_POSITION } from '../../services/core/ordering';
 import { RemovedLinksResult, removedLinks } from '../removed-links';
@@ -162,20 +163,6 @@ builder.prismaObject('TaskComment', {
     githubAuthor: t.exposeString('githubAuthor', { nullable: true, description: 'Author on GitHub, when someone else than the connected account.' }),
   }),
 });
-
-/** What the dates a task goes by are computed from: its sprints with their days. */
-const DUE_SELECT = { sprints: { select: { id: true, startDate: true, endDate: true } } } as const;
-
-/**
- * « Ouverture » / « Échéance » a task goes by: its own, else those of its single sprint (`taskDueDates`).
- * @param {{ minDate: Date | null, deadline: Date | null, sprints: { id: string, startDate: Date, endDate: Date }[] }} task Task with its sprints.
- * @returns {import('@ordo/shared').TaskDueDates} Dates.
- */
-const dueDatesOf = (task: { minDate: Date | null; deadline: Date | null; sprints: { id: string; startDate: Date; endDate: Date }[] }) =>
-  taskDueDates({ minDate: formatOptionalDay(task.minDate), deadline: formatOptionalDay(task.deadline), sprintIds: task.sprints.map((sprint) => sprint.id) }, (id) => {
-    const sprint = task.sprints.find((item) => item.id === id);
-    return sprint && { startDate: formatDay(sprint.startDate), endDate: formatDay(sprint.endDate) };
-  });
 
 builder.prismaObject('Task', {
   fields: (t) => ({

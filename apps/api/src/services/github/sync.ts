@@ -10,6 +10,7 @@ import {
   parseOptionalDay,
   round2,
   sameName,
+  statusClosing,
   sumOf,
 } from '@ordo/shared';
 import { prisma } from '../../db';
@@ -278,6 +279,16 @@ async function pullData(values: SyncFields, task: SyncedTask, maps: Maps, item: 
   if ('closed' in values) data.closedAt = values.closed ? (task.closedAt ?? new Date()) : null;
   if ('status' in values) data.status = values.status ? { connect: { id: maps.optionStatus.get(String(values.status))! } } : { disconnect: true };
   if ('priority' in values) data.priority = values.priority ? { connect: { id: maps.optionPriority.get(String(values.priority))! } } : { disconnect: true };
+  // Decision D23 (`statusClosing`): a status « Annulé » always closes the task, whatever GitHub says of its state;
+  // leaving one reopens it unless GitHub says it is closed (a closed item with another status stays closed).
+  const statusAfter = 'status' in values ? (values.status ? maps.optionStatus.get(String(values.status))! : null) : task.statusId;
+  if (statusAfter !== task.statusId || data.closedAt === null) {
+    const ids = [task.statusId, statusAfter].filter((id): id is string => id !== null);
+    const categories = new Map((await prisma.taskStatus.findMany({ where: { id: { in: ids } }, select: { id: true, category: true } })).map((status) => [status.id, status.category]));
+    const categoryOf = (id: string | null) => (id ? (categories.get(id) ?? null) : null);
+    if (categoryOf(statusAfter) === 'CANCELLED') data.closedAt = task.closedAt ?? new Date();
+    else if (statusAfter !== task.statusId && statusClosing(categoryOf(task.statusId), categoryOf(statusAfter)) === 'reopen' && !values.closed) data.closedAt = null;
+  }
   if ('type' in values) data.type = values.type ? { connect: { id: maps.optionType.get(String(values.type))! } } : { disconnect: true };
   if ('deadline' in values) data.deadline = parseOptionalDay((values.deadline as string | null) || null);
   if ('milestone' in values)

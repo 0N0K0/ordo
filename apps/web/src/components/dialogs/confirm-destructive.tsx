@@ -1,6 +1,6 @@
 import { Stack } from '@mantine/core';
 import type { ReactNode } from 'react';
-import { notifySuccess, onMutationError } from '../../lib/notify';
+import { ActionDeclined, notifySuccess, onMutationError } from '../../lib/notify';
 import { DestructiveActions, DestructiveRisks } from './DestructiveActions';
 import { openModal } from '../panels/open-modal';
 
@@ -51,4 +51,15 @@ export function confirmDestructive({ title, risks, confirmLabel, confirmIcon, on
     ),
     { onClose: () => !confirmed && onCancel?.() },
   );
+}
+
+/**
+ * Asks for the confirmation of a destructive action and waits for the answer; declined (Cancel, Escape, a click
+ * outside): `ActionDeclined` (silent in the error toasts), so that the caller's change stops there.
+ * @param {Pick<ConfirmDestructiveOptions, 'title' | 'risks' | 'confirmLabel' | 'confirmIcon'>} options Dialog.
+ * @returns {Promise<void>} Resolved once confirmed.
+ */
+export async function confirmedDestructive(options: Pick<ConfirmDestructiveOptions, 'title' | 'risks' | 'confirmLabel' | 'confirmIcon'>): Promise<void> {
+  const confirmed = await new Promise<boolean>((resolve) => confirmDestructive({ ...options, onConfirm: () => resolve(true), onCancel: () => resolve(false) }));
+  if (!confirmed) throw new ActionDeclined();
 }

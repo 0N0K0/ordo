@@ -103,7 +103,7 @@ Une routine se déplace par glisser-déposer, comme une tâche : avant une autre
 - « Archiver » / « Restaurer ».
 - « Supprimer ».
 
-Une routine archivée n'offre que « Historique », « Restaurer » et « Supprimer ». Archivée, elle n'a plus d'occurrence à venir ; ses occurrences dues avant le jour de l'archivage restent, archivées (agenda avec « Afficher les archivés », lecture seule) ; la restaurer remet tout comme avant (décision D21).
+Une routine archivée n'offre que « Historique », « Restaurer » et « Supprimer ». Archivée, elle n'a plus d'occurrence à venir ; ses occurrences ouvertes avant le jour de l'archivage restent, archivées, même dues après (agenda avec « Afficher les archivés », lecture seule ; « Historique » : estompées, marquées « (archivée) », un clic n'ouvre rien) ; la restaurer remet tout comme avant (décision D21).
 
 ### Actions sur la sélection
 

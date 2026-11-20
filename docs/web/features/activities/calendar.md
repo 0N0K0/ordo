@@ -77,7 +77,7 @@ Classes de la page et de FullCalendar : `fill` (semaine/jour pleine hauteur), `c
 
 ### `components/ScopeChoices.tsx`
 
-- `ScopeQuestion` (interface) : `action` (`update`, `delete`, `cancel`, `restore`), `allowThis`, `allowFollowing`, `allowAll`, `title`, `note` (ce que la modification emporte aussi, après la question : les temps supprimés avec les occurrences).
+- `ScopeQuestion` (interface) : `action` (`update`, `delete`, `cancel`, `restore`, `cancelOrDelete` : une occurrence de routine, « Annuler cette occurrence » ou « Supprimer celle-ci et les suivantes », décision D23), `allowThis`, `allowFollowing`, `allowAll`, `title`, `note` (ce que la modification emporte aussi, après la question : les temps supprimés avec les occurrences).
 - `ScopeChoices({ …question, onAnswer })` : texte et boutons « Cette occurrence », « Celle-ci et les suivantes », « Toutes les occurrences » (rouges pour une suppression, décision CN), « Annuler ». Utilisé par `askScope`.
 
 ### `components/CalendarEditForms.tsx`

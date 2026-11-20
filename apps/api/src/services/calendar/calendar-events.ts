@@ -723,7 +723,7 @@ export async function eventOccurrences(from: string, to: string, calendarIds?: s
   const result: EventOccurrence[] = [];
   for (const event of events) {
     const rule = storedRecurrence(event.recurrence);
-    // Archived: its occurrences ended before the day it was archived stay (archived), none after (decision D21).
+    // Archived: its occurrences started before the day it was archived stay (archived), none starting on or after it (decision D21).
     const archived = archivedOn(event);
     const changes = new Map(event.exceptions.map((change) => [formatDay(change.date), change]));
     const span = daysBetween(formatDay(event.startDate), formatDay(event.endDate));
@@ -734,7 +734,7 @@ export async function eventOccurrences(from: string, to: string, calendarIds?: s
       const change = date ? changes.get(date) : undefined;
       if (change?.cancelled) continue;
       const occurrence = toOccurrence(event, date, change);
-      if (archived && occurrence.endDate >= archived) continue;
+      if (archived && occurrence.startDate >= archived) continue;
       if (occurrence.endDate >= from && occurrence.startDate <= to) result.push(occurrence);
     }
   }

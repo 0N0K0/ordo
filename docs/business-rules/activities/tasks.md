@@ -107,7 +107,10 @@ Un statut a une catégorie fixe (`TASK_STATUS_CATEGORIES`), `TODO` par défaut �
 - **C’est l’état ouvert / fermé (`closedAt`) qui dit si une tâche est faite.** Une seule catégorie y touche (décision D23, Q6, `statusClosing`, `closeOnStatus`) :
   - passer à un statut « Annulé » (création, modification, modification en masse, annulation d’une modification en masse, copie) **ferme** la tâche (une tâche déjà fermée garde sa date de fermeture) ; elle s’affiche alors barrée ;
   - quitter un statut « Annulé » pour un autre statut, ou pour aucun, **rouvre** la tâche ;
-  - les autres changements de statut, « Terminé » compris, ne ferment ni ne rouvrent rien ; fermer ou rouvrir ne change pas le statut.
+  - les autres changements de statut, « Terminé » compris, ne ferment ni ne rouvrent rien ;
+  - rouvrir à la main une tâche « Annulé » lui donne le premier statut « À faire » non archivé (aucun s'il n'y en a pas) ; fermer à la main ne change pas le statut ;
+  - changer la catégorie d'un statut dans les paramètres applique la règle à ses tâches, archivées comprises : vers « Annulé », ses tâches ouvertes sont fermées ; hors de « Annulé », ses tâches fermées sont rouvertes (`taskStatuses`, `afterUpdate`) ; le web le confirme d'abord avec leur nombre ;
+  - la synchronisation GitHub suit la même règle (voir [GitHub](../cross-cutting/github.md#correspondances-et-cas-particuliers)).
 - Les tâches qui avaient déjà un statut « Annulé » sans être fermées ont été fermées, datées de leur dernière modification (migration `20261120150000_cancelled_tasks_closed`).
 
 ## Fermer et rouvrir
@@ -115,7 +118,7 @@ Un statut a une catégorie fixe (`TASK_STATUS_CATEGORIES`), `TODO` par défaut �
 Source : `setTasksClosed`.
 
 - Au moins une tâche (« Aucune tâche sélectionnée. »), toutes existantes, aucune archivée.
-- Fermer pose `closedAt` à maintenant ; une tâche déjà fermée **garde sa date de fermeture**. Rouvrir vide `closedAt`.
+- Fermer pose `closedAt` à maintenant ; une tâche déjà fermée **garde sa date de fermeture**. Rouvrir vide `closedAt` ; une tâche au statut « Annulé » passe alors au premier statut « À faire » non archivé, ou à aucun (décision D23).
 - Une tâche fermée ne bloque plus les tâches qu’elle bloque, n’est jamais en retard et compte comme faite (avancement des jalons, sprints, sous-tâches).
 
 ## Historique des statuts
@@ -207,12 +210,12 @@ Source : `assertProjectContributors` (`services/projects/contributors.ts`), `ass
 
 ### Dates héritées du sprint
 
-Source : `taskDueDates` (`packages/shared/src/tasks/tasks.ts`), champs GraphQL `effectiveMinDate`, `effectiveDeadline`, `minDateFromSprint`, `deadlineFromSprint` (décision du lot 12, 20 novembre 2026).
+Source : `taskDueDates` (`packages/shared/src/tasks/tasks.ts`), lu par l'API par `storedDueDates` / `DUE_DATES_SELECT` (`services/tasks/due-dates.ts`), champs GraphQL `effectiveMinDate`, `effectiveDeadline`, `minDateFromSprint`, `deadlineFromSprint` (décision du lot 12, 20 novembre 2026).
 
 - Une tâche dans **un seul** sprint, sans « Ouverture » à elle, prend le premier jour du sprint ; sans « Échéance » à elle, son dernier jour. Chaque date est prise à part : une date saisie sur la tâche l’emporte.
 - Dans plusieurs sprints, ou dans aucun : rien n’est hérité.
 - La valeur héritée n’est pas enregistrée : elle est calculée à chaque lecture, et suit donc le sprint quand ses dates changent (ou quand la tâche entre dans un sprint ou en sort).
-- Elle compte partout où compte la date : retard, rappels (« À HH:MM », de l’ouverture à l’échéance), tri et filtres des colonnes « Ouverture » et « Échéance », export, accueil, agenda. Elle s’affiche « 12 nov. 2026 (sprint) » à la place du champ vide.
+- Elle compte partout où compte la date : retard, « faisable maintenant » (pas avant l’ouverture), rappels (« À HH:MM », de l’ouverture à l’échéance), tri et filtres des colonnes « Ouverture » et « Échéance », export, accueil, agenda. Elle s’affiche « 12 nov. 2026 (sprint) » à la place du champ vide.
 - Les champs `minDate` / `deadline` restent ceux de la tâche (modification, copie, GitHub).
 - Un jalon est « en retard » quand son échéance est passée et qu’il reste des tâches non fermées ; un sprint quand sa fin est passée avec des tâches non fermées (calculs web, voir [Fonctionnalités](../../features/activities/tasks.md)).
 
@@ -220,7 +223,7 @@ Source : `taskDueDates` (`packages/shared/src/tasks/tasks.ts`), champs GraphQL `
 
 Source : requête `doableTaskIds(utcOffset)` (`services/calendar/slot-conditions.ts`).
 
-Tâches ouvertes de l’espace dont la condition de créneaux (aucune : n’importe quand, dans les deux types d’espace) autorise le moment présent de l’utilisateur, et dont aucun évènement n’occupe les assignés (aucun : « Moi »), sauf un évènement lié à la tâche. Détail dans [Agenda](calendar.md).
+Tâches ouvertes de l’espace dont l’« Ouverture » suivie (la sienne, sinon celle de son sprint unique : `storedDueDates`, sur `taskDueDates`) n’est pas après le jour de l’utilisateur (avant elle, la tâche n’est pas à faire), dont la condition de créneaux (aucune : n’importe quand, dans les deux types d’espace) autorise le moment présent de l’utilisateur, et dont aucun évènement n’occupe les assignés (aucun : « Moi »), sauf un évènement lié à la tâche. Détail dans [Agenda](calendar.md).
 
 ## Pas de récurrence
 

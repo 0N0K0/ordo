@@ -7,6 +7,7 @@ import { builder, type BuilderTypes } from './builder';
 import { done } from './errors';
 import { reloaded } from './reload';
 import { unchecked } from './unchecked';
+import { CONFIRM_LOSS_DESCRIPTION } from './occurrence-fields';
 
 /** Label and color of an item of a simple list (a status, a category, a store…). */
 export const LabelColorInput = builder.inputType('LabelColorInput', {
@@ -98,6 +99,8 @@ type LabelInputRef = InputObjectRef<BuilderTypes, object>;
  * @param {LabelService<{ id: string }>} service Label service of the model.
  * @param {{ create: LabelInputRef, update: LabelInputRef }} [inputs] Input types of the create and update mutations. Optional. Default = `LABEL_COLOR_INPUTS`.
  * @param {Partial<Record<'create' | 'update' | 'delete', string>>} [descriptions] Descriptions of the mutations (what follows them). Optional.
+ * @param {(id: string, confirmLoss: boolean) => Promise<void>} [remove] Deletion of its own, whose loss is confirmed
+ * (argument `confirmLoss` of the deletion, decision EW). Optional. Default = the service's.
  * @returns {void}
  */
 export function labelMutations(
@@ -105,6 +108,7 @@ export function labelMutations(
   service: LabelService<{ id: string }>,
   inputs: { create: LabelInputRef; update: LabelInputRef } = LABEL_COLOR_INPUTS,
   descriptions: Partial<Record<'create' | 'update' | 'delete', string>> = {},
+  remove?: (id: string, confirmLoss: boolean) => Promise<void>,
 ): void {
   // Every LabelModel is an object of the schema, so typing the calls with one of them is enough.
   const type = name as 'TaskPriority';
@@ -125,8 +129,8 @@ export function labelMutations(
     }),
     [`delete${name}`]: t.boolean({
       ...(descriptions.delete === undefined ? {} : { description: descriptions.delete }),
-      args: { id: t.arg.id({ required: true }) },
-      resolve: (_root, { id }) => done(service.remove(id)),
+      args: { id: t.arg.id({ required: true }), ...(remove && { confirmLoss: t.arg.boolean({ description: CONFIRM_LOSS_DESCRIPTION }) }) },
+      resolve: (_root, args) => done(remove ? remove(args.id, (args as { confirmLoss?: boolean | null }).confirmLoss ?? false) : service.remove(args.id)),
     }),
   }));
 }

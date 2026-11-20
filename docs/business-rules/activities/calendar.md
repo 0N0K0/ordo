@@ -126,7 +126,7 @@ Report (`postponeCalendarEvent`) :
 
 ### Archivage
 
-Genre `CALENDAR_EVENT` de `setArchived` : archive toute la série. Un évènement archivé est masqué par défaut, en lecture seule, exclu de l’export ICS et de la disponibilité. Comme une routine (décision D21, `archivedOn`) : seules ses occurrences finies avant le jour de l’archivage (heure de Paris) restent, archivées ; aucune à partir de ce jour (`eventOccurrences`). Le restaurer remet toutes ses occurrences (Q5). Voir [Archivage](../cross-cutting/archiving.md).
+Genre `CALENDAR_EVENT` de `setArchived` : archive toute la série. Un évènement archivé est masqué par défaut, en lecture seule, exclu de l’export ICS et de la disponibilité. Comme une routine (décision D21, `archivedOn`) : seules ses occurrences commencées avant le jour de l’archivage (heure de Paris) restent, archivées, même finies ce jour-là ou après ; aucune qui commence à partir de ce jour (`eventOccurrences`). Le restaurer remet toutes ses occurrences (Q5). Voir [Archivage](../cross-cutting/archiving.md).
 
 ### Commentaires et fiches
 
@@ -159,7 +159,7 @@ Source : `apps/api/src/services/calendar/work-schedules.ts`, schémas dans `pack
 - L’ancien format (`intervalWeeks`, `slots`, `pauses`) est vidé à chaque enregistrement ; il n’est plus que lu et converti (`fromLegacySchedule` : jours ayant les mêmes horaires → un cas toutes les n semaines ; pauses → exceptions sans cas). L’ancienne forme des cas (`pattern`, `every`…) est aussi convertie à la lecture (`readScheduleCases`). Les éléments stockés invalides sont ignorés à la lecture.
 - Modification refusée si le créneau est archivé.
 - Suppression : définitive (« Créneau de travail » introuvable sinon). Les évènements ne sont pas touchés.
-- Création, modification et suppression prennent `confirmLoss` : les occurrences de routines qu’elles font disparaître (plus aucun moment permis, celles cochées gardées) perdent leurs commentaires une fois confirmé (voir [Routines](routines.md#créneaux-de-lagenda-conditionwindows-windowsallowed)) ; vérifié après la validation du créneau, avant son enregistrement (`ScheduleChangeSettler`).
+- Création, modification et suppression prennent `confirmLoss` : les occurrences de routines (de cet espace, et des autres espaces de l’utilisateur qui citent ce créneau ou un type de cet espace) qu’elles font disparaître (plus aucun moment permis, celles cochées gardées) perdent leurs commentaires une fois confirmé (voir [Routines](routines.md#créneaux-de-lagenda-conditionwindows-windowsallowed)) ; vérifié après la validation du créneau, avant son enregistrement (`ScheduleChangeSettler`).
 - Archivage générique (`WORK_SCHEDULE`) : lecture seule ; les routines qui le suivent continuent à le lire.
 
 ### Calcul des horaires du jour (`plannedSlots`)
@@ -183,7 +183,7 @@ Source : `apps/api/src/services/calendar/work-schedules.ts`, schémas dans `pack
 
 - Service de libellés commun (`createLabelService`, voir [Nommage](../cross-cutting/naming.md)) : libellé requis 250 caractères, unique dans l’espace (« Un type porte déjà ce libellé. »), couleur `#rrggbb`, image, position, affichage.
 - Affichage (`ScheduleDisplay`) : `dayDisplay` ∈ `SLOT_BACKGROUND` (défaut), `DAY_BACKGROUND`, `SLOT_BORDER`, `NONE` ; `dayBar` (défaut vrai) ; `monthDisplay` ∈ `BACKGROUND` (défaut), `BORDER`, `NONE`. Une valeur stockée inconnue retombe sur le défaut (`readScheduleDisplay`).
-- Suppression : les créneaux restent, sans type (`onDelete: SetNull`).
+- Suppression : les créneaux restent, sans type (`onDelete: SetNull`). Elle prend `confirmLoss` (`deleteScheduleType`) : les occurrences de routines qu’elle fait disparaître perdent leurs commentaires une fois confirmé, comme pour un créneau.
 - Archivage générique (`SCHEDULE_TYPE`) : plus proposé, mais gardé là où il est choisi.
 
 ### Type par défaut (créneaux sans type)
@@ -212,7 +212,7 @@ Source : `packages/shared/src/calendar/slot-conditions.ts`, `packages/shared/src
 - **Sans condition** (ou un groupe vide) : à n’importe quelle heure. Le type d’espace ne joue plus : plus de défaut « heures de travail » en PRO (décision D10).
 - Routine : la condition garde ses moments aux heures permises (voir [Routines](routines.md)). Tâche : elle est faisable à un moment que la condition permet (`conditionAllowsAt`).
 - `nextConditionMoment` : premier moment permis à partir d’un moment, sur quelques jours (le moment même sans condition).
-- `doableTaskIds(utcOffset, meId)` (requête `doableTaskIds` des tâches) : tâches ouvertes et non archivées dont la condition permet le moment actuel de l’utilisateur et qu’aucun évènement actif n’occupe (voir [Tâches](tasks.md)).
+- `doableTaskIds(utcOffset, meId)` (requête `doableTaskIds` des tâches) : tâches ouvertes et non archivées dont l’« Ouverture » suivie n’est pas après le jour de l’utilisateur, dont la condition permet le moment actuel de l’utilisateur et qu’aucun évènement actif n’occupe (voir [Tâches](tasks.md)).
 - L’avertissement d’un évènement hors des créneaux de travail (espace PRO, formulaire d’évènement, `AvailabilityHint`) n’est pas une condition : il porte toujours sur tous les créneaux de l’espace.
 
 ## Export iCalendar

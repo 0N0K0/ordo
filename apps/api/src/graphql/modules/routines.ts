@@ -1,5 +1,5 @@
 import { parseOptionalDay, sumOf } from '@ordo/shared';
-import { daysBetween, formatDay, parseDay, readOpens, readReminders, type RoutineInput, type RoutineMoveTimes } from '@ordo/shared';
+import { addDays, daysBetween, formatDay, parseDay, readOpens, readReminders, type RoutineInput, type RoutineMoveTimes } from '@ordo/shared';
 import { prisma } from '../../db';
 import { clientError, done } from '../errors';
 import * as routines from '../../services/routines/routines';
@@ -451,8 +451,9 @@ builder.queryFields((t) => ({
     resolve: async (_root, { from, to }, ctx) => {
       if (to < from || daysBetween(from, to) >= OCCURRENCE_DAYS) throw clientError('BAD_USER_INPUT', `Période de ${OCCURRENCE_DAYS} jours au plus.`);
       const list = await prisma.routine.findMany({
-        // Archived ones: their occurrences before their archiving (decision D21).
-        where: { OR: [{ archivedAt: null }, { archivedAt: { gte: parseDay(from) } }] },
+        // Archived ones: their occurrences started before their archiving (decision D21), which may be due up to a year
+        // and a little after it (« Ouverture » up to 366 days before).
+        where: { OR: [{ archivedAt: null }, { archivedAt: { gte: parseDay(addDays(from, -400)) } }] },
         select: { ...TIMING, checks: { where: { date: { gte: parseDay(from), lte: parseDay(to) } }, select: { date: true, slot: true } } },
       });
       const context = await slotsOf(ctx);

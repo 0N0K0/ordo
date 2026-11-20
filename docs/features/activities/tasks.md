@@ -80,7 +80,7 @@ Chaque colonne filtrable a son filtre (voir [Filtres](../../web/components/filte
 - « Assignés » : « Moi » en plus des contributeurs.
 - « Sprint » : sprints relatifs « Sprint en cours », « Sprint précédent », « Sprint suivant », « Sprints passés », « Sprints à venir » (par arborescence de projets).
 - « Tâche parente » : une tâche garde ses sous-tâches à tous les niveaux.
-- « Faisable maintenant » : tâches ouvertes que leur condition de créneaux autorise maintenant (sans condition : toujours, dans les deux types d’espace) et dont les assignés ne sont pas pris par un évènement (rafraîchi chaque minute, chargé seulement si le filtre l’utilise).
+- « Faisable maintenant » : tâches ouvertes dont l’« Ouverture » (la leur, sinon celle de leur sprint unique) est passée ou aujourd’hui, que leur condition de créneaux autorise maintenant (sans condition : toujours, dans les deux types d’espace) et dont les assignés ne sont pas pris par un évènement (rafraîchi chaque minute, chargé seulement si le filtre l’utilise).
 - « Catégorie de statut » : « À faire », « En cours », « Terminé », « Annulé ».
 - Les valeurs archivées gardent leur libellé et ne sont proposées que si elles sont déjà dans le filtre.
 
@@ -181,7 +181,7 @@ Une tâche archivée : tous les champs désactivés, pas de bouton, commentaires
 ## Fermer, dupliquer, transférer, archiver, supprimer
 
 - **Fermer / Rouvrir** : toast « 2 tâches fermées. » / « rouvertes. », annulable. Une tâche fermée est barrée de violet, ne bloque plus, n’est plus en retard.
-- **Statut « Annulé »** (décision D23) : choisir un statut de cette catégorie ferme la tâche ; son libellé est alors barré (tableau, titre du panneau ; agenda, comme toute tâche fermée). Choisir ensuite un autre statut (ou aucun) la rouvre. « Terminé » ne ferme pas la tâche.
+- **Statut « Annulé »** (décision D23) : choisir un statut de cette catégorie ferme la tâche ; son libellé est alors barré (tableau, titre du panneau ; agenda, comme toute tâche fermée). Choisir ensuite un autre statut (ou aucun) la rouvre. « Terminé » ne ferme pas la tâche. « Rouvrir » une tâche annulée lui donne le premier statut « À faire » ; « Fermer » ne change pas le statut. Dans les paramètres, passer un statut vers ou hors de « Annulé » demande une confirmation : « Fermer ses tâches » (« Un statut « Annulé » ferme ses tâches : 3 tâches ouvertes de ce statut seront fermées et barrées. », « Fermer et enregistrer ») ou « Rouvrir ses tâches » (« Ce statut n’est plus « Annulé » : 2 tâches fermées de ce statut seront rouvertes. », « Rouvrir et enregistrer »).
 - **Dupliquer** (décision D20) : sans fenêtre, chaque tâche du haut de la sélection est copiée tout de suite, nommée « … (copie) » : tous les champs, les assignés et les liens (le lieu, les liens (URL) et les rappels compris ; un ancien lien hors de l’arborescence de projets de la tâche n’est pas copié), pas les commentaires ; ses sous-tâches sont copiées sous la copie (leurs libellés gardés). Toast « Tâche dupliquée. » (« 3 tâches dupliquées. ») ; la copie d’une tâche seule s’ouvre dans le panneau.
 - **Transférer** (panneau « Transférer la tâche » / « Transférer les tâches ») : « Projet de destination » ou case « Sans projet » (perte du numéro, du jalon, des sprints et du lien GitHub). Avertissement si le projet est dans une autre arborescence. Toast « Tâche #12 transférée. » ; annulable s’il n’a retiré aucun lien, sinon il indique « 2 liens retirés. ».
 - **Archiver / Restaurer** : en cascade sur les sous-tâches ; annulable.

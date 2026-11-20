@@ -239,7 +239,7 @@ export function RoutineDayAgenda({ day, today, items, byId, layers }: RoutineDay
     const status = doneAt ? `faite à ${localDay(doneAt) === item.date ? fmt.time(doneAt) : `${fmt.time(doneAt)} le ${fmt.dayShort(doneAt)}`}` : text;
     events.push({
       id: taggedKey('routine', item.key),
-      title: `${routine?.label ?? 'Routine supprimée'}${item.optional ? ' (facultatif)' : ''} · ${status}${item.planned ? '' : ' (non prévue ce jour)'}`,
+      title: `${routine?.label ?? 'Routine supprimée'}${item.optional ? ' (facultatif)' : ''} · ${status}${item.planned ? '' : ' (non prévue ce jour)'}${routine?.archived ? ' (archivée)' : ''}`,
       allDay: !timed,
       start: timed ? `${day}T${start}:00` : day,
       end: timed ? `${day}T${end}:00` : addDays(day, 1),
@@ -247,13 +247,14 @@ export function RoutineDayAgenda({ day, today, items, byId, layers }: RoutineDay
       borderColor: `var(--mantine-color-${color}-6)`,
       textColor: 'var(--mantine-color-text)',
       editable: false,
-      classNames: [calendarClasses.task, ...(item.movedFrom ? [calendarClasses.moved] : [])],
+      // Of an archived routine: its past occurrences, read only (decision D21).
+      classNames: [calendarClasses.task, ...(item.movedFrom ? [calendarClasses.moved] : []), ...(routine?.archived ? [calendarClasses.archived] : [])],
       extendedProps: { item },
     });
   }
 
   /**
-   * Opens the form ticking (or unticking) the routine clicked.
+   * Opens the form ticking (or unticking) the routine clicked; an archived one is read only (nothing opens).
    * @param {EventClickArg} info Click.
    * @returns {void}
    */
@@ -261,6 +262,7 @@ export function RoutineDayAgenda({ day, today, items, byId, layers }: RoutineDay
     const item: HistoryItem | undefined = event.extendedProps.item;
     if (!item) return;
     const routine = byId.get(item.routineId);
+    if (routine?.archived) return;
     openFormPanel(routine?.label ?? 'Routine supprimée', (close) => <TickForm item={item} routine={routine} today={today} onDone={close} />, { panelId: `routine-tick-${item.key}` });
   };
 

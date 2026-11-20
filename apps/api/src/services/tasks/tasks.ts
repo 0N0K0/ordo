@@ -695,6 +695,12 @@ export async function moveTask(id: string, beforeId: string | null, parentId?: s
 export async function setTasksClosed(ids: string[], closed: boolean): Promise<void> {
   await assertTasks(ids);
   await assertNoneArchived('task', ids);
+  // Reopened by hand, a cancelled task leaves « Annulé » for the first status « À faire » (none: no status; decision D23).
+  // Closing by hand leaves the status as it is.
+  if (!closed) {
+    const todo = await prisma.taskStatus.findFirst({ where: { category: 'TODO', archivedAt: null }, orderBy: BY_POSITION, select: { id: true } });
+    await prisma.task.updateMany({ where: { id: { in: ids }, status: { category: 'CANCELLED' } }, data: { statusId: todo?.id ?? null } });
+  }
   await prisma.task.updateMany({
     // Already closed tasks keep their closing date.
     where: { id: { in: ids }, closedAt: closed ? null : { not: null } },

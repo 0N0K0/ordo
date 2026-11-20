@@ -1996,6 +1996,7 @@ export type UpdateScheduleTypeMutation = { updateScheduleType: { id: string } };
 
 export type DeleteScheduleTypeMutationVariables = Exact<{
   id: string | number;
+  confirmLoss?: boolean | null | undefined;
 }>;
 
 
@@ -6391,8 +6392,8 @@ export const UpdateScheduleTypeDocument = new TypedDocumentString(`
 }
     `) as unknown as TypedDocumentString<UpdateScheduleTypeMutation, UpdateScheduleTypeMutationVariables>;
 export const DeleteScheduleTypeDocument = new TypedDocumentString(`
-    mutation DeleteScheduleType($id: ID!) {
-  deleteScheduleType(id: $id)
+    mutation DeleteScheduleType($id: ID!, $confirmLoss: Boolean) {
+  deleteScheduleType(id: $id, confirmLoss: $confirmLoss)
 }
     `) as unknown as TypedDocumentString<DeleteScheduleTypeMutation, DeleteScheduleTypeMutationVariables>;
 export const SubscribeScheduleKindDocument = new TypedDocumentString(`

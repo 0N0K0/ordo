@@ -101,7 +101,8 @@ export function useCalendarEdits() {
   const removeRoutine = async (occurrence: RoutineOccurrenceRef, movedFrom: string | null) => {
     const { routine, date } = occurrence;
     const [THIS, FOLLOWING] = await Promise.all((['THIS', 'FOLLOWING'] as const).map((scope) => fetchLostOnDelete({ routineOccurrence: { id: routine.id, date, scope } })));
-    const scope = await askScope({ action: 'delete', title: 'Supprimer une occurrence de routine', allowFollowing: true, allowAll: false, note: scopeLostNote({ THIS, FOLLOWING }) });
+    // This one is cancelled (it stays, struck through), it and the following ones really disappear.
+    const scope = await askScope({ action: 'cancelOrDelete', title: 'Annuler ou supprimer une occurrence de routine', allowFollowing: true, allowAll: false, note: scopeLostNote({ THIS, FOLLOWING }) });
     if (!scope) return;
     deleteOccurrence.mutate(
       { id: routine.id, date, scope },

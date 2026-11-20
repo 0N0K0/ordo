@@ -145,6 +145,19 @@ export async function deleteWorkSchedule(id: string, settle: ScheduleChangeSettl
 export const scheduleTypes = createLabelService<ScheduleType>('scheduleType', { notFound: 'Type de créneau', conflict: 'Un type porte déjà ce libellé.' }, { schema: scheduleTypeSchema });
 
 /**
+ * Deletes a kind of time slots: its schedules stay, without kind (the working hours of the workspace), which may make
+ * occurrences of routines disappear (asked first through `settle`).
+ * @param {string} id Kind.
+ * @param {ScheduleChangeSettler} [settle] Run once found, before it is deleted. Optional. Default = none.
+ * @returns {Promise<void>}
+ */
+export async function deleteScheduleType(id: string, settle: ScheduleChangeSettler = NO_SETTLER): Promise<void> {
+  await assertExists(prisma.scheduleType, id, 'Type de créneau');
+  await settle((own) => own.map((rule) => (rule.typeId === id ? { ...rule, typeId: null } : rule)));
+  await scheduleTypes.remove(id);
+}
+
+/**
  * Saves a kind of time slots.
  * @param {string | null} id Kind to change, or null to create one.
  * @param {ScheduleTypeInput} input Label, color and display.

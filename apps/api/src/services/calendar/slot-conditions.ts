@@ -20,6 +20,7 @@ import { notFound } from '../../graphql/errors';
 import { currentWorkspaceId } from '../../workspace-context';
 import { eventOccurrences } from './calendar-events';
 import { otherWorkspaceSchedules, scheduleRule } from './work-schedules';
+import { DUE_DATES_SELECT, storedDueDates } from '../tasks/due-dates';
 
 /** Field of the input the errors of a slot condition show under. */
 const FIELD = 'slotCondition';
@@ -33,24 +34,36 @@ const FIELD = 'slotCondition';
 const citeOtherWorkspaces = (conditions: readonly (SlotCondition | null | undefined)[], own: ReadonlySet<string>) =>
   conditions.some((condition) => conditionKinds(condition).some((kind) => foreignSlotKindWorkspace(kind) !== null) || conditionScheduleIds(condition).some((id) => !own.has(id)));
 
+/** Schedules of a workspace as a change would leave them (created, changed or deleted, not saved yet). */
+export interface ScheduleChange {
+  /** Workspace of the schedules changed (this one, or another one of the user whose schedules are named here). */
+  workspaceId: string;
+  /** Its schedules once changed. */
+  apply: (rules: WorkScheduleRule[]) => WorkScheduleRule[];
+}
+
 /**
  * Slots of the schedules of the current workspace (archived ones too), loaded once, those of a day computed when first
  * asked: what the conditions of tasks and routines are evaluated on. The schedules of the other workspaces of the user
  * are loaded too when the conditions name some of them or of their kinds (always without conditions given: the
  * routines of a request are not known yet).
  * @param {readonly (SlotCondition | null | undefined)[]} [conditions] Conditions evaluated. Optional. Default = unknown.
- * @param {(own: WorkScheduleRule[]) => WorkScheduleRule[]} [change] The schedules of the workspace as a change would
- * leave them (created, changed or deleted, not saved yet). Optional. Default = as they are.
+ * @param {ScheduleChange} [change] The schedules of a workspace (this one or another one) as a change would leave them.
+ * Optional. Default = as they are.
  * @returns {Promise<SlotsOn>} Slots of some schedules on a day.
  */
-export async function loadSlotsOn(conditions?: readonly (SlotCondition | null | undefined)[], change?: (own: WorkScheduleRule[]) => WorkScheduleRule[]): Promise<SlotsOn> {
+export async function loadSlotsOn(conditions?: readonly (SlotCondition | null | undefined)[], change?: ScheduleChange): Promise<SlotsOn> {
   const own = await prisma.workSchedule.findMany();
-  const foreign = !conditions || citeOtherWorkspaces(conditions, new Set(own.map((schedule) => schedule.id))) ? await otherWorkspaceSchedules() : [];
+  const here = currentWorkspaceId();
+  const loaded = !conditions || citeOtherWorkspaces(conditions, new Set(own.map((schedule) => schedule.id))) ? await otherWorkspaceSchedules() : [];
   const rules = own.map(scheduleRule);
-  return scheduleSlotsOn(
-    change ? change(rules) : rules,
-    foreign.map((schedule) => ({ workspaceId: schedule.workspace.id, rule: schedule.rule })),
-  );
+  let foreign = loaded.map((schedule) => ({ workspaceId: schedule.workspace.id, rule: schedule.rule }));
+  // Those of another workspace changed: as the change leaves them.
+  if (change && change.workspaceId !== here && loaded.length) {
+    const changed = change.apply(foreign.filter((item) => item.workspaceId === change.workspaceId).map((item) => item.rule));
+    foreign = [...foreign.filter((item) => item.workspaceId !== change.workspaceId), ...changed.map((rule) => ({ workspaceId: change.workspaceId, rule }))];
+  }
+  return scheduleSlotsOn(change?.workspaceId === here ? change.apply(rules) : rules, foreign);
 }
 
 /**
@@ -99,8 +112,9 @@ function userNow(utcOffset: number): { date: string; time: string } {
 }
 
 /**
- * Open tasks of the current workspace that can be done now: their condition on calendar schedules (none: any time)
- * allows the user's current moment, and no event keeps their assignees (none: « Moi ») busy, but one about the task.
+ * Open tasks of the current workspace that can be done now: their « Ouverture » (their own, else that of their single
+ * sprint: `taskDueDates`) is not after the user's day, their condition on calendar schedules (none: any time) allows
+ * the user's current moment, and no event keeps their assignees (none: « Moi ») busy, but one about the task.
  * @param {number} utcOffset User's offset from UTC in minutes.
  * @param {string | null} meId Contributor profile of the user (« Moi »).
  * @returns {Promise<string[]>} Task ids.
@@ -108,7 +122,10 @@ function userNow(utcOffset: number): { date: string; time: string } {
 export async function doableTaskIds(utcOffset: number, meId: string | null): Promise<string[]> {
   const now = userNow(utcOffset);
   const [tasks, events] = await Promise.all([
-    prisma.task.findMany({ where: { closedAt: null, archivedAt: null }, select: { id: true, slotCondition: true, assignees: { select: { id: true } } } }),
+    prisma.task.findMany({
+      where: { closedAt: null, archivedAt: null },
+      select: { id: true, slotCondition: true, ...DUE_DATES_SELECT, assignees: { select: { id: true } } },
+    }),
     // Archived events (and those of archived calendars) keep nobody busy.
     eventOccurrences(addDays(now.date, -1), now.date, undefined, true),
   ]);
@@ -118,6 +135,8 @@ export async function doableTaskIds(utcOffset: number, meId: string | null): Pro
   return tasks
     .filter(
       (task) =>
+        // Not to be done before its « Ouverture ».
+        (storedDueDates(task).minDate ?? now.date) <= now.date &&
         conditionAllowsAt(conditions.get(task.id), slotsOn, now.date, now.time) &&
         !blockingEvent(events, { assigneeIds: task.assignees.map((assignee) => assignee.id), taskId: task.id }, meId, at, now.date),
     )

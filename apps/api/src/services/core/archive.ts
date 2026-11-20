@@ -330,8 +330,9 @@ export async function archiveTree<T extends { archivedAt: Date | null }>(model: 
 }
 
 /**
- * Day an item with occurrences (a routine, an event) was archived, Paris time (decision D21): its occurrences ending
- * before that day stay, archived (read only); none from it on. Restored, it has them all again. Null when not archived.
+ * Day an item with occurrences (a routine, an event) was archived, Paris time (decision D21): its occurrences started
+ * before that day stay, archived (read only), even those ending on or after it; none starting on or after it.
+ * Restored, it has them all again. Null when not archived.
  * @param {{ archivedAt?: Date | null }} item Item.
  * @returns {string | null} Day (YYYY-MM-DD).
  */

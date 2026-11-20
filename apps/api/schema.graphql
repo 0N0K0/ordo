@@ -1837,8 +1837,16 @@ type Mutation {
   """
   deleteRoutineOccurrence(date: Date!, id: ID!, scope: CalendarEventScope!): RoutineOccurrenceDeletion!
 
-  """Deletes a kind of time slots (its schedules stay, without kind)."""
-  deleteScheduleType(id: ID!): Boolean!
+  """
+  Deletes a kind of time slots (its schedules stay, without kind); the occurrences of routines it makes disappear lose their comments, once confirmed.
+  """
+  deleteScheduleType(
+    """
+    Occurrences made to disappear with their comments or times are confirmed: false (default) refuses with CONFIRMATION_REQUIRED and extension lost { times, comments } when there are some; true deletes them.
+    """
+    confirmLoss: Boolean
+    id: ID!
+  ): Boolean!
   deleteSheet(id: ID!): Boolean!
   deleteSheetCategory(id: ID!): Boolean!
   deleteSheetItems(ids: [ID!]!): Boolean!

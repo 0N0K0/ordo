@@ -187,8 +187,8 @@ const UpdateScheduleTypeDocument = graphql(`
 `);
 
 const DeleteScheduleTypeDocument = graphql(`
-  mutation DeleteScheduleType($id: ID!) {
-    deleteScheduleType(id: $id)
+  mutation DeleteScheduleType($id: ID!, $confirmLoss: Boolean) {
+    deleteScheduleType(id: $id, confirmLoss: $confirmLoss)
   }
 `);
 
@@ -647,7 +647,10 @@ export function useWorkScheduleMutations() {
     updateType: useCalendarMutation(
       async (variables: { id: string; input: { label: string; color: string } & ScheduleDisplay }) => (await execute(UpdateScheduleTypeDocument, variables)).updateScheduleType,
     ),
-    removeType: useCalendarMutation(async (id: string) => (await execute(DeleteScheduleTypeDocument, { id })).deleteScheduleType),
+    removeType: useCalendarMutation(
+      async (id: string) => withLossConfirmation(async (confirmLoss) => (await execute(DeleteScheduleTypeDocument, { id, confirmLoss })).deleteScheduleType),
+      [routinesKey],
+    ),
     subscribe: useCalendarMutation(async (kind: { workspaceId: string; typeId: string | null }) => (await execute(SubscribeScheduleKindDocument, kind)).subscribeScheduleKind),
     saveDefaultKind: useCalendarMutation(
       async (input: { label: string; color: string | null } & ScheduleDisplay) => (await execute(SaveDefaultScheduleKindDocument, { input })).saveDefaultScheduleKind,

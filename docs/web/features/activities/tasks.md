@@ -289,7 +289,7 @@ Internes : `NO_PROJECT_LABEL` (« Sans projet »), `NO_PROJECT_NODE`.
 
 ### `hooks/use-label-items.tsx`
 
-- `useTaskStatusItems()` : liste de paramètres des statuts (`SettingsItemKind`) avec le champ « Catégorie » ; inclut `remove`.
+- `useTaskStatusItems()` : liste de paramètres des statuts (`SettingsItemKind`) avec le champ « Catégorie » ; inclut `remove` ; son `update` confirme d'abord (`confirmedDestructive`) une catégorie passée vers ou hors de « Annulé », avec le nombre de tâches fermées ou rouvertes (`statusClosing`, tâches du cache).
 - `useTaskLabelItems(kind)` : liste de paramètres des priorités, types ou étiquettes.
 - Internes : `STATUS_CATEGORY_OPTIONS`, `LIST_KINDS` (type de liste de paramètres par type de libellé).
 

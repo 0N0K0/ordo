@@ -20,6 +20,8 @@ Options :
 - `done` : message de succès de `run` (« Alarme supprimée. »), sinon pas de toast ;
 - `onCancel` : ce qui suit un refus (« Annuler », Échap, clic à côté), par exemple pour une confirmation attendue en promesse (`withLossConfirmation`).
 
+`confirmedDestructive(options)` : la même modale attendue en promesse (`title`, `risks`, `confirmLabel`, `confirmIcon`) : résolue une fois confirmée, refusée par `ActionDeclined` (silencieux dans les toasts d'erreur). Utilisée par `withLossConfirmation` et la catégorie d'un statut de tâche (`useTaskStatusItems`).
+
 La modale se ferme avant l'action. eslint interdit d'écrire « irréversible » ailleurs et d'appeler `notifySuccess` dans `onConfirm` (utiliser `run` + `done`).
 
 ## `DestructiveActions.tsx`
