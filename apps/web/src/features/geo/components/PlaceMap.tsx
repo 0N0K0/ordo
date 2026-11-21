@@ -77,7 +77,14 @@ export function PlaceMap({ points, onPick, onSelect, height = 240 }: PlaceMapPro
   return (
     <div className={classes.root} style={{ height }} data-picking={onPick ? true : undefined}>
       <MapContainer center={DEFAULT_CENTER} zoom={5} className={classes.map} scrollWheelZoom>
-        <TileLayer attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>' url="https://tile.openstreetmap.org/{z}/{x}/{y}.png" maxZoom={19} />
+        {/* The tiles of OpenStreetMap are refused (403) without a Referer: the page sends none (Referrer-Policy
+            no-referrer), the tiles send the origin of the app only. */}
+        <TileLayer
+          attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
+          url="https://tile.openstreetmap.org/{z}/{x}/{y}.png"
+          maxZoom={19}
+          referrerPolicy="strict-origin-when-cross-origin"
+        />
         {points.map((point) => (
           <CircleMarker
             key={point.id}
