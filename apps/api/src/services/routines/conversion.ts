@@ -1,4 +1,4 @@
-import { conversionLoss, DAILY_RECURRENCE, daysBetween, formatOptionalDay, parseDay, parseOptionalDay, readReminders, readSlotCondition, sumOf, type ConversionLoss, type RoutineOpens } from '@ordo/shared';
+import { conversionLoss, DAILY_RECURRENCE, daysBetween, formatOptionalDay, parseDay, parseOptionalDay, readDeadTimes, readReminders, readSlotCondition, sumOf, type ConversionLoss, type RoutineOpens } from '@ordo/shared';
 import { prisma } from '../../db';
 import { Prisma } from '../../generated/prisma/client';
 import { clientError } from '../../graphql/errors';
@@ -124,6 +124,7 @@ export async function convertTaskToRoutine(id: string, confirm: boolean): Promis
         recurrence: toJson(DAILY_RECURRENCE),
         slotCondition: readSlotCondition(task.slotCondition) ? toJson(task.slotCondition) : Prisma.DbNull,
         reminders: toJson(readReminders(task.reminders)),
+        deadTimes: toJson(readDeadTimes(task.deadTimes)),
         opensOn: opens ? toJson(opens) : Prisma.DbNull,
         location: task.location,
         locationLat: task.locationLat,
@@ -219,7 +220,9 @@ export async function convertRoutineToTask(id: string, confirm: boolean): Promis
         projectId: routine.projectId,
         statusId: todo?.id ?? null,
         slotCondition: condition ? toJson(condition) : Prisma.DbNull,
-        reminders: toJson(reminders.filter((reminder) => reminder.at !== null)),
+        // A task counts them from its due day: those from the end of the routine (its due day) lose their anchor.
+        reminders: toJson(reminders.flatMap(({ anchor: _anchor, ...reminder }) => (reminder.at !== null ? [reminder] : []))),
+        deadTimes: toJson(readDeadTimes(routine.deadTimes)),
         minDate: parseOptionalDay(opening),
         deadline: parseOptionalDay(occurrence),
         location: routine.location,

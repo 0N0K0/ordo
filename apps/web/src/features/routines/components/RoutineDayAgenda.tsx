@@ -21,6 +21,8 @@ import { windowText } from '../lib/routine-format';
 import * as fmt from '../../../lib/format';
 import { ActionButton } from '../../../components/actions/ActionButton';
 import { taggedKey } from '../../../lib/tagged-key';
+import { DeadTimeLaunchButtons } from '../../countdowns/components/DeadTimeLaunchButtons';
+import { routineDeadTimeItem } from '../lib/routine-dead-times';
 
 /** One time of the day of the history: planned (done or not), or ticked without being planned that day. */
 export interface HistoryItem {
@@ -75,7 +77,7 @@ interface TickFormProps {
 
 /**
  * Ticks a time of the day after the fact at a chosen hour (by default when it was due), changes the hour it was done
- * at, or unticks it (with an undo).
+ * at, or unticks it (with an undo); « Lancer » the dead times of the routine for this occurrence (decision FT).
  * @param {TickFormProps} props Component props.
  * @returns {JSX.Element} Form.
  */
@@ -137,6 +139,8 @@ function TickForm({ item, routine, today, onDone }: TickFormProps) {
           {item.check ? 'Changer l’heure' : 'Cocher comme faite'}
         </ActionButton>
       </Group>
+      {/* Its dead times, launched for this occurrence (decision FT). */}
+      {routine && !routine.archived && <DeadTimeLaunchButtons value={routine.deadTimes} item={routineDeadTimeItem(routine, item.date)} />}
     </Stack>
   );
 }

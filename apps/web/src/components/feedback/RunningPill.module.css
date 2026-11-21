@@ -31,6 +31,10 @@
     /* Animation */
     animation: pulse 1.6s ease-in-out infinite;
 
+    .running[data-tone='countdown'] & {
+      background-color: var(--mantine-color-orange-6);
+    }
+
     .running[data-paused] & {
       background-color: var(--mantine-color-dimmed);
       animation: none;

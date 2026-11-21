@@ -99,6 +99,17 @@ export type AlarmInput = {
   weekdays: Array<number>;
 };
 
+export type AlarmRingInput = {
+  dueAt: string;
+  key: string;
+  lines?: Array<string> | null | undefined;
+  linkLabel?: string | null | undefined;
+  path?: string | null | undefined;
+  ringtone?: string | null | undefined;
+  title: string;
+  workspaceId?: string | number | null | undefined;
+};
+
 export type AlarmType =
   | 'NOT_TRACKING'
   | 'REMINDER'
@@ -365,10 +376,40 @@ export type ContributorUpdateInput = {
   removeAvatar?: boolean | null | undefined;
 };
 
+export type CountdownInput = {
+  /** Its name; none: « Minuteur ». */
+  label?: string | null | undefined;
+  linkLabel?: string | null | undefined;
+  /** Occurrence of that routine. */
+  occurrenceDate?: string | null | undefined;
+  /** Page of the app its ring links to. */
+  path?: string | null | undefined;
+  /** Ringtone of the bank; none: the one of the settings. */
+  ringtone?: string | null | undefined;
+  /** Routine of the dead time. */
+  routineId?: string | number | null | undefined;
+  /** Duration, 1 minute to 24 hours. */
+  seconds: number;
+  /** Name of its item. */
+  subject?: string | null | undefined;
+  /** Task of the dead time. */
+  taskId?: string | number | null | undefined;
+  /** Workspace of its item. */
+  workspaceId?: string | number | null | undefined;
+};
+
 export type DashboardChartInput = {
   config: unknown;
   label: string;
   wide: boolean;
+};
+
+export type DeadTimeInput = {
+  label: string;
+  /** 1 to 1 440. */
+  minutes: number;
+  /** Ringtone of the bank; none: the one of the settings. */
+  ringtone?: string | null | undefined;
 };
 
 export type DefaultScheduleKindInput = {
@@ -601,6 +642,13 @@ export type ProjectUpdateInput = {
   statusId?: string | number | null | undefined;
 };
 
+export type PushSubscriptionInput = {
+  auth: string;
+  endpoint: string;
+  label: string;
+  p256dh: string;
+};
+
 export type RecurringInvoiceInput = {
   active: boolean;
   autoFinalize: boolean;
@@ -610,12 +658,24 @@ export type RecurringInvoiceInput = {
 };
 
 export type ReminderInput = {
+  /** `start` (default) or `end` (events and routines). */
+  anchor?: string | null | undefined;
   /** HH:MM. */
   at?: string | null | undefined;
   /** Minutes before, 0 to 1 440. */
   before?: number | null | undefined;
   /** Days before, 1 to 30, with `at`. */
   days?: number | null | undefined;
+  /** Ringtone of the bank; none: the one of the settings. */
+  ringtone?: string | null | undefined;
+};
+
+export type RingSettingsInput = {
+  loop: boolean;
+  outside: boolean;
+  repeatMinutes: number;
+  ringMinutes: number;
+  ringtone: string;
 };
 
 /** Same changes for several routines (omitted fields unchanged; null clears estimate and projectId). */
@@ -663,6 +723,8 @@ export type RoutineInput = {
   /** Cases (days and times of the day); empty: the repetition. */
   cases?: unknown;
   categoryIds: Array<string | number>;
+  /** « Temps morts », 20 at most; required, as links: an omitted field never wipes them. */
+  deadTimes: Array<DeadTimeInput>;
   description?: string | null | undefined;
   /** HH:MM. */
   dueTime?: string | null | undefined;
@@ -997,6 +1059,8 @@ export type TaskInput = {
   assigneeIds?: Array<string | number> | null | undefined;
   beneficiaryIds?: Array<string | number> | null | undefined;
   beneficiaryRelationIds?: Array<string | number> | null | undefined;
+  /** « Temps morts », 20 at most; null: none. */
+  deadTimes?: Array<DeadTimeInput> | null | undefined;
   deadline?: string | null | undefined;
   description?: string | null | undefined;
   effort?: number | null | undefined;
@@ -1052,6 +1116,8 @@ export type TaskUpdateInput = {
   assigneeIds?: Array<string | number> | null | undefined;
   beneficiaryIds?: Array<string | number> | null | undefined;
   beneficiaryRelationIds?: Array<string | number> | null | undefined;
+  /** « Temps morts », 20 at most; null: none. */
+  deadTimes?: Array<DeadTimeInput> | null | undefined;
   deadline?: string | null | undefined;
   description?: string | null | undefined;
   effort?: number | null | undefined;
@@ -1879,6 +1945,36 @@ export type RecordDocumentPaymentMutationVariables = Exact<{
 
 export type RecordDocumentPaymentMutation = { recordDocumentPayment: boolean };
 
+export type ReminderFieldsFragment = { before: number | null, at: string | null, days: number | null, anchor: string, ringtone: string | null };
+
+export type AlarmRingFieldsFragment = { id: string, key: string, workspaceId: string | null, title: string, lines: Array<string>, path: string | null, linkLabel: string | null, ringtone: string | null, dueAt: string, ringingSince: string | null, nextAt: string | null, stoppedAt: string | null };
+
+export type AlarmRingsQueryVariables = Exact<{ [key: string]: never; }>;
+
+
+export type AlarmRingsQuery = { alarmRings: Array<{ id: string, key: string, workspaceId: string | null, title: string, lines: Array<string>, path: string | null, linkLabel: string | null, ringtone: string | null, dueAt: string, ringingSince: string | null, nextAt: string | null, stoppedAt: string | null }> };
+
+export type RingAlarmMutationVariables = Exact<{
+  input: AlarmRingInput;
+}>;
+
+
+export type RingAlarmMutation = { ringAlarm: { id: string, key: string, workspaceId: string | null, title: string, lines: Array<string>, path: string | null, linkLabel: string | null, ringtone: string | null, dueAt: string, ringingSince: string | null, nextAt: string | null, stoppedAt: string | null } };
+
+export type SnoozeAlarmRingMutationVariables = Exact<{
+  key: string;
+}>;
+
+
+export type SnoozeAlarmRingMutation = { snoozeAlarmRing: { id: string, key: string, workspaceId: string | null, title: string, lines: Array<string>, path: string | null, linkLabel: string | null, ringtone: string | null, dueAt: string, ringingSince: string | null, nextAt: string | null, stoppedAt: string | null } | null };
+
+export type StopAlarmRingMutationVariables = Exact<{
+  key: string;
+}>;
+
+
+export type StopAlarmRingMutation = { stopAlarmRing: boolean };
+
 export type AlarmFieldsFragment = { id: string, label: string, note: string | null, type: AlarmType, startDate: string | null, time: string | null, frequency: AlarmFrequency, interval: number, weekdays: Array<number>, endDate: string | null, recurrence: unknown, minutes: number | null, projectId: string | null, taskId: string | null, enabled: boolean, lastFiredAt: string | null, createdAt: string };
 
 export type AlarmsQueryVariables = Exact<{ [key: string]: never; }>;
@@ -1916,12 +2012,38 @@ export type MarkAlarmFiredMutationVariables = Exact<{
 
 export type MarkAlarmFiredMutation = { markAlarmFired: boolean };
 
-export type AccountUserFragment = { id: string, username: string, email: string, pendingEmail: string | null, contributorId: string | null };
+export type PushConfigQueryVariables = Exact<{ [key: string]: never; }>;
+
+
+export type PushConfigQuery = { pushPublicKey: string | null, pushSubscriptions: Array<{ id: string, endpoint: string, label: string, createdAt: string, lastSuccessAt: string | null }> };
+
+export type RegisterPushSubscriptionMutationVariables = Exact<{
+  input: PushSubscriptionInput;
+}>;
+
+
+export type RegisterPushSubscriptionMutation = { registerPushSubscription: { id: string } };
+
+export type RemovePushSubscriptionMutationVariables = Exact<{
+  id: string | number;
+}>;
+
+
+export type RemovePushSubscriptionMutation = { removePushSubscription: boolean };
+
+export type TestPushSubscriptionMutationVariables = Exact<{
+  id: string | number;
+}>;
+
+
+export type TestPushSubscriptionMutation = { testPushSubscription: boolean };
+
+export type AccountUserFragment = { id: string, username: string, email: string, pendingEmail: string | null, contributorId: string | null, ringSettings: { ringMinutes: number, loop: boolean, repeatMinutes: number, ringtone: string, outside: boolean } };
 
 export type MeQueryVariables = Exact<{ [key: string]: never; }>;
 
 
-export type MeQuery = { me: { id: string, username: string, email: string, pendingEmail: string | null, contributorId: string | null } | null };
+export type MeQuery = { me: { id: string, username: string, email: string, pendingEmail: string | null, contributorId: string | null, ringSettings: { ringMinutes: number, loop: boolean, repeatMinutes: number, ringtone: string, outside: boolean } } | null };
 
 export type LoginMutationVariables = Exact<{
   identifier: string;
@@ -1929,7 +2051,7 @@ export type LoginMutationVariables = Exact<{
 }>;
 
 
-export type LoginMutation = { login: { id: string, username: string, email: string, pendingEmail: string | null, contributorId: string | null } };
+export type LoginMutation = { login: { id: string, username: string, email: string, pendingEmail: string | null, contributorId: string | null, ringSettings: { ringMinutes: number, loop: boolean, repeatMinutes: number, ringtone: string, outside: boolean } } };
 
 export type LogoutMutationVariables = Exact<{ [key: string]: never; }>;
 
@@ -1966,13 +2088,20 @@ export type ChangePasswordMutationVariables = Exact<{
 
 export type ChangePasswordMutation = { changePassword: boolean };
 
+export type UpdateRingSettingsMutationVariables = Exact<{
+  input: RingSettingsInput;
+}>;
+
+
+export type UpdateRingSettingsMutation = { updateRingSettings: { id: string, username: string, email: string, pendingEmail: string | null, contributorId: string | null, ringSettings: { ringMinutes: number, loop: boolean, repeatMinutes: number, ringtone: string, outside: boolean } } };
+
 export type ChangeUsernameMutationVariables = Exact<{
   currentPassword: string;
   username: string;
 }>;
 
 
-export type ChangeUsernameMutation = { changeUsername: { id: string, username: string, email: string, pendingEmail: string | null, contributorId: string | null } };
+export type ChangeUsernameMutation = { changeUsername: { id: string, username: string, email: string, pendingEmail: string | null, contributorId: string | null, ringSettings: { ringMinutes: number, loop: boolean, repeatMinutes: number, ringtone: string, outside: boolean } } };
 
 export type RequestEmailChangeMutationVariables = Exact<{
   currentPassword: string;
@@ -1980,19 +2109,19 @@ export type RequestEmailChangeMutationVariables = Exact<{
 }>;
 
 
-export type RequestEmailChangeMutation = { requestEmailChange: { id: string, username: string, email: string, pendingEmail: string | null, contributorId: string | null } };
+export type RequestEmailChangeMutation = { requestEmailChange: { id: string, username: string, email: string, pendingEmail: string | null, contributorId: string | null, ringSettings: { ringMinutes: number, loop: boolean, repeatMinutes: number, ringtone: string, outside: boolean } } };
 
 export type CancelEmailChangeMutationVariables = Exact<{ [key: string]: never; }>;
 
 
-export type CancelEmailChangeMutation = { cancelEmailChange: { id: string, username: string, email: string, pendingEmail: string | null, contributorId: string | null } };
+export type CancelEmailChangeMutation = { cancelEmailChange: { id: string, username: string, email: string, pendingEmail: string | null, contributorId: string | null, ringSettings: { ringMinutes: number, loop: boolean, repeatMinutes: number, ringtone: string, outside: boolean } } };
 
-export type CalendarEventOccurrenceFieldsFragment = { key: string, eventId: string, occurrenceDate: string | null, modified: boolean, label: string, description: string | null, location: string | null, allDay: boolean, startDate: string, startTime: string | null, endDate: string, endTime: string | null, start: string, end: string, recurrence: unknown, seriesStartDate: string, travelBefore: number, travelAfter: number, projectId: string | null, calendarId: string, archived: boolean, contributorIds: Array<string>, relationIds: Array<string>, beneficiaryIds: Array<string>, beneficiaryRelationIds: Array<string>, categoryIds: Array<string>, taskIds: Array<string>, calledOff: boolean, trackedSeconds: number, links: Array<{ url: string, label: string }>, reminders: Array<{ before: number | null, at: string | null, days: number | null }>, routineLinks: Array<{ routineId: string, date: string }>, postponedFrom: { eventId: string, date: string | null, label: string } | null, postponedTo: Array<{ eventId: string, label: string, startDate: string, startTime: string | null }> };
+export type CalendarEventOccurrenceFieldsFragment = { key: string, eventId: string, occurrenceDate: string | null, modified: boolean, label: string, description: string | null, location: string | null, allDay: boolean, startDate: string, startTime: string | null, endDate: string, endTime: string | null, start: string, end: string, recurrence: unknown, seriesStartDate: string, travelBefore: number, travelAfter: number, projectId: string | null, calendarId: string, archived: boolean, contributorIds: Array<string>, relationIds: Array<string>, beneficiaryIds: Array<string>, beneficiaryRelationIds: Array<string>, categoryIds: Array<string>, taskIds: Array<string>, calledOff: boolean, trackedSeconds: number, links: Array<{ url: string, label: string }>, reminders: Array<{ before: number | null, at: string | null, days: number | null, anchor: string, ringtone: string | null }>, routineLinks: Array<{ routineId: string, date: string }>, postponedFrom: { eventId: string, date: string | null, label: string } | null, postponedTo: Array<{ eventId: string, label: string, startDate: string, startTime: string | null }> };
 
 export type WorkSchedulesQueryVariables = Exact<{ [key: string]: never; }>;
 
 
-export type WorkSchedulesQuery = { workSchedules: Array<{ id: string, archived: boolean, label: string, startDate: string, endDate: string | null, typeId: string | null, ephemeris: boolean, cases: unknown, exceptions: unknown, reminders: Array<{ before: number | null, at: string | null, days: number | null }> }>, scheduleTypes: Array<{ id: string, archived: boolean, label: string, color: string, iconUrl: string | null, dayDisplay: string, dayBar: boolean, monthDisplay: string, ephemeris: boolean, budgetContext: boolean, sharedContext: boolean, position: number }>, defaultScheduleKind: { label: string, color: string | null, dayDisplay: string, dayBar: boolean, monthDisplay: string } };
+export type WorkSchedulesQuery = { workSchedules: Array<{ id: string, archived: boolean, label: string, startDate: string, endDate: string | null, typeId: string | null, ephemeris: boolean, cases: unknown, exceptions: unknown, reminders: Array<{ before: number | null, at: string | null, days: number | null, anchor: string, ringtone: string | null }> }>, scheduleTypes: Array<{ id: string, archived: boolean, label: string, color: string, iconUrl: string | null, dayDisplay: string, dayBar: boolean, monthDisplay: string, ephemeris: boolean, budgetContext: boolean, sharedContext: boolean, position: number }>, defaultScheduleKind: { label: string, color: string | null, dayDisplay: string, dayBar: boolean, monthDisplay: string } };
 
 export type ForeignScheduleKindsQueryVariables = Exact<{ [key: string]: never; }>;
 
@@ -2137,7 +2266,7 @@ export type CalendarEventsQueryVariables = Exact<{
 }>;
 
 
-export type CalendarEventsQuery = { calendarEvents: Array<{ key: string, eventId: string, occurrenceDate: string | null, modified: boolean, label: string, description: string | null, location: string | null, allDay: boolean, startDate: string, startTime: string | null, endDate: string, endTime: string | null, start: string, end: string, recurrence: unknown, seriesStartDate: string, travelBefore: number, travelAfter: number, projectId: string | null, calendarId: string, archived: boolean, contributorIds: Array<string>, relationIds: Array<string>, beneficiaryIds: Array<string>, beneficiaryRelationIds: Array<string>, categoryIds: Array<string>, taskIds: Array<string>, calledOff: boolean, trackedSeconds: number, links: Array<{ url: string, label: string }>, reminders: Array<{ before: number | null, at: string | null, days: number | null }>, routineLinks: Array<{ routineId: string, date: string }>, postponedFrom: { eventId: string, date: string | null, label: string } | null, postponedTo: Array<{ eventId: string, label: string, startDate: string, startTime: string | null }> }>, calendars: Array<{ id: string, archived: boolean }> };
+export type CalendarEventsQuery = { calendarEvents: Array<{ key: string, eventId: string, occurrenceDate: string | null, modified: boolean, label: string, description: string | null, location: string | null, allDay: boolean, startDate: string, startTime: string | null, endDate: string, endTime: string | null, start: string, end: string, recurrence: unknown, seriesStartDate: string, travelBefore: number, travelAfter: number, projectId: string | null, calendarId: string, archived: boolean, contributorIds: Array<string>, relationIds: Array<string>, beneficiaryIds: Array<string>, beneficiaryRelationIds: Array<string>, categoryIds: Array<string>, taskIds: Array<string>, calledOff: boolean, trackedSeconds: number, links: Array<{ url: string, label: string }>, reminders: Array<{ before: number | null, at: string | null, days: number | null, anchor: string, ringtone: string | null }>, routineLinks: Array<{ routineId: string, date: string }>, postponedFrom: { eventId: string, date: string | null, label: string } | null, postponedTo: Array<{ eventId: string, label: string, startDate: string, startTime: string | null }> }>, calendars: Array<{ id: string, archived: boolean }> };
 
 export type CalendarsQueryVariables = Exact<{ [key: string]: never; }>;
 
@@ -2155,7 +2284,7 @@ export type SubscribedCalendarEventsQueryVariables = Exact<{
 }>;
 
 
-export type SubscribedCalendarEventsQuery = { subscribedCalendarEvents: Array<{ key: string, eventId: string, occurrenceDate: string | null, modified: boolean, label: string, description: string | null, location: string | null, allDay: boolean, startDate: string, startTime: string | null, endDate: string, endTime: string | null, start: string, end: string, recurrence: unknown, seriesStartDate: string, travelBefore: number, travelAfter: number, projectId: string | null, calendarId: string, archived: boolean, contributorIds: Array<string>, relationIds: Array<string>, beneficiaryIds: Array<string>, beneficiaryRelationIds: Array<string>, categoryIds: Array<string>, taskIds: Array<string>, calledOff: boolean, trackedSeconds: number, links: Array<{ url: string, label: string }>, reminders: Array<{ before: number | null, at: string | null, days: number | null }>, routineLinks: Array<{ routineId: string, date: string }>, postponedFrom: { eventId: string, date: string | null, label: string } | null, postponedTo: Array<{ eventId: string, label: string, startDate: string, startTime: string | null }> }> };
+export type SubscribedCalendarEventsQuery = { subscribedCalendarEvents: Array<{ key: string, eventId: string, occurrenceDate: string | null, modified: boolean, label: string, description: string | null, location: string | null, allDay: boolean, startDate: string, startTime: string | null, endDate: string, endTime: string | null, start: string, end: string, recurrence: unknown, seriesStartDate: string, travelBefore: number, travelAfter: number, projectId: string | null, calendarId: string, archived: boolean, contributorIds: Array<string>, relationIds: Array<string>, beneficiaryIds: Array<string>, beneficiaryRelationIds: Array<string>, categoryIds: Array<string>, taskIds: Array<string>, calledOff: boolean, trackedSeconds: number, links: Array<{ url: string, label: string }>, reminders: Array<{ before: number | null, at: string | null, days: number | null, anchor: string, ringtone: string | null }>, routineLinks: Array<{ routineId: string, date: string }>, postponedFrom: { eventId: string, date: string | null, label: string } | null, postponedTo: Array<{ eventId: string, label: string, startDate: string, startTime: string | null }> }> };
 
 export type CreateCalendarMutationVariables = Exact<{
   input: LabelColorInput;
@@ -2254,7 +2383,7 @@ export type DeleteCalendarEventMutation = { deleteCalendarEvent: boolean };
 export type BirthdaysQueryVariables = Exact<{ [key: string]: never; }>;
 
 
-export type BirthdaysQuery = { birthdays: Array<{ id: string, contributorId: string | null, relationId: string | null, name: string, birthDate: string, archived: boolean, aliases: Array<string>, reminders: Array<{ before: number | null, at: string | null, days: number | null }> }> };
+export type BirthdaysQuery = { birthdays: Array<{ id: string, contributorId: string | null, relationId: string | null, name: string, birthDate: string, archived: boolean, aliases: Array<string>, reminders: Array<{ before: number | null, at: string | null, days: number | null, anchor: string, ringtone: string | null }> }> };
 
 export type CommentsQueryVariables = Exact<{
   target: CommentTarget;
@@ -2297,6 +2426,52 @@ export type DeleteCommentMutationVariables = Exact<{
 
 
 export type DeleteCommentMutation = { deleteComment: boolean };
+
+export type DeadTimeFieldsFragment = { label: string, minutes: number, ringtone: string | null };
+
+export type CountdownFieldsFragment = { id: string, label: string | null, durationSeconds: number, endsAt: string | null, remainingSeconds: number | null, ringtone: string | null, workspaceId: string | null, taskId: string | null, routineId: string | null, occurrenceDate: string | null, subject: string | null, path: string | null, linkLabel: string | null, createdAt: string };
+
+export type CountdownsQueryVariables = Exact<{ [key: string]: never; }>;
+
+
+export type CountdownsQuery = { countdowns: Array<{ id: string, label: string | null, durationSeconds: number, endsAt: string | null, remainingSeconds: number | null, ringtone: string | null, workspaceId: string | null, taskId: string | null, routineId: string | null, occurrenceDate: string | null, subject: string | null, path: string | null, linkLabel: string | null, createdAt: string }> };
+
+export type StartCountdownMutationVariables = Exact<{
+  input: CountdownInput;
+}>;
+
+
+export type StartCountdownMutation = { startCountdown: { id: string, label: string | null, durationSeconds: number, endsAt: string | null, remainingSeconds: number | null, ringtone: string | null, workspaceId: string | null, taskId: string | null, routineId: string | null, occurrenceDate: string | null, subject: string | null, path: string | null, linkLabel: string | null, createdAt: string } };
+
+export type SetCountdownPausedMutationVariables = Exact<{
+  id: string | number;
+  paused: boolean;
+}>;
+
+
+export type SetCountdownPausedMutation = { setCountdownPaused: { id: string } };
+
+export type ExtendCountdownMutationVariables = Exact<{
+  id: string | number;
+  minutes: number;
+}>;
+
+
+export type ExtendCountdownMutation = { extendCountdown: { id: string } };
+
+export type RingCountdownMutationVariables = Exact<{
+  id: string | number;
+}>;
+
+
+export type RingCountdownMutation = { ringCountdown: boolean };
+
+export type CancelCountdownMutationVariables = Exact<{
+  id: string | number;
+}>;
+
+
+export type CancelCountdownMutation = { cancelCountdown: boolean };
 
 export type SprintTaskStatusesQueryVariables = Exact<{
   today: string;
@@ -3110,7 +3285,7 @@ export type DeleteProjectStatusMutation = { deleteProjectStatus: boolean };
 export type RoutinesDataQueryVariables = Exact<{ [key: string]: never; }>;
 
 
-export type RoutinesDataQuery = { routineCategories: Array<{ id: string, archived: boolean, label: string, color: string | null, iconUrl: string | null, parentId: string | null, position: number }>, routines: Array<{ id: string, label: string, description: string | null, categoryIds: Array<string>, parentId: string | null, startDate: string, recurrence: unknown, estimate: number | null, fromTime: string | null, dueTime: string | null, slotCondition: unknown, moments: unknown, cases: unknown, moves: unknown, done: boolean, windowFrom: string | null, windowTo: string | null, location: string | null, locationLat: number | null, locationLon: number | null, travelBefore: number, travelAfter: number, projectId: string | null, position: number, archived: boolean, assigneeIds: Array<string>, beneficiaryIds: Array<string>, beneficiaryRelationIds: Array<string>, requiredIds: Array<string>, relatedIds: Array<string>, currentDate: string | null, firstDate: string | null, nextDate: string | null, doneDates: Array<string>, lastDoneAt: string | null, trackedSeconds: number, opensOn: unknown, reminders: Array<{ before: number | null, at: string | null, days: number | null }>, reminderOccurrences: Array<{ date: string, day: string, slots: Array<{ slot: number, at: string }> }>, slots: Array<{ index: number, fromTime: string | null, dueTime: string | null, optional: boolean, done: boolean, windows: unknown }>, links: Array<{ url: string, label: string }> }> };
+export type RoutinesDataQuery = { routineCategories: Array<{ id: string, archived: boolean, label: string, color: string | null, iconUrl: string | null, parentId: string | null, position: number }>, routines: Array<{ id: string, label: string, description: string | null, categoryIds: Array<string>, parentId: string | null, startDate: string, recurrence: unknown, estimate: number | null, fromTime: string | null, dueTime: string | null, slotCondition: unknown, moments: unknown, cases: unknown, moves: unknown, done: boolean, windowFrom: string | null, windowTo: string | null, location: string | null, locationLat: number | null, locationLon: number | null, travelBefore: number, travelAfter: number, projectId: string | null, position: number, archived: boolean, assigneeIds: Array<string>, beneficiaryIds: Array<string>, beneficiaryRelationIds: Array<string>, requiredIds: Array<string>, relatedIds: Array<string>, currentDate: string | null, firstDate: string | null, nextDate: string | null, doneDates: Array<string>, lastDoneAt: string | null, trackedSeconds: number, opensOn: unknown, reminders: Array<{ before: number | null, at: string | null, days: number | null, anchor: string, ringtone: string | null }>, deadTimes: Array<{ label: string, minutes: number, ringtone: string | null }>, reminderOccurrences: Array<{ date: string, day: string, slots: Array<{ slot: number, at: string, endAt: string | null }> }>, slots: Array<{ index: number, fromTime: string | null, dueTime: string | null, optional: boolean, done: boolean, windows: unknown }>, links: Array<{ url: string, label: string }> }> };
 
 export type CreateRoutineCategoryMutationVariables = Exact<{
   input: RoutineCategoryInput;
@@ -3935,7 +4110,7 @@ export type SetShoppingDeliveryReceivedMutationVariables = Exact<{
 
 export type SetShoppingDeliveryReceivedMutation = { setShoppingDeliveryReceived: Array<string> };
 
-export type ContributorFieldsFragment = { id: string, archived: boolean, name: string, handle: string, avatarUrl: string | null, isMe: boolean, projectIds: Array<string>, birthDate: string | null, emails: unknown, phones: unknown, birthdayReminders: Array<{ before: number | null, at: string | null, days: number | null }> };
+export type ContributorFieldsFragment = { id: string, archived: boolean, name: string, handle: string, avatarUrl: string | null, isMe: boolean, projectIds: Array<string>, birthDate: string | null, emails: unknown, phones: unknown, birthdayReminders: Array<{ before: number | null, at: string | null, days: number | null, anchor: string, ringtone: string | null }> };
 
 export type SprintFieldsFragment = { id: string, archived: boolean, projectId: string, label: string, goal: string | null, startDate: string, endDate: string };
 
@@ -3943,14 +4118,14 @@ export type MilestoneFieldsFragment = { id: string, archived: boolean, projectId
 
 export type TaskLabelFieldsFragment = { id: string, archived: boolean, label: string, color: string, iconUrl: string | null, position: number };
 
-export type TaskFieldsFragment = { id: string, number: number | null, label: string, description: string | null, projectId: string | null, statusId: string | null, priorityId: string | null, typeId: string | null, effort: number | null, startDate: string | null, endDate: string | null, parentId: string | null, milestoneId: string | null, sprintIds: Array<string>, deadline: string | null, minDate: string | null, effectiveDeadline: string | null, effectiveMinDate: string | null, deadlineFromSprint: boolean, minDateFromSprint: boolean, cancelled: boolean, position: number, archived: boolean, createdAt: string, updatedAt: string, assigneeIds: Array<string>, beneficiaryIds: Array<string>, beneficiaryRelationIds: Array<string>, tagIds: Array<string>, blockingIds: Array<string>, blockedByIds: Array<string>, relatedIds: Array<string>, commentCount: number, trackedSeconds: number, closed: boolean, closedAt: string | null, githubLinked: boolean, githubUrl: string | null, githubNumber: number | null, slotCondition: unknown, location: string | null, locationLat: number | null, locationLon: number | null, links: Array<{ url: string, label: string }>, reminders: Array<{ before: number | null, at: string | null, days: number | null }> };
+export type TaskFieldsFragment = { id: string, number: number | null, label: string, description: string | null, projectId: string | null, statusId: string | null, priorityId: string | null, typeId: string | null, effort: number | null, startDate: string | null, endDate: string | null, parentId: string | null, milestoneId: string | null, sprintIds: Array<string>, deadline: string | null, minDate: string | null, effectiveDeadline: string | null, effectiveMinDate: string | null, deadlineFromSprint: boolean, minDateFromSprint: boolean, cancelled: boolean, position: number, archived: boolean, createdAt: string, updatedAt: string, assigneeIds: Array<string>, beneficiaryIds: Array<string>, beneficiaryRelationIds: Array<string>, tagIds: Array<string>, blockingIds: Array<string>, blockedByIds: Array<string>, relatedIds: Array<string>, commentCount: number, trackedSeconds: number, closed: boolean, closedAt: string | null, githubLinked: boolean, githubUrl: string | null, githubNumber: number | null, slotCondition: unknown, location: string | null, locationLat: number | null, locationLon: number | null, links: Array<{ url: string, label: string }>, reminders: Array<{ before: number | null, at: string | null, days: number | null, anchor: string, ringtone: string | null }>, deadTimes: Array<{ label: string, minutes: number, ringtone: string | null }> };
 
 export type TaskCommentFieldsFragment = { id: string, body: string, createdAt: string, githubAuthor: string | null };
 
 export type TasksDataQueryVariables = Exact<{ [key: string]: never; }>;
 
 
-export type TasksDataQuery = { tasks: Array<{ id: string, number: number | null, label: string, description: string | null, projectId: string | null, statusId: string | null, priorityId: string | null, typeId: string | null, effort: number | null, startDate: string | null, endDate: string | null, parentId: string | null, milestoneId: string | null, sprintIds: Array<string>, deadline: string | null, minDate: string | null, effectiveDeadline: string | null, effectiveMinDate: string | null, deadlineFromSprint: boolean, minDateFromSprint: boolean, cancelled: boolean, position: number, archived: boolean, createdAt: string, updatedAt: string, assigneeIds: Array<string>, beneficiaryIds: Array<string>, beneficiaryRelationIds: Array<string>, tagIds: Array<string>, blockingIds: Array<string>, blockedByIds: Array<string>, relatedIds: Array<string>, commentCount: number, trackedSeconds: number, closed: boolean, closedAt: string | null, githubLinked: boolean, githubUrl: string | null, githubNumber: number | null, slotCondition: unknown, location: string | null, locationLat: number | null, locationLon: number | null, links: Array<{ url: string, label: string }>, reminders: Array<{ before: number | null, at: string | null, days: number | null }> }>, contributors: Array<{ id: string, archived: boolean, name: string, handle: string, avatarUrl: string | null, isMe: boolean, projectIds: Array<string>, birthDate: string | null, emails: unknown, phones: unknown, birthdayReminders: Array<{ before: number | null, at: string | null, days: number | null }> }>, taskStatuses: Array<{ category: TaskStatusCategory, id: string, archived: boolean, label: string, color: string, iconUrl: string | null, position: number }>, taskPriorities: Array<{ id: string, archived: boolean, label: string, color: string, iconUrl: string | null, position: number }>, taskTypes: Array<{ id: string, archived: boolean, label: string, color: string, iconUrl: string | null, position: number }>, taskTags: Array<{ id: string, archived: boolean, label: string, color: string, iconUrl: string | null, position: number }>, milestones: Array<{ id: string, archived: boolean, projectId: string, label: string, description: string | null, dueDate: string | null, position: number }>, sprints: Array<{ id: string, archived: boolean, projectId: string, label: string, goal: string | null, startDate: string, endDate: string }> };
+export type TasksDataQuery = { tasks: Array<{ id: string, number: number | null, label: string, description: string | null, projectId: string | null, statusId: string | null, priorityId: string | null, typeId: string | null, effort: number | null, startDate: string | null, endDate: string | null, parentId: string | null, milestoneId: string | null, sprintIds: Array<string>, deadline: string | null, minDate: string | null, effectiveDeadline: string | null, effectiveMinDate: string | null, deadlineFromSprint: boolean, minDateFromSprint: boolean, cancelled: boolean, position: number, archived: boolean, createdAt: string, updatedAt: string, assigneeIds: Array<string>, beneficiaryIds: Array<string>, beneficiaryRelationIds: Array<string>, tagIds: Array<string>, blockingIds: Array<string>, blockedByIds: Array<string>, relatedIds: Array<string>, commentCount: number, trackedSeconds: number, closed: boolean, closedAt: string | null, githubLinked: boolean, githubUrl: string | null, githubNumber: number | null, slotCondition: unknown, location: string | null, locationLat: number | null, locationLon: number | null, links: Array<{ url: string, label: string }>, reminders: Array<{ before: number | null, at: string | null, days: number | null, anchor: string, ringtone: string | null }>, deadTimes: Array<{ label: string, minutes: number, ringtone: string | null }> }>, contributors: Array<{ id: string, archived: boolean, name: string, handle: string, avatarUrl: string | null, isMe: boolean, projectIds: Array<string>, birthDate: string | null, emails: unknown, phones: unknown, birthdayReminders: Array<{ before: number | null, at: string | null, days: number | null, anchor: string, ringtone: string | null }> }>, taskStatuses: Array<{ category: TaskStatusCategory, id: string, archived: boolean, label: string, color: string, iconUrl: string | null, position: number }>, taskPriorities: Array<{ id: string, archived: boolean, label: string, color: string, iconUrl: string | null, position: number }>, taskTypes: Array<{ id: string, archived: boolean, label: string, color: string, iconUrl: string | null, position: number }>, taskTags: Array<{ id: string, archived: boolean, label: string, color: string, iconUrl: string | null, position: number }>, milestones: Array<{ id: string, archived: boolean, projectId: string, label: string, description: string | null, dueDate: string | null, position: number }>, sprints: Array<{ id: string, archived: boolean, projectId: string, label: string, goal: string | null, startDate: string, endDate: string }> };
 
 export type TaskCommentsQueryVariables = Exact<{
   id: string | number;
@@ -3964,7 +4139,7 @@ export type CreateTaskMutationVariables = Exact<{
 }>;
 
 
-export type CreateTaskMutation = { createTask: { id: string, number: number | null, label: string, description: string | null, projectId: string | null, statusId: string | null, priorityId: string | null, typeId: string | null, effort: number | null, startDate: string | null, endDate: string | null, parentId: string | null, milestoneId: string | null, sprintIds: Array<string>, deadline: string | null, minDate: string | null, effectiveDeadline: string | null, effectiveMinDate: string | null, deadlineFromSprint: boolean, minDateFromSprint: boolean, cancelled: boolean, position: number, archived: boolean, createdAt: string, updatedAt: string, assigneeIds: Array<string>, beneficiaryIds: Array<string>, beneficiaryRelationIds: Array<string>, tagIds: Array<string>, blockingIds: Array<string>, blockedByIds: Array<string>, relatedIds: Array<string>, commentCount: number, trackedSeconds: number, closed: boolean, closedAt: string | null, githubLinked: boolean, githubUrl: string | null, githubNumber: number | null, slotCondition: unknown, location: string | null, locationLat: number | null, locationLon: number | null, links: Array<{ url: string, label: string }>, reminders: Array<{ before: number | null, at: string | null, days: number | null }> } };
+export type CreateTaskMutation = { createTask: { id: string, number: number | null, label: string, description: string | null, projectId: string | null, statusId: string | null, priorityId: string | null, typeId: string | null, effort: number | null, startDate: string | null, endDate: string | null, parentId: string | null, milestoneId: string | null, sprintIds: Array<string>, deadline: string | null, minDate: string | null, effectiveDeadline: string | null, effectiveMinDate: string | null, deadlineFromSprint: boolean, minDateFromSprint: boolean, cancelled: boolean, position: number, archived: boolean, createdAt: string, updatedAt: string, assigneeIds: Array<string>, beneficiaryIds: Array<string>, beneficiaryRelationIds: Array<string>, tagIds: Array<string>, blockingIds: Array<string>, blockedByIds: Array<string>, relatedIds: Array<string>, commentCount: number, trackedSeconds: number, closed: boolean, closedAt: string | null, githubLinked: boolean, githubUrl: string | null, githubNumber: number | null, slotCondition: unknown, location: string | null, locationLat: number | null, locationLon: number | null, links: Array<{ url: string, label: string }>, reminders: Array<{ before: number | null, at: string | null, days: number | null, anchor: string, ringtone: string | null }>, deadTimes: Array<{ label: string, minutes: number, ringtone: string | null }> } };
 
 export type UpdateTaskMutationVariables = Exact<{
   id: string | number;
@@ -3972,7 +4147,7 @@ export type UpdateTaskMutationVariables = Exact<{
 }>;
 
 
-export type UpdateTaskMutation = { updateTask: { id: string, number: number | null, label: string, description: string | null, projectId: string | null, statusId: string | null, priorityId: string | null, typeId: string | null, effort: number | null, startDate: string | null, endDate: string | null, parentId: string | null, milestoneId: string | null, sprintIds: Array<string>, deadline: string | null, minDate: string | null, effectiveDeadline: string | null, effectiveMinDate: string | null, deadlineFromSprint: boolean, minDateFromSprint: boolean, cancelled: boolean, position: number, archived: boolean, createdAt: string, updatedAt: string, assigneeIds: Array<string>, beneficiaryIds: Array<string>, beneficiaryRelationIds: Array<string>, tagIds: Array<string>, blockingIds: Array<string>, blockedByIds: Array<string>, relatedIds: Array<string>, commentCount: number, trackedSeconds: number, closed: boolean, closedAt: string | null, githubLinked: boolean, githubUrl: string | null, githubNumber: number | null, slotCondition: unknown, location: string | null, locationLat: number | null, locationLon: number | null, links: Array<{ url: string, label: string }>, reminders: Array<{ before: number | null, at: string | null, days: number | null }> } };
+export type UpdateTaskMutation = { updateTask: { id: string, number: number | null, label: string, description: string | null, projectId: string | null, statusId: string | null, priorityId: string | null, typeId: string | null, effort: number | null, startDate: string | null, endDate: string | null, parentId: string | null, milestoneId: string | null, sprintIds: Array<string>, deadline: string | null, minDate: string | null, effectiveDeadline: string | null, effectiveMinDate: string | null, deadlineFromSprint: boolean, minDateFromSprint: boolean, cancelled: boolean, position: number, archived: boolean, createdAt: string, updatedAt: string, assigneeIds: Array<string>, beneficiaryIds: Array<string>, beneficiaryRelationIds: Array<string>, tagIds: Array<string>, blockingIds: Array<string>, blockedByIds: Array<string>, relatedIds: Array<string>, commentCount: number, trackedSeconds: number, closed: boolean, closedAt: string | null, githubLinked: boolean, githubUrl: string | null, githubNumber: number | null, slotCondition: unknown, location: string | null, locationLat: number | null, locationLon: number | null, links: Array<{ url: string, label: string }>, reminders: Array<{ before: number | null, at: string | null, days: number | null, anchor: string, ringtone: string | null }>, deadTimes: Array<{ label: string, minutes: number, ringtone: string | null }> } };
 
 export type DuplicateTaskMutationVariables = Exact<{
   id: string | number;
@@ -4052,7 +4227,7 @@ export type CreateContributorMutationVariables = Exact<{
 }>;
 
 
-export type CreateContributorMutation = { createContributor: { id: string, archived: boolean, name: string, handle: string, avatarUrl: string | null, isMe: boolean, projectIds: Array<string>, birthDate: string | null, emails: unknown, phones: unknown, birthdayReminders: Array<{ before: number | null, at: string | null, days: number | null }> } };
+export type CreateContributorMutation = { createContributor: { id: string, archived: boolean, name: string, handle: string, avatarUrl: string | null, isMe: boolean, projectIds: Array<string>, birthDate: string | null, emails: unknown, phones: unknown, birthdayReminders: Array<{ before: number | null, at: string | null, days: number | null, anchor: string, ringtone: string | null }> } };
 
 export type UpdateContributorMutationVariables = Exact<{
   id: string | number;
@@ -4061,7 +4236,7 @@ export type UpdateContributorMutationVariables = Exact<{
 }>;
 
 
-export type UpdateContributorMutation = { updateContributor: { id: string, archived: boolean, name: string, handle: string, avatarUrl: string | null, isMe: boolean, projectIds: Array<string>, birthDate: string | null, emails: unknown, phones: unknown, birthdayReminders: Array<{ before: number | null, at: string | null, days: number | null }> } };
+export type UpdateContributorMutation = { updateContributor: { id: string, archived: boolean, name: string, handle: string, avatarUrl: string | null, isMe: boolean, projectIds: Array<string>, birthDate: string | null, emails: unknown, phones: unknown, birthdayReminders: Array<{ before: number | null, at: string | null, days: number | null, anchor: string, ringtone: string | null }> } };
 
 export type SetProjectContributorsMutationVariables = Exact<{
   projectId: string | number;
@@ -4291,10 +4466,10 @@ export type TimeEntriesQueryVariables = Exact<{
 
 export type TimeEntriesQuery = { timeEntries: Array<{ id: string, projectId: string | null, description: string | null, startedAt: string, endedAt: string | null, pausedAt: string | null, pausedSeconds: number, duration: number | null, taskIds: Array<string>, documentId: string | null, documentNumber: string | null, routines: Array<{ id: string, label: string }>, events: Array<{ eventId: string, occurrenceDate: string | null, label: string }> }> };
 
-export type RunningTimeEntryQueryVariables = Exact<{ [key: string]: never; }>;
+export type RunningTimeEntriesQueryVariables = Exact<{ [key: string]: never; }>;
 
 
-export type RunningTimeEntryQuery = { runningTimeEntry: { id: string, projectId: string | null, description: string | null, startedAt: string, endedAt: string | null, pausedAt: string | null, pausedSeconds: number, duration: number | null, taskIds: Array<string>, documentId: string | null, documentNumber: string | null, routines: Array<{ id: string, label: string }>, events: Array<{ eventId: string, occurrenceDate: string | null, label: string }> } | null };
+export type RunningTimeEntriesQuery = { runningTimeEntries: Array<{ id: string, projectId: string | null, description: string | null, startedAt: string, endedAt: string | null, pausedAt: string | null, pausedSeconds: number, duration: number | null, taskIds: Array<string>, documentId: string | null, documentNumber: string | null, routines: Array<{ id: string, label: string }>, events: Array<{ eventId: string, occurrenceDate: string | null, label: string }> }> };
 
 export type StartTimerMutationVariables = Exact<{
   input: TimerInput;
@@ -4304,16 +4479,24 @@ export type StartTimerMutationVariables = Exact<{
 export type StartTimerMutation = { startTimer: { id: string } };
 
 export type SetTimerPausedMutationVariables = Exact<{
+  id: string | number;
   paused: boolean;
 }>;
 
 
 export type SetTimerPausedMutation = { setTimerPaused: { id: string } };
 
-export type StopTimerMutationVariables = Exact<{ [key: string]: never; }>;
+export type StopTimerMutationVariables = Exact<{
+  id: string | number;
+}>;
 
 
 export type StopTimerMutation = { stopTimer: { id: string } | null };
+
+export type StopAllTimersMutationVariables = Exact<{ [key: string]: never; }>;
+
+
+export type StopAllTimersMutation = { stopAllTimers: Array<{ id: string }> };
 
 export type CreateTimeEntryMutationVariables = Exact<{
   input: TimeEntryInput;
@@ -4391,7 +4574,7 @@ export type TreasuryProjectionQuery = { treasuryProjection: { balance: number, s
 export type TreasurySettingsQueryVariables = Exact<{ [key: string]: never; }>;
 
 
-export type TreasurySettingsQuery = { treasuryCategories: Array<{ id: string, archived: boolean, label: string, color: string | null, iconUrl: string | null, direction: TreasuryDirection, parentId: string | null, position: number, entryCount: number }>, treasuryPaymentMethods: Array<{ id: string, archived: boolean, label: string, color: string | null, iconUrl: string | null, position: number, incoming: boolean, outgoing: boolean, entryCount: number }>, treasuryCounterparties: Array<{ id: string, name: string, color: string | null, iconUrl: string | null, position: number, note: string | null, archived: boolean, entryCount: number }>, treasuryMembers: Array<{ id: string, name: string, handle: string, avatarUrl: string | null, isMe: boolean }>, treasuryContexts: Array<{ id: string, scheduleTypeId: string, archived: boolean, label: string, color: string, iconUrl: string | null, position: number, workspaceLabel: string | null }>, treasuryRelations: Array<{ id: string, archived: boolean, name: string, note: string | null, contributorId: string | null, birthDate: string | null, emails: unknown, phones: unknown, lineCount: number, budgetCount: number, birthdayReminders: Array<{ before: number | null, at: string | null, days: number | null }> }>, treasuryContextEphemerides: Array<{ contextId: string, schedule: { id: string, label: string, startDate: string, endDate: string | null, cases: unknown, exceptions: unknown } }> };
+export type TreasurySettingsQuery = { treasuryCategories: Array<{ id: string, archived: boolean, label: string, color: string | null, iconUrl: string | null, direction: TreasuryDirection, parentId: string | null, position: number, entryCount: number }>, treasuryPaymentMethods: Array<{ id: string, archived: boolean, label: string, color: string | null, iconUrl: string | null, position: number, incoming: boolean, outgoing: boolean, entryCount: number }>, treasuryCounterparties: Array<{ id: string, name: string, color: string | null, iconUrl: string | null, position: number, note: string | null, archived: boolean, entryCount: number }>, treasuryMembers: Array<{ id: string, name: string, handle: string, avatarUrl: string | null, isMe: boolean }>, treasuryContexts: Array<{ id: string, scheduleTypeId: string, archived: boolean, label: string, color: string, iconUrl: string | null, position: number, workspaceLabel: string | null }>, treasuryRelations: Array<{ id: string, archived: boolean, name: string, note: string | null, contributorId: string | null, birthDate: string | null, emails: unknown, phones: unknown, lineCount: number, budgetCount: number, birthdayReminders: Array<{ before: number | null, at: string | null, days: number | null, anchor: string, ringtone: string | null }> }>, treasuryContextEphemerides: Array<{ contextId: string, schedule: { id: string, label: string, startDate: string, endDate: string | null, cases: unknown, exceptions: unknown } }> };
 
 export type TreasuryEntrySearchQueryVariables = Exact<{
   text: string;
@@ -4674,12 +4857,12 @@ export type DeleteWorkspaceMutation = { deleteWorkspace: boolean };
 export type ElsewhereAlarmsQueryVariables = Exact<{ [key: string]: never; }>;
 
 
-export type ElsewhereAlarmsQuery = { alarms: Array<{ id: string, label: string, note: string | null, type: AlarmType, startDate: string | null, time: string | null, frequency: AlarmFrequency, interval: number, weekdays: Array<number>, endDate: string | null, recurrence: unknown, minutes: number | null, projectId: string | null, taskId: string | null, enabled: boolean, lastFiredAt: string | null, createdAt: string, task: { id: string, number: number | null, label: string, projectId: string | null } | null, project: { id: string, label: string } | null }>, projects: Array<{ id: string, label: string }>, runningTimeEntry: { id: string, startedAt: string, endedAt: string | null, pausedAt: string | null, pausedSeconds: number, duration: number | null } | null };
+export type ElsewhereAlarmsQuery = { alarms: Array<{ id: string, label: string, note: string | null, type: AlarmType, startDate: string | null, time: string | null, frequency: AlarmFrequency, interval: number, weekdays: Array<number>, endDate: string | null, recurrence: unknown, minutes: number | null, projectId: string | null, taskId: string | null, enabled: boolean, lastFiredAt: string | null, createdAt: string, task: { id: string, number: number | null, label: string, projectId: string | null } | null, project: { id: string, label: string } | null }>, projects: Array<{ id: string, label: string }>, runningTimeEntries: Array<{ id: string, startedAt: string, endedAt: string | null, pausedAt: string | null, pausedSeconds: number, duration: number | null }> };
 
 export type ElsewhereRemindersQueryVariables = Exact<{ [key: string]: never; }>;
 
 
-export type ElsewhereRemindersQuery = { tasks: Array<{ id: string, number: number | null, label: string, projectId: string | null, closed: boolean, archived: boolean, effectiveMinDate: string | null, effectiveDeadline: string | null, reminders: Array<{ before: number | null, at: string | null, days: number | null }> }>, routines: Array<{ id: string, label: string, archived: boolean, location: string | null, currentDate: string | null, reminders: Array<{ before: number | null, at: string | null, days: number | null }>, reminderOccurrences: Array<{ date: string, day: string, slots: Array<{ slot: number, at: string }> }>, slots: Array<{ index: number, fromTime: string | null, dueTime: string | null, optional: boolean, done: boolean, windows: unknown }> }>, workSchedules: Array<{ id: string, archived: boolean, label: string, startDate: string, endDate: string | null, typeId: string | null, ephemeris: boolean, cases: unknown, exceptions: unknown, reminders: Array<{ before: number | null, at: string | null, days: number | null }> }>, birthdays: Array<{ id: string, name: string, birthDate: string, reminders: Array<{ before: number | null, at: string | null, days: number | null }> }> };
+export type ElsewhereRemindersQuery = { tasks: Array<{ id: string, number: number | null, label: string, projectId: string | null, closed: boolean, archived: boolean, effectiveMinDate: string | null, effectiveDeadline: string | null, reminders: Array<{ before: number | null, at: string | null, days: number | null, anchor: string, ringtone: string | null }> }>, routines: Array<{ id: string, label: string, archived: boolean, location: string | null, currentDate: string | null, reminders: Array<{ before: number | null, at: string | null, days: number | null, anchor: string, ringtone: string | null }>, reminderOccurrences: Array<{ date: string, day: string, slots: Array<{ slot: number, at: string, endAt: string | null }> }>, slots: Array<{ index: number, fromTime: string | null, dueTime: string | null, optional: boolean, done: boolean, windows: unknown }> }>, workSchedules: Array<{ id: string, archived: boolean, label: string, startDate: string, endDate: string | null, typeId: string | null, ephemeris: boolean, cases: unknown, exceptions: unknown, reminders: Array<{ before: number | null, at: string | null, days: number | null, anchor: string, ringtone: string | null }> }>, birthdays: Array<{ id: string, name: string, birthDate: string, reminders: Array<{ before: number | null, at: string | null, days: number | null, anchor: string, ringtone: string | null }> }> };
 
 export type ElsewhereMarkAlarmFiredMutationVariables = Exact<{
   id: string | number;
@@ -4951,6 +5134,22 @@ export const CompanyProfileFieldsFragmentDoc = new TypedDocumentString(`
   quoteValidityDays
 }
     `, {"fragmentName":"CompanyProfileFields"}) as unknown as TypedDocumentString<CompanyProfileFieldsFragment, unknown>;
+export const AlarmRingFieldsFragmentDoc = new TypedDocumentString(`
+    fragment AlarmRingFields on AlarmRing {
+  id
+  key
+  workspaceId
+  title
+  lines
+  path
+  linkLabel
+  ringtone
+  dueAt
+  ringingSince
+  nextAt
+  stoppedAt
+}
+    `, {"fragmentName":"AlarmRingFields"}) as unknown as TypedDocumentString<AlarmRingFieldsFragment, unknown>;
 export const AlarmFieldsFragmentDoc = new TypedDocumentString(`
     fragment AlarmFields on Alarm {
   id
@@ -4979,8 +5178,24 @@ export const AccountUserFragmentDoc = new TypedDocumentString(`
   email
   pendingEmail
   contributorId
+  ringSettings {
+    ringMinutes
+    loop
+    repeatMinutes
+    ringtone
+    outside
+  }
 }
     `, {"fragmentName":"AccountUser"}) as unknown as TypedDocumentString<AccountUserFragment, unknown>;
+export const ReminderFieldsFragmentDoc = new TypedDocumentString(`
+    fragment ReminderFields on Reminder {
+  before
+  at
+  days
+  anchor
+  ringtone
+}
+    `, {"fragmentName":"ReminderFields"}) as unknown as TypedDocumentString<ReminderFieldsFragment, unknown>;
 export const CalendarEventOccurrenceFieldsFragmentDoc = new TypedDocumentString(`
     fragment CalendarEventOccurrenceFields on CalendarEventOccurrence {
   key
@@ -5004,9 +5219,7 @@ export const CalendarEventOccurrenceFieldsFragmentDoc = new TypedDocumentString(
   recurrence
   seriesStartDate
   reminders {
-    before
-    at
-    days
+    ...ReminderFields
   }
   travelBefore
   travelAfter
@@ -5037,7 +5250,31 @@ export const CalendarEventOccurrenceFieldsFragmentDoc = new TypedDocumentString(
   }
   trackedSeconds
 }
-    `, {"fragmentName":"CalendarEventOccurrenceFields"}) as unknown as TypedDocumentString<CalendarEventOccurrenceFieldsFragment, unknown>;
+    fragment ReminderFields on Reminder {
+  before
+  at
+  days
+  anchor
+  ringtone
+}`, {"fragmentName":"CalendarEventOccurrenceFields"}) as unknown as TypedDocumentString<CalendarEventOccurrenceFieldsFragment, unknown>;
+export const CountdownFieldsFragmentDoc = new TypedDocumentString(`
+    fragment CountdownFields on Countdown {
+  id
+  label
+  durationSeconds
+  endsAt
+  remainingSeconds
+  ringtone
+  workspaceId
+  taskId
+  routineId
+  occurrenceDate
+  subject
+  path
+  linkLabel
+  createdAt
+}
+    `, {"fragmentName":"CountdownFields"}) as unknown as TypedDocumentString<CountdownFieldsFragment, unknown>;
 export const MailAccountFieldsFragmentDoc = new TypedDocumentString(`
     fragment MailAccountFields on MailAccount {
   id
@@ -5200,14 +5437,18 @@ export const ContributorFieldsFragmentDoc = new TypedDocumentString(`
   projectIds
   birthDate
   birthdayReminders {
-    before
-    at
-    days
+    ...ReminderFields
   }
   emails
   phones
 }
-    `, {"fragmentName":"ContributorFields"}) as unknown as TypedDocumentString<ContributorFieldsFragment, unknown>;
+    fragment ReminderFields on Reminder {
+  before
+  at
+  days
+  anchor
+  ringtone
+}`, {"fragmentName":"ContributorFields"}) as unknown as TypedDocumentString<ContributorFieldsFragment, unknown>;
 export const SprintFieldsFragmentDoc = new TypedDocumentString(`
     fragment SprintFields on Sprint {
   id
@@ -5240,6 +5481,13 @@ export const TaskLabelFieldsFragmentDoc = new TypedDocumentString(`
   position
 }
     `, {"fragmentName":"TaskLabelFields"}) as unknown as TypedDocumentString<TaskLabelFieldsFragment, unknown>;
+export const DeadTimeFieldsFragmentDoc = new TypedDocumentString(`
+    fragment DeadTimeFields on DeadTime {
+  label
+  minutes
+  ringtone
+}
+    `, {"fragmentName":"DeadTimeFields"}) as unknown as TypedDocumentString<DeadTimeFieldsFragment, unknown>;
 export const TaskFieldsFragmentDoc = new TypedDocumentString(`
     fragment TaskFields on Task {
   id
@@ -5290,12 +5538,24 @@ export const TaskFieldsFragmentDoc = new TypedDocumentString(`
     label
   }
   reminders {
-    before
-    at
-    days
+    ...ReminderFields
+  }
+  deadTimes {
+    ...DeadTimeFields
   }
 }
-    `, {"fragmentName":"TaskFields"}) as unknown as TypedDocumentString<TaskFieldsFragment, unknown>;
+    fragment ReminderFields on Reminder {
+  before
+  at
+  days
+  anchor
+  ringtone
+}
+fragment DeadTimeFields on DeadTime {
+  label
+  minutes
+  ringtone
+}`, {"fragmentName":"TaskFields"}) as unknown as TypedDocumentString<TaskFieldsFragment, unknown>;
 export const TaskCommentFieldsFragmentDoc = new TypedDocumentString(`
     fragment TaskCommentFields on TaskComment {
   id
@@ -6214,6 +6474,71 @@ export const RecordDocumentPaymentDocument = new TypedDocumentString(`
   recordDocumentPayment(id: $id, input: $input)
 }
     `) as unknown as TypedDocumentString<RecordDocumentPaymentMutation, RecordDocumentPaymentMutationVariables>;
+export const AlarmRingsDocument = new TypedDocumentString(`
+    query AlarmRings {
+  alarmRings {
+    ...AlarmRingFields
+  }
+}
+    fragment AlarmRingFields on AlarmRing {
+  id
+  key
+  workspaceId
+  title
+  lines
+  path
+  linkLabel
+  ringtone
+  dueAt
+  ringingSince
+  nextAt
+  stoppedAt
+}`) as unknown as TypedDocumentString<AlarmRingsQuery, AlarmRingsQueryVariables>;
+export const RingAlarmDocument = new TypedDocumentString(`
+    mutation RingAlarm($input: AlarmRingInput!) {
+  ringAlarm(input: $input) {
+    ...AlarmRingFields
+  }
+}
+    fragment AlarmRingFields on AlarmRing {
+  id
+  key
+  workspaceId
+  title
+  lines
+  path
+  linkLabel
+  ringtone
+  dueAt
+  ringingSince
+  nextAt
+  stoppedAt
+}`) as unknown as TypedDocumentString<RingAlarmMutation, RingAlarmMutationVariables>;
+export const SnoozeAlarmRingDocument = new TypedDocumentString(`
+    mutation SnoozeAlarmRing($key: String!) {
+  snoozeAlarmRing(key: $key) {
+    ...AlarmRingFields
+  }
+}
+    fragment AlarmRingFields on AlarmRing {
+  id
+  key
+  workspaceId
+  title
+  lines
+  path
+  linkLabel
+  ringtone
+  dueAt
+  ringingSince
+  nextAt
+  stoppedAt
+}`) as unknown as TypedDocumentString<SnoozeAlarmRingMutation, SnoozeAlarmRingMutationVariables>;
+export const StopAlarmRingDocument = new TypedDocumentString(`
+    mutation StopAlarmRing($key: String!) {
+  stopAlarmRing(key: $key)
+}
+    `) as unknown as TypedDocumentString<StopAlarmRingMutation, StopAlarmRingMutationVariables>;
 export const AlarmsDocument = new TypedDocumentString(`
     query Alarms {
   alarms {
@@ -6263,6 +6588,35 @@ export const MarkAlarmFiredDocument = new TypedDocumentString(`
   markAlarmFired(id: $id, at: $at)
 }
     `) as unknown as TypedDocumentString<MarkAlarmFiredMutation, MarkAlarmFiredMutationVariables>;
+export const PushConfigDocument = new TypedDocumentString(`
+    query PushConfig {
+  pushPublicKey
+  pushSubscriptions {
+    id
+    endpoint
+    label
+    createdAt
+    lastSuccessAt
+  }
+}
+    `) as unknown as TypedDocumentString<PushConfigQuery, PushConfigQueryVariables>;
+export const RegisterPushSubscriptionDocument = new TypedDocumentString(`
+    mutation RegisterPushSubscription($input: PushSubscriptionInput!) {
+  registerPushSubscription(input: $input) {
+    id
+  }
+}
+    `) as unknown as TypedDocumentString<RegisterPushSubscriptionMutation, RegisterPushSubscriptionMutationVariables>;
+export const RemovePushSubscriptionDocument = new TypedDocumentString(`
+    mutation RemovePushSubscription($id: ID!) {
+  removePushSubscription(id: $id)
+}
+    `) as unknown as TypedDocumentString<RemovePushSubscriptionMutation, RemovePushSubscriptionMutationVariables>;
+export const TestPushSubscriptionDocument = new TypedDocumentString(`
+    mutation TestPushSubscription($id: ID!) {
+  testPushSubscription(id: $id)
+}
+    `) as unknown as TypedDocumentString<TestPushSubscriptionMutation, TestPushSubscriptionMutationVariables>;
 export const MeDocument = new TypedDocumentString(`
     query Me {
   me {
@@ -6275,6 +6629,13 @@ export const MeDocument = new TypedDocumentString(`
   email
   pendingEmail
   contributorId
+  ringSettings {
+    ringMinutes
+    loop
+    repeatMinutes
+    ringtone
+    outside
+  }
 }`) as unknown as TypedDocumentString<MeQuery, MeQueryVariables>;
 export const LoginDocument = new TypedDocumentString(`
     mutation Login($identifier: String!, $password: String!) {
@@ -6288,6 +6649,13 @@ export const LoginDocument = new TypedDocumentString(`
   email
   pendingEmail
   contributorId
+  ringSettings {
+    ringMinutes
+    loop
+    repeatMinutes
+    ringtone
+    outside
+  }
 }`) as unknown as TypedDocumentString<LoginMutation, LoginMutationVariables>;
 export const LogoutDocument = new TypedDocumentString(`
     mutation Logout {
@@ -6314,6 +6682,26 @@ export const ChangePasswordDocument = new TypedDocumentString(`
   changePassword(currentPassword: $currentPassword, password: $password)
 }
     `) as unknown as TypedDocumentString<ChangePasswordMutation, ChangePasswordMutationVariables>;
+export const UpdateRingSettingsDocument = new TypedDocumentString(`
+    mutation UpdateRingSettings($input: RingSettingsInput!) {
+  updateRingSettings(input: $input) {
+    ...AccountUser
+  }
+}
+    fragment AccountUser on User {
+  id
+  username
+  email
+  pendingEmail
+  contributorId
+  ringSettings {
+    ringMinutes
+    loop
+    repeatMinutes
+    ringtone
+    outside
+  }
+}`) as unknown as TypedDocumentString<UpdateRingSettingsMutation, UpdateRingSettingsMutationVariables>;
 export const ChangeUsernameDocument = new TypedDocumentString(`
     mutation ChangeUsername($currentPassword: String!, $username: String!) {
   changeUsername(currentPassword: $currentPassword, username: $username) {
@@ -6326,6 +6714,13 @@ export const ChangeUsernameDocument = new TypedDocumentString(`
   email
   pendingEmail
   contributorId
+  ringSettings {
+    ringMinutes
+    loop
+    repeatMinutes
+    ringtone
+    outside
+  }
 }`) as unknown as TypedDocumentString<ChangeUsernameMutation, ChangeUsernameMutationVariables>;
 export const RequestEmailChangeDocument = new TypedDocumentString(`
     mutation RequestEmailChange($currentPassword: String!, $email: String!) {
@@ -6339,6 +6734,13 @@ export const RequestEmailChangeDocument = new TypedDocumentString(`
   email
   pendingEmail
   contributorId
+  ringSettings {
+    ringMinutes
+    loop
+    repeatMinutes
+    ringtone
+    outside
+  }
 }`) as unknown as TypedDocumentString<RequestEmailChangeMutation, RequestEmailChangeMutationVariables>;
 export const CancelEmailChangeDocument = new TypedDocumentString(`
     mutation CancelEmailChange {
@@ -6352,6 +6754,13 @@ export const CancelEmailChangeDocument = new TypedDocumentString(`
   email
   pendingEmail
   contributorId
+  ringSettings {
+    ringMinutes
+    loop
+    repeatMinutes
+    ringtone
+    outside
+  }
 }`) as unknown as TypedDocumentString<CancelEmailChangeMutation, CancelEmailChangeMutationVariables>;
 export const WorkSchedulesDocument = new TypedDocumentString(`
     query WorkSchedules {
@@ -6366,9 +6775,7 @@ export const WorkSchedulesDocument = new TypedDocumentString(`
     cases
     exceptions
     reminders {
-      before
-      at
-      days
+      ...ReminderFields
     }
   }
   scheduleTypes {
@@ -6393,7 +6800,13 @@ export const WorkSchedulesDocument = new TypedDocumentString(`
     monthDisplay
   }
 }
-    `) as unknown as TypedDocumentString<WorkSchedulesQuery, WorkSchedulesQueryVariables>;
+    fragment ReminderFields on Reminder {
+  before
+  at
+  days
+  anchor
+  ringtone
+}`) as unknown as TypedDocumentString<WorkSchedulesQuery, WorkSchedulesQueryVariables>;
 export const ForeignScheduleKindsDocument = new TypedDocumentString(`
     query ForeignScheduleKinds {
   foreignScheduleKinds {
@@ -6568,7 +6981,14 @@ export const CalendarEventsDocument = new TypedDocumentString(`
     archived
   }
 }
-    fragment CalendarEventOccurrenceFields on CalendarEventOccurrence {
+    fragment ReminderFields on Reminder {
+  before
+  at
+  days
+  anchor
+  ringtone
+}
+fragment CalendarEventOccurrenceFields on CalendarEventOccurrence {
   key
   eventId
   occurrenceDate
@@ -6590,9 +7010,7 @@ export const CalendarEventsDocument = new TypedDocumentString(`
   recurrence
   seriesStartDate
   reminders {
-    before
-    at
-    days
+    ...ReminderFields
   }
   travelBefore
   travelAfter
@@ -6667,7 +7085,14 @@ export const SubscribedCalendarEventsDocument = new TypedDocumentString(`
     ...CalendarEventOccurrenceFields
   }
 }
-    fragment CalendarEventOccurrenceFields on CalendarEventOccurrence {
+    fragment ReminderFields on Reminder {
+  before
+  at
+  days
+  anchor
+  ringtone
+}
+fragment CalendarEventOccurrenceFields on CalendarEventOccurrence {
   key
   eventId
   occurrenceDate
@@ -6689,9 +7114,7 @@ export const SubscribedCalendarEventsDocument = new TypedDocumentString(`
   recurrence
   seriesStartDate
   reminders {
-    before
-    at
-    days
+    ...ReminderFields
   }
   travelBefore
   travelAfter
@@ -6807,13 +7230,17 @@ export const BirthdaysDocument = new TypedDocumentString(`
     archived
     aliases
     reminders {
-      before
-      at
-      days
+      ...ReminderFields
     }
   }
 }
-    `) as unknown as TypedDocumentString<BirthdaysQuery, BirthdaysQueryVariables>;
+    fragment ReminderFields on Reminder {
+  before
+  at
+  days
+  anchor
+  ringtone
+}`) as unknown as TypedDocumentString<BirthdaysQuery, BirthdaysQueryVariables>;
 export const CommentsDocument = new TypedDocumentString(`
     query Comments($target: CommentTarget!, $id: String!, $occurrenceDate: Date) {
   comments(target: $target, id: $id, occurrenceDate: $occurrenceDate) {
@@ -6855,6 +7282,74 @@ export const DeleteCommentDocument = new TypedDocumentString(`
   deleteComment(id: $id)
 }
     `) as unknown as TypedDocumentString<DeleteCommentMutation, DeleteCommentMutationVariables>;
+export const CountdownsDocument = new TypedDocumentString(`
+    query Countdowns {
+  countdowns {
+    ...CountdownFields
+  }
+}
+    fragment CountdownFields on Countdown {
+  id
+  label
+  durationSeconds
+  endsAt
+  remainingSeconds
+  ringtone
+  workspaceId
+  taskId
+  routineId
+  occurrenceDate
+  subject
+  path
+  linkLabel
+  createdAt
+}`) as unknown as TypedDocumentString<CountdownsQuery, CountdownsQueryVariables>;
+export const StartCountdownDocument = new TypedDocumentString(`
+    mutation StartCountdown($input: CountdownInput!) {
+  startCountdown(input: $input) {
+    ...CountdownFields
+  }
+}
+    fragment CountdownFields on Countdown {
+  id
+  label
+  durationSeconds
+  endsAt
+  remainingSeconds
+  ringtone
+  workspaceId
+  taskId
+  routineId
+  occurrenceDate
+  subject
+  path
+  linkLabel
+  createdAt
+}`) as unknown as TypedDocumentString<StartCountdownMutation, StartCountdownMutationVariables>;
+export const SetCountdownPausedDocument = new TypedDocumentString(`
+    mutation SetCountdownPaused($id: ID!, $paused: Boolean!) {
+  setCountdownPaused(id: $id, paused: $paused) {
+    id
+  }
+}
+    `) as unknown as TypedDocumentString<SetCountdownPausedMutation, SetCountdownPausedMutationVariables>;
+export const ExtendCountdownDocument = new TypedDocumentString(`
+    mutation ExtendCountdown($id: ID!, $minutes: Int!) {
+  extendCountdown(id: $id, minutes: $minutes) {
+    id
+  }
+}
+    `) as unknown as TypedDocumentString<ExtendCountdownMutation, ExtendCountdownMutationVariables>;
+export const RingCountdownDocument = new TypedDocumentString(`
+    mutation RingCountdown($id: ID!) {
+  ringCountdown(id: $id)
+}
+    `) as unknown as TypedDocumentString<RingCountdownMutation, RingCountdownMutationVariables>;
+export const CancelCountdownDocument = new TypedDocumentString(`
+    mutation CancelCountdown($id: ID!) {
+  cancelCountdown(id: $id)
+}
+    `) as unknown as TypedDocumentString<CancelCountdownMutation, CancelCountdownMutationVariables>;
 export const SprintTaskStatusesDocument = new TypedDocumentString(`
     query SprintTaskStatuses($today: Date!) {
   sprintTaskStatuses(today: $today) {
@@ -8039,9 +8534,10 @@ export const RoutinesDataDocument = new TypedDocumentString(`
     slotCondition
     moments
     reminders {
-      before
-      at
-      days
+      ...ReminderFields
+    }
+    deadTimes {
+      ...DeadTimeFields
     }
     reminderOccurrences {
       date
@@ -8049,6 +8545,7 @@ export const RoutinesDataDocument = new TypedDocumentString(`
       slots {
         slot
         at
+        endAt
       }
     }
     cases
@@ -8090,7 +8587,18 @@ export const RoutinesDataDocument = new TypedDocumentString(`
     opensOn
   }
 }
-    `) as unknown as TypedDocumentString<RoutinesDataQuery, RoutinesDataQueryVariables>;
+    fragment ReminderFields on Reminder {
+  before
+  at
+  days
+  anchor
+  ringtone
+}
+fragment DeadTimeFields on DeadTime {
+  label
+  minutes
+  ringtone
+}`) as unknown as TypedDocumentString<RoutinesDataQuery, RoutinesDataQueryVariables>;
 export const CreateRoutineCategoryDocument = new TypedDocumentString(`
     mutation CreateRoutineCategory($input: RoutineCategoryInput!) {
   createRoutineCategory(input: $input)
@@ -9020,7 +9528,19 @@ export const TasksDataDocument = new TypedDocumentString(`
     ...SprintFields
   }
 }
-    fragment ContributorFields on Contributor {
+    fragment ReminderFields on Reminder {
+  before
+  at
+  days
+  anchor
+  ringtone
+}
+fragment DeadTimeFields on DeadTime {
+  label
+  minutes
+  ringtone
+}
+fragment ContributorFields on Contributor {
   id
   archived
   name
@@ -9030,9 +9550,7 @@ export const TasksDataDocument = new TypedDocumentString(`
   projectIds
   birthDate
   birthdayReminders {
-    before
-    at
-    days
+    ...ReminderFields
   }
   emails
   phones
@@ -9112,9 +9630,10 @@ fragment TaskFields on Task {
     label
   }
   reminders {
-    before
-    at
-    days
+    ...ReminderFields
+  }
+  deadTimes {
+    ...DeadTimeFields
   }
 }`) as unknown as TypedDocumentString<TasksDataQuery, TasksDataQueryVariables>;
 export const TaskCommentsDocument = new TypedDocumentString(`
@@ -9138,7 +9657,19 @@ export const CreateTaskDocument = new TypedDocumentString(`
     ...TaskFields
   }
 }
-    fragment TaskFields on Task {
+    fragment ReminderFields on Reminder {
+  before
+  at
+  days
+  anchor
+  ringtone
+}
+fragment DeadTimeFields on DeadTime {
+  label
+  minutes
+  ringtone
+}
+fragment TaskFields on Task {
   id
   number
   label
@@ -9187,9 +9718,10 @@ export const CreateTaskDocument = new TypedDocumentString(`
     label
   }
   reminders {
-    before
-    at
-    days
+    ...ReminderFields
+  }
+  deadTimes {
+    ...DeadTimeFields
   }
 }`) as unknown as TypedDocumentString<CreateTaskMutation, CreateTaskMutationVariables>;
 export const UpdateTaskDocument = new TypedDocumentString(`
@@ -9198,7 +9730,19 @@ export const UpdateTaskDocument = new TypedDocumentString(`
     ...TaskFields
   }
 }
-    fragment TaskFields on Task {
+    fragment ReminderFields on Reminder {
+  before
+  at
+  days
+  anchor
+  ringtone
+}
+fragment DeadTimeFields on DeadTime {
+  label
+  minutes
+  ringtone
+}
+fragment TaskFields on Task {
   id
   number
   label
@@ -9247,9 +9791,10 @@ export const UpdateTaskDocument = new TypedDocumentString(`
     label
   }
   reminders {
-    before
-    at
-    days
+    ...ReminderFields
+  }
+  deadTimes {
+    ...DeadTimeFields
   }
 }`) as unknown as TypedDocumentString<UpdateTaskMutation, UpdateTaskMutationVariables>;
 export const DuplicateTaskDocument = new TypedDocumentString(`
@@ -9320,7 +9865,14 @@ export const CreateContributorDocument = new TypedDocumentString(`
     ...ContributorFields
   }
 }
-    fragment ContributorFields on Contributor {
+    fragment ReminderFields on Reminder {
+  before
+  at
+  days
+  anchor
+  ringtone
+}
+fragment ContributorFields on Contributor {
   id
   archived
   name
@@ -9330,9 +9882,7 @@ export const CreateContributorDocument = new TypedDocumentString(`
   projectIds
   birthDate
   birthdayReminders {
-    before
-    at
-    days
+    ...ReminderFields
   }
   emails
   phones
@@ -9343,7 +9893,14 @@ export const UpdateContributorDocument = new TypedDocumentString(`
     ...ContributorFields
   }
 }
-    fragment ContributorFields on Contributor {
+    fragment ReminderFields on Reminder {
+  before
+  at
+  days
+  anchor
+  ringtone
+}
+fragment ContributorFields on Contributor {
   id
   archived
   name
@@ -9353,9 +9910,7 @@ export const UpdateContributorDocument = new TypedDocumentString(`
   projectIds
   birthDate
   birthdayReminders {
-    before
-    at
-    days
+    ...ReminderFields
   }
   emails
   phones
@@ -9561,9 +10116,9 @@ export const TimeEntriesDocument = new TypedDocumentString(`
     label
   }
 }`) as unknown as TypedDocumentString<TimeEntriesQuery, TimeEntriesQueryVariables>;
-export const RunningTimeEntryDocument = new TypedDocumentString(`
-    query RunningTimeEntry {
-  runningTimeEntry {
+export const RunningTimeEntriesDocument = new TypedDocumentString(`
+    query RunningTimeEntries {
+  runningTimeEntries {
     ...TimeEntryFields
   }
 }
@@ -9588,7 +10143,7 @@ export const RunningTimeEntryDocument = new TypedDocumentString(`
     occurrenceDate
     label
   }
-}`) as unknown as TypedDocumentString<RunningTimeEntryQuery, RunningTimeEntryQueryVariables>;
+}`) as unknown as TypedDocumentString<RunningTimeEntriesQuery, RunningTimeEntriesQueryVariables>;
 export const StartTimerDocument = new TypedDocumentString(`
     mutation StartTimer($input: TimerInput!) {
   startTimer(input: $input) {
@@ -9597,19 +10152,26 @@ export const StartTimerDocument = new TypedDocumentString(`
 }
     `) as unknown as TypedDocumentString<StartTimerMutation, StartTimerMutationVariables>;
 export const SetTimerPausedDocument = new TypedDocumentString(`
-    mutation SetTimerPaused($paused: Boolean!) {
-  setTimerPaused(paused: $paused) {
+    mutation SetTimerPaused($id: ID!, $paused: Boolean!) {
+  setTimerPaused(id: $id, paused: $paused) {
     id
   }
 }
     `) as unknown as TypedDocumentString<SetTimerPausedMutation, SetTimerPausedMutationVariables>;
 export const StopTimerDocument = new TypedDocumentString(`
-    mutation StopTimer {
-  stopTimer {
+    mutation StopTimer($id: ID!) {
+  stopTimer(id: $id) {
     id
   }
 }
     `) as unknown as TypedDocumentString<StopTimerMutation, StopTimerMutationVariables>;
+export const StopAllTimersDocument = new TypedDocumentString(`
+    mutation StopAllTimers {
+  stopAllTimers {
+    id
+  }
+}
+    `) as unknown as TypedDocumentString<StopAllTimersMutation, StopAllTimersMutationVariables>;
 export const CreateTimeEntryDocument = new TypedDocumentString(`
     mutation CreateTimeEntry($input: TimeEntryInput!) {
   createTimeEntry(input: $input) {
@@ -9951,9 +10513,7 @@ export const TreasurySettingsDocument = new TypedDocumentString(`
     contributorId
     birthDate
     birthdayReminders {
-      before
-      at
-      days
+      ...ReminderFields
     }
     emails
     phones
@@ -9972,7 +10532,13 @@ export const TreasurySettingsDocument = new TypedDocumentString(`
     }
   }
 }
-    `) as unknown as TypedDocumentString<TreasurySettingsQuery, TreasurySettingsQueryVariables>;
+    fragment ReminderFields on Reminder {
+  before
+  at
+  days
+  anchor
+  ringtone
+}`) as unknown as TypedDocumentString<TreasurySettingsQuery, TreasurySettingsQueryVariables>;
 export const TreasuryEntrySearchDocument = new TypedDocumentString(`
     query TreasuryEntrySearch($text: String!) {
   treasuryEntrySearch(text: $text, limit: 20) {
@@ -10252,7 +10818,7 @@ export const ElsewhereAlarmsDocument = new TypedDocumentString(`
     id
     label
   }
-  runningTimeEntry {
+  runningTimeEntries {
     id
     startedAt
     endedAt
@@ -10292,9 +10858,7 @@ export const ElsewhereRemindersDocument = new TypedDocumentString(`
     effectiveMinDate
     effectiveDeadline
     reminders {
-      before
-      at
-      days
+      ...ReminderFields
     }
   }
   routines {
@@ -10304,9 +10868,7 @@ export const ElsewhereRemindersDocument = new TypedDocumentString(`
     location
     currentDate
     reminders {
-      before
-      at
-      days
+      ...ReminderFields
     }
     reminderOccurrences {
       date
@@ -10314,6 +10876,7 @@ export const ElsewhereRemindersDocument = new TypedDocumentString(`
       slots {
         slot
         at
+        endAt
       }
     }
     slots {
@@ -10336,9 +10899,7 @@ export const ElsewhereRemindersDocument = new TypedDocumentString(`
     cases
     exceptions
     reminders {
-      before
-      at
-      days
+      ...ReminderFields
     }
   }
   birthdays {
@@ -10346,13 +10907,17 @@ export const ElsewhereRemindersDocument = new TypedDocumentString(`
     name
     birthDate
     reminders {
-      before
-      at
-      days
+      ...ReminderFields
     }
   }
 }
-    `) as unknown as TypedDocumentString<ElsewhereRemindersQuery, ElsewhereRemindersQueryVariables>;
+    fragment ReminderFields on Reminder {
+  before
+  at
+  days
+  anchor
+  ringtone
+}`) as unknown as TypedDocumentString<ElsewhereRemindersQuery, ElsewhereRemindersQueryVariables>;
 export const ElsewhereMarkAlarmFiredDocument = new TypedDocumentString(`
     mutation ElsewhereMarkAlarmFired($id: ID!, $at: DateTime!) {
   markAlarmFired(id: $id, at: $at)

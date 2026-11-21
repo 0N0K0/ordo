@@ -1,4 +1,4 @@
-import { countOf, formatDuration, minutesToTime, type ReminderValue } from '@ordo/shared';
+import { countOf, formatDuration, minutesToTime, reminderAnchorOf, type ReminderValue } from '@ordo/shared';
 
 /** A reminder offered: minutes before the moment, and its label. */
 export interface ReminderPreset {
@@ -36,14 +36,18 @@ export const REMINDER_DAY = 'le jour J';
 /**
  * Label of a reminder: « Au début », its preset (« 15 min avant »), else its duration (« 24 h 00 avant », a value kept
  * from before); « À 08:00 le jour J » for a time of the day (`day` empty: « À 08:00 », a task); « 3 jours avant, à
- * 08:00 » some days before.
+ * 08:00 » some days before. From the end (decision FS): « À la fin », « 15 min avant la fin », « À 18:00 le jour de la
+ * fin », « 3 jours avant la fin, à 08:00 ».
  * @param {ReminderValue} reminder Reminder.
  * @param {string} [day] Day of a time of the day. Optional. Default = « le jour J ».
  * @returns {string} Label.
  */
 export function reminderLabel(reminder: ReminderValue, day = REMINDER_DAY): string {
-  if (reminder.at !== null && reminder.days) return `${countOf(reminder.days, 'jour')} avant, à ${reminder.at}`;
-  if (reminder.at !== null) return `À ${reminder.at}${day ? ` ${day}` : ''}`;
+  const end = reminderAnchorOf(reminder) === 'end';
+  if (reminder.at !== null && reminder.days) return `${countOf(reminder.days, 'jour')} avant${end ? ' la fin' : ''}, à ${reminder.at}`;
+  if (reminder.at !== null) return end ? `À ${reminder.at} le jour de la fin` : `À ${reminder.at}${day ? ` ${day}` : ''}`;
   const minutes = reminder.before ?? 0;
-  return REMINDER_PRESETS.find((preset) => preset.value === minutes)?.label ?? `${formatDuration(minutes * 60)} avant`;
+  if (end && minutes === 0) return 'À la fin';
+  const label = REMINDER_PRESETS.find((preset) => preset.value === minutes)?.label ?? `${formatDuration(minutes * 60)} avant`;
+  return end ? `${label} la fin` : label;
 }

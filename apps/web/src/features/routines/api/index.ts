@@ -1,6 +1,6 @@
 import { routinesKey } from '../../../lib/query-keys';
 import { linkInputs } from '../../../lib/links';
-import { ancestorsOf, byPosition, changedList, mapById, movedTo, readReminders, subtreeOf } from '@ordo/shared';
+import { ancestorsOf, byPosition, changedList, mapById, movedTo, readReminderOutputs, subtreeOf } from '@ordo/shared';
 import type { Reminder, RoutineBulkChanges } from '@ordo/shared';
 import { patchQuery, useInvalidatingMutation } from '../../../lib/mutation';
 import {
@@ -55,9 +55,10 @@ const RoutinesDataDocument = graphql(`
       slotCondition
       moments
       reminders {
-        before
-        at
-        days
+        ...ReminderFields
+      }
+      deadTimes {
+        ...DeadTimeFields
       }
       reminderOccurrences {
         date
@@ -65,6 +66,7 @@ const RoutinesDataDocument = graphql(`
         slots {
           slot
           at
+          endAt
         }
       }
       cases
@@ -386,7 +388,8 @@ function draftRoutine(input: RoutineInput, routines: readonly Routine[]): Routin
     dueTime: input.dueTime ?? null,
     slotCondition: input.slotCondition ?? null,
     moments: input.moments ?? [],
-    reminders: readReminders(input.reminders),
+    reminders: readReminderOutputs(input.reminders),
+    deadTimes: input.deadTimes.map((deadTime) => ({ ...deadTime, ringtone: deadTime.ringtone ?? null })),
     reminderOccurrences: [],
     cases: input.cases ?? [],
     moves: [],
@@ -544,6 +547,7 @@ export function routineInputOf(routine: Routine): RoutineInput {
     slotCondition: readSlotCondition(routine.slotCondition),
     moments: routine.moments as RoutineInput['moments'],
     reminders: routine.reminders,
+    deadTimes: routine.deadTimes,
     cases: routine.cases as RoutineInput['cases'],
     location: routine.location,
     locationLat: routine.locationLat,
@@ -628,7 +632,7 @@ export function useRoutineMutations() {
     ),
     patch: useRoutineMutation(
       async (variables: { id: string; input: RoutinePatchValues }) => withLossConfirmation(async (confirmLoss) => (await execute(PatchRoutineDocument, { ...variables, confirmLoss })).patchRoutine),
-      (data, { id, input }) => patchRoutine(data, id, (routine) => ({ ...routine, ...input })),
+      (data, { id, input }) => patchRoutine(data, id, (routine) => ({ ...routine, ...input, reminders: input.reminders ? readReminderOutputs(input.reminders) : routine.reminders })),
       [tasksQueryKey],
     ),
     move: useRoutineMutation(async (variables: RoutineMove) => (await execute(MoveRoutineDocument, variables)).moveRoutine, moveInCache),

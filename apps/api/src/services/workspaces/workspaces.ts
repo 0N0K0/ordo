@@ -75,17 +75,37 @@ export async function forEachWorkspace(job: (workspace: Workspace) => Promise<un
 }
 
 /**
- * Runs a background job in every workspace (of a kind) a while after the start, then at an interval; a failure is
- * logged, the next run comes anyway.
+ * Runs a background job a while after the start, then at an interval (Node timers, no cron); a run still going when
+ * the next one is due makes it skip; a failure is logged, the next run comes anyway.
+ * @param {string} label What fails, in the log (« Envois programmés »).
+ * @param {() => Promise<unknown>} job Job.
+ * @param {{ delay: number, interval: number }} timing First run (ms after the start), interval (ms).
+ * @returns {void}
+ */
+export function scheduleJob(label: string, job: () => Promise<unknown>, { delay, interval }: { delay: number; interval: number }): void {
+  let running = false;
+  const run = () => {
+    if (running) return;
+    running = true;
+    void job()
+      .catch((error: unknown) => console.warn(`${label} en échec.`, error))
+      .finally(() => {
+        running = false;
+      });
+  };
+  setTimeout(run, delay);
+  setInterval(run, interval);
+}
+
+/**
+ * Runs a background job in every workspace (of a kind) a while after the start, then at an interval (`scheduleJob`).
  * @param {string} label What fails, in the log (« Envois programmés »).
  * @param {(workspace: Workspace) => Promise<unknown>} job Job, run in each workspace.
  * @param {{ delay: number, interval: number, kind?: WorkspaceKind }} timing First run (ms after the start), interval (ms), workspaces of a kind only.
  * @returns {void}
  */
 export function schedulePerWorkspace(label: string, job: (workspace: Workspace) => Promise<unknown>, { delay, interval, kind }: { delay: number; interval: number; kind?: WorkspaceKind }): void {
-  const run = () => void forEachWorkspace(job, { kind }).catch((error: unknown) => console.warn(`${label} en échec.`, error));
-  setTimeout(run, delay);
-  setInterval(run, interval);
+  scheduleJob(label, () => forEachWorkspace(job, { kind }), { delay, interval });
 }
 
 /**

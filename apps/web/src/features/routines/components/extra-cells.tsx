@@ -1,4 +1,4 @@
-import { normalizedReminders, reminderKey, reminderOfKey } from '@ordo/shared';
+import { normalizedReminders, readReminders, reminderKey, reminderOfKey } from '@ordo/shared';
 import { reminderLabel } from '../../../components/inputs/reminder-presets';
 
 import { cellPicker } from '../../../components/data-table/cells/cell-field';
@@ -161,11 +161,15 @@ export function RemindersCell({ routine, readOnly = false }: { routine: Routine;
         <RemindersSelect
           label="Rappels"
           value={routine.reminders}
-          // On a selection, those added here are added to each routine, those removed here removed.
+          anchors={['start', 'end']}
+          // On a selection, those added here are added to each routine, those removed here removed (with their ringtone).
           onChange={(values) =>
-            apply((target) => ({
-              reminders: normalizedReminders(applyDiff(target.reminders.map(reminderKey), routine.reminders.map(reminderKey), values.map(reminderKey)).flatMap((key) => reminderOfKey(key) ?? [])),
-            }))
+            apply((target) => {
+              const known = new Map([...readReminders(target.reminders), ...values].map((reminder) => [reminderKey(reminder), reminder]));
+              return {
+                reminders: normalizedReminders(applyDiff(target.reminders.map(reminderKey), routine.reminders.map(reminderKey), values.map(reminderKey)).flatMap((key) => known.get(key) ?? reminderOfKey(key) ?? [])),
+              };
+            })
           }
           comboboxProps={{ withinPortal: false }}
         />

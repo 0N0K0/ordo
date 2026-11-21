@@ -12,10 +12,12 @@ import { AlarmList } from '../components/AlarmList';
 import { useAlarms } from '../api';
 import { useAlarmForm } from '../hooks/use-alarm-form';
 import classes from './AlarmsPage.module.css';
+import { SubSection } from '../../../components/page/SubSection';
+import { CountdownList } from '../../countdowns/components/CountdownList';
 
 /**
- * Alarms page: one-off and recurring reminders, alarms when no timer runs, and alarms during the timer.
- * They ring while Ordo is open in a tab.
+ * Alarms page: the timers of the user (« Minuteurs », every workspace, decision FT), then one-off and recurring
+ * reminders, alarms when no timer runs, and alarms during the timer. They ring while Ordo is open in a tab.
  * @returns {JSX.Element} Page.
  */
 export function AlarmsPage() {
@@ -47,13 +49,19 @@ export function AlarmsPage() {
         </NoticeAlert>
       )}
 
-      {isPending || !context ? (
-        <ListSkeleton items={3} lines={2} />
-      ) : !alarms?.length ? (
-        <EmptyState icon={<AlarmIcon aria-hidden />} message="Aucune alarme." />
-      ) : (
-        <AlarmList alarms={alarms} context={context} openForm={openForm} />
-      )}
+      <SubSection title="Minuteurs" gap="sm">
+        <CountdownList />
+      </SubSection>
+
+      <SubSection title="Alarmes" gap="sm">
+        {isPending || !context ? (
+          <ListSkeleton items={3} lines={2} />
+        ) : !alarms?.length ? (
+          <EmptyState icon={<AlarmIcon aria-hidden />} message="Aucune alarme." />
+        ) : (
+          <AlarmList alarms={alarms} context={context} openForm={openForm} />
+        )}
+      </SubSection>
     </Stack>
   );
 }

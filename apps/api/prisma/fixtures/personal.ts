@@ -393,7 +393,7 @@ export async function seedPersonal({
   const kidsCategory = (await createRoutineCategory({ label: 'Enfants', color: '#7950f2', parentId: null })).id;
   const healthCategory = (await createRoutineCategory({ label: 'Santé', color: '#fa5252', parentId: null })).id;
   const routine = (label: string, recurrence: Recurrence, changes: Partial<Parameters<typeof createRoutine>[0]>) =>
-    createRoutine({ label, description: null, categoryIds: [], parentId: null, startDate: day(-35), recurrence, estimate: null, projectId: null, assigneeIds: [], requiredIds: [], relatedIds: [], links: [], ...changes });
+    createRoutine({ label, description: null, categoryIds: [], parentId: null, startDate: day(-35), recurrence, estimate: null, projectId: null, assigneeIds: [], requiredIds: [], relatedIds: [], links: [], deadTimes: [], ...changes });
   await routine('Se brosser les dents', rule({}), {
     categoryIds: [healthCategory],
     estimate: 3,

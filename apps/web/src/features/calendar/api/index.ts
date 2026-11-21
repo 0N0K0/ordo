@@ -48,9 +48,7 @@ graphql(`
     recurrence
     seriesStartDate
     reminders {
-      before
-      at
-      days
+      ...ReminderFields
     }
     travelBefore
     travelAfter
@@ -96,9 +94,7 @@ const WorkSchedulesDocument = graphql(`
       cases
       exceptions
       reminders {
-        before
-        at
-        days
+        ...ReminderFields
       }
     }
     scheduleTypes {
@@ -602,9 +598,7 @@ const BirthdaysDocument = graphql(`
       archived
       aliases
       reminders {
-        before
-        at
-        days
+        ...ReminderFields
       }
     }
   }

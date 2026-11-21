@@ -9,6 +9,7 @@ import { occurrenceDates, recurrenceSchema, type Recurrence, type Span } from '.
 import { caseSpans } from '../dates/repetition';
 import { timeOfDaySchema, daySchema, startDaySchema } from '../dates/times';
 import { remindersSchema } from '../dates/reminders';
+import { deadTimesSchema } from '../dates/countdowns';
 import { slotConditionSchema, type SlotCondition } from '../calendar/slot-conditions';
 import { optionalColorSchema } from '../core/workspace';
 
@@ -145,6 +146,8 @@ export const routineSchema = z
     moments: z.array(routineSlotSchema).max(10, '10 moments au plus.').default([]),
     /** Reminders (decision D16): minutes before each time of the day from its first day (« Ouverture », « dès »), or a time of that day. */
     reminders: remindersSchema.default([]),
+    /** « Temps morts »: waits a timer is launched for, from an occurrence (decision FT); not time spent. Required, as `links`: an omitted field never wipes them. */
+    deadTimes: deadTimesSchema,
     /** Where it is done: free text, and its point when chosen from the map or a search. */
     location: optionalText().default(null),
     /** Point of the place, and travel time to it and back from it, in minutes. */
@@ -487,4 +490,18 @@ export interface RoutineBulkChanges {
   moments?: RoutineSlot[];
   slotCondition?: SlotCondition | null;
   opensOn?: RoutineOpens | null;
+}
+
+/**
+ * Window as words: "8:20–8:30", "avant 8:30", "dès 16:30", "7:00–9:00 ou 17:00–20:00", or empty.
+ * @param {{ fromTime: string | null, dueTime: string | null, windows?: unknown }} window Window, and the windows it can be done in.
+ * @returns {string} Text.
+ */
+export function windowText({ fromTime, dueTime, windows }: { fromTime: string | null; dueTime: string | null; windows?: unknown }): string {
+  // Several windows (free time cut by slots): each one, « or ».
+  const parts = Array.isArray(windows) ? (windows as { fromTime: string | null; dueTime: string | null }[]) : [];
+  if (parts.length > 1) return parts.map((part) => windowText(part)).join(' ou ');
+  if (fromTime && dueTime) return `${fromTime}–${dueTime}`;
+  if (dueTime) return `avant ${dueTime}`;
+  return fromTime ? `dès ${fromTime}` : '';
 }

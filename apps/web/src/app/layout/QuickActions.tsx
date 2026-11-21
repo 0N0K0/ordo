@@ -1,6 +1,6 @@
 import { ActionButton } from '../../components/actions/ActionButton';
 import { ActionsMenu } from '../../components/actions/ActionsMenu';
-import { AlarmIcon, CalendarPlusIcon, CheckSquareOffsetIcon, EnvelopeSimpleIcon, FileTextIcon, PlayIcon, PlusIcon } from '@phosphor-icons/react';
+import { AlarmIcon, CalendarPlusIcon, CheckSquareOffsetIcon, EnvelopeSimpleIcon, FileTextIcon, PlayIcon, PlusIcon, TimerIcon } from '@phosphor-icons/react';
 import type { ReactNode } from 'react';
 import { useMatch } from 'react-router';
 import { openNewDocument } from '../../features/accounting/lib/new-document';
@@ -10,9 +10,9 @@ import { useMailComposer } from '../../features/mail/hooks/use-mail-composer';
 import { useTaskActions } from '../../features/tasks/hooks/use-task-actions';
 import { useTaskContext } from '../../features/tasks/hooks/use-task-context';
 import { openTimerForm } from '../../features/time/lib/open-timer-form';
+import { openCountdownForm } from '../../features/countdowns/lib/open-countdown-form';
 import { useActiveWorkspace } from '../../features/workspaces/api';
 import classes from './QuickActions.module.css';
-import { useTimerHint } from '../../features/time/hooks/use-start-timer';
 
 import { PROJECT_ROUTE } from '../pages';
 
@@ -27,7 +27,7 @@ interface QuickAction {
 
 /**
  * Creation menu of the header, between the running timer and the account, on every page and at every width: « Ajouter » opens, on hover (or a click, by touch
- * or keyboard), a task, an event, a timer, an alarm, a mail and a quote (not in a personal workspace). On a project
+ * or keyboard), a task, an event, a timer (chrono), a countdown (« Minuteur »), an alarm, a mail and a quote (not in a personal workspace). On a project
  * page, the project (and its client for a quote) is preselected. A running timer shows before it.
  * @returns {JSX.Element} Menu.
  */
@@ -39,7 +39,6 @@ export function QuickActions() {
   const openEvent = useEventForm(context);
   const openAlarm = useAlarmForm(context);
   const openMail = useMailComposer();
-  const timerHint = useTimerHint();
   const { perso } = useActiveWorkspace();
 
   /**
@@ -53,8 +52,9 @@ export function QuickActions() {
   const actions: QuickAction[] = [
     { label: 'Tâche', icon: <CheckSquareOffsetIcon aria-hidden />, onClick: () => taskActions.create(project ? { projectId: project.id } : undefined) },
     { label: 'Évènement', icon: <CalendarPlusIcon aria-hidden />, onClick: () => openEvent({ defaults: project ? { projectId: project.id } : undefined }) },
-    // One timer runs at a time: the one running stops (decision Y).
-    { label: 'Chrono', icon: <PlayIcon aria-hidden />, onClick: openTimer, hint: timerHint() },
+    // Several timers run at once (decision FT): the ones running keep running.
+    { label: 'Chrono', icon: <PlayIcon aria-hidden />, onClick: openTimer },
+    { label: 'Minuteur', icon: <TimerIcon aria-hidden />, onClick: () => openCountdownForm() },
     { label: 'Alarme', icon: <AlarmIcon aria-hidden />, onClick: () => openAlarm() },
     { label: 'Mail', icon: <EnvelopeSimpleIcon aria-hidden />, onClick: () => openMail(project ? { projectId: project.id } : {}) },
     // No invoicing in a personal workspace.

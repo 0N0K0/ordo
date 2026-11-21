@@ -47,9 +47,9 @@ const TimeEntriesDocument = graphql(`
   }
 `);
 
-const RunningTimeEntryDocument = graphql(`
-  query RunningTimeEntry {
-    runningTimeEntry {
+const RunningTimeEntriesDocument = graphql(`
+  query RunningTimeEntries {
+    runningTimeEntries {
       ...TimeEntryFields
     }
   }
@@ -64,16 +64,24 @@ const StartTimerDocument = graphql(`
 `);
 
 const SetTimerPausedDocument = graphql(`
-  mutation SetTimerPaused($paused: Boolean!) {
-    setTimerPaused(paused: $paused) {
+  mutation SetTimerPaused($id: ID!, $paused: Boolean!) {
+    setTimerPaused(id: $id, paused: $paused) {
       id
     }
   }
 `);
 
 const StopTimerDocument = graphql(`
-  mutation StopTimer {
-    stopTimer {
+  mutation StopTimer($id: ID!) {
+    stopTimer(id: $id) {
+      id
+    }
+  }
+`);
+
+const StopAllTimersDocument = graphql(`
+  mutation StopAllTimers {
+    stopAllTimers {
       id
     }
   }
@@ -158,15 +166,26 @@ export function useTimeEntriesSince(since: string | null, enabled = true) {
 }
 
 /**
- * The running timer, or null. Refreshed when the window gets the focus back (another tab may have changed it).
- * @returns {UseQueryResult} Query state.
+ * The running timers (several at once, decision FT), the first started first. Refreshed when the window gets the
+ * focus back (another tab may have changed them).
+ * @returns {UseQueryResult<TimeEntry[]>} Query state.
  */
-export function useRunningTimer() {
+export function useRunningTimers() {
   return useQuery({
     queryKey: [...timeQueryKey, 'running'],
-    queryFn: async () => (await execute(RunningTimeEntryDocument)).runningTimeEntry,
+    queryFn: async () => (await execute(RunningTimeEntriesDocument)).runningTimeEntries,
     refetchOnWindowFocus: true,
   });
+}
+
+/**
+ * The running timer spent on an item, if any (the first started).
+ * @param {readonly TimeEntry[] | undefined} running Running timers.
+ * @param {(entry: TimeEntry) => boolean} on Whether a timer is on the item.
+ * @returns {TimeEntry | null} Its timer, null when none runs on it.
+ */
+export function runningOn(running: readonly TimeEntry[] | undefined, on: (entry: TimeEntry) => boolean): TimeEntry | null {
+  return running?.find(on) ?? null;
 }
 
 /**
@@ -290,8 +309,9 @@ export function useTimeMutations() {
       warnOutOfSlots(queryClient, slotRules, input);
       return started;
     }),
-    setPaused: useTimeMutation(async (paused: boolean) => (await execute(SetTimerPausedDocument, { paused })).setTimerPaused),
-    stop: useTimeMutation(async () => (await execute(StopTimerDocument)).stopTimer),
+    setPaused: useTimeMutation(async (variables: { id: string; paused: boolean }) => (await execute(SetTimerPausedDocument, variables)).setTimerPaused),
+    stop: useTimeMutation(async (id: string) => (await execute(StopTimerDocument, { id })).stopTimer),
+    stopAll: useTimeMutation(async () => (await execute(StopAllTimersDocument)).stopAllTimers),
     create: useTimeMutation(async (input: TimeEntryValues) => (await execute(CreateTimeEntryDocument, { input })).createTimeEntry),
     update: useTimeMutation(async (variables: { id: string; input: Partial<TimeEntryValues> }) => (await execute(UpdateTimeEntryDocument, variables)).updateTimeEntry),
     remove: useTimeMutation(async (id: string) => (await execute(DeleteTimeEntryDocument, { id })).deleteTimeEntry),

@@ -21,17 +21,16 @@ interface TimerToggleProps {
 
 /**
  * Button starting the timer on an item (« Démarrer le chrono »), or stopping the one running on it (and reporting the
- * time saved); a timer running on something else stops (decision Y).
+ * time saved); the timers running on something else keep running (decision FT).
  * @param {TimerToggleProps} props Component props.
  * @returns {JSX.Element} Button.
  */
 export function TimerToggle({ name, mine, input, disabled = false, size }: TimerToggleProps) {
-  const { startTimer, isPending: starting, hint } = useStartTimer();
+  const { startTimer, isPending: starting } = useStartTimer();
   if (mine) return <StopTimerButton entry={mine} name={name} size={size} />;
   return (
     <IconAction
       label="Démarrer le chrono"
-      hint={hint(disabled, 'Démarrer le chrono.')}
       size={size}
       loading={starting}
       disabled={disabled}

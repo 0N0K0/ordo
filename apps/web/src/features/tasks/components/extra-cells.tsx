@@ -14,7 +14,7 @@ import { useShoppingMutations, type ShoppingList } from '../../shopping/api';
 import { openNewList } from '../../shopping/lib/open-new-list';
 import { SlotConditionBuilder } from '../../calendar/components/SlotConditionBuilder';
 import { useSlotRules } from '../../calendar/hooks/use-slot-rules';
-import { useRunningTimer } from '../../time/api';
+import { runningOn, useRunningTimers } from '../../time/api';
 import { TimerToggle } from '../../time/components/TimerToggle';
 import type { Task } from '../api';
 import { TaskRef } from './task-ui';
@@ -41,13 +41,13 @@ export function SlotsCell({ task }: { task: Task }) {
 }
 
 /**
- * « Chrono » cell: starts a timer on the task (of its project), or stops the one running on it.
+ * « Chrono » cell: starts a timer on the task (of its project), or stops the one running on it (the others keep running).
  * @param {{ task: Task }} props Component props.
  * @returns {JSX.Element} Cell.
  */
 export function TimerCell({ task }: { task: Task }) {
-  const running = useRunningTimer();
-  const mine = running.data?.taskIds.includes(task.id) ? running.data : null;
+  const running = useRunningTimers();
+  const mine = runningOn(running.data, (entry) => entry.taskIds.includes(task.id));
   return <TimerToggle name={task.label} mine={mine} input={{ projectId: task.projectId, taskIds: [task.id] }} disabled={task.archived} />;
 }
 

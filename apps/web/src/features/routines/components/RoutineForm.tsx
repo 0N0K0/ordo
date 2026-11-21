@@ -1,4 +1,4 @@
-import { readReminders, type Reminder } from '@ordo/shared';
+import { readDeadTimes, readReminders, type DeadTime, type Reminder } from '@ordo/shared';
 import { removedLinksNote } from '../../../lib/text';
 import { NO_SUGGESTIONS } from '../../../components/markdown/remark-references';
 import { Divider, Fieldset, Grid, Group, NumberInput, Select, Stack, TextInput } from '@mantine/core';
@@ -46,6 +46,9 @@ import { useConvertActivity } from '../hooks/use-convert-activity';
 import { useRoutineRowsActions } from './RoutineBulkBar';
 import { rowMenuEntry } from '../../../components/data-table/selection/selection-actions';
 import type { RowMenuEntry } from '../../../components/actions/ActionsMenu';
+import { DeadTimesField } from '../../countdowns/components/DeadTimesField';
+import { deadTimeMenuEntries } from '../../countdowns/lib/dead-time-menu';
+import { routineDeadTimeItem } from '../lib/routine-dead-times';
 
 interface RoutineFormValues extends Record<string, unknown> {
   label: string;
@@ -60,6 +63,7 @@ interface RoutineFormValues extends Record<string, unknown> {
   slotCondition: SlotCondition | null;
   moments: RoutineSlot[];
   reminders: Reminder[];
+  deadTimes: DeadTime[];
   cases: RoutineCase[];
   location: string;
   locationLat: number | null;
@@ -94,6 +98,7 @@ function routineFormValues(routine: Routine): RoutineFormValues {
     slotCondition: readSlotCondition(routine.slotCondition),
     moments: (routine.moments as RoutineSlot[] | undefined) ?? [{ fromTime: null, dueTime: null, optional: false }],
     reminders: readReminders(routine.reminders),
+    deadTimes: readDeadTimes(routine.deadTimes),
     cases: (routine.cases as RoutineCase[] | undefined) ?? [],
     dueTime: routine.dueTime ?? null,
     location: routine.location ?? '',
@@ -172,6 +177,7 @@ export function RoutineForm({ routine, parent, categoryId = null, projectId = nu
           slotCondition: readSlotCondition(parent?.slotCondition),
           moments: (parent?.moments as RoutineSlot[] | undefined) ?? [{ fromTime: null, dueTime: null, optional: false }],
           reminders: [],
+          deadTimes: [],
           cases: (parent?.cases as RoutineCase[] | undefined) ?? [],
           dueTime: null,
           location: '',
@@ -226,14 +232,21 @@ export function RoutineForm({ routine, parent, categoryId = null, projectId = nu
   /**
    * Its « … » menu, as the task's: « Dupliquer », « Transformer en tâche » (lot 15, refused with sub-routines),
    * « Archiver », « Supprimer » (the actions of its row, `useRoutineRowsActions`); archived: « Restaurer »,
-   * « Supprimer ». Deleted or transformed, its panel closes (`closeRoutinePanels`).
+   * « Supprimer »; then « Lancer » each of its dead times, for the occurrence open (decision FT). Deleted or transformed,
+   * its panel closes (`closeRoutinePanels`).
    * @param {Routine} item Routine of the panel (of the cache).
    * @returns {RowMenuEntry[]} Entries.
    */
   const menu = (item: Routine): RowMenuEntry[] => {
     const { duplicate, archive, remove } = rowActionsOf([item]);
     if (item.archived) return [archive, remove].map(rowMenuEntry);
-    return [rowMenuEntry(duplicate), convert.toTask(item, routines.some((other) => other.parentId === item.id)), rowMenuEntry(archive), rowMenuEntry(remove)];
+    return [
+      rowMenuEntry(duplicate),
+      convert.toTask(item, routines.some((other) => other.parentId === item.id)),
+      rowMenuEntry(archive),
+      rowMenuEntry(remove),
+      ...deadTimeMenuEntries(item.deadTimes, routineDeadTimeItem(item, occurrenceDate ?? panelOccurrence(item))),
+    ];
   };
 
   // A new routine only: an existing one is saved field by field (Enter saves the text typed).
@@ -302,6 +315,12 @@ export function RoutineForm({ routine, parent, categoryId = null, projectId = nu
                   onChange={(beneficiaries) => form.setValues({ ...beneficiaries })}
                 />
                 <NumberInput label="Temps à y consacrer" description="En minutes" min={1} max={24 * 60} allowDecimal={false} suffix=" min" {...optionalNumberProps(form, 'estimate')} />
+                <DeadTimesField
+                  value={form.values.deadTimes}
+                  onChange={(deadTimes) => form.setFieldValue('deadTimes', deadTimes)}
+                  item={current ? routineDeadTimeItem(current, occurrenceDate ?? panelOccurrence(current)) : null}
+                  disabled={readOnly}
+                />
                 <Divider />
                 <Select label="Routine parente" placeholder="Aucune" clearable searchable {...treeSelectProps(routineOptions((item) => !excluded.has(item.id)))} {...form.getInputProps('parentId')} />
                 <BatchMultiSelect

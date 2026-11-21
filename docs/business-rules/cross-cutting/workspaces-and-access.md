@@ -25,7 +25,7 @@ Voir aussi : [Personnes](people.md), [Erreurs](errors.md), [Tâches de fond](bac
 ### Isolation des données
 
 - Chaque requête HTTP travaille dans **un** espace : celui de l'en-tête `x-ordo-workspace`, sinon du cookie `ordo_workspace`, sinon le premier espace (`workspaceMiddleware`). Le middleware passe avant l'authentification.
-- Toutes les lignes, sauf `Workspace`, `User`, `Session`, `AuthToken` et `RateLimit`, appartiennent à un espace. Le client Prisma étendu (`apps/api/src/db.ts`) ajoute `workspaceId` à toutes les lectures, mises à jour et suppressions, et donne l'espace à toutes les créations (y compris imbriquées) ; l'espace d'une ligne ne change jamais. Une requête hors espace échoue (« No workspace… », erreur interne).
+- Toutes les lignes, sauf `Workspace`, `User`, `Session`, `AuthToken`, `RateLimit`, `AlarmRing` (les sonneries de l’utilisateur, de tous ses espaces, décision FS) et `Countdown` (ses minuteurs, de même, décision FT), appartiennent à un espace. Le client Prisma étendu (`apps/api/src/db.ts`) ajoute `workspaceId` à toutes les lectures, mises à jour et suppressions, et donne l'espace à toutes les créations (y compris imbriquées) ; l'espace d'une ligne ne change jamais. Une requête hors espace échoue (« No workspace… », erreur interne).
 - `unscopedPrisma` (sans limite) ne sert qu'aux espaces eux-mêmes, aux abonnements entre espaces, aux créneaux et types des autres espaces qu'une condition de créneaux cite (`otherWorkspaceSchedules`, `assertConditionSchedules`) et à la suppression d'un espace. Le SQL brut filtre lui-même par `currentWorkspaceId()`.
 - Les tâches de fond tournent espace par espace (`forEachWorkspace`), une erreur dans un espace n'arrêtant pas les autres.
 

@@ -1,6 +1,6 @@
 import { SimpleGrid, Stack, TextInput } from '@mantine/core';
 import { DatePickerInput, TimePicker } from '@mantine/dates';
-import { parseDuration, timeEntryFormSchema, type TimeEntryFormValues, twoDigits } from '@ordo/shared';
+import { durationText, parseDuration, timeEntryFormSchema, type TimeEntryFormValues } from '@ordo/shared';
 import { localInstant, localParts, localToday } from '../../../lib/dates';
 import { useAppForm, useFieldSave, formCallbacks } from '../../../lib/form';
 import { SaveStatus } from '../../../components/feedback/SaveStatus';
@@ -55,7 +55,7 @@ const timeEntryFormValues = (entry: TimeEntry): TimeEntryFormValues => {
     description: entry.description ?? '',
     date,
     start: time,
-    duration: `${Math.floor(minutes / 60)}:${twoDigits(minutes % 60)}`,
+    duration: durationText(minutes),
   };
 };
 

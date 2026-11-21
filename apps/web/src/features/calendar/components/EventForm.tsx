@@ -170,7 +170,7 @@ interface SaveTarget {
 export function EventForm({ context, occurrence, defaults, onDone, onDuplicated, scope = 'ALL' }: EventFormProps) {
   const categoryItems = useCalendarCategoryItems();
   const { create, update, remove, setCalledOff } = useCalendarEventMutations();
-  const { startTimer, isPending: timerStarting, hint: timerHint } = useStartTimer();
+  const { startTimer, isPending: timerStarting } = useStartTimer();
 
   /**
    * Opens the postponement of this occurrence; once postponed, the event form closes too.
@@ -547,9 +547,10 @@ export function EventForm({ context, occurrence, defaults, onDone, onDuplicated,
                   label="Rappels"
                   description={
                     values.allDay
-                      ? 'Avant minuit le premier jour (« 6 h avant » : la veille à 18 h), 24 h au plus ; ou à une heure du premier jour ou de quelques jours avant.'
-                      : 'Avant le début, 24 h au plus ; ou à une heure du premier jour ou de quelques jours avant.'
+                      ? 'Avant minuit le premier jour (« 6 h avant » : la veille à 18 h), 24 h au plus ; ou à une heure du premier jour ou de quelques jours avant ; ou de même depuis la fin (minuit après le dernier jour).'
+                      : 'Avant le début, 24 h au plus ; ou à une heure du premier jour ou de quelques jours avant ; ou de même depuis la fin.'
                   }
+                  anchors={['start', 'end']}
                   emptyLabel="Aucun"
                   value={values.reminders} onChange={(reminders) => form.setFieldValue('reminders', reminders)} clearable />
               </Fieldset>
@@ -565,7 +566,7 @@ export function EventForm({ context, occurrence, defaults, onDone, onDuplicated,
                   priority="secondary"
                   size="xs"
                   icon={<PlayIcon aria-hidden />}
-                  hint={timerHint(false, 'Démarre un chrono rattaché à cet évènement.') ?? 'Démarre un chrono rattaché à cet évènement.'}
+                  hint="Démarre un chrono rattaché à cet évènement."
                   loading={timerStarting}
                   onClick={handleTimer}
                 >

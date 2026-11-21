@@ -1,4 +1,4 @@
-import { addDays, dayOfMonthOf, fileName, formatDay, minutesBeforeStart, readReminders, occurrenceDates, type ItemLink, type Recurrence, ruleValues, weekdayOfDate, zonedInstant } from '@ordo/shared';
+import { addDays, dayOfMonthOf, fileName, formatDay, minutesBeforeMoment, readReminders, reminderAnchorOf, occurrenceDates, type ItemLink, type Recurrence, ruleValues, weekdayOfDate, zonedInstant } from '@ordo/shared';
 import { prisma } from '../../db';
 import { orNotFound } from '../../graphql/errors';
 import { occurrenceInclude, storedRecurrence, toOccurrence, type EventWithRelations } from './calendar-events';
@@ -145,16 +145,19 @@ function travel(minutes: number): string[] {
 }
 
 /**
- * Alarms of an event: one per reminder, relative to its start (a time of its day too: before or after the start).
+ * Alarms of an event: one per reminder, relative to its start (a time of its first day too: before or after the start),
+ * or to its end for a reminder from the end (`RELATED=END`, a time of its last day; decision FS).
  * @param {unknown} stored Reminders as stored.
  * @param {string} summary Title.
- * @param {string | null} startTime Time of the start (null: all day, from midnight).
+ * @param {{ startTime: string | null, endTime: string | null }} times Times of the start and of the end (null: all day,
+ *   from midnight of the first day to midnight after the last one).
  * @returns {string[]} Content lines.
  */
-function alarms(stored: unknown, summary: string, startTime: string | null): string[] {
+function alarms(stored: unknown, summary: string, { startTime, endTime }: { startTime: string | null; endTime: string | null }): string[] {
   return readReminders(stored).flatMap((reminder) => {
-    const minutes = minutesBeforeStart(reminder, startTime ?? '00:00');
-    return ['BEGIN:VALARM', 'ACTION:DISPLAY', `DESCRIPTION:${text(summary)}`, `TRIGGER:${minutes >= 0 ? '-' : ''}PT${Math.abs(minutes)}M`, 'END:VALARM'];
+    const end = reminderAnchorOf(reminder) === 'end';
+    const minutes = end ? minutesBeforeMoment(reminder, endTime ?? 24 * 60) : minutesBeforeMoment(reminder, startTime ?? '00:00');
+    return ['BEGIN:VALARM', 'ACTION:DISPLAY', `DESCRIPTION:${text(summary)}`, `TRIGGER${end ? ';RELATED=END' : ''}:${minutes >= 0 ? '-' : ''}PT${Math.abs(minutes)}M`, 'END:VALARM'];
   });
 }
 
@@ -230,7 +233,7 @@ function eventLines(event: ExportedEvent, stamp: Date): string[] {
     );
     for (const date of excluded) series.push(moment('EXDATE', date, time));
   }
-  series.push(...travel(event.allDay ? 0 : event.travelBefore), ...alarms(event.reminders, event.label, event.allDay ? null : event.startTime), 'END:VEVENT');
+  series.push(...travel(event.allDay ? 0 : event.travelBefore), ...alarms(event.reminders, event.label, event.allDay ? { startTime: null, endTime: null } : event), 'END:VEVENT');
 
   // Occurrences changed on their own: the same event at its original date (RECURRENCE-ID), as the app shows them.
   const changed = rule
@@ -246,7 +249,7 @@ function eventLines(event: ExportedEvent, stamp: Date): string[] {
             moment('RECURRENCE-ID', date, event.allDay ? null : event.startTime),
             ...body(occurrence),
             ...travel(occurrence.allDay ? 0 : occurrence.travelBefore),
-            ...alarms(event.reminders, occurrence.label, occurrence.allDay ? null : occurrence.startTime),
+            ...alarms(event.reminders, occurrence.label, occurrence.allDay ? { startTime: null, endTime: null } : occurrence),
             'END:VEVENT',
           ];
         })

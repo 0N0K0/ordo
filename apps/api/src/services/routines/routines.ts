@@ -49,6 +49,8 @@ import {
   normalizedReminders,
   REMINDER_LOOKAHEAD_DAYS,
   readReminders,
+  readDeadTimes,
+  storedDeadTimes,
   parisInstant,
   routineReminderTime,
   conditionKinds,
@@ -482,14 +484,18 @@ export interface RoutineReminderOccurrence {
   date: string;
   /** Its first day (« Ouverture »): the day of its reminders « À HH:MM ». */
   day: string;
-  /** Its times of the day not ticked, with the moment its reminders « N min avant » count from (Paris time). */
-  slots: { slot: number; at: Date }[];
+  /**
+   * Its times of the day not ticked, with the moment its reminders « N min avant » count from (Paris time), and the one
+   * those « N min avant la fin » count from (its due day at the latest time of the time of the day; none without it).
+   */
+  slots: { slot: number; at: Date; endAt: Date | null }[];
 }
 
 /**
  * Occurrences the reminders of a routine ring for: its current one while not done and its next one (a reminder up to 24
  * hours before may ring before it opens), each with its first day (« Ouverture ») and, for each time of the day not
- * ticked, its first day at the start of the time (« dès », else its latest time; a time without any hour has none).
+ * ticked, its first day at the start of the time (« dès », else its latest time; a time without any hour has none), and
+ * its due day at its latest time (« jusqu'à », the end its reminders from the end count from; none without it).
  * With reminders « N jours avant » (`ahead` days at most), also the later occurrences that open within those days.
  * An archived routine has none (no occurrence).
  * @param {RoutineTiming & { checks: { date: Date, slot: number }[] }} routine Routine with its latest checks.
@@ -521,7 +527,7 @@ export function reminderOccurrences(routine: RoutineTiming & { checks: { date: D
         day,
         slots: slots.flatMap((slot, index) => {
           const time = routineReminderTime(slot);
-          return ticked.has(index) || !time ? [] : [{ slot: index, at: parisInstant(day, time) }];
+          return ticked.has(index) || !time ? [] : [{ slot: index, at: parisInstant(day, time), endAt: slot.dueTime ? parisInstant(due, slot.dueTime) : null }];
         }),
       },
     ];
@@ -765,6 +771,7 @@ const scalars = (data: ReturnType<typeof routineSchema.parse>) => ({
   moments: data.moments,
   slotCondition: data.slotCondition ? toJson(data.slotCondition) : Prisma.DbNull,
   reminders: toJson(normalizedReminders(data.reminders)),
+  deadTimes: toJson(storedDeadTimes(data.deadTimes)),
   opensOn: data.opensOn ?? Prisma.DbNull,
   cases: toJson(data.cases),
   ...storedLocation(data),
@@ -1050,6 +1057,7 @@ async function inputOf(id: string): Promise<RoutineInput> {
     slotCondition: storedCondition(routine),
     moments: storedMoments(routine),
     reminders: readReminders(routine.reminders),
+    deadTimes: readDeadTimes(routine.deadTimes),
     opensOn: readOpens(routine.opensOn),
     cases: storedCases(routine.cases),
     location: routine.location,

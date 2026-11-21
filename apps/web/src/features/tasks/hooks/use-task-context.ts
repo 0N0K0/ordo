@@ -1,4 +1,4 @@
-import { mapById, byPosition, LEVEL, lineageOf } from '@ordo/shared';
+import { mapById, byPosition, LEVEL, lineageOf, taskNumbered, taskRef } from '@ordo/shared';
 import { useMemo } from 'react';
 import type { MarkdownSuggestions } from '../../../components/markdown/MarkdownEditor';
 import type { ReferenceTargets, ReferenceTask } from '../../../components/markdown/remark-references';
@@ -93,13 +93,8 @@ const NO_PROJECT_LABEL = 'Sans projet';
 /** Heading of the tasks of no project in a select of tasks. */
 const NO_PROJECT_NODE = 'project:none';
 
-/**
- * Number of a task followed by a space ("#12 "), empty for a task of no project (it has none).
- * @param {{ number: number | null }} task Task.
- * @returns {string} Text.
- */
-// eslint-disable-next-line no-restricted-syntax -- taskRef itself.
-export const taskRef = (task: { number: number | null }) => (task.number === null ? '' : `#${task.number} `);
+/** Number of a task (« #12 »), its label after its number: the shared bricks. */
+export { taskNumbered, taskRef };
 
 /**
  * Number of a task without the space ("#12"), empty for a task of no project.
@@ -116,14 +111,6 @@ export const taskNumber = (task: { number: number | null }): string => taskRef(t
  */
 // eslint-disable-next-line no-restricted-syntax -- closedMark itself.
 export const closedMark = (task: { closed: boolean }): string => (task.closed ? ' (fermée)' : '');
-
-/**
- * Label of a task after its number ("#12 Écrire le devis"), the label alone for a task of no project.
- * @param {{ number: number | null, label: string }} task Task.
- * @returns {string} Text.
- */
-// eslint-disable-next-line no-restricted-syntax -- taskNumbered itself.
-export const taskNumbered = (task: { number: number | null; label: string }): string => `${taskRef(task)}${task.label}`;
 
 /**
  * Name of a task in a message: its number ("#12"), or its title for a task of no project.

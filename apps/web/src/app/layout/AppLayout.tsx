@@ -26,6 +26,7 @@ import { SettingsAside } from './SettingsAside';
 import { SettingsButton } from './SettingsButton';
 import { SettingsOverlay } from './SettingsOverlay';
 import { TimerWidget } from '../../features/time/components/TimerWidget';
+import { CountdownWidget } from '../../features/countdowns/components/CountdownWidget';
 import { useResizablePanel } from './use-resizable-panel';
 import { SETTINGS_PANEL, SIDEBAR_PANEL } from './panel-widths';
 import { ResizeHandle } from './ResizeHandle';
@@ -107,9 +108,12 @@ export function AppLayout() {
                 </Group>
                 <HeaderTitle />
                 <Group gap="sm" wrap="nowrap" justify="flex-end">
-                  {/* The running timer, not on a phone. */}
+                  {/* The running timers and the timers counting down (decision FT), not on a phone. */}
                   <div className={classes.fromTablet}>
-                    <TimerWidget />
+                    <Group gap="xs" wrap="nowrap">
+                      <CountdownWidget />
+                      <TimerWidget />
+                    </Group>
                   </div>
                   <SettingsButton />
                   <QuickActions />

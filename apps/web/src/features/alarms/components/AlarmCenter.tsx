@@ -1,4 +1,4 @@
-import { reminderDayRange } from '@ordo/shared';
+import { calendarRingPage, DEFAULT_RING_SETTINGS, readRingSettings, reminderDayRange, routinesRingPage, type RingPage } from '@ordo/shared';
 import { useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router';
 import { fetchCalendarEvents, useBirthdays, useWorkSchedules, type EventOccurrence } from '../../calendar/api';
@@ -6,29 +6,38 @@ import { ringBirthdayReminders, ringEphemerisReminders } from '../lib/ring-calen
 import { usePersonOpener } from '../../calendar/hooks/use-person-opener';
 import { useTasksData } from '../../tasks/api';
 import { useRoutineMutations, useRoutinesData } from '../../routines/api';
-import { useRunningTimer } from '../../time/api';
+import { useRunningTimers } from '../../time/api';
 import { useProjectTree } from '../../projects/api';
 import { useAlarmMutations, useAlarms, type Alarm } from '../api';
+import { configureRinging, loadRings } from '../lib/ringing';
+import { listenToPushes } from '../lib/push';
+import { useMe } from '../../auth/api';
+import { useWorkspaces } from '../../workspaces/api';
+import { switchWorkspace } from '../../workspaces/lib/switch';
 import { unlockAudioOnGesture } from '../lib/alarm-sound';
 import { dueAlarms, ringAlarm, ringReminders, ringTaskReminders, type RingLink } from './ring';
 import { ringRoutineReminders } from '../lib/ring-routines';
 import { ON_ERROR } from '../../../lib/notify';
 import { useSlotRules, routineDoable } from '../../calendar/hooks/use-slot-rules';
-import { PAGES } from '../../../app/pages';
 import { alarmTarget } from '../lib/alarm-labels';
+import { useCountdownRinger } from '../../countdowns/hooks/use-countdown-ringer';
 
 const TICK_MS = 15_000;
+/** How often the rings kept by the API are followed (stopped or snoozed in another tab or device). */
+const RINGS_MS = 60_000;
 
 /**
- * Rings the alarms of the workspace open while the app is: chime, system notification (when allowed) and a
- * toast that stays until closed. Scheduled alarms ring at their times (missed ones, within a few hours, ring
- * on opening); tracking alarms ring after every set duration of the running timer; the reminders of events, routines,
- * tasks, éphémérides and birthdays at their moments. Renders nothing.
+ * Rings the alarms of the workspace open while the app is (`startRinging`: the ringtone of the settings of the user or
+ * of the reminder, for their duration, a system notification when allowed, a toast with « Arrêter » and « Répéter
+ * dans N min », rung again as set; the rings kept by the API followed every minute, decision FS). Scheduled alarms ring at their times (missed ones, within a few hours, ring
+ * on opening); tracking alarms ring after every set duration of each running timer; the reminders of events, routines,
+ * tasks, éphémérides and birthdays at their moments; the timers of the user at their end, in any workspace
+ * (`useCountdownRinger`, decision FT). Renders nothing.
  * @returns {null} Nothing.
  */
 export function AlarmCenter() {
   const { data: alarms } = useAlarms();
-  const { data: running } = useRunningTimer();
+  const { data: running } = useRunningTimers();
   const { data: tasksData } = useTasksData();
   const { data: workspace } = useProjectTree();
   const { markFired } = useAlarmMutations();
@@ -38,6 +47,9 @@ export function AlarmCenter() {
   const { data: schedules } = useWorkSchedules();
   const { data: birthdays } = useBirthdays();
   const openPerson = usePersonOpener();
+  const { data: me } = useMe();
+  const { data: spaces } = useWorkspaces();
+  const currentWorkspaceId = spaces?.currentWorkspaceId ?? null;
   // Tracking alarms: last rung step per alarm and timer, so a reload does not ring past steps again.
   const trackingSteps = useRef(new Map<string, number>());
   // Event occurrences of the next days, for their reminders.
@@ -66,15 +78,32 @@ export function AlarmCenter() {
   });
 
   useEffect(() => unlockAudioOnGesture(), []);
+  // What the service worker tells: a ring pushed while visible, a ring stopped or snoozed from a notification (lot 17c).
+  useEffect(() => listenToPushes(), []);
+  useCountdownRinger();
+
+  // The ring follows the settings of the user; a link of a ring kept by the API opens its page in its workspace.
+  useEffect(() => {
+    configureRinging({
+      settings: me?.ringSettings ? readRingSettings(me.ringSettings) : DEFAULT_RING_SETTINGS,
+      workspaceId: currentWorkspaceId,
+      open: ({ path, workspaceId }) => (workspaceId && workspaceId !== currentWorkspaceId ? switchWorkspace(workspaceId, path) : latest.current.navigate(path)),
+    });
+  }, [me?.ringSettings, currentWorkspaceId]);
+
+  useEffect(() => {
+    void loadRings();
+    const timer = window.setInterval(() => void loadRings(), RINGS_MS);
+    return () => window.clearInterval(timer);
+  }, []);
 
   useEffect(() => {
     /**
      * Link of a toast to a page of the app (toasts are outside the router: no Link in them).
-     * @param {string} label Label.
-     * @param {string} path Path.
+     * @param {RingPage} page Label and path.
      * @returns {RingLink} Link.
      */
-    const link = (label: string, path: string): RingLink => ({ label, onClick: () => latest.current.navigate(path) });
+    const link = ({ label, path }: RingPage): RingLink => ({ label, to: { path }, onClick: () => latest.current.navigate(path) });
 
     /**
      * Links of an alarm: its task, or else its project.
@@ -88,30 +117,30 @@ export function AlarmCenter() {
         (id) => data?.tasks.find((item) => item.id === id),
         (id) => space?.projects.find((item) => item.id === id),
       );
-      return target ? [link(target.label, target.to)] : [];
+      return target ? [link({ label: target.label, path: target.to })] : [];
     };
 
     /**
-     * Checks every alarm against the current time and the running timer, and the reminders of events, routines and tasks.
+     * Checks every alarm against the current time and the running timers, and the reminders of events, routines and tasks.
      * @returns {void}
      */
     const tick = () => {
       const { alarms: list, running: entry, markFired: mark } = latest.current;
       const now = new Date();
-      ringReminders(upcoming.current, now, [link('Voir l’agenda', PAGES.calendar.path)]);
-      ringEphemerisReminders(latest.current.schedules ?? [], now, [link('Voir l’agenda', PAGES.calendar.path)]);
+      ringReminders(upcoming.current, now, [link(calendarRingPage())]);
+      ringEphemerisReminders(latest.current.schedules ?? [], now, [link(calendarRingPage())]);
       ringBirthdayReminders(latest.current.birthdays ?? [], now, (birthday) => [{ label: 'Ouvrir la fiche', onClick: () => latest.current.openPerson(birthday) }]);
       ringRoutineReminders(
         latest.current.routinesData?.routines ?? [],
         now,
-        [link('Voir les routines', PAGES.routines.path)],
+        [link(routinesRingPage())],
         (routine, slot) => latest.current.setDone.mutate({ id: routine.id, done: true, slot }, ON_ERROR),
         (routine, at) => latest.current.slotRules.nextAllowedAt(routineDoable(routine), at),
       );
       const { tasksData: data, workspace: space } = latest.current;
       ringTaskReminders(data?.tasks ?? [], now, (task) => {
         const target = alarmTarget({ taskId: task.id, projectId: null }, () => task, (id) => space?.projects.find((item) => item.id === id));
-        return target ? [link(target.label, target.to)] : [];
+        return target ? [link({ label: target.label, path: target.to })] : [];
       });
       if (!list) return;
       const due = dueAlarms(list, entry, now, trackingSteps.current, (alarm, at) => mark.mutate({ id: alarm.id, at: at.toISOString() }));

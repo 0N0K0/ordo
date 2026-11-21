@@ -1,9 +1,9 @@
 import { z } from 'zod';
 import { END_AFTER_START, endsAfter, markdownSchema, markdownTextSchema, optionalPlainText, requiredText } from '../core/rules';
-import { DEFAULT_RECURRENCE, occurrenceDates, recurrenceSchema, type Recurrence } from '../dates/recurrence';
+import { DEFAULT_RECURRENCE, occurrenceDates, recurrenceSchema, zonedInstant, type Recurrence } from '../dates/recurrence';
 import { dateSchema } from '../core/workspace';
 import { daySchema, timeOfDaySchema } from '../dates/times';
-import { dayIn, localInstant } from '../dates/days';
+import { addDays, dayIn, localInstant } from '../dates/days';
 import { twoDigits } from '../core/numbers';
 
 /** What was done during a tracked time: markdown (its editor). Blank becomes null. */
@@ -19,6 +19,12 @@ export const durationSchema = z
 /** A time has at least a project, a task, a routine or an event (decision D17). */
 export const TIME_SUBJECT_REQUIRED = 'Choisissez un projet, une tâche, une routine ou un évènement.';
 
+/** Message of a typed duration not understood (or out of 1 minute to 24 hours). */
+export const DURATION_TEXT_INVALID = 'Durée attendue : 1:30, 1h30, 90 (minutes) ou 1,5 h.';
+
+/** A duration typed in a field (« 1:30 », « 1h30 », « 90 », « 1,5 h »: see `parseDuration`), 1 minute to 24 hours. */
+export const durationTextSchema = z.string().refine((value) => parseDuration(value) !== null, DURATION_TEXT_INVALID);
+
 /**
  * Manual time entry form: day, start time, duration ("1:30", "1h30", "90" minutes or "1,5" hours). The project may be
  * left empty when the time has a task, a routine or an event (decision D17); several of each (decision D18).
@@ -33,7 +39,7 @@ export const timeEntryFormSchema = z
     description: markdownTextSchema,
     date: daySchema('La date est requise.'),
     start: timeOfDaySchema,
-    duration: z.string().refine((value) => parseDuration(value) !== null, 'Durée attendue : 1:30, 1h30, 90 (minutes) ou 1,5 h.'),
+    duration: durationTextSchema,
   })
   .refine((values) => values.projectId !== '' || values.routineIds.length > 0 || values.taskIds.length > 0 || values.events.length > 0, {
     path: ['projectId'],
@@ -67,6 +73,15 @@ export function formatDuration(seconds: number): string {
   const minutes = Math.round(seconds / 60);
   if (minutes < 60) return `${minutes} min`;
   return `${Math.floor(minutes / 60)} h ${twoDigits(minutes % 60)}`;
+}
+
+/**
+ * A duration as typed in a field (read back by `parseDuration`): « 1:30 », « 0:05 ».
+ * @param {number} minutes Minutes.
+ * @returns {string} Text.
+ */
+export function durationText(minutes: number): string {
+  return `${Math.floor(minutes / 60)}:${twoDigits(minutes % 60)}`;
 }
 
 /**
@@ -178,10 +193,22 @@ export function alarmRule(schedule: AlarmSchedule): Recurrence | null {
  * @returns {boolean} True when it rings that day.
  */
 function ringsOn(schedule: AlarmSchedule, start: Date, day: Date): boolean {
+  return day >= start && ringsOnDay(schedule, dayIn(start), dayIn(day));
+}
+
+/**
+ * Whether the schedule rings on a calendar day (YYYY-MM-DD): a day of its rule from its first day (that day only
+ * without a rule).
+ * @param {AlarmSchedule} schedule Schedule.
+ * @param {string} start First day.
+ * @param {string} day Day.
+ * @returns {boolean} True when it rings that day.
+ */
+function ringsOnDay(schedule: AlarmSchedule, start: string, day: string): boolean {
   if (day < start) return false;
   const rule = alarmRule(schedule);
-  if (!rule) return dayIn(day) === dayIn(start);
-  return occurrenceDates(rule, dayIn(start), dayIn(day), dayIn(day)).length > 0;
+  if (!rule) return day === start;
+  return occurrenceDates(rule, start, day, day).length > 0;
 }
 
 /**
@@ -196,14 +223,26 @@ function at(day: Date, time: string): Date {
 }
 
 /**
- * Last occurrence of a schedule at or before a moment, looking back a limited number of days.
+ * Last occurrence of a schedule at or before a moment, looking back a limited number of days: in the local time of the
+ * runtime (the browser that rings), or in a time zone (the API, which rings in Paris time outside the app, lot 17c).
  * @param {AlarmSchedule} schedule Schedule.
  * @param {Date} moment Moment.
  * @param {number} [lookBackDays] Days to look back. Optional. Default = 2.
+ * @param {string} [timeZone] Time zone of the date and time of the schedule. Optional. Default = the local one.
  * @returns {Date | null} Occurrence, or null.
  */
-export function previousOccurrence(schedule: AlarmSchedule, moment: Date, lookBackDays = 2): Date | null {
+export function previousOccurrence(schedule: AlarmSchedule, moment: Date, lookBackDays = 2, timeZone?: string): Date | null {
   if (!schedule.startDate || !schedule.time) return null;
+  if (timeZone) {
+    const today = dayIn(moment, timeZone);
+    for (let offset = 0; offset <= lookBackDays; offset += 1) {
+      const day = addDays(today, -offset);
+      if (!ringsOnDay(schedule, schedule.startDate, day)) continue;
+      const occurrence = zonedInstant(day, schedule.time, timeZone);
+      if (occurrence <= moment) return occurrence;
+    }
+    return null;
+  }
   const start = localInstant(schedule.startDate);
   for (let offset = 0; offset <= lookBackDays; offset += 1) {
     const day = new Date(moment.getFullYear(), moment.getMonth(), moment.getDate() - offset);

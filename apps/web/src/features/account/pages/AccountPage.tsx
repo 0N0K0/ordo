@@ -13,6 +13,8 @@ import { useCancelEmailChange, useChangePassword, useChangeUsername, useMe, useR
 import { NewPasswordFields } from '../../auth/components/NewPasswordFields';
 import { FormActions } from '../../../components/dialogs/FormActions';
 import { ActionButton } from '../../../components/actions/ActionButton';
+import { RingSettingsForm } from '../components/RingSettingsForm';
+import { readRingSettings } from '@ordo/shared';
 
 /**
  * Username change form.
@@ -138,7 +140,7 @@ function PasswordForm({ user }: { user: AccountUser }) {
 }
 
 /**
- * Account settings: username, email and password.
+ * Account settings: username, email, password, and how alarms ring (every workspace).
  * @returns {JSX.Element | null} Account page.
  */
 export function AccountPage() {
@@ -156,6 +158,9 @@ export function AccountPage() {
       </SettingsSection>
       <SettingsSection title="Mot de passe" description="Les autres sessions ouvertes seront fermées.">
         <PasswordForm user={user} />
+      </SettingsSection>
+      <SettingsSection title="Sonnerie des alarmes" description="Alarmes et rappels de tous les espaces. Chaque rappel peut choisir sa propre sonnerie.">
+        <RingSettingsForm settings={readRingSettings(user.ringSettings)} />
       </SettingsSection>
     </Stack>
   );
