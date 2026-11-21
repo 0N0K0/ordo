@@ -76,6 +76,16 @@ export const calendarFormSchema = z.object({
 export type CalendarFormValues = z.infer<typeof calendarFormSchema>;
 
 /**
+ * Looks of the items of a calendar view printed in PDF, the same list for the app that sends them and the API that
+ * draws them: `event` filled in its color (events, subscribed calendars, birthdays), `task` light with a stripe in its
+ * color (tasks, routines), `time` light (tracked times), `travel` faint, its text dimmed (travel times), `slot` filled
+ * in its color with a dark text (bars of créneaux and éphémérides, slots being changed), `background` behind the
+ * other items (hours or days of créneaux and éphémérides).
+ */
+export const CALENDAR_PDF_KINDS = ['event', 'task', 'time', 'travel', 'slot', 'background'] as const;
+export type CalendarPdfKind = (typeof CALENDAR_PDF_KINDS)[number];
+
+/**
  * Key of an occurrence of something repeated (an event, a routine) on a day: « id|date », the date empty for none. The
  * same in the API and the web.
  * @param {string} id Event or routine.

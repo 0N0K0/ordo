@@ -12,6 +12,7 @@ Voir aussi : [Règles : calendrier](../../business-rules/activities/calendar.md)
 | `EVENT_SCOPES` / `EventScope`                               | Portée d'une modification d'un événement répété : `THIS` (cette occurrence), `FOLLOWING` (celle-ci et les suivantes), `ALL` (toute la série). |
 | `calendarCategoryFormSchema` / `CalendarCategoryFormValues` | Catégorie d'agenda : `label` (requis, 250), `color` (requise), `parentId` (catégories en arbre).                                              |
 | `calendarFormSchema` / `CalendarFormValues`                 | Agenda de l'espace (chaque événement appartient à un agenda) : `label` (requis, 250), `color`.                                                |
+| `CALENDAR_PDF_KINDS` / `CalendarPdfKind`                    | Aspects des éléments d'une vue de l'agenda imprimée en PDF, la même liste pour l'application qui les envoie et l'API qui les dessine : `event`, `task`, `time`, `travel`, `slot`, `background` (voir [Règles : export PDF](../../business-rules/activities/calendar.md#export-pdf)). |
 | `occurrenceKey(id, date?)`                                  | Clé d'une occurrence d'un élément répété (événement, routine) un jour : « id\|date » (date vide si aucune). Identique API / web.              |
 | `readOccurrenceKey(key)`                                    | Inverse : `{ id, date \| null }`.                                                                                                             |
 

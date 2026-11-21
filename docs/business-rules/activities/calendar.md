@@ -259,7 +259,9 @@ Source : `apps/api/src/services/calendar/calendar-ics.ts`, route `GET /api/expor
 
 Source : `apps/api/src/services/calendar/calendar-pdf.ts`, route `POST /api/exports/calendar.pdf` (5 Mo, « Export PDF impossible. »).
 
-- Entrée : la vue telle qu’affichée (`view` mois/semaine/jour, `from`, `to`, `today`, titre et sous-titre) et ses éléments (5 000 max ; libellé 500 caractères, `PRINTED_LABEL_MAX` = 2 × `TEXT_MAX` ; genre `event`, `task`, `time`, `pause`, `work` ; dates ou date-heures locales ; couleur ; `struck`).
+- Entrée : la vue telle qu’affichée (`view` mois/semaine/jour, `from`, `to`, `today`, titre et sous-titre) et ses éléments (5 000 max ; libellé 500 caractères, `PRINTED_LABEL_MAX` = 2 × `TEXT_MAX` ; aspect `CALENDAR_PDF_KINDS`, la même liste pour l’application et l’API ; dates ou date-heures locales ; couleur ; `struck`).
+- Aspects : `event` plein dans sa couleur, texte blanc ; `task` et `time` teinte claire et liseré à gauche dans leur couleur ; `travel` teinte très claire, liseré, texte grisé ; `slot` plein dans sa couleur, texte foncé ; `background` en fond translucide dans sa couleur, derrière les autres éléments (la journée entière d’une case du mois, ou ses heures en semaine et jour). Un élément barré est aussi en teinte claire, estompé.
+- Les heures de la semaine et du jour vont de 8 h à 19 h au moins, élargies aux éléments ; les fonds ne les élargissent pas (ils sont coupés aux heures affichées).
 - `from` ≤ `to`, 45 jours d’écart au plus : « Période invalide. ».
 - A4 paysage, gabarit commun (`startReport`, voir [Erreurs](../cross-cutting/errors.md) pour le format des refus).
 

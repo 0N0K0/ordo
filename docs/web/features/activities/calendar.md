@@ -238,9 +238,9 @@ Utilisés par `ScheduleSettings`.
 
 ### `lib/calendar-pdf.ts`
 
-- `pdfItems(items, closedClass)` : éléments FullCalendar en éléments du PDF (dates locales, fins journée entière incluses, couleurs résolues ; bandeaux et trajets exclus ; anniversaires en `event` ; fonds et créneaux édités en `work`).
+- `pdfItems(items, closedClass)` : éléments FullCalendar en éléments du PDF, chacun dans son aspect `CalendarPdfKind` (`PDF_KIND` : évènements, calendriers abonnés et anniversaires en `event`, tâches et routines en `task`, chronos en `time`, trajets en `travel`, bandeaux et créneaux en cours de modification en `slot`, tout élément `display: 'background'` en `background`) ; dates locales, fins journée entière incluses, couleurs résolues (fond pour `event`, `slot`, `background`, bordure pour les autres ; une couleur translucide posée sur blanc).
 - `downloadCalendarPdf(view)` : `postExport('/api/exports/calendar.pdf', …)`, fichier « Agenda — <titre>.pdf ».
-- Internes : types `PdfKind`, `PdfItem`, `hexColor(color, fallback)` (couleur CSS calculée en `#rrggbb`), `localDateTime(value)`.
+- Internes : `PDF_KIND`, `FALLBACK_COLOR` (couleur de chaque aspect quand celle de l’élément ne se lit pas), type `PdfItem`, `hexColor(color, fallback)` (couleur CSS calculée en `#rrggbb`, une couleur translucide posée sur blanc), `localDateTime(value)`.
 
 ### `lib/event-input.ts`
 

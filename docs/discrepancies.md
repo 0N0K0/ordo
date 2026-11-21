@@ -41,8 +41,6 @@ L’API accepte ce que l’interface empêche.
   - Les liens « relative à » / dépendances des routines restent limités par le projet enregistré, qui est le projet suivi (le projet hérité est recopié), donc sans écart.
     Voir [Tâches](business-rules/activities/tasks.md#héritage), [Routines](business-rules/activities/routines.md#héritage).
 
-- **Export PDF de l’agenda :** `pdfItems` (`apps/web/src/features/calendar/lib/calendar-pdf.ts`) envoie le genre de chaque élément tel quel (`routine`, `routineTravel`, `subscribed`…), alors que l’API n’accepte que `event`, `task`, `time`, `pause` et `work` (`calendarPdfSchema`, `apps/api/src/services/calendar/calendar-pdf.ts`) : la vue exportée avec des routines ou un calendrier abonné semble refusée. Voir [Règles de l’agenda](business-rules/activities/calendar.md#export-pdf) et [Agenda](features/activities/calendar.md#export-pdf).
-
 ## Comportements à confirmer
 
 - **Copie d’une tâche sans sa condition de créneaux :** `duplicateTask` (`services/tasks/tasks.ts`) recopie lieu, liens, rappels et temps morts, mais pas `slotCondition`, alors que « Dupliquer » d’une routine garde la sienne. Voir [Règles des tâches](business-rules/activities/tasks.md#duplication).
