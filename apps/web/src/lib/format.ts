@@ -11,6 +11,7 @@ import {
   countOf,
   dateStyle,
   daysBetween,
+  dayText,
   // eslint-disable-next-line no-restricted-imports -- fmt.moneyCents is the shared formatMoney.
   formatMoney,
   formatNumber,
@@ -24,7 +25,7 @@ import {
 } from '@ordo/shared';
 
 /** « 13 nov. 2026 »: a date in a table, a list, a text. */
-export const day = dateStyle({ day: 'numeric', month: 'short', year: 'numeric' });
+export const day = dayText;
 
 /** « 13 novembre 2026 », « 1er juin 2026 »: a date in a sentence, its weekday left out (the end of a repetition…). */
 export const dayInWords = longDayText;

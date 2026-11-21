@@ -1,9 +1,7 @@
-import { alarmRule, nextOccurrence, type AlarmFrequency, type Recurrence } from '@ordo/shared';
+import { alarmRule, alarmTarget, alarmTaskLabel, nextOccurrence, type AlarmFrequency, type Recurrence } from '@ordo/shared';
 import type { Alarm } from '../api';
 import { describeRecurrence } from '../../../components/recurrence/describe-recurrence';
 import * as fmt from '../../../lib/format';
-import { taskNumbered } from '../../tasks/hooks/use-task-context';
-import { projectPath, taskPath } from '../../../app/pages';
 
 /**
  * Former fields of an alarm sent with its repetition (read by older clients): its frequency and interval, and the
@@ -57,42 +55,8 @@ export function describeAlarm(alarm: Alarm): string {
   return alarm.type === 'NOT_TRACKING' ? `${text}, si aucun chrono ne tourne` : text;
 }
 
-/**
- * Label of the link to the task of an alarm: its project first (a task number is only unique in its project), then its
- * number and label (« Site #12 Maquette »).
- * @param {{ number: number | null, label: string }} task Task.
- * @param {string} [projectLabel] Label of its project. Optional.
- * @returns {string} Label.
- */
-export function alarmTaskLabel(task: { number: number | null; label: string }, projectLabel?: string): string {
-  return `${projectLabel ? `${projectLabel} ` : ''}${taskNumbered(task)}`;
-}
-
-/** What an alarm is about, as a link: its task, or else its project. */
-interface AlarmTarget {
-  label: string;
-  to: string;
-}
-
-/**
- * Link of an alarm, the same in its list and its notification: its task (« Site #12 Maquette »), or else its project.
- * @param {Pick<Alarm, 'taskId' | 'projectId'>} alarm Alarm.
- * @param {(id: string) => { id: string, number: number | null, label: string, projectId: string | null } | undefined} taskOf Task by id.
- * @param {(id: string) => { id: string, label: string } | undefined} projectOf Project by id.
- * @returns {AlarmTarget | null} Link, or none.
- */
-export function alarmTarget(
-  alarm: Pick<Alarm, 'taskId' | 'projectId'>,
-  taskOf: (id: string) => { id: string; number: number | null; label: string; projectId: string | null } | undefined,
-  projectOf: (id: string) => { id: string; label: string } | undefined,
-): AlarmTarget | null {
-  const task = alarm.taskId ? taskOf(alarm.taskId) : undefined;
-  // Its number is only unique in its project: the project comes with it.
-  // eslint-disable-next-line no-restricted-syntax -- alarmTarget itself.
-  if (task) return { label: alarmTaskLabel(task, task.projectId ? projectOf(task.projectId)?.label : undefined), to: taskPath(task) };
-  const project = alarm.projectId ? projectOf(alarm.projectId) : undefined;
-  return project ? { label: project.label, to: projectPath(project.id) } : null;
-}
+/** Link of an alarm (its task « Site #12 Maquette », or else its project) and its label: the shared bricks (also the rings pushed by the API). */
+export { alarmTarget, alarmTaskLabel };
 
 /**
  * Alarms that will still ring, each with its next ring, the soonest first.

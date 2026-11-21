@@ -11,7 +11,7 @@ import { itemSelectProps } from '../../../components/items/item-look';
 
 import { Alert, Anchor, Fieldset, Group, Select, SimpleGrid, Stack, Text, TextInput } from '@mantine/core';
 import { DatePickerInput, TimePicker } from '@mantine/dates';
-import { addDays, mapById, type CalendarEventInput, calendarEventInputSchema, daysBetween, formatDuration, type Recurrence, sharePeople, TEXT_MAX } from '@ordo/shared';
+import { addDays, mapById, type CalendarEventInput, calendarEventInputSchema, daysBetween, EVENT_REMINDER_ANCHORS, formatDuration, type Recurrence, sharePeople, TEXT_MAX } from '@ordo/shared';
 import { ArrowArcRightIcon, ArrowCounterClockwiseIcon, CalendarXIcon, PlayIcon, XIcon } from '@phosphor-icons/react';
 import { Link } from 'react-router';
 import { useRef, useState } from 'react';
@@ -170,7 +170,7 @@ interface SaveTarget {
 export function EventForm({ context, occurrence, defaults, onDone, onDuplicated, scope = 'ALL' }: EventFormProps) {
   const categoryItems = useCalendarCategoryItems();
   const { create, update, remove, setCalledOff } = useCalendarEventMutations();
-  const { startTimer, isPending: timerStarting, hint: timerHint } = useStartTimer();
+  const { startTimer, isPending: timerStarting } = useStartTimer();
 
   /**
    * Opens the postponement of this occurrence; once postponed, the event form closes too.
@@ -547,11 +547,13 @@ export function EventForm({ context, occurrence, defaults, onDone, onDuplicated,
                   label="Rappels"
                   description={
                     values.allDay
-                      ? 'Avant minuit le premier jour (« 6 h avant » : la veille à 18 h), 24 h au plus ; ou à une heure du premier jour ou de quelques jours avant.'
-                      : 'Avant le début, 24 h au plus ; ou à une heure du premier jour ou de quelques jours avant.'
+                      ? 'Avant minuit le premier jour (« 6 h avant » : la veille à 18 h), 24 h au plus ; ou à une heure du premier jour ou de quelques jours avant ; ou de même depuis la fin (minuit après le dernier jour).'
+                      : 'Avant le début, 24 h au plus ; ou à une heure du premier jour ou de quelques jours avant ; ou de même depuis la fin.'
                   }
-                  emptyLabel="Aucun"
-                  value={values.reminders} onChange={(reminders) => form.setFieldValue('reminders', reminders)} clearable />
+                  anchors={EVENT_REMINDER_ANCHORS}
+                  value={values.reminders}
+                  onChange={(reminders) => form.setFieldValue('reminders', reminders)}
+                />
               </Fieldset>
             </SimpleGrid>
             {recurring && !seriesFields && (
@@ -565,7 +567,7 @@ export function EventForm({ context, occurrence, defaults, onDone, onDuplicated,
                   priority="secondary"
                   size="xs"
                   icon={<PlayIcon aria-hidden />}
-                  hint={timerHint(false, 'Démarre un chrono rattaché à cet évènement.') ?? 'Démarre un chrono rattaché à cet évènement.'}
+                  hint="Démarre un chrono rattaché à cet évènement."
                   loading={timerStarting}
                   onClick={handleTimer}
                 >

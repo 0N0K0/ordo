@@ -80,8 +80,30 @@ export function switchWorkspace(id: string, path = samePageElsewhere()): void {
   window.location.assign(path);
 }
 
-// This window asks for its own workspace from its first request (the cookie may name another window's one).
-const initial = windowWorkspace();
+/**
+ * Parameter of an address opening the app in a workspace (a pushed notification opened while the app was closed, lot
+ * 17c: `public/push-sw.js`); taken off the address once read.
+ */
+const WORKSPACE_PARAM = 'ordo-workspace';
+
+/**
+ * Workspace the address of this window asks for, taken off the address.
+ * @returns {string | null} Workspace.
+ */
+function askedWorkspace(): string | null {
+  const url = new URL(window.location.href);
+  const id = url.searchParams.get(WORKSPACE_PARAM);
+  if (!id) return null;
+  url.searchParams.delete(WORKSPACE_PARAM);
+  window.history.replaceState(window.history.state, '', `${url.pathname}${url.search}${url.hash}`);
+  return id;
+}
+
+// This window asks for its own workspace from its first request (the cookie may name another window's one): the one
+// its address asks for, else the one it showed before a reload.
+const asked = askedWorkspace();
+if (asked) rememberWorkspace(asked);
+const initial = asked ?? windowWorkspace();
 if (initial) pinWorkspace(initial);
 
 /**

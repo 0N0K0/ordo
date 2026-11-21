@@ -1,5 +1,16 @@
-import { normalizedReminders, reminderKey, reminderOfKey } from '@ordo/shared';
-import { reminderLabel } from '../../../components/inputs/reminder-presets';
+import {
+  DAY_REMINDER_KINDS,
+  normalizedReminders,
+  readReminders,
+  readSlotCondition,
+  REMINDER_KINDS,
+  reminderKey,
+  reminderOfKey,
+  ROUTINE_REMINDER_ANCHORS,
+  routineHasHours,
+  type RoutineCase,
+  type RoutineSlot,
+} from '@ordo/shared';
 
 import { cellPicker } from '../../../components/data-table/cells/cell-field';
 import { Badge, Select, Stack, Text } from '@mantine/core';
@@ -140,7 +151,7 @@ export function RemindersCell({ routine, readOnly = false }: { routine: Routine;
   const { apply, count } = useRoutineCellEdit(routine, 'alarms');
   return (
     <EditablePopoverCell
-      width={280}
+      width={480}
       label={routineCellLabel('Rappels', routine, count)}
       readOnly={readOnly}
       target={
@@ -161,17 +172,29 @@ export function RemindersCell({ routine, readOnly = false }: { routine: Routine;
         <RemindersSelect
           label="Rappels"
           value={routine.reminders}
-          // On a selection, those added here are added to each routine, those removed here removed.
-          onChange={(values) =>
-            apply((target) => ({
-              reminders: normalizedReminders(applyDiff(target.reminders.map(reminderKey), routine.reminders.map(reminderKey), values.map(reminderKey)).flatMap((key) => reminderOfKey(key) ?? [])),
-            }))
+          // Without any hour, only reminders at a time of the day (decision FW).
+          kinds={
+            routineHasHours({
+              fromTime: routine.fromTime,
+              dueTime: routine.dueTime,
+              moments: (routine.moments as RoutineSlot[] | null) ?? [],
+              slotCondition: readSlotCondition(routine.slotCondition),
+              cases: (routine.cases as RoutineCase[] | null) ?? [],
+            })
+              ? REMINDER_KINDS
+              : DAY_REMINDER_KINDS
           }
-          comboboxProps={{ withinPortal: false }}
+          anchors={ROUTINE_REMINDER_ANCHORS}
+          // On a selection, those added here are added to each routine, those removed here removed (with their ringtone).
+          onChange={(values) =>
+            apply((target) => {
+              const known = new Map([...readReminders(target.reminders), ...values].map((reminder) => [reminderKey(reminder), reminder]));
+              return {
+                reminders: normalizedReminders(applyDiff(target.reminders.map(reminderKey), routine.reminders.map(reminderKey), values.map(reminderKey)).flatMap((key) => known.get(key) ?? reminderOfKey(key) ?? [])),
+              };
+            })
+          }
         />
-        <Text size="xs" c="dimmed">
-          {routine.reminders.map((reminder) => reminderLabel(reminder)).join(', ') || 'Aucun rappel.'}
-        </Text>
       </Stack>
     </EditablePopoverCell>
   );

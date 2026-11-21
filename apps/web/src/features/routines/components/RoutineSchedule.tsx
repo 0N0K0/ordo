@@ -1,4 +1,4 @@
-import type { Reminder } from '@ordo/shared';
+import { DAY_REMINDER_KINDS, REMINDER_KINDS, ROUTINE_REMINDER_ANCHORS, routineHasHours, type Reminder } from '@ordo/shared';
 import { LabeledField } from '../../../components/inputs/LabeledField';
 import { AddItemButton } from '../../../components/actions/AddItemButton';
 import { useSlotChoices } from '../../calendar/hooks/use-slot-sources';
@@ -18,7 +18,6 @@ import {
   type RoutineSlot,
   DURATION_UNITS,
 } from '@ordo/shared';
-import { BellIcon } from '@phosphor-icons/react';
 import { useState, type ReactNode } from 'react';
 import { RepetitionEditor, type RepetitionModeValue, type RepetitionTimes } from '../../../components/recurrence/RepetitionEditor';
 import { RepetitionField, RepetitionModal } from '../../../components/recurrence/RepetitionField';
@@ -342,7 +341,8 @@ export function RoutineSchedule({ values, errors, onChange, onCommit }: RoutineS
   const address = addressOf(values);
   // Put in the form (and saved, field by field) once chosen, cleared or left.
   const place = useFormLocation(values, onChange, onCommit);
-  const timed = mode !== 'RULE' || Boolean(values.slotCondition) || values.moments.some((moment) => moment.fromTime || moment.dueTime);
+  // Without any hour, only reminders at a time of the day (decision FW).
+  const timed = routineHasHours(values);
   return (
     <Stack gap="sm">
       <RepetitionField<RoutineRepetitionValue>
@@ -382,15 +382,13 @@ export function RoutineSchedule({ values, errors, onChange, onCommit }: RoutineS
         label="Rappels"
         description={
           timed
-            ? 'Avant son premier jour (« Ouverture ») à l’heure « dès » de chaque moment non coché (sinon son heure maximale), 24 h au plus ; ou à une heure de ce jour ou de quelques jours avant.'
-            : 'À une heure de son premier jour (« Ouverture ») ou de quelques jours avant : donnez-lui un horaire ou un créneau pour des rappels avant ses moments.'
+            ? 'Pour chaque occurrence : avant le début ou la fin de chaque moment non coché, le jour de l’ouverture ou celui de l’échéance (« dès » / « jusqu’à », l’autre heure selon le temps à y consacrer), 24 h au plus ; ou à une heure de l’un de ces jours ou de quelques jours avant.'
+            : 'À une heure du jour de l’ouverture ou de l’échéance, ou de quelques jours avant : donnez une heure « dès » ou « jusqu’à » à ses moments (ou un créneau) pour des rappels avant eux.'
         }
-        leftSection={<BellIcon aria-hidden />}
-        emptyLabel="Aucun"
-        kinds={timed ? ['before', 'at', 'days'] : ['at', 'days']}
+        kinds={timed ? REMINDER_KINDS : DAY_REMINDER_KINDS}
+        anchors={ROUTINE_REMINDER_ANCHORS}
         value={values.reminders}
         onChange={(reminders) => onChange({ reminders })}
-        clearable
         error={errors.reminders}
       />
       {(leaveAt || backAt) && (

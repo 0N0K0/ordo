@@ -1,4 +1,4 @@
-import { NO_SUBJECT } from '@ordo/shared';
+import { NO_SUBJECT, workspaceRingLine } from '@ordo/shared';
 import { unarchived } from '../../../lib/archive';
 import { mailPath } from '../../../app/pages';
 import { EnvelopeSimpleIcon } from '@phosphor-icons/react';
@@ -7,8 +7,8 @@ import { useNavigate } from 'react-router';
 import { graphql } from '../../../graphql';
 import type { WatchedUnreadMailsQuery } from '../../../graphql/graphql';
 import { execute, executeIn } from '../../../lib/graphql-client';
-import { playChime } from '../../alarms/lib/alarm-sound';
-import { claim, systemNotification, type RingLink } from '../../alarms/components/ring';
+import { playRingtone } from '../../alarms/lib/alarm-sound';
+import { claim, systemNotification, type RingLink } from '../../alarms/lib/ringing';
 import { notifyInfo } from '../../../lib/notify';
 import { switchWorkspace } from '../../workspaces/lib/switch';
 import { MAIL_CHECK_MS, onMailCheck } from '../lib/mail-check';
@@ -75,7 +75,7 @@ export function MailWatcher({ workspace }: MailWatcherProps) {
      * @returns {RingLink} Link.
      */
     const link = (label: string, path: string): RingLink => ({ label, onClick: () => (workspaceId ? switchWorkspace(workspaceId, path) : latest.current(path)) });
-    const where = name ? `Espace « ${name} »` : null;
+    const where = name ? workspaceRingLine(name) : null;
 
     /**
      * Shows the unread mails of an account that were not there at the previous fetch.
@@ -90,8 +90,8 @@ export function MailWatcher({ workspace }: MailWatcherProps) {
       // Another tab may have announced them already.
       const fresh = messages.filter((message) => !before.has(message.uid) && claim(`ordo.alarm.mail:${accountId}:${message.uid}`, 24 * 3600_000));
       if (fresh.length === 0) return;
-      // eslint-disable-next-line no-restricted-syntax -- a new mail, not a reminder.
-      playChime();
+      // eslint-disable-next-line no-restricted-syntax -- a new mail, not an alarm: the chime once, no ring.
+      playRingtone('carillon');
       if (fresh.length > MAX_MAIL_TOASTS) {
         const title = `${fresh.length} nouveaux mails`;
         systemNotification(title, name ?? undefined, taggedKey('mail', accountId));

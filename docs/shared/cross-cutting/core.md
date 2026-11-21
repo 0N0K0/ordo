@@ -28,6 +28,7 @@ Briques zod réutilisées par tous les schémas de formulaire (web) et d'entrée
 | `END_AFTER_START`                                             | Message « La fin doit suivre le début. » (décision Q), pour toute paire début / fin (dates, heures, min / max).                                                                                               |
 | `endsAfter(start, end, strict?)`                              | Vrai si `end >= start` (ou `>` si `strict`) ; une borne absente (`null`, `undefined`, `''`) donne toujours vrai. Compare des chaînes (YYYY-MM-DD, HH:MM) ou des nombres.                                      |
 | `endAfter(startKey, endKey, strict?)`                         | Paire `[check, issue]` à étaler dans `.refine(...endAfter('from', 'to'))` : l'erreur `END_AFTER_START` est posée sur le champ de fin.                                                                         |
+| `readStoredList(entry, value)`                                | Entrées d’une liste gardée en JSON (rappels, téléphones, adresses mail, temps morts…) relues : les invalides écartées, rien pour une valeur qui n’est pas une liste. Remplace les lectures écrites à la main de `readReminders` et de `contact.ts` (décision FT). |
 
 ## `auth.ts` — schémas des formulaires d'authentification et de compte
 
@@ -171,13 +172,30 @@ zxcvbn et ses dictionnaires pèsent environ 1,3 Mo : ce fichier n'est pas dans `
 | `movedTo(others, moved, index)`       | Liste avec un élément inséré à un index borné (réordonnancement).                                        |
 | `joinedKey(...parts)`                 | Clé composite « a\|b » (partie absente : vide).                                                          |
 
+## `tagged-key.ts` — clés à sorte
+
+Déplacé du web (lot 17c) : les clés des sonneries sont les mêmes dans l'app et pour le serveur qui les pousse.
+
+| Export | Rôle |
+| --- | --- |
+| `taggedKey(tag, id)`, `parseTaggedKey(key)`, `taggedIds(keys, tag)` | `<sorte>:<id>` (valeur d'une liste mêlant des sortes, clé d'une sonnerie `event:…`, `task:…`) ; sorte et id d'une clé (l'id peut contenir « : ») ; ids d'une sorte. Le web les réexporte (`lib/tagged-key.ts`). |
+
+## `app-paths.ts` — adresses de l'app
+
+Lot 17c : les pages vers lesquelles mènent les sonneries, aussi pour le serveur (lien d'une notification poussée).
+
+| Export | Rôle |
+| --- | --- |
+| `APP_PATHS` | `home` (`/`), `tasks`, `routines`, `calendar`, `alarms`, `account` : le web en fait ses `PAGES`. |
+| `projectPath(id, tab?)`, `taskPath(task)` | Page d'un projet (sur un onglet) ; page d'une tâche (l'onglet « tasks » de son projet, sinon « Tâches », `task=<id>`). Le web les réexporte (`app/pages.ts`). |
+
 ## `people/` — personnes : coordonnées, dates de naissance, anniversaires
 
 Lot 16 (décision FO). Règles : [Personnes](../../business-rules/cross-cutting/people.md#coordonnées-date-de-naissance-anniversaire).
 
 | Export (fichier)                                              | Rôle                                                                                                                                                         |
 | ------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| `LABELLED_LIST_MAX` (`contact.ts`)                            | 10 : entrées au plus d'une liste à libellés (téléphones, adresses mail) ; listes bâties par les internes `labelledEntrySchema(key, value)`, `labelledListSchema(entry)`, `readLabelledList(entry, value)` (décision FP). |
+| `LABELLED_LIST_MAX` (`contact.ts`)                            | 10 : entrées au plus d'une liste à libellés (téléphones, adresses mail) ; listes bâties par les internes `labelledEntrySchema(key, value)`, `labelledListSchema(entry)`, et lues par `readStoredList` de `rules.ts` (décisions FP, FT). |
 | `PHONE_MAX`, `phoneSchema`, `Phone`, `phonesSchema` (`contact.ts`) | Téléphone `{ label, number }` (« Numéro invalide. », 3 à 30 caractères), 10 au plus : clients, services, contacts, contributeurs, relations.             |
 | `labelledEmailSchema`, `LabelledEmail`, `emailsSchema` (`contact.ts`) | Adresse mail `{ label, address }` (« Adresse email invalide. »), 10 au plus : contributeurs et relations (lot 16c).                                    |
 | `optionalEmailSchema` (`contact.ts`)                          | Adresse mail facultative (« Adresse email invalide. », vide → `null`) des clients et de leurs contacts (celle où partent les factures) ; `emailSchema` (`core/auth.ts`) reste celle, requise, du compte. |

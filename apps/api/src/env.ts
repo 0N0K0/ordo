@@ -31,6 +31,14 @@ const envSchema = z.object({
   PHOTON_URL: z.url().default('https://photon.komoot.io'),
   /** OSRM routing servers, one per mode (`{profile}`: car, bike or foot), without trailing slash. */
   ROUTING_URL: z.string().default('https://routing.openstreetmap.de/routed-{profile}'),
+  /**
+   * VAPID keys of the push notifications (lot 17c), made once by `npx web-push generate-vapid-keys`: without both, the
+   * push notifications are off (the app says so). Never committed.
+   */
+  VAPID_PUBLIC_KEY: z.preprocess((value) => (value === '' ? undefined : value), z.string().optional()),
+  VAPID_PRIVATE_KEY: z.preprocess((value) => (value === '' ? undefined : value), z.string().optional()),
+  /** Contact the push services may reach (`mailto:` or https address); missing: `APP_URL`. */
+  VAPID_SUBJECT: z.preprocess((value) => (value === '' ? undefined : value), z.string().optional()),
 });
 
 const parsed = envSchema.safeParse(process.env);

@@ -258,6 +258,49 @@ input AlarmInput {
   weekdays: [Int!]!
 }
 
+"""
+A ring of an alarm or a reminder of the user: its toast, when it rings again, whether it was stopped (every tab and device).
+"""
+type AlarmRing {
+  dueAt: DateTime!
+  id: ID!
+
+  """Key of the occurrence rung, without the `ordo.alarm.` prefix."""
+  key: String!
+  lines: [String!]!
+  linkLabel: String
+
+  """When it rings again; null: not again."""
+  nextAt: DateTime
+
+  """Page of the app its toast links to."""
+  path: String
+
+  """Start of the ring under way; null: silent."""
+  ringingSince: DateTime
+
+  """Ringtone of the reminder; null: the one of the settings."""
+  ringtone: String
+
+  """Stopped for good."""
+  stoppedAt: DateTime
+  title: String!
+
+  """Workspace of the alarm or reminder."""
+  workspaceId: String
+}
+
+input AlarmRingInput {
+  dueAt: DateTime!
+  key: String!
+  lines: [String!]
+  linkLabel: String
+  path: String
+  ringtone: String
+  title: String!
+  workspaceId: ID
+}
+
 enum AlarmType {
   NOT_TRACKING
   REMINDER
@@ -353,6 +396,31 @@ type Birthday {
 
   """Reminders « À HH:MM » or « N jours avant, à HH:MM » of the birthday."""
   reminders: [Reminder!]!
+}
+
+"""
+Birthdays of the people of this workspace in its calendar (decision FX): shown or not, color (none: the gray of the éphémérides) and display.
+"""
+type BirthdayLook {
+  color: String
+  dayBar: Boolean!
+  dayDisplay: String!
+
+  """
+  Its days in the month: BACKGROUND or BORDER with their bar, NONE: nothing.
+  """
+  monthDisplay: String!
+
+  """Shown in the calendar; hidden, their reminders still ring."""
+  shown: Boolean!
+}
+
+input BirthdayLookInput {
+  color: String
+  dayBar: Boolean!
+  dayDisplay: String!
+  monthDisplay: String!
+  shown: Boolean!
 }
 
 """Omitted fields are left unchanged; null clears a field."""
@@ -911,6 +979,78 @@ input ContributorUpdateInput {
   removeAvatar: Boolean
 }
 
+"""
+A timer (« minuteur ») of the user, in every workspace (decision FT): it counts down and rings at its end.
+"""
+type Countdown {
+  createdAt: DateTime!
+
+  """Duration programmed, minutes added included."""
+  durationSeconds: Int!
+
+  """End while it runs; null: paused."""
+  endsAt: DateTime
+  id: ID!
+
+  """Its name; null: « Minuteur »."""
+  label: String
+  linkLabel: String
+
+  """Occurrence of that routine."""
+  occurrenceDate: Date
+
+  """Page of the app its ring links to."""
+  path: String
+
+  """Seconds left while paused; null: running."""
+  remainingSeconds: Int
+
+  """Ringtone at its end; null: the one of the settings."""
+  ringtone: String
+
+  """Routine of the dead time it was launched for."""
+  routineId: String
+
+  """Name of its item."""
+  subject: String
+
+  """Task of the dead time it was launched for."""
+  taskId: String
+
+  """Workspace of its item."""
+  workspaceId: String
+}
+
+input CountdownInput {
+  """Its name; none: « Minuteur »."""
+  label: String
+  linkLabel: String
+
+  """Occurrence of that routine."""
+  occurrenceDate: Date
+
+  """Page of the app its ring links to."""
+  path: String
+
+  """Ringtone of the bank; none: the one of the settings."""
+  ringtone: String
+
+  """Routine of the dead time."""
+  routineId: ID
+
+  """Duration, 1 minute to 24 hours."""
+  seconds: Int!
+
+  """Name of its item."""
+  subject: String
+
+  """Task of the dead time."""
+  taskId: ID
+
+  """Workspace of its item."""
+  workspaceId: ID
+}
+
 """Dashboard of charts on the tasks, global or of a project tree."""
 type Dashboard {
   """Archived: hidden by default, read only."""
@@ -943,6 +1083,31 @@ scalar Date
 
 """Instant, ISO 8601."""
 scalar DateTime
+
+"""
+Dead time of a task or a routine (« Lave-linge, 1 h 30 »): a wait a timer is launched for, with an alarm at its end; not time spent.
+"""
+type DeadTime {
+  label: String!
+
+  """
+  Estimated time, 1 to 1 440 minutes: the duration of the timer launched by default.
+  """
+  minutes: Int!
+
+  """Ringtone at its end; null: the one of the settings of the user."""
+  ringtone: String
+}
+
+input DeadTimeInput {
+  label: String!
+
+  """1 to 1 440."""
+  minutes: Int!
+
+  """Ringtone of the bank; none: the one of the settings."""
+  ringtone: String
+}
 
 """Final deposit invoice of a client with what is left to deduct from it."""
 type DeductibleDeposit {
@@ -1746,6 +1911,9 @@ type Mutation {
     """
     restoring: Boolean
   ): Boolean!
+
+  """Cancels a timer: it never rings."""
+  cancelCountdown(id: ID!): Boolean!
   cancelEmailChange: User!
 
   """Cancels a scheduled mail: it goes back to the drafts."""
@@ -2040,6 +2208,9 @@ type Mutation {
   duplicateTask(id: ID!, includeSubtasks: Boolean!): Task!
   duplicateTaskView(id: ID!, label: String!): TaskView!
 
+  """Gives a timer more minutes (1 to 60), 24 hours left at most."""
+  extendCountdown(id: ID!, minutes: Int!): Countdown!
+
   """Makes a draft final; returns its number."""
   finalizeAccountingDocument(id: ID!): String!
   importDocument(file: File, input: ImportedDocumentInput!): ID!
@@ -2178,8 +2349,16 @@ type Mutation {
   realizeTreasuryForecast(amount: Float!, date: Date!, id: ID!, occurrence: Date!): ID!
   recordDocumentPayment(id: ID!, input: DocumentPaymentInput!): Boolean!
   recordStockCount(input: StockCountInput!): ID!
+
+  """
+  Subscribes a device of the user to the push notifications (a device used by another user before changes hands).
+  """
+  registerPushSubscription(input: PushSubscriptionInput!): PushSubscription!
   removeAccountingAttachment(attachmentId: ID!): Boolean!
   removeGithubToken: Boolean!
+
+  """Removes a device of the user: it receives no more push notifications."""
+  removePushSubscription(id: ID!): Boolean!
 
   """
   Removes an exception: the occurrence goes back to its own day; after its deletion (undo), with the comments deleted with it.
@@ -2235,6 +2414,17 @@ type Mutation {
   """
   resetChecklist(id: ID!): Boolean!
   resetPassword(password: String!, token: String!): Boolean!
+
+  """
+  Records that an alarm or a reminder starts ringing (first ring or repetition); a stopped one is returned as it is.
+  """
+  ringAlarm(input: AlarmRingInput!): AlarmRing!
+
+  """
+  Records that the end of a timer rang (its ring goes on as an AlarmRing): it no longer shows.
+  """
+  ringCountdown(id: ID!): Boolean!
+  saveBirthdayLook(input: BirthdayLookInput!): BirthdayLook!
   saveDefaultScheduleKind(input: DefaultScheduleKindInput!): DefaultScheduleKind!
 
   """Links a project to a board, or changes the settings of its link."""
@@ -2311,6 +2501,9 @@ type Mutation {
   """Sets (PNG or JPEG) or removes (null) the logo."""
   setCompanyLogo(file: File): CompanyProfile!
   setContributorGithubLogin(id: ID!, login: String): Boolean!
+
+  """Pauses (the seconds left kept) or resumes a timer."""
+  setCountdownPaused(id: ID!, paused: Boolean!): Countdown!
   setDefaultTaskView(id: ID!): Boolean!
 
   """Sets the number the next final document of a type gets in a year."""
@@ -2406,7 +2599,9 @@ type Mutation {
   Closes (done) or reopens tasks; a closed task no longer blocks other tasks.
   """
   setTasksClosed(closed: Boolean!, ids: [ID!]!): Boolean!
-  setTimerPaused(paused: Boolean!): TimeEntry!
+
+  """Pauses or resumes a running timer."""
+  setTimerPaused(id: ID!, paused: Boolean!): TimeEntry!
 
   """
   Turns a schedule into an éphéméride or back into a créneau (its id kept; a kind of the other nature left); the occurrences of routines it makes disappear lose their comments, once confirmed.
@@ -2430,9 +2625,27 @@ type Mutation {
   """
   setWorkspaceWeek(end: Int!, id: ID!, start: Int!): Workspace!
 
-  """Starts a timer; the running one is stopped first."""
+  """
+  « Répéter dans N min »: silent, rings again after the minutes of the settings; null: unknown or stopped.
+  """
+  snoozeAlarmRing(key: String!): AlarmRing
+
+  """Starts a timer; the others keep running."""
+  startCountdown(input: CountdownInput!): Countdown!
+
+  """Starts a timer; the ones running keep running (decision FT)."""
   startTimer(input: TimerInput!): TimeEntry!
-  stopTimer: TimeEntry
+
+  """« Arrêter »: the ring is stopped for good, in every tab and device."""
+  stopAlarmRing(key: String!): Boolean!
+
+  """« Arrêter tout »: stops every running timer (their time saved)."""
+  stopAllTimers: [TimeEntry!]!
+
+  """
+  Stops a running timer (its time saved); null when it no longer runs. The others keep running.
+  """
+  stopTimer(id: ID!): TimeEntry
 
   """Shows a calendar of another workspace in this one (read only)."""
   subscribeCalendar(calendarId: ID!): Boolean!
@@ -2447,6 +2660,11 @@ type Mutation {
   Connects to the IMAP and SMTP servers; empty passwords use those saved for `id`.
   """
   testMailAccount(id: ID, input: MailAccountInput!): Boolean!
+
+  """
+  « Tester »: pushes a test notification to a device of the user; false when the push service refused it (an expired device is removed).
+  """
+  testPushSubscription(id: ID!): Boolean!
 
   """
   Moves a chart to another dashboard (or to the first one of a project, created if needed); returns that dashboard.
@@ -2505,6 +2723,9 @@ type Mutation {
   updateProjectResource(id: ID!, label: String!, note: String, url: String): Boolean!
   updateProjectStatus(id: ID!, input: LabelColorPatch!): ProjectStatus!
   updateRecurringInvoice(id: ID!, input: RecurringInvoiceInput!): Boolean!
+
+  """Saves how alarms and reminders ring, in every workspace."""
+  updateRingSettings(input: RingSettingsInput!): User!
 
   """
   Saves a routine; moved to another project tree, it loses its links out of it (told back).
@@ -2732,6 +2953,30 @@ input ProjectUpdateInput {
   statusId: ID
 }
 
+"""A device of the user receiving the push notifications (lot 17c)."""
+type PushSubscription {
+  createdAt: DateTime!
+
+  """
+  Address of the push service for the device: the app finds the device it runs on by it.
+  """
+  endpoint: String!
+  id: ID!
+
+  """Device (« Chrome · Android »)."""
+  label: String!
+
+  """Last message the push service accepted."""
+  lastSuccessAt: DateTime
+}
+
+input PushSubscriptionInput {
+  auth: String!
+  endpoint: String!
+  label: String!
+  p256dh: String!
+}
+
 type Query {
   accountingDocument(id: ID!): AccountingDocument
 
@@ -2739,7 +2984,17 @@ type Query {
   Documents (recurring models excluded), latest first, optionally of a client or a project.
   """
   accountingDocuments(clientId: ID, projectId: ID): [AccountingDocument!]!
+
+  """
+  Rings of the user changed in the last 6 hours, stopped ones included, latest first.
+  """
+  alarmRings: [AlarmRing!]!
   alarms: [Alarm!]!
+
+  """
+  Birthdays of the people of this workspace in its calendar: shown or not, color and display (decision FX).
+  """
+  birthdayLook: BirthdayLook!
 
   """
   Birthdays of the people of the workspace (contributors and relations with a birth date, not archived unless asked), by name.
@@ -2797,6 +3052,11 @@ type Query {
   ): [Comment!]!
   companyProfile: CompanyProfile!
   contributors: [Contributor!]!
+
+  """
+  Timers of the user not rung yet (every workspace), the soonest end first, paused ones last.
+  """
+  countdowns: [Countdown!]!
 
   """
   Workspace the request works in (the one the app asks for, or the first one).
@@ -2956,6 +3216,16 @@ type Query {
 
   """Every project, archived ones included, in manual order."""
   projects: [Project!]!
+
+  """
+  Public VAPID key the devices subscribe to the push notifications with; null: push is off on this server.
+  """
+  pushPublicKey: String
+
+  """
+  Devices of the user receiving the push notifications, the latest first.
+  """
+  pushSubscriptions: [PushSubscription!]!
   recurringInvoices: [RecurringInvoice!]!
 
   """Address of a point (a click on the map)."""
@@ -2974,7 +3244,11 @@ type Query {
 
   """Every routine, archived ones included, in manual order."""
   routines: [Routine!]!
-  runningTimeEntry: TimeEntry
+
+  """
+  Running timers of the workspace (several at once, decision FT), the first started first.
+  """
+  runningTimeEntries: [TimeEntry!]!
   scheduleTypes: [ScheduleType!]!
 
   """Mails waiting to be sent, and those that failed."""
@@ -3159,6 +3433,11 @@ input RecurringInvoiceInput {
 Reminder of a task, a routine, an event, an éphéméride or a birthday: minutes before a moment (0: at the start), or a time of the day of its day or of `days` days before it (Paris time). One of before and at is null.
 """
 type Reminder {
+  """
+  `start` (counted from the start of the item, its first day; a routine: the start of the opening day of an occurrence) or `end` (from its end, its last day; a routine: the end of its due day); routines only: `openEnd` (the end of the opening day), `dueStart` (the start of the due day).
+  """
+  anchor: String!
+
   """HH:MM on the day of the item, or `days` days before it (Paris time)."""
   at: String
 
@@ -3169,9 +3448,17 @@ type Reminder {
   Days before the day of the item, 1 to 30, with `at` (« N jours avant, à HH:MM »); null: its day.
   """
   days: Int
+
+  """Ringtone of the bank; null: the one of the settings of the user."""
+  ringtone: String
 }
 
 input ReminderInput {
+  """
+  `start` (default) or `end` (events and routines); `openEnd`, `dueStart` (routines).
+  """
+  anchor: String
+
   """HH:MM."""
   at: String
 
@@ -3180,6 +3467,9 @@ input ReminderInput {
 
   """Days before, 1 to 30, with `at`."""
   days: Int
+
+  """Ringtone of the bank; none: the one of the settings."""
+  ringtone: String
 }
 
 type ReminderResult {
@@ -3196,6 +3486,36 @@ Outcome of a change of project: the links removed because they left the project 
 type RemovedLinksResult {
   """Links removed because they left the project tree."""
   removedLinks: Int!
+}
+
+"""How the alarms and reminders of the user ring, in every workspace."""
+type RingSettings {
+  """The ringtone repeats during the ring (else it plays once)."""
+  loop: Boolean!
+
+  """Ring outside the app too (push notifications)."""
+  outside: Boolean!
+
+  """
+  Rung again this many minutes after a ring ends, until stopped (0: not again), 60 at most.
+  """
+  repeatMinutes: Int!
+
+  """How long a ring lasts, 1 to 30 minutes, unless stopped or snoozed."""
+  ringMinutes: Int!
+
+  """
+  Ringtone of the reminders and alarms that name none: carillon, bip, marimba, cloche, reveil, harpe.
+  """
+  ringtone: String!
+}
+
+input RingSettingsInput {
+  loop: Boolean!
+  outside: Boolean!
+  repeatMinutes: Int!
+  ringMinutes: Int!
+  ringtone: String!
 }
 
 """
@@ -3222,6 +3542,11 @@ type Routine {
   Current occurrence: the last one on or before today (null before the start or after the end).
   """
   currentDate: Date
+
+  """
+  « Temps morts »: waits a timer is launched for from an occurrence (decision FT).
+  """
+  deadTimes: [DeadTime!]!
   description: String
 
   """Its current occurrence is done: every required time of the day ticked."""
@@ -3288,7 +3613,7 @@ type Routine {
   reminderOccurrences: [RoutineReminderOccurrence!]!
 
   """
-  Reminders: minutes (24 hours at most) before the first day (« Ouverture ») of an occurrence at the start of each time of the day (« dès »), or a time of that day or of some days before it.
+  Reminders: minutes (24 hours at most) before the start or the end of each time of the day on the first day (« Ouverture ») or the due day of an occurrence (`anchor`), or a time of one of those days or of some days before it.
   """
   reminders: [Reminder!]!
 
@@ -3421,6 +3746,11 @@ input RoutineInput {
   """Cases (days and times of the day); empty: the repetition."""
   cases: JSON
   categoryIds: [ID!]!
+
+  """
+  « Temps morts », 20 at most; required, as links: an omitted field never wipes them.
+  """
+  deadTimes: [DeadTimeInput!]!
   description: String
 
   """HH:MM."""
@@ -3579,18 +3909,23 @@ type RoutineReminderOccurrence {
   """Due day of the occurrence."""
   date: Date!
 
-  """Its first day (« Ouverture »): the day of its reminders « À HH:MM »."""
+  """
+  Its first day (« Ouverture »): the day of its reminders « À HH:MM » (the due day `date`: those from the end).
+  """
   day: Date!
 
   """
-  Its times of the day not ticked, with the moment its reminders « N min avant » count from.
+  Its times of the day not ticked, with their hours (the moments its reminders « N min avant » count from: `routineSlotAnchors`).
   """
   slots: [RoutineReminderSlot!]!
 }
 
 type RoutineReminderSlot {
-  """First day of the occurrence at the start of the time of the day."""
-  at: DateTime!
+  """End of the time of the day (« jusqu’à », HH:MM); null: none."""
+  dueTime: String
+
+  """Start of the time of the day (« dès », HH:MM); null: none."""
+  fromTime: String
 
   """Index of its time of the day."""
   slot: Int!
@@ -4349,6 +4684,9 @@ type Task {
   comments: [TaskComment!]!
   createdAt: DateTime!
 
+  """« Temps morts »: waits a timer is launched for (decision FT)."""
+  deadTimes: [DeadTime!]!
+
   """
   Latest acceptable date (« Échéance »): an open task past it is overdue.
   """
@@ -4451,6 +4789,9 @@ input TaskInput {
   assigneeIds: [ID!]
   beneficiaryIds: [ID!]
   beneficiaryRelationIds: [ID!]
+
+  """« Temps morts », 20 at most; null: none."""
+  deadTimes: [DeadTimeInput!]
   deadline: Date
   description: String
   effort: Float
@@ -4570,6 +4911,9 @@ input TaskUpdateInput {
   assigneeIds: [ID!]
   beneficiaryIds: [ID!]
   beneficiaryRelationIds: [ID!]
+
+  """« Temps morts », 20 at most; null: none."""
+  deadTimes: [DeadTimeInput!]
   deadline: Date
   description: String
   effort: Float
@@ -5248,6 +5592,9 @@ type User {
   email: String!
   id: ID!
   pendingEmail: String
+
+  """How alarms and reminders ring, in every workspace."""
+  ringSettings: RingSettings!
   username: String!
 }
 

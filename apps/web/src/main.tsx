@@ -36,6 +36,9 @@ window.addEventListener('vite:preloadError', () => {
   window.location.reload();
 });
 
+// The app has started: its update toast takes over from public/boot-rescue.js.
+document.documentElement.setAttribute('data-app-started', '');
+
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
     <MantineProvider theme={theme} defaultColorScheme="auto">

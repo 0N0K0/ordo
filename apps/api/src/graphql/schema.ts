@@ -1,6 +1,7 @@
 import { builder } from './builder';
 import './modules/health';
 import './modules/user';
+import './modules/countdowns';
 import './modules/auth';
 import './modules/projects';
 import './modules/workspaces';

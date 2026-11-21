@@ -9,7 +9,8 @@ import { occurrenceDates, recurrenceSchema, type Recurrence, type Span } from '.
 import { caseSpans } from '../dates/repetition';
 import { timeOfDaySchema, daySchema, startDaySchema } from '../dates/times';
 import { remindersSchema } from '../dates/reminders';
-import { slotConditionSchema, type SlotCondition } from '../calendar/slot-conditions';
+import { deadTimesSchema } from '../dates/countdowns';
+import { conditionConstrains, slotConditionSchema, type SlotCondition } from '../calendar/slot-conditions';
 import { optionalColorSchema } from '../core/workspace';
 
 /** Category of routines, in a tree. */
@@ -145,6 +146,8 @@ export const routineSchema = z
     moments: z.array(routineSlotSchema).max(10, '10 moments au plus.').default([]),
     /** Reminders (decision D16): minutes before each time of the day from its first day (« Ouverture », « dès »), or a time of that day. */
     reminders: remindersSchema.default([]),
+    /** « Temps morts »: waits a timer is launched for, from an occurrence (decision FT); not time spent. Required, as `links`: an omitted field never wipes them. */
+    deadTimes: deadTimesSchema,
     /** Where it is done: free text, and its point when chosen from the map or a search. */
     location: optionalText().default(null),
     /** Point of the place, and travel time to it and back from it, in minutes. */
@@ -295,8 +298,21 @@ export function shiftTime(time: string, minutes: number): string {
 }
 
 /**
+ * Minutes a moment of a routine lasts without time to spend on it (`estimate` null or 0), the same for its display (agenda
+ * of the day, agenda), its departure and return and its reminders (decision FX).
+ */
+export const ROUTINE_DEFAULT_MINUTES = 30;
+
+/**
+ * Time to spend on a routine, in minutes: its `estimate`, else `ROUTINE_DEFAULT_MINUTES` (decision FX).
+ * @param {number | null | undefined} estimate Time to spend on it (null or 0: none).
+ * @returns {number} Minutes.
+ */
+export const routineMinutes = (estimate: number | null | undefined): number => (estimate && estimate > 0 ? estimate : ROUTINE_DEFAULT_MINUTES);
+
+/**
  * Schedule of a routine done in a time window: when to leave (to be there by its latest time with its time to spend on
- * it, or at its start time) and when back.
+ * it, or at its start time) and when back; without time to spend on it, `ROUTINE_DEFAULT_MINUTES` (decision FX).
  * @param {{ fromTime: string | null, dueTime: string | null, estimate: number | null, travelBefore: number, travelAfter: number }} routine Routine.
  * @returns {{ leaveAt: string | null, backAt: string | null }} Times (null: nothing to say).
  */
@@ -304,7 +320,7 @@ export function routineSchedule(routine: { fromTime: string | null; dueTime: str
   leaveAt: string | null;
   backAt: string | null;
 } {
-  const estimate = routine.estimate ?? 0;
+  const estimate = routineMinutes(routine.estimate);
   if (routine.dueTime) {
     const before = routine.travelBefore + estimate;
     return { leaveAt: before > 0 ? shiftTime(routine.dueTime, -before) : null, backAt: routine.travelAfter > 0 ? shiftTime(routine.dueTime, routine.travelAfter) : null };
@@ -318,14 +334,57 @@ export function routineSchedule(routine: { fromTime: string | null; dueTime: str
   return { leaveAt: null, backAt: null };
 }
 
+/** Start and end of a time of the day of a routine (HH:MM; end null: the midnight after the day). */
+export interface RoutineSlotSpan {
+  start: string;
+  end: string | null;
+}
+
 /**
- * Time of the day the reminders of a time of the day of a routine count from, on the first day of its occurrence (« à
- * partir du »): its start (« dès »), else its latest time (decision D16, no longer when to leave).
+ * Start and end of a time of the day of a routine, the same for its display (agenda of the day) and its reminders
+ * (`routineSlotAnchors`, in the app and on the server; decision FW): its « dès » and its « jusqu'à »; without « jusqu'à »,
+ * « dès » + the time to spend on it; without « dès », « jusqu'à » − that time (00:00 at the earliest). Without that
+ * time (or 0): `ROUTINE_DEFAULT_MINUTES` (decision FX, `routineMinutes`). Without any hour: none (no reminder « avant »).
  * @param {{ fromTime: string | null, dueTime: string | null }} slot Time of the day.
- * @returns {string | null} HH:MM, null without any time (no reminder).
+ * @param {number | null} minutes Time to spend on it (`estimate`), in minutes.
+ * @returns {RoutineSlotSpan | null} Start and end, null without any hour.
  */
-export function routineReminderTime(slot: { fromTime: string | null; dueTime: string | null }): string | null {
-  return slot.fromTime ?? slot.dueTime;
+export function routineSlotSpan(slot: { fromTime: string | null; dueTime: string | null }, minutes: number | null): RoutineSlotSpan | null {
+  if (!slot.fromTime && !slot.dueTime) return null;
+  const length = routineMinutes(minutes);
+  const start = slot.fromTime ?? minutesToTime(Math.max(0, timeToMinutes(slot.dueTime!) - length));
+  if (slot.dueTime) return { start, end: slot.dueTime };
+  const end = timeToMinutes(slot.fromTime!) + length;
+  return { start, end: end < 1440 ? minutesToTime(end) : null };
+}
+
+/**
+ * Whether a routine has hours (« dès » or « jusqu'à » of one of its moments, or a condition on calendar schedules, whose
+ * slots give them): without any, it has no reminder « N min / h avant », only « Le jour J à HH:MM » and « N jours
+ * avant » (decision FW; its editor offers only those, the API refuses the others).
+ * @param {object} routine Routine: its window, moments, condition and cases.
+ * @param {string | null} [routine.fromTime] Former window: from. Optional.
+ * @param {string | null} [routine.dueTime] Former window: by. Optional.
+ * @param {readonly { fromTime: string | null, dueTime: string | null }[]} routine.moments Moments of its rule.
+ * @param {SlotCondition | null} routine.slotCondition Condition of its rule.
+ * @param {readonly { slots: readonly { fromTime: string | null, dueTime: string | null }[], condition: SlotCondition | null }[]} routine.cases Cases (with them, theirs only).
+ * @returns {boolean} It has some.
+ */
+export function routineHasHours(routine: {
+  fromTime?: string | null;
+  dueTime?: string | null;
+  moments: readonly { fromTime: string | null; dueTime: string | null }[];
+  slotCondition: SlotCondition | null;
+  cases: readonly { slots: readonly { fromTime: string | null; dueTime: string | null }[]; condition: SlotCondition | null }[];
+}): boolean {
+  /**
+   * Whether a moment has an hour.
+   * @param {{ fromTime?: string | null, dueTime?: string | null }} moment Moment.
+   * @returns {boolean} It has one.
+   */
+  const timed = (moment: { fromTime?: string | null; dueTime?: string | null }) => Boolean(moment.fromTime || moment.dueTime);
+  if (routine.cases.length) return routine.cases.some((item) => conditionConstrains(item.condition) || item.slots.some(timed));
+  return conditionConstrains(routine.slotCondition) || timed(routine) || routine.moments.some(timed);
 }
 
 /**
@@ -487,4 +546,18 @@ export interface RoutineBulkChanges {
   moments?: RoutineSlot[];
   slotCondition?: SlotCondition | null;
   opensOn?: RoutineOpens | null;
+}
+
+/**
+ * Window as words: "8:20–8:30", "avant 8:30", "dès 16:30", "7:00–9:00 ou 17:00–20:00", or empty.
+ * @param {{ fromTime: string | null, dueTime: string | null, windows?: unknown }} window Window, and the windows it can be done in.
+ * @returns {string} Text.
+ */
+export function windowText({ fromTime, dueTime, windows }: { fromTime: string | null; dueTime: string | null; windows?: unknown }): string {
+  // Several windows (free time cut by slots): each one, « or ».
+  const parts = Array.isArray(windows) ? (windows as { fromTime: string | null; dueTime: string | null }[]) : [];
+  if (parts.length > 1) return parts.map((part) => windowText(part)).join(' ou ');
+  if (fromTime && dueTime) return `${fromTime}–${dueTime}`;
+  if (dueTime) return `avant ${dueTime}`;
+  return fromTime ? `dès ${fromTime}` : '';
 }

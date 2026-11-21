@@ -6,7 +6,7 @@ import { countOf } from '../../../lib/text';
 import { localToday } from '../../../lib/dates';
 import { useHeldEvents, useMyTodayTasks, useWeekTime } from '../../home/lib/home-data';
 import { useTaskContext } from '../../tasks/hooks/use-task-context';
-import { useRunningTimer } from '../../time/api';
+import { useRunningTimers } from '../../time/api';
 import { useTreasuryAccounts } from '../../treasury/api';
 import * as fmt from '../../../lib/format';
 import { LATE_COLOR } from '../../../components/feedback/feedback-colors';
@@ -44,12 +44,12 @@ export function AgendaNavBadge() {
 }
 
 /**
- * Time tracked today, red while a timer runs.
+ * Time tracked today, red while a timer runs (one or more).
  * @returns {JSX.Element | null} Badge.
  */
 export function TimeNavBadge() {
   const time = useWeekTime(localToday());
-  const { data: running } = useRunningTimer();
+  const running = Boolean(useRunningTimers().data?.length);
   if (!time || (!time.today && !running)) return null;
   return (
     <Badge size="sm" variant="light" color={running ? 'red' : 'blue'} aria-label={`${formatDuration(time.today)} aujourd’hui${running ? ', chrono en cours' : ''}`}>

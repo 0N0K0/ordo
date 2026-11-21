@@ -112,3 +112,19 @@ export function endAfter<S extends string, E extends string>(startKey: S, endKey
   const issue: { path: PropertyKey[]; message: string } = { path: [endKey], message: END_AFTER_START };
   return [check, issue] as const;
 }
+
+/**
+ * Entries of a list stored as JSON (reminders, labelled contacts, dead times…), read back: the invalid ones left out,
+ * nothing for a value that is not a list.
+ * @template T
+ * @param {z.ZodType<T>} entry Schema of an entry.
+ * @param {unknown} value Stored JSON.
+ * @returns {T[]} Entries.
+ */
+export function readStoredList<T>(entry: z.ZodType<T>, value: unknown): T[] {
+  if (!Array.isArray(value)) return [];
+  return value.flatMap((item) => {
+    const parsed = entry.safeParse(item);
+    return parsed.success ? [parsed.data] : [];
+  });
+}

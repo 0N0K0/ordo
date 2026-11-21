@@ -14,6 +14,10 @@ Charge les styles Mantine (en couches : core, notifications, dates, tiptap, char
 
 Si le code d'une page n'existe plus sur le serveur (nouvelle version déployée depuis le chargement), l'évènement `vite:preloadError` recharge l'application, une seule fois par onglet (`sessionStorage`, clé `ordo-reloaded`).
 
+Juste avant de monter l'application, `main.tsx` pose l'attribut `data-app-started` sur `<html>` : l'application a démarré, son toast de mise à jour (`UpdatePrompt`) prend le relais.
+
+**Version cassée au chargement (`public/boot-rescue.js`).** Script classique, hors du bundle, chargé par `index.html` avant l'application (fichier séparé : la politique de sécurité refuse les scripts écrits dans la page). Une erreur avant le démarrage (évènement `error` ou `unhandledrejection` sans `data-app-started`, par exemple une erreur à l'évaluation d'un module) empêcherait le toast de jamais s'afficher, et le service worker continuerait de servir cette version. Le script passe alors à la nouvelle version : celle qui attend dans le service worker, ou celle qu'il cherche aussitôt (`registration.update()`), par le message `SKIP_WAITING` qu'écoute le service worker généré, puis recharge la page quand elle prend la main. Une seule fois par onglet (`sessionStorage`, clé `ordo-boot-rescued`) : une version encore cassée ne boucle pas.
+
 ## Routes (`router.tsx`)
 
 `router` : routeur `createBrowserRouter` de `react-router`. Les chemins viennent de `PAGES` et `AUTH_PATHS` (`routeOf`).
@@ -58,14 +62,14 @@ Toute autre adresse : `NotFoundPage`. Voir [Fonctionnalités : authentification]
 
 ## Registre des pages et adresses (`pages.ts`)
 
-- `PAGES` : pages de l'application, un seul endroit pour leur adresse, leur nom (menu, en-tête, titre) et leur icône (menu) : `home` « Accueil » `/`, `tasks` « Tâches », `routines` « Routines », `calendar` « Agenda », `time` « Chronos », `alarms` « Alarmes », `shopping` « Achats », `sheets` « Fiches », `stock` « Inventaire », `accounting` « Facturation », `treasury` « Trésorerie », `mail` « Mails », `documents` « Documents », `dashboards` « Tableaux de bord », `settings` « Paramètres », `account` « Mon compte ». Clients et projets affichent leur propre nom.
+- `PAGES` : pages de l'application, un seul endroit pour leur adresse, leur nom (menu, en-tête, titre) et leur icône (menu) : `home` « Accueil » `/`, `tasks` « Tâches », `routines` « Routines », `calendar` « Agenda », `time` « Chronos », `alarms` « Alarmes », `shopping` « Achats », `sheets` « Fiches », `stock` « Inventaire », `accounting` « Facturation », `treasury` « Trésorerie », `mail` « Mails », `documents` « Documents », `dashboards` « Tableaux de bord », `settings` « Paramètres », `account` « Mon compte ». Clients et projets affichent leur propre nom. Les adresses de l’accueil, des tâches, des routines, de l’agenda, des alarmes et du compte viennent de `APP_PATHS` (`@ordo/shared`, lot 17c : aussi les liens des sonneries poussées par le serveur).
 - `PageKey` (type) : clé d'une page.
 - `AUTH_PATHS` : `login`, `forgotPassword`, `resetPassword`, `confirmEmail`.
 - `OVERDUE_INVOICES_PATH` (`/accounting?tab=overdue`), `GITHUB_SETTINGS_PATH` (`/settings?tab=github`), `SHOPPING_LISTS_PATH` (`/shopping?tab=lists`).
 - `routeOf(path, sub?)` : route du routeur (adresse sans barre initiale, plus un sous-chemin : `accounting/:id`).
 - `pageOfPath(pathname)` : page d'un chemin par son premier segment (une sous-page appartient à sa page) ; `null` pour un client, un projet ou une page inconnue.
 - `PROJECT_ROUTE` (`/projects/:id`), `CLIENT_ROUTE` (`/clients/:id`) : routes, aussi pour `useMatch`.
-- Aides d'adresse : `projectPath(id, tab?)`, `calendarPath(date)`, `clientPath(id)`, `taskPath(task)` (onglet tâches du projet avec la tâche ouverte, ou « Tâches » pour une tâche sans projet), `mailPath(account, folder, uid?)`, `documentPath(id, imported?)`, `sheetPath(id)`, `shoppingListPath(id)`, `timePath(taskId)`, `routineHistoryPath(routineId)`.
+- Aides d'adresse : `projectPath(id, tab?)`, `calendarPath(date)`, `clientPath(id)`, `taskPath(task)` (onglet tâches du projet avec la tâche ouverte, ou « Tâches » pour une tâche sans projet ; `projectPath` et `taskPath` réexportés de `@ordo/shared`), `mailPath(account, folder, uid?)`, `documentPath(id, imported?)`, `sheetPath(id)`, `shoppingListPath(id)`, `timePath(taskId)`, `routineHistoryPath(routineId)`.
 - `SETTINGS_PARAM` (`settings`) et `settingsPath(path, section?)` : adresse d'une page avec ses réglages ouverts, sur un onglet (`/mail?settings=1`, `/accounting?settings=1&section=company` ; nom du paramètre d'onglet : `SETTINGS_TAB_PARAM` de `components/tabs`).
 
 eslint interdit d'écrire ces adresses à la main (voir [Conventions](#conventions)).
@@ -87,7 +91,7 @@ Mise en page de la zone connectée (`AppShell` Mantine), une fois l'espace connu
 - En-tête de 56 px, grille à trois colonnes (côtés égaux, milieu centré tant qu'il tient) :
   - à gauche : `Burger` (« Masquer / Afficher la barre latérale »), `HeaderClock`, et sur téléphone seulement le `WorkspaceSwitcher` ;
   - au milieu (à partir de la tablette) : `HeaderTitle` ;
-  - à droite : `TimerWidget` (chrono en cours, pas sur téléphone), `SettingsButton`, `QuickActions`, puis le menu du compte (bouton tertiaire au nom d'utilisateur, ouvert au survol : « Mon compte », séparateur, « Me déconnecter »).
+  - à droite : `CountdownWidget` (minuteurs en cours) et `TimerWidget` (chronos en cours), pas sur téléphone (décision FT), `SettingsButton`, `QuickActions`, puis le menu du compte (bouton tertiaire au nom d'utilisateur, ouvert au survol : « Mon compte », séparateur, « Me déconnecter »).
 - Barre latérale de navigation (`AppShell.Navbar` « Clients et projets ») : `Sidebar` de `features/projects` ; redimensionnable (`useResizablePanel` + `SIDEBAR_PANEL`, poignée `ResizeHandle` à droite, pas sur téléphone) ; état ouvert gardé dans `localStorage` (`ordo.sidebar.opened`, propre à chaque fenêtre) ; sur téléphone, tiroir fermé après chaque navigation. Un seul état ouvert pour les règles mobile et bureau (au point de rupture exact, Mantine applique les deux).
 - Réglages de page à droite (`AppShell.Aside`) : `SettingsAside` + `SettingsOverlay`, ouverts si le paramètre d'URL `settings=1` est présent et que la page a des réglages ; redimensionnables (`SETTINGS_PANEL`).
 - Services globaux montés dans la mise en page (ne rendent rien de visible hors toasts) : `AlarmCenter` (fait sonner les alarmes et les rappels des évènements, routines et tâches de l'espace ouvert), `ElsewhereNotifier` (notifications des autres espaces : alarmes, rappels, nouveaux mails, selon leurs réglages), `MailWatcher` (nouveaux mails de l'espace ouvert). `WorkspaceGate` n'affiche la zone qu'une fois l'espace connu et les requêtes de l'onglet épinglées à lui (`pinWorkspace`).
@@ -100,7 +104,7 @@ Styles (`AppLayout.module.css`) : marges horizontales de page `--page-gutter` 16
 
 - `HeaderClock` : date et heure à gauche, au-dessus de la barre latérale : « Mer. 11 nov. 07:52 » (`fmt.weekday` capitalisé, `fmt.time`), rafraîchies à la minute (`useNow`) ; masquées sur téléphone.
 - `HeaderTitle` : milieu de l'en-tête à partir de la tablette (`nav` « Emplacement ») : l'espace (`WorkspaceSwitcher variant="text"`, menu au survol pour changer d'espace ou les gérer), puis, chacun après « | », le nom de la page (`pageOfPath`), ou pour un projet son client et ses projets parents en liens puis son nom, ou pour un client son nom. Hook interne `useCrumbs` (arbre `useProjectTree`, parents par `ancestorsOf`, arrêt sur un cycle). Miettes longues coupées par « … ».
-- `QuickActions` : menu de création de l'en-tête « Ajouter » (bouton `secondary` `xs`, « + » seul sous 29em), ouvert au survol, sur toutes les pages : « Tâche », « Évènement », « Chrono » (infobulle : le chrono en cours s'arrête, décision Y), « Alarme », « Mail », « Devis » (pas en espace personnel). Sur une page projet, le projet (et son client pour un devis) est présélectionné. Désactivé tant que le contexte des tâches n'est pas chargé. Utilise `useTaskActions`, `useEventForm`, `openTimerForm`, `useAlarmForm`, `useMailComposer`, `openNewDocument`. Voir [Accueil et navigation](../features/cross-cutting/home.md).
+- `QuickActions` : menu de création de l'en-tête « Ajouter » (bouton `secondary` `xs`, « + » seul sous 29em), ouvert au survol, sur toutes les pages : « Tâche », « Évènement », « Chrono » (les chronos en cours continuent, décision FT), « Minuteur » (`openCountdownForm`, décision FT), « Alarme », « Mail », « Devis » (pas en espace personnel). Sur une page projet, le projet (et son client pour un devis) est présélectionné. Désactivé tant que le contexte des tâches n'est pas chargé. Utilise `useTaskActions`, `useEventForm`, `openTimerForm`, `openCountdownForm`, `useAlarmForm`, `useMailComposer`, `openNewDocument`. Voir [Accueil et navigation](../features/cross-cutting/home.md).
 - `SettingsButton` : bouton ⚙ (`IconAction` `light`, `aria-expanded`) qui ouvre ou ferme les réglages de la page, toujours au même endroit (avant « Ajouter ») ; absent sur une page sans réglages. Infobulle : le titre des réglages, ou « Fermer ».
 
 ### Réglages de page
@@ -115,11 +119,7 @@ Styles (`AppLayout.module.css`) : marges horizontales de page `--page-gutter` 16
 
 ### Panneaux redimensionnables
 
-- `panel-widths.ts` :
-  - `SIDEBAR_PANEL` : barre de navigation à gauche, 280 px par défaut, 200 px au moins (en dessous elle se ferme), 480 px et 40 % de la fenêtre au plus ; double clic à la largeur minimale : largeur de son contenu (`fitContent`) ; clé `ordo.sidebar.width` ;
-  - `SETTINGS_PANEL` : réglages à droite, 640 px par défaut, au moins un quart de la fenêtre et jamais sous 480 px, 1280 px et 90 % de la fenêtre au plus ; clé `ordo.settings.width`.
-- `useResizablePanel(options)` : largeur gardée (`localStorage`, propre à chaque fenêtre : une nouvelle fenêtre part de la dernière) d'un panneau sur un côté, avec une poignée sur son bord intérieur : glisser sous le minimum le ferme, revenir le rouvre ; double clic : largeur minimale (et avec `fitContent`, déjà au minimum : largeur du contenu, fonction interne `hiddenWidth`). La largeur affichée reste dans les limites de la fenêtre, la largeur enregistrée reste celle choisie. Rend `{ width, resizing, onResizeStart, onResizeReset }`.
-- `ResizeHandle` : poignée (`role="separator"` vertical, libellé accessible) sur le bord d'un panneau : glissée pour redimensionner, double-cliquée pour remettre la largeur ; reste surlignée pendant le redimensionnement.
+`useResizablePanel`, `ResizeHandle` et `panel-widths.ts` (`SIDEBAR_PANEL`, `SETTINGS_PANEL`) sont dans `components/panels/` depuis la décision FY (le panneau latéral les utilise aussi) : voir [Panneau latéral et modales](components/panels.md#panneaux-redimensionnables).
 
 ## Styles globaux (`styles/`)
 
@@ -138,7 +138,7 @@ Styles (`AppLayout.module.css`) : marges horizontales de page `--page-gutter` 16
 - `reveal.css` : un élément `[data-reveal]` (actions de ligne, poignée, case) reste caché jusqu'au survol, au focus ou au menu ouvert de son hôte `[data-reveal-host]` ; toujours visible sur écran tactile.
 - `drop.css` (couche `states`) : futur parent d'un élément glissé (`[data-drop-target]` dans un tableau, `[data-drop='INSIDE']` dans un arbre) teinté et encadré de la couleur primaire.
 - `tabs.css` : les onglets horizontaux restent sur une ligne et défilent de côté quand la place manque (sauf les onglets de page `PageTabs`) ; la ligne sous les onglets est dessinée par la liste.
-- `dialogs.css` : `overflow-y: auto !important` sur le contenu des modales et tiroirs (les gestionnaires de mots de passe mettent `overflow: visible` en style en ligne).
+- `dialogs.css` : `overflow-y: auto !important` sur le contenu des modales et le corps du panneau latéral, la partie qui y défile (les gestionnaires de mots de passe mettent `overflow: visible` en style en ligne).
 
 ## Conventions
 

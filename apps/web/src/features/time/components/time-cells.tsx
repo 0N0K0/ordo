@@ -1,5 +1,5 @@
 import { Text } from '@mantine/core';
-import { formatDuration, parseDuration } from '@ordo/shared';
+import { DURATION_TEXT_INVALID, formatDuration, parseDuration } from '@ordo/shared';
 import type { ComponentProps, ReactNode } from 'react';
 import { CellMultiSelect, EditableDate, EditableText, EditableTime } from '../../../components/data-table/cells/EditableCells';
 import { StackedMultiCell, type StackedItem } from '../../../components/data-table/cells/StackedMultiCell';
@@ -64,7 +64,7 @@ export function TimeDurationCell({ entry, readOnly, label, save }: { entry: Time
     <EditableText
       value={text}
       label={label}
-      validate={(value) => (parseDuration(value ?? '') ? null : 'Durée attendue : 1:30, 1h30, 90 ou 1,5h.')}
+      validate={(value) => (parseDuration(value ?? '') ? null : DURATION_TEXT_INVALID)}
       onSave={(value) => {
         const seconds = parseDuration(value ?? '');
         if (seconds && seconds !== entry.duration) save(entry, { duration: seconds });

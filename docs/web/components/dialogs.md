@@ -10,6 +10,8 @@ Règle UX : un formulaire s'ouvre dans le panneau latéral ; une modale ne sert 
 
 Demande la confirmation d'une action destructive : la modale de toutes (~40 fichiers). Ouvre une modale (`openModal`) avec les risques (`DestructiveRisks`, suivis de « Cette action est irréversible. », décision X) puis les boutons `DestructiveActions` (confirmation rouge d'abord, « Annuler » ensuite, en bas à droite).
 
+Exception (décision FV, 2026-11-21) : « Annuler » un minuteur ne demande rien (rien de durable n'est perdu, il se relance en deux gestes ; `CountdownControls`).
+
 Options :
 
 - `title` : titre (« Supprimer le budget ») ;

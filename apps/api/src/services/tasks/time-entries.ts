@@ -174,23 +174,42 @@ function assertNotInvoiced(entry: { document: { number: string | null; status: s
 }
 
 /**
- * The running timer, if any.
+ * A running timer (several may run at once, decision FT), or null when it is not running (stopped, or unknown).
+ * @param {string} id Time entry id.
  * @returns {Promise<TimeEntry | null>} Running entry.
  */
-function runningEntry(): Promise<TimeEntry | null> {
-  return prisma.timeEntry.findFirst({ where: { endedAt: null } });
+function runningEntry(id: string): Promise<TimeEntry | null> {
+  return prisma.timeEntry.findFirst({ where: { id, endedAt: null } });
 }
 
 /**
- * Stops the running timer (a paused timer ends when its pause started).
- * @returns {Promise<TimeEntry | null>} Stopped entry, or null when no timer runs.
+ * Stops a running entry (a paused timer ends when its pause started).
+ * @param {TimeEntry} entry Running entry.
+ * @returns {Promise<TimeEntry>} Stopped entry.
  */
-export async function stopTimer(): Promise<TimeEntry | null> {
-  const entry = await runningEntry();
-  if (!entry) return null;
+function stopEntry(entry: TimeEntry): Promise<TimeEntry> {
   const endedAt = entry.pausedAt ?? new Date();
   const duration = Math.max(0, Math.floor((endedAt.getTime() - entry.startedAt.getTime()) / 1000) - entry.pausedSeconds);
   return prisma.timeEntry.update({ where: { id: entry.id }, data: { endedAt, pausedAt: null, duration } });
+}
+
+/**
+ * Stops a running timer (a paused timer ends when its pause started); the others keep running.
+ * @param {string} id Time entry id.
+ * @returns {Promise<TimeEntry | null>} Stopped entry, or null when it does not run (any more).
+ */
+export async function stopTimer(id: string): Promise<TimeEntry | null> {
+  const entry = await runningEntry(id);
+  return entry ? stopEntry(entry) : null;
+}
+
+/**
+ * « Arrêter tout »: stops every running timer of the workspace.
+ * @returns {Promise<TimeEntry[]>} Stopped entries.
+ */
+export async function stopAllTimers(): Promise<TimeEntry[]> {
+  const running = await prisma.timeEntry.findMany({ where: { endedAt: null } });
+  return Promise.all(running.map(stopEntry));
 }
 
 /**
@@ -213,7 +232,7 @@ const createLinks = (subjects: TimeSubjects, events: StoredEventLink[]) => ({
 });
 
 /**
- * Starts a timer; the running one, if any, is stopped first.
+ * Starts a timer; the ones running keep running (several at once, each counted in full, decision FT).
  * @param {TimeEntryInput} input What the time is spent on (at least a project, a task, a routine or an event) and description.
  * @returns {Promise<TimeEntry>} Running entry.
  */
@@ -221,20 +240,20 @@ export async function startTimer(input: Omit<TimeEntryInput, 'startedAt' | 'dura
   const description = parseInput(timeDescriptionSchema, input.description ?? null);
   const subjects = newSubjects(input);
   const { projectId, events } = await checkedSubjects(input.projectId, subjects);
-  await stopTimer();
   return prisma.timeEntry.create({
     data: { projectId, description, startedAt: new Date(), ...createLinks(subjects, events) },
   });
 }
 
 /**
- * Pauses or resumes the running timer.
+ * Pauses or resumes a running timer.
+ * @param {string} id Time entry id.
  * @param {boolean} paused Target state.
  * @returns {Promise<TimeEntry>} Running entry.
  */
-export async function setTimerPaused(paused: boolean): Promise<TimeEntry> {
-  const entry = await runningEntry();
-  if (!entry) throw clientError('BAD_USER_INPUT', 'Aucun chrono en cours.');
+export async function setTimerPaused(id: string, paused: boolean): Promise<TimeEntry> {
+  const entry = await runningEntry(id);
+  if (!entry) throw clientError('BAD_USER_INPUT', 'Ce chrono ne tourne plus.');
   if (paused === (entry.pausedAt !== null)) return entry;
   if (paused) return prisma.timeEntry.update({ where: { id: entry.id }, data: { pausedAt: new Date() } });
   const pause = Math.floor((Date.now() - entry.pausedAt!.getTime()) / 1000);
@@ -283,7 +302,7 @@ export async function createTimeEntry(input: TimeEntryInput & { startedAt: Date;
 }
 
 /**
- * Updates a time entry. The running one keeps running (its duration is not editable).
+ * Updates a time entry. A running one keeps running (its duration is not editable).
  * @param {string} id Entry id.
  * @param {TimeEntryInput} input Changes; undefined (or null for a list) leaves a field unchanged.
  * @returns {Promise<TimeEntry>} Updated entry.
@@ -322,7 +341,7 @@ export async function updateTimeEntry(id: string, input: TimeEntryInput): Promis
 }
 
 /**
- * Deletes a time entry (the running timer is discarded).
+ * Deletes a time entry (a running timer is discarded).
  * @param {string} id Entry id.
  * @returns {Promise<void>}
  */

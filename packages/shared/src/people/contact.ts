@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { shortTextSchema } from '../core/rules';
+import { readStoredList, shortTextSchema } from '../core/rules';
 
 /**
  * Ways to reach a person or an organization, one shape for all: labelled lists (`[{ label, <value> }]`) of phone
@@ -30,21 +30,6 @@ function labelledEntrySchema<K extends string, V extends z.ZodType>(key: K, valu
  * @returns {z.ZodArray<T>} Schema of the list.
  */
 const labelledListSchema = <T extends z.ZodType>(entry: T) => z.array(entry).max(LABELLED_LIST_MAX);
-
-/**
- * Entries of a labelled list read from a stored value (invalid ones left out).
- * @template T
- * @param {z.ZodType<T>} entry Schema of an entry.
- * @param {unknown} value JSON.
- * @returns {T[]} Entries.
- */
-function readLabelledList<T>(entry: z.ZodType<T>, value: unknown): T[] {
-  if (!Array.isArray(value)) return [];
-  return value.flatMap((item) => {
-    const parsed = entry.safeParse(item);
-    return parsed.success ? [parsed.data] : [];
-  });
-}
 
 /** Most characters of a phone number (a format). */
 export const PHONE_MAX = 30;
@@ -77,11 +62,11 @@ export const emailsSchema = labelledListSchema(labelledEmailSchema);
  * @param {unknown} value JSON.
  * @returns {Phone[]} Phones.
  */
-export const readPhones = (value: unknown): Phone[] => readLabelledList(phoneSchema, value);
+export const readPhones = (value: unknown): Phone[] => readStoredList(phoneSchema, value);
 
 /**
  * Email addresses read from a stored value (invalid ones left out; lot 16c).
  * @param {unknown} value JSON.
  * @returns {LabelledEmail[]} Addresses.
  */
-export const readEmails = (value: unknown): LabelledEmail[] => readLabelledList(labelledEmailSchema, value);
+export const readEmails = (value: unknown): LabelledEmail[] => readStoredList(labelledEmailSchema, value);

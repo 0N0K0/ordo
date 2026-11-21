@@ -5,7 +5,7 @@ import { localToday } from '../../../lib/dates';
 import * as fmt from '../../../lib/format';
 import { useNow } from '../../../lib/use-now';
 import { TimerToggle } from '../../time/components/TimerToggle';
-import type { TimeEntry } from '../../time/api';
+import { runningOn, type TimeEntry } from '../../time/api';
 import { AddRowField } from '../../../components/data-table/cells/AddRowField';
 import { useRoutineMutations, type Routine } from '../api';
 import { DAILY, moveTo, scheduleOf, currentRoutineState, windowOf, windowText } from '../lib/routine-format';
@@ -86,8 +86,8 @@ export function StateCell({ routine, today, doable }: { routine: Routine; today:
  * @param {{ routine: Routine, running: TimeEntry | null | undefined }} props Component props.
  * @returns {JSX.Element} Cell.
  */
-export function ChronoCell({ routine, running }: { routine: Routine; running: TimeEntry | null | undefined }) {
-  const mine = running?.routines.some((item) => item.id === routine.id) ? running : null;
+export function ChronoCell({ routine, running }: { routine: Routine; running: readonly TimeEntry[] | undefined }) {
+  const mine = runningOn(running, (entry) => entry.routines.some((item) => item.id === routine.id));
   const now = useNow(Boolean(mine) && !mine?.pausedAt);
   return (
     <Group gap={4} wrap="nowrap">
@@ -128,6 +128,7 @@ export function AddRoutineRow({ categoryId, projectId, groupName }: { categoryId
           requiredIds: [],
           relatedIds: [],
           links: [],
+          deadTimes: [],
         })
       }
     />

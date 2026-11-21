@@ -45,6 +45,17 @@ export interface LabelOptions<T = Label> {
 }
 
 /**
+ * The parsed fields of a change that were given (not undefined) in the input: what a partial schema adds itself
+ * (defaults) is left out, so an omitted field stays unchanged.
+ * @param {T} parsed Change, parsed.
+ * @param {Record<string, unknown>} given Change as given.
+ * @returns {Partial<T>} Fields given.
+ */
+function presentFields<T extends object>(parsed: T, given: Record<string, unknown>): Partial<T> {
+  return Object.fromEntries(Object.entries(parsed).filter(([key]) => given[key] !== undefined)) as Partial<T>;
+}
+
+/**
  * CRUD of a list of items with a label and a color, in a manual order: a label taken is a CONFLICT (the tables have a
  * unique label), an archived item is not changed.
  * @param {LabelModel} model Table.
@@ -90,7 +101,9 @@ export function createLabelService<T extends { id: string } = Label>(model: Labe
       await assertActive(delegate(), id, messages.notFound);
       // null means "unchanged" for these required fields.
       const changes = Object.fromEntries(Object.entries(input).map(([key, value]) => [key, value ?? undefined]));
-      const data = parseInput(patchSchema, changes);
+      // Only the fields given: zod 4 fills an omitted field with its default even in a partial schema, which would reset
+      // it (the nature of a kind of éphémérides, set at its creation, turned back into créneaux on every change).
+      const data = presentFields(parseInput(patchSchema, changes), changes);
       try {
         if (!afterUpdate) return await delegate().update({ where: { id }, data });
         return await prisma.$transaction(async (tx) => {

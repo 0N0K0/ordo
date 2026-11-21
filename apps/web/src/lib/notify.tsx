@@ -91,6 +91,36 @@ export function notifyInfo({
 }
 
 /**
+ * Shows the toast of an alarm ringing (or snoozed): like an information toast, but it stays until one of its actions
+ * (« Arrêter », « Répéter dans N min ») closes it, and no close button (decision FS). The same id updates the toast
+ * shown with it, in place.
+ * @param {object} toast Toast.
+ * @param {string} toast.id Id (the key of the ring).
+ * @param {string} toast.title Title.
+ * @param {(string | null | undefined | false)[]} [toast.lines] Text lines. Optional.
+ * @param {NotifyAction[]} [toast.actions] Actions. Optional.
+ * @param {ReactNode} [toast.icon] Icon of its source. Optional. Default = information.
+ * @param {boolean} [toast.ringing] Ringing now: the warning color (else the information one). Optional. Default = false.
+ * @returns {void}
+ */
+export function notifyAlarm({ id, title, lines = [], actions = [], icon, ringing = false }: { id: string; title: string; lines?: (string | null | undefined | false)[]; actions?: NotifyAction[]; icon?: ReactNode; ringing?: boolean }): void {
+  const toast = { id, color: ringing ? FEEDBACK_COLORS.warning : FEEDBACK_COLORS.info, icon: icon ?? <InfoFeedbackIcon />, title, message: toastBody(id, lines, actions), autoClose: false as const, withCloseButton: false };
+  // eslint-disable-next-line no-restricted-syntax -- the toasts of the app.
+  notifications.show(toast);
+  // eslint-disable-next-line no-restricted-syntax -- the toasts of the app.
+  notifications.update(toast);
+}
+
+/**
+ * Closes a toast shown with an id (an alarm stopped in another tab).
+ * @param {string} id Id.
+ * @returns {void}
+ */
+export function closeToast(id: string): void {
+  notifications.hide(id);
+}
+
+/**
  * Shows a success toast that closes on its own.
  * @param {string} message Message to display.
  * @returns {void}

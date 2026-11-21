@@ -67,6 +67,11 @@ const RESTRICTED_PATHS = [
     importNames: ['SLOT_CONDITION_FIELDS', 'SLOT_CONDITION_FIELD_OPERATORS'],
     message: 'Condition de créneaux d’une tâche ou d’une routine : SlotConditionBuilder (features/calendar/components), un seul éditeur (décision DU).',
   },
+  {
+    name: '@ordo/shared',
+    importNames: ['RINGTONES'],
+    message: 'Utiliser RingtoneSelect (components/inputs/RingtoneSelect) : la sonnerie d’un rappel, d’un temps mort ou d’un minuteur, « Celle des réglages » en tête (décision FT).',
+  },
 ];
 
 // The same, Menu allowed: the genuinely special menus.
@@ -126,10 +131,38 @@ export default defineConfig([
             .join(', '),
           message: 'Déclarer cette clé dans lib/query-keys : une clé dérivée d’une autre, en tête d’un module api, peut lire une clé pas encore définie (imports en cycle).',
         },
-        // Reminders of tasks, routines and events ring one way (decision D16): one brick claims, chimes and notifies.
+        // Alarms and reminders ring one way (decisions D16, FS): ringPlannedReminders / ringAlarm claim, startRinging sounds
+        // the ringtone of the bank for the duration of the settings and shows the toast « Arrêter » / « Répéter dans N min ».
         {
-          selector: "CallExpression[callee.name='playChime']",
-          message: 'Utiliser ringPlannedReminders (features/alarms/components/ring) : les rappels des tâches, routines et évènements sonnent d’une seule façon.',
+          selector: "CallExpression[callee.name=/^(startRingtone|playRingtone|notifyAlarm)$/]",
+          message: 'Utiliser ringPlannedReminders / ringAlarm (features/alarms/components/ring), qui passent par startRinging (features/alarms/lib/ringing) : les alarmes et les rappels sonnent d’une seule façon.',
+        },
+        // What rings and what its ring shows, the same in the app and pushed by the server (lot 17c, decision FU).
+        {
+          selector: "TemplateElement[value.raw=/^Espace « $/]",
+          message: 'Utiliser workspaceRingLine(label) (@ordo/shared, dates/ringing) : la ligne de l’espace d’une sonnerie.',
+        },
+        {
+          selector: "Literal[value=/^Voir (l’agenda|les routines)$/], TemplateElement[value.raw=/^Voir (l’agenda|les routines) de « $/]",
+          message: 'Utiliser calendarRingPage(espace) / routinesRingPage(espace) (@ordo/shared, dates/reminder-rings) : les liens des sonneries.',
+        },
+        {
+          selector: "CallExpression[callee.name=/^(occurrenceReminders|taskReminders|remindersAt|remindersBefore)$/]",
+          message: 'Utiliser eventRings / taskRings / routineRings / ephemerisRings / birthdayRings (@ordo/shared, dates/reminder-rings) : les mêmes clés, instants et textes que le serveur (push).',
+        },
+        // Start and end of a moment of a routine, the same in its display and its reminders (decision FW).
+        {
+          selector: "CallExpression[callee.name='shiftTime'][arguments.0.property.name=/^(fromTime|dueTime)$/]",
+          message: 'Utiliser routineSlotSpan(moment, minutes) (@ordo/shared, routines) : début et fin d’un moment, les mêmes pour l’affichage et les rappels.',
+        },
+        // Time of a routine without estimate: 30 min everywhere, one constant (decision FX).
+        {
+          selector: "LogicalExpression[operator=/^(\\?\\?|\\|\\|)$/][left.property.name='estimate'][right.type='Literal'][right.raw=/^[0-9]/]",
+          message: 'Utiliser routineMinutes(estimate) (@ordo/shared, routines) : le temps d’une routine, ROUTINE_DEFAULT_MINUTES sans temps estimé.',
+        },
+        {
+          selector: "JSXAttribute[name.name='kinds'] > JSXExpressionContainer > ArrayExpression",
+          message: 'Utiliser REMINDER_KINDS / DAY_REMINDER_KINDS (@ordo/shared, dates/reminders) : les genres de rappels offerts.',
         },
         {
           selector: "CallExpression[callee.name='lazy']",
@@ -1139,6 +1172,11 @@ export default defineConfig([
           message:
             'Utiliser useSlotSourceArchiving(kind) (features/calendar/api) : archiver un créneau, un type ou une personne confirme les occurrences de routines perdues et recharge ce qui en dépend (décision FQ ; un type : confirmLoss de useScheduleTypeItems).',
         },
+        {
+          // Decision FY: a panel is resized one way, its width kept by useResizablePanel (limits in panel-widths).
+          selector: "CallExpression[callee.name='useLocalStorage'] Property[key.name='key'][value.value=/width$/i]",
+          message: 'Utiliser useResizablePanel + ResizeHandle (components/panels), ses limites dans panel-widths : un panneau se redimensionne d’une seule façon (décision FY).',
+        },
       ],
     },
   },
@@ -1182,6 +1220,15 @@ export default defineConfig([
     // ActionsMenu wraps Menu.
     files: ['src/components/actions/ActionsMenu.tsx'],
     rules: { 'no-restricted-imports': ['error', { paths: RESTRICTED_PATHS_ACTIONS_MENU, patterns: [NO_FEATURES] }] },
+  },
+  {
+    // The one select of a ringtone (decision FT); the settings choose the ringtone of everything (no « Celle des réglages »).
+    files: ['src/components/inputs/RingtoneSelect.tsx'],
+    rules: { 'no-restricted-imports': ['error', { paths: RESTRICTED_PATHS.filter((path) => !path.importNames.includes('RINGTONES')), patterns: [NO_FEATURES] }] },
+  },
+  {
+    files: ['src/features/account/components/RingSettingsForm.tsx'],
+    rules: { 'no-restricted-imports': ['error', { paths: RESTRICTED_PATHS.filter((path) => !path.importNames.includes('RINGTONES')) }] },
   },
   {
     // The one editor of the slot conditions of tasks and routines.

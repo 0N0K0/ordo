@@ -43,6 +43,8 @@ import { TaskLinks } from './TaskLinks';
 import { TaskDescription } from './TaskDescription';
 import { TaskLocation } from './TaskLocation';
 import { TaskReminders } from './TaskReminders';
+import { DeadTimesField } from '../../countdowns/components/DeadTimesField';
+import { taskDeadTimeItem } from '../lib/task-dead-times';
 import { sprintDateHint } from '../lib/sprint-dates';
 import { DetailNotFound } from '../../../components/feedback/DetailNotFound';
 import { ActionButton } from '../../../components/actions/ActionButton';
@@ -336,6 +338,7 @@ function TaskDetail({ task, context }: TaskDetailProps) {
                 {...doable.end}
               />
               <TaskReminders value={task.reminders} minDate={task.effectiveMinDate} deadline={task.effectiveDeadline} disabled={locked} onChange={(reminders) => save({ reminders })} />
+              <DeadTimesField value={task.deadTimes} item={taskDeadTimeItem(task, context)} disabled={locked} onChange={(deadTimes) => save({ deadTimes })} />
               <TaskSelect
                 context={context}
                 labelOf={(candidate) => context.taskLabel(candidate, task.projectId)}

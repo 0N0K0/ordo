@@ -111,7 +111,7 @@ Grouper par : état, projet (en arbre), statut, priorité, type, assignés, bén
 
 - « Ouvrir » (panneau latéral).
 - « Ajouter une sous-tâche » (pas sur une tâche archivée).
-- « Dupliquer », « Transférer », « Transformer en routine », « Archiver », « Supprimer » ; sur une tâche archivée : « Restaurer », « Supprimer ». Le même menu est celui du panneau d’une tâche (« … »).
+- « Dupliquer », « Transférer », « Transformer en routine », « Archiver », « Supprimer » ; puis, avec des temps morts, la section « Temps morts » : « Lancer « Lave-linge (1 h 30) » » (décision FT) ; sur une tâche archivée : « Restaurer », « Supprimer ». Le même menu est celui du panneau d’une tâche (« … »).
 
 ### Transformer en routine
 
@@ -176,10 +176,11 @@ Colonne de propriétés (chaque champ enregistré dès qu’il change, décision
 
 - « Projet » (changement = transfert ; confirmation « Changer de projet » si la tâche quitte son arborescence et a des liens : elle prend le numéro suivant du projet, ou perd son numéro et son lien GitHub hors projet) ;
 - « Statut », « Priorité », « Type », « Assignés », « Étiquettes », « Bénéficiaires », « Effort » ;
-- « Temps passé » et bouton « Démarrer le chrono » (ou commandes du chrono s’il tourne sur la tâche) ;
+- « Temps passé » et bouton « Démarrer le chrono » (ou commandes du chrono s’il tourne sur la tâche ; les autres chronos continuent, décision FT) ;
 - « Début », « Fin », « Ouverture » (« Avant, la tâche n’est pas à faire. »), « Échéance » (« Au-delà, la tâche ouverte est en retard. », suivi de « En retard. » en rouge si c’est le cas) ; vides, celles du sprint unique de la tâche en grisé (« … (sprint) ») ; les rappels suivent les dates de la tâche, sinon celles du sprint ;
 - « Tâche parente », « Jalon », « Sprints », créneaux ;
 - « Rappels » : à une heure seulement (pas d’« avant » : une tâche n’a pas d’heures) : « À une heure » toutes les demi-heures ou une heure tapée (« 8:15 », « 8h15 », « 8 »), et « Jours avant » (« 1 jour avant, à 09:00 » … « 30 jours avant, à 09:00 », ou tapé « 3 j 18:30 », une fois avant l’échéance, lot 16) ; une saisie qui n’est ni l’un ni l’autre affiche « Heure (HH:MM) ou jours avant (« 3 j 08:00 ») attendus. » sous le champ, 10 au plus ; aide « Chaque jour de l’ouverture à l’échéance, à ces heures ; ou quelques jours avant l’échéance. » (« Le jour de l’échéance, à ces heures ; ou quelques jours avant. » sans ouverture) ; désactivé sans échéance (« Donnez-lui une échéance pour recevoir des rappels. ») ;
+- « Temps morts » (décision FT) : attentes de la tâche (« Lave-linge », 1 h 30) avec leur sonnerie, chacune lançable en minuteur ; les minuteurs lancés pour la tâche dessous (voir [Alarmes](alarms.md#temps-morts)) ;
 - « Lieu » : enregistré au choix d’une adresse proposée ou d’un clic sur la carte, quand le texte est vidé, ou à la sortie du champ pour un texte libre ;
 - « Bloque », « Dépend de », « Relative à » : listes avec « Retirer » et « Ajouter une tâche » ;
 - alarmes de la tâche ([Alarmes](alarms.md)), listes d’achats ([Achats](../supplies/shopping.md)), fiches ([Fiches](../supplies/sheets.md)).

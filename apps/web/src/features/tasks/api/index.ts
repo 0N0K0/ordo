@@ -42,9 +42,7 @@ graphql(`
     projectIds
     birthDate
     birthdayReminders {
-      before
-      at
-      days
+      ...ReminderFields
     }
     emails
     phones
@@ -136,9 +134,10 @@ graphql(`
       label
     }
     reminders {
-      before
-      at
-      days
+      ...ReminderFields
+    }
+    deadTimes {
+      ...DeadTimeFields
     }
   }
 `);

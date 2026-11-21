@@ -1,3 +1,4 @@
+import type { RingSettings } from '@ordo/shared';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { graphql } from '../../../graphql';
 import type { AccountUserFragment } from '../../../graphql/graphql';
@@ -13,6 +14,13 @@ graphql(`
     email
     pendingEmail
     contributorId
+    ringSettings {
+      ringMinutes
+      loop
+      repeatMinutes
+      ringtone
+      outside
+    }
   }
 `);
 
@@ -59,6 +67,14 @@ const ConfirmEmailChangeMutation = graphql(`
 const ChangePasswordMutation = graphql(`
   mutation ChangePassword($currentPassword: String!, $password: String!) {
     changePassword(currentPassword: $currentPassword, password: $password)
+  }
+`);
+
+const UpdateRingSettingsMutation = graphql(`
+  mutation UpdateRingSettings($input: RingSettingsInput!) {
+    updateRingSettings(input: $input) {
+      ...AccountUser
+    }
   }
 `);
 
@@ -176,6 +192,18 @@ export function useConfirmEmailChange() {
 export function useChangePassword() {
   return useMutation({
     mutationFn: async (variables: { currentPassword: string; password: string }) => (await execute(ChangePasswordMutation, variables)).changePassword,
+  });
+}
+
+/**
+ * Saves how the alarms and reminders of the user ring, in every workspace (decision FS).
+ * @returns {UseMutationResult} Mutation state.
+ */
+export function useUpdateRingSettings() {
+  const setMe = useSetMe();
+  return useMutation({
+    mutationFn: async (input: RingSettings) => (await execute(UpdateRingSettingsMutation, { input })).updateRingSettings,
+    onSuccess: setMe,
   });
 }
 

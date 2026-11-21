@@ -1,0 +1,32 @@
+@layer app {
+  /* While its handle is dragged: the resize cursor everywhere, no text selected. */
+  .root[data-resizing] {
+    /* Interaction */
+    cursor: col-resize;
+    user-select: none;
+  }
+
+  /* The panel does not scroll itself: its body does, so its header and its resize handle stay. */
+  .content {
+    --resize-handle-z-index: 1001;
+
+    /* Position */
+    position: relative;
+
+    /* Disposition */
+    display: flex;
+    flex-direction: column;
+
+    /* Dimension */
+    overflow: visible;
+  }
+
+  .body {
+    /* Disposition */
+    flex: 1;
+
+    /* Dimension */
+    min-height: 0;
+    overflow-y: auto;
+  }
+}

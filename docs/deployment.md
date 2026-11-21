@@ -17,7 +17,7 @@ Flux : PR vers `main` → CI → merge → déploiement staging. PR `main` → `
 - **glibc ancienne** : une dépendance avec module natif doit fournir un binaire compatible (d'où `@node-rs/argon2` plutôt que `argon2`).
 - **npm de cPanel inutilisable** : le `npm` de l'environnement Node de cPanel (`~/nodevenv/…`) installe dans son propre dossier et ignore les workspaces. On utilise le vrai npm : `/opt/alt/alt-nodejs24/root/usr/bin`. Ne jamais cliquer sur « Run NPM Install » dans cPanel.
 - **npm 11.19+** bloque les scripts d'installation des dépendances non listées dans `allowScripts` (`package.json` racine). Une nouvelle dépendance qui en a besoin doit y être ajoutée.
-- **Mise en veille** : Passenger endort l'app sans visite ; les tâches de fond (envois programmés, relances, factures récurrentes, synchro GitHub) s'arrêtent alors. Voir [Garder l'app éveillée](#garder-lapp-éveillée).
+- **Mise en veille** : Passenger endort l'app sans visite ; les tâches de fond (envois programmés, relances, factures récurrentes, synchro GitHub, sonneries hors de l'app) s'arrêtent alors. Voir [Garder l'app éveillée](#garder-lapp-éveillée).
 
 ## 1. Préparer cPanel (par environnement)
 
@@ -94,12 +94,16 @@ SMTP_USER="admin@example.com"
 SMTP_PASS="…"
 MAIL_FROM="Ordo <no-reply@example.com>"
 MAIL_ENCRYPTION_KEY="…"
+VAPID_PUBLIC_KEY="…"
+VAPID_PRIVATE_KEY="…"
+VAPID_SUBJECT="mailto:admin@example.com"
 ```
 
 - `NODE_ENV` : le `.env` l'emporte sur la valeur que pose l'hébergeur (le « Application mode » de cPanel) ; sans valeur, l'API tourne en production. Le journal de démarrage affiche le mode : « API ready (production)… ».
 - Le `.env` n'est lisible que par son propriétaire : `scripts/deploy.sh` fait `chmod 600 apps/api/.env` à chaque déploiement.
 - `BACKUP_GPG_RECIPIENT` (optionnelle, production) : identifiant d'une clé publique GPG importée sur le serveur ; les sauvegardes sont alors chiffrées pour elle (voir [Sauvegardes](#5-sauvegardes)).
 - `MAIL_ENCRYPTION_KEY` : générer avec `openssl rand -base64 32`, **une clé différente par environnement**, à conserver en lieu sûr (sans elle, les mots de passe des boîtes mail enregistrées dans Ordo sont perdus).
+- `VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY` (notifications push, lot 17c) : générer **une fois par environnement**, sur son poste ou le serveur, avec `npx web-push generate-vapid-keys` (affiche « Public Key » et « Private Key ») et les recopier dans `apps/api/.env` du serveur (jamais dans le dépôt). `VAPID_SUBJECT` (facultatif) : un contact pour les services push (`mailto:…` ou une adresse https), par défaut `APP_URL`. Sans les deux clés, le push est désactivé (« Mon compte » le dit). Changer les clés invalide les appareils déjà abonnés : il faut les ajouter à nouveau. Redémarrer l'app après le changement (`touch tmp/restart.txt` ou « Restart » dans cPanel).
 - Encoder le mot de passe de la base pour une URL s'il contient `@`, `:` ou `/`.
 - Variables optionnelles : `GITHUB_GRAPHQL_URL`, `PHOTON_URL`, `ROUTING_URL` (voir `apps/api/src/env.ts`).
 
@@ -233,6 +237,8 @@ cPanel → « Tâches Cron », pour la production :
 ```text
 */5 * * * * curl -fsS https://<nom-de-domaine>/ > /dev/null
 ```
+
+Les sonneries hors de l'app (notifications push) partent de cette app éveillée : sans la tâche cron, une alarme poussée peut attendre la prochaine visite (au plus 6 heures de rattrapage).
 
 ## Dépannage
 
