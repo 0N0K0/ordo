@@ -3,7 +3,7 @@ import { ArrowCounterClockwiseIcon, ArrowSquareOutIcon, XIcon } from '@phosphor-
 import { DeleteButton } from '../../../components/dialogs/DestructiveActions';
 import { Fieldset, Group, Stack, Text, Switch } from '@mantine/core';
 import { DatePickerInput, TimePicker } from '@mantine/dates';
-import { changedScheduleSlot, routineSlotSchema, scheduleSlotTimeSchema, type ScheduleSlotTime, type WorkScheduleRule } from '@ordo/shared';
+import { changedScheduleSlot, routineSlotSchema, scheduleSlotTimeSchema, slotWords, type ScheduleSlotTime, type WorkScheduleRule } from '@ordo/shared';
 import { useEffect, useRef } from 'react';
 import { openRoutineForm } from '../../routines/lib/open-routine-form';
 import type { RoutineOccurrenceRef } from '../hooks/calendar-edits';
@@ -15,7 +15,6 @@ import { ruleScheduleInput, useScheduleTypes, useWorkScheduleMutations, useWorkS
 import { useScheduleConversion } from '../hooks/use-schedule-conversion';
 import { ActionsMenu } from '../../../components/actions/ActionsMenu';
 import { rangeProps } from '../../../components/inputs/date-range';
-import { slotWords } from '../lib/schedule-text';
 import { ActionButton } from '../../../components/actions/ActionButton';
 
 /**

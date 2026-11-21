@@ -819,13 +819,13 @@ export function useWorkingHours() {
 }
 
 /**
- * Input of a schedule from its rule and a change of its cases and exceptions (an hour moved in the calendar): its
- * kind and nature kept.
+ * Input of a schedule from its rule and a change of its cases and exceptions (an hour moved in the calendar), and of
+ * its period when it moves with it: its kind and nature kept.
  * @param {WorkScheduleRule} rule Schedule.
- * @param {Pick<WorkScheduleInput, 'cases' | 'exceptions'>} change New cases and exceptions.
+ * @param {Pick<WorkScheduleInput, 'cases' | 'exceptions'> & Partial<Pick<WorkScheduleInput, 'startDate' | 'endDate'>>} change New cases and exceptions, and period. Period optional. Default = that of the rule.
  * @returns {WorkScheduleInput} Input.
  */
-export const ruleScheduleInput = (rule: WorkScheduleRule, change: Pick<WorkScheduleInput, 'cases' | 'exceptions'>): WorkScheduleInput => ({
+export const ruleScheduleInput = (rule: WorkScheduleRule, change: Pick<WorkScheduleInput, 'cases' | 'exceptions'> & Partial<Pick<WorkScheduleInput, 'startDate' | 'endDate'>>): WorkScheduleInput => ({
   label: rule.label,
   startDate: rule.startDate,
   endDate: rule.endDate,

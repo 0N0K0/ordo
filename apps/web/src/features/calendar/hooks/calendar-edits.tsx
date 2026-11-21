@@ -1,11 +1,10 @@
 import { openFormPanel } from '../../../components/panels/panels';
-import { changedScheduleSlot, type ScheduleSlotTime, type WorkScheduleRule } from '@ordo/shared';
+import { changedScheduleSlot, slotWords, type ScheduleSlotTime, type WorkScheduleRule } from '@ordo/shared';
 import { notifyFailure, notifySuccess, notifyWithUndo, ON_ERROR, onMutationError, toastCallbacks } from '../../../lib/notify';
 import { useRoutineMutations, type Routine } from '../../routines/api';
 import * as fmt from '../../../lib/format';
 import { ruleScheduleInput, useWorkScheduleMutations, type CalendarEventScope } from '../api';
 import { askScope } from '../lib/ask-scope';
-import { slotWords } from '../lib/schedule-text';
 import { fetchLostOnDelete } from '../../time/api';
 import { scopeLostNote } from '../../time/lib/lost-on-delete';
 import { RoutineOccurrenceForm, SlotEditForm } from '../components/CalendarEditForms';
@@ -39,7 +38,8 @@ export function useCalendarEdits() {
   const { changeOccurrence, deleteOccurrence, removeMove } = useRoutineMutations();
 
   /**
-   * Moves, stretches or deletes (no change) a slot of a schedule (a créneau or an éphéméride: its own words).
+   * Moves, stretches or deletes (no change) a slot of a schedule (a créneau or an éphéméride: its own words); an
+   * éphéméride of a single day moved to another day moves with its period without asking the scope.
    * @param {WorkScheduleRule} schedule Schedule.
    * @param {ScheduleSlotTime} slot Slot.
    * @param {ScheduleSlotTime | null} change New day and hours, or null: deleted.
@@ -48,7 +48,9 @@ export function useCalendarEdits() {
    */
   const changeSlot = async (schedule: WorkScheduleRule, slot: ScheduleSlotTime, change: ScheduleSlotTime | null, revert?: () => void) => {
     const words = slotWords(schedule.ephemeris);
-    const scope = await askScope({ action: change ? 'update' : 'delete', title: `${change ? 'Modifier' : 'Supprimer'} ${words.recurring}` });
+    // An éphéméride of a single day moved to another day moves with its period: nothing to choose.
+    const wholePeriod = schedule.ephemeris && schedule.startDate === schedule.endDate && change && change.date !== slot.date;
+    const scope = wholePeriod ? 'ALL' : await askScope({ action: change ? 'update' : 'delete', title: `${change ? 'Modifier' : 'Supprimer'} ${words.recurring}` });
     if (!scope) return revert?.();
     let next: ReturnType<typeof changedScheduleSlot>;
     try {

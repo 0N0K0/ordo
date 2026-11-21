@@ -178,8 +178,9 @@ Source : `apps/api/src/services/calendar/work-schedules.ts`, schémas dans `pack
 - `FOLLOWING` : le cas s’arrête la veille (seulement s’il avait des jours avant), un nouveau suit avec le changement.
 - `ALL` : tous les jours du cas.
 - Les autres horaires du cas, et cet horaire ses autres jours de la semaine, restent.
-- Refus : fin avant début (« La fin doit suivre le début. »), jour hors de la période (« Ce jour est en dehors de la période du créneau. »), horaire introuvable (« Horaires introuvables ce jour-là. »), suppression des derniers horaires (« Ce sont les derniers horaires du créneau : supprimez le créneau lui-même. »).
-- Le résultat est enregistré par `updateWorkSchedule` (mêmes validations).
+- Éphéméride changée de jour : une éphéméride d’un seul jour (début = fin) se déplace avec toute sa période du même nombre de jours, quelle que soit la portée ; une éphéméride sur plusieurs jours fait de même avec `ALL`. Début, fin, bornes et ancres des cas, fin, jours sautés et pauses de leur règle, jours de la semaine et valeurs mensuelles ou annuelles des cas, exceptions avec leurs cas : tout se décale du même nombre de jours ; un changement d’heures en plus s’applique ensuite à tous les jours du cas. Avec `THIS` ou `FOLLOWING`, une éphéméride sur plusieurs jours garde la règle des créneaux : le jour reste dans sa période. Un créneau ne change jamais de période depuis l’agenda (avec `ALL`, son rythme suit le jour : nouveau jour de semaine, nouveau jour du mois…).
+- Refus, dans les mots du créneau ou de l’éphéméride (`slotWords`) : fin avant début (« La fin doit suivre le début. »), jour hors de la période (« Ce jour est en dehors de la période du créneau. » / « Ce jour est en dehors de la période de l’éphéméride. »), horaire introuvable (« Horaires introuvables ce jour-là. »), suppression des derniers horaires (« Ce sont les derniers horaires du créneau : supprimez le créneau lui-même. » / « Ce sont les derniers horaires de l’éphéméride : supprimez l’éphéméride elle-même. »).
+- Le résultat (période, cas et exceptions) est enregistré par `updateWorkSchedule` (mêmes validations, même confirmation des occurrences de routines perdues).
 
 ## Types de créneaux
 

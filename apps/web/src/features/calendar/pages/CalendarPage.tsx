@@ -19,7 +19,7 @@ import FullCalendar from '@fullcalendar/react';
 import timeGridPlugin from '@fullcalendar/timegrid';
 import { Group, Paper, SegmentedControl, Stack, Switch, Text } from '@mantine/core';
 import { useLocalStorage } from '@mantine/hooks';
-import { addDays, entrySeconds, formatDuration, mapById, occurrenceKey, plannedSlots, routineMinutes, type ScheduleSlotTime, shiftTime, timeToMinutes, weekLength } from '@ordo/shared';
+import { addDays, entrySeconds, formatDuration, mapById, occurrenceKey, plannedSlots, routineMinutes, type ScheduleSlotTime, shiftTime, slotWords, timeToMinutes, weekLength } from '@ordo/shared';
 import { CalendarPlusIcon, CalendarStarIcon, ClockIcon, FilePdfIcon, PlusIcon } from '@phosphor-icons/react';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router';
@@ -50,7 +50,7 @@ import {
 import { askScope } from '../lib/ask-scope';
 import { useCalendarEdits, type RoutineOccurrenceRef } from '../hooks/calendar-edits';
 import { slotColumns } from '../lib/slot-columns';
-import { EPHEMERIDES_TITLE, schedulesTitle, slotWords } from '../lib/schedule-text';
+import { EPHEMERIDES_TITLE, schedulesTitle } from '../lib/schedule-text';
 import classes from './CalendarPage.module.css';
 import { downloadCalendarPdf, pdfItems } from '../lib/calendar-pdf';
 import { occurrenceInput } from '../lib/event-input';
