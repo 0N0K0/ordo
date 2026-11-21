@@ -10,13 +10,15 @@ import { useRunningTimers } from '../../time/api';
 import { openTimerForm } from '../../time/lib/open-timer-form';
 import { RunningTimer, TimerStartForm } from '../../time/components/TimerCard';
 import { HomeCard } from './HomeCard';
+import { CountdownList } from '../../countdowns/components/CountdownList';
 import * as fmt from '../../../lib/format';
 import { ActionButton } from '../../../components/actions/ActionButton';
 import { PAGES } from '../../../app/pages';
 
 /**
- * Timer and alarms: the running timers (several at once, decision FT) and a button starting another one, or the form
- * starting one; a button programming an alarm, with the next one to ring.
+ * Timer and alarms: the running chronos (several at once, decision FT) and a button starting another one, or the form
+ * starting one; the running timers (« minuteurs ») with their commands and « Lancer un minuteur » (decision FV); a
+ * button programming an alarm, with the next one to ring.
  * @param {{ context: TaskContext | null }} props Component props.
  * @returns {JSX.Element} Card.
  */
@@ -48,6 +50,8 @@ export function ChronoCard({ context }: { context: TaskContext | null }) {
           ) : (
             <TimerStartForm context={context} />
           )}
+          <Divider />
+          <CountdownList bare />
           <Divider />
           <Group justify="space-between" wrap="nowrap" gap="xs">
             <Stack gap={0} miw={0}>

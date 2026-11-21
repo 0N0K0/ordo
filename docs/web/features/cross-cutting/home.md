@@ -48,7 +48,7 @@ Utilisés par `WorkCards`, `LifeCards`, `FinanceCards`, `MailCard`. `Home.module
 
 ### `components/ChronoCard.tsx`
 
-`ChronoCard({ context })` : « Chrono et alarmes » : un `RunningTimer` par chrono en cours (`useRunningTimers`, décision FT) puis « Démarrer un autre chrono » (`openTimerForm`), sinon `TimerStartForm` (`features/time/components/TimerCard`), prochaine alarme (`nextRings`), « Programmer une alarme » (`useAlarmForm`).
+`ChronoCard({ context })` : « Chrono et alarmes » : un `RunningTimer` par chrono en cours (`useRunningTimers`, décision FT) puis « Démarrer un autre chrono » (`openTimerForm`), sinon `TimerStartForm` (`features/time/components/TimerCard`), les minuteurs en cours avec leurs commandes et « Lancer un minuteur » (`CountdownList bare`, décision FV), prochaine alarme (`nextRings`), « Programmer une alarme » (`useAlarmForm`).
 
 ### `components/MailCard.tsx`
 

@@ -27,12 +27,12 @@ Interne : `useCountdownMutation`.
 
 ### `components/CountdownRow.tsx`
 
-- `CountdownControls({ countdown, size? })` : « Pause » / « Reprendre », « + 1 min », « + 5 min » (`COUNTDOWN_EXTENSIONS`), « Supprimer le minuteur » (`confirmDestructive` : « « Pâtes » s’arrête sans sonner, sur tous vos appareils. »).
+- `CountdownControls({ countdown, size? })` : « Pause » / « Reprendre », « + 1 min », « + 5 min » (`COUNTDOWN_EXTENSIONS`), « Annuler » (`RemoveButton` `variant="field"`, sans confirmation : rien de durable n’est perdu, décision FV ; `toastCallbacks` « Minuteur annulé. »).
 - `CountdownRow({ countdown, withSubject? })` : nom, élément, temps restant en direct (`countdownRemaining`, `useNow`), barre de progression, `CountdownControls`.
 
 ### `components/CountdownList.tsx`
 
-- `CountdownList({ compact? })` : les minuteurs (`CountdownRow`), « Aucun minuteur en cours. » (pas en `compact`), « Lancer un minuteur ». Utilisé par la page « Alarmes » et la bulle de `CountdownWidget`.
+- `CountdownList({ compact?, bare? })` : les minuteurs (`CountdownRow`), « Aucun minuteur en cours. » (pas en `compact` ni `bare`), « Lancer un minuteur » (`openCountdownForm`, le formulaire de « Ajouter › Minuteur » ; petit en `compact`). Utilisé par la page « Alarmes », la bulle de `CountdownWidget` (`compact`) et la carte « Chrono et alarmes » de l’accueil (`bare`, décision FV).
 
 ### `components/CountdownWidget.tsx`
 

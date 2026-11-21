@@ -65,8 +65,8 @@ const RoutinesDataDocument = graphql(`
         day
         slots {
           slot
-          at
-          endAt
+          fromTime
+          dueTime
         }
       }
       cases
@@ -557,8 +557,11 @@ export function routineInputOf(routine: Routine): RoutineInput {
     travelAfter: routine.travelAfter,
     projectId: routine.projectId,
     assigneeIds: routine.assigneeIds,
+    beneficiaryIds: routine.beneficiaryIds,
+    beneficiaryRelationIds: routine.beneficiaryRelationIds,
     requiredIds: routine.requiredIds,
     relatedIds: routine.relatedIds,
+    opensOn: routine.opensOn as RoutineInput['opensOn'],
   };
 }
 

@@ -1,4 +1,4 @@
-import { calendarRingPage, DEFAULT_RING_SETTINGS, readRingSettings, reminderDayRange, routinesRingPage, type RingPage } from '@ordo/shared';
+import { birthdayRingOf, calendarRingPage, DEFAULT_RING_SETTINGS, readRingSettings, reminderDayRange, routineRingOf, routinesRingPage, type RingPage } from '@ordo/shared';
 import { useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router';
 import { fetchCalendarEvents, useBirthdays, useWorkSchedules, type EventOccurrence } from '../../calendar/api';
@@ -9,14 +9,14 @@ import { useRoutineMutations, useRoutinesData } from '../../routines/api';
 import { useRunningTimers } from '../../time/api';
 import { useProjectTree } from '../../projects/api';
 import { useAlarmMutations, useAlarms, type Alarm } from '../api';
-import { configureRinging, loadRings } from '../lib/ringing';
+import { configureRinging, loadRings, refreshRestoredRings, type KeptRing } from '../lib/ringing';
 import { listenToPushes } from '../lib/push';
 import { useMe } from '../../auth/api';
 import { useWorkspaces } from '../../workspaces/api';
 import { switchWorkspace } from '../../workspaces/lib/switch';
 import { unlockAudioOnGesture } from '../lib/alarm-sound';
 import { dueAlarms, ringAlarm, ringReminders, ringTaskReminders, type RingLink } from './ring';
-import { ringRoutineReminders } from '../lib/ring-routines';
+import { markDoneAction, ringRoutineReminders } from '../lib/ring-routines';
 import { ON_ERROR } from '../../../lib/notify';
 import { useSlotRules, routineDoable } from '../../calendar/hooks/use-slot-rules';
 import { alarmTarget } from '../lib/alarm-labels';
@@ -82,14 +82,38 @@ export function AlarmCenter() {
   useEffect(() => listenToPushes(), []);
   useCountdownRinger();
 
-  // The ring follows the settings of the user; a link of a ring kept by the API opens its page in its workspace.
+  // The ring follows the settings of the user; a link of a ring kept by the API opens its page in its workspace; a ring
+  // shown again from the API (reload, another tab or device) of the workspace open gets its actions back (decision FV).
   useEffect(() => {
+    /**
+     * Actions of a ring shown again, rebuilt from its key: « Marquer comme faite » (the current occurrence of a routine),
+     * « Ouvrir la fiche » (the person of a birthday); the workspace open only, as when it first rang.
+     * @param {KeptRing} ring Ring kept by the API.
+     * @returns {RingLink[]} Actions.
+     */
+    const restore = ({ key, workspaceId }: KeptRing): RingLink[] => {
+      if (workspaceId && workspaceId !== currentWorkspaceId) return [];
+      const { routinesData: data, birthdays: people, setDone: done, openPerson: open } = latest.current;
+      const reminded = routineRingOf(key);
+      const routine = reminded && data?.routines.find((item) => item.id === reminded.routineId);
+      if (reminded && routine && routine.currentDate === reminded.date) {
+        // A reminder « À HH:MM » ticks the first time of the day not ticked, as when it rang.
+        const slot = reminded.slot ?? routine.slots.find((item) => !item.done)?.index ?? 0;
+        return [markDoneAction(() => done.mutate({ id: routine.id, done: true, slot }, ON_ERROR))];
+      }
+      const birthday = birthdayRingOf(key, people ?? []);
+      return birthday ? [{ label: 'Ouvrir la fiche', onClick: () => open(birthday) }] : [];
+    };
     configureRinging({
       settings: me?.ringSettings ? readRingSettings(me.ringSettings) : DEFAULT_RING_SETTINGS,
       workspaceId: currentWorkspaceId,
       open: ({ path, workspaceId }) => (workspaceId && workspaceId !== currentWorkspaceId ? switchWorkspace(workspaceId, path) : latest.current.navigate(path)),
+      restore,
     });
   }, [me?.ringSettings, currentWorkspaceId]);
+
+  // Once the routines and birthdays are loaded, the rings shown again offer their actions.
+  useEffect(() => refreshRestoredRings(), [routinesData, birthdays, currentWorkspaceId]);
 
   useEffect(() => {
     void loadRings();

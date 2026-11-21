@@ -3403,7 +3403,7 @@ Reminder of a task, a routine, an event, an éphéméride or a birthday: minutes
 """
 type Reminder {
   """
-  `start` (counted from the start of the item, its first day) or `end` (from its end, its last day: events and routines).
+  `start` (counted from the start of the item, its first day; a routine: the start of the opening day of an occurrence) or `end` (from its end, its last day; a routine: the end of its due day); routines only: `openEnd` (the end of the opening day), `dueStart` (the start of the due day).
   """
   anchor: String!
 
@@ -3423,7 +3423,9 @@ type Reminder {
 }
 
 input ReminderInput {
-  """`start` (default) or `end` (events and routines)."""
+  """
+  `start` (default) or `end` (events and routines); `openEnd`, `dueStart` (routines).
+  """
   anchor: String
 
   """HH:MM."""
@@ -3580,7 +3582,7 @@ type Routine {
   reminderOccurrences: [RoutineReminderOccurrence!]!
 
   """
-  Reminders: minutes (24 hours at most) before the first day (« Ouverture ») of an occurrence at the start of each time of the day (« dès »), or a time of that day or of some days before it.
+  Reminders: minutes (24 hours at most) before the start or the end of each time of the day on the first day (« Ouverture ») or the due day of an occurrence (`anchor`), or a time of one of those days or of some days before it.
   """
   reminders: [Reminder!]!
 
@@ -3882,19 +3884,17 @@ type RoutineReminderOccurrence {
   day: Date!
 
   """
-  Its times of the day not ticked, with the moment its reminders « N min avant » count from.
+  Its times of the day not ticked, with their hours (the moments its reminders « N min avant » count from: `routineSlotAnchors`).
   """
   slots: [RoutineReminderSlot!]!
 }
 
 type RoutineReminderSlot {
-  """First day of the occurrence at the start of the time of the day."""
-  at: DateTime!
+  """End of the time of the day (« jusqu’à », HH:MM); null: none."""
+  dueTime: String
 
-  """
-  Due day of the occurrence at the latest time of the time of the day (reminders from the end); null without it.
-  """
-  endAt: DateTime
+  """Start of the time of the day (« dès », HH:MM); null: none."""
+  fromTime: String
 
   """Index of its time of the day."""
   slot: Int!

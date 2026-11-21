@@ -1,5 +1,4 @@
-import { normalizedReminders, readReminders, reminderKey, reminderOfKey } from '@ordo/shared';
-import { reminderLabel } from '../../../components/inputs/reminder-presets';
+import { normalizedReminders, readReminders, reminderKey, reminderOfKey, ROUTINE_REMINDER_ANCHORS } from '@ordo/shared';
 
 import { cellPicker } from '../../../components/data-table/cells/cell-field';
 import { Badge, Select, Stack, Text } from '@mantine/core';
@@ -140,7 +139,7 @@ export function RemindersCell({ routine, readOnly = false }: { routine: Routine;
   const { apply, count } = useRoutineCellEdit(routine, 'alarms');
   return (
     <EditablePopoverCell
-      width={280}
+      width={480}
       label={routineCellLabel('Rappels', routine, count)}
       readOnly={readOnly}
       target={
@@ -161,7 +160,7 @@ export function RemindersCell({ routine, readOnly = false }: { routine: Routine;
         <RemindersSelect
           label="Rappels"
           value={routine.reminders}
-          anchors={['start', 'end']}
+          anchors={ROUTINE_REMINDER_ANCHORS}
           // On a selection, those added here are added to each routine, those removed here removed (with their ringtone).
           onChange={(values) =>
             apply((target) => {
@@ -171,11 +170,7 @@ export function RemindersCell({ routine, readOnly = false }: { routine: Routine;
               };
             })
           }
-          comboboxProps={{ withinPortal: false }}
         />
-        <Text size="xs" c="dimmed">
-          {routine.reminders.map((reminder) => reminderLabel(reminder)).join(', ') || 'Aucun rappel.'}
-        </Text>
       </Stack>
     </EditablePopoverCell>
   );

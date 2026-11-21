@@ -3,7 +3,8 @@ import { END_AFTER_START, endsAfter, markdownSchema, markdownTextSchema, optiona
 import { DEFAULT_RECURRENCE, occurrenceDates, recurrenceSchema, zonedInstant, type Recurrence } from '../dates/recurrence';
 import { dateSchema } from '../core/workspace';
 import { daySchema, timeOfDaySchema } from '../dates/times';
-import { addDays, dayIn, localInstant } from '../dates/days';
+import { addDays, dayIn } from '../dates/days';
+import { PARIS_ZONE } from '../dates/reminders';
 import { twoDigits } from '../core/numbers';
 
 /** What was done during a tracked time: markdown (its editor). Blank becomes null. */
@@ -155,7 +156,7 @@ export const alarmInputSchema = z
   });
 export type AlarmInput = z.input<typeof alarmInputSchema>;
 
-/** Schedule of an alarm (REMINDER and NOT_TRACKING), in the user's local time. */
+/** Schedule of an alarm (REMINDER and NOT_TRACKING), in Paris time (decision FV). */
 interface AlarmSchedule {
   startDate: string | null;
   time: string | null;
@@ -186,17 +187,6 @@ export function alarmRule(schedule: AlarmSchedule): Recurrence | null {
 }
 
 /**
- * Whether the schedule rings on a given local day: a day of its rule (the first day only without one).
- * @param {AlarmSchedule} schedule Schedule.
- * @param {Date} start Local first day.
- * @param {Date} day Local day.
- * @returns {boolean} True when it rings that day.
- */
-function ringsOn(schedule: AlarmSchedule, start: Date, day: Date): boolean {
-  return day >= start && ringsOnDay(schedule, dayIn(start), dayIn(day));
-}
-
-/**
  * Whether the schedule rings on a calendar day (YYYY-MM-DD): a day of its rule from its first day (that day only
  * without a rule).
  * @param {AlarmSchedule} schedule Schedule.
@@ -212,65 +202,44 @@ function ringsOnDay(schedule: AlarmSchedule, start: string, day: string): boolea
 }
 
 /**
- * Time of the schedule on a local day.
- * @param {Date} day Local day.
- * @param {string} time HH:MM.
- * @returns {Date} Local date and time.
- */
-function at(day: Date, time: string): Date {
-  const [hours, minutes] = time.split(':').map(Number);
-  return new Date(day.getFullYear(), day.getMonth(), day.getDate(), hours, minutes);
-}
-
-/**
- * Last occurrence of a schedule at or before a moment, looking back a limited number of days: in the local time of the
- * runtime (the browser that rings), or in a time zone (the API, which rings in Paris time outside the app, lot 17c).
+ * Last occurrence of a schedule at or before a moment, looking back a limited number of days, in Paris time: the open
+ * app and the server ringing outside it find the same instant and key (decision FV; every hour of Ordo is a Paris
+ * hour, D7).
  * @param {AlarmSchedule} schedule Schedule.
  * @param {Date} moment Moment.
  * @param {number} [lookBackDays] Days to look back. Optional. Default = 2.
- * @param {string} [timeZone] Time zone of the date and time of the schedule. Optional. Default = the local one.
  * @returns {Date | null} Occurrence, or null.
  */
-export function previousOccurrence(schedule: AlarmSchedule, moment: Date, lookBackDays = 2, timeZone?: string): Date | null {
+export function previousOccurrence(schedule: AlarmSchedule, moment: Date, lookBackDays = 2): Date | null {
   if (!schedule.startDate || !schedule.time) return null;
-  if (timeZone) {
-    const today = dayIn(moment, timeZone);
-    for (let offset = 0; offset <= lookBackDays; offset += 1) {
-      const day = addDays(today, -offset);
-      if (!ringsOnDay(schedule, schedule.startDate, day)) continue;
-      const occurrence = zonedInstant(day, schedule.time, timeZone);
-      if (occurrence <= moment) return occurrence;
-    }
-    return null;
-  }
-  const start = localInstant(schedule.startDate);
+  const today = dayIn(moment, PARIS_ZONE);
   for (let offset = 0; offset <= lookBackDays; offset += 1) {
-    const day = new Date(moment.getFullYear(), moment.getMonth(), moment.getDate() - offset);
-    if (!ringsOn(schedule, start, day)) continue;
-    const occurrence = at(day, schedule.time);
+    const day = addDays(today, -offset);
+    if (!ringsOnDay(schedule, schedule.startDate, day)) continue;
+    const occurrence = zonedInstant(day, schedule.time, PARIS_ZONE);
     if (occurrence <= moment) return occurrence;
   }
   return null;
 }
 
 /**
- * Next occurrence of a schedule after a moment, within about two years.
+ * Next occurrence of a schedule after a moment, within about two years, in Paris time (as `previousOccurrence`).
  * @param {AlarmSchedule} schedule Schedule.
  * @param {Date} moment Moment.
  * @returns {Date | null} Occurrence, or null when the schedule is over.
  */
 export function nextOccurrence(schedule: AlarmSchedule, moment: Date): Date | null {
   if (!schedule.startDate || !schedule.time) return null;
-  const start = localInstant(schedule.startDate);
-  const first = start > moment ? start : new Date(moment.getFullYear(), moment.getMonth(), moment.getDate());
+  const today = dayIn(moment, PARIS_ZONE);
+  const first = schedule.startDate > today ? schedule.startDate : today;
   // Last day it may ring: the end of its rule, its first day without one.
   const rule = alarmRule(schedule);
   const end = rule ? rule.until : schedule.startDate;
   for (let offset = 0; offset < 800; offset += 1) {
-    const day = new Date(first.getFullYear(), first.getMonth(), first.getDate() + offset);
-    if (end && day > localInstant(end)) return null;
-    if (!ringsOn(schedule, start, day)) continue;
-    const occurrence = at(day, schedule.time);
+    const day = addDays(first, offset);
+    if (end && day > end) return null;
+    if (!ringsOnDay(schedule, schedule.startDate, day)) continue;
+    const occurrence = zonedInstant(day, schedule.time, PARIS_ZONE);
     if (occurrence > moment) return occurrence;
   }
   return null;

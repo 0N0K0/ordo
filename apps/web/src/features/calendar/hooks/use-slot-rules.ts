@@ -1,17 +1,27 @@
 import * as fmt from '../../../lib/format';
-import { addDays, blockingEvent, type BusyEvent, busyUntil, conditionAllowsAt, nextConditionMoment, readSlotCondition, scheduleSlotsOn } from '@ordo/shared';
+import {
+  addDays,
+  blockingEvent,
+  type BusyEvent,
+  conditionAllowsAt,
+  NEXT_ALLOWED_DAYS,
+  nextAllowedMoment,
+  nextConditionMoment,
+  PARIS_ZONE,
+  parisInstant,
+  readSlotCondition,
+  scheduleSlotsOn,
+  timeIn,
+} from '@ordo/shared';
 import { useMemo } from 'react';
 import { useNow } from '../../../lib/use-now';
 import { archivedIds } from '../../../lib/archive';
 import { scheduleRules, useCalendarEvents } from '../api';
-import { localDay, localInstant } from '../../../lib/dates';
+import { localDay, parisDay } from '../../../lib/dates';
 import { useTaskContext } from '../../tasks/hooks/use-task-context';
 import { slotChoices } from '../lib/slot-choices';
 import { useSlotSources } from './use-slot-sources';
 import { describeSlotCondition } from '../lib/slot-condition-text';
-
-/** Days ahead the next allowed moment is looked for. */
-const LOOKAHEAD_DAYS = 14;
 
 /** Task or routine, as far as when it can be done goes: its slot condition, its assignees, and the item it is. */
 export interface Doable {
@@ -57,7 +67,8 @@ export interface SlotRules {
    */
   blocking: (item: Doable, at?: Date) => BusyEvent | undefined;
   /**
-   * First moment a task or a routine can be done from a moment on (within two weeks), null when none.
+   * First moment a task or a routine can be done from a moment on (within two weeks, Paris time as the server:
+   * `nextAllowedMoment`), null when none.
    * @param {Doable} item Task or routine.
    * @param {Date} from Moment.
    * @returns {Date | null} Moment.
@@ -82,7 +93,7 @@ export function useSlotRules(): SlotRules {
   const minute = useNow(true, 60_000);
   const today = localDay(new Date(minute));
   // Events of the coming days keep their contributors (none: « Moi ») busy.
-  const { data: events } = useCalendarEvents({ from: addDays(today, -1), to: addDays(today, LOOKAHEAD_DAYS) });
+  const { data: events } = useCalendarEvents({ from: addDays(today, -1), to: addDays(today, NEXT_ALLOWED_DAYS) });
   const { context } = useTaskContext();
   const meId = context?.meId ?? null;
 
@@ -117,18 +128,17 @@ export function useSlotRules(): SlotRules {
       blocking: (item, at = new Date(minute)) => blockingAt(item, at),
       inSlots: (value, at = new Date(minute)) => inSlotsAt(value, at),
       nextAllowedAt: (item, from) => {
-        // The next moment its condition allows, past the events keeping it busy then (a few rounds at most).
+        // The next moment its condition allows, past the events keeping it busy then, in Paris time (the server defers the same way).
         const condition = readSlotCondition(item.slotCondition);
-        let at = from;
-        for (let round = 0; round < 20; round++) {
-          const moment = nextConditionMoment(condition, slotsOn, localDay(at), fmt.time(at), LOOKAHEAD_DAYS);
-          if (!moment) return null;
-          const candidate = localInstant(moment.date, moment.time);
-          const busy = blockingAt(item, candidate);
-          if (!busy) return candidate;
-          at = busyUntil(busy);
-        }
-        return null;
+        return nextAllowedMoment(item, from, {
+          events: events ?? [],
+          meId,
+          timeZone: PARIS_ZONE,
+          nextInSlots: (at) => {
+            const moment = nextConditionMoment(condition, slotsOn, parisDay(at), timeIn(at, PARIS_ZONE), NEXT_ALLOWED_DAYS);
+            return moment ? parisInstant(moment.date, moment.time) : null;
+          },
+        });
       },
       describe: (value) => fmt.capitalize(describeSlotCondition(readSlotCondition(value), names)) || null,
     };

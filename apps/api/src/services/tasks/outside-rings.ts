@@ -10,6 +10,7 @@ import {
   ephemerisRings,
   eventRings,
   formatOptionalDay,
+  nextAllowedMoment,
   PARIS_ZONE,
   PUSH_GRACE_MS,
   pushRingActions,
@@ -38,7 +39,7 @@ import { birthdays } from '../calendar/birthdays';
 import { eventOccurrences } from '../calendar/calendar-events';
 import { scheduleRule } from '../calendar/work-schedules';
 import { loadScheduleContext, occurrencesOf, reminderOccurrences, slotsOf } from '../routines/routines';
-import { forEachWorkspace, listWorkspaces, scheduleJob } from '../workspaces/workspaces';
+import { forEachWorkspace, listWorkspaces, meContributorId, scheduleJob } from '../workspaces/workspaces';
 import { markAlarmFired } from './alarms';
 import { ringAgainOutside, ringOutside } from './alarm-rings';
 import { ringCountdown } from './countdowns';
@@ -59,6 +60,8 @@ import { pushEnabled, pushToUser } from './push';
 /** A ring due, found in a workspace (or a timer of a user), with what follows once rung. */
 interface DueRing {
   input: AlarmRingInput;
+  /** Only for this user (a reminder of a routine, deferred past the events keeping their « Moi » busy). Optional. */
+  userId?: string;
   /** Consumed without ringing (« pas de chrono » while a timer runs). */
   silent?: boolean;
   /** Done once rung (an alarm records its occurrence), in its workspace. */
@@ -98,13 +101,15 @@ function ringInput(planned: Pick<PlannedRing, 'key' | 'at' | 'title' | 'lines' |
 }
 
 /**
- * Reminders of the events, tasks, routines, éphémérides and birthdays of the workspace due now.
+ * Reminders of the events, tasks, routines, éphémérides and birthdays of the workspace due now; those of the routines
+ * for each user, deferred to the next free moment as in the app (`nextAllowedMoment`, decision FV).
  * @param {Workspace} workspace Workspace (the job runs in it).
  * @param {boolean} several The user has several workspaces.
  * @param {Date} now Now.
+ * @param {readonly string[]} userIds Users ringing outside the app.
  * @returns {Promise<DueRing[]>} Rings due.
  */
-async function dueReminders(workspace: Workspace, several: boolean, now: Date): Promise<DueRing[]> {
+async function dueReminders(workspace: Workspace, several: boolean, now: Date, userIds: readonly string[]): Promise<DueRing[]> {
   const label = several ? workspace.label : undefined;
   const { from, to } = reminderDayRange(now);
   const withReminders = { NOT: { reminders: { equals: [] } } };
@@ -112,7 +117,10 @@ async function dueReminders(workspace: Workspace, several: boolean, now: Date): 
     eventOccurrences(from, to, undefined, true),
     prisma.task.findMany({ where: { closedAt: null, archivedAt: null, ...withReminders }, select: { id: true, number: true, label: true, projectId: true, reminders: true, ...DUE_DATES_SELECT } }),
     prisma.project.findMany({ select: { id: true, label: true } }),
-    prisma.routine.findMany({ where: { archivedAt: null, ...withReminders }, include: { checks: { orderBy: { date: 'desc' }, take: 20, select: { date: true, slot: true } } } }),
+    prisma.routine.findMany({
+      where: { archivedAt: null, ...withReminders },
+      include: { checks: { orderBy: { date: 'desc' }, take: 20, select: { date: true, slot: true } }, assignees: { select: { id: true } } },
+    }),
     prisma.workSchedule.findMany({ where: { ephemeris: true, archivedAt: null, ...withReminders }, include: { type: { select: { archivedAt: true } } } }),
     birthdays(),
   ]);
@@ -146,17 +154,25 @@ async function dueReminders(workspace: Workspace, several: boolean, now: Date): 
       const target = alarmTarget({ taskId: ring.task.id, projectId: null }, () => ring.task, projectOf);
       return { ring, page: target ? { label: target.label, path: target.to } : null };
     }),
-    // No wait for a free moment here (as for another workspace in the app): the slot rules are those of the open one.
-    ...routineRings(routines).map((ring) => ({ ring, page: routinesRingPage(label) })),
     ...ephemerisRings(ephemerides, ({ row }) => scheduleRule(row), now).map((ring) => ({ ring, page: calendar })),
     ...birthdayRings(people, now).map((ring) => ({ ring, page: calendar })),
   ];
-  return planned.filter(({ ring }) => dueOutside(ring.at, now)).map(({ ring, page }) => ({ input: ringInput(ring, workspace, several, page) }));
+  const shared = planned.filter(({ ring }) => dueOutside(ring.at, now)).map(({ ring, page }): DueRing => ({ input: ringInput(ring, workspace, several, page) }));
+  // Routines: a reminder while an event keeps their assignees (none: « Moi », of each user) busy waits for the next free moment, as in the app.
+  const routinesPage = routinesRingPage(label);
+  const perUser: DueRing[] = [];
+  for (const userId of userIds) {
+    const meId = await meContributorId(userId);
+    const rings = routineRings(routines, (routine, at) =>
+      nextAllowedMoment({ assigneeIds: routine.assignees.map((assignee) => assignee.id), routineId: routine.id }, at, { events: occurrences, meId, timeZone: PARIS_ZONE }),
+    );
+    perUser.push(...rings.filter((ring) => dueOutside(ring.at, now)).map((ring) => ({ input: ringInput(ring, workspace, several, routinesPage), userId })));
+  }
+  return [...shared, ...perUser];
 }
 
 /**
- * Alarms of the workspace due now: the scheduled ones at their times (in Paris time: the server does not know the time
- * zone of the browser), recorded as rung (« pas de chrono »: consumed without ringing while a timer runs); those on the
+ * Alarms of the workspace due now: the scheduled ones at their times (in Paris time, as in the app), recorded as rung (« pas de chrono »: consumed without ringing while a timer runs); those on the
  * duration of a timer at each step of each running timer (the step reached now only).
  * @param {Workspace} workspace Workspace (the job runs in it).
  * @param {boolean} several The user has several workspaces.
@@ -184,7 +200,7 @@ async function dueAlarms(workspace: Workspace, several: boolean, now: Date): Pro
       });
     }
     const schedule = { ...alarm, startDate: formatOptionalDay(alarm.startDate), endDate: formatOptionalDay(alarm.endDate) };
-    const occurrence = dueAlarmOccurrence(schedule, now, PARIS_ZONE);
+    const occurrence = dueAlarmOccurrence(schedule, now);
     if (!occurrence || !dueOutside(occurrence, now)) return [];
     return [
       {
@@ -256,17 +272,18 @@ export async function ringOutsideTheApp(): Promise<void> {
     .map((user) => ({ id: user.id, settings: readRingSettings(user.ringSettings) }))
     .filter((user) => user.settings.outside);
   if (!users.length) return;
+  const userIds = users.map((user) => user.id);
 
   const now = new Date();
   const several = (await listWorkspaces()).length > 1;
   // What is due in every workspace (whatever workspace the user has open, decision EO); a workspace failing is logged.
   const rings: DueRing[] = [];
   await forEachWorkspace(async (workspace) => {
-    rings.push(...(await dueReminders(workspace, several, now)), ...(await dueAlarms(workspace, several, now)));
+    rings.push(...(await dueReminders(workspace, several, now, userIds)), ...(await dueAlarms(workspace, several, now)));
   });
 
   for (const user of users) {
-    for (const due of rings) await ringDue(user, due);
+    for (const due of rings) if (!due.userId || due.userId === user.id) await ringDue(user, due);
     // The end of a timer of the user: recorded as rung once rung (the app shows it no more).
     for (const due of await dueCountdowns(user.id, now)) {
       await ringDue(user, due);

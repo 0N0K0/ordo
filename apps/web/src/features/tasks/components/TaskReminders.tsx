@@ -1,5 +1,4 @@
 import type { Reminder, ReminderFields } from '@ordo/shared';
-import { BellIcon } from '@phosphor-icons/react';
 import { RemindersSelect } from '../../../components/inputs/RemindersSelect';
 
 interface TaskRemindersProps {
@@ -25,6 +24,7 @@ export function TaskReminders({ value, minDate, deadline, onChange, error, disab
     <RemindersSelect
       kinds={['at', 'days']}
       day=""
+      dayLabel="Chaque jour"
       label="Rappels"
       description={
         !deadline
@@ -33,13 +33,9 @@ export function TaskReminders({ value, minDate, deadline, onChange, error, disab
             ? 'Chaque jour de l’ouverture à l’échéance, à ces heures ; ou quelques jours avant l’échéance.'
             : 'Le jour de l’échéance, à ces heures ; ou quelques jours avant.'
       }
-      leftSection={<BellIcon aria-hidden />}
-      emptyLabel="Aucun"
       disabled={disabled || !deadline}
       value={value}
       onChange={onChange}
-      clearable
-      searchable
       error={error}
     />
   );

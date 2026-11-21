@@ -1,14 +1,25 @@
 import { ageOn, birthdayLabel, birthdaysBetween, readBirthDate } from '../people/birthdays';
 import { scheduleRuns, type WorkScheduleRule } from '../calendar/work-schedules';
-import { occurrenceKey } from '../calendar/calendar';
+import { occurrenceKey, readOccurrenceKey } from '../calendar/calendar';
 import { APP_PATHS, projectPath, taskPath } from '../core/app-paths';
-import { taggedKey } from '../core/tagged-key';
-import { windowText } from '../routines/routines';
+import { parseTaggedKey, taggedKey } from '../core/tagged-key';
+import { routineReminderTime, windowText } from '../routines/routines';
 import { taskNumbered } from '../tasks/tasks';
 import { entrySeconds, previousOccurrence, type AlarmType } from '../tasks/time';
 import { addDays } from './days';
 import { dayText, weekdayText } from './format';
-import { occurrenceReminders, parisInstant, reminderDayRange, remindersAt, remindersBefore, taskReminders, type PlannedReminder, type ReminderValue } from './reminders';
+import {
+  occurrenceReminders,
+  parisInstant,
+  reminderDayRange,
+  remindersAt,
+  remindersBefore,
+  ROUTINE_REMINDER_ANCHORS,
+  taskReminders,
+  type PlannedReminder,
+  type ReminderAnchor,
+  type ReminderValue,
+} from './reminders';
 import { RING_LATE_MS } from './ringing';
 
 /**
@@ -131,6 +142,23 @@ export function taskRings<T extends RemindedTask>(tasks: readonly T[], now: Date
 
 // Routines -------------------------------------------------------------------------------------------------------
 
+/** A time of the day of an occurrence its reminders ring for: its index and its hours (« dès », « jusqu'à »). */
+export interface RemindedRoutineSlot {
+  slot: number;
+  fromTime: string | null;
+  dueTime: string | null;
+}
+
+/** An occurrence of a routine its reminders ring for (`reminderOccurrences` of the API). */
+export interface RemindedRoutineOccurrence {
+  /** Due day (« Échéance »). */
+  date: string;
+  /** Opening day (« Ouverture »). */
+  day: string;
+  /** Its times of the day not ticked. */
+  slots: readonly RemindedRoutineSlot[];
+}
+
 /** What the reminders of a routine are rung from (a routine of the open workspace or of another one). */
 export interface RemindedRoutine {
   id: string;
@@ -141,7 +169,7 @@ export interface RemindedRoutine {
   currentDate?: string | null;
   reminders: readonly ReminderValue[];
   /** Occurrences its reminders ring for (`reminderOccurrences` of the API). */
-  reminderOccurrences: readonly { date: string; day: string; slots: readonly { slot: number; at: Date | string; endAt?: Date | string | null }[] }[];
+  reminderOccurrences: readonly RemindedRoutineOccurrence[];
   /** Times of the day of its current occurrence (the line of the ring). */
   slots: readonly { index: number; fromTime: string | null; dueTime: string | null; windows?: unknown }[];
 }
@@ -150,29 +178,70 @@ export interface RemindedRoutine {
 export type RoutineRing<R> = PlannedRing & { routine: R; slot: number; current: boolean };
 
 /**
- * Reminders of the routines (decision D16), for the occurrences the API gives: each « N min avant » before each time of
- * the day not ticked (its first day, « Ouverture », at its « dès »; from the end: its due day at its « jusqu'à », none
- * without it, decision FS), each « À HH:MM » once per occurrence, on its first day (from the end: its due day). An
- * archived routine has none. Out of the slots of the routine, a reminder waits for the next moment they allow
- * (`defer`, the open workspace only). The ring tells the window of its time of the day and the place.
+ * Instants the reminders « avant » of a time of the day of an occurrence count from (decision FV): the start of the
+ * time (« dès », else its « jusqu'à » as decided by D16, else 00:00) and its end (« jusqu'à », else midnight after the
+ * day), on the opening day (`start`, `openEnd`) and on the due day (`dueStart`, `end`), Paris time.
+ * @param {RemindedRoutineOccurrence} occurrence Occurrence.
+ * @param {RemindedRoutineSlot} slot Time of the day.
+ * @returns {Record<ReminderAnchor, Date>} Instant of each anchor.
+ */
+export function routineSlotAnchors(occurrence: Pick<RemindedRoutineOccurrence, 'date' | 'day'>, slot: Omit<RemindedRoutineSlot, 'slot'>): Record<ReminderAnchor, Date> {
+  const start = routineReminderTime(slot) ?? '00:00';
+  /**
+   * End of the time of the day on a day: its « jusqu'à », else the Paris midnight after the day.
+   * @param {string} day Day.
+   * @returns {Date} Instant.
+   */
+  const end = (day: string) => (slot.dueTime ? parisInstant(day, slot.dueTime) : parisInstant(addDays(day, 1)));
+  return { start: parisInstant(occurrence.day, start), openEnd: end(occurrence.day), dueStart: parisInstant(occurrence.date, start), end: end(occurrence.date) };
+}
+
+/**
+ * Key of the reminders of an occurrence of a routine, before its time of the day and its reminder (`routine:<id>|<due
+ * day>`).
+ * @param {string} routineId Routine.
+ * @param {string} date Due day of the occurrence.
+ * @returns {string} Key prefix.
+ */
+export const routineRingPrefix = (routineId: string, date: string): string => taggedKey('routine', occurrenceKey(routineId, date));
+
+/**
+ * Routine, occurrence and time of the day of the key of a ring of a reminder of a routine (`routineRings`), to give a
+ * ring shown again after a reload its actions back (decision FV); null for another key.
+ * @param {string} key Key of the ring.
+ * @returns {{ routineId: string, date: string, slot: number | null } | null} Routine, due day and time of the day (null: a reminder « À HH:MM »).
+ */
+export function routineRingOf(key: string): { routineId: string; date: string; slot: number | null } | null {
+  const tagged = parseTaggedKey(key);
+  if (tagged?.tag !== 'routine') return null;
+  const [occurrence, slot] = tagged.id.split(':');
+  const { id, date } = readOccurrenceKey(occurrence);
+  return date ? { routineId: id, date, slot: /^\d+$/.test(slot ?? '') ? Number(slot) : null } : null;
+}
+
+/**
+ * Reminders of the routines (decisions D16, FV), for the occurrences the API gives: each « N min avant » before each
+ * time of the day not ticked, from one of its four anchors (`routineSlotAnchors`: the start or the end of the time on
+ * the opening day or on the due day), each « À HH:MM » and « N jours avant » once per occurrence, from its opening day
+ * (from the end: its due day). An archived routine has none. When its assignees are kept busy, a reminder waits for the
+ * next free moment (`defer`, the same for the app and the server: `nextAllowedMoment`). The ring tells the window of
+ * its time of the day and the place.
  * @template {RemindedRoutine} R
  * @param {readonly R[]} routines Routines.
- * @param {(routine: R, at: Date) => Date | null} [defer] First moment from a reminder on its slots allow, null: none soon. Optional. Default = none.
+ * @param {(routine: R, at: Date) => Date | null} [defer] First free moment from a reminder on, null: none soon. Optional. Default = none.
  * @returns {RoutineRing<R>[]} Reminders.
  */
 export function routineRings<R extends RemindedRoutine>(routines: readonly R[], defer?: (routine: R, at: Date) => Date | null): RoutineRing<R>[] {
   return routines.flatMap((routine) => {
     if (routine.archived || routine.reminders.length === 0) return [];
     return routine.reminderOccurrences.flatMap((occurrence) => {
-      const key = taggedKey('routine', occurrenceKey(routine.id, occurrence.date));
+      const key = routineRingPrefix(routine.id, occurrence.date);
       const first = occurrence.slots[0]?.slot ?? 0;
       const planned = [
-        ...occurrence.slots.flatMap((slot) =>
-          [
-            ...remindersBefore(`${key}:${slot.slot}`, new Date(slot.at), routine.reminders),
-            ...(slot.endAt ? remindersBefore(`${key}:${slot.slot}`, new Date(slot.endAt), routine.reminders, 'end') : []),
-          ].map((reminder) => ({ ...reminder, slot: slot.slot })),
-        ),
+        ...occurrence.slots.flatMap((slot) => {
+          const anchors = routineSlotAnchors(occurrence, slot);
+          return ROUTINE_REMINDER_ANCHORS.flatMap((anchor) => remindersBefore(`${key}:${slot.slot}`, anchors[anchor], routine.reminders, anchor)).map((reminder) => ({ ...reminder, slot: slot.slot }));
+        }),
         ...[...remindersAt(key, occurrence.day, routine.reminders), ...remindersAt(key, occurrence.date, routine.reminders, true, 'end')].map((reminder) => ({ ...reminder, slot: first })),
       ];
       const current = routine.currentDate === occurrence.date;
@@ -228,6 +297,24 @@ export interface RemindedBirthday {
 }
 
 /**
+ * Key of the reminders of a birthday on a day, before its reminder (`birthday:<contributor|relation>:<id>:<day>`).
+ * @param {string} birthdayId Birthday (`personBirthdayId`).
+ * @param {string} [date] Day; missing: any day (the start of the key). Optional.
+ * @returns {string} Key prefix.
+ */
+export const birthdayRingPrefix = (birthdayId: string, date?: string): string => taggedKey('birthday', `${birthdayId}:${date ?? ''}`);
+
+/**
+ * Birthday of the key of a ring of a birthday reminder, among those given (a ring shown again gives « Ouvrir la fiche »
+ * back, decision FV).
+ * @template {{ id: string }} B
+ * @param {string} key Key of the ring.
+ * @param {readonly B[]} birthdays Birthdays.
+ * @returns {B | undefined} Birthday.
+ */
+export const birthdayRingOf = <B extends { id: string }>(key: string, birthdays: readonly B[]): B | undefined => birthdays.find((birthday) => key.startsWith(birthdayRingPrefix(birthday.id)));
+
+/**
  * Reminders of the birthdays (lot 16): « À HH:MM » on the day, « N jours avant, à HH:MM »; the ring tells « Anniversaire
  * de Paul — 40 ans » (the age when the year of birth is known) and its day.
  * @template {RemindedBirthday} B
@@ -241,7 +328,7 @@ export function birthdayRings<B extends RemindedBirthday>(birthdays: readonly B[
     const birth = readBirthDate(birthday.birthDate);
     if (!birth || !birthday.reminders.length) return [];
     return birthdaysBetween(birth, from, to).flatMap(({ date }) =>
-      remindersAt(taggedKey('birthday', `${birthday.id}:${date}`), date, birthday.reminders).map((reminder) => ({ ...reminder, title: birthdayLabel(birthday.name, ageOn(birth, date)), lines: [dayText(date)], birthday })),
+      remindersAt(birthdayRingPrefix(birthday.id, date), date, birthday.reminders).map((reminder) => ({ ...reminder, title: birthdayLabel(birthday.name, ageOn(birth, date)), lines: [dayText(date)], birthday })),
     );
   });
 }
@@ -266,16 +353,16 @@ export interface DueAlarmFields {
 }
 
 /**
- * Occurrence of a scheduled alarm (`REMINDER`, `NOT_TRACKING`) due now: its last one (`previousOccurrence`), after the
- * one rung last (`lastFiredAt`, else its creation) and missed by 6 hours at most.
+ * Occurrence of a scheduled alarm (`REMINDER`, `NOT_TRACKING`) due now: its last one (`previousOccurrence`, Paris
+ * time for the app and the server, decision FV), after the one rung last (`lastFiredAt`, else its creation) and missed
+ * by 6 hours at most.
  * @param {DueAlarmFields} alarm Alarm.
  * @param {Date} now Now.
- * @param {string} [timeZone] Time zone of its date and time. Optional. Default = the local one (the browser).
  * @returns {Date | null} Occurrence due, or none.
  */
-export function dueAlarmOccurrence(alarm: DueAlarmFields, now: Date, timeZone?: string): Date | null {
+export function dueAlarmOccurrence(alarm: DueAlarmFields, now: Date): Date | null {
   if (!alarm.enabled || alarm.type === 'TRACKING_DURATION') return null;
-  const occurrence = previousOccurrence(alarm, now, 2, timeZone);
+  const occurrence = previousOccurrence(alarm, now);
   if (!occurrence) return null;
   const since = new Date(alarm.lastFiredAt ?? alarm.createdAt);
   return occurrence > since && now.getTime() - occurrence.getTime() <= RING_LATE_MS ? occurrence : null;

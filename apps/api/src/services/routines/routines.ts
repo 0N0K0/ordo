@@ -51,12 +51,11 @@ import {
   readReminders,
   readDeadTimes,
   storedDeadTimes,
-  parisInstant,
-  routineReminderTime,
   conditionKinds,
   conditionScheduleIds,
   foreignSlotKindWorkspace,
   conditionCitesBirthdays,
+  type RemindedRoutineSlot,
 } from '@ordo/shared';
 import { z } from 'zod';
 import { deleteTreeItems, topmostIds, treeListService } from '../core/trees';
@@ -485,17 +484,16 @@ export interface RoutineReminderOccurrence {
   /** Its first day (« Ouverture »): the day of its reminders « À HH:MM ». */
   day: string;
   /**
-   * Its times of the day not ticked, with the moment its reminders « N min avant » count from (Paris time), and the one
-   * those « N min avant la fin » count from (its due day at the latest time of the time of the day; none without it).
+   * Its times of the day not ticked, with their hours (« dès », « jusqu'à »): the shared `routineSlotAnchors` gives the
+   * moments their reminders « N min avant » count from (decision FV).
    */
-  slots: { slot: number; at: Date; endAt: Date | null }[];
+  slots: RemindedRoutineSlot[];
 }
 
 /**
  * Occurrences the reminders of a routine ring for: its current one while not done and its next one (a reminder up to 24
- * hours before may ring before it opens), each with its first day (« Ouverture ») and, for each time of the day not
- * ticked, its first day at the start of the time (« dès », else its latest time; a time without any hour has none), and
- * its due day at its latest time (« jusqu'à », the end its reminders from the end count from; none without it).
+ * hours before may ring before it opens), each with its first day (« Ouverture ») and its times of the day not ticked,
+ * with their hours (a time without any hour too: from 00:00 to midnight, decision FV).
  * With reminders « N jours avant » (`ahead` days at most), also the later occurrences that open within those days.
  * An archived routine has none (no occurrence).
  * @param {RoutineTiming & { checks: { date: Date, slot: number }[] }} routine Routine with its latest checks.
@@ -521,16 +519,7 @@ export function reminderOccurrences(routine: RoutineTiming & { checks: { date: D
     // A done occurrence (every required time ticked) rings no more.
     if (slots.every((slot, index) => ticked.has(index) || slot.optional)) return [];
     const day = occurrenceSpansBetween(routine, due, due, schedules).find((span) => span.end === due)?.start ?? due;
-    return [
-      {
-        date: due,
-        day,
-        slots: slots.flatMap((slot, index) => {
-          const time = routineReminderTime(slot);
-          return ticked.has(index) || !time ? [] : [{ slot: index, at: parisInstant(day, time), endAt: slot.dueTime ? parisInstant(due, slot.dueTime) : null }];
-        }),
-      },
-    ];
+    return [{ date: due, day, slots: slots.flatMap((slot, index) => (ticked.has(index) ? [] : [{ slot: index, fromTime: slot.fromTime, dueTime: slot.dueTime }])) }];
   });
 }
 

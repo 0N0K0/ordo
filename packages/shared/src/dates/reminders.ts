@@ -10,9 +10,9 @@ import { timeOfDaySchema, timeToMinutes } from './times';
  * D16, lot 16), 10 at most per item, mixed kinds, in Paris time. A reminder is either minutes before a moment
  * (`before`, 0 = « Au début », 24 hours at most: events, routines, éphémérides), a time of the day of the item's day
  * (`at`, « À HH:MM le jour J »: everywhere), or a time of the day some days before it (`at` with `days`, « N jours
- * avant, à HH:MM »: everywhere, 30 days at most, decision FO). Events and routines count a reminder from their start or
- * from their end (`anchor`, lot 17a, decision FS); each reminder may name its ringtone (`ringtone`; none: the one of the
- * settings of the user).
+ * avant, à HH:MM »: everywhere, 30 days at most, decision FO). Events count a reminder from their start or from their
+ * end (`anchor`, lot 17a, decision FS); routines from the start or the end of the opening day or of the due day of an
+ * occurrence (decision FV); each reminder may name its ringtone (`ringtone`; none: the one of the settings of the user).
  */
 
 /** Time zone of the reminders (every hour of Ordo is a Paris hour, decision D7). */
@@ -34,14 +34,44 @@ export const REMINDER_DAYS_MAX = 30;
 export const REMINDER_KINDS = ['before', 'at', 'days'] as const;
 export type ReminderKind = (typeof REMINDER_KINDS)[number];
 
-/** What a reminder counts from: the start of its item (default) or its end (events and routines, decision FS). */
-export const REMINDER_ANCHORS = ['start', 'end'] as const;
+/**
+ * What a reminder counts from (decisions FS, FV): `start` (default, nothing stored) the start of its item, `end` its end;
+ * for a routine, `start` is the start of the opening day (« Ouverture ») of an occurrence, `end` the end of its due day
+ * (« Échéance »), and two more: `openEnd` the end of the opening day, `dueStart` the start of the due day. A reminder at
+ * a time of the day only tells the day: `openEnd` is stored as `start`, `dueStart` as `end`.
+ */
+export const REMINDER_ANCHORS = ['start', 'end', 'openEnd', 'dueStart'] as const;
 export type ReminderAnchor = (typeof REMINDER_ANCHORS)[number];
 
-/** Options of a reminder, stored only when set: counted from the end, its ringtone. */
+/** What the reminders of an event count from: its start, its end (decision FS). */
+export const EVENT_REMINDER_ANCHORS = ['start', 'end'] as const satisfies readonly ReminderAnchor[];
+
+/**
+ * What the reminders of a routine count from (decision FV), in the order they come in an occurrence: the start of the
+ * opening day (`start`), its end (`openEnd`), the start of the due day (`dueStart`), its end (`end`).
+ */
+export const ROUTINE_REMINDER_ANCHORS = ['start', 'openEnd', 'dueStart', 'end'] as const satisfies readonly ReminderAnchor[];
+
+/** Anchors of the routines only (an event refuses them). */
+const ROUTINE_ONLY_ANCHORS: readonly string[] = ['openEnd', 'dueStart'];
+
+/**
+ * Anchor of a reminder as stored: none for the start; a time of the day keeps only its day (`openEnd` → start,
+ * `dueStart` → `end`).
+ * @param {string | null | undefined} anchor Anchor given.
+ * @param {boolean} atTime The reminder is at a time of the day.
+ * @returns {Exclude<ReminderAnchor, 'start'> | undefined} Anchor stored.
+ */
+function storedAnchor(anchor: string | null | undefined, atTime: boolean): Exclude<ReminderAnchor, 'start'> | undefined {
+  if (anchor === 'end' || (atTime && anchor === 'dueStart')) return 'end';
+  if (!atTime && (anchor === 'openEnd' || anchor === 'dueStart')) return anchor;
+  return undefined;
+}
+
+/** Options of a reminder, stored only when set: what it counts from, its ringtone. */
 export interface ReminderOptions {
-  /** `end`: counted from the end of the item (events, routines); missing: from its start. */
-  anchor?: 'end';
+  /** Counted from the end of the item (`end`), or for a routine from another edge of an occurrence; missing: from its start. */
+  anchor?: Exclude<ReminderAnchor, 'start'>;
   /** Ringtone of the bank; missing: the one of the settings of the user. */
   ringtone?: RingtoneId;
 }
@@ -59,7 +89,7 @@ export interface ReminderValue {
   at: string | null;
   /** Days before the item's day of a time of the day (« N jours avant, à HH:MM »); missing or null: its day. */
   days?: number | null;
-  /** `end`: counted from the end; `start`, missing or null: from the start. */
+  /** `end`, `openEnd`, `dueStart` (`REMINDER_ANCHORS`); `start`, missing or null: from the start. */
   anchor?: string | null;
   /** Ringtone; missing or null: the one of the settings. */
   ringtone?: string | null;
@@ -89,7 +119,7 @@ export const reminderSchema = z
     anchor: z
       .string()
       .nullish()
-      .refine((anchor) => anchor == null || (REMINDER_ANCHORS as readonly string[]).includes(anchor), 'Un rappel compte depuis le début ou la fin.'),
+      .refine((anchor) => anchor == null || (REMINDER_ANCHORS as readonly string[]).includes(anchor), 'Un rappel compte depuis un début ou une fin.'),
     // A ringtone no longer in the bank: the one of the settings.
     ringtone: z.string().nullish(),
   })
@@ -97,12 +127,18 @@ export const reminderSchema = z
   .refine((reminder) => reminder.days == null || reminder.at != null, 'Un rappel « N jours avant » a une heure (HH:MM).')
   .transform((reminder): Reminder => ({
     ...(reminder.before != null ? { before: reminder.before, at: null, days: null } : { before: null, at: reminder.at!, days: reminder.days ?? null }),
-    ...(reminder.anchor === 'end' && { anchor: 'end' as const }),
+    ...(storedAnchor(reminder.anchor, reminder.at != null) && { anchor: storedAnchor(reminder.anchor, reminder.at != null) }),
     ...(isRingtone(reminder.ringtone) && { ringtone: reminder.ringtone }),
   }));
 
-/** Reminders of an event or a routine: every kind, from the start or the end, 10 at most. */
+/** Reminders of a routine: every kind, from the start or the end of the opening day or of the due day, 10 at most. */
 export const remindersSchema = z.array(reminderSchema).max(REMINDERS_MAX, TOO_MANY);
+
+/** Reminders of an event: every kind, from its start or its end, 10 at most. */
+export const eventRemindersSchema = remindersSchema.refine(
+  (reminders) => reminders.every((reminder) => !ROUTINE_ONLY_ANCHORS.includes(reminder.anchor ?? '')),
+  'Seules les routines ont des rappels depuis la fin de l’ouverture ou le début de l’échéance.',
+);
 
 /** Message of a reminder from the end on an item without end to count from. */
 const NO_END = 'Seuls les évènements et les routines ont des rappels avant la fin.';
@@ -110,9 +146,9 @@ const NO_END = 'Seuls les évènements et les routines ont des rappels avant la 
 /**
  * Whether reminders all count from the start.
  * @param {readonly ReminderValue[]} reminders Reminders.
- * @returns {boolean} None from the end.
+ * @returns {boolean} None from another anchor.
  */
-const fromStart = (reminders: readonly ReminderValue[]) => reminders.every((reminder) => reminder.anchor !== 'end');
+const fromStart = (reminders: readonly ReminderValue[]) => reminders.every((reminder) => reminderAnchorOf(reminder) === 'start');
 
 /** Reminders of an éphéméride: every kind, from its start only (decision FS), 10 at most. */
 export const startRemindersSchema = remindersSchema.refine(fromStart, NO_END);
@@ -141,24 +177,25 @@ export function reminderKindOf(reminder: ReminderValue): ReminderKind {
 }
 
 /**
- * What a reminder counts from.
+ * What a reminder counts from (a time of the day: its day only, decision FV).
  * @param {ReminderValue} reminder Reminder.
- * @returns {ReminderAnchor} Start or end.
+ * @returns {ReminderAnchor} Anchor.
  */
 export function reminderAnchorOf(reminder: ReminderValue): ReminderAnchor {
-  return reminder.anchor === 'end' ? 'end' : 'start';
+  return storedAnchor(reminder.anchor, reminder.at !== null) ?? 'start';
 }
 
 /**
  * Key of a reminder, the same for the same reminder whatever its ringtone: `before:15`, `at:08:00`, `days:3:08:00`,
- * prefixed by `end:` when counted from the end (choice of the editor, ring keys).
+ * prefixed by its anchor when not the start (`end:`, `openEnd:`, `dueStart:`; choice of the editor, ring keys).
  * @param {Reminder} reminder Reminder.
  * @returns {string} Key.
  */
 export function reminderKey(reminder: ReminderValue): string {
-  const end = reminderAnchorOf(reminder) === 'end' ? 'end:' : '';
-  if (reminder.at === null) return `${end}before:${reminder.before ?? 0}`;
-  return `${end}${reminder.days ? `days:${reminder.days}:${reminder.at}` : `at:${reminder.at}`}`;
+  const anchor = reminderAnchorOf(reminder);
+  const prefix = anchor === 'start' ? '' : `${anchor}:`;
+  if (reminder.at === null) return `${prefix}before:${reminder.before ?? 0}`;
+  return `${prefix}${reminder.days ? `days:${reminder.days}:${reminder.at}` : `at:${reminder.at}`}`;
 }
 
 /**
@@ -167,11 +204,12 @@ export function reminderKey(reminder: ReminderValue): string {
  * @returns {Reminder | null} Reminder.
  */
 export function reminderOfKey(key: string): Reminder | null {
-  const end = key.startsWith('end:');
-  const [kind, ...rest] = (end ? key.slice(4) : key).split(':');
+  const [first, ...others] = key.split(':');
+  const anchor = (REMINDER_ANCHORS as readonly string[]).includes(first) ? first : null;
+  const [kind, ...rest] = anchor ? others : [first, ...others];
   const value = rest.join(':');
   const fields = kind === 'at' ? { at: value } : kind === 'before' ? { before: Number(value) } : kind === 'days' ? { days: Number(rest[0]), at: rest.slice(1).join(':') } : {};
-  const parsed = reminderSchema.safeParse(end ? { ...fields, anchor: 'end' } : fields);
+  const parsed = reminderSchema.safeParse(anchor ? { ...fields, anchor } : fields);
   return parsed.success ? parsed.data : null;
 }
 
@@ -179,8 +217,8 @@ export function reminderOfKey(key: string): Reminder | null {
 const REMINDER_ORDER: Record<ReminderKind, number> = { days: 0, before: 1, at: 2 };
 
 /**
- * Reminders as stored: without duplicates (the last one kept, its ringtone with it), those from the start before those
- * from the end, each in the order they ring: the days before first (the most days first, then by time), then the
+ * Reminders as stored: without duplicates (the last one kept, its ringtone with it), by anchor (`ROUTINE_REMINDER_ANCHORS`
+ * order: the start, the end of the opening day, the start of the due day, the end), each in the order they ring: the days before first (the most days first, then by time), then the
  * minutes before (the latest first: 1 h before rings before 5 min before), then the times of the day.
  * @template {ReminderValue} R
  * @param {readonly R[]} reminders Reminders.
@@ -195,11 +233,11 @@ export function normalizedReminders<R extends ReminderValue>(reminders: readonly
    */
   const rank = (reminder: ReminderValue) => REMINDER_ORDER[reminderKindOf(reminder)];
   /**
-   * Rank of what a reminder counts from: the start, then the end.
+   * Rank of what a reminder counts from: the start, the end of the opening day, the start of the due day, the end.
    * @param {ReminderValue} reminder Reminder.
    * @returns {number} Rank.
    */
-  const side = (reminder: ReminderValue) => (reminderAnchorOf(reminder) === 'end' ? 1 : 0);
+  const side = (reminder: ReminderValue) => (ROUTINE_REMINDER_ANCHORS as readonly ReminderAnchor[]).indexOf(reminderAnchorOf(reminder));
   return [...unique.values()].sort((a, b) => {
     if (side(a) !== side(b)) return side(a) - side(b);
     if (rank(a) !== rank(b)) return rank(a) - rank(b);
@@ -255,11 +293,11 @@ const ringtoneOf = (reminder: ReminderValue): { ringtone?: RingtoneId } => (isRi
 
 /**
  * Reminders « N min avant » a moment (the others left out), key `<key>:before:<minutes>` (`<key>:end:before:<minutes>`
- * from the end).
+ * from the end, and so on).
  * @param {string} key Key of the moment.
  * @param {Date} moment Moment they count from.
  * @param {readonly ReminderValue[]} reminders Reminders.
- * @param {ReminderAnchor} [anchor] Those counted from the start or from the end. Optional. Default = start.
+ * @param {ReminderAnchor} [anchor] Those counted from this anchor. Optional. Default = start.
  * @returns {PlannedReminder[]} Reminders.
  */
 export function remindersBefore(key: string, moment: Date, reminders: readonly ReminderValue[], anchor: ReminderAnchor = 'start'): PlannedReminder[] {
@@ -275,11 +313,11 @@ export function remindersBefore(key: string, moment: Date, reminders: readonly R
  * @param {string} day Day (Paris).
  * @param {readonly ReminderValue[]} reminders Reminders.
  * @param {boolean} [onDay] Those of the day itself (`at` without `days`). Optional. Default = true.
- * @param {ReminderAnchor} [anchor] Those counted from the start (`day`: the first day) or from the end (`day`: the last
- *   day). Optional. Default = start.
+ * @param {'start' | 'end'} [anchor] Those counted from the start (`day`: the first day, the opening day of a routine)
+ *   or from the end (`day`: the last day, the due day of a routine). Optional. Default = start.
  * @returns {PlannedReminder[]} Reminders.
  */
-export function remindersAt(key: string, day: string, reminders: readonly ReminderValue[], onDay = true, anchor: ReminderAnchor = 'start'): PlannedReminder[] {
+export function remindersAt(key: string, day: string, reminders: readonly ReminderValue[], onDay = true, anchor: 'start' | 'end' = 'start'): PlannedReminder[] {
   return reminders.flatMap((reminder) =>
     reminder.at !== null && (onDay || reminder.days) && reminderAnchorOf(reminder) === anchor
       ? [{ key: `${key}:${reminderKey(reminder)}`, at: parisInstant(addDays(day, -(reminder.days ?? 0)), reminder.at), ...ringtoneOf(reminder) }]

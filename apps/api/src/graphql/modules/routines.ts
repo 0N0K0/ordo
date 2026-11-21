@@ -97,8 +97,8 @@ const RoutineSlotRef = builder.objectRef<SlotState>('RoutineSlot').implement({
 const RoutineReminderSlotRef = builder.objectRef<routines.RoutineReminderOccurrence['slots'][number]>('RoutineReminderSlot').implement({
   fields: (t) => ({
     slot: t.exposeInt('slot', { description: 'Index of its time of the day.' }),
-    at: t.field({ type: 'DateTime', description: 'First day of the occurrence at the start of the time of the day.', resolve: (slot) => slot.at }),
-    endAt: t.field({ type: 'DateTime', nullable: true, description: 'Due day of the occurrence at the latest time of the time of the day (reminders from the end); null without it.', resolve: (slot) => slot.endAt }),
+    fromTime: t.exposeString('fromTime', { nullable: true, description: 'Start of the time of the day (« dès », HH:MM); null: none.' }),
+    dueTime: t.exposeString('dueTime', { nullable: true, description: 'End of the time of the day (« jusqu’à », HH:MM); null: none.' }),
   }),
 });
 
@@ -107,7 +107,7 @@ const RoutineReminderOccurrenceRef = builder.objectRef<routines.RoutineReminderO
   fields: (t) => ({
     date: t.field({ type: 'Date', description: 'Due day of the occurrence.', resolve: (occurrence) => parseDay(occurrence.date) }),
     day: t.field({ type: 'Date', description: 'Its first day (« Ouverture »): the day of its reminders « À HH:MM » (the due day `date`: those from the end).', resolve: (occurrence) => parseDay(occurrence.day) }),
-    slots: t.field({ type: [RoutineReminderSlotRef], description: 'Its times of the day not ticked, with the moment its reminders « N min avant » count from.', resolve: (occurrence) => occurrence.slots }),
+    slots: t.field({ type: [RoutineReminderSlotRef], description: 'Its times of the day not ticked, with their hours (the moments its reminders « N min avant » count from: `routineSlotAnchors`).', resolve: (occurrence) => occurrence.slots }),
   }),
 });
 
@@ -144,7 +144,7 @@ builder.prismaObject('Routine', {
     moments: t.field({ type: 'JSON', description: 'Times of the day following its rule or its schedules, [{ fromTime, dueTime, optional }].', resolve: (routine) => routines.storedMoments(routine) }),
     reminders: t.field({
       type: [ReminderRef],
-      description: 'Reminders: minutes (24 hours at most) before the first day (« Ouverture ») of an occurrence at the start of each time of the day (« dès »), or a time of that day or of some days before it.',
+      description: 'Reminders: minutes (24 hours at most) before the start or the end of each time of the day on the first day (« Ouverture ») or the due day of an occurrence (`anchor`), or a time of one of those days or of some days before it.',
       resolve: (routine) => readReminders(routine.reminders),
     }),
     deadTimes: t.field({ type: [DeadTimeRef], description: '« Temps morts »: waits a timer is launched for from an occurrence (decision FT).', resolve: (routine) => readDeadTimes(routine.deadTimes) }),

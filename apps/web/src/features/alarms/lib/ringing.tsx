@@ -55,17 +55,32 @@ interface ActiveRing {
   silence?: () => void;
   /** Timers: end of the ring, next ring. */
   timers: number[];
+  /** Shown again from the API (a reload, another tab or device): its actions are rebuilt from its key (`restore`). */
+  restored?: boolean;
 }
 
-/** What the app gives the ring: its settings, how a page opens, the workspace open. */
+/** A ring as the API keeps it: its key and its workspace. */
+export interface KeptRing {
+  key: string;
+  workspaceId: string | null;
+}
+
+/** What the app gives the ring: its settings, how a page opens, the workspace open, the actions of a ring shown again. */
 interface RingContext {
   settings: RingSettings;
   open: (target: RingTarget) => void;
   workspaceId: string | null;
+  /**
+   * Actions of a ring shown again from the API, rebuilt from its key (« Marquer comme faite », « Ouvrir la fiche »,
+   * decision FV); none when they no longer apply. Optional.
+   */
+  restore?: (ring: KeptRing) => RingLink[];
 }
 
 let context: RingContext = { settings: DEFAULT_RING_SETTINGS, open: () => undefined, workspaceId: null };
 const active = new Map<string, ActiveRing>();
+/** Gap between the next ring here and the one the API keeps under which they are the same snooze (clocks, latency). */
+const SNOOZE_DRIFT_MS = 5_000;
 // Rings stopped (here, in another tab or device): never rung again.
 const stopped = new Set<string>();
 
@@ -118,6 +133,14 @@ export function configureRinging(next: RingContext): void {
 }
 
 /**
+ * Shows again the rings shown from the API, with their actions rebuilt (once what they are rebuilt from is loaded).
+ * @returns {void}
+ */
+export function refreshRestoredRings(): void {
+  for (const [key, ring] of active) if (ring.restored) show(key);
+}
+
+/**
  * Opens the page of a link of a ring, in its workspace (the way the app gave, `configureRinging`).
  * @param {RingTarget} target Page and workspace.
  * @returns {void}
@@ -165,12 +188,13 @@ function show(key: string): void {
   if (!ring) return;
   const { entry, ringingSince, nextAt } = ring;
   const minutes = snoozeMinutes(context.settings);
+  const links = ring.restored ? [...(context.restore?.({ key, workspaceId: entry.workspaceId ?? null }) ?? []), ...entry.actions] : entry.actions;
   const waiting = ringingSince === null && nextAt !== null;
   const actions: NotifyAction[] = [
     { label: 'Arrêter', icon: <StopCircleIcon aria-hidden />, onClick: () => stopRing(key) },
     ...(waiting ? [] : [{ label: `Répéter dans ${minutes} min`, icon: <ClockClockwiseIcon aria-hidden />, onClick: () => snoozeRing(key) }]),
     // A link keeps the toast: the alarm still rings until stopped.
-    ...entry.actions.map((action) => ({ ...action, onClick: () => (action.onClick(), show(key)) })),
+    ...links.map((action) => ({ ...action, onClick: () => (action.onClick(), show(key)) })),
   ];
   // eslint-disable-next-line no-restricted-syntax -- startRinging itself.
   notifyAlarm({
@@ -338,8 +362,9 @@ channel?.addEventListener('message', (event: MessageEvent<RingMessage>) => {
 });
 
 /**
- * Takes the rings the API keeps (after a reload, from another tab or device): a stopped one stops here; one not shown
- * here is shown as it is (ringing without sound, waiting, or silent), with the link it was kept with.
+ * Takes the rings the API keeps (after a reload, from another tab or device): a stopped one stops here; one snoozed
+ * elsewhere (silent, its next ring later than here) waits here too (decision FV); one not shown here is shown as it is
+ * (ringing without sound, waiting, or silent), with the link it was kept with and its actions rebuilt from its key.
  * @param {AlarmRing[]} rings Rings of the last hours.
  * @returns {void}
  */
@@ -349,7 +374,16 @@ export function followRings(rings: AlarmRing[]): void {
       if (!stopped.has(ring.key)) finish(ring.key);
       continue;
     }
-    if (active.has(ring.key) || stopped.has(ring.key)) continue;
+    const shown = active.get(ring.key);
+    if (shown) {
+      // Snoozed in another tab, device or notification: silent until its next ring (a row read before a ring of this
+      // tab is recorded has its next ring past: left alone).
+      const nextAt = ring.nextAt ? new Date(ring.nextAt).getTime() : null;
+      if (!ring.ringingSince && nextAt !== null && nextAt > Date.now() && (shown.ringingSince !== null || shown.nextAt === null || Math.abs(shown.nextAt - nextAt) > SNOOZE_DRIFT_MS))
+        wait(ring.key, nextAt);
+      continue;
+    }
+    if (stopped.has(ring.key)) continue;
     const target = ring.path ? { path: ring.path, workspaceId: ring.workspaceId } : null;
     const ringingSince = ring.ringingSince ? new Date(ring.ringingSince).getTime() : null;
     active.set(ring.key, {
@@ -365,6 +399,7 @@ export function followRings(rings: AlarmRing[]): void {
       ringingSince: ringingSince !== null && ringingSince + context.settings.ringMinutes * 60_000 > Date.now() ? ringingSince : null,
       nextAt: ring.nextAt ? new Date(ring.nextAt).getTime() : null,
       timers: [],
+      restored: true,
     });
     show(ring.key);
     schedule(ring.key);

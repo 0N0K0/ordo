@@ -1,4 +1,4 @@
-import { conversionLoss, DAILY_RECURRENCE, daysBetween, formatOptionalDay, parseDay, parseOptionalDay, readDeadTimes, readReminders, readSlotCondition, sumOf, type ConversionLoss, type RoutineOpens } from '@ordo/shared';
+import { conversionLoss, DAILY_RECURRENCE, daysBetween, formatOptionalDay, normalizedReminders, parseDay, parseOptionalDay, readDeadTimes, readReminders, readSlotCondition, sumOf, type ConversionLoss, type RoutineOpens } from '@ordo/shared';
 import { prisma } from '../../db';
 import { Prisma } from '../../generated/prisma/client';
 import { clientError } from '../../graphql/errors';
@@ -123,7 +123,8 @@ export async function convertTaskToRoutine(id: string, confirm: boolean): Promis
         startDate: timing.startDate,
         recurrence: toJson(DAILY_RECURRENCE),
         slotCondition: readSlotCondition(task.slotCondition) ? toJson(task.slotCondition) : Prisma.DbNull,
-        reminders: toJson(readReminders(task.reminders)),
+        // « N jours avant » the « Échéance » of the task stay so: counted from the due day of the routine (decision FV).
+        reminders: toJson(normalizedReminders(readReminders(task.reminders).map((reminder) => (reminder.days ? { ...reminder, anchor: 'end' as const } : reminder)))),
         deadTimes: toJson(readDeadTimes(task.deadTimes)),
         opensOn: opens ? toJson(opens) : Prisma.DbNull,
         location: task.location,
@@ -220,7 +221,7 @@ export async function convertRoutineToTask(id: string, confirm: boolean): Promis
         projectId: routine.projectId,
         statusId: todo?.id ?? null,
         slotCondition: condition ? toJson(condition) : Prisma.DbNull,
-        // A task counts them from its due day: those from the end of the routine (its due day) lose their anchor.
+        // A task counts them from its due day: those of the routine lose their anchor (from its opening day or its due day).
         reminders: toJson(reminders.flatMap(({ anchor: _anchor, ...reminder }) => (reminder.at !== null ? [reminder] : []))),
         deadTimes: toJson(readDeadTimes(routine.deadTimes)),
         minDate: parseOptionalDay(opening),

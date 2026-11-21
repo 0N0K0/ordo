@@ -66,7 +66,7 @@ Tâches répétées, créneaux et routines peuvent combiner plusieurs **cas** (1
 ### Fuseaux
 
 - Les heures d'un évènement sont des heures de **Paris** (décision D7 : plus de fuseau propre à l'évènement ; celles des évènements créés dans un autre fuseau sont lues telles qu'écrites, en heure de Paris) ; l'instant réel est calculé par `zonedInstant(…, 'Europe/Paris')` (deux passes pour les changements d'heure). L'export iCalendar écrit toujours `Europe/Paris`. Les rappels des tâches, routines et évènements sonnent aussi en heure de Paris (`parisInstant`, décision D16). Il n'y a pas d'import iCalendar.
-- Les alarmes sonnent à l'heure locale de l'appareil (`previousOccurrence`, `nextOccurrence`, recherche sur 2 jours en arrière et 800 jours en avant).
+- Les alarmes sonnent à l'heure de Paris, dans l'app comme sur le serveur (`previousOccurrence`, `nextOccurrence`, recherche sur 2 jours en arrière et 800 jours en avant ; décision FV, 2026-11-21 : avant, l'heure locale de l'appareil).
 
 ## Durées
 

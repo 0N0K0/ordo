@@ -1,6 +1,5 @@
 import { SimpleGrid, Stack } from '@mantine/core';
 import type { LabelledEmail, Phone, Reminder, ReminderFields } from '@ordo/shared';
-import { BellIcon } from '@phosphor-icons/react';
 import { ContactListField } from '../inputs/ContactListField';
 import { RemindersSelect } from '../inputs/RemindersSelect';
 import { BirthDateField } from './BirthDateField';
@@ -44,12 +43,9 @@ export function PersonDetailsFields({ birthDate, birthdayReminders, emails, phon
           kinds={['at', 'days']}
           label="Rappels d’anniversaire"
           description={birthDate.value ? 'Le jour même ou quelques jours avant, à une heure.' : 'Donnez une date de naissance pour des rappels.'}
-          leftSection={<BellIcon aria-hidden />}
-          emptyLabel="Aucun"
           disabled={!birthDate.value}
           value={birthdayReminders.value}
           onChange={birthdayReminders.onChange}
-          clearable
           error={errors.birthdayReminders as string | undefined}
         />
       </SimpleGrid>

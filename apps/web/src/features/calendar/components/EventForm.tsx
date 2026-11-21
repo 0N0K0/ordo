@@ -11,7 +11,7 @@ import { itemSelectProps } from '../../../components/items/item-look';
 
 import { Alert, Anchor, Fieldset, Group, Select, SimpleGrid, Stack, Text, TextInput } from '@mantine/core';
 import { DatePickerInput, TimePicker } from '@mantine/dates';
-import { addDays, mapById, type CalendarEventInput, calendarEventInputSchema, daysBetween, formatDuration, type Recurrence, sharePeople, TEXT_MAX } from '@ordo/shared';
+import { addDays, mapById, type CalendarEventInput, calendarEventInputSchema, daysBetween, EVENT_REMINDER_ANCHORS, formatDuration, type Recurrence, sharePeople, TEXT_MAX } from '@ordo/shared';
 import { ArrowArcRightIcon, ArrowCounterClockwiseIcon, CalendarXIcon, PlayIcon, XIcon } from '@phosphor-icons/react';
 import { Link } from 'react-router';
 import { useRef, useState } from 'react';
@@ -550,9 +550,10 @@ export function EventForm({ context, occurrence, defaults, onDone, onDuplicated,
                       ? 'Avant minuit le premier jour (« 6 h avant » : la veille à 18 h), 24 h au plus ; ou à une heure du premier jour ou de quelques jours avant ; ou de même depuis la fin (minuit après le dernier jour).'
                       : 'Avant le début, 24 h au plus ; ou à une heure du premier jour ou de quelques jours avant ; ou de même depuis la fin.'
                   }
-                  anchors={['start', 'end']}
-                  emptyLabel="Aucun"
-                  value={values.reminders} onChange={(reminders) => form.setFieldValue('reminders', reminders)} clearable />
+                  anchors={EVENT_REMINDER_ANCHORS}
+                  value={values.reminders}
+                  onChange={(reminders) => form.setFieldValue('reminders', reminders)}
+                />
               </Fieldset>
             </SimpleGrid>
             {recurring && !seriesFields && (

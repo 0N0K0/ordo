@@ -1,4 +1,4 @@
-import type { Reminder } from '@ordo/shared';
+import { ROUTINE_REMINDER_ANCHORS, type Reminder } from '@ordo/shared';
 import { LabeledField } from '../../../components/inputs/LabeledField';
 import { AddItemButton } from '../../../components/actions/AddItemButton';
 import { useSlotChoices } from '../../calendar/hooks/use-slot-sources';
@@ -18,7 +18,6 @@ import {
   type RoutineSlot,
   DURATION_UNITS,
 } from '@ordo/shared';
-import { BellIcon } from '@phosphor-icons/react';
 import { useState, type ReactNode } from 'react';
 import { RepetitionEditor, type RepetitionModeValue, type RepetitionTimes } from '../../../components/recurrence/RepetitionEditor';
 import { RepetitionField, RepetitionModal } from '../../../components/recurrence/RepetitionField';
@@ -342,7 +341,6 @@ export function RoutineSchedule({ values, errors, onChange, onCommit }: RoutineS
   const address = addressOf(values);
   // Put in the form (and saved, field by field) once chosen, cleared or left.
   const place = useFormLocation(values, onChange, onCommit);
-  const timed = mode !== 'RULE' || Boolean(values.slotCondition) || values.moments.some((moment) => moment.fromTime || moment.dueTime);
   return (
     <Stack gap="sm">
       <RepetitionField<RoutineRepetitionValue>
@@ -380,18 +378,10 @@ export function RoutineSchedule({ values, errors, onChange, onCommit }: RoutineS
       </SimpleGrid>
       <RemindersSelect
         label="Rappels"
-        description={
-          timed
-            ? 'Avant son premier jour (« Ouverture ») à l’heure « dès » de chaque moment non coché (sinon son heure maximale), 24 h au plus ; ou à une heure de ce jour ou de quelques jours avant. Depuis la fin : son échéance, à l’heure « jusqu’à » de chaque moment.'
-            : 'À une heure de son premier jour (« Ouverture ») ou de quelques jours avant, ou de son échéance (depuis la fin) : donnez-lui un horaire ou un créneau pour des rappels avant ses moments.'
-        }
-        anchors={['start', 'end']}
-        leftSection={<BellIcon aria-hidden />}
-        emptyLabel="Aucun"
-        kinds={timed ? ['before', 'at', 'days'] : ['at', 'days']}
+        description="Pour chaque occurrence : avant le début ou la fin de chaque moment non coché, le jour de l’ouverture ou celui de l’échéance (« dès » / « jusqu’à » ; sans heure, de 0 h à minuit), 24 h au plus ; ou à une heure de l’un de ces jours ou de quelques jours avant."
+        anchors={ROUTINE_REMINDER_ANCHORS}
         value={values.reminders}
         onChange={(reminders) => onChange({ reminders })}
-        clearable
         error={errors.reminders}
       />
       {(leaveAt || backAt) && (

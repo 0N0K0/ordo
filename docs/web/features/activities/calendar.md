@@ -197,8 +197,8 @@ Utilisés par `ScheduleSettings`.
 - `Doable` (interface) : `slotCondition?`, `assigneeIds`, `taskId`, `routineId`.
 - `routineDoable(routine)` : une routine en `Doable`, sans condition (sa condition garde déjà ses moments) : seuls les évènements qui occupent ses assignés comptent. Utilisé par `AlarmCenter`, `RoutinesPage`, `LifeCards` (accueil), temps.
 - `SlotRules` (interface) : `allowed`, `inSlots`, `blocking`, `nextAllowedAt`, `describe` (condition en mots, `describeSlotCondition` ; `null` sans condition).
-- `useSlotRules()` : conditions de créneaux de l’espace, les mêmes pour tâches et routines, recalculées chaque minute (`useNow`) : créneaux et types de l’espace et des autres espaces de l’utilisateur et anniversaires, les archivés, ceux des types archivés et des personnes archivées ne donnant aucun moment (décision FQ), comme l’API (`useSlotSources`, `scheduleSlotsOn`, `conditionAllowsAt`, `nextConditionMoment`), occupation par les évènements (`blockingEvent`, `meId`), prochain moment permis (20 tours max, `busyUntil`). Sans condition : n’importe quand, en PRO comme en PERSO (décision D10). Utilisé par `AlarmCenter`, temps (`features/time/api`), routines, accueil, cellules des tâches.
-- Constante interne `LOOKAHEAD_DAYS` = 14.
+- `useSlotRules()` : conditions de créneaux de l’espace, les mêmes pour tâches et routines, recalculées chaque minute (`useNow`) : créneaux et types de l’espace et des autres espaces de l’utilisateur et anniversaires, les archivés, ceux des types archivés et des personnes archivées ne donnant aucun moment (décision FQ), comme l’API (`useSlotSources`, `scheduleSlotsOn`, `conditionAllowsAt`, `nextConditionMoment`), occupation par les évènements (`blockingEvent`, `meId`), prochain moment permis (`nextAllowedMoment` partagé avec le serveur, heure de Paris : `parisDay`, `timeIn`, `parisInstant` ; décision FV). Sans condition : n’importe quand, en PRO comme en PERSO (décision D10). Utilisé par `AlarmCenter`, temps (`features/time/api`), routines, accueil, cellules des tâches.
+- Horizon : `NEXT_ALLOWED_DAYS` = 14 (partagé).
 
 ### `hooks/use-slot-sources.ts`
 

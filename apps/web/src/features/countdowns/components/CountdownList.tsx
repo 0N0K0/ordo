@@ -8,11 +8,13 @@ import { openCountdownForm } from '../lib/open-countdown-form';
 import { CountdownRow } from './CountdownRow';
 
 /**
- * Timers of the user (every workspace, decision FT), the soonest end first, and « Lancer un minuteur ».
- * @param {{ compact?: boolean }} props In a popover: no empty state text but the button (optional).
+ * Timers of the user (every workspace, decision FT), the soonest end first, each with its commands, and « Lancer un
+ * minuteur » (the form of « Ajouter › Minuteur »): the page « Alarmes », the header, the home card (decision FV).
+ * @param {{ compact?: boolean, bare?: boolean }} props In a popover (`compact`: small button), or in a card (`bare`):
+ *   no empty state text but the button (optional).
  * @returns {JSX.Element} List.
  */
-export function CountdownList({ compact = false }: { compact?: boolean }) {
+export function CountdownList({ compact = false, bare = compact }: { compact?: boolean; bare?: boolean }) {
   const { data: countdowns, isPending } = useCountdowns();
   return (
     <Stack gap="sm">
@@ -21,7 +23,7 @@ export function CountdownList({ compact = false }: { compact?: boolean }) {
       ) : countdowns?.length ? (
         countdowns.map((countdown) => <CountdownRow key={countdown.id} countdown={countdown} />)
       ) : (
-        !compact && <EmptyState compact icon={<TimerIcon aria-hidden />} message="Aucun minuteur en cours." />
+        !bare && <EmptyState compact icon={<TimerIcon aria-hidden />} message="Aucun minuteur en cours." />
       )}
       <ActionButton priority="secondary" size={compact ? 'xs' : undefined} icon={<TimerIcon aria-hidden />} onClick={() => openCountdownForm()} style={{ alignSelf: 'flex-start' }}>
         Lancer un minuteur

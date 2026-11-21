@@ -1,4 +1,5 @@
-import { addDays } from '../dates/days';
+import { addDays, dayIn } from '../dates/days';
+import { zonedInstant } from '../dates/recurrence';
 
 /** Event occurrence as far as being busy goes. */
 export interface BusyEvent {
@@ -20,7 +21,7 @@ export interface BusyEvent {
 }
 
 /** What is done by someone: its assignees (none: « Moi »), and the task it is, if any. */
-interface BusyItem {
+export interface BusyItem {
   assigneeIds: readonly string[];
   /** Task (an event about it does not block it). Optional. */
   taskId?: string | null;
@@ -61,14 +62,55 @@ export function blockingEvent(events: readonly BusyEvent[], item: BusyItem, meId
 }
 
 /**
- * Moment an event stops keeping someone busy: its end, or the local midnight after its last day for an all-day one.
+ * Moment an event stops keeping someone busy: its end, or the midnight after its last day for an all-day one (in a
+ * time zone, else the local one).
  * @param {BusyEvent} event Event.
+ * @param {string} [timeZone] Time zone of its days. Optional. Default = the local one.
  * @returns {Date} Moment.
  */
-export function busyUntil(event: BusyEvent): Date {
+export function busyUntil(event: BusyEvent, timeZone?: string): Date {
   if (!event.allDay) return new Date(event.end);
-  const [year, month, day] = addDays(event.endDate, 1).split('-').map(Number);
+  const next = addDays(event.endDate, 1);
+  if (timeZone) return zonedInstant(next, '00:00', timeZone);
+  const [year, month, day] = next.split('-').map(Number);
   return new Date(year, month - 1, day);
+}
+
+/** Days ahead the next moment a task or a routine can be done is looked for. */
+export const NEXT_ALLOWED_DAYS = 14;
+
+/** What the next moment a task or a routine can be done is found from. */
+export interface NextAllowedContext {
+  /** Event occurrences of the days ahead. */
+  events: readonly BusyEvent[];
+  /** « Moi ». */
+  meId: string | null;
+  /** Time zone of the days (Paris, decision FV: the app and the server find the same moment). */
+  timeZone: string;
+  /** Next moment its condition on calendar schedules allows from a moment on, null: none; missing: any moment. Optional. */
+  nextInSlots?: (at: Date) => Date | null;
+}
+
+/**
+ * First moment from a moment on a task or a routine can be done (within `NEXT_ALLOWED_DAYS`): the next moment its
+ * condition allows, past the events keeping its assignees busy then (a few rounds at most); null when none. The one
+ * way the app and the server defer a reminder of a routine (decision FV).
+ * @param {BusyItem} item Task or routine.
+ * @param {Date} from Moment.
+ * @param {NextAllowedContext} context Events, « Moi », time zone, condition.
+ * @returns {Date | null} Moment.
+ */
+export function nextAllowedMoment(item: BusyItem, from: Date, { events, meId, timeZone, nextInSlots }: NextAllowedContext): Date | null {
+  const last = from.getTime() + NEXT_ALLOWED_DAYS * 24 * 3600_000;
+  let at = from;
+  for (let round = 0; round < 20; round++) {
+    const candidate = nextInSlots ? nextInSlots(at) : at;
+    if (!candidate || candidate.getTime() > last) return null;
+    const busy = blockingEvent(events, item, meId, candidate, dayIn(candidate, timeZone));
+    if (!busy) return candidate;
+    at = busyUntil(busy, timeZone);
+  }
+  return null;
 }
 
 /**

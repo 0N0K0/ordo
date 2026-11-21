@@ -5,7 +5,7 @@ import { locatedFields } from '../core/geo';
 import { itemLinksSchema } from '../core/links';
 import { recurrenceSchema } from '../dates/recurrence';
 import { daySchema, timeOfDaySchema, endDaySchema, startDaySchema } from '../dates/times';
-import { remindersSchema } from '../dates/reminders';
+import { eventRemindersSchema } from '../dates/reminders';
 import { colorSchema } from '../core/workspace';
 
 /** Calendar event fields. Times are Paris times (every event is in Paris time); all-day events have none. */
@@ -22,7 +22,7 @@ export const calendarEventInputSchema = z
     endTime: timeOfDaySchema.nullable(),
     recurrence: recurrenceSchema.nullable(),
     /** Minutes before the start (24 hours at most), or a time of its first day (decision D16). */
-    reminders: remindersSchema,
+    reminders: eventRemindersSchema,
     /** Point of the location, and travel time to the event and back from it, in minutes (timed events). */
     ...locatedFields,
     projectId: z.string().nullable(),
