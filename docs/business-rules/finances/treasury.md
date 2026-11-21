@@ -227,7 +227,7 @@ Source : `treasury-team.ts`, schéma `treasuryRelationSchema`.
 - Modification refusée si elle est archivée.
 - Suppression : ses budgets sont supprimés (`Cascade`), ses lignes deviennent celles de l’utilisateur (`SetNull`) et sortent donc des prêts.
 - Liste : par nom ; `lineCount`, `budgetCount`.
-- Archivage : type `TREASURY_RELATION`.
+- Archivage : type `TREASURY_RELATION` ; la relation et son contributeur sont archivés et restaurés ensemble (voir [Archivage](../cross-cutting/archiving.md#personnes-liées)).
 
 ## Contextes et leurs périodes (éphémérides)
 

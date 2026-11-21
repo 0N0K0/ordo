@@ -22,6 +22,7 @@ import { useTaskContext } from '../../tasks/hooks/use-task-context';
 import { useColorSwatches } from '../../../lib/use-color-swatches';
 import { useActiveWorkspace } from '../../workspaces/api';
 import { treasuryKey, useTreasurySettings, useTreasuryTeamMutations, type TreasuryRelation } from '../api';
+import { tasksQueryKey } from '../../../lib/query-keys';
 import * as fmt from '../../../lib/format';
 import { MarkdownView } from '../../../components/markdown/MarkdownView';
 import { countOf } from '../../../lib/text';
@@ -406,7 +407,8 @@ export function RelationForm({ relation, name = '', onDone }: { relation?: Treas
 export function TeamRelations() {
   const { data: settings } = useTreasurySettings();
   const { deleteRelation } = useTreasuryTeamMutations();
-  const setArchived = useSlotSourceArchiving('TREASURY_RELATION', [treasuryKey]);
+  // Its contributor is archived and restored with it.
+  const setArchived = useSlotSourceArchiving('TREASURY_RELATION', [treasuryKey, tasksQueryKey]);
   const { perso } = useActiveWorkspace();
   const words = relationWords(perso);
   /**

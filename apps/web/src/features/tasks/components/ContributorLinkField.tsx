@@ -1,11 +1,16 @@
-import { SegmentedControl, Select, Stack, Text } from '@mantine/core';
+import { Group, SegmentedControl, Select, Stack, Text } from '@mantine/core';
+import { IdentificationCardIcon } from '@phosphor-icons/react';
 import { birthDateText, contactName, readBirthDate, readEmails, readPhones, type ContributorLinkKind, type ContributorLinkValues } from '@ordo/shared';
 import { useState } from 'react';
 import { LabeledField } from '../../../components/inputs/LabeledField';
 import { ContactLines } from '../../../components/people/ContactLines';
 import { relationWords } from '../../../components/people/people-options';
 import { unarchived } from '../../../lib/archive';
+import { ActionButton } from '../../../components/actions/ActionButton';
 import { useClientContacts } from '../../accounting/api';
+import { openContactForm } from '../../accounting/lib/open-contact';
+import { openMemberForm } from '../../treasury/lib/open-member';
+import { openRelationForm } from '../../treasury/lib/open-relation';
 import { useTreasurySettings } from '../../treasury/api';
 import { useActiveWorkspace } from '../../workspaces/api';
 import type { Contributor } from '../api';
@@ -34,7 +39,8 @@ interface LinkedDetails {
  * team or household), a relation (its), a contact of a client in a professional workspace (its email and phones, no
  * birthday), or « Aucun ». Membership and nothing are saved at once; a relation or a contact once picked (those of
  * another contributor and the archived ones are not offered, the current one stays). Below, the details that apply,
- * read only, with where they come from. « Moi » always is a member.
+ * read only, with where they come from, and « Ouvrir la fiche » opening the card they are edited in (the member's,
+ * the relation's, the contact's). « Moi » always is a member.
  * @param {ContributorLinkFieldProps} props Component props.
  * @returns {JSX.Element} Field.
  */
@@ -51,7 +57,7 @@ export function ContributorLinkField({ value, onChange, contributor, errors }: C
   // Those of another contributor are not offered.
   const takenContacts = new Set((context?.contributors ?? []).filter((item) => item.id !== self && item.contactId).map((item) => item.contactId));
   const relations = unarchived(settings?.treasuryRelations ?? [], value.relationId).filter((relation) => !relation.contributorId || relation.contributorId === self);
-  const offeredContacts = (contacts ?? []).filter((contact) => !takenContacts.has(contact.id) && (!contact.client.archived || contact.id === value.contactId));
+  const offeredContacts = unarchived(contacts ?? [], value.contactId).filter((contact) => !takenContacts.has(contact.id) && (!contact.client.archived || contact.id === value.contactId));
   const contactGroups = [...new Set(offeredContacts.map((contact) => contact.client.name))].map((group) => ({
     group,
     items: offeredContacts.filter((contact) => contact.client.name === group).map((contact) => ({ value: contact.id, label: contactName(contact) })),
@@ -95,6 +101,17 @@ export function ContributorLinkField({ value, onChange, contributor, errors }: C
               }
             : { text: 'Aucune coordonnée ni anniversaire.', details: null };
   const birth = readBirthDate(source.details?.birthDate);
+  /** Opens the card the details are edited in: the member's, the relation's, the contact's in its client; none for a new member or nothing. */
+  const openSource =
+    kind !== value.kind
+      ? null
+      : kind === 'MEMBER' && contributor
+        ? () => openMemberForm(contributor)
+        : kind === 'RELATION' && relation
+          ? () => openRelationForm(relation, perso)
+          : kind === 'CONTACT' && contact
+            ? () => openContactForm(contact.client.id, contact.id, Boolean(contact.archived || contact.client.archived))
+            : null;
 
   return (
     <LabeledField label="Coordonnées et anniversaire" description="Un contributeur n’en a pas de propres : ce sont ceux de ce à quoi il est lié." gap="xs" error={errors.link as string | undefined}>
@@ -135,6 +152,13 @@ export function ContributorLinkField({ value, onChange, contributor, errors }: C
         </Text>
         {birth && <Text size="sm">Date de naissance : {birthDateText(birth)}</Text>}
         {source.details && <ContactLines emails={readEmails(source.details.emails)} phones={readPhones(source.details.phones)} />}
+        {openSource && (
+          <Group>
+            <ActionButton priority="tertiary" icon={<IdentificationCardIcon aria-hidden />} onClick={openSource}>
+              Ouvrir la fiche
+            </ActionButton>
+          </Group>
+        )}
       </Stack>
     </LabeledField>
   );

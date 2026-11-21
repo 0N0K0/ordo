@@ -32,8 +32,8 @@ Société, numérotation et fiche de facturation des clients. Fragment `CompanyP
 | `accountingQueryKey`                                                                                                      | `['accounting']`, racine de toutes les clés.                                                                           |
 | `useCompanyProfile()`                                                                                                     | Profil de la société. Utilisé par `CompanySettings`, `CatalogItemForm`, `DocumentEditor`.                              |
 | `useDocumentSequences(year)`                                                                                              | Numérotation d’une année. `NumberingSettings`.                                                                         |
-| `useClientBilling(id)`                                                                                                    | Coordonnées, services et contacts d’un client. `ClientBillingSection`, `DocumentEditor`.                               |
-| `useClientContacts(enabled?)`, `AnyClientContact` (type) | Tous les contacts de tous les clients (`clientContacts`, clients archivés compris, avec `client { id name archived }`) : ceux auxquels un contributeur peut être lié (pas en PERSO). `ContributorLinkField`. |
+| `useClientBilling(id)`                                                                                                    | Coordonnées, services et contacts d’un client (avec `archived`, du client et de chaque contact). `ClientBillingSection`, `ClientPartyForms`, `DocumentEditor` (contacts archivés non proposés, sauf celui du document). |
+| `useClientContacts(enabled?)`, `AnyClientContact` (type) | Tous les contacts de tous les clients (`clientContacts`, archivés et clients archivés compris, avec `archived` et `client { id name archived }`) : ceux auxquels un contributeur peut être lié (pas en PERSO). `ContributorLinkField`. |
 | `useAccountingMutation(mutationFn)`                                                                                       | Mutation qui invalide `accountingQueryKey` (`useInvalidatingMutation`). Base de toutes les mutations du dossier.       |
 | `useCompanyMutations()`                                                                                                   | `update`, `setLogo`, `setSequence`.                                                                                    |
 | `useClientPartyMutations()`                                                                                               | `updateDetails`, `createService`, `updateService`, `deleteService`, `createContact`, `updateContact`, `deleteContact` ; `updateContact` et `deleteContact` rechargent aussi les tâches (le contributeur lié montre l’email et les téléphones du contact). |
@@ -289,10 +289,10 @@ Les deux sont utilisés par `DocumentsTable`.
 
 | Élément                                       | Rôle                                                                                                                                                                                 |
 | --------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| `ClientBillingSection({ clientId, readOnly? })` (export) | Section « Facturation » d’un client : carte du client, contacts sans service, cartes des services ; boutons « Coordonnées », « Nouveau service », « Nouveau contact ». `readOnly` (client archivé) : panneaux en lecture seule (« Voir »), ni ajout ni suppression ; donné aux panneaux comme source suivie (`useLiveSource`, interface interne `RowReadOnly` de `ContactRow` / `ServiceCard`) : un panneau ouvert passe en lecture seule quand le client est archivé ailleurs. `ClientPage`. |
+| `ClientBillingSection({ clientId, readOnly? })` (export) | Section « Facturation » d’un client : carte du client, contacts sans service, cartes des services ; interrupteur « Afficher les archivés » (contacts archivés masqués par défaut, `useArchivedToggle`), boutons « Coordonnées », « Nouveau service », « Nouveau contact ». `readOnly` (client archivé) : panneaux en lecture seule (« Voir »), ni ajout ni suppression ; donné aux panneaux comme source suivie (`useLiveSource`, interface interne `RowReadOnly` de `ContactRow` / `ServiceCard`) : un panneau ouvert passe en lecture seule quand le client est archivé ailleurs. `ClientPage`. |
 | `ContactInfo`                                 | Adresse (`addressLines`, `countryName`), email et téléphones (`ContactLines`), site (lien seulement en http(s)).                                                                                        |
-| `ContactRow`                                  | Un contact, modifier ou supprimer (confirmation).                                                                                                                                    |
-| `ServiceCard`                                 | Un service et ses contacts ; ajouter un contact, modifier, supprimer.                                                                                                                |
+| `ContactRow`                                  | Un contact : « Modifier » / « Voir » (`openContactForm`), « Archiver » / « Restaurer » (`archiveEntry`, `useSlotSourceArchiving('CLIENT_CONTACT')` : son contributeur le suit, une confirmation de perte ; pas sur un client archivé), supprimer (confirmation) ; archivé : badge, lecture seule, ni suppression. |
+| `ServiceCard`                                 | Un service et ses contacts (ceux montrés) ; ajouter un contact, modifier, supprimer.                                                                                                                |
 
 ### `components/ClientPartyForms.tsx`
 
@@ -300,11 +300,12 @@ Les deux sont utilisés par `DocumentsTable`.
 | -------------------------------------------------------------------- | --------------------------------------------------------------------------------------------- |
 | `ClientDetailsForm({ client, readOnly? })` (export)                     | Coordonnées de facturation (`clientDetailsSchema`), champs selon professionnel / particulier ; enregistrées champ par champ (`useFieldSave` avec `DETAILS_ON_BLUR`, adresse et téléphones par `fieldProps`, erreurs par `nestedErrors`, client du cache `useClientBilling` suivi), sans bouton. |
 | `ClientServiceForm({ clientId, service, onDone, readOnly? })` (export)          | Service (`clientServiceSchema`) ; nouveau : « Ajouter » ; existant : enregistré champ par champ (même façon).                                                              |
-| `ClientContactForm({ client, contact, serviceId, onDone, readOnly? })` (export) | Contact (`clientContactSchema`), service facultatif ; nouveau : « Ajouter » ; existant : enregistré champ par champ (le service dès qu’il change).                                          |
+| `ClientContactForm({ client, contact, serviceId, onDone, readOnly? })` (export) | Contact (`clientContactSchema`), service facultatif ; nouveau : « Ajouter » ; existant : enregistré champ par champ (le service dès qu’il change) ; lecture seule si le contact ou son client est archivé (cache `useClientBilling`), ou par `readOnly`. |
+| `ContactPanel({ clientId, contactId, onDone })` (export) | Panneau d’un contact existant, son client chargé (`useClientBilling`, `FormSkeleton` en attendant) ; rien si le contact n’existe plus. `openContactForm`. |
 | `detailsValues(client)`, `serviceValues(service?)`, `contactValues(contact?, serviceId?)` | Valeurs des formulaires (aussi `saved`). |
 | `DetailsValues`, `ServiceValues`, `ContactValues`, `PartyPanelProps`                    | Valeurs des formulaires ; `readOnly` (client archivé) : `LiveSource<boolean>` lue par `useLiveValue`, suivie le panneau ouvert.                                                                      |
 
-Utilisés par `ClientBillingSection`.
+Utilisés par `ClientBillingSection` et `openContactForm`.
 
 ### `components/AddressFields.tsx`
 
@@ -339,6 +340,12 @@ Utilisés par `ClientBillingSection`.
 | `THE_DOCUMENT_TYPE`                                                   | « Le devis », « La facture »…                                                                        |
 | `EMPTY_DOCUMENTS`                                                     | Messages vides par type.                                                                             |
 | `vatRateOptions(current)`                                             | Options de TVA : taux usuels plus le taux actuel.                                                    |
+
+### `lib/open-contact.tsx`
+
+| Export                                        | Rôle                                                                                                                                                       |
+| --------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `openContactForm(clientId, contactId, readOnly)` | Ouvre le panneau d’un contact (`ContactPanel`, « Modifier le contact », « Contact » s’il ou son client est archivé). `ContactRow`, `ContributorLinkField` (« Ouvrir la fiche »). |
 
 ### `lib/new-document.tsx`
 

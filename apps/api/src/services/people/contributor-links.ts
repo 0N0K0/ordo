@@ -2,7 +2,7 @@ import { contactName, contributorLinkSchema, readEmails, readPhones, readReminde
 import { prisma } from '../../db';
 import type { Prisma } from '../../generated/prisma/client';
 import { clientError, fieldError, orNotFound, parseField } from '../../graphql/errors';
-import { assertNotArchived } from '../core/archive';
+import { assertNotArchived, type ArchivableKind, type ArchiveTargets } from '../core/archive';
 import { isMember } from './members';
 import { NO_PEOPLE_SETTLER, peopleChanges, personChange, type PeopleChange, type PeopleChangeSettler } from '../calendar/birthdays';
 
@@ -100,7 +100,8 @@ export async function assertNoOtherLink(contributorId: string, as: 'MEMBER' | 'R
 /**
  * Links a contributor to one of a membership of the team or household, a relation, a contact or nothing: the link
  * replaces the one it had (a relation it was loses it). "Moi" always is a member. A relation or a contact is one
- * contributor at most; an archived relation, or a contact of an archived client, is not newly chosen. Checked first,
+ * contributor at most; an archived relation, an archived contact or a contact of an archived client, is not newly
+ * chosen. Checked first,
  * then settled (the birthday that applies to it moves), then returned as the work that saves it.
  * @param {{ id: string, userId: string | null } | null} contributor Contributor, or none for a new one.
  * @param {ContributorLinkInput} input Link.
@@ -125,7 +126,10 @@ export async function contributorLink(
   if (contactId) {
     const contact = await orNotFound(prisma.clientContact.findUnique({ where: { id: contactId }, select: { clientId: true, contributor: { select: { id: true } } } }), 'Contact', 'link.contactId');
     if (contact.contributor && contact.contributor.id !== contributor?.id) throw fieldError('link.contactId', 'Ce contact est déjà lié à un autre contributeur.');
-    if (current?.contactId !== contactId) await assertNotArchived('client', contact.clientId, { field: 'link.contactId' });
+    if (current?.contactId !== contactId) {
+      await assertNotArchived('client', contact.clientId, { field: 'link.contactId' });
+      await assertNotArchived('clientContact', contactId, { field: 'link.contactId' });
+    }
   }
   const member = link.kind === 'MEMBER';
   if (contributor && current) {
@@ -145,4 +149,35 @@ export async function contributorLink(
       prisma.contributor.update({ where: { id: contributorId }, data: { teamMember: member, contactId } }),
     ]);
   };
+}
+
+/** Kinds of the people archived and restored with what they are linked to. */
+export const LINKED_PEOPLE_KINDS: ReadonlySet<ArchivableKind> = new Set(['CONTRIBUTOR', 'TREASURY_RELATION', 'CLIENT_CONTACT']);
+
+/**
+ * People archived and restored with some others, being linked to them: the relation and the contact of a
+ * contributor, the contributor of a relation or of a contact. A member is its own contributor (nothing else); a
+ * client is not a person (never along).
+ * @param {ArchivableKind} kind Kind of the people given (`LINKED_PEOPLE_KINDS`; any other: none).
+ * @param {readonly string[]} ids People.
+ * @returns {Promise<ArchiveTargets>} People along, by kind.
+ */
+export async function linkedPeople(kind: ArchivableKind, ids: readonly string[]): Promise<ArchiveTargets> {
+  const list = [...ids];
+  /**
+   * Id of a row.
+   * @param {{ id: string }} row Row.
+   * @returns {string} Id.
+   */
+  const idOf = (row: { id: string }) => row.id;
+  if (kind === 'CONTRIBUTOR') {
+    const [relations, contacts] = await Promise.all([
+      prisma.treasuryRelation.findMany({ where: { contributorId: { in: list } }, select: { id: true } }),
+      prisma.clientContact.findMany({ where: { contributor: { is: { id: { in: list } } } }, select: { id: true } }),
+    ]);
+    return { TREASURY_RELATION: relations.map(idOf), CLIENT_CONTACT: contacts.map(idOf) };
+  }
+  if (kind === 'TREASURY_RELATION') return { CONTRIBUTOR: (await prisma.contributor.findMany({ where: { treasuryRelations: { some: { id: { in: list } } } }, select: { id: true } })).map(idOf) };
+  if (kind === 'CLIENT_CONTACT') return { CONTRIBUTOR: (await prisma.contributor.findMany({ where: { contactId: { in: list } }, select: { id: true } })).map(idOf) };
+  return {};
 }

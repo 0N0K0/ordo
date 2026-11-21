@@ -65,7 +65,7 @@ import { useClientBilling, useCompanyProfile } from '../api';
 import { documentMailOptions, openPdfPreview, pdfUrl } from '../lib/document-pdf';
 import { useAccountingDocument, useDocumentMutations, useLatestDocumentDate, useRecurringInvoices, type AccountingDocument } from '../api/documents';
 import { ArchivedBadge } from '../../../components/feedback/ArchivedBadge';
-import { archiveEntry, useSetArchived } from '../../../lib/archive';
+import { archiveEntry, unarchived, useSetArchived } from '../../../lib/archive';
 import { accountingQueryKey } from '../api';
 import { SettingsSection } from '../../../components/settings/SettingsSection';
 import { DOCUMENT_TYPE_LABELS, documentName, documentTitle, DRAFT_NAME, isFeminineDocumentType } from '../lib/labels';
@@ -524,7 +524,8 @@ function Editor({ document }: { document: AccountingDocument }) {
                     clearable
                     readOnly={locked}
                     placeholder="Aucun"
-                    data={(client?.contacts ?? [])
+                    // Archived contacts are not offered, the document's own stays.
+                    data={unarchived(client?.contacts ?? [], document.contactId)
                       .filter((contact) => !values.serviceId || !contact.serviceId || contact.serviceId === values.serviceId)
                       .map((contact) => ({ value: contact.id, label: contactName(contact) }))}
                     {...form.getInputProps('contactId')}

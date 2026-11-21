@@ -21,7 +21,7 @@ import { prisma, unscopedPrisma } from '../../db';
 import { archivedError } from '../core/archive';
 import { notFound } from '../../graphql/errors';
 import { currentWorkspaceId } from '../../workspace-context';
-import { birthdays, personChange, type PeopleChange } from './birthdays';
+import { birthdays, peopleChanges, personChange, type PeopleChange } from './birthdays';
 import { eventOccurrences } from './calendar-events';
 import { otherWorkspaceSchedules, scheduleRule } from './work-schedules';
 import { effectiveTaskOf, loadTaskInheritance } from '../tasks/task-inheritance';
@@ -58,27 +58,30 @@ export type ScheduleEdit = Omit<ScheduleChange, 'workspaceId'>;
 
 /**
  * What archiving or restoring some elements does to the slot conditions: schedules, kinds of schedules
- * and people give no moment once archived; null for the other kinds.
- * @param {string} kind Kind of the elements (`ArchivableKind`).
- * @param {readonly string[]} ids Elements.
+ * and people (contributors, relations) give no moment once archived; null when none of them changes.
+ * @param {Partial<Record<string, readonly string[]>>} changing Elements whose state changes, by kind (`ArchivableKind`).
  * @param {boolean} archived Archived (else restored).
  * @returns {ScheduleEdit | null} Change.
  */
-export function archiveEdit(kind: string, ids: readonly string[], archived: boolean): ScheduleEdit | null {
-  const chosen = new Set(ids);
-  const people = (person: 'contributor' | 'relation'): PeopleChange => (rows) => ids.reduce((all, id) => personChange(person, id, { archived })(all), rows);
-  switch (kind) {
-    case 'WORK_SCHEDULE':
-      return { apply: (rules) => rules.map((rule) => (chosen.has(rule.id) ? { ...rule, archived } : rule)) };
-    case 'SCHEDULE_TYPE':
-      return { apply: (rules) => rules.map((rule) => (rule.typeId && chosen.has(rule.typeId) ? { ...rule, kindArchived: archived } : rule)) };
-    case 'CONTRIBUTOR':
-      return { people: people('contributor') };
-    case 'TREASURY_RELATION':
-      return { people: people('relation') };
-    default:
-      return null;
-  }
+export function archiveEdit(changing: Partial<Record<string, readonly string[]>>, archived: boolean): ScheduleEdit | null {
+  const schedules = new Set(changing.WORK_SCHEDULE ?? []);
+  const kinds = new Set(changing.SCHEDULE_TYPE ?? []);
+  const people = [
+    ...(changing.CONTRIBUTOR ?? []).map((id) => personChange('contributor', id, { archived })),
+    ...(changing.TREASURY_RELATION ?? []).map((id) => personChange('relation', id, { archived })),
+  ];
+  if (!schedules.size && !kinds.size && !people.length) return null;
+  return {
+    ...((schedules.size > 0 || kinds.size > 0) && {
+      apply: (rules: WorkScheduleRule[]) =>
+        rules.map((rule) => ({
+          ...rule,
+          ...(schedules.has(rule.id) && { archived }),
+          ...(!!rule.typeId && kinds.has(rule.typeId) && { kindArchived: archived }),
+        })),
+    }),
+    ...(people.length > 0 && { people: peopleChanges(people) }),
+  };
 }
 
 /**

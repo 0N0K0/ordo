@@ -47,7 +47,7 @@ Composant `Sidebar`, à gauche de l’application.
   - projet actif sous la profondeur maximale : « Ajouter un sous-projet » ;
   - « Tout déplier » / « Tout replier » s’il a des enfants ;
   - élément actif : « Modifier », « Ajouter aux favoris » / « Retirer des favoris » ;
-  - « Archiver » / « Restaurer » (« avec ses projets » pour un client) et « Supprimer ».
+  - « Archiver » / « Restaurer » (« avec ses projets et ses contacts » pour un client) et « Supprimer ».
 - Groupe « Sans client » : menu avec « Ajouter un projet » (section principale) et le pliage.
 
 ### Glisser-déposer (section principale)

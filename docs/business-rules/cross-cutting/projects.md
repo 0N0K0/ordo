@@ -37,11 +37,13 @@ Le nom d’un client n’est pas unique.
 - Ne fait rien si le client est déjà dans l’état demandé.
 - Archiver : tous les projets actifs du client (`clientId` = client, `archivedAt` nul) sont archivés à la même date avec `archivedByCascade = true`, dans la même transaction que le client.
 - Restaurer : seuls les projets archivés **avec** le client (`archivedByCascade = true`) reviennent ; un projet archivé seul avant reste archivé.
+- Ses contacts actifs et les contributeurs actifs liés à ses contacts suivent de même (archivés avec `archivedByCascade = true`, restaurés seulement s'ils l'ont été avec lui) ; voir [Archivage](archiving.md#client).
 
 ### Suppression
 
 `deleteClient(id, deleteProjects)` :
 
+- Les contributeurs de ses contacts archivés avec lui restent archivés, seuls (`archivedByCascade = false`).
 - `deleteProjects = true` : tous les projets du client (archivés compris, avec leurs sous-projets) sont supprimés, puis le client. Icônes orphelines supprimées.
 - `deleteProjects = false` : les projets passent « sans client » (`clientId = null`, `archivedByCascade = false`) en gardant leur arborescence ; les projets racines sont placés à la fin de la liste « Sans client », dans leur ordre actuel. Puis le client est supprimé.
 - Les données de facturation liées au client suivent les règles du schéma Prisma (voir [Facturation](../finances/accounting.md)).

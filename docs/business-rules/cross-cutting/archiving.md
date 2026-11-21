@@ -1,6 +1,6 @@
 # Archivage
 
-Règles communes d'archivage et de restauration : ce qui peut être archivé, ce qu'implique l'état archivé (lecture seule), les cascades et le choix de valeurs archivées dans les formulaires. Sources : `apps/api/src/services/core/archive.ts`, `apps/api/src/graphql/modules/archive.ts`, `apps/api/src/services/projects/clients.ts`, `apps/api/src/services/projects/projects.ts`, `apps/api/src/services/tasks/tasks.ts`, `apps/api/src/services/routines/routines.ts`.
+Règles communes d'archivage et de restauration : ce qui peut être archivé, ce qu'implique l'état archivé (lecture seule), les cascades et le choix de valeurs archivées dans les formulaires. Sources : `apps/api/src/services/core/archive.ts`, `apps/api/src/graphql/modules/archive.ts`, `apps/api/src/services/projects/clients.ts`, `apps/api/src/services/projects/projects.ts`, `apps/api/src/services/tasks/tasks.ts`, `apps/api/src/services/routines/routines.ts`, `apps/api/src/services/people/contributor-links.ts` (`linkedPeople`).
 
 Voir aussi : [Erreurs](errors.md), [Nommage](naming.md), [tables](../../shared/cross-cutting/tables.md) (option « archivés » des vues).
 
@@ -17,8 +17,9 @@ Voir aussi : [Erreurs](errors.md), [Nommage](naming.md), [tables](../../shared/c
 
 - Tous les ids doivent exister (« Élément introuvable. ») ; un id répété compte une fois.
 - Archiver garde la date des éléments déjà archivés (seuls les actifs reçoivent la date du jour).
-- Types concernés (`ARCHIVABLE`) : les éléments principaux `MILESTONE`, `SPRINT`, `DASHBOARD`, `CALENDAR_EVENT`, `WORK_SCHEDULE`, `ACCOUNTING_DOCUMENT`, `RECURRING_INVOICE`, `IMPORTED_DOCUMENT`, `TREASURY_ENTRY`, `TREASURY_BUDGET`, `TREASURY_RELATION`, `SHOPPING_LIST`, `SHOPPING_PRODUCT`, `STOCK_ITEM`, `SHEET`, `CONTRIBUTOR`, `MAIL_ACCOUNT`, `CATALOG_ITEM`, et toutes les listes de réglages (`SETTINGS_LISTS`) : `PROJECT_STATUS`, `PROJECT_CATEGORY`, `TASK_STATUS`, `TASK_PRIORITY`, `TASK_TYPE`, `TASK_TAG`, `DOCUMENT_STATUS`, `SHEET_CATEGORY`, `SHOPPING_STORE`, `SHOPPING_UNIT`, `SHOPPING_STORAGE`, `SHOPPING_BASE_LIST`, `SHOPPING_CATEGORY`, `MAIL_LABEL`, `CALENDAR`, `CALENDAR_CATEGORY`, `SCHEDULE_TYPE`, `TREASURY_ACCOUNT`, `TREASURY_PAYMENT_METHOD`, `TREASURY_COUNTERPARTY`, `TREASURY_CATEGORY`, `ROUTINE_CATEGORY`, `STOCK_LOCATION`, `PLACE`. Un contexte de trésorerie n’a pas d’archivage propre : c’est celui de son type d’éphémérides (`SCHEDULE_TYPE`).
-- `confirmLoss` : archiver ou restaurer un créneau (`WORK_SCHEDULE`), un type de créneaux (`SCHEDULE_TYPE`), un contributeur (`CONTRIBUTOR`) ou une relation (`TREASURY_RELATION`) change ce que donnent les conditions de créneaux (un archivé n'y compte plus) : les occurrences de routines qui disparaissent perdent leurs commentaires une fois confirmé, sinon `CONFIRMATION_REQUIRED` et rien ne change (`archiveEdit`, `settleScheduleChange`, vérifié sur les seuls éléments dont l'état change, après l'existence). Voir [Routines](../activities/routines.md#créneaux-de-lagenda-conditionwindows-windowsallowed).
+- Types concernés (`ARCHIVABLE`) : les éléments principaux `MILESTONE`, `SPRINT`, `DASHBOARD`, `CALENDAR_EVENT`, `WORK_SCHEDULE`, `ACCOUNTING_DOCUMENT`, `RECURRING_INVOICE`, `IMPORTED_DOCUMENT`, `TREASURY_ENTRY`, `TREASURY_BUDGET`, `TREASURY_RELATION`, `SHOPPING_LIST`, `SHOPPING_PRODUCT`, `STOCK_ITEM`, `SHEET`, `CONTRIBUTOR`, `CLIENT_CONTACT`, `MAIL_ACCOUNT`, `CATALOG_ITEM`, et toutes les listes de réglages (`SETTINGS_LISTS`) : `PROJECT_STATUS`, `PROJECT_CATEGORY`, `TASK_STATUS`, `TASK_PRIORITY`, `TASK_TYPE`, `TASK_TAG`, `DOCUMENT_STATUS`, `SHEET_CATEGORY`, `SHOPPING_STORE`, `SHOPPING_UNIT`, `SHOPPING_STORAGE`, `SHOPPING_BASE_LIST`, `SHOPPING_CATEGORY`, `MAIL_LABEL`, `CALENDAR`, `CALENDAR_CATEGORY`, `SCHEDULE_TYPE`, `TREASURY_ACCOUNT`, `TREASURY_PAYMENT_METHOD`, `TREASURY_COUNTERPARTY`, `TREASURY_CATEGORY`, `ROUTINE_CATEGORY`, `STOCK_LOCATION`, `PLACE`. Un contexte de trésorerie n’a pas d’archivage propre : c’est celui de son type d’éphémérides (`SCHEDULE_TYPE`).
+- Les personnes vont avec ce à quoi elles sont liées (`along`, `linkedPeople`) : archiver ou restaurer un contributeur (`CONTRIBUTOR`) archive ou restaure aussi sa relation ou son contact ; une relation (`TREASURY_RELATION`) ou un contact (`CLIENT_CONTACT`), son contributeur. Voir [Personnes liées](#personnes-liées).
+- `confirmLoss` : archiver ou restaurer un créneau (`WORK_SCHEDULE`), un type de créneaux (`SCHEDULE_TYPE`), un contributeur (`CONTRIBUTOR`), une relation (`TREASURY_RELATION`) ou un contact (`CLIENT_CONTACT`, par son contributeur) change ce que donnent les conditions de créneaux (un archivé n'y compte plus) : les occurrences de routines qui disparaissent perdent leurs commentaires une fois confirmé, sinon `CONFIRMATION_REQUIRED` et rien ne change (`archiveEdit`, `settleScheduleChange`, vérifié sur les seuls éléments dont l'état change, personnes liées comprises, après l'existence ; une seule confirmation pour le tout). Voir [Routines](../activities/routines.md#créneaux-de-lagenda-conditionwindows-windowsallowed).
 - Les **clients**, **projets**, **tâches** et **routines** ont leurs propres mutations, à cause de leurs cascades.
 
 ## Lecture seule
@@ -31,23 +32,32 @@ Toute modification d'un élément archivé, ou d'un sous-élément d'un élémen
 - Les listes de libellés (`createLabelService`, dont la modification ne change que les champs envoyés : `presentFields`, aucune valeur par défaut ajoutée pour un champ omis) et les arbres de réglages (`treeListService`) refusent la modification d'un élément archivé ; un élément archivé ne reçoit pas de nouvel enfant (ceux déjà présents restent).
 - Commentaires : on ne commente pas, ne modifie pas et ne supprime pas un commentaire d'un élément archivé, ni d'un élément contenu dans un élément archivé (article de fiche dans une fiche archivée, article de liste dans une liste archivée) (`apps/api/src/services/core/comments.ts`).
 - Les sous-éléments verrouillés par leur parent : périodes d'un contexte de trésorerie archivé (ni ajout, ni modification, ni suppression).
+- Un contact archivé, ou d'un client archivé, n'est ni modifié ni supprimé.
 
 ## Valeur archivée choisie dans un formulaire
 
 Une valeur archivée ne peut plus être **nouvellement** choisie, mais les valeurs déjà présentes restent valides.
 
 - `assertNotArchived(target, id, { keep, field })`, `assertNoneArchived(target, ids, { keep, field })`, `activeIds(model, ids, what, { keep, field, missingField })` : les ids de `keep` (valeurs actuelles du champ) sont acceptés même archivés ; l'erreur s'affiche sous `field`.
-- S'applique partout : catégories, statuts, priorités, types, étiquettes, agendas, créneaux, contributeurs (assignés, bénéficiaires), relations, projets et clients archivés, routines préalables, parents d'arbre, etc.
+- S'applique partout : catégories, statuts, priorités, types, étiquettes, agendas, créneaux, contributeurs (assignés, bénéficiaires), relations, contacts (documents, lien d'un contributeur), projets et clients archivés, routines préalables, parents d'arbre, etc.
 - Annuler une action (« undo ») qui rend des valeurs anciennes accepte les valeurs archivées (paramètre `restoring` de certains services, ex. routines).
 
 ## Cascades
 
-Les clients, projets, tâches et routines utilisent un indicateur `archivedByCascade` pour distinguer un élément archivé avec son parent d'un élément archivé seul.
+Les projets, tâches, routines, contacts et contributeurs utilisent un indicateur `archivedByCascade` pour distinguer un élément archivé avec son parent (ou son client) d'un élément archivé seul ; archivé ou restauré seul, il le perd.
 
 ### Client
 
-- Archiver un client archive ses projets actifs (`archivedByCascade = true`) dans la même transaction.
-- Restaurer un client restaure les projets archivés avec lui, pas ceux archivés seuls.
+- Archiver un client archive, dans la même transaction, ses projets actifs, ses contacts actifs et les contributeurs actifs liés à ses contacts (`archivedByCascade = true`).
+- Restaurer un client restaure les projets, les contacts et les contributeurs archivés avec lui, pas ceux archivés seuls.
+- Aucune confirmation de perte : un contributeur lié à un contact n'a pas d'anniversaire, aucune condition de créneaux ne change.
+- Supprimer un client : les contributeurs de ses contacts archivés avec lui restent archivés, seuls (et sans lien).
+
+### Personnes liées
+
+- Un contributeur et ce à quoi il est lié (sa relation ou son contact, voir [Lien d'un contributeur](people.md#lien-dun-contributeur)) sont archivés et restaurés ensemble, dans les deux sens : archiver ou restaurer l'un archive ou restaure l'autre, dans la même transaction.
+- Un membre est son propre contributeur (une seule ligne) : rien d'autre ne le suit. « Moi » est toujours membre : aucune relation ni aucun contact ne lui est lié.
+- Un client n'est pas une personne : archiver un contact ou son contributeur n'archive pas le client ; restaurer un contact (ou son contributeur) d'un client archivé ne restaure pas le client.
 
 ### Projet
 

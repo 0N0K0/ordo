@@ -316,6 +316,7 @@ enum ArchivableKind {
   CALENDAR_CATEGORY
   CALENDAR_EVENT
   CATALOG_ITEM
+  CLIENT_CONTACT
   CONTRIBUTOR
   DASHBOARD
   DOCUMENT_STATUS
@@ -724,6 +725,8 @@ type Client {
 }
 
 type ClientContact {
+  """Archived: hidden by default, read only."""
+  archived: Boolean!
   client: Client!
   clientId: ID!
   email: String
@@ -2549,13 +2552,13 @@ type Mutation {
   setAccountingDocumentProject(id: ID!, projectId: ID): Boolean!
 
   """
-  Archives (hidden by default, read only) or restores elements of a kind, all at once.
+  Archives (hidden by default, read only) or restores elements of a kind, all at once; people with those they are linked to (a contributor with its relation or its contact).
   """
   setArchived(
     archived: Boolean!
 
     """
-    Occurrences made to disappear with their comments or times are confirmed: false (default) refuses with CONFIRMATION_REQUIRED and extension lost { times, comments } when there are some; true deletes them. Schedules, kinds of schedules, contributors and relations.
+    Occurrences made to disappear with their comments or times are confirmed: false (default) refuses with CONFIRMATION_REQUIRED and extension lost { times, comments } when there are some; true deletes them. Schedules, kinds of schedules, contributors, relations and contacts (with the people linked to them).
     """
     confirmLoss: Boolean
     ids: [ID!]!

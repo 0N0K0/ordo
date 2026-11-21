@@ -180,7 +180,7 @@ export function useEntityActions() {
      */
     lifecycleEntries: (entity: EntityRef): RowMenuEntry[] => [
       archiveEntry(
-        { archived: entity.item.archived, type: entity.type === 'client' ? 'Client' : 'Projet', label: entityLabel(entity), cascade: entity.type === 'client' ? 'avec ses projets' : undefined },
+        { archived: entity.item.archived, type: entity.type === 'client' ? 'Client' : 'Projet', label: entityLabel(entity), cascade: entity.type === 'client' ? 'avec ses projets et ses contacts' : undefined },
         archiver(entity),
         entity.item.id,
       ),

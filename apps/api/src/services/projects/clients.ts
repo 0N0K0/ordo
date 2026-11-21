@@ -1,7 +1,7 @@
 import { personNameSchema, optionalColorSchema } from '@ordo/shared';
 import { z } from 'zod';
 import { prisma } from '../../db';
-import type { Client } from '../../generated/prisma/client';
+import type { Client, Prisma } from '../../generated/prisma/client';
 import { parseInput } from '../../graphql/errors';
 import { isArchivedAs, findActive } from '../core/archive';
 import { deleteOrphanIcons, resolveIconUpdate, storeIcon } from '../core/icons';
@@ -69,7 +69,27 @@ export async function setClientFavorite(id: string, favorite: boolean): Promise<
 }
 
 /**
- * Archives or restores a client, along with the projects archived with it.
+ * Writes archiving along with a client (`archivedByCascade`) its active projects, its active contacts and the active
+ * contributors linked to them, or restoring those archived along with it (not those archived on their own).
+ * @param {string} id Client.
+ * @param {boolean} archived Archives (else restores).
+ * @param {Date} now Date of the archive.
+ * @returns {Prisma.PrismaPromise<unknown>[]} Writes.
+ */
+function alongClient(id: string, archived: boolean, now: Date): Prisma.PrismaPromise<unknown>[] {
+  const data = archived ? { archivedAt: now, archivedByCascade: true } : { archivedAt: null, archivedByCascade: false };
+  const touched = archived ? { archivedAt: null } : { archivedByCascade: true };
+  return [
+    prisma.project.updateMany({ where: { clientId: id, ...touched }, data }),
+    prisma.clientContact.updateMany({ where: { clientId: id, ...touched }, data }),
+    prisma.contributor.updateMany({ where: { contact: { is: { clientId: id } }, ...touched }, data }),
+  ];
+}
+
+/**
+ * Archives or restores a client, along with its projects, its contacts and the contributors linked to them (those
+ * archived with it when restoring). The contributors linked to a contact have no birthday: no routine occurrence is
+ * lost.
  * @param {string} id Client id.
  * @param {boolean} archived Target state.
  * @returns {Promise<Client>} Updated client.
@@ -77,26 +97,8 @@ export async function setClientFavorite(id: string, favorite: boolean): Promise<
 export async function setClientArchived(id: string, archived: boolean): Promise<Client> {
   const client = await findClient(id);
   if (isArchivedAs(client, archived)) return client;
-
-  if (archived) {
-    const now = new Date();
-    const [, updated] = await prisma.$transaction([
-      prisma.project.updateMany({
-        where: { clientId: id, archivedAt: null },
-        data: { archivedAt: now, archivedByCascade: true },
-      }),
-      prisma.client.update({ where: { id }, data: { archivedAt: now } }),
-    ]);
-    return updated;
-  }
-
-  const [, updated] = await prisma.$transaction([
-    prisma.project.updateMany({
-      where: { clientId: id, archivedByCascade: true },
-      data: { archivedAt: null, archivedByCascade: false },
-    }),
-    prisma.client.update({ where: { id }, data: { archivedAt: null } }),
-  ]);
+  const now = new Date();
+  const [updated] = await prisma.$transaction([prisma.client.update({ where: { id }, data: { archivedAt: archived ? now : null } }), ...alongClient(id, archived, now)]);
   return updated;
 }
 
@@ -115,10 +117,12 @@ export async function deleteClient(id: string, deleteProjects: boolean): Promise
     select: { id: true, iconId: true, parentId: true },
   });
 
+  // The contributors of its contacts archived along with it stay archived, on their own.
+  const contributorsAlone = prisma.contributor.updateMany({ where: { contact: { is: { clientId: id } } }, data: { archivedByCascade: false } });
   if (deleteProjects) {
     // Their tasks are not deleted: they leave the projects.
     await releaseProjects(projects.map((project) => project.id));
-    await prisma.$transaction([prisma.project.deleteMany({ where: { clientId: id } }), prisma.client.delete({ where: { id } })]);
+    await prisma.$transaction([contributorsAlone, prisma.project.deleteMany({ where: { clientId: id } }), prisma.client.delete({ where: { id } })]);
     await deleteOrphanIcons([client.iconId, ...projects.map((project) => project.iconId)]);
     return;
   }
@@ -127,6 +131,7 @@ export async function deleteClient(id: string, deleteProjects: boolean): Promise
   const start = await nextPositionIn('project', { clientId: null, parentId: null });
   const roots = projects.filter((project) => project.parentId === null);
   await prisma.$transaction([
+    contributorsAlone,
     prisma.project.updateMany({ where: { clientId: id }, data: { clientId: null, archivedByCascade: false } }),
     ...roots.map((project, index) => prisma.project.update({ where: { id: project.id }, data: { position: start + index } })),
     prisma.client.delete({ where: { id } }),

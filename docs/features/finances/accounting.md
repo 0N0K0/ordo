@@ -340,7 +340,9 @@ Sur la fiche d’un client (onglet de paramètres « billing ») :
 
 - carte du client : nom (ou prénom et nom d’un particulier), badge « Professionnel » / « Particulier », adresse, email, téléphones, site, identifiants ; « Adresse de facturation à renseigner avant d’éditer des factures. » sans adresse ;
 - « Contacts » sans service, puis une carte par service avec ses contacts ;
-- boutons « Coordonnées », « Nouveau service », « Nouveau contact » ; par service : « Ajouter un contact », « Modifier », « Supprimer » (« ses contacts restent rattachés au client ») ; par contact : « Modifier », « Supprimer ».
+- boutons « Coordonnées », « Nouveau service », « Nouveau contact » ; par service : « Ajouter un contact », « Modifier », « Supprimer » (« ses contacts restent rattachés au client ») ; par contact : « Modifier », « Supprimer » ;
+- contact : « Archiver » / « Restaurer » dans son menu (archivé avec son contributeur, et inversement ; jamais le client) ; archivé, badge « Archivé », masqué tant que « Afficher les archivés » n’est pas coché, en lecture seule (« Voir »), plus proposé comme contact d’un document ni comme lien d’un contributeur (celui déjà choisi reste) ;
+- archiver le client archive aussi ses contacts et leurs contributeurs (toast « … archivé avec ses projets et ses contacts. ») ; le restaurer restaure ceux archivés avec lui ;
 - client archivé : lecture seule ; « Coordonnées » ouvre ses coordonnées en lecture seule, « Voir » un service (panneau « Service ») ou un contact (panneau « Contact »), sans ajout ni suppression.
 
 Un nouveau service ou contact est un formulaire avec « Ajouter » (« Service ajouté. », « Contact ajouté. »). Les coordonnées, un service ou un contact existants s’enregistrent champ par champ : chaque champ dès qu’il change (textes, adresse et téléphones en les quittant ; un téléphone ou une ligne d’adresse retiré, un pays choisi, aussitôt ; l’erreur d’un téléphone sous son numéro), « Enregistrement… » puis « Enregistré » en haut, sans bouton ; un champ invalide garde son erreur dessous et n’est pas enregistré, un échec le remet comme il était, dans un toast d’erreur.

@@ -111,7 +111,7 @@ Propositions : `PAYMENT_TERMS_PRESETS`, `PAYMENT_METHOD_PRESETS`, `LATE_INTEREST
 `apps/api/src/services/accounting/accounting-documents.ts` :
 
 - Une facture d’acompte ne se crée pas directement : « Une facture d’acompte s’établit à partir d’un devis. » (mutation `createAccountingDocument`).
-- Client, service, contact, projet (`assertParties`) : un client ou un projet archivé est refusé, sauf s’il est déjà celui du document (ou copié d’un document source) ; « Ce service n’appartient pas au client. », « Ce contact n’appartient pas au client. ».
+- Client, service, contact, projet (`assertParties`) : un client, un contact ou un projet archivé est refusé, sauf s’il est déjà celui du document (ou copié d’un document source) ; « Ce service n’appartient pas au client. », « Ce contact n’appartient pas au client. ».
 - Déductions (`assertDeductions`) : chaque acompte déduit doit exister (« Facture d’acompte » introuvable), être une facture d’acompte définitive (« Seule une facture d’acompte validée peut être déduite. ») du même client (« Cette facture d’acompte est celle d’un autre client. »).
 - Chronologie (`assertChronology`) : un brouillon ne peut pas être daté avant le dernier document définitif du même type, documents importés compris : « La date ne peut pas précéder celle de la dernière facture (12/10/2026). » (« le dernier devis », « la dernière facture d’acompte », « le dernier avoir »). Un modèle de récurrente n’est pas contrôlé. La requête `latestDocumentDate` donne cette date au formulaire.
 - Modification (`updateDocument`) : brouillons et modèles seulement (« Un document définitif ne peut plus être modifié : corrigez-le par un avoir. ») ; refusée sur un document archivé, et sur le modèle d’une récurrente archivée. Les lignes sont toutes remplacées.
@@ -297,9 +297,10 @@ Paiement (`recordPayment`, schéma `documentPaymentSchema`) :
 - SIREN 9 chiffres avec clé de Luhn (« SIREN invalide (9 chiffres). »), SIRET 14 chiffres avec clé de Luhn sauf établissements de La Poste (`356000000…`) (« SIRET invalide (14 chiffres). ») ; espaces retirés ;
 - service : libellé obligatoire (250), adresse, email, téléphones ; position en fin de liste ;
 - contact : prénom obligatoire (« Le prénom est requis. »), nom (règle des noms de personne), email, fonction (250), téléphones, service facultatif du même client ;
-- toute modification est refusée sur un client archivé ; supprimer un service garde ses contacts (rattachés au client) ; un contact ou un service supprimé est retiré des documents (`SetNull`) ;
+- toute modification est refusée sur un client archivé ou un contact archivé (un contact archivé n’est pas non plus supprimé) ; supprimer un service garde ses contacts (rattachés au client) ; un contact ou un service supprimé est retiré des documents (`SetNull`) ;
 - un client ayant des documents ne peut pas être supprimé (relation `Restrict` du schéma).
 - un contact peut être aussi un contributeur (un au plus, `Contributor.contactId`, choisi dans la fiche du contributeur) : le contributeur a alors son adresse et ses téléphones, sans anniversaire (voir [Personnes](../cross-cutting/people.md#lien-dun-contributeur)) ; le contact lui-même ne change pas ; supprimé, le contributeur reste, sans lien.
+- archivage d’un contact (`setArchived(CLIENT_CONTACT)`, menu « … » de sa ligne dans la fiche client) : masqué par défaut (« Afficher les archivés »), en lecture seule jusqu’à sa restauration, plus proposé comme nouveau choix (contact d’un document, lien d’un contributeur ; celui déjà choisi reste) ; archivé et restauré avec son contributeur, dans les deux sens, jamais avec le client. Archiver un client archive ses contacts actifs et leurs contributeurs ; le restaurer restaure ceux archivés avec lui (voir [Archivage](../cross-cutting/archiving.md#client)).
 
 ## Profil de la société
 

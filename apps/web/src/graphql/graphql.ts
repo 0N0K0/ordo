@@ -122,6 +122,7 @@ export type ArchivableKind =
   | 'CALENDAR_CATEGORY'
   | 'CALENDAR_EVENT'
   | 'CATALOG_ITEM'
+  | 'CLIENT_CONTACT'
   | 'CONTRIBUTOR'
   | 'DASHBOARD'
   | 'DOCUMENT_STATUS'
@@ -1847,12 +1848,12 @@ export type ClientBillingQueryVariables = Exact<{
 }>;
 
 
-export type ClientBillingQuery = { client: { id: string, name: string, kind: ClientKind, firstName: string | null, lastName: string | null, address: unknown, email: string | null, phones: unknown, website: string | null, vatNumber: string | null, siren: string | null, siret: string | null, activityCode: string | null, services: Array<{ id: string, label: string, address: unknown, email: string | null, phones: unknown }>, contacts: Array<{ id: string, serviceId: string | null, firstName: string, lastName: string, email: string | null, jobTitle: string | null, phones: unknown }> } | null };
+export type ClientBillingQuery = { client: { id: string, name: string, archived: boolean, kind: ClientKind, firstName: string | null, lastName: string | null, address: unknown, email: string | null, phones: unknown, website: string | null, vatNumber: string | null, siren: string | null, siret: string | null, activityCode: string | null, services: Array<{ id: string, label: string, address: unknown, email: string | null, phones: unknown }>, contacts: Array<{ id: string, serviceId: string | null, firstName: string, lastName: string, email: string | null, jobTitle: string | null, phones: unknown, archived: boolean }> } | null };
 
 export type ClientContactsQueryVariables = Exact<{ [key: string]: never; }>;
 
 
-export type ClientContactsQuery = { clientContacts: Array<{ id: string, firstName: string, lastName: string, email: string | null, phones: unknown, client: { id: string, name: string, archived: boolean } }> };
+export type ClientContactsQuery = { clientContacts: Array<{ id: string, firstName: string, lastName: string, email: string | null, phones: unknown, archived: boolean, client: { id: string, name: string, archived: boolean } }> };
 
 export type UpdateCompanyProfileMutationVariables = Exact<{
   input: CompanyProfileInput;
@@ -6422,6 +6423,7 @@ export const ClientBillingDocument = new TypedDocumentString(`
   client(id: $id) {
     id
     name
+    archived
     kind
     firstName
     lastName
@@ -6448,6 +6450,7 @@ export const ClientBillingDocument = new TypedDocumentString(`
       email
       jobTitle
       phones
+      archived
     }
   }
 }
@@ -6460,6 +6463,7 @@ export const ClientContactsDocument = new TypedDocumentString(`
     lastName
     email
     phones
+    archived
     client {
       id
       name

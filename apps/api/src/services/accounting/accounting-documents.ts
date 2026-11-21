@@ -96,18 +96,18 @@ function assertEditable(document: AccountingDocument): void {
   }
 }
 
-/** Client and project a document already has (or copies from its source): kept even if archived. */
-type KeptParties = { clientId: string | null; projectId: string | null } | null;
+/** Client, contact and project a document already has (or copies from its source): kept even if archived. */
+type KeptParties = { clientId: string | null; contactId: string | null; projectId: string | null } | null;
 
 /**
- * Checks the client of a document and the service, contact and project chosen with it (an archived client or project
- * is refused, unless the document already has it).
+ * Checks the client of a document and the service, contact and project chosen with it (an archived client, contact
+ * or project is refused, unless the document already has it).
  * @param {object} refs References.
  * @param {string} refs.clientId Client.
  * @param {string | null} refs.serviceId Service.
  * @param {string | null} refs.contactId Contact.
  * @param {string | null} refs.projectId Project.
- * @param {KeptParties} [kept] Client and project already there. Optional. Default = none.
+ * @param {KeptParties} [kept] Client, contact and project already there. Optional. Default = none.
  * @returns {Promise<void>}
  */
 async function assertParties(
@@ -119,6 +119,7 @@ async function assertParties(
   if (contactId && (await prisma.clientContact.findUnique({ where: { id: contactId } }))?.clientId !== clientId) {
     throw fieldError('contactId', 'Ce contact n’appartient pas au client.');
   }
+  await assertNotArchived('clientContact', contactId, { keep: kept?.contactId, field: 'contactId' });
   await assertActive(prisma.project, projectId, 'Projet', { keep: kept?.projectId, field: 'projectId' });
 }
 

@@ -4,6 +4,7 @@ import { AddressFields } from './AddressFields';
 import { ContactListField } from '../../../components/inputs/ContactListField';
 import { useAppForm, useFieldSave, formCallbacks, nestedErrors } from '../../../lib/form';
 import { SaveStatus } from '../../../components/feedback/SaveStatus';
+import { FormSkeleton } from '../../../components/feedback/Skeletons';
 
 import { useClientBilling, useClientPartyMutations, type ClientBilling, type ClientContact, type ClientService } from '../api';
 import { FormActions } from '../../../components/dialogs/FormActions';
@@ -192,7 +193,7 @@ const contactValues = (contact?: ClientContact, serviceId?: string | null): Cont
 /**
  * Contact person at a client, possibly in one of its services. A new one is a form with « Ajouter »; an existing one,
  * its panel, saves each field as soon as it changes (texts and phones on leaving them, `useFieldSave`),
- * the one of the cache followed.
+ * the one of the cache followed; read only while it or its client is archived.
  * @param {{ client: ClientBilling, contact?: ClientContact, serviceId?: string | null, onDone: () => void } & PartyPanelProps} props Component props.
  * @returns {JSX.Element} Form.
  */
@@ -203,11 +204,11 @@ export function ClientContactForm({
   onDone,
   readOnly: readOnlySource,
 }: { client: ClientBilling; contact?: ClientContact; serviceId?: string | null; onDone: () => void } & PartyPanelProps) {
-  const readOnly = useLiveValue(readOnlySource) ?? false;
   const { createContact, updateContact } = useClientPartyMutations();
   const { data: cached } = useClientBilling(client.id);
   const base = useAppForm<ContactValues>({ initialValues: contactValues(contact, serviceId), schema: clientContactSchema });
   const current = contact && (cached?.contacts.find((item) => item.id === contact.id) ?? contact);
+  const readOnly = Boolean(useLiveValue(readOnlySource) || (cached ?? client).archived || current?.archived);
   const services = (cached ?? client).services;
   const { form, saving, fieldProps } = useFieldSave(base, {
     save: contact ? (_changes, input) => updateContact.mutateAsync({ id: contact.id, input }) : null,
@@ -247,4 +248,17 @@ export function ClientContactForm({
       </Fieldset>
     </form>
   );
+}
+
+/**
+ * Panel of an existing contact, its client loaded (from the client page, or from the contributor linked to it).
+ * @param {{ clientId: string, contactId: string, onDone: () => void }} props Component props.
+ * @returns {JSX.Element | null} Form, a skeleton while loading, nothing when the contact is gone.
+ */
+export function ContactPanel({ clientId, contactId, onDone }: { clientId: string; contactId: string; onDone: () => void }) {
+  const { data: client, isPending } = useClientBilling(clientId);
+  if (isPending) return <FormSkeleton />;
+  const contact = client?.contacts.find((item) => item.id === contactId);
+  if (!client || !contact) return null;
+  return <ClientContactForm client={client} contact={contact} onDone={onDone} />;
 }

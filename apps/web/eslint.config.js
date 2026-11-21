@@ -1174,9 +1174,9 @@ export default defineConfig([
         },
         {
           // Archiving a schedule, a kind or a person may make occurrences of routines disappear.
-          selector: "CallExpression[callee.name='useSetArchived'][arguments.0.value=/^(WORK_SCHEDULE|SCHEDULE_TYPE|CONTRIBUTOR|TREASURY_RELATION)$/]",
+          selector: "CallExpression[callee.name='useSetArchived'][arguments.0.value=/^(WORK_SCHEDULE|SCHEDULE_TYPE|CONTRIBUTOR|TREASURY_RELATION|CLIENT_CONTACT)$/]",
           message:
-            'Utiliser useSlotSourceArchiving(kind) (features/calendar/api) : archiver un créneau, un type ou une personne confirme les occurrences de routines perdues et recharge ce qui en dépend (un type : confirmLoss de useScheduleTypeItems).',
+            'Utiliser useSlotSourceArchiving(kind) (features/calendar/api) : archiver un créneau, un type ou une personne (contact compris) confirme les occurrences de routines perdues et recharge ce qui en dépend (un type : confirmLoss de useScheduleTypeItems).',
         },
         {
           // A panel is resized one way, its width kept by useResizablePanel (limits in panel-widths).

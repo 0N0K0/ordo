@@ -78,6 +78,7 @@ const ClientBillingDocument = graphql(`
     client(id: $id) {
       id
       name
+      archived
       kind
       firstName
       lastName
@@ -104,6 +105,7 @@ const ClientBillingDocument = graphql(`
         email
         jobTitle
         phones
+        archived
       }
     }
   }
@@ -117,6 +119,7 @@ const ClientContactsDocument = graphql(`
       lastName
       email
       phones
+      archived
       client {
         id
         name

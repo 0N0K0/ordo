@@ -768,14 +768,15 @@ export function useWorkScheduleMutations() {
 }
 
 /**
- * Archives or restores schedules, contributors or relations (`useSetArchived`), the sources of the slot conditions
- *: the occurrences of routines it makes disappear are confirmed first (`withLossConfirmation`, as a change
- * of schedule), then what depends on them is refreshed (`SLOT_DEPENDENT_KEYS`, the birthdays with the people).
- * @param {'WORK_SCHEDULE' | 'CONTRIBUTOR' | 'TREASURY_RELATION'} kind Kind of the elements (a kind of schedules: `useScheduleTypeItems`).
+ * Archives or restores schedules or people — contributors, relations, contacts, each with the people linked to it —
+ * (`useSetArchived`), the sources of the slot conditions: the occurrences of routines it makes disappear are
+ * confirmed first, once for the whole (`withLossConfirmation`, as a change of schedule), then what depends on them is
+ * refreshed (`SLOT_DEPENDENT_KEYS`, the birthdays with the people).
+ * @param {'WORK_SCHEDULE' | 'CONTRIBUTOR' | 'TREASURY_RELATION' | 'CLIENT_CONTACT'} kind Kind of the elements (a kind of schedules: `useScheduleTypeItems`).
  * @param {readonly QueryKey[]} [invalidate] Queries refreshed besides. Optional. Default = every query.
  * @returns {UseMutationResult} Mutation state.
  */
-export function useSlotSourceArchiving(kind: 'WORK_SCHEDULE' | 'CONTRIBUTOR' | 'TREASURY_RELATION', invalidate: readonly QueryKey[] = [[]]) {
+export function useSlotSourceArchiving(kind: 'WORK_SCHEDULE' | 'CONTRIBUTOR' | 'TREASURY_RELATION' | 'CLIENT_CONTACT', invalidate: readonly QueryKey[] = [[]]) {
   return useSetArchived(kind, [...invalidate, ...SLOT_DEPENDENT_KEYS, kind === 'WORK_SCHEDULE' ? calendarQueryKey : birthdaysQueryKey], withLossConfirmation);
 }
 

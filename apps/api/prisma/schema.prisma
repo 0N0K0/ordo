@@ -433,6 +433,10 @@ model ClientContact {
   email       String?
   jobTitle    String?
   phones      Json                 @default("[]")
+  /// Archived: hidden by default and read only until restored; archived and restored with its contributor.
+  archivedAt  DateTime?
+  /// Archived along with its client: restoring the client restores it.
+  archivedByCascade Boolean        @default(false)
   createdAt   DateTime             @default(now())
   documents   AccountingDocument[]
   /// Contributor this contact is, if any.
@@ -556,8 +560,10 @@ model Contributor {
   handle                String
   iconId                String?
   icon                  Icon?               @relation(fields: [iconId], references: [id], onDelete: SetNull)
-  /// Archived: hidden by default and read only until restored.
+  /// Archived: hidden by default and read only until restored; archived and restored with its relation or its contact.
   archivedAt            DateTime?
+  /// Archived along with the client of its contact: restoring the client restores it.
+  archivedByCascade     Boolean             @default(false)
   createdAt             DateTime            @default(now())
   tasks                 Task[]
   /// Projects the contributor is attached to; sub-projects inherit them.
