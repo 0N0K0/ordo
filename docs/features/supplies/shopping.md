@@ -173,7 +173,7 @@ Menu de la liste (page et table des listes, `ListActionsMenu`) :
 | État                                                   | Affichage          | Effet                                                                                                      |
 | ------------------------------------------------------ | ------------------ | ---------------------------------------------------------------------------------------------------------- |
 | En cours                                               | —                  | Tout est modifiable.                                                                                       |
-| Clôturée (à la main ou avec ses tâches toutes fermées) | Badge « Clôturée » | Lecture seule dans l'interface (ajout, modification, retrait masqués) ; reste utilisable en mode collecte. |
+| Clôturée (à la main ou avec ses tâches toutes fermées) | Badge « Clôturée » | Éléments en lecture seule (ajout, modification, retrait masqués ; l'API les refuse) ; reste utilisable en mode collecte. |
 | Archivée                                               | Badge « Archivée » | Lecture seule (l'API refuse les changements) ; masquée par défaut dans la table.                           |
 | Payée                                                  | Badge « Payée »    | Rattachée à un mouvement de trésorerie.                                                                    |
 

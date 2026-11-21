@@ -372,12 +372,37 @@ export function findOpenList(id: string): Promise<ShoppingList> {
   return findActive(prisma.shoppingList, id, 'Liste');
 }
 
+/** Message of the error refusing a change of the items of a closed list. */
+export const CLOSED_LIST_MESSAGE = 'Liste clôturée : rouvrez-la pour changer ses éléments.';
+
 /**
- * Refuses a change of an item whose list is archived.
+ * Tasks of a list, with whether each is closed.
+ * @param {string} id List id.
+ * @returns {Promise<{ closedAt: Date | null }[]>} Tasks.
+ */
+const listTasks = (id: string): Promise<{ closedAt: Date | null }[]> => prisma.task.findMany({ where: { shoppingLists: { some: { id } } }, select: { closedAt: true } });
+
+/**
+ * Loads a list whose items can be changed (added, changed, duplicated, put in a base list, removed, a sheet added or
+ * taken out): NOT_FOUND, BAD_USER_INPUT « Élément archivé… » when it is archived, or « Liste clôturée… » when it is
+ * closed (by hand, or with its tasks all closed). Ticking its items stays allowed on a closed list (the store mode).
+ * @param {string} id List id.
+ * @returns {Promise<ShoppingList>} List.
+ */
+export async function findEditableList(id: string): Promise<ShoppingList> {
+  const list = await findOpenList(id);
+  if (list.closedAt || tasksClosed(await listTasks(id))) throw clientError('BAD_USER_INPUT', CLOSED_LIST_MESSAGE);
+  return list;
+}
+
+/**
+ * Refuses a change of an item whose list is archived or closed.
  * @param {{ listId: string }} item Item.
  * @returns {Promise<void>}
  */
-const assertItemOpen = (item: { listId: string }): Promise<void> => assertNotArchived('SHOPPING_LIST', item.listId);
+const assertItemEditable = async (item: { listId: string }): Promise<void> => {
+  await findEditableList(item.listId);
+};
 
 /**
  * Checks the tasks a list is attached to.
@@ -429,7 +454,7 @@ export async function updateList(id: string, { label, taskIds }: { label: string
  */
 export async function setListClosed(id: string, closed: boolean): Promise<ShoppingList> {
   const list = await findOpenList(id);
-  const tasks = await prisma.task.findMany({ where: { shoppingLists: { some: { id } } }, select: { closedAt: true } });
+  const tasks = await listTasks(id);
   if (!closed && tasksClosed(tasks)) {
     throw clientError('BAD_USER_INPUT', tasks.length > 1 ? 'Les tâches de cette liste sont fermées : rouvrez-en une.' : 'La tâche de cette liste est fermée : rouvrez la tâche.');
   }
@@ -525,7 +550,7 @@ function findItem(id: string): Promise<ShoppingItem> {
  * @returns {Promise<ShoppingItem>} Item.
  */
 export async function addItem(listId: string, input: ShoppingItemInput): Promise<ShoppingItem> {
-  await findOpenList(listId);
+  await findEditableList(listId);
   const data = await parseShopping(shoppingItemSchema, input);
   return prisma.shoppingItem.create({ data: { ...fields(data), optional: data.optional, listId, position: await nextPositionIn('shoppingItem', { listId }), ...peopleData(data, 'connect') } });
 }
@@ -537,7 +562,7 @@ export async function addItem(listId: string, input: ShoppingItemInput): Promise
  * @returns {Promise<number>} Number of items added.
  */
 export async function addProducts(listId: string, productIds: string[]): Promise<number> {
-  await findOpenList(listId);
+  await findEditableList(listId);
   const ids = [...new Set(productIds)];
   if (ids.length > 500) throw clientError('BAD_USER_INPUT', '500 produits au plus à la fois.');
   await activeIds(prisma.shoppingProduct, ids, 'Produit');
@@ -557,7 +582,7 @@ export async function addProducts(listId: string, productIds: string[]): Promise
  */
 export async function updateItem(id: string, input: ShoppingItemInput): Promise<ShoppingItem> {
   const current = await findItem(id);
-  await assertItemOpen(current);
+  await assertItemEditable(current);
   const data = await parseShopping(shoppingItemSchema, input, current);
   return prisma.$transaction(async (tx) => {
     const item = await tx.shoppingItem.update({ where: { id }, data: { ...fields(data), optional: data.optional, ...peopleData(data, 'set') } });
@@ -575,7 +600,8 @@ export async function updateItem(id: string, input: ShoppingItemInput): Promise<
  */
 export async function setItemPurchased(id: string, purchased: boolean): Promise<ShoppingItem> {
   const item = await findItem(id);
-  await assertItemOpen(item);
+  // Allowed on a closed list (the store mode), not on an archived one.
+  await assertNotArchived('SHOPPING_LIST', item.listId);
   const now = new Date();
   return prisma.$transaction(async (tx) => {
     const updated = await tx.shoppingItem.update({ where: { id }, data: { purchasedAt: purchased ? (item.purchasedAt ?? now) : null } });
@@ -612,7 +638,7 @@ async function syncExpiry(tx: Prisma.TransactionClient, productId: string): Prom
  */
 export async function duplicateItem(id: string): Promise<ShoppingItem> {
   const item = await orNotFound(prisma.shoppingItem.findUnique({ where: { id }, include: withPeople }), 'Élément');
-  await assertItemOpen(item);
+  await assertItemEditable(item);
   return prisma.shoppingItem.create({ data: { ...copyOf(item, item.productId, await nextPositionIn('shoppingItem', { listId: item.listId })), listId: item.listId } });
 }
 
@@ -625,7 +651,7 @@ export async function duplicateItem(id: string): Promise<ShoppingItem> {
 export async function saveItemToBase(id: string, baseListId: string): Promise<ShoppingProduct> {
   const item = await orNotFound(prisma.shoppingItem.findUnique({ where: { id }, include: withPeople }), 'Élément');
   if (item.productId) throw clientError('BAD_USER_INPUT', 'Cet élément est déjà dans une référence.');
-  await assertItemOpen(item);
+  await assertItemEditable(item);
   await assertBaseList(baseListId);
   return prisma.$transaction(async (tx) => {
     const product = await tx.shoppingProduct.create({
@@ -659,6 +685,6 @@ export async function saveItemToBase(id: string, baseListId: string): Promise<Sh
  * @returns {Promise<void>}
  */
 export async function deleteItem(id: string): Promise<void> {
-  await assertItemOpen(await findItem(id));
+  await assertItemEditable(await findItem(id));
   await prisma.shoppingItem.delete({ where: { id } });
 }

@@ -30,7 +30,7 @@ Source : `apps/api/src/services/dashboards/dashboards.ts`.
 - **Création** (`createDashboard`) : le projet, s’il est donné, doit exister (« Projet introuvable. ») et ne pas être archivé (« Élément archivé : restaurez-le pour le modifier. »). Le tableau va à la fin de la liste de sa portée (`nextPositionIn('dashboard', { projectId })`).
 - **Renommer / déplacer** (`renameDashboard`, `moveDashboard`) : tableau existant (« Tableau de bord introuvable. ») et non archivé. Le déplacement réordonne parmi les tableaux de la même portée ([Ordre](../cross-cutting/ordering.md)).
 - **Archivage** : par la mutation générique `setArchived` (kind `DASHBOARD`). Un tableau archivé est en lecture seule, ses diagrammes avec lui ([Archivage](../cross-cutting/archiving.md)).
-- **Suppression** (`deleteDashboard`) : définitive, avec ses diagrammes (cascade). Elle n’est **pas** refusée pour un tableau archivé. Erreur « Tableau de bord introuvable. » s’il n’existe pas.
+- **Suppression** (`deleteDashboard`) : définitive, avec ses diagrammes (cascade). Elle reste permise pour un tableau archivé (règle commune, voir [Archivage](../cross-cutting/archiving.md#archiver-ou-supprimer)). Erreur « Tableau de bord introuvable. » s’il n’existe pas.
 
 ## Diagrammes
 

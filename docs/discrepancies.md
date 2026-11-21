@@ -2,31 +2,9 @@
 
 Écarts entre le code, l’interface et la documentation, relevés en écrivant la documentation de référence. Les pages de référence décrivent le comportement actuel sans le juger ; cette page liste ce qui semble incohérent, incomplet ou à confirmer. Chaque point renvoie à la page qui décrit le comportement.
 
-## Bugs corrigés
-
-Corrigés par le commit `5e1bc2de`.
-
-- **Agenda : récursion infinie.** `relationIdsOf` (`apps/api/src/services/calendar/calendar-events.ts`) s’appelait elle-même sans condition d’arrêt : toute construction d’occurrence (`toOccurrence`) ou de série (`seriesInput`) échouait. Introduit par le commit `cdb8fcb7`. Voir [Règles de l’agenda](business-rules/activities/calendar.md).
-- **Courses : dates de livraison perdues.** `DeliveryForm` (`apps/web/src/features/shopping/components/OrderPanel.tsx`) liait ses dates à `expectedFrom` / `expectedTo` au lieu de `windowFrom` / `windowTo` : les dates saisies n’étaient pas envoyées et les dates existantes ne s’affichaient pas. Voir [Code web des achats](web/features/supplies/shopping.md).
-
-## Règles imposées seulement par l’interface
-
-L’API accepte ce que l’interface empêche.
-
-- **Liste de courses clôturée :** lecture seule dans l’interface ; l’API ne refuse les changements que si la liste est archivée. Voir [Achats](features/supplies/shopping.md) et [Règles des achats](business-rules/supplies/shopping.md).
-- **Copie d’une tâche archivée :** `duplicateTask` ne refuse pas une source archivée ; l’interface ne propose la copie que sur les tâches non archivées. Voir [Règles des tâches](business-rules/activities/tasks.md).
-- **Déplacement d’un projet archivé :** `moveProject` l’accepte ; l’interface ne le propose pas. Voir [Règles des projets](business-rules/cross-cutting/projects.md).
-- **Ouverture et échéance d’une tâche :** l’ordre « Ouverture » / « Échéance » n’est vérifié que par le formulaire (`taskFormSchema`) ; l’API (`assertDateRange`) ne vérifie que début / fin. Voir [Règles des tâches](business-rules/activities/tasks.md).
-- **Inventaire :** l’API ne vérifie pas que les articles comptés sont dans l’emplacement choisi ; seule l’interface les filtre. Voir [Règles du stock](business-rules/supplies/stock.md).
-- **Occurrence seule d’un évènement récurrent :** `updateCalendarEvent` en `THIS` ignore sans erreur les champs de la série reçus (répétition, calendrier, projet, contributeurs, bénéficiaires, relations, catégories, tâches, rappels) ; le panneau les met en lecture seule quand il est ouvert sur « Cette occurrence ». Voir [Règles de l’agenda](business-rules/activities/calendar.md) et [Agenda](features/activities/calendar.md).
-
 ## Archivage incomplet
 
-- **Tableau de bord archivé :** `deleteDashboard` le supprime, alors que renommer ou déplacer le refuse. Voir [Règles des tableaux de bord](business-rules/resources/dashboards.md).
-- **Évènement archivé :** sa suppression n’est pas refusée, alors que modification, annulation et report le sont. Voir [Règles de l’agenda](business-rules/activities/calendar.md).
-- **Mouvement de trésorerie archivé :** sa suppression ne vérifie pas l’archivage. Voir [Règles de la trésorerie](business-rules/finances/treasury.md).
-- **Élément de réglages archivé :** `setLook` change la couleur et l’image d’un élément archivé sans vérifier l’archivage (`apps/api/src/services/core/settings-lists.ts`), alors que ses autres modifications sont refusées. Voir [Archivage](business-rules/cross-cutting/archiving.md).
-- **Listes à cocher :** elles ne vérifient pas l’archivage de leur propriétaire (routine, évènement, tâche). Voir [Règles des fiches](business-rules/supplies/sheets.md).
+- **Contact archivé :** sa suppression est refusée (`deleteClientContact`), alors que tout autre élément archivé reste supprimable (seuls les sous-éléments d’un élément archivé ne le sont pas). Voir [Archivage](business-rules/cross-cutting/archiving.md#archiver-ou-supprimer) et [Règles de la facturation](business-rules/finances/accounting.md).
 
 ## Incohérences entre le web et l’API
 

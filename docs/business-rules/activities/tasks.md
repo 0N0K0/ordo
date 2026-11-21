@@ -70,7 +70,7 @@ Source : `updateTask`.
 - Un lieu donné remplace aussi son point (`null` : aucun) ; `links: null` retire tous les liens ; `reminders: null` retire tous les rappels ; `deadTimes: null` retire tous les temps morts.
 - Les valeurs archivées que la tâche a **déjà** restent valides ; seules les valeurs archivées **nouvellement** données sont refusées.
 - La période de dates reste valide en tenant compte des dates actuelles (`assertDateRange`) : « La fin doit suivre le début. » sous `endDate`.
-- Le schéma partagé du formulaire (`taskFormSchema`) refuse aussi une échéance avant l’ouverture (même message, sous `deadline`). Côté API, seule la paire début / fin est vérifiée par `assertDateRange` ; la paire « Ouverture » / « Échéance » n’est vérifiée que par le formulaire.
+- L’« Échéance » ne précède pas l’« Ouverture » : « La fin doit suivre le début. » sous `deadline`, refusé par le formulaire (`taskFormSchema`) et par l’API (`assertDateRange` sur les valeurs propres, voir [Dates et retard](#dates-et-retard)).
 
 ## Numérotation
 
@@ -231,7 +231,7 @@ Source : `effectiveTask` (`packages/shared/src/tasks/task-inheritance.ts`, sur `
 ## Dates et retard
 
 - Début / fin : créneau valide (« La fin doit suivre le début. »).
-- « Ouverture » / « Échéance » : créneau valide dans le formulaire partagé.
+- « Ouverture » / « Échéance » : l’« Échéance » ne précède pas l’« Ouverture » (« La fin doit suivre le début. », sous `deadline`), dans le formulaire (`taskFormSchema`) comme dans l’API (création, modification, modification en masse). L’API compare les valeurs propres de la tâche une fois changées (celles envoyées, sinon celles qu’elle a) : une date héritée ou vidée exprès n’est pas comparée, ni une date suivie venue du jalon, du projet ou du sprint (voir [Dates suivies](#dates-suivies)).
 - **En retard** (`isTaskOverdue` côté web) : « Échéance » suivie (`effectiveDeadline`, voir [Dates suivies](#dates-suivies)) passée (strictement avant aujourd’hui) et tâche non fermée. La même règle partout (tableau, panneau, accueil, agenda).
 
 ### Dates suivies
@@ -310,7 +310,7 @@ Source : `duplicateTask` (« Dupliquer » : la copie est enregistrée tout de su
 - Une copie dont le statut est « Annulé » est fermée, comme toute tâche qui reçoit ce statut.
 - La copie s’appelle « … (copie) » (`copyName`, 250 caractères au plus) ; elle est placée sous le même parent, à la fin de l’ordre manuel ; elle reçoit un nouveau numéro (base).
 - Avec `includeSubtasks`, le sous-arbre est copié niveau par niveau sous la copie (les sous-tâches copiées gardent leur libellé, assignés, bénéficiaires, étiquettes et sprints, pas leurs liens de blocage ou de relation).
-- La tâche source peut être archivée (aucune vérification d’archivage) ; l’interface ne propose la duplication que sur les tâches non archivées.
+- Une tâche archivée n’est pas copiée (« Élément archivé : restaurez-le pour le modifier. ») : l’interface ne propose la duplication que sur les tâches non archivées. Ses sous-tâches archivées, elles, sont copiées avec elle.
 
 ## Transformer en routine
 

@@ -86,7 +86,7 @@ Une quantité sort du lot donné (« Lot introuvable. » s'il n'est pas à l'art
 `recordStockCount` (`stockCountSchema`) :
 
 - Au moins une ligne (« Comptez au moins un article. »), 2000 au plus ; quantité comptée 0 à 999 999 ; note markdown de 65 536 caractères (`markdownSchema`, « Texte trop long. »), blanche → null, enregistrée telle qu'écrite.
-- Emplacement facultatif (aucun : tout le stock), existant et non archivé. L'API ne vérifie pas que les articles comptés sont dans cet emplacement (c'est l'interface qui les filtre).
+- Emplacement facultatif (aucun : tout le stock), existant et non archivé. Avec un emplacement, chaque article compté doit être dans cet emplacement ou dans l'un de ses sous-emplacements (comme le filtre l'interface) : sinon « Un article compté n’est pas dans cet emplacement (ni dans l’un de ses sous-emplacements). » (sous `lines`) ; un article sans emplacement ne se compte que dans tout le stock.
 - Tous les articles doivent exister (« Article introuvable. ») et aucun n'être archivé.
 - Pour chaque ligne, l'écart compté − attendu :
   - positif : entre dans le lot à la date la plus tardive (un nouveau lot sans date s'il n'y a aucun lot) ;

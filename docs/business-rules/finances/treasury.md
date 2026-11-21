@@ -74,7 +74,7 @@ Un mouvement qui a des lignes porte sa catégorie, son projet, ses liens et ses 
   - s’il est décomposé, les lignes d’autres mouvements liées au mouvement entier sont déliées (il ne se lie plus que par ses lignes) ;
   - lignes : celles dont l’`id` est renvoyé sont mises à jour en place, les autres supprimées, les nouvelles créées (voir [Lignes](#lignes-de-répartition)) ;
   - les documents réglés avant et après sont recalculés.
-- Suppression (`deleteEntry`) : ses lignes et règlements sont supprimés en cascade, ses liens retirés ; les documents qu’il réglait redeviennent dus (`syncPaymentStatus`). Aucune vérification d’archivage n’est faite à la suppression.
+- Suppression (`deleteEntry`) : ses lignes et règlements sont supprimés en cascade, ses liens retirés ; les documents qu’il réglait redeviennent dus (`syncPaymentStatus`). Un mouvement archivé reste supprimable (règle commune, voir [Archivage](../cross-cutting/archiving.md#archiver-ou-supprimer)).
 - Archivage / restauration : mutation générique, type `TREASURY_ENTRY`. Archivé, il reste compté partout (soldes, prévisionnel, budgets, relevés) mais n’est plus modifiable.
 
 ### Documents réglés (allocations)

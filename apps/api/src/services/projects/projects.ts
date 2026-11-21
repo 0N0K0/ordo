@@ -390,7 +390,8 @@ export async function deleteProject(id: string): Promise<void> {
 }
 
 /**
- * Moves a project, with its sub-projects, to an index under a parent project or at the root of a client.
+ * Moves a project (not an archived one), with its sub-projects, to an index under a parent project (not archived) or at
+ * the root of a client.
  * @param {string} id Project id.
  * @param {object} target Destination.
  * @param {string | null} target.parentId Parent project, or null for a root project.
@@ -399,6 +400,6 @@ export async function deleteProject(id: string): Promise<void> {
  * @returns {Promise<void>}
  */
 export async function moveProject(id: string, { parentId, clientId, index }: { parentId: string | null; clientId: string | null; index: number }): Promise<void> {
-  const project = await findProject(id);
+  const project = await findActive(prisma.project, id, 'Projet');
   await placeProject(await ProjectTree.load(), project, parentId, clientId, index);
 }

@@ -23,13 +23,14 @@ import {
   stockMoveSchema,
   type StockPurchaseInput,
   stockPurchaseSchema,
+  subtreeOf,
   sumOf,
 } from '@ordo/shared';
 import { treeListService } from '../core/trees';
 import { prisma } from '../../db';
 import { Prisma, type ShoppingDelivery, type StockCount, type StockItem, type StockLocation, type StockMovementKind } from '../../generated/prisma/client';
 import { peopleData, peopleIds, assertPeople } from './people';
-import { clientError, notFound, orNotFound, parseInput } from '../../graphql/errors';
+import { clientError, fieldError, notFound, orNotFound, parseInput } from '../../graphql/errors';
 import { BY_POSITION, nextPositionIn } from '../core/ordering';
 import { assertExists, deleteOrNotFound, findOrNotFound } from '../core/lookup';
 import { assertNoneArchived, assertNotArchived, assertActive, findActive, refuseArchived } from '../core/archive';
@@ -270,9 +271,12 @@ export async function setLotExpiry(id: string, expiresAt: string | null): Promis
   await prisma.stockLot.update({ where: { id }, data: { expiresAt: parseOptionalDay(expiresAt) } });
 }
 
+/** Message of the error refusing an inventory that counts an item out of the place counted. */
+const COUNT_OUT_OF_PLACE = 'Un article compté n’est pas dans cet emplacement (ni dans l’un de ses sous-emplacements).';
+
 /**
  * Records an inventory: each item counted is set to its count (the difference in, or out of the lots that expire
- * first), noted as counted.
+ * first), noted as counted. Of a place, every item counted must be in it or in one of its sub-places.
  * @param {StockCountInput} input Counts.
  * @returns {Promise<StockCount>} Inventory.
  */
@@ -285,6 +289,11 @@ export async function recordCount(input: StockCountInput): Promise<StockCount> {
     'STOCK_ITEM',
     items.map((item) => item.id),
   );
+  // A place counted: its items only, those of its sub-places included.
+  if (data.locationId) {
+    const places = subtreeOf(await prisma.stockLocation.findMany({ select: { id: true, parentId: true } }), data.locationId);
+    if (items.some((item) => !item.locationId || !places.has(item.locationId))) throw fieldError('lines', COUNT_OUT_OF_PLACE);
+  }
   const byId = mapById(items);
   return prisma.$transaction(async (tx) => {
     const count = await tx.stockCount.create({ data: { locationId: data.locationId, note: data.note } });

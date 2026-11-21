@@ -212,13 +212,40 @@ const detailsSchema = z.object({
   deadTimes: deadTimesSchema.nullable().optional(),
 });
 
+/** Days of a task checked against the days sent. */
+interface TaskDays {
+  startDate: Date | null;
+  endDate: Date | null;
+  minDate: Date | null;
+  deadline: Date | null;
+}
+
+/**
+ * Checks the order of the « Ouverture » and the « Échéance » of a task on its own days once changed (the days sent
+ * merged with those it has): the « Échéance » does not come before the « Ouverture » (« deadline » error). A day it
+ * inherits or emptied on purpose is not compared (the days it goes by may come from its parent, milestone, project or
+ * sprint).
+ * @param {{ minDate?: string | null, deadline?: string | null }} changes Days sent (YYYY-MM-DD; null clears, undefined keeps).
+ * @param {TaskDays} [current] Days it has. Optional. Default = a new task.
+ * @param {readonly string[]} [notOwn] Fields it inherits or that are emptied (« MIN_DATE », « DEADLINE »). Optional. Default = none.
+ * @returns {void}
+ */
+function assertOwnDays(changes: { minDate?: string | null; deadline?: string | null }, current?: TaskDays, notOwn: readonly string[] = []): void {
+  const off = new Set(notOwn);
+  assertDateRange(
+    { startDate: off.has('MIN_DATE') ? null : changes.minDate, endDate: off.has('DEADLINE') ? null : changes.deadline },
+    current && { startDate: current.minDate, endDate: current.deadline },
+    'deadline',
+  );
+}
+
 /**
  * Validates the scalar fields of a task (undefined: unchanged, null: cleared).
  * @param {TaskInput} input Raw input.
  * @param {{ startDate: Date | null, endDate: Date | null }} [current] Current dates on update. Optional.
  * @returns {object} Prisma data.
  */
-function parseDetails(input: TaskInput, current?: { startDate: Date | null; endDate: Date | null }) {
+function parseDetails(input: TaskInput, current?: TaskDays, notOwn: readonly string[] = []) {
   const details = parseInput(detailsSchema, {
     label: input.label ?? undefined,
     description: input.description,
@@ -236,6 +263,7 @@ function parseDetails(input: TaskInput, current?: { startDate: Date | null; endD
     deadTimes: input.deadTimes,
   });
   assertDateRange(details, current);
+  assertOwnDays(details, current, [...notOwn, ...(input.clear ?? [])]);
   return {
     label: details.label,
     description: details.description,
@@ -296,7 +324,7 @@ export async function createTask(given: TaskInput & { label: string }): Promise<
   const inheritedFields = given.parentId ? TASK_INHERITABLE_FIELDS.filter((field) => (listed ? listed.has(field) : !own.includes(field))) : [];
   const inherits = (field: TaskInheritableField) => inheritedFields.includes(field);
   const input = { ...given, ...inheritedInput(inheritedFields) };
-  const details = parseDetails(input);
+  const details = parseDetails(input, undefined, inheritedFields);
   await assertConditionSchedules([readSlotCondition(input.slotCondition)], []);
   const parentProject = input.parentId && inherits('PROJECT') ? (await orNotFound(prisma.task.findUnique({ where: { id: input.parentId }, select: { projectId: true } }), 'Tâche parente', 'parentId')).projectId : null;
   const projectId = inherits('PROJECT') ? parentProject : (input.projectId ?? null);
@@ -347,7 +375,7 @@ export async function updateTask(id: string, input: TaskInput): Promise<Task> {
   // Placed under a parent after the fact: its empty fields inherit, as at its creation.
   const adopted = parentId && !task.parentId ? await adoptedTaskFields(id, input) : [];
   const inheritedFields = changedTaskInheritance(task.inheritedFields, { inherit: [...(input.inherit ?? []), ...adopted.filter((field) => !input.clear?.includes(field))], clear: input.clear, input, hasParent: parentId !== null });
-  const details = parseDetails(input, task);
+  const details = parseDetails(input, task, inheritedFields);
   // Archived schedules: no longer chosen, those already in its condition stay.
   if (input.slotCondition !== undefined) await assertConditionSchedules([readSlotCondition(input.slotCondition)], [readSlotCondition(task.slotCondition)]);
   await assertReferences(input);
@@ -519,7 +547,7 @@ const CLONED_LINKS = {
 } as const;
 
 /**
- * Duplicates a task (every field, assignees and links, but not comments), named « … (copie) », optionally
+ * Duplicates a task not archived (every field, assignees and links, but not comments), named « … (copie) », optionally
  * with its sub-tasks (their labels kept). A former link out of its project tree (kept until it moves) is not copied.
  * @param {string} id Task id.
  * @param {boolean} includeSubtasks Whether to copy the sub-tree too.
@@ -534,6 +562,8 @@ export async function duplicateTask(id: string, includeSubtasks: boolean): Promi
     relationsB: true,
   };
   const source = await orNotFound(prisma.task.findUnique({ where: { id }, include }), 'Tâche');
+  // An archived task is read only: restored first, then copied.
+  refuseArchived(source);
   const linked = [...source.blocking.map((link) => link.blockedId), ...source.blockedBy.map((link) => link.blockerId), ...source.relationsA.map((link) => link.taskBId), ...source.relationsB.map((link) => link.taskAId)];
   const projectOf = new Map((await prisma.task.findMany({ where: { id: { in: linked } }, select: { id: true, projectId: true } })).map((task) => [task.id, task.projectId]));
   const inTree = inProjectTree(await loadRootOf(), source.projectId, projectOf);
@@ -857,6 +887,8 @@ export async function bulkUpdateTasks(ids: string[], changes: BulkTaskChanges, r
       projectId: true,
       startDate: true,
       endDate: true,
+      minDate: true,
+      deadline: true,
       statusId: true,
       priorityId: true,
       typeId: true,
@@ -906,8 +938,10 @@ export async function bulkUpdateTasks(ids: string[], changes: BulkTaskChanges, r
       );
     if (changes.milestoneId) await assertMilestone(changes.milestoneId, task.projectId);
     if (changes.addSprintIds?.length) await assertSprints(changes.addSprintIds, task.projectId);
-    // The date range must stay valid for every task.
+    // The date ranges must stay valid for every task (« Ouverture » / « Échéance »: on its own days).
     assertDateRange(details, task);
+    const inherited = changedTaskInheritance(task.inheritedFields, { inherit: changes.inheritFields, clear: changes.clearFields, input: changes, hasParent: task.parentId !== null });
+    assertOwnDays(details, task, [...inherited, ...(changes.clearFields ?? [])]);
   }
 
   await prisma.$transaction([

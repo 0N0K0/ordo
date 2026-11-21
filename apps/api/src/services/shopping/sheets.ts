@@ -30,7 +30,7 @@ import { prisma } from '../../db';
 import { Prisma, type Sheet, type SheetCategory, type SheetItem, type Checklist, type ChecklistItem } from '../../generated/prisma/client';
 import { clientError, isUniqueConflict, notFound, orNotFound, parseInput } from '../../graphql/errors';
 import { BY_POSITION, BY_POSITION_ONLY, nextPositionIn } from '../core/ordering';
-import { copyOf, findOpenList } from './shopping';
+import { copyOf, findEditableList } from './shopping';
 import { assertPeople, peopleData, peopleIds, withPeople } from './people';
 import { syncChecklistStock } from './stock';
 import { assertAllExist, assertExists, deleteOrNotFound, findOrNotFound } from '../core/lookup';
@@ -381,7 +381,7 @@ function withSource(sources: SheetSource[], part: SheetPart): SheetSource[] {
  * @returns {Promise<number>} Items changed or added.
  */
 export async function addSheetToShoppingList(listId: string, sheetId: string, multiplier: number): Promise<number> {
-  await findOpenList(listId);
+  await findEditableList(listId);
   await assertSheetsUsable([sheetId]);
   const times = parseInput(sheetMultiplierSchema, multiplier);
   const parts = (await partsOf([{ sheetId, multiplier: times }])).map(fitForShopping);
@@ -462,7 +462,7 @@ export async function addSheetToShoppingList(listId: string, sheetId: string, mu
  * @returns {Promise<void>}
  */
 export async function removeSheetFromShoppingList(listId: string, sheetId: string): Promise<void> {
-  await findOpenList(listId);
+  await findEditableList(listId);
   const items = await prisma.shoppingItem.findMany({ where: { listId } });
   await prisma.$transaction(async (tx) => {
     for (const item of items) {
@@ -512,6 +512,38 @@ async function assertOwner(scope: OwnerScope): Promise<void> {
 }
 
 /**
+ * Checks that what owns sheets exists and is not archived (its sheets and checklists are read only with it).
+ * @param {OwnerScope} scope Owner.
+ * @returns {Promise<void>}
+ */
+async function assertOwnerActive(scope: OwnerScope): Promise<void> {
+  if ('routineId' in scope) await assertActive(prisma.routine, scope.routineId, 'Routine');
+  else if ('eventId' in scope) await assertActive(prisma.calendarEvent, scope.eventId, 'Évènement');
+  else await assertActive(prisma.task, scope.taskId, 'Tâche');
+}
+
+/**
+ * Refuses a change of checklists whose owner (routine, event, task) is archived (BAD_USER_INPUT « Élément archivé… »).
+ * @param {Prisma.ChecklistWhereInput} where Checklists changed.
+ * @returns {Promise<void>}
+ */
+async function assertChecklistsOpen(where: Prisma.ChecklistWhereInput): Promise<void> {
+  const lists = await prisma.checklist.findMany({ where, select: { routineId: true, eventId: true, taskId: true } });
+  await assertNoneArchived(
+    'routine',
+    lists.map((list) => list.routineId),
+  );
+  await assertNoneArchived(
+    'calendarEvent',
+    lists.map((list) => list.eventId),
+  );
+  await assertNoneArchived(
+    'task',
+    lists.map((list) => list.taskId),
+  );
+}
+
+/**
  * Items of the sheets of an owner times their multipliers, the archived sheets left out.
  * @param {OwnerScope} scope Owner.
  * @returns {Promise<SheetPart[] | null>} Parts, or null when it has no sheets.
@@ -529,7 +561,7 @@ async function sheetPartsOf(scope: OwnerScope): Promise<SheetPart[] | null> {
  */
 export async function setSheetLinks(owner: OwnerIds, links: SheetLinkInput[]): Promise<void> {
   const where = ownerScope(owner);
-  await assertOwner(where);
+  await assertOwnerActive(where);
   const data = parseInput(z.array(sheetLinkSchema).max(50, '50 fiches au plus.'), links);
   const ids = [...new Set(data.map((link) => link.sheetId))];
   await assertAllExist(prisma.sheet, ids, 'Fiche');
@@ -624,6 +656,7 @@ export async function checklist(owner: SheetOwner): Promise<Checklist | null> {
  */
 export async function resetChecklist(id: string): Promise<Checklist> {
   const list = await findOrNotFound(prisma.checklist, id, 'Liste');
+  await assertChecklistsOpen({ id });
   const parts = (await sheetPartsOf(ownerScope(list))) ?? [];
   return prisma.$transaction(async (tx) => {
     await tx.checklistItem.deleteMany({ where: { listId: id } });
@@ -640,6 +673,7 @@ export async function resetChecklist(id: string): Promise<Checklist> {
  */
 export async function addSheetToChecklist(id: string, sheetId: string, multiplier: number): Promise<void> {
   await assertExists(prisma.checklist, id, 'Liste');
+  await assertChecklistsOpen({ id });
   await assertSheetsUsable([sheetId]);
   const parts = await partsOf([{ sheetId, multiplier: parseInput(sheetMultiplierSchema, multiplier) }]);
   await prisma.$transaction(async (tx) => {
@@ -698,6 +732,7 @@ function findListItem(id: string): Promise<ChecklistItem> {
  */
 export async function addChecklistItem(listId: string, input: SheetItemInput): Promise<ChecklistItem> {
   await assertExists(prisma.checklist, listId, 'Liste');
+  await assertChecklistsOpen({ id: listId });
   const data = parseInput(checklistItemSchema, input);
   await assertProducts([data]);
   const position = await nextPositionIn('checklistItem', { listId });
@@ -712,6 +747,7 @@ export async function addChecklistItem(listId: string, input: SheetItemInput): P
  */
 export async function updateChecklistItem(id: string, input: SheetItemInput): Promise<ChecklistItem> {
   const current = await findListItem(id);
+  await assertChecklistsOpen({ id: current.listId });
   const data = parseInput(checklistItemSchema, input);
   await assertProducts([data], current);
   return prisma.checklistItem.update({ where: { id }, data: itemFields(data) });
@@ -724,6 +760,7 @@ export async function updateChecklistItem(id: string, input: SheetItemInput): Pr
  * @returns {Promise<void>}
  */
 export async function setChecklistItemsChecked(ids: string[], checked: boolean): Promise<void> {
+  await assertChecklistsOpen({ items: { some: { id: { in: ids } } } });
   await prisma.$transaction(async (tx) => {
     await tx.checklistItem.updateMany({ where: { id: { in: ids } }, data: { checkedAt: checked ? new Date() : null } });
     // Ticked, what is used up is taken from the stock (given back when unticked).
@@ -737,5 +774,6 @@ export async function setChecklistItemsChecked(ids: string[], checked: boolean):
  * @returns {Promise<void>}
  */
 export async function deleteChecklistItem(id: string): Promise<void> {
-  await deleteOrNotFound(prisma.checklistItem, id, 'Élément');
+  await assertChecklistsOpen({ id: (await findListItem(id)).listId });
+  await prisma.checklistItem.delete({ where: { id } });
 }

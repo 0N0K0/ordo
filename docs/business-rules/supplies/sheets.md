@@ -78,7 +78,7 @@ Source : `sheetCategories = createLabelService('sheetCategory', …)` ; mutation
 
 Source : `addSheetToShoppingList`, `removeSheetFromShoppingList`, `fitForShopping`, `withSource`.
 
-- La liste doit être ouverte (non archivée), la fiche non archivée.
+- La liste ne doit être ni archivée (« Élément archivé : restaurez-le pour le modifier. ») ni close (« Liste clôturée : rouvrez-la pour changer ses éléments. », voir [Clôture](shopping.md#clôture)), la fiche non archivée.
 - Chaque élément est multiplié (`timesSheet`, arrondi au millième) puis adapté aux limites des achats : libellé et unité coupés à 250 caractères, note à 65 536 (textes enregistrés avant ces limites), quantité plafonnée à 999 999.
 - Clé d'addition (`productKey`) : le produit, sinon le libellé et l'unité normalisés (`nameKey` : sans casse, accents ni espaces en trop). Un élément de la liste **pas encore acheté** de même clé voit sa quantité augmentée et la part de la fiche notée dans ses sources (`sheetSources` : `[{ sheetId, label, quantity }]`) ; il ne reste facultatif que si toutes ses fiches le disent.
 - Sinon un nouvel élément est créé en dernier : avec un produit, ses champs (ceux de l'élément de fiche en priorité) ; sans produit, ceux de l'élément de fiche.
@@ -99,7 +99,7 @@ Voir [Règles du stock](stock.md).
 
 Source : `setSheetLinks`, `ownerScope`.
 
-- Exactement un propriétaire : routine, évènement ou tâche (« Une routine, un évènement ou une tâche, un seul. ») ; il doit exister (« Routine », « Évènement », « Tâche »).
+- Exactement un propriétaire : routine, évènement ou tâche (« Une routine, un évènement ou une tâche, un seul. ») ; il doit exister (« Routine », « Évènement », « Tâche ») et ne pas être archivé (« Élément archivé : restaurez-le pour le modifier. »).
 - 50 fiches au plus (« 50 fiches au plus. »), chacune existante, avec son multiplicateur.
 - Une fiche archivée déjà attachée reste ; elle n'est pas attachée à nouveau.
 - L'enregistrement remplace tous les rattachements, dans l'ordre donné.
@@ -119,4 +119,4 @@ Source : `checklist`, `resetChecklist`, `addSheetToChecklist`, `addChecklistItem
 - Élément ajouté à la main : schéma d'un élément de fiche (seuls produit, libellé, catégorie, quantité, unité, note, consommable sont gardés) ; produit et catégorie vérifiés.
 - Cocher / décocher (`setChecklistItemsChecked`) : `checkedAt` mis à maintenant ou effacé ; dans la même transaction, chaque élément consommable de produit avec quantité est retiré du stock à la coche (une seule fois : pas de nouveau retrait s'il a déjà un mouvement) et rendu au décochage.
 - Retirer un élément : supprimé.
-- Les listes à cocher ne sont pas archivables ; elles ne vérifient pas l'archivage de leur propriétaire.
+- Les listes à cocher ne sont pas archivables ; elles sont en lecture seule avec leur propriétaire archivé (routine, évènement, tâche) : refaire, ajouter une fiche ou un élément, modifier, cocher, décocher et retirer sont refusés (« Élément archivé : restaurez-le pour le modifier. »). La première demande (`checklist`) fait encore la liste d'un propriétaire archivé, pour la lire.

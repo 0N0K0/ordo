@@ -88,7 +88,7 @@ Source : `apps/api/src/services/projects/projects.ts`.
 
 ### Déplacement
 
-`moveProject(id, { parentId, clientId, index })` place le projet (et ses sous-projets) à un index parmi ses **frères actifs** sous un parent ou à la racine d’un client (`clientId: null` = « Sans client »). Mêmes contrôles d’arbre que ci-dessus. Le déplacement n’est pas refusé pour un projet archivé côté API (le web ne le propose pas).
+`moveProject(id, { parentId, clientId, index })` place le projet (et ses sous-projets) à un index parmi ses **frères actifs** sous un parent ou à la racine d’un client (`clientId: null` = « Sans client »). Mêmes contrôles d’arbre que ci-dessus. Un projet archivé ne se déplace pas (« Élément archivé : restaurez-le pour le modifier. »), ni sous un parent archivé (même message, champ `parentId`).
 
 ### Favoris
 

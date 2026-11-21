@@ -435,6 +435,39 @@ export async function updateCalendarEvent(id: string, input: CalendarEventInput,
   return updated;
 }
 
+/** Fields of a recurring event that are those of its whole series: one occurrence alone (`THIS`) does not change them. */
+const SERIES_FIELDS = ['recurrence', 'reminders', 'projectId', 'calendarId', 'contributorIds', 'relationIds', 'beneficiaryIds', 'beneficiaryRelationIds', 'categoryIds', 'taskIds'] as const;
+
+/** Fields of the series given as lists of ids: compared whatever their order. */
+const SERIES_ID_LISTS = new Set<string>(['contributorIds', 'relationIds', 'beneficiaryIds', 'beneficiaryRelationIds', 'categoryIds', 'taskIds']);
+
+/** Message of the error refusing a field of the series changed for one occurrence alone. */
+const SERIES_FIELD_MESSAGE = 'Ce champ vaut pour toute la série : modifiez « Celle-ci et les suivantes » ou « Toutes les occurrences ».';
+
+/**
+ * Refuses, for one occurrence alone, a field of the series given with another value than the series has
+ * (BAD_USER_INPUT under the field): sent unchanged, they are kept as the series has them. A calendar not given
+ * (null) is that of the series. Nothing is compared when the series' own values no longer pass the rules (former data).
+ * @param {CalendarEventInput} given Fields given (validated), with the calendar as sent.
+ * @param {CalendarEventInput} series Fields of the series on that occurrence (`seriesInput`).
+ * @returns {void}
+ */
+function assertSeriesFieldsKept(given: CalendarEventInput, series: CalendarEventInput): void {
+  const stored = calendarEventInputSchema.safeParse(series);
+  if (!stored.success) return;
+  /**
+   * Comparable form of a field's value.
+   * @param {string} field Field.
+   * @param {unknown} value Value.
+   * @returns {string} JSON (a list of ids sorted).
+   */
+  const comparable = (field: string, value: unknown): string => JSON.stringify(SERIES_ID_LISTS.has(field) && Array.isArray(value) ? [...(value as string[])].sort() : (value ?? null));
+  for (const field of SERIES_FIELDS) {
+    if (field === 'calendarId' && !given.calendarId) continue;
+    if (comparable(field, given[field]) !== comparable(field, stored.data[field])) throw fieldError(field, SERIES_FIELD_MESSAGE);
+  }
+}
+
 /**
  * Fields of an event (or of some of its occurrences) changed, the routines of its days aside.
  * @param {string} id Event.
@@ -465,6 +498,7 @@ async function updateEventFields(id: string, input: CalendarEventInput, scope: E
   const seriesStart = formatDay(event.startDate);
 
   if (scope === 'THIS') {
+    assertSeriesFieldsKept({ ...fields, calendarId: input.calendarId ?? null }, seriesInput(await findEventWithRelations(id), occurrence.date));
     const override = {
       cancelled: false,
       label: fields.label,

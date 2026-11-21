@@ -23,7 +23,7 @@ Voir aussi : [dates](../../shared/cross-cutting/dates.md), [calendar](../../shar
 - Règle unique pour toute paire de dates (début / fin, min / max, toute période) : la fin suit le début (égale permise), sinon « La fin doit suivre le début. » sous le champ de fin. Une borne absente est toujours acceptée (`endsAfter`, `endAfter`).
 - Dans les formulaires, un seul champ de période commun : changer le début après la fin déplace la fin à la même date, changer la fin avant le début déplace le début ; les dates impossibles ne sont pas sélectionnables.
 - Strictement après pour les heures d'une tranche (créneaux, moments de routine).
-- Modification partielle : `assertDateRange` fusionne les jours envoyés avec ceux enregistrés (un jour omis est inchangé) avant de vérifier.
+- Modification partielle : `assertDateRange` fusionne les jours envoyés avec ceux enregistrés (un jour omis est inchangé) avant de vérifier ; l’erreur va sous le champ de fin donné (`endDate` par défaut, `deadline` pour l’« Échéance » d’une tâche).
 - Variantes de message : « L’échéance doit suivre la date du document. », « La fin de la répétition doit suivre le début. ».
 
 ## Semaine de l'espace

@@ -894,6 +894,18 @@ const scalars = (data: ReturnType<typeof routineSchema.parse>) => ({
  * @returns {Promise<Routine>} Routine.
  */
 export async function createRoutine(input: RoutineInput, copyOf: string | null = null): Promise<Routine> {
+  // An archived routine is read only: restored first, then copied.
+  await assertNotArchived('routine', copyOf);
+  return insertRoutine(input, copyOf);
+}
+
+/**
+ * Saves a new routine, at the end of the list (a copy of a sub-routine archived alone included).
+ * @param {RoutineInput} input Routine.
+ * @param {string | null} copyOf Routine it is a copy of, or null.
+ * @returns {Promise<Routine>} Routine.
+ */
+async function insertRoutine(input: RoutineInput, copyOf: string | null): Promise<Routine> {
   const data = await parseRoutine(input, undefined, { copyOf });
   const position = await nextPositionIn('routine');
   return prisma.$transaction(async (tx) => {
@@ -930,7 +942,7 @@ export async function copySubRoutines(fromId: string, toId: string): Promise<num
     const children = await prisma.routine.findMany({ where: { parentId: source }, orderBy: BY_POSITION, select: { id: true } });
     for (const child of children) {
       // Former links out of the project tree of a routine (kept until it moves) are not copied: the copy obeys the rule.
-      const copy = await createRoutine({ ...(await inputOf(child.id)), parentId: copies.get(source)! }, child.id);
+      const copy = await insertRoutine({ ...(await inputOf(child.id)), parentId: copies.get(source)! }, child.id);
       copies.set(child.id, copy.id);
       queue.push(child.id);
     }

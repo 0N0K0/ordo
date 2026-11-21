@@ -29,6 +29,8 @@ Toute modification d'un élément archivé, ou d'un sous-élément d'un élémen
 - `findActive(model, id, what)` : charge l'élément (« X introuvable. ») puis refuse s'il est archivé.
 - `refuseArchived(record, field?)` : refuse un élément déjà chargé.
 - `assertActive(model, id, what, options)` : existence et non-archivage en une requête.
+- La couleur et l'image d'un élément de réglages archivé ne changent pas (`setSettingsItemLook`).
+- Les listes à cocher d'une routine, d'un évènement ou d'une tâche archivés (voir [Fiches](../supplies/sheets.md#listes-à-cocher)), et leurs fiches rattachées.
 - Les listes de libellés (`createLabelService`, dont la modification ne change que les champs envoyés : `presentFields`, aucune valeur par défaut ajoutée pour un champ omis) et les arbres de réglages (`treeListService`) refusent la modification d'un élément archivé ; un élément archivé ne reçoit pas de nouvel enfant (ceux déjà présents restent).
 - Commentaires : on ne commente pas, ne modifie pas et ne supprime pas un commentaire d'un élément archivé, ni d'un élément contenu dans un élément archivé (article de fiche dans une fiche archivée, article de liste dans une liste archivée) (`apps/api/src/services/core/comments.ts`).
 - Les sous-éléments verrouillés par leur parent : périodes d'un contexte de trésorerie archivé (ni ajout, ni modification, ni suppression).
@@ -93,3 +95,7 @@ Les projets, tâches, routines, contacts et contributeurs utilisent un indicateu
 ## Archiver ou supprimer
 
 La suppression est distincte : elle est définitive et suit les règles de suppression de chaque domaine (voir les pages métier) et les cascades de la base (voir [Ordre](ordering.md) pour les arbres et les pages de domaine). Côté web, toute suppression passe par une confirmation destructive (« Cette action est irréversible. », ajoutée par `confirmDestructive`).
+
+- Un élément archivé **reste supprimable** : la suppression n'est pas une modification, et le web l'offre avec « Restaurer » sur un élément archivé (tableaux de bord, évènements, mouvements de trésorerie, listes, produits, articles, fiches, jalons, sprints, etc.). Les règles de suppression propres au domaine s'appliquent toujours (un document définitif ne se supprime jamais, un compte qui a des mouvements non plus…).
+- Un **sous-élément** d'un élément archivé, lui, ne se supprime pas : c'est une modification de l'élément archivé (élément d'une liste archivée, article d'une fiche archivée, ressource d'un projet archivé, diagramme d'un tableau archivé, brouillon d'une boîte archivée, élément d'une liste à cocher d'un propriétaire archivé, contact d'un client archivé…).
+- Exception : un contact archivé n'est pas supprimé (`deleteClientContact`).
