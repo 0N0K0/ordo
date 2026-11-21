@@ -1,4 +1,16 @@
-import { normalizedReminders, readReminders, reminderKey, reminderOfKey, ROUTINE_REMINDER_ANCHORS } from '@ordo/shared';
+import {
+  DAY_REMINDER_KINDS,
+  normalizedReminders,
+  readReminders,
+  readSlotCondition,
+  REMINDER_KINDS,
+  reminderKey,
+  reminderOfKey,
+  ROUTINE_REMINDER_ANCHORS,
+  routineHasHours,
+  type RoutineCase,
+  type RoutineSlot,
+} from '@ordo/shared';
 
 import { cellPicker } from '../../../components/data-table/cells/cell-field';
 import { Badge, Select, Stack, Text } from '@mantine/core';
@@ -160,6 +172,18 @@ export function RemindersCell({ routine, readOnly = false }: { routine: Routine;
         <RemindersSelect
           label="Rappels"
           value={routine.reminders}
+          // Without any hour, only reminders at a time of the day (decision FW).
+          kinds={
+            routineHasHours({
+              fromTime: routine.fromTime,
+              dueTime: routine.dueTime,
+              moments: (routine.moments as RoutineSlot[] | null) ?? [],
+              slotCondition: readSlotCondition(routine.slotCondition),
+              cases: (routine.cases as RoutineCase[] | null) ?? [],
+            })
+              ? REMINDER_KINDS
+              : DAY_REMINDER_KINDS
+          }
           anchors={ROUTINE_REMINDER_ANCHORS}
           // On a selection, those added here are added to each routine, those removed here removed (with their ringtone).
           onChange={(values) =>

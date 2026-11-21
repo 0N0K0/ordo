@@ -150,6 +150,15 @@ export default defineConfig([
           selector: "CallExpression[callee.name=/^(occurrenceReminders|taskReminders|remindersAt|remindersBefore)$/]",
           message: 'Utiliser eventRings / taskRings / routineRings / ephemerisRings / birthdayRings (@ordo/shared, dates/reminder-rings) : les mêmes clés, instants et textes que le serveur (push).',
         },
+        // Start and end of a moment of a routine, the same in its display and its reminders (decision FW).
+        {
+          selector: "CallExpression[callee.name='shiftTime'][arguments.0.property.name=/^(fromTime|dueTime)$/]",
+          message: 'Utiliser routineSlotSpan(moment, minutes) (@ordo/shared, routines) : début et fin d’un moment, les mêmes pour l’affichage et les rappels.',
+        },
+        {
+          selector: "JSXAttribute[name.name='kinds'] > JSXExpressionContainer > ArrayExpression",
+          message: 'Utiliser REMINDER_KINDS / DAY_REMINDER_KINDS (@ordo/shared, dates/reminders) : les genres de rappels offerts.',
+        },
         {
           selector: "CallExpression[callee.name='lazy']",
           message: 'Utiliser lazyNamed (lib/lazy) : une seule façon de charger un composant à la demande.',

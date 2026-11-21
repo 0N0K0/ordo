@@ -3,7 +3,7 @@ import { scheduleRuns, type WorkScheduleRule } from '../calendar/work-schedules'
 import { occurrenceKey, readOccurrenceKey } from '../calendar/calendar';
 import { APP_PATHS, projectPath, taskPath } from '../core/app-paths';
 import { parseTaggedKey, taggedKey } from '../core/tagged-key';
-import { routineReminderTime, windowText } from '../routines/routines';
+import { routineSlotSpan, windowText } from '../routines/routines';
 import { taskNumbered } from '../tasks/tasks';
 import { entrySeconds, previousOccurrence, type AlarmType } from '../tasks/time';
 import { addDays } from './days';
@@ -165,6 +165,8 @@ export interface RemindedRoutine {
   label: string;
   archived: boolean;
   location?: string | null;
+  /** Time to spend on it, in minutes: the end of a time without « jusqu'à », the start of one without « dès » (decision FW). */
+  estimate: number | null;
   /** Due day of its current occurrence. */
   currentDate?: string | null;
   reminders: readonly ReminderValue[];
@@ -178,22 +180,25 @@ export interface RemindedRoutine {
 export type RoutineRing<R> = PlannedRing & { routine: R; slot: number; current: boolean };
 
 /**
- * Instants the reminders « avant » of a time of the day of an occurrence count from (decision FV): the start of the
- * time (« dès », else its « jusqu'à » as decided by D16, else 00:00) and its end (« jusqu'à », else midnight after the
- * day), on the opening day (`start`, `openEnd`) and on the due day (`dueStart`, `end`), Paris time.
+ * Instants the reminders « avant » of a time of the day of an occurrence count from (decisions FV, FW): its start and
+ * its end (`routineSlotSpan`, as the agenda shows it: « dès » / « jusqu'à », the other one from the time to spend on
+ * it), on the opening day (`start`, `openEnd`) and on the due day (`dueStart`, `end`), Paris time. A time without any
+ * hour has none (no reminder « avant »).
  * @param {RemindedRoutineOccurrence} occurrence Occurrence.
  * @param {RemindedRoutineSlot} slot Time of the day.
- * @returns {Record<ReminderAnchor, Date>} Instant of each anchor.
+ * @param {number | null} minutes Time to spend on the routine (`estimate`).
+ * @returns {Record<ReminderAnchor, Date> | null} Instant of each anchor, null without any hour.
  */
-export function routineSlotAnchors(occurrence: Pick<RemindedRoutineOccurrence, 'date' | 'day'>, slot: Omit<RemindedRoutineSlot, 'slot'>): Record<ReminderAnchor, Date> {
-  const start = routineReminderTime(slot) ?? '00:00';
+export function routineSlotAnchors(occurrence: Pick<RemindedRoutineOccurrence, 'date' | 'day'>, slot: Omit<RemindedRoutineSlot, 'slot'>, minutes: number | null): Record<ReminderAnchor, Date> | null {
+  const span = routineSlotSpan(slot, minutes);
+  if (!span) return null;
   /**
-   * End of the time of the day on a day: its « jusqu'à », else the Paris midnight after the day.
+   * End of the time of the day on a day: its end, else the Paris midnight after the day.
    * @param {string} day Day.
    * @returns {Date} Instant.
    */
-  const end = (day: string) => (slot.dueTime ? parisInstant(day, slot.dueTime) : parisInstant(addDays(day, 1)));
-  return { start: parisInstant(occurrence.day, start), openEnd: end(occurrence.day), dueStart: parisInstant(occurrence.date, start), end: end(occurrence.date) };
+  const end = (day: string) => (span.end ? parisInstant(day, span.end) : parisInstant(addDays(day, 1)));
+  return { start: parisInstant(occurrence.day, span.start), openEnd: end(occurrence.day), dueStart: parisInstant(occurrence.date, span.start), end: end(occurrence.date) };
 }
 
 /**
@@ -220,9 +225,9 @@ export function routineRingOf(key: string): { routineId: string; date: string; s
 }
 
 /**
- * Reminders of the routines (decisions D16, FV), for the occurrences the API gives: each « N min avant » before each
- * time of the day not ticked, from one of its four anchors (`routineSlotAnchors`: the start or the end of the time on
- * the opening day or on the due day), each « À HH:MM » and « N jours avant » once per occurrence, from its opening day
+ * Reminders of the routines (decisions D16, FV, FW), for the occurrences the API gives: each « N min avant » before each
+ * time of the day not ticked that has an hour, from one of its four anchors (`routineSlotAnchors`: the start or the end
+ * of the time on the opening day or on the due day), each « À HH:MM » and « N jours avant » once per occurrence, from its opening day
  * (from the end: its due day). An archived routine has none. When its assignees are kept busy, a reminder waits for the
  * next free moment (`defer`, the same for the app and the server: `nextAllowedMoment`). The ring tells the window of
  * its time of the day and the place.
@@ -239,7 +244,8 @@ export function routineRings<R extends RemindedRoutine>(routines: readonly R[], 
       const first = occurrence.slots[0]?.slot ?? 0;
       const planned = [
         ...occurrence.slots.flatMap((slot) => {
-          const anchors = routineSlotAnchors(occurrence, slot);
+          const anchors = routineSlotAnchors(occurrence, slot, routine.estimate);
+          if (!anchors) return [];
           return ROUTINE_REMINDER_ANCHORS.flatMap((anchor) => remindersBefore(`${key}:${slot.slot}`, anchors[anchor], routine.reminders, anchor)).map((reminder) => ({ ...reminder, slot: slot.slot }));
         }),
         ...[...remindersAt(key, occurrence.day, routine.reminders), ...remindersAt(key, occurrence.date, routine.reminders, true, 'end')].map((reminder) => ({ ...reminder, slot: first })),

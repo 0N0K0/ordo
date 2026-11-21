@@ -56,6 +56,9 @@ import {
   foreignSlotKindWorkspace,
   conditionCitesBirthdays,
   type RemindedRoutineSlot,
+  reminderKey,
+  reminderKindOf,
+  routineHasHours,
 } from '@ordo/shared';
 import { z } from 'zod';
 import { deleteTreeItems, topmostIds, treeListService } from '../core/trees';
@@ -613,6 +616,9 @@ export interface RoutineSaveOptions {
   copyOf?: string | null;
 }
 
+/** Refusal of a reminder « avant » of a routine without any hour (decision FW). */
+const HOURLESS_REMINDERS = 'Sans heure « dès » ni « jusqu’à » (ni créneau), une routine n’a que des rappels à une heure : le jour J ou quelques jours avant.';
+
 /**
  * Validates a routine and what it points to: category, parent (not itself nor one of its sub-routines), project,
  * assignees, required routines (no cycle) and related ones (both in its project tree).
@@ -650,6 +656,7 @@ async function parseRoutine(input: RoutineInput, id?: string, { restoring = fals
           beneficiaries: { select: { id: true } },
           beneficiaryRelations: { select: { id: true } },
           requires: { select: { requiredId: true } },
+          reminders: true,
           ...RELATIONS,
         },
       })
@@ -712,6 +719,11 @@ async function parseRoutine(input: RoutineInput, id?: string, { restoring = fals
   const outside = (other: string) => outsideSet.has(other);
   // A copy leaves out the former links of its routine out of its tree, as a routine moved loses its own.
   const source = copyOf ? await inputOf(copyOf) : null;
+  // Without any hour, no reminder « avant » (decision FW): those it already had (or its copy) stay stored, never rung.
+  if (!restoring && !routineHasHours(data)) {
+    const kept = new Set(readReminders(current?.reminders ?? source?.reminders ?? []).map(reminderKey));
+    if (data.reminders.some((reminder) => reminderKindOf(reminder) === 'before' && !kept.has(reminderKey(reminder)))) throw fieldError('reminders', HOURLESS_REMINDERS);
+  }
   const moved = source !== null || (current !== null && rootOf(current.projectId) !== rootOf(data.projectId ?? null));
   const linked = data.requiredIds.length + data.relatedIds.length;
   data.requiredIds = keptInTree(data.requiredIds, source?.requiredIds ?? keptRequiredIds, moved, outside, 'requiredIds', Boolean(data.projectId));

@@ -8,7 +8,7 @@ import FullCalendar from '@fullcalendar/react';
 import timeGridPlugin from '@fullcalendar/timegrid';
 import { Group, Stack, Text } from '@mantine/core';
 import { DatePickerInput, TimePicker } from '@mantine/dates';
-import { addDays, plannedSlots, shiftTime } from '@ordo/shared';
+import { addDays, plannedSlots, routineSlotSpan, shiftTime } from '@ordo/shared';
 import { useMemo, useState } from 'react';
 import { localDay, localInstant } from '../../../lib/dates';
 import { notifyWithUndo, ON_ERROR } from '../../../lib/notify';
@@ -145,6 +145,12 @@ function TickForm({ item, routine, today, onDone }: TickFormProps) {
   );
 }
 
+/** Minutes a routine without time to spend on it is shown for (its reminders: none, decision FW). */
+const SHOWN_MINUTES = 30;
+
+/** End of a time of the day at the midnight after the day (after every HH:MM). */
+const MIDNIGHT = '24:00';
+
 /** Schedules and calendars shown with the routines. */
 export interface AgendaLayers {
   scheduleIds: string[];
@@ -222,22 +228,21 @@ export function RoutineDayAgenda({ day, today, items, byId, layers }: RoutineDay
       classNames: occurrence.calledOff ? [calendarClasses.closed] : [],
     });
   }
-  // Routines: between their times, or for the time to spend on them from (up to) their one time; without times, at the
-  // hour they were done, else in the all-day row.
+  // Routines: from their start to their end (`routineSlotSpan`, as their reminders count: the time to spend on them
+  // from « dès » or up to « jusqu'à », decision FW); without hours, at the hour they were done, else in the all-day row.
   for (const item of items) {
     const routine = byId.get(item.routineId);
     const state = historyItemState(item, today);
     const { color, text } = STATES[state];
-    const minutes = routine?.estimate ?? 30;
+    const minutes = routine?.estimate || SHOWN_MINUTES;
     const doneAt = item.check ? new Date(item.check.doneAt) : null;
-    const before = item.dueTime ? shiftTime(item.dueTime, -minutes) : null;
-    const after = item.fromTime ? shiftTime(item.fromTime, minutes) : null;
-    let start = item.fromTime ?? (before && item.dueTime && before < item.dueTime ? before : null);
-    let end = item.dueTime ?? (after && item.fromTime && after > item.fromTime ? after : null);
-    if ((!start || !end) && doneAt && localDay(doneAt) === day) {
+    const span = routineSlotSpan(item, minutes);
+    let start = span?.start ?? null;
+    let end = span ? (span.end ?? MIDNIGHT) : null;
+    if (!span && doneAt && localDay(doneAt) === day) {
       start = fmt.time(doneAt);
       const stop = shiftTime(start, minutes);
-      end = stop > start ? stop : '23:59';
+      end = stop > start ? stop : MIDNIGHT;
     }
     const timed = start !== null && end !== null && start < end;
     const status = doneAt ? `faite à ${localDay(doneAt) === item.date ? fmt.time(doneAt) : `${fmt.time(doneAt)} le ${fmt.dayShort(doneAt)}`}` : text;
@@ -246,7 +251,7 @@ export function RoutineDayAgenda({ day, today, items, byId, layers }: RoutineDay
       title: `${routine?.label ?? 'Routine supprimée'}${item.optional ? ' (facultatif)' : ''} · ${status}${item.planned ? '' : ' (non prévue ce jour)'}${routine?.archived ? ' (archivée)' : ''}`,
       allDay: !timed,
       start: timed ? `${day}T${start}:00` : day,
-      end: timed ? `${day}T${end}:00` : addDays(day, 1),
+      end: timed ? (end === MIDNIGHT ? `${addDays(day, 1)}T00:00:00` : `${day}T${end}:00`) : addDays(day, 1),
       backgroundColor: `var(--mantine-color-${color}-light)`,
       borderColor: `var(--mantine-color-${color}-6)`,
       textColor: 'var(--mantine-color-text)',

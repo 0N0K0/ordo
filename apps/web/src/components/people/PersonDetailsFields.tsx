@@ -1,5 +1,5 @@
 import { SimpleGrid, Stack } from '@mantine/core';
-import type { LabelledEmail, Phone, Reminder, ReminderFields } from '@ordo/shared';
+import { DAY_REMINDER_KINDS, type LabelledEmail, type Phone, type Reminder, type ReminderFields } from '@ordo/shared';
 import { ContactListField } from '../inputs/ContactListField';
 import { RemindersSelect } from '../inputs/RemindersSelect';
 import { BirthDateField } from './BirthDateField';
@@ -40,7 +40,7 @@ export function PersonDetailsFields({ birthDate, birthdayReminders, emails, phon
         {/* eslint-disable-next-line no-restricted-syntax -- PersonDetailsFields itself. */}
         <BirthDateField {...birthDate} error={errors.birthDate as string | undefined} />
         <RemindersSelect
-          kinds={['at', 'days']}
+          kinds={DAY_REMINDER_KINDS}
           label="Rappels d’anniversaire"
           description={birthDate.value ? 'Le jour même ou quelques jours avant, à une heure.' : 'Donnez une date de naissance pour des rappels.'}
           disabled={!birthDate.value}

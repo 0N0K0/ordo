@@ -1,4 +1,4 @@
-import type { Reminder, ReminderFields } from '@ordo/shared';
+import { DAY_REMINDER_KINDS, type Reminder, type ReminderFields } from '@ordo/shared';
 import { RemindersSelect } from '../../../components/inputs/RemindersSelect';
 
 interface TaskRemindersProps {
@@ -22,7 +22,7 @@ interface TaskRemindersProps {
 export function TaskReminders({ value, minDate, deadline, onChange, error, disabled = false }: TaskRemindersProps) {
   return (
     <RemindersSelect
-      kinds={['at', 'days']}
+      kinds={DAY_REMINDER_KINDS}
       day=""
       dayLabel="Chaque jour"
       label="Rappels"

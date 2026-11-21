@@ -62,6 +62,7 @@ const ElsewhereRemindersDocument = graphql(`
       label
       archived
       location
+      estimate
       currentDate
       reminders {
         ...ReminderFields

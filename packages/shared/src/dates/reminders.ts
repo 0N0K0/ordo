@@ -33,6 +33,8 @@ export const REMINDER_DAYS_MAX = 30;
  */
 export const REMINDER_KINDS = ['before', 'at', 'days'] as const;
 export type ReminderKind = (typeof REMINDER_KINDS)[number];
+/** Kinds of reminders of an item without hours (a task, a birthday, a routine without any, decision FW): at a time of the day only. */
+export const DAY_REMINDER_KINDS = ['at', 'days'] as const satisfies readonly ReminderKind[];
 
 /**
  * What a reminder counts from (decisions FS, FV): `start` (default, nothing stored) the start of its item, `end` its end;

@@ -4,7 +4,7 @@ import type { Routine } from '../../routines/api';
 import { ringPlannedReminders, type RingLink, type RingWorkspace } from '../components/ring';
 
 /** What the reminders of a routine are rung from (a routine of the open workspace or of another one). */
-export type RemindedRoutine = Pick<Routine, 'id' | 'label' | 'archived' | 'location' | 'currentDate' | 'reminders' | 'reminderOccurrences' | 'slots'> & SharedRemindedRoutine;
+export type RemindedRoutine = Pick<Routine, 'id' | 'label' | 'archived' | 'location' | 'estimate' | 'currentDate' | 'reminders' | 'reminderOccurrences' | 'slots'> & SharedRemindedRoutine;
 
 /**
  * « Marquer comme faite » of the ring of a reminder of a routine: when it rings, and when it is shown again (decision FV).
