@@ -198,8 +198,8 @@ const PatchRoutineDocument = graphql(`
 `);
 
 const MoveRoutineDocument = graphql(`
-  mutation MoveRoutine($id: ID!, $beforeId: ID, $parentId: ID, $categoryIds: [ID!]) {
-    moveRoutine(id: $id, beforeId: $beforeId, parentId: $parentId, categoryIds: $categoryIds)
+  mutation MoveRoutine($id: ID!, $beforeId: ID, $parentId: ID, $categoryIds: [ID!], $confirmLoss: Boolean) {
+    moveRoutine(id: $id, beforeId: $beforeId, parentId: $parentId, categoryIds: $categoryIds, confirmLoss: $confirmLoss)
   }
 `);
 
@@ -621,6 +621,8 @@ export function routineInputOf(routine: Routine): RoutineInput {
     opensOn: routine.opensOn as RoutineInput['opensOn'],
     // Its inheritance given back too (an undo, a copy under the same parent).
     inheritedFields: routine.inheritedFields as RoutineInheritableField[],
+    // Its own exceptions, given back by an undo (a new routine, a copy, takes none).
+    moves: routine.moves as RoutineInput['moves'],
   };
 }
 
@@ -704,7 +706,11 @@ export function useRoutineMutations() {
         })),
       [tasksQueryKey],
     ),
-    move: useRoutineMutation(async (variables: RoutineMove) => (await execute(MoveRoutineDocument, variables)).moveRoutine, moveInCache),
+    // Under another parent, the occurrences its « quand » inherited loses are confirmed, as in the panel; declined, nothing moves.
+    move: useRoutineMutation(
+      async (variables: RoutineMove) => withLossConfirmation(async (confirmLoss) => (await execute(MoveRoutineDocument, { ...variables, confirmLoss })).moveRoutine),
+      moveInCache,
+    ),
     setDone: useRoutineMutation(
       async (variables: { id: string; done: boolean; date?: string | null; slot?: number | null; doneAt?: string | null }) => (await execute(SetRoutineDoneDocument, variables)).setRoutineDone,
       (data, { id, done, date, slot }) => patchRoutine(data, id, (routine) => (date && date !== routine.currentDate ? routine : withSlotsDone(routine, [slot ?? 0], done))),

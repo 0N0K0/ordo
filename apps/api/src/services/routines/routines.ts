@@ -34,6 +34,9 @@ import {
   type InheritingRoutine,
   emptyRoutineFields,
   effectiveRoutineTiming,
+  inheritsTiming,
+  OPENS_MISFIT,
+  opensMisfits,
   ROUTINE_INHERITABLE_FIELDS,
   timingHeirs,
   marksInherited,
@@ -657,9 +660,37 @@ export interface RoutineSaveOptions {
    * until it moves) are left out of the copy instead of refused. Optional. Default = not a copy.
    */
   copyOf?: string | null;
-  /** Its exceptions emptied on purpose with the change (« Vider »). Optional. Default = kept. */
-  clearMoves?: boolean;
 }
+
+/** Id given to a routine not created yet, to compute what it inherits. */
+const UNSAVED_ID = 'unsaved';
+
+/**
+ * Timing of a routine as an input gives it (`timingOf`): its parent and inherited list those of the input.
+ * @param {ReturnType<typeof routineSchema.parse>} data Routine (validated input).
+ * @param {string} [id] Routine edited. Optional. Default = a routine not created yet.
+ * @returns {RoutineTiming & { id: string }} Timing.
+ */
+function timingFromInput(data: ReturnType<typeof routineSchema.parse>, id?: string): RoutineTiming & { id: string } {
+  return { ...timingOf({ moves: [] } as unknown as Routine, data), id: id ?? UNSAVED_ID };
+}
+
+/**
+ * Conditions on calendar schedules of a routine: that of its rule and those of its cases.
+ * @param {Pick<RoutineTiming, 'slotCondition' | 'scheduleIds' | 'excludedScheduleIds' | 'cases'>} routine Routine.
+ * @returns {(SlotCondition | null)[]} Conditions.
+ */
+const conditionsOf = (routine: Pick<RoutineTiming, 'slotCondition' | 'scheduleIds' | 'excludedScheduleIds' | 'cases'>) => [
+  storedCondition(routine),
+  ...storedCases(routine.cases).map((item) => item.condition),
+];
+
+/**
+ * Whether the « Ouverture » of the rule of a routine does not fit the repetition it has (`opensMisfits`).
+ * @param {RoutineTiming} routine Routine.
+ * @returns {boolean} It does not fit.
+ */
+const opensMisfitOf = (routine: RoutineTiming) => opensMisfits({ opensOn: readOpens(routine.opensOn), cases: storedCases(routine.cases), recurrence: storedRule(routine) });
 
 /** Refusal of a reminder « avant » of a routine without any hour. */
 const HOURLESS_REMINDERS = 'Sans heure « dès » ni « jusqu’à » (ni créneau), une routine n’a que des rappels à une heure : le jour J ou quelques jours avant.';
@@ -681,7 +712,6 @@ async function parseRoutine(input: RoutineInput, id?: string, { restoring = fals
   data.categoryIds = [...new Set(data.categoryIds)];
   data.requiredIds = [...new Set(data.requiredIds)];
   data.relatedIds = [...new Set(data.relatedIds)];
-  if (data.recurrence.until && data.recurrence.until < data.startDate) throw fieldError('recurrence', 'La fin de la répétition doit suivre la date de début.');
   await assertAllExist(prisma.routineCategory, data.categoryIds, 'Catégorie', { field: 'categoryIds' });
   // The former schedules (sent by former clients) become its condition; its cases have theirs.
   if (!data.slotCondition) data.slotCondition = storedCondition({ slotCondition: null, scheduleIds: data.scheduleIds, excludedScheduleIds: data.excludedScheduleIds });
@@ -716,13 +746,23 @@ async function parseRoutine(input: RoutineInput, id?: string, { restoring = fals
   data.inheritedFields = inheritedFields;
   const inherits = (field: RoutineInheritableField) => inheritedFields.includes(field);
   if (data.parentId && inherits('PROJECT')) data.projectId = (await orNotFound(prisma.routine.findUnique({ where: { id: data.parentId }, select: { projectId: true } }), 'Routine parente', 'parentId')).projectId;
+  // Its « quand » and its condition checked as they go: those it inherits are those of the routine it goes by, before
+  // the change as after it.
+  const routines =
+    inheritsTiming({ id: id ?? UNSAVED_ID, parentId: data.parentId, inheritedFields }) || (id && current && inheritsTiming({ id, ...current })) ? await loadRoutineInheritance() : null;
+  const next = routines ? effectiveRoutineTiming(timingFromInput(data, id), routines) : timingFromInput(data, id);
+  const stored = id ? routines?.get(id) : undefined;
+  const wasTiming = stored && routines ? effectiveRoutineTiming(stored, routines) : null;
+  const was = wasTiming ?? current;
+  const rule = storedRule(next);
+  if (rule?.until && rule.until < formatDay(next.startDate)) throw fieldError('recurrence', 'La fin de la répétition doit suivre la date de début.');
+  // Its own « Ouverture » fits the repetition it goes by (an inherited one, its parent's, is checked there); one that no
+  // longer fits after a change of its parent stays.
+  if (routines && !inherits('OPENS_ON') && opensMisfitOf(next) && !(wasTiming && opensMisfitOf(wasTiming))) throw fieldError('opensOn', OPENS_MISFIT);
   // Undo: everything counts as kept.
   const keptCategoryIds = restoring ? data.categoryIds : (current?.categories.map((category) => category.id) ?? []);
   await assertNoneArchived('routineCategory', data.categoryIds, { keep: keptCategoryIds, field: 'categoryIds' });
-  await assertConditionSchedules(
-    [data.slotCondition, ...data.cases.map((item) => item.condition)],
-    restoring || (current ? [storedCondition(current), ...storedCases(current.cases).map((item) => item.condition)] : []),
-  );
+  await assertConditionSchedules(conditionsOf(next), restoring || (was ? conditionsOf(was) : []));
   // A window alone (former clients, imports): its single moment.
   if (!data.moments.length && !data.cases.length && (data.fromTime || data.dueTime)) data.moments = [{ fromTime: data.fromTime, dueTime: data.dueTime, optional: false }];
   // With cases, their days, times and conditions; else its rule, moments and condition. The former fields are dropped.
@@ -776,7 +816,7 @@ async function parseRoutine(input: RoutineInput, id?: string, { restoring = fals
   // A copy leaves out the former links of its routine out of its tree, as a routine moved loses its own.
   const source = copyOf ? await inputOf(copyOf) : null;
   // Without any hour, no reminder « avant »: those it already had (or its copy) stay stored, never rung.
-  if (!restoring && !routineHasHours(data)) {
+  if (!restoring && !routineHasHours({ moments: storedMoments(next), slotCondition: storedCondition(next), cases: storedCases(next.cases) })) {
     const kept = new Set(readReminders(current?.reminders ?? source?.reminders ?? []).map(reminderKey));
     if (data.reminders.some((reminder) => reminderKindOf(reminder) === 'before' && !kept.has(reminderKey(reminder)))) throw fieldError('reminders', HOURLESS_REMINDERS);
   }
@@ -933,7 +973,7 @@ export async function updateRoutine(id: string, given: RoutineInput, options: Om
   const data = await parseRoutine(input, id, options);
   // Its occurrences and those of the sub-routines going by its « quand »: asked once for them all.
   if (options.confirmLoss !== undefined) {
-    const { losses } = await occurrenceChange([timingOf(current, data, options.clearMoves ? [] : current.moves)]);
+    const { losses } = await occurrenceChange([timingOf(current, data)]);
     assertLossConfirmed(losses, options.confirmLoss);
     for (const lost of losses) await lost.settle();
   }
@@ -948,7 +988,8 @@ export async function updateRoutine(id: string, given: RoutineInput, options: Om
       where: { id },
       data: {
         ...scalars(data),
-        ...(options.clearMoves && { moves: [] }),
+        // Exceptions given (an undo, « Vider »): saved; omitted, kept.
+        ...(data.moves && { moves: toJson(data.moves) }),
         assignees: { set: connectIds(data.assigneeIds) },
         beneficiaries: { set: connectIds(data.beneficiaryIds) },
         beneficiaryRelations: { set: connectIds(data.beneficiaryRelationIds) },
@@ -986,14 +1027,14 @@ async function followInheritedProject(id: string, movedWith: readonly string[]):
  * Timing of a routine once saved with new fields (as `parseRoutine` gives them), its exceptions given or kept; its
  * parent and inherited list those of the input when given (the fields it inherits then are its parent's).
  * @param {Routine} current Routine now.
- * @param {Pick<RoutineInput, 'startDate' | 'recurrence' | 'cases' | 'moments' | 'slotCondition' | 'opensOn' | 'fromTime' | 'dueTime' | 'parentId' | 'inheritedFields'>} input New fields.
- * @param {unknown} [moves] Its exceptions then. Optional. Default = those it has.
+ * @param {Pick<RoutineInput, 'startDate' | 'recurrence' | 'cases' | 'moments' | 'slotCondition' | 'opensOn' | 'fromTime' | 'dueTime' | 'parentId' | 'inheritedFields' | 'moves'>} input New fields.
+ * @param {unknown} [moves] Its exceptions then. Optional. Default = those of the input, else those it has.
  * @returns {Routine} Routine as it will be (to compute its occurrences).
  */
 function timingOf(
   current: Routine,
-  input: Pick<RoutineInput, 'startDate' | 'recurrence' | 'cases' | 'moments' | 'slotCondition' | 'opensOn' | 'fromTime' | 'dueTime' | 'parentId' | 'inheritedFields'>,
-  moves: unknown = current.moves,
+  input: Pick<RoutineInput, 'startDate' | 'recurrence' | 'cases' | 'moments' | 'slotCondition' | 'opensOn' | 'fromTime' | 'dueTime' | 'parentId' | 'inheritedFields' | 'moves'>,
+  moves: unknown = input.moves ?? current.moves,
 ): Routine {
   const json = (value: unknown) => value as Routine['cases'];
   const cases = input.cases ?? [];
@@ -1228,6 +1269,7 @@ async function inheritedInputOf(id: string): Promise<Partial<RoutineInput>> {
     ...(has('RECURRENCE') && { recurrence: storedRule(routine) ?? (routine.recurrence as RoutineInput['recurrence']) }),
     ...(has('CASES') && { cases: storedCases(routine.cases) }),
     ...(has('MOMENTS') && { moments: storedMoments(routine), fromTime: routine.fromTime, dueTime: routine.dueTime }),
+    ...(has('MOVES') && { moves: storedMoves(routine.moves) }),
   };
 }
 
@@ -1255,16 +1297,8 @@ export async function patchRoutine(id: string, changes: Partial<RoutineInput>, o
   const patched = { ...current, ...(changes.recurrence !== undefined && changes.cases === undefined && { cases: [] }), ...changes, ...clearedRoutineInput(options.clear) };
   // A field given a value or emptied is its own; those set to inherit again are inherited.
   const inheritedFields = changedRoutineInheritance(current.inheritedFields ?? [], { inherit: options.inherit, clear: options.clear, input: changes, hasParent: Boolean(patched.parentId) });
-  return updateRoutine(id, { ...patched, inheritedFields }, { ...options, clearMoves: cleared(options.clear, 'MOVES') });
+  return updateRoutine(id, { ...patched, inheritedFields }, options);
 }
-
-/**
- * Whether a list of fields emptied on purpose (« Vider ») names a field.
- * @param {readonly RoutineInheritableField[] | null | undefined} fields Fields emptied.
- * @param {RoutineInheritableField} field Field.
- * @returns {boolean} Named.
- */
-const cleared = (fields: readonly RoutineInheritableField[] | null | undefined, field: RoutineInheritableField) => Boolean(fields?.some((item) => item === field));
 
 /** Fields of routines made inherited again (« Rétablir l'héritage ») or emptied on purpose (« Vider »). */
 export interface RoutineInheritanceChange {
@@ -1330,18 +1364,17 @@ export async function bulkUpdateRoutines(ids: string[], changes: RoutineBulkChan
   );
   // A new project for all: they move together, the links between them stay (as a transfer of tasks).
   const movedWith = changes.projectId !== undefined ? inputs.map(({ id }) => id) : [];
-  const clearMoves = cleared(changes.clearFields, 'MOVES');
   const nexts: Routine[] = [];
   for (const { id, input } of inputs) {
     const data = await parseRoutine(input, id, { movedWith });
     if (confirmLoss === undefined) continue;
     const current = await findRoutine(id);
-    nexts.push(timingOf(current, data, clearMoves ? [] : current.moves));
+    nexts.push(timingOf(current, data));
   }
   // Asked once for the whole selection and the sub-routines going by them, before any is saved.
   if (nexts.length) assertLossConfirmed((await occurrenceChange(nexts)).losses, confirmLoss);
   let removed = 0;
-  for (const { id, input } of inputs) removed += await updateRoutine(id, input, { movedWith, clearMoves, ...(confirmLoss !== undefined && { confirmLoss: true }) });
+  for (const { id, input } of inputs) removed += await updateRoutine(id, input, { movedWith, ...(confirmLoss !== undefined && { confirmLoss: true }) });
   return removed;
 }
 
@@ -1390,14 +1423,16 @@ export async function bulkDeleteRoutines(ids: string[], deleteSubRoutines: boole
  * @param {string | null} beforeId Routine to place it before, or null for the end.
  * @param {string | null} [parentId] New parent, null for a top-level routine; undefined keeps the parent. Optional.
  * @param {string[] | null} [categoryIds] New categories. Optional. Default = unchanged.
+ * @param {boolean} [confirmLoss] Occurrences a new parent makes disappear (its « quand » inherited), with comments,
+ * confirmed, as in the panel (`RoutineSaveOptions`): unconfirmed, nothing moves. Optional. Default = false.
  * @returns {Promise<void>}
  */
-export async function moveRoutine(id: string, beforeId: string | null, parentId?: string | null, categoryIds: string[] | null = null): Promise<void> {
+export async function moveRoutine(id: string, beforeId: string | null, parentId?: string | null, categoryIds: string[] | null = null, confirmLoss = false): Promise<void> {
   const routine = await findRoutine(id);
   refuseArchived(routine);
   // The parent is checked (exists, not archived, no loop) by the regular update.
   const reparent = parentId !== undefined && parentId !== routine.parentId;
-  if (reparent || categoryIds) await patchRoutine(id, { ...(reparent && { parentId }), ...(categoryIds && { categoryIds }) });
+  if (reparent || categoryIds) await patchRoutine(id, { ...(reparent && { parentId }), ...(categoryIds && { categoryIds }) }, { confirmLoss });
   await moveBefore('routine', id, beforeId, 'Routine');
 }
 

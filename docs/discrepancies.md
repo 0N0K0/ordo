@@ -36,9 +36,6 @@ L’API accepte ce que l’interface empêche.
 
 - **Héritage : ce qui lit encore les valeurs propres.**
   - GitHub : ce qui est envoyé à GitHub (priorité, échéance, jalon, assignés) reste la valeur propre de la tâche, pas la valeur héritée ; une sous-tâche détachée de son parent par GitHub (parent retiré) ne reçoit pas les valeurs qu’elle héritait.
-  - Validation d’une sous-routine : le refus des créneaux archivés (condition, cas) et des rappels « avant » sans heure lit les valeurs enregistrées sur elle, pas le « quand » hérité ; le panneau y enregistre les valeurs suivies, donc l’écart ne se voit qu’après un changement de la parente.
-  - Ranger une sous-routine sous une autre parente en la glissant dans l’arbre (`moveRoutine`) ne demande pas la perte des occurrences de son « quand » hérité : leurs commentaires restent, cachés, sur des jours sans occurrence (le panneau et la cellule « Parente » la demandent).
-  - « Annuler » d’une modification en masse ou de « Héritage… » ne rend pas les exceptions propres vidées (les exceptions ne sont pas dans l’entrée d’une routine) ; des exceptions héritées reviennent avec l’héritage.
   - Les liens « relative à » / dépendances des routines restent limités par le projet enregistré, qui est le projet suivi (le projet hérité est recopié), donc sans écart.
     Voir [Tâches](business-rules/activities/tasks.md#héritage), [Routines](business-rules/activities/routines.md#héritage).
 
@@ -58,7 +55,6 @@ L’API accepte ce que l’interface empêche.
 
 ## Documentation à mettre à jour ou à compléter
 
-- **Héritage, changer de parent :** un élément du premier niveau rangé sous un parent hérite de ses champs vides ; un sous-élément qui passe d’un parent à un autre garde sa liste, et un champ qu’il avait vidé exprès reste vidé (l’autre lecture : ses champs vides héritent aussi du nouveau) ; à confirmer.
 - **Héritage, date vidée exprès :** elle saute le parent mais garde le repli jalon / projet / sprint (comme une tâche du premier niveau) ; à confirmer (l’autre lecture : « aucune » date du tout).
 - **Relances d’impayés :** [Déploiement](deployment.md) les cite parmi les tâches de fond, mais le code ne les envoie qu’à la main (`sendRemindersSchema`). Voir [Tâches de fond](business-rules/cross-cutting/background-jobs.md).
 - **Suppression d’un client qui a des documents :** refusée par la relation `Restrict` du schéma ; le message affiché n’a pas été relevé. Voir [Règles de la facturation](business-rules/finances/accounting.md).

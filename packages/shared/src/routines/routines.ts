@@ -92,7 +92,21 @@ export function opensFits(opens: RoutineOpens, frequency: Recurrence['frequency'
   return false;
 }
 
-const OPENS_MISFIT = 'Cette ouverture ne vaut pas pour cette répétition : un jour du mois (mensuelle), de l’année (annuelle), ou des jours avant.';
+/** Refusal of an « Ouverture » that does not fit the repetition of its routine. */
+export const OPENS_MISFIT = 'Cette ouverture ne vaut pas pour cette répétition : un jour du mois (mensuelle), de l’année (annuelle), ou des jours avant.';
+
+/**
+ * Whether the « Ouverture » of the rule of a routine does not fit it: a routine with cases has none (its cases have
+ * theirs), and it must fit the frequency of its repetition (`opensFits`).
+ * @param {{ opensOn: RoutineOpens | null, cases: readonly unknown[], recurrence: Pick<Recurrence, 'frequency'> | null }} routine Routine.
+ * @returns {boolean} It does not fit.
+ */
+export function opensMisfits(routine: { opensOn: RoutineOpens | null; cases: readonly unknown[]; recurrence: Pick<Recurrence, 'frequency'> | null }): boolean {
+  return routine.opensOn !== null && (routine.cases.length > 0 || !routine.recurrence || !opensFits(routine.opensOn, routine.recurrence.frequency));
+}
+
+/** Fields an « Ouverture » is checked with: inherited, the API checks it on the values the routine goes by. */
+const OPENS_CHECKED_WITH: readonly RoutineInheritableField[] = ['OPENS_ON', 'RECURRENCE', 'CASES'];
 
 /** A case of a routine: on which days (a repetition, as the events'), and its times of the day. */
 export const routineCaseSchema = z
@@ -112,6 +126,26 @@ export const routineCaseSchema = z
   .refine((item) => !item.opens || opensFits(item.opens, item.recurrence.frequency), { path: ['opens'], message: OPENS_MISFIT });
 export type RoutineCase = z.infer<typeof routineCaseSchema>;
 export type RoutineCaseInput = z.input<typeof routineCaseSchema>;
+
+/** Times of the day of an occurrence changed by an exception (by index; null: those of its rule). */
+export const routineMoveTimesSchema = z
+  .array(z.object({ fromTime: timeOfDay, dueTime: timeOfDay }).nullable())
+  .max(10)
+  .nullable()
+  .default(null);
+export type RoutineMoveTimes = z.infer<typeof routineMoveTimesSchema>;
+
+/**
+ * Exception to the rule of a routine for one occurrence: moved to another day (postponed or brought forward), its
+ * times of the day changed, or deleted (no new day).
+ */
+export const routineMoveSchema = z
+  .object({ from: daySchema(), to: daySchema().nullable(), times: routineMoveTimesSchema })
+  .refine((move) => move.from !== move.to || move.times !== null, 'Choisissez un autre jour ou d’autres horaires.');
+export type RoutineMove = z.infer<typeof routineMoveSchema>;
+
+/** Moves kept on a routine at most. */
+export const MAX_ROUTINE_MOVES = 500;
 
 /** Routine fields, as saved. */
 export const routineSchema = z
@@ -171,10 +205,18 @@ export const routineSchema = z
      * Ignored without parent.
      */
     inheritedFields: z.array(z.enum(ROUTINE_INHERITABLE_FIELDS)).max(ROUTINE_INHERITABLE_FIELDS.length).optional(),
+    /**
+     * Its exceptions (occurrences moved, changed or cancelled), given back by an undo; omitted: kept. Not taken by a new
+     * routine (a copy has none of its own).
+     */
+    moves: z.array(routineMoveSchema).max(MAX_ROUTINE_MOVES, `${MAX_ROUTINE_MOVES} exceptions au plus.`).optional(),
   })
   .refine(...endAfter('fromTime', 'dueTime', true))
   .refine((routine) => !routine.moments.length || routine.moments.some((moment) => !moment.optional), { path: ['moments'], message: 'Au moins un moment doit être obligatoire.' })
-  .refine((routine) => !routine.opensOn || (!routine.cases.length && opensFits(routine.opensOn, routine.recurrence.frequency)), { path: ['opensOn'], message: OPENS_MISFIT });
+  .refine((routine) => (routine.parentId && routine.inheritedFields?.some((field) => OPENS_CHECKED_WITH.includes(field))) || !opensMisfits({ ...routine, opensOn: routine.opensOn ?? null }), {
+    path: ['opensOn'],
+    message: OPENS_MISFIT,
+  });
 export type RoutineInput = z.input<typeof routineSchema>;
 
 /**
@@ -428,23 +470,6 @@ export function caseStart(item: { from?: string | null }, start: string): string
   return item.from && item.from > start ? item.from : start;
 }
 
-/** Times of the day of an occurrence changed by an exception (by index; null: those of its rule). */
-export const routineMoveTimesSchema = z
-  .array(z.object({ fromTime: timeOfDay, dueTime: timeOfDay }).nullable())
-  .max(10)
-  .nullable()
-  .default(null);
-export type RoutineMoveTimes = z.infer<typeof routineMoveTimesSchema>;
-
-/**
- * Exception to the rule of a routine for one occurrence: moved to another day (postponed or brought forward), its
- * times of the day changed, or deleted (no new day).
- */
-export const routineMoveSchema = z
-  .object({ from: daySchema(), to: daySchema().nullable(), times: routineMoveTimesSchema })
-  .refine((move) => move.from !== move.to || move.times !== null, 'Choisissez un autre jour ou d’autres horaires.');
-export type RoutineMove = z.infer<typeof routineMoveSchema>;
-
 /**
  * Whether an exception takes the occurrence away from its day (moved elsewhere or deleted).
  * @param {RoutineMove} move Exception.
@@ -461,9 +486,6 @@ const movesAway = (move: RoutineMove) => move.to !== move.from;
 export function withMovedTimes<T extends { fromTime: string | null; dueTime: string | null }>(slots: readonly T[], times: RoutineMoveTimes): T[] {
   return slots.map((slot, index) => (times?.[index] ? { ...slot, ...times[index] } : slot));
 }
-
-/** Moves kept on a routine at most. */
-export const MAX_ROUTINE_MOVES = 500;
 
 /** Occurrences scanned at most to skip the moved ones in a row. */
 const MOVED_SCAN = 60;

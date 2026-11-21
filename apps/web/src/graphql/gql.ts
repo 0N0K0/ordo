@@ -294,7 +294,7 @@ type Documents = {
     "\n  mutation CreateRoutine($input: RoutineInput!, $copyOf: ID) {\n    createRoutine(input: $input, copyOf: $copyOf)\n  }\n": typeof types.CreateRoutineDocument,
     "\n  mutation UpdateRoutine($id: ID!, $input: RoutineInput!, $restoring: Boolean, $confirmLoss: Boolean) {\n    updateRoutine(id: $id, input: $input, restoring: $restoring, confirmLoss: $confirmLoss) {\n      removedLinks\n    }\n  }\n": typeof types.UpdateRoutineDocument,
     "\n  mutation PatchRoutine($id: ID!, $input: RoutinePatch!, $confirmLoss: Boolean) {\n    patchRoutine(id: $id, input: $input, confirmLoss: $confirmLoss) {\n      removedLinks\n    }\n  }\n": typeof types.PatchRoutineDocument,
-    "\n  mutation MoveRoutine($id: ID!, $beforeId: ID, $parentId: ID, $categoryIds: [ID!]) {\n    moveRoutine(id: $id, beforeId: $beforeId, parentId: $parentId, categoryIds: $categoryIds)\n  }\n": typeof types.MoveRoutineDocument,
+    "\n  mutation MoveRoutine($id: ID!, $beforeId: ID, $parentId: ID, $categoryIds: [ID!], $confirmLoss: Boolean) {\n    moveRoutine(id: $id, beforeId: $beforeId, parentId: $parentId, categoryIds: $categoryIds, confirmLoss: $confirmLoss)\n  }\n": typeof types.MoveRoutineDocument,
     "\n  mutation BulkUpdateRoutines($ids: [ID!]!, $changes: RoutineBulkChanges!, $confirmLoss: Boolean) {\n    bulkUpdateRoutines(ids: $ids, changes: $changes, confirmLoss: $confirmLoss) {\n      removedLinks\n    }\n  }\n": typeof types.BulkUpdateRoutinesDocument,
     "\n  mutation BulkSetRoutinesArchived($ids: [ID!]!, $archived: Boolean!) {\n    bulkSetRoutinesArchived(ids: $ids, archived: $archived)\n  }\n": typeof types.BulkSetRoutinesArchivedDocument,
     "\n  mutation BulkSetRoutinesDone($ids: [ID!]!, $done: Boolean!) {\n    bulkSetRoutinesDone(ids: $ids, done: $done)\n  }\n": typeof types.BulkSetRoutinesDoneDocument,
@@ -783,7 +783,7 @@ const documents: Documents = {
     "\n  mutation CreateRoutine($input: RoutineInput!, $copyOf: ID) {\n    createRoutine(input: $input, copyOf: $copyOf)\n  }\n": types.CreateRoutineDocument,
     "\n  mutation UpdateRoutine($id: ID!, $input: RoutineInput!, $restoring: Boolean, $confirmLoss: Boolean) {\n    updateRoutine(id: $id, input: $input, restoring: $restoring, confirmLoss: $confirmLoss) {\n      removedLinks\n    }\n  }\n": types.UpdateRoutineDocument,
     "\n  mutation PatchRoutine($id: ID!, $input: RoutinePatch!, $confirmLoss: Boolean) {\n    patchRoutine(id: $id, input: $input, confirmLoss: $confirmLoss) {\n      removedLinks\n    }\n  }\n": types.PatchRoutineDocument,
-    "\n  mutation MoveRoutine($id: ID!, $beforeId: ID, $parentId: ID, $categoryIds: [ID!]) {\n    moveRoutine(id: $id, beforeId: $beforeId, parentId: $parentId, categoryIds: $categoryIds)\n  }\n": types.MoveRoutineDocument,
+    "\n  mutation MoveRoutine($id: ID!, $beforeId: ID, $parentId: ID, $categoryIds: [ID!], $confirmLoss: Boolean) {\n    moveRoutine(id: $id, beforeId: $beforeId, parentId: $parentId, categoryIds: $categoryIds, confirmLoss: $confirmLoss)\n  }\n": types.MoveRoutineDocument,
     "\n  mutation BulkUpdateRoutines($ids: [ID!]!, $changes: RoutineBulkChanges!, $confirmLoss: Boolean) {\n    bulkUpdateRoutines(ids: $ids, changes: $changes, confirmLoss: $confirmLoss) {\n      removedLinks\n    }\n  }\n": types.BulkUpdateRoutinesDocument,
     "\n  mutation BulkSetRoutinesArchived($ids: [ID!]!, $archived: Boolean!) {\n    bulkSetRoutinesArchived(ids: $ids, archived: $archived)\n  }\n": types.BulkSetRoutinesArchivedDocument,
     "\n  mutation BulkSetRoutinesDone($ids: [ID!]!, $done: Boolean!) {\n    bulkSetRoutinesDone(ids: $ids, done: $done)\n  }\n": types.BulkSetRoutinesDoneDocument,
@@ -2112,7 +2112,7 @@ export function graphql(source: "\n  mutation PatchRoutine($id: ID!, $input: Rou
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */
-export function graphql(source: "\n  mutation MoveRoutine($id: ID!, $beforeId: ID, $parentId: ID, $categoryIds: [ID!]) {\n    moveRoutine(id: $id, beforeId: $beforeId, parentId: $parentId, categoryIds: $categoryIds)\n  }\n"): typeof import('./graphql').MoveRoutineDocument;
+export function graphql(source: "\n  mutation MoveRoutine($id: ID!, $beforeId: ID, $parentId: ID, $categoryIds: [ID!], $confirmLoss: Boolean) {\n    moveRoutine(id: $id, beforeId: $beforeId, parentId: $parentId, categoryIds: $categoryIds, confirmLoss: $confirmLoss)\n  }\n"): typeof import('./graphql').MoveRoutineDocument;
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */

@@ -347,6 +347,7 @@ const RoutineInputType = builder.inputType('RoutineInput', {
       type: [RoutineInheritableFieldEnum],
       description: 'Under a parent: the fields it inherits, live (their values given are not used, its project is its parent’s). Omitted: none for a new routine, unchanged for an update.',
     }),
+    moves: t.field({ type: 'JSON', description: 'Its exceptions, [{ from, to, times }] (an undo gives them back). Omitted: kept; not taken by a new routine.' }),
   }),
 });
 
@@ -458,6 +459,7 @@ const routineInput = (input: typeof RoutineInputType.$inferInput): RoutineInput 
   requiredIds: input.requiredIds,
   relatedIds: input.relatedIds,
   inheritedFields: input.inheritedFields ?? undefined,
+  moves: (input.moves ?? undefined) as RoutineInput['moves'],
 });
 
 /** Occurrence of a routine on a day, with its times of the day. */
@@ -670,9 +672,9 @@ builder.mutationFields((t) => ({
   }),
   moveRoutine: t.boolean({
     description:
-      'Places a routine before another one in the global manual order (at the end when beforeId is null), and under parentId when given (null: top level; omitted: parent unchanged); categoryIds, when given, become its categories.',
-    args: { id: t.arg.id({ required: true }), beforeId: t.arg.id(), parentId: t.arg.id(), categoryIds: t.arg.idList() },
-    resolve: (_root, { id, beforeId, parentId, categoryIds }) => done(routines.moveRoutine(id, beforeId ?? null, parentId, categoryIds || null)),
+      'Places a routine before another one in the global manual order (at the end when beforeId is null), and under parentId when given (null: top level; omitted: parent unchanged); categoryIds, when given, become its categories. A new parent that makes occurrences with comments disappear (its « quand » inherited) asks confirmLoss: CONFIRMATION_REQUIRED, nothing moved.',
+    args: { id: t.arg.id({ required: true }), beforeId: t.arg.id(), parentId: t.arg.id(), categoryIds: t.arg.idList(), confirmLoss: t.arg.boolean({ description: CONFIRM_LOSS_DESCRIPTION }) },
+    resolve: (_root, { id, beforeId, parentId, categoryIds, confirmLoss }) => done(routines.moveRoutine(id, beforeId ?? null, parentId, categoryIds || null, confirmLoss ?? false)),
   }),
   bulkUpdateRoutines: t.field({
     type: RemovedLinksResult,

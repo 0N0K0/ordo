@@ -64,8 +64,8 @@ export function changedRoutineInheritance(
 }
 
 /**
- * Values of a routine input emptying fields on purpose (« Vider »). Its first time and its repetition
- * cannot be emptied; its exceptions are not in its input (`clearedMoves`).
+ * Values of a routine input emptying fields on purpose (« Vider »), its exceptions included. Its first time and its
+ * repetition cannot be emptied.
  * @param {readonly RoutineInheritableField[] | null | undefined} fields Fields emptied.
  * @returns {Record<string, unknown>} Input values.
  */
@@ -82,6 +82,7 @@ export function clearedRoutineInput(fields: readonly RoutineInheritableField[] |
     ...(cleared.has('CATEGORIES') && { categoryIds: [] }),
     ...(cleared.has('CASES') && { cases: [] }),
     ...(cleared.has('MOMENTS') && { moments: [], fromTime: null, dueTime: null }),
+    ...(cleared.has('MOVES') && { moves: [] }),
   };
 }
 

@@ -2345,9 +2345,19 @@ type Mutation {
   moveProjectResource(id: ID!, index: Int!): Boolean!
 
   """
-  Places a routine before another one in the global manual order (at the end when beforeId is null), and under parentId when given (null: top level; omitted: parent unchanged); categoryIds, when given, become its categories.
+  Places a routine before another one in the global manual order (at the end when beforeId is null), and under parentId when given (null: top level; omitted: parent unchanged); categoryIds, when given, become its categories. A new parent that makes occurrences with comments disappear (its « quand » inherited) asks confirmLoss: CONFIRMATION_REQUIRED, nothing moved.
   """
-  moveRoutine(beforeId: ID, categoryIds: [ID!], id: ID!, parentId: ID): Boolean!
+  moveRoutine(
+    beforeId: ID
+    categoryIds: [ID!]
+
+    """
+    Occurrences made to disappear with their comments or times are confirmed: false (default) refuses with CONFIRMATION_REQUIRED and extension lost { times, comments } when there are some; true deletes them.
+    """
+    confirmLoss: Boolean
+    id: ID!
+    parentId: ID
+  ): Boolean!
 
   """
   Moves a category under another one (parentId), or to the top level (parentId null), at an index among its siblings (last without).
@@ -3922,6 +3932,11 @@ input RoutineInput {
 
   """Times of the day, [{ fromTime, dueTime, optional }]."""
   moments: JSON
+
+  """
+  Its exceptions, [{ from, to, times }] (an undo gives them back). Omitted: kept; not taken by a new routine.
+  """
+  moves: JSON
 
   """
   « Ouverture » of the occurrences of its rule: { mode: DAY | WEEKDAY | WEEK | BEFORE, … }; null: none.

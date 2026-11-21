@@ -789,6 +789,8 @@ export type RoutineInput = {
   locationLon?: number | null | undefined;
   /** Times of the day, [{ fromTime, dueTime, optional }]. */
   moments?: unknown;
+  /** Its exceptions, [{ from, to, times }] (an undo gives them back). Omitted: kept; not taken by a new routine. */
+  moves?: unknown;
   /** « Ouverture » of the occurrences of its rule: { mode: DAY | WEEKDAY | WEEK | BEFORE, … }; null: none. */
   opensOn?: unknown;
   parentId?: string | number | null | undefined;
@@ -3469,6 +3471,7 @@ export type MoveRoutineMutationVariables = Exact<{
   beforeId?: string | number | null | undefined;
   parentId?: string | number | null | undefined;
   categoryIds?: Array<string | number> | string | number | null | undefined;
+  confirmLoss?: boolean | null | undefined;
 }>;
 
 
@@ -8860,12 +8863,13 @@ export const PatchRoutineDocument = new TypedDocumentString(`
 }
     `) as unknown as TypedDocumentString<PatchRoutineMutation, PatchRoutineMutationVariables>;
 export const MoveRoutineDocument = new TypedDocumentString(`
-    mutation MoveRoutine($id: ID!, $beforeId: ID, $parentId: ID, $categoryIds: [ID!]) {
+    mutation MoveRoutine($id: ID!, $beforeId: ID, $parentId: ID, $categoryIds: [ID!], $confirmLoss: Boolean) {
   moveRoutine(
     id: $id
     beforeId: $beforeId
     parentId: $parentId
     categoryIds: $categoryIds
+    confirmLoss: $confirmLoss
   )
 }
     `) as unknown as TypedDocumentString<MoveRoutineMutation, MoveRoutineMutationVariables>;
