@@ -762,7 +762,14 @@ async function parseRoutine(input: RoutineInput, id?: string, { restoring = fals
   // Undo: everything counts as kept.
   const keptCategoryIds = restoring ? data.categoryIds : (current?.categories.map((category) => category.id) ?? []);
   await assertNoneArchived('routineCategory', data.categoryIds, { keep: keptCategoryIds, field: 'categoryIds' });
-  await assertConditionSchedules(conditionsOf(next), restoring || (was ? conditionsOf(was) : []));
+  // Only the conditions it sets itself: one it inherits is its parent's, already checked there (restoring the inheritance
+  // of a condition that cites an archived créneau chooses nothing).
+  const ownConditions = conditionsOf({
+    ...next,
+    ...(inherits('SLOT_CONDITION') && { slotCondition: null, scheduleIds: [], excludedScheduleIds: [] }),
+    ...(inherits('CASES') && { cases: [] }),
+  });
+  await assertConditionSchedules(ownConditions, restoring || (was ? conditionsOf(was) : []));
   // A window alone (former clients, imports): its single moment.
   if (!data.moments.length && !data.cases.length && (data.fromTime || data.dueTime)) data.moments = [{ fromTime: data.fromTime, dueTime: data.dueTime, optional: false }];
   // With cases, their days, times and conditions; else its rule, moments and condition. The former fields are dropped.
