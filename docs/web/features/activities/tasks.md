@@ -26,14 +26,14 @@ Types exportés :
 | `TaskInputValues`     | Champs envoyés à la création / modification (`TaskInput` partagé).                                                                              |
 | `TaskSave`            | Enregistrement immédiat d’un changement depuis le panneau (`updateTask.mutateAsync`), donné à `TaskDescription` et `TaskLinks`.                 |
 | `TaskLabelKind`       | `'status' \| 'priority' \| 'type' \| 'tag'` (clés de `LabelDocuments`).                                                                         |
-| `BulkChanges`         | Changements d’une modification en masse (statut, priorité, type, jalon, effort, dates, ajouts / retraits d’assignés, d’étiquettes, de sprints). |
+| `BulkChanges`         | Changements d’une modification en masse (statut, priorité, type, jalon, effort, dates, ajouts / retraits d’assignés, d’étiquettes, de sprints ; `inheritFields` / `clearFields` : héritage rétabli ou vidé exprès). |
 
 Hooks et constantes exportés :
 
 | Nom                           | Rôle                                                                                                                                            |
 | ----------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------- |
 | `tasksQueryKey`               | Clé `['tasks']` des données des tâches.                                                                                                         |
-| `useTasksData()`              | Requête `TasksData` : tâches, contributeurs, listes de paramètres, jalons, sprints.                                                             |
+| `useTasksData()`              | Requête `TasksData` : tâches, contributeurs, listes de paramètres, jalons, sprints ; chaque tâche telle que les écrans la lisent (`taskRow` : ses champs hérités avec la valeur suivie, décision GA). Le fragment `TaskFields` lit `inheritedFields`, `inheritance { ...FieldOriginFields }` et `effective { … }`. |
 | `useTaskComments(id)`         | Commentaires d’une tâche (clé `['tasks', id, 'comments']`).                                                                                     |
 | `useCreateTask()`             | Mutation `createTask`.                                                                                                                          |
 | `useUpdateTask()`             | Mutation `updateTask` (`{ id, input }`, sans projet : le projet change par transfert).                                                          |
@@ -73,6 +73,8 @@ Interne : `LabelDocuments` (documents CRUD par type de libellé), `useTasksMutat
   - Menu de ligne (`RowActions`), ligne d’ajout (`AddTaskRow` avec `groupDefaults`), actions de sélection (`useTaskSelectionActions`).
 - Constantes internes : `EVENT_PERIOD_LABELS` (libellés des périodes), `TASK_VIEWS`.
 
+- Ses cellules passent par `inheritedCells` (`TASK_CELL_FIELDS`, `taskParentName`) : un champ hérité est grisé, « Hérité de … » en infobulle (décision GA).
+
 ### `components/TaskPanel.tsx`
 
 - `TaskPanel()` : panneau latéral (`SidePanel`) de la tâche de l’URL (`?task=`), par-dessus toute page ; squelette pendant le chargement, `DetailNotFound` si introuvable. Monté par `app/layout/AppLayout.tsx`.
@@ -80,9 +82,11 @@ Interne : `LabelDocuments` (documents CRUD par type de libellé), `useTasksMutat
   - `TaskDetail({ task, context })` : en-tête (badges GitHub / archivée, « Fermer la tâche » / « Rouvrir » — `useTaskActions().close`, toast avec « Annuler » comme le menu et la sélection —, « Renommer » via `openLabelForm`, menu `useTaskActions`), description (`TaskDescription`), liens (`TaskLinks`), lieu (`TaskLocation`) et rappels (`TaskReminders`) puis temps morts (`DeadTimesField`, `taskDeadTimeItem`, décision FT), dans la colonne de propriétés, sous-tâches, commentaires (`TaskComments`), colonne de propriétés (projet → transfert avec confirmation, libellés, assignés, étiquettes, bénéficiaires, effort, `TaskTime`, dates, parent, jalon, sprints, `SlotRuleInput`, liens, `TaskAlarms`, `TaskShopping`, `SheetsSection`). Chaque champ est enregistré dès qu’il change (décision D22) ; l’effort en le quittant (`useFieldSave` sur `effortFormSchema`, enregistré aussi à la fermeture du panneau) ; `SaveStatus` en tête de la colonne de propriétés (`updateTask`, transfert ou effort en cours). `Fieldset` désactivé sur une tâche archivée.
   - `LinkList({ label, tasks, candidates, context, onAdd, onRemove })` : liste « Bloque » / « Dépend de » / « Relative à » avec « Retirer » et « Ajouter une tâche » (`TaskSelect`).
 
+- Champs hérités (projet, priorité, assignés, bénéficiaires, « Ouverture », « Échéance », jalon, créneaux, lieu) dans `InheritedField` : grisés « Hérité de … », « Vider », « Rétablir l’héritage » (`taskFieldState`, décision GA).
+
 ### `components/TaskCreateForm.tsx`
 
-- `TaskCreateForm({ context, defaults?, onDone })` : formulaire « Nouvelle tâche » (schéma `taskFormSchema`), lieu (`EventLocation`) et liens (`LinksField`) compris. `defaults` : projet et parent présélectionnés. Changer de projet retire parent, jalon et sprints d’une autre arborescence. Après création : toast et ouverture de la tâche (`useTaskLink`). Ouvert par `useTaskActions().create`.
+- `TaskCreateForm({ context, defaults?, onDone })` : formulaire « Nouvelle tâche » (schéma `taskFormSchema`), lieu (`EventLocation`) et liens (`LinksField`) compris. `defaults` : projet et parent présélectionnés. Changer de projet retire parent, jalon et sprints d’une autre arborescence. Une sous-tâche hérite de son parent (décision GA) : les valeurs du parent montrées grisées (`InheritedField`, `formInheritance` sur les clés `FORM_COLUMNS`, interne `parentValues`), la liste des champs encore hérités envoyée (`inheritedFields`) ; choisir un autre parent reprend les siennes, n’en choisir aucun ne garde que les valeurs. Après création : toast et ouverture de la tâche (`useTaskLink`). Ouvert par `useTaskActions().create`.
 
 ### `components/TaskLinks.tsx`
 
@@ -113,7 +117,7 @@ Dialogues sur une ou plusieurs tâches (props `TasksDialogProps`), ouverts par `
 
 | Nom                                | Rôle                                                                                                                                                                                                                                                                                                                                                             |
 | ---------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `useTaskRowsActions(context)`      | Fabrique des actions sur des tâches (barre de sélection et menu d’une tâche) : `close` (fermer / rouvrir, `switchRowsAction`), `duplicate` (`duplicateRowsAction` sur `outermost`, avec sous-tâches, copie unique ouverte), `transfer`, `archive` (`archiveRowsAction`), `remove` ; chacune annulable depuis son toast si possible ; les tâches archivées ne sont prises que par l’archivage et la suppression. Interface interne `TaskRowsActions`. |
+| `useTaskRowsActions(context)`      | Fabrique des actions sur des tâches (barre de sélection et menu d’une tâche) : `close` (fermer / rouvrir, `switchRowsAction`), `duplicate` (`duplicateRowsAction` sur `outermost`, avec sous-tâches, copie unique ouverte), `transfer`, `inheritance` (« Héritage… » des sous-tâches, `inheritanceRowsAction` : `inheritFields` / `clearFields` en masse, « Annuler » par `useBulkUndo().inheritance`), `archive` (`archiveRowsAction`), `remove` ; chacune annulable depuis son toast si possible ; les tâches archivées ne sont prises que par l’archivage et la suppression. Interface interne `TaskRowsActions`. |
 | `useTaskSelectionActions(context)` | Les mêmes actions en liste, pour la barre de sélection du tableau (`TaskBoard`).                                                                                                                                                                                                                                                                                 |
 
 ### `components/inline-cells.tsx`
@@ -286,7 +290,7 @@ Internes : `NO_PROJECT_LABEL` (« Sans projet »), `NO_PROJECT_NODE`.
 
 ### `hooks/use-task-actions.tsx`
 
-- `useTaskActions(context)` : `{ menu(task), close(task), create(defaults?) }` : entrées du menu d’une tâche (« Dupliquer », « Transférer », « Transformer en routine » — `useConvertActivity().toRoutine`, lot 15 —, « Archiver », « Supprimer », puis « Lancer » chacun de ses temps morts — `deadTimeMenuEntries`, décision FT — ; « Restaurer », « Supprimer » si archivée), « Fermer » / « Rouvrir » d’une tâche seule (`close` de `useTaskRowsActions` : toast avec « Annuler », bouton du panneau) et ouverture du formulaire de création dans le panneau (« Nouvelle tâche » / « Nouvelle sous-tâche »). Utilisé par `TaskBoard`, `TaskPanel`, le menu « Ajouter » de l’en-tête.
+- `useTaskActions(context)` : `{ menu(task), close(task), create(defaults?) }` : entrées du menu d’une tâche (« Dupliquer », « Transférer », « Héritage… » (une sous-tâche), « Transformer en routine » — `useConvertActivity().toRoutine`, lot 15 —, « Archiver », « Supprimer », puis « Lancer » chacun de ses temps morts — `deadTimeMenuEntries`, décision FT — ; « Restaurer », « Supprimer » si archivée), « Fermer » / « Rouvrir » d’une tâche seule (`close` de `useTaskRowsActions` : toast avec « Annuler », bouton du panneau) et ouverture du formulaire de création dans le panneau (« Nouvelle tâche » / « Nouvelle sous-tâche »). Utilisé par `TaskBoard`, `TaskPanel`, le menu « Ajouter » de l’en-tête.
 
 ### `hooks/use-task-columns.ts`
 
@@ -338,9 +342,18 @@ Internes : `TaskColumnExtras`, `STATUS_CATEGORY_ORDER`, `STATUS_CATEGORY_LABELS`
 
 - `useCellEdit(task, column)` : enregistre une modification de cellule : sur la tâche seule (`updateTask`), ou sur toute la sélection en une requête de masse avec son annulation (`useEntityCellEdit`, `bulkUpdateTasks`, toast « Modification appliquée à … ») ; renvoie `{ apply, count, targets }`. Les tâches archivées sont exclues de la sélection.
 
+### `lib/task-inheritance.ts`
+
+Héritage des sous-tâches à l’écran (décision GA ; règles : [Héritage](../../../business-rules/activities/tasks.md#héritage)).
+
+- `taskRow(task)` : tâche telle que les écrans la lisent : chaque champ hérité avec la valeur suivie (`inheritedRow` sur `TASK_INHERITED_COLUMNS`) ; une « Ouverture » ou une « Échéance » héritée prend celle du parent, sinon reste vide (la date du jalon, du projet ou du sprint s’affiche à sa place, `inheritedDateHint`). Appliquée par `useTasksData` : cellules, panneau, filtres, tris, groupes et export.
+- `TASK_FIELD_LABELS`, `TASK_INHERITANCE_OPTIONS` (champs de « Héritage… », le projet sans « Vider »), `TASK_CELL_FIELDS` (champ hérité de chaque colonne).
+- `taskFieldState(task, field, save)` : état et actions d’un champ du panneau (`clear`, `inherit` enregistrés aussitôt).
+- `taskParentName(task, taskById)` : « « #12 Libellé » », nom du parent dans les mentions.
+
 ### `lib/bulk-undo.ts`
 
-- `useBulkUndo()` : fabriques des « Annuler » des toasts, à partir de l’état des tâches avant l’action : `changes(tasks, changes)` (rétablit champs et ajouts / retraits, `restoring: true`), `closed(tasks, closed)` (une tâche « Annulé » rouverte à la main retrouve aussi son statut, qui la referme : `update` du statut avec `restoring`), `archived(tasks, archived)`, `transfer(levels)` (remet chaque niveau dans son projet). Toasts « Action annulée. » / « L’action n’a pas pu être annulée. ».
+- `useBulkUndo()` : fabriques des « Annuler » des toasts, à partir de l’état des tâches avant l’action : `changes(tasks, changes)` (rétablit champs et ajouts / retraits, `restoring: true` ; un champ qui était hérité ou vidé exprès redevient hérité ou vidé : `inheritFields` / `clearFields`), `inheritance(tasks, fields)` (après « Héritage… » : chaque champ remis hérité, vidé ou à sa valeur propre par `updateTask`, le projet propre par un transfert ; interne `restoredField`), `closed(tasks, closed)` (une tâche « Annulé » rouverte à la main retrouve aussi son statut, qui la referme : `update` du statut avec `restoring`), `archived(tasks, archived)`, `transfer(levels)` (remet chaque niveau dans son projet). Toasts « Action annulée. » / « L’action n’a pas pu être annulée. ».
 - Internes : `SCALAR_FIELDS`, `revertChanges`, `idsBy`.
 
 ### `lib/bulk-label.ts`

@@ -12,7 +12,7 @@ import { DetailSkeleton } from '../../../components/feedback/Skeletons';
 import { SidePanel } from '../../../components/panels/SidePanel';
 import { Anchor, Badge, Divider, Fieldset, Grid, Group, Select, Stack, Text } from '@mantine/core';
 import { DatePickerInput } from '@mantine/dates';
-import { effortFormSchema, readSlotCondition, taskLabelSchema, subtreeOf } from '@ordo/shared';
+import { effortFormSchema, readSlotCondition, taskLabelSchema, subtreeOf, type TaskInheritableField } from '@ordo/shared';
 import { ArrowCounterClockwiseIcon, CheckCircleIcon, GithubLogoIcon, PencilSimpleIcon, ArrowsLeftRightIcon } from '@phosphor-icons/react';
 import { useState } from 'react';
 import { Link } from 'react-router';
@@ -53,6 +53,8 @@ import { EXTERNAL_LINK } from '../../../components/actions/link-props';
 import { openLabelForm } from '../../../components/dialogs/open-label-form';
 import { LATE_COLOR } from '../../../components/feedback/feedback-colors';
 import { isTaskOverdue } from '../lib/task-overdue';
+import { InheritedField } from '../../../components/inheritance/InheritedField';
+import { taskFieldState, taskParentName } from '../lib/task-inheritance';
 
 interface LinkListProps {
   label: string;
@@ -152,6 +154,13 @@ function TaskDetail({ task, context }: TaskDetailProps) {
     readOnly: locked,
   });
   const doable = dateRangeProps({ value: [task.minDate, task.deadline], onChange: ([minDate, deadline]) => save({ minDate, deadline }) });
+  /**
+   * What an inherited field shows of its inheritance: greyed « Hérité de … », « Vider », « Rétablir
+   * l'héritage », saved at once.
+   * @param {TaskInheritableField} field Field.
+   * @returns {object} Props of `InheritedField`.
+   */
+  const inherited = (field: TaskInheritableField) => ({ ...taskFieldState(task, field, save), from: taskParentName(task, context.taskById), readOnly: locked });
 
   /**
    * Renames the task in the side panel, as everywhere (decision CK).
@@ -306,37 +315,49 @@ function TaskDetail({ task, context }: TaskDetailProps) {
             <Stack gap="md">
               {/* Each field saved as soon as it changes (decision D22): the state of the saves. */}
               {!locked && <SaveStatus saving={updateTask.isPending || transferTask.isPending || effort.saving} />}
-              <ProjectSelect context={context} label="Projet" placeholder="Sans projet" clearable value={task.projectId} onChange={changeProject} disabled={transferTask.isPending} />
+              <InheritedField {...inherited('PROJECT')}>
+                <ProjectSelect context={context} label="Projet" placeholder="Sans projet" clearable value={task.projectId} onChange={changeProject} disabled={transferTask.isPending} />
+              </InheritedField>
               <LabelSelect kind="status" label="Statut" labels={context.statuses} value={task.statusId} onChange={(statusId) => save({ statusId })} />
-              <LabelSelect kind="priority" label="Priorité" labels={context.priorities} value={task.priorityId} onChange={(priorityId) => save({ priorityId })} />
+              <InheritedField {...inherited('PRIORITY')}>
+                <LabelSelect kind="priority" label="Priorité" labels={context.priorities} value={task.priorityId} onChange={(priorityId) => save({ priorityId })} />
+              </InheritedField>
               <LabelSelect kind="type" label="Type" labels={context.types} value={task.typeId} onChange={(typeId) => save({ typeId })} />
-              <AssigneesSelect contributors={context.assignableFor([task.projectId], task.assigneeIds)} value={task.assigneeIds} onChange={(assigneeIds) => save({ assigneeIds })} />
+              <InheritedField {...inherited('ASSIGNEES')}>
+                <AssigneesSelect contributors={context.assignableFor([task.projectId], task.assigneeIds)} value={task.assigneeIds} onChange={(assigneeIds) => save({ assigneeIds })} />
+              </InheritedField>
               <TagsSelect tags={context.tags} value={task.tagIds} onChange={(tagIds) => save({ tagIds })} />
-              <BeneficiariesSelect value={{ beneficiaryIds: task.beneficiaryIds, beneficiaryRelationIds: task.beneficiaryRelationIds }} onChange={(beneficiaries) => save(beneficiaries)} />
+              <InheritedField {...inherited('BENEFICIARIES')}>
+                <BeneficiariesSelect value={{ beneficiaryIds: task.beneficiaryIds, beneficiaryRelationIds: task.beneficiaryRelationIds }} onChange={(beneficiaries) => save(beneficiaries)} />
+              </InheritedField>
               <EffortInput {...effort.form.getInputProps('effort')} />
               <TaskTime task={task} />
               <Group grow gap="xs">
                 <DatePickerInput label="Début" clearable placeholder="—" {...dates.start} />
                 <DatePickerInput label="Fin" clearable placeholder="—" {...dates.end} />
               </Group>
-              <DatePickerInput label="Ouverture" description="Avant, la tâche n’est pas à faire." clearable placeholder={inheritedDateHint(task, 'minDate') ?? '—'} {...doable.start} />
-              <DatePickerInput
-                label="Échéance"
-                description={
-                  <>
-                    Au-delà, la tâche ouverte est en retard.
-                    {overdue && (
-                      <Text span inherit c={LATE_COLOR} fw={600}>
-                        {' '}
-                        En retard.
-                      </Text>
-                    )}
-                  </>
-                }
-                clearable
-                placeholder={inheritedDateHint(task, 'deadline') ?? '—'}
-                {...doable.end}
-              />
+              <InheritedField {...inherited('MIN_DATE')}>
+                <DatePickerInput label="Ouverture" description="Avant, la tâche n’est pas à faire." clearable placeholder={inheritedDateHint(task, 'minDate') ?? '—'} {...doable.start} />
+              </InheritedField>
+              <InheritedField {...inherited('DEADLINE')}>
+                <DatePickerInput
+                  label="Échéance"
+                  description={
+                    <>
+                      Au-delà, la tâche ouverte est en retard.
+                      {overdue && (
+                        <Text span inherit c={LATE_COLOR} fw={600}>
+                          {' '}
+                          En retard.
+                        </Text>
+                      )}
+                    </>
+                  }
+                  clearable
+                  placeholder={inheritedDateHint(task, 'deadline') ?? '—'}
+                  {...doable.end}
+                />
+              </InheritedField>
               <TaskReminders value={task.reminders} minDate={task.effectiveMinDate} deadline={task.effectiveDeadline} disabled={locked} onChange={(reminders) => save({ reminders })} />
               <DeadTimesField value={task.deadTimes} item={taskDeadTimeItem(task, context)} disabled={locked} onChange={(deadTimes) => save({ deadTimes })} />
               <TaskSelect
@@ -348,16 +369,18 @@ function TaskDetail({ task, context }: TaskDetailProps) {
                 value={task.parentId}
                 onChange={(parentId) => save({ parentId })}
               />
-              <Select
-                label="Jalon"
-                placeholder="Aucun"
-                data={context.milestonesFor(task.projectId, task.milestoneId).map((milestone) => ({ value: milestone.id, label: context.milestoneLabel(milestone) }))}
-                value={task.milestoneId}
-                onChange={(milestoneId) => save({ milestoneId })}
-                clearable
-                searchable
-                nothingFoundMessage="Aucun jalon dans ce projet"
-              />
+              <InheritedField {...inherited('MILESTONE')}>
+                <Select
+                  label="Jalon"
+                  placeholder="Aucun"
+                  data={context.milestonesFor(task.projectId, task.milestoneId).map((milestone) => ({ value: milestone.id, label: context.milestoneLabel(milestone) }))}
+                  value={task.milestoneId}
+                  onChange={(milestoneId) => save({ milestoneId })}
+                  clearable
+                  searchable
+                  nothingFoundMessage="Aucun jalon dans ce projet"
+                />
+              </InheritedField>
               <BatchMultiSelect
                 label="Sprints"
                 placeholder={task.sprintIds.length ? undefined : 'Aucun'}
@@ -368,8 +391,12 @@ function TaskDetail({ task, context }: TaskDetailProps) {
                 searchable
                 nothingFoundMessage="Aucun sprint dans ce projet"
               />
-              <SlotConditionBuilder item="task" value={readSlotCondition(task.slotCondition)} onChange={(slotCondition) => save({ slotCondition })} />
-              <TaskLocation task={task} save={save} />
+              <InheritedField {...inherited('SLOT_CONDITION')}>
+                <SlotConditionBuilder item="task" value={readSlotCondition(task.slotCondition)} onChange={(slotCondition) => save({ slotCondition })} />
+              </InheritedField>
+              <InheritedField {...inherited('LOCATION')}>
+                <TaskLocation task={task} save={save} />
+              </InheritedField>
               <Divider />
               <LinkList
                 label="Bloque"

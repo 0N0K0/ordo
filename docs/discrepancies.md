@@ -35,7 +35,7 @@ L’API accepte ce que l’interface empêche.
 
 - **Héritage (lot 13a, décision D11) : ce qui lit encore les valeurs propres.**
   - Occurrences des routines (agenda, rappels, état, coches, « faisable », report des rappels, pertes d’occurrences) : elles se calculent sur les colonnes propres, pas sur le « quand », la condition et l’« Ouverture » hérités ; le lot 13c les fera passer par `effectiveRoutine`. Les exceptions (`moves`) d’une routine qui les hérite s’écrivent encore sur elle.
-  - Le web filtre, trie, groupe et exporte les tâches et routines sur leurs champs propres (`assigneeIds`, `priorityId`, `milestoneId`, `projectId`, `slotCondition`…), sauf les dates (`effectiveMinDate`, `effectiveDeadline`) : à passer sur `effective` au lot 13b.
+  - Le web montre le « quand » hérité d’une sous-routine (cellules, panneau), mais l’agenda, l’état et les coches viennent des occurrences de l’API, calculées sur ses colonnes propres : elles diffèrent si la parente a changé depuis (le panneau qui l’enregistre recopie les valeurs suivies). « Héritage… » sur la sélection n’offre pas le « quand » des routines.
   - GitHub : ce qui est envoyé à GitHub (priorité, échéance, jalon, assignés) reste la valeur propre de la tâche, pas la valeur héritée ; une sous-tâche détachée de son parent par GitHub (parent retiré) ne reçoit pas les valeurs qu’elle héritait.
   - Les liens « relative à » / dépendances des routines restent limités par le projet enregistré, qui est le projet suivi (le projet hérité est recopié), donc sans écart.
   Voir [Tâches](business-rules/activities/tasks.md#héritage), [Routines](business-rules/activities/routines.md#héritage).
@@ -52,6 +52,7 @@ L’API accepte ce que l’interface empêche.
 - **Anniversaires cités par les conditions de créneaux (lot 16c) :** une personne sans date de naissance est acceptée dans une condition (son anniversaire ne permet aucun moment, comme un type sans créneau), sans avertissement ; une personne supprimée, ou archivée sans date de naissance à elle (une relation archivée dont seul le contributeur lié est daté), est écrite « anniversaire retiré » (son nom n'est plus connu des anniversaires). La confirmation des occurrences perdues, le rechargement des routines et le suivi du contributeur lié sont faits (décision FQ). Voir [Personnes](business-rules/cross-cutting/people.md#coordonnées-date-de-naissance-anniversaire).
 
 ## Documentation à mettre à jour ou à compléter
+- **Héritage, changer de parent :** un élément du premier niveau rangé sous un parent hérite de ses champs vides ; un sous-élément qui passe d’un parent à un autre garde sa liste, et un champ qu’il avait vidé exprès reste vidé (l’autre lecture : ses champs vides héritent aussi du nouveau) ; à confirmer.
 - **Héritage, date vidée exprès :** elle saute le parent mais garde le repli jalon / projet / sprint (comme une tâche du premier niveau) ; à confirmer (l’autre lecture : « aucune » date du tout).
 
 

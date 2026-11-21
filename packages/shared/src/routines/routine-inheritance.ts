@@ -1,4 +1,4 @@
-import { resolveInheritance, type FieldOrigin, type InheritedColumns, type InheritingItem } from '../core/inheritance';
+import { emptyInheritedFields, inheritedFieldsGiven, resolveInheritance, type FieldOrigin, type InheritedColumns, type InheritingItem } from '../core/inheritance';
 
 /**
  * Fields a sub-routine inherits from its parent (decision D11): project, assignees, beneficiaries (people and
@@ -57,7 +57,7 @@ export interface InheritingRoutine extends InheritingItem {
 }
 
 /** Columns of each inherited field of a routine. */
-const ROUTINE_COLUMNS: InheritedColumns<InheritingRoutine, RoutineInheritableField> = {
+export const ROUTINE_INHERITED_COLUMNS: InheritedColumns<InheritingRoutine, RoutineInheritableField> = {
   PROJECT: ['projectId'],
   ASSIGNEES: ['assigneeIds'],
   BENEFICIARIES: ['beneficiaryIds', 'beneficiaryRelationIds'],
@@ -87,6 +87,45 @@ export interface EffectiveRoutine<T extends InheritingRoutine> {
  * @returns {EffectiveRoutine<T>} Effective routine.
  */
 export function effectiveRoutine<T extends InheritingRoutine>(routine: T, byId: ReadonlyMap<string, T>): EffectiveRoutine<T> {
-  const { effective, origins } = resolveInheritance(routine, byId, ROUTINE_COLUMNS as InheritedColumns<T, RoutineInheritableField>);
+  const { effective, origins } = resolveInheritance(routine, byId, ROUTINE_INHERITED_COLUMNS as InheritedColumns<T, RoutineInheritableField>);
   return { routine: effective, origins };
+}
+
+/** Keys of the input of a routine (one, a patch or several) that give each inherited field an own value. */
+export const ROUTINE_FIELD_INPUTS: Record<RoutineInheritableField, readonly string[]> = {
+  PROJECT: ['projectId'],
+  ASSIGNEES: ['assigneeIds', 'addAssigneeIds', 'removeAssigneeIds'],
+  BENEFICIARIES: ['beneficiaryIds', 'beneficiaryRelationIds'],
+  SLOT_CONDITION: ['slotCondition'],
+  OPENS_ON: ['opensOn'],
+  LOCATION: ['location'],
+  CATEGORIES: ['categoryIds', 'addCategoryIds', 'removeCategoryIds'],
+  START_DATE: ['startDate'],
+  // A repetition of its own leaves its cases too.
+  RECURRENCE: ['recurrence'],
+  CASES: ['cases', 'recurrence'],
+  MOMENTS: ['moments', 'fromTime', 'dueTime'],
+  MOVES: [],
+};
+
+/**
+ * Inherited fields given an own value by a partial input of a routine (a value, null included; an empty list of ids
+ * added or removed changes nothing): the API makes them own, the app shows them so at once.
+ * @param {object} input Patch or changes of several routines.
+ * @returns {RoutineInheritableField[]} Fields.
+ */
+export function routineFieldsGiven(input: object): RoutineInheritableField[] {
+  return inheritedFieldsGiven(input, ROUTINE_FIELD_INPUTS);
+}
+
+/**
+ * Fields of a top-level routine without any value of its own: those it inherits once placed under a parent after the
+ * fact, as a new sub-routine does; its own values stay. Its « quand » is left out: it always has a
+ * first time and a repetition, and an empty case list or moment list has a meaning of its own.
+ * @param {InheritingRoutine} routine Routine (its own values).
+ * @returns {RoutineInheritableField[]} Fields.
+ */
+export function emptyRoutineFields(routine: InheritingRoutine): RoutineInheritableField[] {
+  const columns = Object.fromEntries(Object.entries(ROUTINE_INHERITED_COLUMNS).filter(([field]) => !ROUTINE_WHEN_FIELDS.includes(field as RoutineInheritableField)));
+  return emptyInheritedFields<InheritingRoutine, RoutineInheritableField>(routine, columns);
 }

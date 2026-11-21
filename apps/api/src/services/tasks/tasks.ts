@@ -1,4 +1,4 @@
-import { changedList, copyName, marksInherited, dateSchema, TASK_INHERITABLE_FIELDS, type EffectiveTask, type TaskInheritableField, deadTimesSchema, readDeadTimes, storedDeadTimes, effortSchema, groupBy, itemLinksSchema, normalizedReminders, readReminders, taskRemindersSchema, locationPointFields, markdownSchema, optionalText, parseOptionalDay, reaches, readSlotCondition, slotConditionSchema, statusClosing, type TaskInput as SharedTaskInput, taskLabelSchema } from '@ordo/shared';
+import { changedList, copyName, marksInherited, dateSchema, TASK_INHERITABLE_FIELDS, type EffectiveTask, type TaskInheritableField, deadTimesSchema, readDeadTimes, storedDeadTimes, effortSchema, groupBy, itemLinksSchema, normalizedReminders, readReminders, taskRemindersSchema, locationPointFields, markdownSchema, optionalText, parseOptionalDay, reaches, readSlotCondition, slotConditionSchema, statusClosing, type TaskInput as SharedTaskInput, taskFieldsGiven, taskLabelSchema } from '@ordo/shared';
 import { z } from 'zod';
 import { prisma } from '../../db';
 import { assertBeneficiaries } from '../core/beneficiaries';
@@ -19,7 +19,7 @@ import { toJson } from '../core/json';
 import { readLinks } from '../core/links';
 import { storedLocation } from '../core/geo';
 import { assertConditionSchedules } from '../calendar/slot-conditions';
-import { changedTaskInheritance, clearedTaskData, effectiveTasks, freezeTaskInheritance, taskFieldsGiven, tasksOffParentProject } from './task-inheritance';
+import { adoptedTaskFields, changedTaskInheritance, clearedTaskData, effectiveTasks, freezeTaskInheritance, tasksOffParentProject } from './task-inheritance';
 
 /**
  * Closes or reopens tasks whose status changes (decision D23): to a status « Annulé » closes them (those already closed
@@ -188,15 +188,12 @@ async function assertActiveRefs(refs: ActiveRefs, current: CurrentRefs = {}, res
 
 /**
  * Fields of a task sent to create or change it, its slot condition as GraphQL gives it (JSON, checked by the schema),
- * and its inheritance (decision D11): `inheritedFields` (creation: the fields it inherits; omitted, with a parent: every
- * field the input leaves out), `inherit` / `clear` (update: fields made inherited, fields emptied on purpose; a field
- * given a value becomes its own).
+ * and its inheritance (shared `TaskInput`): `inheritedFields` (creation: the fields it inherits; omitted,
+ * with a parent: every field the input leaves out), `inherit` / `clear` (update: fields made inherited, fields emptied
+ * on purpose; a field given a value becomes its own).
  */
 export type TaskInput = Omit<SharedTaskInput, 'slotCondition'> & {
   slotCondition?: unknown;
-  inheritedFields?: TaskInheritableField[] | null;
-  inherit?: TaskInheritableField[] | null;
-  clear?: TaskInheritableField[] | null;
 };
 
 const detailsSchema = z.object({
@@ -347,7 +344,9 @@ export async function updateTask(id: string, input: TaskInput): Promise<Task> {
   if (input.parentId === null && found.parentId) await freezeTaskInheritance([id]);
   const task = input.parentId === null && found.parentId ? await prisma.task.findUniqueOrThrow({ where: { id } }) : found;
   const parentId = input.parentId === undefined ? task.parentId : input.parentId;
-  const inheritedFields = changedTaskInheritance(task.inheritedFields, { inherit: input.inherit, clear: input.clear, input, hasParent: parentId !== null });
+  // Placed under a parent after the fact: its empty fields inherit, as at its creation.
+  const adopted = parentId && !task.parentId ? await adoptedTaskFields(id, input) : [];
+  const inheritedFields = changedTaskInheritance(task.inheritedFields, { inherit: [...(input.inherit ?? []), ...adopted.filter((field) => !input.clear?.includes(field))], clear: input.clear, input, hasParent: parentId !== null });
   const details = parseDetails(input, task);
   // Archived schedules: no longer chosen, those already in its condition stay.
   if (input.slotCondition !== undefined) await assertConditionSchedules([readSlotCondition(input.slotCondition)], [readSlotCondition(task.slotCondition)]);
@@ -758,7 +757,9 @@ export async function moveTask(id: string, beforeId: string | null, parentId?: s
   if (parentId) await assertParent(parentId, task.projectId, id);
   // Made top-level: what it inherited becomes its own (decision D11).
   if (parentId === null && task.parentId) await freezeTaskInheritance([id]);
-  const reparent = parentId !== undefined && parentId !== task.parentId ? [prisma.task.update({ where: { id }, data: { parentId } })] : [];
+  // Placed under a parent after the fact: its empty fields inherit, as at its creation.
+  const adopted = parentId && !task.parentId ? { inheritedFields: await adoptedTaskFields(id) } : {};
+  const reparent = parentId !== undefined && parentId !== task.parentId ? [prisma.task.update({ where: { id }, data: { parentId, ...adopted } })] : [];
   await moveBefore('task', id, beforeId, 'Tâche', reparent);
   // Under a parent of another project of the tree: one inheriting its project follows it.
   if (reparent.length) await followParentProjects([id]);

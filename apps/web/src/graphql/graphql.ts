@@ -520,6 +520,12 @@ export type InheritSource =
   | 'PROJECT'
   | 'SPRINT';
 
+/** State of an inherited field of a sub-task or sub-routine: INHERITED (its parent’s, live), OWN (its own value; a top-level item’s fields always are), CLEARED (emptied on purpose, « aucun », even when its parent has one). */
+export type InheritState =
+  | 'CLEARED'
+  | 'INHERITED'
+  | 'OWN';
+
 export type ItemLinkInput = {
   label: string;
   url: string;
@@ -3355,7 +3361,7 @@ export type DeleteProjectStatusMutation = { deleteProjectStatus: boolean };
 export type RoutinesDataQueryVariables = Exact<{ [key: string]: never; }>;
 
 
-export type RoutinesDataQuery = { routineCategories: Array<{ id: string, archived: boolean, label: string, color: string | null, iconUrl: string | null, parentId: string | null, position: number }>, routines: Array<{ id: string, label: string, description: string | null, categoryIds: Array<string>, parentId: string | null, startDate: string, recurrence: unknown, estimate: number | null, fromTime: string | null, dueTime: string | null, slotCondition: unknown, moments: unknown, cases: unknown, moves: unknown, done: boolean, windowFrom: string | null, windowTo: string | null, location: string | null, locationLat: number | null, locationLon: number | null, travelBefore: number, travelAfter: number, projectId: string | null, position: number, archived: boolean, assigneeIds: Array<string>, beneficiaryIds: Array<string>, beneficiaryRelationIds: Array<string>, requiredIds: Array<string>, relatedIds: Array<string>, currentDate: string | null, firstDate: string | null, nextDate: string | null, doneDates: Array<string>, lastDoneAt: string | null, trackedSeconds: number, opensOn: unknown, reminders: Array<{ before: number | null, at: string | null, days: number | null, anchor: string, ringtone: string | null }>, deadTimes: Array<{ label: string, minutes: number, ringtone: string | null }>, reminderOccurrences: Array<{ date: string, day: string, slots: Array<{ slot: number, fromTime: string | null, dueTime: string | null }> }>, slots: Array<{ index: number, fromTime: string | null, dueTime: string | null, optional: boolean, done: boolean, windows: unknown }>, links: Array<{ url: string, label: string }> }> };
+export type RoutinesDataQuery = { routineCategories: Array<{ id: string, archived: boolean, label: string, color: string | null, iconUrl: string | null, parentId: string | null, position: number }>, routines: Array<{ id: string, label: string, description: string | null, categoryIds: Array<string>, parentId: string | null, startDate: string, recurrence: unknown, estimate: number | null, fromTime: string | null, dueTime: string | null, slotCondition: unknown, moments: unknown, cases: unknown, moves: unknown, done: boolean, windowFrom: string | null, windowTo: string | null, location: string | null, locationLat: number | null, locationLon: number | null, travelBefore: number, travelAfter: number, projectId: string | null, position: number, archived: boolean, assigneeIds: Array<string>, beneficiaryIds: Array<string>, beneficiaryRelationIds: Array<string>, requiredIds: Array<string>, relatedIds: Array<string>, currentDate: string | null, firstDate: string | null, nextDate: string | null, doneDates: Array<string>, lastDoneAt: string | null, trackedSeconds: number, opensOn: unknown, inheritedFields: Array<RoutineInheritableField>, reminders: Array<{ before: number | null, at: string | null, days: number | null, anchor: string, ringtone: string | null }>, deadTimes: Array<{ label: string, minutes: number, ringtone: string | null }>, reminderOccurrences: Array<{ date: string, day: string, slots: Array<{ slot: number, fromTime: string | null, dueTime: string | null }> }>, slots: Array<{ index: number, fromTime: string | null, dueTime: string | null, optional: boolean, done: boolean, windows: unknown }>, links: Array<{ url: string, label: string }>, inheritance: Array<{ field: string, state: InheritState, source: InheritSource | null, sourceId: string | null }>, effective: { projectId: string | null, assigneeIds: Array<string>, beneficiaryIds: Array<string>, beneficiaryRelationIds: Array<string>, categoryIds: Array<string>, slotCondition: unknown, opensOn: unknown, location: string | null, locationLat: number | null, locationLon: number | null, startDate: string, recurrence: unknown, cases: unknown, moments: unknown, moves: unknown } }> };
 
 export type CreateRoutineCategoryMutationVariables = Exact<{
   input: RoutineCategoryInput;
@@ -4188,14 +4194,16 @@ export type MilestoneFieldsFragment = { id: string, archived: boolean, projectId
 
 export type TaskLabelFieldsFragment = { id: string, archived: boolean, label: string, color: string, iconUrl: string | null, position: number };
 
-export type TaskFieldsFragment = { id: string, number: number | null, label: string, description: string | null, projectId: string | null, statusId: string | null, priorityId: string | null, typeId: string | null, effort: number | null, startDate: string | null, endDate: string | null, parentId: string | null, milestoneId: string | null, sprintIds: Array<string>, deadline: string | null, minDate: string | null, effectiveDeadline: string | null, effectiveMinDate: string | null, deadlineSource: InheritSource | null, minDateSource: InheritSource | null, cancelled: boolean, position: number, archived: boolean, createdAt: string, updatedAt: string, assigneeIds: Array<string>, beneficiaryIds: Array<string>, beneficiaryRelationIds: Array<string>, tagIds: Array<string>, blockingIds: Array<string>, blockedByIds: Array<string>, relatedIds: Array<string>, commentCount: number, trackedSeconds: number, closed: boolean, closedAt: string | null, githubLinked: boolean, githubUrl: string | null, githubNumber: number | null, slotCondition: unknown, location: string | null, locationLat: number | null, locationLon: number | null, links: Array<{ url: string, label: string }>, reminders: Array<{ before: number | null, at: string | null, days: number | null, anchor: string, ringtone: string | null }>, deadTimes: Array<{ label: string, minutes: number, ringtone: string | null }> };
+export type FieldOriginFieldsFragment = { field: string, state: InheritState, source: InheritSource | null, sourceId: string | null };
+
+export type TaskFieldsFragment = { id: string, number: number | null, label: string, description: string | null, projectId: string | null, statusId: string | null, priorityId: string | null, typeId: string | null, effort: number | null, startDate: string | null, endDate: string | null, parentId: string | null, milestoneId: string | null, sprintIds: Array<string>, deadline: string | null, minDate: string | null, effectiveDeadline: string | null, effectiveMinDate: string | null, deadlineSource: InheritSource | null, minDateSource: InheritSource | null, inheritedFields: Array<TaskInheritableField>, cancelled: boolean, position: number, archived: boolean, createdAt: string, updatedAt: string, assigneeIds: Array<string>, beneficiaryIds: Array<string>, beneficiaryRelationIds: Array<string>, tagIds: Array<string>, blockingIds: Array<string>, blockedByIds: Array<string>, relatedIds: Array<string>, commentCount: number, trackedSeconds: number, closed: boolean, closedAt: string | null, githubLinked: boolean, githubUrl: string | null, githubNumber: number | null, slotCondition: unknown, location: string | null, locationLat: number | null, locationLon: number | null, inheritance: Array<{ field: string, state: InheritState, source: InheritSource | null, sourceId: string | null }>, effective: { projectId: string | null, priorityId: string | null, milestoneId: string | null, assigneeIds: Array<string>, beneficiaryIds: Array<string>, beneficiaryRelationIds: Array<string>, slotCondition: unknown, location: string | null, locationLat: number | null, locationLon: number | null, minDate: string | null, deadline: string | null }, links: Array<{ url: string, label: string }>, reminders: Array<{ before: number | null, at: string | null, days: number | null, anchor: string, ringtone: string | null }>, deadTimes: Array<{ label: string, minutes: number, ringtone: string | null }> };
 
 export type TaskCommentFieldsFragment = { id: string, body: string, createdAt: string, githubAuthor: string | null };
 
 export type TasksDataQueryVariables = Exact<{ [key: string]: never; }>;
 
 
-export type TasksDataQuery = { tasks: Array<{ id: string, number: number | null, label: string, description: string | null, projectId: string | null, statusId: string | null, priorityId: string | null, typeId: string | null, effort: number | null, startDate: string | null, endDate: string | null, parentId: string | null, milestoneId: string | null, sprintIds: Array<string>, deadline: string | null, minDate: string | null, effectiveDeadline: string | null, effectiveMinDate: string | null, deadlineSource: InheritSource | null, minDateSource: InheritSource | null, cancelled: boolean, position: number, archived: boolean, createdAt: string, updatedAt: string, assigneeIds: Array<string>, beneficiaryIds: Array<string>, beneficiaryRelationIds: Array<string>, tagIds: Array<string>, blockingIds: Array<string>, blockedByIds: Array<string>, relatedIds: Array<string>, commentCount: number, trackedSeconds: number, closed: boolean, closedAt: string | null, githubLinked: boolean, githubUrl: string | null, githubNumber: number | null, slotCondition: unknown, location: string | null, locationLat: number | null, locationLon: number | null, links: Array<{ url: string, label: string }>, reminders: Array<{ before: number | null, at: string | null, days: number | null, anchor: string, ringtone: string | null }>, deadTimes: Array<{ label: string, minutes: number, ringtone: string | null }> }>, contributors: Array<{ id: string, archived: boolean, name: string, handle: string, avatarUrl: string | null, isMe: boolean, projectIds: Array<string>, birthDate: string | null, emails: unknown, phones: unknown, birthdayReminders: Array<{ before: number | null, at: string | null, days: number | null, anchor: string, ringtone: string | null }> }>, taskStatuses: Array<{ category: TaskStatusCategory, id: string, archived: boolean, label: string, color: string, iconUrl: string | null, position: number }>, taskPriorities: Array<{ id: string, archived: boolean, label: string, color: string, iconUrl: string | null, position: number }>, taskTypes: Array<{ id: string, archived: boolean, label: string, color: string, iconUrl: string | null, position: number }>, taskTags: Array<{ id: string, archived: boolean, label: string, color: string, iconUrl: string | null, position: number }>, milestones: Array<{ id: string, archived: boolean, projectId: string, label: string, description: string | null, dueDate: string | null, position: number }>, sprints: Array<{ id: string, archived: boolean, projectId: string, label: string, goal: string | null, startDate: string, endDate: string }> };
+export type TasksDataQuery = { tasks: Array<{ id: string, number: number | null, label: string, description: string | null, projectId: string | null, statusId: string | null, priorityId: string | null, typeId: string | null, effort: number | null, startDate: string | null, endDate: string | null, parentId: string | null, milestoneId: string | null, sprintIds: Array<string>, deadline: string | null, minDate: string | null, effectiveDeadline: string | null, effectiveMinDate: string | null, deadlineSource: InheritSource | null, minDateSource: InheritSource | null, inheritedFields: Array<TaskInheritableField>, cancelled: boolean, position: number, archived: boolean, createdAt: string, updatedAt: string, assigneeIds: Array<string>, beneficiaryIds: Array<string>, beneficiaryRelationIds: Array<string>, tagIds: Array<string>, blockingIds: Array<string>, blockedByIds: Array<string>, relatedIds: Array<string>, commentCount: number, trackedSeconds: number, closed: boolean, closedAt: string | null, githubLinked: boolean, githubUrl: string | null, githubNumber: number | null, slotCondition: unknown, location: string | null, locationLat: number | null, locationLon: number | null, inheritance: Array<{ field: string, state: InheritState, source: InheritSource | null, sourceId: string | null }>, effective: { projectId: string | null, priorityId: string | null, milestoneId: string | null, assigneeIds: Array<string>, beneficiaryIds: Array<string>, beneficiaryRelationIds: Array<string>, slotCondition: unknown, location: string | null, locationLat: number | null, locationLon: number | null, minDate: string | null, deadline: string | null }, links: Array<{ url: string, label: string }>, reminders: Array<{ before: number | null, at: string | null, days: number | null, anchor: string, ringtone: string | null }>, deadTimes: Array<{ label: string, minutes: number, ringtone: string | null }> }>, contributors: Array<{ id: string, archived: boolean, name: string, handle: string, avatarUrl: string | null, isMe: boolean, projectIds: Array<string>, birthDate: string | null, emails: unknown, phones: unknown, birthdayReminders: Array<{ before: number | null, at: string | null, days: number | null, anchor: string, ringtone: string | null }> }>, taskStatuses: Array<{ category: TaskStatusCategory, id: string, archived: boolean, label: string, color: string, iconUrl: string | null, position: number }>, taskPriorities: Array<{ id: string, archived: boolean, label: string, color: string, iconUrl: string | null, position: number }>, taskTypes: Array<{ id: string, archived: boolean, label: string, color: string, iconUrl: string | null, position: number }>, taskTags: Array<{ id: string, archived: boolean, label: string, color: string, iconUrl: string | null, position: number }>, milestones: Array<{ id: string, archived: boolean, projectId: string, label: string, description: string | null, dueDate: string | null, position: number }>, sprints: Array<{ id: string, archived: boolean, projectId: string, label: string, goal: string | null, startDate: string, endDate: string }> };
 
 export type TaskCommentsQueryVariables = Exact<{
   id: string | number;
@@ -4209,7 +4217,7 @@ export type CreateTaskMutationVariables = Exact<{
 }>;
 
 
-export type CreateTaskMutation = { createTask: { id: string, number: number | null, label: string, description: string | null, projectId: string | null, statusId: string | null, priorityId: string | null, typeId: string | null, effort: number | null, startDate: string | null, endDate: string | null, parentId: string | null, milestoneId: string | null, sprintIds: Array<string>, deadline: string | null, minDate: string | null, effectiveDeadline: string | null, effectiveMinDate: string | null, deadlineSource: InheritSource | null, minDateSource: InheritSource | null, cancelled: boolean, position: number, archived: boolean, createdAt: string, updatedAt: string, assigneeIds: Array<string>, beneficiaryIds: Array<string>, beneficiaryRelationIds: Array<string>, tagIds: Array<string>, blockingIds: Array<string>, blockedByIds: Array<string>, relatedIds: Array<string>, commentCount: number, trackedSeconds: number, closed: boolean, closedAt: string | null, githubLinked: boolean, githubUrl: string | null, githubNumber: number | null, slotCondition: unknown, location: string | null, locationLat: number | null, locationLon: number | null, links: Array<{ url: string, label: string }>, reminders: Array<{ before: number | null, at: string | null, days: number | null, anchor: string, ringtone: string | null }>, deadTimes: Array<{ label: string, minutes: number, ringtone: string | null }> } };
+export type CreateTaskMutation = { createTask: { id: string, number: number | null, label: string, description: string | null, projectId: string | null, statusId: string | null, priorityId: string | null, typeId: string | null, effort: number | null, startDate: string | null, endDate: string | null, parentId: string | null, milestoneId: string | null, sprintIds: Array<string>, deadline: string | null, minDate: string | null, effectiveDeadline: string | null, effectiveMinDate: string | null, deadlineSource: InheritSource | null, minDateSource: InheritSource | null, inheritedFields: Array<TaskInheritableField>, cancelled: boolean, position: number, archived: boolean, createdAt: string, updatedAt: string, assigneeIds: Array<string>, beneficiaryIds: Array<string>, beneficiaryRelationIds: Array<string>, tagIds: Array<string>, blockingIds: Array<string>, blockedByIds: Array<string>, relatedIds: Array<string>, commentCount: number, trackedSeconds: number, closed: boolean, closedAt: string | null, githubLinked: boolean, githubUrl: string | null, githubNumber: number | null, slotCondition: unknown, location: string | null, locationLat: number | null, locationLon: number | null, inheritance: Array<{ field: string, state: InheritState, source: InheritSource | null, sourceId: string | null }>, effective: { projectId: string | null, priorityId: string | null, milestoneId: string | null, assigneeIds: Array<string>, beneficiaryIds: Array<string>, beneficiaryRelationIds: Array<string>, slotCondition: unknown, location: string | null, locationLat: number | null, locationLon: number | null, minDate: string | null, deadline: string | null }, links: Array<{ url: string, label: string }>, reminders: Array<{ before: number | null, at: string | null, days: number | null, anchor: string, ringtone: string | null }>, deadTimes: Array<{ label: string, minutes: number, ringtone: string | null }> } };
 
 export type UpdateTaskMutationVariables = Exact<{
   id: string | number;
@@ -4217,7 +4225,7 @@ export type UpdateTaskMutationVariables = Exact<{
 }>;
 
 
-export type UpdateTaskMutation = { updateTask: { id: string, number: number | null, label: string, description: string | null, projectId: string | null, statusId: string | null, priorityId: string | null, typeId: string | null, effort: number | null, startDate: string | null, endDate: string | null, parentId: string | null, milestoneId: string | null, sprintIds: Array<string>, deadline: string | null, minDate: string | null, effectiveDeadline: string | null, effectiveMinDate: string | null, deadlineSource: InheritSource | null, minDateSource: InheritSource | null, cancelled: boolean, position: number, archived: boolean, createdAt: string, updatedAt: string, assigneeIds: Array<string>, beneficiaryIds: Array<string>, beneficiaryRelationIds: Array<string>, tagIds: Array<string>, blockingIds: Array<string>, blockedByIds: Array<string>, relatedIds: Array<string>, commentCount: number, trackedSeconds: number, closed: boolean, closedAt: string | null, githubLinked: boolean, githubUrl: string | null, githubNumber: number | null, slotCondition: unknown, location: string | null, locationLat: number | null, locationLon: number | null, links: Array<{ url: string, label: string }>, reminders: Array<{ before: number | null, at: string | null, days: number | null, anchor: string, ringtone: string | null }>, deadTimes: Array<{ label: string, minutes: number, ringtone: string | null }> } };
+export type UpdateTaskMutation = { updateTask: { id: string, number: number | null, label: string, description: string | null, projectId: string | null, statusId: string | null, priorityId: string | null, typeId: string | null, effort: number | null, startDate: string | null, endDate: string | null, parentId: string | null, milestoneId: string | null, sprintIds: Array<string>, deadline: string | null, minDate: string | null, effectiveDeadline: string | null, effectiveMinDate: string | null, deadlineSource: InheritSource | null, minDateSource: InheritSource | null, inheritedFields: Array<TaskInheritableField>, cancelled: boolean, position: number, archived: boolean, createdAt: string, updatedAt: string, assigneeIds: Array<string>, beneficiaryIds: Array<string>, beneficiaryRelationIds: Array<string>, tagIds: Array<string>, blockingIds: Array<string>, blockedByIds: Array<string>, relatedIds: Array<string>, commentCount: number, trackedSeconds: number, closed: boolean, closedAt: string | null, githubLinked: boolean, githubUrl: string | null, githubNumber: number | null, slotCondition: unknown, location: string | null, locationLat: number | null, locationLon: number | null, inheritance: Array<{ field: string, state: InheritState, source: InheritSource | null, sourceId: string | null }>, effective: { projectId: string | null, priorityId: string | null, milestoneId: string | null, assigneeIds: Array<string>, beneficiaryIds: Array<string>, beneficiaryRelationIds: Array<string>, slotCondition: unknown, location: string | null, locationLat: number | null, locationLon: number | null, minDate: string | null, deadline: string | null }, links: Array<{ url: string, label: string }>, reminders: Array<{ before: number | null, at: string | null, days: number | null, anchor: string, ringtone: string | null }>, deadTimes: Array<{ label: string, minutes: number, ringtone: string | null }> } };
 
 export type DuplicateTaskMutationVariables = Exact<{
   id: string | number;
@@ -5551,6 +5559,14 @@ export const TaskLabelFieldsFragmentDoc = new TypedDocumentString(`
   position
 }
     `, {"fragmentName":"TaskLabelFields"}) as unknown as TypedDocumentString<TaskLabelFieldsFragment, unknown>;
+export const FieldOriginFieldsFragmentDoc = new TypedDocumentString(`
+    fragment FieldOriginFields on FieldOrigin {
+  field
+  state
+  source
+  sourceId
+}
+    `, {"fragmentName":"FieldOriginFields"}) as unknown as TypedDocumentString<FieldOriginFieldsFragment, unknown>;
 export const DeadTimeFieldsFragmentDoc = new TypedDocumentString(`
     fragment DeadTimeFields on DeadTime {
   label
@@ -5580,6 +5596,24 @@ export const TaskFieldsFragmentDoc = new TypedDocumentString(`
   effectiveMinDate
   deadlineSource
   minDateSource
+  inheritedFields
+  inheritance {
+    ...FieldOriginFields
+  }
+  effective {
+    projectId
+    priorityId
+    milestoneId
+    assigneeIds
+    beneficiaryIds
+    beneficiaryRelationIds
+    slotCondition
+    location
+    locationLat
+    locationLon
+    minDate
+    deadline
+  }
   cancelled
   position
   archived
@@ -5625,6 +5659,12 @@ fragment DeadTimeFields on DeadTime {
   label
   minutes
   ringtone
+}
+fragment FieldOriginFields on FieldOrigin {
+  field
+  state
+  source
+  sourceId
 }`, {"fragmentName":"TaskFields"}) as unknown as TypedDocumentString<TaskFieldsFragment, unknown>;
 export const TaskCommentFieldsFragmentDoc = new TypedDocumentString(`
     fragment TaskCommentFields on TaskComment {
@@ -8669,6 +8709,27 @@ export const RoutinesDataDocument = new TypedDocumentString(`
     lastDoneAt
     trackedSeconds
     opensOn
+    inheritedFields
+    inheritance {
+      ...FieldOriginFields
+    }
+    effective {
+      projectId
+      assigneeIds
+      beneficiaryIds
+      beneficiaryRelationIds
+      categoryIds
+      slotCondition
+      opensOn
+      location
+      locationLat
+      locationLon
+      startDate
+      recurrence
+      cases
+      moments
+      moves
+    }
   }
 }
     fragment ReminderFields on Reminder {
@@ -8682,6 +8743,12 @@ fragment DeadTimeFields on DeadTime {
   label
   minutes
   ringtone
+}
+fragment FieldOriginFields on FieldOrigin {
+  field
+  state
+  source
+  sourceId
 }`) as unknown as TypedDocumentString<RoutinesDataQuery, RoutinesDataQueryVariables>;
 export const CreateRoutineCategoryDocument = new TypedDocumentString(`
     mutation CreateRoutineCategory($input: RoutineCategoryInput!) {
@@ -9665,6 +9732,12 @@ fragment TaskLabelFields on TaskStatus {
   iconUrl
   position
 }
+fragment FieldOriginFields on FieldOrigin {
+  field
+  state
+  source
+  sourceId
+}
 fragment TaskFields on Task {
   id
   number
@@ -9686,6 +9759,24 @@ fragment TaskFields on Task {
   effectiveMinDate
   deadlineSource
   minDateSource
+  inheritedFields
+  inheritance {
+    ...FieldOriginFields
+  }
+  effective {
+    projectId
+    priorityId
+    milestoneId
+    assigneeIds
+    beneficiaryIds
+    beneficiaryRelationIds
+    slotCondition
+    location
+    locationLat
+    locationLon
+    minDate
+    deadline
+  }
   cancelled
   position
   archived
@@ -9753,6 +9844,12 @@ fragment DeadTimeFields on DeadTime {
   minutes
   ringtone
 }
+fragment FieldOriginFields on FieldOrigin {
+  field
+  state
+  source
+  sourceId
+}
 fragment TaskFields on Task {
   id
   number
@@ -9774,6 +9871,24 @@ fragment TaskFields on Task {
   effectiveMinDate
   deadlineSource
   minDateSource
+  inheritedFields
+  inheritance {
+    ...FieldOriginFields
+  }
+  effective {
+    projectId
+    priorityId
+    milestoneId
+    assigneeIds
+    beneficiaryIds
+    beneficiaryRelationIds
+    slotCondition
+    location
+    locationLat
+    locationLon
+    minDate
+    deadline
+  }
   cancelled
   position
   archived
@@ -9826,6 +9941,12 @@ fragment DeadTimeFields on DeadTime {
   minutes
   ringtone
 }
+fragment FieldOriginFields on FieldOrigin {
+  field
+  state
+  source
+  sourceId
+}
 fragment TaskFields on Task {
   id
   number
@@ -9847,6 +9968,24 @@ fragment TaskFields on Task {
   effectiveMinDate
   deadlineSource
   minDateSource
+  inheritedFields
+  inheritance {
+    ...FieldOriginFields
+  }
+  effective {
+    projectId
+    priorityId
+    milestoneId
+    assigneeIds
+    beneficiaryIds
+    beneficiaryRelationIds
+    slotCondition
+    location
+    locationLat
+    locationLon
+    minDate
+    deadline
+  }
   cancelled
   position
   archived

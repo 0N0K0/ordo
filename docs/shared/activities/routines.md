@@ -78,6 +78,9 @@ Internes : `ROUTINE_ANCHORS`, `timeOfDay`, `dayNumber`, `monthNumber`, `weekdayN
 | `ROUTINE_WHEN_FIELDS` | Champs du « quand » (première fois, répétition, cas, moments, exceptions, ouverture), dont les occurrences suivront l'héritage au lot 13c. |
 | `ROUTINE_REQUIRED_FIELDS` | `START_DATE`, `RECURRENCE` : ne se vident pas. |
 | `InheritingRoutine` | Routine telle que l'héritage la lit : les colonnes de ses champs hérités (ids de ses personnes et catégories). |
+| `ROUTINE_INHERITED_COLUMNS` | Colonnes de chaque champ hérité (anciennes formes comprises) ; lues par `effectiveRoutine` et par le web (`routineRow`). |
+| `ROUTINE_FIELD_INPUTS`, `routineFieldsGiven(input)` | Clés d’une entrée (une routine, un patch, plusieurs) qui donnent une valeur propre à chaque champ hérité (une répétition donnée rend aussi les cas propres), et les champs qu’une entrée rend propres (déplacés de l’API, décision GA). |
+| `emptyRoutineFields(routine)` | Champs d’une routine sans valeur propre, son « quand » à part : ceux qu’elle hérite une fois rangée sous une parente après coup (décision GA). |
 | `effectiveRoutine(routine, byId)` / `EffectiveRoutine` | Routine telle qu'elle va : une copie de même forme, chaque champ hérité pris de sa parente (en direct, en remontant la chaîne, sans boucle), et l'origine de chaque champ (`origins`). Seul calcul de l'héritage d'une routine, pour l'API et l'app ; le lot 13c y calcule les occurrences. |
 
 ## `conversion.ts` — transformer une tâche en routine et inversement

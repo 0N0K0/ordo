@@ -10,25 +10,29 @@ import { openTasksDialog } from '../lib/open-tasks-dialog';
 import type { TaskContext } from '../hooks/use-task-context';
 import { useBulkUndo } from '../lib/bulk-undo';
 import { tasksLabel } from '../lib/bulk-label';
+import { inheritanceRowsAction } from '../../../components/inheritance/inheritance-action';
+import { notifyWithUndo } from '../../../lib/notify';
+import { TASK_INHERITANCE_OPTIONS } from '../lib/task-inheritance';
 
 /** Actions on tasks that their columns cannot do. */
 interface TaskRowsActions {
   close: SelectionAction;
   duplicate: SelectionAction;
   transfer: SelectionAction;
+  inheritance: SelectionAction;
   archive: SelectionAction;
   remove: SelectionAction;
 }
 
 /**
  * Actions on tasks, the same on the tasks checked (bar of the table) and on one task (its menu): close (or reopen),
- * duplicate, transfer, archive, delete; each one undone from its toast when it can be. Archived tasks are read only: left
+ * duplicate, transfer, inheritance (« Héritage… », sub-tasks), archive, delete; each one undone from its toast when it can be. Archived tasks are read only: left
  * out of all but archive/restore and delete.
  * @param {TaskContext | null} context Task context.
  * @returns {(tasks: Task[], onClear?: () => void) => TaskRowsActions} Actions of tasks, given how to clear the selection.
  */
 export function useTaskRowsActions(context: TaskContext | null) {
-  const { archive } = useBulkTaskMutations();
+  const { archive, update } = useBulkTaskMutations();
   const setClosed = useSetTasksClosed();
   const undo = useBulkUndo();
   const duplicateTask = useDuplicateTask();
@@ -81,6 +85,17 @@ export function useTaskRowsActions(context: TaskContext | null) {
         disabled: activeIds.length === 0,
         onClick: () => open(several ? 'Transférer les tâches' : 'Transférer la tâche', TransferTasksDialog, true),
       },
+      // Fields inherited again or emptied on purpose, on the sub-tasks among them, undone from its toast.
+      inheritance: inheritanceRowsAction({
+        fields: TASK_INHERITANCE_OPTIONS,
+        about: tasksLabel(activeIds.length),
+        withParent: active.filter((task) => task.parentId).length,
+        onApply: async (change) => {
+          await update.mutateAsync({ ids: activeIds, changes: change });
+          notifyWithUndo(`Héritage changé pour ${tasksLabel(activeIds.length)}.`, undo.inheritance(active, [...change.inheritFields, ...change.clearFields]));
+        },
+        onDone: onClear,
+      }),
       archive: archiveRowsAction({
         archived: tasks.every((task) => task.archived),
         loading: archive.isPending,

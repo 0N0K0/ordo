@@ -1,4 +1,5 @@
 import { DAY_REMINDER_KINDS, REMINDER_KINDS, ROUTINE_REMINDER_ANCHORS, routineHasHours, type Reminder } from '@ordo/shared';
+import { InheritedField, type InheritedFieldState } from '../../../components/inheritance/InheritedField';
 import { LabeledField } from '../../../components/inputs/LabeledField';
 import { AddItemButton } from '../../../components/actions/AddItemButton';
 import { useSlotChoices } from '../../calendar/hooks/use-slot-sources';
@@ -324,16 +325,18 @@ interface RoutineScheduleProps {
    * a travel time once left. Optional.
    */
   onCommit?: (fields: (keyof RoutineScheduleValues & string)[]) => void;
+  /** A sub-routine: what its repetition and its place show of their inheritance, and its parent's name. Optional. */
+  inherited?: { from: string; when: InheritedFieldState; location: InheritedFieldState; readOnly?: boolean };
 }
 
 /**
  * Time and place of a routine: its repetition (summary, every setting in the common modal), where, the travel times
  * there and back (computed from the place) with when to leave and when back (one moment of its own only), and its
- * alerts.
+ * alerts; a sub-routine's repetition and place greyed while inherited (`InheritedField`).
  * @param {RoutineScheduleProps} props Component props.
  * @returns {JSX.Element} Fields.
  */
-export function RoutineSchedule({ values, errors, onChange, onCommit }: RoutineScheduleProps) {
+export function RoutineSchedule({ values, errors, onChange, onCommit, inherited }: RoutineScheduleProps) {
   const { names } = useSlotChoices();
   const mode: RepetitionModeValue = values.cases.length ? 'CASES' : 'RULE';
   const single = mode === 'RULE' && values.moments.length <= 1 ? (values.moments[0] ?? ANY_TIME) : null;
@@ -345,26 +348,30 @@ export function RoutineSchedule({ values, errors, onChange, onCommit }: RoutineS
   const timed = routineHasHours(values);
   return (
     <Stack gap="sm">
-      <RepetitionField<RoutineRepetitionValue>
-        label="Répétition et moments"
-        required
-        error={(errors.recurrence ?? errors.cases ?? errors.moments ?? errors.slotCondition ?? errors.startDate ?? errors.opensOn) as ReactNode}
-        value={{ ...values, mode }}
-        onChange={(value) =>
-          onChange({
-            startDate: value.startDate,
-            recurrence: value.recurrence,
-            cases: value.cases,
-            slotCondition: value.slotCondition,
-            moments: value.moments,
-            opensOn: value.opensOn,
-          })
-        }
-        valid={validRepetition}
-        describe={(value) => describeRepetition(value, names)}
-        editor={(draft, setDraft) => <RoutineRepetitionEditor draft={draft} setDraft={setDraft} names={names} />}
-      />
-      <EventLocation value={place.value} error={errors.location} onChange={place.onChange} onBlur={place.leave} />
+      <InheritedField {...(inherited?.when ?? { origin: null })} from={inherited?.from ?? ''} readOnly={inherited?.readOnly}>
+        <RepetitionField<RoutineRepetitionValue>
+          label="Répétition et moments"
+          required
+          error={(errors.recurrence ?? errors.cases ?? errors.moments ?? errors.slotCondition ?? errors.startDate ?? errors.opensOn) as ReactNode}
+          value={{ ...values, mode }}
+          onChange={(value) =>
+            onChange({
+              startDate: value.startDate,
+              recurrence: value.recurrence,
+              cases: value.cases,
+              slotCondition: value.slotCondition,
+              moments: value.moments,
+              opensOn: value.opensOn,
+            })
+          }
+          valid={validRepetition}
+          describe={(value) => describeRepetition(value, names)}
+          editor={(draft, setDraft) => <RoutineRepetitionEditor draft={draft} setDraft={setDraft} names={names} />}
+        />
+      </InheritedField>
+      <InheritedField {...(inherited?.location ?? { origin: null })} from={inherited?.from ?? ''} readOnly={inherited?.readOnly}>
+        <EventLocation value={place.value} error={errors.location} onChange={place.onChange} onBlur={place.leave} />
+      </InheritedField>
       <SimpleGrid cols={{ base: 1, xs: 3 }} spacing="sm">
         <TravelField way="before" description="Pour y aller" value={values.travelBefore} onChange={(value) => onChange({ travelBefore: Number(value) || 0 })} onBlur={() => onCommit?.(['travelBefore'])} error={errors.travelBefore} />
         <TravelField way="after" description="Pour en revenir" value={values.travelAfter} onChange={(value) => onChange({ travelAfter: Number(value) || 0 })} onBlur={() => onCommit?.(['travelAfter'])} error={errors.travelAfter} />

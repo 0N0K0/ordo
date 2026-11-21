@@ -114,6 +114,15 @@ export default defineConfig([
         // Sizes of the texts: one maximum per kind (decision DO).
         ...TEXT_SIZE_RULES,
         ...INHERITANCE_RULES,
+        // What a sub-item inherits: its rows already hold the values it goes by, and one brick says where each comes from.
+        {
+          selector: "MemberExpression[object.property.name='effective'], VariableDeclarator > MemberExpression.init[property.name='effective']",
+          message: 'Lire les champs de la ligne (taskRow / routineRow : un champ hérité y a déjà la valeur suivie), pas `effective` à la main.',
+        },
+        {
+          selector: "CallExpression[callee.property.name='find'][callee.object.property.name='inheritance']",
+          message: 'Utiliser originOf(item, field) (components/inheritance/inheritance) et InheritedField pour montrer un champ hérité.',
+        },
         // A markdown note or description typed in a cell: the shared markdown editor (decision DO).
         {
           selector: "JSXOpeningElement[name.name='EditableText']:has(JSXAttribute[name.name='value'] MemberExpression[property.name=/^(note|description)$/])",

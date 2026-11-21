@@ -176,6 +176,8 @@ Le moteur commun de l’héritage des sous-tâches et sous-routines (`effectiveT
 | `resolveInheritance(item, byId, columns)` | Copie de l’élément, les colonnes de chaque champ hérité prises de l’élément suivi, et l’origine de chaque champ. |
 | `changedInheritance(current, change)` | Liste des champs hérités après un changement : champs à hériter ajoutés, champs donnés ou vidés retirés ; vide sans parent. |
 | `inheritedFieldsGiven(input, keys)` | Champs auxquels une entrée partielle donne une valeur (`null` compris ; une liste vide d’ajouts ou de retraits ne compte pas). |
+| `emptyInheritedFields(item, columns)` | Champs sans aucune valeur propre (chacune de leurs colonnes vide) : ceux qu’un élément du premier niveau hérite quand il est rangé sous un parent après coup (décision GA). |
+| `inheritedView(item, effective, columns)` | Copie de l’élément pour un écran : chaque champ hérité prend les colonnes de ses valeurs suivies (`effective` de l’API), ses champs propres restent (décision GA ; web : `inheritedRow`, `taskRow`, `routineRow`). |
 
 ## `collections.ts` — listes
 

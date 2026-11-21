@@ -1,0 +1,22 @@
+@layer app {
+  /* A value taken from the parent: greyed, its colored chips and avatars faded. */
+  .inherited {
+    /* Typographie */
+    color: var(--mantine-color-dimmed);
+    font-style: italic;
+
+    & :global(.mantine-Input-input),
+    & :global(.mantine-PillsInput-input) {
+      /* Typographie */
+      color: var(--mantine-color-dimmed);
+    }
+
+    & :global(.mantine-Badge-root),
+    & :global(.mantine-Pill-root),
+    & :global(.mantine-Avatar-root),
+    & img {
+      /* Effets */
+      opacity: 0.6;
+    }
+  }
+}

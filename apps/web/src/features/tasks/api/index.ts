@@ -1,5 +1,5 @@
 import { tasksQueryKey, doableTasksKey } from '../../../lib/query-keys';
-import type { TaskInput } from '@ordo/shared';
+import type { TaskInheritableField, TaskInput } from '@ordo/shared';
 import type { PersonDetailsValues } from '../../../components/people/person-details';
 import { accountingQueryKey } from '../../accounting/api';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
@@ -20,6 +20,7 @@ import type {
 import { execute } from '../../../lib/graphql-client';
 import { withLossConfirmation } from '../../time/lib/confirm-loss';
 import { routinesKey } from '../../routines/api';
+import { taskRow } from '../lib/task-inheritance';
 
 export type Task = TaskFieldsFragment;
 export type TaskComment = TaskCommentFieldsFragment;
@@ -85,6 +86,15 @@ graphql(`
 `);
 
 graphql(`
+  fragment FieldOriginFields on FieldOrigin {
+    field
+    state
+    source
+    sourceId
+  }
+`);
+
+graphql(`
   fragment TaskFields on Task {
     id
     number
@@ -106,6 +116,24 @@ graphql(`
     effectiveMinDate
     deadlineSource
     minDateSource
+    inheritedFields
+    inheritance {
+      ...FieldOriginFields
+    }
+    effective {
+      projectId
+      priorityId
+      milestoneId
+      assigneeIds
+      beneficiaryIds
+      beneficiaryRelationIds
+      slotCondition
+      location
+      locationLat
+      locationLon
+      minDate
+      deadline
+    }
     cancelled
     position
     archived
@@ -449,11 +477,19 @@ export function useSetTaskColumnDefaults() {
 export { tasksQueryKey };
 
 /**
+ * Task data with each task as the screens read it (`taskRow`: its inherited fields with the values it follows).
+ * @param {TasksData} data Data as the API gives it.
+ * @returns {TasksData} Data.
+ */
+const withTaskRows = (data: TasksData): TasksData => ({ ...data, tasks: data.tasks.map(taskRow) });
+
+/**
  * Tasks, contributors, statuses, priorities and types.
  * @returns {UseQueryResult<TasksData>} Query state.
  */
 export function useTasksData() {
-  return useQuery({ queryKey: tasksQueryKey, queryFn: () => execute(TasksDataDocument) });
+  // Each task as it goes: its inherited fields with the values it follows.
+  return useQuery({ queryKey: tasksQueryKey, queryFn: async () => withTaskRows(await execute(TasksDataDocument)) });
 }
 
 /**
@@ -700,6 +736,10 @@ export interface BulkChanges {
   removeAssigneeIds?: string[];
   addTagIds?: string[];
   removeTagIds?: string[];
+  /** Fields made inherited again (« Rétablir l'héritage »). */
+  inheritFields?: TaskInheritableField[];
+  /** Fields emptied on purpose (« Vider »; never the project). */
+  clearFields?: TaskInheritableField[];
 }
 
 /**

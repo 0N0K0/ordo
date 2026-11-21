@@ -111,7 +111,7 @@ Grouper par : état, projet (en arbre), statut, priorité, type, assignés, bén
 
 - « Ouvrir » (panneau latéral).
 - « Ajouter une sous-tâche » (pas sur une tâche archivée).
-- « Dupliquer », « Transférer », « Transformer en routine », « Archiver », « Supprimer » ; puis, avec des temps morts, la section « Temps morts » : « Lancer « Lave-linge (1 h 30) » » (décision FT) ; sur une tâche archivée : « Restaurer », « Supprimer ». Le même menu est celui du panneau d’une tâche (« … »).
+- « Dupliquer », « Transférer », « Héritage… » (une sous-tâche), « Transformer en routine », « Archiver », « Supprimer » ; puis, avec des temps morts, la section « Temps morts » : « Lancer « Lave-linge (1 h 30) » » (décision FT) ; sur une tâche archivée : « Restaurer », « Supprimer ». Le même menu est celui du panneau d’une tâche (« … »).
 
 ### Transformer en routine
 
@@ -123,7 +123,15 @@ Grouper par : état, projet (en arbre), statut, priorité, type, assignés, bén
 
 ### Actions sur les tâches cochées
 
-Barre de sélection (« 3 tâches sélectionnées ») : « Fermer » / « Rouvrir », « Dupliquer », « Transférer », « Archiver » / « Restaurer », « Supprimer ». Les tâches archivées ne sont prises que par l’archivage et la suppression. Chaque action est annulable depuis son toast quand c’est possible.
+Barre de sélection (« 3 tâches sélectionnées ») : « Fermer » / « Rouvrir », « Dupliquer », « Transférer », « Héritage… », « Archiver » / « Restaurer », « Supprimer ». Les tâches archivées ne sont prises que par l’archivage et la suppression. Chaque action est annulable depuis son toast quand c’est possible.
+
+### Champs hérités
+
+Une sous-tâche hérite de son parent le projet, les assignés, les bénéficiaires, la condition de créneaux, l’« Ouverture », l’« Échéance », le lieu, la priorité et le jalon (règles : [Héritage](../../business-rules/activities/tasks.md#héritage)).
+
+- Dans le tableau, la valeur héritée est grisée, en italique ; l’infobulle dit « Hérité de « #12 Libellé » ». Filtres, tris, groupes et export lisent cette valeur.
+- Dans le panneau et le formulaire « Nouvelle sous-tâche » : la même valeur grisée, et sous le champ « Hérité de « #12 Libellé » » avec « Vider » ; un champ vidé dit « Vidé exprès » avec « Rétablir l’héritage » ; un champ propre offre « Rétablir l’héritage ». Choisir une valeur rend le champ propre.
+- « Héritage… » (menu « … » d’une sous-tâche, barre de sélection) : panneau « Héritage », « 3 tâches : choisissez, champ par champ, de reprendre la valeur du parent ou de vider le champ exprès. Un élément sans parent n’hérite de rien. », pour chaque champ « Inchangé », « Rétablir l’héritage », « Vider » (pas « Vider » pour le projet), bouton « Appliquer ». Toast « Héritage changé pour 3 tâches. » avec « Annuler ». Désactivé sans sous-tâche dans la sélection.
 
 ### Évènements dans le tableau
 

@@ -1,4 +1,4 @@
-import { inheritsField, resolveInheritance, inheritState, type FieldOrigin, type InheritSource, type InheritedColumns } from '../core/inheritance';
+import { emptyInheritedFields, inheritedFieldsGiven, inheritsField, resolveInheritance, inheritState, type FieldOrigin, type InheritSource, type InheritedColumns } from '../core/inheritance';
 
 /**
  * Fields a sub-task inherits from its parent (decision D11): project, assignees, beneficiaries (people and relations),
@@ -57,7 +57,7 @@ export interface EffectiveTask extends InheritingTask {
 }
 
 /** Columns of each inherited field of a task, its dates aside (`effectiveTaskDate`). */
-const TASK_COLUMNS: InheritedColumns<InheritingTask, Exclude<TaskInheritableField, 'MIN_DATE' | 'DEADLINE'>> = {
+export const TASK_INHERITED_COLUMNS: InheritedColumns<InheritingTask, Exclude<TaskInheritableField, 'MIN_DATE' | 'DEADLINE'>> = {
   PROJECT: ['projectId'],
   ASSIGNEES: ['assigneeIds'],
   BENEFICIARIES: ['beneficiaryIds', 'beneficiaryRelationIds'],
@@ -151,7 +151,7 @@ function effectiveTaskDate(field: 'MIN_DATE' | 'DEADLINE', task: InheritingTask,
     const inherited = effectiveTaskDate(field, parent, context, seen);
     if (inherited.value) return { value: inherited.value, source: 'PARENT', sourceId: parent.id };
   }
-  return fallbackDate(field, resolveInheritance(task, context.tasks, TASK_COLUMNS).effective, context);
+  return fallbackDate(field, resolveInheritance(task, context.tasks, TASK_INHERITED_COLUMNS).effective, context);
 }
 
 /**
@@ -163,7 +163,7 @@ function effectiveTaskDate(field: 'MIN_DATE' | 'DEADLINE', task: InheritingTask,
  * @returns {EffectiveTask} Effective task.
  */
 export function effectiveTask(task: InheritingTask, context: TaskInheritanceContext): EffectiveTask {
-  const { effective, origins } = resolveInheritance(task, context.tasks, TASK_COLUMNS);
+  const { effective, origins } = resolveInheritance(task, context.tasks, TASK_INHERITED_COLUMNS);
   const dates = (['MIN_DATE', 'DEADLINE'] as const).map((field) => {
     const dated = effectiveTaskDate(field, task, context);
     const own = field === 'MIN_DATE' ? task.minDate : task.deadline;
@@ -181,3 +181,36 @@ export function effectiveTask(task: InheritingTask, context: TaskInheritanceCont
  */
 export const taskFieldOrigin = (task: EffectiveTask, field: TaskInheritableField): FieldOrigin<TaskInheritableField> => task.origins.find((origin) => origin.field === field)!;
 
+
+/** Keys of the input of a task (one, an update or several) that give each inherited field an own value. */
+export const TASK_FIELD_INPUTS: Record<TaskInheritableField, readonly string[]> = {
+  PROJECT: ['projectId'],
+  ASSIGNEES: ['assigneeIds', 'addAssigneeIds', 'removeAssigneeIds'],
+  BENEFICIARIES: ['beneficiaryIds', 'beneficiaryRelationIds'],
+  SLOT_CONDITION: ['slotCondition'],
+  MIN_DATE: ['minDate'],
+  DEADLINE: ['deadline'],
+  LOCATION: ['location'],
+  PRIORITY: ['priorityId'],
+  MILESTONE: ['milestoneId'],
+};
+
+/**
+ * Inherited fields given an own value by an input of a task (a value, null included, for one of its keys): the API
+ * makes them own, the app shows them so at once.
+ * @param {object} input Input of a task (or of several).
+ * @returns {TaskInheritableField[]} Fields.
+ */
+export function taskFieldsGiven(input: object): TaskInheritableField[] {
+  return inheritedFieldsGiven(input, TASK_FIELD_INPUTS);
+}
+
+/**
+ * Fields of a top-level task without any value of its own (« Ouverture », « Échéance » compris): those it inherits once
+ * placed under a parent after the fact, as a new sub-task does; its own values stay.
+ * @param {InheritingTask} task Task (its own values).
+ * @returns {TaskInheritableField[]} Fields.
+ */
+export function emptyTaskFields(task: InheritingTask): TaskInheritableField[] {
+  return emptyInheritedFields<InheritingTask, TaskInheritableField>(task, { ...TASK_INHERITED_COLUMNS, MIN_DATE: ['minDate'], DEADLINE: ['deadline'] });
+}

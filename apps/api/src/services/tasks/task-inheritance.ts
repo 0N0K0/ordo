@@ -1,4 +1,4 @@
-import { changedInheritance, effectiveTask, inheritedFieldsGiven, formatDay, formatOptionalDay, parseOptionalDay, TASK_INHERITABLE_FIELDS, taskFieldOrigin, type EffectiveTask, type InheritingTask, type TaskInheritableField, type TaskInheritanceContext } from '@ordo/shared';
+import { changedInheritance, effectiveTask, emptyTaskFields, taskFieldsGiven, formatDay, formatOptionalDay, parseOptionalDay, TASK_INHERITABLE_FIELDS, taskFieldOrigin, type EffectiveTask, type InheritingTask, type TaskInheritableField, type TaskInheritanceContext } from '@ordo/shared';
 import { prisma } from '../../db';
 import { Prisma } from '../../generated/prisma/client';
 import { fieldError } from '../../graphql/errors';
@@ -99,26 +99,18 @@ export async function effectiveTasks(ids: readonly string[]): Promise<Map<string
   }));
 }
 
-/** Field of the input of a task that gives each inherited field an own value (undefined: unchanged). */
-const TASK_FIELD_INPUTS: Record<TaskInheritableField, readonly string[]> = {
-  PROJECT: ['projectId'],
-  ASSIGNEES: ['assigneeIds', 'addAssigneeIds', 'removeAssigneeIds'],
-  BENEFICIARIES: ['beneficiaryIds', 'beneficiaryRelationIds'],
-  SLOT_CONDITION: ['slotCondition'],
-  MIN_DATE: ['minDate'],
-  DEADLINE: ['deadline'],
-  LOCATION: ['location'],
-  PRIORITY: ['priorityId'],
-  MILESTONE: ['milestoneId'],
-};
-
 /**
- * Inherited fields given an own value by an input (a value, null included, for one of its fields).
- * @param {object} input Input of a task (or of several).
- * @returns {TaskInheritableField[]} Fields.
+ * Fields a top-level task inherits once placed under a parent after the fact: those without any
+ * value of its own (`emptyTaskFields`), as at its creation, except those the change gives a value; its own values stay.
+ * @param {string} id Task.
+ * @param {object} [input] Change placing it (its values given stay its own). Optional.
+ * @returns {Promise<TaskInheritableField[]>} Fields it inherits.
  */
-export function taskFieldsGiven(input: object): TaskInheritableField[] {
-  return inheritedFieldsGiven(input, TASK_FIELD_INPUTS);
+export async function adoptedTaskFields(id: string, input: object = {}): Promise<TaskInheritableField[]> {
+  const row = await prisma.task.findUnique({ where: { id }, select: INHERITING_TASK_SELECT });
+  if (!row) return [];
+  const given = new Set(taskFieldsGiven(input));
+  return emptyTaskFields(inheritingTask(row)).filter((field) => !given.has(field));
 }
 
 /**

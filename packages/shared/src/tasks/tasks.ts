@@ -9,6 +9,7 @@ import { endDaySchema, startDaySchema } from '../dates/times';
 import { taskRemindersSchema, type ReminderFields } from '../dates/reminders';
 import { deadTimesSchema, type DeadTimeInput } from '../dates/countdowns';
 import { personDetailsShape } from '../people/person-details';
+import type { TaskInheritableField } from './task-inheritance';
 
 export const taskLabelSchema = requiredText();
 
@@ -155,6 +156,12 @@ export interface TaskInput {
   reminders?: ReminderFields[] | null;
   /** « Temps morts » (null: none). */
   deadTimes?: DeadTimeInput[] | null;
+  /** Creation under a parent: the fields it inherits; omitted: every field left out. */
+  inheritedFields?: TaskInheritableField[] | null;
+  /** Update: fields made inherited again (« Rétablir l'héritage »). */
+  inherit?: TaskInheritableField[] | null;
+  /** Update: fields emptied on purpose (« Vider »; never the project). */
+  clear?: TaskInheritableField[] | null;
 }
 
 /**

@@ -1,4 +1,4 @@
-import { changedInheritance, effectiveRoutine, inheritedFieldsGiven, marksInherited, ROUTINE_INHERITABLE_FIELDS, ROUTINE_REQUIRED_FIELDS, type EffectiveRoutine, type RoutineInheritableField } from '@ordo/shared';
+import { changedInheritance, effectiveRoutine, routineFieldsGiven, marksInherited, ROUTINE_INHERITABLE_FIELDS, ROUTINE_REQUIRED_FIELDS, type EffectiveRoutine, type RoutineInheritableField } from '@ordo/shared';
 import { prisma } from '../../db';
 import { Prisma, type Routine } from '../../generated/prisma/client';
 import { fieldError } from '../../graphql/errors';
@@ -47,33 +47,6 @@ export async function loadRoutineInheritance(): Promise<Map<string, StoredInheri
 export function effectiveRoutineOf(byId: ReadonlyMap<string, StoredInheritingRoutine>, id: string): EffectiveRoutine<StoredInheritingRoutine> | null {
   const routine = byId.get(id);
   return routine ? effectiveRoutine(routine, byId) : null;
-}
-
-/** Fields of the input of a routine (one, a patch or several) that give each inherited field an own value. */
-const ROUTINE_FIELD_INPUTS: Record<RoutineInheritableField, readonly string[]> = {
-  PROJECT: ['projectId'],
-  ASSIGNEES: ['assigneeIds', 'addAssigneeIds', 'removeAssigneeIds'],
-  BENEFICIARIES: ['beneficiaryIds', 'beneficiaryRelationIds'],
-  SLOT_CONDITION: ['slotCondition'],
-  OPENS_ON: ['opensOn'],
-  LOCATION: ['location'],
-  CATEGORIES: ['categoryIds', 'addCategoryIds', 'removeCategoryIds'],
-  START_DATE: ['startDate'],
-  // A repetition of its own leaves its cases too.
-  RECURRENCE: ['recurrence'],
-  CASES: ['cases', 'recurrence'],
-  MOMENTS: ['moments', 'fromTime', 'dueTime'],
-  MOVES: [],
-};
-
-/**
- * Inherited fields given an own value by a partial input (a value, null included; an empty list of ids added or
- * removed changes nothing).
- * @param {object} input Patch or changes of several routines.
- * @returns {RoutineInheritableField[]} Fields.
- */
-export function routineFieldsGiven(input: object): RoutineInheritableField[] {
-  return inheritedFieldsGiven(input, ROUTINE_FIELD_INPUTS);
 }
 
 /**

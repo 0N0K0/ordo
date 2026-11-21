@@ -98,6 +98,7 @@ Une routine se déplace par glisser-déposer, comme une tâche : avant une autre
 - « Modifier » (action principale) : panneau de la routine, enregistré champ par champ (décision D22).
 - « Ajouter une sous-routine ».
 - « Reporter au lendemain » et « Reporter, changer l'horaire ou annuler… » (quand une occurrence peut être déplacée).
+- « Héritage… » (une sous-routine) : comme sur la sélection, ci-dessous.
 - « Dupliquer » (décision D20 : enregistrée tout de suite, « … (copie) », avec ses sous-routines ; un ancien lien hors de l'arborescence de projets de la routine n'est pas copié) ; toast « Routine dupliquée. », puis le panneau de la copie s'ouvre.
 - « Transformer en tâche » (lot 15 ; désactivé sur une routine qui a des sous-routines, infobulle « Une routine qui a des sous-routines ne devient pas une tâche. »).
 - « Historique » (onglet Historique filtré sur elle).
@@ -105,7 +106,7 @@ Une routine se déplace par glisser-déposer, comme une tâche : avant une autre
 - « Supprimer ».
 - Avec des temps morts (routine non archivée) : section « Temps morts », « Lancer « Lave-linge (1 h 30) » » pour son occurrence en cours (décision FT). Le menu du panneau les propose aussi, pour l’occurrence ouverte.
 
-Le panneau d’une routine existante a aussi un menu « … » (en haut, à côté de « Enregistré »), comme celui d’une tâche : « Dupliquer », « Transformer en tâche », « Archiver », « Supprimer » ; archivée : « Restaurer », « Supprimer ». Ce sont les mêmes actions que celles de sa ligne (même confirmation de suppression, avec le choix pour ses sous-routines) ; après « Supprimer », le panneau se ferme (supprimée depuis sa ligne ou la sélection aussi).
+Le panneau d’une routine existante a aussi un menu « … » (en haut, à côté de « Enregistré »), comme celui d’une tâche : « Dupliquer », « Héritage… » (une sous-routine), « Transformer en tâche », « Archiver », « Supprimer » ; archivée : « Restaurer », « Supprimer ». Ce sont les mêmes actions que celles de sa ligne (même confirmation de suppression, avec le choix pour ses sous-routines) ; après « Supprimer », le panneau se ferme (supprimée depuis sa ligne ou la sélection aussi).
 
 « Transformer en tâche » remplace la routine par une tâche :
 
@@ -117,7 +118,13 @@ Une routine archivée n'offre que « Historique », « Restaurer » et « Suppri
 
 ### Actions sur la sélection
 
-Barre de sélection (« 3 routines sélectionnées ») : « Cocher » / « Décocher » (occurrence en cours de chacune), « Reporter au lendemain », « Dupliquer » (chacune avec ses sous-routines ; une sous-routine sélectionnée avec sa parente n'est copiée qu'une fois), « Archiver » / « Restaurer » (annulable depuis le toast), « Supprimer ».
+Barre de sélection (« 3 routines sélectionnées ») : « Cocher » / « Décocher » (occurrence en cours de chacune), « Reporter au lendemain », « Dupliquer » (chacune avec ses sous-routines ; une sous-routine sélectionnée avec sa parente n'est copiée qu'une fois), « Héritage… », « Archiver » / « Restaurer » (annulable depuis le toast), « Supprimer ».
+
+« Héritage… » (désactivé sans sous-routine) : panneau « Héritage », pour le projet, les catégories, les assignés, les bénéficiaires et le lieu : « Inchangé », « Rétablir l’héritage » ou « Vider » ; « Appliquer », toast « Héritage changé pour 3 routines. » avec « Annuler ». Le « quand » se rétablit dans le panneau de la routine.
+
+### Champs hérités
+
+Une sous-routine hérite de sa parente ([Héritage](../../business-rules/activities/routines.md#héritage)) : dans le tableau, la valeur héritée est grisée, en italique, avec l’infobulle « Hérité de « … » » (projet, catégories, assignés, bénéficiaires, lieu, créneaux, « Ouverture », première fois, répétition, horaires) ; dans le panneau et le formulaire de création, la valeur grisée avec « Hérité de « … » » et « Vider » dessous, « Vidé exprès » ou « Rétablir l’héritage » ; le « Quand » est grisé en bloc, « En partie hérité de « … » : répétition, moments » quand une partie seulement l’est, avec « Rétablir l’héritage ». Filtres, tris, groupes et export lisent la valeur héritée.
 
 Archiver une routine archive aussi ses sous-routines ; la restaurer restaure celles archivées avec elle, et ses parentes archivées (comme les tâches).
 
@@ -154,7 +161,7 @@ Une routine existante s'enregistre champ par champ (décision D22), comme une t�
 
 Sous le texte, quand la routine existe : la section des fiches et de la liste à cocher de l'occurrence en cours (voir [Fiches](../supplies/sheets.md)), puis les commentaires de l'occurrence ouverte (« Commentaires du 12 nov. 2026 », décision D19) : celle cliquée dans l'agenda (« Ouvrir la routine »), sinon l'occurrence en cours, à défaut la suivante, à défaut la première. La colonne « Commentaires » compte ceux de cette même occurrence.
 
-Valeurs par défaut d'une nouvelle routine : tous les jours à partir d'aujourd'hui, un moment sans horaire. Une sous-routine reprend de sa parente les catégories, la répétition, les moments, la condition de créneaux, les cas, le projet, les assignés et les bénéficiaires (et sa date de départ si elle est future). Une copie s'appelle « … (copie) », et ses sous-routines sont copiées avec elle (pas ses coches ni son temps).
+Valeurs par défaut d'une nouvelle routine : tous les jours à partir d'aujourd'hui, un moment sans horaire. Une sous-routine hérite de sa parente le projet, les catégories, les assignés, les bénéficiaires, le lieu et tout son « quand » (première fois, répétition, cas, moments, condition, « Ouverture »), montrés grisés avec « Hérité de « … » » tant qu’ils ne sont pas changés (voir [Héritage](../../business-rules/activities/routines.md#héritage)). Une copie s'appelle « … (copie) », et ses sous-routines sont copiées avec elle (pas ses coches ni son temps).
 
 Sous les trajets, une ligne résume « Partir à 8 h 05 (trajet et 15 min sur place) · retour vers 9 h 00 » quand la routine a un seul moment.
 

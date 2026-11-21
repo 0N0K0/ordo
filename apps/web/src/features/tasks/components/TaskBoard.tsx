@@ -53,6 +53,8 @@ import classes from './TaskTable.module.css';
 import { countOf, plural } from '../../../lib/text';
 import { CommentCount } from '../../comments/components/CommentCount';
 import { isTaskOverdue } from '../lib/task-overdue';
+import { inheritedCells } from '../../../components/inheritance/inherited-cells';
+import { TASK_CELL_FIELDS, taskParentName } from '../lib/task-inheritance';
 
 /** Periods of the events listed with the tasks. */
 const EVENT_PERIOD_LABELS: Record<EventPeriod, string> = {
@@ -230,6 +232,18 @@ export function TaskBoard({ projectId, projectIds, createProjectId, header, empt
       };
     }
     const task = row.task;
+    // Its inherited fields greyed with their mention.
+    return inheritedCells(taskCells(task, texts), task, TASK_CELL_FIELDS, taskParentName(task, context.taskById));
+  };
+
+  /**
+   * Cells of a task, each edited in place.
+   * @param {Task} task Task.
+   * @param {Record<string, ReactNode>} texts Read-only cells of its columns.
+   * @returns {Record<string, ReactNode>} Cells, by column.
+   */
+  const taskCells = (task: Task, texts: Record<string, ReactNode>): Record<string, ReactNode> => {
+    if (!context) return texts;
     return {
       ...texts,
       label: (

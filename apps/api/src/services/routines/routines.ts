@@ -31,6 +31,9 @@ import {
   routineCategorySchema,
   type RoutineInput,
   type RoutineInheritableField,
+  type InheritingRoutine,
+  emptyRoutineFields,
+  ROUTINE_INHERITABLE_FIELDS,
   marksInherited,
   type RoutineMove,
   routineMoveSchema,
@@ -63,7 +66,7 @@ import {
   routineHasHours,
 } from '@ordo/shared';
 import { z } from 'zod';
-import { deleteTreeItems, topmostIds, treeListService } from '../core/trees';
+import { deleteTreeItems, subtreeIds, topmostIds, treeListService } from '../core/trees';
 import { releaseSubjectTime } from '../tasks/time-entries';
 import { prisma, unscopedPrisma } from '../../db';
 import { currentWorkspaceId, runInWorkspace } from '../../workspace-context';
@@ -879,7 +882,13 @@ export async function updateRoutine(id: string, given: RoutineInput, options: Om
   refuseArchived(found);
   // Made top-level: what it inherited becomes its own (decision D11), whatever the input holds for those fields.
   const unparented = found.parentId !== null && !given.parentId;
-  const input = unparented ? { ...given, ...(await inheritedInputOf(id)), inheritedFields: [] } : given;
+  // Placed under a parent after the fact: its empty fields inherit, as at its creation.
+  const adopted = found.parentId === null && given.parentId ? emptyRoutineFields(given as unknown as InheritingRoutine) : [];
+  const input = unparented
+    ? { ...given, ...(await inheritedInputOf(id)), inheritedFields: [] }
+    : adopted.length
+      ? { ...given, inheritedFields: ROUTINE_INHERITABLE_FIELDS.filter((field) => adopted.includes(field) || new Set(given.inheritedFields ?? []).has(field)) }
+      : given;
   if (unparented) await freezeRoutineInheritance([id]);
   const current = unparented ? await findRoutine(id) : found;
   const data = await parseRoutine(input, id, options);
@@ -907,11 +916,29 @@ export async function updateRoutine(id: string, given: RoutineInput, options: Om
     });
     return dropped;
   });
-  // A new project: the assignees follow the routine into it (its sub-routines keep theirs).
-  await followProject(current.projectId, data.projectId ?? null, data.assigneeIds);
-  // Its sub-routines inheriting the project follow it (stored too).
-  if (current.projectId !== (data.projectId ?? null)) await syncInheritedRoutineProjects();
-  return data.droppedLinks + waiting;
+  // A new project: the assignees follow the routine into it (its sub-routines keep theirs); inherited, they are its
+  // parent's, attached with it.
+  if (!marksInherited({ parentId: data.parentId, inheritedFields: data.inheritedFields ?? [] }, 'ASSIGNEES')) await followProject(current.projectId, data.projectId ?? null, data.assigneeIds);
+  // Its sub-routines inheriting the project follow it, as it does.
+  const followed = current.projectId !== (data.projectId ?? null) ? await followInheritedProject(id, options.movedWith ?? []) : 0;
+  return data.droppedLinks + waiting + followed;
+}
+
+/**
+ * After a routine changed project: its sub-routines inheriting the project get the same treatment as a routine moved
+ * to it: their own assignees attached to it, their links out of its project tree cut (those moved
+ * along keep theirs), theirs in turn; archived ones (read only) just follow (`syncInheritedRoutineProjects`).
+ * @param {string} id Routine whose project changed.
+ * @param {readonly string[]} movedWith Routines moved along with it.
+ * @returns {Promise<number>} Links removed because they left the project tree.
+ */
+async function followInheritedProject(id: string, movedWith: readonly string[]): Promise<number> {
+  const children = await prisma.routine.findMany({ where: { parentId: id, archivedAt: null, inheritedFields: { has: 'PROJECT' } }, orderBy: BY_POSITION, select: { id: true } });
+  const moved = [...new Set([...movedWith, ...(await subtreeIds('routine', id))])];
+  let dropped = 0;
+  for (const child of children) dropped += await updateRoutine(child.id, await inputOf(child.id), { movedWith: moved });
+  await syncInheritedRoutineProjects();
+  return dropped;
 }
 
 /**

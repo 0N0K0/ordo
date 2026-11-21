@@ -1,4 +1,6 @@
 import { PAGES, routineHistoryPath } from '../../../app/pages';
+import { inheritedCells } from '../../../components/inheritance/inherited-cells';
+import { ROUTINE_CELL_FIELDS, routineParentName } from '../lib/routine-inheritance';
 import { readOnlyCells } from '../../../components/data-table/table/data-table';
 import { usePageTab } from '../../../components/tabs/use-page-tab';
 import { useSlotChoices } from '../../calendar/hooks/use-slot-sources';
@@ -159,6 +161,20 @@ export function RoutinesPanel({ projectId, projectIds }: { projectId?: string; p
     const done = isDone(routine);
     // Being created: nothing to change on it until it is saved (the server does not know it yet).
     const readOnly = routine.archived || isDraftRoutine(routine);
+    // Its inherited fields greyed with their mention.
+    return inheritedCells(routineCells(routine, readOnly, waiting, done), routine, ROUTINE_CELL_FIELDS, routineParentName(routine, byId));
+  };
+
+  /**
+   * Cells of a routine, each edited in place.
+   * @param {Routine} routine Routine.
+   * @param {boolean} readOnly Archived or being created.
+   * @param {Routine[]} waiting Routines it waits for.
+   * @param {boolean} done Its current occurrence done.
+   * @returns {Record<string, ReactNode>} Cells, by column.
+   */
+  const routineCells = (routine: Routine, readOnly: boolean, waiting: ReturnType<typeof waitingFor>, done: boolean): Record<string, ReactNode> => {
+    if (!context) return {};
     return {
       ...readOnlyCells(columns, routine),
       label: (
@@ -223,6 +239,8 @@ export function RoutinesPanel({ projectId, projectIds }: { projectId?: string; p
           !readOnly && movableOccurrence(routine) && { label: 'Reporter, changer l’horaire ou annuler…', icon: <CalendarDotsIcon aria-hidden />, onClick: () => openRoutineMove(routine) },
           'divider',
           !readOnly && rowMenuEntry(rowActions.duplicate),
+          // A sub-routine: its fields inherited again or emptied on purpose.
+          !readOnly && Boolean(routine.parentId) && rowMenuEntry(rowActions.inheritance),
           !readOnly && convert.toTask(routine, routines.some((item) => item.parentId === routine.id)),
           { label: 'Historique', icon: <ClockCounterClockwiseIcon aria-hidden />, to: routineHistoryPath(routine.id) },
           rowMenuEntry(rowActions.archive),

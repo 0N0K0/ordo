@@ -148,7 +148,7 @@ Règles de tout changement du web, en plus de `CLAUDE.md` et de `docs/code-redun
 
 - `src/app/` : démarrage, routes, registre des pages, thème, mise en page (ce document).
 - `src/features/<feature>/` : code d'une fonctionnalité, en `api/` (requêtes et mutations), `pages/`, `components/`, `hooks/`, `lib/` (fonctions pures). Features : `account`, `accounting`, `alarms`, `auth`, `beneficiaries`, `calendar`, `comments`, `dashboards`, `files`, `geo`, `github`, `home`, `library`, `mail`, `projects`, `routines`, `sheets`, `shopping`, `stock`, `tasks`, `time`, `treasury`, `workspaces`. Voir `docs/web/features/`.
-- `src/components/<domaine>/` : briques communes par domaine : `actions`, `address` (vide), `comments`, `data-table` (en sous-dossiers `cells`, `selection`, `table`, `toolbar`, `views`), `dialogs`, `dnd`, `feedback`, `filters`, `inputs`, `items`, `markdown`, `money`, `page`, `panels`, `people`, `recurrence`, `settings`, `tabs`, `tree`. Voir `docs/web/components/`.
+- `src/components/<domaine>/` : briques communes par domaine : `actions`, `address` (vide), `comments`, `data-table` (en sous-dossiers `cells`, `selection`, `table`, `toolbar`, `views`), `dialogs`, `dnd`, `feedback`, `filters`, `inheritance`, `inputs`, `items`, `markdown`, `money`, `page`, `panels`, `people`, `recurrence`, `settings`, `tabs`, `tree`. Voir `docs/web/components/`.
 - `src/lib/` : fonctions et hooks transverses (voir [lib](lib.md)).
 - `src/styles/` : styles globaux ; `src/graphql/` : code généré (codegen), ignoré par eslint.
 - Une brique commune (`components/`, `lib/`) ne dépend pas d'une feature (règle eslint `NO_FEATURES`), sauf exceptions déclarées : `lib/query-client.ts`, `lib/week.ts`, `components/people/people-options.ts`, `components/markdown/MarkdownView.tsx`.

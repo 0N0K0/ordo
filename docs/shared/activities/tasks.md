@@ -22,7 +22,7 @@ Voir aussi : [Règles : tâches](../../business-rules/activities/tasks.md), [Rè
 | `sprintLabelSchema`                               | Libellé de sprint : requis, 250 max.                                                                                                                                                            |
 | `sprintSchema(goal)`                              | Sprint : `label`, `startDate` (« La date de début est requise. »), `endDate` (« La date de fin est requise. »), fin après début, `goal` (texte simple dans le formulaire, markdown pour l'API). |
 | `sprintFormSchema` / `SprintFormValues`           | `sprintSchema(z.string())`.                                                                                                                                                                     |
-| `TaskInput`                                       | Champs envoyés pour créer ou modifier une tâche : `undefined` laisse inchangé, `null` efface (le lieu avec son point, les liens : `null` n'en laisse aucun).                                                                                                   |
+| `TaskInput`                                       | Champs envoyés pour créer ou modifier une tâche : `undefined` laisse inchangé, `null` efface (le lieu avec son point, les liens : `null` n'en laisse aucun) ; héritage : `inheritedFields` (création), `inherit` / `clear` (modification).                                                                                                   |
 
 Champs de `taskFormSchema` :
 
@@ -53,6 +53,9 @@ Champs de `taskFormSchema` :
 | `InheritingTask`, `SprintDays`, `MilestoneDays`, `TaskInheritanceContext` | Tâche telle que l'héritage la lit (jours YYYY-MM-DD, ids), jours d'un sprint, jalon (projet, échéance, archivé), et le contexte : toutes les tâches de l'espace, jalons, projets (ouverture), sprints. |
 | `effectiveTask(task, context)` / `EffectiveTask` | Tâche telle qu'elle va : chaque champ hérité pris du parent (en direct, en remontant la chaîne, sans boucle), ses dates aussi de son jalon, de son projet ou de son premier sprint (voir [Dates suivies](../../business-rules/activities/tasks.md#dates-suivies)), et l'origine de chaque champ (`origins`). Seul calcul de l'héritage d'une tâche : l'API le lit pour tout comportement et le donne à l'app (remplace `taskDueDates`). |
 | `taskFieldOrigin(task, field)` | Origine d'un champ d'une tâche effective. |
+| `TASK_INHERITED_COLUMNS` | Colonnes de chaque champ hérité, dates à part (un lieu : texte et point) ; lues par `effectiveTask` et par le web (`taskRow`). |
+| `TASK_FIELD_INPUTS`, `taskFieldsGiven(input)` | Clés d’une entrée (une tâche, une modification, plusieurs) qui donnent une valeur propre à chaque champ hérité, et les champs qu’une entrée rend propres : l’API les rend propres, le web l’affiche aussitôt (déplacés de l’API, décision GA). |
+| `emptyTaskFields(task)` | Champs d’une tâche sans valeur propre (dates comprises) : ceux qu’elle hérite une fois rangée sous un parent après coup (décision GA). |
 
 ## `task-columns.ts` — colonnes, statuts, regroupements
 

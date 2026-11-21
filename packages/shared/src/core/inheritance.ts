@@ -153,6 +153,35 @@ export function changedInheritance<F extends string>(
 }
 
 /**
+ * Fields of an item without any value of its own (each of their columns empty): those it inherits automatically when
+ * it is placed under a parent after the fact, as at its creation; its own values stay.
+ * @param {T} item Item (its own values).
+ * @param {Partial<InheritedColumns<T, F>>} columns Columns of each field considered.
+ * @returns {F[]} Empty fields, in the order of `columns`.
+ */
+export function emptyInheritedFields<T, F extends string>(item: T, columns: Partial<InheritedColumns<T, F>>): F[] {
+  return (Object.keys(columns) as F[]).filter((field) => columns[field]!.every((key) => isEmptyValue(item[key])));
+}
+
+/**
+ * Copy of an item as it goes, for a screen: each field it inherits takes the columns of its effective
+ * values (`effective`, as the API gives them); its own fields stay. The screens read this copy for their cells,
+ * filters, sorts, groups and exports, and `inheritance` to grey what is inherited.
+ * @param {T} item Item, with its stored list.
+ * @param {Partial<T>} effective Its effective values (only the columns present are taken).
+ * @param {Partial<Record<string, readonly (keyof T)[]>>} columns Columns of each inherited field.
+ * @returns {T} Item as it goes.
+ */
+export function inheritedView<T extends { parentId?: string | null; inheritedFields: readonly string[] }>(item: T, effective: Partial<T>, columns: Partial<Record<string, readonly (keyof T)[]>>): T {
+  const view = { ...item };
+  for (const [field, keys] of Object.entries(columns)) {
+    if (!keys || !marksInherited(item, field)) continue;
+    for (const key of keys) if (key in effective) view[key] = effective[key] as T[keyof T];
+  }
+  return view;
+}
+
+/**
  * Inherited fields a partial input gives an own value (decision D11): one of its keys given (null included); an empty
  * list of ids added or removed (`add…`, `remove…`) changes nothing.
  * @param {object} input Input of an item (or of several).
