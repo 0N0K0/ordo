@@ -744,7 +744,7 @@ export type RoutineCategoryInput = {
   parentId?: string | number | null | undefined;
 };
 
-/** Field a sub-routine inherits from its parent (decision D11); START_DATE, RECURRENCE, CASES, MOMENTS, MOVES and OPENS_ON make its « quand ». */
+/** Field a sub-routine inherits from its parent; START_DATE, RECURRENCE, CASES, MOMENTS, MOVES and OPENS_ON make its « quand ». */
 export type RoutineInheritableField =
   | 'ASSIGNEES'
   | 'BENEFICIARIES'
@@ -777,7 +777,7 @@ export type RoutineInput = {
   estimate?: number | null | undefined;
   /** HH:MM. */
   fromTime?: string | null | undefined;
-  /** Under a parent: the fields it inherits, live (decision D11; their values given are not used, its project is its parent’s). Omitted: none for a new routine, unchanged for an update. */
+  /** Under a parent: the fields it inherits, live (their values given are not used, its project is its parent’s). Omitted: none for a new routine, unchanged for an update. */
   inheritedFields?: Array<RoutineInheritableField> | null | undefined;
   label: string;
   /** 20 at most, http or https; required, as relatedIds: an omitted field never wipes them. */
@@ -1106,7 +1106,7 @@ export type StockPurchaseInput = {
   shoppingItemId: string | number;
 };
 
-/** Field a sub-task inherits from its parent (decision D11). */
+/** Field a sub-task inherits from its parent. */
 export type TaskInheritableField =
   | 'ASSIGNEES'
   | 'BENEFICIARIES'
@@ -1176,7 +1176,7 @@ export type TaskStatusCategory =
   | 'IN_PROGRESS'
   | 'TODO';
 
-/** Omitted fields are left unchanged; null clears a field (a field given a value, null included, becomes its own: decision D11). Use bulkTransferTasks to change the project. */
+/** Omitted fields are left unchanged; null clears a field (a field given a value, null included, becomes its own). Use bulkTransferTasks to change the project. */
 export type TaskUpdateInput = {
   assigneeIds?: Array<string | number> | null | undefined;
   beneficiaryIds?: Array<string | number> | null | undefined;

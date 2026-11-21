@@ -1,7 +1,7 @@
 import { emptyInheritedFields, inheritedFieldsGiven, inheritsField, resolveInheritance, inheritState, type FieldOrigin, type InheritSource, type InheritedColumns } from '../core/inheritance';
 
 /**
- * Fields a sub-task inherits from its parent (decision D11): project, assignees, beneficiaries (people and relations),
+ * Fields a sub-task inherits from its parent: project, assignees, beneficiaries (people and relations),
  * slot condition, « Ouverture », « Échéance », place (not the travel times: a task has none), priority, milestone.
  */
 export const TASK_INHERITABLE_FIELDS = ['PROJECT', 'ASSIGNEES', 'BENEFICIARIES', 'SLOT_CONDITION', 'MIN_DATE', 'DEADLINE', 'LOCATION', 'PRIORITY', 'MILESTONE'] as const;
@@ -109,7 +109,7 @@ function previousMilestone(milestoneId: string, context: TaskInheritanceContext)
 }
 
 /**
- * Date a task without one of its own (nor from its parent) goes by (decision D11): « Ouverture », the first that
+ * Date a task without one of its own (nor from its parent) goes by: « Ouverture », the first that
  * exists of the « Échéance » of the milestone before its own, the « Ouverture » of its project, the start of its first
  * sprint; « Échéance », that of its milestone, else the end of its first sprint.
  * @param {'MIN_DATE' | 'DEADLINE'} field Date.
@@ -132,7 +132,7 @@ function fallbackDate(field: 'MIN_DATE' | 'DEADLINE', task: InheritingTask, cont
 }
 
 /**
- * « Ouverture » or « Échéance » a task goes by (decision D11): its own; else, while it inherits it, its parent's (which
+ * « Ouverture » or « Échéance » a task goes by: its own; else, while it inherits it, its parent's (which
  * may itself come from the parent's milestone, project or sprint); else its own milestone, project or sprint
  * (`fallbackDate`). Emptied on purpose, it skips its parent only.
  * @param {'MIN_DATE' | 'DEADLINE'} field Date.
@@ -155,7 +155,7 @@ function effectiveTaskDate(field: 'MIN_DATE' | 'DEADLINE', task: InheritingTask,
 }
 
 /**
- * Task as it goes (decision D11): each inherited field from its parent, live, up the chain; its dates also from its
+ * Task as it goes: each inherited field from its parent, live, up the chain; its dates also from its
  * milestone, project or first sprint (`effectiveTaskDate`). The only computation of the inheritance of a task: the API
  * reads it for every behaviour (filters, reminders, push, feasibility, overdue, conversions) and gives it to the app.
  * @param {InheritingTask} task Task.

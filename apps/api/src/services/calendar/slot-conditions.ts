@@ -42,7 +42,7 @@ const citeOtherWorkspaces = (conditions: readonly (SlotCondition | null | undefi
 
 /**
  * Schedules of a workspace as a change would leave them (created, changed, archived or deleted, not saved yet), or its
- * people (a birthday changed, moved or gone, decision FQ).
+ * people (a birthday changed, moved or gone).
  */
 export interface ScheduleChange {
   /** Workspace of the schedules changed (this one, or another one of the user whose schedules are named here). */
@@ -57,7 +57,7 @@ export interface ScheduleChange {
 export type ScheduleEdit = Omit<ScheduleChange, 'workspaceId'>;
 
 /**
- * What archiving or restoring some elements does to the slot conditions (decision FQ): schedules, kinds of schedules
+ * What archiving or restoring some elements does to the slot conditions: schedules, kinds of schedules
  * and people give no moment once archived; null for the other kinds.
  * @param {string} kind Kind of the elements (`ArchivableKind`).
  * @param {readonly string[]} ids Elements.
@@ -82,10 +82,10 @@ export function archiveEdit(kind: string, ids: readonly string[], archived: bool
 }
 
 /**
- * Slots of the schedules of the current workspace (archived ones and those of archived kinds give none, decision FQ), loaded once, those of a day computed when first
+ * Slots of the schedules of the current workspace (archived ones and those of archived kinds give none), loaded once, those of a day computed when first
  * asked: what the conditions of tasks and routines are evaluated on. The schedules of the other workspaces of the user
  * are loaded too when the conditions name some of them or of their kinds, and the birthdays of the people of the
- * workspace when they name some (lot 16c; both always without conditions given: the routines of a request are not
+ * workspace when they name some (both always without conditions given: the routines of a request are not
  * known yet).
  * @param {readonly (SlotCondition | null | undefined)[]} [conditions] Conditions evaluated. Optional. Default = unknown.
  * @param {ScheduleChange} [change] The schedules of a workspace (this one or another one) as a change would leave them.
@@ -93,7 +93,7 @@ export function archiveEdit(kind: string, ids: readonly string[], archived: bool
  * @returns {Promise<SlotsOn>} Slots of some schedules on a day.
  */
 export async function loadSlotsOn(conditions?: readonly (SlotCondition | null | undefined)[], change?: ScheduleChange): Promise<SlotsOn> {
-  // With the archiving of their kinds: archived schedules and kinds give no moment (decision FQ).
+  // With the archiving of their kinds: archived schedules and kinds give no moment.
   const own = await prisma.workSchedule.findMany({ include: { type: { select: { archivedAt: true } } } });
   const here = currentWorkspaceId();
   const [loaded, people] = await Promise.all([
@@ -114,7 +114,7 @@ export async function loadSlotsOn(conditions?: readonly (SlotCondition | null | 
 
 /**
  * Checks the schedules and kinds a condition (or several: a routine and its cases) names, of this workspace or of
- * another one of the user, and the people whose birthday it names (of this workspace, lot 16c): they exist, and none
+ * another one of the user, and the people whose birthday it names (of this workspace): they exist, and none
  * is archived but those already there.
  * @param {readonly (SlotCondition | null | undefined)[]} conditions Conditions saved.
  * @param {readonly (SlotCondition | null | undefined)[] | true} kept Conditions already there (their archived schedules
@@ -186,7 +186,7 @@ function userNow(utcOffset: number): { date: string; time: string } {
 }
 
 /**
- * Open tasks of the current workspace that can be done now: their « Ouverture » (as they go, decision D11:
+ * Open tasks of the current workspace that can be done now: their « Ouverture » (as they go:
  * `effectiveTask`) is not after the user's day, their condition on calendar schedules (their own or inherited; none:
  * any time) allows the user's current moment, and no event keeps their assignees (their own or inherited; none:
  * « Moi ») busy, but one about the task.

@@ -162,7 +162,7 @@ function formInput(values: RoutineFormValues, inheritedFields: RoutineInheritabl
   return { ...values, description: values.description || null, opensOn, inheritedFields };
 }
 
-/** Fields of a routine saved on leaving them, in its panel (decision D22): texts, numbers, its links and its place. */
+/** Fields of a routine saved on leaving them, in its panel: texts, numbers, its links and its place. */
 const ON_BLUR = ['label', 'description', 'estimate', 'links', 'location', 'locationLat', 'locationLon', 'travelBefore', 'travelAfter'] as const;
 
 export interface RoutineFormProps {
@@ -184,7 +184,7 @@ export interface RoutineFormProps {
  * on the left; project, categories, assignees, beneficiaries, time to spend, slots, parent routine, the routines it
  * depends on and those it is related to (of its project tree, as the tasks) on the right. A new routine is a form with
  * « Créer »; an existing one, its panel, saves each field as soon as it changes (texts and numbers on leaving them,
- * decision D22, `useFieldSave`), « Enregistrement… » / « Enregistré » at its top.
+ * `useFieldSave`), « Enregistrement… » / « Enregistré » at its top.
  * @param {RoutineFormProps} props Component props.
  * @returns {JSX.Element} Form.
  */
@@ -235,7 +235,7 @@ export function RoutineForm({ routine, parent, categoryId = null, projectId = nu
         },
     schema: routineSchema,
   });
-  // An existing routine: each field saved as soon as it changes (decision D22), the routine of the cache followed.
+  // An existing routine: each field saved as soon as it changes, the routine of the cache followed.
   const current = routine && (routines.find((item) => item.id === routine.id) ?? routine);
   // Archived (elsewhere too, the panel open): read only.
   const readOnly = Boolean(current?.archived);
@@ -303,9 +303,9 @@ export function RoutineForm({ routine, parent, categoryId = null, projectId = nu
   const linkOptions = (linked: string[]) => routineTreeOptions(routines, context ? linkableRoutine(context, form.values.projectId, routine?.id ?? null, linked) : () => false);
 
   /**
-   * Its « … » menu, as the task's: « Dupliquer », « Transformer en tâche » (lot 15, refused with sub-routines),
+   * Its « … » menu, as the task's: « Dupliquer », « Transformer en tâche » (refused with sub-routines),
    * « Archiver », « Supprimer » (the actions of its row, `useRoutineRowsActions`); archived: « Restaurer »,
-   * « Supprimer »; then « Lancer » each of its dead times, for the occurrence open (decision FT). Deleted or transformed,
+   * « Supprimer »; then « Lancer » each of its dead times, for the occurrence open. Deleted or transformed,
    * its panel closes (`closeRoutinePanels`).
    * @param {Routine} item Routine of the panel (of the cache).
    * @returns {RowMenuEntry[]} Entries.
@@ -454,7 +454,7 @@ export function RoutineForm({ routine, parent, categoryId = null, projectId = nu
 }
 
 /**
- * Comments of the occurrence of a routine open in its panel (decision D19), titled with its day; nothing without any
+ * Comments of the occurrence of a routine open in its panel, titled with its day; nothing without any
  * occurrence.
  * @param {{ routine: Routine, occurrenceDate: string | null }} props Routine and its occurrence.
  * @returns {JSX.Element | null} Comments.

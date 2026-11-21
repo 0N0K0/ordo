@@ -5,7 +5,7 @@ import type { ReactNode } from 'react';
 import { countWith } from '../../../lib/text';
 import type { LossDialog } from '../../time/lib/confirm-loss';
 
-/** Way a task and a routine are turned into each other (lot 15). */
+/** Way a task and a routine are turned into each other. */
 export type ConversionDirection = 'TASK_TO_ROUTINE' | 'ROUTINE_TO_TASK';
 
 /**
@@ -58,7 +58,7 @@ const DIRECTIONS: Record<ConversionDirection, { title: string; what: string; kep
 };
 
 /**
- * Confirmation of a conversion between a task and a routine (lot 15), from what the API counts as lost: what happens,
+ * Confirmation of a conversion between a task and a routine, from what the API counts as lost: what happens,
  * then the list of what is lost, in the order of `CONVERSION_LOSSES`.
  * @param {ConversionDirection} direction Way.
  * @param {ConversionLoss} lost What is lost, by kind.

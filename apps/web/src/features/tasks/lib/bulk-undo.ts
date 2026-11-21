@@ -155,7 +155,7 @@ export function useBulkUndo() {
 
     /**
      * Undo of a close / reopen: only the tasks whose state changed go back. A cancelled task reopened by hand took the
-     * first « À faire » status (decision FA): its « Annulé » status comes back too, which closes it again.
+     * first « À faire » status: its « Annulé » status comes back too, which closes it again.
      * @param {Task[]} tasks Tasks before the change.
      * @param {boolean} closed Applied state.
      * @returns {() => void} Undo.

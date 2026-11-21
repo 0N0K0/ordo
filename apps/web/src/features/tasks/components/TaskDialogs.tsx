@@ -22,7 +22,7 @@ import { LostOnDeleteRisk } from '../../time/components/LostOnDeleteRisk';
 
 /**
  * Deletion of tasks, confirmed; with sub-tasks not deleted with them, asks whether to keep them (moved up a level) or
- * delete them too; tells the times without project deleted with them (extra A of decision D17). The task open in the
+ * delete them too; tells the times without project deleted with them. The task open in the
  * side panel closes when deleted.
  * @param {TasksDialogProps} props Component props.
  * @returns {JSX.Element} Dialog content.

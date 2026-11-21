@@ -3,8 +3,8 @@ import type { TaskContext } from '../../tasks/hooks/use-task-context';
 
 /**
  * What a time was spent on, the same everywhere (agenda, header timer, timer card): its project, else its first
- * routine, its first event or its first task (a time has at least one of them, decision D17), « + N » telling the
- * other routines, events and tasks of a time without project (several of each, decision D18).
+ * routine, its first event or its first task (a time has at least one of them), « + N » telling the
+ * other routines, events and tasks of a time without project (several of each).
  * @param {Pick<TimeEntry, 'projectId' | 'routines' | 'events' | 'taskIds'>} entry Time.
  * @param {Pick<TaskContext, 'projectById' | 'taskById'> | null | undefined} context Task context (still loading: none).
  * @returns {string} Project, routine, event or task label (« Projet » / « Temps » when unknown).

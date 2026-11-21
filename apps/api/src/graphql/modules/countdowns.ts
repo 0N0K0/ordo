@@ -6,7 +6,7 @@ import { done } from '../errors';
 import { reloaded } from '../reload';
 
 builder.prismaObject('Countdown', {
-  description: 'A timer (« minuteur ») of the user, in every workspace (decision FT): it counts down and rings at its end.',
+  description: 'A timer (« minuteur ») of the user, in every workspace: it counts down and rings at its end.',
   fields: (t) => ({
     id: t.exposeID('id'),
     label: t.exposeString('label', { nullable: true, description: 'Its name; null: « Minuteur ».' }),

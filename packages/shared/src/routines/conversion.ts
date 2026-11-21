@@ -1,5 +1,5 @@
 /**
- * What a task turned into a routine, or a routine into a task, loses (lot 15): the API counts each kind in the
+ * What a task turned into a routine, or a routine into a task, loses: the API counts each kind in the
  * extension `lost` of its CONFIRMATION_REQUIRED, the web lists them in the confirmation.
  */
 export const CONVERSION_LOSSES = [

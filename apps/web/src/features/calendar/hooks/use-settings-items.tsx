@@ -26,7 +26,7 @@ export type ScheduleTypeExtra = ScheduleDisplay & { ephemeris: boolean; budgetCo
 
 /**
  * Kinds of time slots, for their settings list and their form (a creation from a select too): label, color, image and
- * display in the calendar; a kind of éphémérides (lot 16) also « Sert de contexte au budget » and, then, « Partagé
+ * display in the calendar; a kind of éphémérides also « Sert de contexte au budget » and, then, « Partagé
  * entre espaces ». The nature of a new kind is the one asked (a conversion changes it afterwards).
  * @param {{ ephemeris?: boolean, budgetContext?: boolean }} [options] Nature of a new kind, and a new kind of éphémérides as a context. Optional. Default = créneaux.
  * @returns {SettingsItemKind<ScheduleType, ScheduleTypeExtra>} List and form.
@@ -48,7 +48,7 @@ export function useScheduleTypeItems({ ephemeris = false, budgetContext = false 
   });
   return {
     kind: 'SCHEDULE_TYPE',
-    // Archiving or restoring a kind changes what its schedules give the slot conditions (decision FQ).
+    // Archiving or restoring a kind changes what its schedules give the slot conditions.
     confirmLoss: withLossConfirmation,
     schema: labelFormSchema,
     extra: {

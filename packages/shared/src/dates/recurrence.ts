@@ -161,7 +161,7 @@ export const DEFAULT_RECURRENCE: Recurrence = {
   pauses: [],
 };
 
-/** Every day: the rule of a new routine (and of a task turned into a routine, lot 15). */
+/** Every day: the rule of a new routine (and of a task turned into a routine). */
 export const DAILY_RECURRENCE: Recurrence = { ...DEFAULT_RECURRENCE, frequency: 'DAILY' };
 
 /**

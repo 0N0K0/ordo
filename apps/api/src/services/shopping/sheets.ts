@@ -334,7 +334,7 @@ async function partsOf(links: SheetLinkInput[]): Promise<SheetPart[]> {
 const QUANTITY_MAX = 999_999;
 
 /**
- * Part as a shopping item takes it: its label, note and unit cut to the text sizes (decision DO; texts saved before
+ * Part as a shopping item takes it: its label, note and unit cut to the text sizes (texts saved before
  * them may be longer), its quantity capped, then checked by the shopping item schemas.
  * @param {SheetPart} part Part.
  * @returns {SheetPart} Part that fits a shopping item.

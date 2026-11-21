@@ -87,7 +87,7 @@ interface LinkedSummary {
  */
 const entryLink = (entry: LinkedSummary): LineLink => ({ kind: 'entry', id: entry.id, entryLabel: entry.label, date: entry.date, label: null, amount: entry.amount });
 
-/** Fields of an entry saved on leaving them, in its panel (decision D22): texts and amounts. */
+/** Fields of an entry saved on leaving them, in its panel: texts and amounts. */
 const ON_BLUR = ['label', 'amount', 'note', 'url', 'allocations'] as const;
 
 /**
@@ -109,7 +109,7 @@ interface EntryFormProps {
  * counterparty), category and method of its direction, project, description and linked entries; a forecast may repeat,
  * an actual entry settles invoices (money in) or refunds credit notes (money out), Ordo or imported. A new entry is a
  * form with « Ajouter »; an existing one, its panel, saves each field as soon as it changes (texts, amounts and the
- * settled documents on leaving them, decision D22, `useFieldSave`): the whole entry each time, its split (edited in the
+ * settled documents on leaving them, `useFieldSave`): the whole entry each time, its split (edited in the
  * table only) as the cache holds it. Archived, it is read only.
  * @param {EntryFormProps} props Component props.
  * @returns {JSX.Element} Form.

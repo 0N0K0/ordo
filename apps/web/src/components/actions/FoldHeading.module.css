@@ -1,5 +1,5 @@
 @layer app {
-  /* Heading of something that folds: the whole row is the button (decision CH). */
+  /* Heading of something that folds: the whole row is the button. */
   .heading {
     /* Agencement */
     display: flex;

@@ -7,7 +7,7 @@ import { FormActions } from '../../../components/dialogs/FormActions';
 export interface ScopeQuestion {
   /**
    * What the answer does; `cancelOrDelete`: this occurrence is cancelled (it stays, struck through), it and the
-   * following ones are deleted (a routine, decision D23).
+   * following ones are deleted (a routine).
    */
   action: 'update' | 'delete' | 'cancel' | 'restore' | 'cancelOrDelete';
   /** Whether the occurrence alone can be changed (not when the repetition changed). */
@@ -30,7 +30,7 @@ export interface ScopeQuestion {
 export function ScopeChoices({ action, allowThis = true, allowFollowing = true, allowAll = true, note, onAnswer }: ScopeQuestion & { onAnswer: (scope: CalendarEventScope | null) => void }) {
   const mixed = action === 'cancelOrDelete';
   const remove = action === 'delete';
-  // Each answer applies the change: filled, red for a deletion (decision CN).
+  // Each answer applies the change: filled, red for a deletion.
   const icon = remove ? <TrashIcon aria-hidden /> : action === 'cancel' ? <ProhibitIcon aria-hidden /> : action === 'restore' ? <ArrowCounterClockwiseIcon aria-hidden /> : <CheckIcon aria-hidden />;
   if (mixed) {
     return (

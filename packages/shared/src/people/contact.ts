@@ -3,8 +3,8 @@ import { readStoredList, shortTextSchema } from '../core/rules';
 
 /**
  * Ways to reach a person or an organization, one shape for all: labelled lists (`[{ label, <value> }]`) of phone
- * numbers (clients, their services and contacts; contributors, members and relations, lot 16) and of email addresses
- * (contributors, members and relations, lot 16c), and the single email address of the clients and their contacts (the
+ * numbers (clients, their services and contacts; contributors, members and relations) and of email addresses
+ * (contributors, members and relations), and the single email address of the clients and their contacts (the
  * one invoices are sent to).
  */
 
@@ -50,11 +50,11 @@ export const optionalEmailSchema = z
   .transform((value) => value || null)
   .nullable();
 
-/** An email address with its label (« Personnel », « Travail »…; lot 16c). */
+/** An email address with its label (« Personnel », « Travail »…). */
 export const labelledEmailSchema = labelledEntrySchema('address', z.string().trim().pipe(z.email({ error: INVALID_EMAIL })));
 export type LabelledEmail = z.infer<typeof labelledEmailSchema>;
 
-/** Email addresses of a contributor or a relation, 10 at most (stored as JSON `[{ label, address }]`, lot 16c). */
+/** Email addresses of a contributor or a relation, 10 at most (stored as JSON `[{ label, address }]`). */
 export const emailsSchema = labelledListSchema(labelledEmailSchema);
 
 /**
@@ -65,7 +65,7 @@ export const emailsSchema = labelledListSchema(labelledEmailSchema);
 export const readPhones = (value: unknown): Phone[] => readStoredList(phoneSchema, value);
 
 /**
- * Email addresses read from a stored value (invalid ones left out; lot 16c).
+ * Email addresses read from a stored value (invalid ones left out).
  * @param {unknown} value JSON.
  * @returns {LabelledEmail[]} Addresses.
  */

@@ -158,7 +158,7 @@ type TreasuryBudgetsData = { treasuryBudgets: TreasuryBudget[] };
 /**
  * Budget form: money out or in, month, member (none: me), context (none: everyday), category of that direction,
  * amount, repetition. A new budget is a form with « Créer »; an existing one, its panel, saves each field as soon as it
- * changes (the amount and the number of months on leaving them, decision D22, `useFieldSave`), the one of the cache
+ * changes (the amount and the number of months on leaving them, `useFieldSave`), the one of the cache
  * followed; archived, it is read only.
  * @param {{ budget?: TreasuryBudget, defaults?: Partial<BudgetValues>, onDone: () => void }} props Component props.
  * @returns {JSX.Element} Form.
@@ -788,7 +788,7 @@ export function BudgetsPanel() {
                       <MonthCell
                         value={budget.month}
                         label={cellLabelOf('month', budget, 'Premier mois')}
-                        // A first month set after the last one moves the last one to it (decision Q).
+                        // A first month set after the last one moves the last one to it.
                         onSave={(month) => month && bulk('month')(budget, (row) => ({ month, repeatUntil: followBounds([row.month, row.repeatUntil ?? null], 'start', month)[1] }))}
                       />
                     ),
@@ -868,7 +868,7 @@ export function BudgetsPanel() {
                   about="le budget"
                   primary={budget.archived ? undefined : { label: 'Modifier (et ses répétitions)', icon: <PencilSimpleIcon aria-hidden />, onClick: () => openBudget({ budget }) }}
                   items={[
-                    // A new budget with its values, saved at once, then its form opens (decision D20).
+                    // A new budget with its values, saved at once, then its form opens.
                     !budget.archived &&
                       rowMenuEntry(
                         duplicateRowsAction([budget], {

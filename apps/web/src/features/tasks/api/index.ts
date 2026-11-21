@@ -554,7 +554,7 @@ export function useSetTasksClosed() {
 }
 
 /**
- * Duplicates a task (« … (copie) », decision D20), optionally with its sub-tasks.
+ * Duplicates a task (« … (copie) »), optionally with its sub-tasks.
  * @returns {UseMutationResult} Mutation state, with the id and number of the copy.
  */
 export function useDuplicateTask() {
@@ -620,7 +620,7 @@ export function useTaskCommentMutations() {
  * @returns {object} Contributor mutations.
  */
 export function useContributorMutations() {
-  // Its birthday added, moved or gone (decision FQ): the occurrences of routines lost are confirmed first, as for a
+  // Its birthday added, moved or gone: the occurrences of routines lost are confirmed first, as for a
   // change of schedule, and the routines refreshed with the tasks (the birthdays and the tasks doable now are under them).
   const people = { invalidate: [tasksQueryKey, routinesKey] };
   return {

@@ -220,7 +220,7 @@ export function RoutinesPanel({ projectId, projectIds }: { projectId?: string; p
   };
 
   /**
-   * Actions of a routine, in its menu (« Lancer » its dead times, for its current occurrence: decision FT).
+   * Actions of a routine, in its menu (« Lancer » its dead times, for its current occurrence).
    * @param {Routine} routine Routine.
    * @returns {ReactNode} Menu.
    */

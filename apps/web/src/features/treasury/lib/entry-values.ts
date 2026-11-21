@@ -160,7 +160,7 @@ export function useEntryCellSave() {
 }
 
 /**
- * « Dupliquer » of an entry or a forecast (decision D20): its copy saved at once, « … (copie) », settling no document
+ * « Dupliquer » of an entry or a forecast: its copy saved at once, « … (copie) », settling no document
  * (the original already does) and with lines of its own, then its form opens.
  * @param {(entry: TreasuryEntry | ForecastEntry) => void} open Opens the form of the copy.
  * @returns {DuplicateOptions<TreasuryEntry | ForecastEntry, string>} « Dupliquer ».

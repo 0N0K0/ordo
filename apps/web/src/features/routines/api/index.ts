@@ -281,7 +281,7 @@ const RoutineChecksDocument = graphql(`
 
 export type RoutineCheck = RoutineChecksQuery['routineChecks'][number];
 
-/** Comment deleted with an occurrence, given back by « Annuler » (decision D19). */
+/** Comment deleted with an occurrence, given back by « Annuler ». */
 export type CommentSnapshot = DeleteRoutineOccurrenceMutation['deleteRoutineOccurrence']['comments'][number];
 
 /**
@@ -671,7 +671,7 @@ export function useRoutineMutations() {
     /** Copies the sub-routines of a routine under its copy (theirs too). */
     copySubRoutines: useRoutineMutation(async (variables: { fromId: string; toId: string }) => (await execute(CopySubRoutinesDocument, variables)).copySubRoutines),
     /**
-     * Turns a task into a routine (lot 15), once what it loses is confirmed (`conversionDialog`); gives the routine id.
+     * Turns a task into a routine, once what it loses is confirmed (`conversionDialog`); gives the routine id.
      * The tasks and the times are refreshed too (the task is gone, its times are the routine's).
      */
     convertTask: useRoutineMutation(
@@ -683,7 +683,7 @@ export function useRoutineMutations() {
       undefined,
       [tasksQueryKey, timeQueryKey],
     ),
-    /** Turns a routine into a task (lot 15), once what it loses is confirmed; gives the task id. */
+    /** Turns a routine into a task, once what it loses is confirmed; gives the task id. */
     convertToTask: useRoutineMutation(
       async (id: string) =>
         withLossConfirmation(

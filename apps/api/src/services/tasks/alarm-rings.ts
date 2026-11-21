@@ -5,8 +5,8 @@ import { isUniqueConflict, parseInput } from '../../graphql/errors';
 import { toJson } from '../core/json';
 
 /**
- * Rings of the alarms and reminders of a user (decision FS): the settings of the user (every workspace) and the state
- * of each ring, kept here so every tab and device follows a stop or a snooze, and so the push notifications (lot 17c)
+ * Rings of the alarms and reminders of a user: the settings of the user (every workspace) and the state
+ * of each ring, kept here so every tab and device follows a stop or a snooze, and so the push notifications
  * know when to ring again. A ring is one row per key (`userId`, `key`); it is kept 6 hours after its last change.
  */
 
@@ -94,7 +94,7 @@ export async function ringAlarm(userId: string, input: AlarmRingInput): Promise<
 }
 
 /**
- * First ring of an alarm or a reminder by the server, outside the app (lot 17c): recorded only when no tab nor device
+ * First ring of an alarm or a reminder by the server, outside the app: recorded only when no tab nor device
  * rang it already (no row for its key), so it is pushed once.
  * @param {string} userId User.
  * @param {AlarmRingInput} input Ring.
@@ -114,7 +114,7 @@ export async function ringOutside(userId: string, input: AlarmRingInput): Promis
 }
 
 /**
- * Repetition of a ring by the server, outside the app (lot 17c): it rings again now, unless a tab or a device stopped
+ * Repetition of a ring by the server, outside the app: it rings again now, unless a tab or a device stopped
  * it, snoozed it or rang it again meanwhile (its next ring changed).
  * @param {AlarmRing} ring Ring due to ring again.
  * @returns {Promise<boolean>} Rung again.

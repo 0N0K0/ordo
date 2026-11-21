@@ -43,7 +43,7 @@ const detailsValues = (client: ClientBilling): DetailsValues => ({
   activityCode: client.activityCode ?? '',
 });
 
-/** Fields of the details, a service or a contact saved on leaving them (decision D22): texts, the address, the phones. */
+/** Fields of the details, a service or a contact saved on leaving them: texts, the address, the phones. */
 const DETAILS_ON_BLUR = ['firstName', 'lastName', 'address', 'email', 'phones', 'website', 'vatNumber', 'siren', 'siret', 'activityCode'] as const;
 
 /** Props of the panels of a client's details, services and contacts. */
@@ -55,7 +55,7 @@ interface PartyPanelProps {
 /**
  * Billing details of a client: professional (identifiers, website) or individual (first and last name),
  * address, email and phones. Each field is saved as soon as it changes (texts, the address and the phones on leaving
- * them, decision D22, `useFieldSave`), the client of the cache followed.
+ * them, `useFieldSave`), the client of the cache followed.
  * @param {{ client: ClientBilling } & PartyPanelProps} props Component props.
  * @returns {JSX.Element} Panel.
  */
@@ -131,7 +131,7 @@ const serviceValues = (service?: ClientService): ServiceValues => ({
 
 /**
  * Service (department, branch) of a client. A new one is a form with « Ajouter »; an existing one, its panel, saves
- * each field on leaving it (decision D22, `useFieldSave`), the one of the cache followed.
+ * each field on leaving it (`useFieldSave`), the one of the cache followed.
  * @param {{ clientId: string, service?: ClientService, onDone: () => void } & PartyPanelProps} props Component props.
  * @returns {JSX.Element} Form.
  */
@@ -191,7 +191,7 @@ const contactValues = (contact?: ClientContact, serviceId?: string | null): Cont
 
 /**
  * Contact person at a client, possibly in one of its services. A new one is a form with « Ajouter »; an existing one,
- * its panel, saves each field as soon as it changes (texts and phones on leaving them, decision D22, `useFieldSave`),
+ * its panel, saves each field as soon as it changes (texts and phones on leaving them, `useFieldSave`),
  * the one of the cache followed.
  * @param {{ client: ClientBilling, contact?: ClientContact, serviceId?: string | null, onDone: () => void } & PartyPanelProps} props Component props.
  * @returns {JSX.Element} Form.

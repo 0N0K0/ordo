@@ -52,7 +52,7 @@ export function PlannedTime() {
 
   const days = useMemo(() => {
     if (!rules) return [];
-    // The créneaux counted only: an éphéméride is no planned work (lot 16), nor an archived créneau (decision FQ).
+    // The créneaux counted only: an éphéméride is no planned work, nor an archived créneau.
     const slots = plannedSlots(rules, monday, sunday);
     const trackedByDay = new Map<string, number>();
     for (const entry of entries.data ?? []) {

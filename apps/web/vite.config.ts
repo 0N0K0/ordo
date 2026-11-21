@@ -35,7 +35,7 @@ export default defineConfig({
         cleanupOutdatedCaches: true,
         // The app bundle is large (charts, calendar, editors…).
         maximumFileSizeToCacheInBytes: 8 * 1024 * 1024,
-        // Push notifications (lot 17c): the handlers of `push` and `notificationclick`, a classic script of public/.
+        // Push notifications: the handlers of `push` and `notificationclick`, a classic script of public/.
         importScripts: ['/push-sw.js'],
       },
     }),

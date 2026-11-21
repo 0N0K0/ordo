@@ -89,7 +89,7 @@ interface TimeSubjectCellProps {
 }
 
 /**
- * Routines, tasks or events of a time, chosen in place (several of each, decision D18): on a selection, each row gets
+ * Routines, tasks or events of a time, chosen in place (several of each): on a selection, each row gets
  * the ones added and loses the ones removed. Removing the last one of a time without project is refused by the API.
  * @param {TimeSubjectCellProps} props Component props.
  * @returns {JSX.Element} Cell.

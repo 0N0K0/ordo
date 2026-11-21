@@ -69,7 +69,7 @@ export async function removeMember(contributorId: string): Promise<void> {
 }
 
 /**
- * Saves a context (lot 16: a kind of éphémérides « Sert de contexte au budget »): a new one is such a kind, created
+ * Saves a context (a kind of éphémérides « Sert de contexte au budget »): a new one is such a kind, created
  * with this label and color (default display); a context changed changes its kind, one of this workspace only (a
  * context shared by another workspace is changed there).
  * @param {string | null} id Context to change, or null to create one.
@@ -107,7 +107,7 @@ export async function contextEphemerides(): Promise<(ContextEphemeris & { schedu
  * @param {string | null} id Relation to change, or null to create one.
  * @param {TreasuryRelationInput} input Name, note, contributor, and its details (birth date, birthday reminders, email addresses, phones: omitted, left unchanged).
  * @param {PeopleChangeSettler} [settle] Run once checked when its birth date or its contributor changes (the birthday
- * that applies to it, decision FQ), before it is saved. Optional. Default = none.
+ * that applies to it), before it is saved. Optional. Default = none.
  * @returns {Promise<TreasuryRelation>} Relation.
  */
 export async function saveRelation(
@@ -145,7 +145,7 @@ export async function saveRelation(
 /**
  * Deletes a relation: its budgets go with it, its lines become the app user's.
  * @param {string} id Relation.
- * @param {PeopleChangeSettler} [settle] Run once found, before it is deleted (its birthday goes, decision FQ). Optional. Default = none.
+ * @param {PeopleChangeSettler} [settle] Run once found, before it is deleted (its birthday goes). Optional. Default = none.
  * @returns {Promise<void>}
  */
 export async function deleteRelation(id: string, settle: PeopleChangeSettler = NO_PEOPLE_SETTLER): Promise<void> {

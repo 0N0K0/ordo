@@ -17,7 +17,7 @@ interface SidePanelProps extends Omit<DrawerProps, 'position' | 'size' | 'title'
 }
 
 /**
- * Title of a panel on the right, the same in the side panels and the settings of a page (decision CL).
+ * Title of a panel on the right, the same in the side panels and the settings of a page.
  * @param {{ children: ReactNode }} props Component props: the title.
  * @returns {JSX.Element} Title.
  */

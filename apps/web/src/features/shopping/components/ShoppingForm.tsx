@@ -50,7 +50,7 @@ export interface ShoppingFormProps {
   onDone: () => void;
 }
 
-/** Fields of a product or an item saved on leaving them, in its panel (decision D22): texts and numbers. */
+/** Fields of a product or an item saved on leaving them, in its panel: texts and numbers. */
 const ON_BLUR = ['label', 'url', 'note', 'quantity', 'unitPrice'] as const;
 
 /**
@@ -92,7 +92,7 @@ const itemInput = (values: FormValues): Omit<FormValues, 'missing' | 'baseListId
 /**
  * Product of a base list or item of a list: name, category, store, quantity and unit, unit price, link, description and
  * the people it is for; a product is also marked missing or not. A new one is a form with « Ajouter »; an existing one,
- * its panel, saves each field as soon as it changes (texts and numbers on leaving them, decision D22, `useFieldSave`),
+ * its panel, saves each field as soon as it changes (texts and numbers on leaving them, `useFieldSave`),
  * the one of the cache followed. An archived product, an item of a closed or archived list are read only.
  * @param {ShoppingFormProps} props Component props.
  * @returns {JSX.Element} Form.

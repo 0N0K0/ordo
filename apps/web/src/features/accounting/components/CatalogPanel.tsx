@@ -87,7 +87,7 @@ const catalogValues = (item?: CatalogItem, vatApplicable?: boolean): CatalogValu
 
 /**
  * Catalogue item form: kind, label, description, unit, price, VAT. A new item is a form with « Ajouter »; an existing
- * one, its panel, saves each field as soon as it changes (texts and the price on leaving them, decision D22,
+ * one, its panel, saves each field as soon as it changes (texts and the price on leaving them,
  * `useFieldSave`), the one of the cache followed; archived, it is read only.
  * @param {{ item?: CatalogItem, onDone: () => void }} props Item to edit (none: new item) and close callback.
  * @returns {JSX.Element} Form.

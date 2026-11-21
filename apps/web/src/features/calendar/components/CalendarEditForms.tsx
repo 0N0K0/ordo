@@ -19,11 +19,10 @@ import { ActionButton } from '../../../components/actions/ActionButton';
 
 /**
  * Panel of a slot of a schedule from the calendar: its day and hours (or the whole day), each saved as soon as it
- * changes (decision D22) for the days chosen when the panel opened (`scope`: this day, an exception; it and the
+ * changes for the days chosen when the panel opened (`scope`: this day, an exception; it and the
  * following ones; all; null: none chosen, read only); occurrences of routines a change makes disappear confirmed first
  * (declined: put back); or deleting it (its own question). Its « … » menu converts the schedule into an éphéméride or
- * the reverse (`useScheduleConversion`, the whole schedule whatever the scope; the panel closes once converted,
- * decision FX).
+ * the reverse (`useScheduleConversion`, the whole schedule whatever the scope; the panel closes once converted).
  * @param {{ label: string, schedule: WorkScheduleRule, slot: ScheduleSlotTime, scope: CalendarEventScope | null, onDelete: (schedule: WorkScheduleRule, slot: ScheduleSlotTime) => void, onClose: () => void }} props Component props.
  * @returns {JSX.Element} Panel.
  */
@@ -133,7 +132,7 @@ interface OccurrenceValues extends Record<string, unknown> {
 
 /**
  * Panel of an occurrence of a routine from the calendar: its day and the times of one of its times of the day, each
- * saved as soon as it changes (decision D22) for the occurrences chosen when the panel opened (`scope`: this one, an
+ * saved as soon as it changes for the occurrences chosen when the panel opened (`scope`: this one, an
  * exception; it and the following ones; all; null: none chosen, read only); or cancelling it; or opening the routine.
  * The occurrence of the cache is followed (moved or changed elsewhere). A cancelled occurrence is only given back
  * (« Rétablir »); one of an archived routine is read only, also when the routine is archived elsewhere while the panel

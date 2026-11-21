@@ -38,7 +38,7 @@ L’API accepte ce que l’interface empêche.
   - Le web montre le « quand » hérité d’une sous-routine (cellules, panneau), mais l’agenda, l’état et les coches viennent des occurrences de l’API, calculées sur ses colonnes propres : elles diffèrent si la parente a changé depuis (le panneau qui l’enregistre recopie les valeurs suivies). « Héritage… » sur la sélection n’offre pas le « quand » des routines.
   - GitHub : ce qui est envoyé à GitHub (priorité, échéance, jalon, assignés) reste la valeur propre de la tâche, pas la valeur héritée ; une sous-tâche détachée de son parent par GitHub (parent retiré) ne reçoit pas les valeurs qu’elle héritait.
   - Les liens « relative à » / dépendances des routines restent limités par le projet enregistré, qui est le projet suivi (le projet hérité est recopié), donc sans écart.
-  Voir [Tâches](business-rules/activities/tasks.md#héritage), [Routines](business-rules/activities/routines.md#héritage).
+    Voir [Tâches](business-rules/activities/tasks.md#héritage), [Routines](business-rules/activities/routines.md#héritage).
 
 ## Comportements à confirmer
 
@@ -52,10 +52,9 @@ L’API accepte ce que l’interface empêche.
 - **Anniversaires cités par les conditions de créneaux (lot 16c) :** une personne sans date de naissance est acceptée dans une condition (son anniversaire ne permet aucun moment, comme un type sans créneau), sans avertissement ; une personne supprimée, ou archivée sans date de naissance à elle (une relation archivée dont seul le contributeur lié est daté), est écrite « anniversaire retiré » (son nom n'est plus connu des anniversaires). La confirmation des occurrences perdues, le rechargement des routines et le suivi du contributeur lié sont faits (décision FQ). Voir [Personnes](business-rules/cross-cutting/people.md#coordonnées-date-de-naissance-anniversaire).
 
 ## Documentation à mettre à jour ou à compléter
+
 - **Héritage, changer de parent :** un élément du premier niveau rangé sous un parent hérite de ses champs vides ; un sous-élément qui passe d’un parent à un autre garde sa liste, et un champ qu’il avait vidé exprès reste vidé (l’autre lecture : ses champs vides héritent aussi du nouveau) ; à confirmer.
 - **Héritage, date vidée exprès :** elle saute le parent mais garde le repli jalon / projet / sprint (comme une tâche du premier niveau) ; à confirmer (l’autre lecture : « aucune » date du tout).
-
-
 - **Relances d’impayés :** [Déploiement](deployment.md) les cite parmi les tâches de fond, mais le code ne les envoie qu’à la main (`sendRemindersSchema`). Voir [Tâches de fond](business-rules/cross-cutting/background-jobs.md).
 - **Suppression d’un client qui a des documents :** refusée par la relation `Restrict` du schéma ; le message affiché n’a pas été relevé. Voir [Règles de la facturation](business-rules/finances/accounting.md).
 - **Unicité des libellés dans les arbres :** aucune contrainte dans le schéma pour les projets, tâches, évènements, routines, fiches, listes, comptes, catégories, emplacements et agendas ; à confirmer arbre par arbre. Voir [Noms et libellés](business-rules/cross-cutting/naming.md).

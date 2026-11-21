@@ -37,7 +37,7 @@ interface KindLookSettingsProps {
 
 /**
  * Settings row of what shows like a kind without being an item of the list of kinds (the schedules without kind, the
- * birthdays, decision FX): its color, what else it has, and its display in the calendar (`ScheduleLookEditor`).
+ * birthdays): its color, what else it has, and its display in the calendar (`ScheduleLookEditor`).
  * @param {KindLookSettingsProps} props Component props.
  * @returns {JSX.Element} Section.
  */
@@ -109,7 +109,7 @@ function DefaultScheduleKind() {
 }
 
 /**
- * Birthdays of the people of the workspace (decision FX): shown in the calendar or not (hidden, their reminders still
+ * Birthdays of the people of the workspace: shown in the calendar or not (hidden, their reminders still
  * ring), their color (none: the gray of the éphémérides) and display, as a kind of éphémérides.
  * @returns {JSX.Element | null} Section.
  */
@@ -264,7 +264,7 @@ function ForeignSchedules() {
 
 /**
  * Settings of the time slots, apart from the slots themselves: their kinds (and the default kind) with their color
- * and display, the kinds of éphémérides beside them (lot 16) and the birthdays after them (decision FX), and the
+ * and display, the kinds of éphémérides beside them and the birthdays after them, and the
  * subscriptions to kinds of other workspaces.
  * @returns {JSX.Element} Settings.
  */

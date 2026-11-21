@@ -201,7 +201,7 @@ const spanOf = (event: EventOccurrence) => daysBetween(event.startDate, event.en
 
 /**
  * Start or end of an event, edited in place (its day for an all-day event, else its date and time, in its own time
- * zone). Moving the start moves the end too (same duration); an end set before the start moves the start to it (decision Q).
+ * zone). Moving the start moves the end too (same duration); an end set before the start moves the start to it.
  * @param {{ event: EventOccurrence, side: 'start' | 'end' }} props Occurrence and side.
  * @returns {JSX.Element} Cell.
  */

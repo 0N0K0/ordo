@@ -41,7 +41,7 @@ export interface RemindersSelectProps {
   /** Text when there is none. Optional. Default = « Aucun rappel. ». */
   emptyLabel?: string;
   /**
-   * What they count from (`EVENT_REMINDER_ANCHORS`, `ROUTINE_REMINDER_ANCHORS`: decisions FS, FV): a small select on
+   * What they count from (`EVENT_REMINDER_ANCHORS`, `ROUTINE_REMINDER_ANCHORS`): a small select on
    * each row when there are several. Optional. Default = the start only.
    */
   anchors?: readonly ReminderAnchor[];
@@ -119,7 +119,7 @@ function readDraft(draft: ReminderDraft): { reminder?: Reminder; count?: string;
 const keysOf = (reminders: readonly ReminderFields[]): string => normalizedReminders(readReminders(reminders)).map(reminderKey).join(',');
 
 /**
- * The ringtone of each reminder chosen (decision FS), folded under « Sonneries » to keep the editor light: « Celle des
+ * The ringtone of each reminder chosen, folded under « Sonneries » to keep the editor light: « Celle des
  * réglages » or one of the bank.
  * @param {object} props Component props.
  * @param {Reminder[]} props.reminders Reminders chosen.
@@ -191,8 +191,8 @@ const rowAnchors = (anchors: readonly ReminderAnchor[], atTime: boolean): Remind
 const anchorLabel = (target: ReminderTarget, anchor: ReminderAnchor, use: 'moment' | 'daysBefore' | 'on'): string => anchorWords(target, anchor)?.[use] ?? anchor;
 
 /**
- * « Rappels » of a task, a routine, an event, an éphéméride or a birthday, the one editor of all (decisions D16, FO,
- * FV): one row per reminder (10 at most), added and removed one by one, each with only the fields of its kind — « Le
+ * « Rappels » of a task, a routine, an event, an éphéméride or a birthday, the one editor of all:
+ * one row per reminder (10 at most), added and removed one by one, each with only the fields of its kind — « Le
  * jour J » (a time of the item's day), else a number and its unit (« min » / « h » avant a moment, « jours » avant a
  * day), the time « à HH:MM » of a reminder at a time, and what it counts from when the item has several anchors
  * (events: the start or the end; routines: the start or the end of the opening day or of the due day). Only the kinds

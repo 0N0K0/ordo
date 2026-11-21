@@ -44,7 +44,7 @@ export function counterpartyItems(counterparties: readonly TreasuryCounterparty[
 export type TreasuryMember = TreasurySettingsQuery['treasuryMembers'][number];
 export type TreasuryContext = TreasurySettingsQuery['treasuryContexts'][number];
 export type TreasuryRelation = TreasurySettingsQuery['treasuryRelations'][number];
-/** Éphéméride of the kind of a context: one of its periods (lot 16). */
+/** Éphéméride of the kind of a context: one of its periods. */
 export type TreasuryContextEphemeris = TreasurySettingsQuery['treasuryContextEphemerides'][number];
 export type TreasuryEntryLine = TreasuryEntry['lines'][number];
 export type EntryDocument = TreasuryDocumentOptionsQuery['treasuryDocumentOptions'][number];
@@ -581,7 +581,7 @@ const SaveContext = graphql(`
 `);
 
 /**
- * Members of the team or household, relations, contexts (a new one is a kind of éphémérides of the calendar, lot 16).
+ * Members of the team or household, relations, contexts (a new one is a kind of éphémérides of the calendar).
  * A member is a contributor: adding one also refreshes the contributors of the tasks and projects.
  * @returns {object} Mutations.
  */
@@ -590,8 +590,8 @@ export function useTreasuryTeamMutations() {
   return {
     addMember: useInvalidatingMutation(async (variables: { contributorId?: string; name?: string }) => (await execute(AddMember, variables)).addTreasuryMember, contributorsChanged),
     removeMember: useInvalidatingMutation(async (contributorId: string) => (await execute(RemoveMember, { contributorId })).removeTreasuryMember, contributorsChanged),
-    // Its birthday follows (lot 16): moved or gone (birth date, contributor), the occurrences of routines lost are
-    // confirmed first, and what depends on it refreshed (decision FQ).
+    // Its birthday follows: moved or gone (birth date, contributor), the occurrences of routines lost are
+    // confirmed first, and what depends on it refreshed.
     saveRelation: useInvalidatingMutation(
       async (variables: { id: string | null; input: { name: string; note: string | null; contributorId: string | null } & PersonDetailsValues }) =>
         withLossConfirmation(async (confirmLoss) => (await execute(SaveRelation, { ...variables, confirmLoss })).saveTreasuryRelation),

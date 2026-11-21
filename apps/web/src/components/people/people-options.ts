@@ -27,7 +27,7 @@ export const personName = (person: { name: string; isMe: boolean }): string => (
 export const meName = (me: { name: string } | null | undefined): string => (me ? personName({ ...me, isMe: true }) : 'Moi');
 
 /**
- * Name of the people out of the team or household (decision 15): « Relation(s) » in a pro workspace, « Proche(s) » in a
+ * Name of the people out of the team or household: « Relation(s) » in a pro workspace, « Proche(s) » in a
  * personal one.
  * @param {boolean} perso A personal workspace.
  * @param {boolean} [many] Plural. Optional. Default = false.
@@ -36,7 +36,7 @@ export const meName = (me: { name: string } | null | undefined): string => (me ?
 // eslint-disable-next-line no-restricted-syntax -- the brick the rule points to.
 export const relationNoun = (perso: boolean, many = false): string => (perso ? 'Proche' : 'Relation') + (many ? 's' : '');
 
-/** Words of the people out of the team or household (decision 15), agreed with their noun. */
+/** Words of the people out of the team or household, agreed with their noun. */
 export interface RelationWords {
   /** « Relation » / « Proche ». */
   noun: string;

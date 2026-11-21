@@ -59,7 +59,7 @@ builder.mutationFields((t) => ({
       kind: t.arg({ type: ArchivableKindEnum, required: true }),
       ids: t.arg.idList({ required: true }),
       archived: t.arg.boolean({ required: true }),
-      // Schedules, kinds of schedules and people archived give no moment to the slot conditions (decision FQ).
+      // Schedules, kinds of schedules and people archived give no moment to the slot conditions.
       confirmLoss: t.arg.boolean({ description: `${CONFIRM_LOSS_DESCRIPTION} Schedules, kinds of schedules, contributors and relations.` }),
     },
     resolve: (_root, { kind, ids, archived, confirmLoss }) =>

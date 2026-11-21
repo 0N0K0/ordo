@@ -22,7 +22,7 @@ export function useTaskActions(context: TaskContext | null) {
     /**
      * Actions of a task in its menu (the menu of every row: table, detail panel), those of the selection bar on that
      * task alone: duplicate, transfer, « Héritage… » (a sub-task), archive, delete (an archived task, read only: restore, delete); then « Transformer
-     * en routine » (lot 15; refused with sub-tasks); then « Lancer » each of its dead times (decision FT).
+     * en routine » (refused with sub-tasks); then « Lancer » each of its dead times.
      * @param {Task} task Task.
      * @returns {RowMenuEntry[]} Actions.
      */

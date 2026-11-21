@@ -188,7 +188,7 @@ export function ContextForm({ label = '', onDone }: { label?: string; onDone: (c
 
 /**
  * Contexts of spending (not in a tree; a line without context is everyday spending): the kinds of éphémérides of the
- * calendar « Sert de contexte au budget » (lot 16), the same settings list as in the calendar (label, color, image,
+ * calendar « Sert de contexte au budget », the same settings list as in the calendar (label, color, image,
  * display, budget fields), their éphémérides their periods (« Périodes » opens them). Those shared by another workspace
  * are listed apart, read only (changed in that workspace).
  * @returns {JSX.Element} Sections.
@@ -267,7 +267,7 @@ export function TeamPanel() {
   );
 }
 
-/** Values of a relation: its fields and its details (lot 16). */
+/** Values of a relation: its fields and its details. */
 type RelationValues = { name: string; note: string | null; contributorId: string | null } & PersonDetailsValues;
 
 /**
@@ -291,8 +291,8 @@ const relationValues = (relation: TreasuryRelation | undefined, name: string): R
 const relationInput = (input: RelationValues): RelationValues => ({ ...input, note: input.note || null, contributorId: input.contributorId ?? null });
 
 /**
- * Relation form: name, contributor, note, and its details (birth date, birthday reminders, email addresses, phones, lot 16). A new relation is a form with « Ajouter »; an existing one, its panel, saves each field
- * as soon as it changes (texts on leaving them, decision D22, `useFieldSave`), the one of the cache followed; archived,
+ * Relation form: name, contributor, note, and its details (birth date, birthday reminders, email addresses, phones). A new relation is a form with « Ajouter »; an existing one, its panel, saves each field
+ * as soon as it changes (texts on leaving them, `useFieldSave`), the one of the cache followed; archived,
  * it is read only.
  * @param {{ relation?: TreasuryRelation, name?: string, onDone: (createdId?: string) => void }} props Component props (the name typed in a select, for a new one); the form closes with the id of the relation created.
  * @returns {JSX.Element} Form.

@@ -13,7 +13,7 @@ export interface BirthdayPerson {
 }
 
 /**
- * Opener of the panel of the person of a birthday (lot 16): its relation (the treasury settings fetched when not
+ * Opener of the panel of the person of a birthday: its relation (the treasury settings fetched when not
  * loaded yet), else its contributor. Nothing when it is gone.
  * @returns {(person: BirthdayPerson) => void} Opener.
  */

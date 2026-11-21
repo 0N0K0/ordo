@@ -11,7 +11,7 @@ interface AddressFieldsProps {
   onChange: (value: Address | null) => void;
   /** Field errors, keyed by path inside the address ("city", "country"…). */
   errors?: Record<string, string | undefined>;
-  /** Called on leaving a field, and once a line is removed or a country chosen: the address is saved then (a panel saved field by field, decision D22). Optional. */
+  /** Called on leaving a field, and once a line is removed or a country chosen: the address is saved then (a panel saved field by field). Optional. */
   onBlur?: () => void;
 }
 

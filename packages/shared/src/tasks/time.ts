@@ -17,7 +17,7 @@ export const durationSchema = z
   .min(60, 'Au moins 1 minute.')
   .max(24 * 3600, '24 heures maximum.');
 
-/** A time has at least a project, a task, a routine or an event (decision D17). */
+/** A time has at least a project, a task, a routine or an event. */
 export const TIME_SUBJECT_REQUIRED = 'Choisissez un projet, une tâche, une routine ou un évènement.';
 
 /** Message of a typed duration not understood (or out of 1 minute to 24 hours). */
@@ -28,7 +28,7 @@ export const durationTextSchema = z.string().refine((value) => parseDuration(val
 
 /**
  * Manual time entry form: day, start time, duration ("1:30", "1h30", "90" minutes or "1,5" hours). The project may be
- * left empty when the time has a task, a routine or an event (decision D17); several of each (decision D18).
+ * left empty when the time has a task, a routine or an event; several of each.
  */
 export const timeEntryFormSchema = z
   .object({
@@ -156,7 +156,7 @@ export const alarmInputSchema = z
   });
 export type AlarmInput = z.input<typeof alarmInputSchema>;
 
-/** Schedule of an alarm (REMINDER and NOT_TRACKING), in Paris time (decision FV). */
+/** Schedule of an alarm (REMINDER and NOT_TRACKING), in Paris time. */
 interface AlarmSchedule {
   startDate: string | null;
   time: string | null;
@@ -203,8 +203,8 @@ function ringsOnDay(schedule: AlarmSchedule, start: string, day: string): boolea
 
 /**
  * Last occurrence of a schedule at or before a moment, looking back a limited number of days, in Paris time: the open
- * app and the server ringing outside it find the same instant and key (decision FV; every hour of Ordo is a Paris
- * hour, D7).
+ * app and the server ringing outside it find the same instant and key (every hour of Ordo is a Paris
+ * hour).
  * @param {AlarmSchedule} schedule Schedule.
  * @param {Date} moment Moment.
  * @param {number} [lookBackDays] Days to look back. Optional. Default = 2.

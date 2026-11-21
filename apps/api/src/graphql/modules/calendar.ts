@@ -200,7 +200,7 @@ const DefaultScheduleKindInput = builder.inputType('DefaultScheduleKindInput', {
 });
 
 const BirthdayLookRef = builder.objectRef<schedules.BirthdayLook>('BirthdayLook').implement({
-  description: 'Birthdays of the people of this workspace in its calendar (decision FX): shown or not, color (none: the gray of the éphémérides) and display.',
+  description: 'Birthdays of the people of this workspace in its calendar: shown or not, color (none: the gray of the éphémérides) and display.',
   fields: (t) => ({
     shown: t.exposeBoolean('shown', { description: 'Shown in the calendar; hidden, their reminders still ring.' }),
     color: t.exposeString('color', { nullable: true }),
@@ -352,7 +352,7 @@ const eventInput = (input: typeof CalendarEventInput.$inferInput) => ({
 });
 
 const BirthdayRef = builder.objectRef<birthdays.PersonBirthday>('Birthday').implement({
-  description: 'Birthday of a contributor or a relation (lot 16): a whole-day éphéméride derived from its birth date, every year, not stored.',
+  description: 'Birthday of a contributor or a relation: a whole-day éphéméride derived from its birth date, every year, not stored.',
   fields: (t) => ({
     id: t.exposeID('id', { description: '`contributor:<id>` or `relation:<id>`.' }),
     contributorId: t.exposeID('contributorId', { nullable: true, description: 'Contributor it is of (also set for a relation that is a contributor).' }),
@@ -410,7 +410,7 @@ builder.queryFields((t) => ({
   }),
   birthdayLook: t.field({
     type: BirthdayLookRef,
-    description: 'Birthdays of the people of this workspace in its calendar: shown or not, color and display (decision FX).',
+    description: 'Birthdays of the people of this workspace in its calendar: shown or not, color and display.',
     resolve: () => schedules.birthdayLook(),
   }),
   foreignScheduleKinds: t.field({

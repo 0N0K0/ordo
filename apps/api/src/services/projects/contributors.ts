@@ -42,7 +42,7 @@ export async function freeHandle(name: string, { fallback = 'membre', suffix }: 
  * @param {string} input.handle Unique mention handle.
  * @param {File | null} [input.avatar] Avatar file. Optional.
  * @param {string[] | null} [input.projectIds] Projects the contributor is attached to. Optional.
- * @param {PeopleChangeSettler} [settle] Run once checked when it has a birth date, before it is saved (decision FQ). Optional. Default = none.
+ * @param {PeopleChangeSettler} [settle] Run once checked when it has a birth date, before it is saved. Optional. Default = none.
  * @returns {Promise<Contributor>} Created contributor.
  */
 export async function createContributor(
@@ -51,7 +51,7 @@ export async function createContributor(
 ): Promise<Contributor> {
   const data = { ...parseInput(z.object({ name: personNameSchema, handle: handleSchema }), input), ...personDetailsData(input) };
   if (input.projectIds?.length) await assertProjects(input.projectIds);
-  // A new birthday (a condition out of every birthday loses its day, decision FQ).
+  // A new birthday (a condition out of every birthday loses its day).
   if (data.birthDate) await settle(personChange('contributor', '', { name: data.name, birthDate: data.birthDate }));
   const iconId = input.avatar ? await storeIcon(input.avatar) : null;
   try {
@@ -73,9 +73,9 @@ export async function createContributor(
  * @param {File | null} [input.avatar] New avatar. Optional.
  * @param {boolean | null} [input.removeAvatar] Removes the avatar. Optional.
  * @param {string[] | null} [input.projectIds] Projects the contributor is directly attached to. Optional.
- * @param {string | null} [input.birthDate] Birth date (`YYYY-MM-DD` or `--MM-DD`), with the other details (lot 16). Optional.
+ * @param {string | null} [input.birthDate] Birth date (`YYYY-MM-DD` or `--MM-DD`), with the other details. Optional.
  * @param {PeopleChangeSettler} [settle] Run once checked when the birth date changes, before it is saved (the
- * occurrences of routines naming birthdays it makes disappear, decision FQ). Optional. Default = none.
+ * occurrences of routines naming birthdays it makes disappear). Optional. Default = none.
  * @returns {Promise<Contributor>} Updated contributor.
  */
 export async function updateContributor(
@@ -115,7 +115,7 @@ export async function updateContributor(
 /**
  * Deletes a contributor; tasks simply lose this assignee.
  * @param {string} id Contributor id.
- * @param {PeopleChangeSettler} [settle] Run once checked, before it is deleted (its birthday goes, decision FQ). Optional. Default = none.
+ * @param {PeopleChangeSettler} [settle] Run once checked, before it is deleted (its birthday goes). Optional. Default = none.
  * @returns {Promise<void>}
  */
 export async function deleteContributor(id: string, settle: PeopleChangeSettler = NO_PEOPLE_SETTLER): Promise<void> {

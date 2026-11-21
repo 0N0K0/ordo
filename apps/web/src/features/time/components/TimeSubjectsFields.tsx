@@ -35,7 +35,7 @@ interface TimeSubjectsFieldsProps {
 
 /**
  * What a time is spent on, the same in its form and its timer: routines, tasks and events of its day (several of
- * each, decision D18); routines and tasks of its project tree, as the API's rule.
+ * each); routines and tasks of its project tree, as the API's rule.
  * @param {TimeSubjectsFieldsProps} props Component props.
  * @returns {JSX.Element} Fields.
  */

@@ -85,7 +85,7 @@ export function taskShortRef(task: { number: number | null; label: string; proje
 /** Address of a task in a text: by its id (its number changes with a transfer). */
 export const taskReferenceUrl = (id: string) => `?task=${encodeURIComponent(id)}`;
 
-// "#12", not glued to a word (so "a#1" stays untouched). A mention « @handle » stays plain text (decision DK).
+// "#12", not glued to a word (so "a#1" stays untouched). A mention « @handle » stays plain text.
 const REFERENCE = /(^|[^\p{L}\p{N}_&/])(#(\d+))/gu;
 const TASK_LINK = /^\?task=([^&]+)$/;
 const SKIPPED = new Set(['link', 'linkReference', 'inlineCode', 'code', 'definition']);
@@ -117,7 +117,7 @@ function splitText(text: string, targets: ReferenceTargets): MdNode[] {
 /**
  * Remark plugin: a typed "#12" becomes a link to task 12 of the project of the text, and a link to a task by id
  * ("?task=<id>") shows its current number (with its client and project when it is of another project). Unknown
- * numbers, and mentions (« @handle », decision DK), are left as plain text.
+ * numbers, and mentions (« @handle »), are left as plain text.
  * @param {ReferenceTargets} targets Existing tasks, and the project of the text.
  * @returns {() => (tree: MdNode) => void} Remark plugin.
  */

@@ -3,7 +3,7 @@ import { readEmails, readPhones, readReminders, type LabelledEmail, type Phone, 
 import { nestedErrors, type FieldSave } from '../../lib/form';
 import type { PersonDetailsFields } from './PersonDetailsFields';
 
-/** Details of a person in a form (lot 16): birth date, birthday reminders, email addresses (lot 16c), phones. */
+/** Details of a person in a form: birth date, birthday reminders, email addresses, phones. */
 export type PersonDetailsValues = {
   birthDate: string | null;
   birthdayReminders: ReminderFields[];

@@ -64,7 +64,7 @@ export function changedRoutineInheritance(
 }
 
 /**
- * Values of a routine input emptying fields on purpose (« Vider », decision D11). Its first time and its repetition
+ * Values of a routine input emptying fields on purpose (« Vider »). Its first time and its repetition
  * cannot be emptied; its exceptions are not in its input (`clearedMoves`).
  * @param {readonly RoutineInheritableField[] | null | undefined} fields Fields emptied.
  * @returns {Record<string, unknown>} Input values.

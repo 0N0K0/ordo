@@ -29,7 +29,7 @@ export function dayLabel(date: string, today: string): string {
 
 /**
  * Events of the home page (Agenda card, navigation badge) between two days: the cancelled ones hidden, and not counted
- * (decision CA).
+ *.
  * @param {string} from First day.
  * @param {string} to Last day.
  * @returns {EventOccurrence[] | undefined} Events held, undefined while loading.

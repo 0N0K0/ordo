@@ -87,7 +87,7 @@ export const PROJECT_ROUTE = '/projects/:id';
 // eslint-disable-next-line no-restricted-syntax -- the route itself.
 export const CLIENT_ROUTE = '/clients/:id';
 
-/** Page of a project, on a tab; page of a task (shared with the API: the links of the rings pushed, lot 17c). */
+/** Page of a project, on a tab; page of a task (shared with the API: the links of the rings pushed). */
 export { projectPath, taskPath };
 
 /**

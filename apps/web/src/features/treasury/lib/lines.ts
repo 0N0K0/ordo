@@ -110,7 +110,7 @@ export type LinkCandidate = LineLink & { accountLabel: string };
 export const linkKey = (link: Pick<LineLink, 'kind' | 'id'>) => taggedKey(link.kind, link.id);
 
 /**
- * Context planned on a day, proposed to a new line: that of the éphémérides of the contexts (lot 16, `contextPlanner`;
+ * Context planned on a day, proposed to a new line: that of the éphémérides of the contexts (`contextPlanner`;
  * an archived context is not proposed any more; none when several contexts cover the day, the user chooses).
  * @param {TreasurySettings | undefined} settings Settings of the treasury (contexts and their éphémérides).
  * @param {string} date Day of the entry.

@@ -114,7 +114,7 @@ export async function adoptedTaskFields(id: string, input: object = {}): Promise
 }
 
 /**
- * Prisma data emptying fields of a task on purpose (« Vider », decision D11): no value of its own, not inherited. Its
+ * Prisma data emptying fields of a task on purpose (« Vider »): no value of its own, not inherited. Its
  * project cannot be emptied (a sub-task stays in the tree of its parent).
  * @param {readonly TaskInheritableField[] | null | undefined} fields Fields emptied.
  * @returns {Prisma.TaskUncheckedUpdateInput} Data.

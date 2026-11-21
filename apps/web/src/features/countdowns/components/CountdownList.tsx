@@ -8,8 +8,8 @@ import { openCountdownForm } from '../lib/open-countdown-form';
 import { CountdownRow } from './CountdownRow';
 
 /**
- * Timers of the user (every workspace, decision FT), the soonest end first, each with its commands, and « Lancer un
- * minuteur » (the form of « Ajouter › Minuteur »): the page « Alarmes », the header, the home card (decision FV).
+ * Timers of the user (every workspace), the soonest end first, each with its commands, and « Lancer un
+ * minuteur » (the form of « Ajouter › Minuteur »): the page « Alarmes », the header, the home card.
  * @param {{ compact?: boolean, bare?: boolean }} props In a popover (`compact`: small button), or in a card (`bare`):
  *   no empty state text but the button (optional).
  * @returns {JSX.Element} List.

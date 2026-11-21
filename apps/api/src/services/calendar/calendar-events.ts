@@ -167,7 +167,7 @@ export async function firstShownOccurrence(event: Pick<CalendarEvent, 'id' | 'st
 }
 
 /**
- * Places the comments of recurring events written before they were on occurrences (decision D19) on the first
+ * Places the comments of recurring events written before they were on occurrences on the first
  * occurrence shown of their series (`firstShownOccurrence`), and saves them there; those of one-off events are theirs.
  * @param {readonly string[]} ids Events read.
  * @returns {Promise<void>}
@@ -268,7 +268,7 @@ async function parseEvent(input: CalendarEventInput, keep: string[] = [], keepCa
   await activeIds(prisma.calendarCategory, event.categoryIds, 'Catégorie', { keep: keepCategories, field: 'categoryIds' });
   const tasks = await prisma.task.findMany({ where: { id: { in: event.taskIds } }, select: { id: true, label: true } });
   if (tasks.length !== new Set(event.taskIds).size) throw notFound('Tâche');
-  // A task is about an event of someone of its assignees, its own or inherited (decision D11; or either side has nobody).
+  // A task is about an event of someone of its assignees, its own or inherited (or either side has nobody).
   const taskAssignees = tasks.length ? await effectiveTasks(tasks.map((task) => task.id)) : new Map<string, EffectiveTask>();
   const apart: { label: string }[] = tasks.filter((task) => !sharePeople([...(taskAssignees.get(task.id)?.assigneeIds ?? [])], event.contributorIds));
   // Routines of a day of the event (the one edited, for an occurrence).
@@ -594,8 +594,8 @@ export async function goneOccurrences(id: string, scope: EventScope, occurrenceD
 
 /**
  * Deletes an event, or for a recurring one: one occurrence, it and the following ones, or the whole series. The times
- * left with nothing attached are deleted first (extra A of decision D17, billed ones kept), the times on the
- * occurrences deleted leave them, and their comments are deleted (decision D19).
+ * left with nothing attached are deleted first (billed ones kept), the times on the
+ * occurrences deleted leave them, and their comments are deleted.
  * @param {string} id Event id.
  * @param {EventScope} scope Scope.
  * @param {string | null} [occurrenceDate] Occurrence. Optional for a one-off event.
@@ -607,7 +607,7 @@ export async function deleteCalendarEvent(id: string, scope: EventScope, occurre
   const gone = await goneOccurrences(id, scope, occurrenceDate);
   await releaseSubjectTime({ events: [gone] });
   await placeLegacyEventComments([id]);
-  // The comments of the occurrences deleted go with them (decision D19; a whole event: in cascade).
+  // The comments of the occurrences deleted go with them (a whole event: in cascade).
   if (gone.on || gone.from) await deleteGoneComments({ events: [{ id, on: gone.on, from: gone.from }] });
   if (!occurrence || (!gone.on && !gone.from)) {
     await prisma.calendarEvent.delete({ where: { id } });
@@ -675,7 +675,7 @@ export function toOccurrence(event: EventWithRelations, date: string | null, cha
     postponedTo: event.postponements
       .filter((postponement) => formatOptionalDay(postponement.postponedFromDate) === date)
       .map((postponement) => ({ eventId: postponement.id, label: postponement.label, startDate: formatDay(postponement.startDate), startTime: postponement.startTime })),
-    // A time on several events (occurrences) is shared equally between them (decision D18), as between its tasks.
+    // A time on several events (occurrences) is shared equally between them, as between its tasks.
     trackedSeconds: Math.round(
       sumOf(
         event.timeEntryLinks.filter((link) => formatOptionalDay(link.occurrenceDate) === date),
@@ -714,7 +714,7 @@ export async function eventOccurrences(from: string, to: string, calendarIds?: s
   const result: EventOccurrence[] = [];
   for (const event of events) {
     const rule = storedRecurrence(event.recurrence);
-    // Archived: its occurrences started before the day it was archived stay (archived), none starting on or after it (decision D21).
+    // Archived: its occurrences started before the day it was archived stay (archived), none starting on or after it.
     const archived = archivedOn(event);
     const changes = new Map(event.exceptions.map((change) => [formatDay(change.date), change]));
     const span = daysBetween(formatDay(event.startDate), formatDay(event.endDate));

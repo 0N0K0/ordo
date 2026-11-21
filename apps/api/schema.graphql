@@ -366,7 +366,7 @@ type Attachment {
 }
 
 """
-Birthday of a contributor or a relation (lot 16): a whole-day éphéméride derived from its birth date, every year, not stored.
+Birthday of a contributor or a relation: a whole-day éphéméride derived from its birth date, every year, not stored.
 """
 type Birthday {
   """
@@ -399,7 +399,7 @@ type Birthday {
 }
 
 """
-Birthdays of the people of this workspace in its calendar (decision FX): shown or not, color (none: the gray of the éphémérides) and display.
+Birthdays of the people of this workspace in its calendar: shown or not, color (none: the gray of the éphémérides) and display.
 """
 type BirthdayLook {
   color: String
@@ -990,7 +990,7 @@ input ContributorUpdateInput {
 }
 
 """
-A timer (« minuteur ») of the user, in every workspace (decision FT): it counts down and rings at its end.
+A timer (« minuteur ») of the user, in every workspace: it counts down and rings at its end.
 """
 type Countdown {
   createdAt: DateTime!
@@ -1236,7 +1236,7 @@ input EventRoutineLinkInput {
 }
 
 """
-State and source of one inherited field (decision D11): what the screens show greyed with « hérité de … », « (jalon) »…
+State and source of one inherited field: what the screens show greyed with « hérité de … », « (jalon) »…
 """
 type FieldOrigin {
   """Field: a value of TaskInheritableField or RoutineInheritableField."""
@@ -1596,12 +1596,10 @@ type LinkedMailAttachment {
 
 """What a deletion takes with it, for its confirmation."""
 type LostOnDelete {
-  """Comments of the items and occurrences deleted (decision D19)."""
+  """Comments of the items and occurrences deleted."""
   comments: Int!
 
-  """
-  Times without project, not billed, left with nothing attached (extra A of decision D17).
-  """
+  """Times without project, not billed, left with nothing attached."""
   times: Int!
 }
 
@@ -1991,7 +1989,7 @@ type Mutation {
   confirmEmailChange(token: String!): Boolean!
 
   """
-  Turns a routine (not archived, without sub-routines) into a task, dated by its current occurrence (lot 15): the routine is deleted, what both have moves to the task; returns the task id. Unconfirmed: CONFIRMATION_REQUIRED, extension `lost` (what is lost, by kind), nothing changed.
+  Turns a routine (not archived, without sub-routines) into a task, dated by its current occurrence: the routine is deleted, what both have moves to the task; returns the task id. Unconfirmed: CONFIRMATION_REQUIRED, extension `lost` (what is lost, by kind), nothing changed.
   """
   convertRoutineToTask(
     """What is lost is confirmed."""
@@ -2000,7 +1998,7 @@ type Mutation {
   ): ID!
 
   """
-  Turns a task (not archived, without sub-tasks) into a routine repeated every day (lot 15): the task is deleted, what both have moves to the routine; returns the routine id. Unconfirmed: CONFIRMATION_REQUIRED, extension `lost` (what is lost, by kind), nothing changed.
+  Turns a task (not archived, without sub-tasks) into a routine repeated every day: the task is deleted, what both have moves to the routine; returns the routine id. Unconfirmed: CONFIRMATION_REQUIRED, extension `lost` (what is lost, by kind), nothing changed.
   """
   convertTaskToRoutine(
     """What is lost is confirmed."""
@@ -2250,7 +2248,7 @@ type Mutation {
   duplicateShoppingList(id: ID!): ID!
 
   """
-  Duplicates a task, named « … (copie) » (decision D20), with its sub-tasks when asked; not its comments.
+  Duplicates a task, named « … (copie) », with its sub-tasks when asked; not its comments.
   """
   duplicateTask(id: ID!, includeSubtasks: Boolean!): Task!
   duplicateTaskView(id: ID!, label: String!): TaskView!
@@ -2680,7 +2678,7 @@ type Mutation {
   """Starts a timer; the others keep running."""
   startCountdown(input: CountdownInput!): Countdown!
 
-  """Starts a timer; the ones running keep running (decision FT)."""
+  """Starts a timer; the ones running keep running."""
   startTimer(input: TimerInput!): TimeEntry!
 
   """« Arrêter »: the ring is stopped for good, in every tab and device."""
@@ -3000,7 +2998,7 @@ input ProjectUpdateInput {
   statusId: ID
 }
 
-"""A device of the user receiving the push notifications (lot 17c)."""
+"""A device of the user receiving the push notifications."""
 type PushSubscription {
   createdAt: DateTime!
 
@@ -3039,7 +3037,7 @@ type Query {
   alarms: [Alarm!]!
 
   """
-  Birthdays of the people of this workspace in its calendar: shown or not, color and display (decision FX).
+  Birthdays of the people of this workspace in its calendar: shown or not, color and display.
   """
   birthdayLook: BirthdayLook!
 
@@ -3087,7 +3085,7 @@ type Query {
   ): [CommentCount!]!
 
   """
-  Comments of an item, oldest first; of one occurrence for a routine or an event (decision D19).
+  Comments of an item, oldest first; of one occurrence for a routine or an event.
   """
   comments(
     """Item id (Message-ID for a mail)."""
@@ -3293,7 +3291,7 @@ type Query {
   routines: [Routine!]!
 
   """
-  Running timers of the workspace (several at once, decision FT), the first started first.
+  Running timers of the workspace (several at once), the first started first.
   """
   runningTimeEntries: [TimeEntry!]!
   scheduleTypes: [ScheduleType!]!
@@ -3590,9 +3588,7 @@ type Routine {
   """
   currentDate: Date
 
-  """
-  « Temps morts »: waits a timer is launched for from an occurrence (decision FT).
-  """
+  """« Temps morts »: waits a timer is launched for from an occurrence."""
   deadTimes: [DeadTime!]!
   description: String
 
@@ -3605,7 +3601,7 @@ type Routine {
   """Latest time to do it by (HH:MM)."""
   dueTime: String
 
-  """Values it goes by (decision D11)."""
+  """Values it goes by."""
   effective: RoutineEffective!
 
   """Minutes."""
@@ -3619,13 +3615,11 @@ type Routine {
   id: ID!
 
   """
-  State (inherited, own, emptied on purpose) and source of each inherited field (decision D11).
+  State (inherited, own, emptied on purpose) and source of each inherited field.
   """
   inheritance: [FieldOrigin!]!
 
-  """
-  Fields it takes from its parent, live (decision D11); none for a top-level routine.
-  """
+  """Fields it takes from its parent, live; none for a top-level routine."""
   inheritedFields: [RoutineInheritableField!]!
   label: String!
   lastDoneAt: DateTime
@@ -3805,7 +3799,7 @@ type RoutineCheck {
 }
 
 """
-Values a routine goes by (decision D11): each inherited field from its parent, live. Its « quand » (startDate, recurrence, cases, moments, moves, opensOn) is given here; its occurrences follow it from lot 13c.
+Values a routine goes by: each inherited field from its parent, live. Its « quand » (startDate, recurrence, cases, moments, moves, opensOn) is given here; its occurrences follow it.
 """
 type RoutineEffective {
   assigneeIds: [ID!]!
@@ -3826,7 +3820,7 @@ type RoutineEffective {
 }
 
 """
-Field a sub-routine inherits from its parent (decision D11); START_DATE, RECURRENCE, CASES, MOMENTS, MOVES and OPENS_ON make its « quand ».
+Field a sub-routine inherits from its parent; START_DATE, RECURRENCE, CASES, MOMENTS, MOVES and OPENS_ON make its « quand ».
 """
 enum RoutineInheritableField {
   ASSIGNEES
@@ -3872,7 +3866,7 @@ input RoutineInput {
   fromTime: String
 
   """
-  Under a parent: the fields it inherits, live (decision D11; their values given are not used, its project is its parent’s). Omitted: none for a new routine, unchanged for an update.
+  Under a parent: the fields it inherits, live (their values given are not used, its project is its parent’s). Omitted: none for a new routine, unchanged for an update.
   """
   inheritedFields: [RoutineInheritableField!]
   label: String!
@@ -4797,7 +4791,7 @@ type Task {
   blockingIds: [ID!]!
 
   """
-  Its status is of the category « Annulé »: closed, shown struck through (decision D23).
+  Its status is of the category « Annulé »: closed, shown struck through.
   """
   cancelled: Boolean!
 
@@ -4808,7 +4802,7 @@ type Task {
   comments: [TaskComment!]!
   createdAt: DateTime!
 
-  """« Temps morts »: waits a timer is launched for (decision FT)."""
+  """« Temps morts »: waits a timer is launched for."""
   deadTimes: [DeadTime!]!
 
   """
@@ -4822,16 +4816,16 @@ type Task {
   deadlineSource: InheritSource
   description: String
 
-  """Values it goes by (decision D11)."""
+  """Values it goes by."""
   effective: TaskEffective!
 
   """
-  « Échéance » the task goes by (overdue, reminders, sorting, filters; decision D11): its own, else its parent’s, else its milestone’s, else the end of its first sprint.
+  « Échéance » the task goes by (overdue, reminders, sorting, filters): its own, else its parent’s, else its milestone’s, else the end of its first sprint.
   """
   effectiveDeadline: Date
 
   """
-  « Ouverture » the task goes by (decision D11): its own, else its parent’s, else the « Échéance » of the milestone before its own, the « Ouverture » of its project, the start of its first sprint.
+  « Ouverture » the task goes by: its own, else its parent’s, else the « Échéance » of the milestone before its own, the « Ouverture » of its project, the start of its first sprint.
   """
   effectiveMinDate: Date
   effort: Float
@@ -4846,13 +4840,11 @@ type Task {
   id: ID!
 
   """
-  State (inherited, own, emptied on purpose) and source of each inherited field (decision D11).
+  State (inherited, own, emptied on purpose) and source of each inherited field.
   """
   inheritance: [FieldOrigin!]!
 
-  """
-  Fields it takes from its parent, live (decision D11); none for a top-level task.
-  """
+  """Fields it takes from its parent, live; none for a top-level task."""
   inheritedFields: [TaskInheritableField!]!
   label: String!
 
@@ -4927,7 +4919,7 @@ type TaskComment {
 }
 
 """
-Values a task goes by (decision D11): each inherited field from its parent, live; its dates also from its milestone, project or first sprint. Read for every behaviour; the screens grey the inherited ones (`inheritance`).
+Values a task goes by: each inherited field from its parent, live; its dates also from its milestone, project or first sprint. Read for every behaviour; the screens grey the inherited ones (`inheritance`).
 """
 type TaskEffective {
   assigneeIds: [ID!]!
@@ -4948,7 +4940,7 @@ type TaskEffective {
   slotCondition: JSON
 }
 
-"""Field a sub-task inherits from its parent (decision D11)."""
+"""Field a sub-task inherits from its parent."""
 enum TaskInheritableField {
   ASSIGNEES
   BENEFICIARIES
@@ -5086,7 +5078,7 @@ type TaskType {
 }
 
 """
-Omitted fields are left unchanged; null clears a field (a field given a value, null included, becomes its own: decision D11). Use bulkTransferTasks to change the project.
+Omitted fields are left unchanged; null clears a field (a field given a value, null included, becomes its own). Use bulkTransferTasks to change the project.
 """
 input TaskUpdateInput {
   assigneeIds: [ID!]
@@ -5184,14 +5176,14 @@ type TimeEntry {
   duration: Int
   endedAt: DateTime
 
-  """Calendar events (occurrences) the time was spent on (decision D18)."""
+  """Calendar events (occurrences) the time was spent on."""
   events: [TimeEntryEvent!]!
   id: ID!
   pausedAt: DateTime
   pausedSeconds: Int!
   projectId: ID
 
-  """Routines the time is spent on (decision D18)."""
+  """Routines the time is spent on."""
   routines: [Routine!]!
   startedAt: DateTime!
   taskIds: [ID!]!

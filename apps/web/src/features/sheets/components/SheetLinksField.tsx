@@ -33,8 +33,8 @@ export function SheetLinksField({ owner }: { owner: SheetOwner }) {
 }
 
 /**
- * Sheets of an owner, saved field by field (decision D22, `useFieldSave`): a sheet chosen, added or removed at once,
- * a multiplier on leaving it (and when the panel closes while it is typed, decision FJ); the sheets of the cache
+ * Sheets of an owner, saved field by field (`useFieldSave`): a sheet chosen, added or removed at once,
+ * a multiplier on leaving it (and when the panel closes while it is typed); the sheets of the cache
  * followed.
  * @param {{ owner: SheetOwner, links: LinkValue[] }} props Owner and its sheets, as the cache holds them now.
  * @returns {JSX.Element} Field.

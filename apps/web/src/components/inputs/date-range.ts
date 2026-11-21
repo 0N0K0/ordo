@@ -37,7 +37,7 @@ interface DateBoundProps<B extends Bound> extends BoundProps<B> {
 
 /**
  * Bounds of a period once one of them changed: a start set after the end moves the end to it, an end set before the
- * start moves the start to it (decision Q).
+ * start moves the start to it.
  * @param {readonly [B, B]} bounds Start and end before.
  * @param {RangeSide} side Bound changed.
  * @param {B} value Its new value.
@@ -86,7 +86,7 @@ interface DateRangeOptions {
 
 /**
  * Props of the two date pickers of a period (DatePickerInput, MonthPickerInput, DateTimePicker): as `rangeProps`,
- * and the end cannot be picked before the start (decision Q). Spread into each picker: `{...range.start}`.
+ * and the end cannot be picked before the start. Spread into each picker: `{...range.start}`.
  * @param {RangeBinding} binding Where the bounds are kept (a picker may give null).
  * @param {DateRangeOptions} [options] Days possible, months. Optional.
  * @returns {{ start: DateBoundProps<Bound>, end: DateBoundProps<Bound> }} Props of the start and end pickers.

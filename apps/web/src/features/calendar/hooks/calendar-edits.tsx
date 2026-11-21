@@ -21,9 +21,9 @@ export interface RoutineOccurrenceRef {
   routine: Routine;
   date: string;
   slot: RoutineSlotTimes;
-  /** Cancelled (shown struck through, decision D23): only given back. Optional. Default = false. */
+  /** Cancelled (shown struck through): only given back. Optional. Default = false. */
   cancelled?: boolean;
-  /** Of an archived routine, before its archiving (decision D21): read only. Optional. Default = false. */
+  /** Of an archived routine, before its archiving: read only. Optional. Default = false. */
   archived?: boolean;
 }
 
@@ -92,8 +92,8 @@ export function useCalendarEdits() {
   };
 
   /**
-   * Cancels an occurrence of a routine (it stays shown struck through, with its comments: decision D23), or deletes it and
-   * the following ones, telling the comments deleted with them (decision D19); « Annuler » gives a single occurrence back.
+   * Cancels an occurrence of a routine (it stays shown struck through, with its comments), or deletes it and
+   * the following ones, telling the comments deleted with them; « Annuler » gives a single occurrence back.
    * @param {RoutineOccurrenceRef} occurrence Occurrence.
    * @param {string | null} movedFrom Day of the rule it was moved from, if any.
    * @returns {Promise<void>}
@@ -125,7 +125,7 @@ export function useCalendarEdits() {
   };
 
   /**
-   * Opens the panel of a slot of a schedule, saved field by field (decision D22): asks first, once, which days its
+   * Opens the panel of a slot of a schedule, saved field by field: asks first, once, which days its
    * changes apply to (dismissed: it opens read only).
    * @param {WorkScheduleRule} schedule Schedule.
    * @param {string} label Label shown (its kind).
@@ -151,7 +151,7 @@ export function useCalendarEdits() {
   };
 
   /**
-   * Opens the panel of an occurrence of a routine, saved field by field (decision D22): asks first, once, which
+   * Opens the panel of an occurrence of a routine, saved field by field: asks first, once, which
    * occurrences its changes apply to (dismissed: it opens read only); a cancelled occurrence, or one of an archived
    * routine, opens without asking.
    * @param {RoutineOccurrenceRef} occurrence Occurrence.

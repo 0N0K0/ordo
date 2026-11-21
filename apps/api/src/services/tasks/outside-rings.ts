@@ -48,9 +48,9 @@ import { effectiveRoutineOf, loadRoutineInheritance } from '../routines/routine-
 import { pushEnabled, pushToUser } from './push';
 
 /**
- * Rings outside the app (push notifications, lot 17c, decision FU). Every 30 seconds, for the users who chose « Sonner
- * hors de l'app » and have a device subscribed, the server finds what is due in **every** workspace (as the open app:
- * decision EO) with the same shared bricks as the app (`eventRings`, `taskRings`, `routineRings`, `ephemerisRings`,
+ * Rings outside the app (push notifications). Every 30 seconds, for the users who chose « Sonner
+ * hors de l'app » and have a device subscribed, the server finds what is due in **every** workspace (as the open app)
+ * with the same shared bricks as the app (`eventRings`, `taskRings`, `routineRings`, `ephemerisRings`,
  * `birthdayRings`, `dueAlarmOccurrence`, `trackingStep`, `countdownRingText`: same keys, instants and texts), and the
  * end of their timers. Each one due for 30 seconds (`PUSH_GRACE_MS`: an open app rings it first) and missed by 6 hours
  * at most (`isRingDue`: what fell due while the server slept is caught up) that no tab nor device rang yet (no
@@ -103,7 +103,7 @@ function ringInput(planned: Pick<PlannedRing, 'key' | 'at' | 'title' | 'lines' |
 
 /**
  * Reminders of the events, tasks, routines, éphémérides and birthdays of the workspace due now; those of the routines
- * for each user, deferred to the next free moment as in the app (`nextAllowedMoment`, decision FV).
+ * for each user, deferred to the next free moment as in the app (`nextAllowedMoment`).
  * @param {Workspace} workspace Workspace (the job runs in it).
  * @param {boolean} several The user has several workspaces.
  * @param {Date} now Now.
@@ -168,7 +168,7 @@ async function dueReminders(workspace: Workspace, several: boolean, now: Date, u
   for (const userId of userIds) {
     const meId = await meContributorId(userId);
     const rings = routineRings(routines, (routine, at) =>
-      // Its assignees, its own or inherited (decision D11).
+      // Its assignees, its own or inherited.
       nextAllowedMoment({ assigneeIds: [...(effectiveRoutineOf(routineInheritance, routine.id)?.routine.assigneeIds ?? routine.assignees.map((assignee) => assignee.id))], routineId: routine.id }, at, {
         events: occurrences,
         meId,
@@ -285,7 +285,7 @@ export async function ringOutsideTheApp(): Promise<void> {
 
   const now = new Date();
   const several = (await listWorkspaces()).length > 1;
-  // What is due in every workspace (whatever workspace the user has open, decision EO); a workspace failing is logged.
+  // What is due in every workspace (whatever workspace the user has open); a workspace failing is logged.
   const rings: DueRing[] = [];
   await forEachWorkspace(async (workspace) => {
     rings.push(...(await dueReminders(workspace, several, now, userIds)), ...(await dueAlarms(workspace, several, now)));

@@ -344,7 +344,7 @@ export function RoutineSchedule({ values, errors, onChange, onCommit, inherited 
   const address = addressOf(values);
   // Put in the form (and saved, field by field) once chosen, cleared or left.
   const place = useFormLocation(values, onChange, onCommit);
-  // Without any hour, only reminders at a time of the day (decision FW).
+  // Without any hour, only reminders at a time of the day.
   const timed = routineHasHours(values);
   return (
     <Stack gap="sm">

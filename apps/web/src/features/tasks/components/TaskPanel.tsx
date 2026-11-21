@@ -144,7 +144,7 @@ function TaskDetail({ task, context }: TaskDetailProps) {
   const saveNow = (input: Omit<TaskInputValues, 'projectId'>) => updateTask.mutateAsync({ id: task.id, input });
   const dates = dateRangeProps({ value: [task.startDate, task.endDate], onChange: ([startDate, endDate]) => save({ startDate, endDate }) });
   const overdue = isTaskOverdue(task, localToday());
-  // The effort: saved on leaving it (decision D22), also when the panel closes while it is typed.
+  // The effort: saved on leaving it, also when the panel closes while it is typed.
   const effortBase = useAppForm<{ effort: number | '' }>({ initialValues: { effort: task.effort ?? '' }, schema: effortFormSchema });
   const effort = useFieldSave(effortBase, {
     save: ({ effort: value }) => saveNow({ effort: typeof value === 'number' ? value : null }),
@@ -163,7 +163,7 @@ function TaskDetail({ task, context }: TaskDetailProps) {
   const inherited = (field: TaskInheritableField) => ({ ...taskFieldState(task, field, save), from: taskParentName(task, context.taskById), readOnly: locked });
 
   /**
-   * Renames the task in the side panel, as everywhere (decision CK).
+   * Renames the task in the side panel, as everywhere.
    * @returns {void}
    */
   const rename = () =>
@@ -221,7 +221,7 @@ function TaskDetail({ task, context }: TaskDetailProps) {
           compact
           title={
             <>
-              {/* Cancelled (status « Annulé », decision D23): struck through. */}
+              {/* Cancelled (status « Annulé »): struck through. */}
               <Text span inherit td={task.cancelled ? 'line-through' : undefined}>
                 {task.label}
               </Text>{' '}
@@ -313,7 +313,7 @@ function TaskDetail({ task, context }: TaskDetailProps) {
           {/* An archived task: every field and action of the side disabled. */}
           <Fieldset variant="unstyled" disabled={locked}>
             <Stack gap="md">
-              {/* Each field saved as soon as it changes (decision D22): the state of the saves. */}
+              {/* Each field saved as soon as it changes: the state of the saves. */}
               {!locked && <SaveStatus saving={updateTask.isPending || transferTask.isPending || effort.saving} />}
               <InheritedField {...inherited('PROJECT')}>
                 <ProjectSelect context={context} label="Projet" placeholder="Sans projet" clearable value={task.projectId} onChange={changeProject} disabled={transferTask.isPending} />

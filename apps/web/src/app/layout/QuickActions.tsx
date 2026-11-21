@@ -52,7 +52,7 @@ export function QuickActions() {
   const actions: QuickAction[] = [
     { label: 'Tâche', icon: <CheckSquareOffsetIcon aria-hidden />, onClick: () => taskActions.create(project ? { projectId: project.id } : undefined) },
     { label: 'Évènement', icon: <CalendarPlusIcon aria-hidden />, onClick: () => openEvent({ defaults: project ? { projectId: project.id } : undefined }) },
-    // Several timers run at once (decision FT): the ones running keep running.
+    // Several timers run at once: the ones running keep running.
     { label: 'Chrono', icon: <PlayIcon aria-hidden />, onClick: openTimer },
     { label: 'Minuteur', icon: <TimerIcon aria-hidden />, onClick: () => openCountdownForm() },
     { label: 'Alarme', icon: <AlarmIcon aria-hidden />, onClick: () => openAlarm() },

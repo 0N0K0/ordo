@@ -64,7 +64,7 @@ export function useTaskRowsActions(context: TaskContext | null) {
         }),
         disabled: activeIds.length === 0,
       },
-      // Each task at the top of the selection with its sub-tasks (a task under another one checked comes with it), at once (decision D20).
+      // Each task at the top of the selection with its sub-tasks (a task under another one checked comes with it), at once.
       duplicate: duplicateRowsAction(
         outermost(
           active,

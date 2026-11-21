@@ -19,8 +19,8 @@ const occurrencesLost = (lost: LostOnDelete): LossDialog => ({
 });
 
 /**
- * Runs a change that the API refuses with CONFIRMATION_REQUIRED while what it loses is not confirmed (decision EW:
- * occurrences of an event series or of a routine made to disappear; lot 15: a task turned into a routine and back):
+ * Runs a change that the API refuses with CONFIRMATION_REQUIRED while what it loses is not confirmed
+ * (occurrences of an event series or of a routine made to disappear; a task turned into a routine and back):
  * first unconfirmed; when refused, asks with the destructive confirmation, made from the extension `lost` of the
  * answer, then runs it again confirmed. Declined: `ActionDeclined` (silent in the error toasts; the caller puts back
  * what it showed).

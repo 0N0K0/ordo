@@ -4,8 +4,8 @@ import { birthDateSchema } from './birthdays';
 import { emailsSchema, phonesSchema } from './contact';
 
 /**
- * Details of a contributor (member of the team or household included) or of a relation (lot 16): birth date (year
- * optional), reminders of its birthday, email addresses (several, lot 16c) and phone numbers (the shape of the phones of
+ * Details of a contributor (member of the team or household included) or of a relation: birth date (year
+ * optional), reminders of its birthday, email addresses (several) and phone numbers (the shape of the phones of
  * the clients and their contacts).
  */
 export const personDetailsShape = {

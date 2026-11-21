@@ -42,7 +42,7 @@ interface TaskColumnExtras {
   alarmCounts?: ReadonlyMap<string, number>;
   /** Calendar schedules a slot condition can name. */
   slotSchedules?: ColumnChoice[];
-  /** Comments by occurrence of the events listed (their key, decision D19). */
+  /** Comments by occurrence of the events listed (their key). */
   eventComments?: ReadonlyMap<string, number>;
 }
 
@@ -278,7 +278,7 @@ export function taskColumns(context: TaskContext, today: string, extras: TaskCol
     label: COLUMN_LABELS[id],
     size: COLUMN_SIZES[id],
     locked: LOCKED_COLUMNS.includes(id),
-    // Tasks and events always have a title; a count or a time is never empty (decision CO).
+    // Tasks and events always have a title; a count or a time is never empty.
     required: id === 'label' || id === 'comments' || id === 'trackedTime',
     hiddenByDefault: DEFAULT_HIDDEN_COLUMNS.includes(id),
     bulk: BULK_EDITABLE_COLUMNS.includes(id),

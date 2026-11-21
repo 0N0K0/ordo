@@ -172,7 +172,7 @@ export function RemindersCell({ routine, readOnly = false }: { routine: Routine;
         <RemindersSelect
           label="Rappels"
           value={routine.reminders}
-          // Without any hour, only reminders at a time of the day (decision FW).
+          // Without any hour, only reminders at a time of the day.
           kinds={
             routineHasHours({
               fromTime: routine.fromTime,

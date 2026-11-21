@@ -291,7 +291,7 @@ export function TreasuryPage() {
       dialog.kind === 'entry' ? 'lg' : 'md',
     );
 
-  // « Dupliquer » of an entry or a forecast: saved at once, then its form opens (decision D20).
+  // « Dupliquer » of an entry or a forecast: saved at once, then its form opens.
   const duplicateEntry = useEntryDuplicate((entry) => openDialog({ kind: 'entry', entry }));
 
   if (accountsPending) return <DetailSkeleton />;

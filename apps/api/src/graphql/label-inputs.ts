@@ -100,7 +100,7 @@ type LabelInputRef = InputObjectRef<BuilderTypes, object>;
  * @param {{ create: LabelInputRef, update: LabelInputRef }} [inputs] Input types of the create and update mutations. Optional. Default = `LABEL_COLOR_INPUTS`.
  * @param {Partial<Record<'create' | 'update' | 'delete', string>>} [descriptions] Descriptions of the mutations (what follows them). Optional.
  * @param {(id: string, confirmLoss: boolean) => Promise<void>} [remove] Deletion of its own, whose loss is confirmed
- * (argument `confirmLoss` of the deletion, decision EW). Optional. Default = the service's.
+ * (argument `confirmLoss` of the deletion). Optional. Default = the service's.
  * @returns {void}
  */
 export function labelMutations(

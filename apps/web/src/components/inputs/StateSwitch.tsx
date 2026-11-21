@@ -25,7 +25,7 @@ interface StateSwitchProps {
 }
 
 /**
- * Switch of an on/off state or a mode (decision CN: a toggle is not a button): done, favourite, bought, an edit mode;
+ * Switch of an on/off state or a mode (a toggle is not a button): done, favourite, bought, an edit mode;
  * its name hidden unless told (`showLabel`), its tooltip shown on a disabled switch too.
  * @param {StateSwitchProps} props Component props.
  * @returns {JSX.Element} Switch.

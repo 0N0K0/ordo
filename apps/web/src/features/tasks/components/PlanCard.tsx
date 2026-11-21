@@ -13,7 +13,7 @@ interface PlanCardProps {
   archived: boolean;
   /** Badges after the title (its state). Optional. */
   badges?: ReactNode;
-  /** Past its end with tasks left: how many, in a red badge (decision AF). Optional. Default = not late. */
+  /** Past its end with tasks left: how many, in a red badge. Optional. Default = not late. */
   late?: number;
   /** Line of its dates, under the title. */
   dates: ReactNode;

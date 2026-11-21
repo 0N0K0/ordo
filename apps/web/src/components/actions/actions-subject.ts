@@ -10,7 +10,7 @@ export interface ActionsSubject {
 }
 
 /**
- * What actions are about, in their hidden labels (decision BF): its name quoted, or its description.
+ * What actions are about, in their hidden labels: its name quoted, or its description.
  * @param {ActionsSubject} subject Element.
  * @returns {string} « « Urgent » », « la barre latérale ».
  */

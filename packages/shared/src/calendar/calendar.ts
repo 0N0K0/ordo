@@ -21,7 +21,7 @@ export const calendarEventInputSchema = z
     endDate: endDaySchema,
     endTime: timeOfDaySchema.nullable(),
     recurrence: recurrenceSchema.nullable(),
-    /** Minutes before the start (24 hours at most), or a time of its first day (decision D16). */
+    /** Minutes before the start (24 hours at most), or a time of its first day. */
     reminders: eventRemindersSchema,
     /** Point of the location, and travel time to the event and back from it, in minutes (timed events). */
     ...locatedFields,

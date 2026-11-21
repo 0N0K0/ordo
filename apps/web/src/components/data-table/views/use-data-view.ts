@@ -78,7 +78,7 @@ interface DataViewOptions<R> {
   getKey?: (row: R) => string;
   /** Cells of their own (out of the columns: a toggle before them…) also edited in bulk, with their name. Optional. */
   bulkColumns?: readonly { id: string; label: string }[];
-  /** The row is archived: left out until « Afficher les archivés » is on (decision AH). Optional. */
+  /** The row is archived: left out until « Afficher les archivés » is on. Optional. */
   archived?: (row: R) => boolean;
   /** Label of that switch (« Afficher les archivées »). Optional. Default = « Afficher les archivés ». */
   archivedLabel?: string;
@@ -142,7 +142,7 @@ const LEGACY_FILTER_VALUES: Readonly<Record<string, LegacyFilterValues>> = {
 
 /**
  * Configuration of a stored view of a table (the defaults when it is invalid), the old id of its label column read as
- * `label` (decision BI) and the old values of its filters as the current ones.
+ * `label` and the old values of its filters as the current ones.
  * @param {unknown} config Stored configuration.
  * @param {string} tableKey Table of the view.
  * @returns {TableViewConfig} Configuration.

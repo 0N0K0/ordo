@@ -20,6 +20,6 @@ export const CommentSnapshotInput = builder.inputType('CommentSnapshotInput', {
   }),
 });
 
-/** Argument of the changes that may make occurrences disappear with their comments or times (decision EW). */
+/** Argument of the changes that may make occurrences disappear with their comments or times. */
 export const CONFIRM_LOSS_DESCRIPTION =
   'Occurrences made to disappear with their comments or times are confirmed: false (default) refuses with CONFIRMATION_REQUIRED and extension lost { times, comments } when there are some; true deletes them.';

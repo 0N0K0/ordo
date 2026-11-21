@@ -1,7 +1,7 @@
 import type { TimeEntry, TimeEntryValues } from '../api';
 import { entryEventKeys, parseEventKeys } from './time-events';
 
-/** What a time is spent on besides its project: several routines, tasks and events (decision D18). */
+/** What a time is spent on besides its project: several routines, tasks and events. */
 export type TimeSubjectKind = 'routines' | 'tasks' | 'events';
 
 /** How each kind of subject is read from a time and written back to the API. */
@@ -21,7 +21,7 @@ export const TIME_SUBJECTS: Record<TimeSubjectKind, TimeSubject> = {
 
 /**
  * Whether a time keeps something besides its project: a routine, a task or an event (a time has at least a project,
- * a task, a routine or an event, decision D17).
+ * a task, a routine or an event).
  * @param {Pick<TimeEntry, 'routines' | 'taskIds' | 'events'>} entry Time.
  * @returns {boolean} It has one.
  */

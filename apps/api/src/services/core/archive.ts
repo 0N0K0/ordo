@@ -83,7 +83,7 @@ const archivedWhere = (archived: boolean): Record<string, unknown> => ({ archive
 /**
  * Archives or restores elements of a kind, all at once (an id given twice counts once). Archiving keeps the date of
  * those archived already. `settle` runs once they are found, before they change: what it does elsewhere (the
- * occurrences of routines a schedule, a kind or a person archived makes disappear, decision FQ).
+ * occurrences of routines a schedule, a kind or a person archived makes disappear).
  * @param {ArchivableKind} kind Kind of the elements.
  * @param {readonly string[]} ids Elements.
  * @param {boolean} archived Archives (else restores).
@@ -111,7 +111,7 @@ export interface ChosenOptions {
 
 /**
  * Refuses an archived element (BAD_USER_INPUT « Élément archivé… »): a change of it, or a value newly chosen in a
- * form (decision AA: with `field`, the error shows under the field; the values in `keep` stay valid). Nothing is
+ * form (with `field`, the error shows under the field; the values in `keep` stay valid). Nothing is
  * checked without id nor for an element that does not exist (its own lookup tells it).
  * @param {ArchivableKind | ArchivableModel} target Kind or Prisma model of the element (« SHEET », « sheet »…).
  * @param {string | null | undefined} id Element. Optional.
@@ -148,7 +148,7 @@ export function keptIds(keep: ChosenOptions['keep']): Set<string> {
 }
 
 /**
- * Error refusing an archived element (decision BC: one message), under a field when one is given.
+ * Error refusing an archived element (one message), under a field when one is given.
  * @param {string} [field] Field of the input. Optional. Default = a toast.
  * @returns {GraphQLError} BAD_USER_INPUT error.
  */
@@ -336,7 +336,7 @@ export async function archiveTree<T extends { archivedAt: Date | null }>(model: 
 }
 
 /**
- * Day an item with occurrences (a routine, an event) was archived, Paris time (decision D21): its occurrences started
+ * Day an item with occurrences (a routine, an event) was archived, Paris time: its occurrences started
  * before that day stay, archived (read only), even those ending on or after it; none starting on or after it.
  * Restored, it has them all again. Null when not archived.
  * @param {{ archivedAt?: Date | null }} item Item.

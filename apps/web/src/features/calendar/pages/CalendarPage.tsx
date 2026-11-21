@@ -108,7 +108,7 @@ const SETTINGS_TABS = ['display', 'settings'] as const;
 
 const DEFAULT_COLOR = 'var(--mantine-primary-color-filled)';
 
-/** Border of an overdue task (decision DC: the lateness colour). */
+/** Border of an overdue task (the lateness colour). */
 const LATE_BORDER = `var(--mantine-color-${LATE_COLOR}-6)`;
 /** Rows of the collapsed all-day row (week and day views). */
 const ALL_DAY_ROWS = 2;
@@ -291,7 +291,7 @@ export function CalendarPage() {
         const color = project?.color ?? 'var(--mantine-color-gray-6)';
         const stop = end > start ? end : new Date(start.getTime() + 60_000);
         let parts: [Date, Date][] = [[start, stop]];
-        // Its events (several, decision D18): the time shows outside each of them, nothing of it beside an all-day one.
+        // Its events (several): the time shows outside each of them, nothing of it beside an all-day one.
         const occurrences = entryEventKeys(entry)
           .map((key) => occurrenceByKey.get(key))
           .filter((occurrence) => occurrence !== undefined);
@@ -346,7 +346,7 @@ export function CalendarPage() {
        * @returns {void}
        */
       const showSlots = ({ color, label, foreign, display, ephemeris, slots, bar, monthBar = false }: ShownSlots) => {
-        // Hatched from another workspace, dotted an éphéméride (lot 16).
+        // Hatched from another workspace, dotted an éphéméride.
         const hatched = slotLookClasses({ foreign, ephemeris });
         const background = {
           display: 'background',
@@ -450,7 +450,7 @@ export function CalendarPage() {
         if (filters.workHours === false || filters.hiddenScheduleIds?.includes(rule.id)) continue;
         showSlots({ color, label, foreign, display, ephemeris, slots: plannedSlots([rule], range.from, range.to) });
       }
-      // Birthdays (lot 16, decision FX): whole-day éphémérides of the people, shown as chosen for them.
+      // Birthdays: whole-day éphémérides of the people, shown as chosen for them.
       if (filters.workHours !== false && birthdays) for (const source of birthdaySlots(birthdays, birthdayLook, range.from, range.to)) showSlots(source);
       // Slots in the background at the same time stand side by side, each part of a slot as wide as the slots there
       // are then (alone, the whole day).
@@ -524,9 +524,9 @@ export function CalendarPage() {
       const events: RoutineEvent[] = [];
       for (const occurrence of routineOccurrences.data ?? []) {
         const routine = routineById.get(occurrence.routineId);
-        // An archived routine: its occurrences before its archiving (decision D21), with the archived items.
+        // An archived routine: its occurrences before its archiving, with the archived items.
         if (!routine || (occurrence.archived && !showArchived) || parents.has(routine.id)) continue;
-        // Cancelled (decision D23) or archived: struck through or dimmed, read only.
+        // Cancelled or archived: struck through or dimmed, read only.
         const locked = occurrence.cancelled || occurrence.archived;
         const category = routine.categoryIds.map((id) => routineCategory.get(id)).find((item) => item?.color);
         const color = category?.color ?? (routine.projectId ? context.projectById.get(routine.projectId)?.color : null) ?? 'var(--mantine-color-gray-6)';
@@ -809,7 +809,7 @@ export function CalendarPage() {
           <ActionButton priority="secondary" icon={<CalendarStarIcon aria-hidden />} onClick={() => openSchedulesManager(true, perso)}>
             {EPHEMERIDES_TITLE}
           </ActionButton>
-          {/* A mode, not a button (decision CN). */}
+          {/* A mode, not a button. */}
           <StateSwitch
             label="Modifier les créneaux"
             showLabel
@@ -985,7 +985,7 @@ export function CalendarPage() {
             info.jsEvent.preventDefault();
             // A bar of planned slots opens nothing.
             if (info.event.extendedProps.kind === 'slot') return;
-            // A birthday opens its person (lot 16).
+            // A birthday opens its person.
             if (info.event.extendedProps.kind === 'birthday') return openPerson(info.event.extendedProps.birthday);
             if (info.event.extendedProps.kind === 'editSlot') edits.openSlot(info.event.extendedProps.schedule, info.event.extendedProps.label, info.event.extendedProps.slot);
             else if (info.event.extendedProps.kind === 'task') navigate(taskLink.to(info.event.extendedProps.task.id));

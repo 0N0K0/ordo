@@ -1,7 +1,7 @@
 import type { TreeItem } from './tree';
 
 /**
- * State of an inherited field of an item (decision D11, lot 13): taken from its parent (live), its own value, or emptied
+ * State of an inherited field of an item: taken from its parent (live), its own value, or emptied
  * on purpose (« aucun », even when its parent has one). Only an item with a parent inherits: a top-level item's fields
  * are always its own (empty: empty).
  */
@@ -112,7 +112,7 @@ export interface ResolvedInheritance<T, F extends string> {
 }
 
 /**
- * Effective fields of an item (decision D11): each inherited field from its parent, live, up the chain (cycle-safe);
+ * Effective fields of an item: each inherited field from its parent, live, up the chain (cycle-safe);
  * its own value otherwise. The only computation of the inheritance of the tasks and routines (`effectiveTask`,
  * `effectiveRoutine`), for the API and the app.
  * @param {T} item Item.
@@ -136,7 +136,7 @@ export function resolveInheritance<T extends InheritingItem, F extends string>(i
 }
 
 /**
- * Inherited list of an item once changed (decision D11): fields set to inherit added, those given an own value or
+ * Inherited list of an item once changed: fields set to inherit added, those given an own value or
  * emptied on purpose removed, unknown fields dropped; a top-level item inherits nothing.
  * @param {readonly string[]} current Fields it inherits now.
  * @param {{ inherit?: readonly F[] | null, own?: readonly F[] | null, hasParent: boolean, fields: readonly F[] }} change Fields to inherit, fields given an own value (or cleared), whether it has a parent, the inheritable fields.
@@ -182,7 +182,7 @@ export function inheritedView<T extends { parentId?: string | null; inheritedFie
 }
 
 /**
- * Inherited fields a partial input gives an own value (decision D11): one of its keys given (null included); an empty
+ * Inherited fields a partial input gives an own value: one of its keys given (null included); an empty
  * list of ids added or removed (`add…`, `remove…`) changes nothing.
  * @param {object} input Input of an item (or of several).
  * @param {Record<F, readonly string[]>} keys Keys of the input giving each field a value.

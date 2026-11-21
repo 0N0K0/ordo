@@ -109,7 +109,7 @@ interface LinkFormProps {
 /**
  * Settings of a link: fields of the board for each Ordo field, options for each status and priority, where
  * new tasks go, tasks already there, sync on or off. A new link is saved by its button; an existing one field by
- * field (decision D22: each choice at once, the repository on leaving it).
+ * field (each choice at once, the repository on leaving it).
  * @param {LinkFormProps} props Component props.
  * @returns {JSX.Element} Form.
  */

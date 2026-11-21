@@ -74,7 +74,7 @@ function chartValues(chart: DashboardChart): ChartValues {
  * Chart editor: source (tasks, invoicing, treasury), kind, axis (a date by day, week, month, quarter or
  * year over a period, or a field), measure, series, running total, sprint of a burndown, width, filters of the
  * records counted, other data sets and their comparisons (percent or difference); with a live preview. A new chart is
- * added by its button; an existing one is saved as it changes (decision D22: each choice at once, a text on leaving
+ * added by its button; an existing one is saved as it changes (each choice at once, a text on leaving
  * it, a configuration that does not validate is not saved), read only on an archived dashboard.
  * @param {ChartEditorProps} props Component props.
  * @returns {JSX.Element} Editor.
@@ -87,7 +87,7 @@ export function ChartEditor({ dashboardId, chart, source: newSource, scope, cont
   const current = chart && (dashboard?.charts.find((item) => item.id === chart.id) ?? chart);
   const readOnly = Boolean(dashboard?.archived);
   const { createChart, updateChart } = useDashboardMutations();
-  // Renamed from its menu, in the side panel (decision CK): the default title follows the source until it is renamed.
+  // Renamed from its menu, in the side panel: the default title follows the source until it is renamed.
   const base = useAppForm<ChartValues>({
     initialValues: chart ? chartValues(chart) : { label: NEW_CHART_LABELS[newSource], config: defaultChartConfig(newSource), wide: false },
     schema: chartFormSchema,

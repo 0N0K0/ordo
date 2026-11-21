@@ -49,7 +49,7 @@ const recurringValues = (recurring?: RecurringInvoice): RecurringValues => {
 /**
  * Schedule of a recurring invoice: label, first issue date, repetition, drafts or final invoices, active. A new one is
  * a form with « Créer »; an existing one, its panel, saves each field as soon as it changes (the label on leaving it,
- * decision D22, `useFieldSave`), the one of the cache followed; archived, it is read only.
+ * `useFieldSave`), the one of the cache followed; archived, it is read only.
  * @param {RecurringFormProps} props Component props.
  * @returns {JSX.Element} Form.
  */

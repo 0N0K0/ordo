@@ -8,7 +8,7 @@ const NONE: readonly string[] = [];
 /**
  * What the slot conditions of tasks and routines name and are evaluated on: the schedules and kinds of the workspace
  * and of the other workspaces of the user (archived ones too), and the birthdays of the people of the workspace (lot
- * 16c; those of archived people too, decision FQ; undefined while loading).
+ * 16c; those of archived people too; undefined while loading).
  * @returns {SlotSources & { schedules?: object[], foreignSchedules?: object[] }} Sources, with the cases of the schedules.
  */
 export function useSlotSources() {

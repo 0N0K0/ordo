@@ -117,9 +117,9 @@ export const workScheduleSchema = z
     exceptions: z.array(scheduleExceptionSchema).max(200, '200 exceptions au plus.'),
     /** Kind of time it plans; none: working hours (or, an éphéméride, no kind). */
     typeId: z.string().nullish(),
-    /** An éphéméride, not a créneau (lot 16): with a kind, that of the kind (set by the API). */
+    /** An éphéméride, not a créneau: with a kind, that of the kind (set by the API). */
     ephemeris: z.boolean().default(false),
-    /** Reminders of an éphéméride (lot 16, decision FO), every kind; omitted: left unchanged. A créneau rings none. */
+    /** Reminders of an éphéméride, every kind; omitted: left unchanged. A créneau rings none. */
     reminders: startRemindersSchema.optional(),
   })
   .superRefine((schedule, context) => {
@@ -139,14 +139,14 @@ export interface WorkScheduleRule {
   typeId?: string | null;
   /** An éphéméride (holidays, birthday…), not a créneau: never in the free time, the working hours nor the planned time. */
   ephemeris?: boolean;
-  /** Archived: gives no moment to the slot conditions (decision FQ). Optional. Default = false. */
+  /** Archived: gives no moment to the slot conditions. Optional. Default = false. */
   archived?: boolean;
-  /** Of an archived kind: gives no moment to the slot conditions either (decision FQ). Optional. Default = false. */
+  /** Of an archived kind: gives no moment to the slot conditions either. Optional. Default = false. */
   kindArchived?: boolean;
 }
 
 /**
- * Case of every day, the whole day: that of a new éphéméride (holidays: every day of its period, lot 16).
+ * Case of every day, the whole day: that of a new éphéméride (holidays: every day of its period).
  * @returns {ScheduleCase} Case.
  */
 export const wholeDaysCase = (): ScheduleCase => ({ since: null, until: null, anchor: null, rule: { ...DEFAULT_RECURRENCE, frequency: 'DAILY' }, times: { allDay: true, ranges: [] } });
@@ -156,7 +156,7 @@ export const UNTYPED_EPHEMERIS_LABEL = 'Éphéméride';
 
 /**
  * The créneaux of some schedules, their éphémérides left out: what the free time, the working hours (the hint of an
- * event out of them, the planned time) count (lot 16).
+ * event out of them, the planned time) count.
  * @template T
  * @param {readonly T[]} schedules Schedules.
  * @returns {T[]} Créneaux.
@@ -164,7 +164,7 @@ export const UNTYPED_EPHEMERIS_LABEL = 'Éphéméride';
 export const slotSchedules = <T extends { ephemeris?: boolean | null }>(schedules: readonly T[]): T[] => schedules.filter((schedule) => !schedule.ephemeris);
 
 /**
- * The schedules the slot conditions count (decision FQ): neither archived nor of an archived kind. The others may still
+ * The schedules the slot conditions count: neither archived nor of an archived kind. The others may still
  * be named by a condition (shown « archivé »), they just give it no moment, nor take any from the free time.
  * @template T
  * @param {readonly T[]} schedules Schedules.
@@ -356,7 +356,7 @@ export interface ScheduleRun {
 
 /**
  * Runs of consecutive days of a schedule starting between two dates (included): what the reminders of an éphéméride
- * count from (lot 16, decision FO), each run its first day and the start of its first slot that day.
+ * count from, each run its first day and the start of its first slot that day.
  * @param {WorkScheduleRule} schedule Schedule.
  * @param {string} from First date.
  * @param {string} to Last date.
@@ -527,7 +527,7 @@ const scheduleDisplayFields = {
 
 /**
  * Kind of time slots ("Travail", "Garde des enfants"…), with its color and how its slots show; a kind of éphémérides
- * (set at its creation, changed by a conversion, lot 16) may be a context of the budget, shared or not
+ * (set at its creation, changed by a conversion) may be a context of the budget, shared or not
  * (`scheduleTypeContextError`).
  */
 export const scheduleTypeSchema = z.object({
@@ -565,7 +565,7 @@ export const defaultScheduleKindSchema = z.object({
 export type DefaultScheduleKindInput = z.input<typeof defaultScheduleKindSchema>;
 
 /**
- * Birthdays of the people of a workspace in its calendar (decision FX): shown or not (hidden, their reminders still
+ * Birthdays of the people of a workspace in its calendar: shown or not (hidden, their reminders still
  * ring), color (none: the gray of the éphémérides) and display, as a kind of éphémérides.
  */
 export const birthdayLookSchema = z.object({

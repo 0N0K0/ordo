@@ -19,7 +19,7 @@ type DuplicateButtonProps<R, C> = DuplicateOptions<R, C> & {
 };
 
 /**
- * « Dupliquer » button of a form or of a toolbar (decision D20): the copy is saved at once (`duplicateItems`), told in
+ * « Dupliquer » button of a form or of a toolbar: the copy is saved at once (`duplicateItems`), told in
  * a toast, then opens; the button waits meanwhile. The menus take `duplicateRowsAction` instead.
  * @param {DuplicateButtonProps<R, C>} props Component props.
  * @returns {JSX.Element} Button.

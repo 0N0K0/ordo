@@ -9,7 +9,7 @@ interface CommentsProps {
   target: CommentTarget;
   /** Item (Message-ID for a mail). */
   id: string;
-  /** Occurrence of a routine or a recurring event whose comments these are (decision D19); none: a one-off event or another item. Optional. */
+  /** Occurrence of a routine or a recurring event whose comments these are; none: a one-off event or another item. Optional. */
   occurrenceDate?: string | null;
   /** Project of the item: « #12 » is task 12 of it. Optional. */
   projectId?: string | null;

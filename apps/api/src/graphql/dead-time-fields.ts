@@ -1,7 +1,7 @@
 import type { DeadTime } from '@ordo/shared';
 import { builder } from './builder';
 
-/** « Temps mort » of a task or a routine (decision FT): a wait a timer is launched for; not time spent. */
+/** « Temps mort » of a task or a routine: a wait a timer is launched for; not time spent. */
 export const DeadTimeRef = builder.objectRef<DeadTime>('DeadTime').implement({
   description: 'Dead time of a task or a routine (« Lave-linge, 1 h 30 »): a wait a timer is launched for, with an alarm at its end; not time spent.',
   fields: (t) => ({

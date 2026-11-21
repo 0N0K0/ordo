@@ -1,4 +1,4 @@
-// Push notifications of Ordo (lot 17c, decision FU). A classic script, outside the bundle (public/), imported by the
+// Push notifications of Ordo. A classic script, outside the bundle (public/), imported by the
 // service worker that vite-plugin-pwa generates (workbox `importScripts`, vite.config.ts). The server pushes a ring of
 // an alarm or a reminder ({ key, title, body, path, workspaceId, actions }, `PushPayload` of @ordo/shared):
 // - a tab of the app visible: no notification, the tab rings it itself (its looped ringtone, `ringPushed`);

@@ -93,7 +93,7 @@ export function useEntityActions() {
   });
 
   /**
-   * Opens the form renaming a client or relabelling a project, in the side panel as elsewhere (decision DF).
+   * Opens the form renaming a client or relabelling a project, in the side panel as elsewhere.
    * @param {EntityRef} entity Client or project.
    * @returns {void}
    */

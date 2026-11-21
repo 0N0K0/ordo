@@ -145,7 +145,7 @@ export function useSavedViews<C>({ projectId, kind, tableKey = null, parse, blan
      */
     rename: (id: string, label: string) => mutations.update.mutate({ id, input: { label } }, ON_ERROR),
 
-    /** « Dupliquer » a view (decision D20): saved at once as « … (copie) », then the copy opens. */
+    /** « Dupliquer » a view: saved at once as « … (copie) », then the copy opens. */
     duplicate: {
       duplicate: async (view: SavedView<C>) => (await mutations.duplicate.mutateAsync({ id: view.id, label: copyName(view.label) })).id,
       done: 'Vue dupliquée.',

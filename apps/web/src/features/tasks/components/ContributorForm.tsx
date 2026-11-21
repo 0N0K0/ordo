@@ -46,8 +46,8 @@ function contributorValues(contributor?: Contributor, defaultProjectIds: string[
 
 /**
  * Contributor form (name, mention handle, avatar, projects, and its details: birth date, birthday reminders, email
- * addresses, phones, lot 16), in the side panel: a new contributor, added by its button;
- * an existing one, saved field by field (decision D22), read only once archived.
+ * addresses, phones), in the side panel: a new contributor, added by its button;
+ * an existing one, saved field by field, read only once archived.
  * @param {ContributorFormProps} props Component props.
  * @param {Contributor} [props.contributor] Contributor to edit. Optional.
  * @param {string[]} [props.defaultProjectIds] Projects of a new contributor. Optional.

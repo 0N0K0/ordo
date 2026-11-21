@@ -8,7 +8,7 @@ import { openCountdownForm } from '../lib/open-countdown-form';
 
 /**
  * Buttons « Lancer « Lave-linge (1 h 30) » » of the dead times of an item where no menu is (an occurrence of a routine
- * in its day agenda, decision FT): each opens the form launching its timer. Nothing without dead times.
+ * in its day agenda): each opens the form launching its timer. Nothing without dead times.
  * @param {{ value: readonly DeadTimeOutput[], item: DeadTimeItem }} props Dead times and their item.
  * @returns {JSX.Element | null} Buttons.
  */

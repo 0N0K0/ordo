@@ -357,7 +357,7 @@ export const clientRootProject = (projects: readonly Project[], clientId: string
   projects.find((project) => project.clientId === clientId && project.parentId === null && !(activeOnly && project.archivedAt)) ?? null;
 
 /**
- * Period of a context of the treasury: a whole-day éphéméride of its kind (lot 16), every day from the first to the
+ * Period of a context of the treasury: a whole-day éphéméride of its kind, every day from the first to the
  * last.
  * @param {string} contextId Context.
  * @param {string} startDate First day.

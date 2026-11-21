@@ -22,7 +22,7 @@ interface DragHandleProps {
 
 /**
  * Handle moving a sortable item (a card, a case) by drag and drop, the same everywhere; the keyboard moves it too. Like
- * IconAction: « Déplacer » in its tooltip, « Déplacer « X » » read by screen readers (decision W).
+ * IconAction: « Déplacer » in its tooltip, « Déplacer « X » » read by screen readers.
  * @param {DragHandleProps} props Component props.
  * @returns {JSX.Element} Handle.
  */

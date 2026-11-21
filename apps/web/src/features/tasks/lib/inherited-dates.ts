@@ -10,7 +10,7 @@ interface TaskDueFields {
 }
 
 /**
- * Date a task without its own « Ouverture » or « Échéance » goes by, shown in place of the empty field (decision D11):
+ * Date a task without its own « Ouverture » or « Échéance » goes by, shown in place of the empty field:
  * « 12 nov. 2026 (parent) », « (jalon) », « (projet) », « (sprint) »; null when it has its own (a date typed wins) or
  * none at all.
  * @param {TaskDueFields} task Task.

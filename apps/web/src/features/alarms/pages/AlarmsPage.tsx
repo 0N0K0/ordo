@@ -16,7 +16,7 @@ import { SubSection } from '../../../components/page/SubSection';
 import { CountdownList } from '../../countdowns/components/CountdownList';
 
 /**
- * Alarms page: the timers of the user (« Minuteurs », every workspace, decision FT), then one-off and recurring
+ * Alarms page: the timers of the user (« Minuteurs », every workspace), then one-off and recurring
  * reminders, alarms when no timer runs, and alarms during the timer. They ring while Ordo is open in a tab.
  * @returns {JSX.Element} Page.
  */

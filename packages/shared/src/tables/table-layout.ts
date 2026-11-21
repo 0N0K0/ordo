@@ -16,7 +16,7 @@ export const tableSortSchema = z.object({ id: z.string().max(TABLE_KEY_MAX), des
 export type TableSort = z.infer<typeof tableSortSchema>;
 
 /**
- * Old id of the label column of the tables whose saved views may still hold it (decision BI: `title` / `name` became
+ * Old id of the label column of the tables whose saved views may still hold it (`title` / `name` became
  * `label`, the stored views migrated). The one alias map, read when a view or a layout is parsed.
  */
 const LEGACY_LABEL_COLUMNS: Readonly<Record<string, 'title' | 'name'>> = {
@@ -98,7 +98,7 @@ export function withFilterValues(stored: unknown, values: LegacyFilterValues | u
 }
 
 /**
- * Stored view or column layout of a table with the old id of its label column read as `label` (decision BI): in its
+ * Stored view or column layout of a table with the old id of its label column read as `label`: in its
  * column order, hidden columns, widths, sorts, grouping, footer and filter. Anything else is kept as it is.
  * @param {unknown} stored Stored configuration.
  * @param {string | null} from Old id of the label column (legacyLabelColumn), null for none.

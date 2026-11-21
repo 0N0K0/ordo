@@ -16,7 +16,7 @@ import { firstOccurrence, loadScheduleContext, occurrenceSpansBetween, occurrenc
 const MAX_OPENS_BEFORE = 366;
 
 /**
- * Refuses a conversion until its losses are confirmed (lot 15): CONFIRMATION_REQUIRED, extension `lost` (what is
+ * Refuses a conversion until its losses are confirmed: CONFIRMATION_REQUIRED, extension `lost` (what is
  * lost, by kind), even when nothing is (the item itself is replaced by another one: texts linking to it lose it).
  * @param {ConversionLoss} lost What the conversion loses.
  * @param {boolean} confirm Confirmed.
@@ -28,7 +28,7 @@ function assertConversionConfirmed(lost: ConversionLoss, confirm: boolean, messa
 }
 
 /**
- * Columns of a task its inheritance gives (decision D11), as it goes (its dates aside).
+ * Columns of a task its inheritance gives, as it goes (its dates aside).
  * @param {EffectiveTask} task Effective task.
  * @returns {object} Columns.
  */
@@ -43,10 +43,10 @@ const pickInherited = (task: EffectiveTask) => ({
 });
 
 /**
- * Turns a task into a routine (lot 15), in one transaction: a new routine, the task deleted. It keeps the label,
+ * Turns a task into a routine, in one transaction: a new routine, the task deleted. It keeps the label,
  * description, project, assignees, beneficiaries, links, place, slot condition and reminders « À HH:MM »; its times,
  * sheets and checklist move to the routine; its comments go to the first occurrence; its one-off events become events
- * of that day of the routine. Its « Échéance » (as it goes: its own, its parent's, its milestone's or its first sprint's; decision D11) is the due day of the first
+ * of that day of the routine. Its « Échéance » (as it goes: its own, its parent's, its milestone's or its first sprint's) is the due day of the first
  * occurrence (none: its « Ouverture », else today), its « Ouverture » the routine's « Ouverture » when it differs. It
  * repeats every day (chosen afterwards in its panel). A closed task (« Fermée », cancelled included) ticks that first
  * occurrence, each of its times of the day, when it closed (not when it is still to come: not late either). Refused for an archived task or one with sub-tasks. What it loses
@@ -81,7 +81,7 @@ export async function convertTaskToRoutine(id: string, confirm: boolean): Promis
       shoppingLists: { select: { id: true } },
     },
   });
-  // What it goes by, its inherited fields from its parent (decision D11): the routine, without parent, keeps them.
+  // What it goes by, its inherited fields from its parent: the routine, without parent, keeps them.
   const goesBy = (await effectiveTasks([id])).get(id)!;
   const byIds = (ids: readonly string[]) => ids.map((item) => ({ id: item }));
   const task = {
@@ -149,7 +149,7 @@ export async function convertTaskToRoutine(id: string, confirm: boolean): Promis
         startDate: timing.startDate,
         recurrence: toJson(DAILY_RECURRENCE),
         slotCondition: readSlotCondition(task.slotCondition) ? toJson(task.slotCondition) : Prisma.DbNull,
-        // « N jours avant » the « Échéance » of the task stay so: counted from the due day of the routine (decision FV).
+        // « N jours avant » the « Échéance » of the task stay so: counted from the due day of the routine.
         reminders: toJson(normalizedReminders(readReminders(task.reminders).map((reminder) => (reminder.days ? { ...reminder, anchor: 'end' as const } : reminder)))),
         deadTimes: toJson(readDeadTimes(task.deadTimes)),
         opensOn: opens ? toJson(opens) : Prisma.DbNull,
@@ -181,7 +181,7 @@ export async function convertTaskToRoutine(id: string, confirm: boolean): Promis
 }
 
 /**
- * Turns a routine into a task (lot 15), in one transaction: a new task, the routine deleted. It keeps the label,
+ * Turns a routine into a task, in one transaction: a new task, the routine deleted. It keeps the label,
  * description, project, assignees, beneficiaries, links, place, slot condition and reminders « À HH:MM »; its times and
  * sheets move to the task; the comments, checklist and events of its current occurrence (else the next, else the
  * first) go to the task, its « Échéance » that occurrence's due day and its « Ouverture » its first day when it
@@ -211,7 +211,7 @@ export async function convertRoutineToTask(id: string, confirm: boolean): Promis
       _count: { select: { checks: true } },
     },
   });
-  // What it goes by, its inherited fields from its parent (decision D11): the task, without parent, keeps them.
+  // What it goes by, its inherited fields from its parent: the task, without parent, keeps them.
   const goesBy = effectiveRoutineOf(await loadRoutineInheritance(), id)!.routine;
   const byIds = (ids: readonly string[]) => ids.map((item) => ({ id: item }));
   const { assigneeIds: _a, beneficiaryIds: _b, beneficiaryRelationIds: _r, categoryIds: _c, ...columns } = goesBy;

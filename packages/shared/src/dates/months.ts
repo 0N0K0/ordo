@@ -18,7 +18,7 @@ export function ofMonth(month: number): string {
 }
 
 /**
- * Ordinal of a number in French, the same everywhere (decision V): « 1er », « 2e », « 3e ».
+ * Ordinal of a number in French, the same everywhere: « 1er », « 2e », « 3e ».
  * @param {number} value Number (1 or more).
  * @returns {string} Ordinal.
  */
@@ -27,7 +27,7 @@ export function ordinal(value: number): string {
 }
 
 /**
- * Day of a month as told in French (decision V): « 1er » for the first, the number otherwise (« le 1er », « le 15 »).
+ * Day of a month as told in French: « 1er » for the first, the number otherwise (« le 1er », « le 15 »).
  * @param {number} day Day of the month (1 to 31).
  * @returns {string} Text.
  */
@@ -45,7 +45,7 @@ export function dayOfMonthOf(day: string): number {
   return Number(day.slice(8, 10));
 }
 
-/** Names of the positions of a weekday in its month (decision V): « 1er » to « 4e », and « dernier » (-1). */
+/** Names of the positions of a weekday in its month: « 1er » to « 4e », and « dernier » (-1). */
 export const POSITION_LABELS: Record<number, string> = { 1: ordinal(1), 2: ordinal(2), 3: ordinal(3), 4: ordinal(4), [-1]: 'dernier' };
 
 /** Options of a choice of the position of a weekday in its month (« le 2e mardi »), the last one at the end. */

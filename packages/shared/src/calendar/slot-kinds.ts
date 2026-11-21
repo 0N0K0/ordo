@@ -32,7 +32,7 @@ export function foreignSlotKindWorkspace(kind: string): string | null {
 
 /**
  * Kind of a schedule, as a slot condition names it: of this workspace (no workspace given), or of another one. An
- * éphéméride without kind has none (the default kind is the working hours, créneaux only, lot 16).
+ * éphéméride without kind has none (the default kind is the working hours, créneaux only).
  * @param {{ typeId?: string | null, ephemeris?: boolean }} schedule Schedule.
  * @param {string | null} [workspaceId] Workspace of a schedule of another workspace. Optional. Default = this one.
  * @returns {string | null} Reference, or none.
@@ -43,7 +43,7 @@ export function scheduleSlotKind(schedule: { typeId?: string | null; ephemeris?:
 }
 
 /**
- * Kind of every birthday (lot 16c, decision FP): a slot condition names it as a kind (« Anniversaires (éphéméride) »),
+ * Kind of every birthday: a slot condition names it as a kind (« Anniversaires (éphéméride) »),
  * the birthdays of the people added later too. Never a kind of créneaux, so never in the free time.
  */
 export const BIRTHDAY_SLOT_KIND = 'birthday';

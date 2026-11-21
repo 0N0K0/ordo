@@ -1,7 +1,7 @@
 import { emptyInheritedFields, inheritedFieldsGiven, resolveInheritance, type FieldOrigin, type InheritedColumns, type InheritingItem } from '../core/inheritance';
 
 /**
- * Fields a sub-routine inherits from its parent (decision D11): project, assignees, beneficiaries (people and
+ * Fields a sub-routine inherits from its parent: project, assignees, beneficiaries (people and
  * relations), slot condition, « Ouverture », place (not the travel times), categories, and its « quand »: first time,
  * repetition, cases, times of the day, exceptions.
  */
@@ -21,7 +21,7 @@ export const ROUTINE_INHERITABLE_FIELDS = [
 ] as const;
 export type RoutineInheritableField = (typeof ROUTINE_INHERITABLE_FIELDS)[number];
 
-/** Fields of the « quand » of a routine (lot 13c wires their occurrences): never emptied (first time, repetition), or a rule of their own. */
+/** Fields of the « quand » of a routine (their occurrences follow them): never emptied (first time, repetition), or a rule of their own. */
 export const ROUTINE_WHEN_FIELDS: readonly RoutineInheritableField[] = ['START_DATE', 'RECURRENCE', 'CASES', 'MOMENTS', 'MOVES', 'OPENS_ON'];
 
 /** Inherited fields of a routine that cannot be emptied: it always has a first time and a repetition. */
@@ -79,8 +79,8 @@ export interface EffectiveRoutine<T extends InheritingRoutine> {
 }
 
 /**
- * Routine as it goes (decision D11): each inherited field from its parent, live, up the chain (cycle-safe); its own
- * value otherwise. The only computation of the inheritance of a routine, for the API (and its occurrences, lot 13c) and
+ * Routine as it goes: each inherited field from its parent, live, up the chain (cycle-safe); its own
+ * value otherwise. The only computation of the inheritance of a routine, for the API (and its occurrences) and
  * the app; the copy keeps the shape of the routine given (stored row or input), so its occurrences are computed from it.
  * @param {T} routine Routine.
  * @param {ReadonlyMap<string, T>} byId Routines of the workspace by id (its ancestors among them).

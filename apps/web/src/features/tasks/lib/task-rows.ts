@@ -91,7 +91,7 @@ export function sortValue(task: Task, column: TaskSortKey, context: TaskContext)
     case 'related':
       return task.relatedIds.length || null;
     case 'comments':
-      // A description counts as a comment; 0 is a count, not empty (decision CO).
+      // A description counts as a comment; 0 is a count, not empty.
       return commentTotal(task.commentCount, task.description);
     case 'createdAt':
       return task.createdAt;

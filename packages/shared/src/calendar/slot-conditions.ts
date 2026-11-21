@@ -255,9 +255,9 @@ export interface ForeignScheduleRule {
 }
 
 /**
- * Birthday of a person, as slot conditions count it (lot 16c): its id (`personBirthdayId`), the birth date, whether
- * its person is archived (it then gives no moment, decision FQ), and the other ids it is the birthday of (a relation
- * linked to a contributor: one person, one birthday, decision FQ).
+ * Birthday of a person, as slot conditions count it: its id (`personBirthdayId`), the birth date, whether
+ * its person is archived (it then gives no moment), and the other ids it is the birthday of (a relation
+ * linked to a contributor: one person, one birthday).
  */
 export interface BirthdaySource {
   /** `contributor:<id>` or `relation:<id>`. */
@@ -274,23 +274,23 @@ export interface BirthdaySource {
  * Slots of some schedules on a day, the slots of each day computed when first asked: what conditions on calendar
  * schedules are evaluated on, for tasks and routines alike. The schedules of the other workspaces only count where a
  * condition names them (or their kinds), never in the free time; nor do the éphémérides of the workspace, nor the
- * birthdays (whole days, named by `birthdaySlotId` or all of them by `BIRTHDAY_SLOT_KIND`, lot 16c). Archived
- * schedules, those of archived kinds and the birthdays of archived people count nowhere (decision FQ).
+ * birthdays (whole days, named by `birthdaySlotId` or all of them by `BIRTHDAY_SLOT_KIND`). Archived
+ * schedules, those of archived kinds and the birthdays of archived people count nowhere.
  * @param {readonly WorkScheduleRule[]} rules Schedules of the workspace.
  * @param {readonly ForeignScheduleRule[]} [foreign] Schedules of the other workspaces of the user. Optional. Default = none.
  * @param {readonly BirthdaySource[]} [birthdays] Birthdays of the people of the workspace. Optional. Default = none.
  * @returns {SlotsOn} Slots of some schedules on a day.
  */
 export function scheduleSlotsOn(rules: readonly WorkScheduleRule[], foreign: readonly ForeignScheduleRule[] = [], birthdays: readonly BirthdaySource[] = []): SlotsOn {
-  // Archived schedules, those of archived kinds and the birthdays of archived people give no moment (decision FQ).
+  // Archived schedules, those of archived kinds and the birthdays of archived people give no moment.
   const counted = countedSchedules(rules);
   const others = foreign.filter(({ rule }) => countedSchedules([rule]).length);
-  // The free time: out of the créneaux of the workspace, its éphémérides left out (lot 16).
+  // The free time: out of the créneaux of the workspace, its éphémérides left out.
   const own = new Set(slotSchedules(counted).map((rule) => rule.id));
   const kindOf = new Map<string, string | null>([...counted.map((rule) => [rule.id, scheduleSlotKind(rule)] as const), ...others.map(({ workspaceId, rule }) => [rule.id, scheduleSlotKind(rule, workspaceId)] as const)]);
   const all = [...counted, ...others.map(({ rule }) => rule)];
   // Birthdays: a whole day each year, of the kind of every birthday; a reference to another id of the same person
-  // names it too (decision FQ).
+  // names it too.
   const births = birthdays.flatMap((birthday) => {
     const birth = !birthday.archived && readBirthDate(birthday.birthDate);
     return birth ? [{ scheduleId: birthdaySlotId(birthday.id), birth }] : [];

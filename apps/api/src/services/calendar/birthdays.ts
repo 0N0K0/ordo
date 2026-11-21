@@ -2,8 +2,8 @@ import { personBirthdayId, readBirthDate, readReminders, type BirthdayPerson, ty
 import { prisma } from '../../db';
 
 /**
- * Birthday of a person (lot 16, decision FO): derived from its birth date at read time, no row of its own. Slot
- * conditions name it by `birthdaySlotId(id)` (lot 16c, decision FP), or by one of its `aliases` (decision FQ).
+ * Birthday of a person: derived from its birth date at read time, no row of its own. Slot
+ * conditions name it by `birthdaySlotId(id)`, or by one of its `aliases`.
  */
 export interface PersonBirthday {
   /** `contributor:<id>` or `relation:<id>` (`personBirthdayId`). */
@@ -14,10 +14,10 @@ export interface PersonBirthday {
   /** YYYY-MM-DD, or --MM-DD without year. */
   birthDate: string;
   reminders: Reminder[];
-  /** Its person is archived: shown nowhere, no moment to the slot conditions (decision FQ). */
+  /** Its person is archived: shown nowhere, no moment to the slot conditions. */
   archived: boolean;
   /**
-   * Other birthday ids of the same person (decision FQ): the relation linked to the contributor whose birthday applies,
+   * Other birthday ids of the same person: the relation linked to the contributor whose birthday applies,
    * or the contributor without birth date of the relation whose birthday applies.
    */
   aliases: string[];
@@ -45,7 +45,7 @@ export type PeopleChange = (people: BirthdayRows) => BirthdayRows;
 
 /**
  * Before a change of the people is saved, once checked: what it does to the routines whose conditions name birthdays
- * (`settleScheduleChange`, decision FQ).
+ * (`settleScheduleChange`).
  */
 export type PeopleChangeSettler = (change: PeopleChange) => Promise<void>;
 
@@ -53,7 +53,7 @@ export type PeopleChangeSettler = (change: PeopleChange) => Promise<void>;
 export const NO_PEOPLE_SETTLER: PeopleChangeSettler = async () => {};
 
 /**
- * Change of one person (decision FQ): its fields changed (a new one added), or removed (null).
+ * Change of one person: its fields changed (a new one added), or removed (null).
  * @param {BirthdayPerson} person Contributor or relation.
  * @param {string} id Its id (any id for a new one).
  * @param {Partial<BirthdayRow> | null} patch Fields changed; null: deleted.
@@ -70,7 +70,7 @@ export function personChange(person: BirthdayPerson, id: string, patch: Partial<
 }
 
 /**
- * Birthdays of some people (decision FO, FQ): contributors (members of the team or household included) and relations
+ * Birthdays of some people: contributors (members of the team or household included) and relations
  * with a valid birth date, archived ones flagged. One person, one birthday: a relation linked to a contributor with a
  * birth date (not archived) gives none of its own, its id naming the contributor's (`aliases`); a contributor without
  * birth date linked to a relation with one is named by the relation's.
@@ -132,9 +132,9 @@ function birthdaysOf({ contributors, relations }: BirthdayRows): PersonBirthday[
 }
 
 /**
- * Birthdays of the people of the workspace (decision FO): contributors (members of the team or household included) and
+ * Birthdays of the people of the workspace: contributors (members of the team or household included) and
  * relations with a valid birth date; a relation that also is a contributor with a birth date gives none (the
- * contributor's is the one shown, its id an alias of it, decision FQ).
+ * contributor's is the one shown, its id an alias of it).
  * @param {{ archived?: boolean, change?: PeopleChange }} [options] Archived people too (flagged), and the people as a
  * change would leave them. Optional. Default = not archived, as they are.
  * @returns {Promise<PersonBirthday[]>} Birthdays, by name.

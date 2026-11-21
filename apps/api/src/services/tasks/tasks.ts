@@ -22,7 +22,7 @@ import { assertConditionSchedules } from '../calendar/slot-conditions';
 import { adoptedTaskFields, changedTaskInheritance, clearedTaskData, effectiveTasks, freezeTaskInheritance, tasksOffParentProject } from './task-inheritance';
 
 /**
- * Closes or reopens tasks whose status changes (decision D23): to a status « Annulé » closes them (those already closed
+ * Closes or reopens tasks whose status changes: to a status « Annulé » closes them (those already closed
  * keep their date), out of one reopens them; the other categories leave them.
  * @param {readonly { id: string, statusId: string | null }[]} tasks Tasks, with their status before the change.
  * @param {string | null | undefined} statusId New status (undefined: unchanged).
@@ -290,7 +290,7 @@ async function followParentProjects(ids: readonly string[]): Promise<void> {
  */
 export async function createTask(given: TaskInput & { label: string }): Promise<Task> {
   if (!given.label?.trim()) throw fieldError('label', 'Le libellé est requis.');
-  // Under a parent: the fields it inherits (decision D11), their values not taken; its project, that of its parent.
+  // Under a parent: the fields it inherits, their values not taken; its project, that of its parent.
   const own = taskFieldsGiven(given);
   const listed = given.inheritedFields ? new Set<string>(given.inheritedFields) : null;
   const inheritedFields = given.parentId ? TASK_INHERITABLE_FIELDS.filter((field) => (listed ? listed.has(field) : !own.includes(field))) : [];
@@ -327,7 +327,7 @@ export async function createTask(given: TaskInput & { label: string }): Promise<
       tags: { connect: connectIds(input.tagIds ?? []) },
     },
   });
-  // Created with a status « Annulé »: closed (decision D23).
+  // Created with a status « Annulé »: closed.
   await closeOnStatus([{ id: task.id, statusId: null }], task.statusId);
   return task.statusId ? prisma.task.findUniqueOrThrow({ where: { id: task.id } }) : task;
 }
@@ -340,7 +340,7 @@ export async function createTask(given: TaskInput & { label: string }): Promise<
  */
 export async function updateTask(id: string, input: TaskInput): Promise<Task> {
   const found = await findActive(prisma.task, id, 'Tâche');
-  // Made top-level: what it inherited becomes its own (decision D11).
+  // Made top-level: what it inherited becomes its own.
   if (input.parentId === null && found.parentId) await freezeTaskInheritance([id]);
   const task = input.parentId === null && found.parentId ? await prisma.task.findUniqueOrThrow({ where: { id } }) : found;
   const parentId = input.parentId === undefined ? task.parentId : input.parentId;
@@ -393,7 +393,7 @@ export async function updateTask(id: string, input: TaskInput): Promise<Task> {
     await followParentProjects([id]);
     return prisma.task.findUniqueOrThrow({ where: { id } });
   }
-  // To or out of a status « Annulé »: closed or reopened (decision D23).
+  // To or out of a status « Annulé »: closed or reopened.
   if (input.statusId !== undefined && input.statusId !== task.statusId) {
     await closeOnStatus([task], input.statusId);
     return prisma.task.findUniqueOrThrow({ where: { id } });
@@ -444,7 +444,7 @@ async function moveTaskTrees(rootIds: string[], projectId: string | null, withSu
     .filter(({ id, parentId }) => parentId !== null && (movedSet.has(id) ? outside.has(parentId) : outside.has(id) && movedSet.has(parentId)))
     .map((task) => task.id);
   const outsideIds = [...outside];
-  // Those losing their parent keep, as their own, what they inherited (decision D11).
+  // Those losing their parent keep, as their own, what they inherited.
   await freezeTaskInheritance(parentOutside);
   // Milestones of another tree cannot follow the moved tasks.
   const movedTasks = await prisma.task.findMany({
@@ -489,7 +489,7 @@ async function moveTaskTrees(rootIds: string[], projectId: string | null, withSu
   // The assignees follow their tasks into the target project.
   const assignees = await prisma.contributor.findMany({ where: { tasks: { some: { id: { in: moved } } } }, select: { id: true } });
   if (projectId) await attachAssignees([{ projectId, contributorIds: assignees.map((assignee) => assignee.id) }]);
-  // A moved task whose parent stays, now in another project than it: that project is its own (decision D11).
+  // A moved task whose parent stays, now in another project than it: that project is its own.
   for (const task of await tasksOffParentProject(moved)) {
     const { inheritedFields } = await prisma.task.findUniqueOrThrow({ where: { id: task.id }, select: { inheritedFields: true } });
     await prisma.task.update({ where: { id: task.id }, data: { inheritedFields: inheritedFields.filter((field) => field !== 'PROJECT') } });
@@ -519,7 +519,7 @@ const CLONED_LINKS = {
 } as const;
 
 /**
- * Duplicates a task (decision D20: every field, assignees and links, but not comments), named « … (copie) », optionally
+ * Duplicates a task (every field, assignees and links, but not comments), named « … (copie) », optionally
  * with its sub-tasks (their labels kept). A former link out of its project tree (kept until it moves) is not copied.
  * @param {string} id Task id.
  * @param {boolean} includeSubtasks Whether to copy the sub-tree too.
@@ -537,7 +537,7 @@ export async function duplicateTask(id: string, includeSubtasks: boolean): Promi
   const linked = [...source.blocking.map((link) => link.blockedId), ...source.blockedBy.map((link) => link.blockerId), ...source.relationsA.map((link) => link.taskBId), ...source.relationsB.map((link) => link.taskAId)];
   const projectOf = new Map((await prisma.task.findMany({ where: { id: { in: linked } }, select: { id: true, projectId: true } })).map((task) => [task.id, task.projectId]));
   const inTree = inProjectTree(await loadRootOf(), source.projectId, projectOf);
-  // A copy with a status « Annulé » is closed, as any task given one (decision D23).
+  // A copy with a status « Annulé » is closed, as any task given one.
   const cancelled = new Set((await prisma.taskStatus.findMany({ where: { category: 'CANCELLED' }, select: { id: true } })).map((status) => status.id));
 
   return prisma.$transaction(async (tx) => {
@@ -755,7 +755,7 @@ export async function deleteComment(id: string): Promise<void> {
 export async function moveTask(id: string, beforeId: string | null, parentId?: string | null): Promise<void> {
   const task = await findActive(prisma.task, id, 'Tâche');
   if (parentId) await assertParent(parentId, task.projectId, id);
-  // Made top-level: what it inherited becomes its own (decision D11).
+  // Made top-level: what it inherited becomes its own.
   if (parentId === null && task.parentId) await freezeTaskInheritance([id]);
   // Placed under a parent after the fact: its empty fields inherit, as at its creation.
   const adopted = parentId && !task.parentId ? { inheritedFields: await adoptedTaskFields(id) } : {};
@@ -774,7 +774,7 @@ export async function moveTask(id: string, beforeId: string | null, parentId?: s
 export async function setTasksClosed(ids: string[], closed: boolean): Promise<void> {
   await assertTasks(ids);
   await assertNoneArchived('task', ids);
-  // Reopened by hand, a cancelled task leaves « Annulé » for the first status « À faire » (none: no status; decision D23).
+  // Reopened by hand, a cancelled task leaves « Annulé » for the first status « À faire » (none: no status).
   // Closing by hand leaves the status as it is.
   if (!closed) {
     const todo = await prisma.taskStatus.findFirst({ where: { category: 'TODO', archivedAt: null }, orderBy: BY_POSITION, select: { id: true } });
@@ -804,7 +804,7 @@ interface BulkTaskChanges {
   removeAssigneeIds?: string[] | null;
   addTagIds?: string[] | null;
   removeTagIds?: string[] | null;
-  /** Fields made inherited again (« Rétablir l'héritage », decision D11); a sub-task only. */
+  /** Fields made inherited again (« Rétablir l'héritage »); a sub-task only. */
   inheritFields?: TaskInheritableField[] | null;
   /** Fields emptied on purpose (« Vider »): no value, not inherited. */
   clearFields?: TaskInheritableField[] | null;
@@ -868,7 +868,7 @@ export async function bulkUpdateTasks(ids: string[], changes: BulkTaskChanges, r
       sprints: { select: { id: true } },
     },
   });
-  // Assignees added to or removed from inherited ones: from those it goes by, now its own (decision D11).
+  // Assignees added to or removed from inherited ones: from those it goes by, now its own.
   const inheritingAssignees = tasks.filter((task) => marksInherited(task, 'ASSIGNEES') && (add.length || remove.length));
   const effective = inheritingAssignees.length ? await effectiveTasks(inheritingAssignees.map((task) => task.id)) : new Map<string, EffectiveTask>();
   // Archived values are not given anew (those of one of the tasks stay valid: the same change on the others).
@@ -942,7 +942,7 @@ export async function bulkUpdateTasks(ids: string[], changes: BulkTaskChanges, r
           }),
         )
       : []),
-    // Their inheritance: fields inherited again, emptied, or given a value (decision D11); emptied last.
+    // Their inheritance: fields inherited again, emptied, or given a value; emptied last.
     ...tasks.map((task) =>
       prisma.task.update({
         where: { id: task.id },
@@ -955,7 +955,7 @@ export async function bulkUpdateTasks(ids: string[], changes: BulkTaskChanges, r
   ]);
   // Their project inherited again: each moves to its parent's.
   if (changes.inheritFields?.includes('PROJECT')) await followParentProjects(ids);
-  // To or out of a status « Annulé »: closed or reopened (decision D23).
+  // To or out of a status « Annulé »: closed or reopened.
   await closeOnStatus(tasks, changes.statusId);
 }
 
@@ -987,7 +987,7 @@ export async function bulkSetTasksArchived(ids: string[], archived: boolean): Pr
 
 /**
  * Deletes several tasks; their unselected sub-tasks are deleted too, or moved up. The times they leave with nothing
- * attached (no project, no other task, routine or event; not billed) are deleted with them (extra A of decision D17).
+ * attached (no project, no other task, routine or event; not billed) are deleted with them.
  * @param {string[]} ids Task ids.
  * @param {boolean} deleteSubtasks Whether to delete the sub-trees.
  * @returns {Promise<void>}
@@ -996,7 +996,7 @@ export async function bulkDeleteTasks(ids: string[], deleteSubtasks: boolean): P
   await assertTasks(ids);
   // Their GitHub items are taken off the board first.
   await deleteTreeItems('task', ids, deleteSubtasks, async (gone) => {
-    // Sub-tasks left by their deleted parent keep, as their own, what they inherited (decision D11).
+    // Sub-tasks left by their deleted parent keep, as their own, what they inherited.
     await freezeTaskInheritance((await prisma.task.findMany({ where: { parentId: { in: gone }, id: { notIn: gone } }, select: { id: true } })).map((task) => task.id));
     await forgetGithubItems(gone);
     await releaseSubjectTime({ taskIds: gone });

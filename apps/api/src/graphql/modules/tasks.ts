@@ -177,7 +177,7 @@ builder.prismaObject('TaskComment', {
 const inheritanceContexts = new WeakMap<Context, Promise<TaskInheritanceContext>>();
 
 /**
- * Task as it goes (decision D11: `effectiveTask`), the inheritance of the workspace loaded once per request (after its
+ * Task as it goes (`effectiveTask`), the inheritance of the workspace loaded once per request (after its
  * mutation).
  * @param {Context} ctx GraphQL context.
  * @param {string} id Task.
@@ -191,9 +191,9 @@ async function goesBy(ctx: Context, id: string): Promise<EffectiveTask> {
   return task;
 }
 
-/** Values a task goes by (decision D11): its own, or inherited from its parent; its dates also from its milestone, project or sprint. */
+/** Values a task goes by: its own, or inherited from its parent; its dates also from its milestone, project or sprint. */
 const TaskEffectiveRef = builder.objectRef<EffectiveTask>('TaskEffective').implement({
-  description: 'Values a task goes by (decision D11): each inherited field from its parent, live; its dates also from its milestone, project or first sprint. Read for every behaviour; the screens grey the inherited ones (`inheritance`).',
+  description: 'Values a task goes by: each inherited field from its parent, live; its dates also from its milestone, project or first sprint. Read for every behaviour; the screens grey the inherited ones (`inheritance`).',
   fields: (t) => ({
     projectId: t.exposeID('projectId', { nullable: true }),
     priorityId: t.exposeID('priorityId', { nullable: true }),
@@ -239,13 +239,13 @@ builder.prismaObject('Task', {
     effectiveMinDate: t.field({
       type: 'Date',
       nullable: true,
-      description: '« Ouverture » the task goes by (decision D11): its own, else its parent’s, else the « Échéance » of the milestone before its own, the « Ouverture » of its project, the start of its first sprint.',
+      description: '« Ouverture » the task goes by: its own, else its parent’s, else the « Échéance » of the milestone before its own, the « Ouverture » of its project, the start of its first sprint.',
       resolve: async (task, _args, ctx) => parseOptionalDay((await goesBy(ctx, task.id)).minDate),
     }),
     effectiveDeadline: t.field({
       type: 'Date',
       nullable: true,
-      description: '« Échéance » the task goes by (overdue, reminders, sorting, filters; decision D11): its own, else its parent’s, else its milestone’s, else the end of its first sprint.',
+      description: '« Échéance » the task goes by (overdue, reminders, sorting, filters): its own, else its parent’s, else its milestone’s, else the end of its first sprint.',
       resolve: async (task, _args, ctx) => parseOptionalDay((await goesBy(ctx, task.id)).deadline),
     }),
     minDateSource: t.field({
@@ -262,17 +262,17 @@ builder.prismaObject('Task', {
     }),
     inheritedFields: t.field({
       type: [TaskInheritableFieldEnum],
-      description: 'Fields it takes from its parent, live (decision D11); none for a top-level task.',
+      description: 'Fields it takes from its parent, live; none for a top-level task.',
       resolve: (task) => task.inheritedFields as TaskInheritableField[],
     }),
-    effective: t.field({ type: TaskEffectiveRef, description: 'Values it goes by (decision D11).', resolve: (task, _args, ctx) => goesBy(ctx, task.id) }),
+    effective: t.field({ type: TaskEffectiveRef, description: 'Values it goes by.', resolve: (task, _args, ctx) => goesBy(ctx, task.id) }),
     inheritance: t.field({
       type: [FieldOriginRef],
-      description: 'State (inherited, own, emptied on purpose) and source of each inherited field (decision D11).',
+      description: 'State (inherited, own, emptied on purpose) and source of each inherited field.',
       resolve: async (task, _args, ctx) => (await goesBy(ctx, task.id)).origins,
     }),
     cancelled: t.boolean({
-      description: 'Its status is of the category « Annulé »: closed, shown struck through (decision D23).',
+      description: 'Its status is of the category « Annulé »: closed, shown struck through.',
       select: { status: { select: { category: true } } },
       resolve: (task) => task.status?.category === 'CANCELLED',
     }),
@@ -291,7 +291,7 @@ builder.prismaObject('Task', {
       description: 'Reminders « À HH:MM » (Paris time), rung every day from « Ouverture » to « Échéance » (its day only without « Ouverture »; never without « Échéance »).',
       resolve: (task) => readReminders(task.reminders),
     }),
-    deadTimes: t.field({ type: [DeadTimeRef], description: '« Temps morts »: waits a timer is launched for (decision FT).', resolve: (task) => readDeadTimes(task.deadTimes) }),
+    deadTimes: t.field({ type: [DeadTimeRef], description: '« Temps morts »: waits a timer is launched for.', resolve: (task) => readDeadTimes(task.deadTimes) }),
     parentId: t.exposeID('parentId', { nullable: true }),
     milestoneId: t.exposeID('milestoneId', { nullable: true }),
     sprintIds: t.idList(relationIds('sprints', 'Sprints the task is planned in.')),
@@ -382,7 +382,7 @@ const TaskInput = builder.inputType('TaskInput', {
 });
 
 /**
- * Inheritance changes of one task (decision D11).
+ * Inheritance changes of one task.
  * @param {InputFields} t Field builder.
  * @returns {object} Fields.
  */
@@ -392,7 +392,7 @@ const inheritanceChangeFields = (t: InputFields) => ({
 });
 
 const TaskUpdateInput = builder.inputType('TaskUpdateInput', {
-  description: 'Omitted fields are left unchanged; null clears a field (a field given a value, null included, becomes its own: decision D11). Use bulkTransferTasks to change the project.',
+  description: 'Omitted fields are left unchanged; null clears a field (a field given a value, null included, becomes its own). Use bulkTransferTasks to change the project.',
   fields: (t) => ({ label: t.string(), ...taskFields(t), ...inheritanceChangeFields(t) }),
 });
 
@@ -569,7 +569,7 @@ builder.mutationFields((t) => ({
   }),
   duplicateTask: t.prismaField({
     type: 'Task',
-    description: 'Duplicates a task, named « … (copie) » (decision D20), with its sub-tasks when asked; not its comments.',
+    description: 'Duplicates a task, named « … (copie) », with its sub-tasks when asked; not its comments.',
     args: { id: t.arg.id({ required: true }), includeSubtasks: t.arg.boolean({ required: true }) },
     resolve: async (query, _root, { id, includeSubtasks }) => reloaded(prisma.task, query, tasks.duplicateTask(id, includeSubtasks)),
   }),

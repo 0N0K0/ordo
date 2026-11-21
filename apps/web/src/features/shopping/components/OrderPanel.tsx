@@ -31,7 +31,7 @@ type Delivery = ShoppingList['deliveries'][number];
 /** Values of the form of a delivery. */
 type DeliveryValues = ShoppingDeliveryInput & Record<string, unknown>;
 
-/** Fields of a delivery saved on leaving them, in its panel (decision D22): its texts and its place. */
+/** Fields of a delivery saved on leaving them, in its panel: its texts and its place. */
 const ON_BLUR = ['label', 'trackingUrl', 'address', 'lat', 'lon'] as const;
 
 /**
@@ -55,7 +55,7 @@ const deliveryValues = (list: ShoppingList, delivery?: Delivery): DeliveryValues
 /**
  * Delivery of a remote order: its name, tracking, to pick up or not, when, where (when other than the place of the
  * order), and the items it brings. A new one is a form with « Ajouter »; an existing one, its panel, saves each field as
- * soon as it changes (its texts on leaving them, its place once chosen, cleared or left: decision D22, `useFieldSave`),
+ * soon as it changes (its texts on leaving them, its place once chosen, cleared or left: `useFieldSave`),
  * the delivery of the cache followed.
  * @param {{ list: ShoppingList, delivery?: Delivery, onDone: () => void }} props List, delivery edited (none: a new one), and what follows.
  * @returns {JSX.Element} Form.

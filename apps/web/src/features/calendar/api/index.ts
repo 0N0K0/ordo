@@ -21,7 +21,7 @@ import { archivedIds, unarchived, useSetArchived } from '../../../lib/archive';
 export type EventOccurrence = CalendarEventOccurrenceFieldsFragment;
 export type WorkSchedule = WorkSchedulesQuery['workSchedules'][number];
 export type ScheduleType = WorkSchedulesQuery['scheduleTypes'][number];
-/** Fields of a kind saved: label, color, display; nature (at its creation) and budget fields (lot 16). */
+/** Fields of a kind saved: label, color, display; nature (at its creation) and budget fields. */
 export type ScheduleTypeFields = { label: string; color: string } & ScheduleDisplay & { ephemeris?: boolean; budgetContext?: boolean; sharedContext?: boolean };
 export type { CalendarEventInput, CalendarEventScope };
 
@@ -619,20 +619,20 @@ const BirthdaysDocument = graphql(`
   }
 `);
 
-/** Birthday of a person (lot 16): derived from its birth date by the API. */
+/** Birthday of a person: derived from its birth date by the API. */
 export type PersonBirthday = BirthdaysQuery['birthdays'][number];
 
 export { birthdaysQueryKey };
 
 /**
- * Birthdays of the people of the workspace (contributors and relations with a birth date, lot 16), those of archived
+ * Birthdays of the people of the workspace (contributors and relations with a birth date), those of archived
  * people too, flagged (one query for both hooks).
  * @returns {Promise<PersonBirthday[]>} Birthdays.
  */
 const fetchBirthdays = async () => (await execute(BirthdaysDocument)).birthdays;
 
 /**
- * Birthdays of the people of the workspace (contributors and relations with a birth date, not archived, lot 16): those
+ * Birthdays of the people of the workspace (contributors and relations with a birth date, not archived): those
  * the calendar shows and the alarms ring.
  * @returns {UseQueryResult} Query state.
  */
@@ -641,7 +641,7 @@ export function useBirthdays() {
 }
 
 /**
- * Birthdays a slot condition may name (decision FQ): those of archived people too, flagged (still named, « archivé »,
+ * Birthdays a slot condition may name: those of archived people too, flagged (still named, « archivé »,
  * no moment), with the other ids naming each (`aliases`: a relation linked to a contributor).
  * @returns {UseQueryResult} Query state.
  */
@@ -674,7 +674,7 @@ export function useDefaultScheduleKind() {
 }
 
 /**
- * Birthdays of the people of this workspace in its calendar (decision FX): shown or not, color (none: the gray of the
+ * Birthdays of the people of this workspace in its calendar: shown or not, color (none: the gray of the
  * éphémérides) and display.
  * @returns {UseQueryResult} Query state.
  */
@@ -737,14 +737,14 @@ export function useWorkScheduleMutations() {
       SLOT_DEPENDENT_KEYS,
     ),
     remove: useCalendarMutation(async (id: string) => withLossConfirmation(async (confirmLoss) => (await execute(DeleteWorkScheduleDocument, { id, confirmLoss })).deleteWorkSchedule), SLOT_DEPENDENT_KEYS),
-    // A kind of éphémérides may be a context of the treasury (lot 16): its contexts follow it.
+    // A kind of éphémérides may be a context of the treasury: its contexts follow it.
     createType: useCalendarMutation(async (input: ScheduleTypeFields) => (await execute(CreateScheduleTypeDocument, { input })).createScheduleType, [treasuryKey]),
     updateType: useCalendarMutation(async (variables: { id: string; input: ScheduleTypeFields }) => (await execute(UpdateScheduleTypeDocument, variables)).updateScheduleType, [treasuryKey]),
     removeType: useCalendarMutation(
       async (id: string) => withLossConfirmation(async (confirmLoss) => (await execute(DeleteScheduleTypeDocument, { id, confirmLoss })).deleteScheduleType),
       [...SLOT_DEPENDENT_KEYS, treasuryKey],
     ),
-    // « Convertir en éphéméride(s) » / « Convertir en créneau(x) » (lot 16): ids kept; occurrences of routines lost confirmed first.
+    // « Convertir en éphéméride(s) » / « Convertir en créneau(x) »: ids kept; occurrences of routines lost confirmed first.
     setEphemeris: useCalendarMutation(
       async (variables: { id: string; ephemeris: boolean }) =>
         withLossConfirmation(async (confirmLoss) => (await execute(SetWorkScheduleEphemerisDocument, { ...variables, confirmLoss })).setWorkScheduleEphemeris),
@@ -769,7 +769,7 @@ export function useWorkScheduleMutations() {
 
 /**
  * Archives or restores schedules, contributors or relations (`useSetArchived`), the sources of the slot conditions
- * (decision FQ): the occurrences of routines it makes disappear are confirmed first (`withLossConfirmation`, as a change
+ *: the occurrences of routines it makes disappear are confirmed first (`withLossConfirmation`, as a change
  * of schedule), then what depends on them is refreshed (`SLOT_DEPENDENT_KEYS`, the birthdays with the people).
  * @param {'WORK_SCHEDULE' | 'CONTRIBUTOR' | 'TREASURY_RELATION'} kind Kind of the elements (a kind of schedules: `useScheduleTypeItems`).
  * @param {readonly QueryKey[]} [invalidate] Queries refreshed besides. Optional. Default = every query.
@@ -782,7 +782,7 @@ export function useSlotSourceArchiving(kind: 'WORK_SCHEDULE' | 'CONTRIBUTOR' | '
 /**
  * Schedules as the shared functions read them (those of this workspace, or of another one subscribed to): their
  * cases and exceptions validated (invalid ones left out), archived or of an archived kind (the slot conditions do not
- * count them, decision FQ).
+ * count them).
  * @param {object[]} schedules Schedules.
  * @param {ReadonlySet<string>} [archivedKinds] Kinds archived (ids). Optional. Default = none.
  * @returns {import('@ordo/shared').WorkScheduleRule[]} Rules.
@@ -807,8 +807,8 @@ export function scheduleRules(
 
 /**
  * Working hours of the workspace, as the hint of an event out of them (`AvailabilityHint`) and the planned time
- * (`PlannedTime`) count them: its créneaux (the éphémérides left out, lot 16), neither archived nor of an archived kind
- * (`countedSchedules`, as the slot conditions, decision FQ).
+ * (`PlannedTime`) count them: its créneaux (the éphémérides left out), neither archived nor of an archived kind
+ * (`countedSchedules`, as the slot conditions).
  * @returns {UseQueryResult<WorkScheduleRule[]>} Query state: the rules of the créneaux counted.
  */
 export function useWorkingHours() {

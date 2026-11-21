@@ -4,9 +4,9 @@ import reactHooks from 'eslint-plugin-react-hooks';
 import reactRefresh from 'eslint-plugin-react-refresh';
 import tseslint from 'typescript-eslint';
 import { defineConfig, globalIgnores } from 'eslint/config';
-import { INHERITANCE_RULES, TEXT_SIZE_RULES } from '../../packages/shared/eslint-rules.js';
+import { INHERITANCE_RULES, planReferencesConfig, TEXT_SIZE_RULES } from '../../packages/shared/eslint-rules.js';
 
-// Detail panels saved field by field (decision D22, useFieldSave): every one of the app (D22 complete, lot 14d).
+// Detail panels saved field by field (useFieldSave): every one of the app.
 const D22_PANELS =
   '/^(TaskDetail|TaskLinks|TaskLinksEditor|RoutineForm|EventForm|RoutineOccurrenceForm|TimeEntryForm|AlarmForm|ShoppingForm|DeliveryForm|ListForm|SheetFields|SheetLinksForm|RecurringForm|ImportedDocumentForm|ResourceForm|ClientDetailsForm|ClientServiceForm|ClientContactForm|CatalogItemForm|CompanyForm|Editor|EntryForm|BudgetForm|PeriodForm|RelationForm|ProjectForm|ClientForm|MilestoneForm|SprintForm|ContributorForm|ChartEditor|MailAccountForm|MailSearchForm|SignatureForm|SettingsItemForm|ScheduleForm|SlotEditForm|LinkForm)$/';
 
@@ -55,7 +55,7 @@ const RESTRICTED_PATHS = [
   {
     name: '@phosphor-icons/react',
     importNames: ['DotsThreeIcon', 'DotsThreeVerticalIcon', 'DotsThreeOutlineIcon', 'DotsThreeOutlineVerticalIcon', 'DotsThreeCircleIcon', 'DotsThreeCircleVerticalIcon'],
-    message: 'Un menu « … » : ActionsMenu sans target (trois points verticaux, décision T ; variant="light" à côté de boutons, décision CN).',
+    message: 'Un menu « … » : ActionsMenu sans target (trois points verticaux ; variant="light" à côté de boutons).',
   },
   {
     name: '@ordo/shared',
@@ -65,12 +65,12 @@ const RESTRICTED_PATHS = [
   {
     name: '@ordo/shared',
     importNames: ['SLOT_CONDITION_FIELDS', 'SLOT_CONDITION_FIELD_OPERATORS'],
-    message: 'Condition de créneaux d’une tâche ou d’une routine : SlotConditionBuilder (features/calendar/components), un seul éditeur (décision DU).',
+    message: 'Condition de créneaux d’une tâche ou d’une routine : SlotConditionBuilder (features/calendar/components), un seul éditeur.',
   },
   {
     name: '@ordo/shared',
     importNames: ['RINGTONES'],
-    message: 'Utiliser RingtoneSelect (components/inputs/RingtoneSelect) : la sonnerie d’un rappel, d’un temps mort ou d’un minuteur, « Celle des réglages » en tête (décision FT).',
+    message: 'Utiliser RingtoneSelect (components/inputs/RingtoneSelect) : la sonnerie d’un rappel, d’un temps mort ou d’un minuteur, « Celle des réglages » en tête.',
   },
 ];
 
@@ -111,7 +111,7 @@ export default defineConfig([
       // Dates, numbers and amounts: one format per role, in lib/format.
       'no-restricted-syntax': [
         'error',
-        // Sizes of the texts: one maximum per kind (decision DO).
+        // Sizes of the texts: one maximum per kind.
         ...TEXT_SIZE_RULES,
         ...INHERITANCE_RULES,
         // What a sub-item inherits: its rows already hold the values it goes by, and one brick says where each comes from.
@@ -123,7 +123,7 @@ export default defineConfig([
           selector: "CallExpression[callee.property.name='find'][callee.object.property.name='inheritance']",
           message: 'Utiliser originOf(item, field) (components/inheritance/inheritance) et InheritedField pour montrer un champ hérité.',
         },
-        // A markdown note or description typed in a cell: the shared markdown editor (decision DO).
+        // A markdown note or description typed in a cell: the shared markdown editor.
         {
           selector: "JSXOpeningElement[name.name='EditableText']:has(JSXAttribute[name.name='value'] MemberExpression[property.name=/^(note|description)$/])",
           message: 'Utiliser EditableMarkdown (components/data-table/cells/EditableCells) : une note ou une description markdown s’écrit dans l’éditeur markdown.',
@@ -141,13 +141,13 @@ export default defineConfig([
             .join(', '),
           message: 'Déclarer cette clé dans lib/query-keys : une clé dérivée d’une autre, en tête d’un module api, peut lire une clé pas encore définie (imports en cycle).',
         },
-        // Alarms and reminders ring one way (decisions D16, FS): ringPlannedReminders / ringAlarm claim, startRinging sounds
+        // Alarms and reminders ring one way: ringPlannedReminders / ringAlarm claim, startRinging sounds
         // the ringtone of the bank for the duration of the settings and shows the toast « Arrêter » / « Répéter dans N min ».
         {
           selector: "CallExpression[callee.name=/^(startRingtone|playRingtone|notifyAlarm)$/]",
           message: 'Utiliser ringPlannedReminders / ringAlarm (features/alarms/components/ring), qui passent par startRinging (features/alarms/lib/ringing) : les alarmes et les rappels sonnent d’une seule façon.',
         },
-        // What rings and what its ring shows, the same in the app and pushed by the server (lot 17c, decision FU).
+        // What rings and what its ring shows, the same in the app and pushed by the server.
         {
           selector: "TemplateElement[value.raw=/^Espace « $/]",
           message: 'Utiliser workspaceRingLine(label) (@ordo/shared, dates/ringing) : la ligne de l’espace d’une sonnerie.',
@@ -160,12 +160,12 @@ export default defineConfig([
           selector: "CallExpression[callee.name=/^(occurrenceReminders|taskReminders|remindersAt|remindersBefore)$/]",
           message: 'Utiliser eventRings / taskRings / routineRings / ephemerisRings / birthdayRings (@ordo/shared, dates/reminder-rings) : les mêmes clés, instants et textes que le serveur (push).',
         },
-        // Start and end of a moment of a routine, the same in its display and its reminders (decision FW).
+        // Start and end of a moment of a routine, the same in its display and its reminders.
         {
           selector: "CallExpression[callee.name='shiftTime'][arguments.0.property.name=/^(fromTime|dueTime)$/]",
           message: 'Utiliser routineSlotSpan(moment, minutes) (@ordo/shared, routines) : début et fin d’un moment, les mêmes pour l’affichage et les rappels.',
         },
-        // Time of a routine without estimate: 30 min everywhere, one constant (decision FX).
+        // Time of a routine without estimate: 30 min everywhere, one constant.
         {
           selector: "LogicalExpression[operator=/^(\\?\\?|\\|\\|)$/][left.property.name='estimate'][right.type='Literal'][right.raw=/^[0-9]/]",
           message: 'Utiliser routineMinutes(estimate) (@ordo/shared, routines) : le temps d’une routine, ROUTINE_DEFAULT_MINUTES sans temps estimé.',
@@ -194,13 +194,13 @@ export default defineConfig([
           selector: "JSXOpeningElement[name.name='IconField'] > JSXAttribute[name.name=/^(value|onChange)$/]",
           message: 'Utiliser formIconProps(form, champ du fichier, champ du retrait) (components/inputs/icon-field).',
         },
-        // Detail panels saved field by field (decision D22, useFieldSave): no « Enregistrer » button in them (their creation
-        // form keeps « Ajouter » / « Créer… » / « Planifier »). Every detail panel of the app is here (D22 complete, lot 14d);
+        // Detail panels saved field by field (useFieldSave): no « Enregistrer » button in them (their creation
+        // form keeps « Ajouter » / « Créer… » / « Planifier »). Every detail panel of the app is here;
         // the one deliberate « Enregistrer » is the numbering of the documents (NumberingSettings: setting a counter).
         {
           selector:
             `FunctionDeclaration[id.name=${D22_PANELS}] JSXOpeningElement[name.name='FormActions']:matches(:not(:has(JSXAttribute[name.name='submitLabel'])), :has(JSXAttribute[name.name='submitLabel'] Literal[value=/^Enregistrer/]))`,
-          message: 'Panneau de détail enregistré champ par champ (décision D22) : useFieldSave (lib/form) et SaveStatus, pas de bouton « Enregistrer ».',
+          message: 'Panneau de détail enregistré champ par champ : useFieldSave (lib/form) et SaveStatus, pas de bouton « Enregistrer ».',
         },
         // A color in a detail panel: saved at once when picked, on leaving it when typed (commitProps, ColorField onCommit).
         {
@@ -208,33 +208,33 @@ export default defineConfig([
           message: 'Utiliser commitProps(champ) de useFieldSave (lib/form) : couleur choisie enregistrée aussitôt, tapée en la quittant.',
         },
         // A field of a detail panel saved on leaving it by hand, from its DOM value: useFieldSave (getInputProps, fieldProps),
-        // which also saves it when the panel closes while it is typed (decision FJ).
+        // which also saves it when the panel closes while it is typed.
         {
           selector: `FunctionDeclaration[id.name=${D22_PANELS}] JSXAttribute[name.name='onBlur'] MemberExpression[object.property.name='currentTarget'][property.name='value']`,
-          message: 'Champ de panneau de détail : useFieldSave (lib/form), enregistré en le quittant et aussi à la fermeture du panneau (décision FJ).',
+          message: 'Champ de panneau de détail : useFieldSave (lib/form), enregistré en le quittant et aussi à la fermeture du panneau.',
         },
-        // A table is grouped only by the group-by of its view (decision FK): no grouping of its own on top of it or in
+        // A table is grouped only by the group-by of its view: no grouping of its own on top of it or in
         // place of it, no « show empty groups » option. A column groups as a tree with its `groupTree`.
         {
           selector: "JSXOpeningElement[name.name=/Table$/] > JSXAttribute[name.name=/^(groupTree|grouping|showEmpty)$/]",
-          message: 'Regroupement d’un tableau : celui de sa vue seulement (« Grouper par », décision FK) ; un arbre de groupes se déclare sur la colonne (groupTree), sans groupes vides.',
+          message: 'Regroupement d’un tableau : celui de sa vue seulement (« Grouper par ») ; un arbre de groupes se déclare sur la colonne (groupTree), sans groupes vides.',
         },
         {
           selector: "JSXAttribute[name.name='label'] Literal[value=/^Grouper par/]",
-          message: '« Grouper par » est l’option de la vue du tableau (DataViewBar, décision FK) : pas de contrôle de regroupement à côté.',
+          message: '« Grouper par » est l’option de la vue du tableau (DataViewBar) : pas de contrôle de regroupement à côté.',
         },
-        // One word and one behaviour to copy anything (decision D20): « Dupliquer », saved at once, then opened.
+        // One word and one behaviour to copy anything: « Dupliquer », saved at once, then opened.
         {
           selector: "Literal[value=/\\bClon(er|é|ée|és|ées|age)\\b/i], TemplateElement[value.raw=/\\bClon(er|é|ée|és|ées|age)\\b/i], JSXText[value=/\\bClon(er|é|ée|és|ées|age)\\b/i]",
-          message: '« Cloner » n’existe plus (décision D20) : « Dupliquer », avec duplicateRowsAction / DuplicateButton.',
+          message: '« Cloner » n’existe plus : « Dupliquer », avec duplicateRowsAction / DuplicateButton.',
         },
         {
           selector: "Literal[value='Dupliquer'], JSXText[value=/^\\s*Dupliquer\\s*$/]",
-          message: 'Utiliser duplicateRowsAction (components/data-table/selection/selection-actions) ou DuplicateButton (components/actions) : une seule action « Dupliquer » (décision D20).',
+          message: 'Utiliser duplicateRowsAction (components/data-table/selection/selection-actions) ou DuplicateButton (components/actions) : une seule action « Dupliquer ».',
         },
         {
           selector: "JSXAttribute[name.name=/^(copy|copyOf)$/]",
-          message: 'Pas de formulaire de copie (décision D20) : la copie est enregistrée tout de suite (duplicateRowsAction / DuplicateButton), puis son panneau s’ouvre.',
+          message: 'Pas de formulaire de copie : la copie est enregistrée tout de suite (duplicateRowsAction / DuplicateButton), puis son panneau s’ouvre.',
         },
         {
           selector: "NewExpression[callee.object.name='Intl'][callee.property.name=/^(DateTimeFormat|NumberFormat|RelativeTimeFormat)$/][arguments.length>0]",
@@ -244,7 +244,7 @@ export default defineConfig([
           selector: 'CallExpression[callee.property.name=/^toLocale(Date|Time)?String$/]',
           message: 'Utiliser lib/format (fmt.day, fmt.time, fmt.number…) : un format par rôle.',
         },
-        // Rows set back: the states of DataTable (decision U), not an opacity of their own.
+        // Rows set back: the states of DataTable, not an opacity of their own.
         {
           selector: "JSXAttribute[name.name='rowProps'] Property[key.name='opacity']",
           message: 'Utiliser isArchived / isDone de DataTable : une opacité « atténué » (--onoko-muted-opacity) partout.',
@@ -259,7 +259,7 @@ export default defineConfig([
           selector: "JSXOpeningElement[name.name='Text']:has(JSXAttribute[name.name='tt'][value.value='uppercase'])",
           message: 'Utiliser Caption (components/page/Caption) : petites capitales atténuées, graisse 600, partout.',
         },
-        // Names of months, weekdays and positions: one list each, in @ordo/shared (decision V).
+        // Names of months, weekdays and positions: one list each, in @ordo/shared.
         {
           selector: 'Literal[value=/^(janvier|premier|deuxième|1er)$/]',
           message: 'Utiliser MONTH_LABELS / monthOptions, WEEKDAY_LABELS / weekdayOptions, POSITION_LABELS / positionOptions ou ordinal (@ordo/shared) : « 1er / 2e / dernier » partout.',
@@ -311,7 +311,7 @@ export default defineConfig([
           selector: "Literal[value='La fin doit suivre le début.']",
           message: 'Utiliser END_AFTER_START / endsAfter (@ordo/shared).',
         },
-        // Periods (decision Q): the end follows the start, one message, the impossible days greyed out.
+        // Periods: the end follows the start, one message, the impossible days greyed out.
         {
           selector:
             "JSXOpeningElement[name.name=/^(DatePickerInput|MonthPickerInput|DateTimePicker)$/] > JSXAttribute[name.name=/^(minDate|maxDate)$/] MemberExpression[property.name=/^(startDate|endDate|since|until|from|to|windowFrom|windowTo|serviceStart|serviceEnd|month|repeatUntil|deadline|start|end)$/]:not([object.name='routine']):not([object.property.name='routine'])",
@@ -325,13 +325,13 @@ export default defineConfig([
           selector: "IfStatement[test.callee.property.name='has'][consequent.expression.callee.property.name='delete'][alternate.expression.callee.property.name='add']",
           message: 'Utiliser toggledIn(set, value) (lib/sets).',
         },
-        // « Archiver » is never a button: always in the « … » menu (decision R).
+        // « Archiver » is never a button: always in the « … » menu.
         {
           selector:
             'JSXText[value=/^\\s*(Archiver|Restaurer)\\s*$/], JSXOpeningElement[name.name=/^(IconAction|Tooltip|Button|ActionButton|ActionIcon)$/] JSXAttribute Literal[value=/^(Archiver|Restaurer)$/]',
           message: 'Utiliser archiveEntry(élément, mutation, id) (lib/archive) dans le menu « … » (ActionsMenu, RowActions, DetailHeader menu) : « Archiver » n’est jamais un bouton.',
         },
-        // Links of tasks and routines inside one project tree (decision DS).
+        // Links of tasks and routines inside one project tree.
         {
           selector: "BinaryExpression[operator=/^[!=]==$/][left.callee.property.name='rootOf'][right.callee.property.name='rootOf']",
           message: 'Utiliser inProjectTree(context, projectId)(autreProjectId) (features/tasks/lib/task-links), ou linkableTasks / linkableRoutine.',
@@ -482,26 +482,23 @@ export default defineConfig([
           message: 'Utiliser IconAction (components/actions/IconAction) : l’action en infobulle, l’action et l’élément en libellé caché.',
         },
         {
-          // Decision 11: an icon alone keeps its tooltip.
+          // An icon alone keeps its tooltip.
           selector: "JSXOpeningElement[name.name='ActionIcon']",
-          message: 'Utiliser IconAction (components/actions/IconAction) : un bouton icône seul garde son infobulle (décision 11) ; FoldButton pour plier, RemoveButton pour retirer.',
+          message: 'Utiliser IconAction (components/actions/IconAction) : un bouton icône seul garde son infobulle ; FoldButton pour plier, RemoveButton pour retirer.',
         },
         {
-          // Decision AG.
           selector: "JSXOpeningElement[name.name='Badge'] > JSXAttribute[name.name='tt']",
-          message: 'Badges en capitales (décision AG) : pas de tt sur un Badge.',
+          message: 'Badges en capitales : pas de tt sur un Badge.',
         },
         {
-          // Decision AE.
           selector: 'Literal[value=/\\b(Déplier|Replier)\\b/], TemplateElement[value.raw=/\\b(Déplier|Replier)\\b/]',
-          message: 'Utiliser FoldButton (components/actions/FoldButton) : « Développer / Réduire » partout (décision AE).',
+          message: 'Utiliser FoldButton (components/actions/FoldButton) : « Développer / Réduire » partout.',
         },
         {
-          // Decision AI.
           selector: 'Literal[value=/j de retard/], TemplateElement[value.raw=/j de retard/]',
-          message: 'Utiliser fmt.daysLate (lib/format), LateBadge (components/feedback) sur l’accueil (décision AI).',
+          message: 'Utiliser fmt.daysLate (lib/format), LateBadge (components/feedback) sur l’accueil.',
         },
-        // Round 6 (point 8): patterns written otherwise, and the bricks of points 5 to 7.
+        // Patterns written otherwise, and the bricks above.
         {
           selector: "JSXElement[openingElement.name.name='Tooltip'] > JSXElement[openingElement.name.name='Indicator']",
           message: 'Utiliser IconAction indicator={n} (components/actions/IconAction) : l’action en infobulle, le compte en pastille.',
@@ -554,12 +551,12 @@ export default defineConfig([
         },
         {
           selector: "JSXElement[openingElement.name.name='Badge']:has(JSXText[value=/retard/])",
-          message: 'Utiliser LateBadge (components/feedback) ou fmt.daysLate (lib/format) : un seul retard, orange (décision AI).',
+          message: 'Utiliser LateBadge (components/feedback) ou fmt.daysLate (lib/format) : un seul retard, orange.',
         },
         {
           selector:
             'ConditionalExpression[consequent.openingElement.name.name=/^Caret(Up|Down|Right|Left)Icon$/][alternate.openingElement.name.name=/^Caret(Up|Down|Right|Left)Icon$/], ConditionalExpression[consequent.name=/^Caret(Up|Down|Right|Left)Icon$/][alternate.name=/^Caret(Up|Down|Right|Left)Icon$/]',
-          message: 'Utiliser FoldButton (components/actions/FoldButton) : un chevron qui tourne, « Développer / Réduire » (décision AE).',
+          message: 'Utiliser FoldButton (components/actions/FoldButton) : un chevron qui tourne, « Développer / Réduire ».',
         },
         {
           selector: 'Literal[value=/^(Créneaux|Plages|Horaires) de travail$/], JSXText[value=/^\\s*(Créneaux|Plages|Horaires) de travail\\s*$/]',
@@ -615,7 +612,7 @@ export default defineConfig([
           selector: "JSXOpeningElement[name.name='BatchMultiSelect']:has(> JSXSpreadAttribute[argument.name='stoppedCellCombobox'])",
           message: 'Utiliser EditableMultiSelect, ou CellMultiSelect dans un StackedMultiCell (components/data-table/cells/EditableCells).',
         },
-        // What a time is spent on besides its project (decision D18): one reading.
+        // What a time is spent on besides its project: one reading.
         {
           selector:
             "LogicalExpression[operator='||']:has(MemberExpression[property.name='length'][object.property.name='routines']):has(MemberExpression[property.name='length'][object.property.name='taskIds'])",
@@ -648,7 +645,7 @@ export default defineConfig([
         },
         {
           selector: "JSXAttribute[name.name='style'] Property[key.name=/^(transform|rotate)$/] Literal[value=/(rotate|deg)/]",
-          message: 'Utiliser FoldButton ou FoldChevron (components/actions) : un seul chevron de pliage (décision AE).',
+          message: 'Utiliser FoldButton ou FoldChevron (components/actions) : un seul chevron de pliage.',
         },
         {
           selector:
@@ -741,29 +738,29 @@ export default defineConfig([
           selector: "TSUnionType:has(TSLiteralType > Literal[value='correspondent'])",
           message: 'Utiliser MailSortBy / MailSearchSortBy (@ordo/shared).',
         },
-        // The subject of the menus: « Actions de « X » » (decision BF).
+        // The subject of the menus: « Actions de « X » ».
         {
           selector:
             "JSXOpeningElement[name.name=/^(ActionsMenu|RowActions|InlineActions|SortableTabs)$/] > JSXAttribute[name.name='name'] :matches(Literal[value=/^(la|le|les|ce|ces|cet|cette|mon|du|des) /], Literal[value=/^l’/], TemplateElement[value.raw=/^(la|le|les|ce|ces|mon|du|des) /], TemplateElement[value.raw=/^l’/])",
           message: 'Un nom dans name (cité : « Actions de « X » »), une description dans about (« la barre latérale ») : ActionsSubject (components/actions/actions-subject).',
         },
-        // The workspace of a layer: « Label · Espace » (decision BG).
+        // The workspace of a layer: « Label · Espace ».
         {
           selector:
             "TemplateLiteral:has(> TemplateElement[value.raw=/( · | \\(|espace « )$/]) > MemberExpression:matches([property.name='workspaceLabel'], [property.name='label'][object.property.name='workspace'])",
           message: 'Utiliser inWorkspace(libellé, espace) (features/calendar/lib/layer-label) : « Libellé · Espace » partout.',
         },
-        // Direction of a movement: « Entrées / Sorties » (decision BH).
+        // Direction of a movement: « Entrées / Sorties ».
         {
           selector: 'Literal[value=/^(Recettes|Dépenses|Entrées|Sorties)$|\\((recettes|dépenses)\\)/], TemplateElement[value.raw=/^(recettes|dépenses)$/]',
           message: 'Utiliser DIRECTION_PLURALS (features/treasury/lib/direction) : « Entrées / Sorties » partout.',
         },
-        // The arrow of a menu button (decision: MenuCaret); the menu target sets aria-haspopup itself.
+        // The arrow of a menu button (MenuCaret); the menu target sets aria-haspopup itself.
         {
           selector: "JSXAttribute[name.name='rightSection'] JSXOpeningElement[name.name='CaretDownIcon'], JSXAttribute[name.name='aria-haspopup'][value.value='menu']",
           message: 'Utiliser <MenuCaret /> (components/actions/MenuCaret) ; Menu.Target pose aria-haspopup et aria-expanded.',
         },
-        // An icon button names its element by `item` (« Modifier « X » », decision W), not in a hand-written aria-label.
+        // An icon button names its element by `item` (« Modifier « X » »), not in a hand-written aria-label.
         {
           selector: "JSXOpeningElement[name.name='IconAction'] > JSXAttribute[name.name='aria-label'] > JSXExpressionContainer > TemplateLiteral",
           message: 'Utiliser item (et hint pour un texte long) d’IconAction : l’action en infobulle, l’action et l’élément en libellé caché.',
@@ -797,12 +794,12 @@ export default defineConfig([
             "Literal[value=/^\\/(login|forgot-password|reset-password|confirm-email|accounting\\?|settings\\?tab=)/], TemplateElement[value.raw=/^\\/(login|forgot-password|reset-password|confirm-email|accounting\\?|settings\\?tab=)/], JSXAttribute[name.name=/^(to|href)$/][value.value='/'], JSXAttribute[name.name=/^(to|href)$/] > JSXExpressionContainer > Literal[value='/'], CallExpression[callee.name='navigate'] > Literal.arguments[value='/'], ConditionalExpression > Literal[value='/'], ArrayExpression > Literal[value='/'], LogicalExpression > Literal[value='/'], AssignmentExpression > Literal.right[value='/'], ReturnStatement > Literal[value='/'], Property[key.name=/^(to|href|pathname|redirect\\w*)$/] > Literal[value='/']",
           message: 'Utiliser PAGES, AUTH_PATHS, OVERDUE_INVOICES_PATH, GITHUB_SETTINGS_PATH ou les aides d’adresse (app/pages).',
         },
-        // Badges in capitals (decision AG): no tt="none".
+        // Badges in capitals: no tt="none".
         {
           selector: "JSXAttribute[name.name='tt'][value.value='none']",
-          message: 'Pas de tt="none" : les badges et titres gardent leurs capitales (décision AG).',
+          message: 'Pas de tt="none" : les badges et titres gardent leurs capitales.',
         },
-        // Hidden labels of the cells: « Unité de « X » », or « (appliqué aux N cellules sélectionnées) » (decision BD).
+        // Hidden labels of the cells: « Unité de « X » », or « (appliqué aux N cellules sélectionnées) ».
         {
           selector: 'JSXOpeningElement[name.name=/^(Editable\\w+|\\w+Cell)$/] > JSXAttribute[name.name=/^(aria-)?label$/] > JSXExpressionContainer > TemplateLiteral',
           message: 'Utiliser bulkCellLabels(view, nom) (data-table/selection/bulk-edit) ou itemCellLabel (cell-field) : la forme commune, sélection comprise.',
@@ -817,10 +814,10 @@ export default defineConfig([
           selector: "JSXAttribute[name.name='onKeyDown'] CallExpression[callee.name='setDraft']",
           message: 'Utiliser useCellDraft (components/data-table/cells/cell-field) : Entrée enregistre, Échap annule sans enregistrer.',
         },
-        // Round 8, lot 2: the bricks of the small duplicates.
+        // The bricks of the small duplicates.
         {
           selector: "Literal[value=/^\\(?[Bb]rouillon\\)?$/], Literal[value='ce brouillon'], JSXText[value=/^\\s*Brouillon\\s*$/]",
-          message: 'Utiliser DRAFT_NAME, documentName(number, label ?) ou documentTitle(document) (@ordo/shared), DraftBadge (accounting) : « Brouillon » (décision CD).',
+          message: 'Utiliser DRAFT_NAME, documentName(number, label ?) ou documentTitle(document) (@ordo/shared), DraftBadge (accounting) : « Brouillon ».',
         },
         {
           selector: "TemplateLiteral:has(> MemberExpression[object.name='DOCUMENT_TYPE_LABELS']):has(> MemberExpression[property.name='number']), TemplateLiteral:has(> MemberExpression[object.name='DOCUMENT_TYPE_LABELS']):has(> LogicalExpression[left.property.name='number'])",
@@ -828,19 +825,19 @@ export default defineConfig([
         },
         {
           selector: "TemplateLiteral:has(> MemberExpression[property.name='email']):has(> TemplateElement[value.raw=/<$/]), Property[key.name='label'] > MemberExpression.value[property.name='email'], TemplateLiteral:has(> MemberExpression[property.name='email']):has(> TemplateElement[value.raw=/\\($/])",
-          message: 'Utiliser accountLabel(account) (features/mail/lib/mail-format) : « Nom <adresse> » (décision CE).',
+          message: 'Utiliser accountLabel(account) (features/mail/lib/mail-format) : « Nom <adresse> ».',
         },
         {
           selector: "ConditionalExpression:matches([test.property.name=/^(overdue|late)$/], [test.object.name=/^(late|overdue)$/]) > Literal.consequent[value=/^(red|orange)$/]",
-          message: 'Utiliser LATE_COLOR (components/feedback/feedback-colors) : un retard en orange (décisions AI, CF).',
+          message: 'Utiliser LATE_COLOR (components/feedback/feedback-colors) : un retard en orange.',
         },
         {
           selector: "JSXOpeningElement[name.name='Button'] > JSXAttribute[name.name='color'][value.value='red']",
-          message: 'Utiliser ActionButton danger (components/actions) : rouge plein, texte rouge en tertiaire (décision CN).',
+          message: 'Utiliser ActionButton danger (components/actions) : rouge plein, texte rouge en tertiaire.',
         },
         {
           selector: "JSXOpeningElement[name.name=/^(UnstyledButton|Button)$/]:has(> JSXAttribute[name.name='aria-expanded']):not(:has(> JSXAttribute[name.name='aria-haspopup']))",
-          message: 'Utiliser FoldHeading (components/actions/FoldHeading) : toute la ligne cliquable, chevron, titre, compte (décision CH).',
+          message: 'Utiliser FoldHeading (components/actions/FoldHeading) : toute la ligne cliquable, chevron, titre, compte.',
         },
         {
           selector: "JSXAttribute[name.name='leftSection'] > JSXExpressionContainer > ConditionalExpression[test.name='current'] > JSXElement.consequent[openingElement.name.name='ItemAvatar']",
@@ -896,7 +893,7 @@ export default defineConfig([
         },
         {
           selector: "VariableDeclarator[id.elements.0.name=/^(title|label|name)Draft$/]",
-          message: 'Utiliser openLabelForm(titre, { … }) (components/dialogs/open-label-form) : renommer dans le panneau latéral (décision CK).',
+          message: 'Utiliser openLabelForm(titre, { … }) (components/dialogs/open-label-form) : renommer dans le panneau latéral.',
         },
         {
           selector: "TemplateLiteral[quasis.0.value.raw=/^(Redimensionner la colonne|Total de|Sélectionner|la répartition de) $/]",
@@ -908,17 +905,17 @@ export default defineConfig([
         },
         {
           selector: "JSXOpeningElement[name.name='Overlay'] > JSXAttribute[name.name=/^(color|backgroundOpacity)$/]",
-          message: 'Voile tiré des tokens : --onoko-overlay-color (styles/tokens.css), pas de couleur ni d’opacité en dur (décision CL).',
+          message: 'Voile tiré des tokens : --onoko-overlay-color (styles/tokens.css), pas de couleur ni d’opacité en dur.',
         },
         {
           selector: "JSXElement[openingElement.name.name='Text']:has(> JSXExpressionContainer CallExpression[callee.name='commentTotal']), ObjectExpression:has(> Property[key.name='label'][value.value='Commentaires']) > Property[key.name='id'] > Literal.value[value='comments']",
-          message: 'Utiliser commentColumn(counts, idOf, descriptionOf) et CommentCount (features/comments) : la colonne commentaires avec son icône (décision CJ).',
+          message: 'Utiliser commentColumn(counts, idOf, descriptionOf) et CommentCount (features/comments) : la colonne commentaires avec son icône.',
         },
         {
           selector: "CallExpression[callee.property.name='padStart'][arguments.0.value=2][arguments.1.value='0']",
           message: 'Utiliser twoDigits(value) (@ordo/shared).',
         },
-        // Round 8, lot 3: the holes of the rules above.
+        // The holes of the rules above.
         {
           // « 3 tâches » written by hand; a phrase of its own for one (« Tous les jours ») is left alone.
           selector: `:matches(${COUNT_THEN(PLURAL_NOUN)}):not(ConditionalExpression:matches([test.right.value=1], [test.right.value=2]) > TemplateLiteral), JSXExpressionContainer${COUNT_EXPRESSION('expression')} + JSXText[value=${PLURAL_NOUN.replace('/^ ', '/^\\s+')}]`,
@@ -930,28 +927,27 @@ export default defineConfig([
           message: 'Utiliser countOf(count, mot) (lib/text) au lieu de « ${count} ${plural(count, mot)} ».',
         },
         {
-          // Decisions AB, BE, CN: the look of a button comes from its priority, the target of a menu or a popover included (`after`); an icon and a label make an ActionButton.
+          // The look of a button comes from its priority, the target of a menu or a popover included (`after`); an icon and a label make an ActionButton.
           selector:
             "JSXOpeningElement[name.name='Button'] > JSXAttribute[name.name='variant'], JSXOpeningElement[name.name='Button']:not(:has(> JSXAttribute[name.name='variant'])) > JSXAttribute[name.name='leftSection']",
           message:
-            'Utiliser ActionButton (components/actions/ActionButton) : primary (plein) pour ajouter, valider ou envoyer, secondary (clair) pour le reste, tertiary (discret, xs, danger en rouge) ; after pour un compte ou un caret (décision CN) ; AddItemButton pour ajouter une ligne.',
+            'Utiliser ActionButton (components/actions/ActionButton) : primary (plein) pour ajouter, valider ou envoyer, secondary (clair) pour le reste, tertiary (discret, xs, danger en rouge) ; after pour un compte ou un caret ; AddItemButton pour ajouter une ligne.',
         },
         {
-          // Decision CN: a toggle is not a button.
+          // A toggle is not a button.
           selector: "JSXAttribute[name.name='aria-pressed'], JSXOpeningElement[name.name='Switch']:has(> JSXAttribute[name.name='aria-label']):not(:has(> JSXAttribute[name.name='label']))",
-          message: 'Utiliser StateSwitch (components/inputs/StateSwitch) : une bascule est un interrupteur (Switch), un choix de mode un SegmentedControl (décision CN).',
+          message: 'Utiliser StateSwitch (components/inputs/StateSwitch) : une bascule est un interrupteur (Switch), un choix de mode un SegmentedControl.',
         },
         {
-          // Decision AE.
           selector: 'Literal[value=/^(Réduire|Développer)\\b/], TemplateElement[value.raw=/^(Réduire|Développer)\\b/], JSXText[value=/^\\s*(Réduire|Développer)\\b/]',
-          message: 'Utiliser foldAction(expanded) / foldLabel(expanded, about) (components/actions/fold-label), ou about de FoldButton / FoldHeading : « Développer / Réduire » (décision AE).',
+          message: 'Utiliser foldAction(expanded) / foldLabel(expanded, about) (components/actions/fold-label), ou about de FoldButton / FoldHeading : « Développer / Réduire ».',
         },
         {
           selector: "JSXElement[openingElement.name.name=/^(Button|UnstyledButton|ActionButton|Anchor)$/] JSXOpeningElement[name.name='FoldChevron'], JSXOpeningElement[name.name=/^(Button|UnstyledButton|ActionButton|Anchor)$/] JSXOpeningElement[name.name='FoldChevron']",
-          message: 'Utiliser FoldHeading (une ligne qui plie) ou FoldButton (un bouton icône) (components/actions) : un seul bouton de pliage (décisions AE, CH).',
+          message: 'Utiliser FoldHeading (une ligne qui plie) ou FoldButton (un bouton icône) (components/actions) : un seul bouton de pliage.',
         },
         {
-          // Decision BF: the name of a menu given as an object, or quoted twice.
+          // The name of a menu given as an object, or quoted twice.
           selector:
             "JSXAttribute[name.name='menu'] > JSXExpressionContainer > ObjectExpression > Property[key.name='name'] :matches(Literal[value=/^(la|le|les|ce|ces|cet|cette|mon|du|des) /], Literal[value=/^l’/], TemplateElement[value.raw=/^(la|le|les|ce|ces|mon|du|des) /], TemplateElement[value.raw=/^l’/]), JSXOpeningElement[name.name=/^(ActionsMenu|RowActions|InlineActions|DetailHeader|SortableTabs)$/] > JSXAttribute[name.name='name'] :matches(Literal[value=/«/], TemplateElement[value.raw=/«/]), JSXAttribute[name.name='menu'] > JSXExpressionContainer > ObjectExpression > Property[key.name='name'] :matches(Literal[value=/«/], TemplateElement[value.raw=/«/])",
           message: 'Un nom sans guillemets dans name (ActionsMenu les ajoute : « Actions de « X » »), une description dans about : ActionsSubject (components/actions/actions-subject).',
@@ -965,17 +961,17 @@ export default defineConfig([
         {
           // A count alone, whatever the line breaks around it; a badge with an icon (alarms, reminders) apart.
           selector: `JSXElement[openingElement.name.name='Badge']:not(:has(> JSXText[value=/\\S/])):not(:has(JSXAttribute[name.name='leftSection'])) > JSXExpressionContainer${COUNT_EXPRESSION('expression')}`,
-          message: 'Utiliser CountBadge (components/feedback/CountBadge) : un compte seul, la même pastille partout (décision CI).',
+          message: 'Utiliser CountBadge (components/feedback/CountBadge) : un compte seul, la même pastille partout.',
         },
         {
-          // Decision W: an element named in a hidden label is quoted (IconAction quotes its `item` itself).
+          // An element named in a hidden label is quoted (IconAction quotes its `item` itself).
           selector: [0, 1, 2, 3]
             .map(
               (index) =>
                 `JSXOpeningElement:not([name.name='IconAction']) > JSXAttribute[name.name='aria-label'] > JSXExpressionContainer > TemplateLiteral[quasis.${index}.value.raw=/([^«]|^) $/][expressions.${index}.type='MemberExpression'][expressions.${index}.property.name=/^(label|name|title|subject|number)$/]`,
             )
             .join(', '),
-          message: 'Nommer l’élément entre guillemets dans un libellé caché : « Supprimer « X » » (décision W), ou item d’IconAction.',
+          message: 'Nommer l’élément entre guillemets dans un libellé caché : « Supprimer « X » », ou item d’IconAction.',
         },
         {
           selector: 'TemplateElement[value.raw=/\\/:id$/], TemplateElement[value.raw=/^\\/:id/]',
@@ -992,7 +988,7 @@ export default defineConfig([
         },
         {
           selector: "BinaryExpression[operator='<'][left.property.name=/^(deadline|effectiveDeadline)$/], BinaryExpression[operator='<'][left.name=/^(deadline|effectiveDeadline)$/]",
-          message: 'Utiliser isTaskOverdue(task, today) (features/tasks/lib/task-overdue) : une seule règle de retard (décision DD).',
+          message: 'Utiliser isTaskOverdue(task, today) (features/tasks/lib/task-overdue) : une seule règle de retard.',
         },
         {
           selector: "Literal[value=/^Réglée?$/]",
@@ -1010,7 +1006,7 @@ export default defineConfig([
           selector: "CallExpression[callee.property.name='setValues'] CallExpression[callee.name='rowPeopleOf']",
           message: 'Utiliser PeopleField (features/shopping/components) : les bénéficiaires d’un formulaire, leur erreur sous le champ.',
         },
-        // Round 9, lot 2 bricks.
+        // More bricks.
         {
           selector: "ConditionalExpression[test.type='BinaryExpression'][test.operator=/^[<>]=?$/][test.right.value=0]:matches([consequent.value='IN'][alternate.value='OUT'], [consequent.value='OUT'][alternate.value='IN'])",
           message: 'Utiliser directionOf(amount) (@ordo/shared) : entrée au-dessus de 0, sortie sinon (0 compris), comme l’API.',
@@ -1047,7 +1043,7 @@ export default defineConfig([
         },
         {
           selector: "Literal[value='Toute la journée'], TemplateElement[value.raw=/, (toute la journée|journée entière)$/]",
-          message: 'Utiliser eventMomentText(moment) (features/calendar/lib/event-moment) ; l’interrupteur dit « Journée entière » (décision DE).',
+          message: 'Utiliser eventMomentText(moment) (features/calendar/lib/event-moment) ; l’interrupteur dit « Journée entière ».',
         },
         {
           selector: "JSXOpeningElement[name.name='Indicator']:has(JSXAttribute[name.name='color'][value.value='orange'])",
@@ -1059,11 +1055,11 @@ export default defineConfig([
         },
         {
           selector: "JSXAttribute[name.name='after'] JSXElement[openingElement.name.name='MenuCaret']",
-          message: 'ActionButton met la flèche tout seul quand il ouvre un menu ou un panneau (décision DI).',
+          message: 'ActionButton met la flèche tout seul quand il ouvre un menu ou un panneau.',
         },
         {
           selector: "ConditionalExpression[test.type=/^(Identifier|MemberExpression)$/][consequent.callee.name='String'][alternate.value='']",
-          message: 'Utiliser fmt.count(value) (lib/format) : un compte, vide pour aucun (décision DH).',
+          message: 'Utiliser fmt.count(value) (lib/format) : un compte, vide pour aucun.',
         },
         {
           selector: "CallExpression[callee.name='plural'] > Literal[value='renumérotée']",
@@ -1083,7 +1079,7 @@ export default defineConfig([
         },
         {
           selector: "JSXOpeningElement[name.name=/^[a-z]/] > JSXAttribute[name.name='draggable'][value.type='JSXExpressionContainer']:not([value.expression.value=false])",
-          message: 'Utiliser components/dnd (useDraggable, useDroppable, SortableArea) : pas de glisser-déposer natif (décision DM).',
+          message: 'Utiliser components/dnd (useDraggable, useDroppable, SortableArea) : pas de glisser-déposer natif.',
         },
         {
           selector: "ArrowFunctionExpression > ObjectExpression:has(> Property[key.name='value'][value.property.name='id']):has(> Property[key.name='label'][value.property.name='label']):has(> Property[key.name='archived'])",
@@ -1101,14 +1097,14 @@ export default defineConfig([
           selector: "VariableDeclarator[id.name=/^ME(_KEY)?$/][init.type='Literal']",
           message: 'Utiliser ME_KEY (components/people/people-keys) : la valeur de « Moi ».',
         },
-        // Round 9, lot 3: holes of the rules.
+        // Holes of the rules.
         {
           selector: "JSXElement[openingElement.name.name=/^(Anchor|UnstyledButton|Button)$/] ~ JSXElement[openingElement.name.name='Collapse']",
-          message: 'Utiliser FoldHeading (components/actions/FoldHeading) au-dessus d’un Collapse : toute la ligne cliquable, chevron, aria-expanded (décision CH).',
+          message: 'Utiliser FoldHeading (components/actions/FoldHeading) au-dessus d’un Collapse : toute la ligne cliquable, chevron, aria-expanded.',
         },
         {
           selector: "JSXOpeningElement[name.name='Anchor'] > JSXAttribute[name.name='component'][value.value='button']",
-          message: 'Utiliser ActionButton priority="tertiary" (components/actions) : un bouton texte discret (décision BE).',
+          message: 'Utiliser ActionButton priority="tertiary" (components/actions) : un bouton texte discret.',
         },
         {
           // One word each way (« créée » / « créé »): two different words are not one agreed.
@@ -1132,14 +1128,14 @@ export default defineConfig([
           message: 'Utiliser run: () => mutation.mutateAsync(…) et done: « X supprimé. » de confirmDestructive (components/dialogs/confirm-destructive).',
         },
         {
-          // Decision W, a bare name: « Totaux de « X » ».
+          // A bare name: « Totaux de « X » ».
           selector: [0, 1, 2, 3]
             .map(
               (index) =>
                 `JSXOpeningElement:not([name.name='IconAction']) > JSXAttribute[name.name='aria-label'] > JSXExpressionContainer > TemplateLiteral[quasis.${index}.value.raw=/([^«,]|^) $/][expressions.${index}.type='Identifier'][expressions.${index}.name=/^(label|title|itemLabel)$/]`,
             )
             .join(', '),
-          message: 'Nommer l’élément entre guillemets dans un libellé caché : « Supprimer « X » » (décision W), ou item d’IconAction.',
+          message: 'Nommer l’élément entre guillemets dans un libellé caché : « Supprimer « X » », ou item d’IconAction.',
         },
         {
           selector:
@@ -1149,50 +1145,50 @@ export default defineConfig([
         {
           selector:
             "LogicalExpression:matches([left.name=/^(late|overdue|isLate|isOverdue)$/], [left.property.name=/^(late|overdue)$/], [left.callee.name=/^is\\w*(Overdue|Late)$/]) JSXAttribute[name.name=/^(color|c)$/][value.value='red'], ConditionalExpression[test.callee.name=/^is\\w*(Overdue|Late)$/] > Literal[value='red']",
-          message: 'Utiliser LATE_COLOR (components/feedback/feedback-colors) : un retard en orange (décisions AI, CF, DC).',
+          message: 'Utiliser LATE_COLOR (components/feedback/feedback-colors) : un retard en orange.',
         },
         {
-          // Lot 16: the créneaux of some schedules (the free time, the working hours).
+          // The créneaux of some schedules (the free time, the working hours).
           selector: "CallExpression[callee.property.name='filter'] > ArrowFunctionExpression > UnaryExpression[operator='!'] > MemberExpression[property.name='ephemeris']",
-          message: 'Utiliser slotSchedules (@ordo/shared) : les créneaux, sans les éphémérides (décision FM).',
+          message: 'Utiliser slotSchedules (@ordo/shared) : les créneaux, sans les éphémérides.',
         },
         {
-          // Decision FR: the working hours count neither the éphémérides nor the archived créneaux (as the conditions).
+          // The working hours count neither the éphémérides nor the archived créneaux (as the conditions).
           selector: "CallExpression[callee.name='scheduleRules'] > CallExpression.arguments[callee.name='slotSchedules']",
-          message: 'Utiliser useWorkingHours (features/calendar/api) : les heures de travail, sans éphémérides ni créneaux archivés (décision FR).',
+          message: 'Utiliser useWorkingHours (features/calendar/api) : les heures de travail, sans éphémérides ni créneaux archivés.',
         },
         {
-          // Lot 16: the input of a schedule from its rule keeps its kind and nature.
+          // The input of a schedule from its rule keeps its kind and nature.
           selector: "ObjectExpression:has(> Property[key.name='label']):has(> Property[key.name='startDate']):has(> Property[key.name='typeId']):has(> SpreadElement[argument.name='next'])",
-          message: 'Utiliser ruleScheduleInput (features/calendar/api) : l’entrée d’un créneau depuis sa règle garde son type et sa nature (décision FM).',
+          message: 'Utiliser ruleScheduleInput (features/calendar/api) : l’entrée d’un créneau depuis sa règle garde son type et sa nature.',
         },
         {
-          // Lot 16: every reminder of an occurrence (before its start, at a time of its day or of some days before).
+          // Every reminder of an occurrence (before its start, at a time of its day or of some days before).
           selector: "ArrayExpression:has(> SpreadElement > CallExpression[callee.name='remindersBefore']):has(> SpreadElement > CallExpression[callee.name='remindersAt'])",
-          message: 'Utiliser occurrenceReminders (@ordo/shared) : tous les rappels d’une occurrence, « N jours avant » compris (décision FO).',
+          message: 'Utiliser occurrenceReminders (@ordo/shared) : tous les rappels d’une occurrence, « N jours avant » compris.',
         },
         {
-          // Lot 16: the details of a person (birth date, birthday reminders, email, phones) are one block.
+          // The details of a person (birth date, birthday reminders, email, phones) are one block.
           selector: "JSXOpeningElement[name.name='BirthDateField']",
-          message: 'Utiliser PersonDetailsFields (components/people) : les détails d’une personne, les mêmes partout (décision FO).',
+          message: 'Utiliser PersonDetailsFields (components/people) : les détails d’une personne, les mêmes partout.',
         },
         {
-          // Decision FQ: archiving a schedule, a kind or a person may make occurrences of routines disappear.
+          // Archiving a schedule, a kind or a person may make occurrences of routines disappear.
           selector: "CallExpression[callee.name='useSetArchived'][arguments.0.value=/^(WORK_SCHEDULE|SCHEDULE_TYPE|CONTRIBUTOR|TREASURY_RELATION)$/]",
           message:
-            'Utiliser useSlotSourceArchiving(kind) (features/calendar/api) : archiver un créneau, un type ou une personne confirme les occurrences de routines perdues et recharge ce qui en dépend (décision FQ ; un type : confirmLoss de useScheduleTypeItems).',
+            'Utiliser useSlotSourceArchiving(kind) (features/calendar/api) : archiver un créneau, un type ou une personne confirme les occurrences de routines perdues et recharge ce qui en dépend (un type : confirmLoss de useScheduleTypeItems).',
         },
         {
-          // Decision FY: a panel is resized one way, its width kept by useResizablePanel (limits in panel-widths).
+          // A panel is resized one way, its width kept by useResizablePanel (limits in panel-widths).
           selector: "CallExpression[callee.name='useLocalStorage'] Property[key.name='key'][value.value=/width$/i]",
-          message: 'Utiliser useResizablePanel + ResizeHandle (components/panels), ses limites dans panel-widths : un panneau se redimensionne d’une seule façon (décision FY).',
+          message: 'Utiliser useResizablePanel + ResizeHandle (components/panels), ses limites dans panel-widths : un panneau se redimensionne d’une seule façon.',
         },
       ],
     },
   },
   {
     // The split of an entry is a DataTable (EntryLinesTable), like its other tables: no table of lines made by hand in a
-    // form. TeamPanel is out of the single table (decision of 2026-11-17).
+    // form. TeamPanel is out of the single table.
     files: ['src/features/treasury/**/*.{ts,tsx}'],
     ignores: ['src/features/treasury/components/TeamPanel.tsx'],
     rules: {
@@ -1232,7 +1228,7 @@ export default defineConfig([
     rules: { 'no-restricted-imports': ['error', { paths: RESTRICTED_PATHS_ACTIONS_MENU, patterns: [NO_FEATURES] }] },
   },
   {
-    // The one select of a ringtone (decision FT); the settings choose the ringtone of everything (no « Celle des réglages »).
+    // The one select of a ringtone; the settings choose the ringtone of everything (no « Celle des réglages »).
     files: ['src/components/inputs/RingtoneSelect.tsx'],
     rules: { 'no-restricted-imports': ['error', { paths: RESTRICTED_PATHS.filter((path) => !path.importNames.includes('RINGTONES')), patterns: [NO_FEATURES] }] },
   },
@@ -1255,4 +1251,5 @@ export default defineConfig([
     files: ['src/features/library/**'],
     rules: { 'no-restricted-syntax': 'off' },
   },
+  planReferencesConfig(['**/*.{ts,tsx,js}']),
 ]);

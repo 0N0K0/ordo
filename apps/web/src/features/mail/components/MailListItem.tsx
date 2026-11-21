@@ -53,7 +53,7 @@ export function MailListItem({ message, labels, ownAddresses, active, ticked, on
       data-unread={!message.seen || undefined}
       data-done={message.done || undefined}
       data-selected={ticked || undefined}
-      // Decision K: what is dragged is shown at half opacity.
+      // What is dragged is shown at half opacity.
       style={isDragging ? { opacity: 'var(--onoko-dragging-opacity)' } : undefined}
       onClick={onOpen}
       onKeyDown={(event) => {

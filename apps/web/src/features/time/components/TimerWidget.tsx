@@ -58,7 +58,7 @@ function RunningRow({ entry }: { entry: TimeEntry }) {
 }
 
 /**
- * Header pill of several running timers (decision FT): their number and the time of the last one started (opening the
+ * Header pill of several running timers: their number and the time of the last one started (opening the
  * list of them, each stoppable on its own, and « Arrêter tout »).
  * @param {{ entries: TimeEntry[] }} props Running timers.
  * @returns {JSX.Element} Pill.
@@ -91,7 +91,7 @@ function SeveralRunning({ entries }: { entries: TimeEntry[] }) {
 
 /**
  * Running timers in the app header, on every page (a timer is started from the « Ajouter » menu): the one running, or
- * the number of those running (several at once, decision FT).
+ * the number of those running (several at once).
  * @returns {JSX.Element | null} Pill, while a timer runs.
  */
 export function TimerWidget() {

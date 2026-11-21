@@ -85,7 +85,7 @@ export async function updateCalendar(id: string, input: CalendarFormValues): Pro
 export async function deleteCalendar(id: string): Promise<void> {
   await findCalendar(id);
   if ((await prisma.calendar.count()) <= 1) throw clientError('BAD_USER_INPUT', 'Le dernier calendrier ne peut pas être supprimé.');
-  // The times its events leave with nothing attached go with them (extra A of decision D17, billed ones kept).
+  // The times its events leave with nothing attached go with them (billed ones kept).
   await releaseSubjectTime({ events: await calendarEventsGone(id) });
   await prisma.calendar.delete({ where: { id } });
 }

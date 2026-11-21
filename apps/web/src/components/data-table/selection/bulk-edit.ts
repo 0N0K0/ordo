@@ -53,7 +53,7 @@ export function bulkTargets<R>(view: BulkTable<R>, column: Columns, row: R): R[]
 
 /**
  * Accessible labels of the cells of a table, the same in every table (itemCellLabel): « Unité de « Farine » », or, on a
- * selection, « Unité (appliqué aux 3 cellules sélectionnées) » (decision BD).
+ * selection, « Unité (appliqué aux 3 cellules sélectionnées) ».
  * @param {BulkTable<R>} view Table (its selection).
  * @param {(row: R) => string} nameOf Name of a row (its label).
  * @returns {(column: Columns, row: R, field: string) => string} Label of the cell of a column, for a field name.

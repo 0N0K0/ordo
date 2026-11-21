@@ -14,7 +14,7 @@ export interface TimeEventLink {
   occurrenceDate: string | null;
 }
 
-/** What a time is spent on besides its project: tasks, routines, events (several of each, decision D18). */
+/** What a time is spent on besides its project: tasks, routines, events (several of each). */
 export interface TimeSubjects {
   taskIds: readonly string[];
   routineIds: readonly string[];
@@ -47,7 +47,7 @@ async function eventLinksData(links: readonly TimeEventLink[]): Promise<StoredEv
 
 /**
  * Project of a time entry: the one given, else that of its first routine with a project. A time has at least a
- * project, a task, a routine or an event (decision D17).
+ * project, a task, a routine or an event.
  * @param {string | null | undefined} projectId Project given.
  * @param {TimeSubjects} subjects Tasks, routines and events of the time (after the change).
  * @returns {Promise<string | null>} Project.
@@ -109,7 +109,7 @@ async function assertProjectTree(projectId: string | null, subjects: TimeSubject
 
 /**
  * Checks that the routines, the tasks and the events chosen for a time are not archived; the ones it already had stay
- * valid (decision AA: the error shows under the field).
+ * valid (the error shows under the field).
  * @param {TimeSubjects} chosen Values chosen.
  * @param {TimeSubjects} [kept] Values the time already had. Optional.
  * @returns {Promise<void>}
@@ -174,7 +174,7 @@ function assertNotInvoiced(entry: { document: { number: string | null; status: s
 }
 
 /**
- * A running timer (several may run at once, decision FT), or null when it is not running (stopped, or unknown).
+ * A running timer (several may run at once), or null when it is not running (stopped, or unknown).
  * @param {string} id Time entry id.
  * @returns {Promise<TimeEntry | null>} Running entry.
  */
@@ -232,7 +232,7 @@ const createLinks = (subjects: TimeSubjects, events: StoredEventLink[]) => ({
 });
 
 /**
- * Starts a timer; the ones running keep running (several at once, each counted in full, decision FT).
+ * Starts a timer; the ones running keep running (several at once, each counted in full).
  * @param {TimeEntryInput} input What the time is spent on (at least a project, a task, a routine or an event) and description.
  * @returns {Promise<TimeEntry>} Running entry.
  */
@@ -351,7 +351,7 @@ export async function deleteTimeEntry(id: string): Promise<void> {
 }
 
 /**
- * Keeps the time spent in projects about to be deleted (decision D17): it leaves them, without project, with its
+ * Keeps the time spent in projects about to be deleted: it leaves them, without project, with its
  * routines, tasks and events. Only the time left with nothing at all (no routine, no task, no event) is deleted: a
  * time has at least a project, a task, a routine or an event. A billed time is never deleted (it is part of its
  * invoice): it stays, with nothing attached.
@@ -391,7 +391,7 @@ const goneLinkWhere = (gone: GoneOccurrences): Prisma.TimeEntryEventWhereInput =
 });
 
 /**
- * Times left with nothing attached once items go (extra A of decision D17): without project, not billed (a billed
+ * Times left with nothing attached once items go: without project, not billed (a billed
  * time is never deleted), whose every task, routine and event is among those deleted.
  * @param {GoneSubjects} gone Items about to be deleted.
  * @returns {Promise<string[]>} Ids of these times.
