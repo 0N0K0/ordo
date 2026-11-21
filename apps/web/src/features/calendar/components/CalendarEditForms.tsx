@@ -15,10 +15,11 @@ import { ruleScheduleInput, useScheduleTypes, useWorkScheduleMutations, useWorkS
 import { useScheduleConversion } from '../hooks/use-schedule-conversion';
 import { ActionsMenu } from '../../../components/actions/ActionsMenu';
 import { rangeProps } from '../../../components/inputs/date-range';
+import { slotWords } from '../lib/schedule-text';
 import { ActionButton } from '../../../components/actions/ActionButton';
 
 /**
- * Panel of a slot of a schedule from the calendar: its day and hours (or the whole day), each saved as soon as it
+ * Panel of a slot of a schedule (a créneau or an éphéméride, in its own words) from the calendar: its day and hours (or the whole day), each saved as soon as it
  * changes for the days chosen when the panel opened (`scope`: this day, an exception; it and the
  * following ones; all; null: none chosen, read only); occurrences of routines a change makes disappear confirmed first
  * (declined: put back); or deleting it (its own question). Its « … » menu converts the schedule into an éphéméride or
@@ -77,7 +78,7 @@ export function SlotEditForm({
         {label}
       </Text>
       <Text size="sm" c="dimmed">
-        {scope === null ? SLOT_READING_NOTE : SLOT_SCOPE_NOTES[scope]}
+        {scope === null ? slotReadingNote(schedule.ephemeris) : slotScopeNote(scope, schedule.ephemeris)}
       </Text>
       <Fieldset variant="unstyled" disabled={reading} p={0} m={0}>
         <Stack gap="md">
@@ -112,15 +113,21 @@ export function SlotEditForm({
   );
 }
 
-/** Panel of a slot opened without choosing which days its changes apply to: read only. */
-const SLOT_READING_NOTE = 'Lecture seule : aucune portée n’a été choisie à l’ouverture. Fermez le panneau et rouvrez-le pour modifier le créneau.';
+/**
+ * Note of the panel of a slot opened without choosing which days its changes apply to: read only.
+ * @param {boolean | undefined} ephemeris An éphéméride. Optional.
+ * @returns {string} Note.
+ */
+const slotReadingNote = (ephemeris?: boolean): string => `Lecture seule : aucune portée n’a été choisie à l’ouverture. Fermez le panneau et rouvrez-le pour modifier ${slotWords(ephemeris).the}.`;
 
-/** What the changes of the panel of a slot apply to, by the scope chosen when it opened. */
-const SLOT_SCOPE_NOTES: Record<CalendarEventScope, string> = {
-  THIS: 'Ce jour seulement : c’est une exception, les autres jours du créneau ne changent pas.',
-  FOLLOWING: 'Ce jour et les suivants.',
-  ALL: 'Tous les jours de ces horaires.',
-};
+/**
+ * What the changes of the panel of a slot apply to, by the scope chosen when it opened.
+ * @param {CalendarEventScope} scope Scope.
+ * @param {boolean | undefined} ephemeris An éphéméride. Optional.
+ * @returns {string} Note.
+ */
+const slotScopeNote = (scope: CalendarEventScope, ephemeris?: boolean): string =>
+  scope === 'THIS' ? `Ce jour seulement : c’est une exception, les autres jours ${slotWords(ephemeris).of} ne changent pas.` : scope === 'FOLLOWING' ? 'Ce jour et les suivants.' : 'Tous les jours de ces horaires.';
 
 /** Day and times of one time of the day of a routine occurrence, as its panel edits them. */
 interface OccurrenceValues extends Record<string, unknown> {

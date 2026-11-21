@@ -400,17 +400,10 @@ type Birthday {
 }
 
 """
-Birthdays of the people of this workspace in its calendar: shown or not, color (none: the gray of the éphémérides) and display.
+Birthdays of the people of this workspace in its calendar, shown as all-day events: shown or not, and color (none: the gray of the éphémérides).
 """
 type BirthdayLook {
   color: String
-  dayBar: Boolean!
-  dayDisplay: String!
-
-  """
-  Its days in the month: BACKGROUND or BORDER with their bar, NONE: nothing.
-  """
-  monthDisplay: String!
 
   """Shown in the calendar; hidden, their reminders still ring."""
   shown: Boolean!
@@ -418,9 +411,6 @@ type BirthdayLook {
 
 input BirthdayLookInput {
   color: String
-  dayBar: Boolean!
-  dayDisplay: String!
-  monthDisplay: String!
   shown: Boolean!
 }
 

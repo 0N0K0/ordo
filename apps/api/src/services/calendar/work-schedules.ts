@@ -435,29 +435,21 @@ export async function saveDefaultScheduleKind(input: DefaultScheduleKindInput): 
 const birthdayLookSelect = {
   birthdayShown: true,
   birthdayColor: true,
-  birthdayDayDisplay: true,
-  birthdayDayBar: true,
-  birthdayMonthDisplay: true,
 } as const;
 
-/** Birthdays of the people of a workspace in its calendar: shown or not, color and display. */
+/** Birthdays of the people of a workspace in its calendar (all-day events): shown or not, and color. */
 export interface BirthdayLook {
   shown: boolean;
   color: string | null;
-  display: ScheduleDisplay;
 }
 
 /**
  * Birthdays display of a workspace read from its columns.
- * @param {{ birthdayShown: boolean, birthdayColor: string | null, birthdayDayDisplay: string, birthdayDayBar: boolean, birthdayMonthDisplay: string }} workspace Workspace.
+ * @param {{ birthdayShown: boolean, birthdayColor: string | null }} workspace Workspace.
  * @returns {BirthdayLook} Display.
  */
-function birthdayLookOf(workspace: { birthdayShown: boolean; birthdayColor: string | null; birthdayDayDisplay: string; birthdayDayBar: boolean; birthdayMonthDisplay: string }): BirthdayLook {
-  return {
-    shown: workspace.birthdayShown,
-    color: workspace.birthdayColor,
-    display: readScheduleDisplay({ dayDisplay: workspace.birthdayDayDisplay, dayBar: workspace.birthdayDayBar, monthDisplay: workspace.birthdayMonthDisplay }),
-  };
+function birthdayLookOf(workspace: { birthdayShown: boolean; birthdayColor: string | null }): BirthdayLook {
+  return { shown: workspace.birthdayShown, color: workspace.birthdayColor };
 }
 
 /**
@@ -470,8 +462,8 @@ export async function birthdayLook(): Promise<BirthdayLook> {
 
 /**
  * Saves the birthdays display of this workspace: shown or not in its calendar (hidden, their reminders
- * still ring), color (none: the gray of the éphémérides) and display.
- * @param {BirthdayLookInput} input Shown, color and display.
+ * still ring) and color (none: the gray of the éphémérides).
+ * @param {BirthdayLookInput} input Shown and color.
  * @returns {Promise<BirthdayLook>} Display.
  */
 export async function saveBirthdayLook(input: BirthdayLookInput): Promise<BirthdayLook> {
@@ -481,9 +473,6 @@ export async function saveBirthdayLook(input: BirthdayLookInput): Promise<Birthd
     data: {
       birthdayShown: data.shown,
       birthdayColor: data.color,
-      birthdayDayDisplay: data.dayDisplay,
-      birthdayDayBar: data.dayBar,
-      birthdayMonthDisplay: data.monthDisplay,
     },
     select: birthdayLookSelect,
   });

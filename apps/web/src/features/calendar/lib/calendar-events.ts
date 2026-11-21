@@ -147,40 +147,34 @@ export interface ShownSlots {
   foreign: boolean;
   display: ScheduleDisplay;
   slots: readonly PlannedSlot[];
-  /** Its bar on a day (none: its label, a slot). */
-  bar?: (slot: PlannedSlot) => Pick<EventInput, 'title' | 'extendedProps'>;
-  /** Its bar in the month too, unless its month display is « Rien » (the birthdays). */
-  monthBar?: boolean;
 }
 
 /**
- * Birthdays of a period as the calendar shows them: whole-day éphémérides in the color and the
- * display chosen for the birthdays (`birthdayLook`; none: gray, the default display), dotted, each one's bar
- * « Anniversaire de Paul — 40 ans » opening the person, in the month too while its month display is not « Rien »
- * (unlike the other éphémérides, whose month shows no bar). Hidden birthdays: none.
+ * Birthdays of a period as the calendar shows them: read-only all-day events « Anniversaire de Paul — 40 ans » (the
+ * age when the year is known), in the color chosen for the birthdays (`birthdayLook`; none: the gray of the
+ * éphémérides), each opening its person (`kind: 'birthday'`). Hidden birthdays, or while loading: none.
  * @param {readonly PersonBirthday[]} birthdays Birthdays of the workspace.
  * @param {BirthdayLook} look Display of the birthdays of the workspace (undefined while loading: none).
  * @param {string} from First day shown.
  * @param {string} to Last day shown.
- * @returns {ShownSlots[]} One source per person.
+ * @returns {EventInput[]} One event per birthday of the period.
  */
-export function birthdaySlots(birthdays: readonly PersonBirthday[], look: BirthdayLook, from: string, to: string): ShownSlots[] {
+export function birthdayEvents(birthdays: readonly PersonBirthday[], look: BirthdayLook, from: string, to: string): EventInput[] {
   if (!look?.shown) return [];
+  const color = look.color ?? EPHEMERIS_COLOR;
   return birthdays.flatMap((birthday) => {
     const birth = readBirthDate(birthday.birthDate);
     if (!birth) return [];
-    const ages = new Map(birthdaysBetween(birth, from, to).map(({ date, age }) => [date, age]));
-    return [
-      {
-        ephemeris: true,
-        color: look.color ?? EPHEMERIS_COLOR,
-        label: birthdayLabel(birthday.name, null),
-        foreign: false,
-        display: readScheduleDisplay(look),
-        slots: [...ages.keys()].map((date) => ({ date, start: '00:00', end: '24:00', allDay: true, scheduleId: birthdaySlotId(birthday.id) })),
-        bar: (slot) => ({ title: birthdayLabel(birthday.name, ages.get(slot.date) ?? null), extendedProps: { kind: 'birthday', birthday } }),
-        monthBar: true,
-      },
-    ];
+    return birthdaysBetween(birth, from, to).map(({ date, age }) => ({
+      id: `${birthdaySlotId(birthday.id)}:${date}`,
+      title: birthdayLabel(birthday.name, age),
+      allDay: true,
+      start: date,
+      end: addDays(date, 1),
+      editable: false,
+      backgroundColor: color,
+      borderColor: color,
+      extendedProps: { kind: 'birthday', birthday },
+    }));
   });
 }

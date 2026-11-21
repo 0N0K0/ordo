@@ -20,7 +20,7 @@ import timeGridPlugin from '@fullcalendar/timegrid';
 import { Group, Paper, SegmentedControl, Stack, Switch, Text } from '@mantine/core';
 import { useLocalStorage } from '@mantine/hooks';
 import { addDays, entrySeconds, formatDuration, mapById, occurrenceKey, plannedSlots, routineMinutes, type ScheduleSlotTime, shiftTime, timeToMinutes, weekLength } from '@ordo/shared';
-import { CalendarStarIcon, ClockIcon, FilePdfIcon, PlusIcon } from '@phosphor-icons/react';
+import { CalendarPlusIcon, CalendarStarIcon, ClockIcon, FilePdfIcon, PlusIcon } from '@phosphor-icons/react';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router';
 
@@ -50,11 +50,11 @@ import {
 import { askScope } from '../lib/ask-scope';
 import { useCalendarEdits, type RoutineOccurrenceRef } from '../hooks/calendar-edits';
 import { slotColumns } from '../lib/slot-columns';
-import { EPHEMERIDES_TITLE, schedulesTitle } from '../lib/schedule-text';
+import { EPHEMERIDES_TITLE, schedulesTitle, slotWords } from '../lib/schedule-text';
 import classes from './CalendarPage.module.css';
 import { downloadCalendarPdf, pdfItems } from '../lib/calendar-pdf';
 import { occurrenceInput } from '../lib/event-input';
-import { birthdaySlots, isArchivedOccurrence, occurrenceSpan, scheduleSources, type ShownSlots, slotBarLook, slotLookClasses } from '../lib/calendar-events';
+import { birthdayEvents, isArchivedOccurrence, occurrenceSpan, scheduleSources, type ShownSlots, slotBarLook, slotLookClasses } from '../lib/calendar-events';
 import { usePersonOpener } from '../hooks/use-person-opener';
 import { ShowArchivedSwitch } from '../../../components/filters/ShowArchivedSwitch';
 import { placeRoutineBlocks, type RoutineBlock } from '../lib/routine-layout';
@@ -178,7 +178,7 @@ export function CalendarPage() {
   const routineOccurrences = useRoutineOccurrences(range, showRoutines);
   // Slots of the schedules and routines changed in the calendar (an exception, the following ones, or all).
   const edits = useCalendarEdits();
-  // Slots of the schedules of the workspace shown as events, to move, stretch, change or delete.
+  // Slots of the schedules (créneaux and éphémérides) of the workspace shown as events, to move, stretch, change or delete.
   const [editingSlots, setEditingSlots] = useState(false);
   // A date to show (link to a postponed event…).
   const [params] = useSearchParams();
@@ -345,7 +345,7 @@ export function CalendarPage() {
        * @param {ShownSlots} source Look of its kind and its slots.
        * @returns {void}
        */
-      const showSlots = ({ color, label, foreign, display, ephemeris, slots, bar, monthBar = false }: ShownSlots) => {
+      const showSlots = ({ color, label, foreign, display, ephemeris, slots }: ShownSlots) => {
         // Hatched from another workspace, dotted an éphéméride.
         const hatched = slotLookClasses({ foreign, ephemeris });
         const background = {
@@ -383,10 +383,7 @@ export function CalendarPage() {
               end: addDays(slot.date, 1),
               allDay: true,
             };
-            // Its bar on the day (the birthdays: their own title and person); in the month, only theirs.
-            const dayBar = { ...day, title: label, editable: false, extendedProps: { kind: 'slot' }, ...bar?.(slot), ...slotBarLook({ color, foreign, ephemeris }) };
             if (month) {
-              if (monthBar && display.monthDisplay !== 'NONE') result.push({ ...dayBar, id: `${day.id}:bar` });
               if (display.monthDisplay === 'BACKGROUND') result.push({ ...day, ...background });
               else if (display.monthDisplay === 'BORDER')
                 result.push({
@@ -395,7 +392,8 @@ export function CalendarPage() {
                   ...line(classes.slotBorderBottom, lane),
                 });
             } else {
-              if (display.dayBar) result.push(dayBar);
+              // Its bar on the day, in the all-day row.
+              if (display.dayBar) result.push({ ...day, title: label, editable: false, extendedProps: { kind: 'slot' }, ...slotBarLook({ color, foreign, ephemeris }) });
               if (display.dayDisplay === 'DAY_BACKGROUND')
                 result.push({
                   id: `work-whole:${slot.scheduleId}:${slot.date}`,
@@ -428,7 +426,7 @@ export function CalendarPage() {
       for (const { schedule, rule, color, label, foreign, display, ephemeris } of schedules ? scheduleSources(schedules, foreignSchedules ?? [], scheduleTypes ?? [], defaultKind) : []) {
         // An archived schedule (read only) stays in the background.
         if (!foreign && editingSlots && !('archived' in schedule && schedule.archived)) {
-          // Being changed: each slot an event, moved to another day or hour, stretched, or opened.
+          // Being changed: each slot an event (an éphéméride dotted), moved to another day or hour, stretched, or opened.
           for (const slot of plannedSlots([rule], range.from, range.to)) {
             const time: ScheduleSlotTime = { date: slot.date, start: slot.start, end: slot.end, allDay: slot.allDay };
             result.push({
@@ -440,7 +438,7 @@ export function CalendarPage() {
               backgroundColor: color ?? 'var(--mantine-color-green-light)',
               borderColor: color ?? 'var(--mantine-color-green-6)',
               textColor: 'var(--mantine-color-text)',
-              classNames: [classes.editSlot],
+              classNames: [classes.editSlot, ...slotLookClasses({ foreign: false, ephemeris })],
               durationEditable: !slot.allDay,
               extendedProps: { kind: 'editSlot', schedule: rule, label, slot: time },
             });
@@ -450,8 +448,6 @@ export function CalendarPage() {
         if (filters.workHours === false || filters.hiddenScheduleIds?.includes(rule.id)) continue;
         showSlots({ color, label, foreign, display, ephemeris, slots: plannedSlots([rule], range.from, range.to) });
       }
-      // Birthdays: whole-day éphémérides of the people, shown as chosen for them.
-      if (filters.workHours !== false && birthdays) for (const source of birthdaySlots(birthdays, birthdayLook, range.from, range.to)) showSlots(source);
       // Slots in the background at the same time stand side by side, each part of a slot as wide as the slots there
       // are then (alone, the whole day).
       for (const [date, slots] of columns) {
@@ -468,6 +464,8 @@ export function CalendarPage() {
         }
       }
     }
+    // Birthdays of the people: read-only all-day events opening the person, hidden with the créneaux and éphémérides.
+    if (range && birthdays && filters.workHours !== false) result.push(...birthdayEvents(birthdays, birthdayLook, range.from, range.to));
     if (filters.tasks) {
       const today = localToday();
       for (const task of context.tasks) {
@@ -673,7 +671,7 @@ export function CalendarPage() {
       const end = endParts.date === addDays(startParts.date, 1) && endParts.time === '00:00' ? '23:59' : endParts.time;
       if (!allDay && endParts.date !== startParts.date && end !== '23:59') {
         revert();
-        notifyError('Un créneau s’arrête le jour où il commence.');
+        notifyError(slotWords(event.extendedProps.schedule.ephemeris).sameDay);
         return;
       }
       const change: ScheduleSlotTime = allDay ? { date: startParts.date, start: '00:00', end: '24:00', allDay: true } : { date: startParts.date, start: startParts.time, end, allDay: false };
@@ -792,7 +790,7 @@ export function CalendarPage() {
   return (
     <Stack gap="md" className={fill ? classes.fill : undefined}>
       <PageHeader title={PAGES.calendar.label} />
-      {/* The view and the period on the left, the slots and a new event on the right. */}
+      {/* The view and the period on the left, the edition of the slots and « Ajouter » on the right. */}
       <Group justify="space-between" wrap="wrap" gap="sm">
         <Group gap="xs" wrap="wrap">
           <SegmentedControl data={VIEWS} value={view} onChange={(value) => setView(value as View)} aria-label="Vue" />
@@ -803,22 +801,24 @@ export function CalendarPage() {
           </PeriodNav>
         </Group>
         <Group gap="xs" wrap="wrap">
-          <ActionButton priority="secondary" icon={<ClockIcon aria-hidden />} onClick={() => openSchedulesManager(false, perso)}>
-            {schedulesTitle(perso)}
-          </ActionButton>
-          <ActionButton priority="secondary" icon={<CalendarStarIcon aria-hidden />} onClick={() => openSchedulesManager(true, perso)}>
-            {EPHEMERIDES_TITLE}
-          </ActionButton>
           {/* A mode, not a button. */}
           <StateSwitch
-            label="Modifier les créneaux"
+            label="Modifier les créneaux et éphémérides"
             showLabel
-            hint={editingSlots ? 'Revenir à l’affichage des créneaux' : 'Déplacer, étirer, changer ou supprimer les créneaux dans l’agenda'}
+            hint={editingSlots ? 'Revenir à l’affichage des créneaux et éphémérides' : 'Déplacer, étirer, changer ou supprimer les créneaux et éphémérides dans l’agenda'}
             checked={editingSlots}
             onChange={setEditingSlots}
           />
-          <ActionButton icon={<PlusIcon aria-hidden />} onClick={() => openEvent()} disabled={!context}>
-            Nouvel évènement
+          {/* A new event, or the managers of the créneaux and the éphémérides. */}
+          <ActionButton
+            icon={<PlusIcon aria-hidden />}
+            menu={[
+              { label: 'Évènement', icon: <CalendarPlusIcon aria-hidden />, onClick: () => openEvent(), disabled: !context },
+              { label: schedulesTitle(perso), icon: <ClockIcon aria-hidden />, onClick: () => openSchedulesManager(false, perso) },
+              { label: EPHEMERIDES_TITLE, icon: <CalendarStarIcon aria-hidden />, onClick: () => openSchedulesManager(true, perso) },
+            ]}
+          >
+            Ajouter
           </ActionButton>
         </Group>
       </Group>

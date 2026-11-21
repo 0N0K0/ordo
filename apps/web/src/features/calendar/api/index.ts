@@ -121,9 +121,6 @@ const WorkSchedulesDocument = graphql(`
     birthdayLook {
       shown
       color
-      dayDisplay
-      dayBar
-      monthDisplay
     }
   }
 `);
@@ -674,8 +671,8 @@ export function useDefaultScheduleKind() {
 }
 
 /**
- * Birthdays of the people of this workspace in its calendar: shown or not, color (none: the gray of the
- * éphémérides) and display.
+ * Birthdays of the people of this workspace in its calendar, all-day events: shown or not, and color (none: the gray
+ * of the éphémérides).
  * @returns {UseQueryResult} Query state.
  */
 export function useBirthdayLook() {
@@ -759,7 +756,7 @@ export function useWorkScheduleMutations() {
     saveDefaultKind: useCalendarMutation(
       async (input: { label: string; color: string | null } & ScheduleDisplay) => (await execute(SaveDefaultScheduleKindDocument, { input })).saveDefaultScheduleKind,
     ),
-    saveBirthdayLook: useCalendarMutation(async (input: { shown: boolean; color: string | null } & ScheduleDisplay) => (await execute(SaveBirthdayLookDocument, { input })).saveBirthdayLook),
+    saveBirthdayLook: useCalendarMutation(async (input: { shown: boolean; color: string | null }) => (await execute(SaveBirthdayLookDocument, { input })).saveBirthdayLook),
     setLook: useCalendarMutation(
       async (variables: { workspaceId: string; typeId: string | null; input: ScheduleSubscriptionLook }) => (await execute(SetScheduleSubscriptionLookDocument, variables)).setScheduleSubscriptionLook,
     ),

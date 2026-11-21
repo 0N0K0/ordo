@@ -163,9 +163,6 @@ export type ArchivableKind =
 
 export type BirthdayLookInput = {
   color?: string | null | undefined;
-  dayBar: boolean;
-  dayDisplay: string;
-  monthDisplay: string;
   shown: boolean;
 };
 
@@ -2212,7 +2209,7 @@ export type CalendarEventOccurrenceFieldsFragment = { key: string, eventId: stri
 export type WorkSchedulesQueryVariables = Exact<{ [key: string]: never; }>;
 
 
-export type WorkSchedulesQuery = { workSchedules: Array<{ id: string, archived: boolean, label: string, startDate: string, endDate: string | null, typeId: string | null, ephemeris: boolean, cases: unknown, exceptions: unknown, reminders: Array<{ before: number | null, at: string | null, days: number | null, anchor: string, ringtone: string | null }> }>, scheduleTypes: Array<{ id: string, archived: boolean, label: string, color: string, iconUrl: string | null, dayDisplay: string, dayBar: boolean, monthDisplay: string, ephemeris: boolean, budgetContext: boolean, sharedContext: boolean, position: number }>, defaultScheduleKind: { label: string, color: string | null, dayDisplay: string, dayBar: boolean, monthDisplay: string }, birthdayLook: { shown: boolean, color: string | null, dayDisplay: string, dayBar: boolean, monthDisplay: string } };
+export type WorkSchedulesQuery = { workSchedules: Array<{ id: string, archived: boolean, label: string, startDate: string, endDate: string | null, typeId: string | null, ephemeris: boolean, cases: unknown, exceptions: unknown, reminders: Array<{ before: number | null, at: string | null, days: number | null, anchor: string, ringtone: string | null }> }>, scheduleTypes: Array<{ id: string, archived: boolean, label: string, color: string, iconUrl: string | null, dayDisplay: string, dayBar: boolean, monthDisplay: string, ephemeris: boolean, budgetContext: boolean, sharedContext: boolean, position: number }>, defaultScheduleKind: { label: string, color: string | null, dayDisplay: string, dayBar: boolean, monthDisplay: string }, birthdayLook: { shown: boolean, color: string | null } };
 
 export type ForeignScheduleKindsQueryVariables = Exact<{ [key: string]: never; }>;
 
@@ -6968,9 +6965,6 @@ export const WorkSchedulesDocument = new TypedDocumentString(`
   birthdayLook {
     shown
     color
-    dayDisplay
-    dayBar
-    monthDisplay
   }
 }
     fragment ReminderFields on Reminder {

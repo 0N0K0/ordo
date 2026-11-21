@@ -5,6 +5,7 @@ import { useRoutineMutations, type Routine } from '../../routines/api';
 import * as fmt from '../../../lib/format';
 import { ruleScheduleInput, useWorkScheduleMutations, type CalendarEventScope } from '../api';
 import { askScope } from '../lib/ask-scope';
+import { slotWords } from '../lib/schedule-text';
 import { fetchLostOnDelete } from '../../time/api';
 import { scopeLostNote } from '../../time/lib/lost-on-delete';
 import { RoutineOccurrenceForm, SlotEditForm } from '../components/CalendarEditForms';
@@ -38,7 +39,7 @@ export function useCalendarEdits() {
   const { changeOccurrence, deleteOccurrence, removeMove } = useRoutineMutations();
 
   /**
-   * Moves, stretches or deletes (no change) a slot of a schedule.
+   * Moves, stretches or deletes (no change) a slot of a schedule (a créneau or an éphéméride: its own words).
    * @param {WorkScheduleRule} schedule Schedule.
    * @param {ScheduleSlotTime} slot Slot.
    * @param {ScheduleSlotTime | null} change New day and hours, or null: deleted.
@@ -46,7 +47,8 @@ export function useCalendarEdits() {
    * @returns {Promise<void>}
    */
   const changeSlot = async (schedule: WorkScheduleRule, slot: ScheduleSlotTime, change: ScheduleSlotTime | null, revert?: () => void) => {
-    const scope = await askScope({ action: change ? 'update' : 'delete', title: change ? 'Modifier un créneau récurrent' : 'Supprimer un créneau récurrent' });
+    const words = slotWords(schedule.ephemeris);
+    const scope = await askScope({ action: change ? 'update' : 'delete', title: `${change ? 'Modifier' : 'Supprimer'} ${words.recurring}` });
     if (!scope) return revert?.();
     let next: ReturnType<typeof changedScheduleSlot>;
     try {
@@ -58,7 +60,7 @@ export function useCalendarEdits() {
     update.mutate(
       { id: schedule.id, input: ruleScheduleInput(schedule, next) },
       {
-        ...toastCallbacks(scope === 'THIS' ? 'Exception ajoutée au créneau pour ce jour.' : change ? 'Créneau modifié.' : 'Horaires retirés du créneau.'),
+        ...toastCallbacks(scope === 'THIS' ? `Exception ajoutée ${words.to} pour ce jour.` : change ? words.changed : `Horaires retirés ${words.of}.`),
         onError: (error) => {
           onMutationError(error);
           revert?.();
@@ -125,8 +127,8 @@ export function useCalendarEdits() {
   };
 
   /**
-   * Opens the panel of a slot of a schedule, saved field by field: asks first, once, which days its
-   * changes apply to (dismissed: it opens read only).
+   * Opens the panel of a slot of a schedule (a créneau or an éphéméride), saved field by field: asks first, once,
+   * which days its changes apply to (dismissed: it opens read only).
    * @param {WorkScheduleRule} schedule Schedule.
    * @param {string} label Label shown (its kind).
    * @param {ScheduleSlotTime} slot Slot.
@@ -134,8 +136,9 @@ export function useCalendarEdits() {
    */
   const openSlot = async (schedule: WorkScheduleRule, label: string, slot: ScheduleSlotTime) => {
     // Dismissed: no scope, the panel opens read only.
-    const scope = await askScope({ action: 'update', title: 'Modifier un créneau récurrent', note: 'Les modifications faites dans le panneau, chacune enregistrée aussitôt, s’y appliqueront.' });
-    openFormPanel(`Créneau du ${fmt.dayLong(slot.date)}`, (close) => (
+    const words = slotWords(schedule.ephemeris);
+    const scope = await askScope({ action: 'update', title: `Modifier ${words.recurring}`, note: 'Les modifications faites dans le panneau, chacune enregistrée aussitôt, s’y appliqueront.' });
+    openFormPanel(`${words.title} du ${fmt.dayLong(slot.date)}`, (close) => (
       <SlotEditForm
         label={label}
         schedule={schedule}

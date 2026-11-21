@@ -13,6 +13,51 @@ export const schedulesTitle = (perso: boolean): string => (perso ? 'Créneaux' :
 /** Title of the éphémérides (holidays, birthdays…), apart from the créneaux. */
 export const EPHEMERIDES_TITLE = 'Éphémérides';
 
+/** Words of a schedule changed from the calendar, by its nature (« créneau », or « éphéméride », feminine). */
+export interface SlotWords {
+  /** « Créneau » / « Éphéméride ». */
+  title: string;
+  /** « le créneau » / « l’éphéméride ». */
+  the: string;
+  /** « du créneau » / « de l’éphéméride ». */
+  of: string;
+  /** « au créneau » / « à l’éphéméride ». */
+  to: string;
+  /** « un créneau récurrent » / « une éphéméride récurrente ». */
+  recurring: string;
+  /** « Créneau modifié. » / « Éphéméride modifiée. ». */
+  changed: string;
+  /** « Un créneau s’arrête le jour où il commence. » / « Une éphéméride s’arrête le jour où elle commence. ». */
+  sameDay: string;
+}
+
+/**
+ * Words of a schedule changed from the calendar (mode « Modifier les créneaux et éphémérides »), the same code for
+ * both natures.
+ * @param {boolean | undefined} ephemeris An éphéméride. Optional. Default = a créneau.
+ * @returns {SlotWords} Words.
+ */
+export const slotWords = (ephemeris?: boolean): SlotWords =>
+  ephemeris
+    ? {
+        title: 'Éphéméride',
+        the: 'l’éphéméride',
+        of: 'de l’éphéméride',
+        to: 'à l’éphéméride',
+        recurring: 'une éphéméride récurrente',
+        changed: 'Éphéméride modifiée.',
+        sameDay: 'Une éphéméride s’arrête le jour où elle commence.',
+      }
+    : {
+        title: 'Créneau',
+        the: 'le créneau',
+        of: 'du créneau',
+        to: 'au créneau',
+        recurring: 'un créneau récurrent',
+        changed: 'Créneau modifié.',
+        sameDay: 'Un créneau s’arrête le jour où il commence.',
+      };
+
 /**
  * Hours of a case in words: "journée entière", "09:00–12:30, 14:00–18:00".
  * @param {ScheduleTimes} times Hours.

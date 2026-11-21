@@ -565,13 +565,12 @@ export const defaultScheduleKindSchema = z.object({
 export type DefaultScheduleKindInput = z.input<typeof defaultScheduleKindSchema>;
 
 /**
- * Birthdays of the people of a workspace in its calendar: shown or not (hidden, their reminders still
- * ring), color (none: the gray of the éphémérides) and display, as a kind of éphémérides.
+ * Birthdays of the people of a workspace in its calendar, shown as all-day events: shown or not (hidden, their
+ * reminders still ring) and color (none: the gray of the éphémérides).
  */
 export const birthdayLookSchema = z.object({
   shown: z.boolean(),
   color: colorSchema.nullable(),
-  ...scheduleDisplayFields,
 });
 export type BirthdayLookInput = z.input<typeof birthdayLookSchema>;
 
