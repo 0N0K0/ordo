@@ -11,7 +11,7 @@ Règles appliquées par l’API : [Règles métier — Temps passé](../../busin
 | Page « Chronos »                   | `/time` (`PAGES.time`)         | « Prévu et réalisé » (espace PRO) puis « Temps passé » : tous les temps, de tous les projets.                                            |
 | Temps d’une tâche                  | `/time?task=<id>` (`timePath`) | La même page limitée aux temps de la tâche, avec un badge « Tâche : #12 Libellé » ; sa croix (« Voir tous les temps ») retire le filtre. |
 | Onglet « Temps » d’un projet       | `/projects/:id?tab=time`       | Les temps du projet et de ses sous-projets.                                                                                              |
-| En-tête de l’app                   | partout (pas sur téléphone)    | Le chrono en cours, s’il y en a un.                                                                                                      |
+| En-tête de l’app                   | partout (pas sur téléphone)    | Les chronos en cours : celui qui tourne, ou « 2 chronos » et la liste (décision FT).                                                     |
 | Menu « Ajouter »                   | partout                        | « Chrono » ouvre « Nouveau chrono » (projet courant présélectionné sur une page de projet).                                              |
 | Panneau d’une tâche                | `?task=<id>`                   | « Temps passé » de la tâche et « Démarrer le chrono ».                                                                                   |
 | Colonne « Chrono » des tâches      | tableaux de tâches             | Démarrer / arrêter le chrono sur la tâche.                                                                                               |
@@ -21,25 +21,27 @@ Règles appliquées par l’API : [Règles métier — Temps passé](../../busin
 
 ## Le chrono
 
-Un seul chrono tourne à la fois.
+**Plusieurs chronos tournent à la fois** (décision FT, demande de l’utilisateur du 2026-11-20 ; avant, un seul tournait : décision Y, levée) : chacun est montré et arrêté à part, et compte en entier dans les totaux (deux tâches menées en parallèle pendant 1 h font 2 h). Les **minuteurs** (comptes à rebours) et les **temps morts** sont à part : ce ne sont pas des temps passés (voir [Alarmes](alarms.md#minuteurs)).
 
 ### Démarrer
 
 - Depuis « Démarrer le chrono » (page « Chronos », onglet « Temps » d’un projet), le menu « Ajouter » › « Chrono » : panneau « Nouveau chrono » (`TimerStartForm`) avec « Projet » (« Facultatif avec une tâche, une routine ou un évènement. »), « Routines », « Tâches » (celles du projet et de ses sous-projets, et celles sans projet ; sans projet, seulement celles sans projet), « Évènements » (ceux du jour), plusieurs de chaque (décision D18), « Description » (markdown). Bouton « Démarrer le chrono », désactivé sans projet, ni routine, ni tâche, ni évènement (décision D17).
 - Depuis une tâche (colonne « Chrono », panneau de la tâche) : démarre directement sur la tâche et son projet (aucun pour une tâche sans projet).
 - Depuis une routine ou un évènement : voir [Routines](routines.md) et [Agenda](calendar.md).
-- Si un chrono tourne déjà, il s’arrête et son temps est enregistré (décision Y). Les boutons le disent en info-bulle : « Le chrono en cours s’arrête (son temps est enregistré). ». Toast : « Chrono démarré. » ou « Chrono démarré. Le chrono en cours s’est arrêté. Temps enregistré : 1 h 05. ».
+- Les chronos qui tournent déjà continuent (décision FT). Toast : « Chrono démarré. ».
 - Avertissement (toast) « Hors des moments prévus » si une routine ou une tâche est hors de ses créneaux, ou si ses assignés sont pris par un évènement (autre que ceux du chrono) : « Le chrono tourne quand même. Libellé : pendant « Réunion » · … ».
 - Bouton désactivé sur un élément archivé ou dans un projet archivé.
 
 ### Pendant qu’il tourne
 
-- **En-tête** (`TimerWidget`) : point, projet (sinon première routine, premier évènement ou première tâche, suivi de « + N » pour les autres, `entrySubject`), horloge `1:05:09` ; clic : bulle « Détails du chrono » ; boutons pause / reprise et arrêt.
+- **En-tête** (`TimerWidget`, pastille `RunningPill`) : un seul chrono : point, projet (sinon première routine, premier évènement ou première tâche, suivi de « + N » pour les autres, `entrySubject`), horloge `1:05:09` ; clic : bulle « Détails du chrono » ; boutons pause / reprise et arrêt. Plusieurs : « 2 chronos » et l’horloge du plus long ; clic : la liste « Chronos en cours », chacun avec ce sur quoi il porte, son horloge, pause / reprise et arrêt, puis « Arrêter tout » (toast « 2 chronos arrêtés. Temps enregistré : 1 h 40. »). Le point est gris quand tous sont en pause.
+- **Accueil** : chaque chrono en cours en détail, puis « Démarrer un autre chrono » ; sans chrono, le formulaire « Nouveau chrono ».
 - **Détails** (`RunningTimer`, aussi sur l’accueil) : horloge, « Chrono en cours » ou « Chrono en pause », « depuis 09:12 », lien vers le projet (onglet « Temps ») ou vers les routines, sinon le libellé du premier évènement ou de la première tâche, sans lien ; « Pause » / « Reprendre », « Arrêter le chrono » (rouge), « Abandonner (sans enregistrer) » ; le projet, les routines, les tâches, les évènements (du jour du chrono) et la description restent modifiables (changer de projet vide les routines et les tâches ; la description s’enregistre à la sortie du champ ; retirer le dernier d’un chrono sans projet est refusé : « Choisissez un projet, une tâche, une routine ou un évènement. »).
 - **Abandonner** : confirmation « Abandonner le chrono » : « Le temps en cours (12 min) ne sera pas enregistré. ». Toast « Chrono abandonné. ».
 - **Arrêter** : toast « Temps enregistré : 1 h 05. ». Un chrono en pause s’arrête au début de sa pause.
-- Dans le tableau des temps, le chrono en cours a le badge « Chrono en cours » à la place de sa durée ; il n’a pas de menu (il se modifie depuis le chrono).
-- L’état du chrono est relu quand la fenêtre reprend le focus (un autre onglet a pu le changer).
+- Une tâche ou une routine montre le chrono qui tourne sur elle (colonne « Chrono », panneau), même si d’autres tournent ailleurs.
+- Dans le tableau des temps, un chrono en cours a le badge « Chrono en cours » à la place de sa durée ; il n’a pas de menu (il se modifie depuis le chrono).
+- L’état des chronos est relu quand la fenêtre reprend le focus (un autre onglet a pu le changer).
 
 ## Le tableau des temps
 

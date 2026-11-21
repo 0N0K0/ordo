@@ -8,7 +8,7 @@ Fonctionnalités : [Temps passé](../../../features/activities/time.md). Règles
 
 ### `api/index.ts`
 
-Documents GraphQL du temps (fragment `TimeEntryFields` avec `routines { id label }` et `events { eventId occurrenceDate label }`, requêtes `TimeEntries`, `RunningTimeEntry`, `LostOnDelete`, mutations `StartTimer`, `SetTimerPaused`, `StopTimer`, `CreateTimeEntry`, `UpdateTimeEntry`, `DeleteTimeEntry`) et hooks.
+Documents GraphQL du temps (fragment `TimeEntryFields` avec `routines { id label }` et `events { eventId occurrenceDate label }`, requêtes `TimeEntries`, `RunningTimeEntries`, `LostOnDelete`, mutations `StartTimer`, `SetTimerPaused(id, paused)`, `StopTimer(id)`, `StopAllTimers`, `CreateTimeEntry`, `UpdateTimeEntry`, `DeleteTimeEntry`) et hooks.
 
 | Nom                                    | Rôle                                                                                                                                                                                                      |
 | -------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -16,7 +16,8 @@ Documents GraphQL du temps (fragment `TimeEntryFields` avec `routines { id label
 | `timeQueryKey`                         | Clé `['time']` des données du temps.                                                                                                                                                                      |
 | `useTimeEntries(projectId)`            | Temps d’un projet et de ses sous-projets (rien sans projet). Utilisé par `ProjectTimePanel`.                                                                                                              |
 | `useTimeEntriesSince(since, enabled?)` | Temps de tous les projets depuis un moment (ISO), ou tous (`null`). Utilisé par `TimePage`, `PlannedTime`, l’agenda (`CalendarPage`), l’accueil (`home-data.ts`).                                         |
-| `useRunningTimer()`                    | Le chrono en cours ou `null` ; relu au retour du focus.                                                                                                                                                   |
+| `useRunningTimers()`                   | Les chronos en cours (plusieurs à la fois, décision FT), le premier démarré d’abord ; relus au retour du focus. |
+| `runningOn(running, on)`               | Le chrono en cours sur un élément (le premier), sinon `null`. Utilisé par `TaskTime`, `TimerCell`, `ChronoCell` (routines). |
 | `TimeEntryValues` (interface)          | Champs d’un temps envoyés : `projectId`, `routineIds?`, `taskIds`, `description`, `startedAt`, `duration` (secondes), `events?` (plusieurs de chaque, décision D18). |
 | `TimerStartValues` (interface)         | Démarrage d’un chrono : `projectId?`, `routineIds?`, `taskIds`, `description?`, `events?`. |
 | `TimeEventLink` (interface)            | Évènement d’un temps envoyé : `{ eventId, occurrenceDate }`. |
@@ -24,7 +25,7 @@ Documents GraphQL du temps (fragment `TimeEntryFields` avec `routines { id label
 | `LostOnDelete` (interface)             | `{ times, comments }` : temps sans projet laissés sans rattachement, commentaires de ce qui est supprimé (décision D19). |
 | `fetchLostOnDelete(query)`             | Ce qu’une suppression emporte : temps sans projet et commentaires (requête `lostOnDelete`). Utilisé par `EventForm` (les trois portées d’un récurrent) et `useCalendarEdits` (suppression d’une occurrence de routine, deux portées). |
 | `useLostOnDelete(query)`               | La même chose en requête React Query. Utilisé par `LostOnDeleteRisk`. |
-| `useTimeMutations()`                   | `{ start, setPaused, stop, create, update, remove }` ; toutes invalident `['time']` et `['tasks']` (temps passé des tâches). `start` avertit ensuite si le chrono est hors des créneaux (`warnOutOfSlots`). |
+| `useTimeMutations()`                   | `{ start, setPaused({ id, paused }), stop(id), stopAll, create, update, remove }` ; toutes invalident `['time']` et `['tasks']` (temps passé des tâches). `start` avertit ensuite si le chrono est hors des créneaux (`warnOutOfSlots`). |
 
 Internes : `useTimeMutation` (mutation invalidante), `warnOutOfSlots(queryClient, slotRules, input)` (toast « Hors des moments prévus » : tâches hors des heures que leur condition de créneaux permet, ou assignés d’une tâche ou d’une routine pris par un autre évènement que ceux du chrono ; lit les routines et tâches déjà en cache).
 
@@ -50,7 +51,7 @@ Cellules modifiables du tableau des temps ; chacune reçoit `{ entry, readOnly, 
 | ----------------------------- | -------------------------------------------------------------------------------------------------------- |
 | `TimeDayCell`                 | Jour (l’heure gardée).                                                                                   |
 | `TimeStartCell`               | Heure de début.                                                                                          |
-| `TimeDurationCell`            | Durée tapée (`parseDuration`) ; « Durée attendue : 1:30, 1h30, 90 ou 1,5h. ».                            |
+| `TimeDurationCell`            | Durée tapée (`parseDuration`) ; « Durée attendue : 1:30, 1h30, 90 (minutes) ou 1,5 h. » (`DURATION_TEXT_INVALID`, comme le formulaire).                            |
 | `TimeRoutinesCell` (+ `context`) | Routines de l’arborescence du projet (`timeRoutineOptions`). |
 | `TimeTasksCell` (+ `context`) | Tâches du projet (`timeTasks`, `timeTaskOptions`). |
 | `TimeEventsCell`              | Évènements du jour, chargés à l’ouverture de la liste (`DayEventsSelect`, `dayEventOptions`). |
@@ -63,7 +64,7 @@ Les trois cellules de sujets passent par l’interne `TimeSubjectCell({ kind, en
 
 ### `components/TimeLogActions.tsx`
 
-- `TimeLogActions({ context, onNew, projectId?, archived? })` : boutons « Nouveau temps » et « Démarrer le chrono » (`openTimerForm`, info-bulle `useTimerHint`) ; désactivés sur un projet archivé.
+- `TimeLogActions({ context, onNew, projectId?, archived? })` : boutons « Nouveau temps » et « Démarrer le chrono » (`openTimerForm` ; les chronos en cours continuent, décision FT) ; désactivés sur un projet archivé.
 
 ### `components/ProjectTimePanel.tsx`
 
@@ -76,7 +77,7 @@ Les trois cellules de sujets passent par l’interne `TimeSubjectCell({ kind, en
 
 ### `components/TaskTime.tsx`
 
-- `TaskTime({ task })` : « Temps passé » d’une tâche dans son panneau, et « Démarrer le chrono » (ou badge et commandes du chrono s’il tourne sur elle). Utilisé par `TaskPanel`.
+- `TaskTime({ task })` : « Temps passé » d’une tâche dans son panneau, et « Démarrer le chrono » (ou badge et commandes du chrono qui tourne sur elle, `runningOn`). Utilisé par `TaskPanel`.
 
 ### `components/TimerCard.tsx`
 
@@ -93,7 +94,7 @@ Classes `clock` (horloge, en couleur atténuée quand `data-paused`) et `fields`
 
 ### `components/TimerControls.tsx`
 
-- `TimerControls({ entry, size?, look? })` : « Pause » / « Reprendre » puis arrêt (`StopTimerButton`), les mêmes partout ; `look` `header` (discret) ou `card`.
+- `TimerControls({ entry, size?, look? })` : « Pause » / « Reprendre » puis arrêt (`StopTimerButton`) de ce chrono, les mêmes partout ; `look` `header` (discret) ou `card`.
 
 ### `components/TimerStop.tsx`
 
@@ -103,16 +104,14 @@ Classes `clock` (horloge, en couleur atténuée quand `data-paused`) et `fields`
 
 ### `components/TimerToggle.tsx`
 
-- `TimerToggle({ name, mine, input, disabled?, size? })` : démarre le chrono sur un élément, ou l’arrête s’il tourne dessus (`mine`). Utilisé par la colonne « Chrono » des tâches (`TimerCell`) et d’autres tableaux (routines…).
+- `TimerToggle({ name, mine, input, disabled?, size? })` : démarre un chrono sur un élément (les autres continuent, décision FT), ou arrête celui qui tourne dessus (`mine`). Utilisé par la colonne « Chrono » des tâches (`TimerCell`) et d’autres tableaux (routines…).
 
 ### `components/TimerWidget.tsx`
 
-- `TimerWidget()` : chrono en cours dans l’en-tête de l’app (rien sans chrono). Monté par `app/layout/AppLayout.tsx` (pas sur téléphone).
-- Interne : `RunningControls({ entry })` : sujet et horloge (bulle « Détails du chrono » avec `RunningTimer`), `TimerControls`.
+- `TimerWidget()` : chronos en cours dans l’en-tête de l’app (rien sans chrono), en pastille `RunningPill` (`components/feedback`). Monté par `app/layout/AppLayout.tsx` (pas sur téléphone).
+- Internes : `RunningControls({ entry })` (un seul chrono : sujet et horloge, bulle « Détails du chrono » avec `RunningTimer`, `TimerControls`) ; `SeveralRunning({ entries })` (plusieurs : « 2 chronos » et l’horloge du plus long, bulle « Chronos en cours » : une ligne `RunningRow` par chrono, puis « Arrêter tout ») ; `RunningRow({ entry })` (sujet, horloge, `TimerControls`).
 
-### `components/TimerWidget.module.css`
-
-Classes `running` (bloc du chrono dans l’en-tête), `summary` (bouton sujet + horloge), `dot` (point qui pulse, immobile quand `data-paused`).
+Ses styles (`TimerWidget.module.css`) sont devenus ceux de `RunningPill` (`components/feedback/RunningPill.module.css`), commune aux chronos et aux minuteurs (décision FT).
 
 ### `components/TimeTasksSelect.tsx`
 
@@ -137,14 +136,12 @@ Classes `running` (bloc du chrono dans l’en-tête), `summary` (bouton sujet + 
 
 ### `hooks/use-start-timer.ts`
 
-- `useTimerHint()` : info-bulle d’un bouton de démarrage quand un autre chrono tourne (« Le chrono en cours s’arrête (son temps est enregistré). »), décision Y.
-- `useStartTimer()` : `{ startTimer(input, onStarted?), isPending, hint }` : démarre et annonce l’arrêt du chrono précédent dans le toast.
-- Interne : `TIMER_REPLACED_HINT`.
+- `useStartTimer()` : `{ startTimer(input, onStarted?), isPending }` : démarre un chrono, les autres continuent (décision FT ; `useTimerHint` et l’info-bulle de la décision Y sont retirés) ; toast « Chrono démarré. ».
 
 ### `hooks/use-stop-timer.ts`
 
 - `savedTimeMessage(entry)` : « Temps enregistré : 1 h 05. ».
-- `useStopTimer()` : `{ stopTimer(entry), isPending }`.
+- `useStopTimer()` : `{ stopTimer(entry), stopAll(entries), isPending }` : arrête ce chrono (les autres continuent), ou tous (« Arrêter tout » : « 2 chronos arrêtés. Temps enregistré : 1 h 40. »).
 
 ### `hooks/use-time-dialogs.tsx`
 

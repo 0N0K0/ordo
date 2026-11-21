@@ -48,9 +48,7 @@ graphql(`
     recurrence
     seriesStartDate
     reminders {
-      before
-      at
-      days
+      ...ReminderFields
     }
     travelBefore
     travelAfter
@@ -96,9 +94,7 @@ const WorkSchedulesDocument = graphql(`
       cases
       exceptions
       reminders {
-        before
-        at
-        days
+        ...ReminderFields
       }
     }
     scheduleTypes {
@@ -117,6 +113,13 @@ const WorkSchedulesDocument = graphql(`
     }
     defaultScheduleKind {
       label
+      color
+      dayDisplay
+      dayBar
+      monthDisplay
+    }
+    birthdayLook {
+      shown
       color
       dayDisplay
       dayBar
@@ -218,6 +221,14 @@ const SaveDefaultScheduleKindDocument = graphql(`
   mutation SaveDefaultScheduleKind($input: DefaultScheduleKindInput!) {
     saveDefaultScheduleKind(input: $input) {
       label
+    }
+  }
+`);
+
+const SaveBirthdayLookDocument = graphql(`
+  mutation SaveBirthdayLook($input: BirthdayLookInput!) {
+    saveBirthdayLook(input: $input) {
+      shown
     }
   }
 `);
@@ -602,9 +613,7 @@ const BirthdaysDocument = graphql(`
       archived
       aliases
       reminders {
-        before
-        at
-        days
+        ...ReminderFields
       }
     }
   }
@@ -662,6 +671,15 @@ export function useScheduleTypes() {
  */
 export function useDefaultScheduleKind() {
   return useQuery({ queryKey: [...calendarQueryKey, 'work-schedules'], queryFn: () => execute(WorkSchedulesDocument), select: (data) => data.defaultScheduleKind });
+}
+
+/**
+ * Birthdays of the people of this workspace in its calendar (decision FX): shown or not, color (none: the gray of the
+ * éphémérides) and display.
+ * @returns {UseQueryResult} Query state.
+ */
+export function useBirthdayLook() {
+  return useQuery({ queryKey: [...calendarQueryKey, 'work-schedules'], queryFn: () => execute(WorkSchedulesDocument), select: (data) => data.birthdayLook });
 }
 
 /**
@@ -741,6 +759,7 @@ export function useWorkScheduleMutations() {
     saveDefaultKind: useCalendarMutation(
       async (input: { label: string; color: string | null } & ScheduleDisplay) => (await execute(SaveDefaultScheduleKindDocument, { input })).saveDefaultScheduleKind,
     ),
+    saveBirthdayLook: useCalendarMutation(async (input: { shown: boolean; color: string | null } & ScheduleDisplay) => (await execute(SaveBirthdayLookDocument, { input })).saveBirthdayLook),
     setLook: useCalendarMutation(
       async (variables: { workspaceId: string; typeId: string | null; input: ScheduleSubscriptionLook }) => (await execute(SetScheduleSubscriptionLookDocument, variables)).setScheduleSubscriptionLook,
     ),

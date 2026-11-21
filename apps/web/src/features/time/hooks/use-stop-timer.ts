@@ -1,5 +1,6 @@
-import { entrySeconds, formatDuration } from '@ordo/shared';
+import { agreed, entrySeconds, formatDuration, sumOf } from '@ordo/shared';
 import { toastCallbacks } from '../../../lib/notify';
+import { countOf } from '../../../lib/text';
 import { useTimeMutations, type TimeEntry } from '../api';
 
 /**
@@ -12,13 +13,18 @@ export function savedTimeMessage(entry: TimeEntry): string {
 }
 
 /**
- * Stops the running timer and reports the saved time.
- * @returns {{ stopTimer: (entry: TimeEntry) => void, isPending: boolean }} Stop action and its state.
+ * Stops a running timer (the others keep running) and reports the saved time; « Arrêter tout » stops every one of them.
+ * @returns {{ stopTimer: (entry: TimeEntry) => void, stopAll: (entries: readonly TimeEntry[]) => void, isPending: boolean }} Stop actions and their state.
  */
 export function useStopTimer() {
-  const { stop } = useTimeMutations();
+  const { stop, stopAll } = useTimeMutations();
   return {
-    stopTimer: (entry: TimeEntry) => stop.mutate(undefined, toastCallbacks(savedTimeMessage(entry))),
-    isPending: stop.isPending,
+    stopTimer: (entry: TimeEntry) => stop.mutate(entry.id, toastCallbacks(savedTimeMessage(entry))),
+    stopAll: (entries: readonly TimeEntry[]) =>
+      stopAll.mutate(
+        undefined,
+        toastCallbacks(`${countOf(entries.length, 'chrono')} ${agreed('arrêté', false, entries.length)}. Temps enregistré : ${formatDuration(sumOf(entries, (entry) => entrySeconds(entry)))}.`),
+      ),
+    isPending: stop.isPending || stopAll.isPending,
   };
 }

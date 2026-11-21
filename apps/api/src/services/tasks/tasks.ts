@@ -1,4 +1,4 @@
-import { copyName, dateSchema, effortSchema, groupBy, itemLinksSchema, normalizedReminders, readReminders, taskRemindersSchema, locationPointFields, markdownSchema, optionalText, parseOptionalDay, reaches, readSlotCondition, slotConditionSchema, statusClosing, type TaskInput as SharedTaskInput, taskLabelSchema } from '@ordo/shared';
+import { copyName, dateSchema, deadTimesSchema, readDeadTimes, storedDeadTimes, effortSchema, groupBy, itemLinksSchema, normalizedReminders, readReminders, taskRemindersSchema, locationPointFields, markdownSchema, optionalText, parseOptionalDay, reaches, readSlotCondition, slotConditionSchema, statusClosing, type TaskInput as SharedTaskInput, taskLabelSchema } from '@ordo/shared';
 import { z } from 'zod';
 import { prisma } from '../../db';
 import { assertBeneficiaries } from '../core/beneficiaries';
@@ -201,6 +201,7 @@ const detailsSchema = z.object({
   ...locationPointFields,
   links: itemLinksSchema.nullable().optional(),
   reminders: taskRemindersSchema.nullable().optional(),
+  deadTimes: deadTimesSchema.nullable().optional(),
 });
 
 /**
@@ -224,6 +225,7 @@ function parseDetails(input: TaskInput, current?: { startDate: Date | null; endD
     locationLon: input.locationLon ?? null,
     links: input.links,
     reminders: input.reminders,
+    deadTimes: input.deadTimes,
   });
   assertDateRange(details, current);
   return {
@@ -240,6 +242,7 @@ function parseDetails(input: TaskInput, current?: { startDate: Date | null; endD
     ...(details.location !== undefined && storedLocation({ location: details.location, locationLat: details.locationLat, locationLon: details.locationLon })),
     links: details.links === undefined ? undefined : toJson(details.links ?? []),
     reminders: details.reminders === undefined ? undefined : toJson(normalizedReminders(details.reminders ?? [])),
+    deadTimes: details.deadTimes === undefined ? undefined : toJson(storedDeadTimes(details.deadTimes ?? [])),
   };
 }
 
@@ -512,6 +515,7 @@ export async function duplicateTask(id: string, includeSubtasks: boolean): Promi
           locationLon: task.locationLon,
           links: toJson(readLinks(task.links)),
           reminders: toJson(readReminders(task.reminders)),
+          deadTimes: toJson(readDeadTimes(task.deadTimes)),
           parentId,
           milestoneId: task.milestoneId,
           sprints: { connect: task.sprints },

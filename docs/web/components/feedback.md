@@ -45,6 +45,10 @@ Page de détail dont l'élément n'existe pas (supprimé, mauvaise adresse) : `B
 
 État d'un panneau de détail enregistré champ par champ (décision D22, `useFieldSave`), en haut du panneau : « Enregistrement… » (petit chargement) pendant un enregistrement, « Enregistré » (coche) sinon ; même place dans les deux cas, lu par les lecteurs d'écran quand il change (`role="status"`). Prop `saving`. Utilisé par les panneaux des tâches, des routines, des évènements, des occurrences de routine, des temps, des alarmes, des produits et éléments des achats, des listes, des livraisons et des fiches.
 
+### `RunningPill`
+
+Pastille de l’en-tête de ce qui tourne (décision FT), la même pour les chronos (`TimerWidget`, point rouge) et les minuteurs (`CountdownWidget`, `tone="countdown"`, point orange) : point qui pulse (gris et immobile en pause, `paused`), sujet (masqué sur téléphone), horloge ; clic : bulle `details` (largeur `detailsWidth`, 380 par défaut) ; puis `controls`. Props : `label` (nom du bouton, « Détails du chrono »), `tone?`, `paused?`, `subject?`, `clock`, `details`, `detailsWidth?`, `controls?`. Styles `RunningPill.module.css` (`running`, `summary`, `dot`, repris de l’ancien `TimerWidget.module.css`).
+
 ### `FullPageLoader`
 
 Chargement plein écran (`Center` de hauteur `100dvh` + `Loader`) pendant le chargement de ce dont toute page a besoin (session, espace). Prop `label` (libellé accessible). Utilisé par `features/auth` (gardes) et `features/workspaces` (`WorkspaceGate`). Imposé par eslint.

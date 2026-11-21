@@ -19,7 +19,7 @@ import {
   wholeDaysCase,
   workScheduleSchema,
 } from '@ordo/shared';
-import { BellIcon, CalendarStarIcon, ClockIcon, PencilSimpleIcon, PlusIcon } from '@phosphor-icons/react';
+import { CalendarStarIcon, ClockIcon, PencilSimpleIcon, PlusIcon } from '@phosphor-icons/react';
 import { RemindersSelect } from '../../../components/inputs/RemindersSelect';
 import { useQueryClient } from '@tanstack/react-query';
 import { cachedItem } from '../../../lib/mutation';
@@ -171,11 +171,8 @@ function ScheduleForm({ schedule, ephemeris, onDone }: { schedule?: WorkSchedule
               <RemindersSelect
                 label="Rappels"
                 description="Comptés depuis le premier jour de chaque suite de jours qu’elle couvre (minuit pour une journée entière) : avant son début, 24 h au plus ; ou à une heure de ce jour ou de quelques jours avant."
-                leftSection={<BellIcon aria-hidden />}
-                emptyLabel="Aucun"
                 value={values.reminders}
                 onChange={(reminders) => form.setFieldValue('reminders', reminders)}
-                clearable
                 error={form.errors.reminders as string | undefined}
               />
             )}

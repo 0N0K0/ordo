@@ -7,6 +7,7 @@ import { dateSchema } from '../core/workspace';
 import { slotConditionSchema, type SlotCondition } from '../calendar/slot-conditions';
 import { endDaySchema, startDaySchema } from '../dates/times';
 import { taskRemindersSchema, type ReminderFields } from '../dates/reminders';
+import { deadTimesSchema, type DeadTimeInput } from '../dates/countdowns';
 import { personDetailsShape } from '../people/person-details';
 
 export const taskLabelSchema = requiredText();
@@ -90,6 +91,8 @@ export const taskFormSchema = z
     links: itemLinksSchema.default([]),
     /** Reminders « À HH:MM » (Paris time), rung every day from « Ouverture » to « Échéance » (decision D16). */
     reminders: taskRemindersSchema.default([]),
+    /** « Temps morts »: waits a timer is launched for (decision FT); not time spent. */
+    deadTimes: deadTimesSchema.default([]),
   })
   .refine(...endAfter('startDate', 'endDate'))
   .refine(...endAfter('minDate', 'deadline'));
@@ -150,6 +153,8 @@ export interface TaskInput {
   links?: ItemLink[] | null;
   /** Reminders « À HH:MM » (null: none); they ring only with an « Échéance ». */
   reminders?: ReminderFields[] | null;
+  /** « Temps morts » (null: none). */
+  deadTimes?: DeadTimeInput[] | null;
 }
 
 /** Own « Ouverture » / « Échéance » of a task, and the sprints it is planned in (YYYY-MM-DD). */
@@ -191,3 +196,18 @@ export function taskDueDates(task: TaskOwnDates, sprintOf: (id: string) => Sprin
     deadlineFromSprint,
   };
 }
+
+/**
+ * Number of a task followed by a space ("#12 "), empty for a task of no project (it has none).
+ * @param {{ number: number | null }} task Task.
+ * @returns {string} Text.
+ */
+export const taskRef = (task: { number: number | null }): string => (task.number === null ? '' : `#${task.number} `);
+
+/**
+ * Label of a task after its number ("#12 Écrire le devis"), the label alone for a task of no project (the web app and
+ * the rings pushed by the API, lot 17c).
+ * @param {{ number: number | null, label: string }} task Task.
+ * @returns {string} Text.
+ */
+export const taskNumbered = (task: { number: number | null; label: string }): string => `${taskRef(task)}${task.label}`;

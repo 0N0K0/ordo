@@ -27,7 +27,7 @@ import { RoutineHistory } from '../components/RoutineHistory';
 import { RoutineSettings } from '../components/RoutineSettings';
 import { useCommentCounts } from '../../comments/api';
 import { useBeneficiaries } from '../../beneficiaries/hooks/use-beneficiaries';
-import { useRunningTimer } from '../../time/api';
+import { useRunningTimers } from '../../time/api';
 import { routineColumns } from '../lib/routine-columns';
 import { routinesLabel } from '../lib/routine-cell-edit';
 import { AddRoutineRow, ChronoCell, StateCell } from '../components/routine-table-cells';
@@ -42,6 +42,8 @@ import { rowMenuEntry } from '../../../components/data-table/selection/selection
 import classes from '../components/Routines.module.css';
 import { plural } from '../../../lib/text';
 import { WaitingIcon } from '../components/WaitingIcon';
+import { deadTimeMenuEntries } from '../../countdowns/lib/dead-time-menu';
+import { routineDeadTimeItem } from '../lib/routine-dead-times';
 
 /** Views made the first time: those to do, all; grouped by category. */
 const ROUTINE_VIEWS: FirstTableView[] = [
@@ -84,7 +86,7 @@ export function RoutinesPanel({ projectId, projectIds }: { projectId?: string; p
   const categories = useMemo(() => data?.routineCategories ?? [], [data]);
   const slotRules = useSlotRules();
   const slotChoices = useSlotChoices();
-  const { data: running } = useRunningTimer();
+  const { data: running } = useRunningTimers();
   const { move } = useRoutineMutations();
   const postpone = usePostponeRoutine();
   const selectionActions = useRoutineSelectionActions();
@@ -202,7 +204,7 @@ export function RoutinesPanel({ projectId, projectIds }: { projectId?: string; p
   };
 
   /**
-   * Actions of a routine, in its menu.
+   * Actions of a routine, in its menu (« Lancer » its dead times, for its current occurrence: decision FT).
    * @param {Routine} routine Routine.
    * @returns {ReactNode} Menu.
    */
@@ -225,6 +227,7 @@ export function RoutinesPanel({ projectId, projectIds }: { projectId?: string; p
           { label: 'Historique', icon: <ClockCounterClockwiseIcon aria-hidden />, to: routineHistoryPath(routine.id) },
           rowMenuEntry(rowActions.archive),
           rowMenuEntry(rowActions.remove),
+          ...(readOnly ? [] : deadTimeMenuEntries(routine.deadTimes, routineDeadTimeItem(routine, routine.currentDate))),
         ]}
       />
     );

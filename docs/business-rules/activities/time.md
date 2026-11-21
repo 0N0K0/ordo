@@ -50,36 +50,37 @@ Source : `timeLeftEmpty`, `releaseSubjectTime` (`time-entries.ts`), appelés par
 
 ## Chrono
 
-Un seul chrono tourne à la fois dans un espace (le temps sans `endedAt`).
+**Plusieurs chronos tournent à la fois** (décision FT, demande de l’utilisateur du 2026-11-20 : la règle « un seul chrono en cours », décision Y, est levée) : chaque temps sans `endedAt` est un chrono en cours, montré et arrêté à part ; chacun compte en entier dans les totaux (deux tâches menées en parallèle pendant 1 h font 2 h).
 
 ### Démarrer
 
 Source : `startTimer`.
 
 - Mêmes vérifications que ci-dessus (projet, routines, tâches, évènements, éléments archivés), description validée.
-- **Le chrono en cours, s’il y en a un, est arrêté d’abord** (son temps est enregistré) : décision Y.
+- **Les chronos en cours continuent de tourner** (décision FT ; avant, la décision Y arrêtait le chrono en cours).
 - Le nouveau temps commence maintenant.
 - Côté web, un avertissement « Hors des moments prévus » signale des routines ou des tâches hors de leurs créneaux, ou des assignés occupés par un évènement (autre que ceux du chrono) ; le chrono tourne quand même (voir [Fonctionnalités](../../features/activities/time.md)).
 
 ### Pause et reprise
 
-Source : `setTimerPaused`.
+Source : `setTimerPaused(id, paused)`.
 
-- Sans chrono en cours : « Aucun chrono en cours. ».
+- Le chrono est désigné par son temps ; s’il ne tourne pas (arrêté, inconnu) : « Ce chrono ne tourne plus. ».
 - Demander l’état déjà en place ne fait rien.
 - Pause : `pausedAt` = maintenant. Reprise : la durée de la pause (en secondes entières) s’ajoute à `pausedSeconds`, `pausedAt` est vidé.
 
 ### Arrêter
 
-Source : `stopTimer`.
+Source : `stopTimer(id)`, `stopAllTimers` (« Arrêter tout »).
 
-- Sans chrono en cours : ne fait rien (renvoie `null`).
+- Le chrono est désigné par son temps ; s’il ne tourne plus : ne fait rien (renvoie `null`). Les autres continuent.
+- « Arrêter tout » arrête chacun des chronos en cours de l’espace (mêmes règles).
 - Un chrono en pause s’arrête **au début de sa pause**.
 - Durée = (fin − début) en secondes entières − `pausedSeconds`, jamais négative.
 
 ### Abandonner
 
-Supprimer le temps en cours (`deleteTimeEntry`) abandonne le chrono sans rien enregistrer.
+Supprimer un temps en cours (`deleteTimeEntry`) abandonne ce chrono sans rien enregistrer.
 
 ### Durée en direct
 
@@ -117,8 +118,9 @@ Source : champs `trackedSeconds` (`graphql/modules/tasks.ts`, `graphql/modules/r
 
 - Tâche : somme, sur les temps **terminés** de la tâche, de la durée divisée par le nombre de tâches du temps (au moins 1), arrondie à la seconde : un temps passé sur trois tâches compte pour un tiers à chacune.
 - Routine : de même, la durée des temps terminés divisée par le nombre de routines du temps (décision D18).
-- Occurrence d’un évènement : la durée des temps de l’occurrence (chrono en cours compris, en direct) divisée par le nombre d’évènements du temps (décision D18).
-- Pour une tâche et une routine, le chrono en cours ne compte qu’une fois arrêté.
+- Occurrence d’un évènement : la durée des temps de l’occurrence (chronos en cours compris, en direct) divisée par le nombre d’évènements du temps (décision D18).
+- Pour une tâche et une routine, un chrono en cours ne compte qu’une fois arrêté.
+- Des chronos en parallèle comptent chacun en entier (décision FT) : rien n’est retiré pour un chevauchement.
 
 ## Facturation du temps
 
@@ -133,11 +135,11 @@ Source : `assertNotInvoiced` (`time-entries.ts`), `assertBillableTime` (`account
 
 ## Lecture
 
-Source : requêtes `timeEntries`, `runningTimeEntry`.
+Source : requêtes `timeEntries`, `runningTimeEntries`.
 
 - `timeEntries(projectId?, routineId?, since?)` : les temps du projet **et de ses sous-projets**, ou ceux qui portent sur une routine, ou tous ; éventuellement depuis un moment ; du plus récent au plus ancien.
 - `lostOnDelete(taskIds?, routineIds?, withSubtree?, eventId?, scope?, occurrenceDate?, calendarId?, routineOccurrence?)` : `{ times, comments }`, ce qu’une suppression de tâches, de routines, d’occurrences d’une routine, d’un évènement ou d’un calendrier (tous ses évènements, `calendarEventsGone`) supprimera avec eux : les temps (voir plus haut) et les commentaires des routines, évènements et occurrences supprimés (`commentsLostOnDelete`, décision D19 ; les commentaires de tâche ne sont pas comptés).
-- `runningTimeEntry` : le chrono en cours, ou `null`.
+- `runningTimeEntries` : les chronos en cours, le premier démarré d’abord (liste vide : aucun).
 
 ## Commentaires d’un temps
 
@@ -145,7 +147,7 @@ Un temps prend des commentaires (cible `TIME_ENTRY`, voir [Commentaires](../cros
 
 ## Alarmes liées au temps
 
-Les alarmes « pas de chrono » et « durée de chrono » (`NOT_TRACKING`, `TRACKING_DURATION`) sont décrites dans [Alarmes](alarms.md).
+Les alarmes « pas de chrono » et « durée de chrono » (`NOT_TRACKING`, `TRACKING_DURATION`) sont décrites dans [Alarmes](alarms.md). Les **temps morts** et les **minuteurs** (décision FT) ne sont pas du temps passé : ils ne créent aucun temps (voir [Alarmes](alarms.md#minuteurs-décision-ft)).
 
 ## Espace PRO / PERSO
 

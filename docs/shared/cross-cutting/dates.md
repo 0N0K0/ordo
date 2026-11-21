@@ -12,6 +12,7 @@ Principe : un jour de calendrier est une chaîne `YYYY-MM-DD` (un mois `YYYY-MM`
 | `CALENDAR_DAY`                      | Expression `^\d{4}-\d{2}(-\d{2})?$` : jour ou mois de calendrier, lu tel quel quel que soit le fuseau.            |
 | `parseDay(date)`                    | `Date` à minuit UTC d'un jour.                                                                                    |
 | `dayIn(instant, timeZone?)`         | Jour `YYYY-MM-DD` d'un instant dans un fuseau donné (Paris pour l'API), ou dans le fuseau local.                  |
+| `timeIn(instant, timeZone)`         | Heure `HH:MM` d'un instant dans un fuseau (l'inverse de `zonedInstant` avec `dayIn`) : report d'un rappel de routine à l'heure de Paris (décision FV). |
 | `localInstant(day, time = '00:00')` | Instant d'un jour et d'une heure dans le fuseau local (alarme, saisie de temps) ; inverse de `dayIn` sans fuseau. |
 | `parseOptionalDay(date)`            | `parseDay` qui conserve `null` (champ effacé) et `undefined` (inchangé).                                          |
 | `formatDay(date)`                   | `YYYY-MM-DD` d'une date UTC.                                                                                      |
@@ -44,6 +45,40 @@ Principe : un jour de calendrier est une chaîne `YYYY-MM-DD` (un mois `YYYY-MM`
 | `timeToMinutes(time)`     | Minutes depuis minuit (secondes ignorées).                                                                  |
 | `minutesToTime(minutes)`  | `HH:MM` depuis des minutes.                                                                                 |
 
+## `ringing.ts` — sonnerie (décision FS)
+
+| Export | Rôle |
+| --- | --- |
+| `RINGTONES`, `RingtoneId`, `RINGTONE_IDS`, `isRingtone(value)`, `ringtoneLabel(id)` | La banque de sonneries générées par l'app : Carillon, Bip, Marimba, Cloche, Réveil, Harpe. |
+| `RingSettings` (type), `DEFAULT_RING_SETTINGS` | Réglages de l'utilisateur : `ringMinutes` (1), `loop` (oui), `repeatMinutes` (5), `ringtone` (`carillon`), `outside` (non). |
+| `RING_MINUTES_MAX` (30), `REPEAT_MINUTES_MAX` (60), `ringSettingsSchema` | Validation des réglages (« Au moins 1 minute. », « 30 minutes maximum. », « Au moins 0 minute. », « 60 minutes maximum. », « Sonnerie inconnue. »). |
+| `readRingSettings(value)` | Réglages d'un JSON stocké : la valeur par défaut pour un champ absent ou invalide. |
+| `SNOOZE_FALLBACK_MINUTES` (5), `snoozeMinutes(settings)` | Minutes de « Répéter dans N min » : la répétition, sinon 5. |
+| `repeatedRingAt(settings, ringingSince)` | Prochaine sonnerie : début + durée + répétition ; null sans répétition. |
+| `RING_LATE_MS` (6 h), `isRingDue(at, now)` | Au-delà de 6 h de retard (app fermée, serveur endormi), une alarme ou un rappel ne sonne plus ; dû et en retard de 6 h au plus. |
+| `RING_KEPT_MS` (6 h), `RING_KEY_MAX`, `RING_LINES_MAX` | Durée de vie d'une sonnerie gardée par l'API ; tailles d'une clé, nombre de lignes. |
+| `workspaceRingLine(label)` | « Espace « Perso » » : la ligne de l'espace d'une sonnerie (autre espace, envoi du serveur, nouveau mail). |
+| `PUSH_GRACE_MS` (30 s) | Attente du serveur après l'heure (ou la répétition) avant d'envoyer en push : l'app ouverte sonne d'abord (lot 17c, décision FU). |
+| `pushSubscriptionInputSchema`, `PushSubscriptionInput`, `PUSH_LABEL_MAX` (120), `PUSH_ENDPOINT_MAX` (2 000), `PUSH_KEY_MAX` (200), `PUSH_SERVICE_HOSTS`, `isPushServiceEndpoint` | Un appareil qui s'abonne : adresse https d'un service push connu (`PUSH_SERVICE_HOSTS` ou un sous-domaine, sans port ni identifiants : « Service de notifications inconnu. » ; `isPushServiceEndpoint`, revérifié par l'API avant chaque envoi), clés `p256dh` et `auth`, libellé (vide : « Appareil »). |
+| `PushPayload`, `PushAction` (types), `pushRingActions(settings)` | Message poussé (lu par `public/push-sw.js`) : clé (null pour un test), titre, lignes, page, espace, boutons ; « Arrêter », « Répéter dans N min ». |
+| `alarmRingInputSchema`, `AlarmRingInput` | Une sonnerie envoyée à l'API quand elle commence (clé, espace, titre, lignes, page et libellé du lien, sonnerie, instant dû). |
+
+## `countdowns.ts` — minuteurs et temps morts (décision FT)
+
+| Export | Rôle |
+| --- | --- |
+| `COUNTDOWN_PRESETS` | Durées proposées pour lancer un minuteur, en minutes : 1, 3, 5, 10, 15, 30, 60. |
+| `COUNTDOWN_EXTENSIONS`, `countdownExtensionSchema` | « + 1 min », « + 5 min » ; minutes ajoutées, 1 à 60 (« Au moins 1 minute. », « 60 minutes maximum. »). |
+| `COUNTDOWN_MAX_SECONDS` | 24 h : temps restant le plus long. |
+| `COUNTDOWN_RING_TAG`, `countdownRingKey(id)` | Clé de la sonnerie d’un minuteur : `countdown:<id>`. |
+| `DeadTime` (type), `DeadTimeInput` (type), `deadTimeSchema`, `deadTimesSchema`, `DEAD_TIMES_MAX` (20) | Temps mort d’une tâche ou d’une routine : `label` (requis), `minutes` (1 à 1 440 : « Durée attendue. », « Au moins 1 minute. », « 24 heures maximum. »), `ringtone` (inconnue : aucune) ; 20 au plus (« 20 temps morts au plus. »). |
+| `readDeadTimes(value)`, `storedDeadTimes(deadTimes)` | Temps morts d’un JSON stocké (`readStoredList`) ; forme stockée : la sonnerie seulement quand elle est choisie. |
+| `countdownInputSchema`, `CountdownInput` | Minuteur lancé : `label` (facultatif), `seconds` (`durationSchema` : 1 min à 24 h), `ringtone`, et l’élément d’un temps mort (`taskId`, `routineId`, `occurrenceDate`, `subject`, `workspaceId`, `path`, `linkLabel`). |
+| `countdownFormSchema`, `CountdownFormValues` | Formulaire « Nouveau minuteur » : `label`, `duration` (texte, `durationTextSchema`), `ringtone`. |
+| `CountdownTiming` (type), `countdownRemaining(countdown, now?)` | Secondes restantes : jusqu’à `endsAt` en marche, `remainingSeconds` en pause (0 une fois fini). |
+| `COUNTDOWN_DEFAULT_NAME`, `countdownName(countdown)` | « Minuteur » ; nom d’un minuteur, le sien sinon « Minuteur » (déplacés du web, lot 17c). |
+| `countdownRingText(countdown)` | Ce que montre la sonnerie de sa fin : son nom, son élément et « Minuteur de 1 h 30 terminé » (app et serveur). |
+
 ## `reminders.ts` — rappels
 
 Les rappels des tâches, routines, évènements, éphémérides et anniversaires, un seul fonctionnement (décision D16, lot 16, décision FO, voir [Alarmes](../../business-rules/activities/alarms.md#rappels-des-tâches-routines-et-évènements)).
@@ -55,28 +90,54 @@ Les rappels des tâches, routines, évènements, éphémérides et anniversaires
 | `REMINDER_MINUTES_MAX`                     | 1 440 : un rappel « avant » 24 heures au plus.                                                                                            |
 | `REMINDER_DAYS_MAX`                        | 30 : un rappel « N jours avant, à HH:MM » 30 jours au plus (décision FO).                                                                 |
 | `REMINDER_KINDS` / `ReminderKind`          | `before` (« Au début », « N min avant »), `at` (« À HH:MM le jour J »), `days` (« N jours avant, à HH:MM »).                              |
-| `Reminder` (type)                          | `{ before: N, at: null, days: null }` ou `{ before: null, at: 'HH:MM', days: N \| null }`.                                               |
-| `ReminderValue`, `ReminderFields` (types)  | Rappel tel que GraphQL le donne (`before` et `at`, l'un `null` ; `days` avec `at`) ou le prend (clés facultatives).                       |
-| `reminderSchema`                           | Un rappel : exactement un de `before` (0 à 1 440, « Au moins 0 minute. », « 24 heures maximum. ») et `at` (`timeOfDaySchema`), sinon « Un rappel est « N min avant », « à HH:MM » ou « N jours avant, à HH:MM ». » ; `days` (1 à 30, « Au moins 1 jour. », « 30 jours maximum. ») seulement avec `at` (« Un rappel « N jours avant » a une heure (HH:MM). ») ; donne un `Reminder`. |
-| `remindersSchema`                          | 10 rappels au plus (« 10 rappels maximum. »), de types mêlés : évènements, routines, éphémérides.                                         |
+| `DAY_REMINDER_KINDS`                      | `at` et `days` : les genres d’un élément sans heure (tâche, anniversaire, routine sans aucune heure, décision FW), passés à `RemindersSelect`. |
+| `Reminder` (type)                          | `{ before: N, at: null, days: null }` ou `{ before: null, at: 'HH:MM', days: N \| null }`, avec `ReminderOptions` : `anchor?` (`end`, `openEnd`, `dueStart` : décisions FS, FV), `ringtone?` (sonnerie de la banque). |
+| `REMINDER_ANCHORS` / `ReminderAnchor`      | `start` (défaut, rien d'enregistré), `end`, `openEnd`, `dueStart` (décision FV). `EVENT_REMINDER_ANCHORS` : `start`, `end` ; `ROUTINE_REMINDER_ANCHORS` : `start` (début de l'ouverture), `openEnd`, `dueStart`, `end` (fin de l'échéance). Un rappel à une heure ne garde que le jour : `openEnd` → `start`, `dueStart` → `end`. |
+| `reminderAnchorOf(reminder)`               | Le repère d'un rappel (`start` sans repère ; un rappel à une heure : `start` ou `end`).                                                  |
+| `ReminderValue`, `ReminderFields` (types)  | Rappel tel que GraphQL le donne (`before` et `at`, l'un `null` ; `days` avec `at` ; `anchor`, `ringtone`) ou le prend (clés facultatives). |
+| `ReminderOutput` (type), `readReminderOutputs(value)` | Rappels tels que GraphQL les donne, chaque champ rempli (`anchor` `start` / `end`, `ringtone` ou null) : un élément dessiné dans le cache avant la réponse de l'API. |
+| `reminderSchema`                           | Un rappel : exactement un de `before` (0 à 1 440, « Au moins 0 minute. », « 24 heures maximum. ») et `at` (`timeOfDaySchema`), sinon « Un rappel est « N min avant », « à HH:MM » ou « N jours avant, à HH:MM ». » ; `days` (1 à 30, « Au moins 1 jour. », « 30 jours maximum. ») seulement avec `at` (« Un rappel « N jours avant » a une heure (HH:MM). ») ; `anchor` `start` / `end` (« Un rappel compte depuis le début ou la fin. »), `ringtone` (inconnue : retirée sans erreur) ; donne un `Reminder` (`anchor` et `ringtone` seulement quand donnés). |
+| `remindersSchema`                          | 10 rappels au plus (« 10 rappels maximum. »), de types mêlés, depuis les quatre repères : routines. `eventRemindersSchema` : les mêmes sans `openEnd` ni `dueStart` (« Seules les routines ont des rappels depuis la fin de l’ouverture ou le début de l’échéance. ») : évènements. |
+| `startRemindersSchema`                     | Les mêmes depuis le début seulement (« Seuls les évènements et les routines ont des rappels avant la fin. ») : éphémérides ; base des deux suivants. |
 | `taskRemindersSchema`                      | Les mêmes, à une heure seulement (« À HH:MM », « N jours avant ») (« Une tâche n’a que des rappels à une heure précise. ») : tâches.      |
 | `birthdayRemindersSchema`                  | Les mêmes pour un anniversaire (« Un anniversaire n’a que des rappels à une heure précise. »).                                           |
 | `reminderKindOf(reminder)`                 | Sorte d'un rappel (`before`, `at`, `days`).                                                                                               |
-| `reminderKey(reminder)` / `reminderOfKey(key)` | Clé `before:15` / `at:08:00` / `days:3:08:00` (choix de l'éditeur, clés de sonnerie) et son rappel (null si ce n'en est pas une).     |
-| `normalizedReminders(reminders)`           | Sans doublons, dans l'ordre où ils sonnent : les « jours avant » (le plus de jours d'abord, puis par heure), les « avant » (le plus grand nombre de minutes d'abord), puis les heures du jour : ce qui est enregistré. |
+| `reminderKey(reminder)` / `reminderOfKey(key)` | Clé `before:15` / `at:08:00` / `days:3:08:00`, le repère devant quand ce n'est pas le début (`end:before:15`, `openEnd:before:30`) (clés de sonnerie, de l'éditeur) et son rappel (null si ce n'en est pas une). |
+| `normalizedReminders(reminders)`           | Sans doublons (le dernier gardé, avec sa sonnerie), par repère (début de l'ouverture, fin de l'ouverture, début de l'échéance, fin), chacun dans l'ordre où ils sonnent : les « jours avant » (le plus de jours d'abord, puis par heure), les « avant » (le plus grand nombre de minutes d'abord), puis les heures du jour : ce qui est enregistré. |
 | `readReminders(value)`                     | Rappels d'un JSON stocké ou reçu (les invalides écartés).                                                                                 |
 | `parisInstant(day, time = '00:00')`        | Instant d'un jour et d'une heure de Paris (`zonedInstant`).                                                                               |
-| `minutesBeforeStart(reminder, startTime)`  | Minutes d'un rappel avant le début (négatif après ; un « N jours avant » compte ses jours), pour un `VALARM` relatif.                     |
-| `PlannedReminder` (type)                   | Rappel à sonner : `key`, `at`.                                                                                                            |
-| `remindersBefore(key, moment, reminders)`  | Les « avant » d'un moment, clé `<clé>:before:<minutes>`.                                                                                 |
-| `remindersAt(key, day, reminders, onDay = true)` | Les « À HH:MM » d'un jour de Paris (clé `<clé>:at:<HH:MM>`) et les « N jours avant » de ce jour (clé `<clé>:days:<N>:<HH:MM>`) ; `onDay` faux : ces derniers seulement. |
-| `occurrenceReminders(key, day, start, reminders)` | Tous les rappels d'une occurrence (évènement, suite de jours d'une éphéméride) : « avant » son début, « À HH:MM » et « N jours avant » son premier jour. |
+| `minutesBeforeMoment(reminder, time)`      | Minutes d'un rappel avant un moment d'un jour, son début ou sa fin (`HH:MM`, ou minutes depuis minuit : 1 440 pour la fin d'une journée entière ; négatif après ; un « N jours avant » compte ses jours), pour un `VALARM` relatif (remplace `minutesBeforeStart`). |
+| `PlannedReminder` (type)                   | Rappel à sonner : `key`, `at`, `ringtone?`.                                                                                               |
+| `remindersBefore(key, moment, reminders, anchor = 'start')` | Les « avant » d'un moment comptés depuis ce repère, clé `<clé>:before:<minutes>` (`<clé>:end:before:<minutes>` depuis la fin). |
+| `remindersAt(key, day, reminders, onDay = true, anchor = 'start')` | Les « À HH:MM » d'un jour de Paris (clé `<clé>:at:<HH:MM>`) et les « N jours avant » de ce jour (clé `<clé>:days:<N>:<HH:MM>`) comptés depuis ce repère (le premier jour, ou le dernier depuis la fin) ; `onDay` faux : ces derniers seulement. |
+| `OccurrenceEnd` (type), `occurrenceReminders(key, day, start, reminders, end?)` | Tous les rappels d'une occurrence (évènement, suite de jours d'une éphéméride) : « avant » son début, « À HH:MM » et « N jours avant » son premier jour ; avec `end` (`day` : dernier jour, `at` : fin), les mêmes depuis la fin (évènements). |
 | `REMINDER_LOOKAHEAD_DAYS`                  | 31 : jours à regarder devant pour les « N jours avant » (occurrences, éphémérides, anniversaires chargés).                                |
 | `reminderDayRange(now, ahead?)`            | Jours dont les rappels peuvent sonner : d'hier (Paris) à `ahead` jours (défaut `REMINDER_LOOKAHEAD_DAYS`).                               |
 | `reminderDaysAhead(reminders)`             | Le plus de jours d'un « N jours avant » parmi des rappels (0 sans).                                                                       |
 | `TaskReminderDays` (type)                  | « Ouverture » et « Échéance » d'une tâche.                                                                                                 |
 | `taskRemindsOn(task, day)`                 | Vrai les jours de l’ouverture à l’échéance (le jour de l’échéance sans ouverture ou avec une ouverture après elle) ; jamais sans échéance. |
 | `taskReminders(key, task, now)`            | « À HH:MM » d'une tâche la veille et le jour de Paris de `now` (clé `<clé>:<jour>:at:<HH:MM>`) et ses « N jours avant » son échéance, une fois (clé `<clé>:<échéance>:days:<N>:<HH:MM>`). |
+
+## `reminder-rings.ts` — ce qui sonne et ses textes (lot 17c, décision FU)
+
+Ce que l'app ouverte (`ringPlannedReminders`, `dueAlarms`) et le serveur qui sonne hors de l'app (`services/tasks/outside-rings.ts`) calculent de la même façon : mêmes clés (une sonnerie par clé : jamais deux fois), instants, titres et lignes. Garde eslint du web : `occurrenceReminders`, `taskReminders`, `remindersAt`, `remindersBefore` appelés à la main renvoient ici.
+
+| Export | Rôle |
+| --- | --- |
+| `RingText`, `PlannedRing`, `RingPage` (types) | Titre et lignes ; un rappel planifié (`PlannedReminder` + texte) ; un lien (`label`, `path`). |
+| `calendarRingPage(espace?)`, `routinesRingPage(espace?)`, `workspaceRingPage(espace)` | « Voir l’agenda » (« … de « X » » pour un autre espace), « Voir les routines », « Ouvrir « X » ». |
+| `RemindedOccurrence`, `eventRings(occurrences)` | Rappels des occurrences d’évènements (non annulées ; journée entière : minuit de Paris, fin à minuit après le dernier jour) ; ligne « ven. 13 nov., 14:05 · lieu » (heure de Paris de son début) ou « Journée entière · lieu ». |
+| `RemindedTask`, `taskRings(tasks, now)` | Rappels des tâches ouvertes non archivées (`taskReminders`) ; ligne « Échéance : 13 nov. 2026 ». |
+| `RemindedRoutine`, `RemindedRoutineOccurrence`, `RemindedRoutineSlot`, `RoutineRing`, `routineRings(routines, defer?)` | Rappels des routines non archivées (avec leur temps estimé, `estimate`, décision FW), par occurrence donnée par l’API et moment non coché (avec ses heures), depuis les quatre repères (`routineSlotAnchors`), reportés par `defer` (`nextAllowedMoment` dans l'app et sur le serveur, décision FV) ; ligne fenêtre (`windowText`) · lieu ; avec le moment et si l’occurrence est celle en cours. |
+| `routineSlotAnchors(occurrence, slot, minutes)` | Instants des quatre repères d'un moment d'une occurrence (décisions FV, FW) : son début et sa fin (`routineSlotSpan` avec le temps estimé de la routine, 30 min sans lui, décision FX) le jour de l'ouverture et celui de l'échéance, heure de Paris (fin absente : minuit après le jour) ; null pour un moment sans aucune heure (pas de rappel « avant »). |
+| `routineRingPrefix(routineId, date)`, `routineRingOf(key)` | Début de clé des rappels d'une occurrence de routine (`routine:<id>\|<échéance>`) ; routine, échéance et moment (null : « À HH:MM ») d'une clé de sonnerie : les actions d'une sonnerie remontrée (décision FV). |
+| `RemindedSchedule`, `ephemerisRings(schedules, ruleOf, now)` | Rappels des éphémérides non archivées par suite de jours (`scheduleRuns`) ; ligne jour (· heure). |
+| `RemindedBirthday`, `birthdayRings(birthdays, now)` | Rappels des anniversaires d’hier à J+31 ; titre `birthdayLabel`, ligne le jour. |
+| `birthdayRingPrefix(birthdayId, date?)`, `birthdayRingOf(key, birthdays)` | Début de clé des rappels d'un anniversaire (`birthday:<contributor\|relation>:<id>:<jour>`) ; l'anniversaire d'une clé de sonnerie (« Ouvrir la fiche » d'une sonnerie remontrée, décision FV). |
+| `DueAlarmFields`, `dueAlarmOccurrence(alarm, now)`, `alarmRingKey(id, occurrence)` | Occurrence d’une alarme planifiée due (après `lastFiredAt`, 6 h au plus ; heure de Paris pour l'app et le serveur, décision FV) ; sa clé `<alarme>:<instant>`. |
+| `trackingStep(minutes, entry, now)`, `trackingRingKey(alarme, chrono, palier)` | Palier d’un chrono en cours pour une alarme de durée ; clé `<alarme>:<chrono>:<palier>`. |
+| `alarmTaskLabel(task, projectLabel?)`, `AlarmTarget`, `alarmTarget(alarm, taskOf, projectOf)` | « Projet #12 Libellé » ; lien d’une alarme : sa tâche, sinon son projet (déplacés du web). |
+| `alarmRingText(alarm)` | Titre (libellé) et ligne (note) de la sonnerie d’une alarme. |
 
 ## `weeks.ts` — semaine de l'espace
 
@@ -131,6 +192,7 @@ Formats partagés par le web et les PDF de l'API, en `fr-FR`. Un jour ou un mois
 | Export               | Rôle                                                                                                                 |
 | -------------------- | -------------------------------------------------------------------------------------------------------------------- |
 | `DateValue`          | `string \| number \| Date`.                                                                                          |
+| `dayText`            | « 13 nov. 2026 » : une date dans un tableau, une liste, un texte (le `fmt.day` du web, les sonneries poussées). |
 | `dateStyle(options)` | Fabrique un formateur qui distingue jour de calendrier et instant (un mois `YYYY-MM` est lu au 1er).                 |
 | `weekdayText`        | « ven. 13 nov. » : jour à planifier, quand le jour de semaine compte (agenda, routines, accueil, PDF du calendrier). |
 | `monthText`          | « novembre 2026 ».                                                                                                   |

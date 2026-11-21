@@ -24,7 +24,7 @@ Tous les fichiers de `apps/web/src/features/workspaces/` : requête des espaces,
   - toujours, requête `ElsewhereAlarms` (alarmes avec tâche et projet, projets, chrono en cours) toutes les 60 s (`ALARMS_MS`) ; `dueAlarms` / `ringAlarm` (de `features/alarms/components/ring`) toutes les 15 s (`TICK_MS`) ; `ElsewhereMarkAlarmFired` marque l'occurrence sonnée ; liens via `alarmTarget` ;
   - toujours, `fetchCalendarEvents` de J-1 à J+31 (`reminderDayRange`) et requête `ElsewhereReminders` (tâches et routines avec leurs rappels, `reminderOccurrences`, moments ; éphémérides `workSchedules` et `birthdays`, lot 16) toutes les 5 min (`CALENDAR_MS`) ; `ringReminders`, `ringTaskReminders` (liens `alarmTarget`), `ringRoutineReminders` (sans report ni « Marquer comme faite »), `ringEphemerisReminders` et `ringBirthdayReminders` (lien vers l’agenda de cet espace) ;
   - `MAILS` choisi : rend `MailWatcher` (de `features/mail`) pour cet espace.
-  - Chaque lien de notification appelle `switchWorkspace(id, path)`.
+  - Chaque lien de notification appelle `switchWorkspace(id, path)` ; leurs libellés viennent de `calendarRingPage(label)`, `routinesRingPage(label)`, `workspaceRingPage(label)` (`@ordo/shared`, les mêmes que les sonneries poussées par le serveur, lot 17c).
 
 ### `components/WorkspaceGate.tsx`
 
@@ -53,6 +53,7 @@ Mémoire de l’espace de la fenêtre. Effets de bord au chargement du module : 
 | Export                       | Rôle                                                                                                                                                                                                                                                                       |
 | ---------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `rememberWorkspace(id)`      | Mémorise l’espace de la fenêtre (`sessionStorage` `ordo.workspace`), pose le cookie `ordo_workspace` (un an, `samesite=lax`, lu par l’API pour les liens et téléchargements) et épingle les requêtes (`pinWorkspace` de `lib/graphql-client`). Appelé par `useWorkspaces`. |
+| Ouverture dans un espace (interne `askedWorkspace`, `WORKSPACE_PARAM` = `ordo-workspace`) | Une adresse `?ordo-workspace=<id>` (notification poussée ouverte app fermée, `public/push-sw.js`, lot 17c) : l’espace est mémorisé (`rememberWorkspace`) avant la première requête et le paramètre retiré de l’adresse. |
 | `switchWorkspace(id, path?)` | Ouvre un autre espace dans cette fenêtre seulement : mémorise puis recharge sur `path`, par défaut la même page vue depuis l’autre espace (`samePageElsewhere`). Utilisé par le sélecteur, la gestion, `ElsewhereNotifier`, `MailWatcher`, `SubscribedEvent` (agenda).     |
 
 Internes : `COOKIE`, `WINDOW_KEY`, `windowWorkspace`, `setCookie`, `ITEM_PAGES` (pages d’un élément → page de leur liste : projet et client → accueil, document comptable → `/accounting`, liste d’achats → `/shopping`), `KEPT_PARAMS` (`tab` seulement), `samePageElsewhere`, `reclaimCookie`.

@@ -3,7 +3,7 @@ import { AppShell, Group, ScrollArea } from '@mantine/core';
 import { PanelTitle } from '../../components/panels/SidePanel';
 import { XIcon } from '@phosphor-icons/react';
 import type { MouseEvent as ReactMouseEvent, PointerEvent as ReactPointerEvent } from 'react';
-import { ResizeHandle } from './ResizeHandle';
+import { ResizeHandle } from '../../components/panels/ResizeHandle';
 import { usePageSettings, useSettingsOpened } from './page-settings';
 import classes from './SettingsAside.module.css';
 import { useIsPhone } from '../../lib/use-is-phone';

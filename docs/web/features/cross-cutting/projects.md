@@ -77,7 +77,7 @@ Pastilles du menu, chacune son composant pour que le chrono ne rafraîchisse que
 
 - `TasksNavBadge()` : nombre de mes tâches du jour (`useMyTodayTasks`), pleine en `LATE_COLOR` s’il y en a en retard.
 - `AgendaNavBadge()` : évènements du jour hors annulés (`useHeldEvents`).
-- `TimeNavBadge()` : temps du jour (`useWeekTime`), rouge quand un chrono tourne (`useRunningTimer`) ; rien sans temps ni chrono.
+- `TimeNavBadge()` : temps du jour (`useWeekTime`), rouge quand un chrono au moins tourne (`useRunningTimers`) ; rien sans temps ni chrono.
 - `TreasuryNavBadge()` : solde des comptes ouverts (`useTreasuryAccounts`), rouge si négatif.
 
 ### `components/NoClientRow.tsx`

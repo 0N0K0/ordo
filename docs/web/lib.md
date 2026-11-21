@@ -86,7 +86,9 @@ Fraîcheur des données :
 Toasts (en haut à droite, `Notifications` de `main.tsx`) : une erreur reste jusqu'à fermeture ; les autres se ferment seules (4 s, 8 s avec un titre, du texte à lire ou des actions ; en pause au survol).
 
 - `NotifyAction` (interface) : bouton d'un toast (`label`, `icon` défaut flèche, `onClick`), qui ferme le toast puis agit.
-- `notifyInfo({ id, title, lines, actions, icon })` : toast d'information (alarme, rappel, nouveau mail, nouvelle version) ; un même `id` remplace le toast affiché.
+- `notifyInfo({ id, title, lines, actions, icon })` : toast d'information (nouveau mail, nouvelle version) ; un même `id` remplace le toast affiché.
+- `notifyAlarm({ id, title, lines, actions, icon, ringing })` : toast d'une alarme ou d'un rappel qui sonne (décision FS) : reste jusqu'à une de ses actions, sans bouton de fermeture, couleur d'avertissement pendant qu'il sonne ; un même `id` le met à jour sur place. Seul `startRinging` l'appelle (garde eslint).
+- `closeToast(id)` : ferme un toast (une sonnerie arrêtée dans un autre onglet).
 - `notifySuccess(message)` : succès (4 s).
 - `notifyWarning(title, message)` : avertissement (8 s).
 - `notifyError(message)` : erreur, titre « Erreur », persistante.
@@ -159,6 +161,7 @@ Un format par rôle (importé en `fmt`) ; à l'écran la forme lisible, la forme
 ### `dates.ts`
 
 - `localDay(instant)` : jour (YYYY-MM-DD) d'un instant dans le fuseau de l'utilisateur.
+- `parisDay(instant)` : jour (YYYY-MM-DD) de Paris d'un instant, celui que calcule aussi le serveur (report d'un rappel de routine, `useSlotRules`, décision FV).
 - `dayOf(value)` : jour d'un jour (ou mois) tel quel, ou d'un instant dans le fuseau de l'utilisateur.
 - `localToday()` : jour courant de l'utilisateur (~50 fichiers).
 - `localParts(instant)` : `{ date: 'YYYY-MM-DD', time: 'HH:MM' }` locaux.
@@ -199,7 +202,7 @@ eslint interdit `.slice(0, 10)`, `.slice(0, 7)`, `.split('T')[0]` et `new Date('
 - `text.ts` : réexports de `@ordo/shared` (seul chemin pour `collator` et `normalize`) : `collator`, `copyName`, `countOf`, `countWith`, `ellipsis`, `fitName`, `nameKey`, `normalize`, `plural`, `sameName` ; et `removedLinksNote(count)` : fin du message d’un changement de projet qui a retiré des liens, « 2 liens retirés. » (rien sans lien), pour les tâches transférées et les routines déplacées (venu de `features/tasks/lib/bulk-label.ts`). Voir [Partagé : core](../shared/cross-cutting/core.md) et [Noms](../business-rules/cross-cutting/naming.md).
 - `links.ts` : `linkInputs(links)` : liens d'un élément (évènement, tâche, routine) reçus de l'API, renvoyés en entrée (adresse et libellé seuls). Imposé par eslint. Utilisé par `occurrenceInput` (agenda), `routineInputOf`, `RoutineForm`, `TaskLinks`.
 - `sets.ts` : `toggledIn(set, value)` (ensemble avec une valeur basculée), `toggledInList(list, value, on?)` (liste avec une valeur ajoutée en fin ou retirée, ou mise selon `on`). Imposés par eslint.
-- `tagged-key.ts` : `taggedKey(tag, id)` (`<sorte>:<id>`, valeur d'une liste mêlant des sortes : clients et tiers, ids de glisser-déposer), `parseTaggedKey(key)` (l'id peut contenir « : »), `taggedIds(keys, tag)`. Imposés par eslint.
+- `tagged-key.ts` : réexporte de `@ordo/shared` (`core/tagged-key.ts`, lot 17c : les clés des sonneries servent aussi au serveur) `taggedKey(tag, id)` (`<sorte>:<id>`, valeur d'une liste mêlant des sortes : clients et tiers, ids de glisser-déposer), `parseTaggedKey(key)` (l'id peut contenir « : »), `taggedIds(keys, tag)`. Imposés par eslint.
 
 ## Mise en page
 

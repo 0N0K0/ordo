@@ -22,6 +22,7 @@ import { scheduleConversationFollowUp } from './services/mail/linked';
 import { scheduleMailSending } from './services/mail/scheduled';
 import { scheduleGithubSync } from './services/github/sync';
 import { scheduleRecurringInvoices } from './services/accounting/recurring-invoices';
+import { scheduleOutsideRings } from './services/tasks/outside-rings';
 import { workspaceMiddleware } from './services/workspaces/workspaces';
 
 const disableIntrospection: Plugin = {
@@ -116,6 +117,8 @@ scheduleMailSending();
 // Recurring invoices are issued on their dates.
 scheduleRecurringInvoices();
 scheduleGithubSync();
+// Alarms and reminders due ring outside the app (push notifications) for the users who chose it.
+scheduleOutsideRings();
 
 app.listen(env.PORT, () => {
   console.log(`API ready (${env.NODE_ENV}) on http://localhost:${env.PORT}${yoga.graphqlEndpoint}`);

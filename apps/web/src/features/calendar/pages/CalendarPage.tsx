@@ -19,7 +19,7 @@ import FullCalendar from '@fullcalendar/react';
 import timeGridPlugin from '@fullcalendar/timegrid';
 import { Group, Paper, SegmentedControl, Stack, Switch, Text } from '@mantine/core';
 import { useLocalStorage } from '@mantine/hooks';
-import { addDays, entrySeconds, formatDuration, mapById, occurrenceKey, plannedSlots, type ScheduleSlotTime, shiftTime, timeToMinutes, weekLength } from '@ordo/shared';
+import { addDays, entrySeconds, formatDuration, mapById, occurrenceKey, plannedSlots, routineMinutes, type ScheduleSlotTime, shiftTime, timeToMinutes, weekLength } from '@ordo/shared';
 import { CalendarStarIcon, ClockIcon, FilePdfIcon, PlusIcon } from '@phosphor-icons/react';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router';
@@ -37,6 +37,7 @@ import { useTimeEntryDialogs } from '../../time/hooks/use-time-dialogs';
 import { entryEventKeys } from '../../time/lib/time-events';
 import { entrySubject } from '../../time/lib/entry-subject';
 import {
+  useBirthdayLook,
   useBirthdays,
   useCalendarCategories,
   useCalendarEventMutations,
@@ -53,7 +54,7 @@ import { EPHEMERIDES_TITLE, schedulesTitle } from '../lib/schedule-text';
 import classes from './CalendarPage.module.css';
 import { downloadCalendarPdf, pdfItems } from '../lib/calendar-pdf';
 import { occurrenceInput } from '../lib/event-input';
-import { birthdayEvents, isArchivedOccurrence, occurrenceSpan, scheduleSources, slotBarLook, slotLookClasses } from '../lib/calendar-events';
+import { birthdaySlots, isArchivedOccurrence, occurrenceSpan, scheduleSources, type ShownSlots, slotBarLook, slotLookClasses } from '../lib/calendar-events';
 import { usePersonOpener } from '../hooks/use-person-opener';
 import { ShowArchivedSwitch } from '../../../components/filters/ShowArchivedSwitch';
 import { placeRoutineBlocks, type RoutineBlock } from '../lib/routine-layout';
@@ -160,6 +161,7 @@ export function CalendarPage() {
   const taskLink = useTaskLink();
   const { schedules, types: scheduleTypes, defaultKind, foreign: foreignSchedules } = useScheduleSources();
   const { data: birthdays } = useBirthdays();
+  const { data: birthdayLook } = useBirthdayLook();
   const openPerson = usePersonOpener();
   const { perso } = useActiveWorkspace();
   // Tracked times of the displayed period (from its first day, local midnight).
@@ -330,8 +332,7 @@ export function CalendarPage() {
     // whole day for an all-day slot) or the whole day in the background, or a thin line on the left of their hours;
     // in the month, the day in the background or a thin line at its bottom. Paused days simply have none. Slots of
     // other workspaces subscribed to are hatched.
-    if (range && schedules && (filters.workHours !== false || editingSlots)) {
-      const sources = scheduleSources(schedules, foreignSchedules ?? [], scheduleTypes ?? [], defaultKind);
+    if (range && (filters.workHours !== false || editingSlots)) {
       const month = view === 'dayGridMonth';
       // Lines of several schedules on a day stand side by side (week, day) or one above the other (month): each
       // schedule with a line that day takes the next lane.
@@ -339,29 +340,12 @@ export function CalendarPage() {
       // Hours of slots in the background (week, day), by day: those at the same time share the width of the day.
       const columns = new Map<string, { key: string; order: number; start: string; end: string; look: EventInput }[]>();
       let order = 0;
-      for (const { schedule, rule, color, label, foreign, display, ephemeris } of sources) {
-        // An archived schedule (read only) stays in the background.
-        if (!foreign && editingSlots && !('archived' in schedule && schedule.archived)) {
-          // Being changed: each slot an event, moved to another day or hour, stretched, or opened.
-          for (const slot of plannedSlots([rule], range.from, range.to)) {
-            const time: ScheduleSlotTime = { date: slot.date, start: slot.start, end: slot.end, allDay: slot.allDay };
-            result.push({
-              id: `edit-slot:${rule.id}:${slot.date}:${slot.start}:${slot.end}`,
-              title: label,
-              allDay: slot.allDay,
-              start: slot.allDay ? slot.date : `${slot.date}T${slot.start}:00`,
-              end: slot.allDay ? addDays(slot.date, 1) : `${slot.date}T${slot.end}:00`,
-              backgroundColor: color ?? 'var(--mantine-color-green-light)',
-              borderColor: color ?? 'var(--mantine-color-green-6)',
-              textColor: 'var(--mantine-color-text)',
-              classNames: [classes.editSlot],
-              durationEditable: !slot.allDay,
-              extendedProps: { kind: 'editSlot', schedule: rule, label, slot: time },
-            });
-          }
-          continue;
-        }
-        if (filters.workHours === false || filters.hiddenScheduleIds?.includes(rule.id)) continue;
+      /**
+       * Shows the slots of a source as its display asks (see above).
+       * @param {ShownSlots} source Look of its kind and its slots.
+       * @returns {void}
+       */
+      const showSlots = ({ color, label, foreign, display, ephemeris, slots, bar, monthBar = false }: ShownSlots) => {
         // Hatched from another workspace, dotted an éphéméride (lot 16).
         const hatched = slotLookClasses({ foreign, ephemeris });
         const background = {
@@ -382,7 +366,7 @@ export function CalendarPage() {
         });
         const days = new Set<string>();
         let lane = 0;
-        for (const slot of plannedSlots([rule], range.from, range.to)) {
+        for (const slot of slots) {
           const wholeDay = {
             start: `${slot.date}T00:00:00`,
             end: `${addDays(slot.date, 1)}T00:00:00`,
@@ -399,7 +383,10 @@ export function CalendarPage() {
               end: addDays(slot.date, 1),
               allDay: true,
             };
+            // Its bar on the day (the birthdays: their own title and person); in the month, only theirs.
+            const dayBar = { ...day, title: label, editable: false, extendedProps: { kind: 'slot' }, ...bar?.(slot), ...slotBarLook({ color, foreign, ephemeris }) };
             if (month) {
+              if (monthBar && display.monthDisplay !== 'NONE') result.push({ ...dayBar, id: `${day.id}:bar` });
               if (display.monthDisplay === 'BACKGROUND') result.push({ ...day, ...background });
               else if (display.monthDisplay === 'BORDER')
                 result.push({
@@ -408,15 +395,7 @@ export function CalendarPage() {
                   ...line(classes.slotBorderBottom, lane),
                 });
             } else {
-              if (display.dayBar) {
-                result.push({
-                  ...day,
-                  title: label,
-                  editable: false,
-                  extendedProps: { kind: 'slot' },
-                  ...slotBarLook({ color, foreign, ephemeris }),
-                });
-              }
+              if (display.dayBar) result.push(dayBar);
               if (display.dayDisplay === 'DAY_BACKGROUND')
                 result.push({
                   id: `work-whole:${slot.scheduleId}:${slot.date}`,
@@ -445,7 +424,34 @@ export function CalendarPage() {
             ...(display.dayDisplay === 'SLOT_BORDER' ? line(classes.slotBorderLeft, lane) : background),
           });
         }
+      };
+      for (const { schedule, rule, color, label, foreign, display, ephemeris } of schedules ? scheduleSources(schedules, foreignSchedules ?? [], scheduleTypes ?? [], defaultKind) : []) {
+        // An archived schedule (read only) stays in the background.
+        if (!foreign && editingSlots && !('archived' in schedule && schedule.archived)) {
+          // Being changed: each slot an event, moved to another day or hour, stretched, or opened.
+          for (const slot of plannedSlots([rule], range.from, range.to)) {
+            const time: ScheduleSlotTime = { date: slot.date, start: slot.start, end: slot.end, allDay: slot.allDay };
+            result.push({
+              id: `edit-slot:${rule.id}:${slot.date}:${slot.start}:${slot.end}`,
+              title: label,
+              allDay: slot.allDay,
+              start: slot.allDay ? slot.date : `${slot.date}T${slot.start}:00`,
+              end: slot.allDay ? addDays(slot.date, 1) : `${slot.date}T${slot.end}:00`,
+              backgroundColor: color ?? 'var(--mantine-color-green-light)',
+              borderColor: color ?? 'var(--mantine-color-green-6)',
+              textColor: 'var(--mantine-color-text)',
+              classNames: [classes.editSlot],
+              durationEditable: !slot.allDay,
+              extendedProps: { kind: 'editSlot', schedule: rule, label, slot: time },
+            });
+          }
+          continue;
+        }
+        if (filters.workHours === false || filters.hiddenScheduleIds?.includes(rule.id)) continue;
+        showSlots({ color, label, foreign, display, ephemeris, slots: plannedSlots([rule], range.from, range.to) });
       }
+      // Birthdays (lot 16, decision FX): whole-day éphémérides of the people, shown as chosen for them.
+      if (filters.workHours !== false && birthdays) for (const source of birthdaySlots(birthdays, birthdayLook, range.from, range.to)) showSlots(source);
       // Slots in the background at the same time stand side by side, each part of a slot as wide as the slots there
       // are then (alone, the whole day).
       for (const [date, slots] of columns) {
@@ -462,8 +468,6 @@ export function CalendarPage() {
         }
       }
     }
-    // Birthdays (lot 16): whole-day éphémérides of the people, with the planned slots.
-    if (range && birthdays && filters.workHours !== false) result.push(...birthdayEvents(birthdays, range.from, range.to, view === 'dayGridMonth'));
     if (filters.tasks) {
       const today = localToday();
       for (const task of context.tasks) {
@@ -544,7 +548,7 @@ export function CalendarPage() {
                   assigneeIds: routine.assigneeIds,
                   fromTime: window.fromTime,
                   dueTime: window.dueTime,
-                  minutes: routine.estimate ?? 30,
+                  minutes: routineMinutes(routine.estimate),
                   position: order.get(routine.id) ?? routine.position,
                   requiredIds: routine.requiredIds,
                   travelBefore: routine.travelBefore,
@@ -642,6 +646,7 @@ export function CalendarPage() {
     defaultKind,
     foreignSchedules,
     birthdays,
+    birthdayLook,
     view,
     showTimers,
     timeEntries.data,

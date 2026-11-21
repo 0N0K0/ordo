@@ -1,12 +1,12 @@
 # Tâches de fond
 
-Tâches lancées par l'API à intervalles réguliers, tâches périodiques du navigateur, et conditions de leur exécution sur l'hébergement. Sources : `apps/api/src/index.ts`, `apps/api/src/services/workspaces/workspaces.ts` (`schedulePerWorkspace`, `forEachWorkspace`), `apps/api/src/services/mail/scheduled.ts`, `apps/api/src/services/mail/linked.ts`, `apps/api/src/services/accounting/recurring-invoices.ts`, `apps/api/src/services/github/sync.ts`, `docs/deployment.md`.
+Tâches lancées par l'API à intervalles réguliers, tâches périodiques du navigateur, et conditions de leur exécution sur l'hébergement. Sources : `apps/api/src/index.ts`, `apps/api/src/services/workspaces/workspaces.ts` (`schedulePerWorkspace`, `forEachWorkspace`), `apps/api/src/services/mail/scheduled.ts`, `apps/api/src/services/mail/linked.ts`, `apps/api/src/services/accounting/recurring-invoices.ts`, `apps/api/src/services/github/sync.ts`, `apps/api/src/services/tasks/outside-rings.ts`, `docs/deployment.md`.
 
 Voir aussi : [Espaces et accès](workspaces-and-access.md), [Mail](../resources/mail.md), [Comptabilité](../finances/accounting.md), [GitHub](github.md), [Alarmes](../activities/alarms.md).
 
 ## Mécanique commune
 
-- Les tâches sont démarrées au lancement de l'API (`apps/api/src/index.ts`), par `schedulePerWorkspace(label, job, { delay, interval, kind? })` : une première exécution `delay` ms après le démarrage, puis toutes les `interval` ms (minuteries Node, pas de cron).
+- Les tâches sont démarrées au lancement de l'API (`apps/api/src/index.ts`), par `scheduleJob(label, job, { delay, interval })` : une première exécution `delay` ms après le démarrage, puis toutes les `interval` ms (minuteries Node, pas de cron) ; une exécution encore en cours quand la suivante est due la fait sauter (deux passages ne se chevauchent pas, lot 17c). `schedulePerWorkspace(label, job, { delay, interval, kind? })` la lance dans chaque espace.
 - Chaque exécution parcourt les espaces (d'un type éventuellement) dans l'ordre du sélecteur et lance la tâche **dans** chaque espace (`runInWorkspace`) : les données lues et écrites sont celles de cet espace.
 - Une erreur dans un espace est journalisée (« Workspace « X » : … ») et n'arrête pas les autres ; un échec global est journalisé (« Envois programmés en échec. »…) et l'exécution suivante a lieu quand même.
 - Rien n'est persisté sur l'état des minuteries : un redémarrage relance tout ; les tâches rattrapent ce qui est dû (dates passées, curseurs).
@@ -19,6 +19,7 @@ Voir aussi : [Espaces et accès](workspaces-and-access.md), [Mail](../resources/
 | Suivi des conversations liées aux projets | « Suivi des conversations » | 30 s            | 5 min      | tous    |
 | Émission des factures récurrentes         | « Factures récurrentes »    | 20 s            | 1 h        | PRO     |
 | Synchronisation GitHub                    | « Synchronisation GitHub »  | 30 s            | 10 min     | tous    |
+| Sonneries hors de l'app (notifications push) | « Sonneries hors de l’app » | 15 s          | 30 s       | tous, pour chaque utilisateur qui l'a choisi |
 
 ### Envois programmés (`scheduleMailSending`)
 
@@ -44,6 +45,11 @@ Voir aussi : [Espaces et accès](workspaces-and-access.md), [Mail](../resources/
 
 - Dans chaque espace qui a une connexion GitHub, synchronise chaque lien de projet activé ; un échec est journalisé et gardé sur le lien (`lastSyncError`, `lastSyncAt`), le résumé du dernier passage aussi (`lastSyncSummary`). Une synchronisation déjà en cours pour un projet est refusée (« Une synchronisation de ce projet est déjà en cours. ») : le passage suivant la reprendra. Détails : [GitHub](github.md).
 
+### Sonneries hors de l'app (`scheduleOutsideRings`, lot 17c)
+
+- Sans clés VAPID, ou sans utilisateur qui a « Sonner hors de l'app » et un appareil, ne fait rien.
+- Sinon, cherche dans tous les espaces (`forEachWorkspace`) les rappels, alarmes et paliers de chrono dus, et les fins de minuteurs de chaque utilisateur ; envoie ce qui est dû depuis 30 secondes à 6 heures et qu'aucun onglet n'a sonné, puis renvoie les sonneries dont la répétition est due. Rattrapage au réveil : ce qui est devenu dû pendant le sommeil du serveur (6 heures au plus). Détails : [Alarmes, hors de l'app](../activities/alarms.md#hors-de-lapp-notifications-push).
+
 ### Autres travaux en arrière-plan
 
 - Mails d'avis du compte (mot de passe modifié, email modifié, lien de réinitialisation) : envoyés sans bloquer la réponse, échec journalisé (voir [Espaces et accès](workspaces-and-access.md)).
@@ -57,14 +63,14 @@ Elles ne tournent que lorsque l'application est ouverte :
 
 | Composant                                                                                 | Rôle                                                                                      | Intervalle                                               |
 | ----------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------- | -------------------------------------------------------- |
-| `AlarmCenter` (`apps/web/src/features/alarms/components/AlarmCenter.tsx`)                 | Recharge les alarmes ; vérifie celles qui doivent sonner, et les rappels des tâches, routines et évènements (pas de tâche de fond de l'API pour eux) | 5 min ; 15 s                                             |
+| `AlarmCenter` (`apps/web/src/features/alarms/components/AlarmCenter.tsx`)                 | Recharge les alarmes ; vérifie celles qui doivent sonner, et les rappels des tâches, routines, évènements, éphémérides et anniversaires (app fermée : la tâche « Sonneries hors de l'app » de l'API) | 5 min ; 15 s                                             |
 | `ElsewhereNotifier` (`apps/web/src/features/workspaces/components/ElsewhereNotifier.tsx`) | Notifications des autres espaces : toujours leurs alarmes et les rappels de leurs tâches, routines et évènements (des 8 prochains jours), leurs nouveaux mails s'ils l'ont choisi | rechargements périodiques (1 min, 5 min) ; vérification toutes les 15 s |
 | `MailWatcher` (`apps/web/src/features/mail/components/MailWatcher.tsx`)                   | Nouveaux mails                                                                            | 10 min (`MAIL_CHECK_MS`), et sur demande                 |
 | `UpdatePrompt` (`apps/web/src/app/UpdatePrompt.tsx`)                                      | Nouvelle version de l'application (service worker)                                        | 1 h                                                      |
 
 ## Hébergement : garder l'app éveillée
 
-Sur o2switch, Passenger endort l'application sans visite : les minuteries s'arrêtent alors (envois programmés, factures récurrentes, synchronisation GitHub, suivi des conversations). Une tâche cron cPanel appelle le site toutes les 5 minutes en production pour la garder éveillée (voir `docs/deployment.md`, « Garder l'app éveillée ») :
+Sur o2switch, Passenger endort l'application sans visite : les minuteries s'arrêtent alors (envois programmés, factures récurrentes, synchronisation GitHub, suivi des conversations, sonneries hors de l'app). Une tâche cron cPanel appelle le site toutes les 5 minutes en production pour la garder éveillée (voir `docs/deployment.md`, « Garder l'app éveillée ») :
 
 ```text
 */5 * * * * curl -fsS https://<nom-de-domaine>/ > /dev/null

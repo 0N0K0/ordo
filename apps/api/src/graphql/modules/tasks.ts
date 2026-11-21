@@ -25,7 +25,8 @@ import { unchecked } from '../unchecked';
 import { locationInputFields } from '../located-fields';
 import { ItemLinkInput, ItemLinkRef } from '../link-fields';
 import { ReminderInput, ReminderRef } from '../reminder-fields';
-import { readEmails, readPhones, readReminders } from '@ordo/shared';
+import { DeadTimeInput, DeadTimeRef } from '../dead-time-fields';
+import { readDeadTimes, readEmails, readPhones, readReminders } from '@ordo/shared';
 import { BIRTH_DATE_DESCRIPTION, personDetailsInputFields } from '../person-fields';
 import { readLinks } from '../../services/core/links';
 
@@ -222,6 +223,7 @@ builder.prismaObject('Task', {
       description: 'Reminders « À HH:MM » (Paris time), rung every day from « Ouverture » to « Échéance » (its day only without « Ouverture »; never without « Échéance »).',
       resolve: (task) => readReminders(task.reminders),
     }),
+    deadTimes: t.field({ type: [DeadTimeRef], description: '« Temps morts »: waits a timer is launched for (decision FT).', resolve: (task) => readDeadTimes(task.deadTimes) }),
     parentId: t.exposeID('parentId', { nullable: true }),
     milestoneId: t.exposeID('milestoneId', { nullable: true }),
     sprintIds: t.idList(relationIds('sprints', 'Sprints the task is planned in.')),
@@ -296,6 +298,7 @@ const taskFields = (t: InputFields) => ({
   ...locationInputFields(t, 'Null: none (its point too).'),
   links: t.field({ type: [ItemLinkInput], description: '20 at most, http or https; null: none.' }),
   reminders: t.field({ type: [ReminderInput], description: 'Reminders « À HH:MM » only, 10 at most; null: none.' }),
+  deadTimes: t.field({ type: [DeadTimeInput], description: '« Temps morts », 20 at most; null: none.' }),
 });
 
 const TaskInput = builder.inputType('TaskInput', {

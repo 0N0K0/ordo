@@ -10,6 +10,7 @@ import {
   type RoutineMove,
   routineSchedule,
   routineState,
+  windowText,
   type RoutineState,
 } from '@ordo/shared';
 import { describeRecurrence } from '../../../components/recurrence/describe-recurrence';
@@ -123,19 +124,8 @@ export const windowOf = (routine: Routine) => ({ fromTime: routine.windowFrom, d
  */
 export const scheduleOf = (routine: Routine) => routineSchedule({ ...routine, ...windowOf(routine) });
 
-/**
- * Window as words: "8:20–8:30", "avant 8:30", "dès 16:30", "7:00–9:00 ou 17:00–20:00", or empty.
- * @param {{ fromTime: string | null, dueTime: string | null, windows?: unknown }} window Window, and the windows it can be done in.
- * @returns {string} Text.
- */
-export function windowText({ fromTime, dueTime, windows }: { fromTime: string | null; dueTime: string | null; windows?: unknown }): string {
-  // Several windows (free time cut by slots): each one, « or ».
-  const parts = Array.isArray(windows) ? (windows as { fromTime: string | null; dueTime: string | null }[]) : [];
-  if (parts.length > 1) return parts.map((part) => windowText(part)).join(' ou ');
-  if (fromTime && dueTime) return `${fromTime}–${dueTime}`;
-  if (dueTime) return `avant ${dueTime}`;
-  return fromTime ? `dès ${fromTime}` : '';
-}
+/** Window as words (« 8:20–8:30 », « avant 8:30 »): the shared brick, also used by the rings pushed by the API. */
+export { windowText };
 
 /**
  * Repetition and times of a routine case in words: "Tous les jours · avant 08:00, 12:00–14:00, dès 20:00 (facultatif)".

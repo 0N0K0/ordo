@@ -8,7 +8,7 @@ import FullCalendar from '@fullcalendar/react';
 import timeGridPlugin from '@fullcalendar/timegrid';
 import { Group, Stack, Text } from '@mantine/core';
 import { DatePickerInput, TimePicker } from '@mantine/dates';
-import { addDays, plannedSlots, shiftTime } from '@ordo/shared';
+import { addDays, plannedSlots, routineMinutes, routineSlotSpan, shiftTime } from '@ordo/shared';
 import { useMemo, useState } from 'react';
 import { localDay, localInstant } from '../../../lib/dates';
 import { notifyWithUndo, ON_ERROR } from '../../../lib/notify';
@@ -21,6 +21,8 @@ import { windowText } from '../lib/routine-format';
 import * as fmt from '../../../lib/format';
 import { ActionButton } from '../../../components/actions/ActionButton';
 import { taggedKey } from '../../../lib/tagged-key';
+import { DeadTimeLaunchButtons } from '../../countdowns/components/DeadTimeLaunchButtons';
+import { routineDeadTimeItem } from '../lib/routine-dead-times';
 
 /** One time of the day of the history: planned (done or not), or ticked without being planned that day. */
 export interface HistoryItem {
@@ -75,7 +77,7 @@ interface TickFormProps {
 
 /**
  * Ticks a time of the day after the fact at a chosen hour (by default when it was due), changes the hour it was done
- * at, or unticks it (with an undo).
+ * at, or unticks it (with an undo); « Lancer » the dead times of the routine for this occurrence (decision FT).
  * @param {TickFormProps} props Component props.
  * @returns {JSX.Element} Form.
  */
@@ -137,9 +139,14 @@ function TickForm({ item, routine, today, onDone }: TickFormProps) {
           {item.check ? 'Changer l’heure' : 'Cocher comme faite'}
         </ActionButton>
       </Group>
+      {/* Its dead times, launched for this occurrence (decision FT). */}
+      {routine && !routine.archived && <DeadTimeLaunchButtons value={routine.deadTimes} item={routineDeadTimeItem(routine, item.date)} />}
     </Stack>
   );
 }
+
+/** End of a time of the day at the midnight after the day (after every HH:MM). */
+const MIDNIGHT = '24:00';
 
 /** Schedules and calendars shown with the routines. */
 export interface AgendaLayers {
@@ -218,22 +225,22 @@ export function RoutineDayAgenda({ day, today, items, byId, layers }: RoutineDay
       classNames: occurrence.calledOff ? [calendarClasses.closed] : [],
     });
   }
-  // Routines: between their times, or for the time to spend on them from (up to) their one time; without times, at the
-  // hour they were done, else in the all-day row.
+  // Routines: from their start to their end (`routineSlotSpan`, as their reminders count: the time to spend on them
+  // from « dès » or up to « jusqu'à », 30 min without it: decisions FW, FX); without hours, at the hour they were done,
+  // else in the all-day row.
   for (const item of items) {
     const routine = byId.get(item.routineId);
     const state = historyItemState(item, today);
     const { color, text } = STATES[state];
-    const minutes = routine?.estimate ?? 30;
+    const minutes = routineMinutes(routine?.estimate);
     const doneAt = item.check ? new Date(item.check.doneAt) : null;
-    const before = item.dueTime ? shiftTime(item.dueTime, -minutes) : null;
-    const after = item.fromTime ? shiftTime(item.fromTime, minutes) : null;
-    let start = item.fromTime ?? (before && item.dueTime && before < item.dueTime ? before : null);
-    let end = item.dueTime ?? (after && item.fromTime && after > item.fromTime ? after : null);
-    if ((!start || !end) && doneAt && localDay(doneAt) === day) {
+    const span = routineSlotSpan(item, minutes);
+    let start = span?.start ?? null;
+    let end = span ? (span.end ?? MIDNIGHT) : null;
+    if (!span && doneAt && localDay(doneAt) === day) {
       start = fmt.time(doneAt);
       const stop = shiftTime(start, minutes);
-      end = stop > start ? stop : '23:59';
+      end = stop > start ? stop : MIDNIGHT;
     }
     const timed = start !== null && end !== null && start < end;
     const status = doneAt ? `faite à ${localDay(doneAt) === item.date ? fmt.time(doneAt) : `${fmt.time(doneAt)} le ${fmt.dayShort(doneAt)}`}` : text;
@@ -242,7 +249,7 @@ export function RoutineDayAgenda({ day, today, items, byId, layers }: RoutineDay
       title: `${routine?.label ?? 'Routine supprimée'}${item.optional ? ' (facultatif)' : ''} · ${status}${item.planned ? '' : ' (non prévue ce jour)'}${routine?.archived ? ' (archivée)' : ''}`,
       allDay: !timed,
       start: timed ? `${day}T${start}:00` : day,
-      end: timed ? `${day}T${end}:00` : addDays(day, 1),
+      end: timed ? (end === MIDNIGHT ? `${addDays(day, 1)}T00:00:00` : `${day}T${end}:00`) : addDays(day, 1),
       backgroundColor: `var(--mantine-color-${color}-light)`,
       borderColor: `var(--mantine-color-${color}-6)`,
       textColor: 'var(--mantine-color-text)',

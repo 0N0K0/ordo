@@ -38,7 +38,7 @@ Chaque fichier, composant, hook, fonction et constante de `apps/web/src`, avec s
 
 `apps/web/src/features/<fonctionnalité>`, rangées comme le menu.
 
-- **Activités** : [Code web des alarmes](web/features/activities/alarms.md) · [Code web de l’agenda](web/features/activities/calendar.md) · [Code web : routines](web/features/activities/routines.md) · [Code web — Tâches](web/features/activities/tasks.md) · [Code web — Temps passé](web/features/activities/time.md)
+- **Activités** : [Code web des alarmes](web/features/activities/alarms.md) · [Code web de l’agenda](web/features/activities/calendar.md) · [Code web : routines](web/features/activities/routines.md) · [Code web — Tâches](web/features/activities/tasks.md) · [Code web — Temps passé](web/features/activities/time.md) · [Code web des minuteurs et des temps morts](web/features/activities/countdowns.md)
 - **Économat** : [Code web : fiches](web/features/supplies/sheets.md) · [Code web : achats](web/features/supplies/shopping.md) · [Code web : inventaire](web/features/supplies/stock.md)
 - **Finances** : [Code web de la facturation](web/features/finances/accounting.md) · [Code web de la trésorerie](web/features/finances/treasury.md)
 - **Ressources** : [Code web des tableaux de bord](web/features/resources/dashboards.md) · [Code web de la bibliothèque](web/features/resources/library.md) · [Code web : mails](web/features/resources/mail.md)

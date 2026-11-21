@@ -89,6 +89,7 @@ export async function seedRoutines({ projects, contributors, meId, scheduleId }:
     requiredIds: [],
     relatedIds: [],
     links: [],
+    deadTimes: [],
     ...changes,
   });
   const mine = meId ? [meId] : [];

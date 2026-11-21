@@ -49,12 +49,16 @@ import {
   normalizedReminders,
   REMINDER_LOOKAHEAD_DAYS,
   readReminders,
-  parisInstant,
-  routineReminderTime,
+  readDeadTimes,
+  storedDeadTimes,
   conditionKinds,
   conditionScheduleIds,
   foreignSlotKindWorkspace,
   conditionCitesBirthdays,
+  type RemindedRoutineSlot,
+  reminderKey,
+  reminderKindOf,
+  routineHasHours,
 } from '@ordo/shared';
 import { z } from 'zod';
 import { deleteTreeItems, topmostIds, treeListService } from '../core/trees';
@@ -482,14 +486,17 @@ export interface RoutineReminderOccurrence {
   date: string;
   /** Its first day (« Ouverture »): the day of its reminders « À HH:MM ». */
   day: string;
-  /** Its times of the day not ticked, with the moment its reminders « N min avant » count from (Paris time). */
-  slots: { slot: number; at: Date }[];
+  /**
+   * Its times of the day not ticked, with their hours (« dès », « jusqu'à »): the shared `routineSlotAnchors` gives the
+   * moments their reminders « N min avant » count from (decision FV).
+   */
+  slots: RemindedRoutineSlot[];
 }
 
 /**
  * Occurrences the reminders of a routine ring for: its current one while not done and its next one (a reminder up to 24
- * hours before may ring before it opens), each with its first day (« Ouverture ») and, for each time of the day not
- * ticked, its first day at the start of the time (« dès », else its latest time; a time without any hour has none).
+ * hours before may ring before it opens), each with its first day (« Ouverture ») and its times of the day not ticked,
+ * with their hours (a time without any hour too: from 00:00 to midnight, decision FV).
  * With reminders « N jours avant » (`ahead` days at most), also the later occurrences that open within those days.
  * An archived routine has none (no occurrence).
  * @param {RoutineTiming & { checks: { date: Date, slot: number }[] }} routine Routine with its latest checks.
@@ -515,16 +522,7 @@ export function reminderOccurrences(routine: RoutineTiming & { checks: { date: D
     // A done occurrence (every required time ticked) rings no more.
     if (slots.every((slot, index) => ticked.has(index) || slot.optional)) return [];
     const day = occurrenceSpansBetween(routine, due, due, schedules).find((span) => span.end === due)?.start ?? due;
-    return [
-      {
-        date: due,
-        day,
-        slots: slots.flatMap((slot, index) => {
-          const time = routineReminderTime(slot);
-          return ticked.has(index) || !time ? [] : [{ slot: index, at: parisInstant(day, time) }];
-        }),
-      },
-    ];
+    return [{ date: due, day, slots: slots.flatMap((slot, index) => (ticked.has(index) ? [] : [{ slot: index, fromTime: slot.fromTime, dueTime: slot.dueTime }])) }];
   });
 }
 
@@ -618,6 +616,9 @@ export interface RoutineSaveOptions {
   copyOf?: string | null;
 }
 
+/** Refusal of a reminder « avant » of a routine without any hour (decision FW). */
+const HOURLESS_REMINDERS = 'Sans heure « dès » ni « jusqu’à » (ni créneau), une routine n’a que des rappels à une heure : le jour J ou quelques jours avant.';
+
 /**
  * Validates a routine and what it points to: category, parent (not itself nor one of its sub-routines), project,
  * assignees, required routines (no cycle) and related ones (both in its project tree).
@@ -655,6 +656,7 @@ async function parseRoutine(input: RoutineInput, id?: string, { restoring = fals
           beneficiaries: { select: { id: true } },
           beneficiaryRelations: { select: { id: true } },
           requires: { select: { requiredId: true } },
+          reminders: true,
           ...RELATIONS,
         },
       })
@@ -717,6 +719,11 @@ async function parseRoutine(input: RoutineInput, id?: string, { restoring = fals
   const outside = (other: string) => outsideSet.has(other);
   // A copy leaves out the former links of its routine out of its tree, as a routine moved loses its own.
   const source = copyOf ? await inputOf(copyOf) : null;
+  // Without any hour, no reminder « avant » (decision FW): those it already had (or its copy) stay stored, never rung.
+  if (!restoring && !routineHasHours(data)) {
+    const kept = new Set(readReminders(current?.reminders ?? source?.reminders ?? []).map(reminderKey));
+    if (data.reminders.some((reminder) => reminderKindOf(reminder) === 'before' && !kept.has(reminderKey(reminder)))) throw fieldError('reminders', HOURLESS_REMINDERS);
+  }
   const moved = source !== null || (current !== null && rootOf(current.projectId) !== rootOf(data.projectId ?? null));
   const linked = data.requiredIds.length + data.relatedIds.length;
   data.requiredIds = keptInTree(data.requiredIds, source?.requiredIds ?? keptRequiredIds, moved, outside, 'requiredIds', Boolean(data.projectId));
@@ -765,6 +772,7 @@ const scalars = (data: ReturnType<typeof routineSchema.parse>) => ({
   moments: data.moments,
   slotCondition: data.slotCondition ? toJson(data.slotCondition) : Prisma.DbNull,
   reminders: toJson(normalizedReminders(data.reminders)),
+  deadTimes: toJson(storedDeadTimes(data.deadTimes)),
   opensOn: data.opensOn ?? Prisma.DbNull,
   cases: toJson(data.cases),
   ...storedLocation(data),
@@ -1050,6 +1058,7 @@ async function inputOf(id: string): Promise<RoutineInput> {
     slotCondition: storedCondition(routine),
     moments: storedMoments(routine),
     reminders: readReminders(routine.reminders),
+    deadTimes: readDeadTimes(routine.deadTimes),
     opensOn: readOpens(routine.opensOn),
     cases: storedCases(routine.cases),
     location: routine.location,

@@ -8,7 +8,7 @@ import { caseSpanOn, caseSpans, repetitionCaseSchema, type RepetitionCase } from
 import { colorSchema } from '../core/workspace';
 import { timeOfDaySchema, daySchema } from '../dates/times';
 import { dayOfMonthOf, daysInMonth, monthIndex, shiftMonth } from '../dates/months';
-import { remindersSchema } from '../dates/reminders';
+import { startRemindersSchema } from '../dates/reminders';
 
 /** Hours of a day of a case, in local time. */
 const timeRangeSchema = z.object({ start: timeOfDaySchema, end: timeOfDaySchema }).refine(...endAfter('start', 'end', true));
@@ -120,7 +120,7 @@ export const workScheduleSchema = z
     /** An éphéméride, not a créneau (lot 16): with a kind, that of the kind (set by the API). */
     ephemeris: z.boolean().default(false),
     /** Reminders of an éphéméride (lot 16, decision FO), every kind; omitted: left unchanged. A créneau rings none. */
-    reminders: remindersSchema.optional(),
+    reminders: startRemindersSchema.optional(),
   })
   .superRefine((schedule, context) => {
     if (!endsAfter(schedule.startDate, schedule.endDate)) context.addIssue({ code: 'custom', path: ['endDate'], message: END_AFTER_START });
@@ -563,6 +563,17 @@ export const defaultScheduleKindSchema = z.object({
   ...scheduleDisplayFields,
 });
 export type DefaultScheduleKindInput = z.input<typeof defaultScheduleKindSchema>;
+
+/**
+ * Birthdays of the people of a workspace in its calendar (decision FX): shown or not (hidden, their reminders still
+ * ring), color (none: the gray of the éphémérides) and display, as a kind of éphémérides.
+ */
+export const birthdayLookSchema = z.object({
+  shown: z.boolean(),
+  color: colorSchema.nullable(),
+  ...scheduleDisplayFields,
+});
+export type BirthdayLookInput = z.input<typeof birthdayLookSchema>;
 
 /** Color and display of a kind of schedules subscribed to, in the subscribing workspace; none: those of the kind. */
 export const scheduleSubscriptionLookSchema = z.object({

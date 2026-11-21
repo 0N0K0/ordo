@@ -15,7 +15,7 @@ interface TimerControlsProps {
 }
 
 /**
- * Commands of the running timer, the same everywhere: pause / resume, then stop (the time saved).
+ * Commands of a running timer, the same everywhere: pause / resume, then stop (the time saved).
  * @param {TimerControlsProps} props Component props.
  * @returns {JSX.Element} Buttons.
  */
@@ -31,7 +31,7 @@ export function TimerControls({ entry, size, look = 'card' }: TimerControlsProps
         variant={header ? 'subtle' : 'light'}
         aria-label={paused ? 'Reprendre le chrono' : 'Mettre le chrono en pause'}
         loading={setPaused.isPending}
-        onClick={() => setPaused.mutate(!paused, ON_ERROR)}
+        onClick={() => setPaused.mutate({ id: entry.id, paused: !paused }, ON_ERROR)}
       >
         {paused ? <PlayIcon aria-hidden /> : <PauseIcon aria-hidden />}
       </IconAction>

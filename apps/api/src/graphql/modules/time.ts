@@ -230,10 +230,10 @@ builder.queryFields((t) => ({
       return { times: times.length, comments };
     },
   }),
-  runningTimeEntry: t.prismaField({
-    type: 'TimeEntry',
-    nullable: true,
-    resolve: (query) => prisma.timeEntry.findFirst({ ...query, where: { endedAt: null } }),
+  runningTimeEntries: t.prismaField({
+    type: ['TimeEntry'],
+    description: 'Running timers of the workspace (several at once, decision FT), the first started first.',
+    resolve: (query) => prisma.timeEntry.findMany({ ...query, where: { endedAt: null }, orderBy: [{ startedAt: 'asc' }, { id: 'asc' }] }),
   }),
   alarms: t.prismaField({
     type: ['Alarm'],
@@ -244,21 +244,32 @@ builder.queryFields((t) => ({
 builder.mutationFields((t) => ({
   startTimer: t.prismaField({
     type: 'TimeEntry',
-    description: 'Starts a timer; the running one is stopped first.',
+    description: 'Starts a timer; the ones running keep running (decision FT).',
     args: { input: t.arg({ type: TimerInput, required: true }) },
     resolve: async (query, _root, { input }) => reloaded(prisma.timeEntry, query, timeEntries.startTimer({ ...input, events: eventLinks(input.events) })),
   }),
   setTimerPaused: t.prismaField({
     type: 'TimeEntry',
-    args: { paused: t.arg.boolean({ required: true }) },
-    resolve: async (query, _root, { paused }) => reloaded(prisma.timeEntry, query, timeEntries.setTimerPaused(paused)),
+    description: 'Pauses or resumes a running timer.',
+    args: { id: t.arg.id({ required: true }), paused: t.arg.boolean({ required: true }) },
+    resolve: async (query, _root, { id, paused }) => reloaded(prisma.timeEntry, query, timeEntries.setTimerPaused(id, paused)),
   }),
   stopTimer: t.prismaField({
     type: 'TimeEntry',
     nullable: true,
-    resolve: async (query) => {
-      const entry = await timeEntries.stopTimer();
+    description: 'Stops a running timer (its time saved); null when it no longer runs. The others keep running.',
+    args: { id: t.arg.id({ required: true }) },
+    resolve: async (query, _root, { id }) => {
+      const entry = await timeEntries.stopTimer(id);
       return entry ? reloaded(prisma.timeEntry, query, entry) : null;
+    },
+  }),
+  stopAllTimers: t.prismaField({
+    type: ['TimeEntry'],
+    description: '« Arrêter tout »: stops every running timer (their time saved).',
+    resolve: async (query) => {
+      const stopped = await timeEntries.stopAllTimers();
+      return prisma.timeEntry.findMany({ ...query, where: { id: { in: stopped.map((entry) => entry.id) } }, orderBy: { startedAt: 'asc' } });
     },
   }),
   createTimeEntry: t.prismaField({

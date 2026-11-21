@@ -27,7 +27,7 @@ Toute modification d'un élément archivé, ou d'un sous-élément d'un élémen
 - `findActive(model, id, what)` : charge l'élément (« X introuvable. ») puis refuse s'il est archivé.
 - `refuseArchived(record, field?)` : refuse un élément déjà chargé.
 - `assertActive(model, id, what, options)` : existence et non-archivage en une requête.
-- Les listes de libellés (`createLabelService`) et les arbres de réglages (`treeListService`) refusent la modification d'un élément archivé ; un élément archivé ne reçoit pas de nouvel enfant (ceux déjà présents restent).
+- Les listes de libellés (`createLabelService`, dont la modification ne change que les champs envoyés : `presentFields`, aucune valeur par défaut ajoutée pour un champ omis) et les arbres de réglages (`treeListService`) refusent la modification d'un élément archivé ; un élément archivé ne reçoit pas de nouvel enfant (ceux déjà présents restent).
 - Commentaires : on ne commente pas, ne modifie pas et ne supprime pas un commentaire d'un élément archivé, ni d'un élément contenu dans un élément archivé (article de fiche dans une fiche archivée, article de liste dans une liste archivée) (`apps/api/src/services/core/comments.ts`).
 - Les sous-éléments verrouillés par leur parent : périodes d'un contexte de trésorerie archivé (ni ajout, ni modification, ni suppression).
 

@@ -7,7 +7,7 @@ import * as events from '../../services/calendar/calendar-events';
 import * as schedules from '../../services/calendar/work-schedules';
 import { settleScheduleChange } from '../../services/routines/routines';
 import { BY_POSITION } from '../../services/core/ordering';
-import { builder } from '../builder';
+import { builder, type InputFields } from '../builder';
 import { locatedInput, locationInputFields, TRAVEL_DESCRIPTIONS, travelInputFields } from '../located-fields';
 import { ItemLinkInput, ItemLinkRef } from '../link-fields';
 import { ReminderInput, ReminderRef } from '../reminder-fields';
@@ -183,14 +183,35 @@ const DefaultScheduleKindRef = builder.objectRef<schedules.DefaultScheduleKind>(
   }),
 });
 
+/**
+ * Color and display of an input of a look set on the workspace (its schedules without kind, its birthdays).
+ * @param {InputFields} t Field builder.
+ * @returns {object} Fields.
+ */
+const workspaceLookFields = (t: InputFields) => ({
+  color: t.string(),
+  dayDisplay: t.string({ required: true }),
+  dayBar: t.boolean({ required: true }),
+  monthDisplay: t.string({ required: true }),
+});
+
 const DefaultScheduleKindInput = builder.inputType('DefaultScheduleKindInput', {
+  fields: (t) => ({ label: t.string({ required: true, description: 'Empty: "Travail".' }), ...workspaceLookFields(t) }),
+});
+
+const BirthdayLookRef = builder.objectRef<schedules.BirthdayLook>('BirthdayLook').implement({
+  description: 'Birthdays of the people of this workspace in its calendar (decision FX): shown or not, color (none: the gray of the éphémérides) and display.',
   fields: (t) => ({
-    label: t.string({ required: true, description: 'Empty: "Travail".' }),
-    color: t.string(),
-    dayDisplay: t.string({ required: true }),
-    dayBar: t.boolean({ required: true }),
-    monthDisplay: t.string({ required: true }),
+    shown: t.exposeBoolean('shown', { description: 'Shown in the calendar; hidden, their reminders still ring.' }),
+    color: t.exposeString('color', { nullable: true }),
+    dayDisplay: t.string({ resolve: (item) => item.display.dayDisplay }),
+    dayBar: t.boolean({ resolve: (item) => item.display.dayBar }),
+    monthDisplay: t.string({ resolve: (item) => item.display.monthDisplay, description: 'Its days in the month: BACKGROUND or BORDER with their bar, NONE: nothing.' }),
   }),
+});
+
+const BirthdayLookInput = builder.inputType('BirthdayLookInput', {
+  fields: (t) => ({ shown: t.boolean({ required: true }), ...workspaceLookFields(t) }),
 });
 
 const ScheduleSubscriptionLookInput = builder.inputType('ScheduleSubscriptionLookInput', {
@@ -387,6 +408,11 @@ builder.queryFields((t) => ({
     description: 'Schedules without kind of this workspace: name, color and display.',
     resolve: () => schedules.defaultScheduleKind(),
   }),
+  birthdayLook: t.field({
+    type: BirthdayLookRef,
+    description: 'Birthdays of the people of this workspace in its calendar: shown or not, color and display (decision FX).',
+    resolve: () => schedules.birthdayLook(),
+  }),
   foreignScheduleKinds: t.field({
     type: [ForeignScheduleKindRef],
     description: 'Kinds of schedules of the other workspaces, with whether this one shows them.',
@@ -501,6 +527,12 @@ builder.mutationFields((t) => ({
     args: { input: t.arg({ type: DefaultScheduleKindInput, required: true }) },
     // Display values are checked by the service.
     resolve: (_root, { input }) => schedules.saveDefaultScheduleKind(unchecked({ ...input, color: input.color ?? null })),
+  }),
+  saveBirthdayLook: t.field({
+    type: BirthdayLookRef,
+    args: { input: t.arg({ type: BirthdayLookInput, required: true }) },
+    // Display values are checked by the service.
+    resolve: (_root, { input }) => schedules.saveBirthdayLook(unchecked({ ...input, color: input.color ?? null })),
   }),
   setScheduleSubscriptionLook: t.boolean({
     description: 'Color and display of a kind of schedules subscribed to, in this workspace (null fields: those of the kind).',

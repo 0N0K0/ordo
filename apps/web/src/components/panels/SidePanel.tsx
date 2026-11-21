@@ -1,9 +1,11 @@
 import { Drawer, Text, type DrawerProps } from '@mantine/core';
 import { useCallback, useRef, useState, type ReactNode } from 'react';
+import { useIsPhone } from '../../lib/use-is-phone';
+import { SIDE_PANELS } from './panel-widths';
 import { closePanel, PanelFlushContext, useOpenPanels, type PanelFlush, type PanelSize } from './panels';
-
-/** Width of each size of panel: a form, or a wide one (the width of the panel of a task). */
-const WIDTHS: Record<PanelSize, string> = { md: 'min(40rem, 100%)', lg: 'min(72rem, 100%)' };
+import { ResizeHandle } from './ResizeHandle';
+import classes from './SidePanel.module.css';
+import { useResizablePanel } from './use-resizable-panel';
 
 /** Under the dialogs (a confirmation asked from a panel shows over it). */
 const PANEL_Z_INDEX = 190;
@@ -29,13 +31,17 @@ export function PanelTitle({ children }: { children: ReactNode }) {
 
 /**
  * Side panel on the right of the page, the one of every form and detail (as the panel of a task): its title, then its
- * content. Closed by its close button, Escape or a click outside, it first saves what its content has not saved yet
- * (the field being typed, `usePanelFlush`); when a field is invalid, so not saved, it stays open the first time, the
- * field focused with its error under it; closed again, it closes (the invalid value is not saved).
+ * content. Resized from its left edge as the navigation sidebar (`useResizablePanel`, one kept width per size,
+ * `SIDE_PANELS`): dragged below its minimum it closes, a double click on the handle gives it its minimum width; on a
+ * phone it takes the whole width, without handle. Closed by its close button, Escape, a click outside or its handle, it
+ * first saves what its content has not saved yet (the field being typed, `usePanelFlush`); when a field is invalid, so
+ * not saved, it stays open the first time, the field focused with its error under it; closed again, it closes (the
+ * invalid value is not saved).
  * @param {SidePanelProps} props Component props.
  * @returns {JSX.Element} Panel.
  */
-export function SidePanel({ title, size = 'md', children, onClose, ...props }: SidePanelProps) {
+export function SidePanel({ title, size = 'md', children, onClose, opened, withCloseButton = true, ...props }: SidePanelProps) {
+  const phone = useIsPhone();
   const [flushes] = useState(() => new Set<PanelFlush>());
   // A close refused once (an invalid field): the next one closes.
   const refused = useRef(false);
@@ -65,9 +71,27 @@ export function SidePanel({ title, size = 'md', children, onClose, ...props }: S
     refused.current = false;
     onClose();
   };
+  // Dragged below its minimum, it closes as by its close button (dragged back, it is still open: nothing to do); a panel
+  // without close button (`locked`: closed by its content only) does not.
+  const resize = useResizablePanel({ ...SIDE_PANELS[size], opened, setOpened: (next) => !next && withCloseButton && close() });
 
   return (
-    <Drawer position="right" size={WIDTHS[size]} padding="lg" zIndex={PANEL_Z_INDEX} title={<PanelTitle>{title}</PanelTitle>} closeButtonProps={{ 'aria-label': 'Fermer' }} onClose={close} {...props}>
+    <Drawer
+      opened={opened}
+      position="right"
+      size={phone ? '100%' : resize.width}
+      padding="lg"
+      zIndex={PANEL_Z_INDEX}
+      title={<PanelTitle>{title}</PanelTitle>}
+      withCloseButton={withCloseButton}
+      closeButtonProps={{ 'aria-label': 'Fermer' }}
+      onClose={close}
+      classNames={{ root: classes.root, content: classes.content, body: classes.body }}
+      data-resizing={resize.resizing || undefined}
+      {...props}
+    >
+      {/* Its left edge resizes it (not on a phone: it takes the whole width there). */}
+      {!phone && <ResizeHandle edge="left" label="Redimensionner le panneau" {...resize} />}
       <PanelFlushContext.Provider value={register}>
         <div ref={content} style={{ display: 'contents' }}>
           {children}

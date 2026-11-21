@@ -35,6 +35,13 @@ model Workspace {
   scheduleDayDisplay        String                     @default("SLOT_BACKGROUND")
   scheduleDayBar            Boolean                    @default(true)
   scheduleMonthDisplay      String                     @default("BACKGROUND")
+  /// Birthdays of its people in its calendar (decision FX): shown or not (hidden, their reminders still ring), color
+  /// (none: the gray of the éphémérides) and display, as a kind of éphémérides.
+  birthdayShown             Boolean                    @default(true)
+  birthdayColor             String?
+  birthdayDayDisplay        String                     @default("SLOT_BACKGROUND")
+  birthdayDayBar            Boolean                    @default(true)
+  birthdayMonthDisplay      String                     @default("BACKGROUND")
   createdAt                 DateTime                   @default(now())
   updatedAt                 DateTime                   @updatedAt
   icons                     Icon[]
@@ -145,20 +152,120 @@ enum WorkspaceKind {
 }
 
 model User {
-  id           String        @id @default(cuid())
+  id                String             @id @default(cuid())
   /// Lowercase, unique login name.
-  username     String        @unique
+  username          String             @unique
   /// Lowercase, unique email address.
-  email        String        @unique
+  email             String             @unique
   /// New email address awaiting confirmation.
-  pendingEmail String?
-  passwordHash String
-  createdAt    DateTime      @default(now())
-  updatedAt    DateTime      @updatedAt
-  sessions     Session[]
-  authTokens   AuthToken[]
+  pendingEmail      String?
+  passwordHash      String
+  createdAt         DateTime           @default(now())
+  updatedAt         DateTime           @updatedAt
+  sessions          Session[]
+  authTokens        AuthToken[]
   /// Contributor profile of the user in each workspace ("Moi"): tasks can be assigned to them like to anyone else.
-  contributors Contributor[]
+  contributors      Contributor[]
+  /// How alarms and reminders ring, in every workspace: { ringMinutes, loop, repeatMinutes, ringtone, outside }; none:
+  /// the defaults (decision FS).
+  ringSettings      Json?
+  alarmRings        AlarmRing[]
+  countdowns        Countdown[]
+  /// Devices receiving the push notifications of the user (lot 17c).
+  pushSubscriptions PushSubscription[]
+}
+
+/// A ring of an alarm or a reminder of the user (decision FS), one per ring key: what its toast shows, when it rings
+/// again (repetition, « Répéter dans N min ») and whether it was stopped, followed by every tab and device (and by the
+/// push notifications, lot 17c). Kept 6 hours after its last change.
+model AlarmRing {
+  id           String    @id @default(cuid())
+  userId       String
+  user         User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  /// Key of the occurrence rung (`event:…:before:15`, `<alarm>:<instant>`…), without the `ordo.alarm.` prefix.
+  key          String
+  /// Workspace of the alarm or reminder (its link opens it); not a relation: a ring outlives nothing.
+  workspaceId  String?
+  title        String
+  /// Lines under the title (strings).
+  lines        Json      @default("[]")
+  /// Page of the app its toast links to, and the label of the link.
+  path         String?
+  linkLabel    String?
+  /// Ringtone of the reminder; none: the one of the settings.
+  ringtone     String?
+  /// Instant the alarm or reminder was due.
+  dueAt        DateTime
+  /// Start of the ring under way; null: silent (snoozed, or its ring over).
+  ringingSince DateTime?
+  /// When it rings again; null: not again (no repetition).
+  nextAt       DateTime?
+  /// Stopped for good (« Arrêter »).
+  stoppedAt    DateTime?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  @@unique([userId, key])
+  @@index([userId, updatedAt])
+}
+
+/// A device (browser) of the user subscribed to the push notifications (Web Push, lot 17c, decision FU), shared by the
+/// workspaces as the rings: the server pushes the rings of the alarms and reminders to it while « Sonner hors de l'app »
+/// is on. Deleted when the push service says it expired (404, 410), when it is removed, or when its user is deleted.
+model PushSubscription {
+  id            String    @id @default(cuid())
+  userId        String
+  user          User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  /// Address of the push service for this device (unique: one device, one row; taken by the user who subscribes it).
+  endpoint      String    @unique
+  /// Keys of the device encrypting the messages (`p256dh`, `auth`).
+  p256dh        String
+  auth          String
+  /// Device as the user reads it (« Chrome · Android »), from its user agent.
+  label         String
+  createdAt     DateTime  @default(now())
+  /// Last message the push service accepted.
+  lastSuccessAt DateTime?
+
+  @@index([userId])
+}
+
+/// A timer (« minuteur », countdown) of the user (decision FT), shared by the workspaces as its rings: it counts down
+/// and rings at its end. Running: `endsAt` (the moment the server can push its end, lot 17c); paused: `remainingSeconds`.
+/// Rung (`rungAt`): its ring goes on as an `AlarmRing` (key `countdown:<id>`), the timer no longer shows; removed 6 hours
+/// after. A timer launched from a dead time of a task or a routine (occurrence) keeps them (ids only: no relation).
+model Countdown {
+  id               String    @id @default(cuid())
+  userId           String
+  user             User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  /// Name (« Pâtes », the dead time « Lave-linge »); none: « Minuteur ».
+  label            String?
+  /// Duration programmed, in seconds, minutes added included.
+  durationSeconds  Int
+  /// End while it runs; null: paused.
+  endsAt           DateTime?
+  /// Seconds left while paused; null: running.
+  remainingSeconds Int?
+  /// Ringtone at its end; none: the one of the settings.
+  ringtone         String?
+  /// Workspace of its item (its link opens it there).
+  workspaceId      String?
+  /// Item of the dead time: a task, or a routine and its occurrence (ids only).
+  taskId           String?
+  routineId        String?
+  occurrenceDate   DateTime? @db.Date
+  /// Name of the item, shown with the timer and its ring.
+  subject          String?
+  /// Page of the app its ring links to, and the label of the link.
+  path             String?
+  linkLabel        String?
+  /// Its end rang (the ring goes on as an `AlarmRing`).
+  rungAt           DateTime?
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+
+  @@index([userId, rungAt])
+  @@index([endsAt])
 }
 
 model Session {
@@ -635,6 +742,8 @@ model Task {
   /// Reminders [{ before: null, at: "HH:MM" }] (Paris time), 10 at most: rung every day from « Ouverture » to
   /// « Échéance » (the « Échéance » day only without « Ouverture »; never without « Échéance »).
   reminders            Json               @default("[]")
+  /// « Temps morts » [{ label, minutes, ringtone? }], 20 at most: waits a timer is launched for (decision FT).
+  deadTimes            Json               @default("[]")
   /// Parent task, possibly in another project of the same tree.
   parentId             String?
   parent               Task?              @relation("TaskTree", fields: [parentId], references: [id], onDelete: SetNull)
@@ -1097,7 +1206,7 @@ model TimeEntry {
   /// What was done (plain text, several lines).
   description   String?
   startedAt     DateTime
-  /// Null while the timer runs (a single entry runs at a time).
+  /// Null while the timer runs (several may run at once, decision FT).
   endedAt       DateTime?
   /// Start of the current pause, while paused.
   pausedAt      DateTime?
@@ -3142,6 +3251,9 @@ model Routine {
   /// Reminders, 10 at most: [{ before: minutes (24 hours at most), at: null }] before the first day of an occurrence
   /// (« Ouverture ») at the start of each time of the day (« dès »), or [{ before: null, at: "HH:MM" }] on that day.
   reminders            Json                   @default("[]")
+  /// « Temps morts » [{ label, minutes, ringtone? }], 20 at most: waits a timer is launched for, from an occurrence
+  /// (decision FT).
+  deadTimes            Json                   @default("[]")
   /// « Ouverture » of the occurrences of its rule: { mode: DAY, day, month } | { mode: WEEKDAY, position, weekday,
   /// month } | { mode: WEEK, week, weekday } | { mode: BEFORE, days }; null: from their first day.
   opensOn              Json?

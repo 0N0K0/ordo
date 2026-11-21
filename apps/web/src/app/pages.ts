@@ -17,6 +17,7 @@ import {
   UserCircleIcon,
   type Icon,
 } from '@phosphor-icons/react';
+import { APP_PATHS, projectPath, taskPath } from '@ordo/shared';
 import { SETTINGS_TAB_PARAM } from '../components/tabs/use-settings-tab';
 
 /** A page of the app: its address, its name (menu, header, page title) and its icon (menu). */
@@ -28,12 +29,12 @@ interface AppPage {
 
 /** Pages of the app, one place for their names and icons (clients and projects show their own). */
 export const PAGES = {
-  home: { path: '/', label: 'Accueil', icon: HouseIcon },
-  tasks: { path: '/tasks', label: 'Tâches', icon: CheckSquareOffsetIcon },
-  routines: { path: '/routines', label: 'Routines', icon: ArrowsClockwiseIcon },
-  calendar: { path: '/calendar', label: 'Agenda', icon: CalendarBlankIcon },
+  home: { path: APP_PATHS.home, label: 'Accueil', icon: HouseIcon },
+  tasks: { path: APP_PATHS.tasks, label: 'Tâches', icon: CheckSquareOffsetIcon },
+  routines: { path: APP_PATHS.routines, label: 'Routines', icon: ArrowsClockwiseIcon },
+  calendar: { path: APP_PATHS.calendar, label: 'Agenda', icon: CalendarBlankIcon },
   time: { path: '/time', label: 'Chronos', icon: TimerIcon },
-  alarms: { path: '/alarms', label: 'Alarmes', icon: AlarmIcon },
+  alarms: { path: APP_PATHS.alarms, label: 'Alarmes', icon: AlarmIcon },
   shopping: { path: '/shopping', label: 'Achats', icon: BasketIcon },
   sheets: { path: '/sheets', label: 'Fiches', icon: ClipboardTextIcon },
   stock: { path: '/stock', label: 'Inventaire', icon: ArchiveIcon },
@@ -43,7 +44,7 @@ export const PAGES = {
   documents: { path: '/documents', label: 'Documents', icon: FolderOpenIcon },
   dashboards: { path: '/dashboards', label: 'Tableaux de bord', icon: ChartBarIcon },
   settings: { path: '/settings', label: 'Paramètres', icon: GearSixIcon },
-  account: { path: '/account', label: 'Mon compte', icon: UserCircleIcon },
+  account: { path: APP_PATHS.account, label: 'Mon compte', icon: UserCircleIcon },
 } satisfies Record<string, AppPage>;
 
 /** Pages of the sign-in (outside the app), their addresses. */
@@ -86,14 +87,8 @@ export const PROJECT_ROUTE = '/projects/:id';
 // eslint-disable-next-line no-restricted-syntax -- the route itself.
 export const CLIENT_ROUTE = '/clients/:id';
 
-/**
- * Page of a project, on a tab.
- * @param {string} id Project.
- * @param {string} [tab] Tab (« tasks », « time », « mail »…). Optional. Default = the first one.
- * @returns {string} Path.
- */
-// eslint-disable-next-line no-restricted-syntax -- the address of a project.
-export const projectPath = (id: string, tab?: string): string => `/projects/${id}${tab ? `?tab=${tab}` : ''}`;
+/** Page of a project, on a tab; page of a task (shared with the API: the links of the rings pushed, lot 17c). */
+export { projectPath, taskPath };
 
 /**
  * Calendar opened on a day.
@@ -110,14 +105,6 @@ export const calendarPath = (date: string): string => `/calendar?date=${date}`;
  */
 // eslint-disable-next-line no-restricted-syntax -- the address of a client.
 export const clientPath = (id: string): string => `/clients/${id}`;
-
-/**
- * Page of a task: the tasks tab of its project with the task open, or « Tâches » for a task of no project.
- * @param {{ id: string, projectId: string | null }} task Task.
- * @returns {string} Path.
- */
-export const taskPath = (task: { id: string; projectId: string | null }): string =>
-  task.projectId ? `${projectPath(task.projectId, 'tasks')}&task=${task.id}` : `${PAGES.tasks.path}?task=${task.id}`;
 
 /**
  * Mails page on a folder of an account, a mail open (optional).

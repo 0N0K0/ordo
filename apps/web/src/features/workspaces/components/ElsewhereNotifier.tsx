@@ -1,4 +1,4 @@
-import { reminderDayRange } from '@ordo/shared';
+import { calendarRingPage, reminderDayRange, routinesRingPage, workspaceRingPage, type RingPage } from '@ordo/shared';
 import { useEffect } from 'react';
 import { graphql } from '../../../graphql';
 import type { ElsewhereAlarmsQuery, ElsewhereRemindersQuery } from '../../../graphql/graphql';
@@ -10,7 +10,6 @@ import { fetchCalendarEvents, type EventOccurrence } from '../../calendar/api';
 import { MailWatcher } from '../../mail/components/MailWatcher';
 import { useWorkspaces, type Workspace } from '../api';
 import { switchWorkspace } from '../lib/switch';
-import { PAGES } from '../../../app/pages';
 import { alarmTarget } from '../../alarms/lib/alarm-labels';
 
 const ElsewhereAlarmsDocument = graphql(`
@@ -32,7 +31,7 @@ const ElsewhereAlarmsDocument = graphql(`
       id
       label
     }
-    runningTimeEntry {
+    runningTimeEntries {
       id
       startedAt
       endedAt
@@ -55,9 +54,7 @@ const ElsewhereRemindersDocument = graphql(`
       effectiveMinDate
       effectiveDeadline
       reminders {
-        before
-        at
-        days
+        ...ReminderFields
       }
     }
     routines {
@@ -65,18 +62,18 @@ const ElsewhereRemindersDocument = graphql(`
       label
       archived
       location
+      estimate
       currentDate
       reminders {
-        before
-        at
-        days
+        ...ReminderFields
       }
       reminderOccurrences {
         date
         day
         slots {
           slot
-          at
+          fromTime
+          dueTime
         }
       }
       slots {
@@ -99,9 +96,7 @@ const ElsewhereRemindersDocument = graphql(`
       cases
       exceptions
       reminders {
-        before
-        at
-        days
+        ...ReminderFields
       }
     }
     birthdays {
@@ -109,9 +104,7 @@ const ElsewhereRemindersDocument = graphql(`
       name
       birthDate
       reminders {
-        before
-        at
-        days
+        ...ReminderFields
       }
     }
   }
@@ -143,7 +136,7 @@ function ElsewhereWorkspace({ workspace }: { workspace: Workspace }) {
 
   useEffect(() => {
     let alarms: ElsewhereAlarm[] = [];
-    let running: ElsewhereAlarmsQuery['runningTimeEntry'] = null;
+    let running: ElsewhereAlarmsQuery['runningTimeEntries'] = [];
     // Labels of the projects: a task number is only unique in its project.
     let projectLabels = new Map<string, string>();
     let upcoming: EventOccurrence[] = [];
@@ -153,11 +146,10 @@ function ElsewhereWorkspace({ workspace }: { workspace: Workspace }) {
 
     /**
      * Link opening a page of that workspace.
-     * @param {string} label Label.
-     * @param {string} path Path.
+     * @param {RingPage} page Label and path.
      * @returns {RingLink} Link.
      */
-    const link = (label: string, path: string): RingLink => ({ label, onClick: () => switchWorkspace(id, path) });
+    const link = ({ label: text, path }: RingPage): RingLink => ({ label: text, to: { path, workspaceId: id }, onClick: () => switchWorkspace(id, path) });
 
     /**
      * Runs a check now and then regularly.
@@ -182,7 +174,7 @@ function ElsewhereWorkspace({ workspace }: { workspace: Workspace }) {
         () => alarm.task ?? undefined,
         (id) => (alarm.project?.id === id ? alarm.project : projectLabels.has(id) ? { id, label: projectLabels.get(id)! } : undefined),
       );
-      return [target ? link(target.label, target.to) : link(`Ouvrir « ${label} »`, PAGES.home.path)];
+      return [link(target ? { label: target.label, path: target.to } : workspaceRingPage(label))];
     };
 
     /**
@@ -203,7 +195,7 @@ function ElsewhereWorkspace({ workspace }: { workspace: Workspace }) {
      */
     const taskLinks = (task: ElsewhereTask): RingLink[] => {
       const target = alarmTarget({ taskId: task.id, projectId: null }, () => task, (id) => (projectLabels.has(id) ? { id, label: projectLabels.get(id)! } : undefined));
-      return [target ? link(target.label, target.to) : link(`Ouvrir « ${label} »`, PAGES.home.path)];
+      return [link(target ? { label: target.label, path: target.to } : workspaceRingPage(label))];
     };
 
     every(() => {
@@ -211,7 +203,7 @@ function ElsewhereWorkspace({ workspace }: { workspace: Workspace }) {
         .then((data) => {
           alarms = data.alarms;
           projectLabels = new Map(data.projects.map((project) => [project.id, project.label]));
-          running = data.runningTimeEntry;
+          running = data.runningTimeEntries;
         })
         .catch(() => undefined);
     }, ALARMS_MS);
@@ -230,13 +222,14 @@ function ElsewhereWorkspace({ workspace }: { workspace: Workspace }) {
     timers.push(
       window.setInterval(() => {
         const now = new Date();
-        const calendarLinks = [link(`Voir l’agenda de « ${label} »`, PAGES.calendar.path)];
-        ringReminders(upcoming, now, calendarLinks, label);
-        ringEphemerisReminders(reminded.workSchedules, now, calendarLinks, label);
-        ringBirthdayReminders(reminded.birthdays, now, () => calendarLinks, label);
-        ringTaskReminders(reminded.tasks, now, taskLinks, label);
-        ringRoutineReminders(reminded.routines, now, [link(`Voir les routines de « ${label} »`, PAGES.routines.path)], undefined, undefined, label);
-        for (const { alarm, key } of dueAlarms(alarms, running, now, trackingSteps, markFired)) ringAlarm(alarm, key, alarmLinks(alarm), label);
+        const space = { id, label };
+        const calendarLinks = [link(calendarRingPage(label))];
+        ringReminders(upcoming, now, calendarLinks, space);
+        ringEphemerisReminders(reminded.workSchedules, now, calendarLinks, space);
+        ringBirthdayReminders(reminded.birthdays, now, () => calendarLinks, space);
+        ringTaskReminders(reminded.tasks, now, taskLinks, space);
+        ringRoutineReminders(reminded.routines, now, [link(routinesRingPage(label))], undefined, undefined, space);
+        for (const { alarm, key } of dueAlarms(alarms, running, now, trackingSteps, markFired)) ringAlarm(alarm, key, alarmLinks(alarm), space);
       }, TICK_MS),
     );
     return () => timers.forEach((timer) => window.clearInterval(timer));

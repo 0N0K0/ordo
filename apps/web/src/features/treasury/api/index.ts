@@ -273,9 +273,7 @@ const SettingsDocument = graphql(`
       contributorId
       birthDate
       birthdayReminders {
-        before
-        at
-        days
+        ...ReminderFields
       }
       emails
       phones

@@ -27,6 +27,9 @@ export function dateStyle(options: Intl.DateTimeFormatOptions): (value: DateValu
   };
 }
 
+/** « 13 nov. 2026 »: a date in a table, a list, a text (the app's `fmt.day`, the rings pushed by the API). */
+export const dayText = dateStyle({ day: 'numeric', month: 'short', year: 'numeric' });
+
 /** « ven. 13 nov. »: a day to plan, when its weekday matters (agenda, routines, home, the calendar PDF). */
 export const weekdayText = dateStyle({ weekday: 'short', day: 'numeric', month: 'short' });
 

@@ -31,6 +31,17 @@ export function dayIn(instant: Date, timeZone?: string): string {
 }
 
 /**
+ * Time of the day of an instant in a time zone, HH:MM (the inverse of `zonedInstant` with `dayIn`).
+ * @param {Date} instant Instant.
+ * @param {string} timeZone IANA time zone.
+ * @returns {string} HH:MM.
+ */
+export function timeIn(instant: Date, timeZone: string): string {
+  // eslint-disable-next-line no-restricted-syntax -- the time of the day in a time zone, as HH:MM.
+  return instant.toLocaleTimeString('sv-SE', { timeZone, hour: '2-digit', minute: '2-digit', hourCycle: 'h23' });
+}
+
+/**
  * Instant of a day and a time in the local time zone (the user's in the web): an alarm ringing, a time entry
  * starting… The inverse of `dayIn` without a zone.
  * @param {string} day YYYY-MM-DD.

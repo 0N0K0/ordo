@@ -11,7 +11,9 @@ import { SaveStatus } from '../../../components/feedback/SaveStatus';
 import { useAppForm, useFieldSave } from '../../../lib/form';
 import { routinesKey, useRoutineMutations, useRoutinesData, type RoutineOccurrence } from '../../routines/api';
 import { useCachedItem } from '../../../lib/mutation';
-import { ruleScheduleInput, useWorkScheduleMutations, type CalendarEventScope } from '../api';
+import { ruleScheduleInput, useScheduleTypes, useWorkScheduleMutations, useWorkSchedules, type CalendarEventScope } from '../api';
+import { useScheduleConversion } from '../hooks/use-schedule-conversion';
+import { ActionsMenu } from '../../../components/actions/ActionsMenu';
 import { rangeProps } from '../../../components/inputs/date-range';
 import { ActionButton } from '../../../components/actions/ActionButton';
 
@@ -19,7 +21,9 @@ import { ActionButton } from '../../../components/actions/ActionButton';
  * Panel of a slot of a schedule from the calendar: its day and hours (or the whole day), each saved as soon as it
  * changes (decision D22) for the days chosen when the panel opened (`scope`: this day, an exception; it and the
  * following ones; all; null: none chosen, read only); occurrences of routines a change makes disappear confirmed first
- * (declined: put back); or deleting it (its own question).
+ * (declined: put back); or deleting it (its own question). Its « … » menu converts the schedule into an éphéméride or
+ * the reverse (`useScheduleConversion`, the whole schedule whatever the scope; the panel closes once converted,
+ * decision FX).
  * @param {{ label: string, schedule: WorkScheduleRule, slot: ScheduleSlotTime, scope: CalendarEventScope | null, onDelete: (schedule: WorkScheduleRule, slot: ScheduleSlotTime) => void, onClose: () => void }} props Component props.
  * @returns {JSX.Element} Panel.
  */
@@ -59,6 +63,14 @@ export function SlotEditForm({
   });
   const values = form.values;
   const hours = rangeProps({ value: [values.start, values.end], onChange: ([start, end]) => form.setValues({ start, end }), errors: [undefined, form.errors.end] }, true);
+  // « Convertir en éphéméride » / « Convertir en créneau », of the schedule as saved.
+  const convert = useScheduleConversion();
+  const { data: schedules } = useWorkSchedules();
+  const { data: types } = useScheduleTypes();
+  const current = schedules?.find((item) => item.id === schedule.id);
+  const menu = current && (
+    <ActionsMenu name={current.label} items={[convert.schedule(current, current.typeId ? types?.find((type) => type.id === current.typeId) : undefined, onClose)]} />
+  );
   return (
     <Stack gap="md">
       {!reading && <SaveStatus saving={saving} />}
@@ -85,7 +97,8 @@ export function SlotEditForm({
         </Stack>
       </Fieldset>
       {reading ? (
-        <Group justify="flex-end">
+        <Group justify="space-between">
+          {menu ?? <span />}
           <ActionButton priority="secondary" icon={<XIcon aria-hidden />} onClick={onClose}>
             Fermer
           </ActionButton>
@@ -93,6 +106,7 @@ export function SlotEditForm({
       ) : (
         <Group gap={4}>
           <DeleteButton onClick={() => onDelete(saved.current.schedule, saved.current.slot)} />
+          {menu}
         </Group>
       )}
     </Stack>
