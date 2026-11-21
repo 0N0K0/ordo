@@ -179,7 +179,7 @@ Cellules des lignes d’évènements du tableau des tâches (`EventOccurrence`) 
 | `EventWhenCell({ event, side })`      | Début ou fin, modifiable (jour pour un évènement « journée », sinon date et heure, en heure de Paris) ; déplacer le début déplace la fin ; une fin avant le début déplace le début. |
 | `EventBeneficiariesCell({ event })`   | Bénéficiaires de l’évènement (toute la série si récurrent).                                                                                                                                   |
 
-Internes : `useEventTargets` (évènements visés par une modification : la sélection ou celui-ci), `useEventCellLabel`, `useEventSave` (enregistre sur l’évènement ou sa série), `wall`, `fromWall`, `lengthOf`, `spanOf` (calculs de durée).
+Internes : `useEventTargets` (évènements visés par une modification : la sélection ou celui-ci), `useEventCellLabel`, `useEventSave(event, column, series?)` (enregistre sur l’évènement ou sa série ; portée demandée une fois par `askScope`, sans « Cette occurrence » pour un champ de toute la série, `series` : personnes, bénéficiaires), `wall`, `fromWall`, `lengthOf`, `spanOf` (calculs de durée).
 
 ### `components/table-extras.tsx`
 

@@ -78,7 +78,7 @@ Source : `sheetCategories = createLabelService('sheetCategory', …)` ; mutation
 
 Source : `addSheetToShoppingList`, `removeSheetFromShoppingList`, `fitForShopping`, `withSource`.
 
-- La liste ne doit être ni archivée (« Élément archivé : restaurez-le pour le modifier. ») ni close (« Liste clôturée : rouvrez-la pour changer ses éléments. », voir [Clôture](shopping.md#clôture)), la fiche non archivée.
+- La liste ne doit être ni archivée (« Élément archivé : restaurez-le pour le modifier. ») ni close (« Liste clôturée : rouvrez-la, ou rouvrez l’une de ses tâches, pour changer ses éléments. », voir [Clôture](shopping.md#clôture)), la fiche non archivée.
 - Chaque élément est multiplié (`timesSheet`, arrondi au millième) puis adapté aux limites des achats : libellé et unité coupés à 250 caractères, note à 65 536 (textes enregistrés avant ces limites), quantité plafonnée à 999 999.
 - Clé d'addition (`productKey`) : le produit, sinon le libellé et l'unité normalisés (`nameKey` : sans casse, accents ni espaces en trop). Un élément de la liste **pas encore acheté** de même clé voit sa quantité augmentée et la part de la fiche notée dans ses sources (`sheetSources` : `[{ sheetId, label, quantity }]`) ; il ne reste facultatif que si toutes ses fiches le disent.
 - Sinon un nouvel élément est créé en dernier : avec un produit, ses champs (ceux de l'élément de fiche en priorité) ; sans produit, ceux de l'élément de fiche.

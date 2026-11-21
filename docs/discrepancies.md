@@ -2,10 +2,6 @@
 
 Écarts entre le code, l’interface et la documentation, relevés en écrivant la documentation de référence. Les pages de référence décrivent le comportement actuel sans le juger ; cette page liste ce qui semble incohérent, incomplet ou à confirmer. Chaque point renvoie à la page qui décrit le comportement.
 
-## Archivage incomplet
-
-- **Contact archivé :** sa suppression est refusée (`deleteClientContact`), alors que tout autre élément archivé reste supprimable (seuls les sous-éléments d’un élément archivé ne le sont pas). Voir [Archivage](business-rules/cross-cutting/archiving.md#archiver-ou-supprimer) et [Règles de la facturation](business-rules/finances/accounting.md).
-
 ## Incohérences entre le web et l’API
 
 - **Éditeur d’un texte selon sa taille :** un texte imprimé ou affiché en markdown se saisit dans l’éditeur markdown ; l’introduction et la conclusion d’un document comptable et la description d’un projet ou d’un produit du catalogue sont pourtant saisies dans une zone de texte simple. Voir [Nommage](business-rules/cross-cutting/naming.md).

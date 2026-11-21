@@ -114,7 +114,7 @@ Catégories, magasins, modes, unités, références et emplacements sont des lis
 - Une liste est **close** si `closedAt` est rempli (à la main) **ou** si elle a des tâches et que toutes sont fermées (champ calculé `closed`).
 - `setShoppingListClosed(id, closed)` : refusé si archivée. Clore garde la date d'une clôture déjà faite.
 - Rouvrir une liste dont toutes les tâches sont fermées est refusé : « La tâche de cette liste est fermée : rouvrez la tâche. » (une tâche) ou « Les tâches de cette liste sont fermées : rouvrez-en une. » (plusieurs).
-- Une liste close a ses éléments en lecture seule : ajouter (élément, produits des références, fiche), modifier (et déplacer), dupliquer, ajouter à une référence, retirer un élément ou une fiche sont refusés (« Liste clôturée : rouvrez-la pour changer ses éléments. », `findEditableList`). Restent permis sur une liste close : cocher et décocher ses éléments (mode collecte), la commande à distance et ses livraisons, la modification de la liste (libellé, tâches), son rattachement à un mouvement, sa duplication, sa réouverture, son archivage et sa suppression, les commentaires.
+- Une liste close a ses éléments en lecture seule : ajouter (élément, produits des références, fiche), modifier (et déplacer), dupliquer, ajouter à une référence, retirer un élément ou une fiche sont refusés (« Liste clôturée : rouvrez-la, ou rouvrez l’une de ses tâches, pour changer ses éléments. », `findEditableList`). Restent permis sur une liste close : cocher et décocher ses éléments (mode collecte), la commande à distance et ses livraisons, la modification de la liste (libellé, tâches), son rattachement à un mouvement, sa duplication, sa réouverture, son archivage et sa suppression, les commentaires.
 
 ### Duplication
 

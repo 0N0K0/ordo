@@ -90,19 +90,21 @@ function useEventCellLabel(event: EventOccurrence, column: TaskColumn, field: st
 
 /**
  * Saving of an event cell: the event (its series for a recurring one, the occurrences asked once), or every event
- * of the bulk selection of its column, each with its own change (its people kept, its own length…).
+ * of the bulk selection of its column, each with its own change (its people kept, its own length…). A field of the
+ * whole series (people, beneficiaries…) does not offer « Cette occurrence ».
  * @param {EventOccurrence} event Occurrence edited.
  * @param {TaskColumn} column Column edited.
+ * @param {boolean} [series=false] Whether the column edits a field of the whole series. Optional. Default = false.
  * @returns {(changes: Partial<CalendarEventInput> | ((target: EventOccurrence) => Partial<CalendarEventInput>)) => Promise<void>} Saver.
  */
-function useEventSave(event: EventOccurrence, column: TaskColumn) {
+function useEventSave(event: EventOccurrence, column: TaskColumn, series = false) {
   const { update } = useCalendarEventMutations();
   const targetsOf = useEventTargets(event, column);
   return async (changes: Partial<CalendarEventInput> | ((target: EventOccurrence) => Partial<CalendarEventInput>)) => {
     const targets = targetsOf();
     let scope: CalendarEventScope = 'ALL';
     if (targets.some((target) => target.occurrenceDate)) {
-      const chosen = await askScope({ action: 'update' });
+      const chosen = await askScope({ action: 'update', allowThis: !series });
       if (!chosen) return;
       scope = chosen;
     }
@@ -121,7 +123,7 @@ function useEventSave(event: EventOccurrence, column: TaskColumn) {
  * @returns {JSX.Element} Cell.
  */
 export function EventPeopleCell({ event, context }: { event: EventOccurrence; context: TaskContext }) {
-  const save = useEventSave(event, 'assignees');
+  const save = useEventSave(event, 'assignees', true);
   const label = useEventCellLabel(event, 'assignees', 'Personnes');
   return (
     <AssigneesCell
@@ -265,7 +267,7 @@ export function EventWhenCell({ event, side }: { event: EventOccurrence; side: '
  * @returns {JSX.Element} Cell.
  */
 export function EventBeneficiariesCell({ event }: { event: EventOccurrence }) {
-  const save = useEventSave(event, 'beneficiaries');
+  const save = useEventSave(event, 'beneficiaries', true);
   const label = useEventCellLabel(event, 'beneficiaries', 'Bénéficiaires');
   return <BeneficiariesCell label={label} value={event} onSave={(beneficiaries) => void save((target) => beneficiariesDiff(target, event, beneficiaries))} />;
 }

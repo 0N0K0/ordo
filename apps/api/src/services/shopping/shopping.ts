@@ -373,7 +373,7 @@ export function findOpenList(id: string): Promise<ShoppingList> {
 }
 
 /** Message of the error refusing a change of the items of a closed list. */
-export const CLOSED_LIST_MESSAGE = 'Liste clôturée : rouvrez-la pour changer ses éléments.';
+export const CLOSED_LIST_MESSAGE = 'Liste clôturée : rouvrez-la, ou rouvrez l’une de ses tâches, pour changer ses éléments.';
 
 /**
  * Tasks of a list, with whether each is closed.

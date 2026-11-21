@@ -106,11 +106,11 @@ export async function updateClientContact(id: string, input: ClientContactInput)
 }
 
 /**
- * Deletes a contact (not an archived one, nor one of an archived client).
+ * Deletes a contact, even an archived one, but not one of an archived client.
  * @param {string} id Contact id.
  * @returns {Promise<void>}
  */
 export async function deleteClientContact(id: string): Promise<void> {
-  await assertNotArchived('client', (await findActive(prisma.clientContact, id, 'Contact')).clientId);
+  await assertNotArchived('client', (await findOrNotFound(prisma.clientContact, id, 'Contact')).clientId);
   await deleteOrNotFound(prisma.clientContact, id, 'Contact');
 }

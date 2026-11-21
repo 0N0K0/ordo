@@ -61,7 +61,7 @@ function ContactInfo({ address, email, phones, website }: { address: unknown; em
 
 /**
  * One contact person: archived, read only until restored (« Restaurer » in its menu; archived and restored with the
- * contributor linked to it).
+ * contributor linked to it), still deletable unless its client is archived.
  * @param {{ client: ClientBilling, contact: ClientContact, readOnly: boolean }} props Component props (`readOnly`: archived client).
  * @returns {JSX.Element} Contact.
  */
@@ -97,7 +97,8 @@ function ContactRow({ client, contact, readOnly }: { client: ClientBilling; cont
           },
           // The contact of an archived client stays as it is.
           !readOnly && archiveEntry({ archived: contact.archived, type: 'Contact', label: name }, setArchived, contact.id),
-          !locked && {
+          // An archived contact stays deletable; the contact of an archived client does not.
+          !readOnly && {
             label: 'Supprimer',
             icon: <TrashIcon aria-hidden />,
             danger: true,

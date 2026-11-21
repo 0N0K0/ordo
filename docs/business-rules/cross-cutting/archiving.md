@@ -34,7 +34,7 @@ Toute modification d'un élément archivé, ou d'un sous-élément d'un élémen
 - Les listes de libellés (`createLabelService`, dont la modification ne change que les champs envoyés : `presentFields`, aucune valeur par défaut ajoutée pour un champ omis) et les arbres de réglages (`treeListService`) refusent la modification d'un élément archivé ; un élément archivé ne reçoit pas de nouvel enfant (ceux déjà présents restent).
 - Commentaires : on ne commente pas, ne modifie pas et ne supprime pas un commentaire d'un élément archivé, ni d'un élément contenu dans un élément archivé (article de fiche dans une fiche archivée, article de liste dans une liste archivée) (`apps/api/src/services/core/comments.ts`).
 - Les sous-éléments verrouillés par leur parent : périodes d'un contexte de trésorerie archivé (ni ajout, ni modification, ni suppression).
-- Un contact archivé, ou d'un client archivé, n'est ni modifié ni supprimé.
+- Un contact archivé n'est pas modifié (il reste supprimable) ; un contact d'un client archivé n'est ni modifié ni supprimé.
 
 ## Valeur archivée choisie dans un formulaire
 
@@ -98,4 +98,3 @@ La suppression est distincte : elle est définitive et suit les règles de suppr
 
 - Un élément archivé **reste supprimable** : la suppression n'est pas une modification, et le web l'offre avec « Restaurer » sur un élément archivé (tableaux de bord, évènements, mouvements de trésorerie, listes, produits, articles, fiches, jalons, sprints, etc.). Les règles de suppression propres au domaine s'appliquent toujours (un document définitif ne se supprime jamais, un compte qui a des mouvements non plus…).
 - Un **sous-élément** d'un élément archivé, lui, ne se supprime pas : c'est une modification de l'élément archivé (élément d'une liste archivée, article d'une fiche archivée, ressource d'un projet archivé, diagramme d'un tableau archivé, brouillon d'une boîte archivée, élément d'une liste à cocher d'un propriétaire archivé, contact d'un client archivé…).
-- Exception : un contact archivé n'est pas supprimé (`deleteClientContact`).
