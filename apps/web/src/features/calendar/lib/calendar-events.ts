@@ -1,6 +1,19 @@
 import type { EventInput } from '@fullcalendar/core';
-import { addDays, birthdayLabel, birthdaysBetween, DEFAULT_SCHEDULE_DISPLAY, mapById, readBirthDate, readScheduleDisplay, type ScheduleDisplay, UNTYPED_EPHEMERIS_LABEL, type WorkScheduleRule } from '@ordo/shared';
-import { scheduleRules, type PersonBirthday, type ScheduleType, type useDefaultScheduleKind, type useSubscribedSchedules, type WorkSchedule } from '../api';
+import {
+  addDays,
+  birthdayLabel,
+  birthdaysBetween,
+  birthdaySlotId,
+  DEFAULT_SCHEDULE_DISPLAY,
+  mapById,
+  type PlannedSlot,
+  readBirthDate,
+  readScheduleDisplay,
+  type ScheduleDisplay,
+  UNTYPED_EPHEMERIS_LABEL,
+  type WorkScheduleRule,
+} from '@ordo/shared';
+import { scheduleRules, type PersonBirthday, type ScheduleType, type useBirthdayLook, type useDefaultScheduleKind, type useSubscribedSchedules, type WorkSchedule } from '../api';
 import classes from '../pages/CalendarPage.module.css';
 import { inWorkspace } from './layer-label';
 
@@ -9,6 +22,9 @@ type ForeignSchedule = NonNullable<ReturnType<typeof useSubscribedSchedules>['da
 
 /** Default kind of slots of the workspace. */
 type DefaultKind = ReturnType<typeof useDefaultScheduleKind>['data'];
+
+/** Display of the birthdays of the workspace (decision FX). */
+type BirthdayLook = ReturnType<typeof useBirthdayLook>['data'];
 
 /**
  * Span of an occurrence of an event in FullCalendar: its days (the end excluded) all day, else its start and end.
@@ -122,40 +138,49 @@ export function slotLookClasses({ foreign, ephemeris = false }: { foreign: boole
   return [...(foreign ? [classes.subscribedSlot] : []), ...(ephemeris ? [classes.ephemeris, classes.ephemerisBar] : [])];
 }
 
+/** Slots of a source as the agenda shows them: the look of its kind and its slots of the period. */
+export interface ShownSlots {
+  /** An éphéméride (lot 16): dotted. */
+  ephemeris: boolean;
+  color: string | null;
+  label: string;
+  foreign: boolean;
+  display: ScheduleDisplay;
+  slots: readonly PlannedSlot[];
+  /** Its bar on a day (none: its label, a slot). */
+  bar?: (slot: PlannedSlot) => Pick<EventInput, 'title' | 'extendedProps'>;
+  /** Its bar in the month too, unless its month display is « Rien » (the birthdays, decisions FP, FX). */
+  monthBar?: boolean;
+}
+
 /**
- * Birthdays of a period as the calendar shows them (lot 16): whole-day éphémérides without kind (gray, dotted), a bar
- * « Anniversaire de Paul — 40 ans » (opening the person) and the day in the background, in every view, the month too
- * (lot 16c: unlike the other éphémérides, whose month shows the background only).
+ * Birthdays of a period as the calendar shows them (lot 16, decision FX): whole-day éphémérides in the color and the
+ * display chosen for the birthdays (`birthdayLook`; none: gray, the default display), dotted, each one's bar
+ * « Anniversaire de Paul — 40 ans » opening the person, in the month too while its month display is not « Rien »
+ * (lot 16c: unlike the other éphémérides, whose month shows no bar). Hidden birthdays: none.
  * @param {readonly PersonBirthday[]} birthdays Birthdays of the workspace.
+ * @param {BirthdayLook} look Display of the birthdays of the workspace (undefined while loading: none).
  * @param {string} from First day shown.
  * @param {string} to Last day shown.
- * @param {boolean} month Month view.
- * @returns {EventInput[]} Events.
+ * @returns {ShownSlots[]} One source per person.
  */
-export function birthdayEvents(birthdays: readonly PersonBirthday[], from: string, to: string, month: boolean): EventInput[] {
+export function birthdaySlots(birthdays: readonly PersonBirthday[], look: BirthdayLook, from: string, to: string): ShownSlots[] {
+  if (!look?.shown) return [];
   return birthdays.flatMap((birthday) => {
     const birth = readBirthDate(birthday.birthDate);
     if (!birth) return [];
-    return birthdaysBetween(birth, from, to).flatMap(({ date, age }) => {
-      const day = { start: date, end: addDays(date, 1), allDay: true };
-      const background: EventInput = {
-        ...day,
-        id: `birthday-day:${birthday.id}:${date}`,
-        display: 'background',
-        backgroundColor: EPHEMERIS_COLOR,
-        classNames: [classes.typedSlot, ...slotLookClasses({ foreign: false, ephemeris: true })],
-      };
-      const bar: EventInput = {
-        ...day,
-        id: `birthday:${birthday.id}:${date}`,
-        title: birthdayLabel(birthday.name, age),
-        editable: false,
-        extendedProps: { kind: 'birthday', birthday },
-        ...slotBarLook({ color: EPHEMERIS_COLOR, foreign: false, ephemeris: true }),
-      };
-      // The week and the day: the hours of the day in the background too.
-      if (month) return [background, bar];
-      return [bar, { ...background, start: `${date}T00:00:00`, end: `${addDays(date, 1)}T00:00:00`, allDay: false, id: `birthday-whole:${birthday.id}:${date}` }];
-    });
+    const ages = new Map(birthdaysBetween(birth, from, to).map(({ date, age }) => [date, age]));
+    return [
+      {
+        ephemeris: true,
+        color: look.color ?? EPHEMERIS_COLOR,
+        label: birthdayLabel(birthday.name, null),
+        foreign: false,
+        display: readScheduleDisplay(look),
+        slots: [...ages.keys()].map((date) => ({ date, start: '00:00', end: '24:00', allDay: true, scheduleId: birthdaySlotId(birthday.id) })),
+        bar: (slot) => ({ title: birthdayLabel(birthday.name, ages.get(slot.date) ?? null), extendedProps: { kind: 'birthday', birthday } }),
+        monthBar: true,
+      },
+    ];
   });
 }

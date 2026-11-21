@@ -298,8 +298,21 @@ export function shiftTime(time: string, minutes: number): string {
 }
 
 /**
+ * Minutes a moment of a routine lasts without time to spend on it (`estimate` null or 0), the same for its display (agenda
+ * of the day, agenda), its departure and return and its reminders (decision FX).
+ */
+export const ROUTINE_DEFAULT_MINUTES = 30;
+
+/**
+ * Time to spend on a routine, in minutes: its `estimate`, else `ROUTINE_DEFAULT_MINUTES` (decision FX).
+ * @param {number | null | undefined} estimate Time to spend on it (null or 0: none).
+ * @returns {number} Minutes.
+ */
+export const routineMinutes = (estimate: number | null | undefined): number => (estimate && estimate > 0 ? estimate : ROUTINE_DEFAULT_MINUTES);
+
+/**
  * Schedule of a routine done in a time window: when to leave (to be there by its latest time with its time to spend on
- * it, or at its start time) and when back.
+ * it, or at its start time) and when back; without time to spend on it, `ROUTINE_DEFAULT_MINUTES` (decision FX).
  * @param {{ fromTime: string | null, dueTime: string | null, estimate: number | null, travelBefore: number, travelAfter: number }} routine Routine.
  * @returns {{ leaveAt: string | null, backAt: string | null }} Times (null: nothing to say).
  */
@@ -307,7 +320,7 @@ export function routineSchedule(routine: { fromTime: string | null; dueTime: str
   leaveAt: string | null;
   backAt: string | null;
 } {
-  const estimate = routine.estimate ?? 0;
+  const estimate = routineMinutes(routine.estimate);
   if (routine.dueTime) {
     const before = routine.travelBefore + estimate;
     return { leaveAt: before > 0 ? shiftTime(routine.dueTime, -before) : null, backAt: routine.travelAfter > 0 ? shiftTime(routine.dueTime, routine.travelAfter) : null };
@@ -331,19 +344,18 @@ export interface RoutineSlotSpan {
  * Start and end of a time of the day of a routine, the same for its display (agenda of the day) and its reminders
  * (`routineSlotAnchors`, in the app and on the server; decision FW): its « dès » and its « jusqu'à »; without « jusqu'à »,
  * « dès » + the time to spend on it; without « dès », « jusqu'à » − that time (00:00 at the earliest). Without that
- * time (or 0): the end is the midnight after the day, the start its « jusqu'à » (decision D16). Without any hour:
- * none (no reminder « avant »).
+ * time (or 0): `ROUTINE_DEFAULT_MINUTES` (decision FX, `routineMinutes`). Without any hour: none (no reminder « avant »).
  * @param {{ fromTime: string | null, dueTime: string | null }} slot Time of the day.
  * @param {number | null} minutes Time to spend on it (`estimate`), in minutes.
  * @returns {RoutineSlotSpan | null} Start and end, null without any hour.
  */
 export function routineSlotSpan(slot: { fromTime: string | null; dueTime: string | null }, minutes: number | null): RoutineSlotSpan | null {
   if (!slot.fromTime && !slot.dueTime) return null;
-  const length = minutes && minutes > 0 ? minutes : 0;
+  const length = routineMinutes(minutes);
   const start = slot.fromTime ?? minutesToTime(Math.max(0, timeToMinutes(slot.dueTime!) - length));
   if (slot.dueTime) return { start, end: slot.dueTime };
   const end = timeToMinutes(slot.fromTime!) + length;
-  return { start, end: length && end < 1440 ? minutesToTime(end) : null };
+  return { start, end: end < 1440 ? minutesToTime(end) : null };
 }
 
 /**

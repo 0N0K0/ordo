@@ -35,6 +35,13 @@ model Workspace {
   scheduleDayDisplay        String                     @default("SLOT_BACKGROUND")
   scheduleDayBar            Boolean                    @default(true)
   scheduleMonthDisplay      String                     @default("BACKGROUND")
+  /// Birthdays of its people in its calendar (decision FX): shown or not (hidden, their reminders still ring), color
+  /// (none: the gray of the éphémérides) and display, as a kind of éphémérides.
+  birthdayShown             Boolean                    @default(true)
+  birthdayColor             String?
+  birthdayDayDisplay        String                     @default("SLOT_BACKGROUND")
+  birthdayDayBar            Boolean                    @default(true)
+  birthdayMonthDisplay      String                     @default("BACKGROUND")
   createdAt                 DateTime                   @default(now())
   updatedAt                 DateTime                   @updatedAt
   icons                     Icon[]

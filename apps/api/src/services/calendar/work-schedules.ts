@@ -1,4 +1,5 @@
 import {
+  birthdayLookSchema,
   DEFAULT_SCHEDULE_KIND_LABEL,
   defaultScheduleKindSchema,
   formatDay,
@@ -13,6 +14,7 @@ import {
   scheduleSubscriptionLookSchema,
   scheduleTypeSchema,
   workScheduleSchema,
+  type BirthdayLookInput,
   type DefaultScheduleKindInput,
   type ScheduleDisplay,
   type ScheduleSubscriptionLook,
@@ -427,6 +429,65 @@ export async function saveDefaultScheduleKind(input: DefaultScheduleKindInput): 
     select: defaultKindSelect,
   });
   return defaultKindOf(workspace);
+}
+
+/** Birthdays display of a workspace as stored on it (decision FX). */
+const birthdayLookSelect = {
+  birthdayShown: true,
+  birthdayColor: true,
+  birthdayDayDisplay: true,
+  birthdayDayBar: true,
+  birthdayMonthDisplay: true,
+} as const;
+
+/** Birthdays of the people of a workspace in its calendar (decision FX): shown or not, color and display. */
+export interface BirthdayLook {
+  shown: boolean;
+  color: string | null;
+  display: ScheduleDisplay;
+}
+
+/**
+ * Birthdays display of a workspace read from its columns.
+ * @param {{ birthdayShown: boolean, birthdayColor: string | null, birthdayDayDisplay: string, birthdayDayBar: boolean, birthdayMonthDisplay: string }} workspace Workspace.
+ * @returns {BirthdayLook} Display.
+ */
+function birthdayLookOf(workspace: { birthdayShown: boolean; birthdayColor: string | null; birthdayDayDisplay: string; birthdayDayBar: boolean; birthdayMonthDisplay: string }): BirthdayLook {
+  return {
+    shown: workspace.birthdayShown,
+    color: workspace.birthdayColor,
+    display: readScheduleDisplay({ dayDisplay: workspace.birthdayDayDisplay, dayBar: workspace.birthdayDayBar, monthDisplay: workspace.birthdayMonthDisplay }),
+  };
+}
+
+/**
+ * Birthdays display of this workspace (decision FX).
+ * @returns {Promise<BirthdayLook>} Display.
+ */
+export async function birthdayLook(): Promise<BirthdayLook> {
+  return birthdayLookOf(await currentWorkspaceFields(birthdayLookSelect));
+}
+
+/**
+ * Saves the birthdays display of this workspace (decision FX): shown or not in its calendar (hidden, their reminders
+ * still ring), color (none: the gray of the éphémérides) and display.
+ * @param {BirthdayLookInput} input Shown, color and display.
+ * @returns {Promise<BirthdayLook>} Display.
+ */
+export async function saveBirthdayLook(input: BirthdayLookInput): Promise<BirthdayLook> {
+  const data = parseInput(birthdayLookSchema, input);
+  const workspace = await unscopedPrisma.workspace.update({
+    where: { id: currentWorkspaceId() },
+    data: {
+      birthdayShown: data.shown,
+      birthdayColor: data.color,
+      birthdayDayDisplay: data.dayDisplay,
+      birthdayDayBar: data.dayBar,
+      birthdayMonthDisplay: data.monthDisplay,
+    },
+    select: birthdayLookSelect,
+  });
+  return birthdayLookOf(workspace);
 }
 
 /**

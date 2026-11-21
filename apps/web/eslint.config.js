@@ -155,6 +155,11 @@ export default defineConfig([
           selector: "CallExpression[callee.name='shiftTime'][arguments.0.property.name=/^(fromTime|dueTime)$/]",
           message: 'Utiliser routineSlotSpan(moment, minutes) (@ordo/shared, routines) : début et fin d’un moment, les mêmes pour l’affichage et les rappels.',
         },
+        // Time of a routine without estimate: 30 min everywhere, one constant (decision FX).
+        {
+          selector: "LogicalExpression[operator=/^(\\?\\?|\\|\\|)$/][left.property.name='estimate'][right.type='Literal'][right.raw=/^[0-9]/]",
+          message: 'Utiliser routineMinutes(estimate) (@ordo/shared, routines) : le temps d’une routine, ROUTINE_DEFAULT_MINUTES sans temps estimé.',
+        },
         {
           selector: "JSXAttribute[name.name='kinds'] > JSXExpressionContainer > ArrayExpression",
           message: 'Utiliser REMINDER_KINDS / DAY_REMINDER_KINDS (@ordo/shared, dates/reminders) : les genres de rappels offerts.',

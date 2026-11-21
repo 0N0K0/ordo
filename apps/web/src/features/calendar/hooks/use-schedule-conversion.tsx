@@ -9,7 +9,7 @@ const SLOT_ONLY = 'le temps libre des conditions de créneaux, les heures de tra
 
 /**
  * « Convertir en éphéméride » / « Convertir en créneau » of a schedule, and of a whole kind (lot 16): entries of their
- * « … » menus, asked first with what changes in meaning (the free time, the working hours, its kind), then the
+ * « … » menus (the lists, and the panel of a slot opened from the agenda: decision FX), asked first with what changes in meaning (the free time, the working hours, its kind), then the
  * occurrences of routines lost confirmed as for any change of the schedules. Ids stay: the slot conditions naming the
  * schedule or its kind keep it. Read only once archived; a kind serving as a budget context stays one of éphémérides.
  * @returns {{ schedule: Function, type: Function }} Entries.
@@ -21,9 +21,10 @@ export function useScheduleConversion() {
      * Entry converting a schedule; a schedule of a kind leaves it (a kind is one nature or the other).
      * @param {{ id: string, label: string, ephemeris: boolean, archived: boolean }} schedule Schedule.
      * @param {{ label: string } | undefined} type Its kind, if any.
+     * @param {() => void} [onDone] Once converted (the panel of a slot closes: what it holds is no longer the schedule). Optional.
      * @returns {RowAction} Entry.
      */
-    schedule: (schedule: { id: string; label: string; ephemeris: boolean; archived: boolean }, type: { label: string } | undefined): RowAction => {
+    schedule: (schedule: { id: string; label: string; ephemeris: boolean; archived: boolean }, type: { label: string } | undefined, onDone?: () => void): RowAction => {
       const toEphemeris = !schedule.ephemeris;
       const label = toEphemeris ? 'Convertir en éphéméride' : 'Convertir en créneau';
       const kind = type ? ` Il quitte son type « ${type.label} » (un type est tout de créneaux ou tout d’éphémérides) : les conditions qui citent ce type ne le comptent plus.` : '';
@@ -40,7 +41,10 @@ export function useScheduleConversion() {
             risks: toEphemeris
               ? `« ${schedule.label} » devient une éphéméride : elle ne compte plus dans ${SLOT_ONLY}.${kind} Les conditions qui la citent par son nom la gardent.`
               : `« ${schedule.label} » devient un créneau : il compte dans ${SLOT_ONLY}.${kind} Les conditions qui le citent par son nom le gardent.`,
-            run: () => setEphemeris.mutateAsync({ id: schedule.id, ephemeris: toEphemeris }),
+            run: async () => {
+              await setEphemeris.mutateAsync({ id: schedule.id, ephemeris: toEphemeris });
+              onDone?.();
+            },
             done: toEphemeris ? 'Converti en éphéméride.' : 'Convertie en créneau.',
           }),
       };

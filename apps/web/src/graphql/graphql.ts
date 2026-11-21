@@ -160,6 +160,14 @@ export type ArchivableKind =
   | 'TREASURY_RELATION'
   | 'WORK_SCHEDULE';
 
+export type BirthdayLookInput = {
+  color?: string | null | undefined;
+  dayBar: boolean;
+  dayDisplay: string;
+  monthDisplay: string;
+  shown: boolean;
+};
+
 /** Omitted fields are left unchanged; null clears a field. */
 export type BulkTaskInput = {
   addAssigneeIds?: Array<string | number> | null | undefined;
@@ -2121,7 +2129,7 @@ export type CalendarEventOccurrenceFieldsFragment = { key: string, eventId: stri
 export type WorkSchedulesQueryVariables = Exact<{ [key: string]: never; }>;
 
 
-export type WorkSchedulesQuery = { workSchedules: Array<{ id: string, archived: boolean, label: string, startDate: string, endDate: string | null, typeId: string | null, ephemeris: boolean, cases: unknown, exceptions: unknown, reminders: Array<{ before: number | null, at: string | null, days: number | null, anchor: string, ringtone: string | null }> }>, scheduleTypes: Array<{ id: string, archived: boolean, label: string, color: string, iconUrl: string | null, dayDisplay: string, dayBar: boolean, monthDisplay: string, ephemeris: boolean, budgetContext: boolean, sharedContext: boolean, position: number }>, defaultScheduleKind: { label: string, color: string | null, dayDisplay: string, dayBar: boolean, monthDisplay: string } };
+export type WorkSchedulesQuery = { workSchedules: Array<{ id: string, archived: boolean, label: string, startDate: string, endDate: string | null, typeId: string | null, ephemeris: boolean, cases: unknown, exceptions: unknown, reminders: Array<{ before: number | null, at: string | null, days: number | null, anchor: string, ringtone: string | null }> }>, scheduleTypes: Array<{ id: string, archived: boolean, label: string, color: string, iconUrl: string | null, dayDisplay: string, dayBar: boolean, monthDisplay: string, ephemeris: boolean, budgetContext: boolean, sharedContext: boolean, position: number }>, defaultScheduleKind: { label: string, color: string | null, dayDisplay: string, dayBar: boolean, monthDisplay: string }, birthdayLook: { shown: boolean, color: string | null, dayDisplay: string, dayBar: boolean, monthDisplay: string } };
 
 export type ForeignScheduleKindsQueryVariables = Exact<{ [key: string]: never; }>;
 
@@ -2175,6 +2183,13 @@ export type SaveDefaultScheduleKindMutationVariables = Exact<{
 
 
 export type SaveDefaultScheduleKindMutation = { saveDefaultScheduleKind: { label: string } };
+
+export type SaveBirthdayLookMutationVariables = Exact<{
+  input: BirthdayLookInput;
+}>;
+
+
+export type SaveBirthdayLookMutation = { saveBirthdayLook: { shown: boolean } };
 
 export type SetScheduleSubscriptionLookMutationVariables = Exact<{
   workspaceId: string | number;
@@ -6799,6 +6814,13 @@ export const WorkSchedulesDocument = new TypedDocumentString(`
     dayBar
     monthDisplay
   }
+  birthdayLook {
+    shown
+    color
+    dayDisplay
+    dayBar
+    monthDisplay
+  }
 }
     fragment ReminderFields on Reminder {
   before
@@ -6896,6 +6918,13 @@ export const SaveDefaultScheduleKindDocument = new TypedDocumentString(`
   }
 }
     `) as unknown as TypedDocumentString<SaveDefaultScheduleKindMutation, SaveDefaultScheduleKindMutationVariables>;
+export const SaveBirthdayLookDocument = new TypedDocumentString(`
+    mutation SaveBirthdayLook($input: BirthdayLookInput!) {
+  saveBirthdayLook(input: $input) {
+    shown
+  }
+}
+    `) as unknown as TypedDocumentString<SaveBirthdayLookMutation, SaveBirthdayLookMutationVariables>;
 export const SetScheduleSubscriptionLookDocument = new TypedDocumentString(`
     mutation SetScheduleSubscriptionLook($workspaceId: ID!, $typeId: ID, $input: ScheduleSubscriptionLookInput!) {
   setScheduleSubscriptionLook(

@@ -398,6 +398,31 @@ type Birthday {
   reminders: [Reminder!]!
 }
 
+"""
+Birthdays of the people of this workspace in its calendar (decision FX): shown or not, color (none: the gray of the éphémérides) and display.
+"""
+type BirthdayLook {
+  color: String
+  dayBar: Boolean!
+  dayDisplay: String!
+
+  """
+  Its days in the month: BACKGROUND or BORDER with their bar, NONE: nothing.
+  """
+  monthDisplay: String!
+
+  """Shown in the calendar; hidden, their reminders still ring."""
+  shown: Boolean!
+}
+
+input BirthdayLookInput {
+  color: String
+  dayBar: Boolean!
+  dayDisplay: String!
+  monthDisplay: String!
+  shown: Boolean!
+}
+
 """Omitted fields are left unchanged; null clears a field."""
 input BulkTaskInput {
   addAssigneeIds: [ID!]
@@ -2399,6 +2424,7 @@ type Mutation {
   Records that the end of a timer rang (its ring goes on as an AlarmRing): it no longer shows.
   """
   ringCountdown(id: ID!): Boolean!
+  saveBirthdayLook(input: BirthdayLookInput!): BirthdayLook!
   saveDefaultScheduleKind(input: DefaultScheduleKindInput!): DefaultScheduleKind!
 
   """Links a project to a board, or changes the settings of its link."""
@@ -2964,6 +2990,11 @@ type Query {
   """
   alarmRings: [AlarmRing!]!
   alarms: [Alarm!]!
+
+  """
+  Birthdays of the people of this workspace in its calendar: shown or not, color and display (decision FX).
+  """
+  birthdayLook: BirthdayLook!
 
   """
   Birthdays of the people of the workspace (contributors and relations with a birth date, not archived unless asked), by name.

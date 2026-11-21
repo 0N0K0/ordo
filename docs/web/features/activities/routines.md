@@ -116,9 +116,9 @@ Interne : `historyItems(occurrences, checks, byId)` (moments prévus du jour, tr
 | ------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `HistoryItem`                                           | Moment de l'historique : routine, jour, index, horaires, `planned`, `optional`, `movedFrom`, `check`.                                                                     |
 | `AgendaLayers`                                          | `{ scheduleIds, calendarIds }` affichés avec les routines.                                                                                                                |
-| `RoutineDayAgenda({ day, today, items, byId, layers })` | Agenda FullCalendar d'un jour : horaires des créneaux en fond, évènements des calendriers (non archivés), moments des routines colorés par état, de leur début à leur fin (`routineSlotSpan` avec le temps estimé, 30 min sans lui, décision FW) ; un clic ouvre `TickForm` (avec `DeadTimeLaunchButtons` pour l’occurrence, décision FT), sauf pour une routine archivée (estompée, « (archivée) », lecture seule : décision D21). |
+| `RoutineDayAgenda({ day, today, items, byId, layers })` | Agenda FullCalendar d'un jour : horaires des créneaux en fond, évènements des calendriers (non archivés), moments des routines colorés par état, de leur début à leur fin (`routineSlotSpan` avec `routineMinutes(estimate)` : le temps estimé, 30 min sans lui, décisions FW, FX) ; un clic ouvre `TickForm` (avec `DeadTimeLaunchButtons` pour l’occurrence, décision FT), sauf pour une routine archivée (estompée, « (archivée) », lecture seule : décision D21). |
 
-Internes : `ItemState`, `STATES` (couleur et texte), `SHOWN_MINUTES` (30), `MIDNIGHT` (`24:00`, fin à minuit après le jour), `historyItemState`, `proposedTime`, `TickForm` (cocher après coup à une heure, changer l'heure, décocher, avec annulation).
+Internes : `ItemState`, `STATES` (couleur et texte), `MIDNIGHT` (`24:00`, fin à minuit après le jour), `historyItemState`, `proposedTime`, `TickForm` (cocher après coup à une heure, changer l'heure, décocher, avec annulation).
 
 ### `components/DoneToggle.tsx`
 

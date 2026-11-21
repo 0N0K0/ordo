@@ -8,7 +8,7 @@ import FullCalendar from '@fullcalendar/react';
 import timeGridPlugin from '@fullcalendar/timegrid';
 import { Group, Stack, Text } from '@mantine/core';
 import { DatePickerInput, TimePicker } from '@mantine/dates';
-import { addDays, plannedSlots, routineSlotSpan, shiftTime } from '@ordo/shared';
+import { addDays, plannedSlots, routineMinutes, routineSlotSpan, shiftTime } from '@ordo/shared';
 import { useMemo, useState } from 'react';
 import { localDay, localInstant } from '../../../lib/dates';
 import { notifyWithUndo, ON_ERROR } from '../../../lib/notify';
@@ -145,9 +145,6 @@ function TickForm({ item, routine, today, onDone }: TickFormProps) {
   );
 }
 
-/** Minutes a routine without time to spend on it is shown for (its reminders: none, decision FW). */
-const SHOWN_MINUTES = 30;
-
 /** End of a time of the day at the midnight after the day (after every HH:MM). */
 const MIDNIGHT = '24:00';
 
@@ -229,12 +226,13 @@ export function RoutineDayAgenda({ day, today, items, byId, layers }: RoutineDay
     });
   }
   // Routines: from their start to their end (`routineSlotSpan`, as their reminders count: the time to spend on them
-  // from « dès » or up to « jusqu'à », decision FW); without hours, at the hour they were done, else in the all-day row.
+  // from « dès » or up to « jusqu'à », 30 min without it: decisions FW, FX); without hours, at the hour they were done,
+  // else in the all-day row.
   for (const item of items) {
     const routine = byId.get(item.routineId);
     const state = historyItemState(item, today);
     const { color, text } = STATES[state];
-    const minutes = routine?.estimate || SHOWN_MINUTES;
+    const minutes = routineMinutes(routine?.estimate);
     const doneAt = item.check ? new Date(item.check.doneAt) : null;
     const span = routineSlotSpan(item, minutes);
     let start = span?.start ?? null;
