@@ -172,6 +172,7 @@ Le moteur commun de l’héritage des sous-tâches et sous-routines (`effectiveT
 | `marksInherited(item, field)` | La liste de l’élément marque le champ hérité, l’élément ayant un parent. Garde eslint (API, partagé, web) : pas de `….inheritedFields.includes(…)` écrit à la main. |
 | `inheritsField(item, field, byId)` | Le champ est hérité : `marksInherited` et le parent connu. |
 | `inheritanceOwner(item, field, byId)` | Élément dont la valeur est suivie : lui-même, ou en remontant les parents tant qu’ils héritent (une boucle s’arrête). |
+| `inheritanceChain(item, field, byId)` | Éléments que traverse le champ : l’élément, puis ses parents tant qu’ils héritent, jusqu’à celui dont la valeur est suivie (dernier) ; un changement du champ sur l’un d’eux change la valeur de l’élément. |
 | `inheritState(item, field, empty, byId)` | État d’un champ : hérité, propre, ou vidé exprès (un sous-élément sans valeur qui n’hérite pas). |
 | `resolveInheritance(item, byId, columns)` | Copie de l’élément, les colonnes de chaque champ hérité prises de l’élément suivi, et l’origine de chaque champ. |
 | `changedInheritance(current, change)` | Liste des champs hérités après un changement : champs à hériter ajoutés, champs donnés ou vidés retirés ; vide sans parent. |

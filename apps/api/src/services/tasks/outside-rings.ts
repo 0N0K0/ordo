@@ -44,7 +44,7 @@ import { markAlarmFired } from './alarms';
 import { ringAgainOutside, ringOutside } from './alarm-rings';
 import { ringCountdown } from './countdowns';
 import { effectiveTaskOf, loadTaskInheritance } from './task-inheritance';
-import { effectiveRoutineOf, loadRoutineInheritance } from '../routines/routine-inheritance';
+import { effectiveRoutineOf } from '../routines/routine-inheritance';
 import { pushEnabled, pushToUser } from './push';
 
 /**
@@ -114,11 +114,12 @@ async function dueReminders(workspace: Workspace, several: boolean, now: Date, u
   const label = several ? workspace.label : undefined;
   const { from, to } = reminderDayRange(now);
   const withReminders = { NOT: { reminders: { equals: [] } } };
-  const [occurrences, tasks, inheritance, routineInheritance, projects, routineRows, schedules, people] = await Promise.all([
+  const [occurrences, tasks, inheritance, context, projects, routineRows, schedules, people] = await Promise.all([
     eventOccurrences(from, to, undefined, true),
     prisma.task.findMany({ where: { closedAt: null, archivedAt: null, ...withReminders }, select: { id: true, number: true, label: true, projectId: true, reminders: true } }),
     loadTaskInheritance(),
-    loadRoutineInheritance(),
+    // The schedules of the routines, with the routines whose « quand » and people their sub-routines inherit.
+    loadScheduleContext(),
     prisma.project.findMany({ select: { id: true, label: true } }),
     prisma.routine.findMany({
       where: { archivedAt: null, ...withReminders },
@@ -137,7 +138,6 @@ async function dueReminders(workspace: Workspace, several: boolean, now: Date, u
     return { ...task, closed: false, archived: false, effectiveMinDate: dates?.minDate ?? null, effectiveDeadline: dates?.deadline ?? null, reminders: readReminders(task.reminders) };
   });
   // Routines: the occurrences their reminders ring for, the times of the day of their current one (the line).
-  const context = await loadScheduleContext();
   const routines = routineRows.map((routine) => {
     const reminders = readReminders(routine.reminders);
     const currentDate = occurrencesOf(routine, undefined, context).current;
@@ -169,7 +169,7 @@ async function dueReminders(workspace: Workspace, several: boolean, now: Date, u
     const meId = await meContributorId(userId);
     const rings = routineRings(routines, (routine, at) =>
       // Its assignees, its own or inherited.
-      nextAllowedMoment({ assigneeIds: [...(effectiveRoutineOf(routineInheritance, routine.id)?.routine.assigneeIds ?? routine.assignees.map((assignee) => assignee.id))], routineId: routine.id }, at, {
+      nextAllowedMoment({ assigneeIds: [...(effectiveRoutineOf(context.routines!, routine.id)?.routine.assigneeIds ?? routine.assignees.map((assignee) => assignee.id))], routineId: routine.id }, at, {
         events: occurrences,
         meId,
         timeZone: PARIS_ZONE,

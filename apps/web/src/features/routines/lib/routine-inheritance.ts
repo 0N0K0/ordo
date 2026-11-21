@@ -21,14 +21,22 @@ export const ROUTINE_FIELD_LABELS: Record<RoutineInheritableField, string> = {
   MOVES: 'exceptions',
 };
 
+/** Name of each inherited field of a routine as a label of its own (« Héritage… »). */
+const ROUTINE_OPTION_LABELS = Object.fromEntries(Object.entries(ROUTINE_FIELD_LABELS).map(([field, label]) => [field, label.charAt(0).toUpperCase() + label.slice(1)])) as Record<
+  RoutineInheritableField,
+  string
+>;
+
 /**
- * Inherited fields of a routine offered by « Héritage… » (rows checked, row menu): those outside its « quand », whose
- * change does not move its occurrences; its « quand » (first time, repetition, cases, moments, exceptions, condition,
- * « Ouverture ») is given back in its panel, its occurrences confirmed as for any change of it.
+ * Inherited fields of a routine offered by « Héritage… » (rows checked, row menu, menu of its panel): every one, its
+ * « quand » too (first time, repetition, cases, moments, exceptions, condition, « Ouverture »: the occurrences that
+ * disappear with it are confirmed, as for any change of it); the first time and the repetition are never emptied.
  */
-export const ROUTINE_INHERITANCE_OPTIONS: InheritableFieldOption<RoutineInheritableField>[] = (['PROJECT', 'CATEGORIES', 'ASSIGNEES', 'BENEFICIARIES', 'LOCATION'] as const).map((field) => ({
+export const ROUTINE_INHERITANCE_OPTIONS: InheritableFieldOption<RoutineInheritableField>[] = (
+  ['PROJECT', 'CATEGORIES', 'ASSIGNEES', 'BENEFICIARIES', 'LOCATION', 'SLOT_CONDITION', 'OPENS_ON', 'START_DATE', 'RECURRENCE', 'CASES', 'MOMENTS', 'MOVES'] as const
+).map((field) => ({
   field,
-  label: ROUTINE_FIELD_LABELS[field],
+  label: ROUTINE_OPTION_LABELS[field],
   required: ROUTINE_REQUIRED_FIELDS.includes(field),
 }));
 
@@ -53,7 +61,7 @@ export const ROUTINE_CELL_FIELDS: Partial<Record<string, RoutineInheritableField
 /**
  * Routine as the screens read it: each inherited field takes the value it goes by (`effective`),
  * its window that of its first moment, so its cells, panel, filters, sorts, groups and exports show what it follows.
- * Its occurrences (state, due dates, ticks) are those the API computes (a later change makes them follow the « quand »).
+ * Its occurrences (state, due dates, ticks, agenda) are those the API computes from the same « quand ».
  * @param {RoutineRow} routine Routine as the API gives it.
  * @returns {RoutineRow} Routine.
  */

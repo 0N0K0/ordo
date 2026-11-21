@@ -102,8 +102,14 @@ const FORM_COLUMNS: Partial<Record<RoutineInheritableField, readonly (keyof Rout
   OPENS_ON: ['opensOn'],
 };
 
-/** Fields of a new sub-routine inherited from its parent, until one is given a value or emptied. */
+/** Fields of the form showing an inherited field. */
 const FORM_FIELDS = Object.keys(FORM_COLUMNS) as RoutineInheritableField[];
+
+/**
+ * Fields of a new sub-routine inherited from its parent, until one is given a value or emptied: those of the form, and
+ * its exceptions (not in the form: changed from the agenda, « Vider » in « Héritage… »).
+ */
+const NEW_SUB_ROUTINE_FIELDS: RoutineInheritableField[] = [...FORM_FIELDS, 'MOVES'];
 
 /**
  * Values of the inherited fields among values of the form (those of a parent).
@@ -228,10 +234,10 @@ export function RoutineForm({ routine, parent, categoryId = null, projectId = nu
           beneficiaryIds: parent?.beneficiaryIds ?? [],
           beneficiaryRelationIds: parent?.beneficiaryRelationIds ?? [],
           opensOn: null,
-          // A new sub-routine inherits from its parent: its values shown greyed, also stored (its
-          // occurrences are computed from them for now).
+          // A new sub-routine inherits from its parent: its values shown greyed (also sent; the API
+          // computes its occurrences from its parent's while it inherits them).
           ...(parent && pickParent(routineFormValues(parent))),
-          inheritedFields: parent ? FORM_FIELDS : [],
+          inheritedFields: parent ? NEW_SUB_ROUTINE_FIELDS : [],
         },
     schema: routineSchema,
   });
@@ -422,7 +428,7 @@ export function RoutineForm({ routine, parent, categoryId = null, projectId = nu
                   onChange={(parentId) => {
                     const next = parentValuesOf(parentId);
                     form.setValues({ parentId, ...(next ? {} : { inheritedFields: [] }) });
-                    if (next) inheritance.adopt(next, routine ? (form.values.parentId ? form.values.inheritedFields : []) : FORM_FIELDS);
+                    if (next) inheritance.adopt(next, routine ? (form.values.parentId ? form.values.inheritedFields : []) : NEW_SUB_ROUTINE_FIELDS);
                   }}
                 />
                 <BatchMultiSelect

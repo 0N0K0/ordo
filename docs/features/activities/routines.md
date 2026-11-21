@@ -122,7 +122,7 @@ Une routine archivée n'offre que « Historique », « Restaurer » et « Suppri
 
 Barre de sélection (« 3 routines sélectionnées ») : « Cocher » / « Décocher » (occurrence en cours de chacune), « Reporter au lendemain », « Dupliquer » (chacune avec ses sous-routines ; une sous-routine sélectionnée avec sa parente n'est copiée qu'une fois), « Héritage… », « Archiver » / « Restaurer » (annulable depuis le toast), « Supprimer ».
 
-« Héritage… » (désactivé sans sous-routine) : panneau « Héritage », pour le projet, les catégories, les assignés, les bénéficiaires et le lieu : « Inchangé », « Rétablir l’héritage » ou « Vider » ; « Appliquer », toast « Héritage changé pour 3 routines. » avec « Annuler ». Le « quand » se rétablit dans le panneau de la routine.
+« Héritage… » (désactivé sans sous-routine) : panneau « Héritage », pour le projet, les catégories, les assignés, les bénéficiaires, le lieu, les créneaux, l’« Ouverture », la première fois, la répétition, les cas, les moments et les exceptions : « Inchangé », « Rétablir l’héritage » ou « Vider » (pas pour la première fois ni la répétition) ; « Appliquer » (si des occurrences avec des commentaires disparaissent, des routines choisies ou de leurs sous-routines, la confirmation habituelle le demande une fois), toast « Héritage changé pour 3 routines. » avec « Annuler ». Le même formulaire s’ouvre depuis le menu « … » d’une sous-routine et celui de son panneau.
 
 ### Champs hérités
 
@@ -163,7 +163,7 @@ Une routine existante s'enregistre champ par champ, comme une tâche : chaque ch
 
 Sous le texte, quand la routine existe : la section des fiches et de la liste à cocher de l'occurrence en cours (voir [Fiches](../supplies/sheets.md)), puis les commentaires de l'occurrence ouverte (« Commentaires du 12 nov. 2026 ») : celle cliquée dans l'agenda (« Ouvrir la routine »), sinon l'occurrence en cours, à défaut la suivante, à défaut la première. La colonne « Commentaires » compte ceux de cette même occurrence.
 
-Valeurs par défaut d'une nouvelle routine : tous les jours à partir d'aujourd'hui, un moment sans horaire. Une sous-routine hérite de sa parente le projet, les catégories, les assignés, les bénéficiaires, le lieu et tout son « quand » (première fois, répétition, cas, moments, condition, « Ouverture »), montrés grisés avec « Hérité de « … » » tant qu’ils ne sont pas changés (voir [Héritage](../../business-rules/activities/routines.md#héritage)). Une copie s'appelle « … (copie) », et ses sous-routines sont copiées avec elle (pas ses coches ni son temps).
+Valeurs par défaut d'une nouvelle routine : tous les jours à partir d'aujourd'hui, un moment sans horaire. Une sous-routine hérite de sa parente le projet, les catégories, les assignés, les bénéficiaires, le lieu et tout son « quand » (première fois, répétition, cas, moments, exceptions, condition, « Ouverture »), montrés grisés avec « Hérité de « … » » tant qu’ils ne sont pas changés (voir [Héritage](../../business-rules/activities/routines.md#héritage)) ; ses occurrences (agenda, « à faire », état, rappels) suivent ceux de sa parente, et changent quand ils changent. Une copie s'appelle « … (copie) », et ses sous-routines sont copiées avec elle (pas ses coches ni son temps).
 
 Sous les trajets, une ligne résume « Partir à 8 h 05 (trajet et 15 min sur place) · retour vers 9 h 00 » quand la routine a un seul moment.
 

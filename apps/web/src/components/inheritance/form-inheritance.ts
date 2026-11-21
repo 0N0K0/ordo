@@ -23,11 +23,14 @@ export interface FormInheritance<V, F extends string> {
   field: (field: F) => InheritedFieldState;
   /** State and actions of a group of fields edited together (the « quand » of a routine), naming those inherited when not all are. */
   group: (fields: readonly F[], labels: Record<F, string>) => InheritedFieldState;
-  /** Fields still inherited with these values (a field given another value than its parent's is its own): sent to the API. */
+  /**
+   * Fields still inherited with these values (a field given another value than its parent's is its own), with the
+   * fields of the list the form does not show (the exceptions of a routine: inherited as they were): sent to the API.
+   */
   inheritedFields: (values: V) => F[];
   /**
-   * A new parent chosen: the fields given (default: every field) inherit from it, its values shown; none: nothing
-   * inherited, the values stay.
+   * A new parent chosen: the fields given (default: every field of the form) inherit from it, its values shown (a
+   * field given that the form does not show inherits too); none: nothing inherited, the values stay.
    */
   adopt: (parent: Partial<V> | null, fields?: readonly F[]) => void;
 }
@@ -57,18 +60,20 @@ const emptyOf = (value: unknown) => (Array.isArray(value) ? [] : typeof value ==
  */
 export function formInheritance<V extends Record<string, unknown>, F extends string>({ values, columns, parent, list, apply, required = [] }: FormInheritanceOptions<V, F>): FormInheritance<V, F> {
   const fields = Object.keys(columns) as F[];
+  // Fields of the list the form does not show: neither shown nor edited, they stay as listed.
+  const unshown = (of: readonly F[]) => of.filter((field) => !(field in columns));
   const keysOf = (field: F) => columns[field] ?? [];
   const holdsParent = (field: F, of: V) => parent !== null && keysOf(field).every((key) => same(of[key], parent[key]));
   const inherits = (field: F, of: V) => list.includes(field) && holdsParent(field, of);
   const parentPatch = (picked: readonly F[]) => Object.fromEntries(picked.flatMap((field) => keysOf(field).map((key) => [key, parent?.[key] ?? emptyOf(values[key])]))) as Partial<V>;
-  const without = (removed: readonly F[]) => fields.filter((field) => list.includes(field) && !removed.includes(field));
+  const without = (removed: readonly F[]) => [...fields.filter((field) => list.includes(field) && !removed.includes(field)), ...unshown(list)];
   /**
    * State of a field.
    * @param {F} field Field.
    * @returns {'INHERITED' | 'OWN' | 'CLEARED'} State.
    */
   const stateOf = (field: F) => (inherits(field, values) ? 'INHERITED' : keysOf(field).every((key) => isEmptyValue(values[key])) ? 'CLEARED' : 'OWN');
-  const inherit = (picked: readonly F[]) => apply(parentPatch(picked), fields.filter((field) => picked.includes(field) || inherits(field, values)));
+  const inherit = (picked: readonly F[]) => apply(parentPatch(picked), [...fields.filter((field) => picked.includes(field) || inherits(field, values)), ...unshown(list)]);
   return {
     field: (field) =>
       parent === null
@@ -88,11 +93,11 @@ export function formInheritance<V extends Record<string, unknown>, F extends str
         onInherit: all ? undefined : () => inherit(picked),
       };
     },
-    inheritedFields: (of) => fields.filter((field) => inherits(field, of)),
+    inheritedFields: (of) => [...fields.filter((field) => inherits(field, of)), ...unshown(list)],
     adopt: (next, picked = fields) => {
       if (!next) return apply({}, []);
       const patch = Object.fromEntries(picked.flatMap((field) => keysOf(field).map((key) => [key, next[key] ?? emptyOf(values[key])]))) as Partial<V>;
-      apply(patch, fields.filter((field) => picked.includes(field)));
+      apply(patch, [...fields.filter((field) => picked.includes(field)), ...unshown(picked)]);
     },
   };
 }

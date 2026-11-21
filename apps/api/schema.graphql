@@ -3838,7 +3838,7 @@ type RoutineCheck {
 }
 
 """
-Values a routine goes by: each inherited field from its parent, live. Its « quand » (startDate, recurrence, cases, moments, moves, opensOn) is given here; its occurrences follow it.
+Values a routine goes by: each inherited field from its parent, live. Its « quand » (startDate, recurrence, cases, moments, moves, opensOn) is given here; its occurrences (currentDate, slots, routineOccurrences…) are computed from it.
 """
 type RoutineEffective {
   assigneeIds: [ID!]!

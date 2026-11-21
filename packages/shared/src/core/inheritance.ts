@@ -79,15 +79,29 @@ export function marksInherited(item: { parentId?: string | null; inheritedFields
  * @returns {T} Owner of the value.
  */
 export function inheritanceOwner<T extends InheritingItem>(item: T, field: string, byId: ReadonlyMap<string, T>): T {
+  return inheritanceChain(item, field, byId).at(-1)!;
+}
+
+/**
+ * Items a field of an item goes through: the item, then, while it inherits, its parent, its grand-parent… up to the
+ * item whose own value it goes by (cycle-safe). A change of the field on any of them changes the item's value.
+ * @param {T} item Item.
+ * @param {string} field Field.
+ * @param {ReadonlyMap<string, T>} byId Items by id.
+ * @returns {T[]} Items, the item first, the owner of the value last.
+ */
+export function inheritanceChain<T extends InheritingItem>(item: T, field: string, byId: ReadonlyMap<string, T>): T[] {
   const seen = new Set<string>([item.id]);
+  const chain = [item];
   let owner = item;
   while (inheritsField(owner, field, byId)) {
     const parent = byId.get(owner.parentId!)!;
     if (seen.has(parent.id)) break;
     seen.add(parent.id);
+    chain.push(parent);
     owner = parent;
   }
-  return owner;
+  return chain;
 }
 
 /**

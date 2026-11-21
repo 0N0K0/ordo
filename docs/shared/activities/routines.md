@@ -75,12 +75,16 @@ Internes : `ROUTINE_ANCHORS`, `timeOfDay`, `dayNumber`, `monthNumber`, `weekdayN
 | Export | Rôle |
 | ------ | ---- |
 | `ROUTINE_INHERITABLE_FIELDS` / `RoutineInheritableField` | Champs hérités : `PROJECT`, `ASSIGNEES`, `BENEFICIARIES`, `SLOT_CONDITION`, `OPENS_ON`, `LOCATION`, `CATEGORIES`, `START_DATE`, `RECURRENCE`, `CASES`, `MOMENTS`, `MOVES`. |
-| `ROUTINE_WHEN_FIELDS` | Champs du « quand » (première fois, répétition, cas, moments, exceptions, ouverture), traités à part : le bloc « Quand » du panneau, et `emptyRoutineFields` ne les compte pas. |
+| `ROUTINE_WHEN_FIELDS` | Champs du « quand » (première fois, répétition, cas, moments, exceptions, ouverture), traités à part : le bloc « Quand » du panneau. |
+| `ROUTINE_TIMING_FIELDS` | Champs sur lesquels se calculent les occurrences : le « quand » et la condition de créneaux. |
+| `TimedRoutine`, `inheritsTiming(routine)` | Routine telle que ses occurrences la lisent (`id`, `parentId`, `inheritedFields`, facultatifs) ; si elle hérite d’au moins un de ces champs. |
+| `effectiveRoutineTiming(routine, byId)` | Routine telle que vont ses occurrences : chaque champ du « quand » et la condition qu’elle hérite pris de la routine suivie (`resolveInheritance`), ses autres colonnes telles quelles ; elle-même si elle n’en hérite aucun. La ligne donnée peut être une routine telle qu’un changement la laisserait. Seule résolution lue par le calcul des occurrences (API : `occurrenceTiming`). |
+| `timingHeirs(ids, byId)` | Routines dont les occurrences changent avec le « quand » ou la condition de certaines : elles, puis chaque routine qui suit un de ces champs à travers elles (chaîne des parentes). |
 | `ROUTINE_REQUIRED_FIELDS` | `START_DATE`, `RECURRENCE` : ne se vident pas. |
 | `InheritingRoutine` | Routine telle que l'héritage la lit : les colonnes de ses champs hérités (ids de ses personnes et catégories). |
 | `ROUTINE_INHERITED_COLUMNS` | Colonnes de chaque champ hérité (anciennes formes comprises) ; lues par `effectiveRoutine` et par le web (`routineRow`). |
 | `ROUTINE_FIELD_INPUTS`, `routineFieldsGiven(input)` | Clés d’une entrée (une routine, un patch, plusieurs) qui donnent une valeur propre à chaque champ hérité (une répétition donnée rend aussi les cas propres), et les champs qu’une entrée rend propres (lus par l’API et le web). |
-| `emptyRoutineFields(routine)` | Champs d’une routine sans valeur propre, son « quand » à part : ceux qu’elle hérite une fois rangée sous une parente après coup. |
+| `emptyRoutineFields(routine)` | Champs d’une routine sans valeur propre : ceux qu’elle hérite une fois rangée sous une parente après coup. Son « quand » à part (première fois et répétition jamais vides ; sans cas, sans moment ou sans exception a un sens), sauf l’« Ouverture » : aucune, elle l’hérite. |
 | `effectiveRoutine(routine, byId)` / `EffectiveRoutine` | Routine telle qu'elle va : une copie de même forme, chaque champ hérité pris de sa parente (en direct, en remontant la chaîne, sans boucle), et l'origine de chaque champ (`origins`). Seul calcul de l'héritage d'une routine, pour l'API et l'app. |
 
 ## `conversion.ts` — transformer une tâche en routine et inversement

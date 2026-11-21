@@ -18,15 +18,17 @@ import { relationIds } from '../relation-fields';
 import { EventScope } from './calendar';
 import { parisToday } from '../../today';
 import { treeItemObject } from '../label-inputs';
-import { effectiveRoutineOf, loadRoutineInheritance, type StoredInheritingRoutine } from '../../services/routines/routine-inheritance';
+import { effectiveRoutineOf, type StoredInheritingRoutine } from '../../services/routines/routine-inheritance';
 import { FieldOriginRef, RoutineInheritableFieldEnum } from '../inheritance-fields';
 import type { EffectiveRoutine, RoutineInheritableField } from '@ordo/shared';
 
 treeItemObject('RoutineCategory', { description: 'Category of the routines, in a tree.', positionDescription: 'Manual order among its siblings.' });
 
-/** Selection computing the occurrences and times of the day of a routine. */
+/** Selection computing the occurrences and times of the day of a routine (its parent's « quand » when it inherits it). */
 const TIMING = {
   id: true,
+  parentId: true,
+  inheritedFields: true,
   archivedAt: true,
   startDate: true,
   recurrence: true,
@@ -120,18 +122,15 @@ const TODAY_CHECKS = { checks: { orderBy: { date: 'desc' }, take: 20, select: { 
 /** Ticked occurrences loaded with a routine (the latest ones). */
 const RECENT_CHECKS = 30;
 
-const inheritances = new WeakMap<Context, Promise<Map<string, StoredInheritingRoutine>>>();
-
 /**
- * Routine as it goes (`effectiveRoutine`), the routines of the workspace loaded once per request.
+ * Routine as it goes (`effectiveRoutine`), the routines of the workspace loaded once per request (with the schedules
+ * its occurrences are computed from).
  * @param {Context} ctx GraphQL context.
  * @param {string} id Routine.
  * @returns {Promise<EffectiveRoutine<StoredInheritingRoutine>>} Effective routine.
  */
 async function goesBy(ctx: Context, id: string): Promise<EffectiveRoutine<StoredInheritingRoutine>> {
-  let loaded = inheritances.get(ctx);
-  if (!loaded) inheritances.set(ctx, (loaded = loadRoutineInheritance()));
-  const routine = effectiveRoutineOf(await loaded, id);
+  const routine = effectiveRoutineOf((await slotsOf(ctx)).routines!, id);
   if (!routine) throw new Error(`Routine ${id} missing from its workspace.`);
   return routine;
 }
@@ -139,7 +138,7 @@ async function goesBy(ctx: Context, id: string): Promise<EffectiveRoutine<Stored
 /** Values a routine goes by: its own, or inherited from its parent. */
 const RoutineEffectiveRef = builder.objectRef<StoredInheritingRoutine>('RoutineEffective').implement({
   description:
-    'Values a routine goes by: each inherited field from its parent, live. Its « quand » (startDate, recurrence, cases, moments, moves, opensOn) is given here; its occurrences follow it.',
+    'Values a routine goes by: each inherited field from its parent, live. Its « quand » (startDate, recurrence, cases, moments, moves, opensOn) is given here; its occurrences (currentDate, slots, routineOccurrences…) are computed from it.',
   fields: (t) => ({
     projectId: t.exposeID('projectId', { nullable: true }),
     assigneeIds: t.idList({ resolve: (routine) => routine.assigneeIds }),
@@ -541,7 +540,8 @@ builder.queryFields((t) => ({
       const context = await slotsOf(ctx);
       const today = parisToday();
       return list.flatMap((routine) => {
-        const moves = routines.storedMoves(routine.moves);
+        // Its exceptions as it goes (its parent's when it inherits them).
+        const moves = routines.storedMoves(routines.occurrenceTiming(routine, context).moves);
         const ticked = new Set(routine.checks.map((check) => `${formatDay(check.date)}/${check.slot}`));
         return routines.occurrenceSpansBetween(routine, from, to, context, true).map(({ start, end: date, cancelled = false }) => ({
           routineId: routine.id,

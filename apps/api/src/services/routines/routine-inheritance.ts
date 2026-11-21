@@ -1,4 +1,4 @@
-import { changedInheritance, effectiveRoutine, routineFieldsGiven, marksInherited, ROUTINE_INHERITABLE_FIELDS, ROUTINE_REQUIRED_FIELDS, type EffectiveRoutine, type RoutineInheritableField } from '@ordo/shared';
+import { changedInheritance, effectiveRoutine, routineFieldsGiven, marksInherited, ROUTINE_INHERITABLE_FIELDS, ROUTINE_REQUIRED_FIELDS, type EffectiveRoutine, type RoutineInheritableField, type RoutineMove } from '@ordo/shared';
 import { prisma } from '../../db';
 import { Prisma, type Routine } from '../../generated/prisma/client';
 import { fieldError } from '../../graphql/errors';
@@ -83,6 +83,17 @@ export function clearedRoutineInput(fields: readonly RoutineInheritableField[] |
     ...(cleared.has('CASES') && { cases: [] }),
     ...(cleared.has('MOMENTS') && { moments: [], fromTime: null, dueTime: null }),
   };
+}
+
+/**
+ * Data saving exceptions of a routine given on it (an occurrence moved, cancelled or given back): they are its own from
+ * then on, even when it inherited its parent's (those it went by are the base of the change).
+ * @param {{ inheritedFields: readonly string[] }} routine Routine (its stored list).
+ * @param {readonly RoutineMove[]} moves Its exceptions now.
+ * @returns {{ moves: Prisma.InputJsonValue, inheritedFields: string[] }} Prisma data.
+ */
+export function withOwnMoves(routine: { inheritedFields: readonly string[] }, moves: readonly RoutineMove[]): { moves: Prisma.InputJsonValue; inheritedFields: string[] } {
+  return { moves: toJson(moves), inheritedFields: routine.inheritedFields.filter((field) => field !== 'MOVES') };
 }
 
 /**

@@ -21,7 +21,7 @@ Briques qui montrent et changent ce qu’une sous-tâche ou une sous-routine pre
 
 ## `form-inheritance.ts`
 
-- `formInheritance({ values, columns, parent, list, apply, required? })` : héritage des champs d’un formulaire de sous-élément (nouvelle sous-tâche, nouvelle sous-routine, panneau d’une routine enregistré en entier). Un champ est hérité tant qu’il est dans la liste et a les valeurs du parent ; une autre valeur le rend propre. Donne `field(field)` (état et actions pour `InheritedField`), `group(fields, labels)` (le « Quand » d’une routine), `inheritedFields(values)` (liste envoyée à l’API) et `adopt(parent, fields?)` (nouveau parent choisi : ses valeurs reprises).
+- `formInheritance({ values, columns, parent, list, apply, required? })` : héritage des champs d’un formulaire de sous-élément (nouvelle sous-tâche, nouvelle sous-routine, panneau d’une routine enregistré en entier). Un champ est hérité tant qu’il est dans la liste et a les valeurs du parent ; une autre valeur le rend propre. Donne `field(field)` (état et actions pour `InheritedField`), `group(fields, labels)` (le « Quand » d’une routine), `inheritedFields(values)` (liste envoyée à l’API, avec les champs de la liste que le formulaire ne montre pas, gardés tels quels : les exceptions d’une routine) et `adopt(parent, fields?)` (nouveau parent choisi : ses valeurs reprises ; un champ donné que le formulaire ne montre pas hérite aussi).
 
 ## `InheritanceForm.tsx`, `inheritance-action.tsx`
 

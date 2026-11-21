@@ -35,9 +35,10 @@ L’API accepte ce que l’interface empêche.
 - **Date de péremption d’un produit :** la description GraphQL de `ShoppingProduct.expiresAt` dit qu’une fois la date passée le produit est marqué manquant ; aucun code ni tâche de fond ne le fait. Voir [Règles des achats](business-rules/supplies/shopping.md).
 
 - **Héritage : ce qui lit encore les valeurs propres.**
-  - Occurrences des routines (agenda, rappels, état, coches, « faisable », report des rappels, pertes d’occurrences) : elles se calculent sur les colonnes propres, pas sur le « quand », la condition et l’« Ouverture » hérités (`effectiveRoutine` n’y est pas lu). Les exceptions (`moves`) d’une routine qui les hérite s’écrivent encore sur elle.
-  - Le web montre le « quand » hérité d’une sous-routine (cellules, panneau), mais l’agenda, l’état et les coches viennent des occurrences de l’API, calculées sur ses colonnes propres : elles diffèrent si la parente a changé depuis (le panneau qui l’enregistre recopie les valeurs suivies). « Héritage… » sur la sélection n’offre pas le « quand » des routines.
   - GitHub : ce qui est envoyé à GitHub (priorité, échéance, jalon, assignés) reste la valeur propre de la tâche, pas la valeur héritée ; une sous-tâche détachée de son parent par GitHub (parent retiré) ne reçoit pas les valeurs qu’elle héritait.
+  - Validation d’une sous-routine : le refus des créneaux archivés (condition, cas) et des rappels « avant » sans heure lit les valeurs enregistrées sur elle, pas le « quand » hérité ; le panneau y enregistre les valeurs suivies, donc l’écart ne se voit qu’après un changement de la parente.
+  - Ranger une sous-routine sous une autre parente en la glissant dans l’arbre (`moveRoutine`) ne demande pas la perte des occurrences de son « quand » hérité : leurs commentaires restent, cachés, sur des jours sans occurrence (le panneau et la cellule « Parente » la demandent).
+  - « Annuler » d’une modification en masse ou de « Héritage… » ne rend pas les exceptions propres vidées (les exceptions ne sont pas dans l’entrée d’une routine) ; des exceptions héritées reviennent avec l’héritage.
   - Les liens « relative à » / dépendances des routines restent limités par le projet enregistré, qui est le projet suivi (le projet hérité est recopié), donc sans écart.
     Voir [Tâches](business-rules/activities/tasks.md#héritage), [Routines](business-rules/activities/routines.md#héritage).
 
