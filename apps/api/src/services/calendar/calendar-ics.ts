@@ -146,7 +146,7 @@ function travel(minutes: number): string[] {
 
 /**
  * Alarms of an event: one per reminder, relative to its start (a time of its first day too: before or after the start),
- * or to its end for a reminder from the end (`RELATED=END`, a time of its last day; decision FS).
+ * or to its end for a reminder from the end (`RELATED=END`, a time of its last day).
  * @param {unknown} stored Reminders as stored.
  * @param {string} summary Title.
  * @param {{ startTime: string | null, endTime: string | null }} times Times of the start and of the end (null: all day,

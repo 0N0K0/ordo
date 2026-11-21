@@ -1,15 +1,36 @@
-import { DEFAULT_LABEL_COLOR, twoDigits } from '@ordo/shared';
+import { addDays, type CalendarPdfKind, DEFAULT_LABEL_COLOR, twoDigits } from '@ordo/shared';
 import { dayOf, localParts } from '../../../lib/dates';
 import type { EventInput } from '@fullcalendar/core';
-import { addDays } from '@ordo/shared';
 import { fileName, postExport } from '../../../lib/download';
 
-type PdfKind = 'event' | 'task' | 'routine' | 'time' | 'pause' | 'work';
+/** Look in the PDF of each kind of item of the agenda (`extendedProps.kind`); the backgrounds apart. */
+const PDF_KIND: Record<string, CalendarPdfKind> = {
+  event: 'event',
+  subscribed: 'event',
+  birthday: 'event',
+  task: 'task',
+  routine: 'task',
+  time: 'time',
+  travel: 'travel',
+  routineTravel: 'travel',
+  slot: 'slot',
+  editSlot: 'slot',
+};
+
+/** Color of each look when the item's cannot be read. */
+const FALLBACK_COLOR: Record<CalendarPdfKind, string> = {
+  event: '#228be6',
+  task: DEFAULT_LABEL_COLOR,
+  time: DEFAULT_LABEL_COLOR,
+  travel: DEFAULT_LABEL_COLOR,
+  slot: '#d3f9d8',
+  background: '#2f9e44',
+};
 
 /** Item of the calendar as the PDF draws it. */
 interface PdfItem {
   label: string;
-  kind: PdfKind;
+  kind: CalendarPdfKind;
   allDay: boolean;
   start: string;
   end: string;
@@ -18,7 +39,7 @@ interface PdfItem {
 }
 
 /**
- * #rrggbb of a CSS color of the page (variables resolved).
+ * #rrggbb of a CSS color of the page (variables resolved, a translucent color laid on white).
  * @param {string | undefined} color CSS color.
  * @param {string} fallback Color when it cannot be read.
  * @returns {string} Hex color.
@@ -31,13 +52,13 @@ function hexColor(color: string | undefined, fallback: string): string {
   document.body.appendChild(probe);
   const computed = getComputedStyle(probe).color;
   probe.remove();
-  const match = /rgba?\((\d+),\s*(\d+),\s*(\d+)/.exec(computed);
-  return match
-    ? `#${match
-        .slice(1, 4)
-        .map((value) => twoDigits(Number(value).toString(16)))
-        .join('')}`
-    : fallback;
+  const match = /rgba?\((\d+),\s*(\d+),\s*(\d+)(?:,\s*([\d.]+))?/.exec(computed);
+  if (!match) return fallback;
+  const alpha = match[4] === undefined ? 1 : Number(match[4]);
+  return `#${match
+    .slice(1, 4)
+    .map((value) => twoDigits(Math.round(255 - (255 - Number(value)) * alpha).toString(16)))
+    .join('')}`;
 }
 
 /**
@@ -51,7 +72,8 @@ function localDateTime(value: EventInput['start']): string {
 }
 
 /**
- * Items of the calendar as the PDF draws them: dates local, all-day ends included, colors resolved.
+ * Items of the calendar as the PDF draws them: each item shown in its look (`CALENDAR_PDF_KINDS`), dates local,
+ * all-day ends included, colors resolved (filled looks: their background, the others: their border).
  * @param {EventInput[]} items Items shown (filters applied).
  * @param {string} closedClass Class of the struck through items (cancelled events, done tasks).
  * @returns {PdfItem[]} Items.
@@ -59,21 +81,20 @@ function localDateTime(value: EventInput['start']): string {
 export function pdfItems(items: readonly EventInput[], closedClass: string): PdfItem[] {
   return items.flatMap((item): PdfItem[] => {
     if (!item.start) return [];
-    // The bar of a day of planned slots (week, day): its hours are exported in the background already.
-    // Bars of planned slots and travel times stay out of the report.
-    if (item.extendedProps?.kind === 'slot' || item.extendedProps?.kind === 'travel') return [];
-    const kind: PdfKind = item.display === 'background' || item.extendedProps?.kind === 'editSlot' ? 'work' : ((item.extendedProps?.kind as PdfKind | undefined) ?? 'event');
-    const classes = Array.isArray(item.classNames) ? item.classNames : [];
-    const color = kind === 'work' ? '#2f9e44' : kind === 'pause' ? '#fd7e14' : kind === 'event' ? hexColor(item.backgroundColor, '#228be6') : hexColor(item.borderColor, DEFAULT_LABEL_COLOR);
+    const kind: CalendarPdfKind = item.display === 'background' ? 'background' : (PDF_KIND[String(item.extendedProps?.kind)] ?? 'event');
+    const filled = kind === 'event' || kind === 'slot' || kind === 'background';
+    const color = hexColor(filled ? item.backgroundColor : item.borderColor, FALLBACK_COLOR[kind]);
+    const struck = (Array.isArray(item.classNames) ? item.classNames : []).includes(closedClass);
+    const label = item.title ?? '';
     if (item.allDay) {
       const start = dayOf(String(item.start));
       // FullCalendar ends are exclusive.
       const end = item.end ? addDays(dayOf(String(item.end)), -1) : start;
-      return [{ label: item.title ?? '', kind, allDay: true, start, end: end < start ? start : end, color, struck: classes.includes(closedClass) }];
+      return [{ label, kind, allDay: true, start, end: end < start ? start : end, color, struck }];
     }
     const start = localDateTime(item.start);
     const end = item.end ? localDateTime(item.end) : start;
-    return [{ label: item.title ?? '', kind, allDay: false, start, end: end < start ? start : end, color, struck: classes.includes(closedClass) }];
+    return [{ label, kind, allDay: false, start, end: end < start ? start : end, color, struck }];
   });
 }
 

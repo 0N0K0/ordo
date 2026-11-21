@@ -4,11 +4,12 @@ import { birthDateSchema } from './birthdays';
 import { emailsSchema, phonesSchema } from './contact';
 
 /**
- * Details of a contributor (member of the team or household included) or of a relation (lot 16): birth date (year
- * optional), reminders of its birthday, email addresses (several, lot 16c) and phone numbers (the shape of the phones of
- * the clients and their contacts).
+ * Details of a member of the team or household (« Moi » included) or of a relation: birth date (year optional),
+ * reminders of its birthday, email addresses (several) and phone numbers (the shape of the phones of the clients and
+ * their contacts). Another contributor has none of its own: its details are those of what it is linked to
+ * (`CONTRIBUTOR_LINKS`).
  */
-export const personDetailsShape = {
+const personDetailsShape = {
   birthDate: birthDateSchema,
   birthdayReminders: birthdayRemindersSchema,
   emails: emailsSchema,

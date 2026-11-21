@@ -12,7 +12,7 @@ interface FoldHeadingProps extends Omit<UnstyledButtonProps, 'children'>, Omit<C
   onToggle: () => void;
   /** Title of what folds. */
   children: ReactNode;
-  /** How many elements it folds: a small grey count after the title (decision CI: size xs). Optional. Default = none. */
+  /** How many elements it folds: a small grey count after the title (size xs). Optional. Default = none. */
   count?: number;
   /** Before the title (an avatar, a colour, an icon). Optional. */
   icon?: ReactNode;
@@ -27,7 +27,7 @@ interface FoldHeadingProps extends Omit<UnstyledButtonProps, 'children'>, Omit<C
 }
 
 /**
- * Heading of a section, a group or a list that folds, the same everywhere (decision CH): the whole row is clickable,
+ * Heading of a section, a group or a list that folds, the same everywhere: the whole row is clickable,
  * a chevron turning down when unfolded, its title, its count. Other props (a class, `data-depth`…) go to the button.
  * @param {FoldHeadingProps} props Component props.
  * @returns {JSX.Element} Button.

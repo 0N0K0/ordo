@@ -21,7 +21,7 @@ export const calendarEventInputSchema = z
     endDate: endDaySchema,
     endTime: timeOfDaySchema.nullable(),
     recurrence: recurrenceSchema.nullable(),
-    /** Minutes before the start (24 hours at most), or a time of its first day (decision D16). */
+    /** Minutes before the start (24 hours at most), or a time of its first day. */
     reminders: eventRemindersSchema,
     /** Point of the location, and travel time to the event and back from it, in minutes (timed events). */
     ...locatedFields,
@@ -74,6 +74,16 @@ export const calendarFormSchema = z.object({
   color: colorSchema,
 });
 export type CalendarFormValues = z.infer<typeof calendarFormSchema>;
+
+/**
+ * Looks of the items of a calendar view printed in PDF, the same list for the app that sends them and the API that
+ * draws them: `event` filled in its color (events, subscribed calendars, birthdays), `task` light with a stripe in its
+ * color (tasks, routines), `time` light (tracked times), `travel` faint, its text dimmed (travel times), `slot` filled
+ * in its color with a dark text (bars of créneaux and éphémérides, slots being changed), `background` behind the
+ * other items (hours or days of créneaux and éphémérides).
+ */
+export const CALENDAR_PDF_KINDS = ['event', 'task', 'time', 'travel', 'slot', 'background'] as const;
+export type CalendarPdfKind = (typeof CALENDAR_PDF_KINDS)[number];
 
 /**
  * Key of an occurrence of something repeated (an event, a routine) on a day: « id|date », the date empty for none. The

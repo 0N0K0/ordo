@@ -1,4 +1,4 @@
-import { copyName, dateSchema, deadTimesSchema, readDeadTimes, storedDeadTimes, effortSchema, groupBy, itemLinksSchema, normalizedReminders, readReminders, taskRemindersSchema, locationPointFields, markdownSchema, optionalText, parseOptionalDay, reaches, readSlotCondition, slotConditionSchema, statusClosing, type TaskInput as SharedTaskInput, taskLabelSchema } from '@ordo/shared';
+import { changedList, copyName, marksInherited, dateSchema, TASK_INHERITABLE_FIELDS, type EffectiveTask, type TaskInheritableField, deadTimesSchema, readDeadTimes, storedDeadTimes, effortSchema, groupBy, itemLinksSchema, normalizedReminders, readReminders, taskRemindersSchema, locationPointFields, markdownSchema, optionalText, parseOptionalDay, reaches, readSlotCondition, slotConditionSchema, statusClosing, type TaskInput as SharedTaskInput, taskFieldsGiven, taskLabelSchema } from '@ordo/shared';
 import { z } from 'zod';
 import { prisma } from '../../db';
 import { assertBeneficiaries } from '../core/beneficiaries';
@@ -19,9 +19,10 @@ import { toJson } from '../core/json';
 import { readLinks } from '../core/links';
 import { storedLocation } from '../core/geo';
 import { assertConditionSchedules } from '../calendar/slot-conditions';
+import { adoptedTaskFields, changedTaskInheritance, clearedTaskData, effectiveTasks, freezeTaskInheritance, tasksOffParentProject } from './task-inheritance';
 
 /**
- * Closes or reopens tasks whose status changes (decision D23): to a status « Annulé » closes them (those already closed
+ * Closes or reopens tasks whose status changes: to a status « Annulé » closes them (those already closed
  * keep their date), out of one reopens them; the other categories leave them.
  * @param {readonly { id: string, statusId: string | null }[]} tasks Tasks, with their status before the change.
  * @param {string | null | undefined} statusId New status (undefined: unchanged).
@@ -185,8 +186,15 @@ async function assertActiveRefs(refs: ActiveRefs, current: CurrentRefs = {}, res
   }
 }
 
-/** Fields of a task sent to create or change it, its slot condition as GraphQL gives it (JSON, checked by the schema). */
-export type TaskInput = Omit<SharedTaskInput, 'slotCondition'> & { slotCondition?: unknown };
+/**
+ * Fields of a task sent to create or change it, its slot condition as GraphQL gives it (JSON, checked by the schema),
+ * and its inheritance (shared `TaskInput`): `inheritedFields` (creation: the fields it inherits; omitted,
+ * with a parent: every field the input leaves out), `inherit` / `clear` (update: fields made inherited, fields emptied
+ * on purpose; a field given a value becomes its own).
+ */
+export type TaskInput = Omit<SharedTaskInput, 'slotCondition'> & {
+  slotCondition?: unknown;
+};
 
 const detailsSchema = z.object({
   label: taskLabelSchema.optional(),
@@ -204,13 +212,40 @@ const detailsSchema = z.object({
   deadTimes: deadTimesSchema.nullable().optional(),
 });
 
+/** Days of a task checked against the days sent. */
+interface TaskDays {
+  startDate: Date | null;
+  endDate: Date | null;
+  minDate: Date | null;
+  deadline: Date | null;
+}
+
+/**
+ * Checks the order of the « Ouverture » and the « Échéance » of a task on its own days once changed (the days sent
+ * merged with those it has): the « Échéance » does not come before the « Ouverture » (« deadline » error). A day it
+ * inherits or emptied on purpose is not compared (the days it goes by may come from its parent, milestone, project or
+ * sprint).
+ * @param {{ minDate?: string | null, deadline?: string | null }} changes Days sent (YYYY-MM-DD; null clears, undefined keeps).
+ * @param {TaskDays} [current] Days it has. Optional. Default = a new task.
+ * @param {readonly string[]} [notOwn] Fields it inherits or that are emptied (« MIN_DATE », « DEADLINE »). Optional. Default = none.
+ * @returns {void}
+ */
+function assertOwnDays(changes: { minDate?: string | null; deadline?: string | null }, current?: TaskDays, notOwn: readonly string[] = []): void {
+  const off = new Set(notOwn);
+  assertDateRange(
+    { startDate: off.has('MIN_DATE') ? null : changes.minDate, endDate: off.has('DEADLINE') ? null : changes.deadline },
+    current && { startDate: current.minDate, endDate: current.deadline },
+    'deadline',
+  );
+}
+
 /**
  * Validates the scalar fields of a task (undefined: unchanged, null: cleared).
  * @param {TaskInput} input Raw input.
  * @param {{ startDate: Date | null, endDate: Date | null }} [current] Current dates on update. Optional.
  * @returns {object} Prisma data.
  */
-function parseDetails(input: TaskInput, current?: { startDate: Date | null; endDate: Date | null }) {
+function parseDetails(input: TaskInput, current?: TaskDays, notOwn: readonly string[] = []) {
   const details = parseInput(detailsSchema, {
     label: input.label ?? undefined,
     description: input.description,
@@ -228,6 +263,7 @@ function parseDetails(input: TaskInput, current?: { startDate: Date | null; endD
     deadTimes: input.deadTimes,
   });
   assertDateRange(details, current);
+  assertOwnDays(details, current, [...notOwn, ...(input.clear ?? [])]);
   return {
     label: details.label,
     description: details.description,
@@ -247,16 +283,52 @@ function parseDetails(input: TaskInput, current?: { startDate: Date | null; endD
 }
 
 /**
+ * Input of a task without the values of the fields it inherits (they are its parent's; its project is set apart).
+ * @param {readonly TaskInheritableField[]} fields Fields inherited.
+ * @returns {Partial<TaskInput>} Values left out.
+ */
+function inheritedInput(fields: readonly TaskInheritableField[]): Partial<TaskInput> {
+  const has = (field: TaskInheritableField) => fields.includes(field);
+  return {
+    ...(has('ASSIGNEES') && { assigneeIds: undefined }),
+    ...(has('BENEFICIARIES') && { beneficiaryIds: undefined, beneficiaryRelationIds: undefined }),
+    ...(has('SLOT_CONDITION') && { slotCondition: undefined }),
+    ...(has('MIN_DATE') && { minDate: undefined }),
+    ...(has('DEADLINE') && { deadline: undefined }),
+    ...(has('LOCATION') && { location: undefined, locationLat: undefined, locationLon: undefined }),
+    ...(has('PRIORITY') && { priorityId: undefined }),
+    ...(has('MILESTONE') && { milestoneId: undefined }),
+  };
+}
+
+/**
+ * Moves the tasks given that inherit their project into their parent's (a project inherited is stored too), each with
+ * its sub-tasks.
+ * @param {readonly string[]} ids Tasks.
+ * @returns {Promise<void>}
+ */
+async function followParentProjects(ids: readonly string[]): Promise<void> {
+  for (const task of await tasksOffParentProject(ids)) await moveTaskTrees([task.id], task.projectId);
+}
+
+/**
  * Creates a task at the end of the list.
- * @param {TaskInput & { label: string }} input Task input (no project: a task of none, without number).
+ * @param {TaskInput & { label: string }} given Task input (no project: a task of none, without number; under a parent, `inheritedFields` omitted: it inherits every field left out).
  * @returns {Promise<Task>} Created task.
  */
-export async function createTask(input: TaskInput & { label: string }): Promise<Task> {
-  if (!input.label?.trim()) throw fieldError('label', 'Le libellé est requis.');
-  const details = parseDetails(input);
+export async function createTask(given: TaskInput & { label: string }): Promise<Task> {
+  if (!given.label?.trim()) throw fieldError('label', 'Le libellé est requis.');
+  // Under a parent: the fields it inherits, their values not taken; its project, that of its parent.
+  const own = taskFieldsGiven(given);
+  const listed = given.inheritedFields ? new Set<string>(given.inheritedFields) : null;
+  const inheritedFields = given.parentId ? TASK_INHERITABLE_FIELDS.filter((field) => (listed ? listed.has(field) : !own.includes(field))) : [];
+  const inherits = (field: TaskInheritableField) => inheritedFields.includes(field);
+  const input = { ...given, ...inheritedInput(inheritedFields) };
+  const details = parseDetails(input, undefined, inheritedFields);
   await assertConditionSchedules([readSlotCondition(input.slotCondition)], []);
-  const projectId = input.projectId ?? null;
-  if (projectId) await assertProject(projectId);
+  const parentProject = input.parentId && inherits('PROJECT') ? (await orNotFound(prisma.task.findUnique({ where: { id: input.parentId }, select: { projectId: true } }), 'Tâche parente', 'parentId')).projectId : null;
+  const projectId = inherits('PROJECT') ? parentProject : (input.projectId ?? null);
+  if (projectId && !inherits('PROJECT')) await assertProject(projectId);
   await assertReferences(input);
   await assertActiveRefs(input);
   if (input.parentId) await assertParent(input.parentId, projectId, null);
@@ -269,6 +341,7 @@ export async function createTask(input: TaskInput & { label: string }): Promise<
       ...details,
       label: details.label!,
       projectId,
+      inheritedFields,
       statusId: input.statusId ?? null,
       priorityId: input.priorityId ?? null,
       typeId: input.typeId ?? null,
@@ -282,7 +355,7 @@ export async function createTask(input: TaskInput & { label: string }): Promise<
       tags: { connect: connectIds(input.tagIds ?? []) },
     },
   });
-  // Created with a status « Annulé »: closed (decision D23).
+  // Created with a status « Annulé »: closed.
   await closeOnStatus([{ id: task.id, statusId: null }], task.statusId);
   return task.statusId ? prisma.task.findUniqueOrThrow({ where: { id: task.id } }) : task;
 }
@@ -294,8 +367,15 @@ export async function createTask(input: TaskInput & { label: string }): Promise<
  * @returns {Promise<Task>} Updated task.
  */
 export async function updateTask(id: string, input: TaskInput): Promise<Task> {
-  const task = await findActive(prisma.task, id, 'Tâche');
-  const details = parseDetails(input, task);
+  const found = await findActive(prisma.task, id, 'Tâche');
+  // Made top-level: what it inherited becomes its own.
+  if (input.parentId === null && found.parentId) await freezeTaskInheritance([id]);
+  const task = input.parentId === null && found.parentId ? await prisma.task.findUniqueOrThrow({ where: { id } }) : found;
+  const parentId = input.parentId === undefined ? task.parentId : input.parentId;
+  // Placed under a parent after the fact: its empty fields inherit, as at its creation.
+  const adopted = parentId && !task.parentId ? await adoptedTaskFields(id, input) : [];
+  const inheritedFields = changedTaskInheritance(task.inheritedFields, { inherit: [...(input.inherit ?? []), ...adopted.filter((field) => !input.clear?.includes(field))], clear: input.clear, input, hasParent: parentId !== null });
+  const details = parseDetails(input, task, inheritedFields);
   // Archived schedules: no longer chosen, those already in its condition stay.
   if (input.slotCondition !== undefined) await assertConditionSchedules([readSlotCondition(input.slotCondition)], [readSlotCondition(task.slotCondition)]);
   await assertReferences(input);
@@ -331,9 +411,17 @@ export async function updateTask(id: string, input: TaskInput): Promise<Task> {
       ...(input.beneficiaryIds && { beneficiaries: { set: connectIds(input.beneficiaryIds) } }),
       ...(input.beneficiaryRelationIds && { beneficiaryRelations: { set: connectIds(input.beneficiaryRelationIds) } }),
       ...(input.tagIds && { tags: { set: connectIds(input.tagIds) } }),
+      // Emptied on purpose (« Vider »), whatever else is given.
+      ...clearedTaskData(input.clear),
+      inheritedFields,
     },
   });
-  // To or out of a status « Annulé »: closed or reopened (decision D23).
+  // Its project inherited again, or a new parent in another project of the tree: it moves to its parent's.
+  if (inheritedFields.includes('PROJECT') && (await tasksOffParentProject([id])).length) {
+    await followParentProjects([id]);
+    return prisma.task.findUniqueOrThrow({ where: { id } });
+  }
+  // To or out of a status « Annulé »: closed or reopened.
   if (input.statusId !== undefined && input.statusId !== task.statusId) {
     await closeOnStatus([task], input.statusId);
     return prisma.task.findUniqueOrThrow({ where: { id } });
@@ -384,6 +472,8 @@ async function moveTaskTrees(rootIds: string[], projectId: string | null, withSu
     .filter(({ id, parentId }) => parentId !== null && (movedSet.has(id) ? outside.has(parentId) : outside.has(id) && movedSet.has(parentId)))
     .map((task) => task.id);
   const outsideIds = [...outside];
+  // Those losing their parent keep, as their own, what they inherited.
+  await freezeTaskInheritance(parentOutside);
   // Milestones of another tree cannot follow the moved tasks.
   const movedTasks = await prisma.task.findMany({
     where: { id: { in: moved }, milestoneId: { not: null } },
@@ -427,6 +517,11 @@ async function moveTaskTrees(rootIds: string[], projectId: string | null, withSu
   // The assignees follow their tasks into the target project.
   const assignees = await prisma.contributor.findMany({ where: { tasks: { some: { id: { in: moved } } } }, select: { id: true } });
   if (projectId) await attachAssignees([{ projectId, contributorIds: assignees.map((assignee) => assignee.id) }]);
+  // A moved task whose parent stays, now in another project than it: that project is its own.
+  for (const task of await tasksOffParentProject(moved)) {
+    const { inheritedFields } = await prisma.task.findUniqueOrThrow({ where: { id: task.id }, select: { inheritedFields: true } });
+    await prisma.task.update({ where: { id: task.id }, data: { inheritedFields: inheritedFields.filter((field) => field !== 'PROJECT') } });
+  }
   return blocks.count + relations.count + parentOutside.length + losingMilestone.length + losingSprints.length;
 }
 
@@ -452,7 +547,7 @@ const CLONED_LINKS = {
 } as const;
 
 /**
- * Duplicates a task (decision D20: every field, assignees and links, but not comments), named « … (copie) », optionally
+ * Duplicates a task not archived (every field, assignees and links, but not comments), named « … (copie) », optionally
  * with its sub-tasks (their labels kept). A former link out of its project tree (kept until it moves) is not copied.
  * @param {string} id Task id.
  * @param {boolean} includeSubtasks Whether to copy the sub-tree too.
@@ -467,10 +562,12 @@ export async function duplicateTask(id: string, includeSubtasks: boolean): Promi
     relationsB: true,
   };
   const source = await orNotFound(prisma.task.findUnique({ where: { id }, include }), 'Tâche');
+  // An archived task is read only: restored first, then copied.
+  refuseArchived(source);
   const linked = [...source.blocking.map((link) => link.blockedId), ...source.blockedBy.map((link) => link.blockerId), ...source.relationsA.map((link) => link.taskBId), ...source.relationsB.map((link) => link.taskAId)];
   const projectOf = new Map((await prisma.task.findMany({ where: { id: { in: linked } }, select: { id: true, projectId: true } })).map((task) => [task.id, task.projectId]));
   const inTree = inProjectTree(await loadRootOf(), source.projectId, projectOf);
-  // A copy with a status « Annulé » is closed, as any task given one (decision D23).
+  // A copy with a status « Annulé » is closed, as any task given one.
   const cancelled = new Set((await prisma.taskStatus.findMany({ where: { category: 'CANCELLED' }, select: { id: true } })).map((status) => status.id));
 
   return prisma.$transaction(async (tx) => {
@@ -517,6 +614,8 @@ export async function duplicateTask(id: string, includeSubtasks: boolean): Promi
           reminders: toJson(readReminders(task.reminders)),
           deadTimes: toJson(readDeadTimes(task.deadTimes)),
           parentId,
+          // The copy inherits what its source inherits (from the same parent, or from the copy of its parent).
+          inheritedFields: task.inheritedFields,
           milestoneId: task.milestoneId,
           sprints: { connect: task.sprints },
           position: position++,
@@ -686,8 +785,14 @@ export async function deleteComment(id: string): Promise<void> {
 export async function moveTask(id: string, beforeId: string | null, parentId?: string | null): Promise<void> {
   const task = await findActive(prisma.task, id, 'Tâche');
   if (parentId) await assertParent(parentId, task.projectId, id);
-  const reparent = parentId !== undefined && parentId !== task.parentId ? [prisma.task.update({ where: { id }, data: { parentId } })] : [];
+  // Made top-level: what it inherited becomes its own.
+  if (parentId === null && task.parentId) await freezeTaskInheritance([id]);
+  // Placed under a parent after the fact: its empty fields inherit, as at its creation.
+  const adopted = parentId && !task.parentId ? { inheritedFields: await adoptedTaskFields(id) } : {};
+  const reparent = parentId !== undefined && parentId !== task.parentId ? [prisma.task.update({ where: { id }, data: { parentId, ...adopted } })] : [];
   await moveBefore('task', id, beforeId, 'Tâche', reparent);
+  // Under a parent of another project of the tree: one inheriting its project follows it.
+  if (reparent.length) await followParentProjects([id]);
 }
 
 /**
@@ -699,7 +804,7 @@ export async function moveTask(id: string, beforeId: string | null, parentId?: s
 export async function setTasksClosed(ids: string[], closed: boolean): Promise<void> {
   await assertTasks(ids);
   await assertNoneArchived('task', ids);
-  // Reopened by hand, a cancelled task leaves « Annulé » for the first status « À faire » (none: no status; decision D23).
+  // Reopened by hand, a cancelled task leaves « Annulé » for the first status « À faire » (none: no status).
   // Closing by hand leaves the status as it is.
   if (!closed) {
     const todo = await prisma.taskStatus.findFirst({ where: { category: 'TODO', archivedAt: null }, orderBy: BY_POSITION, select: { id: true } });
@@ -729,6 +834,10 @@ interface BulkTaskChanges {
   removeAssigneeIds?: string[] | null;
   addTagIds?: string[] | null;
   removeTagIds?: string[] | null;
+  /** Fields made inherited again (« Rétablir l'héritage »); a sub-task only. */
+  inheritFields?: TaskInheritableField[] | null;
+  /** Fields emptied on purpose (« Vider »): no value, not inherited. */
+  clearFields?: TaskInheritableField[] | null;
 }
 
 /**
@@ -778,15 +887,22 @@ export async function bulkUpdateTasks(ids: string[], changes: BulkTaskChanges, r
       projectId: true,
       startDate: true,
       endDate: true,
+      minDate: true,
+      deadline: true,
       statusId: true,
       priorityId: true,
       typeId: true,
       milestoneId: true,
+      parentId: true,
+      inheritedFields: true,
       assignees: { select: { id: true } },
       tags: { select: { id: true } },
       sprints: { select: { id: true } },
     },
   });
+  // Assignees added to or removed from inherited ones: from those it goes by, now its own.
+  const inheritingAssignees = tasks.filter((task) => marksInherited(task, 'ASSIGNEES') && (add.length || remove.length));
+  const effective = inheritingAssignees.length ? await effectiveTasks(inheritingAssignees.map((task) => task.id)) : new Map<string, EffectiveTask>();
   // Archived values are not given anew (those of one of the tasks stay valid: the same change on the others).
   const all = (pick: (task: (typeof tasks)[number]) => (string | null)[]): string[] => tasks.flatMap(pick).filter((id): id is string => id !== null);
   await assertActiveRefs(
@@ -822,8 +938,10 @@ export async function bulkUpdateTasks(ids: string[], changes: BulkTaskChanges, r
       );
     if (changes.milestoneId) await assertMilestone(changes.milestoneId, task.projectId);
     if (changes.addSprintIds?.length) await assertSprints(changes.addSprintIds, task.projectId);
-    // The date range must stay valid for every task.
+    // The date ranges must stay valid for every task (« Ouverture » / « Échéance »: on its own days).
     assertDateRange(details, task);
+    const inherited = changedTaskInheritance(task.inheritedFields, { inherit: changes.inheritFields, clear: changes.clearFields, input: changes, hasParent: task.parentId !== null });
+    assertOwnDays(details, task, [...inherited, ...(changes.clearFields ?? [])]);
   }
 
   await prisma.$transaction([
@@ -846,7 +964,10 @@ export async function bulkUpdateTasks(ids: string[], changes: BulkTaskChanges, r
           prisma.task.update({
             where: { id: taskId },
             data: {
-              ...((add.length || remove.length) && { assignees: { ...(add.length && { connect: add }), ...(remove.length && { disconnect: remove }) } }),
+              ...((add.length || remove.length) &&
+                (effective.has(taskId)
+                  ? { assignees: { set: connectIds(changedList(effective.get(taskId)!.assigneeIds, changes.addAssigneeIds ?? undefined, changes.removeAssigneeIds ?? undefined)) } }
+                  : { assignees: { ...(add.length && { connect: add }), ...(remove.length && { disconnect: remove }) } })),
               ...((addTags.length || removeTags.length) && { tags: { ...(addTags.length && { connect: addTags }), ...(removeTags.length && { disconnect: removeTags }) } }),
               ...((addSprints.length || removeSprints.length) && {
                 sprints: { ...(addSprints.length && { connect: addSprints }), ...(removeSprints.length && { disconnect: removeSprints }) },
@@ -855,8 +976,20 @@ export async function bulkUpdateTasks(ids: string[], changes: BulkTaskChanges, r
           }),
         )
       : []),
+    // Their inheritance: fields inherited again, emptied, or given a value; emptied last.
+    ...tasks.map((task) =>
+      prisma.task.update({
+        where: { id: task.id },
+        data: {
+          ...clearedTaskData(changes.clearFields),
+          inheritedFields: changedTaskInheritance(task.inheritedFields, { inherit: changes.inheritFields, clear: changes.clearFields, input: changes, hasParent: task.parentId !== null }),
+        },
+      }),
+    ),
   ]);
-  // To or out of a status « Annulé »: closed or reopened (decision D23).
+  // Their project inherited again: each moves to its parent's.
+  if (changes.inheritFields?.includes('PROJECT')) await followParentProjects(ids);
+  // To or out of a status « Annulé »: closed or reopened.
   await closeOnStatus(tasks, changes.statusId);
 }
 
@@ -888,7 +1021,7 @@ export async function bulkSetTasksArchived(ids: string[], archived: boolean): Pr
 
 /**
  * Deletes several tasks; their unselected sub-tasks are deleted too, or moved up. The times they leave with nothing
- * attached (no project, no other task, routine or event; not billed) are deleted with them (extra A of decision D17).
+ * attached (no project, no other task, routine or event; not billed) are deleted with them.
  * @param {string[]} ids Task ids.
  * @param {boolean} deleteSubtasks Whether to delete the sub-trees.
  * @returns {Promise<void>}
@@ -897,6 +1030,8 @@ export async function bulkDeleteTasks(ids: string[], deleteSubtasks: boolean): P
   await assertTasks(ids);
   // Their GitHub items are taken off the board first.
   await deleteTreeItems('task', ids, deleteSubtasks, async (gone) => {
+    // Sub-tasks left by their deleted parent keep, as their own, what they inherited.
+    await freezeTaskInheritance((await prisma.task.findMany({ where: { parentId: { in: gone }, id: { notIn: gone } }, select: { id: true } })).map((task) => task.id));
     await forgetGithubItems(gone);
     await releaseSubjectTime({ taskIds: gone });
   });

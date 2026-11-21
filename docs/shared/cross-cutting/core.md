@@ -10,25 +10,25 @@ Briques zod réutilisées par tous les schémas de formulaire (web) et d'entrée
 
 | Export                                                        | Rôle                                                                                                                                                                                                          |
 | ------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `TEXT_MAX`                                                    | `250` : longueur maximale d’un texte court libre (libellé, nom, titre, lieu, motif, adresse, libellé de lien… ; décision DO).                                                                                 |
-| `LEGAL_TEXT_MAX`                                              | `500` : longueur maximale d’une mention légale de la société ou d’un document comptable (mention de TVA, conditions de règlement, intérêts de retard, immatriculation ; décision DO, complétée).              |
-| `PLAIN_TEXT_MAX`                                              | `4000` : longueur maximale d’un texte multiligne sans markdown (zone de texte simple : notes, « Autres mentions »… ; décision DO).                                                                            |
-| `MARKDOWN_MAX`                                                | `65 536` : longueur maximale d’un texte markdown (description, commentaire, objectif, note éditée en markdown ; décision DO).                                                                                 |
+| `TEXT_MAX`                                                    | `250` : longueur maximale d’un texte court libre (libellé, nom, titre, lieu, motif, adresse, libellé de lien…).                                                                                 |
+| `LEGAL_TEXT_MAX`                                              | `500` : longueur maximale d’une mention légale de la société ou d’un document comptable (mention de TVA, conditions de règlement, intérêts de retard, immatriculation).              |
+| `PLAIN_TEXT_MAX`                                              | `4000` : longueur maximale d’un texte multiligne sans markdown (zone de texte simple : notes, « Autres mentions »…).                                                                            |
+| `MARKDOWN_MAX`                                                | `65 536` : longueur maximale d’un texte markdown (description, commentaire, objectif, note éditée en markdown).                                                                                 |
 | `TEXT_TOO_LONG` / `PLAIN_TEXT_TOO_LONG` / `MARKDOWN_TOO_LONG` | Messages « 250 caractères maximum. », « 4 000 caractères maximum. », « Texte trop long. » : un message par taille.                                                                                            |
 | `LEGAL_TEXT_TOO_LONG`                                         | Message « 500 caractères maximum. » d’une mention légale.                                                                                                                                                     |
 | `shortTextSchema`                                             | Texte court : `trim`, au plus `TEXT_MAX`, peut être vide.                                                                                                                                                     |
-| `requiredText(required?)`                                     | Texte court obligatoire : `trim`, au moins 1 caractère (message `required`, par défaut « Le libellé est requis. », décision AD), au plus `TEXT_MAX`.                                                          |
+| `requiredText(required?)`                                     | Texte court obligatoire : `trim`, au moins 1 caractère (message `required`, par défaut « Le libellé est requis. »), au plus `TEXT_MAX`.                                                          |
 | `optionalText(max?)`                                          | Texte court facultatif : `trim`, au plus `TEXT_MAX` ; une chaîne vide devient `null` ; accepte `null`. Seul un champ à format (numéro de TVA, code d’activité, téléphone) passe sa constante nommée.          |
 | `legalTextSchema` / `optionalLegalText()`                     | Mention légale : `trim`, au plus `LEGAL_TEXT_MAX`, peut être vide ; la forme facultative enregistre `null` pour un texte vide. La mention de TVA de la société y ajoute « La mention est requise. ».          |
 | `plainTextSchema` / `optionalPlainText()`                     | Texte multiligne : `trim`, au plus `PLAIN_TEXT_MAX` ; la forme facultative enregistre `null` pour un texte vide.                                                                                              |
-| `markdownTextSchema` / `markdownSchema`                       | Texte markdown tel qu’écrit (espaces gardés), au plus `MARKDOWN_MAX` ; `markdownSchema` enregistre `null` pour un texte blanc (déplacé de `tasks/tasks.ts`).                                                  |
-| `descriptionFormSchema` / `DescriptionFormValues`            | Formulaire d’une description seule (`{ description }`, `markdownTextSchema`) : la description du panneau d’une tâche, enregistrée en la quittant (décision D22). |
-| `PERSON_NAME_REQUIRED`                                        | Message « Le nom est requis. » (le mot « Nom » est réservé aux personnes, décision AD).                                                                                                                       |
-| `personNameSchema`                                            | `requiredText(PERSON_NAME_REQUIRED)` : nom de personne physique ou morale (contributeur, relation, contact, client, contrepartie, entreprise ; décision BB), `TEXT_MAX` comme tout texte court (décision DO). |
-| `END_AFTER_START`                                             | Message « La fin doit suivre le début. » (décision Q), pour toute paire début / fin (dates, heures, min / max).                                                                                               |
+| `markdownTextSchema` / `markdownSchema`                       | Texte markdown tel qu’écrit (espaces gardés), au plus `MARKDOWN_MAX` ; `markdownSchema` enregistre `null` pour un texte blanc.                                                  |
+| `descriptionFormSchema` / `DescriptionFormValues`            | Formulaire d’une description seule (`{ description }`, `markdownTextSchema`) : la description du panneau d’une tâche, enregistrée en la quittant. |
+| `PERSON_NAME_REQUIRED`                                        | Message « Le nom est requis. » (le mot « Nom » est réservé aux personnes ; « Libellé » pour tout le reste).                                                                                                                       |
+| `personNameSchema`                                            | `requiredText(PERSON_NAME_REQUIRED)` : nom de personne physique ou morale (contributeur, relation, contact, client, contrepartie, entreprise), `TEXT_MAX` comme tout texte court ; le seul schéma d’un nom de personne. |
+| `END_AFTER_START`                                             | Message « La fin doit suivre le début. », le seul message pour toute paire début / fin (dates, heures, min / max).                                                                                               |
 | `endsAfter(start, end, strict?)`                              | Vrai si `end >= start` (ou `>` si `strict`) ; une borne absente (`null`, `undefined`, `''`) donne toujours vrai. Compare des chaînes (YYYY-MM-DD, HH:MM) ou des nombres.                                      |
 | `endAfter(startKey, endKey, strict?)`                         | Paire `[check, issue]` à étaler dans `.refine(...endAfter('from', 'to'))` : l'erreur `END_AFTER_START` est posée sur le champ de fin.                                                                         |
-| `readStoredList(entry, value)`                                | Entrées d’une liste gardée en JSON (rappels, téléphones, adresses mail, temps morts…) relues : les invalides écartées, rien pour une valeur qui n’est pas une liste. Remplace les lectures écrites à la main de `readReminders` et de `contact.ts` (décision FT). |
+| `readStoredList(entry, value)`                                | Entrées d’une liste gardée en JSON (rappels, téléphones, adresses mail, temps morts…) relues : les invalides écartées, rien pour une valeur qui n’est pas une liste. Utilisée par `readReminders`, `readPhones`, `readEmails` et la lecture des temps morts. |
 
 ## `auth.ts` — schémas des formulaires d'authentification et de compte
 
@@ -80,7 +80,7 @@ zxcvbn et ses dictionnaires pèsent environ 1,3 Mo : ce fichier n'est pas dans `
 | `projectLabelSchema`                      | Libellé de projet : `requiredText()` (non unique).                                                                                                                            |
 | `projectLinkSchema` / `ProjectLinkInput`  | Lien de projet : `label` (requis, 250), `url` (http ou https, sinon « Lien invalide (http ou https). »), `note` (facultative, multiligne, 4 000).                             |
 | `WORKSPACE_KINDS`                         | `['PRO', 'PERSO']` : espace professionnel (facturation, clients, entreprise) ou personnel.                                                                                    |
-| `NOTIFICATION_SOURCES`                    | `['MAILS']` : notifications qu'un espace peut choisir de donner pendant qu'un autre est ouvert (alarmes et rappels sonnent toujours, décision EO). |
+| `NOTIFICATION_SOURCES`                    | `['MAILS']` : notifications qu'un espace peut choisir de donner pendant qu'un autre est ouvert (les alarmes et les rappels sonnent toujours, quel que soit l'espace ouvert). |
 | `PROJECT_RESOURCE_KINDS`                  | `['FILE', 'LINK']` : ressource de projet téléversée ou lien.                                                                                                                  |
 | `workspaceLabelSchema`                    | Libellé d’espace : `requiredText()`.                                                                                                                                          |
 | `labelTextSchema`                         | Libellé d’un élément paramétrable (catégorie, statut, étiquette…) : `requiredText()`.                                                                                         |
@@ -98,7 +98,7 @@ zxcvbn et ses dictionnaires pèsent environ 1,3 Mo : ce fichier n'est pas dans `
 | Export                        | Rôle                                                                                                                                                                                                                                                           |
 | ----------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `GeoPoint`                    | Type `{ lat, lon }` (WGS 84, lat −90…90, lon −180…180).                                                                                                                                                                                                        |
-| `locationPointFields`         | Point du lieu d'un élément (événement, routine, tâche) : `locationLat`, `locationLon`, facultatifs (`null` par défaut). Seul, pour une tâche (pas d'heures, pas de trajet, décision D6).                                                                       |
+| `locationPointFields`         | Point du lieu d'un élément (événement, routine, tâche) : `locationLat`, `locationLon`, facultatifs (`null` par défaut). Seul, pour une tâche (pas d'heures, pas de trajet).                                                                       |
 | `locatedFields`               | Champs d'un élément localisé avec des heures (événement, routine) : `locationPointFields`, `travelBefore`, `travelAfter` (minutes entières, 0 à 1440, par défaut 0 ; « Durée positive attendue. », « 24 h maximum. »).                                    |
 | `TRAVEL_MODES` / `TravelMode` | `CAR`, `BIKE`, `FOOT`.                                                                                                                                                                                                                                         |
 | `TRAVEL_MODE_LABELS`          | « Voiture », « Vélo », « À pied ».                                                                                                                                                                                                                             |
@@ -111,7 +111,7 @@ zxcvbn et ses dictionnaires pèsent environ 1,3 Mo : ce fichier n'est pas dans `
 | ---------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `itemLinkSchema` / `ItemLink`            | Lien d'un événement, d'une tâche ou d'une routine : `url` http(s) (« Lien invalide (http ou https). ») et `label` (250 max, peut être vide).                                |
 | `ITEM_LINKS_MAX`                         | 20 liens au plus.                                                                                                                                                            |
-| `itemLinksSchema`                        | Liste des liens d'un élément : 20 au plus (« 20 liens maximum. ») (décision D5, la même pour les trois).                                                                     |
+| `itemLinksSchema`                        | Liste des liens d'un élément : 20 au plus (« 20 liens maximum. »), la même pour les évènements, les tâches et les routines.                                                                     |
 | `linksFormSchema` / `LinksFormValues`    | `{ links }` : les liens édités seuls (panneau d'une tâche).                                                                                                                  |
 
 ## `numbers.ts` — nombres
@@ -129,7 +129,7 @@ zxcvbn et ses dictionnaires pèsent environ 1,3 Mo : ce fichier n'est pas dans `
 | ----------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `collator`                                      | `Intl.Collator('fr', { sensitivity: 'base', numeric: true })` : tri des noms sans casse ni accents, nombres par valeur (« 2 » avant « 10 »).                                                                           |
 | `normalize(text)`                               | Minuscules sans accents (recherche).                                                                                                                                                                                   |
-| `nameKey(name)`                                 | Clé d'un nom (décision CB) : espaces de bord retirés, espaces internes réduits à un, sans casse ni accents. Deux noms de même clé sont le même nom (unicité).                                                          |
+| `nameKey(name)`                                 | Clé d'un nom, la seule règle de comparaison des noms : espaces de bord retirés, espaces internes réduits à un, sans casse ni accents. Deux noms de même clé sont le même nom (unicité).                                                          |
 | `sameName(a, b)`                                | Égalité des `nameKey`.                                                                                                                                                                                                 |
 | `UNNAMED_FILE`                                  | `'sans-nom'`.                                                                                                                                                                                                          |
 | `safeFilename(name)`                            | Remplace `\ / : * ? " < > \|` et le caractère nul par « - », `trim` ; « sans-nom » si vide.                                                                                                                            |
@@ -159,6 +159,27 @@ zxcvbn et ses dictionnaires pèsent environ 1,3 Mo : ce fichier n'est pas dans `
 | `reaches(next, starts, target)`         | Vrai si `target` est atteignable depuis `starts` (chaîne de blocage, dépendances), cycles stoppés.                      |
 | `isUnderOrSelf(parentOf, start, id)`    | Vrai si `id` est `start` ou un de ses ancêtres : déplacer `id` sous `start` le mettrait sous lui-même (refus de cycle). |
 
+## `inheritance.ts` — héritage d’un parent
+
+Le moteur commun de l’héritage des sous-tâches et sous-routines (`effectiveTask`, `effectiveRoutine`).
+
+| Export | Rôle |
+| ------ | ---- |
+| `INHERIT_STATES` / `InheritState` | `INHERITED` (la valeur du parent, en direct), `OWN` (la sienne ; toujours pour un élément du premier niveau), `CLEARED` (vidé exprès, « aucun »). |
+| `INHERIT_SOURCES` / `InheritSource`, `INHERIT_SOURCE_LABELS` | D’où vient la valeur suivie : `OWN`, `PARENT`, `MILESTONE`, `PROJECT`, `SPRINT` ; les mots affichés après une valeur qui n’est pas propre (« parent », « jalon », « projet », « sprint »). |
+| `InheritingItem`, `FieldOrigin`, `InheritedColumns`, `ResolvedInheritance` | Élément qui hérite (`parentId`, `inheritedFields`), état et source d’un champ (`field`, `state`, `source`, `sourceId` : parent, jalon, projet ou sprint), colonnes de chaque champ (un lieu : texte et point). |
+| `isEmptyValue(value)` | Vide : `null`, `undefined`, texte vide, liste vide. |
+| `marksInherited(item, field)` | La liste de l’élément marque le champ hérité, l’élément ayant un parent. Garde eslint (API, partagé, web) : pas de `….inheritedFields.includes(…)` écrit à la main. |
+| `inheritsField(item, field, byId)` | Le champ est hérité : `marksInherited` et le parent connu. |
+| `inheritanceOwner(item, field, byId)` | Élément dont la valeur est suivie : lui-même, ou en remontant les parents tant qu’ils héritent (une boucle s’arrête). |
+| `inheritanceChain(item, field, byId)` | Éléments que traverse le champ : l’élément, puis ses parents tant qu’ils héritent, jusqu’à celui dont la valeur est suivie (dernier) ; un changement du champ sur l’un d’eux change la valeur de l’élément. |
+| `inheritState(item, field, empty, byId)` | État d’un champ : hérité, propre, ou vidé exprès (un sous-élément sans valeur qui n’hérite pas). |
+| `resolveInheritance(item, byId, columns)` | Copie de l’élément, les colonnes de chaque champ hérité prises de l’élément suivi, et l’origine de chaque champ. |
+| `changedInheritance(current, change)` | Liste des champs hérités après un changement : champs à hériter ajoutés, champs donnés ou vidés retirés ; vide sans parent. |
+| `inheritedFieldsGiven(input, keys)` | Champs auxquels une entrée partielle donne une valeur (`null` compris ; une liste vide d’ajouts ou de retraits ne compte pas). |
+| `emptyInheritedFields(item, columns)` | Champs sans aucune valeur propre (chacune de leurs colonnes vide) : ceux qu’un élément du premier niveau hérite quand il est rangé sous un parent après coup. |
+| `inheritedView(item, effective, columns)` | Copie de l’élément pour un écran : chaque champ hérité prend les colonnes de ses valeurs suivies (`effective` de l’API), ses champs propres restent (web : `inheritedRow`, `taskRow`, `routineRow`). |
+
 ## `collections.ts` — listes
 
 | Export                                | Rôle                                                                                                     |
@@ -174,7 +195,7 @@ zxcvbn et ses dictionnaires pèsent environ 1,3 Mo : ce fichier n'est pas dans `
 
 ## `tagged-key.ts` — clés à sorte
 
-Déplacé du web (lot 17c) : les clés des sonneries sont les mêmes dans l'app et pour le serveur qui les pousse.
+Les clés des sonneries sont les mêmes dans l'app et pour le serveur qui les pousse.
 
 | Export | Rôle |
 | --- | --- |
@@ -182,7 +203,7 @@ Déplacé du web (lot 17c) : les clés des sonneries sont les mêmes dans l'app 
 
 ## `app-paths.ts` — adresses de l'app
 
-Lot 17c : les pages vers lesquelles mènent les sonneries, aussi pour le serveur (lien d'une notification poussée).
+Les pages vers lesquelles mènent les sonneries, aussi pour le serveur (lien d'une notification poussée).
 
 | Export | Rôle |
 | --- | --- |
@@ -191,13 +212,13 @@ Lot 17c : les pages vers lesquelles mènent les sonneries, aussi pour le serveur
 
 ## `people/` — personnes : coordonnées, dates de naissance, anniversaires
 
-Lot 16 (décision FO). Règles : [Personnes](../../business-rules/cross-cutting/people.md#coordonnées-date-de-naissance-anniversaire).
+Règles : [Personnes](../../business-rules/cross-cutting/people.md#coordonnées-date-de-naissance-anniversaire).
 
 | Export (fichier)                                              | Rôle                                                                                                                                                         |
 | ------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| `LABELLED_LIST_MAX` (`contact.ts`)                            | 10 : entrées au plus d'une liste à libellés (téléphones, adresses mail) ; listes bâties par les internes `labelledEntrySchema(key, value)`, `labelledListSchema(entry)`, et lues par `readStoredList` de `rules.ts` (décisions FP, FT). |
-| `PHONE_MAX`, `phoneSchema`, `Phone`, `phonesSchema` (`contact.ts`) | Téléphone `{ label, number }` (« Numéro invalide. », 3 à 30 caractères), 10 au plus : clients, services, contacts, contributeurs, relations.             |
-| `labelledEmailSchema`, `LabelledEmail`, `emailsSchema` (`contact.ts`) | Adresse mail `{ label, address }` (« Adresse email invalide. »), 10 au plus : contributeurs et relations (lot 16c).                                    |
+| `LABELLED_LIST_MAX` (`contact.ts`)                            | 10 : entrées au plus d'une liste à libellés (téléphones, adresses mail) ; listes bâties par les internes `labelledEntrySchema(key, value)`, `labelledListSchema(entry)`, et lues par `readStoredList` de `rules.ts`. |
+| `PHONE_MAX`, `phoneSchema`, `Phone`, `phonesSchema` (`contact.ts`) | Téléphone `{ label, number }` (« Numéro invalide. », 3 à 30 caractères), 10 au plus : clients, services, contacts, membres, relations.             |
+| `labelledEmailSchema`, `LabelledEmail`, `emailsSchema` (`contact.ts`) | Adresse mail `{ label, address }` (« Adresse email invalide. »), 10 au plus : membres et relations (plusieurs adresses chacun).                                    |
 | `optionalEmailSchema` (`contact.ts`)                          | Adresse mail facultative (« Adresse email invalide. », vide → `null`) des clients et de leurs contacts (celle où partent les factures) ; `emailSchema` (`core/auth.ts`) reste celle, requise, du compte. |
 | `readPhones(value)` / `readEmails(value)` (`contact.ts`)      | Téléphones ou adresses mail d'un JSON stocké (les invalides écartés).                                                                                          |
 | `BirthDate`, `BIRTH_YEAR_MIN` (`birthdays.ts`)                | Date de naissance lue : `{ month, day, year \| null }`, année 1900 au plus tôt.                                                                               |
@@ -206,5 +227,6 @@ Lot 16 (décision FO). Règles : [Personnes](../../business-rules/cross-cutting/
 | `birthdayIn(birth, year)` (`birthdays.ts`)                    | Anniversaire d'une année (un 29 février : le 28 les années qui n'en ont pas).                                                                               |
 | `ageOn(birth, day)` / `Birthday` / `birthdaysBetween(birth, from, to)` (`birthdays.ts`) | Âge un jour (null sans année) ; anniversaires d'une période avec l'âge (aucun avant la naissance ni le jour même).                 |
 | `birthdayLabel(name, age)` (`birthdays.ts`)                   | « Anniversaire de Paul — 40 ans » (sans âge sans année) : agenda et rappels.                                                                                 |
-| `personDetailsShape`, `personDetailsSchema`, `PersonDetailsInput`, `personDetailsChangesSchema` (`person-details.ts`) | Détails d'un contributeur ou d'une relation : `birthDate`, `birthdayReminders` (`birthdayRemindersSchema`), `email`, `phones` ; repris par `contributorFormSchema` et `treasuryRelationSchema` (ce dernier en facultatif : omis, inchangé). |
+| `personDetailsSchema`, `PersonDetailsInput`, `personDetailsChangesSchema` (`person-details.ts`) | Détails d'un membre de l'équipe ou du foyer ou d'une relation : `birthDate`, `birthdayReminders` (`birthdayRemindersSchema`), `emails`, `phones` ; la fiche d'un membre (`personDetailsSchema`), `treasuryRelationSchema` (en facultatif : omis, inchangé). |
+| `CONTRIBUTOR_LINKS`, `ContributorLinkKind`, `contributorLinkSchema`, `ContributorLinkInput`, `ContributorLinkValues`, `NO_CONTRIBUTOR_LINK` (`contributor-link.ts`) | Ce dont viennent les coordonnées d'un contributeur, un seul : `MEMBER`, `RELATION` (`relationId`), `CONTACT` (`contactId`), `NONE` ; sans relation ou contact choisi : « Choisissez la relation. », « Choisissez le contact. » ; repris par `contributorFormSchema`. Règles : [Lien d'un contributeur](../../business-rules/cross-cutting/people.md#lien-dun-contributeur). |
 

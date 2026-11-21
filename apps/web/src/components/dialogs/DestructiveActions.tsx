@@ -33,7 +33,7 @@ export function DestructiveActions({ onConfirm, onCancel, loading = false, confi
 }
 
 /**
- * « Supprimer » button of a form (its trash icon, filled red: decision CN); the deletion asks for a confirmation (confirmDestructive).
+ * « Supprimer » button of a form (its trash icon, filled red); the deletion asks for a confirmation (confirmDestructive).
  * @param {{ onClick: () => void, loading?: boolean, children?: ReactNode }} props Component props: the label defaults to « Supprimer ».
  * @returns {JSX.Element} Button.
  */
@@ -45,13 +45,13 @@ export function DeleteButton({ onClick, loading = false, children = 'Supprimer' 
   );
 }
 
-/** Last sentence of every destructive confirmation (decision X). */
+/** Last sentence of every destructive confirmation. */
 // eslint-disable-next-line no-restricted-syntax -- the one place the sentence is written.
 const IRREVERSIBLE = 'Cette action est irréversible.';
 
 /**
  * Risks of a destructive dialog, the same everywhere: what the action does and loses, then « Cette action est
- * irréversible. » (unless it can be undone by the opposite action: a conversion, lot 16).
+ * irréversible. » (unless it can be undone by the opposite action: a conversion).
  * @param {{ children: ReactNode, reversible?: boolean }} props Component props: the risks (a sentence, or more), and whether the opposite action undoes it.
  * @returns {JSX.Element} Text.
  */

@@ -63,7 +63,7 @@ const toInput = (values: MailAccountFormValues, sameLogin: boolean): MailAccount
 
 /**
  * Mail account settings: address, receiving (IMAP) and sending (SMTP) servers, with a connection test. A new account
- * is added by its button; an existing one is saved field by field (decision D22): its label, address, sender name and
+ * is added by its button; an existing one is saved field by field: its label, address, sender name and
  * « Envoyés » at once (texts on leaving them), its connection together on leaving one of its fields, once a server
  * changed has its password typed again (an error under it until then). Passwords left empty are kept.
  * @param {MailAccountFormProps} props Component props.

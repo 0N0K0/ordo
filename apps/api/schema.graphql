@@ -316,6 +316,7 @@ enum ArchivableKind {
   CALENDAR_CATEGORY
   CALENDAR_EVENT
   CATALOG_ITEM
+  CLIENT_CONTACT
   CONTRIBUTOR
   DASHBOARD
   DOCUMENT_STATUS
@@ -366,7 +367,7 @@ type Attachment {
 }
 
 """
-Birthday of a contributor or a relation (lot 16): a whole-day éphéméride derived from its birth date, every year, not stored.
+Birthday of a contributor or a relation: a whole-day éphéméride derived from its birth date, every year, not stored.
 """
 type Birthday {
   """
@@ -399,17 +400,10 @@ type Birthday {
 }
 
 """
-Birthdays of the people of this workspace in its calendar (decision FX): shown or not, color (none: the gray of the éphémérides) and display.
+Birthdays of the people of this workspace in its calendar, shown as all-day events: shown or not, and color (none: the gray of the éphémérides).
 """
 type BirthdayLook {
   color: String
-  dayBar: Boolean!
-  dayDisplay: String!
-
-  """
-  Its days in the month: BACKGROUND or BORDER with their bar, NONE: nothing.
-  """
-  monthDisplay: String!
 
   """Shown in the calendar; hidden, their reminders still ring."""
   shown: Boolean!
@@ -417,9 +411,6 @@ type BirthdayLook {
 
 input BirthdayLookInput {
   color: String
-  dayBar: Boolean!
-  dayDisplay: String!
-  monthDisplay: String!
   shown: Boolean!
 }
 
@@ -428,9 +419,19 @@ input BulkTaskInput {
   addAssigneeIds: [ID!]
   addSprintIds: [ID!]
   addTagIds: [ID!]
+
+  """
+  Fields emptied on purpose (« Vider »; PROJECT refused). A field given a value becomes their own.
+  """
+  clearFields: [TaskInheritableField!]
   deadline: Date
   effort: Float
   endDate: Date
+
+  """
+  Fields made inherited from their parent again (« Rétablir l’héritage »); tasks without parent unchanged.
+  """
+  inheritFields: [TaskInheritableField!]
   milestoneId: ID
   minDate: Date
   priorityId: ID
@@ -714,6 +715,9 @@ type Client {
 }
 
 type ClientContact {
+  """Archived: hidden by default, read only."""
+  archived: Boolean!
+  client: Client!
   clientId: ID!
   email: String
   firstName: String!
@@ -898,29 +902,49 @@ type Contributor {
   avatarUrl: String
 
   """
-  Birth date: YYYY-MM-DD, or --MM-DD when the year is not known. Its birthday shows in the calendar (query birthdays).
+  Birth date: YYYY-MM-DD, or --MM-DD when the year is not known. Its birthday shows in the calendar (query birthdays). That of what it is linked to: its own as a member, its relation's; none otherwise.
   """
   birthDate: String
 
-  """Reminders of its birthday."""
+  """Reminders of its birthday (those of its birth date)."""
   birthdayReminders: [Reminder!]!
 
-  """[{ label, address }]"""
+  """Client contact it is linked to."""
+  contactId: ID
+
+  """
+  [{ label, address }]: its own as a member, its relation's, its contact's single email; none otherwise.
+  """
   emails: JSON!
   handle: String!
   id: ID!
 
   """Whether this contributor is the app user."""
   isMe: Boolean!
+
+  """
+  What its details come from: itself as a member (its own), a relation, a contact, or nothing.
+  """
+  link: ContributorLinkKind!
+
+  """
+  Name of the relation, or of the contact with its client (« Prénom Nom · Client »).
+  """
+  linkName: String
   name: String!
 
-  """[{ label, number }]"""
+  """
+  [{ label, number }]: its own as a member, its relation's, its contact's; none otherwise.
+  """
   phones: JSON!
 
   """
   Projects the contributor is directly attached to; their sub-projects inherit it.
   """
   projectIds: [ID!]!
+
+  """Relation it is linked to."""
+  relationId: ID
 
   """
   Member of the team (professional workspace) or household (personal one); the app user always is.
@@ -930,49 +954,42 @@ type Contributor {
 
 input ContributorInput {
   avatar: File
-
-  """
-  Birth date: YYYY-MM-DD, or --MM-DD when the year is not known. Its birthday shows in the calendar (query birthdays). Empty: none.
-  """
-  birthDate: String
-
-  """
-  Reminders of its birthday « À HH:MM » or « N jours avant, à HH:MM », 10 at most.
-  """
-  birthdayReminders: [ReminderInput!]
-
-  """[{ label, address }]: email addresses, 10 at most."""
-  emails: JSON
   handle: String!
-  name: String!
 
-  """[{ label, number }], 10 at most."""
-  phones: JSON
+  """What its details come from (it has none of its own)."""
+  link: ContributorLinkInput
+  name: String!
 
   """Projects the contributor is directly attached to."""
   projectIds: [ID!]
 }
 
+"""
+What the details of a contributor come from, one at most; the link replaces the one it had.
+"""
+input ContributorLinkInput {
+  """Client contact (kind CONTACT), not linked to another contributor."""
+  contactId: ID
+  kind: ContributorLinkKind!
+
+  """Relation (kind RELATION), not linked to another contributor."""
+  relationId: ID
+}
+
+enum ContributorLinkKind {
+  CONTACT
+  MEMBER
+  NONE
+  RELATION
+}
+
 input ContributorUpdateInput {
   avatar: File
-
-  """
-  Birth date: YYYY-MM-DD, or --MM-DD when the year is not known. Its birthday shows in the calendar (query birthdays). Empty: none.
-  """
-  birthDate: String
-
-  """
-  Reminders of its birthday « À HH:MM » or « N jours avant, à HH:MM », 10 at most.
-  """
-  birthdayReminders: [ReminderInput!]
-
-  """[{ label, address }]: email addresses, 10 at most."""
-  emails: JSON
   handle: String
-  name: String
 
-  """[{ label, number }], 10 at most."""
-  phones: JSON
+  """What its details come from (it has none of its own)."""
+  link: ContributorLinkInput
+  name: String
 
   """Projects the contributor is directly attached to."""
   projectIds: [ID!]
@@ -980,7 +997,7 @@ input ContributorUpdateInput {
 }
 
 """
-A timer (« minuteur ») of the user, in every workspace (decision FT): it counts down and rings at its end.
+A timer (« minuteur ») of the user, in every workspace: it counts down and rings at its end.
 """
 type Countdown {
   createdAt: DateTime!
@@ -1225,6 +1242,23 @@ input EventRoutineLinkInput {
   routineId: ID!
 }
 
+"""
+State and source of one inherited field: what the screens show greyed with « hérité de … », « (jalon) »…
+"""
+type FieldOrigin {
+  """Field: a value of TaskInheritableField or RoutineInheritableField."""
+  field: String!
+
+  """Where its value comes from; null: no value."""
+  source: InheritSource
+
+  """
+  Parent task or routine (PARENT), milestone, project or sprint it comes from; null: its own.
+  """
+  sourceId: ID
+  state: InheritState!
+}
+
 """Uploaded file, sent with a GraphQL multipart request."""
 scalar File
 
@@ -1466,6 +1500,26 @@ input ImportedDocumentInput {
   type: AccountingDocumentType!
 }
 
+"""
+Where the value a field goes by comes from: OWN, PARENT (« (parent) »), and for the dates of a task MILESTONE (« (jalon) »), PROJECT (« (projet) »), SPRINT (« (sprint) »).
+"""
+enum InheritSource {
+  MILESTONE
+  OWN
+  PARENT
+  PROJECT
+  SPRINT
+}
+
+"""
+State of an inherited field of a sub-task or sub-routine: INHERITED (its parent’s, live), OWN (its own value; a top-level item’s fields always are), CLEARED (emptied on purpose, « aucun », even when its parent has one).
+"""
+enum InheritState {
+  CLEARED
+  INHERITED
+  OWN
+}
+
 type InvoiceTreasuryCategories {
   """Money out: refunds of credit notes."""
   creditNoteCategoryId: ID
@@ -1549,12 +1603,10 @@ type LinkedMailAttachment {
 
 """What a deletion takes with it, for its confirmation."""
 type LostOnDelete {
-  """Comments of the items and occurrences deleted (decision D19)."""
+  """Comments of the items and occurrences deleted."""
   comments: Int!
 
-  """
-  Times without project, not billed, left with nothing attached (extra A of decision D17).
-  """
+  """Times without project, not billed, left with nothing attached."""
   times: Int!
 }
 
@@ -1847,9 +1899,16 @@ type Mutation {
   addTaskRelation(otherId: ID!, taskId: ID!): Boolean!
 
   """
-  Adds a member: an existing contributor, or a new contributor of this name.
+  Adds a member: an existing contributor (not linked to a relation nor a contact), or a new contributor of this name.
   """
-  addTreasuryMember(contributorId: ID, name: String): ID!
+  addTreasuryMember(
+    """
+    Occurrences made to disappear with their comments or times are confirmed: false (default) refuses with CONFIRMATION_REQUIRED and extension lost { times, comments } when there are some; true deletes them. Its own birthday applies (slot conditions).
+    """
+    confirmLoss: Boolean
+    contributorId: ID
+    name: String
+  ): ID!
 
   """
   Attaches a list to the treasury entry paying it (adding its split by person), or detaches it (entryId null).
@@ -1944,7 +2003,7 @@ type Mutation {
   confirmEmailChange(token: String!): Boolean!
 
   """
-  Turns a routine (not archived, without sub-routines) into a task, dated by its current occurrence (lot 15): the routine is deleted, what both have moves to the task; returns the task id. Unconfirmed: CONFIRMATION_REQUIRED, extension `lost` (what is lost, by kind), nothing changed.
+  Turns a routine (not archived, without sub-routines) into a task, dated by its current occurrence: the routine is deleted, what both have moves to the task; returns the task id. Unconfirmed: CONFIRMATION_REQUIRED, extension `lost` (what is lost, by kind), nothing changed.
   """
   convertRoutineToTask(
     """What is lost is confirmed."""
@@ -1953,7 +2012,7 @@ type Mutation {
   ): ID!
 
   """
-  Turns a task (not archived, without sub-tasks) into a routine repeated every day (lot 15): the task is deleted, what both have moves to the routine; returns the routine id. Unconfirmed: CONFIRMATION_REQUIRED, extension `lost` (what is lost, by kind), nothing changed.
+  Turns a task (not archived, without sub-tasks) into a routine repeated every day: the task is deleted, what both have moves to the routine; returns the routine id. Unconfirmed: CONFIRMATION_REQUIRED, extension `lost` (what is lost, by kind), nothing changed.
   """
   convertTaskToRoutine(
     """What is lost is confirmed."""
@@ -2203,7 +2262,7 @@ type Mutation {
   duplicateShoppingList(id: ID!): ID!
 
   """
-  Duplicates a task, named « … (copie) » (decision D20), with its sub-tasks when asked; not its comments.
+  Duplicates a task, named « … (copie) », with its sub-tasks when asked; not its comments.
   """
   duplicateTask(id: ID!, includeSubtasks: Boolean!): Task!
   duplicateTaskView(id: ID!, label: String!): TaskView!
@@ -2286,9 +2345,19 @@ type Mutation {
   moveProjectResource(id: ID!, index: Int!): Boolean!
 
   """
-  Places a routine before another one in the global manual order (at the end when beforeId is null), and under parentId when given (null: top level; omitted: parent unchanged); categoryIds, when given, become its categories.
+  Places a routine before another one in the global manual order (at the end when beforeId is null), and under parentId when given (null: top level; omitted: parent unchanged); categoryIds, when given, become its categories. A new parent that makes occurrences with comments disappear (its « quand » inherited) asks confirmLoss: CONFIRMATION_REQUIRED, nothing moved.
   """
-  moveRoutine(beforeId: ID, categoryIds: [ID!], id: ID!, parentId: ID): Boolean!
+  moveRoutine(
+    beforeId: ID
+    categoryIds: [ID!]
+
+    """
+    Occurrences made to disappear with their comments or times are confirmed: false (default) refuses with CONFIRMATION_REQUIRED and extension lost { times, comments } when there are some; true deletes them.
+    """
+    confirmLoss: Boolean
+    id: ID!
+    parentId: ID
+  ): Boolean!
 
   """
   Moves a category under another one (parentId), or to the top level (parentId null), at an index among its siblings (last without).
@@ -2374,8 +2443,16 @@ type Mutation {
   removeTaskBlock(blockedId: ID!, blockerId: ID!): Boolean!
   removeTaskRelation(otherId: ID!, taskId: ID!): Boolean!
 
-  """Removes a member from the team or household (they stay a contributor)."""
-  removeTreasuryMember(contributorId: ID!): Boolean!
+  """
+  Removes a member from the team or household (they stay a contributor, without details of their own).
+  """
+  removeTreasuryMember(
+    """
+    Occurrences made to disappear with their comments or times are confirmed: false (default) refuses with CONFIRMATION_REQUIRED and extension lost { times, comments } when there are some; true deletes them. Its birthday gone (slot conditions).
+    """
+    confirmLoss: Boolean
+    contributorId: ID!
+  ): Boolean!
   renameDashboard(id: ID!, label: String!): Boolean!
   renameDocumentFolder(id: ID!, name: String!): Boolean!
 
@@ -2475,13 +2552,13 @@ type Mutation {
   setAccountingDocumentProject(id: ID!, projectId: ID): Boolean!
 
   """
-  Archives (hidden by default, read only) or restores elements of a kind, all at once.
+  Archives (hidden by default, read only) or restores elements of a kind, all at once; people with those they are linked to (a contributor with its relation or its contact); « Moi » is never archived, a contact of an archived client is not restored.
   """
   setArchived(
     archived: Boolean!
 
     """
-    Occurrences made to disappear with their comments or times are confirmed: false (default) refuses with CONFIRMATION_REQUIRED and extension lost { times, comments } when there are some; true deletes them. Schedules, kinds of schedules, contributors and relations.
+    Occurrences made to disappear with their comments or times are confirmed: false (default) refuses with CONFIRMATION_REQUIRED and extension lost { times, comments } when there are some; true deletes them. Schedules, kinds of schedules, contributors, relations and contacts (with the people linked to them).
     """
     confirmLoss: Boolean
     ids: [ID!]!
@@ -2633,7 +2710,7 @@ type Mutation {
   """Starts a timer; the others keep running."""
   startCountdown(input: CountdownInput!): Countdown!
 
-  """Starts a timer; the ones running keep running (decision FT)."""
+  """Starts a timer; the ones running keep running."""
   startTimer(input: TimerInput!): TimeEntry!
 
   """« Arrêter »: the ring is stopped for good, in every tab and device."""
@@ -2773,6 +2850,18 @@ type Mutation {
   updateTreasuryCategory(id: ID!, input: TreasuryCategoryInput!): Boolean!
   updateTreasuryCounterparty(id: ID!, input: TreasuryCounterpartyInput!): Boolean!
   updateTreasuryEntry(id: ID!, input: TreasuryEntryInput!): Boolean!
+
+  """
+  Changes the details of a member of the team or household (omitted: left unchanged); only a member has details of its own.
+  """
+  updateTreasuryMember(
+    """
+    Occurrences made to disappear with their comments or times are confirmed: false (default) refuses with CONFIRMATION_REQUIRED and extension lost { times, comments } when there are some; true deletes them. Its birthday moved or gone (slot conditions).
+    """
+    confirmLoss: Boolean
+    contributorId: ID!
+    input: TreasuryMemberDetailsInput!
+  ): Contributor!
   updateTreasuryPaymentMethod(id: ID!, input: TreasuryPaymentMethodInput!): Boolean!
 
   """
@@ -2953,7 +3042,7 @@ input ProjectUpdateInput {
   statusId: ID
 }
 
-"""A device of the user receiving the push notifications (lot 17c)."""
+"""A device of the user receiving the push notifications."""
 type PushSubscription {
   createdAt: DateTime!
 
@@ -2992,7 +3081,7 @@ type Query {
   alarms: [Alarm!]!
 
   """
-  Birthdays of the people of this workspace in its calendar: shown or not, color and display (decision FX).
+  Birthdays of the people of this workspace in its calendar: shown or not, color and display.
   """
   birthdayLook: BirthdayLook!
 
@@ -3025,6 +3114,11 @@ type Query {
   checklist(eventId: ID, occurrenceDate: Date, routineId: ID, taskId: ID): Checklist
   client(id: ID!): Client
 
+  """
+  Every contact of every client (archived clients included), by client then name: those a contributor can be linked to.
+  """
+  clientContacts: [ClientContact!]!
+
   """Every client, archived ones included, in manual order."""
   clients: [Client!]!
 
@@ -3040,7 +3134,7 @@ type Query {
   ): [CommentCount!]!
 
   """
-  Comments of an item, oldest first; of one occurrence for a routine or an event (decision D19).
+  Comments of an item, oldest first; of one occurrence for a routine or an event.
   """
   comments(
     """Item id (Message-ID for a mail)."""
@@ -3246,7 +3340,7 @@ type Query {
   routines: [Routine!]!
 
   """
-  Running timers of the workspace (several at once, decision FT), the first started first.
+  Running timers of the workspace (several at once), the first started first.
   """
   runningTimeEntries: [TimeEntry!]!
   scheduleTypes: [ScheduleType!]!
@@ -3543,9 +3637,7 @@ type Routine {
   """
   currentDate: Date
 
-  """
-  « Temps morts »: waits a timer is launched for from an occurrence (decision FT).
-  """
+  """« Temps morts »: waits a timer is launched for from an occurrence."""
   deadTimes: [DeadTime!]!
   description: String
 
@@ -3558,6 +3650,9 @@ type Routine {
   """Latest time to do it by (HH:MM)."""
   dueTime: String
 
+  """Values it goes by."""
+  effective: RoutineEffective!
+
   """Minutes."""
   estimate: Int
 
@@ -3567,6 +3662,14 @@ type Routine {
   """Time to do it from (HH:MM), its own (see windowFrom)."""
   fromTime: String
   id: ID!
+
+  """
+  State (inherited, own, emptied on purpose) and source of each inherited field.
+  """
+  inheritance: [FieldOrigin!]!
+
+  """Fields it takes from its parent, live; none for a top-level routine."""
+  inheritedFields: [RoutineInheritableField!]!
   label: String!
   lastDoneAt: DateTime
 
@@ -3667,6 +3770,11 @@ input RoutineBulkChanges {
   """Cases (with recurrence: its whole repetition); empty: its rule."""
   cases: JSON
 
+  """
+  Fields emptied on purpose (« Vider »; START_DATE and RECURRENCE refused). A field given a value becomes their own.
+  """
+  clearFields: [RoutineInheritableField!]
+
   """HH:MM; null: no limit."""
   dueTime: String
 
@@ -3675,6 +3783,11 @@ input RoutineBulkChanges {
 
   """HH:MM; null: no limit."""
   fromTime: String
+
+  """
+  Fields made inherited from their parent again (« Rétablir l’héritage »); routines without parent unchanged.
+  """
+  inheritFields: [RoutineInheritableField!]
 
   """Times of the day following its rule."""
   moments: JSON
@@ -3734,6 +3847,45 @@ type RoutineCheck {
   slot: Int!
 }
 
+"""
+Values a routine goes by: each inherited field from its parent, live. Its « quand » (startDate, recurrence, cases, moments, moves, opensOn) is given here; its occurrences (currentDate, slots, routineOccurrences…) are computed from it.
+"""
+type RoutineEffective {
+  assigneeIds: [ID!]!
+  beneficiaryIds: [ID!]!
+  beneficiaryRelationIds: [ID!]!
+  cases: JSON!
+  categoryIds: [ID!]!
+  location: String
+  locationLat: Float
+  locationLon: Float
+  moments: JSON!
+  moves: JSON!
+  opensOn: JSON
+  projectId: ID
+  recurrence: JSON!
+  slotCondition: JSON
+  startDate: Date!
+}
+
+"""
+Field a sub-routine inherits from its parent; START_DATE, RECURRENCE, CASES, MOMENTS, MOVES and OPENS_ON make its « quand ».
+"""
+enum RoutineInheritableField {
+  ASSIGNEES
+  BENEFICIARIES
+  CASES
+  CATEGORIES
+  LOCATION
+  MOMENTS
+  MOVES
+  OPENS_ON
+  PROJECT
+  RECURRENCE
+  SLOT_CONDITION
+  START_DATE
+}
+
 input RoutineInput {
   assigneeIds: [ID!]!
 
@@ -3761,6 +3913,11 @@ input RoutineInput {
 
   """HH:MM."""
   fromTime: String
+
+  """
+  Under a parent: the fields it inherits, live (their values given are not used, its project is its parent’s). Omitted: none for a new routine, unchanged for an update.
+  """
+  inheritedFields: [RoutineInheritableField!]
   label: String!
 
   """
@@ -3775,6 +3932,11 @@ input RoutineInput {
 
   """Times of the day, [{ fromTime, dueTime, optional }]."""
   moments: JSON
+
+  """
+  Its exceptions, [{ from, to, times }] (an undo gives them back). Omitted: kept; not taken by a new routine.
+  """
+  moves: JSON
 
   """
   « Ouverture » of the occurrences of its rule: { mode: DAY | WEEKDAY | WEEK | BEFORE, … }; null: none.
@@ -3858,12 +4020,22 @@ input RoutinePatch {
   cases: JSON
   categoryIds: [ID!]
 
+  """
+  Fields emptied on purpose (« Vider »; START_DATE and RECURRENCE refused). A field given a value becomes its own.
+  """
+  clear: [RoutineInheritableField!]
+
   """HH:MM; null: no limit."""
   dueTime: String
   estimate: Int
 
   """HH:MM; null: no limit."""
   fromTime: String
+
+  """
+  Fields made inherited from its parent again (« Rétablir l’héritage »); a sub-routine only.
+  """
+  inherit: [RoutineInheritableField!]
   label: String
 
   """Null: none (its point too)."""
@@ -4673,7 +4845,7 @@ type Task {
   blockingIds: [ID!]!
 
   """
-  Its status is of the category « Annulé »: closed, shown struck through (decision D23).
+  Its status is of the category « Annulé »: closed, shown struck through.
   """
   cancelled: Boolean!
 
@@ -4684,7 +4856,7 @@ type Task {
   comments: [TaskComment!]!
   createdAt: DateTime!
 
-  """« Temps morts »: waits a timer is launched for (decision FT)."""
+  """« Temps morts »: waits a timer is launched for."""
   deadTimes: [DeadTime!]!
 
   """
@@ -4692,17 +4864,22 @@ type Task {
   """
   deadline: Date
 
-  """Its « Échéance » is that of its sprint (none of its own)."""
-  deadlineFromSprint: Boolean!
+  """
+  Where its « Échéance » comes from when not its own: PARENT, MILESTONE, SPRINT; null: its own or none.
+  """
+  deadlineSource: InheritSource
   description: String
 
+  """Values it goes by."""
+  effective: TaskEffective!
+
   """
-  « Échéance » the task goes by (overdue, reminders, sorting, filters): its own, else the end of its sprint when it is in exactly one.
+  « Échéance » the task goes by (overdue, reminders, sorting, filters): its own, else its parent’s, else its milestone’s, else the end of its first sprint.
   """
   effectiveDeadline: Date
 
   """
-  « Ouverture » the task goes by: its own, else the start of its sprint when it is in exactly one (decision of lot 12).
+  « Ouverture » the task goes by: its own, else its parent’s, else the « Échéance » of the milestone before its own, the « Ouverture » of its project, the start of its first sprint.
   """
   effectiveMinDate: Date
   effort: Float
@@ -4715,6 +4892,14 @@ type Task {
   """Issue on GitHub (null for a draft issue or an unlinked task)."""
   githubUrl: String
   id: ID!
+
+  """
+  State (inherited, own, emptied on purpose) and source of each inherited field.
+  """
+  inheritance: [FieldOrigin!]!
+
+  """Fields it takes from its parent, live; none for a top-level task."""
+  inheritedFields: [TaskInheritableField!]!
   label: String!
 
   """Links, as those of the events."""
@@ -4731,8 +4916,10 @@ type Task {
   """Earliest acceptable date (« Ouverture »): not to be done before."""
   minDate: Date
 
-  """Its « Ouverture » is that of its sprint (none of its own)."""
-  minDateFromSprint: Boolean!
+  """
+  Where its « Ouverture » comes from when not its own: PARENT, MILESTONE, PROJECT, SPRINT; null: its own or none.
+  """
+  minDateSource: InheritSource
 
   """
   Number within its project (#12); none without project. Links use the id.
@@ -4785,6 +4972,41 @@ type TaskComment {
   id: ID!
 }
 
+"""
+Values a task goes by: each inherited field from its parent, live; its dates also from its milestone, project or first sprint. Read for every behaviour; the screens grey the inherited ones (`inheritance`).
+"""
+type TaskEffective {
+  assigneeIds: [ID!]!
+  beneficiaryIds: [ID!]!
+  beneficiaryRelationIds: [ID!]!
+
+  """« Échéance » it goes by."""
+  deadline: Date
+  location: String
+  locationLat: Float
+  locationLon: Float
+  milestoneId: ID
+
+  """« Ouverture » it goes by."""
+  minDate: Date
+  priorityId: ID
+  projectId: ID
+  slotCondition: JSON
+}
+
+"""Field a sub-task inherits from its parent."""
+enum TaskInheritableField {
+  ASSIGNEES
+  BENEFICIARIES
+  DEADLINE
+  LOCATION
+  MILESTONE
+  MIN_DATE
+  PRIORITY
+  PROJECT
+  SLOT_CONDITION
+}
+
 input TaskInput {
   assigneeIds: [ID!]
   beneficiaryIds: [ID!]
@@ -4796,6 +5018,11 @@ input TaskInput {
   description: String
   effort: Float
   endDate: Date
+
+  """
+  Under a parent: the fields it inherits (their values given are ignored); omitted: every field left out of the input. Ignored without parent.
+  """
+  inheritedFields: [TaskInheritableField!]
   label: String!
 
   """20 at most, http or https; null: none."""
@@ -4905,12 +5132,17 @@ type TaskType {
 }
 
 """
-Omitted fields are left unchanged; null clears a field. Use bulkTransferTasks to change the project.
+Omitted fields are left unchanged; null clears a field (a field given a value, null included, becomes its own). Use bulkTransferTasks to change the project.
 """
 input TaskUpdateInput {
   assigneeIds: [ID!]
   beneficiaryIds: [ID!]
   beneficiaryRelationIds: [ID!]
+
+  """
+  Fields emptied on purpose (« Vider »): no value, not inherited (PROJECT refused). A field given a value becomes its own.
+  """
+  clear: [TaskInheritableField!]
 
   """« Temps morts », 20 at most; null: none."""
   deadTimes: [DeadTimeInput!]
@@ -4918,6 +5150,11 @@ input TaskUpdateInput {
   description: String
   effort: Float
   endDate: Date
+
+  """
+  Fields made inherited from its parent again (« Rétablir l’héritage »); a sub-task only.
+  """
+  inherit: [TaskInheritableField!]
   label: String
 
   """20 at most, http or https; null: none."""
@@ -4993,14 +5230,14 @@ type TimeEntry {
   duration: Int
   endedAt: DateTime
 
-  """Calendar events (occurrences) the time was spent on (decision D18)."""
+  """Calendar events (occurrences) the time was spent on."""
   events: [TimeEntryEvent!]!
   id: ID!
   pausedAt: DateTime
   pausedSeconds: Int!
   projectId: ID
 
-  """Routines the time is spent on (decision D18)."""
+  """Routines the time is spent on."""
   routines: [Routine!]!
   startedAt: DateTime!
   taskIds: [ID!]!
@@ -5462,6 +5699,27 @@ type TreasuryLoanItem {
   lineId: ID!
 }
 
+"""
+Details of a member of the team or household; omitted fields are left unchanged.
+"""
+input TreasuryMemberDetailsInput {
+  """
+  Birth date: YYYY-MM-DD, or --MM-DD when the year is not known. Its birthday shows in the calendar (query birthdays). Empty: none.
+  """
+  birthDate: String
+
+  """
+  Reminders of its birthday « À HH:MM » or « N jours avant, à HH:MM », 10 at most.
+  """
+  birthdayReminders: [ReminderInput!]
+
+  """[{ label, address }]: email addresses, 10 at most."""
+  emails: JSON
+
+  """[{ label, number }], 10 at most."""
+  phones: JSON
+}
+
 type TreasuryPaymentMethod {
   """Archived: hidden by default, read only."""
   archived: Boolean!
@@ -5525,7 +5783,7 @@ type TreasuryRelation {
   birthdayReminders: [Reminder!]!
   budgetCount: Int!
 
-  """Contributor this person also is."""
+  """Contributor this person also is (its details are the relation's)."""
   contributorId: ID
 
   """[{ label, address }]"""
@@ -5549,6 +5807,10 @@ input TreasuryRelationInput {
   Reminders of its birthday « À HH:MM » or « N jours avant, à HH:MM », 10 at most.
   """
   birthdayReminders: [ReminderInput!]
+
+  """
+  Contributor this person also is (not a member nor linked to a contact): its details are the relation's.
+  """
   contributorId: ID
 
   """[{ label, address }]: email addresses, 10 at most."""

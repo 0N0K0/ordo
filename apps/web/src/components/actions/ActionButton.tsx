@@ -6,7 +6,7 @@ import { ActionTooltip } from './ActionTooltip';
 import { MenuCaret } from './MenuCaret';
 
 /**
- * Weight of an action (decision CN): adding an item, validating an action or submitting a form (filled), any other one
+ * Weight of an action: adding an item, validating an action or submitting a form (filled), any other one
  * (light: « Annuler », « Exporter », « Filtrer », a menu, a page), the small ones of a section or a form (subtle text,
  * one size: « Ajouter une ligne », « Valeurs par défaut », « Retirer »).
  */
@@ -14,10 +14,10 @@ type ActionPriority = 'primary' | 'secondary' | 'tertiary';
 
 interface ActionButtonProps extends Omit<ButtonProps, 'variant' | 'color' | 'leftSection' | 'rightSection'>, Omit<ComponentPropsWithoutRef<'button'>, 'color' | 'children' | 'style'> {
   children: ReactNode;
-  /** Adding, validating or submitting (filled), another action (light) or a small one (subtle text, xs: decision BE). Optional. Default = 'primary'. */
+  /** Adding, validating or submitting (filled), another action (light) or a small one (subtle text, xs). Optional. Default = 'primary'. */
   priority?: ActionPriority;
   /**
-   * Destructive action (« Supprimer », « Délier »), filled red whatever its priority (decision CN), subtle red text for
+   * Destructive action (« Supprimer », « Délier »), filled red whatever its priority, subtle red text for
    * a small one (« Retirer » the logo). Optional. Default = false.
    */
   danger?: boolean;
@@ -65,7 +65,7 @@ export function ActionButton({ hint, ...props }: ActionButtonProps) {
  * @returns {JSX.Element} Button.
  */
 function ActionButtonBody({ children, priority = 'primary', danger = false, icon, to, href, download, menu, menuName, after, onClick, ...rest }: Omit<ActionButtonProps, 'hint'>) {
-  // Decision CN: a destructive action is filled red, never light nor outlined; a small one stays subtle.
+  // A destructive action is filled red, never light nor outlined; a small one stays subtle.
   const variant = priority === 'tertiary' ? 'subtle' : priority === 'primary' || danger ? 'filled' : 'light';
   // A small action: always xs. Red when destructive, whatever the priority.
   const props = { ...rest, ...(priority === 'tertiary' && { size: 'xs' }), ...(danger && { color: 'red' }) };
@@ -86,7 +86,7 @@ function ActionButtonBody({ children, priority = 'primary', danger = false, icon
       />
     );
   }
-  // The target of a menu or a popover (its target gives it `aria-haspopup`): its caret after the rest (decision DI).
+  // The target of a menu or a popover (its target gives it `aria-haspopup`): its caret after the rest.
   const opens = Boolean(props['aria-haspopup']);
   const right = !opens ? (
     after

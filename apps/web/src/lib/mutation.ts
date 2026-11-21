@@ -86,7 +86,7 @@ function cachedFind<D, T>(queryClient: QueryClient, queryKey: QueryKey, items: (
 
 /**
  * Item by id in the queries of a key (the key and those it prefixes), as the cache holds them now: a copy just saved,
- * once its mutation refreshed them (decision D20 opens it).
+ * once its mutation refreshed them (a duplicate opens it).
  * @param {QueryClient} queryClient Query client.
  * @param {QueryKey} queryKey Queries (a prefix).
  * @param {string} id Item.

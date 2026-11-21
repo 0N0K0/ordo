@@ -15,7 +15,7 @@ export interface LabelFormProps {
   onSubmit: (label: string) => void | Promise<unknown>;
   /** Closes the form. */
   onDone: () => void;
-  /** Label of the field. Optional. Default = « Libellé » (decision AD). */
+  /** Label of the field. Optional. Default = « Libellé ». */
   fieldLabel?: string;
   /** Example in the empty field. Optional. */
   placeholder?: string;

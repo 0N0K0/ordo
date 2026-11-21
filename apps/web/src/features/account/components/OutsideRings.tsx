@@ -97,7 +97,7 @@ function DeviceRow({ device, here }: { device: PushDevice; here: boolean }) {
 }
 
 /**
- * « Sonner hors de l'app » (lot 17c, decision FU): switched on, it asks the permission of the notifications and
+ * « Sonner hors de l'app »: switched on, it asks the permission of the notifications and
  * subscribes this device; switched off, it unsubscribes this device, and the server pushes to none of the others (the
  * setting is the user's: they stay listed, ready for when it is on again). Below, the devices of the user with « Tester »
  * and « Retirer », and « Recevoir sur cet appareil » when this one is not among them. Says when the server has no push

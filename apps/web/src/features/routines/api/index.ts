@@ -1,6 +1,8 @@
 import { routinesKey } from '../../../lib/query-keys';
 import { linkInputs } from '../../../lib/links';
-import { ancestorsOf, byPosition, changedList, mapById, movedTo, readReminderOutputs, subtreeOf } from '@ordo/shared';
+import { ancestorsOf, byPosition, changedList, mapById, movedTo, readReminderOutputs, routineFieldsGiven, subtreeOf, type RoutineInheritableField } from '@ordo/shared';
+import { ownedFields } from '../../../components/inheritance/inheritance';
+import { routineRow } from '../lib/routine-inheritance';
 import type { Reminder, RoutineBulkChanges } from '@ordo/shared';
 import { patchQuery, useInvalidatingMutation } from '../../../lib/mutation';
 import {
@@ -106,6 +108,27 @@ const RoutinesDataDocument = graphql(`
       lastDoneAt
       trackedSeconds
       opensOn
+      inheritedFields
+      inheritance {
+        ...FieldOriginFields
+      }
+      effective {
+        projectId
+        assigneeIds
+        beneficiaryIds
+        beneficiaryRelationIds
+        categoryIds
+        slotCondition
+        opensOn
+        location
+        locationLat
+        locationLon
+        startDate
+        recurrence
+        cases
+        moments
+        moves
+      }
     }
   }
 `);
@@ -175,8 +198,8 @@ const PatchRoutineDocument = graphql(`
 `);
 
 const MoveRoutineDocument = graphql(`
-  mutation MoveRoutine($id: ID!, $beforeId: ID, $parentId: ID, $categoryIds: [ID!]) {
-    moveRoutine(id: $id, beforeId: $beforeId, parentId: $parentId, categoryIds: $categoryIds)
+  mutation MoveRoutine($id: ID!, $beforeId: ID, $parentId: ID, $categoryIds: [ID!], $confirmLoss: Boolean) {
+    moveRoutine(id: $id, beforeId: $beforeId, parentId: $parentId, categoryIds: $categoryIds, confirmLoss: $confirmLoss)
   }
 `);
 
@@ -258,7 +281,7 @@ const RoutineChecksDocument = graphql(`
 
 export type RoutineCheck = RoutineChecksQuery['routineChecks'][number];
 
-/** Comment deleted with an occurrence, given back by « Annuler » (decision D19). */
+/** Comment deleted with an occurrence, given back by « Annuler ». */
 export type CommentSnapshot = DeleteRoutineOccurrenceMutation['deleteRoutineOccurrence']['comments'][number];
 
 /**
@@ -320,12 +343,22 @@ export function useRoutineOccurrences(range: { from: string; to: string } | null
 }
 
 /**
+ * Routines and their categories, each routine as the screens read it (`routineRow`: its inherited fields with the values
+ * it follows).
+ * @returns {Promise<RoutinesDataQuery>} Data.
+ */
+async function fetchRoutinesData(): Promise<RoutinesDataQuery> {
+  const data = await execute(RoutinesDataDocument);
+  return { ...data, routines: data.routines.map(routineRow) };
+}
+
+/**
  * Routines and their categories. Refreshed when the window gets the focus back (the current occurrences move with the
  * day).
  * @returns {UseQueryResult<RoutinesDataQuery>} Query state.
  */
 export function useRoutinesData() {
-  return useQuery({ queryKey: routinesKey, queryFn: () => execute(RoutinesDataDocument), refetchOnWindowFocus: true });
+  return useQuery({ queryKey: routinesKey, queryFn: fetchRoutinesData, refetchOnWindowFocus: true });
 }
 
 /**
@@ -336,7 +369,7 @@ export function useRoutinesData() {
  * @returns {Promise<Routine | undefined>} Routine, none when not found.
  */
 export async function fetchRoutine(queryClient: QueryClient, id: string): Promise<Routine | undefined> {
-  const data = await queryClient.fetchQuery({ queryKey: routinesKey, queryFn: () => execute(RoutinesDataDocument), staleTime: 0 });
+  const data = await queryClient.fetchQuery({ queryKey: routinesKey, queryFn: fetchRoutinesData, staleTime: 0 });
   return data.routines.find((routine) => routine.id === id);
 }
 
@@ -418,6 +451,26 @@ function draftRoutine(input: RoutineInput, routines: readonly Routine[]): Routin
     trackedSeconds: 0,
     opensOn: input.opensOn ?? null,
     slots: [],
+    inheritedFields: input.inheritedFields ?? [],
+    // Nothing shown as inherited until saved (the API gives its origins).
+    inheritance: [],
+    effective: {
+      projectId: input.projectId ?? null,
+      assigneeIds: input.assigneeIds ?? [],
+      beneficiaryIds: input.beneficiaryIds ?? [],
+      beneficiaryRelationIds: input.beneficiaryRelationIds ?? [],
+      categoryIds: input.categoryIds ?? [],
+      slotCondition: input.slotCondition ?? null,
+      opensOn: input.opensOn ?? null,
+      location: input.location ?? null,
+      locationLat: input.locationLat ?? null,
+      locationLon: input.locationLon ?? null,
+      startDate: input.startDate,
+      recurrence: input.recurrence,
+      cases: input.cases ?? [],
+      moments: input.moments ?? [],
+      moves: [],
+    },
   };
 }
 
@@ -524,6 +577,10 @@ export interface RoutinePatchValues {
   cases?: RoutineCaseInput[];
   moments?: RoutineSlot[];
   slotCondition?: SlotCondition | null;
+  /** Fields made inherited again (« Rétablir l'héritage »). */
+  inherit?: RoutineInheritableField[];
+  /** Fields emptied on purpose (« Vider »; never its first time nor its repetition). */
+  clear?: RoutineInheritableField[];
 }
 
 export type { RoutineBulkChanges };
@@ -562,6 +619,10 @@ export function routineInputOf(routine: Routine): RoutineInput {
     requiredIds: routine.requiredIds,
     relatedIds: routine.relatedIds,
     opensOn: routine.opensOn as RoutineInput['opensOn'],
+    // Its inheritance given back too (an undo, a copy under the same parent).
+    inheritedFields: routine.inheritedFields as RoutineInheritableField[],
+    // Its own exceptions, given back by an undo (a new routine, a copy, takes none).
+    moves: routine.moves as RoutineInput['moves'],
   };
 }
 
@@ -573,7 +634,8 @@ export function routineInputOf(routine: Routine): RoutineInput {
  */
 function withBulkChanges(routine: Routine, changes: RoutineBulkChanges): Routine {
   return {
-    ...routine,
+    // Fields given a value are its own at once.
+    ...ownedFields(routine, routineFieldsGiven(changes)),
     categoryIds: changedList(routine.categoryIds, changes.addCategoryIds, changes.removeCategoryIds),
     assigneeIds: changedList(routine.assigneeIds, changes.addAssigneeIds, changes.removeAssigneeIds),
     requiredIds: changedList(routine.requiredIds, changes.addRequiredIds, changes.removeRequiredIds).filter((id) => id !== routine.id),
@@ -611,7 +673,7 @@ export function useRoutineMutations() {
     /** Copies the sub-routines of a routine under its copy (theirs too). */
     copySubRoutines: useRoutineMutation(async (variables: { fromId: string; toId: string }) => (await execute(CopySubRoutinesDocument, variables)).copySubRoutines),
     /**
-     * Turns a task into a routine (lot 15), once what it loses is confirmed (`conversionDialog`); gives the routine id.
+     * Turns a task into a routine, once what it loses is confirmed (`conversionDialog`); gives the routine id.
      * The tasks and the times are refreshed too (the task is gone, its times are the routine's).
      */
     convertTask: useRoutineMutation(
@@ -623,7 +685,7 @@ export function useRoutineMutations() {
       undefined,
       [tasksQueryKey, timeQueryKey],
     ),
-    /** Turns a routine into a task (lot 15), once what it loses is confirmed; gives the task id. */
+    /** Turns a routine into a task, once what it loses is confirmed; gives the task id. */
     convertToTask: useRoutineMutation(
       async (id: string) =>
         withLossConfirmation(
@@ -635,10 +697,20 @@ export function useRoutineMutations() {
     ),
     patch: useRoutineMutation(
       async (variables: { id: string; input: RoutinePatchValues }) => withLossConfirmation(async (confirmLoss) => (await execute(PatchRoutineDocument, { ...variables, confirmLoss })).patchRoutine),
-      (data, { id, input }) => patchRoutine(data, id, (routine) => ({ ...routine, ...input, reminders: input.reminders ? readReminderOutputs(input.reminders) : routine.reminders })),
+      (data, { id, input }) =>
+        patchRoutine(data, id, (routine) => ({
+          // Its values given are its own at once; inherited again or emptied, the refresh tells their values.
+          ...ownedFields(routine, routineFieldsGiven(input)),
+          ...(Object.fromEntries(Object.entries(input).filter(([key]) => key !== 'inherit' && key !== 'clear')) as Partial<Routine>),
+          reminders: input.reminders ? readReminderOutputs(input.reminders) : routine.reminders,
+        })),
       [tasksQueryKey],
     ),
-    move: useRoutineMutation(async (variables: RoutineMove) => (await execute(MoveRoutineDocument, variables)).moveRoutine, moveInCache),
+    // Under another parent, the occurrences its « quand » inherited loses are confirmed, as in the panel; declined, nothing moves.
+    move: useRoutineMutation(
+      async (variables: RoutineMove) => withLossConfirmation(async (confirmLoss) => (await execute(MoveRoutineDocument, { ...variables, confirmLoss })).moveRoutine),
+      moveInCache,
+    ),
     setDone: useRoutineMutation(
       async (variables: { id: string; done: boolean; date?: string | null; slot?: number | null; doneAt?: string | null }) => (await execute(SetRoutineDoneDocument, variables)).setRoutineDone,
       (data, { id, done, date, slot }) => patchRoutine(data, id, (routine) => (date && date !== routine.currentDate ? routine : withSlotsDone(routine, [slot ?? 0], done))),

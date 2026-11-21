@@ -3,7 +3,7 @@ import { readEmails, readPhones, readReminders, type LabelledEmail, type Phone, 
 import { nestedErrors, type FieldSave } from '../../lib/form';
 import type { PersonDetailsFields } from './PersonDetailsFields';
 
-/** Details of a person in a form (lot 16): birth date, birthday reminders, email addresses (lot 16c), phones. */
+/** Details of a person in a form: birth date, birthday reminders, email addresses, phones. */
 export type PersonDetailsValues = {
   birthDate: string | null;
   birthdayReminders: ReminderFields[];
@@ -19,7 +19,7 @@ export const PERSON_DETAILS_ON_BLUR = ['birthDate', 'emails', 'phones'] as const
 
 /**
  * Details of a person as the cache holds them, as form values.
- * @param {{ birthDate?: string | null, birthdayReminders: readonly ReminderFields[], emails: unknown, phones: unknown }} person Contributor or relation.
+ * @param {{ birthDate?: string | null, birthdayReminders: readonly ReminderFields[], emails: unknown, phones: unknown }} person Member or relation.
  * @returns {PersonDetailsValues} Values.
  */
 export function personDetailsValues(person: { birthDate?: string | null; birthdayReminders: readonly ReminderFields[]; emails: unknown; phones: unknown }): PersonDetailsValues {

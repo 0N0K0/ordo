@@ -87,13 +87,13 @@ const alarmInputOf = (values: AlarmFormValues): AlarmInput => ({
   minutes: values.type === 'TRACKING_DURATION' ? values.minutes : null,
 });
 
-/** Fields of an alarm saved on leaving them, in its panel (decision D22). */
+/** Fields of an alarm saved on leaving them, in its panel. */
 const ON_BLUR = ['label', 'note', 'minutes'] as const;
 
 /**
  * Alarm creation / edition: label, type, schedule (date, time, repetition, weekdays, end) or tracking
  * duration, optional project or task, note. A new alarm is a form with « Créer l’alarme »; an existing one, its panel,
- * saves each field as soon as it changes (texts and the minutes on leaving them, decision D22, `useFieldSave`).
+ * saves each field as soon as it changes (texts and the minutes on leaving them, `useFieldSave`).
  * @param {AlarmFormProps} props Component props.
  * @returns {JSX.Element} Form.
  */

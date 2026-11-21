@@ -184,7 +184,7 @@ function fieldErrors(schema: Schema, values: Record<string, unknown>, fields: re
 }
 
 /**
- * Detail panel of an existing item, saved field by field as the task panel (decision D22): the form of the item, whose
+ * Detail panel of an existing item, saved field by field as the task panel: the form of the item, whose
  * fields are saved as soon as they change (selects, dates, switches, lists, `setFieldValue` / `setValues`), or on
  * leaving them for those of `onBlur` (texts, numbers; Enter in a text too). Each field is checked first, its error
  * under it (the rules of `useAppForm`: on leaving it, then on every change); a field in error is not saved. The change

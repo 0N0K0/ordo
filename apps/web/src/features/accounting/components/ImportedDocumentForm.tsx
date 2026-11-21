@@ -38,7 +38,7 @@ interface FormValues extends Record<string, unknown> {
   file: File | null;
 }
 
-/** Fields of an imported document saved on leaving them, in its panel (decision D22): texts and amounts. */
+/** Fields of an imported document saved on leaving them, in its panel: texts and amounts. */
 const ON_BLUR = ['number', 'label', 'clientName', 'note', 'totalNet', 'totalVat', 'totalGross'] as const;
 
 /** Totals: saved together on leaving one of them (HT and TVA give the TTC). */
@@ -89,7 +89,7 @@ const importedOf = (data: ImportedDocument[] | ImportedDocument | null): readonl
 /**
  * Import of a quote or an invoice issued before Ordo: type, number, dates, client, project, totals and file.
  * Its lines are not imported: the file is the document. A new import is a form with « Importer »; an existing one, its
- * panel, saves each field as soon as it changes (texts and amounts on leaving them, decision D22, `useFieldSave`), a
+ * panel, saves each field as soon as it changes (texts and amounts on leaving them, `useFieldSave`), a
  * file chosen too, the one of the cache followed; archived, it is read only.
  * @param {{ document?: ImportedDocument, onDone: () => void }} props Component props.
  * @returns {JSX.Element} Form.

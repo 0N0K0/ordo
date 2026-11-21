@@ -26,7 +26,7 @@ export interface CountdownFormProps {
 const valuesOf = (deadTime: DeadTime | undefined): CountdownFormValues => ({ label: deadTime?.label ?? '', duration: durationText(deadTime?.minutes ?? 10), ringtone: deadTime?.ringtone ?? null });
 
 /**
- * Starts a timer (« Lancer un minuteur », decision FT): its name (optional), its duration (typed, or a duration offered
+ * Starts a timer (« Lancer un minuteur »): its name (optional), its duration (typed, or a duration offered
  * at once), its ringtone; launched for a dead time of a task or a routine (« Lancer un temps mort »), the dead time
  * chosen gives them (its estimated time stays editable). The timers running keep running.
  * @param {CountdownFormProps} props Component props.

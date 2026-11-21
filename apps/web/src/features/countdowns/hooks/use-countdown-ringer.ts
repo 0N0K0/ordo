@@ -32,7 +32,7 @@ function ringCountdownEnd(countdown: Countdown, rung: () => void): void {
 }
 
 /**
- * Rings the timers of the user at their end while the app is open (decision FT), in any workspace: each running one is
+ * Rings the timers of the user at their end while the app is open, in any workspace: each running one is
  * planned at its end; one over while the app was closed rings on opening (within 6 hours, as the reminders missed).
  * A timer paused, given more time or cancelled is planned again as the API gives it. Renders nothing (`AlarmCenter`).
  * @returns {void}

@@ -23,7 +23,7 @@ Règles appliquées par l’API et les schémas partagés pour les documents com
 États (`ACCOUNTING_DOCUMENT_STATUSES`) :
 
 - `DRAFT` : brouillon modifiable, sans numéro ;
-- `FINAL` : numéroté et définitif, plus modifiable (corrigé par un avoir) ; seule exception : la migration `20261119150000_text_sizes` (décision DO) a raccourci ses textes trop longs à la taille de leur sorte (libellé, lignes, mode de règlement 250 ; conditions de règlement, intérêts de retard, mention de TVA 500), société figée comme vendeur comprise ;
+- `FINAL` : numéroté et définitif, plus modifiable (corrigé par un avoir) ; seule exception : la migration `20261119150000_text_sizes` a raccourci ses textes trop longs à la taille de leur sorte (libellé, lignes, mode de règlement 250 ; conditions de règlement, intérêts de retard, mention de TVA 500), société figée comme vendeur comprise ;
 - `TEMPLATE` : modèle d’une facture récurrente, jamais numéroté, exclu des listes (`accountingDocuments` et `derived` l’excluent).
 
 Nom d’un document (`documentName`) : son numéro, sinon son libellé (modèle), sinon « Brouillon » (`DRAFT_NAME`). Titre (`documentTitle`) : « Facture F2600042 », « Facture Brouillon ».
@@ -39,7 +39,7 @@ Schéma `accountingDocumentInputSchema` (`packages/shared/src/accounting/account
 | `issueDate`                                                                          | Jour obligatoire (« La date est requise. »).                                                                                                                                                               |
 | `dueDate`                                                                            | Facultatif ; pas avant la date (« L’échéance doit suivre la date du document. »).                                                                                                                          |
 | `serviceStart`, `serviceEnd`                                                         | Facultatifs ; la fin suit le début (message commun `END_AFTER_START`).                                                                                                                                     |
-| `label`                                                                              | 250 caractères (décision DO).                                                                                                                                                                              |
+| `label`                                                                              | 250 caractères (`TEXT_MAX`).                                                                                                                                                                              |
 | `introduction`, `conclusion`                                                         | Markdown, 65 536 caractères (« Texte trop long. ») ; blanc → null.                                                                                                                                         |
 | `referenceLabel` / `referenceValue`                                                  | 250 caractères chacun.                                                                                                                                                                                     |
 | `paymentTerms`, `paymentMethods`, `lateInterest`, `billingSchedule`, `otherMentions` | Conditions de règlement et intérêts de retard : mentions légales, 500 caractères (`LEGAL_TEXT_MAX`) ; mode de règlement et mode de facturation 250 ; `otherMentions` : texte multiligne, 4 000 caractères. |
@@ -111,7 +111,7 @@ Propositions : `PAYMENT_TERMS_PRESETS`, `PAYMENT_METHOD_PRESETS`, `LATE_INTEREST
 `apps/api/src/services/accounting/accounting-documents.ts` :
 
 - Une facture d’acompte ne se crée pas directement : « Une facture d’acompte s’établit à partir d’un devis. » (mutation `createAccountingDocument`).
-- Client, service, contact, projet (`assertParties`) : un client ou un projet archivé est refusé, sauf s’il est déjà celui du document (ou copié d’un document source) ; « Ce service n’appartient pas au client. », « Ce contact n’appartient pas au client. ».
+- Client, service, contact, projet (`assertParties`) : un client, un contact ou un projet archivé est refusé, sauf s’il est déjà celui du document (ou copié d’un document source) ; « Ce service n’appartient pas au client. », « Ce contact n’appartient pas au client. ».
 - Déductions (`assertDeductions`) : chaque acompte déduit doit exister (« Facture d’acompte » introuvable), être une facture d’acompte définitive (« Seule une facture d’acompte validée peut être déduite. ») du même client (« Cette facture d’acompte est celle d’un autre client. »).
 - Chronologie (`assertChronology`) : un brouillon ne peut pas être daté avant le dernier document définitif du même type, documents importés compris : « La date ne peut pas précéder celle de la dernière facture (12/10/2026). » (« le dernier devis », « la dernière facture d’acompte », « le dernier avoir »). Un modèle de récurrente n’est pas contrôlé. La requête `latestDocumentDate` donne cette date au formulaire.
 - Modification (`updateDocument`) : brouillons et modèles seulement (« Un document définitif ne peut plus être modifié : corrigez-le par un avoir. ») ; refusée sur un document archivé, et sur le modèle d’une récurrente archivée. Les lignes sont toutes remplacées.
@@ -297,8 +297,10 @@ Paiement (`recordPayment`, schéma `documentPaymentSchema`) :
 - SIREN 9 chiffres avec clé de Luhn (« SIREN invalide (9 chiffres). »), SIRET 14 chiffres avec clé de Luhn sauf établissements de La Poste (`356000000…`) (« SIRET invalide (14 chiffres). ») ; espaces retirés ;
 - service : libellé obligatoire (250), adresse, email, téléphones ; position en fin de liste ;
 - contact : prénom obligatoire (« Le prénom est requis. »), nom (règle des noms de personne), email, fonction (250), téléphones, service facultatif du même client ;
-- toute modification est refusée sur un client archivé ; supprimer un service garde ses contacts (rattachés au client) ; un contact ou un service supprimé est retiré des documents (`SetNull`) ;
+- toute modification est refusée sur un client archivé ou un contact archivé ; un contact archivé reste supprimable (menu « … » de sa ligne), pas un contact d’un client archivé ; supprimer un service garde ses contacts (rattachés au client) ; un contact ou un service supprimé est retiré des documents (`SetNull`) ;
 - un client ayant des documents ne peut pas être supprimé (relation `Restrict` du schéma).
+- un contact peut être aussi un contributeur (un au plus, `Contributor.contactId`, choisi dans la fiche du contributeur) : le contributeur a alors son adresse et ses téléphones, sans anniversaire (voir [Personnes](../cross-cutting/people.md#lien-dun-contributeur)) ; le contact lui-même ne change pas ; supprimé, le contributeur reste, sans lien.
+- archivage d’un contact (`setArchived(CLIENT_CONTACT)`, menu « … » de sa ligne dans la fiche client) : masqué par défaut (« Afficher les archivés »), en lecture seule jusqu’à sa restauration, plus proposé comme nouveau choix (contact d’un document, lien d’un contributeur ; celui déjà choisi reste) ; archivé et restauré avec son contributeur, dans les deux sens, jamais avec le client ; tant que le client est archivé, le contact n'est pas restauré, ni par son contributeur : « Restaurez d’abord le client. ». Archiver un client archive ses contacts actifs et leurs contributeurs ; le restaurer restaure ceux archivés avec lui (voir [Archivage](../cross-cutting/archiving.md#client)).
 
 ## Profil de la société
 

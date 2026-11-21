@@ -19,7 +19,7 @@ interface FoldButtonProps {
 }
 
 /**
- * Button folding a row, a group or a branch, the same everywhere (decision AE): « Développer » / « Réduire » in its
+ * Button folding a row, a group or a branch, the same everywhere: « Développer » / « Réduire » in its
  * tooltip, a chevron turning down when unfolded.
  * @param {FoldButtonProps} props Component props.
  * @returns {JSX.Element} Button.

@@ -6,7 +6,7 @@ Voir aussi : [core](../../shared/cross-cutting/core.md), [tables](../../shared/c
 
 ## Positions
 
-- Les éléments ordonnables ont un champ `position` (entier). L'ordre manuel est `BY_POSITION` : par position, puis par libellé à position égale (décision BA).
+- Les éléments ordonnables ont un champ `position` (entier). L'ordre manuel est `BY_POSITION` : par position, puis par libellé à position égale, partout.
 - Listes de personnes (clients, tiers, dossiers de la bibliothèque) : par position puis par nom (`BY_POSITION_NAME`).
 - Listes sans libellé (liens de fiches, abonnements d'agenda, documents de la bibliothèque) : par position seule (`BY_POSITION_ONLY`).
 - Côté web, `byPosition` trie par position.
@@ -22,7 +22,7 @@ Un élément créé va **en fin** de sa liste : `nextPositionIn(model, where)` d
 
 - `moveInList(model, id, index, where, tx?)` : déplace un élément à un index parmi ses frères (`where`) ; toutes les positions des frères sont réécrites (chacun reçoit son index), en une transaction.
 - `saveSiblingOrder(orderedIds, id, index, save)` et `moveInOrder` : même chose à partir d'une liste d'ids déjà chargée ; l'index est borné à la liste (`movedTo`).
-- `moveBefore(model, id, beforeId, what, also?)` : ordre global d'un modèle (tâches, routines, décision DT) ; place l'élément juste avant un autre (`null` : à la fin ; voisin inconnu : « X introuvable. »), en ne réécrivant que les positions qui changent, dans une transaction avec les autres écritures données (changement de parent). Placer « avant tel élément » fonctionne aussi dans une vue filtrée.
+- `moveBefore(model, id, beforeId, what, also?)` : ordre global d'un modèle (tâches, routines) ; place l'élément juste avant un autre (`null` : à la fin ; voisin inconnu : « X introuvable. »), en ne réécrivant que les positions qui changent, dans une transaction avec les autres écritures données (changement de parent). Placer « avant tel élément » fonctionne aussi dans une vue filtrée.
 - `reorder(kind, ids)` : remet tous les éléments d'une liste de réglages plate dans l'ordre donné, tout ou rien (transaction).
 - Espaces : `moveWorkspace(id, index)` (« Espace introuvable. »).
 
@@ -38,7 +38,7 @@ Arbres de réglages (`treeListService`) : catégories de routines, de courses, d
 - Sélection dans un arbre (tâches, routines) : seuls les éléments du haut sont traités, un élément sous un autre sélectionné le suit (`topmostIds`).
 - Projets : profondeur maximale `MAX_PROJECT_DEPTH` = 5 niveaux.
 - Lieux : un lieu de premier niveau (avec adresse) ne devient jamais une zone et inversement (« Un lieu garde son adresse : il ne peut pas devenir une zone. », « Une zone n’a pas d’adresse : elle ne peut pas devenir un lieu. »).
-- Chemin affiché : « Maison › Étage › Chambre » (`pathOf`, séparateur `LEVEL`).
+- Tout élément d'un arbre s'affiche par son chemin complet, dans les choix comme dans les cellules : « Maison › Étage › Chambre » (`pathOf`, séparateur `LEVEL`).
 
 ## Ordre choisi à la main dans les tableaux
 

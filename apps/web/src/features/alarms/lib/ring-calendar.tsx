@@ -14,7 +14,7 @@ export interface RemindedSchedule extends SharedRemindedSchedule {
 }
 
 /**
- * Rings the reminders of the éphémérides that are due (lot 16, decision FO; `ephemerisRings`): for each run of
+ * Rings the reminders of the éphémérides that are due (`ephemerisRings`): for each run of
  * consecutive days it covers, « N min avant » its start (Paris midnight all day), « À HH:MM » that day, « N jours avant,
  * à HH:MM ». A créneau or an archived éphéméride rings none.
  * @param {readonly RemindedSchedule[]} schedules Schedules.
@@ -28,7 +28,7 @@ export function ringEphemerisReminders(schedules: readonly RemindedSchedule[], n
 }
 
 /**
- * Rings the reminders of the birthdays that are due (lot 16; `birthdayRings`): « À HH:MM » on the day, « N jours avant,
+ * Rings the reminders of the birthdays that are due (`birthdayRings`): « À HH:MM » on the day, « N jours avant,
  * à HH:MM »; the toast tells « Anniversaire de Paul — 40 ans » (the age when the year of birth is known) and its day.
  * @template {RemindedBirthday} B
  * @param {readonly B[]} birthdays Birthdays.

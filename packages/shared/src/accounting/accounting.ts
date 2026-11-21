@@ -215,7 +215,7 @@ export const DOCUMENT_TYPE_LABELS: Record<AccountingDocumentType, string> = {
   CREDIT_NOTE: 'Avoir',
 };
 
-/** Name of a document without number (decision CD): « Brouillon », the same everywhere. */
+/** Name of a document without number: « Brouillon », the same everywhere. */
 // eslint-disable-next-line no-restricted-syntax -- the name itself.
 export const DRAFT_NAME = 'Brouillon';
 

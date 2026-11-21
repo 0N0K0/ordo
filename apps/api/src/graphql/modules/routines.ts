@@ -18,12 +18,17 @@ import { relationIds } from '../relation-fields';
 import { EventScope } from './calendar';
 import { parisToday } from '../../today';
 import { treeItemObject } from '../label-inputs';
+import { effectiveRoutineOf, type StoredInheritingRoutine } from '../../services/routines/routine-inheritance';
+import { FieldOriginRef, RoutineInheritableFieldEnum } from '../inheritance-fields';
+import type { EffectiveRoutine, RoutineInheritableField } from '@ordo/shared';
 
 treeItemObject('RoutineCategory', { description: 'Category of the routines, in a tree.', positionDescription: 'Manual order among its siblings.' });
 
-/** Selection computing the occurrences and times of the day of a routine. */
+/** Selection computing the occurrences and times of the day of a routine (its parent's « quand » when it inherits it). */
 const TIMING = {
   id: true,
+  parentId: true,
+  inheritedFields: true,
   archivedAt: true,
   startDate: true,
   recurrence: true,
@@ -117,6 +122,42 @@ const TODAY_CHECKS = { checks: { orderBy: { date: 'desc' }, take: 20, select: { 
 /** Ticked occurrences loaded with a routine (the latest ones). */
 const RECENT_CHECKS = 30;
 
+/**
+ * Routine as it goes (`effectiveRoutine`), the routines of the workspace loaded once per request (with the schedules
+ * its occurrences are computed from).
+ * @param {Context} ctx GraphQL context.
+ * @param {string} id Routine.
+ * @returns {Promise<EffectiveRoutine<StoredInheritingRoutine>>} Effective routine.
+ */
+async function goesBy(ctx: Context, id: string): Promise<EffectiveRoutine<StoredInheritingRoutine>> {
+  const routine = effectiveRoutineOf((await slotsOf(ctx)).routines!, id);
+  if (!routine) throw new Error(`Routine ${id} missing from its workspace.`);
+  return routine;
+}
+
+/** Values a routine goes by: its own, or inherited from its parent. */
+const RoutineEffectiveRef = builder.objectRef<StoredInheritingRoutine>('RoutineEffective').implement({
+  description:
+    'Values a routine goes by: each inherited field from its parent, live. Its « quand » (startDate, recurrence, cases, moments, moves, opensOn) is given here; its occurrences (currentDate, slots, routineOccurrences…) are computed from it.',
+  fields: (t) => ({
+    projectId: t.exposeID('projectId', { nullable: true }),
+    assigneeIds: t.idList({ resolve: (routine) => routine.assigneeIds }),
+    beneficiaryIds: t.idList({ resolve: (routine) => routine.beneficiaryIds }),
+    beneficiaryRelationIds: t.idList({ resolve: (routine) => routine.beneficiaryRelationIds }),
+    categoryIds: t.idList({ resolve: (routine) => routine.categoryIds }),
+    slotCondition: t.field({ type: 'JSON', nullable: true, resolve: (routine) => routines.storedCondition(routine) }),
+    opensOn: t.field({ type: 'JSON', nullable: true, resolve: (routine) => readOpens(routine.opensOn) }),
+    location: t.exposeString('location', { nullable: true }),
+    locationLat: t.exposeFloat('locationLat', { nullable: true }),
+    locationLon: t.exposeFloat('locationLon', { nullable: true }),
+    startDate: t.field({ type: 'Date', resolve: (routine) => routine.startDate }),
+    recurrence: t.field({ type: 'JSON', resolve: (routine) => routines.storedRule(routine) ?? routine.recurrence }),
+    cases: t.field({ type: 'JSON', resolve: (routine) => routines.storedCases(routine.cases) }),
+    moments: t.field({ type: 'JSON', resolve: (routine) => routines.storedMoments(routine) }),
+    moves: t.field({ type: 'JSON', resolve: (routine) => routines.storedMoves(routine.moves) }),
+  }),
+});
+
 builder.prismaObject('Routine', {
   description: 'Task repeating on a calendar rule, ticked once done for its current occurrence.',
   fields: (t) => ({
@@ -125,6 +166,17 @@ builder.prismaObject('Routine', {
     description: t.exposeString('description', { nullable: true }),
     categoryIds: t.idList(relationIds('categories', 'Categories it is shown in.')),
     parentId: t.exposeID('parentId', { nullable: true }),
+    inheritedFields: t.field({
+      type: [RoutineInheritableFieldEnum],
+      description: 'Fields it takes from its parent, live; none for a top-level routine.',
+      resolve: (routine) => routine.inheritedFields as RoutineInheritableField[],
+    }),
+    effective: t.field({ type: RoutineEffectiveRef, description: 'Values it goes by.', resolve: async (routine, _args, ctx) => (await goesBy(ctx, routine.id)).routine }),
+    inheritance: t.field({
+      type: [FieldOriginRef],
+      description: 'State (inherited, own, emptied on purpose) and source of each inherited field.',
+      resolve: async (routine, _args, ctx) => (await goesBy(ctx, routine.id)).origins,
+    }),
     startDate: t.expose('startDate', { type: 'Date' }),
     recurrence: t.field({
       type: 'JSON',
@@ -147,7 +199,7 @@ builder.prismaObject('Routine', {
       description: 'Reminders: minutes (24 hours at most) before the start or the end of each time of the day on the first day (« Ouverture ») or the due day of an occurrence (`anchor`), or a time of one of those days or of some days before it.',
       resolve: (routine) => readReminders(routine.reminders),
     }),
-    deadTimes: t.field({ type: [DeadTimeRef], description: '« Temps morts »: waits a timer is launched for from an occurrence (decision FT).', resolve: (routine) => readDeadTimes(routine.deadTimes) }),
+    deadTimes: t.field({ type: [DeadTimeRef], description: '« Temps morts »: waits a timer is launched for from an occurrence.', resolve: (routine) => readDeadTimes(routine.deadTimes) }),
     reminderOccurrences: t.field({
       type: [RoutineReminderOccurrenceRef],
       description: 'Occurrences its reminders ring for: its current one while not done and its next one, and those opening within the days of its reminders « N jours avant ».',
@@ -291,7 +343,22 @@ const RoutineInputType = builder.inputType('RoutineInput', {
     beneficiaryRelationIds: t.idList({ description: 'Relations it is for; none: none.' }),
     requiredIds: t.idList({ required: true }),
     relatedIds: t.idList({ required: true, description: '« Relative à »: routines related to it (same project tree).' }),
+    inheritedFields: t.field({
+      type: [RoutineInheritableFieldEnum],
+      description: 'Under a parent: the fields it inherits, live (their values given are not used, its project is its parent’s). Omitted: none for a new routine, unchanged for an update.',
+    }),
+    moves: t.field({ type: 'JSON', description: 'Its exceptions, [{ from, to, times }] (an undo gives them back). Omitted: kept; not taken by a new routine.' }),
   }),
+});
+
+/**
+ * Inheritance changes of one routine.
+ * @param {InputFields} t Field builder.
+ * @returns {object} Fields.
+ */
+const routineInheritanceFields = (t: InputFields) => ({
+  inherit: t.field({ type: [RoutineInheritableFieldEnum], description: 'Fields made inherited from its parent again (« Rétablir l’héritage »); a sub-routine only.' }),
+  clear: t.field({ type: [RoutineInheritableFieldEnum], description: 'Fields emptied on purpose (« Vider »; START_DATE and RECURRENCE refused). A field given a value becomes its own.' }),
 });
 
 /**
@@ -327,6 +394,7 @@ const RoutinePatch = builder.inputType('RoutinePatch', {
     reminders: t.field({ type: [ReminderInput], description: 'Minutes (24 hours at most) before the lowest date and time of an occurrence, or a time of its first day.' }),
     opensOn: t.field({ type: 'JSON', description: '« Ouverture »: { mode: DAY | WEEKDAY | WEEK | BEFORE, … }; null: none.' }),
     ...repetitionChangeFields(t),
+    ...routineInheritanceFields(t),
   }),
 });
 
@@ -345,6 +413,8 @@ const RoutineBulkChangesInput = builder.inputType('RoutineBulkChanges', {
     projectId: t.id(),
     ...repetitionChangeFields(t),
     opensOn: t.field({ type: 'JSON', description: '« Ouverture » of its rule; null: none.' }),
+    inheritFields: t.field({ type: [RoutineInheritableFieldEnum], description: 'Fields made inherited from their parent again (« Rétablir l’héritage »); routines without parent unchanged.' }),
+    clearFields: t.field({ type: [RoutineInheritableFieldEnum], description: 'Fields emptied on purpose (« Vider »; START_DATE and RECURRENCE refused). A field given a value becomes their own.' }),
   }),
 });
 
@@ -388,6 +458,8 @@ const routineInput = (input: typeof RoutineInputType.$inferInput): RoutineInput 
   beneficiaryRelationIds: input.beneficiaryRelationIds ?? [],
   requiredIds: input.requiredIds,
   relatedIds: input.relatedIds,
+  inheritedFields: input.inheritedFields ?? undefined,
+  moves: (input.moves ?? undefined) as RoutineInput['moves'],
 });
 
 /** Occurrence of a routine on a day, with its times of the day. */
@@ -399,9 +471,9 @@ interface OccurrenceState {
   /** Day it shows on: its due day once past, today while it runs, its first day before. */
   shownDate: string;
   movedFrom: string | null;
-  /** Cancelled (an exception without a day): shown struck through (decision D23). */
+  /** Cancelled (an exception without a day): shown struck through. */
   cancelled: boolean;
-  /** Of an archived routine: an occurrence before its archiving, read only (decision D21). */
+  /** Of an archived routine: an occurrence before its archiving, read only. */
   archived: boolean;
   slots: SlotState[];
 }
@@ -462,7 +534,7 @@ builder.queryFields((t) => ({
     resolve: async (_root, { from, to }, ctx) => {
       if (to < from || daysBetween(from, to) >= OCCURRENCE_DAYS) throw clientError('BAD_USER_INPUT', `Période de ${OCCURRENCE_DAYS} jours au plus.`);
       const list = await prisma.routine.findMany({
-        // Archived ones: their occurrences started before their archiving (decision D21), which may be due up to a year
+        // Archived ones: their occurrences started before their archiving, which may be due up to a year
         // and a little after it (« Ouverture » up to 366 days before).
         where: { OR: [{ archivedAt: null }, { archivedAt: { gte: parseDay(addDays(from, -400)) } }] },
         select: { ...TIMING, checks: { where: { date: { gte: parseDay(from), lte: parseDay(to) } }, select: { date: true, slot: true } } },
@@ -470,7 +542,8 @@ builder.queryFields((t) => ({
       const context = await slotsOf(ctx);
       const today = parisToday();
       return list.flatMap((routine) => {
-        const moves = routines.storedMoves(routine.moves);
+        // Its exceptions as it goes (its parent's when it inherits them).
+        const moves = routines.storedMoves(routines.occurrenceTiming(routine, context).moves);
         const ticked = new Set(routine.checks.map((check) => `${formatDay(check.date)}/${check.slot}`));
         return routines.occurrenceSpansBetween(routine, from, to, context, true).map(({ start, end: date, cancelled = false }) => ({
           routineId: routine.id,
@@ -532,13 +605,13 @@ builder.mutationFields((t) => ({
   }),
   convertTaskToRoutine: t.id({
     description:
-      'Turns a task (not archived, without sub-tasks) into a routine repeated every day (lot 15): the task is deleted, what both have moves to the routine; returns the routine id. Unconfirmed: CONFIRMATION_REQUIRED, extension `lost` (what is lost, by kind), nothing changed.',
+      'Turns a task (not archived, without sub-tasks) into a routine repeated every day: the task is deleted, what both have moves to the routine; returns the routine id. Unconfirmed: CONFIRMATION_REQUIRED, extension `lost` (what is lost, by kind), nothing changed.',
     args: { id: t.arg.id({ required: true }), confirm: t.arg.boolean({ description: 'What is lost is confirmed.' }) },
     resolve: (_root, { id, confirm }) => convertTaskToRoutine(id, confirm ?? false),
   }),
   convertRoutineToTask: t.id({
     description:
-      'Turns a routine (not archived, without sub-routines) into a task, dated by its current occurrence (lot 15): the routine is deleted, what both have moves to the task; returns the task id. Unconfirmed: CONFIRMATION_REQUIRED, extension `lost` (what is lost, by kind), nothing changed.',
+      'Turns a routine (not archived, without sub-routines) into a task, dated by its current occurrence: the routine is deleted, what both have moves to the task; returns the task id. Unconfirmed: CONFIRMATION_REQUIRED, extension `lost` (what is lost, by kind), nothing changed.',
     args: { id: t.arg.id({ required: true }), confirm: t.arg.boolean({ description: 'What is lost is confirmed.' }) },
     resolve: (_root, { id, confirm }) => convertRoutineToTask(id, confirm ?? false),
   }),
@@ -594,14 +667,14 @@ builder.mutationFields((t) => ({
       if (input.cases !== undefined && input.cases !== null) changes.cases = input.cases as RoutineInput['cases'];
       if (input.moments !== undefined && input.moments !== null) changes.moments = input.moments as RoutineInput['moments'];
       if (input.slotCondition !== undefined) changes.slotCondition = (input.slotCondition ?? null) as RoutineInput['slotCondition'];
-      return removedLinks(routines.patchRoutine(id, changes, { confirmLoss: confirmLoss ?? false }));
+      return removedLinks(routines.patchRoutine(id, changes, { confirmLoss: confirmLoss ?? false, inherit: input.inherit, clear: input.clear }));
     },
   }),
   moveRoutine: t.boolean({
     description:
-      'Places a routine before another one in the global manual order (at the end when beforeId is null), and under parentId when given (null: top level; omitted: parent unchanged); categoryIds, when given, become its categories.',
-    args: { id: t.arg.id({ required: true }), beforeId: t.arg.id(), parentId: t.arg.id(), categoryIds: t.arg.idList() },
-    resolve: (_root, { id, beforeId, parentId, categoryIds }) => done(routines.moveRoutine(id, beforeId ?? null, parentId, categoryIds || null)),
+      'Places a routine before another one in the global manual order (at the end when beforeId is null), and under parentId when given (null: top level; omitted: parent unchanged); categoryIds, when given, become its categories. A new parent that makes occurrences with comments disappear (its « quand » inherited) asks confirmLoss: CONFIRMATION_REQUIRED, nothing moved.',
+    args: { id: t.arg.id({ required: true }), beforeId: t.arg.id(), parentId: t.arg.id(), categoryIds: t.arg.idList(), confirmLoss: t.arg.boolean({ description: CONFIRM_LOSS_DESCRIPTION }) },
+    resolve: (_root, { id, beforeId, parentId, categoryIds, confirmLoss }) => done(routines.moveRoutine(id, beforeId ?? null, parentId, categoryIds || null, confirmLoss ?? false)),
   }),
   bulkUpdateRoutines: t.field({
     type: RemovedLinksResult,
@@ -628,6 +701,8 @@ builder.mutationFields((t) => ({
         moments: changes.moments ?? undefined,
         slotCondition: changes.slotCondition === undefined ? undefined : (changes.slotCondition ?? null),
         opensOn: changes.opensOn === undefined ? undefined : (changes.opensOn ?? null),
+        inheritFields: changes.inheritFields ?? undefined,
+        clearFields: changes.clearFields ?? undefined,
       }, confirmLoss ?? false));
     },
   }),

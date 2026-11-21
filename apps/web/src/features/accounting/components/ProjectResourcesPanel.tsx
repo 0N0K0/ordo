@@ -40,7 +40,7 @@ const resourceValues = (resource?: ProjectResource) => ({ label: resource?.label
 
 /**
  * Link form: label, address (links only) and note. A new link is a form with « Ajouter »; an existing resource, its
- * panel, saves each field on leaving it (decision D22, `useFieldSave`), the one of the cache followed.
+ * panel, saves each field on leaving it (`useFieldSave`), the one of the cache followed.
  * @param {{ projectId: string, resource?: ProjectResource, onDone: () => void }} props Component props.
  * @returns {JSX.Element} Form.
  */

@@ -2,7 +2,7 @@ import type { Reminder } from '@ordo/shared';
 import { builder } from './builder';
 
 /**
- * Reminder of a task, a routine, an event, an éphéméride or a birthday (decision D16, lot 16): minutes before a moment,
+ * Reminder of a task, a routine, an event, an éphéméride or a birthday: minutes before a moment,
  * or a time of its day or of some days before it.
  */
 export const ReminderRef = builder.objectRef<Reminder>('Reminder').implement({

@@ -11,7 +11,7 @@ const routinePanelId = (id: string): string => `routine-${id}`;
 
 /**
  * Opens the routine form in the side panel: the creation form, or the panel of an existing routine (saved field by
- * field, decision D22; one panel per routine).
+ * field; one panel per routine).
  * @param {Omit<RoutineFormProps, 'onDone'>} [props] Routine edited, or parent or category of a new one. Optional.
  * @returns {void}
  */

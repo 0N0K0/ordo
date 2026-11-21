@@ -3,8 +3,8 @@ import type { CalendarEventScope } from '../../calendar/api';
 import type { LostOnDelete } from '../api';
 
 /**
- * Sentences telling what a deletion takes with it: times without project left with nothing attached (extra A of
- * decision D17) and comments of what is deleted (decision D19).
+ * Sentences telling what a deletion takes with it: times without project left with nothing attached
+ * and comments of what is deleted.
  * @param {LostOnDelete} lost Numbers.
  * @returns {string} Sentences (empty without any).
  */

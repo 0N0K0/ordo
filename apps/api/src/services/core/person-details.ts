@@ -14,7 +14,7 @@ export interface PersonDetailsFields {
 }
 
 /**
- * Details of a contributor or a relation (lot 16) as Prisma stores them, from what is sent: birth date (`YYYY-MM-DD`
+ * Details of a contributor or a relation as Prisma stores them, from what is sent: birth date (`YYYY-MM-DD`
  * or `--MM-DD`), birthday reminders sorted and without duplicates, email addresses, phones. Omitted fields are left out (left
  * unchanged); a null list is empty.
  * @param {PersonDetailsFields} input Details sent.

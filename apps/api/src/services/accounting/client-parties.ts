@@ -4,7 +4,7 @@ import { nextPositionIn } from '../core/ordering';
 import { Prisma, type Client, type ClientContact, type ClientService } from '../../generated/prisma/client';
 import { fieldError, parseInput } from '../../graphql/errors';
 import { deleteOrNotFound, findOrNotFound } from '../core/lookup';
-import { assertActive, assertNotArchived } from '../core/archive';
+import { assertActive, assertNotArchived, findActive } from '../core/archive';
 
 /**
  * Updates the billing details of a client (not an archived one; kind, address, identifiers, contact information).
@@ -92,13 +92,13 @@ export async function createClientContact(clientId: string, input: ClientContact
 }
 
 /**
- * Updates a contact (not one of an archived client).
+ * Updates a contact (not an archived one, nor one of an archived client).
  * @param {string} id Contact id.
  * @param {ClientContactInput} input Contact.
  * @returns {Promise<ClientContact>} Contact.
  */
 export async function updateClientContact(id: string, input: ClientContactInput): Promise<ClientContact> {
-  const contact = await findOrNotFound(prisma.clientContact, id, 'Contact');
+  const contact = await findActive(prisma.clientContact, id, 'Contact');
   await assertNotArchived('client', contact.clientId);
   const data = parseInput(clientContactSchema, input);
   await assertService(data.serviceId, contact.clientId);
@@ -106,7 +106,7 @@ export async function updateClientContact(id: string, input: ClientContactInput)
 }
 
 /**
- * Deletes a contact (not one of an archived client).
+ * Deletes a contact, even an archived one, but not one of an archived client.
  * @param {string} id Contact id.
  * @returns {Promise<void>}
  */

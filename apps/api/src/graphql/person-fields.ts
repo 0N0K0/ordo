@@ -5,7 +5,7 @@ import { ReminderInput } from './reminder-fields';
 export const BIRTH_DATE_DESCRIPTION = 'Birth date: YYYY-MM-DD, or --MM-DD when the year is not known. Its birthday shows in the calendar (query birthdays).';
 
 /**
- * Input fields of the details of a person (contributor, relation; lot 16): birth date, birthday reminders, email
+ * Input fields of the details of a person (contributor, relation): birth date, birthday reminders, email
  * addresses, phones; omitted: left unchanged.
  * @param {InputFields} t Field builder.
  * @returns {object} Fields.

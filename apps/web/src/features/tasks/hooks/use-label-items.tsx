@@ -30,7 +30,7 @@ export function useTaskStatusItems(): SettingsItemKind<TaskStatus, { category: T
     },
     ...mutations,
     /**
-     * Saves a status; a category to or out of « Annulé » closes or reopens its tasks (decision D23, `statusClosing`),
+     * Saves a status; a category to or out of « Annulé » closes or reopens its tasks (`statusClosing`),
      * confirmed first with their number.
      * @param {string} id Status.
      * @param {{ label: string, color: string, category: TaskStatusCategory }} values Form values.

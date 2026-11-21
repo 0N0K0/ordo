@@ -70,7 +70,7 @@ function projectInput(values: Partial<ProjectValues>) {
 
 /**
  * Project form: a new project, created by its button; an existing one (its panel, the settings sidebar of its page),
- * saved field by field (decision D22), read only once archived.
+ * saved field by field, read only once archived.
  * @param {ProjectFormProps} props Component props.
  * @param {Project} [props.project] Project to edit. Optional.
  * @param {{ clientId?: string, parentId?: string }} [props.defaults] Client or parent preselected on creation. Optional.

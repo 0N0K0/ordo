@@ -40,7 +40,7 @@ import { toJson } from '../core/json';
 /**
  * Schedule as the shared functions read it: its cases and exceptions, or, saved before cases, its former slots
  * and pauses converted (invalid stored items left out), archived or of an archived kind (its kind read with it: the
- * slot conditions do not count it, decision FQ).
+ * slot conditions do not count it).
  * @param {WorkSchedule & { type?: { archivedAt: Date | null } | null }} schedule Stored schedule (with its kind's archiving, optional).
  * @returns {WorkScheduleRule} Rule.
  */
@@ -150,7 +150,7 @@ export async function updateWorkSchedule(id: string, input: WorkScheduleInput, s
   const current = await orNotFound(prisma.workSchedule.findUnique({ where: { id }, select: { id: true, typeId: true, archivedAt: true } }), 'Créneau de travail');
   refuseArchived(current);
   const data = await scheduleData(input, current.typeId);
-  // Its kind kept: archived as it is (decision FQ); another one: not archived (checked).
+  // Its kind kept: archived as it is; another one: not archived (checked).
   await settle((own) =>
     own.map((rule) => {
       if (rule.id !== id) return rule;
@@ -174,7 +174,7 @@ export async function deleteWorkSchedule(id: string, settle: ScheduleChangeSettl
 }
 
 /**
- * Turns a schedule into an éphéméride or back into a créneau (lot 16): its id stays (the slot conditions naming it keep
+ * Turns a schedule into an éphéméride or back into a créneau: its id stays (the slot conditions naming it keep
  * it). A schedule of a kind of the other nature leaves its kind (a whole kind is one or the other). Refused once
  * archived; the occurrences of routines it makes disappear are asked first through `settle`.
  * @param {string} id Schedule.
@@ -195,7 +195,7 @@ export async function setWorkScheduleEphemeris(id: string, ephemeris: boolean, s
 }
 
 /**
- * Turns a whole kind into a kind of éphémérides or back into a kind of créneaux (lot 16), its schedules with it: ids
+ * Turns a whole kind into a kind of éphémérides or back into a kind of créneaux, its schedules with it: ids
  * stay (the slot conditions naming it or them keep them). Refused once archived, and for a context of the budget back
  * into créneaux; the occurrences of routines it makes disappear are asked first through `settle`.
  * @param {string} id Kind.
@@ -316,7 +316,7 @@ export interface ForeignScheduleKind {
   subscribed: boolean;
   /** Kind archived in its workspace (no longer offered in a slot condition). */
   archived: boolean;
-  /** A kind of éphémérides (lot 16). */
+  /** A kind of éphémérides. */
   ephemeris: boolean;
 }
 
@@ -431,37 +431,29 @@ export async function saveDefaultScheduleKind(input: DefaultScheduleKindInput): 
   return defaultKindOf(workspace);
 }
 
-/** Birthdays display of a workspace as stored on it (decision FX). */
+/** Birthdays display of a workspace as stored on it. */
 const birthdayLookSelect = {
   birthdayShown: true,
   birthdayColor: true,
-  birthdayDayDisplay: true,
-  birthdayDayBar: true,
-  birthdayMonthDisplay: true,
 } as const;
 
-/** Birthdays of the people of a workspace in its calendar (decision FX): shown or not, color and display. */
+/** Birthdays of the people of a workspace in its calendar (all-day events): shown or not, and color. */
 export interface BirthdayLook {
   shown: boolean;
   color: string | null;
-  display: ScheduleDisplay;
 }
 
 /**
  * Birthdays display of a workspace read from its columns.
- * @param {{ birthdayShown: boolean, birthdayColor: string | null, birthdayDayDisplay: string, birthdayDayBar: boolean, birthdayMonthDisplay: string }} workspace Workspace.
+ * @param {{ birthdayShown: boolean, birthdayColor: string | null }} workspace Workspace.
  * @returns {BirthdayLook} Display.
  */
-function birthdayLookOf(workspace: { birthdayShown: boolean; birthdayColor: string | null; birthdayDayDisplay: string; birthdayDayBar: boolean; birthdayMonthDisplay: string }): BirthdayLook {
-  return {
-    shown: workspace.birthdayShown,
-    color: workspace.birthdayColor,
-    display: readScheduleDisplay({ dayDisplay: workspace.birthdayDayDisplay, dayBar: workspace.birthdayDayBar, monthDisplay: workspace.birthdayMonthDisplay }),
-  };
+function birthdayLookOf(workspace: { birthdayShown: boolean; birthdayColor: string | null }): BirthdayLook {
+  return { shown: workspace.birthdayShown, color: workspace.birthdayColor };
 }
 
 /**
- * Birthdays display of this workspace (decision FX).
+ * Birthdays display of this workspace.
  * @returns {Promise<BirthdayLook>} Display.
  */
 export async function birthdayLook(): Promise<BirthdayLook> {
@@ -469,9 +461,9 @@ export async function birthdayLook(): Promise<BirthdayLook> {
 }
 
 /**
- * Saves the birthdays display of this workspace (decision FX): shown or not in its calendar (hidden, their reminders
- * still ring), color (none: the gray of the éphémérides) and display.
- * @param {BirthdayLookInput} input Shown, color and display.
+ * Saves the birthdays display of this workspace: shown or not in its calendar (hidden, their reminders
+ * still ring) and color (none: the gray of the éphémérides).
+ * @param {BirthdayLookInput} input Shown and color.
  * @returns {Promise<BirthdayLook>} Display.
  */
 export async function saveBirthdayLook(input: BirthdayLookInput): Promise<BirthdayLook> {
@@ -481,9 +473,6 @@ export async function saveBirthdayLook(input: BirthdayLookInput): Promise<Birthd
     data: {
       birthdayShown: data.shown,
       birthdayColor: data.color,
-      birthdayDayDisplay: data.dayDisplay,
-      birthdayDayBar: data.dayBar,
-      birthdayMonthDisplay: data.monthDisplay,
     },
     select: birthdayLookSelect,
   });

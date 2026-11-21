@@ -137,7 +137,7 @@ export function SheetsTable({ projectId = null }: { projectId?: string | null })
    * Creates a sheet and opens its page.
    * @returns {void}
    */
-  // « Dupliquer » (decision D20): saved at once, then its page opens.
+  // « Dupliquer »: saved at once, then its page opens.
   const duplicateSheet: DuplicateOptions<{ id: string }, string> = { duplicate: (sheet) => duplicate.mutateAsync(sheet.id), done: 'Fiche dupliquée.', open: (id) => void navigate(sheetPath(id)) };
   const createSheet = () => create.mutate({ label: 'Nouvelle fiche', note: null, projectId, categoryIds: [] }, { onSuccess: (id) => navigate(sheetPath(id)), ...ON_ERROR });
 

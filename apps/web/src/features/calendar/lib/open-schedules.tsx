@@ -3,7 +3,7 @@ import { WorkSchedulesManager } from '../components/WorkSchedulesManager';
 import { EPHEMERIDES_TITLE, schedulesTitle } from './schedule-text';
 
 /**
- * Opens the table of the créneaux, or of the éphémérides (lot 16), in the side panel: from the calendar, and the
+ * Opens the table of the créneaux, or of the éphémérides, in the side panel: from the calendar, and the
  * éphémérides from the contexts of the treasury too (they are their periods).
  * @param {boolean} ephemeris The éphémérides.
  * @param {boolean} perso Personal workspace (its créneaux are not « de travail »).

@@ -54,7 +54,7 @@ export const sheetMultiplierSchema = z.number().positive('Multiplicateur positif
 export const sheetLinkSchema = z.object({ sheetId: z.string().min(1), multiplier: sheetMultiplierSchema });
 export type SheetLinkInput = z.infer<typeof sheetLinkSchema>;
 /**
- * Sheets of a routine, an event or a task as their panel edits them (decision D22): a multiplier emptied is not
+ * Sheets of a routine, an event or a task as their panel edits them: a multiplier emptied is not
  * positive (« Multiplicateur positif attendu. »).
  */
 export const sheetLinksFormSchema = z.object({

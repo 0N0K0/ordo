@@ -11,24 +11,29 @@ import { iconUrl } from '../../services/core/icons';
 import { taskPriorities, taskStatuses, taskTags, taskTypes } from '../../services/tasks/task-labels';
 import * as taskViews from '../../services/tasks/task-views';
 import * as tasks from '../../services/tasks/tasks';
-import { parseOptionalDay, readSlotCondition, sumOf, TASK_STATUS_CATEGORIES, VIEW_KINDS } from '@ordo/shared';
-import { DUE_DATES_SELECT as DUE_SELECT, storedDueDates as dueDatesOf } from '../../services/tasks/due-dates';
+import { parseOptionalDay, readSlotCondition, sumOf, TASK_STATUS_CATEGORIES, taskFieldOrigin, VIEW_KINDS, type EffectiveTask, type TaskInheritableField, type TaskInheritanceContext } from '@ordo/shared';
+import { effectiveTaskOf, loadTaskInheritance } from '../../services/tasks/task-inheritance';
+import { FieldOriginRef, InheritSourceEnum, TaskInheritableFieldEnum } from '../inheritance-fields';
+import type { Context } from '../context';
 import * as workspaces from '../../services/workspaces/workspaces';
 import { BY_POSITION } from '../../services/core/ordering';
 import { RemovedLinksResult, removedLinks } from '../removed-links';
 import { builder, type InputFields } from '../builder';
 import { labelMutations, labelObject } from '../label-inputs';
 import { relationIds } from '../relation-fields';
-import { isMember } from '../../services/treasury/treasury-team';
+import { isMember } from '../../services/people/members';
+import { contributorDetails, CONTRIBUTOR_LINK_SELECT } from '../../services/people/contributor-links';
 import { reloaded } from '../reload';
 import { unchecked } from '../unchecked';
 import { locationInputFields } from '../located-fields';
 import { ItemLinkInput, ItemLinkRef } from '../link-fields';
 import { ReminderInput, ReminderRef } from '../reminder-fields';
 import { DeadTimeInput, DeadTimeRef } from '../dead-time-fields';
-import { readDeadTimes, readEmails, readPhones, readReminders } from '@ordo/shared';
-import { BIRTH_DATE_DESCRIPTION, personDetailsInputFields } from '../person-fields';
+import { CONTRIBUTOR_LINKS, readDeadTimes, readReminders } from '@ordo/shared';
+import { BIRTH_DATE_DESCRIPTION } from '../person-fields';
 import { readLinks } from '../../services/core/links';
+
+const ContributorLinkKindEnum = builder.enumType('ContributorLinkKind', { values: CONTRIBUTOR_LINKS });
 
 builder.prismaObject('Contributor', {
   fields: (t) => ({
@@ -46,10 +51,53 @@ builder.prismaObject('Contributor', {
       resolve: (contributor) => isMember(contributor),
     }),
     projectIds: t.idList(relationIds('projects', 'Projects the contributor is directly attached to; their sub-projects inherit it.')),
-    birthDate: t.exposeString('birthDate', { nullable: true, description: BIRTH_DATE_DESCRIPTION }),
-    birthdayReminders: t.field({ type: [ReminderRef], description: 'Reminders of its birthday.', resolve: (contributor) => readReminders(contributor.birthdayReminders) }),
-    emails: t.field({ type: 'JSON', description: '[{ label, address }]', resolve: (contributor) => readEmails(contributor.emails) }),
-    phones: t.field({ type: 'JSON', description: '[{ label, number }]', resolve: (contributor) => readPhones(contributor.phones) }),
+    link: t.field({
+      type: ContributorLinkKindEnum,
+      description: 'What its details come from: itself as a member (its own), a relation, a contact, or nothing.',
+      select: CONTRIBUTOR_LINK_SELECT,
+      resolve: (contributor) => contributorDetails(contributor).link,
+    }),
+    relationId: t.id({ nullable: true, description: 'Relation it is linked to.', select: CONTRIBUTOR_LINK_SELECT, resolve: (contributor) => contributorDetails(contributor).relationId }),
+    contactId: t.id({ nullable: true, description: 'Client contact it is linked to.', select: CONTRIBUTOR_LINK_SELECT, resolve: (contributor) => contributorDetails(contributor).contactId }),
+    linkName: t.string({
+      nullable: true,
+      description: 'Name of the relation, or of the contact with its client (« Prénom Nom · Client »).',
+      select: CONTRIBUTOR_LINK_SELECT,
+      resolve: (contributor) => contributorDetails(contributor).linkName,
+    }),
+    birthDate: t.string({
+      nullable: true,
+      description: `${BIRTH_DATE_DESCRIPTION} That of what it is linked to: its own as a member, its relation's; none otherwise.`,
+      select: CONTRIBUTOR_LINK_SELECT,
+      resolve: (contributor) => contributorDetails(contributor).birthDate,
+    }),
+    birthdayReminders: t.field({
+      type: [ReminderRef],
+      description: 'Reminders of its birthday (those of its birth date).',
+      select: CONTRIBUTOR_LINK_SELECT,
+      resolve: (contributor) => contributorDetails(contributor).birthdayReminders,
+    }),
+    emails: t.field({
+      type: 'JSON',
+      description: "[{ label, address }]: its own as a member, its relation's, its contact's single email; none otherwise.",
+      select: CONTRIBUTOR_LINK_SELECT,
+      resolve: (contributor) => contributorDetails(contributor).emails,
+    }),
+    phones: t.field({
+      type: 'JSON',
+      description: "[{ label, number }]: its own as a member, its relation's, its contact's; none otherwise.",
+      select: CONTRIBUTOR_LINK_SELECT,
+      resolve: (contributor) => contributorDetails(contributor).phones,
+    }),
+  }),
+});
+
+const ContributorLinkInput = builder.inputType('ContributorLinkInput', {
+  description: 'What the details of a contributor come from, one at most; the link replaces the one it had.',
+  fields: (t) => ({
+    kind: t.field({ type: ContributorLinkKindEnum, required: true }),
+    relationId: t.id({ description: 'Relation (kind RELATION), not linked to another contributor.' }),
+    contactId: t.id({ description: 'Client contact (kind CONTACT), not linked to another contributor.' }),
   }),
 });
 
@@ -172,6 +220,53 @@ builder.prismaObject('TaskComment', {
   }),
 });
 
+const inheritanceContexts = new WeakMap<Context, Promise<TaskInheritanceContext>>();
+
+/**
+ * Task as it goes (`effectiveTask`), the inheritance of the workspace loaded once per request (after its
+ * mutation).
+ * @param {Context} ctx GraphQL context.
+ * @param {string} id Task.
+ * @returns {Promise<EffectiveTask>} Effective task.
+ */
+async function goesBy(ctx: Context, id: string): Promise<EffectiveTask> {
+  let context = inheritanceContexts.get(ctx);
+  if (!context) inheritanceContexts.set(ctx, (context = loadTaskInheritance()));
+  const task = effectiveTaskOf(await context, id);
+  if (!task) throw new Error(`Task ${id} missing from its workspace.`);
+  return task;
+}
+
+/** Values a task goes by: its own, or inherited from its parent; its dates also from its milestone, project or sprint. */
+const TaskEffectiveRef = builder.objectRef<EffectiveTask>('TaskEffective').implement({
+  description: 'Values a task goes by: each inherited field from its parent, live; its dates also from its milestone, project or first sprint. Read for every behaviour; the screens grey the inherited ones (`inheritance`).',
+  fields: (t) => ({
+    projectId: t.exposeID('projectId', { nullable: true }),
+    priorityId: t.exposeID('priorityId', { nullable: true }),
+    milestoneId: t.exposeID('milestoneId', { nullable: true }),
+    assigneeIds: t.idList({ resolve: (task) => [...task.assigneeIds] }),
+    beneficiaryIds: t.idList({ resolve: (task) => [...task.beneficiaryIds] }),
+    beneficiaryRelationIds: t.idList({ resolve: (task) => [...task.beneficiaryRelationIds] }),
+    slotCondition: t.field({ type: 'JSON', nullable: true, resolve: (task) => readSlotCondition(task.slotCondition) }),
+    location: t.exposeString('location', { nullable: true }),
+    locationLat: t.exposeFloat('locationLat', { nullable: true }),
+    locationLon: t.exposeFloat('locationLon', { nullable: true }),
+    minDate: t.field({ type: 'Date', nullable: true, description: '« Ouverture » it goes by.', resolve: (task) => parseOptionalDay(task.minDate) }),
+    deadline: t.field({ type: 'Date', nullable: true, description: '« Échéance » it goes by.', resolve: (task) => parseOptionalDay(task.deadline) }),
+  }),
+});
+
+/**
+ * Source of a date of a task (none: its own, or no date).
+ * @param {EffectiveTask} task Effective task.
+ * @param {TaskInheritableField} field Date.
+ * @returns {string | null} Source.
+ */
+const dateSource = (task: EffectiveTask, field: TaskInheritableField) => {
+  const source = taskFieldOrigin(task, field).source;
+  return source === 'OWN' ? null : source;
+};
+
 builder.prismaObject('Task', {
   fields: (t) => ({
     id: t.exposeID('id'),
@@ -190,21 +285,40 @@ builder.prismaObject('Task', {
     effectiveMinDate: t.field({
       type: 'Date',
       nullable: true,
-      description: '« Ouverture » the task goes by: its own, else the start of its sprint when it is in exactly one (decision of lot 12).',
-      select: DUE_SELECT,
-      resolve: (task) => parseOptionalDay(dueDatesOf(task).minDate),
+      description: '« Ouverture » the task goes by: its own, else its parent’s, else the « Échéance » of the milestone before its own, the « Ouverture » of its project, the start of its first sprint.',
+      resolve: async (task, _args, ctx) => parseOptionalDay((await goesBy(ctx, task.id)).minDate),
     }),
     effectiveDeadline: t.field({
       type: 'Date',
       nullable: true,
-      description: '« Échéance » the task goes by (overdue, reminders, sorting, filters): its own, else the end of its sprint when it is in exactly one.',
-      select: DUE_SELECT,
-      resolve: (task) => parseOptionalDay(dueDatesOf(task).deadline),
+      description: '« Échéance » the task goes by (overdue, reminders, sorting, filters): its own, else its parent’s, else its milestone’s, else the end of its first sprint.',
+      resolve: async (task, _args, ctx) => parseOptionalDay((await goesBy(ctx, task.id)).deadline),
     }),
-    minDateFromSprint: t.boolean({ description: 'Its « Ouverture » is that of its sprint (none of its own).', select: DUE_SELECT, resolve: (task) => dueDatesOf(task).minDateFromSprint }),
-    deadlineFromSprint: t.boolean({ description: 'Its « Échéance » is that of its sprint (none of its own).', select: DUE_SELECT, resolve: (task) => dueDatesOf(task).deadlineFromSprint }),
+    minDateSource: t.field({
+      type: InheritSourceEnum,
+      nullable: true,
+      description: 'Where its « Ouverture » comes from when not its own: PARENT, MILESTONE, PROJECT, SPRINT; null: its own or none.',
+      resolve: async (task, _args, ctx) => dateSource(await goesBy(ctx, task.id), 'MIN_DATE'),
+    }),
+    deadlineSource: t.field({
+      type: InheritSourceEnum,
+      nullable: true,
+      description: 'Where its « Échéance » comes from when not its own: PARENT, MILESTONE, SPRINT; null: its own or none.',
+      resolve: async (task, _args, ctx) => dateSource(await goesBy(ctx, task.id), 'DEADLINE'),
+    }),
+    inheritedFields: t.field({
+      type: [TaskInheritableFieldEnum],
+      description: 'Fields it takes from its parent, live; none for a top-level task.',
+      resolve: (task) => task.inheritedFields as TaskInheritableField[],
+    }),
+    effective: t.field({ type: TaskEffectiveRef, description: 'Values it goes by.', resolve: (task, _args, ctx) => goesBy(ctx, task.id) }),
+    inheritance: t.field({
+      type: [FieldOriginRef],
+      description: 'State (inherited, own, emptied on purpose) and source of each inherited field.',
+      resolve: async (task, _args, ctx) => (await goesBy(ctx, task.id)).origins,
+    }),
     cancelled: t.boolean({
-      description: 'Its status is of the category « Annulé »: closed, shown struck through (decision D23).',
+      description: 'Its status is of the category « Annulé »: closed, shown struck through.',
       select: { status: { select: { category: true } } },
       resolve: (task) => task.status?.category === 'CANCELLED',
     }),
@@ -223,7 +337,7 @@ builder.prismaObject('Task', {
       description: 'Reminders « À HH:MM » (Paris time), rung every day from « Ouverture » to « Échéance » (its day only without « Ouverture »; never without « Échéance »).',
       resolve: (task) => readReminders(task.reminders),
     }),
-    deadTimes: t.field({ type: [DeadTimeRef], description: '« Temps morts »: waits a timer is launched for (decision FT).', resolve: (task) => readDeadTimes(task.deadTimes) }),
+    deadTimes: t.field({ type: [DeadTimeRef], description: '« Temps morts »: waits a timer is launched for.', resolve: (task) => readDeadTimes(task.deadTimes) }),
     parentId: t.exposeID('parentId', { nullable: true }),
     milestoneId: t.exposeID('milestoneId', { nullable: true }),
     sprintIds: t.idList(relationIds('sprints', 'Sprints the task is planned in.')),
@@ -306,12 +420,26 @@ const TaskInput = builder.inputType('TaskInput', {
     label: t.string({ required: true }),
     projectId: t.id({ description: 'None: a task of no project (no number, sprint, milestone nor GitHub item).' }),
     ...taskFields(t),
+    inheritedFields: t.field({
+      type: [TaskInheritableFieldEnum],
+      description: 'Under a parent: the fields it inherits (their values given are ignored); omitted: every field left out of the input. Ignored without parent.',
+    }),
   }),
 });
 
+/**
+ * Inheritance changes of one task.
+ * @param {InputFields} t Field builder.
+ * @returns {object} Fields.
+ */
+const inheritanceChangeFields = (t: InputFields) => ({
+  inherit: t.field({ type: [TaskInheritableFieldEnum], description: 'Fields made inherited from its parent again (« Rétablir l’héritage »); a sub-task only.' }),
+  clear: t.field({ type: [TaskInheritableFieldEnum], description: 'Fields emptied on purpose (« Vider »): no value, not inherited (PROJECT refused). A field given a value becomes its own.' }),
+});
+
 const TaskUpdateInput = builder.inputType('TaskUpdateInput', {
-  description: 'Omitted fields are left unchanged; null clears a field. Use bulkTransferTasks to change the project.',
-  fields: (t) => ({ label: t.string(), ...taskFields(t) }),
+  description: 'Omitted fields are left unchanged; null clears a field (a field given a value, null included, becomes its own). Use bulkTransferTasks to change the project.',
+  fields: (t) => ({ label: t.string(), ...taskFields(t), ...inheritanceChangeFields(t) }),
 });
 
 const ContributorInput = builder.inputType('ContributorInput', {
@@ -320,7 +448,7 @@ const ContributorInput = builder.inputType('ContributorInput', {
     projectIds: t.idList({ description: 'Projects the contributor is directly attached to.' }),
     handle: t.string({ required: true }),
     avatar: t.field({ type: 'File' }),
-    ...personDetailsInputFields(t),
+    link: t.field({ type: ContributorLinkInput, description: 'What its details come from (it has none of its own).' }),
   }),
 });
 
@@ -331,7 +459,7 @@ const ContributorUpdateInput = builder.inputType('ContributorUpdateInput', {
     handle: t.string(),
     avatar: t.field({ type: 'File' }),
     removeAvatar: t.boolean(),
-    ...personDetailsInputFields(t),
+    link: t.field({ type: ContributorLinkInput, description: 'What its details come from (it has none of its own).' }),
   }),
 });
 
@@ -365,6 +493,8 @@ const BulkTaskInput = builder.inputType('BulkTaskInput', {
     removeAssigneeIds: t.idList(),
     addTagIds: t.idList(),
     removeTagIds: t.idList(),
+    inheritFields: t.field({ type: [TaskInheritableFieldEnum], description: 'Fields made inherited from their parent again (« Rétablir l’héritage »); tasks without parent unchanged.' }),
+    clearFields: t.field({ type: [TaskInheritableFieldEnum], description: 'Fields emptied on purpose (« Vider »; PROJECT refused). A field given a value becomes their own.' }),
   }),
 });
 
@@ -485,7 +615,7 @@ builder.mutationFields((t) => ({
   }),
   duplicateTask: t.prismaField({
     type: 'Task',
-    description: 'Duplicates a task, named « … (copie) » (decision D20), with its sub-tasks when asked; not its comments.',
+    description: 'Duplicates a task, named « … (copie) », with its sub-tasks when asked; not its comments.',
     args: { id: t.arg.id({ required: true }), includeSubtasks: t.arg.boolean({ required: true }) },
     resolve: async (query, _root, { id, includeSubtasks }) => reloaded(prisma.task, query, tasks.duplicateTask(id, includeSubtasks)),
   }),

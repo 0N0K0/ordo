@@ -6,12 +6,18 @@ import { ListSkeleton } from '../../../components/feedback/Skeletons';
 import { confirmDestructive } from '../../../components/dialogs/confirm-destructive';
 import { openFormPanel } from '../../../components/panels/panels';
 import { Anchor, Badge, Group, SimpleGrid, Stack, Text } from '@mantine/core';
-import { addressLines, contactName, hasAddress, type Address, type Phone } from '@ordo/shared';
+import { addressLines, contactName, hasAddress, readPhones, type Address } from '@ordo/shared';
+import { ContactLines } from '../../../components/people/ContactLines';
 import { EyeIcon, PencilSimpleIcon, PlusIcon, TrashIcon, UserPlusIcon } from '@phosphor-icons/react';
 import { countryName } from '../lib/countries';
 
 import { useClientBilling, useClientPartyMutations, type ClientBilling, type ClientContact, type ClientService } from '../api';
 import { ClientContactForm, ClientDetailsForm, ClientServiceForm } from './ClientPartyForms';
+import { openContactForm } from '../lib/open-contact';
+import { ArchivedBadge } from '../../../components/feedback/ArchivedBadge';
+import { ShowArchivedSwitch } from '../../../components/filters/ShowArchivedSwitch';
+import { archiveEntry, useArchivedToggle } from '../../../lib/archive';
+import { useSlotSourceArchiving } from '../../calendar/api';
 import { EXTERNAL_LINK } from '../../../components/actions/link-props';
 import { CLIENT_KIND_LABELS } from '../lib/labels';
 import { useLiveSource, type LiveSource } from '../../../lib/live-value';
@@ -31,7 +37,6 @@ interface RowReadOnly {
  */
 function ContactInfo({ address, email, phones, website }: { address: unknown; email?: string | null; phones: unknown; website?: string | null }) {
   const postal = address as Address | null;
-  const numbers = (phones as Phone[]) ?? [];
   return (
     <Stack gap={2}>
       {hasAddress(postal) &&
@@ -40,17 +45,7 @@ function ContactInfo({ address, email, phones, website }: { address: unknown; em
             {line}
           </Text>
         ))}
-      {email && (
-        <Anchor href={`mailto:${email}`} size="sm">
-          {email}
-        </Anchor>
-      )}
-      {numbers.map((phone) => (
-        <Text key={`${phone.label}${phone.number}`} size="sm">
-          {phone.label ? `${phone.label} : ` : ''}
-          {phone.number}
-        </Text>
-      ))}
+      <ContactLines emails={email ? [{ label: '', address: email }] : []} phones={readPhones(phones)} />
       {/* Validated as http(s) by the API; checked again before becoming a link. */}
       {website &&
         (/^https?:\/\//i.test(website) ? (
@@ -65,35 +60,44 @@ function ContactInfo({ address, email, phones, website }: { address: unknown; em
 }
 
 /**
- * One contact person.
- * @param {{ client: ClientBilling, contact: ClientContact } & RowReadOnly} props Component props (`readOnly`: archived client).
+ * One contact person: archived, read only until restored (« Restaurer » in its menu; archived and restored with the
+ * contributor linked to it), still deletable unless its client is archived.
+ * @param {{ client: ClientBilling, contact: ClientContact, readOnly: boolean }} props Component props (`readOnly`: archived client).
  * @returns {JSX.Element} Contact.
  */
-function ContactRow({ client, contact, readOnly, readOnlySource }: { client: ClientBilling; contact: ClientContact } & RowReadOnly) {
+function ContactRow({ client, contact, readOnly }: { client: ClientBilling; contact: ClientContact; readOnly: boolean }) {
   const { deleteContact } = useClientPartyMutations();
+  const setArchived = useSlotSourceArchiving('CLIENT_CONTACT');
   const name = contactName(contact);
+  const locked = readOnly || contact.archived;
   return (
     <Group justify="space-between" align="flex-start" wrap="nowrap">
       <Stack gap={0}>
-        <Text size="sm" fw={600}>
-          {name}
-          {contact.jobTitle && (
-            <Text span size="sm" c="dimmed" fw={400}>
-              {' '}
-              — {contact.jobTitle}
-            </Text>
-          )}
-        </Text>
+        <Group gap="xs" wrap="nowrap">
+          <Text size="sm" fw={600}>
+            {name}
+            {contact.jobTitle && (
+              <Text span size="sm" c="dimmed" fw={400}>
+                {' '}
+                — {contact.jobTitle}
+              </Text>
+            )}
+          </Text>
+          {contact.archived && <ArchivedBadge size="xs" />}
+        </Group>
         <ContactInfo address={null} email={contact.email} phones={contact.phones} />
       </Stack>
       <InlineActions
         name={name}
         items={[
           {
-            label: readOnly ? 'Voir' : 'Modifier',
-            icon: readOnly ? <EyeIcon aria-hidden /> : <PencilSimpleIcon aria-hidden />,
-            onClick: () => openFormPanel(readOnly ? 'Contact' : 'Modifier le contact', (close) => <ClientContactForm client={client} contact={contact} onDone={close} readOnly={readOnlySource} />),
+            label: locked ? 'Voir' : 'Modifier',
+            icon: locked ? <EyeIcon aria-hidden /> : <PencilSimpleIcon aria-hidden />,
+            onClick: () => openContactForm(client.id, contact.id, locked),
           },
+          // The contact of an archived client stays as it is.
+          !readOnly && archiveEntry({ archived: contact.archived, type: 'Contact', label: name }, setArchived, contact.id),
+          // An archived contact stays deletable; the contact of an archived client does not.
           !readOnly && {
             label: 'Supprimer',
             icon: <TrashIcon aria-hidden />,
@@ -109,12 +113,12 @@ function ContactRow({ client, contact, readOnly, readOnlySource }: { client: Cli
 
 /**
  * One service with its contacts.
- * @param {{ client: ClientBilling, service: ClientService } & RowReadOnly} props Component props (`readOnly`: archived client).
+ * @param {{ client: ClientBilling, service: ClientService, contacts: readonly ClientContact[] } & RowReadOnly} props Component props (`contacts`: those shown; `readOnly`: archived client).
  * @returns {JSX.Element} Service.
  */
-function ServiceCard({ client, service, readOnly, readOnlySource }: { client: ClientBilling; service: ClientService } & RowReadOnly) {
+function ServiceCard({ client, service, contacts: shown, readOnly, readOnlySource }: { client: ClientBilling; service: ClientService; contacts: readonly ClientContact[] } & RowReadOnly) {
   const { deleteService } = useClientPartyMutations();
-  const contacts = client.contacts.filter((contact) => contact.serviceId === service.id);
+  const contacts = shown.filter((contact) => contact.serviceId === service.id);
   return (
     <SettingsSection
       title={service.label}
@@ -150,7 +154,7 @@ function ServiceCard({ client, service, readOnly, readOnlySource }: { client: Cl
     >
       <ContactInfo address={service.address} email={service.email} phones={service.phones} />
       {contacts.map((contact) => (
-        <ContactRow key={contact.id} client={client} contact={contact} readOnly={readOnly} readOnlySource={readOnlySource} />
+        <ContactRow key={contact.id} client={client} contact={contact} readOnly={readOnly} />
       ))}
     </SettingsSection>
   );
@@ -158,14 +162,15 @@ function ServiceCard({ client, service, readOnly, readOnlySource }: { client: Cl
 
 /**
  * Billing section of a client page: details (professional or individual, address, identifiers), services
- * and contacts. Archived client: read only (the panels open read only, and an open one turns read only when the client
- * is archived elsewhere; nothing is added or removed).
+ * and contacts (the archived ones hidden unless asked). Archived client: read only (the panels open read only, and an
+ * open one turns read only when the client is archived elsewhere; nothing is added or removed).
  * @param {{ clientId: string, readOnly?: boolean }} props Component props.
  * @returns {JSX.Element} Section.
  */
 export function ClientBillingSection({ clientId, readOnly = false }: { clientId: string; readOnly?: boolean }) {
   const { data: client, isPending } = useClientBilling(clientId);
   const readOnlySource = useLiveSource(readOnly);
+  const { shown: contacts, toggle: archivedToggle } = useArchivedToggle(client?.contacts ?? []);
   if (isPending) return <ListSkeleton items={3} lines={2} />;
   if (!client) return null;
   const company = client.kind === 'COMPANY';
@@ -175,7 +180,7 @@ export function ClientBillingSection({ clientId, readOnly = false }: { clientId:
     client.vatNumber && `TVA ${client.vatNumber}`,
     client.activityCode && `Activité ${client.activityCode}`,
   ].filter(Boolean);
-  const looseContacts = client.contacts.filter((contact) => !contact.serviceId);
+  const looseContacts = contacts.filter((contact) => !contact.serviceId);
 
   return (
     <Stack gap="md">
@@ -183,6 +188,7 @@ export function ClientBillingSection({ clientId, readOnly = false }: { clientId:
         title="Facturation"
         actions={
           <>
+            <ShowArchivedSwitch {...archivedToggle} />
             <ActionButton
               priority="secondary"
               size="xs"
@@ -241,12 +247,12 @@ export function ClientBillingSection({ clientId, readOnly = false }: { clientId:
         {looseContacts.length > 0 && (
           <SettingsSection title="Contacts">
             {looseContacts.map((contact) => (
-              <ContactRow key={contact.id} client={client} contact={contact} readOnly={readOnly} readOnlySource={readOnlySource} />
+              <ContactRow key={contact.id} client={client} contact={contact} readOnly={readOnly} />
             ))}
           </SettingsSection>
         )}
         {client.services.map((service) => (
-          <ServiceCard key={service.id} client={client} service={service} readOnly={readOnly} readOnlySource={readOnlySource} />
+          <ServiceCard key={service.id} client={client} service={service} contacts={contacts} readOnly={readOnly} readOnlySource={readOnlySource} />
         ))}
       </SimpleGrid>
     </Stack>

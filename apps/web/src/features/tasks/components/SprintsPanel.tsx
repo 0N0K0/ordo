@@ -55,8 +55,8 @@ const sprintValues = (sprint: Sprint): SprintFormValues => ({ label: sprint.labe
 const sprintInput = (values: SprintFormValues) => ({ label: values.label, startDate: values.startDate, endDate: values.endDate, goal: values.goal || null });
 
 /**
- * Sprint form, in the side panel: a new sprint, created by its button; an existing one, saved field by field (decision
- * D22, the whole sprint each time), read only once archived or in an archived project.
+ * Sprint form, in the side panel: a new sprint, created by its button; an existing one, saved field by field
+ * (the whole sprint each time), read only once archived or in an archived project.
  * @param {SprintFormProps} props Component props.
  * @returns {JSX.Element} Form.
  */

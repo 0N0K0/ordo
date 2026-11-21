@@ -2,11 +2,11 @@ import js from '@eslint/js';
 import globals from 'globals';
 import tseslint from 'typescript-eslint';
 import { defineConfig, globalIgnores } from 'eslint/config';
-import { SHARED_SYNTAX_RULES } from '../../packages/shared/eslint-rules.js';
+import { planReferencesConfig, SHARED_SYNTAX_RULES } from '../../packages/shared/eslint-rules.js';
 
 // Patterns of the bricks of the API (services/core, graphql, routes/http).
 const API_SYNTAX_RULES = [
-  // Trees of tasks and routines (decisions DQ to DT).
+  // Trees of tasks and routines.
   {
     selector: "CallExpression[callee.name='cascadeArchive'][arguments.0.value=/^(task|routine)$/]",
     message: 'Utiliser archiveTree(model, id, archived, « X ») (services/core/archive) : sous-éléments et parents archivés trouvés au même endroit.',
@@ -40,7 +40,7 @@ const API_SYNTAX_RULES = [
     message: 'Utiliser deleteAttachment(id, leftover ?) (services/core/attachments) : un fichier déjà parti n’est pas une erreur, un reste n’échoue jamais le changement.',
   },
   {
-    // « Ce projet est archivé. », « Cette tâche est archivée. »: one message everywhere (decision BC).
+    // « Ce projet est archivé. », « Cette tâche est archivée. »: one message everywhere.
     selector: 'Literal[value=/est archivée?/], TemplateElement[value.raw=/est archivée?/]',
     message: 'Utiliser assertNotArchived(kind, id, { keep, field }) ou ARCHIVED_MESSAGE (services/core/archive) : un seul message, sous le champ.',
   },
@@ -111,7 +111,7 @@ const API_SYNTAX_RULES = [
     message: 'Utiliser notFound(« Élément ») ou orNotFound(requête, « Élément ») (graphql/errors) : « Élément introuvable. ».',
   },
   {
-    // A manual order written by hand (decision BA: position, then label).
+    // A manual order written by hand (position, then label).
     selector: "Property[key.name='position'][value.value='asc']",
     message: 'Utiliser BY_POSITION (position puis libellé), BY_POSITION_NAME (personnes) ou BY_POSITION_ONLY (services/core/ordering).',
   },
@@ -326,4 +326,5 @@ export default defineConfig([
     files: ['src/services/library/**', 'src/routes/library.ts', 'src/graphql/modules/library.ts', 'prisma/fixtures/library.ts'],
     rules: { 'no-restricted-syntax': 'off' },
   },
+  planReferencesConfig(['**/*.{ts,js}']),
 ]);

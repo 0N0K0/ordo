@@ -29,9 +29,9 @@ export interface RingWorkspace {
 /**
  * Rings the reminders that are due (missed by less than a few hours, `isRingDue`), as the shared bricks plan them
  * (`eventRings`, `taskRings`, `routineRings`, `ephemerisRings`, `birthdayRings`: the same keys, instants and texts as
- * the server ringing outside the app, decision FU): the one way tasks, routines and events ring (decision D16). Each
+ * the server ringing outside the app): the one way tasks, routines and events ring. Each
  * key rings once across tabs (`claim`), by `startRinging` (its ringtone or the one of the settings, for their duration,
- * its toast until « Arrêter », repeated as set: decision FS).
+ * its toast until « Arrêter », repeated as set).
  * @template {PlannedRing} P
  * @param {P[]} planned Reminders (keys without the `ordo.alarm.` prefix).
  * @param {Date} now Current time.
@@ -76,7 +76,7 @@ export function ringTaskReminders<T extends RemindedTask>(tasks: readonly T[], n
 }
 
 /**
- * Alarms due now, against the current time and the running timers (several at once, decision FT). Scheduled alarms
+ * Alarms due now, against the current time and the running timers (several at once). Scheduled alarms
  * are due at their times (missed ones, within a few hours, too) and recorded as rung (« pas de chrono »: skipped while
  * a timer runs); tracking alarms after every set duration of each running timer.
  * @template {Alarm} A

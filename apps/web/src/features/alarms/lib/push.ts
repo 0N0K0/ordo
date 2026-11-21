@@ -2,7 +2,7 @@ import { sendPushRemoval, sendPushSubscription, type PushDevice } from '../api';
 import { loadRings, openRingTarget, ringPushed } from './ringing';
 
 /**
- * Push notifications of this device (Web Push, lot 17c, decision FU): the service worker of the app (`public/push-sw.js`,
+ * Push notifications of this device (Web Push): the service worker of the app (`public/push-sw.js`,
  * imported by the generated one) shows the rings the server pushes while the app is closed; this module subscribes or
  * unsubscribes this device and hears what the service worker tells the open app (a ring pushed while a tab is visible,
  * a ring stopped or snoozed from a notification, a notification opened).

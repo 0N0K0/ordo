@@ -215,7 +215,7 @@ interface DocumentLinesEditorProps {
   /** Other ways to add lines (tracked time…). Optional. */
   extraActions?: ReactNode;
   /**
-   * Called when the lines can be saved (a document saved field by field, decision D22): on leaving a line, once a line
+   * Called when the lines can be saved (a document saved field by field): on leaving a line, once a line
    * is moved, removed or added from the catalogue (a blank line waits until it is left). Optional.
    */
   onCommit?: () => void;

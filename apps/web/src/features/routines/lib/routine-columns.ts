@@ -162,7 +162,7 @@ export function routineColumns(env: RoutineEnv): DataColumn<Routine>[] {
     },
     {
       id: 'trackedTime',
-      // Time spent, as for the tasks (« Chrono » is their timer); never empty (decision CO).
+      // Time spent, as for the tasks (« Chrono » is their timer); never empty.
       label: 'Temps passé',
       size: 120,
       numeric: true,
@@ -284,7 +284,7 @@ export function routineColumns(env: RoutineEnv): DataColumn<Routine>[] {
     { id: 'doableNow', label: 'Faisable maintenant', size: 140, hiddenByDefault: true, text: (routine) => (env.doable(routine) ? 'Oui' : ''), filter: { kind: 'boolean', value: env.doable } },
     commentColumn<Routine>(
       comments,
-      // The comments of the occurrence its panel opens on (decision D19).
+      // The comments of the occurrence its panel opens on.
       (routine) => occurrenceKey(routine.id, panelOccurrence(routine)),
       (routine) => routine.description,
     ),

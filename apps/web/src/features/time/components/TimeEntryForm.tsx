@@ -59,14 +59,14 @@ const timeEntryFormValues = (entry: TimeEntry): TimeEntryFormValues => {
   };
 };
 
-/** Fields of a time saved on leaving them, in its panel (decision D22). */
+/** Fields of a time saved on leaving them, in its panel. */
 const ON_BLUR = ['duration', 'description'] as const;
 
 /**
  * Time added by hand, or edited: project, day, start time, duration, routines, tasks, the calendar events it was spent
- * on (several of each, decision D18) and description; at least a project, a task, a routine or an event (decision D17).
+ * on (several of each) and description; at least a project, a task, a routine or an event.
  * A new time is a form with « Ajouter »; an existing one, its panel, saves each field as soon as it changes (the
- * duration and the description on leaving them, decision D22, `useFieldSave`).
+ * duration and the description on leaving them, `useFieldSave`).
  * @param {TimeEntryFormProps} props Component props.
  * @returns {JSX.Element} Form.
  */
@@ -78,7 +78,7 @@ export function TimeEntryForm({ context, entry, defaultProjectId, onDone }: Time
       : { projectId: defaultProjectId ?? '', routineIds: [], taskIds: [], events: [], description: '', date: localToday(), start: '09:00', duration: '1:00' },
     schema: timeEntryFormSchema,
   });
-  // The time of the cache followed (changed in a cell, another tab: decision D22), whatever list holds it.
+  // The time of the cache followed (changed in a cell, another tab), whatever list holds it.
   const current = useCachedItem(
     timeQueryKey,
     (entries: TimeEntry[] | TimeEntry | null) => (Array.isArray(entries) ? entries : []),

@@ -23,7 +23,7 @@ type ForeignSchedule = NonNullable<ReturnType<typeof useSubscribedSchedules>['da
 /** Default kind of slots of the workspace. */
 type DefaultKind = ReturnType<typeof useDefaultScheduleKind>['data'];
 
-/** Display of the birthdays of the workspace (decision FX). */
+/** Display of the birthdays of the workspace. */
 type BirthdayLook = ReturnType<typeof useBirthdayLook>['data'];
 
 /**
@@ -50,14 +50,14 @@ export function isArchivedOccurrence(occurrence: { archived: boolean; calendarId
   return occurrence.archived || archivedCalendarIds.has(occurrence.calendarId);
 }
 
-/** Color of the éphémérides without kind (they have no default kind, lot 16). */
+/** Color of the éphémérides without kind (they have no default kind). */
 export const EPHEMERIS_COLOR = 'var(--mantine-color-gray-6)';
 
 /** Schedule shown as slots: its rule, the color of its kind, its label, whether of another workspace, and its display. */
 interface ScheduleSource {
   schedule: WorkSchedule | ForeignSchedule;
   rule: WorkScheduleRule;
-  /** An éphéméride (lot 16): dotted. */
+  /** An éphéméride: dotted. */
   ephemeris: boolean;
   color: string | null;
   label: string;
@@ -130,7 +130,7 @@ export function slotBarLook({ color, foreign, ephemeris = false }: { color: stri
 }
 
 /**
- * Classes telling a schedule shown apart: hatched from another workspace, dotted an éphéméride (lot 16).
+ * Classes telling a schedule shown apart: hatched from another workspace, dotted an éphéméride.
  * @param {{ foreign: boolean, ephemeris?: boolean }} source Schedule shown.
  * @returns {string[]} Classes.
  */
@@ -140,47 +140,41 @@ export function slotLookClasses({ foreign, ephemeris = false }: { foreign: boole
 
 /** Slots of a source as the agenda shows them: the look of its kind and its slots of the period. */
 export interface ShownSlots {
-  /** An éphéméride (lot 16): dotted. */
+  /** An éphéméride: dotted. */
   ephemeris: boolean;
   color: string | null;
   label: string;
   foreign: boolean;
   display: ScheduleDisplay;
   slots: readonly PlannedSlot[];
-  /** Its bar on a day (none: its label, a slot). */
-  bar?: (slot: PlannedSlot) => Pick<EventInput, 'title' | 'extendedProps'>;
-  /** Its bar in the month too, unless its month display is « Rien » (the birthdays, decisions FP, FX). */
-  monthBar?: boolean;
 }
 
 /**
- * Birthdays of a period as the calendar shows them (lot 16, decision FX): whole-day éphémérides in the color and the
- * display chosen for the birthdays (`birthdayLook`; none: gray, the default display), dotted, each one's bar
- * « Anniversaire de Paul — 40 ans » opening the person, in the month too while its month display is not « Rien »
- * (lot 16c: unlike the other éphémérides, whose month shows no bar). Hidden birthdays: none.
+ * Birthdays of a period as the calendar shows them: read-only all-day events « Anniversaire de Paul — 40 ans » (the
+ * age when the year is known), in the color chosen for the birthdays (`birthdayLook`; none: the gray of the
+ * éphémérides), each opening its person (`kind: 'birthday'`). Hidden birthdays, or while loading: none.
  * @param {readonly PersonBirthday[]} birthdays Birthdays of the workspace.
  * @param {BirthdayLook} look Display of the birthdays of the workspace (undefined while loading: none).
  * @param {string} from First day shown.
  * @param {string} to Last day shown.
- * @returns {ShownSlots[]} One source per person.
+ * @returns {EventInput[]} One event per birthday of the period.
  */
-export function birthdaySlots(birthdays: readonly PersonBirthday[], look: BirthdayLook, from: string, to: string): ShownSlots[] {
+export function birthdayEvents(birthdays: readonly PersonBirthday[], look: BirthdayLook, from: string, to: string): EventInput[] {
   if (!look?.shown) return [];
+  const color = look.color ?? EPHEMERIS_COLOR;
   return birthdays.flatMap((birthday) => {
     const birth = readBirthDate(birthday.birthDate);
     if (!birth) return [];
-    const ages = new Map(birthdaysBetween(birth, from, to).map(({ date, age }) => [date, age]));
-    return [
-      {
-        ephemeris: true,
-        color: look.color ?? EPHEMERIS_COLOR,
-        label: birthdayLabel(birthday.name, null),
-        foreign: false,
-        display: readScheduleDisplay(look),
-        slots: [...ages.keys()].map((date) => ({ date, start: '00:00', end: '24:00', allDay: true, scheduleId: birthdaySlotId(birthday.id) })),
-        bar: (slot) => ({ title: birthdayLabel(birthday.name, ages.get(slot.date) ?? null), extendedProps: { kind: 'birthday', birthday } }),
-        monthBar: true,
-      },
-    ];
+    return birthdaysBetween(birth, from, to).map(({ date, age }) => ({
+      id: `${birthdaySlotId(birthday.id)}:${date}`,
+      title: birthdayLabel(birthday.name, age),
+      allDay: true,
+      start: date,
+      end: addDays(date, 1),
+      editable: false,
+      backgroundColor: color,
+      borderColor: color,
+      extendedProps: { kind: 'birthday', birthday },
+    }));
   });
 }

@@ -47,7 +47,7 @@ Composant `Sidebar`, à gauche de l’application.
   - projet actif sous la profondeur maximale : « Ajouter un sous-projet » ;
   - « Tout déplier » / « Tout replier » s’il a des enfants ;
   - élément actif : « Modifier », « Ajouter aux favoris » / « Retirer des favoris » ;
-  - « Archiver » / « Restaurer » (« avec ses projets » pour un client) et « Supprimer ».
+  - « Archiver » / « Restaurer » (« avec ses projets et ses contacts » pour un client) et « Supprimer ».
 - Groupe « Sans client » : menu avec « Ajouter un projet » (section principale) et le pliage.
 
 ### Glisser-déposer (section principale)
@@ -116,7 +116,7 @@ Ouverts dans le panneau latéral (création, « Modifier ») ou dans le panneau 
 | Couleur | facultative (« Aucune »)                    |
 | Icône   | image facultative (logo, affiché en entier) |
 
-Un nouveau client : bouton « Créer le client », toast « Client créé. ». Un client existant (son panneau, l’onglet « Nom, couleur et icône » de sa page) s’enregistre champ par champ (décision D22) : le nom en le quittant, la couleur dès qu’elle est choisie dans le nuancier (tapée : en la quittant), l’icône dès qu’elle est choisie ou retirée ; « Enregistrement… » / « Enregistré » en haut, sans bouton ; un client archivé est en lecture seule.
+Un nouveau client : bouton « Créer le client », toast « Client créé. ». Un client existant (son panneau, l’onglet « Nom, couleur et icône » de sa page) s’enregistre champ par champ : le nom en le quittant, la couleur dès qu’elle est choisie dans le nuancier (tapée : en la quittant), l’icône dès qu’elle est choisie ou retirée ; « Enregistrement… » / « Enregistré » en haut, sans bouton ; un client archivé est en lecture seule.
 
 ### Projet (« Nouveau projet », « Nouveau sous-projet », « Modifier le projet »)
 
@@ -132,7 +132,7 @@ Un nouveau client : bouton « Créer le client », toast « Client créé. ». U
 | « Description »    | Markdown, 65 536 caractères                                                                                                          |
 | Icône              | image facultative                                                                                                                    |
 
-Défauts à la création : le client ou le parent d’où l’action est lancée. Un nouveau projet : bouton « Créer le projet », toast « Projet créé. ». Un projet existant (son panneau, l’onglet « Projet » de ses paramètres) s’enregistre champ par champ (décision D22) : chaque champ dès qu’il change (libellé et description en les quittant ; la couleur dès qu’elle est choisie dans le nuancier, tapée en la quittant ; seuls les champs changés sont envoyés : l’icône n’est pas renvoyée) ; « Enregistrement… » / « Enregistré » en haut, sans bouton ; un projet archivé est en lecture seule.
+Défauts à la création : le client ou le parent d’où l’action est lancée. Un nouveau projet : bouton « Créer le projet », toast « Projet créé. ». Un projet existant (son panneau, l’onglet « Projet » de ses paramètres) s’enregistre champ par champ : chaque champ dès qu’il change (libellé et description en les quittant ; la couleur dès qu’elle est choisie dans le nuancier, tapée en la quittant ; seuls les champs changés sont envoyés : l’icône n’est pas renvoyée) ; « Enregistrement… » / « Enregistré » en haut, sans bouton ; un projet archivé est en lecture seule.
 
 ## Actions et confirmations
 

@@ -163,7 +163,7 @@ export async function createWorkspace(input: { label: string; kind: WorkspaceKin
   const data = parseInput(workspaceInputSchema, input);
   const workspace = await unscopedPrisma.workspace.create({ data: { ...data, position: await nextPositionIn('workspace', {}, unscopedPrisma) } });
   await setUpWorkspace(workspace);
-  // The contexts of the budget shared by the other workspaces are contexts here too (lot 16).
+  // The contexts of the budget shared by the other workspaces are contexts here too.
   await addSharedContexts(workspace.id);
   return workspace;
 }

@@ -93,7 +93,7 @@ export function useEntityActions() {
   });
 
   /**
-   * Opens the form renaming a client or relabelling a project, in the side panel as elsewhere (decision DF).
+   * Opens the form renaming a client or relabelling a project, in the side panel as elsewhere.
    * @param {EntityRef} entity Client or project.
    * @returns {void}
    */
@@ -180,7 +180,7 @@ export function useEntityActions() {
      */
     lifecycleEntries: (entity: EntityRef): RowMenuEntry[] => [
       archiveEntry(
-        { archived: entity.item.archived, type: entity.type === 'client' ? 'Client' : 'Projet', label: entityLabel(entity), cascade: entity.type === 'client' ? 'avec ses projets' : undefined },
+        { archived: entity.item.archived, type: entity.type === 'client' ? 'Client' : 'Projet', label: entityLabel(entity), cascade: entity.type === 'client' ? 'avec ses projets et ses contacts' : undefined },
         archiver(entity),
         entity.item.id,
       ),

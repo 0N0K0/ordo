@@ -12,7 +12,7 @@ const FILTER_VALUE_MAX = 500;
 /** Most characters of a row key or a choice of a view (internal bound). */
 const ROW_KEY_MAX = 200;
 
-/** Text searched in a table or a chart, as typed (not trimmed), at most `TEXT_MAX` (decision DO). */
+/** Text searched in a table or a chart, as typed (not trimmed), at most `TEXT_MAX`. */
 export const searchTextSchema = z.string().max(TEXT_MAX, TEXT_TOO_LONG).default('');
 
 /** Name of a table with saved views of its own (« time-log », « treasury-entries »…). */

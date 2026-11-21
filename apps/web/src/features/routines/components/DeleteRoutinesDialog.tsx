@@ -20,7 +20,7 @@ interface DeleteRoutinesDialogProps {
 
 /**
  * Deletion of routines, confirmed, as that of tasks: with sub-routines not deleted with them, asks whether to keep them
- * (moved up a level) or delete them too; tells the times without project deleted with them (extra A of decision D17).
+ * (moved up a level) or delete them too; tells the times without project deleted with them.
  * @param {DeleteRoutinesDialogProps} props Component props.
  * @returns {JSX.Element} Dialog content.
  */

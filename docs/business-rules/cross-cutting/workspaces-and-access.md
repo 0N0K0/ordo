@@ -9,7 +9,7 @@ Voir aussi : [Personnes](people.md), [Erreurs](errors.md), [Tâches de fond](bac
 - Un espace est **professionnel** (`PRO` : facturation, clients, entreprise) ou **personnel** (`PERSO`). Libellé requis, 250 caractères max.
 - Un espace personnel refuse la facturation (documents, documents importés, factures récurrentes), les clients, le catalogue et la fiche société : « Indisponible dans un espace personnel (facturation). » / « (clients) » / « (catalogue) » / « (société) » (`requirePro`).
 - Un espace PRO ne devient personnel que s'il n'a ni clients, ni documents de facturation, ni documents importés : « Cet espace a des clients ou des documents de facturation : il ne peut pas devenir personnel. ».
-- Condition de créneaux des tâches et routines : la même en PRO et en PERSO, sans condition n'importe quand (décision D10, voir [Agenda](../activities/calendar.md#condition-de-créneaux-des-tâches-et-routines)).
+- Condition de créneaux des tâches et routines : la même en PRO et en PERSO, sans condition n'importe quand ; les heures de travail de l'espace PRO ne jouent pas sur ce qui est faisable (voir [Agenda](../activities/calendar.md#condition-de-créneaux-des-tâches-et-routines)).
 - Les factures récurrentes ne sont émises que dans les espaces PRO.
 - Mots du web : « équipe » en PRO, « foyer » en PERSO (membres, voir [Personnes](people.md)).
 
@@ -17,7 +17,7 @@ Voir aussi : [Personnes](people.md), [Erreurs](errors.md), [Tâches de fond](bac
 
 - Création : en dernier du sélecteur ; mise en place (`setUpWorkspace`) : un profil « Moi » pour chaque utilisateur, un premier agenda, les statuts de suivi des documents (PRO), les unités de courses par défaut (« pièce », « kg »…) si l'espace n'en a pas.
 - La mise en place est rejouée à chaque modification de l'espace (elle complète sans dupliquer).
-- Réglages de l'espace : notifications données quand un autre espace est ouvert (`MAILS` ; alarmes et rappels sonnent toujours, décision EO), semaine (premier et dernier jours), colonnes de départ des vues de tâches, créneaux sans type (libellé, couleur, affichage).
+- Réglages de l'espace : notifications données quand un autre espace est ouvert (`MAILS` ; alarmes et rappels sonnent toujours, quel que soit l'espace ouvert), semaine (premier et dernier jours), colonnes de départ des vues de tâches, créneaux sans type (libellé, couleur, affichage).
 - Ordre : glisser-déposer dans le sélecteur (`moveWorkspace`).
 - Suppression : supprime l'espace et **tout son contenu** ; le dernier espace ne peut pas être supprimé (« Le dernier espace ne peut pas être supprimé. »). Les mouvements de trésorerie, leurs règlements et les documents comptables sont supprimés d'abord (ils bloquent la cascade), puis la cascade de la base emporte le reste.
 - S'il n'existe aucun espace, un espace « Pro » (PRO) est créé à la première requête.
@@ -25,7 +25,7 @@ Voir aussi : [Personnes](people.md), [Erreurs](errors.md), [Tâches de fond](bac
 ### Isolation des données
 
 - Chaque requête HTTP travaille dans **un** espace : celui de l'en-tête `x-ordo-workspace`, sinon du cookie `ordo_workspace`, sinon le premier espace (`workspaceMiddleware`). Le middleware passe avant l'authentification.
-- Toutes les lignes, sauf `Workspace`, `User`, `Session`, `AuthToken`, `RateLimit`, `AlarmRing` (les sonneries de l’utilisateur, de tous ses espaces, décision FS) et `Countdown` (ses minuteurs, de même, décision FT), appartiennent à un espace. Le client Prisma étendu (`apps/api/src/db.ts`) ajoute `workspaceId` à toutes les lectures, mises à jour et suppressions, et donne l'espace à toutes les créations (y compris imbriquées) ; l'espace d'une ligne ne change jamais. Une requête hors espace échoue (« No workspace… », erreur interne).
+- Toutes les lignes, sauf `Workspace`, `User`, `Session`, `AuthToken`, `RateLimit`, `AlarmRing` (les sonneries de l’utilisateur, de tous ses espaces), `Countdown` (ses minuteurs, de même) et `PushSubscription` (ses appareils, de même), appartiennent à un espace. Le client Prisma étendu (`apps/api/src/db.ts`) ajoute `workspaceId` à toutes les lectures, mises à jour et suppressions, et donne l'espace à toutes les créations (y compris imbriquées) ; l'espace d'une ligne ne change jamais. Une requête hors espace échoue (« No workspace… », erreur interne).
 - `unscopedPrisma` (sans limite) ne sert qu'aux espaces eux-mêmes, aux abonnements entre espaces, aux créneaux et types des autres espaces qu'une condition de créneaux cite (`otherWorkspaceSchedules`, `assertConditionSchedules`) et à la suppression d'un espace. Le SQL brut filtre lui-même par `currentWorkspaceId()`.
 - Les tâches de fond tournent espace par espace (`forEachWorkspace`), une erreur dans un espace n'arrêtant pas les autres.
 

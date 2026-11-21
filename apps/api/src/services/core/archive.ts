@@ -30,6 +30,7 @@ const MAIN = {
   STOCK_ITEM: 'stockItem',
   SHEET: 'sheet',
   CONTRIBUTOR: 'contributor',
+  CLIENT_CONTACT: 'clientContact',
   MAIL_ACCOUNT: 'mailAccount',
   CATALOG_ITEM: 'catalogItem',
 } as const;
@@ -48,8 +49,22 @@ export type ArchivableModel = (typeof ARCHIVABLE)[ArchivableKind] | 'client' | '
 /** What the archivable models have in common (each delegate of Prisma has these). */
 interface ArchiveDelegate {
   count(args: { where: Record<string, unknown> }): PromiseLike<number>;
-  updateMany(args: { where: Record<string, unknown>; data: Record<string, unknown> }): PromiseLike<unknown>;
+  updateMany(args: { where: Record<string, unknown>; data: Record<string, unknown> }): Prisma.PrismaPromise<unknown>;
   findMany(args: { where: Record<string, unknown>; select: { id: true } }): PromiseLike<{ id: string }[]>;
+}
+
+/** Models of the generic mutation also archived along with a parent (`archivedByCascade`): archived or restored here, they are on their own. */
+const ALONG_WITH_PARENT = new Set<ArchivableModel>(['contributor', 'clientContact']);
+
+/** Elements by kind. */
+export type ArchiveTargets = Partial<Record<ArchivableKind, readonly string[]>>;
+
+/** What archiving or restoring elements of a kind does besides. */
+export interface ArchiveOptions {
+  /** Elements of other kinds archived and restored with them (the people linked to them), from the elements given. Optional. Default = none. */
+  along?: (ids: string[]) => Promise<ArchiveTargets>;
+  /** Run once found, before the change, with the elements whose state changes, by kind (those along included). Optional. Default = none. */
+  settle?: (changing: ArchiveTargets) => Promise<void>;
 }
 
 /**
@@ -81,24 +96,36 @@ const delegate = (model: ArchivableModel) => modelDelegate<ArchiveDelegate>(mode
 const archivedWhere = (archived: boolean): Record<string, unknown> => ({ archivedAt: archived ? { not: null } : null });
 
 /**
- * Archives or restores elements of a kind, all at once (an id given twice counts once). Archiving keeps the date of
- * those archived already. `settle` runs once they are found, before they change: what it does elsewhere (the
- * occurrences of routines a schedule, a kind or a person archived makes disappear, decision FQ).
+ * Archives or restores elements of a kind, all at once (an id given twice counts once), with the elements of other
+ * kinds that go along with them (`along`), in one transaction. Archiving keeps the date of those archived already.
+ * `settle` runs once they are found, before they change: what it does elsewhere (the occurrences of routines a
+ * schedule, a kind or a person archived makes disappear).
  * @param {ArchivableKind} kind Kind of the elements.
  * @param {readonly string[]} ids Elements.
  * @param {boolean} archived Archives (else restores).
- * @param {(ids: string[]) => Promise<void>} [settle] Run once found, before the change. Optional. Default = none.
+ * @param {ArchiveOptions} [options] Elements along and what it does elsewhere. Optional. Default = none.
  * @returns {Promise<void>}
  */
-export async function setArchived(kind: ArchivableKind, ids: readonly string[], archived: boolean, settle?: (ids: string[]) => Promise<void>): Promise<void> {
-  const model = ARCHIVABLE[kind];
+export async function setArchived(kind: ArchivableKind, ids: readonly string[], archived: boolean, { along, settle }: ArchiveOptions = {}): Promise<void> {
   const unique = [...new Set(ids)];
-  await assertAllExist(delegate(model), unique, 'Élément');
+  await assertAllExist(delegate(ARCHIVABLE[kind]), unique, 'Élément');
   if (!unique.length) return;
+  const targets = new Map<ArchivableKind, Set<string>>([[kind, new Set(unique)]]);
+  for (const [other, otherIds] of Object.entries(along ? await along(unique) : {}) as [ArchivableKind, readonly string[]][]) {
+    targets.set(other, new Set([...(targets.get(other) ?? []), ...otherIds]));
+  }
   // Only those whose state changes.
-  const changing = (await delegate(model).findMany({ where: { id: { in: unique }, ...archivedWhere(!archived) }, select: { id: true } })).map((item) => item.id);
-  if (settle && changing.length) await settle(changing);
-  await delegate(model).updateMany({ where: { id: { in: unique }, ...archivedWhere(!archived) }, data: { archivedAt: archived ? new Date() : null } });
+  const changing: ArchiveTargets = {};
+  for (const [target, targetIds] of targets) {
+    changing[target] = (await delegate(ARCHIVABLE[target]).findMany({ where: { id: { in: [...targetIds] }, ...archivedWhere(!archived) }, select: { id: true } })).map((item) => item.id);
+  }
+  if (settle && Object.values(changing).some((list) => list.length)) await settle(changing);
+  const archivedAt = archived ? new Date() : null;
+  await prisma.$transaction(
+    (Object.entries(changing) as [ArchivableKind, string[]][]).map(([target, targetIds]) =>
+      delegate(ARCHIVABLE[target]).updateMany({ where: { id: { in: targetIds } }, data: { archivedAt, ...(ALONG_WITH_PARENT.has(ARCHIVABLE[target]) && { archivedByCascade: false }) } }),
+    ),
+  );
 }
 
 /** How a value chosen in a form is checked: the values it had stay valid, the error shows under its field. */
@@ -111,7 +138,7 @@ export interface ChosenOptions {
 
 /**
  * Refuses an archived element (BAD_USER_INPUT « Élément archivé… »): a change of it, or a value newly chosen in a
- * form (decision AA: with `field`, the error shows under the field; the values in `keep` stay valid). Nothing is
+ * form (with `field`, the error shows under the field; the values in `keep` stay valid). Nothing is
  * checked without id nor for an element that does not exist (its own lookup tells it).
  * @param {ArchivableKind | ArchivableModel} target Kind or Prisma model of the element (« SHEET », « sheet »…).
  * @param {string | null | undefined} id Element. Optional.
@@ -148,7 +175,7 @@ export function keptIds(keep: ChosenOptions['keep']): Set<string> {
 }
 
 /**
- * Error refusing an archived element (decision BC: one message), under a field when one is given.
+ * Error refusing an archived element (one message), under a field when one is given.
  * @param {string} [field] Field of the input. Optional. Default = a toast.
  * @returns {GraphQLError} BAD_USER_INPUT error.
  */
@@ -336,7 +363,7 @@ export async function archiveTree<T extends { archivedAt: Date | null }>(model: 
 }
 
 /**
- * Day an item with occurrences (a routine, an event) was archived, Paris time (decision D21): its occurrences started
+ * Day an item with occurrences (a routine, an event) was archived, Paris time: its occurrences started
  * before that day stay, archived (read only), even those ending on or after it; none starting on or after it.
  * Restored, it has them all again. Null when not archived.
  * @param {{ archivedAt?: Date | null }} item Item.

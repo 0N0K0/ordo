@@ -1,18 +1,18 @@
 import { z } from 'zod';
 
-/** Message of a person's name left empty (« Nom » only for persons, decision AD). */
+/** Message of a person's name left empty (« Nom » only for persons). */
 export const PERSON_NAME_REQUIRED = 'Le nom est requis.';
 
-/** Most characters of a short free text: label, name, title, location, reason… (decision DO). */
+/** Most characters of a short free text: label, name, title, location, reason…. */
 export const TEXT_MAX = 250;
-/** Most characters of a markdown text: description, comment, objective… (decision DO). */
+/** Most characters of a markdown text: description, comment, objective…. */
 export const MARKDOWN_MAX = 65_536;
-/** Most characters of a plain multi-line text (a textarea without markdown, decision DO). */
+/** Most characters of a plain multi-line text (a textarea without markdown). */
 export const PLAIN_TEXT_MAX = 4000;
 
 /**
  * Most characters of a legal mention of the company or of a document: VAT mention, payment terms, late interest,
- * registration (decision DO, amended).
+ * registration (amended).
  */
 export const LEGAL_TEXT_MAX = 500;
 
@@ -27,12 +27,12 @@ export const MARKDOWN_TOO_LONG = 'Texte trop long.';
 // eslint-disable-next-line no-restricted-syntax -- the message itself.
 export const PLAIN_TEXT_TOO_LONG = '4 000 caractères maximum.';
 
-/** Short free text (decision DO): trimmed, at most `TEXT_MAX`, may be empty. */
+/** Short free text: trimmed, at most `TEXT_MAX`, may be empty. */
 export const shortTextSchema = z.string().trim().max(TEXT_MAX, TEXT_TOO_LONG);
 
 /**
- * Short free text that must be given (a label, a name): trimmed, at most `TEXT_MAX` (decision DO).
- * @param {string} [required] Message when empty. Optional. Default = « Le libellé est requis. » (decision AD).
+ * Short free text that must be given (a label, a name): trimmed, at most `TEXT_MAX`.
+ * @param {string} [required] Message when empty. Optional. Default = « Le libellé est requis. ».
  * @returns {z.ZodString} Rule.
  */
 export const requiredText = (required = 'Le libellé est requis.') => z.string().trim().min(1, required).max(TEXT_MAX, TEXT_TOO_LONG);
@@ -42,7 +42,7 @@ export const requiredText = (required = 'Le libellé est requis.') => z.string()
 export const personNameSchema = requiredText(PERSON_NAME_REQUIRED);
 
 /**
- * Short free text that may be left empty (saved as null): trimmed, at most `TEXT_MAX` (decision DO). A field with a
+ * Short free text that may be left empty (saved as null): trimmed, at most `TEXT_MAX`. A field with a
  * format of its own (VAT number, activity code, phone) passes its named maximum instead.
  * @param {number} [max] Most characters, for a field with a format only. Optional. Default = `TEXT_MAX`.
  * @returns {z.ZodType<string | null>} Rule.
@@ -64,26 +64,26 @@ export const legalTextSchema = z.string().trim().max(LEGAL_TEXT_MAX, LEGAL_TEXT_
  */
 export const optionalLegalText = () => legalTextSchema.transform((value) => value || null).nullable();
 
-/** Plain multi-line text (a textarea without markdown, decision DO): trimmed, at most `PLAIN_TEXT_MAX`, may be empty. */
+/** Plain multi-line text (a textarea without markdown): trimmed, at most `PLAIN_TEXT_MAX`, may be empty. */
 export const plainTextSchema = z.string().trim().max(PLAIN_TEXT_MAX, PLAIN_TEXT_TOO_LONG);
 
 /**
- * Plain multi-line text that may be left empty (saved as null): trimmed, at most `PLAIN_TEXT_MAX` (decision DO).
+ * Plain multi-line text that may be left empty (saved as null): trimmed, at most `PLAIN_TEXT_MAX`.
  * @returns {z.ZodType<string | null>} Rule.
  */
 export const optionalPlainText = () => plainTextSchema.transform((value) => value || null).nullable();
 
-/** Markdown text as written (spaces kept), at most `MARKDOWN_MAX` (decision DO). */
+/** Markdown text as written (spaces kept), at most `MARKDOWN_MAX`. */
 export const markdownTextSchema = z.string().max(MARKDOWN_MAX, MARKDOWN_TOO_LONG);
 
-/** Form of a description typed alone (the panel of a task, saved as typed: decision D22). */
+/** Form of a description typed alone (the panel of a task, saved as typed). */
 export const descriptionFormSchema = z.object({ description: markdownTextSchema });
 export type DescriptionFormValues = z.input<typeof descriptionFormSchema>;
 
 /** Markdown text (description, comment, note…); blank becomes null. */
 export const markdownSchema = markdownTextSchema.transform((value) => (value.trim() ? value : null)).nullable();
 
-/** Message of a period whose end comes before its start (dates, times, min / max: decision Q). */
+/** Message of a period whose end comes before its start (dates, times, min / max). */
 // eslint-disable-next-line no-restricted-syntax -- the message itself.
 export const END_AFTER_START = 'La fin doit suivre le début.';
 

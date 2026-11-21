@@ -11,7 +11,7 @@ export type ItemLink = z.infer<typeof itemLinkSchema>;
 /** Most links of an item. */
 export const ITEM_LINKS_MAX = 20;
 
-/** Links of an item (event, task, routine): `ITEM_LINKS_MAX` at most (decision D5). */
+/** Links of an item (event, task, routine): `ITEM_LINKS_MAX` at most. */
 export const itemLinksSchema = z.array(itemLinkSchema).max(ITEM_LINKS_MAX, `${ITEM_LINKS_MAX} liens maximum.`);
 
 /** Links of an item edited on their own (the detail panel of a task). */

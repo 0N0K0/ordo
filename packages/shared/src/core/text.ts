@@ -15,7 +15,7 @@ export function normalize(text: string): string {
 }
 
 /**
- * Key of a name, as a search sees it (decision CB): spaces around left out, inner runs of spaces as one, case and
+ * Key of a name, as a search sees it: spaces around left out, inner runs of spaces as one, case and
  * accents aside (« eleve » is « Élève »). Two names of the same key are the same name.
  * @param {string | null | undefined} name Name. Optional.
  * @returns {string} Key (empty for no name).
@@ -61,7 +61,7 @@ export function fileName(label: string, extension: string): string {
 /**
  * Text cut to a length, so that it passes its rule (a title from elsewhere: GitHub, an old sheet…): trimmed, then cut.
  * @param {string} text Text.
- * @param {number} [max] Most characters. Optional. Default = `TEXT_MAX` (decision DO).
+ * @param {number} [max] Most characters. Optional. Default = `TEXT_MAX`.
  * @returns {string} Cut text.
  */
 export function clipText(text: string, max: number = TEXT_MAX): string {
@@ -74,7 +74,7 @@ const COPY_SUFFIX = ' (copie)';
 
 /**
  * Name made of a name between fixed words (« Report de l’évènement « X » »), the name cut so that the whole stays
- * within `TEXT_MAX` (decision DO) and the fixed words stay whole.
+ * within `TEXT_MAX` and the fixed words stay whole.
  * @param {string} before Words before the name.
  * @param {string} name Name.
  * @param {string} [after] Words after the name. Optional. Default = ''.
@@ -90,7 +90,7 @@ export function fitName(before: string, name: string, after = ''): string {
 }
 
 /**
- * Name of a copy: « Nom (copie) », the name cut so that the suffix stays within `TEXT_MAX` (decision DO).
+ * Name of a copy: « Nom (copie) », the name cut so that the suffix stays within `TEXT_MAX`.
  * @param {string} name Name of the original.
  * @returns {string} Name of the copy.
  */

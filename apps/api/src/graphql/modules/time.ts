@@ -17,8 +17,8 @@ import { commentsLostOnDelete } from '../../services/core/comments';
 const LostOnDeleteRef = builder.objectRef<{ times: number; comments: number }>('LostOnDelete').implement({
   description: 'What a deletion takes with it, for its confirmation.',
   fields: (t) => ({
-    times: t.exposeInt('times', { description: 'Times without project, not billed, left with nothing attached (extra A of decision D17).' }),
-    comments: t.exposeInt('comments', { description: 'Comments of the items and occurrences deleted (decision D19).' }),
+    times: t.exposeInt('times', { description: 'Times without project, not billed, left with nothing attached.' }),
+    comments: t.exposeInt('comments', { description: 'Comments of the items and occurrences deleted.' }),
   }),
 });
 
@@ -34,7 +34,7 @@ builder.prismaObject('TimeEntry', {
   fields: (t) => ({
     id: t.exposeID('id'),
     projectId: t.exposeID('projectId', { nullable: true }),
-    routines: t.relation('routines', { description: 'Routines the time is spent on (decision D18).' }),
+    routines: t.relation('routines', { description: 'Routines the time is spent on.' }),
     description: t.exposeString('description', { nullable: true }),
     startedAt: t.expose('startedAt', { type: 'DateTime' }),
     endedAt: t.expose('endedAt', { type: 'DateTime', nullable: true }),
@@ -43,7 +43,7 @@ builder.prismaObject('TimeEntry', {
     duration: t.exposeInt('duration', { nullable: true, description: 'Seconds, pauses excluded; null while running.' }),
     taskIds: t.idList(relationIds('tasks')),
     documentId: t.exposeID('documentId', { nullable: true, description: 'Invoice the time is billed on.' }),
-    events: t.relation('events', { description: 'Calendar events (occurrences) the time was spent on (decision D18).' }),
+    events: t.relation('events', { description: 'Calendar events (occurrences) the time was spent on.' }),
     documentNumber: t.string({
       nullable: true,
       description: 'Number of that invoice, null while it is a draft.',
@@ -104,7 +104,7 @@ const eventLinks = (events: readonly { eventId: string; occurrenceDate?: string 
 
 /**
  * What a time is spent on, for a timer and an entry: a project, routines (the project of the first one by default),
- * tasks and events (several of each, decision D18), and its description.
+ * tasks and events (several of each), and its description.
  * @param {InputFields} t Field builder.
  * @returns {object} Fields.
  */
@@ -223,7 +223,7 @@ builder.queryFields((t) => ({
       const times = await timeEntries.timeLeftEmpty({ taskIds: await deletedTreeIds('task', taskIds ?? [], withSubtree ?? false), routineIds: routinesGone, events });
       const comments = await commentsLostOnDelete({
         routineIds: routinesGone,
-        // A cancelled occurrence stays shown with its comments (decision D23): only the following ones deleted lose theirs.
+        // A cancelled occurrence stays shown with its comments: only the following ones deleted lose theirs.
         routines: routineOccurrence?.scope === 'FOLLOWING' ? [{ id: routineOccurrence.id, from: routineOccurrence.date }] : [],
         events: events.map((gone) => ({ id: gone.eventId, on: gone.on, from: gone.from })),
       });
@@ -232,7 +232,7 @@ builder.queryFields((t) => ({
   }),
   runningTimeEntries: t.prismaField({
     type: ['TimeEntry'],
-    description: 'Running timers of the workspace (several at once, decision FT), the first started first.',
+    description: 'Running timers of the workspace (several at once), the first started first.',
     resolve: (query) => prisma.timeEntry.findMany({ ...query, where: { endedAt: null }, orderBy: [{ startedAt: 'asc' }, { id: 'asc' }] }),
   }),
   alarms: t.prismaField({
@@ -244,7 +244,7 @@ builder.queryFields((t) => ({
 builder.mutationFields((t) => ({
   startTimer: t.prismaField({
     type: 'TimeEntry',
-    description: 'Starts a timer; the ones running keep running (decision FT).',
+    description: 'Starts a timer; the ones running keep running.',
     args: { input: t.arg({ type: TimerInput, required: true }) },
     resolve: async (query, _root, { input }) => reloaded(prisma.timeEntry, query, timeEntries.startTimer({ ...input, events: eventLinks(input.events) })),
   }),

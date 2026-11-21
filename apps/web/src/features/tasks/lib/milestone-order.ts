@@ -12,7 +12,7 @@ export const MILESTONE_ORDER_OPTIONS: { value: MilestoneOrder; label: string }[]
 ];
 
 /**
- * Milestone order read from this browser, the old `title` read as `label` (decision BI).
+ * Milestone order read from this browser, the old `title` read as `label`.
  * @param {string} stored Stored value (JSON).
  * @returns {MilestoneOrder} Order.
  */

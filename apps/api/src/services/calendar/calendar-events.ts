@@ -23,6 +23,7 @@ import {
   normalizedReminders,
   readReminders,
   type Reminder,
+  type EffectiveTask,
 } from '@ordo/shared';
 import { prisma } from '../../db';
 import { PARIS } from '../../today';
@@ -41,6 +42,8 @@ import { remapOccurrenceRows, settleLostOccurrences } from '../core/occurrence-r
 import { deleteGoneComments, placeLegacyComments } from '../core/comments';
 import { readLinks } from '../core/links';
 import { storedLocation } from '../core/geo';
+import { effectiveTasks } from '../tasks/task-inheritance';
+import { effectiveRoutineOf, loadRoutineInheritance, type StoredInheritingRoutine } from '../routines/routine-inheritance';
 
 /** One occurrence of an event in a period, with the fields of its series (or of its own changes). */
 export interface EventOccurrence {
@@ -164,7 +167,7 @@ export async function firstShownOccurrence(event: Pick<CalendarEvent, 'id' | 'st
 }
 
 /**
- * Places the comments of recurring events written before they were on occurrences (decision D19) on the first
+ * Places the comments of recurring events written before they were on occurrences on the first
  * occurrence shown of their series (`firstShownOccurrence`), and saves them there; those of one-off events are theirs.
  * @param {readonly string[]} ids Events read.
  * @returns {Promise<void>}
@@ -263,33 +266,21 @@ async function parseEvent(input: CalendarEventInput, keep: string[] = [], keepCa
   await assertBeneficiaries({ contributorIds: event.beneficiaryIds, relationIds: event.beneficiaryRelationIds }, { keep: { contributorIds: keepBeneficiaries, relationIds: keepRelations } });
   await activeIds(prisma.treasuryRelation, event.relationIds, 'Relation', { keep: keepRelations, field: 'relationIds' });
   await activeIds(prisma.calendarCategory, event.categoryIds, 'Catégorie', { keep: keepCategories, field: 'categoryIds' });
-  const tasks = await prisma.task.findMany({ where: { id: { in: event.taskIds } }, select: { label: true, assignees: { select: { id: true } } } });
+  const tasks = await prisma.task.findMany({ where: { id: { in: event.taskIds } }, select: { id: true, label: true } });
   if (tasks.length !== new Set(event.taskIds).size) throw notFound('Tâche');
-  // A task is about an event of someone of its assignees (or either side has nobody).
-  const apart = tasks.filter(
-    (task) =>
-      !sharePeople(
-        task.assignees.map((assignee) => assignee.id),
-        event.contributorIds,
-      ),
-  );
+  // A task is about an event of someone of its assignees, its own or inherited (or either side has nobody).
+  const taskAssignees = tasks.length ? await effectiveTasks(tasks.map((task) => task.id)) : new Map<string, EffectiveTask>();
+  const apart: { label: string }[] = tasks.filter((task) => !sharePeople([...(taskAssignees.get(task.id)?.assigneeIds ?? [])], event.contributorIds));
   // Routines of a day of the event (the one edited, for an occurrence).
   if (event.routineLinks.some((link) => link.date < event.startDate || link.date > event.endDate)) {
     const message = 'Une routine rattachée doit l’être un jour de l’évènement.';
     throw fieldError('routineLinks', message);
   }
   const routineIds = [...new Set(event.routineLinks.map((link) => link.routineId))];
-  const routines = await prisma.routine.findMany({ where: { id: { in: routineIds } }, select: { label: true, assignees: { select: { id: true } } } });
+  const routines = await prisma.routine.findMany({ where: { id: { in: routineIds } }, select: { id: true, label: true } });
   if (routines.length !== routineIds.length) throw notFound('Routine');
-  apart.push(
-    ...routines.filter(
-      (routine) =>
-        !sharePeople(
-          routine.assignees.map((assignee) => assignee.id),
-          event.contributorIds,
-        ),
-    ),
-  );
+  const inheritance = routines.length ? await loadRoutineInheritance() : new Map<string, StoredInheritingRoutine>();
+  apart.push(...routines.filter((routine) => !sharePeople(effectiveRoutineOf(inheritance, routine.id)?.routine.assigneeIds ?? [], event.contributorIds)));
   if (apart.length) {
     const message = `Sans contributeur en commun avec l’évènement : ${apart.map((task) => `« ${task.label} »`).join(', ')}.`;
     throw fieldError(routines.some((routine) => apart.includes(routine)) && !tasks.some((task) => apart.includes(task)) ? 'routineLinks' : 'taskIds', message);
@@ -444,6 +435,39 @@ export async function updateCalendarEvent(id: string, input: CalendarEventInput,
   return updated;
 }
 
+/** Fields of a recurring event that are those of its whole series: one occurrence alone (`THIS`) does not change them. */
+const SERIES_FIELDS = ['recurrence', 'reminders', 'projectId', 'calendarId', 'contributorIds', 'relationIds', 'beneficiaryIds', 'beneficiaryRelationIds', 'categoryIds', 'taskIds'] as const;
+
+/** Fields of the series given as lists of ids: compared whatever their order. */
+const SERIES_ID_LISTS = new Set<string>(['contributorIds', 'relationIds', 'beneficiaryIds', 'beneficiaryRelationIds', 'categoryIds', 'taskIds']);
+
+/** Message of the error refusing a field of the series changed for one occurrence alone. */
+const SERIES_FIELD_MESSAGE = 'Ce champ vaut pour toute la série : modifiez « Celle-ci et les suivantes » ou « Toutes les occurrences ».';
+
+/**
+ * Refuses, for one occurrence alone, a field of the series given with another value than the series has
+ * (BAD_USER_INPUT under the field): sent unchanged, they are kept as the series has them. A calendar not given
+ * (null) is that of the series. Nothing is compared when the series' own values no longer pass the rules (former data).
+ * @param {CalendarEventInput} given Fields given (validated), with the calendar as sent.
+ * @param {CalendarEventInput} series Fields of the series on that occurrence (`seriesInput`).
+ * @returns {void}
+ */
+function assertSeriesFieldsKept(given: CalendarEventInput, series: CalendarEventInput): void {
+  const stored = calendarEventInputSchema.safeParse(series);
+  if (!stored.success) return;
+  /**
+   * Comparable form of a field's value.
+   * @param {string} field Field.
+   * @param {unknown} value Value.
+   * @returns {string} JSON (a list of ids sorted).
+   */
+  const comparable = (field: string, value: unknown): string => JSON.stringify(SERIES_ID_LISTS.has(field) && Array.isArray(value) ? [...(value as string[])].sort() : (value ?? null));
+  for (const field of SERIES_FIELDS) {
+    if (field === 'calendarId' && !given.calendarId) continue;
+    if (comparable(field, given[field]) !== comparable(field, stored.data[field])) throw fieldError(field, SERIES_FIELD_MESSAGE);
+  }
+}
+
 /**
  * Fields of an event (or of some of its occurrences) changed, the routines of its days aside.
  * @param {string} id Event.
@@ -474,6 +498,7 @@ async function updateEventFields(id: string, input: CalendarEventInput, scope: E
   const seriesStart = formatDay(event.startDate);
 
   if (scope === 'THIS') {
+    assertSeriesFieldsKept({ ...fields, calendarId: input.calendarId ?? null }, seriesInput(await findEventWithRelations(id), occurrence.date));
     const override = {
       cancelled: false,
       label: fields.label,
@@ -603,8 +628,8 @@ export async function goneOccurrences(id: string, scope: EventScope, occurrenceD
 
 /**
  * Deletes an event, or for a recurring one: one occurrence, it and the following ones, or the whole series. The times
- * left with nothing attached are deleted first (extra A of decision D17, billed ones kept), the times on the
- * occurrences deleted leave them, and their comments are deleted (decision D19).
+ * left with nothing attached are deleted first (billed ones kept), the times on the
+ * occurrences deleted leave them, and their comments are deleted.
  * @param {string} id Event id.
  * @param {EventScope} scope Scope.
  * @param {string | null} [occurrenceDate] Occurrence. Optional for a one-off event.
@@ -616,7 +641,7 @@ export async function deleteCalendarEvent(id: string, scope: EventScope, occurre
   const gone = await goneOccurrences(id, scope, occurrenceDate);
   await releaseSubjectTime({ events: [gone] });
   await placeLegacyEventComments([id]);
-  // The comments of the occurrences deleted go with them (decision D19; a whole event: in cascade).
+  // The comments of the occurrences deleted go with them (a whole event: in cascade).
   if (gone.on || gone.from) await deleteGoneComments({ events: [{ id, on: gone.on, from: gone.from }] });
   if (!occurrence || (!gone.on && !gone.from)) {
     await prisma.calendarEvent.delete({ where: { id } });
@@ -684,7 +709,7 @@ export function toOccurrence(event: EventWithRelations, date: string | null, cha
     postponedTo: event.postponements
       .filter((postponement) => formatOptionalDay(postponement.postponedFromDate) === date)
       .map((postponement) => ({ eventId: postponement.id, label: postponement.label, startDate: formatDay(postponement.startDate), startTime: postponement.startTime })),
-    // A time on several events (occurrences) is shared equally between them (decision D18), as between its tasks.
+    // A time on several events (occurrences) is shared equally between them, as between its tasks.
     trackedSeconds: Math.round(
       sumOf(
         event.timeEntryLinks.filter((link) => formatOptionalDay(link.occurrenceDate) === date),
@@ -723,7 +748,7 @@ export async function eventOccurrences(from: string, to: string, calendarIds?: s
   const result: EventOccurrence[] = [];
   for (const event of events) {
     const rule = storedRecurrence(event.recurrence);
-    // Archived: its occurrences started before the day it was archived stay (archived), none starting on or after it (decision D21).
+    // Archived: its occurrences started before the day it was archived stay (archived), none starting on or after it.
     const archived = archivedOn(event);
     const changes = new Map(event.exceptions.map((change) => [formatDay(change.date), change]));
     const span = daysBetween(formatDay(event.startDate), formatDay(event.endDate));

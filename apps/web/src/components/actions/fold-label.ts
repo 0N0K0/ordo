@@ -1,5 +1,5 @@
 /**
- * Action of a fold toggle, the same everywhere (decision AE): « Réduire » when unfolded, « Développer » otherwise.
+ * Action of a fold toggle, the same everywhere: « Réduire » when unfolded, « Développer » otherwise.
  * @param {boolean} expanded Unfolded.
  * @returns {string} Action.
  */

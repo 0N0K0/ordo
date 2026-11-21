@@ -13,6 +13,7 @@ import * as fmt from '../../../lib/format';
 import { currentWeek } from '../../../lib/week';
 import { useCalendarEvents, type EventOccurrence } from '../../calendar/api';
 import { isTaskOverdue } from '../../tasks/lib/task-overdue';
+import type { ViewRows } from '../../../components/data-table/table/table-engine';
 
 /**
  * A day relative to today: « Aujourd’hui », « Demain », « Hier » or « lun. 9 nov. ».
@@ -29,7 +30,7 @@ export function dayLabel(date: string, today: string): string {
 
 /**
  * Events of the home page (Agenda card, navigation badge) between two days: the cancelled ones hidden, and not counted
- * (decision CA).
+ *.
  * @param {string} from First day.
  * @param {string} to Last day.
  * @returns {EventOccurrence[] | undefined} Events held, undefined while loading.
@@ -167,4 +168,36 @@ export function useWeekTime(today: string): WeekTime | null {
     time.byProject = [...byProject.entries()].map(([projectId, seconds]) => ({ projectId, seconds })).sort((a, b) => b.seconds - a.seconds);
     return time;
   }, [entries.data, now, today]);
+}
+
+/**
+ * Note of a card showing the default view of a page: its name, or that the page has none yet (the card then shows what
+ * it shows without it).
+ * @param {{ label: string } | null} view Default view of the page.
+ * @param {string} page Name of the page.
+ * @param {string} fallback What the card shows without view.
+ * @returns {string} Note.
+ */
+export const viewNote = (view: { label: string } | null, page: string, fallback: string): string =>
+  view ? `Vue « ${view.label} » de la page « ${page} ».` : `Aucune vue enregistrée sur la page « ${page} » : ${fallback}.`;
+
+/** Row of a table shown in a home card, with its group. */
+export interface ViewItem<T> {
+  /** Key of the row in its group (a row of several groups is in each). */
+  key: string;
+  /** Key of its group ('' when not grouped). */
+  group: string;
+  row: T;
+}
+
+/**
+ * Rows of a view of a table as the items of a home list, under the titles of their groups when the view groups them.
+ * @param {ViewRows<T>} view Rows of the view (`useViewRows`).
+ * @param {(row: T) => string} keyOf Key of a row.
+ * @returns {{ items: ViewItem<T>[], group?: { key: Function, title: Function } }} Props of `HomeList` (its items and groups).
+ */
+export function viewList<T>({ groups, groupColumn }: ViewRows<T>, keyOf: (row: T) => string): { items: ViewItem<T>[]; group?: { key: (item: ViewItem<T>) => string; title: (key: string) => string } } {
+  const labels = new Map(groups.map((group) => [group.key, group.label]));
+  const items = groups.flatMap((group) => group.rows.map((row) => ({ key: `${group.key}/${keyOf(row)}`, group: group.key, row })));
+  return { items, group: groupColumn ? { key: (item) => item.group, title: (key) => labels.get(key) ?? key } : undefined };
 }

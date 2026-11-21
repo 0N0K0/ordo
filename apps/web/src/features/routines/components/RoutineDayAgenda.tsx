@@ -77,7 +77,7 @@ interface TickFormProps {
 
 /**
  * Ticks a time of the day after the fact at a chosen hour (by default when it was due), changes the hour it was done
- * at, or unticks it (with an undo); « Lancer » the dead times of the routine for this occurrence (decision FT).
+ * at, or unticks it (with an undo); « Lancer » the dead times of the routine for this occurrence.
  * @param {TickFormProps} props Component props.
  * @returns {JSX.Element} Form.
  */
@@ -139,7 +139,7 @@ function TickForm({ item, routine, today, onDone }: TickFormProps) {
           {item.check ? 'Changer l’heure' : 'Cocher comme faite'}
         </ActionButton>
       </Group>
-      {/* Its dead times, launched for this occurrence (decision FT). */}
+      {/* Its dead times, launched for this occurrence. */}
       {routine && !routine.archived && <DeadTimeLaunchButtons value={routine.deadTimes} item={routineDeadTimeItem(routine, item.date)} />}
     </Stack>
   );
@@ -226,7 +226,7 @@ export function RoutineDayAgenda({ day, today, items, byId, layers }: RoutineDay
     });
   }
   // Routines: from their start to their end (`routineSlotSpan`, as their reminders count: the time to spend on them
-  // from « dès » or up to « jusqu'à », 30 min without it: decisions FW, FX); without hours, at the hour they were done,
+  // from « dès » or up to « jusqu'à », 30 min without it); without hours, at the hour they were done,
   // else in the all-day row.
   for (const item of items) {
     const routine = byId.get(item.routineId);
@@ -254,7 +254,7 @@ export function RoutineDayAgenda({ day, today, items, byId, layers }: RoutineDay
       borderColor: `var(--mantine-color-${color}-6)`,
       textColor: 'var(--mantine-color-text)',
       editable: false,
-      // Of an archived routine: its past occurrences, read only (decision D21).
+      // Of an archived routine: its past occurrences, read only.
       classNames: [calendarClasses.task, ...(item.movedFrom ? [calendarClasses.moved] : []), ...(routine?.archived ? [calendarClasses.archived] : [])],
       extendedProps: { item },
     });

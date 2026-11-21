@@ -21,10 +21,10 @@ import { prisma, unscopedPrisma } from '../../db';
 import { archivedError } from '../core/archive';
 import { notFound } from '../../graphql/errors';
 import { currentWorkspaceId } from '../../workspace-context';
-import { birthdays, personChange, type PeopleChange } from './birthdays';
+import { birthdays, peopleChanges, personChange, type PeopleChange } from './birthdays';
 import { eventOccurrences } from './calendar-events';
 import { otherWorkspaceSchedules, scheduleRule } from './work-schedules';
-import { DUE_DATES_SELECT, storedDueDates } from '../tasks/due-dates';
+import { effectiveTaskOf, loadTaskInheritance } from '../tasks/task-inheritance';
 
 /** Field of the input the errors of a slot condition show under. */
 const FIELD = 'slotCondition';
@@ -42,7 +42,7 @@ const citeOtherWorkspaces = (conditions: readonly (SlotCondition | null | undefi
 
 /**
  * Schedules of a workspace as a change would leave them (created, changed, archived or deleted, not saved yet), or its
- * people (a birthday changed, moved or gone, decision FQ).
+ * people (a birthday changed, moved or gone).
  */
 export interface ScheduleChange {
   /** Workspace of the schedules changed (this one, or another one of the user whose schedules are named here). */
@@ -57,35 +57,38 @@ export interface ScheduleChange {
 export type ScheduleEdit = Omit<ScheduleChange, 'workspaceId'>;
 
 /**
- * What archiving or restoring some elements does to the slot conditions (decision FQ): schedules, kinds of schedules
- * and people give no moment once archived; null for the other kinds.
- * @param {string} kind Kind of the elements (`ArchivableKind`).
- * @param {readonly string[]} ids Elements.
+ * What archiving or restoring some elements does to the slot conditions: schedules, kinds of schedules
+ * and people (contributors, relations) give no moment once archived; null when none of them changes.
+ * @param {Partial<Record<string, readonly string[]>>} changing Elements whose state changes, by kind (`ArchivableKind`).
  * @param {boolean} archived Archived (else restored).
  * @returns {ScheduleEdit | null} Change.
  */
-export function archiveEdit(kind: string, ids: readonly string[], archived: boolean): ScheduleEdit | null {
-  const chosen = new Set(ids);
-  const people = (person: 'contributor' | 'relation'): PeopleChange => (rows) => ids.reduce((all, id) => personChange(person, id, { archived })(all), rows);
-  switch (kind) {
-    case 'WORK_SCHEDULE':
-      return { apply: (rules) => rules.map((rule) => (chosen.has(rule.id) ? { ...rule, archived } : rule)) };
-    case 'SCHEDULE_TYPE':
-      return { apply: (rules) => rules.map((rule) => (rule.typeId && chosen.has(rule.typeId) ? { ...rule, kindArchived: archived } : rule)) };
-    case 'CONTRIBUTOR':
-      return { people: people('contributor') };
-    case 'TREASURY_RELATION':
-      return { people: people('relation') };
-    default:
-      return null;
-  }
+export function archiveEdit(changing: Partial<Record<string, readonly string[]>>, archived: boolean): ScheduleEdit | null {
+  const schedules = new Set(changing.WORK_SCHEDULE ?? []);
+  const kinds = new Set(changing.SCHEDULE_TYPE ?? []);
+  const people = [
+    ...(changing.CONTRIBUTOR ?? []).map((id) => personChange('contributor', id, { archived })),
+    ...(changing.TREASURY_RELATION ?? []).map((id) => personChange('relation', id, { archived })),
+  ];
+  if (!schedules.size && !kinds.size && !people.length) return null;
+  return {
+    ...((schedules.size > 0 || kinds.size > 0) && {
+      apply: (rules: WorkScheduleRule[]) =>
+        rules.map((rule) => ({
+          ...rule,
+          ...(schedules.has(rule.id) && { archived }),
+          ...(!!rule.typeId && kinds.has(rule.typeId) && { kindArchived: archived }),
+        })),
+    }),
+    ...(people.length > 0 && { people: peopleChanges(people) }),
+  };
 }
 
 /**
- * Slots of the schedules of the current workspace (archived ones and those of archived kinds give none, decision FQ), loaded once, those of a day computed when first
+ * Slots of the schedules of the current workspace (archived ones and those of archived kinds give none), loaded once, those of a day computed when first
  * asked: what the conditions of tasks and routines are evaluated on. The schedules of the other workspaces of the user
  * are loaded too when the conditions name some of them or of their kinds, and the birthdays of the people of the
- * workspace when they name some (lot 16c; both always without conditions given: the routines of a request are not
+ * workspace when they name some (both always without conditions given: the routines of a request are not
  * known yet).
  * @param {readonly (SlotCondition | null | undefined)[]} [conditions] Conditions evaluated. Optional. Default = unknown.
  * @param {ScheduleChange} [change] The schedules of a workspace (this one or another one) as a change would leave them.
@@ -93,7 +96,7 @@ export function archiveEdit(kind: string, ids: readonly string[], archived: bool
  * @returns {Promise<SlotsOn>} Slots of some schedules on a day.
  */
 export async function loadSlotsOn(conditions?: readonly (SlotCondition | null | undefined)[], change?: ScheduleChange): Promise<SlotsOn> {
-  // With the archiving of their kinds: archived schedules and kinds give no moment (decision FQ).
+  // With the archiving of their kinds: archived schedules and kinds give no moment.
   const own = await prisma.workSchedule.findMany({ include: { type: { select: { archivedAt: true } } } });
   const here = currentWorkspaceId();
   const [loaded, people] = await Promise.all([
@@ -114,7 +117,7 @@ export async function loadSlotsOn(conditions?: readonly (SlotCondition | null | 
 
 /**
  * Checks the schedules and kinds a condition (or several: a routine and its cases) names, of this workspace or of
- * another one of the user, and the people whose birthday it names (of this workspace, lot 16c): they exist, and none
+ * another one of the user, and the people whose birthday it names (of this workspace): they exist, and none
  * is archived but those already there.
  * @param {readonly (SlotCondition | null | undefined)[]} conditions Conditions saved.
  * @param {readonly (SlotCondition | null | undefined)[] | true} kept Conditions already there (their archived schedules
@@ -186,23 +189,23 @@ function userNow(utcOffset: number): { date: string; time: string } {
 }
 
 /**
- * Open tasks of the current workspace that can be done now: their « Ouverture » (their own, else that of their single
- * sprint: `taskDueDates`) is not after the user's day, their condition on calendar schedules (none: any time) allows
- * the user's current moment, and no event keeps their assignees (none: « Moi ») busy, but one about the task.
+ * Open tasks of the current workspace that can be done now: their « Ouverture » (as they go:
+ * `effectiveTask`) is not after the user's day, their condition on calendar schedules (their own or inherited; none:
+ * any time) allows the user's current moment, and no event keeps their assignees (their own or inherited; none:
+ * « Moi ») busy, but one about the task.
  * @param {number} utcOffset User's offset from UTC in minutes.
  * @param {string | null} meId Contributor profile of the user (« Moi »).
  * @returns {Promise<string[]>} Task ids.
  */
 export async function doableTaskIds(utcOffset: number, meId: string | null): Promise<string[]> {
   const now = userNow(utcOffset);
-  const [tasks, events] = await Promise.all([
-    prisma.task.findMany({
-      where: { closedAt: null, archivedAt: null },
-      select: { id: true, slotCondition: true, ...DUE_DATES_SELECT, assignees: { select: { id: true } } },
-    }),
+  const [open, inheritance, events] = await Promise.all([
+    prisma.task.findMany({ where: { closedAt: null, archivedAt: null }, select: { id: true } }),
+    loadTaskInheritance(),
     // Archived events (and those of archived calendars) keep nobody busy.
     eventOccurrences(addDays(now.date, -1), now.date, undefined, true),
   ]);
+  const tasks = open.map((task) => effectiveTaskOf(inheritance, task.id)).filter((task) => task !== null);
   const conditions = new Map(tasks.map((task) => [task.id, readSlotCondition(task.slotCondition)]));
   const slotsOn = await loadSlotsOn([...conditions.values()]);
   const at = new Date();
@@ -210,9 +213,9 @@ export async function doableTaskIds(utcOffset: number, meId: string | null): Pro
     .filter(
       (task) =>
         // Not to be done before its « Ouverture ».
-        (storedDueDates(task).minDate ?? now.date) <= now.date &&
+        (task.minDate ?? now.date) <= now.date &&
         conditionAllowsAt(conditions.get(task.id), slotsOn, now.date, now.time) &&
-        !blockingEvent(events, { assigneeIds: task.assignees.map((assignee) => assignee.id), taskId: task.id }, meId, at, now.date),
+        !blockingEvent(events, { assigneeIds: [...task.assigneeIds], taskId: task.id }, meId, at, now.date),
     )
     .map((task) => task.id);
 }

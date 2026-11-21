@@ -32,7 +32,7 @@ const envSchema = z.object({
   /** OSRM routing servers, one per mode (`{profile}`: car, bike or foot), without trailing slash. */
   ROUTING_URL: z.string().default('https://routing.openstreetmap.de/routed-{profile}'),
   /**
-   * VAPID keys of the push notifications (lot 17c), made once by `npx web-push generate-vapid-keys`: without both, the
+   * VAPID keys of the push notifications, made once by `npx web-push generate-vapid-keys`: without both, the
    * push notifications are off (the app says so). Never committed.
    */
   VAPID_PUBLIC_KEY: z.preprocess((value) => (value === '' ? undefined : value), z.string().optional()),

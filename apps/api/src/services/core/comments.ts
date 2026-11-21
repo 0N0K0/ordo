@@ -30,7 +30,7 @@ export type CommentTarget = keyof typeof COMMENT_TARGETS;
 
 /**
  * Model of an item commented, and the archivable element that locks it: itself, or the element it is in (its field).
- * `occurrences`: its comments are on one occurrence (decision D19), of every routine (ALWAYS) or of a recurring event
+ * `occurrences`: its comments are on one occurrence, of every routine (ALWAYS) or of a recurring event
  * only (RECURRING: a one-off event has a single occurrence, without date).
  */
 type TargetModel = { model: string; lock?: ArchivableModel; via?: string; occurrences?: 'ALWAYS' | 'RECURRING' };
@@ -61,7 +61,7 @@ interface FindDelegate {
 }
 
 /**
- * Whether the comments of a kind of item are on its occurrences (routines and events, decision D19).
+ * Whether the comments of a kind of item are on its occurrences (routines and events).
  * @param {CommentTarget} target Kind of item.
  * @returns {boolean} On occurrences.
  */
@@ -123,7 +123,7 @@ async function assertCommentTarget(id: string): Promise<void> {
 export type OccurrenceTarget = 'ROUTINE' | 'EVENT';
 
 /**
- * Places the comments of routines or events written before they were on occurrences (decision D19: `occurrenceDate`
+ * Places the comments of routines or events written before they were on occurrences (`occurrenceDate`
  * empty on a routine, or on a recurring event; a one-off event's are its own), the first time they are read, and saves
  * them there.
  * @param {OccurrenceTarget} target Kind of items.
@@ -166,7 +166,7 @@ export interface GoneComments {
 
 /**
  * Filter of the comments a deletion takes: those of the routines deleted, and of the occurrences of routines and events
- * deleted (decision D19).
+ * deleted.
  * @param {GoneComments} gone Items and occurrences deleted.
  * @returns {Prisma.CommentWhereInput[]} Filters (none: nothing).
  */

@@ -4,7 +4,7 @@ import type { TreasuryRelation } from '../api';
 import { RelationForm } from '../components/TeamPanel';
 
 /**
- * Opens the panel of a relation (from its list, or from its birthday in the calendar, lot 16), or of a new one.
+ * Opens the panel of a relation (from its list, or from its birthday in the calendar), or of a new one.
  * @param {TreasuryRelation | undefined} relation Relation, or none for a new one.
  * @param {boolean} perso Personal workspace (its words for a relation).
  * @returns {void}

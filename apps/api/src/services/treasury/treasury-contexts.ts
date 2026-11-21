@@ -4,9 +4,9 @@ import { archivedError, keptIds, type ChosenOptions } from '../core/archive';
 import { countOf } from '@ordo/shared';
 
 /**
- * Contexts of the treasury as kinds of éphémérides (lot 16): a kind « Sert de contexte au budget » is a context in its
+ * Contexts of the treasury as kinds of éphémérides: a kind « Sert de contexte au budget » is a context in its
  * workspace, in every workspace of the user when « Partagé entre espaces » (the same access as the slot conditions
- * naming the schedules of another workspace, lot 5). Each workspace where it is one has a row of its own, which its
+ * naming the schedules of another workspace). Each workspace where it is one has a row of its own, which its
  * lines and budgets name; the kind holds the label, color, image, position and archiving.
  */
 

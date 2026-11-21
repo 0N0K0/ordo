@@ -56,9 +56,9 @@ interface DeadTimesFieldProps {
 }
 
 /**
- * « Temps morts » of a task or a routine (decision FT): waits during which something else is done (« Lave-linge,
- * 1 h 30 »), with the ringtone at their end; not time spent. Each is saved once valid, on leaving its fields (decision
- * D22; one left invalid holds the save, its error under it); « Lancer » opens the form launching its timer (its duration editable), and the timers launched for the item
+ * « Temps morts » of a task or a routine: waits during which something else is done (« Lave-linge,
+ * 1 h 30 »), with the ringtone at their end; not time spent. Each is saved once valid, on leaving its fields
+ * (one left invalid holds the save, its error under it); « Lancer » opens the form launching its timer (its duration editable), and the timers launched for the item
  * show under them.
  * @param {DeadTimesFieldProps} props Component props.
  * @returns {JSX.Element} Field.

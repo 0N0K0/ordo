@@ -265,7 +265,7 @@ export function archiveItemsAction<T extends { id: string; archived?: boolean | 
   });
 }
 
-/** What « Dupliquer » does with an item (decision D20): its copy, the toast, and the copy opened. */
+/** What « Dupliquer » does with an item: its copy, the toast, and the copy opened. */
 export interface DuplicateOptions<R, C> {
   /** Saves the copy of an item at once (« … (copie) »), returning it (its id, or what opens it). */
   duplicate: (row: R) => Promise<C>;
@@ -276,7 +276,7 @@ export interface DuplicateOptions<R, C> {
 }
 
 /**
- * « Dupliquer » (decision D20), the one behaviour of every copy in the app: each item copied and saved at once (named
+ * « Dupliquer », the one behaviour of every copy in the app: each item copied and saved at once (named
  * « … (copie) », `copyName`), one after the other; then the toast, and the copy of a single item opens.
  * @param {readonly R[]} rows Items copied.
  * @param {DuplicateOptions<R, C>} options Copy, message, opening.

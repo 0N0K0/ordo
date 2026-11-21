@@ -12,7 +12,7 @@ Source : `apps/api/src/services/projects/clients.ts`.
 
 | Champ      | Règle                                                                                                          | Message                                                                                       |
 | ---------- | -------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------- |
-| `name`     | requis, coupé (trim), 250 caractères au plus (`personNameSchema`, `TEXT_MAX`, décision DO)                     | « Le nom est requis. », « 250 caractères maximum. »                                           |
+| `name`     | requis, coupé (trim), 250 caractères au plus (`personNameSchema`, `TEXT_MAX`)                     | « Le nom est requis. », « 250 caractères maximum. »                                           |
 | `color`    | facultative, format `#rrggbb` (mise en minuscules) ; une chaîne vide efface la couleur (`optionalColorSchema`) | « Couleur invalide (format #rrggbb). »                                                        |
 | `icon`     | facultative, image de 1 Mo au plus, JPG, PNG, WebP ou SVG (`MAX_ICON_BYTES`, `ICON_MIME_TYPES`)                | « Image trop lourde (1 Mo maximum). », « Format non pris en charge (JPG, PNG, WebP ou SVG). » |
 | `favorite` | booléen, modifiable même sur un client archivé (pas de contrôle d’archive dans `setClientFavorite`)            | —                                                                                             |
@@ -37,11 +37,13 @@ Le nom d’un client n’est pas unique.
 - Ne fait rien si le client est déjà dans l’état demandé.
 - Archiver : tous les projets actifs du client (`clientId` = client, `archivedAt` nul) sont archivés à la même date avec `archivedByCascade = true`, dans la même transaction que le client.
 - Restaurer : seuls les projets archivés **avec** le client (`archivedByCascade = true`) reviennent ; un projet archivé seul avant reste archivé.
+- Ses contacts actifs et les contributeurs actifs liés à ses contacts suivent de même (archivés avec `archivedByCascade = true`, restaurés seulement s'ils l'ont été avec lui) ; voir [Archivage](archiving.md#client).
 
 ### Suppression
 
 `deleteClient(id, deleteProjects)` :
 
+- Les contributeurs de ses contacts archivés avec lui restent archivés, seuls (`archivedByCascade = false`).
 - `deleteProjects = true` : tous les projets du client (archivés compris, avec leurs sous-projets) sont supprimés, puis le client. Icônes orphelines supprimées.
 - `deleteProjects = false` : les projets passent « sans client » (`clientId = null`, `archivedByCascade = false`) en gardant leur arborescence ; les projets racines sont placés à la fin de la liste « Sans client », dans leur ordre actuel. Puis le client est supprimé.
 - Les données de facturation liées au client suivent les règles du schéma Prisma (voir [Facturation](../finances/accounting.md)).
@@ -86,7 +88,7 @@ Source : `apps/api/src/services/projects/projects.ts`.
 
 ### Déplacement
 
-`moveProject(id, { parentId, clientId, index })` place le projet (et ses sous-projets) à un index parmi ses **frères actifs** sous un parent ou à la racine d’un client (`clientId: null` = « Sans client »). Mêmes contrôles d’arbre que ci-dessus. Le déplacement n’est pas refusé pour un projet archivé côté API (le web ne le propose pas).
+`moveProject(id, { parentId, clientId, index })` place le projet (et ses sous-projets) à un index parmi ses **frères actifs** sous un parent ou à la racine d’un client (`clientId: null` = « Sans client »). Mêmes contrôles d’arbre que ci-dessus. Un projet archivé ne se déplace pas (« Élément archivé : restaurez-le pour le modifier. »), ni sous un parent archivé (même message, champ `parentId`).
 
 ### Favoris
 
@@ -103,7 +105,7 @@ Source : `apps/api/src/services/projects/projects.ts`.
 
 ### Suppression
 
-`deleteProject(id)` supprime le projet et tout son sous-arbre (cascade `ON DELETE` de la relation parent). Les icônes orphelines sont supprimées. Avant, ce qui lui survit en sort (`releaseProjects`, décision DP) : ses tâches (`releaseProjectTasks`, voir [Tâches](../activities/tasks.md#projet-supprimé)) et ses temps, sans projet (`releaseProjectTime`, décision D17 : seuls ceux qui ne gardent ni tâche, ni routine, ni évènement et ne sont pas facturés sont supprimés ; un temps facturé est toujours gardé). Le reste suit les relations du schéma Prisma :
+`deleteProject(id)` supprime le projet et tout son sous-arbre (cascade `ON DELETE` de la relation parent). Les icônes orphelines sont supprimées. Avant la suppression, ce qui lui survit en sort (`releaseProjects`) : ses tâches (`releaseProjectTasks`, voir [Tâches](../activities/tasks.md#projet-supprimé)) et ses temps, sans projet (`releaseProjectTime` : seuls ceux qui ne gardent ni tâche, ni routine, ni évènement et ne sont pas facturés sont supprimés ; un temps facturé est toujours gardé). Le reste suit les relations du schéma Prisma :
 
 | Avec le projet                                                                                                                                                                                                  | Sans projet (`SetNull`)                                                                                                                                                                                                                                                  |
 | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
@@ -163,18 +165,20 @@ Source : `services/projects/contributors.ts`. Vue d’ensemble des personnes dan
 
 - Chaque utilisateur a, dans chaque espace, un contributeur lié (`userId`) appelé « Moi » dans l’interface, créé par `ensureMeContributor` (nom = identifiant de l’utilisateur, handle libre avec repli « moi » et suffixe « moi »).
 - Ce profil ne peut pas être supprimé : « Votre propre profil ne peut pas être supprimé. ».
+- Ce profil ne peut pas être archivé : « Vous ne pouvez pas vous archiver. » (voir [Archivage](archiving.md#personnes-liées)).
 - « Moi » appartient à tous les projets et n’y est jamais rattaché explicitement.
 
 ### Modification, archivage, suppression
 
-- `updateContributor` refuse un contributeur archivé (lecture seule). `projectIds` remplace la liste des projets directs.
+- `updateContributor` refuse un contributeur archivé (lecture seule). `projectIds` remplace la liste des projets directs ; `link` remplace son lien (voir [Personnes](people.md#lien-dun-contributeur)).
 - `deleteContributor` : les tâches perdent simplement cet assigné ; l’avatar orphelin est supprimé.
 
 ### Rattachement aux projets
 
 - `setProjectContributors(projectId, ids)` : remplace les contributeurs rattachés directement à un projet non archivé. Un contributeur archivé n’est pas rattaché à nouveau (ceux déjà rattachés restent). Les tâches gardent leurs assignés.
 - `attachAssignees` : quand une tâche d’un projet reçoit un assigné qui n’est rattaché ni au projet ni à l’un de ses parents, il est rattaché automatiquement au projet. Exclus : « Moi » (utilisateur), les contributeurs archivés.
-- `followProject(before, after, contributorIds)` : une routine ou un évènement qui change de projet y fait rattacher ses assignés ou contributeurs (`attachAssignees`) ; rien si le projet ne change pas ou est retiré (décision DP).
+- `followProject(before, after, contributorIds)` : une routine ou un évènement qui change de projet y fait rattacher ses assignés ou contributeurs (`attachAssignees`) ; rien si le projet ne change pas ou est retiré.
+- Projet hérité : une sous-tâche ou une sous-routine peut hériter le projet de son parent ; il est alors aussi enregistré sur elle, et suit le parent (voir [Tâches](../activities/tasks.md#héritage), [Routines](../activities/routines.md#héritage)). L’« Ouverture » d’un projet (son début) sert de repli à l’« Ouverture » de ses tâches sans jalon précédent ([Dates suivies](../activities/tasks.md#dates-suivies)).
 - `assertProjectContributors` : sur un élément d’un projet (routine, évènement…), seuls peuvent être **ajoutés** « Moi », les contributeurs rattachés au projet ou à l’un de ses ancêtres ; ceux déjà choisis restent. Sans projet, aucune restriction. Message : « Seuls les contributeurs du projet peuvent être choisis. ». Un contributeur archivé n’est pas ajouté, sauf lors d’une annulation qui restaure les anciens (`restoring`).
 
 ## Requêtes exposées

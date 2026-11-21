@@ -18,8 +18,8 @@ interface TaskDescriptionProps {
 }
 
 /**
- * Editor of the description of a task: saved on leaving it, and by Ctrl/⌘ + Enter, which also closes it (decision
- * D22): no button.
+ * Editor of the description of a task: saved on leaving it, and by Ctrl/⌘ + Enter, which also closes it:
+ * no button.
  * @param {TaskDescriptionProps & { onClose: () => void }} props Task, its context and save, closing of the editor.
  * @returns {JSX.Element} Editor.
  */

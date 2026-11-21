@@ -8,7 +8,8 @@ import { slotConditionSchema, type SlotCondition } from '../calendar/slot-condit
 import { endDaySchema, startDaySchema } from '../dates/times';
 import { taskRemindersSchema, type ReminderFields } from '../dates/reminders';
 import { deadTimesSchema, type DeadTimeInput } from '../dates/countdowns';
-import { personDetailsShape } from '../people/person-details';
+import { contributorLinkSchema } from '../people/contributor-link';
+import type { TaskInheritableField } from './task-inheritance';
 
 export const taskLabelSchema = requiredText();
 
@@ -18,7 +19,7 @@ export const effortFieldSchema = z
   .union([z.number(), z.literal('')])
   .transform((value) => (value === '' ? null : value))
   .pipe(effortSchema);
-/** Effort of a task alone, saved on leaving it in the task panel (decision D22). */
+/** Effort of a task alone, saved on leaving it in the task panel. */
 export const effortFormSchema = z.object({ effort: effortFieldSchema });
 
 export const commentBodySchema = markdownTextSchema.refine((value) => value.trim().length > 0, 'Le commentaire est vide.');
@@ -51,11 +52,12 @@ export function suggestHandle(name: string): string {
   );
 }
 
-/** A contributor: name, mention handle and its details (birth date, birthday reminders, email addresses, phones; lot 16). */
+/** A contributor: name, mention handle and its details (birth date, birthday reminders, email addresses, phones). */
 export const contributorFormSchema = z.object({
   name: personNameSchema,
   handle: handleSchema,
-  ...personDetailsShape,
+  /** What its details come from (membership, relation, contact, nothing). */
+  link: contributorLinkSchema,
 });
 export type ContributorFormValues = z.input<typeof contributorFormSchema>;
 
@@ -84,14 +86,14 @@ export const taskFormSchema = z
     beneficiaryRelationIds: z.array(z.string()).default([]),
     /** On or out of calendar schedules, or on the free time, in groups (and / or); null: any time. */
     slotCondition: slotConditionSchema.nullable().default(null),
-    /** Where it is done: free text, and its point when chosen from the map or a search (decision D6, no travel time). */
+    /** Where it is done: free text, and its point when chosen from the map or a search (no travel time). */
     location: optionalText().default(null),
     ...locationPointFields,
-    /** Links, as those of the events (decision D5). */
+    /** Links, as those of the events. */
     links: itemLinksSchema.default([]),
-    /** Reminders « À HH:MM » (Paris time), rung every day from « Ouverture » to « Échéance » (decision D16). */
+    /** Reminders « À HH:MM » (Paris time), rung every day from « Ouverture » to « Échéance ». */
     reminders: taskRemindersSchema.default([]),
-    /** « Temps morts »: waits a timer is launched for (decision FT); not time spent. */
+    /** « Temps morts »: waits a timer is launched for; not time spent. */
     deadTimes: deadTimesSchema.default([]),
   })
   .refine(...endAfter('startDate', 'endDate'))
@@ -155,46 +157,12 @@ export interface TaskInput {
   reminders?: ReminderFields[] | null;
   /** « Temps morts » (null: none). */
   deadTimes?: DeadTimeInput[] | null;
-}
-
-/** Own « Ouverture » / « Échéance » of a task, and the sprints it is planned in (YYYY-MM-DD). */
-export interface TaskOwnDates {
-  minDate: string | null;
-  deadline: string | null;
-  sprintIds: readonly string[];
-}
-
-/** Days of a sprint a task may take its dates from. */
-export interface SprintDays {
-  startDate: string;
-  endDate: string;
-}
-
-/** « Ouverture » / « Échéance » a task goes by, and whether each comes from its sprint. */
-export interface TaskDueDates {
-  minDate: string | null;
-  deadline: string | null;
-  minDateFromSprint: boolean;
-  deadlineFromSprint: boolean;
-}
-
-/**
- * « Ouverture » and « Échéance » a task goes by: its own; without one, that of its sprint when it is in exactly one
- * (its start, its end; several sprints: none taken). A date typed on the task wins.
- * @param {TaskOwnDates} task Task.
- * @param {(id: string) => SprintDays | null | undefined} sprintOf Sprint by id.
- * @returns {TaskDueDates} Dates.
- */
-export function taskDueDates(task: TaskOwnDates, sprintOf: (id: string) => SprintDays | null | undefined): TaskDueDates {
-  const sprint = task.sprintIds.length === 1 ? sprintOf(task.sprintIds[0]) : null;
-  const minDateFromSprint = task.minDate === null && Boolean(sprint);
-  const deadlineFromSprint = task.deadline === null && Boolean(sprint);
-  return {
-    minDate: minDateFromSprint ? sprint!.startDate : task.minDate,
-    deadline: deadlineFromSprint ? sprint!.endDate : task.deadline,
-    minDateFromSprint,
-    deadlineFromSprint,
-  };
+  /** Creation under a parent: the fields it inherits; omitted: every field left out. */
+  inheritedFields?: TaskInheritableField[] | null;
+  /** Update: fields made inherited again (« Rétablir l'héritage »). */
+  inherit?: TaskInheritableField[] | null;
+  /** Update: fields emptied on purpose (« Vider »; never the project). */
+  clear?: TaskInheritableField[] | null;
 }
 
 /**
@@ -206,7 +174,7 @@ export const taskRef = (task: { number: number | null }): string => (task.number
 
 /**
  * Label of a task after its number ("#12 Écrire le devis"), the label alone for a task of no project (the web app and
- * the rings pushed by the API, lot 17c).
+ * the rings pushed by the API).
  * @param {{ number: number | null, label: string }} task Task.
  * @returns {string} Text.
  */

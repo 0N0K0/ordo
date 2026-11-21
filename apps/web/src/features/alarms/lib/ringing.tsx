@@ -8,11 +8,11 @@ import { closeToast, notifyAlarm, type NotifyAction } from '../../../lib/notify'
 import { parseTaggedKey } from '../../../lib/tagged-key';
 
 /**
- * The ring of the alarms and reminders in the app (decision FS), one brick for all: an alarm rings for the duration of
+ * The ring of the alarms and reminders in the app, one brick for all: an alarm rings for the duration of
  * the settings (its ringtone looped or once), its toast stays with « Arrêter » (stopped for good) and « Répéter dans N
  * min » (snoozed), and it rings again N minutes after its ring ends while the settings repeat it, until stopped. The
  * API keeps the state of each ring (`ringAlarm`, `snoozeAlarmRing`, `stopAlarmRing`, query `alarmRings`): a reload,
- * another tab or another device shows it as it is, and the push notifications (lot 17c) follow it. Other tabs of this
+ * another tab or another device shows it as it is, and the push notifications follow it. Other tabs of this
  * browser hear of a stop or a snooze at once (`BroadcastChannel`); only one of them sounds a ring (`claim`).
  */
 
@@ -71,8 +71,8 @@ interface RingContext {
   open: (target: RingTarget) => void;
   workspaceId: string | null;
   /**
-   * Actions of a ring shown again from the API, rebuilt from its key (« Marquer comme faite », « Ouvrir la fiche »,
-   * decision FV); none when they no longer apply. Optional.
+   * Actions of a ring shown again from the API, rebuilt from its key (« Marquer comme faite », « Ouvrir la fiche »);
+   * none when they no longer apply. Optional.
    */
   restore?: (ring: KeptRing) => RingLink[];
 }
@@ -363,7 +363,7 @@ channel?.addEventListener('message', (event: MessageEvent<RingMessage>) => {
 
 /**
  * Takes the rings the API keeps (after a reload, from another tab or device): a stopped one stops here; one snoozed
- * elsewhere (silent, its next ring later than here) waits here too (decision FV); one not shown here is shown as it is
+ * elsewhere (silent, its next ring later than here) waits here too; one not shown here is shown as it is
  * (ringing without sound, waiting, or silent), with the link it was kept with and its actions rebuilt from its key.
  * @param {AlarmRing[]} rings Rings of the last hours.
  * @returns {void}
@@ -415,7 +415,7 @@ export async function loadRings(): Promise<void> {
 }
 
 /**
- * A ring the server pushed while this tab is visible (lot 17c: the service worker then shows no notification): its
+ * A ring the server pushed while this tab is visible (the service worker then shows no notification): its
  * state loaded from the API, then it rings here as any other (its ringtone, looped as set; one tab sounds it).
  * @param {string} key Key of the ring.
  * @returns {Promise<void>} Done.

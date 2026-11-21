@@ -30,6 +30,16 @@ import {
   type RoutineCategoryInput,
   routineCategorySchema,
   type RoutineInput,
+  type RoutineInheritableField,
+  type InheritingRoutine,
+  emptyRoutineFields,
+  effectiveRoutineTiming,
+  inheritsTiming,
+  OPENS_MISFIT,
+  opensMisfits,
+  ROUTINE_INHERITABLE_FIELDS,
+  timingHeirs,
+  marksInherited,
   type RoutineMove,
   routineMoveSchema,
   type RoutineMoveTimes,
@@ -61,7 +71,7 @@ import {
   routineHasHours,
 } from '@ordo/shared';
 import { z } from 'zod';
-import { deleteTreeItems, topmostIds, treeListService } from '../core/trees';
+import { deleteTreeItems, subtreeIds, topmostIds, treeListService } from '../core/trees';
 import { releaseSubjectTime } from '../tasks/time-entries';
 import { prisma, unscopedPrisma } from '../../db';
 import { currentWorkspaceId, runInWorkspace } from '../../workspace-context';
@@ -83,10 +93,14 @@ import { readLinks } from '../core/links';
 import { storedLocation } from '../core/geo';
 import { deleteGoneComments, placeLegacyComments, restoreComments, type CommentSnapshot } from '../core/comments';
 import { assertLossConfirmed, lostOccurrences, remapOccurrenceRows, type LostOccurrences } from '../core/occurrence-rows';
+import { changedRoutineInheritance, clearedRoutineInput, effectiveRoutineOf, freezeRoutineInheritance, loadRoutineInheritance, syncInheritedRoutineProjects, withOwnMoves, type StoredInheritingRoutine } from './routine-inheritance';
 
-/** Routine with what its occurrences are computed from. */
+/**
+ * Routine with what its occurrences are computed from; with its parent and inherited list, the fields of its « quand »
+ * and its condition it inherits are those of the routine it goes by (`occurrenceTiming`).
+ */
 export type RoutineTiming = Pick<Routine, 'startDate' | 'recurrence' | 'cases' | 'moves' | 'fromTime' | 'dueTime' | 'scheduleIds' | 'excludedScheduleIds' | 'moments' | 'slotCondition'> &
-  Partial<Pick<Routine, 'opensOn' | 'archivedAt' | 'id'>>;
+  Partial<Pick<Routine, 'opensOn' | 'archivedAt' | 'id' | 'parentId' | 'inheritedFields'>>;
 
 /** Calendar schedules of the workspace, for the routines following them or done out of them. */
 export interface ScheduleContext {
@@ -99,6 +113,11 @@ export interface ScheduleContext {
    * leaves any moment to is still there. Optional. Default = none.
    */
   checked?: ReadonlySet<string>;
+  /**
+   * Routines of the workspace by id, whose « quand » and condition the sub-routines inheriting them go by. Optional.
+   * Default = each routine computed on its own columns.
+   */
+  routines?: ReadonlyMap<string, StoredInheritingRoutine>;
 }
 
 /** Without schedules: no slot anywhere. */
@@ -111,7 +130,18 @@ const NO_SCHEDULES: ScheduleContext = { slotsOn: () => [] };
  */
 async function loadCheckedOccurrences(): Promise<Set<string>> {
   const checks = await prisma.routineCheck.findMany({
-    where: { routine: { OR: [{ slotCondition: { not: Prisma.DbNull } }, { NOT: { cases: { equals: [] } } }, { scheduleIds: { isEmpty: false } }, { excludedScheduleIds: { isEmpty: false } }] } },
+    where: {
+      routine: {
+        OR: [
+          { slotCondition: { not: Prisma.DbNull } },
+          { NOT: { cases: { equals: [] } } },
+          { scheduleIds: { isEmpty: false } },
+          { excludedScheduleIds: { isEmpty: false } },
+          // Its condition or cases may be its parent's.
+          { inheritedFields: { hasSome: ['SLOT_CONDITION', 'CASES'] } },
+        ],
+      },
+    },
     distinct: ['routineId', 'date'],
     select: { routineId: true, date: true },
   });
@@ -120,14 +150,25 @@ async function loadCheckedOccurrences(): Promise<Set<string>> {
 
 /**
  * Schedules of the current workspace, loaded once, the slots of each day computed when first asked, with the
- * occurrences ticked of the routines following them.
+ * occurrences ticked of the routines following them, and the routines whose « quand » sub-routines inherit.
  * @param {ScheduleChange} [change] The schedules of a workspace (this one or another one of the user) as a change
  * would leave them (to compare the occurrences before and after it). Optional. Default = as they are.
  * @returns {Promise<ScheduleContext>} Context.
  */
 export async function loadScheduleContext(change?: ScheduleChange): Promise<ScheduleContext> {
-  const [slotsOn, checked] = await Promise.all([loadSlotsOn(undefined, change), loadCheckedOccurrences()]);
-  return { memo: new Map(), slotsOn, checked };
+  const [slotsOn, checked, routines] = await Promise.all([loadSlotsOn(undefined, change), loadCheckedOccurrences(), loadRoutineInheritance()]);
+  return { memo: new Map(), slotsOn, checked, routines };
+}
+
+/**
+ * Routine as its occurrences go (`effectiveRoutineTiming`): the fields of its « quand » and its condition it inherits
+ * taken from the routine it goes by, among the routines of the context; itself when it inherits none of them.
+ * @param {T} routine Routine (stored, or as a change would leave it).
+ * @param {ScheduleContext} schedules Schedules, with the routines of the workspace.
+ * @returns {T} Routine.
+ */
+export function occurrenceTiming<T extends RoutineTiming>(routine: T, schedules: ScheduleContext): T {
+  return schedules.routines ? effectiveRoutineTiming(routine, schedules.routines) : routine;
 }
 
 /**
@@ -214,7 +255,7 @@ interface RoutineSpan {
  * @param {unknown} value Stored JSON.
  * @returns {RoutineCase[]} Cases.
  */
-function storedCases(value: unknown): RoutineCase[] {
+export function storedCases(value: unknown): RoutineCase[] {
   const parsed = z.array(routineCaseSchema).safeParse(value);
   return parsed.success ? parsed.data : [];
 }
@@ -319,9 +360,10 @@ function ruleSpans(routine: RoutineTiming, from: string, to: string, schedules: 
  * @param {ScheduleContext} [schedules] Schedules. Optional. Default = none.
  * @returns {{ current: string | null, next: string | null }} Due days.
  */
-export function occurrencesOf(routine: RoutineTiming, today = parisToday(), schedules: ScheduleContext = NO_SCHEDULES): { current: string | null; next: string | null } {
+export function occurrencesOf(given: RoutineTiming, today = parisToday(), schedules: ScheduleContext = NO_SCHEDULES): { current: string | null; next: string | null } {
   // An archived routine has nothing due: nothing computed.
-  if (routine.archivedAt) return { current: null, next: null };
+  if (given.archivedAt) return { current: null, next: null };
+  const routine = occurrenceTiming(given, schedules);
   return remember(routine, schedules, `occurrences|${today}`, () => {
     const start = formatDay(routine.startDate);
     /**
@@ -349,21 +391,22 @@ export function occurrencesOf(routine: RoutineTiming, today = parisToday(), sche
  * Occurrences of a routine overlapping a period (both days included), by due day: those of its rule, cases or
  * schedules, without those moved away or cancelled (unless asked: then flagged), with those moved in (a day long). An
  * archived routine keeps those started (opened) before the day it was archived, even due after it; none starting on
- * or after it (decision D21).
+ * or after it.
  * @param {RoutineTiming} routine Routine.
  * @param {string} from First day.
  * @param {string} to Last day.
  * @param {ScheduleContext} [schedules] Schedules. Optional. Default = none.
- * @param {boolean} [withCancelled] The occurrences cancelled are kept, flagged (shown struck through, decision D23). Optional. Default = left out.
+ * @param {boolean} [withCancelled] The occurrences cancelled are kept, flagged (shown struck through). Optional. Default = left out.
  * @returns {(RoutineSpan & { cancelled?: boolean })[]} Occurrences, by due day.
  */
 export function occurrenceSpansBetween(
-  routine: RoutineTiming,
+  given: RoutineTiming,
   from: string,
   to: string,
   schedules: ScheduleContext = NO_SCHEDULES,
   withCancelled = false,
 ): (RoutineSpan & { cancelled?: boolean })[] {
+  const routine = occurrenceTiming(given, schedules);
   const archived = archivedOn(routine);
   const last = archived && archived <= to ? addDays(archived, -1) : to;
   if (last < from) return [];
@@ -404,7 +447,8 @@ export const shownDay = (span: RoutineSpan, today: string) => (span.end < today 
  * @param {ScheduleContext} [schedules] Schedules. Optional. Default = none.
  * @returns {string | null} Day, null without any.
  */
-export function firstOccurrence(routine: RoutineTiming, schedules: ScheduleContext = NO_SCHEDULES): string | null {
+export function firstOccurrence(given: RoutineTiming, schedules: ScheduleContext = NO_SCHEDULES): string | null {
+  const routine = occurrenceTiming(given, schedules);
   return remember(routine, schedules, 'first', () => firstOccurrenceOf(routine, schedules));
 }
 
@@ -434,7 +478,8 @@ function firstOccurrenceOf(routine: RoutineTiming, schedules: ScheduleContext): 
  * @param {ScheduleContext} [schedules] Schedules. Optional. Default = none.
  * @returns {string | null} Day, null without any.
  */
-export function lastOccurrenceBefore(routine: RoutineTiming, day: string, schedules: ScheduleContext = NO_SCHEDULES): string | null {
+export function lastOccurrenceBefore(given: RoutineTiming, day: string, schedules: ScheduleContext = NO_SCHEDULES): string | null {
+  const routine = occurrenceTiming(given, schedules);
   const start = formatDay(routine.startDate);
   let to = day;
   for (let year = 0; year < 10 && to >= start; year += 1) {
@@ -475,12 +520,13 @@ function ruleSlotsOn(routine: RoutineTiming, due: string, schedules: ScheduleCon
  * @param {ScheduleContext} [schedules] Schedules. Optional. Default = none.
  * @returns {RoutineDaySlot[]} Times (none: not on that day).
  */
-export function slotsOf(routine: RoutineTiming, occurrence: string | null, schedules: ScheduleContext = NO_SCHEDULES): RoutineDaySlot[] {
+export function slotsOf(given: RoutineTiming, occurrence: string | null, schedules: ScheduleContext = NO_SCHEDULES): RoutineDaySlot[] {
   if (!occurrence) return [];
+  const routine = occurrenceTiming(given, schedules);
   return remember(routine, schedules, `slots|${occurrence}`, () => slotsOn(routine, occurrence, schedules));
 }
 
-/** Occurrence of a routine its reminders ring for (decision D16). */
+/** Occurrence of a routine its reminders ring for. */
 export interface RoutineReminderOccurrence {
   /** Due day of the occurrence. */
   date: string;
@@ -488,7 +534,7 @@ export interface RoutineReminderOccurrence {
   day: string;
   /**
    * Its times of the day not ticked, with their hours (« dès », « jusqu'à »): the shared `routineSlotAnchors` gives the
-   * moments their reminders « N min avant » count from (decision FV).
+   * moments their reminders « N min avant » count from.
    */
   slots: RemindedRoutineSlot[];
 }
@@ -496,7 +542,7 @@ export interface RoutineReminderOccurrence {
 /**
  * Occurrences the reminders of a routine ring for: its current one while not done and its next one (a reminder up to 24
  * hours before may ring before it opens), each with its first day (« Ouverture ») and its times of the day not ticked,
- * with their hours (a time without any hour too: from 00:00 to midnight, decision FV).
+ * with their hours (a time without any hour too: from 00:00 to midnight).
  * With reminders « N jours avant » (`ahead` days at most), also the later occurrences that open within those days.
  * An archived routine has none (no occurrence).
  * @param {RoutineTiming & { checks: { date: Date, slot: number }[] }} routine Routine with its latest checks.
@@ -605,7 +651,7 @@ export interface RoutineSaveOptions {
    */
   movedWith?: readonly string[];
   /**
-   * Occurrences its new rule makes disappear, with comments, confirmed (decision EW, `settleLostOccurrences`): false
+   * Occurrences its new rule makes disappear, with comments, confirmed (`settleLostOccurrences`): false
    * refuses while some would be lost, true deletes those comments. Optional. Default = not checked (internal changes).
    */
   confirmLoss?: boolean;
@@ -616,7 +662,37 @@ export interface RoutineSaveOptions {
   copyOf?: string | null;
 }
 
-/** Refusal of a reminder « avant » of a routine without any hour (decision FW). */
+/** Id given to a routine not created yet, to compute what it inherits. */
+const UNSAVED_ID = 'unsaved';
+
+/**
+ * Timing of a routine as an input gives it (`timingOf`): its parent and inherited list those of the input.
+ * @param {ReturnType<typeof routineSchema.parse>} data Routine (validated input).
+ * @param {string} [id] Routine edited. Optional. Default = a routine not created yet.
+ * @returns {RoutineTiming & { id: string }} Timing.
+ */
+function timingFromInput(data: ReturnType<typeof routineSchema.parse>, id?: string): RoutineTiming & { id: string } {
+  return { ...timingOf({ moves: [] } as unknown as Routine, data), id: id ?? UNSAVED_ID };
+}
+
+/**
+ * Conditions on calendar schedules of a routine: that of its rule and those of its cases.
+ * @param {Pick<RoutineTiming, 'slotCondition' | 'scheduleIds' | 'excludedScheduleIds' | 'cases'>} routine Routine.
+ * @returns {(SlotCondition | null)[]} Conditions.
+ */
+const conditionsOf = (routine: Pick<RoutineTiming, 'slotCondition' | 'scheduleIds' | 'excludedScheduleIds' | 'cases'>) => [
+  storedCondition(routine),
+  ...storedCases(routine.cases).map((item) => item.condition),
+];
+
+/**
+ * Whether the « Ouverture » of the rule of a routine does not fit the repetition it has (`opensMisfits`).
+ * @param {RoutineTiming} routine Routine.
+ * @returns {boolean} It does not fit.
+ */
+const opensMisfitOf = (routine: RoutineTiming) => opensMisfits({ opensOn: readOpens(routine.opensOn), cases: storedCases(routine.cases), recurrence: storedRule(routine) });
+
+/** Refusal of a reminder « avant » of a routine without any hour. */
 const HOURLESS_REMINDERS = 'Sans heure « dès » ni « jusqu’à » (ni créneau), une routine n’a que des rappels à une heure : le jour J ou quelques jours avant.';
 
 /**
@@ -636,7 +712,6 @@ async function parseRoutine(input: RoutineInput, id?: string, { restoring = fals
   data.categoryIds = [...new Set(data.categoryIds)];
   data.requiredIds = [...new Set(data.requiredIds)];
   data.relatedIds = [...new Set(data.relatedIds)];
-  if (data.recurrence.until && data.recurrence.until < data.startDate) throw fieldError('recurrence', 'La fin de la répétition doit suivre la date de début.');
   await assertAllExist(prisma.routineCategory, data.categoryIds, 'Catégorie', { field: 'categoryIds' });
   // The former schedules (sent by former clients) become its condition; its cases have theirs.
   if (!data.slotCondition) data.slotCondition = storedCondition({ slotCondition: null, scheduleIds: data.scheduleIds, excludedScheduleIds: data.excludedScheduleIds });
@@ -657,17 +732,44 @@ async function parseRoutine(input: RoutineInput, id?: string, { restoring = fals
           beneficiaryRelations: { select: { id: true } },
           requires: { select: { requiredId: true } },
           reminders: true,
+          inheritedFields: true,
           ...RELATIONS,
         },
       })
     : null;
+  // Fields it inherits: those given, else those it had; none without parent. Its project inherited is
+  // stored too: that of its parent.
+  // A copy under the same parent inherits what its routine inherits (every field copied).
+  const copied = copyOf && !data.inheritedFields ? await prisma.routine.findUnique({ where: { id: copyOf }, select: { parentId: true, inheritedFields: true } }) : null;
+  const kept = current?.parentId ? current.inheritedFields : copied && copied.parentId === data.parentId ? copied.inheritedFields : [];
+  const inheritedFields = data.parentId ? (data.inheritedFields ?? (kept as RoutineInheritableField[])) : [];
+  data.inheritedFields = inheritedFields;
+  const inherits = (field: RoutineInheritableField) => inheritedFields.includes(field);
+  if (data.parentId && inherits('PROJECT')) data.projectId = (await orNotFound(prisma.routine.findUnique({ where: { id: data.parentId }, select: { projectId: true } }), 'Routine parente', 'parentId')).projectId;
+  // Its « quand » and its condition checked as they go: those it inherits are those of the routine it goes by, before
+  // the change as after it.
+  const routines =
+    inheritsTiming({ id: id ?? UNSAVED_ID, parentId: data.parentId, inheritedFields }) || (id && current && inheritsTiming({ id, ...current })) ? await loadRoutineInheritance() : null;
+  const next = routines ? effectiveRoutineTiming(timingFromInput(data, id), routines) : timingFromInput(data, id);
+  const stored = id ? routines?.get(id) : undefined;
+  const wasTiming = stored && routines ? effectiveRoutineTiming(stored, routines) : null;
+  const was = wasTiming ?? current;
+  const rule = storedRule(next);
+  if (rule?.until && rule.until < formatDay(next.startDate)) throw fieldError('recurrence', 'La fin de la répétition doit suivre la date de début.');
+  // Its own « Ouverture » fits the repetition it goes by (an inherited one, its parent's, is checked there); one that no
+  // longer fits after a change of its parent stays.
+  if (routines && !inherits('OPENS_ON') && opensMisfitOf(next) && !(wasTiming && opensMisfitOf(wasTiming))) throw fieldError('opensOn', OPENS_MISFIT);
   // Undo: everything counts as kept.
   const keptCategoryIds = restoring ? data.categoryIds : (current?.categories.map((category) => category.id) ?? []);
   await assertNoneArchived('routineCategory', data.categoryIds, { keep: keptCategoryIds, field: 'categoryIds' });
-  await assertConditionSchedules(
-    [data.slotCondition, ...data.cases.map((item) => item.condition)],
-    restoring || (current ? [storedCondition(current), ...storedCases(current.cases).map((item) => item.condition)] : []),
-  );
+  // Only the conditions it sets itself: one it inherits is its parent's, already checked there (restoring the inheritance
+  // of a condition that cites an archived créneau chooses nothing).
+  const ownConditions = conditionsOf({
+    ...next,
+    ...(inherits('SLOT_CONDITION') && { slotCondition: null, scheduleIds: [], excludedScheduleIds: [] }),
+    ...(inherits('CASES') && { cases: [] }),
+  });
+  await assertConditionSchedules(ownConditions, restoring || (was ? conditionsOf(was) : []));
   // A window alone (former clients, imports): its single moment.
   if (!data.moments.length && !data.cases.length && (data.fromTime || data.dueTime)) data.moments = [{ fromTime: data.fromTime, dueTime: data.dueTime, optional: false }];
   // With cases, their days, times and conditions; else its rule, moments and condition. The former fields are dropped.
@@ -694,7 +796,8 @@ async function parseRoutine(input: RoutineInput, id?: string, { restoring = fals
   await assertNoneArchived('routine', data.relatedIds, { keep: keptRelatedIds, field: 'relatedIds' });
   // Of a project: its contributors only (those already assigned stay).
   const assigned = current?.assignees.map((assignee) => assignee.id) ?? [];
-  await assertProjectContributors(data.projectId ?? null, data.assigneeIds, assigned, 'assigneeIds', restoring);
+  // Inherited, they are its parent's (its own, unused, are not checked).
+  if (!inherits('ASSIGNEES')) await assertProjectContributors(data.projectId ?? null, data.assigneeIds, assigned, 'assigneeIds', restoring);
 
   const all = await prisma.routine.findMany({ select: { id: true, parentId: true, projectId: true, requires: { select: { requiredId: true } } } });
   const known = new Set(all.map((routine) => routine.id));
@@ -719,8 +822,8 @@ async function parseRoutine(input: RoutineInput, id?: string, { restoring = fals
   const outside = (other: string) => outsideSet.has(other);
   // A copy leaves out the former links of its routine out of its tree, as a routine moved loses its own.
   const source = copyOf ? await inputOf(copyOf) : null;
-  // Without any hour, no reminder « avant » (decision FW): those it already had (or its copy) stay stored, never rung.
-  if (!restoring && !routineHasHours(data)) {
+  // Without any hour, no reminder « avant »: those it already had (or its copy) stay stored, never rung.
+  if (!restoring && !routineHasHours({ moments: storedMoments(next), slotCondition: storedCondition(next), cases: storedCases(next.cases) })) {
     const kept = new Set(readReminders(current?.reminders ?? source?.reminders ?? []).map(reminderKey));
     if (data.reminders.some((reminder) => reminderKindOf(reminder) === 'before' && !kept.has(reminderKey(reminder)))) throw fieldError('reminders', HOURLESS_REMINDERS);
   }
@@ -780,6 +883,7 @@ const scalars = (data: ReturnType<typeof routineSchema.parse>) => ({
   travelBefore: data.travelBefore,
   travelAfter: data.travelAfter,
   projectId: data.projectId,
+  inheritedFields: data.inheritedFields ?? [],
 });
 
 /**
@@ -790,6 +894,18 @@ const scalars = (data: ReturnType<typeof routineSchema.parse>) => ({
  * @returns {Promise<Routine>} Routine.
  */
 export async function createRoutine(input: RoutineInput, copyOf: string | null = null): Promise<Routine> {
+  // An archived routine is read only: restored first, then copied.
+  await assertNotArchived('routine', copyOf);
+  return insertRoutine(input, copyOf);
+}
+
+/**
+ * Saves a new routine, at the end of the list (a copy of a sub-routine archived alone included).
+ * @param {RoutineInput} input Routine.
+ * @param {string | null} copyOf Routine it is a copy of, or null.
+ * @returns {Promise<Routine>} Routine.
+ */
+async function insertRoutine(input: RoutineInput, copyOf: string | null): Promise<Routine> {
   const data = await parseRoutine(input, undefined, { copyOf });
   const position = await nextPositionIn('routine');
   return prisma.$transaction(async (tx) => {
@@ -826,7 +942,7 @@ export async function copySubRoutines(fromId: string, toId: string): Promise<num
     const children = await prisma.routine.findMany({ where: { parentId: source }, orderBy: BY_POSITION, select: { id: true } });
     for (const child of children) {
       // Former links out of the project tree of a routine (kept until it moves) are not copied: the copy obeys the rule.
-      const copy = await createRoutine({ ...(await inputOf(child.id)), parentId: copies.get(source)! }, child.id);
+      const copy = await insertRoutine({ ...(await inputOf(child.id)), parentId: copies.get(source)! }, child.id);
       copies.set(child.id, copy.id);
       queue.push(child.id);
     }
@@ -859,14 +975,26 @@ function findRoutine(id: string): Promise<Routine> {
  * @param {RoutineSaveOptions} [options] Undo (archived values given back accepted), routines moved along. Optional.
  * @returns {Promise<number>} Links removed because they left its project tree.
  */
-export async function updateRoutine(id: string, input: RoutineInput, options: Omit<RoutineSaveOptions, 'copyOf'> = {}): Promise<number> {
-  const current = await findRoutine(id);
-  refuseArchived(current);
+export async function updateRoutine(id: string, given: RoutineInput, options: Omit<RoutineSaveOptions, 'copyOf'> = {}): Promise<number> {
+  const found = await findRoutine(id);
+  refuseArchived(found);
+  // Made top-level: what it inherited becomes its own, whatever the input holds for those fields.
+  const unparented = found.parentId !== null && !given.parentId;
+  // Placed under a parent after the fact: its empty fields inherit, as at its creation.
+  const adopted = found.parentId === null && given.parentId ? emptyRoutineFields(given as unknown as InheritingRoutine) : [];
+  const input = unparented
+    ? { ...given, ...(await inheritedInputOf(id)), inheritedFields: [] }
+    : adopted.length
+      ? { ...given, inheritedFields: ROUTINE_INHERITABLE_FIELDS.filter((field) => adopted.includes(field) || new Set(given.inheritedFields ?? []).has(field)) }
+      : given;
+  if (unparented) await freezeRoutineInheritance([id]);
+  const current = unparented ? await findRoutine(id) : found;
   const data = await parseRoutine(input, id, options);
+  // Its occurrences and those of the sub-routines going by its « quand »: asked once for them all.
   if (options.confirmLoss !== undefined) {
-    const lost = await lostRoutineOccurrences(current, timingOf(current, data));
-    assertLossConfirmed([lost], options.confirmLoss);
-    await lost.settle();
+    const { losses } = await occurrenceChange([timingOf(current, data)]);
+    assertLossConfirmed(losses, options.confirmLoss);
+    for (const lost of losses) await lost.settle();
   }
   const outside = await outsideTree(id, current.projectId, data.projectId ?? null, options.movedWith);
   const waiting = await prisma.$transaction(async (tx) => {
@@ -879,6 +1007,8 @@ export async function updateRoutine(id: string, input: RoutineInput, options: Om
       where: { id },
       data: {
         ...scalars(data),
+        // Exceptions given (an undo, « Vider »): saved; omitted, kept.
+        ...(data.moves && { moves: toJson(data.moves) }),
         assignees: { set: connectIds(data.assigneeIds) },
         beneficiaries: { set: connectIds(data.beneficiaryIds) },
         beneficiaryRelations: { set: connectIds(data.beneficiaryRelationIds) },
@@ -887,22 +1017,43 @@ export async function updateRoutine(id: string, input: RoutineInput, options: Om
     });
     return dropped;
   });
-  // A new project: the assignees follow the routine into it (its sub-routines keep theirs).
-  await followProject(current.projectId, data.projectId ?? null, data.assigneeIds);
-  return data.droppedLinks + waiting;
+  // A new project: the assignees follow the routine into it (its sub-routines keep theirs); inherited, they are its
+  // parent's, attached with it.
+  if (!marksInherited({ parentId: data.parentId, inheritedFields: data.inheritedFields ?? [] }, 'ASSIGNEES')) await followProject(current.projectId, data.projectId ?? null, data.assigneeIds);
+  // Its sub-routines inheriting the project follow it, as it does.
+  const followed = current.projectId !== (data.projectId ?? null) ? await followInheritedProject(id, options.movedWith ?? []) : 0;
+  return data.droppedLinks + waiting + followed;
 }
 
 /**
- * Timing of a routine once saved with new fields (as `parseRoutine` gives them), its exceptions given or kept.
+ * After a routine changed project: its sub-routines inheriting the project get the same treatment as a routine moved
+ * to it: their own assignees attached to it, their links out of its project tree cut (those moved
+ * along keep theirs), theirs in turn; archived ones (read only) just follow (`syncInheritedRoutineProjects`).
+ * @param {string} id Routine whose project changed.
+ * @param {readonly string[]} movedWith Routines moved along with it.
+ * @returns {Promise<number>} Links removed because they left the project tree.
+ */
+async function followInheritedProject(id: string, movedWith: readonly string[]): Promise<number> {
+  const children = await prisma.routine.findMany({ where: { parentId: id, archivedAt: null, inheritedFields: { has: 'PROJECT' } }, orderBy: BY_POSITION, select: { id: true } });
+  const moved = [...new Set([...movedWith, ...(await subtreeIds('routine', id))])];
+  let dropped = 0;
+  for (const child of children) dropped += await updateRoutine(child.id, await inputOf(child.id), { movedWith: moved });
+  await syncInheritedRoutineProjects();
+  return dropped;
+}
+
+/**
+ * Timing of a routine once saved with new fields (as `parseRoutine` gives them), its exceptions given or kept; its
+ * parent and inherited list those of the input when given (the fields it inherits then are its parent's).
  * @param {Routine} current Routine now.
- * @param {Pick<RoutineInput, 'startDate' | 'recurrence' | 'cases' | 'moments' | 'slotCondition' | 'opensOn' | 'fromTime' | 'dueTime'>} input New fields.
- * @param {unknown} [moves] Its exceptions then. Optional. Default = those it has.
+ * @param {Pick<RoutineInput, 'startDate' | 'recurrence' | 'cases' | 'moments' | 'slotCondition' | 'opensOn' | 'fromTime' | 'dueTime' | 'parentId' | 'inheritedFields' | 'moves'>} input New fields.
+ * @param {unknown} [moves] Its exceptions then. Optional. Default = those of the input, else those it has.
  * @returns {Routine} Routine as it will be (to compute its occurrences).
  */
 function timingOf(
   current: Routine,
-  input: Pick<RoutineInput, 'startDate' | 'recurrence' | 'cases' | 'moments' | 'slotCondition' | 'opensOn' | 'fromTime' | 'dueTime'>,
-  moves: unknown = current.moves,
+  input: Pick<RoutineInput, 'startDate' | 'recurrence' | 'cases' | 'moments' | 'slotCondition' | 'opensOn' | 'fromTime' | 'dueTime' | 'parentId' | 'inheritedFields' | 'moves'>,
+  moves: unknown = input.moves ?? current.moves,
 ): Routine {
   const json = (value: unknown) => value as Routine['cases'];
   const cases = input.cases ?? [];
@@ -920,30 +1071,63 @@ function timingOf(
     scheduleIds: [],
     excludedScheduleIds: [],
     moves: json(moves),
+    parentId: input.parentId === undefined ? current.parentId : input.parentId,
+    inheritedFields: input.inheritedFields ?? current.inheritedFields,
   };
 }
 
+/** What a change of the « quand » of routines does to their occurrences and to those of the sub-routines going by it. */
+interface OccurrenceChange {
+  /** Comments of the occurrences that disappear, routine by routine (asked once for all: `assertLossConfirmed`). */
+  losses: LostOccurrences[];
+  /** Moves the comments of the occurrence moved by the change, on the sub-routines it moves too. */
+  follow: () => Promise<void>;
+}
+
 /**
- * What a change of the rule of a routine takes (decision EW): the comments of its occurrences that disappear with it
- * (an occurrence now that the new rule does not have); a routine's times are not on its occurrences.
- * @param {Routine} current Routine now.
- * @param {Routine} next Routine once changed (`timingOf`).
- * @param {string} [follows] Occurrence moved by the change, whose comments follow it (not lost). Optional.
- * @returns {Promise<LostOccurrences>} Comments lost, and their deletion.
+ * What a change of the rule of routines takes: the comments of their occurrences that disappear with it (an
+ * occurrence now that the new rule does not have), and of those of every sub-routine going by their « quand » or
+ * condition (inherited, up the chain), whose occurrences change with them; a routine's times are not on its
+ * occurrences. An occurrence moved by the change keeps its comments: on the routines changed, and on the sub-routines
+ * it moves along (`follow`).
+ * @param {readonly Routine[]} nexts Routines once changed (`timingOf`).
+ * @param {{ from: string, to: string | null }} [moved] Occurrence moved by the change (its day now, its new day). Optional.
+ * @returns {Promise<OccurrenceChange>} Comments lost, their deletion, the comments following the occurrence moved.
  */
-async function lostRoutineOccurrences(current: Routine, next: Routine, follows?: string): Promise<LostOccurrences> {
-  const schedules = await loadScheduleContext();
-  const before = { ...current, archivedAt: null };
-  const on = (routine: Routine, day: string) => occurrencesBetween(routine, day, day, schedules).includes(day);
-  return lostOccurrences('routineId', current.id, (day) => day !== follows && on(before, day) && !on(next, day));
+async function occurrenceChange(nexts: readonly Routine[], moved?: { from: string; to: string | null }): Promise<OccurrenceChange> {
+  const before = await loadScheduleContext();
+  const stored = before.routines!;
+  const changed = new Map(nexts.map((next) => [next.id, next]));
+  const afterRoutines = new Map(stored);
+  for (const next of nexts) afterRoutines.set(next.id, { ...stored.get(next.id)!, ...next });
+  const after: ScheduleContext = { ...before, memo: new Map(), routines: afterRoutines };
+  const ids = [...new Set([...timingHeirs([...changed.keys()], stored), ...timingHeirs([...changed.keys()], afterRoutines)])].filter((id) => stored.has(id));
+  const on = (routine: Routine, schedules: ScheduleContext, day: string) => occurrencesBetween(routine, day, day, schedules).includes(day);
+  const following: string[] = [];
+  const losses = await Promise.all(
+    ids.map((id) => {
+      // A routine changed is computed as active (its occurrences after an undo of its archiving); a sub-routine as it is.
+      const now = changed.has(id) ? { ...stored.get(id)!, archivedAt: null } : stored.get(id)!;
+      const then = changed.get(id) ?? afterRoutines.get(id)!;
+      const follows = moved !== undefined && (changed.has(id) || (on(now, before, moved.from) && moved.to !== null && on(then, after, moved.to) && !on(then, after, moved.from)));
+      if (follows && !changed.has(id)) following.push(id);
+      return lostOccurrences('routineId', id, (day) => !(follows && day === moved!.from) && on(now, before, day) && !on(then, after, day));
+    }),
+  );
+  return {
+    losses,
+    follow: async () => {
+      if (moved) for (const id of following) await followOccurrence(id, moved.from, moved.to);
+    },
+  };
 }
 
 /**
  * Before a change of the calendar schedules of the workspace (one created, changed, archived, restored or deleted, a
  * kind archived or restored) or of its people (a birthday changed, moved or gone: birth date, archiving, link of a
- * relation to a contributor, creation, deletion; decision FQ), the occurrences of the routines that it makes disappear
+ * relation to a contributor, creation, deletion), the occurrences of the routines that it makes disappear
  * (their condition no longer leaves them any moment; those ticked stay) lose their comments, as with a change of their
- * rule (decision EW, lot 12). Without `confirmLoss: true` while some would be lost, nothing changes
+ * rule. Without `confirmLoss: true` while some would be lost, nothing changes
  * (CONFIRMATION_REQUIRED, asked once for all the routines); confirmed, those comments are deleted. Only the routines of
  * the workspace are looked at (not archived, with a condition or cases), and, for a change of schedules, those of the
  * other workspaces naming them.
@@ -974,7 +1158,7 @@ export async function settleScheduleChange(edit: ScheduleEdit, confirmLoss?: boo
 }
 
 /**
- * Settling of a change of the people (`settleScheduleChange`, decision FQ): the mutations of contributors and relations
+ * Settling of a change of the people (`settleScheduleChange`): the mutations of contributors and relations
  * give it to their services.
  * @param {boolean | null} [confirmLoss] Loss confirmed. Optional. Default = to confirm.
  * @returns {PeopleChangeSettler} Settler.
@@ -992,13 +1176,17 @@ export const peopleSettler =
  * @returns {Promise<LostOccurrences[]>} Losses, by routine.
  */
 async function routinesLosing(change: ScheduleChange, concerned: (condition: SlotCondition) => boolean): Promise<LostOccurrences[]> {
-  const conditionsOf = (routine: Routine) => (storedCases(routine.cases).length ? storedCases(routine.cases).map((item) => item.condition) : [storedCondition(routine)]);
+  const [before, after] = await Promise.all([loadScheduleContext(), loadScheduleContext(change)]);
+  // Its conditions as it goes: those of its parent when it inherits them.
+  const conditionsOf = (stored: Routine) => {
+    const routine = occurrenceTiming(stored, before);
+    return storedCases(routine.cases).length ? storedCases(routine.cases).map((item) => item.condition) : [storedCondition(routine)];
+  };
   const following = (await prisma.routine.findMany({ where: { archivedAt: null } })).filter((routine) =>
     conditionsOf(routine).some((condition): condition is SlotCondition => constrains(condition) && concerned(condition!)),
   );
   if (!following.length) return [];
   await placeLegacyRoutineComments(following.map((routine) => routine.id));
-  const [before, after] = await Promise.all([loadScheduleContext(), loadScheduleContext(change)]);
   const on = (routine: Routine, schedules: ScheduleContext, day: string) => occurrencesBetween(routine, day, day, schedules).includes(day);
   return Promise.all(following.map((routine) => lostOccurrences('routineId', routine.id, (day) => on(routine, before, day) && !on(routine, after, day))));
 }
@@ -1073,16 +1261,45 @@ async function inputOf(id: string): Promise<RoutineInput> {
     beneficiaryRelationIds: routine.beneficiaryRelations.map((relation) => relation.id),
     requiredIds: routine.requires.map((dependency) => dependency.requiredId),
     relatedIds: relatedOf(routine),
+    inheritedFields: routine.inheritedFields as RoutineInheritableField[],
   };
 }
 
 /**
- * First time of the day of a routine following its rule (its window, for inline edits).
+ * Values a routine goes by for the fields it inherits, as its input holds them: those of the routine
+ * it takes each from, up the chain.
+ * @param {string} id Routine id.
+ * @returns {Promise<Partial<RoutineInput>>} Input values of its inherited fields.
+ */
+async function inheritedInputOf(id: string): Promise<Partial<RoutineInput>> {
+  const effective = effectiveRoutineOf(await loadRoutineInheritance(), id);
+  if (!effective) return {};
+  const routine: StoredInheritingRoutine = effective.routine;
+  const has = (field: RoutineInheritableField) => marksInherited(routine, field);
+  return {
+    ...(has('PROJECT') && { projectId: routine.projectId }),
+    ...(has('ASSIGNEES') && { assigneeIds: routine.assigneeIds }),
+    ...(has('BENEFICIARIES') && { beneficiaryIds: routine.beneficiaryIds, beneficiaryRelationIds: routine.beneficiaryRelationIds }),
+    ...(has('CATEGORIES') && { categoryIds: routine.categoryIds }),
+    ...(has('SLOT_CONDITION') && { slotCondition: storedCondition(routine) }),
+    ...(has('OPENS_ON') && { opensOn: readOpens(routine.opensOn) }),
+    ...(has('LOCATION') && { location: routine.location, locationLat: routine.locationLat, locationLon: routine.locationLon }),
+    ...(has('START_DATE') && { startDate: formatDay(routine.startDate) }),
+    ...(has('RECURRENCE') && { recurrence: storedRule(routine) ?? (routine.recurrence as RoutineInput['recurrence']) }),
+    ...(has('CASES') && { cases: storedCases(routine.cases) }),
+    ...(has('MOMENTS') && { moments: storedMoments(routine), fromTime: routine.fromTime, dueTime: routine.dueTime }),
+    ...(has('MOVES') && { moves: storedMoves(routine.moves) }),
+  };
+}
+
+/**
+ * First time of the day of a routine following its rule, as it goes (its parent's when it inherits its moments: its
+ * window, for inline edits).
  * @param {string} id Routine id.
  * @returns {Promise<RoutineSlot>} Moment.
  */
 export async function momentOf(id: string): Promise<RoutineSlot> {
-  const routine = await findRoutine(id);
+  const routine = effectiveRoutineOf(await loadRoutineInheritance(), id)?.routine ?? (await findRoutine(id));
   return storedMoments(routine)[0] ?? { fromTime: null, dueTime: null, optional: false };
 }
 
@@ -1093,8 +1310,19 @@ export async function momentOf(id: string): Promise<RoutineSlot> {
  * @param {Pick<RoutineSaveOptions, 'confirmLoss'>} [options] Occurrences made to disappear confirmed. Optional.
  * @returns {Promise<number>} Links removed because they left its project tree.
  */
-export async function patchRoutine(id: string, changes: Partial<RoutineInput>, options: Pick<RoutineSaveOptions, 'confirmLoss'> = {}): Promise<number> {
-  return updateRoutine(id, { ...(await inputOf(id)), ...changes }, options);
+export async function patchRoutine(id: string, changes: Partial<RoutineInput>, options: Pick<RoutineSaveOptions, 'confirmLoss'> & RoutineInheritanceChange = {}): Promise<number> {
+  const current = await inputOf(id);
+  // A repetition of its own: it no longer follows cases (its own ones may be former values while it inherited them).
+  const patched = { ...current, ...(changes.recurrence !== undefined && changes.cases === undefined && { cases: [] }), ...changes, ...clearedRoutineInput(options.clear) };
+  // A field given a value or emptied is its own; those set to inherit again are inherited.
+  const inheritedFields = changedRoutineInheritance(current.inheritedFields ?? [], { inherit: options.inherit, clear: options.clear, input: changes, hasParent: Boolean(patched.parentId) });
+  return updateRoutine(id, { ...patched, inheritedFields }, options);
+}
+
+/** Fields of routines made inherited again (« Rétablir l'héritage ») or emptied on purpose (« Vider »). */
+export interface RoutineInheritanceChange {
+  inherit?: RoutineInheritableField[] | null;
+  clear?: RoutineInheritableField[] | null;
 }
 
 /** Same changes for several routines, their repetition as GraphQL gives it (JSON, checked by the routine schema). */
@@ -1111,13 +1339,16 @@ export type RoutineBulkChanges = Omit<SharedBulkChanges, 'recurrence' | 'cases' 
 export async function bulkUpdateRoutines(ids: string[], changes: RoutineBulkChanges, confirmLoss?: boolean): Promise<number> {
   // Archived ones are read only: nothing changed when the selection has one.
   await assertNoneArchived('routine', ids);
+  const inheritance = await loadRoutineInheritance();
   const inputs = await Promise.all(
     [...new Set(ids)].map(async (id) => {
       const current = await inputOf(id);
+      // Lists inherited: added to and removed from those it goes by, now its own.
+      const goesBy = effectiveRoutineOf(inheritance, id)?.routine;
       const input: RoutineInput = {
         ...current,
-        categoryIds: changedList(current.categoryIds, changes.addCategoryIds, changes.removeCategoryIds),
-        assigneeIds: changedList(current.assigneeIds, changes.addAssigneeIds, changes.removeAssigneeIds),
+        categoryIds: changedList(goesBy?.categoryIds ?? current.categoryIds, changes.addCategoryIds, changes.removeCategoryIds),
+        assigneeIds: changedList(goesBy?.assigneeIds ?? current.assigneeIds, changes.addAssigneeIds, changes.removeAssigneeIds),
         // A routine never depends on itself, even when the selection does.
         requiredIds: changedList(current.requiredIds, changes.addRequiredIds, changes.removeRequiredIds).filter((requiredId) => requiredId !== id),
         // Nor is it related to itself.
@@ -1144,21 +1375,23 @@ export async function bulkUpdateRoutines(ids: string[], changes: RoutineBulkChan
         ...(changes.moments !== undefined && { moments: changes.moments as RoutineInput['moments'] }),
         ...(changes.slotCondition !== undefined && { slotCondition: changes.slotCondition as RoutineInput['slotCondition'] }),
         ...(changes.opensOn !== undefined && { opensOn: changes.opensOn as RoutineInput['opensOn'] }),
+        ...clearedRoutineInput(changes.clearFields),
+        inheritedFields: changedRoutineInheritance(current.inheritedFields ?? [], { inherit: changes.inheritFields, clear: changes.clearFields, input: changes, hasParent: Boolean(current.parentId) }),
       };
       return { id, input };
     }),
   );
   // A new project for all: they move together, the links between them stay (as a transfer of tasks).
   const movedWith = changes.projectId !== undefined ? inputs.map(({ id }) => id) : [];
-  const losses: LostOccurrences[] = [];
+  const nexts: Routine[] = [];
   for (const { id, input } of inputs) {
     const data = await parseRoutine(input, id, { movedWith });
     if (confirmLoss === undefined) continue;
     const current = await findRoutine(id);
-    losses.push(await lostRoutineOccurrences(current, timingOf(current, data)));
+    nexts.push(timingOf(current, data));
   }
-  // Asked once for the whole selection, before any is saved.
-  assertLossConfirmed(losses, confirmLoss);
+  // Asked once for the whole selection and the sub-routines going by them, before any is saved.
+  if (nexts.length) assertLossConfirmed((await occurrenceChange(nexts)).losses, confirmLoss);
   let removed = 0;
   for (const { id, input } of inputs) removed += await updateRoutine(id, input, { movedWith, ...(confirmLoss !== undefined && { confirmLoss: true }) });
   return removed;
@@ -1185,15 +1418,19 @@ export async function bulkSetRoutinesArchived(ids: string[], archived: boolean):
 /**
  * Deletes routines: each with its sub-routines, or alone (its sub-routines then go one level up). Their ticks,
  * dependencies, relations, sheets and checklists go with them; their tracked time stays (without them), but the times
- * they leave with nothing attached (no project, task, other routine or event; not billed) are deleted with them (extra
- * A of decision D17). Ids missing are skipped.
+ * they leave with nothing attached (no project, task, other routine or event; not billed) are deleted with them.
+ * Ids missing are skipped.
  * @param {string[]} ids Routine ids.
  * @param {boolean} deleteSubRoutines Their sub-routines are deleted too (else moved up a level).
  * @returns {Promise<number>} Number of routines given that were deleted.
  */
 export async function bulkDeleteRoutines(ids: string[], deleteSubRoutines: boolean): Promise<number> {
   const count = await prisma.routine.count({ where: { id: { in: [...new Set(ids)] } } });
-  await deleteTreeItems('routine', ids, deleteSubRoutines, (gone) => releaseSubjectTime({ routineIds: gone }));
+  await deleteTreeItems('routine', ids, deleteSubRoutines, async (gone) => {
+    // Sub-routines left by their deleted parent keep, as their own, what they inherited.
+    await freezeRoutineInheritance((await prisma.routine.findMany({ where: { parentId: { in: gone }, id: { notIn: gone } }, select: { id: true } })).map((routine) => routine.id));
+    await releaseSubjectTime({ routineIds: gone });
+  });
   return count;
 }
 
@@ -1205,14 +1442,16 @@ export async function bulkDeleteRoutines(ids: string[], deleteSubRoutines: boole
  * @param {string | null} beforeId Routine to place it before, or null for the end.
  * @param {string | null} [parentId] New parent, null for a top-level routine; undefined keeps the parent. Optional.
  * @param {string[] | null} [categoryIds] New categories. Optional. Default = unchanged.
+ * @param {boolean} [confirmLoss] Occurrences a new parent makes disappear (its « quand » inherited), with comments,
+ * confirmed, as in the panel (`RoutineSaveOptions`): unconfirmed, nothing moves. Optional. Default = false.
  * @returns {Promise<void>}
  */
-export async function moveRoutine(id: string, beforeId: string | null, parentId?: string | null, categoryIds: string[] | null = null): Promise<void> {
+export async function moveRoutine(id: string, beforeId: string | null, parentId?: string | null, categoryIds: string[] | null = null, confirmLoss = false): Promise<void> {
   const routine = await findRoutine(id);
   refuseArchived(routine);
   // The parent is checked (exists, not archived, no loop) by the regular update.
   const reparent = parentId !== undefined && parentId !== routine.parentId;
-  if (reparent || categoryIds) await patchRoutine(id, { ...(reparent && { parentId }), ...(categoryIds && { categoryIds }) });
+  if (reparent || categoryIds) await patchRoutine(id, { ...(reparent && { parentId }), ...(categoryIds && { categoryIds }) }, { confirmLoss });
   await moveBefore('routine', id, beforeId, 'Routine');
 }
 
@@ -1273,17 +1512,20 @@ export async function bulkSetRoutinesDone(ids: string[], done: boolean): Promise
  * @returns {Promise<void>}
  */
 export async function moveRoutineOccurrence(id: string, date: string, to: string, times?: RoutineMoveTimes): Promise<void> {
-  const routine = await findActive(prisma.routine, id, 'Routine');
+  const found = await findActive(prisma.routine, id, 'Routine');
   await placeLegacyRoutineComments([id]);
   if (await prisma.routineCheck.count({ where: { routineId: id, date: parseDay(date) } })) {
     throw clientError('BAD_USER_INPUT', 'Cette occurrence est déjà cochée : décochez-la pour la déplacer.');
   }
+  const schedules = await loadScheduleContext();
+  // Its « quand » as it goes: its exceptions, inherited, are the base of its own from then on.
+  const routine = occurrenceTiming(found, schedules);
   const stored = storedMoves(routine.moves);
   let changed: RoutineMoveTimes | undefined;
   if (times !== undefined) {
     // Only the times that differ from those of its rule are kept.
     const parsed = parseInput(routineMoveTimesSchema, times);
-    const base = ruleSlotsOn(routine, movedFrom(stored, date), await loadScheduleContext());
+    const base = ruleSlotsOn(routine, movedFrom(stored, date), schedules);
     const slots = base.length ? base : [{ fromTime: null, dueTime: null }];
     for (const item of parsed ?? []) if (item) parseInput(routineSlotSchema, { ...item, optional: false });
     changed = slots.map((slot, index) => {
@@ -1295,12 +1537,27 @@ export async function moveRoutineOccurrence(id: string, date: string, to: string
   if (move.to && move.to < formatDay(routine.startDate)) throw fieldError('to', 'La routine n’a pas encore commencé ce jour-là.');
   const moves = withMove(stored, move.from, move.to, changed);
   if (moves.length > MAX_ROUTINE_MOVES) throw clientError('BAD_USER_INPUT', `${MAX_ROUTINE_MOVES} exceptions au plus.`);
-  await prisma.routine.update({ where: { id }, data: { moves } });
-  await followOccurrence(id, date, move.to);
+  await saveMoves(found, moves, { from: date, to: move.to });
 }
 
 /**
- * Places the comments of routines written before they were on occurrences (decision D19) on the occurrence current on
+ * Saves exceptions given on a routine (its own from then on: `withOwnMoves`); the comments of the occurrence moved
+ * follow it, on it and on the sub-routines taking its exceptions (theirs move with it).
+ * @param {Routine} routine Routine (stored).
+ * @param {readonly RoutineMove[]} moves Its exceptions now.
+ * @param {{ from: string, to: string | null }} moved Occurrence moved (its day before, its day now; null: cancelled).
+ * @returns {Promise<void>}
+ */
+async function saveMoves(routine: Routine, moves: readonly RoutineMove[], moved: { from: string; to: string | null }): Promise<void> {
+  const data = withOwnMoves(routine, moves);
+  const { follow } = await occurrenceChange([{ ...routine, ...data, moves: data.moves as Routine['moves'] }], moved);
+  await prisma.routine.update({ where: { id: routine.id }, data });
+  await followOccurrence(routine.id, moved.from, moved.to);
+  await follow();
+}
+
+/**
+ * Places the comments of routines written before they were on occurrences on the occurrence current on
  * the day each was written (Paris time; none: the next one; none either, its repetition ended: the last one; else the
  * first one, else the first day of the routine), and
  * saves them there. Archived routines are computed as if they were not.
@@ -1324,7 +1581,7 @@ export async function placeLegacyRoutineComments(ids: readonly string[]): Promis
 }
 
 /**
- * Comments of an occurrence of a routine moved to another day: they follow it (decision D19).
+ * Comments of an occurrence of a routine moved to another day: they follow it.
  * @param {string} id Routine id.
  * @param {string} date Day it was on.
  * @param {string | null} to Day it is on now (null: none, left).
@@ -1349,13 +1606,17 @@ export interface RoutineOccurrenceDeletion {
  * @returns {Promise<void>}
  */
 export async function removeRoutineMove(id: string, from: string, comments: readonly CommentSnapshot[] = []): Promise<void> {
-  const routine = await orNotFound(prisma.routine.findUnique({ where: { id }, select: { moves: true, archivedAt: true } }), 'Routine');
-  refuseArchived(routine);
+  const found = await findRoutine(id);
+  refuseArchived(found);
   await placeLegacyRoutineComments([id]);
-  const moves = storedMoves(routine.moves);
-  await prisma.routine.update({ where: { id }, data: { moves: moves.filter((move) => move.from !== from) } });
+  // Its exceptions as it goes (its parent's, inherited): those left are its own.
+  const moves = storedMoves(occurrenceTiming(found, await loadScheduleContext()).moves);
   const moved = moves.find((move) => move.from === from)?.to;
-  if (moved) await followOccurrence(id, moved, from);
+  await saveMoves(
+    found,
+    moves.filter((move) => move.from !== from),
+    { from: moved ?? from, to: from },
+  );
   await restoreComments('ROUTINE', id, from, comments);
 }
 
@@ -1423,7 +1684,7 @@ async function changeableOccurrence(id: string, date: string) {
  * @param {string} to New day.
  * @param {number} slot Time of the day changed (index).
  * @param {{ fromTime: string | null, dueTime: string | null }} times Its new times.
- * @param {boolean} [confirmLoss] Other occurrences made to disappear, with comments, confirmed (decision EW). Optional.
+ * @param {boolean} [confirmLoss] Other occurrences made to disappear, with comments, confirmed. Optional.
  * @returns {Promise<void>}
  */
 export async function changeRoutineOccurrence(
@@ -1435,15 +1696,18 @@ export async function changeRoutineOccurrence(
   times: { fromTime: string | null; dueTime: string | null },
   confirmLoss?: boolean,
 ): Promise<void> {
-  const routine = await changeableOccurrence(id, date);
+  const found = await changeableOccurrence(id, date);
   await placeLegacyRoutineComments([id]);
+  const schedules = await loadScheduleContext();
+  // Its « quand » as it goes (its parent's, inherited): what the change starts from, its own from then on.
+  const routine = occurrenceTiming(found, schedules);
   const start = formatDay(routine.startDate);
   const parsedTo = parseInput(daySchema(), to);
   const window = parseInput(routineSlotSchema, { ...times, optional: false });
   if (parsedTo < start) throw fieldError('to', 'La routine n’a pas encore commencé ce jour-là.');
   const moves = storedMoves(routine.moves);
   const origin = movedFrom(moves, date);
-  const base = ruleSlotsOn(routine, origin, await loadScheduleContext());
+  const base = ruleSlotsOn(routine, origin, schedules);
   if (slot < 0 || slot >= Math.max(1, base.length)) throw clientError('BAD_USER_INPUT', 'Moment introuvable ce jour-là.');
   const cases = storedCases(routine.cases);
   const rule = storedRule(routine);
@@ -1457,8 +1721,7 @@ export async function changeRoutineOccurrence(
     });
     const next = withMove(moves, date, parsedTo, changed);
     if (next.length > MAX_ROUTINE_MOVES) throw clientError('BAD_USER_INPUT', `${MAX_ROUTINE_MOVES} exceptions au plus.`);
-    await prisma.routine.update({ where: { id }, data: { moves: next } });
-    await followOccurrence(id, date, parsedTo);
+    await saveMoves(found, next, { from: date, to: parsedTo });
     return;
   }
   const delta = daysBetween(origin, parsedTo);
@@ -1505,23 +1768,26 @@ export async function changeRoutineOccurrence(
     } else {
       const listed = rule.frequency === 'WEEKLY' && rule.weekdays.length > 0;
       const startDate = delta === 0 || listed ? start : addDays(start, delta);
-      changes = { startDate, recurrence: shiftedRule(rule, start, origin, parsedTo, false), moments: changedMoments };
+      changes = { startDate, recurrence: shiftedRule(rule, start, origin, parsedTo, false), moments: changedMoments, cases: [] };
     }
   }
-  // The other occurrences the new rule no longer has lose their comments, once confirmed (the one changed keeps its own).
-  const next = { ...(await inputOf(id)), ...changes };
-  const lost = await lostRoutineOccurrences(routine, timingOf(routine, next, keptMoves), date);
-  assertLossConfirmed([lost], confirmLoss);
-  await lost.settle();
+  // The other occurrences the new rule no longer has lose their comments, once confirmed (the one changed keeps its
+  // own), on it and on the sub-routines going by its « quand ». The fields changed and its exceptions are its own.
+  const current = await inputOf(id);
+  const inheritedFields = changedRoutineInheritance(current.inheritedFields ?? [], { input: changes, hasParent: Boolean(current.parentId) }).filter((field) => field !== 'MOVES');
+  const change = await occurrenceChange([timingOf(found, { ...current, ...changes, inheritedFields }, keptMoves)], { from: date, to: parsedTo });
+  assertLossConfirmed(change.losses, confirmLoss);
+  for (const lost of change.losses) await lost.settle();
   await patchRoutine(id, changes);
-  await prisma.routine.update({ where: { id }, data: { moves: keptMoves } });
-  // The occurrence changed keeps its comments (those of the other occurrences stay on their days).
+  await prisma.routine.update({ where: { id }, data: withOwnMoves({ inheritedFields }, keptMoves) });
+  // The occurrence changed keeps its comments (those of the other occurrences stay on their days), on the sub-routines it moves too.
   await followOccurrence(id, date, parsedTo);
+  await change.follow();
 }
 
 /**
  * Cancels an occurrence of a routine from the calendar: this one alone (an exception: it stays shown, struck through,
- * with its comments; decision D23), or deletes it and the following ones (its repetitions end before it, their
+ * with its comments), or deletes it and the following ones (its repetitions end before it, their
  * comments deleted; archived with its sub-routines when nothing comes before). Ticked occurrences stay in the history.
  * @param {string} id Routine id.
  * @param {string} date Occurrence (its day now).
@@ -1530,16 +1796,18 @@ export async function changeRoutineOccurrence(
  * deleted with this occurrence alone (THIS), for « Annuler ».
  */
 export async function deleteRoutineOccurrence(id: string, date: string, scope: 'THIS' | 'FOLLOWING'): Promise<RoutineOccurrenceDeletion> {
-  const routine = await changeableOccurrence(id, date);
+  const found = await changeableOccurrence(id, date);
+  // Its « quand » as it goes (its parent's, inherited): what the deletion starts from, its own from then on.
+  const routine = occurrenceTiming(found, await loadScheduleContext());
   const moves = storedMoves(routine.moves);
   const next = scope === 'THIS' ? withMove(moves, date, null) : moves;
   if (next.length > MAX_ROUTINE_MOVES) throw clientError('BAD_USER_INPUT', `${MAX_ROUTINE_MOVES} exceptions au plus.`);
-  // Cancelled, it stays shown struck through with its comments (decision D23): « Annuler » removes the exception.
+  // Cancelled, it stays shown struck through with its comments: « Annuler » removes the exception.
   if (scope === 'THIS') {
-    await prisma.routine.update({ where: { id }, data: { moves: next } });
+    await prisma.routine.update({ where: { id }, data: withOwnMoves(found, next) });
     return { archived: false, comments: [] };
   }
-  // The following ones go, with their comments (decision D19), those written before being placed first.
+  // The following ones go, with their comments, those written before being placed first.
   await placeLegacyRoutineComments([id]);
   await deleteGoneComments({ routines: [{ id, from: date }] });
   const start = formatDay(routine.startDate);
@@ -1550,13 +1818,15 @@ export async function deleteRoutineOccurrence(id: string, date: string, scope: '
     .filter((item) => hasBefore(item.recurrence, caseStart(item, start), origin))
     .map((item) => ({ ...item, recurrence: endedBefore(item.recurrence, caseStart(item, start), origin) }));
   const nothingLeft = cases.length ? !kept.length : !rule || !hasBefore(rule, start, origin);
+  const pastMoves = moves.filter((move) => move.from < origin);
   if (nothingLeft) {
-    // Archived as by hand, its sub-routines with it (decision D12); its past occurrences stay, archived (D21).
-    await prisma.routine.update({ where: { id }, data: { moves: moves.filter((move) => move.from < origin) } });
+    // Archived as by hand, its sub-routines with it; its past occurrences stay, archived.
+    await prisma.routine.update({ where: { id }, data: withOwnMoves(found, pastMoves) });
     await archiveTree<Routine>('routine', id, true, 'Routine');
     return { archived: true, comments: [] };
   }
-  await patchRoutine(id, cases.length ? { cases: kept } : { recurrence: endedBefore(rule!, start, origin) });
-  await prisma.routine.update({ where: { id }, data: { moves: moves.filter((move) => move.from < origin) } });
+  // The sub-routines going by its repetition lose those occurrences too, with their comments (the deletion is confirmed).
+  await patchRoutine(id, cases.length ? { cases: kept } : { recurrence: endedBefore(rule!, start, origin) }, { confirmLoss: true });
+  await prisma.routine.update({ where: { id }, data: withOwnMoves(await findRoutine(id), pastMoves) });
   return { archived: false, comments: [] };
 }

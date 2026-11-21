@@ -99,7 +99,7 @@ Classes partagées par la page et les listes : `page`, `grid`, `gridInner`, `col
 
 ### `components/MailAccountForm.tsx`
 
-- `MailAccountForm({ account?, onDone })` : formulaire d’une nouvelle boîte (« Ajouter ») ou panneau d’une boîte existante enregistré champ par champ (décision D22, `useFieldSave`, la boîte entière à chaque fois par `update`, `SaveStatus` ; la boîte du cache `useMailAccounts` suivie) ; schéma `mailAccountFormSchema`, hébergeurs préremplis, « Mêmes identifiants que pour la réception » (recopie IMAP → SMTP et renvoie les erreurs SMTP sur les champs IMAP), « Tester la connexion ». La connexion (`CONNECTION`) s’enregistre ensemble en quittant l’un de ses champs (`connectionProps` ; un interrupteur dès qu’il change), après `passwordsToRetype` (partagé, dans `check` de `useFieldSave`, donc aussi à la fermeture du panneau) : un serveur changé sans son mot de passe met `PASSWORD_AGAIN` sous le mot de passe et n’enregistre rien ; Entrée enregistre les textes. Utilisé par `MailAccountsManager`.
+- `MailAccountForm({ account?, onDone })` : formulaire d’une nouvelle boîte (« Ajouter ») ou panneau d’une boîte existante enregistré champ par champ (`useFieldSave`, la boîte entière à chaque fois par `update`, `SaveStatus` ; la boîte du cache `useMailAccounts` suivie) ; schéma `mailAccountFormSchema`, hébergeurs préremplis, « Mêmes identifiants que pour la réception » (recopie IMAP → SMTP et renvoie les erreurs SMTP sur les champs IMAP), « Tester la connexion ». La connexion (`CONNECTION`) s’enregistre ensemble en quittant l’un de ses champs (`connectionProps` ; un interrupteur dès qu’il change), après `passwordsToRetype` (partagé, dans `check` de `useFieldSave`, donc aussi à la fermeture du panneau) : un serveur changé sans son mot de passe met `PASSWORD_AGAIN` sous le mot de passe et n’enregistre rien ; Entrée enregistre les textes. Utilisé par `MailAccountsManager`.
 - Internes : `PRESETS` (Gmail, Outlook / Microsoft 365, OVHcloud, Infomaniak, Gandi, IONOS : serveurs, ports, SSL, `saveSent`), `CONNECTION`, `accountValues(account?)`, `toInput(values, sameLogin)`, `saveConnection`, `connectionProps`, `showError`, `applyPreset`.
 
 ### `components/MailAccountsManager.tsx`
@@ -173,7 +173,7 @@ Classes partagées par la page et les listes : `page`, `grid`, `gridInner`, `col
 
 ### `components/MailSearchForm.tsx`
 
-- `MailSearchForm({ search?, initial?, onDone })` : formulaire d’un nouveau dossier de recherche (« Créer » ; libellé par défaut « À traiter », ou « Recherche » pour une recherche avancée enregistrée ; `onDone(id?)` reçoit l’id du nouveau dossier) ou panneau d’un dossier existant enregistré champ par champ (décision D22, `useFieldSave`, le dossier entier par `update`, textes en les quittant, `SaveStatus` ; le dossier du cache `useMailSearches` suivi) ; schéma `mailSearchSchema`. Interne : `searchValues(search)`. Utilisé par `openSearchForm`.
+- `MailSearchForm({ search?, initial?, onDone })` : formulaire d’un nouveau dossier de recherche (« Créer » ; libellé par défaut « À traiter », ou « Recherche » pour une recherche avancée enregistrée ; `onDone(id?)` reçoit l’id du nouveau dossier) ou panneau d’un dossier existant enregistré champ par champ (`useFieldSave`, le dossier entier par `update`, textes en les quittant, `SaveStatus` ; le dossier du cache `useMailSearches` suivi) ; schéma `mailSearchSchema`. Interne : `searchValues(search)`. Utilisé par `openSearchForm`.
 
 ### `components/MailWatcher.tsx`
 
@@ -201,7 +201,7 @@ Classes partagées par la page et les listes : `page`, `grid`, `gridInner`, `col
 
 ### `components/SignatureForm.tsx`
 
-- `SignatureForm({ account })` : signature HTML d’une boîte (`LazyRichEditor` avec code HTML), enregistrée en quittant l’éditeur (décision D22, `useFieldSave` sur `signatureFormSchema`, `fieldProps('signature')`, `SaveStatus`, sans bouton ; la boîte du cache suivie) ; un `<p></p>` vide est envoyé comme vide. Utilisé par `MailAccountsManager`.
+- `SignatureForm({ account })` : signature HTML d’une boîte (`LazyRichEditor` avec code HTML), enregistrée en quittant l’éditeur (`useFieldSave` sur `signatureFormSchema`, `fieldProps('signature')`, `SaveStatus`, sans bouton ; la boîte du cache suivie) ; un `<p></p>` vide est envoyé comme vide. Utilisé par `MailAccountsManager`.
 
 ## hooks
 
@@ -248,6 +248,8 @@ Internes : `PART` (noms des parties), `bodyOf(mail)` (HTML à citer, texte écha
 
 ### `lib/mail-dnd.ts`
 
+Le glisser-déposer des mails et des dossiers repose sur les briques communes de `components/dnd` (`useDragSensors`, `innermostCollision`, `suppressClickAfterDrop`, `DragLabel`), comme le reste de l’app.
+
 - `DraggedMails` (`accountId`, `folder`, `uids`), `DraggedFolder` (`path`, `name`, `parent`).
 - `MailDrag` : ce qui est glissé (`{ kind: 'mails' }` ou `{ kind: 'folder' }`).
 - `MailDrop` : où c’est déposé (un dossier, ou la boîte).
@@ -259,7 +261,7 @@ Internes : `PART` (noms des parties), `bodyOf(mail)` (HTML à citer, texte écha
 | ---------------------------------- | -------------------------------------------------------------------------------------------- | ------------------------------------------------------------ |
 | `Address`                          | Adresse renvoyée par l’API (`name?`, `address`).                                             | Partout dans la feature.                                     |
 | `addressLabel(address)`            | « Nom \<adresse\> » ou l’adresse seule.                                                      | `MailHeader`, `forwardOptions`.                              |
-| `accountLabel(account)`            | Une boîte affichée partout (décision CE) : « Nom \<adresse\> ».                              | Navigation, rédaction, formulaires ; `OverdueInvoicesPanel`. |
+| `accountLabel(account)`            | Une boîte affichée partout : « Nom \<adresse\> ».                              | Navigation, rédaction, formulaires ; `OverdueInvoicesPanel`. |
 | `senderName(addresses)`            | Nom, sinon adresse du premier ; « (inconnu) » sans adresse.                                  | `MailHeader`, `replyOptions`.                                |
 | `correspondent(mail, own)`         | « À : destinataire » pour un mail envoyé d’une adresse de l’utilisateur, sinon l’expéditeur. | `MailListItem`.                                              |
 | `listDate(iso)`                    | Heure aujourd’hui, jour court cette année, date complète avant.                              | `MailListItem`.                                              |

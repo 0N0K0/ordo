@@ -5,7 +5,7 @@ import { releaseSubjectTime, timeLeftEmpty } from '../tasks/time-entries';
 import { commentsLostOnDelete, deleteGoneComments, type GoneComments } from './comments';
 import { modelDelegate } from './delegate';
 
-/** Rows kept per occurrence of an item: its comments (decision D19) and, for an event, the links of its times (D18). */
+/** Rows kept per occurrence of an item: its comments and, for an event, the links of its times. */
 const OCCURRENCE_ROWS = { eventId: ['comment', 'timeEntryEvent'], routineId: ['comment'] } as const;
 
 /** Column naming the item of rows kept per occurrence. */
@@ -78,7 +78,7 @@ export interface LostOccurrences {
 }
 
 /**
- * What a change of the rule of an event series or of a routine takes (decision EW): the occurrences it makes disappear
+ * What a change of the rule of an event series or of a routine takes: the occurrences it makes disappear
  * without taking their rows along (no shift) lose their comments and, for an event, their times (those left with
  * nothing attached are deleted, billed ones kept, the others leave the occurrence: the rules of a deleted occurrence).
  * @param {OccurrenceOwner} owner Column of the item (`eventId`, `routineId`).

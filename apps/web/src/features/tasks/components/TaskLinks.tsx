@@ -11,7 +11,7 @@ import type { Task, TaskSave } from '../api';
 
 /**
  * Editor of the links of a task: the shared links field, each link saved once typed (on leaving its inputs, all the
- * links checked), a removal at once (decision D22): no button.
+ * links checked), a removal at once: no button.
  * @param {{ task: Task, save: TaskSave }} props Task, and its save.
  * @returns {JSX.Element} Field.
  */

@@ -8,7 +8,7 @@ import { signedInSession } from '../context';
 import { done } from '../errors';
 import { reloaded } from '../reload';
 
-/** How alarms and reminders ring for the user, in every workspace (decision FS). */
+/** How alarms and reminders ring for the user, in every workspace. */
 const RingSettingsRef = builder.objectRef<RingSettings>('RingSettings').implement({
   description: 'How the alarms and reminders of the user ring, in every workspace.',
   fields: (t) => ({
@@ -65,7 +65,7 @@ builder.prismaObject('AlarmRing', {
 });
 
 builder.prismaObject('PushSubscription', {
-  description: 'A device of the user receiving the push notifications (lot 17c).',
+  description: 'A device of the user receiving the push notifications.',
   fields: (t) => ({
     id: t.exposeID('id'),
     endpoint: t.exposeString('endpoint', { description: 'Address of the push service for the device: the app finds the device it runs on by it.' }),

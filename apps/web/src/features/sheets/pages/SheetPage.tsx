@@ -106,8 +106,8 @@ type SheetValues = SheetInput & Record<string, unknown>;
 const sheetValues = (sheet: SheetDetail): SheetValues => sheetInput(sheet, {});
 
 /**
- * Name, project, categories and note of a sheet, each saved as soon as it changes (the texts on leaving them, decision
- * D22, `useFieldSave`, `SaveStatus`), the sheet of the cache followed; read only when it is archived.
+ * Name, project, categories and note of a sheet, each saved as soon as it changes (the texts on leaving them,
+ * `useFieldSave`, `SaveStatus`), the sheet of the cache followed; read only when it is archived.
  * @param {{ sheet: SheetDetail }} props Sheet.
  * @returns {JSX.Element} Fields.
  */
@@ -286,7 +286,7 @@ export function SheetPage() {
         menu={{
           name: sheet.label,
           items: [
-            // Saved at once, then its page opens (decision D20).
+            // Saved at once, then its page opens.
             !sheet.archived &&
               rowMenuEntry(duplicateRowsAction([sheet], { duplicate: (source) => mutations.duplicate.mutateAsync(source.id), done: 'Fiche dupliquée.', open: (copy) => void navigate(sheetPath(copy)) })),
             archiveEntry({ archived: sheet.archived, type: 'Fiche', label: sheet.label, feminine: true }, setArchived, sheet.id),

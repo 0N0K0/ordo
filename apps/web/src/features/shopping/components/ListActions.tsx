@@ -34,7 +34,7 @@ const listSchema = shoppingListFormSchema;
 type ListValues = z.input<typeof listSchema>;
 
 /**
- * Name and tasks of a list, each saved as soon as it changes (the name on leaving it, decision D22, `useFieldSave`),
+ * Name and tasks of a list, each saved as soon as it changes (the name on leaving it, `useFieldSave`),
  * the list of the cache followed.
  * @param {{ list: ShoppingList }} props Component props.
  * @returns {JSX.Element} Panel.
@@ -186,7 +186,7 @@ function useListActions(list: ShoppingList, grouping: ShoppingGrouping, onDelete
           icon: <BankIcon aria-hidden />,
           onClick: () => openFormPanel('Rattacher à un mouvement de trésorerie', (close) => <EntryPicker list={list} onDone={close} />),
         },
-    // Saved at once, then its page opens (decision D20).
+    // Saved at once, then its page opens.
     rowMenuEntry(duplicateRowsAction([list], { duplicate: (source) => mutations.duplicateList.mutateAsync({ id: source.id }), done: 'Liste dupliquée.', open: (copyId) => void navigate(shoppingListPath(copyId)) })),
     'divider',
     ...exports,

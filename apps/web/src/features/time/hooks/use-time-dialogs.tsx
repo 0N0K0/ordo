@@ -31,7 +31,7 @@ export function useTimeEntryDialogs(context: TaskContext | null, defaultProjectI
     openFormPanel(entry ? 'Temps' : 'Ajouter un temps', (close) => <TimeEntryForm context={context} entry={entry} defaultProjectId={defaultProjectId} onDone={close} />);
   };
 
-  /** « Dupliquer » a time (decision D20): saved at once (not billed), then its form opens. */
+  /** « Dupliquer » a time: saved at once (not billed), then its form opens. */
   const duplicate: DuplicateOptions<TimeEntry, string> = {
     duplicate: async (entry) =>
       (

@@ -38,7 +38,7 @@ interface TimerStartFormProps {
 }
 
 /**
- * Starts a timer on a project, tasks, routines or events of the day (at least one of them, decisions D17 and D18), with
+ * Starts a timer on a project, tasks, routines or events of the day (at least one of them), with
  * a description of the work.
  * @param {TimerStartFormProps} props Component props.
  * @returns {JSX.Element} Form.

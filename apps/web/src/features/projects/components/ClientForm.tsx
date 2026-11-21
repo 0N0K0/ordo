@@ -30,7 +30,7 @@ function clientValues(client?: Client): ClientValues {
 
 /**
  * Client form: a new client, created by its button; an existing one (its panel, the settings sidebar of its page),
- * saved field by field (decision D22), read only once archived.
+ * saved field by field, read only once archived.
  * @param {ClientFormProps} props Component props.
  * @param {Client} [props.client] Client to edit. Optional.
  * @param {() => void} [props.onDone] Called after creating or cancelling. Optional.

@@ -36,7 +36,7 @@ interface IconActionOwnProps {
 
 /**
  * Button made of an icon alone, the same everywhere: its action in a tooltip, and the action with the element it acts on
- * as its hidden label (« Modifier « Urgent » »); subtle and gray unless told otherwise (light, in the primary color, next to buttons: decision CN). The tooltip shows on a disabled
+ * as its hidden label (« Modifier « Urgent » »); subtle and gray unless told otherwise (light, in the primary color, next to buttons). The tooltip shows on a disabled
  * button too.
  * @param {IconActionProps} props Component props (and those of the action icon).
  * @returns {JSX.Element} Button.

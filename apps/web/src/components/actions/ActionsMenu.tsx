@@ -28,7 +28,7 @@ export interface RowAction {
   hint?: string;
   /** Destroys something (red, last in the menu, after a separator). Optional. */
   danger?: boolean;
-  /** Only ever in the « … » menu, never as a button (« Archiver » / « Restaurer », decision R). Optional. */
+  /** Only ever in the « … » menu, never as a button (« Archiver » / « Restaurer »). Optional. */
   inMenu?: boolean;
 }
 
@@ -74,7 +74,7 @@ interface ActionsMenuProps extends ActionsSubject {
   nested?: boolean;
   /** Size of the default button. Optional. */
   size?: ActionIconProps['size'];
-  /** Look of the default button: « subtle » in a row or a list, « light » next to buttons (a header: decision CN). Optional. Default = « subtle ». */
+  /** Look of the default button: « subtle » in a row or a list, « light » next to buttons (a header). Optional. Default = « subtle ». */
   variant?: 'subtle' | 'light';
   /** Something runs (an export): the default button spins. Optional. */
   loading?: boolean;

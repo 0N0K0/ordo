@@ -1,37 +1,48 @@
 // Guards of the shared bricks for the code that is not the web app (packages/shared, apps/api): each pattern below
 // has a brick in @ordo/shared or in the API; the message names it. The web has its own list (apps/web/eslint.config.js).
 
-/** Sizes of the texts (decision DO): one maximum per kind of text, from @ordo/shared; for the shared code, the API and the web. */
+/** Sizes of the texts: one maximum per kind of text, from @ordo/shared; for the shared code, the API and the web. */
 export const TEXT_SIZE_RULES = [
   {
     // z.string().max(300), z.string().trim().min(1).max(60): a length written by hand.
     selector:
       "CallExpression[callee.property.name='max'][arguments.0.type='Literal']:matches([callee.object.callee.object.name='z'][callee.object.callee.property.name='string'], [callee.object.callee.object.callee.object.name='z'][callee.object.callee.object.callee.property.name='string'], [callee.object.callee.object.callee.object.callee.object.name='z'][callee.object.callee.object.callee.object.callee.property.name='string'], [callee.object.callee.object.callee.object.callee.object.callee.object.name='z'][callee.object.callee.object.callee.object.callee.object.callee.property.name='string'])",
     message:
-      'Utiliser requiredText / optionalText / shortTextSchema (250), legalTextSchema / optionalLegalText (mentions légales, 500), plainTextSchema / optionalPlainText (4 000) ou markdownSchema / markdownTextSchema (65 536) (@ordo/shared, décision DO) ; un champ à format nomme sa constante.',
+      'Utiliser requiredText / optionalText / shortTextSchema (250), legalTextSchema / optionalLegalText (mentions légales, 500), plainTextSchema / optionalPlainText (4 000) ou markdownSchema / markdownTextSchema (65 536) (@ordo/shared) ; un champ à format nomme sa constante.',
   },
   {
     selector: "CallExpression[callee.name='optionalText'][arguments.0.type='Literal']",
-    message: 'Utiliser optionalText() (250, décision DO) ; seul un champ à format passe sa constante nommée.',
+    message: 'Utiliser optionalText() (250) ; seul un champ à format passe sa constante nommée.',
   },
   {
     selector: "CallExpression[callee.name='optionalText'][arguments.0.name='LEGAL_TEXT_MAX']",
-    message: 'Utiliser optionalLegalText() / legalTextSchema (@ordo/shared, décision DO) : une mention légale, 500 caractères.',
+    message: 'Utiliser optionalLegalText() / legalTextSchema (@ordo/shared) : une mention légale, 500 caractères.',
   },
   {
     selector: "Literal[value=/^[0-9][0-9 ]* caractères maximum\\.$/], Literal[value='Texte trop long.']",
-    message: 'Utiliser TEXT_TOO_LONG / LEGAL_TEXT_TOO_LONG / PLAIN_TEXT_TOO_LONG / MARKDOWN_TOO_LONG ou les schémas de texte (@ordo/shared, décision DO) : un message par taille.',
+    message: 'Utiliser TEXT_TOO_LONG / LEGAL_TEXT_TOO_LONG / PLAIN_TEXT_TOO_LONG / MARKDOWN_TOO_LONG ou les schémas de texte (@ordo/shared) : un message par taille.',
   },
   {
     // <TextInput maxLength={250} />
     selector: "JSXAttribute[name.name='maxLength']:matches([value.type='Literal'], [value.expression.type='Literal'])",
-    message: 'Utiliser TEXT_MAX, LEGAL_TEXT_MAX, PLAIN_TEXT_MAX ou MARKDOWN_MAX (@ordo/shared, décision DO) pour maxLength.',
+    message: 'Utiliser TEXT_MAX, LEGAL_TEXT_MAX, PLAIN_TEXT_MAX ou MARKDOWN_MAX (@ordo/shared) pour maxLength.',
   },
 ];
 
 /** Patterns of @ordo/shared, for the shared code and the API. */
+/** Inheritance of the sub-tasks and sub-routines: for the shared code, the API and the web. */
+export const INHERITANCE_RULES = [
+  {
+    // task.inheritedFields.includes('ASSIGNEES'): the list alone, without its parent.
+    selector: "CallExpression[callee.property.name='includes'][callee.object.property.name='inheritedFields']",
+    message:
+      'Utiliser marksInherited(item, field), inheritsField(item, field, byId), effectiveTask ou effectiveRoutine (@ordo/shared) : un champ n’est hérité qu’avec un parent, et sa valeur se lit sur l’élément effectif.',
+  },
+];
+
 export const SHARED_SYNTAX_RULES = [
   ...TEXT_SIZE_RULES,
+  ...INHERITANCE_RULES,
   // Dates, numbers and amounts: one format per role.
   {
     selector: "NewExpression[callee.object.name='Intl'][callee.property.name=/^(DateTimeFormat|NumberFormat|RelativeTimeFormat)$/][arguments.length>0]",
@@ -66,7 +77,7 @@ export const SHARED_SYNTAX_RULES = [
     message: 'Utiliser sameName(a, b) (@ordo/shared) : pas de repli de noms recopié.',
   },
   {
-    // normalize(name.trim()): the key of a name (inner spaces too, decision CB).
+    // normalize(name.trim()): the key of a name (inner spaces too).
     selector: "CallExpression[callee.name='normalize'] > CallExpression.arguments[callee.property.name='trim']",
     message: 'Utiliser nameKey(name) / sameName(a, b) (@ordo/shared) : espaces, casse et accents ignorés, une seule règle.',
   },
@@ -78,10 +89,10 @@ export const SHARED_SYNTAX_RULES = [
     selector: "CallExpression[callee.property.name='padStart'][arguments.0.value=2][arguments.1.value='0']",
     message: 'Utiliser twoDigits(value) (@ordo/shared).',
   },
-  // Documents and keys (round 8).
+  // Documents and keys.
   {
     selector: "Literal[value=/^\\(?[Bb]rouillon\\)?$/], TemplateElement[value.raw=/\\(brouillon\\)/]",
-    message: 'Utiliser DRAFT_NAME, documentName(number) ou documentTitle(document) (@ordo/shared) : « Brouillon » (décision CD).',
+    message: 'Utiliser DRAFT_NAME, documentName(number) ou documentTitle(document) (@ordo/shared) : « Brouillon ».',
   },
   {
     selector: "TemplateLiteral:has(> MemberExpression[object.name='DOCUMENT_TYPE_LABELS']):has(> MemberExpression[property.name='number'])",
@@ -104,7 +115,7 @@ export const SHARED_SYNTAX_RULES = [
     selector: "Literal[value=86400000], BinaryExpression[operator='*'][right.value=1000]:has(Literal[value=24])",
     message: 'Utiliser DAY_MS (@ordo/shared).',
   },
-  // A person's name: one schema, one maximum (decision BB).
+  // A person's name: one schema, one maximum.
   {
     selector: "CallExpression[callee.name='requiredText'][arguments.0.name='PERSON_NAME_REQUIRED']",
     message: 'Utiliser personNameSchema (@ordo/shared) : un seul schéma pour tout nom de personne.',
@@ -239,3 +250,53 @@ export const SHARED_SYNTAX_RULES = [
     message: 'Utiliser labelFormSchema (@ordo/shared) : un libellé et une couleur.',
   },
 ];
+
+/**
+ * Plan references in the code: a comment, or a `description` / `message` string (GraphQL descriptions, guard messages),
+ * that cites a decision letter, a lot, a round or a bare code of the plan instead of saying the behaviour.
+ * Also read by `scripts/check-docs.mjs` for the pages of `docs/`.
+ */
+export const PLAN_REFERENCE =
+  /\b[Dd][ée]cisions?\s+(?:[A-Z]{1,2}\d*|\d{1,2})\b|\bD\d{1,2}\b|\b[Ll]ots?\s+\d{1,2}[a-d]?\b|\b[Rr]ounds?\s+\d{1,2}\b|\(\s*(?:[A-G][A-Z]|D\d{1,2})(?:\s*[,;]\s*(?:[A-G][A-Z]|D\d{1,2}))*\s*\)|\b(?:per|rules?|règles?)\s+(?:[A-G][A-Z]|D\d{1,2})\b|\bnotes\//;
+const PLAN_REFERENCE_MESSAGE = 'Pas de référence aux décisions ni aux lots dans le code : décrire le comportement (les décisions sont dans docs/).';
+
+/**
+ * Text of a string given as is: a literal, or a template literal without expressions.
+ * @param {import('estree').Node} node
+ * @returns {string | undefined}
+ */
+function staticText(node) {
+  if (node.type === 'Literal' && typeof node.value === 'string') return node.value;
+  if (node.type === 'TemplateLiteral' && node.expressions.length === 0) return node.quasis[0].value.cooked ?? undefined;
+  return undefined;
+}
+
+/** Local plugin of Ordo, for the shared code, the API and the web: `ordo/no-plan-references`. */
+export const ORDO_PLUGIN = {
+  rules: {
+    'no-plan-references': {
+      meta: { type: 'suggestion', docs: { description: 'Comments and descriptions say the behaviour, never a decision, a lot or a round of the plan.' }, schema: [] },
+      /**
+       * Reports every comment, and every `description` / `message` string, matching the plan references.
+       * @param {import('eslint').Rule.RuleContext} context
+       */
+      create(context) {
+        const report = (node) => context.report({ loc: node.loc, message: PLAN_REFERENCE_MESSAGE });
+        return {
+          Program() {
+            for (const comment of context.sourceCode.getAllComments()) if (PLAN_REFERENCE.test(comment.value)) report(comment);
+          },
+          Property(node) {
+            const key = node.key.type === 'Identifier' ? node.key.name : node.key.type === 'Literal' ? node.key.value : undefined;
+            if (key !== 'description' && key !== 'message') return;
+            const text = staticText(node.value);
+            if (text !== undefined && PLAN_REFERENCE.test(text)) report(node.value);
+          },
+        };
+      },
+    },
+  },
+};
+
+/** Config block turning `ordo/no-plan-references` on for the given files. */
+export const planReferencesConfig = (files) => ({ files, plugins: { ordo: ORDO_PLUGIN }, rules: { 'ordo/no-plan-references': 'error' } });

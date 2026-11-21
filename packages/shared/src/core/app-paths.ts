@@ -1,5 +1,5 @@
 /**
- * Addresses of the pages of the web app that the API needs too (lot 17c: the link of a ring pushed by the server, opened
+ * Addresses of the pages of the web app that the API needs too (the link of a ring pushed by the server, opened
  * from its notification): the pages of the lists, the page of a project and of a task. The web app builds its menu on
  * them (`app/pages.ts`).
  */

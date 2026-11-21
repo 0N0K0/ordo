@@ -2,7 +2,7 @@ import { COUNTDOWN_DEFAULT_NAME, countdownName, formatDuration, type DeadTime } 
 import type { Countdown } from '../api';
 
 /**
- * Words and links of the timers (« minuteurs ») and dead times (« temps morts »), decision FT.
+ * Words and links of the timers (« minuteurs ») and dead times (« temps morts »).
  */
 
 /** Name of a timer (« Minuteur » without one): the shared bricks. */

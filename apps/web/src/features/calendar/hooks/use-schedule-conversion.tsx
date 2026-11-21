@@ -4,12 +4,12 @@ import type { RowAction } from '../../../components/actions/ActionsMenu';
 import { confirmDestructive } from '../../../components/dialogs/confirm-destructive';
 import { useWorkScheduleMutations } from '../api';
 
-/** What a créneau counts in, and an éphéméride does not (lot 16). */
+/** What a créneau counts in, and an éphéméride does not. */
 const SLOT_ONLY = 'le temps libre des conditions de créneaux, les heures de travail (temps prévu, avertissement « hors des heures de travail »)';
 
 /**
- * « Convertir en éphéméride » / « Convertir en créneau » of a schedule, and of a whole kind (lot 16): entries of their
- * « … » menus (the lists, and the panel of a slot opened from the agenda: decision FX), asked first with what changes in meaning (the free time, the working hours, its kind), then the
+ * « Convertir en éphéméride » / « Convertir en créneau » of a schedule, and of a whole kind: entries of their
+ * « … » menus (the lists, and the panel of a slot opened from the agenda), asked first with what changes in meaning (the free time, the working hours, its kind), then the
  * occurrences of routines lost confirmed as for any change of the schedules. Ids stay: the slot conditions naming the
  * schedule or its kind keep it. Read only once archived; a kind serving as a budget context stays one of éphémérides.
  * @returns {{ schedule: Function, type: Function }} Entries.
