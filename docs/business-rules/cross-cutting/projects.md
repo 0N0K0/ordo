@@ -165,6 +165,7 @@ Source : `services/projects/contributors.ts`. Vue d’ensemble des personnes dan
 
 - Chaque utilisateur a, dans chaque espace, un contributeur lié (`userId`) appelé « Moi » dans l’interface, créé par `ensureMeContributor` (nom = identifiant de l’utilisateur, handle libre avec repli « moi » et suffixe « moi »).
 - Ce profil ne peut pas être supprimé : « Votre propre profil ne peut pas être supprimé. ».
+- Ce profil ne peut pas être archivé : « Vous ne pouvez pas vous archiver. » (voir [Archivage](archiving.md#personnes-liées)).
 - « Moi » appartient à tous les projets et n’y est jamais rattaché explicitement.
 
 ### Modification, archivage, suppression

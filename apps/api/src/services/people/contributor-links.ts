@@ -181,3 +181,20 @@ export async function linkedPeople(kind: ArchivableKind, ids: readonly string[])
   if (kind === 'CLIENT_CONTACT') return { CONTRIBUTOR: (await prisma.contributor.findMany({ where: { contactId: { in: list } }, select: { id: true } })).map(idOf) };
   return {};
 }
+
+/**
+ * Refuses an archiving or a restoring of people that would break a rule, from the elements whose state changes (those
+ * along included): « Moi » is never archived (BAD_USER_INPUT « Vous ne pouvez pas vous archiver. »); a contact of an
+ * archived client is not restored, nor through its contributor (BAD_USER_INPUT « Restaurez d’abord le client. »).
+ * @param {ArchiveTargets} changing Elements whose state changes, by kind.
+ * @param {boolean} archived Archives (else restores).
+ * @returns {Promise<void>}
+ */
+export async function assertPeopleArchivable(changing: ArchiveTargets, archived: boolean): Promise<void> {
+  const contributorIds = [...(changing.CONTRIBUTOR ?? [])];
+  const contactIds = [...(changing.CLIENT_CONTACT ?? [])];
+  if (archived && contributorIds.length && (await prisma.contributor.count({ where: { id: { in: contributorIds }, userId: { not: null } } })))
+    throw clientError('BAD_USER_INPUT', 'Vous ne pouvez pas vous archiver.');
+  if (!archived && contactIds.length && (await prisma.clientContact.count({ where: { id: { in: contactIds }, client: { archivedAt: { not: null } } } })))
+    throw clientError('BAD_USER_INPUT', 'Restaurez d’abord le client.');
+}

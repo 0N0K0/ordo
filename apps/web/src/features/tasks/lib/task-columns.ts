@@ -51,6 +51,22 @@ const STATUS_CATEGORY_ORDER = TASK_STATUS_CATEGORIES;
 const STATUS_CATEGORY_LABELS = TASK_STATUS_CATEGORY_LABELS.status;
 
 /**
+ * Rows of the task table made of tasks, in their manual order (then by number), as the table lists them.
+ * @param {readonly Task[]} tasks Tasks.
+ * @returns {TaskTableRow[]} Rows.
+ */
+export function taskTableRows(tasks: readonly Task[]): TaskTableRow[] {
+  return [...tasks].sort((a, b) => a.position - b.position || (a.number ?? 0) - (b.number ?? 0)).map((task): TaskTableRow => ({ kind: 'task', key: task.id, task }));
+}
+
+/**
+ * Whether a row of the task table is an archived task (left out until « Afficher les archivées » is on).
+ * @param {TaskTableRow} row Row.
+ * @returns {boolean} Archived task.
+ */
+export const isArchivedTaskRow = (row: TaskTableRow): boolean => row.kind === 'task' && row.task.archived;
+
+/**
  * Tasks kept by a filter in the words of the task table (its columns), a search in their texts, the archived ones
  * left out unless included; in their order.
  * @param {readonly Task[]} tasks Tasks.

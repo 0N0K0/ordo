@@ -1,6 +1,6 @@
 # Archivage
 
-Règles communes d'archivage et de restauration : ce qui peut être archivé, ce qu'implique l'état archivé (lecture seule), les cascades et le choix de valeurs archivées dans les formulaires. Sources : `apps/api/src/services/core/archive.ts`, `apps/api/src/graphql/modules/archive.ts`, `apps/api/src/services/projects/clients.ts`, `apps/api/src/services/projects/projects.ts`, `apps/api/src/services/tasks/tasks.ts`, `apps/api/src/services/routines/routines.ts`, `apps/api/src/services/people/contributor-links.ts` (`linkedPeople`).
+Règles communes d'archivage et de restauration : ce qui peut être archivé, ce qu'implique l'état archivé (lecture seule), les cascades et le choix de valeurs archivées dans les formulaires. Sources : `apps/api/src/services/core/archive.ts`, `apps/api/src/graphql/modules/archive.ts`, `apps/api/src/services/projects/clients.ts`, `apps/api/src/services/projects/projects.ts`, `apps/api/src/services/tasks/tasks.ts`, `apps/api/src/services/routines/routines.ts`, `apps/api/src/services/people/contributor-links.ts` (`linkedPeople`, `assertPeopleArchivable`).
 
 Voir aussi : [Erreurs](errors.md), [Nommage](naming.md), [tables](../../shared/cross-cutting/tables.md) (option « archivés » des vues).
 
@@ -18,7 +18,7 @@ Voir aussi : [Erreurs](errors.md), [Nommage](naming.md), [tables](../../shared/c
 - Tous les ids doivent exister (« Élément introuvable. ») ; un id répété compte une fois.
 - Archiver garde la date des éléments déjà archivés (seuls les actifs reçoivent la date du jour).
 - Types concernés (`ARCHIVABLE`) : les éléments principaux `MILESTONE`, `SPRINT`, `DASHBOARD`, `CALENDAR_EVENT`, `WORK_SCHEDULE`, `ACCOUNTING_DOCUMENT`, `RECURRING_INVOICE`, `IMPORTED_DOCUMENT`, `TREASURY_ENTRY`, `TREASURY_BUDGET`, `TREASURY_RELATION`, `SHOPPING_LIST`, `SHOPPING_PRODUCT`, `STOCK_ITEM`, `SHEET`, `CONTRIBUTOR`, `CLIENT_CONTACT`, `MAIL_ACCOUNT`, `CATALOG_ITEM`, et toutes les listes de réglages (`SETTINGS_LISTS`) : `PROJECT_STATUS`, `PROJECT_CATEGORY`, `TASK_STATUS`, `TASK_PRIORITY`, `TASK_TYPE`, `TASK_TAG`, `DOCUMENT_STATUS`, `SHEET_CATEGORY`, `SHOPPING_STORE`, `SHOPPING_UNIT`, `SHOPPING_STORAGE`, `SHOPPING_BASE_LIST`, `SHOPPING_CATEGORY`, `MAIL_LABEL`, `CALENDAR`, `CALENDAR_CATEGORY`, `SCHEDULE_TYPE`, `TREASURY_ACCOUNT`, `TREASURY_PAYMENT_METHOD`, `TREASURY_COUNTERPARTY`, `TREASURY_CATEGORY`, `ROUTINE_CATEGORY`, `STOCK_LOCATION`, `PLACE`. Un contexte de trésorerie n’a pas d’archivage propre : c’est celui de son type d’éphémérides (`SCHEDULE_TYPE`).
-- Les personnes vont avec ce à quoi elles sont liées (`along`, `linkedPeople`) : archiver ou restaurer un contributeur (`CONTRIBUTOR`) archive ou restaure aussi sa relation ou son contact ; une relation (`TREASURY_RELATION`) ou un contact (`CLIENT_CONTACT`), son contributeur. Voir [Personnes liées](#personnes-liées).
+- Les personnes vont avec ce à quoi elles sont liées (`along`, `linkedPeople`) : archiver ou restaurer un contributeur (`CONTRIBUTOR`) archive ou restaure aussi sa relation ou son contact ; une relation (`TREASURY_RELATION`) ou un contact (`CLIENT_CONTACT`), son contributeur. « Moi » n'est pas archivé, un contact d'un client archivé n'est pas restauré. Voir [Personnes liées](#personnes-liées).
 - `confirmLoss` : archiver ou restaurer un créneau (`WORK_SCHEDULE`), un type de créneaux (`SCHEDULE_TYPE`), un contributeur (`CONTRIBUTOR`), une relation (`TREASURY_RELATION`) ou un contact (`CLIENT_CONTACT`, par son contributeur) change ce que donnent les conditions de créneaux (un archivé n'y compte plus) : les occurrences de routines qui disparaissent perdent leurs commentaires une fois confirmé, sinon `CONFIRMATION_REQUIRED` et rien ne change (`archiveEdit`, `settleScheduleChange`, vérifié sur les seuls éléments dont l'état change, personnes liées comprises, après l'existence ; une seule confirmation pour le tout). Voir [Routines](../activities/routines.md#créneaux-de-lagenda-conditionwindows-windowsallowed).
 - Les **clients**, **projets**, **tâches** et **routines** ont leurs propres mutations, à cause de leurs cascades.
 
@@ -50,6 +50,7 @@ Les projets, tâches, routines, contacts et contributeurs utilisent un indicateu
 
 - Archiver un client archive, dans la même transaction, ses projets actifs, ses contacts actifs et les contributeurs actifs liés à ses contacts (`archivedByCascade = true`).
 - Restaurer un client restaure les projets, les contacts et les contributeurs archivés avec lui, pas ceux archivés seuls.
+- Tant que le client est archivé, ses contacts ne sont pas restaurés seuls, ni par leur contributeur : « Restaurez d’abord le client. » (`BAD_USER_INPUT`, `assertPeopleArchivable`).
 - Aucune confirmation de perte : un contributeur lié à un contact n'a pas d'anniversaire, aucune condition de créneaux ne change.
 - Supprimer un client : les contributeurs de ses contacts archivés avec lui restent archivés, seuls (et sans lien).
 
@@ -57,7 +58,9 @@ Les projets, tâches, routines, contacts et contributeurs utilisent un indicateu
 
 - Un contributeur et ce à quoi il est lié (sa relation ou son contact, voir [Lien d'un contributeur](people.md#lien-dun-contributeur)) sont archivés et restaurés ensemble, dans les deux sens : archiver ou restaurer l'un archive ou restaure l'autre, dans la même transaction.
 - Un membre est son propre contributeur (une seule ligne) : rien d'autre ne le suit. « Moi » est toujours membre : aucune relation ni aucun contact ne lui est lié.
-- Un client n'est pas une personne : archiver un contact ou son contributeur n'archive pas le client ; restaurer un contact (ou son contributeur) d'un client archivé ne restaure pas le client.
+- « Moi » n'est jamais archivé : « Vous ne pouvez pas vous archiver. » (`BAD_USER_INPUT`), vérifié sur tous les éléments dont l'état change, personnes liées comprises (`assertPeopleArchivable`) ; l'archivage d'un client n'emporte jamais « Moi » (`userId` exclu de la cascade).
+- Un client n'est pas une personne : archiver un contact ou son contributeur n'archive pas le client ; restaurer un contact (ou son contributeur) d'un client archivé est refusé : « Restaurez d’abord le client. ».
+- Ces refus sont vérifiés avant la confirmation de perte : refusé, rien ne change.
 
 ### Projet
 

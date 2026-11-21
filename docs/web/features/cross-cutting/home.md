@@ -14,7 +14,7 @@ Internes : `CardId`, `DEFAULT_ORDER` (`tasks`, `routines`, `agenda`, `chrono`, `
 
 ### `components/HomeCard.tsx`
 
-- `HomeCard({ title, icon, to?, linkLabel = 'Tout voir', loading?, children })` : carte (titre, icône, lien, squelette `ListSkeleton`) ; dans la grille, affiche la poignée lue dans `DragHandleContext`. Utilisé par toutes les cartes.
+- `HomeCard({ title, icon, to?, linkLabel = 'Tout voir', loading?, note?, children })` : carte (titre, icône, lien, note sous le titre, squelette `ListSkeleton`) ; dans la grille, affiche la poignée lue dans `DragHandleContext`. Utilisé par toutes les cartes.
 - `CardFigure({ label, value, color? })` : petit chiffre d’une carte. Utilisé par `TasksCard`… (`WorkCards`, `LifeCards`, `FinanceCards`).
 - Tout retard de l’accueil est en orange, la couleur de retard commune (`LATE_COLOR`, `LateBadge` de `components/feedback`) : indices des tuiles, tâches, routines, factures et prochaines échéances de trésorerie.
 
@@ -32,13 +32,13 @@ Utilisés par `WorkCards`, `LifeCards`, `FinanceCards`, `MailCard`. `Home.module
 
 ### `components/WorkCards.tsx`
 
-- `TasksCard({ context, tasks, today })` : « Mes tâches du jour » ; lien de tâche `useTaskLink` (panneau), sous-titre projet et `taskNumber`, `LateBadge` ou statut.
-- `AgendaCard({ today })` : « Agenda » des 7 jours : `useHeldEvents` + `nextRings(useAlarms)`, groupés par jour (`dayLabel`). Interne : `AgendaItem`.
+- `TasksCard({ context, todayTasks, today })` : « Tâches » : vue par défaut de la page des tâches (`useDefaultTableView('tasks')`), ses lignes par le moteur des tableaux (`useTaskColumns` — tâches faisables demandées si le filtre les cite, `filterUses` —, `taskTableRows`, `useViewRows` sans les archivées `isArchivedTaskRow`, `viewList` pour les groupes), lien `viewPath` ; sans vue, « Mes tâches du jour » (`todayTasks`, de `useMyTodayTasks`) ; note `viewNote` ; lien de tâche `useTaskLink` (panneau), sous-titre projet et `taskNumber`, `LateBadge` ou statut.
+- `AgendaCard({ today })` : « Agenda » des 7 jours d’aujourd’hui à J+6 : `useHeldEvents(today, today + 6)` + `nextRings(useAlarms)` avant J+7, triés par jour puis heure, groupés par jour (`dayLabel`) ; un évènement commencé avant aujourd’hui va sous aujourd’hui, sans heure. Interne : `AgendaItem`.
 - `TimeCard({ context, time })` : « Temps passé » ; 4 premiers projets avec `Progress`. Interne : `ProjectName({ context, projectId })` (libellé et parent en gris).
 
 ### `components/LifeCards.tsx`
 
-- `RoutinesCard({ today })` : « Routines du jour » : routines `due` ou `late` (`currentRoutineState`, `useSlotRules`, `routineDoable`), triées ; `RoutineDoneToggles`, `WaitingIcon` (`waitingFor`), `LateBadge`, horaires (`scheduleOf`, `windowText`, `windowOf`), « Reporter au lendemain » (`usePostponeRoutine`).
+- `RoutinesCard({ today })` : « Routines » : vue par défaut de la page des routines (`useDefaultTableView('routines')`, colonnes `useRoutineColumns`, `useViewRows` sans les archivées, `viewList`), lien `viewPath` ; sans vue, « Routines du jour » : routines `due` ou `late` (`currentRoutineState`, `doable` de `useRoutineColumns`), triées ; note `viewNote` ; « Reporter au lendemain » seulement avec `movableOccurrence` ; `RoutineDoneToggles`, `WaitingIcon` (`waitingFor`), `LateBadge`, horaires (`scheduleOf`, `windowText`, `windowOf`), « Reporter au lendemain » (`usePostponeRoutine`).
 - `ShoppingCard()` : « Achats » : produits manquants (`useShoppingData`), listes ouvertes (`useShoppingLists`, `leftToBuy`).
 
 ### `components/FinanceCards.tsx`
@@ -66,11 +66,13 @@ Utilisés par `WorkCards`, `LifeCards`, `FinanceCards`, `MailCard`. `Home.module
 | Export                                        | Rôle                                                                                                                                                                                                                                    | Utilisé par                             |
 | --------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------- |
 | `dayLabel(date, today)`                       | « Aujourd’hui », « Demain », « Hier » ou `fmt.weekday`.                                                                                                                                                                                 | `WorkCards`, `FinanceCards`, `MailCard` |
+| `viewNote(view, page, fallback)`              | Note d’une carte qui montre la vue par défaut d’une page : « Vue « … » de la page « … ». », ou « Aucune vue enregistrée sur la page « … » : … ». | `TasksCard`, `RoutinesCard` |
+| `ViewItem<T>`, `viewList(view, keyOf)`        | Lignes d’une vue (`ViewRows`) en éléments de `HomeList` (`key`, `group`, `row` ; une ligne de plusieurs groupes dans chacun), avec les titres de groupes quand la vue regroupe. | `TasksCard`, `RoutinesCard` |
 | `useHeldEvents(from, to)`                     | Évènements de la période sans les annulés (`calledOff`).                                                                                                                                                                                | `AgendaCard`, `AgendaNavBadge`          |
 | `IN_30_DAYS`                                  | Libellé « Dans 30 jours ».                                                                                                                                                                                                              | `HomePage`, `TreasuryCard`              |
 | `balanceIn30Days(series, today)`              | Dernier point de la projection à J+30 au plus tard.                                                                                                                                                                                     | `HomePage`, `TreasuryCard`              |
 | `BillingSummary`                              | Reste dû, en retard (montant et nombre), CA HT du mois et de l’année, devis en attente (et total HT), brouillons.                                                                                                                       | `HomePage`, `FinanceCards`              |
 | `billingSummary(documents, today, imported?)` | Calcul du résumé : archivés exclus ; brouillons comptés à part ; devis en attente = catégorie de suivi `SENT` ; avoirs en négatif ; documents importés (hors devis) comptés dans le CA ; devis triés du plus ancien envoi.              | `HomePage`                              |
-| `useMyTodayTasks(context, today)`             | `{ tasks, overdue }` : mes tâches du jour par le filtre `myTasksFilter('today')` et les colonnes du tableau des tâches (`useTaskColumns`, `matchTasks`), en retard d’abord (`isTaskOverdue`), puis par échéance ou date de fin, puis numéro. | `HomePage`, `TasksNavBadge`             |
+| `useMyTodayTasks(context, today)`             | `{ tasks, overdue }` (tuile « Tâches du jour », pastille, et carte « Tâches » sans vue) : mes tâches du jour par le filtre `myTasksFilter('today')` et les colonnes du tableau des tâches (`useTaskColumns`, `matchTasks`), en retard d’abord (`isTaskOverdue`), puis par échéance ou date de fin, puis numéro. | `HomePage`, `TasksNavBadge`             |
 | `WeekTime`                                    | Secondes du jour, de la semaine, et par projet (décroissant).                                                                                                                                                                           | `HomePage`, `TimeCard`                  |
 | `useWeekTime(today)`                          | Temps depuis le début de la semaine de l’espace (`filterPeriod('thisWeek', …, currentWeek())`, `useTimeEntriesSince`), chrono en cours compté jusqu’à maintenant (`useNow`).                                                            | `HomePage`, `TimeNavBadge`              |

@@ -82,7 +82,8 @@ function alongClient(id: string, archived: boolean, now: Date): Prisma.PrismaPro
   return [
     prisma.project.updateMany({ where: { clientId: id, ...touched }, data }),
     prisma.clientContact.updateMany({ where: { clientId: id, ...touched }, data }),
-    prisma.contributor.updateMany({ where: { contact: { is: { clientId: id } }, ...touched }, data }),
+    // « Moi » is never linked to a contact: never archived along.
+    prisma.contributor.updateMany({ where: { contact: { is: { clientId: id } }, userId: null, ...touched }, data }),
   ];
 }
 

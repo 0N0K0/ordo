@@ -19,6 +19,32 @@ function canonical(value: unknown): string {
   return JSON.stringify(value, (_key, item) => (item && typeof item === 'object' && !Array.isArray(item) ? Object.fromEntries(Object.entries(item).sort(([a], [b]) => a.localeCompare(b))) : item));
 }
 
+/**
+ * View a scope opens when none is asked: the one chosen by default, else the first tab.
+ * @param {readonly V[]} views Views, in tab order.
+ * @returns {V | undefined} View, none without any.
+ */
+export function defaultView<V extends { isDefault: boolean }>(views: readonly V[]): V | undefined {
+  // eslint-disable-next-line no-restricted-syntax -- defaultView itself.
+  return views.find((view) => view.isDefault) ?? views[0];
+}
+
+/**
+ * URL parameter of the view selected in a table (`?tasks-view=`).
+ * @param {string} tableKey Table.
+ * @returns {string} Parameter.
+ */
+export const viewParam = (tableKey: string): string => `${tableKey}-view`;
+
+/**
+ * Path of a page opened on a view of one of its tables.
+ * @param {string} path Page.
+ * @param {string} tableKey Table.
+ * @param {string} viewId View.
+ * @returns {string} Path.
+ */
+export const viewPath = (path: string, tableKey: string, viewId: string): string => `${path}?${new URLSearchParams({ [viewParam(tableKey)]: viewId })}`;
+
 interface SavedViewsOptions<C> {
   /** Project, or null for the page. */
   projectId: string | null;
@@ -56,7 +82,7 @@ export function useSavedViews<C>({ projectId, kind, tableKey = null, parse, blan
 
   const views: SavedView<C>[] = useMemo(() => [...(viewsQuery.data ?? [])].sort(byPosition).map((view) => ({ ...view, config: parse(view.config) })), [viewsQuery.data, parse]);
 
-  const current = views.find((view) => view.id === requestedId) ?? views.find((view) => view.isDefault) ?? views[0];
+  const current = views.find((view) => view.id === requestedId) ?? defaultView(views);
   const config = current ? (drafts[current.id] ?? current.config) : null;
   const dirty = Boolean(current && drafts[current.id] && canonical(drafts[current.id]) !== canonical(current.config));
 

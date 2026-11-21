@@ -204,12 +204,19 @@ Classes `table` (taille de police), `row` (survol, lignes `data-done` / `data-ar
 
 ## `hooks/`
 
+### `hooks/use-routine-columns.ts`
+
+| Export | Rôle |
+| ------ | ---- |
+| `RoutineColumns` (interface) | `columns`, `byId`, `doable(routine)`. |
+| `useRoutineColumns(routines, categories, today)` | Colonnes du tableau des routines (`routineColumns`) avec ce qui leur manque : règles des créneaux (`useSlotRules`, `routineDoable`), créneaux et types (`useSlotChoices`), commentaires (`useCommentCounts`, sans les routines en création), bénéficiaires ; aucune colonne sans contexte des tâches. Utilisé par `RoutinesPanel` et la carte « Routines » de l’accueil. |
+
 ### `hooks/use-routine-move.ts`
 
 | Export                 | Rôle                                                                                                                                             |
 | ---------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------ |
 | `useRoutineMove()`     | `(routine, to, date?, onDone?, times?)` : déplace une occurrence (par défaut `movableOccurrence`) avec toast et « Annuler » (mouvement inverse). |
-| `usePostponeRoutine()` | `(routine)` : reporte au lendemain. Utilisé par le menu, la barre de sélection et `LifeCards`.                                                   |
+| `usePostponeRoutine()` | `(routine)` : reporte au lendemain. Utilisé par le menu, la barre de sélection et `LifeCards` (seulement s’il y a une occurrence à reporter, `movableOccurrence`).                                                   |
 
 Interne : `MovedTimes`.
 

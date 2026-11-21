@@ -3,9 +3,7 @@ import { inheritedCells } from '../../../components/inheritance/inherited-cells'
 import { ROUTINE_CELL_FIELDS, routineParentName } from '../lib/routine-inheritance';
 import { readOnlyCells } from '../../../components/data-table/table/data-table';
 import { usePageTab } from '../../../components/tabs/use-page-tab';
-import { useSlotChoices } from '../../calendar/hooks/use-slot-sources';
 import { useSetParams, useSearchParam } from '../../../lib/search-params';
-import { mapById, occurrenceKey } from '@ordo/shared';
 import { PageHeader } from '../../../components/page/PageHeader';
 import { ActionButton } from '../../../components/actions/ActionButton';
 import { EmptyState } from '../../../components/feedback/EmptyState';
@@ -24,19 +22,16 @@ import { useTaskContext } from '../../tasks/hooks/use-task-context';
 import { isDraftRoutine, useRoutineMutations, useRoutinesData, type Routine } from '../api';
 import { openRoutineForm } from '../lib/open-routine-form';
 import { openRoutineMove } from '../lib/open-routine-move';
-import { useSlotRules, routineDoable } from '../../calendar/hooks/use-slot-rules';
 import { RoutineHistory } from '../components/RoutineHistory';
 import { RoutineSettings } from '../components/RoutineSettings';
-import { useCommentCounts } from '../../comments/api';
-import { useBeneficiaries } from '../../beneficiaries/hooks/use-beneficiaries';
 import { useRunningTimers } from '../../time/api';
-import { routineColumns } from '../lib/routine-columns';
+import { useRoutineColumns } from '../hooks/use-routine-columns';
 import { routinesLabel } from '../lib/routine-cell-edit';
 import { AddRoutineRow, ChronoCell, StateCell } from '../components/routine-table-cells';
 import { RoutineDoneToggles } from '../components/DoneToggle';
 import { AssigneesCell, CategoriesCell, EstimateCell, ProjectCell, RepetitionCell, RepetitionText, RoutineBeneficiariesCell, RoutineLabelCell, RoutineLinksCell } from '../components/routine-cells';
 import { BlocksCell, RoutineLocationCell, OpensOnCell, ParentRoutineCell, RemindersCell, SubRoutinesCell, TimeOfDayCell, TravelCell } from '../components/extra-cells';
-import { isDone, movableOccurrence, panelOccurrence, waitingFor } from '../lib/routine-format';
+import { isDone, movableOccurrence, waitingFor } from '../lib/routine-format';
 import { usePostponeRoutine } from '../hooks/use-routine-move';
 import { useConvertActivity } from '../hooks/use-convert-activity';
 import { useRoutineRowsActions, useRoutineSelectionActions } from '../components/RoutineBulkBar';
@@ -86,38 +81,13 @@ export function RoutinesPanel({ projectId, projectIds }: { projectId?: string; p
   const today = localToday();
   const routines = useMemo(() => data?.routines ?? [], [data]);
   const categories = useMemo(() => data?.routineCategories ?? [], [data]);
-  const slotRules = useSlotRules();
-  const slotChoices = useSlotChoices();
   const { data: running } = useRunningTimers();
   const { move } = useRoutineMutations();
   const postpone = usePostponeRoutine();
   const selectionActions = useRoutineSelectionActions();
   const rowActionsOf = useRoutineRowsActions();
   const convert = useConvertActivity();
-  // Without those being created (no comment yet): no count asked again for them.
-  const comments = useCommentCounts(
-    'ROUTINE',
-    useMemo(() => routines.filter((routine) => !isDraftRoutine(routine)).map((routine) => occurrenceKey(routine.id, panelOccurrence(routine))), [routines]),
-  );
-  const { choices: beneficiaryChoices } = useBeneficiaries();
-  const byId = useMemo(() => mapById(routines), [routines]);
-  const doable = useMemo(() => (routine: Routine) => slotRules.allowed(routineDoable(routine)), [slotRules]);
-  const columns = useMemo(
-    () =>
-      context
-        ? routineColumns({
-            today,
-            byId,
-            categories,
-            context,
-            doable,
-            comments,
-            slotKinds: slotChoices.all,
-            beneficiaries: beneficiaryChoices,
-          })
-        : [],
-    [today, byId, categories, context, doable, comments, slotChoices, beneficiaryChoices],
-  );
+  const { columns, byId, doable } = useRoutineColumns(routines, categories, today);
   // Of the project on a project page; in their manual order.
   const rows = useMemo(() => routines.filter((routine) => !projectIds || (routine.projectId && projectIds.has(routine.projectId))), [routines, projectIds]);
   const view = useDataView({

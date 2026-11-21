@@ -123,6 +123,15 @@ export default defineConfig([
           selector: "CallExpression[callee.property.name='find'][callee.object.property.name='inheritance']",
           message: 'Utiliser originOf(item, field) (components/inheritance/inheritance) et InheritedField pour montrer un champ hérité.',
         },
+        // The view a table opens by default, and its rows: one rule, wherever they are shown.
+        {
+          selector: "CallExpression[callee.property.name='find'] > ArrowFunctionExpression > MemberExpression.body[property.name='isDefault']",
+          message: 'Utiliser defaultView(views) (components/data-table/views/use-saved-views) : la vue par défaut, sinon le premier onglet.',
+        },
+        {
+          selector: "CallExpression[callee.name='sortRows'] CallExpression[callee.name='filterRows']",
+          message: 'Utiliser viewRows (components/data-table/table/table-engine) ou useViewRows : une vue appliquée aux lignes (recherche, filtre, tris, groupes).',
+        },
         // A markdown note or description typed in a cell: the shared markdown editor.
         {
           selector: "JSXOpeningElement[name.name='EditableText']:has(JSXAttribute[name.name='value'] MemberExpression[property.name=/^(note|description)$/])",

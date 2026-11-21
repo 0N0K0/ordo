@@ -132,6 +132,8 @@ Interne : `hiddenIds`.
 | `isGroupable(column)`                                  | Groupable : pas `groupable: false`, pas verrouillée, et a un `text` ou un filtre.                                                                                                                                                                                                                                                                                                                                                                                            |
 | `NO_VALUE_LABEL`                                       | « Sans valeur » : nom du groupe des lignes sans valeur, sauf `groupNoneLabel` de la colonne.
 | `groupRows(rows, column, sorting, period?)`            | Lignes groupées (voir « Regroupement »). Utilisé aussi par `library`.                                                                                                                                                                                                                                                                                                                                                                                                        |
+| `ViewRows<R>` (interface)                              | Lignes d’une vue : `rows` (gardées, triées), `groups` (un seul groupe sans titre sans regroupement), `groupColumn`.
+| `viewRows(rows, columns, config, today, alwaysKept?)`  | Une vue appliquée aux lignes : recherche et filtre (`filterRows`), tris (`sortRows`), groupes (`groupRows`) ; `alwaysKept` garde une ligne quels que soient recherche et filtre. Règle eslint associée (pas de `sortRows(filterRows(…))` à la main). Utilisé par `useDataView` et `useViewRows`.
 | `groupableColumns(columns)`                            | Colonnes groupables.                                                                                                                                                                                                                                                                                                                                                                                                                                                         |
 
 Internes : `FIELD_KINDS`, `filterable`, `offeredChoices` (choix archivés retirés sauf ceux du filtre, parents gardés grisés), `isEmptyValue`, `meets` (une condition sur une ligne : texte normalisé, nombres, dates relatives `filterDay`, périodes, choix, `anyOf` / `allOf` / `noneOf` ; l’option « Aucun » compte comme vide), `weekOf`, `periodGroup` (clés triables et libellés : le jour en toutes lettres, « Semaine N · AAAA (du <lundi>) », le mois, le trimestre, l’année — formats de `lib/format` et `lib/periods`), `groupsOf`.
@@ -271,6 +273,9 @@ Classes du tableau : `.scroller` (zone de défilement), `.table`, `.head`, `.hea
 - `SavedView<C>` (interface) — vue avec sa configuration analysée.
 - `useSavedViews<C>({ projectId, kind, tableKey?, parse, blank, first, ready?, param? })` — vues d’une portée et copie de travail de la vue courante : `views` (par position), `current`, `config`, `dirty` (comparaison JSON canonique, clés triées), `isPending`, `error`, `select`, `change`, `save`, `revert`, `createView(label, fromCurrent)`, `rename`, `duplicate` (nom de copie `copyName`, borné à `TEXT_MAX`), `remove` (l’échec est laissé à l’appelant), `setDefault`, `move`. Les premières vues sont créées une seule fois par portée, l’une après l’autre, même en cas d’échec (pas de boucle). Paramètre d’adresse par défaut `view`. Sert aussi aux vues des tâches et des routines.
 - `SavedViewsState<C>` (type) — son retour.
+- `defaultView(views)` — vue qu’une portée ouvre quand aucune n’est demandée : celle choisie par défaut, sinon le premier onglet. Règle eslint associée (pas de `find((view) => view.isDefault)` à la main). Utilisé par `useSavedViews` et `useDefaultTableView`.
+- `viewParam(tableKey)` — paramètre d’adresse de la vue choisie d’un tableau (`<tableKey>-view`). Utilisé par `useTableViews`.
+- `viewPath(path, tableKey, viewId)` — adresse d’une page ouverte sur une vue d’un de ses tableaux. Utilisé par l’accueil.
 - Interne : `canonical`.
 
 ### `use-data-view.ts`
@@ -285,7 +290,19 @@ Classes du tableau : `.scroller` (zone de défilement), `.table`, `.head`, `.hea
 | `useTableViews({ tableKey, projectId?, first?, defaults?, ready? })` | Vues enregistrées d’un tableau, lues avant ses lignes quand celles-ci dépendent de la vue (les événements listés avec les tâches) ; `defaults` : ce par quoi commence toute nouvelle vue. Paramètre d’adresse `<tableKey>-view`. Utilisé par `tasks`.                                                                                                                                                                                                                     |
 | `useDataView(options)`                                               | Le hook des tableaux (voir « Comment ça marche »). Options : `tableKey`, `projectId?`, `columns`, `rows`, `title`, `first?`, `getKey?` (nécessaire pour la modification en masse), `bulkColumns?` (cellules propres hors colonnes, avec leur nom), `archived?(row)` et `archivedLabel?` (« Afficher les archivés » : l'interrupteur, partout, plutôt qu'une colonne ou des vues « Actifs / Archivés »), `alwaysKept?(row)` (ligne gardée quels que soient recherche et filtre : celle qu’on crée), `views?` (vues lues avant, `useTableViews`). |
 
-Internes : `BUDGET_KEY_VALUES` et `LEGACY_FILTER_VALUES` (anciennes valeurs « none » des filtres « Qui » et « Contexte » des tables `treasury-budgets`, `treasury-budget-report`, `treasury-budget-outside`, relues comme `ME_KEY`), `parseConfig`, `NEVER_ARCHIVED`.
+Internes : `BUDGET_KEY_VALUES` et `LEGACY_FILTER_VALUES` (anciennes valeurs « none » des filtres « Qui » et « Contexte » des tables `treasury-budgets`, `treasury-budget-report`, `treasury-budget-outside`, relues comme `ME_KEY`), `NEVER_ARCHIVED`.
+
+`parseTableViewConfig(config, tableKey)` (exporté) : configuration d’une vue enregistrée (les valeurs par défaut si elle est invalide), ancien identifiant de la colonne libellé et anciennes valeurs des filtres relus. Utilisé par `useTableViews` et `useDefaultTableView`.
+
+### `use-default-view.ts`
+
+La vue par défaut d’un tableau et ses lignes, montrées ailleurs que dans le tableau (l’accueil), en lecture seule.
+
+- `DefaultTableView` (interface) — `view` (la vue ouverte par défaut, configuration analysée ; `null` pendant le chargement ou tant que le tableau n’a aucune vue), `isPending`.
+- `useDefaultTableView(tableKey, projectId?)` — lit les vues du tableau (`useTaskViews`) et garde celle de `defaultView` ; ne crée ni ne change aucune vue.
+- `useViewRows({ view, columns, rows, archived? })` — lignes de la vue (`viewRows`) : mêmes recherche, filtre, tris et groupes que le tableau, les colonnes affichées sans effet, les archivées écartées. Aucune ligne sans vue.
+
+Utilisés par les cartes « Tâches » et « Routines » de l’accueil.
 
 ### `ViewTabs.tsx`
 

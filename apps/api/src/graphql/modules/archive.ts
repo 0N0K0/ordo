@@ -5,7 +5,7 @@ import { ARCHIVED_DESCRIPTION } from '../label-inputs';
 import { CONFIRM_LOSS_DESCRIPTION } from '../occurrence-fields';
 import { archiveEdit } from '../../services/calendar/slot-conditions';
 import { settleScheduleChange } from '../../services/routines/routines';
-import { LINKED_PEOPLE_KINDS, linkedPeople } from '../../services/people/contributor-links';
+import { assertPeopleArchivable, LINKED_PEOPLE_KINDS, linkedPeople } from '../../services/people/contributor-links';
 
 const ArchivableKindEnum = builder.enumType('ArchivableKind', {
   description: 'Kind of element archived or restored by `setArchived`: main elements of the features and every settings list (clients, projects, tasks and routines have their own mutations).',
@@ -56,7 +56,7 @@ for (const type of TYPES) {
 
 builder.mutationFields((t) => ({
   setArchived: t.boolean({
-    description: 'Archives (hidden by default, read only) or restores elements of a kind, all at once; people with those they are linked to (a contributor with its relation or its contact).',
+    description: 'Archives (hidden by default, read only) or restores elements of a kind, all at once; people with those they are linked to (a contributor with its relation or its contact); « Moi » is never archived, a contact of an archived client is not restored.',
     args: {
       kind: t.arg({ type: ArchivableKindEnum, required: true }),
       ids: t.arg.idList({ required: true }),
@@ -70,6 +70,7 @@ builder.mutationFields((t) => ({
           // People go with those they are linked to: a contributor with its relation or its contact.
           along: LINKED_PEOPLE_KINDS.has(kind) ? (found) => linkedPeople(kind, found) : undefined,
           settle: async (changing) => {
+            await assertPeopleArchivable(changing, archived);
             const edit = archiveEdit(changing, archived);
             if (edit) await settleScheduleChange(edit, confirmLoss ?? false);
           },

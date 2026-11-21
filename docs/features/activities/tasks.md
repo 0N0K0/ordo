@@ -27,7 +27,7 @@ Le même tableau (`TaskBoard`) sert à la page et à l’onglet d’un projet. C
   - « En cours » : tâches ouvertes ;
   - « Mes tâches » : tâches ouvertes assignées à « Moi » ;
   - « Toutes ».
-- Chaque vue garde sa recherche, ses filtres, tris, groupes, colonnes et options ; renommer, dupliquer, supprimer, réordonner, choisir la vue par défaut (voir [Tableaux](../../web/components/data-table.md)).
+- Chaque vue garde sa recherche, ses filtres, tris, groupes, colonnes et options ; renommer, dupliquer, supprimer, réordonner, choisir la vue par défaut (voir [Tableaux](../../web/components/data-table.md)). La vue par défaut de la page (sinon son premier onglet) est aussi celle de la carte « Tâches » de l’accueil (voir [Accueil](../cross-cutting/home.md#cartes)).
 - Les vues de la page et celles de chaque projet sont distinctes.
 - Une nouvelle vue part des colonnes choisies pour l’espace (« Colonnes des nouvelles vues »).
 

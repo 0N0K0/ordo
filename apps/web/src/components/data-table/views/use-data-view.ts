@@ -15,9 +15,9 @@ import { useBulkSelection, type BulkCellProps, type BulkSelection } from '../sel
 import { newConditionFor } from '../../filters/filter-meta';
 import type { ColumnMenuExtras } from '../toolbar/ColumnHeaderMenu';
 import { localToday } from '../../../lib/dates';
-import { useSavedViews, type SavedViewsState } from './use-saved-views';
-import { shownColumns, sortRows, type DataColumn, type ShownColumn } from '../table/data-table';
-import { filterRows, groupRows, isGroupable, tableFilterFields, type RowGroup } from '../table/table-engine';
+import { useSavedViews, viewParam, type SavedViewsState } from './use-saved-views';
+import { shownColumns, type DataColumn, type ShownColumn } from '../table/data-table';
+import { isGroupable, tableFilterFields, viewRows, type RowGroup } from '../table/table-engine';
 import { useArchivedToggle, type ArchivedToggle } from '../../../lib/archive';
 import { ME_KEY } from '../../people/people-keys';
 
@@ -142,12 +142,12 @@ const LEGACY_FILTER_VALUES: Readonly<Record<string, LegacyFilterValues>> = {
 
 /**
  * Configuration of a stored view of a table (the defaults when it is invalid), the old id of its label column read as
- * `label` and the old values of its filters as the current ones.
+ * `label` and the old values of its filters as the current ones: as the table reads it, and whatever shows its rows elsewhere.
  * @param {unknown} config Stored configuration.
  * @param {string} tableKey Table of the view.
  * @returns {TableViewConfig} Configuration.
  */
-function parseConfig(config: unknown, tableKey: string): TableViewConfig {
+export function parseTableViewConfig(config: unknown, tableKey: string): TableViewConfig {
   const result = tableViewConfigSchema.safeParse(withFilterValues(withLabelColumn(config, legacyLabelColumn(tableKey)), LEGACY_FILTER_VALUES[tableKey]));
   return result.success ? result.data : tableViewConfig();
 }
@@ -184,8 +184,8 @@ export function useTableViews({
       })),
     [firstKey, defaultsKey],
   );
-  const parse = useCallback((config: unknown) => parseConfig(config, tableKey), [tableKey]);
-  return useSavedViews<TableViewConfig>({ projectId, kind: 'TABLE', tableKey, parse, blank, first: firstViews, ready, param: `${tableKey}-view` });
+  const parse = useCallback((config: unknown) => parseTableViewConfig(config, tableKey), [tableKey]);
+  return useSavedViews<TableViewConfig>({ projectId, kind: 'TABLE', tableKey, parse, blank, first: firstViews, ready, param: viewParam(tableKey) });
 }
 
 /**
@@ -222,12 +222,11 @@ export function useDataView<R>({
   const sorting = config?.sorting ?? [];
   // The archived rows, once asked.
   const { shown: pool, toggle } = useArchivedToggle(rows, archived ?? NEVER_ARCHIVED);
-  const matched = config ? filterRows(pool, columns, config, localToday()) : [];
-  const forced = alwaysKept ? new Set(matched) : null;
-  const kept = config ? sortRows(forced ? pool.filter((row) => forced.has(row) || alwaysKept!(row)) : matched, sorting, columns) : [];
+  const applied = config ? viewRows(pool, columns, config, localToday(), alwaysKept) : null;
+  const kept = applied?.rows ?? [];
   const [filterOpened, setFilterOpened] = useState(false);
   const fields = tableFilterFields(columns);
-  const groupColumn = (config?.groupBy && columns.find((column) => column.id === config.groupBy && isGroupable(column))) || null;
+  const groupColumn = applied?.groupColumn ?? null;
   const keys = getKey ? kept.map(getKey) : [];
   const bulk = useBulkSelection({ keys, isBulk: (id) => Boolean(getKey && (bulkColumns.some((column) => column.id === id) || columns.find((column) => column.id === id)?.bulk)) });
   return {
@@ -242,7 +241,7 @@ export function useDataView<R>({
     rows: kept,
     total: rows.length,
     archivedToggle: archived ? { ...toggle, label: archivedLabel } : null,
-    groups: groupColumn ? groupRows(kept, groupColumn, sorting, config?.groupPeriod) : [{ key: '', label: '', rows: kept }],
+    groups: applied?.groups ?? [{ key: '', label: '', rows: kept }],
     groupColumn,
     change: views.change,
     setLayout: (next) => views.change((current) => ({ ...current, ...next })),

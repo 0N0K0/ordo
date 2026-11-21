@@ -15,6 +15,8 @@ Un tableau de données commun (voir [Tableau de données](../../web/components/d
 
 ### Vues
 
+La vue par défaut de la page (sinon son premier onglet) est aussi celle de la carte « Routines » de l’accueil (voir [Accueil](../cross-cutting/home.md#cartes)).
+
 Créées la première fois :
 
 | Vue         | Réglage                                                                      |

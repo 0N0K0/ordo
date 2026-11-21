@@ -20,6 +20,7 @@ Voir aussi : [Espaces et accès](workspaces-and-access.md), [Archivage](archivin
 - « Moi » appartient à **tous les projets** sans y être rattaché.
 - « Moi » est toujours membre de l'équipe ou du foyer : « Vous êtes toujours membre de votre équipe ou de votre foyer. ».
 - « Moi » ne peut pas être supprimé : « Votre propre profil ne peut pas être supprimé. ».
+- « Moi » ne peut pas être archivé, ni seul ni avec une personne liée : « Vous ne pouvez pas vous archiver. » (voir [Archivage](archiving.md#personnes-liées)).
 - Dans le calcul d'occupation (`blockingEvent`), un événement sans participant et une tâche ou routine sans assigné comptent comme « Moi ».
 - Filtre « assigné à moi » : valeur `@me` (`ME`).
 
@@ -45,7 +46,7 @@ Voir aussi : [Espaces et accès](workspaces-and-access.md), [Archivage](archivin
 - Par les autres chemins, le lien unique est vérifié aussi : ajouter comme membre un contributeur lié à une relation ou à un contact, ou lier à une relation un contributeur membre ou lié à un contact, est refusé (messages sous [Membres](#membres-de-léquipe-ou-du-foyer) et [Relations](#relations)).
 - Un contributeur qui n'est plus membre garde sur sa ligne ses coordonnées, sa date de naissance et ses rappels, inutilisés ; ils reviennent s'il redevient membre.
 - Supprimer la relation ou le contact lié laisse le contributeur sans lien.
-- **Archivage** : un contributeur et sa relation, ou son contact, sont archivés et restaurés ensemble, dans les deux sens, avec une seule confirmation de perte pour le tout ; archiver un client archive ses contacts et leurs contributeurs, le restaurer restaure ceux archivés avec lui ; archiver un contact ou son contributeur n'archive jamais le client (voir [Archivage](archiving.md#personnes-liées)). Un membre est son propre contributeur : rien d'autre ne le suit.
+- **Archivage** : un contributeur et sa relation, ou son contact, sont archivés et restaurés ensemble, dans les deux sens, avec une seule confirmation de perte pour le tout ; archiver un client archive ses contacts et leurs contributeurs, le restaurer restaure ceux archivés avec lui ; archiver un contact ou son contributeur n'archive jamais le client, et restaurer un contact (ou son contributeur) d'un client archivé est refusé : « Restaurez d’abord le client. » (voir [Archivage](archiving.md#personnes-liées)). Un membre est son propre contributeur : rien d'autre ne le suit.
 - Dans la fiche du contributeur, sous les coordonnées montrées, « Ouvrir la fiche » ouvre celle où elles se modifient : la fiche du membre (`openMemberForm`), de la relation (`openRelationForm`) ou du contact dans son client (`openContactForm`) ; rien pour un nouveau contributeur membre ni pour « Aucun ».
 
 ## Assignés et participants

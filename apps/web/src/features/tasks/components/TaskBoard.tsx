@@ -22,7 +22,7 @@ import { useCommentCounts } from '../../comments/api';
 import { commentTotal } from '../../comments/lib/comment-column';
 import { useShoppingLists } from '../../shopping/api';
 import { useBulkTaskMutations, useMoveTask, useTaskColumnDefaults, useTasksData, type BulkChanges, type Task } from '../api';
-import { eventRowKey, filterUses, type TaskTableRow } from '../lib/task-columns';
+import { eventRowKey, filterUses, isArchivedTaskRow, taskTableRows, type TaskTableRow } from '../lib/task-columns';
 import { useTaskColumns } from '../hooks/use-task-columns';
 import { TaskStateIcon } from './task-ui';
 import { useTaskActions } from '../hooks/use-task-actions';
@@ -126,11 +126,7 @@ export function TaskBoard({ projectId, projectIds, createProjectId, header, empt
   const [openId] = useSearchParam(TASK_PARAM);
   const today = localToday();
   const tasks = useMemo(
-    () =>
-      (context?.tasks ?? [])
-        .filter((task) => !projectIds || (task.projectId && projectIds.has(task.projectId)))
-        .sort((a, b) => a.position - b.position || (a.number ?? 0) - (b.number ?? 0))
-        .map((task): TaskTableRow => ({ kind: 'task', key: task.id, task })),
+    () => taskTableRows((context?.tasks ?? []).filter((task) => !projectIds || (task.projectId && projectIds.has(task.projectId)))),
     [context, projectIds],
   );
 
@@ -169,7 +165,7 @@ export function TaskBoard({ projectId, projectIds, createProjectId, header, empt
     title,
     views,
     getKey: (row) => row.key,
-    archived: (row) => row.kind === 'task' && row.task.archived,
+    archived: isArchivedTaskRow,
     archivedLabel: 'Afficher les archivées',
   });
   /**

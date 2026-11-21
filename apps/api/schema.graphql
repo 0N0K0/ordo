@@ -2552,7 +2552,7 @@ type Mutation {
   setAccountingDocumentProject(id: ID!, projectId: ID): Boolean!
 
   """
-  Archives (hidden by default, read only) or restores elements of a kind, all at once; people with those they are linked to (a contributor with its relation or its contact).
+  Archives (hidden by default, read only) or restores elements of a kind, all at once; people with those they are linked to (a contributor with its relation or its contact); « Moi » is never archived, a contact of an archived client is not restored.
   """
   setArchived(
     archived: Boolean!

@@ -12,13 +12,14 @@ import {
   isoWeek,
   isoWeekYear,
   type TableSort,
+  type TableViewConfig,
   weekdayOf,
   quarterOf,
   twoDigits,
 } from '@ordo/shared';
 import { hasAvatar, itemRenderOption } from '../../items/item-look';
 import type { FilterFields } from '../../filters/FilterBuilder';
-import type { ColumnChoice, ColumnFilter, DataColumn } from './data-table';
+import { sortRows, type ColumnChoice, type ColumnFilter, type DataColumn } from './data-table';
 import { currentWeek } from '../../../lib/week';
 import { dayOf, monthOfDay, yearOfDay } from '../../../lib/dates';
 import * as fmt from '../../../lib/format';
@@ -359,3 +360,30 @@ export function groupRows<R>(rows: readonly R[], column: DataColumn<R>, sorting:
  * @returns {DataColumn<R>[]} Groupable columns.
  */
 export const groupableColumns = <R>(columns: readonly DataColumn<R>[]) => columns.filter(isGroupable);
+
+/** Rows of a view of a table: those its search and its filter keep, sorted, grouped. */
+export interface ViewRows<R> {
+  /** Rows kept, sorted. */
+  rows: R[];
+  /** Groups of the rows (one of every row, without heading, when not grouped). */
+  groups: RowGroup<R>[];
+  /** Column the rows are grouped by. */
+  groupColumn: DataColumn<R> | null;
+}
+
+/**
+ * A view applied to the rows of a table: its search and its filter on the columns, its sorts, its groups.
+ * @param {readonly R[]} rows Rows, in their default order (the archived ones already left out or not).
+ * @param {readonly DataColumn<R>[]} columns Columns.
+ * @param {TableViewConfig} config Configuration of the view.
+ * @param {string} today User's day (YYYY-MM-DD).
+ * @param {(row: R) => boolean} [alwaysKept] Rows kept whatever the search and the filter. Optional. Default = none.
+ * @returns {ViewRows<R>} Rows, groups and the column grouped by.
+ */
+export function viewRows<R>(rows: readonly R[], columns: readonly DataColumn<R>[], config: TableViewConfig, today: string, alwaysKept?: (row: R) => boolean): ViewRows<R> {
+  const matched = filterRows(rows, columns, config, today);
+  const forced = alwaysKept ? new Set(matched) : null;
+  const kept = sortRows(forced ? rows.filter((row) => forced.has(row) || alwaysKept!(row)) : matched, config.sorting, columns);
+  const groupColumn = (config.groupBy && columns.find((column) => column.id === config.groupBy && isGroupable(column))) || null;
+  return { rows: kept, groupColumn, groups: groupColumn ? groupRows(kept, groupColumn, config.sorting, config.groupPeriod) : [{ key: '', label: '', rows: kept }] };
+}
