@@ -69,7 +69,7 @@ Utilisé par `EventLocation`, `LocationCell`, `PlacesManager`, `TravelCalculator
 
 ### `components/PlaceMap.tsx` (+ `PlaceMap.module.css`)
 
-`PlaceMap({ points, onPick?, onSelect?, height = 240 })` : carte `react-leaflet` (tuiles OpenStreetMap) avec un `CircleMarker` et une infobulle par point (le point `active` plus grand), centrée sur la France sans point. Internes : `MapPoint`, `DEFAULT_CENTER`, `Framing` (cadre sur un point au zoom 15 au moins, ou sur tous), `Resizing` (`ResizeObserver` → `invalidateSize`), `Picking` (clic → `onPick`). Utilisé par `EventLocation` et `PlacesManager`.
+`PlaceMap({ points, onPick?, onSelect?, height = 240 })` : carte `react-leaflet` (tuiles OpenStreetMap, demandées avec `referrerPolicy="strict-origin-when-cross-origin"` : la page n'envoie aucun `Referer` (`Referrer-Policy: no-referrer`) et OpenStreetMap refuse les tuiles sans lui, erreur 403 ; seule l'origine de l'app est envoyée) avec un `CircleMarker` et une infobulle par point (le point `active` plus grand), centrée sur la France sans point. Internes : `MapPoint`, `DEFAULT_CENTER`, `Framing` (cadre sur un point au zoom 15 au moins, ou sur tous), `Resizing` (`ResizeObserver` → `invalidateSize`), `Picking` (clic → `onPick`). Utilisé par `EventLocation` et `PlacesManager`.
 
 ### `components/PlacesManager.tsx` (+ `PlacesManager.module.css`)
 
