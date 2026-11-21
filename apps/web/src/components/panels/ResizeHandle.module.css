@@ -1,5 +1,5 @@
 @layer app {
-  /* Handle on the inner edge of a resizable panel (the navigation sidebar, the settings sidebar). */
+  /* Handle on the inner edge of a resizable panel (the navigation sidebar, the settings sidebar, the side panel). */
   .resizeHandle {
     --handle-width: 6px;
 
@@ -7,7 +7,7 @@
     position: absolute;
     top: 0;
     bottom: 0;
-    z-index: 2;
+    z-index: var(--resize-handle-z-index, 2);
 
     /* Dimension */
     width: var(--handle-width);

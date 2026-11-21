@@ -119,11 +119,7 @@ Styles (`AppLayout.module.css`) : marges horizontales de page `--page-gutter` 16
 
 ### Panneaux redimensionnables
 
-- `panel-widths.ts` :
-  - `SIDEBAR_PANEL` : barre de navigation à gauche, 280 px par défaut, 200 px au moins (en dessous elle se ferme), 480 px et 40 % de la fenêtre au plus ; double clic à la largeur minimale : largeur de son contenu (`fitContent`) ; clé `ordo.sidebar.width` ;
-  - `SETTINGS_PANEL` : réglages à droite, 640 px par défaut, au moins un quart de la fenêtre et jamais sous 480 px, 1280 px et 90 % de la fenêtre au plus ; clé `ordo.settings.width`.
-- `useResizablePanel(options)` : largeur gardée (`localStorage`, propre à chaque fenêtre : une nouvelle fenêtre part de la dernière) d'un panneau sur un côté, avec une poignée sur son bord intérieur : glisser sous le minimum le ferme, revenir le rouvre ; double clic : largeur minimale (et avec `fitContent`, déjà au minimum : largeur du contenu, fonction interne `hiddenWidth`). La largeur affichée reste dans les limites de la fenêtre, la largeur enregistrée reste celle choisie. Rend `{ width, resizing, onResizeStart, onResizeReset }`.
-- `ResizeHandle` : poignée (`role="separator"` vertical, libellé accessible) sur le bord d'un panneau : glissée pour redimensionner, double-cliquée pour remettre la largeur ; reste surlignée pendant le redimensionnement.
+`useResizablePanel`, `ResizeHandle` et `panel-widths.ts` (`SIDEBAR_PANEL`, `SETTINGS_PANEL`) sont dans `components/panels/` depuis la décision FY (le panneau latéral les utilise aussi) : voir [Panneau latéral et modales](components/panels.md#panneaux-redimensionnables).
 
 ## Styles globaux (`styles/`)
 
@@ -142,7 +138,7 @@ Styles (`AppLayout.module.css`) : marges horizontales de page `--page-gutter` 16
 - `reveal.css` : un élément `[data-reveal]` (actions de ligne, poignée, case) reste caché jusqu'au survol, au focus ou au menu ouvert de son hôte `[data-reveal-host]` ; toujours visible sur écran tactile.
 - `drop.css` (couche `states`) : futur parent d'un élément glissé (`[data-drop-target]` dans un tableau, `[data-drop='INSIDE']` dans un arbre) teinté et encadré de la couleur primaire.
 - `tabs.css` : les onglets horizontaux restent sur une ligne et défilent de côté quand la place manque (sauf les onglets de page `PageTabs`) ; la ligne sous les onglets est dessinée par la liste.
-- `dialogs.css` : `overflow-y: auto !important` sur le contenu des modales et tiroirs (les gestionnaires de mots de passe mettent `overflow: visible` en style en ligne).
+- `dialogs.css` : `overflow-y: auto !important` sur le contenu des modales et le corps du panneau latéral, la partie qui y défile (les gestionnaires de mots de passe mettent `overflow: visible` en style en ligne).
 
 ## Conventions
 

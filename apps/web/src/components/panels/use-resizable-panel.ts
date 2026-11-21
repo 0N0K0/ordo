@@ -32,8 +32,8 @@ function hiddenWidth(element: HTMLElement): number {
 }
 
 /**
- * Width of a panel on a side of the window (the navigation sidebar, the settings sidebar), kept, with a handle on its
- * inner edge to resize it: dragging below the minimum closes it, dragging back reopens it; a double click on the
+ * Width of a panel on a side of the window (the navigation sidebar, the settings sidebar, the side panel), kept, with a
+ * handle on its inner edge to resize it: dragging below the minimum closes it, dragging back reopens it; a double click on the
  * handle gives it its minimum width (and, with `fitContent`, at its minimum width the width of its content). The width
  * shown stays between the limits of the window, the stored one is left as chosen (a narrow window, even for a moment,
  * would otherwise shrink it for good).

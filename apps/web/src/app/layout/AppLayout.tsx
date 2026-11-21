@@ -27,9 +27,9 @@ import { SettingsButton } from './SettingsButton';
 import { SettingsOverlay } from './SettingsOverlay';
 import { TimerWidget } from '../../features/time/components/TimerWidget';
 import { CountdownWidget } from '../../features/countdowns/components/CountdownWidget';
-import { useResizablePanel } from './use-resizable-panel';
-import { SETTINGS_PANEL, SIDEBAR_PANEL } from './panel-widths';
-import { ResizeHandle } from './ResizeHandle';
+import { useResizablePanel } from '../../components/panels/use-resizable-panel';
+import { SETTINGS_PANEL, SIDEBAR_PANEL } from '../../components/panels/panel-widths';
+import { ResizeHandle } from '../../components/panels/ResizeHandle';
 import { useIsPhone } from '../../lib/use-is-phone';
 import { PAGES } from '../pages';
 

@@ -1172,6 +1172,11 @@ export default defineConfig([
           message:
             'Utiliser useSlotSourceArchiving(kind) (features/calendar/api) : archiver un créneau, un type ou une personne confirme les occurrences de routines perdues et recharge ce qui en dépend (décision FQ ; un type : confirmLoss de useScheduleTypeItems).',
         },
+        {
+          // Decision FY: a panel is resized one way, its width kept by useResizablePanel (limits in panel-widths).
+          selector: "CallExpression[callee.name='useLocalStorage'] Property[key.name='key'][value.value=/width$/i]",
+          message: 'Utiliser useResizablePanel + ResizeHandle (components/panels), ses limites dans panel-widths : un panneau se redimensionne d’une seule façon (décision FY).',
+        },
       ],
     },
   },
