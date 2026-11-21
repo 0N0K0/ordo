@@ -1,6 +1,5 @@
 import { tasksQueryKey, doableTasksKey } from '../../../lib/query-keys';
-import type { TaskInheritableField, TaskInput } from '@ordo/shared';
-import type { PersonDetailsValues } from '../../../components/people/person-details';
+import type { ContributorLinkValues, TaskInheritableField, TaskInput } from '@ordo/shared';
 import { accountingQueryKey } from '../../accounting/api';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { moveToIndex, patchQuery, useInvalidatingMutation } from '../../../lib/mutation';
@@ -41,6 +40,10 @@ graphql(`
     avatarUrl
     isMe
     projectIds
+    link
+    relationId
+    contactId
+    linkName
     birthDate
     birthdayReminders {
       ...ReminderFields
@@ -620,23 +623,24 @@ export function useTaskCommentMutations() {
  * @returns {object} Contributor mutations.
  */
 export function useContributorMutations() {
-  // Its birthday added, moved or gone: the occurrences of routines lost are confirmed first, as for a
-  // change of schedule, and the routines refreshed with the tasks (the birthdays and the tasks doable now are under them).
-  const people = { invalidate: [tasksQueryKey, routinesKey] };
+  // Its birthday added, moved or gone (its link: a membership, a relation): the occurrences of routines lost are
+  // confirmed first, as for a change of schedule, and the routines refreshed with the tasks (the birthdays and the
+  // tasks doable now are under them), the members and relations (treasury) with them.
+  const people = { invalidate: [tasksQueryKey, routinesKey, accountingQueryKey] };
   return {
     create: useInvalidatingMutation(
-      async (input: { name: string; handle: string; avatar?: File | null; projectIds?: string[] } & Partial<PersonDetailsValues>) =>
+      async (input: { name: string; handle: string; avatar?: File | null; projectIds?: string[]; link?: ContributorLinkValues }) =>
         withLossConfirmation(async (confirmLoss) => (await execute(CreateContributorDocument, { input, confirmLoss })).createContributor),
       people,
     ),
     update: useInvalidatingMutation(
-      async (variables: { id: string; input: { name?: string; handle?: string; avatar?: File | null; removeAvatar?: boolean; projectIds?: string[] } }) =>
+      async (variables: { id: string; input: { name?: string; handle?: string; avatar?: File | null; removeAvatar?: boolean; projectIds?: string[]; link?: ContributorLinkValues } }) =>
         withLossConfirmation(async (confirmLoss) => (await execute(UpdateContributorDocument, { ...variables, confirmLoss })).updateContributor),
       people,
     ),
     // Members and relations (treasury) follow: a relation loses its contributor.
     remove: useInvalidatingMutation(async (variables: { id: string }) => withLossConfirmation(async (confirmLoss) => (await execute(DeleteContributorDocument, { ...variables, confirmLoss })).deleteContributor), {
-      invalidate: [...people.invalidate, accountingQueryKey],
+      invalidate: people.invalidate,
     }),
     setProjectContributors: useTasksMutation(async (variables: { projectId: string; contributorIds: string[] }) => (await execute(SetProjectContributorsDocument, variables)).setProjectContributors),
   };

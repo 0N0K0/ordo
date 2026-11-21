@@ -1,4 +1,4 @@
-import { accountingQueryKey } from '../../../lib/query-keys';
+import { accountingQueryKey, tasksQueryKey } from '../../../lib/query-keys';
 import { useQuery } from '@tanstack/react-query';
 import { useInvalidatingMutation } from '../../../lib/mutation';
 import { graphql } from '../../../graphql';
@@ -10,6 +10,7 @@ import type {
   CompanyProfileFieldsFragment,
   CompanyProfileInput,
   ClientBillingQuery,
+  ClientContactsQuery,
 } from '../../../graphql/graphql';
 import { execute } from '../../../lib/graphql-client';
 
@@ -17,6 +18,8 @@ export type CompanyProfile = CompanyProfileFieldsFragment;
 export type ClientBilling = NonNullable<ClientBillingQuery['client']>;
 export type ClientService = ClientBilling['services'][number];
 export type ClientContact = ClientBilling['contacts'][number];
+/** A contact of any client, with its client (what a contributor can be linked to). */
+export type AnyClientContact = ClientContactsQuery['clientContacts'][number];
 export type { AccountingDocumentType, ClientContactInput, ClientDetailsInput, ClientServiceInput, CompanyProfileInput };
 
 graphql(`
@@ -101,6 +104,23 @@ const ClientBillingDocument = graphql(`
         email
         jobTitle
         phones
+      }
+    }
+  }
+`);
+
+const ClientContactsDocument = graphql(`
+  query ClientContacts {
+    clientContacts {
+      id
+      firstName
+      lastName
+      email
+      phones
+      client {
+        id
+        name
+        archived
       }
     }
   }
@@ -218,6 +238,16 @@ export function useClientBilling(id: string) {
 }
 
 /**
+ * Every contact of every client, by client then name (archived clients included): those a contributor can be
+ * linked to (professional workspace).
+ * @param {boolean} [enabled] Fetched (not in a personal workspace). Optional. Default = true.
+ * @returns {UseQueryResult} Query state.
+ */
+export function useClientContacts(enabled = true) {
+  return useQuery({ enabled, queryKey: [...accountingQueryKey, 'contacts'], queryFn: async () => (await execute(ClientContactsDocument)).clientContacts });
+}
+
+/**
  * Mutation refreshing the accounting data (documents, statuses, treasury) once done.
  * @param {(variables: TVariables) => Promise<TResult>} mutationFn Request.
  * @returns {UseMutationResult} Mutation state.
@@ -245,13 +275,15 @@ export function useCompanyMutations() {
  * @returns {object} Mutations.
  */
 export function useClientPartyMutations() {
+  // A contributor linked to a contact shows its email and phones: the contributors are refreshed too.
+  const contactChanged = { invalidate: [accountingQueryKey, tasksQueryKey] };
   return {
     updateDetails: useAccountingMutation(async (variables: { id: string; input: ClientDetailsInput }) => (await execute(UpdateClientDetailsDocument, variables)).updateClientDetails),
     createService: useAccountingMutation(async (variables: { clientId: string; input: ClientServiceInput }) => (await execute(CreateClientServiceDocument, variables)).createClientService),
     updateService: useAccountingMutation(async (variables: { id: string; input: ClientServiceInput }) => (await execute(UpdateClientServiceDocument, variables)).updateClientService),
     deleteService: useAccountingMutation(async (id: string) => (await execute(DeleteClientServiceDocument, { id })).deleteClientService),
     createContact: useAccountingMutation(async (variables: { clientId: string; input: ClientContactInput }) => (await execute(CreateClientContactDocument, variables)).createClientContact),
-    updateContact: useAccountingMutation(async (variables: { id: string; input: ClientContactInput }) => (await execute(UpdateClientContactDocument, variables)).updateClientContact),
-    deleteContact: useAccountingMutation(async (id: string) => (await execute(DeleteClientContactDocument, { id })).deleteClientContact),
+    updateContact: useInvalidatingMutation(async (variables: { id: string; input: ClientContactInput }) => (await execute(UpdateClientContactDocument, variables)).updateClientContact, contactChanged),
+    deleteContact: useInvalidatingMutation(async (id: string) => (await execute(DeleteClientContactDocument, { id })).deleteClientContact, contactChanged),
   };
 }

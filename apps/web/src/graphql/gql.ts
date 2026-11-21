@@ -69,6 +69,7 @@ type Documents = {
     "\n  query CompanyProfile {\n    companyProfile {\n      ...CompanyProfileFields\n    }\n  }\n": typeof types.CompanyProfileDocument,
     "\n  query DocumentSequences($year: Int!) {\n    documentSequences(year: $year) {\n      type\n      year\n      nextNumber\n      minimum\n    }\n  }\n": typeof types.DocumentSequencesDocument,
     "\n  query ClientBilling($id: ID!) {\n    client(id: $id) {\n      id\n      name\n      kind\n      firstName\n      lastName\n      address\n      email\n      phones\n      website\n      vatNumber\n      siren\n      siret\n      activityCode\n      services {\n        id\n        label\n        address\n        email\n        phones\n      }\n      contacts {\n        id\n        serviceId\n        firstName\n        lastName\n        email\n        jobTitle\n        phones\n      }\n    }\n  }\n": typeof types.ClientBillingDocument,
+    "\n  query ClientContacts {\n    clientContacts {\n      id\n      firstName\n      lastName\n      email\n      phones\n      client {\n        id\n        name\n        archived\n      }\n    }\n  }\n": typeof types.ClientContactsDocument,
     "\n  mutation UpdateCompanyProfile($input: CompanyProfileInput!) {\n    updateCompanyProfile(input: $input) {\n      name\n    }\n  }\n": typeof types.UpdateCompanyProfileDocument,
     "\n  mutation SetCompanyLogo($file: File) {\n    setCompanyLogo(file: $file) {\n      logoUrl\n    }\n  }\n": typeof types.SetCompanyLogoDocument,
     "\n  mutation SetDocumentSequence($type: AccountingDocumentType!, $year: Int!, $nextNumber: Int!) {\n    setDocumentSequence(type: $type, year: $year, nextNumber: $nextNumber)\n  }\n": typeof types.SetDocumentSequenceDocument,
@@ -389,7 +390,7 @@ type Documents = {
     "\n  mutation UpdateShoppingDelivery($id: ID!, $input: ShoppingDeliveryInput!) {\n    updateShoppingDelivery(id: $id, input: $input)\n  }\n": typeof types.UpdateShoppingDeliveryDocument,
     "\n  mutation DeleteShoppingDelivery($id: ID!) {\n    deleteShoppingDelivery(id: $id)\n  }\n": typeof types.DeleteShoppingDeliveryDocument,
     "\n  mutation SetShoppingDeliveryReceived($id: ID!, $received: Boolean!) {\n    setShoppingDeliveryReceived(id: $id, received: $received)\n  }\n": typeof types.SetShoppingDeliveryReceivedDocument,
-    "\n  fragment ContributorFields on Contributor {\n    id\n    archived\n    name\n    handle\n    avatarUrl\n    isMe\n    projectIds\n    birthDate\n    birthdayReminders {\n      ...ReminderFields\n    }\n    emails\n    phones\n  }\n": typeof types.ContributorFieldsFragmentDoc,
+    "\n  fragment ContributorFields on Contributor {\n    id\n    archived\n    name\n    handle\n    avatarUrl\n    isMe\n    projectIds\n    link\n    relationId\n    contactId\n    linkName\n    birthDate\n    birthdayReminders {\n      ...ReminderFields\n    }\n    emails\n    phones\n  }\n": typeof types.ContributorFieldsFragmentDoc,
     "\n  fragment SprintFields on Sprint {\n    id\n    archived\n    projectId\n    label\n    goal\n    startDate\n    endDate\n  }\n": typeof types.SprintFieldsFragmentDoc,
     "\n  fragment MilestoneFields on Milestone {\n    id\n    archived\n    projectId\n    label\n    description\n    dueDate\n    position\n  }\n": typeof types.MilestoneFieldsFragmentDoc,
     "\n  fragment TaskLabelFields on TaskStatus {\n    id\n    archived\n    label\n    color\n    iconUrl\n    position\n  }\n": typeof types.TaskLabelFieldsFragmentDoc,
@@ -479,8 +480,9 @@ type Documents = {
     "\n  mutation RealizeTreasuryForecast($id: ID!, $occurrence: Date!, $date: Date!, $amount: Float!) {\n    realizeTreasuryForecast(id: $id, occurrence: $occurrence, date: $date, amount: $amount)\n  }\n": typeof types.RealizeTreasuryForecastDocument,
     "\n  query InvoiceTreasuryCategories {\n    invoiceTreasuryCategories {\n      invoiceCategoryId\n      creditNoteCategoryId\n    }\n  }\n": typeof types.InvoiceTreasuryCategoriesDocument,
     "\n  mutation SetInvoiceTreasuryCategories($invoiceCategoryId: ID, $creditNoteCategoryId: ID) {\n    setInvoiceTreasuryCategories(invoiceCategoryId: $invoiceCategoryId, creditNoteCategoryId: $creditNoteCategoryId)\n  }\n": typeof types.SetInvoiceTreasuryCategoriesDocument,
-    "\n  mutation AddTreasuryMember($contributorId: ID, $name: String) {\n    addTreasuryMember(contributorId: $contributorId, name: $name)\n  }\n": typeof types.AddTreasuryMemberDocument,
-    "\n  mutation RemoveTreasuryMember($contributorId: ID!) {\n    removeTreasuryMember(contributorId: $contributorId)\n  }\n": typeof types.RemoveTreasuryMemberDocument,
+    "\n  mutation AddTreasuryMember($contributorId: ID, $name: String, $confirmLoss: Boolean) {\n    addTreasuryMember(contributorId: $contributorId, name: $name, confirmLoss: $confirmLoss)\n  }\n": typeof types.AddTreasuryMemberDocument,
+    "\n  mutation RemoveTreasuryMember($contributorId: ID!, $confirmLoss: Boolean) {\n    removeTreasuryMember(contributorId: $contributorId, confirmLoss: $confirmLoss)\n  }\n": typeof types.RemoveTreasuryMemberDocument,
+    "\n  mutation UpdateTreasuryMember($contributorId: ID!, $input: TreasuryMemberDetailsInput!, $confirmLoss: Boolean) {\n    updateTreasuryMember(contributorId: $contributorId, input: $input, confirmLoss: $confirmLoss) {\n      id\n    }\n  }\n": typeof types.UpdateTreasuryMemberDocument,
     "\n  mutation SaveTreasuryRelation($id: ID, $input: TreasuryRelationInput!, $confirmLoss: Boolean) {\n    saveTreasuryRelation(id: $id, input: $input, confirmLoss: $confirmLoss)\n  }\n": typeof types.SaveTreasuryRelationDocument,
     "\n  mutation DeleteTreasuryRelation($id: ID!, $confirmLoss: Boolean) {\n    deleteTreasuryRelation(id: $id, confirmLoss: $confirmLoss)\n  }\n": typeof types.DeleteTreasuryRelationDocument,
     "\n  mutation SaveTreasuryContext($id: ID, $input: LabelColorInput!) {\n    saveTreasuryContext(id: $id, input: $input)\n  }\n": typeof types.SaveTreasuryContextDocument,
@@ -556,6 +558,7 @@ const documents: Documents = {
     "\n  query CompanyProfile {\n    companyProfile {\n      ...CompanyProfileFields\n    }\n  }\n": types.CompanyProfileDocument,
     "\n  query DocumentSequences($year: Int!) {\n    documentSequences(year: $year) {\n      type\n      year\n      nextNumber\n      minimum\n    }\n  }\n": types.DocumentSequencesDocument,
     "\n  query ClientBilling($id: ID!) {\n    client(id: $id) {\n      id\n      name\n      kind\n      firstName\n      lastName\n      address\n      email\n      phones\n      website\n      vatNumber\n      siren\n      siret\n      activityCode\n      services {\n        id\n        label\n        address\n        email\n        phones\n      }\n      contacts {\n        id\n        serviceId\n        firstName\n        lastName\n        email\n        jobTitle\n        phones\n      }\n    }\n  }\n": types.ClientBillingDocument,
+    "\n  query ClientContacts {\n    clientContacts {\n      id\n      firstName\n      lastName\n      email\n      phones\n      client {\n        id\n        name\n        archived\n      }\n    }\n  }\n": types.ClientContactsDocument,
     "\n  mutation UpdateCompanyProfile($input: CompanyProfileInput!) {\n    updateCompanyProfile(input: $input) {\n      name\n    }\n  }\n": types.UpdateCompanyProfileDocument,
     "\n  mutation SetCompanyLogo($file: File) {\n    setCompanyLogo(file: $file) {\n      logoUrl\n    }\n  }\n": types.SetCompanyLogoDocument,
     "\n  mutation SetDocumentSequence($type: AccountingDocumentType!, $year: Int!, $nextNumber: Int!) {\n    setDocumentSequence(type: $type, year: $year, nextNumber: $nextNumber)\n  }\n": types.SetDocumentSequenceDocument,
@@ -876,7 +879,7 @@ const documents: Documents = {
     "\n  mutation UpdateShoppingDelivery($id: ID!, $input: ShoppingDeliveryInput!) {\n    updateShoppingDelivery(id: $id, input: $input)\n  }\n": types.UpdateShoppingDeliveryDocument,
     "\n  mutation DeleteShoppingDelivery($id: ID!) {\n    deleteShoppingDelivery(id: $id)\n  }\n": types.DeleteShoppingDeliveryDocument,
     "\n  mutation SetShoppingDeliveryReceived($id: ID!, $received: Boolean!) {\n    setShoppingDeliveryReceived(id: $id, received: $received)\n  }\n": types.SetShoppingDeliveryReceivedDocument,
-    "\n  fragment ContributorFields on Contributor {\n    id\n    archived\n    name\n    handle\n    avatarUrl\n    isMe\n    projectIds\n    birthDate\n    birthdayReminders {\n      ...ReminderFields\n    }\n    emails\n    phones\n  }\n": types.ContributorFieldsFragmentDoc,
+    "\n  fragment ContributorFields on Contributor {\n    id\n    archived\n    name\n    handle\n    avatarUrl\n    isMe\n    projectIds\n    link\n    relationId\n    contactId\n    linkName\n    birthDate\n    birthdayReminders {\n      ...ReminderFields\n    }\n    emails\n    phones\n  }\n": types.ContributorFieldsFragmentDoc,
     "\n  fragment SprintFields on Sprint {\n    id\n    archived\n    projectId\n    label\n    goal\n    startDate\n    endDate\n  }\n": types.SprintFieldsFragmentDoc,
     "\n  fragment MilestoneFields on Milestone {\n    id\n    archived\n    projectId\n    label\n    description\n    dueDate\n    position\n  }\n": types.MilestoneFieldsFragmentDoc,
     "\n  fragment TaskLabelFields on TaskStatus {\n    id\n    archived\n    label\n    color\n    iconUrl\n    position\n  }\n": types.TaskLabelFieldsFragmentDoc,
@@ -966,8 +969,9 @@ const documents: Documents = {
     "\n  mutation RealizeTreasuryForecast($id: ID!, $occurrence: Date!, $date: Date!, $amount: Float!) {\n    realizeTreasuryForecast(id: $id, occurrence: $occurrence, date: $date, amount: $amount)\n  }\n": types.RealizeTreasuryForecastDocument,
     "\n  query InvoiceTreasuryCategories {\n    invoiceTreasuryCategories {\n      invoiceCategoryId\n      creditNoteCategoryId\n    }\n  }\n": types.InvoiceTreasuryCategoriesDocument,
     "\n  mutation SetInvoiceTreasuryCategories($invoiceCategoryId: ID, $creditNoteCategoryId: ID) {\n    setInvoiceTreasuryCategories(invoiceCategoryId: $invoiceCategoryId, creditNoteCategoryId: $creditNoteCategoryId)\n  }\n": types.SetInvoiceTreasuryCategoriesDocument,
-    "\n  mutation AddTreasuryMember($contributorId: ID, $name: String) {\n    addTreasuryMember(contributorId: $contributorId, name: $name)\n  }\n": types.AddTreasuryMemberDocument,
-    "\n  mutation RemoveTreasuryMember($contributorId: ID!) {\n    removeTreasuryMember(contributorId: $contributorId)\n  }\n": types.RemoveTreasuryMemberDocument,
+    "\n  mutation AddTreasuryMember($contributorId: ID, $name: String, $confirmLoss: Boolean) {\n    addTreasuryMember(contributorId: $contributorId, name: $name, confirmLoss: $confirmLoss)\n  }\n": types.AddTreasuryMemberDocument,
+    "\n  mutation RemoveTreasuryMember($contributorId: ID!, $confirmLoss: Boolean) {\n    removeTreasuryMember(contributorId: $contributorId, confirmLoss: $confirmLoss)\n  }\n": types.RemoveTreasuryMemberDocument,
+    "\n  mutation UpdateTreasuryMember($contributorId: ID!, $input: TreasuryMemberDetailsInput!, $confirmLoss: Boolean) {\n    updateTreasuryMember(contributorId: $contributorId, input: $input, confirmLoss: $confirmLoss) {\n      id\n    }\n  }\n": types.UpdateTreasuryMemberDocument,
     "\n  mutation SaveTreasuryRelation($id: ID, $input: TreasuryRelationInput!, $confirmLoss: Boolean) {\n    saveTreasuryRelation(id: $id, input: $input, confirmLoss: $confirmLoss)\n  }\n": types.SaveTreasuryRelationDocument,
     "\n  mutation DeleteTreasuryRelation($id: ID!, $confirmLoss: Boolean) {\n    deleteTreasuryRelation(id: $id, confirmLoss: $confirmLoss)\n  }\n": types.DeleteTreasuryRelationDocument,
     "\n  mutation SaveTreasuryContext($id: ID, $input: LabelColorInput!) {\n    saveTreasuryContext(id: $id, input: $input)\n  }\n": types.SaveTreasuryContextDocument,
@@ -1205,6 +1209,10 @@ export function graphql(source: "\n  query DocumentSequences($year: Int!) {\n   
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */
 export function graphql(source: "\n  query ClientBilling($id: ID!) {\n    client(id: $id) {\n      id\n      name\n      kind\n      firstName\n      lastName\n      address\n      email\n      phones\n      website\n      vatNumber\n      siren\n      siret\n      activityCode\n      services {\n        id\n        label\n        address\n        email\n        phones\n      }\n      contacts {\n        id\n        serviceId\n        firstName\n        lastName\n        email\n        jobTitle\n        phones\n      }\n    }\n  }\n"): typeof import('./graphql').ClientBillingDocument;
+/**
+ * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
+ */
+export function graphql(source: "\n  query ClientContacts {\n    clientContacts {\n      id\n      firstName\n      lastName\n      email\n      phones\n      client {\n        id\n        name\n        archived\n      }\n    }\n  }\n"): typeof import('./graphql').ClientContactsDocument;
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */
@@ -2488,7 +2496,7 @@ export function graphql(source: "\n  mutation SetShoppingDeliveryReceived($id: I
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */
-export function graphql(source: "\n  fragment ContributorFields on Contributor {\n    id\n    archived\n    name\n    handle\n    avatarUrl\n    isMe\n    projectIds\n    birthDate\n    birthdayReminders {\n      ...ReminderFields\n    }\n    emails\n    phones\n  }\n"): typeof import('./graphql').ContributorFieldsFragmentDoc;
+export function graphql(source: "\n  fragment ContributorFields on Contributor {\n    id\n    archived\n    name\n    handle\n    avatarUrl\n    isMe\n    projectIds\n    link\n    relationId\n    contactId\n    linkName\n    birthDate\n    birthdayReminders {\n      ...ReminderFields\n    }\n    emails\n    phones\n  }\n"): typeof import('./graphql').ContributorFieldsFragmentDoc;
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */
@@ -2848,11 +2856,15 @@ export function graphql(source: "\n  mutation SetInvoiceTreasuryCategories($invo
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */
-export function graphql(source: "\n  mutation AddTreasuryMember($contributorId: ID, $name: String) {\n    addTreasuryMember(contributorId: $contributorId, name: $name)\n  }\n"): typeof import('./graphql').AddTreasuryMemberDocument;
+export function graphql(source: "\n  mutation AddTreasuryMember($contributorId: ID, $name: String, $confirmLoss: Boolean) {\n    addTreasuryMember(contributorId: $contributorId, name: $name, confirmLoss: $confirmLoss)\n  }\n"): typeof import('./graphql').AddTreasuryMemberDocument;
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */
-export function graphql(source: "\n  mutation RemoveTreasuryMember($contributorId: ID!) {\n    removeTreasuryMember(contributorId: $contributorId)\n  }\n"): typeof import('./graphql').RemoveTreasuryMemberDocument;
+export function graphql(source: "\n  mutation RemoveTreasuryMember($contributorId: ID!, $confirmLoss: Boolean) {\n    removeTreasuryMember(contributorId: $contributorId, confirmLoss: $confirmLoss)\n  }\n"): typeof import('./graphql').RemoveTreasuryMemberDocument;
+/**
+ * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
+ */
+export function graphql(source: "\n  mutation UpdateTreasuryMember($contributorId: ID!, $input: TreasuryMemberDetailsInput!, $confirmLoss: Boolean) {\n    updateTreasuryMember(contributorId: $contributorId, input: $input, confirmLoss: $confirmLoss) {\n      id\n    }\n  }\n"): typeof import('./graphql').UpdateTreasuryMemberDocument;
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */

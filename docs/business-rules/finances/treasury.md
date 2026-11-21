@@ -211,8 +211,10 @@ Source : `apps/api/src/services/treasury/treasury-team.ts`.
 
 - Un membre est un contributeur marqué `teamMember`, ou l’utilisateur de l’app (« Moi », toujours membre). Liste : « Moi » d’abord, puis par nom.
 - Ajouter (`addTreasuryMember`) : un contributeur existant (doit exister, « Contributeur »), ou un nouveau contributeur créé avec ce nom (nom de personne valide, identifiant libre généré).
-- Un contributeur est membre ou relation, pas les deux : « Ce contributeur est la relation « X » : il ne peut pas aussi être membre. »
-- Retirer (`removeTreasuryMember`) : il reste contributeur (tâches, projets, lignes passées gardés) ; « Moi » ne peut pas être retiré : « Vous êtes toujours membre de votre équipe ou de votre foyer. »
+- Un contributeur est lié à un membre, une relation ou un contact, un seul : « Ce contributeur est la relation « X » : il ne peut pas aussi être membre. », « Ce contributeur est le contact « Prénom Nom · Client » : il ne peut pas aussi être membre. »
+- Retirer (`removeTreasuryMember`) : il reste contributeur (tâches, projets, lignes passées gardés), sans coordonnées ; « Moi » ne peut pas être retiré : « Vous êtes toujours membre de votre équipe ou de votre foyer. »
+- Coordonnées et date de naissance du membre (`updateTreasuryMember`) : modifiées dans sa fiche, seulement pour un membre (voir [Personnes](../cross-cutting/people.md#membres-de-léquipe-ou-du-foyer)).
+- Ajouter, retirer un membre ou changer sa date de naissance passe par la confirmation d'un anniversaire cité (`confirmLoss`).
 - Voir aussi [Personnes](../cross-cutting/people.md).
 
 ## Relations
@@ -220,7 +222,7 @@ Source : `apps/api/src/services/treasury/treasury-team.ts`.
 Source : `treasury-team.ts`, schéma `treasuryRelationSchema`.
 
 - Personne hors de l’équipe ou du foyer (amis, famille, partenaires…) pour qui une ligne ou un budget peut être. Champs : `name` (nom de personne), `note` (texte multiligne, 4 000), `contributorId` facultatif, et ses coordonnées et sa date de naissance (omis : inchangés ; voir [Personnes](../cross-cutting/people.md#coordonnées-date-de-naissance-anniversaire)).
-- Le contributeur lié ne peut pas être membre : « Ce contributeur est membre : il n’est pas une relation. »
+- Le contributeur lié ne peut être ni membre (« Ce contributeur est membre : il n’est pas une relation. ») ni lié à un contact (« Ce contributeur est le contact « Prénom Nom · Client » : il ne peut pas aussi être une relation. ») ; ses coordonnées et son anniversaire sont ceux de la relation.
 - Unicité dans l’espace : le nom (« Une relation porte déjà ce nom. ») et le contributeur (« Ce contributeur est déjà une relation. »).
 - Modification refusée si elle est archivée.
 - Suppression : ses budgets sont supprimés (`Cascade`), ses lignes deviennent celles de l’utilisateur (`SetNull`) et sortent donc des prêts.

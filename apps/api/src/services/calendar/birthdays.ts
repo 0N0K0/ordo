@@ -1,5 +1,6 @@
 import { personBirthdayId, readBirthDate, readReminders, type BirthdayPerson, type Reminder } from '@ordo/shared';
 import { prisma } from '../../db';
+import { isMember } from '../people/members';
 
 /**
  * Birthday of a person: derived from its birth date at read time, no row of its own. Slot
@@ -16,10 +17,7 @@ export interface PersonBirthday {
   reminders: Reminder[];
   /** Its person is archived: shown nowhere, no moment to the slot conditions. */
   archived: boolean;
-  /**
-   * Other birthday ids of the same person: the relation linked to the contributor whose birthday applies,
-   * or the contributor without birth date of the relation whose birthday applies.
-   */
+  /** Other birthday ids of the same person: the contributor linked to the relation. */
   aliases: string[];
 }
 
@@ -32,6 +30,8 @@ export interface BirthdayRow {
   archived: boolean;
   /** A relation: the contributor it is. Optional. */
   contributorId?: string | null;
+  /** A contributor: member of the team or household (« Moi » included), the only ones with a birthday of their own. Optional. */
+  member?: boolean;
 }
 
 /** The contributors and relations of the workspace, as their birthdays are derived from. */
@@ -70,10 +70,18 @@ export function personChange(person: BirthdayPerson, id: string, patch: Partial<
 }
 
 /**
- * Birthdays of some people: contributors (members of the team or household included) and relations
- * with a valid birth date, archived ones flagged. One person, one birthday: a relation linked to a contributor with a
- * birth date (not archived) gives none of its own, its id naming the contributor's (`aliases`); a contributor without
- * birth date linked to a relation with one is named by the relation's.
+ * Changes made one after the other.
+ * @param {readonly PeopleChange[]} changes Changes.
+ * @returns {PeopleChange} Change.
+ */
+export function peopleChanges(changes: readonly PeopleChange[]): PeopleChange {
+  return (people) => changes.reduce((current, change) => change(current), people);
+}
+
+/**
+ * Birthdays of some people: members of the team or household (« Moi » included) and relations with a valid birth
+ * date, archived ones flagged. A contributor that is not a member has none of its own: linked to a relation, the
+ * relation's birthday is its (its id an alias of it, neither archived); otherwise none.
  * @param {BirthdayRows} people Contributors and relations.
  * @returns {PersonBirthday[]} Birthdays, by name.
  */
@@ -81,69 +89,48 @@ function birthdaysOf({ contributors, relations }: BirthdayRows): PersonBirthday[
   const valid = (row: BirthdayRow): row is BirthdayRow & { birthDate: string } => readBirthDate(row.birthDate) !== null;
   const contributorOf = new Map(contributors.map((contributor) => [contributor.id, contributor]));
   /**
-   * The contributor of a relation whose birthday applies to it: one with a birth date, neither archived.
-   * @param {BirthdayRow} relation Relation.
-   * @returns {BirthdayRow | undefined} Contributor.
-   */
-  const applying = (relation: BirthdayRow) => {
-    const contributor = relation.contributorId ? contributorOf.get(relation.contributorId) : undefined;
-    return contributor && valid(contributor) && !contributor.archived && !relation.archived ? contributor : undefined;
-  };
-  const aliasesOf = new Map<string, string[]>();
-  /**
-   * Adds an alias to a birthday.
-   * @param {string} id Birthday.
-   * @param {string} alias Other id naming it.
-   * @returns {void}
-   */
-  const alias = (id: string, alias: string) => aliasesOf.set(id, [...(aliasesOf.get(id) ?? []), alias]);
-  const own = relations.filter((relation) => valid(relation) && !applying(relation));
-  for (const relation of relations) {
-    const contributor = applying(relation);
-    if (contributor) alias(personBirthdayId('contributor', contributor.id), personBirthdayId('relation', relation.id));
-  }
-  for (const relation of own) {
-    const contributor = relation.contributorId ? contributorOf.get(relation.contributorId) : undefined;
-    if (contributor && !valid(contributor) && !contributor.archived && !relation.archived) alias(personBirthdayId('relation', relation.id), personBirthdayId('contributor', contributor.id));
-  }
-  /**
    * Birthday of a person.
    * @param {BirthdayPerson} person Contributor or relation.
    * @param {BirthdayRow & { birthDate: string }} row Its row.
    * @returns {PersonBirthday} Birthday.
    */
   const birthday = (person: BirthdayPerson, row: BirthdayRow & { birthDate: string }): PersonBirthday => {
-    const id = personBirthdayId(person, row.id);
+    const contributor = person === 'relation' && row.contributorId ? contributorOf.get(row.contributorId) : undefined;
     return {
-      id,
+      id: personBirthdayId(person, row.id),
       contributorId: person === 'contributor' ? row.id : (row.contributorId ?? null),
       relationId: person === 'relation' ? row.id : null,
       name: row.name,
       birthDate: row.birthDate,
       reminders: readReminders(row.birthdayReminders),
       archived: row.archived,
-      aliases: aliasesOf.get(id) ?? [],
+      aliases: contributor && !contributor.member && !contributor.archived && !row.archived ? [personBirthdayId('contributor', contributor.id)] : [],
     };
   };
   return [
-    ...contributors.filter(valid).map((row) => birthday('contributor', row)),
-    ...own.filter(valid).map((row) => birthday('relation', row)),
+    ...contributors.filter((row) => row.member && valid(row)).map((row) => birthday('contributor', row as BirthdayRow & { birthDate: string })),
+    ...relations.filter(valid).map((row) => birthday('relation', row)),
   ].sort((a, b) => a.name.localeCompare(b.name, 'fr'));
 }
 
 /**
- * Birthdays of the people of the workspace: contributors (members of the team or household included) and
- * relations with a valid birth date; a relation that also is a contributor with a birth date gives none (the
- * contributor's is the one shown, its id an alias of it).
+ * Birthdays of the people of the workspace: members of the team or household and relations with a valid birth
+ * date; the contributor linked to a relation is named by the relation's (an alias of it).
  * @param {{ archived?: boolean, change?: PeopleChange }} [options] Archived people too (flagged), and the people as a
  * change would leave them. Optional. Default = not archived, as they are.
  * @returns {Promise<PersonBirthday[]>} Birthdays, by name.
  */
 export async function birthdays({ archived = false, change }: { archived?: boolean; change?: PeopleChange } = {}): Promise<PersonBirthday[]> {
   const select = { id: true, name: true, birthDate: true, birthdayReminders: true, archivedAt: true } as const;
-  const [contributors, relations] = await Promise.all([prisma.contributor.findMany({ select }), prisma.treasuryRelation.findMany({ select: { ...select, contributorId: true } })]);
+  const [contributors, relations] = await Promise.all([
+    prisma.contributor.findMany({ select: { ...select, teamMember: true, userId: true } }),
+    prisma.treasuryRelation.findMany({ select: { ...select, contributorId: true } }),
+  ]);
   const rows = (items: { archivedAt: Date | null }[]) => items.map(({ archivedAt, ...item }) => ({ ...item, archived: archivedAt !== null }) as BirthdayRow);
-  const people = { contributors: rows(contributors), relations: rows(relations) };
+  const people = {
+    contributors: rows(contributors.map(({ teamMember, userId, ...contributor }) => ({ ...contributor, member: isMember({ teamMember, userId }) }))),
+    relations: rows(relations),
+  };
   const all = birthdaysOf(change ? change(people) : people);
   return archived ? all : all.filter((birthday) => !birthday.archived);
 }

@@ -120,7 +120,7 @@ function BirthdayLookSettings() {
   return (
     <KindLookSettings
       title="Anniversaires"
-      description="Les anniversaires des contributeurs et des relations, tirés de leur date de naissance : leur couleur et leur affichage dans l’agenda. Masqués, leurs rappels sonnent toujours."
+      description="Les anniversaires des membres de l’équipe ou du foyer et des relations, tirés de leur date de naissance : leur couleur et leur affichage dans l’agenda. Masqués, leurs rappels sonnent toujours."
       of="des anniversaires"
       name="Anniversaires"
       colorPlaceholder="Gris"

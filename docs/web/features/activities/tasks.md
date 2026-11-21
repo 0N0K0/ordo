@@ -18,7 +18,7 @@ Types exportés :
 | --------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------- |
 | `Task`                | Fragment `TaskFields` (tous les champs d’une tâche lus par le web, lieu et liens compris).                                                                             |
 | `TaskComment`         | Fragment `TaskCommentFields` (`id`, `body`, `createdAt`, `githubAuthor`).                                                                       |
-| `Contributor`         | Fragment `ContributorFields`.                                                                                                                   |
+| `Contributor`         | Fragment `ContributorFields` (avec `link`, `relationId`, `contactId`, `linkName`, et les coordonnées et l’anniversaire de ce à quoi il est lié).                                                                                                                   |
 | `TaskLabel`           | Fragment `TaskLabelFields` (priorité, type, étiquette, statut sans catégorie).                                                                  |
 | `TaskStatus`          | Statut avec sa `category`.                                                                                                                      |
 | `Milestone`, `Sprint` | Fragments des jalons et sprints.                                                                                                                |
@@ -43,7 +43,7 @@ Hooks et constantes exportés :
 | `useTaskBlock()`              | Ajoute (`add: true`) ou retire un lien « bloque ».                                                                                              |
 | `useTaskRelation()`           | Ajoute ou retire un lien « relative à ».                                                                                                        |
 | `useTaskCommentMutations()`   | `{ add, update, remove }` des commentaires de tâche.                                                                                            |
-| `useContributorMutations()`   | `{ create, update, remove, setProjectContributors }` ; `create`, `update`, `remove` dans `withLossConfirmation` (anniversaire cité par des routines), rechargent les tâches et les routines ; `remove` invalide aussi la facturation (`accountingQueryKey`). |
+| `useContributorMutations()`   | `{ create, update, remove, setProjectContributors }` ; `create`, `update`, `remove` dans `withLossConfirmation` (anniversaire cité par des routines), rechargent les tâches, les routines et la facturation (`accountingQueryKey` : membres et relations de la trésorerie suivent le lien). |
 | `useTaskLabelMutations(kind)` | `{ create, update, remove }` d’une liste de paramètres (statut, priorité, type, étiquette).                                                     |
 | `useTaskColumnDefaults()`     | Colonnes des nouvelles vues de l’espace (`readTaskColumnDefaults`).                                                                             |
 | `useSetTaskColumnDefaults()`  | Les change (`null` : celles de l’app) ; mise à jour optimiste du cache.                                                                         |
@@ -245,11 +245,15 @@ Internes : `NEW_LABEL_TITLES`, `useLabelCreator(kind)` (ouvre le formulaire du l
 
 ### `components/ContributorsManager.tsx`
 
-- `ContributorsManager({ contributors, usage })` : section « Contributeurs » des paramètres généraux : badges « Moi », « Membre », « Relation » / « Proche », archivé ; modifier, archiver, supprimer (confirmation). `usage` : nombre de tâches assignées par contributeur. Utilisé par `features/projects/pages/SettingsPage.tsx`.
+- `ContributorsManager({ contributors, usage })` : section « Contributeurs » des paramètres généraux : badges « Moi », puis selon son lien (`link`) « Membre », « Relation » / « Proche » ou « Contact » (infobulle `linkName`), archivé ; modifier, archiver, supprimer (confirmation). `usage` : nombre de tâches assignées par contributeur. Utilisé par `features/projects/pages/SettingsPage.tsx`.
 
 ### `components/ContributorForm.tsx`
 
-- `ContributorForm({ contributor?, defaultProjectIds?, onDone })` : formulaire d’un nouveau contributeur (« Ajouter » ; identifiant proposé par `suggestHandle` tant qu’il n’est pas touché) ou panneau d’un contributeur existant enregistré champ par champ (`useFieldSave` : nom et identifiant en les quittant, image et projets dès qu’ils changent, seuls les champs changés envoyés ; `SaveStatus` ; le contributeur de `useTaskContext` suivi ; archivé : lecture seule) : nom, identifiant, image (`IconField`, `formIconProps` : `avatar` / `removeAvatar`), projets (valeur du formulaire ; pas de projets pour « Moi »), et ses détails (`PersonDetailsFields` : date de naissance, rappels d’anniversaire, adresses mail, téléphones ; enregistrés en les quittant, les rappels dès qu’ils changent ). Ouvert par `useContributorForm`.
+- `ContributorForm({ contributor?, defaultProjectIds?, onDone })` : formulaire d’un nouveau contributeur (« Ajouter » ; identifiant proposé par `suggestHandle` tant qu’il n’est pas touché) ou panneau d’un contributeur existant enregistré champ par champ (`useFieldSave` : nom et identifiant en les quittant, image et projets dès qu’ils changent, seuls les champs changés envoyés ; `SaveStatus` ; le contributeur de `useTaskContext` suivi ; archivé : lecture seule) : nom, identifiant, image (`IconField`, `formIconProps` : `avatar` / `removeAvatar`), son lien (`ContributorLinkField`, valeur `link`, enregistrée dès qu’elle est choisie), projets (valeur du formulaire ; pas de projets pour « Moi »). Ouvert par `useContributorForm`.
+
+### `components/ContributorLinkField.tsx`
+
+- `ContributorLinkField({ value, onChange, contributor?, errors })` : « Coordonnées et anniversaire » d’un contributeur (`LabeledField`) : `SegmentedControl` « Membre », « Relation » / « Proche », « Contact » (PRO), « Aucun » (désactivé pour « Moi ») ; membre et aucun envoyés aussitôt, une relation ou un contact une fois choisi dans sa liste (`Select`, relations libres de `useTreasurySettings`, contacts libres de `useClientContacts` groupés par client ; archivés non proposés sauf l’actuel ; erreurs `link.relationId`, `link.contactId`, `link`) ; dessous, en lecture seule, la provenance, la date de naissance (`birthDateText`) et les coordonnées (`ContactLines`) de ce à quoi il est lié. Utilisé par `ContributorForm`.
 
 ### `components/TaskTable.module.css`
 

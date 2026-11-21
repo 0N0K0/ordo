@@ -435,6 +435,8 @@ model ClientContact {
   phones      Json                 @default("[]")
   createdAt   DateTime             @default(now())
   documents   AccountingDocument[]
+  /// Contributor this contact is, if any.
+  contributor Contributor?
   /// Workspace the row belongs to (always given by the app; the default fails outside one).
   workspaceId String               @default(dbgenerated("current_setting('ordo.workspace'::text)"))
   workspace   Workspace            @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
@@ -566,8 +568,9 @@ model Contributor {
   user                  User?               @relation(fields: [userId], references: [id], onDelete: SetNull)
   /// GitHub login: assignees are synchronized with the GitHub boards through it.
   githubLogin           String?
-  /// Birth date: YYYY-MM-DD, or --MM-DD when the year is not known. Its birthday is a whole-day éphéméride
-  /// derived at read time.
+  /// Birth date: YYYY-MM-DD, or --MM-DD when the year is not known. Its own details (birth date, birthday
+  /// reminders, email addresses, phones) apply only while it is a member of the team or household; otherwise they stay
+  /// stored, unused, and its details are those of what it is linked to (relation, contact).
   birthDate             String?
   /// Reminders of its birthday: [{ before: null, at: "HH:MM", days }] (on the day or some days before).
   birthdayReminders     Json                @default("[]")
@@ -575,6 +578,10 @@ model Contributor {
   emails                Json                @default("[]")
   /// [{ label, number }]
   phones                Json                @default("[]")
+  /// Client contact this contributor is (professional workspace): its email and phones are the contributor's. A
+  /// contact is one contributor at most; a contributor is linked to one of a membership, a relation or a contact at most.
+  contactId             String?             @unique
+  contact               ClientContact?      @relation(fields: [contactId], references: [id], onDelete: SetNull)
   /// Member of the team (professional workspace) or household (personal one): treasury entries are split
   /// between members. The app user ("Moi") always is one.
   teamMember            Boolean             @default(false)

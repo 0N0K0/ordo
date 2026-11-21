@@ -7,8 +7,9 @@ import { deleteOrphanIcons, resolveIconUpdate, storeIcon } from '../core/icons';
 import { activeIds, assertActive, assertNoneArchived, findActive } from '../core/archive';
 import { lineageIds } from '../core/trees';
 import { connectIds } from '../core/relations';
-import { personDetailsData, type PersonDetailsFields } from '../core/person-details';
 import { NO_PEOPLE_SETTLER, personChange, type PeopleChangeSettler } from '../calendar/birthdays';
+import { contributorLink } from '../people/contributor-links';
+import type { ContributorLinkInput } from '@ordo/shared';
 
 /**
  * Handle free in the workspace for a new contributor, made from a name (suggestHandle: letters, digits and « - »,
@@ -36,32 +37,37 @@ export async function freeHandle(name: string, { fallback = 'membre', suffix }: 
 }
 
 /**
- * Creates a contributor.
+ * Creates a contributor. It has no details of its own: they come from what it is linked to (a membership of the team
+ * or household, a relation, a contact, or nothing).
  * @param {object} input Contributor input.
  * @param {string} input.name Name.
  * @param {string} input.handle Unique mention handle.
  * @param {File | null} [input.avatar] Avatar file. Optional.
  * @param {string[] | null} [input.projectIds] Projects the contributor is attached to. Optional.
- * @param {PeopleChangeSettler} [settle] Run once checked when it has a birth date, before it is saved. Optional. Default = none.
+ * @param {ContributorLinkInput | null} [input.link] What its details come from. Optional. Default = nothing.
+ * @param {PeopleChangeSettler} [settle] Run once checked when its link changes the birthdays, before it is saved. Optional. Default = none.
  * @returns {Promise<Contributor>} Created contributor.
  */
 export async function createContributor(
-  input: { name: string; handle: string; avatar?: File | null; projectIds?: string[] | null } & PersonDetailsFields,
+  input: { name: string; handle: string; avatar?: File | null; projectIds?: string[] | null; link?: ContributorLinkInput | null },
   settle: PeopleChangeSettler = NO_PEOPLE_SETTLER,
 ): Promise<Contributor> {
-  const data = { ...parseInput(z.object({ name: personNameSchema, handle: handleSchema }), input), ...personDetailsData(input) };
+  const data = parseInput(z.object({ name: personNameSchema, handle: handleSchema }), input);
   if (input.projectIds?.length) await assertProjects(input.projectIds);
-  // A new birthday (a condition out of every birthday loses its day).
-  if (data.birthDate) await settle(personChange('contributor', '', { name: data.name, birthDate: data.birthDate }));
+  const link = input.link ? await contributorLink(null, input.link, settle) : null;
   const iconId = input.avatar ? await storeIcon(input.avatar) : null;
+  let created: Contributor;
   try {
-    return await prisma.contributor.create({
+    created = await prisma.contributor.create({
       data: { ...data, iconId, projects: { connect: connectIds(input.projectIds ?? []) } },
     });
   } catch (error) {
     await deleteOrphanIcons([iconId]);
     return rethrowUnique(error, 'Cet identifiant est déjà utilisé.', 'handle');
   }
+  if (!link) return created;
+  await link(created.id);
+  return prisma.contributor.findUniqueOrThrow({ where: { id: created.id } });
 }
 
 /**
@@ -73,8 +79,8 @@ export async function createContributor(
  * @param {File | null} [input.avatar] New avatar. Optional.
  * @param {boolean | null} [input.removeAvatar] Removes the avatar. Optional.
  * @param {string[] | null} [input.projectIds] Projects the contributor is directly attached to. Optional.
- * @param {string | null} [input.birthDate] Birth date (`YYYY-MM-DD` or `--MM-DD`), with the other details. Optional.
- * @param {PeopleChangeSettler} [settle] Run once checked when the birth date changes, before it is saved (the
+ * @param {ContributorLinkInput | null} [input.link] What its details come from, replacing the link it had. Optional.
+ * @param {PeopleChangeSettler} [settle] Run once checked when its link changes the birthdays, before it is saved (the
  * occurrences of routines naming birthdays it makes disappear). Optional. Default = none.
  * @returns {Promise<Contributor>} Updated contributor.
  */
@@ -86,7 +92,8 @@ export async function updateContributor(
     avatar?: File | null;
     removeAvatar?: boolean | null;
     projectIds?: string[] | null;
-  } & PersonDetailsFields,
+    link?: ContributorLinkInput | null;
+  },
   settle: PeopleChangeSettler = NO_PEOPLE_SETTLER,
 ): Promise<Contributor> {
   // Read only when archived.
@@ -96,20 +103,22 @@ export async function updateContributor(
     name: input.name ?? undefined,
     handle: input.handle ?? undefined,
   });
-  const details = personDetailsData(input);
-  if (details.birthDate !== undefined && details.birthDate !== contributor.birthDate) await settle(personChange('contributor', id, { birthDate: details.birthDate }));
+  const link = input.link ? await contributorLink(contributor, input.link, settle) : null;
   const iconId = await resolveIconUpdate(contributor.iconId, { icon: input.avatar, removeIcon: input.removeAvatar });
+  let updated: Contributor;
   try {
-    const updated = await prisma.contributor.update({
+    updated = await prisma.contributor.update({
       where: { id },
-      data: { ...data, ...details, iconId, ...(input.projectIds && { projects: { set: connectIds(input.projectIds) } }) },
+      data: { ...data, iconId, ...(input.projectIds && { projects: { set: connectIds(input.projectIds) } }) },
     });
     if (iconId !== undefined) await deleteOrphanIcons([contributor.iconId]);
-    return updated;
   } catch (error) {
     if (iconId) await deleteOrphanIcons([iconId]);
     return rethrowUnique(error, 'Cet identifiant est déjà utilisé.', 'handle');
   }
+  if (!link) return updated;
+  await link(id);
+  return prisma.contributor.findUniqueOrThrow({ where: { id } });
 }
 
 /**

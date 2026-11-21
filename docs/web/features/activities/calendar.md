@@ -188,7 +188,7 @@ Utilisés par `ScheduleSettings`.
 
 ### `hooks/use-person-opener.tsx`
 
-`usePersonOpener()` : ouvre le panneau de la personne d’un anniversaire (`BirthdayPerson` : `contributorId`, `relationId`) : la relation (`openRelationForm`, paramètres de trésorerie chargés au besoin par `treasurySettingsQuery`), sinon le contributeur (`useContributorForm`). Utilisé par `CalendarPage`, `AlarmCenter`.
+`usePersonOpener()` : ouvre le panneau de la personne d’un anniversaire (`BirthdayPerson` : `contributorId`, `relationId`) : la relation (`openRelationForm`, paramètres de trésorerie chargés au besoin par `treasurySettingsQuery`), sinon la fiche du membre (`openMemberForm`). Utilisé par `CalendarPage`, `AlarmCenter`.
 
 ### `hooks/use-settings-items.tsx`
 

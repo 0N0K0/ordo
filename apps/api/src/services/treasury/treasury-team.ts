@@ -8,7 +8,7 @@ import {
   personNameSchema,
 } from '@ordo/shared';
 import { prisma, unscopedPrisma } from '../../db';
-import { Prisma, type Contributor, type TreasuryContext, type TreasuryRelation, type WorkSchedule } from '../../generated/prisma/client';
+import { type Contributor, type TreasuryContext, type TreasuryRelation, type WorkSchedule } from '../../generated/prisma/client';
 import { scheduleRule, scheduleTypes } from '../calendar/work-schedules';
 import { currentWorkspaceId } from '../../workspace-context';
 import { clientError, fieldError, isUniqueConflict, orNotFound, parseField, parseInput } from '../../graphql/errors';
@@ -16,19 +16,9 @@ import { createContributor, freeHandle } from '../projects/contributors';
 import { personDetailsData, type PersonDetailsFields } from '../core/person-details';
 import { NO_PEOPLE_SETTLER, personChange, type PeopleChangeSettler } from '../calendar/birthdays';
 import { assertExists, deleteOrNotFound } from '../core/lookup';
-import { assertActive } from '../core/archive';
-
-/** Members of the team (professional workspace) or household (personal one): "Moi", then the others. */
-const memberWhere = { OR: [{ teamMember: true }, { userId: { not: null } }] } satisfies Prisma.ContributorWhereInput;
-
-/**
- * Tells whether a contributor is a member: flagged as one, or the app user ("Moi", always one).
- * @param {{ teamMember: boolean, userId: string | null }} contributor Contributor.
- * @returns {boolean} Whether they are a member.
- */
-export function isMember(contributor: { teamMember: boolean; userId: string | null }): boolean {
-  return contributor.teamMember || contributor.userId !== null;
-}
+import { assertActive, findActive } from '../core/archive';
+import { memberWhere } from '../people/members';
+import { assertNoOtherLink, contributorDetails, CONTRIBUTOR_LINK_SELECT } from '../people/contributor-links';
 
 /**
  * Members of the team or household, "Moi" first, then by name.
@@ -40,16 +30,18 @@ export async function listMembers(): Promise<Contributor[]> {
 }
 
 /**
- * Adds a member: an existing contributor, or a new one created with this name (a member always is a contributor).
+ * Adds a member: an existing contributor not linked to a relation nor a contact, or a new one created with this name
+ * (a member always is a contributor). Its own details, kept on its row, apply again.
  * @param {{ contributorId?: string | null, name?: string | null }} input Contributor, or name of a new one.
+ * @param {PeopleChangeSettler} [settle] Run once checked, before it is saved (its own birthday applies). Optional. Default = none.
  * @returns {Promise<Contributor>} Member.
  */
-export async function addMember(input: { contributorId?: string | null; name?: string | null }): Promise<Contributor> {
+export async function addMember(input: { contributorId?: string | null; name?: string | null }, settle: PeopleChangeSettler = NO_PEOPLE_SETTLER): Promise<Contributor> {
   if (input.contributorId) {
     await assertExists(prisma.contributor, input.contributorId, 'Contributeur');
-    // A contributor is a member or a relation, not both.
-    const relation = await prisma.treasuryRelation.findFirst({ where: { contributorId: input.contributorId }, select: { name: true } });
-    if (relation) throw clientError('BAD_USER_INPUT', `Ce contributeur est la relation « ${relation.name} » : il ne peut pas aussi être membre.`);
+    // A contributor is linked to a membership, a relation or a contact, one at most.
+    await assertNoOtherLink(input.contributorId, 'MEMBER');
+    await settle(personChange('contributor', input.contributorId, { member: true }));
     return prisma.contributor.update({ where: { id: input.contributorId }, data: { teamMember: true } });
   }
   const name = parseField('name', personNameSchema, input.name ?? '');
@@ -58,14 +50,35 @@ export async function addMember(input: { contributorId?: string | null; name?: s
 }
 
 /**
- * Removes a member from the team: they stay a contributor (tasks, projects, past lines kept). "Moi" stays a member.
+ * Removes a member from the team: they stay a contributor (tasks, projects, past lines kept), without details (its
+ * own stay stored, unused). "Moi" stays a member.
  * @param {string} contributorId Contributor.
+ * @param {PeopleChangeSettler} [settle] Run once checked, before it is saved (its birthday goes). Optional. Default = none.
  * @returns {Promise<void>}
  */
-export async function removeMember(contributorId: string): Promise<void> {
+export async function removeMember(contributorId: string, settle: PeopleChangeSettler = NO_PEOPLE_SETTLER): Promise<void> {
   const contributor = await orNotFound(prisma.contributor.findUnique({ where: { id: contributorId }, select: { userId: true } }), 'Contributeur');
   if (contributor.userId) throw clientError('BAD_USER_INPUT', 'Vous êtes toujours membre de votre équipe ou de votre foyer.');
+  await settle(personChange('contributor', contributorId, { member: false }));
   await prisma.contributor.update({ where: { id: contributorId }, data: { teamMember: false } });
+}
+
+/**
+ * Changes the details of a member of the team or household (« Moi » included): birth date, birthday reminders, email
+ * addresses, phones (omitted: left unchanged). Only a member has details of its own (another contributor has those of
+ * its relation or its contact); not an archived one.
+ * @param {string} contributorId Member.
+ * @param {PersonDetailsFields} input Details.
+ * @param {PeopleChangeSettler} [settle] Run once checked when its birth date changes, before it is saved. Optional. Default = none.
+ * @returns {Promise<Contributor>} Member.
+ */
+export async function updateMemberDetails(contributorId: string, input: PersonDetailsFields, settle: PeopleChangeSettler = NO_PEOPLE_SETTLER): Promise<Contributor> {
+  const contributor = await findActive(prisma.contributor, contributorId, 'Contributeur');
+  const linked = contributorDetails(await prisma.contributor.findUniqueOrThrow({ where: { id: contributorId }, select: CONTRIBUTOR_LINK_SELECT }));
+  if (linked.link !== 'MEMBER') throw clientError('BAD_USER_INPUT', 'Seul un membre de l’équipe ou du foyer a ses propres coordonnées : modifiez celles de sa relation ou de son contact.');
+  const data = personDetailsData(input);
+  if (data.birthDate !== undefined && data.birthDate !== contributor.birthDate) await settle(personChange('contributor', contributorId, { birthDate: data.birthDate }));
+  return prisma.contributor.update({ where: { id: contributorId }, data });
 }
 
 /**
@@ -103,7 +116,7 @@ export async function contextEphemerides(): Promise<(ContextEphemeris & { schedu
 
 /**
  * Saves a relation: a person out of the team or household (friend, family, partner…) lines and budgets can be for,
- * possibly a contributor too (not a member).
+ * possibly a contributor too (one not a member nor linked to a contact), whose details are then the relation's.
  * @param {string | null} id Relation to change, or null to create one.
  * @param {TreasuryRelationInput} input Name, note, contributor, and its details (birth date, birthday reminders, email addresses, phones: omitted, left unchanged).
  * @param {PeopleChangeSettler} [settle] Run once checked when its birth date or its contributor changes (the birthday
@@ -118,13 +131,8 @@ export async function saveRelation(
   const parsed = parseInput(treasuryRelationSchema.pick({ name: true, note: true, contributorId: true }), input);
   await assertActive(prisma.treasuryRelation, id, 'Relation');
   const current = id ? await prisma.treasuryRelation.findUnique({ where: { id }, select: { birthDate: true, contributorId: true } }) : null;
-  if (parsed.contributorId) {
-    const contributor = await orNotFound(prisma.contributor.findUnique({ where: { id: parsed.contributorId }, select: { teamMember: true, userId: true } }), 'Contributeur');
-    if (isMember(contributor)) {
-      const message = 'Ce contributeur est membre : il n’est pas une relation.';
-      throw fieldError('contributorId', message);
-    }
-  }
+  // A contributor is linked to a membership, a relation or a contact, one at most.
+  if (parsed.contributorId) await assertNoOtherLink(parsed.contributorId, 'RELATION', id);
   const data = { name: parsed.name, note: parsed.note, contributorId: parsed.contributorId ?? null, ...personDetailsData(input) };
   // Its birthday, or the one that applies to it (its contributor's), changes.
   const birthDate = data.birthDate === undefined ? (current?.birthDate ?? null) : data.birthDate;

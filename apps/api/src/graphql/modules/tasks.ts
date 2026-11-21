@@ -21,16 +21,19 @@ import { RemovedLinksResult, removedLinks } from '../removed-links';
 import { builder, type InputFields } from '../builder';
 import { labelMutations, labelObject } from '../label-inputs';
 import { relationIds } from '../relation-fields';
-import { isMember } from '../../services/treasury/treasury-team';
+import { isMember } from '../../services/people/members';
+import { contributorDetails, CONTRIBUTOR_LINK_SELECT } from '../../services/people/contributor-links';
 import { reloaded } from '../reload';
 import { unchecked } from '../unchecked';
 import { locationInputFields } from '../located-fields';
 import { ItemLinkInput, ItemLinkRef } from '../link-fields';
 import { ReminderInput, ReminderRef } from '../reminder-fields';
 import { DeadTimeInput, DeadTimeRef } from '../dead-time-fields';
-import { readDeadTimes, readEmails, readPhones, readReminders } from '@ordo/shared';
-import { BIRTH_DATE_DESCRIPTION, personDetailsInputFields } from '../person-fields';
+import { CONTRIBUTOR_LINKS, readDeadTimes, readReminders } from '@ordo/shared';
+import { BIRTH_DATE_DESCRIPTION } from '../person-fields';
 import { readLinks } from '../../services/core/links';
+
+const ContributorLinkKindEnum = builder.enumType('ContributorLinkKind', { values: CONTRIBUTOR_LINKS });
 
 builder.prismaObject('Contributor', {
   fields: (t) => ({
@@ -48,10 +51,53 @@ builder.prismaObject('Contributor', {
       resolve: (contributor) => isMember(contributor),
     }),
     projectIds: t.idList(relationIds('projects', 'Projects the contributor is directly attached to; their sub-projects inherit it.')),
-    birthDate: t.exposeString('birthDate', { nullable: true, description: BIRTH_DATE_DESCRIPTION }),
-    birthdayReminders: t.field({ type: [ReminderRef], description: 'Reminders of its birthday.', resolve: (contributor) => readReminders(contributor.birthdayReminders) }),
-    emails: t.field({ type: 'JSON', description: '[{ label, address }]', resolve: (contributor) => readEmails(contributor.emails) }),
-    phones: t.field({ type: 'JSON', description: '[{ label, number }]', resolve: (contributor) => readPhones(contributor.phones) }),
+    link: t.field({
+      type: ContributorLinkKindEnum,
+      description: 'What its details come from: itself as a member (its own), a relation, a contact, or nothing.',
+      select: CONTRIBUTOR_LINK_SELECT,
+      resolve: (contributor) => contributorDetails(contributor).link,
+    }),
+    relationId: t.id({ nullable: true, description: 'Relation it is linked to.', select: CONTRIBUTOR_LINK_SELECT, resolve: (contributor) => contributorDetails(contributor).relationId }),
+    contactId: t.id({ nullable: true, description: 'Client contact it is linked to.', select: CONTRIBUTOR_LINK_SELECT, resolve: (contributor) => contributorDetails(contributor).contactId }),
+    linkName: t.string({
+      nullable: true,
+      description: 'Name of the relation, or of the contact with its client (« Prénom Nom · Client »).',
+      select: CONTRIBUTOR_LINK_SELECT,
+      resolve: (contributor) => contributorDetails(contributor).linkName,
+    }),
+    birthDate: t.string({
+      nullable: true,
+      description: `${BIRTH_DATE_DESCRIPTION} That of what it is linked to: its own as a member, its relation's; none otherwise.`,
+      select: CONTRIBUTOR_LINK_SELECT,
+      resolve: (contributor) => contributorDetails(contributor).birthDate,
+    }),
+    birthdayReminders: t.field({
+      type: [ReminderRef],
+      description: 'Reminders of its birthday (those of its birth date).',
+      select: CONTRIBUTOR_LINK_SELECT,
+      resolve: (contributor) => contributorDetails(contributor).birthdayReminders,
+    }),
+    emails: t.field({
+      type: 'JSON',
+      description: "[{ label, address }]: its own as a member, its relation's, its contact's single email; none otherwise.",
+      select: CONTRIBUTOR_LINK_SELECT,
+      resolve: (contributor) => contributorDetails(contributor).emails,
+    }),
+    phones: t.field({
+      type: 'JSON',
+      description: "[{ label, number }]: its own as a member, its relation's, its contact's; none otherwise.",
+      select: CONTRIBUTOR_LINK_SELECT,
+      resolve: (contributor) => contributorDetails(contributor).phones,
+    }),
+  }),
+});
+
+const ContributorLinkInput = builder.inputType('ContributorLinkInput', {
+  description: 'What the details of a contributor come from, one at most; the link replaces the one it had.',
+  fields: (t) => ({
+    kind: t.field({ type: ContributorLinkKindEnum, required: true }),
+    relationId: t.id({ description: 'Relation (kind RELATION), not linked to another contributor.' }),
+    contactId: t.id({ description: 'Client contact (kind CONTACT), not linked to another contributor.' }),
   }),
 });
 
@@ -402,7 +448,7 @@ const ContributorInput = builder.inputType('ContributorInput', {
     projectIds: t.idList({ description: 'Projects the contributor is directly attached to.' }),
     handle: t.string({ required: true }),
     avatar: t.field({ type: 'File' }),
-    ...personDetailsInputFields(t),
+    link: t.field({ type: ContributorLinkInput, description: 'What its details come from (it has none of its own).' }),
   }),
 });
 
@@ -413,7 +459,7 @@ const ContributorUpdateInput = builder.inputType('ContributorUpdateInput', {
     handle: t.string(),
     avatar: t.field({ type: 'File' }),
     removeAvatar: t.boolean(),
-    ...personDetailsInputFields(t),
+    link: t.field({ type: ContributorLinkInput, description: 'What its details come from (it has none of its own).' }),
   }),
 });
 

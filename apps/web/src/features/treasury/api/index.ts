@@ -18,7 +18,7 @@ import { execute } from '../../../lib/graphql-client';
 import { accountingQueryKey } from '../../accounting/api';
 import { tasksQueryKey } from '../../tasks/api';
 import { projectTreeQueryKey } from '../../projects/api';
-import { birthdaysQueryKey, calendarQueryKey, SLOT_DEPENDENT_KEYS } from '../../calendar/api';
+import { calendarQueryKey, SLOT_DEPENDENT_KEYS } from '../../calendar/api';
 import { withLossConfirmation } from '../../time/lib/confirm-loss';
 
 export type TreasuryAccount = TreasuryAccountsQuery['treasuryAccounts'][number];
@@ -551,14 +551,22 @@ export function useTreasuryMutations() {
 }
 
 const AddMember = graphql(`
-  mutation AddTreasuryMember($contributorId: ID, $name: String) {
-    addTreasuryMember(contributorId: $contributorId, name: $name)
+  mutation AddTreasuryMember($contributorId: ID, $name: String, $confirmLoss: Boolean) {
+    addTreasuryMember(contributorId: $contributorId, name: $name, confirmLoss: $confirmLoss)
   }
 `);
 
 const RemoveMember = graphql(`
-  mutation RemoveTreasuryMember($contributorId: ID!) {
-    removeTreasuryMember(contributorId: $contributorId)
+  mutation RemoveTreasuryMember($contributorId: ID!, $confirmLoss: Boolean) {
+    removeTreasuryMember(contributorId: $contributorId, confirmLoss: $confirmLoss)
+  }
+`);
+
+const UpdateMember = graphql(`
+  mutation UpdateTreasuryMember($contributorId: ID!, $input: TreasuryMemberDetailsInput!, $confirmLoss: Boolean) {
+    updateTreasuryMember(contributorId: $contributorId, input: $input, confirmLoss: $confirmLoss) {
+      id
+    }
   }
 `);
 
@@ -582,24 +590,33 @@ const SaveContext = graphql(`
 
 /**
  * Members of the team or household, relations, contexts (a new one is a kind of éphémérides of the calendar).
- * A member is a contributor: adding one also refreshes the contributors of the tasks and projects.
+ * A member is a contributor: adding one also refreshes the contributors of the tasks and projects. The birthdays
+ * follow the members and the relations (added, moved or gone): the occurrences of routines lost are confirmed first,
+ * and what depends on them refreshed; a contributor linked to a relation shows its details (the contributors refreshed).
  * @returns {object} Mutations.
  */
 export function useTreasuryTeamMutations() {
-  const contributorsChanged = { invalidate: [accountingQueryKey, tasksQueryKey, projectTreeQueryKey] };
+  const people = { invalidate: [accountingQueryKey, tasksQueryKey, projectTreeQueryKey, ...SLOT_DEPENDENT_KEYS] };
   return {
-    addMember: useInvalidatingMutation(async (variables: { contributorId?: string; name?: string }) => (await execute(AddMember, variables)).addTreasuryMember, contributorsChanged),
-    removeMember: useInvalidatingMutation(async (contributorId: string) => (await execute(RemoveMember, { contributorId })).removeTreasuryMember, contributorsChanged),
-    // Its birthday follows: moved or gone (birth date, contributor), the occurrences of routines lost are
-    // confirmed first, and what depends on it refreshed.
+    addMember: useInvalidatingMutation(
+      async (variables: { contributorId?: string; name?: string }) => withLossConfirmation(async (confirmLoss) => (await execute(AddMember, { ...variables, confirmLoss })).addTreasuryMember),
+      people,
+    ),
+    removeMember: useInvalidatingMutation(
+      async (contributorId: string) => withLossConfirmation(async (confirmLoss) => (await execute(RemoveMember, { contributorId, confirmLoss })).removeTreasuryMember),
+      people,
+    ),
+    updateMember: useInvalidatingMutation(
+      async (variables: { contributorId: string; input: Partial<PersonDetailsValues> }) =>
+        withLossConfirmation(async (confirmLoss) => (await execute(UpdateMember, { ...variables, confirmLoss })).updateTreasuryMember),
+      people,
+    ),
     saveRelation: useInvalidatingMutation(
       async (variables: { id: string | null; input: { name: string; note: string | null; contributorId: string | null } & PersonDetailsValues }) =>
         withLossConfirmation(async (confirmLoss) => (await execute(SaveRelation, { ...variables, confirmLoss })).saveTreasuryRelation),
-      { invalidate: [accountingQueryKey, birthdaysQueryKey, ...SLOT_DEPENDENT_KEYS] },
+      people,
     ),
-    deleteRelation: useInvalidatingMutation(async (id: string) => withLossConfirmation(async (confirmLoss) => (await execute(DeleteRelation, { id, confirmLoss })).deleteTreasuryRelation), {
-      invalidate: [accountingQueryKey, birthdaysQueryKey, ...SLOT_DEPENDENT_KEYS],
-    }),
+    deleteRelation: useInvalidatingMutation(async (id: string) => withLossConfirmation(async (confirmLoss) => (await execute(DeleteRelation, { id, confirmLoss })).deleteTreasuryRelation), people),
     saveContext: useInvalidatingMutation(async (variables: { id: string | null; input: { label: string; color: string } }) => (await execute(SaveContext, variables)).saveTreasuryContext, {
       invalidate: [treasuryKey, calendarQueryKey],
     }),

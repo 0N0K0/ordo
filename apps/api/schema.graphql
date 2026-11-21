@@ -724,6 +724,7 @@ type Client {
 }
 
 type ClientContact {
+  client: Client!
   clientId: ID!
   email: String
   firstName: String!
@@ -908,29 +909,49 @@ type Contributor {
   avatarUrl: String
 
   """
-  Birth date: YYYY-MM-DD, or --MM-DD when the year is not known. Its birthday shows in the calendar (query birthdays).
+  Birth date: YYYY-MM-DD, or --MM-DD when the year is not known. Its birthday shows in the calendar (query birthdays). That of what it is linked to: its own as a member, its relation's; none otherwise.
   """
   birthDate: String
 
-  """Reminders of its birthday."""
+  """Reminders of its birthday (those of its birth date)."""
   birthdayReminders: [Reminder!]!
 
-  """[{ label, address }]"""
+  """Client contact it is linked to."""
+  contactId: ID
+
+  """
+  [{ label, address }]: its own as a member, its relation's, its contact's single email; none otherwise.
+  """
   emails: JSON!
   handle: String!
   id: ID!
 
   """Whether this contributor is the app user."""
   isMe: Boolean!
+
+  """
+  What its details come from: itself as a member (its own), a relation, a contact, or nothing.
+  """
+  link: ContributorLinkKind!
+
+  """
+  Name of the relation, or of the contact with its client (« Prénom Nom · Client »).
+  """
+  linkName: String
   name: String!
 
-  """[{ label, number }]"""
+  """
+  [{ label, number }]: its own as a member, its relation's, its contact's; none otherwise.
+  """
   phones: JSON!
 
   """
   Projects the contributor is directly attached to; their sub-projects inherit it.
   """
   projectIds: [ID!]!
+
+  """Relation it is linked to."""
+  relationId: ID
 
   """
   Member of the team (professional workspace) or household (personal one); the app user always is.
@@ -940,49 +961,42 @@ type Contributor {
 
 input ContributorInput {
   avatar: File
-
-  """
-  Birth date: YYYY-MM-DD, or --MM-DD when the year is not known. Its birthday shows in the calendar (query birthdays). Empty: none.
-  """
-  birthDate: String
-
-  """
-  Reminders of its birthday « À HH:MM » or « N jours avant, à HH:MM », 10 at most.
-  """
-  birthdayReminders: [ReminderInput!]
-
-  """[{ label, address }]: email addresses, 10 at most."""
-  emails: JSON
   handle: String!
-  name: String!
 
-  """[{ label, number }], 10 at most."""
-  phones: JSON
+  """What its details come from (it has none of its own)."""
+  link: ContributorLinkInput
+  name: String!
 
   """Projects the contributor is directly attached to."""
   projectIds: [ID!]
 }
 
+"""
+What the details of a contributor come from, one at most; the link replaces the one it had.
+"""
+input ContributorLinkInput {
+  """Client contact (kind CONTACT), not linked to another contributor."""
+  contactId: ID
+  kind: ContributorLinkKind!
+
+  """Relation (kind RELATION), not linked to another contributor."""
+  relationId: ID
+}
+
+enum ContributorLinkKind {
+  CONTACT
+  MEMBER
+  NONE
+  RELATION
+}
+
 input ContributorUpdateInput {
   avatar: File
-
-  """
-  Birth date: YYYY-MM-DD, or --MM-DD when the year is not known. Its birthday shows in the calendar (query birthdays). Empty: none.
-  """
-  birthDate: String
-
-  """
-  Reminders of its birthday « À HH:MM » or « N jours avant, à HH:MM », 10 at most.
-  """
-  birthdayReminders: [ReminderInput!]
-
-  """[{ label, address }]: email addresses, 10 at most."""
-  emails: JSON
   handle: String
-  name: String
 
-  """[{ label, number }], 10 at most."""
-  phones: JSON
+  """What its details come from (it has none of its own)."""
+  link: ContributorLinkInput
+  name: String
 
   """Projects the contributor is directly attached to."""
   projectIds: [ID!]
@@ -1892,9 +1906,16 @@ type Mutation {
   addTaskRelation(otherId: ID!, taskId: ID!): Boolean!
 
   """
-  Adds a member: an existing contributor, or a new contributor of this name.
+  Adds a member: an existing contributor (not linked to a relation nor a contact), or a new contributor of this name.
   """
-  addTreasuryMember(contributorId: ID, name: String): ID!
+  addTreasuryMember(
+    """
+    Occurrences made to disappear with their comments or times are confirmed: false (default) refuses with CONFIRMATION_REQUIRED and extension lost { times, comments } when there are some; true deletes them. Its own birthday applies (slot conditions).
+    """
+    confirmLoss: Boolean
+    contributorId: ID
+    name: String
+  ): ID!
 
   """
   Attaches a list to the treasury entry paying it (adding its split by person), or detaches it (entryId null).
@@ -2419,8 +2440,16 @@ type Mutation {
   removeTaskBlock(blockedId: ID!, blockerId: ID!): Boolean!
   removeTaskRelation(otherId: ID!, taskId: ID!): Boolean!
 
-  """Removes a member from the team or household (they stay a contributor)."""
-  removeTreasuryMember(contributorId: ID!): Boolean!
+  """
+  Removes a member from the team or household (they stay a contributor, without details of their own).
+  """
+  removeTreasuryMember(
+    """
+    Occurrences made to disappear with their comments or times are confirmed: false (default) refuses with CONFIRMATION_REQUIRED and extension lost { times, comments } when there are some; true deletes them. Its birthday gone (slot conditions).
+    """
+    confirmLoss: Boolean
+    contributorId: ID!
+  ): Boolean!
   renameDashboard(id: ID!, label: String!): Boolean!
   renameDocumentFolder(id: ID!, name: String!): Boolean!
 
@@ -2818,6 +2847,18 @@ type Mutation {
   updateTreasuryCategory(id: ID!, input: TreasuryCategoryInput!): Boolean!
   updateTreasuryCounterparty(id: ID!, input: TreasuryCounterpartyInput!): Boolean!
   updateTreasuryEntry(id: ID!, input: TreasuryEntryInput!): Boolean!
+
+  """
+  Changes the details of a member of the team or household (omitted: left unchanged); only a member has details of its own.
+  """
+  updateTreasuryMember(
+    """
+    Occurrences made to disappear with their comments or times are confirmed: false (default) refuses with CONFIRMATION_REQUIRED and extension lost { times, comments } when there are some; true deletes them. Its birthday moved or gone (slot conditions).
+    """
+    confirmLoss: Boolean
+    contributorId: ID!
+    input: TreasuryMemberDetailsInput!
+  ): Contributor!
   updateTreasuryPaymentMethod(id: ID!, input: TreasuryPaymentMethodInput!): Boolean!
 
   """
@@ -3069,6 +3110,11 @@ type Query {
   """
   checklist(eventId: ID, occurrenceDate: Date, routineId: ID, taskId: ID): Checklist
   client(id: ID!): Client
+
+  """
+  Every contact of every client (archived clients included), by client then name: those a contributor can be linked to.
+  """
+  clientContacts: [ClientContact!]!
 
   """Every client, archived ones included, in manual order."""
   clients: [Client!]!
@@ -5645,6 +5691,27 @@ type TreasuryLoanItem {
   lineId: ID!
 }
 
+"""
+Details of a member of the team or household; omitted fields are left unchanged.
+"""
+input TreasuryMemberDetailsInput {
+  """
+  Birth date: YYYY-MM-DD, or --MM-DD when the year is not known. Its birthday shows in the calendar (query birthdays). Empty: none.
+  """
+  birthDate: String
+
+  """
+  Reminders of its birthday « À HH:MM » or « N jours avant, à HH:MM », 10 at most.
+  """
+  birthdayReminders: [ReminderInput!]
+
+  """[{ label, address }]: email addresses, 10 at most."""
+  emails: JSON
+
+  """[{ label, number }], 10 at most."""
+  phones: JSON
+}
+
 type TreasuryPaymentMethod {
   """Archived: hidden by default, read only."""
   archived: Boolean!
@@ -5708,7 +5775,7 @@ type TreasuryRelation {
   birthdayReminders: [Reminder!]!
   budgetCount: Int!
 
-  """Contributor this person also is."""
+  """Contributor this person also is (its details are the relation's)."""
   contributorId: ID
 
   """[{ label, address }]"""
@@ -5732,6 +5799,10 @@ input TreasuryRelationInput {
   Reminders of its birthday « À HH:MM » or « N jours avant, à HH:MM », 10 at most.
   """
   birthdayReminders: [ReminderInput!]
+
+  """
+  Contributor this person also is (not a member nor linked to a contact): its details are the relation's.
+  """
   contributorId: ID
 
   """[{ label, address }]: email addresses, 10 at most."""

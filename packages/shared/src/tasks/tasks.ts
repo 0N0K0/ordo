@@ -8,7 +8,7 @@ import { slotConditionSchema, type SlotCondition } from '../calendar/slot-condit
 import { endDaySchema, startDaySchema } from '../dates/times';
 import { taskRemindersSchema, type ReminderFields } from '../dates/reminders';
 import { deadTimesSchema, type DeadTimeInput } from '../dates/countdowns';
-import { personDetailsShape } from '../people/person-details';
+import { contributorLinkSchema } from '../people/contributor-link';
 import type { TaskInheritableField } from './task-inheritance';
 
 export const taskLabelSchema = requiredText();
@@ -56,7 +56,8 @@ export function suggestHandle(name: string): string {
 export const contributorFormSchema = z.object({
   name: personNameSchema,
   handle: handleSchema,
-  ...personDetailsShape,
+  /** What its details come from (membership, relation, contact, nothing). */
+  link: contributorLinkSchema,
 });
 export type ContributorFormValues = z.input<typeof contributorFormSchema>;
 

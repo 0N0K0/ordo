@@ -167,7 +167,7 @@ Source : `services/projects/contributors.ts`. Vue d’ensemble des personnes dan
 
 ### Modification, archivage, suppression
 
-- `updateContributor` refuse un contributeur archivé (lecture seule). `projectIds` remplace la liste des projets directs.
+- `updateContributor` refuse un contributeur archivé (lecture seule). `projectIds` remplace la liste des projets directs ; `link` remplace son lien (voir [Personnes](people.md#lien-dun-contributeur)).
 - `deleteContributor` : les tâches perdent simplement cet assigné ; l’avatar orphelin est supprimé.
 
 ### Rattachement aux projets

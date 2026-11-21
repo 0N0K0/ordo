@@ -9,7 +9,7 @@ Ce que l’utilisateur peut faire dans la trésorerie : comptes bancaires, mouve
 - Différences PRO / PERSO :
   - en PERSO, pas de facturation : le formulaire de mouvement ne propose pas « Factures réglées » / « Avoirs remboursés », et les paramètres n’ont pas la section « Factures et avoirs » ;
   - l’ensemble des membres s’appelle « Équipe » en PRO et « Foyer » en PERSO ;
-  - le panneau d’une relation a aussi « Date de naissance » (jour, mois, année facultative), « Rappels d’anniversaire », « Adresses mail » (plusieurs) et « Téléphones » (comme ceux d’un contributeur ; son anniversaire s’affiche dans l’agenda ; changer la date ou le contributeur lié, archiver ou supprimer la relation demande la confirmation « Occurrences supprimées » quand des occurrences de routines dont une condition cite cet anniversaire disparaissent) ;
+  - le panneau d’une relation a aussi « Date de naissance » (jour, mois, année facultative), « Rappels d’anniversaire », « Adresses mail » (plusieurs) et « Téléphones » (comme ceux de la fiche d’un membre ; le contributeur lié a ceux-là ; son anniversaire s’affiche dans l’agenda ; changer la date ou le contributeur lié, archiver ou supprimer la relation demande la confirmation « Occurrences supprimées » quand des occurrences de routines dont une condition cite cet anniversaire disparaissent) ;
   - les personnes hors équipe s’appellent « Relations » en PRO (féminin : « la relation », « Nouvelle relation ») et « Proches » en PERSO (« le proche », « Nouveau proche »).
 
 ## Page Trésorerie
@@ -229,8 +229,8 @@ Barre « Paramètres de la trésorerie », sections une sous l’autre (listes d
 
 Dans l’onglet « contributors » de la page Paramètres (`features/projects/pages/SettingsPage.tsx`) :
 
-- « Équipe » / « Foyer » : membres (« Moi » toujours, badge « Moi ») ; ajout d’un contributeur existant ou d’un nouveau membre par son nom (crée le contributeur) ; « Retirer » (reste contributeur, toast « X n’est plus membre. ») ; « Archiver » ; interrupteur des archivés.
-- « Relations » / « Proches » : nom (« Paul, Mamie, Association du quartier… »), contributeur lié facultatif (non membre, pas déjà relation ; donne son nom si vide), « Description » (zone de texte multiligne, 4 000 caractères) ; badge « Contributeur » ; usages (« N lignes, M budgets ») ; « Modifier », « Archiver », « Supprimer » (« Ses budgets aussi. Ses lignes vous seront attribuées. »). Nouvelle relation : formulaire, bouton « Ajouter » ; « Modifier » : panneau enregistré champ par champ (nom et description en les quittant ; le contributeur choisi avec le nom qu’il donne).
+- « Équipe » / « Foyer » : membres (« Moi » toujours, badge « Moi ») ; ajout d’un contributeur existant lié à rien (ni relation ni contact) ou d’un nouveau membre par son nom (crée le contributeur) ; « Modifier » (« Voir » archivé, « Moi » compris) ouvre la fiche du membre (« Modifier le membre ») : son nom et son avatar, « Date de naissance », « Rappels d’anniversaire », « Adresses mail », « Téléphones », enregistrés champ par champ, seul endroit où se changent ceux d’un membre ; « Retirer » (reste contributeur, sans coordonnées, toast « X n’est plus membre. ») ; « Archiver » ; interrupteur des archivés. Ajouter ou retirer un membre, ou changer sa date de naissance, demande la confirmation « Occurrences supprimées » quand des occurrences de routines dont une condition cite son anniversaire disparaissent.
+- « Relations » / « Proches » : nom (« Paul, Mamie, Association du quartier… »), contributeur lié facultatif (lié à rien d’autre : ni membre, ni contact, ni autre relation ; donne son nom si vide ; il prend les coordonnées et l’anniversaire de la relation), « Description » (zone de texte multiligne, 4 000 caractères) ; badge « Contributeur » ; usages (« N lignes, M budgets ») ; « Modifier », « Archiver », « Supprimer » (« Ses budgets aussi. Ses lignes vous seront attribuées. »). Nouvelle relation : formulaire, bouton « Ajouter » ; « Modifier » : panneau enregistré champ par champ (nom et description en les quittant ; le contributeur choisi avec le nom qu’il donne).
 
 ## Ailleurs dans l’app
 
@@ -239,4 +239,4 @@ Dans l’onglet « contributors » de la page Paramètres (`features/projects/pa
 - Facturation : enregistrement d’un règlement depuis un document, qui crée un mouvement ([Facturation](accounting.md)).
 - Achats : recherche de mouvements pour lier une liste ([Achats](../supplies/shopping.md)).
 - Agenda : un événement peut concerner des relations de la trésorerie ([Agenda](../activities/calendar.md)).
-- Contributeurs : la liste des contributeurs signale les membres et les relations ([Personnes](../../business-rules/cross-cutting/people.md)).
+- Contributeurs : la liste des contributeurs signale les membres, les relations et les contacts liés ([Personnes](../../business-rules/cross-cutting/people.md)).

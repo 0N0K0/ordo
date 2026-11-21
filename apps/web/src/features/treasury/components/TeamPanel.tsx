@@ -9,8 +9,8 @@ import { EmptyState } from '../../../components/feedback/EmptyState';
 import { confirmDestructive } from '../../../components/dialogs/confirm-destructive';
 
 import { Badge, Fieldset, Group, Select, SimpleGrid, Stack, Table, Text, Textarea, TextInput } from '@mantine/core';
-import { mapById, EVERYDAY_CONTEXT, treasuryContextSchema, treasuryRelationSchema, agreed } from '@ordo/shared';
-import { CalendarStarIcon, PencilSimpleIcon, PlusIcon, TrashIcon, UserMinusIcon } from '@phosphor-icons/react';
+import { mapById, EVERYDAY_CONTEXT, personDetailsSchema, treasuryContextSchema, treasuryRelationSchema, agreed } from '@ordo/shared';
+import { CalendarStarIcon, EyeIcon, PencilSimpleIcon, PlusIcon, TrashIcon, UserMinusIcon } from '@phosphor-icons/react';
 import { ArchivedBadge } from '../../../components/feedback/ArchivedBadge';
 import { ShowArchivedSwitch } from '../../../components/filters/ShowArchivedSwitch';
 import { archiveEntry, unarchived, useArchivedToggle } from '../../../lib/archive';
@@ -35,13 +35,17 @@ import { inWorkspace } from '../../calendar/lib/layer-label';
 import { personOptionRenderer } from '../../../components/people/person-option';
 import { relationWords } from '../../../components/people/people-options';
 import { openRelationForm } from '../lib/open-relation';
+import { openMemberForm } from '../lib/open-member';
+import type { Contributor } from '../../tasks/api';
 import { PersonDetailsFields } from '../../../components/people/PersonDetailsFields';
 import { NO_PERSON_DETAILS_VALUES, PERSON_DETAILS_ON_BLUR, personDetailsProps, personDetailsValues, type PersonDetailsValues } from '../../../components/people/person-details';
 
 /**
  * Members of the team (professional workspace) or household (personal one): "Moi" always is one; a member is a
- * contributor (an existing one, or a new one created with their name). A member removed stays a contributor. An
- * archived member is hidden unless asked, and archived contributors are not offered as new members.
+ * contributor (an existing one not linked to a relation nor a contact, or a new one created with their name), whose
+ * details (birth date, birthday reminders, email addresses, phones) are edited in its form here (« Modifier »). A
+ * member removed stays a contributor, without details. An archived member is hidden unless asked, and archived
+ * contributors are not offered as new members.
  * @returns {JSX.Element} Section.
  */
 export function TeamMembers() {
@@ -60,11 +64,9 @@ export function TeamMembers() {
       archived: contributorById.get(member.id)?.archived ?? false,
       ...(contributorById.get(member.id) ? { name: contributorById.get(member.id)!.name, avatarUrl: contributorById.get(member.id)!.avatarUrl } : {}),
     }));
-  const memberIds = new Set(members.map((member) => member.id));
   const { shown: shownMembers, toggle: membersToggle } = useArchivedToggle(members);
-  // A relation is not a member too.
-  const relationContributors = new Set((settings?.treasuryRelations ?? []).map((relation) => relation.contributorId));
-  const others = unarchived(context?.contributors ?? []).filter((contributor) => !memberIds.has(contributor.id) && !relationContributors.has(contributor.id));
+  // A contributor linked to a relation or a contact is not a member too.
+  const others = unarchived(context?.contributors ?? []).filter((contributor) => contributor.link === 'NONE');
   const team = perso ? 'Foyer' : 'Équipe';
 
   return (
@@ -96,20 +98,27 @@ export function TeamMembers() {
                 </Group>
               </Table.Td>
               <Table.Td w={1}>
-                {!member.isMe && (
-                  <InlineActions
-                    name={member.name}
-                    items={[
-                      archiveEntry({ archived: member.archived, type: 'Membre', label: member.name }, setArchived, member.id),
+                <InlineActions
+                  name={member.name}
+                  items={[
+                    contributorById.get(member.id) && {
+                      label: member.archived ? 'Voir' : 'Modifier',
+                      icon: member.archived ? <EyeIcon aria-hidden /> : <PencilSimpleIcon aria-hidden />,
+                      onClick: () => openMemberForm(contributorById.get(member.id)!),
+                    },
+                    ...(member.isMe
+                      ? []
+                      : [
+                    archiveEntry({ archived: member.archived, type: 'Membre', label: member.name }, setArchived, member.id),
                       {
                         label: 'Retirer',
                         hint: `Retirer du ${team.toLowerCase()} (reste contributeur)`,
                         icon: <UserMinusIcon aria-hidden />,
                         onClick: () => removeMember.mutate(member.id, toastCallbacks(`${member.name} n’est plus membre.`)),
                       },
-                    ]}
-                  />
-                )}
+                        ]),
+                  ]}
+                />
               </Table.Td>
             </Table.Tr>
           ))}
@@ -267,6 +276,38 @@ export function TeamPanel() {
   );
 }
 
+/**
+ * Form of a member of the team or household (« Moi » included): its details (birth date, birthday reminders, email
+ * addresses, phones), the only place they are edited (a contributor that is not a member has none of its own), each
+ * saved as soon as it changes (texts on leaving them, `useFieldSave`), the member of the cache followed; archived, it
+ * is read only. Its name, handle, avatar and projects are those of the contributor (its own form).
+ * @param {{ member: Contributor }} props Component props.
+ * @returns {JSX.Element} Form.
+ */
+export function MemberForm({ member }: { member: Contributor }) {
+  const { updateMember } = useTreasuryTeamMutations();
+  const { context } = useTaskContext();
+  const current = context?.contributors.find((item) => item.id === member.id) ?? member;
+  const readOnly = current.archived;
+  const base = useAppForm<PersonDetailsValues>({ initialValues: personDetailsValues(member), schema: personDetailsSchema });
+  const { form, saving, fieldProps } = useFieldSave(base, {
+    save: (changes) => updateMember.mutateAsync({ contributorId: member.id, input: changes }),
+    schema: personDetailsSchema,
+    saved: personDetailsValues(current),
+    onBlur: PERSON_DETAILS_ON_BLUR,
+    readOnly,
+  });
+  return (
+    <Fieldset variant="unstyled" disabled={readOnly} p={0} m={0}>
+      <Stack gap="sm">
+        {!readOnly && <SaveStatus saving={saving} />}
+        <PersonRow name={current.name} avatarUrl={current.avatarUrl} />
+        <PersonDetailsFields {...personDetailsProps(form, fieldProps)} />
+      </Stack>
+    </Fieldset>
+  );
+}
+
 /** Values of a relation: its fields and its details. */
 type RelationValues = { name: string; note: string | null; contributorId: string | null } & PersonDetailsValues;
 
@@ -312,11 +353,11 @@ export function RelationForm({ relation, name = '', onDone }: { relation?: Treas
     onBlur: ['name', 'note', ...PERSON_DETAILS_ON_BLUR],
     readOnly,
   });
-  // Contributors that are no member nor another relation already.
-  const members = new Set((settings?.treasuryMembers ?? []).map((member) => member.id));
-  const taken = new Set((settings?.treasuryRelations ?? []).filter((item) => item.id !== relation?.id).map((item) => item.contributorId));
-  // Archived contributors are not offered (the current one stays).
-  const contributors = unarchived(context?.contributors ?? [], form.values.contributorId).filter((contributor) => !members.has(contributor.id) && !taken.has(contributor.id));
+  // Contributors linked to nothing (no member, no contact, no other relation), and the current one; archived ones are
+  // not offered (the current one stays).
+  const contributors = unarchived(context?.contributors ?? [], form.values.contributorId).filter(
+    (contributor) => contributor.link === 'NONE' || contributor.id === form.values.contributorId || (relation && contributor.relationId === relation.id),
+  );
   return (
     // A new relation only: an existing one is saved field by field (Enter saves the text typed).
     <form
@@ -334,7 +375,7 @@ export function RelationForm({ relation, name = '', onDone }: { relation?: Treas
           <TextInput label="Nom" required data-autofocus={relation ? undefined : true} placeholder="Paul, Mamie, Association du quartier…" {...form.getInputProps('name')} />
           <Select
             label="Contributeur"
-            description="Si cette personne intervient aussi sur des projets ou des tâches."
+            description="Si cette personne intervient aussi sur des projets ou des tâches : le contributeur a alors ses coordonnées et son anniversaire."
             placeholder="Aucun"
             clearable
             searchable

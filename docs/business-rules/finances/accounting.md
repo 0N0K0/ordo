@@ -299,6 +299,7 @@ Paiement (`recordPayment`, schéma `documentPaymentSchema`) :
 - contact : prénom obligatoire (« Le prénom est requis. »), nom (règle des noms de personne), email, fonction (250), téléphones, service facultatif du même client ;
 - toute modification est refusée sur un client archivé ; supprimer un service garde ses contacts (rattachés au client) ; un contact ou un service supprimé est retiré des documents (`SetNull`) ;
 - un client ayant des documents ne peut pas être supprimé (relation `Restrict` du schéma).
+- un contact peut être aussi un contributeur (un au plus, `Contributor.contactId`, choisi dans la fiche du contributeur) : le contributeur a alors son adresse et ses téléphones, sans anniversaire (voir [Personnes](../cross-cutting/people.md#lien-dun-contributeur)) ; le contact lui-même ne change pas ; supprimé, le contributeur reste, sans lien.
 
 ## Profil de la société
 

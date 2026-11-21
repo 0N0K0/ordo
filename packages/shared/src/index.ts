@@ -50,6 +50,7 @@ export * from './core/rules';
 export * from './people/contact';
 export * from './people/birthdays';
 export * from './people/person-details';
+export * from './people/contributor-link';
 export * from './core/tagged-key';
 export * from './core/app-paths';
 export * from './dates/reminder-rings';

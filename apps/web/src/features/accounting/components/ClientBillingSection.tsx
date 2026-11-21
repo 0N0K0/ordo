@@ -6,7 +6,8 @@ import { ListSkeleton } from '../../../components/feedback/Skeletons';
 import { confirmDestructive } from '../../../components/dialogs/confirm-destructive';
 import { openFormPanel } from '../../../components/panels/panels';
 import { Anchor, Badge, Group, SimpleGrid, Stack, Text } from '@mantine/core';
-import { addressLines, contactName, hasAddress, type Address, type Phone } from '@ordo/shared';
+import { addressLines, contactName, hasAddress, readPhones, type Address } from '@ordo/shared';
+import { ContactLines } from '../../../components/people/ContactLines';
 import { EyeIcon, PencilSimpleIcon, PlusIcon, TrashIcon, UserPlusIcon } from '@phosphor-icons/react';
 import { countryName } from '../lib/countries';
 
@@ -31,7 +32,6 @@ interface RowReadOnly {
  */
 function ContactInfo({ address, email, phones, website }: { address: unknown; email?: string | null; phones: unknown; website?: string | null }) {
   const postal = address as Address | null;
-  const numbers = (phones as Phone[]) ?? [];
   return (
     <Stack gap={2}>
       {hasAddress(postal) &&
@@ -40,17 +40,7 @@ function ContactInfo({ address, email, phones, website }: { address: unknown; em
             {line}
           </Text>
         ))}
-      {email && (
-        <Anchor href={`mailto:${email}`} size="sm">
-          {email}
-        </Anchor>
-      )}
-      {numbers.map((phone) => (
-        <Text key={`${phone.label}${phone.number}`} size="sm">
-          {phone.label ? `${phone.label} : ` : ''}
-          {phone.number}
-        </Text>
-      ))}
+      <ContactLines emails={email ? [{ label: '', address: email }] : []} phones={readPhones(phones)} />
       {/* Validated as http(s) by the API; checked again before becoming a link. */}
       {website &&
         (/^https?:\/\//i.test(website) ? (
