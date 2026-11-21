@@ -79,7 +79,7 @@ Source : `effectiveRoutine` (`packages/shared/src/routines/routine-inheritance.t
   - `patchRoutine` : `inherit`, `clear` ; un champ auquel une valeur est donnée devient propre (une répétition donnée rend aussi les cas propres).
   - `bulkUpdateRoutines` : `inheritFields`, `clearFields`, même règle ; des catégories ou assignés ajoutés ou retirés à une liste héritée partent de celle que la routine suit.
 - **Lu aujourd’hui** (lot 13a) : GraphQL (`effective`, `inheritance`, `inheritedFields`), assignés des notifications hors de l’app, liens avec un évènement (assignés en commun), transformation en tâche. Les occurrences (agenda, rappels, état, coches) lisent encore les colonnes propres : le lot 13c les fera suivre l’héritage du « quand » (voir [Écarts](../../discrepancies.md)).
-- **Migration** `20261121150000_inherited_fields` : chaque champ d’une sous-routine encore identique à celui de sa parente (copie de la création) devient hérité ; une valeur différente reste propre.
+- **Migration** `20261121150000_inherited_fields` : chaque champ d’une sous-routine encore identique à celui de sa parente (copie de la création) devient hérité ; une valeur différente reste propre, un champ vide quand la parente a une valeur compris (vidé exprès : les valeurs avaient été copiées à la création, un vide a été retiré).
 
 ## Catégories
 

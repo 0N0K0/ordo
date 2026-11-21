@@ -217,7 +217,7 @@ Source : `effectiveTask` (`packages/shared/src/tasks/task-inheritance.ts`, sur `
   - Une valeur reçue de GitHub (priorité, échéance, jalon, assignés) devient propre.
 - **Validation** sur les valeurs suivies : arborescence de projets du parent, jalon et sprints de l’arborescence du projet suivi, assignés propres parmi les contributeurs du projet suivi.
 - **Lu partout où le champ compte** : « faisable maintenant » (ouverture, condition, assignés), rappels et notifications hors de l’app (dates), liens avec un évènement (assignés en commun), transformation en routine, dates suivies. La copie (« Dupliquer ») garde la liste : la copie hérite comme sa source.
-- **Migration** `20261121150000_inherited_fields` : pour chaque sous-tâche existante, chaque champ encore identique à celui du parent (copie de la création, ou vide des deux côtés) devient hérité ; une valeur différente (vide compris quand le parent en a une) reste propre.
+- **Migration** `20261121150000_inherited_fields` : pour chaque sous-tâche existante, chaque champ encore identique à celui du parent (copie de la création, ou vide des deux côtés) devient hérité, et aussi chaque champ vide (une sous-tâche ne reprenait que le projet : un vide n'avait jamais été choisi) ; une autre valeur reste propre.
 
 ## Effort
 

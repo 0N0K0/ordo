@@ -4,8 +4,10 @@
 -- nothing.
 --
 -- Existing data changes here: for every sub-task and sub-routine, each inheritable field whose stored value is still
--- identical to its parent's (a copy made at its creation, or both empty) becomes inherited; a different value (an
--- empty one included, when the parent has one) stays its own. The values themselves are not touched. Lists (people,
+-- identical to its parent's (a copy made at its creation, or both empty) becomes inherited; a different value stays
+-- its own. A sub-task's empty field becomes inherited too (a sub-task only ever took its parent's project: an empty
+-- field was never chosen); a sub-routine's empty field, when its parent has a value, stays cleared on purpose (its
+-- values were copied at its creation: an empty one was removed). The values themselves are not touched. Lists (people,
 -- categories) are compared as sets. PostgreSQL 9.6 compatible (array_remove, IS NOT DISTINCT FROM on jsonb).
 
 ALTER TABLE "Task" ADD COLUMN "inheritedFields" TEXT[] NOT NULL DEFAULT ARRAY[]::TEXT[];
@@ -14,20 +16,23 @@ ALTER TABLE "Routine" ADD COLUMN "inheritedFields" TEXT[] NOT NULL DEFAULT ARRAY
 UPDATE "Task" c
 SET "inheritedFields" = array_remove(ARRAY[
   CASE WHEN c."projectId" IS NOT DISTINCT FROM p."projectId" THEN 'PROJECT' END,
-  CASE WHEN ARRAY(SELECT "A" FROM "_ContributorToTask" WHERE "B" = c."id" ORDER BY 1)
+  CASE WHEN NOT EXISTS (SELECT 1 FROM "_ContributorToTask" WHERE "B" = c."id")
+          OR ARRAY(SELECT "A" FROM "_ContributorToTask" WHERE "B" = c."id" ORDER BY 1)
           = ARRAY(SELECT "A" FROM "_ContributorToTask" WHERE "B" = p."id" ORDER BY 1) THEN 'ASSIGNEES' END,
-  CASE WHEN ARRAY(SELECT "A" FROM "_TaskBeneficiaries" WHERE "B" = c."id" ORDER BY 1)
+  CASE WHEN (NOT EXISTS (SELECT 1 FROM "_TaskBeneficiaries" WHERE "B" = c."id") AND NOT EXISTS (SELECT 1 FROM "_TaskBeneficiaryRelations" WHERE "A" = c."id"))
+        OR (ARRAY(SELECT "A" FROM "_TaskBeneficiaries" WHERE "B" = c."id" ORDER BY 1)
           = ARRAY(SELECT "A" FROM "_TaskBeneficiaries" WHERE "B" = p."id" ORDER BY 1)
         AND ARRAY(SELECT "B" FROM "_TaskBeneficiaryRelations" WHERE "A" = c."id" ORDER BY 1)
-          = ARRAY(SELECT "B" FROM "_TaskBeneficiaryRelations" WHERE "A" = p."id" ORDER BY 1) THEN 'BENEFICIARIES' END,
-  CASE WHEN c."slotCondition" IS NOT DISTINCT FROM p."slotCondition" THEN 'SLOT_CONDITION' END,
-  CASE WHEN c."minDate" IS NOT DISTINCT FROM p."minDate" THEN 'MIN_DATE' END,
-  CASE WHEN c."deadline" IS NOT DISTINCT FROM p."deadline" THEN 'DEADLINE' END,
-  CASE WHEN c."location" IS NOT DISTINCT FROM p."location"
+          = ARRAY(SELECT "B" FROM "_TaskBeneficiaryRelations" WHERE "A" = p."id" ORDER BY 1)) THEN 'BENEFICIARIES' END,
+  CASE WHEN c."slotCondition" IS NULL OR c."slotCondition" = 'null'::jsonb OR c."slotCondition" IS NOT DISTINCT FROM p."slotCondition" THEN 'SLOT_CONDITION' END,
+  CASE WHEN c."minDate" IS NULL OR c."minDate" IS NOT DISTINCT FROM p."minDate" THEN 'MIN_DATE' END,
+  CASE WHEN c."deadline" IS NULL OR c."deadline" IS NOT DISTINCT FROM p."deadline" THEN 'DEADLINE' END,
+  CASE WHEN (c."location" IS NULL OR c."location" = '') AND c."locationLat" IS NULL AND c."locationLon" IS NULL THEN 'LOCATION'
+       WHEN c."location" IS NOT DISTINCT FROM p."location"
         AND c."locationLat" IS NOT DISTINCT FROM p."locationLat"
         AND c."locationLon" IS NOT DISTINCT FROM p."locationLon" THEN 'LOCATION' END,
-  CASE WHEN c."priorityId" IS NOT DISTINCT FROM p."priorityId" THEN 'PRIORITY' END,
-  CASE WHEN c."milestoneId" IS NOT DISTINCT FROM p."milestoneId" THEN 'MILESTONE' END
+  CASE WHEN c."priorityId" IS NULL OR c."priorityId" IS NOT DISTINCT FROM p."priorityId" THEN 'PRIORITY' END,
+  CASE WHEN c."milestoneId" IS NULL OR c."milestoneId" IS NOT DISTINCT FROM p."milestoneId" THEN 'MILESTONE' END
 ]::TEXT[], NULL)
 FROM "Task" p
 WHERE c."parentId" = p."id";

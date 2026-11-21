@@ -52,7 +52,6 @@ L’API accepte ce que l’interface empêche.
 - **Anniversaires cités par les conditions de créneaux (lot 16c) :** une personne sans date de naissance est acceptée dans une condition (son anniversaire ne permet aucun moment, comme un type sans créneau), sans avertissement ; une personne supprimée, ou archivée sans date de naissance à elle (une relation archivée dont seul le contributeur lié est daté), est écrite « anniversaire retiré » (son nom n'est plus connu des anniversaires). La confirmation des occurrences perdues, le rechargement des routines et le suivi du contributeur lié sont faits (décision FQ). Voir [Personnes](business-rules/cross-cutting/people.md#coordonnées-date-de-naissance-anniversaire).
 
 ## Documentation à mettre à jour ou à compléter
-- **Héritage, champs vides des sous-tâches existantes (migration `20261121150000_inherited_fields`) :** une sous-tâche ne reprenait que le projet de son parent ; ses assignés, bénéficiaires, priorité, jalon, lieu ou condition vides alors que son parent en a passent en « vidé exprès », selon la règle « une valeur différente reste propre ». Si l’utilisateur préfère qu’un champ vide hérite, une migration suivante peut ajouter ces champs à `inheritedFields`.
 - **Héritage, date vidée exprès :** elle saute le parent mais garde le repli jalon / projet / sprint (comme une tâche du premier niveau) ; à confirmer (l’autre lecture : « aucune » date du tout).
 
 
