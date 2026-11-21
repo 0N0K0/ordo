@@ -16,6 +16,7 @@ Internes : `CardId`, `DEFAULT_ORDER` (`tasks`, `routines`, `agenda`, `chrono`, `
 
 - `HomeCard({ title, icon, to?, linkLabel = 'Tout voir', loading?, children })` : carte (titre, icône, lien, squelette `ListSkeleton`) ; dans la grille, affiche la poignée lue dans `DragHandleContext`. Utilisé par toutes les cartes.
 - `CardFigure({ label, value, color? })` : petit chiffre d’une carte. Utilisé par `TasksCard`… (`WorkCards`, `LifeCards`, `FinanceCards`).
+- Tout retard de l’accueil est en orange, la couleur de retard commune (`LATE_COLOR`, `LateBadge` de `components/feedback`) : indices des tuiles, tâches, routines, factures et prochaines échéances de trésorerie.
 
 ### `components/HomeList.tsx` (+ `Home.module.css`)
 
@@ -48,7 +49,7 @@ Utilisés par `WorkCards`, `LifeCards`, `FinanceCards`, `MailCard`. `Home.module
 
 ### `components/ChronoCard.tsx`
 
-`ChronoCard({ context })` : « Chrono et alarmes » : un `RunningTimer` par chrono en cours (`useRunningTimers`, décision FT) puis « Démarrer un autre chrono » (`openTimerForm`), sinon `TimerStartForm` (`features/time/components/TimerCard`), les minuteurs en cours avec leurs commandes et « Lancer un minuteur » (`CountdownList bare`, décision FV), prochaine alarme (`nextRings`), « Programmer une alarme » (`useAlarmForm`).
+`ChronoCard({ context })` : « Chrono et alarmes » : un `RunningTimer` par chrono en cours (`useRunningTimers`) puis « Démarrer un autre chrono » (`openTimerForm`), sinon `TimerStartForm` (`features/time/components/TimerCard`), les minuteurs en cours avec leurs commandes et « Lancer un minuteur » (`CountdownList bare`), prochaine alarme (`nextRings`), « Programmer une alarme » (`useAlarmForm`).
 
 ### `components/MailCard.tsx`
 

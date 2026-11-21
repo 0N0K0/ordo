@@ -4,9 +4,9 @@ Briques communes du glisser-déposer de l’app, toutes bâties sur `@dnd-kit` :
 
 ## Principes
 
-- Un seul glisser-déposer dans l’app : `@dnd-kit` (`useDraggable`, `useDroppable`, `SortableArea`). Le glisser-déposer natif HTML est interdit par une règle eslint (décision DM).
+- Un seul glisser-déposer dans l’app : `@dnd-kit` (`useDraggable`, `useDroppable`, `SortableArea`). Le glisser-déposer natif HTML est interdit par une règle eslint (le mail compris).
 - Le glisser ne démarre qu’après 5 px de déplacement du pointeur : un clic reste un clic (sur un onglet, une poignée…).
-- Un élément glissé est translaté (jamais agrandi), passe au-dessus des autres et s’atténue (`--onoko-dragging-opacity`, décision K).
+- Un élément glissé est translaté (jamais agrandi), passe au-dessus des autres et s’atténue (`--onoko-dragging-opacity`, 0,5).
 - Le clavier déplace aussi les éléments triés (espace, flèches, espace) sur leur poignée.
 - Le clic qui suit le lâcher est avalé (`suppressClickAfterDrop`) : il ouvrirait, trierait ou sélectionnerait ce qui est sous le pointeur.
 
@@ -25,7 +25,7 @@ Utilisé par : [Tableau de données](data-table.md) (lignes et colonnes), [Arbre
 `DragHandle` — poignée de déplacement d’un élément trié (carte, case, ligne), la même partout, en `ActionIcon` subtil gris avec l’icône `DotsSixVerticalIcon`.
 
 - Props : `item?` (nom de l’élément : `aria-label` « Déplacer « X » »), `hint?` (infobulle, défaut « Déplacer » ; ex. « Déplacer (horizontalement : son niveau) » dans le tableau), `activator`, `attributes`, `listeners` (de `useSortable` / `useDraggable`), `dragging`, `size?`, `className?`, `reveal?` (visible seulement au survol ou au focus de son hôte, via `data-reveal`).
-- Curseur `grab` / `grabbing`, `touch-action: none`. L’infobulle est coupée pendant le glisser (décision W : comme `IconAction`).
+- Curseur `grab` / `grabbing`, `touch-action: none`. L’infobulle est coupée pendant le glisser (l'infobulle dit l'action, comme `IconAction`).
 - Utilisé par `DataTable`, `ColumnsPanel`, `CategoryTree`, `recurrence`, `home`, `dashboards`, `projects`, `tasks`.
 
 ## `DragLabel.tsx`

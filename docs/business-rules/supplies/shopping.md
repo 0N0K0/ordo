@@ -10,7 +10,7 @@ Source : `packages/shared/src/shopping/shopping.ts`.
 
 | Champ                                             | Règle                                                                    | Message                                                                           |
 | ------------------------------------------------- | ------------------------------------------------------------------------ | --------------------------------------------------------------------------------- |
-| Libellé d'un produit ou d'un élément              | Requis, 250 caractères (`TEXT_MAX`, décision DO), espaces retirés        | « Le libellé est requis. », « 250 caractères maximum. »                           |
+| Libellé d'un produit ou d'un élément              | Requis, 250 caractères (`TEXT_MAX`), espaces retirés        | « Le libellé est requis. », « 250 caractères maximum. »                           |
 | Libellé d'une liste                               | Requis, 250 caractères (`shoppingListLabelSchema`)                       | idem                                                                              |
 | Libellé d'une référence                           | Requis, 250 caractères                                                   | idem                                                                              |
 | Libellé d'une catégorie                           | Requis, 250 caractères                                                   | idem                                                                              |
@@ -23,7 +23,7 @@ Source : `packages/shared/src/shopping/shopping.ts`.
 | Bénéficiaires                                     | 50 membres et 50 relations au plus                                       | —                                                                                 |
 | Date de péremption                                | `YYYY-MM-DD` ou null                                                     | —                                                                                 |
 
-Ces limites (unité, note, quantité) sont les mêmes pour les fiches et le stock (décision A de `docs/code-redundancies.md`).
+Ces limites (unité, note, quantité) sont les mêmes pour les fiches et le stock, par les mêmes schémas (`unitSchema`, `itemNoteSchema`, `quantitySchema`, `packages/shared/src/shopping/shopping.ts`).
 
 Stockage : quantité en décimal (12, 3), prix en décimal (14, 4).
 

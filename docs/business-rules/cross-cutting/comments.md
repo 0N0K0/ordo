@@ -54,9 +54,9 @@ Chaque `Comment` a exactement une cible. Types de cible (enum GraphQL `CommentTa
 
 ## Commentaires d’une occurrence (routines et évènements)
 
-Décision D19. Source : `TARGET_MODELS` (`occurrences`), `onOccurrences`, `commentsWhere`, `remapOccurrenceRows`.
+Source : `TARGET_MODELS` (`occurrences`), `onOccurrences`, `commentsWhere`, `remapOccurrenceRows`.
 
-- Un commentaire d’une routine ou d’un évènement récurrent porte sur **une occurrence**, plus sur toute la série : `occurrenceDate`, le jour de l’occurrence (pour une routine, le jour de ses coches, `RoutineCheck.date` ; pour un évènement, la date d’occurrence, comme `TimeEntryEvent.occurrenceDate`).
+- Un commentaire d’une routine ou d’un évènement récurrent porte sur **une occurrence**, pas sur toute la série : `occurrenceDate`, le jour de l’occurrence (pour une routine, le jour de ses coches, `RoutineCheck.date` ; pour un évènement, la date d’occurrence, comme `TimeEntryEvent.occurrenceDate`).
 - Un évènement unique n’a qu’une occurrence : ses commentaires ont `occurrenceDate` vide.
 - `addComment` : l’occurrence est requise pour une routine et un évènement récurrent (« Occurrence manquante. ») ; refusée pour un évènement unique et les autres éléments (« Cet élément n’a pas d’occurrences. ») ; date invalide sous `occurrenceDate` (« Date invalide. »). L’API ne vérifie pas que la date est bien une occurrence de la règle.
 - Modifier ou supprimer un commentaire ne change pas son occurrence.
@@ -66,8 +66,8 @@ Décision D19. Source : `TARGET_MODELS` (`occurrences`), `onOccurrences`, `comme
 - Les temps d’un évènement (`TimeEntryEvent`) suivent leur occurrence de la même façon (même brique, `remapOccurrenceRows`).
 - Une occurrence **supprimée** (évènement : « cette occurrence », « celle-ci et les suivantes » ; routine : depuis l’agenda) supprime ses commentaires (`deleteGoneComments`) ; tout l’évènement ou toute la routine : en cascade. La confirmation en donne le nombre (`lostOnDelete`, `commentsLostOnDelete`, avec les temps).
 - Une occurrence **reportée** emmène ses commentaires (et ses temps) vers l’évènement de report.
-- « Annuler » après la suppression d’une occurrence de routine (`THIS`) rend ses commentaires (`deleteGoneComments` renvoie ceux supprimés, `restoreComments` les recrée sur l’occurrence, texte vérifié, dates d’origine ; décision EV). Une occurrence d’évènement supprimée n’a pas d’« Annuler ».
-- Une règle changée qui fait disparaître des occurrences (sans les décaler) supprime leurs commentaires, après confirmation (`lostOccurrences`, `assertLossConfirmed`, `settleLostOccurrences` de `occurrence-rows.ts`, erreur `CONFIRMATION_REQUIRED` tant que `confirmLoss` n’est pas vrai ; décision EW). Voir [Agenda](../activities/calendar.md) et [Routines](../activities/routines.md).
+- « Annuler » après la suppression d’une occurrence de routine (`THIS`) rend ses commentaires (`deleteGoneComments` renvoie ceux supprimés, `restoreComments` les recrée sur l’occurrence, texte vérifié, dates d’origine). Une occurrence d’évènement supprimée n’a pas d’« Annuler ».
+- Une règle changée qui fait disparaître des occurrences (sans les décaler) supprime leurs commentaires, après confirmation (`lostOccurrences`, `assertLossConfirmed`, `settleLostOccurrences` de `occurrence-rows.ts`, erreur `CONFIRMATION_REQUIRED` tant que `confirmLoss` n’est pas vrai). Voir [Agenda](../activities/calendar.md) et [Routines](../activities/routines.md).
 
 ### Commentaires écrits avant les occurrences
 
@@ -89,7 +89,7 @@ Source : `placeLegacyComments` (`services/core/comments.ts`), `placeLegacyRoutin
 - `comments(target, id, occurrenceDate?)` : les commentaires de l’élément, du plus ancien au plus récent ; pour une routine ou un évènement, ceux de l’occurrence donnée (aucune : ceux d’un évènement unique). `Task.comments` : même ordre.
 - `commentCounts(target, ids)` : nombre de commentaires par élément demandé (0 compris), sans doublon ; pour `ROUTINE` et `EVENT`, les `ids` sont des clés d’occurrence (`occurrenceKey` : « id|AAAA-MM-JJ », l’identifiant seul pour un évènement unique).
 - `Task.commentCount` : nombre de commentaires de la tâche.
-- Les compteurs de l’API ne comptent **pas** la description. Dans les tableaux du web, une description remplie compte pour un commentaire (`commentTotal`, décision CJ).
+- Les compteurs de l’API ne comptent **pas** la description. Dans les tableaux du web, une description remplie compte pour un commentaire (`commentTotal`) ; la colonne des commentaires montre l’icône et le nombre, dans tous les tableaux.
 
 ## Commentaires de tâche et GitHub
 
@@ -104,4 +104,4 @@ Source : `services/github/sync.ts` (`syncComments`), `forgetGithubComment` (`ser
 
 - Dupliquer une tâche ne copie pas ses commentaires.
 - Supprimer une tâche supprime ses commentaires.
-- Transformer une tâche en routine (lot 15, décision FL) recopie ses commentaires en commentaires de la routine, sur sa première occurrence (textes et dates gardés, lien GitHub perdu) ; transformer une routine en tâche recopie ceux de son occurrence en cours (sinon la suivante, sinon la première) en commentaires de tâche, les autres sont supprimés avec la routine (comptés dans la confirmation). Voir [Tâches](../activities/tasks.md#transformer-en-routine) et [Routines](../activities/routines.md#transformer-en-tâche).
+- Transformer une tâche en routine recopie ses commentaires en commentaires de la routine, sur sa première occurrence (textes et dates gardés, lien GitHub perdu) ; transformer une routine en tâche recopie ceux de son occurrence en cours (sinon la suivante, sinon la première) en commentaires de tâche, les autres sont supprimés avec la routine (comptés dans la confirmation). Voir [Tâches](../activities/tasks.md#transformer-en-routine) et [Routines](../activities/routines.md#transformer-en-tâche).

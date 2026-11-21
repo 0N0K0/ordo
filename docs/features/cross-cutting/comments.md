@@ -23,7 +23,7 @@ Règles appliquées par l’API : [Règles métier — Commentaires](../../busin
 
 Le titre par défaut du fil est « Commentaires » (`Comments`, propriété `title`).
 
-Une routine et un évènement récurrent ont des commentaires **par occurrence** (décision D19) : le panneau montre ceux de l’occurrence qu’il ouvre. Pour un évènement, l’occurrence cliquée ; pour une routine ouverte depuis l’agenda (« Ouvrir la routine »), l’occurrence cliquée ; sinon l’occurrence en cours, à défaut la suivante, à défaut la première. Un évènement unique a une seule occurrence.
+Une routine et un évènement récurrent ont des commentaires **par occurrence** : le panneau montre ceux de l’occurrence qu’il ouvre. Pour un évènement, l’occurrence cliquée ; pour une routine ouverte depuis l’agenda (« Ouvrir la routine »), l’occurrence cliquée ; sinon l’occurrence en cours, à défaut la suivante, à défaut la première. Un évènement unique a une seule occurrence.
 
 ## Le fil de commentaires
 
@@ -41,7 +41,7 @@ Un commentaire vide est refusé : « Le commentaire est vide. ».
 
 Dans les tableaux (tâches, temps, routines, achats, stock, documents, trésorerie, bibliothèque, fiches, créneaux de travail, catalogue) :
 
-- nombre de commentaires de la ligne, **la description remplie comptant pour un** (décision CJ), avec une icône de bulle ; rien quand il n’y en a aucun ; pour une routine, ceux de l’occurrence que son panneau ouvre ; pour un évènement du tableau des tâches, ceux de son occurrence ;
+- nombre de commentaires de la ligne, **la description remplie comptant pour un**, avec une icône de bulle ; rien quand il n’y en a aucun ; pour une routine, ceux de l’occurrence que son panneau ouvre ; pour un évènement du tableau des tâches, ceux de son occurrence ;
 - triable et filtrable comme un nombre ; masquée par défaut dans les tableaux qui utilisent `commentColumn` (la colonne des tâches suit les colonnes par défaut des tâches) ;
 - un filtre « A des commentaires » existe dans le tableau des tâches.
 

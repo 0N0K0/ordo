@@ -1,6 +1,6 @@
 # Fil de commentaires (composant commun)
 
-Le fil de commentaires d'un élément (tâche, routine, évènement, document…), le même partout. Source : `apps/web/src/components/comments/`. Les requêtes et colonnes de commentaires sont dans `features/comments` (voir [Code web : commentaires](../features/cross-cutting/comments.md)) ; les règles (commentaires refusés sur un élément archivé, décision P) dans [Règles : commentaires](../../business-rules/cross-cutting/comments.md).
+Le fil de commentaires d'un élément (tâche, routine, évènement, document…), le même partout. Source : `apps/web/src/components/comments/`. Les requêtes et colonnes de commentaires sont dans `features/comments` (voir [Code web : commentaires](../features/cross-cutting/comments.md)) ; les règles (commentaires refusés sur un élément archivé) dans [Règles : commentaires](../../business-rules/cross-cutting/comments.md).
 
 ## `CommentThread.tsx`
 

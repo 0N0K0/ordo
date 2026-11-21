@@ -6,7 +6,7 @@ Tous les fichiers de `apps/web/src/features/auth/` : API du compte et de la sess
 
 ### `api/index.ts`
 
-Fragment `AccountUser` (`id`, `username`, `email`, `pendingEmail`, `contributorId`, `ringSettings` : réglages de la sonnerie, décision FS).
+Fragment `AccountUser` (`id`, `username`, `email`, `pendingEmail`, `contributorId`, `ringSettings` : réglages de la sonnerie).
 
 | Export                      | Rôle                                                                                            | Utilisé par                                                                          |
 | --------------------------- | ----------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------ |
@@ -20,7 +20,7 @@ Fragment `AccountUser` (`id`, `username`, `email`, `pendingEmail`, `contributorI
 | `useConfirmEmailChange()`   | Confirme un changement d’adresse ; invalide `me`.                                               | `ConfirmEmailPage`                                                                   |
 | `useChangePassword()`       | Change le mot de passe.                                                                         | `AccountPage`                                                                        |
 | `useChangeUsername()`       | Change l’identifiant ; met à jour `me`.                                                         | `AccountPage`                                                                        |
-| `useUpdateRingSettings()`   | Enregistre les réglages de la sonnerie (décision FS, `updateRingSettings`) ; met à jour `me`.   | `RingSettingsForm`                                                                   |
+| `useUpdateRingSettings()`   | Enregistre les réglages de la sonnerie (`updateRingSettings`) ; met à jour `me`.   | `RingSettingsForm`                                                                   |
 | `useRequestEmailChange()`   | Lance un changement d’adresse ; met à jour `me` (`pendingEmail`).                               | `AccountPage`                                                                        |
 | `useCancelEmailChange()`    | Annule le changement en attente ; met à jour `me`.                                              | `AccountPage`                                                                        |
 

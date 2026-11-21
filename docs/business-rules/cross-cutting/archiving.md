@@ -7,7 +7,8 @@ Voir aussi : [Erreurs](errors.md), [Nommage](naming.md), [tables](../../shared/c
 ## Principe
 
 - Un élément archivé porte une date `archivedAt` (non nulle). Il est **masqué par défaut** dans les listes et **en lecture seule** : champ GraphQL `archived` (« Archived: hidden by default, read only. »).
-- Les tableaux ont un interrupteur pour afficher aussi les archivés (`includeArchived` d'une vue, décision AH).
+- Les tableaux ont un interrupteur pour afficher aussi les archivés (`includeArchived` d'une vue), le même partout ; aucun tableau n'a de colonne ni de vue « Actifs / Archivés ».
+- Archiver et restaurer passent seulement par l'action d'archivage (`setArchived` ou la mutation propre du domaine) : aucun formulaire n'a de case « Archivé ». Côté web, « Archiver » et « Restaurer » ne sont jamais un bouton : ils sont dans le menu « … » de l'élément (ligne, en-tête de page de détail, liste de réglages).
 - Archiver ne supprime rien ; restaurer remet `archivedAt` à `null`.
 
 ## Mutation générique `setArchived`
@@ -16,13 +17,13 @@ Voir aussi : [Erreurs](errors.md), [Nommage](naming.md), [tables](../../shared/c
 
 - Tous les ids doivent exister (« Élément introuvable. ») ; un id répété compte une fois.
 - Archiver garde la date des éléments déjà archivés (seuls les actifs reçoivent la date du jour).
-- Types concernés (`ARCHIVABLE`) : les éléments principaux `MILESTONE`, `SPRINT`, `DASHBOARD`, `CALENDAR_EVENT`, `WORK_SCHEDULE`, `ACCOUNTING_DOCUMENT`, `RECURRING_INVOICE`, `IMPORTED_DOCUMENT`, `TREASURY_ENTRY`, `TREASURY_BUDGET`, `TREASURY_RELATION`, `SHOPPING_LIST`, `SHOPPING_PRODUCT`, `STOCK_ITEM`, `SHEET`, `CONTRIBUTOR`, `MAIL_ACCOUNT`, `CATALOG_ITEM`, et toutes les listes de réglages (`SETTINGS_LISTS`) : `PROJECT_STATUS`, `PROJECT_CATEGORY`, `TASK_STATUS`, `TASK_PRIORITY`, `TASK_TYPE`, `TASK_TAG`, `DOCUMENT_STATUS`, `SHEET_CATEGORY`, `SHOPPING_STORE`, `SHOPPING_UNIT`, `SHOPPING_STORAGE`, `SHOPPING_BASE_LIST`, `SHOPPING_CATEGORY`, `MAIL_LABEL`, `CALENDAR`, `CALENDAR_CATEGORY`, `SCHEDULE_TYPE`, `TREASURY_ACCOUNT`, `TREASURY_PAYMENT_METHOD`, `TREASURY_COUNTERPARTY`, `TREASURY_CATEGORY`, `ROUTINE_CATEGORY`, `STOCK_LOCATION`, `PLACE`. Un contexte de trésorerie n’a plus d’archivage propre : c’est celui de son type d’éphémérides (`SCHEDULE_TYPE`, lot 16).
-- `confirmLoss` (décision FQ) : archiver ou restaurer un créneau (`WORK_SCHEDULE`), un type de créneaux (`SCHEDULE_TYPE`), un contributeur (`CONTRIBUTOR`) ou une relation (`TREASURY_RELATION`) change ce que donnent les conditions de créneaux (un archivé n'y compte plus) : les occurrences de routines qui disparaissent perdent leurs commentaires une fois confirmé, sinon `CONFIRMATION_REQUIRED` et rien ne change (`archiveEdit`, `settleScheduleChange`, vérifié sur les seuls éléments dont l'état change, après l'existence). Voir [Routines](../activities/routines.md#créneaux-de-lagenda-conditionwindows-windowsallowed).
+- Types concernés (`ARCHIVABLE`) : les éléments principaux `MILESTONE`, `SPRINT`, `DASHBOARD`, `CALENDAR_EVENT`, `WORK_SCHEDULE`, `ACCOUNTING_DOCUMENT`, `RECURRING_INVOICE`, `IMPORTED_DOCUMENT`, `TREASURY_ENTRY`, `TREASURY_BUDGET`, `TREASURY_RELATION`, `SHOPPING_LIST`, `SHOPPING_PRODUCT`, `STOCK_ITEM`, `SHEET`, `CONTRIBUTOR`, `MAIL_ACCOUNT`, `CATALOG_ITEM`, et toutes les listes de réglages (`SETTINGS_LISTS`) : `PROJECT_STATUS`, `PROJECT_CATEGORY`, `TASK_STATUS`, `TASK_PRIORITY`, `TASK_TYPE`, `TASK_TAG`, `DOCUMENT_STATUS`, `SHEET_CATEGORY`, `SHOPPING_STORE`, `SHOPPING_UNIT`, `SHOPPING_STORAGE`, `SHOPPING_BASE_LIST`, `SHOPPING_CATEGORY`, `MAIL_LABEL`, `CALENDAR`, `CALENDAR_CATEGORY`, `SCHEDULE_TYPE`, `TREASURY_ACCOUNT`, `TREASURY_PAYMENT_METHOD`, `TREASURY_COUNTERPARTY`, `TREASURY_CATEGORY`, `ROUTINE_CATEGORY`, `STOCK_LOCATION`, `PLACE`. Un contexte de trésorerie n’a pas d’archivage propre : c’est celui de son type d’éphémérides (`SCHEDULE_TYPE`).
+- `confirmLoss` : archiver ou restaurer un créneau (`WORK_SCHEDULE`), un type de créneaux (`SCHEDULE_TYPE`), un contributeur (`CONTRIBUTOR`) ou une relation (`TREASURY_RELATION`) change ce que donnent les conditions de créneaux (un archivé n'y compte plus) : les occurrences de routines qui disparaissent perdent leurs commentaires une fois confirmé, sinon `CONFIRMATION_REQUIRED` et rien ne change (`archiveEdit`, `settleScheduleChange`, vérifié sur les seuls éléments dont l'état change, après l'existence). Voir [Routines](../activities/routines.md#créneaux-de-lagenda-conditionwindows-windowsallowed).
 - Les **clients**, **projets**, **tâches** et **routines** ont leurs propres mutations, à cause de leurs cascades.
 
 ## Lecture seule
 
-Toute modification d'un élément archivé, ou d'un sous-élément d'un élément archivé, est refusée en `BAD_USER_INPUT` : « Élément archivé : restaurez-le pour le modifier. » (`ARCHIVED_MESSAGE`, décision BC).
+Toute modification d'un élément archivé, ou d'un sous-élément d'un élément archivé, est refusée en `BAD_USER_INPUT` : « Élément archivé : restaurez-le pour le modifier. » (`ARCHIVED_MESSAGE`), le seul message d'archivé, affiché en erreur sous le champ.
 
 - `findActive(model, id, what)` : charge l'élément (« X introuvable. ») puis refuse s'il est archivé.
 - `refuseArchived(record, field?)` : refuse un élément déjà chargé.
@@ -33,7 +34,7 @@ Toute modification d'un élément archivé, ou d'un sous-élément d'un élémen
 
 ## Valeur archivée choisie dans un formulaire
 
-Décisions AA et DA : une valeur archivée ne peut plus être **nouvellement** choisie, mais les valeurs déjà présentes restent valides.
+Une valeur archivée ne peut plus être **nouvellement** choisie, mais les valeurs déjà présentes restent valides.
 
 - `assertNotArchived(target, id, { keep, field })`, `assertNoneArchived(target, ids, { keep, field })`, `activeIds(model, ids, what, { keep, field, missingField })` : les ids de `keep` (valeurs actuelles du champ) sont acceptés même archivés ; l'erreur s'affiche sous `field`.
 - S'applique partout : catégories, statuts, priorités, types, étiquettes, agendas, créneaux, contributeurs (assignés, bénéficiaires), relations, projets et clients archivés, routines préalables, parents d'arbre, etc.
@@ -61,12 +62,12 @@ Les clients, projets, tâches et routines utilisent un indicateur `archivedByCas
 ### Routine
 
 - Archivage groupé `bulkSetRoutinesArchived(ids, archived)` : chaque id doit exister, un id répété compte une fois, la date des déjà archivées est gardée.
-- Même mécanique que les tâches (`archiveTree`, décision DQ) : archiver une routine archive ses sous-routines actives, la restaurer restaure celles archivées avec elle et ses parentes archivées seules. Une routine sélectionnée sous une autre sélectionnée suit celle-ci (`topmostIds`).
-- Une routine archivée n'a plus d'occurrence due ni à venir ; ses occurrences ouvertes avant le jour de l'archivage restent, archivées, en lecture seule, même dues ce jour-là ou après (aucune qui s'ouvre à partir de ce jour) ; la restaurer remet tout comme avant (décision D21, `archivedOn`). Archivée parce qu'une suppression « celle-ci et les suivantes » ne lui laisse rien, elle l'est avec ses sous-routines.
+- Même mécanique que les tâches (`archiveTree`) : archiver une routine archive ses sous-routines actives, la restaurer restaure celles archivées avec elle et ses parentes archivées seules. Une routine sélectionnée sous une autre sélectionnée suit celle-ci (`topmostIds`).
+- Une routine archivée n'a plus d'occurrence due ni à venir ; ses occurrences ouvertes avant le jour de l'archivage restent, archivées, en lecture seule, même dues ce jour-là ou après (aucune qui s'ouvre à partir de ce jour) ; la restaurer lui rend toutes ses occurrences (`archivedOn`). Archivée parce qu'une suppression « celle-ci et les suivantes » ne lui laisse rien, elle l'est avec ses sous-routines.
 
 ### Évènement
 
-- `setArchived(CALENDAR_EVENT)` archive toute la série ; comme une routine (décision D21), seules ses occurrences commencées avant le jour de l'archivage restent, archivées, même finies ce jour-là ou après ; aucune qui commence ensuite. Restauré, il retrouve toutes ses occurrences.
+- `setArchived(CALENDAR_EVENT)` archive toute la série ; comme pour une routine, seules ses occurrences commencées avant le jour de l'archivage restent, archivées, même finies ce jour-là ou après ; aucune qui commence ensuite. Restauré, il retrouve toutes ses occurrences.
 - Les modifications groupées sont refusées si la sélection contient une routine archivée.
 
 ## Effets de l'archivage ailleurs
@@ -78,4 +79,4 @@ Les clients, projets, tâches et routines utilisent un indicateur `archivedByCas
 
 ## Archiver ou supprimer
 
-La suppression est distincte : elle est définitive et suit les règles de suppression de chaque domaine (voir les pages métier) et les cascades de la base (voir [Ordre](ordering.md) pour les arbres et les pages de domaine). Côté web, toute suppression passe par une confirmation destructive (« Cette action est irréversible. », décision X).
+La suppression est distincte : elle est définitive et suit les règles de suppression de chaque domaine (voir les pages métier) et les cascades de la base (voir [Ordre](ordering.md) pour les arbres et les pages de domaine). Côté web, toute suppression passe par une confirmation destructive (« Cette action est irréversible. », ajoutée par `confirmDestructive`).

@@ -15,7 +15,7 @@ Toutes les données sont propres à l'espace courant. Erreurs au format commun (
 Source : `stock.ts` (« Places »), `services/core/trees.ts`.
 
 - Arbre à ordre manuel : créé en dernier parmi ses frères ; changé de parent, il passe en dernier ; déplacement (`moveStockLocation`) sous un parent ou à la racine, à un index (dernier sans index).
-- Libellé requis, 250 caractères (décision DO) ; couleur facultative (`#rrggbb`).
+- Libellé requis, 250 caractères (`TEXT_MAX`) ; couleur facultative (`#rrggbb`).
 - Parent existant (« Emplacement parent introuvable. ») et ni lui-même ni un descendant (« Un emplacement ne peut pas être rangé sous lui-même. »). Rien de nouveau sous un emplacement archivé.
 - Un emplacement archivé ne se modifie ni ne se déplace, et n'est plus accepté comme nouveau choix (article, inventaire, achat, réglage d'une référence) ; il reste valable là où il est déjà.
 - Suppression : ses sous-emplacements remontent d'un niveau, ses articles et les références qui y allaient restent sans emplacement, ses inventaires aussi.

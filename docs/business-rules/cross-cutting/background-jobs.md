@@ -6,7 +6,7 @@ Voir aussi : [Espaces et accès](workspaces-and-access.md), [Mail](../resources/
 
 ## Mécanique commune
 
-- Les tâches sont démarrées au lancement de l'API (`apps/api/src/index.ts`), par `scheduleJob(label, job, { delay, interval })` : une première exécution `delay` ms après le démarrage, puis toutes les `interval` ms (minuteries Node, pas de cron) ; une exécution encore en cours quand la suivante est due la fait sauter (deux passages ne se chevauchent pas, lot 17c). `schedulePerWorkspace(label, job, { delay, interval, kind? })` la lance dans chaque espace.
+- Les tâches sont démarrées au lancement de l'API (`apps/api/src/index.ts`), par `scheduleJob(label, job, { delay, interval })` : une première exécution `delay` ms après le démarrage, puis toutes les `interval` ms (minuteries Node, pas de cron) ; une exécution encore en cours quand la suivante est due la fait sauter (deux passages ne se chevauchent pas). `schedulePerWorkspace(label, job, { delay, interval, kind? })` la lance dans chaque espace.
 - Chaque exécution parcourt les espaces (d'un type éventuellement) dans l'ordre du sélecteur et lance la tâche **dans** chaque espace (`runInWorkspace`) : les données lues et écrites sont celles de cet espace.
 - Une erreur dans un espace est journalisée (« Workspace « X » : … ») et n'arrête pas les autres ; un échec global est journalisé (« Envois programmés en échec. »…) et l'exécution suivante a lieu quand même.
 - Rien n'est persisté sur l'état des minuteries : un redémarrage relance tout ; les tâches rattrapent ce qui est dû (dates passées, curseurs).
@@ -45,7 +45,7 @@ Voir aussi : [Espaces et accès](workspaces-and-access.md), [Mail](../resources/
 
 - Dans chaque espace qui a une connexion GitHub, synchronise chaque lien de projet activé ; un échec est journalisé et gardé sur le lien (`lastSyncError`, `lastSyncAt`), le résumé du dernier passage aussi (`lastSyncSummary`). Une synchronisation déjà en cours pour un projet est refusée (« Une synchronisation de ce projet est déjà en cours. ») : le passage suivant la reprendra. Détails : [GitHub](github.md).
 
-### Sonneries hors de l'app (`scheduleOutsideRings`, lot 17c)
+### Sonneries hors de l'app (`scheduleOutsideRings`)
 
 - Sans clés VAPID, ou sans utilisateur qui a « Sonner hors de l'app » et un appareil, ne fait rien.
 - Sinon, cherche dans tous les espaces (`forEachWorkspace`) les rappels, alarmes et paliers de chrono dus, et les fins de minuteurs de chaque utilisateur ; envoie ce qui est dû depuis 30 secondes à 6 heures et qu'aucun onglet n'a sonné, puis renvoie les sonneries dont la répétition est due. Rattrapage au réveil : ce qui est devenu dû pendant le sommeil du serveur (6 heures au plus). Détails : [Alarmes, hors de l'app](../activities/alarms.md#hors-de-lapp-notifications-push).

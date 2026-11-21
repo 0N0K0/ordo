@@ -262,7 +262,7 @@ Formulaire (panneau latéral « Nouveau dossier de recherche » / « Modifier le
 - « Mails » : « À traiter » (défaut), « Traités », « Tous ».
 - « Drapeaux » (« Les mails ayant l’un de ces drapeaux. »), « Non lus seulement », « Texte » (« Dans l’objet, les adresses ou le corps. »).
 - « Critères avancés » : « De », « À », « Objet », « Corps », « Reçu à partir du », « Jusqu’au », « Avec pièce jointe ».
-- Nouveau dossier : bouton « Créer », toast « Dossier de recherche créé. » (le nouveau dossier s’ouvre). Dossier existant : enregistré champ par champ (décision D22 : chaque choix dès qu’il change, les textes en les quittant ; « Enregistrement… » / « Enregistré », sans bouton).
+- Nouveau dossier : bouton « Créer », toast « Dossier de recherche créé. » (le nouveau dossier s’ouvre). Dossier existant : enregistré champ par champ (chaque choix dès qu’il change, les textes en les quittant ; « Enregistrement… » / « Enregistré », sans bouton).
 
 Suppression : confirmation « Le dossier de recherche « X » sera supprimé définitivement. Les mails qu’il montre ne sont pas touchés. », toast « Dossier de recherche supprimé. ».
 
@@ -318,11 +318,11 @@ Une boîte archivée n’est plus lue ni surveillée, disparaît de la page Mail
 
 - Mot de passe : « Pour Gmail ou Outlook : un mot de passe d’application. » ; en modification, vide = inchangé (« Inchangé (à ressaisir si le serveur change) »).
 - « Tester la connexion » : se connecte aux deux serveurs ; succès : « Connexion réussie à la réception et à l’envoi. ».
-- Nouvelle boîte : bouton « Ajouter », toast « Boîte mail ajoutée. ». Boîte existante : enregistrée champ par champ (décision D22), « Enregistrement… » / « Enregistré » en haut, sans bouton : libellé, adresse et nom d’expéditeur en les quittant, « Enregistrer les mails envoyés » dès qu’il change ; la connexion (serveurs, ports, chiffrement, identifiants, mots de passe, « Mêmes identifiants », hébergeur choisi) ensemble, en quittant l’un de ses champs (un interrupteur : dès qu’il change), une fois le mot de passe ressaisi quand un serveur a changé : d’ici là, l’erreur « Saisissez à nouveau le mot de passe : le serveur, le port, l’identifiant ou le chiffrement a changé. » reste sous le mot de passe (celui de la réception avec « Mêmes identifiants ») et rien de la connexion n’est enregistré.
+- Nouvelle boîte : bouton « Ajouter », toast « Boîte mail ajoutée. ». Boîte existante : enregistrée champ par champ, « Enregistrement… » / « Enregistré » en haut, sans bouton : libellé, adresse et nom d’expéditeur en les quittant, « Enregistrer les mails envoyés » dès qu’il change ; la connexion (serveurs, ports, chiffrement, identifiants, mots de passe, « Mêmes identifiants », hébergeur choisi) ensemble, en quittant l’un de ses champs (un interrupteur : dès qu’il change), une fois le mot de passe ressaisi quand un serveur a changé : d’ici là, l’erreur « Saisissez à nouveau le mot de passe : le serveur, le port, l’identifiant ou le chiffrement a changé. » reste sous le mot de passe (celui de la réception avec « Mêmes identifiants ») et rien de la connexion n’est enregistré.
 
 ### Signature (fenêtre « Signature — X »)
 
-Texte « Ajoutée aux nouveaux mails de \<adresse\>. Le bouton « `</>` » de la barre d’outils permet de coller ou de modifier le code HTML ; les images envoyées depuis l’éditeur sont intégrées aux mails. », éditeur riche avec édition du code HTML, enregistré en quittant l’éditeur (décision D22 : « Enregistrement… » / « Enregistré » en haut, sans bouton ; erreur « Signature trop longue. » dessous). Une signature vide est retirée.
+Texte « Ajoutée aux nouveaux mails de \<adresse\>. Le bouton « `</>` » de la barre d’outils permet de coller ou de modifier le code HTML ; les images envoyées depuis l’éditeur sont intégrées aux mails. », éditeur riche avec édition du code HTML, enregistré en quittant l’éditeur (« Enregistrement… » / « Enregistré » en haut, sans bouton ; erreur « Signature trop longue. » dessous). Une signature vide est retirée.
 
 ### « Drapeaux »
 

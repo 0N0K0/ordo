@@ -3,8 +3,10 @@
 Référence de l’application : ce qu’elle permet de faire, les règles qu’elle applique, et le rôle de chaque morceau du code web et du code partagé. Les dossiers suivent les groupes du menu de l’application : Activités, Économat, Finances, Ressources, plus ce qui est transversal.
 
 - [Déploiement](deployment.md) : hébergement, environnements, mise en production.
-- [Redondances du code](code-redundancies.md) : unifications faites, décisions prises.
+- [Redondances du code](code-redundancies.md) : ce qui reste en double ou contourne une brique commune dans le code.
 - [Écarts relevés](discrepancies.md) : bugs, incohérences et points à confirmer relevés en écrivant cette documentation.
+
+Chaque page dit la règle telle qu’elle est : ni lettre de décision, ni lot, ni date, ni historique. `npm run lint` (à la racine) le vérifie par `scripts/check-docs.mjs`, qui refuse aussi un lien relatif ou une ancre qui ne mène nulle part ; la règle des références au plan est celle du code (`PLAN_REFERENCE` de `packages/shared/eslint-rules.js`).
 
 ## Fonctionnalités
 

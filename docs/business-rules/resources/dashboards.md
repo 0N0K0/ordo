@@ -14,7 +14,7 @@ Source : `packages/shared/src/dashboards/dashboards.ts`, `packages/shared/src/co
 
 | Élément                                   | Règle                                                       | Messages                                                |
 | ----------------------------------------- | ----------------------------------------------------------- | ------------------------------------------------------- |
-| Tableau (`dashboardLabelSchema`)          | Requis, rogné, 250 caractères max (`TEXT_MAX`, décision DO) | « Le libellé est requis. », « 250 caractères maximum. » |
+| Tableau (`dashboardLabelSchema`)          | Requis, rogné, 250 caractères max (`TEXT_MAX`) | « Le libellé est requis. », « 250 caractères maximum. » |
 | Diagramme (`chartLabelSchema`)            | Requis, rogné, 250 caractères max                           | « Le libellé est requis. », « 250 caractères maximum. » |
 | Libellé du jeu principal (`config.label`) | Facultatif, 250 max                                         | « 250 caractères maximum. »                             |
 | Jeu de données                            | Requis, 250 max                                             | « Nommez le jeu de données. »                           |
@@ -153,5 +153,5 @@ Source : `apps/web/src/features/dashboards/lib/**`.
 Source : `apps/api/src/services/dashboards/charts-pdf.ts`, route `POST /api/exports/charts.pdf` (`apps/api/src/routes/exports.ts`, erreur « Export PDF impossible. »).
 
 - Entrée : `title` (requis, 1 à 500), `subtitle` (500 max), `charts` de 1 à 40, chacun avec `title` (500 max), `description` (500 max) — 500 = `PRINTED_LABEL_MAX` (2 × `TEXT_MAX`) — et `image` PNG en data URL (12 Mo max, sinon « Image PNG attendue. »).
-- PDF A4 paysage dans le gabarit commun des exports (logo, date, numéros de page) : un diagramme par page, la première page portant aussi le titre de l’export ; la description en petit sous l’en-tête ; l’image ajustée à la place restante.
+- PDF A4 paysage dans le gabarit commun des exports (logo, date, numéros de page) : un diagramme par page, la première page portant aussi le titre de l’export (16 pt gras, sous-titre 10 pt gris, `writeHeading`) ; la description en petit sous l’en-tête ; l’image ajustée à la place restante.
 - Le tableau de données en PDF passe par la route commune `table.pdf` ([Erreurs](../cross-cutting/errors.md) pour le format des messages).

@@ -18,7 +18,7 @@ Badge d'un élément de liste de réglages, le même partout : dans sa couleur (
 
 ### `FileBadge`
 
-Badge d'un fichier, le même partout (décision E : pièces jointes, justificatifs, fichiers d'un mail) : trombone, nom coupé à `max` caractères (24 par défaut, nom complet en infobulle), taille facultative (« · 12 Ko », `fmt.fileSize`). Props : `filename`, `size`, `max`, `href` (lien), `external` (nouvel onglet, `EXTERNAL_LINK`), `onClick` (visionneuse, téléchargement), `onRemove` (croix grise `RemoveButton variant="field"`), `badgeSize` (`sm`). Imposé par eslint (un `PaperclipIcon` dans un `FileLink` est interdit). Utilisé par la facturation, les mails, la trésorerie.
+Badge d'un fichier, le même partout (pièces jointes, justificatifs, fichiers d'un mail) : trombone, nom coupé à `max` caractères (24 par défaut, nom complet en infobulle), taille facultative (« · 12 Ko », `fmt.fileSize`). Props : `filename`, `size`, `max`, `href` (lien), `external` (nouvel onglet, `EXTERNAL_LINK`), `onClick` (visionneuse, téléchargement), `onRemove` (croix grise `RemoveButton variant="field"`), `badgeSize` (`sm`). Imposé par eslint (un `PaperclipIcon` dans un `FileLink` est interdit). Utilisé par la facturation, les mails, la trésorerie.
 
 ## `ItemLinks.tsx`
 

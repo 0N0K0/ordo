@@ -254,8 +254,9 @@ export const SHARED_SYNTAX_RULES = [
 /**
  * Plan references in the code: a comment, or a `description` / `message` string (GraphQL descriptions, guard messages),
  * that cites a decision letter, a lot, a round or a bare code of the plan instead of saying the behaviour.
+ * Also read by `scripts/check-docs.mjs` for the pages of `docs/`.
  */
-const PLAN_REFERENCE =
+export const PLAN_REFERENCE =
   /\b[Dd][ée]cisions?\s+(?:[A-Z]{1,2}\d*|\d{1,2})\b|\bD\d{1,2}\b|\b[Ll]ots?\s+\d{1,2}[a-d]?\b|\b[Rr]ounds?\s+\d{1,2}\b|\(\s*(?:[A-G][A-Z]|D\d{1,2})(?:\s*[,;]\s*(?:[A-G][A-Z]|D\d{1,2}))*\s*\)|\b(?:per|rules?|règles?)\s+(?:[A-G][A-Z]|D\d{1,2})\b|\bnotes\//;
 const PLAN_REFERENCE_MESSAGE = 'Pas de référence aux décisions ni aux lots dans le code : décrire le comportement (les décisions sont dans docs/).';
 

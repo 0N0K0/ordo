@@ -14,7 +14,7 @@ Titre d'une page (`h1`, taille `h2`) affiché sur téléphone seulement : à par
 
 ### `DetailHeader`
 
-En-tête de la page (ou du panneau) d'un élément, le même partout (décisions R, DG) : document de facturation, document importé, fiche, liste de courses, panneau de tâche, projet, client. Props :
+En-tête de la page (ou du panneau) d'un élément, le même partout (retour, libellé en h3, badges, actions ; « Archiver » et « Supprimer » dans le menu « … ») : document de facturation, document importé, fiche, liste de courses, panneau de tâche, projet, client. Props :
 
 - `back` : `{ to, label }`, lien de retour au-dessus (`BackLink`) ;
 - `page` : un `PageHeader` entre le retour et le nom ;
@@ -40,7 +40,7 @@ Légende en petites capitales atténuées, graisse 600, la même partout (titre 
 
 ### `BackLink`
 
-Retour d'une page de détail, au-dessus du titre comme un fil d'Ariane : « ← Facturation », petit lien texte vers sa liste (décision 17). Props : `to`, `children`. Utilisé par `DetailHeader` et `DetailNotFound`.
+Retour d'une page de détail, au-dessus du titre comme un fil d'Ariane : « ← Facturation », petit lien texte vers sa liste, le seul retour de ces pages (pas de bouton retour en double). Props : `to`, `children`. Utilisé par `DetailHeader` et `DetailNotFound`.
 
 ### `PeriodNav`
 

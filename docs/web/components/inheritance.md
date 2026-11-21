@@ -1,6 +1,6 @@
 # Héritage : champs hérités d’un parent
 
-Briques qui montrent et changent ce qu’une sous-tâche ou une sous-routine prend de son parent (décision D11, lot 13b, décision GA), les mêmes dans les tableaux, les panneaux et les formulaires. Source : `apps/web/src/components/inheritance/`. Règles : [Tâches](../../business-rules/activities/tasks.md#héritage), [Routines](../../business-rules/activities/routines.md#héritage).
+Briques qui montrent et changent ce qu’une sous-tâche ou une sous-routine prend de son parent, en direct, les mêmes dans les tableaux, les panneaux et les formulaires. Source : `apps/web/src/components/inheritance/`. Règles : [Tâches](../../business-rules/activities/tasks.md#héritage), [Routines](../../business-rules/activities/routines.md#héritage).
 
 ## `inheritance.ts`
 

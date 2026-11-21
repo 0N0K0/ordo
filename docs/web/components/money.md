@@ -1,6 +1,6 @@
 # Montants signés
 
-Affichage et saisie d'un montant signé (mouvement d'argent ou de stock) : entrée en vert avec « + », sortie en rouge. Source : `apps/web/src/components/money/`. Les formats d'argent (`fmt.money`, `fmt.moneyCents`…) sont dans [lib/format](../lib.md#formatts).
+Affichage et saisie d'un montant signé (mouvement d'argent ou de stock) : entrée en vert avec « + », sortie en rouge. Source : `apps/web/src/components/money/`. Les formats d'argent (`fmt.money`, `fmt.moneyCents`…) sont dans [lib/format](../lib.md#formats-formatts).
 
 ## `signed-text.ts`
 

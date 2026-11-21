@@ -8,11 +8,11 @@ Voir aussi : [Tâches](tasks.md), [Facturation](../finances/accounting.md), [Rou
 
 | Champ                                       | Règle                                                                                                                                                                                                                                                                                                                                                                                                                         |
 | ------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `projectId`                                 | Projet sur lequel le temps est passé, facultatif (un temps a au moins un projet, une tâche, une routine ou un évènement, décision D17). Supprimer le projet garde ses temps, sans projet, avec leurs tâches, leurs routines et leurs évènements (`releaseProjectTime`, `onDelete: SetNull`) ; seuls ceux qui ne gardent aucun rattachement (ni tâche, ni routine, ni évènement) et ne sont pas facturés sont supprimés. |
-| `routines`                                  | Routines (plusieurs, décision D18 ; table `_RoutineToTimeEntry`, comme les tâches). Le temps est réparti à parts égales entre elles.                                                                                                                                                                                                                                                                                          |
+| `projectId`                                 | Projet sur lequel le temps est passé, facultatif (un temps a au moins un projet, une tâche, une routine ou un évènement). Supprimer le projet garde ses temps, sans projet, avec leurs tâches, leurs routines et leurs évènements (`releaseProjectTime`, `onDelete: SetNull`) ; seuls ceux qui ne gardent aucun rattachement (ni tâche, ni routine, ni évènement) et ne sont pas facturés sont supprimés. |
+| `routines`                                  | Routines (plusieurs ; table `_RoutineToTimeEntry`, comme les tâches). Le temps est réparti à parts égales entre elles.                                                                                                                                                                                                                                                                                          |
 | `tasks`                                     | Tâches (plusieurs). Le temps est réparti à parts égales entre elles.                                                                                                                                                                                                                                                                                                                                                          |
-| `events`                                    | Évènements de l’agenda pendant lesquels le temps a été passé (plusieurs, décision D18 ; `TimeEntryEvent` : `eventId`, et `occurrenceDate` pour l’occurrence d’un évènement récurrent). Le temps est réparti à parts égales entre eux.                                                                                                                                                                                         |
-| `description`                               | Markdown (éditeur markdown), 65 536 caractères au plus (« Texte trop long. », décision DO) ; blanc = `null`.                                                                                                                                                                                                                                                                                                                  |
+| `events`                                    | Évènements de l’agenda pendant lesquels le temps a été passé (plusieurs ; `TimeEntryEvent` : `eventId`, et `occurrenceDate` pour l’occurrence d’un évènement récurrent). Le temps est réparti à parts égales entre eux.                                                                                                                                                                                         |
+| `description`                               | Markdown (éditeur markdown), 65 536 caractères au plus (« Texte trop long. ») ; blanc = `null`.                                                                                                                                                                                                                                                                                                                  |
 | `startedAt`                                 | Début (date et heure).                                                                                                                                                                                                                                                                                                                                                                                                        |
 | `endedAt`                                   | Fin ; `null` tant que le chrono tourne.                                                                                                                                                                                                                                                                                                                                                                                       |
 | `pausedAt`                                  | Début de la pause en cours.                                                                                                                                                                                                                                                                                                                                                                                                   |
@@ -26,13 +26,13 @@ Champs GraphQL : `routines` (`id`, `label`…), `taskIds`, `events` (`TimeEntryE
 
 Source : `checkedSubjects` (`placeOf`, `assertProjectTree`, `assertActiveLinks`, `eventLinksData`).
 
-- Un temps porte sur **plusieurs tâches, plusieurs routines et plusieurs évènements** (décision D18), chacun une fois.
-- Un temps a **au moins un projet, une tâche, une routine ou un évènement** (décision D17) : sinon « Choisissez un projet, une tâche, une routine ou un évènement. » (sous `projectId`, `TIME_SUBJECT_REQUIRED`). Un temps sur un évènement, sur des tâches ou sur des routines n’a donc pas besoin de projet. Retirer le dernier d’un temps sans projet (formulaire, cellule, chrono) est refusé ainsi : le temps n’est pas supprimé.
+- Un temps porte sur **plusieurs tâches, plusieurs routines et plusieurs évènements**, chacun une fois.
+- Un temps a **au moins un projet, une tâche, une routine ou un évènement** : sinon « Choisissez un projet, une tâche, une routine ou un évènement. » (sous `projectId`, `TIME_SUBJECT_REQUIRED`). Un temps sur un évènement, sur des tâches ou sur des routines n’a donc pas besoin de projet. Retirer le dernier d’un temps sans projet (formulaire, cellule, chrono) est refusé ainsi : le temps n’est pas supprimé.
 - Avec des routines et sans projet donné, le temps prend **le projet de sa première routine qui en a un** (éventuellement aucun). Routine inconnue : « Routine introuvable. ».
 - Projet inconnu : « Projet introuvable. ». Un projet archivé est refusé, sauf s’il est déjà celui du temps.
 - Tâches et routines : toutes doivent exister (« Tâche introuvable. », « Routine introuvable. ») et appartenir au projet **ou à l’un de ses sous-projets** : « Les tâches doivent appartenir au projet ou à ses sous-projets. », « Les routines doivent appartenir au projet ou à ses sous-projets. ». Celles sans projet vont avec n’importe quel projet.
 - Sans projet : seules des tâches et des routines sans projet sont acceptées : « Choisissez d’abord le projet des tâches. », « Choisissez d’abord le projet des routines. ».
-- Routines, tâches et évènements **nouvellement** choisis ne doivent pas être archivés (« Élément archivé : restaurez-le pour le modifier. » sous le champ, décision AA) ; ceux que le temps avait déjà restent valides.
+- Routines, tâches et évènements **nouvellement** choisis ne doivent pas être archivés (« Élément archivé : restaurez-le pour le modifier. » sous le champ) ; ceux que le temps avait déjà restent valides.
 - Évènements : chacun doit exister (« Évènement introuvable. »). Pour un évènement récurrent, l’occurrence est requise : « Choisissez l’occurrence de l’évènement. ». Pour un évènement simple, la date d’occurrence est ignorée. Deux occurrences d’un même évènement récurrent peuvent être choisies.
 - L’agenda ne montre que la part du temps **hors** des évènements choisis (voir [Agenda](calendar.md)).
 
@@ -44,20 +44,20 @@ Source : `timeLeftEmpty`, `releaseSubjectTime` (`time-entries.ts`), appelés par
 - Un temps **sans projet** dont tout ce qu’il porte (tâches, routines, évènements) est supprimé est **supprimé avec eux** : un temps a au moins un projet, une tâche, une routine ou un évènement.
 - Les temps des occurrences supprimées d’un évènement récurrent (« cette occurrence », « celle-ci et les suivantes ») perdent ces occurrences.
 - Série coupée ou déplacée : les temps des occurrences suivantes (ou de toutes) suivent leur occurrence vers le nouvel évènement ou leur nouveau jour ; une occurrence reportée emmène ses temps vers son report (voir [Agenda](calendar.md)).
-- Une tâche transformée en routine, ou une routine en tâche (lot 15, décision FL), n'est pas une suppression pour ses temps : ils portent sur le nouvel élément au lieu de l'ancien, aucun n'est supprimé (voir [Tâches](tasks.md#transformer-en-routine), [Routines](routines.md#transformer-en-tâche)).
+- Une tâche transformée en routine, ou une routine en tâche, n'est pas une suppression pour ses temps : ils portent sur le nouvel élément au lieu de l'ancien, aucun n'est supprimé (voir [Tâches](tasks.md#transformer-en-routine), [Routines](routines.md#transformer-en-tâche)).
 - La confirmation de la suppression dit combien de temps seront supprimés, et combien de commentaires (requête `lostOnDelete`, mêmes arguments que la suppression).
 - **Exception :** un temps **facturé** (`documentId` posé, brouillon ou facture validée) n’est **jamais** supprimé, ni ainsi ni avec son projet : il fait partie de sa facture. Il reste, même sans rien de rattaché ; c’est le seul cas d’un temps sans projet, ni tâche, ni routine, ni évènement.
 
 ## Chrono
 
-**Plusieurs chronos tournent à la fois** (décision FT, demande de l’utilisateur du 2026-11-20 : la règle « un seul chrono en cours », décision Y, est levée) : chaque temps sans `endedAt` est un chrono en cours, montré et arrêté à part ; chacun compte en entier dans les totaux (deux tâches menées en parallèle pendant 1 h font 2 h).
+**Plusieurs chronos tournent à la fois** : chaque temps sans `endedAt` est un chrono en cours, montré et arrêté à part ; chacun compte en entier dans les totaux (deux tâches menées en parallèle pendant 1 h font 2 h).
 
 ### Démarrer
 
 Source : `startTimer`.
 
 - Mêmes vérifications que ci-dessus (projet, routines, tâches, évènements, éléments archivés), description validée.
-- **Les chronos en cours continuent de tourner** (décision FT ; avant, la décision Y arrêtait le chrono en cours).
+- **Les chronos en cours continuent de tourner** : démarrer un chrono n’en arrête aucun.
 - Le nouveau temps commence maintenant.
 - Côté web, un avertissement « Hors des moments prévus » signale des routines ou des tâches hors de leurs créneaux, ou des assignés occupés par un évènement (autre que ceux du chrono) ; le chrono tourne quand même (voir [Fonctionnalités](../../features/activities/time.md)).
 
@@ -117,10 +117,10 @@ Source : `deleteTimeEntry`.
 Source : champs `trackedSeconds` (`graphql/modules/tasks.ts`, `graphql/modules/routines.ts`, `toOccurrence` de `calendar-events.ts`).
 
 - Tâche : somme, sur les temps **terminés** de la tâche, de la durée divisée par le nombre de tâches du temps (au moins 1), arrondie à la seconde : un temps passé sur trois tâches compte pour un tiers à chacune.
-- Routine : de même, la durée des temps terminés divisée par le nombre de routines du temps (décision D18).
-- Occurrence d’un évènement : la durée des temps de l’occurrence (chronos en cours compris, en direct) divisée par le nombre d’évènements du temps (décision D18).
+- Routine : de même, la durée des temps terminés divisée par le nombre de routines du temps.
+- Occurrence d’un évènement : la durée des temps de l’occurrence (chronos en cours compris, en direct) divisée par le nombre d’évènements du temps.
 - Pour une tâche et une routine, un chrono en cours ne compte qu’une fois arrêté.
-- Des chronos en parallèle comptent chacun en entier (décision FT) : rien n’est retiré pour un chevauchement.
+- Des chronos en parallèle comptent chacun en entier : rien n’est retiré pour un chevauchement.
 
 ## Facturation du temps
 
@@ -138,7 +138,7 @@ Source : `assertNotInvoiced` (`time-entries.ts`), `assertBillableTime` (`account
 Source : requêtes `timeEntries`, `runningTimeEntries`.
 
 - `timeEntries(projectId?, routineId?, since?)` : les temps du projet **et de ses sous-projets**, ou ceux qui portent sur une routine, ou tous ; éventuellement depuis un moment ; du plus récent au plus ancien.
-- `lostOnDelete(taskIds?, routineIds?, withSubtree?, eventId?, scope?, occurrenceDate?, calendarId?, routineOccurrence?)` : `{ times, comments }`, ce qu’une suppression de tâches, de routines, d’occurrences d’une routine, d’un évènement ou d’un calendrier (tous ses évènements, `calendarEventsGone`) supprimera avec eux : les temps (voir plus haut) et les commentaires des routines, évènements et occurrences supprimés (`commentsLostOnDelete`, décision D19 ; les commentaires de tâche ne sont pas comptés).
+- `lostOnDelete(taskIds?, routineIds?, withSubtree?, eventId?, scope?, occurrenceDate?, calendarId?, routineOccurrence?)` : `{ times, comments }`, ce qu’une suppression de tâches, de routines, d’occurrences d’une routine, d’un évènement ou d’un calendrier (tous ses évènements, `calendarEventsGone`) supprimera avec eux : les temps (voir plus haut) et les commentaires des routines, évènements et occurrences supprimés (`commentsLostOnDelete` ; les commentaires de tâche ne sont pas comptés).
 - `runningTimeEntries` : les chronos en cours, le premier démarré d’abord (liste vide : aucun).
 
 ## Commentaires d’un temps
@@ -147,8 +147,8 @@ Un temps prend des commentaires (cible `TIME_ENTRY`, voir [Commentaires](../cros
 
 ## Alarmes liées au temps
 
-Les alarmes « pas de chrono » et « durée de chrono » (`NOT_TRACKING`, `TRACKING_DURATION`) sont décrites dans [Alarmes](alarms.md). Les **temps morts** et les **minuteurs** (décision FT) ne sont pas du temps passé : ils ne créent aucun temps (voir [Alarmes](alarms.md#minuteurs-décision-ft)).
+Les alarmes « pas de chrono » et « durée de chrono » (`NOT_TRACKING`, `TRACKING_DURATION`) sont décrites dans [Alarmes](alarms.md). Les **temps morts** et les **minuteurs** ne sont pas du temps passé : ils ne créent aucun temps (voir [Alarmes](alarms.md#minuteurs)).
 
 ## Espace PRO / PERSO
 
-Les règles sont les mêmes. Côté web, la comparaison « Prévu et réalisé » avec les heures de travail n’est montrée qu’en espace PRO (en PERSO, les créneaux ne sont pas des heures de travail) ; les éphémérides n’y comptent jamais (lot 16, `slotSchedules`).
+Les règles sont les mêmes. Côté web, la comparaison « Prévu et réalisé » avec les heures de travail n’est montrée qu’en espace PRO (en PERSO, les créneaux ne sont pas des heures de travail) ; les éphémérides n’y comptent jamais (`slotSchedules`).

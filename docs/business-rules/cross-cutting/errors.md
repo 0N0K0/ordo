@@ -18,7 +18,7 @@ Toute erreur destinée à l'utilisateur est une `GraphQLError` créée par `clie
 | `CONFLICT`            | Valeur unique déjà prise (libellé, identifiant, email, numéro…).                                                   | 409                       |
 | `TOO_MANY_REQUESTS`   | Limite de tentatives atteinte (« Trop de tentatives. Réessayez dans N min. », extension `retryAfter` en secondes). | 429                       |
 | `SERVICE_UNAVAILABLE` | Service externe injoignable (cartographie, serveur mail…).                                                         | 503                       |
-| `CONFIRMATION_REQUIRED` | Changement qui supprimerait des données sans confirmation : règle d'une série d'évènements ou d'une routine qui fait disparaître des occurrences ayant des commentaires ou des temps (extension `lost` : `{ times, comments }`, décision EW) ; transformation d'une tâche en routine ou l'inverse (extension `lost` : `ConversionLoss`, décision FL, toujours demandée). Le web demande la confirmation et renvoie avec `confirmLoss: true` (`confirm: true` pour une transformation). | —                         |
+| `CONFIRMATION_REQUIRED` | Changement qui supprimerait des données sans confirmation : règle d'une série d'évènements ou d'une routine qui fait disparaître des occurrences ayant des commentaires ou des temps (extension `lost` : `{ times, comments }`) ; transformation d'une tâche en routine ou l'inverse (extension `lost` : `ConversionLoss`, toujours demandée). Le web demande la confirmation et renvoie avec `confirmLoss: true` (`confirm: true` pour une transformation). | —                         |
 
 ## Erreurs rattachées à un champ
 
@@ -35,7 +35,7 @@ L'extension `fields` porte un message par chemin de champ (`« label »`, `« li
 
 - Écrits en français, phrase complète terminée par un point, guillemets « » autour des noms cités.
 - Messages communs (voir [core](../../shared/cross-cutting/core.md)) : « Le libellé est requis. », « Le nom est requis. », « N caractères maximum. », « La fin doit suivre le début. », « Couleur invalide (format #rrggbb). », « Date invalide. », « Lien invalide (http ou https). ».
-- Archivé : un seul message, « Élément archivé : restaurez-le pour le modifier. » (décision BC, voir [Archivage](archiving.md)).
+- Archivé : un seul message, « Élément archivé : restaurez-le pour le modifier. » (voir [Archivage](archiving.md)).
 - Doublon : « Un statut porte déjà ce libellé. », etc. (voir [Nommage](naming.md)).
 - Espace personnel : « Indisponible dans un espace personnel (X). » (voir [Espaces et accès](workspaces-and-access.md)).
 - Cartographie : « Le service de cartographie ne répond pas. », « Le service de cartographie a répondu N. », « Aucun itinéraire trouvé entre ces deux points. » (`apps/api/src/services/core/geo.ts`).
