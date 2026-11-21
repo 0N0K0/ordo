@@ -371,8 +371,8 @@ Internes : `TaskColumnExtras`, `STATUS_CATEGORY_ORDER`, `STATUS_CATEGORY_LABELS`
 
 ### `lib/task-overdue.ts`
 
-- `isTaskOverdue(task, today)` : « Échéance » suivie (`effectiveDeadline`, calculée par l’API : la sienne, sinon celle de son sprint unique) passée et tâche non fermée (décision DD) ; la seule implémentation (règle eslint, sur `deadline` et `effectiveDeadline`).
-- `sprintDateHint(task, field)` (`lib/sprint-dates.ts`) : « 12 nov. 2026 (sprint) » quand la tâche prend son « Ouverture » ou son « Échéance » de son sprint unique (`minDateFromSprint`, `deadlineFromSprint`), sinon `null` ; texte grisé du champ vide (`DateCell`, `TaskPanel`).
+- `isTaskOverdue(task, today)` : « Échéance » suivie (`effectiveDeadline`, calculée par l’API avec `effectiveTask` : la sienne, celle de son parent, de son jalon ou de son premier sprint) passée et tâche non fermée.
+- `inheritedDateHint(task, field)` (`lib/inherited-dates.ts`) : « 12 nov. 2026 (parent) », « (jalon) », « (projet) » ou « (sprint) » quand la tâche n’a pas d’« Ouverture » ou d’« Échéance » à elle (`minDateSource`, `deadlineSource`, mots de `INHERIT_SOURCE_LABELS`), à la place du champ vide (tableau et panneau) ; `null` avec sa propre date ou sans date suivie. Remplace `sprintDateHint`.
 
 ### `lib/my-tasks.ts`
 

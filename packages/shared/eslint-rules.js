@@ -30,8 +30,19 @@ export const TEXT_SIZE_RULES = [
 ];
 
 /** Patterns of @ordo/shared, for the shared code and the API. */
+/** Inheritance of the sub-tasks and sub-routines (decision D11): for the shared code, the API and the web. */
+export const INHERITANCE_RULES = [
+  {
+    // task.inheritedFields.includes('ASSIGNEES'): the list alone, without its parent.
+    selector: "CallExpression[callee.property.name='includes'][callee.object.property.name='inheritedFields']",
+    message:
+      'Utiliser marksInherited(item, field), inheritsField(item, field, byId), effectiveTask ou effectiveRoutine (@ordo/shared, décision D11) : un champ n’est hérité qu’avec un parent, et sa valeur se lit sur l’élément effectif.',
+  },
+];
+
 export const SHARED_SYNTAX_RULES = [
   ...TEXT_SIZE_RULES,
+  ...INHERITANCE_RULES,
   // Dates, numbers and amounts: one format per role.
   {
     selector: "NewExpression[callee.object.name='Intl'][callee.property.name=/^(DateTimeFormat|NumberFormat|RelativeTimeFormat)$/][arguments.length>0]",

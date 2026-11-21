@@ -4,7 +4,7 @@ import reactHooks from 'eslint-plugin-react-hooks';
 import reactRefresh from 'eslint-plugin-react-refresh';
 import tseslint from 'typescript-eslint';
 import { defineConfig, globalIgnores } from 'eslint/config';
-import { TEXT_SIZE_RULES } from '../../packages/shared/eslint-rules.js';
+import { INHERITANCE_RULES, TEXT_SIZE_RULES } from '../../packages/shared/eslint-rules.js';
 
 // Detail panels saved field by field (decision D22, useFieldSave): every one of the app (D22 complete, lot 14d).
 const D22_PANELS =
@@ -113,6 +113,7 @@ export default defineConfig([
         'error',
         // Sizes of the texts: one maximum per kind (decision DO).
         ...TEXT_SIZE_RULES,
+        ...INHERITANCE_RULES,
         // A markdown note or description typed in a cell: the shared markdown editor (decision DO).
         {
           selector: "JSXOpeningElement[name.name='EditableText']:has(JSXAttribute[name.name='value'] MemberExpression[property.name=/^(note|description)$/])",

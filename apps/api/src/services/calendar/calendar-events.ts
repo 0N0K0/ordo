@@ -23,6 +23,7 @@ import {
   normalizedReminders,
   readReminders,
   type Reminder,
+  type EffectiveTask,
 } from '@ordo/shared';
 import { prisma } from '../../db';
 import { PARIS } from '../../today';
@@ -41,6 +42,8 @@ import { remapOccurrenceRows, settleLostOccurrences } from '../core/occurrence-r
 import { deleteGoneComments, placeLegacyComments } from '../core/comments';
 import { readLinks } from '../core/links';
 import { storedLocation } from '../core/geo';
+import { effectiveTasks } from '../tasks/task-inheritance';
+import { effectiveRoutineOf, loadRoutineInheritance, type StoredInheritingRoutine } from '../routines/routine-inheritance';
 
 /** One occurrence of an event in a period, with the fields of its series (or of its own changes). */
 export interface EventOccurrence {
@@ -263,33 +266,21 @@ async function parseEvent(input: CalendarEventInput, keep: string[] = [], keepCa
   await assertBeneficiaries({ contributorIds: event.beneficiaryIds, relationIds: event.beneficiaryRelationIds }, { keep: { contributorIds: keepBeneficiaries, relationIds: keepRelations } });
   await activeIds(prisma.treasuryRelation, event.relationIds, 'Relation', { keep: keepRelations, field: 'relationIds' });
   await activeIds(prisma.calendarCategory, event.categoryIds, 'Catégorie', { keep: keepCategories, field: 'categoryIds' });
-  const tasks = await prisma.task.findMany({ where: { id: { in: event.taskIds } }, select: { label: true, assignees: { select: { id: true } } } });
+  const tasks = await prisma.task.findMany({ where: { id: { in: event.taskIds } }, select: { id: true, label: true } });
   if (tasks.length !== new Set(event.taskIds).size) throw notFound('Tâche');
-  // A task is about an event of someone of its assignees (or either side has nobody).
-  const apart = tasks.filter(
-    (task) =>
-      !sharePeople(
-        task.assignees.map((assignee) => assignee.id),
-        event.contributorIds,
-      ),
-  );
+  // A task is about an event of someone of its assignees, its own or inherited (decision D11; or either side has nobody).
+  const taskAssignees = tasks.length ? await effectiveTasks(tasks.map((task) => task.id)) : new Map<string, EffectiveTask>();
+  const apart: { label: string }[] = tasks.filter((task) => !sharePeople([...(taskAssignees.get(task.id)?.assigneeIds ?? [])], event.contributorIds));
   // Routines of a day of the event (the one edited, for an occurrence).
   if (event.routineLinks.some((link) => link.date < event.startDate || link.date > event.endDate)) {
     const message = 'Une routine rattachée doit l’être un jour de l’évènement.';
     throw fieldError('routineLinks', message);
   }
   const routineIds = [...new Set(event.routineLinks.map((link) => link.routineId))];
-  const routines = await prisma.routine.findMany({ where: { id: { in: routineIds } }, select: { label: true, assignees: { select: { id: true } } } });
+  const routines = await prisma.routine.findMany({ where: { id: { in: routineIds } }, select: { id: true, label: true } });
   if (routines.length !== routineIds.length) throw notFound('Routine');
-  apart.push(
-    ...routines.filter(
-      (routine) =>
-        !sharePeople(
-          routine.assignees.map((assignee) => assignee.id),
-          event.contributorIds,
-        ),
-    ),
-  );
+  const inheritance = routines.length ? await loadRoutineInheritance() : new Map<string, StoredInheritingRoutine>();
+  apart.push(...routines.filter((routine) => !sharePeople(effectiveRoutineOf(inheritance, routine.id)?.routine.assigneeIds ?? [], event.contributorIds)));
   if (apart.length) {
     const message = `Sans contributeur en commun avec l’évènement : ${apart.map((task) => `« ${task.label} »`).join(', ')}.`;
     throw fieldError(routines.some((routine) => apart.includes(routine)) && !tasks.some((task) => apart.includes(task)) ? 'routineLinks' : 'taskIds', message);

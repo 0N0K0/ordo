@@ -240,7 +240,7 @@ export function taskColumns(context: TaskContext, today: string, extras: TaskCol
         return { kind: 'date', value: (row) => (row.kind === 'task' ? (row.task[id] ?? null) : id === 'startDate' ? row.event.startDate : row.event.endDate) };
       case 'deadline':
       case 'minDate': {
-        // The one it goes by: its own, else that of its single sprint.
+        // The one it goes by (`effectiveTask`): its own, else its parent's, milestone's, project's or sprint's.
         const field = id === 'deadline' ? 'effectiveDeadline' : 'effectiveMinDate';
         return { kind: 'date', value: (row) => (row.kind === 'task' && row.task[field] ? row.task[field] : null) };
       }

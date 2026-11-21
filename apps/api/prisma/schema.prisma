@@ -748,6 +748,10 @@ model Task {
   parentId             String?
   parent               Task?              @relation("TaskTree", fields: [parentId], references: [id], onDelete: SetNull)
   children             Task[]             @relation("TaskTree")
+  /// Fields it takes from its parent, live (decision D11): PROJECT, ASSIGNEES, BENEFICIARIES, SLOT_CONDITION, MIN_DATE,
+  /// DEADLINE, LOCATION, PRIORITY, MILESTONE. A field not listed is its own value (emptied on purpose when it has none);
+  /// always empty for a top-level task. Its effective values: `effectiveTask` (@ordo/shared).
+  inheritedFields      String[]           @default([])
   /// Global manual order.
   position             Int                @default(0)
   /// Closed (done) task: it no longer blocks, is never overdue and counts as done. Independent of the status.
@@ -3219,6 +3223,10 @@ model Routine {
   parentId             String?
   parent               Routine?               @relation("RoutineTree", fields: [parentId], references: [id], onDelete: SetNull)
   children             Routine[]              @relation("RoutineTree")
+  /// Fields it takes from its parent, live (decision D11): PROJECT, ASSIGNEES, BENEFICIARIES, SLOT_CONDITION, OPENS_ON,
+  /// LOCATION, CATEGORIES, START_DATE, RECURRENCE, CASES, MOMENTS, MOVES. A field not listed is its own value (emptied
+  /// on purpose when it has none); always empty for a top-level routine. Its effective values: `effectiveRoutine`.
+  inheritedFields      String[]               @default([])
   /// First occurrence: the rule repeats from it.
   startDate            DateTime               @db.Date
   /// Repetition (the shared recurrence rule of the events and tasks).

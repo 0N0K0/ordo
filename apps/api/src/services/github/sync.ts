@@ -12,6 +12,8 @@ import {
   sameName,
   statusClosing,
   sumOf,
+  type TaskInheritableField,
+  marksInherited,
 } from '@ordo/shared';
 import { prisma } from '../../db';
 import { nextPositionIn } from '../core/ordering';
@@ -341,8 +343,14 @@ async function pullData(values: SyncFields, task: SyncedTask, maps: Maps, item: 
     // A task cannot go under itself or one of its sub-tasks.
     if (!parentId || !(await subtree(task.id)).has(parentId)) data.parent = parentId ? { connect: { id: parentId } } : { disconnect: true };
   }
+  // A value taken from GitHub is the task's own (decision D11): no longer inherited.
+  const owned = Object.entries(PULLED_INHERITED).flatMap(([key, field]) => (key in values ? [field] : []));
+  if (owned.some((field) => marksInherited(task, field))) data.inheritedFields = task.inheritedFields.filter((field) => !owned.includes(field as TaskInheritableField));
   return data;
 }
+
+/** Synchronized fields of a task that are inherited fields (decision D11). */
+const PULLED_INHERITED: Record<string, TaskInheritableField> = { priority: 'PRIORITY', deadline: 'DEADLINE', milestone: 'MILESTONE', assignees: 'ASSIGNEES' };
 
 /**
  * Milestone of a project with this label, created when there is none.

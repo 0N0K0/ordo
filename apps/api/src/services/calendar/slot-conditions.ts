@@ -24,7 +24,7 @@ import { currentWorkspaceId } from '../../workspace-context';
 import { birthdays, personChange, type PeopleChange } from './birthdays';
 import { eventOccurrences } from './calendar-events';
 import { otherWorkspaceSchedules, scheduleRule } from './work-schedules';
-import { DUE_DATES_SELECT, storedDueDates } from '../tasks/due-dates';
+import { effectiveTaskOf, loadTaskInheritance } from '../tasks/task-inheritance';
 
 /** Field of the input the errors of a slot condition show under. */
 const FIELD = 'slotCondition';
@@ -186,23 +186,23 @@ function userNow(utcOffset: number): { date: string; time: string } {
 }
 
 /**
- * Open tasks of the current workspace that can be done now: their « Ouverture » (their own, else that of their single
- * sprint: `taskDueDates`) is not after the user's day, their condition on calendar schedules (none: any time) allows
- * the user's current moment, and no event keeps their assignees (none: « Moi ») busy, but one about the task.
+ * Open tasks of the current workspace that can be done now: their « Ouverture » (as they go, decision D11:
+ * `effectiveTask`) is not after the user's day, their condition on calendar schedules (their own or inherited; none:
+ * any time) allows the user's current moment, and no event keeps their assignees (their own or inherited; none:
+ * « Moi ») busy, but one about the task.
  * @param {number} utcOffset User's offset from UTC in minutes.
  * @param {string | null} meId Contributor profile of the user (« Moi »).
  * @returns {Promise<string[]>} Task ids.
  */
 export async function doableTaskIds(utcOffset: number, meId: string | null): Promise<string[]> {
   const now = userNow(utcOffset);
-  const [tasks, events] = await Promise.all([
-    prisma.task.findMany({
-      where: { closedAt: null, archivedAt: null },
-      select: { id: true, slotCondition: true, ...DUE_DATES_SELECT, assignees: { select: { id: true } } },
-    }),
+  const [open, inheritance, events] = await Promise.all([
+    prisma.task.findMany({ where: { closedAt: null, archivedAt: null }, select: { id: true } }),
+    loadTaskInheritance(),
     // Archived events (and those of archived calendars) keep nobody busy.
     eventOccurrences(addDays(now.date, -1), now.date, undefined, true),
   ]);
+  const tasks = open.map((task) => effectiveTaskOf(inheritance, task.id)).filter((task) => task !== null);
   const conditions = new Map(tasks.map((task) => [task.id, readSlotCondition(task.slotCondition)]));
   const slotsOn = await loadSlotsOn([...conditions.values()]);
   const at = new Date();
@@ -210,9 +210,9 @@ export async function doableTaskIds(utcOffset: number, meId: string | null): Pro
     .filter(
       (task) =>
         // Not to be done before its « Ouverture ».
-        (storedDueDates(task).minDate ?? now.date) <= now.date &&
+        (task.minDate ?? now.date) <= now.date &&
         conditionAllowsAt(conditions.get(task.id), slotsOn, now.date, now.time) &&
-        !blockingEvent(events, { assigneeIds: task.assignees.map((assignee) => assignee.id), taskId: task.id }, meId, at, now.date),
+        !blockingEvent(events, { assigneeIds: [...task.assigneeIds], taskId: task.id }, meId, at, now.date),
     )
     .map((task) => task.id);
 }

@@ -157,46 +157,6 @@ export interface TaskInput {
   deadTimes?: DeadTimeInput[] | null;
 }
 
-/** Own « Ouverture » / « Échéance » of a task, and the sprints it is planned in (YYYY-MM-DD). */
-export interface TaskOwnDates {
-  minDate: string | null;
-  deadline: string | null;
-  sprintIds: readonly string[];
-}
-
-/** Days of a sprint a task may take its dates from. */
-export interface SprintDays {
-  startDate: string;
-  endDate: string;
-}
-
-/** « Ouverture » / « Échéance » a task goes by, and whether each comes from its sprint. */
-export interface TaskDueDates {
-  minDate: string | null;
-  deadline: string | null;
-  minDateFromSprint: boolean;
-  deadlineFromSprint: boolean;
-}
-
-/**
- * « Ouverture » and « Échéance » a task goes by: its own; without one, that of its sprint when it is in exactly one
- * (its start, its end; several sprints: none taken). A date typed on the task wins.
- * @param {TaskOwnDates} task Task.
- * @param {(id: string) => SprintDays | null | undefined} sprintOf Sprint by id.
- * @returns {TaskDueDates} Dates.
- */
-export function taskDueDates(task: TaskOwnDates, sprintOf: (id: string) => SprintDays | null | undefined): TaskDueDates {
-  const sprint = task.sprintIds.length === 1 ? sprintOf(task.sprintIds[0]) : null;
-  const minDateFromSprint = task.minDate === null && Boolean(sprint);
-  const deadlineFromSprint = task.deadline === null && Boolean(sprint);
-  return {
-    minDate: minDateFromSprint ? sprint!.startDate : task.minDate,
-    deadline: deadlineFromSprint ? sprint!.endDate : task.deadline,
-    minDateFromSprint,
-    deadlineFromSprint,
-  };
-}
-
 /**
  * Number of a task followed by a space ("#12 "), empty for a task of no project (it has none).
  * @param {{ number: number | null }} task Task.

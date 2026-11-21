@@ -22,7 +22,6 @@ Voir aussi : [Règles : tâches](../../business-rules/activities/tasks.md), [Rè
 | `sprintLabelSchema`                               | Libellé de sprint : requis, 250 max.                                                                                                                                                            |
 | `sprintSchema(goal)`                              | Sprint : `label`, `startDate` (« La date de début est requise. »), `endDate` (« La date de fin est requise. »), fin après début, `goal` (texte simple dans le formulaire, markdown pour l'API). |
 | `sprintFormSchema` / `SprintFormValues`           | `sprintSchema(z.string())`.                                                                                                                                                                     |
-| `taskDueDates(task, sprintOf)` / `TaskOwnDates`, `SprintDays`, `TaskDueDates` | « Ouverture » / « Échéance » qu'une tâche suit : les siennes ; sans l'une ou l'autre, celle de son sprint quand elle est dans exactement un sprint (début, fin) ; plusieurs sprints : rien d'hérité ; avec `minDateFromSprint`, `deadlineFromSprint`. Seul calcul de l'héritage, utilisé par l'API (champs `effectiveMinDate`, `effectiveDeadline`…). |
 | `TaskInput`                                       | Champs envoyés pour créer ou modifier une tâche : `undefined` laisse inchangé, `null` efface (le lieu avec son point, les liens : `null` n'en laisse aucun).                                                                                                   |
 
 Champs de `taskFormSchema` :
@@ -45,6 +44,15 @@ Champs de `taskFormSchema` :
 | `deadTimes`                                   | Temps morts (décision FT) : `deadTimesSchema` (voir [dates](../cross-cutting/dates.md#countdownsts--minuteurs-et-temps-morts-décision-ft)), `[]` par défaut ; `TaskInput.deadTimes` : `null` = aucun, omis = inchangé. |
 
 - `taskRef(task)` (« #12 », vide sans projet) et `taskNumbered(task)` (« #12 Libellé ») : déplacés du web (lot 17c, aussi pour les sonneries poussées) ; le web les réexporte (`use-task-context`).
+
+## `task-inheritance.ts` — héritage des sous-tâches et dates suivies (décision D11)
+
+| Export | Rôle |
+| ------ | ---- |
+| `TASK_INHERITABLE_FIELDS` / `TaskInheritableField` | Champs hérités : `PROJECT`, `ASSIGNEES`, `BENEFICIARIES`, `SLOT_CONDITION`, `MIN_DATE`, `DEADLINE`, `LOCATION`, `PRIORITY`, `MILESTONE`. |
+| `InheritingTask`, `SprintDays`, `MilestoneDays`, `TaskInheritanceContext` | Tâche telle que l'héritage la lit (jours YYYY-MM-DD, ids), jours d'un sprint, jalon (projet, échéance, archivé), et le contexte : toutes les tâches de l'espace, jalons, projets (ouverture), sprints. |
+| `effectiveTask(task, context)` / `EffectiveTask` | Tâche telle qu'elle va : chaque champ hérité pris du parent (en direct, en remontant la chaîne, sans boucle), ses dates aussi de son jalon, de son projet ou de son premier sprint (voir [Dates suivies](../../business-rules/activities/tasks.md#dates-suivies)), et l'origine de chaque champ (`origins`). Seul calcul de l'héritage d'une tâche : l'API le lit pour tout comportement et le donne à l'app (remplace `taskDueDates`). |
+| `taskFieldOrigin(task, field)` | Origine d'un champ d'une tâche effective. |
 
 ## `task-columns.ts` — colonnes, statuts, regroupements
 

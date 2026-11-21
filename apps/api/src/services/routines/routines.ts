@@ -30,6 +30,8 @@ import {
   type RoutineCategoryInput,
   routineCategorySchema,
   type RoutineInput,
+  type RoutineInheritableField,
+  marksInherited,
   type RoutineMove,
   routineMoveSchema,
   type RoutineMoveTimes,
@@ -83,6 +85,7 @@ import { readLinks } from '../core/links';
 import { storedLocation } from '../core/geo';
 import { deleteGoneComments, placeLegacyComments, restoreComments, type CommentSnapshot } from '../core/comments';
 import { assertLossConfirmed, lostOccurrences, remapOccurrenceRows, type LostOccurrences } from '../core/occurrence-rows';
+import { changedRoutineInheritance, clearedRoutineInput, effectiveRoutineOf, freezeRoutineInheritance, loadRoutineInheritance, syncInheritedRoutineProjects, type StoredInheritingRoutine } from './routine-inheritance';
 
 /** Routine with what its occurrences are computed from. */
 export type RoutineTiming = Pick<Routine, 'startDate' | 'recurrence' | 'cases' | 'moves' | 'fromTime' | 'dueTime' | 'scheduleIds' | 'excludedScheduleIds' | 'moments' | 'slotCondition'> &
@@ -214,7 +217,7 @@ interface RoutineSpan {
  * @param {unknown} value Stored JSON.
  * @returns {RoutineCase[]} Cases.
  */
-function storedCases(value: unknown): RoutineCase[] {
+export function storedCases(value: unknown): RoutineCase[] {
   const parsed = z.array(routineCaseSchema).safeParse(value);
   return parsed.success ? parsed.data : [];
 }
@@ -657,10 +660,20 @@ async function parseRoutine(input: RoutineInput, id?: string, { restoring = fals
           beneficiaryRelations: { select: { id: true } },
           requires: { select: { requiredId: true } },
           reminders: true,
+          inheritedFields: true,
           ...RELATIONS,
         },
       })
     : null;
+  // Fields it inherits (decision D11): those given, else those it had; none without parent. Its project inherited is
+  // stored too: that of its parent.
+  // A copy under the same parent inherits what its routine inherits (D20: every field copied).
+  const copied = copyOf && !data.inheritedFields ? await prisma.routine.findUnique({ where: { id: copyOf }, select: { parentId: true, inheritedFields: true } }) : null;
+  const kept = current?.parentId ? current.inheritedFields : copied && copied.parentId === data.parentId ? copied.inheritedFields : [];
+  const inheritedFields = data.parentId ? (data.inheritedFields ?? (kept as RoutineInheritableField[])) : [];
+  data.inheritedFields = inheritedFields;
+  const inherits = (field: RoutineInheritableField) => inheritedFields.includes(field);
+  if (data.parentId && inherits('PROJECT')) data.projectId = (await orNotFound(prisma.routine.findUnique({ where: { id: data.parentId }, select: { projectId: true } }), 'Routine parente', 'parentId')).projectId;
   // Undo: everything counts as kept.
   const keptCategoryIds = restoring ? data.categoryIds : (current?.categories.map((category) => category.id) ?? []);
   await assertNoneArchived('routineCategory', data.categoryIds, { keep: keptCategoryIds, field: 'categoryIds' });
@@ -694,7 +707,8 @@ async function parseRoutine(input: RoutineInput, id?: string, { restoring = fals
   await assertNoneArchived('routine', data.relatedIds, { keep: keptRelatedIds, field: 'relatedIds' });
   // Of a project: its contributors only (those already assigned stay).
   const assigned = current?.assignees.map((assignee) => assignee.id) ?? [];
-  await assertProjectContributors(data.projectId ?? null, data.assigneeIds, assigned, 'assigneeIds', restoring);
+  // Inherited, they are its parent's (its own, unused, are not checked).
+  if (!inherits('ASSIGNEES')) await assertProjectContributors(data.projectId ?? null, data.assigneeIds, assigned, 'assigneeIds', restoring);
 
   const all = await prisma.routine.findMany({ select: { id: true, parentId: true, projectId: true, requires: { select: { requiredId: true } } } });
   const known = new Set(all.map((routine) => routine.id));
@@ -780,6 +794,7 @@ const scalars = (data: ReturnType<typeof routineSchema.parse>) => ({
   travelBefore: data.travelBefore,
   travelAfter: data.travelAfter,
   projectId: data.projectId,
+  inheritedFields: data.inheritedFields ?? [],
 });
 
 /**
@@ -859,9 +874,14 @@ function findRoutine(id: string): Promise<Routine> {
  * @param {RoutineSaveOptions} [options] Undo (archived values given back accepted), routines moved along. Optional.
  * @returns {Promise<number>} Links removed because they left its project tree.
  */
-export async function updateRoutine(id: string, input: RoutineInput, options: Omit<RoutineSaveOptions, 'copyOf'> = {}): Promise<number> {
-  const current = await findRoutine(id);
-  refuseArchived(current);
+export async function updateRoutine(id: string, given: RoutineInput, options: Omit<RoutineSaveOptions, 'copyOf'> = {}): Promise<number> {
+  const found = await findRoutine(id);
+  refuseArchived(found);
+  // Made top-level: what it inherited becomes its own (decision D11), whatever the input holds for those fields.
+  const unparented = found.parentId !== null && !given.parentId;
+  const input = unparented ? { ...given, ...(await inheritedInputOf(id)), inheritedFields: [] } : given;
+  if (unparented) await freezeRoutineInheritance([id]);
+  const current = unparented ? await findRoutine(id) : found;
   const data = await parseRoutine(input, id, options);
   if (options.confirmLoss !== undefined) {
     const lost = await lostRoutineOccurrences(current, timingOf(current, data));
@@ -889,6 +909,8 @@ export async function updateRoutine(id: string, input: RoutineInput, options: Om
   });
   // A new project: the assignees follow the routine into it (its sub-routines keep theirs).
   await followProject(current.projectId, data.projectId ?? null, data.assigneeIds);
+  // Its sub-routines inheriting the project follow it (stored too).
+  if (current.projectId !== (data.projectId ?? null)) await syncInheritedRoutineProjects();
   return data.droppedLinks + waiting;
 }
 
@@ -1073,6 +1095,33 @@ async function inputOf(id: string): Promise<RoutineInput> {
     beneficiaryRelationIds: routine.beneficiaryRelations.map((relation) => relation.id),
     requiredIds: routine.requires.map((dependency) => dependency.requiredId),
     relatedIds: relatedOf(routine),
+    inheritedFields: routine.inheritedFields as RoutineInheritableField[],
+  };
+}
+
+/**
+ * Values a routine goes by for the fields it inherits (decision D11), as its input holds them: those of the routine
+ * it takes each from, up the chain.
+ * @param {string} id Routine id.
+ * @returns {Promise<Partial<RoutineInput>>} Input values of its inherited fields.
+ */
+async function inheritedInputOf(id: string): Promise<Partial<RoutineInput>> {
+  const effective = effectiveRoutineOf(await loadRoutineInheritance(), id);
+  if (!effective) return {};
+  const routine: StoredInheritingRoutine = effective.routine;
+  const has = (field: RoutineInheritableField) => marksInherited(routine, field);
+  return {
+    ...(has('PROJECT') && { projectId: routine.projectId }),
+    ...(has('ASSIGNEES') && { assigneeIds: routine.assigneeIds }),
+    ...(has('BENEFICIARIES') && { beneficiaryIds: routine.beneficiaryIds, beneficiaryRelationIds: routine.beneficiaryRelationIds }),
+    ...(has('CATEGORIES') && { categoryIds: routine.categoryIds }),
+    ...(has('SLOT_CONDITION') && { slotCondition: storedCondition(routine) }),
+    ...(has('OPENS_ON') && { opensOn: readOpens(routine.opensOn) }),
+    ...(has('LOCATION') && { location: routine.location, locationLat: routine.locationLat, locationLon: routine.locationLon }),
+    ...(has('START_DATE') && { startDate: formatDay(routine.startDate) }),
+    ...(has('RECURRENCE') && { recurrence: storedRule(routine) ?? (routine.recurrence as RoutineInput['recurrence']) }),
+    ...(has('CASES') && { cases: storedCases(routine.cases) }),
+    ...(has('MOMENTS') && { moments: storedMoments(routine), fromTime: routine.fromTime, dueTime: routine.dueTime }),
   };
 }
 
@@ -1093,8 +1142,20 @@ export async function momentOf(id: string): Promise<RoutineSlot> {
  * @param {Pick<RoutineSaveOptions, 'confirmLoss'>} [options] Occurrences made to disappear confirmed. Optional.
  * @returns {Promise<number>} Links removed because they left its project tree.
  */
-export async function patchRoutine(id: string, changes: Partial<RoutineInput>, options: Pick<RoutineSaveOptions, 'confirmLoss'> = {}): Promise<number> {
-  return updateRoutine(id, { ...(await inputOf(id)), ...changes }, options);
+export async function patchRoutine(id: string, changes: Partial<RoutineInput>, options: Pick<RoutineSaveOptions, 'confirmLoss'> & RoutineInheritanceChange = {}): Promise<number> {
+  const current = await inputOf(id);
+  const patched = { ...current, ...changes, ...clearedRoutineInput(options.clear) };
+  // A field given a value or emptied is its own; those set to inherit again are inherited (decision D11).
+  const inheritedFields = changedRoutineInheritance(current.inheritedFields ?? [], { inherit: options.inherit, clear: options.clear, input: changes, hasParent: Boolean(patched.parentId) });
+  const removed = await updateRoutine(id, { ...patched, inheritedFields }, options);
+  if (options.clear?.includes('MOVES')) await prisma.routine.update({ where: { id }, data: { moves: [] } });
+  return removed;
+}
+
+/** Fields of routines made inherited again (« Rétablir l'héritage ») or emptied on purpose (« Vider »), decision D11. */
+export interface RoutineInheritanceChange {
+  inherit?: RoutineInheritableField[] | null;
+  clear?: RoutineInheritableField[] | null;
 }
 
 /** Same changes for several routines, their repetition as GraphQL gives it (JSON, checked by the routine schema). */
@@ -1111,13 +1172,16 @@ export type RoutineBulkChanges = Omit<SharedBulkChanges, 'recurrence' | 'cases' 
 export async function bulkUpdateRoutines(ids: string[], changes: RoutineBulkChanges, confirmLoss?: boolean): Promise<number> {
   // Archived ones are read only: nothing changed when the selection has one.
   await assertNoneArchived('routine', ids);
+  const inheritance = await loadRoutineInheritance();
   const inputs = await Promise.all(
     [...new Set(ids)].map(async (id) => {
       const current = await inputOf(id);
+      // Lists inherited: added to and removed from those it goes by, now its own (decision D11).
+      const goesBy = effectiveRoutineOf(inheritance, id)?.routine;
       const input: RoutineInput = {
         ...current,
-        categoryIds: changedList(current.categoryIds, changes.addCategoryIds, changes.removeCategoryIds),
-        assigneeIds: changedList(current.assigneeIds, changes.addAssigneeIds, changes.removeAssigneeIds),
+        categoryIds: changedList(goesBy?.categoryIds ?? current.categoryIds, changes.addCategoryIds, changes.removeCategoryIds),
+        assigneeIds: changedList(goesBy?.assigneeIds ?? current.assigneeIds, changes.addAssigneeIds, changes.removeAssigneeIds),
         // A routine never depends on itself, even when the selection does.
         requiredIds: changedList(current.requiredIds, changes.addRequiredIds, changes.removeRequiredIds).filter((requiredId) => requiredId !== id),
         // Nor is it related to itself.
@@ -1144,6 +1208,8 @@ export async function bulkUpdateRoutines(ids: string[], changes: RoutineBulkChan
         ...(changes.moments !== undefined && { moments: changes.moments as RoutineInput['moments'] }),
         ...(changes.slotCondition !== undefined && { slotCondition: changes.slotCondition as RoutineInput['slotCondition'] }),
         ...(changes.opensOn !== undefined && { opensOn: changes.opensOn as RoutineInput['opensOn'] }),
+        ...clearedRoutineInput(changes.clearFields),
+        inheritedFields: changedRoutineInheritance(current.inheritedFields ?? [], { inherit: changes.inheritFields, clear: changes.clearFields, input: changes, hasParent: Boolean(current.parentId) }),
       };
       return { id, input };
     }),
@@ -1161,6 +1227,7 @@ export async function bulkUpdateRoutines(ids: string[], changes: RoutineBulkChan
   assertLossConfirmed(losses, confirmLoss);
   let removed = 0;
   for (const { id, input } of inputs) removed += await updateRoutine(id, input, { movedWith, ...(confirmLoss !== undefined && { confirmLoss: true }) });
+  if (changes.clearFields?.includes('MOVES')) await prisma.routine.updateMany({ where: { id: { in: ids } }, data: { moves: [] } });
   return removed;
 }
 
@@ -1193,7 +1260,11 @@ export async function bulkSetRoutinesArchived(ids: string[], archived: boolean):
  */
 export async function bulkDeleteRoutines(ids: string[], deleteSubRoutines: boolean): Promise<number> {
   const count = await prisma.routine.count({ where: { id: { in: [...new Set(ids)] } } });
-  await deleteTreeItems('routine', ids, deleteSubRoutines, (gone) => releaseSubjectTime({ routineIds: gone }));
+  await deleteTreeItems('routine', ids, deleteSubRoutines, async (gone) => {
+    // Sub-routines left by their deleted parent keep, as their own, what they inherited (decision D11).
+    await freezeRoutineInheritance((await prisma.routine.findMany({ where: { parentId: { in: gone }, id: { notIn: gone } }, select: { id: true } })).map((routine) => routine.id));
+    await releaseSubjectTime({ routineIds: gone });
+  });
   return count;
 }
 

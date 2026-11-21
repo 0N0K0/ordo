@@ -18,6 +18,9 @@ import { relationIds } from '../relation-fields';
 import { EventScope } from './calendar';
 import { parisToday } from '../../today';
 import { treeItemObject } from '../label-inputs';
+import { effectiveRoutineOf, loadRoutineInheritance, type StoredInheritingRoutine } from '../../services/routines/routine-inheritance';
+import { FieldOriginRef, RoutineInheritableFieldEnum } from '../inheritance-fields';
+import type { EffectiveRoutine, RoutineInheritableField } from '@ordo/shared';
 
 treeItemObject('RoutineCategory', { description: 'Category of the routines, in a tree.', positionDescription: 'Manual order among its siblings.' });
 
@@ -117,6 +120,45 @@ const TODAY_CHECKS = { checks: { orderBy: { date: 'desc' }, take: 20, select: { 
 /** Ticked occurrences loaded with a routine (the latest ones). */
 const RECENT_CHECKS = 30;
 
+const inheritances = new WeakMap<Context, Promise<Map<string, StoredInheritingRoutine>>>();
+
+/**
+ * Routine as it goes (decision D11: `effectiveRoutine`), the routines of the workspace loaded once per request.
+ * @param {Context} ctx GraphQL context.
+ * @param {string} id Routine.
+ * @returns {Promise<EffectiveRoutine<StoredInheritingRoutine>>} Effective routine.
+ */
+async function goesBy(ctx: Context, id: string): Promise<EffectiveRoutine<StoredInheritingRoutine>> {
+  let loaded = inheritances.get(ctx);
+  if (!loaded) inheritances.set(ctx, (loaded = loadRoutineInheritance()));
+  const routine = effectiveRoutineOf(await loaded, id);
+  if (!routine) throw new Error(`Routine ${id} missing from its workspace.`);
+  return routine;
+}
+
+/** Values a routine goes by (decision D11): its own, or inherited from its parent. */
+const RoutineEffectiveRef = builder.objectRef<StoredInheritingRoutine>('RoutineEffective').implement({
+  description:
+    'Values a routine goes by (decision D11): each inherited field from its parent, live. Its « quand » (startDate, recurrence, cases, moments, moves, opensOn) is given here; its occurrences follow it from lot 13c.',
+  fields: (t) => ({
+    projectId: t.exposeID('projectId', { nullable: true }),
+    assigneeIds: t.idList({ resolve: (routine) => routine.assigneeIds }),
+    beneficiaryIds: t.idList({ resolve: (routine) => routine.beneficiaryIds }),
+    beneficiaryRelationIds: t.idList({ resolve: (routine) => routine.beneficiaryRelationIds }),
+    categoryIds: t.idList({ resolve: (routine) => routine.categoryIds }),
+    slotCondition: t.field({ type: 'JSON', nullable: true, resolve: (routine) => routines.storedCondition(routine) }),
+    opensOn: t.field({ type: 'JSON', nullable: true, resolve: (routine) => readOpens(routine.opensOn) }),
+    location: t.exposeString('location', { nullable: true }),
+    locationLat: t.exposeFloat('locationLat', { nullable: true }),
+    locationLon: t.exposeFloat('locationLon', { nullable: true }),
+    startDate: t.field({ type: 'Date', resolve: (routine) => routine.startDate }),
+    recurrence: t.field({ type: 'JSON', resolve: (routine) => routines.storedRule(routine) ?? routine.recurrence }),
+    cases: t.field({ type: 'JSON', resolve: (routine) => routines.storedCases(routine.cases) }),
+    moments: t.field({ type: 'JSON', resolve: (routine) => routines.storedMoments(routine) }),
+    moves: t.field({ type: 'JSON', resolve: (routine) => routines.storedMoves(routine.moves) }),
+  }),
+});
+
 builder.prismaObject('Routine', {
   description: 'Task repeating on a calendar rule, ticked once done for its current occurrence.',
   fields: (t) => ({
@@ -125,6 +167,17 @@ builder.prismaObject('Routine', {
     description: t.exposeString('description', { nullable: true }),
     categoryIds: t.idList(relationIds('categories', 'Categories it is shown in.')),
     parentId: t.exposeID('parentId', { nullable: true }),
+    inheritedFields: t.field({
+      type: [RoutineInheritableFieldEnum],
+      description: 'Fields it takes from its parent, live (decision D11); none for a top-level routine.',
+      resolve: (routine) => routine.inheritedFields as RoutineInheritableField[],
+    }),
+    effective: t.field({ type: RoutineEffectiveRef, description: 'Values it goes by (decision D11).', resolve: async (routine, _args, ctx) => (await goesBy(ctx, routine.id)).routine }),
+    inheritance: t.field({
+      type: [FieldOriginRef],
+      description: 'State (inherited, own, emptied on purpose) and source of each inherited field (decision D11).',
+      resolve: async (routine, _args, ctx) => (await goesBy(ctx, routine.id)).origins,
+    }),
     startDate: t.expose('startDate', { type: 'Date' }),
     recurrence: t.field({
       type: 'JSON',
@@ -291,7 +344,21 @@ const RoutineInputType = builder.inputType('RoutineInput', {
     beneficiaryRelationIds: t.idList({ description: 'Relations it is for; none: none.' }),
     requiredIds: t.idList({ required: true }),
     relatedIds: t.idList({ required: true, description: '« Relative à »: routines related to it (same project tree).' }),
+    inheritedFields: t.field({
+      type: [RoutineInheritableFieldEnum],
+      description: 'Under a parent: the fields it inherits, live (decision D11; their values given are not used, its project is its parent’s). Omitted: none for a new routine, unchanged for an update.',
+    }),
   }),
+});
+
+/**
+ * Inheritance changes of one routine (decision D11).
+ * @param {InputFields} t Field builder.
+ * @returns {object} Fields.
+ */
+const routineInheritanceFields = (t: InputFields) => ({
+  inherit: t.field({ type: [RoutineInheritableFieldEnum], description: 'Fields made inherited from its parent again (« Rétablir l’héritage »); a sub-routine only.' }),
+  clear: t.field({ type: [RoutineInheritableFieldEnum], description: 'Fields emptied on purpose (« Vider »; START_DATE and RECURRENCE refused). A field given a value becomes its own.' }),
 });
 
 /**
@@ -327,6 +394,7 @@ const RoutinePatch = builder.inputType('RoutinePatch', {
     reminders: t.field({ type: [ReminderInput], description: 'Minutes (24 hours at most) before the lowest date and time of an occurrence, or a time of its first day.' }),
     opensOn: t.field({ type: 'JSON', description: '« Ouverture »: { mode: DAY | WEEKDAY | WEEK | BEFORE, … }; null: none.' }),
     ...repetitionChangeFields(t),
+    ...routineInheritanceFields(t),
   }),
 });
 
@@ -345,6 +413,8 @@ const RoutineBulkChangesInput = builder.inputType('RoutineBulkChanges', {
     projectId: t.id(),
     ...repetitionChangeFields(t),
     opensOn: t.field({ type: 'JSON', description: '« Ouverture » of its rule; null: none.' }),
+    inheritFields: t.field({ type: [RoutineInheritableFieldEnum], description: 'Fields made inherited from their parent again (« Rétablir l’héritage »); routines without parent unchanged.' }),
+    clearFields: t.field({ type: [RoutineInheritableFieldEnum], description: 'Fields emptied on purpose (« Vider »; START_DATE and RECURRENCE refused). A field given a value becomes their own.' }),
   }),
 });
 
@@ -388,6 +458,7 @@ const routineInput = (input: typeof RoutineInputType.$inferInput): RoutineInput 
   beneficiaryRelationIds: input.beneficiaryRelationIds ?? [],
   requiredIds: input.requiredIds,
   relatedIds: input.relatedIds,
+  inheritedFields: input.inheritedFields ?? undefined,
 });
 
 /** Occurrence of a routine on a day, with its times of the day. */
@@ -594,7 +665,7 @@ builder.mutationFields((t) => ({
       if (input.cases !== undefined && input.cases !== null) changes.cases = input.cases as RoutineInput['cases'];
       if (input.moments !== undefined && input.moments !== null) changes.moments = input.moments as RoutineInput['moments'];
       if (input.slotCondition !== undefined) changes.slotCondition = (input.slotCondition ?? null) as RoutineInput['slotCondition'];
-      return removedLinks(routines.patchRoutine(id, changes, { confirmLoss: confirmLoss ?? false }));
+      return removedLinks(routines.patchRoutine(id, changes, { confirmLoss: confirmLoss ?? false, inherit: input.inherit, clear: input.clear }));
     },
   }),
   moveRoutine: t.boolean({
@@ -628,6 +699,8 @@ builder.mutationFields((t) => ({
         moments: changes.moments ?? undefined,
         slotCondition: changes.slotCondition === undefined ? undefined : (changes.slotCondition ?? null),
         opensOn: changes.opensOn === undefined ? undefined : (changes.opensOn ?? null),
+        inheritFields: changes.inheritFields ?? undefined,
+        clearFields: changes.clearFields ?? undefined,
       }, confirmLoss ?? false));
     },
   }),

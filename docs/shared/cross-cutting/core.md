@@ -159,6 +159,24 @@ zxcvbn et ses dictionnaires pèsent environ 1,3 Mo : ce fichier n'est pas dans `
 | `reaches(next, starts, target)`         | Vrai si `target` est atteignable depuis `starts` (chaîne de blocage, dépendances), cycles stoppés.                      |
 | `isUnderOrSelf(parentOf, start, id)`    | Vrai si `id` est `start` ou un de ses ancêtres : déplacer `id` sous `start` le mettrait sous lui-même (refus de cycle). |
 
+## `inheritance.ts` — héritage d’un parent (décision D11)
+
+Le moteur commun de l’héritage des sous-tâches et sous-routines (`effectiveTask`, `effectiveRoutine`).
+
+| Export | Rôle |
+| ------ | ---- |
+| `INHERIT_STATES` / `InheritState` | `INHERITED` (la valeur du parent, en direct), `OWN` (la sienne ; toujours pour un élément du premier niveau), `CLEARED` (vidé exprès, « aucun »). |
+| `INHERIT_SOURCES` / `InheritSource`, `INHERIT_SOURCE_LABELS` | D’où vient la valeur suivie : `OWN`, `PARENT`, `MILESTONE`, `PROJECT`, `SPRINT` ; les mots affichés après une valeur qui n’est pas propre (« parent », « jalon », « projet », « sprint »). |
+| `InheritingItem`, `FieldOrigin`, `InheritedColumns`, `ResolvedInheritance` | Élément qui hérite (`parentId`, `inheritedFields`), état et source d’un champ (`field`, `state`, `source`, `sourceId` : parent, jalon, projet ou sprint), colonnes de chaque champ (un lieu : texte et point). |
+| `isEmptyValue(value)` | Vide : `null`, `undefined`, texte vide, liste vide. |
+| `marksInherited(item, field)` | La liste de l’élément marque le champ hérité, l’élément ayant un parent. Garde eslint (API, partagé, web) : pas de `….inheritedFields.includes(…)` écrit à la main. |
+| `inheritsField(item, field, byId)` | Le champ est hérité : `marksInherited` et le parent connu. |
+| `inheritanceOwner(item, field, byId)` | Élément dont la valeur est suivie : lui-même, ou en remontant les parents tant qu’ils héritent (une boucle s’arrête). |
+| `inheritState(item, field, empty, byId)` | État d’un champ : hérité, propre, ou vidé exprès (un sous-élément sans valeur qui n’hérite pas). |
+| `resolveInheritance(item, byId, columns)` | Copie de l’élément, les colonnes de chaque champ hérité prises de l’élément suivi, et l’origine de chaque champ. |
+| `changedInheritance(current, change)` | Liste des champs hérités après un changement : champs à hériter ajoutés, champs donnés ou vidés retirés ; vide sans parent. |
+| `inheritedFieldsGiven(input, keys)` | Champs auxquels une entrée partielle donne une valeur (`null` compris ; une liste vide d’ajouts ou de retraits ne compte pas). |
+
 ## `collections.ts` — listes
 
 | Export                                | Rôle                                                                                                     |

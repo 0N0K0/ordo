@@ -294,5 +294,5 @@ Déplacé de `features/routines/lib` : utilisé par `SlotConditionBuilder`, `use
 ### `lib/task-calendar.ts`
 
 - `TaskSpanKind` (type) : `dates` ou `open`.
-- `taskPlacement(task, today)` : période, échéance à part (`effectiveDeadline` : la sienne, sinon celle de son sprint unique) et retard d’une tâche dans l’agenda (`isTaskOverdue`). Utilisé par `CalendarPage`.
+- `taskPlacement(task, today)` : période, échéance à part (`effectiveDeadline` : la sienne, sinon celle de son parent, de son jalon ou de son premier sprint, décision D11) et retard d’une tâche dans l’agenda (`isTaskOverdue`). Utilisé par `CalendarPage`.
 - Types internes `TaskDates`, `TaskSpan`, `TaskPlacement`.

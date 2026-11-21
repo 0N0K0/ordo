@@ -35,7 +35,7 @@ export function sortValue(task: Task, column: TaskSortKey, context: TaskContext)
     case 'beneficiaries':
       return beneficiaryNames(task, context).sort(collator.compare)[0] ?? null;
     case 'minDate':
-      // The one it goes by: its own, else that of its single sprint.
+      // The one it goes by (`effectiveTask`): its own, else its parent's, milestone's, project's or sprint's.
       return task.effectiveMinDate || null;
     case 'location':
       return task.location || null;

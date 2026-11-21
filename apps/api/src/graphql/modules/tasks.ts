@@ -11,8 +11,10 @@ import { iconUrl } from '../../services/core/icons';
 import { taskPriorities, taskStatuses, taskTags, taskTypes } from '../../services/tasks/task-labels';
 import * as taskViews from '../../services/tasks/task-views';
 import * as tasks from '../../services/tasks/tasks';
-import { parseOptionalDay, readSlotCondition, sumOf, TASK_STATUS_CATEGORIES, VIEW_KINDS } from '@ordo/shared';
-import { DUE_DATES_SELECT as DUE_SELECT, storedDueDates as dueDatesOf } from '../../services/tasks/due-dates';
+import { parseOptionalDay, readSlotCondition, sumOf, TASK_STATUS_CATEGORIES, taskFieldOrigin, VIEW_KINDS, type EffectiveTask, type TaskInheritableField, type TaskInheritanceContext } from '@ordo/shared';
+import { effectiveTaskOf, loadTaskInheritance } from '../../services/tasks/task-inheritance';
+import { FieldOriginRef, InheritSourceEnum, TaskInheritableFieldEnum } from '../inheritance-fields';
+import type { Context } from '../context';
 import * as workspaces from '../../services/workspaces/workspaces';
 import { BY_POSITION } from '../../services/core/ordering';
 import { RemovedLinksResult, removedLinks } from '../removed-links';
@@ -172,6 +174,53 @@ builder.prismaObject('TaskComment', {
   }),
 });
 
+const inheritanceContexts = new WeakMap<Context, Promise<TaskInheritanceContext>>();
+
+/**
+ * Task as it goes (decision D11: `effectiveTask`), the inheritance of the workspace loaded once per request (after its
+ * mutation).
+ * @param {Context} ctx GraphQL context.
+ * @param {string} id Task.
+ * @returns {Promise<EffectiveTask>} Effective task.
+ */
+async function goesBy(ctx: Context, id: string): Promise<EffectiveTask> {
+  let context = inheritanceContexts.get(ctx);
+  if (!context) inheritanceContexts.set(ctx, (context = loadTaskInheritance()));
+  const task = effectiveTaskOf(await context, id);
+  if (!task) throw new Error(`Task ${id} missing from its workspace.`);
+  return task;
+}
+
+/** Values a task goes by (decision D11): its own, or inherited from its parent; its dates also from its milestone, project or sprint. */
+const TaskEffectiveRef = builder.objectRef<EffectiveTask>('TaskEffective').implement({
+  description: 'Values a task goes by (decision D11): each inherited field from its parent, live; its dates also from its milestone, project or first sprint. Read for every behaviour; the screens grey the inherited ones (`inheritance`).',
+  fields: (t) => ({
+    projectId: t.exposeID('projectId', { nullable: true }),
+    priorityId: t.exposeID('priorityId', { nullable: true }),
+    milestoneId: t.exposeID('milestoneId', { nullable: true }),
+    assigneeIds: t.idList({ resolve: (task) => [...task.assigneeIds] }),
+    beneficiaryIds: t.idList({ resolve: (task) => [...task.beneficiaryIds] }),
+    beneficiaryRelationIds: t.idList({ resolve: (task) => [...task.beneficiaryRelationIds] }),
+    slotCondition: t.field({ type: 'JSON', nullable: true, resolve: (task) => readSlotCondition(task.slotCondition) }),
+    location: t.exposeString('location', { nullable: true }),
+    locationLat: t.exposeFloat('locationLat', { nullable: true }),
+    locationLon: t.exposeFloat('locationLon', { nullable: true }),
+    minDate: t.field({ type: 'Date', nullable: true, description: '« Ouverture » it goes by.', resolve: (task) => parseOptionalDay(task.minDate) }),
+    deadline: t.field({ type: 'Date', nullable: true, description: '« Échéance » it goes by.', resolve: (task) => parseOptionalDay(task.deadline) }),
+  }),
+});
+
+/**
+ * Source of a date of a task (none: its own, or no date).
+ * @param {EffectiveTask} task Effective task.
+ * @param {TaskInheritableField} field Date.
+ * @returns {string | null} Source.
+ */
+const dateSource = (task: EffectiveTask, field: TaskInheritableField) => {
+  const source = taskFieldOrigin(task, field).source;
+  return source === 'OWN' ? null : source;
+};
+
 builder.prismaObject('Task', {
   fields: (t) => ({
     id: t.exposeID('id'),
@@ -190,19 +239,38 @@ builder.prismaObject('Task', {
     effectiveMinDate: t.field({
       type: 'Date',
       nullable: true,
-      description: '« Ouverture » the task goes by: its own, else the start of its sprint when it is in exactly one (decision of lot 12).',
-      select: DUE_SELECT,
-      resolve: (task) => parseOptionalDay(dueDatesOf(task).minDate),
+      description: '« Ouverture » the task goes by (decision D11): its own, else its parent’s, else the « Échéance » of the milestone before its own, the « Ouverture » of its project, the start of its first sprint.',
+      resolve: async (task, _args, ctx) => parseOptionalDay((await goesBy(ctx, task.id)).minDate),
     }),
     effectiveDeadline: t.field({
       type: 'Date',
       nullable: true,
-      description: '« Échéance » the task goes by (overdue, reminders, sorting, filters): its own, else the end of its sprint when it is in exactly one.',
-      select: DUE_SELECT,
-      resolve: (task) => parseOptionalDay(dueDatesOf(task).deadline),
+      description: '« Échéance » the task goes by (overdue, reminders, sorting, filters; decision D11): its own, else its parent’s, else its milestone’s, else the end of its first sprint.',
+      resolve: async (task, _args, ctx) => parseOptionalDay((await goesBy(ctx, task.id)).deadline),
     }),
-    minDateFromSprint: t.boolean({ description: 'Its « Ouverture » is that of its sprint (none of its own).', select: DUE_SELECT, resolve: (task) => dueDatesOf(task).minDateFromSprint }),
-    deadlineFromSprint: t.boolean({ description: 'Its « Échéance » is that of its sprint (none of its own).', select: DUE_SELECT, resolve: (task) => dueDatesOf(task).deadlineFromSprint }),
+    minDateSource: t.field({
+      type: InheritSourceEnum,
+      nullable: true,
+      description: 'Where its « Ouverture » comes from when not its own: PARENT, MILESTONE, PROJECT, SPRINT; null: its own or none.',
+      resolve: async (task, _args, ctx) => dateSource(await goesBy(ctx, task.id), 'MIN_DATE'),
+    }),
+    deadlineSource: t.field({
+      type: InheritSourceEnum,
+      nullable: true,
+      description: 'Where its « Échéance » comes from when not its own: PARENT, MILESTONE, SPRINT; null: its own or none.',
+      resolve: async (task, _args, ctx) => dateSource(await goesBy(ctx, task.id), 'DEADLINE'),
+    }),
+    inheritedFields: t.field({
+      type: [TaskInheritableFieldEnum],
+      description: 'Fields it takes from its parent, live (decision D11); none for a top-level task.',
+      resolve: (task) => task.inheritedFields as TaskInheritableField[],
+    }),
+    effective: t.field({ type: TaskEffectiveRef, description: 'Values it goes by (decision D11).', resolve: (task, _args, ctx) => goesBy(ctx, task.id) }),
+    inheritance: t.field({
+      type: [FieldOriginRef],
+      description: 'State (inherited, own, emptied on purpose) and source of each inherited field (decision D11).',
+      resolve: async (task, _args, ctx) => (await goesBy(ctx, task.id)).origins,
+    }),
     cancelled: t.boolean({
       description: 'Its status is of the category « Annulé »: closed, shown struck through (decision D23).',
       select: { status: { select: { category: true } } },
@@ -306,12 +374,26 @@ const TaskInput = builder.inputType('TaskInput', {
     label: t.string({ required: true }),
     projectId: t.id({ description: 'None: a task of no project (no number, sprint, milestone nor GitHub item).' }),
     ...taskFields(t),
+    inheritedFields: t.field({
+      type: [TaskInheritableFieldEnum],
+      description: 'Under a parent: the fields it inherits (their values given are ignored); omitted: every field left out of the input. Ignored without parent.',
+    }),
   }),
 });
 
+/**
+ * Inheritance changes of one task (decision D11).
+ * @param {InputFields} t Field builder.
+ * @returns {object} Fields.
+ */
+const inheritanceChangeFields = (t: InputFields) => ({
+  inherit: t.field({ type: [TaskInheritableFieldEnum], description: 'Fields made inherited from its parent again (« Rétablir l’héritage »); a sub-task only.' }),
+  clear: t.field({ type: [TaskInheritableFieldEnum], description: 'Fields emptied on purpose (« Vider »): no value, not inherited (PROJECT refused). A field given a value becomes its own.' }),
+});
+
 const TaskUpdateInput = builder.inputType('TaskUpdateInput', {
-  description: 'Omitted fields are left unchanged; null clears a field. Use bulkTransferTasks to change the project.',
-  fields: (t) => ({ label: t.string(), ...taskFields(t) }),
+  description: 'Omitted fields are left unchanged; null clears a field (a field given a value, null included, becomes its own: decision D11). Use bulkTransferTasks to change the project.',
+  fields: (t) => ({ label: t.string(), ...taskFields(t), ...inheritanceChangeFields(t) }),
 });
 
 const ContributorInput = builder.inputType('ContributorInput', {
@@ -365,6 +447,8 @@ const BulkTaskInput = builder.inputType('BulkTaskInput', {
     removeAssigneeIds: t.idList(),
     addTagIds: t.idList(),
     removeTagIds: t.idList(),
+    inheritFields: t.field({ type: [TaskInheritableFieldEnum], description: 'Fields made inherited from their parent again (« Rétablir l’héritage »); tasks without parent unchanged.' }),
+    clearFields: t.field({ type: [TaskInheritableFieldEnum], description: 'Fields emptied on purpose (« Vider »; PROJECT refused). A field given a value becomes their own.' }),
   }),
 });
 

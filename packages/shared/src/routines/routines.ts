@@ -12,6 +12,7 @@ import { remindersSchema } from '../dates/reminders';
 import { deadTimesSchema } from '../dates/countdowns';
 import { conditionConstrains, slotConditionSchema, type SlotCondition } from '../calendar/slot-conditions';
 import { optionalColorSchema } from '../core/workspace';
+import { ROUTINE_INHERITABLE_FIELDS, type RoutineInheritableField } from './routine-inheritance';
 
 /** Category of routines, in a tree. */
 export const routineCategorySchema = z.object({
@@ -165,6 +166,11 @@ export const routineSchema = z
     relatedIds: z.array(z.string()).max(100),
     /** « Ouverture » of the occurrences of its rule (its cases have theirs); null: from their first day. */
     opensOn: routineOpensSchema.nullable().default(null),
+    /**
+     * Fields it takes from its parent, live (decision D11); omitted: none for a new routine, unchanged for an update.
+     * Ignored without parent.
+     */
+    inheritedFields: z.array(z.enum(ROUTINE_INHERITABLE_FIELDS)).max(ROUTINE_INHERITABLE_FIELDS.length).optional(),
   })
   .refine(...endAfter('fromTime', 'dueTime', true))
   .refine((routine) => !routine.moments.length || routine.moments.some((moment) => !moment.optional), { path: ['moments'], message: 'Au moins un moment doit être obligatoire.' })
@@ -546,6 +552,10 @@ export interface RoutineBulkChanges {
   moments?: RoutineSlot[];
   slotCondition?: SlotCondition | null;
   opensOn?: RoutineOpens | null;
+  /** Fields made inherited again (« Rétablir l'héritage », decision D11); a sub-routine only. */
+  inheritFields?: RoutineInheritableField[];
+  /** Fields emptied on purpose (« Vider »): no value, not inherited (never its first time nor its repetition). */
+  clearFields?: RoutineInheritableField[];
 }
 
 /**

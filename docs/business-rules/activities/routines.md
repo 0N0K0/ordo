@@ -49,7 +49,7 @@ Références vérifiées par `parseRoutine` :
 
 - Projet actif (« Projet ») ; un projet archivé déjà en place est accepté.
 - Assignés existants (« Assigné ») et, si la routine a un projet, contributeurs de ce projet (ceux déjà assignés restent) : voir [Personnes](../cross-cutting/people.md).
-- Changement de projet (formulaire, modification en masse, annulation) : les assignés restent et **suivent** la routine ; ceux qui ne sont pas rattachés au nouveau projet (ni à un de ses parents) y sont rattachés (`followProject`, décision DP). Les sous-routines gardent leur projet et leurs assignés. Retirer le projet ne rattache personne.
+- Changement de projet (formulaire, modification en masse, annulation) : les assignés restent et **suivent** la routine ; ceux qui ne sont pas rattachés au nouveau projet (ni à un de ses parents) y sont rattachés (`followProject`, décision DP). Les sous-routines gardent leur projet et leurs assignés, sauf celles qui héritent le projet : elles le suivent (voir [Héritage](#héritage)). Retirer le projet ne rattache personne.
 - Bénéficiaires existants et non archivés (ceux déjà en place restent).
 - Catégories et créneaux non archivés, sauf ceux déjà présents sur la routine.
 - Parente : doit exister (« Routine parente »), non archivée (sauf si inchangée), ni la routine elle-même ni une de ses sous-routines (« Une routine ne peut pas être rangée sous elle-même. »).
@@ -64,6 +64,22 @@ Normalisation à l'enregistrement :
 - Un horaire seul (`fromTime` / `dueTime` sans moments ni cas, anciens clients) devient un moment.
 - Avec des cas : `moments` et `slotCondition` sont vidés.
 - `scheduleIds`, `excludedScheduleIds` (convertis en condition avant), `scheduleId`, `scheduleAnchor` sont remis à vide ; `fromTime` / `dueTime` prennent ceux du premier moment.
+
+## Héritage
+
+Source : `effectiveRoutine` (`packages/shared/src/routines/routine-inheritance.ts`, sur `resolveInheritance` de `core/inheritance.ts`), `services/routines/routine-inheritance.ts`, colonne `Routine.inheritedFields` (décision D11, lot 13a, 21 novembre 2026). Même règle que les tâches ([Tâches](tasks.md#héritage)).
+
+- **Champs hérités** d’une sous-routine : projet (`PROJECT`), assignés (`ASSIGNEES`), bénéficiaires, contributeurs et relations ensemble (`BENEFICIARIES`), condition de créneaux (`SLOT_CONDITION`, avec son ancienne forme), « Ouverture » (`OPENS_ON`), lieu avec son point (`LOCATION`, pas les trajets), catégories (`CATEGORIES`), et son « quand » : première fois (`START_DATE`), répétition (`RECURRENCE`, avec l’ancien créneau suivi), cas (`CASES`), moments (`MOMENTS`, avec l’ancienne fenêtre), exceptions (`MOVES`).
+- **Trois états**, comme les tâches : hérité (en direct, en remontant la chaîne, une boucle s’arrête), valeur propre, vidé exprès. Seule une sous-routine hérite ; une routine du premier niveau a une liste vide.
+- La première fois et la répétition ne se vident pas (« La première fois et la répétition d’une routine ne se vident pas : donnez-lui les siennes ou rétablissez l’héritage. » sous `clear`).
+- **Projet** : hérité, il est aussi recopié dans `projectId` (temps, arborescence des liens) ; quand le projet d’une routine change, ses sous-routines qui l’héritent le suivent (`syncInheritedRoutineProjects`). Les assignés propres ne sont vérifiés contre le projet suivi que s’ils ne sont pas hérités.
+- **Perdre sa parente** (mise au premier niveau, parente supprimée) : chaque champ hérité devient propre avec la valeur suivie (`freezeRoutineInheritance`), exceptions comprises.
+- **Écritures** :
+  - `createRoutine` / `updateRoutine` (entrée complète) : `inheritedFields`, liste des champs hérités ; omise : aucun pour une nouvelle routine (une copie sous la même parente garde la liste de sa source), inchangée pour une modification. Les valeurs données pour un champ hérité ne sont pas utilisées ; le projet hérité est celui de la parente.
+  - `patchRoutine` : `inherit`, `clear` ; un champ auquel une valeur est donnée devient propre (une répétition donnée rend aussi les cas propres).
+  - `bulkUpdateRoutines` : `inheritFields`, `clearFields`, même règle ; des catégories ou assignés ajoutés ou retirés à une liste héritée partent de celle que la routine suit.
+- **Lu aujourd’hui** (lot 13a) : GraphQL (`effective`, `inheritance`, `inheritedFields`), assignés des notifications hors de l’app, liens avec un évènement (assignés en commun), transformation en tâche. Les occurrences (agenda, rappels, état, coches) lisent encore les colonnes propres : le lot 13c les fera suivre l’héritage du « quand » (voir [Écarts](../../discrepancies.md)).
+- **Migration** `20261121150000_inherited_fields` : chaque champ d’une sous-routine encore identique à celui de sa parente (copie de la création) devient hérité ; une valeur différente reste propre.
 
 ## Catégories
 
@@ -206,7 +222,7 @@ Source : `bulkUpdateRoutines`, `patchRoutine` (GraphQL).
 
 Source : `moveRoutine`, `createRoutine`, `copySubRoutines`, `bulkDeleteRoutines` ; [Ordre](../cross-cutting/ordering.md).
 
-- Copie d'une routine (« Dupliquer », menu ou sélection, enregistrée tout de suite puis ouverte, décision D20) : `createRoutine(input, copyOf)`, libellé « … (copie) », avec ses liens, son lieu et ses temps morts ; une nouvelle sous-routine ne reprend ni les liens ni les temps morts de sa parente ; les anciens liens de la routine copiée hors de l'arborescence de projets de la copie (gardés par elle tant qu'elle ne bouge pas) sont laissés de côté par l'API au lieu d'être refusés ; un autre lien hors de l'arborescence reste refusé.
+- Copie d'une routine (« Dupliquer », menu ou sélection, enregistrée tout de suite puis ouverte, décision D20) : `createRoutine(input, copyOf)`, libellé « … (copie) », avec ses champs hérités (même parente), ses liens, son lieu et ses temps morts ; une nouvelle sous-routine ne reprend ni les liens ni les temps morts de sa parente ; les anciens liens de la routine copiée hors de l'arborescence de projets de la copie (gardés par elle tant qu'elle ne bouge pas) sont laissés de côté par l'API au lieu d'être refusés ; un autre lien hors de l'arborescence reste refusé.
 
 - Un seul ordre manuel global pour toutes les routines (`position`), comme les tâches (décision DT) : créée, une routine va à la fin de cet ordre. L'ordre affiché reste l'arbre (chaque routine sous sa parente), les sœurs dans l'ordre global.
 - `moveRoutine(id, beforeId, parentId?, categoryIds?)` : place la routine juste avant `beforeId` dans l'ordre global (`null` : à la fin ; voisine inconnue : « Routine introuvable. ») ; `parentId` donné change aussi de parente (vérifiée comme à l'enregistrement : existante, non archivée, pas sous elle-même), `null` : premier niveau, omis : inchangée. Placer « avant telle routine » fonctionne aussi dans une vue filtrée où la parente est masquée. Une routine archivée ne se déplace pas. Les catégories peuvent changer avec le déplacement. Seules les lignes dont la position change sont écrites.
@@ -221,6 +237,7 @@ Source : `convertRoutineToTask(id, confirm)` (`services/routines/conversion.ts`,
 - Sans `confirm`, rien ne change : `CONFIRMATION_REQUIRED` (« Transformer la routine en tâche lui fait perdre ce qu’une tâche n’a pas : confirmez pour continuer. »), extension `lost` (`ConversionLoss`), toujours demandé, même vide.
 - Une seule transaction : une nouvelle tâche est créée (à la fin de l’ordre manuel, numéro suivant de son projet donné par la base), la routine supprimée ; l’identifiant n’est pas gardé. Les commentaires écrits avant d’être sur des occurrences sont d’abord placés (`placeLegacyRoutineComments`).
 - Occurrence prise : celle en cours, sinon la suivante, sinon la première (comme le panneau, `panelOccurrence`). Son jour d’échéance devient l’« Échéance » de la tâche, son premier jour l’« Ouverture » s’il est avant ; sans aucune occurrence, la tâche n’a pas de date.
+- Valeurs : celles que la routine suit (décision D11) : un champ hérité de sa parente est gardé avec la valeur héritée (occurrence comprise), la tâche n’ayant pas de parente.
 - Gardés : libellé, description, projet, assignés, bénéficiaires, liens, lieu et son point, temps morts, condition de créneaux (celle de la règle ; celles des cas sont perdues avec la répétition), rappels « À HH:MM » et « N jours avant » (comptés ensuite depuis l'échéance ; ils perdent leur repère, décisions FS, FV). Les valeurs déjà sur la routine restent, même archivées ou plus rattachées au projet. La tâche prend le premier statut « À faire » non archivé (aucun s’il n’y en a pas), ouverte.
 - Repris par la tâche : ses temps chronométrés (tous : ils ne sont pas sur une occurrence), ses fiches ; de l’occurrence prise : ses commentaires (dates et textes gardés), sa liste à cocher et ses évènements (liés à la tâche).
 - Perdus (comptés dans `lost`) : la répétition (règle, cas, moments, exceptions, « Ouverture »), les coches (`checks`), les rappels « avant » (`beforeReminders`), les dépendances et relations avec d’autres routines (`routineLinks`), les catégories, le temps à y consacrer (`estimate`), les trajets (`travel`), les commentaires, listes à cocher et liens d’évènements des autres occurrences, la routine parente (`parent` : la tâche est au premier niveau).

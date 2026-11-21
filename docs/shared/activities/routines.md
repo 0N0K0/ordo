@@ -37,7 +37,7 @@ Voir aussi : [Règles : routines](../../business-rules/activities/routines.md), 
 | `movedOccurrences(compute, moves, today)`                | Occurrences en cours et suivante avec les exceptions : une occurrence déplacée a lieu le jour où elle est allée ; si la dernière occurrence de la règle est déplacée plus loin, rien n'est dû jusqu'au jour d'arrivée (les précédentes ne reviennent pas) ; jusqu'à 60 occurrences déplacées d'affilée sautées.                 |
 | `movedFrom(moves, date)`                                 | Jour de la règle d'où vient une occurrence (ses horaires sont ceux de ce jour).                                                                                                                                                                                                                                                 |
 | `withMove(moves, date, to, times?)`                      | Exceptions après déplacement, suppression (`to = null`) ou changement d'horaires ; redéplacer une occurrence modifie son exception ; revenir à son jour sans horaires changés supprime l'exception. Triées par `from`.                                                                                                          |
-| `RoutineBulkChanges`                                     | Modifications groupées : ajouts / retraits de catégories, assignés, routines préalables, routines relatives (`addRelatedIds` / `removeRelatedIds`) ; `estimate`, `projectId`, `fromTime`, `dueTime`, `startDate`, `recurrence` ; répétition entière (`cases`, `moments`, `slotCondition`, `opensOn`). `null` efface, `undefined` laisse inchangé.                                          |
+| `RoutineBulkChanges`                                     | Modifications groupées : ajouts / retraits de catégories, assignés, routines préalables, routines relatives (`addRelatedIds` / `removeRelatedIds`) ; `estimate`, `projectId`, `fromTime`, `dueTime`, `startDate`, `recurrence` ; répétition entière (`cases`, `moments`, `slotCondition`, `opensOn`) ; `inheritFields` / `clearFields` (héritage, décision D11). `null` efface, `undefined` laisse inchangé.                                          |
 
 Champs de `routineSchema` :
 
@@ -66,8 +66,19 @@ Champs de `routineSchema` :
 | `requiredIds`                              | Routines à faire avant celle-ci, 100 max.                                                                                                                                                                                                                   |
 | `relatedIds`                               | « Relative à » : routines liées (dans les deux sens), de la même arborescence de projets, 100 max.                                                                                                                                                          |
 | `opensOn`                                  | « Ouverture » des occurrences de la règle ; interdit avec des cas (qui ont le leur) et doit convenir à la fréquence : « Cette ouverture ne vaut pas pour cette répétition : un jour du mois (mensuelle), de l’année (annuelle), ou des jours avant. ». |
+| `inheritedFields`                          | Champs hérités de la parente (`ROUTINE_INHERITABLE_FIELDS`, décision D11), facultatif : omis, aucun pour une nouvelle routine, inchangé pour une modification. |
 
 Internes : `ROUTINE_ANCHORS`, `timeOfDay`, `dayNumber`, `monthNumber`, `weekdayNumber`, `routineOpensSchema`, `OPENS_MISFIT`, `opensInMonth`, `isoWeekDate`, `PERIOD_DAYS`, `movesAway`, `MOVED_SCAN`.
+
+## `routine-inheritance.ts` — héritage des sous-routines (décision D11)
+
+| Export | Rôle |
+| ------ | ---- |
+| `ROUTINE_INHERITABLE_FIELDS` / `RoutineInheritableField` | Champs hérités : `PROJECT`, `ASSIGNEES`, `BENEFICIARIES`, `SLOT_CONDITION`, `OPENS_ON`, `LOCATION`, `CATEGORIES`, `START_DATE`, `RECURRENCE`, `CASES`, `MOMENTS`, `MOVES`. |
+| `ROUTINE_WHEN_FIELDS` | Champs du « quand » (première fois, répétition, cas, moments, exceptions, ouverture), dont les occurrences suivront l'héritage au lot 13c. |
+| `ROUTINE_REQUIRED_FIELDS` | `START_DATE`, `RECURRENCE` : ne se vident pas. |
+| `InheritingRoutine` | Routine telle que l'héritage la lit : les colonnes de ses champs hérités (ids de ses personnes et catégories). |
+| `effectiveRoutine(routine, byId)` / `EffectiveRoutine` | Routine telle qu'elle va : une copie de même forme, chaque champ hérité pris de sa parente (en direct, en remontant la chaîne, sans boucle), et l'origine de chaque champ (`origins`). Seul calcul de l'héritage d'une routine, pour l'API et l'app ; le lot 13c y calcule les occurrences. |
 
 ## `conversion.ts` — transformer une tâche en routine et inversement
 

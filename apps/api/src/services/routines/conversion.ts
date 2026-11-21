@@ -1,4 +1,4 @@
-import { conversionLoss, DAILY_RECURRENCE, daysBetween, formatOptionalDay, normalizedReminders, parseDay, parseOptionalDay, readDeadTimes, readReminders, readSlotCondition, sumOf, type ConversionLoss, type RoutineOpens } from '@ordo/shared';
+import { type EffectiveTask, conversionLoss, DAILY_RECURRENCE, daysBetween, formatOptionalDay, normalizedReminders, parseDay, parseOptionalDay, readDeadTimes, readReminders, readSlotCondition, sumOf, type ConversionLoss, type RoutineOpens } from '@ordo/shared';
 import { prisma } from '../../db';
 import { Prisma } from '../../generated/prisma/client';
 import { clientError } from '../../graphql/errors';
@@ -7,7 +7,8 @@ import { toJson } from '../core/json';
 import { readLinks } from '../core/links';
 import { BY_POSITION, nextPositionIn } from '../core/ordering';
 import { forgetGithubItems } from '../github/links';
-import { DUE_DATES_SELECT, storedDueDates } from '../tasks/due-dates';
+import { effectiveTasks } from '../tasks/task-inheritance';
+import { effectiveRoutineOf, loadRoutineInheritance } from './routine-inheritance';
 import { parisToday } from '../../today';
 import { firstOccurrence, loadScheduleContext, occurrenceSpansBetween, occurrencesOf, placeLegacyRoutineComments, ROUTINE_LINKS, slotsOf, storedCondition, type RoutineTiming } from './routines';
 
@@ -27,10 +28,25 @@ function assertConversionConfirmed(lost: ConversionLoss, confirm: boolean, messa
 }
 
 /**
+ * Columns of a task its inheritance gives (decision D11), as it goes (its dates aside).
+ * @param {EffectiveTask} task Effective task.
+ * @returns {object} Columns.
+ */
+const pickInherited = (task: EffectiveTask) => ({
+  projectId: task.projectId,
+  priorityId: task.priorityId,
+  milestoneId: task.milestoneId,
+  slotCondition: task.slotCondition as Prisma.JsonValue,
+  location: task.location,
+  locationLat: task.locationLat,
+  locationLon: task.locationLon,
+});
+
+/**
  * Turns a task into a routine (lot 15), in one transaction: a new routine, the task deleted. It keeps the label,
  * description, project, assignees, beneficiaries, links, place, slot condition and reminders « À HH:MM »; its times,
  * sheets and checklist move to the routine; its comments go to the first occurrence; its one-off events become events
- * of that day of the routine. Its « Échéance » (its own, else its single sprint's) is the due day of the first
+ * of that day of the routine. Its « Échéance » (as it goes: its own, its parent's, its milestone's or its first sprint's; decision D11) is the due day of the first
  * occurrence (none: its « Ouverture », else today), its « Ouverture » the routine's « Ouverture » when it differs. It
  * repeats every day (chosen afterwards in its panel). A closed task (« Fermée », cancelled included) ticks that first
  * occurrence, each of its times of the day, when it closed (not when it is still to come: not late either). Refused for an archived task or one with sub-tasks. What it loses
@@ -45,10 +61,10 @@ export async function convertTaskToRoutine(id: string, confirm: boolean): Promis
   if (await prisma.task.count({ where: { parentId: id } })) {
     throw clientError('BAD_USER_INPUT', 'Une tâche qui a des sous-tâches ne devient pas une routine : déplacez ou supprimez d’abord ses sous-tâches.');
   }
-  const task = await prisma.task.findUniqueOrThrow({
+  const stored = await prisma.task.findUniqueOrThrow({
     where: { id },
     include: {
-      sprints: DUE_DATES_SELECT.sprints,
+      sprints: { select: { id: true } },
       assignees: { select: { id: true } },
       beneficiaries: { select: { id: true } },
       beneficiaryRelations: { select: { id: true } },
@@ -65,6 +81,16 @@ export async function convertTaskToRoutine(id: string, confirm: boolean): Promis
       shoppingLists: { select: { id: true } },
     },
   });
+  // What it goes by, its inherited fields from its parent (decision D11): the routine, without parent, keeps them.
+  const goesBy = (await effectiveTasks([id])).get(id)!;
+  const byIds = (ids: readonly string[]) => ids.map((item) => ({ id: item }));
+  const task = {
+    ...stored,
+    ...pickInherited(goesBy),
+    assignees: byIds(goesBy.assigneeIds),
+    beneficiaries: byIds(goesBy.beneficiaryIds),
+    beneficiaryRelations: byIds(goesBy.beneficiaryRelationIds),
+  };
   const oneOff = task.calendarEvents.filter((event) => event.recurrence === null);
   const flag = (value: unknown) => (value === null || value === undefined ? 0 : 1);
   const lost = conversionLoss({
@@ -89,7 +115,7 @@ export async function convertTaskToRoutine(id: string, confirm: boolean): Promis
   assertConversionConfirmed(lost, confirm, 'Transformer la tâche en routine lui fait perdre ce qu’une routine n’a pas : confirmez pour continuer.');
 
   // « Échéance » = due day of the first occurrence; « Ouverture » = its days before, when it differs.
-  const { minDate, deadline } = storedDueDates(task);
+  const { minDate, deadline } = goesBy;
   const due = deadline ?? minDate ?? parisToday();
   const opens: RoutineOpens | null = minDate && deadline && minDate < deadline ? { mode: 'BEFORE', days: Math.min(MAX_OPENS_BEFORE, daysBetween(minDate, deadline)) } : null;
   const timing: RoutineTiming = {
@@ -173,7 +199,7 @@ export async function convertRoutineToTask(id: string, confirm: boolean): Promis
   }
   // Comments written before they were on occurrences: placed first, to follow theirs.
   await placeLegacyRoutineComments([id]);
-  const routine = await prisma.routine.findUniqueOrThrow({
+  const stored = await prisma.routine.findUniqueOrThrow({
     where: { id },
     include: {
       ...ROUTINE_LINKS,
@@ -185,6 +211,18 @@ export async function convertRoutineToTask(id: string, confirm: boolean): Promis
       _count: { select: { checks: true } },
     },
   });
+  // What it goes by, its inherited fields from its parent (decision D11): the task, without parent, keeps them.
+  const goesBy = effectiveRoutineOf(await loadRoutineInheritance(), id)!.routine;
+  const byIds = (ids: readonly string[]) => ids.map((item) => ({ id: item }));
+  const { assigneeIds: _a, beneficiaryIds: _b, beneficiaryRelationIds: _r, categoryIds: _c, ...columns } = goesBy;
+  const routine = {
+    ...stored,
+    ...columns,
+    assignees: byIds(goesBy.assigneeIds),
+    beneficiaries: byIds(goesBy.beneficiaryIds),
+    beneficiaryRelations: byIds(goesBy.beneficiaryRelationIds),
+    categories: byIds(goesBy.categoryIds),
+  };
   // Its occurrence of now, as its panel shows it.
   const schedules = await loadScheduleContext();
   const { current, next } = occurrencesOf(routine, undefined, schedules);

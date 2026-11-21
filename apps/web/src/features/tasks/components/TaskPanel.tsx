@@ -45,7 +45,7 @@ import { TaskLocation } from './TaskLocation';
 import { TaskReminders } from './TaskReminders';
 import { DeadTimesField } from '../../countdowns/components/DeadTimesField';
 import { taskDeadTimeItem } from '../lib/task-dead-times';
-import { sprintDateHint } from '../lib/sprint-dates';
+import { inheritedDateHint } from '../lib/inherited-dates';
 import { DetailNotFound } from '../../../components/feedback/DetailNotFound';
 import { ActionButton } from '../../../components/actions/ActionButton';
 import { RemoveButton } from '../../../components/actions/RemoveButton';
@@ -319,7 +319,7 @@ function TaskDetail({ task, context }: TaskDetailProps) {
                 <DatePickerInput label="Début" clearable placeholder="—" {...dates.start} />
                 <DatePickerInput label="Fin" clearable placeholder="—" {...dates.end} />
               </Group>
-              <DatePickerInput label="Ouverture" description="Avant, la tâche n’est pas à faire." clearable placeholder={sprintDateHint(task, 'minDate') ?? '—'} {...doable.start} />
+              <DatePickerInput label="Ouverture" description="Avant, la tâche n’est pas à faire." clearable placeholder={inheritedDateHint(task, 'minDate') ?? '—'} {...doable.start} />
               <DatePickerInput
                 label="Échéance"
                 description={
@@ -334,7 +334,7 @@ function TaskDetail({ task, context }: TaskDetailProps) {
                   </>
                 }
                 clearable
-                placeholder={sprintDateHint(task, 'deadline') ?? '—'}
+                placeholder={inheritedDateHint(task, 'deadline') ?? '—'}
                 {...doable.end}
               />
               <TaskReminders value={task.reminders} minDate={task.effectiveMinDate} deadline={task.effectiveDeadline} disabled={locked} onChange={(reminders) => save({ reminders })} />

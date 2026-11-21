@@ -43,7 +43,8 @@ import { forEachWorkspace, listWorkspaces, meContributorId, scheduleJob } from '
 import { markAlarmFired } from './alarms';
 import { ringAgainOutside, ringOutside } from './alarm-rings';
 import { ringCountdown } from './countdowns';
-import { storedDueDates, DUE_DATES_SELECT } from './due-dates';
+import { effectiveTaskOf, loadTaskInheritance } from './task-inheritance';
+import { effectiveRoutineOf, loadRoutineInheritance } from '../routines/routine-inheritance';
 import { pushEnabled, pushToUser } from './push';
 
 /**
@@ -113,9 +114,11 @@ async function dueReminders(workspace: Workspace, several: boolean, now: Date, u
   const label = several ? workspace.label : undefined;
   const { from, to } = reminderDayRange(now);
   const withReminders = { NOT: { reminders: { equals: [] } } };
-  const [occurrences, tasks, projects, routineRows, schedules, people] = await Promise.all([
+  const [occurrences, tasks, inheritance, routineInheritance, projects, routineRows, schedules, people] = await Promise.all([
     eventOccurrences(from, to, undefined, true),
-    prisma.task.findMany({ where: { closedAt: null, archivedAt: null, ...withReminders }, select: { id: true, number: true, label: true, projectId: true, reminders: true, ...DUE_DATES_SELECT } }),
+    prisma.task.findMany({ where: { closedAt: null, archivedAt: null, ...withReminders }, select: { id: true, number: true, label: true, projectId: true, reminders: true } }),
+    loadTaskInheritance(),
+    loadRoutineInheritance(),
     prisma.project.findMany({ select: { id: true, label: true } }),
     prisma.routine.findMany({
       where: { archivedAt: null, ...withReminders },
@@ -127,10 +130,11 @@ async function dueReminders(workspace: Workspace, several: boolean, now: Date, u
   const calendar = calendarRingPage(label);
   const projectOf = (id: string) => projects.find((project) => project.id === id);
 
-  // Tasks: the « Ouverture » and « Échéance » they go by; their link is their page.
+  // Tasks: the « Ouverture » and « Échéance » they go by (their own, their parent's, their milestone's, project's or
+  // sprint's: `effectiveTask`); their link is their page.
   const reminded = tasks.map((task) => {
-    const dates = storedDueDates(task);
-    return { ...task, closed: false, archived: false, effectiveMinDate: dates.minDate, effectiveDeadline: dates.deadline, reminders: readReminders(task.reminders) };
+    const dates = effectiveTaskOf(inheritance, task.id);
+    return { ...task, closed: false, archived: false, effectiveMinDate: dates?.minDate ?? null, effectiveDeadline: dates?.deadline ?? null, reminders: readReminders(task.reminders) };
   });
   // Routines: the occurrences their reminders ring for, the times of the day of their current one (the line).
   const context = await loadScheduleContext();
@@ -164,7 +168,12 @@ async function dueReminders(workspace: Workspace, several: boolean, now: Date, u
   for (const userId of userIds) {
     const meId = await meContributorId(userId);
     const rings = routineRings(routines, (routine, at) =>
-      nextAllowedMoment({ assigneeIds: routine.assignees.map((assignee) => assignee.id), routineId: routine.id }, at, { events: occurrences, meId, timeZone: PARIS_ZONE }),
+      // Its assignees, its own or inherited (decision D11).
+      nextAllowedMoment({ assigneeIds: [...(effectiveRoutineOf(routineInheritance, routine.id)?.routine.assigneeIds ?? routine.assignees.map((assignee) => assignee.id))], routineId: routine.id }, at, {
+        events: occurrences,
+        meId,
+        timeZone: PARIS_ZONE,
+      }),
     );
     perUser.push(...rings.filter((ring) => dueOutside(ring.at, now)).map((ring) => ({ input: ringInput(ring, workspace, several, routinesPage), userId })));
   }

@@ -104,8 +104,8 @@ graphql(`
     minDate
     effectiveDeadline
     effectiveMinDate
-    deadlineFromSprint
-    minDateFromSprint
+    deadlineSource
+    minDateSource
     cancelled
     position
     archived

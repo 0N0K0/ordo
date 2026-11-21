@@ -33,6 +33,13 @@ L’API accepte ce que l’interface empêche.
 - **Dossier de recherche créé depuis un projet :** l’entrée GraphQL `MailSearchInput` n’a pas de `projectId` ; il n’est pas sûr que le dossier garde la limite au projet. Voir [Règles des mails](business-rules/resources/mail.md).
 - **Date de péremption d’un produit :** la description GraphQL de `ShoppingProduct.expiresAt` dit qu’une fois la date passée le produit est marqué manquant ; aucun code ni tâche de fond ne le fait. Voir [Règles des achats](business-rules/supplies/shopping.md).
 
+- **Héritage (lot 13a, décision D11) : ce qui lit encore les valeurs propres.**
+  - Occurrences des routines (agenda, rappels, état, coches, « faisable », report des rappels, pertes d’occurrences) : elles se calculent sur les colonnes propres, pas sur le « quand », la condition et l’« Ouverture » hérités ; le lot 13c les fera passer par `effectiveRoutine`. Les exceptions (`moves`) d’une routine qui les hérite s’écrivent encore sur elle.
+  - Le web filtre, trie, groupe et exporte les tâches et routines sur leurs champs propres (`assigneeIds`, `priorityId`, `milestoneId`, `projectId`, `slotCondition`…), sauf les dates (`effectiveMinDate`, `effectiveDeadline`) : à passer sur `effective` au lot 13b.
+  - GitHub : ce qui est envoyé à GitHub (priorité, échéance, jalon, assignés) reste la valeur propre de la tâche, pas la valeur héritée ; une sous-tâche détachée de son parent par GitHub (parent retiré) ne reçoit pas les valeurs qu’elle héritait.
+  - Les liens « relative à » / dépendances des routines restent limités par le projet enregistré, qui est le projet suivi (le projet hérité est recopié), donc sans écart.
+  Voir [Tâches](business-rules/activities/tasks.md#héritage), [Routines](business-rules/activities/routines.md#héritage).
+
 ## Comportements à confirmer
 
 - **Sens d’une catégorie de trésorerie :** le changement de sens n’est refusé que si des mouvements utilisent la catégorie ; les lignes de répartition ne sont pas vérifiées. Voir [Règles de la trésorerie](business-rules/finances/treasury.md).
@@ -45,6 +52,9 @@ L’API accepte ce que l’interface empêche.
 - **Anniversaires cités par les conditions de créneaux (lot 16c) :** une personne sans date de naissance est acceptée dans une condition (son anniversaire ne permet aucun moment, comme un type sans créneau), sans avertissement ; une personne supprimée, ou archivée sans date de naissance à elle (une relation archivée dont seul le contributeur lié est daté), est écrite « anniversaire retiré » (son nom n'est plus connu des anniversaires). La confirmation des occurrences perdues, le rechargement des routines et le suivi du contributeur lié sont faits (décision FQ). Voir [Personnes](business-rules/cross-cutting/people.md#coordonnées-date-de-naissance-anniversaire).
 
 ## Documentation à mettre à jour ou à compléter
+- **Héritage, champs vides des sous-tâches existantes (migration `20261121150000_inherited_fields`) :** une sous-tâche ne reprenait que le projet de son parent ; ses assignés, bénéficiaires, priorité, jalon, lieu ou condition vides alors que son parent en a passent en « vidé exprès », selon la règle « une valeur différente reste propre ». Si l’utilisateur préfère qu’un champ vide hérite, une migration suivante peut ajouter ces champs à `inheritedFields`.
+- **Héritage, date vidée exprès :** elle saute le parent mais garde le repli jalon / projet / sprint (comme une tâche du premier niveau) ; à confirmer (l’autre lecture : « aucune » date du tout).
+
 
 - **Relances d’impayés :** [Déploiement](deployment.md) les cite parmi les tâches de fond, mais le code ne les envoie qu’à la main (`sendRemindersSchema`). Voir [Tâches de fond](business-rules/cross-cutting/background-jobs.md).
 - **Suppression d’un client qui a des documents :** refusée par la relation `Restrict` du schéma ; le message affiché n’a pas été relevé. Voir [Règles de la facturation](business-rules/finances/accounting.md).
