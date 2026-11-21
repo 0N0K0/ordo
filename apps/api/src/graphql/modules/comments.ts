@@ -7,7 +7,7 @@ import { readOccurrenceKey } from '@ordo/shared';
 import { placeLegacyEventComments } from '../../services/calendar/calendar-events';
 import { placeLegacyRoutineComments } from '../../services/routines/routines';
 
-/** Placing of the comments written before they were on occurrences, by kind of item (decision D19). */
+/** Placing of the comments written before they were on occurrences, by kind of item. */
 const PLACE_LEGACY: Partial<Record<comments.CommentTarget, (ids: readonly string[]) => Promise<void>>> = { ROUTINE: placeLegacyRoutineComments, EVENT: placeLegacyEventComments };
 
 /**
@@ -40,7 +40,7 @@ const CommentCountRef = builder.objectRef<{ id: string; count: number }>('Commen
 builder.queryFields((t) => ({
   comments: t.prismaField({
     type: ['Comment'],
-    description: 'Comments of an item, oldest first; of one occurrence for a routine or an event (decision D19).',
+    description: 'Comments of an item, oldest first; of one occurrence for a routine or an event.',
     args: {
       target: t.arg({ type: CommentTargetEnum, required: true }),
       id: t.arg.string({ required: true, description: 'Item id (Message-ID for a mail).' }),

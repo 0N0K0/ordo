@@ -3,7 +3,7 @@ import { ChatCircleIcon } from '@phosphor-icons/react';
 
 /**
  * Number of comments of a row of a table (its description counting as one), with its icon, the same in every table
- * (decision CJ); nothing when none.
+ *; nothing when none.
  * @param {{ count: number }} props Component props.
  * @returns {JSX.Element | null} Count.
  */

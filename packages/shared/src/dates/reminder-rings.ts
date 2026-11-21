@@ -24,7 +24,7 @@ import { RING_LATE_MS } from './ringing';
 
 /**
  * What rings, and what its ring shows, computed the same way by the open app (`ringPlannedReminders`, `dueAlarms`) and
- * by the server ringing outside the app (push notifications, lot 17c, decision FU): the reminders of the events, tasks,
+ * by the server ringing outside the app (push notifications): the reminders of the events, tasks,
  * routines, éphémérides and birthdays with their keys (one ring per key: the app and the server never ring one twice),
  * their instants, their titles and lines; the alarms due and the steps of the timers; the links of the rings.
  */
@@ -165,7 +165,7 @@ export interface RemindedRoutine {
   label: string;
   archived: boolean;
   location?: string | null;
-  /** Time to spend on it, in minutes: the end of a time without « jusqu'à », the start of one without « dès » (decision FW). */
+  /** Time to spend on it, in minutes: the end of a time without « jusqu'à », the start of one without « dès ». */
   estimate: number | null;
   /** Due day of its current occurrence. */
   currentDate?: string | null;
@@ -180,7 +180,7 @@ export interface RemindedRoutine {
 export type RoutineRing<R> = PlannedRing & { routine: R; slot: number; current: boolean };
 
 /**
- * Instants the reminders « avant » of a time of the day of an occurrence count from (decisions FV, FW): its start and
+ * Instants the reminders « avant » of a time of the day of an occurrence count from: its start and
  * its end (`routineSlotSpan`, as the agenda shows it: « dès » / « jusqu'à », the other one from the time to spend on
  * it), on the opening day (`start`, `openEnd`) and on the due day (`dueStart`, `end`), Paris time. A time without any
  * hour has none (no reminder « avant »).
@@ -212,7 +212,7 @@ export const routineRingPrefix = (routineId: string, date: string): string => ta
 
 /**
  * Routine, occurrence and time of the day of the key of a ring of a reminder of a routine (`routineRings`), to give a
- * ring shown again after a reload its actions back (decision FV); null for another key.
+ * ring shown again after a reload its actions back; null for another key.
  * @param {string} key Key of the ring.
  * @returns {{ routineId: string, date: string, slot: number | null } | null} Routine, due day and time of the day (null: a reminder « À HH:MM »).
  */
@@ -225,7 +225,7 @@ export function routineRingOf(key: string): { routineId: string; date: string; s
 }
 
 /**
- * Reminders of the routines (decisions D16, FV, FW), for the occurrences the API gives: each « N min avant » before each
+ * Reminders of the routines, for the occurrences the API gives: each « N min avant » before each
  * time of the day not ticked that has an hour, from one of its four anchors (`routineSlotAnchors`: the start or the end
  * of the time on the opening day or on the due day), each « À HH:MM » and « N jours avant » once per occurrence, from its opening day
  * (from the end: its due day). An archived routine has none. When its assignees are kept busy, a reminder waits for the
@@ -274,7 +274,7 @@ export interface RemindedSchedule {
 }
 
 /**
- * Reminders of the éphémérides (lot 16, decision FO): for each run of consecutive days it covers (its first day from
+ * Reminders of the éphémérides: for each run of consecutive days it covers (its first day from
  * yesterday to the most days a reminder rings before), « N min avant » its start (Paris midnight all day), « À HH:MM »
  * that day, « N jours avant, à HH:MM ». A créneau or an archived éphéméride has none. The ring tells the day (and time).
  * @template {RemindedSchedule} S
@@ -312,7 +312,7 @@ export const birthdayRingPrefix = (birthdayId: string, date?: string): string =>
 
 /**
  * Birthday of the key of a ring of a birthday reminder, among those given (a ring shown again gives « Ouvrir la fiche »
- * back, decision FV).
+ * back).
  * @template {{ id: string }} B
  * @param {string} key Key of the ring.
  * @param {readonly B[]} birthdays Birthdays.
@@ -321,7 +321,7 @@ export const birthdayRingPrefix = (birthdayId: string, date?: string): string =>
 export const birthdayRingOf = <B extends { id: string }>(key: string, birthdays: readonly B[]): B | undefined => birthdays.find((birthday) => key.startsWith(birthdayRingPrefix(birthday.id)));
 
 /**
- * Reminders of the birthdays (lot 16): « À HH:MM » on the day, « N jours avant, à HH:MM »; the ring tells « Anniversaire
+ * Reminders of the birthdays: « À HH:MM » on the day, « N jours avant, à HH:MM »; the ring tells « Anniversaire
  * de Paul — 40 ans » (the age when the year of birth is known) and its day.
  * @template {RemindedBirthday} B
  * @param {readonly B[]} birthdays Birthdays.
@@ -360,7 +360,7 @@ export interface DueAlarmFields {
 
 /**
  * Occurrence of a scheduled alarm (`REMINDER`, `NOT_TRACKING`) due now: its last one (`previousOccurrence`, Paris
- * time for the app and the server, decision FV), after the one rung last (`lastFiredAt`, else its creation) and missed
+ * time for the app and the server), after the one rung last (`lastFiredAt`, else its creation) and missed
  * by 6 hours at most.
  * @param {DueAlarmFields} alarm Alarm.
  * @param {Date} now Now.

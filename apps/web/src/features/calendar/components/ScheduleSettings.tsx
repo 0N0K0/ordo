@@ -24,45 +24,51 @@ interface KindLookSettingsProps {
   description?: string;
   /** Name of what is set, for the labels (« des créneaux sans type »). */
   of: string;
-  /** Name for the look editor. */
-  name: string;
   /** Placeholder of the color (the one without any). */
   colorPlaceholder: string;
-  look: { color: string | null; dayDisplay: string; dayBar: boolean; monthDisplay: string };
-  /** Saves the color and the display. */
-  onSave: (look: { color: string | null } & ScheduleDisplay) => void;
+  color: string | null;
+  /** Saves the color. */
+  onColor: (color: string | null) => void;
+  /** Its display in the calendar, as a kind (none: it has no display to choose). */
+  display?: {
+    /** Name for the look editor. */
+    name: string;
+    value: { dayDisplay: string; dayBar: boolean; monthDisplay: string };
+    onChange: (display: ScheduleDisplay) => void;
+  };
   /** What else is set on the row (a label, whether shown). */
   children: ReactNode;
 }
 
 /**
- * Settings row of what shows like a kind without being an item of the list of kinds (the schedules without kind, the
- * birthdays, decision FX): its color, what else it has, and its display in the calendar (`ScheduleLookEditor`).
+ * Settings row of what shows in the calendar without being an item of the list of kinds (the schedules without kind,
+ * the birthdays): its color, what else it has, and its display in the calendar when it has one (`ScheduleLookEditor`).
  * @param {KindLookSettingsProps} props Component props.
  * @returns {JSX.Element} Section.
  */
-function KindLookSettings({ title, description, of, name, colorPlaceholder, look, onSave, children }: KindLookSettingsProps) {
+function KindLookSettings({ title, description, of, colorPlaceholder, color, onColor, display, children }: KindLookSettingsProps) {
   const [opened, setOpened] = useState(false);
-  const current = { color: look.color, ...readScheduleDisplay(look) };
   return (
     <SettingsSection title={title} description={description}>
       <Stack gap="xs">
         <Group gap="xs" wrap="nowrap">
           <ColorField
-            key={look.color ?? 'none'}
+            key={color ?? 'none'}
             size="xs"
             w={120}
             placeholder={colorPlaceholder}
             aria-label={`Couleur ${of}`}
-            defaultValue={look.color ?? ''}
-            onCommit={(value) => onSave({ ...current, color: value || null })}
+            defaultValue={color ?? ''}
+            onCommit={(value) => onColor(value || null)}
           />
           {children}
-          <LookToggle label="Affichage dans l’agenda" ariaLabel={`Affichage ${of}`} opened={opened} onToggle={() => setOpened(!opened)} />
+          {display && <LookToggle label="Affichage dans l’agenda" ariaLabel={`Affichage ${of}`} opened={opened} onToggle={() => setOpened(!opened)} />}
         </Group>
-        <LookPanel opened={opened}>
-          <ScheduleLookEditor name={name} value={look} onChange={(display) => onSave({ ...current, ...display })} />
-        </LookPanel>
+        {display && (
+          <LookPanel opened={opened}>
+            <ScheduleLookEditor name={display.name} value={display.value} onChange={display.onChange} />
+          </LookPanel>
+        )}
       </Stack>
     </SettingsSection>
   );
@@ -77,14 +83,15 @@ function DefaultScheduleKind() {
   const { saveDefaultKind } = useWorkScheduleMutations();
   const { data: defaultKind } = useDefaultScheduleKind();
   if (!defaultKind) return null;
+  const current = { label: defaultKind.label, color: defaultKind.color, ...readScheduleDisplay(defaultKind) };
   return (
     <KindLookSettings
       title="Créneaux sans type"
       of="des créneaux sans type"
-      name={defaultKind.label}
       colorPlaceholder="Vert"
-      look={defaultKind}
-      onSave={(look) => saveDefaultKind.mutate({ label: defaultKind.label, ...look }, ON_ERROR)}
+      color={defaultKind.color}
+      onColor={(color) => saveDefaultKind.mutate({ ...current, color }, ON_ERROR)}
+      display={{ name: defaultKind.label, value: defaultKind, onChange: (display) => saveDefaultKind.mutate({ ...current, ...display }, ON_ERROR) }}
     >
       <TextInput
         key={defaultKind.label}
@@ -99,18 +106,15 @@ function DefaultScheduleKind() {
             Par défaut
           </Badge>
         }
-        onBlur={(event) =>
-          event.currentTarget.value.trim() !== defaultKind.label &&
-          saveDefaultKind.mutate({ ...defaultKind, ...readScheduleDisplay(defaultKind), label: event.currentTarget.value }, ON_ERROR)
-        }
+        onBlur={(event) => event.currentTarget.value.trim() !== defaultKind.label && saveDefaultKind.mutate({ ...current, label: event.currentTarget.value }, ON_ERROR)}
       />
     </KindLookSettings>
   );
 }
 
 /**
- * Birthdays of the people of the workspace (decision FX): shown in the calendar or not (hidden, their reminders still
- * ring), their color (none: the gray of the éphémérides) and display, as a kind of éphémérides.
+ * Birthdays of the people of the workspace, all-day events of the calendar: shown in it or not (hidden, their
+ * reminders still ring) and their color (none: the gray of the éphémérides).
  * @returns {JSX.Element | null} Section.
  */
 function BirthdayLookSettings() {
@@ -120,27 +124,25 @@ function BirthdayLookSettings() {
   return (
     <KindLookSettings
       title="Anniversaires"
-      description="Les anniversaires des contributeurs et des relations, tirés de leur date de naissance : leur couleur et leur affichage dans l’agenda. Masqués, leurs rappels sonnent toujours."
+      description="Les anniversaires des membres de l’équipe ou du foyer et des relations, tirés de leur date de naissance : des évènements d’une journée entière dans l’agenda, dans leur couleur. Masqués, leurs rappels sonnent toujours."
       of="des anniversaires"
-      name="Anniversaires"
       colorPlaceholder="Gris"
-      look={look}
-      onSave={(value) => saveBirthdayLook.mutate({ shown: look.shown, ...value }, ON_ERROR)}
+      color={look.color}
+      onColor={(color) => saveBirthdayLook.mutate({ shown: look.shown, color }, ON_ERROR)}
     >
       <Switch
         size="xs"
         style={{ flex: 1 }}
         label="Afficher dans l’agenda"
         checked={look.shown}
-        onChange={(event) => saveBirthdayLook.mutate({ color: look.color, ...readScheduleDisplay(look), shown: event.currentTarget.checked }, ON_ERROR)}
+        onChange={(event) => saveBirthdayLook.mutate({ color: look.color, shown: event.currentTarget.checked }, ON_ERROR)}
       />
     </KindLookSettings>
   );
 }
 
 /**
- * Kinds of time slots ("Travail", "Garde des enfants"…) or of éphémérides (holidays, school holidays, birthdays…, lot
- * 16), as every settings list: label, color, image and display in the calendar, reordered by drag and drop; a kind of
+ * Kinds of time slots ("Travail", "Garde des enfants"…) or of éphémérides (holidays, school holidays, birthdays…), as every settings list: label, color, image and display in the calendar, reordered by drag and drop; a kind of
  * éphémérides may serve as a context of the budget (shared between workspaces or not). « Convertir » turns a whole
  * kind into the other nature, its schedules with it.
  * @param {{ ephemeris: boolean }} props Component props: the kinds of éphémérides, or of créneaux.
@@ -264,7 +266,7 @@ function ForeignSchedules() {
 
 /**
  * Settings of the time slots, apart from the slots themselves: their kinds (and the default kind) with their color
- * and display, the kinds of éphémérides beside them (lot 16) and the birthdays after them (decision FX), and the
+ * and display, the kinds of éphémérides beside them and the birthdays after them, and the
  * subscriptions to kinds of other workspaces.
  * @returns {JSX.Element} Settings.
  */

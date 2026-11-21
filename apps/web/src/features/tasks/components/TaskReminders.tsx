@@ -13,9 +13,9 @@ interface TaskRemindersProps {
 }
 
 /**
- * « Rappels » of a task, in its creation form and its panel (decision D16): times of the day, rung every day from its
+ * « Rappels » of a task, in its creation form and its panel: times of the day, rung every day from its
  * « Ouverture » to its « Échéance » (the « Échéance » day only without « Ouverture »), or once some days before its
- * « Échéance » (« N jours avant, à HH:MM », decision FO); disabled without « Échéance ».
+ * « Échéance » (« N jours avant, à HH:MM »); disabled without « Échéance ».
  * @param {TaskRemindersProps} props Component props.
  * @returns {JSX.Element} Field.
  */

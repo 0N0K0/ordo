@@ -18,7 +18,7 @@ Types exportés :
 | --------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------- |
 | `Task`                | Fragment `TaskFields` (tous les champs d’une tâche lus par le web, lieu et liens compris).                                                                             |
 | `TaskComment`         | Fragment `TaskCommentFields` (`id`, `body`, `createdAt`, `githubAuthor`).                                                                       |
-| `Contributor`         | Fragment `ContributorFields`.                                                                                                                   |
+| `Contributor`         | Fragment `ContributorFields` (avec `link`, `relationId`, `contactId`, `linkName`, et les coordonnées et l’anniversaire de ce à quoi il est lié).                                                                                                                   |
 | `TaskLabel`           | Fragment `TaskLabelFields` (priorité, type, étiquette, statut sans catégorie).                                                                  |
 | `TaskStatus`          | Statut avec sa `category`.                                                                                                                      |
 | `Milestone`, `Sprint` | Fragments des jalons et sprints.                                                                                                                |
@@ -26,28 +26,28 @@ Types exportés :
 | `TaskInputValues`     | Champs envoyés à la création / modification (`TaskInput` partagé).                                                                              |
 | `TaskSave`            | Enregistrement immédiat d’un changement depuis le panneau (`updateTask.mutateAsync`), donné à `TaskDescription` et `TaskLinks`.                 |
 | `TaskLabelKind`       | `'status' \| 'priority' \| 'type' \| 'tag'` (clés de `LabelDocuments`).                                                                         |
-| `BulkChanges`         | Changements d’une modification en masse (statut, priorité, type, jalon, effort, dates, ajouts / retraits d’assignés, d’étiquettes, de sprints). |
+| `BulkChanges`         | Changements d’une modification en masse (statut, priorité, type, jalon, effort, dates, ajouts / retraits d’assignés, d’étiquettes, de sprints ; `inheritFields` / `clearFields` : héritage rétabli ou vidé exprès). |
 
 Hooks et constantes exportés :
 
 | Nom                           | Rôle                                                                                                                                            |
 | ----------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------- |
 | `tasksQueryKey`               | Clé `['tasks']` des données des tâches.                                                                                                         |
-| `useTasksData()`              | Requête `TasksData` : tâches, contributeurs, listes de paramètres, jalons, sprints.                                                             |
+| `useTasksData()`              | Requête `TasksData` : tâches, contributeurs, listes de paramètres, jalons, sprints ; chaque tâche telle que les écrans la lisent (`taskRow` : ses champs hérités avec la valeur suivie). Le fragment `TaskFields` lit `inheritedFields`, `inheritance { ...FieldOriginFields }` et `effective { … }`. |
 | `useTaskComments(id)`         | Commentaires d’une tâche (clé `['tasks', id, 'comments']`).                                                                                     |
 | `useCreateTask()`             | Mutation `createTask`.                                                                                                                          |
 | `useUpdateTask()`             | Mutation `updateTask` (`{ id, input }`, sans projet : le projet change par transfert).                                                          |
 | `useSetTasksClosed()`         | Mutation `setTasksClosed` ; met à jour `closed` dans le cache tout de suite (optimiste).                                                        |
-| `useDuplicateTask()`          | Mutation `duplicateTask` (décision D20, « … (copie) ») ; renvoie `id` et `number` de la copie.                                                                                       |
+| `useDuplicateTask()`          | Mutation `duplicateTask` (« … (copie) ») ; renvoie `id` et `number` de la copie.                                                                                       |
 | `useMoveTask()`               | Mutation `moveTask` (`id`, `beforeId`, `parentId?`) ; réordonne le cache tout de suite.                                                         |
 | `useTaskBlock()`              | Ajoute (`add: true`) ou retire un lien « bloque ».                                                                                              |
 | `useTaskRelation()`           | Ajoute ou retire un lien « relative à ».                                                                                                        |
 | `useTaskCommentMutations()`   | `{ add, update, remove }` des commentaires de tâche.                                                                                            |
-| `useContributorMutations()`   | `{ create, update, remove, setProjectContributors }` ; `create`, `update`, `remove` dans `withLossConfirmation` (anniversaire cité par des routines, décision FQ), rechargent les tâches et les routines ; `remove` invalide aussi la facturation (`accountingQueryKey`). |
+| `useContributorMutations()`   | `{ create, update, remove, setProjectContributors }` ; `create`, `update`, `remove` dans `withLossConfirmation` (anniversaire cité par des routines), rechargent les tâches, les routines et la facturation (`accountingQueryKey` : membres et relations de la trésorerie suivent le lien). |
 | `useTaskLabelMutations(kind)` | `{ create, update, remove }` d’une liste de paramètres (statut, priorité, type, étiquette).                                                     |
 | `useTaskColumnDefaults()`     | Colonnes des nouvelles vues de l’espace (`readTaskColumnDefaults`).                                                                             |
 | `useSetTaskColumnDefaults()`  | Les change (`null` : celles de l’app) ; mise à jour optimiste du cache.                                                                         |
-| `useDoableTaskIds(enabled)`, `doableTasksKey` | Ensemble des tâches faisables maintenant ; demandé seulement si `enabled`, rafraîchi chaque minute ; envoie le décalage UTC du navigateur. Sa clé est rechargée avec les sources des conditions (`SLOT_DEPENDENT_KEYS`, décision FQ). |
+| `useDoableTaskIds(enabled)`, `doableTasksKey` | Ensemble des tâches faisables maintenant ; demandé seulement si `enabled`, rafraîchi chaque minute ; envoie le décalage UTC du navigateur. Sa clé est rechargée avec les sources des conditions (`SLOT_DEPENDENT_KEYS`). |
 | `useBulkTaskMutations()`      | `{ update, transfer, archive, remove }` : `bulkUpdateTasks` (avec `restoring`), `bulkTransferTasks`, `bulkSetTasksArchived`, `bulkDeleteTasks`. |
 | `useMilestoneMutations()`     | `{ create, update, remove, move }` ; `move` (interne `useMoveMilestone`) réordonne le cache tout de suite.                                      |
 | `useSprintMutations()`        | `{ create, update, remove }`.                                                                                                                   |
@@ -73,28 +73,32 @@ Interne : `LabelDocuments` (documents CRUD par type de libellé), `useTasksMutat
   - Menu de ligne (`RowActions`), ligne d’ajout (`AddTaskRow` avec `groupDefaults`), actions de sélection (`useTaskSelectionActions`).
 - Constantes internes : `EVENT_PERIOD_LABELS` (libellés des périodes), `TASK_VIEWS`.
 
+- Ses cellules passent par `inheritedCells` (`TASK_CELL_FIELDS`, `taskParentName`) : un champ hérité est grisé, « Hérité de … » en infobulle.
+
 ### `components/TaskPanel.tsx`
 
 - `TaskPanel()` : panneau latéral (`SidePanel`) de la tâche de l’URL (`?task=`), par-dessus toute page ; squelette pendant le chargement, `DetailNotFound` si introuvable. Monté par `app/layout/AppLayout.tsx`.
 - Internes :
-  - `TaskDetail({ task, context })` : en-tête (badges GitHub / archivée, « Fermer la tâche » / « Rouvrir » — `useTaskActions().close`, toast avec « Annuler » comme le menu et la sélection —, « Renommer » via `openLabelForm`, menu `useTaskActions`), description (`TaskDescription`), liens (`TaskLinks`), lieu (`TaskLocation`) et rappels (`TaskReminders`) puis temps morts (`DeadTimesField`, `taskDeadTimeItem`, décision FT), dans la colonne de propriétés, sous-tâches, commentaires (`TaskComments`), colonne de propriétés (projet → transfert avec confirmation, libellés, assignés, étiquettes, bénéficiaires, effort, `TaskTime`, dates, parent, jalon, sprints, `SlotRuleInput`, liens, `TaskAlarms`, `TaskShopping`, `SheetsSection`). Chaque champ est enregistré dès qu’il change (décision D22) ; l’effort en le quittant (`useFieldSave` sur `effortFormSchema`, enregistré aussi à la fermeture du panneau) ; `SaveStatus` en tête de la colonne de propriétés (`updateTask`, transfert ou effort en cours). `Fieldset` désactivé sur une tâche archivée.
+  - `TaskDetail({ task, context })` : en-tête (badges GitHub / archivée, « Fermer la tâche » / « Rouvrir » — `useTaskActions().close`, toast avec « Annuler » comme le menu et la sélection —, « Renommer » via `openLabelForm`, menu `useTaskActions`), description (`TaskDescription`), liens (`TaskLinks`), lieu (`TaskLocation`) et rappels (`TaskReminders`) puis temps morts (`DeadTimesField`, `taskDeadTimeItem`), dans la colonne de propriétés, sous-tâches, commentaires (`TaskComments`), colonne de propriétés (projet → transfert avec confirmation, libellés, assignés, étiquettes, bénéficiaires, effort, `TaskTime`, dates, parent, jalon, sprints, `SlotRuleInput`, liens, `TaskAlarms`, `TaskShopping`, `SheetsSection`). Chaque champ est enregistré dès qu’il change ; l’effort en le quittant (`useFieldSave` sur `effortFormSchema`, enregistré aussi à la fermeture du panneau) ; `SaveStatus` en tête de la colonne de propriétés (`updateTask`, transfert ou effort en cours). `Fieldset` désactivé sur une tâche archivée.
   - `LinkList({ label, tasks, candidates, context, onAdd, onRemove })` : liste « Bloque » / « Dépend de » / « Relative à » avec « Retirer » et « Ajouter une tâche » (`TaskSelect`).
+
+- Champs hérités (projet, priorité, assignés, bénéficiaires, « Ouverture », « Échéance », jalon, créneaux, lieu) dans `InheritedField` : grisés « Hérité de … », « Vider », « Rétablir l’héritage » (`taskFieldState`).
 
 ### `components/TaskCreateForm.tsx`
 
-- `TaskCreateForm({ context, defaults?, onDone })` : formulaire « Nouvelle tâche » (schéma `taskFormSchema`), lieu (`EventLocation`) et liens (`LinksField`) compris. `defaults` : projet et parent présélectionnés. Changer de projet retire parent, jalon et sprints d’une autre arborescence. Après création : toast et ouverture de la tâche (`useTaskLink`). Ouvert par `useTaskActions().create`.
+- `TaskCreateForm({ context, defaults?, onDone })` : formulaire « Nouvelle tâche » (schéma `taskFormSchema`), lieu (`EventLocation`) et liens (`LinksField`) compris. `defaults` : projet et parent présélectionnés. Changer de projet retire parent, jalon et sprints d’une autre arborescence. Une sous-tâche hérite de son parent : les valeurs du parent montrées grisées (`InheritedField`, `formInheritance` sur les clés `FORM_COLUMNS`, interne `parentValues`), la liste des champs encore hérités envoyée (`inheritedFields`) ; choisir un autre parent reprend les siennes, n’en choisir aucun ne garde que les valeurs. Après création : toast et ouverture de la tâche (`useTaskLink`). Ouvert par `useTaskActions().create`.
 
 ### `components/TaskLinks.tsx`
 
-- `TaskLinks({ task, locked, save })` : section « Liens » du panneau : `ItemLinks` (« Aucun lien. » sinon), `EditToggle` (« Modifier les liens », puis la coche « Terminer la modification des liens » ; sauf archivée). Interne : `TaskLinksEditor({ task, save })`, `LinksField` sur `useFieldSave` (`linksFormSchema`) : un lien est enregistré une fois validé (en quittant ses champs), un retrait tout de suite (décision D22, plus de bouton « Enregistrer »), erreurs sous les champs.
+- `TaskLinks({ task, locked, save })` : section « Liens » du panneau : `ItemLinks` (« Aucun lien. » sinon), `EditToggle` (« Modifier les liens », puis la coche « Terminer la modification des liens » ; sauf archivée). Interne : `TaskLinksEditor({ task, save })`, `LinksField` sur `useFieldSave` (`linksFormSchema`) : un lien est enregistré une fois validé (en quittant ses champs), un retrait tout de suite (sans bouton « Enregistrer »), erreurs sous les champs.
 
 ### `components/TaskDescription.tsx`
 
-- `TaskDescription({ task, context, locked, save })` : section « Description » du panneau : `MarkdownView` (cases cochables en place, enregistrées tout de suite), `EditToggle` (« Modifier la description » / « Terminer la modification de la description »). Interne : `TaskDescriptionEditor({ task, context, save, onClose })`, `MarkdownEditor` sur `useFieldSave` (`descriptionFormSchema`) : enregistrée en quittant l’éditeur, et par Ctrl/⌘ + Entrée qui le ferme aussi (décision D22, plus de « Enregistrer » / « Annuler »).
+- `TaskDescription({ task, context, locked, save })` : section « Description » du panneau : `MarkdownView` (cases cochables en place, enregistrées tout de suite), `EditToggle` (« Modifier la description » / « Terminer la modification de la description »). Interne : `TaskDescriptionEditor({ task, context, save, onClose })`, `MarkdownEditor` sur `useFieldSave` (`descriptionFormSchema`) : enregistrée en quittant l’éditeur, et par Ctrl/⌘ + Entrée qui le ferme aussi (sans « Enregistrer » ni « Annuler »).
 
 ### `components/TaskReminders.tsx`
 
-- `TaskReminders({ value, minDate, deadline, onChange, error?, disabled? })` : « Rappels » d'une tâche (décision D16), dans « Nouvelle tâche » (`TaskCreateForm`) et le panneau (`TaskDetail`, enregistré à chaque changement) : `RemindersSelect` en « À HH:MM » et « N jours avant » l’échéance (`kinds={['at', 'days']}`, `day` vide, lot 16 ; une ligne par rappel, case « Chaque jour » : `dayLabel`, décision FV), aide selon « Ouverture » / « Échéance », désactivé sans échéance.
+- `TaskReminders({ value, minDate, deadline, onChange, error?, disabled? })` : « Rappels » d'une tâche, dans « Nouvelle tâche » (`TaskCreateForm`) et le panneau (`TaskDetail`, enregistré à chaque changement) : `RemindersSelect` en « À HH:MM » et « N jours avant » l’échéance (`kinds={['at', 'days']}`, `day` vide ; une ligne par rappel, case « Chaque jour » : `dayLabel`), aide selon « Ouverture » / « Échéance », désactivé sans échéance.
 
 ### `components/TaskLocation.tsx`
 
@@ -113,7 +117,7 @@ Dialogues sur une ou plusieurs tâches (props `TasksDialogProps`), ouverts par `
 
 | Nom                                | Rôle                                                                                                                                                                                                                                                                                                                                                             |
 | ---------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `useTaskRowsActions(context)`      | Fabrique des actions sur des tâches (barre de sélection et menu d’une tâche) : `close` (fermer / rouvrir, `switchRowsAction`), `duplicate` (`duplicateRowsAction` sur `outermost`, avec sous-tâches, copie unique ouverte), `transfer`, `archive` (`archiveRowsAction`), `remove` ; chacune annulable depuis son toast si possible ; les tâches archivées ne sont prises que par l’archivage et la suppression. Interface interne `TaskRowsActions`. |
+| `useTaskRowsActions(context)`      | Fabrique des actions sur des tâches (barre de sélection et menu d’une tâche) : `close` (fermer / rouvrir, `switchRowsAction`), `duplicate` (`duplicateRowsAction` sur `outermost`, avec sous-tâches, copie unique ouverte), `transfer`, `inheritance` (« Héritage… » des sous-tâches, `inheritanceRowsAction` : `inheritFields` / `clearFields` en masse, « Annuler » par `useBulkUndo().inheritance`), `archive` (`archiveRowsAction`), `remove` ; chacune annulable depuis son toast si possible ; les tâches archivées ne sont prises que par l’archivage et la suppression. Interface interne `TaskRowsActions`. |
 | `useTaskSelectionActions(context)` | Les mêmes actions en liste, pour la barre de sélection du tableau (`TaskBoard`).                                                                                                                                                                                                                                                                                 |
 
 ### `components/inline-cells.tsx`
@@ -172,10 +176,10 @@ Cellules des lignes d’évènements du tableau des tâches (`EventOccurrence`) 
 | `EventPeopleCell({ event, context })` | Personnes de l’évènement (multi-sélection, enregistrée à la fermeture).                                                                                                                       |
 | `EventStatusCell({ event })`          | État en lecture seule (`eventState`, `EVENT_STATES`).                                                                                                                                         |
 | `EventTimeCell({ event })`            | Temps passé sur l’évènement.                                                                                                                                                                  |
-| `EventWhenCell({ event, side })`      | Début ou fin, modifiable (jour pour un évènement « journée », sinon date et heure, en heure de Paris) ; déplacer le début déplace la fin ; une fin avant le début déplace le début (décision Q). |
+| `EventWhenCell({ event, side })`      | Début ou fin, modifiable (jour pour un évènement « journée », sinon date et heure, en heure de Paris) ; déplacer le début déplace la fin ; une fin avant le début déplace le début. |
 | `EventBeneficiariesCell({ event })`   | Bénéficiaires de l’évènement (toute la série si récurrent).                                                                                                                                   |
 
-Internes : `useEventTargets` (évènements visés par une modification : la sélection ou celui-ci), `useEventCellLabel`, `useEventSave` (enregistre sur l’évènement ou sa série), `wall`, `fromWall`, `lengthOf`, `spanOf` (calculs de durée).
+Internes : `useEventTargets` (évènements visés par une modification : la sélection ou celui-ci), `useEventCellLabel`, `useEventSave(event, column, series?)` (enregistre sur l’évènement ou sa série ; portée demandée une fois par `askScope`, sans « Cette occurrence » pour un champ de toute la série, `series` : personnes, bénéficiaires), `wall`, `fromWall`, `lengthOf`, `spanOf` (calculs de durée).
 
 ### `components/table-extras.tsx`
 
@@ -224,16 +228,16 @@ Internes : `NEW_LABEL_TITLES`, `useLabelCreator(kind)` (ouvre le formulaire du l
 ### `components/MilestonesPanel.tsx`
 
 - `MilestonesPanel({ projectId })` : jalons d’un projet (paramètres du projet) : ordre (`SegmentedControl`, `useMilestoneOrder`), glisser-déposer en ordre manuel (`SortableArea`), archivés (`useArchivedToggle`), cartes `PlanCard`, création / modification / suppression.
-- Internes : `MilestoneForm({ projectId, milestone?, onDone })` (schéma `milestoneFormSchema` ; nouveau : « Créer le jalon » ; existant : enregistré champ par champ, décision D22, `useFieldSave` — libellé et description en les quittant, la description par `fieldProps` —, seuls les champs changés envoyés, `SaveStatus` ; le jalon de `useTaskContext` suivi ; archivé ou projet archivé : lecture seule), `milestoneValues(milestone?)` (valeurs du formulaire), `SortableMilestone({ milestone, sortable, children })` (carte avec poignée `DragHandle`).
+- Internes : `MilestoneForm({ projectId, milestone?, onDone })` (schéma `milestoneFormSchema` ; nouveau : « Créer le jalon » ; existant : enregistré champ par champ, `useFieldSave` — libellé et description en les quittant, la description par `fieldProps` —, seuls les champs changés envoyés, `SaveStatus` ; le jalon de `useTaskContext` suivi ; archivé ou projet archivé : lecture seule), `milestoneValues(milestone?)` (valeurs du formulaire), `SortableMilestone({ milestone, sortable, children })` (carte avec poignée `DragHandle`).
 
 ### `components/SprintsPanel.tsx`
 
 - `SprintsPanel({ projectId })` : sprints d’un projet : état (`periodState`), avancement en tâches et en effort (`leafEffort`), cartes `PlanCard`, archivés, valeurs proposées pour un nouveau sprint (suite du dernier, même durée).
-- Internes : `SprintForm({ projectId, sprint?, defaults, onDone })` (schéma `sprintFormSchema` ; nouveau : « Créer le sprint » ; existant : enregistré champ par champ, décision D22, `useFieldSave`, le sprint entier à chaque champ — libellé et objectif en les quittant —, `SaveStatus` ; le sprint de `useTaskContext` suivi ; archivé ou projet archivé : lecture seule), `sprintValues(sprint)`, `sprintInput(values)`.
+- Internes : `SprintForm({ projectId, sprint?, defaults, onDone })` (schéma `sprintFormSchema` ; nouveau : « Créer le sprint » ; existant : enregistré champ par champ, `useFieldSave`, le sprint entier à chaque champ — libellé et objectif en les quittant —, `SaveStatus` ; le sprint de `useTaskContext` suivi ; archivé ou projet archivé : lecture seule), `sprintValues(sprint)`, `sprintInput(values)`.
 
 ### `components/PlanCard.tsx`
 
-- `PlanCard({ icon, title, archived, badges?, late?, dates, actions, progress, description?, targets, onDescription? })` : contenu de la carte d’un jalon ou d’un sprint (titre, badges, retard en rouge — décision AF —, dates, menu, avancement, description cochable).
+- `PlanCard({ icon, title, archived, badges?, late?, dates, actions, progress, description?, targets, onDescription? })` : contenu de la carte d’un jalon ou d’un sprint (titre, badges, retard en rouge, dates, menu, avancement, description cochable).
 
 ### `components/ProjectContributors.tsx`
 
@@ -241,11 +245,15 @@ Internes : `NEW_LABEL_TITLES`, `useLabelCreator(kind)` (ouvre le formulaire du l
 
 ### `components/ContributorsManager.tsx`
 
-- `ContributorsManager({ contributors, usage })` : section « Contributeurs » des paramètres généraux : badges « Moi », « Membre », « Relation » / « Proche », archivé ; modifier, archiver, supprimer (confirmation). `usage` : nombre de tâches assignées par contributeur. Utilisé par `features/projects/pages/SettingsPage.tsx`.
+- `ContributorsManager({ contributors, usage })` : section « Contributeurs » des paramètres généraux : badges « Moi », puis selon son lien (`link`) « Membre », « Relation » / « Proche » ou « Contact » (infobulle `linkName`), archivé ; modifier, archiver, supprimer (confirmation). `usage` : nombre de tâches assignées par contributeur. Utilisé par `features/projects/pages/SettingsPage.tsx`.
 
 ### `components/ContributorForm.tsx`
 
-- `ContributorForm({ contributor?, defaultProjectIds?, onDone })` : formulaire d’un nouveau contributeur (« Ajouter » ; identifiant proposé par `suggestHandle` tant qu’il n’est pas touché) ou panneau d’un contributeur existant enregistré champ par champ (décision D22, `useFieldSave` : nom et identifiant en les quittant, image et projets dès qu’ils changent, seuls les champs changés envoyés ; `SaveStatus` ; le contributeur de `useTaskContext` suivi ; archivé : lecture seule) : nom, identifiant, image (`IconField`, `formIconProps` : `avatar` / `removeAvatar`), projets (valeur du formulaire ; pas de projets pour « Moi »), et ses détails (`PersonDetailsFields` : date de naissance, rappels d’anniversaire, adresses mail, téléphones ; enregistrés en les quittant, les rappels dès qu’ils changent ; lot 16). Ouvert par `useContributorForm`.
+- `ContributorForm({ contributor?, defaultProjectIds?, onDone })` : formulaire d’un nouveau contributeur (« Ajouter » ; identifiant proposé par `suggestHandle` tant qu’il n’est pas touché) ou panneau d’un contributeur existant enregistré champ par champ (`useFieldSave` : nom et identifiant en les quittant, image et projets dès qu’ils changent, seuls les champs changés envoyés ; `SaveStatus` ; le contributeur de `useTaskContext` suivi ; archivé : lecture seule) : nom, identifiant, image (`IconField`, `formIconProps` : `avatar` / `removeAvatar`), son lien (`ContributorLinkField`, valeur `link`, enregistrée dès qu’elle est choisie), projets (valeur du formulaire ; pas de projets pour « Moi »). Ouvert par `useContributorForm`.
+
+### `components/ContributorLinkField.tsx`
+
+- `ContributorLinkField({ value, onChange, contributor?, errors })` : « Coordonnées et anniversaire » d’un contributeur (`LabeledField`) : `SegmentedControl` « Membre », « Relation » / « Proche », « Contact » (PRO), « Aucun » (désactivé pour « Moi ») ; membre et aucun envoyés aussitôt, une relation ou un contact une fois choisi dans sa liste (`Select`, relations libres de `useTreasurySettings`, contacts libres de `useClientContacts` groupés par client ; archivés non proposés sauf l’actuel ; erreurs `link.relationId`, `link.contactId`, `link`) ; dessous, en lecture seule, la provenance, la date de naissance (`birthDateText`) et les coordonnées (`ContactLines`) de ce à quoi il est lié, et « Ouvrir la fiche » (`ActionButton` tertiaire) qui ouvre la fiche où elles se modifient : `openMemberForm`, `openRelationForm`, `openContactForm` (rien pour un nouveau membre ni pour « Aucun », ni pendant un choix). Utilisé par `ContributorForm`.
 
 ### `components/TaskTable.module.css`
 
@@ -271,10 +279,10 @@ Classe `recurring` (dans la couche `app`) : les petites icônes devant le libell
 
 | Nom                  | Résultat                                                       |
 | -------------------- | -------------------------------------------------------------- |
-| `taskRef(task)`      | Réexporté de `@ordo/shared` (lot 17c) : « #12 » suivi d’une espace, vide sans projet.                  |
+| `taskRef(task)`      | Réexporté de `@ordo/shared` : « #12 » suivi d’une espace, vide sans projet.                  |
 | `taskNumber(task)`   | « #12 », vide sans projet.                                     |
 | `closedMark(task)`   | « (fermée) » avec son espace, ou rien.                         |
-| `taskNumbered(task)` | Réexporté de `@ordo/shared` (lot 17c) : « #12 Libellé », le libellé seul sans projet.                  |
+| `taskNumbered(task)` | Réexporté de `@ordo/shared` : « #12 Libellé », le libellé seul sans projet.                  |
 | `taskName(task)`     | Nom dans un message : « #12 », ou « « Libellé » » sans projet. |
 
 Internes : `NO_PROJECT_LABEL` (« Sans projet »), `NO_PROJECT_NODE`.
@@ -286,11 +294,11 @@ Internes : `NO_PROJECT_LABEL` (« Sans projet »), `NO_PROJECT_NODE`.
 
 ### `hooks/use-task-actions.tsx`
 
-- `useTaskActions(context)` : `{ menu(task), close(task), create(defaults?) }` : entrées du menu d’une tâche (« Dupliquer », « Transférer », « Transformer en routine » — `useConvertActivity().toRoutine`, lot 15 —, « Archiver », « Supprimer », puis « Lancer » chacun de ses temps morts — `deadTimeMenuEntries`, décision FT — ; « Restaurer », « Supprimer » si archivée), « Fermer » / « Rouvrir » d’une tâche seule (`close` de `useTaskRowsActions` : toast avec « Annuler », bouton du panneau) et ouverture du formulaire de création dans le panneau (« Nouvelle tâche » / « Nouvelle sous-tâche »). Utilisé par `TaskBoard`, `TaskPanel`, le menu « Ajouter » de l’en-tête.
+- `useTaskActions(context)` : `{ menu(task), close(task), create(defaults?) }` : entrées du menu d’une tâche (« Dupliquer », « Transférer », « Héritage… » (une sous-tâche), « Transformer en routine » — `useConvertActivity().toRoutine` —, « Archiver », « Supprimer », puis « Lancer » chacun de ses temps morts — `deadTimeMenuEntries` — ; « Restaurer », « Supprimer » si archivée), « Fermer » / « Rouvrir » d’une tâche seule (`close` de `useTaskRowsActions` : toast avec « Annuler », bouton du panneau) et ouverture du formulaire de création dans le panneau (« Nouvelle tâche » / « Nouvelle sous-tâche »). Utilisé par `TaskBoard`, `TaskPanel`, le menu « Ajouter » de l’en-tête.
 
 ### `hooks/use-task-columns.ts`
 
-- `useTaskColumns(context, today, { doable?, eventComments? })` : colonnes du tableau des tâches (`taskColumns`) avec ce qui leur manque : tâches faisables (`useDoableTaskIds`, seulement si `doable`), alarmes (`useTaskAlarmCounts`), listes d’achats, créneaux et types que la condition peut citer (`useSlotChoices().all`, `slotSchedules` : le filtre « Créneaux » porte sur les créneaux et types cités par la condition, `conditionReferences`), commentaires des évènements. Utilisé par `TaskBoard`, `ColumnDefaults`, `TaskFilterBuilder`, et les tableaux de bord / l’accueil via `matchTasks`.
+- `useTaskColumns(context, today, { doable?, eventComments? })` : colonnes du tableau des tâches (`taskColumns`) avec ce qui leur manque : tâches faisables (`useDoableTaskIds`, seulement si `doable`), alarmes (`useTaskAlarmCounts`), listes d’achats, créneaux et types que la condition peut citer (`useSlotChoices().all`, `slotSchedules` : le filtre « Créneaux » porte sur les créneaux et types cités par la condition, `conditionReferences`), commentaires des évènements. Utilisé par `TaskBoard`, `ColumnDefaults`, `TaskFilterBuilder`, la carte « Tâches » de l’accueil (`TasksCard`), et les tableaux de bord / l’accueil via `matchTasks`.
 
 ### `hooks/use-label-items.tsx`
 
@@ -310,6 +318,8 @@ Internes : `NO_PROJECT_LABEL` (« Sans projet »), `NO_PROJECT_NODE`.
 | -------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `TaskTableRow` (type)                                                      | Ligne du tableau : `{ kind: 'task', task }` ou `{ kind: 'event', event }`.                                                                                                                                                                                                                                                                                                                                                                                                                                                              |
 | `taskColumns(context, today, extras?)`                                     | Toutes les colonnes `DataColumn` des tâches : libellés, tailles, tri (`sortValue`), texte (`taskCell` / `eventCell`), filtres (projet avec parents, « Moi », sprints relatifs, parent avec ancêtres…), groupes (projets en arbre), colonnes de masse ; plus les colonnes cachées « Numéro », « Description », drapeaux (`flag` interne : « Fermée », « En retard », « Bloquée », « A des sous-tâches », « Archivée », « Faisable maintenant », « A des achats », « A des alarmes », « A des commentaires ») et « Catégorie de statut ». |
+| `taskTableRows(tasks)` | Lignes du tableau faites de tâches, dans leur ordre manuel (puis par numéro). Utilisé par `TaskBoard` et l’accueil (`TasksCard`). |
+| `isArchivedTaskRow(row)` | Ligne d’une tâche archivée (écartée tant que « Afficher les archivées » est éteint). Utilisé par `TaskBoard` et l’accueil. |
 | `matchTasks(tasks, columns, { filter, search?, includeArchived? }, today)` | Tâches gardées par un filtre exprimé dans les colonnes du tableau. Utilisé par l’accueil (`home-data.ts`) et les tableaux de bord (`chart-data.ts`).                                                                                                                                                                                                                                                                                                                                                                                    |
 | `filterUses(group, field)`                                                 | Le filtre a-t-il une condition sur ce champ (pour ne charger que le nécessaire).                                                                                                                                                                                                                                                                                                                                                                                                                                                        |
 | `eventRowKey(event)`                                                       | Clé de la ligne d’un évènement (`taggedKey('e', …)`).                                                                                                                                                                                                                                                                                                                                                                                                                                                                                   |
@@ -338,9 +348,18 @@ Internes : `TaskColumnExtras`, `STATUS_CATEGORY_ORDER`, `STATUS_CATEGORY_LABELS`
 
 - `useCellEdit(task, column)` : enregistre une modification de cellule : sur la tâche seule (`updateTask`), ou sur toute la sélection en une requête de masse avec son annulation (`useEntityCellEdit`, `bulkUpdateTasks`, toast « Modification appliquée à … ») ; renvoie `{ apply, count, targets }`. Les tâches archivées sont exclues de la sélection.
 
+### `lib/task-inheritance.ts`
+
+Héritage des sous-tâches à l’écran (règles : [Héritage](../../../business-rules/activities/tasks.md#héritage)).
+
+- `taskRow(task)` : tâche telle que les écrans la lisent : chaque champ hérité avec la valeur suivie (`inheritedRow` sur `TASK_INHERITED_COLUMNS`) ; une « Ouverture » ou une « Échéance » héritée prend celle du parent, sinon reste vide (la date du jalon, du projet ou du sprint s’affiche à sa place, `inheritedDateHint`). Appliquée par `useTasksData` : cellules, panneau, filtres, tris, groupes et export.
+- `TASK_FIELD_LABELS`, `TASK_INHERITANCE_OPTIONS` (champs de « Héritage… », le projet sans « Vider »), `TASK_CELL_FIELDS` (champ hérité de chaque colonne).
+- `taskFieldState(task, field, save)` : état et actions d’un champ du panneau (`clear`, `inherit` enregistrés aussitôt).
+- `taskParentName(task, taskById)` : « « #12 Libellé » », nom du parent dans les mentions.
+
 ### `lib/bulk-undo.ts`
 
-- `useBulkUndo()` : fabriques des « Annuler » des toasts, à partir de l’état des tâches avant l’action : `changes(tasks, changes)` (rétablit champs et ajouts / retraits, `restoring: true`), `closed(tasks, closed)` (une tâche « Annulé » rouverte à la main retrouve aussi son statut, qui la referme : `update` du statut avec `restoring`), `archived(tasks, archived)`, `transfer(levels)` (remet chaque niveau dans son projet). Toasts « Action annulée. » / « L’action n’a pas pu être annulée. ».
+- `useBulkUndo()` : fabriques des « Annuler » des toasts, à partir de l’état des tâches avant l’action : `changes(tasks, changes)` (rétablit champs et ajouts / retraits, `restoring: true` ; un champ qui était hérité ou vidé exprès redevient hérité ou vidé : `inheritFields` / `clearFields`), `inheritance(tasks, fields)` (après « Héritage… » : chaque champ remis hérité, vidé ou à sa valeur propre par `updateTask`, le projet propre par un transfert ; interne `restoredField`), `closed(tasks, closed)` (une tâche « Annulé » rouverte à la main retrouve aussi son statut, qui la referme : `update` du statut avec `restoring`), `archived(tasks, archived)`, `transfer(levels)` (remet chaque niveau dans son projet). Toasts « Action annulée. » / « L’action n’a pas pu être annulée. ».
 - Internes : `SCALAR_FIELDS`, `revertChanges`, `idsBy`.
 
 ### `lib/bulk-label.ts`
@@ -371,8 +390,8 @@ Internes : `TaskColumnExtras`, `STATUS_CATEGORY_ORDER`, `STATUS_CATEGORY_LABELS`
 
 ### `lib/task-overdue.ts`
 
-- `isTaskOverdue(task, today)` : « Échéance » suivie (`effectiveDeadline`, calculée par l’API : la sienne, sinon celle de son sprint unique) passée et tâche non fermée (décision DD) ; la seule implémentation (règle eslint, sur `deadline` et `effectiveDeadline`).
-- `sprintDateHint(task, field)` (`lib/sprint-dates.ts`) : « 12 nov. 2026 (sprint) » quand la tâche prend son « Ouverture » ou son « Échéance » de son sprint unique (`minDateFromSprint`, `deadlineFromSprint`), sinon `null` ; texte grisé du champ vide (`DateCell`, `TaskPanel`).
+- `isTaskOverdue(task, today)` : « Échéance » suivie (`effectiveDeadline`, calculée par l’API avec `effectiveTask` : la sienne, celle de son parent, de son jalon ou de son premier sprint) passée et tâche non fermée.
+- `inheritedDateHint(task, field)` (`lib/inherited-dates.ts`) : « 12 nov. 2026 (parent) », « (jalon) », « (projet) » ou « (sprint) » quand la tâche n’a pas d’« Ouverture » ou d’« Échéance » à elle (`minDateSource`, `deadlineSource`, mots de `INHERIT_SOURCE_LABELS`), à la place du champ vide (tableau et panneau) ; `null` avec sa propre date ou sans date suivie. Remplace `sprintDateHint`.
 
 ### `lib/my-tasks.ts`
 
@@ -388,7 +407,7 @@ Internes : `TaskColumnExtras`, `STATUS_CATEGORY_ORDER`, `STATUS_CATEGORY_LABELS`
 
 - `MilestoneOrder` : `'dueDate' | 'label' | 'manual'`.
 - `MILESTONE_ORDER_OPTIONS` : « Échéance », « Libellé », « Manuel ».
-- `useMilestoneOrder()` : ordre choisi, retenu dans le navigateur (`ordo.milestones.order` ; l’ancien `title` relu `label`, décision BI). Interne : `readMilestoneOrder`.
+- `useMilestoneOrder()` : ordre choisi, retenu dans le navigateur (`ordo.milestones.order` ; l’ancien `title` relu `label`). Interne : `readMilestoneOrder`.
 - `sortMilestones(milestones, order)` : tri (sans échéance en dernier).
 
 ### `lib/plan-card-actions.tsx`

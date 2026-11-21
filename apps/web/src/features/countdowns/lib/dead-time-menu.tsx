@@ -7,7 +7,7 @@ import { openCountdownForm } from './open-countdown-form';
 
 /**
  * Entries « Lancer « Lave-linge (1 h 30) » » of the menu of a task or a routine (its row « … », its panel), under a
- * section « Temps morts » (decision FT): each opens the form launching its timer (its duration editable). None without
+ * section « Temps morts »: each opens the form launching its timer (its duration editable). None without
  * dead times.
  * @param {readonly DeadTimeOutput[]} value Dead times of the item.
  * @param {DeadTimeItem} item Item.

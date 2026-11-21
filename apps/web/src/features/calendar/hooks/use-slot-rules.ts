@@ -99,7 +99,7 @@ export function useSlotRules(): SlotRules {
 
   return useMemo(() => {
     // The schedules of the workspace and of the other ones, and the birthdays (as the API): the archived ones, those of
-    // archived kinds and of archived people give no moment (decision FQ).
+    // archived kinds and of archived people give no moment.
     const foreign = sources.foreignSchedules ?? [];
     const archivedKinds = archivedIds([...(sources.types ?? []), ...(sources.foreignKinds ?? []).flatMap((kind) => (kind.typeId ? [{ id: kind.typeId, archived: kind.archived }] : []))]);
     const slotsOn = scheduleSlotsOn(

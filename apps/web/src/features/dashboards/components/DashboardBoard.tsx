@@ -249,7 +249,7 @@ function ChartCard({ chart, index, count, scope, context, dashboardLabel, captur
                           onSubmit: (label) => updateChart.mutateAsync({ id: chart.id, input: { label, config, wide: chart.wide } }),
                         }),
                     },
-                    // Saved at once, then its editor opens (decision D20).
+                    // Saved at once, then its editor opens.
                     rowMenuEntry(
                       duplicateRowsAction([chart], {
                         duplicate: (source) => duplicateChart.mutateAsync(source.id),

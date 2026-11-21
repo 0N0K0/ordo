@@ -7,7 +7,7 @@ interface BirthDateFieldProps {
   /** Birth date: `YYYY-MM-DD`, `--MM-DD` without year, or none. */
   value: string | null;
   onChange: (value: string | null) => void;
-  /** Called on leaving a part of the field: the birth date is saved then (a panel saved field by field, decision D22). Optional. */
+  /** Called on leaving a part of the field: the birth date is saved then (a panel saved field by field). Optional. */
   onBlur?: () => void;
   error?: string;
 }
@@ -42,7 +42,7 @@ function valueOf(parts: Parts): string | null {
 }
 
 /**
- * « Date de naissance » of a person (lot 16): day, month, and the year when known (the age is shown then). Emptied
+ * « Date de naissance » of a person: day, month, and the year when known (the age is shown then). Emptied
  * day or month: none.
  * @param {BirthDateFieldProps} props Component props.
  * @returns {JSX.Element} Field.

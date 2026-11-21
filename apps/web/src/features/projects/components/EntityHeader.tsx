@@ -7,7 +7,7 @@ import { ItemAvatar } from '../../../components/items/ItemAvatar';
 import { entityLabel, useEntityActions, type EntityRef } from '../hooks/use-entity-actions';
 
 /**
- * Header of the page of a client or a project, as the other detail pages (decision DG: `DetailHeader`): avatar, name,
+ * Header of the page of a client or a project, as the other detail pages (`DetailHeader`): avatar, name,
  * state badges, favorite and other actions, then the « … » menu archiving and deleting it (it is edited in the settings
  * sidebar of its page).
  * @param {object} props Component props.

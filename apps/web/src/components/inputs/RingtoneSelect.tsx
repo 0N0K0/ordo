@@ -14,7 +14,7 @@ interface RingtoneSelectProps extends Omit<SelectProps, 'data' | 'value' | 'onCh
 }
 
 /**
- * Ringtone of what rings (a reminder, a dead time, a timer; decisions FS and FT), the same everywhere: « Celle des
+ * Ringtone of what rings (a reminder, a dead time, a timer), the same everywhere: « Celle des
  * réglages » first, then the ringtones of the bank.
  * @param {RingtoneSelectProps} props Component props.
  * @returns {JSX.Element} Select.

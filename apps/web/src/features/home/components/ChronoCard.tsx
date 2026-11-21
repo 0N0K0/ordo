@@ -16,8 +16,8 @@ import { ActionButton } from '../../../components/actions/ActionButton';
 import { PAGES } from '../../../app/pages';
 
 /**
- * Timer and alarms: the running chronos (several at once, decision FT) and a button starting another one, or the form
- * starting one; the running timers (« minuteurs ») with their commands and « Lancer un minuteur » (decision FV); a
+ * Timer and alarms: the running chronos (several at once) and a button starting another one, or the form
+ * starting one; the running timers (« minuteurs ») with their commands and « Lancer un minuteur »; a
  * button programming an alarm, with the next one to ring.
  * @param {{ context: TaskContext | null }} props Component props.
  * @returns {JSX.Element} Card.

@@ -65,7 +65,7 @@ import { useClientBilling, useCompanyProfile } from '../api';
 import { documentMailOptions, openPdfPreview, pdfUrl } from '../lib/document-pdf';
 import { useAccountingDocument, useDocumentMutations, useLatestDocumentDate, useRecurringInvoices, type AccountingDocument } from '../api/documents';
 import { ArchivedBadge } from '../../../components/feedback/ArchivedBadge';
-import { archiveEntry, useSetArchived } from '../../../lib/archive';
+import { archiveEntry, unarchived, useSetArchived } from '../../../lib/archive';
 import { accountingQueryKey } from '../api';
 import { SettingsSection } from '../../../components/settings/SettingsSection';
 import { DOCUMENT_TYPE_LABELS, documentName, documentTitle, DRAFT_NAME, isFeminineDocumentType } from '../lib/labels';
@@ -138,7 +138,7 @@ function documentValues(document: AccountingDocument): FormValues {
 }
 
 /**
- * Fields of a document saved on leaving them (decision D22): texts, the lines, the discount and the deposit (the
+ * Fields of a document saved on leaving them: texts, the lines, the discount and the deposit (the
  * others are saved as soon as they change).
  */
 const ON_BLUR = [
@@ -161,7 +161,7 @@ const ON_BLUR = [
 
 /**
  * Editor of a loaded document. A draft or a model saves each field as soon as it changes (texts, lines, discount and
- * deposit on leaving them, decision D22, `useFieldSave`): the whole document each time, its totals recomputed by the
+ * deposit on leaving them, `useFieldSave`): the whole document each time, its totals recomputed by the
  * API. A final or archived document is read only.
  * @param {{ document: AccountingDocument }} props Component props.
  * @returns {JSX.Element} Editor.
@@ -524,7 +524,8 @@ function Editor({ document }: { document: AccountingDocument }) {
                     clearable
                     readOnly={locked}
                     placeholder="Aucun"
-                    data={(client?.contacts ?? [])
+                    // Archived contacts are not offered, the document's own stays.
+                    data={unarchived(client?.contacts ?? [], document.contactId)
                       .filter((contact) => !values.serviceId || !contact.serviceId || contact.serviceId === values.serviceId)
                       .map((contact) => ({ value: contact.id, label: contactName(contact) }))}
                     {...form.getInputProps('contactId')}

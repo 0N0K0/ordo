@@ -157,7 +157,7 @@ export const treasuryRelationSchema = z.object({
   note: optionalPlainText(),
   /** Contributor this person also is, if any (not a member). */
   contributorId: z.string().nullish(),
-  /** Birth date, birthday reminders, email addresses, phones (lot 16); omitted: left unchanged (none for a new one). */
+  /** Birth date, birthday reminders, email addresses, phones; omitted: left unchanged (none for a new one). */
   ...personDetailsChangesSchema.shape,
 });
 export type TreasuryRelationInput = z.input<typeof treasuryRelationSchema>;
@@ -172,16 +172,16 @@ export const treasuryContextSchema = z.object({
 export const EVERYDAY_CONTEXT = 'Quotidien';
 export type TreasuryContextInput = z.input<typeof treasuryContextSchema>;
 
-/** Éphéméride of a kind that is a context of the budget (lot 16): one of the periods of that context. */
+/** Éphéméride of a kind that is a context of the budget: one of the periods of that context. */
 export interface ContextEphemeris {
   contextId: string;
   rule: WorkScheduleRule;
 }
 
 /**
- * Context proposed on a day, from the éphémérides of the contexts (they replace the planned periods, lot 16): the
+ * Context proposed on a day, from the éphémérides of the contexts (they replace the planned periods): the
  * context of the éphémérides with slots that day (whole day or hours) when they all are of one context (several of it
- * still are one), none when several contexts cover the day (two contexts at once: the user chooses, decision FN) or
+ * still are one), none when several contexts cover the day (two contexts at once: the user chooses) or
  * none does (everyday spending). The answer of each day is kept.
  * @param {readonly ContextEphemeris[]} ephemerides Éphémérides of the contexts.
  * @returns {(date: string) => string | null} Context id of a day.

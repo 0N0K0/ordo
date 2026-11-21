@@ -29,10 +29,10 @@ const RINGS_MS = 60_000;
 /**
  * Rings the alarms of the workspace open while the app is (`startRinging`: the ringtone of the settings of the user or
  * of the reminder, for their duration, a system notification when allowed, a toast with « Arrêter » and « Répéter
- * dans N min », rung again as set; the rings kept by the API followed every minute, decision FS). Scheduled alarms ring at their times (missed ones, within a few hours, ring
+ * dans N min », rung again as set; the rings kept by the API followed every minute). Scheduled alarms ring at their times (missed ones, within a few hours, ring
  * on opening); tracking alarms ring after every set duration of each running timer; the reminders of events, routines,
  * tasks, éphémérides and birthdays at their moments; the timers of the user at their end, in any workspace
- * (`useCountdownRinger`, decision FT). Renders nothing.
+ * (`useCountdownRinger`). Renders nothing.
  * @returns {null} Nothing.
  */
 export function AlarmCenter() {
@@ -78,12 +78,12 @@ export function AlarmCenter() {
   });
 
   useEffect(() => unlockAudioOnGesture(), []);
-  // What the service worker tells: a ring pushed while visible, a ring stopped or snoozed from a notification (lot 17c).
+  // What the service worker tells: a ring pushed while visible, a ring stopped or snoozed from a notification.
   useEffect(() => listenToPushes(), []);
   useCountdownRinger();
 
   // The ring follows the settings of the user; a link of a ring kept by the API opens its page in its workspace; a ring
-  // shown again from the API (reload, another tab or device) of the workspace open gets its actions back (decision FV).
+  // shown again from the API (reload, another tab or device) of the workspace open gets its actions back.
   useEffect(() => {
     /**
      * Actions of a ring shown again, rebuilt from its key: « Marquer comme faite » (the current occurrence of a routine),

@@ -2,7 +2,7 @@ import { CheckIcon, PencilSimpleIcon } from '@phosphor-icons/react';
 import { IconAction } from './IconAction';
 
 /**
- * Pencil of a section edited in place in a detail panel saved field by field (decision D22): opens its editor; while
+ * Pencil of a section edited in place in a detail panel saved field by field: opens its editor; while
  * editing, a check goes back to what is shown (what was typed is saved already, on leaving the editor).
  * @param {{ editing: boolean, onChange: (editing: boolean) => void, what: string }} props Whether it is edited, its change, and what is edited (« les liens », « la description »).
  * @returns {JSX.Element} Action.

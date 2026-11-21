@@ -14,7 +14,7 @@ Champ markdown à la GitHub (~17 fichiers : tâches, trésorerie, temps, factura
 
 Fonctionnement :
 
-- saisie limitée à `MARKDOWN_MAX` (65 536 caractères, `maxLength`, décision DO) ;
+- saisie limitée à `MARKDOWN_MAX` (65 536 caractères, `maxLength`) ;
 - onglets « Écrire » / « Aperçu » (l'aperçu est un `MarkdownView` dont les cases restent cochables ; vide : « Rien à prévisualiser. ») ;
 - barre d'outils « Mise en forme » (onglet Écrire), table `COMMANDS` : « Titre » (`### `), « Gras » (Ctrl+B), « Italique » (Ctrl+I), « Citation », « Code » (Ctrl+E : en ligne, ou bloc si plusieurs lignes, fonction interne `codeCommand`), « Lien » (Ctrl+K), « Liste à puces », « Liste numérotée », « Liste de tâches », « Mentionner un contributeur » (insère « @ »), « Référencer une tâche » (insère « # ») ; les commandes s'annulent si la sélection est déjà mise en forme ;
 - « Joindre des fichiers » : fichiers choisis, glissés ou collés, envoyés (`uploadAttachment`) et insérés un par ligne (image affichée, autre fichier en lien) ; taille maximale `MAX_ATTACHMENT_BYTES` (message `fileTooLarge`), échecs en toast ; pied « Envoi de N fichiers… » pendant l'envoi ;
@@ -55,7 +55,7 @@ Exception eslint connue : ce fichier importe `features/files` (une brique commun
 - `referenceLabel(task, projectId)` : libellé d'une référence vue depuis le projet du texte (via `taskShortRef` avec `task.place`).
 - `taskShortRef(task, projectId, place)` : « #12 » dans le même projet, « Projet #12 » sinon, le libellé pour une tâche sans projet.
 - `taskReferenceUrl(id)` : adresse d'une tâche dans un texte, `?task=<id>` (par id : le numéro change avec un transfert).
-- `remarkReferences(targets)` : plugin remark : un « #12 » tapé devient un lien vers la tâche 12 du projet du texte ; un lien `?task=<id>` affiche le numéro actuel (avec client et projet si autre projet). Numéros inconnus et mentions « @handle » restent du texte (décision DK). Pas de remplacement dans les liens, le code et les définitions ; « a#1 » (collé à un mot) n'est pas touché.
+- `remarkReferences(targets)` : plugin remark : un « #12 » tapé devient un lien vers la tâche 12 du projet du texte ; un lien `?task=<id>` affiche le numéro actuel (avec client et projet si autre projet). Numéros inconnus et mentions « @handle » restent du texte, sans lien. Pas de remplacement dans les liens, le code et les définitions ; « a#1 » (collé à un mot) n'est pas touché.
 
 ## `task-list.ts`
 

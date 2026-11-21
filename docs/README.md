@@ -3,8 +3,10 @@
 Référence de l’application : ce qu’elle permet de faire, les règles qu’elle applique, et le rôle de chaque morceau du code web et du code partagé. Les dossiers suivent les groupes du menu de l’application : Activités, Économat, Finances, Ressources, plus ce qui est transversal.
 
 - [Déploiement](deployment.md) : hébergement, environnements, mise en production.
-- [Redondances du code](code-redundancies.md) : unifications faites, décisions prises.
+- [Redondances du code](code-redundancies.md) : ce qui reste en double ou contourne une brique commune dans le code.
 - [Écarts relevés](discrepancies.md) : bugs, incohérences et points à confirmer relevés en écrivant cette documentation.
+
+Chaque page dit la règle telle qu’elle est : ni lettre de décision, ni lot, ni date, ni historique. `npm run lint` (à la racine) le vérifie par `scripts/check-docs.mjs`, qui refuse aussi un lien relatif ou une ancre qui ne mène nulle part ; la règle des références au plan est celle du code (`PLAN_REFERENCE` de `packages/shared/eslint-rules.js`).
 
 ## Fonctionnalités
 
@@ -32,7 +34,7 @@ Chaque fichier, composant, hook, fonction et constante de `apps/web/src`, avec s
 
 - [Application](web/app.md) : routes, mise en page, thème, conventions du code.
 - [Utilitaires](web/lib.md) : `apps/web/src/lib`.
-- **Composants communs** : [Actions : boutons, menus, pliage](web/components/actions.md) · [Adresses (composants communs)](web/components/address.md) · [Fil de commentaires (composant commun)](web/components/comments.md) · [Tableau de données (composants web)](web/components/data-table.md) · [Dialogues et boutons de formulaire](web/components/dialogs.md) · [Glisser-déposer (composants web)](web/components/dnd.md) · [Retours : alertes, états vides, chargements, badges d'état](web/components/feedback.md) · [Filtres (composants web)](web/components/filters.md) · [Champs de saisie communs](web/components/inputs.md) · [Éléments des listes de réglages : avatars, badges, options](web/components/items.md) · [Markdown : éditeur, rendu, références](web/components/markdown.md) · [Montants signés](web/components/money.md) · [Structure des pages : en-têtes, sections, tuiles](web/components/page.md) · [Panneau latéral et modales](web/components/panels.md) · [Personnes : sélections, clés, libellés](web/components/people.md) · [Répétitions : règles, cas, durées](web/components/recurrence.md) · [Réglages (composants web)](web/components/settings.md) · [Onglets (composants web)](web/components/tabs.md) · [Arbres (composants web)](web/components/tree.md)
+- **Composants communs** : [Actions : boutons, menus, pliage](web/components/actions.md) · [Adresses (composants communs)](web/components/address.md) · [Fil de commentaires (composant commun)](web/components/comments.md) · [Tableau de données (composants web)](web/components/data-table.md) · [Dialogues et boutons de formulaire](web/components/dialogs.md) · [Glisser-déposer (composants web)](web/components/dnd.md) · [Retours : alertes, états vides, chargements, badges d'état](web/components/feedback.md) · [Filtres (composants web)](web/components/filters.md) · [Héritage : champs hérités d’un parent](web/components/inheritance.md) · [Champs de saisie communs](web/components/inputs.md) · [Éléments des listes de réglages : avatars, badges, options](web/components/items.md) · [Markdown : éditeur, rendu, références](web/components/markdown.md) · [Montants signés](web/components/money.md) · [Structure des pages : en-têtes, sections, tuiles](web/components/page.md) · [Panneau latéral et modales](web/components/panels.md) · [Personnes : sélections, clés, libellés](web/components/people.md) · [Répétitions : règles, cas, durées](web/components/recurrence.md) · [Réglages (composants web)](web/components/settings.md) · [Onglets (composants web)](web/components/tabs.md) · [Arbres (composants web)](web/components/tree.md)
 
 ### Fonctionnalités
 

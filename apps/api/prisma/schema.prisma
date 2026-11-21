@@ -35,10 +35,11 @@ model Workspace {
   scheduleDayDisplay        String                     @default("SLOT_BACKGROUND")
   scheduleDayBar            Boolean                    @default(true)
   scheduleMonthDisplay      String                     @default("BACKGROUND")
-  /// Birthdays of its people in its calendar (decision FX): shown or not (hidden, their reminders still ring), color
-  /// (none: the gray of the éphémérides) and display, as a kind of éphémérides.
+  /// Birthdays of its people in its calendar, shown as all-day events: shown or not (hidden, their reminders
+  /// still ring) and color (none: the gray of the éphémérides).
   birthdayShown             Boolean                    @default(true)
   birthdayColor             String?
+  /// Unused: birthdays no longer have a display of their own (they are all-day events).
   birthdayDayDisplay        String                     @default("SLOT_BACKGROUND")
   birthdayDayBar            Boolean                    @default(true)
   birthdayMonthDisplay      String                     @default("BACKGROUND")
@@ -167,17 +168,17 @@ model User {
   /// Contributor profile of the user in each workspace ("Moi"): tasks can be assigned to them like to anyone else.
   contributors      Contributor[]
   /// How alarms and reminders ring, in every workspace: { ringMinutes, loop, repeatMinutes, ringtone, outside }; none:
-  /// the defaults (decision FS).
+  /// the defaults.
   ringSettings      Json?
   alarmRings        AlarmRing[]
   countdowns        Countdown[]
-  /// Devices receiving the push notifications of the user (lot 17c).
+  /// Devices receiving the push notifications of the user.
   pushSubscriptions PushSubscription[]
 }
 
-/// A ring of an alarm or a reminder of the user (decision FS), one per ring key: what its toast shows, when it rings
+/// A ring of an alarm or a reminder of the user, one per ring key: what its toast shows, when it rings
 /// again (repetition, « Répéter dans N min ») and whether it was stopped, followed by every tab and device (and by the
-/// push notifications, lot 17c). Kept 6 hours after its last change.
+/// push notifications). Kept 6 hours after its last change.
 model AlarmRing {
   id           String    @id @default(cuid())
   userId       String
@@ -209,7 +210,7 @@ model AlarmRing {
   @@index([userId, updatedAt])
 }
 
-/// A device (browser) of the user subscribed to the push notifications (Web Push, lot 17c, decision FU), shared by the
+/// A device (browser) of the user subscribed to the push notifications (Web Push), shared by the
 /// workspaces as the rings: the server pushes the rings of the alarms and reminders to it while « Sonner hors de l'app »
 /// is on. Deleted when the push service says it expired (404, 410), when it is removed, or when its user is deleted.
 model PushSubscription {
@@ -230,8 +231,8 @@ model PushSubscription {
   @@index([userId])
 }
 
-/// A timer (« minuteur », countdown) of the user (decision FT), shared by the workspaces as its rings: it counts down
-/// and rings at its end. Running: `endsAt` (the moment the server can push its end, lot 17c); paused: `remainingSeconds`.
+/// A timer (« minuteur », countdown) of the user, shared by the workspaces as its rings: it counts down
+/// and rings at its end. Running: `endsAt` (the moment the server can push its end); paused: `remainingSeconds`.
 /// Rung (`rungAt`): its ring goes on as an `AlarmRing` (key `countdown:<id>`), the timer no longer shows; removed 6 hours
 /// after. A timer launched from a dead time of a task or a routine (occurrence) keeps them (ids only: no relation).
 model Countdown {
@@ -433,8 +434,14 @@ model ClientContact {
   email       String?
   jobTitle    String?
   phones      Json                 @default("[]")
+  /// Archived: hidden by default and read only until restored; archived and restored with its contributor.
+  archivedAt  DateTime?
+  /// Archived along with its client: restoring the client restores it.
+  archivedByCascade Boolean        @default(false)
   createdAt   DateTime             @default(now())
   documents   AccountingDocument[]
+  /// Contributor this contact is, if any.
+  contributor Contributor?
   /// Workspace the row belongs to (always given by the app; the default fails outside one).
   workspaceId String               @default(dbgenerated("current_setting('ordo.workspace'::text)"))
   workspace   Workspace            @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
@@ -554,8 +561,10 @@ model Contributor {
   handle                String
   iconId                String?
   icon                  Icon?               @relation(fields: [iconId], references: [id], onDelete: SetNull)
-  /// Archived: hidden by default and read only until restored.
+  /// Archived: hidden by default and read only until restored; archived and restored with its relation or its contact.
   archivedAt            DateTime?
+  /// Archived along with the client of its contact: restoring the client restores it.
+  archivedByCascade     Boolean             @default(false)
   createdAt             DateTime            @default(now())
   tasks                 Task[]
   /// Projects the contributor is attached to; sub-projects inherit them.
@@ -566,15 +575,20 @@ model Contributor {
   user                  User?               @relation(fields: [userId], references: [id], onDelete: SetNull)
   /// GitHub login: assignees are synchronized with the GitHub boards through it.
   githubLogin           String?
-  /// Birth date: YYYY-MM-DD, or --MM-DD when the year is not known (lot 16). Its birthday is a whole-day éphéméride
-  /// derived at read time.
+  /// Birth date: YYYY-MM-DD, or --MM-DD when the year is not known. Its own details (birth date, birthday
+  /// reminders, email addresses, phones) apply only while it is a member of the team or household; otherwise they stay
+  /// stored, unused, and its details are those of what it is linked to (relation, contact).
   birthDate             String?
   /// Reminders of its birthday: [{ before: null, at: "HH:MM", days }] (on the day or some days before).
   birthdayReminders     Json                @default("[]")
-  /// [{ label, address }]: several email addresses (lot 16c).
+  /// [{ label, address }]: several email addresses.
   emails                Json                @default("[]")
   /// [{ label, number }]
   phones                Json                @default("[]")
+  /// Client contact this contributor is (professional workspace): its email and phones are the contributor's. A
+  /// contact is one contributor at most; a contributor is linked to one of a membership, a relation or a contact at most.
+  contactId             String?             @unique
+  contact               ClientContact?      @relation(fields: [contactId], references: [id], onDelete: SetNull)
   /// Member of the team (professional workspace) or household (personal one): treasury entries are split
   /// between members. The app user ("Moi") always is one.
   teamMember            Boolean             @default(false)
@@ -742,12 +756,16 @@ model Task {
   /// Reminders [{ before: null, at: "HH:MM" }] (Paris time), 10 at most: rung every day from « Ouverture » to
   /// « Échéance » (the « Échéance » day only without « Ouverture »; never without « Échéance »).
   reminders            Json               @default("[]")
-  /// « Temps morts » [{ label, minutes, ringtone? }], 20 at most: waits a timer is launched for (decision FT).
+  /// « Temps morts » [{ label, minutes, ringtone? }], 20 at most: waits a timer is launched for.
   deadTimes            Json               @default("[]")
   /// Parent task, possibly in another project of the same tree.
   parentId             String?
   parent               Task?              @relation("TaskTree", fields: [parentId], references: [id], onDelete: SetNull)
   children             Task[]             @relation("TaskTree")
+  /// Fields it takes from its parent, live: PROJECT, ASSIGNEES, BENEFICIARIES, SLOT_CONDITION, MIN_DATE,
+  /// DEADLINE, LOCATION, PRIORITY, MILESTONE. A field not listed is its own value (emptied on purpose when it has none);
+  /// always empty for a top-level task. Its effective values: `effectiveTask` (@ordo/shared).
+  inheritedFields      String[]           @default([])
   /// Global manual order.
   position             Int                @default(0)
   /// Closed (done) task: it no longer blocks, is never overdue and counts as done. Independent of the status.
@@ -878,7 +896,7 @@ model Comment {
   routine            Routine?            @relation(fields: [routineId], references: [id], onDelete: Cascade)
   eventId            String?
   event              CalendarEvent?      @relation(fields: [eventId], references: [id], onDelete: Cascade)
-  /// Occurrence of the routine or event the comment is on (decision D19): the day of the occurrence (that of its
+  /// Occurrence of the routine or event the comment is on: the day of the occurrence (that of its
   /// ticks for a routine); null for a one-off event and for the other items.
   occurrenceDate     DateTime?           @db.Date
   scheduleId         String?
@@ -1197,16 +1215,16 @@ model Attachment {
 /// Tracked time on a project, optionally spent on tasks (shared equally between them).
 model TimeEntry {
   id            String              @id @default(cuid())
-  /// Project the time is spent on, if any (a time has at least a project, a task, a routine or an event, decision D17).
+  /// Project the time is spent on, if any (a time has at least a project, a task, a routine or an event).
   /// A deleted project leaves its time without project; the API first deletes the time left with nothing attached.
   projectId     String?
   project       Project?            @relation(fields: [projectId], references: [id], onDelete: SetNull)
-  /// Routines the time is spent on (several, decision D18).
+  /// Routines the time is spent on (several).
   routines      Routine[]
   /// What was done (plain text, several lines).
   description   String?
   startedAt     DateTime
-  /// Null while the timer runs (several may run at once, decision FT).
+  /// Null while the timer runs (several may run at once).
   endedAt       DateTime?
   /// Start of the current pause, while paused.
   pausedAt      DateTime?
@@ -1217,7 +1235,7 @@ model TimeEntry {
   /// Invoice (draft or final) the time is billed on.
   documentId    String?
   document      AccountingDocument? @relation(fields: [documentId], references: [id], onDelete: SetNull)
-  /// Calendar events (occurrences) the time was spent on (several, decision D18): the calendar only shows the part
+  /// Calendar events (occurrences) the time was spent on (several): the calendar only shows the part
   /// of the time outside them.
   events        TimeEntryEvent[]
   createdAt     DateTime            @default(now())
@@ -1236,7 +1254,7 @@ model TimeEntry {
   @@index([workspaceId])
 }
 
-/// Calendar event (and occurrence of a recurring one) a time is spent on (decision D18).
+/// Calendar event (and occurrence of a recurring one) a time is spent on.
 model TimeEntryEvent {
   id             String        @id @default(cuid())
   timeEntryId    String
@@ -1292,7 +1310,7 @@ model Alarm {
   recurrence  Json?
   /// Tracking time between two rings (TRACKING_DURATION).
   minutes     Int?
-  /// A deleted project leaves its alarms without project (decision DP).
+  /// A deleted project leaves its alarms without project.
   projectId   String?
   project     Project?       @relation(fields: [projectId], references: [id], onDelete: SetNull)
   taskId      String?
@@ -1753,7 +1771,7 @@ model WorkSchedule {
   cases         Json          @default("[]")
   /// Periods with cases of their own instead of the general ones (none: a pause), dates included.
   exceptions    Json          @default("[]")
-  /// Reminders of an éphéméride (lot 16), [{ before, at, days }] as those of the events; a créneau has none (kept
+  /// Reminders of an éphéméride, [{ before, at, days }] as those of the events; a créneau has none (kept
   /// without ringing when an éphéméride becomes one).
   reminders     Json          @default("[]")
   /// Archived: hidden by default and read only until restored.
@@ -2296,12 +2314,12 @@ model TreasuryRelation {
   id                    String              @id @default(cuid())
   name                  String
   note                  String?
-  /// Birth date: YYYY-MM-DD, or --MM-DD when the year is not known (lot 16). Its birthday is a whole-day éphéméride
+  /// Birth date: YYYY-MM-DD, or --MM-DD when the year is not known. Its birthday is a whole-day éphéméride
   /// derived at read time.
   birthDate             String?
   /// Reminders of its birthday: [{ before: null, at: "HH:MM", days }] (on the day or some days before).
   birthdayReminders     Json                @default("[]")
-  /// [{ label, address }]: several email addresses (lot 16c).
+  /// [{ label, address }]: several email addresses.
   emails                Json                @default("[]")
   /// [{ label, number }]
   phones                Json                @default("[]")
@@ -3219,6 +3237,10 @@ model Routine {
   parentId             String?
   parent               Routine?               @relation("RoutineTree", fields: [parentId], references: [id], onDelete: SetNull)
   children             Routine[]              @relation("RoutineTree")
+  /// Fields it takes from its parent, live: PROJECT, ASSIGNEES, BENEFICIARIES, SLOT_CONDITION, OPENS_ON,
+  /// LOCATION, CATEGORIES, START_DATE, RECURRENCE, CASES, MOMENTS, MOVES. A field not listed is its own value (emptied
+  /// on purpose when it has none); always empty for a top-level routine. Its effective values: `effectiveRoutine`.
+  inheritedFields      String[]               @default([])
   /// First occurrence: the rule repeats from it.
   startDate            DateTime               @db.Date
   /// Repetition (the shared recurrence rule of the events and tasks).
@@ -3252,7 +3274,7 @@ model Routine {
   /// (« Ouverture ») at the start of each time of the day (« dès »), or [{ before: null, at: "HH:MM" }] on that day.
   reminders            Json                   @default("[]")
   /// « Temps morts » [{ label, minutes, ringtone? }], 20 at most: waits a timer is launched for, from an occurrence
-  /// (decision FT).
+  ///.
   deadTimes            Json                   @default("[]")
   /// « Ouverture » of the occurrences of its rule: { mode: DAY, day, month } | { mode: WEEKDAY, position, weekday,
   /// month } | { mode: WEEK, week, weekday } | { mode: BEFORE, days }; null: from their first day.

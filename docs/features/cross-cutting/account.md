@@ -43,7 +43,7 @@ Bouton « Modifier le mot de passe ». Toast « Mot de passe modifié. Vos autre
 
 ## Section « Sonnerie des alarmes »
 
-« Alarmes et rappels de tous les espaces. Chaque rappel peut choisir sa propre sonnerie. » Réglages de l’utilisateur, valables dans tous les espaces (décision FS), enregistrés champ par champ (les nombres en les quittant, le reste dès qu’il change ; « Enregistrement… » / « Enregistré » en haut, sans bouton). Règles : [Alarmes](../../business-rules/activities/alarms.md#réglages-userringsettings).
+« Alarmes et rappels de tous les espaces. Chaque rappel peut choisir sa propre sonnerie. » Réglages de l’utilisateur, valables dans tous les espaces, enregistrés champ par champ (les nombres en les quittant, le reste dès qu’il change ; « Enregistrement… » / « Enregistré » en haut, sans bouton). Règles : [Alarmes](../../business-rules/activities/alarms.md#réglages-userringsettings).
 
 | Champ                    | Détail                                                                                     |
 | ------------------------ | ------------------------------------------------------------------------------------------ |
@@ -51,9 +51,9 @@ Bouton « Modifier le mot de passe ». Toast « Mot de passe modifié. Vos autre
 | « Répéter toutes les »   | 0 à 60 min (défaut 5) ; aide « Jusqu’à « Arrêter » ; 0 : pas de répétition. »               |
 | « En boucle »            | interrupteur (défaut oui) ; aide « La sonnerie se répète pendant toute sa durée ; sinon elle sonne une fois. » |
 | « Sonnerie »             | Carillon (défaut), Bip, Marimba, Cloche, Réveil, Harpe ; bouton « Écouter » qui la joue    |
-| « Sonner hors de l’app » | interrupteur (défaut non) : notifications push sur les appareils ajoutés, app fermée (lot 17c, ci-dessous) |
+| « Sonner hors de l’app » | interrupteur (défaut non) : notifications push sur les appareils ajoutés, app fermée (ci-dessous) |
 
-### Sonner hors de l’app (lot 17c, décision FU)
+### Sonner hors de l’app
 
 Aide : « Notifications push sur les appareils ajoutés, app fermée : le son et la vibration du système à chaque envoi, renvoyé à chaque répétition jusqu’à « Arrêter ». Désactiver retire cet appareil ; les autres restent listés mais ne reçoivent plus rien. »
 

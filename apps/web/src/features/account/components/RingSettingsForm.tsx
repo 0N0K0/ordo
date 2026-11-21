@@ -12,10 +12,10 @@ import { OutsideRings } from './OutsideRings';
 const RINGTONE_OPTIONS = RINGTONES.map((ringtone) => ({ value: ringtone.id, label: ringtone.label }));
 
 /**
- * How the alarms and reminders of the user ring, in every workspace (decision FS): duration of a ring, looped or once,
+ * How the alarms and reminders of the user ring, in every workspace: duration of a ring, looped or once,
  * repeated every N minutes until « Arrêter », ringtone (« Écouter » plays it), ringing outside the app (`OutsideRings`:
- * the push notifications of the devices, lot 17c). Each field is
- * saved as soon as it changes (the numbers on leaving them, decision D22, `useFieldSave`).
+ * the push notifications of the devices). Each field is
+ * saved as soon as it changes (the numbers on leaving them, `useFieldSave`).
  * @param {{ settings: RingSettings }} props Settings as saved.
  * @returns {JSX.Element} Form.
  */

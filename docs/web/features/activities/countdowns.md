@@ -1,6 +1,6 @@
 # Code web des minuteurs et des temps morts
 
-Tous les fichiers de `apps/web/src/features/countdowns/` (lot 17b, décision FT) : les minuteurs de l’utilisateur (comptes à rebours, dans tous ses espaces) et les temps morts des tâches et des routines. Fonctionnalités : [Alarmes](../../../features/activities/alarms.md#minuteurs). Règles : [Règles des alarmes](../../../business-rules/activities/alarms.md#minuteurs-décision-ft). Partagé : `packages/shared/src/dates/countdowns.ts` ([Dates](../../../shared/cross-cutting/dates.md)).
+Tous les fichiers de `apps/web/src/features/countdowns/` : les minuteurs de l’utilisateur (comptes à rebours, dans tous ses espaces) et les temps morts des tâches et des routines. Fonctionnalités : [Alarmes](../../../features/activities/alarms.md#minuteurs). Règles : [Règles des alarmes](../../../business-rules/activities/alarms.md#minuteurs). Partagé : `packages/shared/src/dates/countdowns.ts` ([Dates](../../../shared/cross-cutting/dates.md)).
 
 ## api
 
@@ -27,12 +27,12 @@ Interne : `useCountdownMutation`.
 
 ### `components/CountdownRow.tsx`
 
-- `CountdownControls({ countdown, size? })` : « Pause » / « Reprendre », « + 1 min », « + 5 min » (`COUNTDOWN_EXTENSIONS`), « Annuler » (`RemoveButton` `variant="field"`, sans confirmation : rien de durable n’est perdu, décision FV ; `toastCallbacks` « Minuteur annulé. »).
+- `CountdownControls({ countdown, size? })` : « Pause » / « Reprendre », « + 1 min », « + 5 min » (`COUNTDOWN_EXTENSIONS`), « Annuler » (`RemoveButton` `variant="field"`, sans confirmation : rien de durable n’est perdu ; `toastCallbacks` « Minuteur annulé. »).
 - `CountdownRow({ countdown, withSubject? })` : nom, élément, temps restant en direct (`countdownRemaining`, `useNow`), barre de progression, `CountdownControls`.
 
 ### `components/CountdownList.tsx`
 
-- `CountdownList({ compact?, bare? })` : les minuteurs (`CountdownRow`), « Aucun minuteur en cours. » (pas en `compact` ni `bare`), « Lancer un minuteur » (`openCountdownForm`, le formulaire de « Ajouter › Minuteur » ; petit en `compact`). Utilisé par la page « Alarmes », la bulle de `CountdownWidget` (`compact`) et la carte « Chrono et alarmes » de l’accueil (`bare`, décision FV).
+- `CountdownList({ compact?, bare? })` : les minuteurs (`CountdownRow`), « Aucun minuteur en cours. » (pas en `compact` ni `bare`), « Lancer un minuteur » (`openCountdownForm`, le formulaire de « Ajouter › Minuteur » ; petit en `compact`). Utilisé par la page « Alarmes », la bulle de `CountdownWidget` (`compact`) et la carte « Chrono et alarmes » de l’accueil (`bare`).
 
 ### `components/CountdownWidget.tsx`
 
@@ -40,7 +40,7 @@ Interne : `useCountdownMutation`.
 
 ### `components/DeadTimesField.tsx`
 
-- `DeadTimesField({ value, onChange, item, disabled? })` : champ « Temps morts » d’une tâche (`TaskPanel`) ou d’une routine (`RoutineForm`) : une ligne par temps mort (libellé, durée tapée `durationText` / `parseDuration`, `RingtoneSelect`, « Lancer », « Retirer »), « Ajouter un temps mort » (`DEAD_TIMES_MAX`) ; les lignes valides sont enregistrées en quittant leurs champs (`onChange`, décision D22) ; une ligne quittée invalide (son erreur dessous) retient l’enregistrement jusqu’à être corrigée ou retirée, une nouvelle ligne pas encore quittée reste à part ; un enregistrement d’ailleurs remplace les lignes enregistrées. Les minuteurs lancés pour l’élément (`countdownOf`) dessous.
+- `DeadTimesField({ value, onChange, item, disabled? })` : champ « Temps morts » d’une tâche (`TaskPanel`) ou d’une routine (`RoutineForm`) : une ligne par temps mort (libellé, durée tapée `durationText` / `parseDuration`, `RingtoneSelect`, « Lancer », « Retirer »), « Ajouter un temps mort » (`DEAD_TIMES_MAX`) ; les lignes valides sont enregistrées en quittant leurs champs (`onChange`) ; une ligne quittée invalide (son erreur dessous) retient l’enregistrement jusqu’à être corrigée ou retirée, une nouvelle ligne pas encore quittée reste à part ; un enregistrement d’ailleurs remplace les lignes enregistrées. Les minuteurs lancés pour l’élément (`countdownOf`) dessous.
 - Internes : `DeadTimeRow`, `rowOf`, `deadTimeOf`, `LABEL_REQUIRED`.
 
 ### `components/DeadTimeLaunchButtons.tsx`
@@ -51,14 +51,14 @@ Interne : `useCountdownMutation`.
 
 ### `hooks/use-countdown-ringer.ts`
 
-- `useCountdownRinger()` : appelé par `AlarmCenter` ; une minuterie par minuteur en marche, à sa fin (un fini depuis 6 heures au plus, `RING_LATE_MS`, sonne tout de suite ; app fermée, le serveur l’envoie en push, lot 17c) ; replanifié quand les minuteurs changent.
+- `useCountdownRinger()` : appelé par `AlarmCenter` ; une minuterie par minuteur en marche, à sa fin (un fini depuis 6 heures au plus, `RING_LATE_MS`, sonne tout de suite ; app fermée, le serveur l’envoie en push) ; replanifié quand les minuteurs changent.
 - Interne : `ringCountdownEnd(countdown, rung)` : réservé une fois (`claim`), sonne par `startRinging` (clé `countdownRingKey`, titre et lignes `countdownRingText` (partagé avec le serveur : nom, élément, « Minuteur de 10 min terminé »), lien `openRingTarget`, sa sonnerie), puis `sendCountdownRung`.
 
 ## lib
 
 ### `lib/countdowns.ts`
 
-- `COUNTDOWN_DEFAULT_NAME` (« Minuteur »), `countdownName(countdown)` : réexportés de `@ordo/shared` (lot 17c).
+- `COUNTDOWN_DEFAULT_NAME` (« Minuteur »), `countdownName(countdown)` : réexportés de `@ordo/shared`.
 - `DeadTimeItem` (type) : élément d’un temps mort tel que le minuteur le garde (`taskId` ou `routineId` + `occurrenceDate`, `subject`, `path`, `linkLabel`, `workspaceId`).
 - `deadTimeLabel(deadTime)` : « Lave-linge (1 h 30) ».
 - `countdownOf(countdown, item)` : le minuteur a été lancé pour l’élément (pour une routine : l’occurrence quand elle est donnée).

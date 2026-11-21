@@ -26,9 +26,9 @@ interface PersonDetailsFieldsProps {
 }
 
 /**
- * Details of a contributor (member of the team or household included) or of a relation (lot 16), the same in both
- * panels: birth date (year optional) and the reminders of its birthday (« À HH:MM » or « N jours avant, à HH:MM »,
- * disabled without birth date), email addresses (several, lot 16c) and phones, the same labelled list field
+ * Details of a member of the team or household (« Moi » included) or of a relation, the same in both panels (a
+ * contributor that is not a member has none of its own): birth date (year optional) and the reminders of its birthday (« À HH:MM » or « N jours avant, à HH:MM »,
+ * disabled without birth date), email addresses (several) and phones, the same labelled list field
  * (`ContactListField`, the one of the phones of the clients and their contacts).
  * @param {PersonDetailsFieldsProps} props Component props.
  * @returns {JSX.Element} Fields.

@@ -23,7 +23,7 @@ interface RunningPillProps {
 }
 
 /**
- * Pill of the app header for what runs (decision FT), the same for the time chronos and the timers: a pulsing dot, what
+ * Pill of the app header for what runs, the same for the time chronos and the timers: a pulsing dot, what
  * it runs on and its clock (opening its details), then its commands.
  * @param {RunningPillProps} props Component props.
  * @returns {JSX.Element} Pill.

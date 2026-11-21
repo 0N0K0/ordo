@@ -70,6 +70,7 @@ builder.prismaObject('ClientContact', {
     email: t.exposeString('email', { nullable: true }),
     jobTitle: t.exposeString('jobTitle', { nullable: true }),
     phones: t.field({ type: 'JSON', resolve: (contact) => contact.phones }),
+    client: t.relation('client'),
   }),
 });
 
@@ -195,6 +196,11 @@ const CompanyProfileInput = builder.inputType('CompanyProfileInput', {
 });
 
 builder.queryFields((t) => ({
+  clientContacts: t.prismaField({
+    type: ['ClientContact'],
+    description: 'Every contact of every client (archived clients included), by client then name: those a contributor can be linked to.',
+    resolve: (query) => prisma.clientContact.findMany({ ...query, orderBy: [{ client: { name: 'asc' } }, { lastName: 'asc' }, { firstName: 'asc' }] }),
+  }),
   client: t.prismaField({
     type: 'Client',
     nullable: true,

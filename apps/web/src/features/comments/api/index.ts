@@ -51,7 +51,7 @@ const DeleteCommentDocument = graphql(`
 `);
 
 /**
- * Comments of an item, oldest first; of one occurrence for a routine or an event (decision D19).
+ * Comments of an item, oldest first; of one occurrence for a routine or an event.
  * @param {CommentTarget} target Kind of item.
  * @param {string | null} id Item (Message-ID for a mail); none: nothing loaded.
  * @param {string | null} [occurrenceDate] Occurrence of a routine or a recurring event (none: a one-off event). Optional.

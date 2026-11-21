@@ -2,7 +2,7 @@ import { countOf, formatDuration, reminderAnchorOf, type ReminderAnchor, type Re
 
 /**
  * Words of the reminders, the same in their editor (`RemindersSelect`) and wherever they are told (a cell, the ringtones
- * of the editor): what they count from, by item (decisions FS, FV).
+ * of the editor): what they count from, by item.
  */
 
 /** What reminders are of, as far as their words go: an item with one moment (task, éphéméride, birthday), an event, a routine. */

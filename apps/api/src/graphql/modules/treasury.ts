@@ -22,6 +22,7 @@ import {
   type TreasuryEntryInput,
 } from '@ordo/shared';
 import { prisma } from '../../db';
+import { reloaded } from '../reload';
 import { type InvoiceCategories, invoiceCategories } from '../../services/accounting/company';
 import * as reminders from '../../services/accounting/reminders';
 import * as statuses from '../../services/accounting/document-statuses';
@@ -102,7 +103,7 @@ builder.prismaObject('TreasuryRelation', {
     id: t.exposeID('id'),
     name: t.exposeString('name'),
     note: t.exposeString('note', { nullable: true }),
-    contributorId: t.exposeID('contributorId', { nullable: true, description: 'Contributor this person also is.' }),
+    contributorId: t.exposeID('contributorId', { nullable: true, description: 'Contributor this person also is (its details are the relation\'s).' }),
     birthDate: t.exposeString('birthDate', { nullable: true, description: BIRTH_DATE_DESCRIPTION }),
     birthdayReminders: t.field({ type: [ReminderRef], description: 'Reminders of its birthday.', resolve: (relation) => readReminders(relation.birthdayReminders) }),
     emails: t.field({ type: 'JSON', description: '[{ label, address }]', resolve: (relation) => readEmails(relation.emails) }),
@@ -113,7 +114,17 @@ builder.prismaObject('TreasuryRelation', {
 });
 
 const RelationInput = builder.inputType('TreasuryRelationInput', {
-  fields: (t) => ({ name: t.string({ required: true }), note: t.string(), contributorId: t.id(), ...personDetailsInputFields(t) }),
+  fields: (t) => ({
+    name: t.string({ required: true }),
+    note: t.string(),
+    contributorId: t.id({ description: 'Contributor this person also is (not a member nor linked to a contact): its details are the relation\'s.' }),
+    ...personDetailsInputFields(t),
+  }),
+});
+
+const MemberDetailsInput = builder.inputType('TreasuryMemberDetailsInput', {
+  description: 'Details of a member of the team or household; omitted fields are left unchanged.',
+  fields: (t) => personDetailsInputFields(t),
 });
 
 builder.prismaObject('TreasuryContext', {
@@ -916,14 +927,28 @@ builder.queryFields((t) => ({
 
 builder.mutationFields((t) => ({
   addTreasuryMember: t.id({
-    description: 'Adds a member: an existing contributor, or a new contributor of this name.',
-    args: { contributorId: t.arg.id(), name: t.arg.string() },
-    resolve: async (_root, args) => (await team.addMember(args)).id,
+    description: 'Adds a member: an existing contributor (not linked to a relation nor a contact), or a new contributor of this name.',
+    args: {
+      contributorId: t.arg.id(),
+      name: t.arg.string(),
+      confirmLoss: t.arg.boolean({ description: `${CONFIRM_LOSS_DESCRIPTION} Its own birthday applies (slot conditions).` }),
+    },
+    resolve: async (_root, { confirmLoss, ...args }) => (await team.addMember(args, peopleSettler(confirmLoss))).id,
   }),
   removeTreasuryMember: t.boolean({
-    description: 'Removes a member from the team or household (they stay a contributor).',
-    args: { contributorId: t.arg.id({ required: true }) },
-    resolve: (_root, { contributorId }) => done(team.removeMember(contributorId)),
+    description: 'Removes a member from the team or household (they stay a contributor, without details of their own).',
+    args: { contributorId: t.arg.id({ required: true }), confirmLoss: t.arg.boolean({ description: `${CONFIRM_LOSS_DESCRIPTION} Its birthday gone (slot conditions).` }) },
+    resolve: (_root, { contributorId, confirmLoss }) => done(team.removeMember(contributorId, peopleSettler(confirmLoss))),
+  }),
+  updateTreasuryMember: t.prismaField({
+    type: 'Contributor',
+    description: 'Changes the details of a member of the team or household (omitted: left unchanged); only a member has details of its own.',
+    args: {
+      contributorId: t.arg.id({ required: true }),
+      input: t.arg({ type: MemberDetailsInput, required: true }),
+      confirmLoss: t.arg.boolean({ description: `${CONFIRM_LOSS_DESCRIPTION} Its birthday moved or gone (slot conditions).` }),
+    },
+    resolve: async (query, _root, { contributorId, input, confirmLoss }) => reloaded(prisma.contributor, query, team.updateMemberDetails(contributorId, input, peopleSettler(confirmLoss))),
   }),
   saveTreasuryBudget: t.id({
     description: 'Creates a budget (without id), or changes one and its repetitions.',

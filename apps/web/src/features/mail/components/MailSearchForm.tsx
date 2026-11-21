@@ -24,7 +24,7 @@ const searchValues = (search: MailSearch): SearchValues => ({ ...EMPTY_MAIL_SEAR
 /**
  * Search folder: label, accounts, folders looked into, done state, flags, unread only, text. Kept in Ordo, it is
  * not created on the mail server. A new one is created by its button; an existing one is saved field by field
- * (decision D22, the whole folder each time).
+ * (the whole folder each time).
  * @param {{ search?: MailSearch, initial?: MailSearchCriteria, onDone: (id?: string) => void }} props Search edited (none: new), criteria of a new one, and close (given the new id).
  * @returns {JSX.Element} Form.
  */

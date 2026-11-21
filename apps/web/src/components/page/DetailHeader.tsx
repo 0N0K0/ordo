@@ -28,7 +28,7 @@ interface DetailHeaderProps {
 }
 
 /**
- * Header of the page (or panel) of an element, the same everywhere (decision R): the way back, the name in h3 with its
+ * Header of the page (or panel) of an element, the same everywhere: the way back, the name in h3 with its
  * badges and what is under it, then its actions and its « … » menu on the right.
  * @param {DetailHeaderProps} props Component props.
  * @returns {JSX.Element} Header.

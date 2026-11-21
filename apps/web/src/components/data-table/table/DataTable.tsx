@@ -18,7 +18,7 @@ import {
   type ExpandedState,
   type Updater,
 } from '@tanstack/react-table';
-import { memo, useMemo, useRef, useState, type CSSProperties, type ReactNode, type RefObject } from 'react';
+import { memo, useCallback, useMemo, useRef, useState, type CSSProperties, type ReactNode } from 'react';
 import { useVirtualizer } from '@tanstack/react-virtual';
 
 import { ColumnHeaderMenu, type ColumnMove } from '../toolbar/ColumnHeaderMenu';
@@ -347,6 +347,23 @@ export function DataTable<R>({
 }: DataTableProps<R>) {
   const tableRef = useRef<HTMLTableElement>(null);
   const [heightRef, maxHeight] = useTableHeight();
+  // The scrolling area as state, not only as a ref: the body's virtualizer looks for it in a layout effect, which runs
+  // before React sets the ref of this parent element; set again from the callback ref, the element reaches the body on
+  // the next render (before paint), and its virtualizer then observes it. With the ref alone, a long table mounted at
+  // once (data arriving after the skeleton) showed no row until something drew it again (a resize).
+  const [scroller, setScroller] = useState<HTMLDivElement | null>(null);
+  const scrollerRef = useCallback(
+    /**
+     * Keeps the scrolling area: for the height of the table (its ref) and for the virtualizer of the body.
+     * @param {HTMLDivElement | null} node Scrolling area, or null when it leaves.
+     * @returns {void}
+     */
+    (node: HTMLDivElement | null) => {
+      heightRef.current = node;
+      setScroller(node);
+    },
+    [heightRef],
+  );
   const [expanded, setExpanded] = useState<ExpandedState>(true);
   const [drag, setDrag] = useState<{ activeId: string; overId: string | null; offsetX: number } | null>(null);
   // Width each column was fitted to: a second double click, the column unchanged, gives back its default width.
@@ -744,7 +761,7 @@ export function DataTable<R>({
   const headers = table.getHeaderGroups()[0]?.headers ?? [];
   const tableElement = (
     // Scrolling both ways inside its own area, its header sticking to the top of it.
-    <div ref={heightRef} className={classes.scroller} style={{ maxHeight: ownHeight ?? maxHeight }}>
+    <div ref={scrollerRef} className={classes.scroller} style={{ maxHeight: ownHeight ?? maxHeight }}>
       {/* The drag context renders accessibility nodes: it wraps the table, not sits inside it. */}
       <DndContext
         sensors={sensors}
@@ -845,7 +862,7 @@ export function DataTable<R>({
           </Table.Thead>
           <SortableContext items={rowDrag ? dragItems.map((item) => item.id) : []} strategy={verticalListSortingStrategy}>
             <Table.Tbody>
-              <TableBody entries={entries} scrollRef={heightRef} span={span} />
+              <TableBody entries={entries} scrollElement={scroller} span={span} />
             </Table.Tbody>
           </SortableContext>
           {view.config?.footer && (
@@ -1043,14 +1060,15 @@ const EntryRow = memo(function EntryRow({ entry, index, measure }: { entry: Entr
 /**
  * Body of a table: its rows, only those in view for a long table (measured as they show, the others standing as their
  * height). Its own component: scrolling draws it again, not the table, and only the rows that come into view.
- * @param {{ entries: Entry[], scrollRef: RefObject<HTMLDivElement | null>, span: number }} props Rows, scrolling area, cells of a row.
+ * @param {{ entries: Entry[], scrollElement: HTMLDivElement | null, span: number }} props Rows, scrolling area (null until it is
+ * set: the body is drawn again then), cells of a row.
  * @returns {JSX.Element} Rows.
  */
-function TableBody({ entries, scrollRef, span }: { entries: Entry[]; scrollRef: RefObject<HTMLDivElement | null>; span: number }) {
+function TableBody({ entries, scrollElement, span }: { entries: Entry[]; scrollElement: HTMLDivElement | null; span: number }) {
   const virtual = entries.length > VIRTUAL_FROM;
   const virtualizer = useVirtualizer({
     count: virtual ? entries.length : 0,
-    getScrollElement: () => scrollRef.current,
+    getScrollElement: () => scrollElement,
     estimateSize: () => ROW_ESTIMATE,
     overscan: 40,
     getItemKey: (index) => entries[index]?.key ?? index,

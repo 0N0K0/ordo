@@ -5,10 +5,10 @@ import { daySchema } from './times';
 import { isRingtone, RING_KEY_MAX, type RingtoneId } from './ringing';
 
 /**
- * Timers (« minuteurs », countdowns) and dead times (« temps morts ») of the tasks and routines (lot 17b, decision FT):
+ * Timers (« minuteurs », countdowns) and dead times (« temps morts ») of the tasks and routines:
  * a timer counts down a duration and rings at its end (`startRinging`, the ringtone of the timer, else the one of the
  * settings); several run at once, for the user, in every workspace, kept by the API (a reload, another tab or device,
- * the push notifications of lot 17c follow it). A dead time is a wait of an item (« Lave-linge, 1 h 30 ») a timer is
+ * the push notifications follow it). A dead time is a wait of an item (« Lave-linge, 1 h 30 ») a timer is
  * launched for: it is not time spent.
  */
 
@@ -142,7 +142,7 @@ export const COUNTDOWN_DEFAULT_NAME = 'Minuteur';
 export const countdownName = (countdown: { label: string | null }): string => countdown.label || COUNTDOWN_DEFAULT_NAME;
 
 /**
- * What the ring of the end of a timer shows, in the app and pushed by the server (lot 17c): its name, then its item and
+ * What the ring of the end of a timer shows, in the app and pushed by the server: its name, then its item and
  * « Minuteur de 1 h 30 terminé ».
  * @param {{ label: string | null, subject: string | null, durationSeconds: number }} countdown Timer.
  * @returns {{ title: string, lines: string[] }} Title and lines.

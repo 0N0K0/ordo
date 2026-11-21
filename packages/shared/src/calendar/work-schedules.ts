@@ -117,9 +117,9 @@ export const workScheduleSchema = z
     exceptions: z.array(scheduleExceptionSchema).max(200, '200 exceptions au plus.'),
     /** Kind of time it plans; none: working hours (or, an éphéméride, no kind). */
     typeId: z.string().nullish(),
-    /** An éphéméride, not a créneau (lot 16): with a kind, that of the kind (set by the API). */
+    /** An éphéméride, not a créneau: with a kind, that of the kind (set by the API). */
     ephemeris: z.boolean().default(false),
-    /** Reminders of an éphéméride (lot 16, decision FO), every kind; omitted: left unchanged. A créneau rings none. */
+    /** Reminders of an éphéméride, every kind; omitted: left unchanged. A créneau rings none. */
     reminders: startRemindersSchema.optional(),
   })
   .superRefine((schedule, context) => {
@@ -139,14 +139,14 @@ export interface WorkScheduleRule {
   typeId?: string | null;
   /** An éphéméride (holidays, birthday…), not a créneau: never in the free time, the working hours nor the planned time. */
   ephemeris?: boolean;
-  /** Archived: gives no moment to the slot conditions (decision FQ). Optional. Default = false. */
+  /** Archived: gives no moment to the slot conditions. Optional. Default = false. */
   archived?: boolean;
-  /** Of an archived kind: gives no moment to the slot conditions either (decision FQ). Optional. Default = false. */
+  /** Of an archived kind: gives no moment to the slot conditions either. Optional. Default = false. */
   kindArchived?: boolean;
 }
 
 /**
- * Case of every day, the whole day: that of a new éphéméride (holidays: every day of its period, lot 16).
+ * Case of every day, the whole day: that of a new éphéméride (holidays: every day of its period).
  * @returns {ScheduleCase} Case.
  */
 export const wholeDaysCase = (): ScheduleCase => ({ since: null, until: null, anchor: null, rule: { ...DEFAULT_RECURRENCE, frequency: 'DAILY' }, times: { allDay: true, ranges: [] } });
@@ -156,7 +156,7 @@ export const UNTYPED_EPHEMERIS_LABEL = 'Éphéméride';
 
 /**
  * The créneaux of some schedules, their éphémérides left out: what the free time, the working hours (the hint of an
- * event out of them, the planned time) count (lot 16).
+ * event out of them, the planned time) count.
  * @template T
  * @param {readonly T[]} schedules Schedules.
  * @returns {T[]} Créneaux.
@@ -164,7 +164,7 @@ export const UNTYPED_EPHEMERIS_LABEL = 'Éphéméride';
 export const slotSchedules = <T extends { ephemeris?: boolean | null }>(schedules: readonly T[]): T[] => schedules.filter((schedule) => !schedule.ephemeris);
 
 /**
- * The schedules the slot conditions count (decision FQ): neither archived nor of an archived kind. The others may still
+ * The schedules the slot conditions count: neither archived nor of an archived kind. The others may still
  * be named by a condition (shown « archivé »), they just give it no moment, nor take any from the free time.
  * @template T
  * @param {readonly T[]} schedules Schedules.
@@ -356,7 +356,7 @@ export interface ScheduleRun {
 
 /**
  * Runs of consecutive days of a schedule starting between two dates (included): what the reminders of an éphéméride
- * count from (lot 16, decision FO), each run its first day and the start of its first slot that day.
+ * count from, each run its first day and the start of its first slot that day.
  * @param {WorkScheduleRule} schedule Schedule.
  * @param {string} from First date.
  * @param {string} to Last date.
@@ -527,7 +527,7 @@ const scheduleDisplayFields = {
 
 /**
  * Kind of time slots ("Travail", "Garde des enfants"…), with its color and how its slots show; a kind of éphémérides
- * (set at its creation, changed by a conversion, lot 16) may be a context of the budget, shared or not
+ * (set at its creation, changed by a conversion) may be a context of the budget, shared or not
  * (`scheduleTypeContextError`).
  */
 export const scheduleTypeSchema = z.object({
@@ -565,13 +565,12 @@ export const defaultScheduleKindSchema = z.object({
 export type DefaultScheduleKindInput = z.input<typeof defaultScheduleKindSchema>;
 
 /**
- * Birthdays of the people of a workspace in its calendar (decision FX): shown or not (hidden, their reminders still
- * ring), color (none: the gray of the éphémérides) and display, as a kind of éphémérides.
+ * Birthdays of the people of a workspace in its calendar, shown as all-day events: shown or not (hidden, their
+ * reminders still ring) and color (none: the gray of the éphémérides).
  */
 export const birthdayLookSchema = z.object({
   shown: z.boolean(),
   color: colorSchema.nullable(),
-  ...scheduleDisplayFields,
 });
 export type BirthdayLookInput = z.input<typeof birthdayLookSchema>;
 
@@ -610,6 +609,59 @@ export interface ScheduleSlotTime {
 export const scheduleSlotTimeSchema = z
   .object({ date: daySchema(), start: z.string(), end: z.string(), allDay: z.boolean() })
   .refine((slot) => slot.allDay || endsAfter(slot.start, slot.end, true), { path: ['end'], message: END_AFTER_START });
+
+/** Words of a schedule changed from the calendar, by its nature (« créneau », or « éphéméride », feminine). */
+export interface SlotWords {
+  /** « Créneau » / « Éphéméride ». */
+  title: string;
+  /** « le créneau » / « l’éphéméride ». */
+  the: string;
+  /** « du créneau » / « de l’éphéméride ». */
+  of: string;
+  /** « au créneau » / « à l’éphéméride ». */
+  to: string;
+  /** « un créneau récurrent » / « une éphéméride récurrente ». */
+  recurring: string;
+  /** « Créneau modifié. » / « Éphéméride modifiée. ». */
+  changed: string;
+  /** « Un créneau s’arrête le jour où il commence. » / « Une éphéméride s’arrête le jour où elle commence. ». */
+  sameDay: string;
+  /** « Ce jour est en dehors de la période du créneau. » / « … de l’éphéméride. ». */
+  outside: string;
+  /** « Ce sont les derniers horaires du créneau : supprimez le créneau lui-même. » / « … de l’éphéméride : supprimez l’éphéméride elle-même. ». */
+  lastHours: string;
+}
+
+/**
+ * Words of a schedule changed from the calendar (mode « Modifier les créneaux et éphémérides »), the same code for
+ * both natures.
+ * @param {boolean | undefined} ephemeris An éphéméride. Optional. Default = a créneau.
+ * @returns {SlotWords} Words.
+ */
+export const slotWords = (ephemeris?: boolean): SlotWords =>
+  ephemeris
+    ? {
+        title: 'Éphéméride',
+        the: 'l’éphéméride',
+        of: 'de l’éphéméride',
+        to: 'à l’éphéméride',
+        recurring: 'une éphéméride récurrente',
+        changed: 'Éphéméride modifiée.',
+        sameDay: 'Une éphéméride s’arrête le jour où elle commence.',
+        outside: 'Ce jour est en dehors de la période de l’éphéméride.',
+        lastHours: 'Ce sont les derniers horaires de l’éphéméride : supprimez l’éphéméride elle-même.',
+      }
+    : {
+        title: 'Créneau',
+        the: 'le créneau',
+        of: 'du créneau',
+        to: 'au créneau',
+        recurring: 'un créneau récurrent',
+        changed: 'Créneau modifié.',
+        sameDay: 'Un créneau s’arrête le jour où il commence.',
+        outside: 'Ce jour est en dehors de la période du créneau.',
+        lastHours: 'Ce sont les derniers horaires du créneau : supprimez le créneau lui-même.',
+      };
 
 /** Which slots a change of a slot applies to: that day only (an exception), it and the following ones, or all. */
 type ScheduleSlotScope = 'THIS' | 'FOLLOWING' | 'ALL';
@@ -658,6 +710,19 @@ const daySlots = (schedule: WorkScheduleRule, date: string): ScheduleSlotTime[] 
 const sameHours = (a: ScheduleSlotTime, b: ScheduleSlotTime) => a.allDay === b.allDay && (a.allDay || (a.start === b.start && a.end === b.end));
 
 /**
+ * Rule whose monthly and yearly values are those of a new day (its day of the month, weekday, position, month, week).
+ * @param {Recurrence} rule Rule.
+ * @param {string} to New day.
+ * @returns {Recurrence} Rule.
+ */
+function ruleMovedTo(rule: Recurrence, to: string): Recurrence {
+  const day = dayOfMonthOf(to);
+  const lastDay = daysInMonth(yearOfDay(to), monthOfYear(to));
+  const position = day + 7 > lastDay && (rule.position === -1 || day > 28) ? -1 : (Math.ceil(day / 7) as 1 | 2 | 3 | 4);
+  return { ...rule, monthDay: day, weekday: weekdayOf(to), position, month: monthOfYear(to), week: isoWeek(to) };
+}
+
+/**
  * Case of a slot moved from a day to another (or its hours changed), keeping the rhythm of its case: weekly on the
  * new weekday, monthly and yearly on the new day of the month, every n days and weeks counted from the new day.
  * @param {ScheduleCase} item Case of the slot.
@@ -676,43 +741,102 @@ function movedCase(item: ScheduleCase, periodStart: string, date: string, change
   const base = item.anchor ?? item.since ?? periodStart;
   const monthly = rule.frequency === 'MONTHLY' || rule.frequency === 'YEARLY';
   const anchor = monthly ? shiftMonth(base, monthIndex(to) - monthIndex(date)) : addDays(base, daysBetween(date, to));
-  const day = dayOfMonthOf(to);
-  const lastDay = daysInMonth(yearOfDay(to), monthOfYear(to));
-  const position = day + 7 > lastDay && (rule.position === -1 || day > 28) ? -1 : (Math.ceil(day / 7) as 1 | 2 | 3 | 4);
-  const values = { monthDay: day, weekday: weekdayOf(to), position, month: monthOfYear(to), week: isoWeek(to) };
   if (rule.frequency === 'WEEKLY') return { ...result, anchor, rule: { ...rule, weekdays: [weekdayOf(to)] } };
   if (rule.frequency === 'DAILY') return { ...result, anchor };
-  return { ...result, anchor, rule: { ...rule, ...values } };
+  return { ...result, anchor, rule: ruleMovedTo(rule, to) };
 }
 
 /**
- * Cases and exceptions of a schedule once one of its slots is moved, stretched or deleted (no change) from the
- * calendar: that day only (an exception of the day with its own slots, and of the day it goes to), it and the
- * following ones (its case ends the day before, a new one follows with the change), or every day of its case.
+ * Case moved with its whole period by a number of days: its bounds and anchor, the end, skipped days and pauses of
+ * its rule, its weekdays, and its monthly and yearly values (those of its first day, moved).
+ * @param {ScheduleCase} item Case.
+ * @param {string} periodStart First day of its period (before the move).
+ * @param {string | null} periodEnd Last day of its period (before the move), none: open.
+ * @param {number} days Days moved (negative: earlier).
+ * @returns {ScheduleCase} Case.
+ */
+function shiftedCase(item: ScheduleCase, periodStart: string, periodEnd: string | null, days: number): ScheduleCase {
+  const shift = (day: string | null) => day && addDays(day, days);
+  const rule = item.rule && {
+    ...item.rule,
+    until: shift(item.rule.until),
+    exceptions: item.rule.exceptions.map((day) => addDays(day, days)),
+    pauses: item.rule.pauses.map((pause) => ({ from: addDays(pause.from, days), to: addDays(pause.to, days) })),
+  };
+  const result: ScheduleCase = { ...item, since: shift(item.since), until: shift(item.until), anchor: shift(item.anchor), rule };
+  if (!rule || rule.frequency === 'DAILY') return result;
+  if (rule.frequency === 'WEEKLY') {
+    return { ...result, rule: { ...rule, weekdays: rule.weekdays.map((weekday) => ((((weekday - 1 + days) % 7) + 7) % 7) + 1).sort((a, b) => a - b) } };
+  }
+  // Its first day, within a year of its start.
+  const start = item.since && item.since > periodStart ? item.since : periodStart;
+  const last = [item.until, periodEnd].reduce<string>((earliest, day) => (day && day < earliest ? day : earliest), addDays(start, 366));
+  for (let day = start; day <= last; day = addDays(day, 1)) {
+    if (caseOn(item, periodStart, day)) return { ...result, rule: ruleMovedTo(rule, addDays(day, days)) };
+  }
+  return result;
+}
+
+/**
+ * Schedule moved with its whole period by a number of days: its start and end, its cases and its exceptions.
+ * @param {WorkScheduleRule} schedule Schedule.
+ * @param {number} days Days moved (negative: earlier).
+ * @returns {ChangedSchedule} Period, cases and exceptions.
+ */
+function shiftedSchedule(schedule: WorkScheduleRule, days: number): ChangedSchedule {
+  return {
+    startDate: addDays(schedule.startDate, days),
+    endDate: schedule.endDate && addDays(schedule.endDate, days),
+    cases: schedule.cases.map((item) => shiftedCase(item, schedule.startDate, schedule.endDate, days)),
+    exceptions: schedule.exceptions.map((exception) => ({
+      ...exception,
+      from: addDays(exception.from, days),
+      to: addDays(exception.to, days),
+      cases: exception.cases.map((item) => shiftedCase(item, exception.from, exception.to, days)),
+    })),
+  };
+}
+
+/** Period, cases and exceptions of a schedule once changed from the calendar. */
+export interface ChangedSchedule {
+  startDate: string;
+  endDate: string | null;
+  cases: ScheduleCase[];
+  exceptions: ScheduleException[];
+}
+
+/**
+ * Period, cases and exceptions of a schedule once one of its slots is moved, stretched or deleted (no change) from
+ * the calendar: that day only (an exception of the day with its own slots, and of the day it goes to), it and the
+ * following ones (its case ends the day before, a new one follows with the change), or every day of its case. An
+ * éphéméride moved to another day moves with its whole period by as many days when its period is a single day
+ * (whatever the scope) or for every day (`ALL`); otherwise the day stays within the period. Refusals in the words of
+ * the schedule (`slotWords`).
  * @param {WorkScheduleRule} schedule Schedule.
  * @param {ScheduleSlotTime} slot Slot changed.
  * @param {ScheduleSlotTime | null} change New day and hours (null: deleted).
  * @param {ScheduleSlotScope} scope Days changed.
- * @returns {{ cases: ScheduleCase[], exceptions: ScheduleException[] }} New cases and exceptions.
+ * @returns {ChangedSchedule} New period, cases and exceptions.
  */
-export function changedScheduleSlot(
-  schedule: WorkScheduleRule,
-  slot: ScheduleSlotTime,
-  change: ScheduleSlotTime | null,
-  scope: ScheduleSlotScope,
-): { cases: ScheduleCase[]; exceptions: ScheduleException[] } {
+export function changedScheduleSlot(schedule: WorkScheduleRule, slot: ScheduleSlotTime, change: ScheduleSlotTime | null, scope: ScheduleSlotScope): ChangedSchedule {
   if (change && !change.allDay && change.end <= change.start) throw new Error(END_AFTER_START);
-  if (change && (change.date < schedule.startDate || (schedule.endDate && change.date > schedule.endDate))) throw new Error('Ce jour est en dehors de la période du créneau.');
+  const words = slotWords(schedule.ephemeris);
+  const period = { startDate: schedule.startDate, endDate: schedule.endDate };
+  if (change && change.date !== slot.date && schedule.ephemeris && (schedule.startDate === schedule.endDate || scope === 'ALL')) {
+    const moved = shiftedSchedule(schedule, daysBetween(slot.date, change.date));
+    const there = { ...slot, date: change.date };
+    return sameHours(there, change) ? moved : changedScheduleSlot({ ...schedule, ...moved }, there, change, 'ALL');
+  }
+  if (change && (change.date < schedule.startDate || (schedule.endDate && change.date > schedule.endDate))) throw new Error(words.outside);
   if (scope === 'THIS') {
     const others = daySlots(schedule, slot.date);
     const index = others.findIndex((other) => sameHours(other, slot));
     if (index >= 0) others.splice(index, 1);
-    if (change?.date === slot.date) return { cases: [...schedule.cases], exceptions: withDaySlots(schedule.exceptions, slot.date, [...others, change]) };
+    if (change?.date === slot.date) return { ...period, cases: [...schedule.cases], exceptions: withDaySlots(schedule.exceptions, slot.date, [...others, change]) };
     let exceptions = withDaySlots(schedule.exceptions, slot.date, others);
     if (change) exceptions = withDaySlots(exceptions, change.date, [...daySlots({ ...schedule, exceptions }, change.date), change]);
-    return { cases: [...schedule.cases], exceptions };
+    return { ...period, cases: [...schedule.cases], exceptions };
   }
-
   const { cases, from: periodStart, exception } = casesOn(schedule, slot.date);
   const caseIndex = cases.findIndex(
     (item) => caseOn(item, periodStart, slot.date) && (slot.allDay ? item.times.allDay : !item.times.allDay && item.times.ranges.some((range) => range.start === slot.start && range.end === slot.end)),
@@ -741,8 +865,8 @@ export function changedScheduleSlot(
   if (change) pieces.push(movedCase(item, periodStart, slot.date, change, split && change.date < slot.date ? change.date : since));
   const nextCases = [...cases.slice(0, caseIndex), ...pieces, ...cases.slice(caseIndex + 1)];
   if (exception) {
-    return { cases: [...schedule.cases], exceptions: schedule.exceptions.map((other) => (other === exception ? { ...other, cases: nextCases } : other)) };
+    return { ...period, cases: [...schedule.cases], exceptions: schedule.exceptions.map((other) => (other === exception ? { ...other, cases: nextCases } : other)) };
   }
-  if (!nextCases.length) throw new Error('Ce sont les derniers horaires du créneau : supprimez le créneau lui-même.');
-  return { cases: nextCases, exceptions: [...schedule.exceptions] };
+  if (!nextCases.length) throw new Error(words.lastHours);
+  return { ...period, cases: nextCases, exceptions: [...schedule.exceptions] };
 }

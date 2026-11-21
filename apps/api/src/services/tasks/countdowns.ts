@@ -4,8 +4,8 @@ import type { Countdown } from '../../generated/prisma/client';
 import { orNotFound, parseInput } from '../../graphql/errors';
 
 /**
- * Timers (« minuteurs ») of a user (decision FT), shared by the workspaces as the rings (`AlarmRing`): several run at
- * once; a running one keeps its end (`endsAt`, the moment the server can push it, lot 17c), a paused one the seconds
+ * Timers (« minuteurs ») of a user, shared by the workspaces as the rings (`AlarmRing`): several run at
+ * once; a running one keeps its end (`endsAt`, the moment the server can push it), a paused one the seconds
  * left. At its end, the app rings it (`startRinging`, key `countdown:<id>`) and records it (`ringCountdown`): the ring
  * goes on as an `AlarmRing`, the timer no longer shows, and it is removed 6 hours later.
  */

@@ -10,7 +10,7 @@ Un **lieu** (« Maison », « Bureau »…) a une adresse et un point (latitude,
 
 | Champ          | Règle                                                                                        | Message                                                 |
 | -------------- | -------------------------------------------------------------------------------------------- | ------------------------------------------------------- |
-| `label`        | requis, coupé, 250 caractères au plus (décision DO)                                          | « Le libellé est requis. », « 250 caractères maximum. » |
+| `label`        | requis, coupé, 250 caractères au plus (`TEXT_MAX`)                                          | « Le libellé est requis. », « 250 caractères maximum. » |
 | `address`      | coupée, 250 caractères au plus, vide par défaut                                              | « 250 caractères maximum. »                             |
 | `lat`, `lon`   | WGS 84 : latitude de -90 à 90, longitude de -180 à 180 ; obligatoires pour un lieu           | « Choisissez une adresse proposée. » (sur `address`)    |
 | `parentId`     | lieu ou zone qui contient une zone ; `null` pour un lieu                                     | —                                                       |
@@ -79,7 +79,7 @@ Un élément sans aucun ancêtre localisé n’est pas rendu.
 
 ### Durées saisies sur un élément
 
-- Les champs d’un élément localisé (évènement, routine) : `locationLat`, `locationLon` (facultatifs) et `travelBefore`, `travelAfter` (`locatedFields`). Une tâche a un lieu et son point, sans trajet (`locationPointFields`, décision D6) : elle n’a pas d’heures.
+- Les champs d’un élément localisé (évènement, routine) : `locationLat`, `locationLon` (facultatifs) et `travelBefore`, `travelAfter` (`locatedFields`). Une tâche a un lieu et son point, sans trajet (`locationPointFields`) : elle n’a pas d’heures.
 - Enregistré, un point va avec un lieu, ses deux coordonnées ou aucune (`storedLocation`, `services/core/geo.ts`, commun aux évènements, routines et tâches).
 - Trajet aller ou retour : entier de 0 à 1440 minutes (24 h), 0 par défaut : « Durée positive attendue. », « 24 h maximum. ».
 - `travelMinutes(seconds)` arrondit une durée calculée aux **5 minutes supérieures**.

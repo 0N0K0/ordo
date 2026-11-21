@@ -61,7 +61,7 @@ export function HomePage() {
   const customized = order.join() !== DEFAULT_ORDER.join();
   const shown = perso ? order.filter((id) => !PRO_CARDS.has(id)) : order;
   const cards: Record<CardId, ReactNode> = {
-    tasks: <TasksCard context={context} tasks={myTasks.tasks} today={today} />,
+    tasks: <TasksCard context={context} todayTasks={myTasks.tasks} today={today} />,
     routines: <RoutinesCard today={today} />,
     agenda: <AgendaCard today={today} />,
     chrono: <ChronoCard context={context} />,

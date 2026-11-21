@@ -54,7 +54,7 @@ function WorkspaceRow({ workspace, index, count, current, fallbackId }: Workspac
     update.mutate({ id: workspace.id, input: { label: workspace.label, kind } }, toastCallbacks(kind === 'PERSO' ? 'Espace passé en personnel.' : 'Espace passé en professionnel.'));
 
   /**
-   * Opens the form renaming the workspace, in the side panel as elsewhere (decision DF).
+   * Opens the form renaming the workspace, in the side panel as elsewhere.
    * @returns {void}
    */
   const rename = () =>

@@ -9,7 +9,7 @@ import { fetchRoutine, useRoutineMutations } from '../api';
 import { closeRoutinePanels, openRoutineForm } from '../lib/open-routine-form';
 
 /**
- * « Transformer en routine » / « Transformer en tâche » (lot 15), the entries of the « … » menus of a task and of a
+ * « Transformer en routine » / « Transformer en tâche », the entries of the « … » menus of a task and of a
  * routine (table row and panel): refused while the item has sub-items (the entry disabled, with why); asked with the
  * destructive confirmation listing what is lost (`conversionDialog`); once done, the panel still open on the item (from
  * its row or its panel) closes and the new item's opens (as « Dupliquer » opens the copy).

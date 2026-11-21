@@ -324,7 +324,7 @@ interface ChartMovement {
  * @param {TreasuryMember[]} input.members Members of the team or household.
  * @param {TreasuryRelation[]} input.relations Relations (people out of the team or household).
  * @param {TreasuryContext[]} input.contexts Contexts.
- * @param {ContextEphemeris[]} input.ephemerides Éphémérides of the contexts (their periods, lot 16).
+ * @param {ContextEphemeris[]} input.ephemerides Éphémérides of the contexts (their periods).
  * @param {TreasuryProjection | null} input.projection Projection (expected movements and balance).
  * @param {TreasuryAccount[]} input.accounts Accounts.
  * @param {ChartConfig} input.config Configuration.
@@ -362,7 +362,7 @@ export function treasuryChartData({
 }): ChartData {
   if (config.measure === 'balance') return balanceChartData(projection, config, today);
   const filter = config.treasury;
-  // None on a day several contexts cover (decision FN).
+  // None on a day several contexts cover.
   const plannedOn = contextPlanner(ephemerides);
   const expected: ChartMovement[] =
     filter.includeForecast && projection

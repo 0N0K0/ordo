@@ -100,13 +100,13 @@ export type TaskColumnDefaults = z.infer<typeof taskColumnDefaultsSchema>;
  * @returns {TaskColumnDefaults} Order and hidden columns.
  */
 export function readTaskColumnDefaults(stored: unknown): TaskColumnDefaults {
-  // Old id of the label column read as `label` (decision BI).
+  // Old id of the label column read as `label`.
   const parsed = taskColumnDefaultsSchema.safeParse(withLabelColumn(stored ?? {}, legacyLabelColumn('tasks')));
   return parsed.success ? parsed.data : { columnOrder: [], hiddenColumns: [] };
 }
 
 /**
- * What a change of status does to a task being closed (decision D23): a status « Annulé » closes it, leaving one
+ * What a change of status does to a task being closed: a status « Annulé » closes it, leaving one
  * reopens it; the other categories (« Terminé » included) leave it as it is.
  * @param {TaskStatusCategory | null} from Category of its status now (null: none).
  * @param {TaskStatusCategory | null} to Category of its new status (null: none).

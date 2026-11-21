@@ -107,7 +107,7 @@ export const moneyCompact = (amount: number, currency = 'EUR') => moneyFormat(cu
 export const moneyRound = (amount: number, currency = 'EUR') => moneyFormat(currency, { maximumFractionDigits: 0 }).format(amount);
 
 /**
- * A count in a column or an export: its number, blank for none (decision DH; an amount of 0 stays « 0,00 € »).
+ * A count in a column or an export: its number, blank for none (an amount of 0 stays « 0,00 € »).
  * @param {number} value Count.
  * @returns {string} Text.
  */

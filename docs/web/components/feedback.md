@@ -6,8 +6,8 @@ Briques qui disent l'état de ce qui est affiché : alertes, états vides, pages
 
 ### `feedback-colors.ts`
 
-- `FEEDBACK_COLORS` : couleur de chaque type de retour, commune aux alertes et aux toasts (décision 12) : `success` vert, `info` bleu, `warning` orange, `error` rouge.
-- `LATE_COLOR` : couleur d'un retard (accueil, facturation, trésorerie, tâches, routines, badge de navigation…), orange (`FEEDBACK_COLORS.warning`), décisions AI, CF, DC. Imposée par eslint (pas de `red` / `orange` choisi à la main sur un test `late` / `overdue`).
+- `FEEDBACK_COLORS` : couleur de chaque type de retour, commune aux alertes et aux toasts, avec une icône par type : `success` vert, `info` bleu, `warning` orange, `error` rouge.
+- `LATE_COLOR` : couleur d'un retard (accueil, facturation, trésorerie, tâches, routines, badge de navigation…), orange (`FEEDBACK_COLORS.warning`), partout ; seuls les impayés de plus de 45 jours passent au rouge (second palier). Imposée par eslint (pas de `red` / `orange` choisi à la main sur un test `late` / `overdue`).
 
 ### `feedback-icons.tsx`
 
@@ -43,11 +43,11 @@ Page de détail dont l'élément n'existe pas (supprimé, mauvaise adresse) : `B
 
 ### `SaveStatus`
 
-État d'un panneau de détail enregistré champ par champ (décision D22, `useFieldSave`), en haut du panneau : « Enregistrement… » (petit chargement) pendant un enregistrement, « Enregistré » (coche) sinon ; même place dans les deux cas, lu par les lecteurs d'écran quand il change (`role="status"`). Prop `saving`. Utilisé par les panneaux des tâches, des routines, des évènements, des occurrences de routine, des temps, des alarmes, des produits et éléments des achats, des listes, des livraisons et des fiches.
+État d'un panneau de détail enregistré champ par champ (`useFieldSave`), en haut du panneau : « Enregistrement… » (petit chargement) pendant un enregistrement, « Enregistré » (coche) sinon ; même place dans les deux cas, lu par les lecteurs d'écran quand il change (`role="status"`). Prop `saving`. Utilisé par tous les panneaux de détail enregistrés champ par champ (tâches, routines, évènements, temps, alarmes, achats, fiches, facturation, trésorerie, projets, clients, réglages, mail…).
 
 ### `RunningPill`
 
-Pastille de l’en-tête de ce qui tourne (décision FT), la même pour les chronos (`TimerWidget`, point rouge) et les minuteurs (`CountdownWidget`, `tone="countdown"`, point orange) : point qui pulse (gris et immobile en pause, `paused`), sujet (masqué sur téléphone), horloge ; clic : bulle `details` (largeur `detailsWidth`, 380 par défaut) ; puis `controls`. Props : `label` (nom du bouton, « Détails du chrono »), `tone?`, `paused?`, `subject?`, `clock`, `details`, `detailsWidth?`, `controls?`. Styles `RunningPill.module.css` (`running`, `summary`, `dot`, repris de l’ancien `TimerWidget.module.css`).
+Pastille de l’en-tête de ce qui tourne, la même pour les chronos (`TimerWidget`, point rouge) et les minuteurs (`CountdownWidget`, `tone="countdown"`, point orange) : point qui pulse (gris et immobile en pause, `paused`), sujet (masqué sur téléphone), horloge ; clic : bulle `details` (largeur `detailsWidth`, 380 par défaut) ; puis `controls`. Props : `label` (nom du bouton, « Détails du chrono »), `tone?`, `paused?`, `subject?`, `clock`, `details`, `detailsWidth?`, `controls?`. Styles `RunningPill.module.css` (`running`, `summary`, `dot`).
 
 ### `FullPageLoader`
 
@@ -73,5 +73,5 @@ Composant interne `Line` (barre d'une ligne de texte, un demi-pas d'épaisseur c
 Tous les badges sont en capitales (défaut de Mantine) ; aucun ne les annule (`tt="none"` interdit).
 
 - `ArchivedBadge` : badge gris « Archivé » / « Archivée » (icône archive) d'un élément archivé (tâche, projet, liste, compte), le même partout (~27 fichiers). Props : `feminine`, `size`.
-- `LateBadge` : retard d'une ligne de l'accueil, « 3 j de retard » (`fmt.daysLate`) en orange (`LATE_COLOR`), décision AI. Props : `due`, `today` (YYYY-MM-DD). Utilisé par `features/home`.
-- `CountBadge` : petit compte d'un onglet, d'un bouton ou d'une entrée de navigation (filtres, documents à envoyer, mails non lus) ; rond tant qu'il tient sur un chiffre (taille `xs`), rien pour 0 ou moins. Props : `count`, `color` (défaut couleur primaire), `variant` (`filled` par défaut, `light`), `size` (`xs`), `label` (pour les lecteurs d'écran, « 3 non lus ») ; les autres props vont au badge. Imposé par eslint (décision CI).
+- `LateBadge` : retard d'une ligne de l'accueil, « 3 j de retard » (`fmt.daysLate`) en orange (`LATE_COLOR`). Props : `due`, `today` (YYYY-MM-DD). Utilisé par `features/home`.
+- `CountBadge` : petit compte d'un onglet, d'un bouton ou d'une entrée de navigation (filtres, documents à envoyer, mails non lus) ; rond tant qu'il tient sur un chiffre (taille `xs`), rien pour 0 ou moins. Props : `count`, `color` (défaut couleur primaire), `variant` (`filled` par défaut, `light`), `size` (`xs`), `label` (pour les lecteurs d'écran, « 3 non lus ») ; les autres props vont au badge. Imposé par eslint (pas de `Badge` avec un compte seul).

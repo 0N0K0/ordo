@@ -229,7 +229,7 @@
     background-image: repeating-linear-gradient(135deg, rgb(255 255 255 / 0.5) 0 4px, transparent 4px 8px) !important;
   }
 
-  /* Éphémérides (holidays, birthdays…, lot 16): dotted, to tell them from the créneaux (hatched: another workspace). */
+  /* Éphémérides (holidays, birthdays…): dotted, to tell them from the créneaux (hatched: another workspace). */
   .ephemeris {
     /* Arrière-Plan */
     background-image: radial-gradient(rgb(255 255 255 / 0.55) 1px, transparent 1.5px) !important;

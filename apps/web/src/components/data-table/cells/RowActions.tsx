@@ -20,7 +20,7 @@ interface RowActionsProps extends ActionsSubject {
  * @returns {JSX.Element} Actions.
  */
 export function RowActions({ name, about, primary, items }: RowActionsProps) {
-  // « Archiver » is never a button (decision R).
+  // « Archiver » is never a button.
   if (primary && primary.inMenu) [primary, items] = [null, [primary, ...items]];
   return (
     <Group gap={2} wrap="nowrap" justify="flex-end">

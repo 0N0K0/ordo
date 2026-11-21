@@ -108,7 +108,7 @@ export function AppLayout() {
                 </Group>
                 <HeaderTitle />
                 <Group gap="sm" wrap="nowrap" justify="flex-end">
-                  {/* The running timers and the timers counting down (decision FT), not on a phone. */}
+                  {/* The running timers and the timers counting down, not on a phone. */}
                   <div className={classes.fromTablet}>
                     <Group gap="xs" wrap="nowrap">
                       <CountdownWidget />

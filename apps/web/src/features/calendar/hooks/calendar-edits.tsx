@@ -1,5 +1,5 @@
 import { openFormPanel } from '../../../components/panels/panels';
-import { changedScheduleSlot, type ScheduleSlotTime, type WorkScheduleRule } from '@ordo/shared';
+import { changedScheduleSlot, slotWords, type ScheduleSlotTime, type WorkScheduleRule } from '@ordo/shared';
 import { notifyFailure, notifySuccess, notifyWithUndo, ON_ERROR, onMutationError, toastCallbacks } from '../../../lib/notify';
 import { useRoutineMutations, type Routine } from '../../routines/api';
 import * as fmt from '../../../lib/format';
@@ -21,9 +21,9 @@ export interface RoutineOccurrenceRef {
   routine: Routine;
   date: string;
   slot: RoutineSlotTimes;
-  /** Cancelled (shown struck through, decision D23): only given back. Optional. Default = false. */
+  /** Cancelled (shown struck through): only given back. Optional. Default = false. */
   cancelled?: boolean;
-  /** Of an archived routine, before its archiving (decision D21): read only. Optional. Default = false. */
+  /** Of an archived routine, before its archiving: read only. Optional. Default = false. */
   archived?: boolean;
 }
 
@@ -38,7 +38,8 @@ export function useCalendarEdits() {
   const { changeOccurrence, deleteOccurrence, removeMove } = useRoutineMutations();
 
   /**
-   * Moves, stretches or deletes (no change) a slot of a schedule.
+   * Moves, stretches or deletes (no change) a slot of a schedule (a créneau or an éphéméride: its own words); an
+   * éphéméride of a single day moved to another day moves with its period without asking the scope.
    * @param {WorkScheduleRule} schedule Schedule.
    * @param {ScheduleSlotTime} slot Slot.
    * @param {ScheduleSlotTime | null} change New day and hours, or null: deleted.
@@ -46,7 +47,10 @@ export function useCalendarEdits() {
    * @returns {Promise<void>}
    */
   const changeSlot = async (schedule: WorkScheduleRule, slot: ScheduleSlotTime, change: ScheduleSlotTime | null, revert?: () => void) => {
-    const scope = await askScope({ action: change ? 'update' : 'delete', title: change ? 'Modifier un créneau récurrent' : 'Supprimer un créneau récurrent' });
+    const words = slotWords(schedule.ephemeris);
+    // An éphéméride of a single day moved to another day moves with its period: nothing to choose.
+    const wholePeriod = schedule.ephemeris && schedule.startDate === schedule.endDate && change && change.date !== slot.date;
+    const scope = wholePeriod ? 'ALL' : await askScope({ action: change ? 'update' : 'delete', title: `${change ? 'Modifier' : 'Supprimer'} ${words.recurring}` });
     if (!scope) return revert?.();
     let next: ReturnType<typeof changedScheduleSlot>;
     try {
@@ -58,7 +62,7 @@ export function useCalendarEdits() {
     update.mutate(
       { id: schedule.id, input: ruleScheduleInput(schedule, next) },
       {
-        ...toastCallbacks(scope === 'THIS' ? 'Exception ajoutée au créneau pour ce jour.' : change ? 'Créneau modifié.' : 'Horaires retirés du créneau.'),
+        ...toastCallbacks(scope === 'THIS' ? `Exception ajoutée ${words.to} pour ce jour.` : change ? words.changed : `Horaires retirés ${words.of}.`),
         onError: (error) => {
           onMutationError(error);
           revert?.();
@@ -92,8 +96,8 @@ export function useCalendarEdits() {
   };
 
   /**
-   * Cancels an occurrence of a routine (it stays shown struck through, with its comments: decision D23), or deletes it and
-   * the following ones, telling the comments deleted with them (decision D19); « Annuler » gives a single occurrence back.
+   * Cancels an occurrence of a routine (it stays shown struck through, with its comments), or deletes it and
+   * the following ones, telling the comments deleted with them; « Annuler » gives a single occurrence back.
    * @param {RoutineOccurrenceRef} occurrence Occurrence.
    * @param {string | null} movedFrom Day of the rule it was moved from, if any.
    * @returns {Promise<void>}
@@ -125,8 +129,8 @@ export function useCalendarEdits() {
   };
 
   /**
-   * Opens the panel of a slot of a schedule, saved field by field (decision D22): asks first, once, which days its
-   * changes apply to (dismissed: it opens read only).
+   * Opens the panel of a slot of a schedule (a créneau or an éphéméride), saved field by field: asks first, once,
+   * which days its changes apply to (dismissed: it opens read only).
    * @param {WorkScheduleRule} schedule Schedule.
    * @param {string} label Label shown (its kind).
    * @param {ScheduleSlotTime} slot Slot.
@@ -134,8 +138,9 @@ export function useCalendarEdits() {
    */
   const openSlot = async (schedule: WorkScheduleRule, label: string, slot: ScheduleSlotTime) => {
     // Dismissed: no scope, the panel opens read only.
-    const scope = await askScope({ action: 'update', title: 'Modifier un créneau récurrent', note: 'Les modifications faites dans le panneau, chacune enregistrée aussitôt, s’y appliqueront.' });
-    openFormPanel(`Créneau du ${fmt.dayLong(slot.date)}`, (close) => (
+    const words = slotWords(schedule.ephemeris);
+    const scope = await askScope({ action: 'update', title: `Modifier ${words.recurring}`, note: 'Les modifications faites dans le panneau, chacune enregistrée aussitôt, s’y appliqueront.' });
+    openFormPanel(`${words.title} du ${fmt.dayLong(slot.date)}`, (close) => (
       <SlotEditForm
         label={label}
         schedule={schedule}
@@ -151,7 +156,7 @@ export function useCalendarEdits() {
   };
 
   /**
-   * Opens the panel of an occurrence of a routine, saved field by field (decision D22): asks first, once, which
+   * Opens the panel of an occurrence of a routine, saved field by field: asks first, once, which
    * occurrences its changes apply to (dismissed: it opens read only); a cancelled occurrence, or one of an archived
    * routine, opens without asking.
    * @param {RoutineOccurrenceRef} occurrence Occurrence.

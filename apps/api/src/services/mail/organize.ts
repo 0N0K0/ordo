@@ -227,7 +227,7 @@ export async function deleteFolder(accountId: string, path: string): Promise<voi
   });
 }
 
-/** Flags of the mails: a label of TEXT_MAX characters like the other labels (decisions Z, DO), unique in the workspace (decision L). */
+/** Flags of the mails: a label of TEXT_MAX characters like the other labels, unique in the workspace. */
 export const mailLabels = createLabelService<MailLabel>('mailLabel', { notFound: 'Drapeau', conflict: 'Un drapeau porte déjà ce libellé.' });
 
 /**

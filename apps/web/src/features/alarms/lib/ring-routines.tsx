@@ -7,15 +7,15 @@ import { ringPlannedReminders, type RingLink, type RingWorkspace } from '../comp
 export type RemindedRoutine = Pick<Routine, 'id' | 'label' | 'archived' | 'location' | 'estimate' | 'currentDate' | 'reminders' | 'reminderOccurrences' | 'slots'> & SharedRemindedRoutine;
 
 /**
- * « Marquer comme faite » of the ring of a reminder of a routine: when it rings, and when it is shown again (decision FV).
+ * « Marquer comme faite » of the ring of a reminder of a routine: when it rings, and when it is shown again.
  * @param {() => void} onClick Ticks the time of the day.
  * @returns {RingLink} Action.
  */
 export const markDoneAction = (onClick: () => void): RingLink => ({ label: 'Marquer comme faite', icon: <CheckCircleIcon aria-hidden />, onClick });
 
 /**
- * Rings the reminders of the routines (decision D16; `routineRings`), for the occurrences the API gives: each « N min
- * avant » before each time of the day not ticked (from one of its four anchors, decisions FS, FV), each « À HH:MM » once per
+ * Rings the reminders of the routines (`routineRings`), for the occurrences the API gives: each « N min
+ * avant » before each time of the day not ticked (from one of its four anchors), each « À HH:MM » once per
  * occurrence. Missed ones, within a few hours, ring on opening. An archived routine has none. The toast offers to tick
  * the routine (its current occurrence). Out of the slots of the routine (its slot rule), a reminder waits for the next
  * moment they allow.

@@ -6,8 +6,8 @@ import { dayInMonth, daysInMonth } from '../dates/months';
 import { PARIS_ZONE } from '../dates/reminders';
 
 /**
- * Birth dates of the people (contributors, members, relations, lot 16) and the birthdays they give: whole-day
- * éphémérides derived at read time (no stored row), with the age when the year is known (decision FO).
+ * Birth dates of the people (contributors, members, relations) and the birthdays they give: whole-day
+ * éphémérides derived at read time (no stored row), with the age when the year is known.
  *
  * A birth date is stored as text: `YYYY-MM-DD`, or `--MM-DD` when the year is not known (ISO 8601 / vCard form).
  */

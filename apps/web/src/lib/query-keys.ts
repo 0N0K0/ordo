@@ -7,7 +7,7 @@ import type { QueryKey } from '@tanstack/react-query';
 /** Root key of the task queries (tasks, contributors, columns…). */
 export const tasksQueryKey = ['tasks'] as const;
 
-/** Key of the tasks doable now: refreshed with what their slot conditions count (`SLOT_DEPENDENT_KEYS`, decision FQ). */
+/** Key of the tasks doable now: refreshed with what their slot conditions count (`SLOT_DEPENDENT_KEYS`). */
 export const doableTasksKey = [...tasksQueryKey, 'doable'] as const;
 
 /** Root key of the routine queries. */
@@ -29,7 +29,7 @@ export const treasurySettingsKey = [...treasuryKey, 'settings'];
 export const calendarQueryKey = ['calendar'] as const;
 
 /**
- * What the sources of the slot conditions (schedules, kinds, birthdays) change, refreshed with them (decision FQ): the
+ * What the sources of the slot conditions (schedules, kinds, birthdays) change, refreshed with them: the
  * routines (their occurrences come from the API) and the tasks doable now.
  */
 export const SLOT_DEPENDENT_KEYS: readonly QueryKey[] = [routinesKey, doableTasksKey];

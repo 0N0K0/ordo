@@ -131,17 +131,17 @@ interface EventFormProps {
   /** Fields of a new event (dates selected in the calendar…). */
   defaults?: Partial<CalendarEventInput>;
   onDone: () => void;
-  /** Opens the copy of the event once saved (« Dupliquer », decision D20): its id and fields. Optional: no « Dupliquer ». */
+  /** Opens the copy of the event once saved (« Dupliquer »): its id and fields. Optional: no « Dupliquer ». */
   onDuplicated?: (id: string, fields: CalendarEventInput) => void;
   /**
-   * Occurrences of a recurring event the changes of its panel apply to, chosen once when it opens (decision D22); null:
+   * Occurrences of a recurring event the changes of its panel apply to, chosen once when it opens; null:
    * the question was dismissed, the panel is read only (its comments can still be written). Optional. Default = 'ALL'
    * (a single event: all of it).
    */
   scope?: CalendarEventScope | null;
 }
 
-/** Fields of an event saved on leaving them, in its panel (decision D22): texts, travel times, its links and its place. */
+/** Fields of an event saved on leaving them, in its panel: texts, travel times, its links and its place. */
 const ON_BLUR = ['label', 'description', 'links', 'location', 'locationLat', 'locationLon', 'travelBefore', 'travelAfter'] as const;
 
 /** Event and occurrence the panel saves to: the series may be split (« celle-ci et les suivantes ») or moved by a save. */
@@ -159,7 +159,7 @@ interface SaveTarget {
  * project, contributors, categories, tasks, reminders, description; a timer can be started on it. An event can be cancelled (kept struck through)
  * and restored, or postponed (cancelled, and a new event linked to it takes the new date); a warning tells
  * when it falls outside the working hours. A new event is a form with « Créer l’évènement »; an existing one, its panel,
- * saves each field as soon as it changes (texts on leaving them, decision D22, `useFieldSave`), for the occurrences
+ * saves each field as soon as it changes (texts on leaving them, `useFieldSave`), for the occurrences
  * chosen when it opened (`scope`): one occurrence alone changes only its own fields (label, description, place, links,
  * days and hours, travel times, routines of its days), the others are those of the series. Deleting still asks which
  * occurrences. An archived event (or one of an archived calendar) opens read only: it can be restored or deleted. Opened
@@ -183,7 +183,7 @@ export function EventForm({ context, occurrence, defaults, onDone, onDuplicated,
     ));
 
   /**
-   * Starts a timer on this occurrence (its project if any, tasks and label): no project needed (decision D17).
+   * Starts a timer on this occurrence (its project if any, tasks and label): no project needed.
    * @returns {void}
    */
   const handleTimer = () => {
@@ -311,8 +311,8 @@ export function EventForm({ context, occurrence, defaults, onDone, onDuplicated,
   const handleSubmit = form.onSubmit((input) => create.mutate(input, formCallbacks(form, 'Évènement créé.', onDone)));
 
   /**
-   * Deletes the event (asking which occurrences for a recurring one), telling the times without project (extra A of
-   * decision D17) and the comments (decision D19) deleted with it.
+   * Deletes the event (asking which occurrences for a recurring one), telling the times without project
+   * and the comments deleted with it.
    * @returns {Promise<void>}
    */
   const handleDelete = async () => {
@@ -617,7 +617,7 @@ export function EventForm({ context, occurrence, defaults, onDone, onDuplicated,
             </ActionButton>
           </Group>
         ) : occurrence ? (
-          // Saved field by field: only the actions on the event (decision D22).
+          // Saved field by field: only the actions on the event.
           <Group gap={4}>
             <DeleteButton onClick={() => void handleDelete()} loading={remove.isPending} />
             {onDuplicated && (

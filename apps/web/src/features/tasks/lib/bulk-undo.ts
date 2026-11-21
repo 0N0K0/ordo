@@ -1,8 +1,51 @@
-import { groupBy } from '@ordo/shared';
+import { groupBy, readSlotCondition, taskFieldsGiven, type TaskInheritableField } from '@ordo/shared';
 import { notifySuccess, notifyFailure } from '../../../lib/notify';
-import { useBulkTaskMutations, useSetTasksClosed, type BulkChanges, type Task } from '../api';
+import { originOf } from '../../../components/inheritance/inheritance';
+import { useBulkTaskMutations, useSetTasksClosed, useUpdateTask, type BulkChanges, type Task, type TaskInputValues } from '../api';
 
-const SCALAR_FIELDS = ['statusId', 'priorityId', 'typeId', 'milestoneId', 'effort', 'startDate', 'endDate', 'deadline'] as const;
+const SCALAR_FIELDS = ['statusId', 'priorityId', 'typeId', 'milestoneId', 'effort', 'startDate', 'endDate', 'deadline', 'minDate'] as const;
+
+/** Keys of a bulk change giving each inherited field a value (`TASK_FIELD_INPUTS` of the bulk input). */
+const BULK_KEYS: Partial<Record<TaskInheritableField, readonly (keyof BulkChanges)[]>> = {
+  PRIORITY: ['priorityId'],
+  MILESTONE: ['milestoneId'],
+  MIN_DATE: ['minDate'],
+  DEADLINE: ['deadline'],
+  ASSIGNEES: ['addAssigneeIds', 'removeAssigneeIds'],
+};
+
+/**
+ * Change of a task giving back an inherited field as it was: inherited again, emptied again, or its own
+ * value; its own project comes back by a transfer (`useBulkUndo().inheritance`).
+ * @param {Task} task Task before the change.
+ * @param {TaskInheritableField} field Field.
+ * @returns {Omit<TaskInputValues, 'projectId'>} Change.
+ */
+function restoredField(task: Task, field: TaskInheritableField): Omit<TaskInputValues, 'projectId'> {
+  const state = originOf(task, field)?.state;
+  if (state === 'INHERITED') return { inherit: [field] };
+  if (state === 'CLEARED') return { clear: [field] };
+  switch (field) {
+    case 'PROJECT':
+      return {};
+    case 'ASSIGNEES':
+      return { assigneeIds: task.assigneeIds };
+    case 'BENEFICIARIES':
+      return { beneficiaryIds: task.beneficiaryIds, beneficiaryRelationIds: task.beneficiaryRelationIds };
+    case 'SLOT_CONDITION':
+      return { slotCondition: readSlotCondition(task.slotCondition) };
+    case 'MIN_DATE':
+      return { minDate: task.minDate };
+    case 'DEADLINE':
+      return { deadline: task.deadline };
+    case 'LOCATION':
+      return { location: task.location, locationLat: task.locationLat, locationLon: task.locationLon };
+    case 'PRIORITY':
+      return { priorityId: task.priorityId };
+    case 'MILESTONE':
+      return { milestoneId: task.milestoneId };
+  }
+}
 
 /**
  * Changes restoring tasks as they were before a bulk change, grouped by identical restoring changes.
@@ -30,6 +73,14 @@ function revertChanges(tasks: Task[], changes: BulkChanges): { ids: string[]; ch
     const removedSprints = (changes.removeSprintIds ?? []).filter((id) => task.sprintIds.includes(id));
     if (addedSprints.length) previous.removeSprintIds = addedSprints;
     if (removedSprints.length) previous.addSprintIds = removedSprints;
+    // A field it inherited or had emptied on purpose comes back so, not as a value of its own.
+    for (const field of taskFieldsGiven(changes)) {
+      const state = originOf(task, field)?.state;
+      if (state !== 'INHERITED' && state !== 'CLEARED') continue;
+      for (const key of BULK_KEYS[field] ?? []) delete previous[key];
+      if (state === 'INHERITED') previous.inheritFields = [...(previous.inheritFields ?? []), field];
+      else previous.clearFields = [...(previous.clearFields ?? []), field];
+    }
     if (Object.keys(previous).length === 0) continue;
     const key = JSON.stringify(previous);
     const group = groups.get(key) ?? { ids: [], changes: previous };
@@ -54,6 +105,7 @@ const idsBy = <K>(tasks: Task[], keyOf: (task: Task) => K): [K, string[]][] => [
  */
 export function useBulkUndo() {
   const { update, archive, transfer } = useBulkTaskMutations();
+  const updateTask = useUpdateTask();
   const setClosed = useSetTasksClosed();
 
   /**
@@ -80,8 +132,30 @@ export function useBulkUndo() {
     changes: (tasks: Task[], changes: BulkChanges) => () => run(revertChanges(tasks, changes).map((step) => () => update.mutateAsync({ ...step, restoring: true }))),
 
     /**
+     * Undo of « Héritage… »: each field of each task given back as it was, inherited, emptied or its own
+     * value; its own project by a transfer (it had followed its parent's).
+     * @param {Task[]} tasks Tasks before the change.
+     * @param {readonly TaskInheritableField[]} fields Fields changed.
+     * @returns {() => void} Undo.
+     */
+    inheritance: (tasks: Task[], fields: readonly TaskInheritableField[]) => () =>
+      run(
+        tasks.filter((task) => task.parentId).flatMap((task) => {
+          const input = fields.reduce<Omit<TaskInputValues, 'projectId'>>((all, field) => {
+            const { inherit = [], clear = [], ...values } = restoredField(task, field);
+            return { ...all, ...values, ...(inherit?.length && { inherit: [...(all.inherit ?? []), ...inherit] }), ...(clear?.length && { clear: [...(all.clear ?? []), ...clear] }) };
+          }, {});
+          const ownProject = fields.includes('PROJECT') && originOf(task, 'PROJECT')?.state !== 'INHERITED';
+          return [
+            ...(Object.keys(input).length ? [() => updateTask.mutateAsync({ id: task.id, input })] : []),
+            ...(ownProject ? [() => transfer.mutateAsync({ ids: [task.id], projectId: task.projectId })] : []),
+          ];
+        }),
+      ),
+
+    /**
      * Undo of a close / reopen: only the tasks whose state changed go back. A cancelled task reopened by hand took the
-     * first « À faire » status (decision FA): its « Annulé » status comes back too, which closes it again.
+     * first « À faire » status: its « Annulé » status comes back too, which closes it again.
      * @param {Task[]} tasks Tasks before the change.
      * @param {boolean} closed Applied state.
      * @returns {() => void} Undo.

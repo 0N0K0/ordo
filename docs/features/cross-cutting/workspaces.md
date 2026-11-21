@@ -29,7 +29,7 @@ Dans le panneau « Espaces » (sélecteur) et dans « Paramètres › Espaces »
 - Type : bouton segmenté « Pro » / « Perso ». Toasts « Espace passé en personnel. » / « Espace passé en professionnel. ». Le passage en personnel est refusé si l’espace a des clients ou des documents de facturation.
 - Menu : « Renommer » (formulaire « Renommer l’espace » dans le panneau latéral, 250 caractères), « Monter » / « Descendre » (ordre du sélecteur), « Ouvrir » (désactivé pour l’espace actuel).
 - « Supprimer » : désactivé quand il ne reste qu’un espace (« Le dernier espace ne peut pas être supprimé »). Confirmation « Supprimer l’espace » : « L’espace « X » sera supprimé définitivement avec tout son contenu : projets, tâches, temps, agenda, mails liés, documents, tableaux de bord, trésorerie[, clients et facturation]. Les boîtes mail restent intactes sur leur serveur. ». Toast « Espace supprimé. ». Supprimer l’espace ouvert bascule sur un autre.
-- « Quand un autre espace est ouvert (alarmes et rappels sonnent toujours), notifier aussi : » puce « Nouveaux mails » (décision EO : les choix « Alarmes » et « Rappels d’agenda » ont disparu, ces notifications sont toujours données).
+- « Quand un autre espace est ouvert (alarmes et rappels sonnent toujours), notifier aussi : » puce « Nouveaux mails » : c’est le seul choix, les alarmes et les rappels étant toujours donnés.
 - « Semaine du … au … » : premier et dernier jour (lundi à dimanche). Texte d’aide : « N jours. Vue semaine de l’agenda, « cette semaine »… », ou « 8 jours : les semaines se chevauchent ce jour-là. » quand les deux jours sont les mêmes. Le changement recharge toutes les données.
 
 ### Nouvel espace

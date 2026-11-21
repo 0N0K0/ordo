@@ -146,7 +146,7 @@ export function describeRoutineCase(item: RoutineCase, start: string): string {
 export const movesOf = (routine: Routine): RoutineMove[] => (routine.moves as RoutineMove[] | null) ?? [];
 
 /**
- * Occurrence of a routine open in its panel when none is chosen (decision D19: its comments are those of it): the
+ * Occurrence of a routine open in its panel when none is chosen (its comments are those of it): the
  * current one, else the next one, else the first one (a routine whose repetition has ended).
  * @param {Pick<Routine, 'currentDate' | 'nextDate' | 'firstDate'>} routine Routine.
  * @returns {string | null} Day of the occurrence, null without any.

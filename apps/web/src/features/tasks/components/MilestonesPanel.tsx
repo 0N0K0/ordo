@@ -53,7 +53,7 @@ const milestoneValues = (milestone?: Milestone): MilestoneFormValues => ({
 
 /**
  * Milestone form, in the side panel: a new milestone, created by its button; an existing one, saved field by field
- * (decision D22), read only once archived or in an archived project.
+ *, read only once archived or in an archived project.
  * @param {MilestoneFormProps} props Component props.
  * @returns {JSX.Element} Form.
  */

@@ -42,13 +42,29 @@ interface TaskColumnExtras {
   alarmCounts?: ReadonlyMap<string, number>;
   /** Calendar schedules a slot condition can name. */
   slotSchedules?: ColumnChoice[];
-  /** Comments by occurrence of the events listed (their key, decision D19). */
+  /** Comments by occurrence of the events listed (their key). */
   eventComments?: ReadonlyMap<string, number>;
 }
 
 /** Categories of the statuses, in their order. */
 const STATUS_CATEGORY_ORDER = TASK_STATUS_CATEGORIES;
 const STATUS_CATEGORY_LABELS = TASK_STATUS_CATEGORY_LABELS.status;
+
+/**
+ * Rows of the task table made of tasks, in their manual order (then by number), as the table lists them.
+ * @param {readonly Task[]} tasks Tasks.
+ * @returns {TaskTableRow[]} Rows.
+ */
+export function taskTableRows(tasks: readonly Task[]): TaskTableRow[] {
+  return [...tasks].sort((a, b) => a.position - b.position || (a.number ?? 0) - (b.number ?? 0)).map((task): TaskTableRow => ({ kind: 'task', key: task.id, task }));
+}
+
+/**
+ * Whether a row of the task table is an archived task (left out until « Afficher les archivées » is on).
+ * @param {TaskTableRow} row Row.
+ * @returns {boolean} Archived task.
+ */
+export const isArchivedTaskRow = (row: TaskTableRow): boolean => row.kind === 'task' && row.task.archived;
 
 /**
  * Tasks kept by a filter in the words of the task table (its columns), a search in their texts, the archived ones
@@ -240,7 +256,7 @@ export function taskColumns(context: TaskContext, today: string, extras: TaskCol
         return { kind: 'date', value: (row) => (row.kind === 'task' ? (row.task[id] ?? null) : id === 'startDate' ? row.event.startDate : row.event.endDate) };
       case 'deadline':
       case 'minDate': {
-        // The one it goes by: its own, else that of its single sprint.
+        // The one it goes by (`effectiveTask`): its own, else its parent's, milestone's, project's or sprint's.
         const field = id === 'deadline' ? 'effectiveDeadline' : 'effectiveMinDate';
         return { kind: 'date', value: (row) => (row.kind === 'task' && row.task[field] ? row.task[field] : null) };
       }
@@ -278,7 +294,7 @@ export function taskColumns(context: TaskContext, today: string, extras: TaskCol
     label: COLUMN_LABELS[id],
     size: COLUMN_SIZES[id],
     locked: LOCKED_COLUMNS.includes(id),
-    // Tasks and events always have a title; a count or a time is never empty (decision CO).
+    // Tasks and events always have a title; a count or a time is never empty.
     required: id === 'label' || id === 'comments' || id === 'trackedTime',
     hiddenByDefault: DEFAULT_HIDDEN_COLUMNS.includes(id),
     bulk: BULK_EDITABLE_COLUMNS.includes(id),

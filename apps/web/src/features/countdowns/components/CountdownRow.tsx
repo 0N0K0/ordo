@@ -10,8 +10,8 @@ import { useCountdownMutations, type Countdown } from '../api';
 import { countdownName } from '../lib/countdowns';
 
 /**
- * Commands of a timer, the same everywhere (decision FT): pause / resume, « +1 min », « +5 min », and « Annuler » (it
- * will not ring; without confirmation, nothing durable is lost: decision FV).
+ * Commands of a timer, the same everywhere: pause / resume, « +1 min », « +5 min », and « Annuler » (it
+ * will not ring; without confirmation, nothing durable is lost).
  * @param {{ countdown: Countdown, size?: 'xs' | 'sm' }} props Timer and the size of the buttons (optional).
  * @returns {JSX.Element} Buttons.
  */
@@ -21,7 +21,7 @@ export function CountdownControls({ countdown, size = 'sm' }: { countdown: Count
   const name = countdownName(countdown);
 
   /**
-   * Cancels the timer at once (decision FV: no confirmation, a timer holds nothing durable).
+   * Cancels the timer at once (no confirmation, a timer holds nothing durable).
    * @returns {void}
    */
   const cancelNow = () => cancel.mutate(countdown.id, toastCallbacks('Minuteur annulé.'));

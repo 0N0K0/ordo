@@ -1,6 +1,5 @@
 import { tasksQueryKey, doableTasksKey } from '../../../lib/query-keys';
-import type { TaskInput } from '@ordo/shared';
-import type { PersonDetailsValues } from '../../../components/people/person-details';
+import type { ContributorLinkValues, TaskInheritableField, TaskInput } from '@ordo/shared';
 import { accountingQueryKey } from '../../accounting/api';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { moveToIndex, patchQuery, useInvalidatingMutation } from '../../../lib/mutation';
@@ -20,6 +19,7 @@ import type {
 import { execute } from '../../../lib/graphql-client';
 import { withLossConfirmation } from '../../time/lib/confirm-loss';
 import { routinesKey } from '../../routines/api';
+import { taskRow } from '../lib/task-inheritance';
 
 export type Task = TaskFieldsFragment;
 export type TaskComment = TaskCommentFieldsFragment;
@@ -40,6 +40,10 @@ graphql(`
     avatarUrl
     isMe
     projectIds
+    link
+    relationId
+    contactId
+    linkName
     birthDate
     birthdayReminders {
       ...ReminderFields
@@ -85,6 +89,15 @@ graphql(`
 `);
 
 graphql(`
+  fragment FieldOriginFields on FieldOrigin {
+    field
+    state
+    source
+    sourceId
+  }
+`);
+
+graphql(`
   fragment TaskFields on Task {
     id
     number
@@ -104,8 +117,26 @@ graphql(`
     minDate
     effectiveDeadline
     effectiveMinDate
-    deadlineFromSprint
-    minDateFromSprint
+    deadlineSource
+    minDateSource
+    inheritedFields
+    inheritance {
+      ...FieldOriginFields
+    }
+    effective {
+      projectId
+      priorityId
+      milestoneId
+      assigneeIds
+      beneficiaryIds
+      beneficiaryRelationIds
+      slotCondition
+      location
+      locationLat
+      locationLon
+      minDate
+      deadline
+    }
     cancelled
     position
     archived
@@ -449,11 +480,19 @@ export function useSetTaskColumnDefaults() {
 export { tasksQueryKey };
 
 /**
+ * Task data with each task as the screens read it (`taskRow`: its inherited fields with the values it follows).
+ * @param {TasksData} data Data as the API gives it.
+ * @returns {TasksData} Data.
+ */
+const withTaskRows = (data: TasksData): TasksData => ({ ...data, tasks: data.tasks.map(taskRow) });
+
+/**
  * Tasks, contributors, statuses, priorities and types.
  * @returns {UseQueryResult<TasksData>} Query state.
  */
 export function useTasksData() {
-  return useQuery({ queryKey: tasksQueryKey, queryFn: () => execute(TasksDataDocument) });
+  // Each task as it goes: its inherited fields with the values it follows.
+  return useQuery({ queryKey: tasksQueryKey, queryFn: async () => withTaskRows(await execute(TasksDataDocument)) });
 }
 
 /**
@@ -518,7 +557,7 @@ export function useSetTasksClosed() {
 }
 
 /**
- * Duplicates a task (« … (copie) », decision D20), optionally with its sub-tasks.
+ * Duplicates a task (« … (copie) »), optionally with its sub-tasks.
  * @returns {UseMutationResult} Mutation state, with the id and number of the copy.
  */
 export function useDuplicateTask() {
@@ -584,23 +623,24 @@ export function useTaskCommentMutations() {
  * @returns {object} Contributor mutations.
  */
 export function useContributorMutations() {
-  // Its birthday added, moved or gone (decision FQ): the occurrences of routines lost are confirmed first, as for a
-  // change of schedule, and the routines refreshed with the tasks (the birthdays and the tasks doable now are under them).
-  const people = { invalidate: [tasksQueryKey, routinesKey] };
+  // Its birthday added, moved or gone (its link: a membership, a relation): the occurrences of routines lost are
+  // confirmed first, as for a change of schedule, and the routines refreshed with the tasks (the birthdays and the
+  // tasks doable now are under them), the members and relations (treasury) with them.
+  const people = { invalidate: [tasksQueryKey, routinesKey, accountingQueryKey] };
   return {
     create: useInvalidatingMutation(
-      async (input: { name: string; handle: string; avatar?: File | null; projectIds?: string[] } & Partial<PersonDetailsValues>) =>
+      async (input: { name: string; handle: string; avatar?: File | null; projectIds?: string[]; link?: ContributorLinkValues }) =>
         withLossConfirmation(async (confirmLoss) => (await execute(CreateContributorDocument, { input, confirmLoss })).createContributor),
       people,
     ),
     update: useInvalidatingMutation(
-      async (variables: { id: string; input: { name?: string; handle?: string; avatar?: File | null; removeAvatar?: boolean; projectIds?: string[] } }) =>
+      async (variables: { id: string; input: { name?: string; handle?: string; avatar?: File | null; removeAvatar?: boolean; projectIds?: string[]; link?: ContributorLinkValues } }) =>
         withLossConfirmation(async (confirmLoss) => (await execute(UpdateContributorDocument, { ...variables, confirmLoss })).updateContributor),
       people,
     ),
     // Members and relations (treasury) follow: a relation loses its contributor.
     remove: useInvalidatingMutation(async (variables: { id: string }) => withLossConfirmation(async (confirmLoss) => (await execute(DeleteContributorDocument, { ...variables, confirmLoss })).deleteContributor), {
-      invalidate: [...people.invalidate, accountingQueryKey],
+      invalidate: people.invalidate,
     }),
     setProjectContributors: useTasksMutation(async (variables: { projectId: string; contributorIds: string[] }) => (await execute(SetProjectContributorsDocument, variables)).setProjectContributors),
   };
@@ -700,6 +740,10 @@ export interface BulkChanges {
   removeAssigneeIds?: string[];
   addTagIds?: string[];
   removeTagIds?: string[];
+  /** Fields made inherited again (« Rétablir l'héritage »). */
+  inheritFields?: TaskInheritableField[];
+  /** Fields emptied on purpose (« Vider »; never the project). */
+  clearFields?: TaskInheritableField[];
 }
 
 /**

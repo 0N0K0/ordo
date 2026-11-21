@@ -16,7 +16,7 @@ interface TimeLogActionsProps {
 
 /**
  * Actions of a list of times: « Nouveau temps » (time added by hand) and « Démarrer le chrono » (the ones running keep
- * running, decision FT).
+ * running).
  * @param {TimeLogActionsProps} props Component props.
  * @returns {JSX.Element} Actions.
  */

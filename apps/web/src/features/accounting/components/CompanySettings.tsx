@@ -51,7 +51,7 @@ function companyValues(profile: CompanyProfile): FormValues {
   };
 }
 
-/** Fields of the profile saved on leaving them (decision D22): texts, numbers and the address. */
+/** Fields of the profile saved on leaving them: texts, numbers and the address. */
 const ON_BLUR = [
   'name',
   'contact',
@@ -82,7 +82,7 @@ const ON_BLUR = [
 
 /**
  * Business profile: identity, address, contact, VAT, bank details, default terms and mentions. Each field is saved as
- * soon as it changes (texts, numbers and the address on leaving them, decision D22, `useFieldSave`), the profile of the
+ * soon as it changes (texts, numbers and the address on leaving them, `useFieldSave`), the profile of the
  * cache followed.
  * @param {{ profile: CompanyProfile }} props Current profile.
  * @returns {JSX.Element} Form.

@@ -273,7 +273,7 @@ export function SettingsList<C extends SettingsItem, E extends object = Record<s
                     label: category.archived ? 'Restaurer' : 'Archiver',
                     icon: category.archived ? <ArrowCounterClockwiseIcon aria-hidden /> : <ArchiveIcon aria-hidden />,
                     onClick: () => toggleArchived(category, path),
-                    // In the « … » menu, never a button (decision DJ).
+                    // In the « … » menu, never a button.
                     inMenu: true,
                   },
                   ...(menuItems?.(category) ?? []),

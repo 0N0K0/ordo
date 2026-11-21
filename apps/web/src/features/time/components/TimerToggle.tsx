@@ -21,7 +21,7 @@ interface TimerToggleProps {
 
 /**
  * Button starting the timer on an item (« Démarrer le chrono »), or stopping the one running on it (and reporting the
- * time saved); the timers running on something else keep running (decision FT).
+ * time saved); the timers running on something else keep running.
  * @param {TimerToggleProps} props Component props.
  * @returns {JSX.Element} Button.
  */

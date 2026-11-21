@@ -3,6 +3,7 @@ import { byPosition, subtreeOf } from '@ordo/shared';
 import { patchQuery, useInvalidatingMutation } from '../../../lib/mutation';
 import { useQuery, type QueryKey } from '@tanstack/react-query';
 import { tasksQueryKey } from '../../tasks/api';
+import { accountingQueryKey } from '../../../lib/query-keys';
 import { graphql } from '../../../graphql';
 import type { ClientFieldsFragment, LabelFieldsFragment, ProjectFieldsFragment, ProjectStatusFieldsFragment, ProjectTreeQuery } from '../../../graphql/graphql';
 import { execute } from '../../../lib/graphql-client';
@@ -326,12 +327,14 @@ export function useSetClientFavorite() {
 }
 
 /**
- * Archives (with its active projects) or restores a client.
+ * Archives (with its active projects, its active contacts and the contributors linked to them) or restores a client;
+ * the contacts and the contributors are refreshed.
  * @returns {UseMutationResult} Mutation state.
  */
 export function useSetClientArchived() {
   return useProjectTreeMutation({
     mutationFn: async (variables: { id: string; archived: boolean }) => (await execute(SetClientArchivedDocument, variables)).setClientArchived,
+    also: [tasksQueryKey, accountingQueryKey],
     optimistic: (workspace, { id, archived }) => ({
       ...workspace,
       clients: patch(workspace.clients, id, (client) => ({ ...client, archived })),

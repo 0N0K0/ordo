@@ -4,7 +4,7 @@ import { isTaskOverdue } from '../../tasks/lib/task-overdue';
 interface TaskDates {
   startDate: string | null;
   endDate: string | null;
-  /** « Échéance » it goes by (its own, else that of its single sprint). */
+  /** « Échéance » it goes by (its own, else its parent's, milestone's or first sprint's: `effectiveTask`). */
   effectiveDeadline: string | null;
 }
 

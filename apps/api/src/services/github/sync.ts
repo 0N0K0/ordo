@@ -12,6 +12,8 @@ import {
   sameName,
   statusClosing,
   sumOf,
+  type TaskInheritableField,
+  marksInherited,
 } from '@ordo/shared';
 import { prisma } from '../../db';
 import { nextPositionIn } from '../core/ordering';
@@ -279,7 +281,7 @@ async function pullData(values: SyncFields, task: SyncedTask, maps: Maps, item: 
   if ('closed' in values) data.closedAt = values.closed ? (task.closedAt ?? new Date()) : null;
   if ('status' in values) data.status = values.status ? { connect: { id: maps.optionStatus.get(String(values.status))! } } : { disconnect: true };
   if ('priority' in values) data.priority = values.priority ? { connect: { id: maps.optionPriority.get(String(values.priority))! } } : { disconnect: true };
-  // Decision D23 (`statusClosing`): a status « Annulé » always closes the task, whatever GitHub says of its state;
+  // `statusClosing`: a status « Annulé » always closes the task, whatever GitHub says of its state;
   // leaving one reopens it unless GitHub says it is closed (a closed item with another status stays closed).
   const statusAfter = 'status' in values ? (values.status ? maps.optionStatus.get(String(values.status))! : null) : task.statusId;
   if (statusAfter !== task.statusId || data.closedAt === null) {
@@ -341,8 +343,14 @@ async function pullData(values: SyncFields, task: SyncedTask, maps: Maps, item: 
     // A task cannot go under itself or one of its sub-tasks.
     if (!parentId || !(await subtree(task.id)).has(parentId)) data.parent = parentId ? { connect: { id: parentId } } : { disconnect: true };
   }
+  // A value taken from GitHub is the task's own: no longer inherited.
+  const owned = Object.entries(PULLED_INHERITED).flatMap(([key, field]) => (key in values ? [field] : []));
+  if (owned.some((field) => marksInherited(task, field))) data.inheritedFields = task.inheritedFields.filter((field) => !owned.includes(field as TaskInheritableField));
   return data;
 }
+
+/** Synchronized fields of a task that are inherited fields. */
+const PULLED_INHERITED: Record<string, TaskInheritableField> = { priority: 'PRIORITY', deadline: 'DEADLINE', milestone: 'MILESTONE', assignees: 'ASSIGNEES' };
 
 /**
  * Milestone of a project with this label, created when there is none.

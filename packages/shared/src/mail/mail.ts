@@ -35,7 +35,7 @@ export const NO_SUBJECT = '(sans objet)';
 const SERVER_FIELD_MAX = 255;
 /** Most characters of a password of a mail server. */
 const SERVER_PASSWORD_MAX = 1000;
-/** Most characters of an HTML signature (rich text, out of the text sizes of decision DO). */
+/** Most characters of an HTML signature (rich text, out of the shared text sizes). */
 const SIGNATURE_MAX = 100_000;
 /** Most characters of the path of a mail folder (a format). */
 const FOLDER_PATH_MAX = 500;
@@ -85,7 +85,7 @@ export function passwordsToRetype(values: MailAccountFormValues, saved: MailServ
   return [...(imapChanged && !values.imapPassword ? (['imapPassword'] as const) : []), ...(smtpChanged && !values.smtpPassword ? (['smtpPassword'] as const) : [])];
 }
 
-/** Name of a mail folder: a label (decision DO), without the characters IMAP refuses in it; the same in the web and the API. */
+/** Name of a mail folder: a label, without the characters IMAP refuses in it; the same in the web and the API. */
 export const mailFolderNameSchema = requiredText().refine((name) => !/[*%"\\]/.test(name), 'Caractères interdits : * % " \\');
 
 /** HTML signature (sanitized by the API). */

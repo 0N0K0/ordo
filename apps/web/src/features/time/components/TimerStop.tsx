@@ -5,11 +5,11 @@ import { stopClick } from '../../../components/data-table/cells/cell-field';
 import type { TimeEntry } from '../api';
 import { useStopTimer } from '../hooks/use-stop-timer';
 
-/** State of a running timer, the same everywhere (decision S). */
+/** State of a running timer, the same everywhere. */
 export const TIMER_RUNNING = 'Chrono en cours';
 
 /**
- * Button stopping a running timer (the time saved), the same everywhere: « Arrêter le chrono », light red (decision S).
+ * Button stopping a running timer (the time saved), the same everywhere: « Arrêter le chrono », light red.
  * @param {{ entry: TimeEntry, name?: string, size?: ActionIconProps['size'] }} props Running timer, the item timed (for the screen readers; optional) and the size of the button (optional).
  * @returns {JSX.Element} Button.
  */

@@ -39,7 +39,7 @@ export const monthText = dateStyle({ month: 'long', year: 'numeric' });
 const longDay = dateStyle({ day: 'numeric', month: 'long', year: 'numeric' });
 
 /**
- * « 13 novembre 2026 », « 1er juin 2026 » (decision V): a day in a sentence (the period of a PDF statement, the end of a
+ * « 13 novembre 2026 », « 1er juin 2026 »: a day in a sentence (the period of a PDF statement, the end of a
  * repetition…), its weekday left out.
  * @param {DateValue} value Day or instant.
  * @returns {string} Text.

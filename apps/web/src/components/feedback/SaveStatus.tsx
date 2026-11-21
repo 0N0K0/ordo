@@ -2,7 +2,7 @@ import { Group, Loader, Text } from '@mantine/core';
 import { CheckIcon } from '@phosphor-icons/react';
 
 /**
- * State of a detail panel saved field by field (decision D22, `useFieldSave`), at its top: « Enregistrement… » while a
+ * State of a detail panel saved field by field (`useFieldSave`), at its top: « Enregistrement… » while a
  * save runs, « Enregistré » otherwise. Its place stays the same (no jump), and it is read out when it changes.
  * @param {{ saving: boolean }} props Whether a save is running.
  * @returns {JSX.Element} State.

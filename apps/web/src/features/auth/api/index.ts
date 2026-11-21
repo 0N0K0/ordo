@@ -196,7 +196,7 @@ export function useChangePassword() {
 }
 
 /**
- * Saves how the alarms and reminders of the user ring, in every workspace (decision FS).
+ * Saves how the alarms and reminders of the user ring, in every workspace.
  * @returns {UseMutationResult} Mutation state.
  */
 export function useUpdateRingSettings() {

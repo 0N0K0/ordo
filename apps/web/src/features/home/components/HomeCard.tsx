@@ -14,16 +14,18 @@ interface HomeCardProps {
   linkLabel?: string;
   /** Skeleton while the data loads. */
   loading?: boolean;
+  /** Small line under the title: what the card shows (the view of a page). Optional. */
+  note?: ReactNode;
   children: ReactNode;
 }
 
 /**
- * Card of the home page: a title with its icon, a link to the full page, and a condensed content; in a
+ * Card of the home page: a title with its icon, a link to the full page, a note on what it shows, and a condensed content; in a
  * sortable grid, a handle moves it.
  * @param {HomeCardProps} props Component props.
  * @returns {JSX.Element} Card.
  */
-export function HomeCard({ title, icon, to, linkLabel = 'Tout voir', loading, children }: HomeCardProps) {
+export function HomeCard({ title, icon, to, linkLabel = 'Tout voir', loading, note, children }: HomeCardProps) {
   const handle = useContext(DragHandleContext);
   return (
     <Paper withBorder radius="md" p="md" h="100%">
@@ -47,6 +49,11 @@ export function HomeCard({ title, icon, to, linkLabel = 'Tout voir', loading, ch
             </Anchor>
           )}
         </Group>
+        {note && (
+          <Text size="xs" c="dimmed" mt={-8}>
+            {note}
+          </Text>
+        )}
         {loading ? <ListSkeleton items={3} dense /> : children}
       </Stack>
     </Paper>

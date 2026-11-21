@@ -18,7 +18,7 @@ Ce que l’utilisateur peut faire dans la facturation : devis, factures, facture
 | Fiche client     | `/clients/:id`                                  | Section « Facturation » (coordonnées, services, contacts) dans les paramètres du client, et tableau « Documents comptables ».      |
 | Projet           | `/projects/:id?tab=billing` et `?tab=resources` | Onglet des documents comptables du projet ; onglet des ressources (fichiers et liens) du projet.                                   |
 
-Adresses utiles : `/accounting?tab=overdue` (`OVERDUE_INVOICES_PATH`, utilisée par l’accueil), `/accounting?settings=1&section=company` (paramètres ouverts sur « Ma société »). L’ancien onglet `?tab=tracking` ouvre désormais les paramètres ; l’ancien paramètre `settingsTab` est converti vers celui de toutes les pages.
+Adresses utiles : `/accounting?tab=overdue` (`OVERDUE_INVOICES_PATH`, utilisée par l’accueil), `/accounting?settings=1&section=company` (paramètres ouverts sur « Ma société »). L’ancien onglet `?tab=tracking` ouvre les paramètres ; l’ancien paramètre `settingsTab` est converti vers celui de toutes les pages.
 
 ## Page « Facturation »
 
@@ -39,7 +39,7 @@ Bouton « Nouveau document » avec un menu : « Devis », « Facture », « Fact
 | « Acomptes »    | `DEPOSIT_INVOICE`    | Factures d’acompte.                                                                                                                                    |
 | « Avoirs »      | `CREDIT_NOTE`        | Avoirs.                                                                                                                                                |
 | « À envoyer »   | `toSend`             | Documents définitifs (et importés) non archivés dont le statut est de catégorie « À envoyer », tous types et années ; pastille bleue avec leur nombre. |
-| « À relancer »  | `overdue`            | Factures à relancer (voir [Relances](#relances)) ; pastille couleur « retard » avec leur nombre.                                                       |
+| « À relancer »  | `overdue`            | Factures à relancer (voir [Relances](#relances)) ; pastille orange (couleur de retard) avec leur nombre.                                                       |
 | « Récurrentes » | `recurring`          | Factures récurrentes.                                                                                                                                  |
 | « Catalogue »   | `catalog`            | Articles du catalogue.                                                                                                                                 |
 
@@ -64,7 +64,7 @@ Colonnes :
 | « Client »                  | Masquée sur la fiche d’un client et l’onglet d’un projet. Filtre parmi les clients présents, regroupable.                                                                                         |
 | « Projet »                  | Modifiable en place (brouillon comme définitif ; pas pour un document archivé), en lot. Filtre, regroupable.                                                                                      |
 | « Objet »                   | Objet ; pour un devis : « Facturé à N % » ; « Depuis D2600004 » pour un document établi depuis un autre.                                                                                          |
-| « Statut »                  | Brouillon, ou statut de suivi modifiable en place (menu), en lot ; badge « En retard » (facture) ou « Expiré » (devis) ; pour un importé autre qu’un devis, badge « Reste … » / « Réglé ».        |
+| « Statut »                  | Brouillon, ou statut de suivi modifiable en place (menu), en lot ; badge orange « En retard » (facture) ou « Expiré » (devis) ; pour un importé autre qu’un devis, badge « Reste … » / « Réglé ».        |
 | « Origine »                 | « Ordo » ou « Importé », masquée par défaut.                                                                                                                                                      |
 | « Total HT », « Total TTC » | Avec total de colonne ; sous le TTC : « Reste … » ou « À rembourser … » quand une partie est réglée.                                                                                              |
 | « Reste dû »                | Masquée par défaut.                                                                                                                                                                               |
@@ -76,7 +76,7 @@ Choisir un statut de catégorie « Envoyé » ouvre le panneau « Envoi de … �
 Actions d’une ligne d’Ordo :
 
 - action principale « Enregistrer un paiement » (facture) ou « Enregistrer un remboursement » (avoir) quand il reste un solde ;
-- « Dupliquer » (copie en brouillon enregistrée tout de suite, « Document dupliqué en brouillon. », puis ouverture de la copie ; décision D20) ;
+- « Dupliquer » (copie en brouillon enregistrée tout de suite, « Document dupliqué en brouillon. », puis ouverture de la copie ) ;
 - « Télécharger le PDF » (définitifs seulement) ;
 - « Archiver » / « Restaurer ».
 
@@ -108,7 +108,7 @@ Actions : « Modifier la planification » (panneau « Facture récurrente », en
 
 Tableau des articles : « Article » (libellé modifiable, badge « Débours », description en aperçu), « Nature » (« Prestation » / « Débours », masquée par défaut), « Unité », « Prix HT », « TVA » (vide pour un débours), commentaires. Libellé, nature, unité, prix et TVA se modifient en place et en lot.
 
-- « Nouvel article » ouvre le formulaire (bouton « Ajouter », toast « Article ajouté au catalogue. ») ; « Modifier » ouvre le panneau de l’article, enregistré champ par champ : chaque champ dès qu’il change (« Libellé », « Description » et « Prix unitaire HT » en les quittant), « Enregistrement… » puis « Enregistré » en haut, sans bouton (décision D22) ; un champ invalide garde son erreur dessous et n’est pas enregistré, un échec le remet comme il était, dans un toast d’erreur ; un article archivé s’ouvre en lecture seule. Champs : nature (« Produit ou service » / « Débours » ; un débours passe à TVA 0 et unité forfait), « Libellé » (obligatoire), « Description » (markdown, reprise dans la ligne), « Unité » (heure par défaut), « Prix unitaire HT », « TVA » (20 %, ou 0 % si la société n’applique pas la TVA). Les commentaires de l’article sont sous le formulaire.
+- « Nouvel article » ouvre le formulaire (bouton « Ajouter », toast « Article ajouté au catalogue. ») ; « Modifier » ouvre le panneau de l’article, enregistré champ par champ : chaque champ dès qu’il change (« Libellé », « Description » et « Prix unitaire HT » en les quittant), « Enregistrement… » puis « Enregistré » en haut, sans bouton ; un champ invalide garde son erreur dessous et n’est pas enregistré, un échec le remet comme il était, dans un toast d’erreur ; un article archivé s’ouvre en lecture seule. Champs : nature (« Produit ou service » / « Débours » ; un débours passe à TVA 0 et unité forfait), « Libellé » (obligatoire), « Description » (markdown, reprise dans la ligne), « Unité » (heure par défaut), « Prix unitaire HT », « TVA » (20 %, ou 0 % si la société n’applique pas la TVA). Les commentaires de l’article sont sous le formulaire.
 - « Archiver » : l’article n’est plus proposé et passe en lecture seule. « Afficher les archivés » les montre.
 - « Supprimer » : confirmation (« … sera supprimé du catalogue. Les documents qui l’utilisent gardent leurs lignes. Pour seulement ne plus le proposer, archivez-le. »).
 - État vide : « Catalogue vide. Ajoutez vos prestations (journée, heure, forfait…) avec leur prix et leur TVA : vous les ajouterez aux documents en un clic. »
@@ -145,7 +145,7 @@ Boutons selon l’état :
 | « Rendre récurrente »               | Facture (pas un modèle), non archivée.                                                                                   |
 | « Dupliquer » (icône)               | Tout document non archivé sauf un modèle : copie en brouillon datée d’aujourd’hui, puis ouverture.                       |
 
-Un brouillon ou un modèle non archivé s’enregistre champ par champ (décision D22), sans bouton « Enregistrer » : « Enregistrement… » puis « Enregistré » en haut de la colonne principale. Les choix (client, projet, service, contact, dates, interrupteurs, temps facturé ou détaché) sont enregistrés dès qu’ils changent ; les textes, les lignes, la remise générale et l’acompte en les quittant (une ligne en la quittant, ou dès qu’elle est déplacée, retirée, ajoutée depuis le catalogue, le temps passé ou un acompte déduit ; une ligne vierge, laissée telle qu’ajoutée, est ignorée : elle n’est pas enregistrée et ne retient rien) ; les conditions de règlement avec l’échéance qu’elles donnent, en les quittant. Le document entier est enregistré chaque fois : ses lignes sont remplacées et ses totaux recalculés par l’API. Un champ invalide garde son erreur dessous et n’est pas enregistré (une ligne commencée mais invalide, son erreur dessous, retient les lignes) ; un échec le remet comme il était, dans un toast d’erreur ; un champ changé ailleurs est repris, sauf pendant sa saisie. Il n’y a plus rien à confirmer en quittant la page.
+Un brouillon ou un modèle non archivé s’enregistre champ par champ, sans bouton « Enregistrer » : « Enregistrement… » puis « Enregistré » en haut de la colonne principale. Les choix (client, projet, service, contact, dates, interrupteurs, temps facturé ou détaché) sont enregistrés dès qu’ils changent ; les textes, les lignes, la remise générale et l’acompte en les quittant (une ligne en la quittant, ou dès qu’elle est déplacée, retirée, ajoutée depuis le catalogue, le temps passé ou un acompte déduit ; une ligne vierge, laissée telle qu’ajoutée, est ignorée : elle n’est pas enregistrée et ne retient rien) ; les conditions de règlement avec l’échéance qu’elles donnent, en les quittant. Le document entier est enregistré chaque fois : ses lignes sont remplacées et ses totaux recalculés par l’API. Un champ invalide garde son erreur dessous et n’est pas enregistré (une ligne commencée mais invalide, son erreur dessous, retient les lignes) ; un échec le remet comme il était, dans un toast d’erreur ; un champ changé ailleurs est repris, sauf pendant sa saisie. Il n’y a plus rien à confirmer en quittant la page.
 
 ### Bandeaux
 
@@ -278,11 +278,11 @@ Onglet « À relancer » : factures et acomptes définitifs envoyés depuis 15 j
 
 ## Factures récurrentes
 
-« Rendre récurrente » (facture) ouvre « Rendre la facture récurrente » : « Libellé » (obligatoire), « Première facture le », répétition (sans hebdomadaire ; mensuelle par défaut), « Valider automatiquement » (« Les factures sont numérotées dès leur création ; sinon, elles sont créées en brouillon à vérifier. »), « Active ». La facture est copiée comme modèle (bouton « Créer », toast « Facture récurrente créée : la facture a été copiée comme modèle. »). « Modifier la planification » ouvre le panneau « Facture récurrente », mêmes champs, enregistré champ par champ : chaque champ dès qu’il change (« Libellé » en le quittant), « Enregistrement… » puis « Enregistré » en haut, sans bouton (décision D22) ; un champ invalide garde son erreur dessous et n’est pas enregistré, un échec le remet comme il était, dans un toast d’erreur ; archivée, elle s’ouvre en lecture seule. Le modèle s’ouvre depuis la liste et se modifie comme un brouillon. Les factures dues sont émises aussitôt, puis chaque heure (voir [Tâches de fond](../../business-rules/cross-cutting/background-jobs.md)).
+« Rendre récurrente » (facture) ouvre « Rendre la facture récurrente » : « Libellé » (obligatoire), « Première facture le », répétition (sans hebdomadaire ; mensuelle par défaut), « Valider automatiquement » (« Les factures sont numérotées dès leur création ; sinon, elles sont créées en brouillon à vérifier. »), « Active ». La facture est copiée comme modèle (bouton « Créer », toast « Facture récurrente créée : la facture a été copiée comme modèle. »). « Modifier la planification » ouvre le panneau « Facture récurrente », mêmes champs, enregistré champ par champ : chaque champ dès qu’il change (« Libellé » en le quittant), « Enregistrement… » puis « Enregistré » en haut, sans bouton ; un champ invalide garde son erreur dessous et n’est pas enregistré, un échec le remet comme il était, dans un toast d’erreur ; archivée, elle s’ouvre en lecture seule. Le modèle s’ouvre depuis la liste et se modifie comme un brouillon. Les factures dues sont émises aussitôt, puis chaque heure (voir [Tâches de fond](../../business-rules/cross-cutting/background-jobs.md)).
 
 ## Documents importés
 
-Pour garder la trace de devis et factures émis hors d’Ordo. Panneau « Importer un devis ou une facture » (bouton « Importer », toast « Document importé. »), ou « Document importé … » pour un document importé existant, enregistré champ par champ : chaque champ dès qu’il change (« Numéro », « Objet », « Ou nom du client », les totaux et « Description » en les quittant ; « Total HT » et « TVA » avec le TTC recalculé ; un fichier choisi est envoyé aussitôt), « Enregistrement… » puis « Enregistré » en haut, sans bouton (décision D22) ; un champ invalide garde son erreur dessous et n’est pas enregistré, un échec le remet comme il était, dans un toast d’erreur ; archivé, en lecture seule. Champs :
+Pour garder la trace de devis et factures émis hors d’Ordo. Panneau « Importer un devis ou une facture » (bouton « Importer », toast « Document importé. »), ou « Document importé … » pour un document importé existant, enregistré champ par champ : chaque champ dès qu’il change (« Numéro », « Objet », « Ou nom du client », les totaux et « Description » en les quittant ; « Total HT » et « TVA » avec le TTC recalculé ; un fichier choisi est envoyé aussitôt), « Enregistrement… » puis « Enregistré » en haut, sans bouton ; un champ invalide garde son erreur dessous et n’est pas enregistré, un échec le remet comme il était, dans un toast d’erreur ; archivé, en lecture seule. Champs :
 
 - « Type » (facture par défaut), « Numéro » (obligatoire), « Objet », « Date » (obligatoire), « Valable jusqu’au » / « Échéance », « Devise » (EUR, CHF, USD, GBP, CAD) ;
 - « Client » (client d’Ordo) puis « Projet », ou « Ou nom du client » s’il n’est pas dans Ordo ;
@@ -315,11 +315,11 @@ Paramètres « Ma société » (« Imprimée sur les devis, factures et avoirs. 
 - « Banque (RIB) » : « Titulaire du compte », « Banque », « IBAN », « BIC ».
 - « Conditions et mentions par défaut » (reprises dans chaque nouveau document) : « Échéance des factures » (jours), « Validité des devis » (jours), « Libellé de la référence client », « Conditions de règlement », « Mode de règlement », « Intérêts de retard », « Autres mentions ».
 
-Le profil s’enregistre champ par champ : chaque champ dès qu’il change (textes, nombres et adresse en les quittant), « Enregistrement… » puis « Enregistré » en haut, sans bouton (décision D22) ; un champ invalide garde son erreur dessous et n’est pas enregistré, un échec le remet comme il était, dans un toast d’erreur ; un champ changé ailleurs est repris. Le logo s’enregistre à part (« Logo enregistré. »).
+Le profil s’enregistre champ par champ : chaque champ dès qu’il change (textes, nombres et adresse en les quittant), « Enregistrement… » puis « Enregistré » en haut, sans bouton ; un champ invalide garde son erreur dessous et n’est pas enregistré, un échec le remet comme il était, dans un toast d’erreur ; un champ changé ailleurs est repris. Le logo s’enregistre à part (« Logo enregistré. »).
 
 ## Numérotation
 
-Section « Numérotation » sous « Ma société » : pour une année (précédente, courante, suivante), le « Prochain numéro » de chaque type (Devis D, Facture F, Facture d’acompte FA, Avoir A) avec l’« Aperçu » du numéro (« F2600042 ») et « Enregistrer ». C’est le seul bouton « Enregistrer » voulu d’un réglage existant dans toute l’app (exception délibérée à la décision D22, décision FI) : les numéros des documents doivent se suivre sans trou ni doublon, alors changer un compteur demande une validation délibérée, pas un enregistrement à chaque chiffre tapé. Le minimum est le numéro qui suit le dernier attribué. Toast « Numérotation enregistrée. ».
+Section « Numérotation » sous « Ma société » : pour une année (précédente, courante, suivante), le « Prochain numéro » de chaque type (Devis D, Facture F, Facture d’acompte FA, Avoir A) avec l’« Aperçu » du numéro (« F2600042 ») et « Enregistrer ». C’est le seul bouton « Enregistrer » voulu d’un réglage existant dans toute l’app (exception voulue à l’enregistrement champ par champ) : les numéros des documents doivent se suivre sans trou ni doublon, alors changer un compteur demande une validation délibérée, pas un enregistrement à chaque chiffre tapé. Le minimum est le numéro qui suit le dernier attribué. Toast « Numérotation enregistrée. ».
 
 ## Export ZIP
 
@@ -340,10 +340,12 @@ Sur la fiche d’un client (onglet de paramètres « billing ») :
 
 - carte du client : nom (ou prénom et nom d’un particulier), badge « Professionnel » / « Particulier », adresse, email, téléphones, site, identifiants ; « Adresse de facturation à renseigner avant d’éditer des factures. » sans adresse ;
 - « Contacts » sans service, puis une carte par service avec ses contacts ;
-- boutons « Coordonnées », « Nouveau service », « Nouveau contact » ; par service : « Ajouter un contact », « Modifier », « Supprimer » (« ses contacts restent rattachés au client ») ; par contact : « Modifier », « Supprimer ».
+- boutons « Coordonnées », « Nouveau service », « Nouveau contact » ; par service : « Ajouter un contact », « Modifier », « Supprimer » (« ses contacts restent rattachés au client ») ; par contact : « Modifier », « Supprimer » ;
+- contact : « Archiver » / « Restaurer » dans son menu (archivé avec son contributeur, et inversement ; jamais le client) ; archivé, badge « Archivé », masqué tant que « Afficher les archivés » n’est pas coché, en lecture seule (« Voir »), plus proposé comme contact d’un document ni comme lien d’un contributeur (celui déjà choisi reste) ;
+- archiver le client archive aussi ses contacts et leurs contributeurs (toast « … archivé avec ses projets et ses contacts. ») ; le restaurer restaure ceux archivés avec lui ;
 - client archivé : lecture seule ; « Coordonnées » ouvre ses coordonnées en lecture seule, « Voir » un service (panneau « Service ») ou un contact (panneau « Contact »), sans ajout ni suppression.
 
-Un nouveau service ou contact est un formulaire avec « Ajouter » (« Service ajouté. », « Contact ajouté. »). Les coordonnées, un service ou un contact existants s’enregistrent champ par champ : chaque champ dès qu’il change (textes, adresse et téléphones en les quittant ; un téléphone ou une ligne d’adresse retiré, un pays choisi, aussitôt ; l’erreur d’un téléphone sous son numéro), « Enregistrement… » puis « Enregistré » en haut, sans bouton (décision D22) ; un champ invalide garde son erreur dessous et n’est pas enregistré, un échec le remet comme il était, dans un toast d’erreur.
+Un nouveau service ou contact est un formulaire avec « Ajouter » (« Service ajouté. », « Contact ajouté. »). Les coordonnées, un service ou un contact existants s’enregistrent champ par champ : chaque champ dès qu’il change (textes, adresse et téléphones en les quittant ; un téléphone ou une ligne d’adresse retiré, un pays choisi, aussitôt ; l’erreur d’un téléphone sous son numéro), « Enregistrement… » puis « Enregistré » en haut, sans bouton ; un champ invalide garde son erreur dessous et n’est pas enregistré, un échec le remet comme il était, dans un toast d’erreur.
 
 Panneaux :
 
@@ -356,7 +358,7 @@ La fiche client montre aussi le tableau « Documents comptables » du client et 
 ## Projets
 
 - Onglet facturation : tableau « Documents comptables » du projet et « Nouveau document » (désactivé sans client : « Rattachez le projet à un client pour lui établir des documents. »).
-- Onglet ressources : fichiers et liens du projet (« Ajouter des fichiers », « Ajouter un lien » avec « Libellé », « Adresse », « Note » multiligne de 4 000 caractères, bouton « Ajouter »), monter / descendre, « Modifier » (panneau enregistré champ par champ, chaque champ en le quittant, décision D22), « Supprimer » ; « Aucun document ni lien. ».
+- Onglet ressources : fichiers et liens du projet (« Ajouter des fichiers », « Ajouter un lien » avec « Libellé », « Adresse », « Note » multiligne de 4 000 caractères, bouton « Ajouter »), monter / descendre, « Modifier » (panneau enregistré champ par champ, chaque champ en le quittant), « Supprimer » ; « Aucun document ni lien. ».
 
 ## Ailleurs dans l’application
 

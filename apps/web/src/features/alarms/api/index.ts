@@ -8,7 +8,7 @@ import { execute } from '../../../lib/graphql-client';
 
 export type Alarm = AlarmFieldsFragment;
 export type { AlarmInput };
-/** A ring of an alarm or a reminder as the API keeps it (decision FS). */
+/** A ring of an alarm or a reminder as the API keeps it. */
 export type AlarmRing = AlarmRingFieldsFragment;
 
 // A reminder of a task, a routine, an event, an éphéméride or a birthday: every query of reminders selects it.
@@ -205,7 +205,7 @@ export function useAlarmMutations() {
   };
 }
 
-// Push notifications (lot 17c, decision FU) ----------------------------------------------------------------------
+// Push notifications ----------------------------------------------------------------------
 
 const PushConfigDocument = graphql(`
   query PushConfig {

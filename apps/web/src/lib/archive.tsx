@@ -19,7 +19,7 @@ const SetArchivedDocument = graphql(`
 
 /**
  * Runs a change the API may refuse while what it loses is not confirmed (CONFIRMATION_REQUIRED), asking first
- * (`withLossConfirmation` of the features: schedules, kinds and people archived, decision FQ).
+ * (`withLossConfirmation` of the features: schedules, kinds and people archived).
  */
 export type LossConfirmation = <T>(run: (confirm: boolean) => Promise<T>) => Promise<T>;
 
@@ -31,7 +31,7 @@ export const ARCHIVED_MESSAGE = 'Élément archivé : restaurez-le pour le modif
  * @param {ArchivableKind} kind Kind of the elements.
  * @param {readonly string[]} ids Elements.
  * @param {boolean} archived Archives (else restores).
- * @param {boolean} [confirmLoss] What it loses is confirmed (decision FQ). Optional. Default = to confirm.
+ * @param {boolean} [confirmLoss] What it loses is confirmed. Optional. Default = to confirm.
  * @returns {Promise<boolean>} Done.
  */
 export async function setArchived(kind: ArchivableKind, ids: readonly string[], archived: boolean, confirmLoss?: boolean): Promise<boolean> {
@@ -43,7 +43,7 @@ export async function setArchived(kind: ArchivableKind, ids: readonly string[], 
  * @param {ArchivableKind} kind Kind of the elements.
  * @param {readonly QueryKey[]} [invalidate] Queries refreshed (with what starts with these keys). Optional. Default = every query (the element may show in many lists, selects, filters…).
  * @param {LossConfirmation} [confirmLoss] Asks what the change loses when the API refuses it unconfirmed (archiving a
- * schedule, a kind or a person: occurrences of routines, decision FQ). Optional. Default = never asked.
+ * schedule, a kind or a person: occurrences of routines). Optional. Default = never asked.
  * @returns {UseMutationResult<boolean, Error, { ids: readonly string[], archived: boolean }>} Mutation state.
  */
 export function useSetArchived(kind: ArchivableKind, invalidate: readonly QueryKey[] = [[]], confirmLoss?: LossConfirmation) {
@@ -182,7 +182,7 @@ export async function archiveWithUndo(
  * @param {ArchiveMutation} mutation Archive mutation of its kind (`useSetArchived(kind)`).
  * @param {string} id Element.
  * @param {() => void} [onDone] Called once archived or restored (closes its form…). Optional.
- * @returns {{ label: string, icon: JSX.Element, onClick: () => void, inMenu: true }} Menu entry, never a button (decision R).
+ * @returns {{ label: string, icon: JSX.Element, onClick: () => void, inMenu: true }} Menu entry, never a button.
  */
 export function archiveEntry(
   { archived, type, label, feminine, cascade }: { archived?: boolean | null; type: string; label: string; feminine?: boolean; cascade?: string },

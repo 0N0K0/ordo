@@ -361,9 +361,9 @@ export async function setProjectArchived(id: string, archived: boolean): Promise
 }
 
 /**
- * Takes out of projects about to be deleted what outlives them (decision DP): their tasks (`releaseProjectTasks`) and
- * their time, without project (`releaseProjectTime`: only the time left with nothing attached is deleted, decision
- * D17); their alarms are kept by the database (`onDelete: SetNull`).
+ * Takes out of projects about to be deleted what outlives them: their tasks (`releaseProjectTasks`) and
+ * their time, without project (`releaseProjectTime`: only the time left with nothing attached is
+ * deleted); their alarms are kept by the database (`onDelete: SetNull`).
  * @param {string[]} projectIds Projects deleted (a project and its sub-projects, or the projects of a client).
  * @returns {Promise<void>}
  */
@@ -390,7 +390,8 @@ export async function deleteProject(id: string): Promise<void> {
 }
 
 /**
- * Moves a project, with its sub-projects, to an index under a parent project or at the root of a client.
+ * Moves a project (not an archived one), with its sub-projects, to an index under a parent project (not archived) or at
+ * the root of a client.
  * @param {string} id Project id.
  * @param {object} target Destination.
  * @param {string | null} target.parentId Parent project, or null for a root project.
@@ -399,6 +400,6 @@ export async function deleteProject(id: string): Promise<void> {
  * @returns {Promise<void>}
  */
 export async function moveProject(id: string, { parentId, clientId, index }: { parentId: string | null; clientId: string | null; index: number }): Promise<void> {
-  const project = await findProject(id);
+  const project = await findActive(prisma.project, id, 'Projet');
   await placeProject(await ProjectTree.load(), project, parentId, clientId, index);
 }

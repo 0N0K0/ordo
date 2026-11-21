@@ -7,7 +7,7 @@ type SortableState = Pick<ReturnType<typeof useSortable>, 'transform' | 'transit
 
 /**
  * Style of a sortable item: moved with the pointer (translated, never scaled), above the others and dimmed while
- * dragged (decision K).
+ * dragged.
  * @param {SortableState} state Transform, transition and dragging of useSortable.
  * @returns {CSSProperties} Style.
  */

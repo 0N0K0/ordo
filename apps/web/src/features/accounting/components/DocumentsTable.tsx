@@ -252,7 +252,7 @@ function OrdoActions({ document, onDuplicated }: { document: AccountingDocumentS
         }
       }
       items={[
-        // A draft copy, dated today, saved at once, then opened (decision D20).
+        // A draft copy, dated today, saved at once, then opened.
         !document.archived &&
           rowMenuEntry(
             duplicateRowsAction([document], {

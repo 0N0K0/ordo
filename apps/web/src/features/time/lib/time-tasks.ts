@@ -51,7 +51,7 @@ export function timeTaskOptions(context: TaskContext, tasks: Task[]): TreeOption
 /**
  * Options of the routines time can be spent on, as their tree, with the rule of the tasks: of the project, its
  * sub-projects and of no project, not archived (plus the `keep` ones, already linked); without project, those of no
- * project (decision D18).
+ * project.
  * @param {TaskContext} context Task context.
  * @param {readonly Routine[]} routines Every routine.
  * @param {string | null} projectId Project, or null for a time without project.

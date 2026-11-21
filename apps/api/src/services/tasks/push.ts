@@ -7,7 +7,7 @@ import type { PushSubscription } from '../../generated/prisma/client';
 import { clientError, orNotFound, parseInput } from '../../graphql/errors';
 
 /**
- * Push notifications (Web Push, lot 17c, decision FU): the devices of a user subscribe (`PushSubscription`, one row per
+ * Push notifications (Web Push): the devices of a user subscribe (`PushSubscription`, one row per
  * endpoint), the server pushes them the rings of the alarms and reminders while « Sonner hors de l'app » is on. Signed
  * with the VAPID keys of the environment; without them, push is off (`pushPublicKey` null, the app says so).
  */

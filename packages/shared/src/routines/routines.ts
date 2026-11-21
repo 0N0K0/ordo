@@ -12,6 +12,7 @@ import { remindersSchema } from '../dates/reminders';
 import { deadTimesSchema } from '../dates/countdowns';
 import { conditionConstrains, slotConditionSchema, type SlotCondition } from '../calendar/slot-conditions';
 import { optionalColorSchema } from '../core/workspace';
+import { ROUTINE_INHERITABLE_FIELDS, type RoutineInheritableField } from './routine-inheritance';
 
 /** Category of routines, in a tree. */
 export const routineCategorySchema = z.object({
@@ -91,7 +92,21 @@ export function opensFits(opens: RoutineOpens, frequency: Recurrence['frequency'
   return false;
 }
 
-const OPENS_MISFIT = 'Cette ouverture ne vaut pas pour cette répétition : un jour du mois (mensuelle), de l’année (annuelle), ou des jours avant.';
+/** Refusal of an « Ouverture » that does not fit the repetition of its routine. */
+export const OPENS_MISFIT = 'Cette ouverture ne vaut pas pour cette répétition : un jour du mois (mensuelle), de l’année (annuelle), ou des jours avant.';
+
+/**
+ * Whether the « Ouverture » of the rule of a routine does not fit it: a routine with cases has none (its cases have
+ * theirs), and it must fit the frequency of its repetition (`opensFits`).
+ * @param {{ opensOn: RoutineOpens | null, cases: readonly unknown[], recurrence: Pick<Recurrence, 'frequency'> | null }} routine Routine.
+ * @returns {boolean} It does not fit.
+ */
+export function opensMisfits(routine: { opensOn: RoutineOpens | null; cases: readonly unknown[]; recurrence: Pick<Recurrence, 'frequency'> | null }): boolean {
+  return routine.opensOn !== null && (routine.cases.length > 0 || !routine.recurrence || !opensFits(routine.opensOn, routine.recurrence.frequency));
+}
+
+/** Fields an « Ouverture » is checked with: inherited, the API checks it on the values the routine goes by. */
+const OPENS_CHECKED_WITH: readonly RoutineInheritableField[] = ['OPENS_ON', 'RECURRENCE', 'CASES'];
 
 /** A case of a routine: on which days (a repetition, as the events'), and its times of the day. */
 export const routineCaseSchema = z
@@ -111,6 +126,26 @@ export const routineCaseSchema = z
   .refine((item) => !item.opens || opensFits(item.opens, item.recurrence.frequency), { path: ['opens'], message: OPENS_MISFIT });
 export type RoutineCase = z.infer<typeof routineCaseSchema>;
 export type RoutineCaseInput = z.input<typeof routineCaseSchema>;
+
+/** Times of the day of an occurrence changed by an exception (by index; null: those of its rule). */
+export const routineMoveTimesSchema = z
+  .array(z.object({ fromTime: timeOfDay, dueTime: timeOfDay }).nullable())
+  .max(10)
+  .nullable()
+  .default(null);
+export type RoutineMoveTimes = z.infer<typeof routineMoveTimesSchema>;
+
+/**
+ * Exception to the rule of a routine for one occurrence: moved to another day (postponed or brought forward), its
+ * times of the day changed, or deleted (no new day).
+ */
+export const routineMoveSchema = z
+  .object({ from: daySchema(), to: daySchema().nullable(), times: routineMoveTimesSchema })
+  .refine((move) => move.from !== move.to || move.times !== null, 'Choisissez un autre jour ou d’autres horaires.');
+export type RoutineMove = z.infer<typeof routineMoveSchema>;
+
+/** Moves kept on a routine at most. */
+export const MAX_ROUTINE_MOVES = 500;
 
 /** Routine fields, as saved. */
 export const routineSchema = z
@@ -144,15 +179,15 @@ export const routineSchema = z
     slotCondition: slotConditionSchema.nullable().default(null),
     /** Times of the day following its rule. */
     moments: z.array(routineSlotSchema).max(10, '10 moments au plus.').default([]),
-    /** Reminders (decision D16): minutes before each time of the day from its first day (« Ouverture », « dès »), or a time of that day. */
+    /** Reminders: minutes before each time of the day from its first day (« Ouverture », « dès »), or a time of that day. */
     reminders: remindersSchema.default([]),
-    /** « Temps morts »: waits a timer is launched for, from an occurrence (decision FT); not time spent. Required, as `links`: an omitted field never wipes them. */
+    /** « Temps morts »: waits a timer is launched for, from an occurrence; not time spent. Required, as `links`: an omitted field never wipes them. */
     deadTimes: deadTimesSchema,
     /** Where it is done: free text, and its point when chosen from the map or a search. */
     location: optionalText().default(null),
     /** Point of the place, and travel time to it and back from it, in minutes. */
     ...locatedFields,
-    /** Links, as those of the events (decision D5); required, as `relatedIds`: an omitted field never wipes them. */
+    /** Links, as those of the events; required, as `relatedIds`: an omitted field never wipes them. */
     links: itemLinksSchema,
     projectId: z.string().nullable(),
     assigneeIds: z.array(z.string()).max(100),
@@ -165,10 +200,23 @@ export const routineSchema = z
     relatedIds: z.array(z.string()).max(100),
     /** « Ouverture » of the occurrences of its rule (its cases have theirs); null: from their first day. */
     opensOn: routineOpensSchema.nullable().default(null),
+    /**
+     * Fields it takes from its parent, live; omitted: none for a new routine, unchanged for an update.
+     * Ignored without parent.
+     */
+    inheritedFields: z.array(z.enum(ROUTINE_INHERITABLE_FIELDS)).max(ROUTINE_INHERITABLE_FIELDS.length).optional(),
+    /**
+     * Its exceptions (occurrences moved, changed or cancelled), given back by an undo; omitted: kept. Not taken by a new
+     * routine (a copy has none of its own).
+     */
+    moves: z.array(routineMoveSchema).max(MAX_ROUTINE_MOVES, `${MAX_ROUTINE_MOVES} exceptions au plus.`).optional(),
   })
   .refine(...endAfter('fromTime', 'dueTime', true))
   .refine((routine) => !routine.moments.length || routine.moments.some((moment) => !moment.optional), { path: ['moments'], message: 'Au moins un moment doit être obligatoire.' })
-  .refine((routine) => !routine.opensOn || (!routine.cases.length && opensFits(routine.opensOn, routine.recurrence.frequency)), { path: ['opensOn'], message: OPENS_MISFIT });
+  .refine((routine) => (routine.parentId && routine.inheritedFields?.some((field) => OPENS_CHECKED_WITH.includes(field))) || !opensMisfits({ ...routine, opensOn: routine.opensOn ?? null }), {
+    path: ['opensOn'],
+    message: OPENS_MISFIT,
+  });
 export type RoutineInput = z.input<typeof routineSchema>;
 
 /**
@@ -299,12 +347,12 @@ export function shiftTime(time: string, minutes: number): string {
 
 /**
  * Minutes a moment of a routine lasts without time to spend on it (`estimate` null or 0), the same for its display (agenda
- * of the day, agenda), its departure and return and its reminders (decision FX).
+ * of the day, agenda), its departure and return and its reminders.
  */
 export const ROUTINE_DEFAULT_MINUTES = 30;
 
 /**
- * Time to spend on a routine, in minutes: its `estimate`, else `ROUTINE_DEFAULT_MINUTES` (decision FX).
+ * Time to spend on a routine, in minutes: its `estimate`, else `ROUTINE_DEFAULT_MINUTES`.
  * @param {number | null | undefined} estimate Time to spend on it (null or 0: none).
  * @returns {number} Minutes.
  */
@@ -312,7 +360,7 @@ export const routineMinutes = (estimate: number | null | undefined): number => (
 
 /**
  * Schedule of a routine done in a time window: when to leave (to be there by its latest time with its time to spend on
- * it, or at its start time) and when back; without time to spend on it, `ROUTINE_DEFAULT_MINUTES` (decision FX).
+ * it, or at its start time) and when back; without time to spend on it, `ROUTINE_DEFAULT_MINUTES`.
  * @param {{ fromTime: string | null, dueTime: string | null, estimate: number | null, travelBefore: number, travelAfter: number }} routine Routine.
  * @returns {{ leaveAt: string | null, backAt: string | null }} Times (null: nothing to say).
  */
@@ -342,9 +390,9 @@ export interface RoutineSlotSpan {
 
 /**
  * Start and end of a time of the day of a routine, the same for its display (agenda of the day) and its reminders
- * (`routineSlotAnchors`, in the app and on the server; decision FW): its « dès » and its « jusqu'à »; without « jusqu'à »,
+ * (`routineSlotAnchors`, in the app and on the server): its « dès » and its « jusqu'à »; without « jusqu'à »,
  * « dès » + the time to spend on it; without « dès », « jusqu'à » − that time (00:00 at the earliest). Without that
- * time (or 0): `ROUTINE_DEFAULT_MINUTES` (decision FX, `routineMinutes`). Without any hour: none (no reminder « avant »).
+ * time (or 0): `ROUTINE_DEFAULT_MINUTES` (`routineMinutes`). Without any hour: none (no reminder « avant »).
  * @param {{ fromTime: string | null, dueTime: string | null }} slot Time of the day.
  * @param {number | null} minutes Time to spend on it (`estimate`), in minutes.
  * @returns {RoutineSlotSpan | null} Start and end, null without any hour.
@@ -361,7 +409,7 @@ export function routineSlotSpan(slot: { fromTime: string | null; dueTime: string
 /**
  * Whether a routine has hours (« dès » or « jusqu'à » of one of its moments, or a condition on calendar schedules, whose
  * slots give them): without any, it has no reminder « N min / h avant », only « Le jour J à HH:MM » and « N jours
- * avant » (decision FW; its editor offers only those, the API refuses the others).
+ * avant » (its editor offers only those, the API refuses the others).
  * @param {object} routine Routine: its window, moments, condition and cases.
  * @param {string | null} [routine.fromTime] Former window: from. Optional.
  * @param {string | null} [routine.dueTime] Former window: by. Optional.
@@ -422,23 +470,6 @@ export function caseStart(item: { from?: string | null }, start: string): string
   return item.from && item.from > start ? item.from : start;
 }
 
-/** Times of the day of an occurrence changed by an exception (by index; null: those of its rule). */
-export const routineMoveTimesSchema = z
-  .array(z.object({ fromTime: timeOfDay, dueTime: timeOfDay }).nullable())
-  .max(10)
-  .nullable()
-  .default(null);
-export type RoutineMoveTimes = z.infer<typeof routineMoveTimesSchema>;
-
-/**
- * Exception to the rule of a routine for one occurrence: moved to another day (postponed or brought forward), its
- * times of the day changed, or deleted (no new day).
- */
-export const routineMoveSchema = z
-  .object({ from: daySchema(), to: daySchema().nullable(), times: routineMoveTimesSchema })
-  .refine((move) => move.from !== move.to || move.times !== null, 'Choisissez un autre jour ou d’autres horaires.');
-export type RoutineMove = z.infer<typeof routineMoveSchema>;
-
 /**
  * Whether an exception takes the occurrence away from its day (moved elsewhere or deleted).
  * @param {RoutineMove} move Exception.
@@ -455,9 +486,6 @@ const movesAway = (move: RoutineMove) => move.to !== move.from;
 export function withMovedTimes<T extends { fromTime: string | null; dueTime: string | null }>(slots: readonly T[], times: RoutineMoveTimes): T[] {
   return slots.map((slot, index) => (times?.[index] ? { ...slot, ...times[index] } : slot));
 }
-
-/** Moves kept on a routine at most. */
-export const MAX_ROUTINE_MOVES = 500;
 
 /** Occurrences scanned at most to skip the moved ones in a row. */
 const MOVED_SCAN = 60;
@@ -546,6 +574,10 @@ export interface RoutineBulkChanges {
   moments?: RoutineSlot[];
   slotCondition?: SlotCondition | null;
   opensOn?: RoutineOpens | null;
+  /** Fields made inherited again (« Rétablir l'héritage »); a sub-routine only. */
+  inheritFields?: RoutineInheritableField[];
+  /** Fields emptied on purpose (« Vider »): no value, not inherited (never its first time nor its repetition). */
+  clearFields?: RoutineInheritableField[];
 }
 
 /**

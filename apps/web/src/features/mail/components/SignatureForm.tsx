@@ -7,7 +7,7 @@ import { SaveStatus } from '../../../components/feedback/SaveStatus';
 
 /**
  * HTML signature of an account: rich editor, with the raw HTML editable through the code control; saved on leaving
- * the editor (decision D22).
+ * the editor.
  * @param {{ account: MailAccount }} props Component props.
  * @returns {JSX.Element} Editor.
  */

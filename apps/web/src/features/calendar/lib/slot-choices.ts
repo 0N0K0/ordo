@@ -4,7 +4,7 @@ import { inWorkspace } from './layer-label';
 
 /**
  * What a slot condition can name: the schedules and kinds of the workspace and of the other workspaces of the user, and
- * the birthdays of the people of the workspace (lot 16c).
+ * the birthdays of the people of the workspace.
  */
 export interface SlotSources {
   /** Schedules of the workspace (none while loading). Optional. */
@@ -19,13 +19,13 @@ export interface SlotSources {
   foreignKinds?: readonly { workspaceId: string; workspaceLabel: string; typeId?: string | null; label: string; archived: boolean; ephemeris?: boolean }[];
   /**
    * Birthdays of the people of the workspace (`useSlotBirthdays`: those of archived people flagged, with the other ids
-   * naming each, decision FQ). Optional.
+   * naming each). Optional.
    */
   birthdays?: readonly { id: string; name: string; archived?: boolean; aliases?: readonly string[] }[];
 }
 
 /**
- * Name of a schedule or a kind in a slot condition: an éphéméride (or a kind of them, lot 16) told as one.
+ * Name of a schedule or a kind in a slot condition: an éphéméride (or a kind of them) told as one.
  * @param {string} label Label.
  * @param {boolean | null | undefined} ephemeris An éphéméride, or a kind of them.
  * @returns {string} « Vacances (éphéméride) », or the label.
@@ -34,7 +34,7 @@ const ephemerisLabel = (label: string, ephemeris: boolean | null | undefined) =>
 
 /**
  * Something a slot condition names: « (archivée) » after an archived éphéméride, « (archivé) » after the others
- * (créneau, type, anniversaire; decision FR).
+ * (créneau, type, anniversaire).
  */
 interface Named {
   id: string;
@@ -45,7 +45,7 @@ interface Named {
 }
 
 /**
- * Name of something a slot condition names, marked when archived, agreed with its noun (decision FR).
+ * Name of something a slot condition names, marked when archived, agreed with its noun.
  * @param {Named} item Item.
  * @returns {string} « Vacances (éphéméride) (archivée) », « Sport (archivé) », or the label.
  */
@@ -73,8 +73,8 @@ export interface SlotChoices {
 
 /**
  * What a slot condition offers: the schedules and kinds of the workspace and of the other workspaces of the user (with
- * their workspace), the archived ones left out but those already chosen (« (archivé) », « (archivée) » for an éphéméride, decisions FQ, FR), the birthdays of the people of the workspace
- * (« Anniversaire de Paul (éphéméride) ») and all of them (« Anniversaires (éphéméride) », lot 16c), and the names of
+ * their workspace), the archived ones left out but those already chosen (« (archivé) », « (archivée) » for an éphéméride), the birthdays of the people of the workspace
+ * (« Anniversaire de Paul (éphéméride) ») and all of them (« Anniversaires (éphéméride) »), and the names of
  * all of them.
  * @param {SlotSources} sources Schedules and kinds.
  * @param {readonly string[]} [keep] Schedules and kinds chosen already, offered even when archived. Optional. Default = none.
@@ -89,7 +89,7 @@ export function slotChoices(sources: SlotSources, keep: readonly string[] = []):
     feminine: schedule.ephemeris,
   }));
   const birthdays = (sources.birthdays ?? []).map((birthday) => ({ id: birthdaySlotId(birthday.id), label: ephemerisLabel(birthdayLabel(birthday.name, null), true), archived: birthday.archived ?? false }));
-  // A relation linked to a contributor (or the reverse) names the birthday of the person (decision FQ): its name, never offered.
+  // A relation linked to a contributor (or the reverse) names the birthday of the person: its name, never offered.
   const aliases = (sources.birthdays ?? []).flatMap((birthday, index) => (birthday.aliases ?? []).map((alias) => ({ ...birthdays[index], id: birthdaySlotId(alias) })));
   const kinds = [
     { id: ownSlotKind(null), label: sources.defaultKind?.label || DEFAULT_SCHEDULE_KIND_LABEL, archived: false },
@@ -114,7 +114,7 @@ export function slotChoices(sources: SlotSources, keep: readonly string[] = []):
     kinds: kindChoices,
     freeTime: offered(slotSchedules(ownSchedules)),
     all: [...schedules, ...kindChoices],
-    // Archived ones still named, « (archivé) » or « (archivée) »: they give no moment (decisions FQ, FR).
+    // Archived ones still named, « (archivé) » or « (archivée) »: they give no moment.
     names: new Map([...ownSchedules, ...foreignSchedules, ...birthdays, ...aliases, ...kinds].map((item) => [item.id, namedLabel(item)])),
   };
 }

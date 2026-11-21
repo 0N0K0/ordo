@@ -15,14 +15,14 @@ interface AvailabilityHintProps {
 
 /**
  * Warning when a timed event of one day falls outside the planned working hours of that day (a pause is told
- * only when no other schedule works that day). The éphémérides do not count (lot 16), nor the archived créneaux and
- * those of an archived kind (decision FQ). Nothing
+ * only when no other schedule works that day). The éphémérides do not count, nor the archived créneaux and
+ * those of an archived kind. Nothing
  * without working hours, for an all-day event or one over several days.
  * @param {AvailabilityHintProps} props Dates and times of the event.
  * @returns {JSX.Element | null} Warning.
  */
 export function AvailabilityHint({ allDay, startDate, startTime, endDate, endTime }: AvailabilityHintProps) {
-  // The working hours: the créneaux counted (no éphéméride, lot 16; none archived, decision FQ).
+  // The working hours: the créneaux counted (no éphéméride; none archived).
   const { data: rules } = useWorkingHours();
   // In a personal workspace, slots are no working hours: nothing to warn about.
   const { perso } = useActiveWorkspace();

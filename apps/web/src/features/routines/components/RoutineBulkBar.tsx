@@ -15,25 +15,30 @@ import { routinesLabel } from '../lib/routine-cell-edit';
 import { isDone, movableOccurrence } from '../lib/routine-format';
 import { usePostponeRoutine } from '../hooks/use-routine-move';
 import { plural, copyName } from '../../../lib/text';
+import { inheritanceRowsAction } from '../../../components/inheritance/inheritance-action';
+import { notifyWithUndo, ON_ERROR } from '../../../lib/notify';
+import { ROUTINE_INHERITANCE_OPTIONS } from '../lib/routine-inheritance';
 
 /** Actions on routines that their columns cannot do. */
 interface RoutineRowsActions {
   done: SelectionAction;
   postpone: SelectionAction;
   duplicate: SelectionAction;
+  inheritance: SelectionAction;
   archive: SelectionAction;
   remove: SelectionAction;
 }
 
 /**
  * Actions on routines, the same on the routines checked (bar of the table) and on one routine (its menu): ticked or
- * unticked, postponed to the next day, duplicated with their sub-routines, archived or restored with their sub-routines
+ * unticked, postponed to the next day, duplicated with their sub-routines, their inheritance changed (« Héritage… »,
+ * sub-routines), archived or restored with their sub-routines
  * (undone from the toast), deleted (their sub-routines kept or deleted along, as chosen; their panels closed). Archived routines are read
  * only: left out of all but archive/restore and delete.
  * @returns {(routines: Routine[], onClear?: () => void) => RoutineRowsActions} Actions of routines, given how to clear the selection.
  */
 export function useRoutineRowsActions() {
-  const { bulkArchive, bulkDone, create, copySubRoutines } = useRoutineMutations();
+  const { bulkArchive, bulkDone, bulkUpdate, create, copySubRoutines, restore } = useRoutineMutations();
   const { data } = useRoutinesData();
   const queryClient = useQueryClient();
   const postpone = usePostponeRoutine();
@@ -95,6 +100,17 @@ export function useRoutineRowsActions() {
         ),
         disabled: activeIds.length === 0,
       },
+      // Fields inherited again or emptied on purpose, on the sub-routines among them, undone from its toast.
+      inheritance: inheritanceRowsAction({
+        fields: ROUTINE_INHERITANCE_OPTIONS,
+        about: activeLabel,
+        withParent: active.filter((routine) => routine.parentId).length,
+        onApply: async (change) => {
+          await bulkUpdate.mutateAsync({ ids: activeIds, changes: change });
+          notifyWithUndo(`Héritage changé pour ${activeLabel}.`, () => restore.mutate(active, ON_ERROR));
+        },
+        onDone: onClear,
+      }),
       archive: archiveRowsAction({
         archived: allArchived,
         loading: bulkArchive.isPending,

@@ -36,7 +36,7 @@ interface AlarmListProps {
 
 /**
  * Alarms, one card each: title, schedule, next ring, task or project, note; on / off, edit, duplicate (saved at once,
- * then its form opens: decision D20), delete.
+ * then its form opens), delete.
  * @param {AlarmListProps} props Component props.
  * @param {Alarm[]} props.alarms Alarms.
  * @param {TaskContext} props.context Task context.

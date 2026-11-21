@@ -14,7 +14,7 @@ Source : `packages/shared/src/dashboards/dashboards.ts`, `packages/shared/src/co
 
 | Élément                                   | Règle                                                       | Messages                                                |
 | ----------------------------------------- | ----------------------------------------------------------- | ------------------------------------------------------- |
-| Tableau (`dashboardLabelSchema`)          | Requis, rogné, 250 caractères max (`TEXT_MAX`, décision DO) | « Le libellé est requis. », « 250 caractères maximum. » |
+| Tableau (`dashboardLabelSchema`)          | Requis, rogné, 250 caractères max (`TEXT_MAX`) | « Le libellé est requis. », « 250 caractères maximum. » |
 | Diagramme (`chartLabelSchema`)            | Requis, rogné, 250 caractères max                           | « Le libellé est requis. », « 250 caractères maximum. » |
 | Libellé du jeu principal (`config.label`) | Facultatif, 250 max                                         | « 250 caractères maximum. »                             |
 | Jeu de données                            | Requis, 250 max                                             | « Nommez le jeu de données. »                           |
@@ -30,7 +30,7 @@ Source : `apps/api/src/services/dashboards/dashboards.ts`.
 - **Création** (`createDashboard`) : le projet, s’il est donné, doit exister (« Projet introuvable. ») et ne pas être archivé (« Élément archivé : restaurez-le pour le modifier. »). Le tableau va à la fin de la liste de sa portée (`nextPositionIn('dashboard', { projectId })`).
 - **Renommer / déplacer** (`renameDashboard`, `moveDashboard`) : tableau existant (« Tableau de bord introuvable. ») et non archivé. Le déplacement réordonne parmi les tableaux de la même portée ([Ordre](../cross-cutting/ordering.md)).
 - **Archivage** : par la mutation générique `setArchived` (kind `DASHBOARD`). Un tableau archivé est en lecture seule, ses diagrammes avec lui ([Archivage](../cross-cutting/archiving.md)).
-- **Suppression** (`deleteDashboard`) : définitive, avec ses diagrammes (cascade). Elle n’est **pas** refusée pour un tableau archivé. Erreur « Tableau de bord introuvable. » s’il n’existe pas.
+- **Suppression** (`deleteDashboard`) : définitive, avec ses diagrammes (cascade). Elle reste permise pour un tableau archivé (règle commune, voir [Archivage](../cross-cutting/archiving.md#archiver-ou-supprimer)). Erreur « Tableau de bord introuvable. » s’il n’existe pas.
 
 ## Diagrammes
 
@@ -153,5 +153,5 @@ Source : `apps/web/src/features/dashboards/lib/**`.
 Source : `apps/api/src/services/dashboards/charts-pdf.ts`, route `POST /api/exports/charts.pdf` (`apps/api/src/routes/exports.ts`, erreur « Export PDF impossible. »).
 
 - Entrée : `title` (requis, 1 à 500), `subtitle` (500 max), `charts` de 1 à 40, chacun avec `title` (500 max), `description` (500 max) — 500 = `PRINTED_LABEL_MAX` (2 × `TEXT_MAX`) — et `image` PNG en data URL (12 Mo max, sinon « Image PNG attendue. »).
-- PDF A4 paysage dans le gabarit commun des exports (logo, date, numéros de page) : un diagramme par page, la première page portant aussi le titre de l’export ; la description en petit sous l’en-tête ; l’image ajustée à la place restante.
+- PDF A4 paysage dans le gabarit commun des exports (logo, date, numéros de page) : un diagramme par page, la première page portant aussi le titre de l’export (16 pt gras, sous-titre 10 pt gris, `writeHeading`) ; la description en petit sous l’en-tête ; l’image ajustée à la place restante.
 - Le tableau de données en PDF passe par la route commune `table.pdf` ([Erreurs](../cross-cutting/errors.md) pour le format des messages).

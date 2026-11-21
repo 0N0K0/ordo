@@ -35,7 +35,7 @@ export function sortValue(task: Task, column: TaskSortKey, context: TaskContext)
     case 'beneficiaries':
       return beneficiaryNames(task, context).sort(collator.compare)[0] ?? null;
     case 'minDate':
-      // The one it goes by: its own, else that of its single sprint.
+      // The one it goes by (`effectiveTask`): its own, else its parent's, milestone's, project's or sprint's.
       return task.effectiveMinDate || null;
     case 'location':
       return task.location || null;
@@ -91,7 +91,7 @@ export function sortValue(task: Task, column: TaskSortKey, context: TaskContext)
     case 'related':
       return task.relatedIds.length || null;
     case 'comments':
-      // A description counts as a comment; 0 is a count, not empty (decision CO).
+      // A description counts as a comment; 0 is a count, not empty.
       return commentTotal(task.commentCount, task.description);
     case 'createdAt':
       return task.createdAt;

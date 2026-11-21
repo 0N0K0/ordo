@@ -166,7 +166,7 @@ export function useTimeEntriesSince(since: string | null, enabled = true) {
 }
 
 /**
- * The running timers (several at once, decision FT), the first started first. Refreshed when the window gets the
+ * The running timers (several at once), the first started first. Refreshed when the window gets the
  * focus back (another tab may have changed them).
  * @returns {UseQueryResult<TimeEntry[]>} Query state.
  */
@@ -206,14 +206,14 @@ export interface TimeEventLink {
 export interface TimeEntryValues {
   /** Project (null: none, for a time with a task, a routine or an event). */
   projectId: string | null;
-  /** Routines the time is spent on (several, decision D18). */
+  /** Routines the time is spent on (several). */
   routineIds?: string[];
   taskIds: string[];
   description: string | null;
   startedAt: string;
   /** Seconds. */
   duration: number;
-  /** Calendar events (occurrences) the time was spent on (several, decision D18). */
+  /** Calendar events (occurrences) the time was spent on (several). */
   events?: TimeEventLink[];
 }
 
@@ -249,8 +249,8 @@ export interface LostOnDelete {
 
 /**
  * What a deletion of tasks, routines, occurrences of a routine, an event (occurrences) or a calendar takes with it: the
- * times without project, not billed, left with nothing attached (extra A of decision D17), and the comments of what is
- * deleted (decision D19).
+ * times without project, not billed, left with nothing attached, and the comments of what is
+ * deleted.
  * @param {LostOnDeleteQuery} query Items about to be deleted.
  * @returns {Promise<LostOnDelete>} Numbers.
  */

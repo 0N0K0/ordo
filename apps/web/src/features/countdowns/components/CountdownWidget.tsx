@@ -7,7 +7,7 @@ import { countdownName } from '../lib/countdowns';
 import { CountdownList } from './CountdownList';
 
 /**
- * Timers in the app header, on every page and in every workspace (decision FT): the soonest to ring, its name (or the
+ * Timers in the app header, on every page and in every workspace: the soonest to ring, its name (or the
  * number of timers) and the time left, opening the list of them (each with its commands, « Lancer un minuteur »).
  * @returns {JSX.Element | null} Pill, while a timer counts down.
  */

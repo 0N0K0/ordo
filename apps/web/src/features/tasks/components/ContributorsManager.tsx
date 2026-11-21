@@ -14,7 +14,6 @@ import { ArchivedBadge } from '../../../components/feedback/ArchivedBadge';
 import { useProjectTree } from '../../projects/api';
 import { useContributorMutations, type Contributor } from '../api';
 import { useContributorForm } from '../hooks/use-contributor-form';
-import { useTreasurySettings } from '../../treasury/api';
 import { useActiveWorkspace } from '../../workspaces/api';
 import { relationNoun } from '../../../components/people/people-options';
 
@@ -28,16 +27,12 @@ interface ContributorsManagerProps {
 }
 
 /**
- * List of the contributors that tasks can be assigned to, with whether each is a member of the team or household, or a
- * relation (never both).
+ * List of the contributors that tasks can be assigned to, with what each is linked to (its details come from it): a
+ * member of the team or household, a relation or a client contact (one at most).
  * @param {ContributorsManagerProps} props Component props.
  * @returns {JSX.Element} Manager.
  */
 export function ContributorsManager({ contributors, usage }: ContributorsManagerProps) {
-  const { data: treasury } = useTreasurySettings();
-  const memberIds = new Set((treasury?.treasuryMembers ?? []).map((member) => member.id));
-  // Contributor → name of the relation they are.
-  const relationOf = new Map((treasury?.treasuryRelations ?? []).filter((relation) => relation.contributorId).map((relation) => [relation.contributorId as string, relation.name]));
   const { remove } = useContributorMutations();
   const setArchived = useSlotSourceArchiving('CONTRIBUTOR');
   const { shown, toggle: archivedToggle } = useArchivedToggle(contributors);
@@ -106,16 +101,23 @@ export function ContributorsManager({ contributors, usage }: ContributorsManager
                         Moi
                       </Badge>
                     )}
-                    {/* A member of the team or household, or a relation: never both. */}
-                    {!contributor.isMe && memberIds.has(contributor.id) && (
+                    {/* What its details come from: a membership, a relation or a contact, one at most. */}
+                    {!contributor.isMe && contributor.link === 'MEMBER' && (
                       <Badge size="xs" variant="light" color="blue">
                         Membre
                       </Badge>
                     )}
-                    {relationOf.has(contributor.id) && (
-                      <Tooltip label={`${relationNoun(perso)} « ${relationOf.get(contributor.id)} »`}>
+                    {contributor.link === 'RELATION' && (
+                      <Tooltip label={`${relationNoun(perso)} « ${contributor.linkName} »`}>
                         <Badge size="xs" variant="light" color="grape">
                           {relationNoun(perso)}
+                        </Badge>
+                      </Tooltip>
+                    )}
+                    {contributor.link === 'CONTACT' && (
+                      <Tooltip label={`Contact « ${contributor.linkName} »`}>
+                        <Badge size="xs" variant="light" color="teal">
+                          Contact
                         </Badge>
                       </Tooltip>
                     )}

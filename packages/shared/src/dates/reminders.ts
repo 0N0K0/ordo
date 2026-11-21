@@ -6,16 +6,16 @@ import { isRingtone, type RingtoneId } from './ringing';
 import { timeOfDaySchema, timeToMinutes } from './times';
 
 /**
- * Reminders (« rappels ») of tasks, routines, events, éphémérides and birthdays: one way of working for all (decision
- * D16, lot 16), 10 at most per item, mixed kinds, in Paris time. A reminder is either minutes before a moment
+ * Reminders (« rappels ») of tasks, routines, events, éphémérides and birthdays: one way of working for all,
+ * 10 at most per item, mixed kinds, in Paris time. A reminder is either minutes before a moment
  * (`before`, 0 = « Au début », 24 hours at most: events, routines, éphémérides), a time of the day of the item's day
  * (`at`, « À HH:MM le jour J »: everywhere), or a time of the day some days before it (`at` with `days`, « N jours
- * avant, à HH:MM »: everywhere, 30 days at most, decision FO). Events count a reminder from their start or from their
- * end (`anchor`, lot 17a, decision FS); routines from the start or the end of the opening day or of the due day of an
- * occurrence (decision FV); each reminder may name its ringtone (`ringtone`; none: the one of the settings of the user).
+ * avant, à HH:MM »: everywhere, 30 days at most). Events count a reminder from their start or from their
+ * end (`anchor`); routines from the start or the end of the opening day or of the due day of an
+ * occurrence; each reminder may name its ringtone (`ringtone`; none: the one of the settings of the user).
  */
 
-/** Time zone of the reminders (every hour of Ordo is a Paris hour, decision D7). */
+/** Time zone of the reminders (every hour of Ordo is a Paris hour). */
 export const PARIS_ZONE = 'Europe/Paris';
 
 /** Reminders of an item, at most. */
@@ -24,7 +24,7 @@ export const REMINDERS_MAX = 10;
 /** Latest reminder before a moment, in minutes (24 hours). */
 export const REMINDER_MINUTES_MAX = 24 * 60;
 
-/** Most days of a reminder « N jours avant, à HH:MM » (decision FO). */
+/** Most days of a reminder « N jours avant, à HH:MM ». */
 export const REMINDER_DAYS_MAX = 30;
 
 /**
@@ -33,11 +33,11 @@ export const REMINDER_DAYS_MAX = 30;
  */
 export const REMINDER_KINDS = ['before', 'at', 'days'] as const;
 export type ReminderKind = (typeof REMINDER_KINDS)[number];
-/** Kinds of reminders of an item without hours (a task, a birthday, a routine without any, decision FW): at a time of the day only. */
+/** Kinds of reminders of an item without hours (a task, a birthday, a routine without any): at a time of the day only. */
 export const DAY_REMINDER_KINDS = ['at', 'days'] as const satisfies readonly ReminderKind[];
 
 /**
- * What a reminder counts from (decisions FS, FV): `start` (default, nothing stored) the start of its item, `end` its end;
+ * What a reminder counts from: `start` (default, nothing stored) the start of its item, `end` its end;
  * for a routine, `start` is the start of the opening day (« Ouverture ») of an occurrence, `end` the end of its due day
  * (« Échéance »), and two more: `openEnd` the end of the opening day, `dueStart` the start of the due day. A reminder at
  * a time of the day only tells the day: `openEnd` is stored as `start`, `dueStart` as `end`.
@@ -45,11 +45,11 @@ export const DAY_REMINDER_KINDS = ['at', 'days'] as const satisfies readonly Rem
 export const REMINDER_ANCHORS = ['start', 'end', 'openEnd', 'dueStart'] as const;
 export type ReminderAnchor = (typeof REMINDER_ANCHORS)[number];
 
-/** What the reminders of an event count from: its start, its end (decision FS). */
+/** What the reminders of an event count from: its start, its end. */
 export const EVENT_REMINDER_ANCHORS = ['start', 'end'] as const satisfies readonly ReminderAnchor[];
 
 /**
- * What the reminders of a routine count from (decision FV), in the order they come in an occurrence: the start of the
+ * What the reminders of a routine count from, in the order they come in an occurrence: the start of the
  * opening day (`start`), its end (`openEnd`), the start of the due day (`dueStart`), its end (`end`).
  */
 export const ROUTINE_REMINDER_ANCHORS = ['start', 'openEnd', 'dueStart', 'end'] as const satisfies readonly ReminderAnchor[];
@@ -152,7 +152,7 @@ const NO_END = 'Seuls les évènements et les routines ont des rappels avant la 
  */
 const fromStart = (reminders: readonly ReminderValue[]) => reminders.every((reminder) => reminderAnchorOf(reminder) === 'start');
 
-/** Reminders of an éphéméride: every kind, from its start only (decision FS), 10 at most. */
+/** Reminders of an éphéméride: every kind, from its start only, 10 at most. */
 export const startRemindersSchema = remindersSchema.refine(fromStart, NO_END);
 
 /**
@@ -179,7 +179,7 @@ export function reminderKindOf(reminder: ReminderValue): ReminderKind {
 }
 
 /**
- * What a reminder counts from (a time of the day: its day only, decision FV).
+ * What a reminder counts from (a time of the day: its day only).
  * @param {ReminderValue} reminder Reminder.
  * @returns {ReminderAnchor} Anchor.
  */
@@ -337,8 +337,8 @@ export interface OccurrenceEnd {
 
 /**
  * Reminders of an occurrence of an item: « N min avant » its start, « À HH:MM » its first day, « N jours avant, à
- * HH:MM » that day (events, éphémérides); with its end, the same counted from its end and its last day (events,
- * decision FS).
+ * HH:MM » that day (events, éphémérides); with its end, the same counted from its end and its last day
+ * (events).
  * @param {string} key Key of the occurrence.
  * @param {string} day Its first day (Paris).
  * @param {Date} start Its start (Paris midnight of its first day when all day).

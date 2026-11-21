@@ -58,7 +58,7 @@ export interface SettingsItemKind<C extends SettingsItem, E extends object = Rec
   colorRequired?: boolean;
   /** Placeholder of the name (« Virement, carte, chèque… »). Optional. */
   labelPlaceholder?: string;
-  /** Label of the name field (decision AD): « Nom » for people, physical or legal (counterparties). Optional. Default = « Libellé ». */
+  /** Label of the name field: « Nom » for people, physical or legal (counterparties). Optional. Default = « Libellé ». */
   labelField?: string;
   /** Rule of the values (zod, `@ordo/shared`). */
   schema: Parameters<typeof useAppForm>[0]['schema'];
@@ -68,7 +68,7 @@ export interface SettingsItemKind<C extends SettingsItem, E extends object = Rec
   create: (values: SettingsItemValues<E>) => Promise<string>;
   /** Saves an item edited. */
   update: (id: string, values: SettingsItemValues<E>) => Promise<unknown>;
-  /** Asks what archiving or restoring an item loses (the kinds of schedules: occurrences of routines, decision FQ). Optional. Default = never asked. */
+  /** Asks what archiving or restoring an item loses (the kinds of schedules: occurrences of routines). Optional. Default = never asked. */
   confirmLoss?: LossConfirmation;
 }
 
@@ -95,7 +95,7 @@ interface SettingsItemFormProps<C extends SettingsItem, E extends object> extend
 /**
  * Form of an item of a settings list (every list, flat or tree): its name, color, image (shown as its avatar, its
  * initials on its color without one), parent in a tree, and the fields of its list. A new item is created by its
- * button; an existing one is saved field by field (decision D22): the color and the image through the look of every
+ * button; an existing one is saved field by field: the color and the image through the look of every
  * list, the other fields by the list (a confirmation it asks, declined, puts the field back), the item of the list
  * followed (`liveItems`); the color at once when picked, on leaving it when typed (`commitProps`). Archived (elsewhere,
  * while it is open), it is read only.

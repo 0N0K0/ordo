@@ -6,10 +6,10 @@ Voir aussi : [dates](../../shared/cross-cutting/dates.md), [calendar](../../shar
 
 ## Jours et instants
 
-- Un **jour** est une chaîne `YYYY-MM-DD` (scalaire GraphQL `Date`, qui refuse un jour inexistant comme le 31 février). Il est stocké et calculé à minuit UTC, sans fuseau : il s'affiche tel quel partout (le 13 novembre reste le 13 novembre quel que soit le fuseau).
+- Un **jour** est une chaîne `YYYY-MM-DD` (scalaire GraphQL `Date`, qui refuse un jour inexistant comme le 31 février). Il est stocké et calculé à minuit UTC, sans fuseau : il s'affiche tel quel partout (le 13 mai reste le 13 mai quel que soit le fuseau).
 - Un **instant** est une date-heure ISO 8601 (scalaire `DateTime`) : il s'affiche dans le fuseau de l'environnement (celui de l'utilisateur dans le web).
-- Formats d'affichage communs (`fr-FR`) : « ven. 13 nov. » (`weekdayText`), « novembre 2026 » (`monthText`), « 13 novembre 2026 » / « 1er juin 2026 » (`longDayText`, décision V), « 13/11/2026 » dans les documents et mails (`printedDay`).
-- Ordinaux : « 1er », « 2e »… « dernier » (décision V).
+- Formats d'affichage communs (`fr-FR`) : « ven. 13 nov. » (`weekdayText`), « novembre 2026 » (`monthText`), « 13 novembre 2026 » / « 1er juin 2026 » (`longDayText`), « 13/11/2026 » dans les documents et mails (`printedDay`), « T4 2026 » pour un trimestre.
+- Ordinaux : « 1er », « 2e »… « dernier », partout.
 
 ## « Aujourd'hui »
 
@@ -20,9 +20,10 @@ Voir aussi : [dates](../../shared/cross-cutting/dates.md), [calendar](../../shar
 
 ## Début et fin
 
-- Règle unique (décision Q) : la fin suit le début (égale permise), sinon « La fin doit suivre le début. » sous le champ de fin. Une borne absente est toujours acceptée (`endsAfter`, `endAfter`).
+- Règle unique pour toute paire de dates (début / fin, min / max, toute période) : la fin suit le début (égale permise), sinon « La fin doit suivre le début. » sous le champ de fin. Une borne absente est toujours acceptée (`endsAfter`, `endAfter`).
+- Dans les formulaires, un seul champ de période commun : changer le début après la fin déplace la fin à la même date, changer la fin avant le début déplace le début ; les dates impossibles ne sont pas sélectionnables.
 - Strictement après pour les heures d'une tranche (créneaux, moments de routine).
-- Modification partielle : `assertDateRange` fusionne les jours envoyés avec ceux enregistrés (un jour omis est inchangé) avant de vérifier.
+- Modification partielle : `assertDateRange` fusionne les jours envoyés avec ceux enregistrés (un jour omis est inchangé) avant de vérifier ; l’erreur va sous le champ de fin donné (`endDate` par défaut, `deadline` pour l’« Échéance » d’une tâche).
 - Variantes de message : « L’échéance doit suivre la date du document. », « La fin de la répétition doit suivre le début. ».
 
 ## Semaine de l'espace
@@ -37,7 +38,8 @@ Voir aussi : [dates](../../shared/cross-cutting/dates.md), [calendar](../../shar
 Filtres, formulaires d'export et graphiques (`filterDay`, `filterPeriod`, `calendarRange`) :
 
 - Jour relatif : `today`, `today+3`, `today-7`.
-- Périodes nommées : semaine, mois, trimestre, année, en cours / dernier / prochain (« Cette semaine », « Le mois dernier »…).
+- Périodes nommées : semaine, mois, trimestre, année, en cours / dernier / prochain (« Cette semaine », « Ce mois-ci », « Le mois dernier »…), un seul jeu de noms pour les filtres, les exports et les tableaux de bord.
+- État d'une période par rapport à aujourd'hui : « À venir », « En cours », « Passée ».
 - Périodes glissantes : `past:N` (les N derniers jours, aujourd'hui compris), `next:N` (les N prochains, aujourd'hui compris).
 - Graphiques : périodes glissantes `past:28` … `next:365`, `all`, ou période calendaire `month|quarter|year:0|-1|<premier jour>`.
 - La fin d'une période est exclusive dans les calculs (`jour < fin`).
@@ -61,12 +63,12 @@ Une seule forme de répétition (`recurrenceSchema`) pour les événements, les 
 
 ### Répétition par cas
 
-Tâches répétées, créneaux et routines peuvent combiner plusieurs **cas** (1 à 20), chacun avec sa période (`since`, `until`), sa règle et ses horaires (voir [dates](../../shared/cross-cutting/dates.md), `repetition.ts`). Les jours d'occurrence sont l'union des débuts d'occurrence des cas, moins les jours supprimés (qui ne sont plus recréés).
+Les créneaux et les routines peuvent combiner plusieurs **cas** (1 à 20), chacun avec sa période (`since`, `until`), sa règle et ses horaires (voir [dates](../../shared/cross-cutting/dates.md), `repetition.ts`). Les jours d'occurrence sont l'union des débuts d'occurrence des cas, moins les jours supprimés (qui ne sont plus recréés).
 
 ### Fuseaux
 
-- Les heures d'un évènement sont des heures de **Paris** (décision D7 : plus de fuseau propre à l'évènement ; celles des évènements créés dans un autre fuseau sont lues telles qu'écrites, en heure de Paris) ; l'instant réel est calculé par `zonedInstant(…, 'Europe/Paris')` (deux passes pour les changements d'heure). L'export iCalendar écrit toujours `Europe/Paris`. Les rappels des tâches, routines et évènements sonnent aussi en heure de Paris (`parisInstant`, décision D16). Il n'y a pas d'import iCalendar.
-- Les alarmes sonnent à l'heure de Paris, dans l'app comme sur le serveur (`previousOccurrence`, `nextOccurrence`, recherche sur 2 jours en arrière et 800 jours en avant ; décision FV, 2026-11-21 : avant, l'heure locale de l'appareil).
+- Les heures d'un évènement sont des heures de **Paris** (un évènement n'a pas de fuseau propre) ; l'instant réel est calculé par `zonedInstant(…, 'Europe/Paris')` (deux passes pour les changements d'heure). L'export iCalendar écrit toujours `Europe/Paris`. Les rappels des tâches, routines et évènements sonnent aussi en heure de Paris (`parisInstant`). Il n'y a pas d'import iCalendar.
+- Les alarmes sonnent à l'heure de Paris, dans l'app comme sur le serveur (`previousOccurrence`, `nextOccurrence`, recherche sur 2 jours en arrière et 800 jours en avant), jamais à l'heure locale de l'appareil.
 
 ## Durées
 

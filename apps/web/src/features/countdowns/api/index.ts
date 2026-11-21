@@ -4,7 +4,7 @@ import type { CountdownFieldsFragment, CountdownInput, DeadTimeFieldsFragment } 
 import { execute } from '../../../lib/graphql-client';
 import { useInvalidatingMutation } from '../../../lib/mutation';
 
-/** A timer (« minuteur ») of the user, in every workspace (decision FT). */
+/** A timer (« minuteur ») of the user, in every workspace. */
 export type Countdown = CountdownFieldsFragment;
 /** A dead time (« temps mort ») of a task or a routine, as the API gives it. */
 export type DeadTimeOutput = DeadTimeFieldsFragment;

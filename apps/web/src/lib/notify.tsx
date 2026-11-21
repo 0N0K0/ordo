@@ -92,7 +92,7 @@ export function notifyInfo({
 
 /**
  * Shows the toast of an alarm ringing (or snoozed): like an information toast, but it stays until one of its actions
- * (« Arrêter », « Répéter dans N min ») closes it, and no close button (decision FS). The same id updates the toast
+ * (« Arrêter », « Répéter dans N min ») closes it, and no close button. The same id updates the toast
  * shown with it, in place.
  * @param {object} toast Toast.
  * @param {string} toast.id Id (the key of the ring).

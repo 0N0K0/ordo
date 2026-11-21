@@ -22,7 +22,7 @@ import { useCommentCounts } from '../../comments/api';
 import { commentTotal } from '../../comments/lib/comment-column';
 import { useShoppingLists } from '../../shopping/api';
 import { useBulkTaskMutations, useMoveTask, useTaskColumnDefaults, useTasksData, type BulkChanges, type Task } from '../api';
-import { eventRowKey, filterUses, type TaskTableRow } from '../lib/task-columns';
+import { eventRowKey, filterUses, isArchivedTaskRow, taskTableRows, type TaskTableRow } from '../lib/task-columns';
 import { useTaskColumns } from '../hooks/use-task-columns';
 import { TaskStateIcon } from './task-ui';
 import { useTaskActions } from '../hooks/use-task-actions';
@@ -53,6 +53,8 @@ import classes from './TaskTable.module.css';
 import { countOf, plural } from '../../../lib/text';
 import { CommentCount } from '../../comments/components/CommentCount';
 import { isTaskOverdue } from '../lib/task-overdue';
+import { inheritedCells } from '../../../components/inheritance/inherited-cells';
+import { TASK_CELL_FIELDS, taskParentName } from '../lib/task-inheritance';
 
 /** Periods of the events listed with the tasks. */
 const EVENT_PERIOD_LABELS: Record<EventPeriod, string> = {
@@ -124,11 +126,7 @@ export function TaskBoard({ projectId, projectIds, createProjectId, header, empt
   const [openId] = useSearchParam(TASK_PARAM);
   const today = localToday();
   const tasks = useMemo(
-    () =>
-      (context?.tasks ?? [])
-        .filter((task) => !projectIds || (task.projectId && projectIds.has(task.projectId)))
-        .sort((a, b) => a.position - b.position || (a.number ?? 0) - (b.number ?? 0))
-        .map((task): TaskTableRow => ({ kind: 'task', key: task.id, task })),
+    () => taskTableRows((context?.tasks ?? []).filter((task) => !projectIds || (task.projectId && projectIds.has(task.projectId)))),
     [context, projectIds],
   );
 
@@ -167,7 +165,7 @@ export function TaskBoard({ projectId, projectIds, createProjectId, header, empt
     title,
     views,
     getKey: (row) => row.key,
-    archived: (row) => row.kind === 'task' && row.task.archived,
+    archived: isArchivedTaskRow,
     archivedLabel: 'Afficher les archivées',
   });
   /**
@@ -230,6 +228,18 @@ export function TaskBoard({ projectId, projectIds, createProjectId, header, empt
       };
     }
     const task = row.task;
+    // Its inherited fields greyed with their mention.
+    return inheritedCells(taskCells(task, texts), task, TASK_CELL_FIELDS, taskParentName(task, context.taskById));
+  };
+
+  /**
+   * Cells of a task, each edited in place.
+   * @param {Task} task Task.
+   * @param {Record<string, ReactNode>} texts Read-only cells of its columns.
+   * @returns {Record<string, ReactNode>} Cells, by column.
+   */
+  const taskCells = (task: Task, texts: Record<string, ReactNode>): Record<string, ReactNode> => {
+    if (!context) return texts;
     return {
       ...texts,
       label: (

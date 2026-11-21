@@ -5,7 +5,7 @@ import { createLabelService } from '../core/labels';
 
 /**
  * Statuses of the tasks, with their category; a category changed to or out of « Annulé » closes or reopens their tasks
- * (decision D23, `statusClosing`; archived ones too, as the migration of the rule). The web confirms it first.
+ * (`statusClosing`; archived ones too, as the migration of the rule). The web confirms it first.
  */
 export const taskStatuses = createLabelService<TaskStatus>(
   'taskStatus',

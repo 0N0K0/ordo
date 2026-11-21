@@ -85,7 +85,7 @@ export interface NextAllowedContext {
   events: readonly BusyEvent[];
   /** « Moi ». */
   meId: string | null;
-  /** Time zone of the days (Paris, decision FV: the app and the server find the same moment). */
+  /** Time zone of the days (Paris: the app and the server find the same moment). */
   timeZone: string;
   /** Next moment its condition on calendar schedules allows from a moment on, null: none; missing: any moment. Optional. */
   nextInSlots?: (at: Date) => Date | null;
@@ -94,7 +94,7 @@ export interface NextAllowedContext {
 /**
  * First moment from a moment on a task or a routine can be done (within `NEXT_ALLOWED_DAYS`): the next moment its
  * condition allows, past the events keeping its assignees busy then (a few rounds at most); null when none. The one
- * way the app and the server defer a reminder of a routine (decision FV).
+ * way the app and the server defer a reminder of a routine.
  * @param {BusyItem} item Task or routine.
  * @param {Date} from Moment.
  * @param {NextAllowedContext} context Events, « Moi », time zone, condition.

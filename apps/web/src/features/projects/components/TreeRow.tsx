@@ -22,7 +22,7 @@ interface TreeRowProps extends HTMLAttributes<HTMLDivElement> {
 }
 
 /**
- * Sidebar tree row: link to the detail page, renamed in the side panel on double-click (decision DF),
+ * Sidebar tree row: link to the detail page, renamed in the side panel on double-click,
  * action menu on "⋯" and right-click.
  * @param {TreeRowProps} props Component props (extra props and ref go to the row, for drag and drop).
  * @returns {JSX.Element} Row.

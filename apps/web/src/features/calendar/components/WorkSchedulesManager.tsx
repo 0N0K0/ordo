@@ -64,7 +64,7 @@ interface ScheduleValues extends Record<string, unknown> {
   exceptions: ScheduleException[];
   typeId: string | null;
   ephemeris: boolean;
-  /** Reminders of an éphéméride (lot 16); a créneau has none (those kept from an éphéméride stay). */
+  /** Reminders of an éphéméride; a créneau has none (those kept from an éphéméride stay). */
   reminders: ReminderFields[];
 }
 
@@ -86,7 +86,7 @@ const scheduleInputOf = (schedule: WorkSchedule): ScheduleValues => ({
 });
 
 /**
- * Words of the schedules of a nature (lot 16): créneaux, or éphémérides.
+ * Words of the schedules of a nature: créneaux, or éphémérides.
  * @param {boolean} ephemeris Éphémérides.
  * @param {boolean} perso Personal workspace (its créneaux are not « de travail »).
  * @returns {object} Words.
@@ -99,9 +99,9 @@ const wordsOf = (ephemeris: boolean, perso: boolean) =>
 /**
  * Schedule form: label, kind, period, its cases (days and hours), and exceptions (a period with cases of its own,
  * edited the same way, or none: a pause). Rhythms ("every n weeks"…) are offered only when the period is long enough.
- * New schedules are created by its button; an existing one is saved field by field (decision D22, the whole schedule
+ * New schedules are created by its button; an existing one is saved field by field (the whole schedule
  * each time; occurrences of routines a change makes disappear confirmed first, declined: put back), read only once
- * archived. An éphéméride (lot 16) is the same form, its kinds those of éphémérides, with its reminders; a new one
+ * archived. An éphéméride is the same form, its kinds those of éphémérides, with its reminders; a new one
  * lasts today, the whole day.
  * @param {{ schedule?: WorkSchedule, ephemeris: boolean, onDone: () => void }} props Component props.
  * @returns {JSX.Element} Form.
@@ -226,11 +226,11 @@ function ScheduleHours({ schedule }: { schedule: { cases: unknown; startDate: st
 
 /**
  * Planned time slots: the schedules in a table to search, filter (kind, state) and sort; create, edit, « Dupliquer »,
- * convert (lot 16), archive, restore, delete. Archived ones (hidden unless the view includes them) are read only,
+ * convert, archive, restore, delete. Archived ones (hidden unless the view includes them) are read only,
  * still followed by the routines using them.
  * Their kinds and the subscriptions are in the settings of the calendar. They show in the calendar; in a
  * professional workspace, they are the working hours (compared with the timers, events outside them told). The
- * éphémérides (lot 16: holidays, birthdays…) are the same table apart, of their own kinds, out of the free time and
+ * éphémérides (holidays, birthdays…) are the same table apart, of their own kinds, out of the free time and
  * of the working hours.
  * @param {{ ephemeris?: boolean }} [props] Component props: the éphémérides instead of the créneaux. Optional.
  * @returns {JSX.Element} Manager.
@@ -273,7 +273,7 @@ export function WorkSchedulesManager({ ephemeris = false }: { ephemeris?: boolea
   const openForm = ({ schedule }: { schedule?: WorkSchedule } = {}) => {
     openFormPanel(schedule ? `Modifier « ${schedule.label} »` : words.create, (close) => <ScheduleForm schedule={schedule} ephemeris={schedule?.ephemeris ?? ephemeris} onDone={close} />, 'lg');
   };
-  /** « Dupliquer » a schedule (decision D20): saved at once with its dates, cases and type, without its exceptions, then its form opens. */
+  /** « Dupliquer » a schedule: saved at once with its dates, cases and type, without its exceptions, then its form opens. */
   const duplicateSchedule: DuplicateOptions<WorkSchedule, string> = {
     duplicate: (schedule) => create.mutateAsync({ ...scheduleInputOf(schedule), label: copyName(schedule.label), exceptions: [] }),
     done: words.copied,
@@ -463,7 +463,7 @@ export function WorkSchedulesManager({ ephemeris = false }: { ephemeris?: boolea
                 <EditableDate
                   value={schedule.startDate}
                   label={cellLabelOf('start', row, 'Début')}
-                  // A start set after the end moves the end to it (decision Q).
+                  // A start set after the end moves the end to it.
                   onSave={(startDate) =>
                     startDate && bulk('start')(row, (target) => ({ startDate, endDate: followBounds([target.schedule.startDate, target.schedule.endDate], 'start', startDate)[1] }))
                   }

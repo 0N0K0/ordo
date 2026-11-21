@@ -12,7 +12,7 @@ export const commentTotal = (count: number | undefined, description?: string | n
 
 /**
  * « Commentaires » column of a table: the number of comments of each row, its description counting as one, with its
- * icon in the cell (CommentCount, decision CJ).
+ * icon in the cell (CommentCount).
  * @param {Map<string, number>} counts Comments by item.
  * @param {(row: R) => string} idOf Item of a row.
  * @param {(row: R) => string | null | undefined} [descriptionOf] Description of a row. Optional.

@@ -41,13 +41,13 @@ const KINDS: { [K in ContactListKind]: { label: string; key: Exclude<keyof Conta
 };
 
 interface ContactListFieldProps<K extends ContactListKind> {
-  /** Phone numbers (`{ label, number }`) or email addresses (`{ label, address }`, lot 16c). */
+  /** Phone numbers (`{ label, number }`) or email addresses (`{ label, address }`). */
   kind: K;
   value: ContactEntries[K][];
   onChange: (value: ContactEntries[K][]) => void;
   /** Field errors, keyed by path inside the list ("0.number", "0.address"…). Optional. */
   errors?: Record<string, string | undefined>;
-  /** Called on leaving a field, and once an entry is removed: the list is saved then (a panel saved field by field, decision D22). Optional. */
+  /** Called on leaving a field, and once an entry is removed: the list is saved then (a panel saved field by field). Optional. */
   onBlur?: () => void;
 }
 

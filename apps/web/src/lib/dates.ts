@@ -20,7 +20,7 @@ export function localDay(instant: Date | string): string {
 }
 
 /**
- * Paris day of an instant, YYYY-MM-DD: the day of what the server computes too (the deferral of a reminder, decision FV).
+ * Paris day of an instant, YYYY-MM-DD: the day of what the server computes too (the deferral of a reminder).
  * @param {Date} instant Instant.
  * @returns {string} Day.
  */
