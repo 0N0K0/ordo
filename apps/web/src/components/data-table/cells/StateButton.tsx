@@ -1,0 +1,59 @@
+import type { ReactNode } from 'react';
+import { IconAction } from '../../actions/IconAction';
+import type { YesNoStates } from '../table/data-table';
+import { stopClick } from './cell-field';
+import classes from './StateButton.module.css';
+import { YesNoIcon } from './YesNoIcon';
+
+/** Size of the icon for each size of the button (px). */
+const ICON_SIZES = { xs: 14, sm: 18 } as const;
+
+interface StateButtonProps extends YesNoStates {
+  /** Yes or no. */
+  value: boolean;
+  /** The cell or the row it belongs to (« Fait de « Lait » »), read after the state's name. Optional. */
+  label?: string;
+  /** Tooltip instead of what a click does (why it is disabled, a date). Optional. */
+  hint?: ReactNode;
+  /** Shown only: disabled. Optional. Default = false. */
+  readOnly?: boolean;
+  /** Being saved: its spinner instead of its icon. Optional. Default = false. */
+  loading?: boolean;
+  /** An optional state (an optional time of a routine): outlined dashed. Optional. Default = false. */
+  dashed?: boolean;
+  /** Optional. Default = « sm ». */
+  size?: 'xs' | 'sm';
+  onChange: (value: boolean) => void;
+}
+
+/**
+ * State button: a yes / no of a table cell or a list row changed in place (done, paid, bought, missing…), never a
+ * switch. It shows its current state with the icon and colour of its column (`YesNoIcon`: a green check, an orange
+ * triangle, a blue check, an empty gray square for a state still to reach), is named after that state (`aria-pressed`),
+ * its tooltip says what a click does; one click toggles it. Its click is kept from the row.
+ * @param {StateButtonProps} props Component props.
+ * @returns {JSX.Element} Button.
+ */
+export function StateButton({ value, labels, icons, toggleLabels, label, hint, readOnly = false, loading = false, dashed = false, size = 'sm', onChange }: StateButtonProps) {
+  const state = value ? labels.yes : labels.no;
+  const next = value ? (toggleLabels?.no ?? `Passer à « ${labels.no} »`) : (toggleLabels?.yes ?? `Passer à « ${labels.yes} »`);
+  return (
+    <IconAction
+      label={readOnly ? state : next}
+      hint={hint}
+      aria-label={label ? `${state}, ${label}` : state}
+      // eslint-disable-next-line no-restricted-syntax -- the one state button.
+      aria-pressed={value}
+      size={size}
+      disabled={readOnly}
+      loading={loading}
+      className={dashed ? classes.optional : undefined}
+      onClick={(event) => {
+        stopClick(event);
+        onChange(!value);
+      }}
+    >
+      <YesNoIcon value={value} icons={icons} no="empty" size={ICON_SIZES[size]} decorative />
+    </IconAction>
+  );
+}

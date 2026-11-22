@@ -1,6 +1,6 @@
 import { useMemo } from 'react';
 import { booleanColumn } from '../../../components/data-table/table/boolean-column';
-import { multiValues, WARNING_YES_NEUTRAL_NO_ICONS, withArchived, type DataColumn } from '../../../components/data-table/table/data-table';
+import { multiValues, WARNING_YES_NEUTRAL_NO_ICONS, withArchived, type DataColumn, type YesNoStates } from '../../../components/data-table/table/data-table';
 import { categoryOptions, categoryPaths } from '../../../components/tree/category-tree';
 import { itemChoices } from '../../../components/items/item-look';
 import { localDay } from '../../../lib/dates';
@@ -18,6 +18,31 @@ import { categoriesForBaseList, leftToBuy, listClosed, listTasks, shoppingProgre
 
 type ShoppingItem = ShoppingList['items'][number];
 
+
+/** States of « Manque » of a reference, in its column and on its state buttons: a warning yes, a neutral no. */
+export const MISSING_STATES: YesNoStates = {
+  labels: { yes: 'Manque', no: 'Pourvu' },
+  icons: WARNING_YES_NEUTRAL_NO_ICONS,
+  toggleLabels: { yes: 'Marquer comme manquant (sur la prochaine liste générée)', no: 'Marquer comme pourvu' },
+};
+
+/** States of « Acheté » of an item of a list, on its state buttons. */
+export const BOUGHT_STATES: YesNoStates = {
+  labels: { yes: 'Acheté', no: 'À acheter' },
+  toggleLabels: { yes: 'Marquer comme acheté', no: 'Marquer comme à acheter' },
+};
+
+/** States of « Suivie en stock » of a reference, on its state buttons. */
+export const STOCK_TRACKED_STATES: YesNoStates = {
+  labels: { yes: 'Suivie en stock', no: 'Non suivie en stock' },
+  toggleLabels: { yes: 'Suivre en stock', no: 'Ne plus suivre en stock' },
+};
+
+/** States of « Ajout auto au stock » of a reference, on its state buttons. */
+export const AUTO_STOCK_STATES: YesNoStates = {
+  labels: { yes: 'Ajoutée au stock une fois achetée', no: 'Pas ajoutée au stock' },
+  toggleLabels: { yes: 'Ajouter au stock une fois achetée', no: 'Ne plus ajouter au stock une fois achetée' },
+};
 /** What the columns of the lists need: the tasks, the categories and the stores. */
 interface ListEnv {
   context: TaskContext | null;
@@ -242,7 +267,7 @@ export function useShoppingItemColumns(list: ShoppingList | undefined): DataColu
     },
     [
       optionalColumn<ShoppingItem>(),
-      booleanColumn<ShoppingItem>({ id: 'bought', label: 'Acheté', size: 100, hiddenByDefault: true, groupLabels: { yes: 'Acheté', no: 'À acheter' }, value: (item) => Boolean(item.purchasedAt) }),
+      booleanColumn<ShoppingItem>({ id: 'bought', label: 'Acheté', size: 100, hiddenByDefault: true, groupLabels: BOUGHT_STATES.labels, value: (item) => Boolean(item.purchasedAt) }),
       {
         id: 'inStock',
         label: 'En stock',
@@ -317,7 +342,7 @@ export function useBaseListColumns(baseList: ShoppingBaseList | null, products: 
         text: (product) => (product.lastPurchasedAt ? `${fmt.day(product.lastPurchasedAt)}${product.lastPrice !== null ? ` · ${fmt.money(product.lastPrice)}` : ''}` : ''),
         filter: { kind: 'date', value: (product) => (product.lastPurchasedAt ? localDay(product.lastPurchasedAt) : null) },
       },
-      booleanColumn<ShoppingProduct>({ id: 'missing', label: 'Manque', size: 90, hiddenByDefault: true, groupLabels: { yes: 'Manquants', no: 'Pourvus' }, icons: WARNING_YES_NEUTRAL_NO_ICONS, value: (product) => product.missing }),
+      booleanColumn<ShoppingProduct>({ id: 'missing', label: 'Manque', size: 90, hiddenByDefault: true, groupLabels: { yes: 'Manquants', no: 'Pourvus' }, icons: MISSING_STATES.icons, value: (product) => product.missing }),
       booleanColumn<ShoppingProduct>({ id: 'stockTracked', label: 'Suivie en stock', size: 130, bulk: true, hiddenByDefault: true, groupable: true, groupLabels: { yes: 'Suivis en stock', no: 'Non suivis en stock' }, value: (product) => product.stockTracked }),
       consumableColumn<ShoppingProduct>({ hiddenByDefault: true }),
       booleanColumn<ShoppingProduct>({ id: 'autoStock', label: 'Ajout auto au stock', size: 150, bulk: true, hiddenByDefault: true, groupable: true, groupLabels: { yes: 'Ajoutés automatiquement au stock', no: 'Non ajoutés automatiquement au stock' }, value: (product) => product.autoStock }),

@@ -1,6 +1,6 @@
 import { EVERYDAY_CONTEXT } from '@ordo/shared';
 import { booleanColumn } from '../../../components/data-table/table/boolean-column';
-import { LATE_GROUP_LABELS, multiValues, WARNING_YES_ICONS, type DataColumn } from '../../../components/data-table/table/data-table';
+import { LATE_GROUP_LABELS, multiValues, WARNING_YES_ICONS, type DataColumn, type YesNoStates } from '../../../components/data-table/table/data-table';
 import { monthColumn } from '../../../components/data-table/table/month-column';
 import { itemChoices } from '../../../components/items/item-look';
 import { signedText } from '../../../components/money/signed-text';
@@ -15,6 +15,13 @@ import { entryFieldColumns } from './entry-columns';
 import type { AnyEntry, EntryEnv } from './entry-env';
 import type { LineValues } from './lines';
 
+
+/** States of « Prêt » of a line, in its column and on its state buttons: an advance (a warning) or final. */
+export const LOAN_STATES: YesNoStates = {
+  labels: { yes: 'Avancé', no: 'Définitif' },
+  icons: WARNING_YES_ICONS,
+  toggleLabels: { yes: 'Marquer comme prêt (avancé)', no: 'Marquer comme définitif' },
+};
 /** Origin of a row of the forecast: its name and color. */
 export const FORECAST_KINDS: Record<string, { label: string; color: string }> = {
   FORECAST: { label: 'Prévision', color: 'grape' },
@@ -235,7 +242,7 @@ export function lineColumns(env: EntryEnv): DataColumn<LineRow>[] {
       text: (row) => signedText(row.amount),
       filter: { kind: 'number', value: (row) => row.amount },
     },
-    booleanColumn<LineRow>({ id: 'loan', bulk: true, label: 'Prêt', size: 80, groupLabels: { yes: 'Avancé', no: 'Définitif' }, icons: WARNING_YES_ICONS, value: (row) => row.line.loan }),
+    booleanColumn<LineRow>({ id: 'loan', bulk: true, label: 'Prêt', size: 80, groupLabels: LOAN_STATES.labels, icons: LOAN_STATES.icons, value: (row) => row.line.loan }),
     {
       id: 'date',
       bulk: true,

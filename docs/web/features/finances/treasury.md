@@ -313,6 +313,7 @@ Colonnes des tableaux de la trésorerie, lues par leur tableau et par `TreasuryC
 | `LineRow` | Ligne de la répartition : rang, valeurs, montant signé, pièces. |
 | `whomKey(line)` | Clé du bénéficiaire (`m:`, `r:` ou « Moi », `ME_KEY`). |
 | `lineColumns(env)` | Colonnes de la répartition : « Libellé », « Bénéficiaire », « Catégorie », « Contexte », « Unité », « Valeur », « Montant », « Prêt », « Date », « Projet », « Pièces justificatives », « Relative à un autre mouvement ». `EntryLinesTable`. |
+| `LOAN_STATES` | États de « Prêt » (colonne et bouton d'état) : « Avancé » / « Définitif », triangle orange / coche verte, « Marquer comme prêt (avancé) » / « Marquer comme définitif ». Utilisé par `EntryLinesTable`. |
 | `LoanRow` | Ligne des prêts : relation ou ligne de prêt. |
 | `loanColumns(words)` | Colonnes « Relation / ligne » (ou « Proche / ligne »), « Solde », « Sorti vers elle », « Reçu d’elle », « Date », « Montant ». `LoansPanel`. |
 

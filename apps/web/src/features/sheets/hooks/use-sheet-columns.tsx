@@ -1,7 +1,7 @@
 import { useShoppingData } from '../../shopping/api';
 import { categoryColumn, consumableColumn, noteColumn, quantityColumn, unitColumn } from '../../shopping/lib/product-columns';
 import { booleanColumn } from '../../../components/data-table/table/boolean-column';
-import type { DataColumn } from '../../../components/data-table/table/data-table';
+import type { DataColumn, YesNoStates } from '../../../components/data-table/table/data-table';
 import { itemChoices } from '../../../components/items/item-look';
 import { localDay } from '../../../lib/dates';
 import * as fmt from '../../../lib/format';
@@ -12,6 +12,12 @@ import { usePeople } from '../../shopping/lib/shopping-format';
 import { useTaskContext, type TaskContext } from '../../tasks/hooks/use-task-context';
 import { useSheetCategories, type ChecklistItem, type Sheet, type SheetCategory, type SheetDetail, type SheetDetailItem } from '../api';
 
+
+/** States of « Fait » of an item of a checklist, on its state buttons. */
+export const CHECKLIST_DONE_STATES: YesNoStates = {
+  labels: { yes: 'Collecté', no: 'À collecter' },
+  toggleLabels: { yes: 'Marquer comme collecté', no: 'Marquer comme à collecter' },
+};
 /**
  * Columns of the sheets.
  * @param {TaskContext | null} context Names of the projects.

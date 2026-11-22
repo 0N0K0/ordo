@@ -132,9 +132,9 @@ Internes : `ItemState`, `STATES` (couleur et texte), `MIDNIGHT` (`24:00`, fin à
 
 | Export                                                   | Rôle                                                                                                                                                                                |
 | -------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `RoutineDoneToggles({ routine, dateLabel?, disabled? })` | Interrupteur(s) « faite » de l'occurrence en cours : un seul, ou un par moment (facultatif en pointillés). Utilisé par `RoutinesPanel` et `features/home/components/LifeCards.tsx`. |
+| `RoutineDoneToggles({ routine, dateLabel?, disabled? })` | Bouton(s) d'état « Faite » / « À faire » de l'occurrence en cours (`ROUTINE_DONE_STATES`) : un seul, ou un par moment (facultatif en pointillés). Utilisé par `RoutinesPanel`, `RoutineForm` et `features/home/components/LifeCards.tsx`. |
 
-Interne : `DoneToggle` (`StateSwitch` vert avec coche).
+Interne : `DoneToggle` (`StateButton` : carré vide, puis coche verte).
 
 ### `components/RoutineBulkBar.tsx`
 
@@ -320,6 +320,7 @@ Héritage des sous-routines à l’écran (règles : [Héritage](../../../busine
 | Export                | Rôle                                                                                                                              |
 | --------------------- | --------------------------------------------------------------------------------------------------------------------------------- |
 | `routineColumns(env)` | Définitions des colonnes du tableau (libellés, tri, texte, filtres, totaux, `groupTree` des catégories, « Priorité » et « Type » des listes des tâches (`context.priorities` / `context.types` : tri dans l’ordre de la liste, filtre `choice`, groupes), colonne de commentaires ; « Faite », « En attente », « Faisable maintenant » par `booleanColumn`, nommées « Faites » / « À faire », « En attente » / « Libre » et `DOABLE_GROUP_LABELS` ; « Documents » par `documentsColumn`, [Code web : documents liés](../cross-cutting/documents.md)). |
+| `ROUTINE_DONE_STATES` | États du bouton d'état « Faite » d'une routine ou d'un moment : « Faite » / « À faire », « Marquer comme faite » / « Marquer comme à faire ». Utilisé par `DoneToggle`. |
 
 Internes : `dayText(date)`, `labelColumn` (colonne « Priorité » ou « Type »).
 

@@ -1,0 +1,7 @@
+@layer app {
+  /* An optional state (an optional time of a routine): its button outlined dashed. */
+  .optional {
+    /* Bordures */
+    border: 1px dashed var(--mantine-color-gray-5);
+  }
+}

@@ -106,6 +106,7 @@ Colonnes des tableaux de l’inventaire, chacune lue par son tableau et par `Sto
 | `MOVEMENT_COLUMNS` | « Date », « Mois », « Article », « Mouvement », « Quantité », « Origine », « Description ». `MovementsTable`. |
 | `LOT_COLUMNS` | « Quantité », « Date de péremption », « Entré le ». `LotsTable`. |
 | `useStockItemColumns()` | Colonnes des articles (avec leurs commentaires). `StockTable`. |
+| `PERISHABLE_STATES` | États de « Périssable » (colonne et bouton d'état) : « Périssable » / « Durable », triangle orange / coche bleue, « Marquer comme périssable » / « Marquer comme durable » (`YesNoStates`). Utilisé par `StockTable`. |
 | `useCountColumns()` | « Date », « Emplacement » (chemin ou « Tout le stock »), « Écarts notés », « Description ». `CountsTable`. |
 | `useCountFormColumns(counts)` | « Article », « Emplacement », « Attendu », « Compté ». `StockCountForm`. |
 

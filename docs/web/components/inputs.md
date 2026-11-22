@@ -83,7 +83,7 @@ Mots des rappels, les mêmes dans l'éditeur et là où ils sont dits :
 
 ### `StateSwitch`
 
-Interrupteur d'un état oui / non ou d'un mode (une bascule n'est pas un bouton) : fait, favori, acheté, mode d'édition. Nom caché sauf `showLabel`, infobulle (`hint`) affichée même désactivé (`ActionTooltip wrapped`). Props : `label`, `showLabel`, `checked`, `onChange(checked)`, `hint`, `color`, `icon` (dans le curseur quand actif), `dashed` (piste en pointillés : facultatif, ex. heure facultative d'une routine ; `StateSwitch.module.css`), `size` (`sm`), `disabled`. eslint interdit `aria-pressed` et un `Switch` à libellé caché écrit à la main.
+Interrupteur d'un réglage ou d'un mode, hors des cellules de tableau et des lignes de liste (un oui / non modifiable y est un bouton d'état, [`StateButton`](data-table.md#statebuttontsx)) : un élément activé ou non (alarme active), « Favori » dans l'en-tête d'un client ou d'un projet, « Traité » dans la barre d'un mail, un mode d'édition. Nom caché sauf `showLabel`, infobulle (`hint`) affichée même désactivé (`ActionTooltip wrapped`). Props : `label`, `showLabel`, `checked`, `onChange(checked)`, `hint`, `color`, `icon` (dans le curseur quand actif), `size` (`sm`), `disabled`. Utilisé par `AlarmList`, `EntityHeader`, `CalendarPage`, `MailOrganizeActions`. eslint interdit `aria-pressed` (sauf dans `StateButton`) et un `Switch` à libellé caché écrit à la main.
 
 ## Dates et périodes
 

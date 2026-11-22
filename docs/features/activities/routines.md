@@ -82,8 +82,8 @@ Les lignes faites et archivées sont estompées ; le libellé d'une routine fait
 
 ### Cocher
 
-- Un interrupteur vert « faite » à gauche du libellé coche l'occurrence en cours. Infobulle « Marquer comme faite (lun. 10 nov.) », puis « Marquer comme à faire ».
-- Une routine à plusieurs moments a un petit interrupteur par moment (« 7:00–9:00 », « fois 2 »…), chacun coché à part ; les moments facultatifs ont une piste en pointillés.
+- Un bouton d’état à gauche du libellé (carré vide « À faire », coche verte « Faite ») coche l'occurrence en cours. Infobulle « Marquer comme faite (lun. 10 nov.) », puis « Marquer comme à faire ».
+- Une routine à plusieurs moments a un petit bouton d’état par moment (infobulle « Marquer comme faite (7:00–9:00) », « (fois 2) »…), chacun coché à part ; les moments facultatifs ont un contour en pointillés (« …, facultatif »).
 - Désactivé (« Pas encore commencée ») avant la première occurrence, et pour une routine archivée ou en cours de création.
 
 ### Modifier sur place et en masse

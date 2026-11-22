@@ -1,34 +1,34 @@
 import { Group, Text } from '@mantine/core';
-import { readOnlyCells } from '../../../components/data-table/table/data-table';
+import { readOnlyCells, type YesNoStates } from '../../../components/data-table/table/data-table';
+import { StateButton } from '../../../components/data-table/cells/StateButton';
 import { shoppingItemSchema, type ShoppingItemInput } from '@ordo/shared';
 import { useMemo, type ReactNode } from 'react';
 import { AddShoppingRow, type ShoppingAdd } from './AddShoppingRow';
 import { useShoppingData, type ShoppingCategory } from '../api';
-import { CategoryCell, ConservationCell, ExpiryCell, PeopleCell, StoreCell, ToggleCell, UnitCell } from './shopping-cells';
+import { CategoryCell, ConservationCell, ExpiryCell, PeopleCell, StoreCell, UnitCell } from './shopping-cells';
+import { OPTIONAL_STATES } from '../lib/shopping-columns';
 import { applyDiff, bulkCellLabels, type BulkChange, bulkSaver } from '../../../components/data-table/selection/bulk-edit';
 import { StackedValues } from '../../../components/data-table/cells/StackedValues';
-import { EditableCheck, EditableNumber, EditableText } from '../../../components/data-table/cells/EditableCells';
+import { EditableNumber, EditableText } from '../../../components/data-table/cells/EditableCells';
 import { DataTable, type RowMove } from '../../../components/data-table/table/DataTable';
 import { groupingOfColumn, inputOf, moveToGroup, placeInGroup, sheetSourceText, type ShoppingFields } from '../lib/shopping-format';
 import classes from './Shopping.module.css';
 import type { SelectionAction } from '../../../components/data-table/selection/SelectionBar';
 import type { DataView } from '../../../components/data-table/views/use-data-view';
 
-/** State of the rows a click switches (missing, bought): its own cell before the fields, edited in bulk too. */
+/**
+ * State of the rows a click toggles (missing, bought): a state button in its own cell before the fields, edited in bulk
+ * too.
+ */
 export interface ShoppingToggle<T> {
   /** Id of its cell in the bulk selection. */
   id: string;
   /** Name of its cell (« Manque », « Acheté »). */
   name: string;
   value: (row: T) => boolean;
-  /** Accessible name of a row's toggle. */
-  label: (row: T) => string;
-  /** Tooltip of a row's toggle. */
-  hint: (row: T) => string;
-  icon: ReactNode;
-  /** Color when on. */
-  color: string;
-  /** Switches some rows (one, or those of the bulk selection) on or off. */
+  /** Names, icons and click words of its states (those of its column). */
+  states: YesNoStates;
+  /** Toggles some rows (one, or those of the bulk selection). */
   onChange: (rows: T[], on: boolean) => void;
 }
 
@@ -248,7 +248,7 @@ export function ShoppingTable<T extends ShoppingFields>({
       ),
       // An item of a list (a product has none): not needed, bought if possible.
       optional: 'optional' in item && (
-        <EditableCheck value={Boolean(item.optional)} label={cellLabelOf('optional', item, 'Facultatif')} readOnly={readOnly} onSave={(optional) => save('optional', { optional })} />
+        <StateButton {...OPTIONAL_STATES} value={Boolean(item.optional)} label={cellLabelOf('optional', item, 'Facultatif')} readOnly={readOnly} onChange={(optional) => save('optional', { optional })} />
       ),
       // Sheets an item of a list comes from, with their share (products of the references have none).
       sheets: 'sheetSources' in item && Array.isArray(item.sheetSources) && (
@@ -285,14 +285,12 @@ export function ShoppingTable<T extends ShoppingFields>({
         width: 52,
         header: null,
         cell: (item) => (
-          <ToggleCell
-            on={toggle.value(item)}
-            label={toggle.label(item)}
-            hint={toggle.hint(item)}
-            icon={toggle.icon}
-            color={toggle.color}
+          <StateButton
+            {...toggle.states}
+            value={toggle.value(item)}
+            label={cellLabelOf(toggle.id, item, toggle.name)}
             readOnly={tableReadOnly || Boolean(rowReadOnly?.(item))}
-            onSave={(on) => saveToggle(item, on)}
+            onChange={(on) => saveToggle(item, on)}
           />
         ),
       }}

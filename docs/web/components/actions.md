@@ -34,7 +34,7 @@ Ces briques sont imposées par les règles eslint (voir [Conventions](../app.md#
 
 Bouton d'action d'une page, d'une vue ou d'une section, le même partout. Utilisé dans presque toutes les features (~100 fichiers).
 
-- `priority` : `'primary'` (défaut, plein) pour ajouter un élément, valider une action ou soumettre un formulaire ; `'secondary'` (clair, `light`) pour toute autre action (« Annuler », « Exporter », « Filtrer », un menu, une page) ; `'tertiary'` (discret `subtle`, taille forcée `xs`) pour les petites actions d'une section ou d'un formulaire (« Ajouter une ligne », « Valeurs par défaut », « Retirer »). Le plein est réservé à ces trois cas ; tout autre bouton est clair. Une bascule (`aria-pressed`) n'est pas un bouton : c'est un interrupteur (`StateSwitch`, ou un choix segmenté pour un mode).
+- `priority` : `'primary'` (défaut, plein) pour ajouter un élément, valider une action ou soumettre un formulaire ; `'secondary'` (clair, `light`) pour toute autre action (« Annuler », « Exporter », « Filtrer », un menu, une page) ; `'tertiary'` (discret `subtle`, taille forcée `xs`) pour les petites actions d'une section ou d'un formulaire (« Ajouter une ligne », « Valeurs par défaut », « Retirer »). Le plein est réservé à ces trois cas ; tout autre bouton est clair. Un oui / non modifiable dans une cellule de tableau ou une ligne de liste (fait, payé, acheté, manque…) est un bouton d'état (`StateButton`, `aria-pressed`, voir [Tableaux de données](data-table.md#statebuttontsx)) ; un réglage ou l'activation d'un élément (alarme active, abonnement), dans un formulaire, un réglage ou une barre d'outils, reste un interrupteur (`StateSwitch`) ; un choix de mode est un choix segmenté.
 - `danger` : action destructive. Rouge plein quelle que soit la priorité (ni clair ni contour) ; en `tertiary`, texte rouge discret.
 - `icon` : obligatoire, icône avant le libellé : tout bouton d'action a une icône et un libellé (« Supprimer » avec sa corbeille, sans points de suspension).
 - `to` (lien interne, `react-router`), `href` (fichier ou page externe), `download` (télécharge `href`, sous ce nom si chaîne).
@@ -64,7 +64,7 @@ Bouton fait d'une icône seule, le même partout : un bouton icône seul garde s
 
 ### `ActionTooltip`
 
-Infobulle d'un bouton qui s'affiche aussi quand il est désactivé : le bouton est enveloppé dans un `span` (`cursor: not-allowed` s'il est désactivé). Props : `label`, `disabled`, `wrapped` (toujours envelopper : un `Switch` dont la racine ne prend pas de ref). Utilisé par `ActionButton`, `IconAction`, `StateSwitch`.
+Infobulle d'un bouton qui s'affiche aussi quand il est désactivé : le bouton est enveloppé dans un `span` (`cursor: not-allowed` s'il est désactivé). Props : `label`, `disabled`, `wrapped` (toujours envelopper : un `Switch` dont la racine ne prend pas de ref). Utilisé par `ActionButton`, `IconAction` (donc `StateButton`), `StateSwitch`.
 
 ## `ActionsMenu.tsx`
 

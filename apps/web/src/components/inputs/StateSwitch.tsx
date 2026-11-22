@@ -1,6 +1,5 @@
 import { Switch, type MantineColor, type MantineSize } from '@mantine/core';
 import type { ReactNode } from 'react';
-import classes from './StateSwitch.module.css';
 import { ActionTooltip } from '../actions/ActionTooltip';
 
 interface StateSwitchProps {
@@ -16,8 +15,6 @@ interface StateSwitchProps {
   color?: MantineColor;
   /** Icon in its thumb when on (a check, a star). Optional. */
   icon?: ReactNode;
-  /** Track drawn dashed: not needed (an optional time of a routine). Optional. Default = false. */
-  dashed?: boolean;
   /** Optional. Default = « sm ». */
   size?: MantineSize;
   /** Optional. Default = false. */
@@ -25,12 +22,13 @@ interface StateSwitchProps {
 }
 
 /**
- * Switch of an on/off state or a mode (a toggle is not a button): done, favourite, bought, an edit mode;
- * its name hidden unless told (`showLabel`), its tooltip shown on a disabled switch too.
+ * Switch of a setting or a mode, outside table cells and list rows (a yes / no there is a `StateButton`): an item turned
+ * on / off (an alarm), a favourite in a page header, a mail treated in its toolbar, an edit mode; its name hidden unless
+ * told (`showLabel`), its tooltip shown on a disabled switch too.
  * @param {StateSwitchProps} props Component props.
  * @returns {JSX.Element} Switch.
  */
-export function StateSwitch({ label, showLabel = false, checked, onChange, hint, color, icon, dashed = false, size = 'sm', disabled = false }: StateSwitchProps) {
+export function StateSwitch({ label, showLabel = false, checked, onChange, hint, color, icon, size = 'sm', disabled = false }: StateSwitchProps) {
   const control = (
     <Switch
       size={size}
@@ -40,7 +38,6 @@ export function StateSwitch({ label, showLabel = false, checked, onChange, hint,
       checked={checked}
       disabled={disabled}
       thumbIcon={checked ? icon : undefined}
-      classNames={dashed ? { track: classes.track } : undefined}
       onChange={(event) => onChange(event.currentTarget.checked)}
     />
   );

@@ -1,6 +1,6 @@
 import { STOCK_MOVEMENT_LABELS, type StockMovementKind, mapById, round2 } from '@ordo/shared';
 import { booleanColumn } from '../../../components/data-table/table/boolean-column';
-import { WARNING_YES_NEUTRAL_NO_ICONS, withArchived, type DataColumn } from '../../../components/data-table/table/data-table';
+import { WARNING_YES_NEUTRAL_NO_ICONS, withArchived, type DataColumn, type YesNoStates } from '../../../components/data-table/table/data-table';
 import { monthColumn } from '../../../components/data-table/table/month-column';
 import { signedText } from '../../../components/money/signed-text';
 import { categoryOptions, categoryPaths } from '../../../components/tree/category-tree';
@@ -13,6 +13,13 @@ import { categoryColumn, consumableColumn, noteColumn, quantityColumn, unitColum
 import { rowPeopleKeys, usePeople } from '../../shopping/lib/shopping-format';
 import { useStockItems, useStockLocations, type StockCount, type StockItem, type StockLot, type StockMovement } from '../api';
 import { nextExpiry } from '../lib/stock-format';
+
+/** States of « Périssable », in its column and on its state buttons: a warning yes, a neutral no. */
+export const PERISHABLE_STATES: YesNoStates = {
+  labels: { yes: 'Périssable', no: 'Durable' },
+  icons: WARNING_YES_NEUTRAL_NO_ICONS,
+  toggleLabels: { yes: 'Marquer comme périssable', no: 'Marquer comme durable' },
+};
 
 /** Columns of the movements of the stock (all, or those of an item). */
 export const MOVEMENT_COLUMNS: DataColumn<StockMovement>[] = [
@@ -156,7 +163,7 @@ export function useStockItemColumns(): DataColumn<StockItem>[] {
       },
       groupable: true,
     },
-    booleanColumn<StockItem>({ id: 'perishable', label: 'Périssable', size: 110, bulk: true, hiddenByDefault: true, groupable: true, groupLabels: { yes: 'Périssable', no: 'Durable' }, icons: WARNING_YES_NEUTRAL_NO_ICONS, value: (item) => item.perishable }),
+    booleanColumn<StockItem>({ id: 'perishable', label: 'Périssable', size: 110, bulk: true, hiddenByDefault: true, groupable: true, groupLabels: PERISHABLE_STATES.labels, icons: PERISHABLE_STATES.icons, value: (item) => item.perishable }),
     consumableColumn<StockItem>({ bulk: false, hiddenByDefault: true }),
     {
       id: 'reference',

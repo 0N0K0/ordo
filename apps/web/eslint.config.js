@@ -978,9 +978,10 @@ const RESTRICTED_SYNTAX = [
       'Utiliser ActionButton (components/actions/ActionButton) : primary (plein) pour ajouter, valider ou envoyer, secondary (clair) pour le reste, tertiary (discret, xs, danger en rouge) ; after pour un compte ou un caret ; AddItemButton pour ajouter une ligne.',
   },
   {
-    // A toggle is not a button.
+    // A yes / no of a cell or a row is a state button; a setting or a mode, a switch.
     selector: "JSXAttribute[name.name='aria-pressed'], JSXOpeningElement[name.name='Switch']:has(> JSXAttribute[name.name='aria-label']):not(:has(> JSXAttribute[name.name='label']))",
-    message: 'Utiliser StateSwitch (components/inputs/StateSwitch) : une bascule est un interrupteur (Switch), un choix de mode un SegmentedControl.',
+    message:
+      'Utiliser StateButton (components/data-table/cells/StateButton) pour un oui / non d’une cellule ou d’une ligne de liste, StateSwitch (components/inputs/StateSwitch) pour un réglage ou un mode, un SegmentedControl pour un choix de mode.',
   },
   {
     selector: 'Literal[value=/^(Réduire|Développer)\\b/], TemplateElement[value.raw=/^(Réduire|Développer)\\b/], JSXText[value=/^\\s*(Réduire|Développer)\\b/]',
@@ -1305,7 +1306,8 @@ export default defineConfig([
   },
   {
     // Several values of a cell are shown one under the other (StackedValues, StackedLines, the `values` of a column),
-    // never joined on one line; the `text` of a column (export, search) may join them.
+    // never joined on one line; the `text` of a column (export, search) may join them. A yes / no changed in a cell is a
+    // state button, never a switch nor a check box (the row selection is RowCheck, in components/data-table/table).
     files: ['src/features/**/*{columns,cells,Cell,Cells,Table}*.{ts,tsx}', 'src/components/data-table/cells/**/*.{ts,tsx}', 'src/components/data-table/table/*column*.{ts,tsx}'],
     rules: {
       'no-restricted-syntax': [
@@ -1316,6 +1318,11 @@ export default defineConfig([
             ":matches(JSXElement, JSXFragment) > JSXExpressionContainer CallExpression[callee.property.name='join'], JSXAttribute[name.name=/^(target|label)$/] CallExpression[callee.property.name='join'], Property[key.name=/^(cell|values)$/] CallExpression[callee.property.name='join']",
           message:
             'Valeurs d’une cellule l’une sous l’autre : StackedLines / StackedValues (components/data-table/cells/StackedValues), ou `...multiValues(row => noms)` dans la colonne ; jamais jointes sur une ligne (seul le `text` d’une colonne les joint).',
+        },
+        {
+          selector: "JSXOpeningElement[name.name=/^(Switch|StateSwitch|Checkbox)$/], JSXOpeningElement[name.object.name='Checkbox']",
+          message:
+            'Utiliser StateButton (components/data-table/cells/StateButton) : un oui / non modifié dans une cellule ou une ligne est un bouton d’état, ni un interrupteur ni une case à cocher (interrupteurs : formulaires, réglages, activation d’un élément).',
         },
       ],
     },

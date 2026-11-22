@@ -1,5 +1,5 @@
 import { IconAction } from '../../actions/IconAction';
-import { Anchor, Checkbox, Popover, Group, NumberInput, Text, TextInput, type ComboboxItem, type ComboboxLikeRenderOptionInput, type OptionsFilter } from '@mantine/core';
+import { Anchor, Popover, Group, NumberInput, Text, TextInput, type ComboboxItem, type ComboboxLikeRenderOptionInput, type OptionsFilter } from '@mantine/core';
 import { TimePicker } from '@mantine/dates';
 import { DateField } from '../../inputs/DateField';
 import { ArrowSquareOutIcon } from '@phosphor-icons/react';
@@ -344,15 +344,6 @@ export function EditableMultiSelect({ items, readOnly = false, ...select }: Edit
       renderSelect={({ onDropdownClose }) => <CellMultiSelect {...select} onDropdownClose={onDropdownClose} />}
     />
   );
-}
-
-/**
- * Yes / no cell: ticked in place, saved at once.
- * @param {{ value: boolean, label: string, readOnly?: boolean, onSave: (value: boolean) => void }} props Component props.
- * @returns {JSX.Element} Cell.
- */
-export function EditableCheck({ value, label, readOnly = false, onSave }: { value: boolean; label: string; readOnly?: boolean; onSave: (value: boolean) => void }) {
-  return <Checkbox size="xs" aria-label={label} checked={value} disabled={readOnly} onChange={(event) => onSave(event.currentTarget.checked)} onClick={stopClick} />;
 }
 
 interface EditablePopoverCellProps {

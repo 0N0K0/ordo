@@ -1,11 +1,9 @@
-import { StateSwitch } from '../../../components/inputs/StateSwitch';
 import { categoryOptions, categoryTree } from '../../../components/tree/category-tree';
 import { Select } from '@mantine/core';
 import { localToday } from '../../../lib/dates';
 import { ItemAvatar } from '../../../components/items/ItemAvatar';
 import { listSelectProps, itemSelectProps, chosenAvatar } from '../../../components/items/item-look';
 import { DateField } from '../../../components/inputs/DateField';
-import { type ReactNode } from 'react';
 
 import { useShoppingData, type ShoppingCategory, type ShoppingStorage, type ShoppingStore } from '../api';
 import { EditableMultiSelect, EditableSelect } from '../../../components/data-table/cells/EditableCells';
@@ -235,25 +233,3 @@ export function TasksCell({
   return <EditableMultiSelect label={label} readOnly={readOnly} items={items} data={options} nothingFoundMessage="Aucune tâche" value={value} onSave={onSave} />;
 }
 
-interface ToggleCellProps {
-  on: boolean;
-  /** Accessible name: what it tells (« Lait manque »). */
-  label: string;
-  /** Tooltip: what it is and what a click does. */
-  hint: string;
-  icon: ReactNode;
-  /** Color when on. */
-  color: string;
-  readOnly?: boolean;
-  onSave: (on: boolean) => void;
-}
-
-/**
- * State of a row that a click switches (missing, bought): a switch, coloured with its icon when on, unlike the check
- * boxes selecting rows; part of the bulk selection of its column like any cell.
- * @param {ToggleCellProps} props Component props.
- * @returns {JSX.Element} Switch.
- */
-export function ToggleCell({ on, label, hint, icon, color, readOnly = false, onSave }: ToggleCellProps) {
-  return <StateSwitch label={label} hint={hint} checked={on} color={color} icon={icon} disabled={readOnly} onChange={onSave} />;
-}

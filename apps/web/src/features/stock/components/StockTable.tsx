@@ -1,3 +1,4 @@
+import { StateButton } from '../../../components/data-table/cells/StateButton';
 import { locationSelectProps } from '../hooks/use-location-select';
 import { Badge, Group, Text } from '@mantine/core';
 import { rowPeopleKeys, rowPeopleOf, usePeople } from '../../shopping/lib/shopping-format';
@@ -6,7 +7,7 @@ import { useState } from 'react';
 import { ActionButton } from '../../../components/actions/ActionButton';
 import { DataTable } from '../../../components/data-table/table/DataTable';
 import { applyDiff, bulkCellLabels, bulkSaver } from '../../../components/data-table/selection/bulk-edit';
-import { EditableCheck, EditableMultiSelect, EditableSelect, EditableText, EditableMarkdown } from '../../../components/data-table/cells/EditableCells';
+import { EditableMultiSelect, EditableSelect, EditableText, EditableMarkdown } from '../../../components/data-table/cells/EditableCells';
 import { RowActions } from '../../../components/data-table/cells/RowActions';
 import { StackedValues } from '../../../components/data-table/cells/StackedValues';
 import { useDataView } from '../../../components/data-table/views/use-data-view';
@@ -21,7 +22,7 @@ import { ON_ERROR } from '../../../lib/notify';
 import { useShoppingData } from '../../shopping/api';
 import { stockKey, useStockItems, useStockLocations, useStockMutations, type StockItem } from '../api';
 import { LotsTable } from './LotsTable';
-import { useStockItemColumns } from '../hooks/use-stock-columns';
+import { PERISHABLE_STATES, useStockItemColumns } from '../hooks/use-stock-columns';
 import { MovementsTable } from './MovementsTable';
 import { StockCountForm } from './StockCountForm';
 import { StockItemForm } from './StockItemForm';
@@ -202,7 +203,7 @@ export function StockTable() {
             />
           ),
           perishable: (
-            <EditableCheck value={item.perishable} label={cellLabelOf('perishable', item, 'Périssable')} readOnly={readOnly} onSave={(perishable) => bulk('perishable')(item, { perishable })} />
+            <StateButton {...PERISHABLE_STATES} value={item.perishable} label={cellLabelOf('perishable', item, 'Périssable')} readOnly={readOnly} onChange={(perishable) => bulk('perishable')(item, { perishable })} />
           ),
           note: <EditableMarkdown value={item.note ?? null} label={cellLabelOf('note', item, 'Description')} readOnly={readOnly} onSave={(note) => bulk('note')(item, { note })} />,
         };

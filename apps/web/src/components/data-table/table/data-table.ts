@@ -81,8 +81,11 @@ export interface YesNoLabels {
   no: string;
 }
 
-/** Icon of a yes / no value: a filled square with a check, a red filled square with a cross, an orange warning triangle. */
-export type YesNoIconKind = 'check' | 'cross' | 'warning';
+/**
+ * Icon of a yes / no value: a filled square with a check, a red filled square with a cross, an orange warning triangle,
+ * or an empty gray outlined square (a state still to reach, « À faire », on a state button).
+ */
+export type YesNoIconKind = 'check' | 'cross' | 'warning' | 'empty';
 
 /**
  * Icons of the values of a yes / no column: yes a check, no a cross unless set (a value that is a warning: `warning`);
@@ -103,6 +106,22 @@ export const WARNING_YES_NEUTRAL_NO_ICONS: YesNoIcons = { yes: 'warning', no: 'c
 
 /** Icons of a neutral yes whose no is a warning (optional / required): a blue check, an orange triangle. */
 export const NEUTRAL_YES_WARNING_NO_ICONS: YesNoIcons = { yes: 'check', no: 'warning', check: 'info' };
+
+/**
+ * States of a yes / no changed in place by a state button (`StateButton`): the names of its two states for one row, yes
+ * first (« Faite » / « À faire »), its icons (those of its column) and what a click does to reach each state.
+ */
+export interface YesNoStates {
+  /** Names of the states of one row, yes first: the current one is the button's name. */
+  labels: YesNoLabels;
+  /** Icons of the states. Optional. Default = a green check for yes, an empty gray square for no. */
+  icons?: YesNoIcons;
+  /**
+   * What a click does, to reach yes / to reach no (« Marquer comme faite » / « Marquer comme à faire »): its tooltip.
+   * Optional. Default = « Passer à « état » ».
+   */
+  toggleLabels?: YesNoLabels;
+}
 
 /** Names of the values of a lateness column (late tasks, late forecasts). */
 export const LATE_GROUP_LABELS: YesNoLabels = { yes: 'En retard', no: 'Dans le délai' };
