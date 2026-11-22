@@ -1,5 +1,6 @@
 import { LabeledField } from '../../../components/inputs/LabeledField';
 import { Text } from '@mantine/core';
+import { useState } from 'react';
 import { conditionReferences, SLOT_CONDITION_FIELD_OPERATORS, SLOT_CONDITION_FIELDS, slotConditionSchema, type FilterOperator, type SlotCondition, type SlotConditionField } from '@ordo/shared';
 import { FieldsFilterBuilder, type FilterFields } from '../../../components/filters/FilterBuilder';
 import { emptySlotCondition } from '../lib/slot-condition-text';
@@ -26,6 +27,13 @@ const EFFECTS = {
  * @returns {JSX.Element} Builder.
  */
 export function SlotConditionBuilder({ value, onChange, item }: { value: SlotCondition | null; onChange: (value: SlotCondition | null) => void; item: keyof typeof EFFECTS }) {
+  // A draft while a condition or a group is still incomplete (just added, no value yet): only a valid condition (or
+  // none) is given on, so that a panel saving each change never sends an incomplete one. A new value from outside
+  // (another save, another occurrence) replaces the draft.
+  const [draft, setDraft] = useState<{ from: string; filter: SlotCondition } | null>(null);
+  // Compared by content: a refetch of the same condition keeps the draft.
+  const valueKey = JSON.stringify(value);
+  const shown = draft && draft.from === valueKey ? draft.filter : (value ?? emptySlotCondition());
   // Archived schedules and kinds are no longer offered, but those of the condition stay.
   const choices = useSlotChoices(conditionReferences(value));
   const fields: FilterFields<SlotConditionField> = {
@@ -45,7 +53,15 @@ export function SlotConditionBuilder({ value, onChange, item }: { value: SlotCon
         Facultatif : sur ou hors de certains créneaux, ou de tous les créneaux de certains types (même ceux ajoutés ensuite), de cet espace ou de vos autres
         espaces, ou sur le temps libre (hors de tous les créneaux de cet espace, sauf certains), combinés en groupes (ET, OU). {EFFECTS[item]}
       </Text>
-      <FieldsFilterBuilder filter={value ?? emptySlotCondition()} fields={fields} onChange={(next) => onChange(next.children.length ? next : null)} />
+      <FieldsFilterBuilder
+        filter={shown}
+        fields={fields}
+        onChange={(next) => {
+          const complete = next.children.length ? slotConditionSchema.safeParse(next).success : true;
+          setDraft(complete ? null : { from: valueKey, filter: next });
+          if (complete) onChange(next.children.length ? next : null);
+        }}
+      />
     </LabeledField>
   );
 }

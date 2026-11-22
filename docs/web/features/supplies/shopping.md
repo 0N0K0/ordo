@@ -46,14 +46,15 @@ Fonctions internes : `useShoppingMutation` (mutation qui invalide `shoppingKey`)
 
 ### `pages/ShoppingPage.tsx`
 
-- `ShoppingPage()` : page `/shopping` (route dans `app/router.tsx`) : `PageHeader`, `ShoppingSettings`, onglets `base` (« Références », `BaseLists`) et `lists` (« Listes », `ListsPanel`) via `usePageTab(SHOPPING_TABS)`.
+- `ShoppingPage()` : page `/shopping` (route dans `app/router.tsx`) : `PageHeader`, `ShoppingPageSettings`, onglets `base` (« Références », `BaseLists`) et `lists` (« Listes », `ListsPanel`) via `usePageTab(SHOPPING_TABS)`.
 - `ListsPanel({ projectId?, projectIds? })` : table des listes (`DataTable`, `useDataView` clé `shopping-lists`), vues `LIST_VIEWS`, cellules modifiables (libellé `EditableText`, tâches `TasksCell`, progression `ShoppingProgressBadge`), menu `ListActionsMenu`, actions de sélection (dupliquer, clôturer / rouvrir, archiver, supprimer), interrupteur des archivées. Avec `projectIds`, seules les listes des tâches de ces projets (`listsOfProjects`) et les vues du projet. Utilisé aussi par `features/projects/pages/ProjectPage.tsx` (onglet « shopping »).
-- Internes : `LIST_VIEWS` (vues « En cours » / « Clôturées »), `ListEnv` (contexte des colonnes), `projectsOf(list, context)` (projets des tâches d'une liste), `listColumns(env)` (colonnes de la table des listes), `SHOPPING_TABS`.
+- Colonnes : `useShoppingListColumns(lists)` (`hooks/use-shopping-columns.tsx`).
+- Internes : `LIST_VIEWS` (vues « En cours » / « Clôturées »), `SHOPPING_TABS`.
 
 ### `pages/ShoppingListPage.tsx`
 
-- `ShoppingListPage()` : page `/shopping/:id`. Charge listes, données, contexte des tâches, stock par référence (`useProductStock`) ; construit les colonnes (`itemColumns` + `optionalColumn` + « Acheté », « En stock », « Livraison », « Fiches », commentaires), la vue `shopping-list` (vues `LIST_VIEWS`, colonne de lot « Acheté »), l'en-tête `DetailHeader`, la barre `DataViewBar` (ajout depuis les références / hors références / une fiche via `SheetPicker`, « Commande à distance » → `OrderPanel`, « Mode collecte » → `StoreMode`, `ListActionsMenu`), le tableau `ShoppingTable` (bascule « Acheté » qui appelle `useStockProposal` après achat, actions de ligne, actions de sélection « Ajouter au stock… » et « Retirer de la liste »), le total estimé et les commentaires. Gère les états chargement (`TableSkeleton`), introuvable (`DetailNotFound`), vide (`EmptyState`), clos / archivé (lecture seule ; « Voir » ouvre un élément en lecture seule).
-- Internes : `listSheets(items)` (fiches d'origine des éléments, chacune une fois), `LIST_VIEWS` (« Tout », « À acheter », groupées par catégorie), `deliveryName` (nom affiché d'une livraison), `assignDelivery(moved, deliveryId)` (met des éléments dans une livraison en enregistrant les livraisons qu'ils quittent et rejoignent), `bulkDelivery` (cellule « Livraison » en lot).
+- `ShoppingListPage()` : page `/shopping/:id`. Charge listes, données, contexte des tâches, stock par référence (`useProductStock`) ; prend les colonnes de `useShoppingItemColumns(list)`, la vue `shopping-list` (vues `LIST_VIEWS`, colonne de lot « Acheté »), l'en-tête `DetailHeader`, la barre `DataViewBar` (ajout depuis les références / hors références / une fiche via `SheetPicker`, « Commande à distance » → `OrderPanel`, « Mode collecte » → `StoreMode`, `ListActionsMenu`), le tableau `ShoppingTable` (bascule « Acheté » qui appelle `useStockProposal` après achat, actions de ligne, actions de sélection « Ajouter au stock… » et « Retirer de la liste »), le total estimé et les commentaires. Gère les états chargement (`TableSkeleton`), introuvable (`DetailNotFound`), vide (`EmptyState`), clos / archivé (lecture seule ; « Voir » ouvre un élément en lecture seule).
+- Internes : `LIST_VIEWS` (« Tout », « À acheter », groupées par catégorie), `deliveryName` (nom affiché d'une livraison, `deliveryLabel`), `assignDelivery(moved, deliveryId)` (met des éléments dans une livraison en enregistrant les livraisons qu'ils quittent et rejoignent), `bulkDelivery` (cellule « Livraison » en lot).
 
 ## components
 
@@ -64,7 +65,7 @@ Fonctions internes : `useShoppingMutation` (mutation qui invalide `shoppingKey`)
 
 ### `components/BaseList.tsx`
 
-- `BaseList({ baseList })` : produits d'une référence dans `ShoppingTable` : colonnes `itemColumns` + commentaires, « Dernier achat », « Manque », réglages de stock (« Suivie en stock », « Consommable » (`consumableColumn`), « Ajout auto au stock », « Emplacement en stock », via `setProductStock` en lot) ; bascule `MISSING_TOGGLE` ; boutons déplacer / nouveau produit / générer une liste ; actions de ligne et de sélection ; « Tout décocher ». Utilisé par `BaseLists`.
+- `BaseList({ baseList })` : produits d'une référence dans `ShoppingTable` : colonnes `useBaseListColumns(baseList, products)`, réglages de stock modifiés via `setProductStock` en lot ; bascule `MISSING_TOGGLE` ; boutons déplacer / nouveau produit / générer une liste ; actions de ligne et de sélection ; « Tout décocher ». Utilisé par `BaseLists`.
 - Internes : `BASE_LIST_VIEWS` (« Tous », « Manquants », groupées par catégorie), `confirmDelete(product, onConfirm)` (confirmation « Retirer le produit »), `MISSING_TOGGLE(save)` (bascule « Manque », caddie orange), `stockBulk` (enregistre les réglages de stock).
 
 ### `components/ShoppingTable.tsx`
@@ -152,11 +153,16 @@ Champs de formulaire partagés par les achats et le stock.
 
 ### `components/ShoppingSettings.tsx`
 
-- `ShoppingSettings()` : « Paramètres des achats » dans la barre latérale (`PageSettings`) : `ShoppingCategories` (usage compté sur produits, éléments et éléments de fiches), puis `SettingsList` des magasins, unités (usage par libellé) et modes de conservation. Utilisé par `ShoppingPage` et `ShoppingListPage`.
+- `ShoppingSettings()` : paramètres des achats : `ShoppingCategories`, `SettingsList` des magasins, `ShoppingUnits`, `SettingsList` des modes de conservation, puis en dernier les `ColumnDefaults` des tableaux `shopping-base-list` (« Références »), `shopping-lists` (« Listes ») et `shopping-list` (« Une liste »). Interne : `NO_PRODUCTS`. Utilisé par `ShoppingPageSettings` et l’onglet « Achats » des paramètres d’un projet.
+- `ShoppingPageSettings()` : `ShoppingSettings` dans la barre latérale (`PageSettings` « Paramètres des achats »). Utilisé par `ShoppingPage` et `ShoppingListPage`.
 
 ### `components/ShoppingCategories.tsx`
 
-- `ShoppingCategories({ categories, usage })` : `SettingsList` en arbre des catégories (glisser-déposer → `moveCategory`, suppression → `deleteCategory`), badges des références de chaque catégorie. Utilisé par `ShoppingSettings` et `features/sheets/components/SheetsSettings.tsx`. (partagé)
+- `ShoppingCategories()` : `SettingsList` en arbre des catégories (glisser-déposer → `moveCategory`, suppression → `deleteCategory`), badges des références de chaque catégorie ; usage compté sur les produits, les éléments des listes et des fiches (`useSheets`) et les articles du stock (`useStockItems`). Utilisé par `ShoppingSettings`, `features/sheets/components/SheetsSettings.tsx` et `StockSettings` (`features/stock/pages/StockPage.tsx`). (partagé)
+
+### `components/ShoppingUnits.tsx`
+
+- `ShoppingUnits()` : `SettingsList` « Unités » (`useUnitItems`), usage par libellé sur les produits et les éléments des listes. Utilisé par `ShoppingSettings`, `SheetsSettings` et `StockSettings`. Garde eslint : une `SettingsList` titrée « Unités » ailleurs est refusée. (partagé)
 
 ### `components/TaskShopping.tsx`
 
@@ -180,10 +186,23 @@ Définitions des listes de paramètres (liste + formulaire + création depuis un
 | ---------------------------- | ---------------------------------------------------------------------------------------------------------------------- | --------------------------------------------- |
 | `useStoreItems()`            | Magasins (`SHOPPING_STORE`, `labelFormSchema`), avec `remove`.                                                         | `ShoppingSettings`, `ShoppingForm`            |
 | `useStorageItems()`          | Modes de conservation (`SHOPPING_STORAGE`), avec `remove`.                                                             | `ShoppingSettings`, `ShoppingForm`            |
-| `useUnitItems()`             | Unités (`SHOPPING_UNIT`, sans couleur, envoyées avec `UNIT_COLOR`), avec `remove`.                                     | `ShoppingSettings`, `UnitField`               |
+| `useUnitItems()`             | Unités (`SHOPPING_UNIT`, sans couleur, envoyées avec `UNIT_COLOR`), avec `remove`.                                     | `ShoppingUnits`, `UnitField`                  |
 | `useShoppingCategoryItems()` | Catégories (`SHOPPING_CATEGORY`, `shoppingCategorySchema`), avec le champ en plus « Références » (`BatchMultiSelect`). | `ShoppingCategories`, `ShoppingCategoryField` |
 
 Interne : `WithRemove`.
+
+### `hooks/use-shopping-columns.tsx`
+
+Colonnes des tableaux des achats, chacune lue par son tableau et par `ShoppingSettings` (colonnes des nouvelles vues).
+
+| Export | Rôle |
+| --- | --- |
+| `useShoppingListColumns(lists)` | Colonnes de la table des listes (`shopping-lists`) : liste, tâches, projet, état, achats, restant, produits, total estimé, créée le, clôturée le, payée, catégories, magasins, libellés des produits, commentaires. |
+| `listSheets(items)` | Fiches d'origine des éléments d'une liste, chacune une fois. Utilisé aussi par `ShoppingListPage` (`SheetPicker`). |
+| `useShoppingItemColumns(list)` | Colonnes des éléments d'une liste (`shopping-list`) : `itemColumns` + `optionalColumn` + « Acheté », « En stock », « Livraison » (masquée hors commande à distance), « Fiches », commentaires ; sans liste (paramètres) : sans livraisons, fiches ni commentaires. |
+| `useBaseListColumns(baseList, products)` | Colonnes des produits d'une référence (`shopping-base-list`) : `itemColumns` + commentaires, « Dernier achat », « Manque », « Suivie en stock », « Consommable », « Ajout auto au stock », « Emplacement en stock » ; sans référence : toutes les catégories. |
+
+Internes : `ListEnv`, `projectsOf(list, context)`, `listColumns(env)`.
 
 ## lib
 
@@ -239,7 +258,7 @@ Colonnes de produits partagées par achats, stock, fiches et listes à cocher. (
 | `quantityColumn(options?)`             | « Quantité », numérique.                                              | `itemColumns`, `StockTable`, `SheetPage`, `ChecklistPanel`                 |
 | `unitColumn(options?)`                 | « Unité ».                                                            | idem                                                                       |
 | `categoryColumn(categories, options?)` | « Catégorie » : chemin complet, filtre en arbre (archivées marquées), groupée en arbre (`groupTree`, couleur héritée), « Sans catégorie ». | idem                                                                       |
-| `consumableColumn(options?)`           | « Consommable », colonne oui / non (`booleanColumn`, « Consommable » / « Permanent »). | `StockTable`, `SheetPage`, `ChecklistPanel`, `BaseList`                    |
+| `consumableColumn(options?)`           | « Consommable », colonne oui / non (`booleanColumn`, « Consommable » / « Permanent »). | `useStockItemColumns`, `useSheetItemColumns`, `useChecklistColumns`, `useBaseListColumns` |
 | `noteColumn(options?)`                 | « Description » (note).                                               | `StockPage`, `StockTable`, `MovementsTable`, `SheetPage`, `ChecklistPanel` |
 
 Interne : `ColumnOptions<T>`.
@@ -262,7 +281,8 @@ Clés de conservation (filtres, regroupement, cellule). (partagé)
 
 ### `lib/delivery-format.ts`
 
-- `deliveryWindow(delivery)` : « du 12 au 14 nov. », « le 12 nov. », ou rien. Utilisé par `OrderPanel`, `StoreMode`, `ShoppingListPage`.
+- `deliveryWindow(delivery)` : « du 12 au 14 nov. », « le 12 nov. », ou rien. Utilisé par `OrderPanel`, `StoreMode`, `deliveryLabel`.
+- `deliveryLabel(deliveries, id)` : nom d'une livraison d'une liste (son libellé, sinon « Retrait » / « Livraison » et quand elle est attendue ; rien sans livraison). Utilisé par `ShoppingListPage` et `useShoppingItemColumns`.
 - `deliveryInput(delivery, itemIds)` : saisie d'une livraison telle qu'elle est, avec d'autres éléments. Utilisé par `ShoppingListPage` (`assignDelivery`).
 
 ### `lib/open-new-list.tsx`

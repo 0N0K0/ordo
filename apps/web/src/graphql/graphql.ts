@@ -1163,6 +1163,12 @@ export type StockPurchaseInput = {
   shoppingItemId: string | number;
 };
 
+/** Order and hidden columns of a data table. */
+export type TableColumnLayoutInput = {
+  columnOrder: Array<string>;
+  hiddenColumns: Array<string>;
+};
+
 export type TaskAutomationInput = {
   /** [{ kind, field, value }], 1 to 20: checked by `taskAutomationActionSchema`. */
   actions: unknown;
@@ -1612,6 +1618,21 @@ export type MoveTaskViewMutationVariables = Exact<{
 
 
 export type MoveTaskViewMutation = { moveTaskView: boolean };
+
+export type TableColumnDefaultsQueryVariables = Exact<{
+  tableKey: string;
+}>;
+
+
+export type TableColumnDefaultsQuery = { tableColumnDefaults: { columnOrder: Array<string>, hiddenColumns: Array<string> } };
+
+export type SetTableColumnDefaultsMutationVariables = Exact<{
+  tableKey: string;
+  layout?: TableColumnLayoutInput | null | undefined;
+}>;
+
+
+export type SetTableColumnDefaultsMutation = { setTableColumnDefaults: { columnOrder: Array<string>, hiddenColumns: Array<string> } };
 
 export type UploadAttachmentMutationVariables = Exact<{
   file: File;
@@ -4638,19 +4659,6 @@ export type DeleteTaskTagMutationVariables = Exact<{
 
 export type DeleteTaskTagMutation = { deleteTaskTag: boolean };
 
-export type TaskColumnDefaultsQueryVariables = Exact<{ [key: string]: never; }>;
-
-
-export type TaskColumnDefaultsQuery = { taskColumnDefaults: { columnOrder: Array<string>, hiddenColumns: Array<string> } };
-
-export type SetTaskColumnDefaultsMutationVariables = Exact<{
-  columnOrder?: Array<string> | string | null | undefined;
-  hiddenColumns?: Array<string> | string | null | undefined;
-}>;
-
-
-export type SetTaskColumnDefaultsMutation = { setTaskColumnDefaults: { columnOrder: Array<string>, hiddenColumns: Array<string> } };
-
 export type SetTasksClosedMutationVariables = Exact<{
   ids: Array<string | number> | string | number;
   closed: boolean;
@@ -6109,6 +6117,22 @@ export const MoveTaskViewDocument = new TypedDocumentString(`
   moveTaskView(id: $id, index: $index)
 }
     `) as unknown as TypedDocumentString<MoveTaskViewMutation, MoveTaskViewMutationVariables>;
+export const TableColumnDefaultsDocument = new TypedDocumentString(`
+    query TableColumnDefaults($tableKey: String!) {
+  tableColumnDefaults(tableKey: $tableKey) {
+    columnOrder
+    hiddenColumns
+  }
+}
+    `) as unknown as TypedDocumentString<TableColumnDefaultsQuery, TableColumnDefaultsQueryVariables>;
+export const SetTableColumnDefaultsDocument = new TypedDocumentString(`
+    mutation SetTableColumnDefaults($tableKey: String!, $layout: TableColumnLayoutInput) {
+  setTableColumnDefaults(tableKey: $tableKey, layout: $layout) {
+    columnOrder
+    hiddenColumns
+  }
+}
+    `) as unknown as TypedDocumentString<SetTableColumnDefaultsMutation, SetTableColumnDefaultsMutationVariables>;
 export const UploadAttachmentDocument = new TypedDocumentString(`
     mutation UploadAttachment($file: File!) {
   uploadAttachment(file: $file) {
@@ -10671,22 +10695,6 @@ export const DeleteTaskTagDocument = new TypedDocumentString(`
   deleteTaskTag(id: $id)
 }
     `) as unknown as TypedDocumentString<DeleteTaskTagMutation, DeleteTaskTagMutationVariables>;
-export const TaskColumnDefaultsDocument = new TypedDocumentString(`
-    query TaskColumnDefaults {
-  taskColumnDefaults {
-    columnOrder
-    hiddenColumns
-  }
-}
-    `) as unknown as TypedDocumentString<TaskColumnDefaultsQuery, TaskColumnDefaultsQueryVariables>;
-export const SetTaskColumnDefaultsDocument = new TypedDocumentString(`
-    mutation SetTaskColumnDefaults($columnOrder: [String!], $hiddenColumns: [String!]) {
-  setTaskColumnDefaults(columnOrder: $columnOrder, hiddenColumns: $hiddenColumns) {
-    columnOrder
-    hiddenColumns
-  }
-}
-    `) as unknown as TypedDocumentString<SetTaskColumnDefaultsMutation, SetTaskColumnDefaultsMutationVariables>;
 export const SetTasksClosedDocument = new TypedDocumentString(`
     mutation SetTasksClosed($ids: [ID!]!, $closed: Boolean!, $reason: TaskCloseReason) {
   setTasksClosed(ids: $ids, closed: $closed, reason: $reason)

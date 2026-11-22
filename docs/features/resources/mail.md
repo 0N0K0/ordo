@@ -288,7 +288,7 @@ Un mail entre dans un projet :
 
 ## Paramètres des mails
 
-Panneau des paramètres de la page Mails (« Paramètres des mails »), aussi accessible par `/mail?settings=1`.
+Panneau des paramètres de la page Mails (« Paramètres des mails »), aussi accessible par `/mail?settings=1` ; les mêmes boîtes et drapeaux (ceux de l’espace) sont aussi dans les paramètres d’un projet, depuis son onglet « Mails ».
 
 ### « Boîtes mail »
 

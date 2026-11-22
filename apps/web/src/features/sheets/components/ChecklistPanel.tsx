@@ -4,8 +4,6 @@ import { Stack, Text } from '@mantine/core';
 import { ArrowCounterClockwiseIcon, ClipboardTextIcon, PlusIcon, TrashIcon } from '@phosphor-icons/react';
 import { DataTable } from '../../../components/data-table/table/DataTable';
 import { bulkCellLabels, bulkSaver } from '../../../components/data-table/selection/bulk-edit';
-import type { DataColumn } from '../../../components/data-table/table/data-table';
-import { categoryColumn, consumableColumn, noteColumn, quantityColumn, unitColumn } from '../../shopping/lib/product-columns';
 import { EditableCheck, EditableNumber, EditableText, EditableMarkdown } from '../../../components/data-table/cells/EditableCells';
 import { RowActions } from '../../../components/data-table/cells/RowActions';
 import { StackedValues } from '../../../components/data-table/cells/StackedValues';
@@ -23,13 +21,13 @@ import { SheetLinksField } from './SheetLinksField';
 import { deleteRowsAction } from '../../../components/data-table/selection/selection-actions';
 import { selectedLabel } from '../../../components/data-table/selection/selection-label';
 import { SheetPicker } from './SheetPicker';
+import { useChecklistColumns } from '../hooks/use-sheet-columns';
 import { AddRowField } from '../../../components/data-table/cells/AddRowField';
 import { itemGroupFields } from '../lib/sheet-format';
 import { checklistItemSchema } from '@ordo/shared';
 
 import { CategoryCell, UnitCell } from '../../shopping/components/shopping-cells';
 import { ActionButton } from '../../../components/actions/ActionButton';
-import { booleanColumn } from '../../../components/data-table/table/boolean-column';
 
 type ItemChange = { label?: string; categoryId?: string | null; quantity?: number | null; unit?: string | null; note?: string | null; consumable?: boolean; checked?: boolean };
 
@@ -44,27 +42,7 @@ export function ChecklistPanel({ owner, occurrenceDate = null }: { owner: SheetO
   const { data: shopping } = useShoppingData();
   const mutations = useSheetMutations();
   const categories = shopping?.shoppingCategories ?? [];
-  const columns: DataColumn<ChecklistItem>[] = [
-    booleanColumn<ChecklistItem>({ id: 'done', label: 'Fait', size: 70, bulk: true, groupLabels: { yes: 'Collectés', no: 'À collecter' }, value: (item) => Boolean(item.checkedAt) }),
-    { id: 'label', required: true, label: 'Élément', size: 220, locked: true, bulk: true, sortValue: (item) => item.label, text: (item) => item.label },
-    quantityColumn<ChecklistItem>(),
-    unitColumn<ChecklistItem>(),
-    categoryColumn<ChecklistItem>(categories, { size: 160 }),
-    consumableColumn<ChecklistItem>({ hiddenByDefault: true }),
-    noteColumn<ChecklistItem>({ hiddenByDefault: true }),
-    {
-      id: 'sources',
-      label: 'Fiches',
-      size: 170,
-      text: (item) => item.sources.map((source) => source.label).join(', '),
-      filter: {
-        kind: 'choices',
-        value: (item) => item.sources.map((source) => source.sheetId),
-        options: [...new Map((list?.items ?? []).flatMap((item) => item.sources.map((source) => [source.sheetId, source.label] as const)))].map(([value, label]) => ({ value, label })),
-      },
-      groupable: true,
-    },
-  ];
+  const columns = useChecklistColumns(list);
   const view = useDataView({ tableKey: 'checklist', getKey: (item) => item.id, columns, rows: list?.items ?? [], title: 'Liste à cocher' });
 
   /**

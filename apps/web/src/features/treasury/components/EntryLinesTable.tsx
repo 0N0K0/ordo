@@ -1,24 +1,23 @@
 import { useActiveWorkspace } from '../../workspaces/api';
-import { memberOrRelation, memberOrRelationKey, memberRelationOptions, parsePersonKey, personKey, ME_KEY } from '../../../components/people/people-keys';
+import { memberOrRelation, memberOrRelationKey, memberRelationOptions, parsePersonKey, ME_KEY } from '../../../components/people/people-keys';
 import { unarchived } from '../../../lib/archive';
 import { Checkbox, Group, Text } from '@mantine/core';
 import { TrashIcon, UsersThreeIcon } from '@phosphor-icons/react';
-import { itemChoices, itemSelectProps } from '../../../components/items/item-look';
-import { EVERYDAY_CONTEXT, splitAmounts, type TreasuryLineMode, fromCents, directionOf } from '@ordo/shared';
+import { itemSelectProps } from '../../../components/items/item-look';
+import { splitAmounts, type TreasuryLineMode, fromCents, directionOf } from '@ordo/shared';
 import { DataTable } from '../../../components/data-table/table/DataTable';
 import { EditableDate, EditableNumber, EditableSelect, EditableText } from '../../../components/data-table/cells/EditableCells';
-import { WARNING_YES_ICONS, type DataColumn } from '../../../components/data-table/table/data-table';
 import { useDataView } from '../../../components/data-table/views/use-data-view';
 import { treeSelectProps } from '../../../components/tree/tree-select';
 import * as fmt from '../../../lib/format';
-import { categoryChoices, categoryOptions } from '../lib/categories';
+import { categoryOptions } from '../lib/categories';
 import { DocumentsCell, LinksCell, ProjectCell } from './entry-cells';
 import type { AnyEntry, EntryEnv, EntryUpdate } from '../lib/entry-env';
 import { applyDiff, bulkCellLabels, type BulkChange, bulkSaver } from '../../../components/data-table/selection/bulk-edit';
 import { entryValues, linesChange } from '../lib/entry-values';
 import { categoryForDirection, equalShares, linkKey, newSplitLine, plannedLineContext, valueInMode, type LineLink, type LineValues } from '../lib/lines';
 import { SignedAmount } from '../../../components/money/SignedAmount';
-import { meName, personName, relationWords } from '../../../components/people/people-options';
+import { relationWords } from '../../../components/people/people-options';
 import { ActionButton } from '../../../components/actions/ActionButton';
 import { AddItemButton } from '../../../components/actions/AddItemButton';
 import { AddRowButton } from '../../../components/data-table/cells/AddRowField';
@@ -28,146 +27,13 @@ import { EmptyState } from '../../../components/feedback/EmptyState';
 import { createInPanel } from '../../../components/settings/create-settings-item';
 import { useCategoryCreators } from '../hooks/use-settings-items';
 import { ContextForm, RelationForm } from './TeamPanel';
-import { signedText } from '../../../components/money/signed-text';
-import { taggedKey } from '../../../lib/tagged-key';
-import { booleanColumn } from '../../../components/data-table/table/boolean-column';
+import { lineColumns, whomKey, type LineRow } from '../lib/treasury-columns';
 
 /** Line of a split entry, with its place and signed amount. */
-interface LineRow {
-  index: number;
-  line: LineValues;
-  /** Signed amount (€). */
-  amount: number;
-  /** Supporting documents, as stored. */
-  documents: AnyEntry['lines'][number]['documents'];
-}
-
-/**
- * Key of a line in the table.
- * @param {LineRow} row Line.
- * @returns {string} Key.
- */
 const lineKey = (row: LineRow) => row.line.id ?? String(row.index);
 
 /** Key of the line of "me" (no member nor relation). */
 const ME = ME_KEY;
-
-/**
- * Key of the person a line is for.
- * @param {LineValues} line Line.
- * @returns {string} "m:<id>", "r:<id>", or ME.
- */
-const whomKey = (line: LineValues) => memberOrRelationKey(line) ?? ME;
-
-/**
- * Columns of the lines of an entry.
- * @param {EntryEnv} env Names.
- * @returns {DataColumn<LineRow>[]} Columns.
- */
-function lineColumns(env: EntryEnv): DataColumn<LineRow>[] {
-  const me = env.settings?.treasuryMembers.find((member) => member.isMe);
-  const whomName = (row: LineRow) => (whomKey(row.line) === ME ? meName(me) : (env.names.get(whomKey(row.line)) ?? ''));
-  const contextName = (row: LineRow) => (row.line.contextId ? (env.names.get(taggedKey('context', row.line.contextId)) ?? '') : EVERYDAY_CONTEXT);
-  const categoryLabel = (row: LineRow) => (row.line.categoryId ? (env.paths.get(row.line.categoryId) ?? '') : '');
-  const projectLabelOf = (row: LineRow) => (row.line.projectId ? (env.projectLabels.get(row.line.projectId) ?? '') : '');
-  const whomChoices = [
-    ...(env.settings?.treasuryMembers ?? []).map((member) => ({ value: member.isMe ? ME : personKey('member', member.id), label: personName(member) })),
-    ...(env.settings?.treasuryRelations ?? []).map((relation) => ({ value: personKey('relation', relation.id), label: relation.name, archived: relation.archived })),
-  ];
-  return [
-    { id: 'label', bulk: true, label: 'Libellé', size: 200, locked: true, sortValue: (row) => row.line.label ?? null, text: (row) => row.line.label ?? '' },
-    {
-      id: 'whom',
-      bulk: true,
-      // « Moi » without member nor relation, the everyday context without context: never empty.
-      required: true,
-      label: 'Bénéficiaire',
-      size: 170,
-      sortValue: whomName,
-      text: whomName,
-      filter: { kind: 'choice', value: (row) => whomKey(row.line), options: whomChoices },
-      groupable: true,
-    },
-    {
-      id: 'category',
-      bulk: true,
-      label: 'Catégorie',
-      size: 180,
-      sortValue: (row) => categoryLabel(row) || null,
-      text: categoryLabel,
-      filter: {
-        kind: 'choice',
-        value: (row) => row.line.categoryId,
-        options: categoryChoices(env.settings?.treasuryCategories ?? []),
-      },
-      groupable: true,
-    },
-    {
-      id: 'context',
-      bulk: true,
-      required: true,
-      label: 'Contexte',
-      size: 160,
-      sortValue: contextName,
-      text: contextName,
-      filter: {
-        kind: 'choice',
-        value: (row) => row.line.contextId ?? ME,
-        options: [{ value: ME, label: EVERYDAY_CONTEXT }, ...itemChoices(env.settings?.treasuryContexts ?? [])],
-      },
-      groupable: true,
-    },
-    { id: 'mode', bulk: true, label: 'Unité', size: 80, sortValue: (row) => row.line.mode, text: (row) => (row.line.mode === 'PERCENT' ? '%' : '€'), filter: false },
-    { id: 'value', bulk: true, label: 'Valeur', size: 110, numeric: true, sortValue: (row) => row.line.value, text: (row) => fmt.number(row.line.value, 4), filter: false },
-    {
-      id: 'amount',
-      label: 'Montant',
-      size: 120,
-      required: true,
-      numeric: true,
-      sortValue: (row) => row.amount,
-      formatTotal: fmt.money,
-      text: (row) => signedText(row.amount),
-      filter: { kind: 'number', value: (row) => row.amount },
-    },
-    booleanColumn<LineRow>({ id: 'loan', bulk: true, label: 'Prêt', size: 80, groupLabels: { yes: 'Avancé', no: 'Définitif' }, icons: WARNING_YES_ICONS, value: (row) => row.line.loan }),
-    {
-      id: 'date',
-      bulk: true,
-      label: 'Date',
-      size: 130,
-      sortValue: (row) => row.line.date,
-      text: (row) => (row.line.date ? fmt.day(row.line.date) : ''),
-      filter: { kind: 'date', value: (row) => row.line.date },
-    },
-    {
-      id: 'project',
-      bulk: true,
-      label: 'Projet',
-      size: 180,
-      sortValue: (row) => projectLabelOf(row) || null,
-      text: projectLabelOf,
-      filter: { kind: 'choice', value: (row) => row.line.projectId, options: env.projects },
-      groupable: true,
-    },
-    {
-      id: 'documents',
-      bulk: true,
-      label: 'Pièces justificatives',
-      size: 220,
-      text: (row) => row.documents.map((document) => document.label).join(', '),
-      filter: { kind: 'boolean', value: (row) => row.documents.length > 0 },
-    },
-    {
-      id: 'links',
-      bulk: true,
-      label: 'Relative à un autre mouvement',
-      size: 240,
-      text: (row) => row.line.links.map((link) => link.entryLabel).join(', '),
-      filter: { kind: 'boolean', value: (row) => row.line.links.length > 0 },
-    },
-  ];
-}
 
 /**
  * Split of an entry unfolded under it, as a table like every other (views, search, filters, sorts, groups, columns,

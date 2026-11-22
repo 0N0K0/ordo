@@ -13,10 +13,10 @@ import { Link } from 'react-router';
 import { DataTable } from '../../../components/data-table/table/DataTable';
 import { useDataView } from '../../../components/data-table/views/use-data-view';
 import { RowActions } from '../../../components/data-table/cells/RowActions';
-import type { DataColumn } from '../../../components/data-table/table/data-table';
 import { localDay, localToday } from '../../../lib/dates';
 import { notifyError, notifySuccess, onMutationError } from '../../../lib/notify';
 import { useMailAccounts } from '../../mail/api';
+import { OVERDUE_COLUMNS } from '../lib/accounting-columns';
 import { DOCUMENT_TYPE_LABELS } from '../lib/labels';
 import { useOverdueInvoices, useTrackingMutations, type OverdueInvoice } from '../api/tracking';
 import * as fmt from '../../../lib/format';
@@ -40,48 +40,6 @@ function daysSinceReminder(invoice: OverdueInvoice, today: string): number | nul
   if (!invoice.lastReminderAt) return null;
   return daysBetween(localDay(invoice.lastReminderAt), today);
 }
-
-/** Columns of the overdue invoices. */
-const OVERDUE_COLUMNS: DataColumn<OverdueInvoice>[] = [
-  {
-    id: 'invoice',
-    required: true,
-    label: 'Facture',
-    size: 220,
-    locked: true,
-    sortValue: (invoice) => invoice.number ?? null,
-    text: (invoice) => `${invoice.type === 'DEPOSIT_INVOICE' ? `${DOCUMENT_TYPE_LABELS.DEPOSIT_INVOICE} ` : ''}${invoice.number ?? ''}`,
-  },
-  { id: 'client', label: 'Client', size: 200, hiddenByDefault: true, sortValue: (invoice) => invoice.clientName ?? null, text: (invoice) => invoice.clientName ?? '', groupable: true },
-  {
-    id: 'sent',
-    // Invoices to remind were all sent.
-    required: true,
-    label: 'Envoi',
-    size: 230,
-    sortValue: (invoice) => invoice.sentAt ?? null,
-    text: (invoice) => (invoice.sentAt ? fmt.day(localDay(invoice.sentAt)) : ''),
-    filter: { kind: 'date', value: (invoice) => (invoice.sentAt ? localDay(invoice.sentAt) : null) },
-  },
-  {
-    id: 'balance',
-    required: true,
-    label: 'Reste dû',
-    size: 130,
-    numeric: true,
-    sortValue: (invoice) => invoice.balance ?? 0,
-    text: (invoice) => fmt.money(invoice.balance ?? 0, invoice.currency),
-  },
-  {
-    id: 'reminder',
-    label: 'Dernière relance',
-    size: 200,
-    sortValue: (invoice) => invoice.lastReminderAt ?? null,
-    text: (invoice) => (invoice.lastReminderAt ? fmt.day(invoice.lastReminderAt) : 'Jamais'),
-    filter: { kind: 'date', value: (invoice) => (invoice.lastReminderAt ? localDay(invoice.lastReminderAt) : null) },
-  },
-  { id: 'email', label: 'Destinataire', size: 240, sortValue: (invoice) => invoice.billingEmail ?? null, text: (invoice) => invoice.billingEmail ?? '' },
-];
 
 /**
  * Invoices to remind (sent at least 15 days ago, still due): when and how they were sent, what is still due, reminders already made and to whom the reminder goes; the

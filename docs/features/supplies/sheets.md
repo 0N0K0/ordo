@@ -7,7 +7,7 @@ Ce que l'utilisateur peut faire avec les fiches : des listes d'éléments utilis
 - Page « Fiches », route `/sheets` (`PAGES.sheets`, icône `ClipboardTextIcon`), dans la navigation principale.
 - Page d'une fiche : `/sheets/:id` (`sheetPath(id)`).
 - Onglet « Fiches » de la page d'un projet : le même tableau, limité aux fiches du projet (la colonne « Projet » y est masquée par défaut ; une fiche créée là est rattachée au projet).
-- Paramètres (barre latérale « Paramètres des fiches »), sur la liste et sur la page d'une fiche.
+- Paramètres (barre latérale « Paramètres des fiches »), sur la liste et sur la page d'une fiche ; aussi dans les paramètres d’un projet, depuis son onglet « Fiches ».
 
 ## Liste des fiches
 
@@ -112,7 +112,9 @@ Une liste par occurrence de routine ou d'évènement, une par tâche. Faite à l
 « Paramètres des fiches » :
 
 - « Catégories de fiches » : « Classent les fiches (recettes, valises, trousses…) : une fiche peut en avoir plusieurs. » Libellé (250 caractères au plus, unique) et couleur ; usage affiché ; supprimer une catégorie la retire des fiches. Voir [Paramètres](../cross-cutting/settings.md).
-- Les catégories des éléments (celles des achats, aussi dans les paramètres des achats), avec leur usage par produits, éléments de listes et éléments de fiches.
+- Les catégories des éléments (celles des achats, aussi dans les paramètres des achats et de l’inventaire), avec leur usage par produits, éléments de listes et de fiches et articles du stock.
+- Les unités (celles des achats, aussi dans les paramètres des achats et de l’inventaire), avec leur usage par produits et éléments des listes.
+- En dernier, « Colonnes des nouvelles vues » des tableaux « Fiches », « Une fiche » et « Listes à cocher » (la liste à cocher d’une tâche, d’une routine ou d’un évènement) ([Colonnes des nouvelles vues](../cross-cutting/settings.md#colonnes-des-nouvelles-vues)).
 
 ## PRO et PERSO
 

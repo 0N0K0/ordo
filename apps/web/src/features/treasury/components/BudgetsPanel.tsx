@@ -3,7 +3,7 @@ import { useActiveWorkspace } from '../../workspaces/api';
 import { openFormPanel } from '../../../components/panels/panels';
 import { memberOrRelation, memberOrRelationKey, memberRelationOptions, personKey, ME_KEY } from '../../../components/people/people-keys';
 import { ActionButton } from '../../../components/actions/ActionButton';
-import { itemChoices, itemSelectProps } from '../../../components/items/item-look';
+import { itemSelectProps } from '../../../components/items/item-look';
 import { EmptyState } from '../../../components/feedback/EmptyState';
 import { TableSkeleton } from '../../../components/feedback/Skeletons';
 
@@ -20,30 +20,27 @@ import { bulkCellLabels, bulkSaver } from '../../../components/data-table/select
 import { EditableNumber, EditableSelect } from '../../../components/data-table/cells/EditableCells';
 import { useDataView } from '../../../components/data-table/views/use-data-view';
 import { RowActions } from '../../../components/data-table/cells/RowActions';
-import type { DataColumn } from '../../../components/data-table/table/data-table';
 import { localToday, monthOfDay } from '../../../lib/dates';
 import { useAppForm, useFieldSave, formCallbacks } from '../../../lib/form';
 import { SaveStatus } from '../../../components/feedback/SaveStatus';
 import { ON_ERROR } from '../../../lib/notify';
-import { treasuryKey, useTreasuryBudgetMutations, useTreasuryBudgets, useTreasurySettings, type BudgetReportRow, type TreasuryBudget } from '../api';
-import { categoryChoices, categoryOptions, categoryPaths } from '../lib/categories';
+import { treasuryKey, useTreasuryBudgetMutations, useTreasuryBudgets, useTreasurySettings, type TreasuryBudget } from '../api';
+import { categoryOptions } from '../lib/categories';
 import { treeSelectProps } from '../../../components/tree/tree-select';
 import * as fmt from '../../../lib/format';
 import { DirectionBadge } from './DirectionBadge';
+import { monthCellText, repeatLabel, useBudgetColumns, type KeyRow } from '../hooks/use-budget-columns';
 import { AmountInput } from '../../../components/inputs/AmountInput';
 import { Comments } from '../../comments/components/Comments';
-import { useCommentCounts } from '../../comments/api';
-import { commentColumn } from '../../comments/lib/comment-column';
 import { CreatableSelect } from '../../../components/inputs/CreatableSelect';
 import { archiveItemsAction, deleteItemsAction, duplicateRowsAction, rowMenuEntry } from '../../../components/data-table/selection/selection-actions';
 import { useQueryClient } from '@tanstack/react-query';
 import { cachedItem, useCachedItem } from '../../../lib/mutation';
 import { selectedLabel } from '../../../components/data-table/selection/selection-label';
 import { FormActions } from '../../../components/dialogs/FormActions';
-import { meName, personName, relationNoun } from '../../../components/people/people-options';
+import { meName, relationNoun } from '../../../components/people/people-options';
 import { dateRangeProps, followBounds, formRange } from '../../../components/inputs/date-range';
 import { DIRECTION_PLURALS } from '../lib/direction';
-import { signedText } from '../../../components/money/signed-text';
 
 /** Repetitions of a budget: that month only, every X months, or every year (12 months). */
 const REPEAT_MODES = [
@@ -53,25 +50,11 @@ const REPEAT_MODES = [
 ];
 
 /**
- * Repetition of a budget, told in words.
- * @param {number | null} every Months between two of its months; none: that month only.
- * @returns {string} Text.
- */
-const repeatLabel = (every: number | null) => (!every ? 'Ce mois seulement' : every === 12 ? 'Tous les ans' : every === 1 ? 'Tous les mois' : `Tous les ${every} mois`);
-
-/**
  * Month in words.
  * @param {string} month YYYY-MM.
  * @returns {string} "août 2026".
  */
 const monthLabel = (month: string) => fmt.month(month);
-
-/**
- * Month in a table cell, capitalized as the « Mois » columns of the other tables.
- * @param {string} month YYYY-MM.
- * @returns {string} "Août 2026".
- */
-const monthCellText = (month: string) => fmt.capitalize(fmt.month(month));
 
 /**
  * Month of a budget, picked in place (or cleared, when it may be empty).
@@ -311,6 +294,9 @@ function BudgetForm({ budget, defaults, onDone }: { budget?: TreasuryBudget; def
 // A budget changed, or the values of a new one.
 type Dialog = { budget?: TreasuryBudget; defaults?: Partial<BudgetValues> };
 
+/** No budget yet. */
+const NO_BUDGETS: TreasuryBudget[] = [];
+
 /**
  * Budgets: those of a month compared with its actual and forecast movements (what is spent, or received, and what
  * is left), what is out of budget (no budget for its member, context and category), and the budgets defined.
@@ -365,12 +351,7 @@ export function BudgetsPanel() {
       ON_ERROR,
     );
   const categories = settings?.treasuryCategories ?? [];
-  const paths = categoryPaths(categories);
-  const directionOf = new Map(categories.map((category) => [category.id, category.direction]));
-  const memberName = new Map((settings?.treasuryMembers ?? []).map((member) => [member.id, personName(member)]));
-  const me = settings?.treasuryMembers.find((member) => member.isMe);
-  const contextName = new Map((settings?.treasuryContexts ?? []).map((item) => [item.id, item.label]));
-  const relationName = new Map((settings?.treasuryRelations ?? []).map((relation) => [relation.id, relation.name]));
+  const { reportColumns, outsideColumns, definedColumns, paths, directionOf, memberName, me, contextName, relationName, used, whoKey, whoChoices, outsideText } = useBudgetColumns(data?.treasuryBudgets ?? NO_BUDGETS);
   const rows = data?.treasuryBudgetReport ?? [];
   const budgeted = rows.filter((row) => row.budgeted);
   const outside = rows.filter((row) => !row.budgeted);
@@ -382,38 +363,8 @@ export function BudgetsPanel() {
   const openBudget = (dialog: Dialog) =>
     openFormPanel(dialog.budget ? 'Modifier le budget' : 'Nouveau budget', (close) => <BudgetForm budget={dialog.budget} defaults={dialog.defaults} onDone={close} />);
 
-  /**
-   * What a row used of its budget: money out for a category of money out, money in otherwise.
-   * @param {BudgetReportRow} row Row.
-   * @param {'actual' | 'forecast'} kind Actual or forecast.
-   * @returns {number} Amount (positive: used).
-   */
-  const used = (row: BudgetReportRow, kind: 'actual' | 'forecast') => (row.categoryId && directionOf.get(row.categoryId) === 'IN' ? row[kind] : -row[kind]);
-  // "Me" (no member nor relation), and the everyday context, in the filters: ME_KEY.
-  const whoKey = (row: { memberId?: string | null; relationId?: string | null }) => memberOrRelationKey({ relationId: row.relationId, memberId: row.memberId !== me?.id ? row.memberId : null });
-  const whoChoices = [
-    { value: ME_KEY, label: meName(me) },
-    ...(settings?.treasuryMembers ?? []).filter((member) => !member.isMe).map((member) => ({ value: personKey('member', member.id), label: member.name })),
-    ...(settings?.treasuryRelations ?? []).map((relation) => ({ value: personKey('relation', relation.id), label: relation.name, archived: relation.archived })),
-  ];
   // Archived relations, offered only where they are the value already.
   const archivedWho = new Set((settings?.treasuryRelations ?? []).filter((relation) => relation.archived).map((relation) => personKey('relation', relation.id)));
-  /**
-   * What is out of budget, counted as the budgets count it: spent (money out) or received (money in) by the direction of
-   * its category; without category, signed.
-   * @param {BudgetReportRow} row Row.
-   * @param {'actual' | 'forecast'} kind Actual or forecast.
-   * @returns {number} Amount.
-   */
-  const outsideUsed = (row: BudgetReportRow, kind: 'actual' | 'forecast') => (row.categoryId && directionOf.has(row.categoryId) ? used(row, kind) : row[kind]);
-  /**
-   * Amount out of budget, written: signed without category (+ received, − spent).
-   * @param {BudgetReportRow} row Row.
-   * @param {'actual' | 'forecast'} kind Actual or forecast.
-   * @returns {string} Text.
-   */
-  const outsideText = (row: BudgetReportRow, kind: 'actual' | 'forecast') => (row.categoryId && directionOf.has(row.categoryId) ? fmt.money(used(row, kind)) : signedText(row[kind]));
-  type KeyRow = { memberId?: string | null; relationId?: string | null; contextId?: string | null; categoryId?: string | null };
   /**
    * Cells of the key of a budget (or of a report row): for whom, context, category.
    * @param {KeyRow} row Budget or row.
@@ -451,196 +402,25 @@ export function BudgetsPanel() {
       </>
     ),
   });
-  /**
-   * Who a budget is for, as shown and sorted: a relation, a member, else « Moi ».
-   * @param {KeyRow} row Row.
-   * @returns {string} Name.
-   */
-  const whoText = (row: KeyRow) => (row.relationId ? (relationName.get(row.relationId) ?? '') : row.memberId ? (memberName.get(row.memberId) ?? 'Ancien membre') : meName(me));
-  /**
-   * Context of a budget, as shown and sorted: its own, else the everyday one.
-   * @param {KeyRow} row Row.
-   * @returns {string} Name.
-   */
-  const contextText = (row: KeyRow) => (row.contextId ? (contextName.get(row.contextId) ?? '') : EVERYDAY_CONTEXT);
-  /**
-   * Columns of the key of a budget, sorted by their names.
-   * @returns {DataColumn<R>[]} Columns.
-   */
-  const keyColumns = <R extends KeyRow>(): DataColumn<R>[] => [
-    {
-      id: 'who',
-      bulk: true,
-      // « Moi » without member nor relation, the everyday context without context: never empty.
-      required: true,
-      label: 'Bénéficiaire',
-      size: 180,
-      sortValue: whoText,
-      text: whoText,
-      filter: { kind: 'choice', value: (row) => whoKey(row) ?? ME_KEY, options: whoChoices },
-      groupable: true,
-    },
-    {
-      id: 'context',
-      bulk: true,
-      required: true,
-      label: 'Contexte',
-      size: 160,
-      sortValue: contextText,
-      text: contextText,
-      filter: { kind: 'choice', value: (row) => row.contextId ?? ME_KEY, options: [{ value: ME_KEY, label: EVERYDAY_CONTEXT }, ...itemChoices(settings?.treasuryContexts ?? [])] },
-      groupable: true,
-    },
-    {
-      id: 'category',
-      bulk: true,
-      label: 'Catégorie',
-      size: 220,
-      locked: true,
-      sortValue: (row) => (row.categoryId ? (paths.get(row.categoryId) ?? '') : null),
-      text: (row) => (row.categoryId ? (paths.get(row.categoryId) ?? '') : 'Sans catégorie'),
-      filter: { kind: 'choice', value: (row) => row.categoryId ?? null, options: categoryChoices(categories) },
-      groupable: true,
-    },
-  ];
   const reportView = useDataView({
     tableKey: 'treasury-budget-report',
     title: `Budgets de ${monthLabel(month)}`,
     rows: budgeted,
-    columns: [
-      ...keyColumns<BudgetReportRow>(),
-      {
-        id: 'budget',
-        label: 'Montant du budget',
-        required: true,
-        size: 140,
-        numeric: true,
-        sortValue: (row) => row.budget,
-        text: (row) => fmt.money(row.budget),
-        filter: { kind: 'number', value: (row) => row.budget },
-      },
-      {
-        id: 'actual',
-        label: 'Montant réel',
-        required: true,
-        size: 130,
-        numeric: true,
-        sortValue: (row) => used(row, 'actual'),
-        text: (row) => fmt.money(used(row, 'actual')),
-        filter: { kind: 'number', value: (row) => used(row, 'actual') },
-      },
-      {
-        id: 'forecast',
-        label: 'Montant prévu',
-        required: true,
-        size: 130,
-        numeric: true,
-        sortValue: (row) => used(row, 'forecast'),
-        text: (row) => fmt.money(used(row, 'forecast')),
-        filter: { kind: 'number', value: (row) => used(row, 'forecast') },
-      },
-      {
-        id: 'left',
-        label: 'Montant restant',
-        required: true,
-        size: 140,
-        numeric: true,
-        sortValue: (row) => row.budget - used(row, 'actual') - used(row, 'forecast'),
-        text: (row) => fmt.money(row.budget - used(row, 'actual') - used(row, 'forecast')),
-        filter: { kind: 'number', value: (row) => row.budget - used(row, 'actual') - used(row, 'forecast') },
-      },
-      {
-        id: 'progress',
-        label: 'Avancement',
-        size: 160,
-        sortValue: (row) => (row.budget ? (used(row, 'actual') + used(row, 'forecast')) / row.budget : 0),
-        text: (row) => fmt.percent(row.budget ? ((used(row, 'actual') + used(row, 'forecast')) / row.budget) * 100 : 0, 0),
-        filter: false,
-      },
-    ],
+    columns: reportColumns,
   });
   const outsideView = useDataView({
     tableKey: 'treasury-budget-outside',
     title: `Hors budget de ${monthLabel(month)}`,
     rows: outside,
-    columns: [
-      ...keyColumns<BudgetReportRow>(),
-      {
-        id: 'actual',
-        label: 'Montant réel',
-        required: true,
-        size: 130,
-        numeric: true,
-        sortValue: (row) => outsideUsed(row, 'actual'),
-        text: (row) => outsideText(row, 'actual'),
-        filter: { kind: 'number', value: (row) => outsideUsed(row, 'actual') },
-      },
-      {
-        id: 'forecast',
-        label: 'Montant prévu',
-        required: true,
-        size: 130,
-        numeric: true,
-        sortValue: (row) => outsideUsed(row, 'forecast'),
-        text: (row) => outsideText(row, 'forecast'),
-        filter: { kind: 'number', value: (row) => outsideUsed(row, 'forecast') },
-      },
-    ],
+    columns: outsideColumns,
   });
-  const budgetComments = useCommentCounts(
-    'BUDGET',
-    (data?.treasuryBudgets ?? []).map((budget) => budget.id),
-  );
   const definedView = useDataView({
     tableKey: 'treasury-budgets',
     getKey: (budget: TreasuryBudget) => budget.id,
     title: 'Budgets',
     rows: data?.treasuryBudgets ?? [],
     archived: (budget) => budget.archived,
-    columns: [
-      {
-        id: 'month',
-        bulk: true,
-        required: true,
-        label: 'À partir de',
-        size: 150,
-        sortValue: (budget: TreasuryBudget) => budget.month,
-        text: (budget: TreasuryBudget) => monthCellText(budget.month),
-        filter: { kind: 'date', value: (budget: TreasuryBudget) => `${budget.month}-01` },
-      },
-      {
-        id: 'amount',
-        bulk: true,
-        required: true,
-        label: 'Montant',
-        size: 130,
-        numeric: true,
-        sortValue: (budget) => (directionOf.get(budget.categoryId) === 'IN' ? budget.amount : -budget.amount),
-        text: (budget) => `${directionOf.get(budget.categoryId) === 'IN' ? '+' : '−'}${fmt.money(budget.amount)}`,
-        filter: { kind: 'number', value: (budget) => (directionOf.get(budget.categoryId) === 'IN' ? budget.amount : -budget.amount) },
-      },
-      ...keyColumns<TreasuryBudget>(),
-      {
-        id: 'repeat',
-        bulk: true,
-        required: true,
-        label: 'Répétition',
-        size: 170,
-        sortValue: (budget) => budget.repeatEvery ?? 0,
-        text: (budget) => repeatLabel(budget.repeatEvery ?? null),
-        groupable: true,
-      },
-      {
-        id: 'until',
-        bulk: true,
-        label: 'Jusqu’à',
-        size: 150,
-        sortValue: (budget) => (budget.repeatEvery ? (budget.repeatUntil ?? '9999-12') : budget.month),
-        text: (budget) => (budget.repeatEvery ? (budget.repeatUntil ? monthCellText(budget.repeatUntil) : 'Sans fin') : monthCellText(budget.month)),
-        filter: { kind: 'date', value: (budget) => (budget.repeatEvery ? (budget.repeatUntil ? `${budget.repeatUntil}-01` : null) : `${budget.month}-01`) },
-      },
-      commentColumn<TreasuryBudget>(budgetComments, (budget) => budget.id),
-    ],
+    columns: definedColumns,
   });
 
   // Archived budgets are read only.

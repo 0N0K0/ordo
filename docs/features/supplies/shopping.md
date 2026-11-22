@@ -199,13 +199,14 @@ Panneau « Commande à distance » (`OrderPanel`) :
 
 ## Paramètres des achats
 
-Barre latérale « Paramètres des achats » (pages `/shopping` et `/shopping/:id` ; les catégories aussi dans les paramètres des fiches) :
+Barre latérale « Paramètres des achats » (pages `/shopping` et `/shopping/:id`, et paramètres d’un projet depuis son onglet « Achats » ; les catégories et les unités aussi dans les paramètres des fiches et de l’inventaire) :
 
-- « Catégories » : arbre ; glisser une catégorie sur une autre pour l'y ranger ; une sous-catégorie sans couleur prend celle de sa parente ; champ « Références » (aucune : toutes ; une sous-catégorie sans liste prend celles de sa parente) ; badges des références de chaque catégorie ; nombre de produits, éléments et éléments de fiches qui l'utilisent.
+- « Catégories » : arbre ; glisser une catégorie sur une autre pour l'y ranger ; une sous-catégorie sans couleur prend celle de sa parente ; champ « Références » (aucune : toutes ; une sous-catégorie sans liste prend celles de sa parente) ; badges des références de chaque catégorie ; nombre de produits, éléments des listes et des fiches et articles du stock qui l'utilisent.
 - « Magasins » : nom, couleur, image ; usage en nombre de produits et éléments.
-- « Unités » : nom et image, sans couleur ; « Renommer une unité la renomme dans les produits et les listes. » ; un nouvel espace commence avec « pièce », « kg », « g », « L », « cl », « boîte », « paquet », « bouteille », « sachet », « lot », « rouleau », « carton », « paire ».
+- « Unités » : nom et image, sans couleur ; usage en nombre de produits et éléments des listes ; « Renommer une unité la renomme dans les produits et les listes. » ; un nouvel espace commence avec « pièce », « kg », « g », « L », « cl », « boîte », « paquet », « bouteille », « sachet », « lot », « rouleau », « carton », « paire ».
 - « Modes de conservation » : « Comment se conservent les produits périssables : frais, congélation, à l'abri de la lumière… ».
 - Chaque liste : ajout, modification, archivage, suppression, ordre manuel (voir [Paramètres](../cross-cutting/settings.md)).
+- En dernier, « Colonnes des nouvelles vues » des tableaux « Références », « Listes » et « Une liste » : colonnes et ordre avec lesquels démarrent leurs nouvelles vues ([Colonnes des nouvelles vues](../cross-cutting/settings.md#colonnes-des-nouvelles-vues)).
 
 ## Ce qui se passe automatiquement
 

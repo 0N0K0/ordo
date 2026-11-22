@@ -20,7 +20,7 @@ import { useCalendarEvents } from '../../calendar/api';
 import { useCommentCounts } from '../../comments/api';
 import { commentTotal } from '../../comments/lib/comment-column';
 import { useShoppingLists } from '../../shopping/api';
-import { useBulkTaskMutations, useMoveTask, useTaskColumnDefaults, useTasksData, type BulkChanges, type Task } from '../api';
+import { useBulkTaskMutations, useMoveTask, useTasksData, type BulkChanges, type Task } from '../api';
 import { eventRowKey, viewUses, isArchivedTaskRow, taskTableRows, type TaskTableRow } from '../lib/task-columns';
 import { useTaskColumns } from '../hooks/use-task-columns';
 import { TaskStateIcon } from './task-ui';
@@ -131,9 +131,7 @@ export function TaskBoard({ projectId, projectIds, createProjectId, header, empt
   );
 
   // Events of a period, listed with the tasks when the view shows them (its option).
-  // New views start with the columns chosen for the workspace.
-  const { data: columnDefaults, isPending: defaultsPending } = useTaskColumnDefaults();
-  const views = useTableViews({ tableKey: 'tasks', projectId, first: TASK_VIEWS, defaults: columnDefaults, ready: !defaultsPending });
+  const views = useTableViews({ tableKey: 'tasks', projectId, first: TASK_VIEWS });
   const showEvents = views.config?.options.events === true;
   const period = (views.config?.options.eventPeriod as EventPeriod | undefined) ?? 'next:30';
   const range = useMemo(() => {

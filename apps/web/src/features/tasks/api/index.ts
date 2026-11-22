@@ -1,9 +1,9 @@
 import { tasksQueryKey, doableTasksKey } from '../../../lib/query-keys';
 import type { ContributorLinkValues, TaskBulkChanges, TaskCloseReason, TaskInput, TaskWaitReason } from '@ordo/shared';
 import { accountingQueryKey } from '../../accounting/api';
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useQuery } from '@tanstack/react-query';
 import { moveToIndex, patchQuery, useInvalidatingMutation } from '../../../lib/mutation';
-import { byPosition, readTaskColumnDefaults, type TaskColumnDefaults, movedTo } from '@ordo/shared';
+import { byPosition, movedTo } from '@ordo/shared';
 import { graphql } from '../../../graphql';
 import type {
   ContributorFieldsFragment,
@@ -436,53 +436,6 @@ const LabelDocuments = {
     `),
   },
 };
-
-const TaskColumnDefaultsDocument = graphql(`
-  query TaskColumnDefaults {
-    taskColumnDefaults {
-      columnOrder
-      hiddenColumns
-    }
-  }
-`);
-
-const SetTaskColumnDefaults = graphql(`
-  mutation SetTaskColumnDefaults($columnOrder: [String!], $hiddenColumns: [String!]) {
-    setTaskColumnDefaults(columnOrder: $columnOrder, hiddenColumns: $hiddenColumns) {
-      columnOrder
-      hiddenColumns
-    }
-  }
-`);
-
-const taskColumnDefaultsKey = ['task-column-defaults'] as const;
-
-/**
- * Columns new task views of the workspace start with: their order and those hidden.
- * @returns {UseQueryResult<TaskColumnDefaults>} Query state.
- */
-export function useTaskColumnDefaults() {
-  return useQuery({
-    queryKey: taskColumnDefaultsKey,
-    queryFn: async () => readTaskColumnDefaults((await execute(TaskColumnDefaultsDocument)).taskColumnDefaults),
-  });
-}
-
-/**
- * Chooses the columns new task views start with (null: those of the app again).
- * @returns {UseMutationResult} Mutation state.
- */
-export function useSetTaskColumnDefaults() {
-  const queryClient = useQueryClient();
-  return useMutation({
-    mutationFn: async (columns: TaskColumnDefaults | null) =>
-      readTaskColumnDefaults((await execute(SetTaskColumnDefaults, { columnOrder: columns?.columnOrder ?? null, hiddenColumns: columns?.hiddenColumns ?? null })).setTaskColumnDefaults),
-    // Shown at once; the server's answer replaces it.
-    onMutate: (columns) => queryClient.setQueryData(taskColumnDefaultsKey, readTaskColumnDefaults(columns)),
-    onSuccess: (columns) => queryClient.setQueryData(taskColumnDefaultsKey, columns),
-    onError: () => queryClient.invalidateQueries({ queryKey: taskColumnDefaultsKey }),
-  });
-}
 
 export { tasksQueryKey };
 

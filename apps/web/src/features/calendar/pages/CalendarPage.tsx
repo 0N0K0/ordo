@@ -70,6 +70,7 @@ import { WeekSettings } from '../components/WeekSettings';
 import { openSchedulesManager } from '../lib/open-schedules';
 import { useActiveWorkspace } from '../../workspaces/api';
 import { PageSettings } from '../../../app/layout/PageSettings';
+import { ScheduleColumnDefaults } from '../components/ScheduleColumnDefaults';
 import { SettingsTabPanel, SettingsTabs } from '../../../components/tabs/SettingsTabs';
 import { currentWeek, calendarFirstDay } from '../../../lib/week';
 import { useAsyncAction } from '../../../lib/use-async-action';
@@ -903,6 +904,8 @@ export function CalendarPage() {
               <CalendarsManager />
               <CalendarCategoriesManager />
               <ScheduleSettings />
+              {/* Last: the columns of new views of the tables of the créneaux and the éphémérides (long lists). */}
+              <ScheduleColumnDefaults />
             </Stack>
           </SettingsTabPanel>
         </SettingsTabs>

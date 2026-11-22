@@ -92,9 +92,7 @@ Statuts, factures à relancer et suivi. Documents `DocumentStatuses`, `OverdueIn
 | Élément                                                       | Rôle                                                                                                                                                                                                                                                                                                                                                                                                                                                      |
 | ------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `AccountingPage` (export)                                     | Page `/accounting` : en-tête avec « Nouveau document » (`newDocumentMenu`), onglets (`PageTabs`, `usePageTab`) par type, « À envoyer », « À relancer », « Récurrentes », « Catalogue » ; paramètres (`PageSettings`, `SettingsTabs` via `useSettingsTab`) « Export ZIP », « Suivi », « Ma société ». Convertit l’ancien paramètre `settingsTab`, redirige l’ancien onglet `tracking`. Calcule les documents « À envoyer » et les années proposées au ZIP. |
-| `SETTINGS_TABS`, `TABS`, `PAGE_TABS`, `ACCOUNTING_MOVED_TABS` | Onglets des paramètres, onglets par type, tous les onglets, anciens onglets déplacés.                                                                                                                                                                                                                                                                                                                                                                     |
-| `repetitionText(item)`                                        | Phrase de la répétition d’une récurrente (`describeRecurrence`).                                                                                                                                                                                                                                                                                                                                                                                          |
-| `RECURRING_COLUMNS`                                           | Colonnes des récurrentes : libellé, client, répétition, prochaine, état, émises, montant.                                                                                                                                                                                                                                                                                                                                                                 |
+| `SETTINGS_TABS`, `PAGE_TABS`, `ACCOUNTING_MOVED_TABS`         | Onglets des paramètres (`zip`, `statuses`, `company`, `columns` en dernier : `AccountingColumnDefaults`), tous les onglets (ceux par type : `DOCUMENT_TABS`), anciens onglets déplacés.                                                                                                                                                                                                                                                                                                                                                                     |
 | `RecurringList`                                               | Tableau des récurrentes : libellé et état modifiables en place et en lot (`bulkSaver`), archivage, suppression (`deleteItemsAction`), « Modifier la planification », « Ouvrir le modèle ».                                                                                                                                                                                                                                                                |
 
 ### `pages/DocumentPage.tsx`
@@ -137,14 +135,18 @@ Statuts, factures à relancer et suivi. Documents `DocumentStatuses`, `OverdueIn
 | Élément                                                                                     | Rôle                                                                                                                                                                                                                                                                                                                                                                                                                |
 | ------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `DocumentsTable` (export)                                                                   | Tableau des documents d’Ordo et importés (`DataTable`, `useDataView`) : colonnes, vues (`first`, par défaut `DOCUMENT_VIEWS`), statut et projet modifiables en place et en lot, pièces jointes, commentaires, actions de ligne et de sélection. Props : `tableKey`, `projectId`, `title`, `documents`, `imported`, `showType`, `showClient`, `empty`, `first`. Utilisé par `AccountingPage`, `ProjectBillingPanel`. |
-| `Row`, `rowKey`                                                                             | Ligne étiquetée `ordo` / `imported` et sa clé (`taggedKey`).                                                                                                                                                                                                                                                                                                                                                        |
-| `trackingText(row)`                                                                         | Statut en texte (« Brouillon » pour un brouillon).                                                                                                                                                                                                                                                                                                                                                                  |
-| `documentColumns(env)`                                                                      | Colonnes (numéro, type, date, mois, échéance, mois d’échéance, client, projet, objet, statut, origine, totaux, reste dû, pièces jointes).                                                                                                                                                                                                                                                                           |
+| `Row` (`DocumentRow`), `rowKey`                                                                             | Ligne étiquetée `ordo` / `imported` et sa clé (`taggedKey`).                                                                                                                                                                                                                                                                                                                                                        |
 | `DOCUMENT_VIEWS`                                                                            | « Cette année », « L’année dernière », « Tous ».                                                                                                                                                                                                                                                                                                                                                                    |
 | `StatusChoice`, `scopeOf(type)`                                                             | Statut choisi avec sa portée ; portée d’un type.                                                                                                                                                                                                                                                                                                                                                                    |
 | `ImportedTracking`                                                                          | Cellule statut d’un importé : `StatusMenu` et `DocumentBalanceBadge`.                                                                                                                                                                                                                                                                                                                                               |
 | `OrdoActions`                                                                               | Actions d’un document d’Ordo : paiement / remboursement (`openPaymentDialog`), dupliquer (`duplicateRowsAction`, copie en brouillon ouverte), PDF, archiver.                                                                                                                                                                                                                                                                                                            |
 | `setTracking`, `deleteImported`, `ordoCells`, `importedCells` (internes à `DocumentsTable`) | Statut sur plusieurs lignes (envoi via `openSentDialog`), suppression d’importés, cellules propres à chaque origine.                                                                                                                                                                                                                                                                                                |
+
+### `components/AccountingColumnDefaults.tsx`
+
+- `AccountingColumnDefaults()` : onglet « Colonnes » des paramètres de la facturation : `ColumnDefaults` des tableaux des documents par type (`DOCUMENT_TABS`, `documentsTableKey`), `documents-to-send` (« À envoyer »), `overdue-invoices` (« À relancer »), `recurring-invoices` (« Récurrentes »), `catalog` (« Catalogue »), `time-billing` (« Temps à facturer »), puis `ProjectDocumentsColumnDefaults`. Utilisé par `AccountingPage`.
+- `ProjectDocumentsColumnDefaults()` : `ColumnDefaults` du tableau `project-documents` (« Documents d’un projet ou d’un client »). Utilisé par `AccountingColumnDefaults` et l’onglet « Facturation » des paramètres d’un projet.
+- Internes : `NO_ROWS`, `NO_COMMENTS`.
 
 ### `components/TrackingPanel.tsx`
 
@@ -211,8 +213,6 @@ Les deux sont utilisés par `DocumentsTable`.
 | Élément                    | Rôle                                                                                                                                                                                                                                               |
 | -------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `TimeBillingForm` (export) | Temps terminé non facturé d’un projet sur une période, à cocher, transformé en lignes (`timeLines`) : regroupement, unité, prix (ou tarif du catalogue), heures par jour, arrondi, TVA. `onAdd(lines, time, period)`. Ouvert par `DocumentEditor`. |
-| `workOf(entry)`            | Tâches et description d’un temps.                                                                                                                                                                                                                  |
-| `BILLING_COLUMNS`          | Colonnes « Jour », « Temps », « Durée ».                                                                                                                                                                                                           |
 | `TimeBillingFormProps`     | Props.                                                                                                                                                                                                                                             |
 
 ### `components/PaymentForm.tsx`
@@ -258,14 +258,12 @@ Les deux sont utilisés par `DocumentsTable`.
 | `OverdueInvoicesPanel()` (export)   | Onglet « À relancer » : tableau, sélection (`leading`), choix de la boîte mail, « Non relancées depuis 7 jours », confirmation puis `sendReminders` avec bilan. `AccountingPage`. |
 | `REMIND_AFTER_DAYS`                 | 7 jours sans relance.                                                                                                                                                             |
 | `daysSinceReminder(invoice, today)` | Jours depuis la dernière relance.                                                                                                                                                 |
-| `OVERDUE_COLUMNS`                   | Colonnes facture, client, envoi, reste dû, dernière relance, destinataire.                                                                                                        |
 
 ### `components/CatalogPanel.tsx`
 
 | Élément                             | Rôle                                                                                                                                                                                   |
 | ----------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `CatalogPanel()` (export)           | Onglet « Catalogue » : tableau modifiable en place et en lot, « Afficher les archivés » (`useArchivedToggle`), nouvel article, archivage, suppression, commentaires. `AccountingPage`. |
-| `CATALOG_COLUMNS`                   | Article, nature, unité, prix HT, TVA.                                                                                                                                                  |
 | `CatalogItemForm({ item, onDone })` | Formulaire d’un article (`catalogItemSchema`) et ses commentaires (`CATALOG_ITEM`) ; nouveau : « Ajouter » ; existant : enregistré champ par champ (`useFieldSave`, libellé, description et prix en les quittant, `SaveStatus`, article du cache suivi, archivé en lecture seule). `catalogValues(item?, vatApplicable?)` donne ses valeurs.                                                                                                    |
 
 ### `components/CompanySettings.tsx`
@@ -327,6 +325,15 @@ Utilisés par `ClientBillingSection` et `openContactForm`.
 | `linkIcon(url)`                                 | Icône Figma, GitHub, GitLab ou lien.                                                                                          |
 | `ResourceForm({ projectId, resource, onDone })` | Libellé, adresse (liens), note multiligne (`Textarea`, 4 000 caractères) (`projectLinkSchema`) ; nouveau lien : « Ajouter » ; ressource existante : enregistrée champ par champ, chaque champ en le quittant (`useFieldSave`, `SaveStatus`, ressource du cache suivie). `resourceValues(resource?)` donne ses valeurs. |
 
+## hooks
+
+### `hooks/use-document-columns.tsx`
+
+- `useDocumentColumns(rows, { showType?, showClient? })` : colonnes d’un tableau de documents (numéro, type et client seulement là où ils varient, date, mois, échéance, mois d’échéance, projet, objet, statut, origine…, commentaires des documents d’Ordo et importés) ; sans ligne (paramètres) : aucun client ni statut proposé. Utilisé par `DocumentsTable` et `AccountingColumnDefaults`.
+- `DocumentRow` : ligne étiquetée `ordo` / `imported`.
+- `trackingText(row)` : statut en texte (« Brouillon » pour un brouillon). Aussi lu par `DocumentsTable`.
+- Interne : `documentColumns({ rows, projectLabels, projects })`.
+
 ## lib
 
 ### `lib/labels.ts`
@@ -340,6 +347,21 @@ Utilisés par `ClientBillingSection` et `openContactForm`.
 | `THE_DOCUMENT_TYPE`                                                   | « Le devis », « La facture »…                                                                        |
 | `EMPTY_DOCUMENTS`                                                     | Messages vides par type.                                                                             |
 | `vatRateOptions(current)`                                             | Options de TVA : taux usuels plus le taux actuel.                                                    |
+| `DOCUMENT_TABS`                                                       | Onglets des documents par type de la page : « Devis », « Factures », « Acomptes », « Avoirs ». `AccountingPage`, `AccountingColumnDefaults`. |
+| `documentsTableKey(type)`                                             | Tableau des documents d’un type (`documents-quote`, `documents-credit-note`…). `AccountingPage`, `AccountingColumnDefaults`. |
+
+### `lib/accounting-columns.tsx`
+
+Colonnes des tableaux de la facturation qui ne dépendent pas des données, lues par leur tableau et par `AccountingColumnDefaults`.
+
+| Export | Rôle |
+| --- | --- |
+| `OVERDUE_COLUMNS` | Colonnes facture, client, envoi, reste dû, dernière relance, destinataire. `OverdueInvoicesPanel`. |
+| `catalogColumns(comments)` | Article, nature, unité, prix HT, TVA, commentaires (interne `CATALOG_COLUMNS`). `CatalogPanel`. |
+| `workOf(entry)` | Tâches et description d’un temps. `TimeBillingForm`. |
+| `BILLING_COLUMNS` | Colonnes « Jour », « Temps », « Durée ». `TimeBillingForm`. |
+| `repetitionText(item)` | Phrase de la répétition d’une récurrente (`describeRecurrence`). `AccountingPage`. |
+| `RECURRING_COLUMNS` | Colonnes des récurrentes : libellé, client, répétition, prochaine, état, émises, montant. `AccountingPage`. |
 
 ### `lib/open-contact.tsx`
 

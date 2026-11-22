@@ -65,17 +65,38 @@ export function rangeError(start: Bound | undefined, end: Bound | undefined, str
 }
 
 /**
- * Props of the two inputs of a period: each change moves the other bound when they cross, the end shows
- * END_AFTER_START when before the start.
+ * Props of the two inputs of a period: a change moves the other bound when they cross, the end shows END_AFTER_START
+ * when before the start. Typed bounds (times: each key stroke is a change, « 1 » of « 10:00 » reads 01:00) move the
+ * other one only when the field is left (`onLeave`), never while typing; picked bounds (days) at once.
  * @param {RangeBinding<B>} binding Where the bounds are kept.
  * @param {boolean} [strict=false] The end must come strictly after (times). Optional. Default = false.
+ * @param {boolean} [onLeave=false] The other bound follows when the field is left, not on each change (typed times). Optional. Default = false.
  * @returns {{ start: BoundProps<B>, end: BoundProps<B> }} Props of the start and end inputs.
  */
-export function rangeProps<B extends Bound>({ value, onChange, errors, onBlur }: RangeBinding<B>, strict = false): { start: BoundProps<B>; end: BoundProps<B> } {
+export function rangeProps<B extends Bound>({ value, onChange, errors, onBlur }: RangeBinding<B>, strict = false, onLeave = false): { start: BoundProps<B>; end: BoundProps<B> } {
   const [start, end] = value;
+  /**
+   * Props of one bound.
+   * @param {RangeSide} side Bound.
+   * @returns {Pick<BoundProps<B>, 'onChange' | 'onBlur'>} Its change and its leaving.
+   */
+  const bound = (side: RangeSide): Pick<BoundProps<B>, 'onChange' | 'onBlur'> => {
+    const index = side === 'start' ? 0 : 1;
+    const left = onBlur?.[index];
+    if (!onLeave) return { onChange: (next) => onChange(followBounds(value, side, next)), onBlur: left };
+    return {
+      onChange: (next) => onChange(side === 'start' ? [next, end] : [start, next]),
+      onBlur: () => {
+        const followed = followBounds(value, side, value[index]);
+        if (followed[0] !== start || followed[1] !== end) onChange(followed);
+        // Once the bounds are set: what follows leaving the field (a save) reads them.
+        if (left) queueMicrotask(left);
+      },
+    };
+  };
   return {
-    start: { value: start, onChange: (next) => onChange(followBounds(value, 'start', next)), error: errors?.[0], onBlur: onBlur?.[0] },
-    end: { value: end, onChange: (next) => onChange(followBounds(value, 'end', next)), error: errors?.[1] ?? rangeError(start, end, strict), onBlur: onBlur?.[1] },
+    start: { value: start, ...bound('start'), error: errors?.[0] },
+    end: { value: end, ...bound('end'), error: errors?.[1] ?? rangeError(start, end, strict) },
   };
 }
 

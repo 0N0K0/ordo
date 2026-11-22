@@ -116,3 +116,42 @@ export function withLabelColumn(stored: unknown, from: string | null): unknown {
   if ('filter' in config) config.filter = aliasedFilter(config.filter, from);
   return config;
 }
+
+/** Ids of the columns of a default layout: any column of the table (the unknown ones are ignored by the table). */
+const columnIdsSchema = z.array(z.string().max(TABLE_KEY_MAX)).max(200);
+
+/**
+ * Columns new views of a table start with in a workspace, as the layout of the table: their order, and those hidden
+ * (empty: the columns of the app, those hidden by default hidden).
+ */
+export const tableColumnDefaultsSchema = z.object({
+  columnOrder: columnIdsSchema.default([]),
+  // The label is always shown.
+  hiddenColumns: columnIdsSchema.transform((columns) => columns.filter((column) => column !== 'label')).default([]),
+});
+export type TableColumnDefaults = z.infer<typeof tableColumnDefaultsSchema>;
+
+/** Most tables a workspace keeps default columns for. */
+export const TABLE_COLUMN_DEFAULTS_MAX = 200;
+
+/**
+ * Columns new views of a table start with: those chosen for the workspace (its stored value), else the app's (an empty
+ * layout). The old id of its label column is read as `label`.
+ * @param {unknown} stored Stored value of the table, if any.
+ * @param {string} tableKey Table.
+ * @returns {TableColumnDefaults} Order and hidden columns.
+ */
+export function readTableColumnDefaults(stored: unknown, tableKey: string): TableColumnDefaults {
+  const parsed = tableColumnDefaultsSchema.safeParse(withLabelColumn(stored ?? {}, legacyLabelColumn(tableKey)));
+  return parsed.success ? parsed.data : { columnOrder: [], hiddenColumns: [] };
+}
+
+/**
+ * Default columns of every table of a workspace as stored (`Workspace.tableColumns`), by table key; anything else read
+ * as none.
+ * @param {unknown} stored Stored map.
+ * @returns {Record<string, unknown>} Stored value of each table.
+ */
+export function storedTableColumnDefaults(stored: unknown): Record<string, unknown> {
+  return stored && typeof stored === 'object' && !Array.isArray(stored) ? { ...(stored as Record<string, unknown>) } : {};
+}

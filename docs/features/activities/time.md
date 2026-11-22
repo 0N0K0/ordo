@@ -8,9 +8,9 @@ Règles appliquées par l’API : [Règles métier — Temps passé](../../busin
 
 | Endroit                            | Adresse                        | Contenu                                                                                                                                  |
 | ---------------------------------- | ------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------- |
-| Page « Chronos »                   | `/time` (`PAGES.time`)         | « Prévu et réalisé » (espace PRO) puis « Temps passé » : tous les temps, de tous les projets.                                            |
+| Page « Chronos »                   | `/time` (`PAGES.time`)         | « Prévu et réalisé » (espace PRO) puis « Temps passé » : tous les temps, de tous les projets. Paramètres (⚙, « Paramètres des chronos ») : la semaine de l’espace, celle de « Cette semaine », puis « Colonnes des nouvelles vues : Temps passé ». |
 | Temps d’une tâche                  | `/time?task=<id>` (`timePath`) | La même page limitée aux temps de la tâche, avec un badge « Tâche : #12 Libellé » ; sa croix (« Voir tous les temps ») retire le filtre. |
-| Onglet « Temps » d’un projet       | `/projects/:id?tab=time`       | Les temps du projet et de ses sous-projets.                                                                                              |
+| Onglet « Temps » d’un projet       | `/projects/:id?tab=time`       | Les temps du projet et de ses sous-projets ; depuis cet onglet, les paramètres du projet montrent aussi la semaine de l’espace et les colonnes des nouvelles vues des temps. |
 | En-tête de l’app                   | partout (pas sur téléphone)    | Les chronos en cours : celui qui tourne, ou « 2 chronos » et la liste.                                                     |
 | Menu « Ajouter »                   | partout                        | « Chrono » ouvre « Nouveau chrono » (projet courant présélectionné sur une page de projet).                                              |
 | Panneau d’une tâche                | `?task=<id>`                   | « Temps passé » de la tâche et « Démarrer le chrono ».                                                                                   |

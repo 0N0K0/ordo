@@ -1,13 +1,12 @@
 import { countOf, plural } from '../../../lib/text';
 import { Anchor, Group, Text } from '@mantine/core';
-import { listSelectProps, itemChoices } from '../../../components/items/item-look';
+import { listSelectProps } from '../../../components/items/item-look';
 import { ClipboardTextIcon, CookingPotIcon, EyeIcon, PencilSimpleIcon, PlusIcon } from '@phosphor-icons/react';
 
 import { Link, useNavigate } from 'react-router';
 import { ActionButton } from '../../../components/actions/ActionButton';
 import { DataTable } from '../../../components/data-table/table/DataTable';
 import { applyDiff, bulkCellLabels, bulkSaver } from '../../../components/data-table/selection/bulk-edit';
-import type { DataColumn } from '../../../components/data-table/table/data-table';
 import { EditableMultiSelect, EditableSelect } from '../../../components/data-table/cells/EditableCells';
 import { RowActions } from '../../../components/data-table/cells/RowActions';
 import { StackedValues } from '../../../components/data-table/cells/StackedValues';
@@ -16,12 +15,12 @@ import { useDataView } from '../../../components/data-table/views/use-data-view'
 import { EmptyState } from '../../../components/feedback/EmptyState';
 import { openFormPanel } from '../../../components/panels/panels';
 import { treeSelectProps } from '../../../components/tree/tree-select';
-import { localDay } from '../../../lib/dates';
 import * as fmt from '../../../lib/format';
 import { ON_ERROR } from '../../../lib/notify';
-import { useTaskContext, type TaskContext } from '../../tasks/hooks/use-task-context';
-import { sheetsKey, useSheetCategories, useSheetMutations, useSheets, type Sheet, type SheetCategory } from '../api';
+import { useTaskContext } from '../../tasks/hooks/use-task-context';
+import { sheetsKey, useSheetCategories, useSheetMutations, useSheets, type Sheet } from '../api';
 import { sheetInput } from '../lib/sheet-format';
+import { useSheetColumns } from '../hooks/use-sheet-columns';
 import { archiveItemsAction, rowMenuEntry, duplicateRowsAction, type DuplicateOptions } from '../../../components/data-table/selection/selection-actions';
 import { selectedLabel } from '../../../components/data-table/selection/selection-label';
 import { SheetUseForm } from './SheetUseForm';
@@ -30,78 +29,6 @@ import { ShowArchivedSwitch } from '../../../components/filters/ShowArchivedSwit
 import { ArchivedBadge } from '../../../components/feedback/ArchivedBadge';
 import { deleteSheetsAction } from '../lib/delete-sheets';
 import { sheetPath } from '../../../app/pages';
-
-/**
- * Columns of the sheets.
- * @param {TaskContext | null} context Names of the projects.
- * @param {SheetCategory[]} categories Categories of the sheets.
- * @param {boolean} inProject Shown in the tab of a project (its column hidden by default).
- * @returns {DataColumn<Sheet>[]} Columns.
- */
-function sheetColumns(context: TaskContext | null, categories: SheetCategory[], inProject: boolean): DataColumn<Sheet>[] {
-  const projectLabelOf = (sheet: Sheet) => (sheet.projectId ? (context?.projectLabel(sheet.projectId) ?? '') : '');
-  const categoryLabel = new Map(categories.map((category) => [category.id, category.label]));
-  const categoryText = (sheet: Sheet) =>
-    sheet.categoryIds
-      .map((id) => categoryLabel.get(id) ?? '')
-      .filter(Boolean)
-      .join(', ');
-  const itemText = (item: Sheet['items'][number]) => `${item.label}${fmt.quantity(item) ? ` · ${fmt.quantity(item)}` : ''}`;
-  return [
-    { id: 'label', required: true, label: 'Libellé', size: 240, locked: true, sortValue: (sheet) => sheet.label, text: (sheet) => sheet.label },
-    {
-      id: 'categories',
-      label: 'Catégories',
-      size: 180,
-      bulk: true,
-      sortValue: (sheet) => categoryText(sheet) || null,
-      text: categoryText,
-      filter: {
-        kind: 'choices',
-        value: (sheet) => sheet.categoryIds,
-        options: itemChoices(categories),
-      },
-      groupable: true,
-    },
-    {
-      id: 'project',
-      label: 'Projet',
-      size: 200,
-      bulk: true,
-      hiddenByDefault: inProject,
-      sortValue: (sheet) => projectLabelOf(sheet) || null,
-      text: projectLabelOf,
-      filter: {
-        kind: 'choice',
-        value: (sheet) => sheet.projectId ?? null,
-        options: context?.projectOptions(context.projects) ?? [],
-      },
-      groupable: true,
-    },
-    { id: 'items', label: 'Éléments', size: 320, text: (sheet) => sheet.items.map(itemText).join(', ') },
-    {
-      id: 'usedBy',
-      required: true,
-      label: 'Rattachée à',
-      size: 130,
-      numeric: true,
-      hiddenByDefault: true,
-      sortValue: (sheet) => sheet.usedBy,
-      text: (sheet) => fmt.count(sheet.usedBy),
-      filter: { kind: 'number', value: (sheet) => sheet.usedBy },
-    },
-    {
-      id: 'updatedAt',
-      required: true,
-      label: 'Modifiée le',
-      size: 130,
-      hiddenByDefault: true,
-      sortValue: (sheet) => sheet.updatedAt,
-      text: (sheet) => fmt.day(sheet.updatedAt),
-      filter: { kind: 'date', value: (sheet) => localDay(sheet.updatedAt) },
-    },
-  ];
-}
 
 /**
  * Sheets (of the workspace, or of a project) in a table like every other: each opens its page (its items there);
@@ -118,11 +45,12 @@ export function SheetsTable({ projectId = null }: { projectId?: string | null })
   const { create, update, duplicate, remove } = useSheetMutations();
   const setArchived = useSetArchived('SHEET', [sheetsKey]);
   const { shown, toggle: archivedToggle } = useArchivedToggle(sheets ?? []);
+  const columns = useSheetColumns(projectId !== null);
   const view = useDataView({
     tableKey: 'sheets',
     projectId,
     getKey: (sheet) => sheet.id,
-    columns: sheetColumns(context, categories ?? [], projectId !== null),
+    columns,
     rows: shown,
     title: 'Fiches',
   });

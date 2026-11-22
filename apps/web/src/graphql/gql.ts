@@ -22,6 +22,8 @@ type Documents = {
     "\n  mutation DeleteTaskView($id: ID!) {\n    deleteTaskView(id: $id)\n  }\n": typeof types.DeleteTaskViewDocument,
     "\n  mutation SetDefaultTaskView($id: ID!) {\n    setDefaultTaskView(id: $id)\n  }\n": typeof types.SetDefaultTaskViewDocument,
     "\n  mutation MoveTaskView($id: ID!, $index: Int!) {\n    moveTaskView(id: $id, index: $index)\n  }\n": typeof types.MoveTaskViewDocument,
+    "\n  query TableColumnDefaults($tableKey: String!) {\n    tableColumnDefaults(tableKey: $tableKey) {\n      columnOrder\n      hiddenColumns\n    }\n  }\n": typeof types.TableColumnDefaultsDocument,
+    "\n  mutation SetTableColumnDefaults($tableKey: String!, $layout: TableColumnLayoutInput) {\n    setTableColumnDefaults(tableKey: $tableKey, layout: $layout) {\n      columnOrder\n      hiddenColumns\n    }\n  }\n": typeof types.SetTableColumnDefaultsDocument,
     "\n  mutation UploadAttachment($file: File!) {\n    uploadAttachment(file: $file) {\n      id\n      filename\n      url\n      isImage\n    }\n  }\n": typeof types.UploadAttachmentDocument,
     "\n  mutation SetSettingsItemLook($kind: SettingsListKind!, $id: ID!, $input: SettingsItemLookInput!) {\n    setSettingsItemLook(kind: $kind, id: $id, input: $input)\n  }\n": typeof types.SetSettingsItemLookDocument,
     "\n  mutation ReorderSettingsItems($kind: SettingsListKind!, $ids: [ID!]!) {\n    reorderSettingsItems(kind: $kind, ids: $ids)\n  }\n": typeof types.ReorderSettingsItemsDocument,
@@ -441,8 +443,6 @@ type Documents = {
     "\n      mutation CreateTaskTag($input: TaskLabelInput!) {\n        createTaskTag(input: $input) {\n          id\n        }\n      }\n    ": typeof types.CreateTaskTagDocument,
     "\n      mutation UpdateTaskTag($id: ID!, $input: TaskLabelUpdateInput!) {\n        updateTaskTag(id: $id, input: $input) {\n          id\n        }\n      }\n    ": typeof types.UpdateTaskTagDocument,
     "\n      mutation DeleteTaskTag($id: ID!) {\n        deleteTaskTag(id: $id)\n      }\n    ": typeof types.DeleteTaskTagDocument,
-    "\n  query TaskColumnDefaults {\n    taskColumnDefaults {\n      columnOrder\n      hiddenColumns\n    }\n  }\n": typeof types.TaskColumnDefaultsDocument,
-    "\n  mutation SetTaskColumnDefaults($columnOrder: [String!], $hiddenColumns: [String!]) {\n    setTaskColumnDefaults(columnOrder: $columnOrder, hiddenColumns: $hiddenColumns) {\n      columnOrder\n      hiddenColumns\n    }\n  }\n": typeof types.SetTaskColumnDefaultsDocument,
     "\n  mutation SetTasksClosed($ids: [ID!]!, $closed: Boolean!, $reason: TaskCloseReason) {\n    setTasksClosed(ids: $ids, closed: $closed, reason: $reason)\n  }\n": typeof types.SetTasksClosedDocument,
     "\n  mutation BulkUpdateTasks($ids: [ID!]!, $changes: BulkTaskInput!, $restoring: Boolean) {\n    bulkUpdateTasks(ids: $ids, changes: $changes, restoring: $restoring)\n  }\n": typeof types.BulkUpdateTasksDocument,
     "\n  mutation BulkTransferTasks($ids: [ID!]!, $projectId: ID) {\n    bulkTransferTasks(ids: $ids, projectId: $projectId) {\n      removedLinks\n    }\n  }\n": typeof types.BulkTransferTasksDocument,
@@ -524,6 +524,8 @@ const documents: Documents = {
     "\n  mutation DeleteTaskView($id: ID!) {\n    deleteTaskView(id: $id)\n  }\n": types.DeleteTaskViewDocument,
     "\n  mutation SetDefaultTaskView($id: ID!) {\n    setDefaultTaskView(id: $id)\n  }\n": types.SetDefaultTaskViewDocument,
     "\n  mutation MoveTaskView($id: ID!, $index: Int!) {\n    moveTaskView(id: $id, index: $index)\n  }\n": types.MoveTaskViewDocument,
+    "\n  query TableColumnDefaults($tableKey: String!) {\n    tableColumnDefaults(tableKey: $tableKey) {\n      columnOrder\n      hiddenColumns\n    }\n  }\n": types.TableColumnDefaultsDocument,
+    "\n  mutation SetTableColumnDefaults($tableKey: String!, $layout: TableColumnLayoutInput) {\n    setTableColumnDefaults(tableKey: $tableKey, layout: $layout) {\n      columnOrder\n      hiddenColumns\n    }\n  }\n": types.SetTableColumnDefaultsDocument,
     "\n  mutation UploadAttachment($file: File!) {\n    uploadAttachment(file: $file) {\n      id\n      filename\n      url\n      isImage\n    }\n  }\n": types.UploadAttachmentDocument,
     "\n  mutation SetSettingsItemLook($kind: SettingsListKind!, $id: ID!, $input: SettingsItemLookInput!) {\n    setSettingsItemLook(kind: $kind, id: $id, input: $input)\n  }\n": types.SetSettingsItemLookDocument,
     "\n  mutation ReorderSettingsItems($kind: SettingsListKind!, $ids: [ID!]!) {\n    reorderSettingsItems(kind: $kind, ids: $ids)\n  }\n": types.ReorderSettingsItemsDocument,
@@ -943,8 +945,6 @@ const documents: Documents = {
     "\n      mutation CreateTaskTag($input: TaskLabelInput!) {\n        createTaskTag(input: $input) {\n          id\n        }\n      }\n    ": types.CreateTaskTagDocument,
     "\n      mutation UpdateTaskTag($id: ID!, $input: TaskLabelUpdateInput!) {\n        updateTaskTag(id: $id, input: $input) {\n          id\n        }\n      }\n    ": types.UpdateTaskTagDocument,
     "\n      mutation DeleteTaskTag($id: ID!) {\n        deleteTaskTag(id: $id)\n      }\n    ": types.DeleteTaskTagDocument,
-    "\n  query TaskColumnDefaults {\n    taskColumnDefaults {\n      columnOrder\n      hiddenColumns\n    }\n  }\n": types.TaskColumnDefaultsDocument,
-    "\n  mutation SetTaskColumnDefaults($columnOrder: [String!], $hiddenColumns: [String!]) {\n    setTaskColumnDefaults(columnOrder: $columnOrder, hiddenColumns: $hiddenColumns) {\n      columnOrder\n      hiddenColumns\n    }\n  }\n": types.SetTaskColumnDefaultsDocument,
     "\n  mutation SetTasksClosed($ids: [ID!]!, $closed: Boolean!, $reason: TaskCloseReason) {\n    setTasksClosed(ids: $ids, closed: $closed, reason: $reason)\n  }\n": types.SetTasksClosedDocument,
     "\n  mutation BulkUpdateTasks($ids: [ID!]!, $changes: BulkTaskInput!, $restoring: Boolean) {\n    bulkUpdateTasks(ids: $ids, changes: $changes, restoring: $restoring)\n  }\n": types.BulkUpdateTasksDocument,
     "\n  mutation BulkTransferTasks($ids: [ID!]!, $projectId: ID) {\n    bulkTransferTasks(ids: $ids, projectId: $projectId) {\n      removedLinks\n    }\n  }\n": types.BulkTransferTasksDocument,
@@ -1047,6 +1047,14 @@ export function graphql(source: "\n  mutation SetDefaultTaskView($id: ID!) {\n  
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */
 export function graphql(source: "\n  mutation MoveTaskView($id: ID!, $index: Int!) {\n    moveTaskView(id: $id, index: $index)\n  }\n"): typeof import('./graphql').MoveTaskViewDocument;
+/**
+ * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
+ */
+export function graphql(source: "\n  query TableColumnDefaults($tableKey: String!) {\n    tableColumnDefaults(tableKey: $tableKey) {\n      columnOrder\n      hiddenColumns\n    }\n  }\n"): typeof import('./graphql').TableColumnDefaultsDocument;
+/**
+ * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
+ */
+export function graphql(source: "\n  mutation SetTableColumnDefaults($tableKey: String!, $layout: TableColumnLayoutInput) {\n    setTableColumnDefaults(tableKey: $tableKey, layout: $layout) {\n      columnOrder\n      hiddenColumns\n    }\n  }\n"): typeof import('./graphql').SetTableColumnDefaultsDocument;
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */
@@ -2723,14 +2731,6 @@ export function graphql(source: "\n      mutation UpdateTaskTag($id: ID!, $input
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */
 export function graphql(source: "\n      mutation DeleteTaskTag($id: ID!) {\n        deleteTaskTag(id: $id)\n      }\n    "): typeof import('./graphql').DeleteTaskTagDocument;
-/**
- * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
- */
-export function graphql(source: "\n  query TaskColumnDefaults {\n    taskColumnDefaults {\n      columnOrder\n      hiddenColumns\n    }\n  }\n"): typeof import('./graphql').TaskColumnDefaultsDocument;
-/**
- * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
- */
-export function graphql(source: "\n  mutation SetTaskColumnDefaults($columnOrder: [String!], $hiddenColumns: [String!]) {\n    setTaskColumnDefaults(columnOrder: $columnOrder, hiddenColumns: $hiddenColumns) {\n      columnOrder\n      hiddenColumns\n    }\n  }\n"): typeof import('./graphql').SetTaskColumnDefaultsDocument;
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */

@@ -1,4 +1,4 @@
-import { categoryPaths, categoryOptions } from '../../../components/tree/category-tree';
+import { categoryOptions } from '../../../components/tree/category-tree';
 import { ActionButton } from '../../../components/actions/ActionButton';
 import { EmptyState } from '../../../components/feedback/EmptyState';
 import { TableSkeleton } from '../../../components/feedback/Skeletons';
@@ -11,21 +11,17 @@ import { archiveEntry, unarchived, unarchivedOffered, useSetArchived, useArchive
 import { ShowArchivedSwitch } from '../../../components/filters/ShowArchivedSwitch';
 import { ArchivedBadge } from '../../../components/feedback/ArchivedBadge';
 import { openMoveProducts } from '../lib/open-move-products';
-import { WARNING_YES_NEUTRAL_NO_ICONS, withArchived } from '../../../components/data-table/table/data-table';
 import { DataViewBar } from '../../../components/data-table/toolbar/DataViewBar';
 import { useDataView, type FirstTableView, conditionFilter } from '../../../components/data-table/views/use-data-view';
-import { localDay } from '../../../lib/dates';
 import { RowActions } from '../../../components/data-table/cells/RowActions';
 import { ON_ERROR, toastCallbacks } from '../../../lib/notify';
 import { shoppingKey, useShoppingData, useShoppingMutations, type ShoppingBaseList, type ShoppingProduct } from '../api';
 import { openNewList } from '../lib/open-new-list';
 import { openShoppingForm } from '../lib/open-shopping-form';
-import { blankInput, categoriesForBaseList, usePeople } from '../lib/shopping-format';
-import { itemColumns } from '../lib/shopping-columns';
+import { blankInput, categoriesForBaseList } from '../lib/shopping-format';
 import { ShoppingTable, type ShoppingToggle } from './ShoppingTable';
+import { useBaseListColumns } from '../hooks/use-shopping-columns';
 import * as fmt from '../../../lib/format';
-import { useCommentCounts } from '../../comments/api';
-import { commentColumn } from '../../comments/lib/comment-column';
 import { bulkCellLabels, bulkSaver } from '../../../components/data-table/selection/bulk-edit';
 import { EditableCheck, EditableSelect } from '../../../components/data-table/cells/EditableCells';
 import { treeSelectProps } from '../../../components/tree/tree-select';
@@ -34,8 +30,6 @@ import { useStockLocations, useStockMutations } from '../../stock/api';
 import { archiveItemsAction, deleteRowsAction } from '../../../components/data-table/selection/selection-actions';
 import { selectedLabel } from '../../../components/data-table/selection/selection-label';
 import { collator, countOf, plural } from '../../../lib/text';
-import { booleanColumn } from '../../../components/data-table/table/boolean-column';
-import { consumableColumn } from '../lib/product-columns';
 
 /** Views made the first time a base list is shown, grouped by category: every product, the missing ones. */
 const BASE_LIST_VIEWS: FirstTableView[] = [
@@ -90,10 +84,8 @@ const MISSING_TOGGLE = (save: (ids: string[], missing: boolean) => void): Shoppi
 export function BaseList({ baseList }: { baseList: ShoppingBaseList }) {
   const { data, isPending } = useShoppingData();
   const mutations = useShoppingMutations();
-  const people = usePeople();
   const { data: locations } = useStockLocations();
   const stockMutations = useStockMutations();
-  const places = categoryPaths(locations ?? []);
   const setArchived = useSetArchived('SHOPPING_PRODUCT', [shoppingKey]);
   const all = (data?.shoppingProducts ?? []).filter((product) => product.baseListId === baseList.id).sort((a, b) => collator.compare(a.label, b.label));
   const { shown: products, toggle: archivedToggle } = useArchivedToggle(all);
@@ -103,50 +95,7 @@ export function BaseList({ baseList }: { baseList: ShoppingBaseList }) {
   const locked = baseList.archived;
   const otherBaseLists = unarchived(data?.shoppingBaseLists ?? []).filter((other) => other.id !== baseList.id).length;
   const categories = categoriesForBaseList(data?.shoppingCategories ?? [], baseList.id);
-  const productComments = useCommentCounts(
-    'SHOPPING_PRODUCT',
-    products.map((product) => product.id),
-  );
-  const columns = itemColumns<ShoppingProduct>(
-    { categories, stores: data?.shoppingStores ?? [], storages: data?.shoppingStorages ?? [], members: people.members, relations: people.relations, archivedPeople: people.archived },
-    [
-      commentColumn<ShoppingProduct>(
-        productComments,
-        (product) => product.id,
-        (product) => product.note,
-      ),
-      {
-        id: 'extra',
-        label: 'Dernier achat',
-        size: 120,
-        sortValue: (product) => product.lastPurchasedAt ?? null,
-        text: (product) => (product.lastPurchasedAt ? `${fmt.day(product.lastPurchasedAt)}${product.lastPrice !== null ? ` · ${fmt.money(product.lastPrice)}` : ''}` : ''),
-        filter: { kind: 'date', value: (product) => (product.lastPurchasedAt ? localDay(product.lastPurchasedAt) : null) },
-      },
-      booleanColumn<ShoppingProduct>({ id: 'missing', label: 'Manque', size: 90, hiddenByDefault: true, groupLabels: { yes: 'Manquants', no: 'Pourvus' }, icons: WARNING_YES_NEUTRAL_NO_ICONS, value: (product) => product.missing }),
-      booleanColumn<ShoppingProduct>({ id: 'stockTracked', label: 'Suivie en stock', size: 130, bulk: true, hiddenByDefault: true, groupable: true, groupLabels: { yes: 'Suivis en stock', no: 'Non suivis en stock' }, value: (product) => product.stockTracked }),
-      consumableColumn<ShoppingProduct>({ hiddenByDefault: true }),
-      booleanColumn<ShoppingProduct>({ id: 'autoStock', label: 'Ajout auto au stock', size: 150, bulk: true, hiddenByDefault: true, groupable: true, groupLabels: { yes: 'Ajoutés automatiquement au stock', no: 'Non ajoutés automatiquement au stock' }, value: (product) => product.autoStock }),
-      {
-        id: 'stockLocation',
-        label: 'Emplacement en stock',
-        size: 170,
-        bulk: true,
-        hiddenByDefault: true,
-        sortValue: (product) => (product.stockLocationId ? (places.get(product.stockLocationId) ?? '') : null),
-        text: (product) => (product.stockLocationId ? (places.get(product.stockLocationId) ?? '') : ''),
-        filter: {
-          kind: 'choice',
-          value: (product) => product.stockLocationId ?? null,
-          options: withArchived(
-            [...places].map(([value, label]) => ({ value, label })),
-            locations ?? [],
-          ),
-        },
-        groupable: true,
-      },
-    ],
-  );
+  const columns = useBaseListColumns(baseList, products);
   const view = useDataView({
     tableKey: 'shopping-base-list',
     getKey: (item) => item.id,
