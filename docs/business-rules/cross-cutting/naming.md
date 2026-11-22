@@ -28,7 +28,7 @@ Voir aussi : [core](../../shared/cross-cutting/core.md), [Erreurs](errors.md), [
 - Catégories de statut, accordées avec le nom qualifié : « Terminé » / « Annulé » pour un statut, « Terminée » / « Annulée » pour une tâche comptée ou groupée par elles (`TASK_STATUS_CATEGORY_LABELS`).
 - Sens d'un mouvement : « Entrées » / « Sorties » partout.
 - États d'une période : « À venir », « En cours », « Passée ».
-- Pliage d’un élément ou d’un groupe : « Développer » / « Réduire » ; le menu de la barre latérale offre « Tout déplier » / « Tout replier ».
+- Pliage d’un élément ou d’un groupe : « Développer » / « Réduire », et « Tout développer » / « Tout réduire » pour tous ses éléments.
 - Un évènement sur des jours entiers : « Journée entière », avec un interrupteur.
 - Calques de l'agenda venus d'un autre espace : suffixe « · Espace ».
 - Compte mail : « Nom <adresse> » partout (`accountLabel`).

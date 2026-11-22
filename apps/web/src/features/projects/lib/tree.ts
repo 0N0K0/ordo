@@ -1,6 +1,6 @@
 import { unarchived, archivedIds } from '../../../lib/archive';
 import { treeOptions, type TreeNode, type TreeOption } from '../../../components/tree/tree-select';
-import { ancestorsOf, lineageOf, mapById, LEVEL, MAX_PROJECT_DEPTH, sumOf } from '@ordo/shared';
+import { ancestorsOf, lineageOf, mapById, LEVEL, MAX_PROJECT_DEPTH } from '@ordo/shared';
 import type { Client, Project, ProjectTree } from '../api';
 import { collator, normalize } from '../../../lib/text';
 import { taggedKey } from '../../../lib/tagged-key';
@@ -14,7 +14,7 @@ export type SortMode = 'manual' | 'name';
  */
 export const clientItems = (clients: readonly Client[]): (Client & { label: string })[] => clients.map((client) => ({ ...client, label: client.name }));
 
-/** Container id used for projects without client. */
+/** Id of the root of the projects without client, in the drag and drop of the main tree. */
 export const NO_CLIENT = 'none';
 
 export interface ProjectNode {
@@ -363,13 +363,12 @@ export function buildArchiveSection(tree: ProjectTree, sort: SortMode, search: s
 }
 
 /**
- * Number of items belonging to a section, context excluded.
+ * Whether a section shows nothing (its context only comes with content).
  * @param {TreeSection} section Section.
- * @returns {number} Count.
+ * @returns {boolean} True without clients nor projects.
  */
-export function countSectionItems(section: TreeSection): number {
-  const countForest = (nodes: ProjectNode[]): number => sumOf(nodes, (node) => (section.context?.has(taggedKey('p', node.project.id)) ? 0 : 1) + countForest(node.children));
-  return sumOf(section.clients, (node) => (section.context?.has(taggedKey('c', node.client.id)) ? 0 : 1) + countForest(node.projects)) + countForest(section.orphans);
+export function isEmptySection(section: TreeSection): boolean {
+  return section.clients.length === 0 && section.orphans.length === 0;
 }
 
 /**
@@ -384,27 +383,33 @@ function projectKeys(node: ProjectNode, prefix: string): string[] {
 }
 
 /**
- * Expand keys of the "Sans client" group and its projects with children.
+ * Expand keys of the clients of a section and of their projects with children.
  * @param {TreeSection} section Section.
- * @param {string} prefix Key prefix of the section.
- * @returns {string[]} Keys, empty when the group is empty.
+ * @param {string} prefix Key prefix of the section ('' for the main tree).
+ * @returns {string[]} Keys, empty when no client has projects.
  */
-export function noClientKeys(section: TreeSection, prefix: string): string[] {
-  if (section.orphans.length === 0) return [];
-  return [`${prefix}${NO_CLIENT}`, ...section.orphans.flatMap((child) => projectKeys(child, prefix))];
+export function clientKeys(section: TreeSection, prefix: string): string[] {
+  return section.clients.flatMap((node) => (node.projects.length > 0 ? [`${prefix}${node.client.id}`, ...node.projects.flatMap((child) => projectKeys(child, prefix))] : []));
 }
 
 /**
- * Expand keys of every foldable node of a section (clients, "Sans client" and projects with children).
+ * Expand keys of the projects without client of a section that have children.
+ * @param {TreeSection} section Section.
+ * @param {string} prefix Key prefix of the section ('' for the main tree).
+ * @returns {string[]} Keys, empty when none has children.
+ */
+export function orphanKeys(section: TreeSection, prefix: string): string[] {
+  return section.orphans.flatMap((child) => projectKeys(child, prefix));
+}
+
+/**
+ * Expand keys of every foldable node of a section (clients and projects with children).
  * @param {TreeSection} section Section.
  * @param {string} prefix Key prefix of the section ('' for the main tree).
  * @returns {string[]} Keys.
  */
 export function sectionKeys(section: TreeSection, prefix: string): string[] {
-  return [
-    ...section.clients.flatMap((node) => (node.projects.length > 0 ? [`${prefix}${node.client.id}`, ...node.projects.flatMap((child) => projectKeys(child, prefix))] : [])),
-    ...noClientKeys(section, prefix),
-  ];
+  return [...clientKeys(section, prefix), ...orphanKeys(section, prefix)];
 }
 
 /**

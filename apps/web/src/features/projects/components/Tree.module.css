@@ -1,31 +1,4 @@
 @layer app {
-  /* Header of the "Sans client" group: a tree row (TreeRow.module.css .row), set apart from the clients above. */
-  .groupRow {
-    /* Espacement */
-    margin-top: var(--mantine-spacing-xs);
-  }
-
-  .groupToggle {
-    /* Agencement */
-    display: flex;
-    flex: 1;
-    align-items: center;
-
-    /* Dimension */
-    min-height: inherit;
-
-    /* Espacement */
-    gap: var(--mantine-spacing-xs);
-
-    /* Interaction */
-    cursor: pointer;
-    user-select: none;
-
-    &:disabled {
-      cursor: default;
-    }
-  }
-
   .overlay {
     /* Arrière-Plan */
     background-color: var(--mantine-color-body);

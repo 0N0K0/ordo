@@ -2,14 +2,14 @@ import { ArrowsInLineVerticalIcon, ArrowsOutLineVerticalIcon, FolderPlusIcon, Us
 import type { RowMenuEntry } from '../../../components/actions/ActionsMenu';
 
 /**
- * « Tout déplier » and « Tout replier » entries of a menu of the sidebar (a section, a client, a project).
+ * « Tout développer » and « Tout réduire » entries of a menu of the sidebar (a section, a client, a project).
  * @param {(expanded: boolean) => void} setExpanded Unfolds (true) or folds (false) everything under it.
  * @returns {RowMenuEntry[]} Entries.
  */
 export function foldEntries(setExpanded: (expanded: boolean) => void): RowMenuEntry[] {
   return [
-    { label: 'Tout déplier', icon: <ArrowsOutLineVerticalIcon aria-hidden />, onClick: () => setExpanded(true) },
-    { label: 'Tout replier', icon: <ArrowsInLineVerticalIcon aria-hidden />, onClick: () => setExpanded(false) },
+    { label: 'Tout développer', icon: <ArrowsOutLineVerticalIcon aria-hidden />, onClick: () => setExpanded(true) },
+    { label: 'Tout réduire', icon: <ArrowsInLineVerticalIcon aria-hidden />, onClick: () => setExpanded(false) },
   ];
 }
 
