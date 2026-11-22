@@ -43,6 +43,7 @@ L'extension `fields` porte un message par chemin de champ (`« label »`, `« li
 ## Utilitaires
 
 - `done(work)` : résultat `true` d'une mutation booléenne une fois le travail fini.
+- `sharedRefusal(error)` : une `UserError` d'un calcul partagé devient `BAD_USER_INPUT` avec son message ; toute autre erreur est rendue telle quelle (voir [Erreurs des calculs partagés](#erreurs-des-calculs-partagés)).
 - `errorMessage(error)` : texte d'une erreur quelconque (journaux, erreurs stockées comme `lastSyncError` GitHub).
 - `userErrorMessage(error, fallback, context)` : message d'une `GraphQLError` (écrit pour l'utilisateur), sinon le message de secours, l'erreur étant journalisée.
 - `unauthenticated()`, `tooManyRequests(retryAfter)` : erreurs prêtes à l'emploi.
@@ -68,4 +69,7 @@ L'extension `fields` porte un message par chemin de champ (`« label »`, `« li
 
 ## Erreurs des calculs partagés
 
-Certaines fonctions partagées lèvent une `Error` simple dont le message est destiné à l'utilisateur (ex. `changedScheduleSlot` : « Ce jour est en dehors de la période du créneau. », voir [calendar](../../shared/activities/calendar.md)) ; le service appelant la transforme en erreur client.
+Une fonction partagée qui refuse avec un message destiné à l'utilisateur lève une `UserError` (`packages/shared/src/core/rules.ts`), jamais une `Error` simple (règle du lint de `packages/shared`). Ex. `changedScheduleSlot` : « Ce jour est en dehors de la période du créneau. », « La fin doit suivre le début. » (voir [calendar](../../shared/activities/calendar.md)).
+
+- Le web affiche son message (toast ou sous le champ, comme toute erreur).
+- L'API la transforme en une seule fois pour tous ses appelants (`sharedRefusal`, `apps/api/src/graphql/errors.ts`) : en `BAD_USER_INPUT` avec son message, dans les réponses GraphQL (`maskError` de Yoga, `apps/api/src/index.ts`) comme dans les routes de fichiers (`sendServiceError`, 400). Un service n'a donc pas à l'attraper.

@@ -1,4 +1,4 @@
-import { alarmRingKey, alarmRingText, dueAlarmOccurrence, eventRings, isRingDue, RING_LATE_MS, taskRings, trackingRingKey, trackingStep, workspaceRingLine, type entrySeconds, type PlannedRing, type RemindedOccurrence, type RemindedTask } from '@ordo/shared';
+import { alarmRingKey, alarmRingText, dueAlarmOccurrence, eventRings, isRingDue, RING_LATE_MS, taskRings, timerCountsForAlarm, trackingRingKey, trackingStep, workspaceRingLine, type entrySeconds, type PlannedRing, type RemindedOccurrence, type RemindedTask } from '@ordo/shared';
 import type { Alarm } from '../api';
 import { claim, startRinging, type RingLink } from '../lib/ringing';
 
@@ -78,7 +78,7 @@ export function ringTaskReminders<T extends RemindedTask>(tasks: readonly T[], n
 /**
  * Alarms due now, against the current time and the running timers (several at once). Scheduled alarms
  * are due at their times (missed ones, within a few hours, too) and recorded as rung (« pas de chrono »: skipped while
- * a timer runs); tracking alarms after every set duration of each running timer.
+ * a timer runs); tracking alarms after every set duration of each running timer on their task or project (`timerCountsForAlarm`).
  * @template {Alarm} A
  * @param {A[]} alarms Alarms.
  * @param {readonly object[] | undefined} running Running timers.
@@ -89,7 +89,7 @@ export function ringTaskReminders<T extends RemindedTask>(tasks: readonly T[], n
  */
 export function dueAlarms<A extends Alarm>(
   alarms: A[],
-  running: readonly (Parameters<typeof entrySeconds>[0] & { id: string })[] | undefined,
+  running: readonly (Parameters<typeof entrySeconds>[0] & { id: string; projectId: string | null; taskIds: readonly string[] })[] | undefined,
   now: Date,
   trackingSteps: Map<string, number>,
   markFired: (alarm: A, at: Date) => void,
@@ -100,7 +100,7 @@ export function dueAlarms<A extends Alarm>(
 
     if (alarm.type === 'TRACKING_DURATION') {
       for (const entry of running ?? []) {
-        if (entry.pausedAt || !alarm.minutes) continue;
+        if (entry.pausedAt || !alarm.minutes || !timerCountsForAlarm(alarm, entry)) continue;
         const key = `${alarm.id}:${entry.id}`;
         const step = trackingStep(alarm.minutes, entry, now);
         const previous = trackingSteps.get(key);

@@ -134,3 +134,30 @@ export async function birthdays({ archived = false, change }: { archived?: boole
   const all = birthdaysOf(change ? change(people) : people);
   return archived ? all : all.filter((birthday) => !birthday.archived);
 }
+
+/** A person a slot condition may name by its birthday, with or without one: its birthday id, name, archived or not. */
+export interface BirthdayPersonName {
+  /** `contributor:<id>` or `relation:<id>` (`personBirthdayId`). */
+  id: string;
+  name: string;
+  archived: boolean;
+}
+
+/**
+ * Every contributor and relation of the workspace, archived ones too, by birthday id: the names of the people a slot
+ * condition cites, even those without a birthday (archived, without birth date, contributor linked to a contact or to
+ * nothing).
+ * @returns {Promise<BirthdayPersonName[]>} People.
+ */
+export async function birthdayPersonNames(): Promise<BirthdayPersonName[]> {
+  const select = { id: true, name: true, archivedAt: true } as const;
+  const [contributors, relations] = await Promise.all([prisma.contributor.findMany({ select }), prisma.treasuryRelation.findMany({ select })]);
+  /**
+   * Name of one person.
+   * @param {BirthdayPerson} person Contributor or relation.
+   * @param {{ id: string, name: string, archivedAt: Date | null }} row Its row.
+   * @returns {BirthdayPersonName} Name.
+   */
+  const named = (person: BirthdayPerson, row: { id: string; name: string; archivedAt: Date | null }): BirthdayPersonName => ({ id: personBirthdayId(person, row.id), name: row.name, archived: row.archivedAt !== null });
+  return [...contributors.map((row) => named('contributor', row)), ...relations.map((row) => named('relation', row))];
+}

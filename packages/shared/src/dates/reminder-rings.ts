@@ -396,6 +396,19 @@ export function trackingStep(minutes: number | null, entry: Parameters<typeof en
 }
 
 /**
+ * Whether a running timer counts for an alarm on its duration: an alarm of a task counts the timers on that task, an
+ * alarm of a project (without task) those of that project, an alarm of neither every timer.
+ * @param {{ taskId: string | null, projectId: string | null }} alarm Alarm.
+ * @param {{ projectId: string | null, taskIds: readonly string[] }} timer Running timer.
+ * @returns {boolean} Counted.
+ */
+export function timerCountsForAlarm(alarm: { taskId: string | null; projectId: string | null }, timer: { projectId: string | null; taskIds: readonly string[] }): boolean {
+  if (alarm.taskId) return timer.taskIds.includes(alarm.taskId);
+  if (alarm.projectId) return timer.projectId === alarm.projectId;
+  return true;
+}
+
+/**
  * Key of the ring of a step of a running timer for an alarm on its duration.
  * @param {string} alarmId Alarm.
  * @param {string} entryId Timer.

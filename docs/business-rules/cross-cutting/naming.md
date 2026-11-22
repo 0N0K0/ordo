@@ -55,7 +55,7 @@ Une seule taille par sorte de texte, partout dans l'application (`packages/share
 
 ## Unicité
 
-L'unicité est garantie par la base (contraintes `@@unique` de `schema.prisma`) ; l'API transforme la violation en `CONFLICT` sous le champ (`rethrowUnique`). La comparaison de la base est exacte (sensible à la casse et aux accents).
+L'unicité est garantie par la base (contraintes `@@unique` de `schema.prisma`) ; l'API transforme la violation en `CONFLICT` sous le champ (`rethrowUnique`). La comparaison de la base est exacte (sensible à la casse et aux accents). Là où aucun index ne la porte (lieux de premier niveau, calendriers), le service la vérifie avant d'écrire, avec la même comparaison exacte (`assertLabelFree`, `services/core/labels.ts` : erreur sous `label`).
 
 | Élément                                  | Unique dans                                                                                                         | Message                                                                             |
 | ---------------------------------------- | ------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------- |
@@ -70,6 +70,7 @@ L'unicité est garantie par la base (contraintes `@@unique` de `schema.prisma`) 
 | Contexte de dépense                      | l'espace (c'est un type d'éphémérides : même unicité que les types)                                         | « Un type porte déjà ce libellé. »                                                  |
 | Relation                                 | l'espace (par nom, et un contributeur au plus une fois)                                                             | « Une relation porte déjà ce nom. », « Ce contributeur est déjà une relation. »     |
 | Lieu                                     | l'espace, parmi les lieux de premier niveau (vérifié par le service) ; zone : parmi les zones d'un même lieu (base) | « Un lieu porte déjà ce libellé. », « Une zone de ce lieu porte déjà ce libellé. »  |
+| Calendrier                               | l'espace, archivés compris (vérifié par le service)                                                                 | « Un calendrier porte déjà ce libellé. »                                            |
 | Identifiant de mention d'un contributeur | l'espace                                                                                                            | « Cet identifiant est déjà utilisé. »                                               |
 | Identifiant de connexion                 | l'application                                                                                                       | « Cet identifiant est déjà utilisé. »                                               |
 | Email                                    | l'application                                                                                                       | « Cette adresse est déjà utilisée. »                                                |
@@ -77,7 +78,7 @@ L'unicité est garantie par la base (contraintes `@@unique` de `schema.prisma`) 
 | Numéro de document importé               | l'espace et son type                                                                                                | « Un document importé de ce type porte déjà ce numéro. »                            |
 | Numéro de tâche                          | son projet                                                                                                          | (numérotation automatique)                                                          |
 
-Ne sont **pas** uniques : projets, tâches, événements, routines, fiches, listes, comptes de trésorerie, catégories de trésorerie et de courses, emplacements, agendas, catégories d'agenda (pas de contrainte dans le schéma).
+Ne sont **pas** uniques : tâches, évènements et routines (deux peuvent porter le même libellé : leur numéro, leur projet ou leurs dates les distinguent), projets, fiches, listes, comptes de trésorerie, catégories de trésorerie et de courses, emplacements, catégories d'agenda (pas de contrainte dans le schéma).
 
 ## Comparaison des noms
 

@@ -12,8 +12,9 @@ import {
   sameName,
   statusClosing,
   sumOf,
+  type EffectiveTask,
   type TaskInheritableField,
-  marksInherited,
+  type TaskInheritanceContext,
 } from '@ordo/shared';
 import { prisma } from '../../db';
 import { nextPositionIn } from '../core/ordering';
@@ -49,6 +50,7 @@ import { schedulePerWorkspace } from '../workspaces/workspaces';
 import { subtreeIds } from '../core/trees';
 import { connectIds } from '../core/relations';
 import { toJson } from '../core/json';
+import { adoptedTaskFields, effectiveTaskOf, freezeTaskInheritance, loadTaskInheritance } from '../tasks/task-inheritance';
 
 interface SyncSummary {
   /** Tasks created from items, and items created from tasks. */
@@ -75,7 +77,6 @@ const include = {
   tags: { select: { id: true, label: true } },
   sprints: { select: { id: true, startDate: true, githubIterationId: true } },
   parent: { select: { githubContentId: true, githubContentType: true } },
-  milestone: { select: { label: true } },
   blockedBy: { select: { blocker: linkedTask } },
   relationsA: { select: { taskB: linkedTask } },
   relationsB: { select: { taskA: linkedTask } },
@@ -91,7 +92,6 @@ type SyncedTask = Task & {
   tags: { id: string; label: string }[];
   sprints: { id: string; startDate: Date; githubIterationId: string | null }[];
   parent: { githubContentId: string | null; githubContentType: string | null } | null;
-  milestone: { label: string } | null;
   blockedBy: { blocker: LinkedTask }[];
   relationsA: { taskB: LinkedTask }[];
   relationsB: { taskA: LinkedTask }[];
@@ -109,8 +109,13 @@ interface Maps {
   optionType: Map<string, string>;
   sprintIteration: Map<string, string>;
   iterationSprint: Map<string, string>;
-  /** Contributor id by GitHub login. */
+  /** Contributor id by GitHub login, and back. */
   contributorByLogin: Map<string, string>;
+  loginByContributor: Map<string, string>;
+  /** Milestone label by id. */
+  milestoneLabel: Map<string, string>;
+  /** Inheritance of the tasks of the workspace: the values a task goes by are those sent. */
+  inheritance: TaskInheritanceContext;
   /** Task id by GitHub issue or draft id. */
   taskByContent: Map<string, string>;
   /** Issue field of each board field showing one (issues only: drafts have none). */
@@ -174,8 +179,32 @@ const syncsType = (link: GithubProjectLink, type: RemoteItem['type']) => (link.t
  */
 const usable = (fieldId: string | null, maps: Maps, type: RemoteItem['type']): fieldId is string => Boolean(fieldId) && (type === 'ISSUE' || !maps.issueFields.has(fieldId!));
 
+/** Synchronized values of a task that it may inherit. */
+type InheritedValues = Pick<EffectiveTask, 'priorityId' | 'milestoneId' | 'deadline' | 'assigneeIds'>;
+
 /**
- * Synchronized values of a task.
+ * Values a task goes by for the synchronized fields it may inherit: from its parent, its « Échéance » also from its
+ * milestone or sprint (`effectiveTask`), not only its own.
+ * @param {SyncedTask} task Task.
+ * @param {Maps} maps Correspondences (inheritance).
+ * @returns {InheritedValues} Values.
+ */
+function inheritedValues(task: SyncedTask, maps: Maps): InheritedValues {
+  return (
+    effectiveTaskOf(maps.inheritance, task.id) ?? { priorityId: task.priorityId, milestoneId: task.milestoneId, deadline: formatOptionalDay(task.deadline), assigneeIds: task.assignees.map((assignee) => assignee.id) }
+  );
+}
+
+/**
+ * GitHub logins of the assignees a task goes by (those without login have no counterpart).
+ * @param {SyncedTask} task Task.
+ * @param {Maps} maps Correspondences.
+ * @returns {string[]} Logins.
+ */
+const assigneeLogins = (task: SyncedTask, maps: Maps) => inheritedValues(task, maps).assigneeIds.flatMap((id) => maps.loginByContributor.get(id) ?? []);
+
+/**
+ * Synchronized values of a task: those it goes by, inherited ones included.
  * @param {SyncedTask} task Task.
  * @param {GithubProjectLink} link Board link.
  * @param {Maps} maps Correspondences.
@@ -185,18 +214,19 @@ const usable = (fieldId: string | null, maps: Maps, type: RemoteItem['type']): f
  */
 function localFields(task: SyncedTask, link: GithubProjectLink, maps: Maps, type: RemoteItem['type'], currentIteration: string | null = null): SyncFields {
   const fields: SyncFields = { title: task.label, body: task.description ?? '' };
-  if (link.syncAssignees) fields.assignees = task.assignees.map((assignee) => assignee.githubLogin).filter((login): login is string => Boolean(login));
+  const inherited = inheritedValues(task, maps);
+  if (link.syncAssignees) fields.assignees = assigneeLogins(task, maps);
   if (type === 'ISSUE') {
     fields.closed = task.closedAt !== null;
     if (link.syncLabels) fields.labels = labelKeys(task.tags.map((tag) => tag.label));
     // The parent is an issue of the board, or has no counterpart.
     fields.parent = task.parentId ? (task.parent?.githubContentType === 'ISSUE' && task.parent.githubContentId ? task.parent.githubContentId : `ordo:${task.parentId}`) : null;
-    fields.milestone = task.milestone?.label ?? null;
+    fields.milestone = inherited.milestoneId ? (maps.milestoneLabel.get(inherited.milestoneId) ?? null) : null;
     fields.blockedBy = issuesOf(task.blockedBy.map((block) => block.blocker));
     fields.relatesTo = issuesOf(relatedOf(task));
   }
   if (usable(link.statusFieldId, maps, type)) fields.status = task.statusId ? (maps.statusOption[task.statusId] ?? `ordo:${task.statusId}`) : null;
-  if (usable(link.priorityFieldId, maps, type)) fields.priority = task.priorityId ? (maps.priorityOption[task.priorityId] ?? `ordo:${task.priorityId}`) : null;
+  if (usable(link.priorityFieldId, maps, type)) fields.priority = inherited.priorityId ? (maps.priorityOption[inherited.priorityId] ?? `ordo:${inherited.priorityId}`) : null;
   if (syncsType(link, type) && (link.typeSource !== 'FIELD' || usable(link.typeFieldId, maps, type))) fields.type = task.typeId ? (maps.typeOption[task.typeId] ?? `ordo:${task.typeId}`) : null;
   if (link.iterationFieldId) {
     // A board item has one iteration, a task several sprints: the iteration of the item when it is one of them,
@@ -207,7 +237,7 @@ function localFields(task: SyncedTask, link: GithubProjectLink, maps: Maps, type
   }
   if (usable(link.startFieldId, maps, type)) fields.start = formatOptionalDay(task.startDate);
   if (usable(link.endFieldId, maps, type)) fields.end = formatOptionalDay(task.endDate);
-  if (usable(link.deadlineFieldId, maps, type)) fields.deadline = formatOptionalDay(task.deadline);
+  if (usable(link.deadlineFieldId, maps, type)) fields.deadline = inherited.deadline;
   if (usable(link.effortFieldId, maps, type)) fields.effort = task.effort;
   return fields;
 }
@@ -267,7 +297,9 @@ async function subtree(taskId: string): Promise<Set<string>> {
 }
 
 /**
- * Prisma data writing synchronized values on a task (tags missing in Ordo are created).
+ * Prisma data writing synchronized values on a task (tags missing in Ordo are created). A value taken from GitHub is the
+ * task's own. Detached from its parent by GitHub, what it inherited becomes its own; placed under a parent while
+ * top-level, its empty fields inherit (as in Ordo).
  * @param {SyncFields} values Values pulled from the item.
  * @param {SyncedTask} task Task.
  * @param {Maps} maps Correspondences.
@@ -317,8 +349,8 @@ async function pullData(values: SyncFields, task: SyncedTask, maps: Maps, item: 
   if ('end' in values) data.endDate = parseOptionalDay((values.end as string | null) || null);
   if ('effort' in values) data.effort = typeof values.effort === 'number' ? values.effort : null;
   if ('assignees' in values) {
-    // Assignees without GitHub login stay.
-    const kept = task.assignees.filter((assignee) => !assignee.githubLogin).map((assignee) => assignee.id);
+    // Assignees without GitHub login stay (those it went by, inherited ones included).
+    const kept = inheritedValues(task, maps).assigneeIds.filter((id) => !maps.loginByContributor.has(id));
     const synced = (values.assignees as string[]).map((login) => maps.contributorByLogin.get(login)).filter((id): id is string => Boolean(id));
     data.assignees = { set: connectIds([...kept, ...synced]) };
   }
@@ -338,14 +370,22 @@ async function pullData(values: SyncFields, task: SyncedTask, maps: Maps, item: 
     }
     data.tags = { set: connectIds(ids) };
   }
+  let inherited: readonly string[] = task.inheritedFields;
   if ('parent' in values) {
     const parentId = values.parent ? maps.taskByContent.get(String(values.parent)) : null;
     // A task cannot go under itself or one of its sub-tasks.
-    if (!parentId || !(await subtree(task.id)).has(parentId)) data.parent = parentId ? { connect: { id: parentId } } : { disconnect: true };
+    if (!parentId || !(await subtree(task.id)).has(parentId)) {
+      data.parent = parentId ? { connect: { id: parentId } } : { disconnect: true };
+      if (!parentId && task.parentId) {
+        await freezeTaskInheritance([task.id]);
+        inherited = [];
+      } else if (parentId && !task.parentId) inherited = await adoptedTaskFields(task.id);
+    }
   }
-  // A value taken from GitHub is the task's own: no longer inherited.
-  const owned = Object.entries(PULLED_INHERITED).flatMap(([key, field]) => (key in values ? [field] : []));
-  if (owned.some((field) => marksInherited(task, field))) data.inheritedFields = task.inheritedFields.filter((field) => !owned.includes(field as TaskInheritableField));
+  const owned = new Set<string>(Object.entries(PULLED_INHERITED).flatMap(([key, field]) => (key in values ? [field] : [])));
+  const remaining = inherited.filter((field) => !owned.has(field));
+  // A part of its list (a top-level task's is empty): changed when shorter or longer.
+  if (remaining.length !== task.inheritedFields.length) data.inheritedFields = remaining;
   return data;
 }
 
@@ -747,6 +787,7 @@ export async function syncGithubProject(projectId: string): Promise<SyncSummary>
     const typeOption = link.typeSource ? (link.typeOptions as Record<string, string>) : {};
     const sprints = await prisma.sprint.findMany({ where: { githubIterationId: { not: null } }, select: { id: true, githubIterationId: true } });
     const contributors = await prisma.contributor.findMany({ where: { githubLogin: { not: null } }, select: { id: true, githubLogin: true } });
+    const milestoneRows = await prisma.milestone.findMany({ select: { id: true, label: true } });
     const linked = await prisma.task.findMany({ where: { githubItemId: { in: itemIds } }, include });
     const maps: Maps = {
       statusOption,
@@ -770,6 +811,9 @@ export async function syncGithubProject(projectId: string): Promise<SyncSummary>
       sprintIteration: new Map(sprints.map((sprint) => [sprint.id, sprint.githubIterationId!])),
       iterationSprint: new Map(sprints.map((sprint) => [sprint.githubIterationId!, sprint.id])),
       contributorByLogin: new Map(contributors.map((contributor) => [contributor.githubLogin!, contributor.id])),
+      loginByContributor: new Map(contributors.map((contributor) => [contributor.id, contributor.githubLogin!])),
+      milestoneLabel: new Map(milestoneRows.map((milestone) => [milestone.id, milestone.label])),
+      inheritance: await loadTaskInheritance(),
       taskByContent: new Map(linked.map((task) => [task.githubContentId!, task.id])),
       issueFields: new Map(board.fields.filter((field) => field.issueFieldId).map((field) => [field.id, field.issueFieldId!])),
     };
@@ -839,7 +883,7 @@ export async function syncGithubProject(projectId: string): Promise<SyncSummary>
         repositoryId: link.repositoryId,
         title: task.label,
         body: task.description ?? '',
-        assignees: link.syncAssignees ? task.assignees.map((assignee) => assignee.githubLogin).filter((login): login is string => Boolean(login)) : [],
+        assignees: link.syncAssignees ? assigneeLogins(task, maps) : [],
       });
       maps.taskByContent.set(created.contentId, task.id);
       // A parent sent in this same run is known now.

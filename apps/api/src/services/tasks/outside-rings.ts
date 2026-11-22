@@ -24,6 +24,7 @@ import {
   routinesRingPage,
   taskRings,
   trackingRingKey,
+  timerCountsForAlarm,
   trackingStep,
   workspaceRingLine,
   workspaceRingPage,
@@ -182,7 +183,7 @@ async function dueReminders(workspace: Workspace, several: boolean, now: Date, u
 
 /**
  * Alarms of the workspace due now: the scheduled ones at their times (in Paris time, as in the app), recorded as rung (« pas de chrono »: consumed without ringing while a timer runs); those on the
- * duration of a timer at each step of each running timer (the step reached now only).
+ * duration of a timer at each step of each running timer on their task or project (the step reached now only).
  * @param {Workspace} workspace Workspace (the job runs in it).
  * @param {boolean} several The user has several workspaces.
  * @param {Date} now Now.
@@ -191,9 +192,9 @@ async function dueReminders(workspace: Workspace, several: boolean, now: Date, u
 async function dueAlarms(workspace: Workspace, several: boolean, now: Date): Promise<DueRing[]> {
   const [alarms, running] = await Promise.all([
     prisma.alarm.findMany({ where: { enabled: true }, include: { task: { select: { id: true, number: true, label: true, projectId: true } }, project: { select: { id: true, label: true } } } }),
-    prisma.timeEntry.findMany({ where: { endedAt: null }, select: { id: true, startedAt: true, endedAt: true, pausedAt: true, pausedSeconds: true, duration: true } }),
+    prisma.timeEntry.findMany({ where: { endedAt: null }, select: { id: true, projectId: true, tasks: { select: { id: true } }, startedAt: true, endedAt: true, pausedAt: true, pausedSeconds: true, duration: true } }),
   ]);
-  const entries = running.map((entry) => ({ ...entry, startedAt: entry.startedAt.toISOString(), endedAt: null, pausedAt: entry.pausedAt?.toISOString() ?? null }));
+  const entries = running.map(({ tasks, ...entry }) => ({ ...entry, taskIds: tasks.map((task) => task.id), startedAt: entry.startedAt.toISOString(), endedAt: null, pausedAt: entry.pausedAt?.toISOString() ?? null }));
   const projects = new Map(alarms.flatMap((alarm) => (alarm.project ? [[alarm.project.id, alarm.project] as const] : [])));
   return alarms.flatMap((alarm) => {
     const target = alarmTarget(alarm, () => alarm.task ?? undefined, (id) => projects.get(id));
@@ -201,6 +202,7 @@ async function dueAlarms(workspace: Workspace, several: boolean, now: Date): Pro
     const text = alarmRingText(alarm);
     if (alarm.type === 'TRACKING_DURATION') {
       return entries.flatMap((entry) => {
+        if (!timerCountsForAlarm(alarm, entry)) return [];
         const step = trackingStep(alarm.minutes, entry, now);
         if (step <= 0 || !alarm.minutes) return [];
         // Instant the step was reached: its start, its pauses and the minutes of the steps.

@@ -128,3 +128,19 @@ export function readStoredList<T>(entry: z.ZodType<T>, value: unknown): T[] {
     return parsed.success ? [parsed.data] : [];
   });
 }
+
+/**
+ * Refusal of a shared computation whose message is written for the user (« Ce jour est en dehors de la période du
+ * créneau. »): the web shows its message; the API gives it to the client as a `BAD_USER_INPUT` error, once for all its
+ * callers. A shared function never throws a plain `Error` for the user.
+ */
+export class UserError extends Error {
+  /**
+   * Refusal with its message.
+   * @param {string} message Message for the user.
+   */
+  constructor(message: string) {
+    super(message);
+    this.name = 'UserError';
+  }
+}

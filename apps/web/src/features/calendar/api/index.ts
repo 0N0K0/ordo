@@ -616,6 +616,16 @@ const BirthdaysDocument = graphql(`
   }
 `);
 
+const BirthdayPersonNamesDocument = graphql(`
+  query BirthdayPersonNames {
+    birthdayPersonNames {
+      id
+      name
+      archived
+    }
+  }
+`);
+
 /** Birthday of a person: derived from its birth date by the API. */
 export type PersonBirthday = BirthdaysQuery['birthdays'][number];
 
@@ -644,6 +654,15 @@ export function useBirthdays() {
  */
 export function useSlotBirthdays() {
   return useQuery({ queryKey: birthdaysQueryKey, queryFn: fetchBirthdays });
+}
+
+/**
+ * Every contributor and relation of the workspace, archived ones too, by birthday id: names of the people a slot
+ * condition cites, even those without a birthday.
+ * @returns {UseQueryResult} Query state.
+ */
+export function useBirthdayPersonNames() {
+  return useQuery({ queryKey: [...birthdaysQueryKey, 'names'], queryFn: async () => (await execute(BirthdayPersonNamesDocument)).birthdayPersonNames });
 }
 
 /**

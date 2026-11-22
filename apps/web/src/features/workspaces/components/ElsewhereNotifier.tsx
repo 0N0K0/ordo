@@ -33,6 +33,8 @@ const ElsewhereAlarmsDocument = graphql(`
     }
     runningTimeEntries {
       id
+      projectId
+      taskIds
       startedAt
       endedAt
       pausedAt

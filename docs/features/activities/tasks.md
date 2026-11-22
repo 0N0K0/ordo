@@ -34,7 +34,7 @@ Le même tableau (`TaskBoard`) sert à la page et à l’onglet d’un projet. C
 ### Barre
 
 - Recherche : « Rechercher (libellé, numéro, description) ».
-- Bouton « Nouvelle tâche » (visible s’il existe au moins un projet non archivé).
+- Bouton « Nouvelle tâche » (toujours visible : une tâche peut n’appartenir à aucun projet).
 - Sans tri, l’ordre est l’ordre manuel : « Sans tri : l’ordre choisi à la main (glissez les tâches), sous-tâches sous leur parent. ».
 - Options d’affichage :
   - interrupteur « Afficher les évènements » : liste aussi les évènements de l’agenda d’une période ;
@@ -105,7 +105,7 @@ Grouper par : état, projet (en arbre), statut, priorité, type, assignés, bén
 
 - Ligne « Ajouter une tâche » en bas du tableau et de chaque groupe : taper un libellé puis Entrée. La tâche prend les valeurs du groupe (statut, priorité, type, assigné, étiquette, jalon, sprint, parent, projet, bénéficiaire ; groupe « fermée » : créée fermée ; pas de valeur pour un groupe « aucun » ni pour une valeur archivée) et le premier statut « À faire ».
 - Sans projet à qui la rattacher (page « Tâches » hors groupe de projet), la ligne ouvre le formulaire.
-- Message vide : « Aucune tâche. » (page) / « Aucune tâche dans ce projet. » ; sans projet actif : « Créez d’abord un projet : chaque tâche appartient à un projet. ».
+- Message vide : « Aucune tâche. » (page) / « Aucune tâche dans ce projet. » ; « Nouvelle tâche » reste en haut à droite et la ligne « Ajouter une tâche » en bas, avec ou sans projet dans l’espace (une tâche peut n’appartenir à aucun projet).
 
 ### Menu d’une ligne
 

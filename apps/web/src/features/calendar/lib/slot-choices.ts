@@ -22,6 +22,11 @@ export interface SlotSources {
    * naming each). Optional.
    */
   birthdays?: readonly { id: string; name: string; archived?: boolean; aliases?: readonly string[] }[];
+  /**
+   * Every person of the workspace by birthday id, archived ones too (`useBirthdayPersonNames`): the name of one cited
+   * without a birthday. Optional.
+   */
+  people?: readonly { id: string; name: string; archived: boolean }[];
 }
 
 /**
@@ -74,8 +79,8 @@ export interface SlotChoices {
 /**
  * What a slot condition offers: the schedules and kinds of the workspace and of the other workspaces of the user (with
  * their workspace), the archived ones left out but those already chosen (« (archivé) », « (archivée) » for an éphéméride), the birthdays of the people of the workspace
- * (« Anniversaire de Paul (éphéméride) ») and all of them (« Anniversaires (éphéméride) »), and the names of
- * all of them.
+ * (« Anniversaire de Paul (éphéméride) ») and all of them (« Anniversaires (éphéméride) »), a person without birthday
+ * only when already chosen, and the names of all of them.
  * @param {SlotSources} sources Schedules and kinds.
  * @param {readonly string[]} [keep] Schedules and kinds chosen already, offered even when archived. Optional. Default = none.
  * @returns {SlotChoices} Choices.
@@ -91,6 +96,12 @@ export function slotChoices(sources: SlotSources, keep: readonly string[] = []):
   const birthdays = (sources.birthdays ?? []).map((birthday) => ({ id: birthdaySlotId(birthday.id), label: ephemerisLabel(birthdayLabel(birthday.name, null), true), archived: birthday.archived ?? false }));
   // A relation linked to a contributor (or the reverse) names the birthday of the person: its name, never offered.
   const aliases = (sources.birthdays ?? []).flatMap((birthday, index) => (birthday.aliases ?? []).map((alias) => ({ ...birthdays[index], id: birthdaySlotId(alias) })));
+  // A person cited without a birthday (archived, no birth date, contributor linked to a contact or to nothing): named,
+  // offered only when already chosen.
+  const named = new Set([...birthdays, ...aliases].map((item) => item.id));
+  const nameless = (sources.people ?? [])
+    .map((person) => ({ id: birthdaySlotId(person.id), label: person.archived ? ephemerisLabel(birthdayLabel(person.name, null), true) : `${birthdayLabel(person.name, null)} (sans date de naissance)`, archived: person.archived }))
+    .filter((person) => !named.has(person.id));
   const kinds = [
     { id: ownSlotKind(null), label: sources.defaultKind?.label || DEFAULT_SCHEDULE_KIND_LABEL, archived: false },
     ...(sources.types ?? []).map((type) => ({ id: ownSlotKind(type.id), label: ephemerisLabel(type.label, type.ephemeris), archived: type.archived })),
@@ -107,7 +118,7 @@ export function slotChoices(sources: SlotSources, keep: readonly string[] = []):
    * @returns {Choice[]} Options.
    */
   const offered = (items: readonly Named[]) => unarchived(items, keep).map((item) => ({ value: item.id, label: namedLabel(item) }));
-  const schedules = offered([...ownSchedules, ...foreignSchedules, ...birthdays]);
+  const schedules = offered([...ownSchedules, ...foreignSchedules, ...birthdays, ...nameless.filter((person) => keep.includes(person.id))]);
   const kindChoices = offered(kinds);
   return {
     schedules,
@@ -115,6 +126,6 @@ export function slotChoices(sources: SlotSources, keep: readonly string[] = []):
     freeTime: offered(slotSchedules(ownSchedules)),
     all: [...schedules, ...kindChoices],
     // Archived ones still named, « (archivé) » or « (archivée) »: they give no moment.
-    names: new Map([...ownSchedules, ...foreignSchedules, ...birthdays, ...aliases, ...kinds].map((item) => [item.id, namedLabel(item)])),
+    names: new Map([...ownSchedules, ...foreignSchedules, ...birthdays, ...aliases, ...nameless, ...kinds].map((item) => [item.id, namedLabel(item)])),
   };
 }
