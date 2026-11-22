@@ -244,7 +244,7 @@ export function Sidebar() {
    * Header of a section: its title, its open state and its menu.
    * @param {SectionKey} key Section.
    * @param {string} title Title.
-   * @param {string[]} keys Expand keys of its nodes (« Tout déplier » / « Tout replier »).
+   * @param {string[]} keys Expand keys of its nodes (« Tout développer » / « Tout réduire »).
    * @param {RowMenuEntry[]} [entries] Creations of its menu. Optional.
    * @returns {SidebarSectionChrome} Header.
    */

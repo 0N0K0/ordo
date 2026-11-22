@@ -19,7 +19,6 @@ Règle : tout formulaire de données suit `DetailLayout` (en-tête, contenu prin
 
 ## Comportements à confirmer
 
-- **Mots du pliage :** la règle est « Développer » / « Réduire » partout, mais le menu de la barre latérale des projets offre « Tout déplier » / « Tout replier » (`features/projects/lib/fold-entries.tsx`). Voir [Nommage](business-rules/cross-cutting/naming.md#mots-employés) et [Projets](features/cross-cutting/projects.md). _« Tout développer » / « Tout réduire », comme ailleurs_
 - **Sens d’une catégorie de trésorerie :** le changement de sens n’est refusé que si des mouvements utilisent la catégorie ; les lignes de répartition ne sont pas vérifiées. Voir [Règles de la trésorerie](business-rules/finances/treasury.md). _il ne faudrait pas obliger à retirer toutes les lignes de la répartition pour pouvoir changer de sens_
 - **Suppression d’un contexte de trésorerie :** ses budgets sont supprimés aussi (`onDelete: Cascade`), mais la confirmation de l’interface ne le dit pas. Voir [Règles de la trésorerie](business-rules/finances/treasury.md). _à corriger_
 - **Unité renommée ou supprimée :** les unités se règlent aussi dans les paramètres des fiches et de l’inventaire, mais renommer une unité ne la renomme que dans les produits et les éléments des listes d’achats, et la supprimer ne la retire que d’eux : les éléments de fiches, les articles du stock et les éléments des listes à cocher gardent l’ancien libellé (leur usage n’est donc pas compté). Voir [Règles des achats](business-rules/supplies/shopping.md#unités). _à confirmer_

@@ -38,7 +38,7 @@ Composant `Sidebar`, à gauche de l’application.
 | « Archives »  | clients archivés avec leurs projets, projets archivés avec leurs sous-projets, sous leur client et leurs parents (en contexte) ; les projets archivés sans client directement, après les clients (en PERSO : les projets directement) | seulement s’il y a des archives ; fermée par défaut                                                                                   |
 
 - Aucun groupe intermédiaire : pas de « Sans client » ni de « Tous les projets » ; un projet sans client est au premier niveau de sa section.
-- Chaque section se replie par son titre (sans compteur) ; son menu « … » propose les créations (« Nouveau client » et « Nouveau projet » pour « Clients », « Nouveau projet » pour « Projets ») et « Tout déplier » / « Tout replier » de ses nœuds. L’ouverture des sections et le pliage de chaque nœud sont gardés.
+- Chaque section se replie par son titre (sans compteur) ; son menu « … » propose les créations (« Nouveau client » et « Nouveau projet » pour « Clients », « Nouveau projet » pour « Projets ») et « Tout développer » / « Tout réduire » de ses nœuds. L’ouverture des sections et le pliage de chaque nœud sont gardés.
 
 ### Lignes de l’arbre
 
@@ -47,7 +47,7 @@ Composant `Sidebar`, à gauche de l’application.
 - Menu « … » ou clic droit :
   - client actif : « Ajouter un projet » ;
   - projet actif sous la profondeur maximale : « Ajouter un sous-projet » ;
-  - « Tout déplier » / « Tout replier » s’il a des enfants ;
+  - « Tout développer » / « Tout réduire » s’il a des enfants ;
   - élément actif : « Modifier », « Ajouter aux favoris » / « Retirer des favoris » ;
   - « Archiver » / « Restaurer » (« avec ses projets et ses contacts » pour un client) et « Supprimer ».
 

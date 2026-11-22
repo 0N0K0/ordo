@@ -99,7 +99,7 @@ Internes : `SectionKey`, `SECTIONS_OPENED`, `TreeSkeleton`, `TreeEmpty` (état v
 
 ### `components/SidebarSection.tsx` (+ `SidebarSection.module.css`)
 
-`SidebarSection({ title, opened, onToggle, onSetAllExpanded?, actions?, headerRef?, headerStyle?, children })` : section repliable (`FoldHeading` + `Collapse`), sans compteur, avec menu « … » (actions puis « Tout déplier » / « Tout replier ») ; `headerRef` / `headerStyle` font de l’en-tête une cible du glisser-déposer. `SidebarSectionChrome` : le type de son en-tête (titre, ouverture, menu). Utilisé par `Sidebar` et `ActiveTree`.
+`SidebarSection({ title, opened, onToggle, onSetAllExpanded?, actions?, headerRef?, headerStyle?, children })` : section repliable (`FoldHeading` + `Collapse`), sans compteur, avec menu « … » (actions puis « Tout développer » / « Tout réduire ») ; `headerRef` / `headerStyle` font de l’en-tête une cible du glisser-déposer. `SidebarSectionChrome` : le type de son en-tête (titre, ouverture, menu). Utilisé par `Sidebar` et `ActiveTree`.
 
 ### `components/StaticTrees.tsx`
 
@@ -132,7 +132,7 @@ Utilisés par `labels.tsx` et `SettingsPage`.
 
 ### `lib/fold-entries.tsx`
 
-- `foldEntries(setExpanded)` : entrées « Tout déplier » / « Tout replier ».
+- `foldEntries(setExpanded)` : entrées « Tout développer » / « Tout réduire ».
 - `newEntityEntries(actions, perso)` : entrées « Nouveau client » (pas en PERSO) et « Nouveau projet ».
 
 Utilisés par `Sidebar`, `SidebarSection`, `EntityMenu`.
@@ -164,8 +164,8 @@ Construction des sections de l’arbre et helpers de projets réutilisés ailleu
 | `buildFavoriteSection(tree, sort, search)`                                    | Section des favoris avec contexte.                                                                                           | `Sidebar`                                                                 |
 | `buildArchiveSection(tree, sort, search)`                                     | Section des archives avec contexte.                                                                                          | `Sidebar`                                                                 |
 | `isEmptySection(section)`                                                     | Section sans client ni projet (son contexte ne vient qu’avec du contenu).                                                    | `Sidebar`                                                                 |
-| `clientKeys(section, prefix)`                                                 | Clés de pliage des clients et de leurs projets (« Tout déplier » de « Clients »).                                            | `Sidebar`                                                                 |
-| `orphanKeys(section, prefix)`                                                 | Clés de pliage des projets sans client (« Tout déplier » de « Projets » en PRO).                                             | `Sidebar`                                                                 |
+| `clientKeys(section, prefix)`                                                 | Clés de pliage des clients et de leurs projets (« Tout développer » de « Clients »).                                            | `Sidebar`                                                                 |
+| `orphanKeys(section, prefix)`                                                 | Clés de pliage des projets sans client (« Tout développer » de « Projets » en PRO).                                             | `Sidebar`                                                                 |
 | `sectionKeys(section, prefix)`                                                | Clés de tous les nœuds pliables (`clientKeys` puis `orphanKeys`).                                                            | `Sidebar`                                                                 |
 | `subtreeKeys(section, prefix, target)`                                        | Clés d’un nœud et de ses descendants.                                                                                        | `Sidebar`                                                                 |
 
