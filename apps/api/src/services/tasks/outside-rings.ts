@@ -11,6 +11,7 @@ import {
   eventRings,
   formatOptionalDay,
   nextAllowedMoment,
+  nextInSlotsOf,
   PARIS_ZONE,
   PUSH_GRACE_MS,
   pushRingActions,
@@ -104,7 +105,8 @@ function ringInput(planned: Pick<PlannedRing, 'key' | 'at' | 'title' | 'lines' |
 
 /**
  * Reminders of the events, tasks, routines, éphémérides and birthdays of the workspace due now; those of the routines
- * for each user, deferred to the next free moment as in the app (`nextAllowedMoment`).
+ * for each user, deferred to the next free moment as in the app (`nextAllowedMoment`: past the events keeping their
+ * assignees busy and the slots « Indisponible »).
  * @param {Workspace} workspace Workspace (the job runs in it).
  * @param {boolean} several The user has several workspaces.
  * @param {Date} now Now.
@@ -174,6 +176,8 @@ async function dueReminders(workspace: Workspace, several: boolean, now: Date, u
         events: occurrences,
         meId,
         timeZone: PARIS_ZONE,
+        // Not during the slots « Indisponible »: at their end.
+        nextInSlots: nextInSlotsOf(null, context.slotsOn),
       }),
     );
     perUser.push(...rings.filter((ring) => dueOutside(ring.at, now)).map((ring) => ({ input: ringInput(ring, workspace, several, routinesPage), userId })));

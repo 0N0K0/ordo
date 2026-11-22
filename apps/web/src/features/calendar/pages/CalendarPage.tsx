@@ -26,7 +26,8 @@ import { useNavigate, useSearchParams } from 'react-router';
 
 import { localDay, localMidnight, localParts, localToday } from '../../../lib/dates';
 import { taskPlacement, type TaskSpanKind } from '../lib/task-calendar';
-import { notifyError, onMutationError } from '../../../lib/notify';
+import { notifyError, notifyWarning, onMutationError } from '../../../lib/notify';
+import { useSlotRules } from '../hooks/use-slot-rules';
 import { useRoutineOccurrences, useRoutinesData } from '../../routines/api';
 import { useUpdateTask } from '../../tasks/api';
 import { useTaskContext } from '../../tasks/hooks/use-task-context';
@@ -50,7 +51,7 @@ import {
 import { askScope } from '../lib/ask-scope';
 import { useCalendarEdits, type RoutineOccurrenceRef } from '../hooks/calendar-edits';
 import { slotColumns } from '../lib/slot-columns';
-import { EPHEMERIDES_TITLE, schedulesTitle } from '../lib/schedule-text';
+import { EPHEMERIDES_TITLE, schedulesTitle, unavailableWarning } from '../lib/schedule-text';
 import classes from './CalendarPage.module.css';
 import { downloadCalendarPdf, pdfItems } from '../lib/calendar-pdf';
 import { occurrenceInput } from '../lib/event-input';
@@ -155,6 +156,7 @@ export function CalendarPage() {
   // Calendars of other workspaces: read in their workspaces, only when one is shown.
   const subscribedEvents = useSubscribedCalendarEvents(shownSubscriptions.length > 0 ? range : null);
   const { update } = useCalendarEventMutations();
+  const slotRules = useSlotRules();
   const updateTask = useUpdateTask();
   const openEvent = useEventForm(context);
   const navigate = useNavigate();
@@ -722,6 +724,8 @@ export function CalendarPage() {
     }
 
     const occurrence = event.extendedProps.occurrence as EventOccurrence;
+    // Saved all the same; during slots « Indisponible »: told (as in its form).
+    const warning = allDay ? null : unavailableWarning(slotRules.unavailable(event.start, endDate));
     let scope: 'THIS' | 'FOLLOWING' | 'ALL' = 'ALL';
     if (occurrence.occurrenceDate) {
       const chosen = await askScope({ action: 'update' });
@@ -742,7 +746,7 @@ export function CalendarPage() {
           endTime: allDay ? null : endParts.time,
         },
       },
-      { onError: (error) => (onMutationError(error), revert()) },
+      { onSuccess: () => warning && notifyWarning('Évènement enregistré', warning), onError: (error) => (onMutationError(error), revert()) },
     );
   };
 

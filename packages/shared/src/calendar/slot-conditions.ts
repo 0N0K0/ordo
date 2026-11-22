@@ -164,26 +164,41 @@ export interface ScheduleQuery {
   ids?: readonly string[];
   /** Kinds (`ownSlotKind`, `foreignSlotKind`). Optional. */
   kinds?: readonly string[];
+  /** The schedules « Indisponible » in the workspace (of it, or of another one through its subscription). Optional. Default = false. */
+  unavailable?: boolean;
 }
 
 /** Slots of some schedules on the day. */
 export type SlotsOf = (query: ScheduleQuery) => readonly PlannedSlot[];
 
+/** The whole day. */
+const WHOLE_DAY: Interval[] = [{ start: '00:00', end: '24:00' }];
+
 /**
- * Hours of the day a condition on calendar schedules allows: on the slots of some schedules or kinds (`in`), out of
- * them (`notIn`), combined in groups with « et » (all) or « ou » (at least one); null when it constrains nothing (no
- * condition, or an empty group).
+ * Hours of the day out of the slots « Indisponible » of the workspace; null when it has none that day.
+ * @param {SlotsOf} slotsOf Slots of some schedules on the day.
+ * @returns {Interval[] | null} Intervals, in order (none: unavailable the whole day).
+ */
+function availableIntervals(slotsOf: SlotsOf): Interval[] | null {
+  const unavailable = slotsOf({ unavailable: true });
+  return unavailable.length ? windowsOutside({ fromTime: null, dueTime: null }, unavailable).map(intervalOf) : null;
+}
+
+/**
+ * Hours of the day something can be scheduled in: those a condition on calendar schedules allows (on the slots of
+ * some schedules or kinds, `in`, out of them, `notIn`, combined in groups with « et » (all) or « ou » (at least
+ * one)), always out of the slots « Indisponible » of the workspace; null when neither limits that day (no condition,
+ * or an empty group, and nothing unavailable).
  * @param {SlotCondition | null | undefined} condition Condition.
  * @param {SlotsOf} slotsOf Slots of some schedules on the day.
  * @returns {TimeWindow[] | null} Windows allowed, in order (none: never that day).
  */
 export function conditionWindows(condition: SlotCondition | null | undefined, slotsOf: SlotsOf): TimeWindow[] | null {
-  const intervals = conditionIntervals(condition, slotsOf);
+  const byCondition = conditionConstrains(condition) ? (conditionIntervals(condition, slotsOf) ?? []) : null;
+  const available = availableIntervals(slotsOf);
+  const intervals = byCondition && available ? intersect(byCondition, available) : (byCondition ?? available);
   return intervals ? intervals.map(windowOf) : null;
 }
-
-/** The whole day. */
-const WHOLE_DAY: Interval[] = [{ start: '00:00', end: '24:00' }];
 
 /**
  * Intervals where two sets of intervals meet.
@@ -287,6 +302,8 @@ export function scheduleSlotsOn(rules: readonly WorkScheduleRule[], foreign: rea
   const others = foreign.filter(({ rule }) => countedSchedules([rule]).length);
   // The free time: out of the créneaux of the workspace, its éphémérides left out.
   const own = new Set(slotSchedules(counted).map((rule) => rule.id));
+  // « Indisponible » here: of the workspace, or of another one through the subscription of this one.
+  const unavailable = new Set([...counted, ...others.map(({ rule }) => rule)].filter((rule) => rule.unavailable).map((rule) => rule.id));
   const kindOf = new Map<string, string | null>([...counted.map((rule) => [rule.id, scheduleSlotKind(rule)] as const), ...others.map(({ workspaceId, rule }) => [rule.id, scheduleSlotKind(rule, workspaceId)] as const)]);
   const all = [...counted, ...others.map(({ rule }) => rule)];
   // Birthdays: a whole day each year, of the kind of every birthday; a reference to another id of the same person
@@ -298,8 +315,8 @@ export function scheduleSlotsOn(rules: readonly WorkScheduleRule[], foreign: rea
   const aliasOf = new Map(birthdays.filter((birthday) => !birthday.archived).flatMap((birthday) => (birthday.aliases ?? []).map((alias) => [birthdaySlotId(alias), birthdaySlotId(birthday.id)] as const)));
   for (const { scheduleId } of births) kindOf.set(scheduleId, BIRTHDAY_SLOT_KIND);
   const byDay = new Map<string, PlannedSlot[]>();
-  return ({ ids: asked = [], kinds = [] }, date) => {
-    if (!asked.length && !kinds.length) return [];
+  return ({ ids: asked = [], kinds = [], unavailable: unavailableAsked = false }, date) => {
+    if (!asked.length && !kinds.length && !(unavailableAsked && unavailable.size)) return [];
     const ids = asked.map((id) => aliasOf.get(id) ?? id);
     let slots = byDay.get(date);
     if (!slots) {
@@ -308,13 +325,15 @@ export function scheduleSlotsOn(rules: readonly WorkScheduleRule[], foreign: rea
     }
     // Every schedule of the workspace (the free time), those named, or those of the kinds named.
     const every = ids.includes(ALL_SCHEDULES);
-    return slots.filter((slot) => (every && own.has(slot.scheduleId)) || ids.includes(slot.scheduleId) || kinds.includes(kindOf.get(slot.scheduleId) ?? ''));
+    return slots.filter(
+      (slot) => (every && own.has(slot.scheduleId)) || ids.includes(slot.scheduleId) || kinds.includes(kindOf.get(slot.scheduleId) ?? '') || (unavailableAsked && unavailable.has(slot.scheduleId)),
+    );
   };
 }
 
 /**
  * Intervals of a day an item can be done in: those its condition on calendar schedules allows, within its own hours (the
- * « Horaires » of a task) when it has some; null when neither limits it (any time).
+ * « Horaires » of a task) when it has some, out of the slots « Indisponible »; null when none of them limits it (any time).
  * @param {SlotCondition | null | undefined} condition Condition.
  * @param {SlotsOn} slotsOn Slots of some schedules on a day.
  * @param {string} date YYYY-MM-DD.
@@ -322,18 +341,23 @@ export function scheduleSlotsOn(rules: readonly WorkScheduleRule[], foreign: rea
  * @returns {Interval[] | null} Intervals, in order (none: never that day).
  */
 function allowedIntervals(condition: SlotCondition | null | undefined, slotsOn: SlotsOn, date: string, hours: readonly ScheduleCase[]): Interval[] | null {
-  const byCondition = conditionConstrains(condition) ? (conditionIntervals(condition, (query) => slotsOn(query, date)) ?? []) : null;
-  const byHours = hours.length ? merged(casesSlotsOn(hours, date)) : null;
-  if (!byCondition || !byHours) return byCondition ?? byHours;
-  return intersect(byCondition, byHours);
+  const parts = [
+    conditionConstrains(condition) ? (conditionIntervals(condition, (query) => slotsOn(query, date)) ?? []) : null,
+    hours.length ? merged(casesSlotsOn(hours, date)) : null,
+    availableIntervals((query) => slotsOn(query, date)),
+  ].filter((part): part is Interval[] => part !== null);
+  return parts.length ? parts.reduce((all, part) => intersect(all, part)) : null;
 }
 
-/** What keeps an item from a moment: its own hours (the « Horaires » of a task), or its condition on calendar schedules. */
-export type ConditionBlock = 'hours' | 'slots';
+/**
+ * What keeps an item from a moment: its own hours (the « Horaires » of a task), its condition on calendar schedules, or
+ * a slot « Indisponible » of the workspace.
+ */
+export type ConditionBlock = 'hours' | 'slots' | 'unavailable';
 
 /**
- * What keeps an item from a moment, its own hours first, then its condition on calendar schedules; null when both
- * allow it (neither: any moment).
+ * What keeps an item from a moment, its own hours first, then its condition on calendar schedules, then the slots
+ * « Indisponible » of the workspace; null when all allow it (none: any moment).
  * @param {SlotCondition | null | undefined} condition Condition.
  * @param {SlotsOn} slotsOn Slots of some schedules on a day.
  * @param {string} date YYYY-MM-DD.
@@ -345,12 +369,14 @@ export function conditionBlockAt(condition: SlotCondition | null | undefined, sl
   const holds = (intervals: readonly Interval[]) => intervals.some((interval) => interval.start <= time && time < interval.end);
   if (hours.length && !holds(merged(casesSlotsOn(hours, date)))) return 'hours';
   if (conditionConstrains(condition) && !holds(conditionIntervals(condition, (query) => slotsOn(query, date)) ?? [])) return 'slots';
+  if (slotsOn({ unavailable: true }, date).some((slot) => holds(merged([slot])))) return 'unavailable';
   return null;
 }
 
 /**
  * Whether a condition on calendar schedules, and the own hours of the item (the « Horaires » of a task), allow a
- * moment: both must (neither: any moment). The only test of when a task can be done, for the API and the app.
+ * moment out of the slots « Indisponible »: all must (none: any moment). The only test of when a task can be done, for
+ * the API and the app.
  * @param {SlotCondition | null | undefined} condition Condition.
  * @param {SlotsOn} slotsOn Slots of some schedules on a day.
  * @param {string} date YYYY-MM-DD.
@@ -363,8 +389,8 @@ export function conditionAllowsAt(condition: SlotCondition | null | undefined, s
 }
 
 /**
- * First moment a condition on calendar schedules, and the own hours of the item, allow from a moment on, within some
- * days (the moment itself when neither limits it); null when none.
+ * First moment a condition on calendar schedules, and the own hours of the item, allow from a moment on out of the
+ * slots « Indisponible », within some days (the moment itself when none limits it); null when none.
  * @param {SlotCondition | null | undefined} condition Condition.
  * @param {SlotsOn} slotsOn Slots of some schedules on a day.
  * @param {string} date YYYY-MM-DD.
@@ -381,12 +407,32 @@ export function nextConditionMoment(
   days: number,
   hours: readonly ScheduleCase[] = [],
 ): { date: string; time: string } | null {
-  if (!conditionConstrains(condition) && !hours.length) return { date, time };
   for (let offset = 0; offset < days; offset++) {
     const day = addDays(date, offset);
     const from = offset ? '00:00' : time;
-    const interval = (allowedIntervals(condition, slotsOn, day, hours) ?? []).find((item) => item.end > from);
+    const interval = (allowedIntervals(condition, slotsOn, day, hours) ?? WHOLE_DAY).find((item) => item.end > from);
     if (interval) return { date: day, time: interval.start > from ? interval.start : from };
   }
   return null;
+}
+
+/**
+ * The schedules « Indisponible » of the workspace met at a moment, or during a period (its end excluded): those of
+ * the workspace, and those of other workspaces through its subscriptions.
+ * @param {SlotsOn} slotsOn Slots of some schedules on a day.
+ * @param {{ date: string, time: string }} from Moment, or start of the period (YYYY-MM-DD, HH:MM).
+ * @param {{ date: string, time: string }} [to] End of the period. Optional. Default = the moment alone.
+ * @returns {string[]} Schedule ids, each once, in the order met.
+ */
+export function unavailableScheduleIds(slotsOn: SlotsOn, from: { date: string; time: string }, to?: { date: string; time: string }): string[] {
+  const ids = new Set<string>();
+  for (let day = from.date; day <= (to ?? from).date; day = addDays(day, 1)) {
+    const start = day === from.date ? from.time : '00:00';
+    const end = !to ? null : day === to.date ? to.time : '24:00';
+    for (const slot of slotsOn({ unavailable: true }, day)) {
+      const [interval] = merged([slot]);
+      if (end === null ? interval.start <= start && start < interval.end : interval.start < end && start < interval.end) ids.add(slot.scheduleId);
+    }
+  }
+  return [...ids];
 }

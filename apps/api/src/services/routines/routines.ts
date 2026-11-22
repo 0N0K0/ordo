@@ -80,7 +80,8 @@ import { BY_POSITION, moveBefore, nextPositionIn } from '../core/ordering';
 import { Prisma, type Routine, type RoutineCategory } from '../../generated/prisma/client';
 import { clientError, fieldError, notFound, orNotFound, parseInput } from '../../graphql/errors';
 import { storedRecurrence } from '../calendar/calendar-events';
-import { assertConditionSchedules, loadSlotsOn, type ScheduleChange, type ScheduleEdit } from '../calendar/slot-conditions';
+import { scheduleRule } from '../calendar/work-schedules';
+import { assertConditionSchedules, hasUnavailableSlots, loadSlotsOn, type ScheduleChange, type ScheduleEdit } from '../calendar/slot-conditions';
 import type { PeopleChangeSettler } from '../calendar/birthdays';
 import { assertProjectContributors, followProject } from '../projects/contributors';
 import { PARIS, parisToday } from '../../today';
@@ -126,23 +127,27 @@ const NO_SCHEDULES: ScheduleContext = { slotsOn: () => [] };
 
 /**
  * Occurrences ticked (at least one time of the day) of the routines whose occurrences depend on calendar schedules
- * (a condition, or cases): those stay even when their condition no longer leaves them any moment.
+ * (a condition, or cases; every routine when slots « Indisponible » may count): those stay even when their condition,
+ * or the slots « Indisponible », no longer leave them any moment.
+ * @param {boolean} every Of every routine.
  * @returns {Promise<Set<string>>} `joinedKey(routine, due day)`.
  */
-async function loadCheckedOccurrences(): Promise<Set<string>> {
+async function loadCheckedOccurrences(every: boolean): Promise<Set<string>> {
   const checks = await prisma.routineCheck.findMany({
-    where: {
-      routine: {
-        OR: [
-          { slotCondition: { not: Prisma.DbNull } },
-          { NOT: { cases: { equals: [] } } },
-          { scheduleIds: { isEmpty: false } },
-          { excludedScheduleIds: { isEmpty: false } },
-          // Its condition or cases may be its parent's.
-          { inheritedFields: { hasSome: ['SLOT_CONDITION', 'CASES'] } },
-        ],
-      },
-    },
+    where: every
+      ? {}
+      : {
+          routine: {
+            OR: [
+              { slotCondition: { not: Prisma.DbNull } },
+              { NOT: { cases: { equals: [] } } },
+              { scheduleIds: { isEmpty: false } },
+              { excludedScheduleIds: { isEmpty: false } },
+              // Its condition or cases may be its parent's.
+              { inheritedFields: { hasSome: ['SLOT_CONDITION', 'CASES'] } },
+            ],
+          },
+        },
     distinct: ['routineId', 'date'],
     select: { routineId: true, date: true },
   });
@@ -157,7 +162,9 @@ async function loadCheckedOccurrences(): Promise<Set<string>> {
  * @returns {Promise<ScheduleContext>} Context.
  */
 export async function loadScheduleContext(change?: ScheduleChange): Promise<ScheduleContext> {
-  const [slotsOn, checked, routines] = await Promise.all([loadSlotsOn(undefined, change), loadCheckedOccurrences(), loadRoutineInheritance()]);
+  // A change may set slots « Indisponible »: every ticked occurrence then counts.
+  const every = Boolean(change) || (await hasUnavailableSlots());
+  const [slotsOn, checked, routines] = await Promise.all([loadSlotsOn(undefined, change), loadCheckedOccurrences(every), loadRoutineInheritance()]);
   return { memo: new Map(), slotsOn, checked, routines };
 }
 
@@ -284,7 +291,8 @@ export function storedMoves(value: unknown): RoutineMove[] {
 
 /**
  * Times of the day of an occurrence of a routine on one of its days: those of its rule (or of its case), kept to the
- * hours its condition on calendar schedules allows that day (several windows where slots cut them).
+ * hours its condition on calendar schedules allows that day, out of the slots « Indisponible » (several windows where
+ * slots cut them).
  * @param {RoutineTiming} routine Routine.
  * @param {string} due Due day of the occurrence (its case).
  * @param {string} day Day.
@@ -296,7 +304,7 @@ function dayMoments(routine: RoutineTiming, due: string, day: string, schedules:
   const item = cases.length ? routineCaseOn(cases, formatDay(routine.startDate), due) : null;
   const base = cases.length ? (item?.slots ?? []) : storedMoments(routine);
   const condition = cases.length ? (item?.condition ?? null) : storedCondition(routine);
-  const allowed = constrains(condition) ? conditionWindows(condition, (query) => schedules.slotsOn(query, day)) : null;
+  const allowed = conditionWindows(condition, (query) => schedules.slotsOn(query, day));
   return base.flatMap((moment) => {
     const windows = windowsAllowed(moment, allowed);
     return windows.length ? [{ ...moment, fromTime: windows[0].fromTime, dueTime: windows.at(-1)!.dueTime, windows }] : [];
@@ -304,7 +312,8 @@ function dayMoments(routine: RoutineTiming, due: string, day: string, schedules:
 }
 
 /**
- * Whether an occurrence has a time of the day on one of its days.
+ * Whether an occurrence has a time of the day on one of its days (a day without condition nor slot « Indisponible »
+ * always has).
  * @param {RoutineTiming} routine Routine.
  * @param {RoutineSpan} span Occurrence.
  * @param {ScheduleContext} schedules Schedules.
@@ -312,8 +321,11 @@ function dayMoments(routine: RoutineTiming, due: string, day: string, schedules:
  */
 function doable(routine: RoutineTiming, span: RoutineSpan, schedules: ScheduleContext): boolean {
   const cases = storedCases(routine.cases);
-  if (cases.length ? !cases.some((item) => constrains(item.condition)) : !constrains(storedCondition(routine))) return true;
-  for (let day = span.start; day <= span.end; day = addDays(day, 1)) if (dayMoments(routine, span.end, day, schedules).length) return true;
+  const limited = cases.length ? cases.some((item) => constrains(item.condition)) : constrains(storedCondition(routine));
+  for (let day = span.start; day <= span.end; day = addDays(day, 1)) {
+    if (!limited && !schedules.slotsOn({ unavailable: true }, day).length) return true;
+    if (dayMoments(routine, span.end, day, schedules).length) return true;
+  }
   return false;
 }
 
@@ -1127,13 +1139,15 @@ async function occurrenceChange(nexts: readonly Routine[], moved?: { from: strin
 
 /**
  * Before a change of the calendar schedules of the workspace (one created, changed, archived, restored or deleted, a
- * kind archived or restored) or of its people (a birthday changed, moved or gone: birth date, archiving, link of a
- * relation to a contributor, creation, deletion), the occurrences of the routines that it makes disappear
- * (their condition no longer leaves them any moment; those ticked stay) lose their comments, as with a change of their
+ * kind archived, restored or set « Indisponible », a subscription to a kind of another workspace set « Indisponible »)
+ * or of its people (a birthday changed, moved or gone: birth date, archiving, link of a relation to a contributor,
+ * creation, deletion), the occurrences of the routines that it makes disappear (their condition, or the slots
+ * « Indisponible », no longer leave them any moment; those ticked stay) lose their comments, as with a change of their
  * rule. Without `confirmLoss: true` while some would be lost, nothing changes
  * (CONFIRMATION_REQUIRED, asked once for all the routines); confirmed, those comments are deleted. Only the routines of
- * the workspace are looked at (not archived, with a condition or cases), and, for a change of schedules, those of the
- * other workspaces naming them.
+ * the workspace are looked at (not archived, with a condition or cases; every one when slots « Indisponible » may
+ * count), and, for a change of schedules, those of the other workspaces naming them or setting a kind of this
+ * workspace « Indisponible ».
  * @param {ScheduleEdit} edit Schedules and people of the workspace once changed.
  * @param {boolean} [confirmLoss] Loss confirmed (true), to confirm (false). Optional. Default = no question.
  * @returns {Promise<void>}
@@ -1143,13 +1157,26 @@ export async function settleScheduleChange(edit: ScheduleEdit, confirmLoss?: boo
   // Here: every routine following schedules (the free time counts them all); only those naming birthdays for a change
   // of the people alone. Elsewhere: those naming one of these schedules, or a kind of this workspace (birthdays are
   // never named elsewhere).
-  const here = await routinesLosing(change, edit.apply ? () => true : conditionCitesBirthdays);
+  // Slots « Indisponible » before or after: the routines without condition count too.
+  const schedulesChange = Boolean(edit.apply || edit.subscription);
+  const unavailable =
+    schedulesChange &&
+    (Boolean(edit.subscription?.unavailable) ||
+      (edit.apply ? edit.apply((await prisma.workSchedule.findMany({ include: { type: { select: { archivedAt: true } } } })).map(scheduleRule)).some((rule) => rule.unavailable && !rule.archived) : false) ||
+      (await hasUnavailableSlots()));
+  const here = await routinesLosing(change, schedulesChange ? () => true : conditionCitesBirthdays, unavailable);
   const own = edit.apply ? new Set((await prisma.workSchedule.findMany({ select: { id: true } })).map((schedule) => schedule.id)) : null;
   const others = own ? await unscopedPrisma.workspace.findMany({ where: { id: { not: change.workspaceId } }, select: { id: true, kind: true } }) : [];
   const elsewhere = await Promise.all(
     others.map((workspace) =>
       runInWorkspace(workspace, async () => {
-        const lost = await routinesLosing(change, (condition) => conditionScheduleIds(condition).some((id) => own!.has(id)) || conditionKinds(condition).some((kind) => foreignSlotKindWorkspace(kind) === change.workspaceId));
+        // A kind of this workspace « Indisponible » there: every routine there counts.
+        const unavailableThere = (await prisma.workScheduleSubscription.count({ where: { sourceWorkspaceId: change.workspaceId, unavailable: true } })) > 0;
+        const lost = await routinesLosing(
+          change,
+          (condition) => conditionScheduleIds(condition).some((id) => own!.has(id)) || conditionKinds(condition).some((kind) => foreignSlotKindWorkspace(kind) === change.workspaceId),
+          unavailableThere,
+        );
         // Its deletions run in its workspace.
         return lost.map((item) => ({ ...item, settle: () => runInWorkspace(workspace, item.settle) }));
       }),
@@ -1172,21 +1199,22 @@ export const peopleSettler =
     settleScheduleChange({ people }, confirmLoss ?? false);
 
 /**
- * What a change of schedules takes from the routines of the current workspace whose conditions are concerned: the
- * comments of their occurrences it makes disappear.
+ * What a change of schedules takes from the routines of the current workspace whose conditions are concerned (every
+ * routine when slots « Indisponible » count): the comments of their occurrences it makes disappear.
  * @param {ScheduleChange} change Schedules once changed.
  * @param {(condition: SlotCondition) => boolean} concerned Whether a condition (of a routine or a case) is concerned.
+ * @param {boolean} [every] Every routine, condition or not (slots « Indisponible » before or after). Optional. Default = false.
  * @returns {Promise<LostOccurrences[]>} Losses, by routine.
  */
-async function routinesLosing(change: ScheduleChange, concerned: (condition: SlotCondition) => boolean): Promise<LostOccurrences[]> {
+async function routinesLosing(change: ScheduleChange, concerned: (condition: SlotCondition) => boolean, every = false): Promise<LostOccurrences[]> {
   const [before, after] = await Promise.all([loadScheduleContext(), loadScheduleContext(change)]);
   // Its conditions as it goes: those of its parent when it inherits them.
   const conditionsOf = (stored: Routine) => {
     const routine = occurrenceTiming(stored, before);
     return storedCases(routine.cases).length ? storedCases(routine.cases).map((item) => item.condition) : [storedCondition(routine)];
   };
-  const following = (await prisma.routine.findMany({ where: { archivedAt: null } })).filter((routine) =>
-    conditionsOf(routine).some((condition): condition is SlotCondition => constrains(condition) && concerned(condition!)),
+  const following = (await prisma.routine.findMany({ where: { archivedAt: null } })).filter(
+    (routine) => every || conditionsOf(routine).some((condition): condition is SlotCondition => constrains(condition) && concerned(condition!)),
   );
   if (!following.length) return [];
   await placeLegacyRoutineComments(following.map((routine) => routine.id));

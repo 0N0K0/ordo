@@ -1,5 +1,8 @@
-import { addDays, dayIn } from '../dates/days';
+import { addDays, dayIn, timeIn } from '../dates/days';
 import { zonedInstant } from '../dates/recurrence';
+import { PARIS_ZONE, parisInstant } from '../dates/reminders';
+import { nextConditionMoment, type SlotCondition, type SlotsOn } from './slot-conditions';
+import type { ScheduleCase } from './work-schedules';
 
 /** Event occurrence as far as being busy goes. */
 export interface BusyEvent {
@@ -90,6 +93,22 @@ export interface NextAllowedContext {
   /** Next moment its condition on calendar schedules allows from a moment on, null: none; missing: any moment. Optional. */
   nextInSlots?: (at: Date) => Date | null;
 }
+
+/**
+ * Next moment, in Paris time (as the app and the server count it), a condition on calendar schedules and the own hours
+ * of an item allow from a moment on, out of the slots « Indisponible » (`nextConditionMoment`): the `nextInSlots` of
+ * `nextAllowedMoment`.
+ * @param {SlotCondition | null | undefined} condition Condition (none: any time).
+ * @param {SlotsOn} slotsOn Slots of some schedules on a day.
+ * @param {readonly ScheduleCase[]} [hours] Own hours of the item. Optional. Default = none.
+ * @returns {(at: Date) => Date | null} Next moment, null: none within `NEXT_ALLOWED_DAYS`.
+ */
+export const nextInSlotsOf =
+  (condition: SlotCondition | null | undefined, slotsOn: SlotsOn, hours: readonly ScheduleCase[] = []) =>
+  (at: Date): Date | null => {
+    const moment = nextConditionMoment(condition, slotsOn, dayIn(at, PARIS_ZONE), timeIn(at, PARIS_ZONE), NEXT_ALLOWED_DAYS, hours);
+    return moment ? parisInstant(moment.date, moment.time) : null;
+  };
 
 /**
  * First moment from a moment on a task or a routine can be done (within `NEXT_ALLOWED_DAYS`): the next moment its

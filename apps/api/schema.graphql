@@ -1316,6 +1316,9 @@ type ForeignScheduleKind {
 
   """None: the schedules without kind (working hours)."""
   typeId: ID
+
+  """« Indisponible » in this workspace (set on its subscription)."""
+  unavailable: Boolean!
   workspaceId: ID!
   workspaceLabel: String!
 }
@@ -1346,6 +1349,11 @@ type ForeignWorkSchedule {
   """
   typeId: ID
   typeLabel: String
+
+  """
+  « Indisponible » in this workspace (its subscription to the kind says so, whatever its own workspace says).
+  """
+  unavailable: Boolean!
   workspaceId: ID!
   workspaceLabel: String!
 }
@@ -2672,6 +2680,19 @@ type Mutation {
   setScheduleSubscriptionLook(input: ScheduleSubscriptionLookInput!, typeId: ID, workspaceId: ID!): Boolean!
 
   """
+  Sets a kind of schedules subscribed to (without typeId: the schedules without kind) « Indisponible » in this workspace, or back; the occurrences of routines it makes disappear lose their comments, once confirmed.
+  """
+  setScheduleSubscriptionUnavailable(
+    """
+    Occurrences made to disappear with their comments or times are confirmed: false (default) refuses with CONFIRMATION_REQUIRED and extension lost { times, comments } when there are some; true deletes them.
+    """
+    confirmLoss: Boolean
+    typeId: ID
+    unavailable: Boolean!
+    workspaceId: ID!
+  ): Boolean!
+
+  """
   Turns a whole kind (its schedules with it, ids kept) into a kind of éphémérides or back into a kind of créneaux; the occurrences of routines it makes disappear lose their comments, once confirmed.
   """
   setScheduleTypeEphemeris(
@@ -2856,7 +2877,14 @@ type Mutation {
   ): RemovedLinksResult!
   updateRoutineCategory(id: ID!, input: RoutineCategoryInput!): Boolean!
   updateSavedCountdown(id: ID!, input: SavedCountdownPatch!): SavedCountdown!
-  updateScheduleType(id: ID!, input: ScheduleTypeInput!): ScheduleType!
+  updateScheduleType(
+    """
+    Occurrences made to disappear with their comments or times are confirmed: false (default) refuses with CONFIRMATION_REQUIRED and extension lost { times, comments } when there are some; true deletes them.
+    """
+    confirmLoss: Boolean
+    id: ID!
+    input: ScheduleTypeInput!
+  ): ScheduleType!
   updateSheet(id: ID!, input: SheetInput!): Boolean!
   updateSheetCategory(id: ID!, input: LabelColorPatch!): SheetCategory!
   updateSheetItem(id: ID!, input: SheetItemInput!): Boolean!
@@ -4286,6 +4314,11 @@ type ScheduleType {
 
   """A context in every workspace of the user."""
   sharedContext: Boolean!
+
+  """
+  « Indisponible » in this workspace: nothing is scheduled during the slots of its schedules.
+  """
+  unavailable: Boolean!
 }
 
 input ScheduleTypeInput {
@@ -4304,6 +4337,11 @@ input ScheduleTypeInput {
 
   """Budget context only: « Partagé entre espaces »."""
   sharedContext: Boolean
+
+  """
+  « Indisponible »: nothing is scheduled during the slots of its schedules (they take it).
+  """
+  unavailable: Boolean
 }
 
 """Mail waiting to be sent at its time (or failed)."""
@@ -5352,13 +5390,14 @@ input TaskViewUpdateInput {
 }
 
 """
-Why an open task cannot be done now: its « Ouverture » is after today, its hours or its slot condition leave the moment out, an event keeps its assignees busy.
+Why an open task cannot be done now: its « Ouverture » is after today, its hours or its slot condition leave the moment out, a slot « Indisponible » of the workspace holds it, an event keeps its assignees busy.
 """
 enum TaskWaitReason {
   ASSIGNEE_BUSY
   NOT_OPEN
   OUTSIDE_HOURS
   OUTSIDE_SLOTS
+  UNAVAILABLE
 }
 
 type TimeEntry {
@@ -6041,6 +6080,11 @@ type WorkSchedule {
   Kind of time it plans; none: working hours (or, an éphéméride, no kind).
   """
   typeId: ID
+
+  """
+  « Indisponible » in this workspace: nothing is scheduled during its slots (that of its kind when it has one).
+  """
+  unavailable: Boolean!
 }
 
 input WorkScheduleInput {
@@ -6065,6 +6109,11 @@ input WorkScheduleInput {
   Kind of time it plans; none: working hours (or, an éphéméride, no kind).
   """
   typeId: ID
+
+  """
+  Without kind: « Indisponible », nothing is scheduled during its slots (with one: that of its kind).
+  """
+  unavailable: Boolean
 }
 
 type Workspace {

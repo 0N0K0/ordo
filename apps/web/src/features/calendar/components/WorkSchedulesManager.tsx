@@ -55,6 +55,7 @@ import { useScheduleTypeItems } from '../hooks/use-settings-items';
 import { itemCreator } from '../../../components/settings/create-settings-item';
 import { FormActions } from '../../../components/dialogs/FormActions';
 import { followBounds } from '../../../components/inputs/date-range';
+import { UnavailableSwitch } from './UnavailableSwitch';
 
 interface ScheduleValues extends Record<string, unknown> {
   label: string;
@@ -64,6 +65,8 @@ interface ScheduleValues extends Record<string, unknown> {
   exceptions: ScheduleException[];
   typeId: string | null;
   ephemeris: boolean;
+  /** Without kind: « Indisponible » (with one: that of its kind). */
+  unavailable: boolean;
   /** Reminders of an éphéméride; a créneau has none (those kept from an éphéméride stay). */
   reminders: ReminderFields[];
 }
@@ -82,6 +85,7 @@ const scheduleInputOf = (schedule: WorkSchedule): ScheduleValues => ({
   exceptions: readScheduleExceptions(schedule.exceptions),
   typeId: schedule.typeId ?? null,
   ephemeris: schedule.ephemeris,
+  unavailable: schedule.unavailable,
   reminders: readReminders(schedule.reminders),
 });
 
@@ -102,7 +106,7 @@ const wordsOf = (ephemeris: boolean, perso: boolean) =>
  * New schedules are created by its button; an existing one is saved field by field (the whole schedule
  * each time; occurrences of routines a change makes disappear confirmed first, declined: put back), read only once
  * archived. An éphéméride is the same form, its kinds those of éphémérides, with its reminders; a new one
- * lasts today, the whole day.
+ * lasts today, the whole day. « Indisponible » is set here without kind, on the kind otherwise (shown, read only).
  * @param {{ schedule?: WorkSchedule, ephemeris: boolean, onDone: () => void }} props Component props.
  * @returns {JSX.Element} Form.
  */
@@ -121,8 +125,8 @@ function ScheduleForm({ schedule, ephemeris, onDone }: { schedule?: WorkSchedule
     initialValues: schedule
       ? scheduleInputOf(schedule)
       : ephemeris
-        ? { label: '', startDate: localToday(), endDate: localToday(), cases: [wholeDaysCase()], exceptions: [], typeId: null, ephemeris: true, reminders: [] }
-        : { label: 'Semaine type', startDate: localToday(), endDate: null, cases: [newScheduleCase(localToday())], exceptions: [], typeId: null, ephemeris: false, reminders: [] },
+        ? { label: '', startDate: localToday(), endDate: localToday(), cases: [wholeDaysCase()], exceptions: [], typeId: null, ephemeris: true, unavailable: false, reminders: [] }
+        : { label: 'Semaine type', startDate: localToday(), endDate: null, cases: [newScheduleCase(localToday())], exceptions: [], typeId: null, ephemeris: false, unavailable: false, reminders: [] },
     schema: workScheduleSchema,
   });
   const { form, saving } = useFieldSave(base, {
@@ -133,6 +137,8 @@ function ScheduleForm({ schedule, ephemeris, onDone }: { schedule?: WorkSchedule
     readOnly,
   });
   const values = form.values;
+  // « Indisponible » of a schedule of a kind: that of the kind.
+  const kind = types.find((item) => item.id === values.typeId);
   return (
     <Stack gap="lg">
       <form
@@ -162,6 +168,12 @@ function ScheduleForm({ schedule, ephemeris, onDone }: { schedule?: WorkSchedule
                 {...form.getInputProps('typeId')}
               />
             </Group>
+            <UnavailableSwitch
+              checked={kind ? kind.unavailable : values.unavailable}
+              disabled={Boolean(kind)}
+              description={kind ? `Celui du type « ${kind.label} », réglé sur le type.` : undefined}
+              onChange={(unavailable) => form.setFieldValue('unavailable', unavailable)}
+            />
             <ScheduleRepetition
               error={(form.errors.startDate ?? form.errors.endDate ?? form.errors.cases ?? form.errors.exceptions) as string | undefined}
               value={{ startDate: values.startDate, endDate: values.endDate, cases: values.cases, exceptions: values.exceptions }}

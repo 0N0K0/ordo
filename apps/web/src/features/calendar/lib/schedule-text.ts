@@ -1,6 +1,7 @@
 import { DEFAULT_RECURRENCE, withRuleValues, type ScheduleCase, type ScheduleException, type ScheduleTimes } from '@ordo/shared';
 import { describeCase } from '../../../components/recurrence/describe-recurrence';
 import * as fmt from '../../../lib/format';
+import { plural } from '../../../lib/text';
 
 /**
  * Name of the work schedules, everywhere: « Créneaux de travail » in a pro workspace, « Créneaux » in a personal one.
@@ -12,6 +13,14 @@ export const schedulesTitle = (perso: boolean): string => (perso ? 'Créneaux' :
 
 /** Title of the éphémérides (holidays, birthdays…), apart from the créneaux. */
 export const EPHEMERIDES_TITLE = 'Éphémérides';
+
+/**
+ * Warning of something placed during slots « Indisponible »: « Pendant « Sommeil » (indisponible). »; null when none.
+ * @param {readonly string[]} names Names of the schedules « Indisponible » met (`SlotRules.unavailable`).
+ * @returns {string | null} Warning.
+ */
+export const unavailableWarning = (names: readonly string[]): string | null =>
+  names.length ? `Pendant ${names.map((name) => `« ${name} »`).join(', ')} (${plural(names.length, 'indisponible')}).` : null;
 
 /**
  * Hours of a case in words: "journée entière", "09:00–12:30, 14:00–18:00".

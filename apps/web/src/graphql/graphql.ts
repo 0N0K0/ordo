@@ -928,6 +928,8 @@ export type ScheduleTypeInput = {
   monthDisplay: string;
   /** Budget context only: « Partagé entre espaces ». */
   sharedContext?: boolean | null | undefined;
+  /** « Indisponible »: nothing is scheduled during the slots of its schedules (they take it). */
+  unavailable?: boolean | null | undefined;
 };
 
 export type SendMailInput = {
@@ -1269,12 +1271,13 @@ export type TaskViewUpdateInput = {
   label?: string | null | undefined;
 };
 
-/** Why an open task cannot be done now: its « Ouverture » is after today, its hours or its slot condition leave the moment out, an event keeps its assignees busy. */
+/** Why an open task cannot be done now: its « Ouverture » is after today, its hours or its slot condition leave the moment out, a slot « Indisponible » of the workspace holds it, an event keeps its assignees busy. */
 export type TaskWaitReason =
   | 'ASSIGNEE_BUSY'
   | 'NOT_OPEN'
   | 'OUTSIDE_HOURS'
-  | 'OUTSIDE_SLOTS';
+  | 'OUTSIDE_SLOTS'
+  | 'UNAVAILABLE';
 
 /** At least a project, a task, a routine (the project of the first one by default) or an event. */
 export type TimeEntryInput = {
@@ -1484,6 +1487,8 @@ export type WorkScheduleInput = {
   startDate: string;
   /** Kind of time it plans; none: working hours (or, an éphéméride, no kind). */
   typeId?: string | number | null | undefined;
+  /** Without kind: « Indisponible », nothing is scheduled during its slots (with one: that of its kind). */
+  unavailable?: boolean | null | undefined;
 };
 
 export type WorkspaceInput = {
@@ -2254,12 +2259,12 @@ export type CalendarEventOccurrenceFieldsFragment = { key: string, eventId: stri
 export type WorkSchedulesQueryVariables = Exact<{ [key: string]: never; }>;
 
 
-export type WorkSchedulesQuery = { workSchedules: Array<{ id: string, archived: boolean, label: string, startDate: string, endDate: string | null, typeId: string | null, ephemeris: boolean, cases: unknown, exceptions: unknown, reminders: Array<{ before: number | null, at: string | null, days: number | null, anchor: string, ringtone: string | null }> }>, scheduleTypes: Array<{ id: string, archived: boolean, label: string, color: string, iconUrl: string | null, dayDisplay: string, dayBar: boolean, monthDisplay: string, ephemeris: boolean, budgetContext: boolean, sharedContext: boolean, position: number }>, defaultScheduleKind: { label: string, color: string | null, dayDisplay: string, dayBar: boolean, monthDisplay: string }, birthdayLook: { shown: boolean, color: string | null } };
+export type WorkSchedulesQuery = { workSchedules: Array<{ id: string, archived: boolean, label: string, startDate: string, endDate: string | null, typeId: string | null, ephemeris: boolean, unavailable: boolean, cases: unknown, exceptions: unknown, reminders: Array<{ before: number | null, at: string | null, days: number | null, anchor: string, ringtone: string | null }> }>, scheduleTypes: Array<{ id: string, archived: boolean, label: string, color: string, iconUrl: string | null, dayDisplay: string, dayBar: boolean, monthDisplay: string, ephemeris: boolean, unavailable: boolean, budgetContext: boolean, sharedContext: boolean, position: number }>, defaultScheduleKind: { label: string, color: string | null, dayDisplay: string, dayBar: boolean, monthDisplay: string }, birthdayLook: { shown: boolean, color: string | null } };
 
 export type ForeignScheduleKindsQueryVariables = Exact<{ [key: string]: never; }>;
 
 
-export type ForeignScheduleKindsQuery = { foreignScheduleKinds: Array<{ workspaceId: string, workspaceLabel: string, typeId: string | null, label: string, color: string | null, sourceColor: string | null, dayDisplay: string, dayBar: boolean, monthDisplay: string, customized: boolean, scheduleCount: number, subscribed: boolean, archived: boolean, ephemeris: boolean }> };
+export type ForeignScheduleKindsQuery = { foreignScheduleKinds: Array<{ workspaceId: string, workspaceLabel: string, typeId: string | null, label: string, color: string | null, sourceColor: string | null, dayDisplay: string, dayBar: boolean, monthDisplay: string, customized: boolean, scheduleCount: number, subscribed: boolean, archived: boolean, ephemeris: boolean, unavailable: boolean }> };
 
 export type SubscribedWorkSchedulesQueryVariables = Exact<{ [key: string]: never; }>;
 
@@ -2269,7 +2274,7 @@ export type SubscribedWorkSchedulesQuery = { subscribedWorkSchedules: Array<{ id
 export type OtherWorkspaceSchedulesQueryVariables = Exact<{ [key: string]: never; }>;
 
 
-export type OtherWorkspaceSchedulesQuery = { otherWorkspaceSchedules: Array<{ id: string, archived: boolean, label: string, startDate: string, endDate: string | null, cases: unknown, exceptions: unknown, typeId: string | null, ephemeris: boolean, workspaceId: string, workspaceLabel: string }> };
+export type OtherWorkspaceSchedulesQuery = { otherWorkspaceSchedules: Array<{ id: string, archived: boolean, label: string, startDate: string, endDate: string | null, cases: unknown, exceptions: unknown, typeId: string | null, ephemeris: boolean, unavailable: boolean, workspaceId: string, workspaceLabel: string }> };
 
 export type CreateScheduleTypeMutationVariables = Exact<{
   input: ScheduleTypeInput;
@@ -2281,6 +2286,7 @@ export type CreateScheduleTypeMutation = { createScheduleType: { id: string } };
 export type UpdateScheduleTypeMutationVariables = Exact<{
   id: string | number;
   input: ScheduleTypeInput;
+  confirmLoss?: boolean | null | undefined;
 }>;
 
 
@@ -2324,6 +2330,16 @@ export type SetScheduleSubscriptionLookMutationVariables = Exact<{
 
 
 export type SetScheduleSubscriptionLookMutation = { setScheduleSubscriptionLook: boolean };
+
+export type SetScheduleSubscriptionUnavailableMutationVariables = Exact<{
+  workspaceId: string | number;
+  typeId?: string | number | null | undefined;
+  unavailable: boolean;
+  confirmLoss?: boolean | null | undefined;
+}>;
+
+
+export type SetScheduleSubscriptionUnavailableMutation = { setScheduleSubscriptionUnavailable: boolean };
 
 export type UnsubscribeScheduleKindMutationVariables = Exact<{
   workspaceId: string | number;
@@ -7042,6 +7058,7 @@ export const WorkSchedulesDocument = new TypedDocumentString(`
     endDate
     typeId
     ephemeris
+    unavailable
     cases
     exceptions
     reminders {
@@ -7058,6 +7075,7 @@ export const WorkSchedulesDocument = new TypedDocumentString(`
     dayBar
     monthDisplay
     ephemeris
+    unavailable
     budgetContext
     sharedContext
     position
@@ -7098,6 +7116,7 @@ export const ForeignScheduleKindsDocument = new TypedDocumentString(`
     subscribed
     archived
     ephemeris
+    unavailable
   }
 }
     `) as unknown as TypedDocumentString<ForeignScheduleKindsQuery, ForeignScheduleKindsQueryVariables>;
@@ -7134,6 +7153,7 @@ export const OtherWorkspaceSchedulesDocument = new TypedDocumentString(`
     exceptions
     typeId
     ephemeris
+    unavailable
     workspaceId
     workspaceLabel
   }
@@ -7147,8 +7167,8 @@ export const CreateScheduleTypeDocument = new TypedDocumentString(`
 }
     `) as unknown as TypedDocumentString<CreateScheduleTypeMutation, CreateScheduleTypeMutationVariables>;
 export const UpdateScheduleTypeDocument = new TypedDocumentString(`
-    mutation UpdateScheduleType($id: ID!, $input: ScheduleTypeInput!) {
-  updateScheduleType(id: $id, input: $input) {
+    mutation UpdateScheduleType($id: ID!, $input: ScheduleTypeInput!, $confirmLoss: Boolean) {
+  updateScheduleType(id: $id, input: $input, confirmLoss: $confirmLoss) {
     id
   }
 }
@@ -7186,6 +7206,16 @@ export const SetScheduleSubscriptionLookDocument = new TypedDocumentString(`
   )
 }
     `) as unknown as TypedDocumentString<SetScheduleSubscriptionLookMutation, SetScheduleSubscriptionLookMutationVariables>;
+export const SetScheduleSubscriptionUnavailableDocument = new TypedDocumentString(`
+    mutation SetScheduleSubscriptionUnavailable($workspaceId: ID!, $typeId: ID, $unavailable: Boolean!, $confirmLoss: Boolean) {
+  setScheduleSubscriptionUnavailable(
+    workspaceId: $workspaceId
+    typeId: $typeId
+    unavailable: $unavailable
+    confirmLoss: $confirmLoss
+  )
+}
+    `) as unknown as TypedDocumentString<SetScheduleSubscriptionUnavailableMutation, SetScheduleSubscriptionUnavailableMutationVariables>;
 export const UnsubscribeScheduleKindDocument = new TypedDocumentString(`
     mutation UnsubscribeScheduleKind($workspaceId: ID!, $typeId: ID) {
   unsubscribeScheduleKind(workspaceId: $workspaceId, typeId: $typeId)

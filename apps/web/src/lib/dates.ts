@@ -1,5 +1,5 @@
 // eslint-disable-next-line no-restricted-imports -- lib/dates itself.
-import { CALENDAR_DAY, dayIn, localInstant, PARIS_ZONE } from '@ordo/shared';
+import { CALENDAR_DAY, dayIn, localInstant } from '@ordo/shared';
 
 /**
  * Local date-time of an instant, as ISO text without zone (YYYY-MM-DDTHH:MM:SS.sss).
@@ -17,15 +17,6 @@ function localIso(date: Date): string {
  */
 export function localDay(instant: Date | string): string {
   return dayIn(typeof instant === 'string' ? new Date(instant) : instant);
-}
-
-/**
- * Paris day of an instant, YYYY-MM-DD: the day of what the server computes too (the deferral of a reminder).
- * @param {Date} instant Instant.
- * @returns {string} Day.
- */
-export function parisDay(instant: Date): string {
-  return dayIn(instant, PARIS_ZONE);
 }
 
 /**
