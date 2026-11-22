@@ -1,3 +1,4 @@
+import { linkedDocumentsInputFields } from '../document-fields';
 import { done } from '../errors';
 import { EVENT_SCOPES, readReminders } from '@ordo/shared';
 import { prisma } from '../../db';
@@ -115,6 +116,8 @@ const EventOccurrence = builder.objectRef<events.EventOccurrence>('CalendarEvent
     beneficiaryRelationIds: t.exposeIDList('beneficiaryRelationIds', { description: '« Bénéficiaires »: relations the event is for.' }),
     categoryIds: t.exposeIDList('categoryIds'),
     taskIds: t.exposeIDList('taskIds'),
+    libraryDocumentIds: t.exposeIDList('libraryDocumentIds', { description: 'Documents of the library linked to the event (its whole series).' }),
+    projectResourceIds: t.exposeIDList('projectResourceIds', { description: 'Documents of projects linked to the event (its whole series), of its project tree.' }),
     savedCountdownIds: t.exposeIDList('savedCountdownIds', { description: 'Saved timers launched from the event (its whole series).' }),
     routineLinks: t.field({ type: [EventRoutineLinkRef], description: 'Routines of a day of the occurrence it is about.', resolve: (occurrence) => occurrence.routineLinks }),
     calledOff: t.exposeBoolean('calledOff', { description: 'Cancelled, kept in the calendar.' }),
@@ -321,6 +324,7 @@ const CalendarEventInput = builder.inputType('CalendarEventInput', {
     beneficiaryRelationIds: t.idList({ description: 'Relations the event is for; none: none.' }),
     categoryIds: t.idList({ required: true }),
     taskIds: t.idList({ description: 'Tasks the event is about (none when omitted).' }),
+    ...linkedDocumentsInputFields(t, 'none: none'),
     routineLinks: t.field({ type: [EventRoutineLinkInput], description: 'Routines of a day of the occurrence it is about (its other days kept); none when omitted.' }),
   }),
 });
@@ -348,6 +352,8 @@ const eventInput = (input: typeof CalendarEventInput.$inferInput) => ({
   relationIds: input.relationIds ?? [],
   beneficiaryIds: input.beneficiaryIds ?? [],
   beneficiaryRelationIds: input.beneficiaryRelationIds ?? [],
+  libraryDocumentIds: input.libraryDocumentIds ?? [],
+  projectResourceIds: input.projectResourceIds ?? [],
 });
 
 const BirthdayRef = builder.objectRef<birthdays.PersonBirthday>('Birthday').implement({

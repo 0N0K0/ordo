@@ -42,3 +42,9 @@ export const SLOT_DEPENDENT_KEYS: readonly QueryKey[] = [routinesKey, doableTask
  * archived reloads them too (`saveRelation`, its archiving).
  */
 export const birthdaysQueryKey = [...tasksQueryKey, 'birthdays'] as const;
+
+/**
+ * Key of the documents that can be linked to an item (library, project documents): under the accounting key, which the
+ * changes of the project documents refresh.
+ */
+export const documentOptionsKey = [...accountingQueryKey, 'document-options'] as const;

@@ -21,6 +21,7 @@ import { RemovedLinksResult, removedLinks } from '../removed-links';
 import { builder, type InputFields } from '../builder';
 import { labelMutations, labelObject } from '../label-inputs';
 import { relationIds } from '../relation-fields';
+import { linkedDocumentsInputFields } from '../document-fields';
 import { isMember } from '../../services/people/members';
 import { contributorDetails, CONTRIBUTOR_LINK_SELECT } from '../../services/people/contributor-links';
 import { reloaded } from '../reload';
@@ -359,6 +360,8 @@ builder.prismaObject('Task', {
     assigneeIds: t.idList(relationIds('assignees')),
     beneficiaryIds: t.idList(relationIds('beneficiaries', '« Bénéficiaires »: contributors the task is for.')),
     beneficiaryRelationIds: t.idList(relationIds('beneficiaryRelations', '« Bénéficiaires »: relations the task is for.')),
+    libraryDocumentIds: t.idList(relationIds('libraryDocuments', 'Documents of the library linked to it (not inherited).')),
+    projectResourceIds: t.idList(relationIds('projectResources', 'Documents of projects linked to it, of its project tree (not inherited).')),
     blockingIds: t.idList({
       description: 'Tasks this task blocks.',
       select: { blocking: { select: { blockedId: true } } },
@@ -418,6 +421,7 @@ const taskFields = (t: InputFields) => ({
   hours: t.field({ type: 'JSON', description: '« Horaires »: cases of days and hours, as those of a schedule (20 at most, no overlapping hours); null or empty: any time.' }),
   ...locationInputFields(t, 'Null: none (its point too).'),
   links: t.field({ type: [ItemLinkInput], description: '20 at most, http or https; null: none.' }),
+  ...linkedDocumentsInputFields(t, 'omitted: unchanged'),
   reminders: t.field({ type: [ReminderInput], description: 'Reminders « À HH:MM » only, 10 at most; null: none.' }),
   deadTimes: t.field({ type: [DeadTimeInput], description: '« Temps morts », 20 at most; null: none.' }),
 });

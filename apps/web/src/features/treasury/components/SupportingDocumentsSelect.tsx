@@ -1,11 +1,12 @@
 import { BatchMultiSelect } from '../../../components/inputs/BatchMultiSelect';
-import { supportingKeys, supportingOfKeys, type SupportingDocuments } from '../lib/entry-env';
+import type { LinkedDocumentIds } from '@ordo/shared';
+import { documentIdsOfKeys, documentKeys, type DocumentGroup } from '../../documents/lib/document-keys';
 
 interface SupportingDocumentsSelectProps {
   /** Documents offered, grouped by place. */
-  data: { group: string; items: { value: string; label: string }[] }[];
-  value: SupportingDocuments;
-  onChange: (documents: SupportingDocuments) => void;
+  data: DocumentGroup[];
+  value: LinkedDocumentIds;
+  onChange: (documents: LinkedDocumentIds) => void;
   error?: string;
 }
 
@@ -15,7 +16,7 @@ interface SupportingDocumentsSelectProps {
  * @returns {JSX.Element} Select.
  */
 export function SupportingDocumentsSelect({ data, value, onChange, error }: SupportingDocumentsSelectProps) {
-  const keys = supportingKeys(value);
+  const keys = documentKeys(value);
   return (
     <BatchMultiSelect
       label="Pièces justificatives"
@@ -26,7 +27,7 @@ export function SupportingDocumentsSelect({ data, value, onChange, error }: Supp
       nothingFoundMessage="Aucun document"
       data={data}
       value={keys}
-      onChange={(chosen) => onChange(supportingOfKeys(chosen))}
+      onChange={(chosen) => onChange(documentIdsOfKeys(chosen))}
       error={error}
     />
   );

@@ -1,21 +1,19 @@
 import { IconAction } from '../../../components/actions/IconAction';
-import { Badge, Group, Popover, Stack, Text, Tooltip } from '@mantine/core';
-import type { Recurrence } from '@ordo/shared';
-import { LinkIcon, PencilSimpleIcon, ReceiptIcon } from '@phosphor-icons/react';
-import { FileBadge } from '../../../components/items/FileBadge';
+import { Badge, Group, Popover, Stack, Text } from '@mantine/core';
+import type { LinkedDocumentIds, Recurrence } from '@ordo/shared';
+import { LinkIcon, ReceiptIcon } from '@phosphor-icons/react';
 import { ellipsis } from '../../../lib/text';
 import { useState } from 'react';
 import { Link } from 'react-router';
 import { EditableSelect } from '../../../components/data-table/cells/EditableCells';
 import { StackedValues } from '../../../components/data-table/cells/StackedValues';
-import { BatchMultiSelect } from '../../../components/inputs/BatchMultiSelect';
 import { RuleField } from '../../../components/recurrence/RuleField';
 import { treeSelectProps } from '../../../components/tree/tree-select';
 import * as fmt from '../../../lib/format';
-import { handleFileClick } from '../../files/lib/open-file';
 import { EntryLinkSelect, LinkBadge } from './entry-links';
 import { linkKey, type LineLink } from '../lib/lines';
-import { documentKey, payerKey, payerOfKey, supportingOfKeys, type AnyEntry, type EntryDocument, type EntryEnv, type EntrySave } from '../lib/entry-env';
+import { payerKey, payerOfKey, type AnyEntry, type EntryDocument, type EntryEnv, type EntrySave } from '../lib/entry-env';
+import { DocumentsPicker } from '../../documents/components/DocumentsPicker';
 import { FoldHeading } from '../../../components/actions/FoldHeading';
 import { documentPath } from '../../../app/pages';
 
@@ -38,63 +36,12 @@ export function ProjectCell({ value, env, label, onSave }: { value: string | nul
 }
 
 /**
- * Supporting documents of an entry or a line: their badges (opened in a click) and a button choosing them.
- * @param {{ documents: EntryDocument[], env: EntryEnv, label: string, onSave: (ids: { libraryDocumentIds: string[], projectResourceIds: string[] }) => void }} props Component props.
+ * Supporting documents of an entry or a line: the shared documents picker, among the documents of the app.
+ * @param {{ documents: EntryDocument[], env: EntryEnv, label: string, onSave: (ids: LinkedDocumentIds) => void }} props Component props.
  * @returns {JSX.Element} Cell.
  */
-export function DocumentsCell({
-  documents,
-  env,
-  label,
-  onSave,
-}: {
-  documents: EntryDocument[];
-  env: EntryEnv;
-  label: string;
-  onSave: (ids: { libraryDocumentIds: string[]; projectResourceIds: string[] }) => void;
-}) {
-  const [opened, setOpened] = useState(false);
-  // The documents chosen stay offered (archived, moved…).
-  const data = [...env.documents];
-  const known = new Set(data.flatMap((group) => group.items.map((item) => item.value)));
-  const missing = documents.filter((document) => !known.has(documentKey(document)));
-  if (missing.length) data.push({ group: 'Choisis', items: missing.map((document) => ({ value: documentKey(document), label: document.label })) });
-  return (
-    <Group gap={4} wrap="nowrap" align="flex-start">
-      <StackedValues>
-        {documents.map((document) => (
-          <Tooltip key={documentKey(document)} label={document.source === 'LIBRARY' ? `Bibliothèque · ${document.place}` : `Projet ${document.place}`}>
-            <FileBadge
-              filename={document.label}
-              href={document.url}
-              external
-              // A file of the app (PDF, image) opens in its viewer.
-              onClick={(event) => document.kind === 'FILE' && handleFileClick(event, { url: document.url, filename: document.label })}
-            />
-          </Tooltip>
-        ))}
-      </StackedValues>
-      <Popover opened={opened} onChange={setOpened} position="bottom-start" withinPortal shadow="md" width={360} trapFocus>
-        <Popover.Target>
-          <IconAction label="Choisir les pièces justificatives" size="sm" aria-label={label} onClick={() => setOpened((value) => !value)}>
-            <PencilSimpleIcon aria-hidden />
-          </IconAction>
-        </Popover.Target>
-        <Popover.Dropdown>
-          <BatchMultiSelect
-            aria-label={label}
-            searchable
-            clearable
-            nothingFoundMessage="Aucun document"
-            data={data}
-            value={documents.map(documentKey)}
-            comboboxProps={{ withinPortal: false }}
-            onChange={(keys) => onSave(supportingOfKeys(keys))}
-          />
-        </Popover.Dropdown>
-      </Popover>
-    </Group>
-  );
+export function DocumentsCell({ documents, env, label, onSave }: { documents: EntryDocument[]; env: EntryEnv; label: string; onSave: (ids: LinkedDocumentIds) => void }) {
+  return <DocumentsPicker documents={documents} options={env.documents} label={label} action="Choisir les pièces justificatives" onSave={onSave} />;
 }
 
 /**

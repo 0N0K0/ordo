@@ -148,7 +148,7 @@ Règles de tout changement du web, en plus de `CLAUDE.md` ; les briques communes
 ### Dossiers
 
 - `src/app/` : démarrage, routes, registre des pages, thème, mise en page (ce document).
-- `src/features/<feature>/` : code d'une fonctionnalité, en `api/` (requêtes et mutations), `pages/`, `components/`, `hooks/`, `lib/` (fonctions pures). Features : `account`, `accounting`, `alarms`, `auth`, `beneficiaries`, `calendar`, `comments`, `dashboards`, `files`, `geo`, `github`, `home`, `library`, `mail`, `projects`, `routines`, `sheets`, `shopping`, `stock`, `tasks`, `time`, `treasury`, `workspaces`. Voir `docs/web/features/`.
+- `src/features/<feature>/` : code d'une fonctionnalité, en `api/` (requêtes et mutations), `pages/`, `components/`, `hooks/`, `lib/` (fonctions pures). Features : `account`, `accounting`, `alarms`, `auth`, `beneficiaries`, `calendar`, `comments`, `dashboards`, `documents`, `files`, `geo`, `github`, `home`, `library`, `mail`, `projects`, `routines`, `sheets`, `shopping`, `stock`, `tasks`, `time`, `treasury`, `workspaces`. Voir `docs/web/features/`.
 - `src/components/<domaine>/` : briques communes par domaine : `actions`, `address` (vide), `comments`, `data-table` (en sous-dossiers `cells`, `selection`, `table`, `toolbar`, `views`), `dialogs`, `dnd`, `feedback`, `filters`, `inheritance`, `inputs`, `items`, `markdown`, `money`, `page`, `panels`, `people`, `recurrence`, `settings`, `tabs`, `tree`. Voir `docs/web/components/`.
 - `src/lib/` : fonctions et hooks transverses (voir [lib](lib.md)).
 - `src/styles/` : styles globaux ; `src/graphql/` : code généré (codegen), ignoré par eslint.

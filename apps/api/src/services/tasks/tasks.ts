@@ -1,4 +1,4 @@
-import { changedList, copyName, marksInherited, dateSchema, TASK_INHERITABLE_FIELDS, type EffectiveTask, type TaskInheritableField, deadTimesSchema, readDeadTimes, storedDeadTimes, effortSchema, groupBy, itemLinksSchema, normalizedReminders, readReminders, taskRemindersSchema, locationPointFields, markdownSchema, optionalText, parseOptionalDay, reaches, readSlotCondition, slotConditionSchema, readTaskHours, taskHoursSchema, statusClosing, type TaskInput as SharedTaskInput, taskFieldsGiven, taskLabelSchema } from '@ordo/shared';
+import { changedList, copyName, sumOf, marksInherited, dateSchema, TASK_INHERITABLE_FIELDS, type EffectiveTask, type TaskInheritableField, deadTimesSchema, readDeadTimes, storedDeadTimes, effortSchema, groupBy, itemLinksSchema, normalizedReminders, readReminders, taskRemindersSchema, locationPointFields, markdownSchema, optionalText, parseOptionalDay, reaches, readSlotCondition, slotConditionSchema, readTaskHours, taskHoursSchema, statusClosing, type TaskInput as SharedTaskInput, taskFieldsGiven, taskLabelSchema } from '@ordo/shared';
 import { z } from 'zod';
 import { prisma } from '../../db';
 import { assertBeneficiaries } from '../core/beneficiaries';
@@ -14,6 +14,7 @@ import { deleteTreeItems, subtreeIds, topmostIds } from '../core/trees';
 import { assertDateRange } from '../core/date-range';
 import { connectIds, orderedPair } from '../core/relations';
 import { inProjectTree, loadProjectRootOf as loadRootOf, outsideMovedTree } from '../projects/project-tree';
+import { checkLinkedDocuments, outOfTree } from '../projects/linked-documents';
 import { commentBody } from '../core/comments';
 import { toJson } from '../core/json';
 import { readLinks } from '../core/links';
@@ -342,6 +343,7 @@ export const createTask = automated(async function createTask(given: TaskInput &
   if (input.milestoneId) await assertMilestone(input.milestoneId, projectId);
   if (input.sprintIds) await assertSprints(input.sprintIds, projectId);
   await assertProjectContributors(projectId, input.assigneeIds ?? [], [], 'assigneeIds');
+  const projectResourceIds = await checkLinkedDocuments(input, { projectId });
 
   const task = await prisma.task.create({
     data: {
@@ -360,6 +362,8 @@ export const createTask = automated(async function createTask(given: TaskInput &
       beneficiaries: { connect: connectIds(input.beneficiaryIds ?? []) },
       beneficiaryRelations: { connect: connectIds(input.beneficiaryRelationIds ?? []) },
       tags: { connect: connectIds(input.tagIds ?? []) },
+      libraryDocuments: { connect: connectIds(input.libraryDocumentIds ?? []) },
+      projectResources: { connect: connectIds(projectResourceIds ?? []) },
     },
   });
   // Created with a status « Annulé »: closed.
@@ -388,7 +392,7 @@ export const updateTask = automated(async function updateTask(id: string, input:
   await assertReferences(input);
   const links = await prisma.task.findUnique({
     where: { id },
-    select: { sprints: { select: { id: true } }, assignees: { select: { id: true } }, beneficiaries: { select: { id: true } }, tags: { select: { id: true } } },
+    select: { sprints: { select: { id: true } }, assignees: { select: { id: true } }, beneficiaries: { select: { id: true } }, tags: { select: { id: true } }, projectResources: { select: { id: true } } },
   });
   const idsOf = (items: { id: string }[] | undefined) => (items ?? []).map((item) => item.id);
   await assertActiveRefs(input, {
@@ -403,6 +407,8 @@ export const updateTask = automated(async function updateTask(id: string, input:
   if (input.sprintIds) await assertSprints(input.sprintIds, task.projectId);
   const previous = input.assigneeIds ? (await prisma.contributor.findMany({ where: { tasks: { some: { id } } }, select: { id: true } })).map((item) => item.id) : [];
   if (input.assigneeIds) await assertProjectContributors(task.projectId, input.assigneeIds, previous, 'assigneeIds');
+  // Its project changes only by a transfer (`moveTaskTrees`): those it has out of its tree stay until then.
+  const projectResourceIds = await checkLinkedDocuments(input, { projectId: task.projectId, previous: idsOf(links?.projectResources) });
 
   const updated = await prisma.task.update({
     where: { id },
@@ -418,6 +424,8 @@ export const updateTask = automated(async function updateTask(id: string, input:
       ...(input.beneficiaryIds && { beneficiaries: { set: connectIds(input.beneficiaryIds) } }),
       ...(input.beneficiaryRelationIds && { beneficiaryRelations: { set: connectIds(input.beneficiaryRelationIds) } }),
       ...(input.tagIds && { tags: { set: connectIds(input.tagIds) } }),
+      ...(input.libraryDocumentIds && { libraryDocuments: { set: connectIds(input.libraryDocumentIds) } }),
+      ...(projectResourceIds && { projectResources: { set: connectIds(projectResourceIds) } }),
       // Emptied on purpose (« Vider »), whatever else is given.
       ...clearedTaskData(input.clear),
       inheritedFields,
@@ -495,6 +503,14 @@ async function moveTaskTrees(rootIds: string[], projectId: string | null, withSu
   const losingSprints = sprintTasks
     .map((item) => ({ id: item.id, sprints: item.sprints.filter((sprint) => rootOf(sprint.projectId) !== targetRoot).map((sprint) => ({ id: sprint.id })) }))
     .filter((item) => item.sprints.length > 0);
+  // Same for the documents of projects: each task leaves those of another tree.
+  const resourceTasks = await prisma.task.findMany({
+    where: { id: { in: moved }, projectResources: { some: {} } },
+    select: { id: true, projectResources: { select: { id: true, projectId: true } } },
+  });
+  const losingResources = resourceTasks
+    .map((item) => ({ id: item.id, resources: outOfTree(rootOf, projectId, item.projectResources).map((id) => ({ id })) }))
+    .filter((item) => item.resources.length > 0);
 
   // Out of any project: their GitHub items go (the link is through the project).
   if (!projectId) await forgetGithubItems(moved);
@@ -520,6 +536,7 @@ async function moveTaskTrees(rootIds: string[], projectId: string | null, withSu
     prisma.task.updateMany({ where: { id: { in: parentOutside } }, data: { parentId: null } }),
     prisma.task.updateMany({ where: { id: { in: losingMilestone } }, data: { milestoneId: null } }),
     ...losingSprints.map((item) => prisma.task.update({ where: { id: item.id }, data: { sprints: { disconnect: item.sprints } } })),
+    ...losingResources.map((item) => prisma.task.update({ where: { id: item.id }, data: { projectResources: { disconnect: item.resources } } })),
   ]);
   // The assignees follow their tasks into the target project.
   const assignees = await prisma.contributor.findMany({ where: { tasks: { some: { id: { in: moved } } } }, select: { id: true } });
@@ -529,7 +546,7 @@ async function moveTaskTrees(rootIds: string[], projectId: string | null, withSu
     const { inheritedFields } = await prisma.task.findUniqueOrThrow({ where: { id: task.id }, select: { inheritedFields: true } });
     await prisma.task.update({ where: { id: task.id }, data: { inheritedFields: inheritedFields.filter((field) => field !== 'PROJECT') } });
   }
-  return blocks.count + relations.count + parentOutside.length + losingMilestone.length + losingSprints.length;
+  return blocks.count + relations.count + parentOutside.length + losingMilestone.length + losingSprints.length + sumOf(losingResources, (item) => item.resources.length);
 }
 
 /**
@@ -552,6 +569,8 @@ const CLONED_LINKS = {
   tags: { select: { id: true } },
   sprints: { select: { id: true } },
   savedCountdowns: { select: { id: true } },
+  libraryDocuments: { select: { id: true } },
+  projectResources: { select: { id: true, projectId: true } },
 } as const;
 
 /**
@@ -574,7 +593,8 @@ export const duplicateTask = automated(async function duplicateTask(id: string, 
   refuseArchived(source);
   const linked = [...source.blocking.map((link) => link.blockedId), ...source.blockedBy.map((link) => link.blockerId), ...source.relationsA.map((link) => link.taskBId), ...source.relationsB.map((link) => link.taskAId)];
   const projectOf = new Map((await prisma.task.findMany({ where: { id: { in: linked } }, select: { id: true, projectId: true } })).map((task) => [task.id, task.projectId]));
-  const inTree = inProjectTree(await loadRootOf(), source.projectId, projectOf);
+  const rootOf = await loadRootOf();
+  const inTree = inProjectTree(rootOf, source.projectId, projectOf);
   // A copy with a status « Annulé » is closed, as any task given one.
   const cancelled = new Set((await prisma.taskStatus.findMany({ where: { category: 'CANCELLED' }, select: { id: true } })).map((status) => status.id));
 
@@ -598,6 +618,8 @@ export const duplicateTask = automated(async function duplicateTask(id: string, 
           tags: { select: { id: true } };
           sprints: { select: { id: true } };
           savedCountdowns: { select: { id: true } };
+          libraryDocuments: { select: { id: true } };
+          projectResources: { select: { id: true; projectId: true } };
         };
       }>,
       parentId: string | null,
@@ -635,6 +657,9 @@ export const duplicateTask = automated(async function duplicateTask(id: string, 
           beneficiaryRelations: { connect: task.beneficiaryRelations },
           tags: { connect: task.tags },
           savedCountdowns: { connect: task.savedCountdowns },
+          libraryDocuments: { connect: task.libraryDocuments },
+          // Those out of its project tree (kept until it moves) are not copied.
+          projectResources: { connect: task.projectResources.filter((resource) => !outOfTree(rootOf, task.projectId, [resource]).length).map(({ id }) => ({ id })) },
         },
       });
 

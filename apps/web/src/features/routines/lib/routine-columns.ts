@@ -13,6 +13,7 @@ import { booleanColumn } from '../../../components/data-table/table/boolean-colu
 import { DOABLE_GROUP_LABELS } from '../../tasks/lib/task-columns';
 import { itemChoices } from '../../../components/items/item-look';
 import type { TaskLabel } from '../../tasks/api';
+import { documentsColumn } from '../../documents/lib/documents-column';
 
 /**
  * Short date of a calendar date: "lun. 10 nov.".
@@ -299,6 +300,7 @@ export function routineColumns(env: RoutineEnv): DataColumn<Routine>[] {
       filter: { kind: 'choice', value: (routine) => routine.projectId ?? null, options: context.projectOptions(context.projects) },
     },
     { id: 'description', label: 'Description', size: 240, hiddenByDefault: true, groupable: false, text: (routine) => routine.description ?? '' },
+    documentsColumn<Routine>((routine) => routine),
     booleanColumn<Routine>({ id: 'done', label: 'Faite', size: 90, hiddenByDefault: true, groupLabels: { yes: 'Faites', no: 'À faire' }, value: isDone }),
     booleanColumn<Routine>({ id: 'waiting', label: 'En attente', size: 100, hiddenByDefault: true, groupLabels: { yes: 'En attente', no: 'Libre' }, icons: WARNING_YES_ICONS, value: (routine) => waitingFor(routine, byId).length > 0 }),
     booleanColumn<Routine>({ id: 'doableNow', label: 'Faisable maintenant', size: 140, hiddenByDefault: true, groupLabels: DOABLE_GROUP_LABELS, value: env.doable }),

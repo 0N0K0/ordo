@@ -22,7 +22,7 @@ Voir aussi : [Règles : tâches](../../business-rules/activities/tasks.md), [Rè
 | `sprintLabelSchema`                               | Libellé de sprint : requis, 250 max.                                                                                                                                                            |
 | `sprintSchema(goal)`                              | Sprint : `label`, `startDate` (« La date de début est requise. »), `endDate` (« La date de fin est requise. »), fin après début, `goal` (texte simple dans le formulaire, markdown pour l'API). |
 | `sprintFormSchema` / `SprintFormValues`           | `sprintSchema(z.string())`.                                                                                                                                                                     |
-| `TaskInput`                                       | Champs envoyés pour créer ou modifier une tâche : `undefined` laisse inchangé, `null` efface (le lieu avec son point, les liens : `null` n'en laisse aucun) ; héritage : `inheritedFields` (création), `inherit` / `clear` (modification).                                                                                                   |
+| `TaskInput`                                       | Champs envoyés pour créer ou modifier une tâche : `undefined` laisse inchangé, `null` efface (le lieu avec son point, les liens : `null` n'en laisse aucun) ; documents `libraryDocumentIds`, `projectResourceIds` (voir [core](../cross-cutting/core.md#documentsts--documents-liés-à-un-élément)) ; héritage : `inheritedFields` (création), `inherit` / `clear` (modification).                                                                                                   |
 
 Champs de `taskFormSchema` :
 

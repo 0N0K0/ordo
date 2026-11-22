@@ -102,6 +102,8 @@ const RoutinesDataDocument = graphql(`
       assigneeIds
       beneficiaryIds
       beneficiaryRelationIds
+      libraryDocumentIds
+      projectResourceIds
       requiredIds
       relatedIds
       currentDate
@@ -448,6 +450,8 @@ function draftRoutine(input: RoutineInput, routines: readonly Routine[]): Routin
     assigneeIds: input.assigneeIds ?? [],
     beneficiaryIds: input.beneficiaryIds ?? [],
     beneficiaryRelationIds: input.beneficiaryRelationIds ?? [],
+    libraryDocumentIds: input.libraryDocumentIds ?? [],
+    projectResourceIds: input.projectResourceIds ?? [],
     requiredIds: input.requiredIds ?? [],
     relatedIds: input.relatedIds ?? [],
     currentDate: null,
@@ -628,6 +632,8 @@ export function routineInputOf(routine: Routine): RoutineInput {
     assigneeIds: routine.assigneeIds,
     beneficiaryIds: routine.beneficiaryIds,
     beneficiaryRelationIds: routine.beneficiaryRelationIds,
+    libraryDocumentIds: routine.libraryDocumentIds,
+    projectResourceIds: routine.projectResourceIds,
     requiredIds: routine.requiredIds,
     relatedIds: routine.relatedIds,
     opensOn: routine.opensOn as RoutineInput['opensOn'],

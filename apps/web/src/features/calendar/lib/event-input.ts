@@ -53,6 +53,8 @@ export function occurrenceInput(occurrence: EventOccurrence): CalendarEventInput
     beneficiaryRelationIds: occurrence.beneficiaryRelationIds,
     categoryIds: occurrence.categoryIds,
     taskIds: occurrence.taskIds,
+    libraryDocumentIds: occurrence.libraryDocumentIds,
+    projectResourceIds: occurrence.projectResourceIds,
     routineLinks: occurrence.routineLinks.map(({ routineId, date }) => ({ routineId, date })),
   };
 }

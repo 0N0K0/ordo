@@ -147,6 +147,8 @@ graphql(`
     assigneeIds
     beneficiaryIds
     beneficiaryRelationIds
+    libraryDocumentIds
+    projectResourceIds
     tagIds
     blockingIds
     blockedByIds

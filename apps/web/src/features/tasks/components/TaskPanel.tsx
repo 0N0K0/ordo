@@ -22,9 +22,10 @@ import { SheetsSection } from '../../sheets/components/SheetsSection';
 import { TrackedTime } from '../../time/components/TrackedTime';
 import { DetailLayout, PanelGroup } from '../../../components/panels/DetailLayout';
 import { PANEL_GROUPS } from '../../../components/panels/panel-groups';
+import { DocumentsField } from '../../documents/components/DocumentsField';
 import { ActionsMenu } from '../../../components/actions/ActionsMenu';
 import { TaskComments } from './TaskComments';
-import { inProjectTree, linkableTasks } from '../lib/task-links';
+import { hasTreeLinks, inProjectTree, linkableTasks } from '../lib/task-links';
 import { AssigneesSelect, LabelSelect, ProjectSelect, TagsSelect, TaskRef, TaskSelect, TaskStateIcon } from './task-ui';
 import { useTaskActions } from '../hooks/use-task-actions';
 
@@ -117,7 +118,7 @@ interface TaskDetailProps {
  * tâche » / « Rouvrir » and « … » menu, then its project and mentions; on the left its description, « Relations »
  * (parent, sub-tasks, « Dépend de », « Bloque », « Relative à ») and its comments; on the right « Classement »,
  * « Parties prenantes », « Charge », « Périodes », « Alarmes » (reminders, saved timers), its place and « Ressources »
- * (links, shopping lists, sheets). Each field saved as soon as it changes (its label and effort on leaving them). An
+ * (links, documents, shopping lists, sheets). Each field saved as soon as it changes (its label and effort on leaving them). An
  * archived task is read only (its fields disabled; « Restaurer » in its menu).
  * @param {TaskDetailProps} props Component props.
  * @returns {JSX.Element} Detail.
@@ -191,15 +192,14 @@ function TaskDetail({ task, context }: TaskDetailProps) {
           ({ removedLinks }: { removedLinks: number }) => `Tâche déplacée ${projectId ? `dans « ${context.projectLabel(projectId)} »` : 'hors de tout projet'}.${removedLinksNote(removedLinks)}`,
         ),
       );
-    const linked =
-      task.parentId !== null || task.blockingIds.length + task.blockedByIds.length + task.relatedIds.length > 0 || task.milestoneId !== null || task.sprintIds.length > 0 || subtasks.length > 0;
+    const linked = hasTreeLinks(task) || subtasks.length > 0;
     if (inProjectTree(context, projectId)(task.projectId) || !linked) return transfer();
     confirmDestructive({
       title: 'Changer de projet',
       risks: (
         <>
           La tâche{subtasks.length ? ' et ses sous-tâches' : ''} {projectId ? `passent dans « ${context.projectLabel(projectId)} »` : 'sortent de tout projet'}, une autre arborescence : la tâche
-          parente, les blocages et les relations avec des tâches restées dans l’arborescence actuelle, le jalon et les sprints seront retirés.
+          parente, les blocages et les relations avec des tâches restées dans l’arborescence actuelle, le jalon, les sprints et les documents de projet de l’arborescence actuelle seront retirés.
           {projectId ? ' Elle prend le numéro suivant du projet.' : ' Elle perd son numéro et son lien GitHub.'}
         </>
       ),
@@ -414,6 +414,13 @@ function TaskDetail({ task, context }: TaskDetailProps) {
             </PanelGroup>
             <PanelGroup title={PANEL_GROUPS.resources}>
               <TaskLinks task={task} locked={locked} save={saveNow} />
+              <DocumentsField
+                value={{ libraryDocumentIds: task.libraryDocumentIds, projectResourceIds: task.projectResourceIds }}
+                projectId={task.projectId}
+                inTree={inProjectTree(context, task.projectId)}
+                readOnly={locked}
+                onChange={(documents) => save(documents)}
+              />
               <TaskShopping task={task} />
               <SheetsSection owner={{ taskId: task.id }} label={task.label} />
             </PanelGroup>

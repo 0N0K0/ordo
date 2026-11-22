@@ -90,4 +90,4 @@ Menu de la ligne du dossier :
 
 ## Ailleurs dans l’app
 
-Les documents de la bibliothèque peuvent servir de pièces justificatives aux écritures et lignes de trésorerie (« Pièces justificatives ») ; voir [Trésorerie](../finances/treasury.md). Ils portent des commentaires ([Commentaires](../cross-cutting/comments.md)).
+Les documents de la bibliothèque peuvent servir de pièces justificatives aux écritures et lignes de trésorerie (« Pièces justificatives ») ; voir [Trésorerie](../finances/treasury.md). Ils se lient aussi aux tâches, routines et évènements (« Documents », dans le groupe « Ressources » de leur panneau) ; voir [Documents liés](../../business-rules/cross-cutting/files-and-attachments.md#documents-liés-aux-tâches-routines-et-évènements). Ils portent des commentaires ([Commentaires](../cross-cutting/comments.md)).

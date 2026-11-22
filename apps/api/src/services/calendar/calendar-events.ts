@@ -37,6 +37,8 @@ import { assertProjectContributors, followProject } from '../projects/contributo
 import { assertAllExist, findOrNotFound } from '../core/lookup';
 import { assertActive, assertNotArchived, activeIds, archivedOn, refuseArchived } from '../core/archive';
 import { connectIds } from '../core/relations';
+import { checkLinkedDocuments, LINKED_DOCUMENTS_SELECT, linkedDocumentIds } from '../projects/linked-documents';
+import { loadProjectRootOf } from '../projects/project-tree';
 import { releaseSubjectTime, type GoneOccurrences } from '../tasks/time-entries';
 import { toJson } from '../core/json';
 import { remapOccurrenceRows, settleLostOccurrences } from '../core/occurrence-rows';
@@ -91,6 +93,9 @@ export interface EventOccurrence {
   categoryIds: string[];
   /** Tasks the event is about. */
   taskIds: string[];
+  /** Documents linked to the event (its whole series): of the library, and of its project tree. */
+  libraryDocumentIds: string[];
+  projectResourceIds: string[];
   /** Saved timers launched from the event (its whole series). */
   savedCountdownIds: string[];
   /** Routines of a day of the occurrence it is about (their occurrence of that day is done during it). */
@@ -114,6 +119,8 @@ export type EventWithRelations = CalendarEvent & {
   beneficiaryRelations: { id: string }[];
   categories: { id: string }[];
   tasks: { id: string }[];
+  libraryDocuments: { id: string }[];
+  projectResources: { id: string }[];
   savedCountdowns: { id: string }[];
   routineLinks: { routineId: string; date: Date }[];
   postponedFrom: { label: string } | null;
@@ -134,6 +141,7 @@ export const occurrenceInclude = {
   categories: { select: { id: true } },
   savedCountdowns: { select: { id: true } },
   tasks: { select: { id: true } },
+  ...LINKED_DOCUMENTS_SELECT,
   routineLinks: { select: { routineId: true, date: true } },
   postponedFrom: { select: { label: true } },
   postponements: { select: { id: true, label: true, startDate: true, startTime: true, postponedFromDate: true } },
@@ -223,9 +231,9 @@ async function saveRoutineLinks(formerId: string | null, eventId: string, fields
  * Contributors, categories, beneficiaries and relations of an event (they may stay when its project changes, or once
  * archived).
  * @param {string} id Event.
- * @returns {Promise<[string[], string[], string[], string[]]>} Contributor ids, category ids, beneficiary ids and relation ids (beneficiaries or linked).
+ * @returns {Promise<[string[], string[], string[], string[], string[], string[]]>} Contributor ids, category ids, beneficiary ids, relation ids (beneficiaries or linked), its project and its documents of projects.
  */
-async function eventKept(id: string): Promise<[string[], string[], string[], string[], string[]]> {
+async function eventKept(id: string): Promise<[string[], string[], string[], string[], string[], string[]]> {
   const event = await prisma.calendarEvent.findUnique({
     where: { id },
     select: {
@@ -235,10 +243,18 @@ async function eventKept(id: string): Promise<[string[], string[], string[], str
       beneficiaries: { select: { id: true } },
       beneficiaryRelations: { select: { id: true } },
       relations: { select: { id: true } },
+      projectResources: { select: { id: true } },
     },
   });
   const ids = (items: { id: string }[] | undefined) => (items ?? []).map((item) => item.id);
-  return [ids(event?.contributors), ids(event?.categories), ids(event?.beneficiaries), [...ids(event?.beneficiaryRelations), ...ids(event?.relations)], event?.projectId ? [event.projectId] : []];
+  return [
+    ids(event?.contributors),
+    ids(event?.categories),
+    ids(event?.beneficiaries),
+    [...ids(event?.beneficiaryRelations), ...ids(event?.relations)],
+    event?.projectId ? [event.projectId] : [],
+    ids(event?.projectResources),
+  ];
 }
 
 /**
@@ -261,11 +277,24 @@ async function assertEventWritable(event: Pick<CalendarEvent, 'archivedAt' | 'ca
  * @param {string[]} [keepBeneficiaries] Beneficiaries (contributors) already on the event. Optional.
  * @param {string[]} [keepRelations] Relations already on the event (beneficiaries or linked). Optional.
  * @param {string[]} [keepProject] Project already of the event (kept even if archived). Optional.
+ * @param {string[]} [keepResources] Documents of projects already linked to the event: those out of its project tree
+ * stay while its tree does not change, and are dropped when it moves to another one. Optional.
  * @returns {Promise<ReturnType<typeof calendarEventInputSchema.parse>>} Validated fields.
  */
-async function parseEvent(input: CalendarEventInput, keep: string[] = [], keepCategories: string[] = [], keepBeneficiaries: string[] = [], keepRelations: string[] = [], keepProject: string[] = []) {
+async function parseEvent(
+  input: CalendarEventInput,
+  keep: string[] = [],
+  keepCategories: string[] = [],
+  keepBeneficiaries: string[] = [],
+  keepRelations: string[] = [],
+  keepProject: string[] = [],
+  keepResources: string[] = [],
+) {
   const event = parseInput(calendarEventInputSchema, input);
   await assertActive(prisma.project, event.projectId, 'Projet', { keep: keepProject, field: 'projectId' });
+  const rootOf = await loadProjectRootOf();
+  event.projectResourceIds =
+    (await checkLinkedDocuments(event, { projectId: event.projectId, previous: keepResources, moved: rootOf(keepProject[0] ?? null) !== rootOf(event.projectId), rootOf })) ?? [];
   await assertAllExist(prisma.contributor, event.contributorIds, 'Contributeur');
   await assertProjectContributors(event.projectId ?? null, event.contributorIds, keep, 'contributorIds');
   await assertBeneficiaries({ contributorIds: event.beneficiaryIds, relationIds: event.beneficiaryRelationIds }, { keep: { contributorIds: keepBeneficiaries, relationIds: keepRelations } });
@@ -317,15 +346,19 @@ function eventRelations(event: Awaited<ReturnType<typeof parseEvent>>, mode: 'co
     beneficiaryRelations: { [mode]: connectIds(event.beneficiaryRelationIds) },
     categories: { [mode]: connectIds(event.categoryIds) },
     tasks: { [mode]: connectIds(event.taskIds) },
+    libraryDocuments: { [mode]: connectIds(event.libraryDocumentIds) },
+    projectResources: { [mode]: connectIds(event.projectResourceIds) },
   };
 }
 
 /**
  * Ids of the relations of a loaded event, as its input gives them.
  * @param {EventWithRelations} event Event.
- * @returns {Record<string, string[]>} Ids of its contributors, relations, beneficiaries, categories and tasks.
+ * @returns {Record<string, string[]>} Ids of its contributors, relations, beneficiaries, categories, tasks and documents.
  */
-function relationIdsOf(event: EventWithRelations): Record<'contributorIds' | 'relationIds' | 'beneficiaryIds' | 'beneficiaryRelationIds' | 'categoryIds' | 'taskIds', string[]> {
+function relationIdsOf(
+  event: EventWithRelations,
+): Record<'contributorIds' | 'relationIds' | 'beneficiaryIds' | 'beneficiaryRelationIds' | 'categoryIds' | 'taskIds' | 'libraryDocumentIds' | 'projectResourceIds', string[]> {
   return {
     contributorIds: event.contributors.map((contributor) => contributor.id),
     relationIds: event.relations.map((relation) => relation.id),
@@ -333,6 +366,7 @@ function relationIdsOf(event: EventWithRelations): Record<'contributorIds' | 're
     beneficiaryRelationIds: event.beneficiaryRelations.map((relation) => relation.id),
     categoryIds: event.categories.map((category) => category.id),
     taskIds: event.tasks.map((task) => task.id),
+    ...linkedDocumentIds(event),
   };
 }
 
@@ -441,10 +475,23 @@ export async function updateCalendarEvent(id: string, input: CalendarEventInput,
 }
 
 /** Fields of a recurring event that are those of its whole series: one occurrence alone (`THIS`) does not change them. */
-const SERIES_FIELDS = ['recurrence', 'reminders', 'projectId', 'calendarId', 'contributorIds', 'relationIds', 'beneficiaryIds', 'beneficiaryRelationIds', 'categoryIds', 'taskIds'] as const;
+const SERIES_FIELDS = [
+  'recurrence',
+  'reminders',
+  'projectId',
+  'calendarId',
+  'contributorIds',
+  'relationIds',
+  'beneficiaryIds',
+  'beneficiaryRelationIds',
+  'categoryIds',
+  'taskIds',
+  'libraryDocumentIds',
+  'projectResourceIds',
+] as const;
 
 /** Fields of the series given as lists of ids: compared whatever their order. */
-const SERIES_ID_LISTS = new Set<string>(['contributorIds', 'relationIds', 'beneficiaryIds', 'beneficiaryRelationIds', 'categoryIds', 'taskIds']);
+const SERIES_ID_LISTS = new Set<string>(['contributorIds', 'relationIds', 'beneficiaryIds', 'beneficiaryRelationIds', 'categoryIds', 'taskIds', 'libraryDocumentIds', 'projectResourceIds']);
 
 /** Message of the error refusing a field of the series changed for one occurrence alone. */
 const SERIES_FIELD_MESSAGE = 'Ce champ vaut pour toute la série : modifiez « Celle-ci et les suivantes » ou « Toutes les occurrences ».';

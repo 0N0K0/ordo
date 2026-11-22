@@ -32,6 +32,7 @@ import { localDay } from '../../../lib/dates';
 import { unarchived } from '../../../lib/archive';
 import { isTaskOverdue } from './task-overdue';
 import { taggedKey } from '../../../lib/tagged-key';
+import { documentsColumn } from '../../documents/lib/documents-column';
 
 /** Names of the two sides of « Faisable maintenant » (its groups, the sections of the home card): yes first. */
 export const DOABLE_GROUP_LABELS = { yes: 'Maintenant', no: 'Plus tard' } as const;
@@ -342,6 +343,7 @@ export function taskColumns(context: TaskContext, today: string, extras: TaskCol
       groupable: false,
       text: (row) => (row.kind === 'task' ? (row.task.description ?? '') : (row.event.description ?? '')),
     },
+    documentsColumn<TaskTableRow>((row) => (row.kind === 'task' ? row.task : row.event)),
     flag('closed', 'Fermée', (task) => context.isClosed(task), { yes: 'Fermée', no: 'Ouverte' }),
     flag('overdue', 'En retard', (task) => isTaskOverdue(task, today), LATE_GROUP_LABELS, WARNING_YES_ICONS),
     flag('blocked', 'Bloquée', (task) => context.isBlocked(task), { yes: 'Bloquée', no: 'Libre' }, WARNING_YES_ICONS),

@@ -148,7 +148,7 @@ export function TransferTasksDialog({ tasks, context, onDone }: TasksDialogProps
       />
       {leavesTree && (
         <NoticeAlert kind="warning">
-          Ce projet n’appartient pas à la même arborescence : la tâche parente, les blocages et les relations avec des tâches restées dans l’arborescence actuelle seront retirés.
+          Ce projet n’appartient pas à la même arborescence : la tâche parente, les blocages et les relations avec des tâches restées dans l’arborescence actuelle, ainsi que les documents de projet de l’arborescence actuelle, seront retirés.
         </NoticeAlert>
       )}
       <FormActions

@@ -877,6 +877,9 @@ model Task {
   alarms               Alarm[]
   /// Shopping lists of the task (closed along with it).
   shoppingLists        ShoppingList[]     @relation("ShoppingListTasks")
+  /// Documents linked to it: of the library, and of its project tree (not inherited by its sub-tasks).
+  libraryDocuments     LibraryDocument[]  @relation("TaskLibraryDocuments")
+  projectResources     ProjectResource[]  @relation("TaskProjectResources")
   /// Workspace the row belongs to (always given by the app; the default fails outside one).
   workspaceId          String             @default(dbgenerated("current_setting('ordo.workspace'::text)"))
   workspace            Workspace          @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
@@ -1245,6 +1248,10 @@ model LibraryDocument {
   /// Treasury entries it supports.
   treasuryEntries TreasuryEntry[]     @relation("TreasuryEntryLibraryDocuments")
   treasuryLines   TreasuryEntryLine[] @relation("TreasuryLineLibraryDocuments")
+  /// Tasks, routines and events it is linked to.
+  tasks           Task[]              @relation("TaskLibraryDocuments")
+  routines        Routine[]           @relation("RoutineLibraryDocuments")
+  calendarEvents  CalendarEvent[]     @relation("EventLibraryDocuments")
   /// Comments (markdown).
   comments        Comment[]
   /// Workspace the row belongs to (always given by the app; the default fails outside one).
@@ -1693,6 +1700,9 @@ model CalendarEvent {
   tasks                Task[]                   @relation("CalendarEventTasks")
   /// Routines of a day the event is about (their occurrence of that day is done during it).
   routineLinks         CalendarEventRoutine[]
+  /// Documents linked to it (its whole series): of the library, and of its project tree.
+  libraryDocuments     LibraryDocument[]        @relation("EventLibraryDocuments")
+  projectResources     ProjectResource[]        @relation("EventProjectResources")
   /// Archived: hidden by default and read only until restored.
   archivedAt           DateTime?
   createdAt            DateTime                 @default(now())
@@ -2174,6 +2184,10 @@ model ProjectResource {
   /// Treasury entries it supports.
   treasuryEntries TreasuryEntry[]     @relation("TreasuryEntryProjectResources")
   treasuryLines   TreasuryEntryLine[] @relation("TreasuryLineProjectResources")
+  /// Tasks, routines and events it is linked to.
+  tasks           Task[]              @relation("TaskProjectResources")
+  routines        Routine[]           @relation("RoutineProjectResources")
+  calendarEvents  CalendarEvent[]     @relation("EventProjectResources")
   /// Workspace the row belongs to (always given by the app; the default fails outside one).
   workspaceId     String              @default(dbgenerated("current_setting('ordo.workspace'::text)"))
   workspace       Workspace           @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
@@ -3397,6 +3411,9 @@ model Routine {
   beneficiaryRelations TreasuryRelation[]     @relation("RoutineBeneficiaryRelations")
   /// Events its occurrence of a day is done during.
   eventLinks           CalendarEventRoutine[]
+  /// Documents linked to it: of the library, and of its project tree (not inherited by its sub-routines).
+  libraryDocuments     LibraryDocument[]      @relation("RoutineLibraryDocuments")
+  projectResources     ProjectResource[]      @relation("RoutineProjectResources")
   /// Routines to do before this one ("étendre le linge" requires "laver le linge").
   requires             RoutineDependency[]    @relation("RoutineDependent")
   /// Routines requiring this one.
