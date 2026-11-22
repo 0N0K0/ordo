@@ -400,7 +400,7 @@ export const deleteProject = automated(async function deleteProject(id: string):
  * @param {number} target.index Target index among the active siblings.
  * @returns {Promise<void>}
  */
-export async function moveProject(id: string, { parentId, clientId, index }: { parentId: string | null; clientId: string | null; index: number }): Promise<void> {
+export const moveProject = automated(async function moveProject(id: string, { parentId, clientId, index }: { parentId: string | null; clientId: string | null; index: number }): Promise<void> {
   const project = await findActive(prisma.project, id, 'Projet');
   await placeProject(await ProjectTree.load(), project, parentId, clientId, index);
-}
+});

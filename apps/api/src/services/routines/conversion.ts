@@ -11,6 +11,7 @@ import { effectiveTasks } from '../tasks/task-inheritance';
 import { effectiveRoutineOf, loadRoutineInheritance } from './routine-inheritance';
 import { parisToday } from '../../today';
 import { linkedSavedCountdowns } from '../tasks/saved-countdowns';
+import { automated } from '../tasks/task-automation-engine';
 import { firstOccurrence, loadScheduleContext, occurrenceSpansBetween, occurrencesOf, placeLegacyRoutineComments, ROUTINE_LINKS, slotsOf, storedCondition, type RoutineTiming } from './routines';
 
 /** Largest « Ouverture » of a routine before its due day, in days (`routineOpensSchema`, mode BEFORE). */
@@ -58,7 +59,7 @@ const pickInherited = (task: EffectiveTask) => ({
  * @param {boolean} confirm Losses confirmed (false: CONFIRMATION_REQUIRED with them, nothing changed).
  * @returns {Promise<string>} Id of the routine.
  */
-export async function convertTaskToRoutine(id: string, confirm: boolean): Promise<string> {
+export const convertTaskToRoutine = automated(async function convertTaskToRoutine(id: string, confirm: boolean): Promise<string> {
   await findActive(prisma.task, id, 'Tâche');
   if (await prisma.task.count({ where: { parentId: id } })) {
     throw clientError('BAD_USER_INPUT', 'Une tâche qui a des sous-tâches ne devient pas une routine : déplacez ou supprimez d’abord ses sous-tâches.');
@@ -183,7 +184,7 @@ export async function convertTaskToRoutine(id: string, confirm: boolean): Promis
     await tx.task.delete({ where: { id } });
     return routine.id;
   });
-}
+});
 
 /**
  * Turns a routine into a task, in one transaction: a new task, the routine deleted. It keeps the label,
@@ -197,7 +198,7 @@ export async function convertTaskToRoutine(id: string, confirm: boolean): Promis
  * @param {boolean} confirm Losses confirmed (false: CONFIRMATION_REQUIRED with them, nothing changed).
  * @returns {Promise<string>} Id of the task.
  */
-export async function convertRoutineToTask(id: string, confirm: boolean): Promise<string> {
+export const convertRoutineToTask = automated(async function convertRoutineToTask(id: string, confirm: boolean): Promise<string> {
   await findActive(prisma.routine, id, 'Routine');
   if (await prisma.routine.count({ where: { parentId: id } })) {
     throw clientError('BAD_USER_INPUT', 'Une routine qui a des sous-routines ne devient pas une tâche : déplacez ou supprimez d’abord ses sous-routines.');
@@ -289,4 +290,4 @@ export async function convertRoutineToTask(id: string, confirm: boolean): Promis
     await tx.routine.delete({ where: { id } });
     return task.id;
   });
-}
+});

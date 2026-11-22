@@ -45,8 +45,9 @@ import { effectiveTaskOf, loadTaskInheritance } from './task-inheritance';
 
 /**
  * Engine of the automations of the tasks: every write of tasks goes through `automated` (create, update, change of
- * several, move, transfer, close / reopen, archive, copy, delete, GitHub sync, chrono started, milestones and sprints
- * changed). With an active rule in the workspace, the tasks are read before and after the write; what changed on each
+ * several, move, transfer, close / reopen, archive, copy, delete, GitHub sync, chrono started, conversion from or to a
+ * routine; milestones, sprints, projects, clients, contributors, statuses, priorities, types and tags changed, moved,
+ * archived or deleted). With an active rule in the workspace, the tasks are read before and after the write; what changed on each
  * task (the values it goes by, inherited ones included) triggers the rules, in their order, on the tasks meeting their
  * condition; their actions go through the same writes (same checks). What they change may trigger other rules, up to
  * `TASK_AUTOMATION_CHAIN_MAX` rounds, a rule never twice on the same task. Each rule applied is reported to the
@@ -282,8 +283,9 @@ function allSubtasksClosed(snapshot: Snapshot, id: string): boolean {
 }
 
 /**
- * What happened to each task between two readings: created, its watched fields changed, closed, reopened, archived,
- * all its sub-tasks closed, a chrono started on it. Only the tasks something happened to.
+ * What happened to each task between two readings: created, its watched fields changed (for a new task, each field
+ * given a value, as if it went from empty to it), closed, reopened, archived, all its sub-tasks closed, a chrono
+ * started on it. Only the tasks something happened to.
  * @param {Snapshot} before Tasks before.
  * @param {Snapshot} after Tasks after.
  * @param {ReadonlySet<string>} timers Tasks a chrono started on.
@@ -294,10 +296,10 @@ function taskEvents(before: Snapshot, after: Snapshot, timers: ReadonlySet<strin
   for (const [id, task] of after.tasks) {
     const previous = before.tasks.get(id);
     const changes = new Map<TaskAutomationField, { before: FieldValue; after: FieldValue }>();
-    if (previous) {
-      for (const field of TASK_AUTOMATION_FIELDS) {
-        if (!sameValue(previous.values[field], task.values[field])) changes.set(field, { before: previous.values[field], after: task.values[field] });
-      }
+    for (const field of TASK_AUTOMATION_FIELDS) {
+      // A new task goes from empty to each value it is given (its own or inherited).
+      const was = previous ? previous.values[field] : Array.isArray(task.values[field]) ? [] : null;
+      if (!sameValue(was, task.values[field])) changes.set(field, { before: was, after: task.values[field] });
     }
     const event: TaskEvents = {
       created: !previous,
@@ -314,16 +316,17 @@ function taskEvents(before: Snapshot, after: Snapshot, timers: ReadonlySet<strin
 }
 
 /**
- * Whether a trigger fits what happened to a task (a new task only triggers « créée »).
+ * Whether a trigger fits what happened to a task (a new task triggers « créée » and the changes of the fields it is
+ * given, never « est vidé »).
  * @param {TaskAutomationTrigger} trigger Trigger.
  * @param {TaskEvents} events What happened.
  * @returns {boolean} Triggered.
  */
 function triggered(trigger: TaskAutomationTrigger, events: TaskEvents): boolean {
-  if (events.created) return trigger.event === 'CREATED';
+  if (events.created && trigger.event !== 'CREATED' && trigger.event !== 'FIELD_CHANGED') return false;
   switch (trigger.event) {
     case 'CREATED':
-      return false;
+      return events.created;
     case 'CLOSED':
       return events.closed;
     case 'REOPENED':

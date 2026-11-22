@@ -356,7 +356,7 @@ Source : `bulkUpdateTasks`.
 
 ## Automatisations
 
-Des règles « quand … alors … » de l’espace changent les tâches toutes seules après chaque écriture (création, modification, en masse, déplacement, transfert, fermeture, archivage, copie, suppression, GitHub, « Annuler », chrono démarré, jalons, sprints et projets changés) : voir [Automatisations des tâches](task-automations.md).
+Des règles « quand … alors … » de l’espace changent les tâches toutes seules après chaque écriture (création, modification, en masse, déplacement, transfert, fermeture, archivage, copie, suppression, conversion avec une routine, GitHub, « Annuler », chrono démarré, jalons et sprints changés, archivés ou supprimés, projets changés, déplacés ou supprimés, client supprimé avec ses projets, contributeur supprimé, statut changé, valeur d’une liste de réglages supprimée) : voir [Automatisations des tâches](task-automations.md).
 
 ## Vues enregistrées
 

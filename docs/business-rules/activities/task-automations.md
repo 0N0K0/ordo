@@ -31,7 +31,7 @@ Champs d’une tâche qu’une règle surveille ou change (`TASK_AUTOMATION_FIEL
 | `event`           | Quand                                                                                     |
 | ----------------- | ----------------------------------------------------------------------------------------- |
 | `FIELD_CHANGED`   | Un champ change (`field`), selon `change` : `CHANGED` (tout changement), `SET` (« est renseigné » : il n’avait pas de valeur, il en a une), `CLEARED` (« est vidé » : il en avait une, il n’en a plus), `IS` (« prend la valeur » `value` : la valeur d’une liste qu’il prend, l’élément qu’une liste reçoit ; seulement pour les champs à liste de choix) |
-| `CREATED`         | La tâche est créée (copie et item reçu de GitHub compris)                                 |
+| `CREATED`         | La tâche est créée (copie, item reçu de GitHub et routine convertie compris)              |
 | `CLOSED`          | La tâche est fermée                                                                       |
 | `REOPENED`        | La tâche est rouverte                                                                     |
 | `ARCHIVED`        | La tâche est archivée                                                                     |
@@ -39,8 +39,8 @@ Champs d’une tâche qu’une règle surveille ou change (`TASK_AUTOMATION_FIEL
 | `TIMER_STARTED`   | Un chrono démarre sur elle                                                                |
 
 - Un champ est lu sur la valeur que la tâche **suit** : une valeur héritée de sa tâche parente, une « Ouverture » ou une « Échéance » prise de son jalon, de son projet ou de son sprint (voir [Héritage](tasks.md#héritage) et [Dates suivies](tasks.md#dates-suivies)). Une tâche dont la valeur suivie change parce que son parent, son jalon, son sprint ou son projet a changé déclenche donc les règles comme si elle avait été changée.
-- Une tâche **créée** ne déclenche que les règles « La tâche est créée » (pas celles de ses champs).
-- Tout ce qui écrit des tâches déclenche les règles : création, modification, modification en masse, déplacement, transfert, fermeture et réouverture, archivage, copie, suppression (les sous-tâches restantes d’un parent), synchronisation GitHub (les valeurs reçues), « Annuler », chrono démarré, et la modification ou la suppression d’un jalon, d’un sprint ou d’un projet (les dates et valeurs que suivent leurs tâches).
+- Une tâche **créée** (à la main, par « Dupliquer », par la synchronisation GitHub, par la conversion d’une routine) déclenche les règles « La tâche est créée » et, pour **chaque champ qui a une valeur** à sa création (propre ou héritée), les règles « est renseigné », « change » et « prend la valeur » de ce champ, comme s’il passait de vide à cette valeur. « est vidé » ne se déclenche jamais à la création. Les autres déclencheurs (fermée, rouverte, archivée, sous-tâches fermées, chrono) ne valent pas pour une tâche qui vient d’être créée.
+- **Aucune écriture n’échappe aux règles** : tout ce qui change les tâches ou les valeurs qu’elles suivent les déclenche : création, modification, modification en masse, déplacement, transfert, fermeture et réouverture, archivage, copie, suppression (les sous-tâches restantes d’un parent), conversion d’une tâche en routine et d’une routine en tâche, synchronisation GitHub (les valeurs reçues), « Annuler », chrono démarré ; la modification, l’archivage, la restauration ou la suppression d’un jalon ou d’un sprint (mutation commune `setArchived` comprise) ; la modification, le déplacement (`moveProject` : l’arborescence et ce qu’en héritent ses tâches) ou la suppression d’un projet ; la suppression d’un client avec ses projets ; la suppression d’un contributeur (les tâches perdent cet assigné) ; la modification d’un statut (sa catégorie ferme ou rouvre ses tâches) et la suppression d’un statut, d’une priorité, d’un type ou d’une étiquette (les tâches perdent cette valeur).
 
 ## Condition
 
@@ -72,7 +72,7 @@ Champs d’une tâche qu’une règle surveille ou change (`TASK_AUTOMATION_FIEL
 - Ce qu’une règle change peut déclencher d’autres règles, sur la tâche et sur celles qui suivent ses valeurs (ses sous-tâches) : au plus **5 tours** de suite (`TASK_AUTOMATION_CHAIN_MAX`), le premier étant celui du changement de départ.
 - Une règle ne s’applique **jamais deux fois à la même tâche** dans un même enchaînement : pas de boucle.
 - Le moteur passe une seule fois par changement (`automated`, autour de chaque écriture de tâches) : les écritures faites à l’intérieur (une action, une synchronisation qui crée des tâches) n’appliquent pas de règles à part.
-- Les règles s’appliquent après l’écriture, dans la même requête ; une erreur imprévue du moteur ne défait pas l’écriture.
+- **Pas de transaction commune** : les règles s’appliquent juste après l’écriture, dans la même requête, chacune par ses propres écritures. Une action refusée garde l’écriture de départ et ce que la règle avait déjà fait ; la notification « Règle non appliquée » le signale, avec la raison. Une erreur imprévue du moteur ne défait pas non plus l’écriture.
 
 ## Suivi et annulation
 
