@@ -45,8 +45,6 @@ Hooks et constantes exportés :
 | `useTaskCommentMutations()`   | `{ add, update, remove }` des commentaires de tâche.                                                                                            |
 | `useContributorMutations()`   | `{ create, update, remove, setProjectContributors }` ; `create`, `update`, `remove` dans `withLossConfirmation` (anniversaire cité par des routines), rechargent les tâches, les routines et la facturation (`accountingQueryKey` : membres et relations de la trésorerie suivent le lien). |
 | `useTaskLabelMutations(kind)` | `{ create, update, remove }` d’une liste de paramètres (statut, priorité, type, étiquette).                                                     |
-| `useTaskColumnDefaults()`     | Colonnes des nouvelles vues de l’espace (`readTaskColumnDefaults`).                                                                             |
-| `useSetTaskColumnDefaults()`  | Les change (`null` : celles de l’app) ; mise à jour optimiste du cache.                                                                         |
 | `useDoableTaskIds(enabled)`, `useTaskWaitReasons(enabled)`, `TaskWaitReasons`, `doableTasksKey` | Une seule requête `doableTasks` (interne `useDoableTasks`, lue par deux `select`) : l’ensemble des tâches faisables maintenant, et la raison de chaque tâche ouverte qui ne l’est pas (`TaskWaitReason` par id) ; demandée seulement si `enabled`, rafraîchie chaque minute ; envoie le décalage UTC du navigateur. Sa clé est rechargée avec les sources des conditions (`SLOT_DEPENDENT_KEYS`). |
 | `useBulkTaskMutations()`      | `{ update, transfer, archive, remove }` : `bulkUpdateTasks` (avec `restoring`), `bulkTransferTasks`, `bulkSetTasksArchived`, `bulkDeleteTasks`. |
 | `useMilestoneMutations()`     | `{ create, update, remove, move }` ; `move` (interne `useMoveMilestone`) réordonne le cache tout de suite.                                      |
@@ -80,7 +78,7 @@ Interne : `LabelDocuments` (documents CRUD par type de libellé), `useTasksMutat
 
 - `TaskBoard({ projectId, projectIds?, createProjectId?, header?, emptyMessage, title, eventRange? })` : le tableau des tâches d’une portée (page ou projet). Utilisé par `TasksPage` et `features/projects/pages/ProjectPage.tsx`.
   - `projectId` : portée des vues (`null` pour la page) ; `projectIds` : projets listés (le projet et ses sous-projets) ; `createProjectId` : projet des nouvelles tâches ; `header` : contrôles avant les onglets ; `title` : titre des exports ; `eventRange` : jours des évènements au lieu de la période de la vue.
-  - Vues (`useTableViews`, `tableKey: 'tasks'`) avec les premières vues `TASK_VIEWS` (« En cours », « Mes tâches », « Toutes ») et les colonnes par défaut de l’espace.
+  - Vues (`useTableViews`, `tableKey: 'tasks'`) avec les premières vues `TASK_VIEWS` (« En cours », « Mes tâches », « Toutes ») qui partent des colonnes par défaut du tableau `tasks` dans l’espace (lues par `useTableViews`).
   - Options de vue `events` et `eventPeriod` : lignes d’évènements (`useCalendarEvents`) mêlées aux tâches.
   - `handleMove` (interne) : glisser-déposer → `moveTask`, ou `bulkUpdateTasks` vers un autre groupe (statut, priorité, type, jalon, assigné, étiquette, sprint).
   - `cells` (interne) : cellules d’une tâche (cellules de `inline-cells`, `extra-cells`) ou d’un évènement (`event-cells`).
@@ -228,15 +226,11 @@ Internes : `NEW_LABEL_TITLES`, `useLabelCreator(kind)` (ouvre le formulaire du l
 
 ### `components/TaskSettings.tsx`
 
-- `TaskSettings()` : paramètres des tâches : `SettingsList` des statuts (avec catégorie), `PriorityTypeSettings`, étiquettes, chacune avec son nombre d’utilisations, la section « Automatisations » (bouton « Gérer les règles » vers `TASK_AUTOMATIONS_PATH`), puis `ColumnDefaults` en dernier (une longue liste). Utilisé par `TasksPage` et l’onglet « Tâches » des paramètres d’un projet.
+- `TaskSettings()` : paramètres des tâches : `SettingsList` des statuts (avec catégorie), `PriorityTypeSettings`, étiquettes, chacune avec son nombre d’utilisations, la section « Automatisations » (bouton « Gérer les règles » vers `TASK_AUTOMATIONS_PATH`), puis `ColumnDefaults` (`components/data-table/views`, `tableKey: 'tasks'`, colonnes `useTaskColumns`) en dernier (une longue liste). Utilisé par `TasksPage` et l’onglet « Tâches » des paramètres d’un projet.
 
 ### `components/PriorityTypeSettings.tsx`
 
 - `PriorityTypeSettings()` : les deux `SettingsList` « Priorités » et « Types », communes aux tâches et aux routines (leur nombre d’utilisations compte les deux, `useRoutinesData` ; interne `ACTIVITY_USAGE`). Utilisé par `TaskSettings` et `RoutineSettings`. Garde eslint : une `SettingsList` titrée « Priorités » ou « Types » ailleurs est refusée.
-
-### `components/ColumnDefaults.tsx`
-
-- `ColumnDefaults()` : section « Colonnes des nouvelles vues » : `DataColumnsPanel` sur les colonnes des tâches (liste limitée à 288 px de haut, 12 pas de la grille, qui défile au-delà), enregistrement par `useSetTaskColumnDefaults` ; « Colonnes par défaut » de `DataColumnsPanel` (liste vidée) enregistre `null` : les colonnes de l’app.
 
 ### `components/TaskAutomationFields.tsx`
 
@@ -334,7 +328,7 @@ Internes : `NO_PROJECT_LABEL` (« Sans projet »), `NO_PROJECT_NODE`.
 
 ### `hooks/use-task-columns.ts`
 
-- `useTaskColumns(context, today, { doable?, eventComments? })` : colonnes du tableau des tâches (`taskColumns`) avec ce qui leur manque : tâches faisables (`useDoableTaskIds`, seulement si `doable`), alarmes (`useTaskAlarmCounts`), listes d’achats, créneaux et types que la condition peut citer (`useSlotChoices().all`, `slotSchedules` : le filtre « Créneaux » porte sur les créneaux et types cités par la condition, `conditionReferences`), commentaires des évènements. Utilisé par `TaskBoard`, `ColumnDefaults`, `TaskFilterBuilder`, la carte « Tâches » de l’accueil (`TasksCard`), et les tableaux de bord / l’accueil via `matchTasks`.
+- `useTaskColumns(context, today, { doable?, eventComments? })` : colonnes du tableau des tâches (`taskColumns`) avec ce qui leur manque : tâches faisables (`useDoableTaskIds`, seulement si `doable`), alarmes (`useTaskAlarmCounts`), listes d’achats, créneaux et types que la condition peut citer (`useSlotChoices().all`, `slotSchedules` : le filtre « Créneaux » porte sur les créneaux et types cités par la condition, `conditionReferences`), commentaires des évènements. Utilisé par `TaskBoard`, `TaskSettings` (colonnes des nouvelles vues), `TaskFilterBuilder`, la carte « Tâches » de l’accueil (`TasksCard`), et les tableaux de bord / l’accueil via `matchTasks`.
 
 ### `hooks/use-task-automation-items.tsx`
 

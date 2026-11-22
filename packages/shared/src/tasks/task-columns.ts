@@ -1,5 +1,3 @@
-import { z } from 'zod';
-import { legacyLabelColumn, TABLE_KEY_MAX, withLabelColumn } from '../tables/table-layout';
 
 /** Fixed meaning of a task status. */
 export const TASK_STATUS_CATEGORIES = ['TODO', 'IN_PROGRESS', 'DONE', 'CANCELLED'] as const;
@@ -104,31 +102,6 @@ export type TaskGroupBy = (typeof TASK_GROUP_BY)[number];
 
 /** Columns of the views made by the app, unless the workspace chose its own. */
 export const DEFAULT_HIDDEN_COLUMNS: TaskColumn[] = ['hours', 'location', 'blocking', 'related', 'milestone', 'createdAt', 'updatedAt'];
-
-/** Ids of columns of a table layout: any column of the table (the unknown ones are ignored by the table). */
-const columnIdsSchema = z.array(z.string().max(TABLE_KEY_MAX)).max(200);
-
-/**
- * Columns new task views of a workspace start with, as the layout of the table: their order, and those hidden (empty:
- * the columns of the app, those hidden by default hidden).
- */
-export const taskColumnDefaultsSchema = z.object({
-  columnOrder: columnIdsSchema.default([]),
-  // The label is always shown.
-  hiddenColumns: columnIdsSchema.transform((columns) => columns.filter((column) => column !== 'label')).default([]),
-});
-export type TaskColumnDefaults = z.infer<typeof taskColumnDefaultsSchema>;
-
-/**
- * Columns new task views start with: those chosen for the workspace (stored value), else the app's (an empty layout).
- * @param {unknown} stored Stored value, if any.
- * @returns {TaskColumnDefaults} Order and hidden columns.
- */
-export function readTaskColumnDefaults(stored: unknown): TaskColumnDefaults {
-  // Old id of the label column read as `label`.
-  const parsed = taskColumnDefaultsSchema.safeParse(withLabelColumn(stored ?? {}, legacyLabelColumn('tasks')));
-  return parsed.success ? parsed.data : { columnOrder: [], hiddenColumns: [] };
-}
 
 /** Relative sprints a filter of the sprint column chooses: the current one, the previous and next one of each project tree, past ones, future ones. */
 export const RELATIVE_SPRINTS = ['current', 'previous', 'next', 'past', 'future'] as const;

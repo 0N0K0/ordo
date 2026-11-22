@@ -6,7 +6,6 @@ import { Badge, Group, Stack, Text } from '@mantine/core';
 import { ChatCircleIcon, HandCoinsIcon } from '@phosphor-icons/react';
 import { useMemo } from 'react';
 import { DataTable } from '../../../components/data-table/table/DataTable';
-import type { DataColumn } from '../../../components/data-table/table/data-table';
 import { RowActions } from '../../../components/data-table/cells/RowActions';
 import { useDataView } from '../../../components/data-table/views/use-data-view';
 import { useTreasuryLoans, useTreasurySettings } from '../api';
@@ -14,13 +13,9 @@ import * as fmt from '../../../lib/format';
 import { Comments } from '../../comments/components/Comments';
 import { SignedAmount } from '../../../components/money/SignedAmount';
 import { archivedIds } from '../../../lib/archive';
-import { relationWords, type RelationWords } from '../../../components/people/people-options';
+import { relationWords } from '../../../components/people/people-options';
 import { useActiveWorkspace } from '../../workspaces/api';
-
-/** Row of the loans: a relation (what it owes or is owed), or one of its loan lines under it. */
-type LoanRow =
-  | { kind: 'relation'; key: string; relationId: string; name: string; balance: number; out: number; in: number }
-  | { kind: 'line'; key: string; relationId: string; name: string; date: string; label: string; amount: number };
+import { loanColumns, type LoanRow } from '../lib/treasury-columns';
 
 /**
  * Balance of a relation, told: soldé, it owes you, you owe it.
@@ -44,69 +39,6 @@ function BalanceBadge({ balance }: { balance: number }) {
     </Badge>
   );
 }
-
-/**
- * Columns of the loans, the relation told with the word of the workspace (« Relation » or « Proche »).
- * @param {RelationWords} words Words of the relations.
- * @returns {DataColumn<LoanRow>[]} Columns.
- */
-const loanColumns = (words: RelationWords): DataColumn<LoanRow>[] => [
-  {
-    id: 'name',
-    label: `${words.noun} / ligne`,
-    size: 260,
-    locked: true,
-    required: true,
-    sortValue: (row) => (row.kind === 'relation' ? row.name : row.label),
-    text: (row) => (row.kind === 'relation' ? row.name : row.label),
-  },
-  {
-    id: 'balance',
-    label: 'Solde',
-    size: 170,
-    numeric: true,
-    sortValue: (row) => (row.kind === 'relation' ? row.balance : null),
-    text: (row) => (row.kind === 'relation' ? fmt.money(row.balance) : ''),
-    filter: { kind: 'number', value: (row) => (row.kind === 'relation' ? row.balance : null) },
-    formatTotal: fmt.money,
-  },
-  {
-    id: 'out',
-    label: 'Sorti vers elle',
-    size: 140,
-    numeric: true,
-    sortValue: (row) => (row.kind === 'relation' ? row.out : null),
-    text: (row) => (row.kind === 'relation' ? fmt.money(row.out) : ''),
-    formatTotal: fmt.money,
-  },
-  {
-    id: 'in',
-    label: 'Reçu d’elle',
-    size: 140,
-    numeric: true,
-    sortValue: (row) => (row.kind === 'relation' ? row.in : null),
-    text: (row) => (row.kind === 'relation' ? fmt.money(row.in) : ''),
-    formatTotal: fmt.money,
-  },
-  {
-    id: 'date',
-    label: 'Date',
-    size: 120,
-    sortValue: (row) => (row.kind === 'line' ? row.date : null),
-    text: (row) => (row.kind === 'line' ? fmt.day(row.date) : ''),
-    filter: { kind: 'date', value: (row) => (row.kind === 'line' ? row.date : null) },
-  },
-  {
-    id: 'amount',
-    label: 'Montant',
-    size: 130,
-    numeric: true,
-    sortValue: (row) => (row.kind === 'line' ? row.amount : null),
-    text: (row) => (row.kind === 'line' ? fmt.money(row.amount) : ''),
-    filter: { kind: 'number', value: (row) => (row.kind === 'line' ? row.amount : null) },
-    formatTotal: fmt.money,
-  },
-];
 
 /**
  * Loans with the relations, both ways: a row for each relation, who owes whom (what went out to it, lent or debts

@@ -3,7 +3,10 @@ import { countBy, TASK_STATUS_CATEGORY_LABELS } from '@ordo/shared';
 import { SettingsList } from '../../../components/settings/SettingsList';
 import { useTasksData } from '../api';
 import { useTaskLabelItems, useTaskStatusItems } from '../hooks/use-label-items';
-import { ColumnDefaults } from './ColumnDefaults';
+import { ColumnDefaults } from '../../../components/data-table/views/ColumnDefaults';
+import { localToday } from '../../../lib/dates';
+import { useTaskColumns } from '../hooks/use-task-columns';
+import { useTaskContext } from '../hooks/use-task-context';
 import { LightningIcon } from '@phosphor-icons/react';
 import { ActionButton } from '../../../components/actions/ActionButton';
 import { SettingsSection } from '../../../components/settings/SettingsSection';
@@ -20,6 +23,8 @@ export function TaskSettings() {
   const statuses = useTaskStatusItems();
   const tags = useTaskLabelItems('tag');
   const tasks = data?.tasks ?? [];
+  const { context } = useTaskContext();
+  const columns = useTaskColumns(context, localToday(), { doable: false });
 
   // In the settings sidebar: the sections one under the other, the whole width.
   return (
@@ -55,7 +60,7 @@ export function TaskSettings() {
         }
       />
       {/* Last: the columns of new views (a long list). */}
-      <ColumnDefaults />
+      <ColumnDefaults tableKey="tasks" columns={columns} />
     </Stack>
   );
 }

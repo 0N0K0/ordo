@@ -6,10 +6,13 @@ import { PageSettings } from '../../../app/layout/PageSettings';
 import { ShoppingCategories } from '../../shopping/components/ShoppingCategories';
 import { ShoppingUnits } from '../../shopping/components/ShoppingUnits';
 import { useSheetCategories, useSheetMutations, useSheets } from '../api';
+import { ColumnDefaults } from '../../../components/data-table/views/ColumnDefaults';
+import { useChecklistColumns, useSheetColumns, useSheetItemColumns } from '../hooks/use-sheet-columns';
 
 /**
  * Settings of the sheets: their own categories, then the categories of the items and the units (those of the
- * shopping, also in the shopping settings). In the settings of the sheets pages and in the sheets tab of a project.
+ * shopping, also in the shopping settings), then the columns of new views of the tables of the sheets, of a sheet and
+ * of the checklists. In the settings of the sheets pages and in the sheets tab of a project.
  * @returns {JSX.Element} Settings.
  */
 export function SheetsSettings() {
@@ -17,6 +20,9 @@ export function SheetsSettings() {
   const { data: sheetCategories } = useSheetCategories();
   const mutations = useSheetMutations();
   const sheetUsage = countBy(sheets ?? [], (sheet) => sheet.categoryIds);
+  const sheetColumns = useSheetColumns(false);
+  const itemColumns = useSheetItemColumns(null);
+  const checklistColumns = useChecklistColumns(null);
   return (
     <Stack gap="md">
       <SettingsList
@@ -33,6 +39,10 @@ export function SheetsSettings() {
       />
       <ShoppingCategories />
       <ShoppingUnits />
+      {/* Last: the columns of new views (long lists). */}
+      <ColumnDefaults tableKey="sheets" columns={sheetColumns} label="Fiches" />
+      <ColumnDefaults tableKey="sheet-items" columns={itemColumns} label="Une fiche" />
+      <ColumnDefaults tableKey="checklist" columns={checklistColumns} label="Listes à cocher" />
     </Stack>
   );
 }

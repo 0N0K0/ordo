@@ -97,7 +97,7 @@ Table des inventaires, les plus récents d'abord : « Date », « Emplacement »
 
 ## Paramètres de l'inventaire
 
-« Emplacements » : arbre (« Où sont rangés les articles, en arborescence (Cuisine › Frigo) : glissez un emplacement sur un autre pour l'y ranger. »), nom, couleur, image, parent ; usage en nombre d'articles ; ajout, modification, archivage, suppression (ses sous-emplacements remontent d'un niveau, ses articles restent sans emplacement). Puis « Catégories » et « Unités » des articles : celles des achats, les mêmes listes et le même enregistrement que dans les paramètres des achats (voir [Achats](shopping.md)). Voir [Paramètres](../cross-cutting/settings.md).
+« Emplacements » : arbre (« Où sont rangés les articles, en arborescence (Cuisine › Frigo) : glissez un emplacement sur un autre pour l'y ranger. »), nom, couleur, image, parent ; usage en nombre d'articles ; ajout, modification, archivage, suppression (ses sous-emplacements remontent d'un niveau, ses articles restent sans emplacement). Puis « Catégories » et « Unités » des articles : celles des achats, les mêmes listes et le même enregistrement que dans les paramètres des achats (voir [Achats](shopping.md)). En dernier, « Colonnes des nouvelles vues » des tableaux « Stock », « Lots d’un article », « Mouvements », « Historique d’un article », « Inventaires » et « Faire l’inventaire » ([Colonnes des nouvelles vues](../cross-cutting/settings.md#colonnes-des-nouvelles-vues)). Voir [Paramètres](../cross-cutting/settings.md).
 
 ## Lien avec les achats
 

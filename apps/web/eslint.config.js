@@ -257,6 +257,15 @@ export default defineConfig([
           selector: "JSXAttribute[name.name='label'] Literal[value=/^Grouper par/]",
           message: '« Grouper par » est l’option de la vue du tableau (DataViewBar) : pas de contrôle de regroupement à côté.',
         },
+        // Columns new views of a table start with: one setting per table key, one section (ColumnDefaults) in the settings.
+        {
+          selector: "Identifier[name=/^(useTaskColumnDefaults|useSetTaskColumnDefaults|readTaskColumnDefaults|taskColumnDefaultsSchema|TaskColumnDefaults)$/]",
+          message: 'Colonnes des nouvelles vues : par tableau (useTableColumnDefaults(tableKey), readTableColumnDefaults), montrées par ColumnDefaults (components/data-table/views/ColumnDefaults).',
+        },
+        {
+          selector: "CallExpression[callee.name='useSetTableColumnDefaults'], JSXOpeningElement[name.name='DataColumnsPanel'] > JSXAttribute[name.name='maxHeight']",
+          message: 'Colonnes des nouvelles vues d’un tableau dans des paramètres : ColumnDefaults({ tableKey, columns }) (components/data-table/views/ColumnDefaults), en dernier, liste limitée en hauteur.',
+        },
         // One word and one behaviour to copy anything: « Dupliquer », saved at once, then opened.
         {
           selector: "Literal[value=/\\bClon(er|é|ée|és|ées|age)\\b/i], TemplateElement[value.raw=/\\bClon(er|é|ée|és|ées|age)\\b/i], JSXText[value=/\\bClon(er|é|ée|és|ées|age)\\b/i]",

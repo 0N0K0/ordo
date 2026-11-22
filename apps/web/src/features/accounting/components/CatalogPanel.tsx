@@ -15,57 +15,19 @@ import { bulkCellLabels, bulkSaver } from '../../../components/data-table/select
 import { EditableNumber, EditableSelect, EditableText } from '../../../components/data-table/cells/EditableCells';
 import { useDataView } from '../../../components/data-table/views/use-data-view';
 import { RowActions } from '../../../components/data-table/cells/RowActions';
-import type { DataColumn } from '../../../components/data-table/table/data-table';
 import { useAppForm, useFieldSave, formCallbacks } from '../../../lib/form';
 import { SaveStatus } from '../../../components/feedback/SaveStatus';
 import { ON_ERROR } from '../../../lib/notify';
 import { useCompanyProfile } from '../api';
 import { useCatalogItems, useCatalogMutations, type CatalogItem } from '../api/catalog';
-import * as fmt from '../../../lib/format';
 import { AmountInput } from '../../../components/inputs/AmountInput';
 import { Comments } from '../../comments/components/Comments';
 import { useCommentCounts } from '../../comments/api';
 import { archiveItemsAction, deleteItemsAction, rowLabel, rowMenuEntry } from '../../../components/data-table/selection/selection-actions';
 import { selectedLabel } from '../../../components/data-table/selection/selection-label';
-import { commentColumn } from '../../comments/lib/comment-column';
 import { FormActions } from '../../../components/dialogs/FormActions';
 import { vatRateOptions } from '../lib/labels';
-
-/** Columns of the catalog. */
-const CATALOG_COLUMNS: DataColumn<CatalogItem>[] = [
-  { id: 'label', required: true, label: 'Article', size: 320, locked: true, bulk: true, sortValue: (item) => item.label, text: (item) => item.label },
-  {
-    id: 'kind',
-    required: true,
-    bulk: true,
-    label: 'Nature',
-    size: 120,
-    hiddenByDefault: true,
-    sortValue: (item) => item.kind,
-    text: (item) => (item.kind === 'DISBURSEMENT' ? 'Débours' : 'Prestation'),
-    filter: {
-      kind: 'choice',
-      value: (item) => (item.kind === 'DISBURSEMENT' ? 'DISBURSEMENT' : 'ITEM'),
-      options: [
-        { value: 'ITEM', label: 'Prestation' },
-        { value: 'DISBURSEMENT', label: 'Débours' },
-      ],
-    },
-    groupable: true,
-  },
-  { id: 'unit', required: true, label: 'Unité', size: 120, bulk: true, sortValue: (item) => UNIT_LABELS[item.unit].label, text: (item) => UNIT_LABELS[item.unit].label, groupable: true },
-  { id: 'price', required: true, label: 'Prix HT', size: 120, bulk: true, numeric: true, sortValue: (item) => item.unitPrice, text: (item) => fmt.money(item.unitPrice) },
-  {
-    id: 'vat',
-    bulk: true,
-    label: 'TVA',
-    size: 90,
-    numeric: true,
-    sortValue: (item) => (item.kind === 'DISBURSEMENT' ? null : item.vatRate),
-    text: (item) => (item.kind === 'DISBURSEMENT' ? '' : `${fmt.percent(item.vatRate)}`),
-    groupable: true,
-  },
-];
+import { catalogColumns } from '../lib/accounting-columns';
 
 /** Values of the form of a catalogue item. */
 type CatalogValues = CatalogItemInput & Record<string, unknown>;
@@ -188,7 +150,7 @@ export function CatalogPanel() {
   const view = useDataView({
     tableKey: 'catalog',
     getKey: (item) => item.id,
-    columns: [...CATALOG_COLUMNS, commentColumn<CatalogItem>(itemComments, (item) => item.id)],
+    columns: catalogColumns(itemComments),
     rows: shown,
     title: 'Catalogue',
   });

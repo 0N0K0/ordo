@@ -83,3 +83,37 @@ builder.mutationFields((t) => ({
     resolve: (_root, { id }) => done(workspaces.deleteWorkspace(id)),
   }),
 }));
+
+const TableColumnDefaultsRef = builder.objectRef<{ columnOrder: string[]; hiddenColumns: string[] }>('TableColumnDefaults').implement({
+  description: 'Columns new views of a data table of the workspace start with: their order and those hidden.',
+  fields: (t) => ({
+    columnOrder: t.exposeStringList('columnOrder'),
+    hiddenColumns: t.exposeStringList('hiddenColumns'),
+  }),
+});
+
+const TableColumnLayoutInput = builder.inputType('TableColumnLayoutInput', {
+  description: 'Order and hidden columns of a data table.',
+  fields: (t) => ({
+    columnOrder: t.stringList({ required: true }),
+    hiddenColumns: t.stringList({ required: true }),
+  }),
+});
+
+builder.queryFields((t) => ({
+  tableColumnDefaults: t.field({
+    type: TableColumnDefaultsRef,
+    description: 'Columns new views of a data table start with in the workspace (chosen for it, else the app’s).',
+    args: { tableKey: t.arg.string({ required: true }) },
+    resolve: (_root, { tableKey }) => workspaces.tableColumnDefaults(tableKey),
+  }),
+}));
+
+builder.mutationFields((t) => ({
+  setTableColumnDefaults: t.field({
+    type: TableColumnDefaultsRef,
+    description: 'Chooses the columns new views of a data table start with; without a layout, gives back the app’s.',
+    args: { tableKey: t.arg.string({ required: true }), layout: t.arg({ type: TableColumnLayoutInput }) },
+    resolve: (_root, { tableKey, layout }) => workspaces.setTableColumnDefaults(tableKey, layout ?? null),
+  }),
+}));

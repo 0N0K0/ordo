@@ -14,37 +14,14 @@ import { treeSelectProps, type TreeOption } from '../../../components/tree/tree-
 import * as fmt from '../../../lib/format';
 import { AmountInput } from '../../../components/inputs/AmountInput';
 import { DataTable } from '../../../components/data-table/table/DataTable';
-import type { DataColumn } from '../../../components/data-table/table/data-table';
 import { useDataView } from '../../../components/data-table/views/use-data-view';
 import { localDay } from '../../../lib/dates';
 import { FormActions } from '../../../components/dialogs/FormActions';
 import { PeriodField } from '../../../components/inputs/PeriodField';
 import { vatRateOptions } from '../lib/labels';
+import { BILLING_COLUMNS, workOf } from '../lib/accounting-columns';
 import { unarchived } from '../../../lib/archive';
 import { FRENCH_NUMBER_FORMAT } from '../../../components/inputs/number-format';
-
-/**
- * What a time was spent on: its tasks, then its description.
- * @param {BillableTime} entry Time.
- * @returns {string} Text.
- */
-const workOf = (entry: BillableTime) => [entry.tasks.join(', '), entry.description].filter(Boolean).join(' — ');
-
-/** Columns of the time to bill. */
-const BILLING_COLUMNS: DataColumn<BillableTime>[] = [
-  { id: 'day', required: true, label: 'Jour', size: 110, sortValue: (entry) => entry.day, text: (entry) => fmt.dayShort(entry.day), filter: { kind: 'date', value: (entry) => entry.day } },
-  { id: 'work', label: 'Temps', size: 320, locked: true, sortValue: workOf, text: workOf },
-  {
-    id: 'duration',
-    required: true,
-    label: 'Durée',
-    size: 100,
-    numeric: true,
-    sortValue: (entry) => entry.seconds,
-    text: (entry) => formatDuration(entry.seconds),
-    formatTotal: (seconds) => formatDuration(Math.round(seconds)),
-  },
-];
 
 interface TimeBillingFormProps {
   /** Project of the invoice, preselected. */

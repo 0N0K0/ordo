@@ -22,8 +22,11 @@ model Workspace {
   position                  Int                        @default(0)
   /// Notifications this workspace still gives while another one is open.
   notifyElsewhere           NotificationSource[]       @default([])
-  /// Columns new task views start with: { columnOrder, hiddenColumns }; none: the app's.
+  /// Unused: the columns new task views start with are under « tasks » in tableColumns.
   taskColumns               Json?
+  /// Columns new views of each data table start with, by table key: { [tableKey]: { columnOrder, hiddenColumns } };
+  /// a table left out (or none at all): the app's.
+  tableColumns              Json?
   /// First and last days of its weeks (1 = Monday … 7 = Sunday), both included: the same day twice makes weeks of
   /// 8 days that overlap (Wednesday to Wednesday). Calendar week view, « cette semaine »…
   weekStart                 Int                        @default(1)

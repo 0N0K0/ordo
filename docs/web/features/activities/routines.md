@@ -205,7 +205,7 @@ Interne : `DueBadge` (« Après … », « Partir maintenant », « Aujourd'hui 
 
 | Export              | Rôle                                                                                                                       |
 | ------------------- | -------------------------------------------------------------------------------------------------------------------------- |
-| `RoutineSettings()` | Paramètres des routines : `SettingsList` en arbre des catégories (usage, suppression, déplacement), puis `PriorityTypeSettings` (priorités et types, communs avec les tâches). Utilisé par `RoutinesPage` (dans `PageSettings` « Paramètres des routines ») et l’onglet « Routines » des paramètres d’un projet. |
+| `RoutineSettings()` | Paramètres des routines : `SettingsList` en arbre des catégories (usage, suppression, déplacement), puis `PriorityTypeSettings` (priorités et types, communs avec les tâches), puis en dernier `ColumnDefaults` du tableau `routines` (colonnes `useRoutineColumns`). Utilisé par `RoutinesPage` (dans `PageSettings` « Paramètres des routines ») et l’onglet « Routines » des paramètres d’un projet. |
 
 ### `components/Routines.module.css`
 
@@ -223,7 +223,7 @@ Classes `table` (taille de police), `row` (survol, lignes `data-done` / `data-ar
 | Export | Rôle |
 | ------ | ---- |
 | `RoutineColumns` (interface) | `columns`, `byId`, `doable(routine)`. |
-| `useRoutineColumns(routines, categories, today)` | Colonnes du tableau des routines (`routineColumns`) avec ce qui leur manque : règles des créneaux (`useSlotRules`, `routineDoable`), créneaux et types (`useSlotChoices`), commentaires (`useCommentCounts`, sans les routines en création), bénéficiaires ; aucune colonne sans contexte des tâches. Utilisé par `RoutinesPanel` et la carte « Routines » de l’accueil. |
+| `useRoutineColumns(routines, categories, today)` | Colonnes du tableau des routines (`routineColumns`) avec ce qui leur manque : règles des créneaux (`useSlotRules`, `routineDoable`), créneaux et types (`useSlotChoices`), commentaires (`useCommentCounts`, sans les routines en création), bénéficiaires ; aucune colonne sans contexte des tâches. Utilisé par `RoutinesPanel`, `RoutineSettings` (colonnes des nouvelles vues) et la carte « Routines » de l’accueil. |
 
 ### `hooks/use-routine-move.ts`
 

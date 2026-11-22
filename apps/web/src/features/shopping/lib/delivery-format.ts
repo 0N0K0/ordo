@@ -17,6 +17,17 @@ export function deliveryWindow(delivery: Delivery): string {
 }
 
 /**
+ * Name of a delivery of a list: its label, else « Retrait » / « Livraison » and when it is expected; nothing for none.
+ * @param {readonly Delivery[]} deliveries Deliveries of the list.
+ * @param {string | null | undefined} id Delivery.
+ * @returns {string} Name.
+ */
+export function deliveryLabel(deliveries: readonly Delivery[], id: string | null | undefined): string {
+  const delivery = deliveries.find((item) => item.id === id);
+  return delivery ? delivery.label || `${delivery.pickup ? 'Retrait' : 'Livraison'} ${deliveryWindow(delivery)}`.trim() : '';
+}
+
+/**
  * Input of a delivery as it is, with the items it brings.
  * @param {Delivery} delivery Delivery.
  * @param {string[]} itemIds Items.

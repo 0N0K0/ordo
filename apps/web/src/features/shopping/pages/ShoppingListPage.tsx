@@ -43,15 +43,13 @@ import { SheetPicker } from '../../sheets/components/SheetPicker';
 import { useSheetMutations } from '../../sheets/api';
 import { openFormPanel } from '../../../components/panels/panels';
 import { ProductPicker } from '../components/ProductPicker';
-import { useCommentCounts } from '../../comments/api';
-import { commentColumn } from '../../comments/lib/comment-column';
-import { blankInput, groupingOfColumn, listClosed, listTasks, usePeople, shoppingProgress } from '../lib/shopping-format';
+import { blankInput, groupingOfColumn, listClosed, listTasks, shoppingProgress } from '../lib/shopping-format';
 import { ShoppingPageSettings } from '../components/ShoppingSettings';
-import { itemColumns, optionalColumn } from '../lib/shopping-columns';
 import { ShoppingTable } from '../components/ShoppingTable';
 import { StoreMode } from '../components/StoreMode';
 import { OrderPanel } from '../components/OrderPanel';
-import { deliveryInput, deliveryWindow } from '../lib/delivery-format';
+import { deliveryInput, deliveryLabel } from '../lib/delivery-format';
+import { listSheets, useShoppingItemColumns } from '../hooks/use-shopping-columns';
 import { StockPurchaseForm } from '../../stock/components/StockPurchaseForm';
 import { useStockProposal } from '../../stock/hooks/use-stock-proposal';
 import { useProductStock, useStockMutations } from '../../stock/api';
@@ -62,18 +60,8 @@ import { deleteRowsAction } from '../../../components/data-table/selection/selec
 import { selectedLabel } from '../../../components/data-table/selection/selection-label';
 import { Comments } from '../../comments/components/Comments';
 import { DetailHeader } from '../../../components/page/DetailHeader';
-import { booleanColumn } from '../../../components/data-table/table/boolean-column';
 
 type ShoppingItem = ShoppingList['items'][number];
-
-/**
- * Sheets the items of a list come from, each once.
- * @param {ShoppingItem[]} items Items.
- * @returns {{ sheetId: string, name: string }[]} Sheets.
- */
-const listSheets = (items: ShoppingItem[]) => [
-  ...new Map(items.flatMap((item) => item.sheetSources.map((source) => [source.sheetId, { sheetId: source.sheetId, label: source.label }] as const))).values(),
-];
 
 /** Views made the first time a list is shown, grouped by category: every item (opened first), what is left to buy. */
 const LIST_VIEWS: FirstTableView[] = [
@@ -96,72 +84,13 @@ export function ShoppingListPage() {
   const mutations = useShoppingMutations();
   const [storeMode, setStoreMode] = useState(false);
   const list = lists?.find((item) => item.id === id);
-  // Projects of the list, through its tasks: their contributors are the members offered.
-  const people = usePeople();
   const sheetMutations = useSheetMutations();
   const stockMutations = useStockMutations();
   const inStock = useProductStock();
   const propose = useStockProposal();
   const deliveries = list?.deliveries ?? [];
-  const deliveryName = (id: string | null | undefined) => {
-    const delivery = deliveries.find((item) => item.id === id);
-    return delivery ? delivery.label || `${delivery.pickup ? 'Retrait' : 'Livraison'} ${deliveryWindow(delivery)}`.trim() : '';
-  };
-  const itemComments = useCommentCounts(
-    'SHOPPING_ITEM',
-    (list?.items ?? []).map((item) => item.id),
-  );
-  const columns = itemColumns<ShoppingItem>(
-    {
-      categories: data?.shoppingCategories ?? [],
-      stores: data?.shoppingStores ?? [],
-      storages: data?.shoppingStorages ?? [],
-      members: people.members,
-      relations: people.relations,
-      archivedPeople: people.archived,
-    },
-    [
-      optionalColumn<ShoppingItem>(),
-      booleanColumn<ShoppingItem>({ id: 'bought', label: 'Acheté', size: 100, hiddenByDefault: true, groupLabels: { yes: 'Acheté', no: 'À acheter' }, value: (item) => Boolean(item.purchasedAt) }),
-      {
-        id: 'inStock',
-        label: 'En stock',
-        size: 100,
-        numeric: true,
-        sortValue: (item) => (item.productId && inStock.has(item.productId) ? inStock.get(item.productId)! : null),
-        text: (item) => (item.productId && inStock.has(item.productId) ? fmt.quantity({ quantity: inStock.get(item.productId) }) : ''),
-        filter: { kind: 'number', value: (item) => (item.productId ? (inStock.get(item.productId) ?? null) : null) },
-      },
-      {
-        id: 'delivery',
-        label: 'Livraison',
-        size: 170,
-        bulk: true,
-        hiddenByDefault: !list?.remote,
-        sortValue: (item) => deliveryName(item.deliveryId) || null,
-        text: (item) => deliveryName(item.deliveryId),
-        filter: { kind: 'choice', value: (item) => item.deliveryId ?? null, options: deliveries.map((delivery) => ({ value: delivery.id, label: deliveryName(delivery.id) })) },
-        groupable: true,
-      },
-      {
-        id: 'sheets',
-        label: 'Fiches',
-        size: 180,
-        sortValue: (item) => item.sheetSources.map((source) => source.label).join(', ') || null,
-        text: (item) => item.sheetSources.map((source) => source.label).join(', '),
-        filter: {
-          kind: 'choices',
-          value: (item) => item.sheetSources.map((source) => source.sheetId),
-          options: listSheets(list?.items ?? []).map((sheet) => ({ value: sheet.sheetId, label: sheet.label })),
-        },
-      },
-      commentColumn<ShoppingItem>(
-        itemComments,
-        (item) => item.id,
-        (item) => item.note,
-      ),
-    ],
-  );
+  const deliveryName = (id: string | null | undefined) => deliveryLabel(deliveries, id);
+  const columns = useShoppingItemColumns(list);
   const view = useDataView({
     tableKey: 'shopping-list',
     getKey: (item) => item.id,

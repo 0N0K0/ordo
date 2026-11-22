@@ -1,3 +1,4 @@
+import { TreasuryColumnDefaults } from './TreasuryColumnDefaults';
 import { SettingsSection } from '../../../components/settings/SettingsSection';
 import { toastCallbacks } from '../../../lib/notify';
 import { SettingsList } from '../../../components/settings/SettingsList';
@@ -155,7 +156,8 @@ function InvoiceCategories({ categories }: { categories: TreasuryCategory[] }) {
 
 /**
  * Treasury settings: contexts (how entries are split), categories of money in and out
- * (with sub-categories), payment methods and the counterparties that are not clients.
+ * (with sub-categories), payment methods and the counterparties that are not clients, then the columns of new views of
+ * its tables.
  * @returns {JSX.Element} Panel.
  */
 export function SettingsPanel() {
@@ -175,6 +177,8 @@ export function SettingsPanel() {
       {!perso && <InvoiceCategories categories={categories} />}
       <MethodList methods={methods} />
       <CounterpartyList counterparties={counterparties} />
+      {/* Last: the columns of new views of its tables (long lists). */}
+      <TreasuryColumnDefaults />
     </Stack>
   );
 }

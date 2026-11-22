@@ -26,7 +26,7 @@ Hooks :
 
 | Export                             | Rôle                                                                                                                                                                                                                                                                                                                                          | Utilisé par                                                                                                                                            |
 | ---------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| `useStockLocations()`              | Emplacements (`[...stockKey, 'locations']`).                                                                                                                                                                                                                                                                                                  | `StockPage`, `StockTable`, `StockCountForm`, `StockPurchaseForm`, `StockLocations`, `use-location-select`, `features/shopping/components/BaseList.tsx` |
+| `useStockLocations()`              | Emplacements (`[...stockKey, 'locations']`).                                                                                                                                                                                                                                                                                                  | `StockPage`, `StockTable`, `StockCountForm`, `StockPurchaseForm`, `StockLocations`, `use-location-select`, `use-stock-columns`, `features/shopping/components/BaseList.tsx`, `features/shopping/hooks/use-shopping-columns.tsx` |
 | `useStockItems()`                  | Articles avec leurs lots (`[...stockKey, 'items']`).                                                                                                                                                                                                                                                                                          | `StockPage`, `StockTable`, `StockCountForm`, `features/shopping/components/ShoppingCategories.tsx`                                                     |
 | `useStockMovements(itemId = null)` | Mouvements, tous ou d'un article (`[...stockKey, 'movements', itemId]`).                                                                                                                                                                                                                                                                      | `MovementsTable`                                                                                                                                       |
 | `useStockCounts()`                 | Inventaires (`[...stockKey, 'counts']`).                                                                                                                                                                                                                                                                                                      | `StockPage` (`CountsTable`)                                                                                                                            |
@@ -41,24 +41,24 @@ Interne : `useStockMutation(fn)` (mutation qui invalide le stock et les achats).
 
 - `StockPage()` : page `/stock` (route dans `app/router.tsx`) : `PageHeader` « Inventaire », onglets `stock` (`StockTable`), `movements` (`MovementsTable`), `counts` (`CountsTable`) via `usePageTab(STOCK_TABS)` (un changement d'onglet ne garde que `tab` : `{ only: true }`), et `StockSettings`.
 - Internes :
-  - `CountsTable()` : table des inventaires (`useDataView` clé `stock-counts`) : « Date », « Emplacement » (chemin ou « Tout le stock »), « Écarts notés », « Description » ; état vide ;
-  - `StockSettings()` : « Paramètres de l'inventaire » (`PageSettings`) avec `StockLocations` (usage = nombre d'articles par emplacement, `countBy`), puis `ShoppingCategories` et `ShoppingUnits` (ceux des achats) ;
+  - `CountsTable()` : table des inventaires (`useDataView` clé `stock-counts`, colonnes `useCountColumns`) ; état vide ;
+  - `StockSettings()` : « Paramètres de l'inventaire » (`PageSettings`) avec `StockLocations` (usage = nombre d'articles par emplacement, `countBy`), puis `ShoppingCategories` et `ShoppingUnits` (ceux des achats), puis en dernier les `ColumnDefaults` des tableaux `stock`, `stock-lots`, `stock-movements`, `stock-item-movements` (« Historique d’un article »), `stock-counts`, `stock-count` (« Faire l’inventaire ») ; interne `NO_COUNTS` ;
   - `STOCK_TABS`.
 
 ## components
 
 ### `components/StockTable.tsx`
 
-- `StockTable()` : table des articles (`DataTable`, clé `stock`) : colonnes « Article », « Emplacement », « Catégorie » (`categoryColumn`), « Quantité » (`quantityColumn`), « Unité » (`unitColumn`), « Date de péremption » (`nextExpiry`, badge rouge / orange / gris), « Lots », « Bénéficiaires », « Périssable », « Consommable » (`consumableColumn`), « Référence », « Valeur » (dernier prix × quantité), « Description » (`noteColumn`), « Modifié le », commentaires. Cellules modifiables sur place et en lot (`bulkSaver` → `updateItem` avec `stockItemInput` ; articles archivés ignorés) : libellé, emplacement (`EditableSelect` + `locationSelectProps`), catégorie (`CategoryCell`), unité (`UnitCell`), bénéficiaires (`EditableMultiSelect`, `rowPeopleKeys` / `rowPeopleOf`), périssable, description (`EditableMarkdown`). Lots dépliés sous la ligne (`details` → `LotsTable`) via `FoldHeading`. Barre : « Afficher les archivés », « Faire l'inventaire » (`StockCountForm`, panneau large), « Nouvel article » (`StockItemForm`). Ligne : « Retirer 1 » (mouvement `CONSUMPTION` de 1), « Consommer, ajouter, perdre… » (`StockMoveForm`), « Historique » (`MovementsTable itemId`), archiver, supprimer. Sélection : archiver, supprimer. Utilisé par `StockPage`.
+- `StockTable()` : table des articles (`DataTable`, clé `stock`) : colonnes `useStockItemColumns` : « Article », « Emplacement », « Catégorie » (`categoryColumn`), « Quantité » (`quantityColumn`), « Unité » (`unitColumn`), « Date de péremption » (`nextExpiry`, badge rouge / orange / gris), « Lots », « Bénéficiaires », « Périssable », « Consommable » (`consumableColumn`), « Référence », « Valeur » (dernier prix × quantité), « Description » (`noteColumn`), « Modifié le », commentaires. Cellules modifiables sur place et en lot (`bulkSaver` → `updateItem` avec `stockItemInput` ; articles archivés ignorés) : libellé, emplacement (`EditableSelect` + `locationSelectProps`), catégorie (`CategoryCell`), unité (`UnitCell`), bénéficiaires (`EditableMultiSelect`, `rowPeopleKeys` / `rowPeopleOf`), périssable, description (`EditableMarkdown`). Lots dépliés sous la ligne (`details` → `LotsTable`) via `FoldHeading`. Barre : « Afficher les archivés », « Faire l'inventaire » (`StockCountForm`, panneau large), « Nouvel article » (`StockItemForm`). Ligne : « Retirer 1 » (mouvement `CONSUMPTION` de 1), « Consommer, ajouter, perdre… » (`StockMoveForm`), « Historique » (`MovementsTable itemId`), archiver, supprimer. Sélection : archiver, supprimer. Utilisé par `StockPage`.
 - Internes : `Change` (champs modifiables), `SOON` (3 jours avant la date : « bientôt »), `whom(item)` (noms des bénéficiaires), `value(item)` (valeur estimée), `toggle(id)` (déplie les lots), `deleteItems(rows, clear?)` (action « Supprimer » commune ligne / sélection, `deleteItemsAction`).
 
 ### `components/LotsTable.tsx`
 
-- `LotsTable({ item, readOnly? })` : lots d'un article (clé `stock-lots`) : « Quantité » (`EditableNumber` ; l'écart part en mouvement `CORRECTION` sur ce lot), « Date de péremption » (`EditableDate` → `setLotExpiry`), « Entré le ». Modifiable en lot. Utilisé par `StockTable`.
+- `LotsTable({ item, readOnly? })` : lots d'un article (clé `stock-lots`, colonnes `LOT_COLUMNS`) : « Quantité » (`EditableNumber` ; l'écart part en mouvement `CORRECTION` sur ce lot), « Date de péremption » (`EditableDate` → `setLotExpiry`), « Entré le ». Modifiable en lot. Utilisé par `StockTable`.
 
 ### `components/MovementsTable.tsx`
 
-- `MovementsTable({ itemId? })` : mouvements, les plus récents d'abord (clé `stock-movements`, ou `stock-item-movements` pour un article) : « Date », « Mois » (`monthColumn`), « Article », « Mouvement » (badge coloré), « Quantité » (`SignedAmount`, signée), « Origine » (lien vers la liste d'achats ou la fiche), « Description ». Utilisé par `StockPage` et `StockTable` (« Historique »).
+- `MovementsTable({ itemId? })` : mouvements, les plus récents d'abord (clé `stock-movements`, ou `stock-item-movements` pour un article ; colonnes `MOVEMENT_COLUMNS`) : « Date », « Mois » (`monthColumn`), « Article », « Mouvement » (badge coloré), « Quantité » (`SignedAmount`, signée), « Origine » (lien vers la liste d'achats ou la fiche), « Description ». Utilisé par `StockPage` et `StockTable` (« Historique »).
 - Interne : `KIND_COLORS` (couleur de chaque type : achat vert, consommation bleu, inventaire violet, perte rouge, correction gris).
 
 ### `components/StockItemForm.tsx`
@@ -73,7 +73,7 @@ Interne : `useStockMutation(fn)` (mutation qui invalide le stock et les achats).
 
 ### `components/StockCountForm.tsx`
 
-- `StockCountForm({ onDone })` : panneau « Faire l'inventaire » : emplacement (ses sous-emplacements compris, `isUnderOrSelf`), table des articles non archivés (clé `stock-count` : « Article », « Emplacement », « Attendu », « Compté » saisi par `QuantityInput`), description ; « Enregistrer l'inventaire » envoie seulement les articles comptés (`recordCount`). Utilisé par `StockTable`.
+- `StockCountForm({ onDone })` : panneau « Faire l'inventaire » : emplacement (ses sous-emplacements compris, `isUnderOrSelf`), table des articles non archivés (clé `stock-count`, colonnes `useCountFormColumns(counts)` : « Article », « Emplacement », « Attendu », « Compté » saisi par `QuantityInput`), description ; « Enregistrer l'inventaire » envoie seulement les articles comptés (`recordCount`). Utilisé par `StockTable`.
 - Interne : `within(id)` (emplacement dans celui choisi).
 
 ### `components/StockPurchaseForm.tsx`
@@ -96,6 +96,18 @@ Interne : `useStockMutation(fn)` (mutation qui invalide le stock et les achats).
 ### `hooks/use-stock-proposal.ts`
 
 - `useStockProposal()` : renvoie `(items) => void` qui ouvre « Ajouter au stock » (`StockPurchaseForm`) pour les éléments achetés dont la référence est suivie en stock **sans** ajout automatique (les autres sont ajoutés par le serveur, ou non suivis) ; rien si aucun n'est concerné. Utilisé par `ShoppingListPage`, `StoreMode`, `OrderPanel`.
+
+### `hooks/use-stock-columns.tsx`
+
+Colonnes des tableaux de l’inventaire, chacune lue par son tableau et par `StockSettings` (colonnes des nouvelles vues).
+
+| Export | Rôle |
+| --- | --- |
+| `MOVEMENT_COLUMNS` | « Date », « Mois », « Article », « Mouvement », « Quantité », « Origine », « Description ». `MovementsTable`. |
+| `LOT_COLUMNS` | « Quantité », « Date de péremption », « Entré le ». `LotsTable`. |
+| `useStockItemColumns()` | Colonnes des articles (avec leurs commentaires). `StockTable`. |
+| `useCountColumns()` | « Date », « Emplacement » (chemin ou « Tout le stock »), « Écarts notés », « Description ». `CountsTable`. |
+| `useCountFormColumns(counts)` | « Article », « Emplacement », « Attendu », « Compté ». `StockCountForm`. |
 
 ## lib
 

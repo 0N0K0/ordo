@@ -206,6 +206,7 @@ Barre latérale « Paramètres des achats » (pages `/shopping` et `/shopping/:i
 - « Unités » : nom et image, sans couleur ; usage en nombre de produits et éléments des listes ; « Renommer une unité la renomme dans les produits et les listes. » ; un nouvel espace commence avec « pièce », « kg », « g », « L », « cl », « boîte », « paquet », « bouteille », « sachet », « lot », « rouleau », « carton », « paire ».
 - « Modes de conservation » : « Comment se conservent les produits périssables : frais, congélation, à l'abri de la lumière… ».
 - Chaque liste : ajout, modification, archivage, suppression, ordre manuel (voir [Paramètres](../cross-cutting/settings.md)).
+- En dernier, « Colonnes des nouvelles vues » des tableaux « Références », « Listes » et « Une liste » : colonnes et ordre avec lesquels démarrent leurs nouvelles vues ([Colonnes des nouvelles vues](../cross-cutting/settings.md#colonnes-des-nouvelles-vues)).
 
 ## Ce qui se passe automatiquement
 

@@ -1,7 +1,18 @@
 import { parseCookie } from 'cookie';
 import { addSharedContexts } from '../treasury/treasury-contexts';
 import type { NextFunction, Request, Response } from 'express';
-import { DEFAULT_SHOPPING_UNITS, readTaskColumnDefaults, taskColumnDefaultsSchema, weekSpanSchema, type TaskColumnDefaults, type WeekSpan, workspaceLabelSchema } from '@ordo/shared';
+import {
+  DEFAULT_SHOPPING_UNITS,
+  readTableColumnDefaults,
+  storedTableColumnDefaults,
+  TABLE_COLUMN_DEFAULTS_MAX,
+  tableColumnDefaultsSchema,
+  tableKeySchema,
+  weekSpanSchema,
+  type TableColumnDefaults,
+  type WeekSpan,
+  workspaceLabelSchema,
+} from '@ordo/shared';
 import { z } from 'zod';
 import { prisma, unscopedPrisma } from '../../db';
 import { BY_POSITION, nextPositionIn, saveSiblingOrder } from '../core/ordering';
@@ -10,6 +21,7 @@ import { clientError, notFound, parseInput } from '../../graphql/errors';
 import { assertExists, findOrNotFound } from '../core/lookup';
 import { currentWorkspace, currentWorkspaceId, runInWorkspace } from '../../workspace-context';
 import { currentWorkspaceFields } from './current-workspace';
+import { toJson } from '../core/json';
 import { resolveCalendarId } from '../calendar/calendars';
 import { freeHandle } from '../projects/contributors';
 import { ensureDocumentStatuses } from '../accounting/document-statuses';
@@ -242,21 +254,31 @@ export async function deleteWorkspace(id: string): Promise<void> {
 }
 
 /**
- * Columns new task views of this workspace start with: chosen for it, else the app's.
- * @returns {Promise<TaskColumnDefaults>} Order and hidden columns.
+ * Columns new views of a table of this workspace start with: chosen for it, else the app's.
+ * @param {string} tableKey Table.
+ * @returns {Promise<TableColumnDefaults>} Order and hidden columns.
  */
-export async function taskColumnDefaults(): Promise<TaskColumnDefaults> {
-  const workspace = await currentWorkspaceFields({ taskColumns: true });
-  return readTaskColumnDefaults(workspace.taskColumns);
+export async function tableColumnDefaults(tableKey: string): Promise<TableColumnDefaults> {
+  const key = parseInput(tableKeySchema, tableKey);
+  const workspace = await currentWorkspaceFields({ tableColumns: true });
+  return readTableColumnDefaults(storedTableColumnDefaults(workspace.tableColumns)[key], key);
 }
 
 /**
- * Chooses the columns new task views of this workspace start with, or gives back the app's (null).
- * @param {TaskColumnDefaults | null} input Order and hidden columns, or null.
- * @returns {Promise<TaskColumnDefaults>} Columns now.
+ * Chooses the columns new views of a table of this workspace start with, or gives back the app's (null); those of the
+ * other tables are kept.
+ * @param {string} tableKey Table.
+ * @param {TableColumnDefaults | null} input Order and hidden columns, or null.
+ * @returns {Promise<TableColumnDefaults>} Columns now.
  */
-export async function setTaskColumnDefaults(input: TaskColumnDefaults | null): Promise<TaskColumnDefaults> {
-  const columns = input ? parseInput(taskColumnDefaultsSchema, input) : null;
-  await unscopedPrisma.workspace.update({ where: { id: currentWorkspaceId() }, data: { taskColumns: columns ?? Prisma.DbNull } });
-  return readTaskColumnDefaults(columns);
+export async function setTableColumnDefaults(tableKey: string, input: TableColumnDefaults | null): Promise<TableColumnDefaults> {
+  const key = parseInput(tableKeySchema, tableKey);
+  const columns = input ? parseInput(tableColumnDefaultsSchema, input) : null;
+  const stored = storedTableColumnDefaults((await currentWorkspaceFields({ tableColumns: true })).tableColumns);
+  if (columns) {
+    if (!(key in stored) && Object.keys(stored).length >= TABLE_COLUMN_DEFAULTS_MAX) throw clientError('BAD_USER_INPUT', 'Trop de tableaux ont des colonnes par défaut.');
+    stored[key] = columns;
+  } else delete stored[key];
+  await unscopedPrisma.workspace.update({ where: { id: currentWorkspaceId() }, data: { tableColumns: Object.keys(stored).length ? toJson(stored) : Prisma.DbNull } });
+  return readTableColumnDefaults(columns, key);
 }

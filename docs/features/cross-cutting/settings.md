@@ -37,7 +37,7 @@ Page `/tasks` ; aussi dans les paramètres d’un projet depuis son onglet « T�
 | « Priorités »                   | Priorités, communes aux tâches et aux routines (leurs usages comptent les deux ; aussi dans les paramètres des routines) ; leur ordre est celui des listes et du tri par priorité. |
 | « Types »                       | Communs aux tâches et aux routines (leurs usages comptent les deux ; aussi dans les paramètres des routines) : bug, fonctionnalité, ménage, courses… |
 | « Étiquettes »                  | Plusieurs par tâche ; synchronisées avec les labels GitHub.                                                                                                                                  |
-| « Colonnes des nouvelles vues » | Colonnes affichées et leur ordre (glisser-déposer) quand une vue de tâches est créée ; les vues existantes gardent les leurs. « Colonnes par défaut » (sous la liste) revient aux colonnes de l’app.         |
+| « Colonnes des nouvelles vues » | Du tableau des tâches, en dernier (voir [Colonnes des nouvelles vues](#colonnes-des-nouvelles-vues)).         |
 
 ### Projet — « Paramètres du projet »
 
@@ -51,8 +51,8 @@ Les paramètres de l’espace repris dans un projet sont ceux de l’espace (les
 | « Routines »      | Depuis l’onglet « Routines » : les paramètres des routines de l’espace (ci-dessous).                                                                                                           |
 | « Achats »        | Depuis l’onglet « Achats » : les paramètres des achats de l’espace.                                                                                                                            |
 | « Fiches »        | Depuis l’onglet « Fiches » : les paramètres des fiches de l’espace.                                                                                                                            |
-| « Temps »         | Depuis l’onglet « Temps » : la semaine de l’espace (« Cette semaine » des temps).                                                                                                              |
-| « Facturation »   | Depuis l’onglet « Facturation » (PRO) : « Suivi » (statuts des devis et des factures) et « Ma société » (avec la numérotation) de la facturation ; l’export ZIP reste sur la page Facturation. |
+| « Temps »         | Depuis l’onglet « Temps » : la semaine de l’espace (« Cette semaine » des temps) et les colonnes des nouvelles vues des temps.                                                                  |
+| « Facturation »   | Depuis l’onglet « Facturation » (PRO) : « Suivi » (statuts des devis et des factures) et « Ma société » (avec la numérotation) de la facturation, puis les colonnes des nouvelles vues des documents d’un projet ou d’un client ; l’export ZIP reste sur la page Facturation. |
 | « Mails »         | Depuis l’onglet « Mails » : les boîtes mail et les drapeaux de l’espace.                                                                                                                       |
 | « Jalons »        | Depuis l’onglet « Tâches » : jalons du projet, utilisables par les tâches du projet et de ses sous-projets.                                                                                     |
 | « Sprints »       | Depuis l’onglet « Tâches » : sprints du projet, mêmes règles d’usage.                                                                                                                          |
@@ -78,6 +78,7 @@ Page `/accounting` (espaces PRO) ; « Suivi » et « Ma société » aussi dans 
 | « Export ZIP » | « Télécharger les documents d’une période » en archive ZIP.                                                                                                                                                                                                                                                                                                                    |
 | « Suivi »      | « Statuts des devis » et « Statuts des factures » : statuts de suivi, chacun avec sa catégorie, qui règle le suivi automatique (« À envoyer » à la validation, « Envoyé(e) » à l’envoi par mail, « Accepté » / « Payée »…).                                                                                                                                                    |
 | « Ma société » | « Ma société » (imprimée sur les devis, factures et avoirs : identité, forme juridique, capital, SIREN, SIRET, NAF, immatriculation, contact, TVA ou « TVA non applicable » avec sa mention, coordonnées bancaires, échéance par défaut, mentions) et « Numérotation » (numéro du prochain document définitif de chaque type, par année ; les brouillons n’ont pas de numéro). |
+| « Colonnes »   | Dernier onglet : « Colonnes des nouvelles vues » de chaque tableau de la facturation (devis, factures, acomptes, avoirs, à envoyer, à relancer, récurrentes, catalogue, temps à facturer, documents d’un projet ou d’un client). |
 
 ### Trésorerie — « Paramètres de la trésorerie »
 
@@ -93,6 +94,7 @@ Page `/treasury`. Sections empilées. Voir [Trésorerie](../finances/treasury.md
 | « Factures et avoirs » (PRO seulement)              | Catégorie des règlements des factures et des remboursements des avoirs, pour les budgets ; « Aucune (hors budget) ».                                                                               |
 | « Moyens de paiement »                              | Virement, carte, chèque…, pour les entrées, les sorties ou les deux.                                                                                                                               |
 | « Tiers »                                           | Émetteurs et destinataires qui ne sont pas des clients (fournisseurs, administrations, banques…) ; supprimer un tiers laisse ses mouvements sans émetteur ou destinataire (mieux vaut l’archiver). |
+| « Colonnes des nouvelles vues : … »                 | En dernier, une par tableau : prévisionnel, mouvements, répartition d’un mouvement, budgets du mois, hors budget, budgets définis, prêts. |
 
 ### Agenda — « Paramètres de l’agenda »
 
@@ -101,7 +103,7 @@ Page `/calendar`. Voir [Agenda](../activities/calendar.md).
 | Onglet                  | Ce qu’il gère                                                                                                                                                                                                                                                                                                                           |
 | ----------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | « Affichage et export » | « Affichage » : calendriers et créneaux affichés ou masqués, « Aussi dans l’agenda » (Tâches, Routines, créneaux, Chronos, archivés), « Heures (semaine, jour) » « Par 5 minutes » (sinon par 30). « Exporter » : « Vue en PDF » et l’export ICS des calendriers.                                                                           |
-| « Paramètres »          | « Semaine » (« Semaine du … au … » de tout l’espace ; aussi dans les paramètres des chronos et de l’onglet « Temps » d’un projet), « Calendriers » et « Calendriers des autres espaces » (abonnements en lecture seule), « Catégories d’agenda » (arborescence ; filtrer sur une catégorie inclut ses sous-catégories), « Créneaux sans type », « Types de créneaux » (couleur et affichage), « Créneaux des autres espaces » (abonnement à un type de créneau d’un autre espace). |
+| « Paramètres »          | « Semaine » (« Semaine du … au … » de tout l’espace ; aussi dans les paramètres des chronos et de l’onglet « Temps » d’un projet), « Calendriers » et « Calendriers des autres espaces » (abonnements en lecture seule), « Catégories d’agenda » (arborescence ; filtrer sur une catégorie inclut ses sous-catégories), « Créneaux sans type », « Types de créneaux » (couleur et affichage), « Créneaux des autres espaces » (abonnement à un type de créneau d’un autre espace), puis en dernier « Colonnes des nouvelles vues » des tableaux des créneaux et des éphémérides. |
 
 Les créneaux eux-mêmes se gèrent par un bouton de la page, pas dans le panneau.
 
@@ -116,7 +118,7 @@ Page `/mail` ; aussi dans les paramètres d’un projet depuis son onglet « Mai
 
 ### Routines — « Paramètres des routines »
 
-Page `/routines` ; aussi dans les paramètres d’un projet depuis son onglet « Routines ». Sections « Catégories » (arborescence des catégories de routines), puis « Priorités » et « Types » (les mêmes que dans les paramètres des tâches : communs aux deux). Voir [Routines](../activities/routines.md).
+Page `/routines` ; aussi dans les paramètres d’un projet depuis son onglet « Routines ». Sections « Catégories » (arborescence des catégories de routines), puis « Priorités » et « Types » (les mêmes que dans les paramètres des tâches : communs aux deux), puis « Colonnes des nouvelles vues » du tableau des routines. Voir [Routines](../activities/routines.md).
 
 ### Achats — « Paramètres des achats »
 
@@ -128,18 +130,19 @@ Pages `/shopping` et page d’une liste ; aussi dans les paramètres d’un proj
 | « Magasins »              | « Où vous achetez les produits. » (PERSO) / « Magasins et fournisseurs des produits. » (PRO).                                   |
 | « Unités »                | Unités de quantité (aussi dans les paramètres des fiches et de l’inventaire) ; renommer une unité la renomme dans les produits et les listes. |
 | « Modes de conservation » | Frais, congélation, à l’abri de la lumière…                                                                                     |
+| « Colonnes des nouvelles vues : … » | En dernier : « Références », « Listes », « Une liste ». |
 
 ### Fiches — « Paramètres des fiches »
 
-Pages `/sheets` et page d’une fiche ; aussi dans les paramètres d’un projet depuis son onglet « Fiches ». Sections « Catégories de fiches » (plusieurs par fiche), puis « Catégories » et « Unités » des éléments (les mêmes que celles des achats). Voir [Fiches](../supplies/sheets.md).
+Pages `/sheets` et page d’une fiche ; aussi dans les paramètres d’un projet depuis son onglet « Fiches ». Sections « Catégories de fiches » (plusieurs par fiche), puis « Catégories » et « Unités » des éléments (les mêmes que celles des achats), puis « Colonnes des nouvelles vues » des tableaux « Fiches », « Une fiche » et « Listes à cocher » (celles des tâches, routines et évènements). Voir [Fiches](../supplies/sheets.md).
 
 ### Inventaire — « Paramètres de l’inventaire »
 
-Page `/stock`. Sections « Emplacements » (où sont rangés les articles, en arborescence : Cuisine › Frigo), puis « Catégories » et « Unités » des articles (les mêmes que celles des achats). Voir [Inventaire](../supplies/stock.md).
+Page `/stock`. Sections « Emplacements » (où sont rangés les articles, en arborescence : Cuisine › Frigo), puis « Catégories » et « Unités » des articles (les mêmes que celles des achats), puis « Colonnes des nouvelles vues » des tableaux « Stock », « Lots d’un article », « Mouvements », « Historique d’un article », « Inventaires », « Faire l’inventaire ». Voir [Inventaire](../supplies/stock.md).
 
 ### Chronos — « Paramètres des chronos »
 
-Page `/time`. Section « Semaine » (la même que dans les paramètres de l’agenda) : elle fixe « Cette semaine » des temps et du temps prévu. Voir [Temps](../activities/time.md).
+Page `/time`. Section « Semaine » (la même que dans les paramètres de l’agenda) : elle fixe « Cette semaine » des temps et du temps prévu ; puis « Colonnes des nouvelles vues : Temps passé ». Voir [Temps](../activities/time.md).
 
 ### Alarmes — « Paramètres des alarmes »
 
@@ -156,6 +159,7 @@ Portée : « espace » = un réglage de tout l’espace, le même partout où il
 | Section                                                                   | Portée      | Où elle apparaît                                                                                   |
 | ------------------------------------------------------------------------- | ----------- | -------------------------------------------------------------------------------------------------- |
 | Paramètres des tâches (statuts, priorités, types, étiquettes, automatisations, colonnes des nouvelles vues) | espace | Tâches ; projet, onglet « Tâches » |
+| Colonnes des nouvelles vues (une section par tableau, toujours en dernier) | espace | Le panneau de la page de chaque tableau, et l’onglet du projet qui montre ce tableau : voir [ci-dessous](#colonnes-des-nouvelles-vues) |
 | Priorités et types                                                        | espace      | Tâches ; Routines ; projet, onglets « Tâches » et « Routines »                                      |
 | Paramètres des routines (catégories, priorités, types)                    | espace      | Routines ; projet, onglet « Routines »                                                              |
 | Paramètres des achats (catégories, magasins, unités, conservation)        | espace      | Achats, page d’une liste ; projet, onglet « Achats »                                                |
@@ -177,6 +181,25 @@ Portée : « espace » = un réglage de tout l’espace, le même partout où il
 | Compte, sonnerie, notifications push                                      | utilisateur | Mon compte                                                                                          |
 
 Onglets d’un projet sans paramètres de l’espace : « Aperçu » et « Ressources ».
+
+## Colonnes des nouvelles vues
+
+Chaque tableau de données a, pour tout l’espace, les colonnes (ordre et colonnes masquées) avec lesquelles démarrent ses nouvelles vues, premières vues comprises ; les vues existantes gardent les leurs. Le réglage est le même pour la page et pour les projets. Il se règle dans la section « Colonnes des nouvelles vues » (« Colonnes des nouvelles vues : <tableau> » quand un panneau en a plusieurs), toujours en dernier dans le panneau : la liste des colonnes, limitée en hauteur, défile ; on coche les colonnes affichées et on les glisse dans l’ordre voulu ; « Colonnes par défaut », sous la liste, revient aux colonnes de l’application. Règles : [Espaces](../../business-rules/cross-cutting/workspaces.md#colonnes-par-défaut-des-nouvelles-vues).
+
+| Tableau (`tableKey`) | Où il se règle |
+| --- | --- |
+| `tasks` | Paramètres des tâches ; projet, onglet « Tâches » |
+| `routines` | Paramètres des routines ; projet, onglet « Routines » |
+| `shopping-base-list` (« Références »), `shopping-lists` (« Listes »), `shopping-list` (« Une liste ») | Paramètres des achats ; projet, onglet « Achats » |
+| `sheets` (« Fiches »), `sheet-items` (« Une fiche »), `checklist` (« Listes à cocher ») | Paramètres des fiches ; projet, onglet « Fiches » |
+| `stock`, `stock-lots`, `stock-movements`, `stock-item-movements`, `stock-counts`, `stock-count` | Paramètres de l’inventaire |
+| `time-log` (« Temps passé ») | Paramètres des chronos ; projet, onglet « Temps » |
+| `work-schedules` (créneaux), `ephemerides` | Paramètres de l’agenda, onglet « Paramètres » |
+| `treasury-forecast`, `treasury-entries`, `treasury-entry-lines`, `treasury-budget-report`, `treasury-budget-outside`, `treasury-budgets`, `treasury-loans` | Paramètres de la trésorerie |
+| `documents-quote`, `documents-invoice`, `documents-deposit-invoice`, `documents-credit-note`, `documents-to-send`, `overdue-invoices`, `recurring-invoices`, `catalog`, `time-billing` | Paramètres de la facturation, onglet « Colonnes » (PRO) |
+| `project-documents` (« Documents d’un projet ou d’un client ») | Paramètres de la facturation, onglet « Colonnes » ; projet, onglet « Facturation » |
+
+Sans section : les tableaux de l’import d’un relevé bancaire (`statement-import-file`, colonnes du fichier lu ; `statement-import-preview`), étapes d’un import, et la bibliothèque de documents (`library`, page sans panneau de paramètres) ; leurs nouvelles vues partent quand même du réglage s’il existe.
 
 ## Page « Paramètres » de l’espace
 

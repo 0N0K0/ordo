@@ -2759,9 +2759,9 @@ type Mutation {
   setStockLotExpiry(expiresAt: Date, id: ID!): Boolean!
 
   """
-  Chooses the columns new task views start with; without columns, gives back the app’s.
+  Chooses the columns new views of a data table start with; without a layout, gives back the app’s.
   """
-  setTaskColumnDefaults(columnOrder: [String!], hiddenColumns: [String!]): TaskColumnDefaults!
+  setTableColumnDefaults(layout: TableColumnLayoutInput, tableKey: String!): TableColumnDefaults!
 
   """
   Closes tasks as done (reason omitted) or as cancelled (NOT_PLANNED), or reopens them; a closed task no longer blocks other tasks. A task already closed keeps its closing date and takes the new reason.
@@ -3526,6 +3526,11 @@ type Query {
   """Schedules of the kinds of other workspaces this one shows (read only)."""
   subscribedWorkSchedules: [ForeignWorkSchedule!]!
 
+  """
+  Columns new views of a data table start with in the workspace (chosen for it, else the app’s).
+  """
+  tableColumnDefaults(tableKey: String!): TableColumnDefaults!
+
   """A task, by its id (its number is only unique in its project)."""
   task(id: ID!): Task
 
@@ -3533,11 +3538,6 @@ type Query {
   Automations of the tasks of the workspace, in their order (archived ones included).
   """
   taskAutomations: [TaskAutomation!]!
-
-  """
-  Columns new task views of the workspace start with (chosen for it, else the app’s).
-  """
-  taskColumnDefaults: TaskColumnDefaults!
   taskPriorities: [TaskPriority!]!
   taskStatuses: [TaskStatus!]!
   taskTags: [TaskTag!]!
@@ -5050,6 +5050,20 @@ type SubscribableCalendar {
   workspace: CalendarWorkspace!
 }
 
+"""
+Columns new views of a data table of the workspace start with: their order and those hidden.
+"""
+type TableColumnDefaults {
+  columnOrder: [String!]!
+  hiddenColumns: [String!]!
+}
+
+"""Order and hidden columns of a data table."""
+input TableColumnLayoutInput {
+  columnOrder: [String!]!
+  hiddenColumns: [String!]!
+}
+
 type Task {
   """Archived: hidden by default, read only."""
   archived: Boolean!
@@ -5272,12 +5286,6 @@ How a task is closed: done (COMPLETED) or cancelled (NOT_PLANNED, « Annulée »
 enum TaskCloseReason {
   COMPLETED
   NOT_PLANNED
-}
-
-"""Columns new task views of the workspace start with."""
-type TaskColumnDefaults {
-  columnOrder: [String!]!
-  hiddenColumns: [String!]!
 }
 
 type TaskComment {

@@ -13,7 +13,7 @@ import { useEntryCellSave, type EntryValues } from '../lib/entry-values';
 import { bulkCellLabels, type BulkChange, bulkSaver } from '../../../components/data-table/selection/bulk-edit';
 import { useDataView, type FirstTableView, withinFilter } from '../../../components/data-table/views/use-data-view';
 import { ROW_ACTIONS_WIDTH, RowActions } from '../../../components/data-table/cells/RowActions';
-import { readOnlyCells, type DataColumn } from '../../../components/data-table/table/data-table';
+import { readOnlyCells } from '../../../components/data-table/table/data-table';
 import { archiveItemsAction, duplicateRowsAction, rowMenuEntry, type DuplicateOptions } from '../../../components/data-table/selection/selection-actions';
 import { ArchivedBadge } from '../../../components/feedback/ArchivedBadge';
 import { archiveEntry, useSetArchived, unarchived } from '../../../lib/archive';
@@ -21,19 +21,17 @@ import { selectedLabel } from '../../../components/data-table/selection/selectio
 
 import { treasuryKey, useTreasuryEntries, type ForecastEntry, type TreasuryAccount, type TreasuryEntry } from '../api';
 import { DetailsToggle, SettledCell } from './entry-cells';
-import { useEntryEnv, type EntryEnv } from '../lib/entry-env';
-import { entryFieldCells, entryFieldColumns } from '../lib/entry-columns';
+import { useEntryEnv } from '../lib/entry-env';
+import { entryFieldCells } from '../lib/entry-columns';
 import { EntryLinesTable } from './EntryLinesTable';
+import { entryTableColumns } from '../lib/treasury-columns';
 import { EntryUrl } from './EntryUrl';
 import { StatementForm } from './StatementForm';
 import { StatementImport } from './StatementImport';
 import * as fmt from '../../../lib/format';
 import { useCommentCounts } from '../../comments/api';
-import { commentColumn } from '../../comments/lib/comment-column';
 import { SignedAmountCell } from '../../../components/money/SignedAmount';
-import { monthColumn } from '../../../components/data-table/table/month-column';
 import { useDeleteEntries } from '../hooks/use-delete-entries';
-import { signedText } from '../../../components/money/signed-text';
 
 /**
  * Money in and out of actual entries, linked money in and out of the period offsetting each other.
@@ -64,50 +62,6 @@ interface EntriesPanelProps {
 /** Width of the actions column. */
 const ACTIONS_WIDTH = ROW_ACTIONS_WIDTH;
 
-/**
- * Columns of the entries: month (to group), execution date, label, amount, documents settled, then the columns every
- * table of entries shares.
- * @param {EntryEnv} env Names.
- * @returns {DataColumn<TreasuryEntry>[]} Columns.
- */
-function entryColumns(env: EntryEnv): DataColumn<TreasuryEntry>[] {
-  return [
-    monthColumn('month', 'Mois', (entry) => entry.date),
-    {
-      id: 'date',
-      bulk: true,
-      required: true,
-      label: 'Date d’exécution',
-      size: 130,
-      sortValue: (entry) => entry.date,
-      text: (entry) => fmt.day(entry.date),
-      filter: { kind: 'date', value: (entry) => entry.date },
-    },
-    { id: 'label', label: 'Libellé', size: 300, locked: true, required: true, bulk: true, sortValue: (entry) => entry.label, text: (entry) => entry.label },
-    ...entryFieldColumns<TreasuryEntry>((entry) => entry, env, { payerName: (entry) => entry.payerName ?? '', allEntries: true }),
-    {
-      id: 'settled',
-      label: 'Documents réglés',
-      size: 200,
-      hiddenByDefault: true,
-      text: (entry) => entry.allocations.map((allocation) => allocation.documentLabel).join(', '),
-      filter: { kind: 'boolean', value: (entry) => entry.allocations.length > 0 },
-    },
-    {
-      id: 'amount',
-      bulk: true,
-      required: true,
-      label: 'Montant',
-      size: 130,
-      numeric: true,
-      sortValue: (entry) => entry.amount,
-      formatTotal: fmt.money,
-      text: (entry) => signedText(entry.amount),
-      filter: { kind: 'number', value: (entry) => entry.amount },
-    },
-  ];
-}
-
 /** Views made the first time the entries are shown: this month (opened first), this year by month, all by month. */
 const ENTRY_VIEWS: FirstTableView[] = [
   { label: 'Ce mois-ci', config: { filter: withinFilter('date', 'thisMonth') } },
@@ -134,17 +88,7 @@ export function EntriesPanel({ accounts, onEdit, onDuplicate }: EntriesPanelProp
     'TREASURY_ENTRY',
     (entries ?? []).map((entry) => entry.id),
   );
-  const columns = useMemo(
-    () => [
-      ...entryColumns(env),
-      commentColumn<TreasuryEntry>(
-        entryComments,
-        (entry) => entry.id,
-        (entry) => entry.note,
-      ),
-    ],
-    [env, entryComments],
-  );
+  const columns = useMemo(() => entryTableColumns(env, entryComments), [env, entryComments]);
   const loaded = useMemo(() => (entries ?? []).filter((entry) => entry.status === 'ACTUAL'), [entries]);
   const view = useDataView({ tableKey: 'treasury-entries', getKey: (entry) => entry.id, columns, rows: loaded, title: 'Mouvements', first: ENTRY_VIEWS, archived: (entry) => entry.archived });
   // A change made on the bulk selection of a column saves each entry it fits (none: left as it is; archived ones are read only).

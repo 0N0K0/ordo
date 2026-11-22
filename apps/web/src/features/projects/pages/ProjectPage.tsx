@@ -13,9 +13,10 @@ import { TaskSettings } from '../../tasks/components/TaskSettings';
 import { RoutineSettings } from '../../routines/components/RoutineSettings';
 import { ShoppingSettings } from '../../shopping/components/ShoppingSettings';
 import { SheetsSettings } from '../../sheets/components/SheetsSettings';
-import { WeekSettings } from '../../calendar/components/WeekSettings';
+import { TimeSettings } from '../../time/components/TimeSettings';
 import { DocumentStatusSettings } from '../../accounting/components/DocumentStatusSettings';
 import { CompanySettings } from '../../accounting/components/CompanySettings';
+import { ProjectDocumentsColumnDefaults } from '../../accounting/components/AccountingColumnDefaults';
 import { MailSettings } from '../../mail/components/MailSettings';
 import { SettingsScopeNote } from '../../../components/settings/SettingsScopeNote';
 import { ActionButton } from '../../../components/actions/ActionButton';
@@ -101,13 +102,14 @@ const TAB_SETTINGS = {
   routines: { section: 'routineSettings', render: () => <RoutineSettings /> },
   shopping: { section: 'shoppingSettings', render: () => <ShoppingSettings /> },
   sheets: { section: 'sheetSettings', render: () => <SheetsSettings /> },
-  time: { section: 'timeSettings', render: () => <WeekSettings /> },
+  time: { section: 'timeSettings', render: () => <TimeSettings /> },
   billing: {
     section: 'billingSettings',
     render: () => (
       <Stack gap="md">
         <DocumentStatusSettings />
         <CompanySettings />
+        <ProjectDocumentsColumnDefaults />
       </Stack>
     ),
   },
