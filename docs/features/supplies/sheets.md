@@ -7,7 +7,7 @@ Ce que l'utilisateur peut faire avec les fiches : des listes d'éléments utilis
 - Page « Fiches », route `/sheets` (`PAGES.sheets`, icône `ClipboardTextIcon`), dans la navigation principale.
 - Page d'une fiche : `/sheets/:id` (`sheetPath(id)`).
 - Onglet « Fiches » de la page d'un projet : le même tableau, limité aux fiches du projet (la colonne « Projet » y est masquée par défaut ; une fiche créée là est rattachée au projet).
-- Paramètres (barre latérale « Paramètres des fiches »), sur la liste et sur la page d'une fiche.
+- Paramètres (barre latérale « Paramètres des fiches »), sur la liste et sur la page d'une fiche ; aussi dans les paramètres d’un projet, depuis son onglet « Fiches ».
 
 ## Liste des fiches
 

@@ -228,7 +228,11 @@ Internes : `NEW_LABEL_TITLES`, `useLabelCreator(kind)` (ouvre le formulaire du l
 
 ### `components/TaskSettings.tsx`
 
-- `TaskSettings()` : paramètres des tâches : `SettingsList` des statuts (avec catégorie), priorités, types (communs aux tâches et aux routines : leur nombre d’utilisations compte les deux, `useRoutinesData`, interne `ACTIVITY_USAGE`), étiquettes, chacune avec son nombre d’utilisations, la section « Automatisations » (bouton « Gérer les règles » vers `TASK_AUTOMATIONS_PATH`), puis `ColumnDefaults` en dernier (une longue liste). Utilisé par `TasksPage` et les paramètres d’un projet.
+- `TaskSettings()` : paramètres des tâches : `SettingsList` des statuts (avec catégorie), `PriorityTypeSettings`, étiquettes, chacune avec son nombre d’utilisations, la section « Automatisations » (bouton « Gérer les règles » vers `TASK_AUTOMATIONS_PATH`), puis `ColumnDefaults` en dernier (une longue liste). Utilisé par `TasksPage` et l’onglet « Tâches » des paramètres d’un projet.
+
+### `components/PriorityTypeSettings.tsx`
+
+- `PriorityTypeSettings()` : les deux `SettingsList` « Priorités » et « Types », communes aux tâches et aux routines (leur nombre d’utilisations compte les deux, `useRoutinesData` ; interne `ACTIVITY_USAGE`). Utilisé par `TaskSettings` et `RoutineSettings`. Garde eslint : une `SettingsList` titrée « Priorités » ou « Types » ailleurs est refusée.
 
 ### `components/ColumnDefaults.tsx`
 

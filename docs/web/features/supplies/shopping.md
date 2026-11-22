@@ -46,7 +46,7 @@ Fonctions internes : `useShoppingMutation` (mutation qui invalide `shoppingKey`)
 
 ### `pages/ShoppingPage.tsx`
 
-- `ShoppingPage()` : page `/shopping` (route dans `app/router.tsx`) : `PageHeader`, `ShoppingSettings`, onglets `base` (« Références », `BaseLists`) et `lists` (« Listes », `ListsPanel`) via `usePageTab(SHOPPING_TABS)`.
+- `ShoppingPage()` : page `/shopping` (route dans `app/router.tsx`) : `PageHeader`, `ShoppingPageSettings`, onglets `base` (« Références », `BaseLists`) et `lists` (« Listes », `ListsPanel`) via `usePageTab(SHOPPING_TABS)`.
 - `ListsPanel({ projectId?, projectIds? })` : table des listes (`DataTable`, `useDataView` clé `shopping-lists`), vues `LIST_VIEWS`, cellules modifiables (libellé `EditableText`, tâches `TasksCell`, progression `ShoppingProgressBadge`), menu `ListActionsMenu`, actions de sélection (dupliquer, clôturer / rouvrir, archiver, supprimer), interrupteur des archivées. Avec `projectIds`, seules les listes des tâches de ces projets (`listsOfProjects`) et les vues du projet. Utilisé aussi par `features/projects/pages/ProjectPage.tsx` (onglet « shopping »).
 - Internes : `LIST_VIEWS` (vues « En cours » / « Clôturées »), `ListEnv` (contexte des colonnes), `projectsOf(list, context)` (projets des tâches d'une liste), `listColumns(env)` (colonnes de la table des listes), `SHOPPING_TABS`.
 
@@ -152,7 +152,8 @@ Champs de formulaire partagés par les achats et le stock.
 
 ### `components/ShoppingSettings.tsx`
 
-- `ShoppingSettings()` : « Paramètres des achats » dans la barre latérale (`PageSettings`) : `ShoppingCategories` (usage compté sur produits, éléments et éléments de fiches), puis `SettingsList` des magasins, unités (usage par libellé) et modes de conservation. Utilisé par `ShoppingPage` et `ShoppingListPage`.
+- `ShoppingSettings()` : paramètres des achats : `ShoppingCategories` (usage compté sur produits, éléments et éléments de fiches), puis `SettingsList` des magasins, unités (usage par libellé) et modes de conservation. Utilisé par `ShoppingPageSettings` et l’onglet « Achats » des paramètres d’un projet.
+- `ShoppingPageSettings()` : `ShoppingSettings` dans la barre latérale (`PageSettings` « Paramètres des achats »). Utilisé par `ShoppingPage` et `ShoppingListPage`.
 
 ### `components/ShoppingCategories.tsx`
 

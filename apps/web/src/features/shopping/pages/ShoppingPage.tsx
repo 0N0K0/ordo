@@ -21,7 +21,7 @@ import { useDataView, type FirstTableView, conditionFilter } from '../../../comp
 import { categoryOptions, categoryPaths } from '../../../components/tree/category-tree';
 import { shoppingKey, useShoppingData, useShoppingLists, useShoppingMutations, type ShoppingCategory, type ShoppingList, type ShoppingStore } from '../api';
 import { BaseLists } from '../components/BaseLists';
-import { ShoppingSettings } from '../components/ShoppingSettings';
+import { ShoppingPageSettings } from '../components/ShoppingSettings';
 import { shoppingTotal } from '../lib/export';
 import { openNewList } from '../lib/open-new-list';
 import { ListActionsMenu } from '../components/ListActions';
@@ -381,7 +381,7 @@ export function ShoppingPage() {
   return (
     <Stack gap="lg">
       <PageHeader title={PAGES.shopping.label} />
-      <ShoppingSettings />
+      <ShoppingPageSettings />
       <PageTabs value={tab} onChange={(value) => setTab(value)} keepMounted={false}>
         <PageTabs.List>
           <PageTabs.Tab value="base" leftSection={<BasketIcon aria-hidden />}>

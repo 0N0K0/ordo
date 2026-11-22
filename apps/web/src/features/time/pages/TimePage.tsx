@@ -10,10 +10,13 @@ import { PlannedTime } from '../components/PlannedTime';
 import { TimeLog } from '../components/TimeLog';
 import { useTimeEntryDialogs } from '../hooks/use-time-dialogs';
 import { useActiveWorkspace } from '../../workspaces/api';
+import { PageSettings } from '../../../app/layout/PageSettings';
+import { WeekSettings } from '../../calendar/components/WeekSettings';
 
 /**
  * Timers of every project: a button starting one (in a modal), planned against tracked time, time added by hand,
- * and the tracked times in a table of saved views (this week, this month, all; by day), filtered by period, project…
+ * and the tracked times in a table of saved views (this week, this month, all; by day), filtered by period, project…;
+ * its settings: the week of the workspace (that of « this week »).
  * @returns {JSX.Element} Page.
  */
 export function TimePage() {
@@ -31,6 +34,9 @@ export function TimePage() {
   return (
     <Stack gap="lg">
       <PageHeader title={PAGES.time.label} />
+      <PageSettings title="Paramètres des chronos">
+        <WeekSettings />
+      </PageSettings>
       {/* In a personal workspace, slots are no working hours: timers are not compared with them. */}
       {!perso && <PlannedTime />}
       <SectionHeader title="Temps passé" />

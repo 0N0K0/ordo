@@ -33,7 +33,7 @@ Internes : `useTimeMutation` (mutation invalidante), `warnOutOfSlots(queryClient
 
 ### `pages/TimePage.tsx`
 
-- `TimePage()` : page `/time` (« Chronos ») : `PlannedTime` (pas en espace PERSO), section « Temps passé », badge du filtre `?task=` (« Tâche : #12 Libellé », croix « Voir tous les temps »), `TimeLog` de tous les temps avec `TimeLogActions`. Dialogues via `useTimeEntryDialogs`. Utilisée par `app/router.tsx`.
+- `TimePage()` : page `/time` (« Chronos ») : `PageSettings` « Paramètres des chronos » (`WeekSettings` : la semaine de l’espace, celle de « Cette semaine »), `PlannedTime` (pas en espace PERSO), section « Temps passé », badge du filtre `?task=` (« Tâche : #12 Libellé », croix « Voir tous les temps »), `TimeLog` de tous les temps avec `TimeLogActions`. Dialogues via `useTimeEntryDialogs`. Utilisée par `app/router.tsx`.
 
 ## components/
 

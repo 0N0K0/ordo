@@ -8,10 +8,7 @@ import { LightningIcon } from '@phosphor-icons/react';
 import { ActionButton } from '../../../components/actions/ActionButton';
 import { SettingsSection } from '../../../components/settings/SettingsSection';
 import { TASK_AUTOMATIONS_PATH } from '../../../app/pages';
-import { useRoutinesData } from '../../routines/api';
-
-/** What uses a priority or a type: the tasks and the routines (the lists are shared by both). */
-const ACTIVITY_USAGE = { one: 'de la tâche ou de la routine', many: 'tâches et routines' };
+import { PriorityTypeSettings } from './PriorityTypeSettings';
 
 /**
  * Settings of tasks: statuses (with their category), priorities and types (shared with the routines: their uses count
@@ -21,13 +18,8 @@ const ACTIVITY_USAGE = { one: 'de la tâche ou de la routine', many: 'tâches et
 export function TaskSettings() {
   const { data } = useTasksData();
   const statuses = useTaskStatusItems();
-  const priorities = useTaskLabelItems('priority');
-  const types = useTaskLabelItems('type');
   const tags = useTaskLabelItems('tag');
   const tasks = data?.tasks ?? [];
-  const { data: routinesData } = useRoutinesData();
-  // Priorities and types: those of the tasks and of the routines.
-  const activities = [...tasks, ...(routinesData?.routines ?? [])];
 
   // In the settings sidebar: the sections one under the other, the whole width.
   return (
@@ -42,25 +34,7 @@ export function TaskSettings() {
         usage={countBy(tasks, (task) => (task.statusId ? [task.statusId] : []))}
         renderBadges={(status) => TASK_STATUS_CATEGORY_LABELS.status[status.category]}
       />
-      <SettingsList
-        {...priorities}
-        title="Priorités"
-        description="Communes aux tâches et aux routines. L’ordre est celui des listes de sélection et du tri par priorité."
-        noun="la priorité"
-        feminine
-        usageNoun={ACTIVITY_USAGE}
-        items={data?.taskPriorities ?? []}
-        usage={countBy(activities, (item) => (item.priorityId ? [item.priorityId] : []))}
-      />
-      <SettingsList
-        {...types}
-        title="Types"
-        description="Communs aux tâches et aux routines : bug, fonctionnalité, ménage, courses…"
-        noun="le type"
-        usageNoun={ACTIVITY_USAGE}
-        items={data?.taskTypes ?? []}
-        usage={countBy(activities, (item) => (item.typeId ? [item.typeId] : []))}
-      />
+      <PriorityTypeSettings />
       <SettingsList
         {...tags}
         title="Étiquettes"

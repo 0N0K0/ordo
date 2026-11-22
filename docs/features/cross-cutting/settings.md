@@ -9,6 +9,7 @@ Où se règle quoi : le panneau de paramètres de chaque page (barre latérale d
 - Pendant qu’il est ouvert, un voile couvre le contenu de la page (l’en-tête et la navigation restent utilisables) ; un clic sur le voile ou Échap ferme le panneau (Échap ferme d’abord une boîte de dialogue, une liste ou un menu ouvert par-dessus).
 - L’état ouvert est dans l’adresse (`?settings=1`), fermé par défaut ; un lien peut donc ouvrir les paramètres. Un panneau à onglets garde son onglet dans `?section=` (ex. `/accounting?settings=1&section=company`).
 - Les sections sont des cartes empilées sur toute la largeur du panneau (ou des onglets, une section à la fois).
+- Un paramètre commun à plusieurs endroits apparaît à chaque endroit pertinent, le même partout (mêmes valeurs, même enregistrement) : voir [Où chaque section apparaît](#où-chaque-section-apparaît) et la règle dans [l’app](../../web/app.md#paramètres).
 
 ### Les listes de paramètres (comportement commun)
 
@@ -28,23 +29,31 @@ Règles détaillées : [Nommage](../../business-rules/cross-cutting/naming.md), 
 
 ### Tâches — « Paramètres des tâches »
 
-Page `/tasks` ; aussi dans l’onglet « Tâches » des paramètres d’un projet. Réglages de tout l’espace, valables dans toutes les vues de tâches. Voir [Tâches](../activities/tasks.md).
+Page `/tasks` ; aussi dans les paramètres d’un projet depuis son onglet « Tâches ». Réglages de tout l’espace, valables dans toutes les vues de tâches. Voir [Tâches](../activities/tasks.md).
 
 | Section                         | Ce qu’elle gère                                                                                                                                                                              |
 | ------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | « Statuts de tâche »            | Statuts, chacun avec sa catégorie (badge). La catégorie donne son sens au statut (filtres, tâches « en cours » de l’accueil) ; c’est l’état ouvert / fermé qui dit si la tâche est terminée. |
-| « Priorités »                   | Priorités, communes aux tâches et aux routines (leurs usages comptent les deux) ; leur ordre est celui des listes et du tri par priorité. |
-| « Types »                       | Communs aux tâches et aux routines (leurs usages comptent les deux) : bug, fonctionnalité, ménage, courses… |
+| « Priorités »                   | Priorités, communes aux tâches et aux routines (leurs usages comptent les deux ; aussi dans les paramètres des routines) ; leur ordre est celui des listes et du tri par priorité. |
+| « Types »                       | Communs aux tâches et aux routines (leurs usages comptent les deux ; aussi dans les paramètres des routines) : bug, fonctionnalité, ménage, courses… |
 | « Étiquettes »                  | Plusieurs par tâche ; synchronisées avec les labels GitHub.                                                                                                                                  |
 | « Colonnes des nouvelles vues » | Colonnes affichées et leur ordre (glisser-déposer) quand une vue de tâches est créée ; les vues existantes gardent les leurs. « Colonnes par défaut » (sous la liste) revient aux colonnes de l’app.         |
 
 ### Projet — « Paramètres du projet »
 
-Page `/projects/:id`. Onglets (depuis l’onglet « Tâches » du projet, le panneau s’ouvre sur « Tâches », sinon sur « Jalons »). Les anciennes adresses d’onglets de paramètres (`?tab=milestones`…) ouvrent la section correspondante. Voir [Projets](projects.md).
+Page `/projects/:id`. Onglets : d’abord les paramètres de l’espace propres à l’onglet affiché de la page du projet (seulement ceux-là), puis ceux du projet lui-même. Depuis un onglet qui a des paramètres, le panneau s’ouvre sur eux, sinon sur « Jalons » ; changer d’onglet de la page garde une section du projet, et passe sinon aux paramètres du nouvel onglet. Les anciennes adresses d’onglets de paramètres (`?tab=milestones`…) ouvrent la section correspondante (`?tab=taskSettings` : sur l’onglet « Tâches »). Voir [Projets](projects.md).
+
+Les paramètres de l’espace repris dans un projet sont ceux de l’espace (les mêmes listes, le même enregistrement que sur la page de chaque fonctionnalité) ; une ligne le dit au-dessus : « Ces paramètres valent pour tout l’espace, pas seulement pour ce projet. »
 
 | Onglet            | Ce qu’il gère                                                                                                                                                                                  |
 | ----------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| « Tâches »        | Les paramètres des tâches de l’espace (ci-dessus).                                                                                                                                             |
+| « Tâches »        | Depuis l’onglet « Tâches » : les paramètres des tâches de l’espace (ci-dessus), automatisations et colonnes des nouvelles vues comprises.                                                        |
+| « Routines »      | Depuis l’onglet « Routines » : les paramètres des routines de l’espace (ci-dessous).                                                                                                           |
+| « Achats »        | Depuis l’onglet « Achats » : les paramètres des achats de l’espace.                                                                                                                            |
+| « Fiches »        | Depuis l’onglet « Fiches » : les paramètres des fiches de l’espace.                                                                                                                            |
+| « Temps »         | Depuis l’onglet « Temps » : la semaine de l’espace (« Cette semaine » des temps).                                                                                                              |
+| « Facturation »   | Depuis l’onglet « Facturation » (PRO) : « Suivi » (statuts des devis et des factures) et « Ma société » (avec la numérotation) de la facturation ; l’export ZIP reste sur la page Facturation. |
+| « Mails »         | Depuis l’onglet « Mails » : les boîtes mail et les drapeaux de l’espace.                                                                                                                       |
 | « Jalons »        | Jalons du projet, utilisables par les tâches du projet et de ses sous-projets.                                                                                                                 |
 | « Sprints »       | Sprints du projet, mêmes règles d’usage.                                                                                                                                                       |
 | « Contributeurs » | Contributeurs rattachés au projet, hérités des projets parents, et « Moi » : seuls eux sont proposés comme assignés de ses tâches ([Personnes](../../business-rules/cross-cutting/people.md)). |
@@ -62,7 +71,7 @@ Page `/clients/:id` (espaces PRO). Voir [Projets](projects.md) et [Facturation](
 
 ### Facturation — « Paramètres de la facturation »
 
-Page `/accounting` (espaces PRO). Voir [Facturation](../finances/accounting.md).
+Page `/accounting` (espaces PRO) ; « Suivi » et « Ma société » aussi dans les paramètres d’un projet depuis son onglet « Facturation ». Voir [Facturation](../finances/accounting.md).
 
 | Onglet         | Ce qu’il gère                                                                                                                                                                                                                                                                                                                                                                  |
 | -------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
@@ -92,13 +101,13 @@ Page `/calendar`. Voir [Agenda](../activities/calendar.md).
 | Onglet                  | Ce qu’il gère                                                                                                                                                                                                                                                                                                                           |
 | ----------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | « Affichage et export » | « Affichage » : calendriers et créneaux affichés ou masqués, « Aussi dans l’agenda » (Tâches, Routines, créneaux, Chronos, archivés), « Heures (semaine, jour) » « Par 5 minutes » (sinon par 30). « Exporter » : « Vue en PDF » et l’export ICS des calendriers.                                                                           |
-| « Paramètres »          | « Semaine » (« Semaine du … au … » de tout l’espace), « Calendriers » et « Calendriers des autres espaces » (abonnements en lecture seule), « Catégories d’agenda » (arborescence ; filtrer sur une catégorie inclut ses sous-catégories), « Créneaux sans type », « Types de créneaux » (couleur et affichage), « Créneaux des autres espaces » (abonnement à un type de créneau d’un autre espace). |
+| « Paramètres »          | « Semaine » (« Semaine du … au … » de tout l’espace ; aussi dans les paramètres des chronos et de l’onglet « Temps » d’un projet), « Calendriers » et « Calendriers des autres espaces » (abonnements en lecture seule), « Catégories d’agenda » (arborescence ; filtrer sur une catégorie inclut ses sous-catégories), « Créneaux sans type », « Types de créneaux » (couleur et affichage), « Créneaux des autres espaces » (abonnement à un type de créneau d’un autre espace). |
 
 Les créneaux eux-mêmes se gèrent par un bouton de la page, pas dans le panneau.
 
 ### Mails — « Paramètres des mails »
 
-Page `/mail`. Voir [Mails](../resources/mail.md).
+Page `/mail` ; aussi dans les paramètres d’un projet depuis son onglet « Mails ». Voir [Mails](../resources/mail.md).
 
 | Section         | Ce qu’elle gère                                                                                                                                                                                                                                |
 | --------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -107,11 +116,11 @@ Page `/mail`. Voir [Mails](../resources/mail.md).
 
 ### Routines — « Paramètres des routines »
 
-Page `/routines`. Section « Catégories » : arborescence des catégories de routines. Voir [Routines](../activities/routines.md).
+Page `/routines` ; aussi dans les paramètres d’un projet depuis son onglet « Routines ». Sections « Catégories » (arborescence des catégories de routines), puis « Priorités » et « Types » (les mêmes que dans les paramètres des tâches : communs aux deux). Voir [Routines](../activities/routines.md).
 
 ### Achats — « Paramètres des achats »
 
-Pages `/shopping` et page d’une liste. Voir [Achats](../supplies/shopping.md).
+Pages `/shopping` et page d’une liste ; aussi dans les paramètres d’un projet depuis son onglet « Achats ». Voir [Achats](../supplies/shopping.md).
 
 | Section                   | Ce qu’elle gère                                                                                                                 |
 | ------------------------- | ------------------------------------------------------------------------------------------------------------------------------- |
@@ -122,15 +131,50 @@ Pages `/shopping` et page d’une liste. Voir [Achats](../supplies/shopping.md).
 
 ### Fiches — « Paramètres des fiches »
 
-Pages `/sheets` et page d’une fiche. Sections « Catégories de fiches » (plusieurs par fiche) et « Catégories » des articles (les mêmes que celles des achats). Voir [Fiches](../supplies/sheets.md).
+Pages `/sheets` et page d’une fiche ; aussi dans les paramètres d’un projet depuis son onglet « Fiches ». Sections « Catégories de fiches » (plusieurs par fiche) et « Catégories » des articles (les mêmes que celles des achats). Voir [Fiches](../supplies/sheets.md).
 
 ### Inventaire — « Paramètres de l’inventaire »
 
 Page `/stock`. Section « Emplacements » : où sont rangés les articles, en arborescence (Cuisine › Frigo). Voir [Inventaire](../supplies/stock.md).
 
+### Chronos — « Paramètres des chronos »
+
+Page `/time`. Section « Semaine » (la même que dans les paramètres de l’agenda) : elle fixe « Cette semaine » des temps et du temps prévu. Voir [Temps](../activities/time.md).
+
+### Alarmes — « Paramètres des alarmes »
+
+Page `/alarms`. Liste « Minuteurs enregistrés ». Voir [Alarmes](../activities/alarms.md).
+
 ### Pages sans panneau
 
-Accueil, Chronos, Alarmes, Documents, Tableaux de bord, Mon compte et la page Paramètres n’ont pas de panneau de paramètres.
+Accueil, Documents, Tableaux de bord, Mon compte et la page Paramètres n’ont pas de panneau de paramètres.
+
+## Où chaque section apparaît
+
+Portée : « espace » = un réglage de tout l’espace, le même partout où il est montré ; « projet » = propre au projet ; « utilisateur » = valable dans tous les espaces.
+
+| Section                                                                   | Portée      | Où elle apparaît                                                                                   |
+| ------------------------------------------------------------------------- | ----------- | -------------------------------------------------------------------------------------------------- |
+| Paramètres des tâches (statuts, priorités, types, étiquettes, automatisations, colonnes des nouvelles vues) | espace | Tâches ; projet, onglet « Tâches » |
+| Priorités et types                                                        | espace      | Tâches ; Routines ; projet, onglets « Tâches » et « Routines »                                      |
+| Paramètres des routines (catégories, priorités, types)                    | espace      | Routines ; projet, onglet « Routines »                                                              |
+| Paramètres des achats (catégories, magasins, unités, conservation)        | espace      | Achats, page d’une liste ; projet, onglet « Achats »                                                |
+| Catégories des articles                                                   | espace      | Achats ; Fiches ; projet, onglets « Achats » et « Fiches »                                          |
+| Paramètres des fiches (catégories de fiches, catégories des articles)     | espace      | Fiches, page d’une fiche ; projet, onglet « Fiches »                                                |
+| Semaine                                                                   | espace      | Agenda ; Chronos ; projet, onglet « Temps »                                                         |
+| Suivi, Ma société et numérotation                                         | espace (PRO) | Facturation ; projet, onglet « Facturation »                                                       |
+| Export ZIP de la facturation                                              | espace (PRO) | Facturation                                                                                        |
+| Boîtes mail, drapeaux                                                     | espace      | Mails (et la page elle-même sans boîte active) ; projet, onglet « Mails »                           |
+| Affichage de l’agenda, calendriers, catégories d’agenda, créneaux         | espace      | Agenda                                                                                              |
+| Paramètres de la trésorerie                                               | espace      | Trésorerie (« Équipe » / « Foyer » et « Relations » / « Proches » aussi dans la page Paramètres)    |
+| Emplacements                                                              | espace      | Inventaire                                                                                          |
+| Minuteurs enregistrés                                                     | espace      | Alarmes                                                                                             |
+| Jalons, sprints, contributeurs, GitHub du projet, formulaire du projet    | projet      | Paramètres du projet, depuis tous ses onglets                                                       |
+| Facturation et formulaire du client                                       | client      | Paramètres du client                                                                                |
+| Projets, équipe et contributeurs, lieux, GitHub, espaces                  | espace      | Page Paramètres                                                                                     |
+| Compte, sonnerie, notifications push                                      | utilisateur | Mon compte                                                                                          |
+
+Onglets d’un projet sans paramètres de l’espace : « Aperçu » et « Ressources ».
 
 ## Page « Paramètres » de l’espace
 

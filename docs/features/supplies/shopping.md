@@ -199,7 +199,7 @@ Panneau « Commande à distance » (`OrderPanel`) :
 
 ## Paramètres des achats
 
-Barre latérale « Paramètres des achats » (pages `/shopping` et `/shopping/:id` ; les catégories aussi dans les paramètres des fiches) :
+Barre latérale « Paramètres des achats » (pages `/shopping` et `/shopping/:id`, et paramètres d’un projet depuis son onglet « Achats » ; les catégories aussi dans les paramètres des fiches) :
 
 - « Catégories » : arbre ; glisser une catégorie sur une autre pour l'y ranger ; une sous-catégorie sans couleur prend celle de sa parente ; champ « Références » (aucune : toutes ; une sous-catégorie sans liste prend celles de sa parente) ; badges des références de chaque catégorie ; nombre de produits, éléments et éléments de fiches qui l'utilisent.
 - « Magasins » : nom, couleur, image ; usage en nombre de produits et éléments.

@@ -35,13 +35,13 @@ Internes : `ownerVariables(owner)` (variables `routineId` / `eventId` / `taskId`
 
 | Export         | Rôle                                                                                    |
 | -------------- | --------------------------------------------------------------------------------------- |
-| `SheetsPage()` | Page `/sheets` : en-tête, `SheetsTable`, `SheetsSettings`. Route dans `app/router.tsx`. |
+| `SheetsPage()` | Page `/sheets` : en-tête, `SheetsTable`, `SheetsPageSettings`. Route dans `app/router.tsx`. |
 
 ### `pages/SheetPage.tsx`
 
 | Export        | Rôle                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         |
 | ------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `SheetPage()` | Page `/sheets/:id` : `DetailHeader` (retour, badge archivée, sous-titre, « Utiliser cette fiche », menu Dupliquer / Archiver / Supprimer, puis « Lancer » ses minuteurs enregistrés : `useCountdownMenuEntries`, `sheetCountdownItem`), `SheetFields`, tableau des éléments (vue `sheet-items`, colonnes produit, catégorie, quantité, unité, consommable, colonnes des achats, facultatif, description en markdown `EditableMarkdown`, commentaires), ligne d'ajout (reconnaît un produit par son nom, valeur du groupe via `itemGroupFields`), « Depuis les références », retrait, `SheetsSettings`. Squelette au chargement, `DetailNotFound` si absente. Route dans `app/router.tsx`. |
+| `SheetPage()` | Page `/sheets/:id` : `DetailHeader` (retour, badge archivée, sous-titre, « Utiliser cette fiche », menu Dupliquer / Archiver / Supprimer, puis « Lancer » ses minuteurs enregistrés : `useCountdownMenuEntries`, `sheetCountdownItem`), `SheetFields`, tableau des éléments (vue `sheet-items`, colonnes produit, catégorie, quantité, unité, consommable, colonnes des achats, facultatif, description en markdown `EditableMarkdown`, commentaires), ligne d'ajout (reconnaît un produit par son nom, valeur du groupe via `itemGroupFields`), « Depuis les références », retrait, `SheetsPageSettings`. Squelette au chargement, `DetailNotFound` si absente. Route dans `app/router.tsx`. |
 
 Internes : `ItemChange`, `SheetProductsForm({ sheetId, onDone })` (produits des références groupés par liste de base, `addProducts`), `SheetFields({ sheet })` (libellé, projet, catégories, note sur `useFieldSave` + `sheetSchema` : enregistrés chacun dès qu'il change, les textes en les quittant, `SaveStatus` ; la fiche du cache suivie par `saved` ; lecture seule si archivée ; puis « Minuteurs », `SavedCountdownsField` `SHEET`, enregistré à part), `SheetValues`, `sheetValues(sheet)`, `addRow(group)`.
 
@@ -100,7 +100,8 @@ Interne : `SheetPickerProps`.
 
 | Export             | Rôle                                                                                                                                                                                                                                                              |
 | ------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `SheetsSettings()` | Barre latérale « Paramètres des fiches » : `SettingsList` des catégories de fiches (`SHEET_CATEGORY`, `labelFormSchema`, usage par fiche) et `ShoppingCategories` (usage par produits, éléments de listes et de fiches). Utilisé par `SheetsPage` et `SheetPage`. |
+| `SheetsSettings()` | Paramètres des fiches : `SettingsList` des catégories de fiches (`SHEET_CATEGORY`, `labelFormSchema`, usage par fiche) et `ShoppingCategories` (usage par produits, éléments de listes et de fiches). Utilisé par `SheetsPageSettings` et l’onglet « Fiches » des paramètres d’un projet. |
+| `SheetsPageSettings()` | `SheetsSettings` dans la barre latérale (`PageSettings` « Paramètres des fiches »). Utilisé par `SheetsPage` et `SheetPage`. |
 
 ## `lib/`
 

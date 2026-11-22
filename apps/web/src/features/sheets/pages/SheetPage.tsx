@@ -36,7 +36,7 @@ import { ArchivedBadge } from '../../../components/feedback/ArchivedBadge';
 import { itemGroupFields, sheetInput, sheetItemInput } from '../lib/sheet-format';
 import { AddRowField } from '../../../components/data-table/cells/AddRowField';
 import type { RowGroup } from '../../../components/data-table/table/table-engine';
-import { SheetsSettings } from '../components/SheetsSettings';
+import { SheetsPageSettings } from '../components/SheetsSettings';
 import { deleteRowsAction, duplicateRowsAction, rowMenuEntry } from '../../../components/data-table/selection/selection-actions';
 import { selectedLabel } from '../../../components/data-table/selection/selection-label';
 import { optionalColumn, sheetShoppingColumns } from '../../shopping/lib/shopping-columns';
@@ -451,7 +451,7 @@ export function SheetPage() {
           />
         )}
       />
-      <SheetsSettings />
+      <SheetsPageSettings />
     </Stack>
   );
 }

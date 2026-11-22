@@ -115,7 +115,7 @@ Tableau des articles : « Article » (libellé modifiable, badge « Débours »,
 
 ### Paramètres (barre latérale « Paramètres de la facturation »)
 
-Trois onglets :
+« Suivi » et « Ma société » sont aussi dans les paramètres d’un projet, depuis son onglet « Facturation » (les mêmes réglages, ceux de l’espace). Trois onglets :
 
 - « Export ZIP » : « Télécharger les documents d’une période » (voir [Export ZIP](#export-zip)).
 - « Suivi » : statuts de suivi des devis et des factures (voir [Statuts de suivi](#statuts-de-suivi)).

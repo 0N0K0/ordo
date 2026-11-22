@@ -208,7 +208,7 @@ Une tâche archivée : tous les champs désactivés, pas de bouton, commentaires
 
 ## Paramètres des tâches
 
-Dans la barre latérale des paramètres (page « Tâches », ou onglet « Tâches » des paramètres d’un projet ; ce sont les paramètres de l’espace) :
+Dans la barre latérale des paramètres (page « Tâches », ou paramètres d’un projet depuis son onglet « Tâches » ; ce sont les paramètres de l’espace, priorités et types aussi dans les paramètres des routines) :
 
 - « Statuts de tâche » : libellé, couleur, image, « Catégorie » (« À faire », « En cours », « Terminé », « Annulé ») ; texte : « La catégorie donne son sens au statut quel que soit son libellé (filtres, tâches « en cours » de l’accueil). Un statut ne ferme ni ne rouvre une tâche : on la ferme comme terminée ou comme annulée ; les automatisations peuvent lier le statut « Annulé » à l’annulation. ».
 - « Priorités » : « Communes aux tâches et aux routines. L’ordre est celui des listes de sélection et du tri par priorité. ».

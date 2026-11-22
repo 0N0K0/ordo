@@ -143,7 +143,7 @@ Utilisés par `ScheduleSettings`.
 
 ### `components/WeekSettings.tsx`
 
-`WeekSettings()` : section « Semaine » des paramètres de l’agenda : deux `Select` « Semaine du … au … » sur `WEEKDAY_LABELS` (`readWeek`, `weekLength`), chacun enregistré dès qu’il change (`useWorkspaceMutations().setWeek`, sur l’espace actif `useActiveWorkspace`). Rien avant le chargement de l’espace. Utilisé par `CalendarPage`.
+`WeekSettings()` : section « Semaine » des paramètres de l’agenda, des chronos et de l’onglet « Temps » des paramètres d’un projet : deux `Select` « Semaine du … au … » sur `WEEKDAY_LABELS` (`readWeek`, `weekLength`), chacun enregistré dès qu’il change (`useWorkspaceMutations().setWeek`, sur l’espace actif `useActiveWorkspace`). Rien avant le chargement de l’espace. Utilisé par `CalendarPage`, `TimePage` et `ProjectPage`.
 
 ### `components/ScheduleSettings.tsx`
 

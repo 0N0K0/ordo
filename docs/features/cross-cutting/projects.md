@@ -91,19 +91,19 @@ Avatar, libellé, badge « Archivé », fil d’Ariane (client ou « Sans client
 | « Mails »       | mails liés ([Mails](../resources/mail.md))                                                                                                                                                   |
 | « Ressources »  | fichiers et liens du projet (maquettes, dépôts, cahiers des charges…) : ajout, renommage, note, ordre, suppression ; un PDF ou une image s’ouvre dans la visionneuse ([Fichiers](files.md))  |
 
-Changer d’onglet efface la vue et la tâche ouverte de l’onglet précédent, et garde le panneau des paramètres tel quel.
+Changer d’onglet efface la vue et la tâche ouverte de l’onglet précédent, et garde le panneau des paramètres ouvert (voir plus bas).
 
 ### Paramètres du projet
 
 Panneau « Paramètres du projet », une section à la fois :
 
-- « Tâches » : réglages des tâches de l’espace ([Tâches](../activities/tasks.md)) ;
+- d’abord, seulement depuis l’onglet concerné, les paramètres de l’espace propres à cet onglet, sous la ligne « Ces paramètres valent pour tout l’espace, pas seulement pour ce projet. » (les mêmes que sur la page de chaque fonctionnalité, voir [Paramètres](settings.md#où-chaque-section-apparaît)) : « Tâches » (paramètres des tâches, automatisations et colonnes des nouvelles vues comprises, [Tâches](../activities/tasks.md)), « Routines », « Achats », « Fiches », « Temps » (la semaine de l’espace), « Facturation » (suivi et société, PRO), « Mails » (boîtes et drapeaux) ; « Aperçu » et « Ressources » n’en ont pas ;
 - « Jalons », « Sprints » ;
 - « Contributeurs » : contributeurs rattachés au projet ([Personnes](../../business-rules/cross-cutting/people.md)) ;
 - « GitHub » : liaison au tableau GitHub ([GitHub](github.md)) ;
 - « Projet » : formulaire du projet.
 
-Depuis l’onglet « Tâches », le panneau s’ouvre sur « Tâches », sinon sur « Jalons ». Les anciennes adresses `?tab=settings` ou `?tab=<section>` ouvrent le panneau sur la section.
+Depuis un onglet qui a des paramètres, le panneau s’ouvre sur eux, sinon sur « Jalons » ; changer d’onglet garde une section du projet, et passe sinon aux paramètres du nouvel onglet. Les anciennes adresses `?tab=settings` ou `?tab=<section>` ouvrent le panneau sur la section (`?tab=taskSettings` : sur l’onglet « Tâches »).
 
 ## Formulaires
 

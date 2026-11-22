@@ -46,7 +46,7 @@ import { ProductPicker } from '../components/ProductPicker';
 import { useCommentCounts } from '../../comments/api';
 import { commentColumn } from '../../comments/lib/comment-column';
 import { blankInput, groupingOfColumn, listClosed, listTasks, usePeople, shoppingProgress } from '../lib/shopping-format';
-import { ShoppingSettings } from '../components/ShoppingSettings';
+import { ShoppingPageSettings } from '../components/ShoppingSettings';
 import { itemColumns, optionalColumn } from '../lib/shopping-columns';
 import { ShoppingTable } from '../components/ShoppingTable';
 import { StoreMode } from '../components/StoreMode';
@@ -211,7 +211,7 @@ export function ShoppingListPage() {
 
   return (
     <Stack gap="lg">
-      <ShoppingSettings />
+      <ShoppingPageSettings />
       <DetailHeader
         back={{ to: SHOPPING_LISTS_PATH, label: 'Listes d’achats' }}
         page={<PageHeader title={PAGES.shopping.label} />}

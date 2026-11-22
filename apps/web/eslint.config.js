@@ -1235,6 +1235,16 @@ export default defineConfig([
           selector: "CallExpression[callee.name='useLocalStorage'] Property[key.name='key'][value.value=/width$/i]",
           message: 'Utiliser useResizablePanel + ResizeHandle (components/panels), ses limites dans panel-widths : un panneau se redimensionne d’une seule façon.',
         },
+        {
+          // The priorities and the types are shared by the tasks and the routines: one brick shows both lists.
+          selector: "FunctionDeclaration:not([id.name='PriorityTypeSettings']) JSXOpeningElement[name.name='SettingsList'] > JSXAttribute[name.name='title'] > Literal[value=/^(Priorités|Types)$/]",
+          message: 'Utiliser PriorityTypeSettings (features/tasks/components) : les priorités et les types, communs aux tâches et aux routines, une seule fois.',
+        },
+        {
+          // A workspace setting shown in a narrower place says so in one line, the same everywhere.
+          selector: "FunctionDeclaration:not([id.name='SettingsScopeNote']) :matches(JSXText, Literal)[value=/valent pour tout l’espace/]",
+          message: 'Utiliser SettingsScopeNote (components/settings) : une seule phrase pour dire qu’un paramètre vaut pour tout l’espace.',
+        },
       ],
     },
   },

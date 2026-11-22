@@ -1,7 +1,7 @@
 import { PAGES } from '../../../app/pages';
 import { Stack } from '@mantine/core';
 import { PageHeader } from '../../../components/page/PageHeader';
-import { SheetsSettings } from '../components/SheetsSettings';
+import { SheetsPageSettings } from '../components/SheetsSettings';
 import { SheetsTable } from '../components/SheetsTable';
 
 /**
@@ -13,7 +13,7 @@ export function SheetsPage() {
     <Stack gap="lg">
       <PageHeader title={PAGES.sheets.label} />
       <SheetsTable />
-      <SheetsSettings />
+      <SheetsPageSettings />
     </Stack>
   );
 }
