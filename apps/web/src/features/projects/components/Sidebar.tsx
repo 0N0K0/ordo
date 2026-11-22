@@ -1,5 +1,5 @@
 import { IconAction } from '../../../components/actions/IconAction';
-import { ActionsMenu } from '../../../components/actions/ActionsMenu';
+import { ActionsMenu, type RowMenuEntry } from '../../../components/actions/ActionsMenu';
 import { ErrorAlert } from '../../../components/feedback/ErrorAlert';
 import { ActionsRow } from '../../../components/actions/ActionsRow';
 import { ActionButton } from '../../../components/actions/ActionButton';
@@ -11,13 +11,13 @@ import { useEffect, useMemo, useState, type ReactNode } from 'react';
 import { Link, useLocation } from 'react-router';
 
 import { useProjectTree } from '../api';
-import { buildActiveSection, buildArchiveSection, buildFavoriteSection, countSectionItems, sectionKeys, noClientKeys, subtreeKeys, type SortMode, type TreeSection } from '../lib/tree';
+import { buildActiveSection, buildArchiveSection, buildFavoriteSection, clientKeys, isEmptySection, orphanKeys, sectionKeys, subtreeKeys, type SortMode, type TreeSection } from '../lib/tree';
 import { useEntityActions, type EntityRef } from '../hooks/use-entity-actions';
 import { MailNavBadge } from '../../mail/components/MailNavBadge';
 import { useActiveWorkspace } from '../../workspaces/api';
 import { ActiveTree } from './ActiveTree';
 import { AgendaNavBadge, AlarmsNavBadge, RoutinesNavBadge, TasksNavBadge, TimeNavBadge, TreasuryNavBadge } from './NavBadges';
-import { SidebarSection } from './SidebarSection';
+import { SidebarSection, type SidebarSectionChrome } from './SidebarSection';
 import { PAGES, type PageKey } from '../../../app/pages';
 import { newEntityEntries } from '../lib/fold-entries';
 import { StaticTree } from './StaticTrees';
@@ -26,7 +26,11 @@ import { PHONE_QUERY } from '../../../lib/use-is-phone';
 import { EmptyState } from '../../../components/feedback/EmptyState';
 import { useFoldedIds } from '../../../components/tree/use-folded-ids';
 
-type SectionKey = 'favorites' | 'active' | 'archives';
+/** Sections of the sidebar: « Clients » (« Projets » in a personal workspace) is `active`, the projects without client `projects`. */
+type SectionKey = 'favorites' | 'active' | 'projects' | 'archives';
+
+/** Sections open at first: all but the archives. */
+const SECTIONS_OPENED: Record<SectionKey, boolean> = { favorites: true, active: true, projects: true, archives: false };
 
 /**
  * Skeleton rows shown while the workspace loads.
@@ -37,6 +41,36 @@ function TreeSkeleton() {
     <div style={{ padding: 'var(--mantine-spacing-xs)' }}>
       <ListSkeleton items={5} dense avatar />
     </div>
+  );
+}
+
+/**
+ * Empty part of the tree: its message, and the buttons of its creations (not while searching).
+ * @param {{ icon: ReactNode, message: string, entries?: RowMenuEntry[] }} props Component props.
+ * @param {ReactNode} props.icon Icon.
+ * @param {string} props.message Message.
+ * @param {RowMenuEntry[]} [props.entries] Creations offered as buttons. Optional.
+ * @returns {JSX.Element} Empty state.
+ */
+function TreeEmpty({ icon, message, entries }: { icon: ReactNode; message: string; entries?: RowMenuEntry[] }) {
+  return (
+    <Stack gap="xs" px="sm" py="xs">
+      <EmptyState compact icon={icon} message={message} />
+      {entries && (
+        <ActionsRow>
+          {entries.map(
+            (entry) =>
+              entry &&
+              entry !== 'divider' &&
+              'label' in entry && (
+                <ActionButton key={entry.label} priority="secondary" size="xs" icon={entry.icon} onClick={entry.onClick}>
+                  {entry.label}
+                </ActionButton>
+              ),
+          )}
+        </ActionsRow>
+      )}
+    </Stack>
   );
 }
 
@@ -158,7 +192,7 @@ export function Sidebar() {
     key: 'ordo.sidebar.sections',
     // Each window keeps its own (the last change is what a new window starts with).
     sync: false,
-    defaultValue: { favorites: true, active: true, archives: false },
+    defaultValue: SECTIONS_OPENED,
   });
   const collapsed = useFoldedIds('ordo.sidebar.collapsed');
 
@@ -167,11 +201,15 @@ export function Sidebar() {
   const favorites = useMemo(() => (data ? buildFavoriteSection(data, sort, search) : null), [data, sort, search]);
   const active = useMemo(() => (data ? buildActiveSection(data, sort, search) : null), [data, sort, search]);
   const archives = useMemo(() => (data ? buildArchiveSection(data, sort, search) : null), [data, sort, search]);
+  // Without favorites nor archives (whatever the search), a personal workspace shows its projects straight in the sidebar.
+  const projectsSection = useMemo(() => !perso || (data !== undefined && !(isEmptySection(buildFavoriteSection(data, 'manual', '')) && isEmptySection(buildArchiveSection(data, 'manual', '')))), [perso, data]);
 
   // While searching, every branch is open so matches are visible.
   const isExpanded = (key: string) => searching || !collapsed.ids.has(key);
   const toggleNode = collapsed.toggle;
-  const toggleSection = (key: SectionKey) => setSections((current) => ({ ...current, [key]: !current[key] }));
+  // A section missing from what was kept (added since) takes its first state.
+  const isOpened = (key: SectionKey) => sections[key] ?? SECTIONS_OPENED[key];
+  const toggleSection = (key: SectionKey) => setSections((current) => ({ ...current, [key]: !(current[key] ?? SECTIONS_OPENED[key]) }));
 
   /**
    * Expands or collapses a set of nodes.
@@ -189,30 +227,39 @@ export function Sidebar() {
    */
   const expansionFor = (section: TreeSection, prefix: string): TreeExpansion => {
     const keysOf = (entity: EntityRef) => subtreeKeys(section, prefix, { type: entity.type, id: entity.item.id });
-    const groupKeys = noClientKeys(section, prefix);
     return {
       hasChildren: (entity) => keysOf(entity).length > 0,
       setSubtreeExpanded: (entity, expanded) => setKeysExpanded(keysOf(entity), expanded),
-      noClientFoldable: groupKeys.length > 0,
-      setNoClientExpanded: (expanded) => setKeysExpanded(groupKeys, expanded),
     };
   };
 
   /**
-   * Section menu handler folding or unfolding a whole tree, or undefined when it has nothing to fold.
-   * @param {TreeSection} section Tree content.
-   * @param {string} prefix Expand key prefix of the tree.
+   * Section menu handler folding or unfolding the given nodes, or undefined when there is nothing to fold.
+   * @param {string[]} keys Expand keys of the section.
    * @returns {((expanded: boolean) => void) | undefined} Handler.
    */
-  const allExpandedHandler = (section: TreeSection, prefix: string) => {
-    const keys = sectionKeys(section, prefix);
-    return keys.length > 0 ? (expanded: boolean) => setKeysExpanded(keys, expanded) : undefined;
-  };
+  const allExpandedHandler = (keys: string[]) => (keys.length > 0 ? (expanded: boolean) => setKeysExpanded(keys, expanded) : undefined);
 
-  const activeCount = active ? active.clients.length + active.orphans.length : 0;
-  const favoriteCount = favorites ? countSectionItems(favorites) : 0;
-  const archiveCount = archives ? countSectionItems(archives) : 0;
+  /**
+   * Header of a section: its title, its open state and its menu.
+   * @param {SectionKey} key Section.
+   * @param {string} title Title.
+   * @param {string[]} keys Expand keys of its nodes (« Tout déplier » / « Tout replier »).
+   * @param {RowMenuEntry[]} [entries] Creations of its menu. Optional.
+   * @returns {SidebarSectionChrome} Header.
+   */
+  const chrome = (key: SectionKey, title: string, keys: string[], entries?: RowMenuEntry[]): SidebarSectionChrome => ({
+    title,
+    opened: isOpened(key),
+    onToggle: () => toggleSection(key),
+    onSetAllExpanded: allExpandedHandler(keys),
+    actions: entries,
+  });
+
+  const hasFavorites = favorites !== null && !isEmptySection(favorites);
+  const hasArchives = archives !== null && !isEmptySection(archives);
   const noResult = searching ? 'Aucun résultat.' : null;
+  const projectEntries = newEntityEntries(actions, true);
 
   return (
     <Stack h="100%" gap={0}>
@@ -261,53 +308,42 @@ export function Sidebar() {
         {data && favorites && active && archives && (
           <>
             {/* Favorites and archives only show when they have content (or matches while searching). */}
-            {favoriteCount > 0 && (
-              <SidebarSection title="Favoris" count={favoriteCount} opened={sections.favorites} onToggle={() => toggleSection('favorites')} onSetAllExpanded={allExpandedHandler(favorites, 'fav:')}>
+            {hasFavorites && (
+              <SidebarSection {...chrome('favorites', 'Favoris', sectionKeys(favorites, 'fav:'))}>
                 <TreeExpansionContext.Provider value={expansionFor(favorites, 'fav:')}>
                   <StaticTree section={favorites} label="Favoris" keyPrefix="fav:" isExpanded={isExpanded} onToggle={toggleNode} />
                 </TreeExpansionContext.Provider>
               </SidebarSection>
             )}
 
-            <SidebarSection
-              title={perso ? 'Projets' : 'Clients'}
-              count={active.clients.length}
-              opened={sections.active}
-              onToggle={() => toggleSection('active')}
-              onSetAllExpanded={allExpandedHandler(active, '')}
-              actions={newEntityEntries(actions, perso)}
-            >
-              {activeCount > 0 ? (
-                <TreeExpansionContext.Provider value={expansionFor(active, '')}>
-                  <ActiveTree section={active} dndEnabled={sort === 'manual' && !searching && !touch} isExpanded={isExpanded} onToggle={toggleNode} />
-                </TreeExpansionContext.Provider>
-              ) : (
-                <Stack gap="xs" px="sm" py="xs">
-                  <EmptyState
-                    compact
-                    icon={perso ? <FolderOpenIcon aria-hidden /> : <UsersThreeIcon aria-hidden />}
-                    message={noResult ?? (perso ? 'Aucun projet pour le moment.' : 'Aucun client pour le moment.')}
-                  />
-                  {!searching && (
-                    <ActionsRow>
-                      {newEntityEntries(actions, perso).map(
-                        (entry) =>
-                          entry &&
-                          entry !== 'divider' &&
-                          'label' in entry && (
-                            <ActionButton key={entry.label} priority="secondary" size="xs" icon={entry.icon} onClick={entry.onClick}>
-                              {entry.label}
-                            </ActionButton>
-                          ),
-                      )}
-                    </ActionsRow>
-                  )}
-                </Stack>
-              )}
-            </SidebarSection>
+            {/*
+              PRO: « Clients » with their projects, then « Projets » with the projects without client (when there are).
+              PERSO: « Projets », or the projects straight in the sidebar without favorites nor archives.
+            */}
+            <TreeExpansionContext.Provider value={expansionFor(active, '')}>
+              <ActiveTree
+                section={active}
+                dndEnabled={sort === 'manual' && !searching && !touch}
+                isExpanded={isExpanded}
+                onToggle={toggleNode}
+                {...(perso
+                  ? {
+                      projects: projectsSection ? chrome('active', 'Projets', sectionKeys(active, ''), projectEntries) : null,
+                      projectsEmpty: <TreeEmpty icon={<FolderOpenIcon aria-hidden />} message={noResult ?? 'Aucun projet pour le moment.'} entries={searching ? undefined : projectEntries} />,
+                    }
+                  : {
+                      // While searching, « Clients » without match hides when projects without client match.
+                      clients: searching && active.clients.length === 0 && active.orphans.length > 0 ? undefined : chrome('active', 'Clients', clientKeys(active, ''), newEntityEntries(actions, false)),
+                      clientsEmpty: (
+                        <TreeEmpty icon={<UsersThreeIcon aria-hidden />} message={noResult ?? 'Aucun client pour le moment.'} entries={searching ? undefined : newEntityEntries(actions, false)} />
+                      ),
+                      projects: chrome('projects', 'Projets', orphanKeys(active, ''), projectEntries),
+                    })}
+              />
+            </TreeExpansionContext.Provider>
 
-            {archiveCount > 0 && (
-              <SidebarSection title="Archives" count={archiveCount} opened={sections.archives} onToggle={() => toggleSection('archives')} onSetAllExpanded={allExpandedHandler(archives, 'archive:')}>
+            {hasArchives && (
+              <SidebarSection {...chrome('archives', 'Archives', sectionKeys(archives, 'archive:'))}>
                 <TreeExpansionContext.Provider value={expansionFor(archives, 'archive:')}>
                   <StaticTree section={archives} label="Archives" keyPrefix="archive:" isExpanded={isExpanded} onToggle={toggleNode} />
                 </TreeExpansionContext.Provider>

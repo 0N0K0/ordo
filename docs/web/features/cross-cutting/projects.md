@@ -34,8 +34,8 @@ Internes : `useProjectTreeMutation` (mutation invalidant l’arbre, et les requ�
 
 ### `components/ActiveTree.tsx`
 
-- `ActiveTree({ section, dndEnabled, isExpanded, onToggle })` : arbre principal de la barre latérale (clients actifs, « Sans client » et leurs projets) avec glisser-déposer `@dnd-kit` : réordonne les clients, déplace les projets avec leurs sous-projets (verticalement la place, horizontalement le niveau, limité par `MAX_PROJECT_DEPTH`). Appelle `useMoveClient` / `useMoveProject` ; rend un `DragOverlay`. Utilisé par `Sidebar`.
-- Internes : `FlatItem` (ligne aplatie, id de glisser `client:<id>`, `none:none`, `project:<id>`), `nodeHeight`, `flatten` (aplatit la partie visible ; montre « Sans client » pendant le glisser d’un projet même vide), `getProjection` (profondeur visée selon le décalage horizontal, via `dropProjection` de `components/tree/tree-dnd`), `parseId`, `collisionDetection` (un client ne rencontre que les clients et « Sans client »), `SortableRow` (ligne triable : `TreeRow` ou `NoClientRow`).
+- `ActiveTree({ section, dndEnabled, isExpanded, onToggle, clients?, clientsEmpty?, projects, projectsEmpty? })` : arbre principal de la barre latérale, rendu dans ses sections (`SidebarSection`) : `clients` (en-tête `SidebarSectionChrome` de « Clients », PRO) avec les clients actifs et leurs projets, `clientsEmpty` sans client ; puis les projets sans client au premier niveau, sous l’en-tête `projects` (« Projets ») ou, avec `projects = null`, directement dans la barre ; `projectsEmpty` à la place des projets quand il n’y en a pas (sans lui, la section « Projets » ne s’affiche qu’avec des projets ou pendant le glisser d’un projet). Un seul glisser-déposer `@dnd-kit` pour les deux sections : réordonne les clients, déplace les projets avec leurs sous-projets (verticalement la place : sous un client = rattaché, dans « Projets » = détaché ; horizontalement le niveau, limité par `MAX_PROJECT_DEPTH`). Appelle `useMoveClient` / `useMoveProject` ; rend un `DragOverlay`. Utilisé par `Sidebar`.
+- Internes : `FlatItem` (ligne aplatie, id de glisser `client:<id>`, `none:none` pour la racine des projets sans client, `project:<id>`), `nodeHeight`, `FlattenParts`, `flatten` (aplatit la partie visible ; pendant un glisser, sans les lignes d’une section repliée), `noClientRows` (lignes sous la racine des projets sans client, montrées un niveau moins en retrait), `getProjection` (profondeur visée selon le décalage horizontal, via `dropProjection` de `components/tree/tree-dnd`), `parseId`, `collisionDetection` (un client ne rencontre que les clients et l’en-tête « Projets »), `SortableRow` (`TreeRow` triable), `NoClientRoot` (racine des projets sans client, jamais glissée : l’en-tête de la section « Projets », cible du glisser, ou une marque vide quand les projets sont directement dans la barre).
 
 ### `components/ClientForm.tsx`
 
@@ -83,10 +83,6 @@ Pastilles du menu, chacune son composant pour que le chrono ne rafraîchisse que
 - `AlarmsNavBadge()` : temps jusqu’à la prochaine sonnerie (`useNextRing`, `fmt.countdown`), recalculé chaque minute ; « Prochaine sonnerie dans 12 min ».
 - `TreasuryNavBadge()` : solde des comptes ouverts (`useTreasuryAccounts`), rouge si négatif.
 
-### `components/NoClientRow.tsx`
-
-`NoClientRow` (`forwardRef`, props `expanded`, `onToggle`, `hasChildren`, `canAddProject?`, `style?`) : en-tête repliable du groupe « Sans client » (« Tous les projets » en PERSO), avec menu « … » / clic droit (« Ajouter un projet », plier / déplier). Utilisé par `ActiveTree` et `StaticTree`.
-
 ### `components/ProjectForm.tsx`
 
 `ProjectForm({ project?, defaults?, onDone? })` : formulaire de création ou modification d’un projet (`projectFormSchema`) : libellé, projet parent (`treeSelectProps(projectOptions(...))` limité aux projets actifs hors du sous-arbre et laissant la place à sa hauteur), client (masqué en PERSO, hérité et désactivé avec un parent), `StatusInput`, couleur, `CategoriesInput`, période (`dateRangeProps` / `formRange`), description, icône (`formIconProps`). Un nouveau projet : « Créer le projet » ; à l’envoi, le client d’un sous-projet est celui du parent. Un projet existant : panneau enregistré champ par champ (`useFieldSave` : libellé et description en les quittant, couleur par `commitProps` ; seuls les champs changés envoyés à `useUpdateProject` ; `SaveStatus` ; le projet du cache suivi ; archivé : lecture seule). Utilisé par `useEntityActions.openProjectForm` et le panneau des paramètres de `ProjectPage`.
@@ -97,21 +93,21 @@ Pastilles du menu, chacune son composant pour que le chrono ne rafraîchisse que
 
 ### `components/Sidebar.tsx`
 
-`Sidebar()` : barre latérale de l’application (montée par `app/layout/AppLayout.tsx`) : « Accueil », groupes de menu, recherche, tri (`useLocalStorage` `ordo.sidebar.sort`, non synchronisé entre fenêtres), création, sections « Favoris », « Clients » / « Projets », « Archives » (`ordo.sidebar.sections`), « Paramètres ». Pliage des nœuds par `useFoldedIds('ordo.sidebar.collapsed')` ; glisser-déposer actif en ordre manuel, hors recherche et hors tactile (`PHONE_QUERY`).
+`Sidebar()` : barre latérale de l’application (montée par `app/layout/AppLayout.tsx`) : « Accueil », groupes de menu, recherche, tri (`useLocalStorage` `ordo.sidebar.sort`, non synchronisé entre fenêtres), création, sections (`ordo.sidebar.sections`, une section absente de ce qui est gardé prend son état de départ `SECTIONS_OPENED`) : « Favoris », puis en PRO « Clients » et « Projets » (projets sans client, s’il y en a), en PERSO « Projets » s’il y a des favoris ou des archives (sinon les projets directement dans la barre), puis « Archives » ; « Paramètres ». Pas de compteur sur les en-têtes. Pliage des nœuds par `useFoldedIds('ordo.sidebar.collapsed')` ; glisser-déposer actif en ordre manuel, hors recherche et hors tactile (`PHONE_QUERY`).
 
-Internes : `TreeSkeleton`, `MenuLink`, `MenuGroup`, `pageLink` (lien depuis `PAGES`), `MENU_GROUPS` (« Activités », « Économat », « Finances », « Ressources » et leurs pastilles), `PRO_ONLY` (facturation masquée en PERSO), `isActive`, `MenuGroups` (groupes repliables, état `ordo.sidebar.openGroups`, groupe de la page ouverte déplié), et dans `Sidebar` : `expansionFor` (fournit `TreeExpansionContext`), `allExpandedHandler`, `setKeysExpanded`.
+Internes : `SectionKey`, `SECTIONS_OPENED`, `TreeSkeleton`, `TreeEmpty` (état vide d’une partie de l’arbre avec les boutons de ses créations), `MenuLink`, `MenuGroup`, `pageLink` (lien depuis `PAGES`), `MENU_GROUPS` (« Activités », « Économat », « Finances », « Ressources » et leurs pastilles), `PRO_ONLY` (facturation masquée en PERSO), `isActive`, `MenuGroups` (groupes repliables, état `ordo.sidebar.openGroups`, groupe de la page ouverte déplié), et dans `Sidebar` : `expansionFor` (fournit `TreeExpansionContext`), `allExpandedHandler`, `chrome` (en-tête d’une section : titre, ouverture, menu), `setKeysExpanded`.
 
 ### `components/SidebarSection.tsx` (+ `SidebarSection.module.css`)
 
-`SidebarSection({ title, count, opened, onToggle, onSetAllExpanded?, actions?, children })` : section repliable (`FoldHeading` + `Collapse`) avec menu « … » (actions puis « Tout déplier » / « Tout replier »). Utilisé par `Sidebar`.
+`SidebarSection({ title, opened, onToggle, onSetAllExpanded?, actions?, headerRef?, headerStyle?, children })` : section repliable (`FoldHeading` + `Collapse`), sans compteur, avec menu « … » (actions puis « Tout déplier » / « Tout replier ») ; `headerRef` / `headerStyle` font de l’en-tête une cible du glisser-déposer. `SidebarSectionChrome` : le type de son en-tête (titre, ouverture, menu). Utilisé par `Sidebar` et `ActiveTree`.
 
 ### `components/StaticTrees.tsx`
 
-`StaticTree({ section, label, keyPrefix, isExpanded, onToggle })` : arbre en lecture seule (favoris, archives), éléments de contexte grisés, sans glisser-déposer. Interne : `ProjectBranch` (ligne de projet récursive). Utilisé par `Sidebar`.
+`StaticTree({ section, label, keyPrefix, isExpanded, onToggle })` : arbre en lecture seule (favoris, archives), éléments de contexte grisés, projets sans client au premier niveau après les clients, sans glisser-déposer. Interne : `ProjectBranch` (ligne de projet récursive). Utilisé par `Sidebar`.
 
 ### `components/TreeRow.tsx` (+ `TreeRow.module.css`, `Tree.module.css`)
 
-`TreeRow` (`forwardRef`, props `entity`, `depth?`, `subtitle?`, `muted?`, `expansion?`, `draggable?`, `dragging?` et attributs HTML) : ligne de l’arbre : bouton de pliage, lien vers la page (surligné si ouverte), double-clic = renommer, avatar, nom, `EntityMenu` révélé au survol, clic droit = menu. Utilisé par `ActiveTree`, `StaticTree` et le `DragOverlay`. `Tree.module.css` porte les styles du groupe « Sans client » et de la ligne en cours de glisser.
+`TreeRow` (`forwardRef`, props `entity`, `depth?`, `subtitle?`, `muted?`, `expansion?`, `draggable?`, `dragging?` et attributs HTML) : ligne de l’arbre : bouton de pliage, lien vers la page (surligné si ouverte), double-clic = renommer, avatar, nom, `EntityMenu` révélé au survol, clic droit = menu. Utilisé par `ActiveTree`, `StaticTree` et le `DragOverlay`. `Tree.module.css` porte le style de la ligne en cours de glisser.
 
 ## `hooks/`
 
@@ -139,11 +135,11 @@ Utilisés par `labels.tsx` et `SettingsPage`.
 - `foldEntries(setExpanded)` : entrées « Tout déplier » / « Tout replier ».
 - `newEntityEntries(actions, perso)` : entrées « Nouveau client » (pas en PERSO) et « Nouveau projet ».
 
-Utilisés par `Sidebar`, `SidebarSection`, `EntityMenu`, `NoClientRow`.
+Utilisés par `Sidebar`, `SidebarSection`, `EntityMenu`.
 
 ### `lib/tree-expansion.ts`
 
-- `TreeExpansion` : interface des actions de pliage d’un arbre (`hasChildren`, `setSubtreeExpanded`, `noClientFoldable`, `setNoClientExpanded`).
+- `TreeExpansion` : interface des actions de pliage d’un arbre (`hasChildren`, `setSubtreeExpanded`).
 - `TreeExpansionContext` : contexte React fourni par `Sidebar` pour chaque section.
 - `useTreeExpansion()` : lit le contexte (null hors arbre, par exemple dans le `DragOverlay`).
 
@@ -155,7 +151,7 @@ Construction des sections de l’arbre et helpers de projets réutilisés ailleu
 | ----------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------- |
 | `SortMode`                                                                    | `'manual'` ou `'name'`.                                                                                                      | `Sidebar`                                                                 |
 | `clientItems(clients)`                                                        | Clients avec `label = name`, pour les selects d’éléments.                                                                    | `ClientSelect`, `dashboards/source-filters`                               |
-| `NO_CLIENT`                                                                   | Id du groupe « Sans client » (`'none'`).                                                                                     | `ActiveTree`, `StaticTree`                                                |
+| `NO_CLIENT`                                                                   | Id de la racine des projets sans client dans le glisser-déposer (`'none'`).                                                  | `ActiveTree`                                                              |
 | `ProjectNode`, `TreeSection`                                                  | Nœud de projet ; section (clients, `orphans`, clés de `context` `c:<id>` / `p:<id>`).                                        | arbre                                                                     |
 | `projectFullPath(tree, project)`                                              | « Client › Projet › Sous-projet ».                                                                                           | contexte des tâches, trésorerie, documents                                |
 | `projectOptions(tree, projects)`                                              | Options d’un select de projets dans l’ordre de l’arbre, sous leur client grisé, parents non proposés grisés (`treeOptions`). | formulaires de tâches, routines, contributeurs, trésorerie, `ProjectForm` |
@@ -167,9 +163,10 @@ Construction des sections de l’arbre et helpers de projets réutilisés ailleu
 | `buildActiveSection(tree, sort, search)`                                      | Section principale (actifs).                                                                                                 | `Sidebar`                                                                 |
 | `buildFavoriteSection(tree, sort, search)`                                    | Section des favoris avec contexte.                                                                                           | `Sidebar`                                                                 |
 | `buildArchiveSection(tree, sort, search)`                                     | Section des archives avec contexte.                                                                                          | `Sidebar`                                                                 |
-| `countSectionItems(section)`                                                  | Éléments d’une section hors contexte.                                                                                        | `Sidebar`                                                                 |
-| `noClientKeys(section, prefix)`                                               | Clés de pliage du groupe « Sans client ».                                                                                    | `Sidebar`                                                                 |
-| `sectionKeys(section, prefix)`                                                | Clés de tous les nœuds pliables.                                                                                             | `Sidebar`                                                                 |
+| `isEmptySection(section)`                                                     | Section sans client ni projet (son contexte ne vient qu’avec du contenu).                                                    | `Sidebar`                                                                 |
+| `clientKeys(section, prefix)`                                                 | Clés de pliage des clients et de leurs projets (« Tout déplier » de « Clients »).                                            | `Sidebar`                                                                 |
+| `orphanKeys(section, prefix)`                                                 | Clés de pliage des projets sans client (« Tout déplier » de « Projets » en PRO).                                             | `Sidebar`                                                                 |
+| `sectionKeys(section, prefix)`                                                | Clés de tous les nœuds pliables (`clientKeys` puis `orphanKeys`).                                                            | `Sidebar`                                                                 |
 | `subtreeKeys(section, prefix, target)`                                        | Clés d’un nœud et de ses descendants.                                                                                        | `Sidebar`                                                                 |
 
 Internes : `labelOf`, `sortItems`, `buildForest`, `filterForest`, `filterSection` (recherche sans accents), `projectAncestry`, `ContextSeeds`, `buildContextSection` (contenu + ancêtres et clients en contexte), `projectKeys`.

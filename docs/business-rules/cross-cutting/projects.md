@@ -45,7 +45,7 @@ Le nom d’un client n’est pas unique.
 
 - Les contributeurs de ses contacts archivés avec lui restent archivés, seuls (`archivedByCascade = false`).
 - `deleteProjects = true` : tous les projets du client (archivés compris, avec leurs sous-projets) sont supprimés, puis le client. Icônes orphelines supprimées.
-- `deleteProjects = false` : les projets passent « sans client » (`clientId = null`, `archivedByCascade = false`) en gardant leur arborescence ; les projets racines sont placés à la fin de la liste « Sans client », dans leur ordre actuel. Puis le client est supprimé.
+- `deleteProjects = false` : les projets passent « sans client » (`clientId = null`, `archivedByCascade = false`) en gardant leur arborescence ; les projets racines sont placés à la fin des projets sans client, dans leur ordre actuel. Puis le client est supprimé.
 - Les données de facturation liées au client suivent les règles du schéma Prisma (voir [Facturation](../finances/accounting.md)).
 
 ### Déplacement

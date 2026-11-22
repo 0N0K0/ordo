@@ -5,7 +5,7 @@ Ce que l’utilisateur peut faire avec les clients et les projets : la barre lat
 ## Différences PRO / PERSO
 
 - Espace **PRO** : clients et projets ; un projet racine peut être rattaché à un client ou rester « Sans client ».
-- Espace **PERSO** : pas de clients. La section de la barre latérale s’appelle « Projets », le groupe des projets « Tous les projets », le formulaire de projet n’a pas de champ « Client », la page d’un projet n’a pas l’onglet « Facturation » ni la mention « Sans client », la page d’un client affiche « Indisponible dans un espace personnel » (voir [Espaces](workspaces.md)).
+- Espace **PERSO** : pas de clients. La barre latérale montre les projets directement (section « Projets » seulement s’il y a des favoris ou des archives, voir plus bas), le formulaire de projet n’a pas de champ « Client », la page d’un projet n’a pas l’onglet « Facturation » ni la mention « Sans client », la page d’un client affiche « Indisponible dans un espace personnel » (voir [Espaces](workspaces.md)).
 
 ## Barre latérale
 
@@ -30,14 +30,15 @@ Composant `Sidebar`, à gauche de l’application.
 
 ### Sections
 
-| Section                            | Contenu                                                                                                                                                         | Affichage                                                                                                              |
-| ---------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------- |
-| « Favoris »                        | clients favoris avec leurs projets actifs, projets favoris avec leurs sous-projets actifs, sous leur client et leurs parents (affichés en grisé comme contexte) | seulement s’il y a au moins un favori                                                                                  |
-| « Clients » (« Projets » en PERSO) | clients actifs avec leurs arbres de projets actifs, puis le groupe « Sans client » (« Tous les projets » en PERSO)                                              | toujours ; état vide « Aucun client pour le moment. » ou « Aucun projet pour le moment. » avec les boutons de création |
-| « Archives »                       | clients archivés avec leurs projets, projets archivés avec leurs sous-projets, sous leur client et leurs parents (en contexte)                                  | seulement s’il y a des archives ; fermée par défaut                                                                    |
+| Section       | Contenu                                                                                                                                                                                                            | Affichage                                                                                                                             |
+| ------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------- |
+| « Favoris »   | clients favoris avec leurs projets actifs, projets favoris avec leurs sous-projets actifs, sous leur client et leurs parents (affichés en grisé comme contexte) ; les projets sans client directement, après les clients | seulement s’il y a au moins un favori                                                                                                 |
+| « Clients »   | PRO : clients actifs avec leurs arbres de projets actifs, rien d’autre                                                                                                                                              | toujours en PRO ; état vide « Aucun client pour le moment. » avec les boutons de création ; masquée pendant une recherche qui ne trouve que des projets sans client |
+| « Projets »   | PRO : projets actifs sans client, au même niveau que « Clients ». PERSO : tous les projets actifs, directement                                                                                                       | PRO : seulement s’il y a des projets sans client (et pendant le glisser d’un projet). PERSO : seulement s’il y a des favoris ou des archives ; sinon les projets sont directement dans la barre, sans en-tête de section ; état vide « Aucun projet pour le moment. » avec le bouton de création |
+| « Archives »  | clients archivés avec leurs projets, projets archivés avec leurs sous-projets, sous leur client et leurs parents (en contexte) ; les projets archivés sans client directement, après les clients (en PERSO : les projets directement) | seulement s’il y a des archives ; fermée par défaut                                                                                   |
 
-- Chaque section se replie (titre avec compteur) ; son menu « … » propose les créations (section principale) et « Tout déplier » / « Tout replier ». L’ouverture des sections et le pliage de chaque nœud sont gardés.
-- Le compteur de « Favoris » et « Archives » ne compte pas les éléments de contexte.
+- Aucun groupe intermédiaire : pas de « Sans client » ni de « Tous les projets » ; un projet sans client est au premier niveau de sa section.
+- Chaque section se replie par son titre (sans compteur) ; son menu « … » propose les créations (« Nouveau client » et « Nouveau projet » pour « Clients », « Nouveau projet » pour « Projets ») et « Tout déplier » / « Tout replier » de ses nœuds. L’ouverture des sections et le pliage de chaque nœud sont gardés.
 
 ### Lignes de l’arbre
 
@@ -49,14 +50,13 @@ Composant `Sidebar`, à gauche de l’application.
   - « Tout déplier » / « Tout replier » s’il a des enfants ;
   - élément actif : « Modifier », « Ajouter aux favoris » / « Retirer des favoris » ;
   - « Archiver » / « Restaurer » (« avec ses projets et ses contacts » pour un client) et « Supprimer ».
-- Groupe « Sans client » : menu avec « Ajouter un projet » (section principale) et le pliage.
 
-### Glisser-déposer (section principale)
+### Glisser-déposer (« Clients » et « Projets »)
 
 Disponible en ordre manuel, hors recherche, et pas sur écran tactile ni téléphone.
 
 - Un client se déplace parmi les clients.
-- Un projet se déplace avec ses sous-projets : verticalement pour choisir la place, horizontalement pour choisir le niveau (sous le projet du dessus, ou au même niveau), dans la limite de 5 niveaux. Il peut changer de client ou passer « Sans client » ; ses sous-projets suivent le client.
+- Un projet se déplace avec ses sous-projets : verticalement pour choisir la place, horizontalement pour choisir le niveau (sous le projet du dessus, ou au même niveau), dans la limite de 5 niveaux. Posé sous un client, il lui est rattaché ; posé dans « Projets », il est détaché de son client ; ses sous-projets suivent le client. Pendant le glisser d’un projet, la section « Projets » s’affiche même vide, et les lignes d’une section repliée ne sont pas des places.
 - Erreur éventuelle : toast d’erreur.
 
 ## Page d’un client

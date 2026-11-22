@@ -1,5 +1,4 @@
-import { NO_CLIENT, type ProjectNode, type TreeSection } from '../lib/tree';
-import { NoClientRow } from './NoClientRow';
+import type { ProjectNode, TreeSection } from '../lib/tree';
 import { TreeRow } from './TreeRow';
 import { taggedKey } from '../../../lib/tagged-key';
 
@@ -50,7 +49,7 @@ interface StaticTreeProps {
 
 /**
  * Read-only tree (favorites, archives): items of the section with their client and parents as
- * context, shown muted. No drag and drop.
+ * context, shown muted, then the projects without client, straight in the tree. No drag and drop.
  * @param {StaticTreeProps} props Component props.
  * @returns {JSX.Element} Tree.
  */
@@ -76,12 +75,10 @@ export function StaticTree({ section, label, keyPrefix, isExpanded, onToggle }: 
         );
       })}
 
-      {section.orphans.length > 0 && (
-        <>
-          <NoClientRow expanded={isExpanded(`${keyPrefix}${NO_CLIENT}`)} onToggle={() => onToggle(`${keyPrefix}${NO_CLIENT}`)} hasChildren />
-          {isExpanded(`${keyPrefix}${NO_CLIENT}`) && section.orphans.map((node) => <ProjectBranch key={node.project.id} node={node} depth={1} {...branchProps} />)}
-        </>
-      )}
+      {/* Projects without client, straight in the section after the clients. */}
+      {section.orphans.map((node) => (
+        <ProjectBranch key={node.project.id} node={node} depth={0} {...branchProps} />
+      ))}
     </div>
   );
 }
