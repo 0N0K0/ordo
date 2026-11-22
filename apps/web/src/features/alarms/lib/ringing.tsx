@@ -2,7 +2,7 @@ import { COUNTDOWN_RING_TAG, DEFAULT_RING_SETTINGS, isRingtone, repeatedRingAt, 
 import { AlarmIcon, ArrowsClockwiseIcon, CakeIcon, CalendarBlankIcon, CalendarStarIcon, CheckSquareIcon, ClockClockwiseIcon, StopCircleIcon, TimerIcon } from '@phosphor-icons/react';
 import type { ReactNode } from 'react';
 import { fetchAlarmRings, sendAlarmRing, sendAlarmSnooze, sendAlarmStop, type AlarmRing } from '../api';
-import { startRingtone } from './alarm-sound';
+import { setSettingsRingtone, startRingtone } from '../../../lib/alarm-sound';
 import * as fmt from '../../../lib/format';
 import { closeToast, notifyAlarm, type NotifyAction } from '../../../lib/notify';
 import { parseTaggedKey } from '../../../lib/tagged-key';
@@ -130,6 +130,8 @@ export function systemNotification(title: string, body: string | undefined, tag:
  */
 export function configureRinging(next: RingContext): void {
   context = next;
+  // « Écouter » on « Celle des réglages » plays it.
+  setSettingsRingtone(next.settings.ringtone);
 }
 
 /**

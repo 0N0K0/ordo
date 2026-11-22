@@ -44,7 +44,9 @@ import { TaskDescription } from './TaskDescription';
 import { TaskLocation } from './TaskLocation';
 import { TaskReminders } from './TaskReminders';
 import { DeadTimesField } from '../../countdowns/components/DeadTimesField';
-import { taskDeadTimeItem } from '../lib/task-dead-times';
+import { taskCountdownItem } from '../lib/task-countdowns';
+import { SavedCountdownsField } from '../../countdowns/components/SavedCountdownsField';
+import { tasksQueryKey } from '../../../lib/query-keys';
 import { inheritedDateHint } from '../lib/inherited-dates';
 import { DetailNotFound } from '../../../components/feedback/DetailNotFound';
 import { ActionButton } from '../../../components/actions/ActionButton';
@@ -359,7 +361,8 @@ function TaskDetail({ task, context }: TaskDetailProps) {
                 />
               </InheritedField>
               <TaskReminders value={task.reminders} minDate={task.effectiveMinDate} deadline={task.effectiveDeadline} disabled={locked} onChange={(reminders) => save({ reminders })} />
-              <DeadTimesField value={task.deadTimes} item={taskDeadTimeItem(task, context)} disabled={locked} onChange={(deadTimes) => save({ deadTimes })} />
+              <DeadTimesField value={task.deadTimes} item={taskCountdownItem(task, context)} disabled={locked} onChange={(deadTimes) => save({ deadTimes })} />
+              <SavedCountdownsField target="TASK" id={task.id} value={task.savedCountdownIds} invalidate={[tasksQueryKey]} readOnly={locked} />
               <TaskSelect
                 context={context}
                 labelOf={(candidate) => context.taskLabel(candidate, task.projectId)}

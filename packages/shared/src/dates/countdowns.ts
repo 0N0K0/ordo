@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import { optionalText, readStoredList, requiredText, shortTextSchema } from '../core/rules';
+import { labelFormSchema } from '../core/workspace';
 import { durationSchema, durationTextSchema, formatDuration } from '../tasks/time';
 import { daySchema } from './times';
 import { isRingtone, RING_KEY_MAX, type RingtoneId } from './ringing';
@@ -9,7 +10,8 @@ import { isRingtone, RING_KEY_MAX, type RingtoneId } from './ringing';
  * a timer counts down a duration and rings at its end (`startRinging`, the ringtone of the timer, else the one of the
  * settings); several run at once, for the user, in every workspace, kept by the API (a reload, another tab or device,
  * the push notifications follow it). A dead time is a wait of an item (« Lave-linge, 1 h 30 ») a timer is
- * launched for: it is not time spent.
+ * launched for: it is not time spent. A saved timer (« minuteur enregistré », a settings list of the workspace: « Œufs
+ * durs », « Lessive ») is started again in one click, alone or from a task, a routine, an event or a sheet it is linked to.
  */
 
 /** Durations offered to start a timer at once, in minutes. */
@@ -40,14 +42,17 @@ const optionalRingtone = z
   .nullish()
   .transform((ringtone) => (isRingtone(ringtone) ? ringtone : null));
 
+/** Minutes of a dead time or a saved timer: 1 to 1 440. */
+const minutesSchema = z
+  .number({ error: 'Durée attendue.' })
+  .int()
+  .min(1, 'Au moins 1 minute.')
+  .max(24 * 60, '24 heures maximum.');
+
 /** A dead time of a task or a routine: what is waited for, how long (minutes), the ringtone at its end (none: the settings). */
 export const deadTimeSchema = z.object({
   label: requiredText(),
-  minutes: z
-    .number({ error: 'Durée attendue.' })
-    .int()
-    .min(1, 'Au moins 1 minute.')
-    .max(24 * 60, '24 heures maximum.'),
+  minutes: minutesSchema,
   ringtone: optionalRingtone,
 });
 
@@ -89,9 +94,11 @@ export const countdownInputSchema = z.object({
   ringtone: optionalRingtone,
   /** Workspace of its item (its link opens it there); none: the one open. */
   workspaceId: z.string().nullish(),
-  /** Item of the dead time: a task, or a routine and its occurrence. */
+  /** Item it is launched for: a task, a routine and its occurrence, an event (and its occurrence when recurring), a sheet. */
   taskId: z.string().nullish(),
   routineId: z.string().nullish(),
+  eventId: z.string().nullish(),
+  sheetId: z.string().nullish(),
   occurrenceDate: daySchema().nullish(),
   /** Name of its item, shown with it (the timer is the user's, in every workspace: no relation). */
   subject: shortTextSchema.nullish(),
@@ -100,6 +107,26 @@ export const countdownInputSchema = z.object({
   linkLabel: shortTextSchema.nullish(),
 });
 export type CountdownInput = z.input<typeof countdownInputSchema>;
+
+/** A saved timer of the workspace (a settings list): its name (unique), color, duration (minutes), ringtone (none: the settings). */
+export const savedCountdownSchema = labelFormSchema.extend({ minutes: minutesSchema, ringtone: optionalRingtone });
+export type SavedCountdownInput = z.input<typeof savedCountdownSchema>;
+
+/** Form of a saved timer: its name and color, its duration typed (« 9 », « 1:30 », `parseDuration`), its ringtone. */
+export const savedCountdownFormSchema = labelFormSchema.extend({ duration: durationTextSchema, ringtone: z.string().nullable() });
+
+/** Items a saved timer is linked to (each lists the saved timers it launches). */
+export const SAVED_COUNTDOWN_TARGETS = ['TASK', 'ROUTINE', 'EVENT', 'SHEET'] as const;
+export type SavedCountdownTarget = (typeof SAVED_COUNTDOWN_TARGETS)[number];
+
+/** Most saved timers linked to an item. */
+export const SAVED_COUNTDOWN_LINKS_MAX = 20;
+
+/** Saved timers linked to an item, as sent (each once). */
+export const savedCountdownLinksSchema = z
+  .array(z.string())
+  .max(SAVED_COUNTDOWN_LINKS_MAX, `${SAVED_COUNTDOWN_LINKS_MAX} minuteurs au plus.`)
+  .transform((ids) => [...new Set(ids)]);
 
 /** Form of a timer started: its name (optional), its duration typed (« 10 », « 1h30 »…, `parseDuration`), its ringtone. */
 export const countdownFormSchema = z.object({

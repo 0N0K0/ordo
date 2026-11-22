@@ -62,6 +62,7 @@ const RoutinesDataDocument = graphql(`
       deadTimes {
         ...DeadTimeFields
       }
+      savedCountdownIds
       reminderOccurrences {
         date
         day

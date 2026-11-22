@@ -134,6 +134,7 @@ model Workspace {
   checklistItems            ChecklistItem[]
   stockLocations            StockLocation[]
   sheetCategories           SheetCategory[]
+  savedCountdowns           SavedCountdown[]
   stockItems                StockItem[]
   stockLots                 StockLot[]
   stockMovements            StockMovement[]
@@ -234,7 +235,8 @@ model PushSubscription {
 /// A timer (« minuteur », countdown) of the user, shared by the workspaces as its rings: it counts down
 /// and rings at its end. Running: `endsAt` (the moment the server can push its end); paused: `remainingSeconds`.
 /// Rung (`rungAt`): its ring goes on as an `AlarmRing` (key `countdown:<id>`), the timer no longer shows; removed 6 hours
-/// after. A timer launched from a dead time of a task or a routine (occurrence) keeps them (ids only: no relation).
+/// after. A timer launched for an item (a dead time or a saved timer of a task, a routine and its occurrence, an event and
+/// its occurrence, a sheet) keeps it (ids only: no relation).
 model Countdown {
   id               String    @id @default(cuid())
   userId           String
@@ -251,9 +253,11 @@ model Countdown {
   ringtone         String?
   /// Workspace of its item (its link opens it there).
   workspaceId      String?
-  /// Item of the dead time: a task, or a routine and its occurrence (ids only).
+  /// Item it was launched for: a task, a routine and its occurrence, an event (and its occurrence), a sheet (ids only).
   taskId           String?
   routineId        String?
+  eventId          String?
+  sheetId          String?
   occurrenceDate   DateTime? @db.Date
   /// Name of the item, shown with the timer and its ring.
   subject          String?
@@ -267,6 +271,35 @@ model Countdown {
 
   @@index([userId, rungAt])
   @@index([endsAt])
+}
+
+/// Saved timer (« minuteur enregistré ») of the workspace, a settings list: « Œufs durs », 9 min, its ringtone; started
+/// again in one click, alone or from the tasks, routines, events and sheets it is linked to.
+model SavedCountdown {
+  id          String          @id @default(cuid())
+  label       String
+  /// Image shown as its avatar (none: its initials on its color).
+  iconId      String?
+  icon        Icon?           @relation(fields: [iconId], references: [id], onDelete: SetNull)
+  color       String
+  position    Int             @default(0)
+  /// Duration, in minutes (1 to 1 440).
+  minutes     Int
+  /// Ringtone at its end; none: the one of the settings.
+  ringtone    String?
+  /// Archived: hidden by default and read only until restored.
+  archivedAt  DateTime?
+  createdAt   DateTime        @default(now())
+  tasks       Task[]          @relation("TaskSavedCountdowns")
+  routines    Routine[]       @relation("RoutineSavedCountdowns")
+  events      CalendarEvent[] @relation("EventSavedCountdowns")
+  sheets      Sheet[]         @relation("SheetSavedCountdowns")
+  /// Workspace the row belongs to (always given by the app; the default fails outside one).
+  workspaceId String          @default(dbgenerated("current_setting('ordo.workspace'::text)"))
+  workspace   Workspace       @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+
+  @@unique([workspaceId, label])
+  @@index([workspaceId])
 }
 
 model Session {
@@ -330,6 +363,7 @@ model Icon {
   taskTags               TaskTag[]
   documentStatuses       DocumentStatus[]
   sheetCategories        SheetCategory[]
+  savedCountdowns        SavedCountdown[]
   shoppingStores         ShoppingStore[]
   shoppingUnits          ShoppingUnit[]
   shoppingStorages       ShoppingStorage[]
@@ -424,27 +458,27 @@ model ClientService {
 
 /// Person at a client, possibly in one of its services.
 model ClientContact {
-  id          String               @id @default(cuid())
-  clientId    String
-  client      Client               @relation(fields: [clientId], references: [id], onDelete: Cascade)
-  serviceId   String?
-  service     ClientService?       @relation(fields: [serviceId], references: [id], onDelete: SetNull)
-  firstName   String
-  lastName    String
-  email       String?
-  jobTitle    String?
-  phones      Json                 @default("[]")
+  id                String               @id @default(cuid())
+  clientId          String
+  client            Client               @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  serviceId         String?
+  service           ClientService?       @relation(fields: [serviceId], references: [id], onDelete: SetNull)
+  firstName         String
+  lastName          String
+  email             String?
+  jobTitle          String?
+  phones            Json                 @default("[]")
   /// Archived: hidden by default and read only until restored; archived and restored with its contributor.
-  archivedAt  DateTime?
+  archivedAt        DateTime?
   /// Archived along with its client: restoring the client restores it.
-  archivedByCascade Boolean        @default(false)
-  createdAt   DateTime             @default(now())
-  documents   AccountingDocument[]
+  archivedByCascade Boolean              @default(false)
+  createdAt         DateTime             @default(now())
+  documents         AccountingDocument[]
   /// Contributor this contact is, if any.
-  contributor Contributor?
+  contributor       Contributor?
   /// Workspace the row belongs to (always given by the app; the default fails outside one).
-  workspaceId String               @default(dbgenerated("current_setting('ordo.workspace'::text)"))
-  workspace   Workspace            @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  workspaceId       String               @default(dbgenerated("current_setting('ordo.workspace'::text)"))
+  workspace         Workspace            @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
 
   @@index([clientId])
   @@index([workspaceId])
@@ -780,6 +814,8 @@ model Task {
   beneficiaries        Contributor[]      @relation("TaskBeneficiaries")
   beneficiaryRelations TreasuryRelation[] @relation("TaskBeneficiaryRelations")
   tags                 TaskTag[]          @relation("TaskTags")
+  /// Saved timers launched from it.
+  savedCountdowns      SavedCountdown[]   @relation("TaskSavedCountdowns")
   /// Sprints of the project tree the task is planned in (it may run over several).
   sprints              Sprint[]           @relation("TaskSprints")
   /// Status changes (recorded by a database trigger).
@@ -1565,6 +1601,8 @@ model CalendarCategory {
 model CalendarEvent {
   id                   String                   @id @default(cuid())
   label                String
+  /// Saved timers launched from it (the whole series).
+  savedCountdowns      SavedCountdown[]         @relation("EventSavedCountdowns")
   /// Markdown.
   description          String?
   location             String?
@@ -3054,25 +3092,27 @@ model SheetCategory {
 }
 
 model Sheet {
-  id             String          @id @default(cuid())
-  label          String
-  note           String?
+  id              String           @id @default(cuid())
+  label           String
+  note            String?
   /// Project it belongs to (shown in its tab); none: of the workspace.
-  projectId      String?
-  project        Project?        @relation(fields: [projectId], references: [id], onDelete: SetNull)
-  position       Int             @default(0)
+  projectId       String?
+  project         Project?         @relation(fields: [projectId], references: [id], onDelete: SetNull)
+  position        Int              @default(0)
   /// Archived: hidden by default and read only until restored.
-  archivedAt     DateTime?
-  createdAt      DateTime        @default(now())
-  updatedAt      DateTime        @updatedAt
-  items          SheetItem[]
-  links          SheetLink[]
+  archivedAt      DateTime?
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+  items           SheetItem[]
+  links           SheetLink[]
   /// Categories it is filed in (flat, set in the settings).
-  categories     SheetCategory[] @relation("SheetCategories")
-  stockMovements StockMovement[]
+  categories      SheetCategory[]  @relation("SheetCategories")
+  /// Saved timers launched from it.
+  savedCountdowns SavedCountdown[] @relation("SheetSavedCountdowns")
+  stockMovements  StockMovement[]
   /// Workspace the row belongs to (always given by the app; the default fails outside one).
-  workspaceId    String          @default(dbgenerated("current_setting('ordo.workspace'::text)"))
-  workspace      Workspace       @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  workspaceId     String           @default(dbgenerated("current_setting('ordo.workspace'::text)"))
+  workspace       Workspace        @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
 
   @@index([projectId])
   @@index([workspaceId])
@@ -3232,6 +3272,8 @@ model Routine {
   description          String?
   /// Categories it is shown in (a sub-routine is shown under its parent).
   categories           RoutineCategory[]      @relation("RoutineCategories")
+  /// Saved timers launched from it.
+  savedCountdowns      SavedCountdown[]       @relation("RoutineSavedCountdowns")
   /// Parent routine (null for a top-level one). Deleting a routine deletes its sub-routines or puts them one level up
   /// (chosen by the API).
   parentId             String?

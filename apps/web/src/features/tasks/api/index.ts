@@ -170,6 +170,7 @@ graphql(`
     deadTimes {
       ...DeadTimeFields
     }
+    savedCountdownIds
   }
 `);
 

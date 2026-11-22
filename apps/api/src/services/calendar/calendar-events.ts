@@ -29,6 +29,7 @@ import { prisma } from '../../db';
 import { PARIS } from '../../today';
 import { assertBeneficiaries } from '../core/beneficiaries';
 import { Prisma, type CalendarEvent, type CalendarEventException } from '../../generated/prisma/client';
+import { linkedSavedCountdowns } from '../tasks/saved-countdowns';
 import { clientError, fieldError, notFound, orNotFound, parseInput } from '../../graphql/errors';
 import { runInWorkspace } from '../../workspace-context';
 import { listSubscriptions, resolveCalendarId } from './calendars';
@@ -90,6 +91,8 @@ export interface EventOccurrence {
   categoryIds: string[];
   /** Tasks the event is about. */
   taskIds: string[];
+  /** Saved timers launched from the event (its whole series). */
+  savedCountdownIds: string[];
   /** Routines of a day of the occurrence it is about (their occurrence of that day is done during it). */
   routineLinks: { routineId: string; date: string }[];
   /** Cancelled but kept in the calendar. */
@@ -111,6 +114,7 @@ export type EventWithRelations = CalendarEvent & {
   beneficiaryRelations: { id: string }[];
   categories: { id: string }[];
   tasks: { id: string }[];
+  savedCountdowns: { id: string }[];
   routineLinks: { routineId: string; date: Date }[];
   postponedFrom: { label: string } | null;
   postponements: { id: string; label: string; startDate: Date; startTime: string | null; postponedFromDate: Date | null }[];
@@ -128,6 +132,7 @@ export const occurrenceInclude = {
   beneficiaries: { select: { id: true } },
   beneficiaryRelations: { select: { id: true } },
   categories: { select: { id: true } },
+  savedCountdowns: { select: { id: true } },
   tasks: { select: { id: true } },
   routineLinks: { select: { routineId: true, date: true } },
   postponedFrom: { select: { label: true } },
@@ -577,6 +582,8 @@ async function updateEventFields(id: string, input: CalendarEventInput, scope: E
         ...eventData(fields),
         recurrence: rule ?? undefined,
         ...eventRelations(fields),
+        // The new series keeps the saved timers of the event.
+        savedCountdowns: await linkedSavedCountdowns('EVENT', id, tx),
       },
     });
     // The comments and times of the following occurrences go to the new series, moved as the occurrence was.
@@ -703,6 +710,7 @@ export function toOccurrence(event: EventWithRelations, date: string | null, cha
     calendarId: event.calendarId,
     archived: event.archivedAt !== null,
     ...relationIdsOf(event),
+    savedCountdownIds: event.savedCountdowns.map((saved) => saved.id),
     routineLinks: linksWithin(event.routineLinks, startDate, endDate),
     calledOff: event.calledOff || (change?.calledOff ?? false),
     postponedFrom: event.postponedFromId ? { eventId: event.postponedFromId, date: formatOptionalDay(event.postponedFromDate), label: event.postponedFrom?.label ?? '' } : null,
@@ -902,6 +910,7 @@ export async function postponeCalendarEvent(id: string, occurrenceDate: string |
       postponedFromId: id,
       postponedFromDate: parseOptionalDay(occurrence?.date ?? null),
       ...eventRelations(fields),
+      savedCountdowns: await linkedSavedCountdowns('EVENT', id),
     },
   });
   await setEventCalledOff(id, 'THIS', occurrence?.date ?? null, true);

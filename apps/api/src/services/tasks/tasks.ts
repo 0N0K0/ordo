@@ -544,6 +544,7 @@ const CLONED_LINKS = {
   beneficiaryRelations: { select: { id: true } },
   tags: { select: { id: true } },
   sprints: { select: { id: true } },
+  savedCountdowns: { select: { id: true } },
 } as const;
 
 /**
@@ -589,6 +590,7 @@ export async function duplicateTask(id: string, includeSubtasks: boolean): Promi
           beneficiaryRelations: { select: { id: true } };
           tags: { select: { id: true } };
           sprints: { select: { id: true } };
+          savedCountdowns: { select: { id: true } };
         };
       }>,
       parentId: string | null,
@@ -624,6 +626,7 @@ export async function duplicateTask(id: string, includeSubtasks: boolean): Promi
           beneficiaries: { connect: task.beneficiaries },
           beneficiaryRelations: { connect: task.beneficiaryRelations },
           tags: { connect: task.tags },
+          savedCountdowns: { connect: task.savedCountdowns },
         },
       });
 

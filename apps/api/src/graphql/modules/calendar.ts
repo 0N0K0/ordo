@@ -115,6 +115,7 @@ const EventOccurrence = builder.objectRef<events.EventOccurrence>('CalendarEvent
     beneficiaryRelationIds: t.exposeIDList('beneficiaryRelationIds', { description: '« Bénéficiaires »: relations the event is for.' }),
     categoryIds: t.exposeIDList('categoryIds'),
     taskIds: t.exposeIDList('taskIds'),
+    savedCountdownIds: t.exposeIDList('savedCountdownIds', { description: 'Saved timers launched from the event (its whole series).' }),
     routineLinks: t.field({ type: [EventRoutineLinkRef], description: 'Routines of a day of the occurrence it is about.', resolve: (occurrence) => occurrence.routineLinks }),
     calledOff: t.exposeBoolean('calledOff', { description: 'Cancelled, kept in the calendar.' }),
     postponedFrom: t.field({ type: PostponedFrom, nullable: true, resolve: (occurrence) => occurrence.postponedFrom }),

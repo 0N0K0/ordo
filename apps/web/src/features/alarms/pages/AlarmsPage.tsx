@@ -14,10 +14,13 @@ import { useAlarmForm } from '../hooks/use-alarm-form';
 import classes from './AlarmsPage.module.css';
 import { SubSection } from '../../../components/page/SubSection';
 import { CountdownList } from '../../countdowns/components/CountdownList';
+import { SavedCountdownsSettings } from '../../countdowns/components/SavedCountdownsSettings';
+import { PageSettings } from '../../../app/layout/PageSettings';
 
 /**
  * Alarms page: the timers of the user (« Minuteurs », every workspace), then one-off and recurring
- * reminders, alarms when no timer runs, and alarms during the timer. They ring while Ordo is open in a tab.
+ * reminders, alarms when no timer runs, and alarms during the timer. They ring while Ordo is open in a tab. Its
+ * settings: the saved timers of the workspace.
  * @returns {JSX.Element} Page.
  */
 export function AlarmsPage() {
@@ -62,6 +65,9 @@ export function AlarmsPage() {
           <AlarmList alarms={alarms} context={context} openForm={openForm} />
         )}
       </SubSection>
+      <PageSettings title="Paramètres des alarmes">
+        <SavedCountdownsSettings />
+      </PageSettings>
     </Stack>
   );
 }

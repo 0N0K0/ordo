@@ -21,8 +21,8 @@ import { windowText } from '../lib/routine-format';
 import * as fmt from '../../../lib/format';
 import { ActionButton } from '../../../components/actions/ActionButton';
 import { taggedKey } from '../../../lib/tagged-key';
-import { DeadTimeLaunchButtons } from '../../countdowns/components/DeadTimeLaunchButtons';
-import { routineDeadTimeItem } from '../lib/routine-dead-times';
+import { CountdownLaunchButtons } from '../../countdowns/components/CountdownLaunchButtons';
+import { routineCountdownItem } from '../lib/routine-countdowns';
 
 /** One time of the day of the history: planned (done or not), or ticked without being planned that day. */
 export interface HistoryItem {
@@ -140,7 +140,7 @@ function TickForm({ item, routine, today, onDone }: TickFormProps) {
         </ActionButton>
       </Group>
       {/* Its dead times, launched for this occurrence. */}
-      {routine && !routine.archived && <DeadTimeLaunchButtons value={routine.deadTimes} item={routineDeadTimeItem(routine, item.date)} />}
+      {routine && !routine.archived && <CountdownLaunchButtons deadTimes={routine.deadTimes} savedCountdownIds={routine.savedCountdownIds} item={routineCountdownItem(routine, item.date)} />}
     </Stack>
   );
 }

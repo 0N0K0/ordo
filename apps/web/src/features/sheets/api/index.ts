@@ -75,6 +75,7 @@ const SheetDocument = graphql(`
       note
       projectId
       categoryIds
+      savedCountdownIds
       usedBy
       updatedAt
       items {

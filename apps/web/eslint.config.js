@@ -70,7 +70,12 @@ const RESTRICTED_PATHS = [
   {
     name: '@ordo/shared',
     importNames: ['RINGTONES'],
-    message: 'Utiliser RingtoneSelect (components/inputs/RingtoneSelect) : la sonnerie d’un rappel, d’un temps mort ou d’un minuteur, « Celle des réglages » en tête.',
+    message: 'Utiliser RingtoneSelect (components/inputs/RingtoneSelect) : la sonnerie d’un rappel, d’un temps mort, d’un minuteur ou des réglages, avec « Écouter ».',
+  },
+  {
+    name: '../../../lib/alarm-sound',
+    importNames: ['previewRingtone'],
+    message: 'Utiliser RingtoneSelect (components/inputs/RingtoneSelect) : « Écouter » est le bouton de chaque choix de sonnerie.',
   },
 ];
 
@@ -1237,13 +1242,9 @@ export default defineConfig([
     rules: { 'no-restricted-imports': ['error', { paths: RESTRICTED_PATHS_ACTIONS_MENU, patterns: [NO_FEATURES] }] },
   },
   {
-    // The one select of a ringtone; the settings choose the ringtone of everything (no « Celle des réglages »).
+    // The one select of a ringtone (the settings too, without « Celle des réglages »), with « Écouter ».
     files: ['src/components/inputs/RingtoneSelect.tsx'],
     rules: { 'no-restricted-imports': ['error', { paths: RESTRICTED_PATHS.filter((path) => !path.importNames.includes('RINGTONES')), patterns: [NO_FEATURES] }] },
-  },
-  {
-    files: ['src/features/account/components/RingSettingsForm.tsx'],
-    rules: { 'no-restricted-imports': ['error', { paths: RESTRICTED_PATHS.filter((path) => !path.importNames.includes('RINGTONES')) }] },
   },
   {
     // The one editor of the slot conditions of tasks and routines.

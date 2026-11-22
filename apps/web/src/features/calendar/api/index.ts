@@ -61,6 +61,7 @@ graphql(`
     beneficiaryRelationIds
     categoryIds
     taskIds
+    savedCountdownIds
     routineLinks {
       routineId
       date
