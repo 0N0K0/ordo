@@ -180,6 +180,13 @@ function ConditionEditor<F extends string>({ condition, fields, onChange, onRemo
     }
   }
 
+  const operatorChoices = operatorsFor(fields, condition.field, operator).map((item) => ({
+    value: item,
+    label: fields.operatorLabel?.(condition.field, item) ?? (yesNo?.labels && (item === 'isTrue' ? yesNo.labels.yes : yesNo.labels.no)) ?? OPERATOR_LABELS[kind][item] ?? item,
+  }));
+  // As wide as the operator chosen (a long name of a yes / no value is not cut), 190 px at least.
+  const chosenLabel = operatorChoices.find((item) => item.value === operator)?.label ?? '';
+  const operatorWidth = Math.max(190, Math.ceil(chosenLabel.length * 7) + (kind === 'boolean' ? 64 : 40));
   return (
     <Group gap="xs" wrap="wrap" className={classes.condition} data-incomplete={!fields.isComplete(condition) || undefined}>
       <Select
@@ -204,10 +211,7 @@ function ConditionEditor<F extends string>({ condition, fields, onChange, onRemo
         comboboxProps={INLINE}
         size="xs"
         aria-label="Opérateur"
-        data={operatorsFor(fields, condition.field, operator).map((item) => ({
-          value: item,
-          label: fields.operatorLabel?.(condition.field, item) ?? (yesNo?.labels && (item === 'isTrue' ? yesNo.labels.yes : yesNo.labels.no)) ?? OPERATOR_LABELS[kind][item] ?? item,
-        }))}
+        data={operatorChoices}
         value={operator}
         allowDeselect={false}
         // A yes / no shows its icon beside its word, as in the cells.
@@ -231,7 +235,7 @@ function ConditionEditor<F extends string>({ condition, fields, onChange, onRemo
             value: keep ? condition.value : defaultValueFor(kind, nextOperator),
           });
         }}
-        w={190}
+        w={operatorWidth}
       />
       {editor}
       <RemoveButton label="Retirer" aria-label="Retirer la condition" size="input-xs" onClick={onRemove} />

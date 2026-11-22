@@ -1,7 +1,7 @@
 import { beneficiaryKeys } from '../../beneficiaries/hooks/use-beneficiaries';
 import { ROUTINE_REPETITIONS, ROUTINE_STATES, conditionReferences, formatDuration, occurrenceKey, readSlotCondition, type RoutineCase } from '@ordo/shared';
 import { categoryOptions, categoryPaths, categoryTree } from '../../../components/tree/category-tree';
-import { withArchived, type DataColumn } from '../../../components/data-table/table/data-table';
+import { WARNING_YES_ICONS, withArchived, type DataColumn } from '../../../components/data-table/table/data-table';
 import * as fmt from '../../../lib/format';
 import { commentColumn } from '../../comments/lib/comment-column';
 import type { Routine } from '../api';
@@ -275,7 +275,7 @@ export function routineColumns(env: RoutineEnv): DataColumn<Routine>[] {
     },
     { id: 'description', label: 'Description', size: 240, hiddenByDefault: true, groupable: false, text: (routine) => routine.description ?? '' },
     booleanColumn<Routine>({ id: 'done', label: 'Faite', size: 90, hiddenByDefault: true, groupLabels: { yes: 'Faites', no: 'À faire' }, value: isDone }),
-    booleanColumn<Routine>({ id: 'waiting', label: 'En attente', size: 100, hiddenByDefault: true, groupLabels: { yes: 'En attente', no: 'Libre' }, value: (routine) => waitingFor(routine, byId).length > 0 }),
+    booleanColumn<Routine>({ id: 'waiting', label: 'En attente', size: 100, hiddenByDefault: true, groupLabels: { yes: 'En attente', no: 'Libre' }, icons: WARNING_YES_ICONS, value: (routine) => waitingFor(routine, byId).length > 0 }),
     booleanColumn<Routine>({ id: 'doableNow', label: 'Faisable maintenant', size: 140, hiddenByDefault: true, groupLabels: DOABLE_GROUP_LABELS, value: env.doable }),
     commentColumn<Routine>(
       comments,

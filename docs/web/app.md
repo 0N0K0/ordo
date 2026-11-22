@@ -208,7 +208,7 @@ Et aussi :
 | Tâches                           | « A des achats »        | « Avec liste d’achats »              | « Sans liste d’achats »                   | par défaut                     |
 | Tâches, routines                 | « Faisable maintenant » | « Maintenant »                       | « Plus tard »                             | par défaut                     |
 | Routines                         | « Faite »               | « Faites »                           | « À faire »                               | par défaut                     |
-| Routines                         | « En attente »          | « En attente »                       | « Libre »                                 | par défaut                     |
+| Routines                         | « En attente »          | « En attente »                       | « Libre »                                 | triangle orange / coche verte  |
 | Listes d’achats                  | « Payée »               | « Payée »                            | « À payer »                               | par défaut                     |
 | Une liste d’achats               | « Acheté »              | « Acheté »                           | « À acheter »                             | par défaut                     |
 | Une liste d’achats, fiches       | « Facultatif »          | « Facultatif »                       | « Obligatoire »                           | coche bleue / triangle orange  |
