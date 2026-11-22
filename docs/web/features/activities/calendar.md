@@ -59,8 +59,8 @@ Interne : `fetchCategories`, `occurrencesOf(data, includeArchived)` (filtre des 
 - `select` : ouvre `useEventForm` pré-rempli ; `eventClick` : selon le kind (tâche → `useTaskLink`, temps → `useTimeEntryDialogs`, abonné → `SubscribedEvent` dans `openFormPanel`, créneau → `edits.openSlot`, routine → `edits.openRoutine`, sinon `EventForm`).
 - Barre d’outils : interrupteur `StateSwitch` « Modifier les créneaux et éphémérides » (`editingSlots`) ; « Ajouter » (`ActionButton` à `menu`) : « Évènement » (`useEventForm`), `schedulesTitle(perso)` et `EPHEMERIDES_TITLE` (`openSchedulesManager`).
 - `eventDidMount` : variables CSS `--slot-lane`, `--slot-column`, `--slot-columns`.
-- Paramètres : `PageSettings` « Paramètres de l’agenda » avec `SettingsTabs` (`SETTINGS_TABS` = `display`, `settings`, `useSettingsTab`) : `HiddenChecklist` (calendriers, créneaux), interrupteurs, `ShowArchivedSwitch`, export PDF (`useAsyncAction` + `downloadCalendarPdf(pdfItems(items, classes.closed))`), `CalendarsIcsButton` ; `CalendarsManager`, `CalendarCategoriesManager`, `ScheduleSettings`.
-- Constantes internes : `VIEWS`, `DEFAULT_COLOR`, `LATE_BORDER` (couleur de retard `LATE_COLOR`), `ALL_DAY_ROWS` = 2 ; semaine `timeGridWeek` de `weekLength(currentWeek())` jours, `firstDay` = `pickerFirstDay(week)`.
+- Paramètres : `PageSettings` « Paramètres de l’agenda » avec `SettingsTabs` (`SETTINGS_TABS` = `display`, `settings`, `useSettingsTab`) : `HiddenChecklist` (calendriers, créneaux), interrupteurs, `ShowArchivedSwitch`, export PDF (`useAsyncAction` + `downloadCalendarPdf(pdfItems(items, classes.closed))`), `CalendarsIcsButton` ; `WeekSettings`, `CalendarsManager`, `CalendarCategoriesManager`, `ScheduleSettings`.
+- Constantes internes : `VIEWS`, `DEFAULT_COLOR`, `LATE_BORDER` (couleur de retard `LATE_COLOR`), `ALL_DAY_ROWS` = 2 ; semaine `timeGridWeek` de `weekLength(currentWeek())` jours, `firstDay` = `calendarFirstDay(week)`.
 
 ### `pages/CalendarPage.module.css`
 
@@ -139,6 +139,10 @@ Utilisés par `ScheduleSettings`.
 ### `components/ScheduleLookEditor.tsx`
 
 `ScheduleLookEditor({ value, onChange, name })` : affichage d’un type (semaine/jour `DAY_DISPLAYS`, « Bandeau en haut », mois `MONTH_DISPLAYS`), lu par `readScheduleDisplay`. Utilisé par `ScheduleSettings` (créneaux sans type, abonnements), `useScheduleTypeItems`.
+
+### `components/WeekSettings.tsx`
+
+`WeekSettings()` : section « Semaine » des paramètres de l’agenda : deux `Select` « Semaine du … au … » sur `WEEKDAY_LABELS` (`readWeek`, `weekLength`), chacun enregistré dès qu’il change (`useWorkspaceMutations().setWeek`, sur l’espace actif `useActiveWorkspace`). Rien avant le chargement de l’espace. Utilisé par `CalendarPage`.
 
 ### `components/ScheduleSettings.tsx`
 

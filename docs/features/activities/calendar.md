@@ -17,7 +17,7 @@ Route `PAGES.calendar.path` = `/calendar`, composant `CalendarPage`. L’adresse
 ### Vues
 
 - **Mois** : la grille grandit avec ses jours (toutes les tâches visibles).
-- **Semaine** : la semaine de l’espace (`currentWeek()` : premier jour et longueur réglés dans l’espace, voir [Dates](../../business-rules/cross-cutting/dates.md)), avancée d’une semaine à la fois ; numéros de semaine affichés.
+- **Semaine** : la semaine de l’espace (`currentWeek()` : premier jour et longueur réglés dans les paramètres de l’agenda, onglet « Paramètres », section « Semaine », voir [Dates](../../business-rules/cross-cutting/dates.md)), avancée d’une semaine à la fois ; numéros de semaine affichés.
 - **Jour**.
 - Semaine et jour remplissent la fenêtre (défilement interne), défilement initial à 08:00, indicateur de l’heure actuelle.
 - Ligne « journée entière » (semaine, jour) : repliée à 2 lignes par défaut ; le bouton de pliage dans l’en-tête de la ligne, ou le lien « +N », la déplie sur tous les jours (mémorisé).
@@ -87,6 +87,7 @@ Section « Exporter » :
 
 ### Onglet « Paramètres »
 
+- **Semaine** (en premier) : « Semaine du … au … », premier et dernier jour (lundi à dimanche), chacun enregistré dès qu’il est choisi. Description : « Pour tout l’espace : vue semaine de l’agenda, « cette semaine » des filtres, temps prévu, accueil, tableaux de bord, envoi programmé des mails. Les sélecteurs de date vont toujours du lundi au dimanche. » ; à côté, « N jours. », ou « 8 jours : les semaines se chevauchent ce jour-là. » quand les deux jours sont les mêmes. Elle est enregistrée sur l’espace (la même pour tout l’espace) ; le changement recharge toutes les données.
 - **Calendriers** (liste de paramètres standard, voir [Paramètres](../cross-cutting/settings.md)) : ajouter, modifier (libellé, couleur, image), réordonner par glisser-déposer, archiver/restaurer, supprimer. Action par ligne « Exporter (.ics) » ; bouton d’en-tête « Tout exporter (.ics) ». Suppression impossible pour le dernier (« Le dernier calendrier ne peut pas être supprimé »). Message de suppression : le calendrier est supprimé avec tous ses évènements (récurrents compris), « Les temps suivis sur ces évènements sont conservés, sans eux. », suivi du nombre de temps supprimés avec eux s’il y en a (« 2 temps sans projet, qui ne portent sur rien d’autre, seront aussi supprimés (les temps facturés sont gardés). », et des commentaires de ses évènements, « 3 commentaires seront aussi supprimés. », `LostOnDeleteRisk`), les espaces abonnés ne le voient plus.
 - **Calendriers des autres espaces** : par espace (icône PRO/PERSO), chaque calendrier avec un interrupteur « Abonné ». Un calendrier abonné s’affiche en lecture seule. État vide : « Aucun autre espace pour le moment. ».
 - **Catégories d’agenda** : liste en arbre (sous-catégories), ajout, modification (libellé, couleur obligatoire, image, parent), glisser-déposer (ordre et parent), archivage, suppression (« retirée des évènements (qui sont conservés) », les sous-catégories remontent d’un niveau). Une catégorie peut aussi être créée depuis le formulaire d’évènement (« Nouvelle catégorie d’agenda »).

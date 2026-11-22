@@ -8,7 +8,7 @@ Charge les styles Mantine (en couches : core, notifications, dates, tiptap, char
 
 1. `MantineProvider` (thème `theme`, `defaultColorScheme="auto"` : suit `prefers-color-scheme`) ;
 2. `QueryClientProvider` (`queryClient` de `lib/query-client`) ;
-3. `WeekDatesProvider` (sélecteurs de dates en français, semaine de l'espace) ;
+3. `WeekDatesProvider` (sélecteurs de dates en français, semaines du lundi au dimanche) ;
 4. `IconContext.Provider` (`iconDefaults` des icônes Phosphor) ;
 5. `Notifications` en haut à droite (toasts, voir [lib/notify](lib.md#notifytsx)), `UpdatePrompt`, puis `RouterProvider` (`router`).
 
@@ -79,7 +79,7 @@ eslint interdit d'écrire ces adresses à la main (voir [Conventions](#conventio
 
 - `theme.ts` : `theme` (Mantine `createTheme`) : icône de visibilité des mots de passe (`VisibilityToggleIcon`) ; formats lisibles des sélecteurs de dates (`PICKER_FORMATS` de `lib/format` au lieu de « October 20, 2026 ») pour `DatePickerInput`, `DateTimePicker`, `MonthPickerInput`, `YearPickerInput` ; `TimePicker` toujours en 24 h, libellés « Heures » / « Minutes ». `iconDefaults` : props par défaut des icônes Phosphor (`size: '1.25em'`, `weight: 'regular'`).
 - `VisibilityToggleIcon.tsx` : `VisibilityToggleIcon`, œil / œil barré du champ mot de passe, à la taille `--psi-icon-size`.
-- `WeekDatesProvider.tsx` : `WeekDatesProvider`, `DatesProvider` en français dont les semaines commencent au premier jour de celles de l'espace actif (`readWeek`, `pickerFirstDay`), lundi sans espace.
+- `WeekDatesProvider.tsx` : `WeekDatesProvider`, `DatesProvider` en français dont les semaines commencent toujours le lundi (`firstDayOfWeek: 1`), quelle que soit la semaine de l'espace.
 - `NotFoundPage.tsx` : `NotFoundPage`, page 404 : `PageMessage` code « 404 », « Page introuvable », « L'adresse demandée n'existe pas ou a été déplacée. », retour à l'accueil.
 - `UpdatePrompt.tsx` : `UpdatePrompt`, enregistre le service worker (PWA, `virtual:pwa-register/react`), cherche une nouvelle version toutes les heures et, une fois téléchargée, affiche un toast d'information « Nouvelle version d'Ordo » / « Rechargez pour l'utiliser. » avec le bouton « Recharger ». Ne rend rien.
 

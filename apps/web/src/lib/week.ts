@@ -15,8 +15,9 @@ export function currentWeek(): WeekSpan {
 }
 
 /**
- * First day of the week for the date pickers (Mantine, FullCalendar): 0 (Sunday) to 6 (Saturday).
+ * First day of the week of the calendar (FullCalendar): 0 (Sunday) to 6 (Saturday). The date pickers always start on
+ * Monday.
  * @param {WeekSpan} week Week.
  * @returns {0 | 1 | 2 | 3 | 4 | 5 | 6} Day.
  */
-export const pickerFirstDay = (week: WeekSpan) => (week.start % 7) as 0 | 1 | 2 | 3 | 4 | 5 | 6;
+export const calendarFirstDay = (week: WeekSpan) => (week.start % 7) as 0 | 1 | 2 | 3 | 4 | 5 | 6;

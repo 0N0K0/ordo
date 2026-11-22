@@ -182,7 +182,7 @@ eslint interdit `.slice(0, 10)`, `.slice(0, 7)`, `.split('T')[0]` et `new Date('
 ### `week.ts`
 
 - `currentWeek()` : semaine de l'espace affiché (premier et dernier jours), lue dans les espaces chargés ; lundi-dimanche (`DEFAULT_WEEK`) avant.
-- `pickerFirstDay(week)` : premier jour de la semaine pour les sélecteurs (0 = dimanche à 6).
+- `calendarFirstDay(week)` : premier jour de la semaine de l'agenda (FullCalendar, 0 = dimanche à 6) ; les sélecteurs de date commencent toujours le lundi (`WeekDatesProvider`).
 
 ### `use-now.ts`
 

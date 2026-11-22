@@ -28,9 +28,10 @@ Voir aussi : [dates](../../shared/cross-cutting/dates.md), [calendar](../../shar
 
 ## Semaine de l'espace
 
-- Chaque espace choisit son premier et son dernier jour de semaine (`weekStart`, `weekEnd`, 1 = lundi … 7 = dimanche ; lundi à dimanche par défaut), via `setWorkspaceWeek`.
+- Chaque espace choisit son premier et son dernier jour de semaine (`weekStart`, `weekEnd`, 1 = lundi … 7 = dimanche ; lundi à dimanche par défaut), via `setWorkspaceWeek`, réglés dans les paramètres de l’agenda (section « Semaine »).
 - Le même jour deux fois (mercredi à mercredi) donne des semaines de 8 jours qui se chevauchent sur ce jour ; un intervalle court (lundi à vendredi) laisse des jours hors semaine.
 - La semaine sert à la vue semaine du calendrier, aux périodes « cette semaine » des filtres, aux regroupements par semaine.
+- Les sélecteurs de date (calendriers des champs de date) ne la suivent pas : leurs semaines vont toujours du lundi au dimanche.
 - Les numéros de semaine (répétitions, durées) sont ISO : la semaine du 4 janvier est la première.
 
 ## Périodes relatives
