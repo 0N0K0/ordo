@@ -4,14 +4,14 @@ import { requiredText } from '../core/rules';
 import { colorSchema } from '../core/workspace';
 import { filterConditionSchemaFor, filterDaySchema, type FilterConditionOf, type FilterFieldKind, type FilterGroupOf } from '../tables/filters';
 import { tableFilterSchema } from '../tables/table-views';
-import { TASK_STATUS_CATEGORIES } from './task-columns';
+import { TASK_CLOSE_REASONS, TASK_STATUS_CATEGORIES, type TaskCloseReason } from './task-columns';
 import { effortSchema, type TaskBulkChanges } from './tasks';
 
 /**
  * Automations of the tasks: rules « quand … alors … » of a workspace, for every task of every project. A rule has a
- * trigger (a field changes, the task is created, closed, reopened, archived, all its sub-tasks are closed, a chrono
- * starts on it), an optional condition (a filter of the task table) and actions (a value given, added, removed or
- * emptied; the task closed, reopened or archived).
+ * trigger (a field changes, the task is created, closed (as done or as cancelled), reopened, archived, all its
+ * sub-tasks are closed, a chrono starts on it), an optional condition (a filter of the task table) and actions (a value
+ * given, added, removed or emptied; the task closed as done or as cancelled, reopened or archived).
  */
 
 /** Fields of a task a rule watches or changes. */
@@ -39,7 +39,7 @@ export const TASK_AUTOMATION_FIELD_META: Record<TaskAutomationField, { label: st
 };
 
 /** What triggers a rule on a task. */
-export const TASK_AUTOMATION_EVENTS = ['FIELD_CHANGED', 'CREATED', 'CLOSED', 'REOPENED', 'ARCHIVED', 'SUBTASKS_CLOSED', 'TIMER_STARTED'] as const;
+export const TASK_AUTOMATION_EVENTS = ['FIELD_CHANGED', 'CREATED', 'CLOSED', 'CLOSED_COMPLETED', 'CLOSED_NOT_PLANNED', 'REOPENED', 'ARCHIVED', 'SUBTASKS_CLOSED', 'TIMER_STARTED'] as const;
 export type TaskAutomationEvent = (typeof TASK_AUTOMATION_EVENTS)[number];
 
 /** Names of the triggers, in the form of a rule (« Quand … »). */
@@ -47,6 +47,8 @@ export const TASK_AUTOMATION_EVENT_LABELS: Record<TaskAutomationEvent, string> =
   FIELD_CHANGED: 'Un champ change',
   CREATED: 'La tâche est créée',
   CLOSED: 'La tâche est fermée',
+  CLOSED_COMPLETED: 'La tâche est fermée comme terminée',
+  CLOSED_NOT_PLANNED: 'La tâche est fermée comme annulée',
   REOPENED: 'La tâche est rouverte',
   ARCHIVED: 'La tâche est archivée',
   SUBTASKS_CLOSED: 'Toutes ses sous-tâches sont fermées',
@@ -69,7 +71,7 @@ export const TASK_AUTOMATION_CHANGE_LABELS: Record<TaskAutomationChange, string>
 };
 
 /** What a rule does to the task. */
-export const TASK_AUTOMATION_ACTIONS = ['SET', 'ADD', 'REMOVE', 'CLEAR', 'CLOSE', 'REOPEN', 'ARCHIVE'] as const;
+export const TASK_AUTOMATION_ACTIONS = ['SET', 'ADD', 'REMOVE', 'CLEAR', 'CLOSE', 'CLOSE_NOT_PLANNED', 'REOPEN', 'ARCHIVE'] as const;
 export type TaskAutomationActionKind = (typeof TASK_AUTOMATION_ACTIONS)[number];
 
 /** Names of the actions, in the form of a rule (« Alors … »). */
@@ -78,7 +80,8 @@ export const TASK_AUTOMATION_ACTION_LABELS: Record<TaskAutomationActionKind, str
   ADD: 'Ajouter',
   REMOVE: 'Retirer',
   CLEAR: 'Vider',
-  CLOSE: 'Fermer la tâche',
+  CLOSE: 'Fermer comme terminée',
+  CLOSE_NOT_PLANNED: 'Fermer comme annulée',
   REOPEN: 'Rouvrir la tâche',
   ARCHIVE: 'Archiver la tâche',
 };
@@ -121,6 +124,7 @@ export const TASK_AUTOMATION_FILTER_KINDS = {
   deadline: 'date',
   minDate: 'date',
   closed: 'boolean',
+  closeReason: 'category',
   archived: 'boolean',
   hasSubtasks: 'boolean',
 } as const satisfies Record<string, FilterFieldKind>;
@@ -132,6 +136,7 @@ export const TASK_AUTOMATION_FILTER_FIELDS = Object.keys(TASK_AUTOMATION_FILTER_
 /** One condition of a rule: a column of the list, its operator and value fitting its kind (the ids of the lists of the workspace: any). */
 const automationConditionSchema = filterConditionSchemaFor<TaskAutomationFilterField>(TASK_AUTOMATION_FILTER_KINDS, {
   statusCategory: TASK_STATUS_CATEGORIES,
+  closeReason: TASK_CLOSE_REASONS,
   status: null,
   priority: null,
   type: null,
@@ -228,7 +233,7 @@ function actionValueIssue(kind: TaskAutomationActionKind, fieldKind: TaskAutomat
   }
 }
 
-/** Action of a rule: on a field (a value given, added, removed, emptied), or on the task (closed, reopened, archived). */
+/** Action of a rule: on a field (a value given, added, removed, emptied), or on the task (closed as done or as cancelled, reopened, archived). */
 export const taskAutomationActionSchema = z
   .object({
     kind: z.enum(TASK_AUTOMATION_ACTIONS, { error: 'Choisissez l’action.' }),
@@ -267,7 +272,7 @@ export const taskAutomationSchema = z.object({
 });
 export type TaskAutomationInput = z.input<typeof taskAutomationSchema>;
 
-/** What gives a task back as it was before a rule: its project (moved back), its fields, its open / closed and archived states. */
+/** What gives a task back as it was before a rule: its project (moved back), its fields, its open / closed state (and how it was closed) and its archive. */
 export interface TaskAutomationRevert {
   taskId: string;
   /** Project it is moved back to (undefined: not moved). */
@@ -275,6 +280,8 @@ export interface TaskAutomationRevert {
   changes: TaskBulkChanges;
   /** Open / closed state given back (undefined: unchanged). */
   closed?: boolean;
+  /** How it was closed, given back with `closed: true`. */
+  closeReason?: TaskCloseReason;
   /** Restored when the rule archived it. */
   restore?: boolean;
 }
@@ -307,14 +314,16 @@ export function taskAutomationMessage(report: TaskAutomationReport): string {
 }
 
 /**
- * What an action does, in words: « statut « En cours » », « étiquettes + « Bug » », « échéance vidée », « fermée ».
+ * What an action does, in words: « statut « En cours » », « étiquettes + « Bug » », « échéance vidée », « fermée comme
+ * terminée ».
  * @param {TaskAutomationAction} action Action.
  * @param {(field: TaskAutomationField, value: string) => string} nameOf Name of an item of a field (a status, a tag…).
  * @param {(day: string) => string} dayOf Text of a day value (« aujourd’hui », « 22 nov. 2026 »).
  * @returns {string} Words.
  */
 export function taskAutomationActionText(action: TaskAutomationAction, nameOf: (field: TaskAutomationField, value: string) => string, dayOf: (day: string) => string): string {
-  if (action.kind === 'CLOSE') return 'fermée';
+  if (action.kind === 'CLOSE') return 'fermée comme terminée';
+  if (action.kind === 'CLOSE_NOT_PLANNED') return 'fermée comme annulée';
   if (action.kind === 'REOPEN') return 'rouverte';
   if (action.kind === 'ARCHIVE') return 'archivée';
   const field = action.field!;

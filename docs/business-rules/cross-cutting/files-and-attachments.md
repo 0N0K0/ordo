@@ -1,6 +1,6 @@
 # Fichiers et pièces jointes
 
-Stockage des fichiers téléversés (pièces jointes, ressources de projet, documents, logo), des icônes et avatars, leur service par l'API (affichage ou téléchargement, cache, sécurité) et les exports. Sources : `apps/api/src/services/core/attachments.ts`, `apps/api/src/services/core/icons.ts`, `apps/api/src/services/core/settings-lists.ts`, `apps/api/src/services/core/zip.ts`, `apps/api/src/routes/**`, `packages/shared/src/core/workspace.ts`, `packages/shared/src/core/text.ts`.
+Stockage des fichiers téléversés (pièces jointes, ressources de projet, documents, logo), des icônes et avatars, leur service par l'API (affichage ou téléchargement, cache, sécurité) et les exports. Sources : `apps/api/src/services/core/attachments.ts`, `apps/api/src/services/projects/linked-documents.ts`, `apps/api/src/services/core/icons.ts`, `apps/api/src/services/core/settings-lists.ts`, `apps/api/src/services/core/zip.ts`, `apps/api/src/routes/**`, `packages/shared/src/core/workspace.ts`, `packages/shared/src/core/text.ts`.
 
 Voir aussi : [Nommage](naming.md) (noms de fichiers), [Erreurs](errors.md), [Espaces et accès](workspaces-and-access.md).
 
@@ -25,6 +25,18 @@ Règles identiques partout (texte markdown, documents comptables, documents impo
 ### Suppression
 
 `deleteAttachment(id, leftover)` : un fichier déjà absent n'est pas une erreur. Un « reste » (ancien fichier remplacé, fichier d'un élément supprimé, nouveau fichier d'une modification refusée) ne fait jamais échouer l'action principale : son échec est seulement journalisé.
+
+## Documents liés aux tâches, routines et évènements
+
+Une tâche, une routine ou un évènement peut citer des **documents** : des documents de la bibliothèque (`LibraryDocument`) et des documents de projet (`ProjectResource`), comme les pièces justificatives d'un mouvement de trésorerie ([Trésorerie](../finances/treasury.md#pièces-justificatives)). Sources : `apps/api/src/services/projects/linked-documents.ts`, `apps/api/src/graphql/document-fields.ts`, `packages/shared/src/core/documents.ts`.
+
+- Champs `libraryDocumentIds` et `projectResourceIds` (lus et envoyés), 50 au plus de chaque sorte (« 50 documents maximum. », `linkedDocumentIdsSchema`). Tables de liaison implicites `_TaskLibraryDocuments`, `_TaskProjectResources`, `_RoutineLibraryDocuments`, `_RoutineProjectResources`, `_EventLibraryDocuments`, `_EventProjectResources` : supprimer un document, ou l'élément, supprime le lien.
+- Chaque document doit exister : « Document introuvable. » (bibliothèque), « Document du projet introuvable. » (projet), les mêmes messages que la trésorerie. Ni la bibliothèque ni les documents de projet ne s'archivent : il n'y a pas de contrôle d'archivage.
+- **Arborescence** (`checkLinkedDocuments`) : un document de projet doit appartenir à l'arborescence du projet de l'élément (le projet racine commun, comme les sprints d'une tâche), celui qu'il suit (pour un élément qui hérite de son projet, le projet de son parent). Sinon : « Les documents de projet doivent appartenir au projet de l’élément ou à son arborescence. » (champ `projectResourceIds`) ; sans projet : « Sans projet, seuls des documents de la bibliothèque se lient. ». Un document qu'il avait déjà reste tant que son arborescence ne change pas (un projet déplacé dans l'arbre).
+- **Changement de projet** : les documents de la bibliothèque restent ; les documents de projet hors de la nouvelle arborescence sont retirés, comme les liens entre tâches (ou routines) de deux arborescences. Ils comptent dans les liens retirés que l'API renvoie (`removedLinks` du transfert de tâches et de l'enregistrement d'une routine).
+- **Pas d'héritage** : une sous-tâche ou une sous-routine n'hérite pas des documents de son parent (comme les liens).
+- **Copie** (« Dupliquer ») et **transformation** tâche ↔ routine : les documents sont gardés (une copie laisse ceux hors de son arborescence, comme ses autres liens). Un évènement les porte pour toute sa série : une occurrence seule ne les change pas ; la coupure d'une série (« Celle-ci et les suivantes ») et le report les gardent.
+- Options proposées (`documentOptions`) : bibliothèque par titre, puis documents de projet par projet et position ; chaque document : source (`LIBRARY` / `PROJECT`), sorte (`FILE` / `LINK`), URL, lieu (dossier, « Documents » par défaut, ou projet). La même requête sert la trésorerie.
 
 ## Icônes et avatars (`storeIcon`)
 

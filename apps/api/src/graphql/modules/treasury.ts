@@ -47,7 +47,8 @@ import { WorkScheduleRef } from './calendar';
 import { LabelColorInput } from '../label-inputs';
 import { parisToday } from '../../today';
 import { fromDecimal } from '../../services/core/decimal';
-import { attachmentUrl, resourceUrl } from '../../services/core/attachments';
+import { attachmentUrl } from '../../services/core/attachments';
+import { LINKED_DOCUMENTS, LinkedDocumentRef, linkedDocuments } from '../document-fields';
 import { unchecked } from '../unchecked';
 
 // Balances are computed once per request for all documents (lists show many of them).
@@ -278,35 +279,6 @@ const LinkedEntryRef = builder.objectRef<LinkedEntry>('TreasuryLinkedEntry').imp
   }),
 });
 
-/** Supporting document of an entry: of the library, or of a project. */
-interface EntryDocument {
-  id: string;
-  source: 'LIBRARY' | 'PROJECT';
-  kind: string;
-  label: string;
-  url: string;
-  projectId: string | null;
-  /** Library folder, or project, it belongs to. */
-  place: string;
-}
-
-const EntryDocumentRef = builder.objectRef<EntryDocument>('TreasuryEntryDocument').implement({
-  description: 'Document of the app supporting an entry: of the library, or of a project.',
-  fields: (t) => ({
-    id: t.exposeID('id'),
-    source: t.exposeString('source', { description: 'LIBRARY or PROJECT.' }),
-    kind: t.exposeString('kind', { description: 'FILE or LINK.' }),
-    label: t.exposeString('label'),
-    url: t.exposeString('url'),
-    projectId: t.exposeID('projectId', { nullable: true }),
-    place: t.exposeString('place'),
-  }),
-});
-
-const documentSelect = {
-  select: { id: true, kind: true, url: true, attachment: { select: { id: true, filename: true } } },
-} as const;
-
 const linkedSelect = { select: { id: true, date: true, label: true, amount: true, status: true } } as const;
 
 /** Line of another entry linked to a line or a whole entry. */
@@ -352,43 +324,6 @@ function linkedLine(line: {
 }): LinkedLine {
   const amount = fromCents(lineCents(fromDecimal(line.entry.amount), { mode: line.mode, value: fromDecimal(line.value) }));
   return { id: line.id, entryId: line.entry.id, entryLabel: line.entry.label, date: line.entry.date, label: line.label, amount, status: line.entry.status };
-}
-
-/** Selections of the supporting documents of an entry or a line: of the library (its folder), of projects (its project). */
-const SUPPORTING_DOCUMENTS = {
-  library: { select: { ...documentSelect.select, title: true, folder: { select: { name: true } } } },
-  project: { select: { ...documentSelect.select, label: true, project: { select: { id: true, label: true } } } },
-};
-
-/**
- * Supporting documents of an entry or a line: of the library, then of projects.
- * @param {object} owner Entry or line with its documents.
- * @returns {EntryDocument[]} Documents.
- */
-function supportingDocuments(owner: {
-  libraryDocuments: (Parameters<typeof resourceUrl>[0] & { id: string; kind: string; title: string; folder: { name: string } | null })[];
-  projectResources: (Parameters<typeof resourceUrl>[0] & { id: string; kind: string; label: string; project: { id: string; label: string } })[];
-}): EntryDocument[] {
-  return [
-    ...owner.libraryDocuments.map((document) => ({
-      id: document.id,
-      source: 'LIBRARY' as const,
-      kind: document.kind,
-      label: document.title,
-      url: resourceUrl(document),
-      projectId: null,
-      place: document.folder?.name ?? 'Documents',
-    })),
-    ...owner.projectResources.map((resource) => ({
-      id: resource.id,
-      source: 'PROJECT' as const,
-      kind: resource.kind,
-      label: resource.label,
-      url: resourceUrl(resource),
-      projectId: resource.project.id,
-      place: resource.project.label,
-    })),
-  ];
 }
 
 builder.prismaObject('DocumentStatus', {
@@ -458,13 +393,13 @@ builder.prismaObject('TreasuryEntry', {
     allocations: t.relation('allocations'),
     lines: t.relation('lines', { description: 'Split of the amount; what the lines leave is "not split".', query: { orderBy: BY_POSITION } }),
     documents: t.field({
-      type: [EntryDocumentRef],
+      type: [LinkedDocumentRef],
       description: 'Supporting documents: of the library, then of projects.',
       select: {
-        libraryDocuments: SUPPORTING_DOCUMENTS.library,
-        projectResources: SUPPORTING_DOCUMENTS.project,
+        libraryDocuments: LINKED_DOCUMENTS.library,
+        projectResources: LINKED_DOCUMENTS.project,
       },
-      resolve: (entry) => supportingDocuments(entry),
+      resolve: (entry) => linkedDocuments(entry),
     }),
     linkedByLines: t.field({
       type: [LinkedLineRef],
@@ -478,13 +413,13 @@ builder.prismaObject('TreasuryEntry', {
 builder.prismaObjectFields('TreasuryEntryLine', (t) => ({
   projectId: t.exposeID('projectId', { nullable: true }),
   documents: t.field({
-    type: [EntryDocumentRef],
+    type: [LinkedDocumentRef],
     description: 'Supporting documents: of the library, then of projects.',
     select: {
-      libraryDocuments: SUPPORTING_DOCUMENTS.library,
-      projectResources: SUPPORTING_DOCUMENTS.project,
+      libraryDocuments: LINKED_DOCUMENTS.library,
+      projectResources: LINKED_DOCUMENTS.project,
     },
-    resolve: (line) => supportingDocuments(line),
+    resolve: (line) => linkedDocuments(line),
   }),
   linkedLines: t.field({
     type: [LinkedLineRef],
@@ -881,20 +816,6 @@ builder.queryFields((t) => ({
   treasuryCounterparties: t.prismaField({
     type: ['TreasuryCounterparty'],
     resolve: (query) => prisma.treasuryCounterparty.findMany({ ...query, orderBy: [{ archivedAt: { sort: 'asc', nulls: 'first' } }, ...BY_POSITION_NAME] }),
-  }),
-  treasuryDocumentOptions: t.field({
-    type: [EntryDocumentRef],
-    description: 'Documents of the app that can support an entry: the library, then the documents of the projects.',
-    resolve: async () => {
-      const [documents, resources] = await Promise.all([
-        prisma.libraryDocument.findMany({ ...SUPPORTING_DOCUMENTS.library, orderBy: { title: 'asc' } }),
-        prisma.projectResource.findMany({
-          ...SUPPORTING_DOCUMENTS.project,
-          orderBy: [{ project: { label: 'asc' } }, ...BY_POSITION],
-        }),
-      ]);
-      return supportingDocuments({ libraryDocuments: documents, projectResources: resources });
-    },
   }),
   treasuryEntrySearch: t.prismaField({
     type: ['TreasuryEntry'],

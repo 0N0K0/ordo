@@ -11,6 +11,8 @@ import {
   TASK_COLUMNS,
   TASK_STATUS_CATEGORIES,
   TASK_STATUS_CATEGORY_LABELS,
+  TASK_CLOSE_REASON_LABELS,
+  TASK_CLOSE_REASONS,
   type TaskColumn,
   type FilterGroupOf,
   type TableViewConfig,
@@ -32,6 +34,7 @@ import { localDay } from '../../../lib/dates';
 import { unarchived } from '../../../lib/archive';
 import { isTaskOverdue } from './task-overdue';
 import { taggedKey } from '../../../lib/tagged-key';
+import { documentsColumn } from '../../documents/lib/documents-column';
 
 /** Names of the two sides of « Faisable maintenant » (its groups, the sections of the home card): yes first. */
 export const DOABLE_GROUP_LABELS = { yes: 'Maintenant', no: 'Plus tard' } as const;
@@ -342,6 +345,7 @@ export function taskColumns(context: TaskContext, today: string, extras: TaskCol
       groupable: false,
       text: (row) => (row.kind === 'task' ? (row.task.description ?? '') : (row.event.description ?? '')),
     },
+    documentsColumn<TaskTableRow>((row) => (row.kind === 'task' ? row.task : row.event)),
     flag('closed', 'Fermée', (task) => context.isClosed(task), { yes: 'Fermée', no: 'Ouverte' }),
     flag('overdue', 'En retard', (task) => isTaskOverdue(task, today), LATE_GROUP_LABELS, WARNING_YES_ICONS),
     flag('blocked', 'Bloquée', (task) => context.isBlocked(task), { yes: 'Bloquée', no: 'Libre' }, WARNING_YES_ICONS),
@@ -365,6 +369,16 @@ export function taskColumns(context: TaskContext, today: string, extras: TaskCol
         return category ? STATUS_CATEGORY_LABELS[category] : '';
       },
       filter: { kind: 'choice', value: (row) => (row.kind === 'task' ? categoryOf(row.task) : null), options: STATUS_CATEGORY_ORDER.map((value) => ({ value, label: STATUS_CATEGORY_LABELS[value] })) },
+    },
+    // How a closed task was closed: done or cancelled (empty while open).
+    {
+      id: 'closeReason',
+      label: 'Fermeture',
+      size: 120,
+      hiddenByDefault: true,
+      sortValue: (row) => (row.kind === 'task' && row.task.closeReason ? TASK_CLOSE_REASONS.indexOf(row.task.closeReason) : null),
+      text: (row) => (row.kind === 'task' && row.task.closeReason ? TASK_CLOSE_REASON_LABELS[row.task.closeReason] : ''),
+      filter: { kind: 'choice', value: (row) => (row.kind === 'task' ? row.task.closeReason : null), options: TASK_CLOSE_REASONS.map((value) => ({ value, label: TASK_CLOSE_REASON_LABELS[value] })) },
     },
   ];
 }

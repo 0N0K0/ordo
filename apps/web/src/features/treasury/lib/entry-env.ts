@@ -6,12 +6,14 @@ import { describeRecurrence } from '../../../components/recurrence/describe-recu
 import type { TreeOption } from '../../../components/tree/tree-select';
 import { useProjectTree } from '../../projects/api';
 import { projectFullPath, projectOptions } from '../../projects/lib/tree';
-import { useTreasuryDocumentOptions, useTreasurySettings, type ForecastEntry, type TreasuryAccount, type TreasuryEntry, type TreasurySettings } from '../api';
+import { useTreasurySettings, type ForecastEntry, type TreasuryAccount, type TreasuryEntry, type TreasurySettings } from '../api';
 import { categoryPaths } from './categories';
 import type { EntryValues } from './entry-values';
 import type { LineLink } from './lines';
 import { personName } from '../../../components/people/people-options';
-import { taggedKey, parseTaggedKey, taggedIds } from '../../../lib/tagged-key';
+import { taggedKey, parseTaggedKey } from '../../../lib/tagged-key';
+import { documentGroups, type DocumentGroup } from '../../documents/lib/document-keys';
+import { useDocumentOptions } from '../../documents/api';
 
 /** Entry of a treasury table: actual or forecast. */
 export type AnyEntry = TreasuryEntry | ForecastEntry;
@@ -48,7 +50,7 @@ export interface EntryEnv {
   /** Full names of the projects, by id. */
   projectLabels: Map<string, string>;
   /** Supporting documents ("lib:<id>", "res:<id>"), grouped by place. */
-  documents: { group: string; items: Choice[] }[];
+  documents: DocumentGroup[];
   /** Names of the members ("m:"), relations ("r:") and contexts ("c:"). */
   names: Map<string, string>;
 }
@@ -61,7 +63,7 @@ export interface EntryEnv {
 export function useEntryEnv(accounts: TreasuryAccount[]): EntryEnv {
   const { data: settings } = useTreasurySettings();
   const { data: workspace } = useProjectTree();
-  const { data: documentOptions } = useTreasuryDocumentOptions();
+  const { data: documentOptions } = useDocumentOptions();
   return useMemo(() => {
     const payers = payerGroups(workspace?.clients ?? [], settings?.treasuryCounterparties ?? []);
     return {
@@ -101,69 +103,6 @@ export function payerGroups(clients: readonly PayerSource[], counterparties: rea
     { group: 'Tiers', items: counterparties.map((counterparty) => ({ value: taggedKey('tiers', counterparty.id), label: counterparty.name, archived: counterparty.archived })) },
   ].filter((group) => group.items.length);
 }
-
-/** Supporting document offered: in the library (`place`: its folder) or in a project (`place`: the project). */
-interface DocumentSource {
-  source: string;
-  id: string;
-  label: string;
-  place: string;
-  projectId?: string | null;
-}
-
-/**
- * Supporting documents of an entry, grouped by place: the library, then each project (the given one first); a library
- * document outside « Documents » named with its folder, each document once.
- * @param {readonly DocumentSource[]} documents Documents.
- * @param {string | null} [projectId] Project of the entry, its documents first. Optional.
- * @returns {{ group: string, items: Choice[] }[]} Groups.
- */
-export function documentGroups(documents: readonly DocumentSource[], projectId?: string | null): { group: string; items: Choice[] }[] {
-  const groups = new Map<string, Choice[]>();
-  const sorted = [...documents].sort((a, b) => Number(b.source === 'LIBRARY') - Number(a.source === 'LIBRARY') || Number(b.projectId === projectId) - Number(a.projectId === projectId));
-  for (const document of sorted) {
-    const group = document.source === 'LIBRARY' ? 'Bibliothèque' : `Projet ${document.place}`;
-    const items = groups.get(group) ?? [];
-    if (!items.some((item) => item.value === documentKey(document))) {
-      items.push({ value: documentKey(document), label: document.source === 'LIBRARY' && document.place !== 'Documents' ? `${document.label} (${document.place})` : document.label });
-    }
-    groups.set(group, items);
-  }
-  return [...groups].map(([group, items]) => ({ group, items }));
-}
-
-/**
- * Key of a supporting document in the selects.
- * @param {{ source: string, id: string }} document Document.
- * @returns {string} "lib:<id>" or "res:<id>".
- */
-export const documentKey = (document: { source: string; id: string }) => taggedKey(document.source === 'LIBRARY' ? 'lib' : 'res', document.id);
-
-/** Supporting documents of an entry or a line: of the library, and files of a project. */
-export interface SupportingDocuments {
-  libraryDocumentIds: string[];
-  projectResourceIds: string[];
-}
-
-/**
- * Keys of the supporting documents, in the selects.
- * @param {SupportingDocuments} documents Documents.
- * @returns {string[]} "lib:<id>" and "res:<id>" keys.
- */
-export const supportingKeys = ({ libraryDocumentIds, projectResourceIds }: SupportingDocuments): string[] => [
-  ...libraryDocumentIds.map((id) => documentKey({ source: 'LIBRARY', id })),
-  ...projectResourceIds.map((id) => documentKey({ source: 'PROJECT', id })),
-];
-
-/**
- * Supporting documents chosen in a select, from their keys.
- * @param {readonly string[]} keys "lib:<id>" and "res:<id>" keys.
- * @returns {SupportingDocuments} Documents.
- */
-export const supportingOfKeys = (keys: readonly string[]): SupportingDocuments => ({
-  libraryDocumentIds: taggedIds(keys, 'lib'),
-  projectResourceIds: taggedIds(keys, 'res'),
-});
 
 /**
  * Key of the payer or payee of an entry.

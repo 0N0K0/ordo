@@ -14,11 +14,13 @@ import { useCachedItem } from '../../../lib/mutation';
 import { SaveStatus } from '../../../components/feedback/SaveStatus';
 import { useAccountingDocuments, useImportedDocuments } from '../../accounting/api/documents';
 import { useProjectTree } from '../../projects/api';
-import { treasuryKey, useTreasuryAccounts, useTreasuryDocumentOptions, useTreasuryMutations, useTreasurySettings, type ForecastEntry, type TreasuryEntry } from '../api';
+import { treasuryKey, useTreasuryAccounts, useTreasuryMutations, useTreasurySettings, type ForecastEntry, type TreasuryEntry } from '../api';
 import { categoryOptions } from '../lib/categories';
 import { DIRECTION_OPTIONS } from '../lib/direction';
 import type { LineLink } from '../lib/lines';
-import { documentGroups, payerGroups, payerKey, payerOfKey } from '../lib/entry-env';
+import { payerGroups, payerKey, payerOfKey } from '../lib/entry-env';
+import { documentGroups } from '../../documents/lib/document-keys';
+import { useDocumentOptions } from '../../documents/api';
 import { SupportingDocumentsSelect } from './SupportingDocumentsSelect';
 import { EntryLinkSelect, LinkBadge } from './entry-links';
 import { entryPayload, entryValues, type EntryValues } from '../lib/entry-values';
@@ -117,7 +119,7 @@ interface EntryFormProps {
 export function EntryForm({ entry, status = 'ACTUAL', onDone }: EntryFormProps) {
   const { data: accounts } = useTreasuryAccounts();
   const { data: settings } = useTreasurySettings();
-  const { data: documentOptions } = useTreasuryDocumentOptions();
+  const { data: documentOptions } = useDocumentOptions();
   const [linked, setLinked] = useState<LinkedSummary[]>(() => (entry?.linkedEntries ?? []).map((item) => ({ ...item, date: item.date })));
   const { data: workspace } = useProjectTree();
   // No invoicing in a personal workspace: no documents to settle.

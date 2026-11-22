@@ -26,6 +26,7 @@ import {
   type InheritState,
   type TaskAutomationAction,
   type TaskBulkChanges,
+  type TaskCloseReason,
   type TaskAutomationCondition,
   type TaskAutomationField,
   type TaskAutomationFilterField,
@@ -67,6 +68,8 @@ interface TaskState {
   statusId: string | null;
   statusCategory: string | null;
   closed: boolean;
+  /** How it is closed (done or cancelled); null while open. */
+  closeReason: TaskCloseReason | null;
   archived: boolean;
   /** Values of the watched fields, those it goes by. */
   values: Record<TaskAutomationField, FieldValue>;
@@ -102,6 +105,8 @@ interface TaskEvents {
   /** Watched fields changed: their values before and after. */
   changes: Map<TaskAutomationField, { before: FieldValue; after: FieldValue }>;
   closed: boolean;
+  /** How it was closed, when it was closed or closed again another way (done or cancelled); null otherwise. */
+  closedAs: TaskCloseReason | null;
   reopened: boolean;
   archived: boolean;
   subtasksClosed: boolean;
@@ -112,7 +117,7 @@ interface TaskEvents {
 export interface TaskAutomationWrites {
   bulkUpdate: (ids: string[], changes: TaskBulkChanges, restoring: boolean) => Promise<void>;
   transfer: (ids: string[], projectId: string | null) => Promise<unknown>;
-  setClosed: (ids: string[], closed: boolean, restoring: boolean) => Promise<void>;
+  setClosed: (ids: string[], closed: boolean, restoring: boolean, reason?: TaskCloseReason) => Promise<void>;
   archive: (id: string, archived: boolean) => Promise<unknown>;
 }
 
@@ -204,7 +209,7 @@ async function loadSnapshot(): Promise<Snapshot> {
   const [context, rows, statuses, projects, sprints, rootOf] = await Promise.all([
     loadTaskInheritance(),
     prisma.task.findMany({
-      select: { id: true, parentId: true, label: true, description: true, number: true, statusId: true, typeId: true, startDate: true, endDate: true, effort: true, closedAt: true, archivedAt: true, tags: { select: { id: true } } },
+      select: { id: true, parentId: true, label: true, description: true, number: true, statusId: true, typeId: true, startDate: true, endDate: true, effort: true, closedAt: true, closeReason: true, archivedAt: true, tags: { select: { id: true } } },
     }),
     prisma.taskStatus.findMany({ select: { id: true, category: true } }),
     prisma.project.findMany({ select: { id: true, parentId: true } }),
@@ -230,6 +235,7 @@ async function loadSnapshot(): Promise<Snapshot> {
       statusId: row.statusId,
       statusCategory: row.statusId ? (categories.get(row.statusId) ?? null) : null,
       closed: row.closedAt !== null,
+      closeReason: row.closedAt !== null ? (row.closeReason ?? 'COMPLETED') : null,
       archived: row.archivedAt !== null,
       values: {
         STATUS: row.statusId,
@@ -284,7 +290,8 @@ function allSubtasksClosed(snapshot: Snapshot, id: string): boolean {
 
 /**
  * What happened to each task between two readings: created, its watched fields changed (for a new task, each field
- * given a value, as if it went from empty to it), closed, reopened, archived, all its sub-tasks closed, a chrono
+ * given a value, as if it went from empty to it), closed (and how: done or cancelled, also when closed again another
+ * way), reopened, archived, all its sub-tasks closed, a chrono
  * started on it. Only the tasks something happened to.
  * @param {Snapshot} before Tasks before.
  * @param {Snapshot} after Tasks after.
@@ -305,12 +312,13 @@ function taskEvents(before: Snapshot, after: Snapshot, timers: ReadonlySet<strin
       created: !previous,
       changes,
       closed: Boolean(previous && !previous.closed && task.closed),
+      closedAs: previous && task.closeReason !== null && previous.closeReason !== task.closeReason ? task.closeReason : null,
       reopened: Boolean(previous && previous.closed && !task.closed),
       archived: Boolean(previous && !previous.archived && task.archived),
       subtasksClosed: allSubtasksClosed(after, id) && !(previous && allSubtasksClosed(before, id)),
       timer: timers.has(id),
     };
-    if (event.created || changes.size || event.closed || event.reopened || event.archived || event.subtasksClosed || event.timer) events.set(id, event);
+    if (event.created || changes.size || event.closed || event.closedAs || event.reopened || event.archived || event.subtasksClosed || event.timer) events.set(id, event);
   }
   return events;
 }
@@ -329,6 +337,10 @@ function triggered(trigger: TaskAutomationTrigger, events: TaskEvents): boolean 
       return events.created;
     case 'CLOSED':
       return events.closed;
+    case 'CLOSED_COMPLETED':
+      return events.closedAs === 'COMPLETED';
+    case 'CLOSED_NOT_PLANNED':
+      return events.closedAs === 'NOT_PLANNED';
     case 'REOPENED':
       return events.reopened;
     case 'ARCHIVED':
@@ -407,6 +419,8 @@ function filterValue(field: TaskAutomationFilterField, task: TaskState, snapshot
       return { kind: 'date', value: values.MIN_DATE };
     case 'closed':
       return { kind: 'boolean', value: task.closed };
+    case 'closeReason':
+      return { kind: 'choice', value: task.closeReason };
     case 'archived':
       return { kind: 'boolean', value: task.archived };
     case 'hasSubtasks':
@@ -471,13 +485,15 @@ interface TaskWrite {
   /** Project it moves to (undefined: stays). */
   projectId?: string | null;
   changes: TaskBulkChanges;
-  closed?: boolean;
+  /** Closed as done or as cancelled, or reopened (null); undefined: unchanged. */
+  close?: TaskCloseReason | null;
   archive: boolean;
 }
 
 /**
  * Writes of the actions of a rule on a task: the values given (a day from today), the items of a list added, removed
- * or set, the fields emptied, the task closed, reopened or archived; the later action wins on the same item.
+ * or set, the fields emptied, the task closed (as done or as cancelled), reopened or archived; the later action wins on
+ * the same item.
  * @param {readonly TaskAutomationAction[]} actions Actions.
  * @param {TaskState} task Task.
  * @param {string} today Today.
@@ -499,7 +515,9 @@ function taskWrite(actions: readonly TaskAutomationAction[], task: TaskState, to
     lists.set(field, marks);
   };
   for (const action of actions) {
-    if (action.kind === 'CLOSE' || action.kind === 'REOPEN') result.closed = action.kind === 'CLOSE';
+    if (action.kind === 'CLOSE') result.close = 'COMPLETED';
+    if (action.kind === 'CLOSE_NOT_PLANNED') result.close = 'NOT_PLANNED';
+    if (action.kind === 'REOPEN') result.close = null;
     if (action.kind === 'ARCHIVE') result.archive = true;
     const field = action.field;
     if (!field) continue;
@@ -539,7 +557,7 @@ function taskWrite(actions: readonly TaskAutomationAction[], task: TaskState, to
 
 /**
  * Applies the writes of a rule on a task, through the writes of the tasks (same checks): its project first (the
- * milestones and sprints of its new tree), its fields, its open / closed state, then its archive. A task archived by
+ * milestones and sprints of its new tree), its fields, its open / closed state (and how it is closed), then its archive. A task archived by
  * the change triggering the rule takes the changes of its fields and state still (as an undo does); not a project.
  * @param {TaskWrite} write Writes.
  * @param {TaskState} task Task.
@@ -549,13 +567,13 @@ async function applyWrite(write: TaskWrite, task: TaskState): Promise<void> {
   if (!writes) throw new Error('Task writes not registered.');
   if (write.projectId !== undefined && write.projectId !== task.values.PROJECT) await writes.transfer([task.id], write.projectId);
   if (Object.keys(write.changes).length) await writes.bulkUpdate([task.id], write.changes, task.archived);
-  if (write.closed !== undefined && write.closed !== task.closed) await writes.setClosed([task.id], write.closed, task.archived);
+  if (write.close !== undefined && write.close !== task.closeReason) await writes.setClosed([task.id], write.close !== null, task.archived, write.close ?? undefined);
   if (write.archive && !task.archived) await writes.archive(task.id, true);
 }
 
 /**
  * What gives a task back as it was before a rule: its project, its fields (inherited again, emptied again, or their
- * values: those of the lists added or removed), its open / closed state, restored when archived; none when the rule
+ * values: those of the lists added or removed), its open / closed state and how it was closed, restored when archived; none when the rule
  * changed nothing.
  * @param {TaskState} before Task before the rule.
  * @param {TaskState} after Task after it.
@@ -596,9 +614,10 @@ function revertOf(before: TaskState, after: TaskState): TaskAutomationRevert | n
     const own = field === 'PRIORITY' ? before.own.priorityId : field === 'MILESTONE' ? before.own.milestoneId : field === 'MIN_DATE' ? before.own.minDate : field === 'DEADLINE' ? before.own.deadline : before.values[field];
     Object.assign(changes, { [VALUE_KEYS[field as keyof typeof VALUE_KEYS]]: own });
   }
-  if (before.closed !== after.closed) {
+  if (before.closeReason !== after.closeReason) {
     changed = true;
     revert.closed = before.closed;
+    if (before.closeReason) revert.closeReason = before.closeReason;
   }
   if (!before.archived && after.archived) {
     changed = true;

@@ -12,7 +12,7 @@ import { useBulkTaskMutations, useTaskBlock, useTaskRelation, type Task, type Ta
 import { confirmDestructive } from '../../../components/dialogs/confirm-destructive';
 import { TaskSelect } from './task-ui';
 
-import { inProjectTree, linkableTasks } from '../lib/task-links';
+import { hasTreeLinks, inProjectTree, linkableTasks } from '../lib/task-links';
 import { closedMark, type TaskContext, taskName, taskNumber } from '../hooks/use-task-context';
 import { useTaskLink } from '../hooks/use-task-link';
 import { useCellEdit } from '../lib/cell-edit';
@@ -430,11 +430,10 @@ export function TaskProjectCell({ task, context }: { task: Task; context: TaskCo
         { ids: targets, projectId },
         toastCallbacks(({ removedLinks }: { removedLinks: number }) => `${count > 1 ? `${count} tâches déplacées` : 'Tâche déplacée'}.${removedLinksNote(removedLinks)}`),
       );
-    const linked = (item: Task) => item.parentId !== null || item.blockingIds.length + item.blockedByIds.length + item.relatedIds.length > 0 || item.milestoneId !== null || item.sprintIds.length > 0;
-    if (!moved.some((item) => linked(item) && !inProjectTree(context, projectId)(item.projectId))) return transfer();
+    if (!moved.some((item) => hasTreeLinks(item) && !inProjectTree(context, projectId)(item.projectId))) return transfer();
     confirmDestructive({
       title: 'Changer de projet',
-      risks: 'La tâche (et ses sous-tâches) passe dans une autre arborescence : sa tâche parente, ses blocages et relations avec les tâches restées, son jalon et ses sprints seront retirés.',
+      risks: 'La tâche (et ses sous-tâches) passe dans une autre arborescence : sa tâche parente, ses blocages et relations avec les tâches restées, son jalon, ses sprints et ses documents de projet seront retirés.',
       confirmLabel: 'Changer de projet',
       confirmIcon: <ArrowsLeftRightIcon aria-hidden />,
       onConfirm: transfer,

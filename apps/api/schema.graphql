@@ -506,6 +506,9 @@ input CalendarEventInput {
   endDate: Date!
   endTime: String
   label: String!
+
+  """Documents of the library linked to it (50 at most); none: none."""
+  libraryDocumentIds: [ID!]
   links: [ItemLinkInput!]!
   location: String
 
@@ -513,6 +516,11 @@ input CalendarEventInput {
   locationLat: Float
   locationLon: Float
   projectId: ID
+
+  """
+  Documents of projects linked to it, of its project tree (50 at most); none: none.
+  """
+  projectResourceIds: [ID!]
   recurrence: JSON
 
   """Relations without contributor taking part; none: none."""
@@ -565,6 +573,9 @@ type CalendarEventOccurrence {
   eventId: ID!
   key: String!
   label: String!
+
+  """Documents of the library linked to the event (its whole series)."""
+  libraryDocumentIds: [ID!]!
   links: [ItemLink!]!
   location: String
   locationLat: Float
@@ -574,6 +585,11 @@ type CalendarEventOccurrence {
   postponedFrom: CalendarPostponedFrom
   postponedTo: [CalendarPostponedTo!]!
   projectId: ID
+
+  """
+  Documents of projects linked to the event (its whole series), of its project tree.
+  """
+  projectResourceIds: [ID!]!
   recurrence: JSON
 
   """Relations without contributor taking part."""
@@ -1607,6 +1623,23 @@ type LibraryDocument {
   updatedAt: DateTime!
 
   """Link address, or URL of the file."""
+  url: String!
+}
+
+"""
+Document of the app linked to an item (treasury entry or line, task, routine, event): of the library, or of a project.
+"""
+type LinkedDocument {
+  id: ID!
+
+  """FILE or LINK."""
+  kind: String!
+  label: String!
+  place: String!
+  projectId: ID
+
+  """LIBRARY or PROJECT."""
+  source: String!
   url: String!
 }
 
@@ -2731,9 +2764,9 @@ type Mutation {
   setTaskColumnDefaults(columnOrder: [String!], hiddenColumns: [String!]): TaskColumnDefaults!
 
   """
-  Closes (done) or reopens tasks; a closed task no longer blocks other tasks.
+  Closes tasks as done (reason omitted) or as cancelled (NOT_PLANNED), or reopens them; a closed task no longer blocks other tasks. A task already closed keeps its closing date and takes the new reason.
   """
-  setTasksClosed(closed: Boolean!, ids: [ID!]!): Boolean!
+  setTasksClosed(closed: Boolean!, ids: [ID!]!, reason: TaskCloseReason): Boolean!
 
   """Pauses or resumes a running timer."""
   setTimerPaused(id: ID!, paused: Boolean!): TimeEntry!
@@ -3245,6 +3278,11 @@ type Query {
   """
   doableTasks(utcOffset: Int!): [TaskDoability!]!
   documentFolders: [DocumentFolder!]!
+
+  """
+  Documents of the app that can be linked to an item: the library, then the documents of the projects.
+  """
+  documentOptions: [LinkedDocument!]!
   documentSequences(year: Int!): [DocumentSequence!]!
   documentStatuses: [DocumentStatus!]!
 
@@ -3551,11 +3589,6 @@ type Query {
   treasuryContexts: [TreasuryContext!]!
   treasuryCounterparties: [TreasuryCounterparty!]!
 
-  """
-  Documents of the app that can support an entry: the library, then the documents of the projects.
-  """
-  treasuryDocumentOptions: [TreasuryEntryDocument!]!
-
   """Entries between two dates (included), latest first."""
   treasuryEntries(accountId: ID, from: Date!, to: Date!): [TreasuryEntry!]!
 
@@ -3755,6 +3788,9 @@ type Routine {
   label: String!
   lastDoneAt: DateTime
 
+  """Documents of the library linked to it (not inherited)."""
+  libraryDocumentIds: [ID!]!
+
   """Links, as those of the events."""
   links: [ItemLink!]!
   location: String
@@ -3786,6 +3822,11 @@ type Routine {
   """Priority, from the list of the tasks (its own: see effective)."""
   priorityId: ID
   projectId: ID
+
+  """
+  Documents of projects linked to it, of its project tree (not inherited).
+  """
+  projectResourceIds: [ID!]!
 
   """
   Rule of its repetition (every day for one saved following calendar schedules).
@@ -4015,6 +4056,9 @@ input RoutineInput {
   inheritedFields: [RoutineInheritableField!]
   label: String!
 
+  """Documents of the library linked to it (50 at most); none: none."""
+  libraryDocumentIds: [ID!]
+
   """
   20 at most, http or https; required, as relatedIds: an omitted field never wipes them.
   """
@@ -4042,6 +4086,11 @@ input RoutineInput {
   """Priority (the list of the tasks); none: none."""
   priorityId: ID
   projectId: ID
+
+  """
+  Documents of projects linked to it, of its project tree (50 at most); none: none.
+  """
+  projectResourceIds: [ID!]
   recurrence: JSON!
 
   """« Relative à »: routines related to it (same project tree)."""
@@ -5018,12 +5067,13 @@ type Task {
   """Tasks this task blocks."""
   blockingIds: [ID!]!
 
-  """
-  Its status is of the category « Annulé »: closed, shown struck through.
-  """
+  """Closed as cancelled (« Annulée »): shown struck through."""
   cancelled: Boolean!
 
-  """Closed (done) task."""
+  """How it was closed (done or cancelled); null while open."""
+  closeReason: TaskCloseReason
+
+  """Closed task (done or cancelled)."""
   closed: Boolean!
   closedAt: DateTime
   commentCount: Int!
@@ -5081,6 +5131,9 @@ type Task {
   inheritedFields: [TaskInheritableField!]!
   label: String!
 
+  """Documents of the library linked to it (not inherited)."""
+  libraryDocumentIds: [ID!]!
+
   """Links, as those of the events."""
   links: [ItemLink!]!
 
@@ -5110,6 +5163,11 @@ type Task {
 
   """None: a task of no project."""
   projectId: ID
+
+  """
+  Documents of projects linked to it, of its project tree (not inherited).
+  """
+  projectResourceIds: [ID!]!
   relatedIds: [ID!]!
 
   """
@@ -5208,6 +5266,14 @@ input TaskAutomationPatch {
   trigger: JSON
 }
 
+"""
+How a task is closed: done (COMPLETED) or cancelled (NOT_PLANNED, « Annulée »), as the state reason of a GitHub issue.
+"""
+enum TaskCloseReason {
+  COMPLETED
+  NOT_PLANNED
+}
+
 """Columns new task views of the workspace start with."""
 type TaskColumnDefaults {
   columnOrder: [String!]!
@@ -5293,6 +5359,11 @@ input TaskInput {
   inheritedFields: [TaskInheritableField!]
   label: String!
 
+  """
+  Documents of the library linked to it (50 at most); omitted: unchanged.
+  """
+  libraryDocumentIds: [ID!]
+
   """20 at most, http or https; null: none."""
   links: [ItemLinkInput!]
 
@@ -5311,6 +5382,11 @@ input TaskInput {
   None: a task of no project (no number, sprint, milestone nor GitHub item).
   """
   projectId: ID
+
+  """
+  Documents of projects linked to it, of its project tree (50 at most); omitted: unchanged.
+  """
+  projectResourceIds: [ID!]
 
   """Reminders « À HH:MM » only, 10 at most; null: none."""
   reminders: [ReminderInput!]
@@ -5366,7 +5442,7 @@ type TaskStatus {
 }
 
 """
-Fixed meaning of a status: open (TODO, IN_PROGRESS) or closed (DONE, CANCELLED).
+Fixed meaning of a status, a classification (to do, in progress, done, cancelled): it neither closes nor reopens tasks.
 """
 enum TaskStatusCategory {
   CANCELLED
@@ -5430,6 +5506,11 @@ input TaskUpdateInput {
   inherit: [TaskInheritableField!]
   label: String
 
+  """
+  Documents of the library linked to it (50 at most); omitted: unchanged.
+  """
+  libraryDocumentIds: [ID!]
+
   """20 at most, http or https; null: none."""
   links: [ItemLinkInput!]
 
@@ -5443,6 +5524,11 @@ input TaskUpdateInput {
   minDate: Date
   parentId: ID
   priorityId: ID
+
+  """
+  Documents of projects linked to it, of its project tree (50 at most); omitted: unchanged.
+  """
+  projectResourceIds: [ID!]
 
   """Reminders « À HH:MM » only, 10 at most; null: none."""
   reminders: [ReminderInput!]
@@ -5812,7 +5898,7 @@ type TreasuryEntry {
   date: Date!
 
   """Supporting documents: of the library, then of projects."""
-  documents: [TreasuryEntryDocument!]!
+  documents: [LinkedDocument!]!
   id: ID!
   label: String!
 
@@ -5835,23 +5921,6 @@ type TreasuryEntry {
   """Page about it on the internet (an online order…)."""
   url: String
   valueDate: Date!
-}
-
-"""
-Document of the app supporting an entry: of the library, or of a project.
-"""
-type TreasuryEntryDocument {
-  id: ID!
-
-  """FILE or LINK."""
-  kind: String!
-  label: String!
-  place: String!
-  projectId: ID
-
-  """LIBRARY or PROJECT."""
-  source: String!
-  url: String!
 }
 
 input TreasuryEntryInput {
@@ -5893,7 +5962,7 @@ type TreasuryEntryLine {
   date: Date
 
   """Supporting documents: of the library, then of projects."""
-  documents: [TreasuryEntryDocument!]!
+  documents: [LinkedDocument!]!
   id: ID!
   label: String
 

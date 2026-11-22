@@ -742,7 +742,11 @@ export default defineConfig([
         {
           selector: 'TemplateLiteral > TemplateElement[value.raw=/^(doc|imp):$/]',
           message:
-            'Utiliser settledKey / allocationKey / allocationOfKey, les clés des documents réglés (fonctions de features/treasury/components/EntryForm.tsx ; le documentKey de features/treasury/lib/entry-env est une autre clé).',
+            'Utiliser settledKey / allocationKey / allocationOfKey, les clés des documents réglés (fonctions de features/treasury/components/EntryForm.tsx ; le documentKey de features/documents/lib/document-keys est une autre clé).',
+        },
+        {
+          selector: "CallExpression[callee.name=/^tagged(Key|Ids)$/] > Literal[value=/^(lib|res)$/]",
+          message: 'Utiliser documentKey / documentKeys / documentIdsOfKeys (features/documents/lib/document-keys) : les clés des documents liés.',
         },
         {
           selector: "JSXOpeningElement[name.name='Alert'] > JSXAttribute[name.name='color'][value.value='red']",

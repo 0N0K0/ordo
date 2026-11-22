@@ -115,6 +115,15 @@ zxcvbn et ses dictionnaires pèsent environ 1,3 Mo : ce fichier n'est pas dans `
 | `itemLinksSchema`                        | Liste des liens d'un élément : 20 au plus (« 20 liens maximum. »), la même pour les évènements, les tâches et les routines.                                                                     |
 | `linksFormSchema` / `LinksFormValues`    | `{ links }` : les liens édités seuls (panneau d'une tâche).                                                                                                                  |
 
+## `documents.ts` — documents liés à un élément
+
+| Export                       | Rôle                                                                                                                                                                                                                          |
+| ---------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `LINKED_DOCUMENTS_MAX`       | 50 documents de chaque sorte au plus.                                                                                                                                                                                         |
+| `linkedDocumentIdsSchema`    | Ids des documents d'une sorte : 50 au plus (« 50 documents maximum. ») ; pièces justificatives de la trésorerie, documents des tâches, routines et évènements.                                                                |
+| `linkedDocumentsFields`      | Champs `libraryDocumentIds` et `projectResourceIds` (omis : aucun) des schémas des routines, des évènements et des lignes de trésorerie. Voir [Documents liés](../../business-rules/cross-cutting/files-and-attachments.md#documents-liés-aux-tâches-routines-et-évènements). |
+| `LinkedDocumentIds`          | `{ libraryDocumentIds, projectResourceIds }`.                                                                                                                                                                                 |
+
 ## `numbers.ts` — nombres
 
 | Export                               | Rôle                                                                                   |

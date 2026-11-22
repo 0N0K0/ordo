@@ -10,7 +10,6 @@ import {
   parseOptionalDay,
   round2,
   sameName,
-  statusClosing,
   sumOf,
   taskFieldOrigin,
   type EffectiveTask,
@@ -238,7 +237,8 @@ function localFields(task: SyncedTask, link: GithubProjectLink, maps: Maps, type
   const inherited = inheritedValues(task, maps);
   if (link.syncAssignees) fields.assignees = assigneeLogins(task, maps);
   if (type === 'ISSUE') {
-    fields.closed = task.closedAt !== null;
+    // Closed as done or as cancelled (the state reason of the issue), or open.
+    fields.closed = task.closedAt !== null ? (task.closeReason ?? 'COMPLETED') : false;
     if (link.syncLabels) fields.labels = labelKeys(task.tags.map((tag) => tag.label));
     // The parent is an issue of the board, or has no counterpart.
     fields.parent = task.parentId ? (task.parent?.githubContentType === 'ISSUE' && task.parent.githubContentId ? task.parent.githubContentId : `ordo:${task.parentId}`) : null;
@@ -281,7 +281,7 @@ function remoteFields(item: RemoteItem, link: GithubProjectLink, maps: Maps): Sy
   // Logins without contributor are left alone on both sides.
   if (link.syncAssignees) fields.assignees = item.assignees.filter((login) => maps.contributorByLogin.has(login));
   if (item.type === 'ISSUE') {
-    fields.closed = item.closed;
+    fields.closed = item.closed ? (item.closeReason ?? 'COMPLETED') : false;
     if (link.syncLabels) fields.labels = labelKeys(item.labels.map((label) => label.name));
     fields.parent = item.parentId ? (maps.taskByContent.has(item.parentId) ? item.parentId : `gh:${item.parentId}`) : null;
     fields.milestone = item.milestone?.title ?? null;
@@ -331,19 +331,10 @@ async function pullData(values: SyncFields, task: SyncedTask, maps: Maps, item: 
   const data: Prisma.TaskUpdateInput = {};
   if ('title' in values) data.label = clipText(String(values.title)) || task.label;
   if ('body' in values) data.description = values.body ? String(values.body) : null;
-  if ('closed' in values) data.closedAt = values.closed ? (task.closedAt ?? new Date()) : null;
+  // Closed as done or as not planned (cancelled): an issue closed keeps the closing date of its task.
+  if ('closed' in values) Object.assign(data, values.closed ? { closedAt: task.closedAt ?? new Date(), closeReason: values.closed === 'NOT_PLANNED' ? 'NOT_PLANNED' : 'COMPLETED' } : { closedAt: null, closeReason: null });
   if ('status' in values) data.status = values.status ? { connect: { id: maps.optionStatus.get(String(values.status))! } } : { disconnect: true };
   if ('priority' in values) data.priority = values.priority ? { connect: { id: maps.optionPriority.get(String(values.priority))! } } : { disconnect: true };
-  // `statusClosing`: a status « Annulé » always closes the task, whatever GitHub says of its state;
-  // leaving one reopens it unless GitHub says it is closed (a closed item with another status stays closed).
-  const statusAfter = 'status' in values ? (values.status ? maps.optionStatus.get(String(values.status))! : null) : task.statusId;
-  if (statusAfter !== task.statusId || data.closedAt === null) {
-    const ids = [task.statusId, statusAfter].filter((id): id is string => id !== null);
-    const categories = new Map((await prisma.taskStatus.findMany({ where: { id: { in: ids } }, select: { id: true, category: true } })).map((status) => [status.id, status.category]));
-    const categoryOf = (id: string | null) => (id ? (categories.get(id) ?? null) : null);
-    if (categoryOf(statusAfter) === 'CANCELLED') data.closedAt = task.closedAt ?? new Date();
-    else if (statusAfter !== task.statusId && statusClosing(categoryOf(task.statusId), categoryOf(statusAfter)) === 'reopen' && !values.closed) data.closedAt = null;
-  }
   if ('type' in values) data.type = values.type ? { connect: { id: maps.optionType.get(String(values.type))! } } : { disconnect: true };
   if ('deadline' in values) data.deadline = parseOptionalDay((values.deadline as string | null) || null);
   if ('milestone' in values)
@@ -501,7 +492,7 @@ async function pushValues(
   await updateContent(token, item.type, item.contentId, {
     title: 'title' in values ? String(values.title) : undefined,
     body: 'body' in values ? String(values.body ?? '') : undefined,
-    closed: 'closed' in values ? Boolean(values.closed) : undefined,
+    closed: 'closed' in values ? (values.closed ? (values.closed === 'NOT_PLANNED' ? 'NOT_PLANNED' : 'COMPLETED') : false) : undefined,
     assignees: assignees && {
       add: assignees.filter((login) => !knownBefore.includes(login)),
       remove: knownBefore.filter((login) => !assignees.includes(login)),
@@ -867,6 +858,8 @@ export const syncGithubProject = automated(async function syncGithubProject(proj
       // An iteration of the last sync that is gone from the board (new ids given by GitHub) is no reference: the
       // item lost it, the sprint of the task wins.
       const snapshot = task.githubSnapshot ? { ...(task.githubSnapshot as SyncFields) } : null;
+      // A state of a former sync, closed without its reason: closed as done.
+      if (snapshot?.closed === true) snapshot.closed = 'COMPLETED';
       if (snapshot && typeof snapshot.iteration === 'string' && !iterationIds.has(snapshot.iteration)) delete snapshot.iteration;
       const result = mergeFields(local, remote, snapshot, task.updatedAt.toISOString() > item.updatedAt);
       if (Object.keys(result.push).length) {
@@ -915,6 +908,7 @@ export const syncGithubProject = automated(async function syncGithubProject(proj
         title: task.label,
         body: task.description ?? '',
         closed: type === 'ISSUE' ? false : null,
+        closeReason: null,
         assignees: (local.assignees as string[]) ?? [],
         labels: [],
         repositoryId: link.repositoryId,

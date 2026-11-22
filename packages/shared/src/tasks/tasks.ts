@@ -159,6 +159,9 @@ export interface TaskInput {
   locationLon?: number | null;
   /** Links (null: none). */
   links?: ItemLink[] | null;
+  /** Documents linked to it: of the library, and of its project tree (not inherited). */
+  libraryDocumentIds?: string[] | null;
+  projectResourceIds?: string[] | null;
   /** Reminders « À HH:MM » (null: none); they ring only with an « Échéance ». */
   reminders?: ReminderFields[] | null;
   /** « Temps morts » (null: none). */

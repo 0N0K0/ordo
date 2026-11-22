@@ -4,6 +4,7 @@ import { z } from 'zod';
 import { endAfter, markdownSchema, optionalText, requiredText } from '../core/rules';
 import { locatedFields } from '../core/geo';
 import { itemLinksSchema } from '../core/links';
+import { linkedDocumentsFields } from '../core/documents';
 import { addDays, daysBetween, weekdayOfDate, monthOfYear, yearOfDay } from '../dates/days';
 import { occurrenceDates, recurrenceSchema, type Recurrence, type Span } from '../dates/recurrence';
 import { caseSpans } from '../dates/repetition';
@@ -192,6 +193,8 @@ export const routineSchema = z
     ...locatedFields,
     /** Links, as those of the events; required, as `relatedIds`: an omitted field never wipes them. */
     links: itemLinksSchema,
+    /** Documents linked to it: of the library, and of its project tree (not inherited). */
+    ...linkedDocumentsFields,
     projectId: z.string().nullable(),
     assigneeIds: z.array(z.string()).max(100),
     /** « Bénéficiaires »: whom the routine is for (contributors, relations). */

@@ -24,6 +24,7 @@ Voir aussi : [Automatisations des tâches](task-automations.md), [Temps passé](
 | `hours`                                    | « Horaires » : jours et heures où la tâche est faisable, des cas de la forme de ceux d’un créneau (voir [Horaires](#horaires)) ; vide = n’importe quand (par défaut). |
 | `location`, `locationLat`, `locationLon`   | Lieu, le champ des évènements et des routines : texte libre facultatif, 250 caractères au plus (`optionalText`, vide → `null`), et son point quand il est choisi sur la carte ou dans une recherche (voir [Lieux](../cross-cutting/geo.md#durées-saisies-sur-un-élément)). Ni trajet, ni heure de départ ou de retour : une tâche n’a pas d’heures. Un point va avec un lieu, ses deux coordonnées ou aucune (`storedLocation`). |
 | `links`                                    | Liens, ceux des évènements : 20 au plus (« 20 liens maximum. »), adresse http ou https (« Lien invalide (http ou https). »), libellé facultatif de 250 caractères (`itemLinksSchema`). Aucun par défaut. |
+| `libraryDocumentIds`, `projectResourceIds` | Documents : de la bibliothèque, et de projets de l’arborescence de son projet (aucun sans projet), 50 au plus de chaque sorte ; non hérités. Voir [Documents liés](../cross-cutting/files-and-attachments.md#documents-liés-aux-tâches-routines-et-évènements). |
 | `reminders`                                | Rappels : seulement à une heure (heure de Paris ; « Une tâche n’a que des rappels à une heure précise. ») : « À HH:MM » (`{ at }`) et « N jours avant, à HH:MM » (`{ at, days }`, 1 à 30 jours), 10 au plus (« 10 rappels maximum. », « Heure attendue (HH:MM). », `taskRemindersSchema`), dédoublonnés et triés (`normalizedReminders`) ; « À HH:MM » sonnés chaque jour de l’ouverture à l’échéance (celles qu’elle suit : voir [Dates suivies](#dates-suivies)), le jour de l’échéance seulement sans ouverture ; « N jours avant » une fois, N jours avant l’échéance ; jamais sans échéance, sans limite de 24 heures. Aucun par défaut. Voir [Alarmes](alarms.md#rappels-des-tâches-routines-et-évènements). |
 | `deadTimes`                                | Temps morts : `[{ label, minutes, ringtone? }]`, 20 au plus ; « Lancer » l’un d’eux lance un minuteur rattaché à la tâche ; ce n’est pas du temps passé. Aucun par défaut. Voir [Alarmes](alarms.md#temps-morts). |
 | `savedCountdownIds` (relation `savedCountdowns`) | Minuteurs enregistrés de l’espace qu’elle lance (20 au plus), changés par `setSavedCountdownLinks` (pas par `updateTask`) ; « Lancer » l’un d’eux démarre un minuteur rattaché à la tâche. Aucun par défaut. Voir [Alarmes](alarms.md#minuteurs-enregistrés). |
@@ -32,14 +33,14 @@ Voir aussi : [Automatisations des tâches](task-automations.md), [Temps passé](
 | `milestoneId`                              | Un jalon.                                                                                                                                                                                          |
 | `sprintIds`                                | Plusieurs sprints (une tâche peut s’étaler sur plusieurs).                                                                                                                                         |
 | `position`                                 | Ordre manuel global (voir [Ordre manuel](#ordre-manuel-et-déplacement)).                                                                                                                           |
-| `closedAt`                                 | Tâche fermée (faite). Seul un statut de catégorie « Annulé » y touche : il la ferme, le quitter la rouvre (voir [Catégories de statut](#catégories-de-statut)).                       |
+| `closedAt`, `closeReason`                  | Tâche fermée, et comment : « Terminée » (`COMPLETED`) ou « Annulée » (`NOT_PLANNED`) ; `closeReason` vide tant qu’elle est ouverte (voir [Fermer, annuler et rouvrir](#fermer-annuler-et-rouvrir)). Indépendants du statut. |
 | `archivedAt`, `archivedByCascade`          | Archivage, avec la trace d’un archivage en cascade.                                                                                                                                                |
 | `github*`                                  | Synchronisation avec un item de tableau GitHub (voir [GitHub](../cross-cutting/github.md)).                                                                                                        |
 
 Champs calculés exposés par GraphQL (`apps/api/src/graphql/modules/tasks.ts`) :
 
 - `closed` : `closedAt !== null`.
-- `cancelled` : son statut est de catégorie « Annulé » (la tâche est alors fermée et s’affiche barrée).
+- `cancelled` : fermée comme annulée (`closeReason` `NOT_PLANNED`) ; elle s’affiche barrée.
 - `effectiveMinDate`, `effectiveDeadline` : « Ouverture » et « Échéance » que la tâche suit ; `minDateSource`, `deadlineSource` : d’où elles viennent quand ce ne sont pas les siennes (`PARENT`, `MILESTONE`, `PROJECT`, `SPRINT`), voir [Dates suivies](#dates-suivies).
 - `inheritedFields`, `effective` (valeurs suivies : projet, priorité, jalon, assignés, bénéficiaires, condition, horaires, lieu, dates) et `inheritance` (état et source de chaque champ hérité), voir [Héritage](#héritage).
 - `githubLinked` : la tâche a un `githubItemId`.
@@ -101,29 +102,25 @@ Source : `services/tasks/task-labels.ts` (via `createLabelService`, `services/co
 
 Un statut a une catégorie fixe (`TASK_STATUS_CATEGORIES`), `TODO` par défaut à la création :
 
-| Catégorie     | Libellé (statut) | Libellé (tâches) | Sens   |
-| ------------- | ---------------- | ---------------- | ------ |
+| Catégorie     | Libellé (statut) | Libellé (tâches) | Classement |
+| ------------- | ---------------- | ---------------- | ---------- |
 | `TODO`        | « À faire »      | « À faire »      | ouvert |
 | `IN_PROGRESS` | « En cours »     | « En cours »     | ouvert |
 | `DONE`        | « Terminé »      | « Terminée »     | fermé  |
 | `CANCELLED`   | « Annulé »       | « Annulée »      | fermé  |
 
-- La catégorie donne le sens du statut quel que soit son libellé (filtres, tâches « en cours » de l’accueil, filtre « Catégorie de statut »).
-- **C’est l’état ouvert / fermé (`closedAt`) qui dit si une tâche est faite.** Une seule catégorie y touche (`statusClosing`, `closeOnStatus`) :
-  - passer à un statut « Annulé » (création, modification, modification en masse, annulation d’une modification en masse, copie) **ferme** la tâche (une tâche déjà fermée garde sa date de fermeture) ; elle s’affiche alors barrée ;
-  - quitter un statut « Annulé » pour un autre statut, ou pour aucun, **rouvre** la tâche ;
-  - les autres changements de statut, « Terminé » compris, ne ferment ni ne rouvrent rien ;
-  - rouvrir à la main une tâche « Annulé » lui donne le premier statut « À faire » non archivé (aucun s'il n'y en a pas) ; « Annuler » de son toast lui rend aussi son statut « Annulé », qui la referme ; fermer à la main ne change pas le statut ;
-  - changer la catégorie d'un statut dans les paramètres applique la règle à ses tâches, archivées comprises : vers « Annulé », ses tâches ouvertes sont fermées ; hors de « Annulé », ses tâches fermées sont rouvertes (`taskStatuses`, `afterUpdate`) ; le web le confirme d'abord avec leur nombre (la catégorie, enregistrée dès qu'elle change dans le panneau du statut, revient à la précédente si la confirmation est refusée) ;
-  - la synchronisation GitHub suit la même règle (voir [GitHub](../cross-cutting/github.md#correspondances-et-cas-particuliers)).
+- La catégorie donne le sens du statut quel que soit son libellé (filtres, tâches « en cours » de l’accueil, filtre « Catégorie de statut ») : c’est un **classement**. Aucune catégorie ne ferme ni ne rouvre une tâche, « Annulé » comprise ; changer la catégorie d’un statut ne change pas ses tâches.
+- **C’est l’état ouvert / fermé (`closedAt`) qui dit si une tâche est faite**, et `closeReason` comment elle l’a été. Le lien entre le statut « Annulé » et une tâche annulée passe par des [règles d’automatisation](task-automations.md#règles-du-statut--annulé-) de l’espace, modifiables.
 
-## Fermer et rouvrir
+## Fermer, annuler et rouvrir
 
 Source : `setTasksClosed`.
 
 - Au moins une tâche (« Aucune tâche sélectionnée. »), toutes existantes, aucune archivée (sauf pour une règle de leur archivage, voir [Automatisations](task-automations.md#actions)).
-- Fermer pose `closedAt` à maintenant ; une tâche déjà fermée **garde sa date de fermeture**. Rouvrir vide `closedAt` ; une tâche au statut « Annulé » passe alors au premier statut « À faire » non archivé, ou à aucun.
-- Une tâche fermée ne bloque plus les tâches qu’elle bloque, n’est jamais en retard et compte comme faite (avancement des jalons, sprints, sous-tâches).
+- Une tâche se ferme de deux façons : **« Terminée »** (« Fermer », `closeReason` `COMPLETED`, par défaut) ou **« Annulée »** (« Annuler », `NOT_PLANNED`, comme une issue GitHub fermée « not planned »). Fermer pose `closedAt` à maintenant ; une tâche déjà fermée **garde sa date de fermeture** et prend la nouvelle façon (une tâche terminée annulée ensuite). Rouvrir vide `closedAt` et `closeReason`, quelle que soit la façon.
+- Fermer, annuler ou rouvrir ne change pas le statut (les règles de l’espace peuvent le faire).
+- Une tâche fermée, terminée ou annulée, ne bloque plus les tâches qu’elle bloque, n’est jamais en retard et compte comme faite (avancement des jalons, sprints, sous-tâches).
+- Affichage : une tâche terminée est atténuée ; une tâche annulée est atténuée et **barrée** ; l’icône d’état les distingue (coche violette, cercle barré gris).
 
 ## Historique des statuts
 
@@ -306,10 +303,11 @@ Source : `bulkTransferTasks`, `moveTaskTrees` (interne, partagé avec la suppres
 - Si le projet cible est dans une autre arborescence, sont retirés :
   - les blocages et relations avec les tâches restées dans l’ancienne arborescence ;
   - la tâche parente si elle reste dehors ;
-  - le jalon et les sprints d’une autre arborescence.
+  - le jalon et les sprints d’une autre arborescence ;
+  - les documents de projet d’une autre arborescence (ceux de la bibliothèque restent).
 - Hors de tout projet : les items GitHub sont retirés (le lien passe par le projet).
 - Les assignés suivent : ils sont rattachés au projet cible (`attachAssignees`).
-- Le résultat compte les liens retirés (`removedLinks`). En masse, seules les tâches du haut de la sélection sont transférées, toutes ensemble : les liens entre tâches transférées restent.
+- Le résultat compte les liens retirés (`removedLinks`), documents de projet compris. En masse, seules les tâches du haut de la sélection sont transférées, toutes ensemble : les liens entre tâches transférées restent.
 
 ## Projet supprimé
 
@@ -325,8 +323,8 @@ Source : `releaseProjectTasks` (par `releaseProjects`), appelé par `deleteProje
 
 Source : `duplicateTask` (« Dupliquer » : la copie est enregistrée tout de suite, puis son panneau s’ouvre).
 
-- Copie tous les champs (libellé, description, projet, statut, priorité, type, effort, dates, « Ouverture » / « Échéance », rappels, temps morts, condition de créneaux, horaires, lieu et son point, liens, parent, jalon, sprints), les assignés, bénéficiaires, étiquettes, minuteurs enregistrés et les liens de blocage et de relation de sa propre arborescence de projets (un ancien lien hors d’elle, gardé tant que la tâche ne change pas d’arborescence, n’est pas copié). **Pas** les commentaires, ni l’état fermé, ni le lien GitHub.
-- Une copie dont le statut est « Annulé » est fermée, comme toute tâche qui reçoit ce statut.
+- Copie tous les champs (libellé, description, projet, statut, priorité, type, effort, dates, « Ouverture » / « Échéance », rappels, temps morts, condition de créneaux, horaires, lieu et son point, liens, parent, jalon, sprints), les assignés, bénéficiaires, étiquettes, minuteurs enregistrés, documents (ceux de projet de sa propre arborescence) et les liens de blocage et de relation de sa propre arborescence de projets (un ancien lien hors d’elle, gardé tant que la tâche ne change pas d’arborescence, n’est pas copié). **Pas** les commentaires, ni l’état fermé, ni le lien GitHub.
+- La copie est ouverte ; une copie dont le statut est « Annulé » est fermée comme annulée par la [règle de l’espace](task-automations.md#règles-du-statut--annulé-), comme toute tâche créée avec ce statut.
 - La copie s’appelle « … (copie) » (`copyName`, 250 caractères au plus) ; elle est placée sous le même parent, à la fin de l’ordre manuel ; elle reçoit un nouveau numéro (base).
 - Avec `includeSubtasks`, le sous-arbre est copié niveau par niveau sous la copie (les sous-tâches copiées gardent leur libellé, assignés, bénéficiaires, étiquettes et sprints, pas leurs liens de blocage ou de relation).
 - Une tâche archivée n’est pas copiée (« Élément archivé : restaurez-le pour le modifier. ») : l’interface ne propose la duplication que sur les tâches non archivées. Ses sous-tâches archivées, elles, sont copiées avec elle.
@@ -338,7 +336,7 @@ Source : `convertTaskToRoutine(id, confirm)` (`services/routines/conversion.ts`,
 - Refusée pour une tâche archivée (« Élément archivé : restaurez-le pour le modifier. ») et pour une tâche qui a des sous-tâches, archivées comprises : « Une tâche qui a des sous-tâches ne devient pas une routine : déplacez ou supprimez d’abord ses sous-tâches. ».
 - Sans `confirm`, rien ne change : `CONFIRMATION_REQUIRED` (« Transformer la tâche en routine lui fait perdre ce qu’une routine n’a pas : confirmez pour continuer. »), extension `lost` : ce qui est perdu, par sorte (`ConversionLoss`, `packages/shared/src/routines/conversion.ts`), toujours demandé, même vide.
 - Une seule transaction : une nouvelle routine est créée (à la fin de l’ordre manuel), la tâche supprimée ; l’identifiant n’est pas gardé.
-- Gardés : libellé, description, projet, priorité, type, assignés, bénéficiaires (contributeurs et relations), liens, lieu et son point, condition de créneaux, temps morts, minuteurs enregistrés, rappels « À HH:MM » (comptés ensuite depuis l’« Ouverture » de l’occurrence) et « N jours avant » (toujours depuis l’« Échéance », repère `end`). Les valeurs déjà sur la tâche restent, même archivées ou plus rattachées au projet (comme une valeur déjà en place).
+- Gardés : libellé, description, projet, priorité, type, assignés, bénéficiaires (contributeurs et relations), liens, documents (bibliothèque et projet), lieu et son point, condition de créneaux, temps morts, minuteurs enregistrés, rappels « À HH:MM » (comptés ensuite depuis l’« Ouverture » de l’occurrence) et « N jours avant » (toujours depuis l’« Échéance », repère `end`). Les valeurs déjà sur la tâche restent, même archivées ou plus rattachées au projet (comme une valeur déjà en place).
 - Valeurs : celles que la tâche suit : un champ hérité de son parent est gardé avec la valeur héritée, la routine n’ayant pas de parent.
 - Dates : l’« Échéance » suivie (voir [Dates suivies](#dates-suivies)) devient la première fois de la routine (sans échéance : l’« Ouverture » suivie, sinon aujourd’hui, heure de Paris) ; une « Ouverture » avant l’échéance devient l’« Ouverture » de la routine, « N jours avant » (366 au plus). La routine se répète chaque jour (`DAILY_RECURRENCE`), sans moment ; la répétition se choisit ensuite dans son panneau.
 - Repris par la routine : ses temps passés (le temps porte sur la routine au lieu de la tâche), ses fiches (`SheetLink`), sa liste à cocher et ses commentaires, placés sur la première occurrence programmée (la condition de créneaux peut la décaler ; dates et textes des commentaires gardés, leur lien GitHub non) ; un évènement non récurrent lié à la tâche est lié à la routine le jour du début de l’évènement.
@@ -357,7 +355,7 @@ Source : `bulkUpdateTasks`.
 
 ## Automatisations
 
-Des règles « quand … alors … » de l’espace changent les tâches toutes seules après chaque écriture (création, modification, en masse, déplacement, transfert, fermeture, archivage, copie, suppression, conversion avec une routine, GitHub, « Annuler », chrono démarré, jalons et sprints changés, archivés ou supprimés, projets changés, déplacés ou supprimés, client supprimé avec ses projets, contributeur supprimé, statut changé, valeur d’une liste de réglages supprimée) : voir [Automatisations des tâches](task-automations.md).
+Des règles « quand … alors … » de l’espace changent les tâches toutes seules après chaque écriture (création, modification, en masse, déplacement, transfert, fermeture comme terminée ou annulée, réouverture, archivage, copie, suppression, conversion avec une routine, GitHub, « Annuler », chrono démarré, jalons et sprints changés, archivés ou supprimés, projets changés, déplacés ou supprimés, client supprimé avec ses projets, contributeur supprimé, valeur d’une liste de réglages supprimée) : voir [Automatisations des tâches](task-automations.md).
 
 ## Vues enregistrées
 

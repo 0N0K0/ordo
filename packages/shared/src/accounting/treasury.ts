@@ -2,6 +2,7 @@ import { formatMoney, percentOf, round2, toCents } from './accounting-documents'
 import { mapById, sumOf } from '../core/collections';
 import { clipText, escapeText } from '../core/text';
 import { z } from 'zod';
+import { linkedDocumentIdsSchema, linkedDocumentsFields } from '../core/documents';
 import { END_AFTER_START, endsAfter, markdownSchema, optionalPlainText, optionalText, personNameSchema, requiredText } from '../core/rules';
 import { monthFromIndex, monthIndex } from '../dates/months';
 import { printedDay } from '../dates/days';
@@ -115,8 +116,7 @@ const treasuryEntryLineSchema = z
     categoryId: z.string().nullable(),
     contextId: z.string().nullable(),
     projectId: z.string().nullish(),
-    libraryDocumentIds: z.array(z.string()).max(50, '50 documents maximum.').default([]),
-    projectResourceIds: z.array(z.string()).max(50, '50 documents maximum.').default([]),
+    ...linkedDocumentsFields,
     linkedLineIds: z.array(z.string()).max(50, '50 liens maximum.').default([]),
     linkedEntryIds: z.array(z.string()).max(50, '50 liens maximum.').default([]),
   })
@@ -274,8 +274,8 @@ export const treasuryEntrySchema = z
     /** Linked entries (both ways). */
     linkedEntryIds: z.array(z.string()).max(50, '50 mouvements liés maximum.'),
     /** Supporting documents: of the library, or of a project. */
-    libraryDocumentIds: z.array(z.string()).max(50, '50 documents maximum.'),
-    projectResourceIds: z.array(z.string()).max(50, '50 documents maximum.'),
+    libraryDocumentIds: linkedDocumentIdsSchema,
+    projectResourceIds: linkedDocumentIdsSchema,
     /** Split of the amount; what the lines leave is "not split". */
     lines: z.array(treasuryEntryLineSchema).max(50, '50 lignes maximum.').default([]),
   })

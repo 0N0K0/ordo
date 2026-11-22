@@ -14,6 +14,7 @@ import { ReminderInput, ReminderRef } from '../reminder-fields';
 import { DeadTimeInput, DeadTimeRef } from '../dead-time-fields';
 import { CommentSnapshotInput, CommentSnapshotRef, CONFIRM_LOSS_DESCRIPTION } from '../occurrence-fields';
 import { readLinks } from '../../services/core/links';
+import { linkedDocumentsInputFields } from '../document-fields';
 import { relationIds } from '../relation-fields';
 import { EventScope } from './calendar';
 import { parisToday } from '../../today';
@@ -241,6 +242,8 @@ builder.prismaObject('Routine', {
     assigneeIds: t.idList(relationIds('assignees')),
     beneficiaryIds: t.idList(relationIds('beneficiaries', '« Bénéficiaires »: contributors it is for.')),
     beneficiaryRelationIds: t.idList(relationIds('beneficiaryRelations', '« Bénéficiaires »: relations it is for.')),
+    libraryDocumentIds: t.idList(relationIds('libraryDocuments', 'Documents of the library linked to it (not inherited).')),
+    projectResourceIds: t.idList(relationIds('projectResources', 'Documents of projects linked to it, of its project tree (not inherited).')),
     requiredIds: t.idList({
       description: 'Routines to do before this one.',
       select: { requires: { select: { requiredId: true } } },
@@ -341,6 +344,7 @@ const RoutineInputType = builder.inputType('RoutineInput', {
     dueTime: t.string({ description: 'HH:MM.' }),
     ...locationInputFields(t),
     links: t.field({ type: [ItemLinkInput], required: true, description: '20 at most, http or https; required, as relatedIds: an omitted field never wipes them.' }),
+    ...linkedDocumentsInputFields(t, 'none: none'),
     ...travelInputFields(t, 'none: 0'),
     projectId: t.id(),
     assigneeIds: t.idList({ required: true }),
@@ -463,6 +467,8 @@ const routineInput = (input: typeof RoutineInputType.$inferInput): RoutineInput 
   dueTime: input.dueTime ?? null,
   ...locatedInput(input),
   links: input.links,
+  libraryDocumentIds: input.libraryDocumentIds ?? [],
+  projectResourceIds: input.projectResourceIds ?? [],
   projectId: idOrNull(input.projectId),
   assigneeIds: input.assigneeIds,
   beneficiaryIds: input.beneficiaryIds ?? [],
