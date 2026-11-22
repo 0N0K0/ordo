@@ -131,6 +131,7 @@ graphql(`
       beneficiaryIds
       beneficiaryRelationIds
       slotCondition
+      hours
       location
       locationLat
       locationLon
@@ -157,6 +158,7 @@ graphql(`
     githubUrl
     githubNumber
     slotCondition
+    hours
     location
     locationLat
     locationLon

@@ -149,7 +149,7 @@ Utilisés par `ScheduleSettings`.
 
 - `ScheduleRepetition({ value, onChange, error? })` : champ « Période et horaires » d’un créneau (`RepetitionField`), résumé (`describeScheduleCase`, `exceptionPeriod`). Utilisé par `ScheduleForm` (`WorkSchedulesManager`).
 - Interne `ScheduleRepetitionEditor({ draft, setDraft })` : période (`dateRangeProps`), cas, exceptions (dates, motif, pause, cas propres).
-- Interne `ScheduleCases({ cases, onChange, start })` : `RepetitionEditor` commun (modes `RULE`/`CASES`, `multiple`, `DURATION_UNITS`, `SCHEDULE_TIMES`).
+- `ScheduleCases({ cases, onChange, start })` : cas d’une période (créneau, exception) ou horaires d’une tâche (`TaskHoursField`) : `RepetitionEditor` commun (modes `RULE`/`CASES`, `multiple`, `DURATION_UNITS`, `SCHEDULE_TIMES`).
 - Interne `ScheduleTimesFields({ value, onChange, index })` : journée entière ou tranches horaires (`rangeProps`), « Ajouter des horaires » (propose 14:00–18:00 après une matinée).
 - Constante interne `SCHEDULE_TIMES` (`RepetitionTimes<ScheduleTimes>` : rendu, `describeScheduleTimes`, `defaultScheduleTimes`) ; type interne `ScheduleRepetitionValue`.
 
@@ -199,9 +199,9 @@ Utilisés par `ScheduleSettings`.
 
 ### `hooks/use-slot-rules.ts`
 
-- `Doable` (interface) : `slotCondition?`, `assigneeIds`, `taskId`, `routineId`.
+- `Doable` (interface) : `slotCondition?`, `hours?` (horaires d’une tâche), `assigneeIds`, `taskId`, `routineId`.
 - `routineDoable(routine)` : une routine en `Doable`, sans condition (sa condition garde déjà ses moments) : seuls les évènements qui occupent ses assignés comptent. Utilisé par `AlarmCenter`, `RoutinesPage`, `LifeCards` (accueil), temps.
-- `SlotRules` (interface) : `allowed`, `inSlots`, `blocking`, `nextAllowedAt`, `describe` (condition en mots, `describeSlotCondition` ; `null` sans condition).
+- `SlotRules` (interface) : `allowed` (condition et horaires, puis évènements), `inSlots` (condition seule), `inHours` (horaires seuls), `blocking`, `nextAllowedAt` (condition et horaires), `describe` (condition en mots, `describeSlotCondition` ; `null` sans condition).
 - `useSlotRules()` : conditions de créneaux de l’espace, les mêmes pour tâches et routines, recalculées chaque minute (`useNow`) : créneaux et types de l’espace et des autres espaces de l’utilisateur et anniversaires, les archivés, ceux des types archivés et des personnes archivées ne donnant aucun moment, comme l’API (`useSlotSources`, `scheduleSlotsOn`, `conditionAllowsAt`, `nextConditionMoment`), occupation par les évènements (`blockingEvent`, `meId`), prochain moment permis (`nextAllowedMoment` partagé avec le serveur, heure de Paris : `parisDay`, `timeIn`, `parisInstant` ). Sans condition : n’importe quand, en PRO comme en PERSO. Utilisé par `AlarmCenter`, temps (`features/time/api`), routines, accueil, cellules des tâches.
 - Horizon : `NEXT_ALLOWED_DAYS` = 14 (partagé).
 

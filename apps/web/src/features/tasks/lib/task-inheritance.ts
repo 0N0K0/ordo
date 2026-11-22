@@ -15,6 +15,7 @@ export const TASK_FIELD_LABELS: Record<TaskInheritableField, string> = {
   MIN_DATE: 'Ouverture',
   DEADLINE: 'Échéance',
   SLOT_CONDITION: 'Créneaux',
+  HOURS: 'Horaires',
   LOCATION: 'Lieu',
 };
 

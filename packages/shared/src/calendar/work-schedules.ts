@@ -97,6 +97,9 @@ const scheduleRepetitionCaseSchema = repetitionCaseSchema(scheduleTimesSchema).s
 });
 export type ScheduleCase = RepetitionCase<ScheduleTimes>;
 
+/** Cases of a period (a schedule's, an exception's, the hours of a task), 20 at most. */
+export const scheduleCasesSchema = z.array(scheduleRepetitionCaseSchema).max(20, '20 cas au plus.');
+
 const exceptionFields = {
   from: daySchema(),
   to: daySchema(),
@@ -104,7 +107,7 @@ const exceptionFields = {
 };
 
 /** Period with its own cases instead of the general ones (none: a pause, holidays…), dates included. */
-const scheduleExceptionSchema = z.object({ ...exceptionFields, cases: z.array(scheduleRepetitionCaseSchema).max(20, '20 cas au plus.').default([]) }).refine(...endAfter('from', 'to'));
+const scheduleExceptionSchema = z.object({ ...exceptionFields, cases: scheduleCasesSchema.default([]) }).refine(...endAfter('from', 'to'));
 export type ScheduleException = z.infer<typeof scheduleExceptionSchema>;
 
 /** Planned time slots: a label, a kind, a period, its cases, and exceptions (periods with cases of their own). */
@@ -113,7 +116,7 @@ export const workScheduleSchema = z
     label: requiredText(),
     startDate: daySchema(),
     endDate: daySchema().nullable(),
-    cases: z.array(scheduleRepetitionCaseSchema).min(1, 'Ajoutez au moins un cas.').max(20, '20 cas au plus.'),
+    cases: scheduleCasesSchema.min(1, 'Ajoutez au moins un cas.'),
     exceptions: z.array(scheduleExceptionSchema).max(200, '200 exceptions au plus.'),
     /** Kind of time it plans; none: working hours (or, an éphéméride, no kind). */
     typeId: z.string().nullish(),
@@ -346,6 +349,22 @@ export function plannedSlots(schedules: readonly WorkScheduleRule[], from: strin
     }
   }
   return result.sort((a, b) => a.date.localeCompare(b.date) || a.start.localeCompare(b.start));
+}
+
+/** First day the rhythm of cases out of any schedule (the « Horaires » of a task) counts from when they have no anchor: a Monday. */
+export const OWN_CASES_START = '2000-01-03';
+
+/**
+ * Slots some cases give a day on their own, out of any schedule (the « Horaires » of a task): the days and hours they
+ * would give a créneau, their rhythm counted from their anchor, else their first day, else `start`.
+ * @param {readonly ScheduleCase[]} cases Cases.
+ * @param {string} date YYYY-MM-DD.
+ * @param {string} [start] First day their rhythm counts from when they have none (no slot before it). Optional.
+ * Default = `OWN_CASES_START`.
+ * @returns {PlannedSlot[]} Slots of that day, in order (no schedule id).
+ */
+export function casesSlotsOn(cases: readonly ScheduleCase[], date: string, start: string = OWN_CASES_START): PlannedSlot[] {
+  return plannedSlots([{ id: '', label: '', startDate: start, endDate: null, cases, exceptions: [] }], date, date);
 }
 
 /** Start of a run of consecutive days of a schedule: its first day and the start of its first slot (00:00 all day). */

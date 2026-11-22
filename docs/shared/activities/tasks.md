@@ -38,6 +38,7 @@ Champs de `taskFormSchema` :
 | `parentId`, `milestoneId`                     | Facultatifs.                                                                                                  |
 | `beneficiaryIds`, `beneficiaryRelationIds`    | « Bénéficiaires » : contributeurs et relations pour qui est la tâche.                                         |
 | `slotCondition`                               | Condition de créneaux, celle des routines (voir [calendar](calendar.md)) ; `null` : n'importe quand.            |
+| `hours`                                       | « Horaires » : `taskHoursSchema` (voir [`task-hours.ts`](#task-hoursts--horaires-dune-tâche)), `[]` par défaut ; `TaskInput.hours` : `null` = aucun, omis = inchangé. |
 | `location`                                    | Lieu : texte, 250 max, vide devient `null` ; avec `locationPointFields` (son point, sans trajet). |
 | `links`                                       | Liens : `itemLinksSchema` (voir [core](../cross-cutting/core.md)), `[]` par défaut.               |
 | `reminders`                                   | Rappels : `taskRemindersSchema` (voir [dates](../cross-cutting/dates.md)), « À HH:MM » et « N jours avant, à HH:MM » seulement, `[]` par défaut. |
@@ -49,13 +50,23 @@ Champs de `taskFormSchema` :
 
 | Export | Rôle |
 | ------ | ---- |
-| `TASK_INHERITABLE_FIELDS` / `TaskInheritableField` | Champs hérités : `PROJECT`, `ASSIGNEES`, `BENEFICIARIES`, `SLOT_CONDITION`, `MIN_DATE`, `DEADLINE`, `LOCATION`, `PRIORITY`, `MILESTONE`. |
+| `TASK_INHERITABLE_FIELDS` / `TaskInheritableField` | Champs hérités : `PROJECT`, `ASSIGNEES`, `BENEFICIARIES`, `SLOT_CONDITION`, `HOURS`, `MIN_DATE`, `DEADLINE`, `LOCATION`, `PRIORITY`, `MILESTONE`. |
 | `InheritingTask`, `SprintDays`, `MilestoneDays`, `TaskInheritanceContext` | Tâche telle que l'héritage la lit (jours YYYY-MM-DD, ids), jours d'un sprint, jalon (projet, échéance, archivé), et le contexte : toutes les tâches de l'espace, jalons, projets (ouverture), sprints. |
 | `effectiveTask(task, context)` / `EffectiveTask` | Tâche telle qu'elle va : chaque champ hérité pris du parent (en direct, en remontant la chaîne, sans boucle), ses dates aussi de son jalon, de son projet ou de son premier sprint (voir [Dates suivies](../../business-rules/activities/tasks.md#dates-suivies)), et l'origine de chaque champ (`origins`). Seul calcul de l'héritage d'une tâche : l'API le lit pour tout comportement et le donne à l'app. |
 | `taskFieldOrigin(task, field)` | Origine d'un champ d'une tâche effective. |
 | `TASK_INHERITED_COLUMNS` | Colonnes de chaque champ hérité, dates à part (un lieu : texte et point) ; lues par `effectiveTask` et par le web (`taskRow`). |
 | `TASK_FIELD_INPUTS`, `taskFieldsGiven(input)` | Clés d’une entrée (une tâche, une modification, plusieurs) qui donnent une valeur propre à chaque champ hérité, et les champs qu’une entrée rend propres : l’API les rend propres, le web l’affiche aussitôt. |
 | `emptyTaskFields(task)` | Champs d’une tâche sans valeur propre (dates comprises) : ceux qu’elle hérite une fois rangée sous un parent après coup. |
+
+## `task-hours.ts` — horaires d'une tâche
+
+| Export | Rôle |
+| ------ | ---- |
+| `taskHoursSchema` | « Horaires » d'une tâche : les cas d'un créneau (`scheduleCasesSchema`, voir [calendar](calendar.md)), mêmes règles et messages ; aucun : n'importe quand. |
+| `readTaskHours(value)` | Horaires stockés ou reçus (JSON) validés, cas invalides écartés (`readScheduleCases`). |
+| `anchoredTaskHours(hours, day)` | Horaires tels qu'enregistrés : un cas sans période ni repère prend le jour de la saisie comme repère (« toutes les 2 semaines » compte depuis lui). |
+
+Le test « faisable » est `conditionAllowsAt(condition, slotsOn, date, time, hours)` (voir [calendar](calendar.md)).
 
 ## `task-columns.ts` — colonnes, statuts, regroupements
 

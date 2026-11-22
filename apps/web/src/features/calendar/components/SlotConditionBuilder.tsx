@@ -14,7 +14,7 @@ const OPERATOR_LABELS: Record<SlotConditionField, Record<string, string>> = {
 /** What the condition does, by item (shown under the label). */
 const EFFECTS = {
   routine: 'Les moments ne sont gardés que sur les heures que la condition permet ; un jour sans aucune heure n’est pas une occurrence.',
-  task: 'La tâche n’est faisable que sur les heures que la condition permet.',
+  task: 'La tâche n’est faisable que sur les heures que la condition permet (et dans ses horaires, quand elle en a).',
 } as const;
 
 /**

@@ -4995,6 +4995,11 @@ type Task {
 
   """Issue on GitHub (null for a draft issue or an unlinked task)."""
   githubUrl: String
+
+  """
+  « Horaires »: days and hours it can be done, cases shaped as those of a schedule (`taskHoursSchema`); empty: any time. With a slot condition, doable only when both allow it.
+  """
+  hours: JSON!
   id: ID!
 
   """
@@ -5089,6 +5094,9 @@ type TaskEffective {
 
   """« Échéance » it goes by."""
   deadline: Date
+
+  """« Horaires » it goes by (cases of days and hours; empty: any time)."""
+  hours: JSON!
   location: String
   locationLat: Float
   locationLon: Float
@@ -5106,6 +5114,7 @@ enum TaskInheritableField {
   ASSIGNEES
   BENEFICIARIES
   DEADLINE
+  HOURS
   LOCATION
   MILESTONE
   MIN_DATE
@@ -5125,6 +5134,11 @@ input TaskInput {
   description: String
   effort: Float
   endDate: Date
+
+  """
+  « Horaires »: cases of days and hours, as those of a schedule (20 at most, no overlapping hours); null or empty: any time.
+  """
+  hours: JSON
 
   """
   Under a parent: the fields it inherits (their values given are ignored); omitted: every field left out of the input. Ignored without parent.
@@ -5257,6 +5271,11 @@ input TaskUpdateInput {
   description: String
   effort: Float
   endDate: Date
+
+  """
+  « Horaires »: cases of days and hours, as those of a schedule (20 at most, no overlapping hours); null or empty: any time.
+  """
+  hours: JSON
 
   """
   Fields made inherited from its parent again (« Rétablir l’héritage »); a sub-task only.

@@ -1,4 +1,4 @@
-import { type EffectiveTask, conversionLoss, DAILY_RECURRENCE, daysBetween, formatOptionalDay, normalizedReminders, parseDay, parseOptionalDay, readDeadTimes, readReminders, readSlotCondition, sumOf, type ConversionLoss, type RoutineOpens } from '@ordo/shared';
+import { type EffectiveTask, conversionLoss, DAILY_RECURRENCE, daysBetween, formatOptionalDay, normalizedReminders, parseDay, parseOptionalDay, readDeadTimes, readReminders, readSlotCondition, readTaskHours, sumOf, type ConversionLoss, type RoutineOpens } from '@ordo/shared';
 import { prisma } from '../../db';
 import { Prisma } from '../../generated/prisma/client';
 import { clientError } from '../../graphql/errors';
@@ -38,6 +38,7 @@ const pickInherited = (task: EffectiveTask) => ({
   priorityId: task.priorityId,
   milestoneId: task.milestoneId,
   slotCondition: task.slotCondition as Prisma.JsonValue,
+  hours: task.hours as Prisma.JsonValue,
   location: task.location,
   locationLat: task.locationLat,
   locationLon: task.locationLon,
@@ -111,6 +112,8 @@ export async function convertTaskToRoutine(id: string, confirm: boolean): Promis
     events: task.calendarEvents.length - oneOff.length,
     // A task has a single checklist: any other one goes.
     checklists: Math.max(0, task.checklists.length - 1),
+    // A routine has no « Horaires » of its own: its moments and its slot condition say when it is done.
+    hours: readTaskHours(task.hours).length ? 1 : 0,
     parent: flag(task.parentId),
   });
   assertConversionConfirmed(lost, confirm, 'Transformer la tâche en routine lui fait perdre ce qu’une routine n’a pas : confirmez pour continuer.');

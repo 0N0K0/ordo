@@ -2,9 +2,10 @@ import { emptyInheritedFields, inheritedFieldsGiven, inheritsField, resolveInher
 
 /**
  * Fields a sub-task inherits from its parent: project, assignees, beneficiaries (people and relations),
- * slot condition, « Ouverture », « Échéance », place (not the travel times: a task has none), priority, milestone.
+ * slot condition, « Horaires », « Ouverture », « Échéance », place (not the travel times: a task has none), priority,
+ * milestone.
  */
-export const TASK_INHERITABLE_FIELDS = ['PROJECT', 'ASSIGNEES', 'BENEFICIARIES', 'SLOT_CONDITION', 'MIN_DATE', 'DEADLINE', 'LOCATION', 'PRIORITY', 'MILESTONE'] as const;
+export const TASK_INHERITABLE_FIELDS = ['PROJECT', 'ASSIGNEES', 'BENEFICIARIES', 'SLOT_CONDITION', 'HOURS', 'MIN_DATE', 'DEADLINE', 'LOCATION', 'PRIORITY', 'MILESTONE'] as const;
 export type TaskInheritableField = (typeof TASK_INHERITABLE_FIELDS)[number];
 
 /** Task as its inheritance reads it (days YYYY-MM-DD). */
@@ -19,6 +20,8 @@ export interface InheritingTask {
   minDate: string | null;
   deadline: string | null;
   slotCondition: unknown;
+  /** « Horaires » (JSON: cases of days and hours; empty: none). */
+  hours: unknown;
   location: string | null;
   locationLat: number | null;
   locationLon: number | null;
@@ -62,6 +65,7 @@ export const TASK_INHERITED_COLUMNS: InheritedColumns<InheritingTask, Exclude<Ta
   ASSIGNEES: ['assigneeIds'],
   BENEFICIARIES: ['beneficiaryIds', 'beneficiaryRelationIds'],
   SLOT_CONDITION: ['slotCondition'],
+  HOURS: ['hours'],
   LOCATION: ['location', 'locationLat', 'locationLon'],
   PRIORITY: ['priorityId'],
   MILESTONE: ['milestoneId'],
@@ -188,6 +192,7 @@ export const TASK_FIELD_INPUTS: Record<TaskInheritableField, readonly string[]> 
   ASSIGNEES: ['assigneeIds', 'addAssigneeIds', 'removeAssigneeIds'],
   BENEFICIARIES: ['beneficiaryIds', 'beneficiaryRelationIds'],
   SLOT_CONDITION: ['slotCondition'],
+  HOURS: ['hours'],
   MIN_DATE: ['minDate'],
   DEADLINE: ['deadline'],
   LOCATION: ['location'],

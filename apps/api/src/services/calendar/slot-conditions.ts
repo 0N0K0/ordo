@@ -13,6 +13,7 @@ import {
   foreignSlotKind,
   foreignSlotKindWorkspace,
   readSlotCondition,
+  readTaskHours,
   scheduleSlotsOn,
   type SlotCondition,
   type SlotsOn,
@@ -201,8 +202,8 @@ function userNow(utcOffset: number): { date: string; time: string } {
 
 /**
  * Open tasks of the current workspace that can be done now: their « Ouverture » (as they go:
- * `effectiveTask`) is not after the user's day, their condition on calendar schedules (their own or inherited; none:
- * any time) allows the user's current moment, and no event keeps their assignees (their own or inherited; none:
+ * `effectiveTask`) is not after the user's day, their condition on calendar schedules and their « Horaires » (their
+ * own or inherited; none: any time) both allow the user's current moment, and no event keeps their assignees (their own or inherited; none:
  * « Moi ») busy, but one about the task.
  * @param {number} utcOffset User's offset from UTC in minutes.
  * @param {string | null} meId Contributor profile of the user (« Moi »).
@@ -225,7 +226,7 @@ export async function doableTaskIds(utcOffset: number, meId: string | null): Pro
       (task) =>
         // Not to be done before its « Ouverture ».
         (task.minDate ?? now.date) <= now.date &&
-        conditionAllowsAt(conditions.get(task.id), slotsOn, now.date, now.time) &&
+        conditionAllowsAt(conditions.get(task.id), slotsOn, now.date, now.time, readTaskHours(task.hours)) &&
         !blockingEvent(events, { assigneeIds: [...task.assigneeIds], taskId: task.id }, meId, at, now.date),
     )
     .map((task) => task.id);

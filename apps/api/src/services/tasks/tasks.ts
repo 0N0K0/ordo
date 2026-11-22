@@ -1,4 +1,4 @@
-import { changedList, copyName, marksInherited, dateSchema, TASK_INHERITABLE_FIELDS, type EffectiveTask, type TaskInheritableField, deadTimesSchema, readDeadTimes, storedDeadTimes, effortSchema, groupBy, itemLinksSchema, normalizedReminders, readReminders, taskRemindersSchema, locationPointFields, markdownSchema, optionalText, parseOptionalDay, reaches, readSlotCondition, slotConditionSchema, statusClosing, type TaskInput as SharedTaskInput, taskFieldsGiven, taskLabelSchema } from '@ordo/shared';
+import { changedList, copyName, marksInherited, dateSchema, TASK_INHERITABLE_FIELDS, type EffectiveTask, type TaskInheritableField, deadTimesSchema, readDeadTimes, storedDeadTimes, effortSchema, groupBy, itemLinksSchema, normalizedReminders, readReminders, taskRemindersSchema, locationPointFields, markdownSchema, optionalText, parseOptionalDay, reaches, readSlotCondition, slotConditionSchema, anchoredTaskHours, readTaskHours, taskHoursSchema, statusClosing, type TaskInput as SharedTaskInput, taskFieldsGiven, taskLabelSchema } from '@ordo/shared';
 import { z } from 'zod';
 import { prisma } from '../../db';
 import { assertBeneficiaries } from '../core/beneficiaries';
@@ -16,6 +16,7 @@ import { connectIds, orderedPair } from '../core/relations';
 import { inProjectTree, loadProjectRootOf as loadRootOf, outsideMovedTree } from '../projects/project-tree';
 import { commentBody } from '../core/comments';
 import { toJson } from '../core/json';
+import { parisToday } from '../../today';
 import { readLinks } from '../core/links';
 import { storedLocation } from '../core/geo';
 import { assertConditionSchedules } from '../calendar/slot-conditions';
@@ -192,8 +193,9 @@ async function assertActiveRefs(refs: ActiveRefs, current: CurrentRefs = {}, res
  * with a parent: every field the input leaves out), `inherit` / `clear` (update: fields made inherited, fields emptied
  * on purpose; a field given a value becomes its own).
  */
-export type TaskInput = Omit<SharedTaskInput, 'slotCondition'> & {
+export type TaskInput = Omit<SharedTaskInput, 'slotCondition' | 'hours'> & {
   slotCondition?: unknown;
+  hours?: unknown;
 };
 
 const detailsSchema = z.object({
@@ -205,6 +207,7 @@ const detailsSchema = z.object({
   deadline: dateSchema.optional(),
   minDate: dateSchema.optional(),
   slotCondition: slotConditionSchema.nullable().optional(),
+  hours: taskHoursSchema.nullable().optional(),
   location: optionalText().optional(),
   ...locationPointFields,
   links: itemLinksSchema.nullable().optional(),
@@ -255,6 +258,7 @@ function parseDetails(input: TaskInput, current?: TaskDays, notOwn: readonly str
     deadline: input.deadline,
     minDate: input.minDate,
     slotCondition: input.slotCondition as z.input<typeof slotConditionSchema> | null | undefined,
+    hours: input.hours as z.input<typeof taskHoursSchema> | null | undefined,
     location: input.location,
     locationLat: input.locationLat ?? null,
     locationLon: input.locationLon ?? null,
@@ -274,6 +278,8 @@ function parseDetails(input: TaskInput, current?: TaskDays, notOwn: readonly str
     minDate: parseOptionalDay(details.minDate),
     // An empty group is no condition (any time).
     slotCondition: details.slotCondition === undefined ? undefined : details.slotCondition?.children.length ? toJson(details.slotCondition) : Prisma.DbNull,
+    // None (null): any time; the rhythm of each case counts from the day it is typed.
+    hours: details.hours === undefined ? undefined : toJson(anchoredTaskHours(details.hours ?? [], parisToday())),
     // A location changed replaces its point too (none: unknown).
     ...(details.location !== undefined && storedLocation({ location: details.location, locationLat: details.locationLat, locationLon: details.locationLon })),
     links: details.links === undefined ? undefined : toJson(details.links ?? []),
@@ -293,6 +299,7 @@ function inheritedInput(fields: readonly TaskInheritableField[]): Partial<TaskIn
     ...(has('ASSIGNEES') && { assigneeIds: undefined }),
     ...(has('BENEFICIARIES') && { beneficiaryIds: undefined, beneficiaryRelationIds: undefined }),
     ...(has('SLOT_CONDITION') && { slotCondition: undefined }),
+    ...(has('HOURS') && { hours: undefined }),
     ...(has('MIN_DATE') && { minDate: undefined }),
     ...(has('DEADLINE') && { deadline: undefined }),
     ...(has('LOCATION') && { location: undefined, locationLat: undefined, locationLon: undefined }),
@@ -616,6 +623,7 @@ export async function duplicateTask(id: string, includeSubtasks: boolean): Promi
           reminders: toJson(readReminders(task.reminders)),
           deadTimes: toJson(readDeadTimes(task.deadTimes)),
           slotCondition: task.slotCondition === null ? Prisma.DbNull : toJson(task.slotCondition),
+          hours: toJson(readTaskHours(task.hours)),
           parentId,
           // The copy inherits what its source inherits (from the same parent, or from the copy of its parent).
           inheritedFields: task.inheritedFields,

@@ -750,6 +750,9 @@ model Task {
   label                String
   /// On or out of calendar schedules, or on the free time, in groups (and / or), as a routine; null: any time.
   slotCondition        Json?
+  /// « Horaires »: days and hours it can be done, cases shaped as those of a créneau (`taskHoursSchema`); empty: any
+  /// time. With a slot condition, doable only when both allow it. Not shown in the agenda.
+  hours                Json               @default("[]")
   /// Markdown.
   description          String?
   /// Where it is done: free text, and its point when chosen from the map or a search (no travel time: no hours).
@@ -796,7 +799,7 @@ model Task {
   parentId             String?
   parent               Task?              @relation("TaskTree", fields: [parentId], references: [id], onDelete: SetNull)
   children             Task[]             @relation("TaskTree")
-  /// Fields it takes from its parent, live: PROJECT, ASSIGNEES, BENEFICIARIES, SLOT_CONDITION, MIN_DATE,
+  /// Fields it takes from its parent, live: PROJECT, ASSIGNEES, BENEFICIARIES, SLOT_CONDITION, HOURS, MIN_DATE,
   /// DEADLINE, LOCATION, PRIORITY, MILESTONE. A field not listed is its own value (emptied on purpose when it has none);
   /// always empty for a top-level task. Its effective values: `effectiveTask` (@ordo/shared).
   inheritedFields      String[]           @default([])

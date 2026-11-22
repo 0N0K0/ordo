@@ -59,7 +59,7 @@ Source : `startTimer`.
 - Mêmes vérifications que ci-dessus (projet, routines, tâches, évènements, éléments archivés), description validée.
 - **Les chronos en cours continuent de tourner** : démarrer un chrono n’en arrête aucun.
 - Le nouveau temps commence maintenant.
-- Côté web, un avertissement « Hors des moments prévus » signale des routines ou des tâches hors de leurs créneaux, ou des assignés occupés par un évènement (autre que ceux du chrono) ; le chrono tourne quand même (voir [Fonctionnalités](../../features/activities/time.md)).
+- Côté web, un avertissement « Hors des moments prévus » signale des routines ou des tâches hors de leurs créneaux ou de leurs horaires (une tâche, ceux qu’elle suit : les siens ou hérités), ou des assignés occupés par un évènement (autre que ceux du chrono) ; le chrono tourne quand même (voir [Fonctionnalités](../../features/activities/time.md)).
 
 ### Pause et reprise
 

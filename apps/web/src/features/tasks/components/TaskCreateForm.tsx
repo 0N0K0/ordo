@@ -1,7 +1,8 @@
 import { Select, SimpleGrid, Stack, TextInput } from '@mantine/core';
 import { SlotConditionBuilder } from '../../calendar/components/SlotConditionBuilder';
+import { TaskHoursField } from './TaskHoursField';
 import { DatePickerInput } from '@mantine/dates';
-import { readSlotCondition, TASK_INHERITABLE_FIELDS, taskFormSchema, type TaskFormValues, type TaskInheritableField } from '@ordo/shared';
+import { readSlotCondition, readTaskHours, TASK_INHERITABLE_FIELDS, taskFormSchema, type TaskFormValues, type TaskInheritableField } from '@ordo/shared';
 import { useState } from 'react';
 import { formInheritance } from '../../../components/inheritance/form-inheritance';
 import { InheritedField } from '../../../components/inheritance/InheritedField';
@@ -34,6 +35,7 @@ const FORM_COLUMNS: Record<TaskInheritableField, readonly (keyof TaskFormValues 
   MIN_DATE: ['minDate'],
   DEADLINE: ['deadline'],
   SLOT_CONDITION: ['slotCondition'],
+  HOURS: ['hours'],
   LOCATION: ['location', 'locationLat', 'locationLon'],
 };
 
@@ -52,6 +54,7 @@ const parentValues = (parent: Task): Partial<TaskFormValues> => ({
   minDate: parent.effectiveMinDate ?? null,
   deadline: parent.effectiveDeadline ?? null,
   slotCondition: readSlotCondition(parent.slotCondition),
+  hours: readTaskHours(parent.hours),
   location: parent.location ?? '',
   locationLat: parent.locationLat ?? null,
   locationLon: parent.locationLon ?? null,
@@ -98,6 +101,7 @@ export function TaskCreateForm({ context, defaults, onDone }: TaskCreateFormProp
       beneficiaryIds: [],
       beneficiaryRelationIds: [],
       slotCondition: null,
+      hours: [],
       location: '',
       locationLat: null,
       locationLon: null,
@@ -276,6 +280,9 @@ export function TaskCreateForm({ context, defaults, onDone }: TaskCreateFormProp
         />
         <InheritedField {...inherited('SLOT_CONDITION')}>
           <SlotConditionBuilder item="task" value={readSlotCondition(form.values.slotCondition)} onChange={(slotCondition) => form.setFieldValue('slotCondition', slotCondition)} />
+        </InheritedField>
+        <InheritedField {...inherited('HOURS')}>
+          <TaskHoursField value={readTaskHours(form.values.hours)} onChange={(hours) => form.setFieldValue('hours', hours)} />
         </InheritedField>
         <FormActions onCancel={onDone} submitLabel="Créer la tâche" loading={createTask.isPending} />
       </Stack>

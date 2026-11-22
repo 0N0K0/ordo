@@ -81,11 +81,12 @@ const SCHEDULE_TIMES: RepetitionTimes<ScheduleTimes> = {
 };
 
 /**
- * Cases of a period (the schedule's, or an exception's): one rule, or several cases each with its period.
+ * Cases of a period (the schedule's, an exception's, or the « Horaires » of a task): one rule, or several cases each
+ * with its period, and their hours.
  * @param {{ cases: ScheduleCase[], onChange: (cases: ScheduleCase[]) => void, start: string }} props Cases, their change, first day of their period.
  * @returns {JSX.Element} Editor.
  */
-function ScheduleCases({ cases, onChange, start }: { cases: ScheduleCase[]; onChange: (cases: ScheduleCase[]) => void; start: string }) {
+export function ScheduleCases({ cases, onChange, start }: { cases: ScheduleCase[]; onChange: (cases: ScheduleCase[]) => void; start: string }) {
   const [mode, setMode] = useState<RepetitionModeValue>(cases.length > 1 || cases.some((item) => item.since || item.until) ? 'CASES' : 'RULE');
   return (
     <RepetitionEditor<ScheduleTimes>

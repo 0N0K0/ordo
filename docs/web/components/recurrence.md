@@ -6,7 +6,7 @@ L'éditeur commun des répétitions (évènements, créneaux, routines, alarmes,
 
 ### `RepetitionField`
 
-Répétition de ce qu'affiche un panneau : son résumé (une ligne par élément décrit ; rien : « Ne se répète pas ») et un bouton « Modifier » (`secondary`, `xs`) qui ouvre tous les réglages dans une modale, sur un brouillon appliqué par « Appliquer » et abandonné par « Annuler ». Le même champ pour les évènements, créneaux, routines, alarmes, trésorerie et facturation. Props : `value`, `onChange`, `describe(value)` (lignes), `editor(draft, setDraft)`, `valid(draft)`, `label` (défaut « Répétition »), `description`, `error`, `required`, `editable` (défaut vrai).
+Répétition de ce qu'affiche un panneau : son résumé (une ligne par élément décrit ; rien : `emptyText`, « Ne se répète pas » par défaut) et un bouton « Modifier » (`secondary`, `xs`) qui ouvre tous les réglages dans une modale, sur un brouillon appliqué par « Appliquer » et abandonné par « Annuler ». Le même champ pour les évènements, créneaux, horaires des tâches (`TaskHoursField`, « N’importe quand » sans horaires), routines, alarmes, trésorerie et facturation. Props : `value`, `onChange`, `describe(value)` (lignes), `editor(draft, setDraft)`, `valid(draft)`, `label` (défaut « Répétition »), `description`, `error`, `required`, `editable` (défaut vrai), `emptyText`.
 
 ### `RepetitionModal`
 

@@ -21,6 +21,7 @@ Voir aussi : [Temps passé](time.md), [Commentaires](../cross-cutting/comments.m
 | `minDate`                                  | « Ouverture » : la tâche n’est pas à faire avant. Sans elle, celle de son parent, sinon celle de son jalon, de son projet ou de son premier sprint (voir [Dates suivies](#dates-suivies)).            |
 | `deadline`                                 | « Échéance » : au-delà, une tâche ouverte est en retard. Sans elle, celle de son parent, sinon celle de son jalon ou de son premier sprint.                                                         |
 | `slotCondition`                            | Condition de créneaux, la même que celle des routines : groupes ET / OU sur des créneaux nommés, des types de créneaux (de cet espace ou d’un autre espace de l’utilisateur), éphémérides et types d’éphémérides compris, et le temps libre (qui ignore les éphémérides) ; `null` = n’importe quand. Validée par `slotConditionSchema` (voir [Agenda](calendar.md)). |
+| `hours`                                    | « Horaires » : jours et heures où la tâche est faisable, des cas de la forme de ceux d’un créneau (voir [Horaires](#horaires)) ; vide = n’importe quand (par défaut). |
 | `location`, `locationLat`, `locationLon`   | Lieu, le champ des évènements et des routines : texte libre facultatif, 250 caractères au plus (`optionalText`, vide → `null`), et son point quand il est choisi sur la carte ou dans une recherche (voir [Lieux](../cross-cutting/geo.md#durées-saisies-sur-un-élément)). Ni trajet, ni heure de départ ou de retour : une tâche n’a pas d’heures. Un point va avec un lieu, ses deux coordonnées ou aucune (`storedLocation`). |
 | `links`                                    | Liens, ceux des évènements : 20 au plus (« 20 liens maximum. »), adresse http ou https (« Lien invalide (http ou https). »), libellé facultatif de 250 caractères (`itemLinksSchema`). Aucun par défaut. |
 | `reminders`                                | Rappels : seulement à une heure (heure de Paris ; « Une tâche n’a que des rappels à une heure précise. ») : « À HH:MM » (`{ at }`) et « N jours avant, à HH:MM » (`{ at, days }`, 1 à 30 jours), 10 au plus (« 10 rappels maximum. », « Heure attendue (HH:MM). », `taskRemindersSchema`), dédoublonnés et triés (`normalizedReminders`) ; « À HH:MM » sonnés chaque jour de l’ouverture à l’échéance (celles qu’elle suit : voir [Dates suivies](#dates-suivies)), le jour de l’échéance seulement sans ouverture ; « N jours avant » une fois, N jours avant l’échéance ; jamais sans échéance, sans limite de 24 heures. Aucun par défaut. Voir [Alarmes](alarms.md#rappels-des-tâches-routines-et-évènements). |
@@ -40,7 +41,7 @@ Champs calculés exposés par GraphQL (`apps/api/src/graphql/modules/tasks.ts`) 
 - `closed` : `closedAt !== null`.
 - `cancelled` : son statut est de catégorie « Annulé » (la tâche est alors fermée et s’affiche barrée).
 - `effectiveMinDate`, `effectiveDeadline` : « Ouverture » et « Échéance » que la tâche suit ; `minDateSource`, `deadlineSource` : d’où elles viennent quand ce ne sont pas les siennes (`PARENT`, `MILESTONE`, `PROJECT`, `SPRINT`), voir [Dates suivies](#dates-suivies).
-- `inheritedFields`, `effective` (valeurs suivies : projet, priorité, jalon, assignés, bénéficiaires, condition, lieu, dates) et `inheritance` (état et source de chaque champ hérité), voir [Héritage](#héritage).
+- `inheritedFields`, `effective` (valeurs suivies : projet, priorité, jalon, assignés, bénéficiaires, condition, horaires, lieu, dates) et `inheritance` (état et source de chaque champ hérité), voir [Héritage](#héritage).
 - `githubLinked` : la tâche a un `githubItemId`.
 - `blockingIds` (tâches qu’elle bloque), `blockedByIds` (tâches qui la bloquent), `relatedIds` (relations dans les deux sens).
 - `commentCount` : nombre de commentaires de la tâche.
@@ -68,7 +69,7 @@ Source : `updateTask`.
 
 - Une tâche archivée n’est pas modifiable (« Élément archivé : restaurez-le pour le modifier. ») : la restaurer d’abord.
 - Champ omis = inchangé, `null` = vidé.
-- Un lieu donné remplace aussi son point (`null` : aucun) ; `links: null` retire tous les liens ; `reminders: null` retire tous les rappels ; `deadTimes: null` retire tous les temps morts.
+- Un lieu donné remplace aussi son point (`null` : aucun) ; `hours: null` (ou une liste vide) retire les horaires ; `links: null` retire tous les liens ; `reminders: null` retire tous les rappels ; `deadTimes: null` retire tous les temps morts.
 - Les valeurs archivées que la tâche a **déjà** restent valides ; seules les valeurs archivées **nouvellement** données sont refusées.
 - La période de dates reste valide en tenant compte des dates actuelles (`assertDateRange`) : « La fin doit suivre le début. » sous `endDate`.
 - L’« Échéance » ne précède pas l’« Ouverture » : « La fin doit suivre le début. » sous `deadline`, refusé par le formulaire (`taskFormSchema`) et par l’API (`assertDateRange` sur les valeurs propres, voir [Dates et retard](#dates-et-retard)).
@@ -203,7 +204,7 @@ Source : `assertProjectContributors` (`services/projects/contributors.ts`), `ass
 
 Source : `effectiveTask` (`packages/shared/src/tasks/task-inheritance.ts`, sur `resolveInheritance` de `core/inheritance.ts`), `services/tasks/task-inheritance.ts`, colonne `Task.inheritedFields`. Les routines suivent la même règle ([Routines](routines.md#héritage)).
 
-- **Champs hérités** d’une sous-tâche : projet (`PROJECT`), assignés (`ASSIGNEES`), bénéficiaires, contributeurs et relations ensemble (`BENEFICIARIES`), condition de créneaux (`SLOT_CONDITION`), « Ouverture » (`MIN_DATE`), « Échéance » (`DEADLINE`), lieu avec son point (`LOCATION`), priorité (`PRIORITY`), jalon (`MILESTONE`). Le reste (statut, type, étiquettes, sprints, effort, rappels…) n’est jamais hérité.
+- **Champs hérités** d’une sous-tâche : projet (`PROJECT`), assignés (`ASSIGNEES`), bénéficiaires, contributeurs et relations ensemble (`BENEFICIARIES`), condition de créneaux (`SLOT_CONDITION`), horaires (`HOURS`), « Ouverture » (`MIN_DATE`), « Échéance » (`DEADLINE`), lieu avec son point (`LOCATION`), priorité (`PRIORITY`), jalon (`MILESTONE`). Le reste (statut, type, étiquettes, sprints, effort, rappels…) n’est jamais hérité.
 - **Trois états par champ** : hérité (la valeur suivie est celle du parent, en direct, en remontant la chaîne des parents ; une boucle s’arrête au dernier élément vu) ; valeur propre ; vidé exprès (« aucun », même si le parent en a un ; une date vidée exprès se comporte comme celle d’une tâche du premier niveau : sans celle du parent, avec le repli jalon / projet / sprint, voir [Dates suivies](#dates-suivies)). Un champ est hérité quand il est dans `inheritedFields` ; sinon c’est la valeur de la tâche (vide : vidé exprès).
 - **Seule une sous-tâche hérite** : une tâche du premier niveau n’a que ses valeurs (vide = vide) ; sa liste est toujours vide.
 - **Vivant** : changer le parent, ou une valeur du parent, change aussitôt ce que suit l’enfant ; rien n’est recopié, sauf le projet (ci-dessous). Ranger la tâche sous un autre parent ne demande rien : elle suit le nouveau.
@@ -222,7 +223,7 @@ Source : `effectiveTask` (`packages/shared/src/tasks/task-inheritance.ts`, sur `
   - Nouvelle sous-tâche : le formulaire montre les valeurs du parent grisées et envoie la liste des champs encore hérités (`inheritedFields`) ; choisir un autre parent reprend les siennes.
   - Filtres, tris, groupes et export lisent la valeur suivie (`taskRow`).
 - **Validation** sur les valeurs suivies : arborescence de projets du parent, jalon et sprints de l’arborescence du projet suivi, assignés propres parmi les contributeurs du projet suivi.
-- **Lu partout où le champ compte** : « faisable maintenant » (ouverture, condition, assignés), rappels et notifications hors de l’app (dates), liens avec un évènement (assignés en commun), transformation en routine, dates suivies. La copie (« Dupliquer ») garde la liste : la copie hérite comme sa source.
+- **Lu partout où le champ compte** : « faisable maintenant » (ouverture, condition, horaires, assignés), avertissement d’un chrono hors des moments prévus (condition, horaires, assignés), rappels et notifications hors de l’app (dates), liens avec un évènement (assignés en commun), transformation en routine, dates suivies. La copie (« Dupliquer ») garde la liste : la copie hérite comme sa source.
 
 ## Effort
 
@@ -249,11 +250,23 @@ Source : `effectiveTask` (`packages/shared/src/tasks/task-inheritance.ts`), lu p
 - Les champs `minDate` / `deadline` restent ceux de la tâche (modification, copie) ; GitHub reçoit l’« Échéance » suivie seulement quand elle a été saisie sur une tâche, la sienne ou celle d’un parent dont elle hérite (pas celle d’un jalon, d’un projet ou d’un sprint, même par un parent).
 - Un jalon est « en retard » quand son échéance est passée et qu’il reste des tâches non fermées ; un sprint quand sa fin est passée avec des tâches non fermées (calculs web, voir [Fonctionnalités](../../features/activities/tasks.md)).
 
+## Horaires
+
+Source : `taskHoursSchema`, `readTaskHours`, `anchoredTaskHours` (`packages/shared/src/tasks/task-hours.ts`), colonne `Task.hours`.
+
+- Une tâche n’a pas d’heures, mais ses « Horaires » limitent **quand** elle est faisable (un cabinet médical joignable du lundi au vendredi, 9:00–12:00 et 14:00–17:00) : des cas de jours (chaque semaine certains jours, chaque jour, tous les n jours, un jour du mois…) et d’heures (tranches ou « Journée entière »), saisis comme les horaires d’un créneau, avec le même éditeur. Aucun : n’importe quand.
+- Validation, la même que les cas d’un créneau (`scheduleCasesSchema`) : 20 cas au plus (« 20 cas au plus. »), 12 tranches au plus par cas (« 12 tranches au plus. »), des tranches ou « Journée entière » (« Ajoutez des horaires, ou « Journée entière ». »), une fin strictement après le début (« La fin doit suivre le début. »), sans chevauchement (« Des horaires se chevauchent. »), au moins un jour pour un cas « chaque semaine » (« Choisissez au moins un jour. »).
+- Le rythme d’un cas (« toutes les 2 semaines », « tous les 3 jours ») compte depuis le jour où il est saisi (heure de Paris), sauf s’il a sa propre période (`anchoredTaskHours`).
+- Avec une condition de créneaux aussi, la tâche n’est faisable que quand **les deux** le permettent (`conditionAllowsAt`, voir [Agenda](calendar.md#condition-de-créneaux-des-tâches-et-routines)).
+- Comptés partout où « faisable » compte, par le même calcul dans l’API et l’app : « faisable maintenant » (filtre, colonne, carte de l’accueil) et l’avertissement d’un chrono lancé hors des moments prévus (« hors de ses horaires »). Les rappels d’une tâche ne dépendent pas de ce qui est faisable (ils suivent ses dates) : les horaires n’y changent rien.
+- Rien dans l’agenda : les horaires d’une tâche ne sont ni des créneaux, ni du temps planifié.
+- Héritée par une sous-tâche comme la condition de créneaux (voir [Héritage](#héritage)) ; copiés par la duplication ; perdus en devenant une routine (voir [Transformer en routine](#transformer-en-routine)) ; pas envoyés à GitHub.
+
 ## Tâches faisables maintenant
 
 Source : requête `doableTaskIds(utcOffset)` (`services/calendar/slot-conditions.ts`).
 
-Tâches ouvertes de l’espace dont l’« Ouverture » suivie (`effectiveTask`, voir [Dates suivies](#dates-suivies)) n’est pas après le jour de l’utilisateur (avant elle, la tâche n’est pas à faire), dont la condition de créneaux (la sienne ou héritée ; aucune : n’importe quand, dans les deux types d’espace) autorise le moment présent de l’utilisateur, et dont aucun évènement n’occupe les assignés (les siens ou hérités ; aucun : « Moi »), sauf un évènement lié à la tâche. Détail dans [Agenda](calendar.md).
+Tâches ouvertes de l’espace dont l’« Ouverture » suivie (`effectiveTask`, voir [Dates suivies](#dates-suivies)) n’est pas après le jour de l’utilisateur (avant elle, la tâche n’est pas à faire), dont la condition de créneaux et les horaires (les siens ou hérités ; aucun : n’importe quand, dans les deux types d’espace) autorisent tous deux le moment présent de l’utilisateur, et dont aucun évènement n’occupe les assignés (les siens ou hérités ; aucun : « Moi »), sauf un évènement lié à la tâche. Détail dans [Agenda](calendar.md).
 
 ## Pas de récurrence
 
@@ -307,7 +320,7 @@ Source : `releaseProjectTasks` (par `releaseProjects`), appelé par `deleteProje
 
 Source : `duplicateTask` (« Dupliquer » : la copie est enregistrée tout de suite, puis son panneau s’ouvre).
 
-- Copie tous les champs (libellé, description, projet, statut, priorité, type, effort, dates, « Ouverture » / « Échéance », rappels, temps morts, condition de créneaux, lieu et son point, liens, parent, jalon, sprints), les assignés, bénéficiaires, étiquettes, minuteurs enregistrés et les liens de blocage et de relation de sa propre arborescence de projets (un ancien lien hors d’elle, gardé tant que la tâche ne change pas d’arborescence, n’est pas copié). **Pas** les commentaires, ni l’état fermé, ni le lien GitHub.
+- Copie tous les champs (libellé, description, projet, statut, priorité, type, effort, dates, « Ouverture » / « Échéance », rappels, temps morts, condition de créneaux, horaires, lieu et son point, liens, parent, jalon, sprints), les assignés, bénéficiaires, étiquettes, minuteurs enregistrés et les liens de blocage et de relation de sa propre arborescence de projets (un ancien lien hors d’elle, gardé tant que la tâche ne change pas d’arborescence, n’est pas copié). **Pas** les commentaires, ni l’état fermé, ni le lien GitHub.
 - Une copie dont le statut est « Annulé » est fermée, comme toute tâche qui reçoit ce statut.
 - La copie s’appelle « … (copie) » (`copyName`, 250 caractères au plus) ; elle est placée sous le même parent, à la fin de l’ordre manuel ; elle reçoit un nouveau numéro (base).
 - Avec `includeSubtasks`, le sous-arbre est copié niveau par niveau sous la copie (les sous-tâches copiées gardent leur libellé, assignés, bénéficiaires, étiquettes et sprints, pas leurs liens de blocage ou de relation).
@@ -325,7 +338,7 @@ Source : `convertTaskToRoutine(id, confirm)` (`services/routines/conversion.ts`,
 - Dates : l’« Échéance » suivie (voir [Dates suivies](#dates-suivies)) devient la première fois de la routine (sans échéance : l’« Ouverture » suivie, sinon aujourd’hui, heure de Paris) ; une « Ouverture » avant l’échéance devient l’« Ouverture » de la routine, « N jours avant » (366 au plus). La routine se répète chaque jour (`DAILY_RECURRENCE`), sans moment ; la répétition se choisit ensuite dans son panneau.
 - Repris par la routine : ses temps passés (le temps porte sur la routine au lieu de la tâche), ses fiches (`SheetLink`), sa liste à cocher et ses commentaires, placés sur la première occurrence programmée (la condition de créneaux peut la décaler ; dates et textes des commentaires gardés, leur lien GitHub non) ; un évènement non récurrent lié à la tâche est lié à la routine le jour du début de l’évènement.
 - Tâche fermée (`closedAt`, annulée comprise) : la première occurrence est cochée, chacun de ses moments (`RoutineCheck`, fait à la date de fermeture), pour qu’elle ne soit pas en retard. Une première occurrence à venir n’est pas cochée (une occurrence à venir ne se coche pas) ; une tâche ouverte ne coche rien.
-- Perdus (comptés dans `lost`) : numéro (`number`), statut, priorité, type, étiquettes, jalon, sprints, item GitHub (retiré du tableau GitHub, en tâche de fond, comme à la suppression), effort, dates de début et de fin, liens « bloque » et « relative à » (`taskLinks`), listes d’achats liées, lien de ses alarmes (gardées, sans tâche : `alarms`), liens avec des évènements récurrents (`events`), une autre liste à cocher que la première (`checklists`), la tâche parente (`parent` : la routine est au premier niveau). Son historique de statuts part avec elle. Les liens « #12 » ou `?task=` écrits vers elle dans les textes ne mènent plus nulle part, comme après une suppression.
+- Perdus (comptés dans `lost`) : numéro (`number`), statut, priorité, type, étiquettes, jalon, sprints, item GitHub (retiré du tableau GitHub, en tâche de fond, comme à la suppression), effort, dates de début et de fin, liens « bloque » et « relative à » (`taskLinks`), listes d’achats liées, lien de ses alarmes (gardées, sans tâche : `alarms`), liens avec des évènements récurrents (`events`), ses horaires (`hours` : une routine n’en a pas, ses moments et sa condition de créneaux disent quand elle se fait ; aucune correspondance sûre), une autre liste à cocher que la première (`checklists`), la tâche parente (`parent` : la routine est au premier niveau). Son historique de statuts part avec elle. Les liens « #12 » ou `?task=` écrits vers elle dans les textes ne mènent plus nulle part, comme après une suppression.
 
 ## Modification en masse
 
