@@ -12,6 +12,7 @@ import {
   sameName,
   statusClosing,
   sumOf,
+  taskFieldOrigin,
   type EffectiveTask,
   type TaskInheritableField,
   type TaskInheritanceContext,
@@ -183,16 +184,18 @@ const usable = (fieldId: string | null, maps: Maps, type: RemoteItem['type']): f
 type InheritedValues = Pick<EffectiveTask, 'priorityId' | 'milestoneId' | 'deadline' | 'assigneeIds'>;
 
 /**
- * Values a task goes by for the synchronized fields it may inherit: from its parent, its « Échéance » also from its
- * milestone or sprint (`effectiveTask`), not only its own.
+ * Values a task goes by for the synchronized fields it may inherit: its own, or its parent's while it inherits them
+ * (`effectiveTask`). Its « Échéance » only when it is its own or its parent's: the one it takes from its milestone, its
+ * project or its sprint is not sent (GitHub knows the date of the milestone).
  * @param {SyncedTask} task Task.
  * @param {Maps} maps Correspondences (inheritance).
  * @returns {InheritedValues} Values.
  */
 function inheritedValues(task: SyncedTask, maps: Maps): InheritedValues {
-  return (
-    effectiveTaskOf(maps.inheritance, task.id) ?? { priorityId: task.priorityId, milestoneId: task.milestoneId, deadline: formatOptionalDay(task.deadline), assigneeIds: task.assignees.map((assignee) => assignee.id) }
-  );
+  const effective = effectiveTaskOf(maps.inheritance, task.id);
+  if (!effective) return { priorityId: task.priorityId, milestoneId: task.milestoneId, deadline: formatOptionalDay(task.deadline), assigneeIds: task.assignees.map((assignee) => assignee.id) };
+  const { source } = taskFieldOrigin(effective, 'DEADLINE');
+  return { ...effective, deadline: source === 'OWN' || source === 'PARENT' ? effective.deadline : null };
 }
 
 /**

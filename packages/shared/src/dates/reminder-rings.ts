@@ -3,6 +3,7 @@ import { scheduleRuns, type WorkScheduleRule } from '../calendar/work-schedules'
 import { occurrenceKey, readOccurrenceKey } from '../calendar/calendar';
 import { APP_PATHS, projectPath, taskPath } from '../core/app-paths';
 import { parseTaggedKey, taggedKey } from '../core/tagged-key';
+import { subtreeOf, type TreeItem } from '../core/tree';
 import { routineSlotSpan, windowText } from '../routines/routines';
 import { taskNumbered } from '../tasks/tasks';
 import { entrySeconds, previousOccurrence, type AlarmType } from '../tasks/time';
@@ -397,14 +398,16 @@ export function trackingStep(minutes: number | null, entry: Parameters<typeof en
 
 /**
  * Whether a running timer counts for an alarm on its duration: an alarm of a task counts the timers on that task, an
- * alarm of a project (without task) those of that project, an alarm of neither every timer.
+ * alarm of a project (without task) those of that project and of its sub-projects at any depth, an alarm of neither
+ * every timer.
  * @param {{ taskId: string | null, projectId: string | null }} alarm Alarm.
  * @param {{ projectId: string | null, taskIds: readonly string[] }} timer Running timer.
+ * @param {readonly TreeItem[]} projects Every project of the workspace (id and parent).
  * @returns {boolean} Counted.
  */
-export function timerCountsForAlarm(alarm: { taskId: string | null; projectId: string | null }, timer: { projectId: string | null; taskIds: readonly string[] }): boolean {
+export function timerCountsForAlarm(alarm: { taskId: string | null; projectId: string | null }, timer: { projectId: string | null; taskIds: readonly string[] }, projects: readonly TreeItem[]): boolean {
   if (alarm.taskId) return timer.taskIds.includes(alarm.taskId);
-  if (alarm.projectId) return timer.projectId === alarm.projectId;
+  if (alarm.projectId) return timer.projectId !== null && subtreeOf(projects, alarm.projectId).has(timer.projectId);
   return true;
 }
 

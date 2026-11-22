@@ -30,6 +30,7 @@ const ElsewhereAlarmsDocument = graphql(`
     projects {
       id
       label
+      parentId
     }
     runningTimeEntries {
       id
@@ -141,6 +142,7 @@ function ElsewhereWorkspace({ workspace }: { workspace: Workspace }) {
     let running: ElsewhereAlarmsQuery['runningTimeEntries'] = [];
     // Labels of the projects: a task number is only unique in its project.
     let projectLabels = new Map<string, string>();
+    let projects: ElsewhereAlarmsQuery['projects'] = [];
     let upcoming: EventOccurrence[] = [];
     let reminded: ElsewhereRemindersQuery = { tasks: [], routines: [], workSchedules: [], birthdays: [] };
     const trackingSteps = new Map<string, number>();
@@ -204,6 +206,7 @@ function ElsewhereWorkspace({ workspace }: { workspace: Workspace }) {
       executeIn(id, ElsewhereAlarmsDocument)
         .then((data) => {
           alarms = data.alarms;
+          projects = data.projects;
           projectLabels = new Map(data.projects.map((project) => [project.id, project.label]));
           running = data.runningTimeEntries;
         })
@@ -231,7 +234,7 @@ function ElsewhereWorkspace({ workspace }: { workspace: Workspace }) {
         ringBirthdayReminders(reminded.birthdays, now, () => calendarLinks, space);
         ringTaskReminders(reminded.tasks, now, taskLinks, space);
         ringRoutineReminders(reminded.routines, now, [link(routinesRingPage(label))], undefined, undefined, space);
-        for (const { alarm, key } of dueAlarms(alarms, running, now, trackingSteps, markFired)) ringAlarm(alarm, key, alarmLinks(alarm), space);
+        for (const { alarm, key } of dueAlarms(alarms, running, projects, now, trackingSteps, markFired)) ringAlarm(alarm, key, alarmLinks(alarm), space);
       }, TICK_MS),
     );
     return () => timers.forEach((timer) => window.clearInterval(timer));

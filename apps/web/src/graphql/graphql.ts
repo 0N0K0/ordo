@@ -4973,7 +4973,7 @@ export type DeleteWorkspaceMutation = { deleteWorkspace: boolean };
 export type ElsewhereAlarmsQueryVariables = Exact<{ [key: string]: never; }>;
 
 
-export type ElsewhereAlarmsQuery = { alarms: Array<{ id: string, label: string, note: string | null, type: AlarmType, startDate: string | null, time: string | null, frequency: AlarmFrequency, interval: number, weekdays: Array<number>, endDate: string | null, recurrence: unknown, minutes: number | null, projectId: string | null, taskId: string | null, enabled: boolean, lastFiredAt: string | null, createdAt: string, task: { id: string, number: number | null, label: string, projectId: string | null } | null, project: { id: string, label: string } | null }>, projects: Array<{ id: string, label: string }>, runningTimeEntries: Array<{ id: string, projectId: string | null, taskIds: Array<string>, startedAt: string, endedAt: string | null, pausedAt: string | null, pausedSeconds: number, duration: number | null }> };
+export type ElsewhereAlarmsQuery = { alarms: Array<{ id: string, label: string, note: string | null, type: AlarmType, startDate: string | null, time: string | null, frequency: AlarmFrequency, interval: number, weekdays: Array<number>, endDate: string | null, recurrence: unknown, minutes: number | null, projectId: string | null, taskId: string | null, enabled: boolean, lastFiredAt: string | null, createdAt: string, task: { id: string, number: number | null, label: string, projectId: string | null } | null, project: { id: string, label: string } | null }>, projects: Array<{ id: string, label: string, parentId: string | null }>, runningTimeEntries: Array<{ id: string, projectId: string | null, taskIds: Array<string>, startedAt: string, endedAt: string | null, pausedAt: string | null, pausedSeconds: number, duration: number | null }> };
 
 export type ElsewhereRemindersQueryVariables = Exact<{ [key: string]: never; }>;
 
@@ -11135,6 +11135,7 @@ export const ElsewhereAlarmsDocument = new TypedDocumentString(`
   projects {
     id
     label
+    parentId
   }
   runningTimeEntries {
     id
