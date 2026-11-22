@@ -32,7 +32,7 @@ Utilisés par `WorkCards`, `LifeCards`, `FinanceCards`, `MailCard`. `Home.module
 
 ### `components/WorkCards.tsx`
 
-- `TasksCard({ context, todayTasks, today })` : « Tâches » : vue par défaut de la page des tâches (`useDefaultTableView('tasks')`), ses lignes par le moteur des tableaux (`useTaskColumns` — tâches faisables demandées si le filtre les cite, `filterUses` —, `taskTableRows`, `useViewRows` sans les archivées `isArchivedTaskRow`, `viewList` pour les groupes), lien `viewPath` ; sans vue, « Mes tâches du jour » (`todayTasks`, de `useMyTodayTasks`) ; note `viewNote` ; lien de tâche `useTaskLink` (panneau), sous-titre projet et `taskNumber`, `LateBadge` ou statut.
+- `TasksCard({ context, todayTasks, today })` : « Tâches » : vue par défaut de la page des tâches (`useDefaultTableView('tasks')`), ses lignes par le moteur des tableaux (`useTaskColumns` — tâches faisables demandées si la vue s’en sert, `viewUses` —, `taskTableRows`, `useViewRows` sans les archivées `isArchivedTaskRow`, `viewList` pour les groupes), lien `viewPath` ; sans vue, « Mes tâches du jour » (`todayTasks`, de `useMyTodayTasks`) ; note `viewNote` ; lien de tâche `useTaskLink` (panneau), sous-titre projet et `taskNumber`, `LateBadge` ou statut.
 - `AgendaCard({ today })` : « Agenda » des 7 jours d’aujourd’hui à J+6 : `useHeldEvents(today, today + 6)` + `nextRings(useAlarms)` avant J+7, triés par jour puis heure, groupés par jour (`dayLabel`) ; un évènement commencé avant aujourd’hui va sous aujourd’hui, sans heure. Interne : `AgendaItem`.
 - `TimeCard({ context, time })` : « Temps passé » ; 4 premiers projets avec `Progress`. Interne : `ProjectName({ context, projectId })` (libellé et parent en gris).
 

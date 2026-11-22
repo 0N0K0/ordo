@@ -167,7 +167,7 @@ export function AlarmCenter() {
         return target ? [link({ label: target.label, path: target.to })] : [];
       });
       if (!list) return;
-      const due = dueAlarms(list, entry, now, trackingSteps.current, (alarm, at) => mark.mutate({ id: alarm.id, at: at.toISOString() }));
+      const due = dueAlarms(list, entry, latest.current.workspace?.projects ?? [], now, trackingSteps.current, (alarm, at) => mark.mutate({ id: alarm.id, at: at.toISOString() }));
       for (const { alarm, key } of due) ringAlarm(alarm, key, alarmLinks(alarm));
     };
 

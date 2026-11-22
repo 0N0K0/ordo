@@ -1,6 +1,7 @@
 import type { Request, RequestHandler, Response } from 'express';
 import { GraphQLError } from 'graphql';
 import { getSession } from '../auth/session';
+import { sharedRefusal } from '../graphql/errors';
 
 /**
  * Checks the request has a session, answering 401 when it has none.
@@ -113,7 +114,8 @@ const STATUS_OF: Record<string, number> = {
  * @param {string} context What failed, for the log.
  * @returns {void}
  */
-export function sendServiceError(res: Response, error: unknown, context: string): void {
+export function sendServiceError(res: Response, caught: unknown, context: string): void {
+  const error = sharedRefusal(caught);
   const status = error instanceof GraphQLError ? STATUS_OF[String(error.extensions.code)] : undefined;
   if (error instanceof GraphQLError && status) {
     res.status(status);

@@ -1,12 +1,13 @@
 import express from 'express';
 import { createFetch } from '@whatwg-node/fetch';
 import compression from 'compression';
-import { NoSchemaIntrospectionCustomRule } from 'graphql';
-import { createYoga, type Plugin } from 'graphql-yoga';
+import { GraphQLError, NoSchemaIntrospectionCustomRule } from 'graphql';
+import { createYoga, maskError, type Plugin } from 'graphql-yoga';
 import helmet from 'helmet';
 import { fileURLToPath } from 'node:url';
 import { env, isProd } from './env';
 import { createContext, type ServerContext } from './graphql/context';
+import { sharedRefusal } from './graphql/errors';
 import { writeSchemaFile } from './graphql/print-schema';
 import { schema } from './graphql/schema';
 import { accountingRouter } from './routes/accounting';
@@ -73,7 +74,14 @@ const yoga = createYoga<ServerContext>({
   // The web app and the API share one origin: no other site may read the answers.
   cors: false,
   // Whatever the host says of NODE_ENV: the detail of an unexpected error only goes to the client in development.
-  maskedErrors: { isDev: !isProd },
+  // A refusal of a shared computation (`UserError`) is a client error, shown as it is.
+  maskedErrors: {
+    isDev: !isProd,
+    maskError: (error, message, isDev) => {
+      const refusal = sharedRefusal(error);
+      return refusal instanceof GraphQLError && refusal !== error ? refusal : maskError(error, message, isDev);
+    },
+  },
   context: createContext,
   plugins: isProd ? [disableIntrospection] : [],
 });

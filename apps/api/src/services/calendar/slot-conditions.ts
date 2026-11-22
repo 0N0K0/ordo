@@ -2,6 +2,7 @@ import {
   addDays,
   BIRTHDAY_SLOT_KIND,
   birthdaySlotPerson,
+  personBirthdayId,
   blockingEvent,
   conditionAllowsAt,
   conditionCitesBirthdays,
@@ -19,7 +20,7 @@ import {
 } from '@ordo/shared';
 import { prisma, unscopedPrisma } from '../../db';
 import { archivedError } from '../core/archive';
-import { notFound } from '../../graphql/errors';
+import { fieldError, notFound } from '../../graphql/errors';
 import { currentWorkspaceId } from '../../workspace-context';
 import { birthdays, peopleChanges, personChange, type PeopleChange } from './birthdays';
 import { eventOccurrences } from './calendar-events';
@@ -28,6 +29,9 @@ import { effectiveTaskOf, loadTaskInheritance } from '../tasks/task-inheritance'
 
 /** Field of the input the errors of a slot condition show under. */
 const FIELD = 'slotCondition';
+
+/** A person newly cited by a slot condition who has no birthday (no birth date, or a contributor linked to a contact or to nothing). */
+const NO_BIRTHDAY = 'Cette personne n’a pas d’anniversaire (aucune date de naissance) : elle ne peut pas être citée.';
 
 /**
  * Whether some conditions name a schedule or a kind of another workspace of the user.
@@ -150,18 +154,20 @@ export async function assertConditionSchedules(conditions: readonly (SlotConditi
   if (found.length !== new Set(types.map(({ typeId }) => typeId)).size) throw notFound('Type de créneau', FIELD);
   // Archived ones are no longer chosen; those already there stay.
   const archivedKinds = new Set(found.filter((type) => type.archivedAt).map((type) => type.id));
-  const archived = [...schedules.filter((schedule) => schedule.archivedAt).map((schedule) => schedule.id), ...people, ...types.filter(({ typeId }) => archivedKinds.has(typeId)).map(({ kind }) => kind)];
+  const archived = [...schedules.filter((schedule) => schedule.archivedAt).map((schedule) => schedule.id), ...people.archived, ...types.filter(({ typeId }) => archivedKinds.has(typeId)).map(({ kind }) => kind)];
   if (archived.some((id) => !keep.has(id))) throw archivedError(FIELD);
+  // A person without birthday is no longer chosen; one already there stays (its birthday gives no moment).
+  if (people.withoutBirthday.some((id) => !keep.has(id))) throw fieldError(FIELD, NO_BIRTHDAY);
 }
 
 /**
  * People whose birthday some schedules of a condition name (`birthdaySlotId`): they must be contributors or relations
- * of this workspace (« Contributeur » / « Relation » introuvable). A person without birth date is accepted (its birthday
- * allows no moment, as a kind without schedule).
+ * of this workspace (« Contributeur » / « Relation » introuvable).
  * @param {readonly string[]} ids Schedule ids and references to birthdays named.
- * @returns {Promise<string[]>} References to the birthdays of archived people.
+ * @returns {Promise<{ archived: string[], withoutBirthday: string[] }>} References to the birthdays of archived people,
+ * and of the people (not archived) without a birthday: no birth date, or a contributor linked to a contact or to nothing.
  */
-async function birthdayPeople(ids: readonly string[]): Promise<string[]> {
+async function birthdayPeople(ids: readonly string[]): Promise<{ archived: string[]; withoutBirthday: string[] }> {
   const named = ids.flatMap((id) => {
     const person = birthdaySlotPerson(id);
     return person ? [{ ...person, ref: id }] : [];
@@ -175,7 +181,12 @@ async function birthdayPeople(ids: readonly string[]): Promise<string[]> {
   if (contributors.length !== of('contributor').length) throw notFound('Contributeur', FIELD);
   if (relations.length !== of('relation').length) throw notFound('Relation', FIELD);
   const archived = new Set([...contributors, ...relations].filter((person) => person.archivedAt).map((person) => person.id));
-  return named.filter((item) => archived.has(item.id)).map((item) => item.ref);
+  const active = named.filter((item) => !archived.has(item.id));
+  const known = active.length ? new Set((await birthdays()).flatMap((birthday) => [birthday.id, ...birthday.aliases])) : new Set<string>();
+  return {
+    archived: named.filter((item) => archived.has(item.id)).map((item) => item.ref),
+    withoutBirthday: active.filter((item) => !known.has(personBirthdayId(item.person, item.id))).map((item) => item.ref),
+  };
 }
 
 /**

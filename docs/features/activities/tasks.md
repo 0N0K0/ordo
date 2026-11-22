@@ -34,7 +34,7 @@ Le même tableau (`TaskBoard`) sert à la page et à l’onglet d’un projet. C
 ### Barre
 
 - Recherche : « Rechercher (libellé, numéro, description) ».
-- Bouton « Nouvelle tâche » (visible s’il existe au moins un projet non archivé).
+- Bouton « Nouvelle tâche » (toujours visible : une tâche peut n’appartenir à aucun projet).
 - Sans tri, l’ordre est l’ordre manuel : « Sans tri : l’ordre choisi à la main (glissez les tâches), sous-tâches sous leur parent. ».
 - Options d’affichage :
   - interrupteur « Afficher les évènements » : liste aussi les évènements de l’agenda d’une période ;
@@ -80,7 +80,7 @@ Chaque colonne filtrable a son filtre (voir [Filtres](../../web/components/filte
 - « Assignés » : « Moi » en plus des contributeurs.
 - « Sprint » : sprints relatifs « Sprint en cours », « Sprint précédent », « Sprint suivant », « Sprints passés », « Sprints à venir » (par arborescence de projets).
 - « Tâche parente » : une tâche garde ses sous-tâches à tous les niveaux.
-- « Faisable maintenant » : tâches ouvertes dont l’« Ouverture » (la leur, sinon celle de leur parent, de leur jalon, de leur projet ou de leur premier sprint) est passée ou aujourd’hui, que leur condition de créneaux autorise maintenant (sans condition : toujours, dans les deux types d’espace) et dont les assignés ne sont pas pris par un évènement (rafraîchi chaque minute, chargé seulement si le filtre l’utilise).
+- « Faisable maintenant » : tâches ouvertes dont l’« Ouverture » (la leur, sinon celle de leur parent, de leur jalon, de leur projet ou de leur premier sprint) est passée ou aujourd’hui, que leur condition de créneaux autorise maintenant (sans condition : toujours, dans les deux types d’espace) et dont les assignés ne sont pas pris par un évènement (rafraîchi chaque minute, calculé seulement quand la vue s’en sert : son filtre, son tri, son regroupement ou la colonne « Faisable maintenant » affichée).
 - « Catégorie de statut » : « À faire », « En cours », « Terminé », « Annulé ».
 - Les valeurs archivées gardent leur libellé et ne sont proposées que si elles sont déjà dans le filtre.
 
@@ -105,7 +105,7 @@ Grouper par : état, projet (en arbre), statut, priorité, type, assignés, bén
 
 - Ligne « Ajouter une tâche » en bas du tableau et de chaque groupe : taper un libellé puis Entrée. La tâche prend les valeurs du groupe (statut, priorité, type, assigné, étiquette, jalon, sprint, parent, projet, bénéficiaire ; groupe « fermée » : créée fermée ; pas de valeur pour un groupe « aucun » ni pour une valeur archivée) et le premier statut « À faire ».
 - Sans projet à qui la rattacher (page « Tâches » hors groupe de projet), la ligne ouvre le formulaire.
-- Message vide : « Aucune tâche. » (page) / « Aucune tâche dans ce projet. » ; sans projet actif : « Créez d’abord un projet : chaque tâche appartient à un projet. ».
+- Message vide : « Aucune tâche. » (page) / « Aucune tâche dans ce projet. » ; « Nouvelle tâche » reste en haut à droite et la ligne « Ajouter une tâche » en bas, avec ou sans projet dans l’espace (une tâche peut n’appartenir à aucun projet).
 
 ### Menu d’une ligne
 

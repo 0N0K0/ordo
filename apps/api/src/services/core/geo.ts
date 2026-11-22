@@ -3,10 +3,11 @@ import { env } from '../../env';
 import { treeListService } from './trees';
 import { prisma } from '../../db';
 import { type Place } from '../../generated/prisma/client';
-import { clientError, fieldError, orNotFound, parseInput, rethrowUnique } from '../../graphql/errors';
+import { clientError, orNotFound, parseInput, rethrowUnique } from '../../graphql/errors';
 import { deleteOrNotFound } from './lookup';
 import { BY_POSITION } from './ordering';
 import { refuseArchived } from './archive';
+import { assertLabelFree } from './labels';
 
 /** Address found by a search: the address in words, the label of the place and its point (as a `Place`). */
 export interface AddressSuggestion {
@@ -199,9 +200,7 @@ const placeTree = treeListService<Place, ReturnType<typeof placeSchema.parse>>(
       // A zone has no address of its own.
       if (data.parentId) Object.assign(data, { address: '', lat: null, lon: null });
       // A label is unique among the places at the top (the database checks the zones).
-      if (!data.parentId && (await prisma.place.count({ where: { parentId: null, label: data.label, ...(current && { id: { not: current.id } }) } }))) {
-        throw fieldError('label', PLACE_TAKEN);
-      }
+      if (!data.parentId) await assertLabelFree('place', data.label, { message: PLACE_TAKEN, exceptId: current?.id, where: { parentId: null } });
       return data;
     },
     moveInput: (current, parentId) => ({ label: current.label, address: current.address, lat: current.lat, lon: current.lon, parentId }),

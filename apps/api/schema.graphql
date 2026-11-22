@@ -414,6 +414,17 @@ input BirthdayLookInput {
   shown: Boolean!
 }
 
+"""
+A contributor or a relation of the workspace (archived ones too) as a slot condition names its birthday, with or without one.
+"""
+type BirthdayPersonName {
+  archived: Boolean!
+
+  """`contributor:<id>` or `relation:<id>`."""
+  id: ID!
+  name: String!
+}
+
 """Omitted fields are left unchanged; null clears a field."""
 input BulkTaskInput {
   addAssigneeIds: [ID!]
@@ -3084,6 +3095,11 @@ type Query {
   Birthdays of the people of this workspace in its calendar: shown or not, color and display.
   """
   birthdayLook: BirthdayLook!
+
+  """
+  Every contributor and relation of the workspace, archived ones too: the names of the people a slot condition cites, even those without a birthday.
+  """
+  birthdayPersonNames: [BirthdayPersonName!]!
 
   """
   Birthdays of the people of the workspace (contributors and relations with a birth date, not archived unless asked), by name.

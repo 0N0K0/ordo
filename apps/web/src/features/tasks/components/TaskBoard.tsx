@@ -1,6 +1,5 @@
 import { useSearchParam } from '../../../lib/search-params';
 import { readOnlyCells } from '../../../components/data-table/table/data-table';
-import { unarchived } from '../../../lib/archive';
 import { ErrorAlert } from '../../../components/feedback/ErrorAlert';
 import { ActionButton } from '../../../components/actions/ActionButton';
 import { EmptyState } from '../../../components/feedback/EmptyState';
@@ -22,7 +21,7 @@ import { useCommentCounts } from '../../comments/api';
 import { commentTotal } from '../../comments/lib/comment-column';
 import { useShoppingLists } from '../../shopping/api';
 import { useBulkTaskMutations, useMoveTask, useTaskColumnDefaults, useTasksData, type BulkChanges, type Task } from '../api';
-import { eventRowKey, filterUses, isArchivedTaskRow, taskTableRows, type TaskTableRow } from '../lib/task-columns';
+import { eventRowKey, viewUses, isArchivedTaskRow, taskTableRows, type TaskTableRow } from '../lib/task-columns';
 import { useTaskColumns } from '../hooks/use-task-columns';
 import { TaskStateIcon } from './task-ui';
 import { useTaskActions } from '../hooks/use-task-actions';
@@ -155,7 +154,7 @@ export function TaskBoard({ projectId, projectIds, createProjectId, header, empt
     'EVENT',
     eventRows.map((row) => (row.kind === 'event' ? row.event.key : '')),
   );
-  const columns = useTaskColumns(context, today, { doable: filterUses(views.config?.filter, 'doableNow'), eventComments });
+  const columns = useTaskColumns(context, today, { doable: viewUses(views.config, 'doableNow'), eventComments });
   const rows = useMemo(() => (showEvents ? [...tasks, ...eventRows] : tasks), [showEvents, tasks, eventRows]);
   const view = useDataView({
     tableKey: 'tasks',
@@ -293,7 +292,6 @@ export function TaskBoard({ projectId, projectIds, createProjectId, header, empt
     };
   };
 
-  const canCreate = unarchived(context?.projects ?? []).length > 0;
   const config = view.config;
   // The group a new task goes in gives it its value (status, assignee…).
   const groupBy = view.groupColumn && (TASK_GROUP_BY as readonly string[]).includes(view.groupColumn.id) ? (view.groupColumn.id as TaskGroupBy) : null;
@@ -313,11 +311,9 @@ export function TaskBoard({ projectId, projectIds, createProjectId, header, empt
           actions: (
             <Group gap="sm" wrap="nowrap">
               {header}
-              {canCreate && (
-                <ActionButton icon={<PlusIcon aria-hidden />} onClick={() => taskActions.create(createProjectId ? { projectId: createProjectId } : undefined)}>
-                  Nouvelle tâche
-                </ActionButton>
-              )}
+              <ActionButton icon={<PlusIcon aria-hidden />} onClick={() => taskActions.create(createProjectId ? { projectId: createProjectId } : undefined)}>
+                Nouvelle tâche
+              </ActionButton>
             </Group>
           ),
           displayOptions: config && (
@@ -348,7 +344,7 @@ export function TaskBoard({ projectId, projectIds, createProjectId, header, empt
             </>
           ),
         }}
-        empty={<EmptyState icon={<CheckSquareOffsetIcon aria-hidden />} message={canCreate ? emptyMessage : 'Créez d’abord un projet : chaque tâche appartient à un projet.'} />}
+        empty={<EmptyState icon={<CheckSquareOffsetIcon aria-hidden />} message={emptyMessage} />}
         parentKey={(row) => (row.kind === 'task' ? (row.task.parentId ?? null) : null)}
         onMoveRow={handleMove}
         readOnly={(row) => row.kind === 'event'}
@@ -376,7 +372,7 @@ export function TaskBoard({ projectId, projectIds, createProjectId, header, empt
           )
         }
         addRow={
-          context && canCreate
+          context
             ? (group) => (
                 <AddTaskRow
                   context={context}

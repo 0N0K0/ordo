@@ -10,7 +10,16 @@ export default defineConfig([
     files: ['**/*.ts'],
     extends: [js.configs.recommended, tseslint.configs.recommended],
     languageOptions: { globals: { ...globals.browser, ...globals.node } },
-    rules: { 'no-restricted-syntax': ['error', ...SHARED_SYNTAX_RULES] },
+    rules: {
+      'no-restricted-syntax': [
+        'error',
+        ...SHARED_SYNTAX_RULES,
+        {
+          selector: "ThrowStatement > NewExpression[callee.name='Error']",
+          message: 'Une fonction partagée refuse par UserError (message pour l’utilisateur, donné au client par l’API), jamais par une Error simple.',
+        },
+      ],
+    },
   },
   planReferencesConfig(['**/*.{ts,js}']),
 ]);

@@ -7,7 +7,11 @@ import { currentWorkspaceFields } from '../workspaces/current-workspace';
 import { BY_POSITION_ONLY, nextPositionIn } from '../core/ordering';
 import { firstActive, refuseArchived } from '../core/archive';
 import { findOrNotFound } from '../core/lookup';
+import { assertLabelFree } from '../core/labels';
 import { releaseSubjectTime } from '../tasks/time-entries';
+
+/** A label taken by another calendar of the workspace (archived ones too). */
+const CALENDAR_TAKEN = 'Un calendrier porte déjà ce libellé.';
 
 /** Color of the calendar a workspace starts with. */
 const DEFAULT_COLOR = '#228be6';
@@ -55,25 +59,28 @@ export async function resolveCalendarId(id?: string | null): Promise<string> {
 }
 
 /**
- * Creates a calendar, last of the workspace.
+ * Creates a calendar, last of the workspace; its label is unique in the workspace.
  * @param {CalendarFormValues} input Name and color.
  * @returns {Promise<Calendar>} Calendar.
  */
 export async function createCalendar(input: CalendarFormValues): Promise<Calendar> {
   const data = parseInput(calendarFormSchema, input);
+  await assertLabelFree('calendar', data.label, { message: CALENDAR_TAKEN });
   const position = await nextPositionIn('calendar');
   return prisma.calendar.create({ data: { ...data, position } });
 }
 
 /**
- * Renames a calendar or changes its color.
+ * Renames a calendar (its label unique in the workspace) or changes its color.
  * @param {string} id Calendar.
  * @param {CalendarFormValues} input Name and color.
  * @returns {Promise<Calendar>} Calendar.
  */
 export async function updateCalendar(id: string, input: CalendarFormValues): Promise<Calendar> {
   refuseArchived(await findCalendar(id));
-  return prisma.calendar.update({ where: { id }, data: parseInput(calendarFormSchema, input) });
+  const data = parseInput(calendarFormSchema, input);
+  await assertLabelFree('calendar', data.label, { message: CALENDAR_TAKEN, exceptId: id });
+  return prisma.calendar.update({ where: { id }, data });
 }
 
 /**
