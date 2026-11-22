@@ -21,9 +21,7 @@ import {
 } from '@ordo/shared';
 import { useState, type ReactNode } from 'react';
 import { RepetitionEditor, type RepetitionModeValue, type RepetitionTimes } from '../../../components/recurrence/RepetitionEditor';
-import { RepetitionField, RepetitionModal } from '../../../components/recurrence/RepetitionField';
-import { describeCase } from '../../../components/recurrence/describe-recurrence';
-import * as fmt from '../../../lib/format';
+import { RepetitionModal } from '../../../components/recurrence/RepetitionField';
 import { localToday } from '../../../lib/dates';
 import { EventLocation } from '../../geo/components/EventLocation';
 import { addressOf } from '../../geo/lib/location';
@@ -37,6 +35,7 @@ import type { Routine } from '../api';
 import { RemindersSelect } from '../../../components/inputs/RemindersSelect';
 import { RemoveButton } from '../../../components/actions/RemoveButton';
 import { SlotTimesFields } from './SlotTimesFields';
+import { ROUTINE_REPETITION_KEYS } from '../lib/routine-inheritance';
 
 /** Time and place fields of a routine. */
 interface RoutineScheduleValues {
@@ -71,11 +70,25 @@ interface RoutineTimes {
 const ANY_TIME: RoutineSlot = { fromTime: null, dueTime: null, optional: false };
 
 /**
- * Times of the day of a routine: from when and by when (each optional), optional or not, as many as needed.
- * @param {{ moments: RoutineSlot[], onChange: (moments: RoutineSlot[]) => void, index: number, allowEmpty?: boolean }} props Moments, their change, case number, none allowed (one per slot of the schedules).
+ * Times of the day of a routine: from when and by when (each optional), optional or not, as many as needed. Each change
+ * is given at once; `onCommit` follows a choice at once (« Facultatif », a moment added or removed), and an hour once
+ * it is left.
+ * @param {{ moments: RoutineSlot[], onChange: (moments: RoutineSlot[]) => void, index: number, allowEmpty?: boolean, onCommit?: () => void }} props Moments, their change, case number, none allowed (one per slot of the schedules), commit. Optional.
  * @returns {JSX.Element} Moments.
  */
-function MomentsEditor({ moments, onChange, index, allowEmpty = false }: { moments: RoutineSlot[]; onChange: (moments: RoutineSlot[]) => void; index: number; allowEmpty?: boolean }) {
+function MomentsEditor({
+  moments,
+  onChange,
+  index,
+  allowEmpty = false,
+  onCommit,
+}: {
+  moments: RoutineSlot[];
+  onChange: (moments: RoutineSlot[]) => void;
+  index: number;
+  allowEmpty?: boolean;
+  onCommit?: () => void;
+}) {
   /**
    * Changes a moment.
    * @param {number} position Its index.
@@ -83,14 +96,28 @@ function MomentsEditor({ moments, onChange, index, allowEmpty = false }: { momen
    * @returns {void}
    */
   const update = (position: number, changes: Partial<RoutineSlot>) => onChange(moments.map((moment, other) => (other === position ? { ...moment, ...changes } : moment)));
+  /**
+   * Gives moments changed by a choice, then commits them.
+   * @param {RoutineSlot[]} next Moments.
+   * @returns {void}
+   */
+  const choose = (next: RoutineSlot[]) => {
+    onChange(next);
+    onCommit?.();
+  };
   return (
     <LabeledField label="Moments de la journée">
       {moments.map((moment, position) => (
         <Group key={position} gap={6} wrap="nowrap">
-          <SlotTimesFields value={moment} onChange={(times) => update(position, times)} name={`moment ${position + 1}, cas ${index + 1}`} />
-          <Checkbox size="xs" label="Facultatif" checked={moment.optional} onChange={(event) => update(position, { optional: event.currentTarget.checked })} />
+          <SlotTimesFields value={moment} onChange={(times) => update(position, times)} name={`moment ${position + 1}, cas ${index + 1}`} onBlur={onCommit} />
+          <Checkbox
+            size="xs"
+            label="Facultatif"
+            checked={moment.optional}
+            onChange={(event) => choose(moments.map((other, at) => (at === position ? { ...other, optional: event.currentTarget.checked } : other)))}
+          />
           {(allowEmpty || moments.length > 1) && (
-            <RemoveButton label="Retirer" size="sm" aria-label={`Retirer le moment ${position + 1}`} onClick={() => onChange(moments.filter((_, other) => other !== position))} />
+            <RemoveButton label="Retirer" size="sm" aria-label={`Retirer le moment ${position + 1}`} onClick={() => choose(moments.filter((_, other) => other !== position))} />
           )}
         </Group>
       ))}
@@ -99,7 +126,7 @@ function MomentsEditor({ moments, onChange, index, allowEmpty = false }: { momen
           Aucun : chaque horaire des créneaux choisis est un moment.
         </Text>
       )}
-      <AddItemButton onClick={() => onChange([...moments, ANY_TIME])}>Ajouter un moment</AddItemButton>
+      <AddItemButton onClick={() => choose([...moments, ANY_TIME])}>Ajouter un moment</AddItemButton>
     </LabeledField>
   );
 }
@@ -112,16 +139,24 @@ function MomentsEditor({ moments, onChange, index, allowEmpty = false }: { momen
 const describeMoments = (moments: readonly RoutineSlot[]) => moments.map((moment) => `${windowText(moment) || 'dans la journée'}${moment.optional ? ' (facultatif)' : ''}`).join(', ');
 
 /**
- * Moments and condition of the rule or cases of a routine, for the common repetition editor.
+ * Moments and condition of the rule or cases of a routine, for the common repetition editor: committed (a panel saved
+ * field by field) once chosen, an hour or a number once left, a condition at once.
  * @param {Map<string, string>} names Names of the calendar schedules.
  * @returns {RepetitionTimes<RoutineTimes>} Times.
  */
 const routineTimes = (names: Map<string, string>): RepetitionTimes<RoutineTimes> => ({
-  render: (times, onChange, index, rule) => (
+  render: (times, onChange, index, rule, onCommit) => (
     <Stack gap="sm">
-      <MomentsEditor moments={times.moments} onChange={(moments) => onChange({ ...times, moments })} index={index} />
-      <SlotConditionBuilder item="routine" value={times.condition} onChange={(condition) => onChange({ ...times, condition })} />
-      <OpensOnInput frequency={rule?.frequency ?? 'DAILY'} value={times.opens} onChange={(opens) => onChange({ ...times, opens })} />
+      <MomentsEditor moments={times.moments} onChange={(moments) => onChange({ ...times, moments })} index={index} onCommit={onCommit} />
+      <SlotConditionBuilder
+        item="routine"
+        value={times.condition}
+        onChange={(condition) => {
+          onChange({ ...times, condition });
+          onCommit?.();
+        }}
+      />
+      <OpensOnInput frequency={rule?.frequency ?? 'DAILY'} value={times.opens} onChange={(opens) => onChange({ ...times, opens })} onCommit={onCommit} />
     </Stack>
   ),
   describe: (times, rule) =>
@@ -188,12 +223,25 @@ function withEditedCases(value: RoutineRepetitionValue, cases: RepetitionCase<Ro
 }
 
 /**
- * Every repetition setting of a routine, in the common modal: its first day (unless its panel shows it apart), then one
- * rule or cases, each with its moments and its condition on calendar schedules; its « Ouverture ».
- * @param {{ draft: RoutineRepetitionValue, setDraft: (value: RoutineRepetitionValue) => void, names: Map<string, string>, withStart?: boolean }} props Draft, its change, names of the schedules, first day asked (default true).
+ * Every repetition setting of a routine: its first day (unless its panel shows it apart), then one rule or cases, each
+ * with its moments and its condition on calendar schedules; its « Ouverture ». In the common modal (a table cell), or
+ * right in the panel with `onCommit` (called once a value is chosen, an hour or a number left).
+ * @param {{ draft: RoutineRepetitionValue, setDraft: (value: RoutineRepetitionValue) => void, names: Map<string, string>, withStart?: boolean, onCommit?: () => void }} props Draft, its change, names of the schedules, first day asked (default true), commit. Optional.
  * @returns {JSX.Element} Settings.
  */
-function RoutineRepetitionEditor({ draft, setDraft, names, withStart = true }: { draft: RoutineRepetitionValue; setDraft: (value: RoutineRepetitionValue) => void; names: Map<string, string>; withStart?: boolean }) {
+function RoutineRepetitionEditor({
+  draft,
+  setDraft,
+  names,
+  withStart = true,
+  onCommit,
+}: {
+  draft: RoutineRepetitionValue;
+  setDraft: (value: RoutineRepetitionValue) => void;
+  names: Map<string, string>;
+  withStart?: boolean;
+  onCommit?: () => void;
+}) {
   const start = draft.startDate || localToday();
   return (
     <Stack gap="md">
@@ -224,22 +272,10 @@ function RoutineRepetitionEditor({ draft, setDraft, names, withStart = true }: {
         allowNone={false}
         durations={DURATION_UNITS}
         times={routineTimes(names)}
+        onCommit={onCommit}
       />
     </Stack>
   );
-}
-
-/**
- * Repetition of a routine as text, a line each: its rule or cases with their moments and conditions (its first day
- * is shown apart, in « Première fois »).
- * @param {RoutineRepetitionValue} value Repetition.
- * @param {Map<string, string>} names Names of the schedules.
- * @returns {string[]} Lines.
- */
-function describeRepetition(value: RoutineRepetitionValue, names: Map<string, string>): string[] {
-  const start = value.startDate || localToday();
-  const times = routineTimes(names);
-  return [...editedCases(value).map((item, index) => `${value.mode === 'CASES' ? `Cas ${index + 1} · ` : ''}${fmt.capitalize(describeCase(item, start, { times }))}`)];
 }
 
 /** Whole repetition of a routine, as saved. */
@@ -336,34 +372,35 @@ interface RoutineFieldsProps {
 const inheritedProps = (inherited: RoutineFieldsProps['inherited']) => ({ ...(inherited?.state ?? { origin: null }), from: inherited?.from ?? '', readOnly: inherited?.readOnly });
 
 /**
- * « Répétition et moments » of a routine: its summary, every setting but its first day in the common modal; greyed
- * while inherited.
+ * « Répétition et moments » of a routine, right in its panel (no modal; its first day apart): one rule or cases, each
+ * with its moments, condition and « Ouverture ». Each change is given at once (`onChange`); `onCommit` saves them
+ * once a value is chosen (a frequency, a weekday, a case, a condition…), an hour or a number once left. Greyed while
+ * inherited.
  * @param {RoutineFieldsProps} props Component props.
  * @returns {JSX.Element} Field.
  */
-export function RoutineRepetition({ values, errors, onChange, inherited }: RoutineFieldsProps) {
+export function RoutineRepetition({ values, errors, onChange, onCommit, inherited }: RoutineFieldsProps) {
   const { names } = useSlotChoices();
   const mode: RepetitionModeValue = values.cases.length ? 'CASES' : 'RULE';
   return (
     <InheritedField {...inheritedProps(inherited)}>
-      <RepetitionField<RoutineRepetitionValue>
-        label="Répétition et moments"
-        required
-        error={(errors.recurrence ?? errors.cases ?? errors.moments ?? errors.slotCondition ?? errors.opensOn) as ReactNode}
-        value={{ ...values, mode }}
-        onChange={(value) =>
-          onChange({
-            recurrence: value.recurrence,
-            cases: value.cases,
-            slotCondition: value.slotCondition,
-            moments: value.moments,
-            opensOn: value.opensOn,
-          })
-        }
-        valid={validRepetition}
-        describe={(value) => describeRepetition(value, names)}
-        editor={(draft, setDraft) => <RoutineRepetitionEditor draft={draft} setDraft={setDraft} names={names} withStart={false} />}
-      />
+      <LabeledField label="Répétition et moments" required error={(errors.recurrence ?? errors.cases ?? errors.moments ?? errors.slotCondition ?? errors.opensOn) as ReactNode}>
+        <RoutineRepetitionEditor
+          draft={{ ...values, mode }}
+          setDraft={(value) =>
+            onChange({
+              recurrence: value.recurrence,
+              cases: value.cases,
+              slotCondition: value.slotCondition,
+              moments: value.moments,
+              opensOn: value.opensOn,
+            })
+          }
+          names={names}
+          withStart={false}
+          onCommit={onCommit && (() => onCommit([...ROUTINE_REPETITION_KEYS]))}
+        />
+      </LabeledField>
     </InheritedField>
   );
 }

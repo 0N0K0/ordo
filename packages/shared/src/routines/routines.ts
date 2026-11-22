@@ -154,6 +154,9 @@ export const routineSchema = z
     description: markdownSchema,
     /** Categories it is shown in. */
     categoryIds: z.array(z.string()).max(100),
+    /** Priority and type, from the lists of the tasks; null: none. */
+    priorityId: z.string().nullable().default(null),
+    typeId: z.string().nullable().default(null),
     parentId: z.string().nullable(),
     startDate: startDaySchema,
     recurrence: recurrenceSchema,
@@ -564,6 +567,9 @@ export interface RoutineBulkChanges {
   /** Minutes. */
   estimate?: number | null;
   projectId?: string | null;
+  /** Priority and type (the lists of the tasks); null: none. */
+  priorityId?: string | null;
+  typeId?: string | null;
   /** Null: no limit. */
   fromTime?: string | null;
   dueTime?: string | null;
@@ -578,6 +584,20 @@ export interface RoutineBulkChanges {
   inheritFields?: RoutineInheritableField[];
   /** Fields emptied on purpose (« Vider »): no value, not inherited (never its first time nor its repetition). */
   clearFields?: RoutineInheritableField[];
+}
+
+/** Values of the changes of several routines that each routine takes as given (null: none). */
+const ROUTINE_BULK_VALUES = ['estimate', 'projectId', 'priorityId', 'typeId'] as const;
+type RoutineBulkValues = Pick<RoutineBulkChanges, (typeof ROUTINE_BULK_VALUES)[number]>;
+
+/**
+ * Values the changes of several routines give each of them as they are (time to spend, project, priority, type): those
+ * given (null included), as the API saves them and the app shows them at once.
+ * @param {RoutineBulkValues} changes Changes.
+ * @returns {RoutineBulkValues} Values given.
+ */
+export function routineBulkValues(changes: RoutineBulkValues): RoutineBulkValues {
+  return Object.fromEntries(ROUTINE_BULK_VALUES.filter((key) => changes[key] !== undefined).map((key) => [key, changes[key]]));
 }
 
 /**

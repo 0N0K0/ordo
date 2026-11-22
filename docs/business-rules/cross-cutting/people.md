@@ -56,6 +56,7 @@ Règle unique pour les assignés des tâches et des routines et les participants
 - Élément **sans projet** : n'importe quel contributeur.
 - Élément **avec projet** : seulement « Moi » et les contributeurs rattachés au projet ou à un de ses parents ; ceux déjà choisis restent valides. Sinon : « Seuls les contributeurs du projet peuvent être choisis. » (`assertProjectContributors`).
 - Un contributeur archivé n'est pas nouvellement choisi (sauf annulation d'une action, `restoring`).
+- Les assignés d'un évènement se choisissent dans un seul champ « Assignés » : des contributeurs (règle ci-dessus, `contributorIds`) et des relations sans contributeur (`relationIds`, « Relations » en PRO, « Proches » en PERSO), qui ne sont pas soumises au projet.
 - Modifications groupées de tâches : la règle s'applique à chaque tâche de la sélection.
 - Déplacer une tâche vers un autre projet : ses assignés (et ceux de ses sous-tâches) **suivent** et sont rattachés au projet cible s'ils ne l'étaient pas déjà, directement ou par un parent (`attachAssignees`) ; « Moi » et les archivés ne sont jamais rattachés.
 - Même règle pour une routine ou un évènement qui change de projet : ses assignés ou contributeurs restent, même s'ils ne sont pas du nouveau projet, et y sont rattachés (`followProject`). Les sous-routines ne suivent pas : elles gardent leur projet, sauf celles qui l'héritent.

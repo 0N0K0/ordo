@@ -15,20 +15,24 @@ interface EventTiming {
 
 /**
  * Days, hours and repetition of an event, right in its panel (no modal): the rule (its end and its pauses), the whole
- * day, the start and the end, and the length of each occurrence of an all-day event; each change applied at once. With
- * `ruleLocked` (one occurrence of a series edited alone), only its days and hours: the rule is the one of the series.
- * @param {{ value: EventTiming, onChange: (value: EventTiming) => void, ruleStart: string, error?: string, ruleLocked?: boolean }} props Timing, its change, first day of the series, error, rule not editable. Optional.
+ * day, the start and the end, and the length of each occurrence of an all-day event. Each change is given at once
+ * (`onChange`); `onCommit` follows a choice at once (a frequency, a weekday, the period…) and a number once it is left
+ * (the interval, the count…): the event panel saves then. With `ruleLocked` (one occurrence of a series edited alone),
+ * only its days and hours: the rule is the one of the series.
+ * @param {{ value: EventTiming, onChange: (value: EventTiming) => void, onCommit?: () => void, ruleStart: string, error?: string, ruleLocked?: boolean }} props Timing, its change, its commit, first day of the series, error, rule not editable. Optional.
  * @returns {JSX.Element} Fields.
  */
 export function EventRepetition({
   value,
   onChange,
+  onCommit,
   ruleStart,
   error,
   ruleLocked = false,
 }: {
   value: EventTiming;
   onChange: (value: EventTiming) => void;
+  onCommit?: () => void;
   ruleStart: string;
   error?: string;
   ruleLocked?: boolean;
@@ -39,6 +43,15 @@ export function EventRepetition({
    * @returns {void}
    */
   const set = (changes: Partial<EventTiming>) => onChange({ ...value, ...changes });
+  /**
+   * Changes the days or hours from a choice: given, then committed.
+   * @param {Partial<EventTiming>} changes Changes.
+   * @returns {void}
+   */
+  const choose = (changes: Partial<EventTiming>) => {
+    set(changes);
+    onCommit?.();
+  };
   const days = (
     <Stack gap="sm">
       <Switch
@@ -46,7 +59,7 @@ export function EventRepetition({
         checked={value.allDay}
         onChange={(event) => {
           const allDay = event.currentTarget.checked;
-          set({
+          choose({
             allDay,
             startTime: allDay ? null : '09:00',
             endTime: allDay ? null : '10:00',
@@ -66,7 +79,7 @@ export function EventRepetition({
           if (!startDate || !endDate) return;
           // Moving the start keeps the length; other days of its own: the length of the rule follows them.
           const length = daysBetween(startDate, endDate) !== daysBetween(value.startDate, value.endDate);
-          set({
+          choose({
             startDate,
             endDate,
             ...(hours ? { startTime: hours[0], endTime: hours[1] } : {}),
@@ -85,6 +98,7 @@ export function EventRepetition({
         const duration = rule?.duration;
         set({ recurrence: rule, ...(duration && value.allDay ? { endDate: spanEnd(duration, value.startDate) } : {}) });
       }}
+      onCommit={onCommit}
       start={ruleStart}
       durations={value.allDay && value.recurrence ? DURATION_UNITS : undefined}
       footer={days}

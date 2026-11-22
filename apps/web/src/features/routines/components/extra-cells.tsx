@@ -17,11 +17,10 @@ import { Badge, Select, Stack, Text } from '@mantine/core';
 import { BellIcon } from '@phosphor-icons/react';
 
 import { treeSelectProps } from '../../../components/tree/tree-select';
-import { ON_ERROR } from '../../../lib/notify';
 import { LocationCell } from '../../geo/components/LocationCell';
-import { useRoutineMutations, type Routine } from '../api';
+import type { Routine } from '../api';
 import { routineCellLabel, useRoutineCellEdit } from '../lib/routine-cell-edit';
-import { applyDiff, listDiff } from '../../../components/data-table/selection/bulk-edit';
+import { applyDiff } from '../../../components/data-table/selection/bulk-edit';
 import { EditableMultiSelect, EditableNumber, EditablePopoverCell, EditableTime } from '../../../components/data-table/cells/EditableCells';
 
 import { openRoutineForm } from '../lib/open-routine-form';
@@ -29,11 +28,12 @@ import { OpensOnInput } from './OpensOnInput';
 import { opensText } from '../lib/opens-format';
 import { opensFits, readOpens, subtreeOf } from '@ordo/shared';
 import * as fmt from '../../../lib/format';
-import { linkableRoutine, routineTreeOptions, ruleOf } from '../lib/routine-format';
+import { blockedRoutineIds, linkableRoutine, routineTreeOptions, ruleOf } from '../lib/routine-format';
 import type { TaskContext } from '../../tasks/hooks/use-task-context';
 import { RemindersSelect } from '../../../components/inputs/RemindersSelect';
 import { ChildrenCell } from '../../../components/data-table/cells/ChildrenCell';
 import { unarchived } from '../../../lib/archive';
+import { useSetBlockedRoutines } from '../hooks/use-routine-blocks';
 
 /**
  * Whether a routine has its own single time of the day (not several moments, nor those of cases or of schedules).
@@ -235,27 +235,17 @@ export function OpensOnCell({ routine, readOnly = false }: { routine: Routine; r
  * @returns {JSX.Element} Cell.
  */
 export function BlocksCell({ routine, routines, context, readOnly = false }: { routine: Routine; routines: Routine[]; context: TaskContext; readOnly?: boolean }) {
-  const { patch } = useRoutineMutations();
+  const setBlocked = useSetBlockedRoutines(routines);
   const { targets, count } = useRoutineCellEdit(routine, 'blocks');
-  const waiting = routines.filter((other) => other.requiredIds.includes(routine.id)).map((other) => other.id);
+  const waiting = blockedRoutineIds(routines, routine.id);
   return (
     <EditableMultiSelect
       label={routineCellLabel('Routines en attente', routine, count)}
       {...treeSelectProps(routineTreeOptions(routines, linkableRoutine(context, routine.projectId ?? null, routine.id, waiting)))}
       value={waiting}
       readOnly={readOnly}
-      onSave={(next) => {
-        // Those added here wait for this routine (and each one of the selection), those removed here no more.
-        const { added, removed } = listDiff(waiting, next);
-        for (const other of routines) {
-          let required = other.requiredIds;
-          if (added.includes(other.id)) required = [...new Set([...required, ...targets.filter((id) => id !== other.id)])];
-          if (removed.includes(other.id)) required = required.filter((id) => !targets.includes(id));
-          if (required.length !== other.requiredIds.length || required.some((id) => !other.requiredIds.includes(id))) {
-            patch.mutate({ id: other.id, input: { requiredIds: required } }, ON_ERROR);
-          }
-        }
-      }}
+      // Those added here wait for this routine (and each one of the selection), those removed here no more.
+      onSave={(next) => setBlocked(waiting, next, targets)}
     />
   );
 }

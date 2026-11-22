@@ -448,6 +448,11 @@ Très utilisées par les features (`accounting`, `calendar`, `routines`, `sheets
 
 `YesNoIcon({ value, labels?, icons?, decorative? })` — icône d’une valeur oui / non : par défaut carré plein vert avec une coche (`CheckSquareIcon`) pour oui, rouge avec une croix (`XSquareIcon`) pour non ; `icons` (`YesNoIcons`) choisit l’icône de chaque valeur, dont le triangle orange (`WarningIcon`, couleur `FEEDBACK_COLORS.warning`) et la coche bleue (`info`) ; nommée d’après `labels` (défaut « Oui » / « Non » ; `aria-label`, infobulle `title`), sauf `decorative` (à côté de son mot, cachée aux lecteurs d’écran). Internes : `ICONS`, `colorOf`. Utilisé par `booleanColumn` et `FilterBuilder`.
 
+### `ChipChoiceCell.tsx`
+
+- `ChipChoice` (interface) — élément d’une liste de paramètres proposé : `id`, `label`, `color?`, `iconUrl?`, `archived?`.
+- `ChipChoiceCell({ value, items, label, readOnly?, onChoose })` — cellule d’un élément d’une liste de paramètres (statut, priorité, type d’une tâche ou d’une routine) : sa pastille (`ItemBadge`, « — » sans valeur) ; un clic ouvre la liste des pastilles (« Aucune valeur définie dans les paramètres » si vide) ; re-choisir la valeur actuelle la vide (`onChoose(null)`) ; les éléments archivés ne sont plus proposés, sauf la valeur actuelle ; en lecture seule, la pastille seule. Utilisé par `LabelCell` (tâches) et `RoutineLabelChipCell` (routines). Règle eslint associée (la classe `chipTrigger` ailleurs est interdite).
+
 ### `DependencyIcon.tsx`
 
 `DependencyIcon({ done })` — coche verte (dépendance faite) ou sablier orange (attendue). Utilisé par `routines`, `tasks`.

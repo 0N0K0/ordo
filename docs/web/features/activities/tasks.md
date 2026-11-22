@@ -147,7 +147,7 @@ Cellules modifiables en place des tâches (toutes en lecture seule sur une tâch
 | Nom                                         | Rôle                                                                                                                                    |
 | ------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------- |
 | `TaskLabelCell({ task, context, prefix? })` | Libellé (`EditableLabel`) : numéro en lien, renommage au double-clic, « 2/5 » des sous-tâches, `prefix` (icônes).                       |
-| `LabelCell({ task, column, labels })`       | Statut, priorité ou type : pastille, liste de pastilles ; re-choisir la valeur la vide ; « Aucune valeur définie dans les paramètres ». |
+| `LabelCell({ task, column, labels })`       | Statut, priorité ou type : `ChipChoiceCell` (pastille, liste de pastilles ; re-choisir la valeur la vide ; « Aucune valeur définie dans les paramètres »). |
 | `MilestoneCell({ task, context })`          | Jalon de l’arborescence.                                                                                                                |
 | `TagsCell({ task, context })`               | Étiquettes (ajouts / retraits en masse).                                                                                                |
 | `SprintCell({ task, context })`             | Sprints de l’arborescence.                                                                                                              |
@@ -215,7 +215,7 @@ Petits composants communs des tâches :
 | `TaskRef({ task, closed?, blocked? })`                                             | Lien « #12 Libellé » avec icône d’état, ouvre le panneau.                                                    | panneau, cellules, temps      |
 | `LabelSelect({ labels, value, onChange, kind?, ...SelectProps })`                  | Sélecteur d’un statut, d’une priorité ou d’un type ; avec `kind`, crée une valeur tapée (`CreatableSelect`). | formulaire, panneau           |
 | `TagsSelect({ tags, value, onChange })`                                            | Multi-sélection d’étiquettes, création d’une étiquette tapée.                                                | formulaire, panneau           |
-| `AssigneesSelect({ contributors, value, onChange, label?, description?, error? })` | Multi-sélection de contributeurs (`PeopleSelect`).                                                           | tâches, routines, évènements  |
+| `AssigneesSelect({ contributors, value, onChange, label?, description?, error? })` | Multi-sélection de contributeurs (`PeopleSelect`).                                                           | tâches, routines             |
 | `ProjectSelect({ context, ...SelectProps })`                                       | Sélecteur de projet actif en arbre.                                                                          | tâches, temps, chrono         |
 | `TaskSelect({ tasks, labelOf?, context?, ...SelectProps })`                        | Sélecteur de tâche, en arbre avec `context`.                                                                 | panneau, formulaire, cellules |
 | `TaskStateIcon({ closed, blocked? })`                                              | Icône ouverte (vert), fermée (violet), bloquée (cadenas rouge), avec info-bulle.                             | partout                       |
@@ -228,7 +228,7 @@ Internes : `NEW_LABEL_TITLES`, `useLabelCreator(kind)` (ouvre le formulaire du l
 
 ### `components/TaskSettings.tsx`
 
-- `TaskSettings()` : paramètres des tâches : `SettingsList` des statuts (avec catégorie), priorités, types, étiquettes, chacune avec son nombre d’utilisations, la section « Automatisations » (bouton « Gérer les règles » vers `TASK_AUTOMATIONS_PATH`), puis `ColumnDefaults` en dernier (une longue liste). Utilisé par `TasksPage` et les paramètres d’un projet.
+- `TaskSettings()` : paramètres des tâches : `SettingsList` des statuts (avec catégorie), priorités, types (communs aux tâches et aux routines : leur nombre d’utilisations compte les deux, `useRoutinesData`, interne `ACTIVITY_USAGE`), étiquettes, chacune avec son nombre d’utilisations, la section « Automatisations » (bouton « Gérer les règles » vers `TASK_AUTOMATIONS_PATH`), puis `ColumnDefaults` en dernier (une longue liste). Utilisé par `TasksPage` et les paramètres d’un projet.
 
 ### `components/ColumnDefaults.tsx`
 

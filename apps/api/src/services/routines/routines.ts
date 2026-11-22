@@ -38,6 +38,7 @@ import {
   OPENS_MISFIT,
   opensMisfits,
   ROUTINE_INHERITABLE_FIELDS,
+  routineBulkValues,
   timingHeirs,
   marksInherited,
   type RoutineMove,
@@ -709,8 +710,8 @@ const opensMisfitOf = (routine: RoutineTiming) => opensMisfits({ opensOn: readOp
 const HOURLESS_REMINDERS = 'Sans heure « dès » ni « jusqu’à » (ni créneau), une routine n’a que des rappels à une heure : le jour J ou quelques jours avant.';
 
 /**
- * Validates a routine and what it points to: category, parent (not itself nor one of its sub-routines), project,
- * assignees, required routines (no cycle) and related ones (both in its project tree).
+ * Validates a routine and what it points to: category, priority, type, parent (not itself nor one of its
+ * sub-routines), project, assignees, required routines (no cycle) and related ones (both in its project tree).
  * @param {RoutineInput} input Routine.
  * @param {string} [id] Routine edited. Optional.
  * @param {RoutineSaveOptions} [options] Undo, routines moved along, routine copied. Optional.
@@ -740,6 +741,8 @@ async function parseRoutine(input: RoutineInput, id?: string, { restoring = fals
           excludedScheduleIds: true,
           parentId: true,
           projectId: true,
+          priorityId: true,
+          typeId: true,
           assignees: { select: { id: true } },
           beneficiaries: { select: { id: true } },
           beneficiaryRelations: { select: { id: true } },
@@ -796,6 +799,10 @@ async function parseRoutine(input: RoutineInput, id?: string, { restoring = fals
     dueTime: data.moments[0]?.dueTime ?? null,
   });
   await assertActive(prisma.project, data.projectId, 'Projet', { keep: restoring ? data.projectId : current?.projectId, field: 'projectId', missingField: 'projectId' });
+  // Priority and type (the lists of the tasks): an archived one is no longer given, the one it has stays; inherited, the
+  // priority is its parent's (its own, unused, is not checked).
+  if (!inherits('PRIORITY')) await assertActive(prisma.taskPriority, data.priorityId, 'Priorité', { keep: restoring ? data.priorityId : current?.priorityId, field: 'priorityId', missingField: 'priorityId' });
+  await assertActive(prisma.taskType, data.typeId, 'Type', { keep: restoring ? data.typeId : current?.typeId, field: 'typeId', missingField: 'typeId' });
   await assertAllExist(prisma.contributor, data.assigneeIds, 'Assigné', { field: 'assigneeIds' });
   // Archived beneficiaries, parent and required routines: no longer chosen, those already there stay.
   await assertBeneficiaries(
@@ -875,6 +882,8 @@ async function saveRelations(tx: Prisma.TransactionClient, id: string, relatedId
 const scalars = (data: ReturnType<typeof routineSchema.parse>) => ({
   label: data.label,
   description: data.description,
+  priorityId: data.priorityId,
+  typeId: data.typeId,
   parentId: data.parentId,
   startDate: parseDay(data.startDate),
   recurrence: data.recurrence,
@@ -1264,6 +1273,8 @@ async function inputOf(id: string): Promise<RoutineInput> {
     label: routine.label,
     description: routine.description,
     categoryIds: routine.categories.map((category) => category.id),
+    priorityId: routine.priorityId,
+    typeId: routine.typeId,
     parentId: routine.parentId,
     startDate: formatDay(routine.startDate),
     recurrence: storedRule(routine) ?? (routine.recurrence as RoutineInput['recurrence']),
@@ -1312,6 +1323,7 @@ async function inheritedInputOf(id: string): Promise<Partial<RoutineInput>> {
     ...(has('ASSIGNEES') && { assigneeIds: routine.assigneeIds }),
     ...(has('BENEFICIARIES') && { beneficiaryIds: routine.beneficiaryIds, beneficiaryRelationIds: routine.beneficiaryRelationIds }),
     ...(has('CATEGORIES') && { categoryIds: routine.categoryIds }),
+    ...(has('PRIORITY') && { priorityId: routine.priorityId }),
     ...(has('SLOT_CONDITION') && { slotCondition: storedCondition(routine) }),
     ...(has('OPENS_ON') && { opensOn: readOpens(routine.opensOn) }),
     ...(has('LOCATION') && { location: routine.location, locationLat: routine.locationLat, locationLon: routine.locationLon }),
@@ -1384,8 +1396,7 @@ export async function bulkUpdateRoutines(ids: string[], changes: RoutineBulkChan
         requiredIds: changedList(current.requiredIds, changes.addRequiredIds, changes.removeRequiredIds).filter((requiredId) => requiredId !== id),
         // Nor is it related to itself.
         relatedIds: changedList(current.relatedIds, changes.addRelatedIds, changes.removeRelatedIds).filter((relatedId) => relatedId !== id),
-        ...(changes.estimate !== undefined && { estimate: changes.estimate }),
-        ...(changes.projectId !== undefined && { projectId: changes.projectId }),
+        ...routineBulkValues(changes),
         // A repetition of its own: it no longer follows its cases.
         ...(changes.recurrence !== undefined && { cases: [] }),
         // Times of its own: a single moment.

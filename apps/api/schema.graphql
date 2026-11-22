@@ -3782,6 +3782,9 @@ type Routine {
 
   """Global manual order of every routine (not among siblings)."""
   position: Int!
+
+  """Priority, from the list of the tasks (its own: see effective)."""
+  priorityId: ID
   projectId: ID
 
   """
@@ -3830,6 +3833,9 @@ type Routine {
   """Travel time there, in minutes."""
   travelBefore: Int!
 
+  """Type, from the list of the tasks."""
+  typeId: ID
+
   """
   Time to do it from on its current (or next) occurrence, for its time of the day to come: its own, its case’s or its schedule’s.
   """
@@ -3842,7 +3848,7 @@ type Routine {
 }
 
 """
-Same changes for several routines (omitted fields unchanged; null clears estimate and projectId).
+Same changes for several routines (omitted fields unchanged; null clears estimate, projectId, priorityId and typeId).
 """
 input RoutineBulkChanges {
   addAssigneeIds: [ID!]
@@ -3879,6 +3885,7 @@ input RoutineBulkChanges {
 
   """« Ouverture » of its rule; null: none."""
   opensOn: JSON
+  priorityId: ID
   projectId: ID
   recurrence: JSON
   removeAssigneeIds: [ID!]
@@ -3889,6 +3896,7 @@ input RoutineBulkChanges {
   """On or out of calendar schedules, following its rule; null: any time."""
   slotCondition: JSON
   startDate: Date
+  typeId: ID
 }
 
 """Category of the routines, in a tree."""
@@ -3947,6 +3955,7 @@ type RoutineEffective {
   moments: JSON!
   moves: JSON!
   opensOn: JSON
+  priorityId: ID
   projectId: ID
   recurrence: JSON!
   slotCondition: JSON
@@ -3965,6 +3974,7 @@ enum RoutineInheritableField {
   MOMENTS
   MOVES
   OPENS_ON
+  PRIORITY
   PROJECT
   RECURRENCE
   SLOT_CONDITION
@@ -4028,6 +4038,9 @@ input RoutineInput {
   """
   opensOn: JSON
   parentId: ID
+
+  """Priority (the list of the tasks); none: none."""
+  priorityId: ID
   projectId: ID
   recurrence: JSON!
 
@@ -4047,6 +4060,9 @@ input RoutineInput {
 
   """Travel time there, in minutes; none: 0."""
   travelBefore: Int
+
+  """Type (the list of the tasks); none: none."""
+  typeId: ID
 }
 
 """Occurrence of a routine on a day (for the calendar)."""
@@ -4140,6 +4156,9 @@ input RoutinePatch {
   parentId: ID
 
   """Null: none."""
+  priorityId: ID
+
+  """Null: none."""
   projectId: ID
   recurrence: JSON
   relatedIds: [ID!]
@@ -4159,6 +4178,9 @@ input RoutinePatch {
 
   """Travel time there, in minutes; omitted: unchanged."""
   travelBefore: Int
+
+  """Null: none."""
+  typeId: ID
 }
 
 """Occurrence of a routine its reminders ring for (Paris time)."""

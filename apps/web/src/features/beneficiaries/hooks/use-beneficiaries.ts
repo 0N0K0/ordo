@@ -4,6 +4,8 @@ import { unarchived } from '../../../lib/archive';
 import { queryClient } from '../../../lib/query-client';
 import { treasurySettingsKey, useTreasurySettings, type TreasurySettings } from '../../treasury/api';
 import { useTaskContext } from '../../tasks/hooks/use-task-context';
+import type { Contributor } from '../../tasks/api';
+import { personOptionRenderer } from '../../../components/people/person-option';
 
 /** « Bénéficiaires » of a task, a routine or an event: contributors and relations (people out of the team). */
 export interface Beneficiaries {
@@ -40,15 +42,19 @@ function namesOf(value: Beneficiaries, contributorName: ReadonlyMap<string, stri
 /**
  * People a task, a routine or an event can be for: the contributors, and the relations without contributor (one with
  * a contributor is that contributor; one already chosen stays offered); the archived ones left out, except those
- * already chosen. Names, grouped options, and the choices of a column filter (all of them, the archived flagged).
- * @param {Beneficiaries} [chosen] Beneficiaries already chosen. Optional.
- * @returns {{ options: object[], names: (value: Beneficiaries) => string[], choices: object[] }} Options, names and filter choices.
+ * already chosen. Names, grouped options, and the choices of a column filter (all of them, the archived flagged). The
+ * same people make the assignees of an event (its contributors among those of its project, and relations). Its options
+ * are drawn as those of the assignees (`personOptionRenderer`): a contributor with its avatar and handle, a relation
+ * with its initials.
+ * @param {Beneficiaries} [chosen] People already chosen. Optional.
+ * @param {readonly Contributor[]} [offered] Contributors offered (those of a project). Optional. Default = all of them.
+ * @returns {{ options: object[], renderOption: (item: ComboboxLikeRenderOptionInput<ComboboxItem>) => ReactNode, names: (value: Beneficiaries) => string[], choices: object[] }} Options, their drawing, names and filter choices.
  */
-export function useBeneficiaries(chosen: Beneficiaries = { beneficiaryIds: [], beneficiaryRelationIds: [] }) {
+export function useBeneficiaries(chosen: Beneficiaries = { beneficiaryIds: [], beneficiaryRelationIds: [] }, offered?: readonly Contributor[]) {
   const { context } = useTaskContext();
   const { data } = useTreasurySettings();
   const buildOptions = usePeopleOptions();
-  const contributors = context?.contributors ?? [];
+  const contributors = offered ?? context?.contributors ?? [];
   const relations = data?.treasuryRelations ?? [];
   const contributorName = new Map(contributors.map((contributor) => [contributor.id, context?.contributorName(contributor) ?? contributor.name]));
   const relationName = new Map(relations.map((relation) => [relation.id, relation.name]));
@@ -69,7 +75,9 @@ export function useBeneficiaries(chosen: Beneficiaries = { beneficiaryIds: [], b
     ...contributors.map((contributor) => ({ value: personKey('contributor', contributor.id), label: contributorName.get(contributor.id)!, archived: contributor.archived })),
     ...relations.filter((relation) => !relation.contributorId).map((relation) => ({ value: personKey('relation', relation.id), label: relation.name, archived: relation.archived })),
   ];
-  return { options, names, choices };
+  // Contributors by the value of their option, for their avatar and handle.
+  const renderOption = personOptionRenderer(new Map(contributors.map((contributor) => [personKey('contributor', contributor.id), contributor])));
+  return { options, renderOption, names, choices };
 }
 
 /**

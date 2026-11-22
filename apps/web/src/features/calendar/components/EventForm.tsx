@@ -14,7 +14,7 @@ import { Link } from 'react-router';
 import { useRef, useState, type ReactNode } from 'react';
 import { localToday } from '../../../lib/dates';
 import { useAppForm, useFieldSave, formCallbacks } from '../../../lib/form';
-import { AssigneesSelect, ProjectSelect } from '../../tasks/components/task-ui';
+import { ProjectSelect } from '../../tasks/components/task-ui';
 import type { TaskContext } from '../../tasks/hooks/use-task-context';
 import { calendarQueryKey, useCalendarCategories, useCalendarEventMutations, useCalendars, type EventOccurrence, type CalendarEventScope } from '../api';
 import { archivedIds, archiveEntry, unarchived, unarchivedOffered, useSetArchived } from '../../../lib/archive';
@@ -26,7 +26,6 @@ import { timeTaskOptions, timeTasks } from '../../time/lib/time-tasks';
 import { EventLocation } from '../../geo/components/EventLocation';
 import { addressOf } from '../../geo/lib/location';
 import { useFormLocation } from '../../geo/hooks/use-location-draft';
-import { useTreasurySettings } from '../../treasury/api';
 import { useActiveWorkspace } from '../../workspaces/api';
 import { askScope } from '../lib/ask-scope';
 import { AvailabilityHint } from './AvailabilityHint';
@@ -146,8 +145,14 @@ interface EventFormProps {
   scope?: CalendarEventScope | null;
 }
 
-/** Fields of an event saved on leaving them, in its panel: texts, travel times, its links and its place. */
-const ON_BLUR = ['label', 'description', 'links', 'location', 'locationLat', 'locationLon', 'travelBefore', 'travelAfter'] as const;
+/** Days, hours and repetition of an event: saved together, once chosen or left (`EventRepetition`'s `onCommit`). */
+const TIMING = ['allDay', 'startDate', 'startTime', 'endDate', 'endTime', 'recurrence'] as const;
+
+/**
+ * Fields of an event saved on leaving them, in its panel: texts, travel times, its links and its place; its days,
+ * hours and repetition once chosen (a number of its repetition once left).
+ */
+const ON_BLUR = ['label', 'description', 'links', 'location', 'locationLat', 'locationLon', 'travelBefore', 'travelAfter', ...TIMING] as const;
 
 /** Event and occurrence the panel saves to: the series may be split (« celle-ci et les suivantes ») or moved by a save. */
 interface SaveTarget {
@@ -168,7 +173,7 @@ interface SaveTarget {
  * right in the panel, the warning outside working hours, the time tracked), « Lieu » (travel times, when to leave),
  * « Alarmes » and « Ressources ». Postponed: cancelled, and a new event linked to it takes the new date. A new event is
  * a form with « Créer l’évènement »; an existing one saves each field as soon as it changes (texts on leaving them,
- * `useFieldSave`), for the occurrences chosen when it opened (`scope`): one occurrence alone changes only its own
+ * its days, hours and repetition once chosen, a number of its repetition once left: `useFieldSave`), for the occurrences chosen when it opened (`scope`): one occurrence alone changes only its own
  * fields (label, description, place, links, days and hours, travel times, routines of its days), the others are those
  * of the series. Deleting still asks which occurrences. An archived event (or one of an archived calendar) opens read
  * only: it can be restored or deleted. Opened without a scope (the question dismissed), it is read only too, its
@@ -195,7 +200,6 @@ export function EventForm({ context, occurrence, defaults, onDone, onDuplicated,
     ));
 
   const { data: categories } = useCalendarCategories();
-  const { data: treasury } = useTreasurySettings();
   const { data: calendarsData } = useCalendars();
   const calendars = calendarsData?.calendars ?? [];
   const setArchived = useSetArchived('CALENDAR_EVENT', [calendarQueryKey]);
@@ -275,10 +279,6 @@ export function EventForm({ context, occurrence, defaults, onDone, onDuplicated,
   // One occurrence edited alone: the fields of the series stay as they are (the API keeps them).
   const seriesFields = target.scope === 'THIS' && target.occurrenceDate !== null;
   const { perso } = useActiveWorkspace();
-  // Relations with a contributor take part as that contributor, archived ones are not offered; one already chosen stays.
-  const relationOptions = unarchived(treasury?.treasuryRelations ?? [], values.relationIds)
-    .filter((relation) => !relation.contributorId || (values.relationIds ?? []).includes(relation.id))
-    .map((relation) => ({ value: relation.id, label: relation.name }));
   // Routines due on the days of the event (an occurrence each), with someone in common with it; those chosen stay.
   const { data: routinesData } = useRoutinesData();
   const { data: routineDays } = useRoutineOccurrences(values.startDate && values.endDate ? { from: values.startDate, to: values.endDate } : null);
@@ -482,7 +482,7 @@ export function EventForm({ context, occurrence, defaults, onDone, onDuplicated,
             )}
             {recurring && !seriesFields && (
               <Text size="xs" c="dimmed">
-                Projet, contributeurs, catégories, tâches et rappels s’appliquent à toute la série.
+                Projet, assignés, catégories, tâches et rappels s’appliquent à toute la série.
               </Text>
             )}
           </>
@@ -573,22 +573,13 @@ export function EventForm({ context, occurrence, defaults, onDone, onDuplicated,
             <PanelGroup title={PANEL_GROUPS.people}>
               {series(
                 <>
-                  <AssigneesSelect
-                    label="Contributeurs"
-                    description={values.projectId ? 'Contributeurs du projet.' : undefined}
+                  <BeneficiariesSelect
+                    label="Assignés"
+                    description={`Contributeurs${values.projectId ? ' du projet' : ''} ou ${relationNoun(perso, true).toLowerCase()} (personnes hors ${perso ? 'du foyer' : 'de l’équipe'}).`}
+                    placeholder="Personne"
                     contributors={context.assignableFor([values.projectId ?? null], values.contributorIds)}
-                    value={values.contributorIds}
-                    onChange={(contributorIds) => form.setFieldValue('contributorIds', contributorIds)}
-                  />
-                  <BatchMultiSelect
-                    label={relationNoun(perso, true)}
-                    description={perso ? 'Personnes hors du foyer, sans contributeur' : 'Personnes hors de l’équipe, sans contributeur'}
-                    placeholder={(values.relationIds ?? []).length ? undefined : 'Aucune'}
-                    data={relationOptions}
-                    searchable
-                    clearable
-                    nothingFoundMessage={perso ? 'Ajoutez des proches dans Paramètres › Foyer et contributeurs' : 'Ajoutez des relations dans Paramètres › Équipe et contributeurs'}
-                    {...form.getInputProps('relationIds')}
+                    value={{ beneficiaryIds: values.contributorIds, beneficiaryRelationIds: values.relationIds ?? [] }}
+                    onChange={({ beneficiaryIds, beneficiaryRelationIds }) => form.setValues({ contributorIds: beneficiaryIds, relationIds: beneficiaryRelationIds })}
                   />
                   <BeneficiariesSelect
                     description="Pour qui est l’évènement (l’anniversaire de votre fils) : ni forcément présents, ni contributeurs."
@@ -613,6 +604,7 @@ export function EventForm({ context, occurrence, defaults, onDone, onDuplicated,
                 }}
                 // One occurrence alone keeps the rule of its series.
                 onChange={(timing) => form.setValues({ ...timing, ...(seriesFields && { recurrence: values.recurrence }) })}
+                onCommit={() => commit(TIMING)}
               />
               <AvailabilityHint allDay={values.allDay} startDate={values.startDate} startTime={values.startTime ?? null} endDate={values.endDate} endTime={values.endTime ?? null} />
               {occurrence && (

@@ -15,8 +15,6 @@ export type ConversionDirection = 'TASK_TO_ROUTINE' | 'ROUTINE_TO_TASK';
 const LOSS_TEXT: Record<ConversionLossKind, (count: number) => string> = {
   number: () => 'son numéro',
   status: () => 'son statut',
-  priority: () => 'sa priorité',
-  type: () => 'son type',
   tags: (count) => countWith(count, 'étiquette', ['son', 'ses']),
   milestone: () => 'son jalon',
   sprints: (count) => countWith(count, 'sprint', ['son', 'ses']),

@@ -36,10 +36,10 @@ import { PANEL_GROUPS } from '../../../components/panels/panel-groups';
 import { TrackedTime } from '../../time/components/TrackedTime';
 import { RoutineDoneToggles } from './DoneToggle';
 import { openRoutineForm } from '../lib/open-routine-form';
-import { AssigneesSelect, ProjectSelect } from '../../tasks/components/task-ui';
+import { AssigneesSelect, LabelSelect, ProjectSelect } from '../../tasks/components/task-ui';
 import { useTaskContext } from '../../tasks/hooks/use-task-context';
 import { useRoutineMutations, useRoutinesData, type Routine } from '../api';
-import { DAILY, linkableRoutine, panelOccurrence, routineTreeOptions, ruleOf } from '../lib/routine-format';
+import { blockedRoutineIds, DAILY, linkableRoutine, panelOccurrence, routineTreeOptions, ruleOf } from '../lib/routine-format';
 import * as fmt from '../../../lib/format';
 import { RoutinePlace, RoutineReminders, RoutineRepetition } from './RoutineSchedule';
 import { treeSelectProps } from '../../../components/tree/tree-select';
@@ -55,6 +55,7 @@ import { LinksField } from '../../../components/inputs/LinksField';
 import { linkInputs } from '../../../lib/links';
 import { ActionsMenu } from '../../../components/actions/ActionsMenu';
 import { useConvertActivity } from '../hooks/use-convert-activity';
+import { useSetBlockedRoutines } from '../hooks/use-routine-blocks';
 import { useRoutineRowsActions } from './RoutineBulkBar';
 import { rowMenuEntry } from '../../../components/data-table/selection/selection-actions';
 import type { RowMenuEntry } from '../../../components/actions/ActionsMenu';
@@ -65,12 +66,14 @@ import { routinesKey } from '../../../lib/query-keys';
 import { routineCountdownItem } from '../lib/routine-countdowns';
 import { formInheritance } from '../../../components/inheritance/form-inheritance';
 import { InheritedField } from '../../../components/inheritance/InheritedField';
-import { ROUTINE_FIELD_LABELS, ROUTINE_REPETITION_FIELDS, routineParentName } from '../lib/routine-inheritance';
+import { ROUTINE_FIELD_LABELS, ROUTINE_REPETITION_FIELDS, ROUTINE_REPETITION_KEYS, routineParentName } from '../lib/routine-inheritance';
 
 interface RoutineFormValues extends Record<string, unknown> {
   label: string;
   description: string;
   categoryIds: string[];
+  priorityId: string | null;
+  typeId: string | null;
   parentId: string | null;
   startDate: string;
   recurrence: Recurrence;
@@ -103,6 +106,7 @@ interface RoutineFormValues extends Record<string, unknown> {
 const FORM_COLUMNS: Partial<Record<RoutineInheritableField, readonly (keyof RoutineFormValues & string)[]>> = {
   PROJECT: ['projectId'],
   CATEGORIES: ['categoryIds'],
+  PRIORITY: ['priorityId'],
   ASSIGNEES: ['assigneeIds'],
   BENEFICIARIES: ['beneficiaryIds', 'beneficiaryRelationIds'],
   LOCATION: ['location', 'locationLat', 'locationLon'],
@@ -140,6 +144,8 @@ function routineFormValues(routine: Routine): RoutineFormValues {
     label: routine.label,
     description: routine.description ?? '',
     categoryIds: routine.categoryIds,
+    priorityId: routine.priorityId ?? null,
+    typeId: routine.typeId ?? null,
     parentId: routine.parentId,
     startDate: routine.startDate,
     recurrence: ruleOf(routine) ?? DAILY,
@@ -180,8 +186,11 @@ function formInput(values: RoutineFormValues, inheritedFields: RoutineInheritabl
   return { ...values, description: values.description || null, opensOn, inheritedFields };
 }
 
-/** Fields of a routine saved on leaving them, in its panel: texts, numbers, its links and its place. */
-const ON_BLUR = ['label', 'description', 'estimate', 'links', 'location', 'locationLat', 'locationLon', 'travelBefore', 'travelAfter'] as const;
+/**
+ * Fields of a routine saved on leaving them, in its panel: texts, numbers, its links and its place; its repetition once
+ * a value is chosen or an hour, a number left (`RoutineRepetition`'s `onCommit`), never on each key typed.
+ */
+const ON_BLUR = ['label', 'description', 'estimate', 'links', 'location', 'locationLat', 'locationLon', 'travelBefore', 'travelAfter', ...ROUTINE_REPETITION_KEYS] as const;
 
 export interface RoutineFormProps {
   /** Routine edited. */
@@ -199,12 +208,12 @@ export interface RoutineFormProps {
 
 /**
  * Routine, laid out as the task and event panels (`DetailLayout`): its done switch, its label and its « … » menu, then
- * its project; on the left its description, « Relations » (parent routine, sub-routines, the routines it depends on and
- * those it is related to, of its project tree as the tasks), its repetition and the comments of the occurrence open;
- * on the right « Classement » (categories), « Parties prenantes », « Planification » (first time, time to spend, dead
+ * its project; on the left its description, « Relations » (parent routine, sub-routines, the routines it depends on,
+ * those that depend on it — written in theirs — and those it is related to, of its project tree as the tasks), its repetition and the comments of the occurrence open;
+ * on the right « Classement » (categories, priority and type, the lists of the tasks), « Parties prenantes », « Planification » (first time, time to spend, dead
  * times, time tracked), « Lieu », « Alarmes » (reminders, saved timers) and « Ressources » (links, sheets). A new
  * routine is a form with « Créer »; an existing one saves each field as soon as it changes (texts and numbers on
- * leaving them, `useFieldSave`), « Enregistrement… » / « Enregistré » in its header.
+ * leaving them, its repetition right in the panel once a value is chosen or a number left, `useFieldSave`), « Enregistrement… » / « Enregistré » in its header.
  * @param {RoutineFormProps} props Component props.
  * @returns {JSX.Element} Form.
  */
@@ -217,6 +226,7 @@ export function RoutineForm({ routine, parent, categoryId = null, projectId = nu
   const rowActionsOf = useRoutineRowsActions();
   const countdownEntries = useCountdownMenuEntries();
   const routines = data?.routines ?? [];
+  const setBlocked = useSetBlockedRoutines(routines);
   const base = useAppForm<RoutineFormValues>({
     initialValues: routine
       ? routineFormValues(routine)
@@ -224,6 +234,9 @@ export function RoutineForm({ routine, parent, categoryId = null, projectId = nu
           label: '',
           description: '',
           categoryIds: parent?.categoryIds ?? (categoryId ? [categoryId] : []),
+          priorityId: parent?.priorityId ?? null,
+          // Its type is its own (not inherited, as a sub-task's).
+          typeId: null,
           parentId: parent?.id ?? null,
           startDate: parent && parent.startDate > localToday() ? parent.startDate : localToday(),
           recurrence: (parent && ruleOf(parent)) ?? DAILY,
@@ -347,6 +360,8 @@ export function RoutineForm({ routine, parent, categoryId = null, projectId = nu
   // A new routine only: an existing one is saved field by field (Enter saves the text typed).
   const handleSubmit = form.onSubmit((values) => create.mutate(inputOf(values), formCallbacks(form, 'Routine créée.', onDone)));
 
+  // « Bloque »: the routines that depend on this one.
+  const blocked = current ? blockedRoutineIds(routines, current.id) : [];
   const subRoutines = routine ? routines.filter((item) => item.parentId === routine.id) : [];
   const commentsDate = routine ? (occurrenceDate ?? panelOccurrence(routine)) : null;
   // The fields of its « quand » and its place, with the inheritance of a sub-routine.
@@ -428,6 +443,19 @@ export function RoutineForm({ routine, parent, categoryId = null, projectId = nu
                 clearable
                 {...form.getInputProps('requiredIds')}
               />
+              {current && (
+                <BatchMultiSelect
+                  label="Bloque"
+                  description="Routines qui attendent celle-ci : les choisir ici leur ajoute la dépendance."
+                  placeholder={blocked.length ? undefined : 'Aucune'}
+                  {...treeSelectProps(linkOptions(blocked))}
+                  searchable
+                  clearable
+                  value={blocked}
+                  // Written in the « Dépend de » of the routines chosen or removed, saved at once.
+                  onChange={(next) => setBlocked(blocked, next, [current.id])}
+                />
+              )}
               <BatchMultiSelect
                 label="Relative à"
                 description="Routines liées, sans ordre entre elles."
@@ -467,6 +495,14 @@ export function RoutineForm({ routine, parent, categoryId = null, projectId = nu
                   {...form.getInputProps('categoryIds')}
                 />
               </InheritedField>
+              {context && (
+                <>
+                  <InheritedField {...inherited('PRIORITY')}>
+                    <LabelSelect kind="priority" label="Priorité" labels={context.priorities} {...form.getInputProps('priorityId')} />
+                  </InheritedField>
+                  <LabelSelect kind="type" label="Type" labels={context.types} {...form.getInputProps('typeId')} />
+                </>
+              )}
             </PanelGroup>
             <PanelGroup title={PANEL_GROUPS.people}>
               {context && (

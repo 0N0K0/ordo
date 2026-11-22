@@ -711,7 +711,7 @@ export type RingSettingsInput = {
   ringtone: string;
 };
 
-/** Same changes for several routines (omitted fields unchanged; null clears estimate and projectId). */
+/** Same changes for several routines (omitted fields unchanged; null clears estimate, projectId, priorityId and typeId). */
 export type RoutineBulkChanges = {
   addAssigneeIds?: Array<string | number> | null | undefined;
   addCategoryIds?: Array<string | number> | null | undefined;
@@ -734,6 +734,7 @@ export type RoutineBulkChanges = {
   moments?: unknown;
   /** « Ouverture » of its rule; null: none. */
   opensOn?: unknown;
+  priorityId?: string | number | null | undefined;
   projectId?: string | number | null | undefined;
   recurrence?: unknown;
   removeAssigneeIds?: Array<string | number> | null | undefined;
@@ -743,6 +744,7 @@ export type RoutineBulkChanges = {
   /** On or out of calendar schedules, following its rule; null: any time. */
   slotCondition?: unknown;
   startDate?: string | null | undefined;
+  typeId?: string | number | null | undefined;
 };
 
 export type RoutineCategoryInput = {
@@ -761,6 +763,7 @@ export type RoutineInheritableField =
   | 'MOMENTS'
   | 'MOVES'
   | 'OPENS_ON'
+  | 'PRIORITY'
   | 'PROJECT'
   | 'RECURRENCE'
   | 'SLOT_CONDITION'
@@ -800,6 +803,8 @@ export type RoutineInput = {
   /** « Ouverture » of the occurrences of its rule: { mode: DAY | WEEKDAY | WEEK | BEFORE, … }; null: none. */
   opensOn?: unknown;
   parentId?: string | number | null | undefined;
+  /** Priority (the list of the tasks); none: none. */
+  priorityId?: string | number | null | undefined;
   projectId?: string | number | null | undefined;
   recurrence: unknown;
   /** « Relative à »: routines related to it (same project tree). */
@@ -813,6 +818,8 @@ export type RoutineInput = {
   travelAfter?: number | null | undefined;
   /** Travel time there, in minutes; none: 0. */
   travelBefore?: number | null | undefined;
+  /** Type (the list of the tasks); none: none. */
+  typeId?: string | number | null | undefined;
 };
 
 export type RoutineOccurrenceGoneInput = {
@@ -853,6 +860,8 @@ export type RoutinePatch = {
   /** Null: top level. */
   parentId?: string | number | null | undefined;
   /** Null: none. */
+  priorityId?: string | number | null | undefined;
+  /** Null: none. */
   projectId?: string | number | null | undefined;
   recurrence?: unknown;
   relatedIds?: Array<string | number> | null | undefined;
@@ -866,6 +875,8 @@ export type RoutinePatch = {
   travelAfter?: number | null | undefined;
   /** Travel time there, in minutes; omitted: unchanged. */
   travelBefore?: number | null | undefined;
+  /** Null: none. */
+  typeId?: string | number | null | undefined;
 };
 
 export type SaveMailDraftInput = {
@@ -3510,7 +3521,7 @@ export type DeleteProjectStatusMutation = { deleteProjectStatus: boolean };
 export type RoutinesDataQueryVariables = Exact<{ [key: string]: never; }>;
 
 
-export type RoutinesDataQuery = { routineCategories: Array<{ id: string, archived: boolean, label: string, color: string | null, iconUrl: string | null, parentId: string | null, position: number }>, routines: Array<{ id: string, label: string, description: string | null, categoryIds: Array<string>, parentId: string | null, startDate: string, recurrence: unknown, estimate: number | null, fromTime: string | null, dueTime: string | null, slotCondition: unknown, moments: unknown, savedCountdownIds: Array<string>, cases: unknown, moves: unknown, done: boolean, windowFrom: string | null, windowTo: string | null, location: string | null, locationLat: number | null, locationLon: number | null, travelBefore: number, travelAfter: number, projectId: string | null, position: number, archived: boolean, assigneeIds: Array<string>, beneficiaryIds: Array<string>, beneficiaryRelationIds: Array<string>, requiredIds: Array<string>, relatedIds: Array<string>, currentDate: string | null, firstDate: string | null, nextDate: string | null, doneDates: Array<string>, lastDoneAt: string | null, trackedSeconds: number, opensOn: unknown, inheritedFields: Array<RoutineInheritableField>, reminders: Array<{ before: number | null, at: string | null, days: number | null, anchor: string, ringtone: string | null }>, deadTimes: Array<{ label: string, minutes: number, ringtone: string | null }>, reminderOccurrences: Array<{ date: string, day: string, slots: Array<{ slot: number, fromTime: string | null, dueTime: string | null }> }>, slots: Array<{ index: number, fromTime: string | null, dueTime: string | null, optional: boolean, done: boolean, windows: unknown }>, links: Array<{ url: string, label: string }>, inheritance: Array<{ field: string, state: InheritState, source: InheritSource | null, sourceId: string | null }>, effective: { projectId: string | null, assigneeIds: Array<string>, beneficiaryIds: Array<string>, beneficiaryRelationIds: Array<string>, categoryIds: Array<string>, slotCondition: unknown, opensOn: unknown, location: string | null, locationLat: number | null, locationLon: number | null, startDate: string, recurrence: unknown, cases: unknown, moments: unknown, moves: unknown } }> };
+export type RoutinesDataQuery = { routineCategories: Array<{ id: string, archived: boolean, label: string, color: string | null, iconUrl: string | null, parentId: string | null, position: number }>, routines: Array<{ id: string, label: string, description: string | null, categoryIds: Array<string>, priorityId: string | null, typeId: string | null, parentId: string | null, startDate: string, recurrence: unknown, estimate: number | null, fromTime: string | null, dueTime: string | null, slotCondition: unknown, moments: unknown, savedCountdownIds: Array<string>, cases: unknown, moves: unknown, done: boolean, windowFrom: string | null, windowTo: string | null, location: string | null, locationLat: number | null, locationLon: number | null, travelBefore: number, travelAfter: number, projectId: string | null, position: number, archived: boolean, assigneeIds: Array<string>, beneficiaryIds: Array<string>, beneficiaryRelationIds: Array<string>, requiredIds: Array<string>, relatedIds: Array<string>, currentDate: string | null, firstDate: string | null, nextDate: string | null, doneDates: Array<string>, lastDoneAt: string | null, trackedSeconds: number, opensOn: unknown, inheritedFields: Array<RoutineInheritableField>, reminders: Array<{ before: number | null, at: string | null, days: number | null, anchor: string, ringtone: string | null }>, deadTimes: Array<{ label: string, minutes: number, ringtone: string | null }>, reminderOccurrences: Array<{ date: string, day: string, slots: Array<{ slot: number, fromTime: string | null, dueTime: string | null }> }>, slots: Array<{ index: number, fromTime: string | null, dueTime: string | null, optional: boolean, done: boolean, windows: unknown }>, links: Array<{ url: string, label: string }>, inheritance: Array<{ field: string, state: InheritState, source: InheritSource | null, sourceId: string | null }>, effective: { projectId: string | null, assigneeIds: Array<string>, beneficiaryIds: Array<string>, beneficiaryRelationIds: Array<string>, categoryIds: Array<string>, priorityId: string | null, slotCondition: unknown, opensOn: unknown, location: string | null, locationLat: number | null, locationLon: number | null, startDate: string, recurrence: unknown, cases: unknown, moments: unknown, moves: unknown } }> };
 
 export type CreateRoutineCategoryMutationVariables = Exact<{
   input: RoutineCategoryInput;
@@ -8964,6 +8975,8 @@ export const RoutinesDataDocument = new TypedDocumentString(`
     label
     description
     categoryIds
+    priorityId
+    typeId
     parentId
     startDate
     recurrence
@@ -9035,6 +9048,7 @@ export const RoutinesDataDocument = new TypedDocumentString(`
       beneficiaryIds
       beneficiaryRelationIds
       categoryIds
+      priorityId
       slotCondition
       opensOn
       location

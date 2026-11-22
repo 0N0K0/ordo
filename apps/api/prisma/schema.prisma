@@ -726,6 +726,8 @@ model TaskPriority {
   archivedAt  DateTime?
   createdAt   DateTime  @default(now())
   tasks       Task[]
+  /// Routines of this priority (the list is shared by the tasks and the routines).
+  routines    Routine[]
   /// Workspace the row belongs to (always given by the app; the default fails outside one).
   workspaceId String    @default(dbgenerated("current_setting('ordo.workspace'::text)"))
   workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
@@ -746,6 +748,8 @@ model TaskType {
   archivedAt  DateTime?
   createdAt   DateTime  @default(now())
   tasks       Task[]
+  /// Routines of this type (the list is shared by the tasks and the routines).
+  routines    Routine[]
   /// Workspace the row belongs to (always given by the app; the default fails outside one).
   workspaceId String    @default(dbgenerated("current_setting('ordo.workspace'::text)"))
   workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
@@ -3314,6 +3318,11 @@ model Routine {
   description          String?
   /// Categories it is shown in (a sub-routine is shown under its parent).
   categories           RoutineCategory[]      @relation("RoutineCategories")
+  /// Priority and type, from the lists of the tasks (shared by both); a deleted one is cleared.
+  priorityId           String?
+  priority             TaskPriority?          @relation(fields: [priorityId], references: [id], onDelete: SetNull)
+  typeId               String?
+  type                 TaskType?              @relation(fields: [typeId], references: [id], onDelete: SetNull)
   /// Saved timers launched from it.
   savedCountdowns      SavedCountdown[]       @relation("RoutineSavedCountdowns")
   /// Parent routine (null for a top-level one). Deleting a routine deletes its sub-routines or puts them one level up
@@ -3322,7 +3331,7 @@ model Routine {
   parent               Routine?               @relation("RoutineTree", fields: [parentId], references: [id], onDelete: SetNull)
   children             Routine[]              @relation("RoutineTree")
   /// Fields it takes from its parent, live: PROJECT, ASSIGNEES, BENEFICIARIES, SLOT_CONDITION, OPENS_ON,
-  /// LOCATION, CATEGORIES, START_DATE, RECURRENCE, CASES, MOMENTS, MOVES. A field not listed is its own value (emptied
+  /// LOCATION, CATEGORIES, PRIORITY, START_DATE, RECURRENCE, CASES, MOMENTS, MOVES. A field not listed is its own value (emptied
   /// on purpose when it has none); always empty for a top-level routine. Its effective values: `effectiveRoutine`.
   inheritedFields      String[]               @default([])
   /// First occurrence: the rule repeats from it.

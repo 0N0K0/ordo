@@ -7,6 +7,8 @@ interface OpensOnInputProps {
   /** Null: from the first day of each occurrence. */
   value: RoutineOpens | null;
   onChange: (value: RoutineOpens | null) => void;
+  /** Called once a value is chosen or a number is left (a panel saved field by field saves then). Optional. */
+  onCommit?: () => void;
   error?: string;
 }
 
@@ -51,11 +53,12 @@ function firstValue(mode: RoutineOpensMode, frequency: Recurrence['frequency']):
 /**
  * « Ouverture »: day each occurrence can be done from, before its due day: a day number, a weekday of the month (the
  * 2nd Tuesday), the weekday of a week (of the month, or ISO week of the year), in its period (a monthly or yearly
- * rule), or some days before its due day; none: from its first day.
+ * rule), or some days before its due day; none: from its first day. Each change is given at once; `onCommit` follows a
+ * choice at once, and a number once it is left.
  * @param {OpensOnInputProps} props Component props.
  * @returns {JSX.Element} Input.
  */
-export function OpensOnInput({ frequency, value, onChange, error }: OpensOnInputProps) {
+export function OpensOnInput({ frequency, value, onChange, onCommit, error }: OpensOnInputProps) {
   const options = modeOptions(frequency);
   const mode = value && options.some((option) => option.value === value.mode) ? value.mode : NONE;
   const yearly = frequency === 'YEARLY';
@@ -66,16 +69,25 @@ export function OpensOnInput({ frequency, value, onChange, error }: OpensOnInput
    */
   const change = (changes: Partial<RoutineOpens>) => value && onChange({ ...value, ...changes } as RoutineOpens);
   /**
+   * Changes some values of the current mode from a choice: given, then committed.
+   * @param {Partial<RoutineOpens>} changes Changes.
+   * @returns {void}
+   */
+  const choose = (changes: Partial<RoutineOpens>) => {
+    change(changes);
+    onCommit?.();
+  };
+  /**
    * Number of a select (its value as a number).
    * @param {string | null} next Value.
    * @returns {number} Number.
    */
   const number = (next: string | null) => Number(next ?? 1);
   const monthSelect = value && (value.mode === 'DAY' || value.mode === 'WEEKDAY') && yearly && (
-    <Select label="Mois" data={monthOptions} value={String(value.month ?? 1)} onChange={(next) => change({ month: number(next) })} allowDeselect={false} />
+    <Select label="Mois" data={monthOptions} value={String(value.month ?? 1)} onChange={(next) => choose({ month: number(next) })} allowDeselect={false} />
   );
   const weekdaySelect = value && (value.mode === 'WEEKDAY' || value.mode === 'WEEK') && (
-    <Select label="Jour" data={weekdayOptions} value={String(value.weekday)} onChange={(next) => change({ weekday: number(next) })} allowDeselect={false} />
+    <Select label="Jour" data={weekdayOptions} value={String(value.weekday)} onChange={(next) => choose({ weekday: number(next) })} allowDeselect={false} />
   );
   return (
     <Stack gap="xs">
@@ -84,19 +96,22 @@ export function OpensOnInput({ frequency, value, onChange, error }: OpensOnInput
         description="Facultatif : chaque occurrence est à faire dès ce jour, jusqu’à son échéance."
         data={options}
         value={mode}
-        onChange={(next) => onChange(!next || next === NONE ? null : firstValue(next as RoutineOpensMode, frequency))}
+        onChange={(next) => {
+          onChange(!next || next === NONE ? null : firstValue(next as RoutineOpensMode, frequency));
+          onCommit?.();
+        }}
         allowDeselect={false}
         error={error}
       />
       {value?.mode === 'DAY' && mode === 'DAY' && (
         <Group gap="sm" align="flex-start" grow>
-          <NumberInput label="Jour" min={1} max={31} allowDecimal={false} value={value.day} onChange={(next) => change({ day: Math.min(31, Math.max(1, Number(next) || 1)) })} />
+          <NumberInput label="Jour" min={1} max={31} allowDecimal={false} value={value.day} onChange={(next) => change({ day: Math.min(31, Math.max(1, Number(next) || 1)) })} onBlur={onCommit} />
           {monthSelect}
         </Group>
       )}
       {value?.mode === 'WEEKDAY' && mode === 'WEEKDAY' && (
         <Group gap="sm" align="flex-start" grow>
-          <Select label="Le" data={positionOptions} value={String(value.position)} onChange={(next) => change({ position: number(next) })} allowDeselect={false} />
+          <Select label="Le" data={positionOptions} value={String(value.position)} onChange={(next) => choose({ position: number(next) })} allowDeselect={false} />
           {weekdaySelect}
           {monthSelect}
         </Group>
@@ -111,11 +126,12 @@ export function OpensOnInput({ frequency, value, onChange, error }: OpensOnInput
             allowDecimal={false}
             value={value.week}
             onChange={(next) => change({ week: Math.min(yearly ? 53 : 6, Math.max(1, Number(next) || 1)) })}
+            onBlur={onCommit}
           />
         </Group>
       )}
       {value?.mode === 'BEFORE' && (
-        <NumberInput label="Jours avant l’échéance" min={1} max={366} allowDecimal={false} value={value.days} onChange={(next) => change({ days: Math.min(366, Math.max(1, Number(next) || 1)) })} />
+        <NumberInput label="Jours avant l’échéance" min={1} max={366} allowDecimal={false} value={value.days} onChange={(next) => change({ days: Math.min(366, Math.max(1, Number(next) || 1)) })} onBlur={onCommit} />
       )}
     </Stack>
   );

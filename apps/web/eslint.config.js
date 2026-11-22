@@ -645,6 +645,11 @@ export default defineConfig([
             "ObjectExpression:has(> Property[key.name='id'][value.value='root']) > Property[key.name='children'] > ArrayExpression[elements.length=1] > ObjectExpression:has(> Property[key.name='type'][value.value='condition'])",
           message: 'Utiliser conditionFilter(champ, opérateur, valeur) ou withinFilter(champ, période) (components/data-table/views/use-data-view).',
         },
+        // Cell of one item of a settings list (status, priority, type): one, its chip opening the list of chips.
+        {
+          selector: "JSXAttribute[name.name='className'] MemberExpression[property.name='chipTrigger']",
+          message: 'Utiliser ChipChoiceCell (components/data-table/cells/ChipChoiceCell).',
+        },
         // Multi-select of a choices cell: one, saved once its list closes.
         {
           selector: "JSXOpeningElement[name.name='BatchMultiSelect']:has(> JSXSpreadAttribute[argument.name='stoppedCellCombobox'])",
