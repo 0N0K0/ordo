@@ -1,7 +1,7 @@
 import { mapById } from '@ordo/shared';
 import { arrayMove } from '@dnd-kit/sortable';
 
-import { Checkbox, Group, Stack, Text } from '@mantine/core';
+import { Box, Checkbox, Group, Stack, Text } from '@mantine/core';
 import type { ColumnLayout } from '@ordo/shared';
 
 import { columnOrder, isHidden, withOrder, withVisibility, type DataColumn } from '../table/data-table';
@@ -44,6 +44,8 @@ interface ColumnsListProps {
   onReset?: () => void;
   /** Tip about the headers. Optional. Default = true. */
   withHint?: boolean;
+  /** Height the list of columns takes at most, scrolling beyond (a long list in a settings panel). Optional. Default = none. */
+  maxHeight?: number;
 }
 
 /**
@@ -52,19 +54,21 @@ interface ColumnsListProps {
  * @param {ColumnsListProps} props Component props.
  * @returns {JSX.Element} Panel.
  */
-function ColumnsList({ items, onReorder, onToggle, onReset, withHint = true }: ColumnsListProps) {
+function ColumnsList({ items, onReorder, onToggle, onReset, withHint = true, maxHeight }: ColumnsListProps) {
   const ids = items.map((item) => item.id);
 
   return (
     <Stack gap="xs">
       {/* Pointer, or keyboard on the handles (space, arrows, space). */}
-      <SortableArea ids={ids} layout="list" onMove={(_id, from, to) => onReorder(arrayMove(ids, from, to))}>
-        <Stack gap={4}>
-          {items.map((item) => (
-            <ColumnItem key={item.id} item={item} onToggle={(visible) => onToggle(item.id, visible)} />
-          ))}
-        </Stack>
-      </SortableArea>
+      <Box mah={maxHeight} style={maxHeight ? { overflowY: 'auto' } : undefined}>
+        <SortableArea ids={ids} layout="list" onMove={(_id, from, to) => onReorder(arrayMove(ids, from, to))}>
+          <Stack gap={4}>
+            {items.map((item) => (
+              <ColumnItem key={item.id} item={item} onToggle={(visible) => onToggle(item.id, visible)} />
+            ))}
+          </Stack>
+        </SortableArea>
+      </Box>
       {onReset && (
         <ActionButton priority="tertiary" icon={<ArrowCounterClockwiseIcon aria-hidden />} onClick={onReset}>
           Colonnes par défaut
@@ -83,6 +87,8 @@ interface DataColumnsPanelProps<R> {
   columns: readonly DataColumn<R>[];
   layout: ColumnLayout;
   onLayoutChange: (layout: ColumnLayout) => void;
+  /** Height the list takes at most, scrolling beyond. Optional. Default = none. */
+  maxHeight?: number;
 }
 
 /**
@@ -90,7 +96,7 @@ interface DataColumnsPanelProps<R> {
  * @param {DataColumnsPanelProps<R>} props Component props.
  * @returns {JSX.Element} Panel.
  */
-export function DataColumnsPanel<R>({ columns, layout, onLayoutChange }: DataColumnsPanelProps<R>) {
+export function DataColumnsPanel<R>({ columns, layout, onLayoutChange, maxHeight }: DataColumnsPanelProps<R>) {
   const byId = mapById(columns);
   const items = columnOrder(columns, layout).map((id) => {
     const column = byId.get(id)!;
@@ -102,6 +108,7 @@ export function DataColumnsPanel<R>({ columns, layout, onLayoutChange }: DataCol
       onReorder={(order) => onLayoutChange(withOrder(columns, layout, order))}
       onToggle={(id, visible) => onLayoutChange(withVisibility(columns, layout, id, visible))}
       onReset={() => onLayoutChange({ columnOrder: [], hiddenColumns: [], columnSizing: {} })}
+      maxHeight={maxHeight}
     />
   );
 }

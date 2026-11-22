@@ -7,7 +7,7 @@ import { itemChoices, itemSelectProps } from '../../../components/items/item-loo
 import { EVERYDAY_CONTEXT, splitAmounts, type TreasuryLineMode, fromCents, directionOf } from '@ordo/shared';
 import { DataTable } from '../../../components/data-table/table/DataTable';
 import { EditableDate, EditableNumber, EditableSelect, EditableText } from '../../../components/data-table/cells/EditableCells';
-import type { DataColumn } from '../../../components/data-table/table/data-table';
+import { WARNING_YES_ICONS, type DataColumn } from '../../../components/data-table/table/data-table';
 import { useDataView } from '../../../components/data-table/views/use-data-view';
 import { treeSelectProps } from '../../../components/tree/tree-select';
 import * as fmt from '../../../lib/format';
@@ -30,6 +30,7 @@ import { useCategoryCreators } from '../hooks/use-settings-items';
 import { ContextForm, RelationForm } from './TeamPanel';
 import { signedText } from '../../../components/money/signed-text';
 import { taggedKey } from '../../../lib/tagged-key';
+import { booleanColumn } from '../../../components/data-table/table/boolean-column';
 
 /** Line of a split entry, with its place and signed amount. */
 interface LineRow {
@@ -129,15 +130,7 @@ function lineColumns(env: EntryEnv): DataColumn<LineRow>[] {
       text: (row) => signedText(row.amount),
       filter: { kind: 'number', value: (row) => row.amount },
     },
-    {
-      id: 'loan',
-      bulk: true,
-      label: 'Prêt',
-      size: 80,
-      sortValue: (row) => (row.line.loan ? 1 : 0),
-      text: (row) => (row.line.loan ? 'Prêt' : ''),
-      filter: { kind: 'boolean', value: (row) => row.line.loan },
-    },
+    booleanColumn<LineRow>({ id: 'loan', bulk: true, label: 'Prêt', size: 80, groupLabels: { yes: 'Avancé', no: 'Définitif' }, icons: WARNING_YES_ICONS, value: (row) => row.line.loan }),
     {
       id: 'date',
       bulk: true,

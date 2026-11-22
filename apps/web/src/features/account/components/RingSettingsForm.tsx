@@ -1,19 +1,14 @@
-import { Group, NumberInput, Select, SimpleGrid, Stack, Switch } from '@mantine/core';
-import { REPEAT_MINUTES_MAX, RING_MINUTES_MAX, RINGTONES, ringSettingsSchema, type RingSettings } from '@ordo/shared';
-import { PlayIcon } from '@phosphor-icons/react';
-import { ActionButton } from '../../../components/actions/ActionButton';
+import { NumberInput, SimpleGrid, Stack, Switch } from '@mantine/core';
+import { REPEAT_MINUTES_MAX, RING_MINUTES_MAX, ringSettingsSchema, type RingSettings } from '@ordo/shared';
 import { SaveStatus } from '../../../components/feedback/SaveStatus';
+import { RingtoneSelect } from '../../../components/inputs/RingtoneSelect';
 import { useAppForm, useFieldSave } from '../../../lib/form';
-import { previewRingtone } from '../../alarms/lib/alarm-sound';
 import { useUpdateRingSettings } from '../../auth/api';
 import { OutsideRings } from './OutsideRings';
 
-/** Ringtones offered. */
-const RINGTONE_OPTIONS = RINGTONES.map((ringtone) => ({ value: ringtone.id, label: ringtone.label }));
-
 /**
  * How the alarms and reminders of the user ring, in every workspace: duration of a ring, looped or once,
- * repeated every N minutes until « Arrêter », ringtone (« Écouter » plays it), ringing outside the app (`OutsideRings`:
+ * repeated every N minutes until « Arrêter », ringtone (`RingtoneSelect`, « Écouter » plays it), ringing outside the app (`OutsideRings`:
  * the push notifications of the devices). Each field is
  * saved as soon as it changes (the numbers on leaving them, `useFieldSave`).
  * @param {{ settings: RingSettings }} props Settings as saved.
@@ -49,12 +44,14 @@ export function RingSettingsForm({ settings }: { settings: RingSettings }) {
           />
         </SimpleGrid>
         <Switch label="En boucle" description="La sonnerie se répète pendant toute sa durée ; sinon elle sonne une fois." {...form.getInputProps('loop', { type: 'checkbox' })} />
-        <Group align="flex-end" gap="xs">
-          <Select label="Sonnerie" data={RINGTONE_OPTIONS} allowDeselect={false} {...form.getInputProps('ringtone')} />
-          <ActionButton priority="secondary" icon={<PlayIcon aria-hidden />} onClick={() => previewRingtone(form.getValues().ringtone)}>
-            Écouter
-          </ActionButton>
-        </Group>
+        <RingtoneSelect
+          label="Sonnerie"
+          withSettings={false}
+          value={form.getValues().ringtone}
+          onChange={(ringtone) => {
+            if (ringtone) form.setFieldValue('ringtone', ringtone);
+          }}
+        />
         <OutsideRings checked={form.getValues().outside} onChange={(value) => form.setFieldValue('outside', value)} />
       </Stack>
     </form>

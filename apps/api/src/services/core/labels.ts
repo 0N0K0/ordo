@@ -40,6 +40,8 @@ export interface LabelOptions<T = Label> {
   schema?: z.ZodObject;
   /** Extra fields of the table (e.g. status category), all optional. Optional. */
   extraSchema?: z.ZodObject;
+  /** Optional fields a null clears on an update (the others: null leaves them unchanged). Optional. Default = none. */
+  clearable?: readonly string[];
   /** Writes following an update, in its transaction (e.g. the records copying its label follow it). Optional. */
   afterUpdate?: (tx: Prisma.TransactionClient, before: T, after: T) => Promise<void>;
 }
@@ -87,6 +89,7 @@ export function createLabelService<T extends { id: string } = Label>(model: Labe
    */
   const delegate = (client: object = prisma) => modelDelegate<LabelDelegate<T>>(model, client);
   const { afterUpdate } = options;
+  const clearable = new Set(options.clearable ?? []);
 
   return {
     /**
@@ -105,15 +108,16 @@ export function createLabelService<T extends { id: string } = Label>(model: Labe
     },
 
     /**
-     * Updates an item (refused when it is archived); omitted or null fields are left unchanged.
+     * Updates an item (refused when it is archived); omitted or null fields are left unchanged, but a null clears a
+     * clearable one.
      * @param {string} id Item id.
      * @param {object} input Changes, with the extra fields.
      * @returns {Promise<T>} Updated item.
      */
     async update(id: string, input: object): Promise<T> {
       await assertActive(delegate(), id, messages.notFound);
-      // null means "unchanged" for these required fields.
-      const changes = Object.fromEntries(Object.entries(input).map(([key, value]) => [key, value ?? undefined]));
+      // null means "unchanged" for these required fields, "none" for the clearable ones.
+      const changes = Object.fromEntries(Object.entries(input).map(([key, value]) => [key, value ?? (clearable.has(key) ? null : undefined)]));
       // Only the fields given: zod 4 fills an omitted field with its default even in a partial schema, which would reset
       // it (the nature of a kind of éphémérides, set at its creation, turned back into créneaux on every change).
       const data = presentFields(parseInput(patchSchema, changes), changes);

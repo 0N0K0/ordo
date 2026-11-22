@@ -17,7 +17,7 @@ Les fichiers de `apps/web/src/features/account/` : la page « Mon compte » et l
 
 ### `components/RingSettingsForm.tsx`
 
-`RingSettingsForm({ settings })` (export) : réglages de la sonnerie, `useAppForm` + `ringSettingsSchema`, enregistrés champ par champ (`useFieldSave`, `ringMinutes` et `repeatMinutes` en les quittant, `SaveStatus`) par `useUpdateRingSettings` (`features/auth/api`, met à jour `me`) ; « Écouter » : `previewRingtone` ; « Sonner hors de l’app » : `OutsideRings` (valeur du formulaire, changée par `setFieldValue`, donc enregistrée comme les autres). Interne : `RINGTONE_OPTIONS`.
+`RingSettingsForm({ settings })` (export) : réglages de la sonnerie, `useAppForm` + `ringSettingsSchema`, enregistrés champ par champ (`useFieldSave`, `ringMinutes` et `repeatMinutes` en les quittant, `SaveStatus`) par `useUpdateRingSettings` (`features/auth/api`, met à jour `me`) ; « Sonnerie » : `RingtoneSelect` `withSettings={false}` (avec « Écouter ») ; « Sonner hors de l’app » : `OutsideRings` (valeur du formulaire, changée par `setFieldValue`, donc enregistrée comme les autres).
 
 ### `components/OutsideRings.tsx`
 

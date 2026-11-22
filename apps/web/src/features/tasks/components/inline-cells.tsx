@@ -5,8 +5,8 @@ import { ItemBadge } from '../../../components/items/ItemBadge';
 import { ItemAvatar } from '../../../components/items/ItemAvatar';
 import { listSelectProps } from '../../../components/items/item-look';
 import { DatePickerInput } from '@mantine/dates';
-import { taskLabelSchema, type TaskColumn, subtreeOf } from '@ordo/shared';
-import { type ReactNode } from 'react';
+import { readTaskHours, taskLabelSchema, type TaskColumn, subtreeOf } from '@ordo/shared';
+import { useState, type ReactNode } from 'react';
 import { Link } from 'react-router';
 import { ON_ERROR, toastCallbacks } from '../../../lib/notify';
 import { unarchived } from '../../../lib/archive';
@@ -32,6 +32,10 @@ import { beneficiariesDiff } from '../../beneficiaries/lib/beneficiaries-diff';
 import { LATE_COLOR } from '../../../components/feedback/feedback-colors';
 import { inheritedDateHint } from '../lib/inherited-dates';
 import { LocationCell } from '../../geo/components/LocationCell';
+import { localToday } from '../../../lib/dates';
+import { taskHoursText } from '../lib/task-hours-text';
+import { tasksLabel } from '../lib/bulk-label';
+import { TaskHoursModal } from './TaskHoursField';
 
 /**
  * Accessible label of a cell field, mentioning the bulk edit.
@@ -486,4 +490,55 @@ export function TaskProjectCell({ task, context }: { task: Task; context: TaskCo
 export function TaskLocationCell({ task }: { task: Task }) {
   const { apply, count } = useCellEdit(task, 'location');
   return <LocationCell item={task} label={fieldLabel('Lieu', task, count)} readOnly={task.archived} count={count} onSave={(change) => apply(change)} />;
+}
+
+/**
+ * « Horaires » cell of a task: its hours in words (none: « N’importe quand »); a click opens their settings in the
+ * repetition modal, applied on « Appliquer » to it, or to every task selected (each takes these hours whole).
+ * @param {{ task: Task }} props Component props.
+ * @returns {JSX.Element} Cell.
+ */
+export function TaskHoursCell({ task }: { task: Task }) {
+  const { apply, count } = useCellEdit(task, 'hours');
+  const [opened, setOpened] = useState(false);
+  const hours = readTaskHours(task.hours);
+  const text = taskHoursText(hours, localToday());
+  const shown = (
+    <Text component="div" size="sm" c={text ? undefined : 'dimmed'} truncate title={text || undefined}>
+      {text || 'N’importe quand'}
+    </Text>
+  );
+  if (task.archived) return shown;
+  return (
+    <>
+      <UnstyledButton
+        onClick={(event) => {
+          stopClick(event);
+          setOpened(true);
+        }}
+        aria-label={fieldLabel('Modifier les horaires', task, count)}
+        style={{ maxWidth: '100%' }}
+      >
+        {shown}
+      </UnstyledButton>
+      {/* Its clicks kept from the row (the modal bubbles through the cell). */}
+      {opened && (
+        <span onClick={stopClick}>
+        <TaskHoursModal
+          value={hours}
+          title={`Horaires de « ${taskName(task)} »`}
+          onClose={() => setOpened(false)}
+          header={
+            count > 1 && (
+              <Text size="sm" c="dimmed">
+                S’applique à {tasksLabel(count)} : chacune prend ces horaires entiers.
+              </Text>
+            )
+          }
+          onApply={(value) => apply({ hours: value })}
+        />
+        </span>
+      )}
+    </>
+  );
 }

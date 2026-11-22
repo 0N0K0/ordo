@@ -7,8 +7,8 @@ import { TaskCreateForm } from '../components/TaskCreateForm';
 import type { TaskContext } from './use-task-context';
 import { useTaskRowsActions } from '../components/BulkBar';
 import { useConvertActivity } from '../../routines/hooks/use-convert-activity';
-import { deadTimeMenuEntries } from '../../countdowns/lib/dead-time-menu';
-import { taskDeadTimeItem } from '../lib/task-dead-times';
+import { useCountdownMenuEntries } from '../../countdowns/hooks/use-saved-countdowns';
+import { taskCountdownItem } from '../lib/task-countdowns';
 
 /**
  * Actions available on tasks (table, detail panel).
@@ -18,11 +18,12 @@ import { taskDeadTimeItem } from '../lib/task-dead-times';
 export function useTaskActions(context: TaskContext | null) {
   const actionsOf = useTaskRowsActions(context);
   const convert = useConvertActivity();
+  const countdownEntries = useCountdownMenuEntries();
   return {
     /**
      * Actions of a task in its menu (the menu of every row: table, detail panel), those of the selection bar on that
      * task alone: duplicate, transfer, « Héritage… » (a sub-task), archive, delete (an archived task, read only: restore, delete); then « Transformer
-     * en routine » (refused with sub-tasks); then « Lancer » each of its dead times.
+     * en routine » (refused with sub-tasks); then « Lancer » each of its dead times and saved timers.
      * @param {Task} task Task.
      * @returns {RowMenuEntry[]} Actions.
      */
@@ -37,7 +38,7 @@ export function useTaskActions(context: TaskContext | null) {
         convert.toRoutine(task, Boolean(context?.childrenOf(task.id).length)),
         rowMenuEntry(archive),
         rowMenuEntry(remove),
-        ...deadTimeMenuEntries(task.deadTimes, taskDeadTimeItem(task, context)),
+        ...countdownEntries(task, taskCountdownItem(task, context)),
       ];
     },
 

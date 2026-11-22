@@ -114,12 +114,10 @@ export async function seedPersonal({
   const garden = await project('Jardin', '#40c057');
   const papers = await project('Administratif', DEFAULT_LABEL_COLOR);
   await prisma.project.update({ where: { id: bathroom.id }, data: { iconId: await initialsIcon('Salle de bain', '#15aabf') } });
-  const task = (projectId: string, label: string, status = todo, changes: Partial<Prisma.TaskUncheckedCreateInput> = {}) =>
-    taskFactory.create({
-      projectId,
-      label,
-      statusId: status.id,
-      closedAt: status === done || status === dropped ? faker.date.recent({ days: 20 }) : null,
+  // Built, then created with its relations (their nested types are too deep for the factory's own create).
+  const task = (projectId: string, label: string, status = todo, changes: Partial<Prisma.TaskUncheckedCreateInput> = {}) => {
+    const data: Prisma.TaskUncheckedCreateInput = {
+      ...taskFactory.build({ projectId, label, statusId: status.id, closedAt: status === done || status === dropped ? faker.date.recent({ days: 20 }) : null }),
       assignees: {
         connect: faker.helpers
           .arrayElements(
@@ -130,7 +128,9 @@ export async function seedPersonal({
       },
       tags: { connect: faker.helpers.arrayElements(tags, { min: 0, max: 1 }).map(({ id }) => ({ id })) },
       ...changes,
-    });
+    };
+    return prisma.task.create({ data });
+  };
   await task(quotes.id, 'Demander un devis au plombier', done);
   await task(quotes.id, 'Comparer les devis', doing, { priorityId: urgent.id });
   await task(bathroom.id, 'Choisir le carrelage', todo, { deadline: date(day(14)) });

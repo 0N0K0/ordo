@@ -37,6 +37,7 @@ import { assertAllExist, assertExists, deleteOrNotFound, findOrNotFound } from '
 import { assertNoneArchived, assertNotArchived, assertActive, refuseArchived, activeIds, findActive } from '../core/archive';
 import { assertActiveRefs, type ShoppingRefs } from './refs';
 import { createLabelService } from '../core/labels';
+import { linkedSavedCountdowns } from '../tasks/saved-countdowns';
 import { connectIds } from '../core/relations';
 import { fromDecimal, toDecimal } from '../core/decimal';
 import { toJson } from '../core/json';
@@ -181,6 +182,8 @@ export async function duplicateSheet(id: string): Promise<Sheet> {
   const sheet = await orNotFound(prisma.sheet.findUnique({ where: { id }, include: { items: { orderBy: BY_POSITION, include: withPeople }, categories: { select: { id: true } } } }), 'Fiche');
   refuseArchived(sheet);
   const copy = await createSheet({ label: copyName(sheet.label), note: sheet.note, projectId: sheet.projectId, categoryIds: sheet.categories.map((category) => category.id) });
+  // Its saved timers go with it.
+  await prisma.sheet.update({ where: { id: copy.id }, data: { savedCountdowns: await linkedSavedCountdowns('SHEET', id) } });
   await prisma.$transaction(
     sheet.items.map((item) =>
       prisma.sheetItem.create({

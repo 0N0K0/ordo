@@ -7,7 +7,7 @@ import { useNavigate } from 'react-router';
 import { graphql } from '../../../graphql';
 import type { WatchedUnreadMailsQuery } from '../../../graphql/graphql';
 import { execute, executeIn } from '../../../lib/graphql-client';
-import { playRingtone } from '../../alarms/lib/alarm-sound';
+import { playRingtone } from '../../../lib/alarm-sound';
 import { claim, systemNotification, type RingLink } from '../../alarms/lib/ringing';
 import { notifyInfo } from '../../../lib/notify';
 import { switchWorkspace } from '../../workspaces/lib/switch';

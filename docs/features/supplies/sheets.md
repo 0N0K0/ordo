@@ -36,8 +36,8 @@ Suppression (dialogue de confirmation) : « La fiche « … » et ses 3 élémen
 
 - En-tête : retour « Fiches », titre, badge « Archivée », sous-titre « 3 éléments · rattachée à 2 routines, évènements ou tâches ».
 - Action « Utiliser cette fiche » (pas si archivée).
-- Menu : « Dupliquer » (ouvre la copie), « Archiver » / « Restaurer », « Supprimer » (retour à la liste).
-- Champs enregistrés chacun dès qu'il change (les textes en les quittant) : « Libellé » (requis, 250 caractères au plus ; vide, l'erreur s'affiche dessous et rien n'est enregistré), « Projet » (« Aucun : fiche de l'espace »), « Catégories », « Note » (texte multiligne, 4 000 caractères au plus). « Enregistrement… » puis « Enregistré » au-dessus ; un échec remet le champ comme il était, dans un toast d'erreur ; un champ changé ailleurs est repris. En lecture seule si la fiche est archivée.
+- Menu : « Dupliquer » (ouvre la copie), « Archiver » / « Restaurer », « Supprimer » (retour à la liste) ; avec des minuteurs enregistrés (fiche non archivée), section « Minuteurs » : « Lancer « Œufs durs (9 min) » » démarre aussitôt le minuteur, rattaché à la fiche (sa sonnerie : « Ouvrir la fiche »).
+- Champs enregistrés chacun dès qu'il change (les textes en les quittant) : « Libellé » (requis, 250 caractères au plus ; vide, l'erreur s'affiche dessous et rien n'est enregistré), « Projet » (« Aucun : fiche de l'espace »), « Catégories », « Note » (texte multiligne, 4 000 caractères au plus), « Minuteurs » (minuteurs enregistrés de l’espace que la fiche lance, voir [Alarmes](../activities/alarms.md#minuteurs-enregistrés) ; enregistrés à part, dès qu’ils changent). « Enregistrement… » puis « Enregistré » au-dessus ; un échec remet le champ comme il était, dans un toast d'erreur ; un champ changé ailleurs est repris. En lecture seule si la fiche est archivée.
 - Fiche introuvable : page « Cette fiche » introuvable, avec un retour vers « Fiches ».
 
 ### Tableau des éléments
@@ -51,12 +51,12 @@ Vue `sheet-items`. Chaque cellule se modifie sur place, et sur une sélection de
 | `category`     | « Catégorie »            | Catégorie des achats (groupée en arbre, « Sans catégorie »).                                                                                                        |
 | `quantity`     | « Quantité »             | Nombre, 3 décimales.                                                                                                         |
 | `unit`         | « Unité »                | Unité.                                                                                                                       |
-| `consumable`   | « Consommable »          | Coché : consommé quand la fiche est utilisée (une recette) ; décoché : revient (une valise).                                 |
+| `consumable`   | « Consommable »          | Coché : consommé quand la fiche est utilisée (une recette) ; décoché : revient (une valise). Groupes « Consommable » / « Permanent ».                                 |
 | `store`        | « Magasin »              | Comme les éléments des listes d'achats.                                                                                      |
 | `conservation` | Conservation             | Périssable et mode de conservation.                                                                                          |
 | `people`       | « Bénéficiaires »        | Membres et relations.                                                                                                        |
 | `url`          | « Lien vers le produit » | Lien `http` ou `https`.                                                                                                      |
-| `optional`     | « Facultatif »           | Acheté si possible.                                                                                                          |
+| `optional`     | « Facultatif »           | Acheté si possible. « Facultatif » / « Obligatoire » (coche bleue, triangle orange).                                                                                                          |
 | `note`         | « Description »          | Markdown, modifiable dans l'éditeur markdown ouvert dans un popover.                                                         |
 | commentaires   | (colonne commune)        | Nombre de commentaires de l'élément.                                                                                         |
 
@@ -102,7 +102,7 @@ Une liste par occurrence de routine ou d'évènement, une par tâche. Faite à l
 - En-tête : « 2 / 5 faits · lundi 10 novembre 2026 ».
 - « Ajouter une fiche » : même panneau que pour les listes d'achats (sans retrait), éléments additionnés à ceux de la liste.
 - « Refaire depuis les fiches » (confirmation : « La liste sera refaite à partir des fiches : ce qui est coché, ajouté ou modifié dans cette liste sera perdu. », toast « Liste refaite. »).
-- Tableau (vue `checklist`) : « Fait » (case), « Élément », « Quantité », « Unité », « Catégorie », « Consommable » (masquée ; coché, un élément de référence est retiré du stock quand il est coché et rendu quand il est décoché), « Description » (masquée ; markdown, modifiable dans l'éditeur markdown ouvert dans un popover), « Fiches » (d'où vient l'élément ; filtre, regroupement). Les lignes faites sont marquées comme telles.
+- Tableau (vue `checklist`) : « Fait » (case ; oui / non « Collectés » / « À collecter »), « Élément », « Quantité », « Unité », « Catégorie », « Consommable » (masquée ; coché, un élément de référence est retiré du stock quand il est coché et rendu quand il est décoché), « Description » (masquée ; markdown, modifiable dans l'éditeur markdown ouvert dans un popover), « Fiches » (d'où vient l'élément ; filtre, regroupement). Les lignes faites sont marquées comme telles.
 - Ligne d'ajout « Ajouter un élément dans … » (élément non consommable par défaut, valeur du groupe reprise).
 - « Retirer » un élément (menu, sans confirmation) ou une sélection (avec confirmation).
 - Sans fiche attachée : « Aucune fiche : ajoutez-en pour faire la liste à cocher. » et le champ des fiches.

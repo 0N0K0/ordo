@@ -4,14 +4,14 @@ import { EmptyState } from '../../../components/feedback/EmptyState';
 import { localDay } from '../../../lib/dates';
 import { Group, Progress, SimpleGrid, Stack, Text } from '@mantine/core';
 import { ItemBadge } from '../../../components/items/ItemBadge';
-import { addDays, formatDuration } from '@ordo/shared';
+import { addDays, formatDuration, TASK_WAIT_REASON_LABELS } from '@ordo/shared';
 import { nextRings } from '../../alarms/lib/alarm-labels';
 import { AlarmIcon, CalendarBlankIcon, CheckCircleIcon, CheckSquareOffsetIcon, ClockIcon } from '@phosphor-icons/react';
 import { useMemo } from 'react';
 import { Link } from 'react-router';
 import { useAlarms } from '../../alarms/api';
-import type { Task } from '../../tasks/api';
-import { isArchivedTaskRow, viewUses, taskTableRows, type TaskTableRow } from '../../tasks/lib/task-columns';
+import { useDoableTaskIds, useTaskWaitReasons, type Task } from '../../tasks/api';
+import { DOABLE_GROUP_LABELS, isArchivedTaskRow, viewUses, taskTableRows } from '../../tasks/lib/task-columns';
 import { useTaskColumns } from '../../tasks/hooks/use-task-columns';
 import { useDefaultTableView, useViewRows } from '../../../components/data-table/views/use-default-view';
 import { viewPath } from '../../../components/data-table/views/use-saved-views';
@@ -21,7 +21,8 @@ import classes from './Home.module.css';
 import tile from '../../../components/page/StatTile.module.css';
 import { CardFigure, HomeCard } from './HomeCard';
 import { HomeList, HomeRow } from './HomeList';
-import { dayLabel, useHeldEvents, viewList, viewNote, type ViewItem, type WeekTime } from '../lib/home-data';
+import { dayLabel, useHeldEvents, viewNote, type WeekTime } from '../lib/home-data';
+import { SubSection } from '../../../components/page/SubSection';
 import * as fmt from '../../../lib/format';
 import { LateBadge } from '../../../components/feedback/LateBadge';
 import { taskNumber } from '../../tasks/hooks/use-task-context';
@@ -34,9 +35,23 @@ interface TasksCardProps {
   today: string;
 }
 
+/** A task of the card, in its section. */
+interface TaskItem {
+  key: string;
+  /** `now`: it can be done now; `later`: the others. */
+  section: TaskSection;
+  task: Task;
+}
+
+type TaskSection = 'now' | 'later';
+
+/** Titles of the sections of the card. */
+const SECTION_TITLES: Record<TaskSection, string> = { now: DOABLE_GROUP_LABELS.yes, later: DOABLE_GROUP_LABELS.no };
+
 /**
- * Tasks of the default view of the tasks page (its filter, search, sorts and groups), archived ones left out; without
- * any view yet, my tasks of today, overdue first. A task opens in the side panel.
+ * Tasks of the default view of the tasks page (its filter, search and sorts), archived ones left out; without any
+ * view yet, my tasks of today, overdue first. In two sections, each in that order: those that can be done now, then the
+ * others, with why not. A task opens in the side panel.
  * @param {TasksCardProps} props Component props.
  * @returns {JSX.Element} Card.
  */
@@ -44,13 +59,19 @@ export function TasksCard({ context, todayTasks, today }: TasksCardProps) {
   const link = useTaskLink();
   const { view, isPending } = useDefaultTableView('tasks');
   const columns = useTaskColumns(context, today, { doable: viewUses(view?.config, 'doableNow') });
+  const doableIds = useDoableTaskIds(true);
+  const waitReasons = useTaskWaitReasons(true);
   const rows = useMemo(() => taskTableRows(context?.tasks ?? []), [context]);
   const shown = useViewRows({ view, columns, rows, archived: isArchivedTaskRow });
-  const list = useMemo(() => {
-    if (view) return viewList(shown, (row) => row.key);
-    return { items: (todayTasks ?? []).map((task): ViewItem<TaskTableRow> => ({ key: task.id, group: '', row: { kind: 'task', key: task.id, task } })), group: undefined };
-  }, [view, shown, todayTasks]);
-  const loading = isPending || !context || (!view && !todayTasks);
+  const items = useMemo(() => {
+    // A closed task is neither doable now nor later: left out of the card.
+    const tasks = (view ? shown.rows.flatMap((row) => (row.kind === 'task' ? [row.task] : [])) : (todayTasks ?? [])).filter((task) => !context?.isClosed(task));
+    const item = (task: Task): TaskItem => ({ key: task.id, section: doableIds?.has(task.id) ? 'now' : 'later', task });
+    const all = tasks.map(item);
+    return [...all.filter((entry) => entry.section === 'now'), ...all.filter((entry) => entry.section === 'later')];
+  }, [view, shown, todayTasks, doableIds, context]);
+  const loading = isPending || !context || !doableIds || !waitReasons || (!view && !todayTasks);
+  const nothingNow = items.length > 0 && items[0].section === 'later';
   return (
     <HomeCard
       title={view ? 'Tâches' : 'Mes tâches du jour'}
@@ -59,27 +80,33 @@ export function TasksCard({ context, todayTasks, today }: TasksCardProps) {
       loading={loading}
       note={!isPending && viewNote(view, 'Tâches', 'mes tâches du jour')}
     >
-      {!loading && context && list.items.length === 0 && <EmptyState compact icon={<CheckCircleIcon aria-hidden />} message={view ? 'Aucune tâche dans cette vue.' : 'Rien à faire aujourd’hui.'} />}
-      {!loading && context && list.items.length > 0 && (
-        <HomeList
-          items={list.items}
-          group={list.group}
-          render={({ key, row }) => {
-            if (row.kind !== 'task') return null;
-            const task = row.task;
-            const status = task.statusId ? context.statusById.get(task.statusId) : undefined;
-            const late = isTaskOverdue(task, today);
-            return (
-              <HomeRow
-                key={key}
-                to={link.to(task.id)}
-                label={task.label}
-                subtitle={[context.projectLabel(task.projectId), taskNumber(task)].filter(Boolean).join(' · ')}
-                value={late && task.effectiveDeadline ? <LateBadge due={task.effectiveDeadline} today={today} /> : <ItemBadge item={status} />}
-              />
-            );
-          }}
-        />
+      {!loading && context && items.length === 0 && <EmptyState compact icon={<CheckCircleIcon aria-hidden />} message={view ? 'Aucune tâche dans cette vue.' : 'Rien à faire aujourd’hui.'} />}
+      {!loading && context && items.length > 0 && (
+        <Stack gap="sm">
+          {nothingNow && (
+            <SubSection title={SECTION_TITLES.now} gap={0}>
+              <EmptyState compact icon={<CheckCircleIcon aria-hidden />} message="Rien à faire maintenant." />
+            </SubSection>
+          )}
+          <HomeList
+            items={items}
+            group={{ key: (item) => item.section, title: (section) => SECTION_TITLES[section as TaskSection] }}
+            render={({ key, task }) => {
+              const status = task.statusId ? context.statusById.get(task.statusId) : undefined;
+              const late = isTaskOverdue(task, today);
+              const reason = waitReasons?.get(task.id);
+              return (
+                <HomeRow
+                  key={key}
+                  to={link.to(task.id)}
+                  label={task.label}
+                  subtitle={[context.projectLabel(task.projectId), taskNumber(task), reason && TASK_WAIT_REASON_LABELS[reason]].filter(Boolean).join(' · ')}
+                  value={late && task.effectiveDeadline ? <LateBadge due={task.effectiveDeadline} today={today} /> : <ItemBadge item={status} />}
+                />
+              );
+            }}
+          />
+        </Stack>
       )}
     </HomeCard>
   );

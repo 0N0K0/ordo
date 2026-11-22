@@ -1,6 +1,7 @@
 import { useQuery } from '@tanstack/react-query';
 import { graphql } from '../../../graphql';
-import type { CountdownFieldsFragment, CountdownInput, DeadTimeFieldsFragment } from '../../../graphql/graphql';
+import type { QueryKey } from '@tanstack/react-query';
+import type { CountdownFieldsFragment, CountdownInput, DeadTimeFieldsFragment, SavedCountdownFieldsFragment, SavedCountdownInput, SavedCountdownPatch, SavedCountdownTarget } from '../../../graphql/graphql';
 import { execute } from '../../../lib/graphql-client';
 import { useInvalidatingMutation } from '../../../lib/mutation';
 
@@ -8,7 +9,9 @@ import { useInvalidatingMutation } from '../../../lib/mutation';
 export type Countdown = CountdownFieldsFragment;
 /** A dead time (« temps mort ») of a task or a routine, as the API gives it. */
 export type DeadTimeOutput = DeadTimeFieldsFragment;
-export type { CountdownInput };
+/** A saved timer (« minuteur enregistré ») of the workspace. */
+export type SavedCountdown = SavedCountdownFieldsFragment;
+export type { CountdownInput, SavedCountdownTarget };
 
 // A dead time of a task or a routine: every query of tasks and routines selects it.
 graphql(`
@@ -30,6 +33,8 @@ graphql(`
     workspaceId
     taskId
     routineId
+    eventId
+    sheetId
     occurrenceDate
     subject
     path
@@ -81,6 +86,96 @@ const CancelCountdownDocument = graphql(`
     cancelCountdown(id: $id)
   }
 `);
+
+graphql(`
+  fragment SavedCountdownFields on SavedCountdown {
+    id
+    label
+    color
+    iconUrl
+    position
+    archived
+    minutes
+    ringtone
+  }
+`);
+
+const SavedCountdownsDocument = graphql(`
+  query SavedCountdowns {
+    savedCountdowns {
+      ...SavedCountdownFields
+    }
+  }
+`);
+
+const CreateSavedCountdownDocument = graphql(`
+  mutation CreateSavedCountdown($input: SavedCountdownInput!) {
+    createSavedCountdown(input: $input) {
+      id
+    }
+  }
+`);
+
+const UpdateSavedCountdownDocument = graphql(`
+  mutation UpdateSavedCountdown($id: ID!, $input: SavedCountdownPatch!) {
+    updateSavedCountdown(id: $id, input: $input) {
+      id
+    }
+  }
+`);
+
+const DeleteSavedCountdownDocument = graphql(`
+  mutation DeleteSavedCountdown($id: ID!) {
+    deleteSavedCountdown(id: $id)
+  }
+`);
+
+const SetSavedCountdownLinksDocument = graphql(`
+  mutation SetSavedCountdownLinks($target: SavedCountdownTarget!, $id: ID!, $savedCountdownIds: [ID!]!) {
+    setSavedCountdownLinks(target: $target, id: $id, savedCountdownIds: $savedCountdownIds)
+  }
+`);
+
+/** Cache key of the saved timers (those of the workspace open). */
+export const savedCountdownsQueryKey = ['savedCountdowns'] as const;
+
+/**
+ * Saved timers of the workspace, in their manual order (archived ones included).
+ * @returns {UseQueryResult<SavedCountdown[]>} Query state.
+ */
+export function useSavedCountdowns() {
+  return useQuery({ queryKey: savedCountdownsQueryKey, queryFn: async () => (await execute(SavedCountdownsDocument)).savedCountdowns });
+}
+
+/**
+ * Creation, change and deletion of the saved timers (the items linked to a deleted one lose it).
+ * @returns {object} Mutations.
+ */
+export function useSavedCountdownMutations() {
+  // A deleted one leaves the items it was linked to: all of them are reloaded.
+  const invalidate: QueryKey[] = [[]];
+  return {
+    create: useInvalidatingMutation(async (input: SavedCountdownInput) => (await execute(CreateSavedCountdownDocument, { input })).createSavedCountdown, { invalidate: [savedCountdownsQueryKey] }),
+    update: useInvalidatingMutation(
+      async ({ id, input }: { id: string; input: SavedCountdownPatch }) => (await execute(UpdateSavedCountdownDocument, { id, input })).updateSavedCountdown,
+      { invalidate: [savedCountdownsQueryKey] },
+    ),
+    remove: useInvalidatingMutation(async ({ id }: { id: string }) => (await execute(DeleteSavedCountdownDocument, { id })).deleteSavedCountdown, { invalidate }),
+  };
+}
+
+/**
+ * Sets the saved timers of a task, a routine, an event (its whole series) or a sheet, in place of the current ones;
+ * the queries of the item given are reloaded.
+ * @param {readonly QueryKey[]} invalidate Queries showing the item.
+ * @returns {UseMutationResult} Mutation state.
+ */
+export function useSetSavedCountdownLinks(invalidate: readonly QueryKey[]) {
+  return useInvalidatingMutation(
+    async (variables: { target: SavedCountdownTarget; id: string; savedCountdownIds: string[] }) => (await execute(SetSavedCountdownLinksDocument, variables)).setSavedCountdownLinks,
+    { invalidate },
+  );
+}
 
 /** Cache key of the timers (the user's: the same in every workspace). */
 export const countdownsQueryKey = ['countdowns'] as const;

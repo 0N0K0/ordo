@@ -4,7 +4,7 @@ import {
   birthdaySlotPerson,
   personBirthdayId,
   blockingEvent,
-  conditionAllowsAt,
+  conditionBlockAt,
   conditionCitesBirthdays,
   conditionKinds,
   conditionScheduleIds,
@@ -13,9 +13,12 @@ import {
   foreignSlotKind,
   foreignSlotKindWorkspace,
   readSlotCondition,
+  readTaskHours,
   scheduleSlotsOn,
   type SlotCondition,
   type SlotsOn,
+  type EffectiveTask,
+  type TaskWaitReason,
   type WorkScheduleRule,
 } from '@ordo/shared';
 import { prisma, unscopedPrisma } from '../../db';
@@ -199,16 +202,22 @@ function userNow(utcOffset: number): { date: string; time: string } {
   return { date: dayPart(iso), time: iso.slice(11, 16) };
 }
 
+/** An open task and why it cannot be done now (null: it can). */
+export interface TaskDoability {
+  id: string;
+  reason: TaskWaitReason | null;
+}
+
 /**
- * Open tasks of the current workspace that can be done now: their « Ouverture » (as they go:
- * `effectiveTask`) is not after the user's day, their condition on calendar schedules (their own or inherited; none:
- * any time) allows the user's current moment, and no event keeps their assignees (their own or inherited; none:
- * « Moi ») busy, but one about the task.
+ * Open tasks of the current workspace and whether they can be done now: their « Ouverture » (as they go:
+ * `effectiveTask`) is not after the user's day, their « Horaires » and their condition on calendar schedules (their
+ * own or inherited; none: any time) both allow the user's current moment, and no event keeps their assignees (their own or inherited; none:
+ * « Moi ») busy, but one about the task; else the first of these that fails, in this order.
  * @param {number} utcOffset User's offset from UTC in minutes.
  * @param {string | null} meId Contributor profile of the user (« Moi »).
- * @returns {Promise<string[]>} Task ids.
+ * @returns {Promise<TaskDoability[]>} Open tasks.
  */
-export async function doableTaskIds(utcOffset: number, meId: string | null): Promise<string[]> {
+export async function taskDoability(utcOffset: number, meId: string | null): Promise<TaskDoability[]> {
   const now = userNow(utcOffset);
   const [open, inheritance, events] = await Promise.all([
     prisma.task.findMany({ where: { closedAt: null, archivedAt: null }, select: { id: true } }),
@@ -220,13 +229,17 @@ export async function doableTaskIds(utcOffset: number, meId: string | null): Pro
   const conditions = new Map(tasks.map((task) => [task.id, readSlotCondition(task.slotCondition)]));
   const slotsOn = await loadSlotsOn([...conditions.values()]);
   const at = new Date();
-  return tasks
-    .filter(
-      (task) =>
-        // Not to be done before its « Ouverture ».
-        (task.minDate ?? now.date) <= now.date &&
-        conditionAllowsAt(conditions.get(task.id), slotsOn, now.date, now.time) &&
-        !blockingEvent(events, { assigneeIds: [...task.assigneeIds], taskId: task.id }, meId, at, now.date),
-    )
-    .map((task) => task.id);
+  /**
+   * Why a task cannot be done now, null: it can.
+   * @param {EffectiveTask} task Task, as it goes.
+   * @returns {TaskWaitReason | null} Reason.
+   */
+  const reasonOf = (task: EffectiveTask): TaskWaitReason | null => {
+    // Not to be done before its « Ouverture ».
+    if ((task.minDate ?? now.date) > now.date) return 'NOT_OPEN';
+    const block = conditionBlockAt(conditions.get(task.id), slotsOn, now.date, now.time, readTaskHours(task.hours));
+    if (block) return block === 'hours' ? 'OUTSIDE_HOURS' : 'OUTSIDE_SLOTS';
+    return blockingEvent(events, { assigneeIds: [...task.assigneeIds], taskId: task.id }, meId, at, now.date) ? 'ASSIGNEE_BUSY' : null;
+  };
+  return tasks.map((task) => ({ id: task.id, reason: reasonOf(task) }));
 }

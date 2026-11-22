@@ -14,7 +14,7 @@ import { listenToPushes } from '../lib/push';
 import { useMe } from '../../auth/api';
 import { useWorkspaces } from '../../workspaces/api';
 import { switchWorkspace } from '../../workspaces/lib/switch';
-import { unlockAudioOnGesture } from '../lib/alarm-sound';
+import { unlockAudioOnGesture } from '../../../lib/alarm-sound';
 import { dueAlarms, ringAlarm, ringReminders, ringTaskReminders, type RingLink } from './ring';
 import { markDoneAction, ringRoutineReminders } from '../lib/ring-routines';
 import { ON_ERROR } from '../../../lib/notify';

@@ -43,14 +43,14 @@ export function withArchived(options: readonly ColumnChoice[], items: readonly {
 
 /**
  * How a column is filtered: its kind and the value of a row (a text by default: the text of the column).
- * Dates are YYYY-MM-DD; a choice is one value of its options (`none`: the value of its « Aucun » option, empty for
+ * Dates are YYYY-MM-DD; a yes / no may be empty (null: neither, met by no condition); a choice is one value of its options (`none`: the value of its « Aucun » option, empty for
  * « est vide »), several choices a list of them.
  */
 export type ColumnFilter<R> =
   | { kind: 'text'; value?: (row: R) => string | null }
   | { kind: 'number'; value: (row: R) => number | null }
   | { kind: 'date'; value: (row: R) => string | null }
-  | { kind: 'boolean'; value: (row: R) => boolean }
+  | { kind: 'boolean'; value: (row: R) => boolean | null }
   | { kind: 'choice'; value: (row: R) => string | null; options: ColumnChoice[]; none?: string }
   | { kind: 'choices'; value: (row: R) => string[]; options: ColumnChoice[] };
 
@@ -62,6 +62,49 @@ export interface TreeGroup {
   /** Its parent group (null: at the top). */
   parentKey: string | null;
 }
+
+/** Words of a yes / no value: its text (export, search), and its name when its column names none. */
+export const YES_LABEL = 'Oui';
+export const NO_LABEL = 'Non';
+
+/**
+ * Word of a yes / no value in a text (export, search): « Oui » / « Non ».
+ * @param {boolean} value Yes or no.
+ * @returns {string} Word.
+ */
+export const yesNoText = (value: boolean) => (value ? YES_LABEL : NO_LABEL);
+
+/** Names of the values of a yes / no column (its groups, the name of its icons, its filter), yes first. */
+export interface YesNoLabels {
+  yes: string;
+  no: string;
+}
+
+/** Icon of a yes / no value: a filled square with a check, a red filled square with a cross, an orange warning triangle. */
+export type YesNoIconKind = 'check' | 'cross' | 'warning';
+
+/**
+ * Icons of the values of a yes / no column: yes a check, no a cross unless set (a value that is a warning: `warning`);
+ * the check green (`success`) or, for a neutral yes, blue (`info`).
+ */
+export interface YesNoIcons {
+  yes?: YesNoIconKind;
+  no?: YesNoIconKind;
+  /** Colour of the check. Optional. Default = success. */
+  check?: 'success' | 'info';
+}
+
+/** Icons of a yes that is a warning (late, blocked, advanced): an orange triangle for yes, a green check for no. */
+export const WARNING_YES_ICONS: YesNoIcons = { yes: 'warning', no: 'check' };
+
+/** Icons of a yes that is a warning whose no is neutral (missing, perishable): an orange triangle, a blue check. */
+export const WARNING_YES_NEUTRAL_NO_ICONS: YesNoIcons = { yes: 'warning', no: 'check', check: 'info' };
+
+/** Icons of a neutral yes whose no is a warning (optional / required): a blue check, an orange triangle. */
+export const NEUTRAL_YES_WARNING_NO_ICONS: YesNoIcons = { yes: 'check', no: 'warning', check: 'info' };
+
+/** Names of the values of a lateness column (late tasks, late forecasts). */
+export const LATE_GROUP_LABELS: YesNoLabels = { yes: 'En retard', no: 'Dans le délai' };
 
 /** Column of a data table. */
 export interface DataColumn<R> {
@@ -104,6 +147,13 @@ export interface DataColumn<R> {
   groupValue?: (row: R) => readonly string[];
   /** Name of the group of the rows without value (« Sans catégorie »…). Optional. Default = « Sans valeur ». */
   groupNoneLabel?: string;
+  /**
+   * Names of the values of a yes / no column, yes first (« En retard » / « Dans le délai »…): its groups, the name of its
+   * icons, the choices of its filter. Optional. Default = « Oui » / « Non ».
+   */
+  groupLabels?: YesNoLabels;
+  /** Icons of the values of a yes / no column. Optional. Default = a green check for yes, a red cross for no. */
+  yesNoIcons?: YesNoIcons;
   /**
    * Its cells are edited in bulk: selected (Ctrl / ⌘ + click, Shift + click for a range, or « Sélectionner la colonne »),
    * a change made in one of them applies to all. Optional. Default = false.

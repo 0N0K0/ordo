@@ -27,7 +27,7 @@ import { DataTable } from '../../../components/data-table/table/DataTable';
 import { EditableDate, EditableText } from '../../../components/data-table/cells/EditableCells';
 import { useDataView } from '../../../components/data-table/views/use-data-view';
 import { RowActions } from '../../../components/data-table/cells/RowActions';
-import { readOnlyCells, type DataColumn } from '../../../components/data-table/table/data-table';
+import { LATE_GROUP_LABELS, readOnlyCells, WARNING_YES_ICONS, type DataColumn } from '../../../components/data-table/table/data-table';
 import { localToday } from '../../../lib/dates';
 
 import {
@@ -67,6 +67,7 @@ import { monthColumn } from '../../../components/data-table/table/month-column';
 import { useDeleteEntries } from '../hooks/use-delete-entries';
 import { LATE_COLOR } from '../../../components/feedback/feedback-colors';
 import { signedText } from '../../../components/money/signed-text';
+import { booleanColumn } from '../../../components/data-table/table/boolean-column';
 
 const FORECAST_KINDS: Record<string, { label: string; color: string }> = {
   FORECAST: { label: 'Prévision', color: 'grape' },
@@ -117,16 +118,7 @@ function forecastColumns(entryOf: (row: ForecastRow) => ForecastEntry | undefine
       },
       groupable: true,
     },
-    {
-      id: 'overdue',
-      label: 'En retard',
-      size: 110,
-      hiddenByDefault: true,
-      sortValue: ({ item }) => (item.overdue ? 1 : 0),
-      text: ({ item }) => (item.overdue ? 'En retard' : ''),
-      filter: { kind: 'boolean', value: ({ item }) => Boolean(item.overdue) },
-      groupable: true,
-    },
+    booleanColumn<ForecastRow>({ id: 'overdue', label: 'En retard', size: 110, hiddenByDefault: true, groupable: true, groupLabels: LATE_GROUP_LABELS, icons: WARNING_YES_ICONS, value: ({ item }) => Boolean(item.overdue) }),
     ...entryFieldColumns<ForecastRow>(entryOf, env, { payerName: ({ item }) => item.payerName ?? '', recurrence: true }),
     {
       id: 'amount',

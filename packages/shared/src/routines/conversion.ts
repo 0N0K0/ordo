@@ -18,6 +18,7 @@ export const CONVERSION_LOSSES = [
   'shoppingLists',
   'alarms',
   'events',
+  'hours',
   // Both ways.
   'parent',
   // Routine → task.

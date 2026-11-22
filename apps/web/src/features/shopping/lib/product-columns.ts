@@ -1,6 +1,7 @@
 import { withArchived, type DataColumn } from '../../../components/data-table/table/data-table';
 import { categoryOptions, categoryPaths, categoryTree, type TreeCategory } from '../../../components/tree/category-tree';
 import * as fmt from '../../../lib/format';
+import { booleanColumn } from '../../../components/data-table/table/boolean-column';
 
 /** What a table changes of a product column: its id, size, bulk edit, grouping, hidden at first… */
 type ColumnOptions<T> = Partial<DataColumn<T>>;
@@ -65,17 +66,7 @@ export function categoryColumn<T extends { categoryId?: string | null }>(categor
  * @returns {DataColumn<T>} Column.
  */
 export function consumableColumn<T extends { consumable: boolean }>(options: ColumnOptions<T> = {}): DataColumn<T> {
-  return {
-    id: 'consumable',
-    label: 'Consommable',
-    size: 120,
-    bulk: true,
-    sortValue: (item) => (item.consumable ? 1 : 0),
-    text: (item) => (item.consumable ? 'Consommable' : ''),
-    filter: { kind: 'boolean', value: (item) => item.consumable },
-    groupable: true,
-    ...options,
-  };
+  return booleanColumn<T>({ id: 'consumable', label: 'Consommable', size: 120, bulk: true, groupable: true, groupLabels: { yes: 'Consommable', no: 'Permanent' }, ...options, value: (item) => item.consumable });
 }
 
 /**

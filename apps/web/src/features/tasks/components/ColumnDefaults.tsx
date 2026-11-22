@@ -1,5 +1,4 @@
 import { Text } from '@mantine/core';
-import { ArrowCounterClockwiseIcon } from '@phosphor-icons/react';
 import { DataColumnsPanel } from '../../../components/data-table/toolbar/ColumnsPanel';
 import { localToday } from '../../../lib/dates';
 import { ON_ERROR } from '../../../lib/notify';
@@ -7,7 +6,9 @@ import { useSetTaskColumnDefaults, useTaskColumnDefaults } from '../api';
 import { useTaskColumns } from '../hooks/use-task-columns';
 import { useTaskContext } from '../hooks/use-task-context';
 import { SettingsSection } from '../../../components/settings/SettingsSection';
-import { ActionButton } from '../../../components/actions/ActionButton';
+
+/** Height of the list of columns in the settings (12 steps of the vertical rhythm): a long list scrolls. */
+const SETTINGS_COLUMNS_HEIGHT = 288;
 
 /**
  * Columns new task views of the workspace start with: those shown and their order, by drag and drop, in the panel of
@@ -20,16 +21,7 @@ export function ColumnDefaults() {
   const { context } = useTaskContext();
   const columns = useTaskColumns(context, localToday(), { doable: false });
   return (
-    <SettingsSection
-      title="Colonnes des nouvelles vues"
-      actions={
-        <>
-          <ActionButton priority="tertiary" icon={<ArrowCounterClockwiseIcon aria-hidden />} onClick={() => save.mutate(null, ON_ERROR)}>
-            Colonnes de l’app
-          </ActionButton>
-        </>
-      }
-    >
+    <SettingsSection title="Colonnes des nouvelles vues">
       <Text size="xs" c="dimmed">
         Colonnes affichées et leur ordre (glissez-déposez) quand une vue de tâches est créée. Les vues existantes gardent les leurs.
       </Text>
@@ -38,6 +30,7 @@ export function ColumnDefaults() {
           columns={columns}
           layout={{ columnOrder: defaults.columnOrder, hiddenColumns: defaults.hiddenColumns, columnSizing: {} }}
           onLayoutChange={(layout) => save.mutate(layout.columnOrder.length ? { columnOrder: layout.columnOrder, hiddenColumns: layout.hiddenColumns } : null, ON_ERROR)}
+          maxHeight={SETTINGS_COLUMNS_HEIGHT}
         />
       )}
     </SettingsSection>

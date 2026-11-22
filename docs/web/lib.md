@@ -188,6 +188,17 @@ eslint interdit `.slice(0, 10)`, `.slice(0, 7)`, `.split('T')[0]` et `new Date('
 
 `useNow(active, everyMs = 1000)` : heure courante, rafraîchie à intervalle tant que `active` (juste après chaque changement de seconde, de minute… : une heure affichée à la minute n'est jamais en retard), figée sinon. Utilisé par l'horloge de l'en-tête, les chronos, les routines, l'agenda.
 
+## Sonneries (`alarm-sound.ts`)
+
+La banque de sonneries, générées en Web Audio, sans fichier (une brique commune : les alarmes, les mails et `RingtoneSelect` s’en servent).
+
+- `unlockAudioOnGesture()` : crée/reprend l’`AudioContext` au premier `pointerdown` ou `keydown` ; renvoie le nettoyage. Utilisé par `AlarmCenter`.
+- `startRingtone(id, { loop, durationMs })` : joue une sonnerie en boucle (toutes les `period` secondes) ou une fois, pendant la durée ; renvoie l’arrêt. Silencieuse tant que l’audio n’est pas débloqué. Seul `startRinging` l’appelle (garde eslint).
+- `playRingtone(id)` : une fois (nouveau mail, `MailWatcher`, le carillon).
+- `setSettingsRingtone(id)` : la sonnerie des réglages de l’utilisateur (`configureRinging`), jouée par « Écouter » sur « Celle des réglages ».
+- `previewRingtone(id)` : « Écouter », depuis le clic (crée l’audio au besoin) ; `null` : la sonnerie des réglages. Seul `RingtoneSelect` l’appelle (garde eslint).
+- Internes : `resumedAudio()`, `Note`, `arpeggio(...)`, `RINGTONE_NOTES` (notes et période de chaque sonnerie : carillon 880 / 1 175 / 1 568 Hz, bip carré, marimba triangle, cloche avec harmoniques, réveil alterné, harpe en arpège), `playNotes(context, destination, id)` ; variables de module `audio`, `settingsRingtone`.
+
 ## Téléchargements (`download.ts`)
 
 - `download(content, filename)` : enregistre un fichier dans le navigateur (blob, ou data URL convertie en blob).

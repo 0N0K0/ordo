@@ -33,6 +33,7 @@ export const SETTINGS_LISTS = {
   TREASURY_CATEGORY: 'treasuryCategory',
   ROUTINE_CATEGORY: 'routineCategory',
   STOCK_LOCATION: 'stockLocation',
+  SAVED_COUNTDOWN: 'savedCountdown',
   PLACE: 'place',
 } as const;
 

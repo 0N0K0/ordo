@@ -8,7 +8,7 @@ import { RemoveButton } from '../../../components/actions/RemoveButton';
 import { LabeledField } from '../../../components/inputs/LabeledField';
 import { RingtoneSelect } from '../../../components/inputs/RingtoneSelect';
 import { useCountdowns, type DeadTimeOutput } from '../api';
-import { countdownOf, type DeadTimeItem } from '../lib/countdowns';
+import { countdownOf, type CountdownItem } from '../lib/countdowns';
 import { openCountdownForm } from '../lib/open-countdown-form';
 import { CountdownRow } from './CountdownRow';
 
@@ -51,7 +51,7 @@ interface DeadTimesFieldProps {
   /** Saves the dead times (each change validated: a row not valid yet is not saved). */
   onChange: (deadTimes: DeadTime[]) => void;
   /** Item they belong to (« Lancer » launches a timer for it); none: a new item (nothing to launch yet). */
-  item: DeadTimeItem | null;
+  item: CountdownItem | null;
   disabled?: boolean;
 }
 

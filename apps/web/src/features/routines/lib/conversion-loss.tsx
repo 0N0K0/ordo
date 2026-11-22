@@ -27,6 +27,7 @@ const LOSS_TEXT: Record<ConversionLossKind, (count: number) => string> = {
   shoppingLists: (count) => `son lien avec ${countWith(count, 'liste d’achats', ['sa', 'ses'], 'listes d’achats')}`,
   alarms: (count) => `son lien avec ${countWith(count, 'alarme', ['son', 'ses'])} (gardées, sans tâche)`,
   events: (count) => countWith(count, 'lien avec un évènement', ['son', 'ses'], 'liens avec des évènements'),
+  hours: () => 'ses horaires (une routine suit ses moments et sa condition de créneaux)',
   parent: () => 'son parent (elle passe au premier niveau)',
   repetition: () => 'sa répétition',
   checks: (count) => `l’historique de ses occurrences (${countWith(count, 'coche', ['une', 'ses'])})`,

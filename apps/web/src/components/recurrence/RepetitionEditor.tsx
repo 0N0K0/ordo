@@ -3,7 +3,7 @@ import { Group, SegmentedControl, Stack, Text } from '@mantine/core';
 import { DatePickerInput } from '@mantine/dates';
 import { DEFAULT_RECURRENCE, ONE_DAY, withRuleValues, type DurationUnit, type Recurrence, type RepetitionCase } from '@ordo/shared';
 
-import type { ReactNode } from 'react';
+import { useState, type ReactNode } from 'react';
 import { CaseCard } from './CaseCard';
 import { describeCase } from './describe-recurrence';
 import { DurationFields } from './DurationFields';
@@ -57,6 +57,17 @@ interface RepetitionEditorProps<T> {
   modes?: readonly RepetitionMode[];
   /** Settings shown under every mode (slots excluded…). Optional. */
   footer?: ReactNode;
+  /**
+   * Day its rhythm counts from asked of each case that needs one (« À partir du », its `anchor`), required: `needed`
+   * tells which cases, `message` is the error while it is missing. Optional. Default = none (rhythms count from `start`).
+   */
+  caseStart?: CaseStart<T>;
+}
+
+/** Day a case's rhythm counts from, asked of the cases that need one. */
+export interface CaseStart<T> {
+  needed: (item: RepetitionCase<T>) => boolean;
+  message: string;
 }
 
 /**
@@ -79,7 +90,11 @@ function CaseFields<T>({
   withPeriod: boolean;
   props: RepetitionEditorProps<T>;
 }) {
-  const ruleStart = item.since && item.since > start ? item.since : start;
+  const asksStart = props.caseStart?.needed(item) ?? false;
+  // Its error once the field is left (validated on blur, then on every change).
+  const [startLeft, setStartLeft] = useState(false);
+  // Its rhythm counts from the day chosen when one is asked.
+  const ruleStart = asksStart && item.anchor ? item.anchor : item.since && item.since > start ? item.since : start;
   // Its rhythm counts from its first day.
   const period = dateRangeProps({ value: [item.since, item.until], onChange: ([since, until]) => onChange({ since, until, ...(since !== item.since ? { anchor: null } : {}) }) });
   return (
@@ -89,6 +104,20 @@ function CaseFields<T>({
           <DatePickerInput size="xs" w={190} label="Du" placeholder="Dès le début" clearable {...period.start} />
           <DatePickerInput size="xs" w={190} label="Au" placeholder="Jusqu’à la fin" clearable {...period.end} />
         </Group>
+      )}
+      {asksStart && (
+        <DatePickerInput
+          size="xs"
+          w={190}
+          label="À partir du"
+          required
+          placeholder="À choisir"
+          value={item.anchor}
+          onChange={(anchor) => onChange({ anchor })}
+          onBlur={() => setStartLeft(true)}
+          onDropdownClose={() => setStartLeft(true)}
+          error={startLeft && !item.anchor ? props.caseStart?.message : undefined}
+        />
       )}
       <RecurrenceEditor
         value={item.rule}

@@ -5,6 +5,8 @@ import { locationPointFields } from '../core/geo';
 import { itemLinksSchema, type ItemLink } from '../core/links';
 import { dateSchema } from '../core/workspace';
 import { slotConditionSchema, type SlotCondition } from '../calendar/slot-conditions';
+import type { ScheduleCase } from '../calendar/work-schedules';
+import { taskHoursSchema } from './task-hours';
 import { endDaySchema, startDaySchema } from '../dates/times';
 import { taskRemindersSchema, type ReminderFields } from '../dates/reminders';
 import { deadTimesSchema, type DeadTimeInput } from '../dates/countdowns';
@@ -86,6 +88,8 @@ export const taskFormSchema = z
     beneficiaryRelationIds: z.array(z.string()).default([]),
     /** On or out of calendar schedules, or on the free time, in groups (and / or); null: any time. */
     slotCondition: slotConditionSchema.nullable().default(null),
+    /** « Horaires »: days and hours it can be done (as the cases of a créneau); none: any time. */
+    hours: taskHoursSchema.default([]),
     /** Where it is done: free text, and its point when chosen from the map or a search (no travel time). */
     location: optionalText().default(null),
     ...locationPointFields,
@@ -147,6 +151,8 @@ export interface TaskInput {
   beneficiaryRelationIds?: string[] | null;
   /** On or out of calendar schedules, or on the free time, in groups (and / or); null: any time. */
   slotCondition?: SlotCondition | null;
+  /** « Horaires »: days and hours it can be done (as the cases of a créneau); null or none: any time. */
+  hours?: ScheduleCase[] | null;
   /** Where it is done (null: nowhere, its point too), and its point when chosen from the map or a search. */
   location?: string | null;
   locationLat?: number | null;

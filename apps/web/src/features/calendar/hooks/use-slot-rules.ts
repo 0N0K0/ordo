@@ -10,6 +10,7 @@ import {
   PARIS_ZONE,
   parisInstant,
   readSlotCondition,
+  readTaskHours,
   scheduleSlotsOn,
   timeIn,
 } from '@ordo/shared';
@@ -23,10 +24,12 @@ import { slotChoices } from '../lib/slot-choices';
 import { useSlotSources } from './use-slot-sources';
 import { describeSlotCondition } from '../lib/slot-condition-text';
 
-/** Task or routine, as far as when it can be done goes: its slot condition, its assignees, and the item it is. */
+/** Task or routine, as far as when it can be done goes: its slot condition, its hours, its assignees, and the item it is. */
 export interface Doable {
   /** Condition on calendar schedules (JSON); none: any time. Optional. */
   slotCondition?: unknown;
+  /** « Horaires » of a task (JSON); none: any time. Optional. */
+  hours?: unknown;
   assigneeIds: readonly string[];
   /** Task (an event about it does not block it). Optional. */
   taskId?: string | null;
@@ -45,8 +48,8 @@ export const routineDoable = (routine: { id: string; assigneeIds: readonly strin
 /** Slot conditions of the workspace: whether a task or a routine can be done at a moment. */
 export interface SlotRules {
   /**
-   * Whether a task or a routine can be done at a moment (now by default): its condition allows it (none: any time), and
-   * no event keeps its assignees busy (but one about it).
+   * Whether a task or a routine can be done at a moment (now by default): its condition and its hours allow it (none:
+   * any time), and no event keeps its assignees busy (but one about it).
    * @param {Doable} item Task or routine.
    * @param {Date} [at] Moment. Optional. Default = now.
    * @returns {boolean} Allowed.
@@ -59,6 +62,13 @@ export interface SlotRules {
    * @returns {boolean} Allowed.
    */
   inSlots: (value: unknown, at?: Date) => boolean;
+  /**
+   * Whether the « Horaires » of a task allow a moment (now by default), whatever its condition and the events.
+   * @param {unknown} hours Hours of the task (JSON).
+   * @param {Date} [at] Moment. Optional. Default = now.
+   * @returns {boolean} Allowed.
+   */
+  inHours: (hours: unknown, at?: Date) => boolean;
   /**
    * Event keeping the assignees of a task or a routine busy at a moment (now by default), if any.
    * @param {Doable} item Task or routine.
@@ -109,12 +119,13 @@ export function useSlotRules(): SlotRules {
     );
     const { names } = slotChoices(sources);
     /**
-     * Whether a condition allows a moment.
+     * Whether a condition and some hours allow a moment (the shared test of the API).
      * @param {unknown} value Condition (JSON).
      * @param {Date} at Moment.
+     * @param {unknown} [hours] Hours of a task (JSON). Optional. Default = none.
      * @returns {boolean} Allowed.
      */
-    const inSlotsAt = (value: unknown, at: Date) => conditionAllowsAt(readSlotCondition(value), slotsOn, localDay(at), fmt.time(at));
+    const inSlotsAt = (value: unknown, at: Date, hours?: unknown) => conditionAllowsAt(readSlotCondition(value), slotsOn, localDay(at), fmt.time(at), readTaskHours(hours));
     /**
      * Event keeping a task or a routine busy at a moment.
      * @param {Doable} item Task or routine.
@@ -124,18 +135,20 @@ export function useSlotRules(): SlotRules {
     const blockingAt = (item: Doable, at: Date) => blockingEvent(events ?? [], item, meId, at, localDay(at));
 
     return {
-      allowed: (item, at = new Date(minute)) => inSlotsAt(item.slotCondition, at) && !blockingAt(item, at),
+      allowed: (item, at = new Date(minute)) => inSlotsAt(item.slotCondition, at, item.hours) && !blockingAt(item, at),
       blocking: (item, at = new Date(minute)) => blockingAt(item, at),
       inSlots: (value, at = new Date(minute)) => inSlotsAt(value, at),
+      inHours: (hours, at = new Date(minute)) => inSlotsAt(null, at, hours),
       nextAllowedAt: (item, from) => {
-        // The next moment its condition allows, past the events keeping it busy then, in Paris time (the server defers the same way).
+        // The next moment its condition and its hours allow, past the events keeping it busy then, in Paris time (the server defers the same way).
         const condition = readSlotCondition(item.slotCondition);
+        const hours = readTaskHours(item.hours);
         return nextAllowedMoment(item, from, {
           events: events ?? [],
           meId,
           timeZone: PARIS_ZONE,
           nextInSlots: (at) => {
-            const moment = nextConditionMoment(condition, slotsOn, parisDay(at), timeIn(at, PARIS_ZONE), NEXT_ALLOWED_DAYS);
+            const moment = nextConditionMoment(condition, slotsOn, parisDay(at), timeIn(at, PARIS_ZONE), NEXT_ALLOWED_DAYS, hours);
             return moment ? parisInstant(moment.date, moment.time) : null;
           },
         });

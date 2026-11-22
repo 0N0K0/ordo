@@ -1,6 +1,6 @@
 import { filterConditionSchemaFor, filterGroupSchemaFor, type FilterConditionOf, type FilterGroupOf } from '../tables/filters';
 import { addDays } from '../dates/days';
-import { countedSchedules, plannedSlots, slotSchedules, type PlannedSlot, type WorkScheduleRule } from './work-schedules';
+import { casesSlotsOn, countedSchedules, plannedSlots, slotSchedules, type PlannedSlot, type ScheduleCase, type WorkScheduleRule } from './work-schedules';
 import { BIRTHDAY_SLOT_KIND, birthdaySlotId, birthdaySlotPerson, scheduleSlotKind } from './slot-kinds';
 import { birthdaysBetween, readBirthDate } from '../people/birthdays';
 
@@ -313,36 +313,80 @@ export function scheduleSlotsOn(rules: readonly WorkScheduleRule[], foreign: rea
 }
 
 /**
- * Whether a condition on calendar schedules allows a moment (no condition: any moment).
+ * Intervals of a day an item can be done in: those its condition on calendar schedules allows, within its own hours (the
+ * « Horaires » of a task) when it has some; null when neither limits it (any time).
+ * @param {SlotCondition | null | undefined} condition Condition.
+ * @param {SlotsOn} slotsOn Slots of some schedules on a day.
+ * @param {string} date YYYY-MM-DD.
+ * @param {readonly ScheduleCase[]} hours Its own hours (none: no limit).
+ * @returns {Interval[] | null} Intervals, in order (none: never that day).
+ */
+function allowedIntervals(condition: SlotCondition | null | undefined, slotsOn: SlotsOn, date: string, hours: readonly ScheduleCase[]): Interval[] | null {
+  const byCondition = conditionConstrains(condition) ? (conditionIntervals(condition, (query) => slotsOn(query, date)) ?? []) : null;
+  const byHours = hours.length ? merged(casesSlotsOn(hours, date)) : null;
+  if (!byCondition || !byHours) return byCondition ?? byHours;
+  return intersect(byCondition, byHours);
+}
+
+/** What keeps an item from a moment: its own hours (the « Horaires » of a task), or its condition on calendar schedules. */
+export type ConditionBlock = 'hours' | 'slots';
+
+/**
+ * What keeps an item from a moment, its own hours first, then its condition on calendar schedules; null when both
+ * allow it (neither: any moment).
  * @param {SlotCondition | null | undefined} condition Condition.
  * @param {SlotsOn} slotsOn Slots of some schedules on a day.
  * @param {string} date YYYY-MM-DD.
  * @param {string} time HH:MM.
- * @returns {boolean} Allowed.
+ * @param {readonly ScheduleCase[]} [hours] Own hours of the item. Optional. Default = none (no limit).
+ * @returns {ConditionBlock | null} What keeps it, null: allowed.
  */
-export function conditionAllowsAt(condition: SlotCondition | null | undefined, slotsOn: SlotsOn, date: string, time: string): boolean {
-  if (!conditionConstrains(condition)) return true;
-  const windows = conditionWindows(condition, (query) => slotsOn(query, date)) ?? [];
-  return windows.some((window) => (window.fromTime ?? '00:00') <= time && time < (window.dueTime ?? '24:00'));
+export function conditionBlockAt(condition: SlotCondition | null | undefined, slotsOn: SlotsOn, date: string, time: string, hours: readonly ScheduleCase[] = []): ConditionBlock | null {
+  const holds = (intervals: readonly Interval[]) => intervals.some((interval) => interval.start <= time && time < interval.end);
+  if (hours.length && !holds(merged(casesSlotsOn(hours, date)))) return 'hours';
+  if (conditionConstrains(condition) && !holds(conditionIntervals(condition, (query) => slotsOn(query, date)) ?? [])) return 'slots';
+  return null;
 }
 
 /**
- * First moment a condition on calendar schedules allows from a moment on, within some days (the moment itself without
- * condition); null when none.
+ * Whether a condition on calendar schedules, and the own hours of the item (the « Horaires » of a task), allow a
+ * moment: both must (neither: any moment). The only test of when a task can be done, for the API and the app.
+ * @param {SlotCondition | null | undefined} condition Condition.
+ * @param {SlotsOn} slotsOn Slots of some schedules on a day.
+ * @param {string} date YYYY-MM-DD.
+ * @param {string} time HH:MM.
+ * @param {readonly ScheduleCase[]} [hours] Own hours of the item. Optional. Default = none (no limit).
+ * @returns {boolean} Allowed.
+ */
+export function conditionAllowsAt(condition: SlotCondition | null | undefined, slotsOn: SlotsOn, date: string, time: string, hours: readonly ScheduleCase[] = []): boolean {
+  return conditionBlockAt(condition, slotsOn, date, time, hours) === null;
+}
+
+/**
+ * First moment a condition on calendar schedules, and the own hours of the item, allow from a moment on, within some
+ * days (the moment itself when neither limits it); null when none.
  * @param {SlotCondition | null | undefined} condition Condition.
  * @param {SlotsOn} slotsOn Slots of some schedules on a day.
  * @param {string} date YYYY-MM-DD.
  * @param {string} time HH:MM.
  * @param {number} days Days looked at, the date included.
+ * @param {readonly ScheduleCase[]} [hours] Own hours of the item. Optional. Default = none (no limit).
  * @returns {{ date: string, time: string } | null} Moment.
  */
-export function nextConditionMoment(condition: SlotCondition | null | undefined, slotsOn: SlotsOn, date: string, time: string, days: number): { date: string; time: string } | null {
-  if (!conditionConstrains(condition)) return { date, time };
+export function nextConditionMoment(
+  condition: SlotCondition | null | undefined,
+  slotsOn: SlotsOn,
+  date: string,
+  time: string,
+  days: number,
+  hours: readonly ScheduleCase[] = [],
+): { date: string; time: string } | null {
+  if (!conditionConstrains(condition) && !hours.length) return { date, time };
   for (let offset = 0; offset < days; offset++) {
     const day = addDays(date, offset);
     const from = offset ? '00:00' : time;
-    const window = (conditionWindows(condition, (query) => slotsOn(query, day)) ?? []).find((item) => (item.dueTime ?? '24:00') > from);
-    if (window) return { date: day, time: (window.fromTime ?? '00:00') > from ? window.fromTime! : from };
+    const interval = (allowedIntervals(condition, slotsOn, day, hours) ?? []).find((item) => item.end > from);
+    if (interval) return { date: day, time: interval.start > from ? interval.start : from };
   }
   return null;
 }

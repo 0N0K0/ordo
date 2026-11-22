@@ -32,7 +32,7 @@ Table des articles (`StockTable`), comme toutes les tables (vues, filtres, tris,
   - « Unité » (modifiable, unités des achats) ;
   - « Date de péremption » : la première date des lots, en badge rouge si dépassée, orange avec un signe d'alerte à 3 jours ou moins, gris sinon ;
   - « Bénéficiaires » (modifiables) ;
-  - masquées par défaut : « Lots » (quantité · date de chaque lot), « Périssable » (case modifiable), « Consommable » (celui de la référence ; un article à lui est consommable), « Référence » (nom de la référence ; filtre oui / non), « Valeur » (dernier prix de la référence × quantité, total en pied), « Description » (markdown, modifiable dans l'éditeur markdown ouvert dans un popover), « Modifié le » ;
+  - masquées par défaut : « Lots » (quantité · date de chaque lot), « Périssable » (case modifiable ; oui / non « Périssable » / « Durable » : triangle orange, coche bleue), « Consommable » (celui de la référence ; un article à lui est consommable ; « Consommable » / « Permanent »), « Référence » (nom de la référence ; filtre oui / non), « Valeur » (dernier prix de la référence × quantité, total en pied), « Description » (markdown, modifiable dans l'éditeur markdown ouvert dans un popover), « Modifié le » ;
   - commentaires.
 - Toutes les cellules modifiables le sont aussi en lot (sélection de cellules).
 - Boutons : « Afficher les archivés », « Faire l'inventaire » (désactivé sans article non archivé), « Nouvel article ».
