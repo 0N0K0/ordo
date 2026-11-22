@@ -1,6 +1,6 @@
 import { useMemo } from 'react';
 import { booleanColumn } from '../../../components/data-table/table/boolean-column';
-import { WARNING_YES_NEUTRAL_NO_ICONS, withArchived, type DataColumn } from '../../../components/data-table/table/data-table';
+import { multiValues, WARNING_YES_NEUTRAL_NO_ICONS, withArchived, type DataColumn } from '../../../components/data-table/table/data-table';
 import { categoryOptions, categoryPaths } from '../../../components/tree/category-tree';
 import { itemChoices } from '../../../components/items/item-look';
 import { localDay } from '../../../lib/dates';
@@ -45,6 +45,9 @@ function listColumns(env: ListEnv): DataColumn<ShoppingList>[] {
     const task = context?.taskById.get(id);
     return task ? (context?.taskLabel(task) ?? taskNumbered(task)) : '';
   };
+  const projectNames = (list: ShoppingList) => projectsOf(list, context).map((id) => context?.projectLabel(id) ?? '');
+  const categoryNames = (list: ShoppingList) => [...new Set(list.items.flatMap((item) => (item.categoryId ? [categoryPath.get(item.categoryId) ?? ''] : [])))];
+  const storeNames = (list: ShoppingList) => [...new Set(list.items.flatMap((item) => (item.storeId ? [env.stores.find((store) => store.id === item.storeId)?.label ?? ''] : [])))];
   const listState = (list: ShoppingList) => (listClosed(list, context) ? 'CLOSED' : 'OPEN');
   return [
     { id: 'label', required: true, label: 'Liste', size: 260, locked: true, bulk: true, sortValue: (list) => list.label, text: (list) => list.label },
@@ -66,10 +69,7 @@ function listColumns(env: ListEnv): DataColumn<ShoppingList>[] {
         projectsOf(list, context)
           .map((id) => context?.projectLabel(id) ?? '')
           .sort()[0] ?? null,
-      text: (list) =>
-        projectsOf(list, context)
-          .map((id) => context?.projectLabel(id) ?? '')
-          .join(', '),
+      ...multiValues(projectNames),
       filter: {
         kind: 'choices',
         value: (list) => projectsOf(list, context),
@@ -157,7 +157,7 @@ function listColumns(env: ListEnv): DataColumn<ShoppingList>[] {
       label: 'Catégories',
       size: 180,
       hiddenByDefault: true,
-      text: (list) => [...new Set(list.items.flatMap((item) => (item.categoryId ? [categoryPath.get(item.categoryId) ?? ''] : [])))].join(', '),
+      ...multiValues(categoryNames),
       filter: {
         kind: 'choices',
         value: (list) => [...new Set(list.items.flatMap((item) => (item.categoryId ? [item.categoryId] : [])))],
@@ -169,7 +169,7 @@ function listColumns(env: ListEnv): DataColumn<ShoppingList>[] {
       label: 'Magasins',
       size: 180,
       hiddenByDefault: true,
-      text: (list) => [...new Set(list.items.flatMap((item) => (item.storeId ? [env.stores.find((store) => store.id === item.storeId)?.label ?? ''] : [])))].join(', '),
+      ...multiValues(storeNames),
       filter: {
         kind: 'choices',
         value: (list) => [...new Set(list.items.flatMap((item) => (item.storeId ? [item.storeId] : [])))],
@@ -182,7 +182,7 @@ function listColumns(env: ListEnv): DataColumn<ShoppingList>[] {
       size: 220,
       hiddenByDefault: true,
       groupable: false,
-      text: (list) => list.items.map((item) => item.label).join(', '),
+      ...multiValues((list) => list.items.map((item) => item.label)),
     },
   ];
 }

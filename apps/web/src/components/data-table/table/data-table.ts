@@ -3,7 +3,8 @@ import type { ColumnLayout, TableSort } from '@ordo/shared';
 import { collator } from '../../../lib/text';
 import { archivedIds } from '../../../lib/archive';
 import { toggledInList } from '../../../lib/sets';
-import type { ReactNode } from 'react';
+import { createElement, type ReactNode } from 'react';
+import { StackedLines } from '../cells/StackedValues';
 
 /** Choice of a column filtered by its values. */
 export interface ColumnChoice {
@@ -126,6 +127,11 @@ export interface DataColumn<R> {
   text?: (row: R) => string;
   /** Content of its cells when the `cells` of the table leave the column out (a column shared by several tables). Optional. */
   cell?: (row: R) => ReactNode;
+  /**
+   * Values of a cell holding several (categories, stores, zones…): without `cell`, shown one under the other
+   * (`StackedLines`), never joined on one line (`text` joins them for the export and the search). Optional.
+   */
+  values?: (row: R) => readonly string[];
   /** How the column is filtered. Optional. Default = by its text (none without text); false: not filtered. */
   filter?: ColumnFilter<R> | false;
   /**
@@ -162,14 +168,36 @@ export interface DataColumn<R> {
 }
 
 /**
- * Read-only cells of a row (an archived one): the text of each column, the cell of a shared column.
+ * `values` and `text` of a column whose cells hold several values: shown one under the other, joined by « , » in its
+ * text (export, search). Spread in the column: `...multiValues((row) => names)`.
+ * @param {(row: R) => readonly string[]} values Values of a row.
+ * @returns {Pick<DataColumn<R>, 'values' | 'text'>} Fields of the column.
+ */
+export function multiValues<R>(values: (row: R) => readonly string[]): Required<Pick<DataColumn<R>, 'values' | 'text'>> {
+  return { values, text: (row) => values(row).join(', ') };
+}
+
+/**
+ * Cell of a column the `cells` of its table leave out: its own cell, else its values one under the other.
+ * @param {DataColumn<R>} column Column.
+ * @param {R} row Row.
+ * @returns {ReactNode} Content (none: undefined).
+ */
+export function columnCell<R>(column: DataColumn<R>, row: R): ReactNode {
+  if (column.cell) return column.cell(row);
+  return column.values ? createElement(StackedLines, { lines: column.values(row) }) : undefined;
+}
+
+/**
+ * Read-only cells of a row (an archived one): the text of each column, its values one under the other, the cell of a
+ * shared column.
  * @param {readonly DataColumn<R>[]} columns Columns.
  * @param {R} row Row.
  * @returns {Record<string, ReactNode>} Cells by column.
  */
 export function readOnlyCells<R>(columns: readonly DataColumn<R>[], row: R): Record<string, ReactNode> {
   // eslint-disable-next-line no-restricted-syntax -- readOnlyCells itself.
-  return Object.fromEntries(columns.map((column) => [column.id, column.cell ? column.cell(row) : column.text?.(row)]));
+  return Object.fromEntries(columns.map((column) => [column.id, column.cell || column.values ? columnCell(column, row) : column.text?.(row)]));
 }
 
 /** Column shown, with its width. */

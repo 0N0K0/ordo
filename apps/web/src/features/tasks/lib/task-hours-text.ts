@@ -11,8 +11,8 @@ import { describeScheduleCase } from '../../calendar/lib/schedule-text';
 export const taskHoursLines = (hours: readonly ScheduleCase[], start: string): string[] => hours.map((item) => describeScheduleCase(item, start));
 
 /**
- * « Horaires » of a task as one short text (its cases separated by « ; »), as its column shows, filters, sorts and
- * exports them; none: empty.
+ * « Horaires » of a task as one short text (its cases separated by « ; »), as its column filters, sorts and exports
+ * them (its cell shows a case a line); none: empty.
  * @param {readonly ScheduleCase[]} hours Hours.
  * @param {string} start Day their rules are told from (YYYY-MM-DD).
  * @returns {string} Text.

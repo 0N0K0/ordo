@@ -358,7 +358,7 @@ Colonnes des tableaux de la facturation qui ne dépendent pas des données, lues
 | --- | --- |
 | `OVERDUE_COLUMNS` | Colonnes facture, client, envoi, reste dû, dernière relance, destinataire. `OverdueInvoicesPanel`. |
 | `catalogColumns(comments)` | Article, nature, unité, prix HT, TVA, commentaires (interne `CATALOG_COLUMNS`). `CatalogPanel`. |
-| `workOf(entry)` | Tâches et description d’un temps. `TimeBillingForm`. |
+| `workOf(entry)` | Tâches et description d’un temps en un texte (tri, export de la colonne « Temps ») ; la cellule de `TimeBillingForm` les montre l’une sous l’autre (`StackedLines`). |
 | `BILLING_COLUMNS` | Colonnes « Jour », « Temps », « Durée ». `TimeBillingForm`. |
 | `repetitionText(item)` | Phrase de la répétition d’une récurrente (`describeRecurrence`). `AccountingPage`. |
 | `RECURRING_COLUMNS` | Colonnes des récurrentes : libellé, client, répétition, prochaine, état, émises, montant. `AccountingPage`. |

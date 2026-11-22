@@ -8,7 +8,7 @@ import type { ReactNode } from 'react';
 import { Link } from 'react-router';
 import { DataTable } from '../../../components/data-table/table/DataTable';
 import { bulkCellLabels, bulkSaver } from '../../../components/data-table/selection/bulk-edit';
-import { StackedValues } from '../../../components/data-table/cells/StackedValues';
+import { StackedLines, StackedValues } from '../../../components/data-table/cells/StackedValues';
 import { EditableSelect } from '../../../components/data-table/cells/EditableCells';
 import { treeSelectProps } from '../../../components/tree/tree-select';
 import { ON_ERROR } from '../../../lib/notify';
@@ -22,7 +22,7 @@ import { deleteRowsAction, duplicateRowsAction, rowMenuEntry, type DuplicateOpti
 import { selectedLabel } from '../../../components/data-table/selection/selection-label';
 import { TimeDayCell, TimeDurationCell, TimeEventsCell, TimeRoutinesCell, TimeStartCell, TimeTasksCell } from './time-cells';
 import { hasSubject } from '../lib/time-subjects';
-import { billedText, labelsText, useTimeColumns } from '../hooks/use-time-columns';
+import { billedText, useTimeColumns } from '../hooks/use-time-columns';
 import { TimerRunningBadge } from './TimerStop';
 import { documentPath } from '../../../app/pages';
 
@@ -164,7 +164,7 @@ export function TimeLog({ entries, context, projectId, emptyMessage, onEdit, onD
           routine: context ? (
             <TimeRoutinesCell entry={entry} context={context} readOnly={!editable(entry)} label={cellLabelOf('routine', entry, 'Routines')} save={bulk('routine')} />
           ) : (
-            labelsText(entry.routines)
+            <StackedLines lines={entry.routines.map((routine) => routine.label)} />
           ),
           tasks:
             context && editable(entry) ? (

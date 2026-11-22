@@ -31,7 +31,8 @@ import { LATE_COLOR } from '../../../components/feedback/feedback-colors';
 import { inheritedDateHint } from '../lib/inherited-dates';
 import { LocationCell } from '../../geo/components/LocationCell';
 import { localToday } from '../../../lib/dates';
-import { taskHoursText } from '../lib/task-hours-text';
+import { taskHoursLines } from '../lib/task-hours-text';
+import { StackedLines } from '../../../components/data-table/cells/StackedValues';
 import { tasksLabel } from '../lib/bulk-label';
 import { TaskHoursModal } from './TaskHoursField';
 
@@ -453,7 +454,7 @@ export function TaskLocationCell({ task }: { task: Task }) {
 }
 
 /**
- * « Horaires » cell of a task: its hours in words (none: « N’importe quand »); a click opens their settings in the
+ * « Horaires » cell of a task: its hours in words, a case a line (none: « N’importe quand »); a click opens their settings in the
  * repetition modal, applied on « Appliquer » to it, or to every task selected (each takes these hours whole).
  * @param {{ task: Task }} props Component props.
  * @returns {JSX.Element} Cell.
@@ -462,25 +463,32 @@ export function TaskHoursCell({ task }: { task: Task }) {
   const { apply, count } = useCellEdit(task, 'hours');
   const [opened, setOpened] = useState(false);
   const hours = readTaskHours(task.hours);
-  const text = taskHoursText(hours, localToday());
-  const shown = (
-    <Text component="div" size="sm" c={text ? undefined : 'dimmed'} truncate title={text || undefined}>
-      {text || 'N’importe quand'}
+  const anytime = (
+    <Text component="div" size="sm" c="dimmed">
+      N’importe quand
     </Text>
   );
-  if (task.archived) return shown;
+  // A case a line.
+  const lines = taskHoursLines(hours, localToday());
+  if (task.archived) return <StackedLines lines={lines} empty={anytime} />;
   return (
     <>
-      <UnstyledButton
-        onClick={(event) => {
-          stopClick(event);
-          setOpened(true);
-        }}
-        aria-label={fieldLabel('Modifier les horaires', task, count)}
-        style={{ maxWidth: '100%' }}
-      >
-        {shown}
-      </UnstyledButton>
+      <StackedLines
+        lines={lines}
+        empty={anytime}
+        wrap={(shown) => (
+          <UnstyledButton
+            onClick={(event) => {
+              stopClick(event);
+              setOpened(true);
+            }}
+            aria-label={fieldLabel('Modifier les horaires', task, count)}
+            style={{ maxWidth: '100%' }}
+          >
+            {shown}
+          </UnstyledButton>
+        )}
+      />
       {/* Its clicks kept from the row (the modal bubbles through the cell). */}
       {opened && (
         <span onClick={stopClick}>

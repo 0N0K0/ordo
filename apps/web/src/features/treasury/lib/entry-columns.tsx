@@ -2,7 +2,7 @@ import { Text } from '@mantine/core';
 import { itemChoices, itemSelectProps } from '../../../components/items/item-look';
 import type { ReactNode } from 'react';
 import { EditableDate, EditableSelect } from '../../../components/data-table/cells/EditableCells';
-import type { DataColumn } from '../../../components/data-table/table/data-table';
+import { multiValues, type DataColumn } from '../../../components/data-table/table/data-table';
 import { applyDiff } from '../../../components/data-table/selection/bulk-edit';
 import { StackedValues } from '../../../components/data-table/cells/StackedValues';
 import { treeSelectProps } from '../../../components/tree/tree-select';
@@ -49,15 +49,17 @@ export function entryFieldColumns<R>(
   env: EntryEnv,
   options: { payerName: (row: R) => string; recurrence?: boolean; allEntries?: boolean },
 ): DataColumn<R>[] {
-  const categoryText = (row: R) => {
-    return entryRefs(entryOf(row), 'categoryId')
-      .map((id) => env.paths.get(id) ?? '')
-      .join(', ');
+  const categoryNames = (row: R) => entryRefs(entryOf(row), 'categoryId').map((id) => env.paths.get(id) ?? '');
+  const categoryText = (row: R) => categoryNames(row).join(', ');
+  const projectNames = (row: R) => entryRefs(entryOf(row), 'projectId').map((id) => env.projectLabels.get(id) ?? '');
+  const projectText = (row: R) => projectNames(row).join(', ');
+  const documentNames = (row: R) => {
+    const entry = entryOf(row);
+    return entry ? allDocuments(entry).map((document) => document.label) : [];
   };
-  const projectText = (row: R) => {
-    return entryRefs(entryOf(row), 'projectId')
-      .map((id) => env.projectLabels.get(id) ?? '')
-      .join(', ');
+  const linkNames = (row: R) => {
+    const entry = entryOf(row);
+    return entry ? linkedLabels(entry) : [];
   };
   const valueDate = (row: R) => {
     const entry = entryOf(row);
@@ -115,6 +117,7 @@ export function entryFieldColumns<R>(
       label: 'Catégories',
       size: 180,
       sortValue: (row) => categoryText(row) || null,
+      values: categoryNames,
       text: categoryText,
       filter: {
         kind: 'choices',
@@ -145,6 +148,7 @@ export function entryFieldColumns<R>(
       size: 180,
       hiddenByDefault: true,
       sortValue: (row) => projectText(row) || null,
+      values: projectNames,
       text: projectText,
       filter: { kind: 'choices', value: (row) => entryRefs(entryOf(row), 'projectId'), options: env.projects },
       groupable: true,
@@ -155,14 +159,7 @@ export function entryFieldColumns<R>(
       label: 'Pièces justificatives',
       size: 220,
       hiddenByDefault: true,
-      text: (row) => {
-        const entry = entryOf(row);
-        return entry
-          ? allDocuments(entry)
-              .map((document) => document.label)
-              .join(', ')
-          : '';
-      },
+      ...multiValues(documentNames),
       filter: { kind: 'boolean', value: (row) => Boolean(entryOf(row) && allDocuments(entryOf(row)!).length) },
     },
     {
@@ -172,10 +169,7 @@ export function entryFieldColumns<R>(
       size: 220,
       hiddenByDefault: true,
       // Its links and those of its lines, as the cell.
-      text: (row) => {
-        const entry = entryOf(row);
-        return entry ? linkedLabels(entry).join(', ') : '';
-      },
+      ...multiValues(linkNames),
       filter: { kind: 'boolean', value: (row) => Boolean(entryOf(row) && (linkedLabels(entryOf(row)!).length || entryOf(row)!.linkedByLines.length)) },
     },
   ];

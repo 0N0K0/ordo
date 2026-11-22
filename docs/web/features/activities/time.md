@@ -142,7 +142,7 @@ Ses styles (`TimerWidget.module.css`) sont devenus ceux de `RunningPill` (`compo
 ### `hooks/use-time-columns.tsx`
 
 - `useTimeColumns(entries, context)` : colonnes du tableau des temps (« Date », « Mois », « Heure de début », « Heure de fin », « Durée », « Projet », « Routines », « Tâches », « Évènements », « Facture », « Commentaires » ; routines et évènements en filtre `choices`, groupables), avec les routines proposées par le filtre et les commentaires des temps (sans temps : aucun compté). Utilisé par `TimeLog` et `TimeSettings`.
-- `labelsText(items)` (libellés des routines ou évènements d’un temps), `billedText(entry)` (« Facturé : F-… » ou « Brouillon ») : aussi lus par les cellules de `TimeLog`.
+- `labelsText(items)` (libellés des routines ou évènements d’un temps, joints pour le texte, le tri et l’export ; les cellules les montrent l’un sous l’autre), `billedText(entry)` (« Facturé : F-… » ou « Brouillon », aussi lu par les cellules de `TimeLog`).
 - Internes : `events(entries)` (évènements des temps, options du filtre), `timeColumns(context, comments, routines, entries)`.
 
 ### `hooks/use-start-timer.ts`

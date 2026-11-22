@@ -164,7 +164,7 @@ Cellules éditables du tableau (toutes passent par `useRoutineCellEdit`, donc pa
 | `AssigneesCell`            | Assignés (contributeurs du ou des projets).                                                                                                  |
 | `RoutineLinksCell`         | `kind` `requires` (« Dépend de », icône faite / non faite) ou `related` (« Relative à ») : routines de son arborescence (`linkableRoutine`). Sur une sélection, les deux passent par une modification en masse (`addRequiredIds` / `removeRequiredIds`, `addRelatedIds` / `removeRelatedIds`) avec « Annuler ». |
 | `ProjectCell`              | Projet.                                                                                                                                      |
-| `RepetitionText`           | Répétition en clair (cas, ou règle et condition), sous le libellé et dans la colonne « Répétition ».                                         |
+| `RepetitionText`           | Répétition en clair (un cas par ligne, `StackedLines` ; ou règle et condition), sous le libellé et dans la colonne « Répétition ».                                         |
 | `RepetitionCell`           | Bouton ouvrant `RoutineRepetitionModal` (contenu : `StateCell`).                                                                             |
 | `RoutineBeneficiariesCell` | Bénéficiaires (`beneficiariesDiff`).                                                                                                         |
 
