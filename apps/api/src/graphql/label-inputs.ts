@@ -101,6 +101,8 @@ type LabelInputRef = InputObjectRef<BuilderTypes, object>;
  * @param {Partial<Record<'create' | 'update' | 'delete', string>>} [descriptions] Descriptions of the mutations (what follows them). Optional.
  * @param {(id: string, confirmLoss: boolean) => Promise<void>} [remove] Deletion of its own, whose loss is confirmed
  * (argument `confirmLoss` of the deletion). Optional. Default = the service's.
+ * @param {(id: string, input: object, confirmLoss: boolean) => Promise<{ id: string }>} [update] Change of its own, whose
+ * loss is confirmed (argument `confirmLoss` of the change). Optional. Default = the service's.
  * @returns {void}
  */
 export function labelMutations(
@@ -109,6 +111,7 @@ export function labelMutations(
   inputs: { create: LabelInputRef; update: LabelInputRef } = LABEL_COLOR_INPUTS,
   descriptions: Partial<Record<'create' | 'update' | 'delete', string>> = {},
   remove?: (id: string, confirmLoss: boolean) => Promise<void>,
+  update?: (id: string, input: object, confirmLoss: boolean) => Promise<{ id: string }>,
 ): void {
   // Every LabelModel is an object of the schema, so typing the calls with one of them is enough.
   const type = name as 'TaskPriority';
@@ -124,8 +127,13 @@ export function labelMutations(
     [`update${name}`]: t.prismaField({
       type,
       ...(descriptions.update === undefined ? {} : { description: descriptions.update }),
-      args: { id: t.arg.id({ required: true }), input: t.arg({ type: inputs.update as typeof LabelColorPatch, required: true }) },
-      resolve: async (query, _root, { id, input }) => reloaded(model, query, service.update(id, input)),
+      args: {
+        id: t.arg.id({ required: true }),
+        input: t.arg({ type: inputs.update as typeof LabelColorPatch, required: true }),
+        ...(update && { confirmLoss: t.arg.boolean({ description: CONFIRM_LOSS_DESCRIPTION }) }),
+      },
+      resolve: async (query, _root, args) =>
+        reloaded(model, query, update ? update(args.id, args.input, (args as { confirmLoss?: boolean | null }).confirmLoss ?? false) : service.update(args.id, args.input)),
     }),
     [`delete${name}`]: t.boolean({
       ...(descriptions.delete === undefined ? {} : { description: descriptions.delete }),

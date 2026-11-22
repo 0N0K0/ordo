@@ -15,6 +15,7 @@ import {
   readSlotCondition,
   readTaskHours,
   scheduleSlotsOn,
+  type ConditionBlock,
   type SlotCondition,
   type SlotsOn,
   type EffectiveTask,
@@ -27,7 +28,7 @@ import { fieldError, notFound } from '../../graphql/errors';
 import { currentWorkspaceId } from '../../workspace-context';
 import { birthdays, peopleChanges, personChange, type PeopleChange } from './birthdays';
 import { eventOccurrences } from './calendar-events';
-import { otherWorkspaceSchedules, scheduleRule } from './work-schedules';
+import { otherWorkspaceSchedules, scheduleRule, subscribedUnavailability } from './work-schedules';
 import { effectiveTaskOf, loadTaskInheritance } from '../tasks/task-inheritance';
 
 /** Field of the input the errors of a slot condition show under. */
@@ -58,6 +59,11 @@ export interface ScheduleChange {
   apply?: (rules: WorkScheduleRule[]) => WorkScheduleRule[];
   /** Its people once changed (their birthdays: of this workspace only). Optional. Default = unchanged. */
   people?: PeopleChange;
+  /**
+   * Its subscription to a kind of schedules of another workspace once set « Indisponible » or back (of this
+   * workspace only). Optional. Default = unchanged.
+   */
+  subscription?: { sourceWorkspaceId: string; typeId: string | null; unavailable: boolean };
 }
 
 /** What a change does, without its workspace (the current one): its schedules, its people. */
@@ -93,10 +99,11 @@ export function archiveEdit(changing: Partial<Record<string, readonly string[]>>
 
 /**
  * Slots of the schedules of the current workspace (archived ones and those of archived kinds give none), loaded once, those of a day computed when first
- * asked: what the conditions of tasks and routines are evaluated on. The schedules of the other workspaces of the user
- * are loaded too when the conditions name some of them or of their kinds, and the birthdays of the people of the
- * workspace when they name some (both always without conditions given: the routines of a request are not
- * known yet).
+ * asked: what the conditions of tasks and routines are evaluated on, and the slots « Indisponible ». The schedules of
+ * the other workspaces of the user are loaded too when the conditions name some of them or of their kinds, or when this
+ * workspace sets a kind of them « Indisponible » (their « Indisponible » is that of this workspace's subscription), and
+ * the birthdays of the people of the workspace when they name some (both always without conditions given: the routines
+ * of a request are not known yet).
  * @param {readonly (SlotCondition | null | undefined)[]} [conditions] Conditions evaluated. Optional. Default = unknown.
  * @param {ScheduleChange} [change] The schedules of a workspace (this one or another one) as a change would leave them.
  * Optional. Default = as they are.
@@ -104,10 +111,17 @@ export function archiveEdit(changing: Partial<Record<string, readonly string[]>>
  */
 export async function loadSlotsOn(conditions?: readonly (SlotCondition | null | undefined)[], change?: ScheduleChange): Promise<SlotsOn> {
   // With the archiving of their kinds: archived schedules and kinds give no moment.
-  const own = await prisma.workSchedule.findMany({ include: { type: { select: { archivedAt: true } } } });
+  const [own, stored] = await Promise.all([
+    prisma.workSchedule.findMany({ include: { type: { select: { archivedAt: true } } } }),
+    prisma.workScheduleSubscription.findMany({ select: { sourceWorkspaceId: true, typeId: true, unavailable: true } }),
+  ]);
   const here = currentWorkspaceId();
+  // Its subscriptions as the change leaves them: their « Indisponible » is this workspace's.
+  const set = change?.workspaceId === here ? change.subscription : undefined;
+  const subscriptions = stored.map((item) => (set && item.sourceWorkspaceId === set.sourceWorkspaceId && item.typeId === set.typeId ? { ...item, unavailable: set.unavailable } : item));
+  const unavailableHere = subscribedUnavailability(subscriptions);
   const [loaded, people] = await Promise.all([
-    !conditions || citeOtherWorkspaces(conditions, new Set(own.map((schedule) => schedule.id))) ? otherWorkspaceSchedules() : [],
+    !conditions || subscriptions.some((item) => item.unavailable) || citeOtherWorkspaces(conditions, new Set(own.map((schedule) => schedule.id))) ? otherWorkspaceSchedules() : [],
     // Archived people flagged (no moment); a change of the people is one of this workspace.
     !conditions || conditions.some(conditionCitesBirthdays) ? birthdays({ change: change?.workspaceId === here ? change.people : undefined }) : [],
   ]);
@@ -119,7 +133,21 @@ export async function loadSlotsOn(conditions?: readonly (SlotCondition | null | 
     const changed = apply(foreign.filter((item) => item.workspaceId === change.workspaceId).map((item) => item.rule));
     foreign = [...foreign.filter((item) => item.workspaceId !== change.workspaceId), ...changed.map((rule) => ({ workspaceId: change.workspaceId, rule }))];
   }
+  foreign = foreign.map((item) => ({ ...item, rule: { ...item.rule, unavailable: unavailableHere(item.workspaceId, item.rule) } }));
   return scheduleSlotsOn(apply && change.workspaceId === here ? apply(rules) : rules, foreign, people);
+}
+
+/**
+ * Whether the current workspace has slots « Indisponible »: a schedule of its own (archived ones aside) or a
+ * subscription to a kind of another workspace set so.
+ * @returns {Promise<boolean>} It has.
+ */
+export async function hasUnavailableSlots(): Promise<boolean> {
+  const [schedules, subscriptions] = await Promise.all([
+    prisma.workSchedule.count({ where: { unavailable: true, archivedAt: null } }),
+    prisma.workScheduleSubscription.count({ where: { unavailable: true } }),
+  ]);
+  return schedules + subscriptions > 0;
 }
 
 /**
@@ -202,6 +230,9 @@ function userNow(utcOffset: number): { date: string; time: string } {
   return { date: dayPart(iso), time: iso.slice(11, 16) };
 }
 
+/** Reason a task waits for, by what keeps it from the moment. */
+const WAIT_REASON_OF_BLOCK: Record<ConditionBlock, TaskWaitReason> = { hours: 'OUTSIDE_HOURS', slots: 'OUTSIDE_SLOTS', unavailable: 'UNAVAILABLE' };
+
 /** An open task and why it cannot be done now (null: it can). */
 export interface TaskDoability {
   id: string;
@@ -211,7 +242,8 @@ export interface TaskDoability {
 /**
  * Open tasks of the current workspace and whether they can be done now: their « Ouverture » (as they go:
  * `effectiveTask`) is not after the user's day, their « Horaires » and their condition on calendar schedules (their
- * own or inherited; none: any time) both allow the user's current moment, and no event keeps their assignees (their own or inherited; none:
+ * own or inherited; none: any time) both allow the user's current moment, no slot « Indisponible » of the workspace
+ * holds it, and no event keeps their assignees (their own or inherited; none:
  * « Moi ») busy, but one about the task; else the first of these that fails, in this order.
  * @param {number} utcOffset User's offset from UTC in minutes.
  * @param {string | null} meId Contributor profile of the user (« Moi »).
@@ -238,7 +270,7 @@ export async function taskDoability(utcOffset: number, meId: string | null): Pro
     // Not to be done before its « Ouverture ».
     if ((task.minDate ?? now.date) > now.date) return 'NOT_OPEN';
     const block = conditionBlockAt(conditions.get(task.id), slotsOn, now.date, now.time, readTaskHours(task.hours));
-    if (block) return block === 'hours' ? 'OUTSIDE_HOURS' : 'OUTSIDE_SLOTS';
+    if (block) return WAIT_REASON_OF_BLOCK[block];
     return blockingEvent(events, { assigneeIds: [...task.assigneeIds], taskId: task.id }, meId, at, now.date) ? 'ASSIGNEE_BUSY' : null;
   };
   return tasks.map((task) => ({ id: task.id, reason: reasonOf(task) }));

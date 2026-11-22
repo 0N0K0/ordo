@@ -523,7 +523,7 @@ const TaskViewUpdateInput = builder.inputType('TaskViewUpdateInput', {
 });
 
 const TaskWaitReasonEnum = builder.enumType('TaskWaitReason', {
-  description: 'Why an open task cannot be done now: its « Ouverture » is after today, its hours or its slot condition leave the moment out, an event keeps its assignees busy.',
+  description: 'Why an open task cannot be done now: its « Ouverture » is after today, its hours or its slot condition leave the moment out, a slot « Indisponible » of the workspace holds it, an event keeps its assignees busy.',
   values: TASK_WAIT_REASONS,
 });
 

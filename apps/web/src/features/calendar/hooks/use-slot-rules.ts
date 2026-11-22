@@ -3,24 +3,24 @@ import {
   addDays,
   blockingEvent,
   type BusyEvent,
-  conditionAllowsAt,
+  conditionBlockAt,
   NEXT_ALLOWED_DAYS,
   nextAllowedMoment,
-  nextConditionMoment,
+  nextInSlotsOf,
   PARIS_ZONE,
-  parisInstant,
   readSlotCondition,
   readTaskHours,
   scheduleSlotsOn,
-  timeIn,
+  unavailableScheduleIds,
 } from '@ordo/shared';
 import { useMemo } from 'react';
 import { useNow } from '../../../lib/use-now';
 import { archivedIds } from '../../../lib/archive';
 import { scheduleRules, useCalendarEvents } from '../api';
-import { localDay, parisDay } from '../../../lib/dates';
+import { localDay } from '../../../lib/dates';
 import { useTaskContext } from '../../tasks/hooks/use-task-context';
 import { slotChoices } from '../lib/slot-choices';
+import { inWorkspace } from '../lib/layer-label';
 import { useSlotSources } from './use-slot-sources';
 import { describeSlotCondition } from '../lib/slot-condition-text';
 
@@ -49,26 +49,36 @@ export const routineDoable = (routine: { id: string; assigneeIds: readonly strin
 export interface SlotRules {
   /**
    * Whether a task or a routine can be done at a moment (now by default): its condition and its hours allow it (none:
-   * any time), and no event keeps its assignees busy (but one about it).
+   * any time), no slot « Indisponible » holds it, and no event keeps its assignees busy (but one about it).
    * @param {Doable} item Task or routine.
    * @param {Date} [at] Moment. Optional. Default = now.
    * @returns {boolean} Allowed.
    */
   allowed: (item: Doable, at?: Date) => boolean;
   /**
-   * Whether a condition on calendar schedules allows a moment (now by default), whatever the events.
+   * Whether a condition on calendar schedules allows a moment (now by default), whatever the slots « Indisponible »
+   * and the events.
    * @param {unknown} value Condition of the item (JSON).
    * @param {Date} [at] Moment. Optional. Default = now.
    * @returns {boolean} Allowed.
    */
   inSlots: (value: unknown, at?: Date) => boolean;
   /**
-   * Whether the « Horaires » of a task allow a moment (now by default), whatever its condition and the events.
+   * Whether the « Horaires » of a task allow a moment (now by default), whatever its condition, the slots
+   * « Indisponible » and the events.
    * @param {unknown} hours Hours of the task (JSON).
    * @param {Date} [at] Moment. Optional. Default = now.
    * @returns {boolean} Allowed.
    */
   inHours: (hours: unknown, at?: Date) => boolean;
+  /**
+   * Names of the schedules « Indisponible » of the workspace (of it, or of another one through its subscriptions) met
+   * at a moment (now by default), or between two moments (the end excluded).
+   * @param {Date} [from] Moment, or start. Optional. Default = now.
+   * @param {Date} [to] End. Optional. Default = the moment alone.
+   * @returns {string[]} Names (« Sommeil », « Sport · Perso »), each once.
+   */
+  unavailable: (from?: Date, to?: Date) => string[];
   /**
    * Event keeping the assignees of a task or a routine busy at a moment (now by default), if any.
    * @param {Doable} item Task or routine.
@@ -77,8 +87,8 @@ export interface SlotRules {
    */
   blocking: (item: Doable, at?: Date) => BusyEvent | undefined;
   /**
-   * First moment a task or a routine can be done from a moment on (within two weeks, Paris time as the server:
-   * `nextAllowedMoment`), null when none.
+   * First moment a task or a routine can be done from a moment on, out of the slots « Indisponible » (within two
+   * weeks, Paris time as the server: `nextAllowedMoment`), null when none.
    * @param {Doable} item Task or routine.
    * @param {Date} from Moment.
    * @returns {Date | null} Moment.
@@ -94,8 +104,8 @@ export interface SlotRules {
 
 /**
  * Slot conditions of the current workspace, the same for tasks and routines: whether a task or a routine can be done now
- * or at a moment (its condition on the schedules and kinds of the workspace and of the other workspaces of the user, and
- * the events keeping its assignees busy). Refreshed every minute.
+ * or at a moment (its condition on the schedules and kinds of the workspace and of the other workspaces of the user, the
+ * slots « Indisponible » of the workspace, and the events keeping its assignees busy). Refreshed every minute.
  * @returns {SlotRules} Slot conditions.
  */
 export function useSlotRules(): SlotRules {
@@ -118,14 +128,17 @@ export function useSlotRules(): SlotRules {
       sources.birthdays ?? [],
     );
     const { names } = slotChoices(sources);
+    // Schedules by their plain label (of another workspace: « Sport · Perso »).
+    const labels = new Map([...(sources.schedules ?? []).map((schedule) => [schedule.id, schedule.label] as const), ...foreign.map((schedule) => [schedule.id, inWorkspace(schedule.label, schedule.workspaceLabel)] as const)]);
     /**
-     * Whether a condition and some hours allow a moment (the shared test of the API).
+     * What keeps a condition and some hours from a moment (the shared test of the API: its hours, its condition, the
+     * slots « Indisponible »), null: allowed.
      * @param {unknown} value Condition (JSON).
      * @param {Date} at Moment.
      * @param {unknown} [hours] Hours of a task (JSON). Optional. Default = none.
-     * @returns {boolean} Allowed.
+     * @returns {import('@ordo/shared').ConditionBlock | null} What keeps it.
      */
-    const inSlotsAt = (value: unknown, at: Date, hours?: unknown) => conditionAllowsAt(readSlotCondition(value), slotsOn, localDay(at), fmt.time(at), readTaskHours(hours));
+    const blockAt = (value: unknown, at: Date, hours?: unknown) => conditionBlockAt(readSlotCondition(value), slotsOn, localDay(at), fmt.time(at), readTaskHours(hours));
     /**
      * Event keeping a task or a routine busy at a moment.
      * @param {Doable} item Task or routine.
@@ -135,24 +148,16 @@ export function useSlotRules(): SlotRules {
     const blockingAt = (item: Doable, at: Date) => blockingEvent(events ?? [], item, meId, at, localDay(at));
 
     return {
-      allowed: (item, at = new Date(minute)) => inSlotsAt(item.slotCondition, at, item.hours) && !blockingAt(item, at),
+      allowed: (item, at = new Date(minute)) => blockAt(item.slotCondition, at, item.hours) === null && !blockingAt(item, at),
       blocking: (item, at = new Date(minute)) => blockingAt(item, at),
-      inSlots: (value, at = new Date(minute)) => inSlotsAt(value, at),
-      inHours: (hours, at = new Date(minute)) => inSlotsAt(null, at, hours),
-      nextAllowedAt: (item, from) => {
-        // The next moment its condition and its hours allow, past the events keeping it busy then, in Paris time (the server defers the same way).
-        const condition = readSlotCondition(item.slotCondition);
-        const hours = readTaskHours(item.hours);
-        return nextAllowedMoment(item, from, {
-          events: events ?? [],
-          meId,
-          timeZone: PARIS_ZONE,
-          nextInSlots: (at) => {
-            const moment = nextConditionMoment(condition, slotsOn, parisDay(at), timeIn(at, PARIS_ZONE), NEXT_ALLOWED_DAYS, hours);
-            return moment ? parisInstant(moment.date, moment.time) : null;
-          },
-        });
-      },
+      inSlots: (value, at = new Date(minute)) => blockAt(value, at) !== 'slots',
+      inHours: (hours, at = new Date(minute)) => blockAt(null, at, hours) !== 'hours',
+      unavailable: (from = new Date(minute), to) =>
+        unavailableScheduleIds(slotsOn, { date: localDay(from), time: fmt.time(from) }, to && { date: localDay(to), time: fmt.time(to) }).map((id) => labels.get(id) ?? id),
+      // The next moment its condition and its hours allow out of the slots « Indisponible », past the events keeping
+      // it busy then, in Paris time (the server defers the same way).
+      nextAllowedAt: (item, from) =>
+        nextAllowedMoment(item, from, { events: events ?? [], meId, timeZone: PARIS_ZONE, nextInSlots: nextInSlotsOf(readSlotCondition(item.slotCondition), slotsOn, readTaskHours(item.hours)) }),
       describe: (value) => fmt.capitalize(describeSlotCondition(readSlotCondition(value), names)) || null,
     };
   }, [sources, minute, events, meId]);

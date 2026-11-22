@@ -122,6 +122,8 @@ export const workScheduleSchema = z
     typeId: z.string().nullish(),
     /** An éphéméride, not a créneau: with a kind, that of the kind (set by the API). */
     ephemeris: z.boolean().default(false),
+    /** « Indisponible »: nothing is scheduled during its slots; with a kind, that of the kind (set by the API). */
+    unavailable: z.boolean().default(false),
     /** Reminders of an éphéméride, every kind; omitted: left unchanged. A créneau rings none. */
     reminders: startRemindersSchema.optional(),
   })
@@ -142,6 +144,11 @@ export interface WorkScheduleRule {
   typeId?: string | null;
   /** An éphéméride (holidays, birthday…), not a créneau: never in the free time, the working hours nor the planned time. */
   ephemeris?: boolean;
+  /**
+   * « Indisponible » in the workspace the calculation runs in (its own flag, or that of its kind; of another workspace:
+   * that of the subscription of this one to its kind): nothing is scheduled during its slots. Optional. Default = false.
+   */
+  unavailable?: boolean;
   /** Archived: gives no moment to the slot conditions. Optional. Default = false. */
   archived?: boolean;
   /** Of an archived kind: gives no moment to the slot conditions either. Optional. Default = false. */
@@ -554,6 +561,8 @@ export const scheduleTypeSchema = z.object({
   color: colorSchema,
   ...scheduleDisplayFields,
   ephemeris: z.boolean().default(false),
+  /** « Indisponible »: nothing is scheduled during the slots of its schedules. */
+  unavailable: z.boolean().default(false),
   /** Its éphémérides are the periods of a context of the treasury (the kind is the context). */
   budgetContext: z.boolean().default(false),
   /** A context in every workspace of the user. */

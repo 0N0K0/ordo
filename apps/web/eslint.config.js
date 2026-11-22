@@ -64,6 +64,11 @@ const RESTRICTED_PATHS = [
   },
   {
     name: '@ordo/shared',
+    importNames: ['nextConditionMoment'],
+    message: 'Prochain moment permis d’une tâche ou d’une routine : nextInSlotsOf (@ordo/shared), à l’heure de Paris et hors des créneaux indisponibles, comme le serveur.',
+  },
+  {
+    name: '@ordo/shared',
     importNames: ['SLOT_CONDITION_FIELDS', 'SLOT_CONDITION_FIELD_OPERATORS'],
     message: 'Condition de créneaux d’une tâche ou d’une routine : SlotConditionBuilder (features/calendar/components), un seul éditeur.',
   },

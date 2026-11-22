@@ -63,6 +63,7 @@ export function scheduleRule(schedule: WorkSchedule & { type?: { archivedAt: Dat
       })),
     typeId: schedule.typeId,
     ephemeris: schedule.ephemeris,
+    unavailable: schedule.unavailable,
     archived: schedule.archivedAt !== null,
     kindArchived: Boolean(schedule.type?.archivedAt),
   };
@@ -73,10 +74,10 @@ export function scheduleRule(schedule: WorkSchedule & { type?: { archivedAt: Dat
  * routines before and after a change of it.
  * @param {string} id Schedule (any id for a new one).
  * @param {WorkScheduleInput} input Schedule.
- * @param {boolean} ephemeris An éphéméride (that of its kind, `scheduleData`).
+ * @param {{ ephemeris: boolean, unavailable: boolean }} flags An éphéméride, « Indisponible » (those of its kind, `scheduleData`).
  * @returns {WorkScheduleRule} Rule.
  */
-function scheduleRuleOf(id: string, input: WorkScheduleInput, ephemeris: boolean): WorkScheduleRule {
+function scheduleRuleOf(id: string, input: WorkScheduleInput, { ephemeris, unavailable }: { ephemeris: boolean; unavailable: boolean }): WorkScheduleRule {
   const schedule = parseInput(workScheduleSchema, input);
   return {
     id,
@@ -87,13 +88,14 @@ function scheduleRuleOf(id: string, input: WorkScheduleInput, ephemeris: boolean
     exceptions: schedule.exceptions,
     typeId: schedule.typeId ?? null,
     ephemeris,
+    unavailable,
   };
 }
 
 /**
  * Prisma data of a schedule, exceptions by date; the former format is emptied (cases replace it). A kind archived
- * is refused unless it is the current one. With a kind, it is of the nature of its kind (créneau or éphéméride, lot
- * 16); without one, of the nature asked.
+ * is refused unless it is the current one. With a kind, it is of the nature of its kind (créneau or éphéméride) and
+ * « Indisponible » as its kind is; without one, as asked.
  * @param {WorkScheduleInput} input Schedule.
  * @param {string | null} [currentTypeId] Kind of the schedule changed. Optional.
  * @returns {Promise<object>} Data.
@@ -101,10 +103,11 @@ function scheduleRuleOf(id: string, input: WorkScheduleInput, ephemeris: boolean
 async function scheduleData(input: WorkScheduleInput, currentTypeId: string | null = null) {
   const schedule = parseInput(workScheduleSchema, input);
   await assertActive(prisma.scheduleType, schedule.typeId, 'Type de créneau', { keep: currentTypeId, field: 'typeId' });
-  const type = schedule.typeId ? await prisma.scheduleType.findUnique({ where: { id: schedule.typeId }, select: { ephemeris: true } }) : null;
+  const type = schedule.typeId ? await prisma.scheduleType.findUnique({ where: { id: schedule.typeId }, select: { ephemeris: true, unavailable: true } }) : null;
   return {
     typeId: schedule.typeId ?? null,
     ephemeris: type ? type.ephemeris : schedule.ephemeris,
+    unavailable: type ? type.unavailable : schedule.unavailable,
     label: schedule.label,
     startDate: parseDay(schedule.startDate),
     endDate: parseOptionalDay(schedule.endDate),
@@ -135,7 +138,7 @@ const NO_SETTLER: ScheduleChangeSettler = async () => {};
  */
 export async function createWorkSchedule(input: WorkScheduleInput, settle: ScheduleChangeSettler = NO_SETTLER): Promise<WorkSchedule> {
   const data = await scheduleData(input);
-  await settle((own) => [...own, scheduleRuleOf('new', input, data.ephemeris)]);
+  await settle((own) => [...own, scheduleRuleOf('new', input, data)]);
   return prisma.workSchedule.create({ data });
 }
 
@@ -154,7 +157,7 @@ export async function updateWorkSchedule(id: string, input: WorkScheduleInput, s
   await settle((own) =>
     own.map((rule) => {
       if (rule.id !== id) return rule;
-      const next = scheduleRuleOf(id, input, data.ephemeris);
+      const next = scheduleRuleOf(id, input, data);
       return { ...next, kindArchived: Boolean(rule.kindArchived && rule.typeId === next.typeId) };
     }),
   );
@@ -246,24 +249,40 @@ export const scheduleTypes: typeof baseScheduleTypes = {
     return type;
   },
   /**
-   * Changes a kind (not its nature), and its contexts.
+   * Changes a kind (not its nature), its schedules with its « Indisponible », and its contexts.
    * @param {string} id Kind.
    * @param {object} input Changed fields.
    * @returns {Promise<ScheduleType>} Kind.
    */
-  async update(id: string, input: object) {
-    const current = await orNotFound(prisma.scheduleType.findUnique({ where: { id }, select: { ephemeris: true, budgetContext: true, sharedContext: true } }), 'Type de créneau');
-    const { ephemeris: _nature, ...changes } = input as { ephemeris?: unknown };
-    const patch = changes as { budgetContext?: boolean | null; sharedContext?: boolean | null };
-    const budgetContext = patch.budgetContext ?? current.budgetContext;
-    const next = { ephemeris: current.ephemeris, budgetContext, sharedContext: budgetContext && (patch.sharedContext ?? current.sharedContext) };
-    checkKindContext(next);
-    await assertKindContextsKept(id, next);
-    const type = await baseScheduleTypes.update(id, { ...changes, sharedContext: next.sharedContext });
-    await syncKindContexts(id);
-    return type;
-  },
+  update: (id: string, input: object) => updateScheduleType(id, input),
 };
+
+/**
+ * Changes a kind (not its nature: a conversion changes it), and its contexts. Its « Indisponible » changed, its
+ * schedules take it; the occurrences of routines that makes disappear are asked first through `settle`.
+ * @param {string} id Kind.
+ * @param {object} input Changed fields.
+ * @param {ScheduleChangeSettler} [settle] Run once checked, before it is saved. Optional. Default = none.
+ * @returns {Promise<ScheduleType>} Kind.
+ */
+export async function updateScheduleType(id: string, input: object, settle: ScheduleChangeSettler = NO_SETTLER): Promise<ScheduleType> {
+  const current = await orNotFound(
+    prisma.scheduleType.findUnique({ where: { id }, select: { ephemeris: true, unavailable: true, budgetContext: true, sharedContext: true } }),
+    'Type de créneau',
+  );
+  const { ephemeris: _nature, ...changes } = input as { ephemeris?: unknown };
+  const patch = changes as { budgetContext?: boolean | null; sharedContext?: boolean | null; unavailable?: boolean | null };
+  const budgetContext = patch.budgetContext ?? current.budgetContext;
+  const next = { ephemeris: current.ephemeris, budgetContext, sharedContext: budgetContext && (patch.sharedContext ?? current.sharedContext) };
+  checkKindContext(next);
+  await assertKindContextsKept(id, next);
+  const unavailable = patch.unavailable ?? current.unavailable;
+  if (unavailable !== current.unavailable) await settle((own) => own.map((rule) => (rule.typeId === id ? { ...rule, unavailable } : rule)));
+  const type = await baseScheduleTypes.update(id, { ...changes, sharedContext: next.sharedContext, unavailable });
+  if (unavailable !== current.unavailable) await prisma.workSchedule.updateMany({ where: { typeId: id }, data: { unavailable } });
+  await syncKindContexts(id);
+  return type;
+}
 
 /**
  * Deletes a kind of time slots: its schedules stay, without kind (the working hours of the workspace), which may make
@@ -318,6 +337,8 @@ export interface ForeignScheduleKind {
   archived: boolean;
   /** A kind of éphémérides. */
   ephemeris: boolean;
+  /** « Indisponible » in this workspace (set on its subscription; false when not subscribed). */
+  unavailable: boolean;
 }
 
 /** Look of a subscription as stored. */
@@ -495,9 +516,7 @@ const asKind = (kind: DefaultScheduleKind) => ({
  * @returns {Promise<ForeignScheduleKind[]>} Kinds.
  */
 export async function foreignScheduleKinds(): Promise<ForeignScheduleKind[]> {
-  const subscriptions = await prisma.workScheduleSubscription.findMany({
-    select: { sourceWorkspaceId: true, typeId: true, ...lookSelect },
-  });
+  const subscriptions = await scheduleSubscriptions();
   const subscribed = new Map(subscriptions.map((item) => [foreignSlotKind(item.sourceWorkspaceId, item.typeId), item]));
   const workspaces = await unscopedPrisma.workspace.findMany({
     where: { id: { not: currentWorkspaceId() } },
@@ -539,6 +558,7 @@ export async function foreignScheduleKinds(): Promise<ForeignScheduleKind[]> {
               subscribed: subscribed.has(foreignSlotKind(workspace.id, null)),
               archived: false,
               ephemeris: false,
+              unavailable: Boolean(subscribed.get(foreignSlotKind(workspace.id, null))?.unavailable),
             },
           ]
         : []),
@@ -552,16 +572,35 @@ export async function foreignScheduleKinds(): Promise<ForeignScheduleKind[]> {
         subscribed: subscribed.has(foreignSlotKind(workspace.id, type.id)),
         archived: type.archivedAt !== null,
         ephemeris: type.ephemeris,
+        unavailable: Boolean(subscribed.get(foreignSlotKind(workspace.id, type.id))?.unavailable),
       })),
     ];
   });
 }
 
+/** Subscription of this workspace to a kind of schedules of another one, with its look and its « Indisponible ». */
+type StoredSubscription = { sourceWorkspaceId: string; typeId: string | null; unavailable: boolean } & StoredLook;
+
 /**
- * Subscriptions of this workspace to the kinds of schedules of other workspaces, with their look.
- * @returns {Promise<({ sourceWorkspaceId: string, typeId: string | null } & StoredLook)[]>} Subscriptions.
+ * Subscriptions of this workspace to the kinds of schedules of other workspaces, with their look and « Indisponible ».
+ * @returns {Promise<StoredSubscription[]>} Subscriptions.
  */
-const scheduleSubscriptions = () => prisma.workScheduleSubscription.findMany({ select: { sourceWorkspaceId: true, typeId: true, ...lookSelect } });
+const scheduleSubscriptions = (): Promise<StoredSubscription[]> =>
+  prisma.workScheduleSubscription.findMany({ select: { sourceWorkspaceId: true, typeId: true, unavailable: true, ...lookSelect } });
+
+/**
+ * Whether a schedule of another workspace is « Indisponible » here: the subscription of this workspace to its kind
+ * (to its schedules without kind: its créneaux only, an éphéméride without kind is of no kind) says so, whatever its
+ * own workspace says.
+ * @param {readonly { sourceWorkspaceId: string, typeId: string | null, unavailable: boolean }[]} subscriptions Subscriptions of this workspace.
+ * @returns {(workspaceId: string, rule: Pick<WorkScheduleRule, 'typeId' | 'ephemeris'>) => boolean} Test.
+ */
+export function subscribedUnavailability(
+  subscriptions: readonly { sourceWorkspaceId: string; typeId: string | null; unavailable: boolean }[],
+): (workspaceId: string, rule: Pick<WorkScheduleRule, 'typeId' | 'ephemeris'>) => boolean {
+  const kinds = new Set(subscriptions.filter((item) => item.unavailable).map((item) => foreignSlotKind(item.sourceWorkspaceId, item.typeId)));
+  return (workspaceId, rule) => Boolean(rule.typeId || !rule.ephemeris) && kinds.has(foreignSlotKind(workspaceId, rule.typeId ?? null));
+}
 
 /**
  * Schedules of the kinds of other workspaces this one shows (those added later too).
@@ -589,11 +628,13 @@ export async function otherWorkspaceSchedules(): Promise<ForeignSchedule[]> {
 /**
  * Schedules of other workspaces, with their color and display here (those of their subscription, else of their kind).
  * @param {Prisma.WorkScheduleWhereInput} where Schedules wanted (of other workspaces).
- * @param {readonly ({ sourceWorkspaceId: string, typeId: string | null } & StoredLook)[]} subscriptions Subscriptions of this workspace.
+ * Their « Indisponible » is that of this workspace (`subscribedUnavailability`), never that of their own.
+ * @param {readonly StoredSubscription[]} subscriptions Subscriptions of this workspace.
  * @returns {Promise<ForeignSchedule[]>} Schedules.
  */
-async function foreignSchedules(where: Prisma.WorkScheduleWhereInput, subscriptions: readonly ({ sourceWorkspaceId: string; typeId: string | null } & StoredLook)[]): Promise<ForeignSchedule[]> {
+async function foreignSchedules(where: Prisma.WorkScheduleWhereInput, subscriptions: readonly StoredSubscription[]): Promise<ForeignSchedule[]> {
   const lookByKind = new Map(subscriptions.map((item) => [foreignSlotKind(item.sourceWorkspaceId, item.typeId), item]));
+  const unavailableHere = subscribedUnavailability(subscriptions);
   const schedules = await unscopedPrisma.workSchedule.findMany({
     where,
     orderBy: [{ startDate: 'asc' }, { createdAt: 'asc' }],
@@ -616,8 +657,9 @@ async function foreignSchedules(where: Prisma.WorkScheduleWhereInput, subscripti
     // An éphéméride without kind: none (no default kind, no color: the web gives it its own).
     const loose = !schedule.type && schedule.ephemeris;
     const { color, display } = lookOf(lookByKind.get(foreignSlotKind(schedule.workspaceId, schedule.typeId)), schedule.type ?? (loose ? null : asKind(untyped)));
+    const rule = scheduleRule(schedule);
     return {
-      rule: scheduleRule(schedule),
+      rule: { ...rule, unavailable: unavailableHere(schedule.workspaceId, rule) },
       archived: schedule.archivedAt !== null,
       typeLabel: schedule.type?.label ?? (loose ? UNTYPED_EPHEMERIS_LABEL : untyped.label),
       color,
@@ -641,6 +683,28 @@ export async function setScheduleSubscriptionLook(sourceWorkspaceId: string, typ
     data,
   });
   if (!count) throw notFound('Abonnement');
+}
+
+/**
+ * Sets a kind of schedules of another workspace subscribed to (or its schedules without kind) « Indisponible » in
+ * this workspace, or back: nothing of this workspace is scheduled during their slots (their own workspace decides for
+ * itself). The occurrences of routines it makes disappear are asked first through `settle`.
+ * @param {string} sourceWorkspaceId Workspace of the schedules.
+ * @param {string | null} typeId Kind; none: the schedules without kind.
+ * @param {boolean} unavailable « Indisponible ».
+ * @param {(change: { sourceWorkspaceId: string, typeId: string | null, unavailable: boolean }) => Promise<void>} [settle] Run once checked, before it is saved. Optional. Default = none.
+ * @returns {Promise<void>}
+ */
+export async function setScheduleSubscriptionUnavailable(
+  sourceWorkspaceId: string,
+  typeId: string | null,
+  unavailable: boolean,
+  settle: (change: { sourceWorkspaceId: string; typeId: string | null; unavailable: boolean }) => Promise<void> = async () => {},
+): Promise<void> {
+  const current = await orNotFound(prisma.workScheduleSubscription.findFirst({ where: { sourceWorkspaceId, typeId }, select: { unavailable: true } }), 'Abonnement');
+  if (current.unavailable === unavailable) return;
+  await settle({ sourceWorkspaceId, typeId, unavailable });
+  await prisma.workScheduleSubscription.updateMany({ where: { sourceWorkspaceId, typeId }, data: { unavailable } });
 }
 
 /**

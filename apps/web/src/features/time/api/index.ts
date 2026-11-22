@@ -9,6 +9,7 @@ import type { RoutinesDataQuery, TasksDataQuery } from '../../../graphql/graphql
 import { notifyWarning } from '../../../lib/notify';
 import { routinesKey } from '../../routines/api';
 import { routineDoable, useSlotRules, type SlotRules } from '../../calendar/hooks/use-slot-rules';
+import { unavailableWarning } from '../../calendar/lib/schedule-text';
 import { taskRow } from '../../tasks/lib/task-inheritance';
 import { tasksQueryKey } from '../../tasks/api';
 import type { CalendarEventScope } from '../../calendar/api';
@@ -270,7 +271,8 @@ export function useLostOnDelete(query: LostOnDeleteQuery) {
 
 /**
  * Warns when a timer starts on tasks out of the hours their slot condition or their « Horaires » allow, those they go
- * by (their own or inherited; a routine: its moments are kept to its condition already), or while an event keeps their assignees busy (but the events the timer is on): the timer runs all the
+ * by (their own or inherited; a routine: its moments are kept to its condition already), during slots « Indisponible »
+ * of the workspace, or while an event keeps their assignees busy (but the events the timer is on): the timer runs all the
  * same.
  * @param {QueryClient} queryClient Query cache (routines and tasks loaded).
  * @param {SlotRules} slotRules Slot rules of the workspace.
@@ -294,8 +296,10 @@ function warnOutOfSlots(queryClient: QueryClient, slotRules: SlotRules, input: T
     const out = [...(slotRules.inSlots(item.slotCondition) ? [] : [(slotRules.describe(item.slotCondition) ?? '').toLowerCase()]), ...(slotRules.inHours(item.hours) ? [] : ['hors de ses horaires'])];
     return out.length ? [`${item.label} : ${out.join(' et ')}`] : [];
   });
-  if (!lines.length) return;
-  notifyWarning('Hors des moments prévus', `Le chrono tourne quand même. ${lines.join(' · ')}.`);
+  // The slots « Indisponible » hold every routine and task alike: told once.
+  const unavailable = items.length ? unavailableWarning(slotRules.unavailable()) : null;
+  if (!lines.length && !unavailable) return;
+  notifyWarning('Hors des moments prévus', ['Le chrono tourne quand même.', unavailable, lines.length ? `${lines.join(' · ')}.` : null].filter(Boolean).join(' '));
 }
 
 /**

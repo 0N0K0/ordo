@@ -22,7 +22,7 @@ export type EventOccurrence = CalendarEventOccurrenceFieldsFragment;
 export type WorkSchedule = WorkSchedulesQuery['workSchedules'][number];
 export type ScheduleType = WorkSchedulesQuery['scheduleTypes'][number];
 /** Fields of a kind saved: label, color, display; nature (at its creation) and budget fields. */
-export type ScheduleTypeFields = { label: string; color: string } & ScheduleDisplay & { ephemeris?: boolean; budgetContext?: boolean; sharedContext?: boolean };
+export type ScheduleTypeFields = { label: string; color: string } & ScheduleDisplay & { ephemeris?: boolean; unavailable?: boolean; budgetContext?: boolean; sharedContext?: boolean };
 export type { CalendarEventInput, CalendarEventScope };
 
 graphql(`
@@ -92,6 +92,7 @@ const WorkSchedulesDocument = graphql(`
       endDate
       typeId
       ephemeris
+      unavailable
       cases
       exceptions
       reminders {
@@ -108,6 +109,7 @@ const WorkSchedulesDocument = graphql(`
       dayBar
       monthDisplay
       ephemeris
+      unavailable
       budgetContext
       sharedContext
       position
@@ -143,6 +145,7 @@ const ForeignScheduleKindsDocument = graphql(`
       subscribed
       archived
       ephemeris
+      unavailable
     }
   }
 `);
@@ -181,6 +184,7 @@ const OtherWorkspaceSchedulesDocument = graphql(`
       exceptions
       typeId
       ephemeris
+      unavailable
       workspaceId
       workspaceLabel
     }
@@ -196,8 +200,8 @@ const CreateScheduleTypeDocument = graphql(`
 `);
 
 const UpdateScheduleTypeDocument = graphql(`
-  mutation UpdateScheduleType($id: ID!, $input: ScheduleTypeInput!) {
-    updateScheduleType(id: $id, input: $input) {
+  mutation UpdateScheduleType($id: ID!, $input: ScheduleTypeInput!, $confirmLoss: Boolean) {
+    updateScheduleType(id: $id, input: $input, confirmLoss: $confirmLoss) {
       id
     }
   }
@@ -234,6 +238,12 @@ const SaveBirthdayLookDocument = graphql(`
 const SetScheduleSubscriptionLookDocument = graphql(`
   mutation SetScheduleSubscriptionLook($workspaceId: ID!, $typeId: ID, $input: ScheduleSubscriptionLookInput!) {
     setScheduleSubscriptionLook(workspaceId: $workspaceId, typeId: $typeId, input: $input)
+  }
+`);
+
+const SetScheduleSubscriptionUnavailableDocument = graphql(`
+  mutation SetScheduleSubscriptionUnavailable($workspaceId: ID!, $typeId: ID, $unavailable: Boolean!, $confirmLoss: Boolean) {
+    setScheduleSubscriptionUnavailable(workspaceId: $workspaceId, typeId: $typeId, unavailable: $unavailable, confirmLoss: $confirmLoss)
   }
 `);
 
@@ -756,7 +766,12 @@ export function useWorkScheduleMutations() {
     remove: useCalendarMutation(async (id: string) => withLossConfirmation(async (confirmLoss) => (await execute(DeleteWorkScheduleDocument, { id, confirmLoss })).deleteWorkSchedule), SLOT_DEPENDENT_KEYS),
     // A kind of éphémérides may be a context of the treasury: its contexts follow it.
     createType: useCalendarMutation(async (input: ScheduleTypeFields) => (await execute(CreateScheduleTypeDocument, { input })).createScheduleType, [treasuryKey]),
-    updateType: useCalendarMutation(async (variables: { id: string; input: ScheduleTypeFields }) => (await execute(UpdateScheduleTypeDocument, variables)).updateScheduleType, [treasuryKey]),
+    // Its « Indisponible » changed: the occurrences of routines lost are confirmed first.
+    updateType: useCalendarMutation(
+      async (variables: { id: string; input: ScheduleTypeFields }) =>
+        withLossConfirmation(async (confirmLoss) => (await execute(UpdateScheduleTypeDocument, { ...variables, confirmLoss })).updateScheduleType),
+      [...SLOT_DEPENDENT_KEYS, treasuryKey],
+    ),
     removeType: useCalendarMutation(
       async (id: string) => withLossConfirmation(async (confirmLoss) => (await execute(DeleteScheduleTypeDocument, { id, confirmLoss })).deleteScheduleType),
       [...SLOT_DEPENDENT_KEYS, treasuryKey],
@@ -780,6 +795,12 @@ export function useWorkScheduleMutations() {
     setLook: useCalendarMutation(
       async (variables: { workspaceId: string; typeId: string | null; input: ScheduleSubscriptionLook }) => (await execute(SetScheduleSubscriptionLookDocument, variables)).setScheduleSubscriptionLook,
     ),
+    // « Indisponible » in this workspace, on its subscription: occurrences of routines lost confirmed first.
+    setSubscriptionUnavailable: useCalendarMutation(
+      async (variables: { workspaceId: string; typeId: string | null; unavailable: boolean }) =>
+        withLossConfirmation(async (confirmLoss) => (await execute(SetScheduleSubscriptionUnavailableDocument, { ...variables, confirmLoss })).setScheduleSubscriptionUnavailable),
+      SLOT_DEPENDENT_KEYS,
+    ),
     unsubscribe: useCalendarMutation(async (kind: { workspaceId: string; typeId: string | null }) => (await execute(UnsubscribeScheduleKindDocument, kind)).unsubscribeScheduleKind),
   };
 }
@@ -800,13 +821,24 @@ export function useSlotSourceArchiving(kind: 'WORK_SCHEDULE' | 'CONTRIBUTOR' | '
 /**
  * Schedules as the shared functions read them (those of this workspace, or of another one subscribed to): their
  * cases and exceptions validated (invalid ones left out), archived or of an archived kind (the slot conditions do not
- * count them).
+ * count them), « Indisponible » in this workspace.
  * @param {object[]} schedules Schedules.
  * @param {ReadonlySet<string>} [archivedKinds] Kinds archived (ids). Optional. Default = none.
  * @returns {import('@ordo/shared').WorkScheduleRule[]} Rules.
  */
 export function scheduleRules(
-  schedules: readonly { id: string; label: string; startDate: string; endDate?: string | null; cases: unknown; exceptions: unknown; typeId?: string | null; ephemeris?: boolean | null; archived?: boolean | null }[],
+  schedules: readonly {
+    id: string;
+    label: string;
+    startDate: string;
+    endDate?: string | null;
+    cases: unknown;
+    exceptions: unknown;
+    typeId?: string | null;
+    ephemeris?: boolean | null;
+    unavailable?: boolean | null;
+    archived?: boolean | null;
+  }[],
   archivedKinds: ReadonlySet<string> = new Set(),
 ): WorkScheduleRule[] {
   return schedules.map((schedule) => ({
@@ -818,6 +850,7 @@ export function scheduleRules(
     exceptions: readScheduleExceptions(schedule.exceptions),
     typeId: schedule.typeId ?? null,
     ephemeris: schedule.ephemeris ?? false,
+    unavailable: Boolean(schedule.unavailable),
     archived: Boolean(schedule.archived),
     kindArchived: Boolean(schedule.typeId && archivedKinds.has(schedule.typeId)),
   }));
@@ -840,7 +873,7 @@ export function useWorkingHours() {
 
 /**
  * Input of a schedule from its rule and a change of its cases and exceptions (an hour moved in the calendar), and of
- * its period when it moves with it: its kind and nature kept.
+ * its period when it moves with it: its kind, nature and « Indisponible » kept.
  * @param {WorkScheduleRule} rule Schedule.
  * @param {Pick<WorkScheduleInput, 'cases' | 'exceptions'> & Partial<Pick<WorkScheduleInput, 'startDate' | 'endDate'>>} change New cases and exceptions, and period. Period optional. Default = that of the rule.
  * @returns {WorkScheduleInput} Input.
@@ -851,6 +884,7 @@ export const ruleScheduleInput = (rule: WorkScheduleRule, change: Pick<WorkSched
   endDate: rule.endDate,
   typeId: rule.typeId ?? null,
   ephemeris: rule.ephemeris ?? false,
+  unavailable: rule.unavailable ?? false,
   ...change,
 });
 

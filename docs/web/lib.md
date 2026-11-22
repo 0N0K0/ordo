@@ -161,7 +161,6 @@ Un format par rôle (importé en `fmt`) ; à l'écran la forme lisible, la forme
 ### `dates.ts`
 
 - `localDay(instant)` : jour (YYYY-MM-DD) d'un instant dans le fuseau de l'utilisateur.
-- `parisDay(instant)` : jour (YYYY-MM-DD) de Paris d'un instant, celui que calcule aussi le serveur (report d'un rappel de routine, `useSlotRules`).
 - `dayOf(value)` : jour d'un jour (ou mois) tel quel, ou d'un instant dans le fuseau de l'utilisateur.
 - `localToday()` : jour courant de l'utilisateur (~50 fichiers).
 - `localParts(instant)` : `{ date: 'YYYY-MM-DD', time: 'HH:MM' }` locaux.
