@@ -1,7 +1,7 @@
-import { ROUTINE_REPETITIONS, ROUTINE_STATES, readOpens } from '@ordo/shared';
-import { opensText } from './opens-format';
+import { ROUTINE_REPETITIONS, ROUTINE_STATES, readOpens, routineCaseOn, type RoutineCase } from '@ordo/shared';
+import { occurrenceOpensText, opensText } from './opens-format';
 import type { TaskContext } from '../../tasks/hooks/use-task-context';
-import type { Routine, RoutineCategory } from '../api';
+import type { Routine, RoutineCategory, RoutineOccurrence } from '../api';
 import { ruleOf } from './routine-format';
 import * as fmt from '../../../lib/format';
 
@@ -15,6 +15,22 @@ export function opensWords(routine: Routine): string | null {
   const frequency = ruleOf(routine)?.frequency;
   const words = opens && frequency ? opensText(opens, frequency) : '';
   return words ? fmt.capitalize(words) : null;
+}
+
+/**
+ * When an occurrence of a routine opens, under its due day (« Ouverte 3 jours avant (le 5 nov.) »): the « Ouverture »
+ * it follows (that of its case, else of its rule; inherited ones included, the routine being read as the screens read
+ * it) and its first day as the API computes it; null without « Ouverture ».
+ * @param {Routine} routine Routine.
+ * @param {Pick<RoutineOccurrence, 'date' | 'startDate' | 'movedFrom'>} occurrence Occurrence: its due day, its first day, the day of its rule it was moved from.
+ * @returns {string | null} Line.
+ */
+export function occurrenceOpensWords(routine: Routine, occurrence: Pick<RoutineOccurrence, 'date' | 'startDate' | 'movedFrom'>): string | null {
+  const cases = (routine.cases as RoutineCase[] | null) ?? [];
+  const item = cases.length ? routineCaseOn(cases, routine.startDate, occurrence.movedFrom ?? occurrence.date) : null;
+  const opens = readOpens(cases.length ? item?.opens : routine.opensOn);
+  const frequency = cases.length ? item?.recurrence.frequency : ruleOf(routine)?.frequency;
+  return (opens && frequency && occurrenceOpensText(opens, frequency, occurrence.startDate, occurrence.date)) || null;
 }
 
 export const ROUTINE_STATE_LABELS: Record<(typeof ROUTINE_STATES)[number], string> = { late: 'En retard', due: 'À faire', upcoming: 'À venir', done: 'Faite' };

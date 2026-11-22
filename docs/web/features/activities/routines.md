@@ -98,9 +98,15 @@ Internes : `NONE`, `modeOptions(frequency)`, `firstValue(mode, frequency)`.
 
 | Export                                   | Rôle                                                                                                                                                                                           |
 | ---------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `RoutineMoveForm({ routineId, onDone })` | Panneau « Reporter ou annuler » : occurrence (30 jours avant à 68 après), nouvelle date, horaires, « Annuler l'occurrence » (confirmation), liste des exceptions avec « Remettre à son jour ». |
+| `RoutineMoveForm({ routineId, onDone })` | Panneau « Reporter ou annuler » : occurrence (30 jours avant à 68 après, avec dessous quand elle ouvre : `OccurrenceOpening`), nouvelle date, horaires, « Annuler l'occurrence » (confirmation), liste des exceptions avec « Remettre à son jour ». |
 
 Internes : `shortText`, `PAST_DAYS`, `NEXT_DAYS`, `Times`, `timesOf(occurrence)`.
+
+### `components/OccurrenceOpening.tsx`
+
+| Export                                             | Rôle |
+| -------------------------------------------------- | ---- |
+| `OccurrenceOpening({ routine, occurrence, children })` | L’échéance d’une occurrence (`children` : le champ ou la ligne qui la montre) avec dessous, en petit et atténué, quand elle ouvre (`occurrenceOpensWords`) ; sans « Ouverture » (ou sans routine ni occurrence), l’échéance seule. Utilisé par `RoutineMoveForm`, `TickForm` (`RoutineDayAgenda`) et `RoutineOccurrenceForm` (agenda). |
 
 ### `components/RoutineHistory.tsx`
 
@@ -114,11 +120,11 @@ Interne : `historyItems(occurrences, checks, byId)` (moments prévus du jour, tr
 
 | Export                                                  | Rôle                                                                                                                                                                      |
 | ------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `HistoryItem`                                           | Moment de l'historique : routine, jour, index, horaires, `planned`, `optional`, `movedFrom`, `check`.                                                                     |
+| `HistoryItem`                                           | Moment de l'historique : routine, jour, premier jour de l’occurrence (`startDate`), index, horaires, `planned`, `optional`, `movedFrom`, `check`.                                                                     |
 | `AgendaLayers`                                          | `{ scheduleIds, calendarIds }` affichés avec les routines.                                                                                                                |
 | `RoutineDayAgenda({ day, today, items, byId, layers })` | Agenda FullCalendar d'un jour : horaires des créneaux en fond, évènements des calendriers (non archivés), moments des routines colorés par état, de leur début à leur fin (`routineSlotSpan` avec `routineMinutes(estimate)` : le temps estimé, 30 min sans lui) ; un clic ouvre `TickForm` (avec `CountdownLaunchButtons` pour l’occurrence : temps morts et minuteurs enregistrés), sauf pour une routine archivée (estompée, « (archivée) », lecture seule). |
 
-Internes : `ItemState`, `STATES` (couleur et texte), `MIDNIGHT` (`24:00`, fin à minuit après le jour), `historyItemState`, `proposedTime`, `TickForm` (cocher après coup à une heure, changer l'heure, décocher, avec annulation).
+Internes : `ItemState`, `STATES` (couleur et texte), `MIDNIGHT` (`24:00`, fin à minuit après le jour), `historyItemState`, `proposedTime`, `TickForm` (jour, horaires et état, avec dessous quand l’occurrence ouvre, `OccurrenceOpening` ; cocher après coup à une heure, changer l'heure, décocher, avec annulation).
 
 ### `components/DoneToggle.tsx`
 
@@ -287,6 +293,7 @@ Héritage des sous-routines à l’écran (règles : [Héritage](../../../busine
 | Export                      | Rôle                                                                                                                               |
 | --------------------------- | ---------------------------------------------------------------------------------------------------------------------------------- |
 | `opensWords(routine)`       | « Ouverture » de la règle en clair, capitalisé.                                                                                  |
+| `occurrenceOpensWords(routine, occurrence)` | Quand une occurrence ouvre (`occurrenceOpensText`) : l’« Ouverture » qu’elle suit (celle de son cas, `routineCaseOn` sur son jour dans la règle, sinon de la règle ; la routine lue comme les écrans la lisent, héritage compris) et son premier jour donné par l’API (`startDate` de `routineOccurrences`, jamais recalculé) ; `null` sans « Ouverture ». |
 | `ROUTINE_STATE_LABELS`      | « En retard », « À faire », « À venir », « Faite ».                                                                                |
 | `REPETITION_LABELS`         | « Chaque jour » … « Selon un planning ».                                                                                           |
 | `routineFrequency(routine)` | Fréquence (quotidienne par défaut).                                                                                                |
@@ -314,7 +321,8 @@ Internes : `RoutineColumn`, `TABLE_COLUMNS`, `useBulkRoutineChanges` (instantan�
 
 | Export                        | Rôle                                                                                                                          |
 | ----------------------------- | ----------------------------------------------------------------------------------------------------------------------------- |
-| `opensText(opens, frequency)` | « le 15 du mois », « le 2e mardi de mars », « 3 jours avant l'échéance », « la veille de l'échéance » ; vide si incompatible. |
+| `opensText(opens, frequency, { ofDue })` | « le 15 du mois », « le 2e mardi de mars », « 3 jours avant l'échéance », « la veille de l'échéance » ; `ofDue: false` : « 3 jours avant », « la veille » (sous l’échéance) ; vide si incompatible. |
+| `occurrenceOpensText(opens, frequency, open, due)` | Ligne d’aide sous l’échéance d’une occurrence : « Ouverte 3 jours avant (le 5 nov.) », « Ouverte dès la veille (le 4 nov.) », « Ouverte dès le 15 du mois (le 15 oct.) », « Ouverte le jour même » (premier jour = échéance) ; vide si incompatible. |
 
 ### `lib/open-routine-form.tsx`
 

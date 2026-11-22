@@ -23,12 +23,15 @@ import { ActionButton } from '../../../components/actions/ActionButton';
 import { taggedKey } from '../../../lib/tagged-key';
 import { CountdownLaunchButtons } from '../../countdowns/components/CountdownLaunchButtons';
 import { routineCountdownItem } from '../lib/routine-countdowns';
+import { OccurrenceOpening } from './OccurrenceOpening';
 
 /** One time of the day of the history: planned (done or not), or ticked without being planned that day. */
 export interface HistoryItem {
   key: string;
   routineId: string;
   date: string;
+  /** First day of its occurrence (its « Ouverture »), as the API computes it. */
+  startDate: string;
   slot: number;
   fromTime: string | null;
   dueTime: string | null;
@@ -114,13 +117,15 @@ function TickForm({ item, routine, today, onDone }: TickFormProps) {
   };
   return (
     <Stack gap="md">
-      <Text size="sm">
-        {fmt.dayLong(item.date)}
-        {window ? ` · ${window}` : ''} ·{' '}
-        <Text span c={`${STATES[state].color}.7`}>
-          {state === 'done' ? `faite à ${fmt.time(item.check!.doneAt)}` : STATES[state].text}
+      <OccurrenceOpening routine={routine} occurrence={item}>
+        <Text size="sm">
+          {fmt.dayLong(item.date)}
+          {window ? ` · ${window}` : ''} ·{' '}
+          <Text span c={`${STATES[state].color}.7`}>
+            {state === 'done' ? `faite à ${fmt.time(item.check!.doneAt)}` : STATES[state].text}
+          </Text>
         </Text>
-      </Text>
+      </OccurrenceOpening>
       <DateTimeField
         label="Faite le"
         description={item.check ? undefined : 'À l’heure prévue par défaut.'}

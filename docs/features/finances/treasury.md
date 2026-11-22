@@ -189,7 +189,7 @@ Comportements :
 - sens « Sorties » / « Entrées » (déduit de la catégorie, défaut sorties ; changer de sens vide une catégorie de l’autre sens) ;
 - « Catégorie » (requise, création à la volée ; « Le budget couvre aussi ses sous-catégories qui n’ont pas le leur. ») ;
 - « Bénéficiaire » (vide : « Moi ») et « Contexte » (vide : « Quotidien ») ;
-- « Répétition » : « Ce mois seulement », « Tous les X mois » (champ « Tous les » 1 à 24 mois), « Tous les ans » ; défaut d’un nouveau budget : tous les mois ; « Jusqu’à » (vide : « Sans fin ») ;
+- « Répétition » : « Ce mois seulement », « Tous les X mois » (champ « Tous les » 1 à 24 mois), « Tous les ans » ; défaut d’un nouveau budget : tous les mois ; « Jusqu’à » (vide : « Sans fin ») ; « À partir de » et « Jusqu’à » restent deux champs de mois (pas un champ de période) ;
 - commentaires du budget en modification. Toast « Budget créé. » (création).
 
 ## Onglet « Prêts »

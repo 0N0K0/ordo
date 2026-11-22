@@ -4,6 +4,7 @@ import { Fieldset, Group, Stack, Text, Switch } from '@mantine/core';
 import { changedScheduleSlot, routineSlotSchema, scheduleSlotTimeSchema, slotWords, type ScheduleSlotTime, type WorkScheduleRule } from '@ordo/shared';
 import { useEffect, useRef } from 'react';
 import { openRoutineForm } from '../../routines/lib/open-routine-form';
+import { OccurrenceOpening } from '../../routines/components/OccurrenceOpening';
 import type { RoutineOccurrenceRef } from '../hooks/calendar-edits';
 import { SaveStatus } from '../../../components/feedback/SaveStatus';
 import { useAppForm, useFieldSave } from '../../../lib/form';
@@ -177,7 +178,8 @@ export function RoutineOccurrenceForm({
   // Its routine as the cache holds it: archived elsewhere while open, it turns read only (a coming occurrence leaves the
   // cache of the occurrences then, the opened copy would stay editable).
   const { data: routines } = useRoutinesData();
-  const archived = occurrence.archived || Boolean(routines?.routines.find((routine) => routine.id === occurrence.routine.id)?.archived);
+  const cachedRoutine = routines?.routines.find((routine) => routine.id === occurrence.routine.id);
+  const archived = occurrence.archived || Boolean(cachedRoutine?.archived);
   const base = useAppForm<OccurrenceValues>({
     initialValues: { date: occurrence.date, fromTime: occurrence.slot.fromTime, dueTime: occurrence.slot.dueTime, optional: false },
     schema: routineSlotSchema,
@@ -250,19 +252,21 @@ export function RoutineOccurrenceForm({
       </Text>
       <Fieldset variant="unstyled" disabled={reading} p={0} m={0}>
         <Stack gap="md">
-          <PeriodField
-            label="Jour"
-            required
-            weekday
-            sameDay
-            optionalTimes
-            bounds={['À partir de', 'Avant']}
-            min={occurrence.routine.startDate}
-            value={[form.values.date, form.values.date]}
-            times={[form.values.fromTime, form.values.dueTime]}
-            errors={[form.errors.date, form.errors.dueTime ?? form.errors.fromTime]}
-            onChange={([date], hours) => date && form.setValues({ date, fromTime: hours?.[0] ?? null, dueTime: hours?.[1] ?? null })}
-          />
+          <OccurrenceOpening routine={cachedRoutine ?? occurrence.routine} occurrence={current}>
+            <PeriodField
+              label="Jour"
+              required
+              weekday
+              sameDay
+              optionalTimes
+              bounds={['À partir de', 'Avant']}
+              min={occurrence.routine.startDate}
+              value={[form.values.date, form.values.date]}
+              times={[form.values.fromTime, form.values.dueTime]}
+              errors={[form.errors.date, form.errors.dueTime ?? form.errors.fromTime]}
+              onChange={([date], hours) => date && form.setValues({ date, fromTime: hours?.[0] ?? null, dueTime: hours?.[1] ?? null })}
+            />
+          </OccurrenceOpening>
         </Stack>
       </Fieldset>
       {reading ? (
