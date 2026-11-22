@@ -7,6 +7,9 @@ import { useTaskColumns } from '../hooks/use-task-columns';
 import { useTaskContext } from '../hooks/use-task-context';
 import { SettingsSection } from '../../../components/settings/SettingsSection';
 
+/** Height of the list of columns in the settings (12 steps of the vertical rhythm): a long list scrolls. */
+const SETTINGS_COLUMNS_HEIGHT = 288;
+
 /**
  * Columns new task views of the workspace start with: those shown and their order, by drag and drop, in the panel of
  * the columns of every table; the views already made keep theirs.
@@ -27,6 +30,7 @@ export function ColumnDefaults() {
           columns={columns}
           layout={{ columnOrder: defaults.columnOrder, hiddenColumns: defaults.hiddenColumns, columnSizing: {} }}
           onLayoutChange={(layout) => save.mutate(layout.columnOrder.length ? { columnOrder: layout.columnOrder, hiddenColumns: layout.hiddenColumns } : null, ON_ERROR)}
+          maxHeight={SETTINGS_COLUMNS_HEIGHT}
         />
       )}
     </SettingsSection>

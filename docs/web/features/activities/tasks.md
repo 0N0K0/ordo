@@ -214,11 +214,11 @@ Internes : `NEW_LABEL_TITLES`, `useLabelCreator(kind)` (ouvre le formulaire du l
 
 ### `components/TaskSettings.tsx`
 
-- `TaskSettings()` : paramètres des tâches : `ColumnDefaults`, puis `SettingsList` des statuts (avec catégorie), priorités, types, étiquettes, chacune avec son nombre d’utilisations. Utilisé par `TasksPage` et les paramètres d’un projet.
+- `TaskSettings()` : paramètres des tâches : `SettingsList` des statuts (avec catégorie), priorités, types, étiquettes, chacune avec son nombre d’utilisations, puis `ColumnDefaults` en dernier (une longue liste). Utilisé par `TasksPage` et les paramètres d’un projet.
 
 ### `components/ColumnDefaults.tsx`
 
-- `ColumnDefaults()` : section « Colonnes des nouvelles vues » : `DataColumnsPanel` sur les colonnes des tâches, enregistrement par `useSetTaskColumnDefaults` ; « Colonnes par défaut » de `DataColumnsPanel` (liste vidée) enregistre `null` : les colonnes de l’app.
+- `ColumnDefaults()` : section « Colonnes des nouvelles vues » : `DataColumnsPanel` sur les colonnes des tâches (liste limitée à 288 px de haut, 12 pas de la grille, qui défile au-delà), enregistrement par `useSetTaskColumnDefaults` ; « Colonnes par défaut » de `DataColumnsPanel` (liste vidée) enregistre `null` : les colonnes de l’app.
 
 ### `components/TaskFilterBuilder.tsx`
 

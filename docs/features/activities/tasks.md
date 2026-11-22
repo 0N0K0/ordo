@@ -212,11 +212,11 @@ Une tâche archivée : tous les champs désactivés, pas de bouton, commentaires
 
 Dans la barre latérale des paramètres (page « Tâches », ou onglet « Tâches » des paramètres d’un projet ; ce sont les paramètres de l’espace) :
 
-- « Colonnes des nouvelles vues » : colonnes affichées et leur ordre (glisser-déposer) pour les vues créées ensuite ; « Colonnes par défaut » (sous la liste) rétablit celles de l’app. Les vues existantes gardent les leurs.
 - « Statuts de tâche » : libellé, couleur, image, « Catégorie » (« À faire », « En cours », « Terminé », « Annulé ») ; texte : « La catégorie donne son sens au statut quel que soit son libellé (filtres, tâches « en cours » de l’accueil). C’est l’état ouvert / fermé de la tâche qui dit si elle est terminée ; seul un statut « Annulé » la ferme (et la barre), le quitter la rouvre. ».
 - « Priorités » : « L’ordre est celui des listes de sélection et du tri par priorité. ».
 - « Types de tâche » : « Bug, fonctionnalité, amélioration… ».
 - « Étiquettes » : « Une tâche peut en avoir plusieurs. Synchronisées avec les labels GitHub. ».
+- « Colonnes des nouvelles vues » : colonnes affichées et leur ordre (glisser-déposer) pour les vues créées ensuite ; « Colonnes par défaut » (sous la liste) rétablit celles de l’app. Les vues existantes gardent les leurs.
 
 Chaque liste : ajout, modification, réordonnancement, archivage, suppression avec le nombre de tâches qui l’utilisent (voir [Paramètres](../cross-cutting/settings.md)).
 

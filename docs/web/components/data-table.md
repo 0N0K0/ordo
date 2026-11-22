@@ -263,7 +263,7 @@ Classes du tableau : `.scroller` (zone de défilement), `.table`, `.head`, `.hea
 
 ### `ColumnsPanel.tsx`
 
-- `DataColumnsPanel<R>({ columns, layout, onLayoutChange })` — colonnes d’un tableau : case pour afficher / masquer (désactivée si verrouillée), poignée pour réordonner (pointeur ou clavier), « Colonnes par défaut » (vide la disposition), astuce « cliquez sur un en-tête pour trier, Maj + clic pour ajouter un niveau ; glissez un en-tête pour le déplacer, son bord pour le redimensionner. ». Utilisé par `DataViewBar` et `tasks`.
+- `DataColumnsPanel<R>({ columns, layout, onLayoutChange, maxHeight? })` — colonnes d’un tableau (`maxHeight` : hauteur au plus de la liste, qui défile au-delà, pour une longue liste dans un panneau de paramètres) : case pour afficher / masquer (désactivée si verrouillée), poignée pour réordonner (pointeur ou clavier), « Colonnes par défaut » (vide la disposition), astuce « cliquez sur un en-tête pour trier, Maj + clic pour ajouter un niveau ; glissez un en-tête pour le déplacer, son bord pour le redimensionner. ». Utilisé par `DataViewBar` et `tasks`.
 - Internes : `ColumnItem`, `ColumnsList`.
 
 ### `ColumnHeaderMenu.tsx`

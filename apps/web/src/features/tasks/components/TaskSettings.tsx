@@ -6,7 +6,7 @@ import { useTaskLabelItems, useTaskStatusItems } from '../hooks/use-label-items'
 import { ColumnDefaults } from './ColumnDefaults';
 
 /**
- * Settings of tasks: statuses (with their category), priorities, types and tags.
+ * Settings of tasks: statuses (with their category), priorities, types and tags, then the columns of new views.
  * @returns {JSX.Element} Settings.
  */
 export function TaskSettings() {
@@ -20,7 +20,6 @@ export function TaskSettings() {
   // In the settings sidebar: the sections one under the other, the whole width.
   return (
     <Stack gap="md">
-      <ColumnDefaults />
       <SettingsList
         {...statuses}
         title="Statuts de tâche"
@@ -60,6 +59,8 @@ export function TaskSettings() {
         items={data?.taskTags ?? []}
         usage={countBy(tasks, (task) => task.tagIds)}
       />
+      {/* Last: the columns of new views (a long list). */}
+      <ColumnDefaults />
     </Stack>
   );
 }
