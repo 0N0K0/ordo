@@ -3,7 +3,7 @@ import { useLocationSelect } from '../hooks/use-location-select';
 
 import { Autocomplete, Checkbox, SimpleGrid, Stack } from '@mantine/core';
 import { PeopleField } from '../../shopping/components/PeopleField';
-import { DatePickerInput } from '@mantine/dates';
+import { DateField } from '../../../components/inputs/DateField';
 import { newStockItemSchema, type NewStockItemInput } from '@ordo/shared';
 
 import { useAppForm, formCallbacks } from '../../../lib/form';
@@ -74,7 +74,7 @@ export function StockItemForm({ locationId = null, onDone }: { locationId?: stri
           <UnitField current={values.unit} {...form.getInputProps('unit')} value={values.unit} />
           <Checkbox mt="xl" label="Périssable" description="Par lots datés" {...form.getInputProps('perishable', { type: 'checkbox' })} />
         </SimpleGrid>
-        {values.perishable && <DatePickerInput label="Date de péremption" placeholder="Aucune" clearable {...form.getInputProps('expiresAt')} />}
+        {values.perishable && <DateField label="Date de péremption" placeholder="Aucune" clearable {...form.getInputProps('expiresAt')} />}
         <PeopleField form={form} label="Bénéficiaires" />
         <MarkdownEditor label="Description" value={values.note ?? ''} onChange={(note) => form.setFieldValue('note', note || null)} suggestions={NO_SUGGESTIONS} minRows={2} error={form.errors.note as string | undefined} />
         <FormActions onCancel={onDone} submitLabel="Ajouter" loading={createItem.isPending} />

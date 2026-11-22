@@ -25,6 +25,8 @@ import { EditableLabel } from '../../../components/data-table/cells/EditableLabe
 import { AssigneesCell as SharedAssigneesCell, ProjectCell as SharedProjectCell } from '../../tasks/components/context-cells';
 import { DependencyIcon } from '../../../components/data-table/cells/DependencyIcon';
 import { beneficiariesDiff } from '../../beneficiaries/lib/beneficiaries-diff';
+import { ChipChoiceCell } from '../../../components/data-table/cells/ChipChoiceCell';
+import type { TaskLabel } from '../../tasks/api';
 
 interface CellProps {
   routine: Routine;
@@ -99,6 +101,29 @@ export function CategoriesCell({ routine, readOnly = false, categories }: CellPr
         apply({ categoryIds }, { addCategoryIds: added, removeCategoryIds: removed });
       }}
       nothingFoundMessage="Aucune catégorie (ajoutez-en dans les paramètres)"
+    />
+  );
+}
+
+/** Field and name of each list of the tasks a routine takes one item of. */
+const LABEL_FIELDS = { priority: ['priorityId', 'Priorité'], type: ['typeId', 'Type'] } as const;
+
+/**
+ * Priority or type cell (the lists of the tasks): its colored chip, chosen in place as on the tasks (`ChipChoiceCell`);
+ * on a selection, given to every routine of it.
+ * @param {CellProps & { column: 'priority' | 'type', items: TaskLabel[] }} props Component props.
+ * @returns {JSX.Element} Cell.
+ */
+export function RoutineLabelChipCell({ routine, readOnly = false, column, items }: CellProps & { column: 'priority' | 'type'; items: TaskLabel[] }) {
+  const { apply, count } = useRoutineCellEdit(routine, column);
+  const [field, name] = LABEL_FIELDS[column];
+  return (
+    <ChipChoiceCell
+      value={routine[field]}
+      items={items}
+      label={routineCellLabel(name, routine, count)}
+      readOnly={readOnly}
+      onChoose={(value) => apply({ [field]: value }, { [field]: value })}
     />
   );
 }

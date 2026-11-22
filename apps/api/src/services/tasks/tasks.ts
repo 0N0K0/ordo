@@ -20,6 +20,7 @@ import { readLinks } from '../core/links';
 import { storedLocation } from '../core/geo';
 import { assertConditionSchedules } from '../calendar/slot-conditions';
 import { adoptedTaskFields, changedTaskInheritance, clearedTaskData, effectiveTasks, freezeTaskInheritance, tasksOffParentProject } from './task-inheritance';
+import { automated, registerTaskAutomationWrites } from './task-automation-engine';
 
 /**
  * Closes or reopens tasks whose status changes: to a status « Annulé » closes them (those already closed
@@ -322,7 +323,7 @@ async function followParentProjects(ids: readonly string[]): Promise<void> {
  * @param {TaskInput & { label: string }} given Task input (no project: a task of none, without number; under a parent, `inheritedFields` omitted: it inherits every field left out).
  * @returns {Promise<Task>} Created task.
  */
-export async function createTask(given: TaskInput & { label: string }): Promise<Task> {
+export const createTask = automated(async function createTask(given: TaskInput & { label: string }): Promise<Task> {
   if (!given.label?.trim()) throw fieldError('label', 'Le libellé est requis.');
   // Under a parent: the fields it inherits, their values not taken; its project, that of its parent.
   const own = taskFieldsGiven(given);
@@ -364,7 +365,7 @@ export async function createTask(given: TaskInput & { label: string }): Promise<
   // Created with a status « Annulé »: closed.
   await closeOnStatus([{ id: task.id, statusId: null }], task.statusId);
   return task.statusId ? prisma.task.findUniqueOrThrow({ where: { id: task.id } }) : task;
-}
+});
 
 /**
  * Updates a task (not an archived one: restore it first). The project is changed with `bulkTransferTasks`.
@@ -372,7 +373,7 @@ export async function createTask(given: TaskInput & { label: string }): Promise<
  * @param {TaskInput} input Changes; undefined leaves a field unchanged, null clears it.
  * @returns {Promise<Task>} Updated task.
  */
-export async function updateTask(id: string, input: TaskInput): Promise<Task> {
+export const updateTask = automated(async function updateTask(id: string, input: TaskInput): Promise<Task> {
   const found = await findActive(prisma.task, id, 'Tâche');
   // Made top-level: what it inherited becomes its own.
   if (input.parentId === null && found.parentId) await freezeTaskInheritance([id]);
@@ -433,7 +434,7 @@ export async function updateTask(id: string, input: TaskInput): Promise<Task> {
     return prisma.task.findUniqueOrThrow({ where: { id } });
   }
   return updated;
-}
+});
 
 /**
  * Archives a task with its active sub-tasks, or restores it with the sub-tasks archived along (and its archived
@@ -442,9 +443,9 @@ export async function updateTask(id: string, input: TaskInput): Promise<Task> {
  * @param {boolean} archived Target state.
  * @returns {Promise<Task>} Updated task.
  */
-export async function setTaskArchived(id: string, archived: boolean): Promise<Task> {
+export const setTaskArchived = automated(async function setTaskArchived(id: string, archived: boolean): Promise<Task> {
   return archiveTree<Task>('task', id, archived, 'Tâche');
-}
+});
 
 /**
  * Moves tasks with their sub-tasks to a project, where they take the next numbers (given by the database), or out of
@@ -560,7 +561,7 @@ const CLONED_LINKS = {
  * @param {boolean} includeSubtasks Whether to copy the sub-tree too.
  * @returns {Promise<Task>} Copy of the task.
  */
-export async function duplicateTask(id: string, includeSubtasks: boolean): Promise<Task> {
+export const duplicateTask = automated(async function duplicateTask(id: string, includeSubtasks: boolean): Promise<Task> {
   const include = {
     ...CLONED_LINKS,
     blocking: true,
@@ -666,7 +667,7 @@ export async function duplicateTask(id: string, includeSubtasks: boolean): Promi
     }
     return clone;
   });
-}
+});
 
 /**
  * Whether `from` reaches `to` by following "blocks" links.
@@ -793,7 +794,7 @@ export async function deleteComment(id: string): Promise<void> {
  * @param {string | null} [parentId] New parent, null for a top-level task; undefined keeps the parent. Optional.
  * @returns {Promise<void>}
  */
-export async function moveTask(id: string, beforeId: string | null, parentId?: string | null): Promise<void> {
+export const moveTask = automated(async function moveTask(id: string, beforeId: string | null, parentId?: string | null): Promise<void> {
   const task = await findActive(prisma.task, id, 'Tâche');
   if (parentId) await assertParent(parentId, task.projectId, id);
   // Made top-level: what it inherited becomes its own.
@@ -804,17 +805,18 @@ export async function moveTask(id: string, beforeId: string | null, parentId?: s
   await moveBefore('task', id, beforeId, 'Tâche', reparent);
   // Under a parent of another project of the tree: one inheriting its project follows it.
   if (reparent.length) await followParentProjects([id]);
-}
+});
 
 /**
- * Closes (done) or reopens tasks (none archived). A closed task no longer blocks the tasks it blocks.
+ * Closes (done) or reopens tasks (none archived, except for an undo). A closed task no longer blocks the tasks it blocks.
  * @param {string[]} ids Task ids.
  * @param {boolean} closed Target state.
+ * @param {boolean} [restoring] Undo of a former change, or a rule of the archiving of the tasks: tasks archived accepted. Optional. Default = false.
  * @returns {Promise<void>}
  */
-export async function setTasksClosed(ids: string[], closed: boolean): Promise<void> {
+export const setTasksClosed = automated(async function setTasksClosed(ids: string[], closed: boolean, restoring: boolean = false): Promise<void> {
   await assertTasks(ids);
-  await assertNoneArchived('task', ids);
+  if (!restoring) await assertNoneArchived('task', ids);
   // Reopened by hand, a cancelled task leaves « Annulé » for the first status « À faire » (none: no status).
   // Closing by hand leaves the status as it is.
   if (!closed) {
@@ -826,7 +828,7 @@ export async function setTasksClosed(ids: string[], closed: boolean): Promise<vo
     where: { id: { in: ids }, closedAt: closed ? null : { not: null } },
     data: { closedAt: closed ? new Date() : null },
   });
-}
+});
 
 interface BulkTaskChanges {
   statusId?: string | null;
@@ -869,7 +871,7 @@ async function assertTasks(ids: string[]): Promise<void> {
  * @param {boolean} [restoring] Undo of a former change: archived values given back, and tasks archived since, are accepted (only those checks are skipped). Optional. Default = false.
  * @returns {Promise<void>}
  */
-export async function bulkUpdateTasks(ids: string[], changes: BulkTaskChanges, restoring = false): Promise<void> {
+export const bulkUpdateTasks = automated(async function bulkUpdateTasks(ids: string[], changes: BulkTaskChanges, restoring: boolean = false): Promise<void> {
   await assertTasks(ids);
   if (!restoring) await assertNoneArchived('task', ids);
   await assertReferences({
@@ -1002,7 +1004,7 @@ export async function bulkUpdateTasks(ids: string[], changes: BulkTaskChanges, r
   if (changes.inheritFields?.includes('PROJECT')) await followParentProjects(ids);
   // To or out of a status « Annulé »: closed or reopened.
   await closeOnStatus(tasks, changes.statusId);
-}
+});
 
 /**
  * Transfers several tasks (with their sub-tasks; none archived) to another project, or out of any.
@@ -1010,14 +1012,14 @@ export async function bulkUpdateTasks(ids: string[], changes: BulkTaskChanges, r
  * @param {string | null} projectId Target project; null: none.
  * @returns {Promise<number>} Number of links removed because they left the project tree.
  */
-export async function bulkTransferTasks(ids: string[], projectId: string | null): Promise<number> {
+export const bulkTransferTasks = automated(async function bulkTransferTasks(ids: string[], projectId: string | null): Promise<number> {
   await assertTasks(ids);
   // Refused before any is moved.
   await assertNoneArchived('task', ids);
   if (projectId) await assertProject(projectId);
   // All at once: links between the moved tasks stay.
   return moveTaskTrees(await topmostIds('task', ids), projectId);
-}
+});
 
 /**
  * Archives or restores several tasks (with the usual cascade).
@@ -1025,10 +1027,10 @@ export async function bulkTransferTasks(ids: string[], projectId: string | null)
  * @param {boolean} archived Target state.
  * @returns {Promise<void>}
  */
-export async function bulkSetTasksArchived(ids: string[], archived: boolean): Promise<void> {
+export const bulkSetTasksArchived = automated(async function bulkSetTasksArchived(ids: string[], archived: boolean): Promise<void> {
   await assertTasks(ids);
   for (const id of await topmostIds('task', ids)) await setTaskArchived(id, archived);
-}
+});
 
 /**
  * Deletes several tasks; their unselected sub-tasks are deleted too, or moved up. The times they leave with nothing
@@ -1037,7 +1039,7 @@ export async function bulkSetTasksArchived(ids: string[], archived: boolean): Pr
  * @param {boolean} deleteSubtasks Whether to delete the sub-trees.
  * @returns {Promise<void>}
  */
-export async function bulkDeleteTasks(ids: string[], deleteSubtasks: boolean): Promise<void> {
+export const bulkDeleteTasks = automated(async function bulkDeleteTasks(ids: string[], deleteSubtasks: boolean): Promise<void> {
   await assertTasks(ids);
   // Their GitHub items are taken off the board first.
   await deleteTreeItems('task', ids, deleteSubtasks, async (gone) => {
@@ -1046,4 +1048,12 @@ export async function bulkDeleteTasks(ids: string[], deleteSubtasks: boolean): P
     await forgetGithubItems(gone);
     await releaseSubjectTime({ taskIds: gone });
   });
-}
+});
+
+// The actions of the automations go through the same writes (same checks).
+registerTaskAutomationWrites({
+  bulkUpdate: (ids, changes, restoring) => bulkUpdateTasks(ids, changes, restoring),
+  transfer: (ids, projectId) => bulkTransferTasks(ids, projectId),
+  setClosed: (ids, closed, restoring) => setTasksClosed(ids, closed, restoring),
+  archive: (id, archived) => setTaskArchived(id, archived),
+});

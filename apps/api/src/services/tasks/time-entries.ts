@@ -6,6 +6,7 @@ import { clientError, fieldError, notFound, orNotFound, parseInput } from '../..
 import { assertNoneArchived, refuseArchived } from '../core/archive';
 import { connectIds } from '../core/relations';
 import { modelDelegate } from '../core/delegate';
+import { automated } from './task-automation-engine';
 
 /** Calendar event (and occurrence of a recurring one) a time is spent on. */
 export interface TimeEventLink {
@@ -236,14 +237,14 @@ const createLinks = (subjects: TimeSubjects, events: StoredEventLink[]) => ({
  * @param {TimeEntryInput} input What the time is spent on (at least a project, a task, a routine or an event) and description.
  * @returns {Promise<TimeEntry>} Running entry.
  */
-export async function startTimer(input: Omit<TimeEntryInput, 'startedAt' | 'duration'>): Promise<TimeEntry> {
+export const startTimer = automated(async function startTimer(input: Omit<TimeEntryInput, 'startedAt' | 'duration'>): Promise<TimeEntry> {
   const description = parseInput(timeDescriptionSchema, input.description ?? null);
   const subjects = newSubjects(input);
   const { projectId, events } = await checkedSubjects(input.projectId, subjects);
   return prisma.timeEntry.create({
     data: { projectId, description, startedAt: new Date(), ...createLinks(subjects, events) },
   });
-}
+}, (input) => input.taskIds ?? []);
 
 /**
  * Pauses or resumes a running timer.

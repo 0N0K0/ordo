@@ -12,7 +12,7 @@ Fragments `AlarmFields`, `ReminderFields` (un rappel : `before`, `at`, `days`, `
 | ----------------------------- | ------------------------------------------------------------------------------- | -------------------------------------------------------------------------------- |
 | `Alarm` (type)                | Alarme (`AlarmFieldsFragment`)                                                  | tout le dossier, `ElsewhereNotifier` (via le fragment)                           |
 | `AlarmInput` (type réexporté) | Entrée GraphQL d’une alarme                                                     | `AlarmForm`                                                                      |
-| `useAlarms()`                 | Toutes les alarmes de l’espace                                                  | `AlarmsPage`, `TaskAlarms`, `AlarmCenter`, `ChronoCard` et `WorkCards` (accueil) |
+| `useAlarms()`                 | Toutes les alarmes de l’espace                                                  | `AlarmsPage`, `useRingSources`, `ChronoCard` et `WorkCards` (accueil)            |
 | `useTaskAlarmCounts()`        | Nombre d’alarmes **actives** par tâche (`countBy`)                              | `TaskBoard`, `use-task-columns` (tâches)                                         |
 | `useAlarmMutations()`         | `create`, `update` (`{ id, input }`), `remove` (id), `markFired` (`{ id, at }`) | `AlarmForm`, `AlarmList`, `AlarmCenter`                                          |
 | `AlarmRing` (type)            | Une sonnerie gardée par l’API (`AlarmRingFieldsFragment`)          | `lib/ringing.tsx`                                                                |
@@ -40,11 +40,10 @@ Fragments `AlarmFields`, `ReminderFields` (un rappel : `before`, `at`, `days`, `
 
 `AlarmCenter()` : composant sans rendu monté dans `AppLayout` (app) : fait sonner, dans l’espace ouvert, les alarmes et les rappels des évènements, des routines, des tâches, des éphémérides et des anniversaires.
 
-- Données : `useAlarms`, `useRunningTimers` (chronos en cours, plusieurs), `useTasksData` (tâches), `useProjectTree` (projets), `useRoutinesData` + `useRoutineMutations().setDone` (routines), `useSlotRules`, `useWorkSchedules`, `useBirthdays`, `usePersonOpener` (agenda).
-- Occurrences d’évènements d’hier à J+31 (`reminderDayRange`, de quoi sonner un « N jours avant ») rechargées toutes les 5 minutes (`fetchCalendarEvents`), gardées dans une ref.
+- Données : `useRingSources` (alarmes, chronos en cours, tâches, projets, routines, créneaux, anniversaires, occurrences d’évènements d’hier à J+31 par `useReminderOccurrences`, report `deferRoutine`), `useRoutineMutations().setDone`, `usePersonOpener` (agenda).
 - `unlockAudioOnGesture()` au montage ; `useCountdownRinger()` (`features/countdowns`) : les minuteurs de l’utilisateur sonnent à leur fin, quel que soit l’espace.
 - Sonnerie : `configureRinging` avec les réglages de l’utilisateur (`useMe().ringSettings`, `readRingSettings`), l’espace ouvert (`useWorkspaces`) et l’ouverture d’une page (`navigate`, ou `switchWorkspace` pour une sonnerie d’un autre espace) ; `loadRings()` au montage puis chaque minute (`RINGS_MS`) : les sonneries gardées par l’API (rechargement, autre onglet, autre appareil) ; `restore` refait les actions d’une sonnerie remontrée de l’espace ouvert depuis sa clé : « Marquer comme faite » (`routineRingOf`, occurrence en cours, `markDoneAction`), « Ouvrir la fiche » (`birthdayRingOf`) ; `refreshRestoredRings()` une fois les routines et les anniversaires chargés.
-- Vérification toutes les `TICK_MS` = 15 s : `ringReminders` (lien « Voir l’agenda »), `ringRoutineReminders` (lien « Voir les routines », « Marquer comme faite », report via `slotRules.nextAllowedAt(routineDoable(routine), at)`, `nextAllowedMoment` partagé avec le serveur, heure de Paris), `ringTaskReminders` (lien vers la tâche, `alarmTarget`), `ringEphemerisReminders` (lien « Voir l’agenda »), `ringBirthdayReminders` (« Ouvrir la fiche » : `usePersonOpener`), puis `dueAlarms` + `ringAlarm` (liens `alarmTarget`, `markFired`).
+- Vérification toutes les `TICK_MS` = 15 s : `ringReminders` (lien « Voir l’agenda »), `ringRoutineReminders` (lien « Voir les routines », « Marquer comme faite », report via `deferRoutine` (`useSlotRules().nextAllowedAt(routineDoable(routine), at)`, `nextAllowedMoment` partagé avec le serveur, heure de Paris)), `ringTaskReminders` (lien vers la tâche, `alarmTarget`), `ringEphemerisReminders` (lien « Voir l’agenda »), `ringBirthdayReminders` (« Ouvrir la fiche » : `usePersonOpener`), puis `dueAlarms` + `ringAlarm` (liens `alarmTarget`, `markFired`).
 - Les liens des toasts naviguent avec `useNavigate` (les toasts sont hors du routeur) et portent leur page (`to`, liens communs `calendarRingPage()` et `routinesRingPage()` de `@ordo/shared`), gardée avec la sonnerie. Valeurs les plus récentes lues par une ref `latest`. Paliers des alarmes de chrono : ref `trackingSteps`.
 - `listenToPushes()` au montage : ce que dit le service worker (une sonnerie poussée pendant qu’un onglet est visible, un arrêt ou une répétition depuis une notification, une notification ouverte).
 
@@ -66,32 +65,39 @@ Rappels des éphémérides et des anniversaires.
 
 | Export                                                      | Rôle                                                                                                                                         | Utilisé par                         |
 | ----------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------- |
-| `RemindedSchedule` (type : le type partagé et de quoi lire sa règle, `scheduleRules`), `ringEphemerisReminders(schedules, now, links, workspace?)` | Rappels des éphémérides non archivées (`ephemerisRings` : un créneau n'en sonne aucun ; pour chaque suite de jours d’hier à J+31 depuis son premier horaire ; clé `ephemeris:<id>:<jour>:…` ; toast libellé, jour) | `AlarmCenter`, `ElsewhereNotifier` |
+| `RemindedSchedule` (type : le type partagé et de quoi lire sa règle, `ephemerisRule`), `ringEphemerisReminders(schedules, now, links, workspace?)` | Rappels des éphémérides non archivées (`ephemerisRings` : un créneau n'en sonne aucun ; pour chaque suite de jours d’hier à J+31 depuis son premier horaire ; clé `ephemeris:<id>:<jour>:…` ; toast libellé, jour) | `AlarmCenter`, `ElsewhereNotifier` |
 | `RemindedBirthday` (type partagé, réexporté), `ringBirthdayReminders(birthdays, now, links, workspace?)` | Rappels des anniversaires (`birthdayRings` : d’hier à J+31 ; clé `birthday:<contributor\|relation>:<id>:<jour>:…` ; toast `birthdayLabel` (« Anniversaire de Paul — 40 ans »), jour) | `AlarmCenter`, `ElsewhereNotifier` |
 
 ### `components/AlarmForm.tsx`
 
-- `AlarmForm({ context, alarm?, defaults?, onDone })` : formulaire de création (« Créer l’alarme ») ou panneau d’une alarme existante enregistré champ par champ (`useFieldSave` : libellé, description et minutes en les quittant, le reste dès qu’il change, projet et tâche ensemble ; `SaveStatus` en tête ; l’alarme du cache suivie, `useAlarms`) — `useAppForm` + `alarmInputSchema` : libellé, type (`SegmentedControl` + aide), minutes de chrono (`optionalNumberProps`) ou `RepetitionField` + `RuleEditor` (date, heure, répétition ; résumé `describeAlarmTiming`), `ProjectSelect` / `TaskSelect` (tâches `timeTasks`), description, « Active ». À l’envoi (`alarmInputOf`) : `legacyFields(recurrence)` ajouté, `minutes` vidé hors chrono ; création par `formCallbacks` (« Alarme créée. »). Pas de mode copie : « Dupliquer » de `AlarmList` (`duplicateRowsAction`) enregistre la copie (`toAlarmInput` + `copyName`), puis ouvre le formulaire sur elle (`cachedItem`, `alarmsQueryKey`, exporté).
+- `AlarmForm({ context, alarm?, defaults?, onDone })` : formulaire de création (« Créer l’alarme ») ou panneau d’une alarme existante enregistré champ par champ (`useFieldSave` : libellé, description et minutes en les quittant, le reste dès qu’il change, projet et tâche ensemble ; `SaveStatus` en tête ; l’alarme du cache suivie, `useAlarms`) — `useAppForm` + `alarmFormSchema` (interne : `alarmInputSchema` appliqué à l’entrée telle qu’envoyée, `alarmInputOf`, car les anciens champs de répétition n’existent pas dans le formulaire) : libellé, type (`SegmentedControl` + aide), minutes de chrono (`optionalNumberProps`) ou `RepetitionField` + `RuleEditor` (date, heure, répétition ; résumé `describeAlarmTiming`), `ProjectSelect` / `TaskSelect` (tâches `timeTasks`), description, « Active ». À l’envoi (`alarmInputOf`) : `legacyFields(recurrence)` ajouté, `minutes` vidé hors chrono ; création par `formCallbacks` (« Alarme créée. »). Pas de mode copie : « Dupliquer » de `AlarmList` (`duplicateRowsAction`) enregistre la copie (`toAlarmInput` + `copyName`), puis ouvre le formulaire sur elle (`cachedItem`, `alarmsQueryKey`, exporté).
 - `AlarmDefaults` (interface) : `label`, `projectId`, `taskId` d’une nouvelle alarme.
 - Internes : `TYPES` (libellés des types), `TYPE_HELP` (aides), `AlarmFormValues`, `AlarmFormProps`, `alarmFormValues(alarm)`, `alarmInputOf(values)`, `ON_BLUR`.
 - Utilisé par `useAlarmForm`.
 
 ### `components/AlarmList.tsx`
 
-`AlarmList({ alarms, context, openForm, showTarget = true })` : cartes d’alarmes (libellé, badge « Terminée », `describeAlarm`, « Prochaine : … » via `nextRing`, lien `alarmTarget` si `showTarget`, note), `StateSwitch` actif/inactif, `InlineActions` « Modifier », « Dupliquer », « Supprimer » (`confirmDestructive`). Interne `toAlarmInput(alarm, changes)` : renvoie l’alarme entière avec un changement (interrupteur). Utilisé par `AlarmsPage`, `TaskAlarms`.
-
-### `components/TaskAlarms.tsx`
-
-`TaskAlarms({ task, context })` : section « Alarmes » du panneau d’une tâche (`SubSection`) : alarmes de la tâche (`AlarmList` sans lien), état vide « Aucune alarme pour cette tâche. », « Ajouter une alarme » (défauts : titre de la tâche, de même taille qu’un libellé d’alarme, projet, tâche). Utilisé par `TaskPanel` (tâches).
+`AlarmList({ alarms, context, openForm, showTarget = true })` : cartes d’alarmes (libellé, badge « Terminée », `describeAlarm`, « Prochaine : … » via `nextRing`, lien `alarmTarget` si `showTarget`, note), `StateSwitch` actif/inactif, `InlineActions` « Modifier », « Dupliquer », « Supprimer » (`confirmDestructive`). Interne `toAlarmInput(alarm, changes)` : renvoie l’alarme entière avec un changement (interrupteur). Utilisé par `AlarmsPage`.
 
 ## hooks
 
 ### `hooks/use-alarm-form.tsx`
 
 - `AlarmFormOpener` (type) : `(alarm?, { defaults? }) => void`.
-- `useAlarmForm(context)` : ouvre `AlarmForm` dans `openFormPanel` (« Nouvelle alarme », « Alarme ») ; sans contexte : rien. Utilisé par `AlarmsPage`, `TaskAlarms`, `AlarmsCell` (`extra-cells`, tâches), `ChronoCard` (accueil), `QuickActions` (app).
+- `useAlarmForm(context)` : ouvre `AlarmForm` dans `openFormPanel` (« Nouvelle alarme », « Alarme ») ; sans contexte : rien. Utilisé par `AlarmsPage`, `AlarmsCell` (`extra-cells`, tâches), `ChronoCard` (accueil), `QuickActions` (app).
+
+### `hooks/use-ring-sources.ts`
+
+- `useRingSources()` : ce dont `AlarmCenter` fait sonner : `useAlarms`, `useRunningTimers`, `useTasksData`, `useProjectTree`, `useRoutinesData`, `useWorkSchedules`, `useBirthdays`, `useReminderOccurrences` (agenda), `useCountdowns` (minuteurs de l’utilisateur), et `deferRoutine(routine, at)` (premier moment permis par ses créneaux, `useSlotRules().nextAllowedAt`). Utilisé par `AlarmCenter`, `useNextRing`.
+- `useNextRing()` : `{ at, now }`, la prochaine sonnerie après maintenant (`nextRingAt` sur `useRingSources`, null : rien de prévu), recalculée chaque minute (`useNow(true, 60_000)`). Utilisé par `AlarmsNavBadge` (barre latérale).
 
 ## lib
+
+### `lib/next-ring.ts`
+
+- `RingTimer` (type) : chrono en cours tel que les alarmes de chrono le comptent ; `RingSources` (interface) : ce qui sonne dans l’espace ouvert.
+- `ephemerisRule(schedule)` : règle des jours d’une éphéméride (`scheduleRules`). Utilisé par `nextRingAt`, `ringEphemerisReminders`.
+- `nextRingAt(sources, now)` : prochaine sonnerie après maintenant, par les mêmes planificateurs que `AlarmCenter` : rappels d’évènements, de tâches, de routines (reportés hors de leurs créneaux), d’éphémérides et d’anniversaires (`eventRings`, `taskRings`, `routineRings`, `ephemerisRings`, `birthdayRings`), alarmes programmées (`nextRings` ; « pas de chrono » écartées pendant qu’un chrono tourne), prochain palier de chaque chrono en cours (non en pause) des alarmes de chrono (`timerCountsForAlarm`, `trackingStep` : quand son temps atteint le multiple suivant), fin des minuteurs en cours de l’utilisateur (`endsAt`) ; null : rien de prévu. Interne : `nextTrackingRing`. Utilisé par `useNextRing`.
 
 ### `lib/alarm-labels.ts`
 
@@ -103,7 +109,7 @@ Rappels des éphémérides et des anniversaires.
 | `nextRing(alarm, now)`                  | Prochaine sonnerie (aucune si inactive ou de chrono) via `nextOccurrence`                                                     | `AlarmList`, `nextRings`                        |
 | `describeAlarm(alarm)`                  | Programmation lisible, y compris « Toutes les N min de chrono » et « , si aucun chrono ne tourne »                            | `AlarmList`                                     |
 | `alarmTaskLabel(task, projectLabel?)`, `alarmTarget(alarm, taskOf, projectOf)` | Réexportés de `@ordo/shared` (`dates/reminder-rings.ts` : aussi les sonneries poussées par le serveur) : « Projet #12 Libellé » ; lien de l’alarme, sa tâche, sinon son projet, ou null | `AlarmList`, `AlarmCenter`, `ElsewhereNotifier` |
-| `nextRings(alarms, now)`                | Alarmes qui sonneront encore, avec leur prochaine sonnerie, la plus proche d’abord                                            | `ChronoCard`, `WorkCards` (accueil)             |
+| `nextRings(alarms, now)`                | Alarmes qui sonneront encore, avec leur prochaine sonnerie, la plus proche d’abord                                            | `ChronoCard`, `WorkCards` (accueil), `nextRingAt` |
 
 
 ### `lib/ringing.tsx`

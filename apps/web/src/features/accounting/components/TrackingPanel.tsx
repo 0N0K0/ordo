@@ -8,7 +8,7 @@ import { EmptyState } from '../../../components/feedback/EmptyState';
 import { itemSelectProps } from '../../../components/items/item-look';
 
 import { FileInput, Group, Select, Stack, Table, Text, Textarea } from '@mantine/core';
-import { DatePickerInput } from '@mantine/dates';
+import { DateField } from '../../../components/inputs/DateField';
 import { PLAIN_TEXT_MAX, SENT_VIA_LABELS, type SendingChannel } from '@ordo/shared';
 import { BellRingingIcon, CheckIcon, CoinsIcon, FileArrowUpIcon, NotePencilIcon, PaperPlaneTiltIcon, PencilSimpleIcon } from '@phosphor-icons/react';
 import { useState } from 'react';
@@ -36,7 +36,7 @@ function AcceptForm({ document, onDone }: { document: AccountingDocument; onDone
   const [file, setFile] = useState<File | null>(null);
   return (
     <Stack gap="sm">
-      <DatePickerInput label="Date d’acceptation" required value={date} onChange={(value) => setDate(value)} />
+      <DateField label="Date d’acceptation" required value={date} onChange={(value) => setDate(value)} />
       <FileInput
         label="Devis signé"
         description={document.signedFilename ? `Remplace « ${document.signedFilename} ».` : 'PDF ou image du devis signé « Bon pour accord ».'}

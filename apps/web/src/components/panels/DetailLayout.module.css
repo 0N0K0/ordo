@@ -1,0 +1,97 @@
+@layer app {
+  /* The panel's width (not the window's) decides the columns: a narrow panel stacks them. */
+  .root {
+    /* Agencement */
+    display: flex;
+    flex-direction: column;
+    container-type: inline-size;
+
+    /* Espacement */
+    gap: var(--mantine-spacing-lg);
+  }
+
+  .header {
+    /* Agencement */
+    display: flex;
+    flex-direction: column;
+
+    /* Espacement */
+    gap: var(--mantine-spacing-xs);
+  }
+
+  /* A line of the header: what it holds lined up at the bottom, wrapped on a narrow panel. */
+  .line {
+    /* Agencement */
+    display: flex;
+    flex-wrap: wrap;
+    align-items: flex-end;
+
+    /* Espacement */
+    gap: var(--mantine-spacing-sm);
+  }
+
+  /* The title and the project take the room left on their line. */
+  .grow {
+    /* Agencement */
+    flex: 1 1 min(100%, 16rem);
+
+    /* Dimension */
+    min-width: 0;
+  }
+
+  /* After the title or the mentions: pushed to the right end of the line. */
+  .end {
+    /* Agencement */
+    display: flex;
+    align-items: center;
+
+    /* Espacement */
+    margin-inline-start: auto;
+    gap: var(--mantine-spacing-xs);
+  }
+
+  /* Main column, then the groups; side by side once the panel is wide enough. */
+  .columns {
+    /* Agencement */
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    align-items: start;
+
+    /* Espacement */
+    gap: var(--mantine-spacing-xl);
+
+    @container (min-width: 48rem) {
+      /* Agencement */
+      grid-template-columns: minmax(0, 2fr) minmax(0, 1fr);
+    }
+  }
+
+  .column,
+  .group {
+    /* Agencement */
+    display: flex;
+    flex-direction: column;
+
+    /* Dimension */
+    min-width: 0;
+
+    /* Espacement */
+    gap: var(--mantine-spacing-lg);
+  }
+
+  /* A titled group: a rule above it, its fields closer to each other than the groups. */
+  .group {
+    /* Espacement */
+    padding-block-start: var(--mantine-spacing-sm);
+    gap: var(--mantine-spacing-sm);
+
+    /* Bordures */
+    border-block-start: 1px solid var(--mantine-color-default-border);
+  }
+
+  /* The fieldset that makes a part read only: no box of its own. */
+  .locked {
+    /* Agencement */
+    display: contents;
+  }
+}

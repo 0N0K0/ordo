@@ -6,6 +6,7 @@ import './modules/auth';
 import './modules/projects';
 import './modules/workspaces';
 import './modules/tasks';
+import './modules/task-automations';
 import './modules/comments';
 import './modules/time';
 import './modules/mail';

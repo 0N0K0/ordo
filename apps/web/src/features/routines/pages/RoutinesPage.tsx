@@ -29,7 +29,7 @@ import { useRoutineColumns } from '../hooks/use-routine-columns';
 import { routinesLabel } from '../lib/routine-cell-edit';
 import { AddRoutineRow, ChronoCell, StateCell } from '../components/routine-table-cells';
 import { RoutineDoneToggles } from '../components/DoneToggle';
-import { AssigneesCell, CategoriesCell, EstimateCell, ProjectCell, RepetitionCell, RepetitionText, RoutineBeneficiariesCell, RoutineLabelCell, RoutineLinksCell } from '../components/routine-cells';
+import { AssigneesCell, CategoriesCell, EstimateCell, ProjectCell, RepetitionCell, RepetitionText, RoutineBeneficiariesCell, RoutineLabelCell, RoutineLabelChipCell, RoutineLinksCell } from '../components/routine-cells';
 import { BlocksCell, RoutineLocationCell, OpensOnCell, ParentRoutineCell, RemindersCell, SubRoutinesCell, TimeOfDayCell, TravelCell } from '../components/extra-cells';
 import { isDone, movableOccurrence, waitingFor } from '../lib/routine-format';
 import { usePostponeRoutine } from '../hooks/use-routine-move';
@@ -179,6 +179,8 @@ export function RoutinesPanel({ projectId, projectIds }: { projectId?: string; p
       assignees: <AssigneesCell routine={routine} readOnly={readOnly} context={context} />,
       beneficiaries: <RoutineBeneficiariesCell routine={routine} readOnly={readOnly} />,
       categories: <CategoriesCell routine={routine} readOnly={readOnly} categories={categories} />,
+      priority: <RoutineLabelChipCell column="priority" routine={routine} readOnly={readOnly} items={context.priorities} />,
+      type: <RoutineLabelChipCell column="type" routine={routine} readOnly={readOnly} items={context.types} />,
       requires: <RoutineLinksCell kind="requires" routine={routine} readOnly={readOnly} routines={routines} context={context} />,
       related: <RoutineLinksCell kind="related" routine={routine} readOnly={readOnly} routines={routines} context={context} />,
       project: <ProjectCell routine={routine} readOnly={readOnly} context={context} />,

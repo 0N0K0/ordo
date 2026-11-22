@@ -1,12 +1,11 @@
 import { Group, Paper, SegmentedControl, SimpleGrid, Stack, Switch, Text, TextInput, type GroupProps } from '@mantine/core';
 import { listSelectProps } from '../../../components/items/item-look';
-import { DatePickerInput } from '@mantine/dates';
 import { EMPTY_MAIL_SEARCH, type MailSearchCriteria } from '@ordo/shared';
 import { FloppyDiskIcon, MagnifyingGlassIcon, EraserIcon, SlidersHorizontalIcon, XIcon } from '@phosphor-icons/react';
 import { useState } from 'react';
 import { useMailLabels } from '../api';
 import { BatchMultiSelect } from '../../../components/inputs/BatchMultiSelect';
-import { dateRangeProps } from '../../../components/inputs/date-range';
+import { PeriodField } from '../../../components/inputs/PeriodField';
 import { ActionButton } from '../../../components/actions/ActionButton';
 
 /** Where an advanced search looks: the folder shown, every folder of its account, or every account. */
@@ -34,7 +33,6 @@ export function AdvancedSearchPanel({ accountId, folder, value, onSearch, onClea
   const [criteria, setCriteria] = useState<MailSearchCriteria>(value ?? { ...EMPTY_MAIL_SEARCH, accountIds: [accountId], scope: 'folder', folder });
   const where: Where = criteria.scope === 'folder' ? 'folder' : criteria.accountIds.length ? 'account' : 'everywhere';
   const set = (changes: Partial<MailSearchCriteria>) => setCriteria((current) => ({ ...current, ...changes }));
-  const received = dateRangeProps({ value: [criteria.since, criteria.until], onChange: ([since, until]) => set({ since, until }) });
 
   /**
    * Changes where the search looks.
@@ -74,8 +72,7 @@ export function AdvancedSearchPanel({ accountId, folder, value, onSearch, onClea
             <TextInput size="xs" label="À" placeholder="Nom ou adresse" value={criteria.to} onChange={(event) => set({ to: event.currentTarget.value })} />
             <TextInput size="xs" label="Objet" value={criteria.subject} onChange={(event) => set({ subject: event.currentTarget.value })} />
             <TextInput size="xs" label="Corps" value={criteria.body} onChange={(event) => set({ body: event.currentTarget.value })} />
-            <DatePickerInput size="xs" label="Du" clearable placeholder="—" {...received.start} />
-            <DatePickerInput size="xs" label="Au" clearable placeholder="—" {...received.end} />
+            <PeriodField size="xs" label="Reçu" value={[criteria.since, criteria.until]} onChange={([since, until]) => set({ since, until })} />
           </SimpleGrid>
           <BatchMultiSelect
             size="xs"

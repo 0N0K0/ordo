@@ -1,15 +1,13 @@
-import { Combobox, Select, Text, UnstyledButton, useCombobox } from '@mantine/core';
+import { Select, Text, UnstyledButton } from '@mantine/core';
 import { ArrowsLeftRightIcon } from '@phosphor-icons/react';
 import { removedLinksNote } from '../../../lib/text';
-import { ItemBadge } from '../../../components/items/ItemBadge';
 import { ItemAvatar } from '../../../components/items/ItemAvatar';
 import { listSelectProps } from '../../../components/items/item-look';
-import { DatePickerInput } from '@mantine/dates';
+import { DateField } from '../../../components/inputs/DateField';
 import { readTaskHours, taskLabelSchema, type TaskColumn, subtreeOf } from '@ordo/shared';
 import { useState, type ReactNode } from 'react';
 import { Link } from 'react-router';
 import { ON_ERROR, toastCallbacks } from '../../../lib/notify';
-import { unarchived } from '../../../lib/archive';
 import { useBulkTaskMutations, useTaskBlock, useTaskRelation, type Task, type TaskLabel } from '../api';
 import { confirmDestructive } from '../../../components/dialogs/confirm-destructive';
 import { TaskSelect } from './task-ui';
@@ -19,7 +17,6 @@ import { closedMark, type TaskContext, taskName, taskNumber } from '../hooks/use
 import { useTaskLink } from '../hooks/use-task-link';
 import { useCellEdit } from '../lib/cell-edit';
 import { listDiff } from '../../../components/data-table/selection/bulk-edit';
-import classes from '../../../components/data-table/cells/EditableCells.module.css';
 
 import { BeneficiariesCell } from '../../beneficiaries/components/BeneficiariesSelect';
 import { stoppedCellCombobox, stoppedCellField, cellLabel, itemCellLabel, cellPicker, stopClick } from '../../../components/data-table/cells/cell-field';
@@ -27,6 +24,7 @@ import { EditableMultiSelect, EditableNumber } from '../../../components/data-ta
 import { EditableLabel } from '../../../components/data-table/cells/EditableLabel';
 import { AssigneesCell as SharedAssigneesCell, ProjectCell as SharedProjectCell } from './context-cells';
 import { DependencyIcon } from '../../../components/data-table/cells/DependencyIcon';
+import { ChipChoiceCell } from '../../../components/data-table/cells/ChipChoiceCell';
 import { dateRangeProps } from '../../../components/inputs/date-range';
 import { beneficiariesDiff } from '../../beneficiaries/lib/beneficiaries-diff';
 import { LATE_COLOR } from '../../../components/feedback/feedback-colors';
@@ -95,60 +93,23 @@ const LABEL_FIELDS = { status: 'statusId', priority: 'priorityId', type: 'typeId
 const LABEL_NAMES = { status: 'Statut', priority: 'Priorité', type: 'Type' } as const;
 
 /**
- * Status, priority or type cell: a colored chip; clicking the cell opens the list of chips.
+ * Status, priority or type cell: a colored chip; clicking the cell opens the list of chips (`ChipChoiceCell`).
  * Choosing the current value again clears it.
  * @param {LabelCellProps} props Component props.
  * @returns {JSX.Element} Cell.
  */
 export function LabelCell({ task, column, labels }: LabelCellProps) {
   const { apply, count } = useCellEdit(task, column);
-  const combobox = useCombobox({ onDropdownClose: () => combobox.resetSelectedOption() });
   const field = LABEL_FIELDS[column];
-  const current = labels.find((label) => label.id === task[field]);
-  // Archived labels are not offered, except the current one.
-  const offered = unarchived(labels, task[field]);
-
-  /**
-   * Saves the chosen label (or clears it when it is the current one).
-   * @param {string} id Label id.
-   * @returns {void}
-   */
-  const choose = (id: string) => {
-    const value = id === task[field] ? null : id;
-    apply({ [field]: value }, { [field]: value });
-    combobox.closeDropdown();
-  };
-
   // An archived task is read only: its chip only.
-  if (task.archived) return current ? <ItemBadge item={current} /> : <span className={classes.placeholder}>—</span>;
   return (
-    <Combobox store={combobox} onOptionSubmit={choose} withinPortal position="bottom-start" width="max-content">
-      <Combobox.Target>
-        <UnstyledButton
-          className={classes.chipTrigger}
-          aria-label={fieldLabel(LABEL_NAMES[column], task, count)}
-          aria-haspopup="listbox"
-          aria-expanded={combobox.dropdownOpened}
-          data-expanded={combobox.dropdownOpened || undefined}
-          onClick={(event) => {
-            stopClick(event);
-            combobox.toggleDropdown();
-          }}
-        >
-          {current ? <ItemBadge item={current} /> : <span className={classes.placeholder}>—</span>}
-        </UnstyledButton>
-      </Combobox.Target>
-      <Combobox.Dropdown onClick={stopClick}>
-        <Combobox.Options>
-          {offered.length === 0 && <Combobox.Empty>Aucune valeur définie dans les paramètres</Combobox.Empty>}
-          {offered.map((label) => (
-            <Combobox.Option key={label.id} value={label.id} active={label.id === current?.id}>
-              <ItemBadge item={label} />
-            </Combobox.Option>
-          ))}
-        </Combobox.Options>
-      </Combobox.Dropdown>
-    </Combobox>
+    <ChipChoiceCell
+      value={task[field]}
+      items={labels}
+      label={fieldLabel(LABEL_NAMES[column], task, count)}
+      readOnly={task.archived}
+      onChoose={(value) => apply({ [field]: value }, { [field]: value })}
+    />
   );
 }
 
@@ -347,7 +308,7 @@ export function DateCell({ task, column, alert }: DateCellProps) {
   // Without its own « Ouverture » / « Échéance »: the one it goes by (parent, milestone, project, sprint), shown in place (a date typed wins).
   const inherited = column === 'minDate' || column === 'deadline' ? inheritedDateHint(task, column) : null;
   return (
-    <DatePickerInput
+    <DateField
       {...stoppedCellField}
       aria-label={fieldLabel(DATE_LABELS[column], task, count)}
       value={task[column]}

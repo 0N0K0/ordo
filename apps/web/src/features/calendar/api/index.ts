@@ -2,7 +2,7 @@ import { calendarQueryKey, SLOT_DEPENDENT_KEYS, birthdaysQueryKey, tasksQueryKey
 import { useQuery, type QueryKey } from '@tanstack/react-query';
 import { useInvalidatingMutation } from '../../../lib/mutation';
 import { graphql } from '../../../graphql';
-import { countedSchedules, readScheduleCases, readScheduleExceptions, slotSchedules, type ScheduleDisplay, type ScheduleSubscriptionLook, type WorkScheduleInput, type WorkScheduleRule } from '@ordo/shared';
+import { countedSchedules, reminderDayRange, readScheduleCases, readScheduleExceptions, slotSchedules, type ScheduleDisplay, type ScheduleSubscriptionLook, type WorkScheduleInput, type WorkScheduleRule } from '@ordo/shared';
 import type {
   BirthdaysQuery,
   CalendarEventInput,
@@ -505,6 +505,19 @@ export function useCalendarEvents(range: { from: string; to: string } | null, in
  */
 export async function fetchCalendarEvents(range: { from: string; to: string }, workspace?: string): Promise<EventOccurrence[]> {
   return occurrencesOf(await (workspace ? executeIn(workspace, CalendarEventsDocument, range) : execute(CalendarEventsDocument, range)));
+}
+
+/**
+ * Event occurrences whose reminders may ring soon: from yesterday to the most days a reminder rings before
+ * (`reminderDayRange`, taken again at each load), loaded again every 5 minutes and on any change of the calendar.
+ * @returns {UseQueryResult} Query state.
+ */
+export function useReminderOccurrences() {
+  return useQuery({
+    queryKey: [...calendarQueryKey, 'reminders'],
+    queryFn: () => fetchCalendarEvents(reminderDayRange(new Date())),
+    refetchInterval: 5 * 60_000,
+  });
 }
 
 export type Calendar = CalendarsQuery['calendars'][number];

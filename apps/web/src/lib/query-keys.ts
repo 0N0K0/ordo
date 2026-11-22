@@ -10,6 +10,9 @@ export const tasksQueryKey = ['tasks'] as const;
 /** Key of the tasks doable now: refreshed with what their slot conditions count (`SLOT_DEPENDENT_KEYS`). */
 export const doableTasksKey = [...tasksQueryKey, 'doable'] as const;
 
+/** Key of the automations of the tasks (under the tasks: their settings). */
+export const taskAutomationsQueryKey = [...tasksQueryKey, 'automations'] as const;
+
 /** Root key of the routine queries. */
 export const routinesKey = ['routines'] as const;
 

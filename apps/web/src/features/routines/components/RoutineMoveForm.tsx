@@ -1,7 +1,7 @@
 import { LabeledField } from '../../../components/inputs/LabeledField';
 import { PICKER_FORMATS } from '../../../lib/format';
 import { Group, Select, Stack, Text } from '@mantine/core';
-import { DatePickerInput } from '@mantine/dates';
+import { DateField } from '../../../components/inputs/DateField';
 import { addDays, type RoutineMoveTimes } from '@ordo/shared';
 import { ArrowRightIcon, CalendarXIcon, ArrowBendUpLeftIcon, ArrowBendUpRightIcon, ClockIcon, XIcon } from '@phosphor-icons/react';
 import { useState } from 'react';
@@ -15,6 +15,7 @@ import { useRoutineMove } from '../hooks/use-routine-move';
 import * as fmt from '../../../lib/format';
 import { RemoveButton } from '../../../components/actions/RemoveButton';
 import { SlotTimesFields } from './SlotTimesFields';
+import { OccurrenceOpening } from './OccurrenceOpening';
 import { ActionButton } from '../../../components/actions/ActionButton';
 
 /**
@@ -114,15 +115,17 @@ export function RoutineMoveForm({ routineId, onDone }: { routineId: string; onDo
       <Stack gap="md">
         {date ? (
           <>
-            <Select
-              label="Occurrence"
-              description={moved ? `Déjà déplacée depuis le ${fmt.dayLong(moved.from)}.` : 'Ne change que celle-ci : c’est une exception, la règle ne change pas.'}
-              data={options}
-              value={date}
-              onChange={choose}
-              allowDeselect={false}
-            />
-            <DatePickerInput
+            <OccurrenceOpening routine={routine} occurrence={occurrence}>
+              <Select
+                label="Occurrence"
+                description={moved ? `Déjà déplacée depuis le ${fmt.dayLong(moved.from)}.` : 'Ne change que celle-ci : c’est une exception, la règle ne change pas.'}
+                data={options}
+                value={date}
+                onChange={choose}
+                allowDeselect={false}
+              />
+            </OccurrenceOpening>
+            <DateField
               label="Nouvelle date"
               description="Plus tard pour la reporter, plus tôt pour l’avancer ; son jour pour n’en changer que l’horaire."
               required

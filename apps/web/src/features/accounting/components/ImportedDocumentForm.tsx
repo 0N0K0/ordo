@@ -1,6 +1,6 @@
 import { NO_SUGGESTIONS } from '../../../components/markdown/remark-references';
 import { Checkbox, Fieldset, FileInput, Select, SimpleGrid, Stack, Text, TextInput } from '@mantine/core';
-import { DatePickerInput } from '@mantine/dates';
+import { DateField } from '../../../components/inputs/DateField';
 import { ACCOUNTING_DOCUMENT_TYPES, type AccountingDocumentType, importedDocumentSchema, round2 } from '@ordo/shared';
 import { FilePdfIcon, FileArrowUpIcon } from '@phosphor-icons/react';
 import { localToday } from '../../../lib/dates';
@@ -137,8 +137,8 @@ export function ImportedDocumentForm({ document, onDone }: { document?: Imported
             />
             <TextInput label="Numéro" required data-autofocus={document ? undefined : true} {...form.getInputProps('number')} />
             <TextInput label="Objet" {...form.getInputProps('label')} />
-            <DatePickerInput label="Date" required {...form.getInputProps('issueDate')} />
-            <DatePickerInput label={values.type === 'QUOTE' ? 'Valable jusqu’au' : 'Échéance'} clearable {...form.getInputProps('dueDate')} />
+            <DateField label="Date" required {...form.getInputProps('issueDate')} />
+            <DateField label={values.type === 'QUOTE' ? 'Valable jusqu’au' : 'Échéance'} clearable {...form.getInputProps('dueDate')} />
             <Select label="Devise" data={['EUR', 'CHF', 'USD', 'GBP', 'CAD']} allowDeselect={false} {...form.getInputProps('currency')} />
           </SimpleGrid>
           <SimpleGrid cols={{ base: 1, sm: 2 }} spacing="sm">

@@ -10,8 +10,7 @@ import { TaskProgress } from './TaskProgress';
 import { EmptyState } from '../../../components/feedback/EmptyState';
 
 import { openFormPanel } from '../../../components/panels/panels';
-import { Badge, Fieldset, Paper, SimpleGrid, Stack, TextInput } from '@mantine/core';
-import { DatePickerInput } from '@mantine/dates';
+import { Badge, Fieldset, Paper, Stack, TextInput } from '@mantine/core';
 import { addDays, daysBetween, sprintFormSchema, type SprintFormValues, sumOf } from '@ordo/shared';
 import { PlusIcon, TimerIcon } from '@phosphor-icons/react';
 
@@ -30,7 +29,8 @@ import { useTaskContext } from '../hooks/use-task-context';
 import * as fmt from '../../../lib/format';
 
 import { FormActions } from '../../../components/dialogs/FormActions';
-import { dateRangeProps, formRange } from '../../../components/inputs/date-range';
+import { formRange } from '../../../components/inputs/date-range';
+import { PeriodField } from '../../../components/inputs/PeriodField';
 
 interface SprintFormProps {
   projectId: string;
@@ -73,7 +73,6 @@ function SprintForm({ projectId, sprint, defaults, onDone }: SprintFormProps) {
     onBlur: ['label', 'goal'],
     readOnly,
   });
-  const period = dateRangeProps(formRange(form, 'startDate', 'endDate'));
 
   // A new sprint only: an existing one is saved field by field (Enter saves the text typed).
   const handleSubmit = form.onSubmit((values) => create.mutate({ projectId, input: sprintInput(values) }, formCallbacks(form, 'Sprint créé.', onDone)));
@@ -84,11 +83,7 @@ function SprintForm({ projectId, sprint, defaults, onDone }: SprintFormProps) {
         <Stack gap="md">
           {sprint && !readOnly && <SaveStatus saving={saving} />}
           <TextInput label="Libellé" required data-autofocus {...form.getInputProps('label')} />
-          {/* By the width of the settings sidebar, not the window's. */}
-          <SimpleGrid type="container" cols={{ base: 1, '520px': 2 }} spacing="sm">
-            <DatePickerInput label="Début" required {...period.start} />
-            <DatePickerInput label="Fin" required {...period.end} />
-          </SimpleGrid>
+          <PeriodField label="Période" required {...formRange(form, 'startDate', 'endDate')} />
           <MarkdownEditor
             label="Objectif"
             {...fieldProps('goal')}

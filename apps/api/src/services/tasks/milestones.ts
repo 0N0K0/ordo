@@ -6,6 +6,7 @@ import { parseInput } from '../../graphql/errors';
 import { moveInList, nextPositionIn } from '../core/ordering';
 import { assertNotArchived, assertActive, findActive } from '../core/archive';
 import { deleteOrNotFound } from '../core/lookup';
+import { automated } from './task-automation-engine';
 
 /**
  * Loads a milestone that can be changed: neither it nor its project is archived (BAD_USER_INPUT « Élément archivé… »).
@@ -61,7 +62,7 @@ export async function createMilestone(input: { projectId: string; label: string;
  * @param {string | null} [input.dueDate] New due date. Optional.
  * @returns {Promise<Milestone>} Updated milestone.
  */
-export async function updateMilestone(id: string, input: { label?: string | null; description?: string | null; dueDate?: string | null }): Promise<Milestone> {
+export const updateMilestone = automated(async function updateMilestone(id: string, input: { label?: string | null; description?: string | null; dueDate?: string | null }): Promise<Milestone> {
   await findEditableMilestone(id);
   const fields = parseInput(fieldsSchema, {
     label: input.label ?? undefined,
@@ -72,16 +73,16 @@ export async function updateMilestone(id: string, input: { label?: string | null
     where: { id },
     data: { label: fields.label, description: fields.description, dueDate: parseOptionalDay(fields.dueDate) },
   });
-}
+});
 
 /**
  * Deletes a milestone; its tasks simply lose it.
  * @param {string} id Milestone id.
  * @returns {Promise<void>}
  */
-export async function deleteMilestone(id: string): Promise<void> {
+export const deleteMilestone = automated(async function deleteMilestone(id: string): Promise<void> {
   await deleteOrNotFound(prisma.milestone, id, 'Jalon');
-}
+});
 
 /**
  * Moves a milestone in its project's list.

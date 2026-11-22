@@ -1,5 +1,5 @@
 import { Fieldset, Stack, Switch, TextInput } from '@mantine/core';
-import { DatePickerInput } from '@mantine/dates';
+import { DateField } from '../../../components/inputs/DateField';
 import { DEFAULT_RECURRENCE, recurrenceSchema, recurringInvoiceSchema, type Recurrence } from '@ordo/shared';
 import { localToday } from '../../../lib/dates';
 import { formCallbacks, useAppForm, useFieldSave } from '../../../lib/form';
@@ -90,7 +90,7 @@ export function RecurringForm({ documentId, recurring, onDone }: RecurringFormPr
         <Stack gap="md">
           {recurring && !readOnly && <SaveStatus saving={saving} />}
           <TextInput label="Libellé" required data-autofocus={recurring ? undefined : true} placeholder="Maintenance mensuelle…" {...form.getInputProps('label')} />
-          <DatePickerInput label="Première facture le" required {...form.getInputProps('startDate')} />
+          <DateField label="Première facture le" required {...form.getInputProps('startDate')} />
           <RuleField
             required
             weekly={false}

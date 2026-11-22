@@ -145,6 +145,7 @@ const RoutineEffectiveRef = builder.objectRef<StoredInheritingRoutine>('RoutineE
     beneficiaryIds: t.idList({ resolve: (routine) => routine.beneficiaryIds }),
     beneficiaryRelationIds: t.idList({ resolve: (routine) => routine.beneficiaryRelationIds }),
     categoryIds: t.idList({ resolve: (routine) => routine.categoryIds }),
+    priorityId: t.exposeID('priorityId', { nullable: true }),
     slotCondition: t.field({ type: 'JSON', nullable: true, resolve: (routine) => routines.storedCondition(routine) }),
     opensOn: t.field({ type: 'JSON', nullable: true, resolve: (routine) => readOpens(routine.opensOn) }),
     location: t.exposeString('location', { nullable: true }),
@@ -165,6 +166,8 @@ builder.prismaObject('Routine', {
     label: t.exposeString('label'),
     description: t.exposeString('description', { nullable: true }),
     categoryIds: t.idList(relationIds('categories', 'Categories it is shown in.')),
+    priorityId: t.exposeID('priorityId', { nullable: true, description: 'Priority, from the list of the tasks (its own: see effective).' }),
+    typeId: t.exposeID('typeId', { nullable: true, description: 'Type, from the list of the tasks.' }),
     parentId: t.exposeID('parentId', { nullable: true }),
     inheritedFields: t.field({
       type: [RoutineInheritableFieldEnum],
@@ -322,6 +325,8 @@ const RoutineInputType = builder.inputType('RoutineInput', {
     label: t.string({ required: true }),
     description: t.string(),
     categoryIds: t.idList({ required: true }),
+    priorityId: t.id({ description: 'Priority (the list of the tasks); none: none.' }),
+    typeId: t.id({ description: 'Type (the list of the tasks); none: none.' }),
     parentId: t.id(),
     startDate: t.field({ type: 'Date', required: true }),
     recurrence: t.field({ type: 'JSON', required: true }),
@@ -381,6 +386,8 @@ const RoutinePatch = builder.inputType('RoutinePatch', {
   fields: (t) => ({
     label: t.string(),
     categoryIds: t.idList(),
+    priorityId: t.id({ description: 'Null: none.' }),
+    typeId: t.id({ description: 'Null: none.' }),
     parentId: t.id({ description: 'Null: top level.' }),
     estimate: t.int(),
     assigneeIds: t.idList(),
@@ -399,7 +406,7 @@ const RoutinePatch = builder.inputType('RoutinePatch', {
 });
 
 const RoutineBulkChangesInput = builder.inputType('RoutineBulkChanges', {
-  description: 'Same changes for several routines (omitted fields unchanged; null clears estimate and projectId).',
+  description: 'Same changes for several routines (omitted fields unchanged; null clears estimate, projectId, priorityId and typeId).',
   fields: (t) => ({
     addCategoryIds: t.idList(),
     removeCategoryIds: t.idList(),
@@ -411,6 +418,8 @@ const RoutineBulkChangesInput = builder.inputType('RoutineBulkChanges', {
     removeRelatedIds: t.idList(),
     estimate: t.int({ description: 'Minutes.' }),
     projectId: t.id(),
+    priorityId: t.id(),
+    typeId: t.id(),
     ...repetitionChangeFields(t),
     opensOn: t.field({ type: 'JSON', description: '« Ouverture » of its rule; null: none.' }),
     inheritFields: t.field({ type: [RoutineInheritableFieldEnum], description: 'Fields made inherited from their parent again (« Rétablir l’héritage »); routines without parent unchanged.' }),
@@ -434,6 +443,8 @@ const routineInput = (input: typeof RoutineInputType.$inferInput): RoutineInput 
   label: input.label,
   description: input.description ?? null,
   categoryIds: input.categoryIds,
+  priorityId: idOrNull(input.priorityId),
+  typeId: idOrNull(input.typeId),
   parentId: idOrNull(input.parentId),
   startDate: input.startDate,
   recurrence: input.recurrence as RoutineInput['recurrence'],
@@ -641,6 +652,8 @@ builder.mutationFields((t) => ({
       const changes: Partial<RoutineInput> = {};
       if (input.label !== undefined && input.label !== null) changes.label = input.label;
       if (input.categoryIds) changes.categoryIds = input.categoryIds;
+      if (input.priorityId !== undefined) changes.priorityId = idOrNull(input.priorityId);
+      if (input.typeId !== undefined) changes.typeId = idOrNull(input.typeId);
       if (input.parentId !== undefined) changes.parentId = idOrNull(input.parentId);
       if (input.estimate !== undefined) changes.estimate = input.estimate;
       if (input.assigneeIds) changes.assigneeIds = input.assigneeIds;
@@ -693,6 +706,8 @@ builder.mutationFields((t) => ({
         removeRelatedIds: list(changes.removeRelatedIds),
         estimate: changes.estimate,
         projectId: changes.projectId === undefined ? undefined : idOrNull(changes.projectId),
+        priorityId: changes.priorityId === undefined ? undefined : idOrNull(changes.priorityId),
+        typeId: changes.typeId === undefined ? undefined : idOrNull(changes.typeId),
         fromTime: changes.fromTime,
         dueTime: changes.dueTime,
         startDate: changes.startDate ?? undefined,

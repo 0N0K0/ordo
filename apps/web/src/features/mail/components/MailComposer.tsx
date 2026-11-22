@@ -4,7 +4,7 @@ import { addDays, WEEKDAY_LABELS, weekdayOfDate, twoDigits } from '@ordo/shared'
 import { localInstant, localToday } from '../../../lib/dates';
 import { FileBadge } from '../../../components/items/FileBadge';
 import { Checkbox, Collapse, FileButton, Group, Paper, Popover, Select, Stack, TagsInput, Text, TextInput } from '@mantine/core';
-import { DateTimePicker } from '@mantine/dates';
+import { DateTimeField } from '../../../components/inputs/DateTimeField';
 import { ClockCountdownIcon, ClockIcon, FloppyDiskIcon, PaperPlaneTiltIcon, PaperclipIcon, TrashIcon, XIcon, PencilSimpleLineIcon, PlusIcon } from '@phosphor-icons/react';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { LazyRichEditor } from './LazyRichEditor';
@@ -451,7 +451,15 @@ export function MailComposer({ options, onDone }: { options: ComposeOptions; onD
                     {preset.label}
                   </ActionButton>
                 ))}
-                <DateTimePicker label="Date et heure" placeholder="Choisir…" minDate={new Date()} value={sendAt} onChange={setSendAt} popoverProps={{ withinPortal: false }} />
+                <DateTimeField
+                  label="Date et heure"
+                  placeholder="Choisir…"
+                  minDate={new Date()}
+                  day={sendAt?.split(' ')[0] ?? null}
+                  time={sendAt?.split(' ')[1].slice(0, 5) ?? null}
+                  onChange={(day, time) => setSendAt(day && time ? `${day} ${time}:00` : null)}
+                  popoverProps={{ withinPortal: false }}
+                />
                 <ActionButton size="xs" icon={<ClockIcon aria-hidden />} disabled={!sendAt} onClick={() => sendAt && void scheduleAt(new Date(sendAt.replace(' ', 'T')))}>
                   Programmer l’envoi
                 </ActionButton>

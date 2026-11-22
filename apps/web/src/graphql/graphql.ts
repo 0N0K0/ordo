@@ -149,6 +149,7 @@ export type ArchivableKind =
   | 'SPRINT'
   | 'STOCK_ITEM'
   | 'STOCK_LOCATION'
+  | 'TASK_AUTOMATION'
   | 'TASK_PRIORITY'
   | 'TASK_STATUS'
   | 'TASK_TAG'
@@ -710,7 +711,7 @@ export type RingSettingsInput = {
   ringtone: string;
 };
 
-/** Same changes for several routines (omitted fields unchanged; null clears estimate and projectId). */
+/** Same changes for several routines (omitted fields unchanged; null clears estimate, projectId, priorityId and typeId). */
 export type RoutineBulkChanges = {
   addAssigneeIds?: Array<string | number> | null | undefined;
   addCategoryIds?: Array<string | number> | null | undefined;
@@ -733,6 +734,7 @@ export type RoutineBulkChanges = {
   moments?: unknown;
   /** « Ouverture » of its rule; null: none. */
   opensOn?: unknown;
+  priorityId?: string | number | null | undefined;
   projectId?: string | number | null | undefined;
   recurrence?: unknown;
   removeAssigneeIds?: Array<string | number> | null | undefined;
@@ -742,6 +744,7 @@ export type RoutineBulkChanges = {
   /** On or out of calendar schedules, following its rule; null: any time. */
   slotCondition?: unknown;
   startDate?: string | null | undefined;
+  typeId?: string | number | null | undefined;
 };
 
 export type RoutineCategoryInput = {
@@ -760,6 +763,7 @@ export type RoutineInheritableField =
   | 'MOMENTS'
   | 'MOVES'
   | 'OPENS_ON'
+  | 'PRIORITY'
   | 'PROJECT'
   | 'RECURRENCE'
   | 'SLOT_CONDITION'
@@ -799,6 +803,8 @@ export type RoutineInput = {
   /** « Ouverture » of the occurrences of its rule: { mode: DAY | WEEKDAY | WEEK | BEFORE, … }; null: none. */
   opensOn?: unknown;
   parentId?: string | number | null | undefined;
+  /** Priority (the list of the tasks); none: none. */
+  priorityId?: string | number | null | undefined;
   projectId?: string | number | null | undefined;
   recurrence: unknown;
   /** « Relative à »: routines related to it (same project tree). */
@@ -812,6 +818,8 @@ export type RoutineInput = {
   travelAfter?: number | null | undefined;
   /** Travel time there, in minutes; none: 0. */
   travelBefore?: number | null | undefined;
+  /** Type (the list of the tasks); none: none. */
+  typeId?: string | number | null | undefined;
 };
 
 export type RoutineOccurrenceGoneInput = {
@@ -852,6 +860,8 @@ export type RoutinePatch = {
   /** Null: top level. */
   parentId?: string | number | null | undefined;
   /** Null: none. */
+  priorityId?: string | number | null | undefined;
+  /** Null: none. */
   projectId?: string | number | null | undefined;
   recurrence?: unknown;
   relatedIds?: Array<string | number> | null | undefined;
@@ -865,6 +875,8 @@ export type RoutinePatch = {
   travelAfter?: number | null | undefined;
   /** Travel time there, in minutes; omitted: unchanged. */
   travelBefore?: number | null | undefined;
+  /** Null: none. */
+  typeId?: string | number | null | undefined;
 };
 
 export type SaveMailDraftInput = {
@@ -977,6 +989,7 @@ export type SettingsListKind =
   | 'SHOPPING_STORE'
   | 'SHOPPING_UNIT'
   | 'STOCK_LOCATION'
+  | 'TASK_AUTOMATION'
   | 'TASK_PRIORITY'
   | 'TASK_STATUS'
   | 'TASK_TAG'
@@ -1140,6 +1153,30 @@ export type StockPurchaseInput = {
   locationId?: string | number | null | undefined;
   quantity: number;
   shoppingItemId: string | number;
+};
+
+export type TaskAutomationInput = {
+  /** [{ kind, field, value }], 1 to 20: checked by `taskAutomationActionSchema`. */
+  actions: unknown;
+  color: string;
+  /** Filter of the task table (checked by `taskAutomationConditionSchema`); null or empty: every task. */
+  condition?: unknown;
+  /** On (default) or off. */
+  enabled?: boolean | null | undefined;
+  /** Its name, unique in the workspace. */
+  label: string;
+  /** { event, field, change, value }: checked by `taskAutomationTriggerSchema`. */
+  trigger: unknown;
+};
+
+/** Changes of a rule (omitted fields unchanged; a null condition: every task). */
+export type TaskAutomationPatch = {
+  actions?: unknown;
+  color?: string | null | undefined;
+  condition?: unknown;
+  enabled?: boolean | null | undefined;
+  label?: string | null | undefined;
+  trigger?: unknown;
 };
 
 /** Field a sub-task inherits from its parent. */
@@ -3484,7 +3521,7 @@ export type DeleteProjectStatusMutation = { deleteProjectStatus: boolean };
 export type RoutinesDataQueryVariables = Exact<{ [key: string]: never; }>;
 
 
-export type RoutinesDataQuery = { routineCategories: Array<{ id: string, archived: boolean, label: string, color: string | null, iconUrl: string | null, parentId: string | null, position: number }>, routines: Array<{ id: string, label: string, description: string | null, categoryIds: Array<string>, parentId: string | null, startDate: string, recurrence: unknown, estimate: number | null, fromTime: string | null, dueTime: string | null, slotCondition: unknown, moments: unknown, savedCountdownIds: Array<string>, cases: unknown, moves: unknown, done: boolean, windowFrom: string | null, windowTo: string | null, location: string | null, locationLat: number | null, locationLon: number | null, travelBefore: number, travelAfter: number, projectId: string | null, position: number, archived: boolean, assigneeIds: Array<string>, beneficiaryIds: Array<string>, beneficiaryRelationIds: Array<string>, requiredIds: Array<string>, relatedIds: Array<string>, currentDate: string | null, firstDate: string | null, nextDate: string | null, doneDates: Array<string>, lastDoneAt: string | null, trackedSeconds: number, opensOn: unknown, inheritedFields: Array<RoutineInheritableField>, reminders: Array<{ before: number | null, at: string | null, days: number | null, anchor: string, ringtone: string | null }>, deadTimes: Array<{ label: string, minutes: number, ringtone: string | null }>, reminderOccurrences: Array<{ date: string, day: string, slots: Array<{ slot: number, fromTime: string | null, dueTime: string | null }> }>, slots: Array<{ index: number, fromTime: string | null, dueTime: string | null, optional: boolean, done: boolean, windows: unknown }>, links: Array<{ url: string, label: string }>, inheritance: Array<{ field: string, state: InheritState, source: InheritSource | null, sourceId: string | null }>, effective: { projectId: string | null, assigneeIds: Array<string>, beneficiaryIds: Array<string>, beneficiaryRelationIds: Array<string>, categoryIds: Array<string>, slotCondition: unknown, opensOn: unknown, location: string | null, locationLat: number | null, locationLon: number | null, startDate: string, recurrence: unknown, cases: unknown, moments: unknown, moves: unknown } }> };
+export type RoutinesDataQuery = { routineCategories: Array<{ id: string, archived: boolean, label: string, color: string | null, iconUrl: string | null, parentId: string | null, position: number }>, routines: Array<{ id: string, label: string, description: string | null, categoryIds: Array<string>, priorityId: string | null, typeId: string | null, parentId: string | null, startDate: string, recurrence: unknown, estimate: number | null, fromTime: string | null, dueTime: string | null, slotCondition: unknown, moments: unknown, savedCountdownIds: Array<string>, cases: unknown, moves: unknown, done: boolean, windowFrom: string | null, windowTo: string | null, location: string | null, locationLat: number | null, locationLon: number | null, travelBefore: number, travelAfter: number, projectId: string | null, position: number, archived: boolean, assigneeIds: Array<string>, beneficiaryIds: Array<string>, beneficiaryRelationIds: Array<string>, requiredIds: Array<string>, relatedIds: Array<string>, currentDate: string | null, firstDate: string | null, nextDate: string | null, doneDates: Array<string>, lastDoneAt: string | null, trackedSeconds: number, opensOn: unknown, inheritedFields: Array<RoutineInheritableField>, reminders: Array<{ before: number | null, at: string | null, days: number | null, anchor: string, ringtone: string | null }>, deadTimes: Array<{ label: string, minutes: number, ringtone: string | null }>, reminderOccurrences: Array<{ date: string, day: string, slots: Array<{ slot: number, fromTime: string | null, dueTime: string | null }> }>, slots: Array<{ index: number, fromTime: string | null, dueTime: string | null, optional: boolean, done: boolean, windows: unknown }>, links: Array<{ url: string, label: string }>, inheritance: Array<{ field: string, state: InheritState, source: InheritSource | null, sourceId: string | null }>, effective: { projectId: string | null, assigneeIds: Array<string>, beneficiaryIds: Array<string>, beneficiaryRelationIds: Array<string>, categoryIds: Array<string>, priorityId: string | null, slotCondition: unknown, opensOn: unknown, location: string | null, locationLat: number | null, locationLon: number | null, startDate: string, recurrence: unknown, cases: unknown, moments: unknown, moves: unknown } }> };
 
 export type CreateRoutineCategoryMutationVariables = Exact<{
   input: RoutineCategoryInput;
@@ -4309,6 +4346,35 @@ export type SetShoppingDeliveryReceivedMutationVariables = Exact<{
 
 
 export type SetShoppingDeliveryReceivedMutation = { setShoppingDeliveryReceived: Array<string> };
+
+export type TaskAutomationFieldsFragment = { id: string, label: string, color: string, iconUrl: string | null, position: number, archived: boolean, enabled: boolean, trigger: unknown, condition: unknown, actions: unknown };
+
+export type TaskAutomationsQueryVariables = Exact<{ [key: string]: never; }>;
+
+
+export type TaskAutomationsQuery = { taskAutomations: Array<{ id: string, label: string, color: string, iconUrl: string | null, position: number, archived: boolean, enabled: boolean, trigger: unknown, condition: unknown, actions: unknown }> };
+
+export type CreateTaskAutomationMutationVariables = Exact<{
+  input: TaskAutomationInput;
+}>;
+
+
+export type CreateTaskAutomationMutation = { createTaskAutomation: { id: string } };
+
+export type UpdateTaskAutomationMutationVariables = Exact<{
+  id: string | number;
+  input: TaskAutomationPatch;
+}>;
+
+
+export type UpdateTaskAutomationMutation = { updateTaskAutomation: { id: string } };
+
+export type DeleteTaskAutomationMutationVariables = Exact<{
+  id: string | number;
+}>;
+
+
+export type DeleteTaskAutomationMutation = { deleteTaskAutomation: boolean };
 
 export type ContributorFieldsFragment = { id: string, archived: boolean, name: string, handle: string, avatarUrl: string | null, isMe: boolean, projectIds: Array<string>, link: ContributorLinkKind, relationId: string | null, contactId: string | null, linkName: string | null, birthDate: string | null, emails: unknown, phones: unknown, birthdayReminders: Array<{ before: number | null, at: string | null, days: number | null, anchor: string, ringtone: string | null }> };
 
@@ -5654,6 +5720,20 @@ export const ProjectFieldsFragmentDoc = new TypedDocumentString(`
   position
   iconUrl
 }`, {"fragmentName":"ProjectFields"}) as unknown as TypedDocumentString<ProjectFieldsFragment, unknown>;
+export const TaskAutomationFieldsFragmentDoc = new TypedDocumentString(`
+    fragment TaskAutomationFields on TaskAutomation {
+  id
+  label
+  color
+  iconUrl
+  position
+  archived
+  enabled
+  trigger
+  condition
+  actions
+}
+    `, {"fragmentName":"TaskAutomationFields"}) as unknown as TypedDocumentString<TaskAutomationFieldsFragment, unknown>;
 export const ContributorFieldsFragmentDoc = new TypedDocumentString(`
     fragment ContributorFields on Contributor {
   id
@@ -8895,6 +8975,8 @@ export const RoutinesDataDocument = new TypedDocumentString(`
     label
     description
     categoryIds
+    priorityId
+    typeId
     parentId
     startDate
     recurrence
@@ -8966,6 +9048,7 @@ export const RoutinesDataDocument = new TypedDocumentString(`
       beneficiaryIds
       beneficiaryRelationIds
       categoryIds
+      priorityId
       slotCondition
       opensOn
       location
@@ -9885,6 +9968,43 @@ export const SetShoppingDeliveryReceivedDocument = new TypedDocumentString(`
   setShoppingDeliveryReceived(id: $id, received: $received)
 }
     `) as unknown as TypedDocumentString<SetShoppingDeliveryReceivedMutation, SetShoppingDeliveryReceivedMutationVariables>;
+export const TaskAutomationsDocument = new TypedDocumentString(`
+    query TaskAutomations {
+  taskAutomations {
+    ...TaskAutomationFields
+  }
+}
+    fragment TaskAutomationFields on TaskAutomation {
+  id
+  label
+  color
+  iconUrl
+  position
+  archived
+  enabled
+  trigger
+  condition
+  actions
+}`) as unknown as TypedDocumentString<TaskAutomationsQuery, TaskAutomationsQueryVariables>;
+export const CreateTaskAutomationDocument = new TypedDocumentString(`
+    mutation CreateTaskAutomation($input: TaskAutomationInput!) {
+  createTaskAutomation(input: $input) {
+    id
+  }
+}
+    `) as unknown as TypedDocumentString<CreateTaskAutomationMutation, CreateTaskAutomationMutationVariables>;
+export const UpdateTaskAutomationDocument = new TypedDocumentString(`
+    mutation UpdateTaskAutomation($id: ID!, $input: TaskAutomationPatch!) {
+  updateTaskAutomation(id: $id, input: $input) {
+    id
+  }
+}
+    `) as unknown as TypedDocumentString<UpdateTaskAutomationMutation, UpdateTaskAutomationMutationVariables>;
+export const DeleteTaskAutomationDocument = new TypedDocumentString(`
+    mutation DeleteTaskAutomation($id: ID!) {
+  deleteTaskAutomation(id: $id)
+}
+    `) as unknown as TypedDocumentString<DeleteTaskAutomationMutation, DeleteTaskAutomationMutationVariables>;
 export const TasksDataDocument = new TypedDocumentString(`
     query TasksData {
   tasks {

@@ -24,7 +24,7 @@ Requêtes et mutations GraphQL des routines (TanStack Query).
 | `RoutineMove`                            | Variables de `move` : `id`, `beforeId` (routine à précéder dans l'ordre global ; `null` : à la fin), `parentId?` (omis : inchangé), `categoryIds?`.                                       |
 | `RoutinePatchValues`                     | Champs d'une édition sur place (`patchRoutine`), `inherit` / `clear` compris (héritage rétabli, vidé exprès) ; affichés tout de suite, un champ donné devenu propre (`ownedFields`, `routineFieldsGiven`), comme dans une modification en masse.                                                                                                                                          |
 | `RoutineBulkChanges`                     | Réexport du type partagé des changements en masse.                                                                                                                                        |
-| `routineInputOf(routine)`                | Routine en `RoutineInput` complet (annulation, duplication) : tous les champs de l’entrée, liens compris (`linkInputs`), bénéficiaires (contributeurs et relations) et « Ouverture » (`opensOn`) compris (avant, ils étaient perdus), et sa liste de champs hérités (`inheritedFields` : une annulation la rend, une copie sous la même parente la garde), et ses exceptions propres (`moves` : une annulation les rend, une copie n’en prend pas). |
+| `routineInputOf(routine)`                | Routine en `RoutineInput` complet (annulation, duplication) : tous les champs de l’entrée, liens compris (`linkInputs`), priorité et type, bénéficiaires (contributeurs et relations) et « Ouverture » (`opensOn`) compris, et sa liste de champs hérités (`inheritedFields` : une annulation la rend, une copie sous la même parente la garde), et ses exceptions propres (`moves` : une annulation les rend, une copie n’en prend pas). |
 | `useRoutineMutations()`                  | Toutes les mutations (voir ci-dessous).                                                                                                                                                   |
 
 Mutations de `useRoutineMutations()` (toutes invalident `routinesKey` en arrière-plan ; `update`, `patch` et `bulkUpdate` aussi `tasksQueryKey`, car un changement de projet y rattache les assignés) :
@@ -67,7 +67,7 @@ Internes : `ROUTINE_VIEWS`, `movedCategories(categoryIds, from, to)` (catégorie
 | Export               | Rôle                                                                                                                                                                                                                                                                                                                                                                                                                                        |
 | -------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `RoutineFormProps`   | `routine?`, `parent?`, `categoryId?`, `projectId?`, `onDone`.                                                                                                                                                                                                                                                                                                                                                                      |
-| `RoutineForm(props)` | Formulaire de création (bouton « Créer ») ou panneau d’une routine existante, enregistré champ par champ (`useFieldSave` : libellé, description, temps, liens, lieu et trajets en les quittant, le reste dès qu’il change ; `SaveStatus` en tête ; enregistrement par `update` avec toute la routine, `formInput`) : libellé, description markdown, liens (`LinksField` ; aucun pour une nouvelle sous-routine), « Quand » (`RoutineSchedule`), fiches (`SheetsSection`), commentaires de l'occurrence (interne `RoutineComments` : prop `occurrenceDate` donnée par l'agenda, sinon `panelOccurrence` ; titre « Commentaires du … »), projet, catégories (création en ligne), assignés, bénéficiaires, temps, temps morts (`DeadTimesField`, `routineCountdownItem` sur l’occurrence ouverte), minuteurs enregistrés (`SavedCountdownsField`, `ROUTINE`), parente, « Dépend de » et « Relative à » (`linkableRoutine` : même arborescence de projets). Une sous-routine hérite : nouvelle, les valeurs de la parente (première fois comprise) montrées grisées et toutes héritées, exceptions comprises (`NEW_SUB_ROUTINE_FIELDS`) ; existante, chaque champ hérité grisé « Hérité de … » avec « Vider » / « Rétablir l’héritage » (`InheritedField`, `formInheritance` sur `FORM_COLUMNS`, `inheritedFields` dans les valeurs du formulaire et envoyé avec la routine entière ; « Vider » / « Rétablir » enregistrés aussitôt, lieu compris) ; le « Quand » en bloc (`ROUTINE_SCHEDULE_FIELDS`). Nouvelle parente choisie : une nouvelle routine hérite de tout, une existante garde ce qu’elle héritait (de la nouvelle). Existante et non archivée : menu « … » en tête, hors du `Fieldset` lecture seule, à côté de `SaveStatus` (`ActionsMenu`, interne `menu(item)`, comme celui d’une tâche : « Dupliquer », « Archiver » / « Restaurer », « Supprimer » de `useRoutineRowsActions`, `rowMenuEntry`, et « Transformer en tâche » de `useConvertActivity`, puis les temps morts et les minuteurs enregistrés (`useCountdownMenuEntries`) ; archivée : « Restaurer », « Supprimer » ; supprimée ou transformée, son panneau se ferme, `closeRoutinePanels`) ; pas de mode copie. Passée dans une autre arborescence : toast « Routine déplacée. » suivi de `removedLinksNote`. Validé par `routineSchema` ; la routine du cache est suivie (`saved`) ; archivée, aussi ailleurs pendant que le panneau est ouvert, elle est en lecture seule (`Fieldset` désactivé, plus de `SaveStatus`). |
+| `RoutineForm(props)` | Formulaire de création (bouton « Créer », en bas) ou panneau d’une routine existante, enregistré champ par champ (`useFieldSave` : libellé, description, temps, liens, lieu et trajets en les quittant, la répétition (`ROUTINE_REPETITION_KEYS`) au `onCommit` de `RoutineRepetition`, le reste dès qu’il change ; enregistrement par `update` avec toute la routine, `formInput`), disposé par `DetailLayout` ([Panneaux](../../components/panels.md#detaillayouttsx)). En-tête : coche faite / à faire de l’occurrence en cours (`RoutineDoneToggles`), « Libellé », menu « … », projet (`ProjectSelect`), badge « Archivée », `SaveStatus`. Colonne principale : description (`FormDescription` : l’éditeur directement quand elle est vide), « Relations » (parente, sous-routines : un bouton par sous-routine qui ouvre son panneau, « Aucune sous-routine. », « Ajouter une sous-routine » (`openRoutineForm`) ; « Dépend de » et « Relative à » : `linkableRoutine`, même arborescence de projets ; « Bloque » d’une routine existante : `blockedRoutineIds`, écrit dans le « Dépend de » des autres routines par `useSetBlockedRoutines`, aussitôt), « Répétition et moments » (`RoutineRepetition`), « Commentaires du … » de l’occurrence (prop `occurrenceDate` donnée par l’agenda, sinon `panelOccurrence` ; `Comments` sans titre propre). Colonne de droite (`PanelGroup`, `PANEL_GROUPS`) : « Classement » (catégories, création en ligne ; « Priorité » héritable et « Type » par `LabelSelect` sur `context.priorities` / `context.types`, création en ligne), « Parties prenantes » (assignés, bénéficiaires), « Planification » (« Première fois » : `DateField` hors de la fenêtre de répétition, temps à y consacrer, temps morts `DeadTimesField` / `routineCountdownItem` sur l’occurrence ouverte, `TrackedTime` d’une routine existante), « Lieu » (`RoutinePlace`), « Alarmes » (`RoutineReminders`, `SavedCountdownsField` `ROUTINE`), « Ressources » (`LinksField` ; aucun lien pour une nouvelle sous-routine ; `SheetsSection`). Une sous-routine hérite : nouvelle, les valeurs de la parente (première fois comprise) montrées grisées et toutes héritées, exceptions comprises (`NEW_SUB_ROUTINE_FIELDS`) ; existante, chaque champ hérité grisé « Hérité de … » avec « Vider » / « Rétablir l’héritage » (`InheritedField`, `formInheritance` sur `FORM_COLUMNS`, `inheritedFields` dans les valeurs du formulaire et envoyé avec la routine entière ; « Vider » / « Rétablir » enregistrés aussitôt, lieu compris) ; la première fois à part, le reste de la répétition en bloc (`ROUTINE_REPETITION_FIELDS`). Nouvelle parente choisie : une nouvelle routine hérite de tout, une existante garde ce qu’elle héritait (de la nouvelle). Menu « … » d’une routine existante, hors de la partie en lecture seule (`ActionsMenu`, interne `menu(item)`, comme celui d’une tâche : « Dupliquer », « Archiver » / « Restaurer », « Supprimer » de `useRoutineRowsActions`, `rowMenuEntry`, et « Transformer en tâche » de `useConvertActivity`, puis les temps morts et les minuteurs enregistrés (`useCountdownMenuEntries`) ; archivée : « Restaurer », « Supprimer » ; supprimée ou transformée, son panneau se ferme, `closeRoutinePanels`) ; pas de mode copie. Passée dans une autre arborescence : toast « Routine déplacée. » suivi de `removedLinksNote`. Validé par `routineSchema` ; la routine du cache est suivie (`saved`) ; archivée, aussi ailleurs pendant que le panneau est ouvert, elle est en lecture seule (`readOnly` de `DetailLayout`, plus de `SaveStatus`). |
 
 Internes : `RoutineFormValues`, `routineFormValues(routine)` (valeurs d’une routine existante, sa liste de champs hérités comprise), `formInput(values, inheritedFields)` (entrée de l’API, « Ouverture » retirée si elle ne va plus avec la répétition), `ON_BLUR`, `FORM_COLUMNS`, `FORM_FIELDS`, `pickParent(values)`.
 
@@ -76,15 +76,17 @@ Internes : `RoutineFormValues`, `routineFormValues(routine)` (valeurs d’une ro
 | Export                                                                   | Rôle                                                                                                                                                                                                                                         |
 | ------------------------------------------------------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `RoutineRepetitionModal({ routine, opened, onClose, onApply, header? })` | Fenêtre « Répétition et moments de « … » » hors formulaire (cellule « Échéance ») ; `onApply` reçoit la répétition entière. Utilisée par `RepetitionCell`.                                                                                   |
-| `RoutineSchedule({ values, errors, onChange, onCommit?, inherited? })`               | Bloc « Quand » du formulaire (`inherited` : sous-routine, répétition et lieu dans `InheritedField`) : `RepetitionField` (résumé et fenêtre), lieu (`EventLocation` par `useFormLocation`), trajets (`TravelField`, `TravelCalculator`) ; `onCommit` enregistre tout de suite le lieu (choisi, vidé ou quitté) et les trajets (quittés ou calculés) dans le panneau d’une routine existante ; rappels (`RemindersSelect` aux quatre repères `ROUTINE_REMINDER_ANCHORS`, tous les types toujours : un moment sans heure va de 0 h à minuit), ligne départ / retour. |
+| `RoutineRepetition({ values, errors, onChange, onCommit?, inherited? })`            | « Répétition et moments » du panneau (`inherited` : sous-routine, dans `InheritedField`), directement dans le panneau (`LabeledField` et `RoutineRepetitionEditor`, sans la première fois, montrée à part dans « Planification ») : chaque changement donné aussitôt par `onChange`, `onCommit(ROUTINE_REPETITION_KEYS)` dès qu’un choix est fait (mode, fréquence, cas, « Facultatif », moment ajouté ou retiré, condition, « Ouverture »…) et une heure ou un nombre une fois quitté. |
+| `RoutinePlace({ values, errors, onChange, onCommit?, inherited? })`                  | Groupe « Lieu » : lieu (`EventLocation` par `useFormLocation`, hérité dans `InheritedField`), trajets (`TravelTimes`, « Pour y aller » / « Pour en revenir ») et la ligne départ / retour (`routineSchedule`, un seul moment), montrée seulement avec un trajet aller ; `onCommit` enregistre tout de suite le lieu (choisi, vidé ou quitté) et les trajets (quittés ou calculés). |
+| `RoutineReminders({ values, errors, onChange })`                                     | « Rappels » (`RemindersSelect` aux quatre repères `ROUTINE_REMINDER_ANCHORS` ; sans aucune heure, seulement à une heure du jour). |
 
-Internes : `RoutineScheduleValues`, `RoutineRepetitionValue`, `RoutineTimes`, `ANY_TIME`, `MomentsEditor` (moments avec « Facultatif »), `describeMoments`, `routineTimes(names)` (moments, condition et « Ouverture » pour l'éditeur commun), `editedCases`, `fittingOpens`, `withEditedCases`, `RoutineRepetitionEditor` (première fois et `RepetitionEditor` en mode règle ou cas), `describeRepetition`, `routineRepetitionValue`, `validRepetition`.
+Internes : `RoutineScheduleValues`, `RoutineFieldsProps`, `inheritedProps`, `RoutineRepetitionValue`, `RoutineTimes`, `ANY_TIME`, `MomentsEditor` (moments avec « Facultatif » ; `onCommit` après un choix, une heure quittée), `describeMoments`, `routineTimes(names)` (moments, condition et « Ouverture » pour l'éditeur commun, qui leur passe son `onCommit`), `editedCases`, `fittingOpens`, `withEditedCases`, `RoutineRepetitionEditor` (première fois, sauf `withStart={false}` dans le panneau, et `RepetitionEditor` en mode règle ou cas, `onCommit` transmis), `routineRepetitionValue`, `validRepetition`.
 
 ### `components/OpensOnInput.tsx`
 
 | Export                                                 | Rôle                                                                                                                                                           |
 | ------------------------------------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `OpensOnInput({ frequency, value, onChange, error? })` | Champ « Ouverture » : modes selon la fréquence, jour, position, jour de semaine, mois, semaine, jours avant. Utilisé par `RoutineSchedule` et `OpensOnCell`. |
+| `OpensOnInput({ frequency, value, onChange, onCommit?, error? })` | Champ « Ouverture » : modes selon la fréquence, jour, position, jour de semaine, mois, semaine, jours avant ; `onCommit` après un choix, un nombre une fois quitté. Utilisé par la répétition des routines (`RoutineSchedule.tsx`) et `OpensOnCell`. |
 
 Internes : `NONE`, `modeOptions(frequency)`, `firstValue(mode, frequency)`.
 
@@ -92,15 +94,21 @@ Internes : `NONE`, `modeOptions(frequency)`, `firstValue(mode, frequency)`.
 
 | Export                                       | Rôle                                                                                                                                                     |
 | -------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `SlotTimesFields({ value, onChange, name })` | Deux `TimePicker` « dès » / « avant » d'un moment (`rangeProps` : l'autre suit quand ils se croisent). Utilisé par `MomentsEditor` et `RoutineMoveForm`. |
+| `SlotTimesFields({ value, onChange, name, onBlur? })` | Deux `TimePicker` « dès » / « avant » d'un moment (`rangeProps` : l'autre suit quand ils se croisent) ; `onBlur` en quittant l'un d'eux. Utilisé par `MomentsEditor` et `RoutineMoveForm`. |
 
 ### `components/RoutineMoveForm.tsx`
 
 | Export                                   | Rôle                                                                                                                                                                                           |
 | ---------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `RoutineMoveForm({ routineId, onDone })` | Panneau « Reporter ou annuler » : occurrence (30 jours avant à 68 après), nouvelle date, horaires, « Annuler l'occurrence » (confirmation), liste des exceptions avec « Remettre à son jour ». |
+| `RoutineMoveForm({ routineId, onDone })` | Panneau « Reporter ou annuler » : occurrence (30 jours avant à 68 après, avec dessous quand elle ouvre : `OccurrenceOpening`), nouvelle date, horaires, « Annuler l'occurrence » (confirmation), liste des exceptions avec « Remettre à son jour ». |
 
 Internes : `shortText`, `PAST_DAYS`, `NEXT_DAYS`, `Times`, `timesOf(occurrence)`.
+
+### `components/OccurrenceOpening.tsx`
+
+| Export                                             | Rôle |
+| -------------------------------------------------- | ---- |
+| `OccurrenceOpening({ routine, occurrence, children })` | L’échéance d’une occurrence (`children` : le champ ou la ligne qui la montre) avec dessous, en petit et atténué, quand elle ouvre (`occurrenceOpensWords`) ; sans « Ouverture » (ou sans routine ni occurrence), l’échéance seule. Utilisé par `RoutineMoveForm`, `TickForm` (`RoutineDayAgenda`) et `RoutineOccurrenceForm` (agenda). |
 
 ### `components/RoutineHistory.tsx`
 
@@ -108,17 +116,17 @@ Internes : `shortText`, `PAST_DAYS`, `NEXT_DAYS`, `Times`, `timesOf(occurrence)`
 | ------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `RoutineHistory({ routineId, onRoutine })` | Onglet « Historique » : navigation par jour (`PeriodNav`), filtre de routine, calques créneaux / calendriers (localStorage `ordo.routines.history.layers`), résumé, `RoutineDayAgenda`. |
 
-Interne : `historyItems(occurrences, checks, byId)` (moments prévus du jour, triés par heure puis libellé).
+Le jour vient de `useRoutineDay(day, routineId)`.
 
 ### `components/RoutineDayAgenda.tsx`
 
 | Export                                                  | Rôle                                                                                                                                                                      |
 | ------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `HistoryItem`                                           | Moment de l'historique : routine, jour, index, horaires, `planned`, `optional`, `movedFrom`, `check`.                                                                     |
+| `HistoryItem`                                           | Moment de l'historique : routine, jour, premier jour de l’occurrence (`startDate`), index, horaires, `planned`, `optional`, `movedFrom`, `check`.                                                                     |
 | `AgendaLayers`                                          | `{ scheduleIds, calendarIds }` affichés avec les routines.                                                                                                                |
 | `RoutineDayAgenda({ day, today, items, byId, layers })` | Agenda FullCalendar d'un jour : horaires des créneaux en fond, évènements des calendriers (non archivés), moments des routines colorés par état, de leur début à leur fin (`routineSlotSpan` avec `routineMinutes(estimate)` : le temps estimé, 30 min sans lui) ; un clic ouvre `TickForm` (avec `CountdownLaunchButtons` pour l’occurrence : temps morts et minuteurs enregistrés), sauf pour une routine archivée (estompée, « (archivée) », lecture seule). |
 
-Internes : `ItemState`, `STATES` (couleur et texte), `MIDNIGHT` (`24:00`, fin à minuit après le jour), `historyItemState`, `proposedTime`, `TickForm` (cocher après coup à une heure, changer l'heure, décocher, avec annulation).
+Internes : `ItemState`, `STATES` (couleur et texte), `MIDNIGHT` (`24:00`, fin à minuit après le jour), `historyItemState`, `proposedTime`, `TickForm` (jour, horaires et état, avec dessous quand l’occurrence ouvre, `OccurrenceOpening` ; cocher après coup à une heure, changer l'heure, décocher, avec annulation).
 
 ### `components/DoneToggle.tsx`
 
@@ -152,6 +160,7 @@ Cellules éditables du tableau (toutes passent par `useRoutineCellEdit`, donc pa
 | `RoutineLabelCell`         | Libellé : clic ouvre le formulaire, double-clic renomme.                                                                                     |
 | `EstimateCell`             | Temps estimé (minutes).                                                                                                                      |
 | `CategoriesCell`           | Catégories (chemins, avatars), ajouts / retraits en masse.                                                                                   |
+| `RoutineLabelChipCell`     | `column` `priority` ou `type` : pastille choisie sur place (`ChipChoiceCell`) parmi les listes des tâches (`items`) ; re-choisir la valeur la vide ; sur une sélection, `priorityId` / `typeId` donnés à toutes. |
 | `AssigneesCell`            | Assignés (contributeurs du ou des projets).                                                                                                  |
 | `RoutineLinksCell`         | `kind` `requires` (« Dépend de », icône faite / non faite) ou `related` (« Relative à ») : routines de son arborescence (`linkableRoutine`). Sur une sélection, les deux passent par une modification en masse (`addRequiredIds` / `removeRequiredIds`, `addRelatedIds` / `removeRelatedIds`) avec « Annuler ». |
 | `ProjectCell`              | Projet.                                                                                                                                      |
@@ -159,7 +168,7 @@ Cellules éditables du tableau (toutes passent par `useRoutineCellEdit`, donc pa
 | `RepetitionCell`           | Bouton ouvrant `RoutineRepetitionModal` (contenu : `StateCell`).                                                                             |
 | `RoutineBeneficiariesCell` | Bénéficiaires (`beneficiariesDiff`).                                                                                                         |
 
-Interne : `CellProps`.
+Internes : `CellProps`, `LABEL_FIELDS`.
 
 ### `components/extra-cells.tsx`
 
@@ -172,7 +181,7 @@ Interne : `CellProps`.
 | `TravelCell`        | Trajet aller / retour.                                                                                                |
 | `RemindersCell`     | Rappels (badge cloche, `RemindersSelect` aux quatre repères `ROUTINE_REMINDER_ANCHORS`, une ligne par rappel, bulle de 480 px), différence appliquée à chaque routine sélectionnée. |
 | `OpensOnCell`       | « Ouverture » (pas pour une routine à cas) ; en masse, seulement aux routines dont la fréquence convient.           |
-| `BlocksCell`        | Routines qui attendent celle-ci (de son arborescence, `linkableRoutine`) ; patch des dépendances des autres routines. |
+| `BlocksCell`        | Routines qui attendent celle-ci (`blockedRoutineIds`, de son arborescence, `linkableRoutine`) ; dépendances des autres routines écrites par `useSetBlockedRoutines` (chaque routine de la sélection). |
 
 Interne : `hasOwnTimes(routine)`.
 
@@ -204,6 +213,11 @@ Classes `table` (taille de police), `row` (survol, lignes `data-done` / `data-ar
 
 ## `hooks/`
 
+### `hooks/use-routine-day.ts`
+
+- `RoutineDay` (interface) : routines, `byId`, moments prévus du jour (`items`), cochés (`doneCount`), chargement.
+- `useRoutineDay(day, routineId?)` : chaque moment prévu ce jour-là (`useRoutineOccurrences` du jour, annulées écartées, une routine seule ou toutes) avec sa coche (`useRoutineChecks`), triés par heure puis libellé (interne `historyItems`), et combien sont cochés. Utilisé par `RoutineHistory` (onglet « Historique ») et `RoutinesNavBadge` (barre latérale, aujourd’hui).
+
 ### `hooks/use-routine-columns.ts`
 
 | Export | Rôle |
@@ -219,6 +233,12 @@ Classes `table` (taille de police), `row` (survol, lignes `data-done` / `data-ar
 | `usePostponeRoutine()` | `(routine)` : reporte au lendemain. Utilisé par le menu, la barre de sélection et `LifeCards` (seulement s’il y a une occurrence à reporter, `movableOccurrence`).                                                   |
 
 Interne : `MovedTimes`.
+
+### `hooks/use-routine-blocks.ts`
+
+| Export                            | Rôle                                                                                                                                                                                                                                       |
+| --------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `useSetBlockedRoutines(routines)` | `(blocked, next, blockers)` : change le « Bloque » de routines : les routines ajoutées dépendent ensuite de chaque routine de `blockers`, les retirées plus ; `patch` de leur `requiredIds` (contrôles de l’API, erreur en toast). Utilisé par `RoutineForm` et `BlocksCell`. |
 
 ### `hooks/use-convert-activity.tsx`
 
@@ -255,8 +275,9 @@ Héritage des sous-routines à l’écran (règles : [Héritage](../../../busine
 | --- | --- |
 | `routineRow(routine)` | Routine telle que les écrans la lisent : chaque champ hérité avec la valeur suivie (`inheritedRow` sur `ROUTINE_INHERITED_COLUMNS`), ses horaires ceux de son premier moment. Ses occurrences sont celles que l’API calcule, sur le même « quand » suivi. |
 | `ROUTINE_FIELD_LABELS` | Nom de chaque champ hérité. |
-| `ROUTINE_INHERITANCE_OPTIONS` | Champs de « Héritage… » : tous les champs hérités (projet, catégories, assignés, bénéficiaires, lieu, créneaux, « Ouverture », première fois, répétition, cas, moments, exceptions) ; « Vider » sauf pour la première fois et la répétition. |
-| `ROUTINE_SCHEDULE_FIELDS` | Champs du bloc « Quand » du panneau : première fois, répétition, cas, moments, « Ouverture », condition. |
+| `ROUTINE_INHERITANCE_OPTIONS` | Champs de « Héritage… » : tous les champs hérités (projet, catégories, priorité, assignés, bénéficiaires, lieu, créneaux, « Ouverture », première fois, répétition, cas, moments, exceptions) ; « Vider » sauf pour la première fois et la répétition. |
+| `ROUTINE_REPETITION_FIELDS` | Champs de « Répétition et moments » du panneau, hérités et rétablis ensemble : répétition, cas, moments, « Ouverture », condition (la première fois à part). |
+| `ROUTINE_REPETITION_KEYS` | Clés du formulaire que « Répétition et moments » change dans le panneau (`recurrence`, `cases`, `slotCondition`, `moments`, `opensOn`), enregistrées ensemble à son `onCommit`. |
 | `ROUTINE_CELL_FIELDS` | Champ hérité de chaque colonne du tableau. |
 | `routineParentName(routine, byId)` | « « Libellé » », nom de la parente dans les mentions. |
 
@@ -271,6 +292,7 @@ Héritage des sous-routines à l’écran (règles : [Héritage](../../../busine
 | `routineTreeOptions(routines, offered?, label?)`       | Options d'un select en arbre (non proposées grisées). Utilisé aussi par `features/time`.                                                                                                  |
 | `routinePath(routine, byId)`                           | « Linge › Étendre ».                                                                                                                                                                      |
 | `waitingFor(routine, byId)`                            | Routines requises encore à faire.                                                                                                                                                         |
+| `blockedRoutineIds(routines, id)`                      | « Bloque » d'une routine : les routines qui dépendent d'elle. Utilisé par `RoutineForm`, `BlocksCell` et les colonnes (`routine-columns`).                                                |
 | `linkableRoutine(context, projectId, selfId, linked?)` | Routines proposées pour un lien (« Dépend de », « Bloque », « Relative à ») : pas elle-même, non archivées, de son arborescence de projets (`inProjectTree`) ; celles déjà liées restent. |
 | `windowOf(routine)`                                    | `{ fromTime: windowFrom, dueTime: windowTo }`.                                                                                                                                            |
 | `scheduleOf(routine)`                                  | Départ / retour (`routineSchedule`).                                                                                                                                                      |
@@ -287,6 +309,7 @@ Héritage des sous-routines à l’écran (règles : [Héritage](../../../busine
 | Export                      | Rôle                                                                                                                               |
 | --------------------------- | ---------------------------------------------------------------------------------------------------------------------------------- |
 | `opensWords(routine)`       | « Ouverture » de la règle en clair, capitalisé.                                                                                  |
+| `occurrenceOpensWords(routine, occurrence)` | Quand une occurrence ouvre (`occurrenceOpensText`) : l’« Ouverture » qu’elle suit (celle de son cas, `routineCaseOn` sur son jour dans la règle, sinon de la règle ; la routine lue comme les écrans la lisent, héritage compris) et son premier jour donné par l’API (`startDate` de `routineOccurrences`, jamais recalculé) ; `null` sans « Ouverture ». |
 | `ROUTINE_STATE_LABELS`      | « En retard », « À faire », « À venir », « Faite ».                                                                                |
 | `REPETITION_LABELS`         | « Chaque jour » … « Selon un planning ».                                                                                           |
 | `routineFrequency(routine)` | Fréquence (quotidienne par défaut).                                                                                                |
@@ -296,9 +319,9 @@ Héritage des sous-routines à l’écran (règles : [Héritage](../../../busine
 
 | Export                | Rôle                                                                                                                              |
 | --------------------- | --------------------------------------------------------------------------------------------------------------------------------- |
-| `routineColumns(env)` | Définitions des colonnes du tableau (libellés, tri, texte, filtres, totaux, `groupTree` des catégories, colonne de commentaires ; « Faite », « En attente », « Faisable maintenant » par `booleanColumn`, nommées « Faites » / « À faire », « En attente » / « Libre » et `DOABLE_GROUP_LABELS`). |
+| `routineColumns(env)` | Définitions des colonnes du tableau (libellés, tri, texte, filtres, totaux, `groupTree` des catégories, « Priorité » et « Type » des listes des tâches (`context.priorities` / `context.types` : tri dans l’ordre de la liste, filtre `choice`, groupes), colonne de commentaires ; « Faite », « En attente », « Faisable maintenant » par `booleanColumn`, nommées « Faites » / « À faire », « En attente » / « Libre » et `DOABLE_GROUP_LABELS`). |
 
-Interne : `dayText(date)`.
+Internes : `dayText(date)`, `labelColumn` (colonne « Priorité » ou « Type »).
 
 ### `lib/routine-cell-edit.ts`
 
@@ -314,7 +337,8 @@ Internes : `RoutineColumn`, `TABLE_COLUMNS`, `useBulkRoutineChanges` (instantan�
 
 | Export                        | Rôle                                                                                                                          |
 | ----------------------------- | ----------------------------------------------------------------------------------------------------------------------------- |
-| `opensText(opens, frequency)` | « le 15 du mois », « le 2e mardi de mars », « 3 jours avant l'échéance », « la veille de l'échéance » ; vide si incompatible. |
+| `opensText(opens, frequency, { ofDue })` | « le 15 du mois », « le 2e mardi de mars », « 3 jours avant l'échéance », « la veille de l'échéance » ; `ofDue: false` : « 3 jours avant », « la veille » (sous l’échéance) ; vide si incompatible. |
+| `occurrenceOpensText(opens, frequency, open, due)` | Ligne d’aide sous l’échéance d’une occurrence : « Ouverte 3 jours avant (le 5 nov.) », « Ouverte dès la veille (le 4 nov.) », « Ouverte dès le 15 du mois (le 15 oct.) », « Ouverte le jour même » (premier jour = échéance) ; vide si incompatible. |
 
 ### `lib/open-routine-form.tsx`
 
@@ -336,4 +360,5 @@ Internes : `RoutineColumn`, `TABLE_COLUMNS`, `useBulkRoutineChanges` (instantan�
 - `features/alarms/` : `useRoutinesData`, `useRoutineMutations`, `isDone`, `windowText`.
 - `features/time/` : `useRoutinesData`, `routineTreeOptions`, `routinesKey`.
 - `features/projects/pages/ProjectPage.tsx` : `RoutinesPanel`.
+- `features/projects/components/NavBadges.tsx` : `useRoutineDay`.
 - `app/router.tsx` : `RoutinesPage`.

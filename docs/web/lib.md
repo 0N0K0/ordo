@@ -10,13 +10,14 @@ Fonctions et hooks transverses de l'application web : client GraphQL, mutations,
 - `GraphQLRequestError` (classe) : erreur de l'API, avec `code` (défaut `INTERNAL_SERVER_ERROR`), `fields` (messages par champ, lus par `showFormError`) et `extensions` (les autres, par exemple `lost` de `CONFIRMATION_REQUIRED`).
 - `execute(document, variables?)` : lance une opération GraphQL typée (générée par codegen) sur `/api/graphql`, cookie de session compris, dans l'espace de l'onglet. Des `File` dans les variables envoient une requête multipart (spécification GraphQL multipart, fonctions internes `extractFiles`, `buildBody`).
 - `executeIn(workspace, document, variables?)` : la même dans un autre espace (notifications d'un autre espace : mails, agenda).
+- `onResponseExtensions(listener)` : suit les `extensions` de toute réponse de l’API qui en a (les automatisations des tâches qu’un changement a appliquées, lues par `TaskAutomationToasts`) ; renvoie de quoi arrêter.
 - Erreurs : serveur injoignable → « Le serveur est injoignable. » (code `NETWORK_ERROR`) ; première erreur GraphQL relancée ; réponse vide ou en erreur → « Une erreur inattendue est survenue. ». Fonction interne `request`.
 
 Voir [Erreurs](../business-rules/cross-cutting/errors.md).
 
 ### `query-keys.ts`
 
-Clés TanStack Query partagées entre features : `tasksQueryKey`, `doableTasksKey`, `routinesKey`, `timeQueryKey`, `accountingQueryKey`, `treasuryKey`, `treasurySettingsKey`, `calendarQueryKey`, `SLOT_DEPENDENT_KEYS`, `birthdaysQueryKey`. Chaque `features/<feature>/api` réexporte les siennes. Elles vivent dans ce module sans import parce que les modules `api` des features s'importent en cycle (tâches → routines → temps → agenda → tâches) : une clé dérivée d'une autre en tête de l'un d'eux pouvait la lire avant qu'elle soit définie (« Q is not iterable » au chargement). Garde eslint : une clé exportée (`…Key`, `…KEYS`) construite à partir d'une autre se déclare ici.
+Clés TanStack Query partagées entre features : `tasksQueryKey`, `doableTasksKey`, `taskAutomationsQueryKey`, `routinesKey`, `timeQueryKey`, `accountingQueryKey`, `treasuryKey`, `treasurySettingsKey`, `calendarQueryKey`, `SLOT_DEPENDENT_KEYS`, `birthdaysQueryKey`. Chaque `features/<feature>/api` réexporte les siennes. Elles vivent dans ce module sans import parce que les modules `api` des features s'importent en cycle (tâches → routines → temps → agenda → tâches) : une clé dérivée d'une autre en tête de l'un d'eux pouvait la lire avant qu'elle soit définie (« Q is not iterable » au chargement). Garde eslint : une clé exportée (`…Key`, `…KEYS`) construite à partir d'une autre se déclare ici.
 
 ### `query-client.ts`
 
@@ -153,6 +154,7 @@ Un format par rôle (importé en `fmt`) ; à l'écran la forme lisible, la forme
 | `daysAgo(days)`                | « aujourd'hui », « il y a 3 jours »     | Ancienneté en jours                                               |
 | `daysLate(due, today)`         | « 3 j de retard »                       | Retard                                                            |
 | `fromNow(date)`                | « il y a 3 heures », « hier »           | Temps relatif (commentaire)                                       |
+| `countdown(seconds)`           | « 12 min », « 2 h », « 3 j »            | Temps jusqu’à un moment, dans sa plus grande unité entière (minutes arrondies au-dessus, 1 min au moins) : pastille « Alarmes » |
 
 `PICKER_FORMATS` : formats d'affichage des sélecteurs de dates Mantine (`D MMM YYYY`, `ddd D MMM YYYY`, `D MMM YYYY HH:mm`, `MMMM YYYY`, `YYYY`), appliqués par défaut dans `app/theme.ts`.
 
@@ -181,7 +183,7 @@ eslint interdit `.slice(0, 10)`, `.slice(0, 7)`, `.split('T')[0]` et `new Date('
 ### `week.ts`
 
 - `currentWeek()` : semaine de l'espace affiché (premier et dernier jours), lue dans les espaces chargés ; lundi-dimanche (`DEFAULT_WEEK`) avant.
-- `pickerFirstDay(week)` : premier jour de la semaine pour les sélecteurs (0 = dimanche à 6).
+- `calendarFirstDay(week)` : premier jour de la semaine de l'agenda (FullCalendar, 0 = dimanche à 6) ; les sélecteurs de date commencent toujours le lundi (`WeekDatesProvider`).
 
 ### `use-now.ts`
 

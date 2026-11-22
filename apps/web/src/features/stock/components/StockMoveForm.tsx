@@ -1,7 +1,7 @@
 import { formCallbacks } from '../../../lib/form';
 import { SegmentedControl, Select, Stack, Text } from '@mantine/core';
 import { STOCK_MOVEMENT_LABELS, type StockMovementKind } from '@ordo/shared';
-import { DatePickerInput } from '@mantine/dates';
+import { DateField } from '../../../components/inputs/DateField';
 import { useState } from 'react';
 import * as fmt from '../../../lib/format';
 import { useStockMutations, type StockItem } from '../api';
@@ -47,7 +47,7 @@ export function StockMoveForm({ item, kind: initial = 'CONSUMPTION', onDone }: {
           onChange={setLotId}
         />
       )}
-      {adding && item.perishable && !lotId && <DatePickerInput label="Date de péremption" placeholder="Aucune" clearable value={expiresAt} onChange={(value) => setExpiresAt(value || null)} />}
+      {adding && item.perishable && !lotId && <DateField label="Date de péremption" placeholder="Aucune" clearable value={expiresAt} onChange={(value) => setExpiresAt(value || null)} />}
       <MarkdownEditor label="Note" value={note} onChange={setNote} suggestions={NO_SUGGESTIONS} minRows={2} />
       <FormActions
         onCancel={onDone}

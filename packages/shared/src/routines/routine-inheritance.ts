@@ -2,8 +2,8 @@ import { emptyInheritedFields, inheritanceChain, inheritedFieldsGiven, marksInhe
 
 /**
  * Fields a sub-routine inherits from its parent: project, assignees, beneficiaries (people and
- * relations), slot condition, « Ouverture », place (not the travel times), categories, and its « quand »: first time,
- * repetition, cases, times of the day, exceptions.
+ * relations), slot condition, « Ouverture », place (not the travel times), categories, priority (as a sub-task; not its
+ * type), and its « quand »: first time, repetition, cases, times of the day, exceptions.
  */
 export const ROUTINE_INHERITABLE_FIELDS = [
   'PROJECT',
@@ -13,6 +13,7 @@ export const ROUTINE_INHERITABLE_FIELDS = [
   'OPENS_ON',
   'LOCATION',
   'CATEGORIES',
+  'PRIORITY',
   'START_DATE',
   'RECURRENCE',
   'CASES',
@@ -35,6 +36,7 @@ export interface InheritingRoutine extends InheritingItem {
   beneficiaryIds: readonly string[];
   beneficiaryRelationIds: readonly string[];
   categoryIds: readonly string[];
+  priorityId: string | null;
   slotCondition: unknown;
   /** Former form of its condition (read into it). */
   scheduleIds?: readonly string[];
@@ -65,6 +67,7 @@ export const ROUTINE_INHERITED_COLUMNS: InheritedColumns<InheritingRoutine, Rout
   OPENS_ON: ['opensOn'],
   LOCATION: ['location', 'locationLat', 'locationLon'],
   CATEGORIES: ['categoryIds'],
+  PRIORITY: ['priorityId'],
   START_DATE: ['startDate'],
   RECURRENCE: ['recurrence', 'scheduleId', 'scheduleAnchor'],
   CASES: ['cases'],
@@ -157,6 +160,7 @@ export const ROUTINE_FIELD_INPUTS: Record<RoutineInheritableField, readonly stri
   OPENS_ON: ['opensOn'],
   LOCATION: ['location'],
   CATEGORIES: ['categoryIds', 'addCategoryIds', 'removeCategoryIds'],
+  PRIORITY: ['priorityId'],
   START_DATE: ['startDate'],
   // A repetition of its own leaves its cases too.
   RECURRENCE: ['recurrence'],

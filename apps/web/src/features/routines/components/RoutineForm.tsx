@@ -1,7 +1,9 @@
 import { readDeadTimes, readReminders, type DeadTime, type Reminder } from '@ordo/shared';
 import { removedLinksNote } from '../../../lib/text';
-import { NO_SUGGESTIONS } from '../../../components/markdown/remark-references';
-import { Divider, Fieldset, Grid, Group, NumberInput, Select, Stack, TextInput } from '@mantine/core';
+import { NO_SUGGESTIONS, NO_TARGETS } from '../../../components/markdown/remark-references';
+import { Group, NumberInput, Select } from '@mantine/core';
+import { ArrowSquareInIcon } from '@phosphor-icons/react';
+import { ActionButton } from '../../../components/actions/ActionButton';
 import {
   opensFits,
   readOpens,
@@ -24,16 +26,24 @@ import { unarchived, unarchivedOffered } from '../../../lib/archive';
 import { localToday } from '../../../lib/dates';
 import { useAppForm, useFieldSave, formCallbacks } from '../../../lib/form';
 import { notifySuccess } from '../../../lib/notify';
-import { SaveStatus } from '../../../components/feedback/SaveStatus';
-import { AssigneesSelect, ProjectSelect } from '../../tasks/components/task-ui';
+import { ArchivedBadge } from '../../../components/feedback/ArchivedBadge';
+import { EmptyState } from '../../../components/feedback/EmptyState';
+import { AddItemButton } from '../../../components/actions/AddItemButton';
+import { DateField } from '../../../components/inputs/DateField';
+import { FormDescription } from '../../../components/markdown/DescriptionSection';
+import { DetailLayout, PanelGroup } from '../../../components/panels/DetailLayout';
+import { PANEL_GROUPS } from '../../../components/panels/panel-groups';
+import { TrackedTime } from '../../time/components/TrackedTime';
+import { RoutineDoneToggles } from './DoneToggle';
+import { openRoutineForm } from '../lib/open-routine-form';
+import { AssigneesSelect, LabelSelect, ProjectSelect } from '../../tasks/components/task-ui';
 import { useTaskContext } from '../../tasks/hooks/use-task-context';
 import { useRoutineMutations, useRoutinesData, type Routine } from '../api';
-import { DAILY, linkableRoutine, panelOccurrence, routineTreeOptions, ruleOf } from '../lib/routine-format';
+import { blockedRoutineIds, DAILY, linkableRoutine, panelOccurrence, routineTreeOptions, ruleOf } from '../lib/routine-format';
 import * as fmt from '../../../lib/format';
-import { RoutineSchedule } from './RoutineSchedule';
+import { RoutinePlace, RoutineReminders, RoutineRepetition } from './RoutineSchedule';
 import { treeSelectProps } from '../../../components/tree/tree-select';
 import { BeneficiariesSelect } from '../../beneficiaries/components/BeneficiariesSelect';
-import { MarkdownEditor } from '../../../components/markdown/MarkdownEditor';
 import { Comments } from '../../comments/components/Comments';
 import { SheetsSection } from '../../sheets/components/SheetsSection';
 import { useRoutineCategoryItems } from '../hooks/use-category-items';
@@ -45,6 +55,7 @@ import { LinksField } from '../../../components/inputs/LinksField';
 import { linkInputs } from '../../../lib/links';
 import { ActionsMenu } from '../../../components/actions/ActionsMenu';
 import { useConvertActivity } from '../hooks/use-convert-activity';
+import { useSetBlockedRoutines } from '../hooks/use-routine-blocks';
 import { useRoutineRowsActions } from './RoutineBulkBar';
 import { rowMenuEntry } from '../../../components/data-table/selection/selection-actions';
 import type { RowMenuEntry } from '../../../components/actions/ActionsMenu';
@@ -55,12 +66,14 @@ import { routinesKey } from '../../../lib/query-keys';
 import { routineCountdownItem } from '../lib/routine-countdowns';
 import { formInheritance } from '../../../components/inheritance/form-inheritance';
 import { InheritedField } from '../../../components/inheritance/InheritedField';
-import { ROUTINE_FIELD_LABELS, ROUTINE_SCHEDULE_FIELDS, routineParentName } from '../lib/routine-inheritance';
+import { ROUTINE_FIELD_LABELS, ROUTINE_REPETITION_FIELDS, ROUTINE_REPETITION_KEYS, routineParentName } from '../lib/routine-inheritance';
 
 interface RoutineFormValues extends Record<string, unknown> {
   label: string;
   description: string;
   categoryIds: string[];
+  priorityId: string | null;
+  typeId: string | null;
   parentId: string | null;
   startDate: string;
   recurrence: Recurrence;
@@ -93,6 +106,7 @@ interface RoutineFormValues extends Record<string, unknown> {
 const FORM_COLUMNS: Partial<Record<RoutineInheritableField, readonly (keyof RoutineFormValues & string)[]>> = {
   PROJECT: ['projectId'],
   CATEGORIES: ['categoryIds'],
+  PRIORITY: ['priorityId'],
   ASSIGNEES: ['assigneeIds'],
   BENEFICIARIES: ['beneficiaryIds', 'beneficiaryRelationIds'],
   LOCATION: ['location', 'locationLat', 'locationLon'],
@@ -130,6 +144,8 @@ function routineFormValues(routine: Routine): RoutineFormValues {
     label: routine.label,
     description: routine.description ?? '',
     categoryIds: routine.categoryIds,
+    priorityId: routine.priorityId ?? null,
+    typeId: routine.typeId ?? null,
     parentId: routine.parentId,
     startDate: routine.startDate,
     recurrence: ruleOf(routine) ?? DAILY,
@@ -170,8 +186,11 @@ function formInput(values: RoutineFormValues, inheritedFields: RoutineInheritabl
   return { ...values, description: values.description || null, opensOn, inheritedFields };
 }
 
-/** Fields of a routine saved on leaving them, in its panel: texts, numbers, its links and its place. */
-const ON_BLUR = ['label', 'description', 'estimate', 'links', 'location', 'locationLat', 'locationLon', 'travelBefore', 'travelAfter'] as const;
+/**
+ * Fields of a routine saved on leaving them, in its panel: texts, numbers, its links and its place; its repetition once
+ * a value is chosen or an hour, a number left (`RoutineRepetition`'s `onCommit`), never on each key typed.
+ */
+const ON_BLUR = ['label', 'description', 'estimate', 'links', 'location', 'locationLat', 'locationLon', 'travelBefore', 'travelAfter', ...ROUTINE_REPETITION_KEYS] as const;
 
 export interface RoutineFormProps {
   /** Routine edited. */
@@ -188,11 +207,13 @@ export interface RoutineFormProps {
 }
 
 /**
- * Routine, laid out as the task panel: title; description and when it comes (first date, repetition, « Ouverture »)
- * on the left; project, categories, assignees, beneficiaries, time to spend, slots, parent routine, the routines it
- * depends on and those it is related to (of its project tree, as the tasks) on the right. A new routine is a form with
- * « Créer »; an existing one, its panel, saves each field as soon as it changes (texts and numbers on leaving them,
- * `useFieldSave`), « Enregistrement… » / « Enregistré » at its top.
+ * Routine, laid out as the task and event panels (`DetailLayout`): its done switch, its label and its « … » menu, then
+ * its project; on the left its description, « Relations » (parent routine, sub-routines, the routines it depends on,
+ * those that depend on it — written in theirs — and those it is related to, of its project tree as the tasks), its repetition and the comments of the occurrence open;
+ * on the right « Classement » (categories, priority and type, the lists of the tasks), « Parties prenantes », « Planification » (first time, time to spend, dead
+ * times, time tracked), « Lieu », « Alarmes » (reminders, saved timers) and « Ressources » (links, sheets). A new
+ * routine is a form with « Créer »; an existing one saves each field as soon as it changes (texts and numbers on
+ * leaving them, its repetition right in the panel once a value is chosen or a number left, `useFieldSave`), « Enregistrement… » / « Enregistré » in its header.
  * @param {RoutineFormProps} props Component props.
  * @returns {JSX.Element} Form.
  */
@@ -205,6 +226,7 @@ export function RoutineForm({ routine, parent, categoryId = null, projectId = nu
   const rowActionsOf = useRoutineRowsActions();
   const countdownEntries = useCountdownMenuEntries();
   const routines = data?.routines ?? [];
+  const setBlocked = useSetBlockedRoutines(routines);
   const base = useAppForm<RoutineFormValues>({
     initialValues: routine
       ? routineFormValues(routine)
@@ -212,6 +234,9 @@ export function RoutineForm({ routine, parent, categoryId = null, projectId = nu
           label: '',
           description: '',
           categoryIds: parent?.categoryIds ?? (categoryId ? [categoryId] : []),
+          priorityId: parent?.priorityId ?? null,
+          // Its type is its own (not inherited, as a sub-task's).
+          typeId: null,
           parentId: parent?.id ?? null,
           startDate: parent && parent.startDate > localToday() ? parent.startDate : localToday(),
           recurrence: (parent && ruleOf(parent)) ?? DAILY,
@@ -335,143 +360,204 @@ export function RoutineForm({ routine, parent, categoryId = null, projectId = nu
   // A new routine only: an existing one is saved field by field (Enter saves the text typed).
   const handleSubmit = form.onSubmit((values) => create.mutate(inputOf(values), formCallbacks(form, 'Routine créée.', onDone)));
 
+  // « Bloque »: the routines that depend on this one.
+  const blocked = current ? blockedRoutineIds(routines, current.id) : [];
+  const subRoutines = routine ? routines.filter((item) => item.parentId === routine.id) : [];
+  const commentsDate = routine ? (occurrenceDate ?? panelOccurrence(routine)) : null;
+  // The fields of its « quand » and its place, with the inheritance of a sub-routine.
+  const scheduleProps = { values: form.values, errors: form.errors, onChange: (changes: Partial<RoutineFormValues>) => form.setValues(changes), onCommit: commit };
+
   return (
     <form onSubmit={handleSubmit} noValidate>
-      {current && (
-        // Out of the fieldset: archived (read only), its menu still offers « Restaurer » and « Supprimer ».
-        <Group justify="flex-end" gap="xs" wrap="nowrap" mb="lg">
-          {!readOnly && <SaveStatus saving={saving} />}
-          <ActionsMenu about="la routine" items={menu(current)} variant="light" size="input-xs" />
-        </Group>
-      )}
-      <Fieldset variant="unstyled" disabled={readOnly} p={0} m={0}>
-        <Stack gap="lg">
-          <TextInput label="Libellé" required data-autofocus={routine ? undefined : true} {...form.getInputProps('label')} />
-          {/* As the task panel: the text and when it comes on the left, its properties on the right. */}
-          <Grid gap="xl">
-            <Grid.Col span={{ base: 12, md: 8 }}>
-              <Stack gap="md">
-                <MarkdownEditor label="Description" {...fieldProps('description')} suggestions={context?.suggestionsFor(form.values.projectId) ?? NO_SUGGESTIONS} minRows={3} />
-                <LinksField form={form} onRemoved={() => commit(['links'])} />
-                <SubSection title="Quand" gap="md">
-                  <RoutineSchedule
-                    values={form.values}
-                    errors={form.errors}
-                    onChange={(changes) => form.setValues(changes)}
-                    onCommit={commit}
-                    inherited={{ from: parentName, when: inheritance.group(ROUTINE_SCHEDULE_FIELDS, ROUTINE_FIELD_LABELS), location: inheritance.field('LOCATION'), readOnly }}
-                  />
+      <DetailLayout
+        readOnly={readOnly}
+        status={
+          current && (
+            <Group h={36} wrap="nowrap">
+              <RoutineDoneToggles routine={current} disabled={readOnly} />
+            </Group>
+          )
+        }
+        title={form.getInputProps('label')}
+        focusTitle={!routine}
+        // Archived (read only), its menu still offers « Restaurer » and « Supprimer ».
+        menu={current && <ActionsMenu about="la routine" items={menu(current)} variant="light" size="input-xs" />}
+        project={
+          context && (
+            <InheritedField {...inherited('PROJECT')}>
+              <ProjectSelect
+                context={context}
+                label="Projet"
+                description="Facultatif : le temps chronométré sur la routine y est compté."
+                placeholder="Aucun"
+                clearable
+                // The assignees stay: on saving, they are attached to the new project.
+                {...form.getInputProps('projectId')}
+              />
+            </InheritedField>
+          )
+        }
+        mentions={readOnly && <ArchivedBadge feminine />}
+        saving={current && !readOnly ? saving : undefined}
+        main={
+          <>
+            <FormDescription field={fieldProps('description')} commit={() => commit(['description'])} targets={context?.targetsFor(form.values.projectId) ?? NO_TARGETS} suggestions={context?.suggestionsFor(form.values.projectId) ?? NO_SUGGESTIONS} readOnly={readOnly} />
+            <PanelGroup title={PANEL_GROUPS.relations}>
+              <Select
+                label="Routine parente"
+                placeholder="Aucune"
+                clearable
+                searchable
+                {...treeSelectProps(routineOptions((item) => !excluded.has(item.id)))}
+                {...form.getInputProps('parentId')}
+                // A new parent: a new routine inherits every field from it, an existing one keeps inheriting what it
+                // inherited (from the new one; the API makes its empty fields inherit).
+                onChange={(parentId) => {
+                  const next = parentValuesOf(parentId);
+                  form.setValues({ parentId, ...(next ? {} : { inheritedFields: [] }) });
+                  if (next) inheritance.adopt(next, routine ? (form.values.parentId ? form.values.inheritedFields : []) : NEW_SUB_ROUTINE_FIELDS);
+                }}
+              />
+              {current && (
+                <SubSection title="Sous-routines" gap="xs">
+                  {subRoutines.length ? (
+                    subRoutines.map((item) => (
+                      <div key={item.id}>
+                        <ActionButton priority="tertiary" icon={<ArrowSquareInIcon aria-hidden />} onClick={() => openRoutineForm({ routine: item })}>
+                          {item.label}
+                        </ActionButton>
+                      </div>
+                    ))
+                  ) : (
+                    <EmptyState compact message="Aucune sous-routine." />
+                  )}
+                  {!readOnly && <AddItemButton onClick={() => openRoutineForm({ parent: current })}>Ajouter une sous-routine</AddItemButton>}
                 </SubSection>
-                {routine && <SheetsSection owner={{ routineId: routine.id }} occurrenceDate={routine.currentDate || null} label={routine.label} />}
-                {routine && <RoutineComments routine={routine} occurrenceDate={occurrenceDate ?? panelOccurrence(routine)} />}
-              </Stack>
-            </Grid.Col>
-            <Grid.Col span={{ base: 12, md: 4 }}>
-              <Stack gap="md">
-                {context && (
-                  <InheritedField {...inherited('PROJECT')}>
-                    <ProjectSelect
-                      context={context}
-                      label="Projet"
-                      description="Facultatif : le temps chronométré sur la routine y est compté."
-                      placeholder="Aucun"
-                      clearable
-                      // The assignees stay: on saving, they are attached to the new project.
-                      {...form.getInputProps('projectId')}
-                    />
+              )}
+              <BatchMultiSelect
+                label="Dépend de"
+                description="Routines à faire avant : tant qu’elles ne sont pas cochées, celle-ci est en attente."
+                placeholder={form.values.requiredIds.length ? undefined : 'Aucune'}
+                {...treeSelectProps(linkOptions(form.values.requiredIds))}
+                searchable
+                clearable
+                {...form.getInputProps('requiredIds')}
+              />
+              {current && (
+                <BatchMultiSelect
+                  label="Bloque"
+                  description="Routines qui attendent celle-ci : les choisir ici leur ajoute la dépendance."
+                  placeholder={blocked.length ? undefined : 'Aucune'}
+                  {...treeSelectProps(linkOptions(blocked))}
+                  searchable
+                  clearable
+                  value={blocked}
+                  // Written in the « Dépend de » of the routines chosen or removed, saved at once.
+                  onChange={(next) => setBlocked(blocked, next, [current.id])}
+                />
+              )}
+              <BatchMultiSelect
+                label="Relative à"
+                description="Routines liées, sans ordre entre elles."
+                placeholder={form.values.relatedIds.length ? undefined : 'Aucune'}
+                {...treeSelectProps(linkOptions(form.values.relatedIds))}
+                searchable
+                clearable
+                {...form.getInputProps('relatedIds')}
+              />
+            </PanelGroup>
+            <PanelGroup>
+              <RoutineRepetition {...scheduleProps} inherited={{ from: parentName, state: inheritance.group(ROUTINE_REPETITION_FIELDS, ROUTINE_FIELD_LABELS), readOnly }} />
+            </PanelGroup>
+          </>
+        }
+        comments={
+          routine &&
+          commentsDate && (
+            <PanelGroup title={`${PANEL_GROUPS.comments} du ${fmt.day(commentsDate)}`}>
+              <Comments target="ROUTINE" id={routine.id} occurrenceDate={commentsDate} title={null} projectId={routine.projectId ?? null} readOnly={routine.archived} />
+            </PanelGroup>
+          )
+        }
+        side={
+          <>
+            <PanelGroup title={PANEL_GROUPS.ranking}>
+              <InheritedField {...inherited('CATEGORIES')}>
+                <BatchMultiSelect
+                  onCreate={itemCreator('Nouvelle catégorie', categoryItems, { tree: unarchived(data?.routineCategories ?? []) })}
+                  label="Catégories"
+                  placeholder={form.values.categoryIds.length ? undefined : 'Aucune'}
+                  clearable
+                  searchable
+                  // Archived categories are no longer offered, but those of the routine stay.
+                  {...treeSelectProps(categoryOptions(data?.routineCategories ?? [], undefined, unarchivedOffered(data?.routineCategories ?? [], form.values.categoryIds)))}
+                  nothingFoundMessage="Aucune catégorie : tapez son libellé pour la créer"
+                  {...form.getInputProps('categoryIds')}
+                />
+              </InheritedField>
+              {context && (
+                <>
+                  <InheritedField {...inherited('PRIORITY')}>
+                    <LabelSelect kind="priority" label="Priorité" labels={context.priorities} {...form.getInputProps('priorityId')} />
                   </InheritedField>
-                )}
-                <InheritedField {...inherited('CATEGORIES')}>
-                  <BatchMultiSelect
-                    onCreate={itemCreator('Nouvelle catégorie', categoryItems, { tree: unarchived(data?.routineCategories ?? []) })}
-                    label="Catégories"
-                    placeholder={form.values.categoryIds.length ? undefined : 'Aucune'}
-                    clearable
-                    searchable
-                    // Archived categories are no longer offered, but those of the routine stay.
-                    {...treeSelectProps(categoryOptions(data?.routineCategories ?? [], undefined, unarchivedOffered(data?.routineCategories ?? [], form.values.categoryIds)))}
-                    nothingFoundMessage="Aucune catégorie : tapez son libellé pour la créer"
-                    {...form.getInputProps('categoryIds')}
+                  <LabelSelect kind="type" label="Type" labels={context.types} {...form.getInputProps('typeId')} />
+                </>
+              )}
+            </PanelGroup>
+            <PanelGroup title={PANEL_GROUPS.people}>
+              {context && (
+                <InheritedField {...inherited('ASSIGNEES')}>
+                  <AssigneesSelect
+                    // Of a project: its contributors only (the chosen assignees stay, even when the project changes).
+                    contributors={context.assignableFor([form.values.projectId], form.values.assigneeIds)}
+                    value={form.values.assigneeIds}
+                    onChange={(ids) => form.setFieldValue('assigneeIds', ids)}
+                    error={form.errors.assigneeIds as string | undefined}
                   />
                 </InheritedField>
-                {context && (
-                  <InheritedField {...inherited('ASSIGNEES')}>
-                    <AssigneesSelect
-                      // Of a project: its contributors only (the chosen assignees stay, even when the project changes).
-                      contributors={context.assignableFor([form.values.projectId], form.values.assigneeIds)}
-                      value={form.values.assigneeIds}
-                      onChange={(ids) => form.setFieldValue('assigneeIds', ids)}
-                      error={form.errors.assigneeIds as string | undefined}
-                    />
-                  </InheritedField>
-                )}
-                <InheritedField {...inherited('BENEFICIARIES')}>
-                  <BeneficiariesSelect
-                    value={{ beneficiaryIds: form.values.beneficiaryIds, beneficiaryRelationIds: form.values.beneficiaryRelationIds }}
-                    onChange={(beneficiaries) => form.setValues({ ...beneficiaries })}
-                  />
-                </InheritedField>
-                <NumberInput label="Temps à y consacrer" description="En minutes" min={1} max={24 * 60} allowDecimal={false} suffix=" min" {...optionalNumberProps(form, 'estimate')} />
-                <DeadTimesField
-                  value={form.values.deadTimes}
-                  onChange={(deadTimes) => form.setFieldValue('deadTimes', deadTimes)}
-                  item={current ? routineCountdownItem(current, occurrenceDate ?? panelOccurrence(current)) : null}
+              )}
+              <InheritedField {...inherited('BENEFICIARIES')}>
+                <BeneficiariesSelect
+                  value={{ beneficiaryIds: form.values.beneficiaryIds, beneficiaryRelationIds: form.values.beneficiaryRelationIds }}
+                  onChange={(beneficiaries) => form.setValues({ ...beneficiaries })}
+                />
+              </InheritedField>
+            </PanelGroup>
+            <PanelGroup title={PANEL_GROUPS.planning}>
+              <InheritedField {...inherited('START_DATE')}>
+                <DateField label="Première fois" required value={form.values.startDate || null} onChange={(date) => date && form.setFieldValue('startDate', date)} error={form.errors.startDate} />
+              </InheritedField>
+              <NumberInput label="Temps à y consacrer" description="En minutes" min={1} max={24 * 60} allowDecimal={false} suffix=" min" {...optionalNumberProps(form, 'estimate')} />
+              <DeadTimesField
+                value={form.values.deadTimes}
+                onChange={(deadTimes) => form.setFieldValue('deadTimes', deadTimes)}
+                item={current ? routineCountdownItem(current, occurrenceDate ?? panelOccurrence(current)) : null}
+                disabled={readOnly}
+              />
+              {current && (
+                <TrackedTime
+                  seconds={current.trackedSeconds}
+                  on={(entry) => entry.routines.some((item) => item.id === current.id)}
+                  start={{ projectId: current.projectId, routineIds: [current.id], taskIds: [] }}
                   disabled={readOnly}
                 />
-                <SavedCountdownsField target="ROUTINE" id={current?.id ?? null} value={current?.savedCountdownIds ?? []} invalidate={[routinesKey]} readOnly={readOnly} />
-                <Divider />
-                <Select
-                  label="Routine parente"
-                  placeholder="Aucune"
-                  clearable
-                  searchable
-                  {...treeSelectProps(routineOptions((item) => !excluded.has(item.id)))}
-                  {...form.getInputProps('parentId')}
-                  // A new parent: a new routine inherits every field from it, an existing one keeps inheriting what it
-                  // inherited (from the new one; the API makes its empty fields inherit).
-                  onChange={(parentId) => {
-                    const next = parentValuesOf(parentId);
-                    form.setValues({ parentId, ...(next ? {} : { inheritedFields: [] }) });
-                    if (next) inheritance.adopt(next, routine ? (form.values.parentId ? form.values.inheritedFields : []) : NEW_SUB_ROUTINE_FIELDS);
-                  }}
-                />
-                <BatchMultiSelect
-                  label="Dépend de"
-                  description="Routines à faire avant : tant qu’elles ne sont pas cochées, celle-ci est en attente."
-                  placeholder={form.values.requiredIds.length ? undefined : 'Aucune'}
-                  {...treeSelectProps(linkOptions(form.values.requiredIds))}
-                  searchable
-                  clearable
-                  {...form.getInputProps('requiredIds')}
-                />
-                <BatchMultiSelect
-                  label="Relative à"
-                  description="Routines liées, sans ordre entre elles."
-                  placeholder={form.values.relatedIds.length ? undefined : 'Aucune'}
-                  {...treeSelectProps(linkOptions(form.values.relatedIds))}
-                  searchable
-                  clearable
-                  {...form.getInputProps('relatedIds')}
-                />
-              </Stack>
-            </Grid.Col>
-          </Grid>
-          {!routine && <FormActions onCancel={onDone} submitLabel="Créer" loading={create.isPending} />}
-        </Stack>
-      </Fieldset>
+              )}
+            </PanelGroup>
+            <PanelGroup title={PANEL_GROUPS.place}>
+              <RoutinePlace {...scheduleProps} inherited={{ from: parentName, state: inheritance.field('LOCATION'), readOnly }} />
+            </PanelGroup>
+            <PanelGroup title={PANEL_GROUPS.alarms}>
+              <RoutineReminders {...scheduleProps} />
+              <SavedCountdownsField target="ROUTINE" id={current?.id ?? null} value={current?.savedCountdownIds ?? []} invalidate={[routinesKey]} readOnly={readOnly} />
+            </PanelGroup>
+            <PanelGroup title={PANEL_GROUPS.resources}>
+              <LinksField form={form} onRemoved={() => commit(['links'])} />
+              {routine && <SheetsSection owner={{ routineId: routine.id }} occurrenceDate={routine.currentDate || null} label={routine.label} />}
+            </PanelGroup>
+          </>
+        }
+        footer={!routine && <FormActions onCancel={onDone} submitLabel="Créer" loading={create.isPending} />}
+      />
     </form>
-  );
-}
-
-/**
- * Comments of the occurrence of a routine open in its panel, titled with its day; nothing without any
- * occurrence.
- * @param {{ routine: Routine, occurrenceDate: string | null }} props Routine and its occurrence.
- * @returns {JSX.Element | null} Comments.
- */
-function RoutineComments({ routine, occurrenceDate }: { routine: Routine; occurrenceDate: string | null }) {
-  if (!occurrenceDate) return null;
-  return (
-    <Comments target="ROUTINE" id={routine.id} occurrenceDate={occurrenceDate} title={`Commentaires du ${fmt.day(occurrenceDate)}`} projectId={routine.projectId ?? null} readOnly={routine.archived} />
   );
 }

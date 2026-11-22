@@ -1,6 +1,7 @@
 import { LabeledField } from '../../../components/inputs/LabeledField';
 import { SegmentedControl, Select } from '@mantine/core';
-import { MonthPickerInput, YearPickerInput } from '@mantine/dates';
+import { YearPickerInput } from '@mantine/dates';
+import { MonthField } from '../../../components/inputs/MonthField';
 import { CALENDAR_SCALE_OPTIONS, calendarStart, type CalendarScale, type ChartConfig } from '@ordo/shared';
 import { localToday } from '../../../lib/dates';
 import { calendarParts } from '../lib/aggregate';
@@ -51,7 +52,7 @@ export function CalendarPeriodPicker({ value, onChange }: { value: ChartConfig['
         (scale === 'year' ? (
           <YearPickerInput aria-label="Année" value={anchor} onChange={(date) => date && set(scale, calendarStart(scale, date))} />
         ) : (
-          <MonthPickerInput aria-label={scale === 'quarter' ? 'Un mois du trimestre' : 'Mois'} value={anchor} onChange={(date) => date && set(scale, calendarStart(scale, date))} />
+          <MonthField aria-label={scale === 'quarter' ? 'Un mois du trimestre' : 'Mois'} value={anchor} onChange={(date) => date && set(scale, calendarStart(scale, date))} />
         ))}
     </LabeledField>
   );

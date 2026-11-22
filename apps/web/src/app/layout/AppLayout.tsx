@@ -13,6 +13,7 @@ import { TaskPanel } from '../../features/tasks/components/TaskPanel';
 import { AlarmCenter } from '../../features/alarms/components/AlarmCenter';
 import { Sidebar } from '../../features/projects/components/Sidebar';
 import { MailWatcher } from '../../features/mail/components/MailWatcher';
+import { TaskAutomationToasts } from '../../features/tasks/components/TaskAutomationToasts';
 import { ElsewhereNotifier } from '../../features/workspaces/components/ElsewhereNotifier';
 import { WorkspaceGate } from '../../features/workspaces/components/WorkspaceGate';
 import { WorkspaceSwitcher } from '../../features/workspaces/components/WorkspaceSwitcher';
@@ -139,6 +140,7 @@ export function AppLayout() {
             <AlarmCenter />
             <ElsewhereNotifier />
             <MailWatcher />
+            <TaskAutomationToasts />
             <AppShell.Navbar aria-label="Clients et projets">
               <Sidebar />
               {!mobile && (

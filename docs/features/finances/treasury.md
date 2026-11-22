@@ -189,7 +189,7 @@ Comportements :
 - sens « Sorties » / « Entrées » (déduit de la catégorie, défaut sorties ; changer de sens vide une catégorie de l’autre sens) ;
 - « Catégorie » (requise, création à la volée ; « Le budget couvre aussi ses sous-catégories qui n’ont pas le leur. ») ;
 - « Bénéficiaire » (vide : « Moi ») et « Contexte » (vide : « Quotidien ») ;
-- « Répétition » : « Ce mois seulement », « Tous les X mois » (champ « Tous les » 1 à 24 mois), « Tous les ans » ; défaut d’un nouveau budget : tous les mois ; « Jusqu’à » (vide : « Sans fin ») ;
+- « Répétition » : « Ce mois seulement », « Tous les X mois » (champ « Tous les » 1 à 24 mois), « Tous les ans » ; défaut d’un nouveau budget : tous les mois ; « Jusqu’à » (vide : « Sans fin ») ; « À partir de » et « Jusqu’à » restent deux champs de mois (pas un champ de période) ;
 - commentaires du budget en modification. Toast « Budget créé. » (création).
 
 ## Onglet « Prêts »
@@ -212,7 +212,7 @@ Toast : « N opérations importées, M prévisions réalisées. ». Le mapping d
 
 ## Relevé de compte (PDF)
 
-« Relevé de compte (PDF) » ouvre « Exporter le relevé des mouvements » : « Période » (préréglages, défaut le mois dernier, ou « Dates choisies »), dates, « Compte » (vide : « Tous les comptes »), texte « Mouvements réels de la période par date d’exécution, avec le solde avant, après et au fil des mouvements. Les prévisions ne sont pas incluses. », « Télécharger le PDF ». Toast « Relevé téléchargé. » ou erreur « Relevé impossible. ». Contenu du PDF : voir [Règles de la trésorerie](../../business-rules/finances/treasury.md#relevé-pdf).
+« Relevé de compte (PDF) » ouvre « Exporter le relevé des mouvements » : « Période » (préréglages, défaut le mois dernier, ou « Dates choisies »), « Dates » (un seul champ, du … au …, choisi pour « Dates choisies »), « Compte » (vide : « Tous les comptes »), texte « Mouvements réels de la période par date d’exécution, avec le solde avant, après et au fil des mouvements. Les prévisions ne sont pas incluses. », « Télécharger le PDF ». Toast « Relevé téléchargé. » ou erreur « Relevé impossible. ». Contenu du PDF : voir [Règles de la trésorerie](../../business-rules/finances/treasury.md#relevé-pdf).
 
 ## Paramètres de la trésorerie (barre latérale)
 

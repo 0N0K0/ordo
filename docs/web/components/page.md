@@ -14,7 +14,7 @@ Titre d'une page (`h1`, taille `h2`) affiché sur téléphone seulement : à par
 
 ### `DetailHeader`
 
-En-tête de la page (ou du panneau) d'un élément, le même partout (retour, libellé en h3, badges, actions ; « Archiver » et « Supprimer » dans le menu « … ») : document de facturation, document importé, fiche, liste de courses, panneau de tâche, projet, client. Props :
+En-tête de la page (ou du panneau) d'un élément, le même partout (retour, libellé en h3, badges, actions ; « Archiver » et « Supprimer » dans le menu « … ») : document de facturation, document importé, fiche, liste de courses, projet, client (les panneaux d’une tâche, d’une routine et d’un évènement prennent `DetailLayout`, voir [Panneaux](panels.md#detaillayouttsx)). Props :
 
 - `back` : `{ to, label }`, lien de retour au-dessus (`BackLink`) ;
 - `page` : un `PageHeader` entre le retour et le nom ;

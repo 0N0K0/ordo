@@ -3,9 +3,9 @@ import { InheritedField, type InheritedFieldState } from '../../../components/in
 import { LabeledField } from '../../../components/inputs/LabeledField';
 import { AddItemButton } from '../../../components/actions/AddItemButton';
 import { useSlotChoices } from '../../calendar/hooks/use-slot-sources';
-import { TravelField } from '../../geo/components/TravelField';
-import { Checkbox, Group, SimpleGrid, Stack, Text } from '@mantine/core';
-import { DatePickerInput } from '@mantine/dates';
+import { TravelTimes } from '../../geo/components/TravelTimes';
+import { Checkbox, Group, Stack, Text } from '@mantine/core';
+import { DateField } from '../../../components/inputs/DateField';
 import {
   opensFits,
   readOpens,
@@ -21,14 +21,11 @@ import {
 } from '@ordo/shared';
 import { useState, type ReactNode } from 'react';
 import { RepetitionEditor, type RepetitionModeValue, type RepetitionTimes } from '../../../components/recurrence/RepetitionEditor';
-import { RepetitionField, RepetitionModal } from '../../../components/recurrence/RepetitionField';
-import { describeCase } from '../../../components/recurrence/describe-recurrence';
-import * as fmt from '../../../lib/format';
+import { RepetitionModal } from '../../../components/recurrence/RepetitionField';
 import { localToday } from '../../../lib/dates';
 import { EventLocation } from '../../geo/components/EventLocation';
 import { addressOf } from '../../geo/lib/location';
 import { useFormLocation } from '../../geo/hooks/use-location-draft';
-import { TravelCalculator } from '../../geo/components/TravelCalculator';
 import { OpensOnInput } from './OpensOnInput';
 import { opensText } from '../lib/opens-format';
 import { SlotConditionBuilder } from '../../calendar/components/SlotConditionBuilder';
@@ -38,6 +35,7 @@ import type { Routine } from '../api';
 import { RemindersSelect } from '../../../components/inputs/RemindersSelect';
 import { RemoveButton } from '../../../components/actions/RemoveButton';
 import { SlotTimesFields } from './SlotTimesFields';
+import { ROUTINE_REPETITION_KEYS } from '../lib/routine-inheritance';
 
 /** Time and place fields of a routine. */
 interface RoutineScheduleValues {
@@ -72,11 +70,25 @@ interface RoutineTimes {
 const ANY_TIME: RoutineSlot = { fromTime: null, dueTime: null, optional: false };
 
 /**
- * Times of the day of a routine: from when and by when (each optional), optional or not, as many as needed.
- * @param {{ moments: RoutineSlot[], onChange: (moments: RoutineSlot[]) => void, index: number, allowEmpty?: boolean }} props Moments, their change, case number, none allowed (one per slot of the schedules).
+ * Times of the day of a routine: from when and by when (each optional), optional or not, as many as needed. Each change
+ * is given at once; `onCommit` follows a choice at once (« Facultatif », a moment added or removed), and an hour once
+ * it is left.
+ * @param {{ moments: RoutineSlot[], onChange: (moments: RoutineSlot[]) => void, index: number, allowEmpty?: boolean, onCommit?: () => void }} props Moments, their change, case number, none allowed (one per slot of the schedules), commit. Optional.
  * @returns {JSX.Element} Moments.
  */
-function MomentsEditor({ moments, onChange, index, allowEmpty = false }: { moments: RoutineSlot[]; onChange: (moments: RoutineSlot[]) => void; index: number; allowEmpty?: boolean }) {
+function MomentsEditor({
+  moments,
+  onChange,
+  index,
+  allowEmpty = false,
+  onCommit,
+}: {
+  moments: RoutineSlot[];
+  onChange: (moments: RoutineSlot[]) => void;
+  index: number;
+  allowEmpty?: boolean;
+  onCommit?: () => void;
+}) {
   /**
    * Changes a moment.
    * @param {number} position Its index.
@@ -84,14 +96,28 @@ function MomentsEditor({ moments, onChange, index, allowEmpty = false }: { momen
    * @returns {void}
    */
   const update = (position: number, changes: Partial<RoutineSlot>) => onChange(moments.map((moment, other) => (other === position ? { ...moment, ...changes } : moment)));
+  /**
+   * Gives moments changed by a choice, then commits them.
+   * @param {RoutineSlot[]} next Moments.
+   * @returns {void}
+   */
+  const choose = (next: RoutineSlot[]) => {
+    onChange(next);
+    onCommit?.();
+  };
   return (
     <LabeledField label="Moments de la journée">
       {moments.map((moment, position) => (
         <Group key={position} gap={6} wrap="nowrap">
-          <SlotTimesFields value={moment} onChange={(times) => update(position, times)} name={`moment ${position + 1}, cas ${index + 1}`} />
-          <Checkbox size="xs" label="Facultatif" checked={moment.optional} onChange={(event) => update(position, { optional: event.currentTarget.checked })} />
+          <SlotTimesFields value={moment} onChange={(times) => update(position, times)} name={`moment ${position + 1}, cas ${index + 1}`} onBlur={onCommit} />
+          <Checkbox
+            size="xs"
+            label="Facultatif"
+            checked={moment.optional}
+            onChange={(event) => choose(moments.map((other, at) => (at === position ? { ...other, optional: event.currentTarget.checked } : other)))}
+          />
           {(allowEmpty || moments.length > 1) && (
-            <RemoveButton label="Retirer" size="sm" aria-label={`Retirer le moment ${position + 1}`} onClick={() => onChange(moments.filter((_, other) => other !== position))} />
+            <RemoveButton label="Retirer" size="sm" aria-label={`Retirer le moment ${position + 1}`} onClick={() => choose(moments.filter((_, other) => other !== position))} />
           )}
         </Group>
       ))}
@@ -100,7 +126,7 @@ function MomentsEditor({ moments, onChange, index, allowEmpty = false }: { momen
           Aucun : chaque horaire des créneaux choisis est un moment.
         </Text>
       )}
-      <AddItemButton onClick={() => onChange([...moments, ANY_TIME])}>Ajouter un moment</AddItemButton>
+      <AddItemButton onClick={() => choose([...moments, ANY_TIME])}>Ajouter un moment</AddItemButton>
     </LabeledField>
   );
 }
@@ -113,16 +139,24 @@ function MomentsEditor({ moments, onChange, index, allowEmpty = false }: { momen
 const describeMoments = (moments: readonly RoutineSlot[]) => moments.map((moment) => `${windowText(moment) || 'dans la journée'}${moment.optional ? ' (facultatif)' : ''}`).join(', ');
 
 /**
- * Moments and condition of the rule or cases of a routine, for the common repetition editor.
+ * Moments and condition of the rule or cases of a routine, for the common repetition editor: committed (a panel saved
+ * field by field) once chosen, an hour or a number once left, a condition at once.
  * @param {Map<string, string>} names Names of the calendar schedules.
  * @returns {RepetitionTimes<RoutineTimes>} Times.
  */
 const routineTimes = (names: Map<string, string>): RepetitionTimes<RoutineTimes> => ({
-  render: (times, onChange, index, rule) => (
+  render: (times, onChange, index, rule, onCommit) => (
     <Stack gap="sm">
-      <MomentsEditor moments={times.moments} onChange={(moments) => onChange({ ...times, moments })} index={index} />
-      <SlotConditionBuilder item="routine" value={times.condition} onChange={(condition) => onChange({ ...times, condition })} />
-      <OpensOnInput frequency={rule?.frequency ?? 'DAILY'} value={times.opens} onChange={(opens) => onChange({ ...times, opens })} />
+      <MomentsEditor moments={times.moments} onChange={(moments) => onChange({ ...times, moments })} index={index} onCommit={onCommit} />
+      <SlotConditionBuilder
+        item="routine"
+        value={times.condition}
+        onChange={(condition) => {
+          onChange({ ...times, condition });
+          onCommit?.();
+        }}
+      />
+      <OpensOnInput frequency={rule?.frequency ?? 'DAILY'} value={times.opens} onChange={(opens) => onChange({ ...times, opens })} onCommit={onCommit} />
     </Stack>
   ),
   describe: (times, rule) =>
@@ -189,16 +223,29 @@ function withEditedCases(value: RoutineRepetitionValue, cases: RepetitionCase<Ro
 }
 
 /**
- * Every repetition setting of a routine, in the common modal: its first day, then one rule or cases, each with its
- * moments and its condition on calendar schedules; its « Ouverture ».
- * @param {{ draft: RoutineRepetitionValue, setDraft: (value: RoutineRepetitionValue) => void, names: Map<string, string> }} props Draft, its change, names of the schedules.
+ * Every repetition setting of a routine: its first day (unless its panel shows it apart), then one rule or cases, each
+ * with its moments and its condition on calendar schedules; its « Ouverture ». In the common modal (a table cell), or
+ * right in the panel with `onCommit` (called once a value is chosen, an hour or a number left).
+ * @param {{ draft: RoutineRepetitionValue, setDraft: (value: RoutineRepetitionValue) => void, names: Map<string, string>, withStart?: boolean, onCommit?: () => void }} props Draft, its change, names of the schedules, first day asked (default true), commit. Optional.
  * @returns {JSX.Element} Settings.
  */
-function RoutineRepetitionEditor({ draft, setDraft, names }: { draft: RoutineRepetitionValue; setDraft: (value: RoutineRepetitionValue) => void; names: Map<string, string> }) {
+function RoutineRepetitionEditor({
+  draft,
+  setDraft,
+  names,
+  withStart = true,
+  onCommit,
+}: {
+  draft: RoutineRepetitionValue;
+  setDraft: (value: RoutineRepetitionValue) => void;
+  names: Map<string, string>;
+  withStart?: boolean;
+  onCommit?: () => void;
+}) {
   const start = draft.startDate || localToday();
   return (
     <Stack gap="md">
-      <DatePickerInput label="Première fois" required value={draft.startDate || null} onChange={(date) => date && setDraft({ ...draft, startDate: date })} />
+      {withStart && <DateField label="Première fois" required value={draft.startDate || null} onChange={(date) => date && setDraft({ ...draft, startDate: date })} />}
       <RepetitionEditor<RoutineTimes>
         mode={draft.mode}
         onModeChange={(mode) =>
@@ -225,22 +272,10 @@ function RoutineRepetitionEditor({ draft, setDraft, names }: { draft: RoutineRep
         allowNone={false}
         durations={DURATION_UNITS}
         times={routineTimes(names)}
+        onCommit={onCommit}
       />
     </Stack>
   );
-}
-
-/**
- * Repetition of a routine as text, a line each: its first day, then its rule or cases with their moments and
- * conditions.
- * @param {RoutineRepetitionValue} value Repetition.
- * @param {Map<string, string>} names Names of the schedules.
- * @returns {string[]} Lines.
- */
-function describeRepetition(value: RoutineRepetitionValue, names: Map<string, string>): string[] {
-  const start = value.startDate || localToday();
-  const times = routineTimes(names);
-  return [`À partir du ${fmt.day(start)}`, ...editedCases(value).map((item, index) => `${value.mode === 'CASES' ? `Cas ${index + 1} · ` : ''}${fmt.capitalize(describeCase(item, start, { times }))}`)];
 }
 
 /** Whole repetition of a routine, as saved. */
@@ -316,7 +351,7 @@ export function RoutineRepetitionModal({
   );
 }
 
-interface RoutineScheduleProps {
+interface RoutineFieldsProps {
   values: RoutineScheduleValues;
   errors: Record<string, ReactNode>;
   onChange: (changes: Partial<RoutineScheduleValues>) => void;
@@ -325,38 +360,35 @@ interface RoutineScheduleProps {
    * a travel time once left. Optional.
    */
   onCommit?: (fields: (keyof RoutineScheduleValues & string)[]) => void;
-  /** A sub-routine: what its repetition and its place show of their inheritance, and its parent's name. Optional. */
-  inherited?: { from: string; when: InheritedFieldState; location: InheritedFieldState; readOnly?: boolean };
+  /** A sub-routine: what the field shows of its inheritance, and its parent's name. Optional. */
+  inherited?: { from: string; state: InheritedFieldState; readOnly?: boolean };
 }
 
 /**
- * Time and place of a routine: its repetition (summary, every setting in the common modal), where, the travel times
- * there and back (computed from the place) with when to leave and when back (one moment of its own only), and its
- * alerts; a sub-routine's repetition and place greyed while inherited (`InheritedField`).
- * @param {RoutineScheduleProps} props Component props.
- * @returns {JSX.Element} Fields.
+ * Inheritance of a field of a sub-routine (`InheritedField`), nothing shown for another routine.
+ * @param {RoutineFieldsProps['inherited']} inherited Inheritance.
+ * @returns {object} Props of `InheritedField`.
  */
-export function RoutineSchedule({ values, errors, onChange, onCommit, inherited }: RoutineScheduleProps) {
+const inheritedProps = (inherited: RoutineFieldsProps['inherited']) => ({ ...(inherited?.state ?? { origin: null }), from: inherited?.from ?? '', readOnly: inherited?.readOnly });
+
+/**
+ * « Répétition et moments » of a routine, right in its panel (no modal; its first day apart): one rule or cases, each
+ * with its moments, condition and « Ouverture ». Each change is given at once (`onChange`); `onCommit` saves them
+ * once a value is chosen (a frequency, a weekday, a case, a condition…), an hour or a number once left. Greyed while
+ * inherited.
+ * @param {RoutineFieldsProps} props Component props.
+ * @returns {JSX.Element} Field.
+ */
+export function RoutineRepetition({ values, errors, onChange, onCommit, inherited }: RoutineFieldsProps) {
   const { names } = useSlotChoices();
   const mode: RepetitionModeValue = values.cases.length ? 'CASES' : 'RULE';
-  const single = mode === 'RULE' && values.moments.length <= 1 ? (values.moments[0] ?? ANY_TIME) : null;
-  const { leaveAt, backAt } = routineSchedule({ ...values, fromTime: single?.fromTime ?? null, dueTime: single?.dueTime ?? null });
-  const address = addressOf(values);
-  // Put in the form (and saved, field by field) once chosen, cleared or left.
-  const place = useFormLocation(values, onChange, onCommit);
-  // Without any hour, only reminders at a time of the day.
-  const timed = routineHasHours(values);
   return (
-    <Stack gap="sm">
-      <InheritedField {...(inherited?.when ?? { origin: null })} from={inherited?.from ?? ''} readOnly={inherited?.readOnly}>
-        <RepetitionField<RoutineRepetitionValue>
-          label="Répétition et moments"
-          required
-          error={(errors.recurrence ?? errors.cases ?? errors.moments ?? errors.slotCondition ?? errors.startDate ?? errors.opensOn) as ReactNode}
-          value={{ ...values, mode }}
-          onChange={(value) =>
+    <InheritedField {...inheritedProps(inherited)}>
+      <LabeledField label="Répétition et moments" required error={(errors.recurrence ?? errors.cases ?? errors.moments ?? errors.slotCondition ?? errors.opensOn) as ReactNode}>
+        <RoutineRepetitionEditor
+          draft={{ ...values, mode }}
+          setDraft={(value) =>
             onChange({
-              startDate: value.startDate,
               recurrence: value.recurrence,
               cases: value.cases,
               slotCondition: value.slotCondition,
@@ -364,47 +396,60 @@ export function RoutineSchedule({ values, errors, onChange, onCommit, inherited 
               opensOn: value.opensOn,
             })
           }
-          valid={validRepetition}
-          describe={(value) => describeRepetition(value, names)}
-          editor={(draft, setDraft) => <RoutineRepetitionEditor draft={draft} setDraft={setDraft} names={names} />}
+          names={names}
+          withStart={false}
+          onCommit={onCommit && (() => onCommit([...ROUTINE_REPETITION_KEYS]))}
         />
-      </InheritedField>
-      <InheritedField {...(inherited?.location ?? { origin: null })} from={inherited?.from ?? ''} readOnly={inherited?.readOnly}>
+      </LabeledField>
+    </InheritedField>
+  );
+}
+
+/**
+ * Place of a routine: where (greyed while inherited), the travel times there and back (computed from the place), and,
+ * once an outward travel is given, when to leave and when back (one moment of its own only).
+ * @param {RoutineFieldsProps} props Component props.
+ * @returns {JSX.Element} Fields.
+ */
+export function RoutinePlace({ values, errors, onChange, onCommit, inherited }: RoutineFieldsProps) {
+  const single = !values.cases.length && values.moments.length <= 1 ? (values.moments[0] ?? ANY_TIME) : null;
+  const { leaveAt, backAt } = routineSchedule({ ...values, fromTime: single?.fromTime ?? null, dueTime: single?.dueTime ?? null });
+  // Put in the form (and saved, field by field) once chosen, cleared or left.
+  const place = useFormLocation(values, onChange, onCommit);
+  const leave = leaveAt
+    ? `Partir à ${leaveAt.replace(':', ' h ')}${values.estimate && single?.dueTime ? ` (trajet et ${values.estimate} min sur place)` : ''}${backAt ? ` · retour vers ${backAt.replace(':', ' h ')}` : ''}`
+    : null;
+  return (
+    <Stack gap="sm">
+      <InheritedField {...inheritedProps(inherited)}>
         <EventLocation value={place.value} error={errors.location} onChange={place.onChange} onBlur={place.leave} />
       </InheritedField>
-      <SimpleGrid cols={{ base: 1, xs: 3 }} spacing="sm">
-        <TravelField way="before" description="Pour y aller" value={values.travelBefore} onChange={(value) => onChange({ travelBefore: Number(value) || 0 })} onBlur={() => onCommit?.(['travelBefore'])} error={errors.travelBefore} />
-        <TravelField way="after" description="Pour en revenir" value={values.travelAfter} onChange={(value) => onChange({ travelAfter: Number(value) || 0 })} onBlur={() => onCommit?.(['travelAfter'])} error={errors.travelAfter} />
-        <Stack justify="flex-end">
-          <TravelCalculator
-            eventPoint={address.point}
-            onResult={({ before, after }) => {
-              onChange({ ...(before !== undefined && { travelBefore: before }), ...(after !== undefined && { travelAfter: after }) });
-              onCommit?.(['travelBefore', 'travelAfter']);
-            }}
-          />
-        </Stack>
-      </SimpleGrid>
-      <RemindersSelect
-        label="Rappels"
-        description={
-          timed
-            ? 'Pour chaque occurrence : avant le début ou la fin de chaque moment non coché, le jour de l’ouverture ou celui de l’échéance (« dès » / « jusqu’à », l’autre heure selon le temps à y consacrer), 24 h au plus ; ou à une heure de l’un de ces jours ou de quelques jours avant.'
-            : 'À une heure du jour de l’ouverture ou de l’échéance, ou de quelques jours avant : donnez une heure « dès » ou « jusqu’à » à ses moments (ou un créneau) pour des rappels avant eux.'
-        }
-        kinds={timed ? REMINDER_KINDS : DAY_REMINDER_KINDS}
-        anchors={ROUTINE_REMINDER_ANCHORS}
-        value={values.reminders}
-        onChange={(reminders) => onChange({ reminders })}
-        error={errors.reminders}
-      />
-      {(leaveAt || backAt) && (
-        <Text size="sm" c="dimmed">
-          {leaveAt && `Partir à ${leaveAt.replace(':', ' h ')}${values.estimate && single?.dueTime ? ` (trajet et ${values.estimate} min sur place)` : ''}`}
-          {leaveAt && backAt && ' · '}
-          {backAt && `retour vers ${backAt.replace(':', ' h ')}`}
-        </Text>
-      )}
+      <TravelTimes value={values} hints={['Pour y aller', 'Pour en revenir']} point={addressOf(values).point} onChange={onChange} onCommit={onCommit} errors={errors} leave={leave} />
     </Stack>
+  );
+}
+
+/**
+ * « Rappels » of a routine: before its moments or at a time of its days (only at a time without any hour).
+ * @param {RoutineFieldsProps} props Component props.
+ * @returns {JSX.Element} Field.
+ */
+export function RoutineReminders({ values, errors, onChange }: RoutineFieldsProps) {
+  // Without any hour, only reminders at a time of the day.
+  const timed = routineHasHours(values);
+  return (
+    <RemindersSelect
+      label="Rappels"
+      description={
+        timed
+          ? 'Pour chaque occurrence : avant le début ou la fin de chaque moment non coché, le jour de l’ouverture ou celui de l’échéance (« dès » / « jusqu’à », l’autre heure selon le temps à y consacrer), 24 h au plus ; ou à une heure de l’un de ces jours ou de quelques jours avant.'
+          : 'À une heure du jour de l’ouverture ou de l’échéance, ou de quelques jours avant : donnez une heure « dès » ou « jusqu’à » à ses moments (ou un créneau) pour des rappels avant eux.'
+      }
+      kinds={timed ? REMINDER_KINDS : DAY_REMINDER_KINDS}
+      anchors={ROUTINE_REMINDER_ANCHORS}
+      value={values.reminders}
+      onChange={(reminders) => onChange({ reminders })}
+      error={errors.reminders}
+    />
   );
 }

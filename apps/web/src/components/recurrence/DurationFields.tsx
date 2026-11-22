@@ -18,16 +18,28 @@ interface DurationFieldsProps {
   units: readonly DurationUnit[];
   /** Dropdowns kept in place (inside a popover). Optional. Default = true. */
   withinPortal?: boolean;
+  /** Called once a value is chosen or a number is left (a panel saved field by field saves then). Optional. */
+  onCommit?: () => void;
 }
 
 /**
  * How long each occurrence lasts from its first day: a day, days, weeks, months, or up to a day (of a month), a week
- * of the year or the end of a month (all-day events and slots, a routine done once over a weekend…).
+ * of the year or the end of a month (all-day events and slots, a routine done once over a weekend…). Each change is
+ * given at once; `onCommit` follows a choice at once, and a number once it is left.
  * @param {DurationFieldsProps} props Component props.
  * @returns {JSX.Element} Fields.
  */
-export function DurationFields({ value, onChange, units, withinPortal = true }: DurationFieldsProps) {
+export function DurationFields({ value, onChange, units, withinPortal = true, onCommit }: DurationFieldsProps) {
   const comboboxProps = { withinPortal };
+  /**
+   * Gives a value chosen, then commits it.
+   * @param {Duration} next Duration.
+   * @returns {void}
+   */
+  const choose = (next: Duration) => {
+    onChange(next);
+    onCommit?.();
+  };
   return (
     <Group gap="xs" align="flex-end" wrap="wrap">
       <Select
@@ -38,7 +50,7 @@ export function DurationFields({ value, onChange, units, withinPortal = true }: 
         value={value.unit}
         allowDeselect={false}
         comboboxProps={comboboxProps}
-        onChange={(unit) => unit && onChange({ ...ONE_DAY, unit: unit as DurationUnit, day: unit === 'TO_DAY' ? 1 : null, week: unit === 'TO_WEEK' ? 1 : null, month: unit === 'TO_MONTH' ? 1 : null })}
+        onChange={(unit) => unit && choose({ ...ONE_DAY, unit: unit as DurationUnit, day: unit === 'TO_DAY' ? 1 : null, week: unit === 'TO_WEEK' ? 1 : null, month: unit === 'TO_MONTH' ? 1 : null })}
       />
       {(value.unit === 'DAYS' || value.unit === 'WEEKS' || value.unit === 'MONTHS') && (
         <NumberInput
@@ -50,6 +62,7 @@ export function DurationFields({ value, onChange, units, withinPortal = true }: 
           aria-label="Combien"
           value={value.count}
           onChange={(count) => onChange({ ...value, count: Math.min(366, Math.max(1, Number(count) || 1)) })}
+          onBlur={onCommit}
         />
       )}
       {value.unit === 'TO_DAY' && (
@@ -63,6 +76,7 @@ export function DurationFields({ value, onChange, units, withinPortal = true }: 
             aria-label="Dernier jour"
             value={value.day ?? 1}
             onChange={(day) => onChange({ ...value, day: Math.min(31, Math.max(1, Number(day) || 1)) })}
+            onBlur={onCommit}
           />
           <Select
             size="xs"
@@ -73,7 +87,7 @@ export function DurationFields({ value, onChange, units, withinPortal = true }: 
             data={monthOptions}
             value={value.month ? String(value.month) : null}
             comboboxProps={comboboxProps}
-            onChange={(month) => onChange({ ...value, month: month ? Number(month) : null })}
+            onChange={(month) => choose({ ...value, month: month ? Number(month) : null })}
           />
         </>
       )}
@@ -87,6 +101,7 @@ export function DurationFields({ value, onChange, units, withinPortal = true }: 
           aria-label="Dernière semaine"
           value={value.week ?? 1}
           onChange={(week) => onChange({ ...value, week: Math.min(53, Math.max(1, Number(week) || 1)) })}
+          onBlur={onCommit}
         />
       )}
       {value.unit === 'TO_MONTH' && (
@@ -98,7 +113,7 @@ export function DurationFields({ value, onChange, units, withinPortal = true }: 
           value={String(value.month ?? 1)}
           allowDeselect={false}
           comboboxProps={comboboxProps}
-          onChange={(month) => month && onChange({ ...value, month: Number(month) })}
+          onChange={(month) => month && choose({ ...value, month: Number(month) })}
         />
       )}
     </Group>

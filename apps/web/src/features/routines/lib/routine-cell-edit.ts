@@ -9,6 +9,8 @@ import { itemCellLabel } from '../../../components/data-table/cells/cell-field';
 type RoutineColumn =
   | 'label'
   | 'categories'
+  | 'priority'
+  | 'type'
   | 'repetition'
   | 'time'
   | 'fromTime'

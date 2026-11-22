@@ -1,14 +1,11 @@
-import { birthdayRingOf, calendarRingPage, DEFAULT_RING_SETTINGS, readRingSettings, reminderDayRange, routineRingOf, routinesRingPage, type RingPage } from '@ordo/shared';
+import { birthdayRingOf, calendarRingPage, DEFAULT_RING_SETTINGS, readRingSettings, routineRingOf, routinesRingPage, type RingPage } from '@ordo/shared';
 import { useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router';
-import { fetchCalendarEvents, useBirthdays, useWorkSchedules, type EventOccurrence } from '../../calendar/api';
 import { ringBirthdayReminders, ringEphemerisReminders } from '../lib/ring-calendar';
 import { usePersonOpener } from '../../calendar/hooks/use-person-opener';
-import { useTasksData } from '../../tasks/api';
-import { useRoutineMutations, useRoutinesData } from '../../routines/api';
-import { useRunningTimers } from '../../time/api';
-import { useProjectTree } from '../../projects/api';
-import { useAlarmMutations, useAlarms, type Alarm } from '../api';
+import { useRoutineMutations } from '../../routines/api';
+import { useAlarmMutations, type Alarm } from '../api';
+import { useRingSources } from '../hooks/use-ring-sources';
 import { configureRinging, loadRings, refreshRestoredRings, type KeptRing } from '../lib/ringing';
 import { listenToPushes } from '../lib/push';
 import { useMe } from '../../auth/api';
@@ -18,7 +15,6 @@ import { unlockAudioOnGesture } from '../../../lib/alarm-sound';
 import { dueAlarms, ringAlarm, ringReminders, ringTaskReminders, type RingLink } from './ring';
 import { markDoneAction, ringRoutineReminders } from '../lib/ring-routines';
 import { ON_ERROR } from '../../../lib/notify';
-import { useSlotRules, routineDoable } from '../../calendar/hooks/use-slot-rules';
 import { alarmTarget } from '../lib/alarm-labels';
 import { useCountdownRinger } from '../../countdowns/hooks/use-countdown-ringer';
 
@@ -36,45 +32,20 @@ const RINGS_MS = 60_000;
  * @returns {null} Nothing.
  */
 export function AlarmCenter() {
-  const { data: alarms } = useAlarms();
-  const { data: running } = useRunningTimers();
-  const { data: tasksData } = useTasksData();
-  const { data: workspace } = useProjectTree();
+  const { alarms, running, tasksData, workspace, routinesData, schedules, birthdays, occurrences, deferRoutine } = useRingSources();
   const { markFired } = useAlarmMutations();
-  const { data: routinesData } = useRoutinesData();
   const { setDone } = useRoutineMutations();
-  const slotRules = useSlotRules();
-  const { data: schedules } = useWorkSchedules();
-  const { data: birthdays } = useBirthdays();
   const openPerson = usePersonOpener();
   const { data: me } = useMe();
   const { data: spaces } = useWorkspaces();
   const currentWorkspaceId = spaces?.currentWorkspaceId ?? null;
   // Tracking alarms: last rung step per alarm and timer, so a reload does not ring past steps again.
   const trackingSteps = useRef(new Map<string, number>());
-  // Event occurrences of the next days, for their reminders.
-  const upcoming = useRef<EventOccurrence[]>([]);
-  useEffect(() => {
-    /**
-     * Loads the event occurrences from yesterday to the most days a reminder rings before (« N jours avant »).
-     * @returns {void}
-     */
-    const load = () => {
-      fetchCalendarEvents(reminderDayRange(new Date()))
-        .then((occurrences) => {
-          upcoming.current = occurrences;
-        })
-        .catch(() => undefined);
-    };
-    load();
-    const timer = window.setInterval(load, 5 * 60_000);
-    return () => window.clearInterval(timer);
-  }, []);
   const navigate = useNavigate();
-  const latest = useRef({ alarms, running, tasksData, workspace, markFired, navigate, routinesData, setDone, slotRules, schedules, birthdays, openPerson });
+  const latest = useRef({ alarms, running, tasksData, workspace, markFired, navigate, routinesData, setDone, deferRoutine, schedules, birthdays, openPerson, occurrences });
 
   useEffect(() => {
-    latest.current = { alarms, running, tasksData, workspace, markFired, navigate, routinesData, setDone, slotRules, schedules, birthdays, openPerson };
+    latest.current = { alarms, running, tasksData, workspace, markFired, navigate, routinesData, setDone, deferRoutine, schedules, birthdays, openPerson, occurrences };
   });
 
   useEffect(() => unlockAudioOnGesture(), []);
@@ -151,7 +122,7 @@ export function AlarmCenter() {
     const tick = () => {
       const { alarms: list, running: entry, markFired: mark } = latest.current;
       const now = new Date();
-      ringReminders(upcoming.current, now, [link(calendarRingPage())]);
+      ringReminders(latest.current.occurrences ?? [], now, [link(calendarRingPage())]);
       ringEphemerisReminders(latest.current.schedules ?? [], now, [link(calendarRingPage())]);
       ringBirthdayReminders(latest.current.birthdays ?? [], now, (birthday) => [{ label: 'Ouvrir la fiche', onClick: () => latest.current.openPerson(birthday) }]);
       ringRoutineReminders(
@@ -159,7 +130,7 @@ export function AlarmCenter() {
         now,
         [link(routinesRingPage())],
         (routine, slot) => latest.current.setDone.mutate({ id: routine.id, done: true, slot }, ON_ERROR),
-        (routine, at) => latest.current.slotRules.nextAllowedAt(routineDoable(routine), at),
+        (routine, at) => latest.current.deferRoutine(routine, at),
       );
       const { tasksData: data, workspace: space } = latest.current;
       ringTaskReminders(data?.tasks ?? [], now, (task) => {

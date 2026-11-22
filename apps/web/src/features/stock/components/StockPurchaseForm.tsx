@@ -4,7 +4,7 @@ import { useLocationSelect } from '../hooks/use-location-select';
 import { ClockIcon } from '@phosphor-icons/react';
 import { mapById } from '@ordo/shared';
 import { Paper, SimpleGrid, Stack, Text } from '@mantine/core';
-import { DatePickerInput } from '@mantine/dates';
+import { DateField } from '../../../components/inputs/DateField';
 import { useState } from 'react';
 
 import { useAsyncAction } from '../../../lib/use-async-action';
@@ -87,7 +87,7 @@ export function StockPurchaseForm({ items, onDone }: { items: ShoppingItem[]; on
                 value={locationOf(line)}
                 onChange={(locationId) => change(index, { locationId })}
               />
-              <DatePickerInput size="xs" label="Date de péremption" placeholder="Aucune" clearable value={line.expiresAt} onChange={(value) => change(index, { expiresAt: value || null })} />
+              <DateField size="xs" label="Date de péremption" placeholder="Aucune" clearable value={line.expiresAt} onChange={(value) => change(index, { expiresAt: value || null })} />
             </SimpleGrid>
           </Stack>
         </Paper>

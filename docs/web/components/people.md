@@ -38,7 +38,7 @@ Valeurs des sélections qui mélangent les sortes de personnes : `« c:<id> »` 
 
 ## `person-option.tsx`
 
-`personOptionRenderer(byId, { handle })` : rendu (`renderOption`) des options d'une sélection de personnes : avatar, libellé, « @handle » (sauf `handle: false`). Imposé par eslint (un `PersonOption` dans un `renderOption` écrit à la main est interdit). Utilisé par les tâches et la trésorerie.
+`personOptionRenderer(byId, { handle })` : rendu (`renderOption`) des options d'une sélection de personnes : avatar, libellé, « @handle » (sauf `handle: false`). Imposé par eslint (un `PersonOption` dans un `renderOption` écrit à la main est interdit). Utilisé par les tâches (`AssigneesSelect`, cellules), la trésorerie et `useBeneficiaries` (bénéficiaires, assignés d’un évènement).
 
 ## Détails d'une personne
 

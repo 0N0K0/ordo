@@ -1,6 +1,5 @@
 import { AddItemButton } from '../actions/AddItemButton';
-import { Group, SegmentedControl, Stack, Text } from '@mantine/core';
-import { DatePickerInput } from '@mantine/dates';
+import { SegmentedControl, Stack, Text } from '@mantine/core';
 import { DEFAULT_RECURRENCE, ONE_DAY, withRuleValues, type DurationUnit, type Recurrence, type RepetitionCase } from '@ordo/shared';
 
 import { useState, type ReactNode } from 'react';
@@ -11,12 +10,16 @@ import { RecurrenceEditor } from './RecurrenceEditor';
 import { useCaseFolds, useCaseKeys } from './use-case-folds';
 import { arrayMove } from '@dnd-kit/sortable';
 import { SortableArea } from '../dnd/sortable';
-import { dateRangeProps } from '../inputs/date-range';
+import { PeriodField } from '../inputs/PeriodField';
+import { DateField } from '../inputs/DateField';
 
 /** Times of the occurrences of what repeats (an event's hours, a schedule's slots, a routine's moments, an alarm's time). */
 export interface RepetitionTimes<T> {
-  /** Editor of the times of a case (its rule given: settings that depend on it). */
-  render: (times: T, onChange: (times: T) => void, index: number, rule: Recurrence | null) => ReactNode;
+  /**
+   * Editor of the times of a case (its rule given: settings that depend on it); `onCommit` (the editor's) to call once a
+   * value is chosen or an hour, a number is left, for a panel saved field by field.
+   */
+  render: (times: T, onChange: (times: T) => void, index: number, rule: Recurrence | null, onCommit?: () => void) => ReactNode;
   /** Times as text, for the summary (empty: none told); its rule given. */
   describe: (times: T, rule: Recurrence | null) => string;
   /** Times of a new case. */
@@ -62,6 +65,11 @@ interface RepetitionEditorProps<T> {
    * tells which cases, `message` is the error while it is missing. Optional. Default = none (rhythms count from `start`).
    */
   caseStart?: CaseStart<T>;
+  /**
+   * Called once a value is chosen (a frequency, a weekday, a case added…) or a number is left: a panel saved field by
+   * field saves the repetition then, not on each key typed. Optional.
+   */
+  onCommit?: () => void;
 }
 
 /** Day a case's rhythm counts from, asked of the cases that need one. */
@@ -96,24 +104,33 @@ function CaseFields<T>({
   // Its rhythm counts from the day chosen when one is asked.
   const ruleStart = asksStart && item.anchor ? item.anchor : item.since && item.since > start ? item.since : start;
   // Its rhythm counts from its first day.
-  const period = dateRangeProps({ value: [item.since, item.until], onChange: ([since, until]) => onChange({ since, until, ...(since !== item.since ? { anchor: null } : {}) }) });
   return (
     <Stack gap="sm">
       {withPeriod && (
-        <Group gap="xs">
-          <DatePickerInput size="xs" w={190} label="Du" placeholder="Dès le début" clearable {...period.start} />
-          <DatePickerInput size="xs" w={190} label="Au" placeholder="Jusqu’à la fin" clearable {...period.end} />
-        </Group>
+        <PeriodField
+          size="xs"
+          w={380}
+          label="Période"
+          placeholder="Toujours"
+          value={[item.since, item.until]}
+          onChange={([since, until]) => {
+            onChange({ since, until, ...(since !== item.since ? { anchor: null } : {}) });
+            props.onCommit?.();
+          }}
+        />
       )}
       {asksStart && (
-        <DatePickerInput
+        <DateField
           size="xs"
           w={190}
           label="À partir du"
           required
           placeholder="À choisir"
           value={item.anchor}
-          onChange={(anchor) => onChange({ anchor })}
+          onChange={(anchor) => {
+            onChange({ anchor });
+            props.onCommit?.();
+          }}
           onBlur={() => setStartLeft(true)}
           onDropdownClose={() => setStartLeft(true)}
           error={startLeft && !item.anchor ? props.caseStart?.message : undefined}
@@ -125,24 +142,36 @@ function CaseFields<T>({
         start={ruleStart}
         weekly={props.weekly}
         allowNone={!withPeriod && props.allowNone !== false}
+        onCommit={props.onCommit}
       />
       {props.durations && props.durations.length > 0 && item.rule && (
-        <DurationFields value={item.rule.duration ?? ONE_DAY} onChange={(duration) => item.rule && onChange({ rule: { ...item.rule, duration } })} units={props.durations} />
+        <DurationFields value={item.rule.duration ?? ONE_DAY} onChange={(duration) => item.rule && onChange({ rule: { ...item.rule, duration } })} units={props.durations} onCommit={props.onCommit} />
       )}
-      {props.times?.render(item.times, (times) => onChange({ times }), index, item.rule)}
+      {props.times?.render(item.times, (times) => onChange({ times }), index, item.rule, props.onCommit)}
     </Stack>
   );
 }
 
 /**
  * Every setting of a repetition: its mode (one rule, cases, or another), then the rule, the length of each occurrence
- * and the times of each case (and the period of each one with cases), as what repeats allows.
+ * and the times of each case (and the period of each one with cases), as what repeats allows. Each change is given at
+ * once (`onChange`); `onCommit` follows a choice at once (a case added, removed or moved too), and a number once it is
+ * left.
  * @template T
  * @param {RepetitionEditorProps<T>} props Component props.
  * @returns {JSX.Element} Editor.
  */
 export function RepetitionEditor<T>(props: RepetitionEditorProps<T>) {
-  const { mode, onModeChange, cases, onChange, start, multiple = false, modes = [], times, footer } = props;
+  const { mode, onModeChange, cases, onChange: give, start, multiple = false, modes = [], times, footer, onCommit } = props;
+  /**
+   * Gives cases changed by a choice, then commits them.
+   * @param {RepetitionCase<T>[]} next Cases.
+   * @returns {void}
+   */
+  const onChange = (next: RepetitionCase<T>[]) => {
+    give(next);
+    onCommit?.();
+  };
   const folds = useCaseFolds();
   const keys = useCaseKeys(cases.length);
   /**
@@ -163,7 +192,7 @@ export function RepetitionEditor<T>(props: RepetitionEditorProps<T>) {
    * @param {Partial<RepetitionCase<T>>} changes Changes.
    * @returns {void}
    */
-  const update = (index: number, changes: Partial<RepetitionCase<T>>) => onChange(cases.map((item, other) => (other === index ? { ...item, ...changes } : item)));
+  const update = (index: number, changes: Partial<RepetitionCase<T>>) => give(cases.map((item, other) => (other === index ? { ...item, ...changes } : item)));
   /**
    * New case, every week from the first day.
    * @returns {RepetitionCase<T>} Case.
@@ -183,9 +212,10 @@ export function RepetitionEditor<T>(props: RepetitionEditorProps<T>) {
           value={mode}
           onChange={(value) => {
             // Cases keep the rule as their first one; back to one rule keeps the first case.
-            if (value === 'CASES' && !cases.length) onChange([newCase()]);
-            if (value === 'RULE') onChange(cases.length ? [{ ...cases[0], since: null, until: null }] : [newCase()]);
+            if (value === 'CASES' && !cases.length) give([newCase()]);
+            if (value === 'RULE') give(cases.length ? [{ ...cases[0], since: null, until: null }] : [newCase()]);
             onModeChange(value);
+            onCommit?.();
           }}
           data={offered}
         />
@@ -237,7 +267,7 @@ export function RepetitionEditor<T>(props: RepetitionEditorProps<T>) {
   );
 }
 
-interface RuleEditorProps extends Pick<RepetitionEditorProps<null>, 'start' | 'weekly' | 'allowNone' | 'durations' | 'footer'> {
+interface RuleEditorProps extends Pick<RepetitionEditorProps<null>, 'start' | 'weekly' | 'allowNone' | 'durations' | 'footer' | 'onCommit'> {
   /** Rule; null: it does not repeat. */
   rule: Recurrence | null;
   onChange: (rule: Recurrence | null) => void;

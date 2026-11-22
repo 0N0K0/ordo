@@ -34,6 +34,12 @@ Enveloppe légère : sans texte, affiche `emptyText` ; avec un texte, charge `Ma
 
 Rendu GitHub Flavored Markdown (tableaux, listes de tâches, barré, liens automatiques), assaini (`rehype-sanitize`, l'attribut `dataTaskOffset` autorisé sur `li`), avec les références « #12 » en liens. Props : `children` (source), `targets` (`ReferenceTargets`), `emptyText` (défaut « Aucune description. », en italique atténué), `onChange` (avec lui, les cases des listes de tâches se cochent et la source est mise à jour, affichée tout de suite en attendant l'enregistrement ; sans lui, cases en lecture seule).
 
+## `DescriptionSection.tsx`
+
+`DescriptionSection({ value, targets, readOnly?, onCheck, editor })` : section « Description » des panneaux d'une tâche, d'une routine et d'un évènement (`SubSection`) : sans description, l'éditeur (`editor`) est montré directement (et le reste pendant qu'on tape les premiers mots) ; sinon le texte en markdown (`MarkdownView`, cases cochées en place enregistrées par `onCheck`), le crayon `EditToggle` « Modifier la description » ouvre l'éditeur (qui prend alors le focus, `autoFocus`), la coche revient au texte. Lecture seule : le texte seul. L'éditeur reçoit `{ close, autoFocus }` (Ctrl/⌘ + Entrée le ferme). Utilisé par `TaskDescription` (son éditeur enregistré à part) et `FormDescription`.
+
+`FormDescription({ field, commit, targets, suggestions, readOnly? })` : la même section quand la description est un champ du formulaire du panneau (`fieldProps('description')` de `useFieldSave`) : `MarkdownEditor` (3 lignes au moins) enregistré en le quittant, une case cochée enregistrée aussitôt (`commit`). Utilisé par `RoutineForm` et `EventForm`.
+
 ## `MarkdownRenderer.tsx`
 
 `MarkdownRenderer(props)` : le rendu lui-même (`react-markdown`, `remark-gfm`, `rehype-sanitize`), chargé par `MarkdownView` ; jamais importé directement.

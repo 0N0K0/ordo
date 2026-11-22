@@ -217,7 +217,7 @@ Le focus va sur « À » s’il est vide, sinon au début du corps.
 « Programmer » (mêmes conditions que « Envoyer ») ouvre « Envoyer plus tard » :
 
 - « Cet après-midi » (14 h, proposé seulement avant 13 h), « Demain matin » (8 h), « \<Premier jour de la semaine\> matin » (8 h, le prochain premier jour de semaine de l’espace, ex. « Lundi matin ») ; l’heure exacte est affichée à droite.
-- « Date et heure » libres (à partir de maintenant), puis « Programmer l’envoi ».
+- « Date et heure » libres (à partir d’aujourd’hui, le jour et l’heure dans un seul sélecteur), puis « Programmer l’envoi ».
 
 Toast « Envoi programmé le \<date courte et heure\>. ». Le mail est construit tout de suite (fichiers compris) et son brouillon est supprimé.
 
@@ -241,7 +241,7 @@ Côté serveur, les envois partent toutes les 30 secondes environ (voir [Tâches
 Bouton « Recherche avancée » à côté de la recherche rapide. Panneau :
 
 - Où : « Ce dossier », « Toute la boîte » (tous les dossiers sauf corbeille, indésirables, brouillons, envoyés), « Toutes les boîtes ».
-- « De », « À » (nom ou adresse), « Objet », « Corps », « Du », « Au » (dates de réception).
+- « De », « À » (nom ou adresse), « Objet », « Corps », « Reçu » (période de réception, un seul champ, chaque bout facultatif).
 - « Drapeaux (l’un d’eux) » (« Peu importe » sans choix).
 - « Tous » / « À traiter » / « Traités », « Non lus », « Avec pièce jointe ».
 - Note : « Les 200 mails les plus récents de chaque dossier sont examinés. ».
@@ -261,7 +261,7 @@ Formulaire (panneau latéral « Nouveau dossier de recherche » / « Modifier le
 - « Dossiers » : « Réception », « Tous (hors corbeille, spam, brouillons, envoyés) », et « Dossier \<chemin\> » quand il vient d’une recherche « Ce dossier ».
 - « Mails » : « À traiter » (défaut), « Traités », « Tous ».
 - « Drapeaux » (« Les mails ayant l’un de ces drapeaux. »), « Non lus seulement », « Texte » (« Dans l’objet, les adresses ou le corps. »).
-- « Critères avancés » : « De », « À », « Objet », « Corps », « Reçu à partir du », « Jusqu’au », « Avec pièce jointe ».
+- « Critères avancés » : « De », « À », « Objet », « Corps », « Reçu » (période en un seul champ, chaque bout facultatif), « Avec pièce jointe ».
 - Nouveau dossier : bouton « Créer », toast « Dossier de recherche créé. » (le nouveau dossier s’ouvre). Dossier existant : enregistré champ par champ (chaque choix dès qu’il change, les textes en les quittant ; « Enregistrement… » / « Enregistré », sans bouton).
 
 Suppression : confirmation « Le dossier de recherche « X » sera supprimé définitivement. Les mails qu’il montre ne sont pas touchés. », toast « Dossier de recherche supprimé. ».
