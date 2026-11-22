@@ -102,8 +102,9 @@ Interne : `LabelDocuments` (documents CRUD par type de libellé), `useTasksMutat
 
 ### `components/TaskHoursField.tsx`
 
-- `TaskHoursField({ value, onChange, readOnly? })` : « Horaires » d'une tâche, dans « Nouvelle tâche » et le panneau : `RepetitionField` (résumé `describeScheduleCase`, « N’importe quand » sans horaires, `valid` = `taskHoursSchema`), la fenêtre étant l’éditeur des cas d’un créneau (`ScheduleCases`, `newScheduleCase`).
-- Interne `TaskHoursEditor({ draft, setDraft, start })` : `ScheduleCases`, première erreur de `taskHoursSchema` (`Input.Error`), « Retirer les horaires » ; sans horaires : « Aucun horaire : la tâche est faisable à n’importe quelle heure. » et « Ajouter des horaires ».
+- `TaskHoursField({ value, onChange, readOnly? })` : « Horaires » d'une tâche, dans « Nouvelle tâche » et le panneau : `RepetitionField` (résumé `taskHoursLines`, « N’importe quand » sans horaires, `valid` = `taskHoursSchema`), la fenêtre étant l’éditeur des cas d’un créneau (`ScheduleCases`, `newScheduleCase`).
+- `TaskHoursModal({ value, title, onClose, onApply, header? })` : la même fenêtre hors du panneau (cellule « Horaires » du tableau) : `RepetitionModal` sur un brouillon partant des horaires à l’ouverture (montée à l’ouverture), « Appliquer » désactivé tant que `taskHoursSchema` refuse ; `header` : à quoi elle s’applique.
+- Internes `HOURS_CASE_START` (« À partir du » des cas qui le demandent : `hoursCaseNeedsStart`, `HOURS_START_REQUIRED`), `validHours`, `TaskHoursEditor({ draft, setDraft, start })` : `ScheduleCases` (`caseStart`), première erreur de `taskHoursSchema` hors « À partir du » manquant (montré sous son champ) (`Input.Error`), « Retirer les horaires » ; sans horaires : « Aucun horaire : la tâche est faisable à n’importe quelle heure. » et « Ajouter des horaires ».
 
 ### `components/TaskLocation.tsx`
 
@@ -144,6 +145,7 @@ Cellules modifiables en place des tâches (toutes en lecture seule sur une tâch
 | `TaskLinksCell({ task, context, kind })`    | « Bloque » ou « Relative à ».                                                                                                           |
 | `ParentCell({ task, context })`             | Tâche parente (pas elle-même ni ses sous-tâches).                                                                                       |
 | `TaskProjectCell({ task, context })`        | Projet : transfert, confirmation si sortie d’arborescence avec liens.                                                                   |
+| `TaskHoursCell({ task })`                   | « Horaires » : `taskHoursText` (« N’importe quand » sans horaires) ; un clic ouvre `TaskHoursModal`, appliqué sur la sélection (`useCellEdit`, enregistré tâche par tâche) ; lecture seule sur une tâche archivée. |
 | `TaskLocationCell({ task })`                | « Lieu » : `LocationCell` (features/geo) sur la sélection (`useCellEdit`, enregistré tâche par tâche).                                  |
 
 Internes : `fieldLabel` (libellé accessible), `LABEL_FIELDS`, `LABEL_NAMES`, `DATE_LABELS`, `DATE_RANGES`.
@@ -338,6 +340,11 @@ Internes : `TaskColumnExtras`, `STATUS_CATEGORY_ORDER`, `STATUS_CATEGORY_LABELS`
 - `LOCKED_COLUMNS` : colonnes non masquables (`label`).
 - `COLUMN_SIZES` : largeur par défaut (px).
 - `BULK_EDITABLE_COLUMNS` : colonnes modifiables sur une sélection de cellules.
+
+### `lib/task-hours-text.ts`
+
+- `taskHoursLines(hours, start)` : « Horaires » d’une tâche en mots, une ligne par cas (`describeScheduleCase`). Utilisé par `TaskHoursField`.
+- `taskHoursText(hours, start)` : les mêmes en un texte (cas séparés par « ; »), vide sans horaires : cellule `TaskHoursCell`, texte, tri, filtre et export de la colonne « Horaires » (`taskCell`, `sortValue`).
 
 ### `lib/task-rows.ts`
 

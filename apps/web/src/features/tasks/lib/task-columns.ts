@@ -324,7 +324,7 @@ export function taskColumns(context: TaskContext, today: string, extras: TaskCol
     text: (row) => (row.kind === 'task' ? taskCell(row.task, id, context) : eventCell(row.event, id, context, commentsOf(row))),
     filter: filterOf(id),
     formatTotal: id === 'trackedTime' ? (seconds) => formatDuration(Math.round(seconds)) : undefined,
-    groupable: ['slots', 'timer', 'subtasks', 'progress', 'alarms', 'shopping', 'comments'].includes(id) ? false : undefined,
+    groupable: ['slots', 'hours', 'timer', 'subtasks', 'progress', 'alarms', 'shopping', 'comments'].includes(id) ? false : undefined,
     groupTree: id === 'project' ? context.projects.map((project) => ({ key: project.id, label: project.label, color: project.color ?? null, parentKey: project.parentId ?? null })) : undefined,
     groupValue: GROUP_VALUES[id],
   }));

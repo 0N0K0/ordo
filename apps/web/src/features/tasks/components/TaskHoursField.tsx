@@ -1,12 +1,24 @@
 import { Group, Input, Stack, Text } from '@mantine/core';
-import { taskHoursSchema, type ScheduleCase } from '@ordo/shared';
+import { HOURS_START_REQUIRED, hoursCaseNeedsStart, taskHoursSchema, type ScheduleCase } from '@ordo/shared';
 import { TrashIcon } from '@phosphor-icons/react';
-import { RepetitionField } from '../../../components/recurrence/RepetitionField';
+import { useState, type ReactNode } from 'react';
+import { RepetitionField, RepetitionModal } from '../../../components/recurrence/RepetitionField';
 import { AddItemButton } from '../../../components/actions/AddItemButton';
 import { ActionButton } from '../../../components/actions/ActionButton';
 import { localToday } from '../../../lib/dates';
 import { ScheduleCases } from '../../calendar/components/ScheduleRepetition';
-import { describeScheduleCase, newScheduleCase } from '../../calendar/lib/schedule-text';
+import { newScheduleCase } from '../../calendar/lib/schedule-text';
+import { taskHoursLines } from '../lib/task-hours-text';
+
+/** « À partir du » asked of each case whose rhythm counts from a day (its error shown under it). */
+const HOURS_CASE_START = { needed: hoursCaseNeedsStart, message: HOURS_START_REQUIRED };
+
+/**
+ * Whether hours edited can be applied (the checks of a créneau, the days rhythms count from).
+ * @param {ScheduleCase[]} draft Hours edited.
+ * @returns {boolean} Valid.
+ */
+const validHours = (draft: ScheduleCase[]) => taskHoursSchema.safeParse(draft).success;
 
 /**
  * Settings of the « Horaires » of a task in the repetition modal: the cases of a créneau (days, hours), its first
@@ -24,10 +36,11 @@ function TaskHoursEditor({ draft, setDraft, start }: { draft: ScheduleCase[]; se
         <AddItemButton onClick={() => setDraft([newScheduleCase(start)])}>Ajouter des horaires</AddItemButton>
       </Stack>
     );
-  const issue = taskHoursSchema.safeParse(draft).error?.issues[0]?.message;
+  // A missing « À partir du » shows under its field.
+  const issue = taskHoursSchema.safeParse(draft).error?.issues.find((item) => item.message !== HOURS_START_REQUIRED)?.message;
   return (
     <Stack gap="sm">
-      <ScheduleCases cases={draft} onChange={setDraft} start={start} />
+      <ScheduleCases cases={draft} onChange={setDraft} start={start} caseStart={HOURS_CASE_START} />
       {issue && <Input.Error>{issue}</Input.Error>}
       <Group>
         <ActionButton priority="tertiary" danger icon={<TrashIcon aria-hidden />} onClick={() => setDraft([])}>
@@ -55,9 +68,33 @@ export function TaskHoursField({ value, onChange, readOnly = false }: { value: S
       value={value}
       onChange={onChange}
       editable={!readOnly}
-      valid={(draft) => taskHoursSchema.safeParse(draft).success}
-      describe={(hours) => hours.map((item) => describeScheduleCase(item, start))}
+      valid={validHours}
+      describe={(hours) => taskHoursLines(hours, start)}
       editor={(draft, setDraft) => <TaskHoursEditor draft={draft} setDraft={setDraft} start={start} />}
+    />
+  );
+}
+
+/**
+ * Settings of the « Horaires » of a task in the repetition modal, out of its panel (a table cell): applied on
+ * « Appliquer » to it, or to every task selected. Mounted when opened: its draft starts from the hours as they are then.
+ * @param {{ value: ScheduleCase[], title: string, onClose: () => void, onApply: (hours: ScheduleCase[]) => void, header?: ReactNode }} props Hours, title, closing, saving, what it applies to. Optional `header`.
+ * @returns {JSX.Element} Modal.
+ */
+export function TaskHoursModal({ value, title, onClose, onApply, header }: { value: ScheduleCase[]; title: string; onClose: () => void; onApply: (hours: ScheduleCase[]) => void; header?: ReactNode }) {
+  const [draft, setDraft] = useState<ScheduleCase[]>(value);
+  const start = localToday();
+  return (
+    <RepetitionModal<ScheduleCase[]>
+      opened
+      onClose={onClose}
+      title={title}
+      header={header}
+      draft={draft}
+      setDraft={setDraft}
+      valid={validHours}
+      editor={(hours, change) => <TaskHoursEditor draft={hours} setDraft={change} start={start} />}
+      onApply={onApply}
     />
   );
 }

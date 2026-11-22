@@ -1,5 +1,7 @@
 import { commentTotal } from '../../comments/lib/comment-column';
-import { formatDuration, printedDay, type TaskColumn } from '@ordo/shared';
+import { formatDuration, printedDay, readTaskHours, type TaskColumn } from '@ordo/shared';
+import { localToday } from '../../../lib/dates';
+import { taskHoursText } from './task-hours-text';
 import type { EventOccurrence } from '../../calendar/api';
 import type { Task } from '../api';
 import type { TaskContext } from '../hooks/use-task-context';
@@ -64,6 +66,8 @@ export function taskCell(task: Task, column: TaskColumn, context: TaskContext): 
       return '';
     case 'location':
       return task.location ?? '';
+    case 'hours':
+      return taskHoursText(readTaskHours(task.hours), localToday());
     case 'timer':
       return '';
     case 'subtasks':

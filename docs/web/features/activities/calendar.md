@@ -149,7 +149,7 @@ Utilisés par `ScheduleSettings`.
 
 - `ScheduleRepetition({ value, onChange, error? })` : champ « Période et horaires » d’un créneau (`RepetitionField`), résumé (`describeScheduleCase`, `exceptionPeriod`). Utilisé par `ScheduleForm` (`WorkSchedulesManager`).
 - Interne `ScheduleRepetitionEditor({ draft, setDraft })` : période (`dateRangeProps`), cas, exceptions (dates, motif, pause, cas propres).
-- `ScheduleCases({ cases, onChange, start })` : cas d’une période (créneau, exception) ou horaires d’une tâche (`TaskHoursField`) : `RepetitionEditor` commun (modes `RULE`/`CASES`, `multiple`, `DURATION_UNITS`, `SCHEDULE_TIMES`).
+- `ScheduleCases({ cases, onChange, start, caseStart? })` : cas d’une période (créneau, exception) ou horaires d’une tâche (`TaskHoursField`) : `RepetitionEditor` commun (modes `RULE`/`CASES`, `multiple`, `DURATION_UNITS`, `SCHEDULE_TIMES`) ; `caseStart` : « À partir du » demandé aux cas qui en ont besoin (horaires d’une tâche seulement).
 - Interne `ScheduleTimesFields({ value, onChange, index })` : journée entière ou tranches horaires (`rangeProps`), « Ajouter des horaires » (propose 14:00–18:00 après une matinée).
 - Constante interne `SCHEDULE_TIMES` (`RepetitionTimes<ScheduleTimes>` : rendu, `describeScheduleTimes`, `defaultScheduleTimes`) ; type interne `ScheduleRepetitionValue`.
 

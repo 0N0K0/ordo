@@ -1,4 +1,4 @@
-import { changedList, copyName, marksInherited, dateSchema, TASK_INHERITABLE_FIELDS, type EffectiveTask, type TaskInheritableField, deadTimesSchema, readDeadTimes, storedDeadTimes, effortSchema, groupBy, itemLinksSchema, normalizedReminders, readReminders, taskRemindersSchema, locationPointFields, markdownSchema, optionalText, parseOptionalDay, reaches, readSlotCondition, slotConditionSchema, anchoredTaskHours, readTaskHours, taskHoursSchema, statusClosing, type TaskInput as SharedTaskInput, taskFieldsGiven, taskLabelSchema } from '@ordo/shared';
+import { changedList, copyName, marksInherited, dateSchema, TASK_INHERITABLE_FIELDS, type EffectiveTask, type TaskInheritableField, deadTimesSchema, readDeadTimes, storedDeadTimes, effortSchema, groupBy, itemLinksSchema, normalizedReminders, readReminders, taskRemindersSchema, locationPointFields, markdownSchema, optionalText, parseOptionalDay, reaches, readSlotCondition, slotConditionSchema, readTaskHours, taskHoursSchema, statusClosing, type TaskInput as SharedTaskInput, taskFieldsGiven, taskLabelSchema } from '@ordo/shared';
 import { z } from 'zod';
 import { prisma } from '../../db';
 import { assertBeneficiaries } from '../core/beneficiaries';
@@ -16,7 +16,6 @@ import { connectIds, orderedPair } from '../core/relations';
 import { inProjectTree, loadProjectRootOf as loadRootOf, outsideMovedTree } from '../projects/project-tree';
 import { commentBody } from '../core/comments';
 import { toJson } from '../core/json';
-import { parisToday } from '../../today';
 import { readLinks } from '../core/links';
 import { storedLocation } from '../core/geo';
 import { assertConditionSchedules } from '../calendar/slot-conditions';
@@ -278,8 +277,8 @@ function parseDetails(input: TaskInput, current?: TaskDays, notOwn: readonly str
     minDate: parseOptionalDay(details.minDate),
     // An empty group is no condition (any time).
     slotCondition: details.slotCondition === undefined ? undefined : details.slotCondition?.children.length ? toJson(details.slotCondition) : Prisma.DbNull,
-    // None (null): any time; the rhythm of each case counts from the day it is typed.
-    hours: details.hours === undefined ? undefined : toJson(anchoredTaskHours(details.hours ?? [], parisToday())),
+    // None (null): any time; each case whose rhythm counts from a day has that day (`taskHoursSchema`).
+    hours: details.hours === undefined ? undefined : toJson(details.hours ?? []),
     // A location changed replaces its point too (none: unknown).
     ...(details.location !== undefined && storedLocation({ location: details.location, locationLat: details.locationLat, locationLon: details.locationLon })),
     links: details.links === undefined ? undefined : toJson(details.links ?? []),
