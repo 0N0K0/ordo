@@ -10,7 +10,7 @@ import { DetailSkeleton } from '../../../components/feedback/Skeletons';
 import { SidePanel } from '../../../components/panels/SidePanel';
 import { Badge, Group, Select, Text } from '@mantine/core';
 import { taskPanelFormSchema, readSlotCondition, readTaskHours, subtreeOf, type TaskInheritableField } from '@ordo/shared';
-import { ArrowCounterClockwiseIcon, CheckCircleIcon, GithubLogoIcon, ArrowsLeftRightIcon, ProhibitIcon } from '@phosphor-icons/react';
+import { ArrowCounterClockwiseIcon, CheckCircleIcon, GithubLogoIcon, ArrowsLeftRightIcon } from '@phosphor-icons/react';
 import { useState } from 'react';
 
 import { localToday } from '../../../lib/dates';
@@ -131,7 +131,6 @@ function TaskDetail({ task, context }: TaskDetailProps) {
   const actions = useTaskActions(context);
   const locked = task.archived;
   const closeAction = actions.close(task);
-  const cancelAction = actions.cancel(task);
 
   /**
    * Saves a change right away.
@@ -237,24 +236,16 @@ function TaskDetail({ task, context }: TaskDetailProps) {
         // Cancelled: struck through.
         title={{ ...text.form.getInputProps('label'), styles: task.cancelled ? { input: { textDecoration: 'line-through' } } : undefined }}
         actions={
-          <>
-            <ActionButton
-              priority="secondary"
-              size="xs"
-              icon={task.closed ? <ArrowCounterClockwiseIcon aria-hidden /> : <CheckCircleIcon aria-hidden />}
-              // As the selection and the menu: told in a toast with « Annuler ».
-              loading={closeAction.loading}
-              onClick={closeAction.onClick}
-            >
-              {task.closed ? 'Rouvrir' : 'Fermer la tâche'}
-            </ActionButton>
-            {/* Closed as cancelled (struck through); a closed task is reopened first, or cancelled from its menu. */}
-            {!task.closed && (
-              <ActionButton priority="secondary" size="xs" icon={<ProhibitIcon aria-hidden />} loading={cancelAction.loading} onClick={cancelAction.onClick}>
-                Annuler la tâche
-              </ActionButton>
-            )}
-          </>
+          <ActionButton
+            priority="secondary"
+            size="xs"
+            icon={task.closed ? <ArrowCounterClockwiseIcon aria-hidden /> : <CheckCircleIcon aria-hidden />}
+            // As the selection and the menu: told in a toast with « Annuler ». Cancelling is in the menu.
+            loading={closeAction.loading}
+            onClick={closeAction.onClick}
+          >
+            {task.closed ? 'Rouvrir' : 'Fermer la tâche'}
+          </ActionButton>
         }
         menu={<ActionsMenu about="la tâche" items={actions.menu(task)} variant="light" size="input-xs" />}
         project={

@@ -52,14 +52,6 @@ export function useTaskActions(context: TaskContext | null) {
     close: (task: Task): SelectionAction => actionsOf([task]).close,
 
     /**
-     * « Annuler » of a task alone (closed as cancelled), as the selection and the menu do, told in a toast with
-     * « Annuler ».
-     * @param {Task} task Task.
-     * @returns {SelectionAction} Action (its click and its loading).
-     */
-    cancel: (task: Task): SelectionAction => actionsOf([task]).cancel,
-
-    /**
      * Opens the new task form.
      * @param {{ projectId?: string, parentId?: string }} [defaults] Preselected project or parent. Optional.
      * @returns {void}
