@@ -41,7 +41,7 @@ Page `/tasks` ; aussi dans les paramètres d’un projet depuis son onglet « T�
 
 ### Projet — « Paramètres du projet »
 
-Page `/projects/:id`. Onglets : d’abord les paramètres de l’espace propres à l’onglet affiché de la page du projet (seulement ceux-là), puis ceux du projet lui-même. Depuis un onglet qui a des paramètres, le panneau s’ouvre sur eux, sinon sur « Jalons » ; changer d’onglet de la page garde une section du projet, et passe sinon aux paramètres du nouvel onglet. Les anciennes adresses d’onglets de paramètres (`?tab=milestones`…) ouvrent la section correspondante (`?tab=taskSettings` : sur l’onglet « Tâches »). Voir [Projets](projects.md).
+Page `/projects/:id`. Onglets : d’abord les paramètres de l’espace propres à l’onglet affiché de la page du projet (seulement ceux-là), puis ceux du projet lui-même : « Jalons » et « Sprints » seulement depuis l’onglet « Tâches » (ils ne servent qu’aux tâches), puis « Contributeurs », « GitHub » et « Projet » depuis tous les onglets. Le panneau s’ouvre sur le premier onglet de paramètres (ceux de l’onglet affiché s’il en a, sinon « Contributeurs ») ; changer d’onglet de la page garde une section du projet quand le nouvel onglet la montre, et passe sinon au premier onglet de paramètres du nouvel onglet. Les anciennes adresses d’onglets de paramètres (`?tab=contributors`…) ouvrent la section correspondante (`?tab=taskSettings`, `?tab=milestones`, `?tab=sprints` : sur l’onglet « Tâches »). Voir [Projets](projects.md).
 
 Les paramètres de l’espace repris dans un projet sont ceux de l’espace (les mêmes listes, le même enregistrement que sur la page de chaque fonctionnalité) ; une ligne le dit au-dessus : « Ces paramètres valent pour tout l’espace, pas seulement pour ce projet. »
 
@@ -54,8 +54,8 @@ Les paramètres de l’espace repris dans un projet sont ceux de l’espace (les
 | « Temps »         | Depuis l’onglet « Temps » : la semaine de l’espace (« Cette semaine » des temps).                                                                                                              |
 | « Facturation »   | Depuis l’onglet « Facturation » (PRO) : « Suivi » (statuts des devis et des factures) et « Ma société » (avec la numérotation) de la facturation ; l’export ZIP reste sur la page Facturation. |
 | « Mails »         | Depuis l’onglet « Mails » : les boîtes mail et les drapeaux de l’espace.                                                                                                                       |
-| « Jalons »        | Jalons du projet, utilisables par les tâches du projet et de ses sous-projets.                                                                                                                 |
-| « Sprints »       | Sprints du projet, mêmes règles d’usage.                                                                                                                                                       |
+| « Jalons »        | Depuis l’onglet « Tâches » : jalons du projet, utilisables par les tâches du projet et de ses sous-projets.                                                                                     |
+| « Sprints »       | Depuis l’onglet « Tâches » : sprints du projet, mêmes règles d’usage.                                                                                                                          |
 | « Contributeurs » | Contributeurs rattachés au projet, hérités des projets parents, et « Moi » : seuls eux sont proposés comme assignés de ses tâches ([Personnes](../../business-rules/cross-cutting/people.md)). |
 | « GitHub »        | Lien du projet avec un tableau GitHub Projects : dépôt des nouvelles issues, synchronisation dans les deux sens, dernière erreur ([GitHub](github.md)).                                        |
 | « Projet »        | Le formulaire du projet lui-même (nom, couleur, icône…).                                                                                                                                       |
@@ -124,18 +124,18 @@ Pages `/shopping` et page d’une liste ; aussi dans les paramètres d’un proj
 
 | Section                   | Ce qu’elle gère                                                                                                                 |
 | ------------------------- | ------------------------------------------------------------------------------------------------------------------------------- |
-| « Catégories »            | Catégories des produits, en arborescence (partagées avec les fiches) ; une catégorie peut être réservée à certaines références. |
+| « Catégories »            | Catégories des produits, en arborescence (aussi dans les paramètres des fiches et de l’inventaire) ; une catégorie peut être réservée à certaines références ; son usage compte les produits, les éléments des listes et des fiches et les articles du stock. |
 | « Magasins »              | « Où vous achetez les produits. » (PERSO) / « Magasins et fournisseurs des produits. » (PRO).                                   |
-| « Unités »                | Unités de quantité ; renommer une unité la renomme dans les produits et les listes.                                             |
+| « Unités »                | Unités de quantité (aussi dans les paramètres des fiches et de l’inventaire) ; renommer une unité la renomme dans les produits et les listes. |
 | « Modes de conservation » | Frais, congélation, à l’abri de la lumière…                                                                                     |
 
 ### Fiches — « Paramètres des fiches »
 
-Pages `/sheets` et page d’une fiche ; aussi dans les paramètres d’un projet depuis son onglet « Fiches ». Sections « Catégories de fiches » (plusieurs par fiche) et « Catégories » des articles (les mêmes que celles des achats). Voir [Fiches](../supplies/sheets.md).
+Pages `/sheets` et page d’une fiche ; aussi dans les paramètres d’un projet depuis son onglet « Fiches ». Sections « Catégories de fiches » (plusieurs par fiche), puis « Catégories » et « Unités » des éléments (les mêmes que celles des achats). Voir [Fiches](../supplies/sheets.md).
 
 ### Inventaire — « Paramètres de l’inventaire »
 
-Page `/stock`. Section « Emplacements » : où sont rangés les articles, en arborescence (Cuisine › Frigo). Voir [Inventaire](../supplies/stock.md).
+Page `/stock`. Sections « Emplacements » (où sont rangés les articles, en arborescence : Cuisine › Frigo), puis « Catégories » et « Unités » des articles (les mêmes que celles des achats). Voir [Inventaire](../supplies/stock.md).
 
 ### Chronos — « Paramètres des chronos »
 
@@ -159,17 +159,19 @@ Portée : « espace » = un réglage de tout l’espace, le même partout où il
 | Priorités et types                                                        | espace      | Tâches ; Routines ; projet, onglets « Tâches » et « Routines »                                      |
 | Paramètres des routines (catégories, priorités, types)                    | espace      | Routines ; projet, onglet « Routines »                                                              |
 | Paramètres des achats (catégories, magasins, unités, conservation)        | espace      | Achats, page d’une liste ; projet, onglet « Achats »                                                |
-| Catégories des articles                                                   | espace      | Achats ; Fiches ; projet, onglets « Achats » et « Fiches »                                          |
-| Paramètres des fiches (catégories de fiches, catégories des articles)     | espace      | Fiches, page d’une fiche ; projet, onglet « Fiches »                                                |
+| Catégories des articles                                                   | espace      | Achats ; Fiches ; Inventaire ; projet, onglets « Achats » et « Fiches »                             |
+| Unités                                                                    | espace      | Achats ; Fiches ; Inventaire ; projet, onglets « Achats » et « Fiches »                             |
+| Paramètres des fiches (catégories de fiches, catégories des articles, unités) | espace      | Fiches, page d’une fiche ; projet, onglet « Fiches »                                                |
 | Semaine                                                                   | espace      | Agenda ; Chronos ; projet, onglet « Temps »                                                         |
 | Suivi, Ma société et numérotation                                         | espace (PRO) | Facturation ; projet, onglet « Facturation »                                                       |
 | Export ZIP de la facturation                                              | espace (PRO) | Facturation                                                                                        |
 | Boîtes mail, drapeaux                                                     | espace      | Mails (et la page elle-même sans boîte active) ; projet, onglet « Mails »                           |
 | Affichage de l’agenda, calendriers, catégories d’agenda, créneaux         | espace      | Agenda                                                                                              |
 | Paramètres de la trésorerie                                               | espace      | Trésorerie (« Équipe » / « Foyer » et « Relations » / « Proches » aussi dans la page Paramètres)    |
-| Emplacements                                                              | espace      | Inventaire                                                                                          |
+| Paramètres de l’inventaire (emplacements, catégories des articles, unités) | espace     | Inventaire                                                                                          |
 | Minuteurs enregistrés                                                     | espace      | Alarmes                                                                                             |
-| Jalons, sprints, contributeurs, GitHub du projet, formulaire du projet    | projet      | Paramètres du projet, depuis tous ses onglets                                                       |
+| Jalons, sprints                                                           | projet      | Paramètres du projet, depuis son onglet « Tâches »                                                  |
+| Contributeurs, GitHub du projet, formulaire du projet                     | projet      | Paramètres du projet, depuis tous ses onglets                                                       |
 | Facturation et formulaire du client                                       | client      | Paramètres du client                                                                                |
 | Projets, équipe et contributeurs, lieux, GitHub, espaces                  | espace      | Page Paramètres                                                                                     |
 | Compte, sonnerie, notifications push                                      | utilisateur | Mon compte                                                                                          |

@@ -18,6 +18,8 @@ import { StockLocations } from '../components/StockLocations';
 import { StockTable } from '../components/StockTable';
 import { localDay } from '../../../lib/dates';
 import { noteColumn } from '../../shopping/lib/product-columns';
+import { ShoppingCategories } from '../../shopping/components/ShoppingCategories';
+import { ShoppingUnits } from '../../shopping/components/ShoppingUnits';
 
 /**
  * Inventories recorded, latest first.
@@ -80,7 +82,8 @@ function CountsTable() {
 }
 
 /**
- * Settings of the inventory: the places (a tree).
+ * Settings of the inventory: the places (a tree), then the categories and the units of the articles (those of the
+ * shopping, also in the shopping settings).
  * @returns {JSX.Element} Settings, in the sidebar.
  */
 function StockSettings() {
@@ -90,6 +93,8 @@ function StockSettings() {
     <PageSettings title="Paramètres de l’inventaire">
       <Stack gap="md">
         <StockLocations usage={usage} />
+        <ShoppingCategories />
+        <ShoppingUnits />
       </Stack>
     </PageSettings>
   );
@@ -100,7 +105,7 @@ const STOCK_TABS = ['stock', 'movements', 'counts'] as const;
 
 /**
  * Inventory page: the stock (its items and their lots), the history of its movements, the inventories made, and its
- * settings (the places).
+ * settings (the places, the categories and the units).
  * @returns {JSX.Element} Page.
  */
 export function StockPage() {

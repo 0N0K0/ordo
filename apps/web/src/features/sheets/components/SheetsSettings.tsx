@@ -4,22 +4,19 @@ import { listMutations } from '../../../components/settings/settings-api';
 import { SettingsList } from '../../../components/settings/SettingsList';
 import { PageSettings } from '../../../app/layout/PageSettings';
 import { ShoppingCategories } from '../../shopping/components/ShoppingCategories';
-import { useShoppingData, useShoppingLists } from '../../shopping/api';
+import { ShoppingUnits } from '../../shopping/components/ShoppingUnits';
 import { useSheetCategories, useSheetMutations, useSheets } from '../api';
 
 /**
- * Settings of the sheets: their own categories, and the categories of the items (those of the shopping, also in the
- * shopping settings). In the settings of the sheets pages and in the sheets tab of a project.
+ * Settings of the sheets: their own categories, then the categories of the items and the units (those of the
+ * shopping, also in the shopping settings). In the settings of the sheets pages and in the sheets tab of a project.
  * @returns {JSX.Element} Settings.
  */
 export function SheetsSettings() {
-  const { data } = useShoppingData();
-  const { data: lists } = useShoppingLists();
   const { data: sheets } = useSheets();
   const { data: sheetCategories } = useSheetCategories();
   const mutations = useSheetMutations();
   const sheetUsage = countBy(sheets ?? [], (sheet) => sheet.categoryIds);
-  const usage = countBy([...(data?.shoppingProducts ?? []), ...(lists ?? []).flatMap((list) => list.items), ...(sheets ?? []).flatMap((sheet) => sheet.items)], (row) => row.categoryId);
   return (
     <Stack gap="md">
       <SettingsList
@@ -34,7 +31,8 @@ export function SheetsSettings() {
         schema={labelFormSchema}
         {...listMutations({ create: mutations.createCategory, update: mutations.updateCategory, remove: mutations.deleteCategory })}
       />
-      <ShoppingCategories categories={data?.shoppingCategories ?? []} usage={usage} />
+      <ShoppingCategories />
+      <ShoppingUnits />
     </Stack>
   );
 }

@@ -100,7 +100,7 @@ Interne : `SheetPickerProps`.
 
 | Export             | Rôle                                                                                                                                                                                                                                                              |
 | ------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `SheetsSettings()` | Paramètres des fiches : `SettingsList` des catégories de fiches (`SHEET_CATEGORY`, `labelFormSchema`, usage par fiche) et `ShoppingCategories` (usage par produits, éléments de listes et de fiches). Utilisé par `SheetsPageSettings` et l’onglet « Fiches » des paramètres d’un projet. |
+| `SheetsSettings()` | Paramètres des fiches : `SettingsList` des catégories de fiches (`SHEET_CATEGORY`, `labelFormSchema`, usage par fiche) puis `ShoppingCategories` et `ShoppingUnits` (ceux des achats). Utilisé par `SheetsPageSettings` et l’onglet « Fiches » des paramètres d’un projet. |
 | `SheetsPageSettings()` | `SheetsSettings` dans la barre latérale (`PageSettings` « Paramètres des fiches »). Utilisé par `SheetsPage` et `SheetPage`. |
 
 ## `lib/`

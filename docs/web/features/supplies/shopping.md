@@ -152,12 +152,16 @@ Champs de formulaire partagés par les achats et le stock.
 
 ### `components/ShoppingSettings.tsx`
 
-- `ShoppingSettings()` : paramètres des achats : `ShoppingCategories` (usage compté sur produits, éléments et éléments de fiches), puis `SettingsList` des magasins, unités (usage par libellé) et modes de conservation. Utilisé par `ShoppingPageSettings` et l’onglet « Achats » des paramètres d’un projet.
+- `ShoppingSettings()` : paramètres des achats : `ShoppingCategories`, `SettingsList` des magasins, `ShoppingUnits`, `SettingsList` des modes de conservation. Utilisé par `ShoppingPageSettings` et l’onglet « Achats » des paramètres d’un projet.
 - `ShoppingPageSettings()` : `ShoppingSettings` dans la barre latérale (`PageSettings` « Paramètres des achats »). Utilisé par `ShoppingPage` et `ShoppingListPage`.
 
 ### `components/ShoppingCategories.tsx`
 
-- `ShoppingCategories({ categories, usage })` : `SettingsList` en arbre des catégories (glisser-déposer → `moveCategory`, suppression → `deleteCategory`), badges des références de chaque catégorie. Utilisé par `ShoppingSettings` et `features/sheets/components/SheetsSettings.tsx`. (partagé)
+- `ShoppingCategories()` : `SettingsList` en arbre des catégories (glisser-déposer → `moveCategory`, suppression → `deleteCategory`), badges des références de chaque catégorie ; usage compté sur les produits, les éléments des listes et des fiches (`useSheets`) et les articles du stock (`useStockItems`). Utilisé par `ShoppingSettings`, `features/sheets/components/SheetsSettings.tsx` et `StockSettings` (`features/stock/pages/StockPage.tsx`). (partagé)
+
+### `components/ShoppingUnits.tsx`
+
+- `ShoppingUnits()` : `SettingsList` « Unités » (`useUnitItems`), usage par libellé sur les produits et les éléments des listes. Utilisé par `ShoppingSettings`, `SheetsSettings` et `StockSettings`. Garde eslint : une `SettingsList` titrée « Unités » ailleurs est refusée. (partagé)
 
 ### `components/TaskShopping.tsx`
 
@@ -181,7 +185,7 @@ Définitions des listes de paramètres (liste + formulaire + création depuis un
 | ---------------------------- | ---------------------------------------------------------------------------------------------------------------------- | --------------------------------------------- |
 | `useStoreItems()`            | Magasins (`SHOPPING_STORE`, `labelFormSchema`), avec `remove`.                                                         | `ShoppingSettings`, `ShoppingForm`            |
 | `useStorageItems()`          | Modes de conservation (`SHOPPING_STORAGE`), avec `remove`.                                                             | `ShoppingSettings`, `ShoppingForm`            |
-| `useUnitItems()`             | Unités (`SHOPPING_UNIT`, sans couleur, envoyées avec `UNIT_COLOR`), avec `remove`.                                     | `ShoppingSettings`, `UnitField`               |
+| `useUnitItems()`             | Unités (`SHOPPING_UNIT`, sans couleur, envoyées avec `UNIT_COLOR`), avec `remove`.                                     | `ShoppingUnits`, `UnitField`                  |
 | `useShoppingCategoryItems()` | Catégories (`SHOPPING_CATEGORY`, `shoppingCategorySchema`), avec le champ en plus « Références » (`BatchMultiSelect`). | `ShoppingCategories`, `ShoppingCategoryField` |
 
 Interne : `WithRemove`.

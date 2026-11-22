@@ -1241,6 +1241,11 @@ export default defineConfig([
           message: 'Utiliser PriorityTypeSettings (features/tasks/components) : les priorités et les types, communs aux tâches et aux routines, une seule fois.',
         },
         {
+          // The units are those of the shopping, shown in the settings of the shopping, the sheets and the stock: one brick.
+          selector: "FunctionDeclaration:not([id.name='ShoppingUnits']) JSXOpeningElement[name.name='SettingsList'] > JSXAttribute[name.name='title'] > Literal[value='Unités']",
+          message: 'Utiliser ShoppingUnits (features/shopping/components) : les unités, communes aux achats, aux fiches et au stock, une seule fois.',
+        },
+        {
           // A workspace setting shown in a narrower place says so in one line, the same everywhere.
           selector: "FunctionDeclaration:not([id.name='SettingsScopeNote']) :matches(JSXText, Literal)[value=/valent pour tout l’espace/]",
           message: 'Utiliser SettingsScopeNote (components/settings) : une seule phrase pour dire qu’un paramètre vaut pour tout l’espace.',

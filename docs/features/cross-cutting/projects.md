@@ -98,12 +98,12 @@ Changer d’onglet efface la vue et la tâche ouverte de l’onglet précédent,
 Panneau « Paramètres du projet », une section à la fois :
 
 - d’abord, seulement depuis l’onglet concerné, les paramètres de l’espace propres à cet onglet, sous la ligne « Ces paramètres valent pour tout l’espace, pas seulement pour ce projet. » (les mêmes que sur la page de chaque fonctionnalité, voir [Paramètres](settings.md#où-chaque-section-apparaît)) : « Tâches » (paramètres des tâches, automatisations et colonnes des nouvelles vues comprises, [Tâches](../activities/tasks.md)), « Routines », « Achats », « Fiches », « Temps » (la semaine de l’espace), « Facturation » (suivi et société, PRO), « Mails » (boîtes et drapeaux) ; « Aperçu » et « Ressources » n’en ont pas ;
-- « Jalons », « Sprints » ;
+- « Jalons », « Sprints » : seulement depuis l’onglet « Tâches » (ils ne servent qu’aux tâches) ;
 - « Contributeurs » : contributeurs rattachés au projet ([Personnes](../../business-rules/cross-cutting/people.md)) ;
 - « GitHub » : liaison au tableau GitHub ([GitHub](github.md)) ;
 - « Projet » : formulaire du projet.
 
-Depuis un onglet qui a des paramètres, le panneau s’ouvre sur eux, sinon sur « Jalons » ; changer d’onglet garde une section du projet, et passe sinon aux paramètres du nouvel onglet. Les anciennes adresses `?tab=settings` ou `?tab=<section>` ouvrent le panneau sur la section (`?tab=taskSettings` : sur l’onglet « Tâches »).
+Le panneau s’ouvre sur sa première section (les paramètres de l’onglet affiché s’il en a, sinon « Contributeurs ») ; changer d’onglet garde une section du projet quand le nouvel onglet la montre, et passe sinon à la première section du nouvel onglet. Les anciennes adresses `?tab=settings` ou `?tab=<section>` ouvrent le panneau sur la section (`?tab=taskSettings`, `?tab=milestones`, `?tab=sprints` : sur l’onglet « Tâches »).
 
 ## Formulaires
 

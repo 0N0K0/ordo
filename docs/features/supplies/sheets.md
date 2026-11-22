@@ -112,7 +112,8 @@ Une liste par occurrence de routine ou d'évènement, une par tâche. Faite à l
 « Paramètres des fiches » :
 
 - « Catégories de fiches » : « Classent les fiches (recettes, valises, trousses…) : une fiche peut en avoir plusieurs. » Libellé (250 caractères au plus, unique) et couleur ; usage affiché ; supprimer une catégorie la retire des fiches. Voir [Paramètres](../cross-cutting/settings.md).
-- Les catégories des éléments (celles des achats, aussi dans les paramètres des achats), avec leur usage par produits, éléments de listes et éléments de fiches.
+- Les catégories des éléments (celles des achats, aussi dans les paramètres des achats et de l’inventaire), avec leur usage par produits, éléments de listes et de fiches et articles du stock.
+- Les unités (celles des achats, aussi dans les paramètres des achats et de l’inventaire), avec leur usage par produits et éléments des listes.
 
 ## PRO et PERSO
 
