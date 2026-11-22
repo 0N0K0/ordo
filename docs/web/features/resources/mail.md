@@ -72,7 +72,7 @@ Mutations :
 
 - `MailPage()` : la page `/mail` (route dans `app/router.tsx`). Lit l’URL (`account`, `folder`, `uid`, `page`, `sort`, `state`, `view`, `search`, et via `useMailSearch` `q`, `adv`, `advanced`) ; remplace une boîte archivée ou inconnue par la première active ; convertit l’ancien `?accounts=1` en `?settings=1`. Rend :
   - sans boîte active : `PageHeader`, `EmptyState`, `MailAccountsManager` ;
-  - sinon : `PageSettings` (« Paramètres des mails » : `MailAccountsManager`, `MailLabelsManager`), `PageHeader` avec `MailHeaderActions`, puis un `DndContext` (capteurs partagés, collision la plus intérieure, clic supprimé après dépôt, `DragOverlay` avec `DragLabel`) contenant la grille : navigation (« Envois programmés » et son badge, `MailSearchFolders`, un `AccountFolders` par boîte active), liste (`ScheduledMailsList`, ou recherche avancée `AdvancedSearchHeader` + `AdvancedSearchPanel` + `MailSearchList`, ou dossier de recherche `MailSearchList`, ou dossier `MailListPane` avec `MailSearchBar`, `MailListControls` / `MailSelectionBar` et des `MailListItem` glissables), et lecture (`MailReader`, clé par mail).
+  - sinon : `PageSettings` (« Paramètres des mails » : `MailSettings`), `PageHeader` avec `MailHeaderActions`, puis un `DndContext` (capteurs partagés, collision la plus intérieure, clic supprimé après dépôt, `DragOverlay` avec `DragLabel`) contenant la grille : navigation (« Envois programmés » et son badge, `MailSearchFolders`, un `AccountFolders` par boîte active), liste (`ScheduledMailsList`, ou recherche avancée `AdvancedSearchHeader` + `AdvancedSearchPanel` + `MailSearchList`, ou dossier de recherche `MailSearchList`, ou dossier `MailListPane` avec `MailSearchBar`, `MailListControls` / `MailSelectionBar` et des `MailListItem` glissables), et lecture (`MailReader`, clé par mail).
   - La sélection (`usePageSelection`) est liée à boîte, dossier, page, filtre et texte.
 
 ### `pages/MailPage.module.css`
@@ -104,7 +104,7 @@ Classes partagées par la page et les listes : `page`, `grid`, `gridInner`, `col
 
 ### `components/MailAccountsManager.tsx`
 
-- `MailAccountsManager()` : section de paramètres « Boîtes mail » : liste (avec archivées sur demande), « Ajouter », « Signature », « Modifier », archiver / restaurer (`archiveEntry`, `useSetArchived('MAIL_ACCOUNT')`), « Retirer » (confirmation). Les formulaires (nouvelle boîte, modification, signature) s’ouvrent dans le panneau latéral large (`openFormPanel`, `lg`). Utilisé par `MailPage` (paramètres et page sans boîte).
+- `MailAccountsManager()` : section de paramètres « Boîtes mail » : liste (avec archivées sur demande), « Ajouter », « Signature », « Modifier », archiver / restaurer (`archiveEntry`, `useSetArchived('MAIL_ACCOUNT')`), « Retirer » (confirmation). Les formulaires (nouvelle boîte, modification, signature) s’ouvrent dans le panneau latéral large (`openFormPanel`, `lg`). Utilisé par `MailSettings` et `MailPage` (page sans boîte).
 
 ### `components/MailBody.tsx` et `MailBody.module.css`
 
@@ -132,7 +132,11 @@ Classes partagées par la page et les listes : `page`, `grid`, `gridInner`, `col
 
 ### `components/MailLabelsManager.tsx`
 
-- `MailLabelsManager()` : section « Drapeaux », un `SettingsList` de type `MAIL_LABEL` (schéma `labelFormSchema`). Utilisé par `MailPage` (paramètres).
+- `MailLabelsManager()` : section « Drapeaux », un `SettingsList` de type `MAIL_LABEL` (schéma `labelFormSchema`). Utilisé par `MailSettings`.
+
+### `components/MailSettings.tsx`
+
+- `MailSettings()` : paramètres des mails : `MailAccountsManager` puis `MailLabelsManager`. Utilisé par `MailPage` (« Paramètres des mails ») et l’onglet « Mails » des paramètres d’un projet.
 
 ### `components/MailListControls.tsx`
 

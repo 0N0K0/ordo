@@ -1,4 +1,5 @@
-import { useQuery } from '@tanstack/react-query';
+import { readTableColumnDefaults, type TableColumnDefaults } from '@ordo/shared';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { graphql } from '../../../graphql';
 import type { ViewKind } from '../../../graphql/graphql';
 import { execute } from '../../../lib/graphql-client';
@@ -118,4 +119,59 @@ export function useTaskViewMutations() {
       },
     }),
   };
+}
+
+const TableColumnDefaultsDocument = graphql(`
+  query TableColumnDefaults($tableKey: String!) {
+    tableColumnDefaults(tableKey: $tableKey) {
+      columnOrder
+      hiddenColumns
+    }
+  }
+`);
+
+const SetTableColumnDefaultsDocument = graphql(`
+  mutation SetTableColumnDefaults($tableKey: String!, $layout: TableColumnLayoutInput) {
+    setTableColumnDefaults(tableKey: $tableKey, layout: $layout) {
+      columnOrder
+      hiddenColumns
+    }
+  }
+`);
+
+/**
+ * Cache key of the default columns of a table.
+ * @param {string} tableKey Table.
+ * @returns {readonly string[]} Query key.
+ */
+const tableColumnDefaultsKey = (tableKey: string) => ['table-column-defaults', tableKey] as const;
+
+/**
+ * Columns new views of a table of the workspace start with: their order and those hidden.
+ * @param {string} tableKey Table.
+ * @returns {UseQueryResult<TableColumnDefaults>} Query state.
+ */
+export function useTableColumnDefaults(tableKey: string) {
+  return useQuery({
+    queryKey: tableColumnDefaultsKey(tableKey),
+    queryFn: async () => readTableColumnDefaults((await execute(TableColumnDefaultsDocument, { tableKey })).tableColumnDefaults, tableKey),
+  });
+}
+
+/**
+ * Chooses the columns new views of a table start with (null: those of the app again).
+ * @param {string} tableKey Table.
+ * @returns {UseMutationResult} Mutation state.
+ */
+export function useSetTableColumnDefaults(tableKey: string) {
+  const queryClient = useQueryClient();
+  const key = tableColumnDefaultsKey(tableKey);
+  return useMutation({
+    mutationFn: async (columns: TableColumnDefaults | null) =>
+      readTableColumnDefaults((await execute(SetTableColumnDefaultsDocument, { tableKey, layout: columns })).setTableColumnDefaults, tableKey),
+    // Shown at once; the server's answer replaces it.
+    onMutate: (columns) => queryClient.setQueryData(key, readTableColumnDefaults(columns, tableKey)),
+    onSuccess: (columns) => queryClient.setQueryData(key, columns),
+    onError: () => queryClient.invalidateQueries({ queryKey: key }),
+  });
 }

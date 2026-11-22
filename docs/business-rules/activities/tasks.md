@@ -371,10 +371,9 @@ Source : `services/tasks/task-views.ts`, `tableViewConfigSchema` (voir [Tableaux
 
 ### Colonnes des nouvelles vues
 
-Source : `taskColumnDefaults`, `setTaskColumnDefaults` (`services/workspaces/workspaces.ts`), `taskColumnDefaultsSchema`.
+Réglage de l’espace pour le tableau `tasks`, comme pour tout tableau de données : voir [Espaces](../cross-cutting/workspaces.md#colonnes-par-défaut-des-nouvelles-vues).
 
-- Par espace : ordre des colonnes et colonnes masquées des nouvelles vues de tâches (200 colonnes au plus, identifiants de 64 caractères au plus, `TABLE_KEY_MAX`). La colonne `label` n’est jamais masquée.
-- `null` ou sans colonnes : celles de l’app (colonnes masquées par défaut : `location`, `blocking`, `related`, `milestone`, `createdAt`, `updatedAt`).
+- Sans réglage : les colonnes de l’app (colonnes masquées par défaut : `hours`, `location`, `blocking`, `related`, `milestone`, `createdAt`, `updatedAt`).
 - L’identifiant `title` de la colonne du libellé, dans une vue enregistrée, est relu comme `label` (`LEGACY_LABEL_COLUMNS`).
 
 ## Contributeurs

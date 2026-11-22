@@ -13,8 +13,6 @@ import { ActionButton } from '../../../components/actions/ActionButton';
 import { PageHeader } from '../../../components/page/PageHeader';
 import { DataTable } from '../../../components/data-table/table/DataTable';
 import { applyDiff, bulkCellLabels, bulkSaver } from '../../../components/data-table/selection/bulk-edit';
-import type { DataColumn } from '../../../components/data-table/table/data-table';
-import { categoryColumn, consumableColumn, noteColumn, quantityColumn, unitColumn } from '../../shopping/lib/product-columns';
 import { EditableCheck, EditableNumber, EditableSelect, EditableText, EditableMarkdown } from '../../../components/data-table/cells/EditableCells';
 import { RowActions } from '../../../components/data-table/cells/RowActions';
 import { useDataView } from '../../../components/data-table/views/use-data-view';
@@ -24,8 +22,6 @@ import { DetailSkeleton } from '../../../components/feedback/Skeletons';
 import { openFormPanel } from '../../../components/panels/panels';
 
 import { ON_ERROR } from '../../../lib/notify';
-import { useCommentCounts } from '../../comments/api';
-import { commentColumn } from '../../comments/lib/comment-column';
 import { Comments } from '../../comments/components/Comments';
 import { useShoppingData } from '../../shopping/api';
 import { ProjectSelect } from '../../tasks/components/task-ui';
@@ -36,12 +32,11 @@ import { ArchivedBadge } from '../../../components/feedback/ArchivedBadge';
 import { itemGroupFields, sheetInput, sheetItemInput } from '../lib/sheet-format';
 import { AddRowField } from '../../../components/data-table/cells/AddRowField';
 import type { RowGroup } from '../../../components/data-table/table/table-engine';
-import { SheetsSettings } from '../components/SheetsSettings';
+import { SheetsPageSettings } from '../components/SheetsSettings';
+import { useSheetItemColumns } from '../hooks/use-sheet-columns';
 import { deleteRowsAction, duplicateRowsAction, rowMenuEntry } from '../../../components/data-table/selection/selection-actions';
 import { selectedLabel } from '../../../components/data-table/selection/selection-label';
-import { optionalColumn, sheetShoppingColumns } from '../../shopping/lib/shopping-columns';
 import { CategoryCell, ConservationCell, PeopleCell, StoreCell, UnitCell } from '../../shopping/components/shopping-cells';
-import { usePeople } from '../../shopping/lib/shopping-format';
 import { sheetItemSchema, sheetSchema, shoppingItemSchema, type SheetInput, type SheetItemInput } from '@ordo/shared';
 import { SheetUseForm } from '../components/SheetUseForm';
 import { countOf, plural, sameName } from '../../../lib/text';
@@ -179,46 +174,8 @@ export function SheetPage() {
   const products = shopping?.shoppingProducts ?? [];
   // The archived references are not offered (but the current one).
   const offeredProducts = unarchived(products);
-  const productName = new Map(products.map((product) => [product.id, product.label]));
   const shoppingCategories = shopping?.shoppingCategories ?? [];
-  const people = usePeople();
-  const comments = useCommentCounts(
-    'SHEET_ITEM',
-    (sheet?.items ?? []).map((item) => item.id),
-  );
-  const columns: DataColumn<SheetDetailItem>[] = [
-    { id: 'label', required: true, label: 'Élément', size: 220, locked: true, bulk: true, sortValue: (item) => item.label, text: (item) => item.label },
-    {
-      id: 'product',
-      label: 'Référence',
-      size: 180,
-      bulk: true,
-      sortValue: (item) => (item.productId ? (productName.get(item.productId) ?? '') : null),
-      text: (item) => (item.productId ? (productName.get(item.productId) ?? '') : ''),
-      filter: { kind: 'boolean', value: (item) => Boolean(item.productId) },
-      groupable: true,
-    },
-    categoryColumn<SheetDetailItem>(shoppingCategories),
-    quantityColumn<SheetDetailItem>(),
-    unitColumn<SheetDetailItem>({ groupable: true }),
-    consumableColumn<SheetDetailItem>(),
-    // As the items of the shopping lists.
-    ...sheetShoppingColumns<SheetDetailItem>({
-      categories: shoppingCategories,
-      stores: shopping?.shoppingStores ?? [],
-      storages: shopping?.shoppingStorages ?? [],
-      members: people.members,
-      relations: people.relations,
-      archivedPeople: people.archived,
-    }),
-    optionalColumn<SheetDetailItem>(),
-    noteColumn<SheetDetailItem>({ size: 240 }),
-    commentColumn<SheetDetailItem>(
-      comments,
-      (item) => item.id,
-      (item) => item.note,
-    ),
-  ];
+  const columns = useSheetItemColumns(sheet);
   const view = useDataView({ tableKey: 'sheet-items', getKey: (item) => item.id, columns, rows: sheet?.items ?? [], title: sheet?.label ?? 'Fiche' });
   const cellLabelOf = bulkCellLabels(view, (item) => item.label);
   const bulk = bulkSaver<SheetDetailItem, ItemChange>(
@@ -451,7 +408,7 @@ export function SheetPage() {
           />
         )}
       />
-      <SheetsSettings />
+      <SheetsPageSettings />
     </Stack>
   );
 }

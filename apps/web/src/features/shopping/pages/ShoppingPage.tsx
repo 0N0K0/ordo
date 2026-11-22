@@ -12,209 +12,33 @@ import { useMemo } from 'react';
 import { Link, useNavigate } from 'react-router';
 import { PageTabs } from '../../../components/tabs/PageTabs';
 import { ON_ERROR } from '../../../lib/notify';
-import { type TaskContext, taskNumbered, useTaskContext } from '../../tasks/hooks/use-task-context';
+import { taskNumbered, useTaskContext } from '../../tasks/hooks/use-task-context';
 import { EditableText } from '../../../components/data-table/cells/EditableCells';
 import { applyDiff, bulkCellLabels, bulkSaver } from '../../../components/data-table/selection/bulk-edit';
 import { DataTable } from '../../../components/data-table/table/DataTable';
-import { withArchived, type DataColumn, readOnlyCells } from '../../../components/data-table/table/data-table';
+import { readOnlyCells } from '../../../components/data-table/table/data-table';
 import { useDataView, type FirstTableView, conditionFilter } from '../../../components/data-table/views/use-data-view';
-import { categoryOptions, categoryPaths } from '../../../components/tree/category-tree';
-import { shoppingKey, useShoppingData, useShoppingLists, useShoppingMutations, type ShoppingCategory, type ShoppingList, type ShoppingStore } from '../api';
+import { shoppingKey, useShoppingLists, useShoppingMutations, type ShoppingList } from '../api';
 import { BaseLists } from '../components/BaseLists';
-import { ShoppingSettings } from '../components/ShoppingSettings';
-import { shoppingTotal } from '../lib/export';
+import { useShoppingListColumns } from '../hooks/use-shopping-columns';
+import { ShoppingPageSettings } from '../components/ShoppingSettings';
 import { openNewList } from '../lib/open-new-list';
 import { ListActionsMenu } from '../components/ListActions';
 import { TasksCell } from '../components/shopping-cells';
-import { listClosed, listsOfProjects, listTasks, taskOptions, leftToBuy, shoppingProgress } from '../lib/shopping-format';
-import * as fmt from '../../../lib/format';
-import { useCommentCounts } from '../../comments/api';
-import { commentColumn } from '../../comments/lib/comment-column';
+import { listClosed, listsOfProjects, listTasks, taskOptions } from '../lib/shopping-format';
 import { archiveItemsAction, deleteRowsAction, duplicateRowsAction, forEachRow } from '../../../components/data-table/selection/selection-actions';
 import type { SelectionAction } from '../../../components/data-table/selection/SelectionBar';
 import { selectedLabel } from '../../../components/data-table/selection/selection-label';
-import { localDay } from '../../../lib/dates';
 import { useSetArchived, useArchivedToggle } from '../../../lib/archive';
 import { ShowArchivedSwitch } from '../../../components/filters/ShowArchivedSwitch';
 import { ArchivedBadge } from '../../../components/feedback/ArchivedBadge';
-import { itemChoices } from '../../../components/items/item-look';
 import { ShoppingProgressBadge } from '../components/ShoppingProgressBadge';
-import { booleanColumn } from '../../../components/data-table/table/boolean-column';
 
 /** Views made the first time: the lists in progress, the closed ones. */
 const LIST_VIEWS: FirstTableView[] = [
   { label: 'En cours', config: { filter: conditionFilter('state', 'in', ['OPEN'], 'open') } },
   { label: 'Clôturées', config: { filter: conditionFilter('state', 'in', ['CLOSED'], 'closed') } },
 ];
-
-/** What the columns of the lists need: the tasks, the categories and the stores. */
-interface ListEnv {
-  context: TaskContext | null;
-  categories: ShoppingCategory[];
-  stores: ShoppingStore[];
-}
-
-/**
- * Projects of the tasks of a list.
- * @param {ShoppingList} list List.
- * @param {TaskContext | null} context Task context.
- * @returns {string[]} Project ids.
- */
-const projectsOf = (list: ShoppingList, context: TaskContext | null) => [...new Set(listTasks(list, context).flatMap((task) => (task.projectId ? [task.projectId] : [])))];
-
-/**
- * Columns of the lists: shown, sorted, filtered, grouped, exported as on every table.
- * @param {ListEnv} env Tasks, categories and stores.
- * @returns {DataColumn<ShoppingList>[]} Columns.
- */
-function listColumns(env: ListEnv): DataColumn<ShoppingList>[] {
-  const { context } = env;
-  const categoryPath = categoryPaths(env.categories);
-  const taskLabel = (id: string) => {
-    const task = context?.taskById.get(id);
-    return task ? (context?.taskLabel(task) ?? taskNumbered(task)) : '';
-  };
-  const listState = (list: ShoppingList) => (listClosed(list, context) ? 'CLOSED' : 'OPEN');
-  return [
-    { id: 'label', required: true, label: 'Liste', size: 260, locked: true, bulk: true, sortValue: (list) => list.label, text: (list) => list.label },
-    {
-      id: 'tasks',
-      label: 'Tâches',
-      size: 260,
-      bulk: true,
-      sortValue: (list) => list.taskIds.map(taskLabel).sort()[0] ?? null,
-      text: (list) => list.taskIds.map(taskLabel).filter(Boolean).join(', '),
-      filter: { kind: 'choices', value: (list) => list.taskIds, options: context ? context.taskOptions(context.tasks) : [] },
-    },
-    {
-      id: 'project',
-      label: 'Projet',
-      size: 180,
-      hiddenByDefault: true,
-      sortValue: (list) =>
-        projectsOf(list, context)
-          .map((id) => context?.projectLabel(id) ?? '')
-          .sort()[0] ?? null,
-      text: (list) =>
-        projectsOf(list, context)
-          .map((id) => context?.projectLabel(id) ?? '')
-          .join(', '),
-      filter: {
-        kind: 'choices',
-        value: (list) => projectsOf(list, context),
-        options: context ? context.projectOptions(context.projects) : [],
-      },
-    },
-    {
-      id: 'state',
-      required: true,
-      label: 'État',
-      size: 110,
-      hiddenByDefault: true,
-      sortValue: (list) => (listState(list) === 'CLOSED' ? 1 : 0),
-      text: (list) => (listState(list) === 'CLOSED' ? 'Clôturée' : 'En cours'),
-      filter: {
-        kind: 'choice',
-        value: listState,
-        options: [
-          { value: 'OPEN', label: 'En cours' },
-          { value: 'CLOSED', label: 'Clôturée' },
-        ],
-      },
-    },
-    {
-      id: 'progress',
-      label: 'Achats',
-      size: 100,
-      groupable: false,
-      sortValue: (list) => (shoppingProgress(list.items).total ? shoppingProgress(list.items).bought / shoppingProgress(list.items).total : null),
-      text: (list) => `${shoppingProgress(list.items).bought} / ${shoppingProgress(list.items).total}`,
-      filter: false,
-    },
-    {
-      id: 'remaining',
-      required: true,
-      label: 'Restant',
-      size: 90,
-      numeric: true,
-      hiddenByDefault: true,
-      sortValue: (list) => leftToBuy(list.items).length,
-      text: (list) => fmt.count(leftToBuy(list.items).length),
-      filter: { kind: 'number', value: (list) => leftToBuy(list.items).length },
-    },
-    {
-      id: 'itemCount',
-      required: true,
-      label: 'Produits',
-      size: 90,
-      numeric: true,
-      hiddenByDefault: true,
-      sortValue: (list) => list.items.length,
-      text: (list) => fmt.count(list.items.length),
-      filter: { kind: 'number', value: (list) => list.items.length },
-    },
-    {
-      id: 'total',
-      label: 'Total estimé',
-      size: 120,
-      numeric: true,
-      sortValue: (list) => shoppingTotal(list.items) || null,
-      text: (list) => fmt.money(shoppingTotal(list.items)),
-      formatTotal: fmt.money,
-    },
-    {
-      id: 'createdAt',
-      required: true,
-      label: 'Créée le',
-      size: 110,
-      sortValue: (list) => list.createdAt,
-      text: (list) => fmt.day(list.createdAt),
-      filter: { kind: 'date', value: (list) => localDay(list.createdAt) },
-    },
-    {
-      id: 'closedAt',
-      label: 'Clôturée le',
-      size: 110,
-      hiddenByDefault: true,
-      sortValue: (list) => list.closedAt || null,
-      text: (list) => (list.closedAt ? fmt.day(list.closedAt) : ''),
-      filter: { kind: 'date', value: (list) => (list.closedAt ? localDay(list.closedAt) : null) },
-    },
-    booleanColumn<ShoppingList>({ id: 'paid', label: 'Payée', size: 90, hiddenByDefault: true, groupLabels: { yes: 'Payée', no: 'À payer' }, value: (list) => list.entryId !== null }),
-    {
-      id: 'categories',
-      label: 'Catégories',
-      size: 180,
-      hiddenByDefault: true,
-      text: (list) => [...new Set(list.items.flatMap((item) => (item.categoryId ? [categoryPath.get(item.categoryId) ?? ''] : [])))].join(', '),
-      filter: {
-        kind: 'choices',
-        value: (list) => [...new Set(list.items.flatMap((item) => (item.categoryId ? [item.categoryId] : [])))],
-        options: withArchived(categoryOptions(env.categories), env.categories),
-      },
-    },
-    {
-      id: 'stores',
-      label: 'Magasins',
-      size: 180,
-      hiddenByDefault: true,
-      text: (list) => [...new Set(list.items.flatMap((item) => (item.storeId ? [env.stores.find((store) => store.id === item.storeId)?.label ?? ''] : [])))].join(', '),
-      filter: {
-        kind: 'choices',
-        value: (list) => [...new Set(list.items.flatMap((item) => (item.storeId ? [item.storeId] : [])))],
-        options: itemChoices(env.stores),
-      },
-    },
-    {
-      id: 'itemNames',
-      label: 'Libellés des produits',
-      size: 220,
-      hiddenByDefault: true,
-      groupable: false,
-      text: (list) => list.items.map((item) => item.label).join(', '),
-    },
-  ];
-}
 
 /**
  * Shopping lists, the data table of every table: tabs of views (« En cours » and « Clôturées » made at first), each with
@@ -229,11 +53,6 @@ function listColumns(env: ListEnv): DataColumn<ShoppingList>[] {
  */
 export function ListsPanel({ projectId, projectIds }: { projectId?: string; projectIds?: ReadonlySet<string> }) {
   const { data: lists, isPending } = useShoppingLists();
-  const listComments = useCommentCounts(
-    'SHOPPING_LIST',
-    (lists ?? []).map((list) => list.id),
-  );
-  const { data: shopping } = useShoppingData();
   const { context } = useTaskContext();
   const { updateList, duplicateList, setClosed, deleteList } = useShoppingMutations();
   const navigate = useNavigate();
@@ -241,10 +60,7 @@ export function ListsPanel({ projectId, projectIds }: { projectId?: string; proj
   const closedOf = (list: ShoppingList) => listClosed(list, context);
   // Archived or closed: read only.
   const lockedOf = (list: ShoppingList) => list.archived || closedOf(list);
-  const columns = useMemo(
-    () => [...listColumns({ context, categories: shopping?.shoppingCategories ?? [], stores: shopping?.shoppingStores ?? [] }), commentColumn<ShoppingList>(listComments, (list) => list.id)],
-    [context, shopping, listComments],
-  );
+  const columns = useShoppingListColumns(lists);
   // Without sort, the latest first.
   const scoped = useMemo(() => (projectIds ? listsOfProjects(lists ?? [], context, projectIds) : (lists ?? [])), [lists, context, projectIds]);
   const { shown, toggle: archivedToggle } = useArchivedToggle(scoped);
@@ -381,7 +197,7 @@ export function ShoppingPage() {
   return (
     <Stack gap="lg">
       <PageHeader title={PAGES.shopping.label} />
-      <ShoppingSettings />
+      <ShoppingPageSettings />
       <PageTabs value={tab} onChange={(value) => setTab(value)} keepMounted={false}>
         <PageTabs.List>
           <PageTabs.Tab value="base" leftSection={<BasketIcon aria-hidden />}>

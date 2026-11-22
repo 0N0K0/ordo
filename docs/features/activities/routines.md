@@ -6,7 +6,7 @@ Ce que l'utilisateur peut faire avec les routines : des tâches qui reviennent s
 
 - Page « Routines », route `/routines` (`PAGES.routines`, icône `ArrowsClockwiseIcon`), dans la navigation principale.
 - Deux onglets, mémorisés dans l'adresse (`?tab=`) : « Routines » (`routines`, par défaut) et « Historique » (`history`). L'historique d'une routine précise s'ouvre par `/routines?tab=history&routine=<id>` (`routineHistoryPath`), par exemple depuis l'entrée « Historique » du menu d'une routine.
-- Paramètres de la page (barre latérale « Paramètres des routines ») : la liste des catégories.
+- Paramètres de la page (barre latérale « Paramètres des routines ») : la liste des catégories, puis les priorités et les types (les mêmes que dans les paramètres des tâches), puis en dernier « Colonnes des nouvelles vues » du tableau des routines ([Colonnes des nouvelles vues](../cross-cutting/settings.md#colonnes-des-nouvelles-vues)). Aussi dans les paramètres d’un projet, depuis son onglet « Routines ».
 - Sur la page d'un projet, un onglet reprend le même tableau (`RoutinesPanel`) limité aux routines du projet et de ses sous-projets ; une routine créée depuis cet onglet est rattachée au projet, et les vues du tableau sont celles du projet.
 
 ## Onglet « Routines » : le tableau

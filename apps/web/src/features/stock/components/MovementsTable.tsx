@@ -2,17 +2,13 @@ import { Anchor, Badge } from '@mantine/core';
 import { STOCK_MOVEMENT_LABELS, type StockMovementKind } from '@ordo/shared';
 import { Link } from 'react-router';
 import { DataTable } from '../../../components/data-table/table/DataTable';
-import type { DataColumn } from '../../../components/data-table/table/data-table';
 import { useDataView } from '../../../components/data-table/views/use-data-view';
 import { EmptyState } from '../../../components/feedback/EmptyState';
 import * as fmt from '../../../lib/format';
-import { useStockMovements, type StockMovement } from '../api';
+import { useStockMovements } from '../api';
+import { MOVEMENT_COLUMNS } from '../hooks/use-stock-columns';
 import { SignedAmount } from '../../../components/money/SignedAmount';
-import { localDay } from '../../../lib/dates';
-import { monthColumn } from '../../../components/data-table/table/month-column';
 import { sheetPath, shoppingListPath } from '../../../app/pages';
-import { signedText } from '../../../components/money/signed-text';
-import { noteColumn } from '../../shopping/lib/product-columns';
 
 const KIND_COLORS: Record<StockMovementKind, string> = { PURCHASE: 'green', CONSUMPTION: 'blue', COUNT: 'grape', LOSS: 'red', CORRECTION: 'gray' };
 
@@ -23,42 +19,7 @@ const KIND_COLORS: Record<StockMovementKind, string> = { PURCHASE: 'green', CONS
  */
 export function MovementsTable({ itemId = null }: { itemId?: string | null }) {
   const { data: movements } = useStockMovements(itemId);
-  const columns: DataColumn<StockMovement>[] = [
-    {
-      id: 'date',
-      label: 'Date',
-      size: 150,
-      required: true,
-      sortValue: (movement) => movement.date,
-      text: (movement) => fmt.dateTime(movement.date),
-      filter: { kind: 'date', value: (movement) => localDay(movement.date) },
-    },
-    monthColumn('month', 'Mois', (movement) => movement.date, 130),
-    { id: 'item', label: 'Article', size: 200, locked: true, required: true, sortValue: (movement) => movement.itemLabel, text: (movement) => movement.itemLabel, groupable: true },
-    {
-      id: 'kind',
-      required: true,
-      label: 'Mouvement',
-      size: 130,
-      sortValue: (movement) => STOCK_MOVEMENT_LABELS[movement.kind as StockMovementKind],
-      text: (movement) => STOCK_MOVEMENT_LABELS[movement.kind as StockMovementKind],
-      filter: { kind: 'choice', value: (movement) => movement.kind, options: Object.entries(STOCK_MOVEMENT_LABELS).map(([value, label]) => ({ value, label })) },
-      groupable: true,
-    },
-    {
-      id: 'quantity',
-      required: true,
-      label: 'Quantité',
-      size: 110,
-      numeric: true,
-      sortValue: (movement) => movement.quantity,
-      text: (movement) => signedText(movement.quantity, (quantity) => fmt.quantity({ quantity })),
-      filter: { kind: 'number', value: (movement) => movement.quantity },
-    },
-    { id: 'source', label: 'Origine', size: 200, sortValue: (movement) => movement.source ?? null, text: (movement) => movement.source ?? '', groupable: true },
-    noteColumn({ size: 200, bulk: false }),
-  ];
-  const view = useDataView({ tableKey: itemId ? 'stock-item-movements' : 'stock-movements', getKey: (movement) => movement.id, columns, rows: movements ?? [], title: 'Mouvements du stock' });
+  const view = useDataView({ tableKey: itemId ? 'stock-item-movements' : 'stock-movements', getKey: (movement) => movement.id, columns: MOVEMENT_COLUMNS, rows: movements ?? [], title: 'Mouvements du stock' });
   return (
     <DataTable
       framed

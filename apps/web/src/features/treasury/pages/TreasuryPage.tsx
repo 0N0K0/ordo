@@ -28,7 +28,7 @@ import { DataTable } from '../../../components/data-table/table/DataTable';
 import { EditableDate, EditableText } from '../../../components/data-table/cells/EditableCells';
 import { useDataView } from '../../../components/data-table/views/use-data-view';
 import { RowActions } from '../../../components/data-table/cells/RowActions';
-import { LATE_GROUP_LABELS, readOnlyCells, WARNING_YES_ICONS, type DataColumn } from '../../../components/data-table/table/data-table';
+import { readOnlyCells } from '../../../components/data-table/table/data-table';
 import { localToday } from '../../../lib/dates';
 
 import {
@@ -45,8 +45,9 @@ import {
 import { periodName } from '../../../lib/periods';
 import { EntriesPanel } from '../components/EntriesPanel';
 import { DetailsToggle, PayerCell } from '../components/entry-cells';
-import { entryFieldCells, entryFieldColumns } from '../lib/entry-columns';
-import { useEntryEnv, type EntryEnv, type EntrySave } from '../lib/entry-env';
+import { entryFieldCells } from '../lib/entry-columns';
+import { FORECAST_KINDS, forecastColumns, type ForecastRow } from '../lib/treasury-columns';
+import { useEntryEnv, type EntrySave } from '../lib/entry-env';
 import { bulkCellLabels, bulkSaver, changeOf } from '../../../components/data-table/selection/bulk-edit';
 import type { EntryValues } from '../lib/entry-values';
 import { EntryLinesTable } from '../components/EntryLinesTable';
@@ -64,77 +65,11 @@ import { selectedLabel } from '../../../components/data-table/selection/selectio
 import { AmountInput } from '../../../components/inputs/AmountInput';
 import { FormActions } from '../../../components/dialogs/FormActions';
 import { SignedAmount, SignedAmountCell } from '../../../components/money/SignedAmount';
-import { monthColumn } from '../../../components/data-table/table/month-column';
 import { useDeleteEntries } from '../hooks/use-delete-entries';
 import { LATE_COLOR } from '../../../components/feedback/feedback-colors';
-import { signedText } from '../../../components/money/signed-text';
-import { booleanColumn } from '../../../components/data-table/table/boolean-column';
-
-const FORECAST_KINDS: Record<string, { label: string; color: string }> = {
-  FORECAST: { label: 'Prévision', color: 'grape' },
-  ACTUAL: { label: 'À venir', color: 'gray' },
-  INVOICE: { label: 'Facture', color: 'blue' },
-  CREDIT_NOTE: { label: 'Avoir', color: 'orange' },
-  IMPORTED: { label: 'Importé', color: 'cyan' },
-  RECURRING_INVOICE: { label: 'Récurrente', color: 'teal' },
-};
-
-type ForecastRow = { item: ProjectionItem; index: number };
 
 /** No account yet. */
 const NO_ACCOUNTS: TreasuryAccount[] = [];
-
-/**
- * Columns of the forecast: date, label, origin, overdue, amount, then the columns every table of entries shares (those
- * of an entry: none for an invoice due or a recurring invoice).
- * @param {(row: ForecastRow) => ForecastEntry | undefined} entryOf Entry of a row.
- * @param {EntryEnv} env Names.
- * @returns {DataColumn<ForecastRow>[]} Columns.
- */
-function forecastColumns(entryOf: (row: ForecastRow) => ForecastEntry | undefined, env: EntryEnv): DataColumn<ForecastRow>[] {
-  return [
-    monthColumn('month', 'Mois', ({ item }) => item.date),
-    {
-      id: 'date',
-      label: 'Date d’exécution',
-      size: 140,
-      required: true,
-      bulk: true,
-      sortValue: ({ item }) => item.date,
-      text: ({ item }) => fmt.day(item.date),
-      filter: { kind: 'date', value: ({ item }) => item.date },
-    },
-    { id: 'label', label: 'Libellé', size: 320, locked: true, required: true, bulk: true, sortValue: ({ item }) => item.label, text: ({ item }) => item.label },
-    {
-      id: 'origin',
-      label: 'Origine',
-      size: 130,
-      required: true,
-      sortValue: ({ item }) => (FORECAST_KINDS[item.kind] ?? FORECAST_KINDS.FORECAST).label,
-      text: ({ item }) => (FORECAST_KINDS[item.kind] ?? FORECAST_KINDS.FORECAST).label,
-      filter: {
-        kind: 'choice',
-        value: ({ item }) => (item.kind in FORECAST_KINDS ? item.kind : 'FORECAST'),
-        options: Object.entries(FORECAST_KINDS).map(([value, kind]) => ({ value, label: kind.label })),
-      },
-      groupable: true,
-    },
-    booleanColumn<ForecastRow>({ id: 'overdue', label: 'En retard', size: 110, hiddenByDefault: true, groupable: true, groupLabels: LATE_GROUP_LABELS, icons: WARNING_YES_ICONS, value: ({ item }) => Boolean(item.overdue) }),
-    ...entryFieldColumns<ForecastRow>(entryOf, env, { payerName: ({ item }) => item.payerName ?? '', recurrence: true }),
-    {
-      id: 'amount',
-      bulk: true,
-      required: true,
-      label: 'Montant',
-      size: 130,
-      numeric: true,
-      sortValue: ({ item }) => item.amount,
-      formatTotal: fmt.money,
-      text: ({ item }) => signedText(item.amount),
-      filter: { kind: 'number', value: ({ item }) => item.amount },
-    },
-  ];
-}
 
 /**
  * Realization of an expected movement: actual date and amount.

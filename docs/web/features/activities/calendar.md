@@ -60,7 +60,7 @@ Interne : `fetchCategories`, `occurrencesOf(data, includeArchived)` (filtre des 
 - `select` : ouvre `useEventForm` pré-rempli ; `eventClick` : selon le kind (tâche → `useTaskLink`, temps → `useTimeEntryDialogs`, abonné → `SubscribedEvent` dans `openFormPanel`, créneau → `edits.openSlot`, routine → `edits.openRoutine`, sinon `EventForm`).
 - Barre d’outils : interrupteur `StateSwitch` « Modifier les créneaux et éphémérides » (`editingSlots`) ; « Ajouter » (`ActionButton` à `menu`) : « Évènement » (`useEventForm`), `schedulesTitle(perso)` et `EPHEMERIDES_TITLE` (`openSchedulesManager`).
 - `eventDidMount` : variables CSS `--slot-lane`, `--slot-column`, `--slot-columns`.
-- Paramètres : `PageSettings` « Paramètres de l’agenda » avec `SettingsTabs` (`SETTINGS_TABS` = `display`, `settings`, `useSettingsTab`) : `HiddenChecklist` (calendriers, créneaux), interrupteurs, `ShowArchivedSwitch`, export PDF (`useAsyncAction` + `downloadCalendarPdf(pdfItems(items, classes.closed))`), `CalendarsIcsButton` ; `WeekSettings`, `CalendarsManager`, `CalendarCategoriesManager`, `ScheduleSettings`.
+- Paramètres : `PageSettings` « Paramètres de l’agenda » avec `SettingsTabs` (`SETTINGS_TABS` = `display`, `settings`, `useSettingsTab`) : `HiddenChecklist` (calendriers, créneaux), interrupteurs, `ShowArchivedSwitch`, export PDF (`useAsyncAction` + `downloadCalendarPdf(pdfItems(items, classes.closed))`), `CalendarsIcsButton` ; `WeekSettings`, `CalendarsManager`, `CalendarCategoriesManager`, `ScheduleSettings`, puis en dernier `ScheduleColumnDefaults`.
 - Constantes internes : `VIEWS`, `DEFAULT_COLOR`, `LATE_BORDER` (couleur de retard `LATE_COLOR`), `ALL_DAY_ROWS` = 2 ; semaine `timeGridWeek` de `weekLength(currentWeek())` jours, `firstDay` = `calendarFirstDay(week)`.
 
 ### `pages/CalendarPage.module.css`
@@ -143,7 +143,7 @@ Utilisés par `ScheduleSettings`.
 
 ### `components/WeekSettings.tsx`
 
-`WeekSettings()` : section « Semaine » des paramètres de l’agenda : deux `Select` « Semaine du … au … » sur `WEEKDAY_LABELS` (`readWeek`, `weekLength`), chacun enregistré dès qu’il change (`useWorkspaceMutations().setWeek`, sur l’espace actif `useActiveWorkspace`). Rien avant le chargement de l’espace. Utilisé par `CalendarPage`.
+`WeekSettings()` : section « Semaine » des paramètres de l’agenda, des chronos et de l’onglet « Temps » des paramètres d’un projet : deux `Select` « Semaine du … au … » sur `WEEKDAY_LABELS` (`readWeek`, `weekLength`), chacun enregistré dès qu’il change (`useWorkspaceMutations().setWeek`, sur l’espace actif `useActiveWorkspace`). Rien avant le chargement de l’espace. Utilisé par `CalendarPage` et `TimeSettings` (`TimePage`, onglet « Temps » d’un projet).
 
 ### `components/ScheduleSettings.tsx`
 
@@ -167,14 +167,17 @@ Utilisés par `ScheduleSettings`.
 - `WorkSchedulesManager({ ephemeris? })` : gestionnaire des créneaux, ou des éphémérides (mêmes tableau et formulaire, les schedules et types de cette nature ; mots par l’interne `wordsOf(ephemeris, perso)` ; sans type « Sans type », gris `EPHEMERIS_COLOR`) (panneau ouvert par `openSchedulesManager`) : `SectionHeader` (description PRO/PERSO/éphémérides), « Nouveaux créneaux » / « Nouvelle éphéméride », `DataTable` (`useDataView` clé `work-schedules` ou `ephemerides`, colonnes `label`, `type`, `start`, `end`, `hours`, `state`, `commentColumn`), cellules éditables (`EditableText`, `EditableSelect`, `EditableDate`, `followBounds` : une date de début après la fin déplace la fin, et inversement), édition groupée (`bulkSaver`, `bulkCellLabels`), sélection (`archiveRowsAction`, `deleteItemsAction`), `RowActions` (modifier, dupliquer, convertir `useScheduleConversion().schedule`, archiver `archiveEntry`, supprimer). Lignes archivées en lecture seule (`readOnlyCells`).
 - Interne `scheduleInputOf(schedule)` : entrée d’un créneau tel qu’il est (valeurs de son formulaire, cellules et copie). Interne `duplicateSchedule` : « Dupliquer » (copie « … (copie) » avec ses dates, cas et type, sans exceptions, enregistrée puis ouverte).
 - Interne `ScheduleForm({ schedule?, ephemeris, onDone })` : formulaire de nouveaux créneaux ou d’une nouvelle éphéméride (« Créer » ; une éphéméride : aujourd’hui, `wholeDaysCase`) ou panneau d’un créneau existant enregistré champ par champ (`useFieldSave`, le créneau entier par `update`, qui confirme les occurrences de routines perdues — `withLossConfirmation`, refusée : remis sans toast —, libellé en le quittant, `SaveStatus` ; le créneau du cache `useWorkSchedules` suivi ; archivé : lecture seule) (`workScheduleSchema`) : libellé, type (`CreatableSelect` + `itemCreator`), `UnavailableSwitch` (sans type ; avec un type, celui du type en lecture seule), `ScheduleRepetition`, « Rappels » d’une éphéméride (`RemindersSelect`), `Comments` (`SCHEDULE`).
-- Interne `scheduleState(schedule, today)` : `CURRENT`/`UPCOMING`/`PAST` (`periodState`).
 - Interne `ScheduleHours({ schedule })` : une ligne par cas.
-- Constantes et types internes : `ScheduleValues`, `ScheduleState`, `PERIOD_OF`, `STATE_OF`, `STATE_LABELS`, `STATE_COLORS`, `STATE_ORDER`, `ScheduleRow`, `NO_KIND` = `none`.
-- Interne au composant : `saveSchedule` (valide avec `workScheduleSchema`, ignore les archivées, toast « … Rien n’a été modifié. »), `openForm`, `deleteSchedules`, `kindLabel`.
+- Type interne : `ScheduleValues`. Colonnes : `useScheduleColumns(ephemeris)` (`hooks/use-schedule-columns.tsx`).
+- Interne au composant : `saveSchedule` (valide avec `workScheduleSchema`, ignore les archivées, toast « … Rien n’a été modifié. »), `openForm`, `deleteSchedules`.
+
+### `components/ScheduleColumnDefaults.tsx`
+
+- `ScheduleColumnDefaults()` : les `ColumnDefaults` des tableaux `work-schedules` (titre `schedulesTitle(perso)`) et `ephemerides` (« Éphémérides »), colonnes `useScheduleColumns`. Utilisé par `CalendarPage` (onglet « Paramètres », en dernier).
 
 ### `components/SlotConditionBuilder.tsx`
 
-`SlotConditionBuilder({ value, onChange, item })` : le champ « Créneaux de l’agenda » des tâches et des routines (une seule brique), construit avec `FieldsFilterBuilder` : champs « Créneau » (`schedules` : « sur l’un des créneaux », « hors des créneaux »), « Type de créneau » (`kinds` : « sur l’un des types », « hors des types ») et « Temps libre » (`freeTime` : « hors de tous les créneaux », « hors de tous les créneaux sauf ») ; un groupe vide renvoie `null` (« Aucune condition : à n’importe quelle heure. »). Les créneaux et types des autres espaces de l’utilisateur sont proposés avec leur espace (« Sport · Perso ») ; les exceptions du temps libre sont des créneaux de l’espace. Créneaux, types et anniversaires de personnes archivées non proposés sauf ceux déjà dans la condition (`useSlotChoices`), alors suivis de « (archivé) ». `item` (`routine` ou `task`) choisit la phrase qui dit l’effet de la condition (constante interne `EFFECTS`, avec `OPERATOR_LABELS`). Utilisé par la fenêtre de répétition des routines (`RoutineSchedule.tsx`, et chacun de leurs cas), `TaskPanel`, `TaskCreateForm`, `SlotsCell` (tâches). Déplacé de `features/routines/components`. `SlotRuleInput` (règle par types de créneaux) est supprimé.
+`SlotConditionBuilder({ value, onChange, item })` : le champ « Créneaux de l’agenda » des tâches et des routines (une seule brique), construit avec `FieldsFilterBuilder` : champs « Créneau » (`schedules` : « sur l’un des créneaux », « hors des créneaux »), « Type de créneau » (`kinds` : « sur l’un des types », « hors des types ») et « Temps libre » (`freeTime` : « hors de tous les créneaux », « hors de tous les créneaux sauf ») ; un groupe vide renvoie `null` (« Aucune condition : à n’importe quelle heure. »). Les créneaux et types des autres espaces de l’utilisateur sont proposés avec leur espace (« Sport · Perso ») ; les exceptions du temps libre sont des créneaux de l’espace. Créneaux, types et anniversaires de personnes archivées non proposés sauf ceux déjà dans la condition (`useSlotChoices`), alors suivis de « (archivé) ». `item` (`routine` ou `task`) choisit la phrase qui dit l’effet de la condition (constante interne `EFFECTS`, avec `OPERATOR_LABELS`). Utilisé par la fenêtre de répétition des routines (`RoutineSchedule.tsx`, et chacun de leurs cas), `TaskPanel`, `TaskCreateForm`, `SlotsCell` (tâches). Déplacé de `features/routines/components`. `SlotRuleInput` (règle par types de créneaux) est supprimé. Tant qu’une condition ou un groupe ajouté est incomplet (sans valeur), il reste un brouillon du champ : seule une condition valide (ou aucune) est transmise par `onChange`, donc jamais enregistrée à moitié par un panneau qui enregistre chaque changement ; une nouvelle valeur venue d’ailleurs (autre contenu) remplace le brouillon.
 
 ## hooks
 
@@ -192,6 +195,12 @@ Utilisés par `ScheduleSettings`.
   - `openRoutine(occurrence, movedFrom)` : demande d’abord la portée (« Modifier une routine », sauf occurrence annulée ou d’une routine archivée ; fermée sans choix : `scope` `null`, panneau en lecture seule), puis panneau `RoutineOccurrenceForm` avec elle et `movedFrom` ; « Rétablir » retire l’exception (`removeMove`). `RoutineOccurrenceRef` porte `cancelled` et `archived` (occurrences annulées barrées et non déplaçables ; d’une routine archivée estompées, avec « Afficher les archivés »).
   - Interne `removeRoutine(occurrence, movedFrom)` : portée (`THIS`/`FOLLOWING`), `deleteOccurrence`, annulation via `removeMove` avec les commentaires supprimés (`comments`).
 - Type interne `RoutineSlotTimes`. Utilisé par `openSchedulesManager`.
+
+### `hooks/use-schedule-columns.tsx`
+
+- `useScheduleColumns(ephemeris)` : `{ columns, typeById, defaultLabel }` : colonnes du tableau des créneaux ou des éphémérides (« Libellé », « Type », « Début », « Fin », « Horaires », « État », commentaires), les types par id et le nom des créneaux sans type (« Travail » ou celui de l’espace ; « Sans type » pour les éphémérides). Utilisé par `WorkSchedulesManager` et `ScheduleColumnDefaults`.
+- `scheduleState(schedule, today)` : `CURRENT`/`UPCOMING`/`PAST` (`periodState`). Utilisé par `WorkSchedulesManager`.
+- `ScheduleState`, `ScheduleRow` (créneau, son état du jour, ses exceptions), `STATE_LABELS`, `STATE_COLORS`, `NO_KIND` = `none`, `NO_KIND_LABEL` = « Sans type » ; internes `PERIOD_OF`, `STATE_OF`, `STATE_ORDER`, `kindLabel`.
 
 ### `hooks/use-schedule-conversion.tsx`
 

@@ -33,7 +33,7 @@ Internes : `useTimeMutation` (mutation invalidante), `warnOutOfSlots(queryClient
 
 ### `pages/TimePage.tsx`
 
-- `TimePage()` : page `/time` (« Chronos ») : `PlannedTime` (pas en espace PERSO), section « Temps passé », badge du filtre `?task=` (« Tâche : #12 Libellé », croix « Voir tous les temps »), `TimeLog` de tous les temps avec `TimeLogActions`. Dialogues via `useTimeEntryDialogs`. Utilisée par `app/router.tsx`.
+- `TimePage()` : page `/time` (« Chronos ») : `PageSettings` « Paramètres des chronos » (`TimeSettings`), `PlannedTime` (pas en espace PERSO), section « Temps passé », badge du filtre `?task=` (« Tâche : #12 Libellé », croix « Voir tous les temps »), `TimeLog` de tous les temps avec `TimeLogActions`. Dialogues via `useTimeEntryDialogs`. Utilisée par `app/router.tsx`.
 
 ## components/
 
@@ -41,7 +41,12 @@ Internes : `useTimeMutation` (mutation invalidante), `warnOutOfSlots(queryClient
 
 - `TimeLog({ entries, context, projectId, emptyMessage, onEdit, onDuplicate, onDelete, actions? })` : tableau des temps (`DataTable`, `tableKey: 'time-log'`, vues `TIME_VIEWS` « Cette semaine », « Ce mois-ci », « Tous »), groupé par jour avec totaux, édition en place et en masse (`bulkSaver`, `bulkCellLabels`), total et non facturé dans la barre, suppression des temps sélectionnés (sauf facturés), menu « Modifier » / « Dupliquer » (`duplicateRowsAction` avec `onDuplicate`) / « Supprimer ». Utilisé par `TimePage` et `ProjectTimePanel`.
   - Interne `editable(entry)` : terminé et pas sur une facture validée.
-- Internes du fichier : `finishedSeconds(entries)` (somme des temps terminés), `events(entries)` (évènements des temps, options du filtre), `labelsText(items)` (libellés des routines ou évènements d’un temps), `billedText(entry)` (« Facturé : F-… » ou « Brouillon »), `TIME_VIEWS`, `timeColumns(context, comments, routines, entries)` (colonnes « Date », « Mois », « Heure de début », « Heure de fin », « Durée », « Projet », « Routines », « Tâches », « Évènements », « Facture », « Commentaires » ; routines et évènements en filtre `choices`, groupables). La cellule « Projet » ne se vide que si le temps garde une routine, une tâche ou un évènement (`hasSubject`).
+- Colonnes : `useTimeColumns(entries, context)` (`hooks/use-time-columns.tsx`).
+- Internes du fichier : `finishedSeconds(entries)` (somme des temps terminés), `TIME_VIEWS`. La cellule « Projet » ne se vide que si le temps garde une routine, une tâche ou un évènement (`hasSubject`).
+
+### `components/TimeSettings.tsx`
+
+- `TimeSettings()` : paramètres des temps : `WeekSettings` (la semaine de l’espace, celle de « Cette semaine »), puis en dernier `ColumnDefaults` du tableau `time-log` (« Temps passé », colonnes `useTimeColumns`). Utilisé par `TimePage` et l’onglet « Temps » des paramètres d’un projet.
 
 ### `components/time-cells.tsx`
 
@@ -133,6 +138,12 @@ Ses styles (`TimerWidget.module.css`) sont devenus ceux de `RunningPill` (`compo
 - `scopeLostNote(lost)` : note de la question de portée d’une suppression : « Temps sans projet supprimés avec : cette occurrence 1, celle-ci et les suivantes 2, toutes 3 (les temps facturés sont gardés). Commentaires supprimés avec : cette occurrence 1, … » (seulement les choix proposés ; rien sans aucun). Utilisé par `EventForm` et `useCalendarEdits`.
 
 ## hooks/
+
+### `hooks/use-time-columns.tsx`
+
+- `useTimeColumns(entries, context)` : colonnes du tableau des temps (« Date », « Mois », « Heure de début », « Heure de fin », « Durée », « Projet », « Routines », « Tâches », « Évènements », « Facture », « Commentaires » ; routines et évènements en filtre `choices`, groupables), avec les routines proposées par le filtre et les commentaires des temps (sans temps : aucun compté). Utilisé par `TimeLog` et `TimeSettings`.
+- `labelsText(items)` (libellés des routines ou évènements d’un temps), `billedText(entry)` (« Facturé : F-… » ou « Brouillon ») : aussi lus par les cellules de `TimeLog`.
+- Internes : `events(entries)` (évènements des temps, options du filtre), `timeColumns(context, comments, routines, entries)`.
 
 ### `hooks/use-start-timer.ts`
 

@@ -47,7 +47,7 @@ function ScheduleTimesFields({ value, onChange, index }: { value: ScheduleTimes;
       {!value.allDay && (
         <Stack gap={4}>
           {value.ranges.map((range, position) => {
-            const hours = rangeProps({ value: [range.start, range.end], onChange: ([start, end]) => setRange(position, { start, end }) }, true);
+            const hours = rangeProps({ value: [range.start, range.end], onChange: ([start, end]) => setRange(position, { start, end }) }, true, true);
             return (
               <Group key={position} gap={6} wrap="nowrap">
                 <TimePicker size="xs" aria-label={`Début, cas ${index + 1}`} {...hours.start} />

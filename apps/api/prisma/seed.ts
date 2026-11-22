@@ -2,7 +2,7 @@ import { BY_POSITION } from '../src/services/core/ordering';
 import { fakerFR as faker } from '@faker-js/faker';
 import { confirm } from '@inquirer/prompts';
 import { prisma, unscopedPrisma } from '../src/db';
-import { createWorkspace, ensureMeContributor, meContributorId, setTaskColumnDefaults, setWorkspaceNotifications } from '../src/services/workspaces/workspaces';
+import { createWorkspace, ensureMeContributor, meContributorId, setTableColumnDefaults, setWorkspaceNotifications } from '../src/services/workspaces/workspaces';
 import { enterWorkspace } from '../src/workspace-context';
 import type { Project, TaskStatusCategory } from '../src/generated/prisma/client';
 import {
@@ -708,7 +708,7 @@ await createAlarm({ ...alarmBase, label: 'Chrono lancé depuis 2 h', type: 'TRAC
 await createAlarm({ ...alarmBase, label: 'Sauvegarde mensuelle', type: 'REMINDER', frequency: 'MONTHLY', interval: 2, startDate: addDays(monday, -30), time: '17:00', enabled: false });
 
 // --- Workspace settings: columns of new task views, notifications given while another workspace is open -------
-await setTaskColumnDefaults({
+await setTableColumnDefaults('tasks', {
   columnOrder: [
     'title',
     'status',

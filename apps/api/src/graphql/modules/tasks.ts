@@ -25,7 +25,6 @@ import { linkedDocumentsInputFields } from '../document-fields';
 import { isMember } from '../../services/people/members';
 import { contributorDetails, CONTRIBUTOR_LINK_SELECT } from '../../services/people/contributor-links';
 import { reloaded } from '../reload';
-import { unchecked } from '../unchecked';
 import { locationInputFields } from '../located-fields';
 import { ItemLinkInput, ItemLinkRef } from '../link-fields';
 import { ReminderInput, ReminderRef } from '../reminder-fields';
@@ -543,31 +542,6 @@ const TaskDoabilityRef = builder.objectRef<TaskDoability>('TaskDoability').imple
     reason: t.field({ type: TaskWaitReasonEnum, nullable: true, description: 'Why it cannot be done now, null: it can.', resolve: (doability) => doability.reason }),
   }),
 });
-
-const TaskColumnDefaultsRef = builder.objectRef<{ columnOrder: string[]; hiddenColumns: string[] }>('TaskColumnDefaults').implement({
-  description: 'Columns new task views of the workspace start with.',
-  fields: (t) => ({
-    columnOrder: t.exposeStringList('columnOrder'),
-    hiddenColumns: t.exposeStringList('hiddenColumns'),
-  }),
-});
-
-builder.queryFields((t) => ({
-  taskColumnDefaults: t.field({
-    type: TaskColumnDefaultsRef,
-    description: 'Columns new task views of the workspace start with (chosen for it, else the app’s).',
-    resolve: () => workspaces.taskColumnDefaults(),
-  }),
-}));
-
-builder.mutationFields((t) => ({
-  setTaskColumnDefaults: t.field({
-    type: TaskColumnDefaultsRef,
-    description: 'Chooses the columns new task views start with; without columns, gives back the app’s.',
-    args: { columnOrder: t.arg.stringList(), hiddenColumns: t.arg.stringList() },
-    resolve: (_root, { columnOrder, hiddenColumns }) => workspaces.setTaskColumnDefaults(columnOrder ? unchecked({ columnOrder, hiddenColumns: hiddenColumns ?? [] }) : null),
-  }),
-}));
 
 builder.queryFields((t) => ({
   tasks: t.prismaField({

@@ -25,7 +25,7 @@ import { innermostCollision, suppressClickAfterDrop, useDragSensors } from '../.
 import { DragLabel } from '../../../components/dnd/DragLabel';
 import { MailListItem } from '../components/MailListItem';
 import { MailListPane } from '../components/MailListPane';
-import { MailLabelsManager } from '../components/MailLabelsManager';
+import { MailSettings } from '../components/MailSettings';
 import { MailSelectionBar } from '../components/MailOrganizeActions';
 import classes from './MailPage.module.css';
 import { MailReader } from '../components/MailReader';
@@ -131,8 +131,7 @@ export function MailPage() {
     <Stack gap="md" className={classes.page}>
       {/* Mail accounts and flags: in the settings sidebar. */}
       <PageSettings title="Paramètres des mails">
-        <MailAccountsManager />
-        <MailLabelsManager />
+        <MailSettings />
       </PageSettings>
       <PageHeader
         title={PAGES.mail.label}

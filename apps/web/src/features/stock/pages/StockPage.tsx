@@ -1,23 +1,22 @@
 import { PAGES } from '../../../app/pages';
 import { usePageTab } from '../../../components/tabs/use-page-tab';
-import { categoryPaths } from '../../../components/tree/category-tree';
 import { countBy } from '@ordo/shared';
 import { Stack } from '@mantine/core';
 import { ArchiveIcon, ClockCounterClockwiseIcon, ListChecksIcon } from '@phosphor-icons/react';
 import { PageHeader } from '../../../components/page/PageHeader';
 import { DataTable } from '../../../components/data-table/table/DataTable';
-import type { DataColumn } from '../../../components/data-table/table/data-table';
 import { useDataView } from '../../../components/data-table/views/use-data-view';
 import { EmptyState } from '../../../components/feedback/EmptyState';
 import { PageTabs } from '../../../components/tabs/PageTabs';
 import { PageSettings } from '../../../app/layout/PageSettings';
-import * as fmt from '../../../lib/format';
-import { useStockCounts, useStockItems, useStockLocations, type StockCount } from '../api';
+import { useStockCounts, useStockItems } from '../api';
 import { MovementsTable } from '../components/MovementsTable';
 import { StockLocations } from '../components/StockLocations';
 import { StockTable } from '../components/StockTable';
-import { localDay } from '../../../lib/dates';
-import { noteColumn } from '../../shopping/lib/product-columns';
+import { LOT_COLUMNS, MOVEMENT_COLUMNS, useCountColumns, useCountFormColumns, useStockItemColumns } from '../hooks/use-stock-columns';
+import { ColumnDefaults } from '../../../components/data-table/views/ColumnDefaults';
+import { ShoppingCategories } from '../../shopping/components/ShoppingCategories';
+import { ShoppingUnits } from '../../shopping/components/ShoppingUnits';
 
 /**
  * Inventories recorded, latest first.
@@ -25,47 +24,7 @@ import { noteColumn } from '../../shopping/lib/product-columns';
  */
 function CountsTable() {
   const { data: counts } = useStockCounts();
-  const { data: locations } = useStockLocations();
-  const places = categoryPaths(locations ?? []);
-  /**
-   * Place of an inventory: its path, or the whole stock.
-   * @param {StockCount} count Inventory.
-   * @returns {string} Place.
-   */
-  const locationOf = (count: StockCount) => (count.locationId ? (places.get(count.locationId) ?? '') : 'Tout le stock');
-  const columns: DataColumn<StockCount>[] = [
-    {
-      id: 'date',
-      required: true,
-      label: 'Date',
-      size: 160,
-      locked: true,
-      sortValue: (count) => count.date,
-      text: (count) => fmt.dateTime(count.date),
-      filter: { kind: 'date', value: (count) => localDay(count.date) },
-    },
-    {
-      id: 'location',
-      // Without a place: the whole stock (never empty).
-      required: true,
-      label: 'Emplacement',
-      size: 200,
-      sortValue: locationOf,
-      text: locationOf,
-      groupable: true,
-    },
-    {
-      id: 'lines',
-      required: true,
-      label: 'Écarts notés',
-      size: 120,
-      numeric: true,
-      sortValue: (count) => count.lines,
-      text: (count) => fmt.count(count.lines),
-      filter: { kind: 'number', value: (count) => count.lines },
-    },
-    noteColumn({ size: 260, bulk: false }),
-  ];
+  const columns = useCountColumns();
   const view = useDataView({ tableKey: 'stock-counts', getKey: (count) => count.id, columns, rows: counts ?? [], title: 'Inventaires' });
   return (
     <DataTable
@@ -79,17 +38,33 @@ function CountsTable() {
   );
 }
 
+/** No count: the columns of an inventory being made, in the settings. */
+const NO_COUNTS: ReadonlyMap<string, number> = new Map();
+
 /**
- * Settings of the inventory: the places (a tree).
+ * Settings of the inventory: the places (a tree), then the categories and the units of the articles (those of the
+ * shopping, also in the shopping settings), then the columns of new views of its tables.
  * @returns {JSX.Element} Settings, in the sidebar.
  */
 function StockSettings() {
   const { data: items } = useStockItems();
   const usage = countBy(items ?? [], (item) => item.locationId);
+  const stockColumns = useStockItemColumns();
+  const countColumns = useCountColumns();
+  const countFormColumns = useCountFormColumns(NO_COUNTS);
   return (
     <PageSettings title="Paramètres de l’inventaire">
       <Stack gap="md">
         <StockLocations usage={usage} />
+        <ShoppingCategories />
+        <ShoppingUnits />
+        {/* Last: the columns of new views (long lists). */}
+        <ColumnDefaults tableKey="stock" columns={stockColumns} label="Stock" />
+        <ColumnDefaults tableKey="stock-lots" columns={LOT_COLUMNS} label="Lots d’un article" />
+        <ColumnDefaults tableKey="stock-movements" columns={MOVEMENT_COLUMNS} label="Mouvements" />
+        <ColumnDefaults tableKey="stock-item-movements" columns={MOVEMENT_COLUMNS} label="Historique d’un article" />
+        <ColumnDefaults tableKey="stock-counts" columns={countColumns} label="Inventaires" />
+        <ColumnDefaults tableKey="stock-count" columns={countFormColumns} label="Faire l’inventaire" />
       </Stack>
     </PageSettings>
   );
@@ -100,7 +75,7 @@ const STOCK_TABS = ['stock', 'movements', 'counts'] as const;
 
 /**
  * Inventory page: the stock (its items and their lots), the history of its movements, the inventories made, and its
- * settings (the places).
+ * settings (the places, the categories and the units).
  * @returns {JSX.Element} Page.
  */
 export function StockPage() {

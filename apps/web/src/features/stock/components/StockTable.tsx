@@ -6,7 +6,6 @@ import { useState } from 'react';
 import { ActionButton } from '../../../components/actions/ActionButton';
 import { DataTable } from '../../../components/data-table/table/DataTable';
 import { applyDiff, bulkCellLabels, bulkSaver } from '../../../components/data-table/selection/bulk-edit';
-import { WARNING_YES_NEUTRAL_NO_ICONS, withArchived, type DataColumn } from '../../../components/data-table/table/data-table';
 import { EditableCheck, EditableMultiSelect, EditableSelect, EditableText, EditableMarkdown } from '../../../components/data-table/cells/EditableCells';
 import { RowActions } from '../../../components/data-table/cells/RowActions';
 import { StackedValues } from '../../../components/data-table/cells/StackedValues';
@@ -15,16 +14,14 @@ import { useDataView } from '../../../components/data-table/views/use-data-view'
 import { EmptyState } from '../../../components/feedback/EmptyState';
 import { openFormPanel } from '../../../components/panels/panels';
 
-import { categoryOptions, categoryPaths } from '../../../components/tree/category-tree';
-import { localDay, localToday } from '../../../lib/dates';
-import { addDays, mapById, round2 } from '@ordo/shared';
+import { localToday } from '../../../lib/dates';
+import { addDays } from '@ordo/shared';
 import * as fmt from '../../../lib/format';
 import { ON_ERROR } from '../../../lib/notify';
-import { useCommentCounts } from '../../comments/api';
-import { commentColumn } from '../../comments/lib/comment-column';
 import { useShoppingData } from '../../shopping/api';
 import { stockKey, useStockItems, useStockLocations, useStockMutations, type StockItem } from '../api';
 import { LotsTable } from './LotsTable';
+import { useStockItemColumns } from '../hooks/use-stock-columns';
 import { MovementsTable } from './MovementsTable';
 import { StockCountForm } from './StockCountForm';
 import { StockItemForm } from './StockItemForm';
@@ -35,10 +32,8 @@ import { nextExpiry, stockItemInput } from '../lib/stock-format';
 import { archiveEntry, useSetArchived, useArchivedToggle, unarchived } from '../../../lib/archive';
 import { ShowArchivedSwitch } from '../../../components/filters/ShowArchivedSwitch';
 import { ArchivedBadge } from '../../../components/feedback/ArchivedBadge';
-import { categoryColumn, consumableColumn, noteColumn, quantityColumn, unitColumn } from '../../shopping/lib/product-columns';
 import { CategoryCell, UnitCell } from '../../shopping/components/shopping-cells';
 import { FoldHeading } from '../../../components/actions/FoldHeading';
-import { booleanColumn } from '../../../components/data-table/table/boolean-column';
 
 type Change = Partial<Parameters<typeof stockItemInput>[1]>;
 
@@ -62,108 +57,8 @@ export function StockTable() {
   const { shown: rows, toggle: archivedToggle } = useArchivedToggle(items ?? []);
   const today = localToday();
   const soon = addDays(today, SOON);
-  const places = categoryPaths(locations ?? []);
   const categories = shopping?.shoppingCategories ?? [];
-  const products = mapById(shopping?.shoppingProducts ?? []);
-  const comments = useCommentCounts(
-    'STOCK_ITEM',
-    (items ?? []).map((item) => item.id),
-  );
-  const whom = (item: StockItem) => [...item.memberIds.map((id) => people.members.get(id) ?? ''), ...item.relationIds.map((id) => people.relations.get(id) ?? '')].filter(Boolean);
-  const value = (item: StockItem) => {
-    const price = item.productId ? products.get(item.productId)?.lastPrice : null;
-    return price === null || price === undefined ? null : round2(price * item.quantity);
-  };
-  const columns: DataColumn<StockItem>[] = [
-    { id: 'label', required: true, label: 'Article', size: 220, locked: true, bulk: true, sortValue: (item) => item.label, text: (item) => item.label },
-    {
-      id: 'location',
-      label: 'Emplacement',
-      size: 170,
-      bulk: true,
-      sortValue: (item) => (item.locationId ? (places.get(item.locationId) ?? '') : null),
-      text: (item) => (item.locationId ? (places.get(item.locationId) ?? '') : ''),
-      filter: { kind: 'choice', value: (item) => item.locationId ?? null, options: withArchived(categoryOptions(locations ?? []), locations ?? []) },
-      groupable: true,
-    },
-    categoryColumn<StockItem>(categories),
-    quantityColumn<StockItem>({ size: 110, bulk: false, required: true }),
-    unitColumn<StockItem>({ groupable: true }),
-    {
-      id: 'expiry',
-      label: 'Date de péremption',
-      size: 150,
-      sortValue: nextExpiry,
-      text: (item) => (nextExpiry(item) ? fmt.day(nextExpiry(item)!) : ''),
-      filter: { kind: 'date', value: nextExpiry },
-      groupable: true,
-    },
-    {
-      id: 'lots',
-      required: true,
-      label: 'Lots',
-      size: 170,
-      hiddenByDefault: true,
-      text: (item) => item.lots.map((lot) => `${fmt.quantity({ quantity: lot.quantity })}${lot.expiresAt ? ` · ${fmt.day(lot.expiresAt)}` : ''}`).join(', '),
-      filter: { kind: 'number', value: (item) => item.lots.length },
-    },
-    {
-      id: 'people',
-      label: 'Bénéficiaires',
-      size: 170,
-      bulk: true,
-      sortValue: (item) => whom(item).join(', ') || null,
-      text: (item) => whom(item).join(', '),
-      filter: {
-        kind: 'choices',
-        value: (item) => rowPeopleKeys(item),
-        options: withArchived(
-          people.options.flatMap((group) => group.items),
-          people.archived,
-        ),
-      },
-      groupable: true,
-    },
-    booleanColumn<StockItem>({ id: 'perishable', label: 'Périssable', size: 110, bulk: true, hiddenByDefault: true, groupable: true, groupLabels: { yes: 'Périssable', no: 'Durable' }, icons: WARNING_YES_NEUTRAL_NO_ICONS, value: (item) => item.perishable }),
-    consumableColumn<StockItem>({ bulk: false, hiddenByDefault: true }),
-    {
-      id: 'reference',
-      label: 'Référence',
-      size: 160,
-      hiddenByDefault: true,
-      sortValue: (item) => (item.productId ? (products.get(item.productId)?.label ?? '') : null),
-      text: (item) => (item.productId ? (products.get(item.productId)?.label ?? '') : ''),
-      filter: { kind: 'boolean', value: (item) => Boolean(item.productId) },
-      groupable: true,
-    },
-    {
-      id: 'value',
-      label: 'Valeur',
-      size: 110,
-      numeric: true,
-      hiddenByDefault: true,
-      sortValue: value,
-      formatTotal: fmt.money,
-      text: (item) => (value(item) === null ? '' : fmt.money(value(item)!)),
-      filter: { kind: 'number', value },
-    },
-    noteColumn<StockItem>({ hiddenByDefault: true }),
-    {
-      id: 'updatedAt',
-      required: true,
-      label: 'Modifié le',
-      size: 130,
-      hiddenByDefault: true,
-      sortValue: (item) => item.updatedAt,
-      text: (item) => fmt.day(item.updatedAt),
-      filter: { kind: 'date', value: (item) => localDay(item.updatedAt) },
-    },
-    commentColumn<StockItem>(
-      comments,
-      (item) => item.id,
-      (item) => item.note,
-    ),
-  ];
+  const columns = useStockItemColumns();
   const view = useDataView({ tableKey: 'stock', getKey: (item) => item.id, columns, rows: [...rows], title: 'Inventaire' });
   // The archived items are left as they are.
   const cellLabelOf = bulkCellLabels(view, (item) => item.label);

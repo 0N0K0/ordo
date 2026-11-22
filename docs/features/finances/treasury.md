@@ -224,6 +224,7 @@ Barre « Paramètres de la trésorerie », sections une sous l’autre (listes d
 - « Factures et avoirs » (PRO) : « Règlements des factures » (catégorie d’entrée) et « Remboursements des avoirs » (catégorie de sortie), vide : « Aucune (hors budget) ». Toast « Catégorie enregistrée. ».
 - « Moyens de paiement » : libellé (« Virement, carte, chèque… »), « Pour les entrées », « Pour les sorties » (les deux cochés par défaut) ; badges « Entrées » / « Sorties ».
 - « Tiers » : « Émetteurs et destinataires qui ne sont pas des clients : fournisseurs, administrations, banques… Les clients sont proposés d’office. » Nom, description ; la suppression prévient que les mouvements perdront leur émetteur ou destinataire.
+- En dernier, « Colonnes des nouvelles vues » de chaque tableau : « Prévisionnel », « Mouvements », « Répartition d’un mouvement », « Budgets du mois », « Hors budget », « Budgets définis », « Prêts » ([Colonnes des nouvelles vues](../cross-cutting/settings.md#colonnes-des-nouvelles-vues)).
 
 ## Équipe / Foyer et relations (page Paramètres)
 

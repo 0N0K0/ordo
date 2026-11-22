@@ -35,13 +35,13 @@ Internes : `ownerVariables(owner)` (variables `routineId` / `eventId` / `taskId`
 
 | Export         | Rôle                                                                                    |
 | -------------- | --------------------------------------------------------------------------------------- |
-| `SheetsPage()` | Page `/sheets` : en-tête, `SheetsTable`, `SheetsSettings`. Route dans `app/router.tsx`. |
+| `SheetsPage()` | Page `/sheets` : en-tête, `SheetsTable`, `SheetsPageSettings`. Route dans `app/router.tsx`. |
 
 ### `pages/SheetPage.tsx`
 
 | Export        | Rôle                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         |
 | ------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `SheetPage()` | Page `/sheets/:id` : `DetailHeader` (retour, badge archivée, sous-titre, « Utiliser cette fiche », menu Dupliquer / Archiver / Supprimer, puis « Lancer » ses minuteurs enregistrés : `useCountdownMenuEntries`, `sheetCountdownItem`), `SheetFields`, tableau des éléments (vue `sheet-items`, colonnes produit, catégorie, quantité, unité, consommable, colonnes des achats, facultatif, description en markdown `EditableMarkdown`, commentaires), ligne d'ajout (reconnaît un produit par son nom, valeur du groupe via `itemGroupFields`), « Depuis les références », retrait, `SheetsSettings`. Squelette au chargement, `DetailNotFound` si absente. Route dans `app/router.tsx`. |
+| `SheetPage()` | Page `/sheets/:id` : `DetailHeader` (retour, badge archivée, sous-titre, « Utiliser cette fiche », menu Dupliquer / Archiver / Supprimer, puis « Lancer » ses minuteurs enregistrés : `useCountdownMenuEntries`, `sheetCountdownItem`), `SheetFields`, tableau des éléments (vue `sheet-items`, colonnes `useSheetItemColumns` : produit, catégorie, quantité, unité, consommable, colonnes des achats, facultatif, description en markdown `EditableMarkdown`, commentaires), ligne d'ajout (reconnaît un produit par son nom, valeur du groupe via `itemGroupFields`), « Depuis les références », retrait, `SheetsPageSettings`. Squelette au chargement, `DetailNotFound` si absente. Route dans `app/router.tsx`. |
 
 Internes : `ItemChange`, `SheetProductsForm({ sheetId, onDone })` (produits des références groupés par liste de base, `addProducts`), `SheetFields({ sheet })` (libellé, projet, catégories, note sur `useFieldSave` + `sheetSchema` : enregistrés chacun dès qu'il change, les textes en les quittant, `SaveStatus` ; la fiche du cache suivie par `saved` ; lecture seule si archivée ; puis « Minuteurs », `SavedCountdownsField` `SHEET`, enregistré à part), `SheetValues`, `sheetValues(sheet)`, `addRow(group)`.
 
@@ -53,13 +53,13 @@ Internes : `ItemChange`, `SheetProductsForm({ sheetId, onDone })` (produits des 
 | ----------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `SheetsTable({ projectId? })` | Tableau des fiches (vue `sheets`) : ligne cliquable vers la page, catégories et projet éditables (en masse), éléments empilés, interrupteur des archivées, « Nouvelle fiche », menu (Modifier / Voir, Utiliser, Dupliquer, Archiver, Supprimer), sélection (Dupliquer, Archiver, Supprimer). Utilisé par `SheetsPage` et `features/projects/pages/ProjectPage.tsx` (onglet « Fiches »). |
 
-Internes : `sheetColumns(context, categories, inProject)` (colonnes `label`, `categories`, `project`, `items`, `usedBy`, `updatedAt`), `createSheet()`.
+Colonnes : `useSheetColumns(inProject)`. Interne : `createSheet()`.
 
 ### `components/ChecklistPanel.tsx`
 
 | Export                                       | Rôle                                                                                                                                                                                                                                                                                                                                                                                          |
 | -------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `ChecklistPanel({ owner, occurrenceDate? })` | Liste à cocher (vue `checklist`) : compteur faits / total, « Ajouter une fiche » (`SheetPicker`), « Refaire depuis les fiches » (confirmation), colonnes Fait, Élément, Quantité, Unité, Catégorie, Consommable, Description (`EditableMarkdown`), Fiches ; édition sur place et en masse, ligne d'ajout, retrait ; `SheetLinksField` en dessous. Sans liste : état vide et champ des fiches. |
+| `ChecklistPanel({ owner, occurrenceDate? })` | Liste à cocher (vue `checklist`) : compteur faits / total, « Ajouter une fiche » (`SheetPicker`), « Refaire depuis les fiches » (confirmation), colonnes `useChecklistColumns` : Fait, Élément, Quantité, Unité, Catégorie, Consommable, Description (`EditableMarkdown`), Fiches ; édition sur place et en masse, ligne d'ajout, retrait ; `SheetLinksField` en dessous. Sans liste : état vide et champ des fiches. |
 
 Interne : `ItemChange`, `saveItem(item, change)` (coche par `setChecked`, sinon `updateChecklistItem` avec les autres champs gardés).
 
@@ -100,7 +100,22 @@ Interne : `SheetPickerProps`.
 
 | Export             | Rôle                                                                                                                                                                                                                                                              |
 | ------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `SheetsSettings()` | Barre latérale « Paramètres des fiches » : `SettingsList` des catégories de fiches (`SHEET_CATEGORY`, `labelFormSchema`, usage par fiche) et `ShoppingCategories` (usage par produits, éléments de listes et de fiches). Utilisé par `SheetsPage` et `SheetPage`. |
+| `SheetsSettings()` | Paramètres des fiches : `SettingsList` des catégories de fiches (`SHEET_CATEGORY`, `labelFormSchema`, usage par fiche) puis `ShoppingCategories` et `ShoppingUnits` (ceux des achats), puis en dernier les `ColumnDefaults` des tableaux `sheets` (« Fiches »), `sheet-items` (« Une fiche ») et `checklist` (« Listes à cocher »). Utilisé par `SheetsPageSettings` et l’onglet « Fiches » des paramètres d’un projet. |
+| `SheetsPageSettings()` | `SheetsSettings` dans la barre latérale (`PageSettings` « Paramètres des fiches »). Utilisé par `SheetsPage` et `SheetPage`. |
+
+## `hooks/`
+
+### `hooks/use-sheet-columns.tsx`
+
+Colonnes des tableaux des fiches, chacune lue par son tableau et par `SheetsSettings` (colonnes des nouvelles vues).
+
+| Export | Rôle |
+| --- | --- |
+| `useSheetColumns(inProject)` | Colonnes des fiches (`sheets`) : `label`, `categories`, `project` (masquée par défaut dans un projet), `items`, `usedBy`, `updatedAt`. Utilisé par `SheetsTable`. |
+| `useSheetItemColumns(sheet)` | Colonnes des éléments d'une fiche (`sheet-items`) : élément, référence, catégorie, quantité, unité, consommable, colonnes des achats (`sheetShoppingColumns`), facultatif, description, commentaires (sans fiche : aucun compté). Utilisé par `SheetPage`. |
+| `useChecklistColumns(list)` | Colonnes d'une liste à cocher (`checklist`) : fait, élément, quantité, unité, catégorie, consommable, description, fiches. Utilisé par `ChecklistPanel`. |
+
+Interne : `sheetColumns(context, categories, inProject)`.
 
 ## `lib/`
 

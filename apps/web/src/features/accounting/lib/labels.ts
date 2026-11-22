@@ -50,3 +50,18 @@ export const EMPTY_DOCUMENTS: Record<AccountingDocumentType, string> = {
 export const vatRateOptions = (current: number): { value: string; label: string }[] =>
   // eslint-disable-next-line no-restricted-syntax -- vatRateOptions itself.
   [...new Set([...VAT_RATES, current])].map((rate) => ({ value: String(rate), label: fmt.percent(rate) }));
+
+/** Tabs of the documents of the accounting page, by type. */
+export const DOCUMENT_TABS = [
+  { value: 'QUOTE', label: 'Devis' },
+  { value: 'INVOICE', label: 'Factures' },
+  { value: 'DEPOSIT_INVOICE', label: 'Acomptes' },
+  { value: 'CREDIT_NOTE', label: 'Avoirs' },
+] as const satisfies readonly { value: AccountingDocumentType; label: string }[];
+
+/**
+ * Table of the documents of a type on the accounting page (its views and default columns).
+ * @param {AccountingDocumentType} type Type.
+ * @returns {string} Table key (« documents-credit-note »).
+ */
+export const documentsTableKey = (type: AccountingDocumentType): string => `documents-${type.toLowerCase().replace(/_/g, '-')}`;

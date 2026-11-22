@@ -1,24 +1,10 @@
-import { PERIOD_STATES, periodState, type PeriodState } from '../../../lib/periods';
-import { itemChoices, itemSelectProps, listSelectProps } from '../../../components/items/item-look';
+import { itemSelectProps, listSelectProps } from '../../../components/items/item-look';
 import { countOf, copyName } from '../../../lib/text';
 import { ActionButton } from '../../../components/actions/ActionButton';
 import { ItemAvatar } from '../../../components/items/ItemAvatar';
-import * as fmt from '../../../lib/format';
 import { EmptyState } from '../../../components/feedback/EmptyState';
 import { Badge, Fieldset, Group, Stack, Text, TextInput, Tooltip } from '@mantine/core';
-import {
-  mapById,
-  DEFAULT_SCHEDULE_KIND_LABEL,
-  readReminders,
-  readScheduleCases,
-  readScheduleExceptions,
-  type ReminderFields,
-  type ScheduleCase,
-  type ScheduleException,
-  type WorkScheduleInput,
-  wholeDaysCase,
-  workScheduleSchema,
-} from '@ordo/shared';
+import { DEFAULT_SCHEDULE_KIND_LABEL, readReminders, readScheduleCases, readScheduleExceptions, type ReminderFields, type ScheduleCase, type ScheduleException, type WorkScheduleInput, wholeDaysCase, workScheduleSchema } from '@ordo/shared';
 import { CalendarStarIcon, ClockIcon, PencilSimpleIcon, PlusIcon } from '@phosphor-icons/react';
 import { RemindersSelect } from '../../../components/inputs/RemindersSelect';
 import { useQueryClient } from '@tanstack/react-query';
@@ -29,7 +15,7 @@ import { bulkCellLabels, bulkSaver } from '../../../components/data-table/select
 import { EditableDate, EditableSelect, EditableText } from '../../../components/data-table/cells/EditableCells';
 import { useDataView } from '../../../components/data-table/views/use-data-view';
 import { RowActions } from '../../../components/data-table/cells/RowActions';
-import { type DataColumn, readOnlyCells } from '../../../components/data-table/table/data-table';
+import { readOnlyCells } from '../../../components/data-table/table/data-table';
 import { localToday } from '../../../lib/dates';
 import { useAppForm, formCallbacks, useFieldSave } from '../../../lib/form';
 import { SaveStatus } from '../../../components/feedback/SaveStatus';
@@ -46,8 +32,6 @@ import { describeScheduleCase, EPHEMERIDES_TITLE, exceptionPeriod, newScheduleCa
 import { EPHEMERIS_COLOR } from '../lib/calendar-events';
 import { useScheduleConversion } from '../hooks/use-schedule-conversion';
 import { Comments } from '../../comments/components/Comments';
-import { useCommentCounts } from '../../comments/api';
-import { commentColumn } from '../../comments/lib/comment-column';
 import { CreatableSelect } from '../../../components/inputs/CreatableSelect';
 import { archiveRowsAction, deleteItemsAction, duplicateRowsAction, rowMenuEntry, type DuplicateOptions } from '../../../components/data-table/selection/selection-actions';
 import { selectedLabel } from '../../../components/data-table/selection/selection-label';
@@ -56,6 +40,7 @@ import { itemCreator } from '../../../components/settings/create-settings-item';
 import { FormActions } from '../../../components/dialogs/FormActions';
 import { followBounds } from '../../../components/inputs/date-range';
 import { UnavailableSwitch } from './UnavailableSwitch';
+import { NO_KIND, NO_KIND_LABEL, scheduleState, STATE_COLORS, STATE_LABELS, useScheduleColumns, type ScheduleRow } from '../hooks/use-schedule-columns';
 
 interface ScheduleValues extends Record<string, unknown> {
   label: string;
@@ -197,32 +182,6 @@ function ScheduleForm({ schedule, ephemeris, onDone }: { schedule?: WorkSchedule
   );
 }
 
-/** State of a schedule today (the values kept in the saved views' filters). */
-type ScheduleState = 'CURRENT' | 'UPCOMING' | 'PAST';
-/** State of its period, for its label and color. */
-const PERIOD_OF: Record<ScheduleState, PeriodState> = { CURRENT: 'current', UPCOMING: 'upcoming', PAST: 'past' };
-const STATE_OF: Record<PeriodState, ScheduleState> = { current: 'CURRENT', upcoming: 'UPCOMING', past: 'PAST' };
-const STATE_LABELS = Object.fromEntries(Object.entries(PERIOD_OF).map(([state, period]) => [state, PERIOD_STATES[period].label])) as Record<ScheduleState, string>;
-const STATE_COLORS = Object.fromEntries(Object.entries(PERIOD_OF).map(([state, period]) => [state, PERIOD_STATES[period].color])) as Record<ScheduleState, string>;
-const STATE_ORDER: Record<ScheduleState, number> = { CURRENT: 0, UPCOMING: 1, PAST: 2 };
-
-/** Row of the table of the schedules: a schedule, its state today, its exceptions. */
-type ScheduleRow = { schedule: WorkSchedule; state: ScheduleState; exceptions: ReturnType<typeof readScheduleExceptions> };
-/** Kind filter value of the schedules without kind. */
-const NO_KIND = 'none';
-/** Kind of the éphémérides without kind (there is no default kind of éphémérides). */
-const NO_KIND_LABEL = 'Sans type';
-
-/**
- * State of a schedule on a day: current, upcoming or past.
- * @param {WorkSchedule} schedule Schedule.
- * @param {string} today YYYY-MM-DD.
- * @returns {ScheduleState} State.
- */
-function scheduleState(schedule: WorkSchedule, today: string): ScheduleState {
-  return STATE_OF[periodState(schedule.startDate, schedule.endDate ?? null, today)];
-}
-
 /**
  * Hours of a schedule, one line per case.
  * @param {{ schedule: { cases: unknown, startDate: string } }} props Component props.
@@ -248,12 +207,8 @@ function ScheduleHours({ schedule }: { schedule: { cases: unknown; startDate: st
  * @returns {JSX.Element} Manager.
  */
 export function WorkSchedulesManager({ ephemeris = false }: { ephemeris?: boolean }) {
-  const { data: allSchedules } = useWorkSchedules();
-  const schedules = allSchedules?.filter((schedule) => schedule.ephemeris === ephemeris);
-  const { data: allTypes } = useScheduleTypes();
-  const types = allTypes?.filter((type) => type.ephemeris === ephemeris);
+  const { columns, schedules, types, defaultKind, typeById, defaultLabel } = useScheduleColumns(ephemeris);
   const convert = useScheduleConversion();
-  const { data: defaultKind } = useDefaultScheduleKind();
   const { create, remove, update } = useWorkScheduleMutations();
   const queryClient = useQueryClient();
   const setArchived = useSlotSourceArchiving('WORK_SCHEDULE', []);
@@ -311,73 +266,8 @@ export function WorkSchedulesManager({ ephemeris = false }: { ephemeris?: boolea
       remove: ({ schedule }) => remove.mutateAsync(schedule.id),
       clear,
     });
-  const typeById = mapById(allTypes ?? []);
-  // Without kind: the working hours for the créneaux, no kind for the éphémérides.
-  const defaultLabel = ephemeris ? NO_KIND_LABEL : (defaultKind?.label ?? DEFAULT_SCHEDULE_KIND_LABEL);
   const defaultColor = ephemeris ? EPHEMERIS_COLOR : (defaultKind?.color ?? null);
   const today = localToday();
-  const kindLabel = (schedule: WorkSchedule) => (schedule.typeId ? (typeById.get(schedule.typeId)?.label ?? '') : defaultLabel);
-  const scheduleComments = useCommentCounts(
-    'SCHEDULE',
-    (schedules ?? []).map((schedule) => schedule.id),
-  );
-  const columns: DataColumn<ScheduleRow>[] = [
-    { id: 'label', required: true, label: 'Libellé', size: 220, locked: true, bulk: true, sortValue: ({ schedule }) => schedule.label, text: ({ schedule }) => schedule.label },
-    {
-      id: 'type',
-      required: true,
-      bulk: true,
-      label: 'Type',
-      size: 160,
-      sortValue: ({ schedule }) => kindLabel(schedule),
-      text: ({ schedule }) => kindLabel(schedule),
-      filter: {
-        kind: 'choice',
-        value: ({ schedule }) => schedule.typeId ?? NO_KIND,
-        options: [{ value: NO_KIND, label: defaultLabel }, ...itemChoices(types ?? [])],
-      },
-      groupable: true,
-    },
-    {
-      id: 'start',
-      required: true,
-      bulk: true,
-      label: 'Début',
-      size: 120,
-      sortValue: ({ schedule }) => schedule.startDate,
-      text: ({ schedule }) => fmt.day(schedule.startDate),
-      filter: { kind: 'date', value: ({ schedule }) => schedule.startDate },
-    },
-    {
-      id: 'end',
-      bulk: true,
-      label: 'Fin',
-      size: 120,
-      sortValue: ({ schedule }) => (schedule.endDate ? schedule.endDate : '9999-12-31'),
-      text: ({ schedule }) => (schedule.endDate ? fmt.day(schedule.endDate) : 'Sans fin'),
-      filter: { kind: 'date', value: ({ schedule }) => schedule.endDate || null },
-    },
-    {
-      id: 'hours',
-      label: 'Horaires',
-      size: 320,
-      text: ({ schedule, exceptions }) =>
-        [...readScheduleCases(schedule.cases, schedule.startDate).map((item) => describeScheduleCase(item, schedule.startDate)), ...exceptions.map((exception) => exception.label)]
-          .filter(Boolean)
-          .join(' ; '),
-    },
-    {
-      id: 'state',
-      required: true,
-      label: 'État',
-      size: 110,
-      sortValue: ({ state: rowState }) => STATE_ORDER[rowState],
-      text: ({ state: rowState }) => STATE_LABELS[rowState],
-      filter: { kind: 'choice', value: ({ state: rowState }) => rowState, options: (['CURRENT', 'UPCOMING', 'PAST'] as const).map((value) => ({ value, label: STATE_LABELS[value] })) },
-      groupable: true,
-    },
-    commentColumn<ScheduleRow>(scheduleComments, ({ schedule }) => schedule.id),
-  ];
   const rows = (schedules ?? []).map((schedule) => ({ schedule, state: scheduleState(schedule, today), exceptions: readScheduleExceptions(schedule.exceptions) }));
   const view = useDataView({
     tableKey: ephemeris ? 'ephemerides' : 'work-schedules',

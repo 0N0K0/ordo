@@ -24,6 +24,7 @@ import { openRoutineForm } from '../lib/open-routine-form';
 import { openRoutineMove } from '../lib/open-routine-move';
 import { RoutineHistory } from '../components/RoutineHistory';
 import { RoutineSettings } from '../components/RoutineSettings';
+import { PageSettings } from '../../../app/layout/PageSettings';
 import { useRunningTimers } from '../../time/api';
 import { useRoutineColumns } from '../hooks/use-routine-columns';
 import { routinesLabel } from '../lib/routine-cell-edit';
@@ -275,7 +276,9 @@ export function RoutinesPage() {
   return (
     <Stack gap="lg">
       <PageHeader title={PAGES.routines.label} />
-      <RoutineSettings />
+      <PageSettings title="Paramètres des routines">
+        <RoutineSettings />
+      </PageSettings>
       <PageTabs value={tab} onChange={(value) => setTab(value, { routine: null })} keepMounted={false}>
         <PageTabs.List>
           <PageTabs.Tab value="routines" leftSection={<ArrowsClockwiseIcon aria-hidden />}>

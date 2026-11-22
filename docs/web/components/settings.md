@@ -1,6 +1,6 @@
 # Réglages (composants web)
 
-Briques des réglages : la liste de réglages (plate ou en arbre) utilisée par toutes les listes paramétrables de l’app, le formulaire d’un élément, la création depuis un select, la section en carte et la grille des sections. Source : `apps/web/src/components/settings/`. Ce que chaque section de réglages gère est décrit dans [Réglages (fonctionnalités)](../../features/cross-cutting/settings.md).
+Briques des réglages : la liste de réglages (plate ou en arbre) utilisée par toutes les listes paramétrables de l’app, le formulaire d’un élément, la création depuis un select, la section en carte, la ligne qui dit qu’un paramètre vaut pour tout l’espace et la grille des sections. Source : `apps/web/src/components/settings/`. Ce que chaque section de réglages gère est décrit dans [Réglages (fonctionnalités)](../../features/cross-cutting/settings.md).
 
 ## Principes
 
@@ -97,6 +97,10 @@ Utilisé par les réglages de `accounting`, `calendar`, `geo`, `mail`, `projects
 ## `SettingsSection.tsx`
 
 `SettingsSection({ title, description?, actions?, children? })` — section des réglages (et des autres pages faites de cartes) : un `Paper` bordé (`component="section"`), son en-tête `SectionHeader` (titre, description, actions à droite, voir [Page](page.md)), puis son contenu. Utilisé par `SettingsList` et `account`, `accounting`, `calendar`, `github`, `mail`, `projects`, `tasks`, `time`, `treasury`, `workspaces`.
+
+## `SettingsScopeNote.tsx`
+
+`SettingsScopeNote()` — une ligne atténuée, icône « info » : « Ces paramètres valent pour tout l’espace, pas seulement pour ce projet. », au-dessus des paramètres de l’espace repris dans les paramètres d’un projet. Utilisé par `ProjectPage`. Garde eslint : la phrase « … valent pour tout l’espace … » écrite ailleurs est refusée.
 
 ## `SettingsGrid.tsx` et `SettingsGrid.module.css`
 

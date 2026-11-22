@@ -257,6 +257,15 @@ export default defineConfig([
           selector: "JSXAttribute[name.name='label'] Literal[value=/^Grouper par/]",
           message: '« Grouper par » est l’option de la vue du tableau (DataViewBar) : pas de contrôle de regroupement à côté.',
         },
+        // Columns new views of a table start with: one setting per table key, one section (ColumnDefaults) in the settings.
+        {
+          selector: "Identifier[name=/^(useTaskColumnDefaults|useSetTaskColumnDefaults|readTaskColumnDefaults|taskColumnDefaultsSchema|TaskColumnDefaults)$/]",
+          message: 'Colonnes des nouvelles vues : par tableau (useTableColumnDefaults(tableKey), readTableColumnDefaults), montrées par ColumnDefaults (components/data-table/views/ColumnDefaults).',
+        },
+        {
+          selector: "CallExpression[callee.name='useSetTableColumnDefaults'], JSXOpeningElement[name.name='DataColumnsPanel'] > JSXAttribute[name.name='maxHeight']",
+          message: 'Colonnes des nouvelles vues d’un tableau dans des paramètres : ColumnDefaults({ tableKey, columns }) (components/data-table/views/ColumnDefaults), en dernier, liste limitée en hauteur.',
+        },
         // One word and one behaviour to copy anything: « Dupliquer », saved at once, then opened.
         {
           selector: "Literal[value=/\\bClon(er|é|ée|és|ées|age)\\b/i], TemplateElement[value.raw=/\\bClon(er|é|ée|és|ées|age)\\b/i], JSXText[value=/\\bClon(er|é|ée|és|ées|age)\\b/i]",
@@ -1234,6 +1243,21 @@ export default defineConfig([
           // A panel is resized one way, its width kept by useResizablePanel (limits in panel-widths).
           selector: "CallExpression[callee.name='useLocalStorage'] Property[key.name='key'][value.value=/width$/i]",
           message: 'Utiliser useResizablePanel + ResizeHandle (components/panels), ses limites dans panel-widths : un panneau se redimensionne d’une seule façon.',
+        },
+        {
+          // The priorities and the types are shared by the tasks and the routines: one brick shows both lists.
+          selector: "FunctionDeclaration:not([id.name='PriorityTypeSettings']) JSXOpeningElement[name.name='SettingsList'] > JSXAttribute[name.name='title'] > Literal[value=/^(Priorités|Types)$/]",
+          message: 'Utiliser PriorityTypeSettings (features/tasks/components) : les priorités et les types, communs aux tâches et aux routines, une seule fois.',
+        },
+        {
+          // The units are those of the shopping, shown in the settings of the shopping, the sheets and the stock: one brick.
+          selector: "FunctionDeclaration:not([id.name='ShoppingUnits']) JSXOpeningElement[name.name='SettingsList'] > JSXAttribute[name.name='title'] > Literal[value='Unités']",
+          message: 'Utiliser ShoppingUnits (features/shopping/components) : les unités, communes aux achats, aux fiches et au stock, une seule fois.',
+        },
+        {
+          // A workspace setting shown in a narrower place says so in one line, the same everywhere.
+          selector: "FunctionDeclaration:not([id.name='SettingsScopeNote']) :matches(JSXText, Literal)[value=/valent pour tout l’espace/]",
+          message: 'Utiliser SettingsScopeNote (components/settings) : une seule phrase pour dire qu’un paramètre vaut pour tout l’espace.',
         },
       ],
     },

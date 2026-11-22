@@ -115,11 +115,12 @@ Tableau des articles : « Article » (libellé modifiable, badge « Débours »,
 
 ### Paramètres (barre latérale « Paramètres de la facturation »)
 
-Trois onglets :
+« Suivi » et « Ma société » sont aussi dans les paramètres d’un projet, depuis son onglet « Facturation » (les mêmes réglages, ceux de l’espace), suivis des colonnes des nouvelles vues des documents d’un projet ou d’un client. Quatre onglets :
 
 - « Export ZIP » : « Télécharger les documents d’une période » (voir [Export ZIP](#export-zip)).
 - « Suivi » : statuts de suivi des devis et des factures (voir [Statuts de suivi](#statuts-de-suivi)).
 - « Ma société » : profil de la société et numérotation (voir [Ma société](#ma-société) et [Numérotation](#numérotation)).
+- « Colonnes » (en dernier) : « Colonnes des nouvelles vues » de chaque tableau de la facturation : « Devis », « Factures », « Acomptes », « Avoirs », « À envoyer », « À relancer », « Récurrentes », « Catalogue », « Temps à facturer », « Documents d’un projet ou d’un client » ([Colonnes des nouvelles vues](../cross-cutting/settings.md#colonnes-des-nouvelles-vues)).
 
 ## Page d’un document d’Ordo
 

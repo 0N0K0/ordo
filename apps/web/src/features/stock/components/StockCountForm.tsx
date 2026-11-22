@@ -1,15 +1,14 @@
 import { locationSelectProps } from '../hooks/use-location-select';
 import { formCallbacks } from '../../../lib/form';
 import { isUnderOrSelf } from '@ordo/shared';
-import { categoryPaths } from '../../../components/tree/category-tree';
 import { Select, Stack, Text } from '@mantine/core';
 import { useState } from 'react';
 import { DataTable } from '../../../components/data-table/table/DataTable';
-import type { DataColumn } from '../../../components/data-table/table/data-table';
 import { useDataView } from '../../../components/data-table/views/use-data-view';
 
 import * as fmt from '../../../lib/format';
-import { useStockItems, useStockLocations, useStockMutations, type StockItem } from '../api';
+import { useStockItems, useStockLocations, useStockMutations } from '../api';
+import { useCountFormColumns } from '../hooks/use-stock-columns';
 import { countOf } from '../../../lib/text';
 import { FormActions } from '../../../components/dialogs/FormActions';
 import { QuantityInput } from '../../../components/inputs/QuantityInput';
@@ -30,7 +29,6 @@ export function StockCountForm({ onDone }: { onDone: () => void }) {
   const [locationId, setLocationId] = useState<string | null>(null);
   const [counts, setCounts] = useState<Map<string, number>>(new Map());
   const [note, setNote] = useState('');
-  const places = categoryPaths(locations ?? []);
   const parentOf = new Map((locations ?? []).map((place) => [place.id, place.parentId]));
   /**
    * Whether a place is the one chosen or under it (a place takes its sub-places).
@@ -40,20 +38,7 @@ export function StockCountForm({ onDone }: { onDone: () => void }) {
   const within = (id: string | null | undefined) => !locationId || (!!id && isUnderOrSelf(parentOf, id, locationId));
   // The archived items are not counted.
   const rows = unarchived(items ?? []).filter((item) => within(item.locationId));
-  const columns: DataColumn<StockItem>[] = [
-    { id: 'label', required: true, label: 'Article', size: 220, locked: true, sortValue: (item) => item.label, text: (item) => item.label },
-    { id: 'location', label: 'Emplacement', size: 170, sortValue: (item) => places.get(item.locationId ?? '') ?? null, text: (item) => places.get(item.locationId ?? '') ?? '', groupable: true },
-    { id: 'expected', required: true, label: 'Attendu', size: 100, numeric: true, sortValue: (item) => item.quantity, text: (item) => fmt.quantity(item) },
-    {
-      id: 'counted',
-      label: 'Compté',
-      size: 130,
-      numeric: true,
-      locked: true,
-      sortValue: (item) => counts.get(item.id) ?? null,
-      text: (item) => fmt.quantity({ quantity: counts.get(item.id) }),
-    },
-  ];
+  const columns = useCountFormColumns(counts);
   const view = useDataView({ tableKey: 'stock-count', getKey: (item) => item.id, columns, rows, title: 'Inventaire' });
   return (
     <Stack gap="md">

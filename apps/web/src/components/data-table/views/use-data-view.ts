@@ -16,6 +16,7 @@ import { newConditionFor } from '../../filters/filter-meta';
 import type { ColumnMenuExtras } from '../toolbar/ColumnHeaderMenu';
 import { localToday } from '../../../lib/dates';
 import { useSavedViews, viewParam, type SavedViewsState } from './use-saved-views';
+import { useTableColumnDefaults } from './api';
 import { shownColumns, type DataColumn, type ShownColumn } from '../table/data-table';
 import { isGroupable, tableFilterFields, viewRows, type RowGroup } from '../table/table-engine';
 import { useArchivedToggle, type ArchivedToggle } from '../../../lib/archive';
@@ -154,23 +155,13 @@ export function parseTableViewConfig(config: unknown, tableKey: string): TableVi
 
 /**
  * Saved views of a table (tabs, unsaved changes, default one), the first ones made once: what a table reads before its
- * rows when they depend on its view (the events listed with the tasks).
- * @param {{ tableKey: string, projectId?: string | null, first?: readonly FirstTableView[], defaults?: Partial<TableViewConfig>, ready?: boolean }} options Table, project of the views, first views, what every new view starts with (the columns chosen for the workspace…), whether it makes them.
+ * rows when they depend on its view (the events listed with the tasks). Every new view starts with the columns chosen
+ * for the table in the workspace (« Colonnes des nouvelles vues »), read before any view is made.
+ * @param {{ tableKey: string, projectId?: string | null, first?: readonly FirstTableView[], ready?: boolean }} options Table, project of the views, first views, whether it makes them.
  * @returns {SavedViewsState<TableViewConfig>} Views.
  */
-export function useTableViews({
-  tableKey,
-  projectId = null,
-  first,
-  defaults,
-  ready = true,
-}: {
-  tableKey: string;
-  projectId?: string | null;
-  first?: readonly FirstTableView[];
-  defaults?: Partial<TableViewConfig>;
-  ready?: boolean;
-}) {
+export function useTableViews({ tableKey, projectId = null, first, ready = true }: { tableKey: string; projectId?: string | null; first?: readonly FirstTableView[]; ready?: boolean }) {
+  const { data: defaults, isPending: defaultsPending } = useTableColumnDefaults(tableKey);
   const firstKey = JSON.stringify(first ?? null);
   const defaultsKey = JSON.stringify(defaults ?? {});
   // A new view: what the table starts with, then its own.
@@ -185,7 +176,7 @@ export function useTableViews({
     [firstKey, defaultsKey],
   );
   const parse = useCallback((config: unknown) => parseTableViewConfig(config, tableKey), [tableKey]);
-  return useSavedViews<TableViewConfig>({ projectId, kind: 'TABLE', tableKey, parse, blank, first: firstViews, ready, param: viewParam(tableKey) });
+  return useSavedViews<TableViewConfig>({ projectId, kind: 'TABLE', tableKey, parse, blank, first: firstViews, ready: ready && !defaultsPending, param: viewParam(tableKey) });
 }
 
 /**
