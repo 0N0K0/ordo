@@ -14,6 +14,7 @@ import { ON_ERROR } from '../../../lib/notify';
 import { useBirthdayLook, useDefaultScheduleKind, useForeignScheduleKinds, useScheduleTypes, useWorkScheduleMutations, useWorkSchedules } from '../api';
 import { useScheduleConversion } from '../hooks/use-schedule-conversion';
 import { ScheduleLookEditor } from './ScheduleLookEditor';
+import { UnavailableSwitch } from './UnavailableSwitch';
 import { LookPanel, LookToggle } from './LookToggle';
 import { SubscriptionRow } from './SubscriptionRow';
 import { ActionButton } from '../../../components/actions/ActionButton';
@@ -166,13 +167,20 @@ function ScheduleTypes({ ephemeris }: { ephemeris: boolean }) {
       }
       noun="le type"
       items={(types ?? []).filter((type) => type.ephemeris === ephemeris)}
-      renderBadges={(type) =>
-        type.budgetContext && (
-          <Badge size="xs" variant="light">
-            {type.sharedContext ? 'Contexte du budget, partagé' : 'Contexte du budget'}
-          </Badge>
-        )
-      }
+      renderBadges={(type) => (
+        <>
+          {type.unavailable && (
+            <Badge size="xs" variant="light" color="gray">
+              Indisponible
+            </Badge>
+          )}
+          {type.budgetContext && (
+            <Badge size="xs" variant="light">
+              {type.sharedContext ? 'Contexte du budget, partagé' : 'Contexte du budget'}
+            </Badge>
+          )}
+        </>
+      )}
       menuItems={(type) => [convert.type(type, count(type.id))]}
       remove={(id) => removeType.mutateAsync(id)}
       deleteMessage={(type) => (
@@ -188,18 +196,18 @@ function ScheduleTypes({ ephemeris }: { ephemeris: boolean }) {
 /**
  * Kinds of schedules of the other workspaces (and their working hours, schedules without kind), by workspace:
  * subscribing to one shows all its schedules, those added later too, read only in this calendar, in the color and
- * display of the kind, or those set here.
+ * display of the kind, or those set here, and « Indisponible » here or not (whatever its own workspace says).
  * @returns {JSX.Element | null} Section, nothing without other workspaces with schedules.
  */
 function ForeignSchedules() {
   const { data: kinds } = useForeignScheduleKinds();
-  const { subscribe, unsubscribe, setLook } = useWorkScheduleMutations();
+  const { subscribe, unsubscribe, setLook, setSubscriptionUnavailable } = useWorkScheduleMutations();
   const [opened, setOpened] = useState<string | null>(null);
   if (!kinds?.length) return null;
   return (
     <SettingsSection
       title="Créneaux des autres espaces"
-      description="Abonné à un type de créneau, cet espace affiche tous ses créneaux (même ceux ajoutés ensuite) dans son agenda, en lecture seule, avec la couleur et l’affichage du type ou ceux choisis ici."
+      description="Abonné à un type de créneau, cet espace affiche tous ses créneaux (même ceux ajoutés ensuite) dans son agenda, en lecture seule, avec la couleur et l’affichage du type ou ceux choisis ici ; « Indisponible » s’y règle pour cet espace seul."
     >
       <ByWorkspace items={kinds} workspaceOf={(kind) => ({ id: kind.workspaceId, label: kind.workspaceLabel })}>
         {(kind) => {
@@ -212,13 +220,13 @@ function ForeignSchedules() {
                 label={kind.label}
                 color={kind.color ?? 'green'}
                 workspaceLabel={kind.workspaceLabel}
-                hint={`${kind.ephemeris ? countOf(kind.scheduleCount, 'éphéméride') : countOf(kind.scheduleCount, 'créneau', 'créneaux')}${kind.customized ? ' · affichage personnalisé' : ''}`}
+                hint={`${kind.ephemeris ? countOf(kind.scheduleCount, 'éphéméride') : countOf(kind.scheduleCount, 'créneau', 'créneaux')}${kind.customized ? ' · affichage personnalisé' : ''}${kind.subscribed && kind.unavailable ? ' · indisponible ici' : ''}`}
                 subscribed={kind.subscribed}
                 onChange={(subscribed) => (subscribed ? subscribe : unsubscribe).mutate(target, ON_ERROR)}
                 actions={
                   kind.subscribed && (
                     <LookToggle
-                      label="Couleur et affichage dans cet agenda"
+                      label="Couleur, affichage et disponibilité dans cet agenda"
                       ariaLabel={`Affichage de « ${inWorkspace(kind.label, kind.workspaceLabel)} »`}
                       opened={opened === key}
                       onToggle={() => setOpened(opened === key ? null : key)}
@@ -243,6 +251,7 @@ function ForeignSchedules() {
                     />
                   </Group>
                   <ScheduleLookEditor name={kind.label} value={kind} onChange={(display) => setLook.mutate({ ...target, input: { ...look, ...display } }, ON_ERROR)} />
+                  <UnavailableSwitch size="xs" checked={kind.unavailable} onChange={(unavailable) => setSubscriptionUnavailable.mutate({ ...target, unavailable }, ON_ERROR)} />
                   {kind.customized && (
                     <div>
                       <ActionButton

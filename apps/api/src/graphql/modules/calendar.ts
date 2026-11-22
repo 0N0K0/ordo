@@ -136,6 +136,7 @@ export const WorkScheduleRef = builder.prismaObject('WorkSchedule', {
     exceptions: t.field({ type: 'JSON', description: 'Exceptions: { from, to, label, cases }.', resolve: (schedule) => schedules.scheduleRule(schedule).exceptions }),
     typeId: t.exposeID('typeId', { nullable: true, description: 'Kind of time it plans; none: working hours (or, an éphéméride, no kind).' }),
     ephemeris: t.exposeBoolean('ephemeris', { description: 'An éphéméride, not a créneau (that of its kind when it has one).' }),
+    unavailable: t.exposeBoolean('unavailable', { description: '« Indisponible » in this workspace: nothing is scheduled during its slots (that of its kind when it has one).' }),
     reminders: t.field({
       type: [ReminderRef],
       description: 'Reminders of an éphéméride, counted from the first day of each run of consecutive days it has (a créneau rings none).',
@@ -154,6 +155,7 @@ builder.prismaObject('ScheduleType', {
     dayBar: t.exposeBoolean('dayBar', { description: 'A bar at the top of the week and the day on each day with slots.' }),
     monthDisplay: t.exposeString('monthDisplay', { description: 'Its days in the month: BACKGROUND, BORDER or NONE.' }),
     ephemeris: t.exposeBoolean('ephemeris', { description: 'A kind of éphémérides (holidays, birthdays…), not of créneaux.' }),
+    unavailable: t.exposeBoolean('unavailable', { description: '« Indisponible » in this workspace: nothing is scheduled during the slots of its schedules.' }),
     budgetContext: t.exposeBoolean('budgetContext', { description: 'Éphémérides only: a context of the treasury, its éphémérides its periods.' }),
     sharedContext: t.exposeBoolean('sharedContext', { description: 'A context in every workspace of the user.' }),
     position: t.exposeInt('position'),
@@ -168,6 +170,7 @@ const ScheduleTypeInput = builder.inputType('ScheduleTypeInput', {
     dayBar: t.boolean({ required: true }),
     monthDisplay: t.string({ required: true }),
     ephemeris: t.boolean({ description: 'A kind of éphémérides; set at its creation only (a conversion changes it).' }),
+    unavailable: t.boolean({ description: '« Indisponible »: nothing is scheduled during the slots of its schedules (they take it).' }),
     budgetContext: t.boolean({ description: 'Éphémérides only: « Sert de contexte au budget ».' }),
     sharedContext: t.boolean({ description: 'Budget context only: « Partagé entre espaces ».' }),
   }),
@@ -233,6 +236,7 @@ const ForeignScheduleRef = builder.objectRef<schedules.ForeignSchedule>('Foreign
     typeLabel: t.exposeString('typeLabel', { nullable: true }),
     typeId: t.id({ nullable: true, description: 'Kind in its workspace; none: its working hours (or, an éphéméride, no kind).', resolve: (item) => item.rule.typeId ?? null }),
     ephemeris: t.boolean({ description: 'An éphéméride, not a créneau.', resolve: (item) => item.rule.ephemeris ?? false }),
+    unavailable: t.boolean({ description: '« Indisponible » in this workspace (its subscription to the kind says so, whatever its own workspace says).', resolve: (item) => item.rule.unavailable ?? false }),
     color: t.exposeString('color', { nullable: true, description: 'In this workspace.' }),
     dayDisplay: t.string({ resolve: (item) => item.display.dayDisplay }),
     dayBar: t.boolean({ resolve: (item) => item.display.dayBar }),
@@ -259,6 +263,7 @@ const ForeignScheduleKindRef = builder.objectRef<schedules.ForeignScheduleKind>(
     subscribed: t.exposeBoolean('subscribed'),
     archived: t.exposeBoolean('archived', { description: 'Kind archived in its workspace: no longer offered in a slot condition.' }),
     ephemeris: t.exposeBoolean('ephemeris', { description: 'A kind of éphémérides.' }),
+    unavailable: t.exposeBoolean('unavailable', { description: '« Indisponible » in this workspace (set on its subscription).' }),
   }),
 });
 
@@ -271,6 +276,7 @@ const WorkScheduleInput = builder.inputType('WorkScheduleInput', {
     exceptions: t.field({ type: 'JSON', required: true, description: 'Exceptions: { from, to, label, cases }.' }),
     typeId: t.id({ description: 'Kind of time it plans; none: working hours (or, an éphéméride, no kind).' }),
     ephemeris: t.boolean({ description: 'Without kind: an éphéméride, not a créneau (with one: that of its kind).' }),
+    unavailable: t.boolean({ description: 'Without kind: « Indisponible », nothing is scheduled during its slots (with one: that of its kind).' }),
     reminders: t.field({ type: [ReminderInput], description: 'Reminders of an éphéméride, 10 at most; omitted: left unchanged.' }),
   }),
 });
@@ -285,6 +291,7 @@ const scheduleInput = (input: typeof WorkScheduleInput.$inferInput) => ({
   endDate: input.endDate ?? null,
   typeId: input.typeId ?? null,
   ephemeris: input.ephemeris ?? false,
+  unavailable: input.unavailable ?? false,
   reminders: input.reminders ?? undefined,
   // Validated by the service.
   cases: unchecked(input.cases),
@@ -553,6 +560,13 @@ builder.mutationFields((t) => ({
         }),
       ),
   }),
+  setScheduleSubscriptionUnavailable: t.boolean({
+    description:
+      'Sets a kind of schedules subscribed to (without typeId: the schedules without kind) « Indisponible » in this workspace, or back; the occurrences of routines it makes disappear lose their comments, once confirmed.',
+    args: { workspaceId: t.arg.id({ required: true }), typeId: t.arg.id(), unavailable: t.arg.boolean({ required: true }), confirmLoss: t.arg.boolean({ description: CONFIRM_LOSS_DESCRIPTION }) },
+    resolve: (_root, { workspaceId, typeId, unavailable, confirmLoss }) =>
+      done(schedules.setScheduleSubscriptionUnavailable(workspaceId, typeId ?? null, unavailable, (subscription) => settleScheduleChange({ subscription }, confirmLoss ?? false))),
+  }),
   unsubscribeScheduleKind: t.boolean({
     args: { workspaceId: t.arg.id({ required: true }), typeId: t.arg.id() },
     resolve: (_root, { workspaceId, typeId }) => done(schedules.unsubscribeScheduleKind(workspaceId, typeId ?? null)),
@@ -597,4 +611,6 @@ labelMutations(
   { create: ScheduleTypeInput, update: ScheduleTypeInput },
   { delete: 'Deletes a kind of time slots (its schedules stay, without kind); the occurrences of routines it makes disappear lose their comments, once confirmed.' },
   (id, confirmLoss) => schedules.deleteScheduleType(id, (change) => settleScheduleChange({ apply: change }, confirmLoss)),
+  // « Indisponible » changed: the occurrences of routines it makes disappear lose their comments, once confirmed.
+  (id, input, confirmLoss) => schedules.updateScheduleType(id, input, (change) => settleScheduleChange({ apply: change }, confirmLoss)),
 );
