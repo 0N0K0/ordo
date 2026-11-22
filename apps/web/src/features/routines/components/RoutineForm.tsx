@@ -52,6 +52,8 @@ import { FormActions } from '../../../components/dialogs/FormActions';
 import { SubSection } from '../../../components/page/SubSection';
 import { optionalNumberProps } from '../../../components/inputs/number-format';
 import { LinksField } from '../../../components/inputs/LinksField';
+import { DocumentsField } from '../../documents/components/DocumentsField';
+import { inProjectTree } from '../../tasks/lib/task-links';
 import { linkInputs } from '../../../lib/links';
 import { ActionsMenu } from '../../../components/actions/ActionsMenu';
 import { useConvertActivity } from '../hooks/use-convert-activity';
@@ -89,6 +91,9 @@ interface RoutineFormValues extends Record<string, unknown> {
   locationLat: number | null;
   locationLon: number | null;
   links: ItemLink[];
+  /** Documents linked: of the library, and of its project tree (not inherited). */
+  libraryDocumentIds: string[];
+  projectResourceIds: string[];
   travelBefore: number;
   travelAfter: number;
   projectId: string | null;
@@ -161,6 +166,8 @@ function routineFormValues(routine: Routine): RoutineFormValues {
     locationLat: routine.locationLat ?? null,
     locationLon: routine.locationLon ?? null,
     links: linkInputs(routine.links),
+    libraryDocumentIds: routine.libraryDocumentIds,
+    projectResourceIds: routine.projectResourceIds,
     travelBefore: routine.travelBefore ?? 0,
     travelAfter: routine.travelAfter ?? 0,
     projectId: routine.projectId,
@@ -211,7 +218,7 @@ export interface RoutineFormProps {
  * its project; on the left its description, « Relations » (parent routine, sub-routines, the routines it depends on,
  * those that depend on it — written in theirs — and those it is related to, of its project tree as the tasks), its repetition and the comments of the occurrence open;
  * on the right « Classement » (categories, priority and type, the lists of the tasks), « Parties prenantes », « Planification » (first time, time to spend, dead
- * times, time tracked), « Lieu », « Alarmes » (reminders, saved timers) and « Ressources » (links, sheets). A new
+ * times, time tracked), « Lieu », « Alarmes » (reminders, saved timers) and « Ressources » (links, documents, sheets). A new
  * routine is a form with « Créer »; an existing one saves each field as soon as it changes (texts and numbers on
  * leaving them, its repetition right in the panel once a value is chosen or a number left, `useFieldSave`), « Enregistrement… » / « Enregistré » in its header.
  * @param {RoutineFormProps} props Component props.
@@ -251,8 +258,10 @@ export function RoutineForm({ routine, parent, categoryId = null, projectId = nu
           location: '',
           locationLat: null,
           locationLon: null,
-          // A new sub-routine takes no link of its parent (nor its place).
+          // A new sub-routine takes no link of its parent (nor its place, nor its documents).
           links: [],
+          libraryDocumentIds: [],
+          projectResourceIds: [],
           travelBefore: 0,
           travelAfter: 0,
           projectId: parent?.projectId ?? projectId,
@@ -552,6 +561,14 @@ export function RoutineForm({ routine, parent, categoryId = null, projectId = nu
             </PanelGroup>
             <PanelGroup title={PANEL_GROUPS.resources}>
               <LinksField form={form} onRemoved={() => commit(['links'])} />
+              <DocumentsField
+                value={{ libraryDocumentIds: form.values.libraryDocumentIds, projectResourceIds: form.values.projectResourceIds }}
+                projectId={form.values.projectId}
+                inTree={context ? inProjectTree(context, form.values.projectId) : () => false}
+                readOnly={readOnly}
+                error={form.errors.libraryDocumentIds ?? form.errors.projectResourceIds}
+                onChange={(documents) => form.setValues({ ...documents })}
+              />
               {routine && <SheetsSection owner={{ routineId: routine.id }} occurrenceDate={routine.currentDate || null} label={routine.label} />}
             </PanelGroup>
           </>

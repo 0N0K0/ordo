@@ -22,15 +22,16 @@ export function useTaskActions(context: TaskContext | null) {
   return {
     /**
      * Actions of a task in its menu (the menu of every row: table, detail panel), those of the selection bar on that
-     * task alone: duplicate, transfer, « Héritage… » (a sub-task), archive, delete (an archived task, read only: restore, delete); then « Transformer
+     * task alone: « Annuler » (not for a cancelled task), duplicate, transfer, « Héritage… » (a sub-task), archive, delete (an archived task, read only: restore, delete); then « Transformer
      * en routine » (refused with sub-tasks); then « Lancer » each of its dead times and saved timers.
      * @param {Task} task Task.
      * @returns {RowMenuEntry[]} Actions.
      */
     menu: (task: Task): RowMenuEntry[] => {
-      const { duplicate, transfer, inheritance, archive, remove } = actionsOf([task]);
+      const { cancel, duplicate, transfer, inheritance, archive, remove } = actionsOf([task]);
       if (task.archived) return [archive, remove].map(rowMenuEntry);
       return [
+        ...(task.cancelled ? [] : [rowMenuEntry(cancel)]),
         rowMenuEntry(duplicate),
         rowMenuEntry(transfer),
         // A sub-task: its fields inherited again or emptied on purpose.
@@ -43,12 +44,20 @@ export function useTaskActions(context: TaskContext | null) {
     },
 
     /**
-     * « Fermer » / « Rouvrir » of a task alone, as the selection and the menu do: the toast tells it, with « Annuler »
-     * (a cancelled task reopened gets its « Annulé » status back, `useBulkUndo().closed`).
+     * « Fermer » / « Rouvrir » of a task alone, as the selection does: the toast tells it, with « Annuler » (a task
+     * reopened is closed again as it was, done or cancelled, `useBulkUndo().closed`).
      * @param {Task} task Task.
      * @returns {SelectionAction} Action (its click and its loading).
      */
     close: (task: Task): SelectionAction => actionsOf([task]).close,
+
+    /**
+     * « Annuler » of a task alone (closed as cancelled), as the selection and the menu do, told in a toast with
+     * « Annuler ».
+     * @param {Task} task Task.
+     * @returns {SelectionAction} Action (its click and its loading).
+     */
+    cancel: (task: Task): SelectionAction => actionsOf([task]).cancel,
 
     /**
      * Opens the new task form.

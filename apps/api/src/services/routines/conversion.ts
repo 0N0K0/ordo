@@ -5,6 +5,7 @@ import { clientError } from '../../graphql/errors';
 import { findActive } from '../core/archive';
 import { toJson } from '../core/json';
 import { readLinks } from '../core/links';
+import { LINKED_DOCUMENTS_SELECT } from '../projects/linked-documents';
 import { BY_POSITION, nextPositionIn } from '../core/ordering';
 import { forgetGithubItems } from '../github/links';
 import { effectiveTasks } from '../tasks/task-inheritance';
@@ -47,7 +48,7 @@ const pickInherited = (task: EffectiveTask) => ({
 
 /**
  * Turns a task into a routine, in one transaction: a new routine, the task deleted. It keeps the label,
- * description, project, priority (as it goes), type, assignees, beneficiaries, links, place, slot condition and reminders
+ * description, project, priority (as it goes), type, assignees, beneficiaries, links, documents, place, slot condition and reminders
  * « À HH:MM »; its times, sheets and checklist move to the routine; its comments go to the first occurrence; its one-off events become events
  * of that day of the routine. Its « Échéance » (as it goes: its own, its parent's, its milestone's or its first sprint's) is the due day of the first
  * occurrence (none: its « Ouverture », else today), its « Ouverture » the routine's « Ouverture » when it differs. It
@@ -82,6 +83,7 @@ export const convertTaskToRoutine = automated(async function convertTaskToRoutin
       calendarEvents: { select: { id: true, startDate: true, recurrence: true } },
       alarms: { select: { id: true } },
       shoppingLists: { select: { id: true } },
+      ...LINKED_DOCUMENTS_SELECT,
     },
   });
   // What it goes by, its inherited fields from its parent: the routine, without parent, keeps them.
@@ -171,6 +173,9 @@ export const convertTaskToRoutine = automated(async function convertTaskToRoutin
         beneficiaries: { connect: task.beneficiaries },
         beneficiaryRelations: { connect: task.beneficiaryRelations },
         timeEntries: { connect: task.timeEntries },
+        // Its documents stay linked (its project, hence its tree, is the same).
+        libraryDocuments: { connect: task.libraryDocuments },
+        projectResources: { connect: task.projectResources },
       },
     });
     if (ticked) await tx.routineCheck.createMany({ data: Array.from({ length: ticked }, (_, slot) => ({ routineId: routine.id, date: firstDate, slot, doneAt: task.closedAt ?? undefined })) });
@@ -189,7 +194,7 @@ export const convertTaskToRoutine = automated(async function convertTaskToRoutin
 
 /**
  * Turns a routine into a task, in one transaction: a new task, the routine deleted. It keeps the label,
- * description, project, priority (as it goes), type, assignees, beneficiaries, links, place, slot condition and reminders
+ * description, project, priority (as it goes), type, assignees, beneficiaries, links, documents, place, slot condition and reminders
  * « À HH:MM »; its times and sheets move to the task; the comments, checklist and events of its current occurrence (else the next, else the
  * first) go to the task, its « Échéance » that occurrence's due day and its « Ouverture » its first day when it
  * differs; it gets the first status « À faire » (not archived; none without any). Refused for an archived routine or
@@ -286,6 +291,9 @@ export const convertRoutineToTask = automated(async function convertRoutineToTas
         beneficiaryRelations: { connect: routine.beneficiaryRelations },
         timeEntries: { connect: routine.timeEntries },
         calendarEvents: { connect: eventIds.map((eventId) => ({ id: eventId })) },
+        // Its documents stay linked (its project, hence its tree, is the same).
+        libraryDocuments: { connect: routine.libraryDocuments },
+        projectResources: { connect: routine.projectResources },
       },
     });
     if (comments.length) await tx.taskComment.createMany({ data: comments.map((comment) => ({ body: comment.body, createdAt: comment.createdAt, updatedAt: comment.updatedAt, taskId: task.id })) });

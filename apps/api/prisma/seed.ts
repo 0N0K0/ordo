@@ -281,6 +281,7 @@ async function createTask(projectId: string, parentId: string | null): Promise<s
     typeId: maybe(0.8, () => faker.helpers.arrayElement(types).id),
     milestoneId: milestones.length ? maybe(0.4, () => faker.helpers.arrayElement(milestones)) : null,
     closedAt: done ? faker.date.recent({ days: 30 }) : null,
+    closeReason: done ? (status.category === 'CANCELLED' ? 'NOT_PLANNED' : 'COMPLETED') : null,
     archivedAt: done ? maybe(0.15, () => faker.date.recent({ days: 10 })) : null,
     assignees: { connect: assignees.map((id) => ({ id })) },
     tags: { connect: faker.helpers.arrayElements(tags, { min: 0, max: 2 }).map(({ id }) => ({ id })) },

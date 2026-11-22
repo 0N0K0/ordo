@@ -8,7 +8,6 @@ import type {
   ForecastEntriesQuery,
   TreasuryAccountsQuery,
   TreasuryEntriesQuery,
-  TreasuryDocumentOptionsQuery,
   TreasuryProjectionQuery,
   TreasurySettingsQuery,
   TreasuryBudgetsQuery,
@@ -47,7 +46,6 @@ export type TreasuryRelation = TreasurySettingsQuery['treasuryRelations'][number
 /** Éphéméride of the kind of a context: one of its periods. */
 export type TreasuryContextEphemeris = TreasurySettingsQuery['treasuryContextEphemerides'][number];
 export type TreasuryEntryLine = TreasuryEntry['lines'][number];
-export type EntryDocument = TreasuryDocumentOptionsQuery['treasuryDocumentOptions'][number];
 
 export { treasuryKey, treasurySettingsKey };
 
@@ -92,7 +90,7 @@ graphql(`
       contextId
       projectId
       documents {
-        ...TreasuryEntryDocumentFields
+        ...LinkedDocumentFields
       }
       linkedLines {
         id
@@ -128,27 +126,7 @@ graphql(`
       documentLabel
     }
     documents {
-      ...TreasuryEntryDocumentFields
-    }
-  }
-`);
-
-graphql(`
-  fragment TreasuryEntryDocumentFields on TreasuryEntryDocument {
-    id
-    source
-    kind
-    label
-    url
-    projectId
-    place
-  }
-`);
-
-const DocumentOptionsDocument = graphql(`
-  query TreasuryDocumentOptions {
-    treasuryDocumentOptions {
-      ...TreasuryEntryDocumentFields
+      ...LinkedDocumentFields
     }
   }
 `);
@@ -460,15 +438,6 @@ export function useTreasurySettings() {
 
 /** Query of the treasury settings (also fetched on demand: a relation opened from its birthday). */
 export const treasurySettingsQuery = { queryKey: treasurySettingsKey, queryFn: () => execute(SettingsDocument) };
-
-/**
- * Documents of the app that can support an entry: the library, then the documents of the projects.
- * @param {boolean} [enabled] Loaded (else left aside). Optional. Default = true.
- * @returns {UseQueryResult} Query state.
- */
-export function useTreasuryDocumentOptions(enabled = true) {
-  return useQuery({ enabled, queryKey: [...treasuryKey, 'document-options'], queryFn: async () => (await execute(DocumentOptionsDocument)).treasuryDocumentOptions });
-}
 
 /**
  * Entries whose label contains a text (at least 2 characters), to link them.

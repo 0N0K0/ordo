@@ -335,7 +335,7 @@ Source : `apps/api/src/services/treasury/treasury-pdf.ts`, route `GET /api/treas
 ## Pièces justificatives
 
 - Un mouvement (non décomposé) ou une ligne peut citer des documents de la bibliothèque et des documents de projet ([Fichiers et pièces jointes](../cross-cutting/files-and-attachments.md)).
-- Options proposées (`treasuryDocumentOptions`) : bibliothèque par titre, puis documents de projet par projet et position ; chaque document : source (`LIBRARY` / `PROJECT`), sorte (`FILE` / `LINK`), URL, lieu (dossier, « Documents » par défaut, ou projet).
+- Options proposées (`documentOptions`, la même requête que les documents des tâches, routines et évènements : [Documents liés](../cross-cutting/files-and-attachments.md#documents-liés-aux-tâches-routines-et-évènements)) : bibliothèque par titre, puis documents de projet par projet et position ; chaque document : source (`LIBRARY` / `PROJECT`), sorte (`FILE` / `LINK`), URL, lieu (dossier, « Documents » par défaut, ou projet).
 
 ## Règlements depuis un document
 

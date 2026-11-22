@@ -3,6 +3,7 @@ import { joinedKey } from '../core/collections';
 import { END_AFTER_START, endsAfter, markdownSchema, optionalText, requiredText } from '../core/rules';
 import { locatedFields } from '../core/geo';
 import { itemLinksSchema } from '../core/links';
+import { linkedDocumentsFields } from '../core/documents';
 import { recurrenceSchema } from '../dates/recurrence';
 import { daySchema, timeOfDaySchema, endDaySchema, startDaySchema } from '../dates/times';
 import { eventRemindersSchema } from '../dates/reminders';
@@ -15,6 +16,8 @@ export const calendarEventInputSchema = z
     description: markdownSchema,
     location: optionalText(),
     links: itemLinksSchema,
+    /** Documents linked to it (its whole series): of the library, and of its project tree. */
+    ...linkedDocumentsFields,
     allDay: z.boolean(),
     startDate: startDaySchema,
     startTime: timeOfDaySchema.nullable(),

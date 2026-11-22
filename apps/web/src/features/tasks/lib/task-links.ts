@@ -17,6 +17,19 @@ export function inProjectTree(context: Pick<TaskContext, 'rootOf'>, projectId: s
 }
 
 /**
+ * Whether a task has links that a move to another project tree removes: its parent, its blocks and relations, its
+ * milestone, its sprints, its documents of projects.
+ * @param {Task} task Task.
+ * @returns {boolean} It has some.
+ */
+export const hasTreeLinks = (task: Task): boolean =>
+  task.parentId !== null ||
+  task.blockingIds.length + task.blockedByIds.length + task.relatedIds.length > 0 ||
+  task.milestoneId !== null ||
+  task.sprintIds.length > 0 ||
+  task.projectResourceIds.length > 0;
+
+/**
  * Tasks that can be linked to a task (parent, blocks, related): same project tree, not itself.
  * @param {TaskContext} context Task context.
  * @param {string | null} projectId Project of the task (none: the tasks of no project).

@@ -4,7 +4,7 @@ import { Anchor, Box, Group, Select, Text, Tooltip, type SelectProps } from '@ma
 import { PeopleSelect } from '../../../components/people/PeopleSelect';
 
 import { listSelectProps, itemSelectProps } from '../../../components/items/item-look';
-import { CheckCircleIcon, CircleIcon, LockIcon } from '@phosphor-icons/react';
+import { CheckCircleIcon, CircleIcon, LockIcon, ProhibitIcon } from '@phosphor-icons/react';
 import { Link } from 'react-router';
 import { useTaskLink } from '../hooks/use-task-link';
 import { type Contributor, type Task, type TaskLabel, type TaskLabelKind } from '../api';
@@ -29,7 +29,7 @@ export function TaskRef({ task, closed, blocked }: { task: Task; closed?: boolea
   const link = useTaskLink();
   return (
     <Group gap={6} wrap="nowrap" style={{ minWidth: 0 }}>
-      <TaskStateIcon closed={closed ?? task.closed} blocked={blocked} />
+      <TaskStateIcon closed={closed ?? task.closed} cancelled={task.cancelled} blocked={blocked} />
       <Anchor component={Link} to={link.to(task.id)} size="sm" truncate>
         <Text span c="dimmed" size="sm">
           {taskNumber(task)}
@@ -171,14 +171,16 @@ export function TaskSelect({ tasks, labelOf = (task) => taskNumbered(task), cont
 }
 
 /**
- * Task state icon, shown before task titles: open (green), closed (violet), or blocked by an open task
- * (red padlock), like issues on GitHub.
- * @param {{ closed: boolean, blocked?: boolean }} props Component props.
+ * Task state icon, shown before task titles: open (green), closed as done (violet check), cancelled (gray crossed
+ * circle), or blocked by an open task (red padlock), like issues on GitHub.
+ * @param {{ closed: boolean, cancelled?: boolean, blocked?: boolean }} props Component props.
  * @returns {JSX.Element} Icon with its tooltip.
  */
-export function TaskStateIcon({ closed, blocked = false }: { closed: boolean; blocked?: boolean }) {
+export function TaskStateIcon({ closed, cancelled = false, blocked = false }: { closed: boolean; cancelled?: boolean; blocked?: boolean }) {
   const [label, color, icon] = closed
-    ? ['Fermée', 'violet', <CheckCircleIcon weight="fill" key="i" />]
+    ? cancelled
+      ? ['Annulée', 'gray', <ProhibitIcon weight="bold" key="i" />]
+      : ['Terminée', 'violet', <CheckCircleIcon weight="fill" key="i" />]
     : blocked
       ? ['Bloquée : dépend d’au moins une tâche encore ouverte', 'red', <LockIcon weight="fill" key="i" />]
       : ['Ouverte', 'green', <CircleIcon weight="bold" key="i" />];

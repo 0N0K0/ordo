@@ -1,6 +1,7 @@
 import { relationNoun } from '../../../components/people/people-options';
 import { LinksField } from '../../../components/inputs/LinksField';
-import { copyName, fitName } from '../../../lib/text';
+import { copyName, countOf, fitName, plural } from '../../../lib/text';
+import { notifySuccess } from '../../../lib/notify';
 import { confirmDestructive } from '../../../components/dialogs/confirm-destructive';
 import { openFormPanel } from '../../../components/panels/panels';
 
@@ -48,6 +49,10 @@ import { duplicateRowsAction, rowMenuEntry } from '../../../components/data-tabl
 import { FormDescription } from '../../../components/markdown/DescriptionSection';
 import { DetailLayout, PanelGroup } from '../../../components/panels/DetailLayout';
 import { PANEL_GROUPS } from '../../../components/panels/panel-groups';
+import { DocumentsField } from '../../documents/components/DocumentsField';
+import { resourcesInTree } from '../../documents/lib/document-keys';
+import { useDocumentOptions } from '../../documents/api';
+import { inProjectTree } from '../../tasks/lib/task-links';
 import { TrackedTime } from '../../time/components/TrackedTime';
 import { TravelTimes } from '../../geo/components/TravelTimes';
 import { SavedCountdownsField } from '../../countdowns/components/SavedCountdownsField';
@@ -171,7 +176,7 @@ interface SaveTarget {
  * description, « Relations » (tasks, routines of its days) and the comments of the occurrence; on the right
  * « Classement » (calendar, categories), « Parties prenantes », « Dates et heures » (its repetition, whole day, period,
  * right in the panel, the warning outside working hours, the time tracked), « Lieu » (travel times, when to leave),
- * « Alarmes » and « Ressources ». Postponed: cancelled, and a new event linked to it takes the new date. A new event is
+ * « Alarmes » and « Ressources » (links, documents, sheets). Postponed: cancelled, and a new event linked to it takes the new date. A new event is
  * a form with « Créer l’évènement »; an existing one saves each field as soon as it changes (texts on leaving them,
  * its days, hours and repetition once chosen, a number of its repetition once left: `useFieldSave`), for the occurrences chosen when it opened (`scope`): one occurrence alone changes only its own
  * fields (label, description, place, links, days and hours, travel times, routines of its days), the others are those
@@ -200,6 +205,7 @@ export function EventForm({ context, occurrence, defaults, onDone, onDuplicated,
     ));
 
   const { data: categories } = useCalendarCategories();
+  const { data: documentOptions } = useDocumentOptions();
   const { data: calendarsData } = useCalendars();
   const calendars = calendarsData?.calendars ?? [];
   const setArchived = useSetArchived('CALENDAR_EVENT', [calendarQueryKey]);
@@ -239,6 +245,8 @@ export function EventForm({ context, occurrence, defaults, onDone, onDuplicated,
         beneficiaryRelationIds: [],
         categoryIds: [],
         taskIds: [],
+        libraryDocumentIds: [],
+        projectResourceIds: [],
         routineLinks: [],
         ...defaults,
       };
@@ -294,6 +302,19 @@ export function EventForm({ context, occurrence, defaults, onDone, onDuplicated,
     return [{ value: key, label: multiDay ? `${routine.label} (${fmt.weekday(link.date)})` : routine.label }];
   });
   const recurring = target.occurrenceDate !== null;
+
+  /**
+   * Puts the event in another project: its documents of projects out of the new project tree are removed (told).
+   * @param {string | null} projectId New project.
+   * @returns {void}
+   */
+  const changeProject = (projectId: string | null) => {
+    const linked = values.projectResourceIds ?? [];
+    const kept = resourcesInTree(linked, documentOptions ?? [], inProjectTree(context, projectId));
+    form.setValues({ projectId, projectResourceIds: kept });
+    const removed = linked.length - kept.length;
+    if (removed > 0) notifySuccess(`${countOf(removed, 'document')} de projet ${plural(removed, 'retiré')} : hors de l’arborescence du nouveau projet.`);
+  };
 
   // A rule is edited from the start of its series (for the whole series or the following occurrences).
   const ruleStart = recurring ? target.ruleStart : values.startDate;
@@ -416,6 +437,7 @@ export function EventForm({ context, occurrence, defaults, onDone, onDuplicated,
             placeholder="Aucun"
             // The contributors stay: on saving, they are attached to the new project.
             {...form.getInputProps('projectId')}
+            onChange={changeProject}
           />,
         )}
         mentions={
@@ -477,12 +499,12 @@ export function EventForm({ context, occurrence, defaults, onDone, onDuplicated,
             )}
             {seriesFields && (
               <Text size="xs" c="dimmed">
-                Cette occurrence seulement : sa répétition, son calendrier, son projet, ses personnes, ses catégories, ses tâches et ses rappels sont ceux de la série.
+                Cette occurrence seulement : sa répétition, son calendrier, son projet, ses personnes, ses catégories, ses tâches, ses documents et ses rappels sont ceux de la série.
               </Text>
             )}
             {recurring && !seriesFields && (
               <Text size="xs" c="dimmed">
-                Projet, assignés, catégories, tâches et rappels s’appliquent à toute la série.
+                Projet, assignés, catégories, tâches, documents et rappels s’appliquent à toute la série.
               </Text>
             )}
           </>
@@ -658,6 +680,16 @@ export function EventForm({ context, occurrence, defaults, onDone, onDuplicated,
             </PanelGroup>
             <PanelGroup title={PANEL_GROUPS.resources}>
               <LinksField form={form} onRemoved={() => commit(['links'])} />
+              {series(
+                <DocumentsField
+                  value={{ libraryDocumentIds: values.libraryDocumentIds ?? [], projectResourceIds: values.projectResourceIds ?? [] }}
+                  projectId={values.projectId ?? null}
+                  inTree={inProjectTree(context, values.projectId ?? null)}
+                  readOnly={readOnly || seriesFields}
+                  error={form.errors.libraryDocumentIds ?? form.errors.projectResourceIds}
+                  onChange={(documents) => form.setValues({ ...documents })}
+                />,
+              )}
               {occurrence && !readOnly && <SheetsSection owner={{ eventId: target.eventId }} occurrenceDate={target.occurrenceDate ?? values.startDate} label={values.label || 'l’évènement'} />}
             </PanelGroup>
           </>

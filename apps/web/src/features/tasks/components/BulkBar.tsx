@@ -1,6 +1,6 @@
 import { unarchived } from '../../../lib/archive';
 import { plural } from '../../../lib/text';
-import { ArrowCounterClockwiseIcon, ArrowsLeftRightIcon, CheckCircleIcon, TrashIcon } from '@phosphor-icons/react';
+import { ArrowCounterClockwiseIcon, ArrowsLeftRightIcon, CheckCircleIcon, ProhibitIcon, TrashIcon } from '@phosphor-icons/react';
 import type { SelectionAction } from '../../../components/data-table/selection/SelectionBar';
 import { archiveRowsAction, duplicateRowsAction, outermost, switchRowsAction } from '../../../components/data-table/selection/selection-actions';
 import { useBulkTaskMutations, useDuplicateTask, useSetTasksClosed, type Task } from '../api';
@@ -17,6 +17,7 @@ import { TASK_INHERITANCE_OPTIONS } from '../lib/task-inheritance';
 /** Actions on tasks that their columns cannot do. */
 interface TaskRowsActions {
   close: SelectionAction;
+  cancel: SelectionAction;
   duplicate: SelectionAction;
   transfer: SelectionAction;
   inheritance: SelectionAction;
@@ -25,8 +26,8 @@ interface TaskRowsActions {
 }
 
 /**
- * Actions on tasks, the same on the tasks checked (bar of the table) and on one task (its menu): close (or reopen),
- * duplicate, transfer, inheritance (« Héritage… », sub-tasks), archive, delete; each one undone from its toast when it can be. Archived tasks are read only: left
+ * Actions on tasks, the same on the tasks checked (bar of the table) and on one task (its menu): close as done (or
+ * reopen), cancel (close as cancelled: struck through), duplicate, transfer, inheritance (« Héritage… », sub-tasks), archive, delete; each one undone from its toast when it can be. Archived tasks are read only: left
  * out of all but archive/restore and delete.
  * @param {TaskContext | null} context Task context.
  * @returns {(tasks: Task[], onClear?: () => void) => TaskRowsActions} Actions of tasks, given how to clear the selection.
@@ -43,6 +44,8 @@ export function useTaskRowsActions(context: TaskContext | null) {
     const active = unarchived(tasks);
     const activeIds = active.map((task) => task.id);
     const several = active.length > 1;
+    // Cancelled: those not cancelled yet (open, or closed as done).
+    const toCancel = active.filter((task) => !task.cancelled);
     /**
      * Opens a dialog on the tasks not archived; a success clears the selection.
      * @param {string} title Title.
@@ -58,11 +61,24 @@ export function useTaskRowsActions(context: TaskContext | null) {
           labels: ['Fermer', 'Rouvrir'],
           icons: [<CheckCircleIcon key="on" aria-hidden />, <ArrowCounterClockwiseIcon key="off" aria-hidden />],
           loading: setClosed.isPending,
-          apply: (closed) => setClosed.mutateAsync({ ids: activeIds, closed }),
+          // Only the tasks whose state changes: a cancelled task stays cancelled when the others are closed.
+          apply: (closed) => setClosed.mutateAsync({ ids: active.filter((task) => task.closed !== closed).map((task) => task.id), closed }),
           done: (closed) => `${tasksLabel(activeIds.length)} ${plural(activeIds.length, closed ? 'fermée' : 'rouverte')}.`,
           undo: (closed) => undo.closed(active, closed),
         }),
         disabled: activeIds.length === 0,
+      },
+      cancel: {
+        ...switchRowsAction({
+          on: false,
+          labels: ['Annuler', 'Annuler'],
+          icons: [<ProhibitIcon key="on" aria-hidden />, <ProhibitIcon key="off" aria-hidden />],
+          loading: setClosed.isPending,
+          apply: () => setClosed.mutateAsync({ ids: toCancel.map((task) => task.id), closed: true, reason: 'NOT_PLANNED' }),
+          done: () => `${tasksLabel(toCancel.length)} ${plural(toCancel.length, 'annulée')}.`,
+          undo: () => undo.closed(toCancel, true, 'NOT_PLANNED'),
+        }),
+        disabled: toCancel.length === 0,
       },
       // Each task at the top of the selection with its sub-tasks (a task under another one checked comes with it), at once.
       duplicate: duplicateRowsAction(

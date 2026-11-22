@@ -91,6 +91,7 @@ import { archivedOn, archiveTree, assertActive, assertNoneArchived, assertNotArc
 import { connectIds, orderedPair } from '../core/relations';
 import { linkedSavedCountdowns } from '../tasks/saved-countdowns';
 import { loadProjectRootOf, outsideMovedTree } from '../projects/project-tree';
+import { checkLinkedDocuments, LINKED_DOCUMENTS_SELECT, linkedDocumentIds } from '../projects/linked-documents';
 import { toJson } from '../core/json';
 import { readLinks } from '../core/links';
 import { storedLocation } from '../core/geo';
@@ -749,6 +750,7 @@ async function parseRoutine(input: RoutineInput, id?: string, { restoring = fals
           requires: { select: { requiredId: true } },
           reminders: true,
           inheritedFields: true,
+          projectResources: { select: { id: true } },
           ...RELATIONS,
         },
       })
@@ -851,8 +853,12 @@ async function parseRoutine(input: RoutineInput, id?: string, { restoring = fals
   const linked = data.requiredIds.length + data.relatedIds.length;
   data.requiredIds = keptInTree(data.requiredIds, source?.requiredIds ?? keptRequiredIds, moved, outside, 'requiredIds', Boolean(data.projectId));
   data.relatedIds = keptInTree(data.relatedIds, source?.relatedIds ?? keptRelatedIds, moved, outside, 'relatedIds', Boolean(data.projectId));
+  // Documents of projects of its tree too (not inherited: those of the project it goes by).
+  const resources = data.projectResourceIds.length;
+  const keptResourceIds = restoring ? data.projectResourceIds : (source?.projectResourceIds ?? current?.projectResources.map((resource) => resource.id) ?? []);
+  data.projectResourceIds = (await checkLinkedDocuments(data, { projectId: data.projectId ?? null, previous: keptResourceIds, moved, rootOf })) ?? [];
   // Links dropped as it moves to another tree (told to the user, as for a task transferred).
-  return { ...data, droppedLinks: linked - data.requiredIds.length - data.relatedIds.length };
+  return { ...data, droppedLinks: linked - data.requiredIds.length - data.relatedIds.length + resources - data.projectResourceIds.length };
 }
 
 /**
@@ -939,6 +945,8 @@ async function insertRoutine(input: RoutineInput, copyOf: string | null): Promis
         beneficiaries: { connect: connectIds(data.beneficiaryIds) },
         beneficiaryRelations: { connect: connectIds(data.beneficiaryRelationIds) },
         categories: { connect: connectIds(data.categoryIds) },
+        libraryDocuments: { connect: connectIds(data.libraryDocumentIds) },
+        projectResources: { connect: connectIds(data.projectResourceIds) },
         // A copy keeps the saved timers of the routine copied.
         ...(copyOf && { savedCountdowns: await linkedSavedCountdowns('ROUTINE', copyOf, tx) }),
       },
@@ -1037,6 +1045,8 @@ export async function updateRoutine(id: string, given: RoutineInput, options: Om
         beneficiaries: { set: connectIds(data.beneficiaryIds) },
         beneficiaryRelations: { set: connectIds(data.beneficiaryRelationIds) },
         categories: { set: connectIds(data.categoryIds) },
+        libraryDocuments: { set: connectIds(data.libraryDocumentIds) },
+        projectResources: { set: connectIds(data.projectResourceIds) },
       },
     });
     return dropped;
@@ -1246,7 +1256,7 @@ async function outsideTree(id: string, from: string | null, to: string | null, m
   return [...outsideMovedTree(rootOf, others, [id, ...movedWith], to)];
 }
 
-/** People, categories and links of a routine to other routines, as its input (and its conversion into a task) reads them. */
+/** People, categories, links of a routine to other routines and its documents, as its input (and its conversion into a task) reads them. */
 export const ROUTINE_LINKS = {
   assignees: { select: { id: true } },
   beneficiaries: { select: { id: true } },
@@ -1254,6 +1264,7 @@ export const ROUTINE_LINKS = {
   categories: { select: { id: true } },
   requires: { select: { requiredId: true } },
   ...RELATIONS,
+  ...LINKED_DOCUMENTS_SELECT,
 } as const;
 
 /**
@@ -1303,6 +1314,7 @@ async function inputOf(id: string): Promise<RoutineInput> {
     beneficiaryRelationIds: routine.beneficiaryRelations.map((relation) => relation.id),
     requiredIds: routine.requires.map((dependency) => dependency.requiredId),
     relatedIds: relatedOf(routine),
+    ...linkedDocumentIds(routine),
     inheritedFields: routine.inheritedFields as RoutineInheritableField[],
   };
 }

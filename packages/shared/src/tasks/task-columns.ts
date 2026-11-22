@@ -14,6 +14,13 @@ export const TASK_STATUS_CATEGORY_LABELS: Record<'status' | 'task', Record<TaskS
   task: { TODO: 'À faire', IN_PROGRESS: 'En cours', DONE: 'Terminée', CANCELLED: 'Annulée' },
 };
 
+/** How a task is closed: done, or cancelled (« non prévue », struck through), as the state reason of a GitHub issue. */
+export const TASK_CLOSE_REASONS = ['COMPLETED', 'NOT_PLANNED'] as const;
+export type TaskCloseReason = (typeof TASK_CLOSE_REASONS)[number];
+
+/** Names of the close reasons, as a task is told (« Terminée », « Annulée »). */
+export const TASK_CLOSE_REASON_LABELS: Record<TaskCloseReason, string> = { COMPLETED: 'Terminée', NOT_PLANNED: 'Annulée' };
+
 /**
  * Why an open task cannot be done now, in the order they are told: its « Ouverture » is after today, its « Horaires »
  * leave the moment out, its condition on calendar schedules does, a slot « Indisponible » of the workspace holds it,
@@ -121,18 +128,6 @@ export function readTaskColumnDefaults(stored: unknown): TaskColumnDefaults {
   // Old id of the label column read as `label`.
   const parsed = taskColumnDefaultsSchema.safeParse(withLabelColumn(stored ?? {}, legacyLabelColumn('tasks')));
   return parsed.success ? parsed.data : { columnOrder: [], hiddenColumns: [] };
-}
-
-/**
- * What a change of status does to a task being closed: a status « Annulé » closes it, leaving one
- * reopens it; the other categories (« Terminé » included) leave it as it is.
- * @param {TaskStatusCategory | null} from Category of its status now (null: none).
- * @param {TaskStatusCategory | null} to Category of its new status (null: none).
- * @returns {'close' | 'reopen' | null} Effect.
- */
-export function statusClosing(from: TaskStatusCategory | null, to: TaskStatusCategory | null): 'close' | 'reopen' | null {
-  if (to === 'CANCELLED') return 'close';
-  return from === 'CANCELLED' ? 'reopen' : null;
 }
 
 /** Relative sprints a filter of the sprint column chooses: the current one, the previous and next one of each project tree, past ones, future ones. */

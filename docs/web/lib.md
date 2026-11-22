@@ -17,7 +17,7 @@ Voir [Erreurs](../business-rules/cross-cutting/errors.md).
 
 ### `query-keys.ts`
 
-Clés TanStack Query partagées entre features : `tasksQueryKey`, `doableTasksKey`, `taskAutomationsQueryKey`, `routinesKey`, `timeQueryKey`, `accountingQueryKey`, `treasuryKey`, `treasurySettingsKey`, `calendarQueryKey`, `SLOT_DEPENDENT_KEYS`, `birthdaysQueryKey`. Chaque `features/<feature>/api` réexporte les siennes. Elles vivent dans ce module sans import parce que les modules `api` des features s'importent en cycle (tâches → routines → temps → agenda → tâches) : une clé dérivée d'une autre en tête de l'un d'eux pouvait la lire avant qu'elle soit définie (« Q is not iterable » au chargement). Garde eslint : une clé exportée (`…Key`, `…KEYS`) construite à partir d'une autre se déclare ici.
+Clés TanStack Query partagées entre features : `tasksQueryKey`, `doableTasksKey`, `taskAutomationsQueryKey`, `routinesKey`, `timeQueryKey`, `accountingQueryKey`, `treasuryKey`, `treasurySettingsKey`, `calendarQueryKey`, `SLOT_DEPENDENT_KEYS`, `birthdaysQueryKey`, `documentOptionsKey` (documents qui peuvent être liés, sous la clé de la facturation que les changements des documents de projet rafraîchissent). Chaque `features/<feature>/api` réexporte les siennes. Elles vivent dans ce module sans import parce que les modules `api` des features s'importent en cycle (tâches → routines → temps → agenda → tâches) : une clé dérivée d'une autre en tête de l'un d'eux pouvait la lire avant qu'elle soit définie (« Q is not iterable » au chargement). Garde eslint : une clé exportée (`…Key`, `…KEYS`) construite à partir d'une autre se déclare ici.
 
 ### `query-client.ts`
 
