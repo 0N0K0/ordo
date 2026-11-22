@@ -64,7 +64,7 @@ Fonctions internes : `useShoppingMutation` (mutation qui invalide `shoppingKey`)
 
 ### `components/BaseList.tsx`
 
-- `BaseList({ baseList })` : produits d'une référence dans `ShoppingTable` : colonnes `itemColumns` + commentaires, « Dernier achat », « Manque », réglages de stock (« Suivie en stock », « Consommable », « Ajout auto au stock », « Emplacement en stock », via `setProductStock` en lot) ; bascule `MISSING_TOGGLE` ; boutons déplacer / nouveau produit / générer une liste ; actions de ligne et de sélection ; « Tout décocher ». Utilisé par `BaseLists`.
+- `BaseList({ baseList })` : produits d'une référence dans `ShoppingTable` : colonnes `itemColumns` + commentaires, « Dernier achat », « Manque », réglages de stock (« Suivie en stock », « Consommable » (`consumableColumn`), « Ajout auto au stock », « Emplacement en stock », via `setProductStock` en lot) ; bascule `MISSING_TOGGLE` ; boutons déplacer / nouveau produit / générer une liste ; actions de ligne et de sélection ; « Tout décocher ». Utilisé par `BaseLists`.
 - Internes : `BASE_LIST_VIEWS` (« Tous », « Manquants », groupées par catégorie), `confirmDelete(product, onConfirm)` (confirmation « Retirer le produit »), `MISSING_TOGGLE(save)` (bascule « Manque », caddie orange), `stockBulk` (enregistre les réglages de stock).
 
 ### `components/ShoppingTable.tsx`
@@ -226,7 +226,7 @@ Interne : `ShoppingGroupLabels`.
 ### `lib/shopping-columns.ts`
 
 - `itemColumns<T>(names, extra?)` : colonnes communes des produits et éléments (libellé, catégorie, magasin, quantité, unité, prix, conservation, date, bénéficiaires, lien), toutes affichées ; « Catégorie » (arbre), « Magasin », « Conservation » (`groupValue` : le mode d'un périssable) et « Bénéficiaires » se groupent avec leurs groupes dans l'ordre des paramètres (`groupTree`) et leur groupe « sans » (`groupNoneLabel` = `NO_GROUP_NAME`). Utilisé par `BaseList`, `ShoppingListPage`.
-- `optionalColumn<T>()` : colonne « Facultatif ». Utilisé par `ShoppingListPage`, `SheetPage`.
+- `optionalColumn<T>()` : colonne oui / non « Facultatif » (`booleanColumn`). Utilisé par `ShoppingListPage`, `SheetPage`.
 - `sheetShoppingColumns<T>(names)` : colonnes magasin, conservation, bénéficiaires, lien pour les éléments de fiches. Utilisé par `SheetPage`.
 - Internes : `ItemNames`, `SHEET_SHOPPING_COLUMNS`, `flatGroups(items)` (groupes des magasins, modes), `peopleGroups(names)` (membres puis relations, par clé de personne).
 
@@ -239,7 +239,7 @@ Colonnes de produits partagées par achats, stock, fiches et listes à cocher. (
 | `quantityColumn(options?)`             | « Quantité », numérique.                                              | `itemColumns`, `StockTable`, `SheetPage`, `ChecklistPanel`                 |
 | `unitColumn(options?)`                 | « Unité ».                                                            | idem                                                                       |
 | `categoryColumn(categories, options?)` | « Catégorie » : chemin complet, filtre en arbre (archivées marquées), groupée en arbre (`groupTree`, couleur héritée), « Sans catégorie ». | idem                                                                       |
-| `consumableColumn(options?)`           | « Consommable ».                                                      | `StockTable`, `SheetPage`, `ChecklistPanel`                                |
+| `consumableColumn(options?)`           | « Consommable », colonne oui / non (`booleanColumn`).                 | `StockTable`, `SheetPage`, `ChecklistPanel`, `BaseList`                    |
 | `noteColumn(options?)`                 | « Description » (note).                                               | `StockPage`, `StockTable`, `MovementsTable`, `SheetPage`, `ChecklistPanel` |
 
 Interne : `ColumnOptions<T>`.

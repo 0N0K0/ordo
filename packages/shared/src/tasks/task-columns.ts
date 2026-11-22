@@ -14,6 +14,21 @@ export const TASK_STATUS_CATEGORY_LABELS: Record<'status' | 'task', Record<TaskS
   task: { TODO: 'À faire', IN_PROGRESS: 'En cours', DONE: 'Terminée', CANCELLED: 'Annulée' },
 };
 
+/**
+ * Why an open task cannot be done now, in the order they are told: its « Ouverture » is after today, its « Horaires »
+ * leave the moment out, its condition on calendar schedules does, an event keeps its assignees busy.
+ */
+export const TASK_WAIT_REASONS = ['NOT_OPEN', 'OUTSIDE_HOURS', 'OUTSIDE_SLOTS', 'ASSIGNEE_BUSY'] as const;
+export type TaskWaitReason = (typeof TASK_WAIT_REASONS)[number];
+
+/** Short mention of each reason a task cannot be done now. */
+export const TASK_WAIT_REASON_LABELS: Record<TaskWaitReason, string> = {
+  NOT_OPEN: 'pas encore ouverte',
+  OUTSIDE_HOURS: 'hors de ses horaires',
+  OUTSIDE_SLOTS: 'hors de ses créneaux',
+  ASSIGNEE_BUSY: 'assigné occupé',
+};
+
 /** Columns of the task table (the number is shown before the label). */
 export const TASK_COLUMNS = [
   'label',

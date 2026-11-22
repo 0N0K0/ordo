@@ -187,6 +187,15 @@ Et aussi :
 - « Archiver » / « Restaurer » n'est jamais un bouton : toujours dans le menu « … » (`archiveEntry`) ;
 - menus : `ActionsMenu`, trois points verticaux, `light` à côté de boutons ; « Actions de « X » ».
 
+### Colonnes oui / non
+
+- Toute colonne oui / non d’un tableau montre une icône, jamais les mots « Oui » / « Non » : un petit carré plein, vert avec une coche pour oui, rouge avec une croix pour non (`YesNoIcon`, couleurs de succès et d’erreur de `FEEDBACK_COLORS`). L’icône est nommée « Oui » / « Non » (lecteurs d’écran, infobulle).
+- Une valeur vide (ni oui ni non) laisse la cellule vide.
+- L’export et la recherche gardent les mots « Oui » / « Non » (l’export est une donnée).
+- Le filtre propose « oui » / « non », chacun précédé de son icône.
+- Groupés par une telle colonne, les groupes s’appellent « Oui » puis « Non », sauf si la colonne les nomme (« Faisable maintenant » : « Maintenant » puis « Plus tard »).
+- Une seule brique : `booleanColumn` (voir [Tableaux de données](components/data-table.md)) ; une case modifiable en place reste une case à cocher (`EditableCheck`).
+
 ### Garde-fous eslint (`apps/web/eslint.config.js`)
 
 Les messages des règles nomment la brique à utiliser. Catégories :
@@ -194,7 +203,7 @@ Les messages des règles nomment la brique à utiliser. Catégories :
 - **Imports interdits** (`no-restricted-imports`) : pièces Mantine enveloppées par une brique (`MultiSelect` → `BatchMultiSelect`, `ColorInput` → `ColorField`, `Menu` → `ActionsMenu`, `TimeInput` → `TimePicker`), icônes « trois points » (→ `ActionsMenu`), chemins uniques vers le partagé (`formatMoney`, `collator`, `normalize`, `monthOfDay`, `yearOfDay`, `dayIn`, `localInstant`, `FILTER_OPERATORS` passent par `lib/format`, `lib/text`, `lib/dates`, `operatorsFor`), champs de la condition de créneaux (`SLOT_CONDITION_FIELDS`, `SLOT_CONDITION_FIELD_OPERATORS` : seulement dans `SlotConditionBuilder`) ; et dépendance d'une brique commune envers une feature.
 - **Formats** : pas d'`Intl.*Format` ni de `toLocale*String` (→ `lib/format`), pas de `.slice(0, 10)` / `split('T')` sur des dates (→ `lib/dates`), séparateurs de nombres (`FRENCH_NUMBER_FORMAT`), pourcentages, centimes (`fromCents`, `round2`), quantités, comptes (`fmt.count`), retards (`fmt.daysLate`, `LateBadge`, `LATE_COLOR`).
 - **Textes et accords** : pluriels (`plural`, `countOf`, `countWith`, pas de « (s) »), accords (`agreed`), noms des mois, jours et ordinaux (listes partagées), comparaison de noms (`sameName`), libellés coupés (`clipText`, `fitName`), tailles des textes (`TEXT_SIZE_RULES` de `packages/shared/eslint-rules.js` : pas de longueur écrite à la main dans `z.string().max(…)`, `optionalText(…)` ou `maxLength`, ni de message « N caractères maximum. » / « Texte trop long. » → `requiredText`, `optionalText`, `shortTextSchema`, `plainTextSchema`, `optionalPlainText`, `markdownSchema`, `markdownTextSchema`, `TEXT_MAX`, `PLAIN_TEXT_MAX`, `MARKDOWN_MAX`), constantes partagées (`NO_SUBJECT`, `END_AFTER_START`, `DEFAULT_LABEL_COLOR`, « Brouillon »…), mots selon l'espace (« Relation » / « Proche » : `relationWords`, `relationNoun` ; « Créneaux » : `schedulesTitle`).
-- **Composants d'interface** : boutons (`ActionButton` par priorité, `IconAction` au lieu d'`ActionIcon`, `RemoveButton`, `StateSwitch`, `MenuCaret`, infobulle par `hint`), pliage (`FoldButton`, `FoldHeading`, `FoldChevron`, « Développer / Réduire »), alertes (`ErrorAlert`, `NoticeAlert`), légendes (`Caption`), badges (capitales, `CountBadge`, `FileBadge`), chargement plein écran (`FullPageLoader`), libellés cachés (élément cité, `item`, `itemCellLabel`, `bulkCellLabels`), sujets des menus (`name` / `about`).
+- **Composants d'interface** : boutons (`ActionButton` par priorité, `IconAction` au lieu d'`ActionIcon`, `RemoveButton`, `StateSwitch`, `MenuCaret`, infobulle par `hint`), pliage (`FoldButton`, `FoldHeading`, `FoldChevron`, « Développer / Réduire »), alertes (`ErrorAlert`, `NoticeAlert`), légendes (`Caption`), badges (capitales, `CountBadge`, `FileBadge`), colonnes oui / non (`booleanColumn` : pas de `text` « Oui » / « Non » écrit à la main), chargement plein écran (`FullPageLoader`), libellés cachés (élément cité, `item`, `itemCellLabel`, `bulkCellLabels`), sujets des menus (`name` / `about`).
 - **Retours et dialogues** : toasts (`lib/notify`, `toastCallbacks`, `formCallbacks`, `ON_ERROR`, `notifyFailure`), modales (`openModal`, `confirmDestructive` avec `run` / `done`, « irréversible » ajouté par lui), états d'attente (`useAsyncAction`).
 - **Dupliquer** : « Cloner » interdit, « Dupliquer » écrit à la main interdit (→ `duplicateRowsAction`, `DuplicateButton`), pas de formulaire de copie (attributs `copy` / `copyOf`).
 - **Archivage** : filtre des archivés (`unarchived`, `archivedIds`, `archivedLabel`, `itemChoices`), interrupteur (`useArchivedToggle`), entrée de menu (`archiveEntry`).

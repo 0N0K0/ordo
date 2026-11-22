@@ -29,6 +29,7 @@ import { checklistItemSchema } from '@ordo/shared';
 
 import { CategoryCell, UnitCell } from '../../shopping/components/shopping-cells';
 import { ActionButton } from '../../../components/actions/ActionButton';
+import { booleanColumn } from '../../../components/data-table/table/boolean-column';
 
 type ItemChange = { label?: string; categoryId?: string | null; quantity?: number | null; unit?: string | null; note?: string | null; consumable?: boolean; checked?: boolean };
 
@@ -44,15 +45,7 @@ export function ChecklistPanel({ owner, occurrenceDate = null }: { owner: SheetO
   const mutations = useSheetMutations();
   const categories = shopping?.shoppingCategories ?? [];
   const columns: DataColumn<ChecklistItem>[] = [
-    {
-      id: 'done',
-      label: 'Fait',
-      size: 70,
-      bulk: true,
-      sortValue: (item) => (item.checkedAt ? 1 : 0),
-      text: (item) => (item.checkedAt ? 'Fait' : ''),
-      filter: { kind: 'boolean', value: (item) => Boolean(item.checkedAt) },
-    },
+    booleanColumn<ChecklistItem>({ id: 'done', label: 'Fait', size: 70, bulk: true, value: (item) => Boolean(item.checkedAt) }),
     { id: 'label', required: true, label: 'Élément', size: 220, locked: true, bulk: true, sortValue: (item) => item.label, text: (item) => item.label },
     quantityColumn<ChecklistItem>(),
     unitColumn<ChecklistItem>(),

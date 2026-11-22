@@ -328,6 +328,26 @@ function allowedIntervals(condition: SlotCondition | null | undefined, slotsOn: 
   return intersect(byCondition, byHours);
 }
 
+/** What keeps an item from a moment: its own hours (the « Horaires » of a task), or its condition on calendar schedules. */
+export type ConditionBlock = 'hours' | 'slots';
+
+/**
+ * What keeps an item from a moment, its own hours first, then its condition on calendar schedules; null when both
+ * allow it (neither: any moment).
+ * @param {SlotCondition | null | undefined} condition Condition.
+ * @param {SlotsOn} slotsOn Slots of some schedules on a day.
+ * @param {string} date YYYY-MM-DD.
+ * @param {string} time HH:MM.
+ * @param {readonly ScheduleCase[]} [hours] Own hours of the item. Optional. Default = none (no limit).
+ * @returns {ConditionBlock | null} What keeps it, null: allowed.
+ */
+export function conditionBlockAt(condition: SlotCondition | null | undefined, slotsOn: SlotsOn, date: string, time: string, hours: readonly ScheduleCase[] = []): ConditionBlock | null {
+  const holds = (intervals: readonly Interval[]) => intervals.some((interval) => interval.start <= time && time < interval.end);
+  if (hours.length && !holds(merged(casesSlotsOn(hours, date)))) return 'hours';
+  if (conditionConstrains(condition) && !holds(conditionIntervals(condition, (query) => slotsOn(query, date)) ?? [])) return 'slots';
+  return null;
+}
+
 /**
  * Whether a condition on calendar schedules, and the own hours of the item (the « Horaires » of a task), allow a
  * moment: both must (neither: any moment). The only test of when a task can be done, for the API and the app.
@@ -339,8 +359,7 @@ function allowedIntervals(condition: SlotCondition | null | undefined, slotsOn: 
  * @returns {boolean} Allowed.
  */
 export function conditionAllowsAt(condition: SlotCondition | null | undefined, slotsOn: SlotsOn, date: string, time: string, hours: readonly ScheduleCase[] = []): boolean {
-  const intervals = allowedIntervals(condition, slotsOn, date, hours);
-  return !intervals || intervals.some((interval) => interval.start <= time && time < interval.end);
+  return conditionBlockAt(condition, slotsOn, date, time, hours) === null;
 }
 
 /**

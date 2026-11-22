@@ -34,6 +34,8 @@ import { useStockLocations, useStockMutations } from '../../stock/api';
 import { archiveItemsAction, deleteRowsAction } from '../../../components/data-table/selection/selection-actions';
 import { selectedLabel } from '../../../components/data-table/selection/selection-label';
 import { collator, countOf, plural } from '../../../lib/text';
+import { booleanColumn } from '../../../components/data-table/table/boolean-column';
+import { consumableColumn } from '../lib/product-columns';
 
 /** Views made the first time a base list is shown, grouped by category: every product, the missing ones. */
 const BASE_LIST_VIEWS: FirstTableView[] = [
@@ -121,48 +123,10 @@ export function BaseList({ baseList }: { baseList: ShoppingBaseList }) {
         text: (product) => (product.lastPurchasedAt ? `${fmt.day(product.lastPurchasedAt)}${product.lastPrice !== null ? ` · ${fmt.money(product.lastPrice)}` : ''}` : ''),
         filter: { kind: 'date', value: (product) => (product.lastPurchasedAt ? localDay(product.lastPurchasedAt) : null) },
       },
-      {
-        id: 'missing',
-        label: 'Manque',
-        size: 90,
-        hiddenByDefault: true,
-        sortValue: (product) => (product.missing ? 1 : 0),
-        text: (product) => (product.missing ? 'Manque' : ''),
-        filter: { kind: 'boolean', value: (product) => product.missing },
-      },
-      {
-        id: 'stockTracked',
-        label: 'Suivie en stock',
-        size: 130,
-        bulk: true,
-        hiddenByDefault: true,
-        sortValue: (product) => (product.stockTracked ? 1 : 0),
-        text: (product) => (product.stockTracked ? 'Suivie' : ''),
-        filter: { kind: 'boolean', value: (product) => product.stockTracked },
-        groupable: true,
-      },
-      {
-        id: 'consumable',
-        label: 'Consommable',
-        size: 120,
-        bulk: true,
-        hiddenByDefault: true,
-        sortValue: (product) => (product.consumable ? 1 : 0),
-        text: (product) => (product.consumable ? 'Consommable' : ''),
-        filter: { kind: 'boolean', value: (product) => product.consumable },
-        groupable: true,
-      },
-      {
-        id: 'autoStock',
-        label: 'Ajout auto au stock',
-        size: 150,
-        bulk: true,
-        hiddenByDefault: true,
-        sortValue: (product) => (product.autoStock ? 1 : 0),
-        text: (product) => (product.autoStock ? 'Automatique' : ''),
-        filter: { kind: 'boolean', value: (product) => product.autoStock },
-        groupable: true,
-      },
+      booleanColumn<ShoppingProduct>({ id: 'missing', label: 'Manque', size: 90, hiddenByDefault: true, value: (product) => product.missing }),
+      booleanColumn<ShoppingProduct>({ id: 'stockTracked', label: 'Suivie en stock', size: 130, bulk: true, hiddenByDefault: true, groupable: true, value: (product) => product.stockTracked }),
+      consumableColumn<ShoppingProduct>({ hiddenByDefault: true }),
+      booleanColumn<ShoppingProduct>({ id: 'autoStock', label: 'Ajout auto au stock', size: 150, bulk: true, hiddenByDefault: true, groupable: true, value: (product) => product.autoStock }),
       {
         id: 'stockLocation',
         label: 'Emplacement en stock',

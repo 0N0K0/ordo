@@ -30,6 +30,7 @@ import { useCategoryCreators } from '../hooks/use-settings-items';
 import { ContextForm, RelationForm } from './TeamPanel';
 import { signedText } from '../../../components/money/signed-text';
 import { taggedKey } from '../../../lib/tagged-key';
+import { booleanColumn } from '../../../components/data-table/table/boolean-column';
 
 /** Line of a split entry, with its place and signed amount. */
 interface LineRow {
@@ -129,15 +130,7 @@ function lineColumns(env: EntryEnv): DataColumn<LineRow>[] {
       text: (row) => signedText(row.amount),
       filter: { kind: 'number', value: (row) => row.amount },
     },
-    {
-      id: 'loan',
-      bulk: true,
-      label: 'Prêt',
-      size: 80,
-      sortValue: (row) => (row.line.loan ? 1 : 0),
-      text: (row) => (row.line.loan ? 'Prêt' : ''),
-      filter: { kind: 'boolean', value: (row) => row.line.loan },
-    },
+    booleanColumn<LineRow>({ id: 'loan', bulk: true, label: 'Prêt', size: 80, value: (row) => row.line.loan }),
     {
       id: 'date',
       bulk: true,

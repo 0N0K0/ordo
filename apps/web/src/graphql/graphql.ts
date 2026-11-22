@@ -1269,6 +1269,13 @@ export type TaskViewUpdateInput = {
   label?: string | null | undefined;
 };
 
+/** Why an open task cannot be done now: its « Ouverture » is after today, its hours or its slot condition leave the moment out, an event keeps its assignees busy. */
+export type TaskWaitReason =
+  | 'ASSIGNEE_BUSY'
+  | 'NOT_OPEN'
+  | 'OUTSIDE_HOURS'
+  | 'OUTSIDE_SLOTS';
+
 /** At least a project, a task, a routine (the project of the first one by default) or an event. */
 export type TimeEntryInput = {
   description?: string | null | undefined;
@@ -4575,12 +4582,12 @@ export type BulkDeleteTasksMutationVariables = Exact<{
 
 export type BulkDeleteTasksMutation = { bulkDeleteTasks: boolean };
 
-export type DoableTaskIdsQueryVariables = Exact<{
+export type DoableTasksQueryVariables = Exact<{
   utcOffset: number;
 }>;
 
 
-export type DoableTaskIdsQuery = { doableTaskIds: Array<string> };
+export type DoableTasksQuery = { doableTasks: Array<{ id: string, reason: TaskWaitReason | null }> };
 
 export type CreateMilestoneMutationVariables = Exact<{
   input: MilestoneInput;
@@ -10500,11 +10507,14 @@ export const BulkDeleteTasksDocument = new TypedDocumentString(`
   bulkDeleteTasks(ids: $ids, deleteSubtasks: $deleteSubtasks)
 }
     `) as unknown as TypedDocumentString<BulkDeleteTasksMutation, BulkDeleteTasksMutationVariables>;
-export const DoableTaskIdsDocument = new TypedDocumentString(`
-    query DoableTaskIds($utcOffset: Int!) {
-  doableTaskIds(utcOffset: $utcOffset)
+export const DoableTasksDocument = new TypedDocumentString(`
+    query DoableTasks($utcOffset: Int!) {
+  doableTasks(utcOffset: $utcOffset) {
+    id
+    reason
+  }
 }
-    `) as unknown as TypedDocumentString<DoableTaskIdsQuery, DoableTaskIdsQueryVariables>;
+    `) as unknown as TypedDocumentString<DoableTasksQuery, DoableTasksQueryVariables>;
 export const CreateMilestoneDocument = new TypedDocumentString(`
     mutation CreateMilestone($input: MilestoneInput!) {
   createMilestone(input: $input) {

@@ -43,14 +43,14 @@ export function withArchived(options: readonly ColumnChoice[], items: readonly {
 
 /**
  * How a column is filtered: its kind and the value of a row (a text by default: the text of the column).
- * Dates are YYYY-MM-DD; a choice is one value of its options (`none`: the value of its « Aucun » option, empty for
+ * Dates are YYYY-MM-DD; a yes / no may be empty (null: neither, met by no condition); a choice is one value of its options (`none`: the value of its « Aucun » option, empty for
  * « est vide »), several choices a list of them.
  */
 export type ColumnFilter<R> =
   | { kind: 'text'; value?: (row: R) => string | null }
   | { kind: 'number'; value: (row: R) => number | null }
   | { kind: 'date'; value: (row: R) => string | null }
-  | { kind: 'boolean'; value: (row: R) => boolean }
+  | { kind: 'boolean'; value: (row: R) => boolean | null }
   | { kind: 'choice'; value: (row: R) => string | null; options: ColumnChoice[]; none?: string }
   | { kind: 'choices'; value: (row: R) => string[]; options: ColumnChoice[] };
 
@@ -62,6 +62,10 @@ export interface TreeGroup {
   /** Its parent group (null: at the top). */
   parentKey: string | null;
 }
+
+/** Words of a yes / no value: its text (export, search), its accessible name, its group. */
+export const YES_LABEL = 'Oui';
+export const NO_LABEL = 'Non';
 
 /** Column of a data table. */
 export interface DataColumn<R> {
@@ -104,6 +108,11 @@ export interface DataColumn<R> {
   groupValue?: (row: R) => readonly string[];
   /** Name of the group of the rows without value (« Sans catégorie »…). Optional. Default = « Sans valeur ». */
   groupNoneLabel?: string;
+  /**
+   * Names of the groups of a yes / no column, yes first (« Maintenant » / « Plus tard »…). Optional. Default = « Oui » /
+   * « Non ».
+   */
+  groupLabels?: { yes: string; no: string };
   /**
    * Its cells are edited in bulk: selected (Ctrl / ⌘ + click, Shift + click for a range, or « Sélectionner la colonne »),
    * a change made in one of them applies to all. Optional. Default = false.

@@ -3209,9 +3209,9 @@ type Query {
   defaultScheduleKind: DefaultScheduleKind!
 
   """
-  Ids of the open tasks that can be done now: allowed by their slot rule (else the default of the workspace) and kept by no event of their people.
+  Open tasks and whether they can be done now: opened, allowed by their hours and their slot condition, kept by no event of their people; else why not.
   """
-  doableTaskIds(utcOffset: Int!): [ID!]!
+  doableTasks(utcOffset: Int!): [TaskDoability!]!
   documentFolders: [DocumentFolder!]!
   documentSequences(year: Int!): [DocumentSequence!]!
   documentStatuses: [DocumentStatus!]!
@@ -5084,6 +5084,14 @@ type TaskComment {
   id: ID!
 }
 
+"""An open task and whether it can be done now."""
+type TaskDoability {
+  id: ID!
+
+  """Why it cannot be done now, null: it can."""
+  reason: TaskWaitReason
+}
+
 """
 Values a task goes by: each inherited field from its parent, live; its dates also from its milestone, project or first sprint. Read for every behaviour; the screens grey the inherited ones (`inheritance`).
 """
@@ -5341,6 +5349,16 @@ input TaskViewInput {
 input TaskViewUpdateInput {
   config: JSON
   label: String
+}
+
+"""
+Why an open task cannot be done now: its « Ouverture » is after today, its hours or its slot condition leave the moment out, an event keeps its assignees busy.
+"""
+enum TaskWaitReason {
+  ASSIGNEE_BUSY
+  NOT_OPEN
+  OUTSIDE_HOURS
+  OUTSIDE_SLOTS
 }
 
 type TimeEntry {

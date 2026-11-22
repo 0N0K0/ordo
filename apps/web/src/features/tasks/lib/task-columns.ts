@@ -19,6 +19,7 @@ import {
 } from '@ordo/shared';
 import type { ColumnChoice, ColumnFilter, DataColumn } from '../../../components/data-table/table/data-table';
 import { filterRows } from '../../../components/data-table/table/table-engine';
+import { booleanColumn } from '../../../components/data-table/table/boolean-column';
 import type { EventOccurrence } from '../../calendar/api';
 import type { Task } from '../api';
 import { type TaskContext, taskNumber } from '../hooks/use-task-context';
@@ -29,6 +30,9 @@ import { localDay } from '../../../lib/dates';
 import { unarchived } from '../../../lib/archive';
 import { isTaskOverdue } from './task-overdue';
 import { taggedKey } from '../../../lib/tagged-key';
+
+/** Names of the two sides of « Faisable maintenant » (its groups, the sections of the home card): yes first. */
+export const DOABLE_GROUP_LABELS = { yes: 'Maintenant', no: 'Plus tard' } as const;
 
 /** Row of the task table: a task, or a calendar event listed with them (read only). */
 export type TaskTableRow = { kind: 'task'; key: string; task: Task } | { kind: 'event'; key: string; event: EventOccurrence };
@@ -329,14 +333,17 @@ export function taskColumns(context: TaskContext, today: string, extras: TaskCol
     groupValue: GROUP_VALUES[id],
   }));
   // Filters of their own, out of the columns (hidden until shown).
-  const flag = (id: string, label: string, value: (task: Task) => boolean): DataColumn<TaskTableRow> => ({
-    id,
-    label,
-    size: 110,
-    hiddenByDefault: true,
-    text: (row) => (row.kind === 'task' && value(row.task) ? 'Oui' : ''),
-    filter: { kind: 'boolean', value: (row) => row.kind === 'task' && value(row.task) },
-  });
+  // An event listed with the tasks is none of them: its cell stays empty, and « non » keeps it.
+  const flag = (id: string, label: string, value: (task: Task) => boolean | null, groupLabels?: DataColumn<TaskTableRow>['groupLabels']): DataColumn<TaskTableRow> =>
+    booleanColumn<TaskTableRow>({
+      id,
+      label,
+      size: 110,
+      hiddenByDefault: true,
+      groupLabels,
+      value: (row) => (row.kind === 'task' ? value(row.task) : false),
+      blank: (row) => row.kind === 'event',
+    });
   return [
     ...columns,
     {
@@ -363,7 +370,8 @@ export function taskColumns(context: TaskContext, today: string, extras: TaskCol
     flag('blocked', 'Bloquée', (task) => context.isBlocked(task)),
     flag('hasSubtasks', 'A des sous-tâches', (task) => context.childrenOf(task.id).length > 0),
     flag('archived', 'Archivée', (task) => task.archived),
-    flag('doableNow', 'Faisable maintenant', (task) => extras.doableIds?.has(task.id) ?? false),
+    // A closed task is neither doable now nor later.
+    flag('doableNow', 'Faisable maintenant', (task) => (context.isClosed(task) ? null : (extras.doableIds?.has(task.id) ?? false)), DOABLE_GROUP_LABELS),
     flag('hasShopping', 'A des achats', (task) => extras.shoppingTaskIds?.has(task.id) ?? false),
     flag('hasAlarms', 'A des alarmes', (task) => (extras.alarmCounts?.get(task.id) ?? 0) > 0),
     flag('hasComments', 'A des commentaires', (task) => commentTotal(task.commentCount, task.description) > 0),

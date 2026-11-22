@@ -7,6 +7,7 @@ import * as fmt from '../../../lib/format';
 import { conservationKey, NOT_PERISHABLE, PERISHABLE } from './conservation';
 import { withArchived } from '../../../components/data-table/table/data-table';
 import { itemChoices } from '../../../components/items/item-look';
+import { booleanColumn } from '../../../components/data-table/table/boolean-column';
 
 /**
  * Groups of a column grouped in the order of its settings (stores, ways of keeping), each with its color.
@@ -131,16 +132,7 @@ export function itemColumns<T extends ShoppingFields>(names: ItemNames, extra: D
  * @returns {DataColumn<T>} Column.
  */
 export function optionalColumn<T extends { optional?: boolean | null }>(): DataColumn<T> {
-  return {
-    id: 'optional',
-    bulk: true,
-    label: 'Facultatif',
-    size: 110,
-    sortValue: (item) => (item.optional ? 1 : 0),
-    text: (item) => (item.optional ? 'Facultatif' : ''),
-    filter: { kind: 'boolean', value: (item) => Boolean(item.optional) },
-    groupable: true,
-  };
+  return booleanColumn<T>({ id: 'optional', bulk: true, label: 'Facultatif', size: 110, groupable: true, value: (item) => Boolean(item.optional) });
 }
 
 /** Columns of the shopping items a sheet item has too (store, conservation, whom it is for, link). */

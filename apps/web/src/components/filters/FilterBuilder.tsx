@@ -11,6 +11,7 @@ import { BatchMultiSelect } from '../inputs/BatchMultiSelect';
 import { RemoveButton } from '../actions/RemoveButton';
 import { ActionButton } from '../actions/ActionButton';
 import { optionalNumber, FRENCH_NUMBER_FORMAT } from '../inputs/number-format';
+import { YesNoIcon } from '../data-table/cells/YesNoIcon';
 
 // Dropdowns render inside the filter popover: in a portal, picking an option would count as a click
 // outside the popover and close it.
@@ -202,6 +203,16 @@ function ConditionEditor<F extends string>({ condition, fields, onChange, onRemo
         }))}
         value={operator}
         allowDeselect={false}
+        // A yes / no shows its icon beside its word, as in the cells.
+        {...(kind === 'boolean' && {
+          leftSection: <YesNoIcon value={operator === 'isTrue'} decorative />,
+          renderOption: ({ option }) => (
+            <Group gap={6} wrap="nowrap">
+              <YesNoIcon value={option.value === 'isTrue'} decorative />
+              {option.label}
+            </Group>
+          ),
+        })}
         onChange={(next) => {
           if (!next) return;
           const nextOperator = next as FilterOperator;

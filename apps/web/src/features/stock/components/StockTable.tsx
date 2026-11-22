@@ -38,6 +38,7 @@ import { ArchivedBadge } from '../../../components/feedback/ArchivedBadge';
 import { categoryColumn, consumableColumn, noteColumn, quantityColumn, unitColumn } from '../../shopping/lib/product-columns';
 import { CategoryCell, UnitCell } from '../../shopping/components/shopping-cells';
 import { FoldHeading } from '../../../components/actions/FoldHeading';
+import { booleanColumn } from '../../../components/data-table/table/boolean-column';
 
 type Change = Partial<Parameters<typeof stockItemInput>[1]>;
 
@@ -123,17 +124,7 @@ export function StockTable() {
       },
       groupable: true,
     },
-    {
-      id: 'perishable',
-      label: 'Périssable',
-      size: 110,
-      bulk: true,
-      hiddenByDefault: true,
-      sortValue: (item) => (item.perishable ? 1 : 0),
-      text: (item) => (item.perishable ? 'Périssable' : ''),
-      filter: { kind: 'boolean', value: (item) => item.perishable },
-      groupable: true,
-    },
+    booleanColumn<StockItem>({ id: 'perishable', label: 'Périssable', size: 110, bulk: true, hiddenByDefault: true, groupable: true, value: (item) => item.perishable }),
     consumableColumn<StockItem>({ bulk: false, hiddenByDefault: true }),
     {
       id: 'reference',

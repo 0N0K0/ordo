@@ -62,6 +62,7 @@ import { deleteRowsAction } from '../../../components/data-table/selection/selec
 import { selectedLabel } from '../../../components/data-table/selection/selection-label';
 import { Comments } from '../../comments/components/Comments';
 import { DetailHeader } from '../../../components/page/DetailHeader';
+import { booleanColumn } from '../../../components/data-table/table/boolean-column';
 
 type ShoppingItem = ShoppingList['items'][number];
 
@@ -121,15 +122,7 @@ export function ShoppingListPage() {
     },
     [
       optionalColumn<ShoppingItem>(),
-      {
-        id: 'bought',
-        label: 'Acheté',
-        size: 100,
-        hiddenByDefault: true,
-        sortValue: (item) => (item.purchasedAt ? 1 : 0),
-        text: (item) => (item.purchasedAt ? 'Acheté' : ''),
-        filter: { kind: 'boolean', value: (item) => Boolean(item.purchasedAt) },
-      },
+      booleanColumn<ShoppingItem>({ id: 'bought', label: 'Acheté', size: 100, hiddenByDefault: true, value: (item) => Boolean(item.purchasedAt) }),
       {
         id: 'inStock',
         label: 'En stock',

@@ -71,7 +71,7 @@ Le même tableau (`TaskBoard`) sert à la page et à l’onglet d’un projet. C
 | « Achats »                                     | Listes d’achats de la tâche, menu « Nouvelle liste » / « Rattacher une liste ».                                                                                                                                                                                                                                                                                                                    |
 | « Créée le », « Modifiée le »                  | Dates.                                                                                                                                                                                                                                                                                                                                                                                             |
 
-Colonnes masquées par défaut (sauf choix de l’espace) : « Horaires », « Lieu », « Bloque », « Relative à », « Jalon », « Créée le », « Modifiée le ». Colonnes supplémentaires masquées, surtout utiles aux filtres : « Numéro », « Description », « Fermée », « En retard », « Bloquée », « A des sous-tâches », « Archivée », « Faisable maintenant », « A des achats », « A des alarmes », « A des commentaires », « Catégorie de statut ».
+Colonnes masquées par défaut (sauf choix de l’espace) : « Horaires », « Lieu », « Bloque », « Relative à », « Jalon », « Créée le », « Modifiée le ». Colonnes supplémentaires masquées, surtout utiles aux filtres : « Numéro », « Description », « Fermée », « En retard », « Bloquée », « A des sous-tâches », « Archivée », « Faisable maintenant », « A des achats », « A des alarmes », « A des commentaires », « Catégorie de statut ». Les colonnes oui / non (« Fermée » … « A des commentaires ») montrent une coche verte ou une croix rouge (« Oui » / « Non » à l’export) ; une ligne d’évènement y reste vide (et compte comme « non » pour leurs filtres).
 
 ### Filtres
 
@@ -81,14 +81,14 @@ Chaque colonne filtrable a son filtre (voir [Filtres](../../web/components/filte
 - « Assignés » : « Moi » en plus des contributeurs.
 - « Sprint » : sprints relatifs « Sprint en cours », « Sprint précédent », « Sprint suivant », « Sprints passés », « Sprints à venir » (par arborescence de projets).
 - « Tâche parente » : une tâche garde ses sous-tâches à tous les niveaux.
-- « Faisable maintenant » : tâches ouvertes dont l’« Ouverture » (la leur, sinon celle de leur parent, de leur jalon, de leur projet ou de leur premier sprint) est passée ou aujourd’hui, que leur condition de créneaux et leurs horaires autorisent tous deux maintenant (sans l’un ni l’autre : toujours, dans les deux types d’espace) et dont les assignés ne sont pas pris par un évènement (rafraîchi chaque minute, calculé seulement quand la vue s’en sert : son filtre, son tri, son regroupement ou la colonne « Faisable maintenant » affichée).
+- « Faisable maintenant » : tâches ouvertes dont l’« Ouverture » (la leur, sinon celle de leur parent, de leur jalon, de leur projet ou de leur premier sprint) est passée ou aujourd’hui, que leur condition de créneaux et leurs horaires autorisent tous deux maintenant (sans l’un ni l’autre : toujours, dans les deux types d’espace) et dont les assignés ne sont pas pris par un évènement (rafraîchi chaque minute, calculé seulement quand la vue s’en sert : son filtre, son tri, son regroupement ou la colonne « Faisable maintenant » affichée ; toujours pour la carte « Tâches » de l’accueil, qui sépare « Maintenant » et « Plus tard »). Une tâche fermée n’est ni faisable maintenant ni plus tard : sa cellule est vide, ni « oui » ni « non » ne la gardent, elle est vide à l’export.
 - « Horaires » : filtre de texte sur les horaires en mots (contient, « est vide » / « n’est pas vide »), tri sur ce texte (sans horaires en dernier) ; exportés en mots.
 - « Catégorie de statut » : « À faire », « En cours », « Terminé », « Annulé ».
 - Les valeurs archivées gardent leur libellé et ne sont proposées que si elles sont déjà dans le filtre.
 
 ### Groupes
 
-Grouper par : état, projet (en arbre), statut, priorité, type, assignés, bénéficiaires, étiquettes, tâche parente, jalon, sprint, « Dépend de », « Bloque », « Relative à », et par mois de « Début », « Fin », « Ouverture », « Échéance ». Non groupables : créneaux, horaires, chrono, sous-tâches, avancement, alarmes, achats, commentaires.
+Grouper par : état, projet (en arbre), statut, priorité, type, assignés, bénéficiaires, étiquettes, tâche parente, jalon, sprint, « Dépend de », « Bloque », « Relative à », et par mois de « Début », « Fin », « Ouverture », « Échéance ». Non groupables : créneaux, horaires, chrono, sous-tâches, avancement, alarmes, achats, commentaires. Les colonnes oui / non se groupent en « Oui » puis « Non », sauf « Faisable maintenant » : « Maintenant » puis « Plus tard » (les tâches fermées dans « Sans valeur »).
 
 ### Modifier
 

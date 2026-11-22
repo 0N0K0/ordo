@@ -25,8 +25,10 @@ Une colonne déclare tout ce que le tableau en fait :
 - `numeric` (aligné à droite, police monospace ; filtré comme un nombre via `sortValue`) et `formatTotal` (écriture du total du pied) ;
 - `filter` : comment filtrer (`text`, `number`, `date`, `boolean`, `choice`, `choices`), `false` pour ne pas filtrer ; par défaut : un nombre pour une colonne `numeric`, du texte si elle a un `text`, sinon rien ;
 - `required` : jamais vide, pas de « est vide » dans son filtre ; une colonne de comptage (commentaires, relances, éléments…) l'est toujours : 0 est une valeur ;
-- `groupable` (par défaut toutes sauf la colonne verrouillée), `groupTree` (groupes en arbre, ex. catégories, ou dans l’ordre des paramètres), `groupValue` (valeurs de regroupement propres), `groupNoneLabel` (nom du groupe des lignes sans valeur, défaut « Sans valeur ») ;
+- `groupable` (par défaut toutes sauf la colonne verrouillée), `groupTree` (groupes en arbre, ex. catégories, ou dans l’ordre des paramètres), `groupValue` (valeurs de regroupement propres), `groupNoneLabel` (nom du groupe des lignes sans valeur, défaut « Sans valeur »), `groupLabels` (noms des groupes d’une colonne oui / non, oui d’abord, défaut « Oui » / « Non ») ;
 - `bulk` : ses cellules se modifient en masse.
+
+Une colonne oui / non s’écrit toujours avec `booleanColumn` (règle eslint) : ses cellules montrent une icône, jamais les mots « Oui » / « Non » (voir [Conventions](../app.md#colonnes-oui--non)) ; son texte (export, recherche) est « Oui » / « Non » ; une valeur vide (`null`, ni oui ni non) laisse la cellule et le texte vides, n’est gardée ni par « oui » ni par « non » et va dans le groupe des lignes sans valeur. Une case modifiable en place (`EditableCheck`) reste une case : l’icône est l’affichage en lecture seule.
 
 Les colonnes affichées, leur ordre et leurs largeurs viennent de la disposition (`ColumnLayout` : `columnOrder`, `hiddenColumns`, `columnSizing`) enregistrée dans la vue. Une colonne ajoutée après coup se place à la fin de l’ordre enregistré. Largeurs bornées entre 40 et 1200 px.
 
@@ -60,7 +62,7 @@ Chaque tableau (`tableKey`, et éventuellement un projet) a ses vues : des ongle
 
 ### Regroupement
 
-- « Grouper par » (Options) ou « Grouper selon les valeurs » (menu d’en-tête) regroupe les lignes selon la colonne : une date par période (« Période » : jour, semaine, mois, trimestre, année ; défaut mois), une colonne à valeurs multiples place la ligne dans chacun de ses groupes, un booléen en « Oui » / « Non », sinon le texte. Les lignes sans valeur vont dans « Sans valeur » (ou le `groupNoneLabel` de la colonne : « Sans catégorie »…), en dernier.
+- « Grouper par » (Options) ou « Grouper selon les valeurs » (menu d’en-tête) regroupe les lignes selon la colonne : une date par période (« Période » : jour, semaine, mois, trimestre, année ; défaut mois), une colonne à valeurs multiples place la ligne dans chacun de ses groupes, un booléen en « Oui » puis « Non » (ou ses `groupLabels` : « Maintenant » / « Plus tard » pour « Faisable maintenant »), sinon le texte. Les lignes sans valeur vont dans « Sans valeur » (ou le `groupNoneLabel` de la colonne : « Sans catégorie »…), en dernier.
 - Les groupes suivent l’ordre des options de la colonne (ou de la valeur de tri), inversé si la colonne est triée en décroissant.
 - Une colonne avec `groupTree` regroupe en arbre de groupes (un groupe parent s’affiche s’il a des lignes dans ses sous-groupes).
 - Le regroupement est seulement celui de la vue (« Grouper par » de `DataViewBar`) : un tableau n’a pas de regroupement à lui par-dessus ou à la place, toujours actif ; il démarre groupé par une vue créée la première fois (`first`, `groupBy`), et l’utilisateur change ou retire le regroupement comme sur tout tableau. Une règle eslint l’impose (pas d’attribut `groupTree`, `grouping` ou `showEmpty` sur un `…Table`, pas d’autre champ « Grouper par »).
@@ -102,7 +104,8 @@ Le tableau défile dans sa propre zone, l’en-tête collé en haut : seul sur l
 | ---------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `ColumnChoice` (interface)                     | Choix d’une colonne filtrée par valeurs : `value`, `label` (chemin complet en arbre), `nodeLabel?`, `depth?`, `parent?`, `color?`, `iconUrl?`, `disabled?` (parent grisé), `archived?`.                                             |
 | `withArchived(options, items)`                 | Marque `archived` les choix dont l’élément est archivé (liste d’éléments `{ id, archived }` ou `Set` d’ids). Règle eslint associée. Utilisé par `routines`, `shopping`, `stock`, `tasks`, `treasury`.                               |
-| `ColumnFilter<R>` (type)                       | Filtre d’une colonne : `text` (valeur optionnelle, sinon `text`), `number`, `date` (YYYY-MM-DD), `boolean`, `choice` (`options`, `none?` : la valeur de l’option « Aucun », vide pour « est vide »), `choices` (plusieurs valeurs ; un filtre enregistré `in` / `notIn`, d’une colonne passée d’un choix à plusieurs, se lit `anyOf` / `noneOf`). |
+| `ColumnFilter<R>` (type)                       | Filtre d’une colonne : `text` (valeur optionnelle, sinon `text`), `number`, `date` (YYYY-MM-DD), `boolean` (`null` : ni oui ni non, gardé par aucune des deux conditions), `choice` (`options`, `none?` : la valeur de l’option « Aucun », vide pour « est vide »), `choices` (plusieurs valeurs ; un filtre enregistré `in` / `notIn`, d’une colonne passée d’un choix à plusieurs, se lit `anyOf` / `noneOf`). |
+| `YES_LABEL`, `NO_LABEL`                        | « Oui » / « Non » : texte d’une valeur oui / non (export, recherche), son nom accessible, ses groupes par défaut. |
 | `TreeGroup` (interface)                        | Groupe d’un arbre de groupes : `key`, `label`, `color?`, `parentKey`.                                                                                                                                                               |
 | `DataColumn<R>` (interface)                    | La colonne (voir « Comment ça marche »). Utilisé par toutes les features à tableau, et `comments`.                                                                                                                                  |
 | `readOnlyCells(columns, row)`                  | Cellules en lecture seule d’une ligne (archivée) : le `cell` d’une colonne partagée, sinon son `text`. Règle eslint associée. Utilisé par `calendar`, `routines`, `shopping`, `tasks`, `treasury`.                                  |
@@ -136,7 +139,7 @@ Interne : `hiddenIds`.
 | `viewRows(rows, columns, config, today, alwaysKept?)`  | Une vue appliquée aux lignes : recherche et filtre (`filterRows`), tris (`sortRows`), groupes (`groupRows`) ; `alwaysKept` garde une ligne quels que soient recherche et filtre. Règle eslint associée (pas de `sortRows(filterRows(…))` à la main). Utilisé par `useDataView` et `useViewRows`.
 | `groupableColumns(columns)`                            | Colonnes groupables.                                                                                                                                                                                                                                                                                                                                                                                                                                                         |
 
-Internes : `FIELD_KINDS`, `filterable`, `offeredChoices` (choix archivés retirés sauf ceux du filtre, parents gardés grisés), `isEmptyValue`, `meets` (une condition sur une ligne : texte normalisé, nombres, dates relatives `filterDay`, périodes, choix, `anyOf` / `allOf` / `noneOf` ; l’option « Aucun » compte comme vide), `weekOf`, `periodGroup` (clés triables et libellés : le jour en toutes lettres, « Semaine N · AAAA (du <lundi>) », le mois, le trimestre, l’année — formats de `lib/format` et `lib/periods`), `groupsOf`.
+Internes : `FIELD_KINDS`, `filterable`, `offeredChoices` (choix archivés retirés sauf ceux du filtre, parents gardés grisés), `isEmptyValue`, `meets` (une condition sur une ligne : oui / non, une valeur vide n’étant ni l’un ni l’autre ; texte normalisé, nombres, dates relatives `filterDay`, périodes, choix, `anyOf` / `allOf` / `noneOf` ; l’option « Aucun » compte comme vide), `weekOf`, `periodGroup` (clés triables et libellés : le jour en toutes lettres, « Semaine N · AAAA (du <lundi>) », le mois, le trimestre, l’année — formats de `lib/format` et `lib/periods`), `groupsOf` (un oui / non vide dans le groupe sans valeur).
 
 ### `DataTable.tsx`
 
@@ -184,6 +187,11 @@ Comportement interne notable :
 - `movedColumnOrder(order, shown, id, where)` — ordre avec une colonne mise au début, à la fin, ou d’un cran parmi les colonnes affichées.
 - `fittedLayout(table, layout, column, cellIndex, fitted)` — disposition avec une colonne ajustée à son contenu (mesure jusqu’à 400 lignes en disposition automatique, champs comptés à la largeur de leur texte, styles rétablis aussitôt) ; si elle l’est déjà (ou à 2 px près), la largeur enregistrée est retirée (retour au défaut).
 - Internes : `textWidth` (mesure sur canvas), `contentWidth`.
+
+### `boolean-column.tsx`
+
+- `booleanColumn({ value, blank?, ...column })` — colonne oui / non : `value(row)` vrai, faux ou `null` (ni l’un ni l’autre : une tâche fermée pour « Faisable maintenant ») ; cellule `YesNoIcon`, texte « Oui » / « Non », tri non avant oui, filtre `boolean`, groupes « Oui » / « Non » ou `groupLabels` ; `blank(row)` laisse vides la cellule et le texte d’une ligne qui garde sa valeur pour le filtre et les groupes (les évènements listés avec les tâches). Règle eslint associée (pas de `text` écrit « Oui » / « Non » à la main, ni de mot seul avec un filtre `boolean`). Utilisé par `routines`, `sheets`, `shopping`, `stock`, `tasks`, `treasury`.
+- `BooleanColumnOptions<R>` (interface) — la colonne sans `text`, `cell`, `sortValue` ni `filter`, avec `value` et `blank?`.
 
 ### `month-column.ts`
 
@@ -430,6 +438,10 @@ Très utilisées par les features (`accounting`, `calendar`, `routines`, `sheets
 ### `ChildrenCell.tsx`
 
 `ChildrenCell({ children, add? })` — cellule des enfants d’une ligne (sous-tâches, sous-routines) : empilés (`StackedValues`), puis le « + » qui en ajoute un (`{ label, item, onClick }`, absent en lecture seule). Utilisé par `routines`, `tasks`.
+
+### `YesNoIcon.tsx`
+
+`YesNoIcon({ value, decorative? })` — icône d’une valeur oui / non : carré plein vert avec une coche (`CheckSquareIcon`) ou rouge avec une croix (`XSquareIcon`), couleurs `FEEDBACK_COLORS.success` / `error` ; nommée « Oui » / « Non » (`aria-label`, infobulle `title`), sauf `decorative` (à côté de son mot, cachée aux lecteurs d’écran). Utilisé par `booleanColumn` et `FilterBuilder`.
 
 ### `DependencyIcon.tsx`
 

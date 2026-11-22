@@ -9,6 +9,8 @@ import { isDone, panelOccurrence, routineTreeOptions, currentRoutineState, waiti
 import { opensWords, REPETITION_LABELS, routineFrequency, ROUTINE_STATE_LABELS, type RoutineEnv } from './routine-view';
 import { localDay } from '../../../lib/dates';
 import { LAST_RANK } from '../../../components/data-table/table/table-engine';
+import { booleanColumn } from '../../../components/data-table/table/boolean-column';
+import { DOABLE_GROUP_LABELS } from '../../tasks/lib/task-columns';
 
 /**
  * Short date of a calendar date: "lun. 10 nov.".
@@ -272,16 +274,9 @@ export function routineColumns(env: RoutineEnv): DataColumn<Routine>[] {
       filter: { kind: 'choice', value: (routine) => routine.projectId ?? null, options: context.projectOptions(context.projects) },
     },
     { id: 'description', label: 'Description', size: 240, hiddenByDefault: true, groupable: false, text: (routine) => routine.description ?? '' },
-    { id: 'done', label: 'Faite', size: 90, hiddenByDefault: true, text: (routine) => (isDone(routine) ? 'Oui' : ''), filter: { kind: 'boolean', value: (routine) => routine.done } },
-    {
-      id: 'waiting',
-      label: 'En attente',
-      size: 100,
-      hiddenByDefault: true,
-      text: (routine) => (waitingFor(routine, byId).length ? 'Oui' : ''),
-      filter: { kind: 'boolean', value: (routine) => waitingFor(routine, byId).length > 0 },
-    },
-    { id: 'doableNow', label: 'Faisable maintenant', size: 140, hiddenByDefault: true, text: (routine) => (env.doable(routine) ? 'Oui' : ''), filter: { kind: 'boolean', value: env.doable } },
+    booleanColumn<Routine>({ id: 'done', label: 'Faite', size: 90, hiddenByDefault: true, value: isDone }),
+    booleanColumn<Routine>({ id: 'waiting', label: 'En attente', size: 100, hiddenByDefault: true, value: (routine) => waitingFor(routine, byId).length > 0 }),
+    booleanColumn<Routine>({ id: 'doableNow', label: 'Faisable maintenant', size: 140, hiddenByDefault: true, groupLabels: DOABLE_GROUP_LABELS, value: env.doable }),
     commentColumn<Routine>(
       comments,
       // The comments of the occurrence its panel opens on.

@@ -137,6 +137,12 @@ export default defineConfig([
           selector: "CallExpression[callee.name='sortRows'] CallExpression[callee.name='filterRows']",
           message: 'Utiliser viewRows (components/data-table/table/table-engine) ou useViewRows : une vue appliquée aux lignes (recherche, filtre, tris, groupes).',
         },
+        // A yes / no column: one brick, its icons in the cells, « Oui » / « Non » in the export.
+        {
+          selector:
+            "Property[key.name='text'] ConditionalExpression > Literal[value=/^(Oui|Non)$/], ObjectExpression:has(Property[key.name='filter'] Property[key.name='kind'][value.value='boolean']):has(Property[key.name='text'] ConditionalExpression[consequent.type='Literal'][alternate.value=''])",
+          message: 'Utiliser booleanColumn({ id, label, size, value }) (components/data-table/table/boolean-column) : une colonne oui / non, ses icônes dans les cellules, « Oui » / « Non » à l’export.',
+        },
         // A markdown note or description typed in a cell: the shared markdown editor.
         {
           selector: "JSXOpeningElement[name.name='EditableText']:has(JSXAttribute[name.name='value'] MemberExpression[property.name=/^(note|description)$/])",

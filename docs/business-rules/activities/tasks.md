@@ -264,9 +264,13 @@ Source : `taskHoursSchema`, `hoursCaseNeedsStart`, `readTaskHours` (`packages/sh
 
 ## Tâches faisables maintenant
 
-Source : requête `doableTaskIds(utcOffset)` (`services/calendar/slot-conditions.ts`).
+Source : requête `doableTasks(utcOffset)` (`taskDoability`, `services/calendar/slot-conditions.ts`) : chaque tâche ouverte avec, quand elle n’est pas faisable, la raison (`TaskWaitReason`, `TASK_WAIT_REASONS`).
 
 Tâches ouvertes de l’espace dont l’« Ouverture » suivie (`effectiveTask`, voir [Dates suivies](#dates-suivies)) n’est pas après le jour de l’utilisateur (avant elle, la tâche n’est pas à faire), dont la condition de créneaux et les horaires (les siens ou hérités ; aucun : n’importe quand, dans les deux types d’espace) autorisent tous deux le moment présent de l’utilisateur, et dont aucun évènement n’occupe les assignés (les siens ou hérités ; aucun : « Moi »), sauf un évènement lié à la tâche. Détail dans [Agenda](calendar.md).
+
+Une tâche ouverte qui n’est pas faisable a une raison, la première qui échoue dans cet ordre, tirée du même calcul : « pas encore ouverte » (`NOT_OPEN`, « Ouverture » après aujourd’hui), « hors de ses horaires » (`OUTSIDE_HOURS`), « hors de ses créneaux » (`OUTSIDE_SLOTS`, la condition de créneaux), « assigné occupé » (`ASSIGNEE_BUSY`, un évènement occupe un assigné). Les horaires sont testés avant la condition (`conditionBlockAt`). Libellés : `TASK_WAIT_REASON_LABELS`.
+
+Une tâche fermée n’est ni faisable maintenant ni plus tard : la colonne « Faisable maintenant » est vide pour elle (ni « oui » ni « non » ne la gardent, groupe « Sans valeur », vide à l’export) et la carte « Tâches » de l’accueil la laisse de côté. Les autres tâches se groupent en « Maintenant » (faisables) puis « Plus tard ».
 
 ## Pas de récurrence
 

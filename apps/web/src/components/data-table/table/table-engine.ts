@@ -19,7 +19,7 @@ import {
 } from '@ordo/shared';
 import { hasAvatar, itemRenderOption } from '../../items/item-look';
 import type { FilterFields } from '../../filters/FilterBuilder';
-import { sortRows, type ColumnChoice, type ColumnFilter, type DataColumn } from './data-table';
+import { NO_LABEL, sortRows, YES_LABEL, type ColumnChoice, type ColumnFilter, type DataColumn } from './data-table';
 import { currentWeek } from '../../../lib/week';
 import { dayOf, monthOfDay, yearOfDay } from '../../../lib/dates';
 import * as fmt from '../../../lib/format';
@@ -153,7 +153,7 @@ function meets<R>(
   if (operator === 'isEmpty') return empty;
   if (operator === 'isNotEmpty') return !empty;
   if (operator === 'isTrue') return value === true;
-  if (operator === 'isFalse') return value !== true;
+  if (operator === 'isFalse') return value === false;
   switch (filter.kind) {
     case 'text': {
       // Without case nor accents, as the searches of the selects.
@@ -278,7 +278,7 @@ export const NO_VALUE_LABEL = 'Sans valeur';
 
 /**
  * Groups of a row by a column: its value as told by its filter (each value of several, the period of a date, yes or
- * no), else its text; with the order of the groups.
+ * no, none when empty), else its text; with the order of the groups.
  * @param {R} row Row.
  * @param {DataColumn<R>} column Column.
  * @param {GroupPeriod} period Period of a date.
@@ -318,7 +318,9 @@ function groupsOf<R>(row: R, column: DataColumn<R>, period: GroupPeriod): { key:
   }
   if (filter?.kind === 'boolean') {
     const value = filter.value(row);
-    return [{ key: value ? 'yes' : 'no', label: value ? 'Oui' : 'Non', order: value ? 0 : 1 }];
+    if (value === null) return none;
+    const labels = column.groupLabels ?? { yes: YES_LABEL, no: NO_LABEL };
+    return [{ key: value ? 'yes' : 'no', label: value ? labels.yes : labels.no, order: value ? 0 : 1 }];
   }
   const label = column.text?.(row) ?? (filter?.kind === 'number' ? String(filter.value(row) ?? '') : '');
   if (!label) return none;
