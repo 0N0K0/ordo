@@ -80,7 +80,7 @@ Chaque colonne filtrable a son filtre (voir [Filtres](../../web/components/filte
 - « Assignés » : « Moi » en plus des contributeurs.
 - « Sprint » : sprints relatifs « Sprint en cours », « Sprint précédent », « Sprint suivant », « Sprints passés », « Sprints à venir » (par arborescence de projets).
 - « Tâche parente » : une tâche garde ses sous-tâches à tous les niveaux.
-- « Faisable maintenant » : tâches ouvertes dont l’« Ouverture » (la leur, sinon celle de leur parent, de leur jalon, de leur projet ou de leur premier sprint) est passée ou aujourd’hui, que leur condition de créneaux autorise maintenant (sans condition : toujours, dans les deux types d’espace) et dont les assignés ne sont pas pris par un évènement (rafraîchi chaque minute, chargé seulement si le filtre l’utilise).
+- « Faisable maintenant » : tâches ouvertes dont l’« Ouverture » (la leur, sinon celle de leur parent, de leur jalon, de leur projet ou de leur premier sprint) est passée ou aujourd’hui, que leur condition de créneaux autorise maintenant (sans condition : toujours, dans les deux types d’espace) et dont les assignés ne sont pas pris par un évènement (rafraîchi chaque minute, calculé seulement quand la vue s’en sert : son filtre, son tri, son regroupement ou la colonne « Faisable maintenant » affichée).
 - « Catégorie de statut » : « À faire », « En cours », « Terminé », « Annulé ».
 - Les valeurs archivées gardent leur libellé et ne sont proposées que si elles sont déjà dans le filtre.
 

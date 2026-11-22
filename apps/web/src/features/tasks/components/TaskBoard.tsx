@@ -21,7 +21,7 @@ import { useCommentCounts } from '../../comments/api';
 import { commentTotal } from '../../comments/lib/comment-column';
 import { useShoppingLists } from '../../shopping/api';
 import { useBulkTaskMutations, useMoveTask, useTaskColumnDefaults, useTasksData, type BulkChanges, type Task } from '../api';
-import { eventRowKey, filterUses, isArchivedTaskRow, taskTableRows, type TaskTableRow } from '../lib/task-columns';
+import { eventRowKey, viewUses, isArchivedTaskRow, taskTableRows, type TaskTableRow } from '../lib/task-columns';
 import { useTaskColumns } from '../hooks/use-task-columns';
 import { TaskStateIcon } from './task-ui';
 import { useTaskActions } from '../hooks/use-task-actions';
@@ -154,7 +154,7 @@ export function TaskBoard({ projectId, projectIds, createProjectId, header, empt
     'EVENT',
     eventRows.map((row) => (row.kind === 'event' ? row.event.key : '')),
   );
-  const columns = useTaskColumns(context, today, { doable: filterUses(views.config?.filter, 'doableNow'), eventComments });
+  const columns = useTaskColumns(context, today, { doable: viewUses(views.config, 'doableNow'), eventComments });
   const rows = useMemo(() => (showEvents ? [...tasks, ...eventRows] : tasks), [showEvents, tasks, eventRows]);
   const view = useDataView({
     tableKey: 'tasks',

@@ -11,7 +11,7 @@ import { useMemo } from 'react';
 import { Link } from 'react-router';
 import { useAlarms } from '../../alarms/api';
 import type { Task } from '../../tasks/api';
-import { filterUses, isArchivedTaskRow, taskTableRows, type TaskTableRow } from '../../tasks/lib/task-columns';
+import { isArchivedTaskRow, viewUses, taskTableRows, type TaskTableRow } from '../../tasks/lib/task-columns';
 import { useTaskColumns } from '../../tasks/hooks/use-task-columns';
 import { useDefaultTableView, useViewRows } from '../../../components/data-table/views/use-default-view';
 import { viewPath } from '../../../components/data-table/views/use-saved-views';
@@ -43,7 +43,7 @@ interface TasksCardProps {
 export function TasksCard({ context, todayTasks, today }: TasksCardProps) {
   const link = useTaskLink();
   const { view, isPending } = useDefaultTableView('tasks');
-  const columns = useTaskColumns(context, today, { doable: filterUses(view?.config.filter, 'doableNow') });
+  const columns = useTaskColumns(context, today, { doable: viewUses(view?.config, 'doableNow') });
   const rows = useMemo(() => taskTableRows(context?.tasks ?? []), [context]);
   const shown = useViewRows({ view, columns, rows, archived: isArchivedTaskRow });
   const list = useMemo(() => {
