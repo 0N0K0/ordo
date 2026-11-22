@@ -82,11 +82,11 @@ Interne : `LabelDocuments` (documents CRUD par type de libellé), `useTasksMutat
   - `TaskDetail({ task, context })` : en-tête (badges GitHub / archivée, « Fermer la tâche » / « Rouvrir » — `useTaskActions().close`, toast avec « Annuler » comme le menu et la sélection —, « Renommer » via `openLabelForm`, menu `useTaskActions`), description (`TaskDescription`), liens (`TaskLinks`), lieu (`TaskLocation`) et rappels (`TaskReminders`) puis temps morts (`DeadTimesField`, `taskCountdownItem`) et minuteurs enregistrés (`SavedCountdownsField`, `TASK`), dans la colonne de propriétés, sous-tâches, commentaires (`TaskComments`), colonne de propriétés (projet → transfert avec confirmation, libellés, assignés, étiquettes, bénéficiaires, effort, `TaskTime`, dates, parent, jalon, sprints, `SlotRuleInput`, liens, `TaskAlarms`, `TaskShopping`, `SheetsSection`). Chaque champ est enregistré dès qu’il change ; l’effort en le quittant (`useFieldSave` sur `effortFormSchema`, enregistré aussi à la fermeture du panneau) ; `SaveStatus` en tête de la colonne de propriétés (`updateTask`, transfert ou effort en cours). `Fieldset` désactivé sur une tâche archivée.
   - `LinkList({ label, tasks, candidates, context, onAdd, onRemove })` : liste « Bloque » / « Dépend de » / « Relative à » avec « Retirer » et « Ajouter une tâche » (`TaskSelect`).
 
-- Champs hérités (projet, priorité, assignés, bénéficiaires, « Ouverture », « Échéance », jalon, créneaux, lieu) dans `InheritedField` : grisés « Hérité de … », « Vider », « Rétablir l’héritage » (`taskFieldState`).
+- Champs hérités (projet, priorité, assignés, bénéficiaires, « Ouverture », « Échéance », jalon, créneaux, horaires — `TaskHoursField` —, lieu) dans `InheritedField` : grisés « Hérité de … », « Vider », « Rétablir l’héritage » (`taskFieldState`).
 
 ### `components/TaskCreateForm.tsx`
 
-- `TaskCreateForm({ context, defaults?, onDone })` : formulaire « Nouvelle tâche » (schéma `taskFormSchema`), lieu (`EventLocation`) et liens (`LinksField`) compris. `defaults` : projet et parent présélectionnés. Changer de projet retire parent, jalon et sprints d’une autre arborescence. Une sous-tâche hérite de son parent : les valeurs du parent montrées grisées (`InheritedField`, `formInheritance` sur les clés `FORM_COLUMNS`, interne `parentValues`), la liste des champs encore hérités envoyée (`inheritedFields`) ; choisir un autre parent reprend les siennes, n’en choisir aucun ne garde que les valeurs. Après création : toast et ouverture de la tâche (`useTaskLink`). Ouvert par `useTaskActions().create`.
+- `TaskCreateForm({ context, defaults?, onDone })` : formulaire « Nouvelle tâche » (schéma `taskFormSchema`), lieu (`EventLocation`), liens (`LinksField`) et horaires (`TaskHoursField`, hérités comme la condition de créneaux) compris. `defaults` : projet et parent présélectionnés. Changer de projet retire parent, jalon et sprints d’une autre arborescence. Une sous-tâche hérite de son parent : les valeurs du parent montrées grisées (`InheritedField`, `formInheritance` sur les clés `FORM_COLUMNS`, interne `parentValues`), la liste des champs encore hérités envoyée (`inheritedFields`) ; choisir un autre parent reprend les siennes, n’en choisir aucun ne garde que les valeurs. Après création : toast et ouverture de la tâche (`useTaskLink`). Ouvert par `useTaskActions().create`.
 
 ### `components/TaskLinks.tsx`
 
@@ -99,6 +99,11 @@ Interne : `LabelDocuments` (documents CRUD par type de libellé), `useTasksMutat
 ### `components/TaskReminders.tsx`
 
 - `TaskReminders({ value, minDate, deadline, onChange, error?, disabled? })` : « Rappels » d'une tâche, dans « Nouvelle tâche » (`TaskCreateForm`) et le panneau (`TaskDetail`, enregistré à chaque changement) : `RemindersSelect` en « À HH:MM » et « N jours avant » l’échéance (`kinds={['at', 'days']}`, `day` vide ; une ligne par rappel, case « Chaque jour » : `dayLabel`), aide selon « Ouverture » / « Échéance », désactivé sans échéance.
+
+### `components/TaskHoursField.tsx`
+
+- `TaskHoursField({ value, onChange, readOnly? })` : « Horaires » d'une tâche, dans « Nouvelle tâche » et le panneau : `RepetitionField` (résumé `describeScheduleCase`, « N’importe quand » sans horaires, `valid` = `taskHoursSchema`), la fenêtre étant l’éditeur des cas d’un créneau (`ScheduleCases`, `newScheduleCase`).
+- Interne `TaskHoursEditor({ draft, setDraft, start })` : `ScheduleCases`, première erreur de `taskHoursSchema` (`Input.Error`), « Retirer les horaires » ; sans horaires : « Aucun horaire : la tâche est faisable à n’importe quelle heure. » et « Ajouter des horaires ».
 
 ### `components/TaskLocation.tsx`
 
@@ -211,7 +216,7 @@ Internes : `NEW_LABEL_TITLES`, `useLabelCreator(kind)` (ouvre le formulaire du l
 
 ### `components/ColumnDefaults.tsx`
 
-- `ColumnDefaults()` : section « Colonnes des nouvelles vues » : `DataColumnsPanel` sur les colonnes des tâches, enregistrement par `useSetTaskColumnDefaults`, bouton « Colonnes de l’app ».
+- `ColumnDefaults()` : section « Colonnes des nouvelles vues » : `DataColumnsPanel` sur les colonnes des tâches, enregistrement par `useSetTaskColumnDefaults` ; « Colonnes par défaut » de `DataColumnsPanel` (liste vidée) enregistre `null` : les colonnes de l’app.
 
 ### `components/TaskFilterBuilder.tsx`
 

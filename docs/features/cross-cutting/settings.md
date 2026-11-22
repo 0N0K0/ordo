@@ -32,7 +32,7 @@ Page `/tasks` ; aussi dans l’onglet « Tâches » des paramètres d’un proje
 
 | Section                         | Ce qu’elle gère                                                                                                                                                                              |
 | ------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| « Colonnes des nouvelles vues » | Colonnes affichées et leur ordre (glisser-déposer) quand une vue de tâches est créée ; les vues existantes gardent les leurs. « Colonnes de l’app » revient aux colonnes par défaut.         |
+| « Colonnes des nouvelles vues » | Colonnes affichées et leur ordre (glisser-déposer) quand une vue de tâches est créée ; les vues existantes gardent les leurs. « Colonnes par défaut » (sous la liste) revient aux colonnes de l’app.         |
 | « Statuts de tâche »            | Statuts, chacun avec sa catégorie (badge). La catégorie donne son sens au statut (filtres, tâches « en cours » de l’accueil) ; c’est l’état ouvert / fermé qui dit si la tâche est terminée. |
 | « Priorités »                   | Priorités ; leur ordre est celui des listes et du tri par priorité.                                                                                                                          |
 | « Types de tâche »              | Bug, fonctionnalité, amélioration…                                                                                                                                                           |
