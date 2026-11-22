@@ -185,8 +185,9 @@ type InheritedValues = Pick<EffectiveTask, 'priorityId' | 'milestoneId' | 'deadl
 
 /**
  * Values a task goes by for the synchronized fields it may inherit: its own, or its parent's while it inherits them
- * (`effectiveTask`). Its « Échéance » only when it is its own or its parent's: the one it takes from its milestone, its
- * project or its sprint is not sent (GitHub knows the date of the milestone).
+ * (`effectiveTask`). Its « Échéance » only when it was typed on a task, its own or one of its parents' (`typedDeadline`):
+ * the one taken from a milestone, a project or a sprint, even by a parent, is not sent (GitHub knows the date of the
+ * milestone).
  * @param {SyncedTask} task Task.
  * @param {Maps} maps Correspondences (inheritance).
  * @returns {InheritedValues} Values.
@@ -194,8 +195,24 @@ type InheritedValues = Pick<EffectiveTask, 'priorityId' | 'milestoneId' | 'deadl
 function inheritedValues(task: SyncedTask, maps: Maps): InheritedValues {
   const effective = effectiveTaskOf(maps.inheritance, task.id);
   if (!effective) return { priorityId: task.priorityId, milestoneId: task.milestoneId, deadline: formatOptionalDay(task.deadline), assigneeIds: task.assignees.map((assignee) => assignee.id) };
-  const { source } = taskFieldOrigin(effective, 'DEADLINE');
-  return { ...effective, deadline: source === 'OWN' || source === 'PARENT' ? effective.deadline : null };
+  return { ...effective, deadline: typedDeadline(effective, maps) ? effective.deadline : null };
+}
+
+/**
+ * Whether the « Échéance » a task goes by was typed on a task: its own, or its parent's up the chain while it inherits
+ * it; not one taken from a milestone, a project or a sprint, even by its parent.
+ * @param {EffectiveTask} effective Effective task.
+ * @param {Maps} maps Correspondences (inheritance).
+ * @param {Set<string>} [seen] Tasks already on the way (cycles stop). Optional.
+ * @returns {boolean} Typed on a task.
+ */
+function typedDeadline(effective: EffectiveTask, maps: Maps, seen = new Set<string>()): boolean {
+  const { source, sourceId } = taskFieldOrigin(effective, 'DEADLINE');
+  if (source === 'OWN') return true;
+  if (source !== 'PARENT' || !sourceId || seen.has(sourceId)) return false;
+  seen.add(sourceId);
+  const parent = effectiveTaskOf(maps.inheritance, sourceId);
+  return Boolean(parent && typedDeadline(parent, maps, seen));
 }
 
 /**
