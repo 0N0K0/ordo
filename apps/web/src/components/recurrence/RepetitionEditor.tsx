@@ -3,7 +3,7 @@ import { Group, SegmentedControl, Stack, Text } from '@mantine/core';
 import { DatePickerInput } from '@mantine/dates';
 import { DEFAULT_RECURRENCE, ONE_DAY, withRuleValues, type DurationUnit, type Recurrence, type RepetitionCase } from '@ordo/shared';
 
-import type { ReactNode } from 'react';
+import { useState, type ReactNode } from 'react';
 import { CaseCard } from './CaseCard';
 import { describeCase } from './describe-recurrence';
 import { DurationFields } from './DurationFields';
@@ -91,6 +91,8 @@ function CaseFields<T>({
   props: RepetitionEditorProps<T>;
 }) {
   const asksStart = props.caseStart?.needed(item) ?? false;
+  // Its error once the field is left (validated on blur, then on every change).
+  const [startLeft, setStartLeft] = useState(false);
   // Its rhythm counts from the day chosen when one is asked.
   const ruleStart = asksStart && item.anchor ? item.anchor : item.since && item.since > start ? item.since : start;
   // Its rhythm counts from its first day.
@@ -112,7 +114,9 @@ function CaseFields<T>({
           placeholder="À choisir"
           value={item.anchor}
           onChange={(anchor) => onChange({ anchor })}
-          error={item.anchor ? undefined : props.caseStart?.message}
+          onBlur={() => setStartLeft(true)}
+          onDropdownClose={() => setStartLeft(true)}
+          error={startLeft && !item.anchor ? props.caseStart?.message : undefined}
         />
       )}
       <RecurrenceEditor
