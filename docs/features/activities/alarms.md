@@ -18,7 +18,8 @@ Route `PAGES.alarms.path` = `/alarms`, composant `AlarmsPage`. Contenu centré, 
 
 - En-tête « Alarmes » avec « Nouvelle alarme » (désactivé tant que le contexte des tâches n’est pas chargé).
 - Tant que le navigateur n’a ni autorisé ni refusé les notifications : encart « Notifications du navigateur » (« Autorisez-les pour voir les alarmes même quand l’onglet d’Ordo n’est pas au premier plan. ») avec « Autoriser les notifications ».
-- Section « Minuteurs » : les minuteurs en cours (voir plus bas), « Aucun minuteur en cours. », « Lancer un minuteur ».
+- Section « Minuteurs » : les minuteurs en cours (voir plus bas), « Aucun minuteur en cours. », « Lancer un minuteur », un bouton par minuteur enregistré de l’espace (« Œufs durs (9 min) », lancé en un clic) et « Minuteurs enregistrés » (les réglages de la page).
+- Réglages de la page (⚙ de l’en-tête, « Paramètres des alarmes ») : la liste « Minuteurs enregistrés » (voir plus bas).
 - Section « Alarmes » : chargement : squelette de liste. Vide : « Aucune alarme. ». Liste des alarmes, triées par date, heure puis création : une carte par alarme.
 
 ### Carte d’une alarme
@@ -54,10 +55,10 @@ Modifier la programmation d’une alarme repart de zéro : les occurrences déj�
 
 Un minuteur compte à rebours une durée et sonne à sa fin, par la sonnerie commune (voir [Ce qui sonne](#ce-qui-sonne)). Plusieurs tournent à la fois ; ils sont à l’utilisateur, les mêmes dans tous ses espaces et sur tous ses appareils (gardés par l’API). Ce n’est pas du temps passé.
 
-- **Lancer** : « Ajouter › Minuteur », « Lancer un minuteur » (page « Alarmes », liste de l’en-tête, carte « Chrono et alarmes » de l’accueil) : panneau « Nouveau minuteur » (`CountdownForm`) : « Nom » (facultatif, « Minuteur » par défaut), « Durée » (requise : « 10 », « 1:30 », « 1h30 », « 1,5 h » ; « Durée attendue : 1:30, 1h30, 90 (minutes) ou 1,5 h. »), durées proposées en un clic (1, 3, 5, 10, 15, 30 min, 1 h), « Sonnerie » (« Celle des réglages » par défaut, `RingtoneSelect`), bouton « Lancer » ; toast « Minuteur lancé : 10 min. ».
+- **Lancer** : « Ajouter › Minuteur », « Lancer un minuteur » (page « Alarmes », liste de l’en-tête, carte « Chrono et alarmes » de l’accueil) : panneau « Nouveau minuteur » (`CountdownForm`) : « Minuteur enregistré » (quand l’espace en a : reprend son nom, sa durée et sa sonnerie ; « Aucun » pour les taper), « Nom » (facultatif, « Minuteur » par défaut), « Durée » (requise : « 10 », « 1:30 », « 1h30 », « 1,5 h » ; « Durée attendue : 1:30, 1h30, 90 (minutes) ou 1,5 h. »), durées proposées en un clic (1, 3, 5, 10, 15, 30 min, 1 h), « Sonnerie » (« Celle des réglages » par défaut, `RingtoneSelect`, avec « Écouter »), bouton « Lancer » ; toast « Minuteur lancé : 10 min. ». Les mêmes listes (page « Alarmes », en-tête, accueil) lancent aussi chaque minuteur enregistré en un clic (« Œufs durs (9 min) »), et mènent à leurs réglages (« Minuteurs enregistrés »).
 - **En-tête** (`CountdownWidget`, pas sur téléphone) : point orange, le nom du minuteur qui sonnera le premier (ou « 2 minuteurs ») et son temps restant `0:09:58` ; clic : la liste des minuteurs.
-- **Un minuteur** (`CountdownRow`) : nom, son élément (temps mort), temps restant en direct et barre de progression ; « Pause » / « Reprendre », « + 1 min », « + 5 min », « Annuler » (croix, sans confirmation : rien de durable n’est perdu ; toast « Minuteur annulé. »).
-- **À la fin** : il sonne comme une alarme : titre = son nom, « Minuteur de 10 min terminé », son élément et un lien vers lui (« Projet #12 Libellé », « Voir les routines ») ; « Arrêter », « Répéter dans N min ». Il quitte alors la liste.
+- **Un minuteur** (`CountdownRow`) : nom, son élément (temps mort, minuteur enregistré lancé depuis un élément), temps restant en direct et barre de progression ; « Pause » / « Reprendre », « + 1 min », « + 5 min », « Annuler » (croix, sans confirmation : rien de durable n’est perdu ; toast « Minuteur annulé. »).
+- **À la fin** : il sonne comme une alarme : titre = son nom, « Minuteur de 10 min terminé », son élément et un lien vers lui (« Projet #12 Libellé », « Voir les routines », « Voir l’agenda », « Ouvrir la fiche ») ; « Arrêter », « Répéter dans N min ». Il quitte alors la liste.
 
 ### Temps morts
 
@@ -65,6 +66,14 @@ Une tâche ou une routine a des **temps morts** : des attentes pendant lesquelle
 
 - **Champ « Temps morts »** (`DeadTimesField`) du panneau d’une tâche (colonne de droite, après « Rappels ») et d’une routine (après « Temps à y consacrer ») : une ligne par temps mort : libellé (« Le libellé est requis. »), durée estimée (« 1:30 » ; « Durée attendue : … »), « Sonnerie » ; « Lancer » (icône minuteur ; « Enregistrez d’abord l’élément. » sur une nouvelle routine), « Retirer » ; « Ajouter un temps mort » (30 min par défaut ; 20 au plus). Chaque temps mort s’enregistre dès qu’il est valide, en quittant ses champs ; un temps mort laissé invalide garde son erreur et retient l’enregistrement. Les minuteurs lancés pour l’élément s’affichent dessous, avec leurs commandes.
 - **Lancer** : « Lancer » d’une ligne, le menu « … » d’une tâche (tableau, panneau) ou d’une routine (tableau : son occurrence en cours ; panneau : celle ouverte), section « Temps morts » : « Lancer « Lave-linge (1 h 30) » » ; l’agenda du jour des routines (panneau d’un moment : un bouton par temps mort, pour cette occurrence). Tous ouvrent « Lancer un temps mort · Lessive » : le formulaire du minuteur prérempli (nom, durée, sonnerie du temps mort, durée modifiable ; « Temps mort » pour en choisir un autre de l’élément).
+
+### Minuteurs enregistrés
+
+Des minuteurs prêts à relancer (« Œufs coques », « Œufs durs », « Lessive », « Lave-vaisselle »), **propres à chaque espace**. Les temps morts restent à côté : une attente propre à une tâche ou une routine.
+
+- **Liste** « Minuteurs enregistrés » dans les réglages de la page « Alarmes » (⚙, ou « Minuteurs enregistrés » des listes de minuteurs) : une liste de réglages comme les autres (« Ajouter », « Modifier », glisser pour réordonner, « Archiver » / « Restaurer » dans « … », « Supprimer » après confirmation : « « Œufs durs » sera supprimé définitivement et retiré des tâches, routines, évènements et fiches qui le lancent ; les minuteurs en cours continuent. »), sa durée en badge. Formulaire : « Nom » (« Œufs durs, lessive, lave-vaisselle… » ; « Un minuteur porte déjà ce nom. »), couleur, image, « Durée » (requise, « 9 », « 1:30 », « 1h30 », « 1,5 h »), « Sonnerie » (« Celle des réglages » par défaut, avec « Écouter ») ; un minuteur existant s’enregistre champ par champ.
+- **Lancer** en un clic : depuis la liste des minuteurs (page « Alarmes », en-tête, accueil), « Ajouter › Minuteur » (« Minuteur enregistré » du formulaire), et depuis les éléments qui le citent ; toast « Minuteur lancé : 9 min. ». Un minuteur enregistré archivé n’est plus proposé.
+- **Éléments** : une tâche (panneau, colonne de droite, après « Temps morts »), une routine (après « Temps morts »), un évènement (pour toute la série) et une fiche (sur sa page, après « Note ») ont un champ « Minuteurs » (« Minuteurs enregistrés lancés depuis son menu « … ». » ; « Enregistrez d’abord l’élément. » sur une nouvelle routine), enregistré dès qu’il change. Leur menu « … » (ligne et panneau d’une tâche ou d’une routine, panneau d’un évènement, page d’une fiche) a une section « Minuteurs » : « Lancer « Œufs durs (9 min) » » démarre aussitôt le minuteur, rattaché à l’élément (la routine : son occurrence en cours, ou celle ouverte ; l’évènement : l’occurrence ouverte) ; l’agenda du jour des routines a un bouton par minuteur, comme pour les temps morts. Les liens sont copiés par « Dupliquer » et gardés par la transformation tâche ↔ routine.
 
 ## Alarmes d’une tâche
 
@@ -87,7 +96,7 @@ Sans réponse, la sonnerie se tait à la fin de sa durée ; avec une répétitio
 
 ### Réglages de la sonnerie
 
-Dans « Mon compte », section « Sonnerie des alarmes », pour tous les espaces : durée, boucle, répétition, sonnerie (avec « Écouter »), « Sonner hors de l’app » et ses appareils (voir [Mon compte](../cross-cutting/account.md)). Six sonneries générées par l’app : Carillon, Bip, Marimba, Cloche, Réveil, Harpe.
+Dans « Mon compte », section « Sonnerie des alarmes », pour tous les espaces : durée, boucle, répétition, sonnerie (avec « Écouter », comme partout où une sonnerie se choisit : rappels, minuteurs, temps morts, minuteurs enregistrés), « Sonner hors de l’app » et ses appareils (voir [Mon compte](../cross-cutting/account.md)). Six sonneries générées par l’app : Carillon, Bip, Marimba, Cloche, Réveil, Harpe.
 
 ### Hors de l’app (notifications push)
 

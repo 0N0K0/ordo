@@ -1,6 +1,7 @@
 import { Group } from '@mantine/core';
 import { TimerIcon } from '@phosphor-icons/react';
 import { ActionButton } from '../../../components/actions/ActionButton';
+import { taggedKey } from '../../../lib/tagged-key';
 import { useItemLaunchers, type ItemLaunchers } from '../hooks/use-saved-countdowns';
 import type { CountdownItem } from '../lib/countdowns';
 
@@ -13,7 +14,7 @@ import type { CountdownItem } from '../lib/countdowns';
  */
 export function CountdownLaunchButtons({ item, ...launchers }: ItemLaunchers & { item: CountdownItem }) {
   const { deadTimes, saved } = useItemLaunchers()(launchers, item);
-  const all = [...deadTimes.map((launcher) => ({ ...launcher, key: `dead:${launcher.label}` })), ...saved.map((launcher) => ({ ...launcher, key: `saved:${launcher.label}` }))];
+  const all = [...deadTimes.map((launcher) => ({ ...launcher, key: taggedKey('dead', launcher.label) })), ...saved.map((launcher) => ({ ...launcher, key: taggedKey('saved', launcher.label) }))];
   if (!all.length) return null;
   return (
     <Group gap="xs">

@@ -55,7 +55,7 @@ Une ligne est envoyée (`onChange`, `Reminder[]` dans l'ordre enregistré, `norm
 
 ### `RingtoneSelect`
 
-La sonnerie de ce qui sonne (un rappel dans « Sonneries » de `RemindersSelect`, un temps mort, un minuteur), la même partout : « Celle des réglages » en tête, puis les sonneries de la banque (`RINGTONES`). Props : celles d’un `Select` sans `data`, `value` (`RingtoneId | null` : null = celle des réglages), `onChange(ringtone | null)`. Garde eslint : `RINGTONES` ne s’importe que dans `RingtoneSelect` et `RingSettingsForm` (le choix des réglages, sans « Celle des réglages »).
+La sonnerie de ce qui sonne (un rappel dans « Sonneries » de `RemindersSelect`, un temps mort, un minuteur, un minuteur enregistré, les réglages de « Mon compte »), la même partout : « Celle des réglages » en tête, puis les sonneries de la banque (`RINGTONES`) ; au début du champ, « Écouter » (icône lecture, `IconAction` « Écouter « Carillon » ») joue une fois la sonnerie choisie (`previewRingtone` de `lib/alarm-sound.ts` ; « Celle des réglages » : celle des réglages de l’utilisateur), utilisable même champ désactivé. Props : celles d’un `Select` sans `data` ni `leftSection`, `value` (`RingtoneId | null` : null = celle des réglages), `onChange(ringtone | null)`, `withSettings` (défaut oui ; non : la banque seule, pour les réglages eux-mêmes). Gardes eslint : `RINGTONES` ne s’importe que dans `RingtoneSelect` ; `previewRingtone` ne s’importe pas ailleurs.
 
 ### `reminder-presets.ts`
 

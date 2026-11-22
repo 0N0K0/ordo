@@ -50,7 +50,7 @@ Bouton « Modifier le mot de passe ». Toast « Mot de passe modifié. Vos autre
 | « Durée de la sonnerie » | 1 à 30 min (défaut 1) : combien de temps une alarme sonne si on ne l’arrête pas            |
 | « Répéter toutes les »   | 0 à 60 min (défaut 5) ; aide « Jusqu’à « Arrêter » ; 0 : pas de répétition. »               |
 | « En boucle »            | interrupteur (défaut oui) ; aide « La sonnerie se répète pendant toute sa durée ; sinon elle sonne une fois. » |
-| « Sonnerie »             | Carillon (défaut), Bip, Marimba, Cloche, Réveil, Harpe ; bouton « Écouter » qui la joue    |
+| « Sonnerie »             | Carillon (défaut), Bip, Marimba, Cloche, Réveil, Harpe ; « Écouter » (au début du champ) la joue |
 | « Sonner hors de l’app » | interrupteur (défaut non) : notifications push sur les appareils ajoutés, app fermée (ci-dessous) |
 
 ### Sonner hors de l’app

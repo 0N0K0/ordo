@@ -47,6 +47,9 @@ import { SheetUseForm } from '../components/SheetUseForm';
 import { countOf, plural, sameName } from '../../../lib/text';
 import { FormActions } from '../../../components/dialogs/FormActions';
 import { DetailHeader } from '../../../components/page/DetailHeader';
+import { SavedCountdownsField } from '../../countdowns/components/SavedCountdownsField';
+import { useCountdownMenuEntries } from '../../countdowns/hooks/use-saved-countdowns';
+import { sheetCountdownItem } from '../lib/sheet-countdowns';
 import { deleteSheetsAction } from '../lib/delete-sheets';
 
 type ItemChange = Partial<Omit<SheetItemInput, 'id'>>;
@@ -107,7 +110,8 @@ const sheetValues = (sheet: SheetDetail): SheetValues => sheetInput(sheet, {});
 
 /**
  * Name, project, categories and note of a sheet, each saved as soon as it changes (the texts on leaving them,
- * `useFieldSave`, `SaveStatus`), the sheet of the cache followed; read only when it is archived.
+ * `useFieldSave`, `SaveStatus`), the sheet of the cache followed; read only when it is archived. Its saved timers
+ * (« Minuteurs », saved on their own).
  * @param {{ sheet: SheetDetail }} props Sheet.
  * @returns {JSX.Element} Fields.
  */
@@ -151,6 +155,7 @@ function SheetFields({ sheet }: { sheet: SheetDetail }) {
             />
           </SimpleGrid>
           <Textarea label="Note" autosize minRows={1} maxRows={8} readOnly={sheet.archived} {...form.getInputProps('note')} value={form.values.note ?? ''} />
+          <SavedCountdownsField target="SHEET" id={sheet.id} value={sheet.savedCountdownIds} invalidate={[sheetsKey]} readOnly={sheet.archived} />
         </Stack>
       </form>
     </Paper>
@@ -170,6 +175,7 @@ export function SheetPage() {
   const { data: shopping } = useShoppingData();
   const mutations = useSheetMutations();
   const setArchived = useSetArchived('SHEET', [sheetsKey]);
+  const countdownEntries = useCountdownMenuEntries();
   const products = shopping?.shoppingProducts ?? [];
   // The archived references are not offered (but the current one).
   const offeredProducts = unarchived(products);
@@ -291,6 +297,8 @@ export function SheetPage() {
               rowMenuEntry(duplicateRowsAction([sheet], { duplicate: (source) => mutations.duplicate.mutateAsync(source.id), done: 'Fiche dupliquée.', open: (copy) => void navigate(sheetPath(copy)) })),
             archiveEntry({ archived: sheet.archived, type: 'Fiche', label: sheet.label, feminine: true }, setArchived, sheet.id),
             remove,
+            // « Lancer » its saved timers.
+            ...(sheet.archived ? [] : countdownEntries(sheet, sheetCountdownItem(sheet))),
           ],
         }}
       />

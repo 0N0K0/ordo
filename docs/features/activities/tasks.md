@@ -111,7 +111,7 @@ Grouper par : état, projet (en arbre), statut, priorité, type, assignés, bén
 
 - « Ouvrir » (panneau latéral).
 - « Ajouter une sous-tâche » (pas sur une tâche archivée).
-- « Dupliquer », « Transférer », « Héritage… » (une sous-tâche), « Transformer en routine », « Archiver », « Supprimer » ; puis, avec des temps morts, la section « Temps morts » : « Lancer « Lave-linge (1 h 30) » » ; sur une tâche archivée : « Restaurer », « Supprimer ». Le même menu est celui du panneau d’une tâche (« … »).
+- « Dupliquer », « Transférer », « Héritage… » (une sous-tâche), « Transformer en routine », « Archiver », « Supprimer » ; puis, avec des temps morts, la section « Temps morts » : « Lancer « Lave-linge (1 h 30) » » ; avec des minuteurs enregistrés, la section « Minuteurs » : « Lancer « Œufs durs (9 min) » » (aussitôt) ; sur une tâche archivée : « Restaurer », « Supprimer ». Le même menu est celui du panneau d’une tâche (« … »).
 
 ### Transformer en routine
 
@@ -189,6 +189,7 @@ Colonne de propriétés (chaque champ enregistré dès qu’il change ; « Enreg
 - « Tâche parente », « Jalon », « Sprints », créneaux ;
 - « Rappels » : à une heure seulement (pas d’« avant » : une tâche n’a pas d’heures), dans l’éditeur en lignes commun : « Chaque jour » à une heure, ou « N jours avant » l’échéance à une heure (30 jours au plus, une fois) ; 10 au plus ; aide « Chaque jour de l’ouverture à l’échéance, à ces heures ; ou quelques jours avant l’échéance. » (« Le jour de l’échéance, à ces heures ; ou quelques jours avant. » sans ouverture) ; désactivé sans échéance (« Donnez-lui une échéance pour recevoir des rappels. ») ;
 - « Temps morts » : attentes de la tâche (« Lave-linge », 1 h 30) avec leur sonnerie, chacune lançable en minuteur ; les minuteurs lancés pour la tâche dessous (voir [Alarmes](alarms.md#temps-morts)) ;
+- « Minuteurs » : minuteurs enregistrés de l’espace que la tâche lance (son menu « … »), enregistrés dès qu’ils changent (voir [Alarmes](alarms.md#minuteurs-enregistrés)) ;
 - « Lieu » : enregistré au choix d’une adresse proposée ou d’un clic sur la carte, quand le texte est vidé, ou à la sortie du champ pour un texte libre ;
 - « Bloque », « Dépend de », « Relative à » : listes avec « Retirer » et « Ajouter une tâche » ;
 - alarmes de la tâche ([Alarmes](alarms.md)), listes d’achats ([Achats](../supplies/shopping.md)), fiches ([Fiches](../supplies/sheets.md)).

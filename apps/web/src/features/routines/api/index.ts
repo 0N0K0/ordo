@@ -424,6 +424,7 @@ function draftRoutine(input: RoutineInput, routines: readonly Routine[]): Routin
     moments: input.moments ?? [],
     reminders: readReminderOutputs(input.reminders),
     deadTimes: input.deadTimes.map((deadTime) => ({ ...deadTime, ringtone: deadTime.ringtone ?? null })),
+    savedCountdownIds: [],
     reminderOccurrences: [],
     cases: input.cases ?? [],
     moves: [],

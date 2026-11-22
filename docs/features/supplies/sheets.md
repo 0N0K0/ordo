@@ -36,8 +36,8 @@ Suppression (dialogue de confirmation) : « La fiche « … » et ses 3 élémen
 
 - En-tête : retour « Fiches », titre, badge « Archivée », sous-titre « 3 éléments · rattachée à 2 routines, évènements ou tâches ».
 - Action « Utiliser cette fiche » (pas si archivée).
-- Menu : « Dupliquer » (ouvre la copie), « Archiver » / « Restaurer », « Supprimer » (retour à la liste).
-- Champs enregistrés chacun dès qu'il change (les textes en les quittant) : « Libellé » (requis, 250 caractères au plus ; vide, l'erreur s'affiche dessous et rien n'est enregistré), « Projet » (« Aucun : fiche de l'espace »), « Catégories », « Note » (texte multiligne, 4 000 caractères au plus). « Enregistrement… » puis « Enregistré » au-dessus ; un échec remet le champ comme il était, dans un toast d'erreur ; un champ changé ailleurs est repris. En lecture seule si la fiche est archivée.
+- Menu : « Dupliquer » (ouvre la copie), « Archiver » / « Restaurer », « Supprimer » (retour à la liste) ; avec des minuteurs enregistrés (fiche non archivée), section « Minuteurs » : « Lancer « Œufs durs (9 min) » » démarre aussitôt le minuteur, rattaché à la fiche (sa sonnerie : « Ouvrir la fiche »).
+- Champs enregistrés chacun dès qu'il change (les textes en les quittant) : « Libellé » (requis, 250 caractères au plus ; vide, l'erreur s'affiche dessous et rien n'est enregistré), « Projet » (« Aucun : fiche de l'espace »), « Catégories », « Note » (texte multiligne, 4 000 caractères au plus), « Minuteurs » (minuteurs enregistrés de l’espace que la fiche lance, voir [Alarmes](../activities/alarms.md#minuteurs-enregistrés) ; enregistrés à part, dès qu’ils changent). « Enregistrement… » puis « Enregistré » au-dessus ; un échec remet le champ comme il était, dans un toast d'erreur ; un champ changé ailleurs est repris. En lecture seule si la fiche est archivée.
 - Fiche introuvable : page « Cette fiche » introuvable, avec un retour vers « Fiches ».
 
 ### Tableau des éléments

@@ -57,6 +57,7 @@ Source : `apps/api/src/services/calendar/calendar-events.ts`, schéma `calendarE
 | `categoryIds`                                                               | 50 max                                                                                   | —                                                                                               |
 | `taskIds`                                                                   | 50 max                                                                                   | « 50 tâches maximum. »                                                                          |
 | `routineLinks`                                                              | 200 max, `{ routineId, date }`                                                           | —                                                                                               |
+| `savedCountdownIds` | Minuteurs enregistrés de l’espace que l’évènement lance, pour toute la série (20 au plus) ; pas dans l’entrée de l’évènement : `setSavedCountdownLinks` (voir [Alarmes](alarms.md#minuteurs-enregistrés)) ; gardés par la nouvelle série d’une coupure et par un report | « 20 minuteurs au plus. » |
 
 ### Règles appliquées par le service (`parseEvent`)
 
@@ -110,7 +111,7 @@ Report (`postponeCalendarEvent`) :
 
 - crée un évènement unique (répétition supprimée) avec les champs donnés, lié par `postponedFromId` et `postponedFromDate` (l’occurrence d’origine) ;
 - puis annule l’occurrence d’origine (`THIS`) ;
-- les commentaires et les temps de l’occurrence d’origine passent au report.
+- les commentaires et les temps de l’occurrence d’origine passent au report ; le report garde les minuteurs enregistrés de l’évènement.
 - Supprimer l’évènement d’origine remet le lien du report à vide (`onDelete: SetNull`).
 
 ### Occurrences (`eventOccurrences`, `toOccurrence`)
