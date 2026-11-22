@@ -54,6 +54,9 @@ export const AUTH_PATHS = { login: '/login', forgotPassword: '/forgot-password',
 /** Overdue invoices: their tab of the billing. */
 export const OVERDUE_INVOICES_PATH = `${PAGES.accounting.path}?tab=overdue`;
 
+/** Automations of the tasks: their page, opened from the settings of the tasks. */
+export const TASK_AUTOMATIONS_PATH = `${PAGES.tasks.path}/automations`;
+
 /** GitHub settings: their tab of the settings. */
 export const GITHUB_SETTINGS_PATH = `${PAGES.settings.path}?tab=github`;
 

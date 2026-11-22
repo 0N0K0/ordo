@@ -30,6 +30,7 @@ Zone connectée : garde `RequireAuth` (`features/auth/pages/guards`), puis `AppL
 | -------------------------- | ---------------------- | -------------------------------------- |
 | `/`                        | `HomePage`             | Accueil                                |
 | `/tasks`                   | `TasksPage`            |                                        |
+| `/tasks/automations`       | `TaskAutomationsPage`  | Automatisations des tâches             |
 | `/time`                    | `TimePage`             | Chronos                                |
 | `/account`                 | `AccountPage`          | Mon compte                             |
 | `/alarms`                  | `AlarmsPage`           |                                        |
@@ -65,7 +66,7 @@ Toute autre adresse : `NotFoundPage`. Voir [Fonctionnalités : authentification]
 - `PAGES` : pages de l'application, un seul endroit pour leur adresse, leur nom (menu, en-tête, titre) et leur icône (menu) : `home` « Accueil » `/`, `tasks` « Tâches », `routines` « Routines », `calendar` « Agenda », `time` « Chronos », `alarms` « Alarmes », `shopping` « Achats », `sheets` « Fiches », `stock` « Inventaire », `accounting` « Facturation », `treasury` « Trésorerie », `mail` « Mails », `documents` « Documents », `dashboards` « Tableaux de bord », `settings` « Paramètres », `account` « Mon compte ». Clients et projets affichent leur propre nom. Les adresses de l’accueil, des tâches, des routines, de l’agenda, des alarmes et du compte viennent de `APP_PATHS` (`@ordo/shared` : ce sont aussi les liens des sonneries poussées par le serveur).
 - `PageKey` (type) : clé d'une page.
 - `AUTH_PATHS` : `login`, `forgotPassword`, `resetPassword`, `confirmEmail`.
-- `OVERDUE_INVOICES_PATH` (`/accounting?tab=overdue`), `GITHUB_SETTINGS_PATH` (`/settings?tab=github`), `SHOPPING_LISTS_PATH` (`/shopping?tab=lists`).
+- `OVERDUE_INVOICES_PATH` (`/accounting?tab=overdue`), `TASK_AUTOMATIONS_PATH` (`/tasks/automations`), `GITHUB_SETTINGS_PATH` (`/settings?tab=github`), `SHOPPING_LISTS_PATH` (`/shopping?tab=lists`).
 - `routeOf(path, sub?)` : route du routeur (adresse sans barre initiale, plus un sous-chemin : `accounting/:id`).
 - `pageOfPath(pathname)` : page d'un chemin par son premier segment (une sous-page appartient à sa page) ; `null` pour un client, un projet ou une page inconnue.
 - `PROJECT_ROUTE` (`/projects/:id`), `CLIENT_ROUTE` (`/clients/:id`) : routes, aussi pour `useMatch`.
@@ -94,7 +95,7 @@ Mise en page de la zone connectée (`AppShell` Mantine), une fois l'espace connu
   - à droite : `CountdownWidget` (minuteurs en cours) et `TimerWidget` (chronos en cours), pas sur téléphone, `SettingsButton`, `QuickActions`, puis le menu du compte (bouton tertiaire au nom d'utilisateur, ouvert au survol : « Mon compte », séparateur, « Me déconnecter »).
 - Barre latérale de navigation (`AppShell.Navbar` « Clients et projets ») : `Sidebar` de `features/projects` ; redimensionnable (`useResizablePanel` + `SIDEBAR_PANEL`, poignée `ResizeHandle` à droite, pas sur téléphone) ; état ouvert gardé dans `localStorage` (`ordo.sidebar.opened`, propre à chaque fenêtre) ; sur téléphone, tiroir fermé après chaque navigation. Un seul état ouvert pour les règles mobile et bureau (au point de rupture exact, Mantine applique les deux).
 - Réglages de page à droite (`AppShell.Aside`) : `SettingsAside` + `SettingsOverlay`, ouverts si le paramètre d'URL `settings=1` est présent et que la page a des réglages ; redimensionnables (`SETTINGS_PANEL`).
-- Services globaux montés dans la mise en page (ne rendent rien de visible hors toasts) : `AlarmCenter` (fait sonner les alarmes et les rappels des évènements, routines et tâches de l'espace ouvert), `ElsewhereNotifier` (notifications des autres espaces : alarmes, rappels, nouveaux mails, selon leurs réglages), `MailWatcher` (nouveaux mails de l'espace ouvert). `WorkspaceGate` n'affiche la zone qu'une fois l'espace connu et les requêtes de l'onglet épinglées à lui (`pinWorkspace`).
+- Services globaux montés dans la mise en page (ne rendent rien de visible hors toasts) : `AlarmCenter` (fait sonner les alarmes et les rappels des évènements, routines et tâches de l'espace ouvert), `ElsewhereNotifier` (notifications des autres espaces : alarmes, rappels, nouveaux mails, selon leurs réglages), `MailWatcher` (nouveaux mails de l'espace ouvert), `TaskAutomationToasts` (les automatisations des tâches appliquées par un changement, avec « Annuler »). `WorkspaceGate` n'affiche la zone qu'une fois l'espace connu et les requêtes de l'onglet épinglées à lui (`pinWorkspace`).
 - Contenu (`AppShell.Main`) : la page (`Outlet`, pleine largeur), puis `TaskPanel` (la tâche de `?task=…`, par-dessus toute page) et `SidePanelHost` (formulaires du panneau latéral).
 - Pendant un redimensionnement : `data-resizing` (curseur `col-resize`, pas de sélection ni d'animation).
 

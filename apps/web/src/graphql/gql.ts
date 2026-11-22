@@ -398,6 +398,11 @@ type Documents = {
     "\n  mutation UpdateShoppingDelivery($id: ID!, $input: ShoppingDeliveryInput!) {\n    updateShoppingDelivery(id: $id, input: $input)\n  }\n": typeof types.UpdateShoppingDeliveryDocument,
     "\n  mutation DeleteShoppingDelivery($id: ID!) {\n    deleteShoppingDelivery(id: $id)\n  }\n": typeof types.DeleteShoppingDeliveryDocument,
     "\n  mutation SetShoppingDeliveryReceived($id: ID!, $received: Boolean!) {\n    setShoppingDeliveryReceived(id: $id, received: $received)\n  }\n": typeof types.SetShoppingDeliveryReceivedDocument,
+    "\n  fragment TaskAutomationFields on TaskAutomation {\n    id\n    label\n    color\n    iconUrl\n    position\n    archived\n    enabled\n    trigger\n    condition\n    actions\n  }\n": typeof types.TaskAutomationFieldsFragmentDoc,
+    "\n  query TaskAutomations {\n    taskAutomations {\n      ...TaskAutomationFields\n    }\n  }\n": typeof types.TaskAutomationsDocument,
+    "\n  mutation CreateTaskAutomation($input: TaskAutomationInput!) {\n    createTaskAutomation(input: $input) {\n      id\n    }\n  }\n": typeof types.CreateTaskAutomationDocument,
+    "\n  mutation UpdateTaskAutomation($id: ID!, $input: TaskAutomationPatch!) {\n    updateTaskAutomation(id: $id, input: $input) {\n      id\n    }\n  }\n": typeof types.UpdateTaskAutomationDocument,
+    "\n  mutation DeleteTaskAutomation($id: ID!) {\n    deleteTaskAutomation(id: $id)\n  }\n": typeof types.DeleteTaskAutomationDocument,
     "\n  fragment ContributorFields on Contributor {\n    id\n    archived\n    name\n    handle\n    avatarUrl\n    isMe\n    projectIds\n    link\n    relationId\n    contactId\n    linkName\n    birthDate\n    birthdayReminders {\n      ...ReminderFields\n    }\n    emails\n    phones\n  }\n": typeof types.ContributorFieldsFragmentDoc,
     "\n  fragment SprintFields on Sprint {\n    id\n    archived\n    projectId\n    label\n    goal\n    startDate\n    endDate\n  }\n": typeof types.SprintFieldsFragmentDoc,
     "\n  fragment MilestoneFields on Milestone {\n    id\n    archived\n    projectId\n    label\n    description\n    dueDate\n    position\n  }\n": typeof types.MilestoneFieldsFragmentDoc,
@@ -895,6 +900,11 @@ const documents: Documents = {
     "\n  mutation UpdateShoppingDelivery($id: ID!, $input: ShoppingDeliveryInput!) {\n    updateShoppingDelivery(id: $id, input: $input)\n  }\n": types.UpdateShoppingDeliveryDocument,
     "\n  mutation DeleteShoppingDelivery($id: ID!) {\n    deleteShoppingDelivery(id: $id)\n  }\n": types.DeleteShoppingDeliveryDocument,
     "\n  mutation SetShoppingDeliveryReceived($id: ID!, $received: Boolean!) {\n    setShoppingDeliveryReceived(id: $id, received: $received)\n  }\n": types.SetShoppingDeliveryReceivedDocument,
+    "\n  fragment TaskAutomationFields on TaskAutomation {\n    id\n    label\n    color\n    iconUrl\n    position\n    archived\n    enabled\n    trigger\n    condition\n    actions\n  }\n": types.TaskAutomationFieldsFragmentDoc,
+    "\n  query TaskAutomations {\n    taskAutomations {\n      ...TaskAutomationFields\n    }\n  }\n": types.TaskAutomationsDocument,
+    "\n  mutation CreateTaskAutomation($input: TaskAutomationInput!) {\n    createTaskAutomation(input: $input) {\n      id\n    }\n  }\n": types.CreateTaskAutomationDocument,
+    "\n  mutation UpdateTaskAutomation($id: ID!, $input: TaskAutomationPatch!) {\n    updateTaskAutomation(id: $id, input: $input) {\n      id\n    }\n  }\n": types.UpdateTaskAutomationDocument,
+    "\n  mutation DeleteTaskAutomation($id: ID!) {\n    deleteTaskAutomation(id: $id)\n  }\n": types.DeleteTaskAutomationDocument,
     "\n  fragment ContributorFields on Contributor {\n    id\n    archived\n    name\n    handle\n    avatarUrl\n    isMe\n    projectIds\n    link\n    relationId\n    contactId\n    linkName\n    birthDate\n    birthdayReminders {\n      ...ReminderFields\n    }\n    emails\n    phones\n  }\n": types.ContributorFieldsFragmentDoc,
     "\n  fragment SprintFields on Sprint {\n    id\n    archived\n    projectId\n    label\n    goal\n    startDate\n    endDate\n  }\n": types.SprintFieldsFragmentDoc,
     "\n  fragment MilestoneFields on Milestone {\n    id\n    archived\n    projectId\n    label\n    description\n    dueDate\n    position\n  }\n": types.MilestoneFieldsFragmentDoc,
@@ -2541,6 +2551,26 @@ export function graphql(source: "\n  mutation DeleteShoppingDelivery($id: ID!) {
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */
 export function graphql(source: "\n  mutation SetShoppingDeliveryReceived($id: ID!, $received: Boolean!) {\n    setShoppingDeliveryReceived(id: $id, received: $received)\n  }\n"): typeof import('./graphql').SetShoppingDeliveryReceivedDocument;
+/**
+ * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
+ */
+export function graphql(source: "\n  fragment TaskAutomationFields on TaskAutomation {\n    id\n    label\n    color\n    iconUrl\n    position\n    archived\n    enabled\n    trigger\n    condition\n    actions\n  }\n"): typeof import('./graphql').TaskAutomationFieldsFragmentDoc;
+/**
+ * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
+ */
+export function graphql(source: "\n  query TaskAutomations {\n    taskAutomations {\n      ...TaskAutomationFields\n    }\n  }\n"): typeof import('./graphql').TaskAutomationsDocument;
+/**
+ * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
+ */
+export function graphql(source: "\n  mutation CreateTaskAutomation($input: TaskAutomationInput!) {\n    createTaskAutomation(input: $input) {\n      id\n    }\n  }\n"): typeof import('./graphql').CreateTaskAutomationDocument;
+/**
+ * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
+ */
+export function graphql(source: "\n  mutation UpdateTaskAutomation($id: ID!, $input: TaskAutomationPatch!) {\n    updateTaskAutomation(id: $id, input: $input) {\n      id\n    }\n  }\n"): typeof import('./graphql').UpdateTaskAutomationDocument;
+/**
+ * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
+ */
+export function graphql(source: "\n  mutation DeleteTaskAutomation($id: ID!) {\n    deleteTaskAutomation(id: $id)\n  }\n"): typeof import('./graphql').DeleteTaskAutomationDocument;
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */

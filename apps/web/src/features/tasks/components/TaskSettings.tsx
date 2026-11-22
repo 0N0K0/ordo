@@ -4,9 +4,14 @@ import { SettingsList } from '../../../components/settings/SettingsList';
 import { useTasksData } from '../api';
 import { useTaskLabelItems, useTaskStatusItems } from '../hooks/use-label-items';
 import { ColumnDefaults } from './ColumnDefaults';
+import { LightningIcon } from '@phosphor-icons/react';
+import { ActionButton } from '../../../components/actions/ActionButton';
+import { SettingsSection } from '../../../components/settings/SettingsSection';
+import { TASK_AUTOMATIONS_PATH } from '../../../app/pages';
 
 /**
- * Settings of tasks: statuses (with their category), priorities, types and tags, then the columns of new views.
+ * Settings of tasks: statuses (with their category), priorities, types and tags, the button of the page of their
+ * automations, then the columns of new views.
  * @returns {JSX.Element} Settings.
  */
 export function TaskSettings() {
@@ -58,6 +63,15 @@ export function TaskSettings() {
         usageNoun={{ one: 'de la tâche', many: 'tâches' }}
         items={data?.taskTags ?? []}
         usage={countBy(tasks, (task) => task.tagIds)}
+      />
+      <SettingsSection
+        title="Automatisations"
+        description="Des règles « quand … alors … » pour toutes les tâches de l’espace : quand le début est renseigné, le statut passe à « En cours »…"
+        actions={
+          <ActionButton icon={<LightningIcon aria-hidden />} to={TASK_AUTOMATIONS_PATH}>
+            Gérer les règles
+          </ActionButton>
+        }
       />
       {/* Last: the columns of new views (a long list). */}
       <ColumnDefaults />

@@ -3,11 +3,10 @@ import {
   addDays,
   type FilterConditionOf,
   filterConditionSchemaFor,
-  filterDay,
   type FilterFieldKind,
   type FilterGroupOf,
-  type FilterOperator,
-  filterPeriod,
+  matchesFilter,
+  meetsCondition,
   type GroupPeriod,
   isoWeek,
   isoWeekYear,
@@ -124,14 +123,8 @@ export function tableFilterFields<R>(columns: readonly DataColumn<R>[]): FilterF
 }
 
 /**
- * Whether a value is empty (nothing, blank text, no choice).
- * @param {unknown} value Value.
- * @returns {boolean} Empty.
- */
-const isEmptyValue = (value: unknown) => value === null || value === undefined || value === '' || (Array.isArray(value) && value.length === 0);
-
-/**
- * Whether a row meets a condition; a condition on an unknown column, or incomplete, is met.
+ * Whether a row meets a condition (`meetsCondition`, the rule the API applies too); a condition on an unknown column,
+ * or incomplete, is met.
  * @param {FilterConditionOf<string>} condition Condition.
  * @param {R} row Row.
  * @param {Map<string, { column: DataColumn<R>, filter: ColumnFilter<R> }>} fields Filterable columns, by id.
@@ -149,53 +142,10 @@ function meets<R>(
   const field = fields.get(condition.field);
   if (!field || !complete(condition)) return true;
   const { column, filter } = field;
-  const operator = condition.operator as FilterOperator;
-  const wanted = condition.value;
   const value = filter.kind === 'text' ? (filter.value ? filter.value(row) : (column.text?.(row) ?? null)) : filter.value(row);
-  // A choice of the « Aucun » option is empty.
-  const empty = isEmptyValue(value) || (filter.kind === 'choice' && filter.none !== undefined && value === filter.none);
-  if (operator === 'isEmpty') return empty;
-  if (operator === 'isNotEmpty') return !empty;
-  if (operator === 'isTrue') return value === true;
-  if (operator === 'isFalse') return value === false;
-  switch (filter.kind) {
-    case 'text': {
-      // Without case nor accents, as the searches of the selects.
-      const text = normalize(String(value ?? ''));
-      const query = normalize(String(wanted ?? ''));
-      return { contains: text.includes(query), notContains: !text.includes(query), is: text === query, isNot: text !== query }[operator as 'is'] ?? true;
-    }
-    case 'number': {
-      if (typeof value !== 'number' || typeof wanted !== 'number') return operator === 'neq';
-      return { eq: value === wanted, neq: value !== wanted, lt: value < wanted, lte: value <= wanted, gt: value > wanted, gte: value >= wanted }[operator as 'eq'] ?? true;
-    }
-    case 'date': {
-      if (typeof value !== 'string') return false;
-      const day = dayOf(value);
-      if (operator === 'within') {
-        const [from, to] = filterPeriod(String(wanted), today, currentWeek());
-        return day >= from && day < to;
-      }
-      const target = filterDay(String(wanted), today);
-      return { is: day === target, before: day < target, after: day > target, onOrBefore: day <= target, onOrAfter: day >= target }[operator as 'is'] ?? true;
-    }
-    case 'choice': {
-      const chosen = Array.isArray(wanted) ? wanted : [];
-      const inside = value !== null && chosen.includes(String(value));
-      return operator === 'notIn' ? !inside : inside;
-    }
-    case 'choices': {
-      const own = Array.isArray(value) ? value : [];
-      const chosen = Array.isArray(wanted) ? wanted : [];
-      // « est » / « n’est pas », saved while the column held one value (the routine or the event of a time), read as
-      // « inclut l’un de » / « n’inclut aucun de ».
-      if (operator === 'anyOf' || operator === 'in') return chosen.some((item) => own.includes(item));
-      if (operator === 'allOf') return chosen.every((item) => own.includes(item));
-      return !chosen.some((item) => own.includes(item));
-    }
-    default:
-      return true;
-  }
+  // A date is compared by its day (an instant: its day here).
+  const read = filter.kind === 'date' && typeof value === 'string' ? dayOf(value) : value;
+  return meetsCondition(condition, { kind: filter.kind, value: read, none: filter.kind === 'choice' ? filter.none : undefined }, today, currentWeek());
 }
 
 /**
@@ -212,19 +162,7 @@ export function filterRows<R>(rows: readonly R[], columns: readonly DataColumn<R
   const needle = normalize(search.trim());
   const texts = columns.filter((column) => column.text);
 
-  /**
-   * Whether a row meets a filter tree.
-   * @param {FilterGroupOf<string>} group Group.
-   * @param {R} row Row.
-   * @returns {boolean} Met.
-   */
-  const matches = (group: FilterGroupOf<string>, row: R): boolean => {
-    if (group.children.length === 0) return true;
-    const results = group.children.map((child) => (child.type === 'condition' ? meets(child, row, fields, isComplete, today) : matches(child, row)));
-    return group.combinator === 'and' ? results.every(Boolean) : results.some(Boolean);
-  };
-
-  return rows.filter((row) => (!needle || texts.some((column) => normalize(column.text!(row)).includes(needle))) && matches(filter, row));
+  return rows.filter((row) => (!needle || texts.some((column) => normalize(column.text!(row)).includes(needle))) && matchesFilter(filter, (condition) => meets(condition, row, fields, isComplete, today)));
 }
 
 /** Group of rows of a table. */

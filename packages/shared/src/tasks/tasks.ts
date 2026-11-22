@@ -185,3 +185,26 @@ export const taskRef = (task: { number: number | null }): string => (task.number
  * @returns {string} Text.
  */
 export const taskNumbered = (task: { number: number | null; label: string }): string => `${taskRef(task)}${task.label}`;
+
+/** Same changes made to several tasks (the bulk edit of the tables, its undo, the undo of an automation). */
+export interface TaskBulkChanges {
+  statusId?: string | null;
+  priorityId?: string | null;
+  typeId?: string | null;
+  milestoneId?: string | null;
+  addSprintIds?: string[];
+  removeSprintIds?: string[];
+  effort?: number | null;
+  startDate?: string | null;
+  endDate?: string | null;
+  deadline?: string | null;
+  minDate?: string | null;
+  addAssigneeIds?: string[];
+  removeAssigneeIds?: string[];
+  addTagIds?: string[];
+  removeTagIds?: string[];
+  /** Fields made inherited again (« Rétablir l'héritage »). */
+  inheritFields?: TaskInheritableField[];
+  /** Fields emptied on purpose (« Vider »; never the project). */
+  clearFields?: TaskInheritableField[];
+}

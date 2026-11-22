@@ -10,6 +10,8 @@ import { createContext, type ServerContext } from './graphql/context';
 import { sharedRefusal } from './graphql/errors';
 import { writeSchemaFile } from './graphql/print-schema';
 import { schema } from './graphql/schema';
+import { taskAutomationsPlugin } from './graphql/task-automation-extension';
+import { collectTaskAutomationReports } from './services/tasks/task-automation-engine';
 import { accountingRouter } from './routes/accounting';
 import { attachmentsRouter } from './routes/attachments';
 import { exportsRouter } from './routes/exports';
@@ -83,7 +85,7 @@ const yoga = createYoga<ServerContext>({
     },
   },
   context: createContext,
-  plugins: isProd ? [disableIntrospection] : [],
+  plugins: isProd ? [disableIntrospection, taskAutomationsPlugin] : [taskAutomationsPlugin],
 });
 
 const app = express();
@@ -112,8 +114,9 @@ app.use(yoga.graphqlEndpoint, (req, res, next) => {
   if (req.is('multipart/form-data')) void sessionRequired(req, res, next);
   else next();
 });
+// The automations of the tasks a request applies are told in its answer.
 app.use(yoga.graphqlEndpoint, async (req, res) => {
-  await yoga(req, res);
+  await collectTaskAutomationReports(() => yoga(req, res));
 });
 
 if (isProd) serveWeb();

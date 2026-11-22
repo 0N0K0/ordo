@@ -11,7 +11,8 @@ Règles appliquées par l’API : [Règles métier — Tâches](../../business-r
 | Page « Tâches »                            | `/tasks` (`PAGES.tasks`)                                                                                                     | Toutes les tâches, de tous les projets et sans projet, avec leurs propres vues enregistrées.                                                   |
 | Onglet « Tâches » d’un projet              | `/projects/:id?tab=tasks`                                                                                                    | Les tâches du projet et de ses sous-projets, avec les vues du projet.                                                                          |
 | Panneau d’une tâche                        | n’importe quelle page + `?task=<id>`                                                                                         | Le détail de la tâche, par-dessus la page courante (`taskPath` ouvre l’onglet « Tâches » du projet, ou « Tâches » pour une tâche sans projet). |
-| Paramètres des tâches                      | bouton des paramètres de la page « Tâches » (titre « Paramètres des tâches »), ou paramètres d’un projet › onglet « Tâches » | Colonnes des nouvelles vues, statuts, priorités, types, étiquettes.                                                                            |
+| Paramètres des tâches                      | bouton des paramètres de la page « Tâches » (titre « Paramètres des tâches »), ou paramètres d’un projet › onglet « Tâches » | Colonnes des nouvelles vues, statuts, priorités, types, étiquettes, bouton des automatisations.                                                |
+| Automatisations des tâches                 | `/tasks/automations` (`TASK_AUTOMATIONS_PATH`), par « Gérer les règles » des paramètres des tâches                            | Les règles « quand … alors … » de l’espace.                                                                                                    |
 | Jalons, sprints, contributeurs d’un projet | paramètres d’un projet › onglets « Jalons », « Sprints », « Contributeurs »                                                  | Gestion par projet.                                                                                                                            |
 | Menu « Ajouter » de l’en-tête              | partout                                                                                                                      | « Tâche » ouvre le formulaire de nouvelle tâche (projet courant présélectionné sur une page de projet).                                        |
 
@@ -216,9 +217,23 @@ Dans la barre latérale des paramètres (page « Tâches », ou onglet « Tâche
 - « Priorités » : « L’ordre est celui des listes de sélection et du tri par priorité. ».
 - « Types de tâche » : « Bug, fonctionnalité, amélioration… ».
 - « Étiquettes » : « Une tâche peut en avoir plusieurs. Synchronisées avec les labels GitHub. ».
+- « Automatisations » : « Des règles « quand … alors … » pour toutes les tâches de l’espace : quand le début est renseigné, le statut passe à « En cours »… » ; le bouton « Gérer les règles » ouvre la page des [automatisations](#automatisations-des-tâches).
 - « Colonnes des nouvelles vues » : colonnes affichées et leur ordre (glisser-déposer) pour les vues créées ensuite ; « Colonnes par défaut » (sous la liste) rétablit celles de l’app. Les vues existantes gardent les leurs.
 
 Chaque liste : ajout, modification, réordonnancement, archivage, suppression avec le nombre de tâches qui l’utilisent (voir [Paramètres](../cross-cutting/settings.md)).
+
+## Automatisations des tâches
+
+Page « Automatisations des tâches » (`/tasks/automations`, lien « ← Tâches ») : texte « Quand quelque chose arrive à une tâche (de tout projet), et qu’elle remplit la condition, la règle la change. Les règles s’appliquent dans leur ordre ; une règle peut en déclencher une autre. », puis la liste de réglages « Règles » (« Ce qu’une règle change est annoncé par une notification, avec « Annuler ». ») : ajout, modification, réordonnancement (l’ordre où elles s’appliquent), archivage, suppression confirmée, comme toute liste (voir [Paramètres](../cross-cutting/settings.md)). Chaque règle montre son déclencheur (« Début est renseigné », « La tâche est fermée ») et, désactivée, le badge « Désactivée » ; son menu « … » a « Désactiver » / « Activer ».
+
+Formulaire d’une règle, dans le panneau latéral (enregistré champ par champ une fois créée) :
+
+- « Nom » (« Démarrage, clôture des parents… »), couleur, image ; « Active » (« Désactivée, elle est gardée mais ne s’applique pas. »).
+- « Quand » : « Déclencheur » (« Un champ change », « La tâche est créée », « La tâche est fermée », « La tâche est rouverte », « La tâche est archivée », « Toutes ses sous-tâches sont fermées », « Un chrono démarre sur elle ») ; pour un champ : « Champ » (statut, priorité, type, étiquettes, assignés, jalon, sprints, projet, ouverture, échéance, début, fin, effort) et « Changement » (« change », « est renseigné », « est vidé », « prend la valeur » pour un champ à liste de choix, avec la valeur).
+- « Si » : « Facultatif : les tâches que la règle change, avec le filtre des tableaux de tâches, sur les valeurs qu’elles suivent (héritées comprises). » — l’éditeur des filtres des tableaux de tâches, sur les colonnes qu’une règle lit ; vide : « Aucune condition : toutes les tâches. ».
+- « Alors » : les actions, une par ligne (« Donner une valeur », « Ajouter », « Retirer », « Vider », « Fermer la tâche », « Rouvrir la tâche », « Archiver la tâche »), le champ et la valeur (choix de la liste, plusieurs pour une liste, un jour : « Aujourd’hui », « Il y a N jours », « Dans N jours », « Date précise », un nombre) ; « Ajouter une action » (20 au plus), corbeille par ligne (pas la dernière).
+
+Quand une règle change des tâches, une notification le dit (« Règle « Démarrage » : statut « En cours » », « (3 tâches) » pour plusieurs) avec « Annuler » ; une règle refusée : « Règle non appliquée » et pourquoi. Règles détaillées : [Automatisations des tâches](../../business-rules/activities/task-automations.md).
 
 ## Jalons d’un projet
 

@@ -24,11 +24,11 @@ interface DayValueProps {
 }
 
 /**
- * Day picker: a specific date, today, N days ago or in N days.
+ * Day picker: a specific date, today, N days ago or in N days (a filter, the day an automation gives).
  * @param {DayValueProps} props Component props.
  * @returns {JSX.Element} Editor.
  */
-function DayValue({ value, onChange }: DayValueProps) {
+export function DayValue({ value, onChange }: DayValueProps) {
   const relative = /^today([+-])?(\d+)?$/.exec(value);
   const mode = !relative ? 'date' : !relative[1] ? 'today' : relative[1] === '-' ? 'past' : 'future';
   const days = relative?.[2] ? Number(relative[2]) : 1;

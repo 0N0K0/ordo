@@ -26,7 +26,7 @@ Types exportés :
 | `TaskInputValues`     | Champs envoyés à la création / modification (`TaskInput` partagé).                                                                              |
 | `TaskSave`            | Enregistrement immédiat d’un changement depuis le panneau (`updateTask.mutateAsync`), donné à `TaskDescription` et `TaskLinks`.                 |
 | `TaskLabelKind`       | `'status' \| 'priority' \| 'type' \| 'tag'` (clés de `LabelDocuments`).                                                                         |
-| `BulkChanges`         | Changements d’une modification en masse (statut, priorité, type, jalon, effort, dates, ajouts / retraits d’assignés, d’étiquettes, de sprints ; `inheritFields` / `clearFields` : héritage rétabli ou vidé exprès). |
+| `BulkChanges`         | Changements d’une modification en masse : `TaskBulkChanges` partagé (statut, priorité, type, jalon, effort, dates, ajouts / retraits d’assignés, d’étiquettes, de sprints ; `inheritFields` / `clearFields` : héritage rétabli ou vidé exprès). |
 
 Hooks et constantes exportés :
 
@@ -54,11 +54,25 @@ Hooks et constantes exportés :
 
 Interne : `LabelDocuments` (documents CRUD par type de libellé), `useTasksMutation`, `useMoveMilestone`, documents `*Document`.
 
+### `api/automations.ts`
+
+| Export                           | Rôle                                                                                                   |
+| -------------------------------- | ------------------------------------------------------------------------------------------------------ |
+| `TaskAutomation`                 | Fragment `TaskAutomationFields` (nom, couleur, image, ordre, archivée, `enabled`, `trigger`, `condition`, `actions`). |
+| `TaskAutomationInput`, `TaskAutomationPatch` | Ré-exports des types GraphQL de création et de modification.                                |
+| `taskAutomationsQueryKey`        | Clé `['tasks', 'automations']` (déclarée dans `lib/query-keys`).                                        |
+| `useTaskAutomations()`           | Requête `taskAutomations` (ordre manuel, archivées comprises).                                          |
+| `useTaskAutomationMutations()`   | `{ create, update, remove }` : `createTaskAutomation`, `updateTaskAutomation`, `deleteTaskAutomation`. |
+
 ## pages/
 
 ### `pages/TasksPage.tsx`
 
 - `TasksPage()` : page `/tasks`. En-tête `PageHeader` (« Tâches »), paramètres dans la barre latérale (`PageSettings`, « Paramètres des tâches » → `TaskSettings`), puis `TaskBoard` avec `projectId={null}`. Utilisée par `app/router.tsx`.
+
+### `pages/TaskAutomationsPage.tsx`
+
+- `TaskAutomationsPage()` : page `/tasks/automations` (`TASK_AUTOMATIONS_PATH`) : `BackLink` vers « Tâches », `PageHeader` « Automatisations des tâches », puis la `SettingsList` « Règles » (`useTaskAutomationItems`) : badge du déclencheur (interne `triggerText`), badge « Désactivée », « Désactiver » / « Activer » dans le menu « … » (`updateTaskAutomation` de `enabled`). Utilisée par `app/router.tsx`.
 
 ## components/
 
@@ -214,11 +228,22 @@ Internes : `NEW_LABEL_TITLES`, `useLabelCreator(kind)` (ouvre le formulaire du l
 
 ### `components/TaskSettings.tsx`
 
-- `TaskSettings()` : paramètres des tâches : `SettingsList` des statuts (avec catégorie), priorités, types, étiquettes, chacune avec son nombre d’utilisations, puis `ColumnDefaults` en dernier (une longue liste). Utilisé par `TasksPage` et les paramètres d’un projet.
+- `TaskSettings()` : paramètres des tâches : `SettingsList` des statuts (avec catégorie), priorités, types, étiquettes, chacune avec son nombre d’utilisations, la section « Automatisations » (bouton « Gérer les règles » vers `TASK_AUTOMATIONS_PATH`), puis `ColumnDefaults` en dernier (une longue liste). Utilisé par `TasksPage` et les paramètres d’un projet.
 
 ### `components/ColumnDefaults.tsx`
 
 - `ColumnDefaults()` : section « Colonnes des nouvelles vues » : `DataColumnsPanel` sur les colonnes des tâches (liste limitée à 288 px de haut, 12 pas de la grille, qui défile au-delà), enregistrement par `useSetTaskColumnDefaults` ; « Colonnes par défaut » de `DataColumnsPanel` (liste vidée) enregistre `null` : les colonnes de l’app.
+
+### `components/TaskAutomationFields.tsx`
+
+| Export                   | Rôle                                                                                                                                       |
+| ------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------ |
+| `TaskAutomationFields({ values, errors, context, onChange })` | Champs d’une règle au-delà de son nom et de sa couleur : « Active » ; « Quand » (déclencheur, champ, changement, valeur précise) ; « Si » (`FieldsFilterBuilder` sur `tableFilterFields` des colonnes des tâches limitées à `TASK_AUTOMATION_FILTER_FIELDS`) ; « Alors » (lignes d’actions : action, champ, valeur, « Ajouter une action », 20 au plus). Les choix des valeurs sont ceux des filtres des colonnes (sans « Moi » ni sprints relatifs). Internes : `ValueEditor` (choix, choix multiples, `DayValue`, nombre), `choicesOf`, `FIELD_COLUMNS`. |
+| `TriggerValues`, `ActionValues`, `TaskAutomationExtra` | Valeurs du formulaire : déclencheur, action, champs propres à la règle (`enabled`, `trigger`, `condition`, `actions`). |
+
+### `components/TaskAutomationToasts.tsx`
+
+- `TaskAutomationToasts()` : monté une fois dans `AppLayout` ; lit les `extensions.taskAutomations` de chaque réponse (`onResponseExtensions`) : par règle appliquée, `notifyWithUndo(taskAutomationMessage(report), useBulkUndo().automation(report.reverts))` ; par règle refusée, `notifyWarning('Règle non appliquée', …)` ; puis recharge les tâches.
 
 ### `components/TaskFilterBuilder.tsx`
 
@@ -307,6 +332,10 @@ Internes : `NO_PROJECT_LABEL` (« Sans projet »), `NO_PROJECT_NODE`.
 
 - `useTaskColumns(context, today, { doable?, eventComments? })` : colonnes du tableau des tâches (`taskColumns`) avec ce qui leur manque : tâches faisables (`useDoableTaskIds`, seulement si `doable`), alarmes (`useTaskAlarmCounts`), listes d’achats, créneaux et types que la condition peut citer (`useSlotChoices().all`, `slotSchedules` : le filtre « Créneaux » porte sur les créneaux et types cités par la condition, `conditionReferences`), commentaires des évènements. Utilisé par `TaskBoard`, `ColumnDefaults`, `TaskFilterBuilder`, la carte « Tâches » de l’accueil (`TasksCard`), et les tableaux de bord / l’accueil via `matchTasks`.
 
+### `hooks/use-task-automation-items.tsx`
+
+- `useTaskAutomationItems(context)` : `SettingsItemKind` des règles pour `SettingsList` : type `TASK_AUTOMATION`, « Nom », schéma `taskAutomationSchema`, champs `TaskAutomationFields` (valeurs de départ lues par les schémas partagés, sinon « Quand le début est renseigné » et « Donner une valeur au statut » ; interne `extraOf`), création et modification (`itemMutations` ; un filtre vide est envoyé `null`). Utilisé par `TaskAutomationsPage`.
+
 ### `hooks/use-label-items.tsx`
 
 - `useTaskStatusItems()` : liste de paramètres des statuts (`SettingsItemKind`) avec le champ « Catégorie » ; inclut `remove` ; son `update` confirme d'abord (`confirmedDestructive`) une catégorie passée vers ou hors de « Annulé », avec le nombre de tâches fermées ou rouvertes (`statusClosing`, tâches du cache).
@@ -373,7 +402,7 @@ Héritage des sous-tâches à l’écran (règles : [Héritage](../../../busines
 
 ### `lib/bulk-undo.ts`
 
-- `useBulkUndo()` : fabriques des « Annuler » des toasts, à partir de l’état des tâches avant l’action : `changes(tasks, changes)` (rétablit champs et ajouts / retraits, `restoring: true` ; un champ qui était hérité ou vidé exprès redevient hérité ou vidé : `inheritFields` / `clearFields`), `inheritance(tasks, fields)` (après « Héritage… » : chaque champ remis hérité, vidé ou à sa valeur propre par `updateTask`, le projet propre par un transfert ; interne `restoredField`), `closed(tasks, closed)` (une tâche « Annulé » rouverte à la main retrouve aussi son statut, qui la referme : `update` du statut avec `restoring`), `archived(tasks, archived)`, `transfer(levels)` (remet chaque niveau dans son projet). Toasts « Action annulée. » / « L’action n’a pas pu être annulée. ».
+- `useBulkUndo()` : fabriques des « Annuler » des toasts, à partir de l’état des tâches avant l’action : `changes(tasks, changes)` (rétablit champs et ajouts / retraits, `restoring: true` ; un champ qui était hérité ou vidé exprès redevient hérité ou vidé : `inheritFields` / `clearFields`), `inheritance(tasks, fields)` (après « Héritage… » : chaque champ remis hérité, vidé ou à sa valeur propre par `updateTask`, le projet propre par un transfert ; interne `restoredField`), `closed(tasks, closed)` (une tâche « Annulé » rouverte à la main retrouve aussi son statut, qui la referme : `update` du statut avec `restoring`), `archived(tasks, archived)`, `transfer(levels)` (remet chaque niveau dans son projet), `automation(reverts)` (après une règle d’automatisation : chaque tâche restaurée si la règle l’a archivée, remise dans son projet, ses champs redonnés avec `restoring`, puis son état ouvert / fermé, d’après les `TaskAutomationRevert` de l’API). Toasts « Action annulée. » / « L’action n’a pas pu être annulée. ».
 - Internes : `SCALAR_FIELDS`, `revertChanges`, `idsBy`.
 
 ### `lib/bulk-label.ts`

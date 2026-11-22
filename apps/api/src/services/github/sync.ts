@@ -52,6 +52,7 @@ import { subtreeIds } from '../core/trees';
 import { connectIds } from '../core/relations';
 import { toJson } from '../core/json';
 import { adoptedTaskFields, effectiveTaskOf, freezeTaskInheritance, loadTaskInheritance } from '../tasks/task-inheritance';
+import { automated } from '../tasks/task-automation-engine';
 
 interface SyncSummary {
   /** Tasks created from items, and items created from tasks. */
@@ -755,7 +756,7 @@ const running = new Set<string>();
  * @param {string} projectId Linked project.
  * @returns {Promise<SyncSummary>} What changed.
  */
-export async function syncGithubProject(projectId: string): Promise<SyncSummary> {
+export const syncGithubProject = automated(async function syncGithubProject(projectId: string): Promise<SyncSummary> {
   const link = await orNotFound(prisma.githubProjectLink.findUnique({ where: { projectId } }), 'Lien GitHub');
   if (running.has(link.id)) throw clientError('BAD_USER_INPUT', 'Une synchronisation de ce projet est déjà en cours.');
   running.add(link.id);
@@ -960,7 +961,7 @@ export async function syncGithubProject(projectId: string): Promise<SyncSummary>
   } finally {
     running.delete(link.id);
   }
-}
+});
 
 /**
  * Synchronizes every enabled link now, then every ten minutes; failures are kept on the links.

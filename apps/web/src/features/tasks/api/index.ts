@@ -1,5 +1,5 @@
 import { tasksQueryKey, doableTasksKey } from '../../../lib/query-keys';
-import type { ContributorLinkValues, TaskInheritableField, TaskInput, TaskWaitReason } from '@ordo/shared';
+import type { ContributorLinkValues, TaskBulkChanges, TaskInput, TaskWaitReason } from '@ordo/shared';
 import { accountingQueryKey } from '../../accounting/api';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { moveToIndex, patchQuery, useInvalidatingMutation } from '../../../lib/mutation';
@@ -769,27 +769,8 @@ export function useTaskWaitReasons(enabled: boolean) {
   return useDoableTasks(enabled, waitReasonsOf);
 }
 
-export interface BulkChanges {
-  statusId?: string | null;
-  priorityId?: string | null;
-  typeId?: string | null;
-  milestoneId?: string | null;
-  addSprintIds?: string[];
-  removeSprintIds?: string[];
-  effort?: number | null;
-  startDate?: string | null;
-  endDate?: string | null;
-  deadline?: string | null;
-  minDate?: string | null;
-  addAssigneeIds?: string[];
-  removeAssigneeIds?: string[];
-  addTagIds?: string[];
-  removeTagIds?: string[];
-  /** Fields made inherited again (« Rétablir l'héritage »). */
-  inheritFields?: TaskInheritableField[];
-  /** Fields emptied on purpose (« Vider »; never the project). */
-  clearFields?: TaskInheritableField[];
-}
+/** Same changes made to several tasks. */
+export type BulkChanges = TaskBulkChanges;
 
 /**
  * Bulk changes, transfer, archiving and deletion of selected tasks.

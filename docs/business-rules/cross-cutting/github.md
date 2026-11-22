@@ -78,6 +78,7 @@ Source : `sync.ts` (`syncGithubProject`), `merge.ts` (`mergeFields`).
 - Automatique : `scheduleGithubSync` (lancé au démarrage de l’API) synchronise, dans chaque espace connecté à GitHub, chaque liaison `enabled`, **30 s après le démarrage puis toutes les 10 minutes**. Un échec est journalisé, la suivante continue.
 - Une seule synchronisation à la fois par liaison : « Une synchronisation de ce projet est déjà en cours. ».
 - Après chaque passage : `lastSyncAt`, `lastSyncError` (message de l’erreur, ou effacé), `lastSyncSummary`, et le libellé / l’adresse du tableau mis à jour.
+- Ce que le passage a changé sur les tâches (valeurs reçues, tâches créées) déclenche les [automatisations des tâches](../activities/task-automations.md), une fois à la fin du passage ; la synchronisation de fond n’a pas de notification.
 
 ### Périmètre
 

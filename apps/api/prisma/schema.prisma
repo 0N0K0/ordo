@@ -135,6 +135,7 @@ model Workspace {
   stockLocations            StockLocation[]
   sheetCategories           SheetCategory[]
   savedCountdowns           SavedCountdown[]
+  taskAutomations           TaskAutomation[]
   stockItems                StockItem[]
   stockLots                 StockLot[]
   stockMovements            StockMovement[]
@@ -302,6 +303,37 @@ model SavedCountdown {
   @@index([workspaceId])
 }
 
+/// Automation of the tasks (« quand … alors … ») of the workspace, a settings list: for every task of every project,
+/// when its trigger happens and the task meets its condition, its actions change the task (in the order of the list).
+model TaskAutomation {
+  id          String    @id @default(cuid())
+  /// Name, unique in the workspace.
+  label       String
+  /// Image shown as its avatar (none: its initials on its color).
+  iconId      String?
+  icon        Icon?     @relation(fields: [iconId], references: [id], onDelete: SetNull)
+  color       String
+  position    Int       @default(0)
+  /// Off: kept, never applied.
+  enabled     Boolean   @default(true)
+  /// What triggers it: { event, field, change, value } (`taskAutomationTriggerSchema`).
+  trigger     Json
+  /// Filter of the task table the task must meet (`taskAutomationConditionSchema`); none: every task.
+  condition   Json?
+  /// What it does, in order: [{ kind, field, value }] (`taskAutomationActionSchema`).
+  actions     Json
+  /// Archived: hidden by default, read only and never applied until restored.
+  archivedAt  DateTime?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  /// Workspace the row belongs to (always given by the app; the default fails outside one).
+  workspaceId String    @default(dbgenerated("current_setting('ordo.workspace'::text)"))
+  workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+
+  @@unique([workspaceId, label])
+  @@index([workspaceId])
+}
+
 model Session {
   id         String   @id @default(cuid())
   /// SHA-256 of the token stored in the session cookie.
@@ -364,6 +396,7 @@ model Icon {
   documentStatuses       DocumentStatus[]
   sheetCategories        SheetCategory[]
   savedCountdowns        SavedCountdown[]
+  taskAutomations        TaskAutomation[]
   shoppingStores         ShoppingStore[]
   shoppingUnits          ShoppingUnit[]
   shoppingStorages       ShoppingStorage[]

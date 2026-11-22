@@ -11,6 +11,7 @@ import { assertDateRange } from '../core/date-range';
 import { connectIds } from '../core/relations';
 import { releaseProjectTasks } from '../tasks/tasks';
 import { releaseProjectTime } from '../tasks/time-entries';
+import { automated } from '../tasks/task-automation-engine';
 
 /** Minimal project shape used to reason about the tree. */
 interface TreeProject {
@@ -282,7 +283,7 @@ async function placeProject(tree: ProjectTree, project: Project, parentId: strin
  * @param {boolean | null} [input.removeIcon] Removes the current icon. Optional.
  * @returns {Promise<Project>} Updated project.
  */
-export async function updateProject(
+export const updateProject = automated(async function updateProject(
   id: string,
   input: ProjectDetailsInput & {
     label?: string | null;
@@ -317,7 +318,7 @@ export async function updateProject(
   });
   if (iconId !== undefined) await deleteOrphanIcons([project.iconId]);
   return updated;
-}
+});
 
 /**
  * Adds or removes a project from the favorites.
@@ -378,7 +379,7 @@ export async function releaseProjects(projectIds: string[]): Promise<void> {
  * @param {string} id Project id.
  * @returns {Promise<void>}
  */
-export async function deleteProject(id: string): Promise<void> {
+export const deleteProject = automated(async function deleteProject(id: string): Promise<void> {
   const project = await findProject(id);
   const tree = await ProjectTree.load();
   const descendants = tree.descendants(id);
@@ -387,7 +388,7 @@ export async function deleteProject(id: string): Promise<void> {
   // Sub-projects are removed by the ON DELETE CASCADE of the parent relation.
   await prisma.project.delete({ where: { id } });
   await deleteOrphanIcons(iconIds);
-}
+});
 
 /**
  * Moves a project (not an archived one), with its sub-projects, to an index under a parent project (not archived) or at

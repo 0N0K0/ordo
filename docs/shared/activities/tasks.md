@@ -45,6 +45,7 @@ Champs de `taskFormSchema` :
 | `deadTimes`                                   | Temps morts : `deadTimesSchema` (voir [dates](../cross-cutting/dates.md#countdownsts--minuteurs-et-temps-morts)), `[]` par défaut ; `TaskInput.deadTimes` : `null` = aucun, omis = inchangé. |
 
 - `taskRef(task)` (« #12 », vide sans projet) et `taskNumbered(task)` (« #12 Libellé ») : pour le web et les sonneries poussées par le serveur ; le web les réexporte (`use-task-context`).
+- `TaskBulkChanges` : mêmes changements faits à plusieurs tâches (statut, priorité, type, jalon, effort, dates, ajouts / retraits d'assignés, d'étiquettes, de sprints, `inheritFields`, `clearFields`) : la modification en masse du web (`BulkChanges`), son annulation, l'annulation d'une automatisation.
 
 ## `task-inheritance.ts` — héritage des sous-tâches et dates suivies
 
@@ -83,6 +84,29 @@ Le test « faisable » est `conditionAllowsAt(condition, slotsOn, date, time, ho
 | `DEFAULT_HIDDEN_COLUMNS`                          | Masquées par défaut : `hours`, `location`, `blocking`, `related`, `milestone`, `createdAt`, `updatedAt`.                                                                                                                                                                                                                                                                                                                                  |
 | `taskColumnDefaultsSchema` / `TaskColumnDefaults` | Colonnes de départ des nouvelles vues de tâches d'un espace : `columnOrder`, `hiddenColumns` (200 ids max ; `label` ne peut jamais être masqué).                                                                                                                                                                                                                                                                     |
 | `readTaskColumnDefaults(stored)`                  | Valeur stockée de l'espace (ancien id `title` lu comme `label`), sinon mise en page vide (celle de l'application).                                                                                                                                                                                                                                                                                                   |
+| `RELATIVE_SPRINTS` / `RelativeSprint`             | Sprints relatifs d'un filtre de la colonne sprint : `current`, `previous`, `next`, `past`, `future`. |
+| `relativeSprintIds(sprints, today, rootOf)`       | Les sprints de chacun, depuis aujourd'hui : en cours, passés, à venir, le précédent et le suivant de chaque arbre de projets. Utilisé par les colonnes des tâches du web et les conditions des automatisations (API). |
+| `sprintFilterValues(ids, relative)`               | Valeurs que les sprints d'une tâche donnent au filtre de la colonne sprint : leurs ids puis les sprints relatifs où ils sont. |
+
+## `task-automations.ts` — automatisations des tâches
+
+Règles « quand … alors … » d'un espace (voir [Règles métier — Automatisations des tâches](../../business-rules/activities/task-automations.md)).
+
+| Export | Rôle |
+| ------ | ---- |
+| `TASK_AUTOMATION_FIELDS` / `TaskAutomationField`, `TASK_AUTOMATION_FIELD_META` | Champs surveillés ou changés (statut, priorité, type, étiquettes, assignés, jalon, sprints, projet, ouverture, échéance, début, fin, effort), avec leur nom en minuscules, leur genre et nombre (« vidée », « vidés ») et leur type (`TaskAutomationFieldKind` : `reference`, `list`, `day`, `number`). |
+| `TASK_AUTOMATION_EVENTS` / `TaskAutomationEvent`, `TASK_AUTOMATION_EVENT_LABELS` | Déclencheurs : `FIELD_CHANGED` « Un champ change », `CREATED`, `CLOSED`, `REOPENED`, `ARCHIVED`, `SUBTASKS_CLOSED` « Toutes ses sous-tâches sont fermées », `TIMER_STARTED` « Un chrono démarre sur elle ». |
+| `TASK_AUTOMATION_CHANGES` / `TaskAutomationChange`, `TASK_AUTOMATION_CHANGE_LABELS` | Changements d'un champ : `CHANGED` « change », `SET` « est renseigné », `CLEARED` « est vidé », `IS` « prend la valeur ». |
+| `TASK_AUTOMATION_ACTIONS` / `TaskAutomationActionKind`, `TASK_AUTOMATION_ACTION_LABELS`, `TASK_AUTOMATION_FIELD_ACTIONS` | Actions : `SET` « Donner une valeur », `ADD` « Ajouter », `REMOVE` « Retirer », `CLEAR` « Vider » (sur un champ), `CLOSE`, `REOPEN`, `ARCHIVE` (sur la tâche). |
+| `TASK_AUTOMATION_ACTIONS_MAX`, `TASK_AUTOMATION_CHAIN_MAX` | 20 actions par règle ; 5 tours d'enchaînement au plus. |
+| `TASK_AUTOMATION_FILTER_KINDS` / `TaskAutomationFilterField`, `TASK_AUTOMATION_FILTER_FIELDS` | Colonnes du tableau des tâches qu'une condition peut filtrer, avec le type de leur filtre. |
+| `taskAutomationTriggerSchema` / `TaskAutomationTrigger` | Déclencheur `{ event, field, change, value }` (champ et changement requis pour `FIELD_CHANGED`, valeur pour `IS`, `IS` seulement sur un champ à liste de choix) ; normalisé (ce qui ne sert pas vaut `null`). |
+| `taskAutomationConditionSchema` / `TaskAutomationCondition` | Condition : un filtre du tableau (`tableFilterSchema`) sur les colonnes lues, chaque condition complète ; vide : `null`. |
+| `taskAutomationActionSchema` / `TaskAutomationAction`, `taskAutomationActionsSchema` | Action `{ kind, field, value }` (valeur selon le type du champ : un id, des ids, un jeton de jour `filterDaySchema`, un nombre `effortSchema`) ; liste de 1 à 20. |
+| `taskAutomationSchema` / `TaskAutomationInput` | Règle : nom (« Le nom est requis. »), couleur, `enabled` (vrai par défaut), déclencheur, condition (`null` par défaut), actions. Formulaire du web et API. |
+| `TaskAutomationRevert`, `TaskAutomationReport`, `TASK_AUTOMATIONS_EXTENSION` | Ce qui remet une tâche comme avant une règle (projet, `TaskBulkChanges`, état fermé, restauration) ; une règle appliquée pendant une requête (nom, ce qu'elle a fait, tâches, annulations, ou erreur), renvoyée dans les extensions `taskAutomations` de la réponse. |
+| `taskAutomationMessage(report)` | « Règle « Démarrage » : statut « En cours » » (« (3 tâches) » pour plusieurs) ; refusée : « Règle « … » non appliquée : <raison> ». |
+| `taskAutomationActionText(action, nameOf, dayOf)` | Une action en mots : « statut « En cours » », « étiquettes + « Bug » », « échéance vidée », « fermée ». |
 
 ## `time.ts` — temps passé et alarmes
 

@@ -1,0 +1,82 @@
+# Règles métier — Automatisations des tâches
+
+Règles « quand … alors … » qui changent les tâches toutes seules : quand une « date de début » est renseignée, le statut passe à « En cours ». Sources : `packages/shared/src/tasks/task-automations.ts` (schémas, champs, messages), `apps/api/src/services/tasks/task-automations.ts` (CRUD), `apps/api/src/services/tasks/task-automation-engine.ts` (moteur), `apps/api/src/graphql/modules/task-automations.ts`, `apps/api/src/graphql/task-automation-extension.ts`, modèle `TaskAutomation`.
+
+Voir aussi : [Tâches](tasks.md), [Héritage](tasks.md#héritage), [Archivage](../cross-cutting/archiving.md), [Ordre manuel](../cross-cutting/ordering.md), [GitHub](../cross-cutting/github.md), [Filtres des tableaux](../../shared/cross-cutting/tables.md).
+
+## Portée et liste
+
+- Les règles sont **propres à chaque espace** et valent pour **toutes les tâches de tous les projets** de l’espace (et les tâches sans projet).
+- Une règle est un élément d’une liste de réglages comme les autres (`createLabelService('taskAutomation', …)`, type `TASK_AUTOMATION` de `SETTINGS_LISTS`) : nom, couleur, image, **ordre manuel**, archivage, suppression ; schéma `taskAutomationSchema`.
+- Les règles s’appliquent **dans l’ordre de la liste**. Une règle **désactivée** (`enabled: false`) ou **archivée** est gardée mais ne s’applique jamais.
+- Requête `taskAutomations` (ordre manuel, archivées comprises) ; mutations `createTaskAutomation`, `updateTaskAutomation` (champs omis inchangés, `condition: null` = toutes les tâches), `deleteTaskAutomation`, et les mutations communes des listes de réglages (`setSettingsItemLook`, `reorderSettingsItems`, `setArchived`).
+
+| Champ       | Règle                                                                                   | Message                                                          |
+| ----------- | --------------------------------------------------------------------------------------- | ---------------------------------------------------------------- |
+| `label`     | Nom requis, 250 caractères, unique dans l’espace                                        | « Le nom est requis. », « Une règle porte déjà ce nom. »         |
+| `color`     | Couleur `#rrggbb`, comme toute liste de réglages                                        | « Couleur invalide (format #rrggbb). »                           |
+| `enabled`   | Active ou non ; active par défaut                                                       | —                                                                |
+| `trigger`   | Déclencheur (voir [Déclencheurs](#déclencheurs))                                        | « Choisissez le champ. », « Choisissez le changement. », « Choisissez la valeur. », « Une valeur précise se choisit pour un champ à liste de choix. » |
+| `condition` | Facultative : un filtre du tableau des tâches (voir [Condition](#condition)) ; vide = toutes les tâches | « Une condition est incomplète. », « Une condition porte sur une colonne qu’une règle ne lit pas. » |
+| `actions`   | 1 à 20 actions, dans l’ordre (voir [Actions](#actions))                                  | « Ajoutez au moins une action. », « 20 actions au plus. », « Choisissez le champ. », « Choisissez la valeur. », « Choisissez au moins une valeur. », « Date invalide. », « Nombre attendu. », « Ajouter ou retirer se fait dans une liste (étiquettes, assignés, sprints). » |
+
+## Champs
+
+Champs d’une tâche qu’une règle surveille ou change (`TASK_AUTOMATION_FIELDS`) : statut, priorité, type, étiquettes, assignés, jalon, sprints, projet, « Ouverture », « Échéance », début, fin, effort. Étiquettes, assignés et sprints sont des **listes** ; « Ouverture », « Échéance », début et fin des **jours** ; l’effort un **nombre** ; les autres une valeur d’une liste.
+
+## Déclencheurs
+
+`trigger` (`taskAutomationTriggerSchema`) : `{ event, field, change, value }`.
+
+| `event`           | Quand                                                                                     |
+| ----------------- | ----------------------------------------------------------------------------------------- |
+| `FIELD_CHANGED`   | Un champ change (`field`), selon `change` : `CHANGED` (tout changement), `SET` (« est renseigné » : il n’avait pas de valeur, il en a une), `CLEARED` (« est vidé » : il en avait une, il n’en a plus), `IS` (« prend la valeur » `value` : la valeur d’une liste qu’il prend, l’élément qu’une liste reçoit ; seulement pour les champs à liste de choix) |
+| `CREATED`         | La tâche est créée (copie et item reçu de GitHub compris)                                 |
+| `CLOSED`          | La tâche est fermée                                                                       |
+| `REOPENED`        | La tâche est rouverte                                                                     |
+| `ARCHIVED`        | La tâche est archivée                                                                     |
+| `SUBTASKS_CLOSED` | Toutes ses sous-tâches (non archivées, au moins une) sont fermées, alors que ce n’était pas le cas |
+| `TIMER_STARTED`   | Un chrono démarre sur elle                                                                |
+
+- Un champ est lu sur la valeur que la tâche **suit** : une valeur héritée de sa tâche parente, une « Ouverture » ou une « Échéance » prise de son jalon, de son projet ou de son sprint (voir [Héritage](tasks.md#héritage) et [Dates suivies](tasks.md#dates-suivies)). Une tâche dont la valeur suivie change parce que son parent, son jalon, son sprint ou son projet a changé déclenche donc les règles comme si elle avait été changée.
+- Une tâche **créée** ne déclenche que les règles « La tâche est créée » (pas celles de ses champs).
+- Tout ce qui écrit des tâches déclenche les règles : création, modification, modification en masse, déplacement, transfert, fermeture et réouverture, archivage, copie, suppression (les sous-tâches restantes d’un parent), synchronisation GitHub (les valeurs reçues), « Annuler », chrono démarré, et la modification ou la suppression d’un jalon, d’un sprint ou d’un projet (les dates et valeurs que suivent leurs tâches).
+
+## Condition
+
+- `condition` (`taskAutomationConditionSchema`) est un filtre du tableau des tâches, écrit avec le même éditeur et appliqué par le même moteur (`matchesFilter`, `meetsCondition`) : groupes ET / OU, 5 niveaux au plus, mêmes opérateurs et mêmes valeurs (dates relatives à aujourd’hui, périodes de la semaine de l’espace, « Moi », sprints relatifs).
+- Colonnes qu’une règle lit (`TASK_AUTOMATION_FILTER_KINDS`) : libellé, description, numéro, projet (et ceux au-dessus), statut, catégorie de statut, priorité, type, assignés, étiquettes, jalon, sprint, tâche parente (et celles au-dessus), effort, début, fin, « Échéance », « Ouverture », fermée, archivée, a des sous-tâches. Une condition sur une autre colonne, ou incomplète, est refusée à l’enregistrement.
+- La condition est lue sur les valeurs que la tâche **suit** (héritées comprises), au moment où la règle s’applique (après les règles précédentes). Aujourd’hui est le jour de Paris ; « Moi » est le contributeur de l’utilisateur de l’app.
+
+## Actions
+
+`actions` (`taskAutomationActionSchema`), dans l’ordre ; sur le même élément, la dernière l’emporte.
+
+| `kind`    | Ce qu’elle fait                                                                                           |
+| --------- | --------------------------------------------------------------------------------------------------------- |
+| `SET`     | Donne une valeur à un champ : une valeur de sa liste, des éléments (une liste prend exactement ceux-là), un jour (une date, aujourd’hui, dans ou il y a N jours, compté le jour où elle s’applique), un nombre |
+| `ADD`     | Ajoute des éléments à une liste (étiquettes, assignés, sprints)                                           |
+| `REMOVE`  | Retire des éléments d’une liste                                                                           |
+| `CLEAR`   | Vide un champ (le projet : la tâche sort de tout projet)                                                  |
+| `CLOSE`   | Ferme la tâche                                                                                            |
+| `REOPEN`  | Rouvre la tâche                                                                                           |
+| `ARCHIVE` | Archive la tâche (avec ses sous-tâches, comme à la main)                                                  |
+
+- Les actions passent par les écritures ordinaires des tâches, avec leurs vérifications : le projet par le transfert (`bulkTransferTasks`), les champs par la modification en masse (`bulkUpdateTasks`), puis la fermeture ou la réouverture (`setTasksClosed`), puis l’archivage. Mêmes règles qu’à la main : valeurs archivées refusées si nouvelles, assignés parmi les contributeurs du projet, jalon et sprints de l’arborescence, dates valides, statut « Annulé » qui ferme…
+- Un champ hérité que change une action devient **propre** à la tâche, comme par toute écriture ; vidé, il reste vide (il n’hérite plus).
+- Une action refusée n’empêche pas le changement qui a déclenché la règle (déjà fait) : la règle n’est pas appliquée à cette tâche et la réponse dit pourquoi. Ce qu’elle avait déjà changé avant le refus reste.
+- Une tâche archivée est en lecture seule : seules les règles « La tâche est archivée » s’y appliquent, et leurs actions sur ses champs, sa fermeture ou sa réouverture passent (comme une annulation) ; un changement de projet y est refusé.
+
+## Enchaînements
+
+- Ce qu’une règle change peut déclencher d’autres règles, sur la tâche et sur celles qui suivent ses valeurs (ses sous-tâches) : au plus **5 tours** de suite (`TASK_AUTOMATION_CHAIN_MAX`), le premier étant celui du changement de départ.
+- Une règle ne s’applique **jamais deux fois à la même tâche** dans un même enchaînement : pas de boucle.
+- Le moteur passe une seule fois par changement (`automated`, autour de chaque écriture de tâches) : les écritures faites à l’intérieur (une action, une synchronisation qui crée des tâches) n’appliquent pas de règles à part.
+- Les règles s’appliquent après l’écriture, dans la même requête ; une erreur imprévue du moteur ne défait pas l’écriture.
+
+## Suivi et annulation
+
+- Chaque règle appliquée pendant une requête est renvoyée dans les `extensions` de sa réponse, sous `taskAutomations` (`TaskAutomationReport` : règle, ce qu’elle a fait, tâches changées, ce qui les remet comme avant ; ou pourquoi elle a été refusée), quelle que soit la mutation. Une règle qui ne change rien n’est pas signalée.
+- L’app en fait une notification par règle : « Règle « Démarrage » : statut « En cours » » (« (3 tâches) » pour plusieurs), avec « Annuler » ; une règle refusée : « Règle non appliquée », avec la raison.
+- « Annuler » (`TaskAutomationRevert`) restaure la tâche si la règle l’a archivée, la remet dans son projet, redonne ses champs (héritage rétabli, champ vidé à nouveau, ou sa valeur ; les éléments d’une liste ajoutés retirés et inversement), puis son état ouvert / fermé ; comme toute annulation, ses valeurs archivées sont acceptées, et elle peut à son tour déclencher des règles.
+- Pas d’historique : une synchronisation GitHub de fond (hors requête de l’app) applique les règles sans notification.

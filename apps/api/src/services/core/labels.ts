@@ -42,6 +42,8 @@ export interface LabelOptions<T = Label> {
   extraSchema?: z.ZodObject;
   /** Optional fields a null clears on an update (the others: null leaves them unchanged). Optional. Default = none. */
   clearable?: readonly string[];
+  /** Values as stored, from those checked (a JSON column emptied: `Prisma.DbNull`). Optional. Default = as checked. */
+  stored?: (data: Record<string, unknown>) => Record<string, unknown>;
   /** Writes following an update, in its transaction (e.g. the records copying its label follow it). Optional. */
   afterUpdate?: (tx: Prisma.TransactionClient, before: T, after: T) => Promise<void>;
 }
@@ -88,7 +90,7 @@ export function createLabelService<T extends { id: string } = Label>(model: Labe
    * @returns {LabelDelegate} Delegate.
    */
   const delegate = (client: object = prisma) => modelDelegate<LabelDelegate<T>>(model, client);
-  const { afterUpdate } = options;
+  const { afterUpdate, stored = (data: Record<string, unknown>) => data } = options;
   const clearable = new Set(options.clearable ?? []);
 
   return {
@@ -98,7 +100,7 @@ export function createLabelService<T extends { id: string } = Label>(model: Labe
      * @returns {Promise<T>} Created item.
      */
     async create(input: object): Promise<T> {
-      const data = parseInput(schema, input);
+      const data = stored(parseInput(schema, input));
       const position = await nextPositionIn(model);
       try {
         return await delegate().create({ data: { ...data, position } });
@@ -120,7 +122,7 @@ export function createLabelService<T extends { id: string } = Label>(model: Labe
       const changes = Object.fromEntries(Object.entries(input).map(([key, value]) => [key, value ?? (clearable.has(key) ? null : undefined)]));
       // Only the fields given: zod 4 fills an omitted field with its default even in a partial schema, which would reset
       // it (the nature of a kind of éphémérides, set at its creation, turned back into créneaux on every change).
-      const data = presentFields(parseInput(patchSchema, changes), changes);
+      const data = stored(presentFields(parseInput(patchSchema, changes), changes));
       try {
         if (!afterUpdate) return await delegate().update({ where: { id }, data });
         return await prisma.$transaction(async (tx) => {

@@ -149,6 +149,7 @@ export type ArchivableKind =
   | 'SPRINT'
   | 'STOCK_ITEM'
   | 'STOCK_LOCATION'
+  | 'TASK_AUTOMATION'
   | 'TASK_PRIORITY'
   | 'TASK_STATUS'
   | 'TASK_TAG'
@@ -977,6 +978,7 @@ export type SettingsListKind =
   | 'SHOPPING_STORE'
   | 'SHOPPING_UNIT'
   | 'STOCK_LOCATION'
+  | 'TASK_AUTOMATION'
   | 'TASK_PRIORITY'
   | 'TASK_STATUS'
   | 'TASK_TAG'
@@ -1140,6 +1142,30 @@ export type StockPurchaseInput = {
   locationId?: string | number | null | undefined;
   quantity: number;
   shoppingItemId: string | number;
+};
+
+export type TaskAutomationInput = {
+  /** [{ kind, field, value }], 1 to 20: checked by `taskAutomationActionSchema`. */
+  actions: unknown;
+  color: string;
+  /** Filter of the task table (checked by `taskAutomationConditionSchema`); null or empty: every task. */
+  condition?: unknown;
+  /** On (default) or off. */
+  enabled?: boolean | null | undefined;
+  /** Its name, unique in the workspace. */
+  label: string;
+  /** { event, field, change, value }: checked by `taskAutomationTriggerSchema`. */
+  trigger: unknown;
+};
+
+/** Changes of a rule (omitted fields unchanged; a null condition: every task). */
+export type TaskAutomationPatch = {
+  actions?: unknown;
+  color?: string | null | undefined;
+  condition?: unknown;
+  enabled?: boolean | null | undefined;
+  label?: string | null | undefined;
+  trigger?: unknown;
 };
 
 /** Field a sub-task inherits from its parent. */
@@ -4310,6 +4336,35 @@ export type SetShoppingDeliveryReceivedMutationVariables = Exact<{
 
 export type SetShoppingDeliveryReceivedMutation = { setShoppingDeliveryReceived: Array<string> };
 
+export type TaskAutomationFieldsFragment = { id: string, label: string, color: string, iconUrl: string | null, position: number, archived: boolean, enabled: boolean, trigger: unknown, condition: unknown, actions: unknown };
+
+export type TaskAutomationsQueryVariables = Exact<{ [key: string]: never; }>;
+
+
+export type TaskAutomationsQuery = { taskAutomations: Array<{ id: string, label: string, color: string, iconUrl: string | null, position: number, archived: boolean, enabled: boolean, trigger: unknown, condition: unknown, actions: unknown }> };
+
+export type CreateTaskAutomationMutationVariables = Exact<{
+  input: TaskAutomationInput;
+}>;
+
+
+export type CreateTaskAutomationMutation = { createTaskAutomation: { id: string } };
+
+export type UpdateTaskAutomationMutationVariables = Exact<{
+  id: string | number;
+  input: TaskAutomationPatch;
+}>;
+
+
+export type UpdateTaskAutomationMutation = { updateTaskAutomation: { id: string } };
+
+export type DeleteTaskAutomationMutationVariables = Exact<{
+  id: string | number;
+}>;
+
+
+export type DeleteTaskAutomationMutation = { deleteTaskAutomation: boolean };
+
 export type ContributorFieldsFragment = { id: string, archived: boolean, name: string, handle: string, avatarUrl: string | null, isMe: boolean, projectIds: Array<string>, link: ContributorLinkKind, relationId: string | null, contactId: string | null, linkName: string | null, birthDate: string | null, emails: unknown, phones: unknown, birthdayReminders: Array<{ before: number | null, at: string | null, days: number | null, anchor: string, ringtone: string | null }> };
 
 export type SprintFieldsFragment = { id: string, archived: boolean, projectId: string, label: string, goal: string | null, startDate: string, endDate: string };
@@ -5654,6 +5709,20 @@ export const ProjectFieldsFragmentDoc = new TypedDocumentString(`
   position
   iconUrl
 }`, {"fragmentName":"ProjectFields"}) as unknown as TypedDocumentString<ProjectFieldsFragment, unknown>;
+export const TaskAutomationFieldsFragmentDoc = new TypedDocumentString(`
+    fragment TaskAutomationFields on TaskAutomation {
+  id
+  label
+  color
+  iconUrl
+  position
+  archived
+  enabled
+  trigger
+  condition
+  actions
+}
+    `, {"fragmentName":"TaskAutomationFields"}) as unknown as TypedDocumentString<TaskAutomationFieldsFragment, unknown>;
 export const ContributorFieldsFragmentDoc = new TypedDocumentString(`
     fragment ContributorFields on Contributor {
   id
@@ -9885,6 +9954,43 @@ export const SetShoppingDeliveryReceivedDocument = new TypedDocumentString(`
   setShoppingDeliveryReceived(id: $id, received: $received)
 }
     `) as unknown as TypedDocumentString<SetShoppingDeliveryReceivedMutation, SetShoppingDeliveryReceivedMutationVariables>;
+export const TaskAutomationsDocument = new TypedDocumentString(`
+    query TaskAutomations {
+  taskAutomations {
+    ...TaskAutomationFields
+  }
+}
+    fragment TaskAutomationFields on TaskAutomation {
+  id
+  label
+  color
+  iconUrl
+  position
+  archived
+  enabled
+  trigger
+  condition
+  actions
+}`) as unknown as TypedDocumentString<TaskAutomationsQuery, TaskAutomationsQueryVariables>;
+export const CreateTaskAutomationDocument = new TypedDocumentString(`
+    mutation CreateTaskAutomation($input: TaskAutomationInput!) {
+  createTaskAutomation(input: $input) {
+    id
+  }
+}
+    `) as unknown as TypedDocumentString<CreateTaskAutomationMutation, CreateTaskAutomationMutationVariables>;
+export const UpdateTaskAutomationDocument = new TypedDocumentString(`
+    mutation UpdateTaskAutomation($id: ID!, $input: TaskAutomationPatch!) {
+  updateTaskAutomation(id: $id, input: $input) {
+    id
+  }
+}
+    `) as unknown as TypedDocumentString<UpdateTaskAutomationMutation, UpdateTaskAutomationMutationVariables>;
+export const DeleteTaskAutomationDocument = new TypedDocumentString(`
+    mutation DeleteTaskAutomation($id: ID!) {
+  deleteTaskAutomation(id: $id)
+}
+    `) as unknown as TypedDocumentString<DeleteTaskAutomationMutation, DeleteTaskAutomationMutationVariables>;
 export const TasksDataDocument = new TypedDocumentString(`
     query TasksData {
   tasks {
