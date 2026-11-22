@@ -10,10 +10,8 @@ import { AlarmIcon, CalendarBlankIcon, CheckCircleIcon, CheckSquareOffsetIcon, C
 import { useMemo } from 'react';
 import { Link } from 'react-router';
 import { useAlarms } from '../../alarms/api';
-import { useDoableTaskIds, useTaskWaitReasons, type Task } from '../../tasks/api';
-import { DOABLE_GROUP_LABELS, isArchivedTaskRow, viewUses, taskTableRows } from '../../tasks/lib/task-columns';
-import { useTaskColumns } from '../../tasks/hooks/use-task-columns';
-import { useDefaultTableView, useViewRows } from '../../../components/data-table/views/use-default-view';
+import type { Task } from '../../tasks/api';
+import { DOABLE_GROUP_LABELS } from '../../tasks/lib/task-columns';
 import { viewPath } from '../../../components/data-table/views/use-saved-views';
 import type { TaskContext } from '../../tasks/hooks/use-task-context';
 import { useTaskLink } from '../../tasks/hooks/use-task-link';
@@ -21,7 +19,7 @@ import classes from './Home.module.css';
 import tile from '../../../components/page/StatTile.module.css';
 import { CardFigure, HomeCard } from './HomeCard';
 import { HomeList, HomeRow } from './HomeList';
-import { dayLabel, useHeldEvents, viewNote, type WeekTime } from '../lib/home-data';
+import { dayLabel, useHeldEvents, useHomeTasks, viewNote, type HomeTaskSection, type WeekTime } from '../lib/home-data';
 import { SubSection } from '../../../components/page/SubSection';
 import * as fmt from '../../../lib/format';
 import { LateBadge } from '../../../components/feedback/LateBadge';
@@ -35,42 +33,19 @@ interface TasksCardProps {
   today: string;
 }
 
-/** A task of the card, in its section. */
-interface TaskItem {
-  key: string;
-  /** `now`: it can be done now; `later`: the others. */
-  section: TaskSection;
-  task: Task;
-}
-
-type TaskSection = 'now' | 'later';
-
 /** Titles of the sections of the card. */
-const SECTION_TITLES: Record<TaskSection, string> = { now: DOABLE_GROUP_LABELS.yes, later: DOABLE_GROUP_LABELS.no };
+const SECTION_TITLES: Record<HomeTaskSection, string> = { now: DOABLE_GROUP_LABELS.yes, later: DOABLE_GROUP_LABELS.no };
 
 /**
  * Tasks of the default view of the tasks page (its filter, search and sorts), archived ones left out; without any
  * view yet, my tasks of today, overdue first. In two sections, each in that order: those that can be done now, then the
- * others, with why not. A task opens in the side panel.
+ * others, with why not (`useHomeTasks`). A task opens in the side panel.
  * @param {TasksCardProps} props Component props.
  * @returns {JSX.Element} Card.
  */
 export function TasksCard({ context, todayTasks, today }: TasksCardProps) {
   const link = useTaskLink();
-  const { view, isPending } = useDefaultTableView('tasks');
-  const columns = useTaskColumns(context, today, { doable: viewUses(view?.config, 'doableNow') });
-  const doableIds = useDoableTaskIds(true);
-  const waitReasons = useTaskWaitReasons(true);
-  const rows = useMemo(() => taskTableRows(context?.tasks ?? []), [context]);
-  const shown = useViewRows({ view, columns, rows, archived: isArchivedTaskRow });
-  const items = useMemo(() => {
-    // A closed task is neither doable now nor later: left out of the card.
-    const tasks = (view ? shown.rows.flatMap((row) => (row.kind === 'task' ? [row.task] : [])) : (todayTasks ?? [])).filter((task) => !context?.isClosed(task));
-    const item = (task: Task): TaskItem => ({ key: task.id, section: doableIds?.has(task.id) ? 'now' : 'later', task });
-    const all = tasks.map(item);
-    return [...all.filter((entry) => entry.section === 'now'), ...all.filter((entry) => entry.section === 'later')];
-  }, [view, shown, todayTasks, doableIds, context]);
-  const loading = isPending || !context || !doableIds || !waitReasons || (!view && !todayTasks);
+  const { view, viewPending: isPending, items, waitReasons, loading } = useHomeTasks(context, todayTasks, today);
   const nothingNow = items.length > 0 && items[0].section === 'later';
   return (
     <HomeCard
@@ -90,7 +65,7 @@ export function TasksCard({ context, todayTasks, today }: TasksCardProps) {
           )}
           <HomeList
             items={items}
-            group={{ key: (item) => item.section, title: (section) => SECTION_TITLES[section as TaskSection] }}
+            group={{ key: (item) => item.section, title: (section) => SECTION_TITLES[section as HomeTaskSection] }}
             render={({ key, task }) => {
               const status = task.statusId ? context.statusById.get(task.statusId) : undefined;
               const late = isTaskOverdue(task, today);

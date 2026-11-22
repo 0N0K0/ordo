@@ -9,6 +9,7 @@ type RoutineRow = RoutinesDataQuery['routines'][number];
 export const ROUTINE_FIELD_LABELS: Record<RoutineInheritableField, string> = {
   PROJECT: 'Projet',
   CATEGORIES: 'Catégories',
+  PRIORITY: 'Priorité',
   ASSIGNEES: 'Assignés',
   BENEFICIARIES: 'Bénéficiaires',
   LOCATION: 'Lieu',
@@ -33,20 +34,24 @@ const ROUTINE_OPTION_LABELS = Object.fromEntries(Object.entries(ROUTINE_FIELD_LA
  * disappear with it are confirmed, as for any change of it); the first time and the repetition are never emptied.
  */
 export const ROUTINE_INHERITANCE_OPTIONS: InheritableFieldOption<RoutineInheritableField>[] = (
-  ['PROJECT', 'CATEGORIES', 'ASSIGNEES', 'BENEFICIARIES', 'LOCATION', 'SLOT_CONDITION', 'OPENS_ON', 'START_DATE', 'RECURRENCE', 'CASES', 'MOMENTS', 'MOVES'] as const
+  ['PROJECT', 'CATEGORIES', 'PRIORITY', 'ASSIGNEES', 'BENEFICIARIES', 'LOCATION', 'SLOT_CONDITION', 'OPENS_ON', 'START_DATE', 'RECURRENCE', 'CASES', 'MOMENTS', 'MOVES'] as const
 ).map((field) => ({
   field,
   label: ROUTINE_OPTION_LABELS[field],
   required: ROUTINE_REQUIRED_FIELDS.includes(field),
 }));
 
-/** Fields of the « Quand » block of a routine, shown and given back together in its panel. */
-export const ROUTINE_SCHEDULE_FIELDS: readonly RoutineInheritableField[] = [...ROUTINE_WHEN_FIELDS.filter((field) => field !== 'MOVES'), 'SLOT_CONDITION'];
+/** Fields of the « Répétition et moments » of a routine, shown and given back together in its panel (its first time apart). */
+export const ROUTINE_REPETITION_FIELDS: readonly RoutineInheritableField[] = [...ROUTINE_WHEN_FIELDS.filter((field) => field !== 'MOVES' && field !== 'START_DATE'), 'SLOT_CONDITION'];
+
+/** Fields of the form « Répétition et moments » changes in the panel (its first time apart), saved together. */
+export const ROUTINE_REPETITION_KEYS = ['recurrence', 'cases', 'slotCondition', 'moments', 'opensOn'] as const;
 
 /** Inherited field shown by each column of the routine table. */
 export const ROUTINE_CELL_FIELDS: Partial<Record<string, RoutineInheritableField>> = {
   project: 'PROJECT',
   categories: 'CATEGORIES',
+  priority: 'PRIORITY',
   assignees: 'ASSIGNEES',
   beneficiaries: 'BENEFICIARIES',
   location: 'LOCATION',

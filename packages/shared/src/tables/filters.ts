@@ -59,7 +59,7 @@ const relativeDay = /^today([+-]\d{1,4})?$/;
 const rollingPeriod = /^(past|next):\d{1,4}$/;
 
 /** A day of a date condition: a calendar date, today, or N days before or after it. */
-const filterDaySchema = z.string().refine((value) => isRealDay(value) || relativeDay.test(value), 'Date invalide.');
+export const filterDaySchema = z.string().refine((value) => isRealDay(value) || relativeDay.test(value), 'Date invalide.');
 
 /** A period, for the `within` operator. */
 const filterPeriodSchema = z.string().refine((value) => (DATE_PERIODS as readonly string[]).includes(value) || rollingPeriod.test(value), 'Période invalide.');
@@ -121,10 +121,11 @@ export interface FilterGroupOf<F extends string> {
 /**
  * Schema of a filter condition on some fields: its operator fits the kind of its field, and so does its value.
  * @param {Record<F, FilterFieldKind>} fields Fields and their kind.
- * @param {Partial<Record<F, readonly string[]>>} choices Values allowed for the fields of kind `category`.
+ * @param {Partial<Record<F, readonly string[] | null>>} choices Values allowed for the fields of kind `category` (null: any
+ *   value, the ids of a list known elsewhere).
  * @returns {z.ZodType<FilterConditionOf<F>>} Schema.
  */
-export function filterConditionSchemaFor<F extends string>(fields: Record<F, FilterFieldKind>, choices: Partial<Record<F, readonly string[]>>): z.ZodType<FilterConditionOf<F>> {
+export function filterConditionSchemaFor<F extends string>(fields: Record<F, FilterFieldKind>, choices: Partial<Record<F, readonly string[] | null>>): z.ZodType<FilterConditionOf<F>> {
   return z
     .object({
       type: z.literal('condition'),
@@ -164,8 +165,8 @@ export function filterConditionSchemaFor<F extends string>(fields: Record<F, Fil
           if (!Array.isArray(value) || value.length === 0) issue('Choisissez au moins une valeur.');
           break;
         case 'category': {
-          const allowed = choices[field] ?? [];
-          if (!Array.isArray(value) || value.length === 0 || !value.every((item) => allowed.includes(item))) issue('Choisissez au moins une catégorie.');
+          const allowed = choices[field];
+          if (!Array.isArray(value) || value.length === 0 || (allowed !== null && !value.every((item) => (allowed ?? []).includes(item)))) issue('Choisissez au moins une catégorie.');
           break;
         }
       }

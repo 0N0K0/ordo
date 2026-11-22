@@ -14,6 +14,23 @@ export function pinWorkspace(id: string | null): void {
   workspaceId = id;
 }
 
+/** Reads the extensions of the answers (what the API tells besides their data: the automations of the tasks applied…). */
+type ExtensionsListener = (extensions: Record<string, unknown>) => void;
+
+const extensionListeners = new Set<ExtensionsListener>();
+
+/**
+ * Follows the extensions of every answer of the API that has some (the automations of the tasks applied by a change).
+ * @param {ExtensionsListener} listener Reads the extensions of an answer.
+ * @returns {() => void} Stops following.
+ */
+export function onResponseExtensions(listener: ExtensionsListener): () => void {
+  extensionListeners.add(listener);
+  return () => {
+    extensionListeners.delete(listener);
+  };
+}
+
 interface GraphQLErrorPayload {
   message: string;
   extensions?: { code?: string; fields?: Record<string, string> } & Record<string, unknown>;
@@ -129,7 +146,9 @@ async function request<TResult>(workspace: string | null, query: string, variabl
     throw new GraphQLRequestError({ message: 'Le serveur est injoignable.', extensions: { code: 'NETWORK_ERROR' } });
   }
 
-  const json = (await response.json().catch(() => null)) as { data?: TResult; errors?: GraphQLErrorPayload[] } | null;
+  const json = (await response.json().catch(() => null)) as { data?: TResult; errors?: GraphQLErrorPayload[]; extensions?: Record<string, unknown> } | null;
+  const extensions = json?.extensions;
+  if (extensions) extensionListeners.forEach((listener) => listener(extensions));
   if (json?.errors?.length) throw new GraphQLRequestError(json.errors[0]);
   if (!response.ok || !json?.data) {
     throw new GraphQLRequestError({ message: 'Une erreur inattendue est survenue.' });

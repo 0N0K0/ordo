@@ -28,8 +28,8 @@ interface RepetitionFieldProps<V> {
 
 /**
  * Repetition of what a panel shows: its summary, and « Modifier » opening every repetition setting in a modal (applied
- * on « Appliquer », dropped on « Annuler »). The same field for events, schedules, tasks (their « Horaires »), routines,
- * alarms, treasury and invoicing.
+ * on « Appliquer », dropped on « Annuler »). The same field for schedules, tasks (their « Horaires »), alarms, treasury
+ * and invoicing (events and routines edit theirs right in their panel).
  * @template V
  * @param {RepetitionFieldProps<V>} props Component props.
  * @returns {JSX.Element} Field.

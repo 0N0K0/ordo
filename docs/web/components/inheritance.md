@@ -13,6 +13,7 @@ Briques qui montrent et changent ce qu’une sous-tâche ou une sous-routine pre
 ## `InheritedField.tsx`
 
 - `InheritedFieldState` : `origin` (`null` sans parent), `onClear?` (« Vider »), `onInherit?` (« Rétablir l’héritage »), `parts?` (champs hérités d’un groupe quand ils ne le sont pas tous).
+- `InheritanceNote({ origin, from, onClear?, onInherit?, parts?, about?, readOnly? })` : la ligne sous un champ hérité, la même pour `InheritedField` et pour chaque bout d’un `PeriodField` : « Hérité de … » avec « Vider », ou « Vidé exprès » avec « Rétablir l’héritage » ; `about` la précède (« Ouverture : Hérité de … ») ; rien quand il n’y a rien à dire.
 - `InheritedField({ origin, from, onClear?, onInherit?, parts?, compact?, readOnly?, children })` : un champ qui peut venir du parent. Hérité : valeur grisée (texte atténué en italique, pastilles et avatars estompés : `InheritedField.module.css`), « Hérité de « #12 … » » dessous avec « Vider » ; vidé exprès : « Vidé exprès » avec « Rétablir l’héritage » ; propre : « Rétablir l’héritage ». `compact` (cellule d’un tableau) : grisé, la mention en infobulle, sans action. Taper ou choisir une valeur la rend propre (le champ l’enregistre comme d’habitude).
 
 ## `inherited-cells.tsx`

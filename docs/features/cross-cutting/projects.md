@@ -15,7 +15,8 @@ Composant `Sidebar`, à gauche de l’application.
 
 - « Accueil » (`/`).
 - Groupes repliables, fermés au départ ; l’état de chaque groupe est gardé par fenêtre ; le groupe de la page ouverte se déplie, et est surligné s’il est replié :
-  - « Activités » : « Tâches » (pastille : nombre de mes tâches du jour, pleine et en couleur de retard s’il y en a en retard), « Routines », « Agenda » (pastille : évènements du jour, hors annulés), « Chronos » (pastille : temps du jour, rouge quand un chrono tourne), « Alarmes ».
+  - « Activités » : « Tâches » (pastille : nombre de tâches faisables maintenant de la vue par défaut de la page « Tâches », comme la section « Maintenant » de la carte de l’accueil, sans vue celles de mes tâches du jour ; pleine et en couleur de retard si certaines sont en retard), « Routines » (pastille : moments faits sur prévus aujourd’hui, « 3/7 », comme l’onglet « Historique » ; verte quand tout est fait), « Agenda » (pastille : évènements du jour, journée entière comprise, hors annulés), « Chronos » (pastille : temps du jour, « 2 h 30 », chronos en cours comptés en direct ; rouge quand un chrono tourne), « Alarmes » (pastille : temps jusqu’à la prochaine sonnerie, « 12 min », « 2 h », « 3 j », recalculé chaque minute : rappels des évènements, tâches, routines, éphémérides et anniversaires, alarmes programmées, paliers des chronos en cours, fins des minuteurs, comme le centre des alarmes).
+  - Une pastille sans valeur (0, rien de prévu) ne s’affiche pas ; chacune a un libellé pour les lecteurs d’écran (« 5 tâches faisables maintenant », « Prochaine sonnerie dans 12 min »…).
   - « Économat » : « Achats », « Fiches », « Inventaire ».
   - « Finances » : « Facturation » (absente en PERSO), « Trésorerie » (pastille : solde du jour des comptes ouverts, rouge s’il est négatif).
   - « Ressources » : « Mails » (pastille du nombre de non lus), « Documents », « Tableaux de bord ».
@@ -128,7 +129,7 @@ Un nouveau client : bouton « Créer le client », toast « Client créé. ». U
 | « Statut »         | facultatif (« Aucun »), avec création à la volée                                                                                     |
 | Couleur            | facultative                                                                                                                          |
 | « Catégories »     | plusieurs, avec création à la volée                                                                                                  |
-| « Début », « Fin » | dates facultatives ; la fin doit suivre le début                                                                                     |
+| « Dates »          | période en un seul champ, chaque bout facultatif (« Dès le début » / « Jusqu’à la fin ») ; la fin doit suivre le début              |
 | « Description »    | Markdown, 65 536 caractères                                                                                                          |
 | Icône              | image facultative                                                                                                                    |
 

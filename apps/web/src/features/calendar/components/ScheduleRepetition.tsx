@@ -1,6 +1,6 @@
 import { AddItemButton } from '../../../components/actions/AddItemButton';
 import { Checkbox, Divider, Group, Paper, Stack, Text, TextInput, Switch } from '@mantine/core';
-import { DatePickerInput, TimePicker } from '@mantine/dates';
+import { TimePicker } from '@mantine/dates';
 import { type ScheduleCase, type ScheduleException, type ScheduleTimes, DURATION_UNITS } from '@ordo/shared';
 
 import { useState, type ReactNode } from 'react';
@@ -10,7 +10,8 @@ import * as fmt from '../../../lib/format';
 import { localToday } from '../../../lib/dates';
 import { defaultScheduleTimes, describeScheduleCase, describeScheduleTimes, exceptionPeriod, newScheduleCase } from '../lib/schedule-text';
 import { RemoveButton } from '../../../components/actions/RemoveButton';
-import { dateRangeProps, rangeProps } from '../../../components/inputs/date-range';
+import { rangeProps } from '../../../components/inputs/date-range';
+import { PeriodField } from '../../../components/inputs/PeriodField';
 
 /** Period, cases and exceptions of a schedule: everything about how it repeats. */
 interface ScheduleRepetitionValue {
@@ -123,13 +124,15 @@ function ScheduleRepetitionEditor({ draft, setDraft }: { draft: ScheduleRepetiti
       ...draft,
       exceptions: draft.exceptions.map((other, position) => (position === index ? { ...other, ...changes } : other)),
     });
-  const period = dateRangeProps({ value: [draft.startDate || null, draft.endDate], onChange: ([startDate, endDate]) => startDate && setDraft({ ...draft, startDate, endDate }) });
   return (
     <Stack gap="md">
-      <Group grow align="flex-start">
-        <DatePickerInput label="À partir du" required placeholder="À choisir" {...period.start} />
-        <DatePickerInput label="Jusqu’au" clearable placeholder="Sans fin" {...period.end} />
-      </Group>
+      <PeriodField
+        label="Période"
+        required="start"
+        placeholder="À choisir"
+        value={[draft.startDate || null, draft.endDate]}
+        onChange={([startDate, endDate]) => startDate && setDraft({ ...draft, startDate, endDate })}
+      />
       <Divider label="Cas" labelPosition="left" />
       <ScheduleCases cases={draft.cases} onChange={(cases) => setDraft({ ...draft, cases })} start={start} />
       <Divider label="Exceptions (congés, horaires particuliers…)" labelPosition="left" />
@@ -138,13 +141,11 @@ function ScheduleRepetitionEditor({ draft, setDraft }: { draft: ScheduleRepetiti
       </Text>
       {draft.exceptions.map((exception, index) => {
         const pause = exception.cases.length === 0;
-        const days = dateRangeProps({ value: [exception.from, exception.to], onChange: ([from, to]) => from && to && setException(index, { from, to }) });
         return (
           <Paper key={index} withBorder radius="md" p="sm" bg="var(--mantine-color-default-hover)">
             <Stack gap="xs">
               <Group gap={6} wrap="nowrap" align="flex-end">
-                <DatePickerInput label="Du" size="xs" w={140} {...days.start} />
-                <DatePickerInput label="Au" size="xs" w={140} {...days.end} />
+                <PeriodField label="Période" size="xs" w={280} required value={[exception.from, exception.to]} onChange={([from, to]) => from && to && setException(index, { from, to })} />
                 <TextInput
                   label="Motif"
                   size="xs"

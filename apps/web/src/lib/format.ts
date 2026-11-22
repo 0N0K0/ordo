@@ -190,6 +190,19 @@ export function daysLate(due: string, today: string): string {
 }
 
 /**
+ * « 12 min », « 2 h », « 3 j »: how long until a moment, in its largest whole unit (minutes rounded up, 1 min at
+ * least).
+ * @param {number} seconds Seconds left.
+ * @returns {string} Text.
+ */
+export function countdown(seconds: number): string {
+  const minutes = Math.max(1, Math.ceil(seconds / 60));
+  if (minutes < 60) return `${minutes} min`;
+  const hours = Math.floor(minutes / 60);
+  return hours < 24 ? `${hours} h` : `${Math.floor(hours / 24)} j`;
+}
+
+/**
  * « il y a 3 heures », « hier »…: how long ago (a comment), or how soon.
  * @param {string} date ISO instant.
  * @returns {string} Relative time.

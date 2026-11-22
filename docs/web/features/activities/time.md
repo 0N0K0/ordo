@@ -17,7 +17,7 @@ Documents GraphQL du temps (fragment `TimeEntryFields` avec `routines { id label
 | `useTimeEntries(projectId)`            | Temps d’un projet et de ses sous-projets (rien sans projet). Utilisé par `ProjectTimePanel`.                                                                                                              |
 | `useTimeEntriesSince(since, enabled?)` | Temps de tous les projets depuis un moment (ISO), ou tous (`null`). Utilisé par `TimePage`, `PlannedTime`, l’agenda (`CalendarPage`), l’accueil (`home-data.ts`).                                         |
 | `useRunningTimers()`                   | Les chronos en cours (plusieurs à la fois), le premier démarré d’abord ; relus au retour du focus. |
-| `runningOn(running, on)`               | Le chrono en cours sur un élément (le premier), sinon `null`. Utilisé par `TaskTime`, `TimerCell`, `ChronoCell` (routines). |
+| `runningOn(running, on)`               | Le chrono en cours sur un élément (le premier), sinon `null`. Utilisé par `TrackedTime`, `TimerCell`, `ChronoCell` (routines). |
 | `TimeEntryValues` (interface)          | Champs d’un temps envoyés : `projectId`, `routineIds?`, `taskIds`, `description`, `startedAt`, `duration` (secondes), `events?` (plusieurs de chaque). |
 | `TimerStartValues` (interface)         | Démarrage d’un chrono : `projectId?`, `routineIds?`, `taskIds`, `description?`, `events?`. |
 | `TimeEventLink` (interface)            | Évènement d’un temps envoyé : `{ eventId, occurrenceDate }`. |
@@ -75,9 +75,9 @@ Les trois cellules de sujets passent par l’interne `TimeSubjectCell({ kind, en
 - `PlannedTime()` : section « Prévu et réalisé » : temps prévu par les créneaux de travail comptés (`useWorkingHours` : ni éphémérides, ni archivés, ni d’un type archivé ; `plannedSlots`, `slotMinutes`) contre temps chronométré, aujourd’hui, la semaine (de l’espace, `weekRange`) et par jour ; en direct pendant un chrono (`useNow`). Rien sans créneaux. Utilisé par `TimePage`.
 - Interne : `Gauge({ label, tracked, planned })` (jauge, orange au-delà de 100 %).
 
-### `components/TaskTime.tsx`
+### `components/TrackedTime.tsx`
 
-- `TaskTime({ task })` : « Temps passé » d’une tâche dans son panneau, et « Démarrer le chrono » (ou badge et commandes du chrono qui tourne sur elle, `runningOn`). Utilisé par `TaskPanel`.
+- `TrackedTime({ seconds, on, start, disabled? })` : « Temps passé » d’une tâche, d’une routine ou d’un évènement dans son panneau (« Aucun » sans temps), et « Démarrer le chrono » (`start` : le chrono lancé ; ou badge et commandes du chrono qui tourne sur l’élément, `runningOn` avec `on`). Utilisé par `TaskPanel` (« Charge »), `RoutineForm` (« Planification ») et `EventForm` (« Dates et heures »).
 
 ### `components/TimerCard.tsx`
 

@@ -11,6 +11,7 @@ import { effectiveTasks } from '../tasks/task-inheritance';
 import { effectiveRoutineOf, loadRoutineInheritance } from './routine-inheritance';
 import { parisToday } from '../../today';
 import { linkedSavedCountdowns } from '../tasks/saved-countdowns';
+import { automated } from '../tasks/task-automation-engine';
 import { firstOccurrence, loadScheduleContext, occurrenceSpansBetween, occurrencesOf, placeLegacyRoutineComments, ROUTINE_LINKS, slotsOf, storedCondition, type RoutineTiming } from './routines';
 
 /** Largest « Ouverture » of a routine before its due day, in days (`routineOpensSchema`, mode BEFORE). */
@@ -46,19 +47,19 @@ const pickInherited = (task: EffectiveTask) => ({
 
 /**
  * Turns a task into a routine, in one transaction: a new routine, the task deleted. It keeps the label,
- * description, project, assignees, beneficiaries, links, place, slot condition and reminders « À HH:MM »; its times,
- * sheets and checklist move to the routine; its comments go to the first occurrence; its one-off events become events
+ * description, project, priority (as it goes), type, assignees, beneficiaries, links, place, slot condition and reminders
+ * « À HH:MM »; its times, sheets and checklist move to the routine; its comments go to the first occurrence; its one-off events become events
  * of that day of the routine. Its « Échéance » (as it goes: its own, its parent's, its milestone's or its first sprint's) is the due day of the first
  * occurrence (none: its « Ouverture », else today), its « Ouverture » the routine's « Ouverture » when it differs. It
  * repeats every day (chosen afterwards in its panel). A closed task (« Fermée », cancelled included) ticks that first
  * occurrence, each of its times of the day, when it closed (not when it is still to come: not late either). Refused for an archived task or one with sub-tasks. What it loses
- * (number, status, priority, type, tags, milestone, sprints, GitHub item, effort, dates, links with tasks, shopping
+ * (number, status, tags, milestone, sprints, GitHub item, effort, dates, links with tasks, shopping
  * lists, alarms' link, recurring events, parent) is asked first (`confirm`).
  * @param {string} id Task id.
  * @param {boolean} confirm Losses confirmed (false: CONFIRMATION_REQUIRED with them, nothing changed).
  * @returns {Promise<string>} Id of the routine.
  */
-export async function convertTaskToRoutine(id: string, confirm: boolean): Promise<string> {
+export const convertTaskToRoutine = automated(async function convertTaskToRoutine(id: string, confirm: boolean): Promise<string> {
   await findActive(prisma.task, id, 'Tâche');
   if (await prisma.task.count({ where: { parentId: id } })) {
     throw clientError('BAD_USER_INPUT', 'Une tâche qui a des sous-tâches ne devient pas une routine : déplacez ou supprimez d’abord ses sous-tâches.');
@@ -98,8 +99,6 @@ export async function convertTaskToRoutine(id: string, confirm: boolean): Promis
   const lost = conversionLoss({
     number: flag(task.number),
     status: flag(task.statusId),
-    priority: flag(task.priorityId),
-    type: flag(task.typeId),
     tags: task.tags.length,
     milestone: flag(task.milestoneId),
     sprints: task.sprints.length,
@@ -163,6 +162,9 @@ export async function convertTaskToRoutine(id: string, confirm: boolean): Promis
         locationLon: task.locationLon,
         links: toJson(readLinks(task.links)),
         projectId: task.projectId,
+        // Kept as values already there (even archived).
+        priorityId: task.priorityId,
+        typeId: task.typeId,
         position,
         // Already on the task: kept, as a value already there (even archived, or no longer of the project).
         assignees: { connect: task.assignees },
@@ -183,12 +185,12 @@ export async function convertTaskToRoutine(id: string, confirm: boolean): Promis
     await tx.task.delete({ where: { id } });
     return routine.id;
   });
-}
+});
 
 /**
  * Turns a routine into a task, in one transaction: a new task, the routine deleted. It keeps the label,
- * description, project, assignees, beneficiaries, links, place, slot condition and reminders « À HH:MM »; its times and
- * sheets move to the task; the comments, checklist and events of its current occurrence (else the next, else the
+ * description, project, priority (as it goes), type, assignees, beneficiaries, links, place, slot condition and reminders
+ * « À HH:MM »; its times and sheets move to the task; the comments, checklist and events of its current occurrence (else the next, else the
  * first) go to the task, its « Échéance » that occurrence's due day and its « Ouverture » its first day when it
  * differs; it gets the first status « À faire » (not archived; none without any). Refused for an archived routine or
  * one with sub-routines. What it loses (repetition, ticks, reminders « avant », links with routines, categories, time
@@ -197,7 +199,7 @@ export async function convertTaskToRoutine(id: string, confirm: boolean): Promis
  * @param {boolean} confirm Losses confirmed (false: CONFIRMATION_REQUIRED with them, nothing changed).
  * @returns {Promise<string>} Id of the task.
  */
-export async function convertRoutineToTask(id: string, confirm: boolean): Promise<string> {
+export const convertRoutineToTask = automated(async function convertRoutineToTask(id: string, confirm: boolean): Promise<string> {
   await findActive(prisma.routine, id, 'Routine');
   if (await prisma.routine.count({ where: { parentId: id } })) {
     throw clientError('BAD_USER_INPUT', 'Une routine qui a des sous-routines ne devient pas une tâche : déplacez ou supprimez d’abord ses sous-routines.');
@@ -263,6 +265,9 @@ export async function convertRoutineToTask(id: string, confirm: boolean): Promis
         description: routine.description,
         projectId: routine.projectId,
         statusId: todo?.id ?? null,
+        // Kept as values already there (even archived).
+        priorityId: routine.priorityId,
+        typeId: routine.typeId,
         slotCondition: condition ? toJson(condition) : Prisma.DbNull,
         // A task counts them from its due day: those of the routine lose their anchor (from its opening day or its due day).
         reminders: toJson(reminders.flatMap(({ anchor: _anchor, ...reminder }) => (reminder.at !== null ? [reminder] : []))),
@@ -289,4 +294,4 @@ export async function convertRoutineToTask(id: string, confirm: boolean): Promis
     await tx.routine.delete({ where: { id } });
     return task.id;
   });
-}
+});

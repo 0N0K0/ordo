@@ -34,6 +34,7 @@ export const SETTINGS_LISTS = {
   ROUTINE_CATEGORY: 'routineCategory',
   STOCK_LOCATION: 'stockLocation',
   SAVED_COUNTDOWN: 'savedCountdown',
+  TASK_AUTOMATION: 'taskAutomation',
   PLACE: 'place',
 } as const;
 

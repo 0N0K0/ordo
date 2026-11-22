@@ -4,9 +4,18 @@ import { SettingsList } from '../../../components/settings/SettingsList';
 import { useTasksData } from '../api';
 import { useTaskLabelItems, useTaskStatusItems } from '../hooks/use-label-items';
 import { ColumnDefaults } from './ColumnDefaults';
+import { LightningIcon } from '@phosphor-icons/react';
+import { ActionButton } from '../../../components/actions/ActionButton';
+import { SettingsSection } from '../../../components/settings/SettingsSection';
+import { TASK_AUTOMATIONS_PATH } from '../../../app/pages';
+import { useRoutinesData } from '../../routines/api';
+
+/** What uses a priority or a type: the tasks and the routines (the lists are shared by both). */
+const ACTIVITY_USAGE = { one: 'de la tâche ou de la routine', many: 'tâches et routines' };
 
 /**
- * Settings of tasks: statuses (with their category), priorities, types and tags, then the columns of new views.
+ * Settings of tasks: statuses (with their category), priorities and types (shared with the routines: their uses count
+ * both), tags, the button of the page of their automations, then the columns of new views.
  * @returns {JSX.Element} Settings.
  */
 export function TaskSettings() {
@@ -16,6 +25,9 @@ export function TaskSettings() {
   const types = useTaskLabelItems('type');
   const tags = useTaskLabelItems('tag');
   const tasks = data?.tasks ?? [];
+  const { data: routinesData } = useRoutinesData();
+  // Priorities and types: those of the tasks and of the routines.
+  const activities = [...tasks, ...(routinesData?.routines ?? [])];
 
   // In the settings sidebar: the sections one under the other, the whole width.
   return (
@@ -33,21 +45,21 @@ export function TaskSettings() {
       <SettingsList
         {...priorities}
         title="Priorités"
-        description="L’ordre est celui des listes de sélection et du tri par priorité."
+        description="Communes aux tâches et aux routines. L’ordre est celui des listes de sélection et du tri par priorité."
         noun="la priorité"
         feminine
-        usageNoun={{ one: 'de la tâche', many: 'tâches' }}
+        usageNoun={ACTIVITY_USAGE}
         items={data?.taskPriorities ?? []}
-        usage={countBy(tasks, (task) => (task.priorityId ? [task.priorityId] : []))}
+        usage={countBy(activities, (item) => (item.priorityId ? [item.priorityId] : []))}
       />
       <SettingsList
         {...types}
-        title="Types de tâche"
-        description="Bug, fonctionnalité, amélioration…"
+        title="Types"
+        description="Communs aux tâches et aux routines : bug, fonctionnalité, ménage, courses…"
         noun="le type"
-        usageNoun={{ one: 'de la tâche', many: 'tâches' }}
+        usageNoun={ACTIVITY_USAGE}
         items={data?.taskTypes ?? []}
-        usage={countBy(tasks, (task) => (task.typeId ? [task.typeId] : []))}
+        usage={countBy(activities, (item) => (item.typeId ? [item.typeId] : []))}
       />
       <SettingsList
         {...tags}
@@ -58,6 +70,15 @@ export function TaskSettings() {
         usageNoun={{ one: 'de la tâche', many: 'tâches' }}
         items={data?.taskTags ?? []}
         usage={countBy(tasks, (task) => task.tagIds)}
+      />
+      <SettingsSection
+        title="Automatisations"
+        description="Des règles « quand … alors … » pour toutes les tâches de l’espace : quand le début est renseigné, le statut passe à « En cours »…"
+        actions={
+          <ActionButton icon={<LightningIcon aria-hidden />} to={TASK_AUTOMATIONS_PATH}>
+            Gérer les règles
+          </ActionButton>
+        }
       />
       {/* Last: the columns of new views (a long list). */}
       <ColumnDefaults />

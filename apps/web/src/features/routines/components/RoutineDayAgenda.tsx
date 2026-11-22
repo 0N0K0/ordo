@@ -7,7 +7,7 @@ import interactionPlugin from '@fullcalendar/interaction';
 import FullCalendar from '@fullcalendar/react';
 import timeGridPlugin from '@fullcalendar/timegrid';
 import { Group, Stack, Text } from '@mantine/core';
-import { DatePickerInput, TimePicker } from '@mantine/dates';
+import { DateTimeField } from '../../../components/inputs/DateTimeField';
 import { addDays, plannedSlots, routineMinutes, routineSlotSpan, shiftTime } from '@ordo/shared';
 import { useMemo, useState } from 'react';
 import { localDay, localInstant } from '../../../lib/dates';
@@ -23,12 +23,15 @@ import { ActionButton } from '../../../components/actions/ActionButton';
 import { taggedKey } from '../../../lib/tagged-key';
 import { CountdownLaunchButtons } from '../../countdowns/components/CountdownLaunchButtons';
 import { routineCountdownItem } from '../lib/routine-countdowns';
+import { OccurrenceOpening } from './OccurrenceOpening';
 
 /** One time of the day of the history: planned (done or not), or ticked without being planned that day. */
 export interface HistoryItem {
   key: string;
   routineId: string;
   date: string;
+  /** First day of its occurrence (its « Ouverture »), as the API computes it. */
+  startDate: string;
   slot: number;
   fromTime: string | null;
   dueTime: string | null;
@@ -114,18 +117,25 @@ function TickForm({ item, routine, today, onDone }: TickFormProps) {
   };
   return (
     <Stack gap="md">
-      <Text size="sm">
-        {fmt.dayLong(item.date)}
-        {window ? ` · ${window}` : ''} ·{' '}
-        <Text span c={`${STATES[state].color}.7`}>
-          {state === 'done' ? `faite à ${fmt.time(item.check!.doneAt)}` : STATES[state].text}
+      <OccurrenceOpening routine={routine} occurrence={item}>
+        <Text size="sm">
+          {fmt.dayLong(item.date)}
+          {window ? ` · ${window}` : ''} ·{' '}
+          <Text span c={`${STATES[state].color}.7`}>
+            {state === 'done' ? `faite à ${fmt.time(item.check!.doneAt)}` : STATES[state].text}
+          </Text>
         </Text>
-      </Text>
-      <DatePickerInput label="Faite le" maxDate={today} value={day} onChange={(value) => value && setDay(value)} />
-      <TimePicker
-        label={item.check ? 'Faite à' : 'Faite à (heure prévue par défaut)'}
-        value={time}
-        onChange={setTime}
+      </OccurrenceOpening>
+      <DateTimeField
+        label="Faite le"
+        description={item.check ? undefined : 'À l’heure prévue par défaut.'}
+        maxDate={today}
+        day={day}
+        time={time || null}
+        onChange={(value, hour) => {
+          if (value) setDay(value);
+          setTime(hour ?? '');
+        }}
         error={future ? 'Cette heure n’est pas encore passée.' : undefined}
         data-autofocus
       />

@@ -87,6 +87,14 @@ export function linkableRoutine(context: Pick<TaskContext, 'rootOf'>, projectId:
 }
 
 /**
+ * Routines a routine blocks (« Bloque »): those that depend on it.
+ * @param {readonly Routine[]} routines Routines.
+ * @param {string} id The routine.
+ * @returns {string[]} Ids of the routines waiting for it.
+ */
+export const blockedRoutineIds = (routines: readonly Routine[], id: string): string[] => routines.filter((other) => other.requiredIds.includes(id)).map((other) => other.id);
+
+/**
  * Full path of a routine: the titles of its parent routines, then its own (« Linge › Étendre »).
  * @param {Routine} routine Routine.
  * @param {ReadonlyMap<string, Routine>} byId Routines by id.

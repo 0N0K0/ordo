@@ -1,0 +1,12 @@
+@layer app {
+  /* The period in words, on one line from the start of the field, like the text of the other pickers. */
+  .input {
+    /* Typographie */
+    text-align: start;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+
+    /* Débordement */
+    overflow: hidden;
+  }
+}

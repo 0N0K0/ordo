@@ -4,7 +4,6 @@ import { countOf } from '../../../lib/text';
 import { EmptyState } from '../../../components/feedback/EmptyState';
 import { TableSkeleton } from '../../../components/feedback/Skeletons';
 import { Checkbox, Group, NumberInput, SegmentedControl, Select, SimpleGrid, Stack, Text, TextInput } from '@mantine/core';
-import { DatePickerInput } from '@mantine/dates';
 import { type AccountingLineInput, formatDuration, toCents, sumOf } from '@ordo/shared';
 import { useState } from 'react';
 import { useTaskContext } from '../../tasks/hooks/use-task-context';
@@ -19,7 +18,7 @@ import type { DataColumn } from '../../../components/data-table/table/data-table
 import { useDataView } from '../../../components/data-table/views/use-data-view';
 import { localDay } from '../../../lib/dates';
 import { FormActions } from '../../../components/dialogs/FormActions';
-import { dateRangeProps } from '../../../components/inputs/date-range';
+import { PeriodField } from '../../../components/inputs/PeriodField';
 import { vatRateOptions } from '../lib/labels';
 import { unarchived } from '../../../lib/archive';
 import { FRENCH_NUMBER_FORMAT } from '../../../components/inputs/number-format';
@@ -73,13 +72,6 @@ export function TimeBillingForm({ projectId: initialProject, projects, excludeId
   const [projectId, setProjectId] = useState<string | null>(initialProject ?? projects.find((option) => !option.disabled)?.value ?? null);
   const [from, setFrom] = useState<string | null>(start);
   const [to, setTo] = useState<string | null>(end);
-  const period = dateRangeProps({
-    value: [from, to],
-    onChange: ([first, last]) => {
-      setFrom(first);
-      setTo(last);
-    },
-  });
   const [grouping, setGrouping] = useState<TimeGrouping>('TOTAL');
   const [unit, setUnit] = useState<'HOUR' | 'DAY'>('HOUR');
   const [hoursPerDay, setHoursPerDay] = useState(7);
@@ -111,10 +103,16 @@ export function TimeBillingForm({ projectId: initialProject, projects, excludeId
 
   return (
     <Stack gap="sm">
-      <SimpleGrid cols={{ base: 1, sm: 3 }} spacing="sm">
+      <SimpleGrid cols={{ base: 1, sm: 2 }} spacing="sm">
         <Select label="Projet" required searchable allowDeselect={false} {...treeSelectProps(projects)} value={projectId} onChange={setProjectId} />
-        <DatePickerInput label="Du" clearable {...period.start} />
-        <DatePickerInput label="Au" clearable {...period.end} />
+        <PeriodField
+          label="Période"
+          value={[from, to]}
+          onChange={([first, last]) => {
+            setFrom(first);
+            setTo(last);
+          }}
+        />
       </SimpleGrid>
 
       {!projectId ? (

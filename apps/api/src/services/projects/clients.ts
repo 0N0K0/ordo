@@ -9,6 +9,7 @@ import { BY_POSITION, moveInList, nextPositionIn } from '../core/ordering';
 import { requirePro } from '../workspaces/workspaces';
 import { findOrNotFound } from '../core/lookup';
 import { releaseProjects } from './projects';
+import { automated } from '../tasks/task-automation-engine';
 
 /**
  * Loads a client or throws NOT_FOUND.
@@ -110,7 +111,7 @@ export async function setClientArchived(id: string, archived: boolean): Promise<
  * @param {boolean} deleteProjects Whether to delete the projects too.
  * @returns {Promise<void>}
  */
-export async function deleteClient(id: string, deleteProjects: boolean): Promise<void> {
+export const deleteClient = automated(async function deleteClient(id: string, deleteProjects: boolean): Promise<void> {
   const client = await findClient(id);
   const projects = await prisma.project.findMany({
     where: { clientId: id },
@@ -138,7 +139,7 @@ export async function deleteClient(id: string, deleteProjects: boolean): Promise
     prisma.client.delete({ where: { id } }),
   ]);
   await deleteOrphanIcons([client.iconId]);
-}
+});
 
 /**
  * Moves a client to a new index among the active clients.

@@ -343,6 +343,7 @@ enum ArchivableKind {
   SPRINT
   STOCK_ITEM
   STOCK_LOCATION
+  TASK_AUTOMATION
   TASK_PRIORITY
   TASK_STATUS
   TASK_TAG
@@ -2126,6 +2127,7 @@ type Mutation {
   createStockItem(input: StockItemInput!): ID!
   createStockLocation(input: StockLocationInput!): ID!
   createTask(input: TaskInput!): Task!
+  createTaskAutomation(input: TaskAutomationInput!): TaskAutomation!
   createTaskPriority(input: TaskLabelInput!): TaskPriority!
   createTaskStatus(input: TaskLabelInput!): TaskStatus!
   createTaskTag(input: TaskLabelInput!): TaskTag!
@@ -2248,6 +2250,7 @@ type Mutation {
   deleteSprint(id: ID!): Boolean!
   deleteStockItem(id: ID!): Boolean!
   deleteStockLocation(id: ID!): Boolean!
+  deleteTaskAutomation(id: ID!): Boolean!
   deleteTaskComment(id: ID!): Boolean!
   deleteTaskPriority(id: ID!): Boolean!
   deleteTaskStatus(id: ID!): Boolean!
@@ -2902,6 +2905,7 @@ type Mutation {
   updateStockItem(id: ID!, input: StockItemInput!): Boolean!
   updateStockLocation(id: ID!, input: StockLocationInput!): Boolean!
   updateTask(id: ID!, input: TaskUpdateInput!): Task!
+  updateTaskAutomation(id: ID!, input: TaskAutomationPatch!): TaskAutomation!
   updateTaskComment(body: String!, id: ID!): TaskComment!
   updateTaskPriority(id: ID!, input: TaskLabelUpdateInput!): TaskPriority!
   updateTaskStatus(id: ID!, input: TaskLabelUpdateInput!): TaskStatus!
@@ -3488,6 +3492,11 @@ type Query {
   task(id: ID!): Task
 
   """
+  Automations of the tasks of the workspace, in their order (archived ones included).
+  """
+  taskAutomations: [TaskAutomation!]!
+
+  """
   Columns new task views of the workspace start with (chosen for it, else the app’s).
   """
   taskColumnDefaults: TaskColumnDefaults!
@@ -3773,6 +3782,9 @@ type Routine {
 
   """Global manual order of every routine (not among siblings)."""
   position: Int!
+
+  """Priority, from the list of the tasks (its own: see effective)."""
+  priorityId: ID
   projectId: ID
 
   """
@@ -3821,6 +3833,9 @@ type Routine {
   """Travel time there, in minutes."""
   travelBefore: Int!
 
+  """Type, from the list of the tasks."""
+  typeId: ID
+
   """
   Time to do it from on its current (or next) occurrence, for its time of the day to come: its own, its case’s or its schedule’s.
   """
@@ -3833,7 +3848,7 @@ type Routine {
 }
 
 """
-Same changes for several routines (omitted fields unchanged; null clears estimate and projectId).
+Same changes for several routines (omitted fields unchanged; null clears estimate, projectId, priorityId and typeId).
 """
 input RoutineBulkChanges {
   addAssigneeIds: [ID!]
@@ -3870,6 +3885,7 @@ input RoutineBulkChanges {
 
   """« Ouverture » of its rule; null: none."""
   opensOn: JSON
+  priorityId: ID
   projectId: ID
   recurrence: JSON
   removeAssigneeIds: [ID!]
@@ -3880,6 +3896,7 @@ input RoutineBulkChanges {
   """On or out of calendar schedules, following its rule; null: any time."""
   slotCondition: JSON
   startDate: Date
+  typeId: ID
 }
 
 """Category of the routines, in a tree."""
@@ -3938,6 +3955,7 @@ type RoutineEffective {
   moments: JSON!
   moves: JSON!
   opensOn: JSON
+  priorityId: ID
   projectId: ID
   recurrence: JSON!
   slotCondition: JSON
@@ -3956,6 +3974,7 @@ enum RoutineInheritableField {
   MOMENTS
   MOVES
   OPENS_ON
+  PRIORITY
   PROJECT
   RECURRENCE
   SLOT_CONDITION
@@ -4019,6 +4038,9 @@ input RoutineInput {
   """
   opensOn: JSON
   parentId: ID
+
+  """Priority (the list of the tasks); none: none."""
+  priorityId: ID
   projectId: ID
   recurrence: JSON!
 
@@ -4038,6 +4060,9 @@ input RoutineInput {
 
   """Travel time there, in minutes; none: 0."""
   travelBefore: Int
+
+  """Type (the list of the tasks); none: none."""
+  typeId: ID
 }
 
 """Occurrence of a routine on a day (for the calendar)."""
@@ -4131,6 +4156,9 @@ input RoutinePatch {
   parentId: ID
 
   """Null: none."""
+  priorityId: ID
+
+  """Null: none."""
   projectId: ID
   recurrence: JSON
   relatedIds: [ID!]
@@ -4150,6 +4178,9 @@ input RoutinePatch {
 
   """Travel time there, in minutes; omitted: unchanged."""
   travelBefore: Int
+
+  """Null: none."""
+  typeId: ID
 }
 
 """Occurrence of a routine its reminders ring for (Paris time)."""
@@ -4408,6 +4439,7 @@ enum SettingsListKind {
   SHOPPING_STORE
   SHOPPING_UNIT
   STOCK_LOCATION
+  TASK_AUTOMATION
   TASK_PRIORITY
   TASK_STATUS
   TASK_TAG
@@ -5105,6 +5137,75 @@ type Task {
   trackedSeconds: Int!
   typeId: ID
   updatedAt: DateTime!
+}
+
+"""
+Automation of the tasks (« quand … alors … ») of the workspace, a settings list: applied in their order to every task of every project.
+"""
+type TaskAutomation {
+  """
+  What it does, in order: [{ kind, field, value }] (`taskAutomationActionSchema`).
+  """
+  actions: JSON!
+
+  """Archived: hidden by default, read only."""
+  archived: Boolean!
+  color: String!
+
+  """
+  Filter of the task table the task must meet (columns of `TASK_AUTOMATION_FILTER_KINDS`); null: every task.
+  """
+  condition: JSON
+
+  """On; off: kept, never applied."""
+  enabled: Boolean!
+
+  """Image shown as its avatar (none: its initials on its color)."""
+  iconUrl: String
+  id: ID!
+  label: String!
+  position: Int!
+
+  """
+  What triggers it: { event, field, change, value } (`taskAutomationTriggerSchema`); null when unreadable.
+  """
+  trigger: JSON
+}
+
+input TaskAutomationInput {
+  """
+  [{ kind, field, value }], 1 to 20: checked by `taskAutomationActionSchema`.
+  """
+  actions: JSON!
+  color: String!
+
+  """
+  Filter of the task table (checked by `taskAutomationConditionSchema`); null or empty: every task.
+  """
+  condition: JSON
+
+  """On (default) or off."""
+  enabled: Boolean
+
+  """Its name, unique in the workspace."""
+  label: String!
+
+  """
+  { event, field, change, value }: checked by `taskAutomationTriggerSchema`.
+  """
+  trigger: JSON!
+}
+
+"""
+Changes of a rule (omitted fields unchanged; a null condition: every task).
+"""
+input TaskAutomationPatch {
+  actions: JSON
+  color: String
+  condition: JSON
+  enabled: Boolean
+  label: String
+  trigger: JSON
 }
 
 """Columns new task views of the workspace start with."""

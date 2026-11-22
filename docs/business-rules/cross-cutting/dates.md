@@ -22,15 +22,18 @@ Voir aussi : [dates](../../shared/cross-cutting/dates.md), [calendar](../../shar
 
 - Règle unique pour toute paire de dates (début / fin, min / max, toute période) : la fin suit le début (égale permise), sinon « La fin doit suivre le début. » sous le champ de fin. Une borne absente est toujours acceptée (`endsAfter`, `endAfter`).
 - Dans les formulaires, un seul champ de période commun : changer le début après la fin déplace la fin à la même date, changer la fin avant le début déplace le début ; les dates impossibles ne sont pas sélectionnables.
+- Restent en deux champs : les tableaux (une cellule par bout, début et fin), un budget (deux champs de mois, « À partir de » et « Jusqu’à »), les heures seules (moments de routine, cas d'une répétition).
+- Report d'un évènement : la fin reste modifiable ; déplacer le début garde la durée (la fin se déplace d'autant).
 - Strictement après pour les heures d'une tranche (créneaux, moments de routine).
 - Modification partielle : `assertDateRange` fusionne les jours envoyés avec ceux enregistrés (un jour omis est inchangé) avant de vérifier ; l’erreur va sous le champ de fin donné (`endDate` par défaut, `deadline` pour l’« Échéance » d’une tâche).
 - Variantes de message : « L’échéance doit suivre la date du document. », « La fin de la répétition doit suivre le début. ».
 
 ## Semaine de l'espace
 
-- Chaque espace choisit son premier et son dernier jour de semaine (`weekStart`, `weekEnd`, 1 = lundi … 7 = dimanche ; lundi à dimanche par défaut), via `setWorkspaceWeek`.
+- Chaque espace choisit son premier et son dernier jour de semaine (`weekStart`, `weekEnd`, 1 = lundi … 7 = dimanche ; lundi à dimanche par défaut), via `setWorkspaceWeek`, réglés dans les paramètres de l’agenda (section « Semaine »).
 - Le même jour deux fois (mercredi à mercredi) donne des semaines de 8 jours qui se chevauchent sur ce jour ; un intervalle court (lundi à vendredi) laisse des jours hors semaine.
 - La semaine sert à la vue semaine du calendrier, aux périodes « cette semaine » des filtres, aux regroupements par semaine.
+- Les sélecteurs de date (calendriers des champs de date) ne la suivent pas : leurs semaines vont toujours du lundi au dimanche.
 - Les numéros de semaine (répétitions, durées) sont ISO : la semaine du 4 janvier est la première.
 
 ## Périodes relatives

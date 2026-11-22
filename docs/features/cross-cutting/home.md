@@ -55,4 +55,4 @@ En PERSO : ni « Nouveau client », ni tuiles « À encaisser » et « Devis en 
 
 ## Pastilles du menu
 
-Les pastilles de la barre latérale (tâches du jour, évènements du jour, temps du jour, solde) reprennent les mêmes calculs : voir [Projets › Barre latérale](projects.md#barre-latérale).
+Les pastilles de la barre latérale reprennent les mêmes calculs (tâches faisables maintenant de la carte « Tâches », évènements du jour, temps du jour, solde) : voir [Projets › Barre latérale](projects.md#barre-latérale).

@@ -1,6 +1,6 @@
 import { routinesKey } from '../../../lib/query-keys';
 import { linkInputs } from '../../../lib/links';
-import { ancestorsOf, byPosition, changedList, mapById, movedTo, readReminderOutputs, routineFieldsGiven, subtreeOf, type RoutineInheritableField } from '@ordo/shared';
+import { ancestorsOf, byPosition, changedList, mapById, movedTo, readReminderOutputs, routineBulkValues, routineFieldsGiven, subtreeOf, type RoutineInheritableField } from '@ordo/shared';
 import { ownedFields } from '../../../components/inheritance/inheritance';
 import { routineRow } from '../lib/routine-inheritance';
 import type { Reminder, RoutineBulkChanges } from '@ordo/shared';
@@ -48,6 +48,8 @@ const RoutinesDataDocument = graphql(`
       label
       description
       categoryIds
+      priorityId
+      typeId
       parentId
       startDate
       recurrence
@@ -119,6 +121,7 @@ const RoutinesDataDocument = graphql(`
         beneficiaryIds
         beneficiaryRelationIds
         categoryIds
+        priorityId
         slotCondition
         opensOn
         location
@@ -414,6 +417,8 @@ function draftRoutine(input: RoutineInput, routines: readonly Routine[]): Routin
     label: input.label,
     description: input.description ?? null,
     categoryIds: input.categoryIds ?? [],
+    priorityId: input.priorityId ?? null,
+    typeId: input.typeId ?? null,
     parentId: input.parentId ?? null,
     startDate: input.startDate,
     recurrence: input.recurrence,
@@ -462,6 +467,7 @@ function draftRoutine(input: RoutineInput, routines: readonly Routine[]): Routin
       beneficiaryIds: input.beneficiaryIds ?? [],
       beneficiaryRelationIds: input.beneficiaryRelationIds ?? [],
       categoryIds: input.categoryIds ?? [],
+      priorityId: input.priorityId ?? null,
       slotCondition: input.slotCondition ?? null,
       opensOn: input.opensOn ?? null,
       location: input.location ?? null,
@@ -556,6 +562,8 @@ function archiveInCache(data: RoutinesDataQuery, ids: readonly string[], archive
 export interface RoutinePatchValues {
   label?: string;
   categoryIds?: string[];
+  priorityId?: string | null;
+  typeId?: string | null;
   parentId?: string | null;
   estimate?: number | null;
   assigneeIds?: string[];
@@ -597,6 +605,8 @@ export function routineInputOf(routine: Routine): RoutineInput {
     label: routine.label,
     description: routine.description,
     categoryIds: routine.categoryIds,
+    priorityId: routine.priorityId,
+    typeId: routine.typeId,
     parentId: routine.parentId,
     startDate: routine.startDate,
     recurrence: routine.recurrence as Recurrence,
@@ -642,8 +652,7 @@ function withBulkChanges(routine: Routine, changes: RoutineBulkChanges): Routine
     assigneeIds: changedList(routine.assigneeIds, changes.addAssigneeIds, changes.removeAssigneeIds),
     requiredIds: changedList(routine.requiredIds, changes.addRequiredIds, changes.removeRequiredIds).filter((id) => id !== routine.id),
     relatedIds: changedList(routine.relatedIds, changes.addRelatedIds, changes.removeRelatedIds).filter((id) => id !== routine.id),
-    ...(changes.estimate !== undefined && { estimate: changes.estimate }),
-    ...(changes.projectId !== undefined && { projectId: changes.projectId }),
+    ...routineBulkValues(changes),
     ...(changes.fromTime !== undefined && { fromTime: changes.fromTime }),
     ...(changes.dueTime !== undefined && { dueTime: changes.dueTime }),
     ...(changes.startDate !== undefined && { startDate: changes.startDate }),

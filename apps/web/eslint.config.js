@@ -53,6 +53,12 @@ const RESTRICTED_PATHS = [
     message: 'Utiliser TimePicker : 24 h et libellés par défaut (app/theme).',
   },
   {
+    name: '@mantine/dates',
+    importNames: ['DatePickerInput', 'DateInput', 'DateTimePicker', 'MonthPickerInput', 'DatePicker'],
+    message:
+      'Utiliser DateField, DateTimeField, PeriodField ou MonthField (components/inputs) : « Aujourd’hui » et le jour mis en avant partout, une date et son heure dans un seul champ, une période dans un seul champ.',
+  },
+  {
     name: '@phosphor-icons/react',
     importNames: ['DotsThreeIcon', 'DotsThreeVerticalIcon', 'DotsThreeOutlineIcon', 'DotsThreeOutlineVerticalIcon', 'DotsThreeCircleIcon', 'DotsThreeCircleVerticalIcon'],
     message: 'Un menu « … » : ActionsMenu sans target (trois points verticaux ; variant="light" à côté de boutons).',
@@ -89,6 +95,9 @@ const RESTRICTED_PATHS_BUT_MENU = RESTRICTED_PATHS.filter((path) => !path.import
 
 // ActionsMenu itself: wraps Menu and draws the « … » button.
 const RESTRICTED_PATHS_ACTIONS_MENU = RESTRICTED_PATHS_BUT_MENU.filter((path) => path.name !== '@phosphor-icons/react');
+
+// The date bricks themselves (and the theme), which wrap Mantine's date pickers.
+const RESTRICTED_PATHS_DATE_BRICKS = RESTRICTED_PATHS.filter((path) => !path.importNames.includes('DatePickerInput'));
 
 // A count in a template followed by the text after it: `${count} tâches`, `${n} ${plural(n, 'tâche')}` (the expressions
 // and the texts of a template are two lists: expression i is followed by text i + 1).
@@ -339,8 +348,12 @@ export default defineConfig([
         // Periods: the end follows the start, one message, the impossible days greyed out.
         {
           selector:
-            "JSXOpeningElement[name.name=/^(DatePickerInput|MonthPickerInput|DateTimePicker)$/] > JSXAttribute[name.name=/^(minDate|maxDate)$/] MemberExpression[property.name=/^(startDate|endDate|since|until|from|to|windowFrom|windowTo|serviceStart|serviceEnd|month|repeatUntil|deadline|start|end)$/]:not([object.name='routine']):not([object.property.name='routine'])",
+            "JSXOpeningElement[name.name=/^(DateField|MonthField|DateTimeField)$/] > JSXAttribute[name.name=/^(minDate|maxDate)$/] MemberExpression[property.name=/^(startDate|endDate|since|until|from|to|windowFrom|windowTo|serviceStart|serviceEnd|month|repeatUntil|deadline|start|end)$/]:not([object.name='routine']):not([object.property.name='routine'])",
           message: 'Utiliser dateRangeProps(binding) / formRange(form, début, fin) (components/inputs/date-range) : la fin suit le début, END_AFTER_START, les jours impossibles grisés.',
+        },
+        {
+          selector: "JSXOpeningElement[name.name=/^(DateField|DateTimeField)$/] > JSXSpreadAttribute MemberExpression[property.name=/^(start|end)$/]",
+          message: 'Une période (un début et une fin ensemble) : PeriodField (components/inputs), un seul champ « du … au … », chaque bout facultatif quand il l’est.',
         },
         {
           selector: 'Literal[value=/^(Avant la date de début|La fin ne peut pas être avant le début|L’heure maximale doit suivre l’heure de début)/]',
@@ -631,6 +644,11 @@ export default defineConfig([
           selector:
             "ObjectExpression:has(> Property[key.name='id'][value.value='root']) > Property[key.name='children'] > ArrayExpression[elements.length=1] > ObjectExpression:has(> Property[key.name='type'][value.value='condition'])",
           message: 'Utiliser conditionFilter(champ, opérateur, valeur) ou withinFilter(champ, période) (components/data-table/views/use-data-view).',
+        },
+        // Cell of one item of a settings list (status, priority, type): one, its chip opening the list of chips.
+        {
+          selector: "JSXAttribute[name.name='className'] MemberExpression[property.name='chipTrigger']",
+          message: 'Utiliser ChipChoiceCell (components/data-table/cells/ChipChoiceCell).',
         },
         // Multi-select of a choices cell: one, saved once its list closes.
         {
@@ -989,6 +1007,11 @@ export default defineConfig([
           message: 'Utiliser CountBadge (components/feedback/CountBadge) : un compte seul, la même pastille partout.',
         },
         {
+          // A badge of the navigation written by hand instead of a component of its own on NavBadge.
+          selector: "CallExpression[callee.name='pageLink'] > JSXElement.arguments:not([openingElement.name.name=/NavBadge$/])",
+          message: 'Une pastille du menu : un composant *NavBadge sur NavBadge (features/projects/components/NavBadges), calculé par le code de la page ou de l’accueil.',
+        },
+        {
           // An element named in a hidden label is quoted (IconAction quotes its `item` itself).
           selector: [0, 1, 2, 3]
             .map(
@@ -1229,6 +1252,28 @@ export default defineConfig([
     },
   },
   {
+    // The panels of a task, a routine and an event share one layout (DetailLayout, PanelGroup) and one description
+    // section: no columns, header, save state or markdown view laid out by hand in them.
+    files: ['src/features/tasks/components/TaskPanel.tsx', 'src/features/routines/components/RoutineForm.tsx', 'src/features/calendar/components/EventForm.tsx'],
+    rules: {
+      'no-restricted-imports': [
+        'error',
+        {
+          paths: [
+            ...RESTRICTED_PATHS,
+            { name: '@mantine/core', importNames: ['Grid', 'SimpleGrid', 'Divider'], message: 'Utiliser DetailLayout et PanelGroup (components/panels/DetailLayout) : la disposition commune des panneaux.' },
+          ],
+          patterns: [
+            {
+              group: ['**/feedback/SaveStatus', '**/page/DetailHeader', '**/markdown/MarkdownView', '**/markdown/MarkdownEditor'],
+              message: 'Utiliser DetailLayout (en-tête, « Enregistré ») et DescriptionSection / FormDescription (components/markdown/DescriptionSection).',
+            },
+          ],
+        },
+      ],
+    },
+  },
+  {
     // The one place where shared query keys are built from one another (no imports, so no cycle).
     files: ['src/lib/query-keys.ts'],
     rules: { 'no-restricted-syntax': 'off' },
@@ -1273,4 +1318,12 @@ export default defineConfig([
     rules: { 'no-restricted-syntax': 'off' },
   },
   planReferencesConfig(['**/*.{ts,tsx,js}']),
+  {
+    files: ['src/components/inputs/{DateField,DateTimeField,MonthField,PeriodField}.tsx'],
+    rules: { 'no-restricted-imports': ['error', { paths: RESTRICTED_PATHS_DATE_BRICKS, patterns: [NO_FEATURES] }] },
+  },
+  {
+    files: ['src/app/theme.ts'],
+    rules: { 'no-restricted-imports': ['error', { paths: RESTRICTED_PATHS_DATE_BRICKS }] },
+  },
 ]);

@@ -6,8 +6,6 @@ export const CONVERSION_LOSSES = [
   // Task → routine.
   'number',
   'status',
-  'priority',
-  'type',
   'tags',
   'milestone',
   'sprints',

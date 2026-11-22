@@ -1,5 +1,5 @@
 import { Checkbox, Group, SimpleGrid, Text, Textarea } from '@mantine/core';
-import { DatePickerInput } from '@mantine/dates';
+import { DateField } from '../../../components/inputs/DateField';
 import { treasuryAccountSchema, treasuryCategorySchema, treasuryCounterpartySchema, treasuryPaymentMethodSchema, type TreasuryDirection } from '@ordo/shared';
 import { AmountInput } from '../../../components/inputs/AmountInput';
 import { itemMutations, treeItemInput, type TreeItemValues } from '../../../components/settings/settings-api';
@@ -49,7 +49,7 @@ export function useAccountItems(): SettingsItemKind<TreasuryAccount, AccountExtr
         <>
           <SimpleGrid cols={2} spacing="sm">
             <AmountInput label="Solde d’ouverture" {...form.getInputProps('openingBalance')} />
-            <DatePickerInput label="Au" required {...form.getInputProps('openingDate')} />
+            <DateField label="Au" required {...form.getInputProps('openingDate')} />
           </SimpleGrid>
           <Text size="xs" c="dimmed">
             Le solde du relevé à cette date : seuls les mouvements suivants sont comptés.

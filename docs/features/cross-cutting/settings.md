@@ -33,8 +33,8 @@ Page `/tasks` ; aussi dans l’onglet « Tâches » des paramètres d’un proje
 | Section                         | Ce qu’elle gère                                                                                                                                                                              |
 | ------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | « Statuts de tâche »            | Statuts, chacun avec sa catégorie (badge). La catégorie donne son sens au statut (filtres, tâches « en cours » de l’accueil) ; c’est l’état ouvert / fermé qui dit si la tâche est terminée. |
-| « Priorités »                   | Priorités ; leur ordre est celui des listes et du tri par priorité.                                                                                                                          |
-| « Types de tâche »              | Bug, fonctionnalité, amélioration…                                                                                                                                                           |
+| « Priorités »                   | Priorités, communes aux tâches et aux routines (leurs usages comptent les deux) ; leur ordre est celui des listes et du tri par priorité. |
+| « Types »                       | Communs aux tâches et aux routines (leurs usages comptent les deux) : bug, fonctionnalité, ménage, courses… |
 | « Étiquettes »                  | Plusieurs par tâche ; synchronisées avec les labels GitHub.                                                                                                                                  |
 | « Colonnes des nouvelles vues » | Colonnes affichées et leur ordre (glisser-déposer) quand une vue de tâches est créée ; les vues existantes gardent les leurs. « Colonnes par défaut » (sous la liste) revient aux colonnes de l’app.         |
 
@@ -92,7 +92,7 @@ Page `/calendar`. Voir [Agenda](../activities/calendar.md).
 | Onglet                  | Ce qu’il gère                                                                                                                                                                                                                                                                                                                           |
 | ----------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | « Affichage et export » | « Affichage » : calendriers et créneaux affichés ou masqués, « Aussi dans l’agenda » (Tâches, Routines, créneaux, Chronos, archivés), « Heures (semaine, jour) » « Par 5 minutes » (sinon par 30). « Exporter » : « Vue en PDF » et l’export ICS des calendriers.                                                                           |
-| « Paramètres »          | « Calendriers » et « Calendriers des autres espaces » (abonnements en lecture seule), « Catégories d’agenda » (arborescence ; filtrer sur une catégorie inclut ses sous-catégories), « Créneaux sans type », « Types de créneaux » (couleur et affichage), « Créneaux des autres espaces » (abonnement à un type de créneau d’un autre espace). |
+| « Paramètres »          | « Semaine » (« Semaine du … au … » de tout l’espace), « Calendriers » et « Calendriers des autres espaces » (abonnements en lecture seule), « Catégories d’agenda » (arborescence ; filtrer sur une catégorie inclut ses sous-catégories), « Créneaux sans type », « Types de créneaux » (couleur et affichage), « Créneaux des autres espaces » (abonnement à un type de créneau d’un autre espace). |
 
 Les créneaux eux-mêmes se gèrent par un bouton de la page, pas dans le panneau.
 
@@ -142,7 +142,7 @@ Route `/settings` (lien « Paramètres » en bas du menu latéral). Réglages de
 | « Équipe et contributeurs » (PRO) / « Foyer et contributeurs » (PERSO) | Membres de l’équipe ou du foyer, relations ou proches, et « Contributeurs » (personnes assignables aux tâches, à rattacher aux projets). Voir [Personnes](../../business-rules/cross-cutting/people.md).                |
 | « Lieux »                                                              | Lieux (carte et arborescence) : une adresse par lieu et des zones sans adresse ; ils situent évènements et routines et servent aux temps de trajet. Voir [Lieux](geo.md).                                               |
 | « GitHub »                                                             | « Connexion » (jeton d’accès personnel, chiffré en base) et « Contributeurs sur GitHub » (login GitHub de chaque contributeur). Voir [GitHub](github.md).                                                               |
-| « Espaces »                                                            | Espaces : ajouter (professionnel ou personnel), renommer, changer le type, réordonner, ouvrir, supprimer ; premier et dernier jour de la semaine ; notifications d’un espace non ouvert. Voir [Espaces](workspaces.md). |
+| « Espaces »                                                            | Espaces : ajouter (professionnel ou personnel), renommer, changer le type, réordonner, ouvrir, supprimer ; notifications d’un espace non ouvert. Voir [Espaces](workspaces.md). |
 
 Les anciennes adresses d’onglets déplacés redirigent vers le panneau de leur page :
 

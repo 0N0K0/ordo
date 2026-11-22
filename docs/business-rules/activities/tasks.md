@@ -2,7 +2,7 @@
 
 Règles appliquées par l’API aux tâches et à ce qui les organise : statuts, priorités, types et étiquettes, sous-tâches, jalons, sprints, blocages et relations, effort, dates et retard, vues enregistrées. Sources : `apps/api/src/services/tasks/**` (`tasks.ts`, `task-labels.ts`, `milestones.ts`, `sprints.ts`, `task-views.ts`), `apps/api/src/graphql/modules/tasks.ts`, `packages/shared/src/tasks/**`, `apps/api/prisma/schema.prisma` et les migrations (déclencheurs).
 
-Voir aussi : [Temps passé](time.md), [Commentaires](../cross-cutting/comments.md), [Archivage](../cross-cutting/archiving.md), [Personnes](../cross-cutting/people.md), [Dates](../cross-cutting/dates.md), [Ordre manuel](../cross-cutting/ordering.md), [Libellés et limites](../cross-cutting/naming.md), [Erreurs](../cross-cutting/errors.md), [GitHub](../cross-cutting/github.md).
+Voir aussi : [Automatisations des tâches](task-automations.md), [Temps passé](time.md), [Commentaires](../cross-cutting/comments.md), [Archivage](../cross-cutting/archiving.md), [Personnes](../cross-cutting/people.md), [Dates](../cross-cutting/dates.md), [Ordre manuel](../cross-cutting/ordering.md), [Libellés et limites](../cross-cutting/naming.md), [Erreurs](../cross-cutting/errors.md), [GitHub](../cross-cutting/github.md).
 
 ## Modèle d’une tâche
 
@@ -12,7 +12,7 @@ Voir aussi : [Temps passé](time.md), [Commentaires](../cross-cutting/comments.m
 | `number`                                   | Numéro lisible `#12`, **par projet**, donné par la base (voir [Numérotation](#numérotation)). Aucun sans projet. Les liens utilisent toujours l’`id`.                                              |
 | `description`                              | Markdown, 65 536 caractères au plus (« Texte trop long. ») ; un texte vide ou blanc est enregistré `null` (`markdownSchema`).                                                                      |
 | `projectId`                                | Facultatif : une tâche peut n’appartenir à aucun projet (pas de numéro, ni jalon, ni sprint, ni item GitHub). Le projet ne change pas par `updateTask` mais par transfert (`bulkTransferTasks`).   |
-| `statusId`, `priorityId`, `typeId`         | Une valeur des listes de paramètres, facultative. Supprimer la valeur la retire des tâches (`onDelete: SetNull`).                                                                                  |
+| `statusId`, `priorityId`, `typeId`         | Une valeur des listes de paramètres, facultative. Supprimer la valeur la retire des tâches (`onDelete: SetNull`) ; priorités et types sont aussi ceux des routines. |
 | `tagIds`                                   | Plusieurs étiquettes.                                                                                                                                                                              |
 | `assigneeIds`                              | Contributeurs assignés (voir [Assignés](#assignés-et-bénéficiaires)).                                                                                                                              |
 | `beneficiaryIds`, `beneficiaryRelationIds` | « Bénéficiaires » : contributeurs et relations pour qui est la tâche.                                                                                                                              |
@@ -93,7 +93,8 @@ Source : `services/tasks/task-labels.ts` (via `createLabelService`, `services/co
   - « Une priorité porte déjà ce libellé. »
   - « Un type porte déjà ce libellé. »
   - « Une étiquette porte déjà ce libellé. »
-- Création à la fin de la liste. Modification refusée si l’élément est archivé. Suppression : les tâches qui l’utilisent le perdent (statut, priorité, type remis à vide ; étiquette retirée).
+- Priorités et types sont communs aux tâches et aux routines ([Routines](routines.md#validation-routineschema-parseroutine)) : leurs usages comptent les deux. Les automatisations ne portent que sur les tâches.
+- Création à la fin de la liste. Modification refusée si l’élément est archivé. Suppression : les tâches qui l’utilisent le perdent (statut, priorité, type remis à vide ; étiquette retirée), et les routines leur priorité ou leur type.
 - Archivage par la mutation générique (`setArchived`, voir [Archivage](../cross-cutting/archiving.md)) : une valeur archivée reste sur les tâches qui l’ont mais n’est plus proposée ni acceptée pour d’autres.
 
 ### Catégories de statut
@@ -120,7 +121,7 @@ Un statut a une catégorie fixe (`TASK_STATUS_CATEGORIES`), `TODO` par défaut �
 
 Source : `setTasksClosed`.
 
-- Au moins une tâche (« Aucune tâche sélectionnée. »), toutes existantes, aucune archivée.
+- Au moins une tâche (« Aucune tâche sélectionnée. »), toutes existantes, aucune archivée (sauf pour une règle de leur archivage, voir [Automatisations](task-automations.md#actions)).
 - Fermer pose `closedAt` à maintenant ; une tâche déjà fermée **garde sa date de fermeture**. Rouvrir vide `closedAt` ; une tâche au statut « Annulé » passe alors au premier statut « À faire » non archivé, ou à aucun.
 - Une tâche fermée ne bloque plus les tâches qu’elle bloque, n’est jamais en retard et compte comme faite (avancement des jalons, sprints, sous-tâches).
 
@@ -337,12 +338,12 @@ Source : `convertTaskToRoutine(id, confirm)` (`services/routines/conversion.ts`,
 - Refusée pour une tâche archivée (« Élément archivé : restaurez-le pour le modifier. ») et pour une tâche qui a des sous-tâches, archivées comprises : « Une tâche qui a des sous-tâches ne devient pas une routine : déplacez ou supprimez d’abord ses sous-tâches. ».
 - Sans `confirm`, rien ne change : `CONFIRMATION_REQUIRED` (« Transformer la tâche en routine lui fait perdre ce qu’une routine n’a pas : confirmez pour continuer. »), extension `lost` : ce qui est perdu, par sorte (`ConversionLoss`, `packages/shared/src/routines/conversion.ts`), toujours demandé, même vide.
 - Une seule transaction : une nouvelle routine est créée (à la fin de l’ordre manuel), la tâche supprimée ; l’identifiant n’est pas gardé.
-- Gardés : libellé, description, projet, assignés, bénéficiaires (contributeurs et relations), liens, lieu et son point, condition de créneaux, temps morts, minuteurs enregistrés, rappels « À HH:MM » (comptés ensuite depuis l’« Ouverture » de l’occurrence) et « N jours avant » (toujours depuis l’« Échéance », repère `end`). Les valeurs déjà sur la tâche restent, même archivées ou plus rattachées au projet (comme une valeur déjà en place).
+- Gardés : libellé, description, projet, priorité, type, assignés, bénéficiaires (contributeurs et relations), liens, lieu et son point, condition de créneaux, temps morts, minuteurs enregistrés, rappels « À HH:MM » (comptés ensuite depuis l’« Ouverture » de l’occurrence) et « N jours avant » (toujours depuis l’« Échéance », repère `end`). Les valeurs déjà sur la tâche restent, même archivées ou plus rattachées au projet (comme une valeur déjà en place).
 - Valeurs : celles que la tâche suit : un champ hérité de son parent est gardé avec la valeur héritée, la routine n’ayant pas de parent.
 - Dates : l’« Échéance » suivie (voir [Dates suivies](#dates-suivies)) devient la première fois de la routine (sans échéance : l’« Ouverture » suivie, sinon aujourd’hui, heure de Paris) ; une « Ouverture » avant l’échéance devient l’« Ouverture » de la routine, « N jours avant » (366 au plus). La routine se répète chaque jour (`DAILY_RECURRENCE`), sans moment ; la répétition se choisit ensuite dans son panneau.
 - Repris par la routine : ses temps passés (le temps porte sur la routine au lieu de la tâche), ses fiches (`SheetLink`), sa liste à cocher et ses commentaires, placés sur la première occurrence programmée (la condition de créneaux peut la décaler ; dates et textes des commentaires gardés, leur lien GitHub non) ; un évènement non récurrent lié à la tâche est lié à la routine le jour du début de l’évènement.
 - Tâche fermée (`closedAt`, annulée comprise) : la première occurrence est cochée, chacun de ses moments (`RoutineCheck`, fait à la date de fermeture), pour qu’elle ne soit pas en retard. Une première occurrence à venir n’est pas cochée (une occurrence à venir ne se coche pas) ; une tâche ouverte ne coche rien.
-- Perdus (comptés dans `lost`) : numéro (`number`), statut, priorité, type, étiquettes, jalon, sprints, item GitHub (retiré du tableau GitHub, en tâche de fond, comme à la suppression), effort, dates de début et de fin, liens « bloque » et « relative à » (`taskLinks`), listes d’achats liées, lien de ses alarmes (gardées, sans tâche : `alarms`), liens avec des évènements récurrents (`events`), ses horaires (`hours` : une routine n’en a pas, ses moments et sa condition de créneaux disent quand elle se fait ; aucune correspondance sûre), une autre liste à cocher que la première (`checklists`), la tâche parente (`parent` : la routine est au premier niveau). Son historique de statuts part avec elle. Les liens « #12 » ou `?task=` écrits vers elle dans les textes ne mènent plus nulle part, comme après une suppression.
+- Perdus (comptés dans `lost`) : numéro (`number`), statut, étiquettes, jalon, sprints, item GitHub (retiré du tableau GitHub, en tâche de fond, comme à la suppression), effort, dates de début et de fin, liens « bloque » et « relative à » (`taskLinks`), listes d’achats liées, lien de ses alarmes (gardées, sans tâche : `alarms`), liens avec des évènements récurrents (`events`), ses horaires (`hours` : une routine n’en a pas, ses moments et sa condition de créneaux disent quand elle se fait ; aucune correspondance sûre), une autre liste à cocher que la première (`checklists`), la tâche parente (`parent` : la routine est au premier niveau). Son historique de statuts part avec elle. Les liens « #12 » ou `?task=` écrits vers elle dans les textes ne mènent plus nulle part, comme après une suppression.
 
 ## Modification en masse
 
@@ -353,6 +354,10 @@ Source : `bulkUpdateTasks`.
 - Valeurs archivées : refusées si nouvelles ; celles que l’une des tâches a déjà restent valides pour toutes.
 - Pour chaque tâche : assignés ajoutés parmi les contributeurs de son projet, jalon et sprints de son arborescence, créneau de dates valide.
 - `restoring: true` (annulation d’une action) : accepte les valeurs archivées redonnées et les tâches archivées depuis ; seules ces vérifications sont sautées.
+
+## Automatisations
+
+Des règles « quand … alors … » de l’espace changent les tâches toutes seules après chaque écriture (création, modification, en masse, déplacement, transfert, fermeture, archivage, copie, suppression, conversion avec une routine, GitHub, « Annuler », chrono démarré, jalons et sprints changés, archivés ou supprimés, projets changés, déplacés ou supprimés, client supprimé avec ses projets, contributeur supprimé, statut changé, valeur d’une liste de réglages supprimée) : voir [Automatisations des tâches](task-automations.md).
 
 ## Vues enregistrées
 

@@ -1,7 +1,6 @@
 import { Select, SimpleGrid, Stack, TextInput } from '@mantine/core';
 import { SlotConditionBuilder } from '../../calendar/components/SlotConditionBuilder';
 import { TaskHoursField } from './TaskHoursField';
-import { DatePickerInput } from '@mantine/dates';
 import { readSlotCondition, readTaskHours, TASK_INHERITABLE_FIELDS, taskFormSchema, type TaskFormValues, type TaskInheritableField } from '@ordo/shared';
 import { useState } from 'react';
 import { formInheritance } from '../../../components/inheritance/form-inheritance';
@@ -18,7 +17,8 @@ import { BatchMultiSelect } from '../../../components/inputs/BatchMultiSelect';
 import { BeneficiariesSelect } from '../../beneficiaries/components/BeneficiariesSelect';
 import { FormActions } from '../../../components/dialogs/FormActions';
 import { defaultStatusId } from '../lib/new-task-defaults';
-import { dateRangeProps, formRange } from '../../../components/inputs/date-range';
+import { formRange } from '../../../components/inputs/date-range';
+import { PeriodField } from '../../../components/inputs/PeriodField';
 import { EffortInput } from './EffortInput';
 import { TaskReminders } from './TaskReminders';
 import { EventLocation } from '../../geo/components/EventLocation';
@@ -132,8 +132,6 @@ export function TaskCreateForm({ context, defaults, onDone }: TaskCreateFormProp
    * @returns {object} Props.
    */
   const inherited = (field: TaskInheritableField) => ({ ...inheritance.field(field), from: taskParentName(form.values, context.taskById) });
-  const dates = dateRangeProps(formRange(form, 'startDate', 'endDate'));
-  const doable = dateRangeProps(formRange(form, 'minDate', 'deadline'));
 
   // The parent must stay in the tree of the chosen project.
   // Without project: among the tasks of no project.
@@ -260,16 +258,15 @@ export function TaskCreateForm({ context, defaults, onDone }: TaskCreateFormProp
             onChange={(beneficiaries) => form.setValues({ ...beneficiaries })}
           />
         </InheritedField>
-        <SimpleGrid cols={{ base: 1, sm: 2, md: 4 }} spacing="md">
+        <SimpleGrid cols={{ base: 1, sm: 3 }} spacing="md">
           <EffortInput {...form.getInputProps('effort')} />
-          <DatePickerInput label="Début" clearable placeholder="—" {...dates.start} />
-          <DatePickerInput label="Fin" clearable placeholder="—" {...dates.end} />
-          <InheritedField {...inherited('MIN_DATE')}>
-            <DatePickerInput label="Ouverture" clearable placeholder="—" {...doable.start} />
-          </InheritedField>
-          <InheritedField {...inherited('DEADLINE')}>
-            <DatePickerInput label="Échéance" clearable placeholder="—" {...doable.end} />
-          </InheritedField>
+          <PeriodField label="Dates" {...formRange(form, 'startDate', 'endDate')} />
+          <PeriodField
+            label="Ouverture et échéance"
+            bounds={['Ouverture', 'Échéance']}
+            inheritance={[inherited('MIN_DATE'), inherited('DEADLINE')]}
+            {...formRange(form, 'minDate', 'deadline')}
+          />
         </SimpleGrid>
         <TaskReminders
           value={form.values.reminders ?? []}

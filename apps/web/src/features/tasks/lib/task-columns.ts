@@ -16,6 +16,8 @@ import {
   type TableViewConfig,
   type TaskStatusCategory,
   lineageOf,
+  relativeSprintIds,
+  sprintFilterValues,
 } from '@ordo/shared';
 import { LATE_GROUP_LABELS, WARNING_YES_ICONS, type ColumnChoice, type ColumnFilter, type DataColumn, type YesNoIcons, type YesNoLabels } from '../../../components/data-table/table/data-table';
 import { filterRows } from '../../../components/data-table/table/table-engine';
@@ -149,30 +151,7 @@ export function taskColumns(context: TaskContext, today: string, extras: TaskCol
   const categoryOf = (task: Task): TaskStatusCategory | null => (task.statusId ? ((context.statusById.get(task.statusId)?.category as TaskStatusCategory | undefined) ?? null) : null);
   // Relative sprints, from today.
   const sprints = context.sprints;
-  const past = sprints.filter((sprint) => sprint.endDate < today);
-  const future = sprints.filter((sprint) => sprint.startDate > today);
-  /**
-   * The best sprint of each project tree.
-   * @param {typeof sprints} candidates Sprints.
-   * @param {(a: (typeof sprints)[number], b: (typeof sprints)[number]) => boolean} better Whether a beats b.
-   * @returns {Set<string>} Their ids.
-   */
-  const bestPerTree = (candidates: typeof sprints, better: (a: (typeof sprints)[number], b: (typeof sprints)[number]) => boolean) => {
-    const best = new Map<string, (typeof sprints)[number]>();
-    for (const sprint of candidates) {
-      const root = context.rootOf(sprint.projectId) ?? sprint.projectId;
-      const current = best.get(root);
-      if (!current || better(sprint, current)) best.set(root, sprint);
-    }
-    return new Set([...best.values()].map((sprint) => sprint.id));
-  };
-  const relative: Record<string, Set<string>> = {
-    current: new Set(sprints.filter((sprint) => sprint.startDate <= today && sprint.endDate >= today).map((sprint) => sprint.id)),
-    past: new Set(past.map((sprint) => sprint.id)),
-    future: new Set(future.map((sprint) => sprint.id)),
-    previous: bestPerTree(past, (a, b) => a.endDate > b.endDate),
-    next: bestPerTree(future, (a, b) => a.startDate < b.startDate),
-  };
+  const relative = relativeSprintIds(sprints, today, context.rootOf);
   const me = context.contributors.find((contributor) => contributor.isMe)?.id ?? null;
   /**
    * A project and the projects above it (a filter on a project keeps its sub-projects).
@@ -242,10 +221,7 @@ export function taskColumns(context: TaskContext, today: string, extras: TaskCol
       case 'sprint':
         return {
           kind: 'choices',
-          value: (row) => {
-            const ids = task(row)?.sprintIds ?? [];
-            return [...ids, ...Object.entries(relative).flatMap(([token, set]) => (ids.some((sprintId) => set.has(sprintId)) ? [token] : []))];
-          },
+          value: (row) => sprintFilterValues(task(row)?.sprintIds ?? [], relative),
           options: [...SPRINT_TOKENS, ...sprints.map((sprint) => ({ value: sprint.id, label: context.sprintLabel(sprint), archived: sprint.archived }))],
         };
       case 'parent':

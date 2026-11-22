@@ -4,6 +4,7 @@ import type { Sprint } from '../../generated/prisma/client';
 import { parseInput } from '../../graphql/errors';
 import { assertNotArchived, assertActive, refuseArchived } from '../core/archive';
 import { findOrNotFound, deleteOrNotFound } from '../core/lookup';
+import { automated } from './task-automation-engine';
 
 /**
  * Loads a sprint or throws NOT_FOUND.
@@ -55,22 +56,22 @@ export async function createSprint(projectId: string, input: SprintInput): Promi
  * @param {SprintInput} input Sprint.
  * @returns {Promise<Sprint>} Updated sprint.
  */
-export async function updateSprint(id: string, input: SprintInput): Promise<Sprint> {
+export const updateSprint = automated(async function updateSprint(id: string, input: SprintInput): Promise<Sprint> {
   const sprint = await findSprint(id);
   // Read only when archived, or in an archived project.
   refuseArchived(sprint);
   await assertNotArchived('project', sprint.projectId);
   return prisma.sprint.update({ where: { id }, data: sprintData(input) });
-}
+});
 
 /**
  * Deletes a sprint; its tasks simply leave it.
  * @param {string} id Sprint id.
  * @returns {Promise<void>}
  */
-export async function deleteSprint(id: string): Promise<void> {
+export const deleteSprint = automated(async function deleteSprint(id: string): Promise<void> {
   await deleteOrNotFound(prisma.sprint, id, 'Sprint');
-}
+});
 
 /** Status of a task at the end of a sprint it is in. */
 export interface SprintTaskStatus {

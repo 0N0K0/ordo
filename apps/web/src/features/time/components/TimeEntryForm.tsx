@@ -1,5 +1,6 @@
 import { SimpleGrid, Stack, TextInput } from '@mantine/core';
-import { DatePickerInput, TimePicker } from '@mantine/dates';
+import { DateTimeField } from '../../../components/inputs/DateTimeField';
+import { formDateTime } from '../../../components/inputs/date-fields';
 import { durationText, parseDuration, timeEntryFormSchema, type TimeEntryFormValues } from '@ordo/shared';
 import { localInstant, localParts, localToday } from '../../../lib/dates';
 import { useAppForm, useFieldSave, formCallbacks } from '../../../lib/form';
@@ -109,9 +110,8 @@ export function TimeEntryForm({ context, entry, defaultProjectId, onDone }: Time
             // Tasks and routines go with the project tree (the API's rule): emptied with it, saved together.
             onChange={(projectId) => form.setValues({ projectId: projectId ?? '', taskIds: [], routineIds: [] })}
           />
-          <SimpleGrid cols={{ base: 1, xs: 3 }} spacing="md">
-            <DatePickerInput label="Jour" required {...form.getInputProps('date')} />
-            <TimePicker label="Début" required {...form.getInputProps('start')} />
+          <SimpleGrid cols={{ base: 1, xs: 2 }} spacing="md">
+            <DateTimeField label="Début" required {...formDateTime(form, 'date', 'start')} />
             <TextInput label="Durée" required placeholder="1:30" description="1:30, 1h30, 90 ou 1,5h" {...form.getInputProps('duration')} />
           </SimpleGrid>
           <TimeSubjectsFields

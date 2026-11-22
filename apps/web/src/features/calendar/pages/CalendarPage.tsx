@@ -66,11 +66,12 @@ import { CalendarCategoriesManager } from '../components/CalendarCategoriesManag
 import { CalendarsManager } from '../components/CalendarsManager';
 import { CalendarsIcsButton } from '../components/CalendarsIcsButton';
 import { ScheduleSettings } from '../components/ScheduleSettings';
+import { WeekSettings } from '../components/WeekSettings';
 import { openSchedulesManager } from '../lib/open-schedules';
 import { useActiveWorkspace } from '../../workspaces/api';
 import { PageSettings } from '../../../app/layout/PageSettings';
 import { SettingsTabPanel, SettingsTabs } from '../../../components/tabs/SettingsTabs';
-import { currentWeek, pickerFirstDay } from '../../../lib/week';
+import { currentWeek, calendarFirstDay } from '../../../lib/week';
 import { useAsyncAction } from '../../../lib/use-async-action';
 import { HiddenChecklist } from '../components/HiddenChecklist';
 import { archivedIds, unarchived } from '../../../lib/archive';
@@ -898,6 +899,7 @@ export function CalendarPage() {
           </SettingsTabPanel>
           <SettingsTabPanel value="settings">
             <Stack gap="md">
+              <WeekSettings />
               <CalendarsManager />
               <CalendarCategoriesManager />
               <ScheduleSettings />
@@ -943,7 +945,7 @@ export function CalendarPage() {
             setAllDayExpanded(true);
             return info.view.type;
           }}
-          firstDay={pickerFirstDay(week)}
+          firstDay={calendarFirstDay(week)}
           nowIndicator
           weekNumbers
           editable

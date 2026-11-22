@@ -1,6 +1,7 @@
 import { z } from 'zod';
 import { tableFilterSchema, type TableFilterGroup } from '../tables/table-views';
 import type { FilterConditionOf, FilterGroupOf } from '../tables/filters';
+import { RELATIVE_SPRINTS } from '../tasks/task-columns';
 
 /** Fields of the former task filters named otherwise by the columns of the task table. */
 const RENAMED: Record<string, string> = { dependsOn: 'blockedBy', blocks: 'blocking', relatedTo: 'related', trackedHours: 'trackedTime' };
@@ -9,7 +10,7 @@ const RENAMED: Record<string, string> = { dependsOn: 'blockedBy', blocks: 'block
 const LISTED = new Set(['project', 'parent', 'sprint']);
 
 /** Relative sprints of the former filters: an operator there, a value of the sprint column here. */
-const RELATIVE_SPRINTS = new Set(['current', 'previous', 'next', 'past', 'future']);
+const RELATIVE = new Set<string>(RELATIVE_SPRINTS);
 
 /**
  * Condition of the former task filters in the words of the task table (its columns): `inTree` is « one of » (the
@@ -21,7 +22,7 @@ const RELATIVE_SPRINTS = new Set(['current', 'previous', 'next', 'past', 'future
 function translateCondition(condition: FilterConditionOf<string>): FilterConditionOf<string> {
   const field = RENAMED[condition.field] ?? condition.field;
   if (!LISTED.has(field)) return { ...condition, field };
-  if (field === 'sprint' && RELATIVE_SPRINTS.has(condition.operator)) return { ...condition, field, operator: 'anyOf', value: [condition.operator] };
+  if (field === 'sprint' && RELATIVE.has(condition.operator)) return { ...condition, field, operator: 'anyOf', value: [condition.operator] };
   const operator = condition.operator === 'in' || condition.operator === 'inTree' ? 'anyOf' : condition.operator === 'notIn' ? 'noneOf' : condition.operator;
   return { ...condition, field, operator: operator as FilterConditionOf<string>['operator'] };
 }

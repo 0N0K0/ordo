@@ -2,8 +2,7 @@ import { IconAction } from '../../../components/actions/IconAction';
 import { SubSection } from '../../../components/page/SubSection';
 import { EmptyState } from '../../../components/feedback/EmptyState';
 import { RemoveButton } from '../../../components/actions/RemoveButton';
-import { Anchor, Badge, Checkbox, Group, Paper, SimpleGrid, Stack, Switch, Text, TextInput } from '@mantine/core';
-import { DatePickerInput } from '@mantine/dates';
+import { Anchor, Badge, Checkbox, Group, Paper, Stack, Switch, Text, TextInput } from '@mantine/core';
 import { shoppingDeliverySchema, type ShoppingDeliveryInput } from '@ordo/shared';
 import { ArrowSquareOutIcon, CheckIcon, PackageIcon, PencilSimpleIcon, PlusIcon } from '@phosphor-icons/react';
 import { useState } from 'react';
@@ -22,7 +21,8 @@ import { useShoppingLists, type ShoppingList } from '../api';
 import { deliveryWindow } from '../lib/delivery-format';
 import { countOf } from '../../../lib/text';
 import { FormActions } from '../../../components/dialogs/FormActions';
-import { dateRangeProps, formRange } from '../../../components/inputs/date-range';
+import { formRange } from '../../../components/inputs/date-range';
+import { PeriodField } from '../../../components/inputs/PeriodField';
 import { ActionButton } from '../../../components/actions/ActionButton';
 import { EXTERNAL_LINK } from '../../../components/actions/link-props';
 
@@ -73,7 +73,6 @@ function DeliveryForm({ list, delivery, onDone }: { list: ShoppingList; delivery
     onBlur: ON_BLUR,
   });
   const values = form.getValues();
-  const expected = dateRangeProps(formRange(form, 'windowFrom', 'windowTo'));
   // Put in the form once chosen, cleared or left (as every place), then saved at once for an existing delivery.
   // A delivery names its place `address`, `lat`, `lon`.
   const place = useLocationDraft({ location: values.address, locationLat: values.lat, locationLon: values.lon }, ({ location, locationLat, locationLon }) => {
@@ -104,10 +103,11 @@ function DeliveryForm({ list, delivery, onDone }: { list: ShoppingList; delivery
           error={form.errors.trackingUrl}
         />
         <Checkbox label="À retirer" description="Point relais, retrait en magasin, consigne… plutôt que livré." {...form.getInputProps('pickup', { type: 'checkbox' })} />
-        <SimpleGrid cols={{ base: 1, xs: 2 }} spacing="sm">
-          <DatePickerInput label={values.pickup ? 'À retirer à partir du' : 'Attendue à partir du'} placeholder="—" clearable {...expected.start} />
-          <DatePickerInput label={values.pickup ? 'Jusqu’au' : 'Au plus tard le'} placeholder="—" clearable {...expected.end} />
-        </SimpleGrid>
+        <PeriodField
+          label={values.pickup ? 'À retirer' : 'Attendue'}
+          bounds={values.pickup ? ['À partir du', 'Jusqu’au'] : ['À partir du', 'Au plus tard le']}
+          {...formRange(form, 'windowFrom', 'windowTo')}
+        />
         <AddressInput
           label={values.pickup ? 'Lieu de retrait' : 'Lieu de livraison'}
           description={list.deliveryAddress ? `Vide : ${list.deliveryAddress}.` : undefined}

@@ -1,4 +1,4 @@
-import { groupBy, readSlotCondition, readTaskHours, taskFieldsGiven, type TaskInheritableField } from '@ordo/shared';
+import { groupBy, readSlotCondition, readTaskHours, taskFieldsGiven, type TaskAutomationRevert, type TaskInheritableField } from '@ordo/shared';
 import { notifySuccess, notifyFailure } from '../../../lib/notify';
 import { originOf } from '../../../components/inheritance/inheritance';
 import { useBulkTaskMutations, useSetTasksClosed, useUpdateTask, type BulkChanges, type Task, type TaskInputValues } from '../api';
@@ -182,6 +182,26 @@ export function useBulkUndo() {
       const ids = tasks.filter((task) => task.archived !== archived).map((task) => task.id);
       return run(ids.length ? [() => archive.mutateAsync({ ids, archived: !archived })] : []);
     },
+
+    /**
+     * Undo of the automations of the tasks applied by a change: each task restored when a rule archived it, moved
+     * back to its project, its fields given back (inherited again, emptied again, or their values), then its open /
+     * closed state.
+     * @param {readonly TaskAutomationRevert[]} reverts What gives each task back (from the API).
+     * @returns {() => void} Undo.
+     */
+    automation: (reverts: readonly TaskAutomationRevert[]) => () =>
+      run(
+        reverts.flatMap(({ taskId, projectId, changes, closed, restore }) => {
+          const ids = [taskId];
+          return [
+            ...(restore ? [() => archive.mutateAsync({ ids, archived: false })] : []),
+            ...(projectId !== undefined ? [() => transfer.mutateAsync({ ids, projectId })] : []),
+            ...(Object.keys(changes).length ? [() => update.mutateAsync({ ids, changes, restoring: true })] : []),
+            ...(closed !== undefined ? [() => setClosed.mutateAsync({ ids, closed })] : []),
+          ];
+        }),
+      ),
 
     /**
      * Undo of a transfer: tasks go back to their project level by level (a transfer moves the sub-tasks

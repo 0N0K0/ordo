@@ -6,6 +6,13 @@ import { CONFIRM_LOSS_DESCRIPTION } from '../occurrence-fields';
 import { archiveEdit } from '../../services/calendar/slot-conditions';
 import { settleScheduleChange } from '../../services/routines/routines';
 import { assertPeopleArchivable, LINKED_PEOPLE_KINDS, linkedPeople } from '../../services/people/contributor-links';
+import { automated } from '../../services/tasks/task-automation-engine';
+
+/** Kinds whose archive changes what tasks go by (the dates of a milestone, the sprints of today): through the rules of the tasks. */
+const TASK_FOLLOWED_KINDS = new Set<archive.ArchivableKind>(['MILESTONE', 'SPRINT']);
+
+/** Archive of elements applying the rules of the tasks. */
+const automatedSetArchived = automated(archive.setArchived);
 
 const ArchivableKindEnum = builder.enumType('ArchivableKind', {
   description: 'Kind of element archived or restored by `setArchived`: main elements of the features and every settings list (clients, projects, tasks and routines have their own mutations).',
@@ -66,7 +73,7 @@ builder.mutationFields((t) => ({
     },
     resolve: (_root, { kind, ids, archived, confirmLoss }) =>
       done(
-        archive.setArchived(kind, ids, archived, {
+        (TASK_FOLLOWED_KINDS.has(kind) ? automatedSetArchived : archive.setArchived)(kind, ids, archived, {
           // People go with those they are linked to: a contributor with its relation or its contact.
           along: LINKED_PEOPLE_KINDS.has(kind) ? (found) => linkedPeople(kind, found) : undefined,
           settle: async (changing) => {

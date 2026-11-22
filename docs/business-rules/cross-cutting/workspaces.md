@@ -60,7 +60,8 @@ La requête `currentWorkspaceId` rend l’espace retenu. Côté web, la fenêtre
 
 - Longueur (`weekLength`) : nombre de jours de `start` à `end` inclus ; si `end` = `start`, la semaine fait **8 jours** et les semaines se chevauchent ce jour-là.
 - Une valeur illisible en base est lue comme la semaine par défaut (`readWeek`).
-- Elle sert à la vue semaine de l’agenda, aux périodes « cette semaine », etc. Voir [Dates](dates.md).
+- Elle se règle dans les paramètres de l’agenda (section « Semaine »), pas dans les paramètres des espaces, et vaut pour tout l’espace.
+- Elle sert à la vue semaine de l’agenda, aux périodes « cette semaine » des filtres, au temps prévu, à l’accueil, aux tableaux de bord et à l’envoi programmé des mails. Les sélecteurs de date ne la suivent pas : leurs semaines vont toujours du lundi au dimanche. Voir [Dates](dates.md).
 
 ## Notifications d’un espace fermé
 

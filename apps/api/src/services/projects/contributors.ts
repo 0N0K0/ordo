@@ -9,6 +9,7 @@ import { lineageIds } from '../core/trees';
 import { connectIds } from '../core/relations';
 import { NO_PEOPLE_SETTLER, personChange, type PeopleChangeSettler } from '../calendar/birthdays';
 import { contributorLink } from '../people/contributor-links';
+import { automated } from '../tasks/task-automation-engine';
 import type { ContributorLinkInput } from '@ordo/shared';
 
 /**
@@ -127,13 +128,13 @@ export async function updateContributor(
  * @param {PeopleChangeSettler} [settle] Run once checked, before it is deleted (its birthday goes). Optional. Default = none.
  * @returns {Promise<void>}
  */
-export async function deleteContributor(id: string, settle: PeopleChangeSettler = NO_PEOPLE_SETTLER): Promise<void> {
+export const deleteContributor = automated(async function deleteContributor(id: string, settle: PeopleChangeSettler = NO_PEOPLE_SETTLER): Promise<void> {
   const contributor = await orNotFound(prisma.contributor.findUnique({ where: { id }, include: { user: { select: { id: true } } } }), 'Contributeur');
   if (contributor.user) throw clientError('BAD_USER_INPUT', 'Votre propre profil ne peut pas être supprimé.');
   await settle(personChange('contributor', id, null));
   await prisma.contributor.delete({ where: { id } });
   await deleteOrphanIcons([contributor.iconId]);
-}
+});
 
 /**
  * Checks that every project exists and is not archived (those the contributor is already attached to stay valid).

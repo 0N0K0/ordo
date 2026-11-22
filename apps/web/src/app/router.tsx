@@ -6,7 +6,7 @@ import { ProOnly } from '../features/workspaces/pages/ProOnly';
 import { lazyNamed } from '../lib/lazy';
 import { AppLayout } from './layout/AppLayout';
 import { NotFoundPage } from './NotFoundPage';
-import { AUTH_PATHS, CLIENT_ROUTE, PAGES, PROJECT_ROUTE, routeOf } from './pages';
+import { AUTH_PATHS, CLIENT_ROUTE, PAGES, PROJECT_ROUTE, routeOf, TASK_AUTOMATIONS_PATH } from './pages';
 
 // Pages are loaded when first opened, under the `Suspense` of their layout: the app starts with the layouts and the login page.
 const AccountPage = lazyNamed(() => import('../features/account/pages/AccountPage'), (module) => module.AccountPage);
@@ -32,6 +32,7 @@ const ClientPage = lazyNamed(() => import('../features/projects/pages/ClientPage
 const ProjectPage = lazyNamed(() => import('../features/projects/pages/ProjectPage'), (module) => module.ProjectPage);
 const SettingsPage = lazyNamed(() => import('../features/projects/pages/SettingsPage'), (module) => module.SettingsPage);
 const HomePage = lazyNamed(() => import('../features/home/pages/HomePage'), (module) => module.HomePage);
+const TaskAutomationsPage = lazyNamed(() => import('../features/tasks/pages/TaskAutomationsPage'), (module) => module.TaskAutomationsPage);
 const TasksPage = lazyNamed(() => import('../features/tasks/pages/TasksPage'), (module) => module.TasksPage);
 const TimePage = lazyNamed(() => import('../features/time/pages/TimePage'), (module) => module.TimePage);
 
@@ -44,6 +45,7 @@ export const router = createBrowserRouter([
         children: [
           { index: true, element: <HomePage /> },
           { path: routeOf(PAGES.tasks.path), element: <TasksPage /> },
+          { path: routeOf(TASK_AUTOMATIONS_PATH), element: <TaskAutomationsPage /> },
           { path: routeOf(PAGES.time.path), element: <TimePage /> },
           { path: routeOf(PAGES.account.path), element: <AccountPage /> },
           { path: routeOf(PAGES.alarms.path), element: <AlarmsPage /> },

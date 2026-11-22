@@ -1,9 +1,6 @@
 import { descriptionFormSchema, type DescriptionFormValues } from '@ordo/shared';
-import { useState } from 'react';
-import { EditToggle } from '../../../components/actions/EditToggle';
+import { DescriptionSection } from '../../../components/markdown/DescriptionSection';
 import { MarkdownEditor } from '../../../components/markdown/MarkdownEditor';
-import { MarkdownView } from '../../../components/markdown/MarkdownView';
-import { SubSection } from '../../../components/page/SubSection';
 import { useAppForm, useFieldSave } from '../../../lib/form';
 import { notifyFailure } from '../../../lib/notify';
 import type { Task, TaskSave } from '../api';
@@ -20,10 +17,10 @@ interface TaskDescriptionProps {
 /**
  * Editor of the description of a task: saved on leaving it, and by Ctrl/⌘ + Enter, which also closes it:
  * no button.
- * @param {TaskDescriptionProps & { onClose: () => void }} props Task, its context and save, closing of the editor.
+ * @param {TaskDescriptionProps & { onClose: () => void, autoFocus: boolean }} props Task, its context and save, closing of the editor, focus taken.
  * @returns {JSX.Element} Editor.
  */
-function TaskDescriptionEditor({ task, context, save, onClose }: Omit<TaskDescriptionProps, 'locked'> & { onClose: () => void }) {
+function TaskDescriptionEditor({ task, context, save, onClose, autoFocus }: Omit<TaskDescriptionProps, 'locked'> & { onClose: () => void; autoFocus: boolean }) {
   const value = { description: task.description ?? '' };
   const base = useAppForm<DescriptionFormValues>({ initialValues: value, schema: descriptionFormSchema });
   const { form, commit, fieldProps } = useFieldSave(base, { save: ({ description }) => save({ description: description || null }), schema: descriptionFormSchema, saved: value, onBlur: ['description'] });
@@ -36,28 +33,25 @@ function TaskDescriptionEditor({ task, context, save, onClose }: Omit<TaskDescri
       }}
       error={form.errors.description as string | undefined}
       suggestions={context.suggestionsFor(task.projectId)}
-      autoFocus
+      autoFocus={autoFocus}
     />
   );
 }
 
 /**
- * Description of a task in its panel: shown in markdown (its checkboxes ticked in place), edited from the pencil and
- * saved as it is typed (on leaving the editor); the check goes back to the text shown.
+ * Description of a task in its panel (`DescriptionSection`): its editor directly when it has none, otherwise shown in
+ * markdown (its checkboxes ticked in place), edited from the pencil and saved as it is typed (on leaving the editor).
  * @param {TaskDescriptionProps} props Component props.
  * @returns {JSX.Element} Section.
  */
 export function TaskDescription({ task, context, locked, save }: TaskDescriptionProps) {
-  const [editing, setEditing] = useState(false);
   return (
-    <SubSection title="Description" gap="xs" action={!locked && <EditToggle editing={editing} onChange={setEditing} what="la description" />}>
-      {editing && !locked ? (
-        <TaskDescriptionEditor task={task} context={context} save={save} onClose={() => setEditing(false)} />
-      ) : (
-        <MarkdownView targets={context.targetsFor(task.projectId)} onChange={locked ? undefined : (next) => void save({ description: next }).catch(notifyFailure)}>
-          {task.description}
-        </MarkdownView>
-      )}
-    </SubSection>
+    <DescriptionSection
+      value={task.description}
+      targets={context.targetsFor(task.projectId)}
+      readOnly={locked}
+      onCheck={(next) => void save({ description: next }).catch(notifyFailure)}
+      editor={({ close, autoFocus }) => <TaskDescriptionEditor task={task} context={context} save={save} onClose={close} autoFocus={autoFocus} />}
+    />
   );
 }

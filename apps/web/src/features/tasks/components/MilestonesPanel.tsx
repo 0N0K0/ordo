@@ -12,7 +12,7 @@ import { openFormPanel } from '../../../components/panels/panels';
 import { Fieldset, Group, Paper, SegmentedControl, Stack, TextInput } from '@mantine/core';
 import { SortableArea } from '../../../components/dnd/sortable';
 import { useSortableItem } from '../../../components/dnd/use-sortable-item';
-import { DatePickerInput } from '@mantine/dates';
+import { DateField } from '../../../components/inputs/DateField';
 import type { ReactNode } from 'react';
 import { milestoneFormSchema, type MilestoneFormValues } from '@ordo/shared';
 import { FlagIcon, PlusIcon } from '@phosphor-icons/react';
@@ -82,7 +82,7 @@ function MilestoneForm({ projectId, milestone, onDone }: MilestoneFormProps) {
         <Stack gap="md">
           {milestone && !readOnly && <SaveStatus saving={saving} />}
           <TextInput label="Libellé" required data-autofocus {...form.getInputProps('label')} />
-          <DatePickerInput label="Échéance" clearable placeholder="—" {...form.getInputProps('dueDate')} />
+          <DateField label="Échéance" clearable placeholder="—" {...form.getInputProps('dueDate')} />
           <MarkdownEditor
             label="Description"
             {...fieldProps('description')}

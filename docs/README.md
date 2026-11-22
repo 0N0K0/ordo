@@ -22,7 +22,7 @@ Ce que l’utilisateur peut faire, écran par écran : pages, tableaux, formulai
 
 Ce que l’API et les schémas partagés imposent : validations, calculs, archivage, suppressions, messages d’erreur, tâches de fond.
 
-- **Activités** : [Règles des alarmes](business-rules/activities/alarms.md) · [Règles de l’agenda](business-rules/activities/calendar.md) · [Règles des routines](business-rules/activities/routines.md) · [Règles métier — Tâches](business-rules/activities/tasks.md) · [Règles métier — Temps passé et chrono](business-rules/activities/time.md)
+- **Activités** : [Règles des alarmes](business-rules/activities/alarms.md) · [Règles de l’agenda](business-rules/activities/calendar.md) · [Règles des routines](business-rules/activities/routines.md) · [Règles métier — Tâches](business-rules/activities/tasks.md) · [Règles métier — Automatisations des tâches](business-rules/activities/task-automations.md) · [Règles métier — Temps passé et chrono](business-rules/activities/time.md)
 - **Économat** : [Règles des fiches](business-rules/supplies/sheets.md) · [Règles des achats](business-rules/supplies/shopping.md) · [Règles du stock](business-rules/supplies/stock.md)
 - **Finances** : [Règles métier de la facturation](business-rules/finances/accounting.md) · [Règles de la trésorerie](business-rules/finances/treasury.md)
 - **Ressources** : [Règles des tableaux de bord](business-rules/resources/dashboards.md) · [Règles de la bibliothèque](business-rules/resources/library.md) · [Règles métier des mails](business-rules/resources/mail.md)

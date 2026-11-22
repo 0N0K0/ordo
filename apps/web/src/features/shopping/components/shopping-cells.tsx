@@ -4,7 +4,7 @@ import { Select } from '@mantine/core';
 import { localToday } from '../../../lib/dates';
 import { ItemAvatar } from '../../../components/items/ItemAvatar';
 import { listSelectProps, itemSelectProps, chosenAvatar } from '../../../components/items/item-look';
-import { DatePickerInput } from '@mantine/dates';
+import { DateField } from '../../../components/inputs/DateField';
 import { type ReactNode } from 'react';
 
 import { useShoppingData, type ShoppingCategory, type ShoppingStorage, type ShoppingStore } from '../api';
@@ -157,7 +157,7 @@ export function ExpiryCell({ value, label, disabled = false, readOnly = false, o
   if (disabled) return null;
   const expired = Boolean(value) && (value ?? '') < localToday();
   return (
-    <DatePickerInput
+    <DateField
       {...cellField}
       aria-label={label}
       value={value}

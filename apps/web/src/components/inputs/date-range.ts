@@ -9,16 +9,21 @@ type Bound = string | null;
 /** Side of a period. */
 type RangeSide = 'start' | 'end';
 
+/** Times of day (HH:mm) of the start and the end of a date-time period; empty when null. */
+export type RangeTimes = readonly [string | null, string | null];
+
 /** Start and end of a period, bound to where they are kept (a form, a draft, a saved item…). */
-interface RangeBinding<B extends Bound = Bound> {
+export interface RangeBinding<B extends Bound = Bound> {
   /** Start and end. */
   value: readonly [B, B];
-  /** Called with both bounds once one changed (the other one following, see `followBounds`). */
-  onChange: (next: [B, B]) => void;
+  /** Called with both bounds once one changed (the other one following, see `followBounds`), and their times for a date-time period. */
+  onChange: (next: [B, B], times?: [string | null, string | null]) => void;
+  /** Times of the start and the end, for a date-time period (`PeriodField`). Optional. */
+  times?: RangeTimes;
   /** Errors of each bound (the form's); without one on the end, an end before the start gets END_AFTER_START. Optional. */
   errors?: readonly [ReactNode?, ReactNode?];
   /** Blur handlers of each bound (the form validation on blur). Optional. */
-  onBlur?: readonly [FocusEventHandler | undefined, FocusEventHandler | undefined];
+  onBlur?: readonly [(() => void) | undefined, (() => void) | undefined];
 }
 
 /** Props of one bound's input: its value, change, error and blur. */
@@ -85,7 +90,7 @@ interface DateRangeOptions {
 }
 
 /**
- * Props of the two date pickers of a period (DatePickerInput, MonthPickerInput, DateTimePicker): as `rangeProps`,
+ * Props of the two date pickers of a period kept in two fields (a cell per bound, `MonthField`): as `rangeProps`,
  * and the end cannot be picked before the start. Spread into each picker: `{...range.start}`.
  * @param {RangeBinding} binding Where the bounds are kept (a picker may give null).
  * @param {DateRangeOptions} [options] Days possible, months. Optional.
@@ -103,19 +108,38 @@ export function dateRangeProps(binding: RangeBinding, { min, max, month = false 
 }
 
 /**
- * Period kept in two fields of a Mantine form: their values, both set at once, their errors and their validation on blur.
+ * Period kept in fields of a Mantine form: its days (and their times for a date-time period), all set at once, their
+ * errors (a time's when its day has none) and their validation on blur.
  * @param {UseFormReturnType<V>} form Form.
  * @param {keyof V & string} startKey Field of the start.
  * @param {keyof V & string} endKey Field of the end.
- * @returns {RangeBinding<B>} Binding, for `dateRangeProps` / `rangeProps`.
+ * @param {readonly [keyof V & string, keyof V & string]} [timeKeys] Fields of the times of the start and the end (HH:mm). Optional.
+ * @returns {RangeBinding<B>} Binding, for `PeriodField` / `dateRangeProps` / `rangeProps`.
  */
-export function formRange<V, B extends Bound = Bound>(form: UseFormReturnType<V>, startKey: keyof V & string, endKey: keyof V & string): RangeBinding<B> {
+export function formRange<V, B extends Bound = Bound>(
+  form: UseFormReturnType<V>,
+  startKey: keyof V & string,
+  endKey: keyof V & string,
+  timeKeys?: readonly [keyof V & string, keyof V & string],
+): RangeBinding<B> {
   const start = form.getInputProps(startKey);
   const end = form.getInputProps(endKey);
+  const times = timeKeys?.map((key) => form.getInputProps(key));
   return {
     value: [start.value as B, end.value as B],
-    onChange: ([first, last]) => form.setValues({ [startKey]: first, [endKey]: last } as Partial<V>),
-    errors: [start.error as ReactNode, end.error as ReactNode],
-    onBlur: [start.onBlur as FocusEventHandler, end.onBlur as FocusEventHandler],
+    ...(times && { times: [(times[0].value as string | null) || null, (times[1].value as string | null) || null] as const }),
+    onChange: ([first, last], hours) =>
+      form.setValues({ [startKey]: first, [endKey]: last, ...(timeKeys && hours ? { [timeKeys[0]]: hours[0], [timeKeys[1]]: hours[1] } : {}) } as Partial<V>),
+    errors: [(start.error ?? times?.[0].error) as ReactNode, (end.error ?? times?.[1].error) as ReactNode],
+    onBlur: [
+      () => {
+        (start.onBlur as (() => void) | undefined)?.();
+        (times?.[0].onBlur as (() => void) | undefined)?.();
+      },
+      () => {
+        (end.onBlur as (() => void) | undefined)?.();
+        (times?.[1].onBlur as (() => void) | undefined)?.();
+      },
+    ],
   };
 }

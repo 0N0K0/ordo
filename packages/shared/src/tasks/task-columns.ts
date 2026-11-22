@@ -134,3 +134,60 @@ export function statusClosing(from: TaskStatusCategory | null, to: TaskStatusCat
   if (to === 'CANCELLED') return 'close';
   return from === 'CANCELLED' ? 'reopen' : null;
 }
+
+/** Relative sprints a filter of the sprint column chooses: the current one, the previous and next one of each project tree, past ones, future ones. */
+export const RELATIVE_SPRINTS = ['current', 'previous', 'next', 'past', 'future'] as const;
+export type RelativeSprint = (typeof RELATIVE_SPRINTS)[number];
+
+/** Sprint as the relative sprints read it. */
+interface DatedSprint {
+  id: string;
+  projectId: string;
+  startDate: string;
+  endDate: string;
+}
+
+/**
+ * Sprints of each relative sprint, from today: the current ones, the past and future ones, the previous and next one
+ * of each project tree (the one ended last, the one starting first).
+ * @param {readonly DatedSprint[]} sprints Sprints (days YYYY-MM-DD).
+ * @param {string} today Today (YYYY-MM-DD).
+ * @param {(projectId: string) => string | null} rootOf Root project of the tree of a project.
+ * @returns {Record<RelativeSprint, Set<string>>} Ids of the sprints of each.
+ */
+export function relativeSprintIds(sprints: readonly DatedSprint[], today: string, rootOf: (projectId: string) => string | null): Record<RelativeSprint, Set<string>> {
+  const past = sprints.filter((sprint) => sprint.endDate < today);
+  const future = sprints.filter((sprint) => sprint.startDate > today);
+  /**
+   * The best sprint of each project tree.
+   * @param {readonly DatedSprint[]} candidates Sprints.
+   * @param {(a: DatedSprint, b: DatedSprint) => boolean} better Whether a beats b.
+   * @returns {Set<string>} Their ids.
+   */
+  const bestPerTree = (candidates: readonly DatedSprint[], better: (a: DatedSprint, b: DatedSprint) => boolean) => {
+    const best = new Map<string, DatedSprint>();
+    for (const sprint of candidates) {
+      const root = rootOf(sprint.projectId) ?? sprint.projectId;
+      const current = best.get(root);
+      if (!current || better(sprint, current)) best.set(root, sprint);
+    }
+    return new Set([...best.values()].map((sprint) => sprint.id));
+  };
+  return {
+    current: new Set(sprints.filter((sprint) => sprint.startDate <= today && sprint.endDate >= today).map((sprint) => sprint.id)),
+    past: new Set(past.map((sprint) => sprint.id)),
+    future: new Set(future.map((sprint) => sprint.id)),
+    previous: bestPerTree(past, (a, b) => a.endDate > b.endDate),
+    next: bestPerTree(future, (a, b) => a.startDate < b.startDate),
+  };
+}
+
+/**
+ * Values of the sprint column a task's sprints give its filter: their ids, then the relative sprints they are among.
+ * @param {readonly string[]} ids Sprints of the task.
+ * @param {Record<RelativeSprint, Set<string>>} relative Relative sprints (`relativeSprintIds`).
+ * @returns {string[]} Values.
+ */
+export function sprintFilterValues(ids: readonly string[], relative: Record<RelativeSprint, Set<string>>): string[] {
+  return [...ids, ...RELATIVE_SPRINTS.filter((token) => ids.some((id) => relative[token].has(id)))];
+}

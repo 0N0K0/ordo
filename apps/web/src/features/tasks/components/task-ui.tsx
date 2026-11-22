@@ -109,7 +109,7 @@ interface AssigneesSelectProps {
 }
 
 /**
- * Multi-select of contributors, with their avatar and handle (assignees of a task, a routine, people of an event).
+ * Multi-select of contributors, with their avatar and handle (assignees of a task, a routine).
  * @param {AssigneesSelectProps} props Component props.
  * @returns {JSX.Element} Select.
  */

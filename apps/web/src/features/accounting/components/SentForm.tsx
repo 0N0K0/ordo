@@ -1,5 +1,5 @@
 import { Select, Stack } from '@mantine/core';
-import { DatePickerInput } from '@mantine/dates';
+import { DateField } from '../../../components/inputs/DateField';
 import { SENDING_CHANNEL_LABELS, SENDING_CHANNELS, type SendingChannel } from '@ordo/shared';
 import { useState } from 'react';
 import { localDay, localToday } from '../../../lib/dates';
@@ -42,7 +42,7 @@ export function SentForm({ sentAt, sentVia, onSubmit, onDone }: SentFormProps) {
         allowDeselect={false}
         onChange={(value) => value && setVia(value as SendingChannel)}
       />
-      <DatePickerInput label="Date d’envoi" description="Les relances comptent à partir de cette date." required maxDate={today} value={date} onChange={(value) => setDate(value)} data-autofocus />
+      <DateField label="Date d’envoi" description="Les relances comptent à partir de cette date." required maxDate={today} value={date} onChange={(value) => setDate(value)} data-autofocus />
       <FormActions onCancel={onDone} loading={saving} disabled={!date} onSubmit={() => void save()} />
     </Stack>
   );

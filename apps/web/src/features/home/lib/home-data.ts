@@ -2,8 +2,9 @@ import { localDay, localMidnight, monthOfDay, yearOfDay } from '../../../lib/dat
 import { addDays, entrySeconds, filterPeriod } from '@ordo/shared';
 import { useMemo } from 'react';
 import type { AccountingDocumentSummary, ImportedDocument } from '../../accounting/api/documents';
-import type { Task } from '../../tasks/api';
-import { matchTasks } from '../../tasks/lib/task-columns';
+import { useDoableTaskIds, useTaskWaitReasons, type Task, type TaskWaitReasons } from '../../tasks/api';
+import { isArchivedTaskRow, matchTasks, taskTableRows, viewUses } from '../../tasks/lib/task-columns';
+import { useDefaultTableView, useViewRows, type DefaultTableView } from '../../../components/data-table/views/use-default-view';
 import { useTaskColumns } from '../../tasks/hooks/use-task-columns';
 import { useTimeEntriesSince } from '../../time/api';
 import { useNow } from '../../../lib/use-now';
@@ -134,6 +135,58 @@ export function useMyTodayTasks(context: TaskContext | null, today: string) {
     tasks.sort((a, b) => Number(late(b)) - Number(late(a)) || (a.effectiveDeadline ?? a.endDate ?? '9999').localeCompare(b.effectiveDeadline ?? b.endDate ?? '9999') || (a.number ?? 0) - (b.number ?? 0));
     return { tasks, overdue: tasks.filter(late).length };
   }, [context, columns, today]);
+}
+
+/** Section of a task on the home page: `now`, it can be done now; `later`, the others. */
+export type HomeTaskSection = 'now' | 'later';
+
+/** A task of the home page, in its section. */
+export interface HomeTaskItem {
+  key: string;
+  section: HomeTaskSection;
+  task: Task;
+}
+
+/** Tasks of the home page and what they are read from. */
+export interface HomeTasks {
+  /** Default view of the tasks page, null without any. */
+  view: DefaultTableView['view'];
+  /** The default view is still loading. */
+  viewPending: boolean;
+  /** Those that can be done now first, then the others, each in the order of the view. */
+  items: HomeTaskItem[];
+  /** How many can be done now. */
+  nowCount: number;
+  /** Why an open task cannot be done now, undefined while loading. */
+  waitReasons: TaskWaitReasons | undefined;
+  loading: boolean;
+}
+
+/**
+ * Tasks of the home page (« Tâches » card, navigation badge): those of the default view of the tasks page (its filter,
+ * search and sorts), archived ones left out; without any view yet, my tasks of today. Closed ones left out; those that
+ * can be done now first, then the others.
+ * @param {TaskContext | null} context Task context.
+ * @param {Task[] | null} todayTasks My tasks of today (`useMyTodayTasks`), null while loading.
+ * @param {string} today Today.
+ * @returns {HomeTasks} Tasks.
+ */
+export function useHomeTasks(context: TaskContext | null, todayTasks: Task[] | null, today: string): HomeTasks {
+  const { view, isPending } = useDefaultTableView('tasks');
+  const columns = useTaskColumns(context, today, { doable: viewUses(view?.config, 'doableNow') });
+  const doableIds = useDoableTaskIds(true);
+  const waitReasons = useTaskWaitReasons(true);
+  const rows = useMemo(() => taskTableRows(context?.tasks ?? []), [context]);
+  const shown = useViewRows({ view, columns, rows, archived: isArchivedTaskRow });
+  const items = useMemo(() => {
+    // A closed task is neither doable now nor later: left out.
+    const tasks = (view ? shown.rows.flatMap((row) => (row.kind === 'task' ? [row.task] : [])) : (todayTasks ?? [])).filter((task) => !context?.isClosed(task));
+    const item = (task: Task): HomeTaskItem => ({ key: task.id, section: doableIds?.has(task.id) ? 'now' : 'later', task });
+    const all = tasks.map(item);
+    return [...all.filter((entry) => entry.section === 'now'), ...all.filter((entry) => entry.section === 'later')];
+  }, [view, shown, todayTasks, doableIds, context]);
+  const loading = isPending || !context || !doableIds || !waitReasons || (!view && !todayTasks);
+  return { view, viewPending: isPending, items, nowCount: items.filter((entry) => entry.section === 'now').length, waitReasons, loading };
 }
 
 /** Time tracked this week. */

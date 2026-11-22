@@ -5,12 +5,14 @@ import { WARNING_YES_ICONS, withArchived, type DataColumn } from '../../../compo
 import * as fmt from '../../../lib/format';
 import { commentColumn } from '../../comments/lib/comment-column';
 import type { Routine } from '../api';
-import { isDone, panelOccurrence, routineTreeOptions, currentRoutineState, waitingFor } from './routine-format';
+import { isDone, panelOccurrence, routineTreeOptions, currentRoutineState, waitingFor, blockedRoutineIds } from './routine-format';
 import { opensWords, REPETITION_LABELS, routineFrequency, ROUTINE_STATE_LABELS, type RoutineEnv } from './routine-view';
 import { localDay } from '../../../lib/dates';
 import { LAST_RANK } from '../../../components/data-table/table/table-engine';
 import { booleanColumn } from '../../../components/data-table/table/boolean-column';
 import { DOABLE_GROUP_LABELS } from '../../tasks/lib/task-columns';
+import { itemChoices } from '../../../components/items/item-look';
+import type { TaskLabel } from '../../tasks/api';
 
 /**
  * Short date of a calendar date: "lun. 10 nov.".
@@ -41,9 +43,29 @@ export function routineColumns(env: RoutineEnv): DataColumn<Routine>[] {
     ...conditionReferences(readSlotCondition(routine.slotCondition)),
     ...((routine.cases as RoutineCase[] | null) ?? []).flatMap((item) => conditionReferences(item.condition ?? null)),
   ];
-  const blockers = (routine: Routine) => routines.filter((other) => other.requiredIds.includes(routine.id)).map((other) => other.id);
+  const blockers = (routine: Routine) => blockedRoutineIds(routines, routine.id);
   const state = (routine: Routine) => currentRoutineState(routine, env.today, env.doable(routine));
   const minutes = (value: number | null) => (value ? formatDuration(value * 60) : '');
+  /**
+   * Column of a list of the tasks a routine takes one item of (its priority, its type), sorted in the order of the list.
+   * @param {'priority' | 'type'} id Column.
+   * @param {string} label Name.
+   * @param {(routine: Routine) => string | null} value Item of a routine.
+   * @param {TaskLabel[]} items Items of the list, in their order.
+   * @returns {DataColumn<Routine>} Column.
+   */
+  const labelColumn = (id: 'priority' | 'type', label: string, value: (routine: Routine) => string | null, items: TaskLabel[]): DataColumn<Routine> => {
+    const byLabel = new Map(items.map((item) => [item.id, item]));
+    return {
+      id,
+      label,
+      size: 120,
+      bulk: true,
+      sortValue: (routine) => byLabel.get(value(routine) ?? '')?.position ?? null,
+      text: (routine) => byLabel.get(value(routine) ?? '')?.label ?? '',
+      filter: { kind: 'choice', value, options: itemChoices(items) },
+    };
+  };
   return [
     { id: 'label', label: 'Libellé', size: 320, locked: true, required: true, bulk: true, sortValue: (routine) => routine.label, text: (routine) => routine.label },
     {
@@ -221,6 +243,9 @@ export function routineColumns(env: RoutineEnv): DataColumn<Routine>[] {
       filter: { kind: 'choices', value: (routine) => routine.categoryIds, options: withArchived(categoryOptions(categories), categories) },
       groupTree: categories.map((category) => ({ key: category.id, label: category.label, color: category.color, parentKey: category.parentId })),
     },
+    // The lists of the tasks, shown as theirs.
+    labelColumn('priority', 'Priorité', (routine) => routine.priorityId ?? null, context.priorities),
+    labelColumn('type', 'Type', (routine) => routine.typeId ?? null, context.types),
     {
       id: 'requires',
       label: 'Dépend de',

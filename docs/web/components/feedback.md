@@ -17,7 +17,7 @@ Une icône par type de retour, commune aux alertes et aux toasts : `SuccessFeedb
 
 - `ErrorAlert` (`ErrorAlert.tsx`) : erreur affichée dans une page ou un panneau (chargement échoué, lien cassé), alerte rouge avec son icône. Props d'`Alert` sauf `color` et `icon`. Imposée par eslint (`Alert color="red"` interdit). Utilisée par les mails, les tableaux de bord, l'authentification, la facturation…
 - `NoticeAlert` (`NoticeAlert.tsx`) : avis dans une page, un panneau ou un formulaire ; `kind` = `'success'` (vert), `'info'` (bleu, aussi « à configurer d'abord ») ou `'warning'` (orange), chacun avec son icône (table interne `KINDS`). Imposée par eslint pour les autres couleurs d'`Alert`.
-- `ArchivedNotice` (`ArchivedNotice.tsx`) : bandeau gris (icône archive) d'un élément archivé affiché en lecture seule (formulaire, éditeur, tableau de bord), qui dit comment le restaurer. Props : `title` (facultatif), `children`. Utilisé par les tableaux de bord, l'agenda, la facturation.
+- `ArchivedNotice` (`ArchivedNotice.tsx`) : bandeau gris (icône archive) d'un élément archivé affiché en lecture seule (formulaire, éditeur, tableau de bord), qui dit comment le restaurer. Props : `title` (facultatif), `children`. Utilisé par les tableaux de bord et la facturation.
 
 ## États vides et pages d'erreur
 
@@ -43,7 +43,7 @@ Page de détail dont l'élément n'existe pas (supprimé, mauvaise adresse) : `B
 
 ### `SaveStatus`
 
-État d'un panneau de détail enregistré champ par champ (`useFieldSave`), en haut du panneau : « Enregistrement… » (petit chargement) pendant un enregistrement, « Enregistré » (coche) sinon ; même place dans les deux cas, lu par les lecteurs d'écran quand il change (`role="status"`). Prop `saving`. Utilisé par tous les panneaux de détail enregistrés champ par champ (tâches, routines, évènements, temps, alarmes, achats, fiches, facturation, trésorerie, projets, clients, réglages, mail…).
+État d'un panneau de détail enregistré champ par champ (`useFieldSave`), en haut du panneau : « Enregistrement… » (petit chargement) pendant un enregistrement, « Enregistré » (coche) sinon ; même place dans les deux cas, lu par les lecteurs d'écran quand il change (`role="status"`). Prop `saving`. Dans l’en-tête de `DetailLayout` pour les tâches, les routines et les évènements. Utilisé par tous les panneaux de détail enregistrés champ par champ (tâches, routines, évènements, temps, alarmes, achats, fiches, facturation, trésorerie, projets, clients, réglages, mail…).
 
 ### `RunningPill`
 

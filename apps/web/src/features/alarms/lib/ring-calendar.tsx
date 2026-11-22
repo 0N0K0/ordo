@@ -1,5 +1,5 @@
 import { birthdayRings, ephemerisRings, type RemindedBirthday, type RemindedSchedule as SharedRemindedSchedule } from '@ordo/shared';
-import { scheduleRules } from '../../calendar/api';
+import { ephemerisRule } from './next-ring';
 import { ringPlannedReminders, type RingLink, type RingWorkspace } from '../components/ring';
 
 export type { RemindedBirthday };
@@ -24,7 +24,7 @@ export interface RemindedSchedule extends SharedRemindedSchedule {
  * @returns {void}
  */
 export function ringEphemerisReminders(schedules: readonly RemindedSchedule[], now: Date, links: RingLink[], workspace?: RingWorkspace): void {
-  ringPlannedReminders(ephemerisRings(schedules, (schedule) => scheduleRules([schedule])[0], now), now, () => links, workspace);
+  ringPlannedReminders(ephemerisRings(schedules, ephemerisRule, now), now, () => links, workspace);
 }
 
 /**

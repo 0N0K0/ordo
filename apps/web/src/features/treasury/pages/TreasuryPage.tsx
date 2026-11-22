@@ -16,7 +16,8 @@ import { useEntryCellSave, useEntryDuplicate } from '../lib/entry-values';
 import { SettingsSection } from '../../../components/settings/SettingsSection';
 import { Anchor, Badge, Button, Group, Popover, SegmentedControl, SimpleGrid, Stack, Text } from '@mantine/core';
 import { AreaChart } from '@mantine/charts';
-import { DatePickerInput, MonthPicker, YearPicker } from '@mantine/dates';
+import { MonthPicker, YearPicker } from '@mantine/dates';
+import { DateField } from '../../../components/inputs/DateField';
 import { addDays, CALENDAR_SCALE_OPTIONS, mapById, calendarEnd, type CalendarScale, calendarStart, shiftCalendar, sumOf } from '@ordo/shared';
 import { ArrowsSplitIcon, BankIcon, CalendarPlusIcon, CheckIcon, PencilSimpleIcon, PlusIcon } from '@phosphor-icons/react';
 import { ArchivedBadge } from '../../../components/feedback/ArchivedBadge';
@@ -150,7 +151,7 @@ function RealizeForm({ item, onDone }: { item: ProjectionItem; onDone: () => voi
         « {item.label} », prévu le {fmt.day(item.dueDate)}, devient un mouvement réel.
       </Text>
       <SimpleGrid cols={2} spacing="sm">
-        <DatePickerInput label="Date réelle" required value={date} onChange={setDate} />
+        <DateField label="Date réelle" required value={date} onChange={setDate} />
         <AmountInput label={item.amount < 0 ? 'Montant sorti' : 'Montant entré'} min={0} value={amount} onChange={(value) => setAmount(typeof value === 'number' ? value : 0)} />
       </SimpleGrid>
       <FormActions
