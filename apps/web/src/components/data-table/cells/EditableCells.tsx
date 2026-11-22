@@ -9,6 +9,7 @@ import { MarkdownEditor, type MarkdownSuggestions } from '../../markdown/Markdow
 import { NO_SUGGESTIONS } from '../../markdown/remark-references';
 import { BatchMultiSelect } from '../../inputs/BatchMultiSelect';
 import { StackedMultiCell, type StackedItem } from './StackedMultiCell';
+import { StackedLines } from './StackedValues';
 import { AmountInput } from '../../inputs/AmountInput';
 import { currencySymbol } from '../../../lib/format';
 import { accepted, checked, stopClick, stoppedCellCombobox, stoppedCellField, useCellDraft, type CellSchema } from './cell-field';
@@ -355,8 +356,10 @@ export function EditableCheck({ value, label, readOnly = false, onSave }: { valu
 }
 
 interface EditablePopoverCellProps {
-  /** What the cell shows (« — » when empty). */
+  /** What the cell shows (« — » when empty; with `lines`, shown without any line). */
   target: ReactNode;
+  /** Several values, shown one under the other in place of `target` (`StackedLines`). Optional. */
+  lines?: readonly string[];
   /** The cell is empty: shown dimmed. Optional. Default = false. */
   empty?: boolean;
   /** Accessible name of the cell. Optional. */
@@ -382,37 +385,41 @@ interface EditablePopoverCellProps {
  * @param {EditablePopoverCellProps} props Component props.
  * @returns {JSX.Element} Cell.
  */
-export function EditablePopoverCell({ target, empty = false, label, width, truncate = false, opened, onOpenedChange, onClose, readOnly = false, children }: EditablePopoverCellProps) {
-  if (readOnly) {
-    return (
+export function EditablePopoverCell({ target, lines, empty = false, label, width, truncate = false, opened, onOpenedChange, onClose, readOnly = false, children }: EditablePopoverCellProps) {
+  /**
+   * The value shown: read only, or the link opening the editor.
+   * @param {ReactNode} content Value (or its lines).
+   * @returns {JSX.Element} Value.
+   */
+  const shown = (content: ReactNode) =>
+    readOnly ? (
       <Text component="div" size="sm" c={empty ? 'dimmed' : undefined} aria-label={label} truncate={truncate}>
-        {target}
+        {content}
       </Text>
+    ) : (
+      <Popover opened={opened} onChange={onOpenedChange} onClose={onClose} position="bottom-start" withinPortal shadow="md" width={width}>
+        <Popover.Target>
+          <Anchor
+            // eslint-disable-next-line no-restricted-syntax -- the value of the cell, shown as a link that opens its editor.
+            component="button"
+            type="button"
+            size="sm"
+            c={empty ? 'dimmed' : undefined}
+            aria-label={label}
+            onClick={(event) => {
+              stopClick(event);
+              if (onOpenedChange) onOpenedChange(!opened);
+            }}
+            style={{ textAlign: 'left', maxWidth: '100%' }}
+            truncate={truncate}
+          >
+            {content}
+          </Anchor>
+        </Popover.Target>
+        <Popover.Dropdown onClick={stopClick}>{children}</Popover.Dropdown>
+      </Popover>
     );
-  }
-  return (
-    <Popover opened={opened} onChange={onOpenedChange} onClose={onClose} position="bottom-start" withinPortal shadow="md" width={width}>
-      <Popover.Target>
-        <Anchor
-          // eslint-disable-next-line no-restricted-syntax -- the value of the cell, shown as a link that opens its editor.
-          component="button"
-          type="button"
-          size="sm"
-          c={empty ? 'dimmed' : undefined}
-          aria-label={label}
-          onClick={(event) => {
-            stopClick(event);
-            if (onOpenedChange) onOpenedChange(!opened);
-          }}
-          style={{ textAlign: 'left' }}
-          truncate={truncate}
-        >
-          {target}
-        </Anchor>
-      </Popover.Target>
-      <Popover.Dropdown onClick={stopClick}>{children}</Popover.Dropdown>
-    </Popover>
-  );
+  return lines?.length ? <StackedLines lines={lines} wrap={shown} /> : shown(target);
 }
 
 interface EditableMarkdownProps {

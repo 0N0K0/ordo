@@ -1,6 +1,6 @@
 import { EVERYDAY_CONTEXT } from '@ordo/shared';
 import { booleanColumn } from '../../../components/data-table/table/boolean-column';
-import { LATE_GROUP_LABELS, WARNING_YES_ICONS, type DataColumn } from '../../../components/data-table/table/data-table';
+import { LATE_GROUP_LABELS, multiValues, WARNING_YES_ICONS, type DataColumn } from '../../../components/data-table/table/data-table';
 import { monthColumn } from '../../../components/data-table/table/month-column';
 import { itemChoices } from '../../../components/items/item-look';
 import { signedText } from '../../../components/money/signed-text';
@@ -106,7 +106,7 @@ export function entryColumns(env: EntryEnv): DataColumn<TreasuryEntry>[] {
       label: 'Documents réglés',
       size: 200,
       hiddenByDefault: true,
-      text: (entry) => entry.allocations.map((allocation) => allocation.documentLabel).join(', '),
+      ...multiValues((entry) => entry.allocations.map((allocation) => allocation.documentLabel)),
       filter: { kind: 'boolean', value: (entry) => entry.allocations.length > 0 },
     },
     {
@@ -260,7 +260,7 @@ export function lineColumns(env: EntryEnv): DataColumn<LineRow>[] {
       bulk: true,
       label: 'Pièces justificatives',
       size: 220,
-      text: (row) => row.documents.map((document) => document.label).join(', '),
+      ...multiValues((row) => row.documents.map((document) => document.label)),
       filter: { kind: 'boolean', value: (row) => row.documents.length > 0 },
     },
     {
@@ -268,7 +268,7 @@ export function lineColumns(env: EntryEnv): DataColumn<LineRow>[] {
       bulk: true,
       label: 'Relative à un autre mouvement',
       size: 240,
-      text: (row) => row.line.links.map((link) => link.entryLabel).join(', '),
+      ...multiValues((row) => row.line.links.map((link) => link.entryLabel)),
       filter: { kind: 'boolean', value: (row) => row.line.links.length > 0 },
     },
   ];

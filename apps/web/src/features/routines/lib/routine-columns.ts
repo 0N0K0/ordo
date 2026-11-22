@@ -1,7 +1,7 @@
 import { beneficiaryKeys } from '../../beneficiaries/hooks/use-beneficiaries';
 import { ROUTINE_REPETITIONS, ROUTINE_STATES, conditionReferences, formatDuration, occurrenceKey, readSlotCondition, type RoutineCase } from '@ordo/shared';
 import { categoryOptions, categoryPaths, categoryTree } from '../../../components/tree/category-tree';
-import { WARNING_YES_ICONS, withArchived, type DataColumn } from '../../../components/data-table/table/data-table';
+import { multiValues, WARNING_YES_ICONS, withArchived, type DataColumn } from '../../../components/data-table/table/data-table';
 import * as fmt from '../../../lib/format';
 import { commentColumn } from '../../comments/lib/comment-column';
 import type { Routine } from '../api';
@@ -44,6 +44,10 @@ export function routineColumns(env: RoutineEnv): DataColumn<Routine>[] {
     ...conditionReferences(readSlotCondition(routine.slotCondition)),
     ...((routine.cases as RoutineCase[] | null) ?? []).flatMap((item) => conditionReferences(item.condition ?? null)),
   ];
+  const slotNames = (routine: Routine) =>
+    slotIds(routine)
+      .map((id) => scheduleLabel.get(id) ?? '')
+      .filter(Boolean);
   const blockers = (routine: Routine) => blockedRoutineIds(routines, routine.id);
   const state = (routine: Routine) => currentRoutineState(routine, env.today, env.doable(routine));
   const minutes = (value: number | null) => (value ? formatDuration(value * 60) : '');
@@ -178,11 +182,7 @@ export function routineColumns(env: RoutineEnv): DataColumn<Routine>[] {
       label: 'Créneaux',
       size: 180,
       hiddenByDefault: true,
-      text: (routine) =>
-        slotIds(routine)
-          .map((id) => scheduleLabel.get(id) ?? '')
-          .filter(Boolean)
-          .join(', '),
+      ...multiValues(slotNames),
       filter: { kind: 'choices', value: slotIds, options: env.slotKinds ?? [] },
     },
     {

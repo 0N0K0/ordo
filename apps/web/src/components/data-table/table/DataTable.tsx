@@ -22,7 +22,7 @@ import { memo, useCallback, useMemo, useRef, useState, type CSSProperties, type 
 import { useVirtualizer } from '@tanstack/react-virtual';
 
 import { ColumnHeaderMenu, type ColumnMove } from '../toolbar/ColumnHeaderMenu';
-import { clampWidth, columnOrder, MAX_WIDTH, MIN_WIDTH, toggleSort, withOrder, withVisibility, type ShownColumn, type TreeGroup } from './data-table';
+import { clampWidth, columnCell, columnOrder, MAX_WIDTH, MIN_WIDTH, toggleSort, withOrder, withVisibility, type ShownColumn, type TreeGroup } from './data-table';
 import { columnFilter, LAST_RANK, NO_VALUE_LABEL } from './table-engine';
 import { DataViewBar, type DataViewBarProps } from '../toolbar/DataViewBar';
 import { GroupHeaderRow } from './GroupHeaderRow';
@@ -673,7 +673,7 @@ export function DataTable<R>({
          * @param {ShownColumn<R>} column Column.
          * @returns {ReactNode} Content.
          */
-        const cellOf = (column: ShownColumn<R>) => (column.id in content ? content[column.id] : column.cell?.(data));
+        const cellOf = (column: ShownColumn<R>) => (column.id in content ? content[column.id] : columnCell(column, data));
         return (
           <DataRow
             key={row.id}

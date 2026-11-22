@@ -95,7 +95,7 @@ Panneau « Déplacer vers une autre référence » : « Produits » (multi-séle
 Table des listes (`ListsPanel`) :
 
 - Vues créées la première fois : « En cours », « Clôturées ». Recherche « Rechercher (liste, produit) ». Sans tri : les plus récentes d'abord.
-- Colonnes : « Liste » (modifiable sur place, lien « Ouvrir la liste », badges « Archivée » et « Payée »), « Tâches » (modifiables sur place), « Achats » (badge « achetés / requis », vert quand tout est acheté), « Total estimé », « Créée le », commentaires ; masquées par défaut : « Projet », « État » (« En cours » / « Clôturée »), « Restant », « Produits », « Clôturée le », « Payée » (oui / non : « Payée » / « À payer »), « Catégories », « Magasins », « Libellés des produits ».
+- Colonnes : « Liste » (modifiable sur place, lien « Ouvrir la liste », badges « Archivée » et « Payée »), « Tâches » (modifiables sur place), « Achats » (badge « achetés / requis », vert quand tout est acheté), « Total estimé », « Créée le », commentaires ; masquées par défaut : « Projet », « État » (« En cours » / « Clôturée »), « Restant », « Produits », « Clôturée le », « Payée » (oui / non : « Payée » / « À payer »), « Catégories », « Magasins », « Libellés des produits » (leurs valeurs l’une sous l’autre, comme « Projet » ; jointes par « , » à l’export).
 - Une liste close ou archivée est en lecture seule.
 - Boutons : « Afficher les archivées », « Nouvelle liste ».
 - Menu de chaque ligne : les actions de la liste (voir « Actions d'une liste »).
