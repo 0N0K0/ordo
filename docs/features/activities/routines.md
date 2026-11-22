@@ -213,6 +213,7 @@ Une occurrence déjà cochée ne se déplace pas : il faut d'abord la décocher.
 
 ## Ailleurs dans l'application
 
+- Menu : la pastille de « Routines » dit les moments faits sur prévus aujourd'hui (« 3/7 »), comme l'onglet « Historique » (voir [Projets › Barre latérale](../cross-cutting/projects.md#barre-latérale)).
 - Accueil : carte des routines à faire aujourd'hui (en retard d'abord), cochées depuis la carte, avec report au lendemain et sablier d'attente (voir [Accueil](../cross-cutting/home.md)).
 - Agenda : occurrences des routines dans l'agenda, déplaçables, et routines liées à un évènement pour un jour (voir [Agenda](calendar.md)).
 - Rappels : un « avant » sonne pour chaque moment non coché qui a une heure, de l'occurrence en cours non faite (et de la suivante), depuis le début ou la fin du moment, le jour de l'ouverture ou celui de l'échéance (`routineSlotSpan` : « dès » / « jusqu’à », l’autre selon le temps estimé, 30 min sans lui) ; un « À HH:MM » une fois par occurrence, ce jour-là ; un « N jours avant » une fois par occurrence, N jours avant ce jour ; le toast propose de la cocher ; pendant un évènement qui occupe ses assignés ou un créneau « Indisponible », le rappel attend le prochain moment libre (la fin du créneau) ; ils sonnent quel que soit l'espace ouvert (voir [Alarmes](alarms.md)).

@@ -1002,6 +1002,11 @@ export default defineConfig([
           message: 'Utiliser CountBadge (components/feedback/CountBadge) : un compte seul, la même pastille partout.',
         },
         {
+          // A badge of the navigation written by hand instead of a component of its own on NavBadge.
+          selector: "CallExpression[callee.name='pageLink'] > JSXElement.arguments:not([openingElement.name.name=/NavBadge$/])",
+          message: 'Une pastille du menu : un composant *NavBadge sur NavBadge (features/projects/components/NavBadges), calculé par le code de la page ou de l’accueil.',
+        },
+        {
           // An element named in a hidden label is quoted (IconAction quotes its `item` itself).
           selector: [0, 1, 2, 3]
             .map(

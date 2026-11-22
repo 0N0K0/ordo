@@ -16,7 +16,7 @@ import { useEntityActions, type EntityRef } from '../hooks/use-entity-actions';
 import { MailNavBadge } from '../../mail/components/MailNavBadge';
 import { useActiveWorkspace } from '../../workspaces/api';
 import { ActiveTree } from './ActiveTree';
-import { AgendaNavBadge, TasksNavBadge, TimeNavBadge, TreasuryNavBadge } from './NavBadges';
+import { AgendaNavBadge, AlarmsNavBadge, RoutinesNavBadge, TasksNavBadge, TimeNavBadge, TreasuryNavBadge } from './NavBadges';
 import { SidebarSection } from './SidebarSection';
 import { PAGES, type PageKey } from '../../../app/pages';
 import { newEntityEntries } from '../lib/fold-entries';
@@ -69,7 +69,7 @@ const MENU_GROUPS: MenuGroup[] = [
   {
     label: 'Activités',
     icon: <SquaresFourIcon aria-hidden />,
-    links: [pageLink('tasks', <TasksNavBadge />), pageLink('routines'), pageLink('calendar', <AgendaNavBadge />), pageLink('time', <TimeNavBadge />), pageLink('alarms')],
+    links: [pageLink('tasks', <TasksNavBadge />), pageLink('routines', <RoutinesNavBadge />), pageLink('calendar', <AgendaNavBadge />), pageLink('time', <TimeNavBadge />), pageLink('alarms', <AlarmsNavBadge />)],
   },
   {
     label: 'Économat',

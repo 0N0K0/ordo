@@ -154,6 +154,7 @@ Un format par rôle (importé en `fmt`) ; à l'écran la forme lisible, la forme
 | `daysAgo(days)`                | « aujourd'hui », « il y a 3 jours »     | Ancienneté en jours                                               |
 | `daysLate(due, today)`         | « 3 j de retard »                       | Retard                                                            |
 | `fromNow(date)`                | « il y a 3 heures », « hier »           | Temps relatif (commentaire)                                       |
+| `countdown(seconds)`           | « 12 min », « 2 h », « 3 j »            | Temps jusqu’à un moment, dans sa plus grande unité entière (minutes arrondies au-dessus, 1 min au moins) : pastille « Alarmes » |
 
 `PICKER_FORMATS` : formats d'affichage des sélecteurs de dates Mantine (`D MMM YYYY`, `ddd D MMM YYYY`, `D MMM YYYY HH:mm`, `MMMM YYYY`, `YYYY`), appliqués par défaut dans `app/theme.ts`.
 

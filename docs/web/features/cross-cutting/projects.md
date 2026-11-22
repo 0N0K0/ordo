@@ -73,11 +73,14 @@ Utilisés par `ProjectForm`.
 
 ### `components/NavBadges.tsx`
 
-Pastilles du menu, chacune son composant pour que le chrono ne rafraîchisse que la sienne. Utilisées par `Sidebar`.
+Pastilles du menu, chacune son composant pour que le chrono ne rafraîchisse que la sienne, chacune calculée par le code de la page ou de l’accueil (jamais recalculée). Utilisées par `Sidebar`. Règle eslint : une pastille passée à `pageLink` est un composant `*NavBadge`.
 
-- `TasksNavBadge()` : nombre de mes tâches du jour (`useMyTodayTasks`), pleine en `LATE_COLOR` s’il y en a en retard.
-- `AgendaNavBadge()` : évènements du jour hors annulés (`useHeldEvents`).
-- `TimeNavBadge()` : temps du jour (`useWeekTime`), rouge quand un chrono au moins tourne (`useRunningTimers`) ; rien sans temps ni chrono.
+- `NavBadge({ value, label, color?, variant? })` : la pastille commune (`Badge` `sm`, clair par défaut), avec son libellé pour les lecteurs d’écran ; rien sans valeur.
+- `TasksNavBadge()` : nombre de tâches faisables maintenant, la section « Maintenant » de la carte « Tâches » de l’accueil (`useHomeTasks` : vue par défaut de la page « Tâches », sans vue mes tâches du jour `useMyTodayTasks`), pleine en `LATE_COLOR` si certaines sont en retard ; « 5 tâches faisables maintenant ».
+- `RoutinesNavBadge()` : moments faits sur prévus aujourd’hui (« 3/7 »), comme l’onglet « Historique » (`useRoutineDay`), verte quand tout est fait ; « 3 routines faites sur 7 prévues aujourd’hui ».
+- `AgendaNavBadge()` : évènements du jour, journée entière comprise, hors annulés (`useHeldEvents`) ; « 2 évènements aujourd’hui ».
+- `TimeNavBadge()` : temps du jour, chronos en cours comptés en direct (`useWeekTime`, format `formatDuration`), rouge quand un chrono au moins tourne (`useRunningTimers`) ; rien sous une minute.
+- `AlarmsNavBadge()` : temps jusqu’à la prochaine sonnerie (`useNextRing`, `fmt.countdown`), recalculé chaque minute ; « Prochaine sonnerie dans 12 min ».
 - `TreasuryNavBadge()` : solde des comptes ouverts (`useTreasuryAccounts`), rouge si négatif.
 
 ### `components/NoClientRow.tsx`

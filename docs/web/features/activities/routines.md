@@ -116,7 +116,7 @@ Internes : `shortText`, `PAST_DAYS`, `NEXT_DAYS`, `Times`, `timesOf(occurrence)`
 | ------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `RoutineHistory({ routineId, onRoutine })` | Onglet « Historique » : navigation par jour (`PeriodNav`), filtre de routine, calques créneaux / calendriers (localStorage `ordo.routines.history.layers`), résumé, `RoutineDayAgenda`. |
 
-Interne : `historyItems(occurrences, checks, byId)` (moments prévus du jour, triés par heure puis libellé).
+Le jour vient de `useRoutineDay(day, routineId)`.
 
 ### `components/RoutineDayAgenda.tsx`
 
@@ -211,6 +211,11 @@ Interne : `DueBadge` (« Après … », « Partir maintenant », « Aujourd'hui 
 Classes `table` (taille de police), `row` (survol, lignes `data-done` / `data-archived` estompées, libellé barré si fait), `nowrap`.
 
 ## `hooks/`
+
+### `hooks/use-routine-day.ts`
+
+- `RoutineDay` (interface) : routines, `byId`, moments prévus du jour (`items`), cochés (`doneCount`), chargement.
+- `useRoutineDay(day, routineId?)` : chaque moment prévu ce jour-là (`useRoutineOccurrences` du jour, annulées écartées, une routine seule ou toutes) avec sa coche (`useRoutineChecks`), triés par heure puis libellé (interne `historyItems`), et combien sont cochés. Utilisé par `RoutineHistory` (onglet « Historique ») et `RoutinesNavBadge` (barre latérale, aujourd’hui).
 
 ### `hooks/use-routine-columns.ts`
 
@@ -346,4 +351,5 @@ Internes : `RoutineColumn`, `TABLE_COLUMNS`, `useBulkRoutineChanges` (instantan�
 - `features/alarms/` : `useRoutinesData`, `useRoutineMutations`, `isDone`, `windowText`.
 - `features/time/` : `useRoutinesData`, `routineTreeOptions`, `routinesKey`.
 - `features/projects/pages/ProjectPage.tsx` : `RoutinesPanel`.
+- `features/projects/components/NavBadges.tsx` : `useRoutineDay`.
 - `app/router.tsx` : `RoutinesPage`.
