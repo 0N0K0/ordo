@@ -128,7 +128,7 @@ Un nouveau client : bouton « Créer le client », toast « Client créé. ». U
 | « Statut »         | facultatif (« Aucun »), avec création à la volée                                                                                     |
 | Couleur            | facultative                                                                                                                          |
 | « Catégories »     | plusieurs, avec création à la volée                                                                                                  |
-| « Début », « Fin » | dates facultatives ; la fin doit suivre le début                                                                                     |
+| « Dates »          | période en un seul champ, chaque bout facultatif (« Dès le début » / « Jusqu’à la fin ») ; la fin doit suivre le début              |
 | « Description »    | Markdown, 65 536 caractères                                                                                                          |
 | Icône              | image facultative                                                                                                                    |
 

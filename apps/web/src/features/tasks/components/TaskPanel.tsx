@@ -11,7 +11,6 @@ import { EmptyState } from '../../../components/feedback/EmptyState';
 import { DetailSkeleton } from '../../../components/feedback/Skeletons';
 import { SidePanel } from '../../../components/panels/SidePanel';
 import { Anchor, Badge, Divider, Fieldset, Grid, Group, Select, Stack, Text } from '@mantine/core';
-import { DatePickerInput } from '@mantine/dates';
 import { effortFormSchema, readSlotCondition, readTaskHours, taskLabelSchema, subtreeOf, type TaskInheritableField } from '@ordo/shared';
 import { ArrowCounterClockwiseIcon, CheckCircleIcon, GithubLogoIcon, PencilSimpleIcon, ArrowsLeftRightIcon } from '@phosphor-icons/react';
 import { useState } from 'react';
@@ -37,7 +36,7 @@ import { SlotConditionBuilder } from '../../calendar/components/SlotConditionBui
 import { TaskHoursField } from './TaskHoursField';
 import { BeneficiariesSelect } from '../../beneficiaries/components/BeneficiariesSelect';
 import { removedLinksNote } from '../../../lib/text';
-import { dateRangeProps } from '../../../components/inputs/date-range';
+import { PeriodField } from '../../../components/inputs/PeriodField';
 import { DetailHeader } from '../../../components/page/DetailHeader';
 import { EffortInput } from './EffortInput';
 import { TaskLinks } from './TaskLinks';
@@ -145,7 +144,6 @@ function TaskDetail({ task, context }: TaskDetailProps) {
    * @returns {Promise<unknown>} Saved task.
    */
   const saveNow = (input: Omit<TaskInputValues, 'projectId'>) => updateTask.mutateAsync({ id: task.id, input });
-  const dates = dateRangeProps({ value: [task.startDate, task.endDate], onChange: ([startDate, endDate]) => save({ startDate, endDate }) });
   const overdue = isTaskOverdue(task, localToday());
   // The effort: saved on leaving it, also when the panel closes while it is typed.
   const effortBase = useAppForm<{ effort: number | '' }>({ initialValues: { effort: task.effort ?? '' }, schema: effortFormSchema });
@@ -156,7 +154,6 @@ function TaskDetail({ task, context }: TaskDetailProps) {
     onBlur: ['effort'],
     readOnly: locked,
   });
-  const doable = dateRangeProps({ value: [task.minDate, task.deadline], onChange: ([minDate, deadline]) => save({ minDate, deadline }) });
   /**
    * What an inherited field shows of its inheritance: greyed « Hérité de … », « Vider », « Rétablir
    * l'héritage », saved at once.
@@ -164,6 +161,12 @@ function TaskDetail({ task, context }: TaskDetailProps) {
    * @returns {object} Props of `InheritedField`.
    */
   const inherited = (field: TaskInheritableField) => ({ ...taskFieldState(task, field, save), from: taskParentName(task, context.taskById), readOnly: locked });
+  /**
+   * What a bound of « Ouverture et échéance » shows of its inheritance (under the field, bound by bound).
+   * @param {TaskInheritableField} field Field of the bound.
+   * @returns {object} Inheritance of the bound.
+   */
+  const inheritedBound = (field: TaskInheritableField) => ({ ...taskFieldState(task, field, save), from: taskParentName(task, context.taskById) });
 
   /**
    * Renames the task in the side panel, as everywhere.
@@ -335,32 +338,27 @@ function TaskDetail({ task, context }: TaskDetailProps) {
               </InheritedField>
               <EffortInput {...effort.form.getInputProps('effort')} />
               <TaskTime task={task} />
-              <Group grow gap="xs">
-                <DatePickerInput label="Début" clearable placeholder="—" {...dates.start} />
-                <DatePickerInput label="Fin" clearable placeholder="—" {...dates.end} />
-              </Group>
-              <InheritedField {...inherited('MIN_DATE')}>
-                <DatePickerInput label="Ouverture" description="Avant, la tâche n’est pas à faire." clearable placeholder={inheritedDateHint(task, 'minDate') ?? '—'} {...doable.start} />
-              </InheritedField>
-              <InheritedField {...inherited('DEADLINE')}>
-                <DatePickerInput
-                  label="Échéance"
-                  description={
-                    <>
-                      Au-delà, la tâche ouverte est en retard.
-                      {overdue && (
-                        <Text span inherit c={LATE_COLOR} fw={600}>
-                          {' '}
-                          En retard.
-                        </Text>
-                      )}
-                    </>
-                  }
-                  clearable
-                  placeholder={inheritedDateHint(task, 'deadline') ?? '—'}
-                  {...doable.end}
-                />
-              </InheritedField>
+              <PeriodField label="Dates" readOnly={locked} value={[task.startDate, task.endDate]} onChange={([startDate, endDate]) => save({ startDate, endDate })} />
+              <PeriodField
+                label="Ouverture et échéance"
+                bounds={['Ouverture', 'Échéance']}
+                description={
+                  <>
+                    Avant l’ouverture, la tâche n’est pas à faire ; au-delà de l’échéance, la tâche ouverte est en retard.
+                    {overdue && (
+                      <Text span inherit c={LATE_COLOR} fw={600}>
+                        {' '}
+                        En retard.
+                      </Text>
+                    )}
+                  </>
+                }
+                readOnly={locked}
+                value={[task.minDate, task.deadline]}
+                hints={[inheritedDateHint(task, 'minDate'), inheritedDateHint(task, 'deadline')]}
+                inheritance={[inheritedBound('MIN_DATE'), inheritedBound('DEADLINE')]}
+                onChange={([minDate, deadline]) => save({ minDate, deadline })}
+              />
               <TaskReminders value={task.reminders} minDate={task.effectiveMinDate} deadline={task.effectiveDeadline} disabled={locked} onChange={(reminders) => save({ reminders })} />
               <DeadTimesField value={task.deadTimes} item={taskCountdownItem(task, context)} disabled={locked} onChange={(deadTimes) => save({ deadTimes })} />
               <SavedCountdownsField target="TASK" id={task.id} value={task.savedCountdownIds} invalidate={[tasksQueryKey]} readOnly={locked} />

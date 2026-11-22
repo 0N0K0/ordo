@@ -5,7 +5,7 @@ import { NO_SUGGESTIONS } from '../../../components/markdown/remark-references';
 
 import { itemSelectProps } from '../../../components/items/item-look';
 import { Divider, Fieldset, Group, SegmentedControl, Select, SimpleGrid, Stack, Text, TextInput } from '@mantine/core';
-import { DatePickerInput } from '@mantine/dates';
+import { DateField } from '../../../components/inputs/DateField';
 import { treasuryEntrySchema, type TreasuryAllocationInput, sumOf } from '@ordo/shared';
 
 import { useState } from 'react';
@@ -221,7 +221,7 @@ export function EntryForm({ entry, status = 'ACTUAL', onDone }: EntryFormProps) 
             />
             <SimpleGrid cols={{ base: 1, sm: 2 }} spacing="sm">
               <Select label="Compte" required {...itemSelectProps(open, values.accountId)} allowDeselect={false} {...form.getInputProps('accountId')} />
-              <DatePickerInput
+              <DateField
                 label={forecast ? 'Date d’exécution prévue' : 'Date d’exécution'}
                 required
                 {...form.getInputProps('date')}
@@ -229,7 +229,7 @@ export function EntryForm({ entry, status = 'ACTUAL', onDone }: EntryFormProps) 
                 onChange={(date) => form.setValues({ date: date ?? '', ...(!values.valueDate || values.valueDate === values.date ? { valueDate: date } : {}) })}
               />
             </SimpleGrid>
-            <DatePickerInput
+            <DateField
               label="Date de valeur"
               description="Celle du relevé bancaire, pour information : le solde suit la date d’exécution. Vide, c’est la date d’exécution."
               clearable

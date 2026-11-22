@@ -212,7 +212,7 @@ Toast : « N opérations importées, M prévisions réalisées. ». Le mapping d
 
 ## Relevé de compte (PDF)
 
-« Relevé de compte (PDF) » ouvre « Exporter le relevé des mouvements » : « Période » (préréglages, défaut le mois dernier, ou « Dates choisies »), dates, « Compte » (vide : « Tous les comptes »), texte « Mouvements réels de la période par date d’exécution, avec le solde avant, après et au fil des mouvements. Les prévisions ne sont pas incluses. », « Télécharger le PDF ». Toast « Relevé téléchargé. » ou erreur « Relevé impossible. ». Contenu du PDF : voir [Règles de la trésorerie](../../business-rules/finances/treasury.md#relevé-pdf).
+« Relevé de compte (PDF) » ouvre « Exporter le relevé des mouvements » : « Période » (préréglages, défaut le mois dernier, ou « Dates choisies »), « Dates » (un seul champ, du … au …, choisi pour « Dates choisies »), « Compte » (vide : « Tous les comptes »), texte « Mouvements réels de la période par date d’exécution, avec le solde avant, après et au fil des mouvements. Les prévisions ne sont pas incluses. », « Télécharger le PDF ». Toast « Relevé téléchargé. » ou erreur « Relevé impossible. ». Contenu du PDF : voir [Règles de la trésorerie](../../business-rules/finances/treasury.md#relevé-pdf).
 
 ## Paramètres de la trésorerie (barre latérale)
 

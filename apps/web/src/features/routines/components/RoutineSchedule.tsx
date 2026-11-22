@@ -5,7 +5,7 @@ import { AddItemButton } from '../../../components/actions/AddItemButton';
 import { useSlotChoices } from '../../calendar/hooks/use-slot-sources';
 import { TravelField } from '../../geo/components/TravelField';
 import { Checkbox, Group, SimpleGrid, Stack, Text } from '@mantine/core';
-import { DatePickerInput } from '@mantine/dates';
+import { DateField } from '../../../components/inputs/DateField';
 import {
   opensFits,
   readOpens,
@@ -198,7 +198,7 @@ function RoutineRepetitionEditor({ draft, setDraft, names }: { draft: RoutineRep
   const start = draft.startDate || localToday();
   return (
     <Stack gap="md">
-      <DatePickerInput label="Première fois" required value={draft.startDate || null} onChange={(date) => date && setDraft({ ...draft, startDate: date })} />
+      <DateField label="Première fois" required value={draft.startDate || null} onChange={(date) => date && setDraft({ ...draft, startDate: date })} />
       <RepetitionEditor<RoutineTimes>
         mode={draft.mode}
         onModeChange={(mode) =>

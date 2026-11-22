@@ -1,8 +1,6 @@
-import { PICKER_FORMATS } from '../../../lib/format';
 import { ArrowCounterClockwiseIcon, ArrowSquareOutIcon, XIcon } from '@phosphor-icons/react';
 import { DeleteButton } from '../../../components/dialogs/DestructiveActions';
 import { Fieldset, Group, Stack, Text, Switch } from '@mantine/core';
-import { DatePickerInput, TimePicker } from '@mantine/dates';
 import { changedScheduleSlot, routineSlotSchema, scheduleSlotTimeSchema, slotWords, type ScheduleSlotTime, type WorkScheduleRule } from '@ordo/shared';
 import { useEffect, useRef } from 'react';
 import { openRoutineForm } from '../../routines/lib/open-routine-form';
@@ -14,7 +12,7 @@ import { useCachedItem } from '../../../lib/mutation';
 import { ruleScheduleInput, useScheduleTypes, useWorkScheduleMutations, useWorkSchedules, type CalendarEventScope } from '../api';
 import { useScheduleConversion } from '../hooks/use-schedule-conversion';
 import { ActionsMenu } from '../../../components/actions/ActionsMenu';
-import { rangeProps } from '../../../components/inputs/date-range';
+import { PeriodField } from '../../../components/inputs/PeriodField';
 import { ActionButton } from '../../../components/actions/ActionButton';
 
 /**
@@ -61,7 +59,6 @@ export function SlotEditForm({
     schema: scheduleSlotTimeSchema,
   });
   const values = form.values;
-  const hours = rangeProps({ value: [values.start, values.end], onChange: ([start, end]) => form.setValues({ start, end }), errors: [undefined, form.errors.end] }, true);
   // « Convertir en éphéméride » / « Convertir en créneau », of the schedule as saved.
   const convert = useScheduleConversion();
   const { data: schedules } = useWorkSchedules();
@@ -81,18 +78,22 @@ export function SlotEditForm({
       </Text>
       <Fieldset variant="unstyled" disabled={reading} p={0} m={0}>
         <Stack gap="md">
-          <DatePickerInput label="Jour" required valueFormat={PICKER_FORMATS.weekday} {...form.getInputProps('date')} onChange={(date) => date && form.setFieldValue('date', date)} data-autofocus />
           <Switch
             label="Journée entière"
             checked={values.allDay}
             onChange={(event) => form.setValues(event.currentTarget.checked ? { allDay: true, start: '00:00', end: '24:00' } : { allDay: false, start: '09:00', end: '17:00' })}
           />
-          {!values.allDay && (
-            <Group gap="sm" grow>
-              <TimePicker label="Début" required {...hours.start} />
-              <TimePicker label="Fin" required {...hours.end} />
-            </Group>
-          )}
+          <PeriodField
+            label="Jour"
+            required
+            weekday
+            sameDay
+            value={[values.date, values.date]}
+            times={values.allDay ? undefined : [values.start, values.end]}
+            errors={[form.errors.date, form.errors.end ?? form.errors.start]}
+            onChange={([date], hours) => date && form.setValues({ date, ...(hours ? { start: hours[0] ?? '', end: hours[1] ?? '' } : {}) })}
+            data-autofocus
+          />
         </Stack>
       </Fieldset>
       {reading ? (
@@ -205,13 +206,6 @@ export function RoutineOccurrenceForm({
   useEffect(() => {
     if (current && !saving) day.current = current.date;
   }, [current, saving]);
-  const hours = rangeProps(
-    {
-      value: [form.values.fromTime ?? '', form.values.dueTime ?? ''],
-      onChange: ([from, due]) => form.setValues({ fromTime: from || null, dueTime: due || null }),
-    },
-    true,
-  );
   const openRoutine = (
     <ActionButton
       priority="tertiary"
@@ -256,18 +250,19 @@ export function RoutineOccurrenceForm({
       </Text>
       <Fieldset variant="unstyled" disabled={reading} p={0} m={0}>
         <Stack gap="md">
-          <DatePickerInput
+          <PeriodField
             label="Jour"
             required
-            valueFormat={PICKER_FORMATS.weekday}
-            minDate={occurrence.routine.startDate}
-            {...form.getInputProps('date')}
-            onChange={(value) => value && form.setFieldValue('date', value)}
+            weekday
+            sameDay
+            optionalTimes
+            bounds={['À partir de', 'Avant']}
+            min={occurrence.routine.startDate}
+            value={[form.values.date, form.values.date]}
+            times={[form.values.fromTime, form.values.dueTime]}
+            errors={[form.errors.date, form.errors.dueTime ?? form.errors.fromTime]}
+            onChange={([date], hours) => date && form.setValues({ date, fromTime: hours?.[0] ?? null, dueTime: hours?.[1] ?? null })}
           />
-          <Group gap="sm" grow>
-            <TimePicker label="À partir de" {...hours.start} />
-            <TimePicker label="Avant" {...hours.end} error={form.errors.dueTime ?? hours.end.error} />
-          </Group>
         </Stack>
       </Fieldset>
       {reading ? (

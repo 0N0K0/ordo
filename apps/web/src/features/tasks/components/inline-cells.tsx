@@ -4,7 +4,7 @@ import { removedLinksNote } from '../../../lib/text';
 import { ItemBadge } from '../../../components/items/ItemBadge';
 import { ItemAvatar } from '../../../components/items/ItemAvatar';
 import { listSelectProps } from '../../../components/items/item-look';
-import { DatePickerInput } from '@mantine/dates';
+import { DateField } from '../../../components/inputs/DateField';
 import { readTaskHours, taskLabelSchema, type TaskColumn, subtreeOf } from '@ordo/shared';
 import { useState, type ReactNode } from 'react';
 import { Link } from 'react-router';
@@ -347,7 +347,7 @@ export function DateCell({ task, column, alert }: DateCellProps) {
   // Without its own « Ouverture » / « Échéance »: the one it goes by (parent, milestone, project, sprint), shown in place (a date typed wins).
   const inherited = column === 'minDate' || column === 'deadline' ? inheritedDateHint(task, column) : null;
   return (
-    <DatePickerInput
+    <DateField
       {...stoppedCellField}
       aria-label={fieldLabel(DATE_LABELS[column], task, count)}
       value={task[column]}

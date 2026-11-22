@@ -1,21 +1,13 @@
-import { SimpleGrid } from '@mantine/core';
-import { DatePickerInput } from '@mantine/dates';
-import { dateRangeProps } from './date-range';
+import { PeriodField } from './PeriodField';
 import type { PeriodRange } from './use-period-range';
 
 /**
- * « Du » and « Au » of an export period: shown for a preset, typed for « Dates choisies », the end following the
- * start (dateRangeProps).
+ * « Dates » of an export: its days shown for a preset, chosen for « Dates choisies » (`PeriodField`, both days
+ * required).
  * @param {{ range: PeriodRange<string> }} props Period (usePeriodRange).
- * @returns {JSX.Element} Fields.
+ * @returns {JSX.Element} Field.
  */
 export function PeriodRangeFields({ range }: { range: PeriodRange<string> }) {
   const { preset, setCustom, from, to } = range;
-  const bounds = dateRangeProps({ value: [from, to], onChange: setCustom });
-  return (
-    <SimpleGrid cols={2}>
-      <DatePickerInput label="Du" disabled={preset !== 'custom'} {...bounds.start} />
-      <DatePickerInput label="Au" disabled={preset !== 'custom'} {...bounds.end} />
-    </SimpleGrid>
-  );
+  return <PeriodField label="Dates" required disabled={preset !== 'custom'} value={[from, to]} onChange={([start, end]) => setCustom([start, end])} />;
 }

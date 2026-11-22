@@ -1,7 +1,7 @@
 import { LabeledField } from '../../../components/inputs/LabeledField';
 import { PICKER_FORMATS } from '../../../lib/format';
 import { Group, Select, Stack, Text } from '@mantine/core';
-import { DatePickerInput } from '@mantine/dates';
+import { DateField } from '../../../components/inputs/DateField';
 import { addDays, type RoutineMoveTimes } from '@ordo/shared';
 import { ArrowRightIcon, CalendarXIcon, ArrowBendUpLeftIcon, ArrowBendUpRightIcon, ClockIcon, XIcon } from '@phosphor-icons/react';
 import { useState } from 'react';
@@ -122,7 +122,7 @@ export function RoutineMoveForm({ routineId, onDone }: { routineId: string; onDo
               onChange={choose}
               allowDeselect={false}
             />
-            <DatePickerInput
+            <DateField
               label="Nouvelle date"
               description="Plus tard pour la reporter, plus tôt pour l’avancer ; son jour pour n’en changer que l’horaire."
               required

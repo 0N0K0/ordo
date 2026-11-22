@@ -1,6 +1,6 @@
 import { AddItemButton } from '../actions/AddItemButton';
 import { Group, NumberInput, Paper, SegmentedControl, Select, Stack, Text, TextInput } from '@mantine/core';
-import { DatePickerInput } from '@mantine/dates';
+import { DateField } from '../inputs/DateField';
 import { DATE_PERIOD_LABELS, MAX_FILTER_DEPTH, VALUELESS_OPERATORS, type FilterConditionOf, type FilterFieldKind, type FilterGroupOf, type FilterOperator } from '@ordo/shared';
 import type { ComponentProps } from 'react';
 import { FolderSimplePlusIcon, TrashIcon } from '@phosphor-icons/react';
@@ -60,7 +60,7 @@ export function DayValue({ value, onChange }: DayValueProps) {
           w={80}
         />
       )}
-      {mode === 'date' && <DatePickerInput popoverProps={INLINE} size="xs" aria-label="Date" value={value} onChange={(next) => next && onChange(next)} w={150} />}
+      {mode === 'date' && <DateField popoverProps={INLINE} size="xs" aria-label="Date" value={value} onChange={(next) => next && onChange(next)} w={150} />}
     </Group>
   );
 }

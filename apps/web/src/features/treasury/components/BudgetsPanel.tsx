@@ -9,7 +9,7 @@ import { TableSkeleton } from '../../../components/feedback/Skeletons';
 
 import { Badge, Fieldset, Group, Progress, SegmentedControl, Select, SimpleGrid, Stack, Text, Tooltip, NumberInput } from '@mantine/core';
 import { SettingsSection } from '../../../components/settings/SettingsSection';
-import { MonthPickerInput } from '@mantine/dates';
+import { MonthField } from '../../../components/inputs/MonthField';
 import { EVERYDAY_CONTEXT, joinedKey, treasuryBudgetSchema } from '@ordo/shared';
 import { ChartPieSliceIcon, PencilSimpleIcon, PlusIcon, WarningIcon } from '@phosphor-icons/react';
 import { ArchivedBadge } from '../../../components/feedback/ArchivedBadge';
@@ -80,7 +80,7 @@ const monthCellText = (month: string) => fmt.capitalize(fmt.month(month));
  */
 function MonthCell({ value, label, nullable = false, minMonth, onSave }: { value: string | null; label: string; nullable?: boolean; minMonth?: string; onSave: (month: string | null) => void }) {
   return (
-    <MonthPickerInput
+    <MonthField
       variant="unstyled"
       size="xs"
       aria-label={label}
@@ -226,7 +226,7 @@ function BudgetForm({ budget, defaults, onDone }: { budget?: TreasuryBudget; def
           <Stack gap="sm">
             {budget && !readOnly && <SaveStatus saving={saving} />}
             <SimpleGrid cols={{ base: 1, sm: 2 }} spacing="sm">
-              <MonthPickerInput label={values.repeatEvery ? 'À partir de' : 'Mois'} required {...months.start} />
+              <MonthField label={values.repeatEvery ? 'À partir de' : 'Mois'} required {...months.start} />
               <AmountInput label={direction === 'OUT' ? 'Sorties prévues' : 'Entrées prévues'} required min={0} prefix={direction === 'OUT' ? '− ' : '+ '} {...form.getInputProps('amount')} />
             </SimpleGrid>
             <SegmentedControl
@@ -297,7 +297,7 @@ function BudgetForm({ budget, defaults, onDone }: { budget?: TreasuryBudget; def
                   error={form.errors.repeatEvery}
                 />
               )}
-              {values.repeatEvery && <MonthPickerInput label="Jusqu’à" placeholder="Sans fin" clearable {...months.end} />}
+              {values.repeatEvery && <MonthField label="Jusqu’à" placeholder="Sans fin" clearable {...months.end} />}
             </SimpleGrid>
             {!budget && <FormActions onCancel={onDone} submitLabel="Créer" loading={save.isPending} />}
           </Stack>
@@ -650,7 +650,7 @@ export function BudgetsPanel() {
   return (
     <Stack gap="md">
       <Group justify="space-between">
-        <MonthPickerInput aria-label="Mois" value={`${month}-01`} onChange={(value) => value && setMonth(monthOfDay(value))} w={200} />
+        <MonthField aria-label="Mois" value={`${month}-01`} onChange={(value) => value && setMonth(monthOfDay(value))} w={200} />
         <ActionButton icon={<PlusIcon aria-hidden />} onClick={() => openBudget({ defaults: { month } })} disabled={!categories.length}>
           Nouveau budget
         </ActionButton>

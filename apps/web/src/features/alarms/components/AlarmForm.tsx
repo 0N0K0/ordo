@@ -1,5 +1,5 @@
 import { NumberInput, SegmentedControl, SimpleGrid, Stack, Switch, Text, Textarea, TextInput } from '@mantine/core';
-import { DatePickerInput, TimePicker } from '@mantine/dates';
+import { DateTimeField } from '../../../components/inputs/DateTimeField';
 import { alarmInputSchema, alarmRule, type AlarmType, type Recurrence } from '@ordo/shared';
 import { localToday } from '../../../lib/dates';
 import { useAppForm, useFieldSave, formCallbacks } from '../../../lib/form';
@@ -159,10 +159,13 @@ export function AlarmForm({ context, alarm, defaults, onDone }: AlarmFormProps) 
                 onChange={(recurrence) => setDraft({ ...draft, recurrence })}
                 start={draft.startDate ?? localToday()}
                 footer={
-                  <SimpleGrid cols={{ base: 1, xs: 2 }} spacing="md">
-                    <DatePickerInput label={draft.recurrence ? 'À partir du' : 'Date'} required value={draft.startDate} onChange={(startDate) => startDate && setDraft({ ...draft, startDate })} />
-                    <TimePicker label="Heure" required value={draft.time ?? ''} onChange={(time) => setDraft({ ...draft, time: time || null })} />
-                  </SimpleGrid>
+                  <DateTimeField
+                    label={draft.recurrence ? 'À partir du' : 'Date et heure'}
+                    required
+                    day={draft.startDate}
+                    time={draft.time}
+                    onChange={(startDate, time) => startDate && setDraft({ ...draft, startDate, time })}
+                  />
                 }
               />
             )}

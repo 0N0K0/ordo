@@ -1,12 +1,10 @@
-import { SimpleGrid, Stack, Switch } from '@mantine/core';
-import { DatePickerInput, TimePicker } from '@mantine/dates';
-import { addDays, daysBetween, spanEnd, type Recurrence, DURATION_UNITS } from '@ordo/shared';
+import { Stack, Switch } from '@mantine/core';
+import { daysBetween, spanEnd, type Recurrence, DURATION_UNITS } from '@ordo/shared';
 import * as fmt from '../../../lib/format';
-import { PICKER_FORMATS } from '../../../lib/format';
 import { describeDuration, describeRecurrence } from '../../../components/recurrence/describe-recurrence';
 import { RuleEditor } from '../../../components/recurrence/RepetitionEditor';
 import { RepetitionField } from '../../../components/recurrence/RepetitionField';
-import { dateRangeProps } from '../../../components/inputs/date-range';
+import { PeriodField } from '../../../components/inputs/PeriodField';
 import { eventMomentText } from '../lib/event-moment';
 
 /** When an event takes place, and how it repeats. */
@@ -60,11 +58,6 @@ export function EventRepetition({
          * @returns {void}
          */
         const set = (changes: Partial<EventTiming>) => setDraft({ ...draft, ...changes });
-        // The end cannot be picked before the start; its own days again: the length of the rule follows them.
-        const days = dateRangeProps({
-          value: [draft.startDate, draft.endDate],
-          onChange: ([startDate, endDate]) => startDate && endDate && set({ startDate, endDate, ...(draft.recurrence?.duration ? { recurrence: { ...draft.recurrence, duration: null } } : {}) }),
-        });
         const footer = (
               <Stack gap="sm">
                 <Switch
@@ -80,22 +73,25 @@ export function EventRepetition({
                     });
                   }}
                 />
-                <SimpleGrid cols={{ base: 1, xs: draft.allDay ? 2 : 4 }} spacing="sm">
-                  <DatePickerInput
-                    label="Début"
-                    required
-                    valueFormat={PICKER_FORMATS.weekday}
-                    value={draft.startDate}
-                    onChange={(startDate) => {
-                      if (!startDate) return;
-                      // The end follows, keeping the length.
-                      set({ startDate, endDate: addDays(startDate, Math.max(0, daysBetween(draft.startDate, draft.endDate))) });
-                    }}
-                  />
-                  {!draft.allDay && <TimePicker label="Heure de début" required value={draft.startTime ?? ''} onChange={(startTime) => set({ startTime: startTime || null })} />}
-                  <DatePickerInput label="Fin" required valueFormat={PICKER_FORMATS.weekday} {...days.end} />
-                  {!draft.allDay && <TimePicker label="Heure de fin" required value={draft.endTime ?? ''} onChange={(endTime) => set({ endTime: endTime || null })} />}
-                </SimpleGrid>
+                <PeriodField
+                  label="Dates"
+                  required
+                  weekday
+                  keepLength
+                  value={[draft.startDate, draft.endDate]}
+                  times={draft.allDay ? undefined : [draft.startTime, draft.endTime]}
+                  onChange={([startDate, endDate], hours) => {
+                    if (!startDate || !endDate) return;
+                    // Moving the start keeps the length; other days of its own: the length of the rule follows them.
+                    const length = daysBetween(startDate, endDate) !== daysBetween(draft.startDate, draft.endDate);
+                    set({
+                      startDate,
+                      endDate,
+                      ...(hours ? { startTime: hours[0], endTime: hours[1] } : {}),
+                      ...(length && draft.recurrence?.duration ? { recurrence: { ...draft.recurrence, duration: null } } : {}),
+                    });
+                  }}
+                />
               </Stack>
         );
         if (ruleLocked) return footer;

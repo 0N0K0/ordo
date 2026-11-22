@@ -15,7 +15,7 @@ import { confirmDestructive } from '../../../components/dialogs/confirm-destruct
 import { openFormPanel } from '../../../components/panels/panels';
 import { Anchor, Autocomplete, Badge, Divider, FileButton, Grid, Group, Paper, SegmentedControl, Select, SimpleGrid, Stack, Switch, Table, Text, Textarea, TextInput } from '@mantine/core';
 import { FormActions } from '../../../components/dialogs/FormActions';
-import { DatePickerInput } from '@mantine/dates';
+import { DateField } from '../../../components/inputs/DateField';
 
 import {
   contactName,
@@ -83,7 +83,8 @@ import * as fmt from '../../../lib/format';
 import { Comments } from '../../comments/components/Comments';
 import { countOf, plural } from '../../../lib/text';
 import { DiscountInput } from './DiscountInput';
-import { dateRangeProps, formRange } from '../../../components/inputs/date-range';
+import { formRange } from '../../../components/inputs/date-range';
+import { PeriodField } from '../../../components/inputs/PeriodField';
 import { DetailHeader } from '../../../components/page/DetailHeader';
 import { ActionButton } from '../../../components/actions/ActionButton';
 import { documentPath, PAGES } from '../../../app/pages';
@@ -197,7 +198,6 @@ function Editor({ document }: { document: AccountingDocument }) {
     toSaved: (input) => ({ ...input, lines: withoutBlankLines(input.lines) }),
   });
   const values = form.values;
-  const service = dateRangeProps(formRange(form, 'serviceStart', 'serviceEnd'));
   const { data: client } = useClientBilling(values.clientId);
   const setArchived = useSetArchived('ACCOUNTING_DOCUMENT', [accountingQueryKey]);
   const isQuote = document.type === 'QUOTE';
@@ -530,7 +530,7 @@ function Editor({ document }: { document: AccountingDocument }) {
                       .map((contact) => ({ value: contact.id, label: contactName(contact) }))}
                     {...form.getInputProps('contactId')}
                   />
-                  <DatePickerInput
+                  <DateField
                     label="Date du document"
                     required
                     readOnly={locked}
@@ -539,9 +539,8 @@ function Editor({ document }: { document: AccountingDocument }) {
                     description={document.status === 'DRAFT' && latestDate ? `Pas avant le ${fmt.day(latestDate)}, date du dernier document de ce type.` : undefined}
                     {...form.getInputProps('issueDate')}
                   />
-                  <DatePickerInput label={isQuote ? 'Valable jusqu’au' : 'Échéance'} clearable readOnly={locked} {...form.getInputProps('dueDate')} />
-                  <DatePickerInput label="Début de la prestation" clearable readOnly={locked} {...service.start} />
-                  <DatePickerInput label="Fin de la prestation" clearable readOnly={locked} {...service.end} />
+                  <DateField label={isQuote ? 'Valable jusqu’au' : 'Échéance'} clearable readOnly={locked} {...form.getInputProps('dueDate')} />
+                  <PeriodField label="Période de la prestation" readOnly={locked} {...formRange(form, 'serviceStart', 'serviceEnd')} />
                 </SimpleGrid>
               </SettingsSection>
 

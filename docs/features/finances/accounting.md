@@ -163,7 +163,7 @@ Section « Client et dates » :
 - « Projet » (projets du client), « Service », « Contact » (contacts du service choisi, ou sans service) ;
 - « Date du document » (obligatoire ; pour un brouillon : pas avant la date du dernier document du même type, avec « Pas avant le …, date du dernier document de ce type. ») ;
 - « Valable jusqu’au » (devis) ou « Échéance » ;
-- « Début de la prestation », « Fin de la prestation ».
+- « Période de la prestation » (un seul champ, chaque bout facultatif).
 
 Section « Contenu » : « Objet », « Libellé de la référence », « Référence du client », « Introduction », lignes, « Conclusion ».
 
@@ -212,7 +212,7 @@ Section « Conditions et mentions » :
 
 Bouton « Temps passé » (facture brouillon non archivée) : panneau « Facturer le temps passé ».
 
-- « Projet » (projets du client, archivés compris), « Du », « Au » (préremplis par la période de prestation).
+- « Projet » (projets du client, archivés compris), « Période » (un seul champ, préremplie par la période de prestation, chaque bout facultatif).
 - Tableau des temps terminés non encore facturés : « Jour », « Temps » (tâches et description ; vide pour un temps qui n'a ni l'un ni l'autre), « Durée » ; cases à cocher.
 - « Tarif du catalogue » (articles à l’heure ou à la journée), « Libellé des lignes » (« Prestation »), « Une ligne » : « En tout », « Par jour », « Par tâche », « Par temps » ; « Facturé à » : « L’heure » / « La journée » ; prix HT ; « Heures par jour » (7) ou « Arrondir au quart d’heure supérieur » ; « TVA ».
 - Résumé « N temps, durée → N lignes, montant HT » ; « Ajouter les lignes ». La période de prestation est complétée si elle était vide ; les lignes, le temps et la période sont enregistrés ensemble ; toast « N lignes ajoutées. ».

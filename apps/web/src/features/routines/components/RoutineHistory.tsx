@@ -2,7 +2,7 @@ import { PeriodNav } from '../../../components/page/PeriodNav';
 import { PICKER_FORMATS } from '../../../lib/format';
 import { BlockSkeleton } from '../../../components/feedback/Skeletons';
 import { Group, Paper, Select, Stack, Text } from '@mantine/core';
-import { DatePickerInput } from '@mantine/dates';
+import { DateField } from '../../../components/inputs/DateField';
 import { useLocalStorage } from '@mantine/hooks';
 import { addDays, mapById } from '@ordo/shared';
 import { useState } from 'react';
@@ -84,7 +84,7 @@ export function RoutineHistory({ routineId, onRoutine }: { routineId: string | n
           onPrevious={() => setDay(addDays(day, -1))}
           onNext={() => setDay(addDays(day, 1))}
         >
-          <DatePickerInput
+          <DateField
             aria-label="Jour"
             value={day}
             onChange={(value) => value && setDay(value)}

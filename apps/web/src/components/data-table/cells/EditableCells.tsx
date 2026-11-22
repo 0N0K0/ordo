@@ -1,6 +1,7 @@
 import { IconAction } from '../../actions/IconAction';
 import { Anchor, Checkbox, Popover, Group, NumberInput, Text, TextInput, type ComboboxItem, type ComboboxLikeRenderOptionInput, type OptionsFilter } from '@mantine/core';
-import { DatePickerInput, TimePicker } from '@mantine/dates';
+import { TimePicker } from '@mantine/dates';
+import { DateField } from '../../inputs/DateField';
 import { ArrowSquareOutIcon } from '@phosphor-icons/react';
 import { useState, type ReactNode } from 'react';
 import { markdownSchema } from '@ordo/shared';
@@ -219,7 +220,7 @@ interface EditableDateProps {
  */
 export function EditableDate({ value, label, nullable = false, minDate, readOnly = false, onSave }: EditableDateProps) {
   return (
-    <DatePickerInput
+    <DateField
       {...stoppedCellField}
       aria-label={label}
       placeholder={readOnly ? undefined : '—'}

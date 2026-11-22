@@ -87,7 +87,7 @@ Internes : `type SourceFilterFields`, `type SourceFilterChange`, `DocumentFilter
 
 | Export                                      | Rôle                                                                                                                                                                                                                        |
 | ------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `CalendarPeriodPicker({ value, onChange })` | Période calendaire : échelle (mois, trimestre, année), courante / précédente / choisie, et sélecteur `MonthPickerInput` ou `YearPickerInput` pour une période choisie. Utilisé par `ChartEditor` (facturation, trésorerie). |
+| `CalendarPeriodPicker({ value, onChange })` | Période calendaire : échelle (mois, trimestre, année), courante / précédente / choisie, et sélecteur `MonthField` ou `YearPickerInput` pour une période choisie. Utilisé par `ChartEditor` (facturation, trésorerie). |
 
 Internes : `CHOSEN` (noms « Mois choisi »…), `which(scale)` (options de la liste).
 

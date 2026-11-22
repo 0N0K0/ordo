@@ -5,12 +5,11 @@ import { copyName, fitName } from '../../../lib/text';
 import { TravelField } from '../../geo/components/TravelField';
 import { confirmDestructive } from '../../../components/dialogs/confirm-destructive';
 import { openFormPanel } from '../../../components/panels/panels';
-import { PICKER_FORMATS } from '../../../lib/format';
 
 import { itemSelectProps } from '../../../components/items/item-look';
 
 import { Alert, Anchor, Fieldset, Group, Select, SimpleGrid, Stack, Text, TextInput } from '@mantine/core';
-import { DatePickerInput, TimePicker } from '@mantine/dates';
+import { PeriodField } from '../../../components/inputs/PeriodField';
 import { addDays, mapById, type CalendarEventInput, calendarEventInputSchema, daysBetween, EVENT_REMINDER_ANCHORS, formatDuration, type Recurrence, sharePeople, TEXT_MAX } from '@ordo/shared';
 import { ArrowArcRightIcon, ArrowCounterClockwiseIcon, CalendarXIcon, PlayIcon, XIcon } from '@phosphor-icons/react';
 import { Link } from 'react-router';
@@ -79,24 +78,29 @@ interface PostponeFormProps {
  * @returns {JSX.Element} Form.
  */
 function PostponeForm({ fields, label, loading, onCancel, onConfirm }: PostponeFormProps) {
-  const span = Math.max(0, daysBetween(fields.startDate, fields.endDate));
   const [values, setValues] = useState({
     label: fitName('Report de l’évènement « ', label, ' »'),
     startDate: addDays(fields.startDate, 1),
+    endDate: addDays(fields.endDate, 1),
     startTime: fields.startTime ?? null,
     endTime: fields.endTime ?? null,
   });
-  const endDate = addDays(values.startDate, span);
-  const valid = Boolean(values.label.trim() && values.startDate && (fields.allDay || (values.startTime && values.endTime && (span > 0 || values.endTime > values.startTime))));
+  const { endDate } = values;
+  const valid = Boolean(values.label.trim() && values.startDate && (fields.allDay || (values.startTime && values.endTime && (endDate > values.startDate || values.endTime > values.startTime))));
   return (
     <Stack gap="sm">
       <Text size="sm">La date initiale sera annulée (l’évènement reste barré dans l’agenda) et un nouvel évènement, lié à elle, sera créé à la nouvelle date.</Text>
       <TextInput label="Libellé" required maxLength={TEXT_MAX} value={values.label} onChange={(event) => setValues({ ...values, label: event.currentTarget.value })} />
-      <SimpleGrid cols={fields.allDay ? 1 : 3} spacing="sm">
-        <DatePickerInput label="Nouvelle date" required valueFormat={PICKER_FORMATS.weekday} value={values.startDate} onChange={(date) => date && setValues({ ...values, startDate: date })} />
-        {!fields.allDay && <TimePicker label="Début" required value={values.startTime ?? ''} onChange={(value) => setValues({ ...values, startTime: value || null })} />}
-        {!fields.allDay && <TimePicker label="Fin" required value={values.endTime ?? ''} onChange={(value) => setValues({ ...values, endTime: value || null })} />}
-      </SimpleGrid>
+      <PeriodField
+        label="Nouvelle date"
+        description="L’évènement garde sa durée ; changez la fin pour la modifier."
+        required
+        weekday
+        keepLength
+        value={[values.startDate, values.endDate]}
+        times={fields.allDay ? undefined : [values.startTime, values.endTime]}
+        onChange={([startDate, end], hours) => startDate && end && setValues({ ...values, startDate, endDate: end, ...(hours ? { startTime: hours[0], endTime: hours[1] } : {}) })}
+      />
       <AvailabilityHint allDay={fields.allDay} startDate={values.startDate} startTime={values.startTime} endDate={endDate} endTime={values.endTime} />
       <FormActions
         onCancel={onCancel}

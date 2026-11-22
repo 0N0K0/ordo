@@ -48,24 +48,49 @@ export function InheritedField({ origin, from, onClear, onInherit, parts, compac
       <>{children}</>
     );
   }
-  const action = readOnly ? null : inherited && !parts?.length ? onClear && { label: INHERITANCE_WORDS.clear, icon: <EraserIcon aria-hidden />, onClick: onClear } : onInherit && { label: INHERITANCE_WORDS.inherit, icon: <ArrowUUpLeftIcon aria-hidden />, onClick: onInherit };
   return (
     <Stack gap={4}>
       <div className={inherited ? classes.inherited : undefined}>{children}</div>
-      {(mention || action) && (
-        <Group gap="xs" wrap="nowrap">
-          {mention && (
-            <Text size="xs" c="dimmed">
-              {mention}
-            </Text>
-          )}
-          {action && (
-            <ActionButton priority="tertiary" size="xs" icon={action.icon} onClick={action.onClick}>
-              {action.label}
-            </ActionButton>
-          )}
-        </Group>
-      )}
+      <InheritanceNote origin={origin} from={from} onClear={onClear} onInherit={onInherit} parts={parts} readOnly={readOnly} />
     </Stack>
+  );
+}
+
+/** Props of `InheritanceNote`. */
+interface InheritanceNoteProps extends InheritedFieldState {
+  /** Name of the parent the value comes from. */
+  from: string;
+  /** What the note is about, before it (« Ouverture : »), for a field of several values. Optional. */
+  about?: string;
+  /** Read only: no action. Optional. Default = false. */
+  readOnly?: boolean;
+}
+
+/**
+ * Line under a field that may come from its parent: « Hérité de <parent> » with « Vider », or « Vidé exprès » with
+ * « Rétablir l'héritage » (as an own value); nothing when there is nothing to say. Under every `InheritedField`, and
+ * under each bound of a `PeriodField`.
+ * @param {InheritanceNoteProps} props Component props.
+ * @returns {JSX.Element | null} Line.
+ */
+export function InheritanceNote({ origin, from, onClear, onInherit, parts, about, readOnly = false }: InheritanceNoteProps) {
+  if (!origin) return null;
+  const inherited = origin.state === 'INHERITED';
+  const mention = inherited ? INHERITANCE_WORDS.inherited(from, parts) : origin.state === 'CLEARED' ? INHERITANCE_WORDS.cleared : null;
+  const action = readOnly ? null : inherited && !parts?.length ? onClear && { label: INHERITANCE_WORDS.clear, icon: <EraserIcon aria-hidden />, onClick: onClear } : onInherit && { label: INHERITANCE_WORDS.inherit, icon: <ArrowUUpLeftIcon aria-hidden />, onClick: onInherit };
+  if (!mention && !action) return null;
+  return (
+    <Group gap="xs" wrap="nowrap">
+      {(about || mention) && (
+        <Text size="xs" c="dimmed">
+          {[about, mention].filter(Boolean).join(' : ')}
+        </Text>
+      )}
+      {action && (
+        <ActionButton priority="tertiary" size="xs" icon={action.icon} onClick={action.onClick}>
+          {action.label}
+        </ActionButton>
+      )}
+    </Group>
   );
 }

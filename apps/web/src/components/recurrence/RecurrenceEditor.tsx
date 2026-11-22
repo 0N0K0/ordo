@@ -1,7 +1,8 @@
 import { LabeledField } from '../inputs/LabeledField';
 import { AddItemButton } from '../actions/AddItemButton';
 import { Chip, Group, NumberInput, SegmentedControl, Select, Stack, Text } from '@mantine/core';
-import { DatePickerInput } from '@mantine/dates';
+import { DateField } from '../inputs/DateField';
+import { PeriodField } from '../inputs/PeriodField';
 import { DEFAULT_RECURRENCE, ruleValues, withRuleValues, type Recurrence, type RecurrenceFrequency, WEEKDAY_SHORT_LABELS, weekdayOptions, monthOptions, positionOptions } from '@ordo/shared';
 import { PauseIcon } from '@phosphor-icons/react';
 import { DeletedDates } from './DeletedDates';
@@ -214,7 +215,7 @@ export function RecurrenceEditor({ value, onChange, start, withinPortal = true, 
               comboboxProps={comboboxProps}
               onChange={(next) => update(next === 'UNTIL' ? { until: start, count: null } : next === 'COUNT' ? { until: null, count: 10 } : { until: null, count: null })}
             />
-            {end === 'UNTIL' && <DatePickerInput label="Jusqu’au" minDate={start} value={rule.until} onChange={(until) => until && update({ until })} popoverProps={comboboxProps} />}
+            {end === 'UNTIL' && <DateField label="Jusqu’au" minDate={start} value={rule.until} onChange={(until) => until && update({ until })} popoverProps={comboboxProps} />}
             {end === 'COUNT' && (
               <NumberInput label="Nombre de fois" min={1} max={9999} w={140} value={rule.count ?? 1} onChange={(count) => update({ count: typeof count === 'number' ? count : 1 })} />
             )}
@@ -224,10 +225,9 @@ export function RecurrenceEditor({ value, onChange, start, withinPortal = true, 
             {rule.pauses.map((pause, index) => (
               <Group key={index} gap="xs" wrap="nowrap">
                 <PauseIcon aria-hidden />
-                <DatePickerInput
-                  type="range"
+                <PeriodField
                   aria-label={`Pause ${index + 1}`}
-                  allowSingleDateInRange
+                  required
                   value={[pause.from, pause.to]}
                   onChange={([from, to]) => from && update({ pauses: rule.pauses.map((item, position) => (position === index ? { from, to: to ?? from } : item)) })}
                   popoverProps={comboboxProps}

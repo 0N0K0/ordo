@@ -1,5 +1,6 @@
 import { Badge, Box, Group, Text, Tooltip, UnstyledButton } from '@mantine/core';
-import { DatePickerInput, DateTimePicker } from '@mantine/dates';
+import { DateField } from '../../../components/inputs/DateField';
+import { DateTimeField } from '../../../components/inputs/DateTimeField';
 import { addDays, daysBetween, formatDuration } from '@ordo/shared';
 import { ArrowsClockwiseIcon, CalendarBlankIcon } from '@phosphor-icons/react';
 import { useNow } from '../../../lib/use-now';
@@ -216,7 +217,7 @@ export function EventWhenCell({ event, side }: { event: EventOccurrence; side: '
 
   if (event.allDay) {
     return (
-      <DatePickerInput
+      <DateField
         {...stoppedCellField}
         aria-label={label}
         value={side === 'start' ? startDate : endDate}
@@ -232,26 +233,25 @@ export function EventWhenCell({ event, side }: { event: EventOccurrence; side: '
     );
   }
 
-  const value = side === 'start' ? `${startDate} ${event.startTime}:00` : `${endDate} ${event.endTime}:00`;
   return (
-    <DateTimePicker
+    <DateTimeField
       {...stoppedCellField}
       aria-label={label}
-      value={value}
+      day={side === 'start' ? startDate : endDate}
+      time={(side === 'start' ? event.startTime : event.endTime) ?? null}
       minDate={side === 'end' ? startDate : undefined}
-      onChange={(next) => {
-        if (!next) return;
-        const [date, clock] = next.split(' ');
-        const moved = wall(date, clock.slice(0, 5));
+      onChange={(date, clock) => {
+        if (!date || !clock) return;
+        const moved = wall(date, clock);
         if (side === 'start') {
           // Each event keeps its own length.
           void save((target) => {
             const newEnd = fromWall(moved + lengthOf(target));
-            return { startDate: date, startTime: clock.slice(0, 5), endDate: newEnd.date, endTime: newEnd.time };
+            return { startDate: date, startTime: clock, endDate: newEnd.date, endTime: newEnd.time };
           });
         } else {
           // An end set before the start brings the start to it.
-          const end = { endDate: date, endTime: clock.slice(0, 5) };
+          const end = { endDate: date, endTime: clock };
           void save((target) => (moved >= wall(target.startDate, target.startTime ?? null) ? end : { ...end, startDate: date, startTime: end.endTime }));
         }
       }}

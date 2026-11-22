@@ -1,7 +1,6 @@
 import { unarchived } from '../../../lib/archive';
 import { ColorField } from '../../../components/inputs/ColorField';
 import { Fieldset, Select, SimpleGrid, Stack, Textarea, TextInput } from '@mantine/core';
-import { DatePickerInput } from '@mantine/dates';
 import { projectFormSchema, type ProjectFormValues, subtreeOf } from '@ordo/shared';
 import { useAppForm, formCallbacks, useFieldSave } from '../../../lib/form';
 import { SaveStatus } from '../../../components/feedback/SaveStatus';
@@ -16,7 +15,8 @@ import { projectDepth, projectHeight, projectOptions } from '../lib/tree';
 
 import { useActiveWorkspace } from '../../workspaces/api';
 import { FormActions } from '../../../components/dialogs/FormActions';
-import { dateRangeProps, formRange } from '../../../components/inputs/date-range';
+import { formRange } from '../../../components/inputs/date-range';
+import { PeriodField } from '../../../components/inputs/PeriodField';
 
 interface ProjectFormProps {
   /** Project to edit; creates a new one when absent. */
@@ -104,7 +104,6 @@ export function ProjectForm({ project, defaults, onDone }: ProjectFormProps) {
     onBlur: ['label', 'description', 'color'],
     readOnly,
   });
-  const period = dateRangeProps(formRange(form, 'startDate', 'endDate'));
   const parent = projects.find((item) => item.id === form.values.parentId);
 
   // A parent must be active, outside the project's own sub-tree, and leave room for its levels.
@@ -169,10 +168,7 @@ export function ProjectForm({ project, defaults, onDone }: ProjectFormProps) {
             onChange={(value) => form.setFieldValue('categoryIds', value)}
             error={form.errors.categoryIds as string | undefined}
           />
-          <SimpleGrid cols={{ base: 1, xs: 2 }} spacing="md">
-            <DatePickerInput label="Début" placeholder="—" clearable {...period.start} />
-            <DatePickerInput label="Fin" placeholder="—" clearable {...period.end} />
-          </SimpleGrid>
+          <PeriodField label="Dates" {...formRange(form, 'startDate', 'endDate')} />
           <Textarea label="Description" autosize minRows={3} maxRows={10} {...form.getInputProps('description')} />
           <IconField
             {...formIconProps(form, 'icon', 'removeIcon')}

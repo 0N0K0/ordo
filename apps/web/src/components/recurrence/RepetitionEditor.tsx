@@ -1,6 +1,5 @@
 import { AddItemButton } from '../actions/AddItemButton';
-import { Group, SegmentedControl, Stack, Text } from '@mantine/core';
-import { DatePickerInput } from '@mantine/dates';
+import { SegmentedControl, Stack, Text } from '@mantine/core';
 import { DEFAULT_RECURRENCE, ONE_DAY, withRuleValues, type DurationUnit, type Recurrence, type RepetitionCase } from '@ordo/shared';
 
 import { useState, type ReactNode } from 'react';
@@ -11,7 +10,8 @@ import { RecurrenceEditor } from './RecurrenceEditor';
 import { useCaseFolds, useCaseKeys } from './use-case-folds';
 import { arrayMove } from '@dnd-kit/sortable';
 import { SortableArea } from '../dnd/sortable';
-import { dateRangeProps } from '../inputs/date-range';
+import { PeriodField } from '../inputs/PeriodField';
+import { DateField } from '../inputs/DateField';
 
 /** Times of the occurrences of what repeats (an event's hours, a schedule's slots, a routine's moments, an alarm's time). */
 export interface RepetitionTimes<T> {
@@ -96,17 +96,20 @@ function CaseFields<T>({
   // Its rhythm counts from the day chosen when one is asked.
   const ruleStart = asksStart && item.anchor ? item.anchor : item.since && item.since > start ? item.since : start;
   // Its rhythm counts from its first day.
-  const period = dateRangeProps({ value: [item.since, item.until], onChange: ([since, until]) => onChange({ since, until, ...(since !== item.since ? { anchor: null } : {}) }) });
   return (
     <Stack gap="sm">
       {withPeriod && (
-        <Group gap="xs">
-          <DatePickerInput size="xs" w={190} label="Du" placeholder="Dès le début" clearable {...period.start} />
-          <DatePickerInput size="xs" w={190} label="Au" placeholder="Jusqu’à la fin" clearable {...period.end} />
-        </Group>
+        <PeriodField
+          size="xs"
+          w={380}
+          label="Période"
+          placeholder="Toujours"
+          value={[item.since, item.until]}
+          onChange={([since, until]) => onChange({ since, until, ...(since !== item.since ? { anchor: null } : {}) })}
+        />
       )}
       {asksStart && (
-        <DatePickerInput
+        <DateField
           size="xs"
           w={190}
           label="À partir du"

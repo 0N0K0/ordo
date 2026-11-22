@@ -3,7 +3,7 @@ import { NoticeAlert } from '../../../components/feedback/NoticeAlert';
 import { FormSkeleton } from '../../../components/feedback/Skeletons';
 import { itemSelectProps } from '../../../components/items/item-look';
 import { Anchor, Select, Stack } from '@mantine/core';
-import { DatePickerInput } from '@mantine/dates';
+import { DateField } from '../../../components/inputs/DateField';
 import { documentPaymentSchema } from '@ordo/shared';
 import { Link } from 'react-router';
 import { localToday } from '../../../lib/dates';
@@ -93,7 +93,7 @@ function PaymentFields({ document, accounts, methods, onDone }: PaymentFieldsPro
     >
       <Stack gap="sm">
         <Select label="Compte" required {...itemSelectProps(open, form.values.accountId)} allowDeselect={false} {...form.getInputProps('accountId')} />
-        <DatePickerInput label="Date" required {...form.getInputProps('date')} />
+        <DateField label="Date" required {...form.getInputProps('date')} />
         <AmountInput label="Montant" required min={0} {...form.getInputProps('amount')} />
         <Select
           label="Moyen de paiement"

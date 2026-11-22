@@ -1,7 +1,6 @@
 import { LabeledField } from '../../../components/inputs/LabeledField';
 import { Divider, SegmentedControl, SimpleGrid, Stack, Switch, Text, TextInput } from '@mantine/core';
 import { listSelectProps } from '../../../components/items/item-look';
-import { DatePickerInput } from '@mantine/dates';
 import { EMPTY_MAIL_SEARCH, mailSearchSchema, type MailSearchCriteria, type MailSearchInput } from '@ordo/shared';
 import { useAppForm, formCallbacks, useFieldSave } from '../../../lib/form';
 import { SaveStatus } from '../../../components/feedback/SaveStatus';
@@ -9,7 +8,8 @@ import { useMailAccounts, useMailLabels, useMailSearches, useMailSearchMutations
 import { BatchMultiSelect } from '../../../components/inputs/BatchMultiSelect';
 import { FormActions } from '../../../components/dialogs/FormActions';
 import { unarchived } from '../../../lib/archive';
-import { dateRangeProps, formRange } from '../../../components/inputs/date-range';
+import { formRange } from '../../../components/inputs/date-range';
+import { PeriodField } from '../../../components/inputs/PeriodField';
 import { accountLabel } from '../lib/mail-format';
 
 type SearchValues = MailSearchCriteria & { label: string } & Record<string, unknown>;
@@ -46,7 +46,6 @@ export function MailSearchForm({ search, initial, onDone }: { search?: MailSearc
     onBlur: ['label', 'text', 'from', 'to', 'subject', 'body'],
   });
   const values = form.values;
-  const received = dateRangeProps(formRange(form, 'since', 'until'));
 
   return (
     <form
@@ -110,8 +109,7 @@ export function MailSearchForm({ search, initial, onDone }: { search?: MailSearc
           <TextInput label="À" placeholder="Nom ou adresse" {...form.getInputProps('to')} />
           <TextInput label="Objet" {...form.getInputProps('subject')} />
           <TextInput label="Corps" {...form.getInputProps('body')} />
-          <DatePickerInput label="Reçu à partir du" clearable placeholder="—" {...received.start} />
-          <DatePickerInput label="Jusqu’au" clearable placeholder="—" {...received.end} />
+          <PeriodField label="Reçu" {...formRange(form, 'since', 'until')} />
         </SimpleGrid>
         <Switch label="Avec pièce jointe" {...form.getInputProps('attachments', { type: 'checkbox' })} />
         {!search && <FormActions onCancel={() => onDone()} submitLabel="Créer" loading={create.isPending} />}

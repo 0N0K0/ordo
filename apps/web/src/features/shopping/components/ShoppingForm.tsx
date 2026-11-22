@@ -1,5 +1,5 @@
 import { NO_SUGGESTIONS } from '../../../components/markdown/remark-references';
-import { DatePickerInput } from '@mantine/dates';
+import { DateField } from '../../../components/inputs/DateField';
 import { PeopleField } from './PeopleField';
 import { listClosed, sheetSourceText } from '../lib/shopping-format';
 import { itemSelectProps } from '../../../components/items/item-look';
@@ -216,7 +216,7 @@ export function ShoppingForm({ target, onDone }: ShoppingFormProps) {
                   {...itemSelectProps(data?.shoppingStorages ?? [], values.storageId, undefined, edited?.storageId)}
                   {...form.getInputProps('storageId')}
                 />
-                <DatePickerInput label="Date de péremption" placeholder="Aucune" clearable {...form.getInputProps('expiresAt')} />
+                <DateField label="Date de péremption" placeholder="Aucune" clearable {...form.getInputProps('expiresAt')} />
               </SimpleGrid>
             )}
             <PeopleField

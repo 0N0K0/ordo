@@ -1,6 +1,6 @@
 # Champs de saisie communs
 
-Champs de formulaire partagés : montants, quantités, couleurs, icônes, sélections multiples, sélections avec création à la volée, périodes, rappels (tâches, routines, évènements), interrupteurs. Source : `apps/web/src/components/inputs/`. Les règles de validation des formulaires (au blur puis à chaque changement) sont dans `lib/form` (voir [lib](../lib.md#formts)).
+Champs de formulaire partagés : montants, quantités, couleurs, icônes, sélections multiples, sélections avec création à la volée, dates, dates et heures, mois, périodes, rappels (tâches, routines, évènements), interrupteurs. Source : `apps/web/src/components/inputs/`. Les règles de validation des formulaires (au blur puis à chaque changement) sont dans `lib/form` (voir [lib](../lib.md#formts)).
 
 ## Nombres et montants
 
@@ -85,18 +85,63 @@ Mots des rappels, les mêmes dans l'éditeur et là où ils sont dits :
 
 Interrupteur d'un état oui / non ou d'un mode (une bascule n'est pas un bouton) : fait, favori, acheté, mode d'édition. Nom caché sauf `showLabel`, infobulle (`hint`) affichée même désactivé (`ActionTooltip wrapped`). Props : `label`, `showLabel`, `checked`, `onChange(checked)`, `hint`, `color`, `icon` (dans le curseur quand actif), `dashed` (piste en pointillés : facultatif, ex. heure facultative d'une routine ; `StateSwitch.module.css`), `size` (`sm`), `disabled`. eslint interdit `aria-pressed` et un `Switch` à libellé caché écrit à la main.
 
-## Périodes
+## Dates et périodes
+
+Un seul champ par rôle, partout (gardes eslint : `DatePickerInput`, `DateInput`, `DateTimePicker`, `MonthPickerInput` et `DatePicker` de Mantine ne s'importent que dans ces briques et `app/theme.ts` ; une période n'est pas deux `DateField` / `DateTimeField` étalés d'une borne `{...range.start}`). Chaque sélecteur met en avant le jour du jour dans son calendrier (`highlightToday`) et offre « Aujourd’hui » à côté (« Ce mois-ci » pour un mois), sauf quand ce jour ne peut pas être choisi ; les semaines commencent le lundi (`WeekDatesProvider`). Validation inchangée : au blur (à la fermeture du calendrier pour une période), messages des schémas, `END_AFTER_START` pour une fin avant le début.
+
+### `DateField`
+
+Un jour : `DatePickerInput` de Mantine avec « Aujourd’hui » (`todayPresets`). Props : celles de `DatePickerInput` d'un jour (sans `type`, `presets`, `highlightToday`). Formulaires, panneaux, cellules (`EditableDate`, `DateCell`, `EventWhenCell` d'un évènement journée entière, `ExpiryCell`), filtres (« Date précise »).
+
+### `DateTimeField`
+
+Un jour et son heure dans un seul sélecteur : `DateTimePicker` de Mantine (24 h), « Aujourd’hui » à l'heure déjà choisie. Props : celles de `DateTimePicker` (sans `type`, `value`, `onChange`, `presets`, `date`), `day` (YYYY-MM-DD), `time` (HH:mm ; vide : le champ dit « 3 nov. 2026, heure à choisir »), `onChange(day, time)` (les deux vides une fois effacé). Une journée entière (sans heure) est un `DateField`. Utilisé par les alarmes (« Date et heure »), les temps (« Début »), « Faite le » d'une occurrence de routine passée, l'envoi programmé d'un mail, `EventWhenCell`.
+
+### `MonthField`
+
+Un mois : `MonthPickerInput` de Mantine avec « Ce mois-ci » (`thisMonthPresets`). Budgets de la trésorerie (mois, « À partir de » / « Jusqu’à », `MonthCell`), diagrammes (`CalendarPeriodPicker`).
+
+### `PeriodField`
+
+Une période « du … au … » en un seul champ, partout où un début et une fin vont ensemble : le champ dit la période (« Du 3 nov. 2026 au 12 nov. 2026 », « Dès le 3 nov. 2026 », « Jusqu’au 12 nov. 2026 », « lun. 3 nov. 2026, 09:00 – 17:00 ») et ouvre un calendrier de plage :
+
+- en tête, la borne en cours de choix (`SegmentedControl` : « Début » / « Fin », ou les noms donnés par `bounds`, avec leur valeur ou « Dès le début » / « Jusqu’à la fin », `openBounds`) ; on choisit le début, puis la fin ; un début après la fin déplace la fin, une fin avant le début déplace le début (`followBounds`), les jours avant le début sont grisés pour la fin ; `keepLength` : déplacer le début déplace la fin d'autant ;
+- chaque bout non requis (`required` : `true` les deux, `'start'` ou `'end'`) peut rester vide et se vide seul : « Sans début » / « Sans fin » (« Sans » + le nom de la borne) ; un bouton efface toute la période dans le champ fermé ;
+- « Aujourd’hui » choisit aujourd'hui pour la borne en cours ;
+- `times` : période date et heure, l'heure de chaque bout sous son nom (`TimePicker`), « Valider » ferme ; `optionalTimes` : heures effaçables ; `sameDay` : un seul jour et ses deux heures (un créneau, une occurrence de routine) ;
+- la période est donnée (`onChange(days, times?)`) quand elle est complète (sa fin choisie ; sans heure, le calendrier se ferme alors), quand un bout est vidé, et à la fermeture s'il reste un changement : un panneau enregistré champ par champ l'enregistre alors (une seule fois) ; puis ses bouts sont quittés (`onBlur`, validation au blur) ;
+- un bout hérité : grisé dans le champ (`hints` : ce que suit un bout vide, « 12 nov. 2026 (parent) » ; une valeur héritée), et sous le champ, bout par bout, `InheritanceNote` (« Ouverture : Hérité de … », « Vider » / « Rétablir l’héritage », `inheritance`).
+
+Props : celles de `RangeBinding` (`value`, `times`, `onChange`, `errors`, `onBlur` : `formRange(form, début, fin, heures?)` s'étale tel quel), `label`, `aria-label`, `description`, `placeholder` (« — »), `required`, `bounds`, `openBounds`, `hints`, `inheritance`, `min`, `max`, `sameDay`, `keepLength`, `optionalTimes`, `weekday` (jours avec leur jour de semaine), `error`, `disabled`, `readOnly`, `size`, `w`, `style`, `popoverProps`, `data-autofocus`. Interne : `indexOf`. Styles : `PeriodField.module.css`. `PeriodBoundInheritance` (interface) : `InheritedFieldState` et `from`.
+
+Champs en `PeriodField` : tâche (« Dates » : début et fin ; « Ouverture et échéance », chaque bout hérité à part ; panneau et création), sprint (« Période », requis), projet (« Dates »), créneau et éphéméride (« Période » de la répétition, début requis ; « Période » de chaque exception, requise), cas d'une répétition (« Période », chaque bout facultatif), pauses d'une règle, évènement (« Dates » avec les heures, sauf journée entière ; « Nouvelle date » d'un report), un créneau ou une occurrence de routine dans l'agenda (« Jour » et ses heures, `sameDay`), livraison (« Attendue » / « À retirer »), période de prestation d'un document, temps à facturer (« Période »), recherche de mails (« Reçu »), exports (« Dates », `PeriodRangeFields`). Restent une cellule par bout dans les tableaux (`DateCell`, `EventWhenCell`, `dateRangeProps`), les deux mois d'un budget (`MonthField`), et les heures seules (créneaux d'une routine, cas d'une répétition : `TimePicker` avec `rangeProps`).
+
+### `period-field.ts`
+
+- `PeriodSide` (type), `PeriodDraft` (interface : `days`, `times`, `side`, la période en cours de choix), `PeriodPickOptions` (`sameDay`, `keepLength`).
+- `PERIOD_BOUNDS` (« Début », « Fin »), `PERIOD_OPEN_BOUNDS` (« Dès le début », « Jusqu’à la fin »).
+- `pickPeriodDay(draft, day, options)` : la période après un jour choisi, et si elle est complète.
+- `periodError(days, times)` : `END_AFTER_START` pour une fin avant le début, heures comprises (strictement après).
+- `boundText(day, time?, weekday?)` : un bout en mots, comme les sélecteurs (`PICKER_FORMATS`).
+
+### `date-fields.ts`
+
+- `TODAY_LABEL` (« Aujourd’hui »), `THIS_MONTH_LABEL` (« Ce mois-ci »).
+- `pickerDay(bound)` : jour d'une borne donnée à un sélecteur (jour, « YYYY-MM-DD HH:mm:ss » ou instant).
+- `todayPresets({ min, max, time })` : « Aujourd’hui » d'un sélecteur (`presets` de Mantine ; avec l'heure pour un date et heure), aucun quand aujourd'hui ne peut pas être choisi ; `thisMonthPresets({ min, max })` : « Ce mois-ci ».
+- `formDateTime(form, champ du jour, champ de l'heure)` : lien d'un `DateTimeField` avec deux champs d'un formulaire Mantine (valeurs, les deux mis d'un coup, erreur, blur). Interne : `PickerPreset`, `DateTimeBinding`.
 
 ### `date-range.ts`
 
 Règles d'une période : la fin suit le début, un seul message (`END_AFTER_START`, « La fin doit suivre le début. »), les jours impossibles grisés.
 
+- `RangeBinding` (interface) : `value`, `onChange(next, times?)`, `times?`, `errors?`, `onBlur?` ; `RangeTimes` (type) : heures du début et de la fin.
 - `followBounds(bounds, side, value)` : bornes après un changement : un début mis après la fin déplace la fin à lui, une fin mise avant le début déplace le début.
 - `rangeError(start, end, strict?)` : `END_AFTER_START` si la fin précède le début (`strict` : strictement après, pour des heures).
-- `rangeProps(binding, strict?)` : props des deux champs (valeur, changement avec `followBounds`, erreur, blur) ; la fin reçoit `END_AFTER_START` si besoin.
-- `dateRangeProps(binding, { min, max, month })` : props des deux sélecteurs de dates (`DatePickerInput`, `MonthPickerInput`, `DateTimePicker`), à étaler (`{...range.start}`) ; la fin ne peut pas être choisie avant le début (`minDate`) ; `month` : bornes en mois (YYYY-MM). ~16 fichiers.
-- `formRange(form, startKey, endKey)` : lien (`RangeBinding`) avec deux champs d'un formulaire Mantine : valeurs, les deux mises à jour d'un coup, erreurs et validation au blur.
-- Types internes : `Bound`, `RangeSide`, `RangeBinding`, `BoundProps`, `DateBoundProps`, `DateRangeOptions`.
+- `rangeProps(binding, strict?)` : props des deux champs (valeur, changement avec `followBounds`, erreur, blur) ; la fin reçoit `END_AFTER_START` si besoin. Heures seules (`TimePicker`).
+- `dateRangeProps(binding, { min, max, month })` : props des deux sélecteurs d'une période gardée en deux champs (une cellule par bout, les deux `MonthField` d'un budget), à étaler (`{...range.start}`) ; la fin ne peut pas être choisie avant le début (`minDate`) ; `month` : bornes en mois (YYYY-MM).
+- `formRange(form, startKey, endKey, timeKeys?)` : lien (`RangeBinding`) avec les champs d'un formulaire Mantine : valeurs (et heures avec `timeKeys`), toutes mises à jour d'un coup, erreurs (celle d'une heure quand son jour n'en a pas) et validation au blur.
+- Types internes : `Bound`, `RangeSide`, `BoundProps`, `DateBoundProps`, `DateRangeOptions`.
 
 eslint impose ces aides : `minDate` / `maxDate` tirés d'une autre borne et les anciens messages (« Avant la date de début »…) sont interdits.
 
@@ -107,4 +152,4 @@ eslint impose ces aides : `minDate` / `maxDate` tirés d'une autre borne et les 
 
 ### `PeriodRangeFields`
 
-Champs « Du » et « Au » d'une période d'export : affichés (désactivés) pour un préréglage, saisis pour « Dates choisies » (`custom`), la fin suivant le début (`dateRangeProps`). Prop : `range` (`usePeriodRange`).
+Champ « Dates » d'une période d'export (`PeriodField`, début et fin requis) : affiché (désactivé) pour un préréglage, choisi pour « Dates choisies » (`custom`). Prop : `range` (`usePeriodRange`).
