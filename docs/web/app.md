@@ -189,12 +189,41 @@ Et aussi :
 
 ### Colonnes oui / non
 
-- Toute colonne oui / non d’un tableau montre une icône, jamais les mots « Oui » / « Non » : un petit carré plein, vert avec une coche pour oui, rouge avec une croix pour non (`YesNoIcon`, couleurs de succès et d’erreur de `FEEDBACK_COLORS`). L’icône est nommée « Oui » / « Non » (lecteurs d’écran, infobulle).
+- Toute colonne oui / non d’un tableau montre une icône, jamais les mots « Oui » / « Non » : par défaut un petit carré plein, vert avec une coche pour oui, rouge avec une croix pour non (`YesNoIcon`, couleurs de `FEEDBACK_COLORS`).
+- Variantes d’icônes : une valeur qui est un avertissement (en retard, bloquée, avancé, manquant, périssable, obligatoire) montre un triangle orange avec un point d’exclamation (couleur d’avertissement) ; un oui neutre (ni bien ni mal : facultatif, pourvu, durable) montre une coche bleue (couleur d’information) au lieu de verte.
+- Chaque colonne nomme ses deux valeurs (oui d’abord) : ces noms sont ceux de ses groupes, le nom de ses icônes (lecteurs d’écran, infobulle) et les choix de son filtre, chacun précédé de son icône.
 - Une valeur vide (ni oui ni non) laisse la cellule vide.
-- L’export et la recherche gardent les mots « Oui » / « Non » (l’export est une donnée).
-- Le filtre propose « oui » / « non », chacun précédé de son icône.
-- Groupés par une telle colonne, les groupes s’appellent « Oui » puis « Non », sauf si la colonne les nomme (« Faisable maintenant » : « Maintenant » puis « Plus tard »).
-- Une seule brique : `booleanColumn` (voir [Tableaux de données](components/data-table.md)) ; une case modifiable en place reste une case à cocher (`EditableCheck`).
+- L’export de données (CSV…) et la recherche gardent les mots « Oui » / « Non » (l’export est une donnée). Un document imprimé (PDF) peut ne montrer que le oui, le non laissé vide (plus lisible sur papier : « Acheté » de l’export PDF d’une liste d’achats).
+- Groupés par une telle colonne : le groupe du oui, puis celui du non, puis « Sans valeur ».
+
+| Page                             | Colonne                 | Oui                                  | Non                                       | Icônes                         |
+| -------------------------------- | ----------------------- | ------------------------------------ | ----------------------------------------- | ------------------------------ |
+| Tâches                           | « Fermée »              | « Fermée »                           | « Ouverte »                               | par défaut                     |
+| Tâches                           | « Archivée »            | « Archivée »                         | « Active »                                | par défaut                     |
+| Tâches                           | « En retard »           | « En retard »                        | « Dans le délai »                         | triangle orange / coche verte  |
+| Tâches                           | « Bloquée »             | « Bloquée »                          | « Libre »                                 | triangle orange / coche verte  |
+| Tâches                           | « A des sous-tâches »   | « Avec sous-tâche(s) »               | « Sans sous-tâche »                       | par défaut                     |
+| Tâches                           | « A des commentaires »  | « Commentée »                        | « Non commentée »                         | par défaut                     |
+| Tâches                           | « A des alarmes »       | « Avec alarme(s) »                   | « Sans alarme »                           | par défaut                     |
+| Tâches                           | « A des achats »        | « Avec liste d’achats »              | « Sans liste d’achats »                   | par défaut                     |
+| Tâches, routines                 | « Faisable maintenant » | « Maintenant »                       | « Plus tard »                             | par défaut                     |
+| Routines                         | « Faite »               | « Faites »                           | « À faire »                               | par défaut                     |
+| Routines                         | « En attente »          | « En attente »                       | « Libre »                                 | par défaut                     |
+| Listes d’achats                  | « Payée »               | « Payée »                            | « À payer »                               | par défaut                     |
+| Une liste d’achats               | « Acheté »              | « Acheté »                           | « À acheter »                             | par défaut                     |
+| Une liste d’achats, fiches       | « Facultatif »          | « Facultatif »                       | « Obligatoire »                           | coche bleue / triangle orange  |
+| Produits de base                 | « Manque »              | « Manquants »                        | « Pourvus »                               | triangle orange / coche bleue  |
+| Produits de base                 | « Suivie en stock »     | « Suivis en stock »                  | « Non suivis en stock »                   | par défaut                     |
+| Produits de base                 | « Ajout auto au stock » | « Ajoutés automatiquement au stock » | « Non ajoutés automatiquement au stock »  | par défaut                     |
+| Produits, stock, fiches          | « Consommable »         | « Consommable »                      | « Permanent »                             | par défaut                     |
+| Stock                            | « Périssable »          | « Périssable »                       | « Durable »                               | triangle orange / coche bleue  |
+| Liste à cocher (fiches)          | « Fait »                | « Collectés »                        | « À collecter »                           | par défaut                     |
+| Lignes d’un mouvement            | « Prêt »                | « Avancé »                           | « Définitif »                             | triangle orange / coche verte  |
+| Prévisions (trésorerie)          | « En retard »           | « En retard »                        | « Dans le délai »                         | triangle orange / coche verte  |
+
+Les autres colonnes filtrées en oui / non qui montrent autre chose qu’une icône (pièces jointes, liens, rappels, répétition, référence…) gardent « oui » / « non » dans leur filtre et « Oui » / « Non » comme groupes.
+
+- Une seule brique : `booleanColumn` (voir [Tableaux de données](components/data-table.md)), ses noms `groupLabels` requis et ses variantes `icons` ; une case modifiable en place reste une case à cocher (`EditableCheck`).
 
 ### Garde-fous eslint (`apps/web/eslint.config.js`)
 

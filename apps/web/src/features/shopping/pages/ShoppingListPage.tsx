@@ -122,7 +122,7 @@ export function ShoppingListPage() {
     },
     [
       optionalColumn<ShoppingItem>(),
-      booleanColumn<ShoppingItem>({ id: 'bought', label: 'Acheté', size: 100, hiddenByDefault: true, value: (item) => Boolean(item.purchasedAt) }),
+      booleanColumn<ShoppingItem>({ id: 'bought', label: 'Acheté', size: 100, hiddenByDefault: true, groupLabels: { yes: 'Acheté', no: 'À acheter' }, value: (item) => Boolean(item.purchasedAt) }),
       {
         id: 'inStock',
         label: 'En stock',

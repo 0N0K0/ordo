@@ -226,7 +226,7 @@ Interne : `ShoppingGroupLabels`.
 ### `lib/shopping-columns.ts`
 
 - `itemColumns<T>(names, extra?)` : colonnes communes des produits et éléments (libellé, catégorie, magasin, quantité, unité, prix, conservation, date, bénéficiaires, lien), toutes affichées ; « Catégorie » (arbre), « Magasin », « Conservation » (`groupValue` : le mode d'un périssable) et « Bénéficiaires » se groupent avec leurs groupes dans l'ordre des paramètres (`groupTree`) et leur groupe « sans » (`groupNoneLabel` = `NO_GROUP_NAME`). Utilisé par `BaseList`, `ShoppingListPage`.
-- `optionalColumn<T>()` : colonne oui / non « Facultatif » (`booleanColumn`). Utilisé par `ShoppingListPage`, `SheetPage`.
+- `optionalColumn<T>()` : colonne oui / non « Facultatif » (`booleanColumn`, « Facultatif » / « Obligatoire », `NEUTRAL_YES_WARNING_NO_ICONS`). Utilisé par `ShoppingListPage`, `SheetPage`.
 - `sheetShoppingColumns<T>(names)` : colonnes magasin, conservation, bénéficiaires, lien pour les éléments de fiches. Utilisé par `SheetPage`.
 - Internes : `ItemNames`, `SHEET_SHOPPING_COLUMNS`, `flatGroups(items)` (groupes des magasins, modes), `peopleGroups(names)` (membres puis relations, par clé de personne).
 
@@ -239,7 +239,7 @@ Colonnes de produits partagées par achats, stock, fiches et listes à cocher. (
 | `quantityColumn(options?)`             | « Quantité », numérique.                                              | `itemColumns`, `StockTable`, `SheetPage`, `ChecklistPanel`                 |
 | `unitColumn(options?)`                 | « Unité ».                                                            | idem                                                                       |
 | `categoryColumn(categories, options?)` | « Catégorie » : chemin complet, filtre en arbre (archivées marquées), groupée en arbre (`groupTree`, couleur héritée), « Sans catégorie ». | idem                                                                       |
-| `consumableColumn(options?)`           | « Consommable », colonne oui / non (`booleanColumn`).                 | `StockTable`, `SheetPage`, `ChecklistPanel`, `BaseList`                    |
+| `consumableColumn(options?)`           | « Consommable », colonne oui / non (`booleanColumn`, « Consommable » / « Permanent »). | `StockTable`, `SheetPage`, `ChecklistPanel`, `BaseList`                    |
 | `noteColumn(options?)`                 | « Description » (note).                                               | `StockPage`, `StockTable`, `MovementsTable`, `SheetPage`, `ChecklistPanel` |
 
 Interne : `ColumnOptions<T>`.

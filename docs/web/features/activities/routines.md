@@ -296,7 +296,7 @@ Héritage des sous-routines à l’écran (règles : [Héritage](../../../busine
 
 | Export                | Rôle                                                                                                                              |
 | --------------------- | --------------------------------------------------------------------------------------------------------------------------------- |
-| `routineColumns(env)` | Définitions des colonnes du tableau (libellés, tri, texte, filtres, totaux, `groupTree` des catégories, colonne de commentaires ; « Faite », « En attente », « Faisable maintenant » par `booleanColumn`, la dernière groupée par `DOABLE_GROUP_LABELS`). |
+| `routineColumns(env)` | Définitions des colonnes du tableau (libellés, tri, texte, filtres, totaux, `groupTree` des catégories, colonne de commentaires ; « Faite », « En attente », « Faisable maintenant » par `booleanColumn`, nommées « Faites » / « À faire », « En attente » / « Libre » et `DOABLE_GROUP_LABELS`). |
 
 Interne : `dayText(date)`.
 

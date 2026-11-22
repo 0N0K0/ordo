@@ -17,7 +17,7 @@ import {
   type TaskStatusCategory,
   lineageOf,
 } from '@ordo/shared';
-import type { ColumnChoice, ColumnFilter, DataColumn } from '../../../components/data-table/table/data-table';
+import { LATE_GROUP_LABELS, WARNING_YES_ICONS, type ColumnChoice, type ColumnFilter, type DataColumn, type YesNoIcons, type YesNoLabels } from '../../../components/data-table/table/data-table';
 import { filterRows } from '../../../components/data-table/table/table-engine';
 import { booleanColumn } from '../../../components/data-table/table/boolean-column';
 import type { EventOccurrence } from '../../calendar/api';
@@ -334,13 +334,14 @@ export function taskColumns(context: TaskContext, today: string, extras: TaskCol
   }));
   // Filters of their own, out of the columns (hidden until shown).
   // An event listed with the tasks is none of them: its cell stays empty, and « non » keeps it.
-  const flag = (id: string, label: string, value: (task: Task) => boolean | null, groupLabels?: DataColumn<TaskTableRow>['groupLabels']): DataColumn<TaskTableRow> =>
+  const flag = (id: string, label: string, value: (task: Task) => boolean | null, groupLabels: YesNoLabels, icons?: YesNoIcons): DataColumn<TaskTableRow> =>
     booleanColumn<TaskTableRow>({
       id,
       label,
       size: 110,
       hiddenByDefault: true,
       groupLabels,
+      icons,
       value: (row) => (row.kind === 'task' ? value(row.task) : false),
       blank: (row) => row.kind === 'event',
     });
@@ -365,16 +366,18 @@ export function taskColumns(context: TaskContext, today: string, extras: TaskCol
       groupable: false,
       text: (row) => (row.kind === 'task' ? (row.task.description ?? '') : (row.event.description ?? '')),
     },
-    flag('closed', 'Fermée', (task) => context.isClosed(task)),
-    flag('overdue', 'En retard', (task) => isTaskOverdue(task, today)),
-    flag('blocked', 'Bloquée', (task) => context.isBlocked(task)),
-    flag('hasSubtasks', 'A des sous-tâches', (task) => context.childrenOf(task.id).length > 0),
-    flag('archived', 'Archivée', (task) => task.archived),
+    flag('closed', 'Fermée', (task) => context.isClosed(task), { yes: 'Fermée', no: 'Ouverte' }),
+    flag('overdue', 'En retard', (task) => isTaskOverdue(task, today), LATE_GROUP_LABELS, WARNING_YES_ICONS),
+    flag('blocked', 'Bloquée', (task) => context.isBlocked(task), { yes: 'Bloquée', no: 'Libre' }, WARNING_YES_ICONS),
+    // eslint-disable-next-line no-restricted-syntax -- a group name, not a count.
+    flag('hasSubtasks', 'A des sous-tâches', (task) => context.childrenOf(task.id).length > 0, { yes: 'Avec sous-tâche(s)', no: 'Sans sous-tâche' }),
+    flag('archived', 'Archivée', (task) => task.archived, { yes: 'Archivée', no: 'Active' }),
     // A closed task is neither doable now nor later.
     flag('doableNow', 'Faisable maintenant', (task) => (context.isClosed(task) ? null : (extras.doableIds?.has(task.id) ?? false)), DOABLE_GROUP_LABELS),
-    flag('hasShopping', 'A des achats', (task) => extras.shoppingTaskIds?.has(task.id) ?? false),
-    flag('hasAlarms', 'A des alarmes', (task) => (extras.alarmCounts?.get(task.id) ?? 0) > 0),
-    flag('hasComments', 'A des commentaires', (task) => commentTotal(task.commentCount, task.description) > 0),
+    flag('hasShopping', 'A des achats', (task) => extras.shoppingTaskIds?.has(task.id) ?? false, { yes: 'Avec liste d’achats', no: 'Sans liste d’achats' }),
+    // eslint-disable-next-line no-restricted-syntax -- a group name, not a count.
+    flag('hasAlarms', 'A des alarmes', (task) => (extras.alarmCounts?.get(task.id) ?? 0) > 0, { yes: 'Avec alarme(s)', no: 'Sans alarme' }),
+    flag('hasComments', 'A des commentaires', (task) => commentTotal(task.commentCount, task.description) > 0, { yes: 'Commentée', no: 'Non commentée' }),
     {
       id: 'statusCategory',
       label: 'Catégorie de statut',

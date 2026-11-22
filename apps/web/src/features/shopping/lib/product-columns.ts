@@ -66,7 +66,7 @@ export function categoryColumn<T extends { categoryId?: string | null }>(categor
  * @returns {DataColumn<T>} Column.
  */
 export function consumableColumn<T extends { consumable: boolean }>(options: ColumnOptions<T> = {}): DataColumn<T> {
-  return booleanColumn<T>({ id: 'consumable', label: 'Consommable', size: 120, bulk: true, groupable: true, ...options, value: (item) => item.consumable });
+  return booleanColumn<T>({ id: 'consumable', label: 'Consommable', size: 120, bulk: true, groupable: true, groupLabels: { yes: 'Consommable', no: 'Permanent' }, ...options, value: (item) => item.consumable });
 }
 
 /**

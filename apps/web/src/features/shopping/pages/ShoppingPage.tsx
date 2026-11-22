@@ -180,7 +180,7 @@ function listColumns(env: ListEnv): DataColumn<ShoppingList>[] {
       text: (list) => (list.closedAt ? fmt.day(list.closedAt) : ''),
       filter: { kind: 'date', value: (list) => (list.closedAt ? localDay(list.closedAt) : null) },
     },
-    booleanColumn<ShoppingList>({ id: 'paid', label: 'Payée', size: 90, hiddenByDefault: true, value: (list) => list.entryId !== null }),
+    booleanColumn<ShoppingList>({ id: 'paid', label: 'Payée', size: 90, hiddenByDefault: true, groupLabels: { yes: 'Payée', no: 'À payer' }, value: (list) => list.entryId !== null }),
     {
       id: 'categories',
       label: 'Catégories',

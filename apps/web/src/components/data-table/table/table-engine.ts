@@ -115,6 +115,10 @@ export function tableFilterFields<R>(columns: readonly DataColumn<R>[]): FilterF
           : { data: options };
     },
     isComplete: (condition) => Boolean(schema?.safeParse(condition).success),
+    yesNo: (field) => {
+      const column = fields.find((item) => item.column.id === field)?.column;
+      return column?.groupLabels || column?.yesNoIcons ? { labels: column.groupLabels, icons: column.yesNoIcons } : undefined;
+    },
     emptyText: 'Aucun filtre : toutes les lignes sont affichées.',
   };
 }

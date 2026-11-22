@@ -12,6 +12,7 @@ import { RemoveButton } from '../actions/RemoveButton';
 import { ActionButton } from '../actions/ActionButton';
 import { optionalNumber, FRENCH_NUMBER_FORMAT } from '../inputs/number-format';
 import { YesNoIcon } from '../data-table/cells/YesNoIcon';
+import type { YesNoIcons, YesNoLabels } from '../data-table/table/data-table';
 
 // Dropdowns render inside the filter popover: in a portal, picking an option would count as a click
 // outside the popover and close it.
@@ -111,6 +112,11 @@ export interface FilterFields<F extends string> {
   operatorLabel?: (field: F, operator: FilterOperator) => string | undefined;
   /** Operators of a field, instead of all those of its kind. Optional. */
   operators?: (field: F) => readonly FilterOperator[];
+  /**
+   * Names and icons of the values of a yes / no field (« En retard » / « Dans le délai »…), shown as its « oui » /
+   * « non » choices. Optional. Default = « oui » / « non », green check and red cross.
+   */
+  yesNo?: (field: F) => { labels?: YesNoLabels; icons?: YesNoIcons } | undefined;
   /** Fields whose value is never empty: « est vide » / « n’est pas vide » are not offered on them. Optional. */
   required?: ReadonlySet<F>;
   /** What an empty filter shows. */
@@ -131,6 +137,7 @@ interface ConditionEditorProps<F extends string> {
  */
 function ConditionEditor<F extends string>({ condition, fields, onChange, onRemove }: ConditionEditorProps<F>) {
   const kind = fields.kinds[condition.field];
+  const yesNo = kind === 'boolean' ? fields.yesNo?.(condition.field) : undefined;
   const operator = condition.operator as FilterOperator;
   const needsValue = !VALUELESS_OPERATORS.includes(operator);
   const set = (value: FilterConditionOf<F>['value']) => onChange({ ...condition, value });
@@ -199,16 +206,16 @@ function ConditionEditor<F extends string>({ condition, fields, onChange, onRemo
         aria-label="Opérateur"
         data={operatorsFor(fields, condition.field, operator).map((item) => ({
           value: item,
-          label: fields.operatorLabel?.(condition.field, item) ?? OPERATOR_LABELS[kind][item] ?? item,
+          label: fields.operatorLabel?.(condition.field, item) ?? (yesNo?.labels && (item === 'isTrue' ? yesNo.labels.yes : yesNo.labels.no)) ?? OPERATOR_LABELS[kind][item] ?? item,
         }))}
         value={operator}
         allowDeselect={false}
         // A yes / no shows its icon beside its word, as in the cells.
         {...(kind === 'boolean' && {
-          leftSection: <YesNoIcon value={operator === 'isTrue'} decorative />,
+          leftSection: <YesNoIcon value={operator === 'isTrue'} icons={yesNo?.icons} decorative />,
           renderOption: ({ option }) => (
             <Group gap={6} wrap="nowrap">
-              <YesNoIcon value={option.value === 'isTrue'} decorative />
+              <YesNoIcon value={option.value === 'isTrue'} icons={yesNo?.icons} decorative />
               {option.label}
             </Group>
           ),

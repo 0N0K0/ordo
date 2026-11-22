@@ -11,7 +11,7 @@ import { archiveEntry, unarchived, unarchivedOffered, useSetArchived, useArchive
 import { ShowArchivedSwitch } from '../../../components/filters/ShowArchivedSwitch';
 import { ArchivedBadge } from '../../../components/feedback/ArchivedBadge';
 import { openMoveProducts } from '../lib/open-move-products';
-import { withArchived } from '../../../components/data-table/table/data-table';
+import { WARNING_YES_NEUTRAL_NO_ICONS, withArchived } from '../../../components/data-table/table/data-table';
 import { DataViewBar } from '../../../components/data-table/toolbar/DataViewBar';
 import { useDataView, type FirstTableView, conditionFilter } from '../../../components/data-table/views/use-data-view';
 import { localDay } from '../../../lib/dates';
@@ -123,10 +123,10 @@ export function BaseList({ baseList }: { baseList: ShoppingBaseList }) {
         text: (product) => (product.lastPurchasedAt ? `${fmt.day(product.lastPurchasedAt)}${product.lastPrice !== null ? ` · ${fmt.money(product.lastPrice)}` : ''}` : ''),
         filter: { kind: 'date', value: (product) => (product.lastPurchasedAt ? localDay(product.lastPurchasedAt) : null) },
       },
-      booleanColumn<ShoppingProduct>({ id: 'missing', label: 'Manque', size: 90, hiddenByDefault: true, value: (product) => product.missing }),
-      booleanColumn<ShoppingProduct>({ id: 'stockTracked', label: 'Suivie en stock', size: 130, bulk: true, hiddenByDefault: true, groupable: true, value: (product) => product.stockTracked }),
+      booleanColumn<ShoppingProduct>({ id: 'missing', label: 'Manque', size: 90, hiddenByDefault: true, groupLabels: { yes: 'Manquants', no: 'Pourvus' }, icons: WARNING_YES_NEUTRAL_NO_ICONS, value: (product) => product.missing }),
+      booleanColumn<ShoppingProduct>({ id: 'stockTracked', label: 'Suivie en stock', size: 130, bulk: true, hiddenByDefault: true, groupable: true, groupLabels: { yes: 'Suivis en stock', no: 'Non suivis en stock' }, value: (product) => product.stockTracked }),
       consumableColumn<ShoppingProduct>({ hiddenByDefault: true }),
-      booleanColumn<ShoppingProduct>({ id: 'autoStock', label: 'Ajout auto au stock', size: 150, bulk: true, hiddenByDefault: true, groupable: true, value: (product) => product.autoStock }),
+      booleanColumn<ShoppingProduct>({ id: 'autoStock', label: 'Ajout auto au stock', size: 150, bulk: true, hiddenByDefault: true, groupable: true, groupLabels: { yes: 'Ajoutés automatiquement au stock', no: 'Non ajoutés automatiquement au stock' }, value: (product) => product.autoStock }),
       {
         id: 'stockLocation',
         label: 'Emplacement en stock',
