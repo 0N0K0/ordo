@@ -1,7 +1,7 @@
 import { groupBy, sumOf } from '../core/collections';
 import { timeToMinutes } from '../dates/times';
 import { z } from 'zod';
-import { END_AFTER_START, endAfter, endsAfter, requiredText, shortTextSchema } from '../core/rules';
+import { END_AFTER_START, endAfter, endsAfter, requiredText, shortTextSchema, UserError } from '../core/rules';
 import { addDays, daysBetween, isoWeek, monthOfDay, monthOfYear, weekdayOfDate, yearOfDay } from '../dates/days';
 import { DEFAULT_RECURRENCE, ONE_DAY, type Duration, type Recurrence } from '../dates/recurrence';
 import { caseSpanOn, caseSpans, repetitionCaseSchema, type RepetitionCase } from '../dates/repetition';
@@ -819,7 +819,7 @@ export interface ChangedSchedule {
  * @returns {ChangedSchedule} New period, cases and exceptions.
  */
 export function changedScheduleSlot(schedule: WorkScheduleRule, slot: ScheduleSlotTime, change: ScheduleSlotTime | null, scope: ScheduleSlotScope): ChangedSchedule {
-  if (change && !change.allDay && change.end <= change.start) throw new Error(END_AFTER_START);
+  if (change && !change.allDay && change.end <= change.start) throw new UserError(END_AFTER_START);
   const words = slotWords(schedule.ephemeris);
   const period = { startDate: schedule.startDate, endDate: schedule.endDate };
   if (change && change.date !== slot.date && schedule.ephemeris && (schedule.startDate === schedule.endDate || scope === 'ALL')) {
@@ -827,7 +827,7 @@ export function changedScheduleSlot(schedule: WorkScheduleRule, slot: ScheduleSl
     const there = { ...slot, date: change.date };
     return sameHours(there, change) ? moved : changedScheduleSlot({ ...schedule, ...moved }, there, change, 'ALL');
   }
-  if (change && (change.date < schedule.startDate || (schedule.endDate && change.date > schedule.endDate))) throw new Error(words.outside);
+  if (change && (change.date < schedule.startDate || (schedule.endDate && change.date > schedule.endDate))) throw new UserError(words.outside);
   if (scope === 'THIS') {
     const others = daySlots(schedule, slot.date);
     const index = others.findIndex((other) => sameHours(other, slot));
@@ -841,7 +841,7 @@ export function changedScheduleSlot(schedule: WorkScheduleRule, slot: ScheduleSl
   const caseIndex = cases.findIndex(
     (item) => caseOn(item, periodStart, slot.date) && (slot.allDay ? item.times.allDay : !item.times.allDay && item.times.ranges.some((range) => range.start === slot.start && range.end === slot.end)),
   );
-  if (caseIndex < 0) throw new Error('Horaires introuvables ce jour-là.');
+  if (caseIndex < 0) throw new UserError('Horaires introuvables ce jour-là.');
   const item = cases[caseIndex];
   const range = item.times.ranges.findIndex((other) => other.start === slot.start && other.end === slot.end);
   // Split only when the case had days before this one.
@@ -867,6 +867,6 @@ export function changedScheduleSlot(schedule: WorkScheduleRule, slot: ScheduleSl
   if (exception) {
     return { ...period, cases: [...schedule.cases], exceptions: schedule.exceptions.map((other) => (other === exception ? { ...other, cases: nextCases } : other)) };
   }
-  if (!nextCases.length) throw new Error(words.lastHours);
+  if (!nextCases.length) throw new UserError(words.lastHours);
   return { ...period, cases: nextCases, exceptions: [...schedule.exceptions] };
 }

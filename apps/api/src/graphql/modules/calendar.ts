@@ -358,7 +358,21 @@ const BirthdayRef = builder.objectRef<birthdays.PersonBirthday>('Birthday').impl
   }),
 });
 
+const BirthdayPersonNameRef = builder.objectRef<birthdays.BirthdayPersonName>('BirthdayPersonName').implement({
+  description: 'A contributor or a relation of the workspace (archived ones too) as a slot condition names its birthday, with or without one.',
+  fields: (t) => ({
+    id: t.exposeID('id', { description: '`contributor:<id>` or `relation:<id>`.' }),
+    name: t.exposeString('name'),
+    archived: t.exposeBoolean('archived'),
+  }),
+});
+
 builder.queryFields((t) => ({
+  birthdayPersonNames: t.field({
+    type: [BirthdayPersonNameRef],
+    description: 'Every contributor and relation of the workspace, archived ones too: the names of the people a slot condition cites, even those without a birthday.',
+    resolve: () => birthdays.birthdayPersonNames(),
+  }),
   birthdays: t.field({
     type: [BirthdayRef],
     description: 'Birthdays of the people of the workspace (contributors and relations with a birth date, not archived unless asked), by name.',

@@ -547,7 +547,7 @@ const CLONED_LINKS = {
 } as const;
 
 /**
- * Duplicates a task not archived (every field, assignees and links, but not comments), named « … (copie) », optionally
+ * Duplicates a task not archived (every field, slot condition, assignees and links, but not comments), named « … (copie) », optionally
  * with its sub-tasks (their labels kept). A former link out of its project tree (kept until it moves) is not copied.
  * @param {string} id Task id.
  * @param {boolean} includeSubtasks Whether to copy the sub-tree too.
@@ -613,6 +613,7 @@ export async function duplicateTask(id: string, includeSubtasks: boolean): Promi
           links: toJson(readLinks(task.links)),
           reminders: toJson(readReminders(task.reminders)),
           deadTimes: toJson(readDeadTimes(task.deadTimes)),
+          slotCondition: task.slotCondition === null ? Prisma.DbNull : toJson(task.slotCondition),
           parentId,
           // The copy inherits what its source inherits (from the same parent, or from the copy of its parent).
           inheritedFields: task.inheritedFields,

@@ -1,5 +1,5 @@
 import { useMemo } from 'react';
-import { useSlotBirthdays, useDefaultScheduleKind, useForeignScheduleKinds, useOtherWorkspaceSchedules, useScheduleTypes, useWorkSchedules } from '../api';
+import { useBirthdayPersonNames, useSlotBirthdays, useDefaultScheduleKind, useForeignScheduleKinds, useOtherWorkspaceSchedules, useScheduleTypes, useWorkSchedules } from '../api';
 import { slotChoices, type SlotChoices, type SlotSources } from '../lib/slot-choices';
 
 /** Nothing kept. */
@@ -7,8 +7,8 @@ const NONE: readonly string[] = [];
 
 /**
  * What the slot conditions of tasks and routines name and are evaluated on: the schedules and kinds of the workspace
- * and of the other workspaces of the user (archived ones too), and the birthdays of the people of the workspace (lot
- * 16c; those of archived people too; undefined while loading).
+ * and of the other workspaces of the user (archived ones too), the birthdays of the people of the workspace (those of
+ * archived people too; undefined while loading) and the names of all its people (a person cited without a birthday).
  * @returns {SlotSources & { schedules?: object[], foreignSchedules?: object[] }} Sources, with the cases of the schedules.
  */
 export function useSlotSources() {
@@ -18,9 +18,10 @@ export function useSlotSources() {
   const { data: foreignSchedules } = useOtherWorkspaceSchedules();
   const { data: foreignKinds } = useForeignScheduleKinds();
   const { data: birthdays } = useSlotBirthdays();
+  const { data: people } = useBirthdayPersonNames();
   return useMemo(
-    () => ({ schedules, types, defaultKind, foreignSchedules, foreignKinds, birthdays }) satisfies SlotSources,
-    [schedules, types, defaultKind, foreignSchedules, foreignKinds, birthdays],
+    () => ({ schedules, types, defaultKind, foreignSchedules, foreignKinds, birthdays, people }) satisfies SlotSources,
+    [schedules, types, defaultKind, foreignSchedules, foreignKinds, birthdays, people],
   );
 }
 

@@ -136,6 +136,7 @@ Ce que l'app ouverte (`ringPlannedReminders`, `dueAlarms`) et le serveur qui son
 | `birthdayRingPrefix(birthdayId, date?)`, `birthdayRingOf(key, birthdays)` | Début de clé des rappels d'un anniversaire (`birthday:<contributor\|relation>:<id>:<jour>`) ; l'anniversaire d'une clé de sonnerie (« Ouvrir la fiche » d'une sonnerie remontrée). |
 | `DueAlarmFields`, `dueAlarmOccurrence(alarm, now)`, `alarmRingKey(id, occurrence)` | Occurrence d’une alarme planifiée due (après `lastFiredAt`, 6 h au plus ; heure de Paris pour l'app et le serveur) ; sa clé `<alarme>:<instant>`. |
 | `trackingStep(minutes, entry, now)`, `trackingRingKey(alarme, chrono, palier)` | Palier d’un chrono en cours pour une alarme de durée ; clé `<alarme>:<chrono>:<palier>`. |
+| `timerCountsForAlarm(alarm, timer, projects)` | Un chrono en cours compte-t-il pour une alarme de durée : celle d’une tâche compte les chronos de cette tâche, celle d’un projet (sans tâche) ceux de ce projet et de ses sous-projets (`subtreeOf` sur `projects`, chaque projet avec son parent), une alarme sans tâche ni projet tous les chronos. |
 | `alarmTaskLabel(task, projectLabel?)`, `AlarmTarget`, `alarmTarget(alarm, taskOf, projectOf)` | « Projet #12 Libellé » ; lien d’une alarme : sa tâche, sinon son projet (aussi pour le serveur). |
 | `alarmRingText(alarm)` | Titre (libellé) et ligne (note) de la sonnerie d’une alarme. |
 

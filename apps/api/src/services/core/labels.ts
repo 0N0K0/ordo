@@ -2,7 +2,7 @@ import { labelFormSchema } from '@ordo/shared';
 import { z } from 'zod';
 import { prisma } from '../../db';
 import type { Prisma } from '../../generated/prisma/client';
-import { parseInput, rethrowUnique } from '../../graphql/errors';
+import { fieldError, parseInput, rethrowUnique } from '../../graphql/errors';
 import { assertActive } from './archive';
 import { deleteOrNotFound } from './lookup';
 import { modelDelegate } from './delegate';
@@ -42,6 +42,19 @@ export interface LabelOptions<T = Label> {
   extraSchema?: z.ZodObject;
   /** Writes following an update, in its transaction (e.g. the records copying its label follow it). Optional. */
   afterUpdate?: (tx: Prisma.TransactionClient, before: T, after: T) => Promise<void>;
+}
+
+/**
+ * Refuses a label already taken in a table without unique index on it (the service checks it): another row of the
+ * workspace (among those of `where`) with this exact label is a conflict under `label`.
+ * @param {string} model Table (`calendar`, `place`…).
+ * @param {string} label Label wanted.
+ * @param {{ message: string, exceptId?: string, where?: object }} options Message of the conflict, row changed (left out), rows compared. `exceptId` and `where` optional.
+ * @returns {Promise<void>}
+ */
+export async function assertLabelFree(model: string, label: string, { message, exceptId, where = {} }: { message: string; exceptId?: string; where?: object }): Promise<void> {
+  const rows = modelDelegate<{ count(args: { where: object }): Promise<number> }>(model);
+  if (await rows.count({ where: { ...where, label, ...(exceptId && { id: { not: exceptId } }) } })) throw fieldError('label', message);
 }
 
 /**

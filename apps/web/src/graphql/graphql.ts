@@ -2482,6 +2482,11 @@ export type BirthdaysQueryVariables = Exact<{ [key: string]: never; }>;
 
 export type BirthdaysQuery = { birthdays: Array<{ id: string, contributorId: string | null, relationId: string | null, name: string, birthDate: string, archived: boolean, aliases: Array<string>, reminders: Array<{ before: number | null, at: string | null, days: number | null, anchor: string, ringtone: string | null }> }> };
 
+export type BirthdayPersonNamesQueryVariables = Exact<{ [key: string]: never; }>;
+
+
+export type BirthdayPersonNamesQuery = { birthdayPersonNames: Array<{ id: string, name: string, archived: boolean }> };
+
 export type CommentsQueryVariables = Exact<{
   target: CommentTarget;
   id: string;
@@ -4968,7 +4973,7 @@ export type DeleteWorkspaceMutation = { deleteWorkspace: boolean };
 export type ElsewhereAlarmsQueryVariables = Exact<{ [key: string]: never; }>;
 
 
-export type ElsewhereAlarmsQuery = { alarms: Array<{ id: string, label: string, note: string | null, type: AlarmType, startDate: string | null, time: string | null, frequency: AlarmFrequency, interval: number, weekdays: Array<number>, endDate: string | null, recurrence: unknown, minutes: number | null, projectId: string | null, taskId: string | null, enabled: boolean, lastFiredAt: string | null, createdAt: string, task: { id: string, number: number | null, label: string, projectId: string | null } | null, project: { id: string, label: string } | null }>, projects: Array<{ id: string, label: string }>, runningTimeEntries: Array<{ id: string, startedAt: string, endedAt: string | null, pausedAt: string | null, pausedSeconds: number, duration: number | null }> };
+export type ElsewhereAlarmsQuery = { alarms: Array<{ id: string, label: string, note: string | null, type: AlarmType, startDate: string | null, time: string | null, frequency: AlarmFrequency, interval: number, weekdays: Array<number>, endDate: string | null, recurrence: unknown, minutes: number | null, projectId: string | null, taskId: string | null, enabled: boolean, lastFiredAt: string | null, createdAt: string, task: { id: string, number: number | null, label: string, projectId: string | null } | null, project: { id: string, label: string } | null }>, projects: Array<{ id: string, label: string, parentId: string | null }>, runningTimeEntries: Array<{ id: string, projectId: string | null, taskIds: Array<string>, startedAt: string, endedAt: string | null, pausedAt: string | null, pausedSeconds: number, duration: number | null }> };
 
 export type ElsewhereRemindersQueryVariables = Exact<{ [key: string]: never; }>;
 
@@ -7418,6 +7423,15 @@ export const BirthdaysDocument = new TypedDocumentString(`
   anchor
   ringtone
 }`) as unknown as TypedDocumentString<BirthdaysQuery, BirthdaysQueryVariables>;
+export const BirthdayPersonNamesDocument = new TypedDocumentString(`
+    query BirthdayPersonNames {
+  birthdayPersonNames {
+    id
+    name
+    archived
+  }
+}
+    `) as unknown as TypedDocumentString<BirthdayPersonNamesQuery, BirthdayPersonNamesQueryVariables>;
 export const CommentsDocument = new TypedDocumentString(`
     query Comments($target: CommentTarget!, $id: String!, $occurrenceDate: Date) {
   comments(target: $target, id: $id, occurrenceDate: $occurrenceDate) {
@@ -11121,9 +11135,12 @@ export const ElsewhereAlarmsDocument = new TypedDocumentString(`
   projects {
     id
     label
+    parentId
   }
   runningTimeEntries {
     id
+    projectId
+    taskIds
     startedAt
     endedAt
     pausedAt

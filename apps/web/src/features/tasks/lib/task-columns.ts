@@ -13,6 +13,7 @@ import {
   TASK_STATUS_CATEGORY_LABELS,
   type TaskColumn,
   type FilterGroupOf,
+  type TableViewConfig,
   type TaskStatusCategory,
   lineageOf,
 } from '@ordo/shared';
@@ -93,6 +94,23 @@ export function matchTasks(
  */
 export function filterUses(group: FilterGroupOf<string> | null | undefined, field: string): boolean {
   return Boolean(group?.children.some((child) => (child.type === 'group' ? filterUses(child, field) : child.field === field)));
+}
+
+/**
+ * Whether a view needs a column hidden by default (to load what it needs only then): its filter, its sort or its
+ * grouping uses it, or the column is shown (shown once, it is in the column order and not hidden).
+ * @param {Pick<TableViewConfig, 'filter' | 'sorting' | 'groupBy' | 'columnOrder' | 'hiddenColumns'> | null | undefined} config View.
+ * @param {string} field Column hidden by default.
+ * @returns {boolean} It needs it.
+ */
+export function viewUses(config: Pick<TableViewConfig, 'filter' | 'sorting' | 'groupBy' | 'columnOrder' | 'hiddenColumns'> | null | undefined, field: string): boolean {
+  if (!config) return false;
+  return (
+    filterUses(config.filter, field) ||
+    config.sorting.some((sort) => sort.id === field) ||
+    config.groupBy === field ||
+    (config.columnOrder.includes(field) && !config.hiddenColumns.includes(field))
+  );
 }
 
 /** Key of the row of an event. */

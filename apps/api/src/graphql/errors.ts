@@ -1,3 +1,4 @@
+import { UserError } from '@ordo/shared';
 import { GraphQLError } from 'graphql';
 import { z } from 'zod';
 import { Prisma } from '../generated/prisma/client';
@@ -144,6 +145,17 @@ export async function done(work: Promise<unknown>): Promise<true> {
  */
 export function errorMessage(error: unknown): string {
   return error instanceof Error ? error.message : String(error);
+}
+
+/**
+ * Refusal of a shared computation (`UserError`, its message written for the user) as the client error it is
+ * (`BAD_USER_INPUT`); any other error as it is. The one place the API maps them: GraphQL answers and file routes.
+ * @param {unknown} error Error caught.
+ * @returns {unknown} Client error, or the error.
+ */
+export function sharedRefusal(error: unknown): unknown {
+  const original = error instanceof GraphQLError && error.originalError ? error.originalError : error;
+  return original instanceof UserError ? clientError('BAD_USER_INPUT', original.message) : error;
 }
 
 /**
