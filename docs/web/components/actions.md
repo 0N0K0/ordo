@@ -22,7 +22,7 @@ Ces briques sont imposées par les règles eslint (voir [Conventions](../app.md#
 
 ## `DuplicateButton.tsx`
 
-`DuplicateButton({ item, duplicate, done, open?, hint?, iconOnly?, size? })` : bouton « Dupliquer » : la copie est enregistrée tout de suite (`duplicateItems` de `selection-actions`), annoncée par un toast, puis ouverte (« … (copie) », par `copyName`) ; le bouton attend pendant ce temps (`useAsyncAction`). « Dupliquer » est le seul mot et le seul comportement de copie de l'app, sans « Annuler » dans le toast. `iconOnly` : icône seule (`IconAction`) avec son infobulle. Les menus et les sélections prennent `duplicateRowsAction`. eslint interdit « Dupliquer » écrit ailleurs, « Cloner » et les formulaires de copie (attributs `copy` / `copyOf`). Utilisé par `EventForm` et `DocumentEditor`.
+`DuplicateButton({ item, duplicate, done, open?, hint?, iconOnly?, size? })` : bouton « Dupliquer » : la copie est enregistrée tout de suite (`duplicateItems` de `selection-actions`), annoncée par un toast, puis ouverte (« … (copie) », par `copyName`) ; le bouton attend pendant ce temps (`useAsyncAction`). « Dupliquer » est le seul mot et le seul comportement de copie de l'app, sans « Annuler » dans le toast. `iconOnly` : icône seule (`IconAction`) avec son infobulle. Les menus et les sélections prennent `duplicateRowsAction`. eslint interdit « Dupliquer » écrit ailleurs, « Cloner » et les formulaires de copie (attributs `copy` / `copyOf`). Utilisé par `DocumentEditor` (le panneau d'un évènement prend `duplicateRowsAction` dans son menu).
 
 ## `EditToggle.tsx`
 

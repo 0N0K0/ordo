@@ -21,8 +21,8 @@ export const effortFieldSchema = z
   .union([z.number(), z.literal('')])
   .transform((value) => (value === '' ? null : value))
   .pipe(effortSchema);
-/** Effort of a task alone, saved on leaving it in the task panel. */
-export const effortFormSchema = z.object({ effort: effortFieldSchema });
+/** Label and effort of a task, the texts of its panel saved on leaving them. */
+export const taskPanelFormSchema = z.object({ label: taskLabelSchema, effort: effortFieldSchema });
 
 export const commentBodySchema = markdownTextSchema.refine((value) => value.trim().length > 0, 'Le commentaire est vide.');
 

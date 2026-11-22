@@ -1242,6 +1242,28 @@ export default defineConfig([
     },
   },
   {
+    // The panels of a task, a routine and an event share one layout (DetailLayout, PanelGroup) and one description
+    // section: no columns, header, save state or markdown view laid out by hand in them.
+    files: ['src/features/tasks/components/TaskPanel.tsx', 'src/features/routines/components/RoutineForm.tsx', 'src/features/calendar/components/EventForm.tsx'],
+    rules: {
+      'no-restricted-imports': [
+        'error',
+        {
+          paths: [
+            ...RESTRICTED_PATHS,
+            { name: '@mantine/core', importNames: ['Grid', 'SimpleGrid', 'Divider'], message: 'Utiliser DetailLayout et PanelGroup (components/panels/DetailLayout) : la disposition commune des panneaux.' },
+          ],
+          patterns: [
+            {
+              group: ['**/feedback/SaveStatus', '**/page/DetailHeader', '**/markdown/MarkdownView', '**/markdown/MarkdownEditor'],
+              message: 'Utiliser DetailLayout (en-tête, « Enregistré ») et DescriptionSection / FormDescription (components/markdown/DescriptionSection).',
+            },
+          ],
+        },
+      ],
+    },
+  },
+  {
     // The one place where shared query keys are built from one another (no imports, so no cycle).
     files: ['src/lib/query-keys.ts'],
     rules: { 'no-restricted-syntax': 'off' },

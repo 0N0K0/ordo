@@ -40,8 +40,8 @@ export const ROUTINE_INHERITANCE_OPTIONS: InheritableFieldOption<RoutineInherita
   required: ROUTINE_REQUIRED_FIELDS.includes(field),
 }));
 
-/** Fields of the « Quand » block of a routine, shown and given back together in its panel. */
-export const ROUTINE_SCHEDULE_FIELDS: readonly RoutineInheritableField[] = [...ROUTINE_WHEN_FIELDS.filter((field) => field !== 'MOVES'), 'SLOT_CONDITION'];
+/** Fields of the « Répétition et moments » of a routine, shown and given back together in its panel (its first time apart). */
+export const ROUTINE_REPETITION_FIELDS: readonly RoutineInheritableField[] = [...ROUTINE_WHEN_FIELDS.filter((field) => field !== 'MOVES' && field !== 'START_DATE'), 'SLOT_CONDITION'];
 
 /** Inherited field shown by each column of the routine table. */
 export const ROUTINE_CELL_FIELDS: Partial<Record<string, RoutineInheritableField>> = {

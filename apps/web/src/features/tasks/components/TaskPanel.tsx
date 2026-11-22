@@ -1,29 +1,28 @@
 import { useSearchParam } from '../../../lib/search-params';
 import { AddItemButton } from '../../../components/actions/AddItemButton';
-import { PAGES, projectPath } from '../../../app/pages';
 import { TaskProgress } from './TaskProgress';
 import { SubSection } from '../../../components/page/SubSection';
 import { ArchivedBadge } from '../../../components/feedback/ArchivedBadge';
-import { SaveStatus } from '../../../components/feedback/SaveStatus';
 import { useAppForm, useFieldSave } from '../../../lib/form';
 
 import { EmptyState } from '../../../components/feedback/EmptyState';
 import { DetailSkeleton } from '../../../components/feedback/Skeletons';
 import { SidePanel } from '../../../components/panels/SidePanel';
-import { Anchor, Badge, Divider, Fieldset, Grid, Group, Select, Stack, Text } from '@mantine/core';
-import { effortFormSchema, readSlotCondition, readTaskHours, taskLabelSchema, subtreeOf, type TaskInheritableField } from '@ordo/shared';
-import { ArrowCounterClockwiseIcon, CheckCircleIcon, GithubLogoIcon, PencilSimpleIcon, ArrowsLeftRightIcon } from '@phosphor-icons/react';
+import { Badge, Group, Select, Text } from '@mantine/core';
+import { taskPanelFormSchema, readSlotCondition, readTaskHours, subtreeOf, type TaskInheritableField } from '@ordo/shared';
+import { ArrowCounterClockwiseIcon, CheckCircleIcon, GithubLogoIcon, ArrowsLeftRightIcon } from '@phosphor-icons/react';
 import { useState } from 'react';
-import { Link } from 'react-router';
 
 import { localToday } from '../../../lib/dates';
 import { ON_ERROR, onMutationError, toastCallbacks } from '../../../lib/notify';
 import { confirmDestructive } from '../../../components/dialogs/confirm-destructive';
 import { useBulkTaskMutations, useTaskBlock, useTaskRelation, useUpdateTask, type Task, type TaskInputValues } from '../api';
-import { TaskAlarms } from '../../alarms/components/TaskAlarms';
 import { TaskShopping } from '../../shopping/components/TaskShopping';
 import { SheetsSection } from '../../sheets/components/SheetsSection';
-import { TaskTime } from '../../time/components/TaskTime';
+import { TrackedTime } from '../../time/components/TrackedTime';
+import { DetailLayout, PanelGroup } from '../../../components/panels/DetailLayout';
+import { PANEL_GROUPS } from '../../../components/panels/panel-groups';
+import { ActionsMenu } from '../../../components/actions/ActionsMenu';
 import { TaskComments } from './TaskComments';
 import { inProjectTree, linkableTasks } from '../lib/task-links';
 import { AssigneesSelect, LabelSelect, ProjectSelect, TagsSelect, TaskRef, TaskSelect, TaskStateIcon } from './task-ui';
@@ -37,7 +36,6 @@ import { TaskHoursField } from './TaskHoursField';
 import { BeneficiariesSelect } from '../../beneficiaries/components/BeneficiariesSelect';
 import { removedLinksNote } from '../../../lib/text';
 import { PeriodField } from '../../../components/inputs/PeriodField';
-import { DetailHeader } from '../../../components/page/DetailHeader';
 import { EffortInput } from './EffortInput';
 import { TaskLinks } from './TaskLinks';
 import { TaskDescription } from './TaskDescription';
@@ -52,7 +50,6 @@ import { DetailNotFound } from '../../../components/feedback/DetailNotFound';
 import { ActionButton } from '../../../components/actions/ActionButton';
 import { RemoveButton } from '../../../components/actions/RemoveButton';
 import { EXTERNAL_LINK } from '../../../components/actions/link-props';
-import { openLabelForm } from '../../../components/dialogs/open-label-form';
 import { LATE_COLOR } from '../../../components/feedback/feedback-colors';
 import { isTaskOverdue } from '../lib/task-overdue';
 import { InheritedField } from '../../../components/inheritance/InheritedField';
@@ -116,9 +113,12 @@ interface TaskDetailProps {
 }
 
 /**
- * Detail of a task: title, description, links, sub-tasks and comments, with properties (location included) and links
- * to other tasks on the side. An archived
- * task is read only (its fields disabled; « Restaurer » in its menu).
+ * Detail of a task, laid out as the routine and event panels (`DetailLayout`): its state, number, label, « Fermer la
+ * tâche » / « Rouvrir » and « … » menu, then its project and mentions; on the left its description, « Relations »
+ * (parent, sub-tasks, « Dépend de », « Bloque », « Relative à ») and its comments; on the right « Classement »,
+ * « Parties prenantes », « Charge », « Périodes », « Alarmes » (reminders, saved timers), its place and « Ressources »
+ * (links, shopping lists, sheets). Each field saved as soon as it changes (its label and effort on leaving them). An
+ * archived task is read only (its fields disabled; « Restaurer » in its menu).
  * @param {TaskDetailProps} props Component props.
  * @returns {JSX.Element} Detail.
  */
@@ -145,13 +145,14 @@ function TaskDetail({ task, context }: TaskDetailProps) {
    */
   const saveNow = (input: Omit<TaskInputValues, 'projectId'>) => updateTask.mutateAsync({ id: task.id, input });
   const overdue = isTaskOverdue(task, localToday());
-  // The effort: saved on leaving it, also when the panel closes while it is typed.
-  const effortBase = useAppForm<{ effort: number | '' }>({ initialValues: { effort: task.effort ?? '' }, schema: effortFormSchema });
-  const effort = useFieldSave(effortBase, {
-    save: ({ effort: value }) => saveNow({ effort: typeof value === 'number' ? value : null }),
-    schema: effortFormSchema,
-    saved: { effort: task.effort ?? '' },
-    onBlur: ['effort'],
+  // The label and the effort: saved on leaving them, also when the panel closes while they are typed.
+  const texts: { label: string; effort: number | '' } = { label: task.label, effort: task.effort ?? '' };
+  const textBase = useAppForm<typeof texts>({ initialValues: texts, schema: taskPanelFormSchema });
+  const text = useFieldSave(textBase, {
+    save: (changes) => saveNow({ ...(changes.label !== undefined && { label: changes.label }), ...(changes.effort !== undefined && { effort: typeof changes.effort === 'number' ? changes.effort : null }) }),
+    schema: taskPanelFormSchema,
+    saved: texts,
+    onBlur: ['label', 'effort'],
     readOnly: locked,
   });
   /**
@@ -167,18 +168,6 @@ function TaskDetail({ task, context }: TaskDetailProps) {
    * @returns {object} Inheritance of the bound.
    */
   const inheritedBound = (field: TaskInheritableField) => ({ ...taskFieldState(task, field, save), from: taskParentName(task, context.taskById) });
-
-  /**
-   * Renames the task in the side panel, as everywhere.
-   * @returns {void}
-   */
-  const rename = () =>
-    openLabelForm('Renommer la tâche', {
-      initial: task.label,
-      schema: taskLabelSchema,
-      submitLabel: 'Renommer',
-      onSubmit: (label) => (label === task.label ? undefined : updateTask.mutateAsync({ id: task.id, input: { label } })),
-    });
 
   const parent = task.parentId ? context.taskById.get(task.parentId) : undefined;
   const subtasks = context.childrenOf(task.id);
@@ -220,148 +209,66 @@ function TaskDetail({ task, context }: TaskDetailProps) {
     });
   };
 
+  /**
+   * Linked tasks of the « Relations » group, with their add and remove.
+   * @param {string} label Label (« Dépend de »…).
+   * @param {string[]} ids Tasks linked.
+   * @param {(id: string) => void} add Adds a task.
+   * @param {(id: string) => void} remove Removes a task.
+   * @returns {JSX.Element} List.
+   */
+  const linkList = (label: string, ids: string[], add: (id: string) => void, remove: (id: string) => void) => (
+    <LinkList label={label} tasks={resolve(ids)} candidates={candidates} context={context} onAdd={add} onRemove={remove} />
+  );
+
   return (
-    <Stack gap="lg">
-      <Stack gap="xs">
-        <DetailHeader
-          compact
-          title={
-            <>
-              {/* Cancelled (status « Annulé »): struck through. */}
-              <Text span inherit td={task.cancelled ? 'line-through' : undefined}>
-                {task.label}
-              </Text>{' '}
-              <Text span c="dimmed" inherit fw={400}>
-                {taskNumber(task)}
-              </Text>
-            </>
-          }
-          badges={
-            <>
-              {task.githubLinked && (
-                <Badge variant="light" color="dark" leftSection={<GithubLogoIcon aria-hidden />} {...(task.githubUrl ? { component: 'a' as const, href: task.githubUrl, ...EXTERNAL_LINK } : {})}>
-                  {task.githubNumber ? `GitHub #${task.githubNumber}` : 'Brouillon GitHub'}
-                </Badge>
-              )}
-              {task.archived && <ArchivedBadge feminine />}
-            </>
-          }
-          actions={
-            !locked && (
-              <>
-                <ActionButton
-                  priority="secondary"
-                  size="xs"
-                  icon={task.closed ? <ArrowCounterClockwiseIcon aria-hidden /> : <CheckCircleIcon aria-hidden />}
-                  // As the selection and the menu: told in a toast with « Annuler ».
-                  loading={closeAction.loading}
-                  onClick={closeAction.onClick}
-                >
-                  {task.closed ? 'Rouvrir' : 'Fermer la tâche'}
-                </ActionButton>
-                <ActionButton priority="secondary" size="xs" icon={<PencilSimpleIcon aria-hidden />} onClick={rename}>
-                  Renommer
-                </ActionButton>
-              </>
-            )
-          }
-          menu={{ about: 'la tâche', items: actions.menu(task) }}
-        />
-        <Group gap="xs">
-          <TaskStateIcon closed={task.closed} blocked={context.isBlocked(task)} />
-          <Anchor component={Link} to={task.projectId ? projectPath(task.projectId) : PAGES.tasks.path} size="sm">
-            {context.projectLabel(task.projectId)}
-          </Anchor>
-        </Group>
-      </Stack>
-
-      <Grid gap="xl">
-        <Grid.Col span={{ base: 12, md: 8 }}>
-          <Stack gap="lg">
+    <form onSubmit={text.form.onSubmit(() => undefined)} noValidate>
+      <DetailLayout
+        readOnly={locked}
+        status={
+          <Group gap={6} wrap="nowrap" h={36}>
+            <TaskStateIcon closed={task.closed} blocked={context.isBlocked(task)} />
+            <Text c="dimmed" fw={600}>
+              {taskNumber(task)}
+            </Text>
+          </Group>
+        }
+        // Cancelled (status « Annulé »): struck through.
+        title={{ ...text.form.getInputProps('label'), styles: task.cancelled ? { input: { textDecoration: 'line-through' } } : undefined }}
+        actions={
+          <ActionButton
+            priority="secondary"
+            size="xs"
+            icon={task.closed ? <ArrowCounterClockwiseIcon aria-hidden /> : <CheckCircleIcon aria-hidden />}
+            // As the selection and the menu: told in a toast with « Annuler ».
+            loading={closeAction.loading}
+            onClick={closeAction.onClick}
+          >
+            {task.closed ? 'Rouvrir' : 'Fermer la tâche'}
+          </ActionButton>
+        }
+        menu={<ActionsMenu about="la tâche" items={actions.menu(task)} variant="light" size="input-xs" />}
+        project={
+          <InheritedField {...inherited('PROJECT')}>
+            <ProjectSelect context={context} label="Projet" placeholder="Sans projet" clearable value={task.projectId} onChange={changeProject} disabled={transferTask.isPending} />
+          </InheritedField>
+        }
+        mentions={
+          <>
+            {task.githubLinked && (
+              <Badge variant="light" color="dark" leftSection={<GithubLogoIcon aria-hidden />} {...(task.githubUrl ? { component: 'a' as const, href: task.githubUrl, ...EXTERNAL_LINK } : {})}>
+                {task.githubNumber ? `GitHub #${task.githubNumber}` : 'Brouillon GitHub'}
+              </Badge>
+            )}
+            {task.archived && <ArchivedBadge feminine />}
+          </>
+        }
+        // Each field saved as soon as it changes: the state of the saves.
+        saving={locked ? undefined : updateTask.isPending || transferTask.isPending || text.saving}
+        main={
+          <>
             <TaskDescription task={task} context={context} locked={locked} save={saveNow} />
-
-            <TaskLinks task={task} locked={locked} save={saveNow} />
-
-            <SubSection
-              title={
-                <>
-                  Sous-tâches
-                  {subtasks.length > 0 && (
-                    <Text span inherit fw={400} ml="xs">
-                      {doneSubtasks}/{subtasks.length}
-                    </Text>
-                  )}
-                </>
-              }
-              gap="xs"
-            >
-              {subtasks.length > 0 ? (
-                <>
-                  <TaskProgress done={doneSubtasks} total={subtasks.length} size="sm" label="Avancement des sous-tâches" />
-                  {subtasks.map((subtask) => (
-                    <TaskRef key={subtask.id} task={subtask} blocked={context.isBlocked(subtask)} />
-                  ))}
-                </>
-              ) : (
-                <EmptyState compact message="Aucune sous-tâche." />
-              )}
-              {!task.archived && <AddItemButton onClick={() => actions.create({ parentId: task.id })}>Ajouter une sous-tâche</AddItemButton>}
-            </SubSection>
-
-            <Divider />
-            <SubSection title="Commentaires" gap="xs">
-              <TaskComments task={task} context={context} />
-            </SubSection>
-          </Stack>
-        </Grid.Col>
-
-        <Grid.Col span={{ base: 12, md: 4 }}>
-          {/* An archived task: every field and action of the side disabled. */}
-          <Fieldset variant="unstyled" disabled={locked}>
-            <Stack gap="md">
-              {/* Each field saved as soon as it changes: the state of the saves. */}
-              {!locked && <SaveStatus saving={updateTask.isPending || transferTask.isPending || effort.saving} />}
-              <InheritedField {...inherited('PROJECT')}>
-                <ProjectSelect context={context} label="Projet" placeholder="Sans projet" clearable value={task.projectId} onChange={changeProject} disabled={transferTask.isPending} />
-              </InheritedField>
-              <LabelSelect kind="status" label="Statut" labels={context.statuses} value={task.statusId} onChange={(statusId) => save({ statusId })} />
-              <InheritedField {...inherited('PRIORITY')}>
-                <LabelSelect kind="priority" label="Priorité" labels={context.priorities} value={task.priorityId} onChange={(priorityId) => save({ priorityId })} />
-              </InheritedField>
-              <LabelSelect kind="type" label="Type" labels={context.types} value={task.typeId} onChange={(typeId) => save({ typeId })} />
-              <InheritedField {...inherited('ASSIGNEES')}>
-                <AssigneesSelect contributors={context.assignableFor([task.projectId], task.assigneeIds)} value={task.assigneeIds} onChange={(assigneeIds) => save({ assigneeIds })} />
-              </InheritedField>
-              <TagsSelect tags={context.tags} value={task.tagIds} onChange={(tagIds) => save({ tagIds })} />
-              <InheritedField {...inherited('BENEFICIARIES')}>
-                <BeneficiariesSelect value={{ beneficiaryIds: task.beneficiaryIds, beneficiaryRelationIds: task.beneficiaryRelationIds }} onChange={(beneficiaries) => save(beneficiaries)} />
-              </InheritedField>
-              <EffortInput {...effort.form.getInputProps('effort')} />
-              <TaskTime task={task} />
-              <PeriodField label="Dates" readOnly={locked} value={[task.startDate, task.endDate]} onChange={([startDate, endDate]) => save({ startDate, endDate })} />
-              <PeriodField
-                label="Ouverture et échéance"
-                bounds={['Ouverture', 'Échéance']}
-                description={
-                  <>
-                    Avant l’ouverture, la tâche n’est pas à faire ; au-delà de l’échéance, la tâche ouverte est en retard.
-                    {overdue && (
-                      <Text span inherit c={LATE_COLOR} fw={600}>
-                        {' '}
-                        En retard.
-                      </Text>
-                    )}
-                  </>
-                }
-                readOnly={locked}
-                value={[task.minDate, task.deadline]}
-                hints={[inheritedDateHint(task, 'minDate'), inheritedDateHint(task, 'deadline')]}
-                inheritance={[inheritedBound('MIN_DATE'), inheritedBound('DEADLINE')]}
-                onChange={([minDate, deadline]) => save({ minDate, deadline })}
-              />
-              <TaskReminders value={task.reminders} minDate={task.effectiveMinDate} deadline={task.effectiveDeadline} disabled={locked} onChange={(reminders) => save({ reminders })} />
-              <DeadTimesField value={task.deadTimes} item={taskCountdownItem(task, context)} disabled={locked} onChange={(deadTimes) => save({ deadTimes })} />
-              <SavedCountdownsField target="TASK" id={task.id} value={task.savedCountdownIds} invalidate={[tasksQueryKey]} readOnly={locked} />
+            <PanelGroup title={PANEL_GROUPS.relations}>
               <TaskSelect
                 context={context}
                 labelOf={(candidate) => context.taskLabel(candidate, task.projectId)}
@@ -371,6 +278,80 @@ function TaskDetail({ task, context }: TaskDetailProps) {
                 value={task.parentId}
                 onChange={(parentId) => save({ parentId })}
               />
+              <SubSection
+                title={
+                  <>
+                    Sous-tâches
+                    {subtasks.length > 0 && (
+                      <Text span inherit fw={400} ml="xs">
+                        {doneSubtasks}/{subtasks.length}
+                      </Text>
+                    )}
+                  </>
+                }
+                gap="xs"
+              >
+                {subtasks.length > 0 ? (
+                  <>
+                    <TaskProgress done={doneSubtasks} total={subtasks.length} size="sm" label="Avancement des sous-tâches" />
+                    {subtasks.map((subtask) => (
+                      <TaskRef key={subtask.id} task={subtask} blocked={context.isBlocked(subtask)} />
+                    ))}
+                  </>
+                ) : (
+                  <EmptyState compact message="Aucune sous-tâche." />
+                )}
+                {!task.archived && <AddItemButton onClick={() => actions.create({ parentId: task.id })}>Ajouter une sous-tâche</AddItemButton>}
+              </SubSection>
+              {linkList(
+                'Dépend de',
+                task.blockedByIds,
+                (id) => taskBlock.mutate({ add: true, blockerId: id, blockedId: task.id }, ON_ERROR),
+                (id) => taskBlock.mutate({ add: false, blockerId: id, blockedId: task.id }, ON_ERROR),
+              )}
+              {linkList(
+                'Bloque',
+                task.blockingIds,
+                (id) => taskBlock.mutate({ add: true, blockerId: task.id, blockedId: id }, ON_ERROR),
+                (id) => taskBlock.mutate({ add: false, blockerId: task.id, blockedId: id }, ON_ERROR),
+              )}
+              {linkList(
+                'Relative à',
+                task.relatedIds,
+                (id) => taskRelation.mutate({ add: true, taskId: task.id, otherId: id }, ON_ERROR),
+                (id) => taskRelation.mutate({ add: false, taskId: task.id, otherId: id }, ON_ERROR),
+              )}
+            </PanelGroup>
+          </>
+        }
+        comments={
+          <PanelGroup title={PANEL_GROUPS.comments}>
+            <TaskComments task={task} context={context} />
+          </PanelGroup>
+        }
+        side={
+          <>
+            <PanelGroup title={PANEL_GROUPS.ranking}>
+              <LabelSelect kind="status" label="Statut" labels={context.statuses} value={task.statusId} onChange={(statusId) => save({ statusId })} />
+              <InheritedField {...inherited('PRIORITY')}>
+                <LabelSelect kind="priority" label="Priorité" labels={context.priorities} value={task.priorityId} onChange={(priorityId) => save({ priorityId })} />
+              </InheritedField>
+              <LabelSelect kind="type" label="Type" labels={context.types} value={task.typeId} onChange={(typeId) => save({ typeId })} />
+              <TagsSelect tags={context.tags} value={task.tagIds} onChange={(tagIds) => save({ tagIds })} />
+            </PanelGroup>
+            <PanelGroup title={PANEL_GROUPS.people}>
+              <InheritedField {...inherited('ASSIGNEES')}>
+                <AssigneesSelect contributors={context.assignableFor([task.projectId], task.assigneeIds)} value={task.assigneeIds} onChange={(assigneeIds) => save({ assigneeIds })} />
+              </InheritedField>
+              <InheritedField {...inherited('BENEFICIARIES')}>
+                <BeneficiariesSelect value={{ beneficiaryIds: task.beneficiaryIds, beneficiaryRelationIds: task.beneficiaryRelationIds }} onChange={(beneficiaries) => save(beneficiaries)} />
+              </InheritedField>
+            </PanelGroup>
+            <PanelGroup title={PANEL_GROUPS.workload}>
+              <EffortInput {...text.form.getInputProps('effort')} />
+              <TrackedTime seconds={task.trackedSeconds} on={(entry) => entry.taskIds.includes(task.id)} start={{ projectId: task.projectId, taskIds: [task.id] }} disabled={locked} />
+            </PanelGroup>
+            <PanelGroup title={PANEL_GROUPS.periods}>
               <InheritedField {...inherited('MILESTONE')}>
                 <Select
                   label="Jalon"
@@ -393,51 +374,53 @@ function TaskDetail({ task, context }: TaskDetailProps) {
                 searchable
                 nothingFoundMessage="Aucun sprint dans ce projet"
               />
+              <PeriodField label="Dates" readOnly={locked} value={[task.startDate, task.endDate]} onChange={([startDate, endDate]) => save({ startDate, endDate })} />
+              <PeriodField
+                label="Ouverture et échéance"
+                bounds={['Ouverture', 'Échéance']}
+                description={
+                  <>
+                    Avant l’ouverture, la tâche n’est pas à faire ; au-delà de l’échéance, la tâche ouverte est en retard.
+                    {overdue && (
+                      <Text span inherit c={LATE_COLOR} fw={600}>
+                        {' '}
+                        En retard.
+                      </Text>
+                    )}
+                  </>
+                }
+                readOnly={locked}
+                value={[task.minDate, task.deadline]}
+                hints={[inheritedDateHint(task, 'minDate'), inheritedDateHint(task, 'deadline')]}
+                inheritance={[inheritedBound('MIN_DATE'), inheritedBound('DEADLINE')]}
+                onChange={([minDate, deadline]) => save({ minDate, deadline })}
+              />
+              <DeadTimesField value={task.deadTimes} item={taskCountdownItem(task, context)} disabled={locked} onChange={(deadTimes) => save({ deadTimes })} />
               <InheritedField {...inherited('SLOT_CONDITION')}>
                 <SlotConditionBuilder item="task" value={readSlotCondition(task.slotCondition)} onChange={(slotCondition) => save({ slotCondition })} />
               </InheritedField>
               <InheritedField {...inherited('HOURS')}>
                 <TaskHoursField value={readTaskHours(task.hours)} onChange={(hours) => save({ hours })} readOnly={locked} />
               </InheritedField>
+            </PanelGroup>
+            <PanelGroup title={PANEL_GROUPS.alarms}>
+              <TaskReminders value={task.reminders} minDate={task.effectiveMinDate} deadline={task.effectiveDeadline} disabled={locked} onChange={(reminders) => save({ reminders })} />
+              <SavedCountdownsField target="TASK" id={task.id} value={task.savedCountdownIds} invalidate={[tasksQueryKey]} readOnly={locked} />
+            </PanelGroup>
+            <PanelGroup>
               <InheritedField {...inherited('LOCATION')}>
                 <TaskLocation task={task} save={save} />
               </InheritedField>
-              <Divider />
-              <LinkList
-                label="Bloque"
-                tasks={resolve(task.blockingIds)}
-                candidates={candidates}
-                context={context}
-                onAdd={(id) => taskBlock.mutate({ add: true, blockerId: task.id, blockedId: id }, ON_ERROR)}
-                onRemove={(id) => taskBlock.mutate({ add: false, blockerId: task.id, blockedId: id }, ON_ERROR)}
-              />
-              <LinkList
-                label="Dépend de"
-                tasks={resolve(task.blockedByIds)}
-                candidates={candidates}
-                context={context}
-                onAdd={(id) => taskBlock.mutate({ add: true, blockerId: id, blockedId: task.id }, ON_ERROR)}
-                onRemove={(id) => taskBlock.mutate({ add: false, blockerId: id, blockedId: task.id }, ON_ERROR)}
-              />
-              <LinkList
-                label="Relative à"
-                tasks={resolve(task.relatedIds)}
-                candidates={candidates}
-                context={context}
-                onAdd={(id) => taskRelation.mutate({ add: true, taskId: task.id, otherId: id }, ON_ERROR)}
-                onRemove={(id) => taskRelation.mutate({ add: false, taskId: task.id, otherId: id }, ON_ERROR)}
-              />
-              <Divider />
-              <TaskAlarms task={task} context={context} />
-              <Divider />
+            </PanelGroup>
+            <PanelGroup title={PANEL_GROUPS.resources}>
+              <TaskLinks task={task} locked={locked} save={saveNow} />
               <TaskShopping task={task} />
-              <Divider />
               <SheetsSection owner={{ taskId: task.id }} label={task.label} />
-            </Stack>
-          </Fieldset>
-        </Grid.Col>
-      </Grid>
-    </Stack>
+            </PanelGroup>
+          </>
+        }
+      />
+    </form>
   );
 }
 

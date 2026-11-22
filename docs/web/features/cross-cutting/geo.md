@@ -77,8 +77,12 @@ Utilisé par `EventLocation`, `LocationCell`, `PlacesManager`, `TravelCalculator
 
 ### `components/TravelCalculator.tsx`
 
-`TravelCalculator({ eventPoint, onResult })` : bouton « Calculer les trajets » et popover : aller et retour activables, départ et retour parmi les lieux (`itemOptions`, lieux racines) ou « Autre adresse… » (`AddressInput` sans portail), mode (`TRAVEL_MODES`, `TRAVEL_MODE_LABELS`) ; `useAsyncAction` lance les deux calculs en parallèle et rend `{ before?, after? }` en minutes (`travelMinutes`) avec un résumé. Internes : `OTHER`, `SAME`, `pointOf`. Utilisé par `EventForm` et `RoutineSchedule`.
+`TravelCalculator({ eventPoint, onResult })` : bouton « Calculer les trajets » et popover : aller et retour activables, départ et retour parmi les lieux (`itemOptions`, lieux racines) ou « Autre adresse… » (`AddressInput` sans portail), mode (`TRAVEL_MODES`, `TRAVEL_MODE_LABELS`) ; `useAsyncAction` lance les deux calculs en parallèle et rend `{ before?, after? }` en minutes (`travelMinutes`) avec un résumé. Internes : `OTHER`, `SAME`, `pointOf`. Utilisé par `TravelTimes`.
 
 ### `components/TravelField.tsx`
 
-`TravelField({ way: 'before' | 'after', ...NumberInputProps })` : `NumberInput` « Trajet aller » / « Trajet retour », suffixe « min », 0 à 1440, pas de 5, entier. Utilisé par `EventForm` et `RoutineSchedule`.
+`TravelField({ way: 'before' | 'after', ...NumberInputProps })` : `NumberInput` « Trajet aller » / « Trajet retour », suffixe « min », 0 à 1440, pas de 5, entier. Utilisé par `TravelTimes`.
+
+### `components/TravelTimes.tsx`
+
+`TravelTimes({ value, hints, point, onChange, onCommit?, errors?, leave? })` : trajets aller et retour d'un évènement ou d'une routine, deux `TravelField` (aides `hints`, « Pour y aller » / « Pour en revenir », « Avant le début » / « Après la fin »), `TravelCalculator` vers le point du lieu (les deux enregistrés ensemble, `onCommit`), puis la mention `leave` (« Partir à 8 h 05 · retour vers 9 h 00 ») seulement quand un trajet aller est renseigné. Un trajet est enregistré en le quittant. Utilisé par `EventForm` (groupe « Lieu », évènement à heures) et `RoutinePlace`.

@@ -12,7 +12,7 @@ Fragments `AlarmFields`, `ReminderFields` (un rappel : `before`, `at`, `days`, `
 | ----------------------------- | ------------------------------------------------------------------------------- | -------------------------------------------------------------------------------- |
 | `Alarm` (type)                | Alarme (`AlarmFieldsFragment`)                                                  | tout le dossier, `ElsewhereNotifier` (via le fragment)                           |
 | `AlarmInput` (type réexporté) | Entrée GraphQL d’une alarme                                                     | `AlarmForm`                                                                      |
-| `useAlarms()`                 | Toutes les alarmes de l’espace                                                  | `AlarmsPage`, `TaskAlarms`, `AlarmCenter`, `ChronoCard` et `WorkCards` (accueil) |
+| `useAlarms()`                 | Toutes les alarmes de l’espace                                                  | `AlarmsPage`, `AlarmCenter`, `ChronoCard` et `WorkCards` (accueil)               |
 | `useTaskAlarmCounts()`        | Nombre d’alarmes **actives** par tâche (`countBy`)                              | `TaskBoard`, `use-task-columns` (tâches)                                         |
 | `useAlarmMutations()`         | `create`, `update` (`{ id, input }`), `remove` (id), `markFired` (`{ id, at }`) | `AlarmForm`, `AlarmList`, `AlarmCenter`                                          |
 | `AlarmRing` (type)            | Une sonnerie gardée par l’API (`AlarmRingFieldsFragment`)          | `lib/ringing.tsx`                                                                |
@@ -78,18 +78,14 @@ Rappels des éphémérides et des anniversaires.
 
 ### `components/AlarmList.tsx`
 
-`AlarmList({ alarms, context, openForm, showTarget = true })` : cartes d’alarmes (libellé, badge « Terminée », `describeAlarm`, « Prochaine : … » via `nextRing`, lien `alarmTarget` si `showTarget`, note), `StateSwitch` actif/inactif, `InlineActions` « Modifier », « Dupliquer », « Supprimer » (`confirmDestructive`). Interne `toAlarmInput(alarm, changes)` : renvoie l’alarme entière avec un changement (interrupteur). Utilisé par `AlarmsPage`, `TaskAlarms`.
-
-### `components/TaskAlarms.tsx`
-
-`TaskAlarms({ task, context })` : section « Alarmes » du panneau d’une tâche (`SubSection`) : alarmes de la tâche (`AlarmList` sans lien), état vide « Aucune alarme pour cette tâche. », « Ajouter une alarme » (défauts : titre de la tâche, de même taille qu’un libellé d’alarme, projet, tâche). Utilisé par `TaskPanel` (tâches).
+`AlarmList({ alarms, context, openForm, showTarget = true })` : cartes d’alarmes (libellé, badge « Terminée », `describeAlarm`, « Prochaine : … » via `nextRing`, lien `alarmTarget` si `showTarget`, note), `StateSwitch` actif/inactif, `InlineActions` « Modifier », « Dupliquer », « Supprimer » (`confirmDestructive`). Interne `toAlarmInput(alarm, changes)` : renvoie l’alarme entière avec un changement (interrupteur). Utilisé par `AlarmsPage`.
 
 ## hooks
 
 ### `hooks/use-alarm-form.tsx`
 
 - `AlarmFormOpener` (type) : `(alarm?, { defaults? }) => void`.
-- `useAlarmForm(context)` : ouvre `AlarmForm` dans `openFormPanel` (« Nouvelle alarme », « Alarme ») ; sans contexte : rien. Utilisé par `AlarmsPage`, `TaskAlarms`, `AlarmsCell` (`extra-cells`, tâches), `ChronoCard` (accueil), `QuickActions` (app).
+- `useAlarmForm(context)` : ouvre `AlarmForm` dans `openFormPanel` (« Nouvelle alarme », « Alarme ») ; sans contexte : rien. Utilisé par `AlarmsPage`, `AlarmsCell` (`extra-cells`, tâches), `ChronoCard` (accueil), `QuickActions` (app).
 
 ## lib
 

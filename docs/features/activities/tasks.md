@@ -170,33 +170,28 @@ Bouton « Créer la tâche ». Toast « Tâche #12 créée. » (« Tâche « Lib
 
 Ouvert par `?task=<id>` par-dessus la page courante (titre « Projet · Tâche #12 »). Introuvable : « Cette tâche » introuvable (`DetailNotFound`).
 
+Disposition commune aux panneaux des tâches, des routines et des évènements (voir [Application](../../web/app.md#formulaires-et-modales)) ; un panneau étroit (téléphone, panneau rétréci) met la colonne de droite sous la principale. Chaque champ est enregistré dès qu’il change (« Libellé » et « Effort » en les quittant ; Entrée dans le libellé aussi) ; « Enregistrement… » puis « Enregistré » dans l’en-tête.
+
 En-tête :
 
-- libellé et numéro, badge GitHub (« GitHub #12 », lien vers l’issue, ou « Brouillon GitHub »), badge « Archivée » ;
-- boutons « Fermer la tâche » / « Rouvrir » (toast « 1 tâche fermée. » / « 1 tâche rouverte. » avec « Annuler », comme la sélection et le menu) et « Renommer » (formulaire « Renommer la tâche ») ;
-- menu : « Dupliquer », « Transférer », « Archiver » / « Restaurer », « Supprimer » ;
-- icône d’état et lien vers le projet (ou « Sans projet »).
+- icône d’état (ouverte vert, fermée violet, bloquée cadenas rouge), numéro (« #12 »), champ « Libellé » (requis, barré pour une tâche annulée ; pas de bouton « Renommer »), bouton « Fermer la tâche » / « Rouvrir » (toast « 1 tâche fermée. » / « 1 tâche rouverte. » avec « Annuler », comme la sélection et le menu), menu « … » : « Dupliquer », « Transférer », « Archiver » / « Restaurer », « Supprimer » ;
+- « Projet » (changement = transfert ; confirmation « Changer de projet » si la tâche quitte son arborescence et a des liens : elle prend le numéro suivant du projet, ou perd son numéro et son lien GitHub hors projet) ; badge GitHub (« GitHub #12 », lien vers l’issue, ou « Brouillon GitHub »), badge « Archivée », « Enregistré ».
 
 Colonne principale :
 
-- « Description » : affichée en markdown (cases à cocher cochables en place), crayon « Modifier la description » pour l’éditer : enregistrée en quittant l’éditeur, Ctrl/⌘ + Entrée l’enregistre et ferme l’éditeur ; la coche « Terminer la modification de la description » revient au texte affiché.
-- « Liens » : ouverts dans un nouvel onglet (« Aucun lien. » sinon) ; crayon « Modifier les liens » : le champ des liens des évènements, chaque lien enregistré une fois validé (en quittant ses champs), un retrait tout de suite ; la coche « Terminer la modification des liens » revient aux liens affichés.
-- « Sous-tâches » : « 2/5 », barre d’avancement, liste, « Ajouter une sous-tâche ».
+- « Description » : sans description, l’éditeur markdown directement ; sinon affichée en markdown (cases à cocher cochables en place), crayon « Modifier la description » pour l’éditer : enregistrée en quittant l’éditeur, Ctrl/⌘ + Entrée l’enregistre et ferme l’éditeur ; la coche « Terminer la modification de la description » revient au texte affiché.
+- « Relations » : « Tâche parente » ; « Sous-tâches » (« 2/5 », barre d’avancement, liste, « Ajouter une sous-tâche ») ; « Dépend de », « Bloque », « Relative à » (listes avec « Retirer » et « Ajouter une tâche »).
 - « Commentaires » : le fil de commentaires (voir [Commentaires](../cross-cutting/comments.md)).
 
-Colonne de propriétés (chaque champ enregistré dès qu’il change ; « Enregistrement… » puis « Enregistré » en tête) :
+Colonne de droite, en groupes :
 
-- « Projet » (changement = transfert ; confirmation « Changer de projet » si la tâche quitte son arborescence et a des liens : elle prend le numéro suivant du projet, ou perd son numéro et son lien GitHub hors projet) ;
-- « Statut », « Priorité », « Type », « Assignés », « Étiquettes », « Bénéficiaires », « Effort » ;
-- « Temps passé » et bouton « Démarrer le chrono » (ou commandes du chrono s’il tourne sur la tâche ; les autres chronos continuent) ;
-- « Dates » (« Début » – « Fin ») et « Ouverture et échéance » (« Avant l’ouverture, la tâche n’est pas à faire ; au-delà de l’échéance, la tâche ouverte est en retard. », suivi de « En retard. » en couleur de retard (orange) si c’est le cas), chacune une période en un seul champ (`PeriodField`), enregistrée quand elle est complète ou qu’un bout est vidé ; un bout vide montre celui que la tâche suit, en grisé (« … (parent) », « (jalon) », « (projet) », « (sprint) ») ; sous le champ, bout par bout, « Ouverture : Hérité de … » / « Échéance : Vidé exprès » avec « Vider » / « Rétablir l’héritage » ; les rappels suivent les dates de la tâche, sinon celles du sprint ;
-- « Tâche parente », « Jalon », « Sprints », créneaux, « Horaires » (le champ du formulaire de création) ;
-- « Rappels » : à une heure seulement (pas d’« avant » : une tâche n’a pas d’heures), dans l’éditeur en lignes commun : « Chaque jour » à une heure, ou « N jours avant » l’échéance à une heure (30 jours au plus, une fois) ; 10 au plus ; aide « Chaque jour de l’ouverture à l’échéance, à ces heures ; ou quelques jours avant l’échéance. » (« Le jour de l’échéance, à ces heures ; ou quelques jours avant. » sans ouverture) ; désactivé sans échéance (« Donnez-lui une échéance pour recevoir des rappels. ») ;
-- « Temps morts » : attentes de la tâche (« Lave-linge », 1 h 30) avec leur sonnerie, chacune lançable en minuteur ; les minuteurs lancés pour la tâche dessous (voir [Alarmes](alarms.md#temps-morts)) ;
-- « Minuteurs » : minuteurs enregistrés de l’espace que la tâche lance (son menu « … »), enregistrés dès qu’ils changent (voir [Alarmes](alarms.md#minuteurs-enregistrés)) ;
-- « Lieu » : enregistré au choix d’une adresse proposée ou d’un clic sur la carte, quand le texte est vidé, ou à la sortie du champ pour un texte libre ;
-- « Bloque », « Dépend de », « Relative à » : listes avec « Retirer » et « Ajouter une tâche » ;
-- alarmes de la tâche ([Alarmes](alarms.md)), listes d’achats ([Achats](../supplies/shopping.md)), fiches ([Fiches](../supplies/sheets.md)).
+- « Classement » : « Statut », « Priorité », « Type », « Étiquettes » ;
+- « Parties prenantes » : « Assignés », « Bénéficiaires » ;
+- « Charge » : « Effort » ; « Temps passé » et bouton « Démarrer le chrono » (ou commandes du chrono s’il tourne sur la tâche ; les autres chronos continuent) ;
+- « Périodes » : « Jalon », « Sprints », « Dates » (« Début » – « Fin ») et « Ouverture et échéance » (« Avant l’ouverture, la tâche n’est pas à faire ; au-delà de l’échéance, la tâche ouverte est en retard. », suivi de « En retard. » en couleur de retard (orange) si c’est le cas), chacune une période en un seul champ (`PeriodField`), enregistrée quand elle est complète ou qu’un bout est vidé ; un bout vide montre celui que la tâche suit, en grisé (« … (parent) », « (jalon) », « (projet) », « (sprint) ») ; sous le champ, bout par bout, « Ouverture : Hérité de … » / « Échéance : Vidé exprès » avec « Vider » / « Rétablir l’héritage » ; « Temps morts » : attentes de la tâche (« Lave-linge », 1 h 30) avec leur sonnerie, chacune lançable en minuteur ; les minuteurs lancés pour la tâche dessous (voir [Alarmes](alarms.md#temps-morts)) ; créneaux de l’agenda, « Horaires » (le champ du formulaire de création) ;
+- « Alarmes » : « Rappels » : à une heure seulement (pas d’« avant » : une tâche n’a pas d’heures), dans l’éditeur en lignes commun : « Chaque jour » à une heure, ou « N jours avant » l’échéance à une heure (30 jours au plus, une fois) ; 10 au plus ; aide « Chaque jour de l’ouverture à l’échéance, à ces heures ; ou quelques jours avant l’échéance. » (« Le jour de l’échéance, à ces heures ; ou quelques jours avant. » sans ouverture) ; désactivé sans échéance (« Donnez-lui une échéance pour recevoir des rappels. ») ; les rappels suivent les dates de la tâche, sinon celles du sprint ; « Minuteurs » : minuteurs enregistrés de l’espace que la tâche lance (son menu « … »), enregistrés dès qu’ils changent (voir [Alarmes](alarms.md#minuteurs-enregistrés)). Les alarmes rattachées à la tâche ne sont pas dans le panneau : elles se gèrent sur la page « Alarmes » ([Alarmes](alarms.md)) ;
+- le lieu, seul : « Lieu », enregistré au choix d’une adresse proposée ou d’un clic sur la carte, quand le texte est vidé, ou à la sortie du champ pour un texte libre ;
+- « Ressources » : « Liens » (ouverts dans un nouvel onglet, « Aucun lien. » sinon ; crayon « Modifier les liens » : le champ des liens des évènements, chaque lien enregistré une fois validé, en quittant ses champs, un retrait tout de suite ; la coche « Terminer la modification des liens » revient aux liens affichés), listes d’achats ([Achats](../supplies/shopping.md)), fiches ([Fiches](../supplies/sheets.md)).
 
 Une tâche archivée : tous les champs désactivés, pas de bouton, commentaires en lecture seule ; « Restaurer » dans le menu.
 

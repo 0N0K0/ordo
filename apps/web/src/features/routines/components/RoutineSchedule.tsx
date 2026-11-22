@@ -3,8 +3,8 @@ import { InheritedField, type InheritedFieldState } from '../../../components/in
 import { LabeledField } from '../../../components/inputs/LabeledField';
 import { AddItemButton } from '../../../components/actions/AddItemButton';
 import { useSlotChoices } from '../../calendar/hooks/use-slot-sources';
-import { TravelField } from '../../geo/components/TravelField';
-import { Checkbox, Group, SimpleGrid, Stack, Text } from '@mantine/core';
+import { TravelTimes } from '../../geo/components/TravelTimes';
+import { Checkbox, Group, Stack, Text } from '@mantine/core';
 import { DateField } from '../../../components/inputs/DateField';
 import {
   opensFits,
@@ -28,7 +28,6 @@ import { localToday } from '../../../lib/dates';
 import { EventLocation } from '../../geo/components/EventLocation';
 import { addressOf } from '../../geo/lib/location';
 import { useFormLocation } from '../../geo/hooks/use-location-draft';
-import { TravelCalculator } from '../../geo/components/TravelCalculator';
 import { OpensOnInput } from './OpensOnInput';
 import { opensText } from '../lib/opens-format';
 import { SlotConditionBuilder } from '../../calendar/components/SlotConditionBuilder';
@@ -189,16 +188,16 @@ function withEditedCases(value: RoutineRepetitionValue, cases: RepetitionCase<Ro
 }
 
 /**
- * Every repetition setting of a routine, in the common modal: its first day, then one rule or cases, each with its
- * moments and its condition on calendar schedules; its « Ouverture ».
- * @param {{ draft: RoutineRepetitionValue, setDraft: (value: RoutineRepetitionValue) => void, names: Map<string, string> }} props Draft, its change, names of the schedules.
+ * Every repetition setting of a routine, in the common modal: its first day (unless its panel shows it apart), then one
+ * rule or cases, each with its moments and its condition on calendar schedules; its « Ouverture ».
+ * @param {{ draft: RoutineRepetitionValue, setDraft: (value: RoutineRepetitionValue) => void, names: Map<string, string>, withStart?: boolean }} props Draft, its change, names of the schedules, first day asked (default true).
  * @returns {JSX.Element} Settings.
  */
-function RoutineRepetitionEditor({ draft, setDraft, names }: { draft: RoutineRepetitionValue; setDraft: (value: RoutineRepetitionValue) => void; names: Map<string, string> }) {
+function RoutineRepetitionEditor({ draft, setDraft, names, withStart = true }: { draft: RoutineRepetitionValue; setDraft: (value: RoutineRepetitionValue) => void; names: Map<string, string>; withStart?: boolean }) {
   const start = draft.startDate || localToday();
   return (
     <Stack gap="md">
-      <DateField label="Première fois" required value={draft.startDate || null} onChange={(date) => date && setDraft({ ...draft, startDate: date })} />
+      {withStart && <DateField label="Première fois" required value={draft.startDate || null} onChange={(date) => date && setDraft({ ...draft, startDate: date })} />}
       <RepetitionEditor<RoutineTimes>
         mode={draft.mode}
         onModeChange={(mode) =>
@@ -231,8 +230,8 @@ function RoutineRepetitionEditor({ draft, setDraft, names }: { draft: RoutineRep
 }
 
 /**
- * Repetition of a routine as text, a line each: its first day, then its rule or cases with their moments and
- * conditions.
+ * Repetition of a routine as text, a line each: its rule or cases with their moments and conditions (its first day
+ * is shown apart, in « Première fois »).
  * @param {RoutineRepetitionValue} value Repetition.
  * @param {Map<string, string>} names Names of the schedules.
  * @returns {string[]} Lines.
@@ -240,7 +239,7 @@ function RoutineRepetitionEditor({ draft, setDraft, names }: { draft: RoutineRep
 function describeRepetition(value: RoutineRepetitionValue, names: Map<string, string>): string[] {
   const start = value.startDate || localToday();
   const times = routineTimes(names);
-  return [`À partir du ${fmt.day(start)}`, ...editedCases(value).map((item, index) => `${value.mode === 'CASES' ? `Cas ${index + 1} · ` : ''}${fmt.capitalize(describeCase(item, start, { times }))}`)];
+  return [...editedCases(value).map((item, index) => `${value.mode === 'CASES' ? `Cas ${index + 1} · ` : ''}${fmt.capitalize(describeCase(item, start, { times }))}`)];
 }
 
 /** Whole repetition of a routine, as saved. */
@@ -316,7 +315,7 @@ export function RoutineRepetitionModal({
   );
 }
 
-interface RoutineScheduleProps {
+interface RoutineFieldsProps {
   values: RoutineScheduleValues;
   errors: Record<string, ReactNode>;
   onChange: (changes: Partial<RoutineScheduleValues>) => void;
@@ -325,86 +324,95 @@ interface RoutineScheduleProps {
    * a travel time once left. Optional.
    */
   onCommit?: (fields: (keyof RoutineScheduleValues & string)[]) => void;
-  /** A sub-routine: what its repetition and its place show of their inheritance, and its parent's name. Optional. */
-  inherited?: { from: string; when: InheritedFieldState; location: InheritedFieldState; readOnly?: boolean };
+  /** A sub-routine: what the field shows of its inheritance, and its parent's name. Optional. */
+  inherited?: { from: string; state: InheritedFieldState; readOnly?: boolean };
 }
 
 /**
- * Time and place of a routine: its repetition (summary, every setting in the common modal), where, the travel times
- * there and back (computed from the place) with when to leave and when back (one moment of its own only), and its
- * alerts; a sub-routine's repetition and place greyed while inherited (`InheritedField`).
- * @param {RoutineScheduleProps} props Component props.
- * @returns {JSX.Element} Fields.
+ * Inheritance of a field of a sub-routine (`InheritedField`), nothing shown for another routine.
+ * @param {RoutineFieldsProps['inherited']} inherited Inheritance.
+ * @returns {object} Props of `InheritedField`.
  */
-export function RoutineSchedule({ values, errors, onChange, onCommit, inherited }: RoutineScheduleProps) {
+const inheritedProps = (inherited: RoutineFieldsProps['inherited']) => ({ ...(inherited?.state ?? { origin: null }), from: inherited?.from ?? '', readOnly: inherited?.readOnly });
+
+/**
+ * « Répétition et moments » of a routine: its summary, every setting but its first day in the common modal; greyed
+ * while inherited.
+ * @param {RoutineFieldsProps} props Component props.
+ * @returns {JSX.Element} Field.
+ */
+export function RoutineRepetition({ values, errors, onChange, inherited }: RoutineFieldsProps) {
   const { names } = useSlotChoices();
   const mode: RepetitionModeValue = values.cases.length ? 'CASES' : 'RULE';
-  const single = mode === 'RULE' && values.moments.length <= 1 ? (values.moments[0] ?? ANY_TIME) : null;
+  return (
+    <InheritedField {...inheritedProps(inherited)}>
+      <RepetitionField<RoutineRepetitionValue>
+        label="Répétition et moments"
+        required
+        error={(errors.recurrence ?? errors.cases ?? errors.moments ?? errors.slotCondition ?? errors.opensOn) as ReactNode}
+        value={{ ...values, mode }}
+        onChange={(value) =>
+          onChange({
+            recurrence: value.recurrence,
+            cases: value.cases,
+            slotCondition: value.slotCondition,
+            moments: value.moments,
+            opensOn: value.opensOn,
+          })
+        }
+        valid={validRepetition}
+        describe={(value) => describeRepetition(value, names)}
+        editor={(draft, setDraft) => <RoutineRepetitionEditor draft={draft} setDraft={setDraft} names={names} withStart={false} />}
+      />
+    </InheritedField>
+  );
+}
+
+/**
+ * Place of a routine: where (greyed while inherited), the travel times there and back (computed from the place), and,
+ * once an outward travel is given, when to leave and when back (one moment of its own only).
+ * @param {RoutineFieldsProps} props Component props.
+ * @returns {JSX.Element} Fields.
+ */
+export function RoutinePlace({ values, errors, onChange, onCommit, inherited }: RoutineFieldsProps) {
+  const single = !values.cases.length && values.moments.length <= 1 ? (values.moments[0] ?? ANY_TIME) : null;
   const { leaveAt, backAt } = routineSchedule({ ...values, fromTime: single?.fromTime ?? null, dueTime: single?.dueTime ?? null });
-  const address = addressOf(values);
   // Put in the form (and saved, field by field) once chosen, cleared or left.
   const place = useFormLocation(values, onChange, onCommit);
+  const leave = leaveAt
+    ? `Partir à ${leaveAt.replace(':', ' h ')}${values.estimate && single?.dueTime ? ` (trajet et ${values.estimate} min sur place)` : ''}${backAt ? ` · retour vers ${backAt.replace(':', ' h ')}` : ''}`
+    : null;
+  return (
+    <Stack gap="sm">
+      <InheritedField {...inheritedProps(inherited)}>
+        <EventLocation value={place.value} error={errors.location} onChange={place.onChange} onBlur={place.leave} />
+      </InheritedField>
+      <TravelTimes value={values} hints={['Pour y aller', 'Pour en revenir']} point={addressOf(values).point} onChange={onChange} onCommit={onCommit} errors={errors} leave={leave} />
+    </Stack>
+  );
+}
+
+/**
+ * « Rappels » of a routine: before its moments or at a time of its days (only at a time without any hour).
+ * @param {RoutineFieldsProps} props Component props.
+ * @returns {JSX.Element} Field.
+ */
+export function RoutineReminders({ values, errors, onChange }: RoutineFieldsProps) {
   // Without any hour, only reminders at a time of the day.
   const timed = routineHasHours(values);
   return (
-    <Stack gap="sm">
-      <InheritedField {...(inherited?.when ?? { origin: null })} from={inherited?.from ?? ''} readOnly={inherited?.readOnly}>
-        <RepetitionField<RoutineRepetitionValue>
-          label="Répétition et moments"
-          required
-          error={(errors.recurrence ?? errors.cases ?? errors.moments ?? errors.slotCondition ?? errors.startDate ?? errors.opensOn) as ReactNode}
-          value={{ ...values, mode }}
-          onChange={(value) =>
-            onChange({
-              startDate: value.startDate,
-              recurrence: value.recurrence,
-              cases: value.cases,
-              slotCondition: value.slotCondition,
-              moments: value.moments,
-              opensOn: value.opensOn,
-            })
-          }
-          valid={validRepetition}
-          describe={(value) => describeRepetition(value, names)}
-          editor={(draft, setDraft) => <RoutineRepetitionEditor draft={draft} setDraft={setDraft} names={names} />}
-        />
-      </InheritedField>
-      <InheritedField {...(inherited?.location ?? { origin: null })} from={inherited?.from ?? ''} readOnly={inherited?.readOnly}>
-        <EventLocation value={place.value} error={errors.location} onChange={place.onChange} onBlur={place.leave} />
-      </InheritedField>
-      <SimpleGrid cols={{ base: 1, xs: 3 }} spacing="sm">
-        <TravelField way="before" description="Pour y aller" value={values.travelBefore} onChange={(value) => onChange({ travelBefore: Number(value) || 0 })} onBlur={() => onCommit?.(['travelBefore'])} error={errors.travelBefore} />
-        <TravelField way="after" description="Pour en revenir" value={values.travelAfter} onChange={(value) => onChange({ travelAfter: Number(value) || 0 })} onBlur={() => onCommit?.(['travelAfter'])} error={errors.travelAfter} />
-        <Stack justify="flex-end">
-          <TravelCalculator
-            eventPoint={address.point}
-            onResult={({ before, after }) => {
-              onChange({ ...(before !== undefined && { travelBefore: before }), ...(after !== undefined && { travelAfter: after }) });
-              onCommit?.(['travelBefore', 'travelAfter']);
-            }}
-          />
-        </Stack>
-      </SimpleGrid>
-      <RemindersSelect
-        label="Rappels"
-        description={
-          timed
-            ? 'Pour chaque occurrence : avant le début ou la fin de chaque moment non coché, le jour de l’ouverture ou celui de l’échéance (« dès » / « jusqu’à », l’autre heure selon le temps à y consacrer), 24 h au plus ; ou à une heure de l’un de ces jours ou de quelques jours avant.'
-            : 'À une heure du jour de l’ouverture ou de l’échéance, ou de quelques jours avant : donnez une heure « dès » ou « jusqu’à » à ses moments (ou un créneau) pour des rappels avant eux.'
-        }
-        kinds={timed ? REMINDER_KINDS : DAY_REMINDER_KINDS}
-        anchors={ROUTINE_REMINDER_ANCHORS}
-        value={values.reminders}
-        onChange={(reminders) => onChange({ reminders })}
-        error={errors.reminders}
-      />
-      {(leaveAt || backAt) && (
-        <Text size="sm" c="dimmed">
-          {leaveAt && `Partir à ${leaveAt.replace(':', ' h ')}${values.estimate && single?.dueTime ? ` (trajet et ${values.estimate} min sur place)` : ''}`}
-          {leaveAt && backAt && ' · '}
-          {backAt && `retour vers ${backAt.replace(':', ' h ')}`}
-        </Text>
-      )}
-    </Stack>
+    <RemindersSelect
+      label="Rappels"
+      description={
+        timed
+          ? 'Pour chaque occurrence : avant le début ou la fin de chaque moment non coché, le jour de l’ouverture ou celui de l’échéance (« dès » / « jusqu’à », l’autre heure selon le temps à y consacrer), 24 h au plus ; ou à une heure de l’un de ces jours ou de quelques jours avant.'
+          : 'À une heure du jour de l’ouverture ou de l’échéance, ou de quelques jours avant : donnez une heure « dès » ou « jusqu’à » à ses moments (ou un créneau) pour des rappels avant eux.'
+      }
+      kinds={timed ? REMINDER_KINDS : DAY_REMINDER_KINDS}
+      anchors={ROUTINE_REMINDER_ANCHORS}
+      value={values.reminders}
+      onChange={(reminders) => onChange({ reminders })}
+      error={errors.reminders}
+    />
   );
 }
