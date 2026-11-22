@@ -469,19 +469,21 @@ export function EventForm({ context, occurrence, defaults, onDone, onDuplicated,
             )}
             {occurrence?.calledOff && (
               <Text size="sm" c="dimmed">
-                Il reste dans l’agenda, barré.{' '}
-                {occurrence.postponedTo.map((next) => (
-                  <span key={next.eventId}>
-                    Reporté au{' '}
-                    <Anchor component={Link} to={calendarPath(next.startDate)} onClick={onDone}>
-                      {fmt.dayLong(next.startDate)}
-                      {next.startTime && ` à ${next.startTime}`}
-                    </Anchor>
-                    .{' '}
-                  </span>
-                ))}
+                Il reste dans l’agenda, barré.
               </Text>
             )}
+            {/* Each postponement on its own line. */}
+            {occurrence?.calledOff &&
+              occurrence.postponedTo.map((next) => (
+                <Text key={next.eventId} size="sm" c="dimmed">
+                  Reporté au{' '}
+                  <Anchor component={Link} to={calendarPath(next.startDate)} onClick={onDone}>
+                    {fmt.dayLong(next.startDate)}
+                    {next.startTime && ` à ${next.startTime}`}
+                  </Anchor>
+                  .
+                </Text>
+              ))}
             {occurrence?.postponedFrom && (
               <Text size="sm" c="dimmed">
                 Report de l’évènement « {occurrence.postponedFrom.label} »

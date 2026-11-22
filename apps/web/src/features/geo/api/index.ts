@@ -149,6 +149,21 @@ export function zonesOfText(text: string, places: readonly Place[]): { root: Pla
 }
 
 /**
+ * Lines of a location as a cell shows it: a line per zone of a place (« Maison › Cuisine », « Maison › Salle de
+ * bain »), else its text whole; none without text.
+ * @param {string | null} text Text of the location.
+ * @param {readonly Place[]} places Places and zones.
+ * @returns {string[]} Lines.
+ */
+export function locationLines(text: string | null, places: readonly Place[]): string[] {
+  if (!text) return [];
+  const zones = zonesOfText(text, places);
+  if (!zones || zones.zoneIds.length < 2) return [text];
+  const byId = mapById(places);
+  return zones.zoneIds.map((id) => byId.get(id)?.path ?? text);
+}
+
+/**
  * Saved places of the workspace ("Maison", "Bureau"…).
  * @returns {UseQueryResult} Query state.
  */

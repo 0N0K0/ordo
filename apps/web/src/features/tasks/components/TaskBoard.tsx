@@ -54,6 +54,7 @@ import { countOf, plural } from '../../../lib/text';
 import { CommentCount } from '../../comments/components/CommentCount';
 import { isTaskOverdue } from '../lib/task-overdue';
 import { inheritedCells } from '../../../components/inheritance/inherited-cells';
+import { LocationText } from '../../geo/components/LocationText';
 import { TASK_CELL_FIELDS, taskParentName } from '../lib/task-inheritance';
 
 /** Periods of the events listed with the tasks. */
@@ -223,6 +224,7 @@ export function TaskBoard({ projectId, projectIds, createProjectId, header, empt
         trackedTime: <EventTimeCell event={event} />,
         startDate: <EventWhenCell event={event} side="start" />,
         endDate: <EventWhenCell event={event} side="end" />,
+        location: <LocationText location={event.location} />,
       };
     }
     const task = row.task;

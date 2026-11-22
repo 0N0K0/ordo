@@ -19,7 +19,8 @@ import { localDay } from '../../../lib/dates';
 import { FormActions } from '../../../components/dialogs/FormActions';
 import { PeriodField } from '../../../components/inputs/PeriodField';
 import { vatRateOptions } from '../lib/labels';
-import { BILLING_COLUMNS, workOf } from '../lib/accounting-columns';
+import { BILLING_COLUMNS } from '../lib/accounting-columns';
+import { StackedLines } from '../../../components/data-table/cells/StackedValues';
 import { unarchived } from '../../../lib/archive';
 import { FRENCH_NUMBER_FORMAT } from '../../../components/inputs/number-format';
 
@@ -124,14 +125,16 @@ export function TimeBillingForm({ projectId: initialProject, projects, excludeId
           }}
           cells={(entry) => ({
             day: <Text size="sm">{fmt.dayShort(entry.day)}</Text>,
+            // Its tasks one under the other, then its description.
             work: (
-              <Text size="sm" lineClamp={1}>
-                {workOf(entry) || (
-                  <Text span c="dimmed" fs="italic">
+              <StackedLines
+                lines={[...entry.tasks, ...(entry.description ? [entry.description] : [])]}
+                empty={
+                  <Text size="sm" c="dimmed" fs="italic">
                     Sans description
                   </Text>
-                )}
-              </Text>
+                }
+              />
             ),
             duration: (
               <Text size="sm" ff="monospace" style={{ whiteSpace: 'nowrap' }}>

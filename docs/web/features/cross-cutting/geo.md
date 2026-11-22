@@ -14,6 +14,7 @@ Tous les fichiers de `apps/web/src/features/geo/` : API des lieux, de la recherc
 | `rootPlace(place, byId)`       | Lieu à adresse qui contient une zone (lui-même pour un lieu).                                                                                                         | `AddressInput`                                      |
 | `zonesText(root, zones)`       | Texte « Maison › Cuisine, Salle de bain » (séparateur `LEVEL`, zones séparées par « , »).                                                                             | `AddressInput`                                      |
 | `zonesOfText(text, places)`    | Inverse : lieu et zones nommés par un texte, ou `null`.                                                                                                               | `AddressInput`                                      |
+| `locationLines(text, places)`  | Lignes d’un lieu tel qu’une cellule l’affiche : une par zone d’un lieu enregistré (« Maison › Cuisine », « Maison › Salle de bain »), sinon le texte entier ; aucune sans texte. | `useLocationLines`                                  |
 | `usePlaces()`                  | Requête des lieux (clé `['places']`).                                                                                                                                 | `AddressInput`, `PlacesManager`, `TravelCalculator` |
 | `useAddressSearch(text, near)` | Recherche d’adresses à partir de 3 caractères, attente de 350 ms annulée par la frappe suivante, résultats gardés 5 min et précédents affichés pendant le chargement. | `AddressInput`                                      |
 | `reverseAddress(point)`        | Adresse d’un point.                                                                                                                                                   | `pickedAddress`                                     |
@@ -43,9 +44,17 @@ Utilisé par `EventLocation`, `LocationCell`, `PlacesManager`, `TravelCalculator
 
 ### `components/LocationCell.tsx`
 
-`LocationCell({ item, label, readOnly?, count?, onSave })` : cellule « Lieu » d'un tableau (routines, tâches) : le lieu (« — » sans lieu), une bulle avec `AddressInput` sans portail ; enregistré par `useLocationDraft` (`onSave({ location, locationLat, locationLon })`, texte nettoyé, vide → `null`) au choix d'une adresse proposée, quand le texte est vidé, ou pour un texte libre à la fermeture de la bulle (en quittant la cellule), comme le panneau d'une tâche ; `count` (lignes que la modification touche) : sur une sélection de plusieurs lignes, le lieu choisi va à toutes, même si la ligne cliquée l'a déjà. Utilisé par `RoutineLocationCell` (routines) et `TaskLocationCell` (tâches).
+`LocationCell({ item, label, readOnly?, count?, onSave })` : cellule « Lieu » d'un tableau (routines, tâches) : le lieu (« — » sans lieu ; plusieurs zones d’un lieu l’une sous l’autre, `useLocationLines`, `EditablePopoverCell` `lines`), une bulle avec `AddressInput` sans portail ; enregistré par `useLocationDraft` (`onSave({ location, locationLat, locationLon })`, texte nettoyé, vide → `null`) au choix d'une adresse proposée, quand le texte est vidé, ou pour un texte libre à la fermeture de la bulle (en quittant la cellule), comme le panneau d'une tâche ; `count` (lignes que la modification touche) : sur une sélection de plusieurs lignes, le lieu choisi va à toutes, même si la ligne cliquée l'a déjà. Utilisé par `RoutineLocationCell` (routines) et `TaskLocationCell` (tâches).
+
+### `components/LocationText.tsx`
+
+`LocationText({ location, size?, c? })` : lieu d’une ligne en lecture seule, ses zones l’une sous l’autre (`useLocationLines`, `StackedLines`), sinon son texte. Utilisé par `tasks` (cellule « Lieu » d’un évènement listé avec les tâches, lieu sous le titre `EventLabelCell`).
 
 ## `hooks/`
+
+### `hooks/use-location-lines.ts`
+
+`useLocationLines(text)` → lignes du lieu (`locationLines` sur les lieux de `usePlaces`). Utilisé par `LocationCell`, `LocationText`.
 
 ### `hooks/use-location-draft.ts`
 

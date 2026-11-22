@@ -1,8 +1,7 @@
-import { Group, Stack, Text, UnstyledButton } from '@mantine/core';
+import { Group, Text, UnstyledButton } from '@mantine/core';
 import { useEffect, useRef, useState, type ReactNode } from 'react';
 import classes from './EditableCells.module.css';
-import { MAX_STACKED, stackedCount } from './stacked';
-import { StackedToggle } from './StackedValues';
+import { StackedValues } from './StackedValues';
 
 /** Value listed in a stacked cell. */
 export interface StackedItem {
@@ -33,9 +32,7 @@ interface StackedMultiCellProps {
  */
 export function StackedMultiCell({ label, readOnly = false, items, renderSelect }: StackedMultiCellProps) {
   const [editing, setEditing] = useState(false);
-  const [expanded, setExpanded] = useState(false);
   const container = useRef<HTMLDivElement>(null);
-  const shown = items.slice(0, stackedCount(items.length, expanded));
 
   // The select opens as soon as it shows (as if clicked).
   useEffect(() => {
@@ -48,31 +45,33 @@ export function StackedMultiCell({ label, readOnly = false, items, renderSelect 
   if (editing) return <div ref={container}>{renderSelect({ onDropdownClose: () => setEditing(false) })}</div>;
 
   return (
-    <Stack gap={2} align="flex-start">
-      <UnstyledButton
-        className={classes.root}
-        onClick={() => setEditing(true)}
-        disabled={readOnly}
-        aria-label={`${label} : ${items.map((item) => item.hint ?? item.label).join(', ') || 'aucun'}`}
-        style={{ width: '100%' }}
-      >
-        <Stack gap={2}>
-          {items.length === 0 && (
-            <Text size="xs" c="dimmed">
-              {readOnly ? '' : '—'}
+    <StackedValues
+      wrap={(values) => (
+        <UnstyledButton
+          className={classes.root}
+          onClick={() => setEditing(true)}
+          disabled={readOnly}
+          aria-label={`${label} : ${items.map((item) => item.hint ?? item.label).join(', ') || 'aucun'}`}
+          style={{ width: '100%' }}
+        >
+          {values}
+        </UnstyledButton>
+      )}
+    >
+      {items.length === 0 ? (
+        <Text key="none" size="xs" c="dimmed">
+          {readOnly ? '' : '—'}
+        </Text>
+      ) : (
+        items.map((item) => (
+          <Group key={item.id} gap={6} wrap="nowrap" title={item.hint}>
+            {item.icon}
+            <Text size="xs" truncate>
+              {item.label}
             </Text>
-          )}
-          {shown.map((item) => (
-            <Group key={item.id} gap={6} wrap="nowrap" title={item.hint}>
-              {item.icon}
-              <Text size="xs" truncate>
-                {item.label}
-              </Text>
-            </Group>
-          ))}
-        </Stack>
-      </UnstyledButton>
-      {items.length > MAX_STACKED && <StackedToggle hidden={items.length - shown.length} expanded={expanded} onToggle={() => setExpanded((value) => !value)} />}
-    </Stack>
+          </Group>
+        ))
+      )}
+    </StackedValues>
   );
 }

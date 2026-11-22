@@ -148,7 +148,7 @@ Pour un récurrent ouvert sur « Celle-ci et les suivantes » ou « Toutes les o
 - « Annuler l’évènement » : reste barré dans l’agenda ; « Rétablir » l’inverse. Pour un récurrent : les occurrences choisies à l’ouverture du panneau.
 - « Reporter » : panneau « Reporter l’évènement » avec « Libellé » (par défaut « Report de l’évènement « X » », le nom coupé pour tenir en 250 caractères, `fitName`), « Nouvelle date » (un seul champ, début et fin avec leurs heures ; le lendemain par défaut ; « L’évènement garde sa durée ; changez la fin pour la modifier. ») ; la date initiale est annulée et un nouvel évènement unique, lié, est créé ; les commentaires et les temps de l’occurrence passent au report. Toast « Évènement reporté. ».
 - Menu « … » : « Dupliquer », « Annuler l’évènement » / « Rétablir », « Reporter », « Archiver » / « Restaurer » (toute la série), « Supprimer » ; « Lancer » ses minuteurs enregistrés.
-- Mentions de l’en-tête : badges « Annulé », « Reporté » ; lignes « Il reste dans l’agenda, barré. Reporté au … » et « Report de l’évènement « X » du … » avec lien vers ce jour.
+- Mentions de l’en-tête : badges « Annulé », « Reporté » ; lignes « Il reste dans l’agenda, barré. », puis « Reporté au … », une ligne par report, et « Report de l’évènement « X » du … » avec lien vers ce jour.
 - Archivé (ou calendrier archivé) : panneau en lecture seule, badge « Archivé » et « Restaurez-le pour le modifier. » (« Calendrier archivé : restaurez-le pour modifier l’évènement. ») ; son menu ne garde que « Restaurer » (si le calendrier n’est pas archivé) et « Supprimer ».
 
 Toasts : « Évènement créé. », « Évènement supprimé. », « Évènement annulé. », « Évènement rétabli. ».

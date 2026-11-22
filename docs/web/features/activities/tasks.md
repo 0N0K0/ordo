@@ -157,7 +157,7 @@ Cellules modifiables en place des tâches (toutes en lecture seule sur une tâch
 | `TaskLinksCell({ task, context, kind })`    | « Bloque » ou « Relative à ».                                                                                                           |
 | `ParentCell({ task, context })`             | Tâche parente (pas elle-même ni ses sous-tâches).                                                                                       |
 | `TaskProjectCell({ task, context })`        | Projet : transfert, confirmation si sortie d’arborescence avec liens.                                                                   |
-| `TaskHoursCell({ task })`                   | « Horaires » : `taskHoursText` (« N’importe quand » sans horaires) ; un clic ouvre `TaskHoursModal`, appliqué sur la sélection (`useCellEdit`, enregistré tâche par tâche) ; lecture seule sur une tâche archivée. |
+| `TaskHoursCell({ task })`                   | « Horaires » : un cas par ligne (`taskHoursLines`, `StackedLines` ; « N’importe quand » sans horaires) ; un clic ouvre `TaskHoursModal`, appliqué sur la sélection (`useCellEdit`, enregistré tâche par tâche) ; lecture seule sur une tâche archivée. |
 | `TaskLocationCell({ task })`                | « Lieu » : `LocationCell` (features/geo) sur la sélection (`useCellEdit`, enregistré tâche par tâche).                                  |
 
 Internes : `fieldLabel` (libellé accessible), `LABEL_FIELDS`, `LABEL_NAMES`, `DATE_LABELS`, `DATE_RANGES`.
@@ -191,7 +191,7 @@ Cellules des lignes d’évènements du tableau des tâches (`EventOccurrence`) 
 
 | Nom                                   | Rôle                                                                                                                                                                                          |
 | ------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `EventLabelCell({ event, context })`  | Icône d’agenda, titre (ouvre l’évènement ; barré s’il est annulé ou reporté), lieu.                                                                                                           |
+| `EventLabelCell({ event, context })`  | Icône d’agenda, titre (ouvre l’évènement ; barré s’il est annulé ou reporté ; infobulle « Annulé », « Reporté au … » ou les jours du report l’un sous l’autre), lieu (`LocationText`).                                                                                                           |
 | `EventPeopleCell({ event, context })` | Personnes de l’évènement (multi-sélection, enregistrée à la fermeture).                                                                                                                       |
 | `EventStatusCell({ event })`          | État en lecture seule (`eventState`, `EVENT_STATES`).                                                                                                                                         |
 | `EventTimeCell({ event })`            | Temps passé sur l’évènement.                                                                                                                                                                  |
@@ -371,8 +371,8 @@ Internes : `TaskColumnExtras`, `STATUS_CATEGORY_ORDER`, `STATUS_CATEGORY_LABELS`
 
 ### `lib/task-hours-text.ts`
 
-- `taskHoursLines(hours, start)` : « Horaires » d’une tâche en mots, une ligne par cas (`describeScheduleCase`). Utilisé par `TaskHoursField`.
-- `taskHoursText(hours, start)` : les mêmes en un texte (cas séparés par « ; »), vide sans horaires : cellule `TaskHoursCell`, texte, tri, filtre et export de la colonne « Horaires » (`taskCell`, `sortValue`).
+- `taskHoursLines(hours, start)` : « Horaires » d’une tâche en mots, une ligne par cas (`describeScheduleCase`). Utilisé par `TaskHoursField`, `TaskHoursCell`.
+- `taskHoursText(hours, start)` : les mêmes en un texte (cas séparés par « ; »), vide sans horaires : texte, tri, filtre et export de la colonne « Horaires » (`taskCell`, `sortValue`) ; la cellule montre un cas par ligne.
 
 ### `lib/task-rows.ts`
 

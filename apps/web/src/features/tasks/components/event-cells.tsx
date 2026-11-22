@@ -1,4 +1,4 @@
-import { Badge, Box, Group, Text, Tooltip, UnstyledButton } from '@mantine/core';
+import { Badge, Box, Group, Stack, Text, Tooltip, UnstyledButton } from '@mantine/core';
 import { DateField } from '../../../components/inputs/DateField';
 import { DateTimeField } from '../../../components/inputs/DateTimeField';
 import { addDays, daysBetween, formatDuration } from '@ordo/shared';
@@ -23,10 +23,28 @@ import * as fmt from '../../../lib/format';
 import { AssigneesCell } from './context-cells';
 import { BeneficiariesCell } from '../../beneficiaries/components/BeneficiariesSelect';
 import { beneficiariesDiff } from '../../beneficiaries/lib/beneficiaries-diff';
+import { LocationText } from '../../geo/components/LocationText';
+
+/**
+ * Days an event is postponed to, in its tooltip: « Reporté au » a day, or the days one under the other.
+ * @param {{ days: string[] }} props Days (YYYY-MM-DD).
+ * @returns {JSX.Element} Text.
+ */
+function PostponedTo({ days }: { days: string[] }) {
+  if (days.length === 1) return <>Reporté au {fmt.day(days[0]!)}</>;
+  return (
+    <Stack gap={0}>
+      <span>Reporté aux :</span>
+      {days.map((day) => (
+        <span key={day}>{fmt.day(day)}</span>
+      ))}
+    </Stack>
+  );
+}
 
 /**
  * Title of an event row: calendar icon, title (opens the event; struck through when cancelled or postponed) and
- * place.
+ * place (its zones one under the other).
  * @param {{ event: EventOccurrence, context: TaskContext }} props Occurrence and task context.
  * @returns {JSX.Element} Cell.
  */
@@ -35,7 +53,7 @@ export function EventLabelCell({ event, context }: { event: EventOccurrence; con
   // Cancelled or postponed: struck through, like in the calendar.
   const postponed = event.postponedTo.length > 0;
   const struck = event.calledOff || postponed;
-  const reason = postponed ? `Reporté au ${event.postponedTo.map((item) => fmt.day(item.startDate)).join(', ')}` : 'Annulé';
+  const reason = postponed ? <PostponedTo days={event.postponedTo.map((item) => item.startDate)} /> : 'Annulé';
   return (
     <Group gap={6} wrap="nowrap" style={{ minWidth: 0 }}>
       <Tooltip label="Évènement" withArrow>
@@ -56,9 +74,9 @@ export function EventLabelCell({ event, context }: { event: EventOccurrence; con
         </UnstyledButton>
       </Tooltip>
       {event.location && (
-        <Text size="xs" c="dimmed" truncate style={{ flex: 'none', maxWidth: '40%' }}>
-          {event.location}
-        </Text>
+        <Box style={{ flex: 'none', maxWidth: '40%', minWidth: 0 }}>
+          <LocationText location={event.location} size="xs" c="dimmed" />
+        </Box>
       )}
     </Group>
   );

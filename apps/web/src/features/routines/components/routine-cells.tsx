@@ -1,6 +1,7 @@
 import { useSlotChoices } from '../../calendar/hooks/use-slot-sources';
 import { ItemAvatar } from '../../../components/items/ItemAvatar';
-import { Text, UnstyledButton } from '@mantine/core';
+import { Box, Text, UnstyledButton } from '@mantine/core';
+import { StackedLines } from '../../../components/data-table/cells/StackedValues';
 import { mapById, readSlotCondition, type RoutineCase, routineSchema } from '@ordo/shared';
 import { describeSlotCondition } from '../../calendar/lib/slot-condition-text';
 import { useState, type ReactNode } from 'react';
@@ -206,7 +207,7 @@ export function ProjectCell({ routine, readOnly = false, context }: CellProps & 
 }
 
 /**
- * Repetition of a routine in words, shown under its title: its rule, its cases, or the days of its calendar schedule.
+ * Repetition of a routine in words, shown under its title: its rule, or its cases one under the other.
  * @param {{ routine: Routine }} props Component props.
  * @returns {JSX.Element} Text.
  */
@@ -214,15 +215,15 @@ export function RepetitionText({ routine }: { routine: Routine }) {
   const { names } = useSlotChoices();
   const cases = routine.cases as RoutineCase[];
   const rule = ruleOf(routine);
-  const text = cases.length
-    ? cases.map((item) => describeRoutineCase(item, routine.startDate)).join(' ; ')
+  const lines = cases.length
+    ? cases.map((item) => describeRoutineCase(item, routine.startDate))
     : rule
-      ? [describeRecurrence(rule, routine.startDate), describeSlotCondition(readSlotCondition(routine.slotCondition), names)].filter(Boolean).join(' · ')
-      : '';
+      ? [[describeRecurrence(rule, routine.startDate), describeSlotCondition(readSlotCondition(routine.slotCondition), names)].filter(Boolean).join(' · ')]
+      : [];
   return (
-    <Text size="xs" c="dimmed" lineClamp={1} title={text} px={6}>
-      {text}
-    </Text>
+    <Box px={6} style={{ minWidth: 0 }}>
+      <StackedLines lines={lines} size="xs" c="dimmed" />
+    </Box>
   );
 }
 

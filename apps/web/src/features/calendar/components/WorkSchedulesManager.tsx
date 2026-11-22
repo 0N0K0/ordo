@@ -4,6 +4,7 @@ import { ActionButton } from '../../../components/actions/ActionButton';
 import { ItemAvatar } from '../../../components/items/ItemAvatar';
 import { EmptyState } from '../../../components/feedback/EmptyState';
 import { Badge, Fieldset, Group, Stack, Text, TextInput, Tooltip } from '@mantine/core';
+import { StackedLines } from '../../../components/data-table/cells/StackedValues';
 import { DEFAULT_SCHEDULE_KIND_LABEL, readReminders, readScheduleCases, readScheduleExceptions, type ReminderFields, type ScheduleCase, type ScheduleException, type WorkScheduleInput, wholeDaysCase, workScheduleSchema } from '@ordo/shared';
 import { CalendarStarIcon, ClockIcon, PencilSimpleIcon, PlusIcon } from '@phosphor-icons/react';
 import { RemindersSelect } from '../../../components/inputs/RemindersSelect';
@@ -185,14 +186,10 @@ function ScheduleForm({ schedule, ephemeris, onDone }: { schedule?: WorkSchedule
 /**
  * Hours of a schedule, one line per case.
  * @param {{ schedule: { cases: unknown, startDate: string } }} props Component props.
- * @returns {JSX.Element[]} Lines.
+ * @returns {JSX.Element} Lines.
  */
 function ScheduleHours({ schedule }: { schedule: { cases: unknown; startDate: string } }) {
-  return readScheduleCases(schedule.cases, schedule.startDate).map((item, index) => (
-    <Text key={index} size="xs">
-      {describeScheduleCase(item, schedule.startDate)}
-    </Text>
-  ));
+  return <StackedLines size="xs" lines={readScheduleCases(schedule.cases, schedule.startDate).map((item) => describeScheduleCase(item, schedule.startDate))} />;
 }
 
 /**
@@ -390,11 +387,18 @@ export function WorkSchedulesManager({ ephemeris = false }: { ephemeris?: boolea
                       <Tooltip
                         multiline
                         w={360}
+                        // Each exception, then its cases one under the other.
                         label={exceptions.map((exception, index) => (
-                          <Text key={index} size="xs">
-                            {exception.label || 'Exception'} {exceptionPeriod(exception)} :{' '}
-                            {exception.cases.length ? exception.cases.map((item) => describeScheduleCase(item, exception.from)).join(' ; ') : 'pause'}
-                          </Text>
+                          <Stack key={index} gap={0}>
+                            <Text size="xs">
+                              {exception.label || 'Exception'} {exceptionPeriod(exception)} :{exception.cases.length ? '' : ' pause'}
+                            </Text>
+                            {exception.cases.map((item, caseIndex) => (
+                              <Text key={caseIndex} size="xs" pl="sm">
+                                {describeScheduleCase(item, exception.from)}
+                              </Text>
+                            ))}
+                          </Stack>
                         ))}
                       >
                         <Text size="xs" c="dimmed" style={{ cursor: 'help' }} tabIndex={0}>
