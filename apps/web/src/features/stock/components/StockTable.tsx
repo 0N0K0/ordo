@@ -6,7 +6,7 @@ import { useState } from 'react';
 import { ActionButton } from '../../../components/actions/ActionButton';
 import { DataTable } from '../../../components/data-table/table/DataTable';
 import { applyDiff, bulkCellLabels, bulkSaver } from '../../../components/data-table/selection/bulk-edit';
-import { withArchived, type DataColumn } from '../../../components/data-table/table/data-table';
+import { WARNING_YES_NEUTRAL_NO_ICONS, withArchived, type DataColumn } from '../../../components/data-table/table/data-table';
 import { EditableCheck, EditableMultiSelect, EditableSelect, EditableText, EditableMarkdown } from '../../../components/data-table/cells/EditableCells';
 import { RowActions } from '../../../components/data-table/cells/RowActions';
 import { StackedValues } from '../../../components/data-table/cells/StackedValues';
@@ -38,6 +38,7 @@ import { ArchivedBadge } from '../../../components/feedback/ArchivedBadge';
 import { categoryColumn, consumableColumn, noteColumn, quantityColumn, unitColumn } from '../../shopping/lib/product-columns';
 import { CategoryCell, UnitCell } from '../../shopping/components/shopping-cells';
 import { FoldHeading } from '../../../components/actions/FoldHeading';
+import { booleanColumn } from '../../../components/data-table/table/boolean-column';
 
 type Change = Partial<Parameters<typeof stockItemInput>[1]>;
 
@@ -123,17 +124,7 @@ export function StockTable() {
       },
       groupable: true,
     },
-    {
-      id: 'perishable',
-      label: 'Périssable',
-      size: 110,
-      bulk: true,
-      hiddenByDefault: true,
-      sortValue: (item) => (item.perishable ? 1 : 0),
-      text: (item) => (item.perishable ? 'Périssable' : ''),
-      filter: { kind: 'boolean', value: (item) => item.perishable },
-      groupable: true,
-    },
+    booleanColumn<StockItem>({ id: 'perishable', label: 'Périssable', size: 110, bulk: true, hiddenByDefault: true, groupable: true, groupLabels: { yes: 'Périssable', no: 'Durable' }, icons: WARNING_YES_NEUTRAL_NO_ICONS, value: (item) => item.perishable }),
     consumableColumn<StockItem>({ bulk: false, hiddenByDefault: true }),
     {
       id: 'reference',

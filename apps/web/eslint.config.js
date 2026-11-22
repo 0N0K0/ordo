@@ -70,7 +70,12 @@ const RESTRICTED_PATHS = [
   {
     name: '@ordo/shared',
     importNames: ['RINGTONES'],
-    message: 'Utiliser RingtoneSelect (components/inputs/RingtoneSelect) : la sonnerie d’un rappel, d’un temps mort ou d’un minuteur, « Celle des réglages » en tête.',
+    message: 'Utiliser RingtoneSelect (components/inputs/RingtoneSelect) : la sonnerie d’un rappel, d’un temps mort, d’un minuteur ou des réglages, avec « Écouter ».',
+  },
+  {
+    name: '../../../lib/alarm-sound',
+    importNames: ['previewRingtone'],
+    message: 'Utiliser RingtoneSelect (components/inputs/RingtoneSelect) : « Écouter » est le bouton de chaque choix de sonnerie.',
   },
 ];
 
@@ -131,6 +136,12 @@ export default defineConfig([
         {
           selector: "CallExpression[callee.name='sortRows'] CallExpression[callee.name='filterRows']",
           message: 'Utiliser viewRows (components/data-table/table/table-engine) ou useViewRows : une vue appliquée aux lignes (recherche, filtre, tris, groupes).',
+        },
+        // A yes / no column: one brick, its icons in the cells, « Oui » / « Non » in the export.
+        {
+          selector:
+            "Property[key.name='text'] ConditionalExpression > Literal[value=/^(Oui|Non)$/], ObjectExpression:has(Property[key.name='filter'] Property[key.name='kind'][value.value='boolean']):has(Property[key.name='text'] ConditionalExpression[consequent.type='Literal'][alternate.value=''])",
+          message: 'Utiliser booleanColumn({ id, label, size, value }) (components/data-table/table/boolean-column) : une colonne oui / non, ses icônes dans les cellules, « Oui » / « Non » à l’export.',
         },
         // A markdown note or description typed in a cell: the shared markdown editor.
         {
@@ -1237,13 +1248,9 @@ export default defineConfig([
     rules: { 'no-restricted-imports': ['error', { paths: RESTRICTED_PATHS_ACTIONS_MENU, patterns: [NO_FEATURES] }] },
   },
   {
-    // The one select of a ringtone; the settings choose the ringtone of everything (no « Celle des réglages »).
+    // The one select of a ringtone (the settings too, without « Celle des réglages »), with « Écouter ».
     files: ['src/components/inputs/RingtoneSelect.tsx'],
     rules: { 'no-restricted-imports': ['error', { paths: RESTRICTED_PATHS.filter((path) => !path.importNames.includes('RINGTONES')), patterns: [NO_FEATURES] }] },
-  },
-  {
-    files: ['src/features/account/components/RingSettingsForm.tsx'],
-    rules: { 'no-restricted-imports': ['error', { paths: RESTRICTED_PATHS.filter((path) => !path.importNames.includes('RINGTONES')) }] },
   },
   {
     // The one editor of the slot conditions of tasks and routines.

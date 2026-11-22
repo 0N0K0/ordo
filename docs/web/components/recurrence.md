@@ -6,7 +6,7 @@ L'éditeur commun des répétitions (évènements, créneaux, routines, alarmes,
 
 ### `RepetitionField`
 
-Répétition de ce qu'affiche un panneau : son résumé (une ligne par élément décrit ; rien : « Ne se répète pas ») et un bouton « Modifier » (`secondary`, `xs`) qui ouvre tous les réglages dans une modale, sur un brouillon appliqué par « Appliquer » et abandonné par « Annuler ». Le même champ pour les évènements, créneaux, routines, alarmes, trésorerie et facturation. Props : `value`, `onChange`, `describe(value)` (lignes), `editor(draft, setDraft)`, `valid(draft)`, `label` (défaut « Répétition »), `description`, `error`, `required`, `editable` (défaut vrai).
+Répétition de ce qu'affiche un panneau : son résumé (une ligne par élément décrit ; rien : `emptyText`, « Ne se répète pas » par défaut) et un bouton « Modifier » (`secondary`, `xs`) qui ouvre tous les réglages dans une modale, sur un brouillon appliqué par « Appliquer » et abandonné par « Annuler ». Le même champ pour les évènements, créneaux, horaires des tâches (`TaskHoursField`, « N’importe quand » sans horaires), routines, alarmes, trésorerie et facturation. Props : `value`, `onChange`, `describe(value)` (lignes), `editor(draft, setDraft)`, `valid(draft)`, `label` (défaut « Répétition »), `description`, `error`, `required`, `editable` (défaut vrai), `emptyText`.
 
 ### `RepetitionModal`
 
@@ -31,11 +31,13 @@ Tous les réglages d'une répétition, selon ce que l'élément permet. Généri
 - `durations` : façons de durer plus d'un jour (`DurationUnit[]`) ;
 - `times` (`RepetitionTimes<T>`) : éditeur et résumé des horaires d'un cas ;
 - `modes` : autres modes (ex. une routine qui suit les créneaux de l'agenda), chacun avec `value`, `label`, `render` ;
-- `footer` : réglages sous tous les modes.
+- `footer` : réglages sous tous les modes ;
+- `caseStart` (`CaseStart<T>` : `needed(item)`, `message`) : jour d’où compte le rythme demandé aux cas qui en ont besoin (horaires d’une tâche) : champ « À partir du » obligatoire (« À choisir »), son `anchor`, `message` en erreur sous lui, une fois le champ quitté (sortie ou fermeture du calendrier), tant qu’il est vide ; la règle se règle alors depuis ce jour. Sans : les rythmes comptent de `start`.
 
 Comportement : choix du mode en `SegmentedControl` (« Une règle », « Plusieurs cas », modes propres) quand il y en a plusieurs ; passer en cas garde la règle comme premier cas ; revenir à une règle garde le premier cas (sans période). En mode cas : cartes `CaseCard` réordonnables par glisser-déposer (`SortableArea`), pliables et retirables quand il y en a plusieurs ; texte « Chaque cas a sa période, ses jours et ses horaires ; un jour pris par plusieurs cas suit le premier (glissez-les pour les réordonner). » ; « Ajouter un cas » (nouveau cas : toutes les semaines depuis le premier jour, déplié). Composant interne `CaseFields` : période « Du » / « Au » (cas seulement, « Dès le début » / « Jusqu'à la fin », changer le début remet l'ancre à zéro), règle, durée, horaires.
 
 - `RepetitionTimes<T>` (interface) : `render(times, onChange, index, rule)`, `describe(times, rule)`, `empty()`.
+- `CaseStart<T>` (interface) : `needed(item)`, `message`.
 - `RepetitionModeValue` (type) : `'RULE' | 'CASES' | string`.
 
 ### `RuleEditor`

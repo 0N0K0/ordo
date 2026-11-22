@@ -1,4 +1,4 @@
-import { groupBy, readSlotCondition, taskFieldsGiven, type TaskInheritableField } from '@ordo/shared';
+import { groupBy, readSlotCondition, readTaskHours, taskFieldsGiven, type TaskInheritableField } from '@ordo/shared';
 import { notifySuccess, notifyFailure } from '../../../lib/notify';
 import { originOf } from '../../../components/inheritance/inheritance';
 import { useBulkTaskMutations, useSetTasksClosed, useUpdateTask, type BulkChanges, type Task, type TaskInputValues } from '../api';
@@ -34,6 +34,8 @@ function restoredField(task: Task, field: TaskInheritableField): Omit<TaskInputV
       return { beneficiaryIds: task.beneficiaryIds, beneficiaryRelationIds: task.beneficiaryRelationIds };
     case 'SLOT_CONDITION':
       return { slotCondition: readSlotCondition(task.slotCondition) };
+    case 'HOURS':
+      return { hours: readTaskHours(task.hours) };
     case 'MIN_DATE':
       return { minDate: task.minDate };
     case 'DEADLINE':

@@ -1,5 +1,7 @@
 import { commentTotal } from '../../comments/lib/comment-column';
-import type { TaskColumn } from '@ordo/shared';
+import { readTaskHours, type TaskColumn } from '@ordo/shared';
+import { localToday } from '../../../lib/dates';
+import { taskHoursText } from './task-hours-text';
 
 /** What a task is sorted by: a column, or its number. */
 type TaskSortKey = TaskColumn | 'number';
@@ -39,6 +41,8 @@ export function sortValue(task: Task, column: TaskSortKey, context: TaskContext)
       return task.effectiveMinDate || null;
     case 'location':
       return task.location || null;
+    case 'hours':
+      return taskHoursText(readTaskHours(task.hours), localToday()) || null;
     case 'subtasks':
       return context.childrenOf(task.id).length || null;
     case 'progress': {

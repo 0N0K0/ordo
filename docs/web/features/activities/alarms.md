@@ -28,7 +28,7 @@ Fragments `AlarmFields`, `ReminderFields` (un rappel : `before`, `at`, `days`, `
 
 ### `pages/AlarmsPage.tsx`
 
-`AlarmsPage()` : page `/alarms` (route dans `app/router.tsx`, `PAGES.alarms`). `PageHeader` avec « Nouvelle alarme » (`useAlarmForm`), encart d’autorisation des notifications (état `permission` : `Notification.permission`, `Notification.requestPermission()`), section « Minuteurs » (`CountdownList`), puis section « Alarmes » : `ListSkeleton`, `EmptyState` « Aucune alarme. », sinon `AlarmList`.
+`AlarmsPage()` : page `/alarms` (route dans `app/router.tsx`, `PAGES.alarms`). `PageHeader` avec « Nouvelle alarme » (`useAlarmForm`), encart d’autorisation des notifications (état `permission` : `Notification.permission`, `Notification.requestPermission()`), section « Minuteurs » (`CountdownList`), puis section « Alarmes » : `ListSkeleton`, `EmptyState` « Aucune alarme. », sinon `AlarmList` ; réglages de la page (`PageSettings` « Paramètres des alarmes ») : `SavedCountdownsSettings` (voir [minuteurs](countdowns.md)).
 
 ### `pages/AlarmsPage.module.css`
 
@@ -105,16 +105,6 @@ Rappels des éphémérides et des anniversaires.
 | `alarmTaskLabel(task, projectLabel?)`, `alarmTarget(alarm, taskOf, projectOf)` | Réexportés de `@ordo/shared` (`dates/reminder-rings.ts` : aussi les sonneries poussées par le serveur) : « Projet #12 Libellé » ; lien de l’alarme, sa tâche, sinon son projet, ou null | `AlarmList`, `AlarmCenter`, `ElsewhereNotifier` |
 | `nextRings(alarms, now)`                | Alarmes qui sonneront encore, avec leur prochaine sonnerie, la plus proche d’abord                                            | `ChronoCard`, `WorkCards` (accueil)             |
 
-
-### `lib/alarm-sound.ts`
-
-La banque de sonneries, générées en Web Audio, sans fichier.
-
-- `unlockAudioOnGesture()` : crée/reprend l’`AudioContext` au premier `pointerdown` ou `keydown` ; renvoie le nettoyage. Utilisé par `AlarmCenter`.
-- `startRingtone(id, { loop, durationMs })` : joue une sonnerie en boucle (toutes les `period` secondes) ou une fois, pendant la durée ; renvoie l’arrêt. Silencieuse tant que l’audio n’est pas débloqué. Seul `startRinging` l’appelle (garde eslint).
-- `playRingtone(id)` : une fois (nouveau mail, `MailWatcher`, le carillon).
-- `previewRingtone(id)` : « Écouter », depuis le clic (crée l’audio au besoin). Utilisé par `RingSettingsForm`.
-- Internes : `resumedAudio()`, `Note`, `arpeggio(...)`, `RINGTONE_NOTES` (notes et période de chaque sonnerie : carillon 880 / 1 175 / 1 568 Hz, bip carré, marimba triangle, cloche avec harmoniques, réveil alterné, harpe en arpège), `playNotes(context, destination, id)` ; variable de module `audio`.
 
 ### `lib/ringing.tsx`
 

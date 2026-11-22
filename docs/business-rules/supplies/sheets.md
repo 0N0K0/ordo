@@ -54,7 +54,8 @@ Source : `createSheet`, `updateSheet`, `duplicateSheet`, `deleteSheet`.
 
 - Créée en dernière de la liste ; ses éléments s'ajoutent ensuite un par un.
 - Fiche archivée : lecture seule (« Fiche » archivée refusée à la modification, à l'ajout, au changement et au retrait d'éléments, à la duplication, à l'usage). L'archivage passe par la mutation commune `setArchived` (type `SHEET`) : voir [Archivage](../cross-cutting/archiving.md).
-- Duplication : « … (copie) » (coupé pour tenir dans 250 caractères, `copyName`), mêmes note, projet, catégories, éléments (tous leurs champs, bénéficiaires compris, même ordre), en dernière de la liste ; les commentaires ne sont pas copiés.
+- Minuteurs enregistrés (`savedCountdownIds`) : ceux de l’espace que la fiche lance (20 au plus), changés par `setSavedCountdownLinks` (pas par `updateSheet`), refusé pour une fiche archivée ; voir [Alarmes](../activities/alarms.md#minuteurs-enregistrés).
+- Duplication : « … (copie) » (coupé pour tenir dans 250 caractères, `copyName`), mêmes note, projet, catégories, minuteurs enregistrés, éléments (tous leurs champs, bénéficiaires compris, même ordre), en dernière de la liste ; les commentaires ne sont pas copiés.
 - Suppression : ses éléments (et leurs commentaires) et ses rattachements aux routines, évènements et tâches partent avec elle ; les listes d'achats et listes à cocher déjà faites gardent leurs éléments (leurs sources gardent le libellé de la fiche).
 - Requête `sheets(projectId?)` : toutes, ou celles d'un projet, dans l'ordre ; `usedBy` = nombre de rattachements.
 

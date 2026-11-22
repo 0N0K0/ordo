@@ -39,6 +39,7 @@ import { ShowArchivedSwitch } from '../../../components/filters/ShowArchivedSwit
 import { ArchivedBadge } from '../../../components/feedback/ArchivedBadge';
 import { itemChoices } from '../../../components/items/item-look';
 import { ShoppingProgressBadge } from '../components/ShoppingProgressBadge';
+import { booleanColumn } from '../../../components/data-table/table/boolean-column';
 
 /** Views made the first time: the lists in progress, the closed ones. */
 const LIST_VIEWS: FirstTableView[] = [
@@ -179,15 +180,7 @@ function listColumns(env: ListEnv): DataColumn<ShoppingList>[] {
       text: (list) => (list.closedAt ? fmt.day(list.closedAt) : ''),
       filter: { kind: 'date', value: (list) => (list.closedAt ? localDay(list.closedAt) : null) },
     },
-    {
-      id: 'paid',
-      label: 'Payée',
-      size: 90,
-      hiddenByDefault: true,
-      sortValue: (list) => (list.entryId ? 1 : 0),
-      text: (list) => (list.entryId ? 'Oui' : ''),
-      filter: { kind: 'boolean', value: (list) => list.entryId !== null },
-    },
+    booleanColumn<ShoppingList>({ id: 'paid', label: 'Payée', size: 90, hiddenByDefault: true, groupLabels: { yes: 'Payée', no: 'À payer' }, value: (list) => list.entryId !== null }),
     {
       id: 'categories',
       label: 'Catégories',

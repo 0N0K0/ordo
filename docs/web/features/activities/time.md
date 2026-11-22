@@ -27,7 +27,7 @@ Documents GraphQL du temps (fragment `TimeEntryFields` avec `routines { id label
 | `useLostOnDelete(query)`               | La même chose en requête React Query. Utilisé par `LostOnDeleteRisk`. |
 | `useTimeMutations()`                   | `{ start, setPaused({ id, paused }), stop(id), stopAll, create, update, remove }` ; toutes invalident `['time']` et `['tasks']` (temps passé des tâches). `start` avertit ensuite si le chrono est hors des créneaux (`warnOutOfSlots`). |
 
-Internes : `useTimeMutation` (mutation invalidante), `warnOutOfSlots(queryClient, slotRules, input)` (toast « Hors des moments prévus » : tâches hors des heures que leur condition de créneaux permet, ou assignés d’une tâche ou d’une routine pris par un autre évènement que ceux du chrono ; lit les routines et tâches déjà en cache).
+Internes : `useTimeMutation` (mutation invalidante), `warnOutOfSlots(queryClient, slotRules, input)` (toast « Hors des moments prévus » : tâches hors des heures que leur condition de créneaux ou leurs horaires permettent — ceux qu’elles suivent, `taskRow` —, « Libellé : hors de ses horaires », ou assignés d’une tâche ou d’une routine pris par un autre évènement que ceux du chrono ; lit les routines et tâches déjà en cache).
 
 ## pages/
 

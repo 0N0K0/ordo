@@ -148,6 +148,15 @@ export const recurrenceSchema = z
   .refine((rule) => rule.until === null || rule.count === null, 'Choisissez une date de fin ou un nombre d’occurrences.');
 export type Recurrence = z.infer<typeof recurrenceSchema>;
 
+/**
+ * Whether the occurrences of a rule depend on the day it counts from: every n days / weeks / months / years (n > 1,
+ * not the even or odd weeks), or a number of occurrences.
+ * @param {Recurrence | null} rule Rule (none: a single occurrence).
+ * @returns {boolean} It counts from a day.
+ */
+export const ruleCountsFromDay = (rule: Recurrence | null): boolean =>
+  Boolean(rule && ((rule.interval > 1 && !(rule.frequency === 'WEEKLY' && rule.weekParity)) || rule.count !== null));
+
 /** Default rule for a first date: every week on its weekday. */
 export const DEFAULT_RECURRENCE: Recurrence = {
   frequency: 'WEEKLY',

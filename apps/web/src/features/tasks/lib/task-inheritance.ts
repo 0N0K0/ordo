@@ -15,6 +15,7 @@ export const TASK_FIELD_LABELS: Record<TaskInheritableField, string> = {
   MIN_DATE: 'Ouverture',
   DEADLINE: 'Échéance',
   SLOT_CONDITION: 'Créneaux',
+  HOURS: 'Horaires',
   LOCATION: 'Lieu',
 };
 
@@ -35,6 +36,7 @@ export const TASK_CELL_FIELDS: Partial<Record<string, TaskInheritableField>> = {
   minDate: 'MIN_DATE',
   deadline: 'DEADLINE',
   slots: 'SLOT_CONDITION',
+  hours: 'HOURS',
   location: 'LOCATION',
 };
 

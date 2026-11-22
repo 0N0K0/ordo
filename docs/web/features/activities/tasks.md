@@ -47,7 +47,7 @@ Hooks et constantes exportés :
 | `useTaskLabelMutations(kind)` | `{ create, update, remove }` d’une liste de paramètres (statut, priorité, type, étiquette).                                                     |
 | `useTaskColumnDefaults()`     | Colonnes des nouvelles vues de l’espace (`readTaskColumnDefaults`).                                                                             |
 | `useSetTaskColumnDefaults()`  | Les change (`null` : celles de l’app) ; mise à jour optimiste du cache.                                                                         |
-| `useDoableTaskIds(enabled)`, `doableTasksKey` | Ensemble des tâches faisables maintenant ; demandé seulement si `enabled`, rafraîchi chaque minute ; envoie le décalage UTC du navigateur. Sa clé est rechargée avec les sources des conditions (`SLOT_DEPENDENT_KEYS`). |
+| `useDoableTaskIds(enabled)`, `useTaskWaitReasons(enabled)`, `TaskWaitReasons`, `doableTasksKey` | Une seule requête `doableTasks` (interne `useDoableTasks`, lue par deux `select`) : l’ensemble des tâches faisables maintenant, et la raison de chaque tâche ouverte qui ne l’est pas (`TaskWaitReason` par id) ; demandée seulement si `enabled`, rafraîchie chaque minute ; envoie le décalage UTC du navigateur. Sa clé est rechargée avec les sources des conditions (`SLOT_DEPENDENT_KEYS`). |
 | `useBulkTaskMutations()`      | `{ update, transfer, archive, remove }` : `bulkUpdateTasks` (avec `restoring`), `bulkTransferTasks`, `bulkSetTasksArchived`, `bulkDeleteTasks`. |
 | `useMilestoneMutations()`     | `{ create, update, remove, move }` ; `move` (interne `useMoveMilestone`) réordonne le cache tout de suite.                                      |
 | `useSprintMutations()`        | `{ create, update, remove }`.                                                                                                                   |
@@ -79,14 +79,14 @@ Interne : `LabelDocuments` (documents CRUD par type de libellé), `useTasksMutat
 
 - `TaskPanel()` : panneau latéral (`SidePanel`) de la tâche de l’URL (`?task=`), par-dessus toute page ; squelette pendant le chargement, `DetailNotFound` si introuvable. Monté par `app/layout/AppLayout.tsx`.
 - Internes :
-  - `TaskDetail({ task, context })` : en-tête (badges GitHub / archivée, « Fermer la tâche » / « Rouvrir » — `useTaskActions().close`, toast avec « Annuler » comme le menu et la sélection —, « Renommer » via `openLabelForm`, menu `useTaskActions`), description (`TaskDescription`), liens (`TaskLinks`), lieu (`TaskLocation`) et rappels (`TaskReminders`) puis temps morts (`DeadTimesField`, `taskDeadTimeItem`), dans la colonne de propriétés, sous-tâches, commentaires (`TaskComments`), colonne de propriétés (projet → transfert avec confirmation, libellés, assignés, étiquettes, bénéficiaires, effort, `TaskTime`, dates, parent, jalon, sprints, `SlotRuleInput`, liens, `TaskAlarms`, `TaskShopping`, `SheetsSection`). Chaque champ est enregistré dès qu’il change ; l’effort en le quittant (`useFieldSave` sur `effortFormSchema`, enregistré aussi à la fermeture du panneau) ; `SaveStatus` en tête de la colonne de propriétés (`updateTask`, transfert ou effort en cours). `Fieldset` désactivé sur une tâche archivée.
+  - `TaskDetail({ task, context })` : en-tête (badges GitHub / archivée, « Fermer la tâche » / « Rouvrir » — `useTaskActions().close`, toast avec « Annuler » comme le menu et la sélection —, « Renommer » via `openLabelForm`, menu `useTaskActions`), description (`TaskDescription`), liens (`TaskLinks`), lieu (`TaskLocation`) et rappels (`TaskReminders`) puis temps morts (`DeadTimesField`, `taskCountdownItem`) et minuteurs enregistrés (`SavedCountdownsField`, `TASK`), dans la colonne de propriétés, sous-tâches, commentaires (`TaskComments`), colonne de propriétés (projet → transfert avec confirmation, libellés, assignés, étiquettes, bénéficiaires, effort, `TaskTime`, dates, parent, jalon, sprints, `SlotRuleInput`, liens, `TaskAlarms`, `TaskShopping`, `SheetsSection`). Chaque champ est enregistré dès qu’il change ; l’effort en le quittant (`useFieldSave` sur `effortFormSchema`, enregistré aussi à la fermeture du panneau) ; `SaveStatus` en tête de la colonne de propriétés (`updateTask`, transfert ou effort en cours). `Fieldset` désactivé sur une tâche archivée.
   - `LinkList({ label, tasks, candidates, context, onAdd, onRemove })` : liste « Bloque » / « Dépend de » / « Relative à » avec « Retirer » et « Ajouter une tâche » (`TaskSelect`).
 
-- Champs hérités (projet, priorité, assignés, bénéficiaires, « Ouverture », « Échéance », jalon, créneaux, lieu) dans `InheritedField` : grisés « Hérité de … », « Vider », « Rétablir l’héritage » (`taskFieldState`).
+- Champs hérités (projet, priorité, assignés, bénéficiaires, « Ouverture », « Échéance », jalon, créneaux, horaires — `TaskHoursField` —, lieu) dans `InheritedField` : grisés « Hérité de … », « Vider », « Rétablir l’héritage » (`taskFieldState`).
 
 ### `components/TaskCreateForm.tsx`
 
-- `TaskCreateForm({ context, defaults?, onDone })` : formulaire « Nouvelle tâche » (schéma `taskFormSchema`), lieu (`EventLocation`) et liens (`LinksField`) compris. `defaults` : projet et parent présélectionnés. Changer de projet retire parent, jalon et sprints d’une autre arborescence. Une sous-tâche hérite de son parent : les valeurs du parent montrées grisées (`InheritedField`, `formInheritance` sur les clés `FORM_COLUMNS`, interne `parentValues`), la liste des champs encore hérités envoyée (`inheritedFields`) ; choisir un autre parent reprend les siennes, n’en choisir aucun ne garde que les valeurs. Après création : toast et ouverture de la tâche (`useTaskLink`). Ouvert par `useTaskActions().create`.
+- `TaskCreateForm({ context, defaults?, onDone })` : formulaire « Nouvelle tâche » (schéma `taskFormSchema`), lieu (`EventLocation`), liens (`LinksField`) et horaires (`TaskHoursField`, hérités comme la condition de créneaux) compris. `defaults` : projet et parent présélectionnés. Changer de projet retire parent, jalon et sprints d’une autre arborescence. Une sous-tâche hérite de son parent : les valeurs du parent montrées grisées (`InheritedField`, `formInheritance` sur les clés `FORM_COLUMNS`, interne `parentValues`), la liste des champs encore hérités envoyée (`inheritedFields`) ; choisir un autre parent reprend les siennes, n’en choisir aucun ne garde que les valeurs. Après création : toast et ouverture de la tâche (`useTaskLink`). Ouvert par `useTaskActions().create`.
 
 ### `components/TaskLinks.tsx`
 
@@ -99,6 +99,12 @@ Interne : `LabelDocuments` (documents CRUD par type de libellé), `useTasksMutat
 ### `components/TaskReminders.tsx`
 
 - `TaskReminders({ value, minDate, deadline, onChange, error?, disabled? })` : « Rappels » d'une tâche, dans « Nouvelle tâche » (`TaskCreateForm`) et le panneau (`TaskDetail`, enregistré à chaque changement) : `RemindersSelect` en « À HH:MM » et « N jours avant » l’échéance (`kinds={['at', 'days']}`, `day` vide ; une ligne par rappel, case « Chaque jour » : `dayLabel`), aide selon « Ouverture » / « Échéance », désactivé sans échéance.
+
+### `components/TaskHoursField.tsx`
+
+- `TaskHoursField({ value, onChange, readOnly? })` : « Horaires » d'une tâche, dans « Nouvelle tâche » et le panneau : `RepetitionField` (résumé `taskHoursLines`, « N’importe quand » sans horaires, `valid` = `taskHoursSchema`), la fenêtre étant l’éditeur des cas d’un créneau (`ScheduleCases`, `newScheduleCase`).
+- `TaskHoursModal({ value, title, onClose, onApply, header? })` : la même fenêtre hors du panneau (cellule « Horaires » du tableau) : `RepetitionModal` sur un brouillon partant des horaires à l’ouverture (montée à l’ouverture), « Appliquer » désactivé tant que `taskHoursSchema` refuse ; `header` : à quoi elle s’applique.
+- Internes `HOURS_CASE_START` (« À partir du » des cas qui le demandent : `hoursCaseNeedsStart`, `HOURS_START_REQUIRED`), `validHours`, `TaskHoursEditor({ draft, setDraft, start })` : `ScheduleCases` (`caseStart`), première erreur de `taskHoursSchema` hors « À partir du » manquant (montré sous son champ) (`Input.Error`), « Retirer les horaires » ; sans horaires : « Aucun horaire : la tâche est faisable à n’importe quelle heure. » et « Ajouter des horaires ».
 
 ### `components/TaskLocation.tsx`
 
@@ -139,6 +145,7 @@ Cellules modifiables en place des tâches (toutes en lecture seule sur une tâch
 | `TaskLinksCell({ task, context, kind })`    | « Bloque » ou « Relative à ».                                                                                                           |
 | `ParentCell({ task, context })`             | Tâche parente (pas elle-même ni ses sous-tâches).                                                                                       |
 | `TaskProjectCell({ task, context })`        | Projet : transfert, confirmation si sortie d’arborescence avec liens.                                                                   |
+| `TaskHoursCell({ task })`                   | « Horaires » : `taskHoursText` (« N’importe quand » sans horaires) ; un clic ouvre `TaskHoursModal`, appliqué sur la sélection (`useCellEdit`, enregistré tâche par tâche) ; lecture seule sur une tâche archivée. |
 | `TaskLocationCell({ task })`                | « Lieu » : `LocationCell` (features/geo) sur la sélection (`useCellEdit`, enregistré tâche par tâche).                                  |
 
 Internes : `fieldLabel` (libellé accessible), `LABEL_FIELDS`, `LABEL_NAMES`, `DATE_LABELS`, `DATE_RANGES`.
@@ -207,11 +214,11 @@ Internes : `NEW_LABEL_TITLES`, `useLabelCreator(kind)` (ouvre le formulaire du l
 
 ### `components/TaskSettings.tsx`
 
-- `TaskSettings()` : paramètres des tâches : `ColumnDefaults`, puis `SettingsList` des statuts (avec catégorie), priorités, types, étiquettes, chacune avec son nombre d’utilisations. Utilisé par `TasksPage` et les paramètres d’un projet.
+- `TaskSettings()` : paramètres des tâches : `SettingsList` des statuts (avec catégorie), priorités, types, étiquettes, chacune avec son nombre d’utilisations, puis `ColumnDefaults` en dernier (une longue liste). Utilisé par `TasksPage` et les paramètres d’un projet.
 
 ### `components/ColumnDefaults.tsx`
 
-- `ColumnDefaults()` : section « Colonnes des nouvelles vues » : `DataColumnsPanel` sur les colonnes des tâches, enregistrement par `useSetTaskColumnDefaults`, bouton « Colonnes de l’app ».
+- `ColumnDefaults()` : section « Colonnes des nouvelles vues » : `DataColumnsPanel` sur les colonnes des tâches (liste limitée à 288 px de haut, 12 pas de la grille, qui défile au-delà), enregistrement par `useSetTaskColumnDefaults` ; « Colonnes par défaut » de `DataColumnsPanel` (liste vidée) enregistre `null` : les colonnes de l’app.
 
 ### `components/TaskFilterBuilder.tsx`
 
@@ -294,7 +301,7 @@ Internes : `NO_PROJECT_LABEL` (« Sans projet »), `NO_PROJECT_NODE`.
 
 ### `hooks/use-task-actions.tsx`
 
-- `useTaskActions(context)` : `{ menu(task), close(task), create(defaults?) }` : entrées du menu d’une tâche (« Dupliquer », « Transférer », « Héritage… » (une sous-tâche), « Transformer en routine » — `useConvertActivity().toRoutine` —, « Archiver », « Supprimer », puis « Lancer » chacun de ses temps morts — `deadTimeMenuEntries` — ; « Restaurer », « Supprimer » si archivée), « Fermer » / « Rouvrir » d’une tâche seule (`close` de `useTaskRowsActions` : toast avec « Annuler », bouton du panneau) et ouverture du formulaire de création dans le panneau (« Nouvelle tâche » / « Nouvelle sous-tâche »). Utilisé par `TaskBoard`, `TaskPanel`, le menu « Ajouter » de l’en-tête.
+- `useTaskActions(context)` : `{ menu(task), close(task), create(defaults?) }` : entrées du menu d’une tâche (« Dupliquer », « Transférer », « Héritage… » (une sous-tâche), « Transformer en routine » — `useConvertActivity().toRoutine` —, « Archiver », « Supprimer », puis « Lancer » chacun de ses temps morts et de ses minuteurs enregistrés — `useCountdownMenuEntries` — ; « Restaurer », « Supprimer » si archivée), « Fermer » / « Rouvrir » d’une tâche seule (`close` de `useTaskRowsActions` : toast avec « Annuler », bouton du panneau) et ouverture du formulaire de création dans le panneau (« Nouvelle tâche » / « Nouvelle sous-tâche »). Utilisé par `TaskBoard`, `TaskPanel`, le menu « Ajouter » de l’en-tête.
 
 ### `hooks/use-task-columns.ts`
 
@@ -317,7 +324,8 @@ Internes : `NO_PROJECT_LABEL` (« Sans projet »), `NO_PROJECT_NODE`.
 | Nom                                                                        | Rôle                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    |
 | -------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `TaskTableRow` (type)                                                      | Ligne du tableau : `{ kind: 'task', task }` ou `{ kind: 'event', event }`.                                                                                                                                                                                                                                                                                                                                                                                                                                                              |
-| `taskColumns(context, today, extras?)`                                     | Toutes les colonnes `DataColumn` des tâches : libellés, tailles, tri (`sortValue`), texte (`taskCell` / `eventCell`), filtres (projet avec parents, « Moi », sprints relatifs, parent avec ancêtres…), groupes (projets en arbre), colonnes de masse ; plus les colonnes cachées « Numéro », « Description », drapeaux (`flag` interne : « Fermée », « En retard », « Bloquée », « A des sous-tâches », « Archivée », « Faisable maintenant », « A des achats », « A des alarmes », « A des commentaires ») et « Catégorie de statut ». |
+| `taskColumns(context, today, extras?)`                                     | Toutes les colonnes `DataColumn` des tâches : libellés, tailles, tri (`sortValue`), texte (`taskCell` / `eventCell`), filtres (projet avec parents, « Moi », sprints relatifs, parent avec ancêtres…), groupes (projets en arbre), colonnes de masse ; plus les colonnes cachées « Numéro », « Description », drapeaux (`flag(id, label, value, groupLabels, icons?)` interne, sur `booleanColumn` : vides sur un évènement, chacun avec les noms de ses valeurs, « En retard » par `LATE_GROUP_LABELS`, « En retard » et « Bloquée » avec `WARNING_YES_ICONS` ; « Fermée », « En retard », « Bloquée », « A des sous-tâches », « Archivée », « Faisable maintenant », « A des achats », « A des alarmes », « A des commentaires » ; « Faisable maintenant » vide sur une tâche fermée, groupée par `DOABLE_GROUP_LABELS`) et « Catégorie de statut ». |
+| `DOABLE_GROUP_LABELS` | « Maintenant » / « Plus tard » : les groupes de « Faisable maintenant » (tâches et routines) et les sections de la carte « Tâches » de l’accueil. Utilisé par `routines`, `home`. |
 | `taskTableRows(tasks)` | Lignes du tableau faites de tâches, dans leur ordre manuel (puis par numéro). Utilisé par `TaskBoard` et l’accueil (`TasksCard`). |
 | `isArchivedTaskRow(row)` | Ligne d’une tâche archivée (écartée tant que « Afficher les archivées » est éteint). Utilisé par `TaskBoard` et l’accueil. |
 | `matchTasks(tasks, columns, { filter, search?, includeArchived? }, today)` | Tâches gardées par un filtre exprimé dans les colonnes du tableau. Utilisé par l’accueil (`home-data.ts`) et les tableaux de bord (`chart-data.ts`).                                                                                                                                                                                                                                                                                                                                                                                    |
@@ -333,6 +341,11 @@ Internes : `TaskColumnExtras`, `STATUS_CATEGORY_ORDER`, `STATUS_CATEGORY_LABELS`
 - `LOCKED_COLUMNS` : colonnes non masquables (`label`).
 - `COLUMN_SIZES` : largeur par défaut (px).
 - `BULK_EDITABLE_COLUMNS` : colonnes modifiables sur une sélection de cellules.
+
+### `lib/task-hours-text.ts`
+
+- `taskHoursLines(hours, start)` : « Horaires » d’une tâche en mots, une ligne par cas (`describeScheduleCase`). Utilisé par `TaskHoursField`.
+- `taskHoursText(hours, start)` : les mêmes en un texte (cas séparés par « ; »), vide sans horaires : cellule `TaskHoursCell`, texte, tri, filtre et export de la colonne « Horaires » (`taskCell`, `sortValue`).
 
 ### `lib/task-rows.ts`
 

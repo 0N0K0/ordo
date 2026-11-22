@@ -32,7 +32,7 @@ function findCountdown(userId: string, id: string): Promise<Countdown> {
 /**
  * Starts a timer: it ends after its duration. The timers rung more than 6 hours ago are removed on the way.
  * @param {string} userId User.
- * @param {CountdownInput} input Timer (duration 1 minute to 24 hours, name, ringtone, item of a dead time).
+ * @param {CountdownInput} input Timer (duration 1 minute to 24 hours, name, ringtone, item it is launched for).
  * @returns {Promise<Countdown>} Timer.
  */
 export async function startCountdown(userId: string, input: CountdownInput): Promise<Countdown> {
@@ -49,6 +49,8 @@ export async function startCountdown(userId: string, input: CountdownInput): Pro
       workspaceId: data.workspaceId ?? null,
       taskId: data.taskId ?? null,
       routineId: data.routineId ?? null,
+      eventId: data.eventId ?? null,
+      sheetId: data.sheetId ?? null,
       occurrenceDate: parseOptionalDay(data.occurrenceDate ?? null),
       subject: data.subject ?? null,
       path: data.path ?? null,

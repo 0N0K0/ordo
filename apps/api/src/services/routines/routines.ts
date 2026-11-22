@@ -87,6 +87,7 @@ import { PARIS, parisToday } from '../../today';
 import { assertAllExist, findOrNotFound } from '../core/lookup';
 import { archivedOn, archiveTree, assertActive, assertNoneArchived, assertNotArchived, refuseArchived, findActive } from '../core/archive';
 import { connectIds, orderedPair } from '../core/relations';
+import { linkedSavedCountdowns } from '../tasks/saved-countdowns';
 import { loadProjectRootOf, outsideMovedTree } from '../projects/project-tree';
 import { toJson } from '../core/json';
 import { readLinks } from '../core/links';
@@ -917,6 +918,8 @@ async function insertRoutine(input: RoutineInput, copyOf: string | null): Promis
         beneficiaries: { connect: connectIds(data.beneficiaryIds) },
         beneficiaryRelations: { connect: connectIds(data.beneficiaryRelationIds) },
         categories: { connect: connectIds(data.categoryIds) },
+        // A copy keeps the saved timers of the routine copied.
+        ...(copyOf && { savedCountdowns: await linkedSavedCountdowns('ROUTINE', copyOf, tx) }),
       },
     });
     if (data.requiredIds.length) await tx.routineDependency.createMany({ data: data.requiredIds.map((requiredId) => ({ routineId: routine.id, requiredId })) });

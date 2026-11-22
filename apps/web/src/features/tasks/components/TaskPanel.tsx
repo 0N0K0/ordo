@@ -12,7 +12,7 @@ import { DetailSkeleton } from '../../../components/feedback/Skeletons';
 import { SidePanel } from '../../../components/panels/SidePanel';
 import { Anchor, Badge, Divider, Fieldset, Grid, Group, Select, Stack, Text } from '@mantine/core';
 import { DatePickerInput } from '@mantine/dates';
-import { effortFormSchema, readSlotCondition, taskLabelSchema, subtreeOf, type TaskInheritableField } from '@ordo/shared';
+import { effortFormSchema, readSlotCondition, readTaskHours, taskLabelSchema, subtreeOf, type TaskInheritableField } from '@ordo/shared';
 import { ArrowCounterClockwiseIcon, CheckCircleIcon, GithubLogoIcon, PencilSimpleIcon, ArrowsLeftRightIcon } from '@phosphor-icons/react';
 import { useState } from 'react';
 import { Link } from 'react-router';
@@ -34,6 +34,7 @@ import { type TaskContext, taskName, taskNumber, useTaskContext } from '../hooks
 import { TASK_PARAM, useTaskLink } from '../hooks/use-task-link';
 import { BatchMultiSelect } from '../../../components/inputs/BatchMultiSelect';
 import { SlotConditionBuilder } from '../../calendar/components/SlotConditionBuilder';
+import { TaskHoursField } from './TaskHoursField';
 import { BeneficiariesSelect } from '../../beneficiaries/components/BeneficiariesSelect';
 import { removedLinksNote } from '../../../lib/text';
 import { dateRangeProps } from '../../../components/inputs/date-range';
@@ -44,7 +45,9 @@ import { TaskDescription } from './TaskDescription';
 import { TaskLocation } from './TaskLocation';
 import { TaskReminders } from './TaskReminders';
 import { DeadTimesField } from '../../countdowns/components/DeadTimesField';
-import { taskDeadTimeItem } from '../lib/task-dead-times';
+import { taskCountdownItem } from '../lib/task-countdowns';
+import { SavedCountdownsField } from '../../countdowns/components/SavedCountdownsField';
+import { tasksQueryKey } from '../../../lib/query-keys';
 import { inheritedDateHint } from '../lib/inherited-dates';
 import { DetailNotFound } from '../../../components/feedback/DetailNotFound';
 import { ActionButton } from '../../../components/actions/ActionButton';
@@ -359,7 +362,8 @@ function TaskDetail({ task, context }: TaskDetailProps) {
                 />
               </InheritedField>
               <TaskReminders value={task.reminders} minDate={task.effectiveMinDate} deadline={task.effectiveDeadline} disabled={locked} onChange={(reminders) => save({ reminders })} />
-              <DeadTimesField value={task.deadTimes} item={taskDeadTimeItem(task, context)} disabled={locked} onChange={(deadTimes) => save({ deadTimes })} />
+              <DeadTimesField value={task.deadTimes} item={taskCountdownItem(task, context)} disabled={locked} onChange={(deadTimes) => save({ deadTimes })} />
+              <SavedCountdownsField target="TASK" id={task.id} value={task.savedCountdownIds} invalidate={[tasksQueryKey]} readOnly={locked} />
               <TaskSelect
                 context={context}
                 labelOf={(candidate) => context.taskLabel(candidate, task.projectId)}
@@ -393,6 +397,9 @@ function TaskDetail({ task, context }: TaskDetailProps) {
               />
               <InheritedField {...inherited('SLOT_CONDITION')}>
                 <SlotConditionBuilder item="task" value={readSlotCondition(task.slotCondition)} onChange={(slotCondition) => save({ slotCondition })} />
+              </InheritedField>
+              <InheritedField {...inherited('HOURS')}>
+                <TaskHoursField value={readTaskHours(task.hours)} onChange={(hours) => save({ hours })} readOnly={locked} />
               </InheritedField>
               <InheritedField {...inherited('LOCATION')}>
                 <TaskLocation task={task} save={save} />

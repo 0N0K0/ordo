@@ -49,8 +49,10 @@ import { useRoutineRowsActions } from './RoutineBulkBar';
 import { rowMenuEntry } from '../../../components/data-table/selection/selection-actions';
 import type { RowMenuEntry } from '../../../components/actions/ActionsMenu';
 import { DeadTimesField } from '../../countdowns/components/DeadTimesField';
-import { deadTimeMenuEntries } from '../../countdowns/lib/dead-time-menu';
-import { routineDeadTimeItem } from '../lib/routine-dead-times';
+import { useCountdownMenuEntries } from '../../countdowns/hooks/use-saved-countdowns';
+import { SavedCountdownsField } from '../../countdowns/components/SavedCountdownsField';
+import { routinesKey } from '../../../lib/query-keys';
+import { routineCountdownItem } from '../lib/routine-countdowns';
 import { formInheritance } from '../../../components/inheritance/form-inheritance';
 import { InheritedField } from '../../../components/inheritance/InheritedField';
 import { ROUTINE_FIELD_LABELS, ROUTINE_SCHEDULE_FIELDS, routineParentName } from '../lib/routine-inheritance';
@@ -201,6 +203,7 @@ export function RoutineForm({ routine, parent, categoryId = null, projectId = nu
   const categoryItems = useRoutineCategoryItems();
   const convert = useConvertActivity();
   const rowActionsOf = useRoutineRowsActions();
+  const countdownEntries = useCountdownMenuEntries();
   const routines = data?.routines ?? [];
   const base = useAppForm<RoutineFormValues>({
     initialValues: routine
@@ -325,7 +328,7 @@ export function RoutineForm({ routine, parent, categoryId = null, projectId = nu
       convert.toTask(item, routines.some((other) => other.parentId === item.id)),
       rowMenuEntry(archive),
       rowMenuEntry(remove),
-      ...deadTimeMenuEntries(item.deadTimes, routineDeadTimeItem(item, occurrenceDate ?? panelOccurrence(item))),
+      ...countdownEntries(item, routineCountdownItem(item, occurrenceDate ?? panelOccurrence(item))),
     ];
   };
 
@@ -412,9 +415,10 @@ export function RoutineForm({ routine, parent, categoryId = null, projectId = nu
                 <DeadTimesField
                   value={form.values.deadTimes}
                   onChange={(deadTimes) => form.setFieldValue('deadTimes', deadTimes)}
-                  item={current ? routineDeadTimeItem(current, occurrenceDate ?? panelOccurrence(current)) : null}
+                  item={current ? routineCountdownItem(current, occurrenceDate ?? panelOccurrence(current)) : null}
                   disabled={readOnly}
                 />
+                <SavedCountdownsField target="ROUTINE" id={current?.id ?? null} value={current?.savedCountdownIds ?? []} invalidate={[routinesKey]} readOnly={readOnly} />
                 <Divider />
                 <Select
                   label="Routine parente"

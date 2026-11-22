@@ -1,7 +1,7 @@
 import { CONFIRM_LOSS_DESCRIPTION } from '../occurrence-fields';
 import { peopleSettler } from '../../services/routines/routines';
 import { done } from '../errors';
-import { doableTaskIds } from '../../services/calendar/slot-conditions';
+import { taskDoability, type TaskDoability } from '../../services/calendar/slot-conditions';
 import { prisma } from '../../db';
 import { storeAttachment, attachmentUrl } from '../../services/core/attachments';
 import * as contributors from '../../services/projects/contributors';
@@ -11,7 +11,7 @@ import { iconUrl } from '../../services/core/icons';
 import { taskPriorities, taskStatuses, taskTags, taskTypes } from '../../services/tasks/task-labels';
 import * as taskViews from '../../services/tasks/task-views';
 import * as tasks from '../../services/tasks/tasks';
-import { parseOptionalDay, readSlotCondition, sumOf, TASK_STATUS_CATEGORIES, taskFieldOrigin, VIEW_KINDS, type EffectiveTask, type TaskInheritableField, type TaskInheritanceContext } from '@ordo/shared';
+import { parseOptionalDay, readSlotCondition, readTaskHours, sumOf, TASK_STATUS_CATEGORIES, taskFieldOrigin, VIEW_KINDS, type EffectiveTask, type TaskInheritableField, type TaskInheritanceContext } from '@ordo/shared';
 import { effectiveTaskOf, loadTaskInheritance } from '../../services/tasks/task-inheritance';
 import { FieldOriginRef, InheritSourceEnum, TaskInheritableFieldEnum } from '../inheritance-fields';
 import type { Context } from '../context';
@@ -29,7 +29,7 @@ import { locationInputFields } from '../located-fields';
 import { ItemLinkInput, ItemLinkRef } from '../link-fields';
 import { ReminderInput, ReminderRef } from '../reminder-fields';
 import { DeadTimeInput, DeadTimeRef } from '../dead-time-fields';
-import { CONTRIBUTOR_LINKS, readDeadTimes, readReminders } from '@ordo/shared';
+import { CONTRIBUTOR_LINKS, readDeadTimes, readReminders, TASK_WAIT_REASONS } from '@ordo/shared';
 import { BIRTH_DATE_DESCRIPTION } from '../person-fields';
 import { readLinks } from '../../services/core/links';
 
@@ -248,6 +248,7 @@ const TaskEffectiveRef = builder.objectRef<EffectiveTask>('TaskEffective').imple
     beneficiaryIds: t.idList({ resolve: (task) => [...task.beneficiaryIds] }),
     beneficiaryRelationIds: t.idList({ resolve: (task) => [...task.beneficiaryRelationIds] }),
     slotCondition: t.field({ type: 'JSON', nullable: true, resolve: (task) => readSlotCondition(task.slotCondition) }),
+    hours: t.field({ type: 'JSON', description: '« Horaires » it goes by (cases of days and hours; empty: any time).', resolve: (task) => readTaskHours(task.hours) }),
     location: t.exposeString('location', { nullable: true }),
     locationLat: t.exposeFloat('locationLat', { nullable: true }),
     locationLon: t.exposeFloat('locationLon', { nullable: true }),
@@ -327,6 +328,11 @@ builder.prismaObject('Task', {
       nullable: true,
       description: 'On or out of calendar schedules, or on the free time, in groups combined with and / or (as a routine); null: any time.',
       resolve: (task) => readSlotCondition(task.slotCondition),
+    }),
+    hours: t.field({
+      type: 'JSON',
+      description: '« Horaires »: days and hours it can be done, cases shaped as those of a schedule (`taskHoursSchema`); empty: any time. With a slot condition, doable only when both allow it.',
+      resolve: (task) => readTaskHours(task.hours),
     }),
     location: t.exposeString('location', { nullable: true, description: 'Where it is done (free text); no travel time: a task has no hours.' }),
     locationLat: t.exposeFloat('locationLat', { nullable: true, description: 'Point of the location; none: unknown.' }),
@@ -409,6 +415,7 @@ const taskFields = (t: InputFields) => ({
   milestoneId: t.id(),
   sprintIds: t.idList(),
   slotCondition: t.field({ type: 'JSON', description: 'On or out of calendar schedules, or on the free time, in groups (and / or); null: any time.' }),
+  hours: t.field({ type: 'JSON', description: '« Horaires »: cases of days and hours, as those of a schedule (20 at most, no overlapping hours); null or empty: any time.' }),
   ...locationInputFields(t, 'Null: none (its point too).'),
   links: t.field({ type: [ItemLinkInput], description: '20 at most, http or https; null: none.' }),
   reminders: t.field({ type: [ReminderInput], description: 'Reminders « À HH:MM » only, 10 at most; null: none.' }),
@@ -515,6 +522,19 @@ const TaskViewUpdateInput = builder.inputType('TaskViewUpdateInput', {
   }),
 });
 
+const TaskWaitReasonEnum = builder.enumType('TaskWaitReason', {
+  description: 'Why an open task cannot be done now: its « Ouverture » is after today, its hours or its slot condition leave the moment out, an event keeps its assignees busy.',
+  values: TASK_WAIT_REASONS,
+});
+
+const TaskDoabilityRef = builder.objectRef<TaskDoability>('TaskDoability').implement({
+  description: 'An open task and whether it can be done now.',
+  fields: (t) => ({
+    id: t.exposeID('id'),
+    reason: t.field({ type: TaskWaitReasonEnum, nullable: true, description: 'Why it cannot be done now, null: it can.', resolve: (doability) => doability.reason }),
+  }),
+});
+
 const TaskColumnDefaultsRef = builder.objectRef<{ columnOrder: string[]; hiddenColumns: string[] }>('TaskColumnDefaults').implement({
   description: 'Columns new task views of the workspace start with.',
   fields: (t) => ({
@@ -553,10 +573,11 @@ builder.queryFields((t) => ({
     args: { id: t.arg.id({ required: true }) },
     resolve: (query, _root, { id }) => prisma.task.findUnique({ ...query, where: { id } }),
   }),
-  doableTaskIds: t.idList({
-    description: 'Ids of the open tasks that can be done now: allowed by their slot rule (else the default of the workspace) and kept by no event of their people.',
+  doableTasks: t.field({
+    type: [TaskDoabilityRef],
+    description: 'Open tasks and whether they can be done now: opened, allowed by their hours and their slot condition, kept by no event of their people; else why not.',
     args: { utcOffset: t.arg.int({ required: true }) },
-    resolve: async (_root, { utcOffset }, ctx) => doableTaskIds(utcOffset, ctx.session ? await workspaces.meContributorId(ctx.session.userId) : null),
+    resolve: async (_root, { utcOffset }, ctx) => taskDoability(utcOffset, ctx.session ? await workspaces.meContributorId(ctx.session.userId) : null),
   }),
   taskViews: t.prismaField({
     type: ['TaskView'],

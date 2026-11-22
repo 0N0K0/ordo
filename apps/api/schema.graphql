@@ -329,6 +329,7 @@ enum ArchivableKind {
   PROJECT_STATUS
   RECURRING_INVOICE
   ROUTINE_CATEGORY
+  SAVED_COUNTDOWN
   SCHEDULE_TYPE
   SHEET
   SHEET_CATEGORY
@@ -584,6 +585,9 @@ type CalendarEventOccurrence {
 
   """Routines of a day of the occurrence it is about."""
   routineLinks: [EventRoutineLink!]!
+
+  """Saved timers launched from the event (its whole series)."""
+  savedCountdownIds: [ID!]!
   seriesStartDate: String!
   start: DateTime!
   startDate: String!
@@ -1018,13 +1022,16 @@ type Countdown {
 
   """End while it runs; null: paused."""
   endsAt: DateTime
+
+  """Event it was launched for."""
+  eventId: String
   id: ID!
 
   """Its name; null: « Minuteur »."""
   label: String
   linkLabel: String
 
-  """Occurrence of that routine."""
+  """Occurrence of that routine or recurring event."""
   occurrenceDate: Date
 
   """Page of the app its ring links to."""
@@ -1036,13 +1043,16 @@ type Countdown {
   """Ringtone at its end; null: the one of the settings."""
   ringtone: String
 
-  """Routine of the dead time it was launched for."""
+  """Routine it was launched for."""
   routineId: String
+
+  """Sheet it was launched for."""
+  sheetId: String
 
   """Name of its item."""
   subject: String
 
-  """Task of the dead time it was launched for."""
+  """Task it was launched for (a dead time, a saved timer)."""
   taskId: String
 
   """Workspace of its item."""
@@ -1050,11 +1060,14 @@ type Countdown {
 }
 
 input CountdownInput {
+  """Event it is launched for."""
+  eventId: ID
+
   """Its name; none: « Minuteur »."""
   label: String
   linkLabel: String
 
-  """Occurrence of that routine."""
+  """Occurrence of that routine or recurring event."""
   occurrenceDate: Date
 
   """Page of the app its ring links to."""
@@ -1063,16 +1076,19 @@ input CountdownInput {
   """Ringtone of the bank; none: the one of the settings."""
   ringtone: String
 
-  """Routine of the dead time."""
+  """Routine it is launched for."""
   routineId: ID
 
   """Duration, 1 minute to 24 hours."""
   seconds: Int!
 
+  """Sheet it is launched for."""
+  sheetId: ID
+
   """Name of its item."""
   subject: String
 
-  """Task of the dead time."""
+  """Task it is launched for (a dead time, a saved timer)."""
   taskId: ID
 
   """Workspace of its item."""
@@ -2084,6 +2100,7 @@ type Mutation {
     input: RoutineInput!
   ): ID!
   createRoutineCategory(input: RoutineCategoryInput!): ID!
+  createSavedCountdown(input: SavedCountdownInput!): SavedCountdown!
   createScheduleType(input: ScheduleTypeInput!): ScheduleType!
   createSheet(input: SheetInput!): ID!
   createSheetCategory(input: LabelColorInput!): SheetCategory!
@@ -2190,6 +2207,7 @@ type Mutation {
   Deletes an occurrence (THIS: an exception) or it and the following ones (FOLLOWING), with their comments; tells whether the routine was archived (nothing left) and gives the comments deleted with THIS, for an undo.
   """
   deleteRoutineOccurrence(date: Date!, id: ID!, scope: CalendarEventScope!): RoutineOccurrenceDeletion!
+  deleteSavedCountdown(id: ID!): Boolean!
 
   """
   Deletes a kind of time slots (its schedules stay, without kind); the occurrences of routines it makes disappear lose their comments, once confirmed.
@@ -2644,6 +2662,11 @@ type Mutation {
   ): Date!
 
   """
+  Sets the saved timers of a task, a routine, an event (its whole series) or a sheet, in place of the current ones (20 at most); refused on an archived item; an archived saved timer is not newly chosen.
+  """
+  setSavedCountdownLinks(id: ID!, savedCountdownIds: [ID!]!, target: SavedCountdownTarget!): Boolean!
+
+  """
   Color and display of a kind of schedules subscribed to, in this workspace (null fields: those of the kind).
   """
   setScheduleSubscriptionLook(input: ScheduleSubscriptionLookInput!, typeId: ID, workspaceId: ID!): Boolean!
@@ -2832,6 +2855,7 @@ type Mutation {
     restoring: Boolean
   ): RemovedLinksResult!
   updateRoutineCategory(id: ID!, input: RoutineCategoryInput!): Boolean!
+  updateSavedCountdown(id: ID!, input: SavedCountdownPatch!): SavedCountdown!
   updateScheduleType(id: ID!, input: ScheduleTypeInput!): ScheduleType!
   updateSheet(id: ID!, input: SheetInput!): Boolean!
   updateSheetCategory(id: ID!, input: LabelColorPatch!): SheetCategory!
@@ -3185,9 +3209,9 @@ type Query {
   defaultScheduleKind: DefaultScheduleKind!
 
   """
-  Ids of the open tasks that can be done now: allowed by their slot rule (else the default of the workspace) and kept by no event of their people.
+  Open tasks and whether they can be done now: opened, allowed by their hours and their slot condition, kept by no event of their people; else why not.
   """
-  doableTaskIds(utcOffset: Int!): [ID!]!
+  doableTasks(utcOffset: Int!): [TaskDoability!]!
   documentFolders: [DocumentFolder!]!
   documentSequences(year: Int!): [DocumentSequence!]!
   documentStatuses: [DocumentStatus!]!
@@ -3359,6 +3383,11 @@ type Query {
   Running timers of the workspace (several at once), the first started first.
   """
   runningTimeEntries: [TimeEntry!]!
+
+  """
+  Saved timers of the workspace, in their manual order (archived ones included).
+  """
+  savedCountdowns: [SavedCountdown!]!
   scheduleTypes: [ScheduleType!]!
 
   """Mails waiting to be sent, and those that failed."""
@@ -3738,6 +3767,9 @@ type Routine {
 
   """Routines to do before this one."""
   requiredIds: [ID!]!
+
+  """Saved timers launched from it."""
+  savedCountdownIds: [ID!]!
 
   """
   Following its rule: on or out of calendar schedules, in groups combined with and / or (the filters of the tables); null: any time.
@@ -4150,6 +4182,58 @@ input SaveMailDraftInput {
   to: [String!]!
 }
 
+"""
+Saved timer (« minuteur enregistré ») of the workspace, a settings list: started again in one click.
+"""
+type SavedCountdown {
+  """Archived: hidden by default, read only."""
+  archived: Boolean!
+  color: String!
+
+  """Image shown as its avatar (none: its initials on its color)."""
+  iconUrl: String
+  id: ID!
+  label: String!
+
+  """Duration, 1 to 1 440 minutes."""
+  minutes: Int!
+  position: Int!
+
+  """Ringtone at its end; null: the one of the settings."""
+  ringtone: String
+}
+
+input SavedCountdownInput {
+  color: String!
+
+  """Its name, unique in the workspace."""
+  label: String!
+
+  """Duration, 1 to 1 440 minutes."""
+  minutes: Int!
+
+  """Ringtone of the bank; none: the one of the settings."""
+  ringtone: String
+}
+
+"""
+Changes of a saved timer (omitted fields unchanged; a null ringtone: the one of the settings).
+"""
+input SavedCountdownPatch {
+  color: String
+  label: String
+  minutes: Int
+  ringtone: String
+}
+
+"""Item saved timers are linked to."""
+enum SavedCountdownTarget {
+  EVENT
+  ROUTINE
+  SHEET
+  TASK
+}
+
 type SavedMailDraft {
   accountId: ID!
   attachments: [MailAttachmentInfo!]!
@@ -4277,6 +4361,7 @@ enum SettingsListKind {
   PROJECT_CATEGORY
   PROJECT_STATUS
   ROUTINE_CATEGORY
+  SAVED_COUNTDOWN
   SCHEDULE_TYPE
   SHEET_CATEGORY
   SHOPPING_BASE_LIST
@@ -4309,6 +4394,9 @@ type Sheet {
   note: String
   position: Int!
   projectId: ID
+
+  """Saved timers launched from it."""
+  savedCountdownIds: [ID!]!
   updatedAt: DateTime!
 
   """Routines, events and tasks it is attached to."""
@@ -4907,6 +4995,11 @@ type Task {
 
   """Issue on GitHub (null for a draft issue or an unlinked task)."""
   githubUrl: String
+
+  """
+  « Horaires »: days and hours it can be done, cases shaped as those of a schedule (`taskHoursSchema`); empty: any time. With a slot condition, doable only when both allow it.
+  """
+  hours: JSON!
   id: ID!
 
   """
@@ -4954,6 +5047,9 @@ type Task {
   """
   reminders: [Reminder!]!
 
+  """Saved timers launched from it."""
+  savedCountdownIds: [ID!]!
+
   """
   On or out of calendar schedules, or on the free time, in groups combined with and / or (as a routine); null: any time.
   """
@@ -4988,6 +5084,14 @@ type TaskComment {
   id: ID!
 }
 
+"""An open task and whether it can be done now."""
+type TaskDoability {
+  id: ID!
+
+  """Why it cannot be done now, null: it can."""
+  reason: TaskWaitReason
+}
+
 """
 Values a task goes by: each inherited field from its parent, live; its dates also from its milestone, project or first sprint. Read for every behaviour; the screens grey the inherited ones (`inheritance`).
 """
@@ -4998,6 +5102,9 @@ type TaskEffective {
 
   """« Échéance » it goes by."""
   deadline: Date
+
+  """« Horaires » it goes by (cases of days and hours; empty: any time)."""
+  hours: JSON!
   location: String
   locationLat: Float
   locationLon: Float
@@ -5015,6 +5122,7 @@ enum TaskInheritableField {
   ASSIGNEES
   BENEFICIARIES
   DEADLINE
+  HOURS
   LOCATION
   MILESTONE
   MIN_DATE
@@ -5034,6 +5142,11 @@ input TaskInput {
   description: String
   effort: Float
   endDate: Date
+
+  """
+  « Horaires »: cases of days and hours, as those of a schedule (20 at most, no overlapping hours); null or empty: any time.
+  """
+  hours: JSON
 
   """
   Under a parent: the fields it inherits (their values given are ignored); omitted: every field left out of the input. Ignored without parent.
@@ -5168,6 +5281,11 @@ input TaskUpdateInput {
   endDate: Date
 
   """
+  « Horaires »: cases of days and hours, as those of a schedule (20 at most, no overlapping hours); null or empty: any time.
+  """
+  hours: JSON
+
+  """
   Fields made inherited from its parent again (« Rétablir l’héritage »); a sub-task only.
   """
   inherit: [TaskInheritableField!]
@@ -5231,6 +5349,16 @@ input TaskViewInput {
 input TaskViewUpdateInput {
   config: JSON
   label: String
+}
+
+"""
+Why an open task cannot be done now: its « Ouverture » is after today, its hours or its slot condition leave the moment out, an event keeps its assignees busy.
+"""
+enum TaskWaitReason {
+  ASSIGNEE_BUSY
+  NOT_OPEN
+  OUTSIDE_HOURS
+  OUTSIDE_SLOTS
 }
 
 type TimeEntry {

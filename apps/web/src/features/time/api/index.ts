@@ -9,6 +9,7 @@ import type { RoutinesDataQuery, TasksDataQuery } from '../../../graphql/graphql
 import { notifyWarning } from '../../../lib/notify';
 import { routinesKey } from '../../routines/api';
 import { routineDoable, useSlotRules, type SlotRules } from '../../calendar/hooks/use-slot-rules';
+import { taskRow } from '../../tasks/lib/task-inheritance';
 import { tasksQueryKey } from '../../tasks/api';
 import type { CalendarEventScope } from '../../calendar/api';
 
@@ -268,8 +269,8 @@ export function useLostOnDelete(query: LostOnDeleteQuery) {
 }
 
 /**
- * Warns when a timer starts on tasks out of the hours their slot condition allows (a routine: its moments are kept
- * to them already), or while an event keeps their assignees busy (but the events the timer is on): the timer runs all the
+ * Warns when a timer starts on tasks out of the hours their slot condition or their « Horaires » allow, those they go
+ * by (their own or inherited; a routine: its moments are kept to its condition already), or while an event keeps their assignees busy (but the events the timer is on): the timer runs all the
  * same.
  * @param {QueryClient} queryClient Query cache (routines and tasks loaded).
  * @param {SlotRules} slotRules Slot rules of the workspace.
@@ -283,14 +284,15 @@ function warnOutOfSlots(queryClient: QueryClient, slotRules: SlotRules, input: T
   const eventIds = new Set((input.events ?? []).map((event) => event.eventId));
   const items = [
     ...routines.map((routine) => ({ label: routine.label, ...routineDoable(routine) })),
-    ...tasks.map((task) => ({ label: task.label, slotCondition: task.slotCondition, assigneeIds: task.assigneeIds, taskId: task.id })),
+    ...tasks.map(taskRow).map((task) => ({ label: task.label, slotCondition: task.slotCondition, hours: task.hours, assigneeIds: task.assigneeIds, taskId: task.id })),
   ];
   const lines = items.flatMap((item) => {
     const busy = slotRules.blocking(item);
     // The events the timer is on keep nobody from it.
     const event = busy && !eventIds.has((busy as { eventId?: string }).eventId ?? '') ? busy : undefined;
     if (event) return [`${item.label} : pendant « ${event.label} »`];
-    return slotRules.inSlots(item.slotCondition) ? [] : [`${item.label} : ${(slotRules.describe(item.slotCondition) ?? '').toLowerCase()}`];
+    const out = [...(slotRules.inSlots(item.slotCondition) ? [] : [(slotRules.describe(item.slotCondition) ?? '').toLowerCase()]), ...(slotRules.inHours(item.hours) ? [] : ['hors de ses horaires'])];
+    return out.length ? [`${item.label} : ${out.join(' et ')}`] : [];
   });
   if (!lines.length) return;
   notifyWarning('Hors des moments prévus', `Le chrono tourne quand même. ${lines.join(' · ')}.`);

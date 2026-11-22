@@ -39,8 +39,8 @@ import { rowMenuEntry } from '../../../components/data-table/selection/selection
 import classes from '../components/Routines.module.css';
 import { plural } from '../../../lib/text';
 import { WaitingIcon } from '../components/WaitingIcon';
-import { deadTimeMenuEntries } from '../../countdowns/lib/dead-time-menu';
-import { routineDeadTimeItem } from '../lib/routine-dead-times';
+import { useCountdownMenuEntries } from '../../countdowns/hooks/use-saved-countdowns';
+import { routineCountdownItem } from '../lib/routine-countdowns';
 
 /** Views made the first time: those to do, all; grouped by category. */
 const ROUTINE_VIEWS: FirstTableView[] = [
@@ -86,6 +86,7 @@ export function RoutinesPanel({ projectId, projectIds }: { projectId?: string; p
   const postpone = usePostponeRoutine();
   const selectionActions = useRoutineSelectionActions();
   const rowActionsOf = useRoutineRowsActions();
+  const countdownEntries = useCountdownMenuEntries();
   const convert = useConvertActivity();
   const { columns, byId, doable } = useRoutineColumns(routines, categories, today);
   // Of the project on a project page; in their manual order.
@@ -215,7 +216,7 @@ export function RoutinesPanel({ projectId, projectIds }: { projectId?: string; p
           { label: 'Historique', icon: <ClockCounterClockwiseIcon aria-hidden />, to: routineHistoryPath(routine.id) },
           rowMenuEntry(rowActions.archive),
           rowMenuEntry(rowActions.remove),
-          ...(readOnly ? [] : deadTimeMenuEntries(routine.deadTimes, routineDeadTimeItem(routine, routine.currentDate))),
+          ...(readOnly ? [] : countdownEntries(routine, routineCountdownItem(routine, routine.currentDate))),
         ]}
       />
     );

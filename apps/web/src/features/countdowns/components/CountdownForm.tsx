@@ -1,16 +1,17 @@
 import { Chip, Group, Select, Stack, TextInput } from '@mantine/core';
 import { COUNTDOWN_PRESETS, countdownFormSchema, durationText, formatDuration, isRingtone, parseDuration, type CountdownFormValues, type DeadTime } from '@ordo/shared';
+import { unarchived } from '../../../lib/archive';
 import { TimerIcon } from '@phosphor-icons/react';
 import { FormActions } from '../../../components/dialogs/FormActions';
 import { RingtoneSelect } from '../../../components/inputs/RingtoneSelect';
 import { formCallbacks, useAppForm } from '../../../lib/form';
 import { useWorkspaces } from '../../workspaces/api';
-import { useCountdownMutations } from '../api';
-import { COUNTDOWN_DEFAULT_NAME, deadTimeLabel, type DeadTimeItem } from '../lib/countdowns';
+import { useCountdownMutations, useSavedCountdowns } from '../api';
+import { COUNTDOWN_DEFAULT_NAME, countdownItemInput, countdownStartedMessage, timerLabel, type CountdownItem } from '../lib/countdowns';
 
 export interface CountdownFormProps {
   /** Item whose dead time it is launched for (none: a timer of its own). Optional. */
-  item?: DeadTimeItem;
+  item?: CountdownItem;
   /** Dead times of that item, one of them chosen (its name, duration and ringtone). Optional. */
   deadTimes?: readonly DeadTime[];
   /** Dead time chosen at first. Optional. Default = the first one. */
@@ -19,14 +20,15 @@ export interface CountdownFormProps {
 }
 
 /**
- * Values of the form for a dead time (its name, estimated time, ringtone), or a timer of 10 minutes.
- * @param {DeadTime | undefined} deadTime Dead time.
+ * Values of the form for a dead time or a saved timer (its name, duration, ringtone), or a timer of 10 minutes.
+ * @param {{ label: string, minutes: number, ringtone?: string | null } | undefined} deadTime Dead time or saved timer.
  * @returns {CountdownFormValues} Values.
  */
-const valuesOf = (deadTime: DeadTime | undefined): CountdownFormValues => ({ label: deadTime?.label ?? '', duration: durationText(deadTime?.minutes ?? 10), ringtone: deadTime?.ringtone ?? null });
+const valuesOf = (deadTime: { label: string; minutes: number; ringtone?: string | null } | undefined): CountdownFormValues => ({ label: deadTime?.label ?? '', duration: durationText(deadTime?.minutes ?? 10), ringtone: deadTime?.ringtone ?? null });
 
 /**
- * Starts a timer (« Lancer un minuteur »): its name (optional), its duration (typed, or a duration offered
+ * Starts a timer (« Lancer un minuteur »): a saved timer of the workspace chosen (« Minuteur enregistré ») gives its
+ * name, duration and ringtone, else they are typed: its name (optional), its duration (typed, or a duration offered
  * at once), its ringtone; launched for a dead time of a task or a routine (« Lancer un temps mort »), the dead time
  * chosen gives them (its estimated time stays editable). The timers running keep running.
  * @param {CountdownFormProps} props Component props.
@@ -35,6 +37,9 @@ const valuesOf = (deadTime: DeadTime | undefined): CountdownFormValues => ({ lab
 export function CountdownForm({ item, deadTimes = [], deadTime = deadTimes[0], onDone }: CountdownFormProps) {
   const { start } = useCountdownMutations();
   const { data: spaces } = useWorkspaces();
+  // A saved timer is offered to a timer of its own (a dead time gives its values).
+  const { data: savedCountdowns = [] } = useSavedCountdowns();
+  const saved = item ? [] : unarchived(savedCountdowns);
   const form = useAppForm<CountdownFormValues>({ initialValues: valuesOf(deadTime), schema: countdownFormSchema });
   const seconds = parseDuration(form.values.duration);
 
@@ -44,17 +49,9 @@ export function CountdownForm({ item, deadTimes = [], deadTime = deadTimes[0], o
         label: values.label || null,
         seconds: parseDuration(values.duration)!,
         ringtone: values.ringtone,
-        ...(item && {
-          taskId: item.taskId,
-          routineId: item.routineId,
-          occurrenceDate: item.occurrenceDate,
-          subject: item.subject,
-          path: item.path,
-          linkLabel: item.linkLabel,
-          workspaceId: item.workspaceId ?? spaces?.currentWorkspaceId,
-        }),
+        ...(item && countdownItemInput(item, spaces?.currentWorkspaceId)),
       },
-      formCallbacks(form, `Minuteur lancé : ${formatDuration(parseDuration(values.duration)!)}.`, onDone),
+      formCallbacks(form, countdownStartedMessage(parseDuration(values.duration)!), onDone),
     ),
   );
 
@@ -64,10 +61,24 @@ export function CountdownForm({ item, deadTimes = [], deadTime = deadTimes[0], o
         {deadTimes.length > 1 && (
           <Select
             label="Temps mort"
-            data={deadTimes.map((option, index) => ({ value: String(index), label: deadTimeLabel(option) }))}
+            data={deadTimes.map((option, index) => ({ value: String(index), label: timerLabel(option) }))}
             defaultValue={String(Math.max(0, deadTimes.indexOf(deadTime ?? deadTimes[0])))}
             allowDeselect={false}
             onChange={(index) => form.setValues(valuesOf(deadTimes[Number(index)]))}
+          />
+        )}
+        {saved.length > 0 && (
+          <Select
+            label="Minuteur enregistré"
+            description="Reprend son nom, sa durée et sa sonnerie ; sinon, tapez-les."
+            placeholder="Aucun"
+            data={saved.map((option) => ({ value: option.id, label: timerLabel(option) }))}
+            clearable
+            searchable
+            onChange={(id) => {
+              const chosen = saved.find((option) => option.id === id);
+              form.setValues(chosen ? valuesOf(chosen) : valuesOf(undefined));
+            }}
           />
         )}
         <TextInput label="Nom" placeholder={COUNTDOWN_DEFAULT_NAME} data-autofocus={item ? undefined : true} {...form.getInputProps('label')} />

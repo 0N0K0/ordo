@@ -3,6 +3,7 @@ export * from './core/password-rules';
 export * from './core/workspace';
 export * from './tasks/tasks';
 export * from './tasks/task-inheritance';
+export * from './tasks/task-hours';
 export * from './core/inheritance';
 export * from './routines/routine-inheritance';
 export * from './tables/filters';

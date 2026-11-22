@@ -1,4 +1,4 @@
-import { changedInheritance, effectiveTask, emptyTaskFields, taskFieldsGiven, formatDay, formatOptionalDay, parseOptionalDay, TASK_INHERITABLE_FIELDS, taskFieldOrigin, type EffectiveTask, type InheritingTask, type TaskInheritableField, type TaskInheritanceContext } from '@ordo/shared';
+import { changedInheritance, effectiveTask, emptyTaskFields, readTaskHours, taskFieldsGiven, formatDay, formatOptionalDay, parseOptionalDay, TASK_INHERITABLE_FIELDS, taskFieldOrigin, type EffectiveTask, type InheritingTask, type TaskInheritableField, type TaskInheritanceContext } from '@ordo/shared';
 import { prisma } from '../../db';
 import { Prisma } from '../../generated/prisma/client';
 import { fieldError } from '../../graphql/errors';
@@ -16,6 +16,7 @@ export const INHERITING_TASK_SELECT = {
   minDate: true,
   deadline: true,
   slotCondition: true,
+  hours: true,
   location: true,
   locationLat: true,
   locationLon: true,
@@ -45,6 +46,7 @@ function inheritingTask(row: InheritingTaskRow): InheritingTask {
     minDate: formatOptionalDay(row.minDate),
     deadline: formatOptionalDay(row.deadline),
     slotCondition: row.slotCondition,
+    hours: row.hours,
     location: row.location,
     locationLat: row.locationLat,
     locationLon: row.locationLon,
@@ -126,6 +128,7 @@ export function clearedTaskData(fields: readonly TaskInheritableField[] | null |
     ...(cleared.has('ASSIGNEES') && { assignees: { set: [] } }),
     ...(cleared.has('BENEFICIARIES') && { beneficiaries: { set: [] }, beneficiaryRelations: { set: [] } }),
     ...(cleared.has('SLOT_CONDITION') && { slotCondition: Prisma.DbNull }),
+    ...(cleared.has('HOURS') && { hours: [] }),
     ...(cleared.has('MIN_DATE') && { minDate: null }),
     ...(cleared.has('DEADLINE') && { deadline: null }),
     ...(cleared.has('LOCATION') && { location: null, locationLat: null, locationLon: null }),
@@ -172,6 +175,7 @@ export async function freezeTaskInheritance(ids: readonly string[]): Promise<voi
           ...(inherited.has('ASSIGNEES') && { assignees: { set: connectIds(task.assigneeIds) } }),
           ...(inherited.has('BENEFICIARIES') && { beneficiaries: { set: connectIds(task.beneficiaryIds) }, beneficiaryRelations: { set: connectIds(task.beneficiaryRelationIds) } }),
           ...(inherited.has('SLOT_CONDITION') && { slotCondition: task.slotCondition === null ? Prisma.DbNull : toJson(task.slotCondition) }),
+          ...(inherited.has('HOURS') && { hours: toJson(readTaskHours(task.hours)) }),
           ...(inherited.has('MIN_DATE') && { minDate: fromParent('MIN_DATE') ? parseOptionalDay(task.minDate) : null }),
           ...(inherited.has('DEADLINE') && { deadline: fromParent('DEADLINE') ? parseOptionalDay(task.deadline) : null }),
           ...(inherited.has('LOCATION') && { location: task.location, locationLat: task.locationLat, locationLon: task.locationLon }),

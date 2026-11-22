@@ -1,6 +1,6 @@
 # Règles des alarmes
 
-Règles des alarmes (validation, programmation, occurrences, sonneries) et des rappels des tâches, routines, évènements, éphémérides et anniversaires sonnés par le navigateur. Sources : `apps/api/src/services/tasks/alarms.ts`, `apps/api/src/graphql/modules/time.ts`, `packages/shared/src/tasks/time.ts` (section Alarms), `packages/shared/src/dates/reminders.ts` (rappels), `packages/shared/src/dates/ringing.ts` (réglages et état des sonneries), `apps/api/src/services/tasks/alarm-rings.ts`, `packages/shared/src/dates/countdowns.ts` et `apps/api/src/services/tasks/countdowns.ts` (minuteurs et temps morts), ce qui sonne et ses textes, communs à l’app et au serveur (`packages/shared/src/dates/reminder-rings.ts`), la logique de sonnerie côté web `apps/web/src/features/alarms/components/ring.tsx`, `lib/ring-routines.tsx`, `lib/ringing.tsx`, et les notifications push (`apps/api/src/services/tasks/push.ts`, `outside-rings.ts`, `apps/web/src/features/alarms/lib/push.ts`, `apps/web/public/push-sw.js`). Fonctionnalités : [Alarmes](../../features/activities/alarms.md).
+Règles des alarmes (validation, programmation, occurrences, sonneries) et des rappels des tâches, routines, évènements, éphémérides et anniversaires sonnés par le navigateur. Sources : `apps/api/src/services/tasks/alarms.ts`, `apps/api/src/graphql/modules/time.ts`, `packages/shared/src/tasks/time.ts` (section Alarms), `packages/shared/src/dates/reminders.ts` (rappels), `packages/shared/src/dates/ringing.ts` (réglages et état des sonneries), `apps/api/src/services/tasks/alarm-rings.ts`, `packages/shared/src/dates/countdowns.ts`, `apps/api/src/services/tasks/countdowns.ts` et `apps/api/src/services/tasks/saved-countdowns.ts` (minuteurs, temps morts et minuteurs enregistrés), ce qui sonne et ses textes, communs à l’app et au serveur (`packages/shared/src/dates/reminder-rings.ts`), la logique de sonnerie côté web `apps/web/src/features/alarms/components/ring.tsx`, `lib/ring-routines.tsx`, `lib/ringing.tsx`, et les notifications push (`apps/api/src/services/tasks/push.ts`, `outside-rings.ts`, `apps/web/src/features/alarms/lib/push.ts`, `apps/web/public/push-sw.js`). Fonctionnalités : [Alarmes](../../features/activities/alarms.md).
 
 ## Modèle
 
@@ -126,6 +126,7 @@ Une seule brique pour tout ce qui sonne, alarmes et rappels, espace ouvert et au
 - Toast qui reste (`notifyAlarm`), sans bouton de fermeture : « Arrêter » (pour de bon), « Répéter dans N min » (N = la répétition des réglages, 5 sans répétition : `snoozeMinutes`), puis ses liens (un lien suivi garde le toast). En attente, il indique « Sonne à nouveau à HH:MM » et n’offre plus que « Arrêter » et les liens.
 - Fin de la durée sans réponse : silence ; avec une répétition, elle resonne N minutes après la fin (`repeatedRingAt` : début + durée + répétition), jusqu’à « Arrêter » ; sans répétition, le toast reste silencieux jusqu’à « Arrêter ».
 - Plusieurs sonneries à la fois : chacune son toast, ses boutons et son son.
+- **Écouter** : partout où une sonnerie se choisit (un rappel, un temps mort, un minuteur, un minuteur enregistré, les réglages), le choix a son bouton « Écouter » qui la joue une fois depuis le clic ; « Celle des réglages » joue la sonnerie des réglages de l’utilisateur.
 
 ### Réglages (`User.ringSettings`)
 
@@ -205,8 +206,8 @@ Un **minuteur** compte à rebours une durée et sonne à sa fin. Il appartient �
 | `endsAt`                  | Fin tant qu’il tourne ; null : en pause. C’est l’instant que le serveur pousse hors de l’app.                                      |
 | `remainingSeconds`        | Secondes restantes pendant la pause ; null : il tourne.                                                                                |
 | `ringtone`                | Sonnerie de la banque ; aucune (ou inconnue) : celle des réglages.                                                                    |
-| `taskId`, `routineId`, `occurrenceDate`, `subject` | Élément du temps mort pour lequel il a été lancé (tâche, ou routine et occurrence) et son nom : de simples identifiants, sans relation (le minuteur traverse les espaces). |
-| `workspaceId`, `path`, `linkLabel` | Espace et page du lien de sa sonnerie (la tâche, les routines).                                                               |
+| `taskId`, `routineId`, `eventId`, `sheetId`, `occurrenceDate`, `subject` | Élément pour lequel il a été lancé (un temps mort, un minuteur enregistré) : une tâche, une routine et son occurrence, un évènement (et son occurrence s’il se répète), une fiche ; et son nom : de simples identifiants, sans relation (le minuteur traverse les espaces). |
+| `workspaceId`, `path`, `linkLabel` | Espace et page du lien de sa sonnerie (la tâche, les routines, l’agenda, la fiche).                                          |
 | `rungAt`                  | Sa fin a sonné : il n’est plus montré ; supprimé 6 heures après (`RING_KEPT_MS`), au lancement d’un autre.                            |
 
 - **Plusieurs à la fois** : en lancer un ne touche pas aux autres. `countdowns` : ceux qui n’ont pas sonné, la fin la plus proche d’abord, ceux en pause ensuite.
@@ -228,6 +229,24 @@ Une tâche ou une routine a une liste de **temps morts** (`deadTimes`, JSON, lis
 - « Lancer » un temps mort lance un minuteur rattaché à l’élément (la tâche ; la routine et son occurrence : celle en cours, celle ouverte dans son panneau, celle de l’agenda du jour), de la durée du temps mort, modifiable au lancement, avec sa sonnerie.
 - Un temps mort n’est **pas du temps passé** (aucun `TimeEntry`), ni compté dans « Temps à y consacrer ».
 - Copiés par « Dupliquer » ; gardés par la transformation tâche ↔ routine. Une routine les envoie toujours en entier (`deadTimes` requis, comme `links` : un champ omis ne les efface jamais) ; une tâche : champ omis = inchangé, `null` = aucun.
+- Les temps morts restent à côté des minuteurs enregistrés : une attente propre à l’élément, quand un minuteur enregistré est un minuteur de l’espace, réutilisé partout.
+
+### Minuteurs enregistrés
+
+Un **minuteur enregistré** (« Œufs coques », « Œufs durs », « Lessive », « Lave-vaisselle ») est un minuteur prêt à relancer : modèle `SavedCountdown`, **propre à chaque espace**, une liste de réglages comme les autres (`createLabelService('savedCountdown', …)`, type `SAVED_COUNTDOWN` de `SETTINGS_LISTS` : couleur, image, ordre manuel, archivage) ; schéma `savedCountdownSchema`.
+
+| Champ      | Règle                                                                                       | Message                                                              |
+| ---------- | ------------------------------------------------------------------------------------------- | -------------------------------------------------------------------- |
+| `label`    | Nom requis, 250 caractères, unique dans l’espace                                            | « Le libellé est requis. », « Un minuteur porte déjà ce nom. »       |
+| `color`    | Couleur `#rrggbb`, comme toute liste de réglages                                            | « Couleur invalide (format #rrggbb). »                               |
+| `minutes`  | Durée, entier de 1 à 1 440                                                                  | « Durée attendue. », « Au moins 1 minute. », « 24 heures maximum. » |
+| `ringtone` | Sonnerie de la banque ; aucune (ou inconnue) : celle des réglages ; `null` à la modification la retire (`clearable` de `createLabelService`) | — |
+
+- Requête `savedCountdowns` (ordre manuel, archivés compris) ; mutations `createSavedCountdown`, `updateSavedCountdown` (champs omis inchangés), `deleteSavedCountdown`, et les mutations communes des listes de réglages (`setSettingsItemLook`, `reorderSettingsItems`, `setArchived`). Un minuteur enregistré archivé est en lecture seule et n’est plus proposé (ni lancé, ni nouvellement lié) ; supprimé, il quitte les éléments qui le citaient ; les minuteurs déjà lancés continuent.
+- **Lancer** un minuteur enregistré démarre aussitôt un minuteur de l’utilisateur (`startCountdown`) qui reprend son nom, sa durée et sa sonnerie (une copie : le changer ensuite ne change pas ce minuteur).
+- **Éléments liés** : une tâche, une routine, un évènement (toute sa série) et une fiche citent des minuteurs enregistrés (relations `TaskSavedCountdowns`, `RoutineSavedCountdowns`, `EventSavedCountdowns`, `SheetSavedCountdowns` ; champ GraphQL `savedCountdownIds`, aussi sur les occurrences d’évènement). `setSavedCountdownLinks(target, id, savedCountdownIds)` (`TASK`, `ROUTINE`, `EVENT`, `SHEET`) remplace la liste : 20 au plus (`SAVED_COUNTDOWN_LINKS_MAX` : « 20 minuteurs au plus. »), chacun une fois ; refusé sur un élément archivé (un évènement d’un agenda archivé aussi : « Élément archivé : restaurez-le pour le modifier. ») ; un minuteur enregistré archivé n’est pas nouvellement choisi (un déjà là reste).
+- Lancé depuis un élément, le minuteur lui est rattaché comme un temps mort : la tâche ; la routine et son occurrence (celle en cours, celle ouverte dans son panneau, celle de l’agenda du jour) ; l’évènement et l’occurrence ouverte d’un évènement qui se répète ; la fiche. Sa sonnerie mène à l’élément (la tâche, « Voir les routines », « Voir l’agenda », « Ouvrir la fiche »).
+- Les liens suivent l’élément : copiés par « Dupliquer » (tâche, routine, évènement, fiche), gardés par la transformation tâche ↔ routine, par la nouvelle série d’un évènement coupé (« celle-ci et les suivantes ») et par un évènement reporté.
 
 ## Alarmes et rappels des autres espaces
 

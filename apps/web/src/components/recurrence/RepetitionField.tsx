@@ -7,7 +7,7 @@ import { ActionButton } from '../actions/ActionButton';
 interface RepetitionFieldProps<V> {
   value: V;
   onChange: (value: V) => void;
-  /** The repetition as text, a line each (mode, cases, times…); none: « Ne se répète pas ». */
+  /** The repetition as text, a line each (mode, cases, times…); none: `emptyText`. */
   describe: (value: V) => string[];
   /** Every setting, on a draft applied on « Appliquer ». */
   editor: (draft: V, setDraft: (value: V) => void) => ReactNode;
@@ -22,17 +22,19 @@ interface RepetitionFieldProps<V> {
   required?: boolean;
   /** Can be changed. Optional. Default = true. */
   editable?: boolean;
+  /** Shown without any line. Optional. Default = « Ne se répète pas ». */
+  emptyText?: string;
 }
 
 /**
  * Repetition of what a panel shows: its summary, and « Modifier » opening every repetition setting in a modal (applied
- * on « Appliquer », dropped on « Annuler »). The same field for events, schedules, tasks, routines, alarms, treasury
- * and invoicing.
+ * on « Appliquer », dropped on « Annuler »). The same field for events, schedules, tasks (their « Horaires »), routines,
+ * alarms, treasury and invoicing.
  * @template V
  * @param {RepetitionFieldProps<V>} props Component props.
  * @returns {JSX.Element} Field.
  */
-export function RepetitionField<V>({ value, onChange, describe, editor, valid, label = 'Répétition', description, error, required, editable = true }: RepetitionFieldProps<V>) {
+export function RepetitionField<V>({ value, onChange, describe, editor, valid, label = 'Répétition', description, error, required, editable = true, emptyText = 'Ne se répète pas' }: RepetitionFieldProps<V>) {
   const [opened, setOpened] = useState(false);
   const [draft, setDraft] = useState<V>(value);
   const lines = describe(value);
@@ -48,7 +50,7 @@ export function RepetitionField<V>({ value, onChange, describe, editor, valid, l
             ))
           ) : (
             <Text size="sm" c="dimmed">
-              Ne se répète pas
+              {emptyText}
             </Text>
           )}
         </Stack>

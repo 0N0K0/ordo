@@ -53,6 +53,10 @@ import { itemCreator } from '../../../components/settings/create-settings-item';
 import { FormActions } from '../../../components/dialogs/FormActions';
 import { RemindersSelect } from '../../../components/inputs/RemindersSelect';
 import { ActionsMenu } from '../../../components/actions/ActionsMenu';
+import { SavedCountdownsField } from '../../countdowns/components/SavedCountdownsField';
+import { useCountdownMenuEntries } from '../../countdowns/hooks/use-saved-countdowns';
+import { useSetSavedCountdownLinks } from '../../countdowns/api';
+import { eventCountdownItem } from '../lib/event-countdowns';
 import { calendarPath } from '../../../app/pages';
 import { ActionButton } from '../../../components/actions/ActionButton';
 import { DuplicateButton } from '../../../components/actions/DuplicateButton';
@@ -171,6 +175,10 @@ export function EventForm({ context, occurrence, defaults, onDone, onDuplicated,
   const categoryItems = useCalendarCategoryItems();
   const { create, update, remove, setCalledOff } = useCalendarEventMutations();
   const { startTimer, isPending: timerStarting } = useStartTimer();
+  const countdownEntries = useCountdownMenuEntries();
+  // The panel does not follow the cache: the saved timers of the event as saved from it.
+  const [savedCountdownIds, setSavedCountdownIds] = useState(occurrence?.savedCountdownIds ?? []);
+  const copyCountdowns = useSetSavedCountdownLinks([calendarQueryKey]);
 
   /**
    * Opens the postponement of this occurrence; once postponed, the event form closes too.
@@ -300,9 +308,17 @@ export function EventForm({ context, occurrence, defaults, onDone, onDuplicated,
   });
   const recurring = target.occurrenceDate !== null;
 
-  // Archives the event (its whole series) or restores it, with an undo, then closes the form; in its « … » menu.
+  // Archives the event (its whole series) or restores it, with an undo, then closes the form, and launches its saved
+  // timers; in its « … » menu.
   const archiveMenu = occurrence && (
-    <ActionsMenu about="l’évènement" items={[archiveEntry({ archived: occurrence.archived, type: 'Évènement', label: occurrence.label }, setArchived, target.eventId, onDone)]} />
+    <ActionsMenu
+      about="l’évènement"
+      items={[
+        archiveEntry({ archived: occurrence.archived, type: 'Évènement', label: occurrence.label }, setArchived, target.eventId, onDone),
+        // « Lancer » its saved timers, for this occurrence.
+        ...(readOnly ? [] : countdownEntries({ savedCountdownIds }, eventCountdownItem({ eventId: target.eventId, label: values.label || occurrence.label }, target.occurrenceDate))),
+      ]}
+    />
   );
   // A rule is edited from the start of its series (for the whole series or the following occurrences).
   const ruleStart = recurring ? target.ruleStart : values.startDate;
@@ -555,6 +571,17 @@ export function EventForm({ context, occurrence, defaults, onDone, onDuplicated,
                   onChange={(reminders) => form.setFieldValue('reminders', reminders)}
                 />
               </Fieldset>
+              {occurrence && (
+                <SavedCountdownsField
+                  target="EVENT"
+                  id={target.eventId}
+                  value={savedCountdownIds}
+                  invalidate={[calendarQueryKey]}
+                  readOnly={readOnly}
+                  description={recurring ? 'Minuteurs enregistrés lancés depuis son menu « … » ; pour toute la série.' : undefined}
+                  onSaved={setSavedCountdownIds}
+                />
+              )}
             </SimpleGrid>
             {recurring && !seriesFields && (
               <Text size="xs" c="dimmed">
@@ -625,7 +652,12 @@ export function EventForm({ context, occurrence, defaults, onDone, onDuplicated,
                 // Its fields as they are in the form; an occurrence of a series becomes a one-off event.
                 item={{ ...values, label: copyName(values.label), recurrence: recurring ? null : (values.recurrence ?? null) }}
                 hint={recurring ? 'Copie de cette occurrence, en évènement unique' : 'Copie de l’évènement'}
-                duplicate={async (fields: CalendarEventInput) => ({ id: await create.mutateAsync(fields), fields })}
+                duplicate={async (fields: CalendarEventInput) => {
+                  const id = await create.mutateAsync(fields);
+                  // The copy launches the same saved timers.
+                  if (savedCountdownIds.length) await copyCountdowns.mutateAsync({ target: 'EVENT', id, savedCountdownIds });
+                  return { id, fields };
+                }}
                 done="Évènement dupliqué."
                 open={({ id, fields }) => onDuplicated(id, fields)}
               />

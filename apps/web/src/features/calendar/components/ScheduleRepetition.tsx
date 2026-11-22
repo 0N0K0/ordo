@@ -4,7 +4,7 @@ import { DatePickerInput, TimePicker } from '@mantine/dates';
 import { type ScheduleCase, type ScheduleException, type ScheduleTimes, DURATION_UNITS } from '@ordo/shared';
 
 import { useState, type ReactNode } from 'react';
-import { RepetitionEditor, type RepetitionModeValue, type RepetitionTimes } from '../../../components/recurrence/RepetitionEditor';
+import { RepetitionEditor, type CaseStart, type RepetitionModeValue, type RepetitionTimes } from '../../../components/recurrence/RepetitionEditor';
 import { RepetitionField } from '../../../components/recurrence/RepetitionField';
 import * as fmt from '../../../lib/format';
 import { localToday } from '../../../lib/dates';
@@ -81,11 +81,12 @@ const SCHEDULE_TIMES: RepetitionTimes<ScheduleTimes> = {
 };
 
 /**
- * Cases of a period (the schedule's, or an exception's): one rule, or several cases each with its period.
- * @param {{ cases: ScheduleCase[], onChange: (cases: ScheduleCase[]) => void, start: string }} props Cases, their change, first day of their period.
+ * Cases of a period (the schedule's, an exception's, or the « Horaires » of a task): one rule, or several cases each
+ * with its period, and their hours.
+ * @param {{ cases: ScheduleCase[], onChange: (cases: ScheduleCase[]) => void, start: string, caseStart?: CaseStart<ScheduleTimes> }} props Cases, their change, first day of their period, the day their rhythm counts from asked of the cases that need one (`RepetitionEditor`). Optional `caseStart`.
  * @returns {JSX.Element} Editor.
  */
-function ScheduleCases({ cases, onChange, start }: { cases: ScheduleCase[]; onChange: (cases: ScheduleCase[]) => void; start: string }) {
+export function ScheduleCases({ cases, onChange, start, caseStart }: { cases: ScheduleCase[]; onChange: (cases: ScheduleCase[]) => void; start: string; caseStart?: CaseStart<ScheduleTimes> }) {
   const [mode, setMode] = useState<RepetitionModeValue>(cases.length > 1 || cases.some((item) => item.since || item.until) ? 'CASES' : 'RULE');
   return (
     <RepetitionEditor<ScheduleTimes>
@@ -98,6 +99,7 @@ function ScheduleCases({ cases, onChange, start }: { cases: ScheduleCase[]; onCh
       allowNone={false}
       durations={DURATION_UNITS}
       times={SCHEDULE_TIMES}
+      caseStart={caseStart}
     />
   );
 }

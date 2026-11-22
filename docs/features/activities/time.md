@@ -29,7 +29,7 @@ Règles appliquées par l’API : [Règles métier — Temps passé](../../busin
 - Depuis une tâche (colonne « Chrono », panneau de la tâche) : démarre directement sur la tâche et son projet (aucun pour une tâche sans projet).
 - Depuis une routine ou un évènement : voir [Routines](routines.md) et [Agenda](calendar.md).
 - Les chronos qui tournent déjà continuent. Toast : « Chrono démarré. ».
-- Avertissement (toast) « Hors des moments prévus » si une routine ou une tâche est hors de ses créneaux, ou si ses assignés sont pris par un évènement (autre que ceux du chrono) : « Le chrono tourne quand même. Libellé : pendant « Réunion » · … ».
+- Avertissement (toast) « Hors des moments prévus » si une routine ou une tâche est hors de ses créneaux, ou une tâche hors de ses horaires (« Libellé : hors de ses horaires »), ou si ses assignés sont pris par un évènement (autre que ceux du chrono) : « Le chrono tourne quand même. Libellé : pendant « Réunion » · … ».
 - Bouton désactivé sur un élément archivé ou dans un projet archivé.
 
 ### Pendant qu’il tourne

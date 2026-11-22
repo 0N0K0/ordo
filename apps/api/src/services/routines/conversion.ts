@@ -1,4 +1,4 @@
-import { type EffectiveTask, conversionLoss, DAILY_RECURRENCE, daysBetween, formatOptionalDay, normalizedReminders, parseDay, parseOptionalDay, readDeadTimes, readReminders, readSlotCondition, sumOf, type ConversionLoss, type RoutineOpens } from '@ordo/shared';
+import { type EffectiveTask, conversionLoss, DAILY_RECURRENCE, daysBetween, formatOptionalDay, normalizedReminders, parseDay, parseOptionalDay, readDeadTimes, readReminders, readSlotCondition, readTaskHours, sumOf, type ConversionLoss, type RoutineOpens } from '@ordo/shared';
 import { prisma } from '../../db';
 import { Prisma } from '../../generated/prisma/client';
 import { clientError } from '../../graphql/errors';
@@ -10,6 +10,7 @@ import { forgetGithubItems } from '../github/links';
 import { effectiveTasks } from '../tasks/task-inheritance';
 import { effectiveRoutineOf, loadRoutineInheritance } from './routine-inheritance';
 import { parisToday } from '../../today';
+import { linkedSavedCountdowns } from '../tasks/saved-countdowns';
 import { firstOccurrence, loadScheduleContext, occurrenceSpansBetween, occurrencesOf, placeLegacyRoutineComments, ROUTINE_LINKS, slotsOf, storedCondition, type RoutineTiming } from './routines';
 
 /** Largest « Ouverture » of a routine before its due day, in days (`routineOpensSchema`, mode BEFORE). */
@@ -37,6 +38,7 @@ const pickInherited = (task: EffectiveTask) => ({
   priorityId: task.priorityId,
   milestoneId: task.milestoneId,
   slotCondition: task.slotCondition as Prisma.JsonValue,
+  hours: task.hours as Prisma.JsonValue,
   location: task.location,
   locationLat: task.locationLat,
   locationLon: task.locationLon,
@@ -110,6 +112,8 @@ export async function convertTaskToRoutine(id: string, confirm: boolean): Promis
     events: task.calendarEvents.length - oneOff.length,
     // A task has a single checklist: any other one goes.
     checklists: Math.max(0, task.checklists.length - 1),
+    // A routine has no « Horaires » of its own: its moments and its slot condition say when it is done.
+    hours: readTaskHours(task.hours).length ? 1 : 0,
     parent: flag(task.parentId),
   });
   assertConversionConfirmed(lost, confirm, 'Transformer la tâche en routine lui fait perdre ce qu’une routine n’a pas : confirmez pour continuer.');
@@ -152,6 +156,7 @@ export async function convertTaskToRoutine(id: string, confirm: boolean): Promis
         // « N jours avant » the « Échéance » of the task stay so: counted from the due day of the routine.
         reminders: toJson(normalizedReminders(readReminders(task.reminders).map((reminder) => (reminder.days ? { ...reminder, anchor: 'end' as const } : reminder)))),
         deadTimes: toJson(readDeadTimes(task.deadTimes)),
+        savedCountdowns: await linkedSavedCountdowns('TASK', id, tx),
         opensOn: opens ? toJson(opens) : Prisma.DbNull,
         location: task.location,
         locationLat: task.locationLat,
@@ -262,6 +267,7 @@ export async function convertRoutineToTask(id: string, confirm: boolean): Promis
         // A task counts them from its due day: those of the routine lose their anchor (from its opening day or its due day).
         reminders: toJson(reminders.flatMap(({ anchor: _anchor, ...reminder }) => (reminder.at !== null ? [reminder] : []))),
         deadTimes: toJson(readDeadTimes(routine.deadTimes)),
+        savedCountdowns: await linkedSavedCountdowns('ROUTINE', id, tx),
         minDate: parseOptionalDay(opening),
         deadline: parseOptionalDay(occurrence),
         location: routine.location,

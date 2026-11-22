@@ -1,5 +1,5 @@
 import { tasksQueryKey, doableTasksKey } from '../../../lib/query-keys';
-import type { ContributorLinkValues, TaskInheritableField, TaskInput } from '@ordo/shared';
+import type { ContributorLinkValues, TaskInheritableField, TaskInput, TaskWaitReason } from '@ordo/shared';
 import { accountingQueryKey } from '../../accounting/api';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { moveToIndex, patchQuery, useInvalidatingMutation } from '../../../lib/mutation';
@@ -12,6 +12,7 @@ import type {
   TaskCommentFieldsFragment,
   TaskFieldsFragment,
   TaskLabelFieldsFragment,
+  DoableTasksQuery,
   TasksDataQuery,
   TaskStatusCategory,
   TypedDocumentString,
@@ -131,6 +132,7 @@ graphql(`
       beneficiaryIds
       beneficiaryRelationIds
       slotCondition
+      hours
       location
       locationLat
       locationLon
@@ -157,6 +159,7 @@ graphql(`
     githubUrl
     githubNumber
     slotCondition
+    hours
     location
     locationLat
     locationLon
@@ -170,6 +173,7 @@ graphql(`
     deadTimes {
       ...DeadTimeFields
     }
+    savedCountdownIds
   }
 `);
 
@@ -700,28 +704,69 @@ const BulkDeleteTasksDocument = graphql(`
   }
 `);
 
-const DoableTaskIdsDocument = graphql(`
-  query DoableTaskIds($utcOffset: Int!) {
-    doableTaskIds(utcOffset: $utcOffset)
+const DoableTasksDocument = graphql(`
+  query DoableTasks($utcOffset: Int!) {
+    doableTasks(utcOffset: $utcOffset) {
+      id
+      reason
+    }
   }
 `);
 
 export { doableTasksKey };
 
+/** Open tasks that cannot be done now, and why. */
+export type TaskWaitReasons = ReadonlyMap<string, TaskWaitReason>;
+
 /**
- * Open tasks that can be done now (their slot rule, the events of their people), refreshed every minute; asked only
- * when a filter needs it.
- * @param {boolean} enabled Asked.
- * @returns {Set<string> | undefined} Ids.
+ * Ids of the open tasks that can be done now.
+ * @param {DoableTasksQuery['doableTasks']} tasks Open tasks and why they cannot be done now.
+ * @returns {Set<string>} Ids.
  */
-export function useDoableTaskIds(enabled: boolean) {
+const doableIdsOf = (tasks: DoableTasksQuery['doableTasks']) => new Set(tasks.filter((task) => !task.reason).map((task) => task.id));
+
+/**
+ * Open tasks that cannot be done now, with why.
+ * @param {DoableTasksQuery['doableTasks']} tasks Open tasks and why they cannot be done now.
+ * @returns {TaskWaitReasons} Reason by task id.
+ */
+const waitReasonsOf = (tasks: DoableTasksQuery['doableTasks']): TaskWaitReasons => new Map(tasks.flatMap((task) => (task.reason ? [[task.id, task.reason] as const] : [])));
+
+/**
+ * Open tasks and why they cannot be done now (their « Ouverture », their hours, their slot rule, the events of their
+ * people), one query refreshed every minute, read by `useDoableTaskIds` and `useTaskWaitReasons`.
+ * @param {boolean} enabled Asked.
+ * @param {(tasks: DoableTasksQuery['doableTasks']) => T} select What is read from it.
+ * @returns {T | undefined} What is read, undefined while loading.
+ */
+function useDoableTasks<T>(enabled: boolean, select: (tasks: DoableTasksQuery['doableTasks']) => T) {
   const { data } = useQuery({
     queryKey: doableTasksKey,
-    queryFn: async () => new Set((await execute(DoableTaskIdsDocument, { utcOffset: -new Date().getTimezoneOffset() })).doableTaskIds),
+    queryFn: async () => (await execute(DoableTasksDocument, { utcOffset: -new Date().getTimezoneOffset() })).doableTasks,
+    select,
     enabled,
     refetchInterval: 60_000,
   });
   return data;
+}
+
+/**
+ * Open tasks that can be done now, refreshed every minute; asked only when a filter needs it.
+ * @param {boolean} enabled Asked.
+ * @returns {Set<string> | undefined} Ids.
+ */
+export function useDoableTaskIds(enabled: boolean) {
+  return useDoableTasks(enabled, doableIdsOf);
+}
+
+/**
+ * Open tasks that cannot be done now, with why (the first reason, in the order they are told); the same query as
+ * `useDoableTaskIds`.
+ * @param {boolean} enabled Asked.
+ * @returns {TaskWaitReasons | undefined} Reason by task id, undefined while loading.
+ */
+export function useTaskWaitReasons(enabled: boolean) {
+  return useDoableTasks(enabled, waitReasonsOf);
 }
 
 export interface BulkChanges {
