@@ -233,7 +233,7 @@ Formulaire d’une règle, dans le panneau latéral (enregistré champ par champ
 - « Si » : « Facultatif : les tâches que la règle change, avec le filtre des tableaux de tâches, sur les valeurs qu’elles suivent (héritées comprises). » — l’éditeur des filtres des tableaux de tâches, sur les colonnes qu’une règle lit ; vide : « Aucune condition : toutes les tâches. ».
 - « Alors » : les actions, une par ligne (« Donner une valeur », « Ajouter », « Retirer », « Vider », « Fermer la tâche », « Rouvrir la tâche », « Archiver la tâche »), le champ et la valeur (choix de la liste, plusieurs pour une liste, un jour : « Aujourd’hui », « Il y a N jours », « Dans N jours », « Date précise », un nombre) ; « Ajouter une action » (20 au plus), corbeille par ligne (pas la dernière).
 
-Quand une règle change des tâches, une notification le dit (« Règle « Démarrage » : statut « En cours » », « (3 tâches) » pour plusieurs) avec « Annuler » ; une règle refusée : « Règle non appliquée » et pourquoi. Règles détaillées : [Automatisations des tâches](../../business-rules/activities/task-automations.md).
+Quand une règle change des tâches, une notification le dit (« Règle « Démarrage » : statut « En cours » », « (3 tâches) » pour plusieurs) avec « Annuler » ; une règle refusée : « Règle non appliquée » et pourquoi, en précisant que le changement qui l’a déclenchée est gardé. Règles détaillées : [Automatisations des tâches](../../business-rules/activities/task-automations.md).
 
 ## Jalons d’un projet
 

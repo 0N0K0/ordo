@@ -302,7 +302,7 @@ export const TASK_AUTOMATIONS_EXTENSION = 'taskAutomations';
  */
 export function taskAutomationMessage(report: TaskAutomationReport): string {
   const tasks = report.taskIds.length > 1 ? ` (${countOf(report.taskIds.length, 'tâche')})` : '';
-  if (report.error) return `Règle « ${report.label} » non appliquée${tasks} : ${report.error}`;
+  if (report.error) return `Règle « ${report.label} » non appliquée${tasks} : ${report.error} Le changement qui l’a déclenchée est gardé.`;
   return `Règle « ${report.label} » : ${report.changes.join(', ')}${tasks}`;
 }
 

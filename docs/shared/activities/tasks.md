@@ -105,7 +105,7 @@ Règles « quand … alors … » d'un espace (voir [Règles métier — Automat
 | `taskAutomationActionSchema` / `TaskAutomationAction`, `taskAutomationActionsSchema` | Action `{ kind, field, value }` (valeur selon le type du champ : un id, des ids, un jeton de jour `filterDaySchema`, un nombre `effortSchema`) ; liste de 1 à 20. |
 | `taskAutomationSchema` / `TaskAutomationInput` | Règle : nom (« Le nom est requis. »), couleur, `enabled` (vrai par défaut), déclencheur, condition (`null` par défaut), actions. Formulaire du web et API. |
 | `TaskAutomationRevert`, `TaskAutomationReport`, `TASK_AUTOMATIONS_EXTENSION` | Ce qui remet une tâche comme avant une règle (projet, `TaskBulkChanges`, état fermé, restauration) ; une règle appliquée pendant une requête (nom, ce qu'elle a fait, tâches, annulations, ou erreur), renvoyée dans les extensions `taskAutomations` de la réponse. |
-| `taskAutomationMessage(report)` | « Règle « Démarrage » : statut « En cours » » (« (3 tâches) » pour plusieurs) ; refusée : « Règle « … » non appliquée : <raison> ». |
+| `taskAutomationMessage(report)` | « Règle « Démarrage » : statut « En cours » » (« (3 tâches) » pour plusieurs) ; refusée : « Règle « … » non appliquée : <raison> Le changement qui l’a déclenchée est gardé. ». |
 | `taskAutomationActionText(action, nameOf, dayOf)` | Une action en mots : « statut « En cours » », « étiquettes + « Bug » », « échéance vidée », « fermée ». |
 
 ## `time.ts` — temps passé et alarmes
