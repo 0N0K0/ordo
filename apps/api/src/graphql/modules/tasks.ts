@@ -11,7 +11,7 @@ import { iconUrl } from '../../services/core/icons';
 import { taskPriorities, taskStatuses, taskTags, taskTypes } from '../../services/tasks/task-labels';
 import * as taskViews from '../../services/tasks/task-views';
 import * as tasks from '../../services/tasks/tasks';
-import { parseOptionalDay, readSlotCondition, readTaskHours, sumOf, TASK_STATUS_CATEGORIES, taskFieldOrigin, VIEW_KINDS, type EffectiveTask, type TaskInheritableField, type TaskInheritanceContext } from '@ordo/shared';
+import { parseOptionalDay, readSlotCondition, readTaskHours, sumOf, TASK_CLOSE_REASONS, TASK_STATUS_CATEGORIES, taskFieldOrigin, VIEW_KINDS, type EffectiveTask, type TaskInheritableField, type TaskInheritanceContext } from '@ordo/shared';
 import { effectiveTaskOf, loadTaskInheritance } from '../../services/tasks/task-inheritance';
 import { FieldOriginRef, InheritSourceEnum, TaskInheritableFieldEnum } from '../inheritance-fields';
 import type { Context } from '../context';
@@ -178,8 +178,13 @@ const SprintInput = builder.inputType('SprintInput', {
 });
 
 const TaskStatusCategory = builder.enumType('TaskStatusCategory', {
-  description: 'Fixed meaning of a status: open (TODO, IN_PROGRESS) or closed (DONE, CANCELLED).',
+  description: 'Fixed meaning of a status, a classification (to do, in progress, done, cancelled): it neither closes nor reopens tasks.',
   values: TASK_STATUS_CATEGORIES,
+});
+
+const TaskCloseReasonEnum = builder.enumType('TaskCloseReason', {
+  description: 'How a task is closed: done (COMPLETED) or cancelled (NOT_PLANNED, « Annulée »), as the state reason of a GitHub issue.',
+  values: TASK_CLOSE_REASONS,
 });
 
 builder.prismaObject('TaskStatus', {
@@ -320,9 +325,8 @@ builder.prismaObject('Task', {
       resolve: async (task, _args, ctx) => (await goesBy(ctx, task.id)).origins,
     }),
     cancelled: t.boolean({
-      description: 'Its status is of the category « Annulé »: closed, shown struck through.',
-      select: { status: { select: { category: true } } },
-      resolve: (task) => task.status?.category === 'CANCELLED',
+      description: 'Closed as cancelled (« Annulée »): shown struck through.',
+      resolve: (task) => task.closeReason === 'NOT_PLANNED',
     }),
     slotCondition: t.field({
       type: 'JSON',
@@ -352,8 +356,9 @@ builder.prismaObject('Task', {
     githubNumber: t.exposeInt('githubNumber', { nullable: true }),
     githubLinked: t.boolean({ description: 'Synchronized with an item of a GitHub board.', resolve: (task) => task.githubItemId !== null }),
     position: t.exposeInt('position'),
-    closed: t.boolean({ description: 'Closed (done) task.', resolve: (task) => task.closedAt !== null }),
+    closed: t.boolean({ description: 'Closed task (done or cancelled).', resolve: (task) => task.closedAt !== null }),
     closedAt: t.expose('closedAt', { type: 'DateTime', nullable: true }),
+    closeReason: t.expose('closeReason', { type: TaskCloseReasonEnum, nullable: true, description: 'How it was closed (done or cancelled); null while open.' }),
     createdAt: t.expose('createdAt', { type: 'DateTime' }),
     updatedAt: t.expose('updatedAt', { type: 'DateTime' }),
     tagIds: t.idList(relationIds('tags')),
@@ -650,9 +655,9 @@ builder.mutationFields((t) => ({
     resolve: (_root, { id, beforeId, parentId }) => done(tasks.moveTask(id, beforeId ?? null, parentId)),
   }),
   setTasksClosed: t.boolean({
-    description: 'Closes (done) or reopens tasks; a closed task no longer blocks other tasks.',
-    args: { ids: t.arg.idList({ required: true }), closed: t.arg.boolean({ required: true }) },
-    resolve: (_root, { ids, closed }) => done(tasks.setTasksClosed(ids, closed)),
+    description: 'Closes tasks as done (reason omitted) or as cancelled (NOT_PLANNED), or reopens them; a closed task no longer blocks other tasks. A task already closed keeps its closing date and takes the new reason.',
+    args: { ids: t.arg.idList({ required: true }), closed: t.arg.boolean({ required: true }), reason: t.arg({ type: TaskCloseReasonEnum }) },
+    resolve: (_root, { ids, closed, reason }) => done(tasks.setTasksClosed(ids, closed, false, reason ?? 'COMPLETED')),
   }),
   bulkUpdateTasks: t.boolean({
     args: {

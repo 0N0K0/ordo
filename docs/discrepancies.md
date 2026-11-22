@@ -8,6 +8,15 @@
 - **Dossier de recherche créé depuis un projet :** l’entrée GraphQL `MailSearchInput` n’a pas de `projectId` ; il n’est pas sûr que le dossier garde la limite au projet. Voir [Règles des mails](business-rules/resources/mail.md). _À corriger_
 - **Date de péremption d’un produit :** la description GraphQL de `ShoppingProduct.expiresAt` dit qu’une fois la date passée le produit est marqué manquant ; aucun code ni tâche de fond ne le fait. Voir [Règles des achats](business-rules/supplies/shopping.md). _il faut enlever la doc, un produit périmé n'est pas forcément manquant_
 
+## Formulaires de données hors de la disposition commune
+
+Règle : tout formulaire de données suit `DetailLayout` (en-tête, contenu principal, côté en groupes titrés), voir [Application web](web/app.md#formulaires-et-modales). Aujourd'hui seuls les panneaux d'une tâche, d'une routine et d'un évènement la suivent. Ne la suivent pas encore, par domaine (à reprendre avec chaque chantier) :
+
+- **Économat** : listes d'achats, produits et articles, livraisons et commandes (`features/shopping`), stock (`features/stock`), fiches et listes à cocher (`features/sheets`).
+- **Finances** : documents comptables, clients et contacts, catalogue, échéanciers (`features/accounting`) ; mouvements, lignes, budgets, comptes, relations (`features/treasury`).
+- **Ressources** : mails et dossiers de recherche (`features/mail`), tableaux de bord (`features/dashboards`) ; la bibliothèque (`features/library`) sera refaite.
+- **Activités, en dehors des trois panneaux** : alarmes (`AlarmForm`), minuteurs (`CountdownForm`), temps passés (`features/time`), créneaux et éphémérides (`features/calendar`, panneaux d'un créneau et d'une occurrence), personnes (contributeurs, membres, proches), projets (`ProjectForm`), espaces (`features/workspaces`).
+
 ## Comportements à confirmer
 
 - **Mots du pliage :** la règle est « Développer » / « Réduire » partout, mais le menu de la barre latérale des projets offre « Tout déplier » / « Tout replier » (`features/projects/lib/fold-entries.tsx`). Voir [Nommage](business-rules/cross-cutting/naming.md#mots-employés) et [Projets](features/cross-cutting/projects.md). _« Tout développer » / « Tout réduire », comme ailleurs_

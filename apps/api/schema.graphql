@@ -2764,9 +2764,9 @@ type Mutation {
   setTaskColumnDefaults(columnOrder: [String!], hiddenColumns: [String!]): TaskColumnDefaults!
 
   """
-  Closes (done) or reopens tasks; a closed task no longer blocks other tasks.
+  Closes tasks as done (reason omitted) or as cancelled (NOT_PLANNED), or reopens them; a closed task no longer blocks other tasks. A task already closed keeps its closing date and takes the new reason.
   """
-  setTasksClosed(closed: Boolean!, ids: [ID!]!): Boolean!
+  setTasksClosed(closed: Boolean!, ids: [ID!]!, reason: TaskCloseReason): Boolean!
 
   """Pauses or resumes a running timer."""
   setTimerPaused(id: ID!, paused: Boolean!): TimeEntry!
@@ -5067,12 +5067,13 @@ type Task {
   """Tasks this task blocks."""
   blockingIds: [ID!]!
 
-  """
-  Its status is of the category « Annulé »: closed, shown struck through.
-  """
+  """Closed as cancelled (« Annulée »): shown struck through."""
   cancelled: Boolean!
 
-  """Closed (done) task."""
+  """How it was closed (done or cancelled); null while open."""
+  closeReason: TaskCloseReason
+
+  """Closed task (done or cancelled)."""
   closed: Boolean!
   closedAt: DateTime
   commentCount: Int!
@@ -5265,6 +5266,14 @@ input TaskAutomationPatch {
   trigger: JSON
 }
 
+"""
+How a task is closed: done (COMPLETED) or cancelled (NOT_PLANNED, « Annulée »), as the state reason of a GitHub issue.
+"""
+enum TaskCloseReason {
+  COMPLETED
+  NOT_PLANNED
+}
+
 """Columns new task views of the workspace start with."""
 type TaskColumnDefaults {
   columnOrder: [String!]!
@@ -5433,7 +5442,7 @@ type TaskStatus {
 }
 
 """
-Fixed meaning of a status: open (TODO, IN_PROGRESS) or closed (DONE, CANCELLED).
+Fixed meaning of a status, a classification (to do, in progress, done, cancelled): it neither closes nor reopens tasks.
 """
 enum TaskStatusCategory {
   CANCELLED

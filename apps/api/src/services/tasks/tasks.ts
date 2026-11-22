@@ -1,4 +1,4 @@
-import { changedList, copyName, sumOf, marksInherited, dateSchema, TASK_INHERITABLE_FIELDS, type EffectiveTask, type TaskInheritableField, deadTimesSchema, readDeadTimes, storedDeadTimes, effortSchema, groupBy, itemLinksSchema, normalizedReminders, readReminders, taskRemindersSchema, locationPointFields, markdownSchema, optionalText, parseOptionalDay, reaches, readSlotCondition, slotConditionSchema, readTaskHours, taskHoursSchema, statusClosing, type TaskInput as SharedTaskInput, taskFieldsGiven, taskLabelSchema } from '@ordo/shared';
+import { changedList, copyName, sumOf, marksInherited, dateSchema, TASK_INHERITABLE_FIELDS, type EffectiveTask, type TaskInheritableField, deadTimesSchema, readDeadTimes, storedDeadTimes, effortSchema, groupBy, itemLinksSchema, normalizedReminders, readReminders, taskRemindersSchema, locationPointFields, markdownSchema, optionalText, parseOptionalDay, reaches, readSlotCondition, slotConditionSchema, readTaskHours, taskHoursSchema, type TaskCloseReason, type TaskInput as SharedTaskInput, taskFieldsGiven, taskLabelSchema } from '@ordo/shared';
 import { z } from 'zod';
 import { prisma } from '../../db';
 import { assertBeneficiaries } from '../core/beneficiaries';
@@ -22,27 +22,6 @@ import { storedLocation } from '../core/geo';
 import { assertConditionSchedules } from '../calendar/slot-conditions';
 import { adoptedTaskFields, changedTaskInheritance, clearedTaskData, effectiveTasks, freezeTaskInheritance, tasksOffParentProject } from './task-inheritance';
 import { automated, registerTaskAutomationWrites } from './task-automation-engine';
-
-/**
- * Closes or reopens tasks whose status changes: to a status « Annulé » closes them (those already closed
- * keep their date), out of one reopens them; the other categories leave them.
- * @param {readonly { id: string, statusId: string | null }[]} tasks Tasks, with their status before the change.
- * @param {string | null | undefined} statusId New status (undefined: unchanged).
- * @returns {Promise<void>}
- */
-async function closeOnStatus(tasks: readonly { id: string; statusId: string | null }[], statusId: string | null | undefined): Promise<void> {
-  if (statusId === undefined) return;
-  const changed = tasks.filter((task) => task.statusId !== statusId);
-  if (!changed.length) return;
-  const ids = [...new Set([statusId, ...changed.map((task) => task.statusId)].filter((id): id is string => id !== null))];
-  const categories = new Map((await prisma.taskStatus.findMany({ where: { id: { in: ids } }, select: { id: true, category: true } })).map((status) => [status.id, status.category]));
-  const categoryOf = (id: string | null) => (id ? (categories.get(id) ?? null) : null);
-  const effects = changed.map((task) => ({ id: task.id, effect: statusClosing(categoryOf(task.statusId), categoryOf(statusId)) }));
-  const close = effects.filter((item) => item.effect === 'close').map((item) => item.id);
-  const reopen = effects.filter((item) => item.effect === 'reopen').map((item) => item.id);
-  if (close.length) await prisma.task.updateMany({ where: { id: { in: close }, closedAt: null }, data: { closedAt: new Date() } });
-  if (reopen.length) await prisma.task.updateMany({ where: { id: { in: reopen } }, data: { closedAt: null } });
-}
 
 /**
  * Checks that a project exists and is active.
@@ -366,9 +345,7 @@ export const createTask = automated(async function createTask(given: TaskInput &
       projectResources: { connect: connectIds(projectResourceIds ?? []) },
     },
   });
-  // Created with a status « Annulé »: closed.
-  await closeOnStatus([{ id: task.id, statusId: null }], task.statusId);
-  return task.statusId ? prisma.task.findUniqueOrThrow({ where: { id: task.id } }) : task;
+  return task;
 });
 
 /**
@@ -434,11 +411,6 @@ export const updateTask = automated(async function updateTask(id: string, input:
   // Its project inherited again, or a new parent in another project of the tree: it moves to its parent's.
   if (inheritedFields.includes('PROJECT') && (await tasksOffParentProject([id])).length) {
     await followParentProjects([id]);
-    return prisma.task.findUniqueOrThrow({ where: { id } });
-  }
-  // To or out of a status « Annulé »: closed or reopened.
-  if (input.statusId !== undefined && input.statusId !== task.statusId) {
-    await closeOnStatus([task], input.statusId);
     return prisma.task.findUniqueOrThrow({ where: { id } });
   }
   return updated;
@@ -595,8 +567,6 @@ export const duplicateTask = automated(async function duplicateTask(id: string, 
   const projectOf = new Map((await prisma.task.findMany({ where: { id: { in: linked } }, select: { id: true, projectId: true } })).map((task) => [task.id, task.projectId]));
   const rootOf = await loadRootOf();
   const inTree = inProjectTree(rootOf, source.projectId, projectOf);
-  // A copy with a status « Annulé » is closed, as any task given one.
-  const cancelled = new Set((await prisma.taskStatus.findMany({ where: { category: 'CANCELLED' }, select: { id: true } })).map((status) => status.id));
 
   return prisma.$transaction(async (tx) => {
     let position = await nextPositionIn('task', {}, tx);
@@ -630,7 +600,6 @@ export const duplicateTask = automated(async function duplicateTask(id: string, 
           description: task.description,
           projectId: task.projectId,
           statusId: task.statusId,
-          closedAt: task.statusId && cancelled.has(task.statusId) ? new Date() : null,
           priorityId: task.priorityId,
           typeId: task.typeId,
           effort: task.effort,
@@ -833,26 +802,26 @@ export const moveTask = automated(async function moveTask(id: string, beforeId: 
 });
 
 /**
- * Closes (done) or reopens tasks (none archived, except for an undo). A closed task no longer blocks the tasks it blocks.
+ * Closes tasks as done or as cancelled, or reopens them (none archived, except for an undo). A closed task no longer
+ * blocks the tasks it blocks. Their status is left as it is (the rules of the workspace may change it).
  * @param {string[]} ids Task ids.
  * @param {boolean} closed Target state.
  * @param {boolean} [restoring] Undo of a former change, or a rule of the archiving of the tasks: tasks archived accepted. Optional. Default = false.
+ * @param {TaskCloseReason} [reason] How they are closed (done or cancelled); ignored when reopening. Optional. Default = 'COMPLETED'.
  * @returns {Promise<void>}
  */
-export const setTasksClosed = automated(async function setTasksClosed(ids: string[], closed: boolean, restoring: boolean = false): Promise<void> {
+export const setTasksClosed = automated(async function setTasksClosed(ids: string[], closed: boolean, restoring: boolean = false, reason: TaskCloseReason = 'COMPLETED'): Promise<void> {
   await assertTasks(ids);
   if (!restoring) await assertNoneArchived('task', ids);
-  // Reopened by hand, a cancelled task leaves « Annulé » for the first status « À faire » (none: no status).
-  // Closing by hand leaves the status as it is.
   if (!closed) {
-    const todo = await prisma.taskStatus.findFirst({ where: { category: 'TODO', archivedAt: null }, orderBy: BY_POSITION, select: { id: true } });
-    await prisma.task.updateMany({ where: { id: { in: ids }, status: { category: 'CANCELLED' } }, data: { statusId: todo?.id ?? null } });
+    await prisma.task.updateMany({ where: { id: { in: ids }, closedAt: { not: null } }, data: { closedAt: null, closeReason: null } });
+    return;
   }
-  await prisma.task.updateMany({
-    // Already closed tasks keep their closing date.
-    where: { id: { in: ids }, closedAt: closed ? null : { not: null } },
-    data: { closedAt: closed ? new Date() : null },
-  });
+  // Already closed tasks keep their closing date; closed again another way, they take the new reason.
+  await prisma.$transaction([
+    prisma.task.updateMany({ where: { id: { in: ids }, closedAt: null }, data: { closedAt: new Date(), closeReason: reason } }),
+    prisma.task.updateMany({ where: { id: { in: ids }, closedAt: { not: null }, OR: [{ closeReason: null }, { closeReason: { not: reason } }] }, data: { closeReason: reason } }),
+  ]);
 });
 
 interface BulkTaskChanges {
@@ -1027,8 +996,6 @@ export const bulkUpdateTasks = automated(async function bulkUpdateTasks(ids: str
   ]);
   // Their project inherited again: each moves to its parent's.
   if (changes.inheritFields?.includes('PROJECT')) await followParentProjects(ids);
-  // To or out of a status « Annulé »: closed or reopened.
-  await closeOnStatus(tasks, changes.statusId);
 });
 
 /**
@@ -1079,6 +1046,6 @@ export const bulkDeleteTasks = automated(async function bulkDeleteTasks(ids: str
 registerTaskAutomationWrites({
   bulkUpdate: (ids, changes, restoring) => bulkUpdateTasks(ids, changes, restoring),
   transfer: (ids, projectId) => bulkTransferTasks(ids, projectId),
-  setClosed: (ids, closed, restoring) => setTasksClosed(ids, closed, restoring),
+  setClosed: (ids, closed, restoring, reason) => setTasksClosed(ids, closed, restoring, reason),
   archive: (id, archived) => setTaskArchived(id, archived),
 });

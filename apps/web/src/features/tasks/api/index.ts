@@ -1,5 +1,5 @@
 import { tasksQueryKey, doableTasksKey } from '../../../lib/query-keys';
-import type { ContributorLinkValues, TaskBulkChanges, TaskInput, TaskWaitReason } from '@ordo/shared';
+import type { ContributorLinkValues, TaskBulkChanges, TaskCloseReason, TaskInput, TaskWaitReason } from '@ordo/shared';
 import { accountingQueryKey } from '../../accounting/api';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { moveToIndex, patchQuery, useInvalidatingMutation } from '../../../lib/mutation';
@@ -157,6 +157,7 @@ graphql(`
     trackedSeconds
     closed
     closedAt
+    closeReason
     githubLinked
     githubUrl
     githubNumber
@@ -545,20 +546,24 @@ export function useUpdateTask() {
 }
 
 const SetTasksClosedDocument = graphql(`
-  mutation SetTasksClosed($ids: [ID!]!, $closed: Boolean!) {
-    setTasksClosed(ids: $ids, closed: $closed)
+  mutation SetTasksClosed($ids: [ID!]!, $closed: Boolean!, $reason: TaskCloseReason) {
+    setTasksClosed(ids: $ids, closed: $closed, reason: $reason)
   }
 `);
 
 /**
- * Closes (done) or reopens tasks; the cached tasks change right away.
+ * Closes tasks as done (no reason) or as cancelled (`NOT_PLANNED`), or reopens them; the cached tasks change right away
+ * (a cancelled one struck through).
  * @returns {UseMutationResult} Mutation state.
  */
 export function useSetTasksClosed() {
-  return useInvalidatingMutation(async (variables: { ids: string[]; closed: boolean }) => (await execute(SetTasksClosedDocument, variables)).setTasksClosed, {
+  return useInvalidatingMutation(async (variables: { ids: string[]; closed: boolean; reason?: TaskCloseReason }) => (await execute(SetTasksClosedDocument, variables)).setTasksClosed, {
     invalidate: [tasksQueryKey],
-    optimistic: (queryClient, { ids, closed }) =>
-      patchQuery<TasksData>(queryClient, tasksQueryKey, (data) => ({ ...data, tasks: data.tasks.map((task) => (ids.includes(task.id) ? { ...task, closed } : task)) })),
+    optimistic: (queryClient, { ids, closed, reason = 'COMPLETED' }) =>
+      patchQuery<TasksData>(queryClient, tasksQueryKey, (data) => ({
+        ...data,
+        tasks: data.tasks.map((task) => (ids.includes(task.id) ? { ...task, closed, closeReason: closed ? reason : null, cancelled: closed && reason === 'NOT_PLANNED' } : task)),
+      })),
   });
 }
 

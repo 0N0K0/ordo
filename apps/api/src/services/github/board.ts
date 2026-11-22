@@ -1,4 +1,4 @@
-import { dayPart, REPOSITORY_FORMAT_ERROR } from '@ordo/shared';
+import { dayPart, REPOSITORY_FORMAT_ERROR, type TaskCloseReason } from '@ordo/shared';
 import { env } from '../../env';
 import { clientError, fieldError } from '../../graphql/errors';
 import { githubRequest, githubRestPost } from './client';
@@ -53,6 +53,8 @@ export interface RemoteItem {
   body: string;
   /** Issues only (a draft has no state). */
   closed: boolean | null;
+  /** How a closed issue was closed: done (COMPLETED), or not planned (NOT_PLANNED, a duplicate included); null while open. */
+  closeReason: TaskCloseReason | null;
   assignees: string[];
   /** Issues only: labels, repository, parent issue and comments. */
   labels: { id: string; name: string }[];
@@ -185,6 +187,7 @@ interface RawItem {
     title?: string;
     body?: string;
     state?: string;
+    stateReason?: string | null;
     url?: string;
     updatedAt?: string;
     assignees?: { nodes: { login: string }[] };
@@ -226,7 +229,7 @@ export async function boardItems(token: string, board: Board): Promise<RemoteIte
                 content {
                   __typename
                   ... on Issue {
-                    id number title body state url updatedAt
+                    id number title body state stateReason url updatedAt
                     assignees(first: 20) { nodes { login } }
                     labels(first: 50) { nodes { id name } }
                     repository { id }
@@ -294,6 +297,7 @@ export async function boardItems(token: string, board: Board): Promise<RemoteIte
         title: content.title ?? '',
         body: content.body ?? '',
         closed: content.__typename === 'Issue' ? content.state === 'CLOSED' : null,
+        closeReason: content.__typename === 'Issue' && content.state === 'CLOSED' ? (content.stateReason === 'NOT_PLANNED' || content.stateReason === 'DUPLICATE' ? 'NOT_PLANNED' : 'COMPLETED') : null,
         assignees: (content.assignees?.nodes ?? []).map((user) => user.login),
         labels: content.labels?.nodes ?? [],
         repositoryId: content.repository?.id ?? null,
@@ -410,7 +414,7 @@ export async function setIssueFieldValue(token: string, issueId: string, issueFi
  * @param {object} changes Changes (undefined: unchanged).
  * @param {string} [changes.title] Title. Optional.
  * @param {string} [changes.body] Body. Optional.
- * @param {boolean} [changes.closed] Closed (issues). Optional.
+ * @param {TaskCloseReason | false} [changes.closed] Closed as done or as not planned, or open (false) (issues). Optional.
  * @param {{ add: string[], remove: string[] }} [changes.assignees] Logins to add and remove. Optional.
  * @returns {Promise<void>}
  */
@@ -418,7 +422,7 @@ export async function updateContent(
   token: string,
   type: RemoteItem['type'],
   contentId: string,
-  changes: { title?: string; body?: string; closed?: boolean; assignees?: { add: string[]; remove: string[]; all: string[] } },
+  changes: { title?: string; body?: string; closed?: TaskCloseReason | false; assignees?: { add: string[]; remove: string[]; all: string[] } },
 ): Promise<void> {
   if (type === 'DRAFT_ISSUE') {
     if (changes.title === undefined && changes.body === undefined && !changes.assignees) return;
@@ -429,12 +433,19 @@ export async function updateContent(
     );
     return;
   }
-  if (changes.title !== undefined || changes.body !== undefined || changes.closed !== undefined) {
+  if (changes.title !== undefined || changes.body !== undefined || changes.closed === false) {
     await githubRequest(
       token,
       'mutation OrdoUpdateIssue($id: ID!, $title: String, $body: String, $state: IssueState) { updateIssue(input: { id: $id, title: $title, body: $body, state: $state }) { clientMutationId } }',
-      { id: contentId, title: changes.title, body: changes.body, state: changes.closed === undefined ? undefined : changes.closed ? 'CLOSED' : 'OPEN' },
+      { id: contentId, title: changes.title, body: changes.body, state: changes.closed === false ? 'OPEN' : undefined },
     );
+  }
+  // Closed with its reason (an issue already closed takes the new one).
+  if (changes.closed) {
+    await githubRequest(token, 'mutation OrdoCloseIssue($id: ID!, $reason: IssueClosedStateReason) { closeIssue(input: { issueId: $id, stateReason: $reason }) { clientMutationId } }', {
+      id: contentId,
+      reason: changes.closed,
+    });
   }
   if (changes.assignees?.add.length) {
     await githubRequest(token, 'mutation OrdoAddAssignees($id: ID!, $ids: [ID!]!) { addAssigneesToAssignable(input: { assignableId: $id, assigneeIds: $ids }) { clientMutationId } }', {

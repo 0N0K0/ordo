@@ -117,7 +117,7 @@ export async function seedPersonal({
   // Built, then created with its relations (their nested types are too deep for the factory's own create).
   const task = (projectId: string, label: string, status = todo, changes: Partial<Prisma.TaskUncheckedCreateInput> = {}) => {
     const data: Prisma.TaskUncheckedCreateInput = {
-      ...taskFactory.build({ projectId, label, statusId: status.id, closedAt: status === done || status === dropped ? faker.date.recent({ days: 20 }) : null }),
+      ...taskFactory.build({ projectId, label, statusId: status.id, closedAt: status === done || status === dropped ? faker.date.recent({ days: 20 }) : null, closeReason: status === dropped ? 'NOT_PLANNED' : status === done ? 'COMPLETED' : null }),
       assignees: {
         connect: faker.helpers
           .arrayElements(

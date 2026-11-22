@@ -1,4 +1,4 @@
-import { groupBy, readSlotCondition, readTaskHours, taskFieldsGiven, type TaskAutomationRevert, type TaskInheritableField } from '@ordo/shared';
+import { groupBy, readSlotCondition, readTaskHours, taskFieldsGiven, type TaskAutomationRevert, type TaskCloseReason, type TaskInheritableField } from '@ordo/shared';
 import { notifySuccess, notifyFailure } from '../../../lib/notify';
 import { originOf } from '../../../components/inheritance/inheritance';
 import { useBulkTaskMutations, useSetTasksClosed, useUpdateTask, type BulkChanges, type Task, type TaskInputValues } from '../api';
@@ -156,21 +156,20 @@ export function useBulkUndo() {
       ),
 
     /**
-     * Undo of a close / reopen: only the tasks whose state changed go back. A cancelled task reopened by hand took the
-     * first « À faire » status: its « Annulé » status comes back too, which closes it again.
+     * Undo of a close (as done or as cancelled) / reopen: only the tasks whose state changed go back as they were (open,
+     * closed as done, or cancelled).
      * @param {Task[]} tasks Tasks before the change.
      * @param {boolean} closed Applied state.
+     * @param {TaskCloseReason} [reason] How they were closed. Optional. Default = 'COMPLETED'.
      * @returns {() => void} Undo.
      */
-    closed: (tasks: Task[], closed: boolean) => () => {
-      const changed = tasks.filter((task) => task.closed !== closed);
-      const cancelled = closed ? [] : changed.filter((task) => task.cancelled);
-      const ids = changed.filter((task) => !cancelled.includes(task)).map((task) => task.id);
-      return run([
-        ...(ids.length ? [() => setClosed.mutateAsync({ ids, closed: !closed })] : []),
-        ...idsBy(cancelled, (task) => task.statusId).map(([statusId, statusIds]) => () => update.mutateAsync({ ids: statusIds, changes: { statusId }, restoring: true })),
-      ]);
-    },
+    closed:
+      (tasks: Task[], closed: boolean, reason: TaskCloseReason = 'COMPLETED') =>
+      () => {
+        const stateOf = (task: Task): TaskCloseReason | null => (task.closed ? (task.closeReason ?? 'COMPLETED') : null);
+        const changed = tasks.filter((task) => stateOf(task) !== (closed ? reason : null));
+        return run(idsBy(changed, stateOf).map(([was, ids]) => () => setClosed.mutateAsync({ ids, closed: was !== null, reason: was ?? undefined })));
+      },
 
     /**
      * Undo of an archive / restore: only the tasks whose state changed go back (with the usual cascade).
@@ -192,13 +191,13 @@ export function useBulkUndo() {
      */
     automation: (reverts: readonly TaskAutomationRevert[]) => () =>
       run(
-        reverts.flatMap(({ taskId, projectId, changes, closed, restore }) => {
+        reverts.flatMap(({ taskId, projectId, changes, closed, closeReason, restore }) => {
           const ids = [taskId];
           return [
             ...(restore ? [() => archive.mutateAsync({ ids, archived: false })] : []),
             ...(projectId !== undefined ? [() => transfer.mutateAsync({ ids, projectId })] : []),
             ...(Object.keys(changes).length ? [() => update.mutateAsync({ ids, changes, restoring: true })] : []),
-            ...(closed !== undefined ? [() => setClosed.mutateAsync({ ids, closed })] : []),
+            ...(closed !== undefined ? [() => setClosed.mutateAsync({ ids, closed, reason: closeReason })] : []),
           ];
         }),
       ),

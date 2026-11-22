@@ -248,7 +248,7 @@ export function TaskBoard({ projectId, projectIds, createProjectId, header, empt
           context={context}
           prefix={
             <>
-              <TaskStateIcon closed={task.closed} blocked={context.isBlocked(task)} />
+              <TaskStateIcon closed={task.closed} cancelled={task.cancelled} blocked={context.isBlocked(task)} />
               {task.githubLinked && (
                 <Tooltip label={task.githubNumber ? `Synchronisée avec l’issue GitHub #${task.githubNumber}` : 'Synchronisée avec un brouillon GitHub'}>
                   <GithubLogoIcon aria-label="GitHub" className={classes.recurring} />

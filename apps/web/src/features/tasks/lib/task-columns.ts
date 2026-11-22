@@ -11,6 +11,8 @@ import {
   TASK_COLUMNS,
   TASK_STATUS_CATEGORIES,
   TASK_STATUS_CATEGORY_LABELS,
+  TASK_CLOSE_REASON_LABELS,
+  TASK_CLOSE_REASONS,
   type TaskColumn,
   type FilterGroupOf,
   type TableViewConfig,
@@ -367,6 +369,16 @@ export function taskColumns(context: TaskContext, today: string, extras: TaskCol
         return category ? STATUS_CATEGORY_LABELS[category] : '';
       },
       filter: { kind: 'choice', value: (row) => (row.kind === 'task' ? categoryOf(row.task) : null), options: STATUS_CATEGORY_ORDER.map((value) => ({ value, label: STATUS_CATEGORY_LABELS[value] })) },
+    },
+    // How a closed task was closed: done or cancelled (empty while open).
+    {
+      id: 'closeReason',
+      label: 'Fermeture',
+      size: 120,
+      hiddenByDefault: true,
+      sortValue: (row) => (row.kind === 'task' && row.task.closeReason ? TASK_CLOSE_REASONS.indexOf(row.task.closeReason) : null),
+      text: (row) => (row.kind === 'task' && row.task.closeReason ? TASK_CLOSE_REASON_LABELS[row.task.closeReason] : ''),
+      filter: { kind: 'choice', value: (row) => (row.kind === 'task' ? row.task.closeReason : null), options: TASK_CLOSE_REASONS.map((value) => ({ value, label: TASK_CLOSE_REASON_LABELS[value] })) },
     },
   ];
 }

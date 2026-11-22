@@ -684,7 +684,13 @@ model Contributor {
   @@unique([workspaceId, userId])
 }
 
-/// Fixed meaning of a task status, whatever its name: drives "open", "overdue" and progress.
+/// How a task was closed, as the state reason of a GitHub issue: done or cancelled (« non prévue »).
+enum TaskCloseReason {
+  COMPLETED
+  NOT_PLANNED
+}
+
+/// Fixed meaning of a task status, whatever its name: a classification (filters, tasks « en cours »); it neither closes nor reopens tasks.
 enum TaskStatusCategory {
   TODO
   IN_PROGRESS
@@ -842,8 +848,10 @@ model Task {
   inheritedFields      String[]           @default([])
   /// Global manual order.
   position             Int                @default(0)
-  /// Closed (done) task: it no longer blocks, is never overdue and counts as done. Independent of the status.
+  /// Closed task: it no longer blocks, is never overdue and counts as done. Independent of the status.
   closedAt             DateTime?
+  /// How it was closed: done (COMPLETED) or cancelled (NOT_PLANNED, struck through); none while open.
+  closeReason          TaskCloseReason?
   archivedAt           DateTime?
   /// Archived along with its parent task: restoring the parent restores it.
   archivedByCascade    Boolean            @default(false)
